@@ -28,8 +28,8 @@
   src: url("./assets/fonts/dm-mono-500.woff2") format("woff2");
 }
 
-/* Design tokens ported from the legacy app/globals.css (Recova),
-   read via Capsid (DrDustinEdwards/recova), per DESIGN.md. Concrete
+/* Design tokens ported from the legacy pre-rebuild app's globals.css,
+   read via Capsid, per DESIGN.md. Concrete
    hex values live only in :root and :root[data-theme='light']; every
    other surface reads var(--*) or the Tailwind utilities below. */
 @theme inline {
