@@ -1,0 +1,88 @@
+import { SEND_MAX_ATTEMPTS, SEND_RETRY_BACKOFF_MINUTES } from "~/lib/constants";
+
+// The recovery_steps send-attempt state machine (SCHEMA.md: attempt_count,
+// last_attempt_error, next_retry_at folded into the design). A transient send
+// failure keeps the step UNEXECUTED and reschedules it with backoff, up to
+// SEND_MAX_ATTEMPTS, then it goes terminal. A permanent failure is terminal
+// immediately. Pure, so the state logic is proven without a live send.
+
+const MIN_MS = 60_000;
+
+/** The columns a state transition sets on a recovery_steps row. */
+export interface StepStatePatch {
+  attemptCount: number;
+  lastAttemptError: string | null;
+  nextRetryAt: Date | null;
+  executedAt: Date | null;
+  result: string | null;
+}
+
+/**
+ * Next state after a TRANSIENT send failure (retryable). Increments the attempt
+ * count; if attempts are exhausted the step is terminal (`email_failed`),
+ * otherwise it is left unexecuted with next_retry_at set from the backoff table
+ * (last value repeats).
+ */
+export function afterTransientFailure(
+  attemptCount: number,
+  error: string,
+  now: Date,
+): StepStatePatch {
+  const newCount = attemptCount + 1;
+  if (newCount >= SEND_MAX_ATTEMPTS) {
+    return {
+      attemptCount: newCount,
+      lastAttemptError: error,
+      nextRetryAt: null,
+      executedAt: now,
+      result: "email_failed",
+    };
+  }
+  const idx = Math.min(newCount - 1, SEND_RETRY_BACKOFF_MINUTES.length - 1);
+  const backoffMin = SEND_RETRY_BACKOFF_MINUTES[idx];
+  return {
+    attemptCount: newCount,
+    lastAttemptError: error,
+    nextRetryAt: new Date(now.getTime() + backoffMin * MIN_MS),
+    executedAt: null,
+    result: null,
+  };
+}
+
+/** Next state after a PERMANENT send failure: terminal immediately. */
+export function afterPermanentFailure(
+  attemptCount: number,
+  error: string,
+  now: Date,
+): StepStatePatch {
+  return {
+    attemptCount: attemptCount + 1,
+    lastAttemptError: error,
+    nextRetryAt: null,
+    executedAt: now,
+    result: "email_failed",
+  };
+}
+
+// ---- Retry-step (Stripe invoices.pay) result classification ----
+
+export type RetryResult =
+  | "retry_succeeded"
+  | "retry_card_declined"
+  | "retry_error"
+  | "retry_failed";
+
+/** Classify a completed invoices.pay call by the resulting invoice status. */
+export function classifyRetryStatus(invoiceStatus: string | null | undefined): RetryResult {
+  return invoiceStatus === "paid" ? "retry_succeeded" : "retry_failed";
+}
+
+/** Classify a thrown Stripe error: card errors are declines, others are errors. */
+export function classifyRetryError(err: unknown): RetryResult {
+  const type = (err as { type?: string } | null)?.type;
+  return type === "StripeCardError" ? "retry_card_declined" : "retry_error";
+}
+
+export function isRetrySucceeded(result: RetryResult): boolean {
+  return result === "retry_succeeded";
+}
