@@ -16,4 +16,18 @@ interface Env {
   // Admin allowlist (C4). Comma-separated emails granted the admin role.
   // Access-control sensitive -> secret, not a committed var. Unset => no admins.
   ADMIN_EMAIL?: string;
+
+  // ---- Phase 4a: Stripe Connect + token encryption ----
+  // AES-256-GCM key for encrypting connected-account Stripe tokens at rest.
+  // 64 hex chars (32 bytes). Decrypted tokens are NEVER logged.
+  ENCRYPTION_KEY?: string;
+  // Foxhound's Stripe platform secret key (test key on staging). Used for the
+  // Connect OAuth token exchange, account retrieve, and webhook constructEvent.
+  STRIPE_SECRET_KEY?: string;
+  // Stripe Connect OAuth client id (ca_...). Public-ish but kept ambient.
+  STRIPE_CLIENT_ID?: string;
+  // Webhook signing secrets (consumed in Phase 4c; declared here so the sig
+  // helper types cleanly). Connected-account endpoint + platform endpoint.
+  STRIPE_WEBHOOK_SECRET?: string;
+  STRIPE_PLATFORM_WEBHOOK_SECRET?: string;
 }

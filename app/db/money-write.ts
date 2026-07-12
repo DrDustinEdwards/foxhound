@@ -23,8 +23,9 @@ export interface MoneyWrite {
 }
 
 /**
- * Executes a money write as one atomic, per-account-serialized batch.
- * Phase 4 implements this by routing through the per-account Durable Object;
- * until then it is a type contract only.
+ * Executes a money write as one atomic, per-account-serialized batch, routed
+ * through the per-account money-write Durable Object. Implemented in Phase 4a as
+ * `executeMoneyWrite` (app/lib/money/execute.ts); resolves to whether the batch
+ * was newly applied (false = idempotent no-op).
  */
-export type MoneyWriteExecutor = (write: MoneyWrite) => Promise<void>;
+export type MoneyWriteExecutor = (write: MoneyWrite) => Promise<{ applied: boolean }>;

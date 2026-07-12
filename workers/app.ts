@@ -3,6 +3,9 @@ import { createRequestHandler, RouterContextProvider } from "react-router";
 
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
+// Durable Objects exported from the worker entry so wrangler can bind them.
+export { MoneyWriteDurableObject } from "./money-writer";
+
 const requestHandler = createRequestHandler(
   () => import("virtual:react-router/server-build"),
   import.meta.env.MODE,
