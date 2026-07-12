@@ -13,12 +13,17 @@ import dmSansVariable from "./assets/fonts/dm-sans-variable.woff2?url";
 import dmMono400 from "./assets/fonts/dm-mono-400.woff2?url";
 import dmMono500 from "./assets/fonts/dm-mono-500.woff2?url";
 
+export function meta() {
+  return [{ title: "Foxhound" }];
+}
+
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" data-theme="dark">
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <link rel="preload" href={dmSansVariable} as="font" type="font/woff2" crossOrigin="anonymous" />
         <link rel="preload" href={dmMono400} as="font" type="font/woff2" crossOrigin="anonymous" />
         <link rel="preload" href={dmMono500} as="font" type="font/woff2" crossOrigin="anonymous" />
