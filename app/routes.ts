@@ -37,7 +37,7 @@ export default [
     route("forgot-password", "./routes/auth/forgot-password.tsx"),
     route("reset-password", "./routes/auth/reset-password.tsx"),
     route("connect", "./routes/auth/connect.tsx"),
-    route("connect/callback", "./routes/auth/connect-callback.tsx"),
+    route("connect/callback", "./routes/auth/connect-callback.ts"),
     route("invite/:token", "./routes/auth/invite.tsx"),
 
     // Google OAuth start (POST): builds the provider URL + CSRF state cookie.

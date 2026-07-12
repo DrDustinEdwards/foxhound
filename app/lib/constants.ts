@@ -54,3 +54,19 @@ export type BillingLineItemType = (typeof BILLING_LINE_ITEM_TYPES)[number];
 
 export const ENGAGEMENT_EVENT_TYPES = ["open", "click"] as const;
 export type EngagementEventType = (typeof ENGAGEMENT_EVENT_TYPES)[number];
+
+// ---- Stripe (ARCHITECTURE.md: Stripe is the product; permanent dependency) ----
+/**
+ * Pinned Stripe API version. Matches the installed `stripe` package's default
+ * (esm/apiVersion). Pinning here removes dependence on the Stripe account's
+ * dashboard default so behavior is reproducible (non-negotiable #6).
+ */
+export const STRIPE_API_VERSION = "2026-06-24.dahlia";
+/** Stripe Connect OAuth authorize endpoint. */
+export const STRIPE_CONNECT_AUTHORIZE_URL = "https://connect.stripe.com/oauth/authorize";
+/** Connect OAuth scope (read_write, legacy parity). */
+export const STRIPE_CONNECT_SCOPE = "read_write";
+/** CSRF state cookie name for the Connect OAuth flow. */
+export const STRIPE_OAUTH_STATE_COOKIE = "stripe_oauth_state";
+/** Connect OAuth state cookie lifetime: 10 minutes (legacy parity). */
+export const STRIPE_OAUTH_STATE_TTL_SECONDS = 600;
