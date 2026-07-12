@@ -9,15 +9,11 @@
     "typecheck": "wrangler types && react-router typegen && tsc --noEmit",
     "test": "vitest run",
     "lint": "eslint .",
-    "build:staging": "cross-env CLOUDFLARE_ENV=staging react-router build",
-    "build:production": "cross-env CLOUDFLARE_ENV=production react-router build",
-    "deploy:staging": "npm run build:staging && wrangler deploy --env staging",
-    "deploy:production": "npm run build:production && wrangler deploy --env production",
+    "deploy": "npm run build && wrangler deploy",
     "cf-typegen": "wrangler types",
     "auth:generate": "better-auth generate --config app/lib/auth/generate.config.ts --output app/db/auth-schema.ts --yes",
     "db:generate": "drizzle-kit generate",
-    "db:migrate:staging": "wrangler d1 migrations apply foxhound-staging --env staging --remote",
-    "db:migrate:production": "wrangler d1 migrations apply foxhound-production --env production --remote"
+    "db:migrate": "wrangler d1 migrations apply foxhound-staging --remote"
   },
   "dependencies": {
     "@sentry/cloudflare": "^10.65.0",

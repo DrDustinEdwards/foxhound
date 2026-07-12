@@ -11,88 +11,48 @@
     "enabled": true
   },
 
+  // Single environment. Worker "foxhound" at foxhound.dustin-edwards.workers.dev.
+  // The D1 keeps its original name "foxhound-staging" (a dashboard label only;
+  // renaming a D1 is not worth it) and the KV keeps id 8ff187... - bindings and
+  // data are unchanged from the previous two-env setup.
+  //
   // Filled in future phases per ARCHITECTURE.md:
-  // "queues": { "producers": [...], "consumers": [...] }  -- email dispatch + email event consumption (Phase 4)
-  // "durable_objects": { "bindings": [...] }               -- money-write serializer, webhook claim, cron mutex (Phase 2/4)
-  // "send_email" / EMAIL binding                            -- Cloudflare Email Service (Phase 4)
+  // "queues": { "producers": [...], "consumers": [...] }  -- email dispatch + event consumption (Phase 4c)
+  // "send_email" / EMAIL binding                            -- Cloudflare Email Service (Phase 4c)
 
-  "env": {
-    "staging": {
-      "name": "foxhound-staging",
-      "vars": {
-        // Canonical origin for Better Auth callbacks/redirects (C1). Non-secret.
-        "BETTER_AUTH_URL": "https://foxhound-staging.dustin-edwards.workers.dev"
-      },
-      "d1_databases": [
-        {
-          "binding": "DB",
-          "database_name": "foxhound-staging",
-          "database_id": "4aa23f57-244e-4e24-850c-66486e7ba92d",
-          "migrations_dir": "drizzle/migrations"
-        }
-      ],
-      "kv_namespaces": [
-        {
-          // dashboard title: foxhound-app-kv-staging
-          "binding": "APP_KV",
-          "id": "8ff1871236394486bd5aac4b408a4253"
-        }
-      ],
-      "durable_objects": {
-        "bindings": [
-          {
-            // Per-account money-write serializer (Phase 4a). SQLite-backed.
-            "name": "MONEY_WRITER",
-            "class_name": "MoneyWriteDurableObject"
-          }
-        ]
-      },
-      "migrations": [
-        {
-          "tag": "v1",
-          "new_sqlite_classes": ["MoneyWriteDurableObject"]
-        }
-      ]
-    },
-    "production": {
-      "name": "foxhound-production",
-      "vars": {
-        // Set to https://app.foxhoundapp.com when Dustin flips DNS; until then
-        // the production Worker is only on workers.dev.
-        "BETTER_AUTH_URL": "https://foxhound-production.dustin-edwards.workers.dev"
-      },
-      "d1_databases": [
-        {
-          "binding": "DB",
-          "database_name": "foxhound-production",
-          "database_id": "ae406c63-ede5-4031-b5fc-2e821565ac19",
-          "migrations_dir": "drizzle/migrations"
-        }
-      ],
-      "kv_namespaces": [
-        {
-          // dashboard title: foxhound-app-kv-production
-          "binding": "APP_KV",
-          "id": "f06114e093904f5c8ca20e76eb1edda8"
-        }
-      ],
-      "durable_objects": {
-        "bindings": [
-          {
-            // Per-account money-write serializer (Phase 4a). SQLite-backed.
-            "name": "MONEY_WRITER",
-            "class_name": "MoneyWriteDurableObject"
-          }
-        ]
-      },
-      "migrations": [
-        {
-          "tag": "v1",
-          "new_sqlite_classes": ["MoneyWriteDurableObject"]
-        }
-      ]
-      // Attach when Dustin flips DNS:
-      // "routes": [{ "pattern": "app.foxhoundapp.com/*", "custom_domain": true }]
+  "vars": {
+    // Canonical origin for Better Auth callbacks/redirects and the Stripe Connect
+    // redirect URI. Non-secret.
+    "BETTER_AUTH_URL": "https://foxhound.dustin-edwards.workers.dev"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "foxhound-staging",
+      "database_id": "4aa23f57-244e-4e24-850c-66486e7ba92d",
+      "migrations_dir": "drizzle/migrations"
     }
-  }
+  ],
+  "kv_namespaces": [
+    {
+      // dashboard title: foxhound-app-kv-staging
+      "binding": "APP_KV",
+      "id": "8ff1871236394486bd5aac4b408a4253"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        // Per-account money-write serializer (Phase 4a). SQLite-backed.
+        "name": "MONEY_WRITER",
+        "class_name": "MoneyWriteDurableObject"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["MoneyWriteDurableObject"]
+    }
+  ]
 }
