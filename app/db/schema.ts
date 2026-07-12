@@ -49,6 +49,8 @@ export const accounts = sqliteTable("accounts", {
   onboardingCompleted: bool("onboarding_completed"),
   createdAt: ts("created_at"),
   mrrEstimateCents: integer("mrr_estimate_cents"),
+  // merchant home currency for mrr_estimate_cents / merchant_mrr_self_reported
+  currency: text("currency"),
   merchantIndustry: text("merchant_industry"),
   primaryCustomerType: text("primary_customer_type"),
   merchantMrrSelfReported: integer("merchant_mrr_self_reported"),
@@ -357,7 +359,10 @@ export const winBackSteps = sqliteTable(
     lastAttemptError: text("last_attempt_error"),
     nextRetryAt: ts("next_retry_at"),
   },
-  (t) => [index("win_back_steps_sequence_idx").on(t.winBackSequenceId)],
+  (t) => [
+    index("win_back_steps_sequence_idx").on(t.winBackSequenceId),
+    index("win_back_steps_account_idx").on(t.accountId),
+  ],
 );
 
 // ============================================================================
@@ -606,6 +611,8 @@ export const customerContext = sqliteTable(
     lastSeenAt: ts("last_seen_at"),
     mrrContributionCents: integer("mrr_contribution_cents"),
     ltvCents: integer("ltv_cents"),
+    // currency for mrr_contribution_cents / ltv_cents
+    currency: text("currency"),
     activeSubscriptionsCount: integer("active_subscriptions_count"),
     currentPlanName: text("current_plan_name"),
     currentPlanTier: text("current_plan_tier"),

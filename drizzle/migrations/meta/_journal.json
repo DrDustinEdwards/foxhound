@@ -8,6 +8,13 @@
       "when": 1783868997618,
       "tag": "0000_init_foxhound_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1783873440653,
+      "tag": "0001_hardening_win_back_index_and_currency",
+      "breakpoints": true
     }
   ]
 }

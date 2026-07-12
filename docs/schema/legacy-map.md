@@ -134,6 +134,29 @@ All other cross-table references (`account_id`, `stripe_connection_id`, `failed_
 
 None of the above forces a money-field or id-field type change, and no CHECK is applied to any legacy-valued column, so no discrepancy trips the task's hard-STOP triggers.
 
+### Post-review hardening (migration 0001)
+
+A fresh-context review of the Phase 2 output found two structural gaps, fixed
+additively in `0001_hardening_win_back_index_and_currency` (staging + production):
+
+- **win_back_steps missing its account index.** Every tenant table carries
+  `account_id` + an index; win_back_steps had the column but not the index. ADD
+  `win_back_steps_account_idx` on `account_id`.
+- **Three money columns missing their paired currency.** The money convention (a
+  `currency` column in every row holding cents) was unmet on `accounts` (MRR
+  estimate) and `customer_context` (LTV). ADD `currency text` to `accounts` and
+  `customer_context`. (Analytics rollup money columns whose currency is implied by
+  the owning account are left as-is; these two hold per-row money that scores
+  directly.)
+
+Migration 0001 is purely additive (two `ALTER TABLE ADD COLUMN`, one
+`CREATE INDEX`); no data rewrite, no backfill. Verified present on staging.
+
+**Tenant-data demo confirmation.** Dustin confirmed all legacy tenant data is
+demo-only, not real merchant data. This ratifies the transform scope: only the
+content/reference KEEP tables are migrated; every tenant table is re-seeded in a
+later phase rather than transformed. No real-merchant data exists to migrate.
+
 ## Transform results (C5, staging import)
 
 Scope per Dustin's C5 direction: the content/reference KEEP tables that hold real

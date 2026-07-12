@@ -46,8 +46,11 @@ npm run db:migrate:staging      # wrangler d1 migrations apply foxhound-staging 
 npm run db:migrate:production   # wrangler d1 migrations apply foxhound-production --env production --remote
 ```
 
-Both databases carry identical structure (49 tables, 58 named indexes). Production
-is structure-only; it takes no data until the Phase 9 cutover.
+Both databases carry identical structure (49 tables, 59 named indexes). Production
+is structure-only; it takes no data until the Phase 9 cutover. Migration `0001`
+(post-review hardening) adds the win_back_steps account index and `currency`
+columns to `accounts` and `customer_context`; it is purely additive (see
+legacy-map.md).
 
 Verified on apply: all tables/indexes present; CHECK constraints reject bad values
 (`engagement_events_type_ck`); the billing line-item unique keys reject a second
