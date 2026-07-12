@@ -133,3 +133,30 @@ All other cross-table references (`account_id`, `stripe_connection_id`, `failed_
 10. **Timestamps type change (all tables).** Legacy `timestamp with time zone` -> D1 `integer` epoch ms. This is the mandated D1 design (SCHEMA.md), applied uniformly, not a discrepancy. Transform converts.
 
 None of the above forces a money-field or id-field type change, and no CHECK is applied to any legacy-valued column, so no discrepancy trips the task's hard-STOP triggers.
+
+## Transform results (C5, staging import)
+
+Scope per Dustin's C5 direction: the content/reference KEEP tables that hold real
+(non-demo) data. All tenant tables hold demo data only and are re-seeded later, not
+migrated. `blog_post_links` (225 rows) and `blog_post_versions` (14 rows) are
+KEEP-eligible but out of this transform's scope per the named set; add in a later pass.
+
+Row-count parity and per-table checksums (stable scalar subset, sha256/16, computed
+identically on both sides), verified against staging D1. Idempotent: a second
+consecutive run left every D1 checksum byte-identical.
+
+| Table | Source rows | D1 rows | Checksum (both) | Match |
+|---|---|---|---|---|
+| benchmark_data | 0 | 0 | e3b0c44298fc1c14 | OK |
+| blog_posts | 45 | 45 | 67ade6705759ebd5 | OK |
+| social_config | 3 | 3 | 08ec71dc4e93da0a | OK |
+| social_keywords | 10 | 10 | dca72ad597b204e3 | OK |
+| social_leads | 25 | 25 | 59315ccddd874ee2 | OK |
+| social_posts | 14 | 14 | 200c434479722d82 | OK |
+| social_topic_log | 5 | 5 | c4f3d1b27ca8ee62 | OK |
+| social_blocklist | 11 | 11 | af6fbc91112addf5 | OK |
+
+Total: 113 rows imported. No FK references nulled. Excluded by rule (not migrated):
+page_404s rows, oauth_* rows, competitor_monitors, demo-account tenant data,
+Resend-specific columns (dropped in the redesigned email tables). Production D1 has
+the same structure with zero imported rows.
