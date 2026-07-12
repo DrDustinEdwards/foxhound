@@ -29,3 +29,15 @@ export {
 } from "./account";
 export { authContext, type AuthContext } from "./context";
 export { appShellMiddleware, adminOnlyMiddleware } from "./guards";
+export {
+  MCP_TOKEN_SCOPE,
+  MCP_TOKEN_PREFIX,
+  hashMcpToken,
+  issueMcpToken,
+  verifyMcpToken,
+  revokeMcpToken,
+  type McpTokenScope,
+  type IssuedMcpToken,
+  type VerifiedMcpToken,
+  type IssueMcpTokenInput,
+} from "./mcp-tokens";
