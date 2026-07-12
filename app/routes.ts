@@ -110,4 +110,10 @@ export default [
 
   // Auth callback (resource route, no shell)
   route("auth/google/callback", "./routes/auth/google-callback.ts"),
+
+  // Better Auth HTTP surface (sign-in/up/out, verify, reset, OAuth callbacks).
+  route("api/auth/*", "./routes/api/auth.ts"),
+
+  // Logout (action-only resource route; clears the session, redirects to /login)
+  route("logout", "./routes/auth/logout.ts"),
 ] satisfies RouteConfig;

@@ -1,0 +1,112 @@
+import { Link } from "react-router";
+
+// Shared building blocks for the auth screens (login, signup, forgot/reset
+// password). Marketing layout already renders the Foxhound wordmark header, so
+// these compose the centered card beneath it. Styling uses the DESIGN.md token
+// utilities (amber CTA discipline, DM Mono labels); no inline styles.
+
+export function AuthShell({
+  title,
+  subtitle,
+  children,
+  footer,
+}: {
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+  footer?: React.ReactNode;
+}) {
+  return (
+    <main className="mx-auto flex w-full max-w-sm flex-col gap-6 px-4 py-16">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-title font-medium text-text">{title}</h1>
+        {subtitle ? (
+          <p className="text-label text-text-tertiary">{subtitle}</p>
+        ) : null}
+      </div>
+      {children}
+      {footer ? (
+        <p className="text-label text-text-tertiary">{footer}</p>
+      ) : null}
+    </main>
+  );
+}
+
+export function Field({
+  label,
+  name,
+  type = "text",
+  autoComplete,
+  required = true,
+  defaultValue,
+}: {
+  label: string;
+  name: string;
+  type?: string;
+  autoComplete?: string;
+  required?: boolean;
+  defaultValue?: string;
+}) {
+  return (
+    <label className="flex flex-col gap-1.5">
+      <span className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
+        {label}
+      </span>
+      <input
+        className="rounded-md border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-text-subtle focus-visible:border-amber"
+        name={name}
+        type={type}
+        autoComplete={autoComplete}
+        required={required}
+        defaultValue={defaultValue}
+      />
+    </label>
+  );
+}
+
+export function Submit({
+  children,
+  disabled,
+}: {
+  children: React.ReactNode;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="submit"
+      disabled={disabled}
+      className="rounded-md bg-amber px-4 py-2 text-body font-medium text-on-amber disabled:opacity-60"
+    >
+      {children}
+    </button>
+  );
+}
+
+export function Alert({
+  tone,
+  children,
+}: {
+  tone: "error" | "success";
+  children: React.ReactNode;
+}) {
+  const cls =
+    tone === "error"
+      ? "border-red bg-red-bg text-error-text"
+      : "border-green bg-green-bg text-success-text";
+  return (
+    <p
+      role={tone === "error" ? "alert" : "status"}
+      className={`rounded-md border px-3 py-2 text-label ${cls}`}
+    >
+      {children}
+    </p>
+  );
+}
+
+export function AuthLink({ to, children }: { to: string; children: React.ReactNode }) {
+  return (
+    <Link to={to} className="text-amber underline-offset-2 hover:underline">
+      {children}
+    </Link>
+  );
+}

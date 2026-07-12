@@ -1,5 +1,61 @@
-import { RouteStub } from "~/components/route-stub";
+import { data, Form, redirect, useActionData, useNavigation } from "react-router";
 
-export default function Page() {
-  return <RouteStub name="/login" />;
+import { AuthShell, Field, Submit, Alert, AuthLink } from "~/components/auth-ui";
+import { getAuth } from "~/lib/auth";
+import { authErrorMessage, forwardSetCookie } from "~/lib/auth/http";
+import { cloudflareContext } from "~/lib/cloudflare-context";
+
+import type { Route } from "./+types/login";
+
+export function meta() {
+  return [{ title: "Sign in - Foxhound" }];
+}
+
+export async function action({ request, context }: Route.ActionArgs) {
+  const { env } = context.get(cloudflareContext);
+  const form = await request.formData();
+  const email = String(form.get("email") ?? "");
+  const password = String(form.get("password") ?? "");
+
+  const res = await getAuth(env).api.signInEmail({
+    body: { email, password },
+    headers: request.headers,
+    asResponse: true,
+  });
+
+  if (res.ok) {
+    return redirect("/dashboard", { headers: forwardSetCookie(res) });
+  }
+  return data(
+    { error: await authErrorMessage(res, "Invalid email or password.") },
+    { status: 400 },
+  );
+}
+
+export default function Login() {
+  const actionData = useActionData<typeof action>();
+  const busy = useNavigation().state !== "idle";
+
+  return (
+    <AuthShell
+      title="Sign in"
+      subtitle="Welcome back to Foxhound."
+      footer={<>No account? <AuthLink to="/signup">Create one</AuthLink></>}
+    >
+      <Form method="post" className="flex flex-col gap-4">
+        {actionData?.error ? <Alert tone="error">{actionData.error}</Alert> : null}
+        <Field label="Email" name="email" type="email" autoComplete="email" />
+        <Field
+          label="Password"
+          name="password"
+          type="password"
+          autoComplete="current-password"
+        />
+        <div className="flex items-center justify-between">
+          <AuthLink to="/forgot-password">Forgot password?</AuthLink>
+          <Submit disabled={busy}>{busy ? "Signing in..." : "Sign in"}</Submit>
+        </div>
+      </Form>
+    </AuthShell>
+  );
 }

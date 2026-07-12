@@ -1,4 +1,8 @@
 import type { BetterAuthOptions } from "better-auth";
+import { APIError } from "better-auth/api";
+
+import { isDisposableEmail } from "./disposable-emails";
+import { sendAuthEmail } from "./send-auth-email";
 
 // Database-agnostic Better Auth options shared by the runtime factory
 // (auth.server.ts, which injects the D1-backed Drizzle adapter and env-gated
@@ -23,14 +27,35 @@ export const authOptions = {
     enabled: true,
     // Email deliverability + the real send path are Phase 4 (thin send module
     // on the EMAIL binding). Phase 3 keeps verification required and routes the
-    // actual send through a seam (auth.server.ts) that logs the link on staging.
+    // actual send through the send-auth-email seam that logs the link on staging.
     requireEmailVerification: true,
     minPasswordLength: MIN_PASSWORD_LENGTH,
     autoSignIn: false,
+    sendResetPassword: async ({ user, url }) => {
+      await sendAuthEmail("password-reset", user.email, url);
+    },
   },
   emailVerification: {
     sendOnSignUp: true,
     autoSignInAfterVerification: false,
+    sendVerificationEmail: async ({ user, url }) => {
+      await sendAuthEmail("email-verification", user.email, url);
+    },
+  },
+  databaseHooks: {
+    user: {
+      create: {
+        // Disposable-email blocklist at account creation (legacy rule). Applies
+        // to every path that mints a user (email/password and OAuth).
+        before: async (user) => {
+          if (isDisposableEmail(user.email)) {
+            throw new APIError("BAD_REQUEST", {
+              message: "Disposable email addresses are not allowed.",
+            });
+          }
+        },
+      },
+    },
   },
   session: {
     // Sessions live in the D1 session table (strong consistency -> immediate
