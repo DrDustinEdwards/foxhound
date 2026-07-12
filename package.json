@@ -13,10 +13,12 @@
     "build:production": "cross-env CLOUDFLARE_ENV=production react-router build",
     "deploy:staging": "npm run build:staging && wrangler deploy --env staging",
     "deploy:production": "npm run build:production && wrangler deploy --env production",
-    "cf-typegen": "wrangler types"
+    "cf-typegen": "wrangler types",
+    "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
     "@sentry/cloudflare": "^10.65.0",
+    "drizzle-orm": "^0.45.2",
     "isbot": "^5",
     "react": "19.2.7",
     "react-dom": "19.2.7",
@@ -31,6 +33,7 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "cross-env": "^10.1.0",
+    "drizzle-kit": "^0.31.10",
     "eslint": "^9.20.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.7.0",
