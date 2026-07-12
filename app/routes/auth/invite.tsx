@@ -41,7 +41,9 @@ export async function action({ request, params, context }: Route.ActionArgs) {
   const message =
     result.reason === "email_mismatch"
       ? "This invite is for a different email address."
-      : "This invite is invalid or has expired.";
+      : result.reason === "already_member"
+        ? "You already belong to an account. Leave it before joining another."
+        : "This invite is invalid or has expired.";
   return data({ error: message }, { status: 400 });
 }
 

@@ -36,6 +36,11 @@ export async function resolveMembership(
         eq(accountMembers.status, MEMBER_STATUS.ACTIVE),
       ),
     )
+    // Deterministic resolution: the earliest active membership wins, so a user
+    // with more than one active row always resolves to the same account (the
+    // single-account invariant is enforced below, but ordering makes resolution
+    // stable regardless). createdAt then id as a stable tiebreaker.
+    .orderBy(accountMembers.createdAt, accountMembers.id)
     .limit(1);
   return rows[0] ?? null;
 }
@@ -129,12 +134,16 @@ export async function createInvite(
 
 export type AcceptInviteResult =
   | { ok: true; accountId: string }
-  | { ok: false; reason: "invalid" | "email_mismatch" };
+  | { ok: false; reason: "invalid" | "email_mismatch" | "already_member" };
 
 /**
  * Accept a pending invite for the signed-in user. The invited email must match
  * the accepting user's email (invite is not transferable). Activates the member
  * row and clears the token.
+ *
+ * Single-account invariant: a user who already has an active account cannot
+ * accept a second invite (that would give them two active memberships and make
+ * account resolution ambiguous). Rejected with `already_member`.
  */
 export async function acceptInvite(
   db: Db,
@@ -150,6 +159,10 @@ export async function acceptInvite(
   ) {
     return { ok: false, reason: "email_mismatch" };
   }
+
+  // Enforce the single-account invariant before activating the membership.
+  const existing = await resolveMembership(db, userId);
+  if (existing) return { ok: false, reason: "already_member" };
 
   await db
     .update(accountMembers)
