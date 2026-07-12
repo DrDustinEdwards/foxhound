@@ -1,0 +1,57 @@
+import { betterAuth } from "better-auth";
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
+
+import { getDb } from "~/db/client";
+import * as authSchema from "~/db/auth-schema";
+
+import { authOptions } from "./options";
+
+// Runtime Better Auth factory. Built per-request from the Cloudflare `env` so it
+// binds the D1-backed Drizzle adapter (binding `DB`) and only enables social
+// providers whose secrets are present. The CLI schema generator uses a separate
+// static instance (generate.config.ts); this file is the one application code
+// imports.
+//
+// Env inputs (see env.d.ts / docs/auth/README.md):
+//   BETTER_AUTH_SECRET   secret  - signing key (required in real environments)
+//   BETTER_AUTH_URL      var     - canonical origin for callbacks/redirects
+//   GOOGLE_CLIENT_ID     var     - enables Google OAuth when paired with secret
+//   GOOGLE_CLIENT_SECRET secret  - Google OAuth (C3); provider gated on presence
+
+function buildAuth(env: Env) {
+  const db = getDb(env);
+
+  // Google provider is wired only when both halves of the credential exist, so
+  // the app runs identically with or without a configured dev client (C3).
+  const googleId = env.GOOGLE_CLIENT_ID;
+  const googleSecret = env.GOOGLE_CLIENT_SECRET;
+  const socialProviders =
+    googleId && googleSecret
+      ? { google: { clientId: googleId, clientSecret: googleSecret } }
+      : undefined;
+
+  return betterAuth({
+    ...authOptions,
+    baseURL: env.BETTER_AUTH_URL,
+    secret: env.BETTER_AUTH_SECRET,
+    database: drizzleAdapter(db, { provider: "sqlite", schema: authSchema }),
+    ...(socialProviders ? { socialProviders } : {}),
+  });
+}
+
+// The concrete Better Auth instance type, inferred from the factory so it
+// carries our exact options (adapter, providers) rather than the widened default.
+export type Auth = ReturnType<typeof buildAuth>;
+
+// One instance per env object. Workers reuse the same `env` across a request, so
+// this memoizes within an isolate without leaking between environments.
+const cache = new WeakMap<Env, Auth>();
+
+export function getAuth(env: Env): Auth {
+  let auth = cache.get(env);
+  if (!auth) {
+    auth = buildAuth(env);
+    cache.set(env, auth);
+  }
+  return auth;
+}

@@ -19,6 +19,10 @@
   "env": {
     "staging": {
       "name": "foxhound-staging",
+      "vars": {
+        // Canonical origin for Better Auth callbacks/redirects (C1). Non-secret.
+        "BETTER_AUTH_URL": "https://foxhound-staging.dustin-edwards.workers.dev"
+      },
       "d1_databases": [
         {
           "binding": "DB",
@@ -37,6 +41,11 @@
     },
     "production": {
       "name": "foxhound-production",
+      "vars": {
+        // Set to https://app.foxhoundapp.com when Dustin flips DNS; until then
+        // the production Worker is only on workers.dev.
+        "BETTER_AUTH_URL": "https://foxhound-production.dustin-edwards.workers.dev"
+      },
       "d1_databases": [
         {
           "binding": "DB",

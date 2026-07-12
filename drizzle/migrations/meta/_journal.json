@@ -15,6 +15,13 @@
       "when": 1783873440653,
       "tag": "0001_hardening_win_back_index_and_currency",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1783877282535,
+      "tag": "0002_famous_reaper",
+      "breakpoints": true
     }
   ]
 }
