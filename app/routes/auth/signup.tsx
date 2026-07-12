@@ -1,6 +1,13 @@
 import { data, Form, useActionData, useNavigation } from "react-router";
 
-import { AuthShell, Field, Submit, Alert, AuthLink } from "~/components/auth-ui";
+import {
+  AuthShell,
+  Field,
+  Submit,
+  Alert,
+  AuthLink,
+  GoogleButton,
+} from "~/components/auth-ui";
 import { getAuth } from "~/lib/auth";
 import { authErrorMessage } from "~/lib/auth/http";
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -9,6 +16,11 @@ import type { Route } from "./+types/signup";
 
 export function meta() {
   return [{ title: "Create account - Foxhound" }];
+}
+
+export function loader({ context }: Route.LoaderArgs) {
+  const { env } = context.get(cloudflareContext);
+  return { googleEnabled: Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) };
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
@@ -41,7 +53,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   );
 }
 
-export default function Signup() {
+export default function Signup({ loaderData }: Route.ComponentProps) {
   const actionData = useActionData<typeof action>();
   const busy = useNavigation().state !== "idle";
 
@@ -77,6 +89,7 @@ export default function Signup() {
         />
         <Submit disabled={busy}>{busy ? "Creating..." : "Create account"}</Submit>
       </Form>
+      {loaderData.googleEnabled ? <GoogleButton label="Sign up with Google" /> : null}
     </AuthShell>
   );
 }

@@ -39,6 +39,10 @@ export default [
     route("connect", "./routes/auth/connect.tsx"),
     route("connect/callback", "./routes/auth/connect-callback.tsx"),
     route("invite/:token", "./routes/auth/invite.tsx"),
+
+    // Google OAuth start (POST): builds the provider URL + CSRF state cookie.
+    // The callback is the resource route auth/google/callback below.
+    route("auth/google", "./routes/auth/google-start.ts"),
   ]),
 
   layout("./layouts/app-shell.tsx", [

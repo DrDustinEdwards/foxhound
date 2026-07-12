@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+import { Form, Link } from "react-router";
 
 // Shared building blocks for the auth screens (login, signup, forgot/reset
 // password). Marketing layout already renders the Foxhound wordmark header, so
@@ -100,6 +100,29 @@ export function Alert({
     >
       {children}
     </p>
+  );
+}
+
+// "Continue with Google" -> posts to the /auth/google start route. Rendered only
+// when the server reports the provider is configured (googleEnabled loader flag),
+// so the Google path is invisible rather than broken when no client is set.
+export function GoogleButton({ label }: { label: string }) {
+  return (
+    <>
+      <div className="flex items-center gap-3 text-micro text-text-subtle">
+        <span className="h-px flex-1 bg-border" />
+        or
+        <span className="h-px flex-1 bg-border" />
+      </div>
+      <Form method="post" action="/auth/google">
+        <button
+          type="submit"
+          className="w-full rounded-md border border-border bg-surface px-4 py-2 text-body text-text hover:border-border-i"
+        >
+          {label}
+        </button>
+      </Form>
+    </>
   );
 }
 

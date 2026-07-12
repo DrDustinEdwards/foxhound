@@ -1,6 +1,13 @@
 import { data, Form, redirect, useActionData, useNavigation } from "react-router";
 
-import { AuthShell, Field, Submit, Alert, AuthLink } from "~/components/auth-ui";
+import {
+  AuthShell,
+  Field,
+  Submit,
+  Alert,
+  AuthLink,
+  GoogleButton,
+} from "~/components/auth-ui";
 import { getAuth } from "~/lib/auth";
 import { authErrorMessage, forwardSetCookie } from "~/lib/auth/http";
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -9,6 +16,11 @@ import type { Route } from "./+types/login";
 
 export function meta() {
   return [{ title: "Sign in - Foxhound" }];
+}
+
+export function loader({ context }: Route.LoaderArgs) {
+  const { env } = context.get(cloudflareContext);
+  return { googleEnabled: Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) };
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
@@ -32,7 +44,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   );
 }
 
-export default function Login() {
+export default function Login({ loaderData }: Route.ComponentProps) {
   const actionData = useActionData<typeof action>();
   const busy = useNavigation().state !== "idle";
 
@@ -56,6 +68,7 @@ export default function Login() {
           <Submit disabled={busy}>{busy ? "Signing in..." : "Sign in"}</Submit>
         </div>
       </Form>
+      {loaderData.googleEnabled ? <GoogleButton label="Continue with Google" /> : null}
     </AuthShell>
   );
 }

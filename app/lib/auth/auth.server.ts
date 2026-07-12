@@ -27,7 +27,21 @@ function buildAuth(env: Env) {
   const googleSecret = env.GOOGLE_CLIENT_SECRET;
   const socialProviders =
     googleId && googleSecret
-      ? { google: { clientId: googleId, clientSecret: googleSecret } }
+      ? {
+          google: {
+            clientId: googleId,
+            clientSecret: googleSecret,
+            // Pin the callback to the canonical ROUTES.md path (/auth/google/
+            // callback) instead of Better Auth's default /api/auth/callback/
+            // google. That route forwards into the Better Auth handler, so the
+            // redirect_uri sent to Google, the token exchange, and the CSRF
+            // state cookie validation all agree. This is the URI Dustin
+            // registers on the Google OAuth client.
+            redirectURI: env.BETTER_AUTH_URL
+              ? `${env.BETTER_AUTH_URL}/auth/google/callback`
+              : undefined,
+          },
+        }
       : undefined;
 
   return betterAuth({
