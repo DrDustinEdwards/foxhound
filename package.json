@@ -9,8 +9,10 @@
     "typecheck": "wrangler types && react-router typegen && tsc --noEmit",
     "test": "vitest run",
     "lint": "eslint .",
-    "deploy:staging": "npm run build && wrangler deploy --env staging",
-    "deploy:production": "npm run build && wrangler deploy --env production",
+    "build:staging": "cross-env CLOUDFLARE_ENV=staging react-router build",
+    "build:production": "cross-env CLOUDFLARE_ENV=production react-router build",
+    "deploy:staging": "npm run build:staging && wrangler deploy --env staging",
+    "deploy:production": "npm run build:production && wrangler deploy --env production",
     "cf-typegen": "wrangler types"
   },
   "dependencies": {
@@ -27,6 +29,7 @@
     "@types/node": "^26.1.1",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
+    "cross-env": "^10.1.0",
     "eslint": "^9.20.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.7.0",

@@ -9,5 +9,47 @@
   },
   "observability": {
     "enabled": true
+  },
+
+  // Filled in future phases per ARCHITECTURE.md:
+  // "queues": { "producers": [...], "consumers": [...] }  -- email dispatch + email event consumption (Phase 4)
+  // "durable_objects": { "bindings": [...] }               -- money-write serializer, webhook claim, cron mutex (Phase 2/4)
+  // "send_email" / EMAIL binding                            -- Cloudflare Email Service (Phase 4)
+
+  "env": {
+    "staging": {
+      "name": "foxhound-staging",
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "foxhound-staging",
+          "database_id": "4aa23f57-244e-4e24-850c-66486e7ba92d"
+        }
+      ],
+      "kv_namespaces": [
+        {
+          "binding": "APP_KV",
+          "id": "8ff1871236394486bd5aac4b408a4253"
+        }
+      ]
+    },
+    "production": {
+      "name": "foxhound-production",
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "foxhound-production",
+          "database_id": "ae406c63-ede5-4031-b5fc-2e821565ac19"
+        }
+      ],
+      "kv_namespaces": [
+        {
+          "binding": "APP_KV",
+          "id": "f06114e093904f5c8ca20e76eb1edda8"
+        }
+      ]
+      // Attach when Dustin flips DNS:
+      // "routes": [{ "pattern": "app.foxhoundapp.com/*", "custom_domain": true }]
+    }
   }
 }
