@@ -28,6 +28,7 @@
       ],
       "kv_namespaces": [
         {
+          // dashboard title: foxhound-app-kv-staging
           "binding": "APP_KV",
           "id": "8ff1871236394486bd5aac4b408a4253"
         }
@@ -44,6 +45,7 @@
       ],
       "kv_namespaces": [
         {
+          // dashboard title: foxhound-app-kv-production
           "binding": "APP_KV",
           "id": "f06114e093904f5c8ca20e76eb1edda8"
         }
