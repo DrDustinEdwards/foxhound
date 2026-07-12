@@ -170,3 +170,6 @@ dist
 /build/
 /.react-router/
 worker-configuration.d.ts
+
+# transform artifacts (reproducible; may embed legacy content)
+scripts/out/
