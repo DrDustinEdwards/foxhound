@@ -27,3 +27,5 @@ export {
   type InviteView,
   type AcceptInviteResult,
 } from "./account";
+export { authContext, type AuthContext } from "./context";
+export { appShellMiddleware, adminOnlyMiddleware } from "./guards";

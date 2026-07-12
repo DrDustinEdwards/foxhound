@@ -1,14 +1,8 @@
-import { data, Form, redirect, useNavigation } from "react-router";
+import { data, Form, useNavigation } from "react-router";
 
 import { Field, Submit, Alert } from "~/components/auth-ui";
 import { getDb } from "~/db";
-import {
-  createInvite,
-  getSession,
-  listMembers,
-  MEMBER_ROLE,
-  resolveMembership,
-} from "~/lib/auth";
+import { authContext, createInvite, listMembers, MEMBER_ROLE } from "~/lib/auth";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import type { Route } from "./+types/team";
@@ -19,17 +13,12 @@ export function meta() {
 
 // Minimal team surface: list members and create invites. Phase 5 owns the full
 // settings UI; Phase 3 seeds the invite-creation path so the invite flow is
-// exercisable end to end. Self-resolves session + account (middleware in C5 adds
-// the redirect guard on top; this stays correct either way).
-export async function loader({ request, context }: Route.LoaderArgs) {
+// exercisable end to end. Session + account are guaranteed by the app-shell
+// middleware; read them from authContext.
+export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
-  const session = await getSession(env, request);
-  if (!session) throw redirect("/login");
-  const db = getDb(env);
-  const membership = await resolveMembership(db, session.user.id);
-  if (!membership) throw redirect("/connect");
-
-  const members = await listMembers(db, membership.accountId);
+  const { membership } = context.get(authContext);
+  const members = await listMembers(getDb(env), membership.accountId);
   return {
     accountName: membership.accountName,
     isOwner: membership.role === MEMBER_ROLE.OWNER,
@@ -39,11 +28,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
 export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
-  const session = await getSession(env, request);
-  if (!session) throw redirect("/login");
+  const { membership } = context.get(authContext);
   const db = getDb(env);
-  const membership = await resolveMembership(db, session.user.id);
-  if (!membership) throw redirect("/connect");
 
   // Only owners invite teammates.
   if (membership.role !== MEMBER_ROLE.OWNER) {

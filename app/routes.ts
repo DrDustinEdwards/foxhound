@@ -78,23 +78,27 @@ export default [
     route("help", "./routes/app/help.tsx"),
     route("welcome", "./routes/app/welcome.tsx"),
 
-    // Admin (role-guarded; reuses the app shell, no distinct admin shell in ROUTES.md)
-    ...prefix("admin", [
-      index("./routes/admin/index.tsx"),
-      ...prefix("merchants", [
-        index("./routes/admin/merchants/index.tsx"),
-        route(":id", "./routes/admin/merchants/detail.tsx"),
+    // Admin (role-guarded; reuses the app shell, no distinct admin shell in
+    // ROUTES.md). The pathless admin-guard layout adds the admin-role middleware
+    // (404 for non-admins) without changing the URL structure or the shell.
+    layout("./layouts/admin-guard.tsx", [
+      ...prefix("admin", [
+        index("./routes/admin/index.tsx"),
+        ...prefix("merchants", [
+          index("./routes/admin/merchants/index.tsx"),
+          route(":id", "./routes/admin/merchants/detail.tsx"),
+        ]),
+        route("users", "./routes/admin/users.tsx"),
+        route("operations", "./routes/admin/operations.tsx"),
+        route("crons", "./routes/admin/crons.tsx"),
+        route("webhooks", "./routes/admin/webhooks.tsx"),
+        ...prefix("blog", [
+          index("./routes/admin/blog/index.tsx"),
+          route(":id", "./routes/admin/blog/detail.tsx"),
+        ]),
+        route("social", "./routes/admin/social.tsx"),
+        route("audit-log", "./routes/admin/audit-log.tsx"),
       ]),
-      route("users", "./routes/admin/users.tsx"),
-      route("operations", "./routes/admin/operations.tsx"),
-      route("crons", "./routes/admin/crons.tsx"),
-      route("webhooks", "./routes/admin/webhooks.tsx"),
-      ...prefix("blog", [
-        index("./routes/admin/blog/index.tsx"),
-        route(":id", "./routes/admin/blog/detail.tsx"),
-      ]),
-      route("social", "./routes/admin/social.tsx"),
-      route("audit-log", "./routes/admin/audit-log.tsx"),
     ]),
   ]),
 
