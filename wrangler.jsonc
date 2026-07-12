@@ -23,7 +23,8 @@
         {
           "binding": "DB",
           "database_name": "foxhound-staging",
-          "database_id": "4aa23f57-244e-4e24-850c-66486e7ba92d"
+          "database_id": "4aa23f57-244e-4e24-850c-66486e7ba92d",
+          "migrations_dir": "drizzle/migrations"
         }
       ],
       "kv_namespaces": [
@@ -40,7 +41,8 @@
         {
           "binding": "DB",
           "database_name": "foxhound-production",
-          "database_id": "ae406c63-ede5-4031-b5fc-2e821565ac19"
+          "database_id": "ae406c63-ede5-4031-b5fc-2e821565ac19",
+          "migrations_dir": "drizzle/migrations"
         }
       ],
       "kv_namespaces": [
