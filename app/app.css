@@ -1,1 +1,212 @@
 @import "tailwindcss";
+
+/* Self-hosted fonts. No Google Fonts request at runtime; files vendored
+   into app/assets/fonts/. DM Sans ships as a single variable-weight
+   woff2 (Google serves one file across the weight range to
+   variable-font-capable clients); DM Mono is static per weight. */
+@font-face {
+  font-family: "DM Sans";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("./assets/fonts/dm-sans-variable.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "DM Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./assets/fonts/dm-mono-400.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "DM Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("./assets/fonts/dm-mono-500.woff2") format("woff2");
+}
+
+/* Design tokens ported from the legacy app/globals.css (Recova),
+   read via Capsid (DrDustinEdwards/recova), per DESIGN.md. Concrete
+   hex values live only in :root and :root[data-theme='light']; every
+   other surface reads var(--*) or the Tailwind utilities below. */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface2: var(--surface2);
+  --color-border: var(--border);
+  --color-border-sub: var(--border-sub);
+  --color-border-i: var(--border-i);
+  --color-text: var(--text);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+  --color-text-subtle: var(--text-subtle);
+  --color-wordmark: var(--wordmark);
+  --color-amber: var(--amber);
+  --color-amber-light: var(--amber-light);
+  --color-amber-dark: var(--amber-dark);
+  --color-amber-bg: var(--amber-bg);
+  --color-amber-text: var(--amber-text);
+  --color-amber-border-interactive: var(--amber-border-interactive);
+  --color-on-amber: var(--text-on-amber);
+  --color-chrome: var(--chrome);
+  --color-chrome-text: var(--chrome-text);
+  --color-chrome-text-secondary: var(--chrome-text-secondary);
+  --color-chrome-text-tertiary: var(--chrome-text-tertiary);
+  --color-green: var(--green);
+  --color-green-bg: var(--green-bg);
+  --color-success-text: var(--success-text);
+  --color-red: var(--red);
+  --color-red-dark: var(--red-dark);
+  --color-red-bg: var(--red-bg);
+  --color-error-text: var(--error-text);
+  --color-orange: var(--orange);
+  --color-orange-bg: var(--orange-bg);
+  --color-warning-text: var(--warning-text);
+  --color-blue: var(--blue);
+  --color-blue-bg: var(--blue-bg);
+  --color-cobalt-text: var(--cobalt-text);
+  --color-cobalt-bg: var(--cobalt-bg);
+  --color-purple: var(--purple);
+  --color-purple-bg: var(--purple-bg);
+  --font-sans: var(--font-dm-sans);
+  --font-mono: var(--font-dm-mono);
+
+  /* Semantic type scale. */
+  --text-display: 1.75rem;
+  --text-title: 1.25rem;
+  --text-body: 1rem;
+  --text-label: 0.8125rem;
+  --text-micro: 0.6875rem;
+}
+
+:root,
+:root[data-theme="dark"] {
+  --font-dm-sans: "DM Sans", sans-serif;
+  --font-dm-mono: "DM Mono", monospace;
+
+  --bg: #111210;
+  --surface: #181917;
+  --surface2: #171815;
+  --border: #2a2b28;
+  --border-sub: #222321;
+  --border-i: #65695d;
+  --text: #e5e8e2;
+  --text-secondary: #cbcec8;
+  --text-tertiary: #acafa9;
+  --text-subtle: #828781;
+  --wordmark: #f5f5f3;
+  --amber: #f0b429;
+  --amber-light: #ffd166;
+  --amber-dark: #d4941a;
+  --amber-bg: #1e1600;
+  --amber-bg2: #1f1a0a;
+  --amber-text: #f0b429;
+  --amber-border-interactive: #826217;
+  --text-on-amber: #0d0e0c;
+  --border-focus: #f0b429;
+  --chrome: #1a1c18;
+  --chrome-text: #f0ede8;
+  --chrome-text-secondary: #a8a49e;
+  --chrome-text-tertiary: #928d87;
+  --green: #22c55e;
+  --green-bg: #0b1c12;
+  --success-text: #3ecf8e;
+  --red: #ef4444;
+  --red-dark: #dc2626;
+  --red-bg: #1f0a0a;
+  --error-text: #db5757;
+  --orange: #f97316;
+  --orange-bg: #1d0c01;
+  --warning-text: #f97316;
+  --blue: #3b9eff;
+  --blue-bg: #0a1929;
+  --cobalt-text: #6c93ef;
+  --purple: #a78bfa;
+  --purple-bg: #0f091f;
+
+  --cobalt-bg: #0f1d3d;
+  --cobalt-ui: #6c93ef;
+  --warning: var(--orange);
+  --warning-bg: var(--orange-bg);
+  --error: var(--red);
+  --error-bg: var(--red-bg);
+  --bg-surface: var(--surface);
+  --border-strong: var(--border-i);
+  --border-default: var(--border);
+  --amber-ui: var(--amber);
+  --gradient-brand: linear-gradient(135deg, var(--amber-light), var(--amber-dark));
+}
+
+/* Light theme plumbing. Full visual design pass deferred; values ported
+   verbatim from legacy so the data-theme toggle has a working target. */
+:root[data-theme="light"] {
+  --bg: #f7f6f2;
+  --surface: #ffffff;
+  --surface2: #f3f1eb;
+  --border: #d9d7d1;
+  --border-sub: #e6e4de;
+  --border-i: #899178;
+  --text: #181917;
+  --text-secondary: #2f312d;
+  --text-tertiary: #595c56;
+  --text-subtle: #6e706c;
+  --wordmark: #181917;
+  --amber: #f0b429;
+  --amber-light: #d4941a;
+  --amber-dark: #d4941a;
+  --amber-text: #8a5c06;
+  --amber-border-interactive: #b2861f;
+  --text-on-amber: #0d0e0c;
+  --border-focus: #b5820d;
+  --amber-bg: #fff5d6;
+  --amber-bg2: #faecbf;
+  --green: #1a7a4a;
+  --green-bg: #e2f5e9;
+  --success-text: #1a7a4a;
+  --red: #c92020;
+  --red-dark: #a01313;
+  --red-bg: #fbe4e4;
+  --error-text: #b83232;
+  --orange: #c45c00;
+  --orange-bg: #fbe7d4;
+  --warning-text: #7a5c00;
+  --blue: #1865bf;
+  --blue-bg: #e5f0fa;
+  --cobalt-text: #0d3fb5;
+  --purple: #6d4ed0;
+  --purple-bg: #ece6ff;
+
+  --cobalt-bg: #e5edff;
+  --cobalt-ui: #0d3fb5;
+  --warning: var(--orange);
+  --warning-bg: var(--orange-bg);
+  --error: var(--red);
+  --error-bg: var(--red-bg);
+  --bg-surface: var(--surface);
+  --border-strong: var(--border-i);
+  --border-default: var(--border);
+  --amber-ui: var(--amber);
+  --gradient-brand: linear-gradient(135deg, var(--amber-light), var(--amber-dark));
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-dm-sans), Arial, sans-serif;
+}
+
+*:focus {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+*:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
