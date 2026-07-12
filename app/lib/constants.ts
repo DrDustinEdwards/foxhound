@@ -55,6 +55,45 @@ export type BillingLineItemType = (typeof BILLING_LINE_ITEM_TYPES)[number];
 export const ENGAGEMENT_EVENT_TYPES = ["open", "click"] as const;
 export type EngagementEventType = (typeof ENGAGEMENT_EVENT_TYPES)[number];
 
+// ---- AI models (ARCHITECTURE.md: Sonnet generates, Haiku scores) ----
+// One place holds every model id. Phase 4e owns the ai_calls cost map that must
+// cover each id here (closes legacy R-49 drift); Phase 4b uses generation only.
+/** Recovery / dunning copy generation. */
+export const MODEL_RECOVERY_EMAIL = "claude-sonnet-5";
+/** Cheap quality/scoring gate on generated copy. */
+export const MODEL_EMAIL_QUALITY = "claude-haiku-4-5-20251001";
+
+// ---- Recovery step timing (hours from failure detection) ----
+// Rebuild ordering is SILENT-FIRST (PRICING.md): for retryable declines a silent
+// Foxhound retry precedes the first customer-facing email, so we never dun a
+// customer a payment we could have quietly recovered. Every dunning email also
+// carries the hosted card-update link (/p/:token), so the card-updater is a
+// passive channel on every email rather than a separate step.
+export const STEP_TIMING_RETRY_EARLY_HOURS = 4;
+export const STEP_TIMING_RETRY_4HR_HOURS = 4;
+export const STEP_TIMING_EMAIL_DAY1_HOURS = 24;
+export const STEP_TIMING_RETRY_DAY2_HOURS = 48;
+export const STEP_TIMING_EMAIL_DAY3_HOURS = 72;
+export const STEP_TIMING_EMAIL_DAY7_HOURS = 168;
+export const STEP_TIMING_EMAIL_DAY14_HOURS = 336;
+export const STEP_TIMING_RETRY_DAY21_HOURS = 504;
+export const STEP_TIMING_EMAIL_DAY30_HOURS = 720;
+export const STEP_TIMING_FRAUD_EMAIL_DAY1_HOURS = 2;
+
+// ---- Win-back timing (hours from cancellation) ----
+export const WINBACK_STEP1_HOURS = 24;
+export const WINBACK_STEP2_HOURS = 72;
+export const WINBACK_STEP3_HOURS = 168;
+
+// ---- Send-attempt retry (transient send failures; SCHEMA.md recovery_steps state) ----
+export const SEND_MAX_ATTEMPTS = 3;
+/** Backoff minutes indexed by (attempt_count - 1); last value repeats. */
+export const SEND_RETRY_BACKOFF_MINUTES = [5, 30, 120] as const;
+
+// ---- Decline classification (rebuild is silent-first; fraud never retries) ----
+export const DECLINE_CATEGORIES = ["soft", "network", "expired", "fraud"] as const;
+export type DeclineCategory = (typeof DECLINE_CATEGORIES)[number];
+
 // ---- Stripe (ARCHITECTURE.md: Stripe is the product; permanent dependency) ----
 /**
  * Pinned Stripe API version. Matches the installed `stripe` package's default
