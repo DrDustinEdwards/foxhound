@@ -222,6 +222,13 @@ export const failedPayments = sqliteTable(
   (t) => [
     index("failed_payments_account_idx").on(t.accountId),
     index("failed_payments_invoice_idx").on(t.stripeInvoiceId),
+    // At most one ACTIVE failed_payment per invoice (one recovery sequence per
+    // invoice; the invoice.payment_succeeded webhook flips it to 'recovered').
+    // Makes intake dedupe structural; the read-guard in webhooks/process.ts stays
+    // as a fast path, this is the backstop against a concurrent double-intake.
+    uniqueIndex("failed_payments_active_invoice_uq")
+      .on(t.stripeInvoiceId)
+      .where(sql`${t.status} = 'active'`),
   ],
 );
 
@@ -425,7 +432,10 @@ export const emailSuppressions = sqliteTable(
   },
   (t) => [
     index("email_suppressions_account_idx").on(t.accountId),
-    index("email_suppressions_email_idx").on(t.email),
+    // Suppression is one row per address (hard bounce / complaint / opt-out kills
+    // the address platform-wide). Structural idempotency for the bounce consumer:
+    // a redelivered event collapses via onConflictDoNothing on this unique index.
+    uniqueIndex("email_suppressions_email_uq").on(t.email),
   ],
 );
 

@@ -1,14 +1,12 @@
-import { eq } from "drizzle-orm";
-
 import type { Db } from "~/db";
 import { getDb, emailSuppressions } from "~/db";
 
 // Bounce/complaint handling. Email Service delivery events are consumed off a
 // Queue; hard bounces and spam complaints add the recipient to email_suppressions
-// so the suppression gate (send.ts path) never sends to them again. Idempotent:
-// one suppression per address (read-guarded, since email_suppressions has no
-// unique index yet; a unique index on email would make this structural, flagged
-// for a schema follow-up).
+// so the suppression gate (send.ts path) never sends to them again. Idempotent by
+// construction: one suppression per address is enforced by the unique index
+// email_suppressions_email_uq (migration 0003), so a redelivered bounce event
+// collapses via onConflictDoNothing rather than a read-then-write race.
 
 export interface EmailServiceEvent {
   /** Event kind from Email Service (bounce, complaint, delivered, ...). */
@@ -27,18 +25,22 @@ export function shouldSuppress(event: EmailServiceEvent): boolean {
   return SUPPRESSING_TYPES.has(event.type) && !!event.email;
 }
 
-/** The email_suppressions insert for a suppressing event. */
+/** The email_suppressions insert for a suppressing event. Structurally idempotent:
+ *  a duplicate address is a no-op via the unique index (email_suppressions_email_uq). */
 export function buildSuppressionInsert(
   db: Db,
   input: { email: string; token: string; reason: string; accountId: string | null; now: Date },
 ) {
-  return db.insert(emailSuppressions).values({
-    email: input.email,
-    token: input.token,
-    reason: input.reason,
-    accountId: input.accountId,
-    suppressedAt: input.now,
-  });
+  return db
+    .insert(emailSuppressions)
+    .values({
+      email: input.email,
+      token: input.token,
+      reason: input.reason,
+      accountId: input.accountId,
+      suppressedAt: input.now,
+    })
+    .onConflictDoNothing({ target: emailSuppressions.email });
 }
 
 /** Process one Email Service event into a suppression, idempotently. */
@@ -48,12 +50,6 @@ export async function processEmailEvent(
 ): Promise<"suppressed" | "ignored"> {
   if (!shouldSuppress(event)) return "ignored";
   const db = getDb(env);
-  const existing = await db
-    .select({ id: emailSuppressions.id })
-    .from(emailSuppressions)
-    .where(eq(emailSuppressions.email, event.email))
-    .limit(1);
-  if (existing.length > 0) return "ignored";
   await buildSuppressionInsert(db, {
     email: event.email,
     token: event.eventId,
