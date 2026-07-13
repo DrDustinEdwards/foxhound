@@ -127,6 +127,28 @@ export const EMAIL_QUEUE_MAX_RETRIES = 3;
 export const EMAIL_QUEUE_NAME = "foxhound-email";
 export const EMAIL_EVENTS_QUEUE_NAME = "foxhound-email-events";
 
+// ---- Cron Triggers + retention (ARCHITECTURE.md: all scheduled jobs are Cron
+// Triggers; retention crons live before any table they govern takes writes) ----
+export const DAY_MS = 24 * 60 * 60 * 1000;
+/** Max time a single run may hold a per-cron DO lock before the lease lapses. */
+export const CRON_LOCK_LEASE_MS = 5 * 60 * 1000;
+/** Cron schedules (UTC). MUST match wrangler.jsonc triggers.crons exactly. */
+export const CRON_SCHEDULE_DAILY = "0 3 * * *"; // 03:00 UTC, retention sweeps
+export const CRON_SCHEDULE_MONTHLY = "0 4 1 * *"; // 04:00 UTC on the 1st, billing run
+/** Retention windows (ARCHITECTURE.md retention table). Raw rows older than the
+ *  window are swept; ai_calls aggregates to monthly before delete. */
+export const RETENTION_ENGAGEMENT_DAYS = 180;
+export const RETENTION_EMAIL_SENDS_DAYS = 180;
+export const RETENTION_WEBHOOK_EVENTS_DAYS = 90;
+export const RETENTION_HEALTH_SCORE_DAYS = 90;
+export const RETENTION_CRON_HISTORY_DAYS = 90;
+export const RETENTION_AI_CALLS_DAYS = 90;
+export const RETENTION_SOCIAL_LEADS_DAYS = 180;
+export const RETENTION_PAGE_404_DAILY_DAYS = 365;
+/** Max raw rows a single retention tick sweeps per table (keeps a tick bounded;
+ *  a large backlog drains over successive ticks). */
+export const RETENTION_SWEEP_LIMIT = 5_000;
+
 // ---- Stripe (ARCHITECTURE.md: Stripe is the product; permanent dependency) ----
 /**
  * Pinned Stripe API version. Matches the installed `stripe` package's default
