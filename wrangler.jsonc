@@ -64,5 +64,14 @@
       "tag": "v2",
       "new_sqlite_classes": ["CronLockDurableObject"]
     }
-  ]
+  ],
+
+  // All scheduled jobs are Cron Triggers (ARCHITECTURE.md; no HTTP cron surface,
+  // no CRON_SECRET). scheduled() dispatches by controller.cron to the registered
+  // jobs (app/lib/cron/registry.ts); each is gated by cron_config + a per-cron DO
+  // lock and logs to cron_run_history. These schedules MUST match the
+  // CRON_SCHEDULE_* constants (0 3 * * * daily retention, 0 4 1 * * monthly billing).
+  "triggers": {
+    "crons": ["0 3 * * *", "0 4 1 * *"]
+  }
 }

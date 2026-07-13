@@ -2,6 +2,8 @@ import { withSentry } from "@sentry/cloudflare";
 import { createRequestHandler, RouterContextProvider } from "react-router";
 
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { jobsForSchedule } from "~/lib/cron/registry";
+import { runCronJob } from "~/lib/cron/run";
 import { handleQueueBatch } from "~/lib/queue/consumer";
 
 // Durable Objects exported from the worker entry so wrangler can bind them.
@@ -26,6 +28,15 @@ export default withSentry<Env>(
     // provisions the queues + Email Service).
     async queue(batch, env) {
       await handleQueueBatch(batch, env);
+    },
+    // Cron Triggers (Phase 4e). Dispatch every registered job on the fired
+    // schedule; each runs through runCronJob (config + interval + DO-lock gates,
+    // cron_run_history logging). Jobs are independent, run sequentially to keep
+    // D1 load bounded.
+    async scheduled(controller, env) {
+      for (const job of jobsForSchedule(controller.cron)) {
+        await runCronJob(env, job.name, job.handler);
+      }
     },
   } satisfies ExportedHandler<Env>,
 );
