@@ -71,6 +71,14 @@ export const MODEL_RECOVERY_EMAIL = "claude-sonnet-5";
 /** Cheap quality/scoring gate on generated copy. */
 export const MODEL_EMAIL_QUALITY = "claude-haiku-4-5-20251001";
 
+/**
+ * Every model id the app may call. The ai_calls cost map (app/lib/ai/cost.ts)
+ * MUST cover each (closes legacy R-49 drift: a model with no cost entry throws).
+ * Cost lookup normalizes a trailing -YYYYMMDD date suffix to the canonical base
+ * id, so both `claude-haiku-4-5` and `claude-haiku-4-5-20251001` resolve.
+ */
+export const AI_MODEL_IDS = [MODEL_RECOVERY_EMAIL, MODEL_EMAIL_QUALITY] as const;
+
 // ---- Recovery step timing (hours from failure detection) ----
 // Rebuild ordering is SILENT-FIRST (PRICING.md): for retryable declines a silent
 // Foxhound retry precedes the first customer-facing email, so we never dun a

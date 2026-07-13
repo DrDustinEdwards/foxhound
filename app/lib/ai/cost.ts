@@ -1,0 +1,78 @@
+import type { Db } from "~/db";
+import { aiCalls } from "~/db";
+
+// The ai_calls cost map (closes legacy R-49: model-id drift + an incomplete cost
+// map). ONE table, keyed by CANONICAL base model id, in USD cents per 1,000,000
+// tokens. Every id in AI_MODEL_IDS must resolve here; an unknown model throws so a
+// newly-wired model can never silently log $0 cost.
+//
+// Lookup normalizes a trailing -YYYYMMDD date suffix to the base id, so a dated
+// alias (`claude-haiku-4-5-20251001`) and the canonical form (`claude-haiku-4-5`)
+// map to the same entry. This is the structural defense against the exact drift
+// R-49 named.
+
+interface ModelCost {
+  /** USD cents per 1,000,000 input tokens. */
+  inputCentsPer1M: number;
+  /** USD cents per 1,000,000 output tokens. */
+  outputCentsPer1M: number;
+}
+
+// Standard list prices (not intro promos, which expire and would themselves drift).
+const AI_MODEL_COSTS: Record<string, ModelCost> = {
+  "claude-sonnet-5": { inputCentsPer1M: 300, outputCentsPer1M: 1500 },
+  "claude-haiku-4-5": { inputCentsPer1M: 100, outputCentsPer1M: 500 },
+};
+
+/** Strip a trailing -YYYYMMDD snapshot suffix to the canonical base model id. Pure. */
+export function normalizeModelId(model: string): string {
+  return model.replace(/-\d{8}$/, "");
+}
+
+/** The cost entry for a model id (normalized). Throws on an uncovered model (R-49 guard). */
+export function aiModelCost(model: string): ModelCost {
+  const base = normalizeModelId(model);
+  const cost = AI_MODEL_COSTS[base];
+  if (!cost) {
+    throw new Error(`no ai_calls cost entry for model '${model}' (normalized '${base}')`);
+  }
+  return cost;
+}
+
+/** Cost of one AI call in whole USD cents (rounded). Pure. */
+export function computeAiCallCostCents(
+  model: string,
+  promptTokens: number,
+  completionTokens: number,
+): number {
+  const cost = aiModelCost(model);
+  const cents =
+    (promptTokens / 1_000_000) * cost.inputCentsPer1M +
+    (completionTokens / 1_000_000) * cost.outputCentsPer1M;
+  return Math.round(cents);
+}
+
+/** Insert one ai_calls row with its computed cost. Operational (not a money write). */
+export function buildAiCallRow(
+  db: Db,
+  input: {
+    accountId: string | null;
+    source: string;
+    model: string;
+    promptTokens: number;
+    completionTokens: number;
+    relatedId?: string | null;
+    createdAt: Date;
+  },
+) {
+  return db.insert(aiCalls).values({
+    accountId: input.accountId,
+    source: input.source,
+    model: input.model,
+    promptTokens: input.promptTokens,
+    completionTokens: input.completionTokens,
+    costCents: computeAiCallCostCents(input.model, input.promptTokens, input.completionTokens),
+    relatedId: input.relatedId ?? null,
+    createdAt: input.createdAt,
+  });
+}
