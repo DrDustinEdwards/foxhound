@@ -969,6 +969,27 @@ export const aiCalls = sqliteTable(
   (t) => [index("ai_calls_account_idx").on(t.accountId)],
 );
 
+// ai_calls retention target (ARCHITECTURE.md: raw 90 days, monthly cost aggregates
+// after). One row per (account, model, YYYY-MM); the retention sweeper aggregates
+// aged raw rows here then deletes them in the same atomic batch. account_id is a
+// soft aggregate key (no FK), storing "" for platform-level (null-account) calls
+// so the unique index dedupes them too.
+export const aiCallsMonthly = sqliteTable(
+  "ai_calls_monthly",
+  {
+    id: id(),
+    accountId: text("account_id").notNull(),
+    model: text("model").notNull(),
+    month: text("month").notNull(), // YYYY-MM (UTC)
+    promptTokens: integer("prompt_tokens").notNull().default(0),
+    completionTokens: integer("completion_tokens").notNull().default(0),
+    costCents: integer("cost_cents").notNull().default(0),
+    currency: text("currency").notNull().default("usd"),
+    updatedAt: ts("updated_at").notNull(),
+  },
+  (t) => [uniqueIndex("ai_calls_monthly_uq").on(t.accountId, t.model, t.month)],
+);
+
 // global single-row rollup; total_recovered_usd is a USD-denominated aggregate by definition
 export const platformStats = sqliteTable("platform_stats", {
   id: integer("id").primaryKey(),

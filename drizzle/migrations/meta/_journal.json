@@ -29,6 +29,13 @@
       "when": 1783906321334,
       "tag": "0003_faithful_harrier",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1783912008281,
+      "tag": "0004_narrow_annihilus",
+      "breakpoints": true
     }
   ]
 }
