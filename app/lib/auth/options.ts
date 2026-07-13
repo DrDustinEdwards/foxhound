@@ -2,7 +2,6 @@ import type { BetterAuthOptions } from "better-auth";
 import { APIError } from "better-auth/api";
 
 import { isDisposableEmail } from "./disposable-emails";
-import { sendAuthEmail } from "./send-auth-email";
 
 // Database-agnostic Better Auth options shared by the runtime factory
 // (auth.server.ts, which injects the D1-backed Drizzle adapter and env-gated
@@ -25,22 +24,17 @@ export const authOptions = {
   appName: "Foxhound",
   emailAndPassword: {
     enabled: true,
-    // Email deliverability + the real send path are Phase 4 (thin send module
-    // on the EMAIL binding). Phase 3 keeps verification required and routes the
-    // actual send through the send-auth-email seam that logs the link on staging.
     requireEmailVerification: true,
     minPasswordLength: MIN_PASSWORD_LENGTH,
     autoSignIn: false,
-    sendResetPassword: async ({ user, url }) => {
-      await sendAuthEmail("password-reset", user.email, url);
-    },
+    // sendResetPassword is injected by the runtime factory (auth.server.ts), which
+    // has `env` and routes through the one EMAIL-binding send module. Absent here
+    // because this static config is shared with the CLI schema generator (no env).
   },
   emailVerification: {
     sendOnSignUp: true,
     autoSignInAfterVerification: false,
-    sendVerificationEmail: async ({ user, url }) => {
-      await sendAuthEmail("email-verification", user.email, url);
-    },
+    // sendVerificationEmail is injected by the runtime factory (see above).
   },
   databaseHooks: {
     user: {

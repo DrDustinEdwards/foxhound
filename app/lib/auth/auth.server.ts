@@ -5,6 +5,7 @@ import { getDb } from "~/db/client";
 import * as authSchema from "~/db/auth-schema";
 
 import { authOptions } from "./options";
+import { sendAuthEmail } from "./send-auth-email";
 
 // Runtime Better Auth factory. Built per-request from the Cloudflare `env` so it
 // binds the D1-backed Drizzle adapter (binding `DB`) and only enables social
@@ -49,6 +50,20 @@ function buildAuth(env: Env) {
     baseURL: env.BETTER_AUTH_URL,
     secret: env.BETTER_AUTH_SECRET,
     database: drizzleAdapter(db, { provider: "sqlite", schema: authSchema }),
+    // Inject the token-bearing auth emails here, where `env` is available, so they
+    // route through the one EMAIL-binding send module (never logged).
+    emailAndPassword: {
+      ...authOptions.emailAndPassword,
+      sendResetPassword: async ({ user, url }) => {
+        await sendAuthEmail(env, "password-reset", user.email, url);
+      },
+    },
+    emailVerification: {
+      ...authOptions.emailVerification,
+      sendVerificationEmail: async ({ user, url }) => {
+        await sendAuthEmail(env, "email-verification", user.email, url);
+      },
+    },
     ...(socialProviders ? { socialProviders } : {}),
   });
 }

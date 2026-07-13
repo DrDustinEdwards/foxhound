@@ -72,3 +72,27 @@ export async function sendEmail(
   const result = await env.EMAIL.send(message);
   return { providerMessageId: (result && "id" in result ? result.id : null) ?? null };
 }
+
+/**
+ * Send a TRANSACTIONAL platform email (auth verification, password reset) through
+ * the same single binding seam. Transactional platform mail to our own users is
+ * NOT commercial mail, so it deliberately carries no CAN-SPAM unsubscribe/postal
+ * footer (you cannot unsubscribe from a password reset). Still the only path to
+ * the binding: keeps "one send module" intact. Throws if the binding is
+ * unconfigured, so a send failure surfaces rather than silently dropping.
+ */
+export async function sendTransactionalEmail(
+  env: Env,
+  message: { to: string; subject: string; bodyHtml: string; fromName?: string | null },
+): Promise<{ providerMessageId: string | null }> {
+  if (!env.EMAIL) {
+    throw new Error("EMAIL binding is not configured");
+  }
+  const result = await env.EMAIL.send({
+    from: `${fromDisplayName(message.fromName ?? "Foxhound")} <${EMAIL_FROM_ADDRESS}>`,
+    to: message.to,
+    subject: message.subject,
+    html: message.bodyHtml,
+  });
+  return { providerMessageId: (result && "id" in result ? result.id : null) ?? null };
+}
