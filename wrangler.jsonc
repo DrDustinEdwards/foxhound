@@ -46,6 +46,12 @@
         // Per-account money-write serializer (Phase 4a). SQLite-backed.
         "name": "MONEY_WRITER",
         "class_name": "MoneyWriteDurableObject"
+      },
+      {
+        // Per-cron mutex (Phase 4e). Replaces the legacy hand-rolled cron_locks
+        // table; addressed by idFromName(cronName).
+        "name": "CRON_LOCK",
+        "class_name": "CronLockDurableObject"
       }
     ]
   },
@@ -53,6 +59,10 @@
     {
       "tag": "v1",
       "new_sqlite_classes": ["MoneyWriteDurableObject"]
+    },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": ["CronLockDurableObject"]
     }
   ]
 }
