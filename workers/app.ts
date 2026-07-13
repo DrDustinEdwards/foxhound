@@ -2,6 +2,7 @@ import { withSentry } from "@sentry/cloudflare";
 import { createRequestHandler, RouterContextProvider } from "react-router";
 
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { handleQueueBatch } from "~/lib/queue/consumer";
 
 // Durable Objects exported from the worker entry so wrangler can bind them.
 export { MoneyWriteDurableObject } from "./money-writer";
@@ -18,6 +19,12 @@ export default withSentry<Env>(
       const context = new RouterContextProvider();
       context.set(cloudflareContext, { env, ctx });
       return requestHandler(request, context);
+    },
+    // Queue consumer (email dispatch; bounce/complaint events added in 4c-C3).
+    // Inert until the queue consumer config is added to wrangler.jsonc (Dustin
+    // provisions the queues + Email Service).
+    async queue(batch, env) {
+      await handleQueueBatch(batch, env);
     },
   } satisfies ExportedHandler<Env>,
 );

@@ -94,6 +94,23 @@ export const SEND_RETRY_BACKOFF_MINUTES = [5, 30, 120] as const;
 export const DECLINE_CATEGORIES = ["soft", "network", "expired", "fraud"] as const;
 export type DeclineCategory = (typeof DECLINE_CATEGORIES)[number];
 
+// ---- Email pipeline (ARCHITECTURE.md: Cloudflare Email Service, one send module) ----
+/** Authenticated send domain (warmed independently of Worker routing). */
+export const EMAIL_SEND_DOMAIN = "send.foxhoundapp.com";
+/** Envelope From address for merchant dunning copy (merchant display name is prefixed per send). */
+export const EMAIL_FROM_ADDRESS = `recovery@${EMAIL_SEND_DOMAIN}`;
+/** Public utility path bases for CAN-SPAM one-click unsubscribe and the hosted card-update page. */
+export const UNSUBSCRIBE_PATH = "/u";
+export const CARD_UPDATE_PATH = "/p";
+/** Engagement tracking path bases (first-party open pixel + click redirect). */
+export const ENGAGEMENT_OPEN_PATH = "/e/o";
+export const ENGAGEMENT_CLICK_PATH = "/e/c";
+/** Queue consumer retry ceiling before dead-letter (mirrors the wrangler consumer config). */
+export const EMAIL_QUEUE_MAX_RETRIES = 3;
+/** Queue names (batch.queue switch in the consumer; Dustin creates queues with these names). */
+export const EMAIL_QUEUE_NAME = "foxhound-email";
+export const EMAIL_EVENTS_QUEUE_NAME = "foxhound-email-events";
+
 // ---- Stripe (ARCHITECTURE.md: Stripe is the product; permanent dependency) ----
 /**
  * Pinned Stripe API version. Matches the installed `stripe` package's default

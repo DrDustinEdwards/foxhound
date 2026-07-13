@@ -36,4 +36,29 @@ interface Env {
   // (set via `wrangler secret put`); the generation call is a seam that stays
   // inert until this is present. Generated copy is sanitized before use.
   ANTHROPIC_API_KEY?: string;
+
+  // ---- Phase 4c: email pipeline (Dustin-provisioned; wrangler bindings added
+  // once the queue exists + Email Service is enabled on the zone). Declared
+  // ambient + optional so the code is guarded and deploy stays green until then.
+  // The send binding shape is a Foxhound adapter; the real Email Service call is
+  // finalized in Phase 8 when the binding is live.
+  EMAIL?: EmailSendBinding;
+  EMAIL_QUEUE?: Queue<unknown>;
+  EMAIL_DLQ?: Queue<unknown>;
+  // CAN-SPAM sender postal address (ARCHITECTURE #8: required before any send).
+  PHYSICAL_ADDRESS?: string;
+}
+
+// Foxhound's adapter shape over the Cloudflare Email Service send binding. The
+// concrete binding call lives only in app/lib/email/send.ts and is finalized when
+// Email Service is enabled (Phase 8).
+interface EmailSendMessage {
+  from: string;
+  to: string;
+  subject: string;
+  html: string;
+  headers?: Record<string, string>;
+}
+interface EmailSendBinding {
+  send(message: EmailSendMessage): Promise<{ id?: string } | void>;
 }
