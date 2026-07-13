@@ -108,6 +108,10 @@ export default [
   route("e/o/:token", "./routes/utility/engagement-open.ts"),
   route("e/c/:token", "./routes/utility/engagement-click.ts"),
 
+  // Webhooks (resource routes, no shell; POST-only, signature-verified)
+  route("webhooks/stripe", "./routes/webhooks/stripe.ts"),
+  route("webhooks/stripe-platform", "./routes/webhooks/stripe-platform.ts"),
+
   // Files (resource routes, no shell)
   route("sitemap.xml", "./routes/files/sitemap.ts"),
   route("robots.txt", "./routes/files/robots.ts"),

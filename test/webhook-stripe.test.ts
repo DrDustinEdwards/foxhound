@@ -1,0 +1,156 @@
+import { drizzle } from "drizzle-orm/d1";
+import type Stripe from "stripe";
+import { describe, expect, it } from "vitest";
+
+import * as schema from "~/db/schema";
+import { resolveAttribution } from "~/lib/recovery/attribution";
+import {
+  buildDisputeStampBatch,
+  buildIntakeBatch,
+  buildRecoverBatch,
+  buildRefundStampBatch,
+  buildWebhookClaim,
+  type WebhookClaimInput,
+} from "~/lib/webhooks/batches";
+import { classifyStripeEvent } from "~/lib/webhooks/events";
+
+const now = new Date("2026-07-12T00:00:00.000Z");
+const db = drizzle({} as never, { schema });
+
+// MoneyWriteBatch items are typed as BatchItem; the executor compiles each via
+// .toSQL() (app/lib/money/execute.ts). Mirror that cast to inspect the SQL.
+function sqlOf(item: unknown): { sql: string; params: unknown[] } {
+  return (item as { toSQL(): { sql: string; params: unknown[] } }).toSQL();
+}
+
+function event(type: string, object: Record<string, unknown>, account = "acct_1"): Stripe.Event {
+  return { id: "evt_1", type, account, data: { object } } as unknown as Stripe.Event;
+}
+
+describe("classifyStripeEvent", () => {
+  it("payment_failed -> intake with decline classification", () => {
+    const intent = classifyStripeEvent(
+      event("invoice.payment_failed", {
+        id: "in_1",
+        amount_due: 4200,
+        currency: "usd",
+        customer: "cus_1",
+        customer_email: "a@b.com",
+        last_finalization_error: { decline_code: "expired_card" },
+      }),
+    );
+    expect(intent.kind).toBe("intake");
+    if (intent.kind === "intake") {
+      expect(intent.invoiceId).toBe("in_1");
+      expect(intent.declineCategory).toBe("expired");
+      expect(intent.amountCents).toBe(4200);
+    }
+  });
+
+  it("payment_failed with $0 is ignored", () => {
+    const intent = classifyStripeEvent(
+      event("invoice.payment_failed", { id: "in_0", amount_due: 0, currency: "usd" }),
+    );
+    expect(intent).toEqual({ kind: "ignore", reason: "zero_amount" });
+  });
+
+  it("payment_succeeded -> recover", () => {
+    const intent = classifyStripeEvent(
+      event("invoice.payment_succeeded", {
+        id: "in_2",
+        amount_paid: 4200,
+        currency: "usd",
+        customer: "cus_1",
+      }),
+    );
+    expect(intent.kind).toBe("recover");
+    if (intent.kind === "recover") expect(intent.amountPaidCents).toBe(4200);
+  });
+
+  it("full charge.refunded -> stamp_refund; partial is ignored", () => {
+    expect(
+      classifyStripeEvent(event("charge.refunded", { refunded: true, payment_intent: "pi_1" })),
+    ).toEqual({ kind: "stamp_refund", paymentIntentId: "pi_1" });
+    expect(
+      classifyStripeEvent(event("charge.refunded", { refunded: false, payment_intent: "pi_1" })),
+    ).toEqual({ kind: "ignore", reason: "partial_refund" });
+  });
+
+  it("charge.dispute.created -> stamp_dispute; unrelated type ignored", () => {
+    expect(classifyStripeEvent(event("charge.dispute.created", { charge: "ch_1" }))).toEqual({
+      kind: "stamp_dispute",
+      chargeId: "ch_1",
+    });
+    expect(classifyStripeEvent(event("customer.updated", {})).kind).toBe("ignore");
+  });
+});
+
+const claim: WebhookClaimInput = {
+  stripeEventId: "evt_1",
+  eventType: "invoice.payment_failed",
+  accountId: "acc_1",
+  receivedAt: now,
+  payload: { id: "evt_1" },
+};
+
+describe("webhook batch builders (compile against schema)", () => {
+  it("claim insert targets webhook_events with the event id bound", () => {
+    const sql = sqlOf(buildWebhookClaim(db, claim));
+    expect(sql.sql).toMatch(/insert into .*webhook_events/i);
+    expect(sql.params).toContain("evt_1");
+  });
+
+  it("intake batch = claim + failed_payment + one insert per step", () => {
+    const batch = buildIntakeBatch(db, {
+      claim,
+      failedPaymentId: "fp_1",
+      accountId: "acc_1",
+      stripeEventId: "evt_1",
+      invoiceId: "in_1",
+      customerId: "cus_1",
+      customerEmail: "a@b.com",
+      customerName: null,
+      amountCents: 4200,
+      currency: "usd",
+      declineCode: "insufficient_funds",
+      declineCategory: "soft",
+      detectedAt: now,
+    });
+    // claim + failed_payment + 8 soft-schedule steps
+    expect(batch.length).toBe(10);
+    expect(sqlOf(batch[0]).sql).toMatch(/webhook_events/i);
+    expect(sqlOf(batch[1]).sql).toMatch(/failed_payments/i);
+    expect(sqlOf(batch[1]).params).toContain("fp_1");
+    expect(sqlOf(batch[2]).sql).toMatch(/recovery_steps/i);
+  });
+
+  it("recover batch = claim + conditional status flip + recovered_payments + outcomes", () => {
+    const batch = buildRecoverBatch(db, {
+      claim,
+      accountId: "acc_1",
+      failedPaymentId: "fp_1",
+      amountPaidCents: 4200,
+      currency: "usd",
+      recoveredAt: now,
+      attribution: resolveAttribution({ succeededRetryStepId: "step_1" }),
+      recoveredByStepId: "step_1",
+      recoveryMethod: "foxhound_retry",
+      idempotencyKey: "fp_1",
+    });
+    expect(batch.length).toBe(4);
+    expect(sqlOf(batch[0]).sql).toMatch(/webhook_events/i);
+    const flip = sqlOf(batch[1]);
+    expect(flip.sql).toMatch(/update .*failed_payments/i);
+    expect(flip.params).toContain("recovered");
+    expect(sqlOf(batch[2]).sql).toMatch(/recovered_payments/i);
+    expect(sqlOf(batch[3]).sql).toMatch(/outcomes/i);
+  });
+
+  it("refund/dispute stamp batches = claim + conditional update on recovered_payments", () => {
+    const refund = buildRefundStampBatch(db, { claim, failedPaymentId: "fp_1", at: now });
+    expect(refund.length).toBe(2);
+    expect(sqlOf(refund[1]).sql).toMatch(/update .*recovered_payments/i);
+    const dispute = buildDisputeStampBatch(db, { claim, failedPaymentId: "fp_1", at: now });
+    expect(sqlOf(dispute[1]).sql).toMatch(/update .*recovered_payments/i);
+  });
+});
