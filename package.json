@@ -16,6 +16,7 @@
     "db:migrate": "wrangler d1 migrations apply foxhound-staging --remote"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.111.0",
     "@sentry/cloudflare": "^10.65.0",
     "better-auth": "^1.6.23",
     "drizzle-orm": "^0.45.2",

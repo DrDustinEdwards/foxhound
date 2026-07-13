@@ -30,4 +30,10 @@ interface Env {
   // helper types cleanly). Connected-account endpoint + platform endpoint.
   STRIPE_WEBHOOK_SECRET?: string;
   STRIPE_PLATFORM_WEBHOOK_SECRET?: string;
+
+  // ---- Phase 4b: AI dunning-copy generation ----
+  // Anthropic API key for Sonnet dunning-copy generation. Dustin-gated secret
+  // (set via `wrangler secret put`); the generation call is a seam that stays
+  // inert until this is present. Generated copy is sanitized before use.
+  ANTHROPIC_API_KEY?: string;
 }
