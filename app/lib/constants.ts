@@ -13,6 +13,14 @@ export const DISPUTE_FEE_CAP_CENTS = 25_000;
 /** Intelligence predictive risk layer: $199/month. */
 export const INTELLIGENCE_PRICE_CENTS = 19_900;
 
+/**
+ * Demo accounts are excluded from all billing (PRICING.md: demo data is re-seeded,
+ * never billed). The demo-seeding system must create accounts whose id begins with
+ * this prefix; real accounts use crypto.randomUUID ids, which never do. The billable
+ * queries and the monthly run both filter on it.
+ */
+export const DEMO_ACCOUNT_ID_PREFIX = "demo_";
+
 // ---- Maturity window (PRICING.md maturity-window billing) ----
 /** A recovery is billable only once it is at least this old (refund window absorption). */
 export const RECOVERY_MATURITY_DAYS = 30;
