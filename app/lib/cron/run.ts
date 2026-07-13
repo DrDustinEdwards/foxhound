@@ -1,5 +1,6 @@
 import { desc, eq } from "drizzle-orm";
 
+import type { Db } from "~/db";
 import { cronConfig, cronRunHistory, getDb } from "~/db";
 import { CRON_LOCK_LEASE_MS } from "~/lib/constants";
 
@@ -27,6 +28,29 @@ export interface CronRunOutcome {
   message?: string;
 }
 
+/** The cron_run_history insert for one executed run. Operational, not a money write. */
+export function buildCronRunInsert(
+  db: Db,
+  input: {
+    cronName: string;
+    startedAt: Date;
+    finishedAt: Date;
+    status: Exclude<CronRunStatus, "skipped">;
+    rowsProcessed: number;
+    message: string | null;
+  },
+) {
+  return db.insert(cronRunHistory).values({
+    cronName: input.cronName,
+    startedAt: input.startedAt,
+    finishedAt: input.finishedAt,
+    status: input.status,
+    rowsProcessed: input.rowsProcessed,
+    message: input.message,
+    createdAt: input.finishedAt,
+  });
+}
+
 async function recordRun(
   env: Env,
   cronName: string,
@@ -35,14 +59,13 @@ async function recordRun(
   rowsProcessed: number,
   message: string | null,
 ): Promise<void> {
-  await getDb(env).insert(cronRunHistory).values({
+  await buildCronRunInsert(getDb(env), {
     cronName,
     startedAt,
     finishedAt: new Date(),
     status,
     rowsProcessed,
     message,
-    createdAt: new Date(),
   });
 }
 
