@@ -1,12 +1,44 @@
 {
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/no-em-dash.sh\""
+          }
+        ]
+      }
+    ]
+  },
   "permissions": {
     "allow": [
-      "Bash(npm run *)", "Bash(npx tsc *)", "Bash(npx wrangler d1 migrations apply * --env staging*)",
-      "Bash(npx wrangler d1 execute * --env staging*)", "Bash(npx wrangler deploy --env staging*)",
-      "Bash(git add *)", "Bash(git commit *)", "Bash(npx vitest *)", "Bash(npx better-auth *)"
+      "Bash(npm run *)",
+      "Bash(npx tsc *)",
+      "Bash(npx vitest *)",
+      "Bash(npx better-auth *)",
+      "Bash(npx wrangler types*)",
+      "Bash(npx wrangler d1 execute * --command *SELECT*)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git show *)",
+      "Bash(git log *)",
+      "Bash(git branch*)"
     ],
-    "ask": ["Bash(git push *)", "Bash(* --env production*)"],
-    "deny": ["Bash(rm -rf *)", "Read(./.env*)", "Read(./.dev.vars)"]
+    "ask": [
+      "Bash(git push *)",
+      "Bash(npx wrangler deploy*)",
+      "Bash(npx wrangler d1 migrations apply*)",
+      "Bash(npx wrangler d1 execute *DELETE*)",
+      "Bash(npx wrangler d1 execute *DROP*)",
+      "Bash(npx wrangler secret*)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Read(./.env*)",
+      "Read(./.dev.vars)"
+    ]
   },
   "defaultMode": "acceptEdits"
 }
