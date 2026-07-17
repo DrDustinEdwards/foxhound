@@ -55,16 +55,20 @@
       }
     ]
   },
-  "migrations": [
-    {
-      "tag": "v1",
-      "new_sqlite_classes": ["MoneyWriteDurableObject"]
-    },
-    {
-      "tag": "v2",
-      "new_sqlite_classes": ["CronLockDurableObject"]
-    }
-  ],
+
+  // DO lifecycle: declarative exports, replacing the legacy migrations array
+  // (which failed deploys with the wrangler 10074 migration-tag error after the
+  // two-env to one-env consolidation; tag state on the Worker no longer matched
+  // the config). Per Cloudflare docs, existing Workers move from migrations to
+  // exports with no data migration: namespaces stay in place, only the config
+  // shape changes, and there is no tag field to conflict. Both classes were
+  // created via new_sqlite_classes, hence storage sqlite. Future lifecycle
+  // changes (delete, rename, transfer) happen by editing this map; do not
+  // reintroduce a migrations array, the two are mutually exclusive.
+  "exports": {
+    "MoneyWriteDurableObject": { "type": "durable-object", "storage": "sqlite" },
+    "CronLockDurableObject": { "type": "durable-object", "storage": "sqlite" }
+  },
 
   // All scheduled jobs are Cron Triggers (ARCHITECTURE.md; no HTTP cron surface,
   // no CRON_SECRET). scheduled() dispatches by controller.cron to the registered
