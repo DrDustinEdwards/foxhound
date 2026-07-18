@@ -2,6 +2,7 @@ import { and, desc, eq } from "drizzle-orm";
 import type Stripe from "stripe";
 
 import {
+  disputes,
   getDb,
   failedPayments,
   recoverySteps,
@@ -9,11 +10,13 @@ import {
   webhookEvents,
 } from "~/db";
 import { executeMoneyWrite } from "~/lib/money/execute";
+import { isDisputeResolved } from "~/lib/disputes/labels";
 import { resolveAttribution } from "~/lib/recovery/attribution";
 import { isRetryStep } from "~/lib/recovery/schedule";
 
 import {
   buildClaimOnlyBatch,
+  buildDisputeResolutionBatch,
   buildDisputeStampBatch,
   buildIntakeBatch,
   buildRecoverBatch,
@@ -72,6 +75,26 @@ async function findActiveFailedPayment(
     .orderBy(desc(failedPayments.detectedAt))
     .limit(1);
   return rows[0]?.id ?? null;
+}
+
+/** Find a dispute by its Stripe dispute id (5c resolution stamping target). */
+async function findDisputeByStripeId(
+  env: Env,
+  stripeDisputeId: string,
+): Promise<{ id: string; accountId: string; amountCents: number; currency: string; state: string } | null> {
+  const db = getDb(env);
+  const rows = await db
+    .select({
+      id: disputes.id,
+      accountId: disputes.accountId,
+      amountCents: disputes.amountCents,
+      currency: disputes.currency,
+      state: disputes.state,
+    })
+    .from(disputes)
+    .where(eq(disputes.stripeDisputeId, stripeDisputeId))
+    .limit(1);
+  return rows[0] ?? null;
 }
 
 /**
@@ -212,6 +235,45 @@ export async function processConnectedWebhook(
             recoveredByStepId,
             recoveryMethod,
             idempotencyKey: failedPaymentId,
+          }),
+      });
+      return applied ? { status: "applied" } : { status: "duplicate" };
+    }
+
+    if (intent.kind === "dispute_resolved") {
+      // No dispute-intake pipeline exists yet (nothing currently inserts a
+      // disputes row from charge.dispute.created), so a real dispute will not
+      // be found today. That is a pre-existing gap, not a fresh assumption:
+      // treat "not found" exactly like "recover" treats a missing failed
+      // payment, a safe claim-only ignore, never a throw.
+      const dispute = await findDisputeByStripeId(env, intent.stripeDisputeId);
+      if (!dispute || dispute.accountId !== accountId) {
+        const { applied } = await executeMoneyWrite(env, {
+          accountId,
+          idempotencyKey,
+          build: (db) => buildClaimOnlyBatch(db, claim),
+        });
+        return applied ? { status: "ignored", reason: "dispute_not_found" } : { status: "duplicate" };
+      }
+      if (isDisputeResolved(dispute.state)) {
+        const { applied } = await executeMoneyWrite(env, {
+          accountId,
+          idempotencyKey,
+          build: (db) => buildClaimOnlyBatch(db, claim),
+        });
+        return applied ? { status: "ignored", reason: "already_resolved" } : { status: "duplicate" };
+      }
+      const { applied } = await executeMoneyWrite(env, {
+        accountId,
+        idempotencyKey,
+        build: (db) =>
+          buildDisputeResolutionBatch(db, {
+            claim,
+            stripeDisputeId: intent.stripeDisputeId,
+            won: intent.won,
+            amountCents: dispute.amountCents,
+            currency: dispute.currency,
+            resolvedAt: receivedAt,
           }),
       });
       return applied ? { status: "applied" } : { status: "duplicate" };
