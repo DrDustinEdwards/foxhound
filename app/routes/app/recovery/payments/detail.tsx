@@ -115,7 +115,11 @@ export default function PaymentDetail({ loaderData }: Route.ComponentProps) {
         ) : (
           <ol className="mt-3 flex flex-col gap-3">
             {steps.map((step) => {
-              const silent = isRetryStep(step.stepType);
+              const channel = isRetryStep(step.stepType)
+                ? "Silent"
+                : step.stepType === "card_update"
+                  ? "Customer action"
+                  : "Customer email";
               return (
                 <li
                   key={step.id}
@@ -125,7 +129,7 @@ export default function PaymentDetail({ loaderData }: Route.ComponentProps) {
                     <p className="text-body text-text">
                       {step.stepNumber ?? "-"}. {formatStepType(step.stepType)}
                       <span className="ml-2 text-micro uppercase tracking-wide text-text-subtle">
-                        {silent ? "Silent" : "Customer email"}
+                        {channel}
                       </span>
                     </p>
                     <p className="text-label text-text-tertiary">
