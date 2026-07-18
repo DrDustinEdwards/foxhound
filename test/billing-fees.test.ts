@@ -30,9 +30,16 @@ describe("dispute fee math (capped)", () => {
     expect(disputeFeeCents(100_000)).toBe(20_000);
   });
 
+  it("the cap binds only above roughly $2,500 disputed (PRICING.md rev 3): 20% governs below it", () => {
+    // $2,000 disputed: 20% = $400, well under the $500 cap.
+    expect(disputeFeeCents(200_000)).toBe(40_000);
+    // $2,500 disputed: 20% = $500, exactly the cap boundary.
+    expect(disputeFeeCents(250_000)).toBe(50_000);
+  });
+
   it("caps at DISPUTE_FEE_CAP_CENTS above the threshold", () => {
-    expect(disputeFeeCents(200_000)).toBe(DISPUTE_FEE_CAP_CENTS); // 40000 -> 25000
-    expect(disputeFeeCents(1_000_000)).toBe(DISPUTE_FEE_CAP_CENTS);
+    expect(disputeFeeCents(1_000_000)).toBe(DISPUTE_FEE_CAP_CENTS); // 200000 -> 50000
+    expect(disputeFeeCents(10_000_000)).toBe(DISPUTE_FEE_CAP_CENTS);
   });
 
   it("hits the cap exactly at 5x the cap amount", () => {

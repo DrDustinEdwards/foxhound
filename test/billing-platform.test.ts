@@ -15,7 +15,7 @@ const sqlOf = (item: unknown) => (item as { toSQL(): { sql: string; params: unkn
 describe("chargeableLines (what touches Stripe)", () => {
   const lines: PlatformInvoiceLineInput[] = [
     { type: "recovery_fee", amountCents: 2_000, description: "Recovery fee" },
-    { type: "dispute_fee", amountCents: 25_000, description: "Dispute fee" },
+    { type: "dispute_fee", amountCents: 50_000, description: "Dispute fee" },
     { type: "subscription", amountCents: 19_900, description: "Intelligence" },
     { type: "adjustment", amountCents: -500, description: "Goodwill credit" },
     { type: "recovery_fee", amountCents: 0, description: "Zero" },

@@ -162,7 +162,7 @@ export default function DisputeDetail({ loaderData }: Route.ComponentProps) {
           <p className="mt-2 text-body text-text-tertiary">
             Submitting this evidence to Stripe approves a fee of{" "}
             <span className="font-mono text-text">{formatMoney(fee, dispute.currency)}</span> (20% of
-            the disputed amount, capped at $250) if Foxhound wins this dispute. Merchant-fought or
+            the disputed amount, capped at $500) if Foxhound wins this dispute. Merchant-fought or
             lost disputes are never billed.
           </p>
           <Form method="post" className="mt-4">

@@ -170,7 +170,7 @@ describe("webhook batch builders (compile against schema)", () => {
   });
 
   it("dispute resolution batch snapshots the capped fee on a win, none on a loss", () => {
-    // 20% of a $500 dispute is $100, well under the $250 cap: proves the
+    // 20% of a $500 dispute is $100, well under the $500 cap: proves the
     // ordinary 20% math, not just the cap.
     const won = buildDisputeResolutionBatch(db, {
       claim,
@@ -187,8 +187,8 @@ describe("webhook batch builders (compile against schema)", () => {
     expect(wonUpdate.params).toContain("resolved_won");
     expect(wonUpdate.params).toContain(10_000);
 
-    // A much larger dispute proves the $250 cap actually applies, not just 20%
-    // (20% of $10,000 would be $2,000, capped down to $250).
+    // A much larger dispute proves the $500 cap actually applies, not just 20%
+    // (20% of $10,000 would be $2,000, capped down to $500).
     const wonAtCap = buildDisputeResolutionBatch(db, {
       claim,
       stripeDisputeId: "dp_2",
