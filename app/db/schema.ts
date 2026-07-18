@@ -60,6 +60,10 @@ export const accounts = sqliteTable("accounts", {
   lastVisitedProduct: text("last_visited_product"),
   billingExempt: bool("billing_exempt").notNull().default(false),
   processingPaused: bool("processing_paused").notNull().default(false),
+  // Foxhound's OWN Stripe account customer id for this merchant (PRICING.md rev 3:
+  // direct platform invoicing, not Connect application fees). Null until
+  // billing-setup runs; createPlatformInvoice refuses to charge without it.
+  platformStripeCustomerId: text("platform_stripe_customer_id"),
   disputeProductDescription: text("dispute_product_description"),
   disputeShipsPhysical: bool("dispute_ships_physical"),
   disputeAutoSubmit: bool("dispute_auto_submit"),
