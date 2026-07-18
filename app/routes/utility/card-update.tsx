@@ -4,6 +4,7 @@ import { data, Form, redirect, useNavigation } from "react-router";
 import { Alert, AuthShell, Submit } from "~/components/auth-ui";
 import { Header } from "~/components/header";
 import { failedPayments, getDb, stripeConnections } from "~/db";
+import { buildCardUpdateSignal, hasCardUpdateSignal } from "~/lib/card-update/signal";
 import { createCardUpdateSession, finalizeCardUpdateSession } from "~/lib/card-update/service";
 import { verifyCardUpdateToken } from "~/lib/card-update/token";
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -22,7 +23,9 @@ export function meta() {
 // anything else runs, so a tampered/expired link renders a clean state, never
 // a stack trace. Payment-method collection is a Stripe-hosted Checkout Session
 // in `setup` mode on the CONNECTED account (the merchant's own Stripe, via
-// their decrypted OAuth token, never the platform key, never logged).
+// their decrypted OAuth token, never the platform key, never logged). On a
+// successful return, records the card_update attribution signal that
+// webhooks/process.ts's resolveRecoveryAttribution reads (M1, Phase 4 review).
 // Live Stripe verification is Phase 8; this seam typechecks and is built inert
 // against a real redirect now.
 
@@ -85,6 +88,14 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
       });
       if (!result.ok) {
         return data<LoaderState>({ state: "setup_failed" });
+      }
+      const db = getDb(env);
+      if (!(await hasCardUpdateSignal(db, failedPayment.id))) {
+        await buildCardUpdateSignal(db, {
+          failedPaymentId: failedPayment.id,
+          accountId: payload.accountId,
+          occurredAt: new Date(),
+        });
       }
     } catch {
       // Never log the error object: it can carry request/token context.
