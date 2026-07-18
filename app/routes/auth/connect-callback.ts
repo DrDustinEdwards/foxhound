@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { redirect } from "react-router";
 
-import { getDb, stripeConnections } from "~/db";
+import { accounts, getDb, stripeConnections } from "~/db";
 import { getSession, resolveMembership } from "~/lib/auth";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { executeMoneyWrite } from "~/lib/money/execute";
@@ -104,7 +104,14 @@ export async function loader({ request, context }: Route.LoaderArgs) {
             ],
     });
 
-    return redirect("/dashboard", {
+    const [accountRow] = await db
+      .select({ onboardingCompleted: accounts.onboardingCompleted })
+      .from(accounts)
+      .where(eq(accounts.id, membership.accountId))
+      .limit(1);
+    const destination = accountRow?.onboardingCompleted ? "/dashboard" : "/welcome";
+
+    return redirect(destination, {
       headers: { "Set-Cookie": clearStateCookie() },
     });
   } catch {
