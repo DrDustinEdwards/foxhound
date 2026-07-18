@@ -8,8 +8,10 @@
 export const RECOVERY_FEE_BPS = 2000;
 /** Dispute fee: 20% of won disputes... */
 export const DISPUTE_FEE_BPS = 2000;
-/** ...capped at $250 per dispute. */
-export const DISPUTE_FEE_CAP_CENTS = 25_000;
+/** ...capped at $500 per dispute (PRICING.md rev 3: anchored to value delivered,
+ *  roughly 2x the median all-in cost of losing a dispute; binds only above a
+ *  ~$2,500 disputed amount, the percentage governs below that). */
+export const DISPUTE_FEE_CAP_CENTS = 50_000;
 /** Intelligence predictive risk layer: $199/month. */
 export const INTELLIGENCE_PRICE_CENTS = 19_900;
 

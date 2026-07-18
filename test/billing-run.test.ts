@@ -66,15 +66,16 @@ describe("buildBillingInvoiceBatch", () => {
   });
 
   it("a won dispute bills capped (no resolution snapshot)", () => {
+    // $10,000 disputed: 20% = $2,000, capped at $500 (PRICING.md rev 3).
     const { batch, totalCents } = buildBillingInvoiceBatch(
       db,
-      baseInput({ disputes: [{ id: "dsp_1", amountCents: 200_000, resolvedFeeCents: null }] }),
+      baseInput({ disputes: [{ id: "dsp_1", amountCents: 1_000_000, resolvedFeeCents: null }] }),
     );
-    expect(totalCents).toBe(25_000); // 20% of 200000 = 40000, capped at 25000
+    expect(totalCents).toBe(50_000);
     const line = sqlOf(batch[1]);
     expect(line.params).toContain("dispute_fee");
     expect(line.params).toContain("dsp_1");
-    expect(line.params).toContain(25_000);
+    expect(line.params).toContain(50_000);
   });
 
   it("prefers the resolved fee snapshot when present", () => {
