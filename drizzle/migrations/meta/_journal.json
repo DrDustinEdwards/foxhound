@@ -36,6 +36,13 @@
       "when": 1783912008281,
       "tag": "0004_narrow_annihilus",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1784388226322,
+      "tag": "0005_stormy_vector",
+      "breakpoints": true
     }
   ]
 }

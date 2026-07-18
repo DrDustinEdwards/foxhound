@@ -1,0 +1,1 @@
+ALTER TABLE `accounts` ADD `platform_stripe_customer_id` text;
