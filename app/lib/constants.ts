@@ -132,6 +132,10 @@ export const EMAIL_EVENTS_QUEUE_NAME = "foxhound-email-events";
 // ---- Cron Triggers + retention (ARCHITECTURE.md: all scheduled jobs are Cron
 // Triggers; retention crons live before any table they govern takes writes) ----
 export const DAY_MS = 24 * 60 * 60 * 1000;
+/** Max age of a /p/:token card-update link before it is treated as expired
+ *  (mirrors the longest recovery step schedule, EMAIL_DAY30, so a link stays
+ *  valid for the full life of the sequence that carries it). */
+export const CARD_UPDATE_TOKEN_MAX_AGE_MS = 30 * DAY_MS;
 /** Max time a single run may hold a per-cron DO lock before the lease lapses. */
 export const CRON_LOCK_LEASE_MS = 5 * 60 * 1000;
 /** Cron schedules (UTC). MUST match wrangler.jsonc triggers.crons exactly. */

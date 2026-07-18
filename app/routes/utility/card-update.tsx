@@ -1,5 +1,177 @@
-import { RouteStub } from "~/components/route-stub";
+import { and, eq, isNull } from "drizzle-orm";
+import { data, Form, redirect, useNavigation } from "react-router";
 
-export default function Page() {
-  return <RouteStub name="/p/:token" />;
+import { Alert, AuthShell, Submit } from "~/components/auth-ui";
+import { Header } from "~/components/header";
+import { failedPayments, getDb, stripeConnections } from "~/db";
+import { createCardUpdateSession, finalizeCardUpdateSession } from "~/lib/card-update/service";
+import { verifyCardUpdateToken } from "~/lib/card-update/token";
+import { cloudflareContext } from "~/lib/cloudflare-context";
+import { formatMoney } from "~/lib/money-format";
+import { decryptToken } from "~/lib/stripe/encryption";
+
+import type { Route } from "./+types/card-update";
+
+export function meta() {
+  return [{ title: "Update payment method - Foxhound" }];
+}
+
+// Hosted no-login card-update page (ROUTES.md public-utility, PRICING.md
+// table stakes). Token is HMAC-signed and stateless (app/lib/card-update/token.ts,
+// mirrors the /e/* engagement token pattern, gotcha #37); verified before
+// anything else runs, so a tampered/expired link renders a clean state, never
+// a stack trace. Payment-method collection is a Stripe-hosted Checkout Session
+// in `setup` mode on the CONNECTED account (the merchant's own Stripe, via
+// their decrypted OAuth token, never the platform key, never logged).
+// Live Stripe verification is Phase 8; this seam typechecks and is built inert
+// against a real redirect now.
+
+type LoaderState =
+  | { state: "invalid" }
+  | { state: "resolved" }
+  | { state: "setup_failed" }
+  | { state: "ready"; amountCents: number; currency: string }
+  | { state: "done" };
+
+async function loadTarget(env: Env, failedPaymentId: string, accountId: string) {
+  const db = getDb(env);
+  const [failedPaymentRows, connectionRows] = await Promise.all([
+    db
+      .select({
+        id: failedPayments.id,
+        status: failedPayments.status,
+        stripeCustomerId: failedPayments.stripeCustomerId,
+        subscriptionId: failedPayments.subscriptionId,
+        amountCents: failedPayments.amountCents,
+        currency: failedPayments.currency,
+      })
+      .from(failedPayments)
+      .where(and(eq(failedPayments.id, failedPaymentId), eq(failedPayments.accountId, accountId)))
+      .limit(1),
+    db
+      .select({ stripeAccessToken: stripeConnections.stripeAccessToken })
+      .from(stripeConnections)
+      .where(and(eq(stripeConnections.accountId, accountId), isNull(stripeConnections.disconnectedAt)))
+      .limit(1),
+  ]);
+  return { failedPayment: failedPaymentRows[0] ?? null, connection: connectionRows[0] ?? null };
+}
+
+export async function loader({ request, params, context }: Route.LoaderArgs) {
+  const { env } = context.get(cloudflareContext);
+  const token = params.token;
+  const payload = token ? await verifyCardUpdateToken(env, token) : null;
+  if (!payload) {
+    return data<LoaderState>({ state: "invalid" });
+  }
+
+  const { failedPayment, connection } = await loadTarget(env, payload.failedPaymentId, payload.accountId);
+  if (!failedPayment || !connection?.stripeAccessToken) {
+    return data<LoaderState>({ state: "invalid" });
+  }
+  if (failedPayment.status !== "active") {
+    return data<LoaderState>({ state: "resolved" });
+  }
+
+  const url = new URL(request.url);
+  const sessionId = url.searchParams.get("session_id");
+  if (sessionId) {
+    try {
+      const accessToken = await decryptToken(env, connection.stripeAccessToken);
+      const result = await finalizeCardUpdateSession({
+        accessToken,
+        sessionId,
+        subscriptionId: failedPayment.subscriptionId,
+      });
+      if (!result.ok) {
+        return data<LoaderState>({ state: "setup_failed" });
+      }
+    } catch {
+      // Never log the error object: it can carry request/token context.
+      return data<LoaderState>({ state: "setup_failed" });
+    }
+    // Redirect to the clean URL so a refresh never re-finalizes the same session_id.
+    throw redirect(`/p/${token}?done=1`);
+  }
+
+  const done = url.searchParams.get("done") === "1";
+  if (done) return data<LoaderState>({ state: "done" });
+  return data<LoaderState>({
+    state: "ready",
+    amountCents: failedPayment.amountCents,
+    currency: failedPayment.currency,
+  });
+}
+
+export async function action({ request, params, context }: Route.ActionArgs) {
+  const { env } = context.get(cloudflareContext);
+  const token = params.token;
+  const payload = token ? await verifyCardUpdateToken(env, token) : null;
+  if (!payload) {
+    return data({ error: "This link is invalid or has expired." }, { status: 400 });
+  }
+
+  const { failedPayment, connection } = await loadTarget(env, payload.failedPaymentId, payload.accountId);
+  if (!failedPayment || failedPayment.status !== "active" || !connection?.stripeAccessToken) {
+    return data({ error: "This payment method link is no longer active." }, { status: 400 });
+  }
+
+  try {
+    const accessToken = await decryptToken(env, connection.stripeAccessToken);
+    const url = new URL(request.url);
+    const session = await createCardUpdateSession({
+      accessToken,
+      customerId: failedPayment.stripeCustomerId,
+      successUrl: `${url.origin}/p/${token}?session_id={CHECKOUT_SESSION_ID}`,
+      cancelUrl: `${url.origin}/p/${token}`,
+    });
+    return redirect(session.url);
+  } catch {
+    // Never log the error object: it can carry request/token context.
+    return data({ error: "Could not start the payment method update. Please try again." }, { status: 502 });
+  }
+}
+
+export default function CardUpdate({ loaderData, actionData }: Route.ComponentProps) {
+  const busy = useNavigation().state !== "idle";
+  const state = loaderData.state;
+  const amountLine =
+    loaderData.state === "ready"
+      ? `A recent payment of ${formatMoney(loaderData.amountCents, loaderData.currency)} did not go through.`
+      : undefined;
+
+  return (
+    <>
+      <Header />
+      {state === "invalid" ? (
+        <AuthShell title="Link not found">
+          <Alert tone="error">This link is invalid or has expired.</Alert>
+        </AuthShell>
+      ) : state === "resolved" ? (
+        <AuthShell title="Nothing to do here">
+          <Alert tone="success">
+            This payment has already been resolved. No action is needed.
+          </Alert>
+        </AuthShell>
+      ) : state === "done" ? (
+        <AuthShell title="Payment method updated">
+          <Alert tone="success">
+            Your payment method has been updated. Thank you.
+          </Alert>
+        </AuthShell>
+      ) : (
+        <AuthShell title="Update your payment method" subtitle={amountLine}>
+          {state === "setup_failed" ? (
+            <Alert tone="error">
+              We could not confirm your payment method update. Please try again.
+            </Alert>
+          ) : null}
+          {actionData?.error ? <Alert tone="error">{actionData.error}</Alert> : null}
+          <Form method="post">
+            <Submit disabled={busy}>{busy ? "Redirecting..." : "Update payment method"}</Submit>
+          </Form>
+        </AuthShell>
+      )}
+    </>
+  );
 }
