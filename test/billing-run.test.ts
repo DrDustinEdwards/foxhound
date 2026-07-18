@@ -5,8 +5,10 @@ import * as schema from "~/db/schema";
 import {
   buildBillingInvoiceBatch,
   computeBillingPeriod,
+  shouldAttemptPlatformCharge,
   type InvoiceBatchInput,
 } from "~/lib/billing/run";
+import type { PlatformInvoiceLineInput } from "~/lib/billing/stripe-invoice";
 
 const db = drizzle({} as never, { schema });
 const sqlOf = (item: unknown) => (item as { toSQL(): { sql: string; params: unknown[] } }).toSQL();
@@ -97,5 +99,45 @@ describe("buildBillingInvoiceBatch", () => {
     // 2000 + 1000 + 10000 = 13000; 3 line items.
     expect(totalCents).toBe(13_000);
     expect(lineItemCount).toBe(3);
+  });
+
+  it("also returns the plain line data alongside the SQL batch, for the platform charge step", () => {
+    const { lines } = buildBillingInvoiceBatch(
+      db,
+      baseInput({
+        recoveries: [{ id: "rec_1", amountCents: 10_000 }],
+        disputes: [{ id: "dsp_1", amountCents: 50_000, resolvedFeeCents: null }],
+      }),
+    );
+    expect(lines).toEqual([
+      { type: "recovery_fee", amountCents: 2_000, description: "Recovery fee" },
+      { type: "dispute_fee", amountCents: 10_000, description: "Dispute fee" },
+    ]);
+  });
+});
+
+describe("shouldAttemptPlatformCharge (the guard: never charge without a stored platform customer id)", () => {
+  const chargeableLine: PlatformInvoiceLineInput = {
+    type: "recovery_fee",
+    amountCents: 2_000,
+    description: "Recovery fee",
+  };
+
+  it("false when there is no platform customer id, even with chargeable lines", () => {
+    expect(shouldAttemptPlatformCharge(null, [chargeableLine])).toBe(false);
+  });
+
+  it("false when there is a customer id but nothing chargeable (adjustment-only or zero-amount)", () => {
+    const adjustmentOnly: PlatformInvoiceLineInput = {
+      type: "adjustment",
+      amountCents: -500,
+      description: "Goodwill credit",
+    };
+    expect(shouldAttemptPlatformCharge("cus_1", [adjustmentOnly])).toBe(false);
+    expect(shouldAttemptPlatformCharge("cus_1", [])).toBe(false);
+  });
+
+  it("true only when both a customer id and a chargeable line are present", () => {
+    expect(shouldAttemptPlatformCharge("cus_1", [chargeableLine])).toBe(true);
   });
 });
