@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 
 import type { Db } from "~/db";
-import { accountMembers, accounts } from "~/db";
+import { accountMembers, accounts, user } from "~/db";
 
 import { INVITE_TTL_MS, MEMBER_ROLE, MEMBER_STATUS } from "./roles";
 
@@ -109,6 +109,11 @@ export async function getInviteByToken(
   };
 }
 
+/** Trim + lowercase, the one normal form an invited/accepting email is compared in. */
+export function normalizeInviteEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
 /** Create a pending team-member invite. Returns the token for the invite link. */
 export async function createInvite(
   db: Db,
@@ -123,7 +128,7 @@ export async function createInvite(
     accountId,
     userId: null,
     role: MEMBER_ROLE.MEMBER,
-    invitedEmail: email.trim().toLowerCase(),
+    invitedEmail: normalizeInviteEmail(email),
     status: MEMBER_STATUS.PENDING,
     inviteToken: token,
     inviteExpiresAt: new Date(now.getTime() + INVITE_TTL_MS),
@@ -137,13 +142,29 @@ export type AcceptInviteResult =
   | { ok: false; reason: "invalid" | "email_mismatch" | "already_member" };
 
 /**
- * Accept a pending invite for the signed-in user. The invited email must match
- * the accepting user's email (invite is not transferable). Activates the member
- * row and clears the token.
- *
- * Single-account invariant: a user who already has an active account cannot
- * accept a second invite (that would give them two active memberships and make
- * account resolution ambiguous). Rejected with `already_member`.
+ * Pure decision for whether a fetched invite can be accepted by this user: the
+ * invite must exist, the invited email must match (invites are not
+ * transferable), and the user must not already hold an active membership
+ * elsewhere (the single-account invariant). Split from `acceptInvite` so the
+ * three rejection branches are unit-testable without a database.
+ */
+export function evaluateAcceptInvite(
+  invite: InviteView | null,
+  existingMembership: Membership | null,
+  userEmail: string,
+): AcceptInviteResult {
+  if (!invite) return { ok: false, reason: "invalid" };
+  if (!invite.invitedEmail || invite.invitedEmail !== normalizeInviteEmail(userEmail)) {
+    return { ok: false, reason: "email_mismatch" };
+  }
+  if (existingMembership) return { ok: false, reason: "already_member" };
+  return { ok: true, accountId: invite.accountId };
+}
+
+/**
+ * Accept a pending invite for the signed-in user: fetch the invite + the
+ * user's current membership, run the pure decision, and on success activate
+ * the member row and clear the token.
  */
 export async function acceptInvite(
   db: Db,
@@ -152,17 +173,9 @@ export async function acceptInvite(
   userEmail: string,
 ): Promise<AcceptInviteResult> {
   const invite = await getInviteByToken(db, token);
-  if (!invite) return { ok: false, reason: "invalid" };
-  if (
-    !invite.invitedEmail ||
-    invite.invitedEmail !== userEmail.trim().toLowerCase()
-  ) {
-    return { ok: false, reason: "email_mismatch" };
-  }
-
-  // Enforce the single-account invariant before activating the membership.
-  const existing = await resolveMembership(db, userId);
-  if (existing) return { ok: false, reason: "already_member" };
+  const existingMembership = invite ? await resolveMembership(db, userId) : null;
+  const result = evaluateAcceptInvite(invite, existingMembership, userEmail);
+  if (!result.ok || !invite) return result;
 
   await db
     .update(accountMembers)
@@ -173,7 +186,7 @@ export async function acceptInvite(
       inviteExpiresAt: null,
     })
     .where(eq(accountMembers.id, invite.memberId));
-  return { ok: true, accountId: invite.accountId };
+  return result;
 }
 
 /** Pending + active members of an account, for the team settings view. */
@@ -182,10 +195,13 @@ export async function listMembers(db: Db, accountId: string) {
     .select({
       id: accountMembers.id,
       userId: accountMembers.userId,
+      userName: user.name,
+      userEmail: user.email,
       invitedEmail: accountMembers.invitedEmail,
       role: accountMembers.role,
       status: accountMembers.status,
     })
     .from(accountMembers)
+    .leftJoin(user, eq(accountMembers.userId, user.id))
     .where(eq(accountMembers.accountId, accountId));
 }

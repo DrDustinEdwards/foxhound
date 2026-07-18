@@ -22,6 +22,8 @@ export {
   getInviteByToken,
   createInvite,
   acceptInvite,
+  evaluateAcceptInvite,
+  normalizeInviteEmail,
   listMembers,
   type Membership,
   type InviteView,
