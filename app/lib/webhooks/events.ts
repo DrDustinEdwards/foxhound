@@ -13,6 +13,7 @@ import { classifyDecline } from "~/lib/recovery/decline";
 //   invoice.payment_succeeded  -> recover (owns the 'recovered' status flip)
 //   charge.refunded (full)     -> stamp_refund (unbills the recovery)
 //   charge.dispute.created     -> stamp_dispute (feeds the billable predicate)
+//   charge.dispute.closed      -> dispute_resolved (5c: won/lost state + fee snapshot)
 // Everything else is ignored.
 
 export type WebhookIntent =
@@ -36,6 +37,7 @@ export type WebhookIntent =
     }
   | { kind: "stamp_refund"; paymentIntentId: string }
   | { kind: "stamp_dispute"; chargeId: string }
+  | { kind: "dispute_resolved"; stripeDisputeId: string; won: boolean }
   | { kind: "ignore"; reason: string };
 
 function asId(ref: string | { id?: string } | null | undefined): string | null {
@@ -94,6 +96,16 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
       const chargeId = asId(dispute.charge);
       if (!chargeId) return { kind: "ignore", reason: "no_charge" };
       return { kind: "stamp_dispute", chargeId };
+    }
+    case "charge.dispute.closed": {
+      const dispute = event.data.object as Stripe.Dispute;
+      if (!dispute.id) return { kind: "ignore", reason: "no_dispute_id" };
+      // Only a definitive win/loss resolves our state machine. An inquiry closed
+      // as warning_closed (or any other status) is not a chargeback outcome.
+      if (dispute.status !== "won" && dispute.status !== "lost") {
+        return { kind: "ignore", reason: "dispute_not_resolved" };
+      }
+      return { kind: "dispute_resolved", stripeDisputeId: dispute.id, won: dispute.status === "won" };
     }
     default:
       return { kind: "ignore", reason: "unhandled_type" };

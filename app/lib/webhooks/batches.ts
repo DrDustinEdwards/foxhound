@@ -1,8 +1,9 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, notInArray } from "drizzle-orm";
 
 import type { Db, MoneyWriteBatch } from "~/db";
-import { failedPayments, recoveredPayments, webhookEvents } from "~/db";
-import type { DeclineCategory } from "~/lib/constants";
+import { disputes, failedPayments, recoveredPayments, webhookEvents } from "~/db";
+import { disputeFeeCents } from "~/lib/billing/fees";
+import type { DeclineCategory, DisputeState } from "~/lib/constants";
 import { buildRecoveryStepInserts } from "~/lib/engine/intake";
 import type { ResolvedAttribution } from "~/lib/recovery/attribution";
 import { buildRecoveryBatch } from "~/lib/recovery/record-recovery";
@@ -168,6 +169,47 @@ export function buildDisputeStampBatch(
         and(
           eq(recoveredPayments.failedPaymentId, input.failedPaymentId),
           isNull(recoveredPayments.disputedAt),
+        ),
+      ),
+  ];
+}
+
+const RESOLVED_DISPUTE_STATES: DisputeState[] = ["resolved_won", "resolved_lost"];
+
+export interface DisputeResolutionInput {
+  claim: WebhookClaimInput;
+  stripeDisputeId: string;
+  won: boolean;
+  /** The disputed amount, read from the existing dispute row (the fee base). */
+  amountCents: number;
+  currency: string;
+  resolvedAt: Date;
+}
+
+/**
+ * charge.dispute.closed (5c Scope B, closes review finding L1): claim + set
+ * state=resolved_won|resolved_lost, conditional on the dispute not already being
+ * resolved (a replay or a second close event touches zero rows, not a second
+ * fee snapshot). On a win, snapshots the capped fee via disputeFeeCents onto
+ * resolved_fee_cents, so getBillableDisputes stops relying on its amount
+ * fallback. A loss clears any fee snapshot (defensive; a dispute never both
+ * flips to lost with a stale won-fee left behind).
+ */
+export function buildDisputeResolutionBatch(db: Db, input: DisputeResolutionInput): MoneyWriteBatch {
+  return [
+    buildWebhookClaim(db, input.claim),
+    db
+      .update(disputes)
+      .set({
+        state: input.won ? "resolved_won" : "resolved_lost",
+        resolvedAt: input.resolvedAt,
+        resolvedFeeCents: input.won ? disputeFeeCents(input.amountCents) : null,
+        resolvedFeeCurrency: input.won ? input.currency : null,
+      })
+      .where(
+        and(
+          eq(disputes.stripeDisputeId, input.stripeDisputeId),
+          notInArray(disputes.state, RESOLVED_DISPUTE_STATES),
         ),
       ),
   ];

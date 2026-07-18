@@ -4,7 +4,9 @@ import { describe, expect, it } from "vitest";
 
 import * as schema from "~/db/schema";
 import { resolveAttribution } from "~/lib/recovery/attribution";
+import { DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
 import {
+  buildDisputeResolutionBatch,
   buildDisputeStampBatch,
   buildIntakeBatch,
   buildRecoverBatch,
@@ -83,6 +85,19 @@ describe("classifyStripeEvent", () => {
     });
     expect(classifyStripeEvent(event("customer.updated", {})).kind).toBe("ignore");
   });
+
+  it("charge.dispute.closed -> dispute_resolved only for a definitive won/lost status", () => {
+    expect(
+      classifyStripeEvent(event("charge.dispute.closed", { id: "dp_1", status: "won" })),
+    ).toEqual({ kind: "dispute_resolved", stripeDisputeId: "dp_1", won: true });
+    expect(
+      classifyStripeEvent(event("charge.dispute.closed", { id: "dp_2", status: "lost" })),
+    ).toEqual({ kind: "dispute_resolved", stripeDisputeId: "dp_2", won: false });
+    // An inquiry closed without ever becoming a real dispute is not a chargeback outcome.
+    expect(
+      classifyStripeEvent(event("charge.dispute.closed", { id: "dp_3", status: "warning_closed" })),
+    ).toEqual({ kind: "ignore", reason: "dispute_not_resolved" });
+  });
 });
 
 const claim: WebhookClaimInput = {
@@ -152,5 +167,48 @@ describe("webhook batch builders (compile against schema)", () => {
     expect(sqlOf(refund[1]).sql).toMatch(/update .*recovered_payments/i);
     const dispute = buildDisputeStampBatch(db, { claim, failedPaymentId: "fp_1", at: now });
     expect(sqlOf(dispute[1]).sql).toMatch(/update .*recovered_payments/i);
+  });
+
+  it("dispute resolution batch snapshots the capped fee on a win, none on a loss", () => {
+    // 20% of a $500 dispute is $100, well under the $250 cap: proves the
+    // ordinary 20% math, not just the cap.
+    const won = buildDisputeResolutionBatch(db, {
+      claim,
+      stripeDisputeId: "dp_1",
+      won: true,
+      amountCents: 50_000,
+      currency: "usd",
+      resolvedAt: now,
+    });
+    expect(won.length).toBe(2);
+    const wonUpdate = sqlOf(won[1]);
+    expect(wonUpdate.sql).toMatch(/update .*disputes/i);
+    expect(wonUpdate.sql).toMatch(/not in/i);
+    expect(wonUpdate.params).toContain("resolved_won");
+    expect(wonUpdate.params).toContain(10_000);
+
+    // A much larger dispute proves the $250 cap actually applies, not just 20%
+    // (20% of $10,000 would be $2,000, capped down to $250).
+    const wonAtCap = buildDisputeResolutionBatch(db, {
+      claim,
+      stripeDisputeId: "dp_2",
+      won: true,
+      amountCents: 10_000_00,
+      currency: "usd",
+      resolvedAt: now,
+    });
+    expect(sqlOf(wonAtCap[1]).params).toContain(DISPUTE_FEE_CAP_CENTS);
+
+    const lost = buildDisputeResolutionBatch(db, {
+      claim,
+      stripeDisputeId: "dp_3",
+      won: false,
+      amountCents: 50_000,
+      currency: "usd",
+      resolvedAt: now,
+    });
+    const lostUpdate = sqlOf(lost[1]);
+    expect(lostUpdate.params).toContain("resolved_lost");
+    expect(lostUpdate.params).not.toContain(10_000);
   });
 });
