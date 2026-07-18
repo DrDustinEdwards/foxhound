@@ -32,6 +32,7 @@ export type Tone = "neutral" | "success" | "failure";
 const STEP_RESULT_TONE: Record<string, Tone> = {
   retry_succeeded: "success",
   email_sent: "success",
+  card_updated: "success",
   retry_card_declined: "failure",
   retry_error: "failure",
   retry_failed: "failure",
@@ -82,8 +83,11 @@ export function recoveryLifecycleTone(recovery: RecoveryLifecycleInput): Tone {
   return recoveryLifecycleStatus(recovery) === "recovered" ? "success" : "failure";
 }
 
-/** "retry_early" -> "Retry (early)"; "email_day3" -> "Email (day 3)". */
+/** "retry_early" -> "Retry (early)"; "email_day3" -> "Email (day 3)";
+ *  "card_update" -> "Card update" (the customer-initiated /p/:token signal,
+ *  not a scheduled step, so it reads as a plain label, not a "(detail)"). */
 export function formatStepType(stepType: string): string {
+  if (stepType === "card_update") return "Card update";
   const [kind, ...rest] = stepType.split("_");
   const kindLabel = kind === "retry" ? "Retry" : kind === "email" ? "Email" : kind;
   const detail = rest.join(" ").replace(/day(\d+)/, "day $1");

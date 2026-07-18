@@ -1,4 +1,5 @@
 import { BILLABLE_ATTRIBUTION_KINDS, type AttributionKind } from "~/lib/constants";
+import { isRetryStep } from "~/lib/recovery/schedule";
 
 // Attribution is first-class (SCHEMA.md spine #1, PRICING.md): a recovery is
 // BILLABLE only when a Foxhound action provably preceded the payment. This
@@ -46,4 +47,36 @@ export function resolveAttribution(signals: AttributionSignals): ResolvedAttribu
 /** True for the attributed (billable) kinds; false for the free baseline. */
 export function isBillableAttribution(kind: AttributionKind): boolean {
   return (BILLABLE_ATTRIBUTION_KINDS as readonly string[]).includes(kind);
+}
+
+/** The recovery_steps row shape findAttributionSignals reads. */
+export interface AttributionStepRow {
+  id: string;
+  stepType: string;
+  result: string | null;
+  clickedAt: Date | null;
+}
+
+/**
+ * Find the attribution signals present in a failed payment's recovery_steps,
+ * pure so it is unit-testable without a database (webhooks/process.ts fetches
+ * the rows and calls this). A succeeded retry step is `isRetryStep` +
+ * result "retry_succeeded"; a completed card update is stepType "card_update"
+ * + result "card_updated" (the signal recorded by the hosted /p/:token page,
+ * app/lib/card-update/signal.ts); a clicked dunning email has clickedAt set.
+ * All three refs point at recovery_steps.id (SCHEMA.md spine #1).
+ */
+export function findAttributionSignals(steps: AttributionStepRow[]): AttributionSignals {
+  const succeededRetry = steps.find(
+    (s) => isRetryStep(s.stepType) && s.result === "retry_succeeded",
+  );
+  const cardUpdate = steps.find(
+    (s) => s.stepType === "card_update" && s.result === "card_updated",
+  );
+  const clicked = steps.find((s) => s.clickedAt != null);
+  return {
+    succeededRetryStepId: succeededRetry?.id ?? null,
+    cardUpdateRef: cardUpdate?.id ?? null,
+    clickedEngagementId: clicked?.id ?? null,
+  };
 }

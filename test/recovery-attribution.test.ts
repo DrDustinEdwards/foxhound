@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 
 import * as schema from "~/db/schema";
 import {
+  type AttributionStepRow,
+  findAttributionSignals,
   isBillableAttribution,
   resolveAttribution,
 } from "~/lib/recovery/attribution";
@@ -35,6 +37,72 @@ describe("resolveAttribution", () => {
     expect(isBillableAttribution("email_engaged")).toBe(true);
     expect(isBillableAttribution("card_update")).toBe(true);
     expect(isBillableAttribution("stripe_baseline")).toBe(false);
+  });
+});
+
+// M1 (Phase 4 review, closed 2026-07-18 slice 5g): webhooks/process.ts's
+// resolveRecoveryAttribution reads recovery_steps and calls
+// findAttributionSignals before resolveAttribution. These prove the wiring
+// a card_update signal actually reaches resolveAttribution as cardUpdateRef,
+// and that it does not override a signal earlier in precedence.
+describe("findAttributionSignals (webhooks/process.ts's read of recovery_steps)", () => {
+  const step = (over: Partial<AttributionStepRow>): AttributionStepRow => ({
+    id: "step_x",
+    stepType: "email_day1",
+    result: null,
+    clickedAt: null,
+    ...over,
+  });
+
+  it("a completed card_update step produces cardUpdateRef -> attribution_kind card_update", () => {
+    const steps = [
+      step({ id: "step_1", stepType: "email_day1", result: "email_sent" }),
+      step({ id: "step_2", stepType: "card_update", result: "card_updated" }),
+    ];
+    const signals = findAttributionSignals(steps);
+    expect(signals.cardUpdateRef).toBe("step_2");
+    expect(resolveAttribution(signals)).toEqual({ kind: "card_update", ref: "step_2" });
+  });
+
+  it("an incomplete card_update step (no result yet) is not a signal", () => {
+    const steps = [step({ id: "step_1", stepType: "card_update", result: null })];
+    expect(findAttributionSignals(steps).cardUpdateRef).toBeNull();
+    expect(resolveAttribution(findAttributionSignals(steps))).toEqual({
+      kind: "stripe_baseline",
+      ref: null,
+    });
+  });
+
+  it("regression: a card_update signal does NOT override an earlier succeeded retry", () => {
+    const steps = [
+      step({ id: "step_1", stepType: "retry_early", result: "retry_succeeded" }),
+      step({ id: "step_2", stepType: "card_update", result: "card_updated" }),
+    ];
+    const signals = findAttributionSignals(steps);
+    expect(signals.succeededRetryStepId).toBe("step_1");
+    expect(signals.cardUpdateRef).toBe("step_2");
+    // Both signals are present in the row set; precedence must still pick retry.
+    expect(resolveAttribution(signals)).toEqual({ kind: "foxhound_retry", ref: "step_1" });
+  });
+
+  it("regression: a card_update signal does not get shadowed by, nor shadow, an unrelated click", () => {
+    const steps = [
+      step({ id: "step_1", stepType: "email_day1", clickedAt: new Date("2026-07-01T00:00:00.000Z") }),
+      step({ id: "step_2", stepType: "card_update", result: "card_updated" }),
+    ];
+    const signals = findAttributionSignals(steps);
+    expect(signals.clickedEngagementId).toBe("step_1");
+    expect(signals.cardUpdateRef).toBe("step_2");
+    // card_update outranks email_engaged in precedence (attribution.ts).
+    expect(resolveAttribution(signals)).toEqual({ kind: "card_update", ref: "step_2" });
+  });
+
+  it("no signals at all falls through to stripe_baseline, never a false card_update", () => {
+    const steps = [step({ id: "step_1", stepType: "email_day1", result: "email_sent" })];
+    expect(resolveAttribution(findAttributionSignals(steps))).toEqual({
+      kind: "stripe_baseline",
+      ref: null,
+    });
   });
 });
 

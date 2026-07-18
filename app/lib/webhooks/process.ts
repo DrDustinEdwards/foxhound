@@ -11,8 +11,7 @@ import {
 } from "~/db";
 import { executeMoneyWrite } from "~/lib/money/execute";
 import { isDisputeResolved } from "~/lib/disputes/labels";
-import { resolveAttribution } from "~/lib/recovery/attribution";
-import { isRetryStep } from "~/lib/recovery/schedule";
+import { findAttributionSignals, resolveAttribution } from "~/lib/recovery/attribution";
 
 import {
   buildClaimOnlyBatch,
@@ -98,10 +97,12 @@ async function findDisputeByStripeId(
 }
 
 /**
- * Resolve recovery attribution from the executed steps of a failed payment: a
- * landed silent retry is the strongest signal (foxhound_retry), else a clicked
- * dunning email (email_engaged), else the free stripe_baseline. Mirrors the
- * legacy recovery_trigger logic on the SCHEMA.md attribution spine.
+ * Resolve recovery attribution from the executed steps of a failed payment,
+ * in precedence order (app/lib/recovery/attribution.ts): a landed silent
+ * retry (foxhound_retry), else a completed card update through the hosted
+ * /p/:token page (card_update, M1 / Phase 4 review), else a clicked dunning
+ * email (email_engaged), else the free stripe_baseline. Mirrors the legacy
+ * recovery_trigger logic on the SCHEMA.md attribution spine.
  */
 async function resolveRecoveryAttribution(env: Env, failedPaymentId: string) {
   const db = getDb(env);
@@ -115,21 +116,18 @@ async function resolveRecoveryAttribution(env: Env, failedPaymentId: string) {
     .from(recoverySteps)
     .where(eq(recoverySteps.failedPaymentId, failedPaymentId));
 
-  const succeededRetry = steps.find(
-    (s) => isRetryStep(s.stepType) && s.result === "retry_succeeded",
-  );
-  const clicked = steps.find((s) => s.clickedAt != null);
-  const attribution = resolveAttribution({
-    succeededRetryStepId: succeededRetry?.id ?? null,
-    clickedEngagementId: clicked?.id ?? null,
-  });
-  const recoveredByStepId = succeededRetry?.id ?? clicked?.id ?? null;
+  const signals = findAttributionSignals(steps);
+  const attribution = resolveAttribution(signals);
+  const recoveredByStepId =
+    signals.succeededRetryStepId ?? signals.cardUpdateRef ?? signals.clickedEngagementId ?? null;
   const recoveryMethod =
     attribution.kind === "foxhound_retry"
       ? "foxhound_retry"
-      : attribution.kind === "email_engaged"
-        ? "email"
-        : "stripe_baseline";
+      : attribution.kind === "card_update"
+        ? "card_update"
+        : attribution.kind === "email_engaged"
+          ? "email"
+          : "stripe_baseline";
   return { attribution, recoveredByStepId, recoveryMethod };
 }
 
