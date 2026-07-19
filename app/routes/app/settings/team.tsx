@@ -69,10 +69,10 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
           {loaderData.members.map((m) => (
             <li
               key={m.id}
-              className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-label text-text-secondary"
+              className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2 text-label text-text-secondary"
             >
-              <span>{m.userId ? (m.userName ?? m.userEmail) : m.invitedEmail}</span>
-              <span className="flex items-center gap-2">
+              <span className="min-w-0 truncate">{m.userId ? (m.userName ?? m.userEmail) : m.invitedEmail}</span>
+              <span className="flex shrink-0 items-center gap-2">
                 <Badge tone="neutral">{m.role}</Badge>
                 <Badge tone={m.status === "active" ? "success" : "neutral"}>{m.status}</Badge>
               </span>
