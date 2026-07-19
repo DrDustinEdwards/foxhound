@@ -1,22 +1,26 @@
 import { classifyDecline, isRetryable } from "~/lib/recovery/decline";
 import type { DeclineCategory } from "~/lib/constants";
 
-// The seeded code list for the /decline-codes library (Phase 6 Pass 3). This
-// is the union of TASK-foxhound-phase6.md's explicitly named codes
-// (generic_decline, insufficient_funds, expired_card, do_not_honor,
-// card_velocity_exceeded, incorrect_cvc, processing_error, fraudulent,
-// lost_card, stolen_card) and every code already present in
-// app/lib/recovery/decline.ts's four classification sets (SOFT_CODES,
-// NETWORK_CODES, EXPIRED_CODES, FRAUD_CODES). 24 codes total.
+// The seeded code list for the /decline-codes library (Phase 6). Synced to
+// the full 32-code set researched in recova/phase6-content-decline-codes.md,
+// plus card_error (present in decline.ts's NETWORK_CODES but not covered by
+// that content doc; card_error's copy is hand-written in content.ts,
+// grounded in ordinary payments-industry knowledge, matching the doc's
+// tone). 33 codes total.
 //
-// This module never hand-assigns a category. card_velocity_exceeded and
-// incorrect_cvc are NOT in any of decline.ts's sets today, so
-// classifyDecline() falls through to its documented safe default ("unknown",
-// no auto-retry) for them; that is read live below via getDeclineCodeView,
-// the same as every other code, so the marketing copy can never drift from
-// what the recovery engine actually does. Do NOT edit app/lib/recovery/decline.ts
-// to backfill a bespoke category for these two: the honest fact that they
-// ride the safe-default path is stated plainly on their pages instead.
+// This module never hand-assigns a category. classifyDecline() is the only
+// source of truth, read live below via getDeclineCodeView, so the marketing
+// copy can never drift from what the recovery engine actually does. As of
+// the fail-closed fix (app/lib/recovery/decline.ts), an unrecognized code
+// resolves to the "unknown" category, not a silent retry: no automatic
+// retry runs, recovery goes straight to the card-update email path instead.
+// revocation_of_authorization and do_not_try_again are explicitly in
+// decline.ts's FRAUD_CODES (never retried); the remaining unclassified codes
+// below (card_velocity_exceeded, incorrect_cvc, invalid_cvc,
+// incorrect_number, invalid_number, no_action_taken, currency_not_supported,
+// call_issuer, duplicate_transaction) ride the "unknown" fail-closed default,
+// stated plainly on their pages. Do NOT edit decline.ts to backfill a bespoke
+// category for these nine just to make this list tidier.
 export interface DeclineCodeMeta {
   code: string;
   displayName: string;
@@ -49,9 +53,18 @@ export const DECLINE_CODES: DeclineCodeMeta[] = [
   { code: "pickup_card", displayName: "Pickup Card" },
   { code: "restricted_card", displayName: "Restricted Card" },
   { code: "security_violation", displayName: "Security Violation" },
-  // Named in the task, not in any decline.ts set (safe-default "soft" path)
+  { code: "revocation_of_authorization", displayName: "Revocation of Authorization" },
+  { code: "do_not_try_again", displayName: "Do Not Try Again" },
+  // Not in any decline.ts set; rides the "unknown" fail-closed default
   { code: "card_velocity_exceeded", displayName: "Card Velocity Exceeded" },
   { code: "incorrect_cvc", displayName: "Incorrect CVC" },
+  { code: "invalid_cvc", displayName: "Invalid CVC" },
+  { code: "incorrect_number", displayName: "Incorrect Number" },
+  { code: "invalid_number", displayName: "Invalid Number" },
+  { code: "no_action_taken", displayName: "No Action Taken" },
+  { code: "currency_not_supported", displayName: "Currency Not Supported" },
+  { code: "call_issuer", displayName: "Call Issuer" },
+  { code: "duplicate_transaction", displayName: "Duplicate Transaction" },
 ];
 
 export interface DeclineCodeView extends DeclineCodeMeta {
@@ -84,6 +97,8 @@ const CLASSIFIED_CODES = new Set([
   "pickup_card",
   "restricted_card",
   "security_violation",
+  "revocation_of_authorization",
+  "do_not_try_again",
 ]);
 
 function toView(meta: DeclineCodeMeta): DeclineCodeView {
