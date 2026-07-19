@@ -88,7 +88,7 @@ Acme Analytics`,
 ];
 
 const TONE_CLASSES: Record<EmailSample["tone"], string> = {
-  blue: "bg-blue-bg border-blue text-cobalt-text",
+  blue: "bg-blue-bg border-blue text-blue",
   orange: "bg-orange-bg border-orange text-warning-text",
   amber: "bg-amber-bg border-amber-border-interactive text-amber-text",
   red: "bg-red-bg border-red text-error-text",
