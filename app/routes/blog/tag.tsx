@@ -1,5 +1,87 @@
-import { RouteStub } from "~/components/route-stub";
+import { ArrowLeft } from "lucide-react";
+import { Link } from "react-router";
 
-export default function Page() {
-  return <RouteStub name="/blog/tag/:tag" />;
+import { BlogPostCard } from "~/components/blog/blog-post-card";
+import { getDb } from "~/db";
+import { cloudflareContext } from "~/lib/cloudflare-context";
+import { labelForTag } from "~/lib/blog/tags";
+import { getAllPublishedPosts } from "~/lib/blog/queries.server";
+import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
+
+import type { Route } from "./+types/tag";
+
+// Ported from legacy app/(marketing)/blog/tag/[tag]/page.tsx (Phase 6 Pass
+// 2), rebuilt against the 8 canonical tags (tags.ts), not legacy's 5. An
+// unrecognized tag still renders (humanized label, honest empty state)
+// rather than 404ing, matching legacy's leniency; the canonical set is a
+// content-authoring convention, not a route-level allowlist.
+export async function loader({ params, context }: Route.LoaderArgs) {
+  const { env } = context.get(cloudflareContext);
+  const db = getDb(env);
+  const tag = params.tag;
+  const allPosts = await getAllPublishedPosts(db);
+  const posts = allPosts.filter((p) => p.tags.includes(tag));
+  return { siteUrl: siteUrl(env), tag, posts };
+}
+
+export function meta({ loaderData }: Route.MetaArgs) {
+  if (!loaderData) return [{ title: "Blog - Foxhound" }];
+  const label = labelForTag(loaderData.tag);
+  return [
+    { title: `${label} - Foxhound Blog` },
+    { name: "description", content: `Guides on ${label.toLowerCase()} from the Foxhound blog.` },
+  ];
+}
+
+export default function BlogTagPage({ loaderData }: Route.ComponentProps) {
+  const { siteUrl: url, tag, posts } = loaderData;
+  const label = labelForTag(tag);
+
+  return (
+    <div>
+      <div className="border-b border-border-sub px-4 py-16 text-center sm:px-8">
+        <Link
+          to="/blog"
+          className="group inline-flex items-center gap-1.5 text-label text-text-tertiary hover:text-text"
+        >
+          <ArrowLeft
+            className="transition-transform group-hover:-translate-x-0.5"
+            size={13}
+            strokeWidth={1.5}
+            aria-hidden
+          />
+          All posts
+        </Link>
+        <h1 className="mt-4 text-display font-medium text-text">{label}</h1>
+        <p className="mt-2 font-mono text-micro text-text-tertiary">
+          {posts.length} {posts.length === 1 ? "article" : "articles"}
+        </p>
+      </div>
+
+      <main className="mx-auto max-w-5xl px-4 py-12 sm:px-8">
+        {posts.length === 0 ? (
+          <p className="text-center text-body text-text-secondary">No articles tagged {label} yet.</p>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {posts.map((post) => (
+              <BlogPostCard key={post.slug} post={post} />
+            ))}
+          </div>
+        )}
+      </main>
+
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(
+            breadcrumbListJsonLd(url, [
+              { name: "Home", path: "/" },
+              { name: "Blog", path: "/blog" },
+              { name: label, path: `/blog/tag/${tag}` },
+            ]),
+          ),
+        }}
+      />
+    </div>
+  );
 }
