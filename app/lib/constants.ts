@@ -109,7 +109,9 @@ export const SEND_MAX_ATTEMPTS = 3;
 export const SEND_RETRY_BACKOFF_MINUTES = [5, 30, 120] as const;
 
 // ---- Decline classification (rebuild is silent-first; fraud never retries) ----
-export const DECLINE_CATEGORIES = ["soft", "network", "expired", "fraud"] as const;
+// "unknown" is the fail-closed default for any code not in an explicit set
+// below: no auto-retry, same as fraud/expired (app/lib/recovery/decline.ts).
+export const DECLINE_CATEGORIES = ["soft", "network", "expired", "fraud", "unknown"] as const;
 export type DeclineCategory = (typeof DECLINE_CATEGORIES)[number];
 
 // ---- Email pipeline (ARCHITECTURE.md: Cloudflare Email Service, one send module) ----
