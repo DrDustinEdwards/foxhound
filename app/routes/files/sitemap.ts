@@ -1,6 +1,8 @@
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { getAllPublishedPosts } from "~/lib/blog/queries.server";
+import { COMPETITOR_ORDER } from "~/lib/compare/competitors";
+import { DECLINE_CODES } from "~/lib/decline-codes/codes";
 import { siteUrl } from "~/lib/seo/jsonld";
 
 import type { Route } from "./+types/sitemap";
@@ -39,6 +41,11 @@ const STATIC_PAGES: SitemapEntry[] = [
   { path: "/privacy", changeFrequency: "yearly", priority: 0.3 },
   { path: "/terms", changeFrequency: "yearly", priority: 0.3 },
   { path: "/blog", changeFrequency: "weekly", priority: 0.8 },
+  // Pass 3 extension point: decline-codes and compare hubs + their
+  // templated per-code/per-competitor pages, added below via
+  // DECLINE_CODES/COMPETITOR_ORDER rather than hand-listed here.
+  { path: "/decline-codes", changeFrequency: "monthly", priority: 0.8 },
+  { path: "/compare", changeFrequency: "monthly", priority: 0.7 },
 ];
 
 function xmlEscape(s: string): string {
@@ -75,7 +82,19 @@ export async function loader({ context }: Route.LoaderArgs) {
     priority: 0.6,
   }));
 
-  const entries = [...STATIC_PAGES, ...postEntries, ...tagEntries];
+  const declineCodeEntries: SitemapEntry[] = DECLINE_CODES.map((c) => ({
+    path: `/decline-codes/${c.code}`,
+    changeFrequency: "monthly",
+    priority: 0.6,
+  }));
+
+  const compareEntries: SitemapEntry[] = COMPETITOR_ORDER.map((slug) => ({
+    path: `/compare/${slug}`,
+    changeFrequency: "monthly",
+    priority: 0.6,
+  }));
+
+  const entries = [...STATIC_PAGES, ...postEntries, ...tagEntries, ...declineCodeEntries, ...compareEntries];
 
   const xml =
     '<?xml version="1.0" encoding="UTF-8"?>\n' +
