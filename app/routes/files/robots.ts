@@ -46,7 +46,7 @@ const ALLOWED_BOTS = [
   "ClaudeBot",
   "Claude-SearchBot",
   "Claude-User",
-  "Perplexitybot",
+  "PerplexityBot",
   "Perplexity-User",
   "Google-Extended",
 ];
