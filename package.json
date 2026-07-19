@@ -13,7 +13,8 @@
     "cf-typegen": "wrangler types",
     "auth:generate": "better-auth generate --config app/lib/auth/generate.config.ts --output app/db/auth-schema.ts --yes",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "wrangler d1 migrations apply foxhound-staging --remote"
+    "db:migrate": "wrangler d1 migrations apply foxhound-staging --remote",
+    "db:seed:benchmark": "wrangler d1 execute foxhound-staging --remote --file=./drizzle/seed/benchmark_data.sql"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.111.0",

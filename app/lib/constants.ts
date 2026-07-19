@@ -155,6 +155,12 @@ export const RETENTION_PAGE_404_DAILY_DAYS = 365;
  *  a large backlog drains over successive ticks). */
 export const RETENTION_SWEEP_LIMIT = 5_000;
 
+// ---- Audit product (Phase 6 Pass 3: full-audit lift-band data/query layer) ----
+/** Trailing window the audit scans for failed/recovered invoices (legacy parity). */
+export const AUDIT_LOOKBACK_DAYS = 90;
+/** Bounded work per audit run: caps Stripe invoice pagination (mirrors RETENTION_SWEEP_LIMIT). */
+export const AUDIT_MAX_INVOICES_SCANNED = 2000;
+
 // ---- Stripe (ARCHITECTURE.md: Stripe is the product; permanent dependency) ----
 /**
  * Pinned Stripe API version. Matches the installed `stripe` package's default
