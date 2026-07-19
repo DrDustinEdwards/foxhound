@@ -4,6 +4,7 @@ import type { BatchItem } from "drizzle-orm/batch";
 import type { Db } from "~/db";
 import { disputeApprovals, disputes } from "~/db";
 import type { DisputeState } from "~/lib/constants";
+import { isUniqueConstraintError } from "~/lib/money/serializer";
 
 // Not a MoneyWriteBatch (app/db/money-write.ts): that type name is reserved for
 // batches routed through the per-account money-write DO. This one deliberately
@@ -88,4 +89,18 @@ export function buildApprovalBatch(db: Db, input: ApprovalBatchInput): Operation
       approvedAt: input.approvedAt,
     }),
   ];
+}
+
+/**
+ * Maps a failed buildApprovalBatch write to the clean user-facing message the
+ * sequential canApprove pre-check already uses, or null if the caller should
+ * rethrow (Phase 5 review MEDIUM fix, 2026-07-19). The structural guarantee
+ * (dispute_approvals unique per dispute_id) already makes a double-submit
+ * impossible; without this, the LOSING request of a concurrent race (both
+ * requests pass the pre-check on a stale read, the second's insert then
+ * fails the unique constraint) surfaced as an unhandled 500 instead of the
+ * same "already submitted" message.
+ */
+export function approvalRaceErrorMessage(err: unknown): string | null {
+  return isUniqueConstraintError(err) ? "This dispute has already been submitted." : null;
 }
