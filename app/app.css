@@ -67,8 +67,6 @@
   --color-warning-text: var(--warning-text);
   --color-blue: var(--blue);
   --color-blue-bg: var(--blue-bg);
-  --color-cobalt-text: var(--cobalt-text);
-  --color-cobalt-bg: var(--cobalt-bg);
   --color-purple: var(--purple);
   --color-purple-bg: var(--purple-bg);
   --font-sans: var(--font-dm-sans);
@@ -123,12 +121,9 @@
   --warning-text: #f97316;
   --blue: #3b9eff;
   --blue-bg: #0a1929;
-  --cobalt-text: #6c93ef;
   --purple: #a78bfa;
   --purple-bg: #0f091f;
 
-  --cobalt-bg: #0f1d3d;
-  --cobalt-ui: #6c93ef;
   --warning: var(--orange);
   --warning-bg: var(--orange-bg);
   --error: var(--red);
@@ -175,12 +170,9 @@
   --warning-text: #7a5c00;
   --blue: #1865bf;
   --blue-bg: #e5f0fa;
-  --cobalt-text: #0d3fb5;
   --purple: #6d4ed0;
   --purple-bg: #ece6ff;
 
-  --cobalt-bg: #e5edff;
-  --cobalt-ui: #0d3fb5;
   --warning: var(--orange);
   --warning-bg: var(--orange-bg);
   --error: var(--red);
@@ -368,10 +360,13 @@ body {
   color: var(--amber-text);
 }
 
-/* Reading progress bar (components/blog/reading-progress-bar.tsx). */
+/* Reading progress bar (components/blog/reading-progress-bar.tsx). `top` is
+   set inline by the component (measured off the real header height), not
+   here: header.tsx's height is content-driven, not a fixed constant, so it
+   previously overlapped the sticky header instead of sitting below it
+   (Phase 6 review finding). */
 .blog-progress-bar {
   position: fixed;
-  top: 0;
   left: 0;
   height: 3px;
   background: var(--amber);
