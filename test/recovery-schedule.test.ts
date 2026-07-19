@@ -10,21 +10,59 @@ import {
 import type { DeclineCategory } from "~/lib/constants";
 
 describe("classifyDecline", () => {
-  it("maps codes to categories and defaults unknown/null to soft", () => {
+  it("maps codes to categories and fails closed on unknown/null to 'unknown', not 'soft'", () => {
     expect(classifyDecline("insufficient_funds")).toBe("soft");
     expect(classifyDecline("processing_error")).toBe("network");
     expect(classifyDecline("expired_card")).toBe("expired");
     expect(classifyDecline("stolen_card")).toBe("fraud");
-    expect(classifyDecline("something_unknown")).toBe("soft");
-    expect(classifyDecline(null)).toBe("soft");
-    expect(classifyDecline(undefined)).toBe("soft");
+    expect(classifyDecline("something_unknown")).toBe("unknown");
+    expect(classifyDecline(null)).toBe("unknown");
+    expect(classifyDecline(undefined)).toBe("unknown");
   });
 
-  it("marks only soft and network as retryable", () => {
+  it("does not regress previously-correct soft codes (still retryable)", () => {
+    for (const code of [
+      "insufficient_funds",
+      "do_not_honor",
+      "generic_decline",
+      "card_declined",
+      "transaction_not_allowed",
+      "withdrawal_count_limit_exceeded",
+    ]) {
+      expect(classifyDecline(code)).toBe("soft");
+      expect(isRetryable(classifyDecline(code))).toBe(true);
+    }
+  });
+
+  it("routes revocation_of_authorization and do_not_try_again to fraud (never retried)", () => {
+    expect(classifyDecline("revocation_of_authorization")).toBe("fraud");
+    expect(classifyDecline("do_not_try_again")).toBe("fraud");
+    expect(isRetryable(classifyDecline("revocation_of_authorization"))).toBe(false);
+    expect(isRetryable(classifyDecline("do_not_try_again"))).toBe(false);
+  });
+
+  it("never retries the documented never-retry set", () => {
+    const neverRetryCodes = [
+      "lost_card",
+      "stolen_card",
+      "fraudulent",
+      "pickup_card",
+      "restricted_card",
+      "security_violation",
+      "do_not_try_again",
+      "revocation_of_authorization",
+    ];
+    for (const code of neverRetryCodes) {
+      expect(isRetryable(classifyDecline(code))).toBe(false);
+    }
+  });
+
+  it("marks only soft and network as retryable; unknown fails closed like expired/fraud", () => {
     expect(isRetryable("soft")).toBe(true);
     expect(isRetryable("network")).toBe(true);
     expect(isRetryable("expired")).toBe(false);
     expect(isRetryable("fraud")).toBe(false);
+    expect(isRetryable("unknown")).toBe(false);
   });
 });
 
@@ -46,6 +84,11 @@ describe("recovery schedules (silent-first)", () => {
   it("never retries expired cards (they re-decline)", () => {
     expect(RECOVERY_SCHEDULES.expired.some((s) => isRetryStep(s.stepType))).toBe(false);
     expect(isEmailStep(RECOVERY_SCHEDULES.expired[0].stepType)).toBe(true);
+  });
+
+  it("never retries unknown/unmapped codes (fail closed, no data to safely retry)", () => {
+    expect(RECOVERY_SCHEDULES.unknown.some((s) => isRetryStep(s.stepType))).toBe(false);
+    expect(isEmailStep(RECOVERY_SCHEDULES.unknown[0].stepType)).toBe(true);
   });
 
   it("schedules are strictly increasing in time", () => {
