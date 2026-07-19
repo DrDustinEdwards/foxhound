@@ -39,6 +39,7 @@ export function Field({
   autoComplete,
   required = true,
   defaultValue,
+  disabled,
 }: {
   label: string;
   name: string;
@@ -46,6 +47,7 @@ export function Field({
   autoComplete?: string;
   required?: boolean;
   defaultValue?: string;
+  disabled?: boolean;
 }) {
   return (
     <label className="flex flex-col gap-1.5">
@@ -53,12 +55,13 @@ export function Field({
         {label}
       </span>
       <input
-        className="rounded-md border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-text-subtle focus-visible:border-amber"
+        className="rounded-md border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-text-subtle focus-visible:border-amber disabled:text-text-tertiary disabled:opacity-70"
         name={name}
         type={type}
         autoComplete={autoComplete}
         required={required}
         defaultValue={defaultValue}
+        disabled={disabled}
       />
     </label>
   );

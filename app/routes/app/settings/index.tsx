@@ -120,12 +120,14 @@ function SettingsCard({
   description,
   action,
   result,
+  submittable = true,
   children,
 }: {
   title: string;
   description?: string;
   action: string;
   result?: ActionResult;
+  submittable?: boolean;
   children: React.ReactNode;
 }) {
   const busy = useNavigation().state !== "idle";
@@ -135,31 +137,46 @@ function SettingsCard({
       {description ? (
         <p className="mt-1 text-label text-text-tertiary">{description}</p>
       ) : null}
-      <Form method="post" className="mt-4 flex flex-col gap-3">
-        <input type="hidden" name="_action" value={action} />
-        {result?.action === action && result.ok ? (
-          <Alert tone="success">Saved.</Alert>
-        ) : null}
-        {result?.action === action && !result.ok && result.error ? (
-          <Alert tone="error">{result.error}</Alert>
-        ) : null}
-        {children}
-        <div>
-          <Submit disabled={busy}>{busy ? "Saving..." : "Save"}</Submit>
-        </div>
-      </Form>
+      {submittable ? (
+        <Form method="post" className="mt-4 flex flex-col gap-3">
+          <input type="hidden" name="_action" value={action} />
+          {result?.action === action && result.ok ? (
+            <Alert tone="success">Saved.</Alert>
+          ) : null}
+          {result?.action === action && !result.ok && result.error ? (
+            <Alert tone="error">{result.error}</Alert>
+          ) : null}
+          {children}
+          <div>
+            <Submit disabled={busy}>{busy ? "Saving..." : "Save"}</Submit>
+          </div>
+        </Form>
+      ) : (
+        <div className="mt-4 flex flex-col gap-3">{children}</div>
+      )}
     </section>
   );
 }
 
-function Checkbox({ label, name, defaultChecked }: { label: string; name: string; defaultChecked: boolean }) {
+function Checkbox({
+  label,
+  name,
+  defaultChecked,
+  disabled,
+}: {
+  label: string;
+  name: string;
+  defaultChecked: boolean;
+  disabled?: boolean;
+}) {
   return (
-    <label className="flex items-center gap-2 text-label text-text">
+    <label className={`flex items-center gap-2 text-label ${disabled ? "text-text-tertiary" : "text-text"}`}>
       <input
         type="checkbox"
         name={name}
         defaultChecked={defaultChecked}
-        className="h-4 w-4 rounded border-border accent-amber"
+        disabled={disabled}
+        className={`h-4 w-4 rounded border-border ${disabled ? "" : "accent-amber"}`}
       />
       {label}
     </label>
@@ -227,42 +244,55 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
         />
       </SettingsCard>
 
-      <SettingsCard title="Notifications" action="notifications" result={result}>
+      <SettingsCard
+        title="Notifications"
+        description="Notifications aren't sending yet; these settings save for when they turn on."
+        action="notifications"
+        result={result}
+        submittable={false}
+      >
         <Checkbox
           label="Weekly digest"
           name="digestEnabled"
           defaultChecked={Boolean(account.digestEnabled)}
+          disabled
         />
         <Checkbox
           label="Recovery notifications"
           name="recoveryNotificationsEnabled"
           defaultChecked={Boolean(account.recoveryNotificationsEnabled)}
+          disabled
         />
         <Checkbox
           label="Sequence complete notifications"
           name="sequenceCompleteNotificationsEnabled"
           defaultChecked={Boolean(account.sequenceCompleteNotificationsEnabled)}
+          disabled
         />
         <Checkbox
           label="Win-back notifications"
           name="winbackNotificationsEnabled"
           defaultChecked={Boolean(account.winbackNotificationsEnabled)}
+          disabled
         />
         <Checkbox
           label="Expiring card notifications"
           name="expiringCardNotificationsEnabled"
           defaultChecked={Boolean(account.expiringCardNotificationsEnabled)}
+          disabled
         />
         <Checkbox
           label="Slack notifications"
           name="slackNotificationsEnabled"
           defaultChecked={Boolean(account.slackNotificationsEnabled)}
+          disabled
         />
         <Field
           label="Slack webhook URL"
           name="slackWebhookUrl"
           required={false}
           defaultValue={account.slackWebhookUrl ?? ""}
+          disabled
         />
       </SettingsCard>
 
