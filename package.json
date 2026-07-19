@@ -20,12 +20,16 @@
     "@sentry/cloudflare": "^10.65.0",
     "better-auth": "^1.6.23",
     "drizzle-orm": "^0.45.2",
+    "highlight.js": "^11.11.1",
     "isbot": "^5",
     "lucide-react": "^1.25.0",
+    "marked": "^18.0.6",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "react-router": "8.2.0",
-    "stripe": "^22.3.1"
+    "sanitize-html": "^2.17.6",
+    "stripe": "^22.3.1",
+    "workers-og": "^0.0.27"
   },
   "devDependencies": {
     "@better-auth/cli": "^1.4.21",
@@ -36,6 +40,7 @@
     "@types/node": "^26.1.1",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
+    "@types/sanitize-html": "^2.16.1",
     "cross-env": "^10.1.0",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9.20.0",
