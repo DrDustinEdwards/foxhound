@@ -45,6 +45,7 @@ const CATEGORY_STATUS_LABEL = {
   network: "Retries automatically",
   expired: "Needs card update",
   fraud: "Never retried",
+  unknown: "No automatic retry",
 } as const;
 
 export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
