@@ -1,7 +1,23 @@
 import { ImageResponse } from "workers-og";
 
-import dmSansVariable from "~/assets/fonts/dm-sans-variable.woff2?inline";
-import dmMono500 from "~/assets/fonts/dm-mono-500.woff2?inline";
+// Satori (workers-og's layout engine) parses fonts with opentype.js, which:
+//   (a) only understands raw TrueType/OpenType signatures, not WOFF2's
+//       compressed wrapper (confirmed at request time: "Unsupported OpenType
+//       signature wOF2 Error", silently swallowed into an empty PNG rather
+//       than a visible error) -- fixed by shipping a .ttf sibling of the
+//       real self-hosted font (decompressed with the `wawoff2` package,
+//       used once to generate this file, not a runtime or build dependency).
+//   (b) cannot parse variable-font tables (fvar/gvar/avar/HVAR/STAT), which
+//       the app's DM Sans Variable file carries -- confirmed at request
+//       time ("Cannot read properties of undefined (reading '265')" deep
+//       inside opentype.js's table parser, again swallowed into an empty
+//       PNG). DM Mono's static per-weight files have none of those tables,
+//       so this card uses DM Mono for every line of text, not just the
+//       wordmark. That is a legitimate on-brand choice, not a workaround
+//       dressed up as one: DM Mono is already this app's font for every
+//       number/stat and the wordmark itself (wordmark.tsx), and reads
+//       cleanly at OG card sizes.
+import dmMono500 from "~/assets/fonts/dm-mono-500.ttf?inline";
 
 import type { Route } from "./+types/og";
 
@@ -32,13 +48,18 @@ const COLOR_WORDMARK = "#f5f5f3";
 const COLOR_AMBER = "#f0b429";
 const COLOR_TEXT_SECONDARY = "#a8a49e";
 const COLOR_TEXT_TERTIARY = "#928d87";
+const FONT = "DM Mono";
 
+// Only `<`/`>` need escaping here: the title/tag are placed as a <div>'s
+// TEXT content (never an attribute value), and workers-og's HTMLRewriter-
+// based parser does not decode entities back out of text nodes (confirmed
+// visually: an escaped "&amp;" rendered as the literal 5 characters
+// "&amp;", not "&"), so escaping `&`/`"` would show the entity code on the
+// card instead of the character. `<`/`>` still need escaping: an
+// unescaped `<` in attacker-controlled input (title/tag come off the
+// query string) could otherwise be parsed as the start of a real tag.
 function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+  return s.replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 // Satori/workers-og constraints (carried over from legacy): no <span>, every
@@ -46,40 +67,39 @@ function escapeHtml(s: string): string {
 // (use margins instead).
 function wordmarkHtml(fontSize: number): string {
   return `<div style="display:flex;align-items:center;">
-    <div style="display:flex;font-family:'DM Mono';font-size:${fontSize}px;font-weight:500;color:${COLOR_WORDMARK};">fo</div>
-    <div style="display:flex;font-family:'DM Mono';font-size:${fontSize}px;font-weight:500;color:${COLOR_AMBER};">x</div>
-    <div style="display:flex;font-family:'DM Mono';font-size:${fontSize}px;font-weight:500;color:${COLOR_WORDMARK};">hound</div>
+    <div style="display:flex;font-family:'${FONT}';font-size:${fontSize}px;font-weight:500;color:${COLOR_WORDMARK};">fo</div>
+    <div style="display:flex;font-family:'${FONT}';font-size:${fontSize}px;font-weight:500;color:${COLOR_AMBER};">x</div>
+    <div style="display:flex;font-family:'${FONT}';font-size:${fontSize}px;font-weight:500;color:${COLOR_WORDMARK};">hound</div>
   </div>`;
 }
 
 function defaultCardHtml(): string {
-  return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:1200px;height:630px;background-color:${COLOR_BG};font-family:'DM Sans';">
+  return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:1200px;height:630px;background-color:${COLOR_BG};font-family:'${FONT}';">
     ${wordmarkHtml(64)}
-    <div style="display:flex;margin-top:28px;font-size:28px;color:${COLOR_TEXT_SECONDARY};max-width:800px;text-align:center;">Recover failed Stripe payments without overbilling for it.</div>
-    <div style="display:flex;margin-top:20px;font-family:'DM Mono';font-size:16px;color:${COLOR_AMBER};letter-spacing:0.04em;text-transform:uppercase;">Pay only on Foxhound-attributed recoveries</div>
+    <div style="display:flex;margin-top:28px;font-size:24px;color:${COLOR_TEXT_SECONDARY};max-width:800px;text-align:center;">Recover failed Stripe payments without overbilling for it.</div>
+    <div style="display:flex;margin-top:20px;font-size:16px;color:${COLOR_AMBER};letter-spacing:0.04em;text-transform:uppercase;">Pay only on Foxhound-attributed recoveries</div>
   </div>`;
 }
 
 function blogCardHtml(title: string, tag: string): string {
   const safeTitle = escapeHtml(title);
   const label = escapeHtml(tag || "Blog");
-  const titleFontSize = title.length > 60 ? 44 : 56;
-  return `<div style="display:flex;flex-direction:column;justify-content:space-between;width:1200px;height:630px;background-color:${COLOR_BG};padding:72px;font-family:'DM Sans';">
+  const titleFontSize = title.length > 60 ? 40 : 48;
+  return `<div style="display:flex;flex-direction:column;justify-content:space-between;width:1200px;height:630px;background-color:${COLOR_BG};padding:72px;font-family:'${FONT}';">
     ${wordmarkHtml(28)}
-    <div style="display:flex;font-size:${titleFontSize}px;font-weight:500;line-height:1.2;color:${COLOR_WORDMARK};max-width:1000px;">${safeTitle}</div>
+    <div style="display:flex;font-size:${titleFontSize}px;font-weight:500;line-height:1.3;color:${COLOR_WORDMARK};max-width:1000px;">${safeTitle}</div>
     <div style="display:flex;align-items:center;justify-content:space-between;">
-      <div style="display:flex;font-family:'DM Mono';font-size:16px;letter-spacing:0.04em;text-transform:uppercase;color:${COLOR_AMBER};">${label}</div>
-      <div style="display:flex;font-family:'DM Mono';font-size:16px;color:${COLOR_TEXT_TERTIARY};">foxhoundapp.com</div>
+      <div style="display:flex;font-size:16px;letter-spacing:0.04em;text-transform:uppercase;color:${COLOR_AMBER};">${label}</div>
+      <div style="display:flex;font-size:16px;color:${COLOR_TEXT_TERTIARY};">foxhoundapp.com</div>
     </div>
   </div>`;
 }
 
-// The font files are self-hosted .woff2 (app/assets/fonts). workers-og needs
-// the raw bytes passed in explicitly (it cannot read a CSS @font-face), and
-// there is no local-filesystem or ASSETS-binding fetch available at this
-// call site, so the fonts are imported with Vite's `?inline` suffix (a
-// base64 data: URL baked into the bundle at build time) and decoded to an
-// ArrayBuffer here, rather than fetched at request time.
+// workers-og needs the raw font bytes passed in explicitly (it cannot read
+// a CSS @font-face), and there is no local-filesystem or ASSETS-binding
+// fetch available at this call site, so the font is imported with Vite's
+// `?inline` suffix (a base64 data: URL baked into the bundle at build time)
+// and decoded to an ArrayBuffer here, rather than fetched at request time.
 function dataUrlToArrayBuffer(dataUrl: string): ArrayBuffer {
   const base64 = dataUrl.slice(dataUrl.indexOf(",") + 1);
   const binary = atob(base64);
@@ -99,9 +119,6 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   return new ImageResponse(element, {
     width: 1200,
     height: 630,
-    fonts: [
-      { name: "DM Sans", data: dataUrlToArrayBuffer(dmSansVariable), weight: 500, style: "normal" },
-      { name: "DM Mono", data: dataUrlToArrayBuffer(dmMono500), weight: 500, style: "normal" },
-    ],
+    fonts: [{ name: FONT, data: dataUrlToArrayBuffer(dmMono500), weight: 500, style: "normal" }],
   });
 }
