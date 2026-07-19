@@ -2,12 +2,16 @@
 //
 // SOURCING DISCIPLINE (TASK-foxhound-phase6.md): every Foxhound-side row is
 // stated plainly from PRICING.md/DESIGN.md canon. Every competitor-side
-// claim is either a well-known, stable, public fact about that product
-// category (checked against general payments-industry knowledge, and for
-// the two least-certain products, Churn Buster and Paddle Retain, a web
-// search on 2026-07-19), or omitted outright rather than invented. No
-// competitor dollar amount or percentage appears here unless corroborated
-// confidently; several rows below say "not published" rather than guess.
+// claim is reconciled against recova/phase6-content-comparisons.md (the
+// dedicated content pass's researched facts), or omitted outright rather
+// than invented. No competitor dollar amount or percentage appears here
+// unless corroborated confidently; rows below say "not published" or
+// "custom-quoted" rather than guess. Pricing rows were corrected once
+// against that doc after a Phase 6 review found several understated a
+// figure that was already known (treating a published rate as "not
+// published") and one, Paddle Retain, stated a current standalone price
+// with no support in the sourced facts; see recova/foxhound-phase6-review.md
+// finding 11.
 //
 // Foxhound's real cons are included deliberately (task: "don't oversell"):
 // newer/less proven than every incumbent here, no prevention/pre-dispute
@@ -85,7 +89,7 @@ export const COMPETITORS: Record<string, CompetitorDef> = {
     rows: [
       {
         ...FOXHOUND_PRICING_ROW,
-        competitor: "Not published as a flat public rate; Churnkey's pricing is not stated here rather than guessed.",
+        competitor: "Starter tier is a published flat $250/month (billed yearly) for teams under $5k/month in churn volume. Higher tiers (Core, Intelligence, Enterprise) require a custom quote, not published.",
       },
       {
         dimension: "What it does",
@@ -107,7 +111,7 @@ export const COMPETITORS: Record<string, CompetitorDef> = {
       "Foxhound has no cancellation-flow or save-offer product at all; if that is the primary need, Churnkey is built specifically for it and Foxhound is not.",
       "Foxhound is newer and has no comparable public track record yet.",
     ],
-    omittedNote: "Churnkey's specific pricing structure is not published as a simple public rate, so it is stated as unavailable here rather than estimated.",
+    omittedNote: "Churnkey's Core, Intelligence, and Enterprise tier pricing is not published as a simple public rate, so it is stated as custom-quoted here rather than estimated.",
   },
 
   "churn-buster": {
@@ -118,7 +122,7 @@ export const COMPETITORS: Record<string, CompetitorDef> = {
     rows: [
       {
         ...FOXHOUND_PRICING_ROW,
-        competitor: "A flat monthly subscription tier rather than a percentage of recovered revenue, billed regardless of how much (or how little) gets recovered in a given month.",
+        competitor: "Plans start from $149/month, scaled to MRR rather than a flat rate, and billed regardless of how much gets recovered. Churn Buster backs this with its own ROI guarantee: if the tool doesn't cover its cost, the merchant doesn't pay.",
       },
       {
         dimension: "What it does",
@@ -133,7 +137,7 @@ export const COMPETITORS: Record<string, CompetitorDef> = {
       {
         dimension: "Cost when nothing is recovered",
         foxhound: "Zero. The fee only applies to attributed recoveries.",
-        competitor: "The flat subscription still applies even in a month with little or no recovered revenue.",
+        competitor: "The MRR-scaled subscription still applies in a low-recovery month, offset by Churn Buster's own ROI guarantee: if the tool doesn't cover its cost, the merchant doesn't pay.",
       },
     ],
     foxhoundCons: [
@@ -150,7 +154,7 @@ export const COMPETITORS: Record<string, CompetitorDef> = {
     rows: [
       {
         ...FOXHOUND_PRICING_ROW,
-        competitor: "Priced as a percentage of recovered revenue when used standalone; bundled at no separate charge for merchants already using Paddle as their merchant of record.",
+        competitor: "Included at no additional charge for merchants on Paddle Billing. Historically (as ProfitWell Retain) it was sold standalone on a percentage-of-recovered-revenue basis, but Paddle's current public materials position it as a Paddle Billing feature, not a separately purchasable product, so a standalone price isn't verifiable today.",
       },
       {
         dimension: "What it does",
@@ -182,7 +186,7 @@ export const COMPETITORS: Record<string, CompetitorDef> = {
     rows: [
       {
         ...FOXHOUND_PRICING_ROW,
-        competitor: "Sold as part of Baremetrics' tiered subscription analytics plans rather than as a standalone product with its own separate price.",
+        competitor: "Sold as part of Baremetrics' tiered subscription analytics plans, not a standalone percentage-of-recovery fee. Baremetrics states a company at $300,000 MRR pays about $499/month for Recover, as a public benchmark.",
       },
       {
         dimension: "What it does",
@@ -214,7 +218,7 @@ export const COMPETITORS: Record<string, CompetitorDef> = {
     rows: [
       {
         ...FOXHOUND_PRICING_ROW,
-        competitor: "A flat monthly subscription, typically tiered by active subscriber count, rather than a percentage of what gets recovered.",
+        competitor: "A fixed monthly fee scaled to the merchant's MRR, not a percentage of what gets recovered. Stunning's own pricing page illustrates an example rate around $120/month at a specific MRR tier.",
       },
       {
         dimension: "What it does",
