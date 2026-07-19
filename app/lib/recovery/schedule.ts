@@ -74,6 +74,16 @@ export const RECOVERY_SCHEDULES: Record<DeclineCategory, ScheduledStep[]> = {
     { stepType: "email_day14", offsetHours: STEP_TIMING_EMAIL_DAY14_HOURS },
     { stepType: "email_day30", offsetHours: STEP_TIMING_EMAIL_DAY30_HOURS },
   ],
+  // Unrecognized/unmapped decline codes fail closed: no silent retry against a
+  // code the engine cannot classify. Same cadence as expired (email carrying
+  // the card-update link, no repeat charge).
+  unknown: [
+    { stepType: "email_day1", offsetHours: STEP_TIMING_EMAIL_DAY1_HOURS },
+    { stepType: "email_day3", offsetHours: STEP_TIMING_EMAIL_DAY3_HOURS },
+    { stepType: "email_day7", offsetHours: STEP_TIMING_EMAIL_DAY7_HOURS },
+    { stepType: "email_day14", offsetHours: STEP_TIMING_EMAIL_DAY14_HOURS },
+    { stepType: "email_day30", offsetHours: STEP_TIMING_EMAIL_DAY30_HOURS },
+  ],
 };
 
 export const WIN_BACK_SCHEDULE: { stepNumber: number; offsetHours: number }[] = [

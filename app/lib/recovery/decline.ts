@@ -3,7 +3,8 @@ import type { DeclineCategory } from "~/lib/constants";
 // Single source of truth for Stripe decline-code classification (ported from
 // legacy lib/decline.ts). Decline category is first-class: it drives which
 // recovery schedule runs (schedule.ts) and the tone of the dunning copy.
-// Unknown / null codes are treated as `soft` (the safe, retryable default).
+// Money-path fails CLOSED: an unrecognized / null code is "unknown", a
+// dedicated no-auto-retry bucket, never folded into "soft".
 
 const SOFT_CODES = new Set([
   "insufficient_funds",
@@ -37,15 +38,19 @@ const FRAUD_CODES = new Set([
   "pickup_card",
   "restricted_card",
   "security_violation",
+  // The cardholder (or the network on their behalf) has explicitly said stop:
+  // never retry, route straight to hard-decline / pause handling.
+  "revocation_of_authorization",
+  "do_not_try_again",
 ]);
 
 export function classifyDecline(code: string | null | undefined): DeclineCategory {
-  if (!code) return "soft";
+  if (!code) return "unknown";
   if (SOFT_CODES.has(code)) return "soft";
   if (NETWORK_CODES.has(code)) return "network";
   if (EXPIRED_CODES.has(code)) return "expired";
   if (FRAUD_CODES.has(code)) return "fraud";
-  return "soft";
+  return "unknown";
 }
 
 /** True for a category whose declines can be silently retried (soft/network). */
