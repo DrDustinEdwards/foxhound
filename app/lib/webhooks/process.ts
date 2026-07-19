@@ -40,18 +40,22 @@ export type WebhookOutcome =
   | { status: "ignored"; reason: string }
   | { status: "error"; message: string };
 
-/** Map a connected Stripe account id to our account id. */
-async function resolveAccountId(
+/** Map a connected Stripe account id to our account id AND the specific
+ *  stripe_connections row it resolved through (Phase 5 review MEDIUM fix
+ *  companion, 2026-07-19): an account can have more than one active
+ *  connection, so failed_payments intake records which one a payment
+ *  actually belongs to, not just which account. */
+async function resolveConnection(
   env: Env,
   connectedAccountId: string,
-): Promise<string | null> {
+): Promise<{ accountId: string; connectionId: string } | null> {
   const db = getDb(env);
   const rows = await db
-    .select({ accountId: stripeConnections.accountId })
+    .select({ accountId: stripeConnections.accountId, connectionId: stripeConnections.id })
     .from(stripeConnections)
     .where(eq(stripeConnections.stripeUserId, connectedAccountId))
     .limit(1);
-  return rows[0]?.accountId ?? null;
+  return rows[0] ?? null;
 }
 
 /** Find the current active failed_payment for an invoice, if any (per-invoice dedupe / recover target). */
@@ -141,13 +145,14 @@ export async function processConnectedWebhook(
   if (!connectedAccountId) {
     return { status: "ignored", reason: "no_connected_account" };
   }
-  const accountId = await resolveAccountId(env, connectedAccountId);
-  if (!accountId) {
+  const resolved = await resolveConnection(env, connectedAccountId);
+  if (!resolved) {
     // Unknown account: claim via a plain insert (not a money write) so replays
     // short-circuit, then ignore. The unique index makes the claim idempotent.
     await claimUnknownAccount(env, event, receivedAt);
     return { status: "ignored", reason: "unknown_account" };
   }
+  const { accountId, connectionId } = resolved;
 
   const claim: WebhookClaimInput = {
     stripeEventId: event.id,
@@ -190,6 +195,7 @@ export async function processConnectedWebhook(
             claim,
             failedPaymentId,
             accountId,
+            stripeConnectionId: connectionId,
             stripeEventId: event.id,
             invoiceId: intent.invoiceId,
             customerId: intent.customerId,

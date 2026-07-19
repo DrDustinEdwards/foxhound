@@ -120,6 +120,7 @@ describe("webhook batch builders (compile against schema)", () => {
       claim,
       failedPaymentId: "fp_1",
       accountId: "acc_1",
+      stripeConnectionId: "conn_1",
       stripeEventId: "evt_1",
       invoiceId: "in_1",
       customerId: "cus_1",
@@ -136,6 +137,11 @@ describe("webhook batch builders (compile against schema)", () => {
     expect(sqlOf(batch[0]).sql).toMatch(/webhook_events/i);
     expect(sqlOf(batch[1]).sql).toMatch(/failed_payments/i);
     expect(sqlOf(batch[1]).params).toContain("fp_1");
+    // Phase 5 review MEDIUM fix companion: intake now records WHICH
+    // connection a failed payment belongs to, not just which account, so
+    // card-update.tsx can resolve the correct connection for an account
+    // with more than one.
+    expect(sqlOf(batch[1]).params).toContain("conn_1");
     expect(sqlOf(batch[2]).sql).toMatch(/recovery_steps/i);
   });
 

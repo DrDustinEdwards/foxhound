@@ -5,6 +5,10 @@ import * as schema from "~/db/schema";
 import { buildCardUpdateSignal } from "~/lib/card-update/signal";
 import { signCardUpdateToken, verifyCardUpdateToken } from "~/lib/card-update/token";
 import { CARD_UPDATE_TOKEN_MAX_AGE_MS } from "~/lib/constants";
+import {
+  resolveConnectionForFailedPayment,
+  type ConnectionCandidate,
+} from "~/routes/utility/card-update";
 
 const db = drizzle({} as never, { schema });
 function sqlOf(item: unknown): { sql: string; params: unknown[] } {
@@ -61,6 +65,28 @@ describe("card-update token sign/verify", () => {
       vi.setSystemTime(new Date(Date.now() + CARD_UPDATE_TOKEN_MAX_AGE_MS + 1));
       expect(await verifyCardUpdateToken(env, token)).toBeNull();
     });
+  });
+});
+
+describe("resolveConnectionForFailedPayment (Phase 5 review MEDIUM fix)", () => {
+  const connA: ConnectionCandidate = { id: "conn_a", stripeAccessToken: "enc_a" };
+  const connB: ConnectionCandidate = { id: "conn_b", stripeAccessToken: "enc_b" };
+
+  it("picks the connection tied to the failed payment when the account has more than one active connection", () => {
+    expect(resolveConnectionForFailedPayment([connA, connB], "conn_b")).toEqual(connB);
+  });
+
+  it("falls back to the single active connection for older rows with no stripe_connection_id recorded", () => {
+    expect(resolveConnectionForFailedPayment([connA], null)).toEqual(connA);
+  });
+
+  it("never guesses among multiple connections when stripe_connection_id is null", () => {
+    expect(resolveConnectionForFailedPayment([connA, connB], null)).toBeNull();
+  });
+
+  it("returns a clean null (not a crash) when the referenced connection is missing or disconnected", () => {
+    expect(resolveConnectionForFailedPayment([connA, connB], "conn_missing")).toBeNull();
+    expect(resolveConnectionForFailedPayment([], "conn_a")).toBeNull();
   });
 });
 
