@@ -8,7 +8,11 @@ import type { Route } from "./+types/llms-full";
 // Scale/Grow/AI Cost), no stale pricing, all URLs from siteUrl(env), and no
 // enumerated blog article list (see llms.ts's comment; nothing is imported
 // yet, so a generic pointer to /blog and the tag archives is the honest
-// choice here too).
+// choice here too). No specific pricing numbers appear anywhere below, same
+// reasoning as llms.ts (a Phase 6 review found the prior draft's "spec
+// sheet, not blog copy" exemption didn't hold against the standing rule,
+// which names this file directly); /pricing is the one place numbers are
+// stated plainly.
 export function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const url = siteUrl(env);
@@ -38,29 +42,29 @@ URL: ${url}/products/audit
 Docs: ${url}/docs/audit
 Pricing: Free.
 
-### Recovery (20% of Foxhound-attributed recoveries)
+### Recovery (a percentage of Foxhound-attributed recoveries)
 
 When a Stripe payment fails, Foxhound classifies the decline into a category and runs a silent retry before any customer-facing email, so a payment that recovers on its own is never billed. If the silent retry doesn't clear it, an AI-drafted dunning sequence runs across 30 days, with a hosted card-update link on every email. Recoveries Stripe's own tools (like Smart Retries) would have produced anyway are recorded and shown to the merchant for free; only recoveries attributable to a Foxhound action are billable, and only once that recovery has matured for 30 days (absorbing the refund window).
 
 URL: ${url}/products/recovery
 Docs: ${url}/docs/recovery
-Pricing: 20% of Foxhound-attributed recoveries. No flat fee. Nothing billed until a recovery has matured 30 days.
+Pricing: a percentage of Foxhound-attributed recoveries. No flat fee. Nothing billed until a recovery has matured 30 days. Current rate: ${url}/pricing.
 
-### Disputes (20% of won disputes, capped at $500)
+### Disputes (a percentage of won disputes, capped per dispute)
 
-When a Stripe dispute arrives, Foxhound drafts evidence from the merchant's Stripe data and recovery history. A human always reviews and signs before anything is submitted to Stripe; there is no auto-submit toggle, and there never has been one. Charges 20% of disputes won, capped at $500 per dispute, nothing on losses or accepted disputes.
+When a Stripe dispute arrives, Foxhound drafts evidence from the merchant's Stripe data and recovery history. A human always reviews and signs before anything is submitted to Stripe; there is no auto-submit toggle, and there never has been one. Charges a percentage of disputes won, capped per dispute, nothing on losses or accepted disputes.
 
 URL: ${url}/products/disputes
 Docs: ${url}/docs/disputes
-Pricing: 20% of won disputes, capped at $500 per dispute. Nothing on losses.
+Pricing: a percentage of won disputes, capped per dispute. Nothing on losses. Current rate and cap: ${url}/pricing.
 
-### Intelligence (free analytics tier, $199/month predictive layer)
+### Intelligence (free analytics tier, paid predictive layer)
 
-Pulls Stripe billing data into MRR movement (new, expansion, contraction, churn), cohort analytics, and customer health signals. The MRR/movement/cohort analytics tier is free for every Recovery merchant. A predictive risk-scoring layer, which feeds Recovery timing and Disputes triage, is a paid add-on.
+Pulls Stripe billing data into MRR movement (new, expansion, contraction, churn), cohort analytics, and customer health signals. The MRR/movement/cohort analytics tier is free for every Recovery merchant. A predictive risk-scoring layer, which feeds Recovery timing and Disputes triage, is a paid add-on billed as a flat monthly subscription.
 
 URL: ${url}/products/intelligence
 Docs: ${url}/docs/intelligence
-Pricing: Basic analytics free for Recovery merchants. Predictive risk scoring: $199/month.
+Pricing: Basic analytics free for Recovery merchants. Predictive risk scoring: flat monthly subscription, current rate at ${url}/pricing.
 
 ---
 
@@ -69,11 +73,11 @@ Pricing: Basic analytics free for Recovery merchants. Predictive risk scoring: $
 | Product | Pricing model |
 |---|---|
 | Audit | Free |
-| Recovery | 20% of Foxhound-attributed recoveries, billed after a 30-day maturity window |
-| Disputes | 20% of won disputes, capped at $500 per dispute |
-| Intelligence | Free basic analytics for Recovery merchants; $199/month for predictive risk scoring |
+| Recovery | A percentage of Foxhound-attributed recoveries, billed after a 30-day maturity window |
+| Disputes | A percentage of won disputes, capped per dispute |
+| Intelligence | Free basic analytics for Recovery merchants; flat monthly subscription for predictive risk scoring |
 
-No setup fees. No minimum commitments. No per-seat charges.
+No setup fees. No minimum commitments. No per-seat charges. Current rates: ${url}/pricing.
 
 ---
 

@@ -6,11 +6,16 @@ import type { Route } from "./+types/llms";
 // Rewritten from scratch against legacy app/llms.txt/route.ts (Phase 6 Pass
 // 2), NOT ported verbatim: legacy described dead products (Scale, Grow, AI
 // Cost) and the stale $299/mo figure the task bans outright. This describes
-// Foxhound's real, current lineup only, with the actual current pricing
-// (20% recovery, 20%/$500-cap disputes, $199/mo Intelligence predictive
-// layer) plainly stated, matching how /pricing itself states numbers (the
-// "no pricing numbers in body copy" rule is for blog/marketing prose, not
-// this machine-readable spec sheet).
+// Foxhound's real, current lineup only. No specific pricing numbers appear
+// anywhere below (standing rule, PRICING.md: "no specific-number pricing in
+// blog/SEO copy... 'outcome-based pricing' framing"; TASK-foxhound-phase6.md
+// names llms.txt/llms-full.txt directly). A prior draft stated the actual
+// figures here on the theory that a machine-readable spec sheet is exempt
+// from the blog/SEO-copy rule; a Phase 6 review found that reasoning
+// doesn't hold (the rule names this file explicitly, and the risk it guards
+// against, an AI citing a stale number as current fact, applies just as
+// much to a spec sheet as to prose). /pricing and the product pages remain
+// the place numbers are stated plainly.
 //
 // The blog section deliberately does NOT enumerate article titles/URLs:
 // no posts are imported yet (STOP A lands separately), so a static list
@@ -30,17 +35,18 @@ Foxhound is built on Stripe Connect for subscription businesses. It sits on top 
 ## Products
 
 - [Audit](${url}/products/audit): Free Stripe diagnostic. Identifies failed invoices, expiring cards, open disputes, and business health metrics. No account required.
-- [Recovery](${url}/products/recovery): Silent retries first, then AI-drafted dunning email sequences across 30 days, calibrated by decline category. Recoveries Stripe's own tools would have gotten anyway are recorded and shown for free. 20% of Foxhound-attributed recoveries only, and only once a recovery has matured 30 days.
-- [Disputes](${url}/products/disputes): Evidence drafted automatically from Stripe data and recovery history. A human always reviews and signs before anything reaches Stripe; there is no auto-submit toggle. 20% of won disputes, capped at $500 per dispute, nothing on losses.
-- [Intelligence](${url}/products/intelligence): MRR, movement (new/expansion/contraction/churn), and cohort analytics are free for every Recovery merchant. The predictive risk-scoring layer is $199/month.
+- [Recovery](${url}/products/recovery): Silent retries first, then AI-drafted dunning email sequences across 30 days, calibrated by decline category. Recoveries Stripe's own tools would have gotten anyway are recorded and shown for free. Priced as a percentage of Foxhound-attributed recoveries only, and only once a recovery has matured 30 days. See ${url}/pricing for the current rate.
+- [Disputes](${url}/products/disputes): Evidence drafted automatically from Stripe data and recovery history. A human always reviews and signs before anything reaches Stripe; there is no auto-submit toggle. Priced as a percentage of won disputes only, capped per dispute, nothing on losses. See ${url}/pricing for the current rate and cap.
+- [Intelligence](${url}/products/intelligence): MRR, movement (new/expansion/contraction/churn), and cohort analytics are free for every Recovery merchant. The predictive risk-scoring layer is a flat monthly subscription. See ${url}/pricing for the current rate.
 
 ## Pricing
 
 - Audit: free, no account required
-- Recovery: 20% of Foxhound-attributed recoveries, billed only after a 30-day maturity window; baseline recoveries Stripe would have gotten anyway are never billed
-- Disputes: 20% of won disputes, capped at $500 per dispute, nothing on losses
-- Intelligence: basic MRR/movement/cohort analytics free for Recovery merchants; predictive risk scoring is $199/month
+- Recovery: a percentage of Foxhound-attributed recoveries, billed only after a 30-day maturity window; baseline recoveries Stripe would have gotten anyway are never billed
+- Disputes: a percentage of won disputes, capped per dispute, nothing on losses
+- Intelligence: basic MRR/movement/cohort analytics free for Recovery merchants; predictive risk scoring is a flat monthly subscription
 - No setup fees, no per-seat charges
+- Current rates: ${url}/pricing
 
 ## Key pages
 
