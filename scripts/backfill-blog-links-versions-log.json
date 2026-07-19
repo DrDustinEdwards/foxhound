@@ -1,0 +1,72 @@
+{
+  "mode": "apply",
+  "preLoadFingerprint": [
+    {
+      "name": "links.count",
+      "expected": 225,
+      "actual": 225
+    },
+    {
+      "name": "links.sum(position)",
+      "expected": 559,
+      "actual": 559
+    },
+    {
+      "name": "versions.count",
+      "expected": 14,
+      "actual": 14
+    },
+    {
+      "name": "versions.sum(len title)",
+      "expected": 864,
+      "actual": 864
+    },
+    {
+      "name": "versions.sum(len body)",
+      "expected": 77846,
+      "actual": 77846
+    },
+    {
+      "name": "versions.sum(len excerpt)",
+      "expected": 2507,
+      "actual": 2507
+    }
+  ],
+  "droppedLinks": [],
+  "droppedVersions": [],
+  "versionsTrimmed": [],
+  "linksToInsert": 225,
+  "versionsToInsert": 14,
+  "postLoadFingerprint": [
+    {
+      "name": "links.count",
+      "expected": 225,
+      "actual": 225
+    },
+    {
+      "name": "links.sum(position)",
+      "expected": 559,
+      "actual": 559
+    },
+    {
+      "name": "versions.count",
+      "expected": 14,
+      "actual": 14
+    },
+    {
+      "name": "versions.sum(len title)",
+      "expected": 864,
+      "actual": 864
+    },
+    {
+      "name": "versions.sum(len body)",
+      "expected": 77846,
+      "actual": 77846
+    },
+    {
+      "name": "versions.sum(len excerpt)",
+      "expected": 2507,
+      "actual": 2507
+    }
+  ]
+}
