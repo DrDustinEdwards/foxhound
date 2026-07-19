@@ -1,13 +1,19 @@
-import { and, eq, getTableColumns, isNull, lte, ne, notLike, type SQL } from "drizzle-orm";
+import { and, eq, getTableColumns, inArray, isNull, lte, notLike, type SQL } from "drizzle-orm";
 
-import { DEMO_ACCOUNT_ID_PREFIX, RECOVERY_MATURITY_MS } from "~/lib/constants";
+import { BILLABLE_ATTRIBUTION_KINDS, DEMO_ACCOUNT_ID_PREFIX, RECOVERY_MATURITY_MS } from "~/lib/constants";
 import type { Db } from "./client";
 import { accounts, billingLineItems, disputes, recoveredPayments } from "./schema";
 
 // THE single source of truth for the billable sets (PRICING.md maturity-window
 // billing + SCHEMA.md spine #3). No other module reimplements these predicates.
 // A recovery bills only when ALL hold:
-//   - attributed to a Foxhound action (attribution_kind != 'stripe_baseline'),
+//   - attributed to a Foxhound action (attribution_kind is one of
+//     BILLABLE_ATTRIBUTION_KINDS, the same allow-list app/lib/recovery/attribution.ts's
+//     isBillableAttribution uses, consolidated here 2026-07-19 per Phase 5 review
+//     LOW/INFO finding: this used to be a deny-list, attribution_kind != 'stripe_baseline',
+//     which happened to be equivalent only because exactly four attribution kinds exist. A
+//     fifth kind added to the schema CHECK constraint in the future would have silently
+//     become billable by default under the old deny-list; the allow-list fails closed instead),
 //   - matured >= RECOVERY_MATURITY_DAYS (recovered_at <= asOf - maturity),
 //   - not refunded, not disputed, not soft-deleted,
 //   - not already billed (no billing_line_item references it),
@@ -32,7 +38,7 @@ export function billableRecoveryRowConditions(accountId: string, asOfMs: number)
   const maturityCutoff = new Date(asOfMs - RECOVERY_MATURITY_MS);
   return and(
     eq(recoveredPayments.accountId, accountId),
-    ne(recoveredPayments.attributionKind, "stripe_baseline"),
+    inArray(recoveredPayments.attributionKind, BILLABLE_ATTRIBUTION_KINDS),
     lte(recoveredPayments.recoveredAt, maturityCutoff),
     isNull(recoveredPayments.refundedAt),
     isNull(recoveredPayments.disputedAt),

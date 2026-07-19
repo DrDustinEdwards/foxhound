@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { getBillableDisputes, getBillableRecoveries } from "~/db/billable";
 import * as schema from "~/db/schema";
 import { disputeFeeCents, recoveryFeeCents } from "~/lib/billing/fees";
-import { DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
+import { BILLABLE_ATTRIBUTION_KINDS, DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
 
 const db = drizzle({} as never, { schema });
 const asOf = new Date("2026-07-01T00:00:00.000Z").getTime();
@@ -50,13 +50,21 @@ describe("dispute fee math (capped)", () => {
 describe("billable recovery predicate (SQL shape)", () => {
   const { sql, params } = getBillableRecoveries(db, "acc_1", asOf).toSQL();
 
-  it("excludes baseline, filters maturity + refund/dispute/deleted", () => {
-    expect(sql).toMatch(/attribution_kind.*<>|<>.*attribution_kind/i);
+  it("excludes baseline via an explicit allow-list of billable kinds, filters maturity + refund/dispute/deleted", () => {
+    // Phase 5 review LOW/INFO fix (2026-07-19): this used to be a deny-list
+    // (attribution_kind <> 'stripe_baseline'), consolidated to the same
+    // allow-list app/lib/recovery/attribution.ts's isBillableAttribution
+    // uses, so a future fifth attribution kind cannot become billable by
+    // default. Same practical set today: exactly the three non-baseline kinds.
+    expect(sql).toMatch(/attribution_kind.*in/i);
     expect(sql).toMatch(/recovered_at.*<=/i);
     expect(sql).toMatch(/refunded_at.*is null/i);
     expect(sql).toMatch(/disputed_at.*is null/i);
     expect(sql).toMatch(/deleted_at.*is null/i);
-    expect(params).toContain("stripe_baseline");
+    for (const kind of BILLABLE_ATTRIBUTION_KINDS) {
+      expect(params).toContain(kind);
+    }
+    expect(params).not.toContain("stripe_baseline");
     expect(params).toContain("acc_1");
   });
 

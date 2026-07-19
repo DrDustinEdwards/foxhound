@@ -2,6 +2,7 @@ import { drizzle } from "drizzle-orm/d1";
 import { describe, expect, it } from "vitest";
 
 import * as schema from "~/db/schema";
+import { ATTRIBUTION_KINDS, BILLABLE_ATTRIBUTION_KINDS } from "~/lib/constants";
 import {
   type AttributionStepRow,
   findAttributionSignals,
@@ -37,6 +38,15 @@ describe("resolveAttribution", () => {
     expect(isBillableAttribution("email_engaged")).toBe(true);
     expect(isBillableAttribution("card_update")).toBe(true);
     expect(isBillableAttribution("stripe_baseline")).toBe(false);
+  });
+
+  it("BILLABLE_ATTRIBUTION_KINDS is exactly ATTRIBUTION_KINDS minus stripe_baseline (Phase 5 review LOW/INFO fix)", () => {
+    // app/db/billable.ts's SQL predicate and isBillableAttribution here both
+    // consolidated onto this one allow-list (2026-07-19); this guards against
+    // the two ever drifting apart again if a future attribution kind is added
+    // to the CHECK constraint without also updating the allow-list.
+    const nonBaseline = ATTRIBUTION_KINDS.filter((k) => k !== "stripe_baseline");
+    expect([...BILLABLE_ATTRIBUTION_KINDS].sort()).toEqual([...nonBaseline].sort());
   });
 });
 
