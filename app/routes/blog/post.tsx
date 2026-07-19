@@ -10,7 +10,14 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import { formatTagChip } from "~/lib/blog/format";
 import { extractFaqPairs, renderMarkdown } from "~/lib/blog/markdown.server";
 import { getNextPost, getPostBySlug, getPostLinks, getPreviousPost } from "~/lib/blog/queries.server";
-import { articleJsonLd, breadcrumbListJsonLd, faqPageJsonLd, siteUrl } from "~/lib/seo/jsonld";
+import {
+  articleJsonLd,
+  breadcrumbListJsonLd,
+  faqPageJsonLd,
+  organizationJsonLd,
+  personJsonLd,
+  siteUrl,
+} from "~/lib/seo/jsonld";
 
 import type { Route } from "./+types/post";
 
@@ -251,6 +258,31 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
         </Link>
       </div>
 
+      {/* organizationJsonLd (and personJsonLd below, when applicable) render
+          the full node the Article's publisher/author @id references point
+          at. Rich Results parsers combine every JSON-LD block on ONE page
+          into a single graph, but do NOT fetch other pages to resolve an
+          @id, so a bare {"@id": ...} reference with no matching node on
+          THIS page would not actually resolve; home.tsx is the only other
+          place organizationJsonLd renders. */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd(url)) }}
+      />
+      {post.author.trim().toLowerCase() === "dustin edwards" ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(
+              personJsonLd(url, {
+                name: "Dustin Edwards",
+                jobTitle: "Founder",
+                description: "Founder of Foxhound, a pay-on-lift Stripe recovery, disputes, and intelligence platform.",
+              }),
+            ),
+          }}
+        />
+      ) : null}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
