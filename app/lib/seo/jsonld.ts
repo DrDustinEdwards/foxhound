@@ -157,7 +157,11 @@ export function personJsonLd(
 // author resolves to the existing Person entity (personJsonLd on /about) by
 // @id when the stored author name is Dustin Edwards, so the two structured
 // bylines corroborate each other instead of describing two different
-// authors; any other author string falls back to an inline Person node.
+// authors. A stored author of "Foxhound" (the brand byline used on posts
+// with no named human author) resolves to the Organization node by @id
+// instead of an inline Person: Foxhound is a company, not a person, and
+// schema.org's `author` property accepts an Organization. Any other author
+// string falls back to an inline Person node.
 export function articleJsonLd(
   url: string,
   opts: {
@@ -170,10 +174,13 @@ export function articleJsonLd(
     authorName: string;
   },
 ) {
+  const normalizedAuthor = opts.authorName.trim().toLowerCase();
   const author =
-    opts.authorName.trim().toLowerCase() === "dustin edwards"
+    normalizedAuthor === "dustin edwards"
       ? { "@id": `${url}/about#person` }
-      : { "@type": "Person", name: opts.authorName };
+      : normalizedAuthor === "foxhound"
+        ? { "@id": `${url}/#organization` }
+        : { "@type": "Person", name: opts.authorName };
   return {
     "@context": "https://schema.org",
     "@type": "BlogPosting",
