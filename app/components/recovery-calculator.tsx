@@ -1,0 +1,152 @@
+import { useState } from "react";
+import { Link } from "react-router";
+
+// Ported AS-IS from legacy components/marketing/RecoveryCalculator.tsx
+// (Phase 6 Pass 1): pure client math, unchanged multipliers. Only the
+// imports (next/link -> react-router Link), the custom slider CSS (replaced
+// with a native range input using the amber accent token), and the label
+// copy (baseline-free / 30-day maturity framing, corrections #1 and #8)
+// changed.
+export function RecoveryCalculator() {
+  const [mrr, setMrr] = useState(25000);
+
+  const failedRevenue = Math.round(mrr * 0.08); // 8% of MRR fails
+  const stripeRecovers = Math.round(failedRevenue * 0.56); // Stripe Smart Retries: 56%
+  const remaining = failedRevenue - stripeRecovers; // what Stripe could not get
+  const foxhoundRecovers = Math.round(remaining * 0.52); // illustrative recovery share of the remainder
+  const foxhoundFee = Math.round(foxhoundRecovers * 0.2); // 20% outcome fee
+  const netGain = foxhoundRecovers - foxhoundFee; // net to merchant
+  const netGainAnnual = netGain * 12;
+
+  function fmt(n: number) {
+    return "$" + n.toLocaleString();
+  }
+
+  return (
+    <div className="rounded-lg border border-border bg-surface p-6 sm:p-8">
+      <div className="mb-6">
+        <div className="mb-2 flex items-center justify-between">
+          <label
+            htmlFor="mrr-slider"
+            className="font-mono text-micro uppercase tracking-wide text-text-tertiary"
+          >
+            Monthly recurring revenue
+          </label>
+          <span className="font-mono text-body font-medium text-text">{fmt(mrr)}</span>
+        </div>
+        <input
+          id="mrr-slider"
+          type="range"
+          min={1000}
+          max={500000}
+          step={1000}
+          value={mrr}
+          onChange={(e) => setMrr(Number(e.target.value))}
+          className="w-full accent-amber"
+          aria-valuemin={1000}
+          aria-valuemax={500000}
+          aria-valuenow={mrr}
+          aria-valuetext={fmt(mrr)}
+          // React itself injects a client-only style.caretColor on controlled
+          // range inputs during hydration (a Firefox thumb-rendering
+          // workaround baked into react-dom, not app markup), which is absent
+          // from the SSR HTML and otherwise logs a false-positive hydration
+          // mismatch warning on every load of this page.
+          suppressHydrationWarning
+        />
+        <div className="mt-1 flex justify-between">
+          <span className="font-mono text-micro text-text-subtle">$1k</span>
+          <span className="font-mono text-micro text-text-subtle">$500k</span>
+        </div>
+      </div>
+
+      <div className="mb-6 flex flex-col">
+        <Row
+          label="Failed payments per month"
+          sub="About 8% of MRR fails on average"
+          value={fmt(failedRevenue)}
+        />
+        <Row
+          label="Stripe Smart Retries recover"
+          sub="56% average, stripe.com/billing"
+          value={fmt(stripeRecovers)}
+          valueClassName="text-text-secondary"
+        />
+        <Row
+          label="Your recoverable opportunity"
+          sub="What Stripe's own retries could not get back"
+          value={fmt(remaining)}
+        />
+        <Row
+          label="Foxhound recovers from that"
+          sub="Billable only when a Foxhound action provably preceded payment"
+          value={fmt(foxhoundRecovers)}
+          valueClassName="text-success-text"
+        />
+        <Row
+          label="Foxhound fee"
+          sub="20% of what Foxhound recovers, nothing else, ever"
+          value={`-${fmt(foxhoundFee)}`}
+          valueClassName="text-text-secondary"
+        />
+        <div className="flex items-center justify-between py-3">
+          <div>
+            <p className="text-body font-medium text-text">Net revenue retained</p>
+            <p className="mt-0.5 font-mono text-micro text-text-tertiary">
+              Nothing is billed until the recovery has matured for 30 days.
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="font-mono text-title font-semibold text-success-text">
+              +{fmt(netGainAnnual)}
+              <span className="text-label font-normal text-text-tertiary">/yr</span>
+            </p>
+            <p className="mt-0.5 font-mono text-body font-medium text-success-text opacity-70">
+              +{fmt(netGain)}
+              <span className="text-micro font-normal text-text-tertiary">/mo</span>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <p className="mb-6 text-center font-mono text-micro text-text-subtle">
+        Stripe 56% recovery: stripe.com/billing. The Foxhound recovery share above is an
+        illustrative estimate, not a platform-wide average.
+      </p>
+
+      <div className="flex justify-center">
+        <Link
+          to="/audit"
+          className="w-full rounded-lg bg-amber px-6 py-3 text-center text-body font-semibold text-on-amber hover:bg-amber-dark sm:w-auto sm:min-w-[280px]"
+        >
+          Get your actual numbers free
+        </Link>
+      </div>
+      <p className="mt-3 text-center font-mono text-micro text-text-subtle">
+        Free audit. No account required. Read-only Stripe access.
+      </p>
+    </div>
+  );
+}
+
+function Row({
+  label,
+  sub,
+  value,
+  valueClassName = "text-text",
+}: {
+  label: string;
+  sub: string;
+  value: string;
+  valueClassName?: string;
+}) {
+  return (
+    <div className="flex items-center justify-between border-b border-border-sub py-3">
+      <div>
+        <p className="text-body text-text">{label}</p>
+        <p className="mt-0.5 font-mono text-micro text-text-tertiary">{sub}</p>
+      </div>
+      <div className={`font-mono text-body font-medium ${valueClassName}`}>{value}</div>
+    </div>
+  );
+}
