@@ -152,6 +152,42 @@ export function personJsonLd(
   };
 }
 
+// Built for /blog/:slug (Pass 2). @type is BlogPosting (the Article family
+// member Google's Rich Results docs recommend for blog content specifically).
+// author resolves to the existing Person entity (personJsonLd on /about) by
+// @id when the stored author name is Dustin Edwards, so the two structured
+// bylines corroborate each other instead of describing two different
+// authors; any other author string falls back to an inline Person node.
+export function articleJsonLd(
+  url: string,
+  opts: {
+    headline: string;
+    description: string;
+    path: string;
+    imageUrl: string;
+    datePublished: string | null;
+    dateModified: string;
+    authorName: string;
+  },
+) {
+  const author =
+    opts.authorName.trim().toLowerCase() === "dustin edwards"
+      ? { "@id": `${url}/about#person` }
+      : { "@type": "Person", name: opts.authorName };
+  return {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: opts.headline,
+    description: opts.description,
+    url: `${url}${opts.path}`,
+    image: opts.imageUrl,
+    ...(opts.datePublished ? { datePublished: opts.datePublished } : {}),
+    dateModified: opts.dateModified,
+    author,
+    publisher: { "@id": `${url}/#organization` },
+  };
+}
+
 // Used more heavily once /blog post pages ship in Pass 2; the builder is
 // wired now so those pages can call it without an SEO-module change.
 export function breadcrumbListJsonLd(url: string, items: { name: string; path: string }[]) {
