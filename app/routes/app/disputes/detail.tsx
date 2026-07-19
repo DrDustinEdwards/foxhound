@@ -6,7 +6,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
 import { disputeFeeCents } from "~/lib/billing/fees";
 import type { DisputeState } from "~/lib/constants";
-import { buildApprovalBatch, canApprove, hashEvidence } from "~/lib/disputes/approval";
+import { approvalRaceErrorMessage, buildApprovalBatch, canApprove, hashEvidence } from "~/lib/disputes/approval";
 import { DISPUTE_STATE_LABELS, disputeStateTone, isDisputeResolved } from "~/lib/disputes/labels";
 import { getDisputeDetail, saveDisputeEvidence } from "~/lib/disputes/queries.server";
 import { formatMoney } from "~/lib/money-format";
@@ -73,7 +73,17 @@ export async function action({ context, params, request }: Route.ActionArgs) {
       evidenceVersionHash,
       approvedAt: new Date(),
     });
-    await db.batch(batch);
+    try {
+      await db.batch(batch);
+    } catch (err) {
+      // Catches the race where a concurrent approval landed between the
+      // fresh read above and this write; the structural guarantee itself
+      // (dispute_approvals unique per dispute_id) already prevented the
+      // double-submit (Phase 5 review MEDIUM fix).
+      const message = approvalRaceErrorMessage(err);
+      if (message) return data({ error: message }, { status: 400 });
+      throw err;
+    }
     return data({ ok: true, intent: "approve" as const });
   }
 

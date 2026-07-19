@@ -2,7 +2,7 @@ import { drizzle } from "drizzle-orm/d1";
 import { describe, expect, it } from "vitest";
 
 import * as schema from "~/db/schema";
-import { buildApprovalBatch, canApprove, hashEvidence } from "~/lib/disputes/approval";
+import { approvalRaceErrorMessage, buildApprovalBatch, canApprove, hashEvidence } from "~/lib/disputes/approval";
 
 const now = new Date("2026-07-18T00:00:00.000Z");
 const db = drizzle({} as never, { schema });
@@ -22,6 +22,23 @@ describe("canApprove", () => {
     expect(canApprove("submitted")).toBe(false);
     expect(canApprove("resolved_won")).toBe(false);
     expect(canApprove("resolved_lost")).toBe(false);
+  });
+});
+
+describe("approvalRaceErrorMessage (Phase 5 review MEDIUM fix: the race loser's handled path)", () => {
+  it("maps a unique-constraint violation on the approval batch to the same clean message the sequential pre-check uses", () => {
+    const err = new Error("UNIQUE constraint failed: dispute_approvals.dispute_id");
+    expect(approvalRaceErrorMessage(err)).toBe("This dispute has already been submitted.");
+  });
+
+  it("also recognizes a primary-key constraint violation", () => {
+    const err = new Error("D1_ERROR: PRIMARY KEY constraint failed: dispute_approvals.id");
+    expect(approvalRaceErrorMessage(err)).toBe("This dispute has already been submitted.");
+  });
+
+  it("returns null (the caller rethrows) for an unrelated failure", () => {
+    expect(approvalRaceErrorMessage(new Error("network timeout"))).toBeNull();
+    expect(approvalRaceErrorMessage(new Error("D1_ERROR: too many statements"))).toBeNull();
   });
 });
 
