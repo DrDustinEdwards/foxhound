@@ -86,16 +86,33 @@ const FAQS: { question: string; answer: string; node?: React.ReactNode }[] = [
       <>
         Each monthly run bills the prior month&apos;s matured recoveries, meaning recoveries you&apos;ve
         held for 30 or more days, at{" "}
-        <Link to="/products/recovery" className="text-amber-text underline underline-offset-2 hover:opacity-80">
+        <Link
+          to="/products/recovery"
+          className="text-text-secondary underline underline-offset-2 hover:text-amber-text"
+        >
           20%
         </Link>
-        . <Link to="/products/disputes" className="text-amber-text underline underline-offset-2 hover:opacity-80">Disputes</Link>{" "}
+        .{" "}
+        <Link
+          to="/products/disputes"
+          className="text-text-secondary underline underline-offset-2 hover:text-amber-text"
+        >
+          Disputes
+        </Link>{" "}
         are 20% of wins only, capped at $500 per dispute.{" "}
-        <Link to="/products/intelligence" className="text-amber-text underline underline-offset-2 hover:opacity-80">
+        <Link
+          to="/products/intelligence"
+          className="text-text-secondary underline underline-offset-2 hover:text-amber-text"
+        >
           Intelligence
         </Link>
         &apos;s predictive layer is $199 per month flat.{" "}
-        <Link to="/products/audit" className="text-amber-text underline underline-offset-2 hover:opacity-80">Audit</Link>{" "}
+        <Link
+          to="/products/audit"
+          className="text-text-secondary underline underline-offset-2 hover:text-amber-text"
+        >
+          Audit
+        </Link>{" "}
         is always free.
       </>
     ),

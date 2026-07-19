@@ -128,7 +128,7 @@ function BlogHero({ post }: { post: BlogPostSummary }) {
     <section className="border-b border-border-sub bg-surface">
       <div className="mx-auto grid max-w-5xl grid-cols-1 items-center gap-8 px-4 py-12 sm:px-8 lg:grid-cols-2 lg:py-16">
         <div>
-          <p className="font-mono text-micro uppercase tracking-wide text-amber-text">Featured</p>
+          <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Featured</p>
           <h2 className="mt-3 text-title font-medium leading-tight text-text">
             <Link to={`/blog/${post.slug}`} className="hover:text-amber-text">
               {post.title}
