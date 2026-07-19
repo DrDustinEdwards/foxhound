@@ -59,21 +59,21 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
   return (
     <div>
       <header className="border-b border-border">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-          <Link to="/dashboard" aria-label="Foxhound dashboard">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4">
+          <Link to="/dashboard" aria-label="Foxhound dashboard" className="shrink-0">
             <Wordmark />
           </Link>
-          <div className="flex items-center gap-4 text-label text-text-tertiary">
-            <Link to="/help" className="hover:text-text">
+          <div className="flex min-w-0 items-center gap-4 text-label text-text-tertiary">
+            <Link to="/help" className="shrink-0 hover:text-text">
               Help
             </Link>
             {loaderData.isAdmin ? (
-              <Link to="/admin" className="hover:text-text">
+              <Link to="/admin" className="shrink-0 hover:text-text">
                 Admin
               </Link>
             ) : null}
-            <span>{loaderData.accountName ?? loaderData.email}</span>
-            <Form method="post" action="/logout">
+            <span className="min-w-0 truncate">{loaderData.accountName ?? loaderData.email}</span>
+            <Form method="post" action="/logout" className="shrink-0">
               <button type="submit" className="text-text-tertiary hover:text-text">
                 Sign out
               </button>
@@ -106,7 +106,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
           return (
             <NavLink key={item.to} to={item.to} className={tabLinkClassName}>
               <Icon size={20} aria-hidden="true" />
-              {item.label}
+              <span className="w-full truncate text-center">{item.label}</span>
             </NavLink>
           );
         })}
