@@ -2,62 +2,42 @@ import { describe, expect, it } from "vitest";
 
 import { RECOVA_REDIRECT_MAP } from "~/lib/redirects/recova-map";
 
-// Every path below was enumerated for real from the legacy repo's actual
-// `app/` tree via Capsid list_repo_tree (namespace "recova", repo "legacy"),
-// checked 2026-07-19: the (marketing) route group in full, plus the
-// top-level /audit landing page, the three top-level per-product demo
-// pages, and /console (named explicitly by the task). This is a real
-// assertion against real enumerated data, not a hand-picked sample: every
-// one of these paths must have a mapping entry in RECOVA_REDIRECT_MAP.
-const ENUMERATED_LEGACY_MARKETING_ROUTES = [
-  "/",
-  "/pricing",
-  "/products",
-  "/features",
-  "/product/audit",
-  "/product/disputes",
-  "/product/intelligence",
-  "/product/recovery",
-  "/demos",
-  "/recovery/demo",
-  "/disputes/demo",
-  "/intelligence/demo",
-  "/privacy",
-  "/terms",
-  "/docs",
-  "/docs/audit",
-  "/docs/disputes",
-  "/docs/intelligence",
-  "/docs/platform",
-  "/docs/recovery",
-  "/blog",
-  "/blog/archive",
-  "/blog/rss.xml",
-  "/feed.rss",
-  "/blog/:slug",
-  "/blog/tag/:tag",
-  "/audit",
-  "/console",
-];
+import { LEGACY_MARKETING_ROUTES } from "./fixtures/legacy-marketing-routes";
+
+// The coverage assertions below are checked against
+// test/fixtures/legacy-marketing-routes.ts, a snapshot of the legacy repo's
+// actual `app/` tree (see that file's header for exactly what was walked
+// and why), NOT a list re-typed here to match RECOVA_REDIRECT_MAP. A route
+// present in the fixture but missing from the map, or a map entry the
+// fixture doesn't recognize, fails the test either way, so this can
+// actually catch a real gap (see git history: it once did, for
+// /blog/sitemap.xml).
 
 describe("RECOVA_REDIRECT_MAP", () => {
-  it("has a mapping entry for every enumerated legacy marketing route", () => {
+  it("has a mapping entry for every legacy marketing route in the fixture", () => {
     const mappedFroms = new Set(RECOVA_REDIRECT_MAP.map((e) => e.from));
-    for (const route of ENUMERATED_LEGACY_MARKETING_ROUTES) {
-      expect(mappedFroms.has(route), `missing redirect mapping for ${route}`).toBe(true);
+    for (const route of LEGACY_MARKETING_ROUTES) {
+      expect(mappedFroms.has(route.url), `missing redirect mapping for ${route.url} (${route.sourceFile})`).toBe(
+        true,
+      );
     }
   });
 
-  it("has no unmapped extra entries beyond the enumerated set (map and enumeration stay in sync)", () => {
-    const enumerated = new Set(ENUMERATED_LEGACY_MARKETING_ROUTES);
+  it("has no entries beyond the fixture's routes (map and fixture stay in sync)", () => {
+    const fixtureUrls = new Set(LEGACY_MARKETING_ROUTES.map((r) => r.url));
     for (const entry of RECOVA_REDIRECT_MAP) {
-      expect(enumerated.has(entry.from), `${entry.from} is mapped but not in the enumerated legacy route list`).toBe(true);
+      expect(fixtureUrls.has(entry.from), `${entry.from} is mapped but not in the legacy-routes fixture`).toBe(true);
     }
   });
 
   it("has no duplicate source paths", () => {
     const froms = RECOVA_REDIRECT_MAP.map((e) => e.from);
     expect(new Set(froms).size).toBe(froms.length);
+  });
+
+  it("the fixture itself has no duplicate URLs", () => {
+    const urls = LEGACY_MARKETING_ROUTES.map((r) => r.url);
+    expect(new Set(urls).size).toBe(urls.length);
   });
 
   it("every target path is a real Foxhound path starting with /", () => {
@@ -85,5 +65,16 @@ describe("RECOVA_REDIRECT_MAP", () => {
   it("maps blog slugs and tag slugs verbatim", () => {
     expect(RECOVA_REDIRECT_MAP.find((e) => e.from === "/blog/:slug")?.to).toBe("/blog/:slug");
     expect(RECOVA_REDIRECT_MAP.find((e) => e.from === "/blog/tag/:tag")?.to).toBe("/blog/tag/:tag");
+  });
+
+  it("self-maps the top-level SEO/utility file routes", () => {
+    for (const path of ["/sitemap.xml", "/robots.txt", "/llms.txt", "/llms-full.txt", "/feed.rss"]) {
+      expect(RECOVA_REDIRECT_MAP.find((e) => e.from === path)?.to).toBe(path);
+    }
+  });
+
+  it("consolidates the per-section blog RSS/sitemap routes onto Foxhound's single equivalents", () => {
+    expect(RECOVA_REDIRECT_MAP.find((e) => e.from === "/blog/rss.xml")?.to).toBe("/feed.rss");
+    expect(RECOVA_REDIRECT_MAP.find((e) => e.from === "/blog/sitemap.xml")?.to).toBe("/sitemap.xml");
   });
 });
