@@ -6,6 +6,7 @@ import { platformBillingStatus } from "~/lib/billing/platform-webhook";
 import {
   buildInvoiceStripeRefUpdate,
   chargeableLines,
+  createPlatformInvoice,
   type PlatformInvoiceLineInput,
 } from "~/lib/billing/stripe-invoice";
 
@@ -41,6 +42,39 @@ describe("platformBillingStatus mapping", () => {
   it("ignores unrelated events", () => {
     expect(platformBillingStatus("customer.created")).toBeNull();
     expect(platformBillingStatus("charge.refunded")).toBeNull();
+  });
+});
+
+describe("createPlatformInvoice safe-throw (real getStripe, no mock)", () => {
+  it("still throws 'STRIPE_SECRET_KEY is not set' cleanly, before any Stripe call, after the invoice-first reordering", async () => {
+    await expect(
+      createPlatformInvoice({} as Env, {
+        platformCustomerId: "cus_1",
+        currency: "usd",
+        billingInvoiceId: "inv_1",
+        lines: [{ type: "recovery_fee", amountCents: 2_000, description: "Recovery fee" }],
+      }),
+    ).rejects.toThrow("STRIPE_SECRET_KEY is not set");
+  });
+
+  it("still throws its own precondition errors before ever reaching getStripe", async () => {
+    await expect(
+      createPlatformInvoice({} as Env, {
+        platformCustomerId: "",
+        currency: "usd",
+        billingInvoiceId: "inv_1",
+        lines: [{ type: "recovery_fee", amountCents: 2_000, description: "Recovery fee" }],
+      }),
+    ).rejects.toThrow("no platform customer id for account billing");
+
+    await expect(
+      createPlatformInvoice({} as Env, {
+        platformCustomerId: "cus_1",
+        currency: "usd",
+        billingInvoiceId: "inv_1",
+        lines: [{ type: "adjustment", amountCents: -500, description: "Goodwill credit" }],
+      }),
+    ).rejects.toThrow("no chargeable line items for platform invoice");
   });
 });
 
