@@ -17,6 +17,14 @@ export default [
       route("disputes", "./routes/products/disputes.tsx"),
       route("intelligence", "./routes/products/intelligence.tsx"),
     ]),
+    ...prefix("decline-codes", [
+      index("./routes/decline-codes/index.tsx"),
+      route(":code", "./routes/decline-codes/code.tsx"),
+    ]),
+    ...prefix("compare", [
+      index("./routes/compare/index.tsx"),
+      route(":competitor", "./routes/compare/competitor.tsx"),
+    ]),
     route("audit", "./routes/audit.tsx"),
     ...prefix("blog", [
       index("./routes/blog/index.tsx"),
