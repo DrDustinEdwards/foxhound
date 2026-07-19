@@ -47,6 +47,14 @@ interface Env {
   EMAIL_DLQ?: Queue<unknown>;
   // CAN-SPAM sender postal address (ARCHITECTURE #8: required before any send).
   PHYSICAL_ADDRESS?: string;
+
+  // ---- Phase 6 Pass 3: no-auth estimator Turnstile gate ----
+  // Secret key for the Cloudflare Turnstile siteverify call. Dustin-gated
+  // secret (set via `wrangler secret put`), never a committed var. While
+  // unset, the estimator's action stays cleanly inert: it renders a
+  // "temporarily unavailable" state and never accepts a submission or skips
+  // the gate silently (mirrors gotcha #16's ANTHROPIC_API_KEY pattern).
+  TURNSTILE_SECRET_KEY?: string;
 }
 
 // Foxhound's adapter shape over the Cloudflare Email Service send binding. The

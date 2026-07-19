@@ -23,7 +23,12 @@
   "vars": {
     // Canonical origin for Better Auth callbacks/redirects and the Stripe Connect
     // redirect URI. Non-secret.
-    "BETTER_AUTH_URL": "https://foxhound.dustin-edwards.workers.dev"
+    "BETTER_AUTH_URL": "https://foxhound.dustin-edwards.workers.dev",
+    // Turnstile site key (public, non-secret; safe to commit). Placeholder
+    // until Dustin creates the real widget; TURNSTILE_SECRET_KEY (env.d.ts,
+    // wrangler secret) is the Dustin-gated half that actually enables the
+    // no-auth estimator's Turnstile gate (Phase 6 Pass 3).
+    "TURNSTILE_SITE_KEY": ""
   },
   "d1_databases": [
     {
