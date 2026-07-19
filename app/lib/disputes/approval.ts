@@ -25,10 +25,10 @@ type OperationalBatch = [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]];
 /** A dispute can be approved and submitted from any pre-submission state. Once
  *  submitted or resolved, this is never true again (no re-approval, no reopen
  *  via this path). */
-const NOT_YET_SUBMITTED: readonly DisputeState[] = ["submitted", "resolved_won", "resolved_lost"];
+const SUBMITTED_OR_RESOLVED: readonly DisputeState[] = ["submitted", "resolved_won", "resolved_lost"];
 
 export function canApprove(state: DisputeState): boolean {
-  return !(NOT_YET_SUBMITTED as readonly string[]).includes(state);
+  return !(SUBMITTED_OR_RESOLVED as readonly string[]).includes(state);
 }
 
 /** SHA-256 hex of the evidence fields at the moment of approval, canonicalized
@@ -76,7 +76,7 @@ export function buildApprovalBatch(db: Db, input: ApprovalBatchInput): Operation
         and(
           eq(disputes.id, input.disputeId),
           eq(disputes.accountId, input.accountId),
-          notInArray(disputes.state, NOT_YET_SUBMITTED as string[]),
+          notInArray(disputes.state, SUBMITTED_OR_RESOLVED as string[]),
         ),
       ),
     db.insert(disputeApprovals).values({
