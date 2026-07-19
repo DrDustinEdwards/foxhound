@@ -210,3 +210,171 @@ body {
   outline-offset: 2px;
   border-radius: 2px;
 }
+
+/* Blog post body (Phase 6 Pass 2). Tailwind v4's typography plugin isn't
+   installed here, so the rendered-markdown prose gets a small hand-rolled
+   ruleset instead of a `prose` utility class. Scoped to .blog-prose so it
+   never leaks onto non-post surfaces. Tokens only, no hardcoded hex. */
+.blog-prose {
+  font-size: var(--text-body);
+  line-height: 1.75;
+  color: var(--text-secondary);
+}
+.blog-prose > :first-child {
+  margin-top: 0;
+}
+.blog-prose h2 {
+  margin-top: 2.5rem;
+  margin-bottom: 0.75rem;
+  font-size: var(--text-title);
+  font-weight: 500;
+  color: var(--text);
+}
+.blog-prose h3 {
+  margin-top: 2rem;
+  margin-bottom: 0.5rem;
+  font-size: 1.0625rem;
+  font-weight: 500;
+  color: var(--text);
+}
+.blog-prose p,
+.blog-prose ul,
+.blog-prose ol,
+.blog-prose blockquote,
+.blog-prose table,
+.blog-prose pre {
+  margin-top: 0;
+  margin-bottom: 1.25rem;
+}
+.blog-prose ul,
+.blog-prose ol {
+  padding-left: 1.5rem;
+}
+.blog-prose li {
+  margin-bottom: 0.375rem;
+}
+.blog-prose a {
+  color: var(--amber-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.blog-prose blockquote {
+  border-left: 2px solid var(--border-i);
+  padding-left: 1rem;
+  color: var(--text-tertiary);
+}
+.blog-prose hr {
+  margin: 2rem 0;
+  border: none;
+  border-top: 1px solid var(--border-sub);
+}
+.blog-prose code {
+  font-family: var(--font-dm-mono);
+  font-size: 0.875em;
+  background: var(--surface2);
+  border-radius: 4px;
+  padding: 0.125rem 0.375rem;
+}
+.blog-prose pre {
+  overflow-x: auto;
+  border-radius: 8px;
+  padding: 1rem;
+  background: var(--surface2);
+  border: 1px solid var(--border-sub);
+}
+.blog-prose pre code {
+  background: none;
+  padding: 0;
+  font-size: 0.8125rem;
+}
+.blog-prose img {
+  max-width: 100%;
+  border-radius: 8px;
+}
+.blog-prose table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-label);
+}
+.blog-prose th,
+.blog-prose td {
+  border: 1px solid var(--border-sub);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+/* Shortcode-derived blocks (markdown.server.ts). */
+.blog-callout {
+  display: flex;
+  gap: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+  background: var(--surface);
+}
+.blog-callout-content > :last-child {
+  margin-bottom: 0;
+}
+.blog-callout-tip { border-color: var(--amber-border-interactive); }
+.blog-callout-warning,
+.blog-callout-danger { border-color: var(--red); }
+.blog-pullquote {
+  border-left: 2px solid var(--amber);
+  padding-left: 1.25rem;
+  font-size: 1.0625rem;
+  font-style: italic;
+  color: var(--text);
+}
+.blog-toggle {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+}
+.blog-toggle-header {
+  cursor: pointer;
+  font-weight: 500;
+  color: var(--text);
+}
+.blog-toggle-content {
+  margin-top: 0.75rem;
+}
+.blog-faq-list {
+  margin: 0;
+}
+.blog-faq-item {
+  margin-bottom: 1rem;
+}
+.blog-faq-question {
+  font-weight: 500;
+  color: var(--text);
+}
+.blog-faq-answer {
+  margin: 0.25rem 0 0;
+  color: var(--text-secondary);
+}
+.blog-embed-youtube {
+  position: relative;
+  aspect-ratio: 16 / 9;
+}
+.blog-embed-youtube iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+}
+.blog-bookmark-link {
+  color: var(--amber-text);
+}
+
+/* Reading progress bar (components/blog/reading-progress-bar.tsx). */
+.blog-progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  background: var(--amber);
+  z-index: 30;
+  transition: width 0.1s linear;
+}
