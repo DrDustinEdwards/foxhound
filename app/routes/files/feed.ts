@@ -1,3 +1,64 @@
-import { resourceStub } from "~/lib/resource-stub";
+import { getDb } from "~/db";
+import { cloudflareContext } from "~/lib/cloudflare-context";
+import { getAllPublishedPosts } from "~/lib/blog/queries.server";
+import { siteUrl, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 
-export const loader = resourceStub("application/rss+xml");
+import type { Route } from "./+types/feed";
+
+// Ported from legacy app/feed.rss/route.ts's structure (Phase 6 Pass 2),
+// queried against D1 instead of Supabase, every URL built from siteUrl(env)
+// instead of a hardcoded recovamrr.com. legacy's
+// app/(marketing)/blog/rss.xml/route.ts is NOT the reference here: this
+// repo's canonical feed path is /feed.rss (ROUTES.md), which is what legacy's
+// root-level route already was.
+
+function xmlEscapeAttr(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+export async function loader({ context }: Route.LoaderArgs) {
+  const { env } = context.get(cloudflareContext);
+  const url = siteUrl(env);
+  const db = getDb(env);
+
+  const posts = await getAllPublishedPosts(db);
+  const buildDate = new Date().toUTCString();
+
+  const items = posts
+    .map((post) => {
+      const postUrl = `${url}/blog/${post.slug}`;
+      const pubDate = post.publishedAt ? post.publishedAt.toUTCString() : buildDate;
+      const categories = post.tags.map((tag) => `<category>${xmlEscapeAttr(tag)}</category>`).join("");
+      return `
+    <item>
+      <title><![CDATA[${post.title}]]></title>
+      <link>${postUrl}</link>
+      <guid isPermaLink="true">${postUrl}</guid>
+      <description><![CDATA[${post.excerpt}]]></description>
+      <pubDate>${pubDate}</pubDate>
+      <author>${xmlEscapeAttr(SUPPORT_EMAIL)} (${xmlEscapeAttr(post.author)})</author>
+      ${categories}
+    </item>`;
+    })
+    .join("");
+
+  const rss = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Foxhound Blog</title>
+    <link>${url}/blog</link>
+    <description>Guides on Stripe payment recovery, dispute handling, and subscription intelligence.</description>
+    <language>en-us</language>
+    <lastBuildDate>${buildDate}</lastBuildDate>
+    <atom:link href="${url}/feed.rss" rel="self" type="application/rss+xml"/>
+    ${items}
+  </channel>
+</rss>`;
+
+  return new Response(rss, {
+    headers: {
+      "Content-Type": "application/rss+xml; charset=utf-8",
+      "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400",
+    },
+  });
+}
