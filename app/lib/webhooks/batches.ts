@@ -47,6 +47,12 @@ export interface IntakeBatchInput {
   claim: WebhookClaimInput;
   failedPaymentId: string;
   accountId: string;
+  /** The stripe_connections row this failed payment belongs to (Phase 5
+   *  review MEDIUM fix companion, 2026-07-19): recorded so the card-update
+   *  page (app/routes/utility/card-update.tsx) can resolve the CORRECT
+   *  connection for an account with more than one, instead of an arbitrary
+   *  active one. */
+  stripeConnectionId: string;
   stripeEventId: string;
   invoiceId: string;
   customerId: string;
@@ -69,6 +75,7 @@ export function buildIntakeBatch(db: Db, input: IntakeBatchInput): MoneyWriteBat
   const fpInsert = db.insert(failedPayments).values({
     id: input.failedPaymentId,
     accountId: input.accountId,
+    stripeConnectionId: input.stripeConnectionId,
     stripeEventId: input.stripeEventId,
     stripeInvoiceId: input.invoiceId,
     stripeCustomerId: input.customerId,

@@ -36,6 +36,34 @@ type LoaderState =
   | { state: "ready"; amountCents: number; currency: string }
   | { state: "done" };
 
+export interface ConnectionCandidate {
+  id: string;
+  stripeAccessToken: string | null;
+}
+
+/**
+ * Resolve which stripe_connections row a failed payment's card-update flow
+ * should use (Phase 5 review MEDIUM fix, 2026-07-19). An account can have
+ * more than one active connection: connect-callback.ts inserts a new row
+ * with isPrimary:true unconditionally whenever a DIFFERENT stripeUserId
+ * connects, with no exclusivity enforced. Picking an arbitrary active
+ * connection risked calling Stripe with a customerId that belongs to a
+ * DIFFERENT connected account. Prefers the specific connection the failed
+ * payment was recorded against (failed_payments.stripe_connection_id, set at
+ * intake, webhooks/batches.ts buildIntakeBatch); falls back to the single
+ * active connection only for older rows recorded before that column was
+ * populated, and never guesses among multiple.
+ */
+export function resolveConnectionForFailedPayment(
+  candidates: ConnectionCandidate[],
+  stripeConnectionId: string | null,
+): ConnectionCandidate | null {
+  if (stripeConnectionId) {
+    return candidates.find((c) => c.id === stripeConnectionId) ?? null;
+  }
+  return candidates.length === 1 ? candidates[0] : null;
+}
+
 async function loadTarget(env: Env, failedPaymentId: string, accountId: string) {
   const db = getDb(env);
   const [failedPaymentRows, connectionRows] = await Promise.all([
@@ -47,17 +75,21 @@ async function loadTarget(env: Env, failedPaymentId: string, accountId: string) 
         subscriptionId: failedPayments.subscriptionId,
         amountCents: failedPayments.amountCents,
         currency: failedPayments.currency,
+        stripeConnectionId: failedPayments.stripeConnectionId,
       })
       .from(failedPayments)
       .where(and(eq(failedPayments.id, failedPaymentId), eq(failedPayments.accountId, accountId)))
       .limit(1),
     db
-      .select({ stripeAccessToken: stripeConnections.stripeAccessToken })
+      .select({ id: stripeConnections.id, stripeAccessToken: stripeConnections.stripeAccessToken })
       .from(stripeConnections)
-      .where(and(eq(stripeConnections.accountId, accountId), isNull(stripeConnections.disconnectedAt)))
-      .limit(1),
+      .where(and(eq(stripeConnections.accountId, accountId), isNull(stripeConnections.disconnectedAt))),
   ]);
-  return { failedPayment: failedPaymentRows[0] ?? null, connection: connectionRows[0] ?? null };
+  const failedPayment = failedPaymentRows[0] ?? null;
+  const connection = failedPayment
+    ? resolveConnectionForFailedPayment(connectionRows, failedPayment.stripeConnectionId)
+    : null;
+  return { failedPayment, connection };
 }
 
 export async function loader({ request, params, context }: Route.LoaderArgs) {
