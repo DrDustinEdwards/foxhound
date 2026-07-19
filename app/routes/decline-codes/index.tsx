@@ -55,7 +55,13 @@ export default function DeclineCodesIndex({ loaderData }: Route.ComponentProps) 
             <div className="mb-4 flex items-center gap-2">
               <h2 className="text-title font-medium text-text">{CATEGORY_LABEL[group.category]}</h2>
               <Badge tone={categoryBadgeTone(group.category)}>
-                {group.category === "fraud" ? "Never retried" : group.category === "expired" ? "Needs card update" : "Retries automatically"}
+                {group.category === "fraud"
+                  ? "Never retried"
+                  : group.category === "expired"
+                    ? "Needs card update"
+                    : group.category === "unknown"
+                      ? "No automatic retry"
+                      : "Retries automatically"}
               </Badge>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

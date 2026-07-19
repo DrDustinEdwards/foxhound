@@ -12,6 +12,7 @@ import type { DeclineCodeView } from "./codes";
 export function categoryBadgeTone(category: DeclineCategory): BadgeTone {
   if (category === "fraud") return "failure";
   if (category === "expired") return "neutral";
+  if (category === "unknown") return "neutral";
   return "success"; // soft, network: both silently retryable
 }
 
@@ -22,9 +23,9 @@ export function recoveryApproach(view: DeclineCodeView): string {
   if (view.category === "expired") {
     return "Expired and stale-card declines do not recover through a repeat charge against the same card details. Foxhound skips straight to the card-update path: a hosted, no-login link goes out by email, and an expiring-card alert can fire ahead of the renewal date when the expiration is already visible on the stored card, so the update happens before the charge ever fails.";
   }
+  if (view.category === "unknown") {
+    return "This code has no dedicated bucket in the recovery engine's classification sets, so it fails closed rather than defaulting to a silent retry: no repeat charge runs against a code Foxhound cannot classify. Recovery goes straight to the same email sequence expired cards get, carrying the hosted card-update link, until this code earns its own bucket.";
+  }
   // soft, network (retryable === true)
-  const safeDefaultNote = view.ridesSafeDefault
-    ? " This code has no dedicated bucket in the recovery engine's classification sets yet, so it rides the documented safe default rather than a bespoke rule, which is exactly this path."
-    : "";
-  return `A Foxhound-scheduled silent retry runs first, timed for the specific decline pattern rather than an immediate repeat. If the retry succeeds, the customer never sees anything happened. If it does not, Foxhound moves to a dunning email sequence across the following weeks, written in the merchant's own brand voice, with a hosted card-update link on every email as a passive fallback channel.${safeDefaultNote}`;
+  return "A Foxhound-scheduled silent retry runs first, timed for the specific decline pattern rather than an immediate repeat. If the retry succeeds, the customer never sees anything happened. If it does not, Foxhound moves to a dunning email sequence across the following weeks, written in the merchant's own brand voice, with a hosted card-update link on every email as a passive fallback channel.";
 }

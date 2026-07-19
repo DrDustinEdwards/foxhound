@@ -11,12 +11,12 @@ import type { DeclineCategory } from "~/lib/constants";
 //
 // This module never hand-assigns a category. card_velocity_exceeded and
 // incorrect_cvc are NOT in any of decline.ts's sets today, so
-// classifyDecline() falls through to its documented safe default ("soft")
-// for them; that is read live below via getDeclineCodeView, the same as
-// every other code, so the marketing copy can never drift from what the
-// recovery engine actually does. Do NOT edit app/lib/recovery/decline.ts to
-// backfill a bespoke category for these two: the honest fact that they ride
-// the safe-default path is stated plainly on their pages instead.
+// classifyDecline() falls through to its documented safe default ("unknown",
+// no auto-retry) for them; that is read live below via getDeclineCodeView,
+// the same as every other code, so the marketing copy can never drift from
+// what the recovery engine actually does. Do NOT edit app/lib/recovery/decline.ts
+// to backfill a bespoke category for these two: the honest fact that they
+// ride the safe-default path is stated plainly on their pages instead.
 export interface DeclineCodeMeta {
   code: string;
   displayName: string;
@@ -110,6 +110,7 @@ export const CATEGORY_LABEL: Record<DeclineCategory, string> = {
   network: "Network / processing",
   expired: "Expired card",
   fraud: "Fraud / security",
+  unknown: "Unclassified",
 };
 
-export const CATEGORY_ORDER: DeclineCategory[] = ["soft", "network", "expired", "fraud"];
+export const CATEGORY_ORDER: DeclineCategory[] = ["soft", "network", "expired", "fraud", "unknown"];
