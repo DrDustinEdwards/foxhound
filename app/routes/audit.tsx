@@ -51,7 +51,13 @@ export function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   return {
     siteUrl: siteUrl(env),
-    turnstileAvailable: Boolean(env.TURNSTILE_SECRET_KEY),
+    // Both vars are required for a working form: TURNSTILE_SECRET_KEY gates
+    // the action's server-side verify call, TURNSTILE_SITE_KEY is what the
+    // client widget actually renders with. Gating on the secret alone
+    // (Phase 6 review finding) could report "available" while the widget
+    // had no sitekey to produce a token, landing on a stuck challenge
+    // instead of the intended clean "temporarily unavailable" state.
+    turnstileAvailable: Boolean(env.TURNSTILE_SECRET_KEY) && Boolean(env.TURNSTILE_SITE_KEY),
     turnstileSiteKey: env.TURNSTILE_SITE_KEY ?? "",
   };
 }
