@@ -1,6 +1,6 @@
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { personJsonLd, siteUrl, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
+import { organizationJsonLd, personJsonLd, siteUrl, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 
 import type { Route } from "./+types/about";
 
@@ -61,6 +61,14 @@ export default function AboutPage({ loaderData }: Route.ComponentProps) {
         </div>
       </main>
 
+      {/* personJsonLd's worksFor references the Organization node by @id
+          (jsonld.ts); that node must actually be emitted on this page or
+          the reference dangles. Render both here, same pattern as
+          blog/post.tsx. */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd(loaderData.siteUrl)) }}
+      />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
