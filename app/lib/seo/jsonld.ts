@@ -17,7 +17,16 @@ export function siteUrl(env: Env): string {
 // Single source of truth for the support contact address, used in JSON-LD
 // (organizationJsonLd below) and in page copy (about.tsx, privacy.tsx,
 // terms.tsx). Do not hardcode this string anywhere else.
-export const SUPPORT_EMAIL = "support@foxhoundapp.com";
+//
+// Placeholder pending the operating-entity decision, same as
+// GOVERNING_LAW_JURISDICTION below: TASK-foxhound-phase6.md names both as a
+// pair parked on that one decision, and no operating-entity decision is
+// recorded in recova/decisions.md yet. Marked as an explicit placeholder
+// rather than a real-looking address so a real support inbox is never
+// silently promised (in JSON-LD contactPoint, mailto links, or an RSS/llms
+// "Contact:" line) before one actually exists.
+// TODO(dustin): confirm operating entity and real support address before launch.
+export const SUPPORT_EMAIL = "[SUPPORT_EMAIL_TBD]";
 
 // The governing-law state was carried over from legacy as "Texas" without
 // ever being verified against the actual current operating entity. Marked as
