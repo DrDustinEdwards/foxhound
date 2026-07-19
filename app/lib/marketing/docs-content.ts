@@ -1,0 +1,134 @@
+// Modest, hand-written docs content for /docs/:slug (Phase 6 Pass 1). Legacy
+// carried five much larger guides (9-23KB each); TASK-foxhound-phase6.md
+// scopes this pass to "real (not stub) rendering... keep it modest, this
+// isn't the focus of Pass 1", so this is a deliberately smaller set of
+// sections per guide, de-branded and corrected against the 10 copy rules
+// (no auto-submit language, silent-first framing, baseline-free, singular
+// brand voice, no fabricated recovery-rate numbers).
+
+export interface DocGuide {
+  slug: string;
+  title: string;
+  description: string;
+  sections: { heading: string; body: string[] }[];
+}
+
+export const DOC_GUIDES: DocGuide[] = [
+  {
+    slug: "platform",
+    title: "Platform",
+    description: "Connecting Stripe, settings, team management, and billing.",
+    sections: [
+      {
+        heading: "Connecting Stripe",
+        body: [
+          "Foxhound connects to your Stripe account through Stripe Connect with read-only OAuth scope. Foxhound reads invoices, subscriptions, disputes, and customer data. It never modifies payment methods, subscription logic, prices, or any other Stripe settings.",
+          "Disconnect at any time from your Stripe dashboard or from Settings inside Foxhound. Disconnecting stops every active sequence immediately.",
+        ],
+      },
+      {
+        heading: "Billing",
+        body: [
+          "Each monthly run bills the prior month's matured recoveries, meaning recoveries held for 30 or more days, at 20%. Recoveries Stripe would have gotten on its own are never billed. Disputes are billed at 20% of wins only, capped at $500 per dispute. Intelligence's predictive layer is a flat $199 per month.",
+          "A payment method goes on file once, in Settings. Invoices and the full evidence ledger are visible under Billing at any time.",
+        ],
+      },
+      {
+        heading: "Team and brand voice",
+        body: [
+          "Invite teammates from Settings. Every account has one brand voice field, used across all recovery email copy.",
+        ],
+      },
+    ],
+  },
+  {
+    slug: "audit",
+    title: "Audit",
+    description:
+      "Free Stripe diagnostic. What Stripe already recovered, what is still dying, and what Foxhound would add.",
+    sections: [
+      {
+        heading: "What it checks",
+        body: [
+          "The audit connects read-only to Stripe and looks at failed invoices, expiring cards, open disputes, and basic account health over the trailing period.",
+          "Results are framed around lift: what Stripe's own retries already recovered, what is currently unrecovered, and where Foxhound's silent retries and review-and-sign disputes would add on top.",
+        ],
+      },
+      {
+        heading: "No fabricated numbers",
+        body: [
+          "The audit does not project a recovery rate from platform-wide statistics, there is no long-running platform history to draw one from yet. It reports what your account actually shows, plainly.",
+        ],
+      },
+    ],
+  },
+  {
+    slug: "recovery",
+    title: "Recovery",
+    description: "Silent retries first, then AI-drafted email sequences, across 30 days.",
+    sections: [
+      {
+        heading: "Silent first",
+        body: [
+          "When a retryable payment fails, Foxhound attempts a quiet retry before any customer ever sees an email. If the quiet retry works, the customer is never bothered.",
+          "Only after the silent retry window closes does the first dunning email go out, and it carries a hosted card-update link.",
+        ],
+      },
+      {
+        heading: "Four decline categories",
+        body: [
+          "Declines are classified as soft, network, expired, or fraud. Fraud declines are never retried. The other three categories get a sequence tuned to what is actually wrong with the payment, spread across 30 days.",
+        ],
+      },
+      {
+        heading: "What counts as billable",
+        body: [
+          "A recovery is billable only when a Foxhound action provably preceded payment: a scheduled retry succeeded, a dunning email was clicked or otherwise engaged (not just opened), or a card was updated through a Foxhound page. Everything else is Stripe's own baseline recovery, recorded and shown to you, never billed.",
+        ],
+      },
+    ],
+  },
+  {
+    slug: "disputes",
+    title: "Disputes",
+    description: "Evidence drafted for you. You review and sign every submission.",
+    sections: [
+      {
+        heading: "Draft, then a human approves",
+        body: [
+          "When a dispute opens, Foxhound drafts evidence from your recovery history, prior charges, and Stripe signals. Every draft moves through review before it can be approved, and every submission requires your explicit sign-off.",
+          "There is no auto-submit toggle. There never has been. Nothing reaches Stripe without a person on your team approving it first.",
+        ],
+      },
+      {
+        heading: "Pricing",
+        body: [
+          "20% of disputes Foxhound wins, capped at $500 per dispute. Nothing on disputes you lose or accept.",
+        ],
+      },
+    ],
+  },
+  {
+    slug: "intelligence",
+    title: "Intelligence",
+    description: "Free MRR analytics for every Recovery merchant. Predictive risk scoring is the paid layer.",
+    sections: [
+      {
+        heading: "What is free",
+        body: [
+          "Every Recovery merchant gets MRR, movements, churn, and cohort analytics at no charge. This is not a trial, it stays free for as long as you use Recovery.",
+        ],
+      },
+      {
+        heading: "What is paid",
+        body: [
+          "The $199 per month layer adds predictive risk scoring on top of the free analytics, surfacing which customers are trending toward churn before it happens.",
+        ],
+      },
+    ],
+  },
+];
+
+export function getDocGuide(slug: string): DocGuide | undefined {
+  return DOC_GUIDES.find((g) => g.slug === slug);
+}
