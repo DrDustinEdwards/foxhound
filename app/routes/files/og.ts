@@ -19,6 +19,9 @@ import { ImageResponse } from "workers-og";
 //       cleanly at OG card sizes.
 import dmMono500 from "~/assets/fonts/dm-mono-500.ttf?inline";
 
+import { cloudflareContext } from "~/lib/cloudflare-context";
+import { siteUrl } from "~/lib/seo/jsonld";
+
 import type { Route } from "./+types/og";
 
 // Dynamic Open Graph image generation, rewritten from legacy app/og/route.tsx
@@ -42,7 +45,12 @@ import type { Route } from "./+types/og";
 // total isolation from this app's CSS pipeline (no stylesheet is loaded),
 // so there is no token mechanism it could read from. Values below are
 // copied from app.css's dark theme (--bg, --wordmark, --amber, etc.) to
-// stay visually consistent with the app itself.
+// stay visually consistent with the app itself. DESIGN.md sanctions this as
+// a second exception to "no hardcoded hex anywhere outside token
+// definitions", alongside email HTML, for the same reason: both render
+// surfaces are isolated from the CSS pipeline and cannot consume custom
+// properties. If app.css's dark-theme values below ever change, update
+// these five constants to match in the same commit.
 const COLOR_BG = "#111210";
 const COLOR_WORDMARK = "#f5f5f3";
 const COLOR_AMBER = "#f0b429";
@@ -81,7 +89,7 @@ function defaultCardHtml(): string {
   </div>`;
 }
 
-function blogCardHtml(title: string, tag: string): string {
+function blogCardHtml(title: string, tag: string, host: string): string {
   const safeTitle = escapeHtml(title);
   const label = escapeHtml(tag || "Blog");
   const titleFontSize = title.length > 60 ? 40 : 48;
@@ -90,7 +98,7 @@ function blogCardHtml(title: string, tag: string): string {
     <div style="display:flex;font-size:${titleFontSize}px;font-weight:500;line-height:1.3;color:${COLOR_WORDMARK};max-width:1000px;">${safeTitle}</div>
     <div style="display:flex;align-items:center;justify-content:space-between;">
       <div style="display:flex;font-size:16px;letter-spacing:0.04em;text-transform:uppercase;color:${COLOR_AMBER};">${label}</div>
-      <div style="display:flex;font-size:16px;color:${COLOR_TEXT_TERTIARY};">foxhoundapp.com</div>
+      <div style="display:flex;font-size:16px;color:${COLOR_TEXT_TERTIARY};">${escapeHtml(host)}</div>
     </div>
   </div>`;
 }
@@ -108,13 +116,19 @@ function dataUrlToArrayBuffer(dataUrl: string): ArrayBuffer {
   return bytes.buffer;
 }
 
-export async function loader({ params, request }: Route.LoaderArgs) {
+export async function loader({ params, request, context }: Route.LoaderArgs) {
+  const { env } = context.get(cloudflareContext);
   const url = new URL(request.url);
   const type = params.params === "blog" ? "blog" : "default";
   const title = url.searchParams.get("title") ?? "Foxhound";
   const tag = url.searchParams.get("tag") ?? "";
+  // Derived from SITE_URL (site URL discipline, TASK-foxhound-phase6.md),
+  // never hardcoded: previously this card always showed "foxhoundapp.com"
+  // literally, wrong on every card generated before the Phase 9 domain
+  // cutover (Phase 6 review finding).
+  const host = new URL(siteUrl(env)).host;
 
-  const element = type === "blog" ? blogCardHtml(title, tag) : defaultCardHtml();
+  const element = type === "blog" ? blogCardHtml(title, tag, host) : defaultCardHtml();
 
   return new ImageResponse(element, {
     width: 1200,

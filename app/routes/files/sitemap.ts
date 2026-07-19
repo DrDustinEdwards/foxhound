@@ -3,22 +3,29 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import { getAllPublishedPosts } from "~/lib/blog/queries.server";
 import { COMPETITOR_ORDER } from "~/lib/compare/competitors";
 import { DECLINE_CODES } from "~/lib/decline-codes/codes";
+import { DOC_GUIDES } from "~/lib/marketing/docs-content";
 import { siteUrl } from "~/lib/seo/jsonld";
 
 import type { Route } from "./+types/sitemap";
 
 // Ported from legacy app/sitemap.ts + app/(marketing)/blog/sitemap.ts (Phase
 // 6 Pass 2), composed into the ONE /sitemap.xml resource route this repo
-// registers (no sitemap-index pattern). Three sources concatenated into one
+// registers (no sitemap-index pattern). Sources concatenated into one
 // <urlset>:
-//   1. STATIC_PAGES: every Pass 1-shipped route.
-//   2. One entry per published blog post (D1, lastModified from
+//   1. STATIC_PAGES: every hand-listed route (home, pricing, products,
+//      about, demos, docs index, /audit, privacy, terms, blog index,
+//      decline-codes hub, compare hub).
+//   2. docEntries: one entry per DOC_GUIDES slug (/docs/:slug).
+//   3. One entry per published blog post (D1, lastModified from
 //      updated_at ?? published_at).
-//   3. One entry per canonical tag with >=1 published post.
+//   4. One entry per canonical tag with >=1 published post.
+//   5. declineCodeEntries / compareEntries: one entry per DECLINE_CODES /
+//      COMPETITOR_ORDER slug.
 //
-// Pass 3 (decline-codes, compare) adds its own static entries; append to
-// STATIC_PAGES or concat another array in the loader below, do not
-// restructure this file to add them.
+// Any new dynamic-route source (a new static-array-backed section or a new
+// D1-driven one) must be added the same way: map the existing source of
+// truth into a SitemapEntry[] here, never hand-list URLs that already exist
+// as data elsewhere in the repo.
 
 interface SitemapEntry {
   path: string;
@@ -38,6 +45,7 @@ const STATIC_PAGES: SitemapEntry[] = [
   { path: "/about", changeFrequency: "monthly", priority: 0.5 },
   { path: "/demos", changeFrequency: "monthly", priority: 0.7 },
   { path: "/docs", changeFrequency: "weekly", priority: 0.7 },
+  { path: "/audit", changeFrequency: "monthly", priority: 0.8 },
   { path: "/privacy", changeFrequency: "yearly", priority: 0.3 },
   { path: "/terms", changeFrequency: "yearly", priority: 0.3 },
   { path: "/blog", changeFrequency: "weekly", priority: 0.8 },
@@ -47,6 +55,14 @@ const STATIC_PAGES: SitemapEntry[] = [
   { path: "/decline-codes", changeFrequency: "monthly", priority: 0.8 },
   { path: "/compare", changeFrequency: "monthly", priority: 0.7 },
 ];
+
+// /docs/:slug pages, mapped the same way DECLINE_CODES/COMPETITOR_ORDER are
+// below (a static list already in the repo, not hand-duplicated here).
+const docEntries: SitemapEntry[] = DOC_GUIDES.map((g) => ({
+  path: `/docs/${g.slug}`,
+  changeFrequency: "monthly",
+  priority: 0.6,
+}));
 
 function xmlEscape(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -94,7 +110,14 @@ export async function loader({ context }: Route.LoaderArgs) {
     priority: 0.6,
   }));
 
-  const entries = [...STATIC_PAGES, ...postEntries, ...tagEntries, ...declineCodeEntries, ...compareEntries];
+  const entries = [
+    ...STATIC_PAGES,
+    ...docEntries,
+    ...postEntries,
+    ...tagEntries,
+    ...declineCodeEntries,
+    ...compareEntries,
+  ];
 
   const xml =
     '<?xml version="1.0" encoding="UTF-8"?>\n' +
