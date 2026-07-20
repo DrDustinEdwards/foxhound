@@ -8,7 +8,7 @@ import {
   appendOpenPixel,
   buildEmailStepPatch,
   buildEngagementUrls,
-  buildRetryRecoveryInput,
+  buildRetryReconciliationInput,
   buildRetryStepPatch,
   executeEmailStep,
   executeRetryStep,
@@ -22,7 +22,7 @@ import { stepAction } from "~/lib/engine/step-runner";
 import { nextDueStep, type SchedulableStep } from "~/lib/engine/scheduler";
 import type { EmailJobResult } from "~/lib/email/dispatch";
 import { verifyEngagementToken } from "~/lib/engagement/token";
-import type { RecordRecoveryInput } from "~/lib/recovery/record-recovery";
+import type { RetryReconciliationInput } from "~/lib/recovery/record-recovery";
 import { planRecoverySteps } from "~/lib/recovery/schedule";
 
 const db = drizzle({} as never, { schema });
@@ -82,16 +82,15 @@ describe("retry executor: operational persist (compile against schema)", () => {
   });
 });
 
-describe("retry executor: recovery input (attribution + exactly-once key)", () => {
-  it("attributes a landed retry to foxhound_retry, keyed on the failed payment", () => {
-    const input = buildRetryRecoveryInput(retryCtx(), now);
-    expect(input.attribution).toEqual({ kind: "foxhound_retry", ref: "step_r" });
-    expect(input.recoveryMethod).toBe("foxhound_retry");
-    expect(input.recoveredByStepId).toBe("step_r");
-    // MUST equal the webhook's recovery key (failed_payment id) so the executor's
-    // record and the invoice.payment_succeeded record collapse to one row.
-    expect(input.idempotencyKey).toBe("fp_1");
-    expect(input.amountCents).toBe(4200);
+describe("retry executor: reconciliation input", () => {
+  it("identifies the failed payment and the succeeded step for a reverse-race correction", () => {
+    const input = buildRetryReconciliationInput(retryCtx(), now);
+    expect(input).toEqual({
+      accountId: "acc_1",
+      failedPaymentId: "fp_1",
+      stepId: "step_r",
+      recoveredAt: now,
+    });
   });
 });
 
@@ -127,15 +126,15 @@ describe("retry executor: live charge seam", () => {
 });
 
 describe("retry executor: orchestration + exactly-once", () => {
-  it("records a foxhound_retry recovery only when the charge lands", async () => {
-    const recorded: RecordRecoveryInput[] = [];
+  it("calls the reconciliation seam only when the charge lands", async () => {
+    const recorded: RetryReconciliationInput[] = [];
     let persisted = 0;
     const res = await executeRetryStep({} as Env, retryCtx(), {
       payInvoice: async () => ({ invoiceStatus: "paid" }),
       persistPatch: async () => {
         persisted += 1;
       },
-      recordRecovery: async (_env, input) => {
+      reconcileRecovery: async (_env, input) => {
         recorded.push(input);
         return true;
       },
@@ -143,15 +142,16 @@ describe("retry executor: orchestration + exactly-once", () => {
     expect(res).toEqual({ action: "retry", executed: true, recovered: true, retryResult: "retry_succeeded" });
     expect(persisted).toBe(1);
     expect(recorded).toHaveLength(1);
-    expect(recorded[0].attribution.kind).toBe("foxhound_retry");
+    expect(recorded[0].stepId).toBe("step_r");
+    expect(recorded[0].failedPaymentId).toBe("fp_1");
   });
 
-  it("baseline-free: a failed retry records no recovery at all", async () => {
-    const recorded: RecordRecoveryInput[] = [];
+  it("baseline-free: a failed retry never calls reconciliation", async () => {
+    const recorded: RetryReconciliationInput[] = [];
     const res = await executeRetryStep({} as Env, retryCtx(), {
       payInvoice: async () => ({ invoiceStatus: "open" }),
       persistPatch: async () => {},
-      recordRecovery: async (_env, input) => {
+      reconcileRecovery: async (_env, input) => {
         recorded.push(input);
         return true;
       },
@@ -160,19 +160,19 @@ describe("retry executor: orchestration + exactly-once", () => {
     expect(recorded).toHaveLength(0);
   });
 
-  it("two overlapping successful runs both use the same recovery key (collapse to one row)", async () => {
-    const recorded: RecordRecoveryInput[] = [];
+  it("two overlapping successful runs both reconcile against the same failed payment", async () => {
+    const recorded: RetryReconciliationInput[] = [];
     const deps = {
       payInvoice: async () => ({ invoiceStatus: "paid" as const }),
       persistPatch: async () => {},
-      recordRecovery: async (_env: Env, input: RecordRecoveryInput) => {
+      reconcileRecovery: async (_env: Env, input: RetryReconciliationInput) => {
         recorded.push(input);
         return true;
       },
     };
     await executeRetryStep({} as Env, retryCtx(), deps);
     await executeRetryStep({} as Env, retryCtx(), deps);
-    expect(recorded.map((r) => r.idempotencyKey)).toEqual(["fp_1", "fp_1"]);
+    expect(recorded.map((r) => r.failedPaymentId)).toEqual(["fp_1", "fp_1"]);
   });
 });
 
