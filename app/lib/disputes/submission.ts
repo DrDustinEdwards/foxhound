@@ -6,9 +6,9 @@ import { decryptToken } from "~/lib/stripe/encryption";
 // Dispute evidence submission (TASK-foxhound-dispute-intake.md deliverable 2).
 // The ONLY place stripe.disputes.update is called. It is reached exclusively
 // from the merchant's explicit approve action (app/lib/disputes/approval.ts
-// planApproveAndSubmit + app/routes/app/disputes/detail.tsx), never from a
-// cron or any automatic path: there is no auto-submit, even at the evidence
-// deadline (PRICING.md hard rule).
+// approveAndSubmit + app/routes/app/disputes/detail.tsx), never from a cron or
+// any automatic path: there is no auto-submit, even at the evidence deadline
+// (PRICING.md hard rule).
 
 // The known Stripe dispute-evidence field names (mirrors
 // Stripe.DisputeUpdateParams.Evidence). An explicit allow-list means a stray

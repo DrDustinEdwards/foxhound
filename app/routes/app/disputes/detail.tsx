@@ -1,17 +1,24 @@
 import * as Sentry from "@sentry/cloudflare";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { data, Form, useActionData, useNavigation } from "react-router";
 
 import { Badge } from "~/components/badge";
-import { getDb, stripeConnections } from "~/db";
+import { disputes, getDb, stripeConnections } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
 import { disputeFeeCents } from "~/lib/billing/fees";
 import type { DisputeState } from "~/lib/constants";
-import { approvalRaceErrorMessage, canApprove, planApproveAndSubmit } from "~/lib/disputes/approval";
+import {
+  approveAndSubmit,
+  buildPendingApprovalBatch,
+  buildSubmissionConfirmationBatch,
+  canApprove,
+  hashEvidence,
+} from "~/lib/disputes/approval";
 import { DISPUTE_STATE_LABELS, disputeStateTone, isDisputeResolved } from "~/lib/disputes/labels";
 import { getDisputeDetail, saveDisputeEvidence } from "~/lib/disputes/queries.server";
-import { submitDisputeEvidence } from "~/lib/disputes/submission";
+import { buildStripeEvidencePayload, submitDisputeEvidence } from "~/lib/disputes/submission";
+import { isUniqueConstraintError } from "~/lib/money/serializer";
 import { formatMoney } from "~/lib/money-format";
 
 import type { Route } from "./+types/detail";
@@ -68,57 +75,91 @@ export async function action({ context, params, request }: Route.ActionArgs) {
       return data({ error: "This dispute has already been submitted." }, { status: 400 });
     }
 
-    let connectionAccessToken: string | null = null;
+    let resolvedToken: string | null = null;
     if (detail.dispute.stripeConnectionId) {
       const [connection] = await db
         .select({ accessToken: stripeConnections.stripeAccessToken })
         .from(stripeConnections)
         .where(eq(stripeConnections.id, detail.dispute.stripeConnectionId))
         .limit(1);
-      connectionAccessToken = connection?.accessToken ?? null;
+      resolvedToken = connection?.accessToken ?? null;
     }
+    if (!resolvedToken) {
+      return data({ error: "No connected Stripe account for this dispute." }, { status: 400 });
+    }
+    const connectionAccessToken = resolvedToken;
 
-    // Stripe submission happens FIRST; the approval batch (dispute_approvals
-    // insert + state -> submitted) is only built if that succeeds, so a
-    // failed submission can never produce an approval record (PRICING.md hard
-    // rule; see planApproveAndSubmit).
-    const plan = await planApproveAndSubmit(
-      db,
-      {
-        disputeId: detail.dispute.id,
-        accountId,
-        approvedByUserId: auth.userId,
-        approvedByEmail: auth.email,
-        stripeDisputeId: detail.dispute.stripeDisputeId,
-        evidence: detail.evidence,
-        connectionAccessToken,
-        approvedAt: new Date(),
-      },
-      { submit: (ctx) => submitDisputeEvidence(env, ctx) },
-    );
-    if (plan.status === "error") {
-      return data({ error: plan.message }, { status: 400 });
-    }
+    // The submitted package is what the merchant approved: the currently-saved
+    // evidence (their edits, not the raw AI draft). Hash + Stripe payload are
+    // captured from that same set.
+    const evidenceVersionHash = await hashEvidence(detail.evidence);
+    const evidencePayload = buildStripeEvidencePayload(detail.evidence);
+    const now = new Date();
 
     try {
-      await db.batch(plan.batch);
+      // Ordering (approveAndSubmit): a durable pending-approval record is
+      // written BEFORE the Stripe call, and the `submitted` marker (submitted_at,
+      // which billing keys off) is written only AFTER Stripe accepts. So the
+      // record and the submission can never diverge (dispute-intake review
+      // MEDIUM), and billing counts this dispute only if Stripe genuinely took it.
+      const result = await approveAndSubmit({
+        writePendingApproval: async () => {
+          try {
+            await db.batch(
+              buildPendingApprovalBatch(db, {
+                disputeId: detail.dispute.id,
+                accountId,
+                approvedByUserId: auth.userId,
+                approvedByEmail: auth.email,
+                evidenceVersionHash,
+                approvedAt: now,
+              }),
+            );
+            return "created";
+          } catch (err) {
+            if (!isUniqueConstraintError(err)) throw err;
+            // A row already exists: a CONFIRMED submission (submitted_at set ->
+            // reject) or a prior unconfirmed attempt (-> resume and re-submit).
+            const [existing] = await db
+              .select({ submittedAt: disputes.submittedAt })
+              .from(disputes)
+              .where(and(eq(disputes.id, detail.dispute.id), eq(disputes.accountId, accountId)))
+              .limit(1);
+            return existing?.submittedAt != null ? "already_submitted" : "resume";
+          }
+        },
+        submit: () =>
+          submitDisputeEvidence(env, {
+            stripeDisputeId: detail.dispute.stripeDisputeId,
+            connectionAccessToken,
+            evidence: evidencePayload,
+          }),
+        confirmSubmission: async () => {
+          await db.batch(
+            buildSubmissionConfirmationBatch(db, {
+              disputeId: detail.dispute.id,
+              accountId,
+              submittedBy: auth.email,
+              submittedAt: now,
+            }),
+          );
+        },
+      });
+      if (result.status === "error") {
+        return data({ error: result.message }, { status: 400 });
+      }
+      return data({ ok: true, intent: "approve" as const });
     } catch (err) {
-      // Catches the race where a concurrent approval landed between the
-      // fresh read above and this write; the structural guarantee itself
-      // (dispute_approvals unique per dispute_id) already prevented the
-      // double-submit (Phase 5 review MEDIUM fix).
-      const message = approvalRaceErrorMessage(err);
-      if (message) return data({ error: message }, { status: 400 });
-      // Documented residual, not hidden: Stripe already has the submission at
-      // this point, but our own approval/submitted record failed to write.
-      // Surface loudly rather than swallow, so this gets reconciled by hand
-      // instead of silently drifting from Stripe's own state.
+      // A post-Stripe confirmation write failed: Stripe holds the submission but
+      // our submitted_at did not land. The pending approval record still exists,
+      // so there is no "submission with no record" (review MEDIUM); billing
+      // safely under-counts (no submitted_at) until reconciled, never over-bills.
+      // Surface loudly rather than swallow.
       Sentry.captureException(err, {
-        extra: { scope: "dispute-approval-db-write-after-stripe-submit", disputeId: detail.dispute.id },
+        extra: { scope: "dispute-approve-and-submit", disputeId: detail.dispute.id },
       });
       throw err;
     }
-    return data({ ok: true, intent: "approve" as const });
   }
 
   return data({ error: "Unknown action." }, { status: 400 });
@@ -232,12 +273,16 @@ export default function DisputeDetail({ loaderData }: Route.ComponentProps) {
           )}
           {resolved ? (
             <p className="mt-2 text-body text-text">
-              {state === "resolved_won" && dispute.resolvedFeeCents != null ? (
-                <>
-                  Won. Fee of{" "}
-                  {formatMoney(dispute.resolvedFeeCents, dispute.resolvedFeeCurrency ?? dispute.currency)}{" "}
-                  billed at the next monthly run.
-                </>
+              {state === "resolved_won" ? (
+                dispute.resolvedFeeCents != null ? (
+                  <>
+                    Won. Fee of{" "}
+                    {formatMoney(dispute.resolvedFeeCents, dispute.resolvedFeeCurrency ?? dispute.currency)}{" "}
+                    billed at the next monthly run.
+                  </>
+                ) : (
+                  "Won. No fee: this dispute was not submitted through Foxhound."
+                )
               ) : (
                 "Lost. Not billed."
               )}
