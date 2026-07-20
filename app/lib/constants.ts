@@ -165,7 +165,14 @@ export const AUDIT_MAX_INVOICES_SCANNED = 2000;
 
 // ---- Intelligence deterministic engine (customer_context + mrr_snapshots) ----
 /** Bounded work per sync run: caps how many of an account's Stripe customers
- *  are scanned in one tick (mirrors AUDIT_MAX_INVOICES_SCANNED / RETENTION_SWEEP_LIMIT). */
+ *  are scanned in one tick (mirrors AUDIT_MAX_INVOICES_SCANNED / RETENTION_SWEEP_LIMIT).
+ *  WITHIN one run, this is a real cursor bound: the Stripe SDK's async iterator
+ *  auto-paginates through as many pages as it takes to reach this count, not
+ *  just the first page. ACROSS runs there is no resumption cursor (nothing
+ *  persists which customers were already seen), so an account over this count
+ *  rescans the same newest-first set every run rather than eventually covering
+ *  everyone; app/lib/intelligence/sync.server.ts's AccountSyncResult.truncated
+ *  flag surfaces this in cron_run_history so it is visible, not silent. */
 export const INTELLIGENCE_MAX_CUSTOMERS_SCANNED = 2000;
 /** Bounded invoice history read per customer when reconstructing billing-terms
  *  observations and payment-latency drift. */
