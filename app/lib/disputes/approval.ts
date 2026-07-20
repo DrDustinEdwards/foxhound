@@ -5,6 +5,7 @@ import type { Db } from "~/db";
 import { disputeApprovals, disputes } from "~/db";
 import type { DisputeState } from "~/lib/constants";
 import { isUniqueConstraintError } from "~/lib/money/serializer";
+import { buildStripeEvidencePayload, type DisputeSubmissionResult } from "~/lib/disputes/submission";
 
 // Not a MoneyWriteBatch (app/db/money-write.ts): that type name is reserved for
 // batches routed through the per-account money-write DO. This one deliberately
@@ -103,4 +104,78 @@ export function buildApprovalBatch(db: Db, input: ApprovalBatchInput): Operation
  */
 export function approvalRaceErrorMessage(err: unknown): string | null {
   return isUniqueConstraintError(err) ? "This dispute has already been submitted." : null;
+}
+
+// ============================================================================
+// Approve -> submit orchestration (PRICING.md hard rule: no evidence is ever
+// submitted to Stripe without an explicit merchant approval record)
+// ============================================================================
+
+export interface ApproveAndSubmitInput {
+  disputeId: string;
+  accountId: string;
+  approvedByUserId: string | null;
+  approvedByEmail: string;
+  stripeDisputeId: string;
+  /** The dispute_evidence rows as currently saved (the merchant's edits, not
+   *  the raw AI draft: PRICING.md "the submitted package is what they
+   *  approved"). */
+  evidence: { fieldName: string; fieldValue: string }[];
+  /** Encrypted stripe_connections.stripe_access_token, or null when the
+   *  dispute has no connected Stripe account to submit through. */
+  connectionAccessToken: string | null;
+  approvedAt: Date;
+}
+
+export interface ApproveAndSubmitDeps {
+  submit: (ctx: {
+    stripeDisputeId: string;
+    connectionAccessToken: string;
+    evidence: ReturnType<typeof buildStripeEvidencePayload>;
+  }) => Promise<DisputeSubmissionResult>;
+}
+
+export type ApproveAndSubmitResult =
+  | { status: "submitted"; batch: OperationalBatch }
+  | { status: "error"; message: string };
+
+/**
+ * Plans (but does not commit) the approve-and-submit sequence: Stripe
+ * submission FIRST, the approval batch (dispute_approvals insert + state ->
+ * submitted, buildApprovalBatch) only if that succeeds. This is the
+ * structural proof of the hard rule: `deps.submit` returning `ok: false`
+ * short-circuits to an error result and buildApprovalBatch is never called,
+ * so a failed Stripe submission can never produce an approval row or a
+ * submitted state (see test/disputes-approval.test.ts). The caller commits
+ * the returned batch and is responsible for the fresh canApprove pre-check
+ * (this function does not re-read dispute state).
+ */
+export async function planApproveAndSubmit(
+  db: Db,
+  input: ApproveAndSubmitInput,
+  deps: ApproveAndSubmitDeps,
+): Promise<ApproveAndSubmitResult> {
+  if (!input.connectionAccessToken) {
+    return { status: "error", message: "No connected Stripe account for this dispute." };
+  }
+  const evidence = buildStripeEvidencePayload(input.evidence);
+  const submission = await deps.submit({
+    stripeDisputeId: input.stripeDisputeId,
+    connectionAccessToken: input.connectionAccessToken,
+    evidence,
+  });
+  if (!submission.ok) {
+    return { status: "error", message: `Stripe did not accept the submission: ${submission.error}` };
+  }
+
+  const evidenceVersionHash = await hashEvidence(input.evidence);
+  const batch = buildApprovalBatch(db, {
+    disputeId: input.disputeId,
+    accountId: input.accountId,
+    approvedByUserId: input.approvedByUserId,
+    approvedByEmail: input.approvedByEmail,
+    evidenceVersionHash,
+    approvedAt: input.approvedAt,
+  });
+  return { status: "submitted", batch };
 }
