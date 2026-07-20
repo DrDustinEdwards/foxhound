@@ -6,6 +6,7 @@ import * as schema from "~/db/schema";
 import { resolveAttribution } from "~/lib/recovery/attribution";
 import { DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
 import {
+  buildDisputeIntakeBatch,
   buildDisputeResolutionBatch,
   buildDisputeStampBatch,
   buildIntakeBatch,
@@ -78,10 +79,39 @@ describe("classifyStripeEvent", () => {
     ).toEqual({ kind: "ignore", reason: "partial_refund" });
   });
 
-  it("charge.dispute.created -> stamp_dispute; unrelated type ignored", () => {
-    expect(classifyStripeEvent(event("charge.dispute.created", { charge: "ch_1" }))).toEqual({
+  it("charge.dispute.created -> stamp_dispute (dispute intake); unrelated type ignored", () => {
+    const createdSeconds = Math.floor(new Date("2026-07-19T00:00:00.000Z").getTime() / 1000);
+    const dueBySeconds = Math.floor(new Date("2026-07-26T00:00:00.000Z").getTime() / 1000);
+    expect(
+      classifyStripeEvent(
+        event("charge.dispute.created", {
+          id: "dp_1",
+          charge: "ch_1",
+          payment_intent: "pi_1",
+          amount: 4200,
+          currency: "usd",
+          reason: "fraudulent",
+          status: "needs_response",
+          created: createdSeconds,
+          evidence_details: { due_by: dueBySeconds },
+        }),
+      ),
+    ).toEqual({
       kind: "stamp_dispute",
+      stripeDisputeId: "dp_1",
       chargeId: "ch_1",
+      paymentIntentId: "pi_1",
+      amountCents: 4200,
+      currency: "usd",
+      reason: "fraudulent",
+      status: "needs_response",
+      evidenceDeadline: new Date(dueBySeconds * 1000),
+      createdAt: new Date(createdSeconds * 1000),
+    });
+    // No dispute id: fails closed to ignore rather than a half-populated intake.
+    expect(classifyStripeEvent(event("charge.dispute.created", { charge: "ch_1" }))).toEqual({
+      kind: "ignore",
+      reason: "no_dispute_id",
     });
     expect(classifyStripeEvent(event("customer.updated", {})).kind).toBe("ignore");
   });
@@ -173,6 +203,66 @@ describe("webhook batch builders (compile against schema)", () => {
     expect(sqlOf(refund[1]).sql).toMatch(/update .*recovered_payments/i);
     const dispute = buildDisputeStampBatch(db, { claim, failedPaymentId: "fp_1", at: now });
     expect(sqlOf(dispute[1]).sql).toMatch(/update .*recovered_payments/i);
+  });
+
+  it("dispute intake batch = claim + disputes row + evidence rows, no recovery link", () => {
+    const batch = buildDisputeIntakeBatch(db, {
+      claim,
+      disputeId: "dsp_1",
+      accountId: "acc_1",
+      stripeConnectionId: "conn_1",
+      stripeDisputeId: "dp_1",
+      stripeChargeId: "ch_1",
+      stripeCustomerId: null,
+      customerEmail: null,
+      customerName: null,
+      amountCents: 4200,
+      currency: "usd",
+      reason: "fraudulent",
+      status: "needs_response",
+      evidenceDeadline: now,
+      createdAt: now,
+      linkedFailedPaymentId: null,
+      evidence: [{ fieldName: "product_description", fieldValue: "Widget" }],
+    });
+    // claim + disputes insert + 1 evidence insert, no stamp (no linked recovery)
+    expect(batch.length).toBe(3);
+    expect(sqlOf(batch[0]).sql).toMatch(/webhook_events/i);
+    const disputeInsert = sqlOf(batch[1]);
+    expect(disputeInsert.sql).toMatch(/insert into .*disputes/i);
+    expect(disputeInsert.params).toContain("dsp_1");
+    expect(disputeInsert.params).toContain("pending_review");
+    const evidenceInsert = sqlOf(batch[2]);
+    expect(evidenceInsert.sql).toMatch(/insert into .*dispute_evidence/i);
+    expect(evidenceInsert.params).toContain("Widget");
+  });
+
+  it("dispute intake batch stamps recovered_payments.disputed_at when the charge resolves to a known recovery", () => {
+    const batch = buildDisputeIntakeBatch(db, {
+      claim,
+      disputeId: "dsp_2",
+      accountId: "acc_1",
+      stripeConnectionId: "conn_1",
+      stripeDisputeId: "dp_2",
+      stripeChargeId: "ch_2",
+      stripeCustomerId: "cus_1",
+      customerEmail: "a@b.com",
+      customerName: null,
+      amountCents: 4200,
+      currency: "usd",
+      reason: "fraudulent",
+      status: "needs_response",
+      evidenceDeadline: null,
+      createdAt: now,
+      linkedFailedPaymentId: "fp_1",
+      evidence: [],
+    });
+    // claim + disputes insert + stamp (no evidence rows this time)
+    expect(batch.length).toBe(3);
+    const stamp = sqlOf(batch[2]);
+    expect(stamp.sql).toMatch(/update .*recovered_payments/i);
+    expect(stamp.sql).toMatch(/disputed_at/i);
+    expect(stamp.params).toContain("fp_1");
   });
 
   it("dispute resolution batch snapshots the capped fee on a win, none on a loss", () => {

@@ -12,7 +12,7 @@ import { classifyDecline } from "~/lib/recovery/decline";
 //   invoice.payment_failed     -> intake (create failed_payment + recovery steps)
 //   invoice.payment_succeeded  -> recover (owns the 'recovered' status flip)
 //   charge.refunded (full)     -> stamp_refund (unbills the recovery)
-//   charge.dispute.created     -> stamp_dispute (feeds the billable predicate)
+//   charge.dispute.created     -> stamp_dispute (dispute intake; feeds the billable predicate)
 //   charge.dispute.closed      -> dispute_resolved (5c: won/lost state + fee snapshot)
 // Everything else is ignored.
 
@@ -36,7 +36,18 @@ export type WebhookIntent =
       currency: string;
     }
   | { kind: "stamp_refund"; paymentIntentId: string }
-  | { kind: "stamp_dispute"; chargeId: string }
+  | {
+      kind: "stamp_dispute";
+      stripeDisputeId: string;
+      chargeId: string;
+      paymentIntentId: string | null;
+      amountCents: number;
+      currency: string;
+      reason: string;
+      status: string;
+      evidenceDeadline: Date | null;
+      createdAt: Date;
+    }
   | { kind: "dispute_resolved"; stripeDisputeId: string; won: boolean }
   | { kind: "ignore"; reason: string };
 
@@ -95,7 +106,21 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
       const dispute = event.data.object as Stripe.Dispute;
       const chargeId = asId(dispute.charge);
       if (!chargeId) return { kind: "ignore", reason: "no_charge" };
-      return { kind: "stamp_dispute", chargeId };
+      if (!dispute.id) return { kind: "ignore", reason: "no_dispute_id" };
+      return {
+        kind: "stamp_dispute",
+        stripeDisputeId: dispute.id,
+        chargeId,
+        paymentIntentId: asId(dispute.payment_intent),
+        amountCents: dispute.amount ?? 0,
+        currency: dispute.currency ?? "usd",
+        reason: dispute.reason ?? "general",
+        status: dispute.status ?? "needs_response",
+        evidenceDeadline: dispute.evidence_details?.due_by
+          ? new Date(dispute.evidence_details.due_by * 1000)
+          : null,
+        createdAt: dispute.created ? new Date(dispute.created * 1000) : new Date(),
+      };
     }
     case "charge.dispute.closed": {
       const dispute = event.data.object as Stripe.Dispute;

@@ -1,9 +1,10 @@
 import { and, eq, isNull, notInArray } from "drizzle-orm";
 
 import type { Db, MoneyWriteBatch } from "~/db";
-import { disputes, failedPayments, recoveredPayments, webhookEvents } from "~/db";
+import { disputeEvidence, disputes, failedPayments, recoveredPayments, webhookEvents } from "~/db";
 import { disputeFeeCents } from "~/lib/billing/fees";
 import type { DeclineCategory, DisputeState } from "~/lib/constants";
+import type { EvidenceField } from "~/lib/disputes/evidence";
 import { buildRecoveryStepInserts } from "~/lib/engine/intake";
 import type { ResolvedAttribution } from "~/lib/recovery/attribution";
 import { buildRecoveryBatch } from "~/lib/recovery/record-recovery";
@@ -162,23 +163,98 @@ export function buildRefundStampBatch(
   ];
 }
 
+/** The conditional recovered_payments.disputed_at stamp (feeds the billable
+ *  predicate, SCHEMA.md spine #3): only touches a row that is not already
+ *  stamped, so a replay or a second dispute event on the same recovery is a
+ *  no-op, not a second write. Shared by buildDisputeStampBatch and
+ *  buildDisputeIntakeBatch (dispute intake also excludes the underlying
+ *  recovery from billing when the disputed charge is resolved to one). */
+function buildDisputedAtStamp(db: Db, failedPaymentId: string, at: Date) {
+  return db
+    .update(recoveredPayments)
+    .set({ disputedAt: at })
+    .where(
+      and(eq(recoveredPayments.failedPaymentId, failedPaymentId), isNull(recoveredPayments.disputedAt)),
+    );
+}
+
 /** charge.dispute.created: claim + stamp recovered_payments.disputed_at (feeds the billable predicate). */
 export function buildDisputeStampBatch(
   db: Db,
   input: { claim: WebhookClaimInput; failedPaymentId: string; at: Date },
 ): MoneyWriteBatch {
-  return [
-    buildWebhookClaim(db, input.claim),
-    db
-      .update(recoveredPayments)
-      .set({ disputedAt: input.at })
-      .where(
-        and(
-          eq(recoveredPayments.failedPaymentId, input.failedPaymentId),
-          isNull(recoveredPayments.disputedAt),
-        ),
-      ),
-  ];
+  return [buildWebhookClaim(db, input.claim), buildDisputedAtStamp(db, input.failedPaymentId, input.at)];
+}
+
+export interface DisputeIntakeInput {
+  claim: WebhookClaimInput;
+  disputeId: string;
+  accountId: string;
+  stripeConnectionId: string;
+  stripeDisputeId: string;
+  stripeChargeId: string;
+  stripeCustomerId: string | null;
+  customerEmail: string | null;
+  customerName: string | null;
+  amountCents: number;
+  currency: string;
+  reason: string;
+  status: string;
+  evidenceDeadline: Date | null;
+  createdAt: Date;
+  /** The failed_payments row this disputed charge recovered from, if the
+   *  Stripe-read enrichment seam (Phase 8 live) resolved one. When set, the
+   *  matching recovered_payments row is stamped disputed_at in the same
+   *  atomic batch, so it is excluded from recovery billing immediately
+   *  (never a separate write). */
+  linkedFailedPaymentId: string | null;
+  /** AI-drafted evidence, grounded only in real records (never fabricated;
+   *  app/lib/disputes/evidence.ts). Empty when nothing grounds it. */
+  evidence: EvidenceField[];
+}
+
+/**
+ * charge.dispute.created (dispute intake, TASK-foxhound-dispute-intake.md):
+ * claim + insert the disputes row (state: pending_review, "awaiting merchant
+ * review", never auto-submitted) + insert the drafted dispute_evidence rows +
+ * (when the disputed charge resolves to a known recovery) stamp
+ * recovered_payments.disputed_at so the maturity-window billable predicate
+ * excludes it. All atomic through the per-account money-write DO, same shape
+ * as buildIntakeBatch/buildRecoverBatch (claim-with-side-effects).
+ */
+export function buildDisputeIntakeBatch(db: Db, input: DisputeIntakeInput): MoneyWriteBatch {
+  const claim = buildWebhookClaim(db, input.claim);
+  const disputeInsert = db.insert(disputes).values({
+    id: input.disputeId,
+    accountId: input.accountId,
+    stripeDisputeId: input.stripeDisputeId,
+    stripeChargeId: input.stripeChargeId,
+    stripeCustomerId: input.stripeCustomerId,
+    customerEmail: input.customerEmail,
+    customerName: input.customerName,
+    amountCents: input.amountCents,
+    currency: input.currency,
+    reason: input.reason,
+    status: input.status,
+    evidenceDeadline: input.evidenceDeadline,
+    createdAt: input.createdAt,
+    stripeConnectionId: input.stripeConnectionId,
+    state: "pending_review",
+  });
+  const evidenceInserts = input.evidence.map((field) =>
+    db.insert(disputeEvidence).values({
+      id: crypto.randomUUID(),
+      disputeId: input.disputeId,
+      accountId: input.accountId,
+      fieldName: field.fieldName,
+      fieldValue: field.fieldValue,
+      createdAt: input.createdAt,
+    }),
+  );
+  const stamp = input.linkedFailedPaymentId
+    ? [buildDisputedAtStamp(db, input.linkedFailedPaymentId, input.createdAt)]
+    : [];
+  return [claim, disputeInsert, ...evidenceInserts, ...stamp];
 }
 
 const RESOLVED_DISPUTE_STATES: DisputeState[] = ["resolved_won", "resolved_lost"];

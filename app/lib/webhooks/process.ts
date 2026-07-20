@@ -9,14 +9,17 @@ import {
   stripeConnections,
   webhookEvents,
 } from "~/db";
-import { executeMoneyWrite } from "~/lib/money/execute";
+import { buildEvidenceFacts, draftDisputeEvidence } from "~/lib/disputes/evidence";
 import { isDisputeResolved } from "~/lib/disputes/labels";
+import { executeMoneyWrite } from "~/lib/money/execute";
 import { findAttributionSignals, resolveAttribution } from "~/lib/recovery/attribution";
+import { getConnectedStripe } from "~/lib/stripe/client";
+import { decryptToken } from "~/lib/stripe/encryption";
 
 import {
   buildClaimOnlyBatch,
+  buildDisputeIntakeBatch,
   buildDisputeResolutionBatch,
-  buildDisputeStampBatch,
   buildIntakeBatch,
   buildRecoverBatch,
   buildRefundStampBatch,
@@ -30,9 +33,11 @@ import { classifyStripeEvent } from "./events";
 // batch. Replays roll back on the webhook_events unique index -> applied=false.
 //
 // Deferred to Phase 8 (needs live Stripe): ML enrichment on intake (extra
-// customer/charge/subscription reads), and the paymentIntent->invoice /
-// charge->invoice resolution for refund/dispute stamping. Those seams call Stripe
-// and are not exercised in this pass; the batch builders are unit-proven.
+// customer/charge/subscription reads), the paymentIntent->invoice resolution
+// for refund stamping, and live verification of the AI evidence drafting +
+// Stripe dispute submission (both wired inert-but-complete, see
+// resolveDisputedRecovery and app/lib/disputes/*). Those seams call Stripe and
+// are not exercised in this pass; the batch builders are unit-proven.
 
 export type WebhookOutcome =
   | { status: "applied" }
@@ -78,6 +83,90 @@ async function findActiveFailedPayment(
     .orderBy(desc(failedPayments.detectedAt))
     .limit(1);
   return rows[0]?.id ?? null;
+}
+
+export interface DisputedRecoveryLink {
+  failedPayment: {
+    id: string;
+    stripeCustomerId: string;
+    customerEmail: string;
+    customerName: string | null;
+    planName: string | null;
+    subscriptionStart: Date | null;
+    detectedAt: Date;
+  };
+  steps: { stepType: string; executedAt: Date | null; openedAt: Date | null; clickedAt: Date | null }[];
+}
+
+/**
+ * Resolve the recovery a disputed charge belongs to, if any: the dispute-intake
+ * evidence context (TASK-foxhound-dispute-intake.md). This is the Stripe-read
+ * enrichment seam (Phase 8 live): mapping a dispute's payment_intent to our
+ * invoice-keyed failed_payments row needs a live connected-account read (the
+ * charge/paymentIntent -> invoice resolution deferred elsewhere in this module,
+ * see the stamp_refund/stamp_dispute-resolution comment below). Fails safe: a
+ * missing connection token, a missing payment_intent, "not found", or any
+ * Stripe/DB error all resolve to null so dispute intake still proceeds
+ * (without the recovery link and its evidence facts), never blocked by this
+ * seam.
+ */
+async function resolveDisputedRecovery(
+  env: Env,
+  accountId: string,
+  connectionId: string,
+  paymentIntentId: string | null,
+): Promise<DisputedRecoveryLink | null> {
+  if (!paymentIntentId) return null;
+  const db = getDb(env);
+  try {
+    const [connection] = await db
+      .select({ accessToken: stripeConnections.stripeAccessToken })
+      .from(stripeConnections)
+      .where(eq(stripeConnections.id, connectionId))
+      .limit(1);
+    if (!connection?.accessToken) return null;
+
+    const token = await decryptToken(env, connection.accessToken);
+    const stripe = getConnectedStripe(token);
+    // Invoice<->PaymentIntent linkage is not a direct field on either object in
+    // the pinned API version; search is the seam Stripe exposes for it.
+    const results = await stripe.invoices.search({
+      query: `payment_intent:'${paymentIntentId}'`,
+      limit: 1,
+    });
+    const invoiceId = results.data[0]?.id ?? null;
+    if (!invoiceId) return null;
+
+    const [failedPayment] = await db
+      .select({
+        id: failedPayments.id,
+        stripeCustomerId: failedPayments.stripeCustomerId,
+        customerEmail: failedPayments.customerEmail,
+        customerName: failedPayments.customerName,
+        planName: failedPayments.planName,
+        subscriptionStart: failedPayments.subscriptionStart,
+        detectedAt: failedPayments.detectedAt,
+      })
+      .from(failedPayments)
+      .where(and(eq(failedPayments.accountId, accountId), eq(failedPayments.stripeInvoiceId, invoiceId)))
+      .orderBy(desc(failedPayments.detectedAt))
+      .limit(1);
+    if (!failedPayment) return null;
+
+    const steps = await db
+      .select({
+        stepType: recoverySteps.stepType,
+        executedAt: recoverySteps.executedAt,
+        openedAt: recoverySteps.openedAt,
+        clickedAt: recoverySteps.clickedAt,
+      })
+      .from(recoverySteps)
+      .where(eq(recoverySteps.failedPaymentId, failedPayment.id));
+
+    return { failedPayment, steps };
+  } catch {
+    return null;
+  }
 }
 
 /** Find a dispute by its Stripe dispute id (5c resolution stamping target). */
@@ -244,12 +333,46 @@ export async function processConnectedWebhook(
       return applied ? { status: "applied" } : { status: "duplicate" };
     }
 
+    if (intent.kind === "stamp_dispute") {
+      // charge.dispute.created (dispute intake): resolve the recovery this
+      // charge belongs to (if any, the Phase 8-live enrichment seam above),
+      // draft evidence grounded only in what that resolution and our own
+      // recovery_steps actually show, and create the dispute row, "awaiting
+      // merchant review" (state pending_review), never auto-submitted.
+      const linked = await resolveDisputedRecovery(env, accountId, connectionId, intent.paymentIntentId);
+      const facts = buildEvidenceFacts(linked?.failedPayment ?? null, linked?.steps ?? []);
+      const evidence = await draftDisputeEvidence(env, facts);
+      const { applied } = await executeMoneyWrite(env, {
+        accountId,
+        idempotencyKey,
+        build: (db) =>
+          buildDisputeIntakeBatch(db, {
+            claim,
+            disputeId: crypto.randomUUID(),
+            accountId,
+            stripeConnectionId: connectionId,
+            stripeDisputeId: intent.stripeDisputeId,
+            stripeChargeId: intent.chargeId,
+            stripeCustomerId: linked?.failedPayment.stripeCustomerId ?? null,
+            customerEmail: linked?.failedPayment.customerEmail ?? null,
+            customerName: linked?.failedPayment.customerName ?? null,
+            amountCents: intent.amountCents,
+            currency: intent.currency,
+            reason: intent.reason,
+            status: intent.status,
+            evidenceDeadline: intent.evidenceDeadline,
+            createdAt: intent.createdAt,
+            linkedFailedPaymentId: linked?.failedPayment.id ?? null,
+            evidence,
+          }),
+      });
+      return applied ? { status: "applied" } : { status: "duplicate" };
+    }
+
     if (intent.kind === "dispute_resolved") {
-      // No dispute-intake pipeline exists yet (nothing currently inserts a
-      // disputes row from charge.dispute.created), so a real dispute will not
-      // be found today. That is a pre-existing gap, not a fresh assumption:
-      // treat "not found" exactly like "recover" treats a missing failed
-      // payment, a safe claim-only ignore, never a throw.
+      // The dispute row normally exists by now (stamp_dispute intake runs on
+      // the earlier charge.dispute.created event). A miss is defensive, not
+      // expected: a safe claim-only ignore, never a throw.
       const dispute = await findDisputeByStripeId(env, intent.stripeDisputeId);
       if (!dispute || dispute.accountId !== accountId) {
         const { applied } = await executeMoneyWrite(env, {
@@ -283,9 +406,9 @@ export async function processConnectedWebhook(
       return applied ? { status: "applied" } : { status: "duplicate" };
     }
 
-    // stamp_refund / stamp_dispute: the paymentIntent->invoice / charge->invoice
-    // resolution is a live Stripe seam (deferred to Phase 8). Claim the event so
-    // replays short-circuit; the stamp lands once the resolution seam is live.
+    // stamp_refund: the paymentIntent->invoice resolution is a live Stripe seam
+    // (deferred to Phase 8). Claim the event so replays short-circuit; the
+    // stamp lands once the resolution seam is live.
     const { applied } = await executeMoneyWrite(env, {
       accountId,
       idempotencyKey,
