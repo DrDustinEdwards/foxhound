@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import type Stripe from "stripe";
 
 import type { Db, MoneyWriteBatch } from "~/db";
 import { accounts } from "~/db";
@@ -78,20 +79,77 @@ export interface FinalizeSetupResult {
   error?: string;
 }
 
+/** Extract the customer id from a Checkout Session's `customer` field, whether
+ *  it is an id string, an expanded object, or null. Pure. */
+export function sessionCustomerId(
+  customer: string | { id: string } | null | undefined,
+): string | null {
+  if (!customer) return null;
+  return typeof customer === "string" ? customer : customer.id;
+}
+
+/**
+ * SECURITY (account-scoping audit HIGH #2): the return-leg `session_id` is an
+ * unauthenticated URL query param. The retrieved session's customer MUST equal
+ * the calling account's OWN stored platform customer id before we touch it, or
+ * a logged-in merchant A who obtains merchant B's completed session_id could
+ * drive stripe.customers.update against B's customer. `expectedCustomerId` is
+ * accounts.platform_stripe_customer_id for the SESSION's own account, persisted
+ * before the redirect out (billing/index.tsx action), so on the return leg it
+ * is present and account-bound. A null expected id (account never set up) or a
+ * mismatch both reject. Pure, so the ownership decision is directly unit-tested.
+ */
+export function assertSessionBelongsToAccount(
+  session: { customer: string | { id: string } | null | undefined },
+  expectedCustomerId: string | null,
+): { ok: true; customerId: string } | { ok: false; error: string } {
+  const customerId = sessionCustomerId(session.customer);
+  if (!expectedCustomerId || !customerId || customerId !== expectedCustomerId) {
+    return { ok: false, error: "setup session does not belong to this account" };
+  }
+  return { ok: true, customerId };
+}
+
+/** Injectable IO for finalizeBillingSetupSession, so the ownership gate can be
+ *  exercised without a live Stripe call. Defaults are the real Stripe client. */
+export interface FinalizeSetupDeps {
+  retrieveSession: (sessionId: string) => Promise<Stripe.Checkout.Session>;
+  setDefaultPaymentMethod: (customerId: string, paymentMethodId: string) => Promise<void>;
+}
+
 /** Called on the success_url return: retrieves the completed setup session,
- *  and sets the collected payment method as the customer's default so the
- *  monthly billing run's `charge_automatically` invoices have one to use. */
+ *  verifies it belongs to THIS account (assertSessionBelongsToAccount), then
+ *  sets the collected payment method as the customer's default so the monthly
+ *  billing run's `charge_automatically` invoices have one to use. The ownership
+ *  gate runs BEFORE any customer mutation, so a foreign session never writes. */
 export async function finalizeBillingSetupSession(
   env: Env,
-  sessionId: string,
+  input: { sessionId: string; expectedCustomerId: string | null },
+  deps?: Partial<FinalizeSetupDeps>,
 ): Promise<FinalizeSetupResult> {
-  const stripe = getStripe(env);
-  const session = await stripe.checkout.sessions.retrieve(sessionId, {
-    expand: ["setup_intent"],
-  });
+  // Lazily construct the Stripe client only if a default dep is actually used,
+  // so fully-injected callers (tests) never require STRIPE_SECRET_KEY.
+  let stripeClient: Stripe | null = null;
+  const stripe = () => (stripeClient ??= getStripe(env));
+  const retrieveSession =
+    deps?.retrieveSession ??
+    ((id: string) => stripe().checkout.sessions.retrieve(id, { expand: ["setup_intent"] }));
+  const setDefaultPaymentMethod =
+    deps?.setDefaultPaymentMethod ??
+    (async (customerId: string, paymentMethodId: string) => {
+      await stripe().customers.update(customerId, {
+        invoice_settings: { default_payment_method: paymentMethodId },
+      });
+    });
+
+  const session = await retrieveSession(input.sessionId);
   if (session.status !== "complete" || !session.customer) {
     return { ok: false, error: "setup session not complete" };
   }
+  // Ownership gate FIRST: never mutate a customer the caller does not own.
+  const owned = assertSessionBelongsToAccount(session, input.expectedCustomerId);
+  if (!owned.ok) return owned;
+
   const setupIntent = session.setup_intent;
   const paymentMethodId =
     typeof setupIntent === "object" && setupIntent !== null
@@ -102,9 +160,6 @@ export async function finalizeBillingSetupSession(
   if (!paymentMethodId) {
     return { ok: false, error: "no payment method attached to setup intent" };
   }
-  const customerId = typeof session.customer === "string" ? session.customer : session.customer.id;
-  await stripe.customers.update(customerId, {
-    invoice_settings: { default_payment_method: paymentMethodId },
-  });
+  await setDefaultPaymentMethod(owned.customerId, paymentMethodId);
   return { ok: true };
 }
