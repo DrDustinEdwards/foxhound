@@ -1,3 +1,5 @@
+import { and, eq, ne } from "drizzle-orm";
+
 import type { Db, MoneyWriteBatch } from "~/db";
 import { outcomes, recoveredPayments } from "~/db";
 import { executeMoneyWrite } from "~/lib/money/execute";
@@ -10,14 +12,20 @@ import { isBillableAttribution, type ResolvedAttribution } from "./attribution";
 // baseline recoveries are recorded with equal fidelity; baseline is the free
 // line (PRICING.md spine #2).
 //
-// Boundary: the invoice.payment_succeeded webhook (Phase 4c) owns setting the
-// failed_payments 'recovered' status (the race rule); THIS records the recovery
-// evidence + attribution and is called from that webhook. Phase 4b builds and
-// unit-tests it.
+// Boundary: the invoice.payment_succeeded webhook is the SOLE recorder of a
+// recovery (buildRecoverBatch in webhooks/batches.ts is the only caller of
+// buildRecoveryBatch's insert) and the sole owner of the failed_payments
+// 'recovered' status flip. The retry executor (execute-step.ts) never inserts
+// here; it only calls reconcileRetryRecovery below, an UPDATE-only correction
+// for the narrow reverse-race window (review Finding 1 + 2). Phase 4b builds
+// and unit-tests the insert path.
 //
 // Idempotency: the outcomes row carries a stable key (outcomes_idempotency_uq),
 // so a webhook redelivery makes the whole atomic batch fail the unique
 // constraint and roll back - exactly-once recovery recording by construction.
+// This is now safe for the status flip too (buildRecoverBatch.ts): since the
+// executor never inserts, the webhook's insert is the only writer that can ever
+// collide with itself (a same-event redelivery), never with a second writer.
 
 export interface RecordRecoveryInput {
   accountId: string;
@@ -71,15 +79,73 @@ export function buildRecoveryBatch(db: Db, input: RecordRecoveryInput): MoneyWri
   ];
 }
 
-/** Record a recovery. Returns true if newly recorded, false on idempotent replay. */
-export async function recordRecovery(
+export interface RetryReconciliationInput {
+  accountId: string;
+  failedPaymentId: string;
+  /** The succeeded retry step, the ground-truth cause of the recovery. */
+  stepId: string;
+  recoveredAt: Date;
+}
+
+/**
+ * The UPDATE-only correction for the reverse-race window (review Finding 1 + 2):
+ * if the invoice.payment_succeeded webhook already recorded this failed payment
+ * (it is the sole inserter) before this retry's step patch landed, it could not
+ * yet see the succeeded retry and fell back to a lesser attribution (usually
+ * stripe_baseline). This upgrades that existing row to foxhound_retry, the
+ * strongest proof of causation (attribution.ts's own priority order), using the
+ * step that just landed as the ref.
+ *
+ * Never inserts, so it can never collide with the webhook's insert: no whole-batch
+ * rollback risk, the webhook's status flip is never at stake here. Idempotent by
+ * construction (the WHERE excludes rows already at foxhound_retry): a no-op when
+ * the webhook has not recorded anything yet (the dominant ordering - it will see
+ * the persisted step result and self-attribute foxhound_retry) or already did.
+ */
+export function buildRetryReconciliationBatch(
+  db: Db,
+  input: RetryReconciliationInput,
+): MoneyWriteBatch {
+  const key = `recovery:${input.failedPaymentId}`;
+  return [
+    db
+      .update(recoveredPayments)
+      .set({
+        attributionKind: "foxhound_retry",
+        attributionRef: input.stepId,
+        recoveredByStepId: input.stepId,
+        recoveryMethod: "foxhound_retry",
+        attributedAt: input.recoveredAt,
+      })
+      .where(
+        and(
+          eq(recoveredPayments.failedPaymentId, input.failedPaymentId),
+          ne(recoveredPayments.attributionKind, "foxhound_retry"),
+        ),
+      ),
+    db
+      .update(outcomes)
+      .set({
+        outcome: "recovered_attributed",
+        attributionKind: "foxhound_retry",
+        attributedRef: input.stepId,
+      })
+      .where(and(eq(outcomes.idempotencyKey, key), ne(outcomes.attributionKind, "foxhound_retry"))),
+  ];
+}
+
+/** Reconcile a landed retry against whatever the webhook already recorded.
+ *  Routed through the per-account money-write DO like every other recovery
+ *  write (ARCHITECTURE.md #1), even though the UPDATE-only shape is idempotent
+ *  by construction. Returns true if a correction was newly applied. */
+export async function reconcileRetryRecovery(
   env: Env,
-  input: RecordRecoveryInput,
+  input: RetryReconciliationInput,
 ): Promise<boolean> {
   const { applied } = await executeMoneyWrite(env, {
     accountId: input.accountId,
-    idempotencyKey: `recovery:${input.idempotencyKey}`,
-    build: (db) => buildRecoveryBatch(db, input),
+    idempotencyKey: `recovery-reconcile:${input.failedPaymentId}`,
+    build: (db) => buildRetryReconciliationBatch(db, input),
   });
   return applied;
 }

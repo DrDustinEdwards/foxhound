@@ -20,8 +20,9 @@ import type { CronJobResult } from "./run";
 // Safety model:
 //   - Overlap: the cron mutex (runCronJob) prevents two whole ticks overlapping.
 //   - Per-step exactly-once: the executors themselves are idempotent (Stripe
-//     idempotency key on the charge, conditional executed_at claim, and the
-//     failed_payment-keyed recordRecovery through the money DO); see execute-step.ts.
+//     idempotency key on the charge, conditional executed_at claim); the
+//     invoice.payment_succeeded webhook is the sole recovery recorder, and the
+//     retry executor only reconciles attribution against it; see execute-step.ts.
 //   - Failure isolation: each step runs in its own try/catch, so one Stripe error
 //     or EMAIL throw never halts the sweep for the other steps/merchants.
 //   - Stop condition: only steps whose parent failed_payment is still 'active' are
