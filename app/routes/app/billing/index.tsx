@@ -40,10 +40,17 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 
   // Return leg of the Stripe-hosted setup session (mirrors the Connect OAuth
   // callback shape): finalize once, then redirect to the clean URL so a
-  // refresh never re-processes the same session_id.
+  // refresh never re-processes the same session_id. The session_id is an
+  // unauthenticated URL param, so finalize verifies it belongs to THIS account
+  // (account-scoping audit HIGH #2): pass our OWN stored platform customer id
+  // as the expected owner; a foreign session never mutates a customer.
   const sessionId = new URL(request.url).searchParams.get("session_id");
   if (sessionId) {
-    await finalizeBillingSetupSession(env, sessionId).catch((err) => {
+    const accountRow = await loadAccountBillingRow(env, accountId);
+    await finalizeBillingSetupSession(env, {
+      sessionId,
+      expectedCustomerId: accountRow?.platformStripeCustomerId ?? null,
+    }).catch((err) => {
       console.error("billing setup finalize failed:", err instanceof Error ? err.message : err);
     });
     throw redirect("/billing");
