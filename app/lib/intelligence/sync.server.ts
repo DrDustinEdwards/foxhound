@@ -25,13 +25,14 @@ import { decryptToken } from "~/lib/stripe/encryption";
 import { getConnectedStripe } from "~/lib/stripe/client";
 import {
   buildCustomerContextFields,
+  monthlyEquivalentCents,
   type ActiveSubscriptionSnapshot,
   type BillingInterval,
-  type BillingObservation,
   type CustomerContextFields,
   type DisputeSignalRow,
   type EngagementSignalRow,
   type InvoicePaymentObservation,
+  type RawBillingLineObservation,
   type RecoverySignalRow,
 } from "./signals";
 import { buildMrrSnapshotFields, type ChurnReason, type CustomerMrrPoint } from "./mrr";
@@ -97,7 +98,7 @@ const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing", "past_due"])
 
 interface CustomerStripeSnapshot {
   activeSubscriptions: ActiveSubscriptionSnapshot[];
-  billingHistory: BillingObservation[];
+  billingHistory: RawBillingLineObservation[];
   invoiceHistory: InvoicePaymentObservation[];
   refundCount: number;
   disputeCount: number;
@@ -114,7 +115,12 @@ async function fetchCustomerStripeSnapshot(
   stripeCustomerId: string,
 ): Promise<CustomerStripeSnapshot> {
   const activeSubscriptions: ActiveSubscriptionSnapshot[] = [];
-  const billingHistory: BillingObservation[] = [];
+  // Raw, uncollapsed lines: a multi-item subscription or a multi-line invoice
+  // pushes more than one entry at the SAME timestamp here on purpose.
+  // buildCustomerContextFields (signals.ts) collapses same-instant lines down
+  // to one representative observation before diffing, so this seam only has
+  // to report every line honestly, not pre-guess which one "matters".
+  const billingHistory: RawBillingLineObservation[] = [];
   let churnReason: ChurnReason = null;
 
   for await (const sub of stripe.subscriptions.list({
@@ -126,16 +132,26 @@ async function fetchCustomerStripeSnapshot(
     for (const item of sub.items.data) {
       const interval = priceInterval(item.price);
       const quantity = item.quantity ?? 1;
+      const unitAmountCents = item.price.unit_amount ?? 0;
       if (ACTIVE_SUBSCRIPTION_STATUSES.has(sub.status)) {
         activeSubscriptions.push({
           priceId: item.price.id,
           productName: productName(item.price.product),
           quantity,
           interval,
-          unitAmountCents: item.price.unit_amount ?? 0,
+          unitAmountCents,
         });
       }
-      billingHistory.push({ at: sub.created * 1000, priceId: item.price.id, quantity, interval });
+      billingHistory.push({
+        at: sub.created * 1000,
+        priceId: item.price.id,
+        quantity,
+        interval,
+        // Ranking signal only (collapseBillingObservations): the item with
+        // the largest monthly-equivalent amount represents this instant, the
+        // same rule summarizeActiveSubscriptions uses for "current plan".
+        valueCents: monthlyEquivalentCents(unitAmountCents, quantity, interval),
+      });
     }
     if (sub.status === "canceled") {
       const reason = subscriptionCancellationChurnReason(sub);
@@ -166,6 +182,10 @@ async function fetchCustomerStripeSnapshot(
         priceId,
         quantity: line.quantity ?? 1,
         interval: priceInterval(price),
+        // The line's own signed amount (negative for a proration credit), so
+        // an upgrade invoice's real new-plan charge always outranks the
+        // credit line it arrives alongside.
+        valueCents: line.amount,
       });
     }
   }
@@ -274,6 +294,9 @@ function buildCustomerContextUpsert(
   // aiAssessment / aiAssessmentGeneratedAt / aiRecommendedActions /
   // currentPlanTier, so a re-run of this deterministic sync never clobbers
   // whatever the separate AI half (or a future tier taxonomy) has written.
+  // currency and ltvCents are omitted too: honest unknowns this slice has no
+  // source for, not fields something else is expected to fill in later (see
+  // buildCustomerContextFields's doc comment in signals.ts).
   return db
     .insert(customerContext)
     .values({
@@ -292,6 +315,15 @@ export interface AccountSyncResult {
   accountId: string;
   customersProcessed: number;
   snapshotWritten: boolean;
+  /** True when this run hit INTELLIGENCE_MAX_CUSTOMERS_SCANNED and stopped
+   *  before the connected account's customer list was exhausted. There is no
+   *  cross-run resumption cursor (that would need persisted per-account state:
+   *  a schema column, out of scope for this slice, or a KV entry, a bigger
+   *  change than this pass warrants for a pre-launch account base). Stripe's
+   *  default list order is newest-first, so a truncated account rescans the
+   *  same customers every run; this flag is how that becomes visible in
+   *  cron_run_history instead of silently under-covering the account forever. */
+  truncated: boolean;
 }
 
 /** Runs the deterministic Intelligence sync for one account: enumerates every
@@ -307,7 +339,7 @@ export async function runIntelligenceSyncForAccount(
   const db = getDb(env);
   const connection = await resolveAccountConnection(db, accountId);
   if (!connection?.stripeAccessToken) {
-    return { accountId, customersProcessed: 0, snapshotWritten: false };
+    return { accountId, customersProcessed: 0, snapshotWritten: false, truncated: false };
   }
 
   const [account] = await db
@@ -340,10 +372,14 @@ export async function runIntelligenceSyncForAccount(
   const currentPoints: CustomerMrrPoint[] = [];
   const upserts: BatchItem<"sqlite">[] = [];
   let scanned = 0;
+  let truncated = false;
 
   for await (const customer of stripe.customers.list({ limit: 100 })) {
     scanned += 1;
-    if (scanned > INTELLIGENCE_MAX_CUSTOMERS_SCANNED) break;
+    if (scanned > INTELLIGENCE_MAX_CUSTOMERS_SCANNED) {
+      truncated = true;
+      break;
+    }
     if (customer.deleted) continue;
 
     const snapshot = await fetchCustomerStripeSnapshot(stripe, customer.id);
@@ -389,7 +425,7 @@ export async function runIntelligenceSyncForAccount(
   // Nothing to snapshot: no customers now and no prior snapshot to compare
   // against would just record an all-zero row with no future trend value.
   if (currentPoints.length === 0 && !hasPriorSnapshot) {
-    return { accountId, customersProcessed: 0, snapshotWritten: false };
+    return { accountId, customersProcessed: 0, snapshotWritten: false, truncated };
   }
 
   const snapshotFields = buildMrrSnapshotFields(priorByCustomer, currentPoints);
@@ -416,7 +452,7 @@ export async function runIntelligenceSyncForAccount(
     createdAt: now,
   });
 
-  return { accountId, customersProcessed: currentPoints.length, snapshotWritten: true };
+  return { accountId, customersProcessed: currentPoints.length, snapshotWritten: true, truncated };
 }
 
 /** Account-level gate for Intelligence sync: respects processing_paused
@@ -444,7 +480,7 @@ export async function runIntelligenceSyncForAllAccounts(
     try {
       results.push(await runIntelligenceSyncForAccount(env, id, nowMs));
     } catch (err) {
-      results.push({ accountId: id, customersProcessed: 0, snapshotWritten: false });
+      results.push({ accountId: id, customersProcessed: 0, snapshotWritten: false, truncated: false });
       console.error(`intelligence sync failed for account ${id}:`, err instanceof Error ? err.message : err);
     }
   }
