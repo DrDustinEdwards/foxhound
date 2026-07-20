@@ -5,23 +5,33 @@ import type { Db } from "~/db";
 import { disputeApprovals, disputes } from "~/db";
 import type { DisputeState } from "~/lib/constants";
 import { isUniqueConstraintError } from "~/lib/money/serializer";
-import { buildStripeEvidencePayload, type DisputeSubmissionResult } from "~/lib/disputes/submission";
+import type { DisputeSubmissionResult } from "~/lib/disputes/submission";
 
 // Not a MoneyWriteBatch (app/db/money-write.ts): that type name is reserved for
 // batches routed through the per-account money-write DO. This one deliberately
 // is not (see the module comment below), so it gets its own plain alias.
 type OperationalBatch = [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]];
 
-// The dispute approval + submission write (Phase 5 slice 5c, DESIGN.md flagship
-// surface 2). This is a single explicit action: it writes the approval row and
-// advances the dispute straight to `submitted` in one atomic batch, so the
-// schema's real guarantee, "no submission without an approval row", holds by
-// construction rather than by app-level discipline. This is a PLAIN operational
-// batch (not the money-write DO): approving a dispute does not itself gate
-// billing, it only makes `resolved_fee_cents` reachable later at resolution
-// (Scope B, which IS driven by a webhook claim and rides the DO). Mirrors the
-// recovery_steps precedent (gotcha #25): non-money state advances use a plain
-// db.batch(), not the DO.
+// The dispute approve-and-submit flow (Phase 5 slice 5c, DESIGN.md flagship
+// surface 2; hardened per the dispute-intake review MEDIUM). Splitting the old
+// single "submit-then-write-approval" step into TWO phases bracketing the
+// Stripe call closes the window where Stripe could hold a submission with no
+// durable record on our side:
+//
+//   Phase A (buildPendingApprovalBatch, BEFORE Stripe): write the
+//     dispute_approvals row. Its presence is the durable proof the merchant
+//     approved and a submission was attempted. The unique index on
+//     dispute_approvals.dispute_id serializes concurrent approvals.
+//   Phase C (buildSubmissionConfirmationBatch, AFTER Stripe accepts): advance
+//     the dispute to `submitted` and set disputes.submitted_at. submitted_at is
+//     the marker billing keys off (app/db/billable.ts getBillableDisputes), so
+//     it is set ONLY once Stripe genuinely accepted the evidence. A win
+//     Foxhound never submitted has no submitted_at and is never billed.
+//
+// Both are PLAIN operational batches (not the money-write DO): approving a
+// dispute does not itself gate billing, it only makes `resolved_fee_cents`
+// reachable later at resolution (which IS driven by a webhook claim and rides
+// the DO). Mirrors the recovery_steps precedent (gotcha #25).
 
 /** A dispute can be approved and submitted from any pre-submission state. Once
  *  submitted or resolved, this is never true again (no re-approval, no reopen
@@ -47,7 +57,7 @@ export async function hashEvidence(fields: { fieldName: string; fieldValue: stri
     .join("");
 }
 
-export interface ApprovalBatchInput {
+export interface PendingApprovalInput {
   disputeId: string;
   accountId: string;
   approvedByUserId: string | null;
@@ -57,29 +67,16 @@ export interface ApprovalBatchInput {
 }
 
 /**
- * The atomic approval batch: advance the dispute to `submitted` (conditional on
- * it not already being submitted or resolved, so a race resolves to exactly one
- * winner) + insert the dispute_approvals row. The unique index on
- * dispute_approvals.dispute_id is the structural backstop: a concurrent second
- * attempt fails that insert and the whole batch rolls back, so a double-submit
- * can never leave two approval rows or a state advance without one.
+ * Phase A (before the Stripe submission): insert the dispute_approvals row, the
+ * durable record that the merchant approved and a submission is being attempted.
+ * The unique index on dispute_approvals.dispute_id makes a concurrent second
+ * attempt fail this insert (caught by the caller, isUniqueConstraintError). The
+ * dispute state is deliberately NOT advanced here: it stays approvable until the
+ * submission is confirmed (Phase C), so a Stripe failure leaves a retriable
+ * dispute rather than a false `submitted` state Stripe never received.
  */
-export function buildApprovalBatch(db: Db, input: ApprovalBatchInput): OperationalBatch {
+export function buildPendingApprovalBatch(db: Db, input: PendingApprovalInput): OperationalBatch {
   return [
-    db
-      .update(disputes)
-      .set({
-        state: "submitted",
-        submittedAt: input.approvedAt,
-        submittedBy: input.approvedByEmail,
-      })
-      .where(
-        and(
-          eq(disputes.id, input.disputeId),
-          eq(disputes.accountId, input.accountId),
-          notInArray(disputes.state, SUBMITTED_OR_RESOLVED as string[]),
-        ),
-      ),
     db.insert(disputeApprovals).values({
       id: crypto.randomUUID(),
       disputeId: input.disputeId,
@@ -89,6 +86,43 @@ export function buildApprovalBatch(db: Db, input: ApprovalBatchInput): Operation
       evidenceVersionHash: input.evidenceVersionHash,
       approvedAt: input.approvedAt,
     }),
+  ];
+}
+
+export interface SubmissionConfirmationInput {
+  disputeId: string;
+  accountId: string;
+  submittedBy: string;
+  submittedAt: Date;
+}
+
+/**
+ * Phase C (after Stripe accepts): advance the dispute to `submitted` and set
+ * submitted_at + submitted_by. submitted_at is the marker billing keys off, so
+ * writing it here, and only here, is what guarantees a dispute is billed only
+ * if Stripe genuinely accepted the evidence. Conditional on the dispute not
+ * already being submitted or resolved (idempotent under a duplicate confirm and
+ * safe if the dispute resolved in the sub-second gap after the Stripe call).
+ */
+export function buildSubmissionConfirmationBatch(
+  db: Db,
+  input: SubmissionConfirmationInput,
+): OperationalBatch {
+  return [
+    db
+      .update(disputes)
+      .set({
+        state: "submitted",
+        submittedAt: input.submittedAt,
+        submittedBy: input.submittedBy,
+      })
+      .where(
+        and(
+          eq(disputes.id, input.disputeId),
+          eq(disputes.accountId, input.accountId),
+          notInArray(disputes.state, SUBMITTED_OR_RESOLVED as string[]),
+        ),
+      ),
   ];
 }
 
@@ -108,74 +142,55 @@ export function approvalRaceErrorMessage(err: unknown): string | null {
 
 // ============================================================================
 // Approve -> submit orchestration (PRICING.md hard rule: no evidence is ever
-// submitted to Stripe without an explicit merchant approval record)
+// submitted to Stripe without an explicit merchant approval record; and,
+// symmetrically, no submission ever happens without a durable record on our
+// side, dispute-intake review MEDIUM)
 // ============================================================================
 
-export interface ApproveAndSubmitInput {
-  disputeId: string;
-  accountId: string;
-  approvedByUserId: string | null;
-  approvedByEmail: string;
-  stripeDisputeId: string;
-  /** The dispute_evidence rows as currently saved (the merchant's edits, not
-   *  the raw AI draft: PRICING.md "the submitted package is what they
-   *  approved"). */
-  evidence: { fieldName: string; fieldValue: string }[];
-  /** Encrypted stripe_connections.stripe_access_token, or null when the
-   *  dispute has no connected Stripe account to submit through. */
-  connectionAccessToken: string | null;
-  approvedAt: Date;
-}
+/** Outcome of the pre-submit durable write (Phase A):
+ *  - `created`: a fresh pending approval row was written.
+ *  - `resume`: a pending (unconfirmed) approval row from a prior attempt already
+ *     exists; proceed and re-submit rather than dead-end.
+ *  - `already_submitted`: a CONFIRMED submission already exists; reject. */
+export type PendingApprovalOutcome = "created" | "resume" | "already_submitted";
 
 export interface ApproveAndSubmitDeps {
-  submit: (ctx: {
-    stripeDisputeId: string;
-    connectionAccessToken: string;
-    evidence: ReturnType<typeof buildStripeEvidencePayload>;
-  }) => Promise<DisputeSubmissionResult>;
+  /** Phase A: write the durable pending-approval record BEFORE the Stripe call
+   *  (buildPendingApprovalBatch), reporting whether it was created, is being
+   *  resumed, or is already a confirmed submission. */
+  writePendingApproval: () => Promise<PendingApprovalOutcome>;
+  /** Phase B: submit the merchant-approved evidence to Stripe. */
+  submit: () => Promise<DisputeSubmissionResult>;
+  /** Phase C: confirm the submission (buildSubmissionConfirmationBatch: advance
+   *  state to submitted + set submitted_at). Reached ONLY after Stripe accepted.
+   *  A throw here is a post-submit DB failure and propagates to the caller. */
+  confirmSubmission: () => Promise<void>;
 }
 
-export type ApproveAndSubmitResult =
-  | { status: "submitted"; batch: OperationalBatch }
-  | { status: "error"; message: string };
+export type ApproveAndSubmitResult = { status: "submitted" } | { status: "error"; message: string };
 
 /**
- * Plans (but does not commit) the approve-and-submit sequence: Stripe
- * submission FIRST, the approval batch (dispute_approvals insert + state ->
- * submitted, buildApprovalBatch) only if that succeeds. This is the
- * structural proof of the hard rule: `deps.submit` returning `ok: false`
- * short-circuits to an error result and buildApprovalBatch is never called,
- * so a failed Stripe submission can never produce an approval row or a
- * submitted state (see test/disputes-approval.test.ts). The caller commits
- * the returned batch and is responsible for the fresh canApprove pre-check
- * (this function does not re-read dispute state).
+ * Orchestrates approve-and-submit as three ordered phases so the durable
+ * approval record and the actual Stripe submission can never diverge:
+ *
+ *   A (writePendingApproval) BEFORE B (submit) BEFORE C (confirmSubmission).
+ *
+ * The record is written before Stripe, so Stripe can never hold a submission
+ * with no record on our side. The `submitted` marker (billing's signal) is
+ * written only in Phase C, after Stripe accepts, so billing counts a dispute as
+ * Foxhound-submitted iff Stripe genuinely took the evidence. A failed Stripe
+ * call short-circuits before Phase C (retriable; the pending record resumes).
+ * Pure over injected deps, so the ordering invariant is directly unit-tested.
  */
-export async function planApproveAndSubmit(
-  db: Db,
-  input: ApproveAndSubmitInput,
-  deps: ApproveAndSubmitDeps,
-): Promise<ApproveAndSubmitResult> {
-  if (!input.connectionAccessToken) {
-    return { status: "error", message: "No connected Stripe account for this dispute." };
+export async function approveAndSubmit(deps: ApproveAndSubmitDeps): Promise<ApproveAndSubmitResult> {
+  const pending = await deps.writePendingApproval();
+  if (pending === "already_submitted") {
+    return { status: "error", message: "This dispute has already been submitted." };
   }
-  const evidence = buildStripeEvidencePayload(input.evidence);
-  const submission = await deps.submit({
-    stripeDisputeId: input.stripeDisputeId,
-    connectionAccessToken: input.connectionAccessToken,
-    evidence,
-  });
+  const submission = await deps.submit();
   if (!submission.ok) {
     return { status: "error", message: `Stripe did not accept the submission: ${submission.error}` };
   }
-
-  const evidenceVersionHash = await hashEvidence(input.evidence);
-  const batch = buildApprovalBatch(db, {
-    disputeId: input.disputeId,
-    accountId: input.accountId,
-    approvedByUserId: input.approvedByUserId,
-    approvedByEmail: input.approvedByEmail,
-    evidenceVersionHash,
-    approvedAt: input.approvedAt,
-  });
-  return { status: "submitted", batch };
+  await deps.confirmSubmission();
+  return { status: "submitted" };
 }

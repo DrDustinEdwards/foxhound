@@ -5,7 +5,7 @@ import { disputeApprovals, disputeEvidence, disputes } from "~/db";
 
 // Disputes read models + the plain (non-money) evidence-edit write (Phase 5
 // slice 5c). Every query is account-scoped. Approval + submission itself lives
-// in app/lib/disputes/approval.ts (buildApprovalBatch); this file is reads plus
+// in app/lib/disputes/approval.ts (approveAndSubmit); this file is reads plus
 // the one edit-affordance write that precedes it.
 
 export type DisputeRow = typeof disputes.$inferSelect;

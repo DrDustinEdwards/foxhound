@@ -4,11 +4,15 @@ import { describe, expect, it } from "vitest";
 import * as schema from "~/db/schema";
 import {
   approvalRaceErrorMessage,
-  buildApprovalBatch,
+  approveAndSubmit,
+  buildPendingApprovalBatch,
+  buildSubmissionConfirmationBatch,
   canApprove,
   hashEvidence,
-  planApproveAndSubmit,
+  type ApproveAndSubmitDeps,
+  type PendingApprovalOutcome,
 } from "~/lib/disputes/approval";
+import type { DisputeSubmissionResult } from "~/lib/disputes/submission";
 
 const now = new Date("2026-07-18T00:00:00.000Z");
 const db = drizzle({} as never, { schema });
@@ -68,9 +72,9 @@ describe("hashEvidence", () => {
   });
 });
 
-describe("buildApprovalBatch (compiles against schema)", () => {
-  it("advances the dispute to submitted and writes the approval row in one batch, guarded by state", () => {
-    const batch = buildApprovalBatch(db, {
+describe("buildPendingApprovalBatch (Phase A: durable record BEFORE Stripe)", () => {
+  it("writes ONLY the dispute_approvals row and does not advance dispute state", () => {
+    const batch = buildPendingApprovalBatch(db, {
       disputeId: "dsp_1",
       accountId: "acc_1",
       approvedByUserId: "user_1",
@@ -78,99 +82,103 @@ describe("buildApprovalBatch (compiles against schema)", () => {
       evidenceVersionHash: "abc123",
       approvedAt: now,
     });
-    // Submission requires an approval row: both statements ride the same
-    // batch, so there is no way to reach one without the other.
-    expect(batch.length).toBe(2);
-
-    const stateAdvance = sqlOf(batch[0]);
-    expect(stateAdvance.sql).toMatch(/update .*disputes/i);
-    expect(stateAdvance.sql).toMatch(/not in/i);
-    expect(stateAdvance.params).toContain("submitted");
-    expect(stateAdvance.params).toContain("dsp_1");
-
-    const approvalInsert = sqlOf(batch[1]);
+    // Just the approval insert: the state is NOT advanced pre-Stripe, so a
+    // Stripe failure leaves a retriable dispute, never a false `submitted`.
+    expect(batch.length).toBe(1);
+    const approvalInsert = sqlOf(batch[0]);
     expect(approvalInsert.sql).toMatch(/insert into .*dispute_approvals/i);
     expect(approvalInsert.params).toContain("abc123");
     expect(approvalInsert.params).toContain("dsp_1");
+    // Nothing in this batch touches the disputes table / the submitted marker.
+    expect(approvalInsert.sql).not.toMatch(/update .*disputes/i);
   });
 });
 
-describe("planApproveAndSubmit (PRICING.md hard rule: no submission without approval)", () => {
-  const baseInput = {
-    disputeId: "dsp_1",
-    accountId: "acc_1",
-    approvedByUserId: "user_1",
-    approvedByEmail: "owner@example.com",
-    stripeDisputeId: "dp_1",
-    evidence: [{ fieldName: "product_description", fieldValue: "Widget" }],
-    connectionAccessToken: "iv:cipher",
-    approvedAt: now,
-  };
+describe("buildSubmissionConfirmationBatch (Phase C: submitted marker AFTER Stripe)", () => {
+  it("advances the dispute to submitted and sets submitted_at, guarded by state", () => {
+    const batch = buildSubmissionConfirmationBatch(db, {
+      disputeId: "dsp_1",
+      accountId: "acc_1",
+      submittedBy: "owner@example.com",
+      submittedAt: now,
+    });
+    expect(batch.length).toBe(1);
+    const update = sqlOf(batch[0]);
+    expect(update.sql).toMatch(/update .*disputes/i);
+    expect(update.sql).toMatch(/submitted_at/i);
+    expect(update.sql).toMatch(/not in/i); // only from a pre-submission/pre-resolution state
+    expect(update.params).toContain("submitted");
+    expect(update.params).toContain("dsp_1");
+  });
+});
 
-  it("never builds an approval batch when Stripe submission fails: the structural proof", async () => {
-    let submitCalls = 0;
-    const result = await planApproveAndSubmit(db, baseInput, {
+describe("approveAndSubmit (record and submission can never diverge: review MEDIUM)", () => {
+  // A recording harness for the three ordered phases. Each phase pushes its
+  // name so the test can assert exact call order and that later phases never
+  // run when an earlier one short-circuits.
+  function harness(over: Partial<{
+    pending: PendingApprovalOutcome;
+    submit: DisputeSubmissionResult;
+    confirmThrows: boolean;
+  }> = {}) {
+    const calls: string[] = [];
+    const deps: ApproveAndSubmitDeps = {
+      writePendingApproval: async () => {
+        calls.push("pending");
+        return over.pending ?? "created";
+      },
       submit: async () => {
-        submitCalls += 1;
-        return { ok: false, error: "card issuer declined the request" };
+        calls.push("submit");
+        return over.submit ?? { ok: true };
       },
-    });
-    expect(submitCalls).toBe(1);
+      confirmSubmission: async () => {
+        calls.push("confirm");
+        if (over.confirmThrows) throw new Error("D1_ERROR: database is locked");
+      },
+    };
+    return { calls, deps };
+  }
+
+  it("happy path: pending record is written BEFORE submit, and confirm runs only AFTER submit succeeds", async () => {
+    const { calls, deps } = harness();
+    const result = await approveAndSubmit(deps);
+    expect(result).toEqual({ status: "submitted" });
+    // The exact ordering is the invariant: the durable record precedes Stripe,
+    // the submitted marker follows a successful Stripe call.
+    expect(calls).toEqual(["pending", "submit", "confirm"]);
+  });
+
+  it("a failed Stripe submission NEVER writes the submitted marker (confirm is not reached)", async () => {
+    const { calls, deps } = harness({ submit: { ok: false, error: "evidence too long" } });
+    const result = await approveAndSubmit(deps);
     expect(result.status).toBe("error");
-    if (result.status === "error") {
-      expect(result.message).toContain("card issuer declined the request");
-    }
-    // No `batch` property at all on an error result: there is nothing a
-    // caller could accidentally commit.
-    expect("batch" in result).toBe(false);
+    if (result.status === "error") expect(result.message).toContain("evidence too long");
+    // Pending record exists (written before Stripe), but confirm never ran:
+    // no submitted_at, so billing never counts this dispute. Retriable.
+    expect(calls).toEqual(["pending", "submit"]);
+    expect(calls).not.toContain("confirm");
   });
 
-  it("builds the approval batch only after a successful submission", async () => {
-    const submitted: unknown[] = [];
-    const result = await planApproveAndSubmit(db, baseInput, {
-      submit: async (ctx) => {
-        submitted.push(ctx);
-        return { ok: true };
-      },
-    });
-    expect(submitted).toHaveLength(1);
-    expect(result.status).toBe("submitted");
-    if (result.status === "submitted") {
-      expect(result.batch.length).toBe(2);
-      expect(sqlOf(result.batch[0]).sql).toMatch(/update .*disputes/i);
-      expect(sqlOf(result.batch[1]).sql).toMatch(/insert into .*dispute_approvals/i);
-    }
-  });
-
-  it("errors without ever calling submit when there is no connected Stripe account", async () => {
-    let submitCalls = 0;
-    const result = await planApproveAndSubmit(
-      db,
-      { ...baseInput, connectionAccessToken: null },
-      { submit: async () => { submitCalls += 1; return { ok: true }; } },
-    );
-    expect(submitCalls).toBe(0);
+  it("an already-confirmed submission is rejected before any Stripe call", async () => {
+    const { calls, deps } = harness({ pending: "already_submitted" });
+    const result = await approveAndSubmit(deps);
     expect(result.status).toBe("error");
+    // Neither submit nor confirm runs: no re-submission of an already-submitted dispute.
+    expect(calls).toEqual(["pending"]);
   });
 
-  it("passes only the merchant-approved evidence package, not arbitrary data, to Stripe", async () => {
-    const seen: { evidence: Record<string, unknown> }[] = [];
-    await planApproveAndSubmit(
-      db,
-      {
-        ...baseInput,
-        evidence: [
-          { fieldName: "product_description", fieldValue: "Widget" },
-          { fieldName: "not_a_real_stripe_field", fieldValue: "should be dropped" },
-        ],
-      },
-      {
-        submit: async (ctx) => {
-          seen.push(ctx as unknown as { evidence: Record<string, unknown> });
-          return { ok: true };
-        },
-      },
-    );
-    expect(seen[0].evidence).toEqual({ product_description: "Widget" });
+  it("resume (a prior unconfirmed attempt) proceeds through submit and confirm", async () => {
+    const { calls, deps } = harness({ pending: "resume" });
+    const result = await approveAndSubmit(deps);
+    expect(result).toEqual({ status: "submitted" });
+    expect(calls).toEqual(["pending", "submit", "confirm"]);
+  });
+
+  it("a post-Stripe confirmation failure propagates (Stripe has it, our marker did not land): surfaced, never swallowed", async () => {
+    const { calls, deps } = harness({ confirmThrows: true });
+    await expect(approveAndSubmit(deps)).rejects.toThrow(/database is locked/);
+    // The pending record still exists (no divergence to a record-less submission);
+    // the throw is what the route captures to Sentry and re-raises.
+    expect(calls).toEqual(["pending", "submit", "confirm"]);
   });
 });
