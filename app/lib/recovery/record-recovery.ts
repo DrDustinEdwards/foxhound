@@ -134,18 +134,38 @@ export function buildRetryReconciliationBatch(
   ];
 }
 
+// A single reconcile attempt cannot see a webhook write that has not landed in
+// the DB yet. Fresh-context re-review (2026-07-20) found a residual: if the
+// webhook's attribution read (taken before it enters the money DO) loses to
+// this reconcile at the DO, its later-landing baseline row is never corrected,
+// since reconcile only runs once. invoice.payment_succeeded is delivered on the
+// order of seconds after a successful charge (module header, execute-step.ts),
+// so a short retry window covers the realistic delivery timing without a
+// schema change or a second inserter. Each attempt is its own idempotency key
+// (a fresh DO "seen" entry) so the DO fast path cannot skip a later attempt
+// just because an earlier one already committed its (possibly no-op) UPDATE.
+const RECONCILE_RETRY_DELAYS_MS = [0, 150, 350];
+
 /** Reconcile a landed retry against whatever the webhook already recorded.
  *  Routed through the per-account money-write DO like every other recovery
  *  write (ARCHITECTURE.md #1), even though the UPDATE-only shape is idempotent
- *  by construction. Returns true if a correction was newly applied. */
+ *  by construction. Retries a few times with short delays (see
+ *  RECONCILE_RETRY_DELAYS_MS) so a webhook that lands moments after the first
+ *  attempt still gets corrected. Returns true if any attempt applied cleanly. */
 export async function reconcileRetryRecovery(
   env: Env,
   input: RetryReconciliationInput,
 ): Promise<boolean> {
-  const { applied } = await executeMoneyWrite(env, {
-    accountId: input.accountId,
-    idempotencyKey: `recovery-reconcile:${input.failedPaymentId}`,
-    build: (db) => buildRetryReconciliationBatch(db, input),
-  });
-  return applied;
+  let appliedAny = false;
+  for (let attempt = 0; attempt < RECONCILE_RETRY_DELAYS_MS.length; attempt++) {
+    const delayMs = RECONCILE_RETRY_DELAYS_MS[attempt];
+    if (delayMs > 0) await new Promise((resolve) => setTimeout(resolve, delayMs));
+    const { applied } = await executeMoneyWrite(env, {
+      accountId: input.accountId,
+      idempotencyKey: `recovery-reconcile:${input.failedPaymentId}:${attempt}`,
+      build: (db) => buildRetryReconciliationBatch(db, input),
+    });
+    if (applied) appliedAny = true;
+  }
+  return appliedAny;
 }

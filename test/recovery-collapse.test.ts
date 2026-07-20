@@ -1,11 +1,13 @@
 import { drizzle } from "drizzle-orm/d1";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import * as schema from "~/db/schema";
-import { buildRetryReconciliationBatch } from "~/lib/recovery/record-recovery";
+import { buildRetryReconciliationBatch, reconcileRetryRecovery } from "~/lib/recovery/record-recovery";
 import type { ResolvedAttribution } from "~/lib/recovery/attribution";
 import {
   SerialMoneyCommitter,
+  type CommitRequest,
+  type CommitResult,
   type CommitterDeps,
   type CompiledStatement,
 } from "~/lib/money/serializer";
@@ -112,6 +114,19 @@ function makeFakeD1() {
     attributionOf: (fpId: string) => recoveredPaymentsByFp.get(fpId)?.attributionKind,
     outcomeAttributionOf: (fpId: string) => outcomesByKey.get(`recovery:${fpId}`)?.attributionKind,
   };
+}
+
+/** Wraps a SerialMoneyCommitter as the env.MONEY_WRITER binding executeMoneyWrite
+ *  expects (a DO namespace with idFromName/get(id).commit), so the REAL
+ *  reconcileRetryRecovery can be driven end-to-end against the fake D1. */
+function envWithMoneyWriter(committer: SerialMoneyCommitter): Env {
+  return {
+    DB: {} as never, // executeMoneyWrite only compiles statements via .toSQL(), never queries this
+    MONEY_WRITER: {
+      idFromName: (name: string) => name,
+      get: () => ({ commit: (request: CommitRequest): Promise<CommitResult> => committer.commit(request) }),
+    },
+  } as unknown as Env;
 }
 
 function claim(eventId: string): WebhookClaimInput {
@@ -238,5 +253,63 @@ describe("recovery collapse: reverse race (webhook records before the executor's
     // State from the first delivery is untouched by the failed replay.
     expect(fake.isActive("fp_1")).toBe(false);
     expect(fake.attributionOf("fp_1")).toBe("foxhound_retry");
+  });
+});
+
+describe("recovery collapse: reconcileRetryRecovery's retry window", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("catches a webhook baseline write that lands in the gap between retry attempts", async () => {
+    vi.useFakeTimers();
+    const fake = makeFakeD1();
+    const env = envWithMoneyWriter(fake.committer);
+
+    const reconcile = reconcileRetryRecovery(env, {
+      accountId: "acc_1",
+      failedPaymentId: "fp_1",
+      stepId: "step_1",
+      recoveredAt: now,
+    });
+
+    // Attempt 0 (no delay) runs immediately: nothing recorded yet, a no-op.
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fake.attributionOf("fp_1")).toBeUndefined();
+
+    // The webhook "arrives" in the gap before the next attempt: it could not yet
+    // see the succeeded retry, so it records the free baseline.
+    await fake.committer.commit({
+      idempotencyKey: "webhook:evt_1",
+      statements: recoverBatch("evt_1", { kind: "stripe_baseline", ref: null }),
+    });
+    expect(fake.attributionOf("fp_1")).toBe("stripe_baseline");
+
+    // Advance through the remaining retry delays: a later attempt sees the
+    // now-landed baseline row and upgrades it.
+    await vi.advanceTimersByTimeAsync(1000);
+    await reconcile;
+
+    expect(fake.attributionOf("fp_1")).toBe("foxhound_retry");
+    expect(fake.outcomeAttributionOf("fp_1")).toBe("foxhound_retry");
+    expect(fake.isActive("fp_1")).toBe(false);
+  });
+
+  it("dominant ordering: every attempt is a harmless no-op when nothing exists yet", async () => {
+    vi.useFakeTimers();
+    const fake = makeFakeD1();
+    const env = envWithMoneyWriter(fake.committer);
+
+    const reconcile = reconcileRetryRecovery(env, {
+      accountId: "acc_1",
+      failedPaymentId: "fp_1",
+      stepId: "step_1",
+      recoveredAt: now,
+    });
+    await vi.advanceTimersByTimeAsync(1000);
+    await reconcile;
+
+    expect(fake.attributionOf("fp_1")).toBeUndefined();
+    expect(fake.isActive("fp_1")).toBe(true);
   });
 });
