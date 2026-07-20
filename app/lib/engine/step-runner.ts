@@ -16,10 +16,11 @@ import {
 //
 // BOUNDARY (Phase 4c): the live executors call these. `executeRetryStep` wraps
 // `decideRetryStep` around a real stripe.invoices.pay + the step persistence + the
-// recordRecovery money-write; `executeEmailStep` wraps `decideEmailStep` around
-// the content resolution (email-generation.ts) + the EMAIL-binding send + the step
-// persistence. Those live calls hit Stripe/email and are exercised on staging in
-// Phase 4c (end-to-end verification deferred to Phase 8 per the recovery plan).
+// reconcileRetryRecovery money-write; `executeEmailStep` wraps `decideEmailStep`
+// around the content resolution (email-generation.ts) + the EMAIL-binding send +
+// the step persistence. Those live calls hit Stripe/email and are exercised on
+// staging in Phase 4c (end-to-end verification deferred to Phase 8 per the
+// recovery plan).
 
 export type StepAction = "retry" | "email";
 

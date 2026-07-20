@@ -21,8 +21,8 @@ import {
   type CachedStepContent,
   type EmailCopy,
 } from "~/lib/recovery/email-generation";
-import { recordRecovery as recordRecoveryReal } from "~/lib/recovery/record-recovery";
-import type { RecordRecoveryInput } from "~/lib/recovery/record-recovery";
+import { reconcileRetryRecovery as reconcileRetryRecoveryReal } from "~/lib/recovery/record-recovery";
+import type { RetryReconciliationInput } from "~/lib/recovery/record-recovery";
 import type { StepStatePatch } from "~/lib/recovery/step-state";
 import { getConnectedStripe } from "~/lib/stripe/client";
 import { decryptToken } from "~/lib/stripe/encryption";
@@ -37,20 +37,24 @@ import { decideEmailStep, decideRetryStep, type RetryAttempt } from "./step-runn
 //
 // Money-path rules honored here:
 //   - The recovery_steps write is OPERATIONAL (plain per-request db.batch), not a
-//     money write; only recordRecovery (recovered_payments + outcomes) rides the
-//     per-account money-write DO.
+//     money write; only reconcileRetryRecovery rides the per-account money-write DO.
 //   - Exactly-once under overlap / at-least-once cron delivery:
 //       * the retry charge carries a Stripe idempotency key, so Stripe itself
 //         refuses a second charge for the same step (no double charge);
 //       * the step patch is a conditional update (WHERE executed_at IS NULL), so a
-//         redelivered tick cannot re-write an already-executed step;
-//       * the foxhound_retry recovery is keyed on failed_payment_id, the SAME key
-//         the invoice.payment_succeeded webhook uses (webhooks/batches.ts
-//         buildRecoverBatch), so the executor's record and the webhook's record
-//         collapse to one recovered_payments row through the DO.
-//   - The executor never flips failed_payments to 'recovered': that status flip is
-//     owned by the invoice.payment_succeeded webhook (the race rule). The executor
-//     only causes the real-world event and records the evidence + attribution.
+//         redelivered tick cannot re-write an already-executed step.
+//   - The invoice.payment_succeeded webhook (webhooks/batches.ts buildRecoverBatch)
+//     is the SOLE recorder of a recovery and the sole owner of the failed_payments
+//     'recovered' status flip (the race rule). The executor here never inserts a
+//     recovered_payments/outcomes row; it only causes the real-world event and, on
+//     success, calls reconcileRetryRecovery - an UPDATE-only correction for the
+//     narrow reverse-race window where the webhook records (and flips status)
+//     before this step's patch lands, so it cannot yet see the succeeded retry and
+//     falls back to a lesser attribution. Update-only means it can never collide
+//     with the webhook's insert, so it can never cause the whole-batch rollback
+//     that used to strand failed_payments in 'active' (fixed review Finding 1) and
+//     it upgrades a wrongly-free baseline recording to foxhound_retry when the
+//     race goes the other way (fixed review Finding 2). See record-recovery.ts.
 
 // ============================================================================
 // Retry step
@@ -91,21 +95,19 @@ export function buildRetryStepPatch(
     .where(and(eq(recoverySteps.id, stepId), isNull(recoverySteps.executedAt)));
 }
 
-/** The recordRecovery input for a landed silent retry. Pure. Attribution is
- *  foxhound_retry (the strongest proof of causation, PRICING.md), ref is the
- *  step, and the idempotency key is the failed_payment id so this record and the
- *  webhook's record are the SAME logical recovery (collapse to one row). */
-export function buildRetryRecoveryInput(ctx: RetryStepContext, recoveredAt: Date): RecordRecoveryInput {
+/** The reconcileRetryRecovery input for a landed silent retry. Pure. Identifies
+ *  the failed payment and the step that just succeeded (foxhound_retry's ref,
+ *  the strongest proof of causation, PRICING.md), so a reverse-race correction
+ *  upgrades to the right attribution. */
+export function buildRetryReconciliationInput(
+  ctx: RetryStepContext,
+  recoveredAt: Date,
+): RetryReconciliationInput {
   return {
     accountId: ctx.accountId,
     failedPaymentId: ctx.failedPaymentId,
-    amountCents: ctx.amountCents,
-    currency: ctx.currency,
+    stepId: ctx.stepId,
     recoveredAt,
-    attribution: { kind: "foxhound_retry", ref: ctx.stepId },
-    recoveredByStepId: ctx.stepId,
-    recoveryMethod: "foxhound_retry",
-    idempotencyKey: ctx.failedPaymentId,
   };
 }
 
@@ -138,8 +140,9 @@ export interface RetryStepDeps {
     stepId: string,
     patch: Pick<StepStatePatch, "executedAt" | "result"> & { retryResult: string },
   ) => Promise<void>;
-  /** Record the foxhound_retry recovery through the money DO. Default: recordRecovery. */
-  recordRecovery: (env: Env, input: RecordRecoveryInput) => Promise<boolean>;
+  /** Reconcile the foxhound_retry attribution against whatever the webhook
+   *  already recorded, through the money DO. Default: reconcileRetryRecovery. */
+  reconcileRecovery: (env: Env, input: RetryReconciliationInput) => Promise<boolean>;
 }
 
 async function defaultPayInvoice(env: Env, ctx: RetryStepContext): Promise<RetryAttempt> {
@@ -177,14 +180,14 @@ export async function executeRetryStep(
 ): Promise<RetryStepResult> {
   const payInvoice = deps.payInvoice ?? defaultPayInvoice;
   const persistPatch = deps.persistPatch ?? defaultPersistPatch;
-  const recordRecovery = deps.recordRecovery ?? recordRecoveryReal;
+  const reconcileRecovery = deps.reconcileRecovery ?? reconcileRetryRecoveryReal;
 
   const now = new Date();
   const attempt = await payInvoice(env, ctx);
   const decision = decideRetryStep(attempt, now);
   await persistPatch(env, ctx.stepId, decision.patch);
   if (decision.recovered) {
-    await recordRecovery(env, buildRetryRecoveryInput(ctx, now));
+    await reconcileRecovery(env, buildRetryReconciliationInput(ctx, now));
   }
   return {
     action: "retry",
