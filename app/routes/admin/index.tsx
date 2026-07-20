@@ -4,8 +4,9 @@ import { AdminNav } from "~/components/admin-nav";
 import { Badge } from "~/components/badge";
 import { StatCard } from "~/components/stat-card";
 import { getDb } from "~/db";
+import { D1_ALERT_THRESHOLD, D1_CAP_BYTES } from "~/lib/admin/format";
 import { getPlatformOverview } from "~/lib/admin/overview.server";
-import { D1_ALERT_THRESHOLD, D1_CAP_BYTES, getD1SizeBytes } from "~/lib/admin/operations.server";
+import { getD1SizeBytes } from "~/lib/admin/operations.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { formatMoney } from "~/lib/money-format";
 
