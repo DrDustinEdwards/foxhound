@@ -163,6 +163,16 @@ export const AUDIT_LOOKBACK_DAYS = 90;
 /** Bounded work per audit run: caps Stripe invoice pagination (mirrors RETENTION_SWEEP_LIMIT). */
 export const AUDIT_MAX_INVOICES_SCANNED = 2000;
 
+// ---- Intelligence deterministic engine (customer_context + mrr_snapshots) ----
+/** Bounded work per sync run: caps how many of an account's Stripe customers
+ *  are scanned in one tick (mirrors AUDIT_MAX_INVOICES_SCANNED / RETENTION_SWEEP_LIMIT). */
+export const INTELLIGENCE_MAX_CUSTOMERS_SCANNED = 2000;
+/** Bounded invoice history read per customer when reconstructing billing-terms
+ *  observations and payment-latency drift. */
+export const INTELLIGENCE_MAX_INVOICES_PER_CUSTOMER = 24;
+/** Bounded charge history read per customer for refund/dispute counts. */
+export const INTELLIGENCE_MAX_CHARGES_PER_CUSTOMER = 100;
+
 // ---- Stripe (ARCHITECTURE.md: Stripe is the product; permanent dependency) ----
 /**
  * Pinned Stripe API version. Matches the installed `stripe` package's default
