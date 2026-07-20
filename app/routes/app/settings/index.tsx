@@ -107,7 +107,7 @@ export async function action({ request, context }: Route.ActionArgs) {
           { status: 400 },
         );
       }
-      await buildBrandVoiceUpdate(db, connectionId, str("brandVoice"));
+      await buildBrandVoiceUpdate(db, accountId, connectionId, str("brandVoice"));
       return data({ action: intent, ok: true });
     }
     default:

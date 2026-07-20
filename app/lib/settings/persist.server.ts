@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import { accounts, stripeConnections } from "~/db";
@@ -90,9 +90,21 @@ export function buildIntelligenceContextUpdate(
 // single generic field as `voiceDescription`; the four decline-category
 // specific columns (brand_voice_soft/expired/network/fraud) have no reader
 // yet and are intentionally left out of this settings surface.
-export function buildBrandVoiceUpdate(db: Db, connectionId: string, brandVoice: string | null) {
+//
+// SECURITY (account-scoping audit CRITICAL #1): the connectionId arrives from a
+// client-POSTed form field, so the WHERE MUST also pin account_id, exactly like
+// loadConnection does on the read side. Without it, a merchant could overwrite
+// ANOTHER merchant's brand_voice, which feeds their live dunning-email tone
+// (recovery/email-generation.ts). Tenant isolation is DB-enforced here, not
+// caller-dependent: a foreign connectionId matches zero rows.
+export function buildBrandVoiceUpdate(
+  db: Db,
+  accountId: string,
+  connectionId: string,
+  brandVoice: string | null,
+) {
   return db
     .update(stripeConnections)
     .set({ brandVoice })
-    .where(eq(stripeConnections.id, connectionId));
+    .where(and(eq(stripeConnections.id, connectionId), eq(stripeConnections.accountId, accountId)));
 }

@@ -75,16 +75,21 @@ describe("settings persistence builders (compile against schema)", () => {
     expect(params).toContain(500_000);
   });
 
-  it("brand voice update targets stripe_connections by connection id, not accounts", () => {
-    const { sql, params } = sqlOf(buildBrandVoiceUpdate(db, "conn_1", "Warm and direct"));
+  it("brand voice update targets stripe_connections scoped by BOTH connection id AND account id", () => {
+    // Account-scoping audit CRITICAL #1: the connectionId is client-supplied, so
+    // the WHERE must also pin account_id or a merchant could overwrite another's
+    // brand voice (which feeds their live dunning-email tone).
+    const { sql, params } = sqlOf(buildBrandVoiceUpdate(db, "acc_1", "conn_1", "Warm and direct"));
     expect(sql).toMatch(/update .*stripe_connections/i);
     expect(sql).toMatch(/brand_voice/);
+    expect(sql).toMatch(/account_id/); // the tenant guard is in the query itself
     expect(params).toContain("Warm and direct");
     expect(params).toContain("conn_1");
+    expect(params).toContain("acc_1");
   });
 
   it("brand voice update can clear the field back to null", () => {
-    const { params } = sqlOf(buildBrandVoiceUpdate(db, "conn_1", null));
+    const { params } = sqlOf(buildBrandVoiceUpdate(db, "acc_1", "conn_1", null));
     expect(params).toContain(null);
   });
 });
