@@ -2,7 +2,13 @@ import { drizzle } from "drizzle-orm/d1";
 import { describe, expect, it } from "vitest";
 
 import * as schema from "~/db/schema";
-import { approvalRaceErrorMessage, buildApprovalBatch, canApprove, hashEvidence } from "~/lib/disputes/approval";
+import {
+  approvalRaceErrorMessage,
+  buildApprovalBatch,
+  canApprove,
+  hashEvidence,
+  planApproveAndSubmit,
+} from "~/lib/disputes/approval";
 
 const now = new Date("2026-07-18T00:00:00.000Z");
 const db = drizzle({} as never, { schema });
@@ -86,5 +92,85 @@ describe("buildApprovalBatch (compiles against schema)", () => {
     expect(approvalInsert.sql).toMatch(/insert into .*dispute_approvals/i);
     expect(approvalInsert.params).toContain("abc123");
     expect(approvalInsert.params).toContain("dsp_1");
+  });
+});
+
+describe("planApproveAndSubmit (PRICING.md hard rule: no submission without approval)", () => {
+  const baseInput = {
+    disputeId: "dsp_1",
+    accountId: "acc_1",
+    approvedByUserId: "user_1",
+    approvedByEmail: "owner@example.com",
+    stripeDisputeId: "dp_1",
+    evidence: [{ fieldName: "product_description", fieldValue: "Widget" }],
+    connectionAccessToken: "iv:cipher",
+    approvedAt: now,
+  };
+
+  it("never builds an approval batch when Stripe submission fails: the structural proof", async () => {
+    let submitCalls = 0;
+    const result = await planApproveAndSubmit(db, baseInput, {
+      submit: async () => {
+        submitCalls += 1;
+        return { ok: false, error: "card issuer declined the request" };
+      },
+    });
+    expect(submitCalls).toBe(1);
+    expect(result.status).toBe("error");
+    if (result.status === "error") {
+      expect(result.message).toContain("card issuer declined the request");
+    }
+    // No `batch` property at all on an error result: there is nothing a
+    // caller could accidentally commit.
+    expect("batch" in result).toBe(false);
+  });
+
+  it("builds the approval batch only after a successful submission", async () => {
+    const submitted: unknown[] = [];
+    const result = await planApproveAndSubmit(db, baseInput, {
+      submit: async (ctx) => {
+        submitted.push(ctx);
+        return { ok: true };
+      },
+    });
+    expect(submitted).toHaveLength(1);
+    expect(result.status).toBe("submitted");
+    if (result.status === "submitted") {
+      expect(result.batch.length).toBe(2);
+      expect(sqlOf(result.batch[0]).sql).toMatch(/update .*disputes/i);
+      expect(sqlOf(result.batch[1]).sql).toMatch(/insert into .*dispute_approvals/i);
+    }
+  });
+
+  it("errors without ever calling submit when there is no connected Stripe account", async () => {
+    let submitCalls = 0;
+    const result = await planApproveAndSubmit(
+      db,
+      { ...baseInput, connectionAccessToken: null },
+      { submit: async () => { submitCalls += 1; return { ok: true }; } },
+    );
+    expect(submitCalls).toBe(0);
+    expect(result.status).toBe("error");
+  });
+
+  it("passes only the merchant-approved evidence package, not arbitrary data, to Stripe", async () => {
+    const seen: { evidence: Record<string, unknown> }[] = [];
+    await planApproveAndSubmit(
+      db,
+      {
+        ...baseInput,
+        evidence: [
+          { fieldName: "product_description", fieldValue: "Widget" },
+          { fieldName: "not_a_real_stripe_field", fieldValue: "should be dropped" },
+        ],
+      },
+      {
+        submit: async (ctx) => {
+          seen.push(ctx as unknown as { evidence: Record<string, unknown> });
+          return { ok: true };
+        },
+      },
+    );
+    expect(seen[0].evidence).toEqual({ product_description: "Widget" });
   });
 });

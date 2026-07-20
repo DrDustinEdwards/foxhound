@@ -1,14 +1,17 @@
+import * as Sentry from "@sentry/cloudflare";
+import { eq } from "drizzle-orm";
 import { data, Form, useActionData, useNavigation } from "react-router";
 
 import { Badge } from "~/components/badge";
-import { getDb } from "~/db";
+import { getDb, stripeConnections } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
 import { disputeFeeCents } from "~/lib/billing/fees";
 import type { DisputeState } from "~/lib/constants";
-import { approvalRaceErrorMessage, buildApprovalBatch, canApprove, hashEvidence } from "~/lib/disputes/approval";
+import { approvalRaceErrorMessage, canApprove, planApproveAndSubmit } from "~/lib/disputes/approval";
 import { DISPUTE_STATE_LABELS, disputeStateTone, isDisputeResolved } from "~/lib/disputes/labels";
 import { getDisputeDetail, saveDisputeEvidence } from "~/lib/disputes/queries.server";
+import { submitDisputeEvidence } from "~/lib/disputes/submission";
 import { formatMoney } from "~/lib/money-format";
 
 import type { Route } from "./+types/detail";
@@ -64,17 +67,41 @@ export async function action({ context, params, request }: Route.ActionArgs) {
     if (!canApprove(detail.dispute.state as DisputeState)) {
       return data({ error: "This dispute has already been submitted." }, { status: 400 });
     }
-    const evidenceVersionHash = await hashEvidence(detail.evidence);
-    const batch = buildApprovalBatch(db, {
-      disputeId: detail.dispute.id,
-      accountId,
-      approvedByUserId: auth.userId,
-      approvedByEmail: auth.email,
-      evidenceVersionHash,
-      approvedAt: new Date(),
-    });
+
+    let connectionAccessToken: string | null = null;
+    if (detail.dispute.stripeConnectionId) {
+      const [connection] = await db
+        .select({ accessToken: stripeConnections.stripeAccessToken })
+        .from(stripeConnections)
+        .where(eq(stripeConnections.id, detail.dispute.stripeConnectionId))
+        .limit(1);
+      connectionAccessToken = connection?.accessToken ?? null;
+    }
+
+    // Stripe submission happens FIRST; the approval batch (dispute_approvals
+    // insert + state -> submitted) is only built if that succeeds, so a
+    // failed submission can never produce an approval record (PRICING.md hard
+    // rule; see planApproveAndSubmit).
+    const plan = await planApproveAndSubmit(
+      db,
+      {
+        disputeId: detail.dispute.id,
+        accountId,
+        approvedByUserId: auth.userId,
+        approvedByEmail: auth.email,
+        stripeDisputeId: detail.dispute.stripeDisputeId,
+        evidence: detail.evidence,
+        connectionAccessToken,
+        approvedAt: new Date(),
+      },
+      { submit: (ctx) => submitDisputeEvidence(env, ctx) },
+    );
+    if (plan.status === "error") {
+      return data({ error: plan.message }, { status: 400 });
+    }
+
     try {
-      await db.batch(batch);
+      await db.batch(plan.batch);
     } catch (err) {
       // Catches the race where a concurrent approval landed between the
       // fresh read above and this write; the structural guarantee itself
@@ -82,6 +109,13 @@ export async function action({ context, params, request }: Route.ActionArgs) {
       // double-submit (Phase 5 review MEDIUM fix).
       const message = approvalRaceErrorMessage(err);
       if (message) return data({ error: message }, { status: 400 });
+      // Documented residual, not hidden: Stripe already has the submission at
+      // this point, but our own approval/submitted record failed to write.
+      // Surface loudly rather than swallow, so this gets reconciled by hand
+      // instead of silently drifting from Stripe's own state.
+      Sentry.captureException(err, {
+        extra: { scope: "dispute-approval-db-write-after-stripe-submit", disputeId: detail.dispute.id },
+      });
       throw err;
     }
     return data({ ok: true, intent: "approve" as const });
