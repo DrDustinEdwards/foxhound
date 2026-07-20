@@ -1,5 +1,377 @@
-import { RouteStub } from "~/components/route-stub";
+import { data, Form, useActionData, useNavigation } from "react-router";
 
-export default function Page() {
-  return <RouteStub name="/admin/blog/:id" />;
+import { AdminNav } from "~/components/admin-nav";
+import { Badge } from "~/components/badge";
+import { getDb } from "~/db";
+import { logAdminAction } from "~/lib/admin/audit.server";
+import { authContext } from "~/lib/auth/context";
+import {
+  getPostForAdmin,
+  getPostLinksForAdmin,
+  getPostVersions,
+  listAllPostsForAdmin,
+  setPostLinks,
+  setPublished,
+  updatePostWithVersion,
+} from "~/lib/blog/admin-queries.server";
+import { renderMarkdown } from "~/lib/blog/markdown.server";
+import { CANONICAL_TAGS } from "~/lib/blog/tags";
+import { cloudflareContext } from "~/lib/cloudflare-context";
+
+import type { Route } from "./+types/detail";
+
+export function meta() {
+  return [{ title: "Edit post - Foxhound Admin" }];
+}
+
+export async function loader({ context, params }: Route.LoaderArgs) {
+  const { env } = context.get(cloudflareContext);
+  const db = getDb(env);
+  const post = await getPostForAdmin(db, params.id);
+  if (!post) throw new Response("Not Found", { status: 404 });
+
+  const [versions, links, allPosts, rendered] = await Promise.all([
+    getPostVersions(db, post.id),
+    getPostLinksForAdmin(db, post.id),
+    listAllPostsForAdmin(db),
+    post.body.trim() ? renderMarkdown(db, post.body) : Promise.resolve({ html: "", toc: [] }),
+  ]);
+
+  const linkCandidates = allPosts.filter((p) => p.id !== post.id && p.published);
+
+  return { post, versions, links, linkCandidates, previewHtml: rendered.html };
+}
+
+type ActionResult = { intent: string; ok: boolean; error?: string };
+
+export async function action({ context, params, request }: Route.ActionArgs) {
+  const { env } = context.get(cloudflareContext);
+  const auth = context.get(authContext);
+  const db = getDb(env);
+  const postId = params.id;
+
+  const post = await getPostForAdmin(db, postId);
+  if (!post) throw new Response("Not Found", { status: 404 });
+
+  const form = await request.formData();
+  const intent = String(form.get("_intent") ?? "");
+  const str = (name: string) => {
+    const v = form.get(name);
+    const trimmed = typeof v === "string" ? v.trim() : "";
+    return trimmed.length > 0 ? trimmed : null;
+  };
+
+  if (intent === "save") {
+    const title = str("title");
+    if (!title) return data<ActionResult>({ intent, ok: false, error: "Title is required." }, { status: 400 });
+    const tags = form.getAll("tags").map(String);
+
+    await updatePostWithVersion(db, postId, auth.email, {
+      title,
+      excerpt: str("excerpt") ?? "",
+      body: str("body") ?? "",
+      author: str("author") ?? "Foxhound",
+      tags,
+      featured: form.get("featured") === "on",
+      coverImageUrl: str("coverImageUrl"),
+      coverImageAlt: str("coverImageAlt"),
+      ogTitle: str("ogTitle"),
+      ogDescription: str("ogDescription"),
+      canonicalUrl: str("canonicalUrl"),
+      showUpdatedAt: form.get("showUpdatedAt") === "on",
+      showPublishedAt: form.get("showPublishedAt") === "on",
+    });
+    await logAdminAction(db, { actorEmail: auth.email, action: "blog.update", metadata: { postId, slug: post.slug } });
+    return data<ActionResult>({ intent, ok: true });
+  }
+
+  if (intent === "publish" || intent === "unpublish") {
+    const published = intent === "publish";
+    await setPublished(db, postId, published);
+    await logAdminAction(db, {
+      actorEmail: auth.email,
+      action: published ? "blog.publish" : "blog.unpublish",
+      metadata: { postId, slug: post.slug },
+    });
+    return data<ActionResult>({ intent, ok: true });
+  }
+
+  if (intent === "set-links") {
+    const targetIds = form.getAll("linkTargetIds").map(String);
+    await setPostLinks(db, postId, targetIds);
+    await logAdminAction(db, {
+      actorEmail: auth.email,
+      action: "blog.set-links",
+      metadata: { postId, slug: post.slug, targetIds },
+    });
+    return data<ActionResult>({ intent, ok: true });
+  }
+
+  return data<ActionResult>({ intent, ok: false, error: "Unknown action." }, { status: 400 });
+}
+
+export default function AdminBlogDetail({ loaderData }: Route.ComponentProps) {
+  const { post, versions, links, linkCandidates, previewHtml } = loaderData;
+  const actionData = useActionData<typeof action>();
+  const busy = useNavigation().state !== "idle";
+  const selectedLinkIds = new Set(links.map((l) => l.targetId));
+
+  return (
+    <div className="mx-auto max-w-5xl px-4 py-8">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-title font-medium text-text">{post.title}</h1>
+        <div className="flex items-center gap-2">
+          <Badge tone={post.published ? "success" : "neutral"}>{post.published ? "Published" : "Draft"}</Badge>
+          <Form method="post">
+            <input type="hidden" name="_intent" value={post.published ? "unpublish" : "publish"} />
+            <button
+              type="submit"
+              disabled={busy}
+              className="rounded-md border border-border px-3 py-1.5 text-label text-text hover:border-amber disabled:opacity-60"
+            >
+              {post.published ? "Unpublish" : "Publish"}
+            </button>
+          </Form>
+        </div>
+      </div>
+      <AdminNav />
+
+      <p className="mb-6 font-mono text-micro text-text-subtle">
+        /blog/{post.slug} - slug is fixed after creation (SEO stability)
+      </p>
+
+      {actionData && !actionData.ok && actionData.error ? (
+        <p className="mb-4 rounded-md border border-red bg-red-bg px-3 py-2 text-label text-error-text" role="alert">
+          {actionData.error}
+        </p>
+      ) : null}
+      {actionData && actionData.ok ? (
+        <p className="mb-4 rounded-md border border-green bg-green-bg px-3 py-2 text-label text-success-text" role="status">
+          Saved.
+        </p>
+      ) : null}
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <Form method="post" className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4">
+          <input type="hidden" name="_intent" value="save" />
+
+          <label className="flex flex-col gap-1.5">
+            <span className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Title</span>
+            <input
+              type="text"
+              name="title"
+              defaultValue={post.title}
+              required
+              className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-amber"
+            />
+          </label>
+
+          <label className="flex flex-col gap-1.5">
+            <span className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Excerpt</span>
+            <textarea
+              name="excerpt"
+              defaultValue={post.excerpt}
+              rows={2}
+              className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-amber"
+            />
+          </label>
+
+          <label className="flex flex-col gap-1.5">
+            <span className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
+              Body (markdown + shortcodes)
+            </span>
+            <textarea
+              name="body"
+              defaultValue={post.body}
+              rows={20}
+              className="rounded-md border border-border bg-surface2 px-3 py-2 font-mono text-micro text-text focus-visible:border-amber"
+            />
+          </label>
+
+          <label className="flex flex-col gap-1.5">
+            <span className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Author</span>
+            <input
+              type="text"
+              name="author"
+              defaultValue={post.author}
+              className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-amber"
+            />
+          </label>
+
+          <fieldset className="flex flex-col gap-1.5">
+            <legend className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Tags</legend>
+            <div className="flex flex-wrap gap-3">
+              {CANONICAL_TAGS.map((tag) => (
+                <label key={tag} className="flex items-center gap-1.5 text-label text-text">
+                  <input
+                    type="checkbox"
+                    name="tags"
+                    value={tag}
+                    defaultChecked={post.tags?.includes(tag) ?? false}
+                    className="h-4 w-4 rounded border-border accent-amber"
+                  />
+                  {tag}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
+          <label className="flex items-center gap-2 text-label text-text">
+            <input
+              type="checkbox"
+              name="featured"
+              defaultChecked={post.featured}
+              className="h-4 w-4 rounded border-border accent-amber"
+            />
+            Featured
+          </label>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1.5">
+              <span className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Cover image URL</span>
+              <input
+                type="text"
+                name="coverImageUrl"
+                defaultValue={post.coverImageUrl ?? ""}
+                className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-amber"
+              />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Cover image alt</span>
+              <input
+                type="text"
+                name="coverImageAlt"
+                defaultValue={post.coverImageAlt ?? ""}
+                className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-amber"
+              />
+            </label>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1.5">
+              <span className="font-mono text-micro uppercase tracking-wide text-text-tertiary">OG title</span>
+              <input
+                type="text"
+                name="ogTitle"
+                defaultValue={post.ogTitle ?? ""}
+                className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-amber"
+              />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="font-mono text-micro uppercase tracking-wide text-text-tertiary">OG description</span>
+              <input
+                type="text"
+                name="ogDescription"
+                defaultValue={post.ogDescription ?? ""}
+                className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-amber"
+              />
+            </label>
+          </div>
+
+          <label className="flex flex-col gap-1.5">
+            <span className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Canonical URL</span>
+            <input
+              type="text"
+              name="canonicalUrl"
+              defaultValue={post.canonicalUrl ?? ""}
+              className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-amber"
+            />
+          </label>
+
+          <div className="flex flex-wrap gap-4">
+            <label className="flex items-center gap-2 text-label text-text">
+              <input
+                type="checkbox"
+                name="showUpdatedAt"
+                defaultChecked={post.showUpdatedAt}
+                className="h-4 w-4 rounded border-border accent-amber"
+              />
+              Show "updated" date
+            </label>
+            <label className="flex items-center gap-2 text-label text-text">
+              <input
+                type="checkbox"
+                name="showPublishedAt"
+                defaultChecked={post.showPublishedAt}
+                className="h-4 w-4 rounded border-border accent-amber"
+              />
+              Show "published" date
+            </label>
+          </div>
+
+          <div>
+            <button
+              type="submit"
+              disabled={busy}
+              className="rounded-md bg-amber px-4 py-2 text-body font-medium text-on-amber disabled:opacity-60"
+            >
+              {busy ? "Saving..." : "Save"}
+            </button>
+          </div>
+        </Form>
+
+        <div className="flex flex-col gap-6">
+          <div className="rounded-lg border border-border bg-surface p-4">
+            <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Preview</p>
+            {previewHtml ? (
+              <div className="blog-prose mt-3" dangerouslySetInnerHTML={{ __html: previewHtml }} />
+            ) : (
+              <p className="mt-2 text-label text-text-tertiary">Nothing to preview yet.</p>
+            )}
+          </div>
+
+          <Form method="post" className="rounded-lg border border-border bg-surface p-4">
+            <input type="hidden" name="_intent" value="set-links" />
+            <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Further reading links</p>
+            {linkCandidates.length === 0 ? (
+              <p className="mt-2 text-label text-text-tertiary">No other published posts to link to yet.</p>
+            ) : (
+              <div className="mt-3 flex max-h-64 flex-col gap-1.5 overflow-y-auto">
+                {linkCandidates.map((p) => (
+                  <label key={p.id} className="flex items-center gap-2 text-label text-text">
+                    <input
+                      type="checkbox"
+                      name="linkTargetIds"
+                      value={p.id}
+                      defaultChecked={selectedLinkIds.has(p.id)}
+                      className="h-4 w-4 rounded border-border accent-amber"
+                    />
+                    {p.title}
+                  </label>
+                ))}
+              </div>
+            )}
+            <div className="mt-3">
+              <button
+                type="submit"
+                disabled={busy}
+                className="rounded-md border border-border px-3 py-1.5 text-label text-text hover:border-amber disabled:opacity-60"
+              >
+                Save links
+              </button>
+            </div>
+          </Form>
+
+          <div className="rounded-lg border border-border bg-surface p-4">
+            <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Version history</p>
+            {versions.length === 0 ? (
+              <p className="mt-2 text-label text-text-tertiary">No saved versions yet.</p>
+            ) : (
+              <ul className="mt-2 flex flex-col gap-2">
+                {versions.map((v) => (
+                  <li key={v.id} className="border-b border-border-sub pb-2 text-label last:border-0">
+                    <p className="text-text">{v.title}</p>
+                    <p className="text-text-tertiary">
+                      {v.savedAt.toLocaleString()}
+                      {v.savedBy ? ` - ${v.savedBy}` : ""}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
