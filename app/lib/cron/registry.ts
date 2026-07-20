@@ -37,22 +37,33 @@ const billingMonthly: CronHandler = async (env) => {
 };
 
 /** The Intelligence deterministic sync (customer_context signals +
- *  mrr_snapshots, the free MRR tier), wrapped as a cron handler. Runs daily
- *  alongside retention (CRON_SCHEDULE_DAILY is already registered in
- *  wrangler.jsonc, so this needs no deploy-config change). */
+ *  mrr_snapshots, the free MRR tier), wrapped as a cron handler. Runs monthly,
+ *  alongside billing: MRR movements are a monthly measure (new/expansion/
+ *  contraction/churn/reactivation are computed against the PRIOR run's
+ *  customer_context state), and the dashboard already labels snapshots by
+ *  month and captions the movements chart "latest month" (dashboard.tsx). A
+ *  daily cadence would silently mismatch both: "latest 12" would cover under
+ *  two weeks instead of a year, and "latest month" would show one day's
+ *  movement. CRON_SCHEDULE_MONTHLY is already registered in wrangler.jsonc
+ *  (billing-monthly uses it), so this needs no deploy-config change either. */
 const intelligenceSync: CronHandler = async (env) => {
   const results = await runIntelligenceSyncForAllAccounts(env, Date.now());
   const customersProcessed = results.reduce((sum, r) => sum + r.customersProcessed, 0);
   const snapshotsWritten = results.filter((r) => r.snapshotWritten).length;
+  const truncatedAccounts = results.filter((r) => r.truncated).length;
+  const truncatedNote =
+    truncatedAccounts > 0
+      ? `, ${truncatedAccounts} TRUNCATED (raise INTELLIGENCE_MAX_CUSTOMERS_SCANNED)`
+      : "";
   return {
     rowsProcessed: customersProcessed,
-    message: `${results.length} accounts, ${snapshotsWritten} snapshots, ${customersProcessed} customers`,
+    message: `${results.length} accounts, ${snapshotsWritten} snapshots, ${customersProcessed} customers${truncatedNote}`,
   };
 };
 
 export const CRON_JOBS: CronJob[] = [
   { name: "billing-monthly", schedule: CRON_SCHEDULE_MONTHLY, handler: billingMonthly },
-  { name: "intelligence-sync", schedule: CRON_SCHEDULE_DAILY, handler: intelligenceSync },
+  { name: "intelligence-sync", schedule: CRON_SCHEDULE_MONTHLY, handler: intelligenceSync },
   { name: "retention-engagement-events", schedule: CRON_SCHEDULE_DAILY, handler: sweepEngagementEvents },
   { name: "retention-email-sends", schedule: CRON_SCHEDULE_DAILY, handler: sweepEmailSends },
   { name: "retention-webhook-events", schedule: CRON_SCHEDULE_DAILY, handler: sweepWebhookEvents },
