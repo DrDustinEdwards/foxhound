@@ -270,6 +270,7 @@ describe("webhook batch builders (compile against schema)", () => {
     // ordinary 20% math, not just the cap.
     const won = buildDisputeResolutionBatch(db, {
       claim,
+      accountId: "acc_1",
       stripeDisputeId: "dp_1",
       won: true,
       amountCents: 50_000,
@@ -281,6 +282,10 @@ describe("webhook batch builders (compile against schema)", () => {
     const wonUpdate = sqlOf(won[1]);
     expect(wonUpdate.sql).toMatch(/update .*disputes/i);
     expect(wonUpdate.sql).toMatch(/not in/i);
+    // Account-scoping audit HIGH #3: the UPDATE pins account_id in its own WHERE,
+    // so tenant isolation is DB-enforced, not caller-dependent.
+    expect(wonUpdate.sql).toMatch(/account_id/);
+    expect(wonUpdate.params).toContain("acc_1");
     expect(wonUpdate.params).toContain("resolved_won");
     expect(wonUpdate.params).toContain(10_000);
 
@@ -288,6 +293,7 @@ describe("webhook batch builders (compile against schema)", () => {
     // (20% of $10,000 would be $2,000, capped down to $500).
     const wonAtCap = buildDisputeResolutionBatch(db, {
       claim,
+      accountId: "acc_1",
       stripeDisputeId: "dp_2",
       won: true,
       amountCents: 10_000_00,
@@ -299,6 +305,7 @@ describe("webhook batch builders (compile against schema)", () => {
 
     const lost = buildDisputeResolutionBatch(db, {
       claim,
+      accountId: "acc_1",
       stripeDisputeId: "dp_3",
       won: false,
       amountCents: 50_000,
@@ -315,6 +322,7 @@ describe("webhook batch builders (compile against schema)", () => {
     // The review's HIGH: a win Foxhound never submitted must not carry a fee.
     const wonNotSubmitted = buildDisputeResolutionBatch(db, {
       claim,
+      accountId: "acc_1",
       stripeDisputeId: "dp_4",
       won: true,
       amountCents: 50_000,
