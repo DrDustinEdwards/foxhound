@@ -1,4 +1,5 @@
 import { runMonthlyBilling } from "~/lib/billing/run";
+import { runIntelligenceSyncForAllAccounts } from "~/lib/intelligence/sync.server";
 import { CRON_SCHEDULE_DAILY, CRON_SCHEDULE_MONTHLY } from "~/lib/constants";
 
 import type { CronHandler } from "./run";
@@ -35,8 +36,23 @@ const billingMonthly: CronHandler = async (env) => {
   };
 };
 
+/** The Intelligence deterministic sync (customer_context signals +
+ *  mrr_snapshots, the free MRR tier), wrapped as a cron handler. Runs daily
+ *  alongside retention (CRON_SCHEDULE_DAILY is already registered in
+ *  wrangler.jsonc, so this needs no deploy-config change). */
+const intelligenceSync: CronHandler = async (env) => {
+  const results = await runIntelligenceSyncForAllAccounts(env, Date.now());
+  const customersProcessed = results.reduce((sum, r) => sum + r.customersProcessed, 0);
+  const snapshotsWritten = results.filter((r) => r.snapshotWritten).length;
+  return {
+    rowsProcessed: customersProcessed,
+    message: `${results.length} accounts, ${snapshotsWritten} snapshots, ${customersProcessed} customers`,
+  };
+};
+
 export const CRON_JOBS: CronJob[] = [
   { name: "billing-monthly", schedule: CRON_SCHEDULE_MONTHLY, handler: billingMonthly },
+  { name: "intelligence-sync", schedule: CRON_SCHEDULE_DAILY, handler: intelligenceSync },
   { name: "retention-engagement-events", schedule: CRON_SCHEDULE_DAILY, handler: sweepEngagementEvents },
   { name: "retention-email-sends", schedule: CRON_SCHEDULE_DAILY, handler: sweepEmailSends },
   { name: "retention-webhook-events", schedule: CRON_SCHEDULE_DAILY, handler: sweepWebhookEvents },

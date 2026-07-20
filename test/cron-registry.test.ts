@@ -29,8 +29,11 @@ describe("cron registry", () => {
     expect(monthly.map((j) => j.name)).toEqual(["billing-monthly"]);
 
     const daily = jobsForSchedule(CRON_SCHEDULE_DAILY);
-    expect(daily.every((j) => j.name.startsWith("retention-"))).toBe(true);
-    expect(daily.length).toBeGreaterThanOrEqual(8);
+    expect(daily.every((j) => j.name.startsWith("retention-") || j.name === "intelligence-sync")).toBe(
+      true,
+    );
+    expect(daily.some((j) => j.name === "intelligence-sync")).toBe(true);
+    expect(daily.length).toBeGreaterThanOrEqual(9);
   });
 
   it("an unregistered schedule dispatches nothing", () => {
