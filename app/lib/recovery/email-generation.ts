@@ -196,14 +196,40 @@ function buildSystemPrompt(brandVoice: string): string {
   ].join("\n");
 }
 
+/**
+ * Extra, category-specific framing folded into the generation prompt so the copy
+ * matches what actually happened, not a generic "your payment failed, please pay".
+ * Most categories share the default recovery framing (fix the payment via the
+ * link); `revoked` is deliberately different: the customer explicitly revoked
+ * authorization, so the note must offer a clean cancel-or-update choice rather
+ * than dun them. Returns null when the default framing is correct.
+ */
+export function categoryGuidance(declineCategory: string): string | null {
+  if (declineCategory === "revoked") {
+    return [
+      "IMPORTANT FRAMING: the customer has revoked authorization for this recurring",
+      "payment with their bank, so this is not an ordinary failed payment. Do not ask",
+      "them to pay, do not imply they owe money, and do not use urgency. Acknowledge",
+      "that the subscription will end, and offer a clean choice: they can let it stop,",
+      "or, only if they meant to keep it, add a new payment method using the link.",
+      "Keep the tone respectful, brief, and low pressure.",
+    ].join(" ");
+  }
+  return null;
+}
+
 function buildUserPrompt(input: GenerateEmailInput): string {
+  const guidance = categoryGuidance(input.declineCategory);
   return [
     `Business: ${input.merchant.merchantName}`,
     `A customer's payment of ${input.amountFormatted} did not go through`,
     `(reason category: ${input.declineCategory}).`,
-    `Write a brief note asking them to fix it using this link: ${input.updateUrl}`,
+    guidance ?? `Write a brief note asking them to fix it using this link: ${input.updateUrl}`,
+    guidance ? `The link to add a new payment method is: ${input.updateUrl}` : "",
     "Return a subject line and an HTML body.",
-  ].join("\n");
+  ]
+    .filter((line) => line !== "")
+    .join("\n");
 }
 
 /**

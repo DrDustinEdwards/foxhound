@@ -38,10 +38,20 @@ const FRAUD_CODES = new Set([
   "pickup_card",
   "restricted_card",
   "security_violation",
-  // The cardholder (or the network on their behalf) has explicitly said stop:
-  // never retry, route straight to hard-decline / pause handling.
-  "revocation_of_authorization",
+  // The network told us to stop for this charge with no path back: never retry,
+  // route to the fraud dunning cadence (email-only, gentle).
   "do_not_try_again",
+]);
+
+// The cardholder has explicitly revoked their standing authorization (called
+// their bank to block recurring charges from this merchant). This is neither a
+// retryable soft decline nor a fraud flag: it is a deliberate stop. It gets its
+// own single-email "cancel or update payment method?" hold, never a retry and
+// never a multi-step dunning sequence (schedule.ts RECOVERY_SCHEDULES.revoked).
+// Both the singular Stripe decline_code and the plural form map here.
+const REVOKED_CODES = new Set([
+  "revocation_of_authorization",
+  "revocation_of_all_authorizations",
 ]);
 
 export function classifyDecline(code: string | null | undefined): DeclineCategory {
@@ -49,6 +59,7 @@ export function classifyDecline(code: string | null | undefined): DeclineCategor
   if (SOFT_CODES.has(code)) return "soft";
   if (NETWORK_CODES.has(code)) return "network";
   if (EXPIRED_CODES.has(code)) return "expired";
+  if (REVOKED_CODES.has(code)) return "revoked";
   if (FRAUD_CODES.has(code)) return "fraud";
   return "unknown";
 }

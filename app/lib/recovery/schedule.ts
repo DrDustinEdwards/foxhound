@@ -5,6 +5,7 @@ import {
   STEP_TIMING_EMAIL_DAY14_HOURS,
   STEP_TIMING_EMAIL_DAY30_HOURS,
   STEP_TIMING_FRAUD_EMAIL_DAY1_HOURS,
+  STEP_TIMING_REVOKED_EMAIL_HOURS,
   STEP_TIMING_RETRY_4HR_HOURS,
   STEP_TIMING_RETRY_DAY2_HOURS,
   STEP_TIMING_RETRY_DAY21_HOURS,
@@ -74,6 +75,12 @@ export const RECOVERY_SCHEDULES: Record<DeclineCategory, ScheduledStep[]> = {
     { stepType: "email_day14", offsetHours: STEP_TIMING_EMAIL_DAY14_HOURS },
     { stepType: "email_day30", offsetHours: STEP_TIMING_EMAIL_DAY30_HOURS },
   ],
+  // The customer explicitly revoked authorization. This is a hard stop, not a
+  // recovery to push on: one email offering a clean choice (cancel, or add a new
+  // payment method if they meant to keep the subscription), then the sequence
+  // ends. No retry (the bank blocked charges) and no dunning cadence (it is not
+  // an ability-to-pay failure). The single send IS the hold.
+  revoked: [{ stepType: "email_revoked", offsetHours: STEP_TIMING_REVOKED_EMAIL_HOURS }],
   // Unrecognized/unmapped decline codes fail closed: no silent retry against a
   // code the engine cannot classify. Same cadence as expired (email carrying
   // the card-update link, no repeat charge).

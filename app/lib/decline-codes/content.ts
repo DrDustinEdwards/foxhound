@@ -852,7 +852,7 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
       {
         question: "Does Foxhound automatically stop retrying when it sees this code?",
         answer:
-          "Yes. Foxhound's classifier explicitly places `revocation_of_authorization` in the fraud and hard-decline bucket, so no automatic retry or dunning email sequence ever runs against it, the same handling given to an explicitly reported stolen or lost card.",
+          "Yes. Foxhound's classifier gives `revocation_of_authorization` its own revoked-authorization handling, so no automatic retry ever runs and no multi-step dunning sequence goes out. Instead the customer gets a single, respectful email offering a clean choice: cancel and let the subscription end, or add a fresh payment method if they meant to keep it.",
       },
       {
         question: "What's the risk of retrying anyway?",
