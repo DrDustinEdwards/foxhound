@@ -25,12 +25,53 @@ export interface ActiveSubscriptionSnapshot {
  *  countBillingChanges sorts by `at` itself). Reconstructed from a subscription's
  *  creation state plus each invoice line item since (SCHEMA.md: Stripe has no
  *  single "plan change log" API; invoice lines are the closest first-class record
- *  of what a customer was actually billed at each point in time). */
+ *  of what a customer was actually billed at each point in time). Exactly one
+ *  observation per distinct instant: collapseBillingObservations is what
+ *  guarantees that before this shape ever reaches countBillingChanges. */
 export interface BillingObservation {
   at: number; // unix ms
   priceId: string;
   quantity: number;
   interval: BillingInterval;
+}
+
+/** A single raw billing line as read off Stripe (one subscription item, or one
+ *  invoice line), before collapsing. `valueCents` is only a ranking signal for
+ *  collapseBillingObservations (a subscription item's monthly-equivalent
+ *  amount, or an invoice line's own signed amount, e.g. negative for a
+ *  proration credit); it never appears in the collapsed BillingObservation. */
+export interface RawBillingLineObservation extends BillingObservation {
+  valueCents: number;
+}
+
+/**
+ * Collapses every raw line observed at the SAME instant into ONE
+ * representative BillingObservation: the highest-`valueCents` line. Without
+ * this, a multi-item subscription (a base plan + an addon, both created at
+ * the same `sub.created`) or a multi-line invoice (a proration credit plus
+ * the new-plan charge on an upgrade, both at the same `invoice.created`)
+ * pushes several simultaneous, unrelated lines into the history.
+ * countBillingChanges only compares CONSECUTIVE entries after sorting by
+ * time, so simultaneous lines with different price ids would be misread as
+ * sequential plan/seat/interval changes, and worse, their relative order
+ * among ties is insertion order, so the same instant could register as
+ * MULTIPLE spurious changes depending on which line happened to be pushed
+ * first. Picking the highest-value line per instant also does the right
+ * thing on an upgrade invoice for free: a proration credit is a negative
+ * amount, so the new (positive) charge line always wins the tie-break.
+ */
+export function collapseBillingObservations(raw: RawBillingLineObservation[]): BillingObservation[] {
+  const byInstant = new Map<number, RawBillingLineObservation>();
+  for (const line of raw) {
+    const top = byInstant.get(line.at);
+    if (!top || line.valueCents > top.valueCents) byInstant.set(line.at, line);
+  }
+  return [...byInstant.values()].map(({ at, priceId, quantity, interval }) => ({
+    at,
+    priceId,
+    quantity,
+    interval,
+  }));
 }
 
 export interface InvoicePaymentObservation {
@@ -201,7 +242,9 @@ export interface CustomerContextInput {
   customerSinceMs: number;
   nowMs: number;
   activeSubscriptions: ActiveSubscriptionSnapshot[];
-  billingHistory: BillingObservation[];
+  /** Raw, uncollapsed lines; buildCustomerContextFields collapses same-instant
+   *  lines before diffing (see collapseBillingObservations). */
+  billingHistory: RawBillingLineObservation[];
   invoiceHistory: InvoicePaymentObservation[];
   refundCount: number;
   disputeCount: number;
@@ -232,12 +275,17 @@ export interface CustomerContextFields {
  *  aiAssessmentGeneratedAt / aiRecommendedActions / currentPlanTier: the first
  *  five are the AI half's job (left NULL); currentPlanTier has no reliable
  *  source yet (no tier taxonomy anywhere in the schema), so it is left NULL
- *  rather than guessed from a plan name string. */
+ *  rather than guessed from a plan name string. customer_context.currency and
+ *  .ltvCents are left NULL too, for the same "honest unknown, not a guess"
+ *  reason: currency would need a per-customer Stripe currency threaded through
+ *  this whole pipeline (today only the account's home currency is used, for
+ *  mrr_snapshots reporting, a known simplification), and ltvCents has no
+ *  source anywhere in Foxhound yet (no lifetime-value computation exists). */
 export function buildCustomerContextFields(input: CustomerContextInput): CustomerContextFields {
   const { mrrContributionCents, activeSubscriptionsCount, currentPlanName } =
     summarizeActiveSubscriptions(input.activeSubscriptions);
   const { planChangeCount, seatChangeCount, intervalSwitchCount } = countBillingChanges(
-    input.billingHistory,
+    collapseBillingObservations(input.billingHistory),
   );
   return {
     mrrContributionCents,

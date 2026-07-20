@@ -5,6 +5,7 @@ import {
   buildDisputeSignals,
   buildEngagementSignals,
   buildRecoverySignals,
+  collapseBillingObservations,
   computePaymentLatencyDriftDays,
   computeSubscriptionAgeDays,
   countBillingChanges,
@@ -118,6 +119,66 @@ describe("countBillingChanges", () => {
   });
 });
 
+describe("collapseBillingObservations (construction layer: raw Stripe lines -> one state per instant)", () => {
+  it("collapses a multi-item subscription (base + addon, same instant) to a single observation", () => {
+    const collapsed = collapseBillingObservations([
+      { at: 1000, priceId: "base", quantity: 1, interval: "month", valueCents: 5000 },
+      { at: 1000, priceId: "addon", quantity: 3, interval: "month", valueCents: 1500 },
+    ]);
+    expect(collapsed).toHaveLength(1);
+    expect(collapsed[0]).toEqual({ at: 1000, priceId: "base", quantity: 1, interval: "month" });
+  });
+
+  it("picks the highest-value line as the representative, regardless of input order", () => {
+    const collapsed = collapseBillingObservations([
+      { at: 1000, priceId: "addon", quantity: 3, interval: "month", valueCents: 1500 },
+      { at: 1000, priceId: "base", quantity: 1, interval: "month", valueCents: 5000 },
+    ]);
+    expect(collapsed[0].priceId).toBe("base");
+  });
+
+  it("a proration credit (negative valueCents) never wins over the real charge line at the same instant", () => {
+    const collapsed = collapseBillingObservations([
+      { at: 2000, priceId: "old_plan", quantity: 1, interval: "month", valueCents: -2000 },
+      { at: 2000, priceId: "new_plan", quantity: 1, interval: "month", valueCents: 9000 },
+    ]);
+    expect(collapsed).toHaveLength(1);
+    expect(collapsed[0].priceId).toBe("new_plan");
+  });
+
+  it("leaves distinct instants alone (nothing to collapse when timestamps differ)", () => {
+    const collapsed = collapseBillingObservations([
+      { at: 1000, priceId: "p1", quantity: 1, interval: "month", valueCents: 5000 },
+      { at: 2000, priceId: "p2", quantity: 1, interval: "month", valueCents: 5000 },
+    ]);
+    expect(collapsed).toHaveLength(2);
+  });
+
+  it("a multi-item subscription observed once, then fed through countBillingChanges, registers ZERO spurious changes", () => {
+    const raw = [
+      { at: 1000, priceId: "base", quantity: 1, interval: "month" as const, valueCents: 5000 },
+      { at: 1000, priceId: "addon", quantity: 3, interval: "month" as const, valueCents: 1500 },
+    ];
+    const result = countBillingChanges(collapseBillingObservations(raw));
+    expect(result).toEqual({ planChangeCount: 0, seatChangeCount: 0, intervalSwitchCount: 0 });
+  });
+
+  it("an upgrade invoice (proration credit + new charge, same instant) registers exactly the ONE real plan change, not a phantom double-count from its own two lines", () => {
+    // Reproduces the pre-fix bug directly: without collapsing, sorting by time
+    // is a stable sort, so ties keep insertion order. Pushing the new charge
+    // BEFORE the proration credit at the same timestamp used to diff as
+    // p1 -> p2 -> p1 (two spurious changes) instead of the one real p1 -> p2
+    // change against the subscription's own earlier, distinct-timestamp state.
+    const raw = [
+      { at: 1000, priceId: "p1", quantity: 1, interval: "month" as const, valueCents: 5000 }, // subscription created on plan p1
+      { at: 2000, priceId: "p2", quantity: 1, interval: "month" as const, valueCents: 9000 }, // upgrade invoice: new charge
+      { at: 2000, priceId: "p1", quantity: 1, interval: "month" as const, valueCents: -2000 }, // upgrade invoice: proration credit for p1
+    ];
+    const result = countBillingChanges(collapseBillingObservations(raw));
+    expect(result).toEqual({ planChangeCount: 1, seatChangeCount: 0, intervalSwitchCount: 0 });
+  });
+});
+
 describe("computePaymentLatencyDriftDays", () => {
   it("returns null with fewer than two datable invoices (not a fabricated zero)", () => {
     expect(computePaymentLatencyDriftDays([])).toBeNull();
@@ -221,8 +282,8 @@ describe("buildCustomerContextFields (orchestrator)", () => {
         { priceId: "p1", productName: "Pro", quantity: 2, interval: "month", unitAmountCents: 3000 },
       ],
       billingHistory: [
-        { at: since, priceId: "p0", quantity: 1, interval: "month" },
-        { at: since + 30 * DAY_MS, priceId: "p1", quantity: 2, interval: "month" },
+        { at: since, priceId: "p0", quantity: 1, interval: "month", valueCents: 3000 },
+        { at: since + 30 * DAY_MS, priceId: "p1", quantity: 2, interval: "month", valueCents: 6000 },
       ],
       invoiceHistory: [],
       refundCount: 1,
@@ -240,6 +301,53 @@ describe("buildCustomerContextFields (orchestrator)", () => {
     expect(result.paymentLatencyDriftDays).toBeNull();
     expect(result.recoverySignals).toEqual({ failedPaymentCount: 1, recoveredCount: 1, avgDaysToRecover: 3 });
     expect(result.engagementSignals.clickCount).toBe(1);
+  });
+
+  it("a multi-item subscription (base + addon, one instant) produces zero spurious plan/seat/interval changes", () => {
+    const result = buildCustomerContextFields({
+      customerSinceMs: since,
+      nowMs: now,
+      activeSubscriptions: [
+        { priceId: "base", productName: "Pro", quantity: 1, interval: "month", unitAmountCents: 5000 },
+        { priceId: "addon", productName: "Seats add-on", quantity: 3, interval: "month", unitAmountCents: 500 },
+      ],
+      billingHistory: [
+        { at: since, priceId: "base", quantity: 1, interval: "month", valueCents: 5000 },
+        { at: since, priceId: "addon", quantity: 3, interval: "month", valueCents: 1500 },
+      ],
+      invoiceHistory: [],
+      refundCount: 0,
+      disputeCount: 0,
+      recoveryRows: [],
+      disputeRows: [],
+      engagementRows: [],
+    });
+    expect(result.planChangeCount).toBe(0);
+    expect(result.seatChangeCount).toBe(0);
+    expect(result.intervalSwitchCount).toBe(0);
+  });
+
+  it("a proration/upgrade invoice (credit + new charge, one instant) registers exactly one real plan change", () => {
+    const result = buildCustomerContextFields({
+      customerSinceMs: since,
+      nowMs: now,
+      activeSubscriptions: [
+        { priceId: "p2", productName: "Growth", quantity: 1, interval: "month", unitAmountCents: 9000 },
+      ],
+      billingHistory: [
+        { at: since, priceId: "p1", quantity: 1, interval: "month", valueCents: 5000 },
+        { at: since + 30 * DAY_MS, priceId: "p2", quantity: 1, interval: "month", valueCents: 9000 },
+        { at: since + 30 * DAY_MS, priceId: "p1", quantity: 1, interval: "month", valueCents: -2000 },
+      ],
+      invoiceHistory: [],
+      refundCount: 0,
+      disputeCount: 0,
+      recoveryRows: [],
+      disputeRows: [],
+      engagementRows: [],
+    });
+    expect(result.planChangeCount).toBe(1);
+    expect(result.seatChangeCount).toBe(0);
   });
 
   it("is a full honest-zero row for a brand new customer with no active subscription", () => {
