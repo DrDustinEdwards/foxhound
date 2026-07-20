@@ -406,6 +406,7 @@ export async function processConnectedWebhook(
         build: (db) =>
           buildDisputeResolutionBatch(db, {
             claim,
+            accountId,
             stripeDisputeId: intent.stripeDisputeId,
             won: intent.won,
             amountCents: dispute.amountCents,

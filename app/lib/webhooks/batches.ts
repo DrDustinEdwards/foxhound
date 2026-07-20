@@ -261,6 +261,11 @@ const RESOLVED_DISPUTE_STATES: DisputeState[] = ["resolved_won", "resolved_lost"
 
 export interface DisputeResolutionInput {
   claim: WebhookClaimInput;
+  /** The account this dispute belongs to (resolved + verified at the call site).
+   *  Pinned in the UPDATE WHERE so tenant isolation is DB-enforced, not
+   *  caller-dependent (account-scoping audit HIGH #3), matching
+   *  buildSubmissionConfirmationBatch. A foreign accountId matches zero rows. */
+  accountId: string;
   stripeDisputeId: string;
   won: boolean;
   /** The disputed amount, read from the existing dispute row (the fee base). */
@@ -299,6 +304,7 @@ export function buildDisputeResolutionBatch(db: Db, input: DisputeResolutionInpu
       .where(
         and(
           eq(disputes.stripeDisputeId, input.stripeDisputeId),
+          eq(disputes.accountId, input.accountId),
           notInArray(disputes.state, RESOLVED_DISPUTE_STATES),
         ),
       ),
