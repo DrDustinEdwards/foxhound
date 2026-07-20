@@ -149,6 +149,13 @@ export const CRON_LOCK_LEASE_MS = 5 * 60 * 1000;
 /** Cron schedules (UTC). MUST match wrangler.jsonc triggers.crons exactly. */
 export const CRON_SCHEDULE_DAILY = "0 3 * * *"; // 03:00 UTC, retention sweeps
 export const CRON_SCHEDULE_MONTHLY = "0 4 1 * *"; // 04:00 UTC on the 1st, billing run
+/** Recovery tick: sweeps due recovery_steps. Runs every 5 minutes because the
+ *  shortest timer in the engine is the 5-minute first send-retry backoff
+ *  (SEND_RETRY_BACKOFF_MINUTES[0]); a coarser cadence would lag that backoff. */
+export const CRON_SCHEDULE_RECOVERY_TICK = "*/5 * * * *";
+/** Max due steps a single recovery tick processes, so one run stays bounded and a
+ *  backlog drains over successive ticks (mirrors RETENTION_SWEEP_LIMIT). */
+export const RECOVERY_TICK_LIMIT = 500;
 /** Retention windows (ARCHITECTURE.md retention table). Raw rows older than the
  *  window are swept; ai_calls aggregates to monthly before delete. */
 export const RETENTION_ENGAGEMENT_DAYS = 180;

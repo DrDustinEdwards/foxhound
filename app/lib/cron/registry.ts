@@ -1,7 +1,12 @@
 import { runMonthlyBilling } from "~/lib/billing/run";
 import { runIntelligenceSyncForAllAccounts } from "~/lib/intelligence/sync.server";
-import { CRON_SCHEDULE_DAILY, CRON_SCHEDULE_MONTHLY } from "~/lib/constants";
+import {
+  CRON_SCHEDULE_DAILY,
+  CRON_SCHEDULE_MONTHLY,
+  CRON_SCHEDULE_RECOVERY_TICK,
+} from "~/lib/constants";
 
+import { runRecoveryTick } from "./recovery-tick";
 import type { CronHandler } from "./run";
 import {
   sweepAiCalls,
@@ -61,7 +66,13 @@ const intelligenceSync: CronHandler = async (env) => {
   };
 };
 
+/** The recovery tick (Phase 4e): sweeps due recovery_steps and runs each through
+ *  its executor. High cadence (every 5 minutes) because it drives real-time
+ *  retries + dunning sends; see app/lib/cron/recovery-tick.ts. */
+const recoveryTick: CronHandler = (env) => runRecoveryTick(env);
+
 export const CRON_JOBS: CronJob[] = [
+  { name: "recovery-tick", schedule: CRON_SCHEDULE_RECOVERY_TICK, handler: recoveryTick },
   { name: "billing-monthly", schedule: CRON_SCHEDULE_MONTHLY, handler: billingMonthly },
   { name: "intelligence-sync", schedule: CRON_SCHEDULE_MONTHLY, handler: intelligenceSync },
   { name: "retention-engagement-events", schedule: CRON_SCHEDULE_DAILY, handler: sweepEngagementEvents },
