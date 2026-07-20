@@ -88,4 +88,13 @@ describe("billable dispute predicate (SQL shape)", () => {
     expect(params).toContain("resolved_won");
     expect(params).toContain("acc_1");
   });
+
+  it("requires a Foxhound submission: inner-joins dispute_approvals AND requires submitted_at (review HIGH)", () => {
+    // PRICING rev 3: billable only if Foxhound drafted AND submitted. Both
+    // signals are structural in the predicate, so a merchant-fought win (no
+    // approval row, no submitted_at) can never be selected. Behavior proven in
+    // test/billing-dispute-submission-gate.test.ts against a real DB.
+    expect(sql).toMatch(/inner join .*dispute_approvals/i);
+    expect(sql).toMatch(/submitted_at.*is not null/i);
+  });
 });

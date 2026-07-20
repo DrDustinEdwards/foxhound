@@ -266,6 +266,12 @@ export interface DisputeResolutionInput {
   /** The disputed amount, read from the existing dispute row (the fee base). */
   amountCents: number;
   currency: string;
+  /** Whether Foxhound actually drafted AND submitted the evidence for this
+   *  dispute (disputes.submitted_at set). A win Foxhound did NOT submit
+   *  (merchant-fought, or auto-resolved) is never billable (PRICING.md rev 3),
+   *  so no fee is snapshotted for it, keeping the UI honest (resolved_fee_cents
+   *  is null) alongside the authoritative getBillableDisputes gate. */
+  foxhoundSubmitted: boolean;
   resolvedAt: Date;
 }
 
@@ -273,12 +279,13 @@ export interface DisputeResolutionInput {
  * charge.dispute.closed (5c Scope B, closes review finding L1): claim + set
  * state=resolved_won|resolved_lost, conditional on the dispute not already being
  * resolved (a replay or a second close event touches zero rows, not a second
- * fee snapshot). On a win, snapshots the capped fee via disputeFeeCents onto
- * resolved_fee_cents, so getBillableDisputes stops relying on its amount
- * fallback. A loss clears any fee snapshot (defensive; a dispute never both
- * flips to lost with a stale won-fee left behind).
+ * fee snapshot). On a win Foxhound SUBMITTED, snapshots the capped fee via
+ * disputeFeeCents onto resolved_fee_cents. A win Foxhound did not submit, or a
+ * loss, snapshots no fee (a lost dispute never carries a stale won-fee; a
+ * merchant-fought win is never billed, PRICING.md rev 3).
  */
 export function buildDisputeResolutionBatch(db: Db, input: DisputeResolutionInput): MoneyWriteBatch {
+  const billableWin = input.won && input.foxhoundSubmitted;
   return [
     buildWebhookClaim(db, input.claim),
     db
@@ -286,8 +293,8 @@ export function buildDisputeResolutionBatch(db: Db, input: DisputeResolutionInpu
       .set({
         state: input.won ? "resolved_won" : "resolved_lost",
         resolvedAt: input.resolvedAt,
-        resolvedFeeCents: input.won ? disputeFeeCents(input.amountCents) : null,
-        resolvedFeeCurrency: input.won ? input.currency : null,
+        resolvedFeeCents: billableWin ? disputeFeeCents(input.amountCents) : null,
+        resolvedFeeCurrency: billableWin ? input.currency : null,
       })
       .where(
         and(
