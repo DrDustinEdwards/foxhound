@@ -18,7 +18,7 @@ export function categoryBadgeTone(category: DeclineCategory): BadgeTone {
 
 export function recoveryApproach(view: DeclineCodeView): string {
   if (view.category === "fraud") {
-    return "Fraud and security declines are never retried, silently or otherwise. Foxhound sends one clearly worded email that names the situation plainly and points the customer to their card issuer, rather than repeating the same charge against a flag the issuer already raised.";
+    return "Fraud and security declines are never retried, silently or otherwise. Foxhound sends a gentle, clearly worded email sequence across 30 days that names the situation plainly and points the customer to their card issuer, rather than repeating the same charge against a flag the issuer already raised.";
   }
   if (view.category === "expired") {
     return "Expired and stale-card declines do not recover through a repeat charge against the same card details. Foxhound skips straight to the card-update path: a hosted, no-login link goes out by email, and an expiring-card alert can fire ahead of the renewal date when the expiration is already visible on the stored card, so the update happens before the charge ever fails.";
