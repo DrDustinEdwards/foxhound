@@ -169,11 +169,20 @@ async function resolveDisputedRecovery(
   }
 }
 
-/** Find a dispute by its Stripe dispute id (5c resolution stamping target). */
+/** Find a dispute by its Stripe dispute id (5c resolution stamping target).
+ *  submittedAt is read so resolution can decide whether Foxhound actually
+ *  submitted this dispute (only a submitted win snapshots a fee). */
 async function findDisputeByStripeId(
   env: Env,
   stripeDisputeId: string,
-): Promise<{ id: string; accountId: string; amountCents: number; currency: string; state: string } | null> {
+): Promise<{
+  id: string;
+  accountId: string;
+  amountCents: number;
+  currency: string;
+  state: string;
+  submittedAt: Date | null;
+} | null> {
   const db = getDb(env);
   const rows = await db
     .select({
@@ -182,6 +191,7 @@ async function findDisputeByStripeId(
       amountCents: disputes.amountCents,
       currency: disputes.currency,
       state: disputes.state,
+      submittedAt: disputes.submittedAt,
     })
     .from(disputes)
     .where(eq(disputes.stripeDisputeId, stripeDisputeId))
@@ -400,6 +410,10 @@ export async function processConnectedWebhook(
             won: intent.won,
             amountCents: dispute.amountCents,
             currency: dispute.currency,
+            // A fee is snapshotted only if Foxhound actually submitted this
+            // dispute (submitted_at set post-Stripe). A merchant-fought or
+            // auto-resolved win carries no fee (PRICING.md rev 3).
+            foxhoundSubmitted: dispute.submittedAt != null,
             resolvedAt: receivedAt,
           }),
       });

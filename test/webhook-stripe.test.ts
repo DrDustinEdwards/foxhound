@@ -265,7 +265,7 @@ describe("webhook batch builders (compile against schema)", () => {
     expect(stamp.params).toContain("fp_1");
   });
 
-  it("dispute resolution batch snapshots the capped fee on a win, none on a loss", () => {
+  it("dispute resolution batch snapshots the capped fee on a Foxhound-submitted win, none on a loss", () => {
     // 20% of a $500 dispute is $100, well under the $500 cap: proves the
     // ordinary 20% math, not just the cap.
     const won = buildDisputeResolutionBatch(db, {
@@ -274,6 +274,7 @@ describe("webhook batch builders (compile against schema)", () => {
       won: true,
       amountCents: 50_000,
       currency: "usd",
+      foxhoundSubmitted: true,
       resolvedAt: now,
     });
     expect(won.length).toBe(2);
@@ -291,6 +292,7 @@ describe("webhook batch builders (compile against schema)", () => {
       won: true,
       amountCents: 10_000_00,
       currency: "usd",
+      foxhoundSubmitted: true,
       resolvedAt: now,
     });
     expect(sqlOf(wonAtCap[1]).params).toContain(DISPUTE_FEE_CAP_CENTS);
@@ -301,10 +303,30 @@ describe("webhook batch builders (compile against schema)", () => {
       won: false,
       amountCents: 50_000,
       currency: "usd",
+      foxhoundSubmitted: true,
       resolvedAt: now,
     });
     const lostUpdate = sqlOf(lost[1]);
     expect(lostUpdate.params).toContain("resolved_lost");
     expect(lostUpdate.params).not.toContain(10_000);
+  });
+
+  it("a won dispute Foxhound did NOT submit snapshots resolved_won but NO fee (merchant-fought, PRICING rev 3)", () => {
+    // The review's HIGH: a win Foxhound never submitted must not carry a fee.
+    const wonNotSubmitted = buildDisputeResolutionBatch(db, {
+      claim,
+      stripeDisputeId: "dp_4",
+      won: true,
+      amountCents: 50_000,
+      currency: "usd",
+      foxhoundSubmitted: false,
+      resolvedAt: now,
+    });
+    const update = sqlOf(wonNotSubmitted[1]);
+    // Still records the WON outcome...
+    expect(update.params).toContain("resolved_won");
+    // ...but snapshots no fee: the 20% amount ($100 = 10_000) is absent, so the
+    // UI shows "won, not billed" and getBillableDisputes never bills it.
+    expect(update.params).not.toContain(10_000);
   });
 });
