@@ -97,6 +97,10 @@ export const STEP_TIMING_EMAIL_DAY14_HOURS = 336;
 export const STEP_TIMING_RETRY_DAY21_HOURS = 504;
 export const STEP_TIMING_EMAIL_DAY30_HOURS = 720;
 export const STEP_TIMING_FRAUD_EMAIL_DAY1_HOURS = 2;
+// Revoked-authorization hold: a single email offering a clean cancel-or-update
+// choice, sent soon after detection (the customer explicitly revoked, so we ask
+// once rather than dun). This is the ONLY step for the `revoked` category.
+export const STEP_TIMING_REVOKED_EMAIL_HOURS = 2;
 
 // ---- Win-back timing (hours from cancellation) ----
 export const WINBACK_STEP1_HOURS = 24;
@@ -111,7 +115,9 @@ export const SEND_RETRY_BACKOFF_MINUTES = [5, 30, 120] as const;
 // ---- Decline classification (rebuild is silent-first; fraud never retries) ----
 // "unknown" is the fail-closed default for any code not in an explicit set
 // below: no auto-retry, same as fraud/expired (app/lib/recovery/decline.ts).
-export const DECLINE_CATEGORIES = ["soft", "network", "expired", "fraud", "unknown"] as const;
+// "revoked" is the customer explicitly revoking authorization: one email
+// offering a cancel-or-update choice, then a hold (no retries, no dunning).
+export const DECLINE_CATEGORIES = ["soft", "network", "expired", "fraud", "revoked", "unknown"] as const;
 export type DeclineCategory = (typeof DECLINE_CATEGORIES)[number];
 
 // ---- Email pipeline (ARCHITECTURE.md: Cloudflare Email Service, one send module) ----

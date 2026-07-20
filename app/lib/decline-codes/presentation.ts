@@ -12,6 +12,7 @@ import type { DeclineCodeView } from "./codes";
 export function categoryBadgeTone(category: DeclineCategory): BadgeTone {
   if (category === "fraud") return "failure";
   if (category === "expired") return "neutral";
+  if (category === "revoked") return "neutral";
   if (category === "unknown") return "neutral";
   return "success"; // soft, network: both silently retryable
 }
@@ -22,6 +23,9 @@ export function recoveryApproach(view: DeclineCodeView): string {
   }
   if (view.category === "expired") {
     return "Expired and stale-card declines do not recover through a repeat charge against the same card details. Foxhound skips straight to the card-update path: a hosted, no-login link goes out by email, and an expiring-card alert can fire ahead of the renewal date when the expiration is already visible on the stored card, so the update happens before the charge ever fails.";
+  }
+  if (view.category === "revoked") {
+    return "This code means the cardholder went to their bank and revoked the standing authorization for recurring charges, an explicit instruction to stop. Foxhound treats it as a hard stop rather than a recovery to push on: no retry runs (the bank has blocked charges) and no multi-step dunning sequence goes out. Instead a single, respectful email offers a clean choice, cancel and let the subscription end, or add a fresh payment method if they meant to keep it. After that one message the sequence holds, so a customer who chose to leave is never chased.";
   }
   if (view.category === "unknown") {
     return "This code has no dedicated bucket in the recovery engine's classification sets, so it fails closed rather than defaulting to a silent retry: no repeat charge runs against a code Foxhound cannot classify. Recovery goes straight to the same email sequence expired cards get, carrying the hosted card-update link, until this code earns its own bucket.";

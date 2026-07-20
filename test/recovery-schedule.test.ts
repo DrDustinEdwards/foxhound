@@ -7,6 +7,8 @@ import {
   isRetryStep,
   planRecoverySteps,
 } from "~/lib/recovery/schedule";
+import { isSequenceComplete, nextDueStep, type SchedulableStep } from "~/lib/engine/scheduler";
+import { categoryGuidance } from "~/lib/recovery/email-generation";
 import type { DeclineCategory } from "~/lib/constants";
 
 describe("classifyDecline", () => {
@@ -34,11 +36,14 @@ describe("classifyDecline", () => {
     }
   });
 
-  it("routes revocation_of_authorization and do_not_try_again to fraud (never retried)", () => {
-    expect(classifyDecline("revocation_of_authorization")).toBe("fraud");
+  it("routes both revocation codes to revoked, keeps do_not_try_again on fraud (all never retried)", () => {
+    expect(classifyDecline("revocation_of_authorization")).toBe("revoked");
+    expect(classifyDecline("revocation_of_all_authorizations")).toBe("revoked");
     expect(classifyDecline("do_not_try_again")).toBe("fraud");
     expect(isRetryable(classifyDecline("revocation_of_authorization"))).toBe(false);
+    expect(isRetryable(classifyDecline("revocation_of_all_authorizations"))).toBe(false);
     expect(isRetryable(classifyDecline("do_not_try_again"))).toBe(false);
+    expect(isRetryable("revoked")).toBe(false);
   });
 
   it("never retries the documented never-retry set", () => {
@@ -91,6 +96,13 @@ describe("recovery schedules (silent-first)", () => {
     expect(isEmailStep(RECOVERY_SCHEDULES.unknown[0].stepType)).toBe(true);
   });
 
+  it("revoked is a single email, never a retry", () => {
+    const revoked = RECOVERY_SCHEDULES.revoked;
+    expect(revoked.length).toBe(1);
+    expect(isRetryStep(revoked[0].stepType)).toBe(false);
+    expect(isEmailStep(revoked[0].stepType)).toBe(true);
+  });
+
   it("schedules are strictly increasing in time", () => {
     for (const category of Object.keys(RECOVERY_SCHEDULES) as DeclineCategory[]) {
       const offsets = RECOVERY_SCHEDULES[category].map((s) => s.offsetHours);
@@ -121,5 +133,61 @@ describe("planRecoverySteps", () => {
     expect(plan[0].scheduledAt.getTime()).toBe(detectedAt.getTime() + 4 * 3600_000);
     // Last step (email_day30) is 720h after detection.
     expect(plan.at(-1)!.scheduledAt.getTime()).toBe(detectedAt.getTime() + 720 * 3600_000);
+  });
+});
+
+describe("revoked authorization: one-step hold", () => {
+  const detectedAt = new Date("2026-07-01T00:00:00.000Z");
+
+  it("plans exactly one email step and nothing else", () => {
+    const plan = planRecoverySteps({
+      failedPaymentId: "fp_rev",
+      accountId: "acc_1",
+      declineCategory: "revoked",
+      detectedAt,
+    });
+    expect(plan.length).toBe(1);
+    expect(plan[0].stepNumber).toBe(1);
+    expect(isEmailStep(plan[0].stepType)).toBe(true);
+    expect(plan.some((p) => isRetryStep(p.stepType))).toBe(false);
+    // Sent soon (2h), a prompt cancel-or-update ask, not a delayed dunning cadence.
+    expect(plan[0].scheduledAt.getTime()).toBe(detectedAt.getTime() + 2 * 3600_000);
+  });
+
+  it("holds after the single send: nothing else becomes due, the sequence is complete", () => {
+    const plan = planRecoverySteps({
+      failedPaymentId: "fp_rev",
+      accountId: "acc_1",
+      declineCategory: "revoked",
+      detectedAt,
+    });
+    const later = new Date(detectedAt.getTime() + 90 * 24 * 3600_000); // 90 days on
+    // Before the send: the one step is due.
+    const pending: SchedulableStep[] = plan.map((p) => ({
+      stepNumber: p.stepNumber,
+      scheduledAt: p.scheduledAt,
+      executedAt: null,
+      result: null,
+      nextRetryAt: null,
+    }));
+    expect(nextDueStep(pending, later)?.stepNumber).toBe(1);
+    // After the send: the step is executed; nothing further is ever scheduled.
+    const afterSend: SchedulableStep[] = pending.map((s) => ({
+      ...s,
+      executedAt: later,
+      result: "email_sent",
+    }));
+    expect(nextDueStep(afterSend, new Date(later.getTime() + 365 * 24 * 3600_000))).toBeNull();
+    expect(isSequenceComplete(afterSend)).toBe(true);
+  });
+
+  it("frames the copy as a cancel-or-update choice, not a dunning ask", () => {
+    const guidance = categoryGuidance("revoked");
+    expect(guidance).not.toBeNull();
+    expect(guidance!.toLowerCase()).toContain("revoked");
+    expect(guidance!.toLowerCase()).toMatch(/do not ask them to pay/);
+    // Other categories keep the default framing (no special guidance).
+    expect(categoryGuidance("soft")).toBeNull();
+    expect(categoryGuidance("fraud")).toBeNull();
   });
 });

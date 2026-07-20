@@ -11,6 +11,7 @@ export const DECLINE_CATEGORY_LABELS: Record<DeclineCategory, string> = {
   network: "Network error",
   expired: "Expired card",
   fraud: "Suspected fraud",
+  revoked: "Revoked authorization",
   unknown: "Unclassified decline",
 };
 

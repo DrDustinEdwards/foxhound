@@ -125,7 +125,8 @@ export const CATEGORY_LABEL: Record<DeclineCategory, string> = {
   network: "Network / processing",
   expired: "Expired card",
   fraud: "Fraud / security",
+  revoked: "Revoked authorization",
   unknown: "Unclassified",
 };
 
-export const CATEGORY_ORDER: DeclineCategory[] = ["soft", "network", "expired", "fraud", "unknown"];
+export const CATEGORY_ORDER: DeclineCategory[] = ["soft", "network", "expired", "fraud", "revoked", "unknown"];
