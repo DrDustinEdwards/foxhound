@@ -2,10 +2,8 @@ import { AdminNav } from "~/components/admin-nav";
 import { Badge } from "~/components/badge";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { formatBytes } from "~/lib/admin/format";
+import { D1_ALERT_THRESHOLD, D1_CAP_BYTES, formatBytes } from "~/lib/admin/format";
 import {
-  D1_ALERT_THRESHOLD,
-  D1_CAP_BYTES,
   getD1SizeBytes,
   getEnvSanity,
   getGrowthTableCounts,

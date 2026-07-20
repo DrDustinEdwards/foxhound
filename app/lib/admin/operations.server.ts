@@ -33,9 +33,6 @@ export async function getD1SizeBytes(env: Env): Promise<number> {
   return result.meta.size_after;
 }
 
-export const D1_CAP_BYTES = 10 * 1024 * 1024 * 1024; // 10 GB (ARCHITECTURE.md)
-export const D1_ALERT_THRESHOLD = 0.5; // alert at 50% of cap
-
 /** Known applied-migration filenames, in order. Static: the Worker has no
  *  filesystem access to drizzle/migrations at runtime, and this list only
  *  changes when a new migration ships (a deploy-time event anyway). */
