@@ -38,11 +38,12 @@ export async function listPlatformUsers(db: Db, env: Env): Promise<PlatformUserR
     .leftJoin(accounts, eq(accounts.id, accountMembers.accountId))
     .orderBy(desc(user.createdAt));
 
-  // A user can have more than one account_members row (the single-account
-  // invariant is app-enforced, not schema-enforced - see backlog.md's open
-  // Phase 4 review item), which would otherwise duplicate this user across
-  // rows. Collapse to one row per user, preferring an ACTIVE membership over
-  // a pending invite, so the admin list always shows one line per person.
+  // A user can still have more than one account_members row: at most one ACTIVE
+  // membership (now schema-enforced by account_members_one_active_per_user_uq,
+  // migration 0006) plus any number of pending invites to other accounts. The
+  // left joins would otherwise duplicate this user across those rows. Collapse
+  // to one row per user, preferring an ACTIVE membership over a pending invite,
+  // so the admin list always shows one line per person.
   const byUser = new Map<string, (typeof rows)[number]>();
   for (const row of rows) {
     const existing = byUser.get(row.id);
