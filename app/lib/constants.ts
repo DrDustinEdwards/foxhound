@@ -15,6 +15,16 @@ export const DISPUTE_FEE_CAP_CENTS = 50_000;
 /** Intelligence predictive risk layer: $199/month. */
 export const INTELLIGENCE_PRICE_CENTS = 19_900;
 
+// ---- Subscription entitlement (account_subscriptions) ----
+/** account_subscriptions.product for the paid Intelligence tier. The entitlement
+ *  gate (isIntelligenceEntitled) and the admin grant path both key on this, so it
+ *  lives here rather than as a literal in either, and they cannot drift. */
+export const INTELLIGENCE_PRODUCT = "intelligence";
+/** account_subscriptions.status: an active row is what the entitlement gate reads;
+ *  a granted row is deactivated to canceled on admin revoke. */
+export const SUBSCRIPTION_STATUS_ACTIVE = "active";
+export const SUBSCRIPTION_STATUS_CANCELED = "canceled";
+
 /**
  * Demo accounts are excluded from all billing (PRICING.md: demo data is re-seeded,
  * never billed). The demo-seeding system must create accounts whose id begins with
