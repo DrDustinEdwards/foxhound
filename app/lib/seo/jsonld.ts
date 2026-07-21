@@ -18,22 +18,15 @@ export function siteUrl(env: Env): string {
 // (organizationJsonLd below) and in page copy (about.tsx, privacy.tsx,
 // terms.tsx). Do not hardcode this string anywhere else.
 //
-// Placeholder pending the operating-entity decision, same as
-// GOVERNING_LAW_JURISDICTION below: TASK-foxhound-phase6.md names both as a
-// pair parked on that one decision, and no operating-entity decision is
-// recorded in recova/decisions.md yet. Marked as an explicit placeholder
-// rather than a real-looking address so a real support inbox is never
-// silently promised (in JSON-LD contactPoint, mailto links, or an RSS/llms
-// "Contact:" line) before one actually exists.
-// TODO(dustin): confirm operating entity and real support address before launch.
-export const SUPPORT_EMAIL = "[SUPPORT_EMAIL_TBD]";
+// Settled by the operating-entity ruling (recova/decisions.md, 2026-07-21):
+// a domain choice, entity-independent, so it does not change at LLC formation.
+export const SUPPORT_EMAIL = "support@foxhoundapp.com";
 
-// The governing-law state was carried over from legacy as "Texas" without
-// ever being verified against the actual current operating entity. Marked as
-// an explicit placeholder rather than a real state name so it cannot read as
-// a legal assertion if it slipped onto a live page before this is resolved.
-// TODO(dustin): confirm operating entity and governing-law state before launch.
-export const GOVERNING_LAW_JURISDICTION = "[GOVERNING_LAW_JURISDICTION_TBD]";
+// Settled by the operating-entity ruling (recova/decisions.md, 2026-07-21).
+// Foxhound operates as Dustin Edwards personally (sole proprietor) until
+// Foxing LLC forms (targeted ~September 2026), so Texas is the real
+// governing-law state today, not a carried-over guess.
+export const GOVERNING_LAW_JURISDICTION = "Texas";
 
 // Retained from legacy at cutover per TASK-foxhound-phase6.md; do not invent
 // new handles here.
