@@ -1,12 +1,9 @@
-import { eq } from "drizzle-orm";
 import { RefreshCw, Shield, TrendingUp, LayoutDashboard } from "lucide-react";
 import { Form, redirect, useNavigation } from "react-router";
 
 import { MarketingPageHeader } from "~/components/marketing-page-header";
-import { accounts, getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { DEMO_ACCOUNT_ID } from "~/lib/demo/constants";
-import { seedDemoAccount } from "~/lib/demo/seed";
+import { ensureDemoSeeded } from "~/lib/demo/seed";
 import { setDemoCookieHeader } from "~/lib/demo/session";
 
 import type { Route } from "./+types/demos";
@@ -35,15 +32,7 @@ export function meta() {
 // gated by the demo read-only rule.
 export async function action({ context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
-  const db = getDb(env);
-  const existing = await db
-    .select({ id: accounts.id })
-    .from(accounts)
-    .where(eq(accounts.id, DEMO_ACCOUNT_ID))
-    .limit(1);
-  if (existing.length === 0) {
-    await seedDemoAccount(db, new Date());
-  }
+  await ensureDemoSeeded(env);
   return redirect("/dashboard", { headers: { "Set-Cookie": setDemoCookieHeader() } });
 }
 

@@ -1,13 +1,14 @@
 import { getDb } from "~/db";
 import { runMonthlyBilling } from "~/lib/billing/run";
-import { seedDemoAccount } from "~/lib/demo/seed";
-import { runIntelligenceAiForAllAccounts } from "~/lib/intelligence/ai-run.server";
-import { runIntelligenceSyncForAllAccounts } from "~/lib/intelligence/sync.server";
 import {
   CRON_SCHEDULE_DAILY,
   CRON_SCHEDULE_MONTHLY,
   CRON_SCHEDULE_RECOVERY_TICK,
 } from "~/lib/constants";
+import { DEMO_RESET_CRON_NAME } from "~/lib/demo/constants";
+import { seedDemoAccount } from "~/lib/demo/seed";
+import { runIntelligenceAiForAllAccounts } from "~/lib/intelligence/ai-run.server";
+import { runIntelligenceSyncForAllAccounts } from "~/lib/intelligence/sync.server";
 
 import { runRecoveryTick } from "./recovery-tick";
 import type { CronHandler } from "./run";
@@ -106,7 +107,7 @@ const demoReset: CronHandler = async (env) => {
 
 export const CRON_JOBS: CronJob[] = [
   { name: "recovery-tick", schedule: CRON_SCHEDULE_RECOVERY_TICK, handler: recoveryTick },
-  { name: "demo-reset", schedule: CRON_SCHEDULE_DAILY, handler: demoReset },
+  { name: DEMO_RESET_CRON_NAME, schedule: CRON_SCHEDULE_DAILY, handler: demoReset },
   { name: "billing-monthly", schedule: CRON_SCHEDULE_MONTHLY, handler: billingMonthly },
   { name: "intelligence-sync", schedule: CRON_SCHEDULE_MONTHLY, handler: intelligenceSync },
   { name: "intelligence-ai", schedule: CRON_SCHEDULE_DAILY, handler: intelligenceAi },

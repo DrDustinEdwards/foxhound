@@ -17,3 +17,9 @@ export const DEMO_MEMBER_EMAIL = "demo@foxhoundapp.com";
 // cookie), so it can only ever resolve to the demo account, never a real one.
 export const DEMO_SESSION_COOKIE = "fh_demo";
 export const DEMO_SESSION_COOKIE_VALUE = "1";
+
+// The name registered in the cron registry for the daily demo-reset job, and
+// the CronLock DO id both that cron and the demo enter action lock on. Shared
+// so the two callers can never drift apart and silently stop excluding each
+// other.
+export const DEMO_RESET_CRON_NAME = "demo-reset";
