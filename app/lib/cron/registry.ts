@@ -1,4 +1,5 @@
 import { runMonthlyBilling } from "~/lib/billing/run";
+import { runIntelligenceAiForAllAccounts } from "~/lib/intelligence/ai-run.server";
 import { runIntelligenceSyncForAllAccounts } from "~/lib/intelligence/sync.server";
 import {
   CRON_SCHEDULE_DAILY,
@@ -71,10 +72,32 @@ const intelligenceSync: CronHandler = async (env) => {
  *  retries + dunning sends; see app/lib/cron/recovery-tick.ts. */
 const recoveryTick: CronHandler = (env) => runRecoveryTick(env);
 
+/** The Intelligence AI half (health scoring -> predictions -> alerts ->
+ *  nightly narrative), wrapped as a cron handler. Runs on the daily/nightly
+ *  schedule (PRICING.md: "nightly AI analyst narrative"), reusing
+ *  CRON_SCHEDULE_DAILY rather than a new wrangler.jsonc trigger. Score/
+ *  predict/alert always commit; the narrative fails safe (a skipped narrative
+ *  is visible in the message, never a failed run). */
+const intelligenceAi: CronHandler = async (env) => {
+  const results = await runIntelligenceAiForAllAccounts(env, Date.now());
+  const customersScored = results.reduce((sum, r) => sum + r.customersScored, 0);
+  const alertsFired = results.reduce((sum, r) => sum + r.alertsFired, 0);
+  const narrativesGenerated = results.filter((r) => r.narrativeGenerated).length;
+  const skipped = results.filter((r) => r.narrativeSkippedReason !== null).length;
+  const skippedNote = skipped > 0 ? `, ${skipped} narrative(s) skipped` : "";
+  return {
+    rowsProcessed: customersScored,
+    message:
+      `${results.length} accounts, ${customersScored} customers scored, ` +
+      `${alertsFired} alerts fired, ${narrativesGenerated} narratives generated${skippedNote}`,
+  };
+};
+
 export const CRON_JOBS: CronJob[] = [
   { name: "recovery-tick", schedule: CRON_SCHEDULE_RECOVERY_TICK, handler: recoveryTick },
   { name: "billing-monthly", schedule: CRON_SCHEDULE_MONTHLY, handler: billingMonthly },
   { name: "intelligence-sync", schedule: CRON_SCHEDULE_MONTHLY, handler: intelligenceSync },
+  { name: "intelligence-ai", schedule: CRON_SCHEDULE_DAILY, handler: intelligenceAi },
   { name: "retention-engagement-events", schedule: CRON_SCHEDULE_DAILY, handler: sweepEngagementEvents },
   { name: "retention-email-sends", schedule: CRON_SCHEDULE_DAILY, handler: sweepEmailSends },
   { name: "retention-webhook-events", schedule: CRON_SCHEDULE_DAILY, handler: sweepWebhookEvents },
