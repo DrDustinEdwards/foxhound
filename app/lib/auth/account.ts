@@ -165,6 +165,16 @@ export function evaluateAcceptInvite(
  * Accept a pending invite for the signed-in user: fetch the invite + the
  * user's current membership, run the pure decision, and on success activate
  * the member row and clear the token.
+ *
+ * The existing-membership read is only a fast path. Two concurrent accepts of
+ * two different invites can both read `existingMembership = null` before either
+ * commits, so the read alone cannot enforce the single-account invariant. The
+ * `account_members_one_active_per_user_uq` partial unique index is the real
+ * guard: only one of the racing activations can create an active row for the
+ * user; the loser's UPDATE hits the constraint, which we map back to
+ * `already_member`. (The per-account money-write DO cannot serialize this: the
+ * two invites belong to two different accounts, so they route to two different
+ * DOs. The database index is the only structural stop.)
  */
 export async function acceptInvite(
   db: Db,
@@ -177,16 +187,31 @@ export async function acceptInvite(
   const result = evaluateAcceptInvite(invite, existingMembership, userEmail);
   if (!result.ok || !invite) return result;
 
-  await db
-    .update(accountMembers)
-    .set({
-      userId,
-      status: MEMBER_STATUS.ACTIVE,
-      inviteToken: null,
-      inviteExpiresAt: null,
-    })
-    .where(eq(accountMembers.id, invite.memberId));
+  try {
+    await db
+      .update(accountMembers)
+      .set({
+        userId,
+        status: MEMBER_STATUS.ACTIVE,
+        inviteToken: null,
+        inviteExpiresAt: null,
+      })
+      .where(eq(accountMembers.id, invite.memberId));
+  } catch (err) {
+    // Lost the race: another accept already activated a membership for this
+    // user, so the unique index rejected this activation. Fail closed.
+    if (isUniqueConstraintError(err)) {
+      return { ok: false, reason: "already_member" };
+    }
+    throw err;
+  }
   return result;
+}
+
+/** True for a SQLite/D1 UNIQUE-constraint violation, however the driver wraps it. */
+function isUniqueConstraintError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return /unique constraint/i.test(message);
 }
 
 /** Pending + active members of an account, for the team settings view. */
