@@ -29,6 +29,20 @@ export function createInMemoryDb(): { sqlite: Database.Database; db: Db } {
     }
   }
   const db = drizzle(sqlite, { schema }) as unknown as Db;
+
+  // The better-sqlite3 driver has no `.batch()` (that is a D1 method), but
+  // production code (money writes, the demo seeder) commits through it. Shim a
+  // faithful equivalent: run each statement in order against the real schema,
+  // exactly the SQL the D1 path would send. Drizzle statements are thenable, so
+  // awaiting one executes it.
+  (db as unknown as { batch: (stmts: unknown[]) => Promise<unknown[]> }).batch = async (stmts) => {
+    const results: unknown[] = [];
+    for (const stmt of stmts) {
+      results.push(await (stmt as Promise<unknown>));
+    }
+    return results;
+  };
+
   return { sqlite, db };
 }
 
