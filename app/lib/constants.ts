@@ -238,3 +238,21 @@ export const STRIPE_CONNECT_SCOPE = "read_write";
 export const STRIPE_OAUTH_STATE_COOKIE = "stripe_oauth_state";
 /** Connect OAuth state cookie lifetime: 10 minutes (legacy parity). */
 export const STRIPE_OAUTH_STATE_TTL_SECONDS = 600;
+
+/**
+ * Statement descriptor shown on a merchant's card statement for platform
+ * invoice charges (Stripe's cap is 22 characters). Settled by the
+ * operating-entity ruling (recova/decisions.md, 2026-07-21): entity-independent,
+ * so it does not change at Foxing LLC formation. NOT wired into
+ * createPlatformInvoice (app/lib/billing/stripe-invoice.ts) yet; live charge
+ * dispatch is Phase 8. The Stripe account's own dashboard-level statement
+ * descriptor is a separate Phase 9 dashboard action, not code.
+ */
+export const STRIPE_STATEMENT_DESCRIPTOR = "FOXHOUND";
+/**
+ * Stripe Connect platform display name. Settled by the same 2026-07-21
+ * ruling; entity-independent. There is no code-level Stripe API call this
+ * feeds today, the merchant-facing platform name shown during Connect OAuth
+ * is configured on the Stripe dashboard, a separate Phase 9 dashboard action.
+ */
+export const STRIPE_CONNECT_PLATFORM_NAME = "Foxhound";
