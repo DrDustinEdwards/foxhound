@@ -29,13 +29,13 @@ describe("cron registry", () => {
     expect(WRANGLER_CRONS).toContain(CRON_SCHEDULE_RECOVERY_TICK);
   });
 
-  it("dispatches billing and intelligence sync on the monthly schedule, retention on the daily one", () => {
+  it("dispatches billing and intelligence sync on the monthly schedule, intelligence AI + retention on the daily one", () => {
     const monthly = jobsForSchedule(CRON_SCHEDULE_MONTHLY);
     expect(monthly.map((j) => j.name)).toEqual(["billing-monthly", "intelligence-sync"]);
 
     const daily = jobsForSchedule(CRON_SCHEDULE_DAILY);
-    expect(daily.every((j) => j.name.startsWith("retention-"))).toBe(true);
-    expect(daily.length).toBeGreaterThanOrEqual(8);
+    expect(daily.map((j) => j.name)).toContain("intelligence-ai");
+    expect(daily.filter((j) => j.name.startsWith("retention-")).length).toBeGreaterThanOrEqual(8);
   });
 
   it("dispatches the recovery tick on its high-cadence schedule", () => {
