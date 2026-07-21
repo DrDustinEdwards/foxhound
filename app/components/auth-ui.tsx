@@ -160,7 +160,7 @@ export function GoogleButton({ label }: { label: string }) {
 
 export function AuthLink({ to, children }: { to: string; children: React.ReactNode }) {
   return (
-    <Link to={to} className="text-amber underline-offset-2 hover:underline">
+    <Link to={to} className="text-amber-text underline-offset-2 hover:underline">
       {children}
     </Link>
   );
