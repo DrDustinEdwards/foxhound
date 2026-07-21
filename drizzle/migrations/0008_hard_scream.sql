@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `intelligence_reports_account_month_uq` ON `intelligence_reports` (`account_id`,`report_month`);
