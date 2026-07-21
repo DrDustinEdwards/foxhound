@@ -1,3 +1,5 @@
+import type Stripe from "stripe";
+
 import {
   STRIPE_CONNECT_AUTHORIZE_URL,
   STRIPE_CONNECT_SCOPE,
@@ -74,4 +76,48 @@ export async function fetchConnectedAccountName(
     // Non-fatal: the connection still works without a display name.
     return null;
   }
+}
+
+export interface DeauthorizeResult {
+  ok: boolean;
+  error?: string;
+}
+
+/**
+ * Revoke a Standard Connect OAuth grant against an already-constructed Stripe
+ * client. Isolated so a fake client can drive it in tests without a live call
+ * (mirrors app/lib/disputes/submission.ts's submitDisputeEvidenceWithClient).
+ * Never throws: a Stripe-side failure reports ok:false so the caller can log
+ * and retry later rather than propagate.
+ */
+export async function deauthorizeConnectedAccountWithClient(
+  stripe: Stripe,
+  clientId: string,
+  stripeUserId: string,
+): Promise<DeauthorizeResult> {
+  try {
+    await stripe.oauth.deauthorize({ client_id: clientId, stripe_user_id: stripeUserId });
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/**
+ * Default IO: build the platform client, deauthorize (admin Pass 2: merchant
+ * cancel). A wired-but-inert live Stripe seam like every other Phase-8-verified
+ * call in this module. Callers MUST commit the local cancel state
+ * (accounts.cancelledAt + stripe_connections.disconnectedAt) BEFORE calling
+ * this, and must never roll that local state back on a deauthorize failure -
+ * the merchant is cancelled either way; a failed deauthorize only means the
+ * OAuth grant itself needs a retry, not that processing should resume.
+ */
+export async function deauthorizeConnectedAccount(
+  env: Env,
+  stripeUserId: string,
+): Promise<DeauthorizeResult> {
+  if (!env.STRIPE_CLIENT_ID) {
+    return { ok: false, error: "STRIPE_CLIENT_ID is not set" };
+  }
+  return deauthorizeConnectedAccountWithClient(getStripe(env), env.STRIPE_CLIENT_ID, stripeUserId);
 }
