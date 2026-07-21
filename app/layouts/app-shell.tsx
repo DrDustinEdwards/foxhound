@@ -62,6 +62,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     accountName: auth.membership.accountName,
     email: auth.email,
     isAdmin: auth.isAdmin,
+    isDemo: auth.isDemo,
     theme: getThemeFromRequest(request),
     nav,
   };
@@ -91,7 +92,7 @@ function tabLinkClassName({ isActive }: { isActive: boolean }): string {
 }
 
 export default function AppLayout({ loaderData }: Route.ComponentProps) {
-  const { accountName, email, isAdmin, theme, nav } = loaderData;
+  const { accountName, email, isAdmin, isDemo, theme, nav } = loaderData;
   const activeProduct = PRODUCT_MANIFEST[nav.activeProductKey];
   const primaryLinks = nav.isPlatformPage ? [] : activeProduct.links;
 
@@ -110,6 +111,19 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
 
   return (
     <div>
+      {isDemo ? (
+        <div className="flex items-center justify-center gap-3 border-b border-border bg-chrome px-4 py-2 text-center">
+          <span className="text-label text-chrome-text-secondary">
+            You are viewing a live demo with sample data. Nothing you do here is saved.
+          </span>
+          <a
+            href="/demo/exit"
+            className="shrink-0 rounded-md border border-border px-2.5 py-1 text-label font-medium text-chrome-text hover:border-amber"
+          >
+            Exit demo
+          </a>
+        </div>
+      ) : null}
       <header className="border-b border-border bg-chrome">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
           <div className="flex min-w-0 items-center gap-3">
