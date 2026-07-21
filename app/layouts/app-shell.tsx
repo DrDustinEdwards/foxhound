@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet } from "react-router";
+import { Link, NavLink, Outlet, type ShouldRevalidateFunctionArgs } from "react-router";
 
 import { Wordmark } from "~/components/wordmark";
 import { GearMenu } from "~/components/nav/gear-menu";
@@ -17,6 +17,33 @@ import type { Route } from "./+types/app-shell";
 // Server guard for the entire authenticated tree (session + account required).
 export const middleware: Route.MiddlewareFunction[] = [appShellMiddleware];
 
+// This layout's own route match never changes on a same-shell navigation
+// (no params, no path segment of its own), so React Router's default
+// revalidation heuristic skips re-running its loader when only a child
+// route changes - even though the loader's own result (nav.activeProductKey)
+// depends on the pathname. Without this, the switcher and primary links
+// go stale on every client-side nav between products (caught visually:
+// /dashboard -> /recovery via the switcher left the header reading
+// "Dashboard" until a hard reload).
+export function shouldRevalidate({
+  currentUrl,
+  nextUrl,
+  defaultShouldRevalidate,
+}: ShouldRevalidateFunctionArgs) {
+  return currentUrl.pathname !== nextUrl.pathname || defaultShouldRevalidate;
+}
+
+// RR8's single-fetch protocol requests "<pathname>.data" on a client-side
+// navigation (a real full-document request only on the initial SSR load), so
+// request.url's pathname is literally "/recovery.data", not "/recovery", on
+// every client nav. Caught visually: the switcher and primary links went
+// stale on every in-app navigation until this was stripped (verified against
+// the actual .data response body, not just the rendered page).
+function requestPathname(request: Request): string {
+  const pathname = new URL(request.url).pathname;
+  return pathname.endsWith(".data") ? pathname.slice(0, -".data".length) : pathname;
+}
+
 // Nav rebuild (TASK-foxhound-design-system-port.md Part 2): the three-level
 // model (product switcher -> contextual primary links -> utility cluster),
 // layout-rendered once, ZERO extra DB queries in the nav component itself
@@ -28,7 +55,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
   const db = getDb(env);
-  const pathname = new URL(request.url).pathname;
+  const pathname = requestPathname(request);
   const nav = await resolveNavContext(db, auth.membership.accountId, pathname);
 
   return {
@@ -82,7 +109,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
           <div className="flex min-w-0 items-center gap-3">
             <Link to="/dashboard" aria-label="Foxhound dashboard" className="shrink-0">
-              <Wordmark />
+              <Wordmark tone="chrome" />
             </Link>
             <ProductSwitcher activeProductKey={nav.activeProductKey} intelligenceEntitled={nav.intelligenceEntitled} />
           </div>
