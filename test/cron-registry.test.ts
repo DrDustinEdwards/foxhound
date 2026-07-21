@@ -38,6 +38,11 @@ describe("cron registry", () => {
     expect(daily.filter((j) => j.name.startsWith("retention-")).length).toBeGreaterThanOrEqual(8);
   });
 
+  it("dispatches the demo reset on the daily schedule", () => {
+    const daily = jobsForSchedule(CRON_SCHEDULE_DAILY);
+    expect(daily.map((j) => j.name)).toContain("demo-reset");
+  });
+
   it("dispatches the recovery tick on its high-cadence schedule", () => {
     const tick = jobsForSchedule(CRON_SCHEDULE_RECOVERY_TICK);
     expect(tick.map((j) => j.name)).toEqual(["recovery-tick"]);
