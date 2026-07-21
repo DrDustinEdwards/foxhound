@@ -60,7 +60,11 @@ export async function action({ request, context }: Route.ActionArgs) {
   const db = getDb(env);
   const membership = await resolveMembership(db, session.user.id);
 
-  // No account yet: create it (idempotent guard against a double submit).
+  // No account yet: create it. The membership read above is a fast path, not a
+  // lock: a concurrent double-submit can lose the single-account race, in which
+  // case createAccountForUser returns already_member instead of throwing. Either
+  // way the account now exists, so both outcomes redirect to /connect, where the
+  // loader re-reads the membership and shows the Connect Stripe step.
   if (!membership) {
     const form = await request.formData();
     const name = String(form.get("name") ?? "").trim();
