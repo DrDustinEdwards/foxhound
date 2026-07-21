@@ -70,6 +70,8 @@ export type EngagementEventType = (typeof ENGAGEMENT_EVENT_TYPES)[number];
 // cover each id here (closes legacy R-49 drift); Phase 4b uses generation only.
 /** Recovery / dunning copy generation. */
 export const MODEL_RECOVERY_EMAIL = "claude-sonnet-5";
+/** Intelligence nightly AI analyst narrative + per-customer assessments. */
+export const MODEL_INTELLIGENCE_NARRATIVE = "claude-sonnet-5";
 /** Cheap quality/scoring gate on generated copy. */
 export const MODEL_EMAIL_QUALITY = "claude-haiku-4-5-20251001";
 
@@ -79,7 +81,11 @@ export const MODEL_EMAIL_QUALITY = "claude-haiku-4-5-20251001";
  * Cost lookup normalizes a trailing -YYYYMMDD date suffix to the canonical base
  * id, so both `claude-haiku-4-5` and `claude-haiku-4-5-20251001` resolve.
  */
-export const AI_MODEL_IDS = [MODEL_RECOVERY_EMAIL, MODEL_EMAIL_QUALITY] as const;
+export const AI_MODEL_IDS = [
+  MODEL_RECOVERY_EMAIL,
+  MODEL_INTELLIGENCE_NARRATIVE,
+  MODEL_EMAIL_QUALITY,
+] as const;
 
 // ---- Recovery step timing (hours from failure detection) ----
 // Rebuild ordering is SILENT-FIRST (PRICING.md): for retryable declines a silent
@@ -192,6 +198,30 @@ export const INTELLIGENCE_MAX_CUSTOMERS_SCANNED = 2000;
 export const INTELLIGENCE_MAX_INVOICES_PER_CUSTOMER = 24;
 /** Bounded charge history read per customer for refund/dispute counts. */
 export const INTELLIGENCE_MAX_CHARGES_PER_CUSTOMER = 100;
+
+// ---- Intelligence AI half (health scoring, predictions, alerts, narrative) ----
+/** A customer is "at risk" below this health score (0-100, higher is
+ *  healthier). Drives MRR-at-risk exposure, the narrative's top-N selection,
+ *  and the /intelligence UI. */
+export const HEALTH_SCORE_AT_RISK_THRESHOLD = 40;
+/** How far out a logged prediction claims to look. Grading (filling
+ *  realizedOutcome once this elapses) is a later backtest pass. */
+export const PREDICTION_HORIZON_DAYS = 30;
+/** Max at-risk customers named individually in the nightly AI narrative. */
+export const INTELLIGENCE_NARRATIVE_TOP_N = 10;
+/** Canonical alert metric keys the nightly evaluator understands (alerts.metric
+ *  is unconstrained text in the schema; this is the app-level enum until a
+ *  settings UI for creating alerts exists). */
+export const ALERT_METRICS = [
+  "health_score_avg",
+  "mrr_at_risk_cents",
+  "mrr_churn_cents",
+  "mrr_contraction_cents",
+] as const;
+export type AlertMetric = (typeof ALERT_METRICS)[number];
+/** Canonical alert direction values (alerts.direction is unconstrained text). */
+export const ALERT_DIRECTIONS = ["above", "below"] as const;
+export type AlertDirection = (typeof ALERT_DIRECTIONS)[number];
 
 // ---- Stripe (ARCHITECTURE.md: Stripe is the product; permanent dependency) ----
 /**
