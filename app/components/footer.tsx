@@ -32,13 +32,16 @@ const COLUMNS: { heading: string; links: { to: string; label: string }[] }[] = [
   },
 ];
 
+// Chrome (DESIGN.md: "nav/footer/mobile bar stay dark in both modes") - the
+// port that introduced light mode missed this file (untouched since Phase 6,
+// per git log), so it inherited the theme-aware body background instead.
 export function Footer() {
   return (
-    <footer className="border-t border-border-sub">
+    <footer className="border-t border-border-sub bg-chrome">
       <div className="mx-auto flex max-w-6xl flex-col gap-10 px-4 py-12 sm:flex-row sm:justify-between sm:px-8">
         <div className="flex max-w-xs flex-col gap-3">
-          <Wordmark />
-          <p className="text-label text-text-tertiary">
+          <Wordmark tone="chrome" />
+          <p className="text-label text-chrome-text-secondary">
             Pay-on-lift recovery, review-and-sign disputes, and free MRR intelligence for Stripe
             merchants.
           </p>
@@ -46,14 +49,14 @@ export function Footer() {
         <div className="grid grid-cols-2 gap-8 sm:grid-cols-3">
           {COLUMNS.map((col) => (
             <div key={col.heading} className="flex flex-col gap-2">
-              <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
+              <p className="font-mono text-micro uppercase tracking-wide text-chrome-text-tertiary">
                 {col.heading}
               </p>
               {col.links.map((link) => (
                 <Link
                   key={link.to}
                   to={link.to}
-                  className="text-label text-text-secondary hover:text-text"
+                  className="text-label text-chrome-text-secondary hover:text-chrome-text"
                 >
                   {link.label}
                 </Link>
@@ -62,7 +65,7 @@ export function Footer() {
           ))}
         </div>
       </div>
-      <div className="border-t border-border-sub px-4 py-6 text-center font-mono text-micro text-text-subtle sm:px-8">
+      <div className="border-t border-border-sub px-4 py-6 text-center font-mono text-micro text-chrome-text-tertiary sm:px-8">
         Foxhound. US company, US jurisdiction.
       </div>
     </footer>

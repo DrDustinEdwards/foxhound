@@ -76,12 +76,17 @@ function primaryLinkClassName({ isActive }: { isActive: boolean }): string {
     : "inline-block border-b-2 border-transparent py-3 text-label text-text-tertiary hover:text-text";
 }
 
-// Mobile bottom tab bar's amber-text active state: a sanctioned mobile
-// adaptation of the same active signal (DESIGN.md, gotcha #57 - a bottom
-// border reads oddly on a tab already at the screen's bottom edge).
+// Mobile bottom tab bar is chrome (DESIGN.md: "nav/footer/mobile bar stay
+// dark in both modes"), dark in both modes like the desktop header - so the
+// active state uses the raw amber-ui token safely (amber on the always-dark
+// chrome background is 9.2:1, review-verified), the same sanctioned adaptation
+// as before (gotcha #57 - a bottom border reads oddly on a tab already at the
+// screen's bottom edge), just now on the correct surface. Fresh-context review
+// caught this rendering on bg-surface instead, which put the active tab's
+// amber text on a white background in light mode at ~1.9:1 contrast.
 function tabLinkClassName({ isActive }: { isActive: boolean }): string {
   return `flex flex-1 flex-col items-center gap-0.5 py-2 text-micro ${
-    isActive ? "text-amber" : "text-text-tertiary"
+    isActive ? "text-amber" : "text-chrome-text-tertiary"
   }`;
 }
 
@@ -148,7 +153,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
 
       <nav
         aria-label="Primary"
-        className="fixed inset-x-0 bottom-0 z-10 flex border-t border-border bg-surface md:hidden"
+        className="fixed inset-x-0 bottom-0 z-10 flex border-t border-border bg-chrome md:hidden"
       >
         {mobileTabs.map((tab) => (
           <NavLink key={tab.to} to={tab.to} className={tabLinkClassName}>

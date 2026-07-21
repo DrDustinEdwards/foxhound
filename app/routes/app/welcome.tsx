@@ -69,7 +69,7 @@ export default function WelcomePage({ loaderData }: Route.ComponentProps) {
         {STEPS.map((step, i) => (
           <li key={step.title} className="rounded-lg border border-border bg-surface p-5">
             <div className="flex items-center gap-3">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-amber font-mono text-micro text-amber">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-amber-border font-mono text-micro text-amber-text">
                 {i + 1}
               </span>
               <h2 className="text-label font-semibold text-text">{step.title}</h2>

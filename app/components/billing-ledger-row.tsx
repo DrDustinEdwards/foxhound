@@ -52,7 +52,7 @@ export function LedgerLineItemRow({ entry }: { entry: EnrichedLineItem }) {
           {ATTRIBUTION_KIND_LABELS[recoveredPayment.attributionKind as AttributionKind] ?? recoveredPayment.attributionKind}
           {creditedStepType ? ` (${formatStepType(creditedStepType)})` : ""} on{" "}
           {(recoveredPayment.attributedAt ?? recoveredPayment.recoveredAt).toLocaleDateString()} recovered{" "}
-          <Link to={`/recovery/payments/${recoveredPayment.failedPaymentId}`} className="text-amber hover:underline">
+          <Link to={`/recovery/payments/${recoveredPayment.failedPaymentId}`} className="text-amber-text hover:underline">
             {formatMoney(recoveredPayment.amountCents, recoveredPayment.currency)}
           </Link>{" "}
           on {recoveredPayment.recoveredAt.toLocaleDateString()}
@@ -64,7 +64,7 @@ export function LedgerLineItemRow({ entry }: { entry: EnrichedLineItem }) {
           {dispute.customerName ?? dispute.customerEmail ?? dispute.stripeChargeId} won a {dispute.reason}{" "}
           dispute for {formatMoney(dispute.amountCents, dispute.currency)}
           {dispute.resolvedAt ? ` on ${dispute.resolvedAt.toLocaleDateString()}` : ""}.{" "}
-          <Link to={`/disputes/${dispute.id}`} className="text-amber hover:underline">
+          <Link to={`/disputes/${dispute.id}`} className="text-amber-text hover:underline">
             View dispute
           </Link>
         </p>
@@ -100,7 +100,7 @@ export function LedgerFreeRow({ entry }: { entry: FreeLedgerEntry }) {
       </div>
       <p className="text-label text-text-tertiary">
         No Foxhound action preceded this recovery, Stripe's own retry recovered it.{" "}
-        <Link to={`/recovery/payments/${recoveredPayment.failedPaymentId}`} className="text-amber hover:underline">
+        <Link to={`/recovery/payments/${recoveredPayment.failedPaymentId}`} className="text-amber-text hover:underline">
           View payment
         </Link>
       </p>
