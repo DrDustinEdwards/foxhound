@@ -16,6 +16,7 @@ import {
   disputes,
   expiringCardAlerts,
   failedPayments,
+  getDb,
   healthScoreHistory,
   intelligenceReports,
   mrrSnapshots,
@@ -26,12 +27,14 @@ import {
   winBackSteps,
 } from "~/db";
 import { grantIntelligence } from "~/lib/admin/merchants.server";
+import { CRON_LOCK_LEASE_MS } from "~/lib/constants";
 
 import {
   DEMO_ACCOUNT_ID,
   DEMO_ACCOUNT_NAME,
   DEMO_MEMBER_EMAIL,
   DEMO_MEMBER_USER_ID,
+  DEMO_RESET_CRON_NAME,
 } from "./constants";
 
 // The demo seeder. Builds ONE real account (Teamflow) and populates every product
@@ -752,4 +755,59 @@ export async function seedDemoAccount(db: Db, now: Date): Promise<void> {
   );
   await runBatched(db, lineItems);
   await db.update(billingInvoices).set({ totalCents: invoiceTotal }).where(eq(billingInvoices.id, "demo_inv_0"));
+}
+
+async function demoAccountExists(db: Db): Promise<boolean> {
+  const existing = await db
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(eq(accounts.id, DEMO_ACCOUNT_ID))
+    .limit(1);
+  return existing.length > 0;
+}
+
+interface DemoResetLock {
+  acquire(leaseMs: number): Promise<boolean>;
+  release(): Promise<void>;
+}
+
+const ENSURE_SEED_POLL_INTERVAL_MS = 150;
+const ENSURE_SEED_POLL_MAX_ITERATIONS = 20; // ~3s, past one 1-2s reseed
+
+/** Core of ensureDemoSeeded, taking the lock directly so it is testable against
+ *  the in-memory DB without a Durable Object namespace. See ensureDemoSeeded. */
+export async function ensureDemoSeededWithLock(db: Db, lock: DemoResetLock): Promise<void> {
+  if (await demoAccountExists(db)) return; // fast path, no lock
+
+  const acquired = await lock.acquire(CRON_LOCK_LEASE_MS);
+  if (!acquired) {
+    // The reset cron (or another enter) is mid-seed. Do not seed a second time
+    // and do not fall through to an empty shell: poll for it to land.
+    for (let i = 0; i < ENSURE_SEED_POLL_MAX_ITERATIONS; i++) {
+      await new Promise((resolve) => setTimeout(resolve, ENSURE_SEED_POLL_INTERVAL_MS));
+      if (await demoAccountExists(db)) return;
+    }
+    return; // budget expired; caller lands on a briefly thin dashboard, never a 500
+  }
+  try {
+    // Re-check inside the lock: another enter or the reset cron may have
+    // seeded between the fast-path check above and acquiring the lock.
+    if (!(await demoAccountExists(db))) {
+      await seedDemoAccount(db, new Date());
+    }
+  } finally {
+    await lock.release();
+  }
+}
+
+/**
+ * Ensure the demo account exists before a visitor enters it, serialized against
+ * the daily demo-reset cron (and any other concurrent caller) through the same
+ * CronLock Durable Object the reset uses. See TASK-foxhound-demo-seed-race.md.
+ */
+export async function ensureDemoSeeded(env: Env): Promise<void> {
+  const db = getDb(env);
+  const lockNs = env.CRON_LOCK;
+  const lock = lockNs.get(lockNs.idFromName(DEMO_RESET_CRON_NAME));
+  await ensureDemoSeededWithLock(db, lock);
 }
