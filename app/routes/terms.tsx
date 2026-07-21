@@ -95,8 +95,8 @@ export default function TermsPage() {
         <section>
           <h2 className="mb-4 mt-12 text-title font-medium text-text">AGREEMENT TO OUR LEGAL TERMS</h2>
           <P>
-            We are Foxhound, doing business as Foxhound (&quot;Company,&quot; &quot;we,&quot; &quot;us,&quot;
-            &quot;our&quot;), a company registered in {GOVERNING_LAW_JURISDICTION}, United States.
+            We are Foxhound (&quot;Company,&quot; &quot;we,&quot; &quot;us,&quot; &quot;our&quot;), operated by
+            Dustin Edwards, a sole proprietor based in {GOVERNING_LAW_JURISDICTION}, United States.
           </P>
           <P>
             We operate the website https://foxhoundapp.com (the &quot;Site&quot;), as well as any other
