@@ -50,6 +50,13 @@
       "when": 1784592551844,
       "tag": "0006_spooky_gravity",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1784598227944,
+      "tag": "0007_shallow_the_fallen",
+      "breakpoints": true
     }
   ]
 }
