@@ -57,6 +57,13 @@
       "when": 1784598227944,
       "tag": "0007_shallow_the_fallen",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1784609318448,
+      "tag": "0008_hard_scream",
+      "breakpoints": true
     }
   ]
 }

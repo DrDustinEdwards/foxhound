@@ -759,7 +759,13 @@ export const intelligenceReports = sqliteTable(
     narrative: text("narrative").notNull(),
     generatedAt: ts("generated_at").notNull(),
   },
-  (t) => [index("intelligence_reports_account_idx").on(t.accountId)],
+  (t) => [
+    index("intelligence_reports_account_idx").on(t.accountId),
+    // PRICING.md's "nightly AI analyst narrative" refreshes the SAME monthly
+    // report every night (upsert), it does not accumulate a new archival row
+    // per night: one row per account per report_month, kept current.
+    uniqueIndex("intelligence_reports_account_month_uq").on(t.accountId, t.reportMonth),
+  ],
 );
 
 export const alerts = sqliteTable(
