@@ -11,6 +11,11 @@ export interface AuthContext {
   email: string;
   membership: Membership;
   isAdmin: boolean;
+  /** True when this is a read-only demo view (no real session; the app-shell
+   *  middleware injected the demo account). Never an admin. Loaders may use it to
+   *  hide write affordances; the hard read-only guarantee is the middleware's
+   *  method gate, not any single loader. */
+  isDemo: boolean;
 }
 
 export const authContext = createContext<AuthContext>();

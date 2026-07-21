@@ -1,124 +1,98 @@
-import { RefreshCw, Shield, TrendingUp } from "lucide-react";
-import { Link } from "react-router";
+import { eq } from "drizzle-orm";
+import { RefreshCw, Shield, TrendingUp, LayoutDashboard } from "lucide-react";
+import { Form, redirect, useNavigation } from "react-router";
 
-import { Badge } from "~/components/badge";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
-import { StatCard } from "~/components/stat-card";
+import { accounts, getDb } from "~/db";
+import { cloudflareContext } from "~/lib/cloudflare-context";
+import { DEMO_ACCOUNT_ID } from "~/lib/demo/constants";
+import { seedDemoAccount } from "~/lib/demo/seed";
+import { setDemoCookieHeader } from "~/lib/demo/session";
 
-// Ported from legacy app/(marketing)/demos/page.tsx (Phase 6 Pass 1).
-// Legacy linked out to separate /recovery/demo, /disputes/demo,
-// /intelligence/demo routes and read the logged-in user to hide a
-// "sign in" hint. Neither exists in ROUTES.md's Pass 1 manifest (only
-// /demos itself), and marketing pages are static-render with no session
-// reads, so this renders illustrative previews inline instead of linking to
-// unbuilt routes, and drops the auth check.
+import type { Route } from "./+types/demos";
+
+// The demo ENTRY point (audit priority #2). Not mock cards: the "See the live
+// demo" button drops the visitor into the REAL app surfaces (dashboard, recovery,
+// disputes, intelligence) pointed at a seeded demo account, read-only (the
+// app-shell middleware injects a demo membership and blocks every write). This
+// page only frames the demo and sets the demo cookie.
 
 export function meta() {
   return [
-    { title: "Demos - Foxhound" },
+    { title: "Live demo - Foxhound" },
     {
       name: "description",
       content:
-        "See what Foxhound looks like before you connect anything. Recovery sequences, dispute review, and MRR intelligence, with sample data.",
+        "Explore the real Foxhound app with a full sample account: recovery sequences, dispute review, and MRR intelligence. No signup, nothing to connect.",
     },
   ];
 }
 
-function RecoveryPreview() {
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between rounded-lg border border-border-sub bg-bg px-3 py-2">
-        <span className="text-label text-text">Silent retry</span>
-        <Badge tone="success">Recovered</Badge>
-      </div>
-      <div className="flex items-center justify-between rounded-lg border border-border-sub bg-bg px-3 py-2">
-        <span className="text-label text-text">Email 1</span>
-        <Badge tone="neutral">Not needed</Badge>
-      </div>
-    </div>
-  );
+// Enter the demo: ensure the demo account is seeded (idempotent; the daily
+// demo-reset cron keeps it fresh, this just guarantees a first visitor is not
+// dropped into an empty shell), set the read-only demo cookie, and land on the
+// real dashboard. This action runs in the marketing layout, so it is not itself
+// gated by the demo read-only rule.
+export async function action({ context }: Route.ActionArgs) {
+  const { env } = context.get(cloudflareContext);
+  const db = getDb(env);
+  const existing = await db
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(eq(accounts.id, DEMO_ACCOUNT_ID))
+    .limit(1);
+  if (existing.length === 0) {
+    await seedDemoAccount(db, new Date());
+  }
+  return redirect("/dashboard", { headers: { "Set-Cookie": setDemoCookieHeader() } });
 }
 
-function DisputesPreview() {
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between rounded-lg border border-border-sub bg-bg px-3 py-2">
-        <span className="text-label text-text">Evidence draft</span>
-        <Badge tone="neutral">Pending review</Badge>
-      </div>
-      <div className="flex items-center justify-between rounded-lg border border-border-sub bg-bg px-3 py-2">
-        <span className="text-label text-text">Your approval</span>
-        <Badge tone="neutral">Required</Badge>
-      </div>
-    </div>
-  );
-}
-
-function IntelligencePreview() {
-  return (
-    <div className="grid grid-cols-2 gap-2">
-      <StatCard label="MRR" value="$18.4k" />
-      <StatCard label="Churn" value="2.1%" />
-    </div>
-  );
-}
-
-const DEMOS = [
-  {
-    key: "recovery",
-    name: "Recovery",
-    description: "Silent retries first, then a 30-day email sequence. See how a payment moves through it.",
-    Icon: RefreshCw,
-    preview: <RecoveryPreview />,
-    href: "/products/recovery",
-  },
-  {
-    key: "disputes",
-    name: "Disputes",
-    description: "Evidence drafted automatically, held for your review and sign-off before anything submits.",
-    Icon: Shield,
-    preview: <DisputesPreview />,
-    href: "/products/disputes",
-  },
-  {
-    key: "intelligence",
-    name: "Intelligence",
-    description: "MRR and churn analytics, free with every Recovery account.",
-    Icon: TrendingUp,
-    preview: <IntelligencePreview />,
-    href: "/products/intelligence",
-  },
+const SURFACES = [
+  { Icon: LayoutDashboard, name: "Dashboard", blurb: "Recovered revenue, recovery rate, and free MRR analytics at a glance." },
+  { Icon: RefreshCw, name: "Recovery", blurb: "Failed payments moving through real dunning sequences, with per-payment timelines." },
+  { Icon: Shield, name: "Disputes", blurb: "Evidence drafted for review, across won, lost, and needs-response states." },
+  { Icon: TrendingUp, name: "Intelligence", blurb: "Every customer scored, MRR-at-risk exposure, and a monthly narrative." },
 ];
 
 export default function DemosPage() {
+  const busy = useNavigation().state !== "idle";
+
   return (
     <>
       <MarketingPageHeader
-        eyebrow="Demos"
-        title="Try before you connect"
-        subtext="See what Foxhound looks like before linking your Stripe account. No signup required."
+        eyebrow="Live demo"
+        title="The real product, with sample data"
+        subtext="This is not a screenshot tour. You'll be inside the actual Foxhound app, exploring a seeded account of 185 customers. No signup, nothing to connect, and nothing you do can change it."
       />
 
-      <div className="mx-auto max-w-5xl px-4 pb-16 sm:px-8">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          {DEMOS.map((demo) => (
-            <div key={demo.key} className="flex flex-col rounded-lg border border-border bg-surface p-6">
-              <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-surface2">
-                <demo.Icon className="h-[18px] w-[18px] text-text-secondary" strokeWidth={1.8} aria-hidden />
+      <div className="mx-auto max-w-3xl px-4 pb-16 sm:px-8">
+        <Form method="post" className="flex justify-center">
+          <button
+            type="submit"
+            disabled={busy}
+            className="inline-flex items-center justify-center gap-2 rounded-md bg-amber px-6 py-3 text-body font-medium text-on-amber hover:bg-amber-dark disabled:opacity-60"
+          >
+            {busy ? "Loading the demo..." : "See the live demo"}
+          </button>
+        </Form>
+
+        <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {SURFACES.map((s) => (
+            <div key={s.name} className="flex gap-3 rounded-lg border border-border bg-surface p-5">
+              <div className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface2">
+                <s.Icon className="h-[18px] w-[18px] text-text-secondary" strokeWidth={1.8} aria-hidden />
               </div>
-              <p className="text-body font-medium text-text">{demo.name}</p>
-              <p className="mb-4 mt-2 flex-1 text-label text-text-secondary">{demo.description}</p>
-              <div className="mb-5">{demo.preview}</div>
-              <Link
-                to={demo.href}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-amber py-2.5 text-label font-medium text-on-amber hover:bg-amber-dark"
-              >
-                <demo.Icon className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
-                See {demo.name} in detail
-              </Link>
+              <div>
+                <p className="text-body font-medium text-text">{s.name}</p>
+                <p className="mt-1 text-label text-text-secondary">{s.blurb}</p>
+              </div>
             </div>
           ))}
         </div>
+
+        <p className="mt-8 text-center text-label text-text-tertiary">
+          The demo is read-only. When you're done, you can leave it from the banner at the top of the app.
+        </p>
       </div>
     </>
   );

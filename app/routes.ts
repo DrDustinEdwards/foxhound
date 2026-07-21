@@ -111,6 +111,9 @@ export default [
     ]),
   ]),
 
+  // Demo exit (clears the demo cookie; unauthenticated, no shell)
+  route("demo/exit", "./routes/demo/exit.ts"),
+
   // Public utility (unauthenticated, no shell)
   route("u/:token", "./routes/utility/unsubscribe.tsx"),
   route("p/:token", "./routes/utility/card-update.tsx"),
