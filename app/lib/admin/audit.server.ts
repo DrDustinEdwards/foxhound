@@ -16,9 +16,13 @@ export interface LogAdminActionInput {
   metadata?: Record<string, unknown> | null;
 }
 
-export async function logAdminAction(db: Db, input: LogAdminActionInput): Promise<void> {
+/** Inserts the audit row and returns its id (admin Pass 2: an adjustment line
+ *  item FKs this id, so a caller that needs the reference reads it off the
+ *  return value rather than re-querying). */
+export async function logAdminAction(db: Db, input: LogAdminActionInput): Promise<string> {
+  const id = crypto.randomUUID();
   await db.insert(adminAuditLog).values({
-    id: crypto.randomUUID(),
+    id,
     actorEmail: input.actorEmail,
     action: input.action,
     targetUserId: input.targetUserId ?? null,
@@ -26,4 +30,5 @@ export async function logAdminAction(db: Db, input: LogAdminActionInput): Promis
     metadata: input.metadata ?? null,
     createdAt: new Date(),
   });
+  return id;
 }

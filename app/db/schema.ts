@@ -60,6 +60,14 @@ export const accounts = sqliteTable("accounts", {
   lastVisitedProduct: text("last_visited_product"),
   billingExempt: bool("billing_exempt").notNull().default(false),
   processingPaused: bool("processing_paused").notNull().default(false),
+  // Operator-initiated cancel/disconnect (admin Pass 2). Distinct from
+  // processingPaused on purpose: this is a PROCESSING gate only (recovery-tick,
+  // intelligence-sync), never a billing gate. Already-matured, unbilled
+  // recoveries/disputes must still bill after cancel unless the account is
+  // ALSO billing_exempt (PRICING.md: cancel never silently forgives owed fees).
+  // app/db/billable.ts's accountBillingEligibleCondition deliberately does not
+  // reference this column.
+  cancelledAt: ts("cancelled_at"),
   // Foxhound's OWN Stripe account customer id for this merchant (PRICING.md rev 3:
   // direct platform invoicing, not Connect application fees). Null until
   // billing-setup runs; createPlatformInvoice refuses to charge without it.
@@ -495,7 +503,7 @@ export const billingLineItems = sqliteTable(
     // evidence FKs: exactly one set for recovery_fee / dispute_fee
     recoveredPaymentId: text("recovered_payment_id").references(() => recoveredPayments.id),
     disputeId: text("dispute_id").references(() => disputes.id),
-    // adjustment requires an admin_audit_log entry (enforced in app, referenced here)
+    // adjustment requires an admin_audit_log entry; DB-enforced below (admin Pass 2)
     adminAuditLogId: text("admin_audit_log_id").references(() => adminAuditLog.id),
     description: text("description"),
     createdAt: ts("created_at").notNull(),
@@ -513,6 +521,14 @@ export const billingLineItems = sqliteTable(
     check(
       "billing_line_items_type_ck",
       sql`${t.type} in ('recovery_fee', 'dispute_fee', 'subscription', 'adjustment')`,
+    ),
+    // I3 (Phase 5 review, closed admin Pass 2): an adjustment line item is
+    // never valid without its admin_audit_log entry. DB-enforced, not just
+    // app-enforced; recovery_fee/dispute_fee/subscription rows are unaffected
+    // (their admin_audit_log_id stays null).
+    check(
+      "billing_line_items_adjustment_audit_ck",
+      sql`${t.type} != 'adjustment' or ${t.adminAuditLogId} is not null`,
     ),
   ],
 );
