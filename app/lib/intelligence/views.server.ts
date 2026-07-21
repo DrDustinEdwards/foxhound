@@ -11,7 +11,7 @@ import {
   predictions,
   type Db,
 } from "~/db";
-import { HEALTH_SCORE_AT_RISK_THRESHOLD } from "~/lib/constants";
+import { healthScoreBand } from "./health-band";
 import type { HealthFactor } from "./risk";
 
 // Read models for the paid Intelligence surfaces (TASK-foxhound-intelligence-ai.md
@@ -91,11 +91,12 @@ export async function getIntelligenceOverview(db: Db, accountId: string): Promis
   let mrrAtRiskCents = 0;
   let atRiskCustomerCount = 0;
   for (const c of scored) {
-    if (c.healthScore < HEALTH_SCORE_AT_RISK_THRESHOLD) {
+    const band = healthScoreBand(c.healthScore);
+    if (band === "at_risk") {
       distribution.atRisk += 1;
       mrrAtRiskCents += c.mrrContributionCents ?? 0;
       atRiskCustomerCount += 1;
-    } else if (c.healthScore < 70) {
+    } else if (band === "watch") {
       distribution.watch += 1;
     } else {
       distribution.healthy += 1;
@@ -103,7 +104,7 @@ export async function getIntelligenceOverview(db: Db, accountId: string): Promis
   }
 
   const topAtRisk = scored
-    .filter((c) => c.healthScore < HEALTH_SCORE_AT_RISK_THRESHOLD)
+    .filter((c) => healthScoreBand(c.healthScore) === "at_risk")
     .sort((a, b) => a.healthScore - b.healthScore)
     .slice(0, OVERVIEW_CUSTOMER_LIMIT)
     .map((c) => ({
