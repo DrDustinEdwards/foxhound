@@ -2,7 +2,9 @@ import { useState } from "react";
 import { Link, NavLink } from "react-router";
 import { Menu, X } from "lucide-react";
 
+import { ThemeToggle } from "./theme-toggle";
 import { Wordmark } from "./wordmark";
+import type { Theme } from "~/lib/theme";
 
 const NAV_LINKS = [
   { to: "/pricing", label: "Pricing" },
@@ -16,8 +18,11 @@ const NAV_LINKS = [
 // is a plain link list per ROUTES.md (Products collapses to one link since
 // /products is itself an index of the four product pages, avoiding a
 // dropdown that would need extra care at 375px). Mobile collapses to a
-// hamburger toggle.
-export function Header() {
+// hamburger toggle. Product-aware for authenticated visitors (task Part 2
+// rule 4): a signed-in visitor gets a Dashboard link instead of Sign
+// in/Run your free audit, on this same shared marketing shell (DESIGN.md:
+// "no visual seam at login").
+export function Header({ isAuthenticated, theme }: { isAuthenticated: boolean; theme: Theme }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -42,26 +47,41 @@ export function Header() {
         </nav>
 
         <div className="hidden items-center gap-3 sm:flex">
-          <Link to="/login" className="text-label text-text-secondary hover:text-text">
-            Sign in
-          </Link>
-          <Link
-            to="/audit"
-            className="rounded-md bg-amber px-4 py-2 text-label font-medium text-on-amber hover:bg-amber-dark"
-          >
-            Run your free audit
-          </Link>
+          <ThemeToggle initialTheme={theme} variant="surface" />
+          {isAuthenticated ? (
+            <Link
+              to="/dashboard"
+              className="rounded-md bg-amber px-4 py-2 text-label font-medium text-on-amber hover:bg-amber-dark"
+            >
+              Dashboard
+            </Link>
+          ) : (
+            <>
+              <Link to="/login" className="text-label text-text-secondary hover:text-text">
+                Sign in
+              </Link>
+              <Link
+                to="/audit"
+                className="rounded-md bg-amber px-4 py-2 text-label font-medium text-on-amber hover:bg-amber-dark"
+              >
+                Run your free audit
+              </Link>
+            </>
+          )}
         </div>
 
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          aria-expanded={open}
-          aria-label="Toggle menu"
-          className="flex items-center justify-center rounded-md border border-border p-2 text-text sm:hidden"
-        >
-          {open ? <X size={18} aria-hidden /> : <Menu size={18} aria-hidden />}
-        </button>
+        <div className="flex items-center gap-1 sm:hidden">
+          <ThemeToggle initialTheme={theme} variant="surface" />
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            aria-expanded={open}
+            aria-label="Toggle menu"
+            className="flex items-center justify-center rounded-md border border-border p-2 text-text"
+          >
+            {open ? <X size={18} aria-hidden /> : <Menu size={18} aria-hidden />}
+          </button>
+        </div>
       </div>
 
       {open ? (
@@ -77,20 +97,32 @@ export function Header() {
             </Link>
           ))}
           <div className="mt-2 flex flex-col gap-2 border-t border-border-sub pt-3">
-            <Link
-              to="/login"
-              onClick={() => setOpen(false)}
-              className="rounded-md px-2 py-2 text-body text-text-secondary"
-            >
-              Sign in
-            </Link>
-            <Link
-              to="/audit"
-              onClick={() => setOpen(false)}
-              className="rounded-md bg-amber px-4 py-2 text-center text-body font-medium text-on-amber"
-            >
-              Run your free audit
-            </Link>
+            {isAuthenticated ? (
+              <Link
+                to="/dashboard"
+                onClick={() => setOpen(false)}
+                className="rounded-md bg-amber px-4 py-2 text-center text-body font-medium text-on-amber"
+              >
+                Dashboard
+              </Link>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  onClick={() => setOpen(false)}
+                  className="rounded-md px-2 py-2 text-body text-text-secondary"
+                >
+                  Sign in
+                </Link>
+                <Link
+                  to="/audit"
+                  onClick={() => setOpen(false)}
+                  className="rounded-md bg-amber px-4 py-2 text-center text-body font-medium text-on-amber"
+                >
+                  Run your free audit
+                </Link>
+              </>
+            )}
           </div>
         </nav>
       ) : null}
