@@ -30,18 +30,26 @@ import type { CronJobResult } from "./run";
 //     flips the parent off 'active', which halts its remaining steps. At most one
 //     step per failed_payment runs per tick (silent-first ordering is baked into
 //     the schedule, so earliest-due is correct ordering).
-//   - Gating: demo accounts and processing-paused accounts are excluded in the
-//     query itself. billing_exempt is NOT a processing gate: an exempt merchant
-//     still gets their money recovered, they are only never billed Foxhound's fee
-//     (that gate lives in the billing query, app/db/billable.ts).
+//   - Gating: demo accounts, processing-paused accounts, and cancelled accounts
+//     (admin Pass 2: accounts.cancelledAt) are excluded in the query itself.
+//     billing_exempt is NOT a processing gate: an exempt merchant still gets
+//     their money recovered, they are only never billed Foxhound's fee (that
+//     gate lives in the billing query, app/db/billable.ts). cancelledAt is
+//     ALSO not a billing gate, deliberately: an already-matured, unbilled
+//     recovery from before cancellation still bills at the next run.
 
 /** Account-level PROCESSING gate: never process a demo account (non-negotiable
- *  #7) or a processing-paused account. Distinct from the BILLING gate: a
- *  billing_exempt account is still processed (recovery moves the MERCHANT's
- *  money; only Foxhound's fee is waived). */
+ *  #7), a processing-paused account, or a cancelled account (admin Pass 2).
+ *  Distinct from the BILLING gate: a billing_exempt account is still processed
+ *  (recovery moves the MERCHANT's money; only Foxhound's fee is waived), and a
+ *  cancelled account's already-matured, unbilled recoveries still bill
+ *  (cancelledAt is deliberately absent from app/db/billable.ts's
+ *  accountBillingEligibleCondition; see app/lib/admin/merchants.server.ts's
+ *  cancelMerchant). */
 export function accountProcessingEligibleCondition(): SQL {
   return and(
     eq(accounts.processingPaused, false),
+    isNull(accounts.cancelledAt),
     notLike(accounts.id, `${DEMO_ACCOUNT_ID_PREFIX}%`),
   ) as SQL;
 }
