@@ -24,7 +24,11 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   const db = getDb(env);
   const detail = await getMerchantDetail(db, params.id);
   if (!detail) throw new Response("Not Found", { status: 404 });
-  return detail;
+  // Idempotency anchor for the adjustment form: minted per render, carried as a
+  // hidden field, and rotated by the post-submit loader revalidation. A double-
+  // submit of one rendered form reuses it (deduped in createAdjustment); a
+  // deliberate new adjustment comes from a fresh render with a fresh token.
+  return { ...detail, adjustmentToken: crypto.randomUUID() };
 }
 
 // Uniform action result shape across every intent, so the component narrows
@@ -97,8 +101,9 @@ export async function action({ context, request, params }: Route.ActionArgs) {
     const currency = String(form.get("currency") ?? "").trim().toLowerCase();
     const description = String(form.get("description") ?? "").trim();
     const magnitudeCents = parseDollarsToCents(String(form.get("amount") ?? ""));
+    const idempotencyToken = String(form.get("idempotencyToken") ?? "");
 
-    if (!magnitudeCents || !currency || !description || (direction !== "credit" && direction !== "correction")) {
+    if (!magnitudeCents || !currency || !description || !idempotencyToken || (direction !== "credit" && direction !== "correction")) {
       return data<ActionResult>(
         { ok: false, error: "Enter a nonzero amount, a currency, and a reason." },
         { status: 400 },
@@ -112,6 +117,7 @@ export async function action({ context, request, params }: Route.ActionArgs) {
       amountCents,
       description,
       actorEmail: auth.email,
+      idempotencyToken,
       now: new Date(),
     });
     return data<ActionResult>({ ok: true, adjustmentInvoiceId: result.invoiceId });
@@ -172,11 +178,20 @@ function CancelForm({ accountId }: { accountId: string }) {
   );
 }
 
-function AdjustmentForm({ defaultCurrency, actionData }: { defaultCurrency: string; actionData: ActionResult | undefined }) {
+function AdjustmentForm({
+  defaultCurrency,
+  actionData,
+  idempotencyToken,
+}: {
+  defaultCurrency: string;
+  actionData: ActionResult | undefined;
+  idempotencyToken: string;
+}) {
   const busy = useNavigation().state !== "idle";
   return (
     <Form method="post" className="flex flex-col gap-3">
       <input type="hidden" name="intent" value="create-adjustment" />
+      <input type="hidden" name="idempotencyToken" value={idempotencyToken} />
       {actionData?.error ? (
         <p role="alert" className="rounded-md border border-red bg-red-bg px-3 py-2 text-label text-error-text">
           {actionData.error}
@@ -248,7 +263,7 @@ function AdjustmentForm({ defaultCurrency, actionData }: { defaultCurrency: stri
 }
 
 export default function AdminMerchantDetail({ loaderData, actionData }: Route.ComponentProps) {
-  const { account, connections, products, subscriptions, recoveryActivity, disputeActivity, recentInvoices } =
+  const { account, connections, products, subscriptions, recoveryActivity, disputeActivity, recentInvoices, adjustmentToken } =
     loaderData;
 
   return (
@@ -307,7 +322,7 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
       <section className="mt-6 rounded-lg border border-border bg-surface p-4">
         <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Record a billing adjustment</p>
         <div className="mt-3">
-          <AdjustmentForm defaultCurrency={account.currency ?? "usd"} actionData={actionData} />
+          <AdjustmentForm defaultCurrency={account.currency ?? "usd"} actionData={actionData} idempotencyToken={adjustmentToken} />
         </div>
       </section>
 

@@ -73,6 +73,12 @@ export interface CreateAdjustmentInput {
   amountCents: number;
   description: string;
   actorEmail: string;
+  /** Stable client-supplied token (a hidden form field minted at form render,
+   *  rotated by the post-submit loader revalidation). It is the idempotency
+   *  anchor: a double-submitted or retried POST carries the SAME token, so the
+   *  derived key collides and the write no-ops instead of double-crediting. A
+   *  deliberate second adjustment comes from a fresh render with a fresh token. */
+  idempotencyToken: string;
   now: Date;
 }
 
@@ -81,11 +87,35 @@ export interface CreateAdjustmentResult {
   applied: boolean;
 }
 
+/** Injected IO, so the DO-routed money-write can be driven through the real
+ *  SerialMoneyCommitter + an in-memory sqlite in tests (mirrors cancelMerchant's
+ *  deps in merchants.server.ts). Both default to the real bindings. */
+export interface CreateAdjustmentDeps {
+  db: Db;
+  execute: typeof executeMoneyWrite;
+}
+
 /** Operator entry point: audit-log first (plain insert), then the invoice +
  *  line item as one atomic DO-routed batch. Never a raw money-write outside
- *  the DO. */
-export async function createAdjustment(env: Env, input: CreateAdjustmentInput): Promise<CreateAdjustmentResult> {
-  const db = getDb(env);
+ *  the DO. Idempotent on `idempotencyToken`: the key is derived from it (not a
+ *  fresh per-call id), matching the billing run's stable
+ *  `billing:${account}:${currency}:${period}` key (billing/run.ts), so a
+ *  duplicate submit is deduped by the DO seen-set and, as the exactly-once
+ *  backstop, the billing_invoices idempotency unique index. */
+export async function createAdjustment(
+  env: Env,
+  input: CreateAdjustmentInput,
+  deps: Partial<CreateAdjustmentDeps> = {},
+): Promise<CreateAdjustmentResult> {
+  const db = deps.db ?? getDb(env);
+  const execute = deps.execute ?? executeMoneyWrite;
+
+  const idempotencyKey = `adjustment:${input.accountId}:${input.idempotencyToken}`;
+  const invoiceId = crypto.randomUUID();
+
+  // Audit first (the line item FKs it; schema CHECK). A deduped replay still
+  // records the operator's attempt here (append-only), while creating no second
+  // credit below.
   const auditLogId = await logAdminAction(db, {
     actorEmail: input.actorEmail,
     action: "billing.adjustment.create",
@@ -98,9 +128,7 @@ export async function createAdjustment(env: Env, input: CreateAdjustmentInput): 
     },
   });
 
-  const invoiceId = crypto.randomUUID();
-  const idempotencyKey = `adjustment:${invoiceId}`;
-  const { applied } = await executeMoneyWrite(env, {
+  const { applied } = await execute(env, {
     accountId: input.accountId,
     idempotencyKey,
     build: (bdb) =>
