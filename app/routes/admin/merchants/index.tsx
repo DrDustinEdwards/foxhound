@@ -65,9 +65,12 @@ export default function AdminMerchants({ loaderData }: Route.ComponentProps) {
                   <td className="px-4 py-3 font-mono text-text">{m.activeRecoveriesCount}</td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-1.5">
+                      {m.cancelledAt ? <Badge tone="failure">Cancelled</Badge> : null}
                       {m.billingExempt ? <Badge tone="neutral">Exempt</Badge> : null}
                       {m.processingPaused ? <Badge tone="failure">Paused</Badge> : null}
-                      {!m.billingExempt && !m.processingPaused ? <Badge tone="success">Normal</Badge> : null}
+                      {!m.cancelledAt && !m.billingExempt && !m.processingPaused ? (
+                        <Badge tone="success">Normal</Badge>
+                      ) : null}
                     </div>
                   </td>
                   <td className="px-4 py-3 text-text-tertiary">

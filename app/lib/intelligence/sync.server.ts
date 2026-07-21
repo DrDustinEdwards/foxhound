@@ -455,13 +455,19 @@ export async function runIntelligenceSyncForAccount(
   return { accountId, customersProcessed: currentPoints.length, snapshotWritten: true, truncated };
 }
 
-/** Account-level gate for Intelligence sync: respects processing_paused
- *  (PRICING.md/ARCHITECTURE.md) and excludes demo accounts (ARCHITECTURE.md
+/** Account-level gate for Intelligence sync: respects processing_paused and
+ *  cancelledAt (admin Pass 2), and excludes demo accounts (ARCHITECTURE.md
  *  non-negotiable #7: "demo accounts excluded from all processing"). Deliberately
  *  does not gate on billing_exempt: the free MRR tier is not a billing action,
- *  so a billing-exempt account still gets its own analytics. */
-function accountProcessingEligible() {
-  return and(eq(accounts.processingPaused, false), notLike(accounts.id, `${DEMO_ACCOUNT_ID_PREFIX}%`));
+ *  so a billing-exempt account still gets its own analytics. Exported so its SQL
+ *  shape is directly testable, mirroring recovery-tick.ts's
+ *  accountProcessingEligibleCondition. */
+export function accountProcessingEligible() {
+  return and(
+    eq(accounts.processingPaused, false),
+    isNull(accounts.cancelledAt),
+    notLike(accounts.id, `${DEMO_ACCOUNT_ID_PREFIX}%`),
+  );
 }
 
 /** The full sync run: every processing-eligible account. Mirrors
