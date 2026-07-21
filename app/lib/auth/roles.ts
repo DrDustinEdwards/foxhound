@@ -17,6 +17,13 @@ export const MEMBER_STATUS = {
 } as const;
 export type MemberStatus = (typeof MEMBER_STATUS)[keyof typeof MEMBER_STATUS];
 
+// NOTE: the partial unique index account_members_one_active_per_user_uq
+// (migration 0006) is over (user_id) WHERE status = 'active', so a user holds
+// at most one ACTIVE membership. Any future "leave account" / member-removal
+// feature MUST move the row off status='active' (delete it, or add and set a
+// non-active status here), or the index will permanently pin a user to their
+// first account and reject every later invite accept (see acceptInvite).
+
 /** Team invites expire after 7 days. */
 export const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
