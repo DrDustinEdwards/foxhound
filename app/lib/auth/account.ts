@@ -45,30 +45,50 @@ export async function resolveMembership(
   return rows[0] ?? null;
 }
 
+export type CreateAccountResult =
+  | { ok: true; accountId: string }
+  | { ok: false; reason: "already_member" };
+
 /**
  * Create a fresh account owned by the user, as one atomic batch (account row +
  * owner membership together or neither). Not a money write, so a plain D1 batch
  * is the right atomicity primitive here.
+ *
+ * The caller guards on `resolveMembership` first, but that is a read-then-write:
+ * two concurrent create-account submits can both read "no membership" and both
+ * reach here. The `account_members_one_active_per_user_uq` index is the guard,
+ * exactly as in `acceptInvite`. The loser's owner-membership insert violates it,
+ * which aborts the whole batch (D1 batches are atomic, so no orphan account row
+ * is left behind), and we map it back to `already_member`.
  */
 export async function createAccountForUser(
   db: Db,
   userId: string,
   name: string,
-): Promise<string> {
+): Promise<CreateAccountResult> {
   const accountId = crypto.randomUUID();
   const now = new Date();
-  await db.batch([
-    db.insert(accounts).values({ id: accountId, name, createdAt: now }),
-    db.insert(accountMembers).values({
-      id: crypto.randomUUID(),
-      accountId,
-      userId,
-      role: MEMBER_ROLE.OWNER,
-      status: MEMBER_STATUS.ACTIVE,
-      createdAt: now,
-    }),
-  ]);
-  return accountId;
+  try {
+    await db.batch([
+      db.insert(accounts).values({ id: accountId, name, createdAt: now }),
+      db.insert(accountMembers).values({
+        id: crypto.randomUUID(),
+        accountId,
+        userId,
+        role: MEMBER_ROLE.OWNER,
+        status: MEMBER_STATUS.ACTIVE,
+        createdAt: now,
+      }),
+    ]);
+  } catch (err) {
+    // Lost the create-account race: a concurrent submit already created this
+    // user's account, so the one-active-membership index rejected this insert.
+    if (isUniqueConstraintError(err)) {
+      return { ok: false, reason: "already_member" };
+    }
+    throw err;
+  }
+  return { ok: true, accountId };
 }
 
 export interface InviteView {
