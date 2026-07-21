@@ -22,6 +22,11 @@ import {
   recoveredPayments,
   stripeConnections,
 } from "~/db";
+import {
+  INTELLIGENCE_PRODUCT,
+  SUBSCRIPTION_STATUS_ACTIVE,
+  SUBSCRIPTION_STATUS_CANCELED,
+} from "~/lib/constants";
 import { deauthorizeConnectedAccount } from "~/lib/stripe/connect";
 
 export interface MerchantListRow {
@@ -165,6 +170,85 @@ export async function setBillingExempt(db: Db, accountId: string, exempt: boolea
  *  cancel (see cancelMerchant). */
 export async function setProcessingPaused(db: Db, accountId: string, paused: boolean): Promise<void> {
   await db.update(accounts).set({ processingPaused: paused }).where(eq(accounts.id, accountId));
+}
+
+/** Whether an account currently holds an active Intelligence subscription row.
+ *  Mirrors isIntelligenceEntitled's predicate (intelligence/views.server.ts)
+ *  through the SAME constants, so a granted row provably flips that read-side gate. */
+async function hasActiveIntelligence(db: Db, accountId: string): Promise<boolean> {
+  const rows = await db
+    .select({ id: accountSubscriptions.id })
+    .from(accountSubscriptions)
+    .where(
+      and(
+        eq(accountSubscriptions.accountId, accountId),
+        eq(accountSubscriptions.product, INTELLIGENCE_PRODUCT),
+        eq(accountSubscriptions.status, SUBSCRIPTION_STATUS_ACTIVE),
+      ),
+    )
+    .limit(1);
+  return rows.length > 0;
+}
+
+/**
+ * Admin-grant the paid Intelligence tier to an account: one account_subscriptions
+ * row (product='intelligence', status='active', admin_granted=true, NO stripe
+ * fields). This is the minimum honest way to make the tier reachable (for a comped
+ * merchant, for testing, for ourselves) WITHOUT faking a purchase; the self-serve
+ * $199/mo Stripe flow + platform-subscription webhook is a separate, larger slice.
+ *
+ * PRICING.md: "admin-granted rows never touch Stripe APIs." And app/db/billable.ts
+ * never reads account_subscriptions (it gates on accounts.billing_exempt), so this
+ * write has ZERO billing-ledger effect: it flips isIntelligenceEntitled and nothing
+ * else. Plain, account-scoped write, matching the billing_exempt/processing_paused
+ * precedent above, deliberately NOT the money-write DO: that DO serializes
+ * ledger BATCHES (outcomes, invoices, webhook claims); createAdjustment uses it
+ * because it writes billing_invoices/line_items, this writes none. admin_granted=true
+ * is the flag any future subscription-billing must honor to never charge a comp.
+ *
+ * Idempotent: account_subscriptions has no unique constraint, so an existing active
+ * row makes this a no-op (checked in-function) rather than a duplicate. Returns
+ * whether a new row was written, for the admin-audit metadata.
+ */
+export async function grantIntelligence(
+  db: Db,
+  accountId: string,
+  now: Date,
+): Promise<{ granted: boolean }> {
+  if (await hasActiveIntelligence(db, accountId)) return { granted: false };
+  await db.insert(accountSubscriptions).values({
+    accountId,
+    product: INTELLIGENCE_PRODUCT,
+    status: SUBSCRIPTION_STATUS_ACTIVE,
+    adminGranted: true,
+    createdAt: now,
+  });
+  return { granted: true };
+}
+
+/** Revoke a granted Intelligence entitlement: deactivate every active intelligence
+ *  row for the account (status='canceled', canceled_at stamped), so
+ *  isIntelligenceEntitled returns false again. Idempotent by the WHERE clause (no
+ *  active row means zero updates, never an error). Same plain-write rationale as
+ *  grantIntelligence. Returns whether anything was deactivated, for the audit metadata. */
+export async function revokeIntelligence(
+  db: Db,
+  accountId: string,
+  now: Date,
+): Promise<{ revoked: boolean }> {
+  const wasActive = await hasActiveIntelligence(db, accountId);
+  if (!wasActive) return { revoked: false };
+  await db
+    .update(accountSubscriptions)
+    .set({ status: SUBSCRIPTION_STATUS_CANCELED, canceledAt: now })
+    .where(
+      and(
+        eq(accountSubscriptions.accountId, accountId),
+        eq(accountSubscriptions.product, INTELLIGENCE_PRODUCT),
+        eq(accountSubscriptions.status, SUBSCRIPTION_STATUS_ACTIVE),
+      ),
+    );
+  return { revoked: true };
 }
 
 export interface CancelledConnection {

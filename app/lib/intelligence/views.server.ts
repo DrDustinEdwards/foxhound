@@ -11,6 +11,10 @@ import {
   predictions,
   type Db,
 } from "~/db";
+import {
+  INTELLIGENCE_PRODUCT,
+  SUBSCRIPTION_STATUS_ACTIVE,
+} from "~/lib/constants";
 import { healthScoreBand } from "./health-band";
 import type { HealthFactor } from "./risk";
 
@@ -31,8 +35,8 @@ export async function isIntelligenceEntitled(db: Db, accountId: string): Promise
     .where(
       and(
         eq(accountSubscriptions.accountId, accountId),
-        eq(accountSubscriptions.product, "intelligence"),
-        eq(accountSubscriptions.status, "active"),
+        eq(accountSubscriptions.product, INTELLIGENCE_PRODUCT),
+        eq(accountSubscriptions.status, SUBSCRIPTION_STATUS_ACTIVE),
       ),
     )
     .limit(1);
