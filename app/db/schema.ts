@@ -86,7 +86,17 @@ export const accountMembers = sqliteTable(
     inviteExpiresAt: ts("invite_expires_at"),
     createdAt: ts("created_at"),
   },
-  (t) => [index("account_members_account_idx").on(t.accountId)],
+  (t) => [
+    index("account_members_account_idx").on(t.accountId),
+    // At most one ACTIVE membership per user (the single-account invariant).
+    // Pending invite rows carry a null user_id and status 'pending', so they are
+    // excluded. Makes the invariant database-enforced; the read-check in
+    // acceptInvite stays as a fast path, this is the backstop against a
+    // concurrent double-accept landing two active memberships.
+    uniqueIndex("account_members_one_active_per_user_uq")
+      .on(t.userId)
+      .where(sql`${t.status} = 'active'`),
+  ],
 );
 
 export const stripeConnections = sqliteTable(

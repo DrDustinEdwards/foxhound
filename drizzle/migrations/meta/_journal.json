@@ -43,6 +43,13 @@
       "when": 1784388226322,
       "tag": "0005_stormy_vector",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1784592551844,
+      "tag": "0006_spooky_gravity",
+      "breakpoints": true
     }
   ]
 }

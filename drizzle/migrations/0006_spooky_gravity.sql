@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `account_members_one_active_per_user_uq` ON `account_members` (`user_id`) WHERE "account_members"."status" = 'active';
