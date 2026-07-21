@@ -12,6 +12,7 @@ import {
   type Db,
 } from "~/db";
 import { HEALTH_SCORE_AT_RISK_THRESHOLD } from "~/lib/constants";
+import type { HealthFactor } from "./risk";
 
 // Read models for the paid Intelligence surfaces (TASK-foxhound-intelligence-ai.md
 // deliverable 6). Every query is account-scoped. No entitlement check for the
@@ -134,7 +135,7 @@ export interface CustomerHealthDetail {
   mrrContributionCents: number;
   currency: string;
   healthScore: number | null;
-  healthFactors: unknown;
+  healthFactors: HealthFactor[];
   healthScoreCalculatedAt: Date | null;
   aiAssessment: string | null;
   aiAssessmentGeneratedAt: Date | null;
@@ -205,7 +206,7 @@ export async function getCustomerHealthDetail(
     mrrContributionCents: row.mrrContributionCents ?? 0,
     currency: row.currency ?? "usd",
     healthScore: row.healthScore,
-    healthFactors: row.healthFactors,
+    healthFactors: (row.healthFactors as HealthFactor[] | null) ?? [],
     healthScoreCalculatedAt: row.healthScoreCalculatedAt,
     aiAssessment: row.aiAssessment,
     aiAssessmentGeneratedAt: row.aiAssessmentGeneratedAt,
