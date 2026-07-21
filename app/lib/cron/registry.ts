@@ -1,4 +1,6 @@
+import { getDb } from "~/db";
 import { runMonthlyBilling } from "~/lib/billing/run";
+import { seedDemoAccount } from "~/lib/demo/seed";
 import { runIntelligenceAiForAllAccounts } from "~/lib/intelligence/ai-run.server";
 import { runIntelligenceSyncForAllAccounts } from "~/lib/intelligence/sync.server";
 import {
@@ -93,8 +95,18 @@ const intelligenceAi: CronHandler = async (env) => {
   };
 };
 
+/** The demo-account reset: wipes and rebuilds the seeded demo account daily, so a
+ *  prospect clicking around cannot leave it broken for the next visitor. The
+ *  seeder is deterministic + idempotent and makes no Stripe/AI call; the demo
+ *  account is firewalled out of every other cron by its DEMO_ACCOUNT_ID_PREFIX. */
+const demoReset: CronHandler = async (env) => {
+  await seedDemoAccount(getDb(env), new Date());
+  return { rowsProcessed: 1, message: "demo account reseeded" };
+};
+
 export const CRON_JOBS: CronJob[] = [
   { name: "recovery-tick", schedule: CRON_SCHEDULE_RECOVERY_TICK, handler: recoveryTick },
+  { name: "demo-reset", schedule: CRON_SCHEDULE_DAILY, handler: demoReset },
   { name: "billing-monthly", schedule: CRON_SCHEDULE_MONTHLY, handler: billingMonthly },
   { name: "intelligence-sync", schedule: CRON_SCHEDULE_MONTHLY, handler: intelligenceSync },
   { name: "intelligence-ai", schedule: CRON_SCHEDULE_DAILY, handler: intelligenceAi },
