@@ -36,12 +36,19 @@
    (nav/footer/mobile bar) are defined once, dark-only, on purpose: DESIGN.md
    "chrome stays dark in both modes".
 
-   Two token names carry an intentional, documented deviation from Appendix A:
-   --purple stays #a78bfa (Stripe Connect UI), not Appendix A's #635bff/#8365fb.
-   DESIGN.md locked #a78bfa on 2026-07-18, a more recent explicit ruling than
-   the old system's value; Appendix A supplies the token ARCHITECTURE (a
-   reserved, non-decorative purple for Stripe signals only), not a mandate to
-   overwrite an already-locked brand value. Flagged in the port review. */
+   The purple family (--purple/--purple-bg/--purple-border/--purple-border-interactive,
+   Stripe Connect UI) carries an intentional, documented deviation from Appendix
+   A. --purple and --purple-bg predate this port entirely (present, unchanged,
+   since the 2026-07-18 DESIGN.md lock of #a78bfa) and are already a coherent,
+   hue-matched pair (confirmed by HSL: #a78bfa/#0f091f dark and #6d4ed0/#ece6ff
+   light both sit at ~254-256 deg hue, distinct from Appendix A's #635bff/#0f0e2a
+   pair at ~243-244 deg). --purple-border/--purple-border-interactive were
+   newly added by this port straight from Appendix A's numbers (no separately
+   locked alternative exists for those two levels), which sit at Appendix A's
+   ~244 deg hue rather than the locked pair's ~255 deg - a few degrees off, not
+   a visible clash, and not worth inventing unreviewed new hex values for.
+   Read via the port review (recova/foxhound-design-port-review.md finding 6)
+   and Capsid decisions.md before touching any of these four values again. */
 @theme inline {
   --color-bg: var(--bg);
   --color-surface: var(--surface);
@@ -67,6 +74,7 @@
   --color-amber-active: var(--amber-active);
   --color-amber-bg: var(--amber-bg);
   --color-amber-text: var(--amber-text);
+  --color-amber-border: var(--amber-border);
   --color-amber-border-interactive: var(--amber-border-interactive);
   --color-on-amber: var(--text-on-amber);
   --color-chrome: var(--chrome);
@@ -164,6 +172,7 @@
   --amber-bg: #1e1a0a;
   --amber-bg2: #1f1a0a;
   --amber-text: #f0b429;
+  --amber-border: #3d3010;
   --amber-border-interactive: #826217;
   --text-on-amber: #0d0e0c;
   --border-focus: #f0b429;
@@ -185,20 +194,23 @@
   --cobalt-border-interactive: #3361cc;
   --cobalt-text: #6c93ef;
 
-  /* Status triads (bg/border/border-interactive/text), CVD-adjusted error. */
+  /* Status triads (bg/border/border-interactive/text), CVD-adjusted error.
+     Backgrounds corrected to Appendix A's audited numbers (port review
+     finding 5): green/orange/red-bg had kept their pre-port values while
+     their border/border-interactive siblings were ported fresh and correct. */
   --green: #22c55e;
-  --green-bg: #0b1c12;
+  --green-bg: #091e14;
   --success-text: #3ecf8e;
   --success-border: #143d28;
   --success-border-interactive: #1f7a5f;
   --red: #ef4444;
   --red-dark: #dc2626;
-  --red-bg: #1f0a0a;
+  --red-bg: #200a0a;
   --error-text: #db5757;
   --error-border: #3d1010;
   --error-border-interactive: #b92727;
   --orange: #f97316;
-  --orange-bg: #1d0c01;
+  --orange-bg: #1e1900;
   --warning-text: #f97316;
   --warning-border: #3a3200;
   --warning-border-interactive: #8a6f0f;
@@ -252,7 +264,7 @@
   --error-bg: var(--red-bg);
   --bg-surface: var(--surface);
   --border-default: var(--border);
-  --gradient-brand: linear-gradient(135deg, var(--amber-light), var(--amber-dark));
+  --gradient-brand: linear-gradient(135deg, var(--amber-ui), var(--amber-dark));
   --gradient-cobalt: linear-gradient(135deg, var(--cobalt-hover), var(--cobalt-active));
   --gradient-violet: linear-gradient(135deg, #721b98, var(--violet-vivid));
   --gradient-brand-violet: linear-gradient(135deg, var(--amber-ui), var(--violet-vivid));
@@ -285,6 +297,7 @@
   --amber-dark: #d4941a;
   --amber-active: #9e6a0a;
   --amber-text: #8a5c06;
+  --amber-border: #f5d98a;
   --amber-border-interactive: #b2861f;
   --text-on-amber: #0d0e0c;
   --border-focus: #b5820d;
@@ -301,18 +314,18 @@
   --cobalt-text: #0d3fb5;
 
   --green: #1a7a4a;
-  --green-bg: #e2f5e9;
+  --green-bg: #eaf6f0;
   --success-text: #1a7a4a;
   --success-border: #b8e0cc;
   --success-border-interactive: #3b9b7e;
   --red: #c92020;
   --red-dark: #a01313;
-  --red-bg: #fbe4e4;
+  --red-bg: #fdf0f0;
   --error-text: #b83232;
   --error-border: #f5c8c8;
   --error-border-interactive: #d56d6d;
   --orange: #c45c00;
-  --orange-bg: #fbe7d4;
+  --orange-bg: #fdf8e0;
   --warning-text: #7a5c00;
   --warning-border: #eddfa0;
   --warning-border-interactive: #a88c24;
@@ -321,7 +334,8 @@
   --info-border: #c0d0f8;
   --info-border-interactive: #6989d3;
 
-  /* Stripe purple: same intentional deviation as dark mode (see header note). */
+  /* Stripe purple: same intentional deviation as dark mode (see the purple
+     family note in the file header for the full derivation). */
   --purple: #6d4ed0;
   --purple-bg: #ece6ff;
   --purple-border: #c8c5ff;
@@ -362,7 +376,7 @@
   --error-bg: var(--red-bg);
   --bg-surface: var(--surface);
   --border-default: var(--border);
-  --gradient-brand: linear-gradient(135deg, var(--amber-light), var(--amber-dark));
+  --gradient-brand: linear-gradient(135deg, var(--amber-ui), var(--amber-dark));
   --gradient-cobalt: linear-gradient(135deg, var(--cobalt-hover), var(--cobalt-active));
   --gradient-violet: linear-gradient(135deg, #721b98, var(--violet-vivid));
   --gradient-brand-violet: linear-gradient(135deg, var(--amber-ui), var(--violet-vivid));
@@ -417,13 +431,13 @@ body {
 }
 
 /* Accessibility: forced-colors mode gets surgical border + focus-ring
-   restoration only. Never recreate a palette here (task Appendix A rule). */
+   restoration only. Never recreate a palette here (task Appendix A rule).
+   No [data-skeleton] rule here (removed, port review finding 11): nothing in
+   the app renders that attribute yet, so the rule was dead. --skeleton /
+   --skeleton-shimmer color tokens stay defined (task Part 1's explicit
+   architecture ask); re-add the forced-colors override alongside the first
+   real skeleton-loading component. */
 @media (forced-colors: active) {
-  [data-skeleton] {
-    border: 1px solid CanvasText;
-    background: none !important;
-    animation: none !important;
-  }
   *:focus-visible {
     outline: 3px solid Highlight;
   }
