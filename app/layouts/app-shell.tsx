@@ -1,54 +1,57 @@
-import { Form, Link, NavLink, Outlet } from "react-router";
-import {
-  LayoutDashboard,
-  LineChart,
-  Receipt,
-  RefreshCw,
-  Settings as SettingsIcon,
-  ShieldAlert,
-} from "lucide-react";
+import { Link, NavLink, Outlet } from "react-router";
 
 import { Wordmark } from "~/components/wordmark";
+import { GearMenu } from "~/components/nav/gear-menu";
+import { ProductSwitcher } from "~/components/nav/product-switcher";
+import { ThemeToggle } from "~/components/theme-toggle";
 import { appShellMiddleware } from "~/lib/auth/guards";
 import { authContext } from "~/lib/auth/context";
+import { getDb } from "~/db";
+import { cloudflareContext } from "~/lib/cloudflare-context";
+import { resolveNavContext } from "~/lib/nav/context.server";
+import { PLATFORM_LINKS, PRODUCT_MANIFEST, PRODUCT_ORDER } from "~/lib/nav/manifest";
+import { getThemeFromRequest } from "~/lib/theme.server";
 
 import type { Route } from "./+types/app-shell";
 
 // Server guard for the entire authenticated tree (session + account required).
 export const middleware: Route.MiddlewareFunction[] = [appShellMiddleware];
 
-// Header display data, read from the context the guard populated.
-export function loader({ context }: Route.LoaderArgs) {
+// Nav rebuild (TASK-foxhound-design-system-port.md Part 2): the three-level
+// model (product switcher -> contextual primary links -> utility cluster),
+// layout-rendered once, ZERO extra DB queries in the nav component itself
+// (resolveNavContext runs ONCE here; the nav components below only read the
+// props it produced). No account switcher (DESIGN.md: single-account by
+// construction) and no admin-bypass hack (the real role guard governs /admin
+// visibility, matching PRODUCT_MANIFEST's own gate).
+export async function loader({ request, context }: Route.LoaderArgs) {
+  const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
+  const db = getDb(env);
+  const pathname = new URL(request.url).pathname;
+  const nav = await resolveNavContext(db, auth.membership.accountId, pathname);
+
   return {
     accountName: auth.membership.accountName,
     email: auth.email,
     isAdmin: auth.isAdmin,
+    theme: getThemeFromRequest(request),
+    nav,
   };
 }
 
-// Single-account-per-user by construction (app/lib/auth/account.ts): no account
-// switcher. Primary nav is the same set on desktop (a horizontal bar) and mobile
-// (a bottom tab bar); paths are disjoint top-level segments so NavLink's default
-// (non-`end`) matching keeps a parent tab active under its nested routes.
-const NAV_ITEMS = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/recovery", label: "Recovery", icon: RefreshCw },
-  { to: "/disputes", label: "Disputes", icon: ShieldAlert },
-  { to: "/intelligence", label: "Intelligence", icon: LineChart },
-  { to: "/billing", label: "Billing", icon: Receipt },
-  { to: "/settings", label: "Settings", icon: SettingsIcon },
-] as const;
-
 // The 2px amber bottom border is the ONLY sanctioned amber-on-active state
-// (DESIGN.md); active is otherwise text-text + font-semibold. NavLink sets
-// aria-current="page" on the active link itself, nothing extra needed here.
-function navLinkClassName({ isActive }: { isActive: boolean }): string {
+// (DESIGN.md) for the desktop primary links; NavLink sets aria-current="page"
+// on the active link itself, nothing extra needed here.
+function primaryLinkClassName({ isActive }: { isActive: boolean }): string {
   return isActive
     ? "inline-block border-b-2 border-amber py-3 text-label font-semibold text-text"
     : "inline-block border-b-2 border-transparent py-3 text-label text-text-tertiary hover:text-text";
 }
 
+// Mobile bottom tab bar's amber-text active state: a sanctioned mobile
+// adaptation of the same active signal (DESIGN.md, gotcha #57 - a bottom
+// border reads oddly on a tab already at the screen's bottom edge).
 function tabLinkClassName({ isActive }: { isActive: boolean }): string {
   return `flex flex-1 flex-col items-center gap-0.5 py-2 text-micro ${
     isActive ? "text-amber" : "text-text-tertiary"
@@ -56,38 +59,57 @@ function tabLinkClassName({ isActive }: { isActive: boolean }): string {
 }
 
 export default function AppLayout({ loaderData }: Route.ComponentProps) {
+  const { accountName, email, isAdmin, theme, nav } = loaderData;
+  const activeProduct = PRODUCT_MANIFEST[nav.activeProductKey];
+  const primaryLinks = nav.isPlatformPage ? [] : activeProduct.links;
+
+  // Mobile tab bar keeps its shipped, already-reviewed shape (gotcha #57):
+  // every product plus Billing/Settings as flat tabs, not the desktop's
+  // switcher + contextual-links split (375px has no room for both a
+  // switcher and a sub-nav row). Intelligence is now entitlement-gated,
+  // which it never was before this port.
+  const mobileTabs: { label: string; to: string }[] = [
+    ...PRODUCT_ORDER.filter((key) => key !== "intelligence" || nav.intelligenceEntitled).map((key) => ({
+      label: PRODUCT_MANIFEST[key].label,
+      to: PRODUCT_MANIFEST[key].href,
+    })),
+    ...PLATFORM_LINKS.filter((link) => link.label === "Billing" || link.label === "Settings"),
+  ];
+
   return (
     <div>
-      <header className="border-b border-border">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4">
-          <Link to="/dashboard" aria-label="Foxhound dashboard" className="shrink-0">
-            <Wordmark />
-          </Link>
-          <div className="flex min-w-0 items-center gap-4 text-label text-text-tertiary">
-            <Link to="/help" className="shrink-0 hover:text-text">
-              Help
+      <header className="border-b border-border bg-chrome">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <Link to="/dashboard" aria-label="Foxhound dashboard" className="shrink-0">
+              <Wordmark />
             </Link>
-            {loaderData.isAdmin ? (
-              <Link to="/admin" className="shrink-0 hover:text-text">
-                Admin
-              </Link>
-            ) : null}
-            <span className="min-w-0 truncate">{loaderData.accountName ?? loaderData.email}</span>
-            <Form method="post" action="/logout" className="shrink-0">
-              <button type="submit" className="text-text-tertiary hover:text-text">
-                Sign out
-              </button>
-            </Form>
+            <ProductSwitcher activeProductKey={nav.activeProductKey} intelligenceEntitled={nav.intelligenceEntitled} />
+          </div>
+
+          <div className="hidden min-w-0 items-center gap-4 sm:flex">
+            <span className="min-w-0 truncate text-label text-chrome-text-secondary">
+              {accountName ?? email}
+            </span>
+            <ThemeToggle initialTheme={theme} />
+            <GearMenu isAdmin={isAdmin} />
+          </div>
+
+          <div className="flex items-center gap-1 sm:hidden">
+            <ThemeToggle initialTheme={theme} />
+            <GearMenu isAdmin={isAdmin} />
           </div>
         </div>
 
-        <nav aria-label="Primary" className="mx-auto hidden max-w-6xl gap-6 px-4 md:flex">
-          {NAV_ITEMS.map((item) => (
-            <NavLink key={item.to} to={item.to} className={navLinkClassName}>
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
+        {primaryLinks.length > 0 ? (
+          <nav aria-label="Primary" className="mx-auto hidden max-w-6xl gap-6 px-4 md:flex">
+            {primaryLinks.map((link) => (
+              <NavLink key={link.to} to={link.to} end={link.end} className={primaryLinkClassName}>
+                {link.label}
+              </NavLink>
+            ))}
+          </nav>
+        ) : null}
       </header>
 
       {/* Bottom padding reserves space for the fixed mobile tab bar below (a
@@ -101,15 +123,11 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
         aria-label="Primary"
         className="fixed inset-x-0 bottom-0 z-10 flex border-t border-border bg-surface md:hidden"
       >
-        {NAV_ITEMS.map((item) => {
-          const Icon = item.icon;
-          return (
-            <NavLink key={item.to} to={item.to} className={tabLinkClassName}>
-              <Icon size={20} aria-hidden="true" />
-              <span className="w-full truncate text-center">{item.label}</span>
-            </NavLink>
-          );
-        })}
+        {mobileTabs.map((tab) => (
+          <NavLink key={tab.to} to={tab.to} className={tabLinkClassName}>
+            <span className="w-full truncate text-center">{tab.label}</span>
+          </NavLink>
+        ))}
       </nav>
     </div>
   );

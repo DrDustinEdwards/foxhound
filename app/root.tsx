@@ -5,6 +5,7 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useRouteLoaderData,
 } from "react-router";
 
 import type { Route } from "./+types/root";
@@ -12,14 +13,28 @@ import "./app.css";
 import dmSansVariable from "./assets/fonts/dm-sans-variable.woff2?url";
 import dmMono400 from "./assets/fonts/dm-mono-400.woff2?url";
 import dmMono500 from "./assets/fonts/dm-mono-500.woff2?url";
+import { DEFAULT_THEME } from "./lib/theme";
+import { getThemeFromRequest } from "./lib/theme.server";
 
 export function meta() {
   return [{ title: "Foxhound" }];
 }
 
+// Cookie-persisted theme, read once at the root so <html data-theme> is
+// correct on the very first byte (no flash of the wrong mode).
+export function loader({ request }: Route.LoaderArgs) {
+  return { theme: getThemeFromRequest(request) };
+}
+
 export function Layout({ children }: { children: React.ReactNode }) {
+  // useRouteLoaderData (not useLoaderData) so an error boundary rendered
+  // before the root loader resolves still gets a safe default instead of
+  // throwing.
+  const data = useRouteLoaderData<typeof loader>("root");
+  const theme = data?.theme ?? DEFAULT_THEME;
+
   return (
-    <html lang="en" data-theme="dark">
+    <html lang="en" data-theme={theme}>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />

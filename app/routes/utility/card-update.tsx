@@ -10,6 +10,7 @@ import { verifyCardUpdateToken } from "~/lib/card-update/token";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { formatMoney } from "~/lib/money-format";
 import { decryptToken } from "~/lib/stripe/encryption";
+import { DEFAULT_THEME } from "~/lib/theme";
 
 import type { Route } from "./+types/card-update";
 
@@ -185,7 +186,12 @@ export default function CardUpdate({ loaderData, actionData }: Route.ComponentPr
 
   return (
     <>
-      <Header />
+      {/* No Foxhound session concept applies to this public, no-login page
+          (the visitor is a merchant's customer, not a Foxhound account
+          holder); DEFAULT_THEME is a safe SSR default since a stateless,
+          usually-single-visit link isn't worth threading a cookie read
+          through this route's LoaderState union for. */}
+      <Header isAuthenticated={false} theme={DEFAULT_THEME} />
       {state === "invalid" ? (
         <AuthShell title="Link not found">
           <Alert tone="error">This link is invalid or has expired.</Alert>
