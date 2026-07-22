@@ -8,7 +8,7 @@ import { and, asc, desc, eq, ne } from "drizzle-orm";
 import type { Db } from "~/db";
 import { blogPostLinks, blogPostVersions, blogPosts } from "~/db";
 
-import { generateSlug } from "./format";
+import { estimateReadingTime, generateSlug } from "./format";
 
 /** Keep at most this many saved versions per post (SCHEMA.md: "version
  *  retention: keep last 10 per post"). Enforced on every update, not just at
@@ -106,6 +106,7 @@ export async function createPost(db: Db, input: CreatePostInput): Promise<string
     author: input.author,
     tags: input.tags,
     featured: input.featured,
+    readingMinutes: estimateReadingTime(input.body),
     published: false,
     publishedAt: null,
     coverImageUrl: input.coverImageUrl ?? null,
@@ -171,6 +172,7 @@ export async function updatePostWithVersion(
       author: input.author,
       tags: input.tags,
       featured: input.featured,
+      readingMinutes: estimateReadingTime(input.body),
       coverImageUrl: input.coverImageUrl,
       coverImageAlt: input.coverImageAlt,
       ogTitle: input.ogTitle,

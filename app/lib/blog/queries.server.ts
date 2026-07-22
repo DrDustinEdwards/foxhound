@@ -7,12 +7,10 @@
 // to published = true and ordered by published_at desc, matching legacy's
 // anon-SSR-client (RLS-gated) read behavior.
 
-import { and, asc, desc, eq, gt, inArray, lt, or } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, lt, or, sql } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import { blogPostLinks, blogPosts } from "~/db";
-
-import { estimateReadingTime } from "./format";
 
 export interface BlogPostSummary {
   id: string;
@@ -40,14 +38,16 @@ export interface BlogPost extends BlogPostSummary {
   showPublishedAt: boolean;
 }
 
-// Columns needed to build a summary, including body (dropped after the
-// reading-time calculation; summaries never ship the raw markdown body).
+// Columns needed to build a summary. No body: reading time is precomputed at
+// write time into reading_minutes (perf-audit fix, foxhound-audit-perf.md
+// M-2), so a list/tag-archive read never pulls the full markdown body just
+// to render a card. Only getPostBySlug (the single-post detail read) selects
+// the full row, body included.
 const SUMMARY_COLUMNS = {
   id: blogPosts.id,
   slug: blogPosts.slug,
   title: blogPosts.title,
   excerpt: blogPosts.excerpt,
-  body: blogPosts.body,
   coverImageUrl: blogPosts.coverImageUrl,
   coverImageAlt: blogPosts.coverImageAlt,
   publishedAt: blogPosts.publishedAt,
@@ -55,6 +55,7 @@ const SUMMARY_COLUMNS = {
   author: blogPosts.author,
   tags: blogPosts.tags,
   featured: blogPosts.featured,
+  readingMinutes: blogPosts.readingMinutes,
 };
 
 type SummaryRow = {
@@ -62,7 +63,6 @@ type SummaryRow = {
   slug: string;
   title: string;
   excerpt: string;
-  body: string;
   coverImageUrl: string | null;
   coverImageAlt: string | null;
   publishedAt: Date | null;
@@ -70,6 +70,7 @@ type SummaryRow = {
   author: string;
   tags: string[] | null;
   featured: boolean;
+  readingMinutes: number;
 };
 
 function toSummary(r: SummaryRow): BlogPostSummary {
@@ -85,7 +86,7 @@ function toSummary(r: SummaryRow): BlogPostSummary {
     author: r.author,
     tags: r.tags ?? [],
     featured: r.featured,
-    readingTimeMinutes: estimateReadingTime(r.body ?? r.excerpt ?? ""),
+    readingTimeMinutes: r.readingMinutes,
   };
 }
 
@@ -101,15 +102,37 @@ export async function listPublishedPosts(db: Db, limit?: number): Promise<BlogPo
 }
 
 /** Every published post, newest first. Mirrors legacy getAllPublishedPosts;
- *  used by the sitemap, the feed, the tag archive, and the home page's
- *  per-section tag-cluster-size gate. Content volume here is small (dozens
- *  of posts, not thousands), so a full scan is the simplest correct query;
- *  there is no pagination need yet. */
+ *  used by the sitemap, the feed, and the home page's per-section
+ *  tag-cluster-size gate (which genuinely needs every post's tags to count
+ *  cluster sizes). The tag archive uses getPublishedPostsByTag instead
+ *  (SQL-filtered, perf-audit fix M-2), not this. Content volume here is
+ *  small (dozens of posts, not thousands), so a full scan is the simplest
+ *  correct query; there is no pagination need yet. */
 export async function getAllPublishedPosts(db: Db): Promise<BlogPostSummary[]> {
   const rows = await db
     .select(SUMMARY_COLUMNS)
     .from(blogPosts)
     .where(eq(blogPosts.published, true))
+    .orderBy(desc(blogPosts.publishedAt));
+  return rows.map(toSummary);
+}
+
+/** Published posts carrying `tag`, newest first, filtered in SQL (a
+ *  json_each EXISTS predicate against the JSON-encoded tags column) rather
+ *  than fetching every published post and filtering in memory (perf-audit
+ *  fix, foxhound-audit-perf.md M-2: the tag archive used to read every
+ *  post's full body via getAllPublishedPosts + filterPostsByTag just to
+ *  render a handful of matching cards). */
+export async function getPublishedPostsByTag(db: Db, tag: string): Promise<BlogPostSummary[]> {
+  const rows = await db
+    .select(SUMMARY_COLUMNS)
+    .from(blogPosts)
+    .where(
+      and(
+        eq(blogPosts.published, true),
+        sql`EXISTS (SELECT 1 FROM json_each(${blogPosts.tags}) WHERE value = ${tag})`,
+      ),
+    )
     .orderBy(desc(blogPosts.publishedAt));
   return rows.map(toSummary);
 }
