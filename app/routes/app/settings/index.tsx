@@ -1,11 +1,9 @@
-import { and, eq, isNull } from "drizzle-orm";
 import { data, Form, useNavigation } from "react-router";
 
 import { Alert, Field, Submit } from "~/components/auth-ui";
-import { accounts, getDb, stripeConnections } from "~/db";
+import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { formatCentsAsDollars, parseDollarsToCents } from "~/lib/settings/dollars";
 import {
   buildAccountProfileUpdate,
   buildBrandVoiceUpdate,
@@ -13,22 +11,13 @@ import {
   buildIntelligenceContextUpdate,
   buildNotificationSettingsUpdate,
 } from "~/lib/settings/persist.server";
+import { formatCentsAsDollars, parseDollarsToCents } from "~/lib/settings/dollars";
+import { getAccount, getActiveConnectionBrandVoice } from "~/lib/settings/queries.server";
 
 import type { Route } from "./+types/index";
 
 export function meta() {
   return [{ title: "Settings - Foxhound" }];
-}
-
-async function loadConnection(env: Env, accountId: string) {
-  const db = getDb(env);
-  const rows = await db
-    .select({ id: stripeConnections.id, brandVoice: stripeConnections.brandVoice })
-    .from(stripeConnections)
-    .where(and(eq(stripeConnections.accountId, accountId), isNull(stripeConnections.disconnectedAt)))
-    .orderBy(stripeConnections.connectedAt)
-    .limit(1);
-  return rows[0] ?? null;
 }
 
 export async function loader({ context }: Route.LoaderArgs) {
@@ -37,11 +26,10 @@ export async function loader({ context }: Route.LoaderArgs) {
   const accountId = auth.membership.accountId;
   const db = getDb(env);
 
-  const [accountRows, connection] = await Promise.all([
-    db.select().from(accounts).where(eq(accounts.id, accountId)).limit(1),
-    loadConnection(env, accountId),
+  const [account, connection] = await Promise.all([
+    getAccount(db, accountId),
+    getActiveConnectionBrandVoice(db, accountId),
   ]);
-  const account = accountRows[0];
   if (!account) throw new Response("Not Found", { status: 404 });
 
   return { account, connection };

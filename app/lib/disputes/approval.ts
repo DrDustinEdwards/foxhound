@@ -1,16 +1,6 @@
-import { and, eq, notInArray } from "drizzle-orm";
-import type { BatchItem } from "drizzle-orm/batch";
-
-import type { Db } from "~/db";
-import { disputeApprovals, disputes } from "~/db";
-import type { DisputeState } from "~/lib/constants";
 import { isUniqueConstraintError } from "~/lib/money/serializer";
+import type { DisputeState } from "~/lib/constants";
 import type { DisputeSubmissionResult } from "~/lib/disputes/submission";
-
-// Not a MoneyWriteBatch (app/db/money-write.ts): that type name is reserved for
-// batches routed through the per-account money-write DO. This one deliberately
-// is not (see the module comment below), so it gets its own plain alias.
-type OperationalBatch = [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]];
 
 // The dispute approve-and-submit flow (Phase 5 slice 5c, DESIGN.md flagship
 // surface 2; hardened per the dispute-intake review MEDIUM). Splitting the old
@@ -28,15 +18,28 @@ type OperationalBatch = [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]];
 //     it is set ONLY once Stripe genuinely accepted the evidence. A win
 //     Foxhound never submitted has no submitted_at and is never billed.
 //
-// Both are PLAIN operational batches (not the money-write DO): approving a
-// dispute does not itself gate billing, it only makes `resolved_fee_cents`
-// reachable later at resolution (which IS driven by a webhook claim and rides
-// the DO). Mirrors the recovery_steps precedent (gotcha #25).
+// This file is deliberately drizzle-orm/~db-free (perf-audit fix,
+// foxhound-audit-perf.md M-1): canApprove is a plain function the disputes
+// detail PAGE COMPONENT calls directly, so this file is reachable from the
+// client bundle. buildPendingApprovalBatch/buildSubmissionConfirmationBatch
+// (the actual db.insert()/db.update() query builders) live in
+// approval.server.ts instead, imported only by ~/lib/disputes/queries.server.
+// Keeping so much as one drizzle-orm import in THIS file was enough to pull
+// the ORM and the disputes/dispute_approvals table objects into the client
+// chunk even when nothing in the client-reachable code path actually used
+// them (verified: moving the two db.batch() calls into named .server.ts
+// functions alone did not fix it, only removing every table/drizzle-orm
+// import from this file did).
 
 /** A dispute can be approved and submitted from any pre-submission state. Once
  *  submitted or resolved, this is never true again (no re-approval, no reopen
- *  via this path). */
-const SUBMITTED_OR_RESOLVED: readonly DisputeState[] = ["submitted", "resolved_won", "resolved_lost"];
+ *  via this path). Exported so approval.server.ts's SQL builders can exclude
+ *  the same states without redefining the list. */
+export const SUBMITTED_OR_RESOLVED: readonly DisputeState[] = [
+  "submitted",
+  "resolved_won",
+  "resolved_lost",
+];
 
 export function canApprove(state: DisputeState): boolean {
   return !(SUBMITTED_OR_RESOLVED as readonly string[]).includes(state);
@@ -55,75 +58,6 @@ export async function hashEvidence(fields: { fieldName: string; fieldValue: stri
   return Array.from(new Uint8Array(digest))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
-}
-
-export interface PendingApprovalInput {
-  disputeId: string;
-  accountId: string;
-  approvedByUserId: string | null;
-  approvedByEmail: string;
-  evidenceVersionHash: string;
-  approvedAt: Date;
-}
-
-/**
- * Phase A (before the Stripe submission): insert the dispute_approvals row, the
- * durable record that the merchant approved and a submission is being attempted.
- * The unique index on dispute_approvals.dispute_id makes a concurrent second
- * attempt fail this insert (caught by the caller, isUniqueConstraintError). The
- * dispute state is deliberately NOT advanced here: it stays approvable until the
- * submission is confirmed (Phase C), so a Stripe failure leaves a retriable
- * dispute rather than a false `submitted` state Stripe never received.
- */
-export function buildPendingApprovalBatch(db: Db, input: PendingApprovalInput): OperationalBatch {
-  return [
-    db.insert(disputeApprovals).values({
-      id: crypto.randomUUID(),
-      disputeId: input.disputeId,
-      accountId: input.accountId,
-      approvedByUserId: input.approvedByUserId,
-      approvedByEmail: input.approvedByEmail,
-      evidenceVersionHash: input.evidenceVersionHash,
-      approvedAt: input.approvedAt,
-    }),
-  ];
-}
-
-export interface SubmissionConfirmationInput {
-  disputeId: string;
-  accountId: string;
-  submittedBy: string;
-  submittedAt: Date;
-}
-
-/**
- * Phase C (after Stripe accepts): advance the dispute to `submitted` and set
- * submitted_at + submitted_by. submitted_at is the marker billing keys off, so
- * writing it here, and only here, is what guarantees a dispute is billed only
- * if Stripe genuinely accepted the evidence. Conditional on the dispute not
- * already being submitted or resolved (idempotent under a duplicate confirm and
- * safe if the dispute resolved in the sub-second gap after the Stripe call).
- */
-export function buildSubmissionConfirmationBatch(
-  db: Db,
-  input: SubmissionConfirmationInput,
-): OperationalBatch {
-  return [
-    db
-      .update(disputes)
-      .set({
-        state: "submitted",
-        submittedAt: input.submittedAt,
-        submittedBy: input.submittedBy,
-      })
-      .where(
-        and(
-          eq(disputes.id, input.disputeId),
-          eq(disputes.accountId, input.accountId),
-          notInArray(disputes.state, SUBMITTED_OR_RESOLVED as string[]),
-        ),
-      ),
-  ];
 }
 
 /**

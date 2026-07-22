@@ -1,24 +1,20 @@
 import * as Sentry from "@sentry/cloudflare";
-import { and, eq } from "drizzle-orm";
 import { data, Form, useActionData, useNavigation } from "react-router";
 
 import { Badge } from "~/components/badge";
-import { disputes, getDb, stripeConnections } from "~/db";
+import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
 import { disputeFeeCents } from "~/lib/billing/fees";
 import type { DisputeState } from "~/lib/constants";
-import {
-  approveAndSubmit,
-  buildPendingApprovalBatch,
-  buildSubmissionConfirmationBatch,
-  canApprove,
-  hashEvidence,
-} from "~/lib/disputes/approval";
+import { canApprove } from "~/lib/disputes/approval";
 import { DISPUTE_STATE_LABELS, disputeStateTone, isDisputeResolved } from "~/lib/disputes/labels";
-import { getDisputeDetail, saveDisputeEvidence } from "~/lib/disputes/queries.server";
-import { buildStripeEvidencePayload, submitDisputeEvidence } from "~/lib/disputes/submission";
-import { isUniqueConstraintError } from "~/lib/money/serializer";
+import {
+  approveAndSubmitDispute,
+  getConnectionAccessToken,
+  getDisputeDetail,
+  saveDisputeEvidence,
+} from "~/lib/disputes/queries.server";
 import { formatMoney } from "~/lib/money-format";
 
 import type { Route } from "./+types/detail";
@@ -77,74 +73,35 @@ export async function action({ context, params, request }: Route.ActionArgs) {
 
     let resolvedToken: string | null = null;
     if (detail.dispute.stripeConnectionId) {
-      const [connection] = await db
-        .select({ accessToken: stripeConnections.stripeAccessToken })
-        .from(stripeConnections)
-        .where(eq(stripeConnections.id, detail.dispute.stripeConnectionId))
-        .limit(1);
-      resolvedToken = connection?.accessToken ?? null;
+      resolvedToken = await getConnectionAccessToken(db, detail.dispute.stripeConnectionId);
     }
     if (!resolvedToken) {
       return data({ error: "No connected Stripe account for this dispute." }, { status: 400 });
     }
-    const connectionAccessToken = resolvedToken;
-
-    // The submitted package is what the merchant approved: the currently-saved
-    // evidence (their edits, not the raw AI draft). Hash + Stripe payload are
-    // captured from that same set.
-    const evidenceVersionHash = await hashEvidence(detail.evidence);
-    const evidencePayload = buildStripeEvidencePayload(detail.evidence);
-    const now = new Date();
 
     try {
-      // Ordering (approveAndSubmit): a durable pending-approval record is
-      // written BEFORE the Stripe call, and the `submitted` marker (submitted_at,
-      // which billing keys off) is written only AFTER Stripe accepts. So the
-      // record and the submission can never diverge (dispute-intake review
-      // MEDIUM), and billing counts this dispute only if Stripe genuinely took it.
-      const result = await approveAndSubmit({
-        writePendingApproval: async () => {
-          try {
-            await db.batch(
-              buildPendingApprovalBatch(db, {
-                disputeId: detail.dispute.id,
-                accountId,
-                approvedByUserId: auth.userId,
-                approvedByEmail: auth.email,
-                evidenceVersionHash,
-                approvedAt: now,
-              }),
-            );
-            return "created";
-          } catch (err) {
-            if (!isUniqueConstraintError(err)) throw err;
-            // A row already exists: a CONFIRMED submission (submitted_at set ->
-            // reject) or a prior unconfirmed attempt (-> resume and re-submit).
-            const [existing] = await db
-              .select({ submittedAt: disputes.submittedAt })
-              .from(disputes)
-              .where(and(eq(disputes.id, detail.dispute.id), eq(disputes.accountId, accountId)))
-              .limit(1);
-            return existing?.submittedAt != null ? "already_submitted" : "resume";
-          }
+      // Ordering (approveAndSubmitDispute, wrapping approveAndSubmit): a
+      // durable pending-approval record is written BEFORE the Stripe call, and
+      // the `submitted` marker (submitted_at, which billing keys off) is
+      // written only AFTER Stripe accepts. So the record and the submission
+      // can never diverge (dispute-intake review MEDIUM), and billing counts
+      // this dispute only if Stripe genuinely took it. The submitted package
+      // is what the merchant approved: the currently-saved evidence (their
+      // edits, not the raw AI draft).
+      const result = await approveAndSubmitDispute(
+        db,
+        env,
+        {
+          disputeId: detail.dispute.id,
+          accountId,
+          stripeDisputeId: detail.dispute.stripeDisputeId,
+          connectionAccessToken: resolvedToken,
+          approvedByUserId: auth.userId,
+          approvedByEmail: auth.email,
+          approvedAt: new Date(),
         },
-        submit: () =>
-          submitDisputeEvidence(env, {
-            stripeDisputeId: detail.dispute.stripeDisputeId,
-            connectionAccessToken,
-            evidence: evidencePayload,
-          }),
-        confirmSubmission: async () => {
-          await db.batch(
-            buildSubmissionConfirmationBatch(db, {
-              disputeId: detail.dispute.id,
-              accountId,
-              submittedBy: auth.email,
-              submittedAt: now,
-            }),
-          );
-        },
-      });
+        detail.evidence,
+      );
       if (result.status === "error") {
         return data({ error: result.message }, { status: 400 });
       }
