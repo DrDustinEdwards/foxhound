@@ -52,11 +52,17 @@ function requestPathname(request: Request): string {
 // construction) and no admin-bypass hack (the real role guard governs /admin
 // visibility, matching PRODUCT_MANIFEST's own gate).
 export async function loader({ request, context }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
+  const { env, ctx } = context.get(cloudflareContext);
   const auth = context.get(authContext);
   const db = getDb(env);
   const pathname = requestPathname(request);
-  const nav = await resolveNavContext(db, auth.membership.accountId, pathname);
+  const nav = await resolveNavContext(
+    db,
+    auth.membership.accountId,
+    pathname,
+    auth.isDemo,
+    (promise) => ctx.waitUntil(promise),
+  );
 
   return {
     accountName: auth.membership.accountName,
