@@ -31,3 +31,12 @@ const TAG_LABELS: Record<string, string> = {
 export function labelForTag(tag: string): string {
   return TAG_LABELS[tag] ?? tag.replace(/-/g, " ");
 }
+
+// Extracted from the /blog/tag/:tag loader (foxhound-audit-content.md
+// MEDIUM-1) so the filter predicate is unit-testable without a DB. A post
+// matches a tag archive if its own tags array includes that tag; multi-tag
+// posts (e.g. tagged both "payment-recovery" and "comparisons") correctly
+// appear on every one of their tag archives, not just one.
+export function filterPostsByTag<T extends { tags: string[] }>(posts: T[], tag: string): T[] {
+  return posts.filter((post) => post.tags.includes(tag));
+}
