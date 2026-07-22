@@ -36,6 +36,7 @@ export default [
       route(":slug", "./routes/docs/page.tsx"),
     ]),
     route("demos", "./routes/demos.tsx"),
+    route("features", "./routes/features.tsx"),
     route("about", "./routes/about.tsx"),
     route("privacy", "./routes/privacy.tsx"),
     route("terms", "./routes/terms.tsx"),
