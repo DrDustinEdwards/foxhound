@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
 import { Settings } from "lucide-react";
 import { Form, Link, useLocation } from "react-router";
 
 import { PLATFORM_LINKS } from "~/lib/nav/manifest";
+import { useDropdown } from "~/lib/nav/use-dropdown";
 
 const ITEM_CLASS =
   "block w-full cursor-pointer border-0 bg-transparent px-3 py-2 text-left text-label no-underline hover:opacity-80";
@@ -12,17 +12,7 @@ const ITEM_CLASS =
 // the gear dropdown so the chrome stays a single utility icon column").
 export function GearMenu({ isAdmin }: { isAdmin: boolean }) {
   const location = useLocation();
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [open]);
+  const { open, setOpen, ref } = useDropdown<HTMLDivElement>();
 
   return (
     <div ref={ref} className="relative">

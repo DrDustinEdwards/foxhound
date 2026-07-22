@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Link, NavLink } from "react-router";
 import { Menu, Settings, X } from "lucide-react";
 
+import { Avatar } from "./nav/avatar";
+import { SectionPill } from "./nav/section-pill";
 import { ThemeToggle } from "./theme-toggle";
 import { Wordmark } from "./wordmark";
 import type { Theme } from "~/lib/theme";
@@ -34,7 +36,21 @@ const NAV_LINK_INACTIVE =
   "text-chrome-text-secondary after:scale-x-0 hover:text-chrome-text hover:after:scale-x-100";
 const NAV_LINK_ACTIVE = "text-chrome-text after:scale-x-100";
 
-export function Header({ isAuthenticated, theme }: { isAuthenticated: boolean; theme: Theme }) {
+export function Header({
+  isAuthenticated,
+  theme,
+  initial = null,
+  intelligenceEntitled = false,
+}: {
+  isAuthenticated: boolean;
+  theme: Theme;
+  // Optional: the two standalone public-utility routes outside the
+  // marketing layout (card-update.tsx, unsubscribe.tsx) always render
+  // Header with isAuthenticated=false and have no session context to
+  // resolve these from.
+  initial?: string | null;
+  intelligenceEntitled?: boolean;
+}) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -43,6 +59,7 @@ export function Header({ isAuthenticated, theme }: { isAuthenticated: boolean; t
         <Link to="/" aria-label="Foxhound home" onClick={() => setOpen(false)}>
           <Wordmark tone="chrome" />
         </Link>
+        {isAuthenticated ? <SectionPill intelligenceEntitled={intelligenceEntitled} /> : null}
       </div>
 
       <div className="hidden items-center gap-5 sm:flex">
@@ -87,14 +104,7 @@ export function Header({ isAuthenticated, theme }: { isAuthenticated: boolean; t
           </div>
         )}
 
-        {isAuthenticated ? (
-          <Link
-            to="/dashboard"
-            className="rounded-md bg-amber px-4 py-2 text-label font-medium text-on-amber hover:bg-amber-dark"
-          >
-            Dashboard
-          </Link>
-        ) : null}
+        {isAuthenticated && initial ? <Avatar initial={initial} /> : null}
       </div>
 
       <div className="flex items-center gap-1 sm:hidden">
