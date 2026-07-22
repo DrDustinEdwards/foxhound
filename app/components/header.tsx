@@ -7,29 +7,34 @@ import { Wordmark } from "./wordmark";
 import type { Theme } from "~/lib/theme";
 
 const NAV_LINKS = [
-  { to: "/pricing", label: "Pricing" },
   { to: "/products", label: "Products" },
-  { to: "/about", label: "About" },
-  { to: "/blog", label: "Blog" },
+  { to: "/pricing", label: "Pricing" },
+  { to: "/demos", label: "Demos" },
   { to: "/docs", label: "Docs" },
+  { to: "/blog", label: "Blog" },
 ];
 
-// Built out from a bare wordmark-only header (Phase 6 Pass 1). Desktop nav
-// is a plain link list per ROUTES.md (Products collapses to one link since
-// /products is itself an index of the four product pages, avoiding a
-// dropdown that would need extra care at 375px). Mobile collapses to a
-// hamburger toggle. Product-aware for authenticated visitors (task Part 2
-// rule 4): a signed-in visitor gets a Dashboard link instead of Sign
-// in/Run your free audit, on this same shared marketing shell (DESIGN.md:
-// "no visual seam at login").
+// Legacy parity port (TASK-foxhound-marketing-nav-parity.md): Phase 6 built
+// this as a fresh minimal nav from ROUTES.md instead of porting the legacy
+// design (the prior in-file comment said so explicitly). Matches
+// recova-eta.vercel.app's header: chrome surface, dark in both modes
+// (DESIGN.md: "nav/footer/mobile bar stay dark in both modes", matching the
+// app-shell header and the footer), compact h-14-equivalent density, and
+// the same link set adapted to Foxhound's real routes - Features omitted
+// (no /features route exists here, and none should be invented), About
+// stays footer-only as legacy had it, Demos included (the acquisition
+// surface). Product-aware for authenticated visitors (task Part 2 rule 4):
+// a signed-in visitor gets a Dashboard link instead of Sign in/Free audit,
+// on this same shared marketing shell (DESIGN.md: "no visual seam at
+// login").
 export function Header({ isAuthenticated, theme }: { isAuthenticated: boolean; theme: Theme }) {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-20 border-b border-border bg-bg">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-8">
+    <header className="sticky top-0 z-20 border-b border-border bg-chrome">
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-8">
         <Link to="/" aria-label="Foxhound home" onClick={() => setOpen(false)}>
-          <Wordmark />
+          <Wordmark tone="chrome" />
         </Link>
 
         <nav className="hidden items-center gap-6 sm:flex">
@@ -38,7 +43,7 @@ export function Header({ isAuthenticated, theme }: { isAuthenticated: boolean; t
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                `text-label ${isActive ? "text-text" : "text-text-secondary"} hover:text-text`
+                `text-label ${isActive ? "text-chrome-text" : "text-chrome-text-secondary"} hover:text-chrome-text`
               }
             >
               {item.label}
@@ -47,7 +52,7 @@ export function Header({ isAuthenticated, theme }: { isAuthenticated: boolean; t
         </nav>
 
         <div className="hidden items-center gap-3 sm:flex">
-          <ThemeToggle initialTheme={theme} variant="surface" />
+          <ThemeToggle initialTheme={theme} variant="chrome" />
           {isAuthenticated ? (
             <Link
               to="/dashboard"
@@ -57,27 +62,27 @@ export function Header({ isAuthenticated, theme }: { isAuthenticated: boolean; t
             </Link>
           ) : (
             <>
-              <Link to="/login" className="text-label text-text-secondary hover:text-text">
+              <Link to="/login" className="text-label text-chrome-text-secondary hover:text-chrome-text">
                 Sign in
               </Link>
               <Link
                 to="/audit"
                 className="rounded-md bg-amber px-4 py-2 text-label font-medium text-on-amber hover:bg-amber-dark"
               >
-                Run your free audit
+                Free audit
               </Link>
             </>
           )}
         </div>
 
         <div className="flex items-center gap-1 sm:hidden">
-          <ThemeToggle initialTheme={theme} variant="surface" />
+          <ThemeToggle initialTheme={theme} variant="chrome" />
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
             aria-expanded={open}
             aria-label="Toggle menu"
-            className="flex items-center justify-center rounded-md border border-border p-2 text-text"
+            className="flex items-center justify-center rounded-md border border-border p-2 text-chrome-text"
           >
             {open ? <X size={18} aria-hidden /> : <Menu size={18} aria-hidden />}
           </button>
@@ -91,7 +96,7 @@ export function Header({ isAuthenticated, theme }: { isAuthenticated: boolean; t
               key={item.to}
               to={item.to}
               onClick={() => setOpen(false)}
-              className="rounded-md px-2 py-2 text-body text-text-secondary hover:bg-surface hover:text-text"
+              className="rounded-md px-2 py-2 text-body text-chrome-text-secondary hover:bg-white/10 hover:text-chrome-text"
             >
               {item.label}
             </Link>
@@ -110,7 +115,7 @@ export function Header({ isAuthenticated, theme }: { isAuthenticated: boolean; t
                 <Link
                   to="/login"
                   onClick={() => setOpen(false)}
-                  className="rounded-md px-2 py-2 text-body text-text-secondary"
+                  className="rounded-md px-2 py-2 text-body text-chrome-text-secondary"
                 >
                   Sign in
                 </Link>
@@ -119,7 +124,7 @@ export function Header({ isAuthenticated, theme }: { isAuthenticated: boolean; t
                   onClick={() => setOpen(false)}
                   className="rounded-md bg-amber px-4 py-2 text-center text-body font-medium text-on-amber"
                 >
-                  Run your free audit
+                  Free audit
                 </Link>
               </>
             )}
