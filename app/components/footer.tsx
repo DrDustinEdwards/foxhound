@@ -47,9 +47,6 @@ export const COLUMNS: { heading: string; links: { to: string; label: string }[] 
   },
 ];
 
-// Chrome (DESIGN.md: "nav/footer/mobile bar stay dark in both modes") - the
-// port that introduced light mode missed this file (untouched since Phase 6,
-// per git log), so it inherited the theme-aware body background instead.
 export function Footer() {
   return (
     <footer className="border-t border-border-sub bg-chrome">
@@ -81,7 +78,7 @@ export function Footer() {
         </div>
       </div>
       <div className="border-t border-border-sub px-4 py-6 text-center font-mono text-micro text-chrome-text-tertiary sm:px-8">
-        (c) 2026 Foxhound. All rights reserved.
+        © 2026 Foxhound. All rights reserved.
       </div>
     </footer>
   );
