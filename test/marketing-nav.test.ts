@@ -68,4 +68,15 @@ describe("marketing header + footer links match routes.ts", () => {
   it("the footer has exactly the four legacy-parity columns", () => {
     expect(COLUMNS.map((c) => c.heading)).toEqual(["Product", "Explore", "Resources", "Legal"]);
   });
+
+  it("header nav has Features between Demos and Docs (legacy position)", () => {
+    const labels = NAV_LINKS.map((l) => l.label);
+    expect(labels.indexOf("Features")).toBe(labels.indexOf("Demos") + 1);
+    expect(labels.indexOf("Docs")).toBe(labels.indexOf("Features") + 1);
+  });
+
+  it("footer Explore column includes Features", () => {
+    const explore = COLUMNS.find((c) => c.heading === "Explore");
+    expect(explore?.links.map((l) => l.label)).toContain("Features");
+  });
 });

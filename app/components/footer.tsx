@@ -26,6 +26,7 @@ export const COLUMNS: { heading: string; links: { to: string; label: string }[] 
     links: [
       { to: "/pricing", label: "Pricing" },
       { to: "/demos", label: "Demos" },
+      { to: "/features", label: "Features" },
       { to: "/compare", label: "Compare" },
       { to: "/decline-codes", label: "Decline codes" },
     ],
