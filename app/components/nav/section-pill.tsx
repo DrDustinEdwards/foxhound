@@ -34,7 +34,7 @@ export function SectionPill({ intelligenceEntitled }: { intelligenceEntitled: bo
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 font-mono text-label font-medium text-chrome-text hover:border-border-i"
+        className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 font-mono text-label font-medium text-chrome-text transition-colors duration-150 hover:border-chrome-text-secondary"
       >
         Home
         <ChevronDown
