@@ -41,10 +41,21 @@ export async function getRecoveryStats(
   accountId: string,
   nowMs: number,
 ): Promise<RecoveryStats> {
-  const failures = await db
-    .select({ status: failedPayments.status, isRenewalNoise: failedPayments.isRenewalNoise })
-    .from(failedPayments)
-    .where(byAccountActive(failedPayments.accountId, failedPayments.deletedAt, accountId));
+  // Three independent reads, none depending on another's result (perf-audit
+  // fix, foxhound-audit-perf.md M-3): the dashboard's own outer loader already
+  // parallelizes getRecoveryStats against getMrrAnalytics, but these three
+  // were running one after another inside this function.
+  const [failures, recovered, billable] = await Promise.all([
+    db
+      .select({ status: failedPayments.status, isRenewalNoise: failedPayments.isRenewalNoise })
+      .from(failedPayments)
+      .where(byAccountActive(failedPayments.accountId, failedPayments.deletedAt, accountId)),
+    db
+      .select({ currency: recoveredPayments.currency, amountCents: recoveredPayments.amountCents })
+      .from(recoveredPayments)
+      .where(byAccountActive(recoveredPayments.accountId, recoveredPayments.deletedAt, accountId)),
+    getBillableRecoveries(db, accountId, nowMs),
+  ]);
 
   // Renewal noise (duplicate/renewal-driven failure records) is not a real
   // recovery-funnel event; excluded from both sides of the rate.
@@ -55,12 +66,6 @@ export async function getRecoveryStats(
   const recoveryRatePct =
     totalFailedCount > 0 ? Math.round((recoveredCount / totalFailedCount) * 100) : null;
 
-  const recovered = await db
-    .select({ currency: recoveredPayments.currency, amountCents: recoveredPayments.amountCents })
-    .from(recoveredPayments)
-    .where(byAccountActive(recoveredPayments.accountId, recoveredPayments.deletedAt, accountId));
-
-  const billable = await getBillableRecoveries(db, accountId, nowMs);
   const feeRows = billable.map((r) => ({
     currency: r.currency,
     amountCents: recoveryFeeCents(r.amountCents),
