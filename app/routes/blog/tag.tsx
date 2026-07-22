@@ -4,8 +4,8 @@ import { Link } from "react-router";
 import { BlogPostCard } from "~/components/blog/blog-post-card";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { filterPostsByTag, labelForTag } from "~/lib/blog/tags";
-import { getAllPublishedPosts } from "~/lib/blog/queries.server";
+import { labelForTag } from "~/lib/blog/tags";
+import { getPublishedPostsByTag } from "~/lib/blog/queries.server";
 import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
 
 import type { Route } from "./+types/tag";
@@ -19,8 +19,7 @@ export async function loader({ params, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const db = getDb(env);
   const tag = params.tag;
-  const allPosts = await getAllPublishedPosts(db);
-  const posts = filterPostsByTag(allPosts, tag);
+  const posts = await getPublishedPostsByTag(db, tag);
   return { siteUrl: siteUrl(env), tag, posts };
 }
 

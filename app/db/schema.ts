@@ -1089,8 +1089,19 @@ export const blogPosts = sqliteTable(
     showUpdatedAt: bool("show_updated_at").notNull().default(true),
     showPublishedAt: bool("show_published_at").notNull().default(true),
     featured: bool("featured").notNull().default(false),
+    // Precomputed at write time (createPost/updatePostWithVersion) from body's
+    // word count, so a list/tag-archive read never needs the full body just to
+    // show a card's reading time (perf-audit fix, foxhound-audit-perf.md M-2).
+    readingMinutes: integer("reading_minutes").notNull().default(1),
   },
-  (t) => [uniqueIndex("blog_posts_slug_uq").on(t.slug)],
+  (t) => [
+    uniqueIndex("blog_posts_slug_uq").on(t.slug),
+    // Every public list query filters WHERE published = true ORDER BY
+    // published_at DESC (listPublishedPosts, getAllPublishedPosts, the tag
+    // archive, sitemap/feed/llms generators); no supporting index existed
+    // (perf-audit L-2), invisible at 45 rows but a real gap as content scales.
+    index("blog_posts_published_published_at_idx").on(t.published, t.publishedAt),
+  ],
 );
 
 export const blogPostLinks = sqliteTable(

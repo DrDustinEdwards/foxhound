@@ -64,6 +64,13 @@
       "when": 1784609318448,
       "tag": "0008_hard_scream",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1784756571767,
+      "tag": "0009_lethal_gladiator",
+      "breakpoints": true
     }
   ]
 }
