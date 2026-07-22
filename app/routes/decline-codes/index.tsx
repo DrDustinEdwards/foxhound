@@ -5,7 +5,7 @@ import { Badge } from "~/components/badge";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { CATEGORY_LABEL, CATEGORY_ORDER, listDeclineCodeViews } from "~/lib/decline-codes/codes";
-import { categoryBadgeTone } from "~/lib/decline-codes/presentation";
+import { CATEGORY_STATUS_LABEL, categoryBadgeTone } from "~/lib/decline-codes/presentation";
 import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
 
 import type { Route } from "./+types/index";
@@ -55,13 +55,7 @@ export default function DeclineCodesIndex({ loaderData }: Route.ComponentProps) 
             <div className="mb-4 flex items-center gap-2">
               <h2 className="text-title font-medium text-text">{CATEGORY_LABEL[group.category]}</h2>
               <Badge tone={categoryBadgeTone(group.category)}>
-                {group.category === "fraud"
-                  ? "Never retried"
-                  : group.category === "expired"
-                    ? "Needs card update"
-                    : group.category === "unknown"
-                      ? "No automatic retry"
-                      : "Retries automatically"}
+                {CATEGORY_STATUS_LABEL[group.category]}
               </Badge>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

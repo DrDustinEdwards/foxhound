@@ -17,6 +17,23 @@ export function categoryBadgeTone(category: DeclineCategory): BadgeTone {
   return "success"; // soft, network: both silently retryable
 }
 
+// Single source of truth for the category status badge shown on both the
+// decline-codes hub (index.tsx, grouped by category) and each individual
+// code page (code.tsx). Both pages must import this, never hand-derive
+// their own copy of it: the hub previously hardcoded an inline ternary that
+// fell through "revoked" to "Retries automatically", contradicting
+// recoveryApproach()'s own "revoked" copy below and decline.ts's
+// isRetryable() (which excludes "revoked"). A single shared map makes that
+// class of divergence structurally impossible going forward.
+export const CATEGORY_STATUS_LABEL: Record<DeclineCategory, string> = {
+  soft: "Retries automatically",
+  network: "Retries automatically",
+  expired: "Needs card update",
+  fraud: "Never retried",
+  revoked: "Cancel or update",
+  unknown: "No automatic retry",
+};
+
 export function recoveryApproach(view: DeclineCodeView): string {
   if (view.category === "fraud") {
     return "Fraud and security declines are never retried, silently or otherwise. Foxhound sends a gentle, clearly worded email sequence across 30 days that names the situation plainly and points the customer to their card issuer, rather than repeating the same charge against a flag the issuer already raised.";
