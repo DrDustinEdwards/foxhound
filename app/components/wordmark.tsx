@@ -6,7 +6,7 @@
 export function Wordmark({ tone = "auto" }: { tone?: "auto" | "chrome" }) {
   const textClass = tone === "chrome" ? "text-chrome-text" : "text-wordmark";
   return (
-    <span className={`font-mono text-title font-medium ${textClass}`}>
+    <span className={`-translate-y-px font-mono text-lg font-medium tracking-[-0.5px] ${textClass}`}>
       fo<span className="text-amber">x</span>hound
     </span>
   );
