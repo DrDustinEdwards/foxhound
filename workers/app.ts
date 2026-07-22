@@ -5,6 +5,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import { jobsForSchedule } from "~/lib/cron/registry";
 import { runCronJob } from "~/lib/cron/run";
 import { applySecurityHeaders } from "~/lib/http/security-headers";
+import { enforceRateLimit } from "~/lib/http/rate-limit";
 import { handleQueueBatch } from "~/lib/queue/consumer";
 
 // Durable Objects exported from the worker entry so wrangler can bind them.
@@ -20,6 +21,12 @@ export default withSentry<Env>(
   (env) => (env.SENTRY_DSN ? { dsn: env.SENTRY_DSN, tracesSampleRate: 1 } : undefined),
   {
     async fetch(request, env, ctx) {
+      // Checked before the route handler runs (not after): a throttled
+      // request must never reach a sign-in DB lookup or dispatch a
+      // password-reset/verification email (audit M-1).
+      const limited = await enforceRateLimit(request, env);
+      if (limited) return applySecurityHeaders(limited);
+
       const context = new RouterContextProvider();
       context.set(cloudflareContext, { env, ctx });
       const response = await requestHandler(request, context);
