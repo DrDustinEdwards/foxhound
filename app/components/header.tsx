@@ -99,6 +99,8 @@ export function Header({
           </>
         ) : null}
 
+        {isAuthenticated && initial ? <Avatar initial={initial} /> : null}
+
         <ThemeToggle initialTheme={theme} variant="chrome" />
 
         {isAuthenticated ? (
@@ -114,8 +116,6 @@ export function Header({
             <Settings width={16} height={16} strokeWidth={1.5} className="text-chrome-text-secondary" />
           </div>
         )}
-
-        {isAuthenticated && initial ? <Avatar initial={initial} /> : null}
       </div>
 
       <div className="flex items-center gap-2 sm:hidden">
