@@ -39,13 +39,19 @@ export function ThemeToggle({
       type="button"
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
       onClick={toggle}
-      className={`flex h-8 w-8 items-center justify-center rounded-md ${VARIANT_CLASS[variant]}`}
+      className={`flex h-8 w-8 items-center justify-center overflow-hidden rounded-md transition-colors duration-150 ${VARIANT_CLASS[variant]}`}
     >
-      {isDark ? (
-        <Moon width={16} height={16} strokeWidth={2} aria-hidden />
-      ) : (
-        <Sun width={16} height={16} strokeWidth={2} aria-hidden />
-      )}
+      <span
+        key={theme}
+        className="flex items-center justify-center"
+        style={{ animation: "theme-icon-in 0.2s ease both" }}
+      >
+        {isDark ? (
+          <Moon width={16} height={16} strokeWidth={2} aria-hidden />
+        ) : (
+          <Sun width={16} height={16} strokeWidth={2} aria-hidden />
+        )}
+      </span>
     </button>
   );
 }
