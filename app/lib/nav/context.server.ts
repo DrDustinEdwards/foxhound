@@ -16,31 +16,52 @@ export interface NavContext {
   intelligenceEntitled: boolean;
 }
 
+/** Narrower than the full Cloudflare ExecutionContext: only the one method
+ *  this module needs, which keeps it trivially mockable in tests. */
+type WaitUntil = (promise: Promise<unknown>) => void;
+
 /**
  * Resolves nav context ONCE per app-shell request (task Part 2 rule 1: zero
- * extra DB queries in the nav component itself). On a product page this is a
- * single write (persisting last_visited_product, no read needed since the
- * product is already known from the URL) plus the entitlement check; on a
- * platform page it's a single read (the fallback context) plus the same
- * entitlement check. Never both.
+ * extra DB queries in the nav component itself). Always reads
+ * last_visited_product alongside the entitlement check (nav assessment F-1:
+ * this used to be read-on-platform-page-only, write-on-product-page-only;
+ * that meant a blind write on EVERY product-page GET, which both violated
+ * the demo read-only invariant - a demo visitor's browsing bled
+ * last_visited_product across concurrent demo visitors - and was unbounded
+ * write amplification for a value that rarely changes). The one added read
+ * is the price of eliminating that.
+ *
+ * Writes only when ALL of: the page has a current product, it differs from
+ * the stored value, and the caller is not the demo account. The write is
+ * deferred via waitUntil (not awaited) so it never adds to navigation
+ * latency; callers pass ctx.waitUntil directly (foxhound-nav-assessment.md
+ * F-1, TASK-foxhound-nav-loader-write.md).
  */
-export async function resolveNavContext(db: Db, accountId: string, pathname: string): Promise<NavContext> {
+export async function resolveNavContext(
+  db: Db,
+  accountId: string,
+  pathname: string,
+  isDemo: boolean,
+  waitUntil: WaitUntil,
+): Promise<NavContext> {
   const currentProduct = resolveProductFromPath(pathname);
 
   const [lastVisitedProduct, intelligenceEntitled] = await Promise.all([
-    currentProduct
-      ? Promise.resolve(null)
-      : db
-          .select({ lastVisitedProduct: accounts.lastVisitedProduct })
-          .from(accounts)
-          .where(eq(accounts.id, accountId))
-          .limit(1)
-          .then((rows) => rows[0]?.lastVisitedProduct ?? null),
+    db
+      .select({ lastVisitedProduct: accounts.lastVisitedProduct })
+      .from(accounts)
+      .where(eq(accounts.id, accountId))
+      .limit(1)
+      .then((rows) => rows[0]?.lastVisitedProduct ?? null),
     isIntelligenceEntitled(db, accountId),
   ]);
 
-  if (currentProduct) {
-    await db.update(accounts).set({ lastVisitedProduct: currentProduct }).where(eq(accounts.id, accountId));
+  if (currentProduct && currentProduct !== lastVisitedProduct && !isDemo) {
+    waitUntil(
+      Promise.resolve(
+        db.update(accounts).set({ lastVisitedProduct: currentProduct }).where(eq(accounts.id, accountId)),
+      ),
+    );
   }
 
   const activeProductKey: ProductKey =
