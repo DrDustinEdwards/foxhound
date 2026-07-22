@@ -11,6 +11,7 @@ import { handleQueueBatch } from "~/lib/queue/consumer";
 // Durable Objects exported from the worker entry so wrangler can bind them.
 export { MoneyWriteDurableObject } from "./money-writer";
 export { CronLockDurableObject } from "./cron-lock";
+export { RateLimiterDurableObject } from "./rate-limiter";
 
 const requestHandler = createRequestHandler(
   () => import("virtual:react-router/server-build"),
