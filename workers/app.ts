@@ -2,7 +2,6 @@ import { withSentry } from "@sentry/cloudflare";
 import { createRequestHandler, RouterContextProvider } from "react-router";
 
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { jobsForSchedule } from "~/lib/cron/registry";
 import { runCronJob } from "~/lib/cron/run";
 import { applySecurityHeaders } from "~/lib/http/security-headers";
 import { enforceRateLimit } from "~/lib/http/rate-limit";
@@ -44,6 +43,10 @@ export default withSentry<Env>(
     // cron_run_history logging). Jobs are independent, run sequentially to keep
     // D1 load bounded.
     async scheduled(controller, env) {
+      // Dynamic, not static: keeps the billing/Intelligence-AI/recovery-tick
+      // import graph (app/lib/cron/registry.ts) out of the fetch()/queue()
+      // code paths, which never call this. See foxhound-audit-perf.md H-2.
+      const { jobsForSchedule } = await import("~/lib/cron/registry");
       for (const job of jobsForSchedule(controller.cron)) {
         await runCronJob(env, job.name, job.handler);
       }
