@@ -27,11 +27,11 @@ export function hasDemoCookie(request: Request): boolean {
 }
 
 export function setDemoCookieHeader(): string {
-  return `${DEMO_SESSION_COOKIE}=${DEMO_SESSION_COOKIE_VALUE}; Path=/; Max-Age=${DEMO_COOKIE_MAX_AGE_SECONDS}; HttpOnly; SameSite=Lax`;
+  return `${DEMO_SESSION_COOKIE}=${DEMO_SESSION_COOKIE_VALUE}; Path=/; Max-Age=${DEMO_COOKIE_MAX_AGE_SECONDS}; HttpOnly; Secure; SameSite=Lax`;
 }
 
 export function clearDemoCookieHeader(): string {
-  return `${DEMO_SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`;
+  return `${DEMO_SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`;
 }
 
 /**
