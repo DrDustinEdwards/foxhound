@@ -1,15 +1,24 @@
-// Cloudflare Rate Limiting binding enforcement, keyed on cf-connecting-ip
-// (ARCHITECTURE.md's "Cloudflare rate limiting binding, keyed on
-// cf-connecting-ip" mandate; audit finding M-1, foxhound-audit-security.md:
-// /api/auth/* was live-verified unthrottled, 8 rapid sign-in POSTs all
-// returned 401 with no 429). Do NOT rely on Better Auth's built-in in-memory
-// limiter: it is per-isolate, so it does not bind across the isolate pool a
-// Worker actually runs on (M-1).
+// Rate-limit enforcement, keyed on cf-connecting-ip (ARCHITECTURE.md's
+// "Cloudflare rate limiting binding, keyed on cf-connecting-ip" mandate;
+// audit finding M-1, foxhound-audit-security.md: /api/auth/* was
+// live-verified unthrottled, 8 rapid sign-in POSTs all returned 401 with no
+// 429). Do NOT rely on Better Auth's built-in in-memory limiter: it is
+// per-isolate, so it does not bind across the isolate pool a Worker actually
+// runs on (M-1).
+//
+// Originally built on Cloudflare's unsafe ratelimit binding
+// (TASK-foxhound-auth-rate-limit.md); replaced with a Durable Object we own
+// (workers/rate-limiter.ts, TASK-foxhound-do-rate-limiter.md) after the
+// binding was proven - via deployed diagnostic tail logs - to be correctly
+// configured, invoked, and keyed, yet returned {success:true}
+// unconditionally live in production past every configured limit. Open-beta
+// API, no observability from our side, not debuggable: replaced rather than
+// chased.
 //
 // resolveRateLimitBinding is a pure path/method matcher, kept separate from
-// the binding call itself, so both are independently unit-testable (path
-// matching with plain requests; the 429 outcome with a mock RateLimit
-// binding), without needing a live Workers rate-limiting binding.
+// the DO call itself, so both are independently unit-testable (path matching
+// with plain requests; the 429 outcome with a mock DO stub), without needing
+// a live Workers runtime.
 //
 // Scope is POST only on all three surfaces. /api/auth/* also serves GET
 // (session checks the app-shell middleware's server-side getSession() calls
@@ -22,17 +31,21 @@
 // where GET renders the marketing page and POST is the enter/estimate
 // action; only the action is an abuse surface.
 
-const RETRY_AFTER_SECONDS = 60; // matches both bindings' fixed 60s window
+export interface RateLimitRule {
+  bucket: "auth" | "public";
+  limit: number;
+  periodMs: number;
+}
 
-export function resolveRateLimitBinding(request: Request, env: Env): RateLimit | null {
+export function resolveRateLimitBinding(request: Request): RateLimitRule | null {
   if (request.method !== "POST") return null;
   const { pathname } = new URL(request.url);
-  if (pathname.startsWith("/api/auth/")) return env.RATE_LIMIT_AUTH;
-  if (pathname === "/demos" || pathname === "/audit") return env.RATE_LIMIT_PUBLIC;
+  if (pathname.startsWith("/api/auth/")) return { bucket: "auth", limit: 10, periodMs: 60_000 };
+  if (pathname === "/demos" || pathname === "/audit") return { bucket: "public", limit: 20, periodMs: 60_000 };
   return null;
 }
 
-export function rateLimitedResponse(retryAfterSeconds: number = RETRY_AFTER_SECONDS): Response {
+export function rateLimitedResponse(retryAfterSeconds: number): Response {
   return new Response(
     JSON.stringify({ error: "Too many requests. Please try again shortly." }),
     {
@@ -46,18 +59,29 @@ export function rateLimitedResponse(retryAfterSeconds: number = RETRY_AFTER_SECO
 }
 
 /**
- * Check the request against whichever rate-limit binding applies, and return
+ * Check the request against whichever rate-limit rule applies, and return
  * the 429 response to send if it is over budget, or null if the request
  * should proceed. Call this BEFORE the route handler runs (workers/app.ts
  * fetch), so a throttled request never reaches a sign-in DB lookup or
  * dispatches a password-reset/verification email.
+ *
+ * Fail-open: if the Durable Object call throws (RPC failure, DO outage), the
+ * request is allowed through. Availability over strictness on the auth path
+ * - a DO hiccup must never lock a legitimate user out of sign-in.
  */
 export async function enforceRateLimit(request: Request, env: Env): Promise<Response | null> {
-  const binding = resolveRateLimitBinding(request, env);
-  if (!binding) return null;
+  const rule = resolveRateLimitBinding(request);
+  if (!rule) return null;
 
   const key = request.headers.get("cf-connecting-ip") ?? "unknown";
-  const { success } = await binding.limit({ key });
-  if (success) return null;
-  return rateLimitedResponse(RETRY_AFTER_SECONDS);
+  try {
+    const ns = env.RATE_LIMITER;
+    const stub = ns.get(ns.idFromName(`${rule.bucket}:${key}`));
+    const { allowed, retryAfterSec } = await stub.check(rule.limit, rule.periodMs);
+    if (allowed) return null;
+    return rateLimitedResponse(retryAfterSec);
+  } catch (err) {
+    console.error("RateLimiterDurableObject check failed; allowing request", err);
+    return null;
+  }
 }
