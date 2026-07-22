@@ -5,13 +5,12 @@ import * as schema from "~/db/schema";
 import {
   approvalRaceErrorMessage,
   approveAndSubmit,
-  buildPendingApprovalBatch,
-  buildSubmissionConfirmationBatch,
   canApprove,
   hashEvidence,
   type ApproveAndSubmitDeps,
   type PendingApprovalOutcome,
 } from "~/lib/disputes/approval";
+import { buildPendingApprovalBatch, buildSubmissionConfirmationBatch } from "~/lib/disputes/approval.server";
 import type { DisputeSubmissionResult } from "~/lib/disputes/submission";
 
 const now = new Date("2026-07-18T00:00:00.000Z");
