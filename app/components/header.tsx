@@ -12,6 +12,7 @@ export const NAV_LINKS = [
   { to: "/products", label: "Products" },
   { to: "/pricing", label: "Pricing" },
   { to: "/demos", label: "Demos" },
+  { to: "/features", label: "Features" },
   { to: "/docs", label: "Docs" },
   { to: "/blog", label: "Blog" },
 ];
