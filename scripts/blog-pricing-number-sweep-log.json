@@ -1,0 +1,30 @@
+{
+  "mode": "apply",
+  "changes": [
+    {
+      "slug": "subscription-intelligence-churn-prediction",
+      "before": "Intelligence is $299 per month, account-wide. It connects to your Stripe data via Stripe Connect with no code required.",
+      "after": "Intelligence is the paid predictive layer, priced flat monthly with free basic analytics for Recovery merchants. It connects to your Stripe data via Stripe Connect with no code required."
+    },
+    {
+      "slug": "recova-vs-churn-buster",
+      "before": "Foxhound at 20 percent of $2,000/month: $400/month, $4,800/year. At this recovery volume, Churn Buster is cheaper.",
+      "after": "Foxhound's 20 percent fee on that same $2,000/month in recovered revenue comes out above Churn Buster's flat rate, so Churn Buster is cheaper at this volume."
+    },
+    {
+      "slug": "recova-vs-churn-buster",
+      "before": "Churn Buster: $2,988/year. Foxhound: $1,000/month, $12,000/year. Churn Buster is significantly cheaper at scale.",
+      "after": "Churn Buster: $2,988/year. Foxhound's 20 percent fee scales with recovery volume and is well above Churn Buster's flat rate at this level, so Churn Buster is significantly cheaper at scale."
+    },
+    {
+      "slug": "recova-vs-stripe-smart-retries",
+      "before": "For a $200K ARR business with 7 percent payment failure rate: $14,000 in annual failures. Smart Retries recover 38 percent: $5,320. Foxhound recovers 70 percent: $9,800. Incremental recovery: $4,480. Foxhound's 20 percent fee on incremental: $896. Net benefit: $3,584 per year.\n\nFor a $1M ARR business: $22,400 net benefit per year.",
+      "after": "For a $200K ARR business with 7 percent payment failure rate: $14,000 in annual failures. Smart Retries recover 38 percent: $5,320. Foxhound recovers 70 percent: $9,800. Incremental recovery: $4,480, comfortably worth pursuing even after Foxhound's 20 percent fee on that incremental amount.\n\nFor a $1M ARR business, the same math scales: the incremental recovery still clears Foxhound's fee by a wide margin."
+    },
+    {
+      "slug": "stripe-smart-retries-vs-dunning",
+      "before": "Foxhound charges 20 percent of recovered revenue. On $14,400 incremental recovery, that is $2,880 per year. Net benefit: $11,520.",
+      "after": "Foxhound charges 20 percent of recovered revenue, so on $14,400 incremental recovery, the fee is well below the value recovered, leaving a strongly positive net benefit."
+    }
+  ]
+}
