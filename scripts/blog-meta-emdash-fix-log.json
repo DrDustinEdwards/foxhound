@@ -1,0 +1,6 @@
+{
+  "mode": "apply",
+  "slug": "stripe-decline-codes",
+  "before": "Every Stripe decline code explained — what it means, soft vs hard decline, retry strategy, and when to email the customer. With quick-reference table.",
+  "after": "Every Stripe decline code explained: what it means, soft vs hard decline, retry strategy, and when to email the customer. With quick-reference table."
+}

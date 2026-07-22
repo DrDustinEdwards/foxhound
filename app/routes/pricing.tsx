@@ -88,6 +88,7 @@ const CARDS: PricingCard[] = [
       "Predictive risk scoring: the paid $199/mo layer",
       "Health signals feed Recovery timing and Disputes triage",
       "Account-wide, not per-customer",
+      "Annual billing: 10 months paid, 2 months free",
     ],
   },
 ];
