@@ -7,7 +7,7 @@ import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { getDeclineCodeView } from "~/lib/decline-codes/codes";
 import { DECLINE_CONTENT } from "~/lib/decline-codes/content";
-import { categoryBadgeTone, recoveryApproach } from "~/lib/decline-codes/presentation";
+import { CATEGORY_STATUS_LABEL, categoryBadgeTone, recoveryApproach } from "~/lib/decline-codes/presentation";
 import { breadcrumbListJsonLd, faqPageJsonLd, siteUrl } from "~/lib/seo/jsonld";
 
 import type { Route } from "./+types/code";
@@ -39,15 +39,6 @@ export function meta({ loaderData }: Route.MetaArgs) {
     },
   ];
 }
-
-const CATEGORY_STATUS_LABEL = {
-  soft: "Retries automatically",
-  network: "Retries automatically",
-  expired: "Needs card update",
-  fraud: "Never retried",
-  revoked: "Cancel or update",
-  unknown: "No automatic retry",
-} as const;
 
 export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
   const { siteUrl: url, view, content } = loaderData;
