@@ -1,28 +1,50 @@
 import { Outlet } from "react-router";
 
+import { getDb } from "~/db";
 import { Footer } from "~/components/footer";
 import { Header } from "~/components/header";
+import { resolveMembership } from "~/lib/auth/account";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { getSession } from "~/lib/auth/session";
+import { isIntelligenceEntitled } from "~/lib/intelligence/views.server";
 import { getThemeFromRequest } from "~/lib/theme.server";
 
 import type { Route } from "./+types/marketing";
 
-// Session check only (no membership/account resolution): task Part 2 rule 4
-// wants authenticated visitors on marketing pages to see their app cluster
-// instead of Sign in, but marketing pages should stay cheap, so this stops
-// at "is there a session" rather than pulling the full nav context that
-// app-shell.tsx resolves for the authenticated app.
+// Anonymous visitors stay zero-DB (task: "Anonymous visitors stay zero-DB
+// exactly as now"). An authenticated visitor additionally resolves their
+// display initial (for the header avatar) and Intelligence entitlement (for
+// the section pill's dropdown), reusing isIntelligenceEntitled directly
+// rather than duplicating its query or pulling in resolveNavContext's
+// last-visited-product logic, which marketing pages have no use for
+// (TASK-foxhound-marketing-header-v2.md).
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
+  const theme = getThemeFromRequest(request);
   const session = await getSession(env, request);
-  return { isAuthenticated: Boolean(session), theme: getThemeFromRequest(request) };
+
+  if (!session) {
+    return { isAuthenticated: false as const, theme, initial: null, intelligenceEntitled: false };
+  }
+
+  const db = getDb(env);
+  const membership = await resolveMembership(db, session.user.id);
+  const intelligenceEntitled = membership ? await isIntelligenceEntitled(db, membership.accountId) : false;
+  const displayName = session.user.name || session.user.email;
+  const initial = displayName.charAt(0).toUpperCase();
+
+  return { isAuthenticated: true as const, theme, initial, intelligenceEntitled };
 }
 
 export default function MarketingLayout({ loaderData }: Route.ComponentProps) {
   return (
     <div className="flex min-h-screen flex-col bg-bg text-text">
-      <Header isAuthenticated={loaderData.isAuthenticated} theme={loaderData.theme} />
+      <Header
+        isAuthenticated={loaderData.isAuthenticated}
+        theme={loaderData.theme}
+        initial={loaderData.initial}
+        intelligenceEntitled={loaderData.intelligenceEntitled}
+      />
       <main className="flex-1">
         <Outlet />
       </main>

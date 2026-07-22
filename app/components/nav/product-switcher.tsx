@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { Link } from "react-router";
 
 import { PRODUCT_MANIFEST, PRODUCT_ORDER, type ProductKey } from "~/lib/nav/manifest";
+import { useDropdown } from "~/lib/nav/use-dropdown";
 
 // The only client behavior on the desktop nav besides the theme toggle (task
 // Part 2 rule 4): open/close state + click-outside. Everything it renders is
@@ -14,17 +14,7 @@ export function ProductSwitcher({
   activeProductKey: ProductKey;
   intelligenceEntitled: boolean;
 }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [open]);
+  const { open, setOpen, ref } = useDropdown<HTMLDivElement>();
 
   const visibleProducts = PRODUCT_ORDER.filter((key) => key !== "intelligence" || intelligenceEntitled);
   const activeLabel = PRODUCT_MANIFEST[activeProductKey].label;
