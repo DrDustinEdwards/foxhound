@@ -6,7 +6,7 @@ import { ThemeToggle } from "./theme-toggle";
 import { Wordmark } from "./wordmark";
 import type { Theme } from "~/lib/theme";
 
-const NAV_LINKS = [
+export const NAV_LINKS = [
   { to: "/products", label: "Products" },
   { to: "/pricing", label: "Pricing" },
   { to: "/demos", label: "Demos" },
