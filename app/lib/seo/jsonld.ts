@@ -28,14 +28,6 @@ export const SUPPORT_EMAIL = "support@foxhoundapp.com";
 // governing-law state today, not a carried-over guess.
 export const GOVERNING_LAW_JURISDICTION = "Texas";
 
-// Retained from legacy at cutover per TASK-foxhound-phase6.md; do not invent
-// new handles here.
-const SOCIAL_SAME_AS = [
-  "https://x.com/recovamrr",
-  "https://bsky.app/profile/recovamrr.bsky.social",
-  "https://www.reddit.com/user/recovamrr/",
-];
-
 export function organizationJsonLd(url: string) {
   return {
     "@context": "https://schema.org",
@@ -60,7 +52,6 @@ export function organizationJsonLd(url: string) {
       "Involuntary churn",
       "SaaS revenue operations",
     ],
-    sameAs: SOCIAL_SAME_AS,
   };
 }
 
