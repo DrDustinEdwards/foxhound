@@ -59,6 +59,32 @@ export function rateLimitedResponse(retryAfterSeconds: number): Response {
 }
 
 /**
+ * Low-level per-key check against the same RateLimiterDurableObject, for a
+ * route action that needs to react to "over limit" itself instead of the
+ * raw 429 Response enforceRateLimit returns (TASK-foxhound-demo-entry-parity.md
+ * item 3: the home email generator falls back to a static sample rather than
+ * surfacing an error, so it checks its own budget inside the action). Fails
+ * open exactly like enforceRateLimit, for the same reason.
+ */
+export async function isWithinRateLimit(
+  env: Env,
+  bucket: string,
+  key: string,
+  limit: number,
+  periodMs: number,
+): Promise<boolean> {
+  try {
+    const ns = env.RATE_LIMITER;
+    const stub = ns.get(ns.idFromName(`${bucket}:${key}`));
+    const { allowed } = await stub.check(limit, periodMs);
+    return allowed;
+  } catch (err) {
+    console.error("RateLimiterDurableObject check failed; allowing request", err);
+    return true;
+  }
+}
+
+/**
  * Check the request against whichever rate-limit rule applies, and return
  * the 429 response to send if it is over budget, or null if the request
  * should proceed. Call this BEFORE the route handler runs (workers/app.ts

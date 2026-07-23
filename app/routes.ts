@@ -26,6 +26,7 @@ export default [
       route(":competitor", "./routes/compare/competitor.tsx"),
     ]),
     route("audit", "./routes/audit.tsx"),
+    route("marketing/generate-email-sample", "./routes/marketing/generate-email-sample.ts"),
     ...prefix("blog", [
       index("./routes/blog/index.tsx"),
       route("archive", "./routes/blog/archive.tsx"),

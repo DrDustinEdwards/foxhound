@@ -1,93 +1,34 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useFetcher } from "react-router";
 
-// Replaces legacy components/marketing/EmailGenerator.tsx (Phase 6 Pass 1,
-// copy correction #10). The legacy widget called a live Anthropic API per
-// visitor; that cost, abuse surface, and the API key itself are Phase 8
-// scope. This is a static rotator over hardcoded, pre-written samples, zero
-// API calls, zero marginal cost, same proof value. Categories mirror the
-// DECLINE_CATEGORIES enum (app/lib/constants.ts): soft, network, expired,
-// fraud. Copy reflects the silent-first engine (correction #4): a quiet
-// retry already ran before any soft/network/expired email sends, and fraud
-// declines are never retried.
-interface EmailSample {
-  id: string;
+import type { MarketingEmailCategory, MarketingEmailCopy } from "~/lib/marketing/email-sample-fallbacks";
+
+// Live email generator (TASK-foxhound-demo-entry-parity.md item 3, reversing
+// the earlier call at app/components/email-samples.tsx: Phase 6 replaced
+// legacy's real Anthropic call with a static rotator over hardcoded samples,
+// reasoning that the demo-account AI firewall meant "zero Anthropic calls in
+// the demo path." That firewall is for the SEEDED DEMO ACCOUNT (a nightly
+// cron reseed calling AI would be genuinely wrong there); it never applied to
+// this unauthenticated marketing page, where a human clicks a button once.
+// Legacy called real AI from here. Generation posts to
+// /marketing/generate-email-sample (app/routes/marketing/), which is rate
+// limited and falls back to a static sample on any failure, in the same
+// shape, so a visitor never sees an error.
+interface CategoryMeta {
+  id: MarketingEmailCategory;
   label: string;
   desc: string;
   tone: "blue" | "orange" | "amber" | "red";
-  subject: string;
-  body: string;
-  note?: string;
 }
 
-const SAMPLES: EmailSample[] = [
-  {
-    id: "soft",
-    label: "Insufficient funds",
-    desc: "Soft decline",
-    tone: "blue",
-    subject: "A quick note about your Acme Analytics payment",
-    body: `Hi Jordan,
-
-Your card was declined for this month's Acme Analytics payment (insufficient_funds). We already tried a quiet retry this morning in case it was just timing, no luck yet.
-
-If you would rather update your card directly, this link takes you straight there:
-{{card_update_link}}
-
-We will keep trying automatically over the next few days. No action needed if the funds clear on their own.
-
-Acme Analytics`,
-    note: "A silent retry already ran before this email sent.",
-  },
-  {
-    id: "network",
-    label: "Processing failure",
-    desc: "Network decline",
-    tone: "orange",
-    subject: "A payment hiccup on your Acme Analytics account",
-    body: `Hi Priya,
-
-Your last payment on Acme Analytics ran into a processing error on the card network's side, not a problem with your card itself. We already retried it once quietly before sending this.
-
-If it happens again, updating your card details usually clears it:
-{{card_update_link}}
-
-Acme Analytics`,
-    note: "A silent retry already ran before this email sent.",
-  },
-  {
-    id: "expired",
-    label: "Expired card",
-    desc: "Card needs updating",
-    tone: "amber",
-    subject: "The card on file for Acme Analytics has expired",
-    body: `Hi Sam,
-
-The card on file for your Acme Analytics subscription expired, so this month's payment did not go through. A retry will not fix this one, it needs a new card.
-
-Update it here, it takes about 30 seconds:
-{{card_update_link}}
-
-Acme Analytics`,
-  },
-  {
-    id: "fraud",
-    label: "Suspected fraud",
-    desc: "do_not_honor",
-    tone: "red",
-    subject: "Your Acme Analytics payment needs a new card",
-    body: `Hi Morgan,
-
-Your bank declined this month's Acme Analytics payment as do_not_honor, usually a fraud check on the bank's side rather than anything about your account. We do not retry declines like this automatically.
-
-If everything looks right to you, updating your card usually resolves it:
-{{card_update_link}}
-
-Acme Analytics`,
-    note: "Fraud declines are never retried. This is the only step in the sequence.",
-  },
+const CATEGORIES: CategoryMeta[] = [
+  { id: "soft", label: "Insufficient funds", desc: "Soft decline", tone: "blue" },
+  { id: "network", label: "Processing failure", desc: "Network decline", tone: "orange" },
+  { id: "expired", label: "Expired card", desc: "Card needs updating", tone: "amber" },
+  { id: "fraud", label: "Suspected fraud", desc: "do_not_honor", tone: "red" },
 ];
 
-const TONE_CLASSES: Record<EmailSample["tone"], string> = {
+const TONE_CLASSES: Record<CategoryMeta["tone"], string> = {
   blue: "bg-blue-bg border-blue text-blue",
   orange: "bg-orange-bg border-orange text-warning-text",
   amber: "bg-amber-bg border-amber-border-interactive text-amber-text",
@@ -95,16 +36,34 @@ const TONE_CLASSES: Record<EmailSample["tone"], string> = {
 };
 
 export function EmailSamples() {
-  const [activeId, setActiveId] = useState(SAMPLES[0].id);
-  const active = SAMPLES.find((s) => s.id === activeId) ?? SAMPLES[0];
+  const [activeId, setActiveId] = useState<MarketingEmailCategory>(CATEGORIES[0].id);
+  const [result, setResult] = useState<MarketingEmailCopy | null>(null);
+  const fetcher = useFetcher<MarketingEmailCopy>();
+  const busy = fetcher.state !== "idle";
+
+  useEffect(() => {
+    if (fetcher.data) setResult(fetcher.data);
+  }, [fetcher.data]);
+
+  function selectCategory(id: MarketingEmailCategory) {
+    setActiveId(id);
+    setResult(null);
+  }
+
+  function generate() {
+    fetcher.submit({ category: activeId }, { method: "post", action: "/marketing/generate-email-sample" });
+  }
 
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-surface">
       <div className="flex items-center justify-between border-b border-border-sub px-5 py-4">
         <span className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
-          Sample recovery emails
+          Live email generator
         </span>
-        <span className="font-mono text-micro text-text-subtle">Pre-written, not generated live</span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green" aria-hidden />
+          <span className="font-mono text-micro text-green">Calls real AI</span>
+        </span>
       </div>
 
       <div className="p-5">
@@ -112,38 +71,53 @@ export function EmailSamples() {
           Decline type
         </p>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {SAMPLES.map((sample) => (
+          {CATEGORIES.map((category) => (
             <button
-              key={sample.id}
+              key={category.id}
               type="button"
-              onClick={() => setActiveId(sample.id)}
+              onClick={() => selectCategory(category.id)}
               className={`rounded-lg border px-3 py-2.5 text-left text-label transition-colors ${
-                activeId === sample.id
-                  ? TONE_CLASSES[sample.tone]
+                activeId === category.id
+                  ? TONE_CLASSES[category.tone]
                   : "border-border bg-bg text-text-secondary hover:border-border-i"
               }`}
             >
-              <div className="font-medium">{sample.label}</div>
-              <div className="mt-0.5 font-mono text-micro opacity-80">{sample.desc}</div>
+              <div className="font-medium">{category.label}</div>
+              <div className="mt-0.5 font-mono text-micro opacity-80">{category.desc}</div>
             </button>
           ))}
         </div>
-      </div>
 
-      <div className="border-t border-border-sub p-5">
-        <p className="mb-2 font-mono text-micro uppercase tracking-wide text-text-subtle">Subject</p>
-        <div className="mb-4 rounded-lg border border-border-sub bg-bg px-3 py-2 text-body font-medium text-text">
-          {active.subject}
+        <div className="mt-4 flex justify-center">
+          <button
+            type="button"
+            onClick={generate}
+            disabled={busy}
+            className="w-full rounded-md bg-amber px-5 py-2.5 text-label font-semibold text-on-amber hover:bg-amber-dark disabled:opacity-60 sm:w-auto sm:min-w-[280px]"
+          >
+            {busy ? "Generating..." : "Generate recovery email"}
+          </button>
         </div>
-        <p className="mb-2 font-mono text-micro uppercase tracking-wide text-text-subtle">Body</p>
-        <div className="whitespace-pre-wrap rounded-lg border border-border-sub bg-bg px-3 py-3 font-mono text-label leading-relaxed text-text-secondary">
-          {active.body}
-        </div>
-        {active.note ? <p className="mt-3 font-mono text-micro text-text-subtle">{active.note}</p> : null}
-        <p className="mt-3 text-micro text-text-subtle">
-          Every account customizes its brand voice. These samples use a neutral default.
+        <p className="mt-2 text-center font-mono text-micro text-text-subtle">
+          The same AI that writes your recovery emails. Try it on a real failed payment.
         </p>
       </div>
+
+      {result ? (
+        <div className="border-t border-border-sub p-5">
+          <p className="mb-2 font-mono text-micro uppercase tracking-wide text-text-subtle">Subject</p>
+          <div className="mb-4 rounded-lg border border-border-sub bg-bg px-3 py-2 text-body font-medium text-text">
+            {result.subject}
+          </div>
+          <p className="mb-2 font-mono text-micro uppercase tracking-wide text-text-subtle">Body</p>
+          <div className="whitespace-pre-wrap rounded-lg border border-border-sub bg-bg px-3 py-3 font-mono text-label leading-relaxed text-text-secondary">
+            {result.body.replace("{{update_url}}", "https://billing.yoursaas.com/update")}
+          </div>
+          <p className="mt-3 font-mono text-micro text-text-subtle">
+            Generated in real time by the same AI that writes your recovery emails.
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }

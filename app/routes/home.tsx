@@ -470,7 +470,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 What a Foxhound recovery email looks like
               </h2>
               <p className="mx-auto m-0 max-w-md text-body text-text-secondary">
-                Pick a decline type and see a real sample. Every account customizes its own brand voice.
+                Pick a decline type and generate a real one. Every account customizes its own brand voice.
               </p>
             </div>
           </FadeUp>
