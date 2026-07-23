@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { NAV_LINKS } from "~/components/header";
 import { COLUMNS } from "~/components/footer";
+import { MARKETING_PILL_ITEMS } from "~/lib/nav/manifest";
 import routes from "~/routes";
 
 // Drift-prevention guard for the marketing chrome (same pattern as
@@ -78,5 +79,30 @@ describe("marketing header + footer links match routes.ts", () => {
   it("footer Explore column includes Features", () => {
     const explore = COLUMNS.find((c) => c.heading === "Explore");
     expect(explore?.links.map((l) => l.label)).toContain("Features");
+  });
+
+  // TASK-foxhound-pill-menu-parity.md: the authenticated SectionPill menu's
+  // item set and order are legacy ground truth, a different shape than
+  // PRODUCT_MANIFEST (already covered by test/nav-manifest.test.ts).
+  it("every section-pill item is a real route", () => {
+    for (const item of MARKETING_PILL_ITEMS) {
+      expect(realPaths.has(item.to), `${item.to} (section pill: ${item.label}) is not in routes.ts`).toBe(true);
+    }
+  });
+
+  it("section pill has exactly the legacy item set, in legacy order", () => {
+    expect(MARKETING_PILL_ITEMS.map((i) => i.label)).toEqual([
+      "Console",
+      "Audit",
+      "Recovery",
+      "Disputes",
+      "Intelligence",
+    ]);
+  });
+
+  it("only Intelligence is gated by entitlement", () => {
+    for (const item of MARKETING_PILL_ITEMS) {
+      expect(Boolean(item.requiresIntelligenceEntitlement)).toBe(item.label === "Intelligence");
+    }
   });
 });
