@@ -133,7 +133,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
       <header className="border-b border-border bg-chrome">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
           <div className="flex min-w-0 items-center gap-3">
-            <Link to="/dashboard" aria-label="Foxhound dashboard" className="shrink-0">
+            <Link to="/" aria-label="Foxhound home" className="shrink-0">
               <Wordmark tone="chrome" />
             </Link>
             <ProductSwitcher activeProductKey={nav.activeProductKey} intelligenceEntitled={nav.intelligenceEntitled} />
