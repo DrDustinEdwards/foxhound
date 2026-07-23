@@ -1,12 +1,15 @@
 import { ArrowRight, ArrowUpRight, RefreshCw, ScanSearch, Shield, TrendingUp } from "lucide-react";
 import { Link } from "react-router";
 
+import { BlogPostCard } from "~/components/blog/blog-post-card";
 import { EmailSamples } from "~/components/email-samples";
 import { FadeUp } from "~/components/fade-up";
 import { FaqAccordion } from "~/components/faq-accordion";
 import { LedgerMock } from "~/components/ledger-mock";
 import { RecoveryCalculator } from "~/components/recovery-calculator";
+import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { listPublishedPosts } from "~/lib/blog/queries.server";
 import { PRODUCTS } from "~/lib/marketing/products";
 import { faqPageJsonLd, organizationJsonLd, siteUrl, softwareApplicationJsonLd, speakableWebPageJsonLd, websiteJsonLd } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
@@ -16,9 +19,12 @@ import type { Route } from "./+types/home";
 // Marketing home page (Phase 6 Pass 1). Ported from legacy
 // app/(marketing)/page.tsx: structure kept (hero, stats, Stripe+Foxhound
 // comparison, full-bleed statement, how it works, calculator, products
-// grid, email samples, FAQ, trust bar, closing CTA, JSON-LD), copy rewritten
-// per the 10 corrections in TASK-foxhound-phase6.md. The "from the blog"
-// strip is dropped for this pass, there is no blog content until Pass 2.
+// grid, email samples, FAQ, trust bar, from the blog, closing CTA, JSON-LD),
+// copy rewritten per the 10 corrections in TASK-foxhound-phase6.md. The
+// "from the blog" strip (TASK-foxhound-parity-cluster-b.md fix 1) restores
+// legacy's exact position, between the trust bar and the closing CTA
+// (confirmed live on recova-eta.vercel.app: section index 10 of 12, right
+// after the trust-badge row, right before the final CTA).
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return marketingMeta({
@@ -33,9 +39,11 @@ export function meta({ loaderData }: Route.MetaArgs) {
 // Env access only (no session read), same pattern as the auth loaders, so
 // the JSON-LD block below can derive every absolute URL from siteUrl(env)
 // per the SITE_URL discipline instead of a hardcoded domain.
-export function loader({ context }: Route.LoaderArgs) {
+export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
-  return { siteUrl: siteUrl(env) };
+  const db = getDb(env);
+  const latestPosts = await listPublishedPosts(db, 3);
+  return { siteUrl: siteUrl(env), latestPosts };
 }
 
 interface ComparisonRow {
@@ -139,7 +147,7 @@ const PRODUCT_ICONS = {
 } as const;
 
 export default function Home({ loaderData }: Route.ComponentProps) {
-  const url = loaderData.siteUrl;
+  const { siteUrl: url, latestPosts } = loaderData;
 
   return (
     <div>
@@ -525,6 +533,39 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           </FadeUp>
         </div>
       </section>
+
+      {/* From the blog (legacy home section 10 of 12: right after the trust
+          bar, right before the closing CTA - confirmed live on
+          recova-eta.vercel.app before building this). Trimmed-column query
+          (listPublishedPosts, same as the perf remediation and the blog
+          index's own sections), never the full-body select. */}
+      {latestPosts.length > 0 ? (
+        <section className="border-t border-border-sub bg-surface px-4 py-16 sm:px-8">
+          <div className="mx-auto max-w-5xl">
+            <FadeUp>
+              <div className="mb-8 flex items-center justify-between">
+                <p className="m-0 font-mono text-micro uppercase tracking-wide text-text-tertiary">
+                  From the blog
+                </p>
+                <Link to="/blog" className="group text-label text-text-secondary hover:text-text">
+                  All articles{" "}
+                  <ArrowRight
+                    className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
+                    size={13}
+                    strokeWidth={1.5}
+                    aria-hidden
+                  />
+                </Link>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                {latestPosts.map((post) => (
+                  <BlogPostCard key={post.slug} post={post} />
+                ))}
+              </div>
+            </FadeUp>
+          </div>
+        </section>
+      ) : null}
 
       {/* Closing CTA */}
       <section className="border-t border-border-sub px-4 py-20 sm:px-8">
