@@ -8,6 +8,11 @@ import {
   ProductHero,
   ProductPricing,
 } from "~/components/product-sections";
+import { cloudflareContext } from "~/lib/cloudflare-context";
+import { siteUrl } from "~/lib/seo/jsonld";
+import { marketingMeta } from "~/lib/seo/meta";
+
+import type { Route } from "./+types/audit";
 
 // Ported from legacy app/(marketing)/product/audit/page.tsx (Phase 6 Pass
 // 1). Copy correction: no fabricated recovery-rate stat (legacy claimed a
@@ -15,15 +20,19 @@ import {
 // Foxhound). Framed around lift instead: what Stripe already recovered,
 // what is still dying, what Foxhound would add.
 
-export function meta() {
-  return [
-    { title: "Audit - Foxhound" },
-    {
-      name: "description",
-      content:
-        "Free Stripe diagnostic. See failed invoices, expiring cards, open disputes, and business health in 30 seconds. No account required.",
-    },
-  ];
+export function meta({ loaderData }: Route.MetaArgs) {
+  return marketingMeta({
+    title: "Audit - Foxhound",
+    description:
+      "Free Stripe diagnostic. See failed invoices, expiring cards, open disputes, and business health in 30 seconds. No account required.",
+    path: "/products/audit",
+    siteUrl: loaderData?.siteUrl ?? "",
+  });
+}
+
+export function loader({ context }: Route.LoaderArgs) {
+  const { env } = context.get(cloudflareContext);
+  return { siteUrl: siteUrl(env) };
 }
 
 const STEPS = [

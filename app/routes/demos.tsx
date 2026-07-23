@@ -5,6 +5,8 @@ import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { ensureDemoSeeded } from "~/lib/demo/seed";
 import { setDemoCookieHeader } from "~/lib/demo/session";
+import { siteUrl } from "~/lib/seo/jsonld";
+import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/demos";
 
@@ -14,15 +16,19 @@ import type { Route } from "./+types/demos";
 // app-shell middleware injects a demo membership and blocks every write). This
 // page only frames the demo and sets the demo cookie.
 
-export function meta() {
-  return [
-    { title: "Live demo - Foxhound" },
-    {
-      name: "description",
-      content:
-        "Explore the real Foxhound app with a full sample account: recovery sequences, dispute review, and MRR intelligence. No signup, nothing to connect.",
-    },
-  ];
+export function meta({ loaderData }: Route.MetaArgs) {
+  return marketingMeta({
+    title: "Live demo - Foxhound",
+    description:
+      "Explore the real Foxhound app with a full sample account: recovery sequences, dispute review, and MRR intelligence. No signup, nothing to connect.",
+    path: "/demos",
+    siteUrl: loaderData?.siteUrl ?? "",
+  });
+}
+
+export function loader({ context }: Route.LoaderArgs) {
+  const { env } = context.get(cloudflareContext);
+  return { siteUrl: siteUrl(env) };
 }
 
 // Enter the demo: ensure the demo account is seeded (idempotent; the daily

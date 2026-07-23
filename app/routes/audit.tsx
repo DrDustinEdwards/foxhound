@@ -7,6 +7,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import { estimateLeakage, recordEstimatorRun, type EstimatorResult } from "~/lib/estimator/estimate.server";
 import { formatMoney } from "~/lib/money-format";
 import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
+import { marketingMeta } from "~/lib/seo/meta";
 import { verifyTurnstileToken } from "~/lib/turnstile/verify.server";
 
 import type { Route } from "./+types/audit";
@@ -32,15 +33,14 @@ import type { Route } from "./+types/audit";
 // data/query layer only (app/lib/audit/full-audit.server.ts), not wired to
 // any new route or UI.
 
-export function meta() {
-  return [
-    { title: "Free Stripe Revenue Leakage Audit - Foxhound" },
-    {
-      name: "description",
-      content:
-        "Estimate what your Stripe account is leaking to failed payments in 30 seconds. No signup, no credit card. Connect Stripe afterward for the full diagnostic.",
-    },
-  ];
+export function meta({ loaderData }: Route.MetaArgs) {
+  return marketingMeta({
+    title: "Free Stripe Revenue Leakage Audit - Foxhound",
+    description:
+      "Estimate what your Stripe account is leaking to failed payments in 30 seconds. No signup, no credit card. Connect Stripe afterward for the full diagnostic.",
+    path: "/audit",
+    siteUrl: loaderData?.siteUrl ?? "",
+  });
 }
 
 type ActionResult =

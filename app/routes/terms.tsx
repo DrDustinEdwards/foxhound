@@ -1,7 +1,11 @@
 import { Link } from "react-router";
 
 import { MarketingPageHeader } from "~/components/marketing-page-header";
-import { GOVERNING_LAW_JURISDICTION, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
+import { cloudflareContext } from "~/lib/cloudflare-context";
+import { GOVERNING_LAW_JURISDICTION, siteUrl, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
+import { marketingMeta } from "~/lib/seo/meta";
+
+import type { Route } from "./+types/terms";
 
 // Ported from legacy app/(marketing)/terms/page.tsx (Phase 6 Pass 1). Same
 // 26-section structure, de-branded Recova -> Foxhound throughout. The
@@ -10,11 +14,18 @@ import { GOVERNING_LAW_JURISDICTION, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 // review-and-sign disputes, maturity-window billing); every other section
 // is boilerplate legal structure carried over unchanged in substance.
 
-export function meta() {
-  return [
-    { title: "Terms of Service - Foxhound" },
-    { name: "description", content: "Terms of service for Foxhound, the payment recovery platform for Stripe merchants." },
-  ];
+export function meta({ loaderData }: Route.MetaArgs) {
+  return marketingMeta({
+    title: "Terms of Service - Foxhound",
+    description: "Terms of service for Foxhound, the payment recovery platform for Stripe merchants.",
+    path: "/terms",
+    siteUrl: loaderData?.siteUrl ?? "",
+  });
+}
+
+export function loader({ context }: Route.LoaderArgs) {
+  const { env } = context.get(cloudflareContext);
+  return { siteUrl: siteUrl(env) };
 }
 
 interface SectionDef {

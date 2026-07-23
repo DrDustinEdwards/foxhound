@@ -9,21 +9,30 @@ import {
   ProductHero,
   ProductPricing,
 } from "~/components/product-sections";
+import { cloudflareContext } from "~/lib/cloudflare-context";
+import { siteUrl } from "~/lib/seo/jsonld";
+import { marketingMeta } from "~/lib/seo/meta";
+
+import type { Route } from "./+types/recovery";
 
 // Ported from legacy app/(marketing)/product/recovery/page.tsx (Phase 6
 // Pass 1). Copy corrections #1 and #4: silent-first is the lead ("smarter
 // than Smart Retries" becomes "quiet before loud"), baseline-free and
 // 30-day maturity framing throughout.
 
-export function meta() {
-  return [
-    { title: "Recovery - Foxhound" },
-    {
-      name: "description",
-      content:
-        "Silent retries first, then AI-drafted email sequences across 30 days. 20% of what Foxhound recovers, nothing Stripe would have gotten anyway.",
-    },
-  ];
+export function meta({ loaderData }: Route.MetaArgs) {
+  return marketingMeta({
+    title: "Recovery - Foxhound",
+    description:
+      "Silent retries first, then AI-drafted email sequences across 30 days. 20% of what Foxhound recovers, nothing Stripe would have gotten anyway.",
+    path: "/products/recovery",
+    siteUrl: loaderData?.siteUrl ?? "",
+  });
+}
+
+export function loader({ context }: Route.LoaderArgs) {
+  const { env } = context.get(cloudflareContext);
+  return { siteUrl: siteUrl(env) };
 }
 
 const STEPS = [

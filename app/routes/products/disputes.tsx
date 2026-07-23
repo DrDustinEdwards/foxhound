@@ -9,6 +9,11 @@ import {
   ProductHero,
   ProductPricing,
 } from "~/components/product-sections";
+import { cloudflareContext } from "~/lib/cloudflare-context";
+import { siteUrl } from "~/lib/seo/jsonld";
+import { marketingMeta } from "~/lib/seo/meta";
+
+import type { Route } from "./+types/disputes";
 
 // Ported from legacy app/(marketing)/product/disputes/page.tsx (Phase 6
 // Pass 1). Copy correction #3: the built product explicitly rejected
@@ -16,15 +21,19 @@ import {
 // "auto-submit before the deadline" claim from legacy is rewritten to
 // review-and-sign.
 
-export function meta() {
-  return [
-    { title: "Disputes - Foxhound" },
-    {
-      name: "description",
-      content:
-        "Evidence drafted for every dispute. You review and sign every submission. 20% only when you win, capped at $500.",
-    },
-  ];
+export function meta({ loaderData }: Route.MetaArgs) {
+  return marketingMeta({
+    title: "Disputes - Foxhound",
+    description:
+      "Evidence drafted for every dispute. You review and sign every submission. 20% only when you win, capped at $500.",
+    path: "/products/disputes",
+    siteUrl: loaderData?.siteUrl ?? "",
+  });
+}
+
+export function loader({ context }: Route.LoaderArgs) {
+  const { env } = context.get(cloudflareContext);
+  return { siteUrl: siteUrl(env) };
 }
 
 const STEPS = [

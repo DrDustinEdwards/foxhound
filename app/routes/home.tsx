@@ -9,6 +9,7 @@ import { RecoveryCalculator } from "~/components/recovery-calculator";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { PRODUCTS } from "~/lib/marketing/products";
 import { faqPageJsonLd, organizationJsonLd, siteUrl, softwareApplicationJsonLd, speakableWebPageJsonLd, websiteJsonLd } from "~/lib/seo/jsonld";
+import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/home";
 
@@ -19,15 +20,14 @@ import type { Route } from "./+types/home";
 // per the 10 corrections in TASK-foxhound-phase6.md. The "from the blog"
 // strip is dropped for this pass, there is no blog content until Pass 2.
 
-export function meta() {
-  return [
-    { title: "Foxhound: recover failed Stripe payments, pay only when it works" },
-    {
-      name: "description",
-      content:
-        "Silent retries first, then AI-drafted recovery sequences. 20% of what Foxhound recovers. Anything Stripe would have gotten anyway is free. Nothing billed until you've held the money 30 days.",
-    },
-  ];
+export function meta({ loaderData }: Route.MetaArgs) {
+  return marketingMeta({
+    title: "Foxhound: recover failed Stripe payments, pay only when it works",
+    description:
+      "Silent retries first, then AI-drafted recovery sequences. 20% of what Foxhound recovers. Anything Stripe would have gotten anyway is free. Nothing billed until you've held the money 30 days.",
+    path: "/",
+    siteUrl: loaderData?.siteUrl ?? "",
+  });
 }
 
 // Env access only (no session read), same pattern as the auth loaders, so

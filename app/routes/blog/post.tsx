@@ -18,6 +18,7 @@ import {
   personJsonLd,
   siteUrl,
 } from "~/lib/seo/jsonld";
+import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/post";
 
@@ -63,18 +64,17 @@ export function meta({ loaderData }: Route.MetaArgs) {
   const canonical = post.canonicalUrl ?? `${url}/blog/${post.slug}`;
   const image = post.coverImageUrl ?? ogImageUrl(url, title, post.tags[0]);
 
-  return [
-    { title: `${title} - Foxhound Blog` },
-    { name: "description", content: description },
-    { tagName: "link", rel: "canonical", href: canonical },
-    { property: "og:type", content: "article" },
-    { property: "og:title", content: title },
-    { property: "og:description", content: description },
-    { property: "og:url", content: canonical },
-    { property: "og:image", content: image },
-    { name: "twitter:card", content: "summary_large_image" },
-    { name: "twitter:image", content: image },
-  ];
+  return marketingMeta({
+    title: `${title} - Foxhound Blog`,
+    description,
+    path: `/blog/${post.slug}`,
+    siteUrl: url,
+    canonical,
+    image,
+    ogTitle: title,
+    ogType: "article",
+    imageAlt: title,
+  });
 }
 
 function formatDate(d: Date | null): string {

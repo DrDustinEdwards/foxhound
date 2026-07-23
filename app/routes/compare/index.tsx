@@ -5,6 +5,7 @@ import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { COMPETITOR_ORDER, COMPETITORS } from "~/lib/compare/competitors";
 import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
+import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/index";
 
@@ -13,15 +14,14 @@ import type { Route } from "./+types/index";
 // construction: card copy is each competitor's one-liner from the shared
 // data module, not marketing spin written separately here.
 
-export function meta() {
-  return [
-    { title: "Compare Foxhound - Foxhound" },
-    {
-      name: "description",
-      content:
-        "How Foxhound compares to Stripe Smart Retries, Churnkey, Churn Buster, Paddle Retain, Baremetrics Recover, and Stunning. Honest pros and cons, no invented numbers.",
-    },
-  ];
+export function meta({ loaderData }: Route.MetaArgs) {
+  return marketingMeta({
+    title: "Compare Foxhound - Foxhound",
+    description:
+      "How Foxhound compares to Stripe Smart Retries, Churnkey, Churn Buster, Paddle Retain, Baremetrics Recover, and Stunning. Honest pros and cons, no invented numbers.",
+    path: "/compare",
+    siteUrl: loaderData?.siteUrl ?? "",
+  });
 }
 
 export function loader({ context }: Route.LoaderArgs) {

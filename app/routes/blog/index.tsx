@@ -15,6 +15,7 @@ import {
 } from "~/lib/blog/queries.server";
 import { SECTIONS, SECTION_MIN_CLUSTER_SIZE, type BlogSectionConfig } from "~/lib/blog/sections";
 import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
+import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/index";
 
@@ -29,14 +30,13 @@ import type { Route } from "./+types/index";
 //     published posts (SECTION_MIN_CLUSTER_SIZE), not just "some of its
 //     curated slugs resolved". Pre-import (zero rows) every section is
 //     empty, which is the correct, honest state, not a bug.
-export function meta() {
-  return [
-    { title: "Blog - Foxhound" },
-    {
-      name: "description",
-      content: "Guides on Stripe payment recovery, dispute handling, and subscription intelligence.",
-    },
-  ];
+export function meta({ loaderData }: Route.MetaArgs) {
+  return marketingMeta({
+    title: "Blog - Foxhound",
+    description: "Guides on Stripe payment recovery, dispute handling, and subscription intelligence.",
+    path: "/blog",
+    siteUrl: loaderData?.siteUrl ?? "",
+  });
 }
 
 export async function loader({ context }: Route.LoaderArgs) {

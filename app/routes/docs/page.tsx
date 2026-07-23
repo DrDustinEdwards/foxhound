@@ -1,4 +1,7 @@
+import { cloudflareContext } from "~/lib/cloudflare-context";
 import { getDocGuide } from "~/lib/marketing/docs-content";
+import { siteUrl } from "~/lib/seo/jsonld";
+import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/page";
 
@@ -6,20 +9,24 @@ import type { Route } from "./+types/page";
 // (Phase 6 Pass 1), collapsed onto a single dynamic :slug route backed by
 // app/lib/marketing/docs-content.ts instead of five separate route files.
 
-export function loader({ params }: Route.LoaderArgs) {
+export function loader({ params, context }: Route.LoaderArgs) {
+  const { env } = context.get(cloudflareContext);
   const guide = getDocGuide(params.slug);
   if (!guide) {
     throw new Response("Not found", { status: 404 });
   }
-  return { guide };
+  return { siteUrl: siteUrl(env), guide };
 }
 
 export function meta({ loaderData }: Route.MetaArgs) {
   if (!loaderData) return [{ title: "Docs - Foxhound" }];
-  return [
-    { title: `${loaderData.guide.title} - Foxhound docs` },
-    { name: "description", content: loaderData.guide.description },
-  ];
+  const { guide, siteUrl: url } = loaderData;
+  return marketingMeta({
+    title: `${guide.title} - Foxhound docs`,
+    description: guide.description,
+    path: `/docs/${guide.slug}`,
+    siteUrl: url,
+  });
 }
 
 export default function DocGuidePage({ loaderData }: Route.ComponentProps) {
