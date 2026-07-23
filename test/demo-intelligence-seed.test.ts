@@ -52,7 +52,7 @@ describe("buildIntelligenceSeed", () => {
     expect(signals.wonCount).toBe(1);
   });
 
-  it("Driftwave-style at-risk anchors (Acme, Bluewave) score in the documented bands", () => {
+  it("Acme's recovered-save and Bluewave's active-recovery narratives score in the documented bands", () => {
     const { intelligence } = seedAll();
     const acme = intelligence.customerContext.find((c) => c.stripeCustomerId === "cus_teamflow_acme_industries");
     const bluewave = intelligence.customerContext.find((c) => c.stripeCustomerId === "cus_teamflow_bluewave_studios");
@@ -102,5 +102,21 @@ describe("buildNarrativeSeed", () => {
   it("never names Claude, Anthropic, or Recova", () => {
     const { narrative } = buildNarrativeSeed(ACCOUNT_ID, now);
     expect(narrative).not.toMatch(/claude|anthropic|recova/i);
+  });
+
+  // TASK-foxhound-demo-engine-review-fixes.md L-1: Driftwave Labs is a
+  // Bolt-base customer, never seeded (Teamflow only), so the name resolves to
+  // nothing anywhere in this demo and must not appear in prospect-facing copy.
+  it("never names Driftwave (a Bolt-base customer that is never seeded)", () => {
+    const { narrative } = buildNarrativeSeed(ACCOUNT_ID, now);
+    expect(narrative).not.toMatch(/driftwave/i);
+  });
+
+  // M-1: a hard dispute-outcome count here can silently contradict the
+  // Disputes page as the seeded outcome mix changes; the sentence must stay
+  // qualitative.
+  it("never hardcodes a dispute win/loss count", () => {
+    const { narrative } = buildNarrativeSeed(ACCOUNT_ID, now);
+    expect(narrative).not.toMatch(/\b(one|two|three|four|five|\d+)\s+disputes?\b/i);
   });
 });
