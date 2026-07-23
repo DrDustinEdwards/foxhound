@@ -1,17 +1,16 @@
 // Single source of truth for the site's public origin and the JSON-LD
 // builders used across marketing pages (TASK-foxhound-phase6.md SITE_URL
 // discipline). Every absolute URL (JSON-LD @id, canonical links) must derive
-// from siteUrl(env), never a hardcoded domain. env.BETTER_AUTH_URL currently
-// resolves to the Workers preview origin; the public domain
-// foxhoundapp.com attaches at Phase 9 cutover and nothing here needs to
-// change when it does.
+// from siteUrl(env), never a hardcoded domain. env.BETTER_AUTH_URL now
+// resolves to https://foxhoundapp.com (Phase 9 cutover); the fallback below
+// only matters if that var is ever unset.
 //
 // siteUrl(env) is the only function here that touches Env (it's called once,
 // in a route loader). Every builder below takes the resolved `url: string`
 // so page components never need to thread Env through JSX.
 
 export function siteUrl(env: Env): string {
-  return env.BETTER_AUTH_URL || "https://foxhound.dustin-edwards.workers.dev";
+  return env.BETTER_AUTH_URL || "https://foxhoundapp.com";
 }
 
 // Single source of truth for the support contact address, used in JSON-LD
