@@ -8,6 +8,7 @@ import { appShellMiddleware } from "~/lib/auth/guards";
 import { authContext } from "~/lib/auth/context";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { resolveErrorBoundaryDetails } from "~/lib/errors/boundary-message";
 import { resolveNavContext } from "~/lib/nav/context.server";
 import { PLATFORM_LINKS, PRODUCT_MANIFEST, PRODUCT_ORDER } from "~/lib/nav/manifest";
 import { getThemeFromRequest } from "~/lib/theme.server";
@@ -184,6 +185,39 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
           </NavLink>
         ))}
       </nav>
+    </div>
+  );
+}
+
+// TASK-foxhound-demo-inline-refusal.md backstop: anything that reaches the
+// server despite the client-side interception (DemoGuardedForm) - JS
+// disabled, a hand-crafted request, a race - lands here instead of on the
+// bare root ErrorBoundary. This route's own loader may not have run (the
+// throw usually comes from appShellMiddleware, before the loader), so this
+// renders a minimal, self-contained header rather than depending on any
+// loaderData (account name, nav links, entitlement) that might not exist.
+// Same message-selection logic as root.tsx, so a thrown data(message,
+// {status}) - the demo read-only guard's shape - still reads as its own
+// message rather than a generic HTTP reason phrase.
+export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
+  const { message, details } = resolveErrorBoundaryDetails(error, import.meta.env.DEV);
+
+  return (
+    <div>
+      <header className="border-b border-border bg-chrome">
+        <div className="mx-auto flex max-w-6xl items-center px-4 py-3">
+          <Link to="/" aria-label="Foxhound home">
+            <Wordmark tone="chrome" />
+          </Link>
+        </div>
+      </header>
+      <main className="flex flex-col items-center justify-center gap-4 px-4 py-16 text-center">
+        <h1 className="text-title font-medium text-text">{message}</h1>
+        <p className="max-w-md text-body text-text-secondary">{details}</p>
+        <Link to="/dashboard" className="text-label text-amber-text hover:underline">
+          Back to Foxhound
+        </Link>
+      </main>
     </div>
   );
 }
