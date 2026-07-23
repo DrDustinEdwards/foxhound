@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 
+import { isAdminPath, resolvesToDemo } from "~/lib/auth/guards";
 import { DEMO_ACCOUNT_ID, DEMO_SESSION_COOKIE } from "~/lib/demo/constants";
 import { seedDemoAccount } from "~/lib/demo/seed";
 import {
   clearDemoCookieHeader,
   demoBlocksMethod,
+  demoFallbackPath,
   hasDemoCookie,
   resolveDemoMembership,
   setDemoCookieHeader,
@@ -41,6 +43,61 @@ describe("demo read-only gate", () => {
     expect(demoBlocksMethod("PUT")).toBe(true);
     expect(demoBlocksMethod("PATCH")).toBe(true);
     expect(demoBlocksMethod("DELETE")).toBe(true);
+  });
+});
+
+// TASK-foxhound-demo-access-parity.md: demo-over-session precedence. These
+// test the pure decision functions directly (same rationale as
+// demoBlocksMethod above: no Request/session mocking needed), covering
+// exactly the cases the task calls out by name.
+describe("isAdminPath", () => {
+  it("matches /admin and every nested admin route, including the .data suffix", () => {
+    expect(isAdminPath("/admin")).toBe(true);
+    expect(isAdminPath("/admin/merchants")).toBe(true);
+    expect(isAdminPath("/admin/merchants/123")).toBe(true);
+    expect(isAdminPath("/admin.data")).toBe(true);
+    expect(isAdminPath("/admin/merchants.data")).toBe(true);
+  });
+
+  it("does not match non-admin paths, including a prefix lookalike", () => {
+    expect(isAdminPath("/dashboard")).toBe(false);
+    expect(isAdminPath("/administrator")).toBe(false);
+    expect(isAdminPath("/")).toBe(false);
+  });
+});
+
+describe("resolvesToDemo (demo-over-session precedence)", () => {
+  it("cookie + real session resolves demo membership on app surfaces", () => {
+    expect(resolvesToDemo(true, true, "/dashboard")).toBe(true);
+    expect(resolvesToDemo(true, true, "/recovery")).toBe(true);
+    expect(resolvesToDemo(true, true, "/intelligence/customers/1")).toBe(true);
+  });
+
+  it("cookie + real session on /admin resolves real, not demo", () => {
+    expect(resolvesToDemo(true, true, "/admin")).toBe(false);
+    expect(resolvesToDemo(true, true, "/admin/merchants")).toBe(false);
+    expect(resolvesToDemo(true, true, "/admin.data")).toBe(false);
+  });
+
+  it("real session with no demo cookie is unaffected (today's behavior)", () => {
+    expect(resolvesToDemo(true, false, "/dashboard")).toBe(false);
+    expect(resolvesToDemo(true, false, "/admin")).toBe(false);
+  });
+
+  it("no session: an anonymous demo visitor resolves demo on every path, including /admin (untouched by this change)", () => {
+    expect(resolvesToDemo(false, true, "/dashboard")).toBe(true);
+    expect(resolvesToDemo(false, true, "/admin")).toBe(true);
+  });
+
+  it("no session, no cookie: never demo", () => {
+    expect(resolvesToDemo(false, false, "/dashboard")).toBe(false);
+  });
+});
+
+describe("demoFallbackPath (shared by the not-yet-seeded fallback and /demo/exit)", () => {
+  it("sends a signed-in caller to their own dashboard, an anonymous one to /demos", () => {
+    expect(demoFallbackPath(true)).toBe("/dashboard");
+    expect(demoFallbackPath(false)).toBe("/demos");
   });
 });
 
