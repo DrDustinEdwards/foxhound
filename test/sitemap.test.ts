@@ -72,6 +72,7 @@ const EXCLUDED_PREFIXES = [
   // authenticated-app path excluded above, nothing distinct to index here).
   // Webhooks are POST-only, signature-verified endpoints.
   "/demo/exit",
+  "/demos/dashboard",
   "/demos/recovery",
   "/demos/disputes",
   "/demos/intelligence",

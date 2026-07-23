@@ -19,6 +19,12 @@ import type { Route } from "./+types/demos";
 // card as a <Form method="post"> button, so the served HTML carried zero
 // anchors into the demo (unreachable by crawlers, unbookmarkable, no deep
 // link). One path now: a real <Link>, no <Form> fallback beside it.
+//
+// Item 2: a second, static block below used to repeat Recovery/Disputes/
+// Intelligence with no action of any kind, and introduced Dashboard as the
+// one surface a visitor could see named but never reach. Collapsed into this
+// single row of four real entry links instead: no product appears twice,
+// once clickable and once not.
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return marketingMeta({
@@ -36,6 +42,12 @@ export function loader({ context }: Route.LoaderArgs) {
 }
 
 const PRODUCT_ENTRIES = [
+  {
+    href: "/demos/dashboard",
+    Icon: LayoutDashboard,
+    name: "Dashboard",
+    blurb: "Recovered revenue, recovery rate, and free MRR analytics at a glance.",
+  },
   {
     href: "/demos/recovery",
     Icon: RefreshCw,
@@ -56,13 +68,6 @@ const PRODUCT_ENTRIES = [
   },
 ];
 
-const SURFACES = [
-  { Icon: LayoutDashboard, name: "Dashboard", blurb: "Recovered revenue, recovery rate, and free MRR analytics at a glance." },
-  { Icon: RefreshCw, name: "Recovery", blurb: "Failed payments moving through real dunning sequences, with per-payment timelines." },
-  { Icon: Shield, name: "Disputes", blurb: "Evidence drafted for review, across won, lost, and needs-response states." },
-  { Icon: TrendingUp, name: "Intelligence", blurb: "Every customer scored, MRR-at-risk exposure, and a monthly narrative." },
-];
-
 export default function DemosPage() {
   return (
     <>
@@ -72,8 +77,8 @@ export default function DemosPage() {
         subtext="This is not a screenshot tour. You'll be inside the actual Foxhound app, exploring a seeded account of 200 customers. No signup, nothing to connect, and nothing you do can change it."
       />
 
-      <div className="mx-auto max-w-3xl px-4 pb-16 sm:px-8">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="mx-auto max-w-4xl px-4 pb-16 sm:px-8">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {PRODUCT_ENTRIES.map((entry) => (
             <Link
               key={entry.href}
@@ -89,20 +94,6 @@ export default function DemosPage() {
               </div>
               <span className="mt-1 font-mono text-micro text-amber-text">View {entry.name} demo</span>
             </Link>
-          ))}
-        </div>
-
-        <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {SURFACES.map((s) => (
-            <div key={s.name} className="flex gap-3 rounded-lg border border-border bg-surface p-5">
-              <div className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface2">
-                <s.Icon className="h-[18px] w-[18px] text-text-secondary" strokeWidth={1.8} aria-hidden />
-              </div>
-              <div>
-                <p className="text-body font-medium text-text">{s.name}</p>
-                <p className="mt-1 text-label text-text-secondary">{s.blurb}</p>
-              </div>
-            </div>
           ))}
         </div>
 
