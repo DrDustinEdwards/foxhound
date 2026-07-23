@@ -3,7 +3,7 @@ import { createRequestHandler, RouterContextProvider } from "react-router";
 
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { runCronJob } from "~/lib/cron/run";
-import { applySecurityHeaders } from "~/lib/http/security-headers";
+import { applySecurityHeaders, generateNonce } from "~/lib/http/security-headers";
 import { enforceRateLimit } from "~/lib/http/rate-limit";
 import { handleQueueBatch } from "~/lib/queue/consumer";
 
@@ -21,16 +21,22 @@ export default withSentry<Env>(
   (env) => (env.SENTRY_DSN ? { dsn: env.SENTRY_DSN, tracesSampleRate: 1 } : undefined),
   {
     async fetch(request, env, ctx) {
+      // Generated before the route handler runs, so both the HTML
+      // (root.tsx's <Scripts>/<ScrollRestoration>, via cloudflareContext) and
+      // the response header (applySecurityHeaders) below carry the exact
+      // same value (TASK-foxhound-csp-nonce-hydration.md).
+      const nonce = generateNonce();
+
       // Checked before the route handler runs (not after): a throttled
       // request must never reach a sign-in DB lookup or dispatch a
       // password-reset/verification email (audit M-1).
       const limited = await enforceRateLimit(request, env);
-      if (limited) return applySecurityHeaders(limited);
+      if (limited) return applySecurityHeaders(limited, nonce);
 
       const context = new RouterContextProvider();
-      context.set(cloudflareContext, { env, ctx });
+      context.set(cloudflareContext, { env, ctx, nonce });
       const response = await requestHandler(request, context);
-      return applySecurityHeaders(response);
+      return applySecurityHeaders(response, nonce);
     },
     // Queue consumer (email dispatch; bounce/complaint events added in 4c-C3).
     // Inert until the queue consumer config is added to wrangler.jsonc (Dustin
