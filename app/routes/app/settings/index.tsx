@@ -1,6 +1,7 @@
-import { data, Form, useNavigation } from "react-router";
+import { data, useNavigation } from "react-router";
 
 import { Alert, Field, Submit } from "~/components/auth-ui";
+import { DemoGuardedForm } from "~/components/demo-guarded-form";
 import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -112,7 +113,7 @@ function SettingsCard({
         <p className="mt-1 text-label text-text-tertiary">{description}</p>
       ) : null}
       {submittable ? (
-        <Form method="post" className="mt-4 flex flex-col gap-3">
+        <DemoGuardedForm method="post" className="mt-4 flex flex-col gap-3">
           <input type="hidden" name="_action" value={action} />
           {result?.action === action && result.ok ? (
             <Alert tone="success">Saved.</Alert>
@@ -124,7 +125,7 @@ function SettingsCard({
           <div>
             <Submit disabled={busy}>{busy ? "Saving..." : "Save"}</Submit>
           </div>
-        </Form>
+        </DemoGuardedForm>
       ) : (
         <div className="mt-4 flex flex-col gap-3">{children}</div>
       )}

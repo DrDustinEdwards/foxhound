@@ -1,9 +1,20 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-import { describe, expect, it } from "vitest";
+import { data, RouterContextProvider } from "react-router";
+import { describe, expect, it, vi } from "vitest";
 
 import routes from "~/routes";
+import { appShellMiddleware } from "~/lib/auth/guards";
+import { cloudflareContext } from "~/lib/cloudflare-context";
+import { DEMO_SESSION_COOKIE, DEMO_SESSION_COOKIE_VALUE } from "~/lib/demo/constants";
+import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/session";
+
+// getSession makes a real Better Auth call (app/lib/auth/session.ts); the
+// test below only cares that appShellMiddleware still refuses a mutating
+// request when there is no session, so the session lookup is mocked to that
+// one case rather than standing up Better Auth.
+vi.mock("~/lib/auth/session", () => ({ getSession: vi.fn(async () => null) }));
 
 // TASK-foxhound-demo-system-completion.md Phase 1: a demo visitor must never
 // be able to mutate anything, enforced server-side. The guard itself
@@ -88,5 +99,39 @@ describe("every action route in the app shell is guarded by appShellMiddleware",
         true,
       );
     }
+  });
+});
+
+// TASK-foxhound-demo-inline-refusal.md: the client-side interception
+// (DemoGuardedForm) added in this task is deliberately NOT the security
+// boundary, only a better experience for the common case. This proves the
+// real boundary - appShellMiddleware's demoBlocksMethod check and its
+// throw data(DEMO_READ_ONLY_MESSAGE, {status: 405}) - is byte-for-byte
+// unchanged and still refuses a mutating request server-side, independent
+// of anything the client does.
+describe("appShellMiddleware still refuses a mutating request in demo mode", () => {
+  it("throws the read-only 405 for a POST carrying the demo cookie with no session", async () => {
+    const request = new Request("http://localhost/recovery/payments/pay_1", {
+      method: "POST",
+      headers: { cookie: `${DEMO_SESSION_COOKIE}=${DEMO_SESSION_COOKIE_VALUE}` },
+    });
+    const context = new RouterContextProvider();
+    context.set(cloudflareContext, { env: {} as Env, ctx: {} as ExecutionContext, nonce: "" });
+    const next = vi.fn();
+
+    await expect(
+      appShellMiddleware(
+        {
+          request,
+          context,
+          params: {},
+          url: new URL(request.url),
+          pattern: "/recovery/payments/:id",
+        },
+        next,
+      ),
+    ).rejects.toEqual(data(DEMO_READ_ONLY_MESSAGE, { status: 405 }));
+
+    expect(next).not.toHaveBeenCalled();
   });
 });

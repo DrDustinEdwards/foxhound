@@ -1,7 +1,8 @@
 import { eq } from "drizzle-orm";
-import { Form, redirect, useNavigation } from "react-router";
+import { redirect, useNavigation } from "react-router";
 
 import { Submit } from "~/components/auth-ui";
+import { DemoGuardedForm } from "~/components/demo-guarded-form";
 import { accounts, getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -79,9 +80,9 @@ export default function WelcomePage({ loaderData }: Route.ComponentProps) {
         ))}
       </ol>
 
-      <Form method="post">
+      <DemoGuardedForm method="post">
         <Submit disabled={busy}>{busy ? "Loading..." : "Go to dashboard"}</Submit>
-      </Form>
+      </DemoGuardedForm>
     </div>
   );
 }

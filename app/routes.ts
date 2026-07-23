@@ -56,7 +56,7 @@ export default [
     route("auth/google", "./routes/auth/google-start.ts"),
   ]),
 
-  layout("./layouts/app-shell.tsx", [
+  layout("./layouts/app-shell.tsx", { id: "app-shell" }, [
     route("dashboard", "./routes/app/dashboard.tsx"),
     ...prefix("recovery", [
       index("./routes/app/recovery/index.tsx"),

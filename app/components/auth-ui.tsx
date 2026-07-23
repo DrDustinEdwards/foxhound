@@ -118,13 +118,15 @@ export function Alert({
   tone,
   children,
 }: {
-  tone: "error" | "success";
+  tone: "error" | "success" | "neutral";
   children: React.ReactNode;
 }) {
   const cls =
     tone === "error"
       ? "border-red bg-red-bg text-error-text"
-      : "border-green bg-green-bg text-success-text";
+      : tone === "success"
+        ? "border-green bg-green-bg text-success-text"
+        : "border-border bg-surface2 text-text-secondary";
   return (
     <p
       role={tone === "error" ? "alert" : "status"}

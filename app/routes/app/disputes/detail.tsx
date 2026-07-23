@@ -1,7 +1,8 @@
 import * as Sentry from "@sentry/cloudflare";
-import { data, Form, useActionData, useNavigation } from "react-router";
+import { data, useActionData, useNavigation } from "react-router";
 
 import { Badge } from "~/components/badge";
+import { DemoGuardedForm } from "~/components/demo-guarded-form";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
@@ -164,7 +165,7 @@ export default function DisputeDetail({ loaderData }: Route.ComponentProps) {
         {evidence.length === 0 ? (
           <p className="mt-2 text-label text-text-tertiary">No evidence recorded yet.</p>
         ) : (
-          <Form method="post" className="mt-3 flex flex-col gap-4">
+          <DemoGuardedForm method="post" className="mt-3 flex flex-col gap-4">
             <input type="hidden" name="intent" value="save" />
             {evidence.map((field) => (
               <label key={field.id} className="flex flex-col gap-1.5">
@@ -192,7 +193,7 @@ export default function DisputeDetail({ loaderData }: Route.ComponentProps) {
                 </button>
               </div>
             ) : null}
-          </Form>
+          </DemoGuardedForm>
         )}
       </div>
 
@@ -207,7 +208,7 @@ export default function DisputeDetail({ loaderData }: Route.ComponentProps) {
             the disputed amount, capped at $500) if Foxhound wins this dispute. Merchant-fought or
             lost disputes are never billed.
           </p>
-          <Form method="post" className="mt-4">
+          <DemoGuardedForm method="post" className="mt-4">
             <input type="hidden" name="intent" value="approve" />
             <button
               type="submit"
@@ -216,7 +217,7 @@ export default function DisputeDetail({ loaderData }: Route.ComponentProps) {
             >
               {busy ? "Submitting..." : `Approve and submit (fee ${formatMoney(fee, dispute.currency)})`}
             </button>
-          </Form>
+          </DemoGuardedForm>
         </div>
       ) : (
         <div className="mt-6 rounded-lg border border-border bg-surface p-4">
