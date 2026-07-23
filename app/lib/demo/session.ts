@@ -58,6 +58,17 @@ export function demoBlocksMethod(method: string): boolean {
 }
 
 /**
+ * The one copy of the message a demo visitor sees when a control they clicked
+ * would have mutated something (TASK-foxhound-demo-system-completion.md
+ * Phase 1). appShellMiddleware throws this as the body of its 405, and
+ * app/root.tsx's ErrorBoundary reads it back off the thrown response so the
+ * rejection reads as a normal product message instead of a raw framework
+ * error page.
+ */
+export const DEMO_READ_ONLY_MESSAGE =
+  "Actions are disabled in this demo. Explore freely; nothing here can be changed.";
+
+/**
  * Resolve the synthetic membership for the demo account, or null if the demo
  * account has not been seeded yet (so the caller can send the visitor back to
  * /demos instead of into an empty shell). Read-only: never creates anything.

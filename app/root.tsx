@@ -1,12 +1,4 @@
-import {
-  isRouteErrorResponse,
-  Links,
-  Meta,
-  Outlet,
-  Scripts,
-  ScrollRestoration,
-  useRouteLoaderData,
-} from "react-router";
+import { Links, Meta, Outlet, Scripts, ScrollRestoration, useRouteLoaderData } from "react-router";
 
 import type { Route } from "./+types/root";
 import "./app.css";
@@ -14,6 +6,7 @@ import dmSansVariable from "./assets/fonts/dm-sans-variable.woff2?url";
 import dmMono400 from "./assets/fonts/dm-mono-400.woff2?url";
 import dmMono500 from "./assets/fonts/dm-mono-500.woff2?url";
 import { cloudflareContext } from "./lib/cloudflare-context";
+import { resolveErrorBoundaryDetails } from "./lib/errors/boundary-message";
 import { DEFAULT_THEME } from "./lib/theme";
 import { getThemeFromRequest } from "./lib/theme.server";
 
@@ -67,27 +60,22 @@ export default function App() {
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-  let message = "Oops!";
-  let details = "An unexpected error occurred.";
-  let stack: string | undefined;
-
-  if (isRouteErrorResponse(error)) {
-    message = error.status === 404 ? "404" : "Error";
-    details =
-      error.status === 404
-        ? "The requested page could not be found."
-        : error.statusText || details;
-  } else if (import.meta.env.DEV && error instanceof Error) {
-    details = error.message;
-    stack = error.stack;
-  }
+  // error.data carries whatever a route (or middleware, e.g. the demo
+  // read-only guard in app/lib/auth/guards.ts) threw via data(), so a
+  // deliberate rejection reads as its own message rather than the generic
+  // HTTP reason phrase a bare thrown Response would otherwise leave it with.
+  const { message, details } = resolveErrorBoundaryDetails(error, import.meta.env.DEV);
+  const stack = import.meta.env.DEV && error instanceof Error ? error.stack : undefined;
 
   return (
-    <main>
-      <h1>{message}</h1>
-      <p>{details}</p>
+    <main className="flex min-h-full flex-col items-center justify-center gap-4 bg-bg px-4 py-16 text-center">
+      <h1 className="text-title font-medium text-text">{message}</h1>
+      <p className="max-w-md text-body text-text-secondary">{details}</p>
+      <a href="/" className="text-label text-amber-text hover:underline">
+        Back to Foxhound
+      </a>
       {stack && (
-        <pre>
+        <pre className="mt-4 max-w-full overflow-x-auto rounded-md border border-border bg-surface p-4 text-left text-label text-text-tertiary">
           <code>{stack}</code>
         </pre>
       )}
