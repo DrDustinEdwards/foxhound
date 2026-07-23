@@ -1,3 +1,5 @@
+import { data, Form, useNavigation } from "react-router";
+
 import { Badge } from "~/components/badge";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -34,13 +36,45 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   return detail;
 }
 
-export default function PaymentDetail({ loaderData }: Route.ComponentProps) {
+// Manual per-payment actions (cancel, retry now, resend, note, mark
+// recovered, override the next email): not built yet for anyone, demo or
+// real account, not only refused in demo. Honest "not available yet" rather
+// than a half-wired action that fakes success for a real merchant. See
+// TASK-foxhound-recovery-manual-actions.md (Capsid, recova namespace) for the
+// real implementation, which the account_id-scoped read above already makes
+// safe to build against.
+const MANUAL_ACTIONS_NOT_AVAILABLE_MESSAGE = "This action isn't available yet.";
+
+export async function action({ context, params }: Route.ActionArgs) {
+  const { env } = context.get(cloudflareContext);
+  const auth = context.get(authContext);
+  const db = getDb(env);
+  // Scoped read even though it is discarded: proves the id belongs to this
+  // account before responding, the same 404-on-mismatch contract every other
+  // action in this tree honors, so a wired-up follow-up can lean on this
+  // shape without re-deriving it.
+  const detail = await getFailedPaymentDetail(db, auth.membership.accountId, params.id);
+  if (!detail) throw new Response("Not Found", { status: 404 });
+  return data({ error: MANUAL_ACTIONS_NOT_AVAILABLE_MESSAGE }, { status: 400 });
+}
+
+const MANUAL_ACTIONS = [
+  { intent: "cancel", label: "Cancel subscription" },
+  { intent: "retry_now", label: "Retry now" },
+  { intent: "resend", label: "Resend last email" },
+  { intent: "note", label: "Add a note" },
+  { intent: "mark_recovered", label: "Mark recovered" },
+  { intent: "override_next_email", label: "Override next email" },
+] as const;
+
+export default function PaymentDetail({ loaderData, actionData }: Route.ComponentProps) {
   const { failedPayment, steps, recovery } = loaderData;
   const attributionKind = recovery?.attributionKind as AttributionKind | undefined;
   const creditedStep =
     recovery?.recoveredByStepId != null
       ? steps.find((s) => s.id === recovery.recoveredByStepId)
       : undefined;
+  const busy = useNavigation().state !== "idle";
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
@@ -146,6 +180,29 @@ export default function PaymentDetail({ loaderData }: Route.ComponentProps) {
             })}
           </ol>
         )}
+      </div>
+
+      <div className="mt-6 rounded-lg border border-border bg-surface p-4">
+        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Manual actions</p>
+        {actionData && "error" in actionData ? (
+          <p className="mt-2 rounded-md border border-red bg-red-bg px-3 py-2 text-label text-error-text" role="alert">
+            {actionData.error}
+          </p>
+        ) : null}
+        <div className="mt-3 flex flex-wrap gap-2">
+          {MANUAL_ACTIONS.map((a) => (
+            <Form key={a.intent} method="post">
+              <input type="hidden" name="intent" value={a.intent} />
+              <button
+                type="submit"
+                disabled={busy}
+                className="rounded-md border border-border px-3 py-1.5 text-label text-text-secondary hover:border-border-i disabled:opacity-60"
+              >
+                {a.label}
+              </button>
+            </Form>
+          ))}
+        </div>
       </div>
     </div>
   );
