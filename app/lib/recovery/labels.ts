@@ -25,6 +25,7 @@ export const ATTRIBUTION_KIND_LABELS: Record<AttributionKind, string> = {
 export const FAILED_PAYMENT_STATUS_LABELS: Record<string, string> = {
   active: "In recovery",
   recovered: "Recovered",
+  failed_unrecovered: "Not recovered",
 };
 
 // Values match Badge's BadgeTone (app/components/badge.tsx) so callers pass
@@ -48,10 +49,12 @@ export function stepResultTone(result: string | null): Tone {
   return STEP_RESULT_TONE[result] ?? "neutral";
 }
 
-/** "recovered" is success; every other status (currently just "active") is
- *  neutral, never amber (amber is reserved, DESIGN.md). */
+/** "recovered" is success, "failed_unrecovered" is a terminal failure, "active"
+ *  (still in progress) is neutral, never amber (amber is reserved, DESIGN.md). */
 export function failedPaymentStatusTone(status: string): Tone {
-  return status === "recovered" ? "success" : "neutral";
+  if (status === "recovered") return "success";
+  if (status === "failed_unrecovered") return "failure";
+  return "neutral";
 }
 
 export interface RecoveryLifecycleInput {

@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, like, or, sql } from "drizzle-orm";
 
 import { byAccount, byAccountActive } from "~/db/scope";
 import type { Db } from "~/db";
@@ -32,6 +32,73 @@ export async function listFailedPayments(db: Db, accountId: string): Promise<Fai
       ),
     );
   return [...rows].sort((a, b) => b.detectedAt.getTime() - a.detectedAt.getTime());
+}
+
+export type FailedPaymentSort = "newest" | "oldest" | "amount_desc" | "amount_asc";
+
+export interface FailedPaymentFilters {
+  search: string | null;
+  status: string | null;
+  declineCategory: string | null;
+  sort: FailedPaymentSort;
+  page: number;
+}
+
+export interface FailedPaymentListResult {
+  payments: FailedPaymentRow[];
+  totalCount: number;
+  page: number;
+  totalPages: number;
+}
+
+const FAILED_PAYMENT_PAGE_SIZE = 50;
+
+/** The filtered, sorted, paginated /recovery/payments list. Every filter and
+ *  the sort run in SQL, never a client-side pass over the full account. */
+export async function listFilteredFailedPayments(
+  db: Db,
+  accountId: string,
+  filters: FailedPaymentFilters,
+): Promise<FailedPaymentListResult> {
+  const conditions = [
+    byAccountActive(failedPayments.accountId, failedPayments.deletedAt, accountId),
+    eq(failedPayments.isRenewalNoise, false),
+  ];
+  if (filters.search) {
+    const term = `%${filters.search}%`;
+    const searchCondition = or(like(failedPayments.customerName, term), like(failedPayments.customerEmail, term));
+    if (searchCondition) conditions.push(searchCondition);
+  }
+  if (filters.status) conditions.push(eq(failedPayments.status, filters.status));
+  if (filters.declineCategory) conditions.push(eq(failedPayments.declineCategory, filters.declineCategory));
+  const where = and(...conditions);
+
+  const [{ n: totalCount }] = await db
+    .select({ n: sql<number>`count(*)` })
+    .from(failedPayments)
+    .where(where);
+
+  const totalPages = Math.max(1, Math.ceil(Number(totalCount) / FAILED_PAYMENT_PAGE_SIZE));
+  const page = Math.min(Math.max(1, filters.page), totalPages);
+
+  const orderBy =
+    filters.sort === "oldest"
+      ? [asc(failedPayments.detectedAt)]
+      : filters.sort === "amount_desc"
+        ? [desc(failedPayments.amountCents)]
+        : filters.sort === "amount_asc"
+          ? [asc(failedPayments.amountCents)]
+          : [desc(failedPayments.detectedAt)];
+
+  const payments = await db
+    .select()
+    .from(failedPayments)
+    .where(where)
+    .orderBy(...orderBy)
+    .limit(FAILED_PAYMENT_PAGE_SIZE)
+    .offset((page - 1) * FAILED_PAYMENT_PAGE_SIZE);
+
+  return { payments, totalCount: Number(totalCount), page, totalPages };
 }
 
 /** Only the in-progress (status='active') sequences, newest first. */
