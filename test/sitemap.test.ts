@@ -66,9 +66,15 @@ const EXCLUDED_PREFIXES = [
   "/u/",
   "/p/",
   "/e/",
-  // Demo entry is a POST-only action route (sets a cookie, redirects), not a
-  // page to index. Webhooks are POST-only, signature-verified endpoints.
+  // Demo entry actions: each sets a cookie and redirects into the app shell
+  // (real GET anchors as of TASK-foxhound-demo-entry-parity.md item 1, so
+  // crawlers can follow them, but the redirect target is the same
+  // authenticated-app path excluded above, nothing distinct to index here).
+  // Webhooks are POST-only, signature-verified endpoints.
   "/demo/exit",
+  "/demos/recovery",
+  "/demos/disputes",
+  "/demos/intelligence",
   "/webhooks/",
   // Machine-readable files: either not HTML (llms*.txt, feed.rss, og/*
   // images) or the sitemap/robots routes themselves.

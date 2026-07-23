@@ -588,6 +588,24 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           </div>
           <div className="mt-2 font-mono text-micro text-text-subtle">{COMPAT_TAGS.join(" · ")}</div>
           <div className="mt-8 flex flex-wrap justify-center gap-4 border-t border-border-sub pt-6">
+            <Link to="/demos/recovery" className="group text-label text-text-secondary hover:text-text">
+              View Recovery demo{" "}
+              <ArrowRight
+                className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
+                size={13}
+                strokeWidth={1.5}
+                aria-hidden
+              />
+            </Link>
+            <Link to="/demos/disputes" className="group text-label text-text-secondary hover:text-text">
+              View Disputes demo{" "}
+              <ArrowRight
+                className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
+                size={13}
+                strokeWidth={1.5}
+                aria-hidden
+              />
+            </Link>
             <Link to="/demos" className="group text-label text-text-secondary hover:text-text">
               View live demos{" "}
               <ArrowRight
