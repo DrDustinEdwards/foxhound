@@ -146,6 +146,25 @@ export function isDayWalkEligible(c: DemoCustomer): boolean {
   return c.scripted === null && c.tier !== "hobby";
 }
 
+const TIER_LABEL: Record<DemoTier, string> = {
+  starter: "Starter",
+  growth: "Growth",
+  scale: "Scale",
+  pro: "Pro",
+  hobby: "Hobby",
+};
+
+/** The failed_payments.plan_name label: tier + a variance suffix (seats,
+ *  add-on, annual), so a reader can tell a multi-seat/annual customer apart
+ *  from the base tier without opening the customer record. */
+export function planNameFor(c: DemoCustomer): string {
+  const parts: string[] = [];
+  if (c.seats > 1) parts.push(`${c.seats} seats`);
+  if (c.addonCents > 0) parts.push("with add-on");
+  if (c.billingCadence === "annual") parts.push("annual");
+  return parts.length ? `${TIER_LABEL[c.tier]} (${parts.join(", ")})` : TIER_LABEL[c.tier];
+}
+
 export function summarize(customers: DemoCustomer[]): CustomerBaseSummary {
   const byTier: Record<DemoTier, number> = { starter: 0, growth: 0, scale: 0, pro: 0, hobby: 0 };
   const byStatus: Record<DemoLifecycleStatus, number> = { active: 0, at_risk: 0, churned: 0, paused: 0 };
