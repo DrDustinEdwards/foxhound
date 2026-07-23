@@ -89,6 +89,17 @@ describe("buildRecoverySeed", () => {
     for (const step of winBackSteps) expect(seqIds.has(step.winBackSequenceId)).toBe(true);
   });
 
+  // TASK-foxhound-demo-system-completion.md Phase 2 (demo-surface-audit.md):
+  // a recently churned candidate must never be resolved by a reactivation
+  // coin-flip before its own schedule could plausibly have finished, or the
+  // demo can show zero active win-backs on a given day even with a genuinely
+  // in-flight candidate in the pool, leaving Recovery's overview card ("Win-
+  // back: 0") looking broken next to a fully populated /recovery/winback page.
+  it("always has at least one currently-active win-back sequence", () => {
+    const { winBackSequences } = seed();
+    expect(winBackSequences.some((s) => s.status === "active")).toBe(true);
+  });
+
   it("expiring-card alerts are seeded and reference real customers", () => {
     const { expiringCardAlerts } = seed();
     expect(expiringCardAlerts.length).toBeGreaterThan(0);

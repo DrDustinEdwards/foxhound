@@ -516,10 +516,15 @@ function buildWinback(
     const canceledAt = c.churnedAt!;
     const planned = planWinbackSteps({ winBackSequenceId: seqId, accountId, canceledAt });
     const seed = `${c.stripeCustomerId}:wb`;
-    // Reactivate a third of the recent-enough candidates partway through their
-    // sequence; the rest stay active or run out (exhausted), matching the
-    // terminal-state machine's real transitions.
-    const willReactivate = daysAgoChurned >= WIN_BACK_SCHEDULE[0].offsetHours / 24 && seededInt(`${seed}:react`, 3) === 0;
+    // Reactivation only rolls for a candidate whose full schedule COULD have
+    // already run its course; a customer who churned within the schedule's
+    // own span always reads as a genuinely in-flight "active" sequence, never
+    // a coin-flip win. Without this gate, the demo could show zero active
+    // win-backs on a given day purely by chance, even with a currently-
+    // churning customer in the pool (the surface Recovery's overview card
+    // points to would then look empty despite the feature working).
+    const scheduleSpanDays = WIN_BACK_SCHEDULE[WIN_BACK_SCHEDULE.length - 1].offsetHours / 24;
+    const willReactivate = daysAgoChurned >= scheduleSpanDays && seededInt(`${seed}:react`, 3) === 0;
     const reactivateAfterStep = willReactivate ? 1 + seededInt(`${seed}:step`, planned.length) : null;
 
     let status: WinbackStatus = "active";
