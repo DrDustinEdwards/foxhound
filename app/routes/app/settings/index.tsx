@@ -9,7 +9,6 @@ import {
   buildBrandVoiceUpdate,
   buildEmailSettingsUpdate,
   buildIntelligenceContextUpdate,
-  buildNotificationSettingsUpdate,
 } from "~/lib/settings/persist.server";
 import { formatCentsAsDollars, parseDollarsToCents } from "~/lib/settings/dollars";
 import { getAccount, getActiveConnectionBrandVoice } from "~/lib/settings/queries.server";
@@ -49,7 +48,6 @@ export async function action({ request, context }: Route.ActionArgs) {
     const trimmed = typeof v === "string" ? v.trim() : "";
     return trimmed.length > 0 ? trimmed : null;
   };
-  const bool = (name: string) => form.get(name) === "on";
 
   switch (intent) {
     case "profile": {
@@ -64,18 +62,6 @@ export async function action({ request, context }: Route.ActionArgs) {
       await buildEmailSettingsUpdate(db, accountId, {
         notificationEmail: str("notificationEmail"),
         digestEmail: str("digestEmail"),
-      });
-      return data({ action: intent, ok: true });
-    }
-    case "notifications": {
-      await buildNotificationSettingsUpdate(db, accountId, {
-        digestEnabled: bool("digestEnabled"),
-        slackNotificationsEnabled: bool("slackNotificationsEnabled"),
-        slackWebhookUrl: str("slackWebhookUrl"),
-        recoveryNotificationsEnabled: bool("recoveryNotificationsEnabled"),
-        sequenceCompleteNotificationsEnabled: bool("sequenceCompleteNotificationsEnabled"),
-        winbackNotificationsEnabled: bool("winbackNotificationsEnabled"),
-        expiringCardNotificationsEnabled: bool("expiringCardNotificationsEnabled"),
       });
       return data({ action: intent, ok: true });
     }
@@ -146,31 +132,6 @@ function SettingsCard({
   );
 }
 
-function Checkbox({
-  label,
-  name,
-  defaultChecked,
-  disabled,
-}: {
-  label: string;
-  name: string;
-  defaultChecked: boolean;
-  disabled?: boolean;
-}) {
-  return (
-    <label className={`flex items-center gap-2 text-label ${disabled ? "text-text-tertiary" : "text-text"}`}>
-      <input
-        type="checkbox"
-        name={name}
-        defaultChecked={defaultChecked}
-        disabled={disabled}
-        className={`h-4 w-4 rounded border-border ${disabled ? "" : "accent-amber"}`}
-      />
-      {label}
-    </label>
-  );
-}
-
 export default function Settings({ loaderData, actionData }: Route.ComponentProps) {
   const { account, connection } = loaderData;
   const result = actionData as ActionResult | undefined;
@@ -232,56 +193,11 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
         />
       </SettingsCard>
 
-      <SettingsCard
-        title="Notifications"
-        description="Notifications aren't sending yet; these settings save for when they turn on."
-        action="notifications"
-        result={result}
-        submittable={false}
-      >
-        <Checkbox
-          label="Weekly digest"
-          name="digestEnabled"
-          defaultChecked={Boolean(account.digestEnabled)}
-          disabled
-        />
-        <Checkbox
-          label="Recovery notifications"
-          name="recoveryNotificationsEnabled"
-          defaultChecked={Boolean(account.recoveryNotificationsEnabled)}
-          disabled
-        />
-        <Checkbox
-          label="Sequence complete notifications"
-          name="sequenceCompleteNotificationsEnabled"
-          defaultChecked={Boolean(account.sequenceCompleteNotificationsEnabled)}
-          disabled
-        />
-        <Checkbox
-          label="Win-back notifications"
-          name="winbackNotificationsEnabled"
-          defaultChecked={Boolean(account.winbackNotificationsEnabled)}
-          disabled
-        />
-        <Checkbox
-          label="Expiring card notifications"
-          name="expiringCardNotificationsEnabled"
-          defaultChecked={Boolean(account.expiringCardNotificationsEnabled)}
-          disabled
-        />
-        <Checkbox
-          label="Slack notifications"
-          name="slackNotificationsEnabled"
-          defaultChecked={Boolean(account.slackNotificationsEnabled)}
-          disabled
-        />
-        <Field
-          label="Slack webhook URL"
-          name="slackWebhookUrl"
-          required={false}
-          defaultValue={account.slackWebhookUrl ?? ""}
-          disabled
-        />
+      <SettingsCard title="Notifications" action="notifications" submittable={false}>
+        <p className="text-label text-text-secondary">
+          Notifications aren't sending yet. There's nothing to configure here until they do; check
+          back once this ships.
+        </p>
       </SettingsCard>
 
       <SettingsCard
