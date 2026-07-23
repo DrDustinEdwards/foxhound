@@ -1,4 +1,4 @@
-import { type MiddlewareFunction, redirect } from "react-router";
+import { data, type MiddlewareFunction, redirect } from "react-router";
 
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -9,6 +9,7 @@ import {
   DEMO_MEMBER_USER_ID,
 } from "~/lib/demo/constants";
 import {
+  DEMO_READ_ONLY_MESSAGE,
   demoBlocksMethod,
   demoFallbackPath,
   hasDemoCookie,
@@ -105,8 +106,11 @@ export const appShellMiddleware: MiddlewareFunction<Response> = async (
   if (useDemo) {
     // Read-only choke point: every mutating action in this tree is a POST, so
     // blocking non-GET makes the whole demo surface look-but-don't-touch.
+    // Thrown via data() (not a bare Response) so app/root.tsx's ErrorBoundary
+    // can read the friendly message back off error.data instead of falling
+    // back to the generic "Method Not Allowed" HTTP reason phrase.
     if (demoBlocksMethod(request.method)) {
-      throw new Response("The demo is read-only.", { status: 405 });
+      throw data(DEMO_READ_ONLY_MESSAGE, { status: 405 });
     }
     const membership = await resolveDemoMembership(getDb(env));
     if (!membership) {

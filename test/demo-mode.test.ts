@@ -5,6 +5,7 @@ import { DEMO_ACCOUNT_ID, DEMO_SESSION_COOKIE } from "~/lib/demo/constants";
 import { seedDemoAccount } from "~/lib/demo/seed";
 import {
   clearDemoCookieHeader,
+  DEMO_READ_ONLY_MESSAGE,
   demoBlocksMethod,
   demoFallbackPath,
   hasDemoCookie,
@@ -43,6 +44,16 @@ describe("demo read-only gate", () => {
     expect(demoBlocksMethod("PUT")).toBe(true);
     expect(demoBlocksMethod("PATCH")).toBe(true);
     expect(demoBlocksMethod("DELETE")).toBe(true);
+  });
+
+  // TASK-foxhound-demo-system-completion.md Phase 1: one shared copy, reused
+  // by appShellMiddleware's 405 and read back by the root ErrorBoundary
+  // (app/lib/errors/boundary-message.ts), rather than two routes independently
+  // wording "you can't do that here" and drifting.
+  it("has one non-empty, human-readable read-only message that names the demo", () => {
+    expect(DEMO_READ_ONLY_MESSAGE.length).toBeGreaterThan(0);
+    expect(DEMO_READ_ONLY_MESSAGE).toMatch(/demo/i);
+    expect(DEMO_READ_ONLY_MESSAGE).not.toMatch(/[–—]/); // no en/em dashes
   });
 });
 
