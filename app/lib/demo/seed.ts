@@ -27,8 +27,9 @@ import {
   winBackSteps,
 } from "~/db";
 import { grantIntelligence } from "~/lib/admin/merchants.server";
+import { isBillableDisputeRow, isBillableRecoveryRow } from "~/lib/billing/billable-predicates";
 import { disputeFeeCents, recoveryFeeCents } from "~/lib/billing/fees";
-import { CRON_LOCK_LEASE_MS, RECOVERY_MATURITY_MS } from "~/lib/constants";
+import { CRON_LOCK_LEASE_MS } from "~/lib/constants";
 
 import {
   DEMO_ACCOUNT_ID,
@@ -244,17 +245,20 @@ export async function seedDemoAccount(db: Db, now: Date): Promise<void> {
   await db.insert(intelligenceReports).values(narrative);
 
   // 8) Billing ledger: one finalized invoice covering the billable subset of
-  //    this run's own recoveries + disputes, using the SAME predicates
-  //    app/db/billable.ts's live query encodes (matured + attributed recoveries;
-  //    Foxhound-submitted won disputes), so /billing renders a ledger that looks
-  //    exactly like what the real monthly billing run would have produced. The
-  //    demo account is firewalled out of that live run, so this is seeded directly.
-  const maturityCutoffMs = now.getTime() - RECOVERY_MATURITY_MS;
-  const billableRecoveries = recovery.recoveredPayments.filter(
-    (r) => r.attributionKind !== "stripe_baseline" && r.recoveredAt.getTime() <= maturityCutoffMs,
+  //    this run's own recoveries + disputes. isBillableRecoveryRow/
+  //    isBillableDisputeRow (app/lib/billing/billable-predicates.ts) are the
+  //    exact row-level rules app/db/billable.ts's live query encodes, factored
+  //    out so the two cannot diverge; the demo account itself is firewalled out
+  //    of that live query by accountBillingEligibleCondition() (billing_exempt +
+  //    processing_paused + the demo_ id prefix), which is why the ledger is
+  //    seeded directly here instead of calling getBillableRecoveries/
+  //    getBillableDisputes.
+  const approvedDisputeIds = new Set(disputesSeed.disputeApprovals.map((a) => a.disputeId));
+  const billableRecoveries = recovery.recoveredPayments.filter((r) =>
+    isBillableRecoveryRow(r, now.getTime()),
   );
-  const billableDisputes = disputesSeed.disputes.filter(
-    (d) => d.state === "resolved_won" && d.submittedBy !== null,
+  const billableDisputes = disputesSeed.disputes.filter((d) =>
+    isBillableDisputeRow(d, approvedDisputeIds.has(d.id as string), now.getTime()),
   );
 
   if (billableRecoveries.length > 0 || billableDisputes.length > 0) {
