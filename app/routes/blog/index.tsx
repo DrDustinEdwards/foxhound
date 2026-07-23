@@ -81,11 +81,21 @@ export default function BlogIndexPage({ loaderData }: Route.ComponentProps) {
     <div>
       <div className="mx-auto max-w-5xl px-4 pb-6 pt-16 sm:px-8">
         <FadeUp>
-          <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Posts</p>
-          <h1 className="mt-3 text-display font-medium text-text">Blog</h1>
-          <p className="mt-3 max-w-xl text-body text-text-secondary">
-            Guides on Stripe payment recovery, dispute handling, and subscription intelligence.
-          </p>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Posts</p>
+              <h1 className="mt-3 text-display font-medium text-text">Blog</h1>
+              <p className="mt-3 max-w-xl text-body text-text-secondary">
+                Guides on Stripe payment recovery, dispute handling, and subscription intelligence.
+              </p>
+            </div>
+            <Link
+              to="/blog/archive"
+              className="shrink-0 font-mono text-label text-text-tertiary hover:text-text"
+            >
+              All articles
+            </Link>
+          </div>
         </FadeUp>
       </div>
 
