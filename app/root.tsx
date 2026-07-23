@@ -13,6 +13,7 @@ import "./app.css";
 import dmSansVariable from "./assets/fonts/dm-sans-variable.woff2?url";
 import dmMono400 from "./assets/fonts/dm-mono-400.woff2?url";
 import dmMono500 from "./assets/fonts/dm-mono-500.woff2?url";
+import { cloudflareContext } from "./lib/cloudflare-context";
 import { DEFAULT_THEME } from "./lib/theme";
 import { getThemeFromRequest } from "./lib/theme.server";
 
@@ -21,9 +22,15 @@ export function meta() {
 }
 
 // Cookie-persisted theme, read once at the root so <html data-theme> is
-// correct on the very first byte (no flash of the wrong mode).
-export function loader({ request }: Route.LoaderArgs) {
-  return { theme: getThemeFromRequest(request) };
+// correct on the very first byte (no flash of the wrong mode). nonce comes
+// from workers/app.ts's per-request generateNonce() (TASK-foxhound-csp-
+// nonce-hydration.md), threaded via cloudflareContext so <Scripts>/
+// <ScrollRestoration> below can carry the SAME value applySecurityHeaders
+// puts in the Content-Security-Policy header - a mismatch would make the
+// browser reject its own hydration scripts.
+export function loader({ request, context }: Route.LoaderArgs) {
+  const { nonce } = context.get(cloudflareContext);
+  return { theme: getThemeFromRequest(request), nonce };
 }
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -32,6 +39,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   // throwing.
   const data = useRouteLoaderData<typeof loader>("root");
   const theme = data?.theme ?? DEFAULT_THEME;
+  const nonce = data?.nonce;
 
   return (
     <html lang="en" data-theme={theme} className="h-full antialiased">
@@ -47,8 +55,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </head>
       <body className="min-h-full">
         {children}
-        <ScrollRestoration />
-        <Scripts />
+        <ScrollRestoration nonce={nonce} />
+        <Scripts nonce={nonce} />
       </body>
     </html>
   );
