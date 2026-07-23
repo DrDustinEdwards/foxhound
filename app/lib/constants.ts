@@ -84,6 +84,9 @@ export const MODEL_RECOVERY_EMAIL = "claude-sonnet-5";
 export const MODEL_INTELLIGENCE_NARRATIVE = "claude-sonnet-5";
 /** Cheap quality/scoring gate on generated copy. */
 export const MODEL_EMAIL_QUALITY = "claude-haiku-4-5-20251001";
+/** Unauthenticated home-page email sample generator: copy generation, not
+ *  money-path reasoning, so the cheap model is correct here too. */
+export const MODEL_MARKETING_EMAIL_SAMPLE = "claude-haiku-4-5-20251001";
 
 /**
  * Every model id the app may call. The ai_calls cost map (app/lib/ai/cost.ts)
@@ -95,6 +98,7 @@ export const AI_MODEL_IDS = [
   MODEL_RECOVERY_EMAIL,
   MODEL_INTELLIGENCE_NARRATIVE,
   MODEL_EMAIL_QUALITY,
+  MODEL_MARKETING_EMAIL_SAMPLE,
 ] as const;
 
 // ---- Recovery step timing (hours from failure detection) ----

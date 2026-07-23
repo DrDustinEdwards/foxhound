@@ -76,6 +76,9 @@ const EXCLUDED_PREFIXES = [
   "/demos/recovery",
   "/demos/disputes",
   "/demos/intelligence",
+  // POST-only action route (home page's live email generator); nothing to
+  // index, same reasoning as /demo/exit.
+  "/marketing/generate-email-sample",
   "/webhooks/",
   // Machine-readable files: either not HTML (llms*.txt, feed.rss, og/*
   // images) or the sitemap/robots routes themselves.

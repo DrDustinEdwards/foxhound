@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { checkRateLimitWindow, type RateLimitWindow } from "~/lib/http/rate-limit-window";
 import {
   enforceRateLimit,
+  isWithinRateLimit,
   rateLimitedResponse,
   resolveRateLimitBinding,
 } from "~/lib/http/rate-limit";
@@ -163,5 +164,36 @@ describe("enforceRateLimit", () => {
       headers: { "cf-connecting-ip": "1.1.1.1" },
     });
     await expect(enforceRateLimit(request, env)).resolves.toBeNull();
+  });
+});
+
+describe("isWithinRateLimit", () => {
+  it("allows the first N calls for a key and denies the (N+1)th", async () => {
+    const env = makeEnv();
+    for (let i = 1; i <= 3; i++) {
+      expect(await isWithinRateLimit(env, "marketing_email_sample", "8.8.8.8", 3, 60_000)).toBe(true);
+    }
+    expect(await isWithinRateLimit(env, "marketing_email_sample", "8.8.8.8", 3, 60_000)).toBe(false);
+  });
+
+  it("isolates by bucket, so a different bucket for the same key is untouched", async () => {
+    const namespace = makeFakeRateLimiterNamespace();
+    const env = makeEnv(namespace);
+    for (let i = 1; i <= 3; i++) {
+      await isWithinRateLimit(env, "marketing_email_sample", "8.8.8.8", 3, 60_000);
+    }
+    expect(await isWithinRateLimit(env, "marketing_email_sample", "8.8.8.8", 3, 60_000)).toBe(false);
+    expect(await isWithinRateLimit(env, "public", "8.8.8.8", 20, 60_000)).toBe(true);
+  });
+
+  it("fails open when the Durable Object call throws", async () => {
+    const namespace = {
+      idFromName: vi.fn((name: string) => name),
+      get: vi.fn(() => ({
+        check: vi.fn().mockRejectedValue(new Error("DO unavailable")),
+      })),
+    };
+    const env = makeEnv(namespace);
+    await expect(isWithinRateLimit(env, "marketing_email_sample", "1.1.1.1", 10, 60_000)).resolves.toBe(true);
   });
 });
