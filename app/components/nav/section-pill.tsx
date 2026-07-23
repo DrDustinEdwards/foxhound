@@ -1,32 +1,30 @@
 import { ChevronDown } from "lucide-react";
 import { Link } from "react-router";
 
-import { PLATFORM_LINKS, PRODUCT_MANIFEST } from "~/lib/nav/manifest";
+import { MARKETING_PILL_ITEMS } from "~/lib/nav/manifest";
 import { useDropdown } from "~/lib/nav/use-dropdown";
 
 // The marketing header's authenticated-only counterpart to the app-shell's
 // ProductSwitcher (TASK-foxhound-marketing-header-v2.md), next to the
 // wordmark. Marketing pages track no active product (there is nothing to
-// switch between while browsing marketing), so the label is always "Home";
-// the dropdown is a fixed jump list into the app: Dashboard, Recovery,
-// Disputes, Intelligence (gated by intelligenceEntitled, same as the
-// app-shell switcher), then Billing and Settings from PLATFORM_LINKS. Every
-// href here is manifest data already covered by test/nav-manifest.test.ts's
-// drift check, so nothing new needs its own route-existence test.
-const PLATFORM_PILL_LABELS = new Set(["Billing", "Settings"]);
-
+// switch between while browsing marketing), so the label is always "Home".
+//
+// Item set, order, and visual weight are legacy ground truth (screenshot,
+// 2026-07-22), not the shipped app-shell shape: Console, Audit, Recovery,
+// Disputes, Intelligence (gated by intelligenceEntitled, same gate the
+// app-shell switcher uses), a roomy panel with generous padding and larger
+// text than the shipped version, no icons, no separators
+// (TASK-foxhound-pill-menu-parity.md). Billing and Settings are dropped:
+// Settings is already the gear icon's job, Billing lives in-app. See
+// MARKETING_PILL_ITEMS (app/lib/nav/manifest.ts) for the item data and the
+// Audit-route mapping decision; every href there is covered by
+// test/marketing-nav.test.ts's drift check.
 export function SectionPill({ intelligenceEntitled }: { intelligenceEntitled: boolean }) {
   const { open, setOpen, ref } = useDropdown<HTMLDivElement>();
 
-  const items: { label: string; to: string }[] = [
-    { label: PRODUCT_MANIFEST.dashboard.label, to: PRODUCT_MANIFEST.dashboard.href },
-    { label: PRODUCT_MANIFEST.recovery.label, to: PRODUCT_MANIFEST.recovery.href },
-    { label: PRODUCT_MANIFEST.disputes.label, to: PRODUCT_MANIFEST.disputes.href },
-    ...(intelligenceEntitled
-      ? [{ label: PRODUCT_MANIFEST.intelligence.label, to: PRODUCT_MANIFEST.intelligence.href }]
-      : []),
-    ...PLATFORM_LINKS.filter((link) => PLATFORM_PILL_LABELS.has(link.label)),
-  ];
+  const items = MARKETING_PILL_ITEMS.filter(
+    (item) => !item.requiresIntelligenceEntitlement || intelligenceEntitled,
+  );
 
   return (
     <div ref={ref} className="relative">
@@ -47,13 +45,13 @@ export function SectionPill({ intelligenceEntitled }: { intelligenceEntitled: bo
       </button>
 
       {open ? (
-        <div className="absolute top-full left-0 z-50 mt-1 min-w-[180px] rounded-md border border-border bg-surface py-1 shadow-lg">
+        <div className="absolute top-full left-0 z-50 mt-1 min-w-[260px] rounded-md border border-border bg-chrome py-2 shadow-lg">
           {items.map((item) => (
             <Link
               key={item.to}
               to={item.to}
               onClick={() => setOpen(false)}
-              className="block px-3 py-2 text-label text-text-tertiary no-underline hover:opacity-80"
+              className="block px-5 py-3 text-body text-chrome-text-secondary no-underline hover:text-chrome-text"
             >
               {item.label}
             </Link>

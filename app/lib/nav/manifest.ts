@@ -70,6 +70,38 @@ export const PLATFORM_LINKS: ProductNavLink[] = [
   { label: "Help", to: "/help" },
 ];
 
+// The marketing header's authenticated-only SectionPill menu
+// (app/components/nav/section-pill.tsx) is NOT a view of PRODUCT_MANIFEST:
+// its item set, order, and labels are legacy ground truth (screenshot,
+// 2026-07-22) - Console, Audit, Recovery, Disputes, Intelligence - a
+// different shape than the manifest's own Dashboard-first, Audit-less list
+// the app-shell ProductSwitcher renders. Kept as its own data list beside
+// the manifest (TASK-foxhound-pill-menu-parity.md rule 3) rather than
+// mutating PRODUCT_MANIFEST or renaming its keys/labels.
+//
+// Audit mapping decision: app/routes.ts has no authenticated audit route
+// anywhere under the app-shell layout (checked directly: dashboard,
+// recovery/*, disputes/*, intelligence/*, billing/*, settings/*, help,
+// welcome, admin/* - no audit/*). Legacy's pill linked an in-app audit
+// console; Foxhound's audit product currently surfaces only through the
+// public, no-auth /audit estimator, so that is where this links. Revisit
+// this mapping if/when an authenticated audit surface ships.
+export interface MarketingPillItem {
+  label: string;
+  to: string;
+  /** Intelligence only: hidden unless the viewer's account is entitled,
+   *  same gate the app-shell ProductSwitcher applies. */
+  requiresIntelligenceEntitlement?: boolean;
+}
+
+export const MARKETING_PILL_ITEMS: MarketingPillItem[] = [
+  { label: "Console", to: PRODUCT_MANIFEST.dashboard.href },
+  { label: "Audit", to: "/audit" },
+  { label: "Recovery", to: PRODUCT_MANIFEST.recovery.href },
+  { label: "Disputes", to: PRODUCT_MANIFEST.disputes.href },
+  { label: "Intelligence", to: PRODUCT_MANIFEST.intelligence.href, requiresIntelligenceEntitlement: true },
+];
+
 export function isProductKey(value: string | null | undefined): value is ProductKey {
   return value === "dashboard" || value === "recovery" || value === "disputes" || value === "intelligence";
 }
