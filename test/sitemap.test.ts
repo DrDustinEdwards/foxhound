@@ -107,6 +107,10 @@ describe("/sitemap.xml stays in sync with the real route tree", () => {
     expect(staticPagePaths.has("/features")).toBe(true);
   });
 
+  it("/blog/archive is present (foxhound-audit-parity.md Cluster B fix 3)", () => {
+    expect(staticPagePaths.has("/blog/archive")).toBe(true);
+  });
+
   it("every STATIC_PAGES entry is a real route", () => {
     for (const page of STATIC_PAGES) {
       expect(realPaths.has(page.path), `${page.path} (sitemap STATIC_PAGES) is not in routes.ts`).toBe(true);

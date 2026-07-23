@@ -28,6 +28,7 @@ export default [
     route("audit", "./routes/audit.tsx"),
     ...prefix("blog", [
       index("./routes/blog/index.tsx"),
+      route("archive", "./routes/blog/archive.tsx"),
       route("tag/:tag", "./routes/blog/tag.tsx"),
       route(":slug", "./routes/blog/post.tsx"),
     ]),

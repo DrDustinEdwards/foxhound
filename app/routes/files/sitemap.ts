@@ -57,6 +57,8 @@ export const STATIC_PAGES: SitemapEntry[] = [
   { path: "/privacy", changeFrequency: "yearly", priority: 0.3 },
   { path: "/terms", changeFrequency: "yearly", priority: 0.3 },
   { path: "/blog", changeFrequency: "weekly", priority: 0.8 },
+  // TASK-foxhound-parity-cluster-b.md fix 3: restores legacy's archive page.
+  { path: "/blog/archive", changeFrequency: "weekly", priority: 0.6 },
   // Pass 3 extension point: decline-codes and compare hubs + their
   // templated per-code/per-competitor pages, added below via
   // DECLINE_CODES/COMPETITOR_ORDER rather than hand-listed here.
