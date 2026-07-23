@@ -34,7 +34,14 @@ interface SitemapEntry {
   priority?: number;
 }
 
-const STATIC_PAGES: SitemapEntry[] = [
+// Every static (non-parameterized) public marketing route belongs here.
+// test/sitemap.test.ts walks the real route tree (app/routes.ts) and asserts
+// every one of them, MINUS the documented EXCLUDED_PREFIXES list it also
+// defines, appears in this array - so a new static marketing route added to
+// routes.ts and never added here now fails CI instead of silently missing
+// from search indexing (TASK-foxhound-seo-remediation.md M4:
+// foxhound-audit-seo.md flagged /features missing this way).
+export const STATIC_PAGES: SitemapEntry[] = [
   { path: "/", changeFrequency: "weekly", priority: 1.0 },
   { path: "/pricing", changeFrequency: "monthly", priority: 0.9 },
   { path: "/products", changeFrequency: "monthly", priority: 0.9 },
@@ -42,6 +49,7 @@ const STATIC_PAGES: SitemapEntry[] = [
   { path: "/products/recovery", changeFrequency: "monthly", priority: 0.8 },
   { path: "/products/disputes", changeFrequency: "monthly", priority: 0.8 },
   { path: "/products/intelligence", changeFrequency: "monthly", priority: 0.8 },
+  { path: "/features", changeFrequency: "monthly", priority: 0.6 },
   { path: "/about", changeFrequency: "monthly", priority: 0.5 },
   { path: "/demos", changeFrequency: "monthly", priority: 0.7 },
   { path: "/docs", changeFrequency: "weekly", priority: 0.7 },
