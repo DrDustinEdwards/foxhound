@@ -9,13 +9,15 @@
 // (app/lib/intelligence/views.server.ts), resolved once per app-shell
 // request, not per nav render.
 //
-// Two intentional deviations from the legacy shape (task: "map to
-// Foxhound's REAL routes ... not the legacy paths"): Recovery's legacy
-// "Alerts" link had no Foxhound equivalent (settings/alerts was never built
-// here) and is replaced with Foxhound's real /recovery sub-routes.
-// Intelligence's legacy "Customers" link had no standalone list route in
-// ROUTES.md (the customer list IS the /intelligence overview), so it is
-// dropped rather than invented.
+// One intentional deviation from the legacy shape (task: "map to Foxhound's
+// REAL routes ... not the legacy paths"): Recovery's legacy "Alerts" link had
+// no Foxhound equivalent (settings/alerts was never built here) and is
+// replaced with Foxhound's real /recovery sub-routes.
+//
+// Intelligence's "Customers" link (ROUTES.md rev 4, TASK-foxhound-
+// intelligence-customer-directory.md): restored once /intelligence/customers
+// existed as a real route. Before that it was correctly dropped rather than
+// invented; it is not a re-added legacy holdover.
 
 export type ProductKey = "dashboard" | "recovery" | "disputes" | "intelligence";
 
@@ -55,6 +57,7 @@ export const PRODUCT_MANIFEST: Record<ProductKey, ProductManifestEntry> = {
     href: "/intelligence",
     links: [
       { label: "Overview", to: "/intelligence", end: true },
+      { label: "Customers", to: "/intelligence/customers" },
       { label: "Alerts", to: "/intelligence/alerts" },
       { label: "Reports", to: "/intelligence/reports" },
     ],
