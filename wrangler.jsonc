@@ -11,7 +11,10 @@
     "enabled": true
   },
 
-  // Single environment. Worker "foxhound" at foxhound.dustin-edwards.workers.dev.
+  // Single environment. Worker "foxhound" at foxhoundapp.com (Phase 9 domain
+  // cutover, TASK-foxhound-domain-cutover.md), with workers_dev left enabled
+  // during the transition so foxhound.dustin-edwards.workers.dev keeps
+  // serving until the cutover is verified; a follow-up commit disables it.
   // The D1 keeps its original name "foxhound-staging" (a dashboard label only;
   // renaming a D1 is not worth it) and the KV keeps id 8ff187... - bindings and
   // data are unchanged from the previous two-env setup.
@@ -20,10 +23,16 @@
   // "queues": { "producers": [...], "consumers": [...] }  -- email dispatch + event consumption (Phase 4c)
   // "send_email" / EMAIL binding                            -- Cloudflare Email Service (Phase 4c)
 
+  "workers_dev": true,
+  "routes": [
+    { "pattern": "foxhoundapp.com", "custom_domain": true },
+    { "pattern": "www.foxhoundapp.com", "custom_domain": true }
+  ],
+
   "vars": {
     // Canonical origin for Better Auth callbacks/redirects and the Stripe Connect
     // redirect URI. Non-secret.
-    "BETTER_AUTH_URL": "https://foxhound.dustin-edwards.workers.dev",
+    "BETTER_AUTH_URL": "https://foxhoundapp.com",
     // Turnstile site key (public, non-secret; safe to commit). Placeholder
     // until Dustin creates the real widget; TURNSTILE_SECRET_KEY (env.d.ts,
     // wrangler secret) is the Dustin-gated half that actually enables the
