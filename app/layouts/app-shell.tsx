@@ -69,6 +69,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     email: auth.email,
     isAdmin: auth.isAdmin,
     isDemo: auth.isDemo,
+    demoSignedIn: auth.demoSignedIn,
     theme: getThemeFromRequest(request),
     nav,
   };
@@ -98,7 +99,7 @@ function tabLinkClassName({ isActive }: { isActive: boolean }): string {
 }
 
 export default function AppLayout({ loaderData }: Route.ComponentProps) {
-  const { accountName, email, isAdmin, isDemo, theme, nav } = loaderData;
+  const { accountName, email, isAdmin, isDemo, demoSignedIn, theme, nav } = loaderData;
   const activeProduct = PRODUCT_MANIFEST[nav.activeProductKey];
   const primaryLinks = nav.isPlatformPage ? [] : activeProduct.links;
 
@@ -120,13 +121,15 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
       {isDemo ? (
         <div className="flex items-center justify-center gap-3 border-b border-border bg-chrome px-4 py-2 text-center">
           <span className="text-label text-chrome-text-secondary">
-            You are viewing a live demo with sample data. Nothing you do here is saved.
+            {demoSignedIn
+              ? "You are viewing a live demo with sample data instead of your real account. Nothing you do here is saved."
+              : "You are viewing a live demo with sample data. Nothing you do here is saved."}
           </span>
           <a
             href="/demo/exit"
             className="shrink-0 rounded-md border border-border px-2.5 py-1 text-label font-medium text-chrome-text hover:border-amber"
           >
-            Exit demo
+            {demoSignedIn ? "Exit demo, return to your account" : "Exit demo"}
           </a>
         </div>
       ) : null}

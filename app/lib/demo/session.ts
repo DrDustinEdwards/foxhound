@@ -35,6 +35,17 @@ export function clearDemoCookieHeader(): string {
 }
 
 /**
+ * Where a demo-related redirect should land depending on whether the caller
+ * also has a real session (TASK-foxhound-demo-access-parity.md's
+ * demo-over-session precedence means a signed-in caller can be viewing the
+ * demo). Shared by the app-shell guard's not-yet-seeded fallback and
+ * /demo/exit, so the two can never drift on this decision.
+ */
+export function demoFallbackPath(hasSession: boolean): string {
+  return hasSession ? "/dashboard" : "/demos";
+}
+
+/**
  * The read-only rule for demo mode, as a pure decision so it is unit-testable:
  * a demo visitor may only issue safe (read) requests. Every mutating action in
  * the app-shell tree is a POST, so blocking non-GET/HEAD makes the ENTIRE demo
