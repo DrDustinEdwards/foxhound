@@ -7,6 +7,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import { CATEGORY_LABEL, CATEGORY_ORDER, listDeclineCodeViews } from "~/lib/decline-codes/codes";
 import { CATEGORY_STATUS_LABEL, categoryBadgeTone } from "~/lib/decline-codes/presentation";
 import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
+import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/index";
 
@@ -17,15 +18,14 @@ import type { Route } from "./+types/index";
 // (app/lib/recovery/decline.ts) and is more useful to a merchant scanning
 // the page than an alphabetical list would be.
 
-export function meta() {
-  return [
-    { title: "Stripe Decline Code Library - Foxhound" },
-    {
-      name: "description",
-      content:
-        "What every major Stripe decline code means, why it happens, and how it gets recovered. Grouped by soft, network, expired, and fraud classifications.",
-    },
-  ];
+export function meta({ loaderData }: Route.MetaArgs) {
+  return marketingMeta({
+    title: "Stripe Decline Code Library - Foxhound",
+    description:
+      "What every major Stripe decline code means, why it happens, and how it gets recovered. Grouped by soft, network, expired, and fraud classifications.",
+    path: "/decline-codes",
+    siteUrl: loaderData?.siteUrl ?? "",
+  });
 }
 
 export function loader({ context }: Route.LoaderArgs) {

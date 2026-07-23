@@ -9,6 +9,7 @@ import { getDeclineCodeView } from "~/lib/decline-codes/codes";
 import { DECLINE_CONTENT } from "~/lib/decline-codes/content";
 import { CATEGORY_STATUS_LABEL, categoryBadgeTone, recoveryApproach } from "~/lib/decline-codes/presentation";
 import { breadcrumbListJsonLd, faqPageJsonLd, siteUrl } from "~/lib/seo/jsonld";
+import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/code";
 
@@ -30,14 +31,13 @@ export function loader({ params, context }: Route.LoaderArgs) {
 
 export function meta({ loaderData }: Route.MetaArgs) {
   if (!loaderData) return [{ title: "Decline code - Foxhound" }];
-  const { view } = loaderData;
-  return [
-    { title: `${view.displayName} (${view.code}) decline code - Foxhound` },
-    {
-      name: "description",
-      content: `What the Stripe ${view.code} decline code means, why it happens, how to fix it, and how Foxhound recovers it.`,
-    },
-  ];
+  const { view, siteUrl: url } = loaderData;
+  return marketingMeta({
+    title: `${view.displayName} (${view.code}) decline code - Foxhound`,
+    description: `What the Stripe ${view.code} decline code means, why it happens, how to fix it, and how Foxhound recovers it.`,
+    path: `/decline-codes/${view.code}`,
+    siteUrl: url,
+  });
 }
 
 export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {

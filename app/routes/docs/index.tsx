@@ -2,18 +2,30 @@ import { ArrowRight } from "lucide-react";
 import { Link } from "react-router";
 
 import { MarketingPageHeader } from "~/components/marketing-page-header";
+import { cloudflareContext } from "~/lib/cloudflare-context";
 import { DOC_GUIDES } from "~/lib/marketing/docs-content";
+import { siteUrl } from "~/lib/seo/jsonld";
+import { marketingMeta } from "~/lib/seo/meta";
+
+import type { Route } from "./+types/index";
 
 // Ported from legacy app/(marketing)/docs/page.tsx (Phase 6 Pass 1). Platform
 // renders as a full-width card above the product guide grid, same as
 // legacy. Content itself is a deliberately modest, hand-written set (see
 // app/lib/marketing/docs-content.ts), not the full 5-guide legacy library.
 
-export function meta() {
-  return [
-    { title: "Docs - Foxhound" },
-    { name: "description", content: "User guides for Foxhound: platform setup, recovery, disputes, and intelligence." },
-  ];
+export function meta({ loaderData }: Route.MetaArgs) {
+  return marketingMeta({
+    title: "Docs - Foxhound",
+    description: "User guides for Foxhound: platform setup, recovery, disputes, and intelligence.",
+    path: "/docs",
+    siteUrl: loaderData?.siteUrl ?? "",
+  });
+}
+
+export function loader({ context }: Route.LoaderArgs) {
+  const { env } = context.get(cloudflareContext);
+  return { siteUrl: siteUrl(env) };
 }
 
 export default function DocsIndexPage() {

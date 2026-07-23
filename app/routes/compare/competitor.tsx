@@ -5,6 +5,7 @@ import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { COMPETITORS } from "~/lib/compare/competitors";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
+import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/competitor";
 
@@ -27,14 +28,13 @@ export function loader({ params, context }: Route.LoaderArgs) {
 
 export function meta({ loaderData }: Route.MetaArgs) {
   if (!loaderData) return [{ title: "Compare - Foxhound" }];
-  const { competitor } = loaderData;
-  return [
-    { title: `Foxhound vs ${competitor.name} - Foxhound` },
-    {
-      name: "description",
-      content: `How Foxhound compares to ${competitor.name}: pricing model, what each product does, and honest tradeoffs.`,
-    },
-  ];
+  const { competitor, siteUrl: url } = loaderData;
+  return marketingMeta({
+    title: `Foxhound vs ${competitor.name} - Foxhound`,
+    description: `How Foxhound compares to ${competitor.name}: pricing model, what each product does, and honest tradeoffs.`,
+    path: `/compare/${competitor.slug}`,
+    siteUrl: url,
+  });
 }
 
 export default function ComparePage({ loaderData }: Route.ComponentProps) {

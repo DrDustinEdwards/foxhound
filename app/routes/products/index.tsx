@@ -2,21 +2,30 @@ import { ArrowRight, RefreshCw, ScanSearch, Shield, TrendingUp } from "lucide-re
 import { Link } from "react-router";
 
 import { MarketingPageHeader } from "~/components/marketing-page-header";
+import { cloudflareContext } from "~/lib/cloudflare-context";
 import { PRODUCTS } from "~/lib/marketing/products";
+import { siteUrl } from "~/lib/seo/jsonld";
+import { marketingMeta } from "~/lib/seo/meta";
+
+import type { Route } from "./+types/index";
 
 // Ported from legacy app/(marketing)/products/page.tsx (Phase 6 Pass 1).
 // This is now the single /products/* index (task: collapse legacy's three
 // duplicate trees, /product/*, /products, /features, onto one pattern).
 
-export function meta() {
-  return [
-    { title: "Products - Foxhound" },
-    {
-      name: "description",
-      content:
-        "Audit, Recovery, Disputes, and Intelligence. Four products that recover failed Stripe payments, resolve disputes with a human sign-off, and surface churn risk.",
-    },
-  ];
+export function meta({ loaderData }: Route.MetaArgs) {
+  return marketingMeta({
+    title: "Products - Foxhound",
+    description:
+      "Audit, Recovery, Disputes, and Intelligence. Four products that recover failed Stripe payments, resolve disputes with a human sign-off, and surface churn risk.",
+    path: "/products",
+    siteUrl: loaderData?.siteUrl ?? "",
+  });
+}
+
+export function loader({ context }: Route.LoaderArgs) {
+  const { env } = context.get(cloudflareContext);
+  return { siteUrl: siteUrl(env) };
 }
 
 const ICONS = {

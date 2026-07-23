@@ -7,6 +7,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import { labelForTag } from "~/lib/blog/tags";
 import { getPublishedPostsByTag } from "~/lib/blog/queries.server";
 import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
+import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/tag";
 
@@ -26,10 +27,12 @@ export async function loader({ params, context }: Route.LoaderArgs) {
 export function meta({ loaderData }: Route.MetaArgs) {
   if (!loaderData) return [{ title: "Blog - Foxhound" }];
   const label = labelForTag(loaderData.tag);
-  return [
-    { title: `${label} - Foxhound Blog` },
-    { name: "description", content: `Guides on ${label.toLowerCase()} from the Foxhound blog.` },
-  ];
+  return marketingMeta({
+    title: `${label} - Foxhound Blog`,
+    description: `Guides on ${label.toLowerCase()} from the Foxhound blog.`,
+    path: `/blog/tag/${loaderData.tag}`,
+    siteUrl: loaderData.siteUrl,
+  });
 }
 
 export default function BlogTagPage({ loaderData }: Route.ComponentProps) {

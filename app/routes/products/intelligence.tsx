@@ -10,21 +10,30 @@ import {
   ProductHero,
   ProductPricing,
 } from "~/components/product-sections";
+import { cloudflareContext } from "~/lib/cloudflare-context";
+import { siteUrl } from "~/lib/seo/jsonld";
+import { marketingMeta } from "~/lib/seo/meta";
+
+import type { Route } from "./+types/intelligence";
 
 // Ported from legacy app/(marketing)/product/intelligence/page.tsx (Phase 6
 // Pass 1). Copy correction #5: the free MRR analytics tier is front and
 // center, legacy treated Intelligence as a single $199/mo product with no
 // free layer.
 
-export function meta() {
-  return [
-    { title: "Intelligence - Foxhound" },
-    {
-      name: "description",
-      content:
-        "Free MRR, movements, churn, and cohort analytics for every Recovery merchant. Predictive risk scoring is the paid $199/mo layer.",
-    },
-  ];
+export function meta({ loaderData }: Route.MetaArgs) {
+  return marketingMeta({
+    title: "Intelligence - Foxhound",
+    description:
+      "Free MRR, movements, churn, and cohort analytics for every Recovery merchant. Predictive risk scoring is the paid $199/mo layer.",
+    path: "/products/intelligence",
+    siteUrl: loaderData?.siteUrl ?? "",
+  });
+}
+
+export function loader({ context }: Route.LoaderArgs) {
+  const { env } = context.get(cloudflareContext);
+  return { siteUrl: siteUrl(env) };
 }
 
 const STEPS = [

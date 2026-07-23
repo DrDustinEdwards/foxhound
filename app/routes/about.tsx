@@ -1,6 +1,7 @@
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { organizationJsonLd, personJsonLd, siteUrl, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
+import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/about";
 
@@ -8,14 +9,13 @@ import type { Route } from "./+types/about";
 // Founder/company bio plus Person JSON-LD for E-E-A-T. Linked from the
 // footer (required) and the header nav.
 
-export function meta() {
-  return [
-    { title: "About - Foxhound" },
-    {
-      name: "description",
-      content: "Foxhound is built and run by Dustin Edwards, a US company built on Stripe Connect.",
-    },
-  ];
+export function meta({ loaderData }: Route.MetaArgs) {
+  return marketingMeta({
+    title: "About - Foxhound",
+    description: "Foxhound is built and run by Dustin Edwards, a US company built on Stripe Connect.",
+    path: "/about",
+    siteUrl: loaderData?.siteUrl ?? "",
+  });
 }
 
 export function loader({ context }: Route.LoaderArgs) {

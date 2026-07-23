@@ -5,6 +5,7 @@ import { BottomCTA } from "~/components/product-sections";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
+import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/features";
 
@@ -298,16 +299,13 @@ const CATEGORIES: Category[] = [
 ];
 
 export function meta({ loaderData }: Route.MetaArgs) {
-  const url = loaderData?.siteUrl ?? "";
-  return [
-    { title: "Features - Foxhound" },
-    {
-      name: "description",
-      content:
-        "Everything Foxhound does, organized by capability and tagged by product: Audit, Recovery, Disputes, and Intelligence.",
-    },
-    { tagName: "link", rel: "canonical", href: `${url}/features` },
-  ];
+  return marketingMeta({
+    title: "Features - Foxhound",
+    description:
+      "Everything Foxhound does, organized by capability and tagged by product: Audit, Recovery, Disputes, and Intelligence.",
+    path: "/features",
+    siteUrl: loaderData?.siteUrl ?? "",
+  });
 }
 
 export function loader({ context }: Route.LoaderArgs) {

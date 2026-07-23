@@ -3,21 +3,30 @@ import { Link } from "react-router";
 
 import { FaqAccordion } from "~/components/faq-accordion";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
+import { cloudflareContext } from "~/lib/cloudflare-context";
+import { siteUrl } from "~/lib/seo/jsonld";
+import { marketingMeta } from "~/lib/seo/meta";
+
+import type { Route } from "./+types/pricing";
 
 // Ported from legacy app/(marketing)/pricing/page.tsx (Phase 6 Pass 1).
 // Structure kept: audit-first card order, 4-card grid, annual note, FAQ,
 // closing CTA. Copy rewritten per corrections #1, #3, #5, #8 (baseline-free,
 // review-and-sign disputes, free intelligence tier, maturity-window billing).
 
-export function meta() {
-  return [
-    { title: "Pricing - Foxhound" },
-    {
-      name: "description",
-      content:
-        "Pay when Foxhound recovers. Baseline recoveries Stripe would have gotten anyway are free. Nothing billed until the recovery has matured for 30 days.",
-    },
-  ];
+export function meta({ loaderData }: Route.MetaArgs) {
+  return marketingMeta({
+    title: "Pricing - Foxhound",
+    description:
+      "Pay when Foxhound recovers. Baseline recoveries Stripe would have gotten anyway are free. Nothing billed until the recovery has matured for 30 days.",
+    path: "/pricing",
+    siteUrl: loaderData?.siteUrl ?? "",
+  });
+}
+
+export function loader({ context }: Route.LoaderArgs) {
+  const { env } = context.get(cloudflareContext);
+  return { siteUrl: siteUrl(env) };
 }
 
 interface PricingCard {

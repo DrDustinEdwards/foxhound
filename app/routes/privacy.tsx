@@ -1,7 +1,11 @@
 import { Link } from "react-router";
 
 import { MarketingPageHeader } from "~/components/marketing-page-header";
-import { SUPPORT_EMAIL } from "~/lib/seo/jsonld";
+import { cloudflareContext } from "~/lib/cloudflare-context";
+import { siteUrl, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
+import { marketingMeta } from "~/lib/seo/meta";
+
+import type { Route } from "./+types/privacy";
 
 // Ported from legacy app/(marketing)/privacy/page.tsx (Phase 6 Pass 1): same
 // 15-section structure. Legacy's body text ran to roughly 55KB of generic
@@ -11,11 +15,18 @@ import { SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 // the real retention windows from app/lib/constants.ts) rather than porting
 // the legacy wording verbatim.
 
-export function meta() {
-  return [
-    { title: "Privacy Policy - Foxhound" },
-    { name: "description", content: "Privacy policy for Foxhound, the payment recovery platform for Stripe merchants." },
-  ];
+export function meta({ loaderData }: Route.MetaArgs) {
+  return marketingMeta({
+    title: "Privacy Policy - Foxhound",
+    description: "Privacy policy for Foxhound, the payment recovery platform for Stripe merchants.",
+    path: "/privacy",
+    siteUrl: loaderData?.siteUrl ?? "",
+  });
+}
+
+export function loader({ context }: Route.LoaderArgs) {
+  const { env } = context.get(cloudflareContext);
+  return { siteUrl: siteUrl(env) };
 }
 
 interface SectionDef {
