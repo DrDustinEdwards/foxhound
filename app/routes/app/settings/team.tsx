@@ -1,7 +1,8 @@
-import { data, Form, useNavigation } from "react-router";
+import { data, useNavigation } from "react-router";
 
 import { Alert, Field, Submit } from "~/components/auth-ui";
 import { Badge } from "~/components/badge";
+import { DemoGuardedForm } from "~/components/demo-guarded-form";
 import { getDb } from "~/db";
 import { authContext, createInvite, listMembers, MEMBER_ROLE } from "~/lib/auth";
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -84,7 +85,7 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
       {loaderData.isOwner ? (
         <section className="rounded-lg border border-border bg-surface p-5">
           <h2 className="text-label font-semibold text-text">Invite a teammate</h2>
-          <Form method="post" className="mt-4 flex flex-col gap-3">
+          <DemoGuardedForm method="post" className="mt-4 flex flex-col gap-3">
             {actionData?.error ? <Alert tone="error">{actionData.error}</Alert> : null}
             {actionData?.inviteUrl ? (
               <Alert tone="success">
@@ -95,7 +96,7 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
             <div>
               <Submit disabled={busy}>{busy ? "Inviting..." : "Send invite"}</Submit>
             </div>
-          </Form>
+          </DemoGuardedForm>
         </section>
       ) : null}
     </div>

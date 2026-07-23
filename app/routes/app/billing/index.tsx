@@ -1,8 +1,9 @@
 import { eq } from "drizzle-orm";
-import { data, Form, redirect, useActionData, useNavigation } from "react-router";
+import { data, redirect, useActionData, useNavigation } from "react-router";
 
 import { LedgerFreeRow, LedgerLineItemRow } from "~/components/billing-ledger-row";
 import { Badge } from "~/components/badge";
+import { DemoGuardedForm } from "~/components/demo-guarded-form";
 import { accounts, getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
@@ -142,7 +143,7 @@ export default function Billing({ loaderData }: Route.ComponentProps) {
             ? "A payment method is on file with Foxhound. Fees are invoiced monthly."
             : "No payment method on file yet. Set one up so Foxhound can invoice your monthly fees."}
         </p>
-        <Form method="post" className="mt-3">
+        <DemoGuardedForm method="post" className="mt-3">
           <input type="hidden" name="intent" value="setup_billing" />
           <button
             type="submit"
@@ -151,7 +152,7 @@ export default function Billing({ loaderData }: Route.ComponentProps) {
           >
             {busy ? "Redirecting..." : billingSetUp ? "Update payment method" : "Set up billing"}
           </button>
-        </Form>
+        </DemoGuardedForm>
       </div>
 
       {invoices.length > 0 ? (

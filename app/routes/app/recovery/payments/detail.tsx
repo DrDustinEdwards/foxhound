@@ -1,6 +1,7 @@
-import { data, Form, useNavigation } from "react-router";
+import { data, useNavigation } from "react-router";
 
 import { Badge } from "~/components/badge";
+import { DemoGuardedForm } from "~/components/demo-guarded-form";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
@@ -191,7 +192,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
         ) : null}
         <div className="mt-3 flex flex-wrap gap-2">
           {MANUAL_ACTIONS.map((a) => (
-            <Form key={a.intent} method="post">
+            <DemoGuardedForm key={a.intent} method="post">
               <input type="hidden" name="intent" value={a.intent} />
               <button
                 type="submit"
@@ -200,7 +201,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
               >
                 {a.label}
               </button>
-            </Form>
+            </DemoGuardedForm>
           ))}
         </div>
       </div>
