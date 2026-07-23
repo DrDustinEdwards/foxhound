@@ -4,7 +4,7 @@ import { Link } from "react-router";
 import { FaqAccordion } from "~/components/faq-accordion";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { siteUrl } from "~/lib/seo/jsonld";
+import { faqPageJsonLd, siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/pricing";
@@ -210,6 +210,16 @@ export default function PricingPage() {
           </div>
         </div>
       </section>
+
+      {/* FAQPage JSON-LD, same pairing pattern as home.tsx/decline-codes/code.tsx/
+          blog/post.tsx: sourced from the exact FAQS array the accordion above
+          renders, never a hand-duplicated copy. */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(faqPageJsonLd(FAQS.map((f) => ({ question: f.question, answer: f.answer })))),
+        }}
+      />
     </div>
   );
 }
