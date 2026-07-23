@@ -72,7 +72,7 @@ const PRODUCT_ENTRIES = [
     key: "recovery",
     Icon: RefreshCw,
     name: "Recovery",
-    blurb: "Silent retries first, then AI-drafted email sequences for a seeded account of 185 customers.",
+    blurb: "Silent retries first, then AI-drafted email sequences for a seeded account of 200 customers.",
   },
   {
     key: "disputes",
@@ -104,7 +104,7 @@ export default function DemosPage() {
       <MarketingPageHeader
         eyebrow="Live demo"
         title="The real product, with sample data"
-        subtext="This is not a screenshot tour. You'll be inside the actual Foxhound app, exploring a seeded account of 185 customers. No signup, nothing to connect, and nothing you do can change it."
+        subtext="This is not a screenshot tour. You'll be inside the actual Foxhound app, exploring a seeded account of 200 customers. No signup, nothing to connect, and nothing you do can change it."
       />
 
       <div className="mx-auto max-w-3xl px-4 pb-16 sm:px-8">
