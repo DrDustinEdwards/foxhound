@@ -8,7 +8,7 @@ import { HEALTH_SCORE_AT_RISK_THRESHOLD } from "~/lib/constants";
 
 export type HealthScoreBand = "at_risk" | "watch" | "healthy";
 
-const WATCH_CEILING = 70;
+export const WATCH_CEILING = 70;
 
 export function healthScoreBand(score: number): HealthScoreBand {
   if (score < HEALTH_SCORE_AT_RISK_THRESHOLD) return "at_risk";
