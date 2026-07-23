@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Link } from "react-router";
 
 import { ReadingProgressBar } from "~/components/blog/reading-progress-bar";
+import { ShareRow } from "~/components/blog/share-row";
 import { TableOfContents } from "~/components/blog/table-of-contents";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -24,12 +25,16 @@ import type { Route } from "./+types/post";
 
 // Ported from legacy app/(marketing)/blog/[slug]/{page,PostDetailBody}.tsx
 // (Phase 6 Pass 2). Structure kept: cover image, tag chips, byline row,
-// title/excerpt, inline (mobile) + sidebar (desktop) TOC, rendered body,
-// further-reading links (blog_post_links), prev/next nav, closing audit
-// CTA. Dropped: legacy's ShareBar (no equivalent component in this repo and
-// not in the task's list of surfaces to build) and the static-image author
-// card (replaced with a plain text byline; this repo has no
-// /favicon.png-shaped author avatar asset).
+// title/excerpt, share row, inline (mobile) + sidebar (desktop) TOC,
+// rendered body, further-reading links (blog_post_links), author box,
+// prev/next nav, closing audit CTA.
+//
+// Share row + author avatar restored (TASK-foxhound-parity-cluster-b.md fix
+// 4), confirmed live on recova-eta.vercel.app before building. The avatar
+// is /favicon.svg, the same Foxhound organization mark organizationJsonLd
+// already uses for its `logo` field below, not a Person image - this repo
+// has no Person identity for blog authorship (every current post's author
+// column is "Foxhound", per the Phase 6 brand-token remediation).
 export async function loader({ params, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const db = getDb(env);
@@ -155,9 +160,9 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
           </div>
 
           <h1 className="mb-4 text-display font-medium leading-tight text-text">{post.title}</h1>
-          <p className="mb-8 border-b border-border-sub pb-8 text-body leading-relaxed text-text-secondary">
-            {post.excerpt}
-          </p>
+          <p className="mb-6 text-body leading-relaxed text-text-secondary">{post.excerpt}</p>
+
+          <ShareRow url={canonical} title={post.title} />
 
           <TableOfContents items={toc} variant="inline" />
 
@@ -192,6 +197,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
       ) : null}
 
       <div className="mt-12 flex items-start gap-4 border-t border-border pt-8">
+        <img src="/favicon.svg" alt="Foxhound" width={44} height={44} className="h-11 w-11 shrink-0 rounded-lg" />
         <div>
           <p className="mb-0.5 font-mono text-micro uppercase tracking-wide text-text-tertiary">Published by</p>
           <p className="mb-1 text-body font-medium text-text">{post.author}</p>
