@@ -23,6 +23,7 @@ import {
   predictions,
   recoveredPayments,
   recoverySteps,
+  stripeConnections,
   winBackSequences,
   winBackSteps,
 } from "~/db";
@@ -110,6 +111,7 @@ async function wipeDemoAccount(db: Db): Promise<void> {
     db.delete(alerts).where(eq(alerts.accountId, acct)),
     db.delete(accountSubscriptions).where(eq(accountSubscriptions.accountId, acct)),
     db.delete(accountMembers).where(eq(accountMembers.accountId, acct)),
+    db.delete(stripeConnections).where(eq(stripeConnections.accountId, acct)),
   ]);
   await db.delete(accounts).where(eq(accounts.id, acct));
 }
@@ -159,6 +161,23 @@ export async function seedDemoAccount(db: Db, now: Date): Promise<void> {
     role: "owner",
     status: "active",
     createdAt: new Date(now.getTime() - 400 * DAY_MS),
+  });
+
+  // Recovery dashboard parity (TASK-foxhound-recovery-surface-parity.md Phase
+  // 2) needs a real, primary, still-connected stripe_connections row: Teamflow
+  // is a fully operating simulated merchant, not an onboarding zero-state, so
+  // connection-dependent panels (webhook health, "connected since") must have
+  // something real to read instead of permanently reading as disconnected.
+  // No access token: the demo firewall means nothing here ever calls Stripe.
+  await db.insert(stripeConnections).values({
+    id: `${DEMO_ACCOUNT_ID}_connection`,
+    accountId: DEMO_ACCOUNT_ID,
+    stripeUserId: "acct_demo_teamflow",
+    isPrimary: true,
+    connectedAt: new Date(now.getTime() - 380 * DAY_MS),
+    lastWebhookAt: new Date(now.getTime() - 15 * 60_000),
+    createdAt: new Date(now.getTime() - 380 * DAY_MS),
+    senderName: DEMO_ACCOUNT_NAME,
   });
 
   // 2) Intelligence entitlement, via the real admin grant path (pure DB row,

@@ -46,8 +46,8 @@ describe("getRecoveryDashboardWindow structural sanity", () => {
     expect(w.activeWinbacksCount).toBeGreaterThan(0); // demo-seed guarantee
     expect(w.upcomingSteps.length).toBeGreaterThan(0);
     expect(w.recentPayments.length).toBeLessThanOrEqual(8);
-    expect(w.connection).toBeNull(); // demo account has no stripe_connections row
-    expect(w.webhookHealth).toBeNull(); // follows from no connection
+    expect(w.connection).not.toBeNull(); // Teamflow simulates an actively connected merchant
+    expect(w.webhookHealth?.tone).toBe("success"); // seeded lastWebhookAt is recent
 
     for (const category of Object.keys(w.categoryBreakdown)) {
       expect(DECLINE_CATEGORIES).toContain(category);
