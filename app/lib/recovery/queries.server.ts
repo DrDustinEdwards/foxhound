@@ -301,6 +301,64 @@ export async function listStepsForFailedPayments(
     );
 }
 
+export interface ExecutedRecoveryStepRow {
+  id: string;
+  stepType: string;
+  executedAt: Date;
+  result: string | null;
+  openedAt: Date | null;
+  clickedAt: Date | null;
+  aiSubject: string | null;
+  aiBodyHtml: string | null;
+  declineCategory: DeclineCategory;
+  /** True when a recovered_payments row credits THIS exact step
+   *  (recovered_by_step_id), the real Foxhound attribution spine - not
+   *  legacy's coarse result-string check, which has no Foxhound equivalent. */
+  creditedRecovery: boolean;
+}
+
+/** Every executed (non-cancelled) recovery_steps row for the account, across
+ *  every failed payment, joined to its decline category - the account-wide
+ *  step-performance read model for /recovery/sequences. */
+export async function listExecutedRecoverySteps(db: Db, accountId: string): Promise<ExecutedRecoveryStepRow[]> {
+  const rows = await db
+    .select({
+      id: recoverySteps.id,
+      stepType: recoverySteps.stepType,
+      executedAt: recoverySteps.executedAt,
+      result: recoverySteps.result,
+      openedAt: recoverySteps.openedAt,
+      clickedAt: recoverySteps.clickedAt,
+      aiSubject: recoverySteps.aiSubject,
+      aiBodyHtml: recoverySteps.aiBodyHtml,
+      declineCategory: failedPayments.declineCategory,
+      creditedRecoveryId: recoveredPayments.id,
+    })
+    .from(recoverySteps)
+    .innerJoin(failedPayments, eq(failedPayments.id, recoverySteps.failedPaymentId))
+    .leftJoin(recoveredPayments, eq(recoveredPayments.recoveredByStepId, recoverySteps.id))
+    .where(
+      and(
+        eq(recoverySteps.accountId, accountId),
+        eq(failedPayments.isRenewalNoise, false),
+        sql`${recoverySteps.executedAt} is not null`,
+        ne(recoverySteps.result, "cancelled"),
+      ),
+    );
+  return rows.map((r) => ({
+    id: r.id,
+    stepType: r.stepType,
+    executedAt: r.executedAt as Date,
+    result: r.result,
+    openedAt: r.openedAt,
+    clickedAt: r.clickedAt,
+    aiSubject: r.aiSubject,
+    aiBodyHtml: r.aiBodyHtml,
+    declineCategory: r.declineCategory as DeclineCategory,
+    creditedRecovery: r.creditedRecoveryId !== null,
+  }));
+}
+
 /** Win-back sequences for the account, newest first. */
 export async function listWinbackSequences(db: Db, accountId: string): Promise<WinBackSequenceRow[]> {
   const rows = await db
