@@ -2,14 +2,16 @@ import { describe, expect, it } from "vitest";
 
 import { DEMO_ACCOUNT_ID } from "~/lib/demo/constants";
 import { seedDemoAccount } from "~/lib/demo/seed";
-import { listFilteredFailedPayments } from "~/lib/recovery/queries.server";
+import { listFilteredFailedPayments, type FailedPaymentFilters } from "~/lib/recovery/queries.server";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
 // TASK-foxhound-demo-system-completion.md Phase 3: /recovery/payments filter
 // and sort, entirely in SQL (no client-side pass over the account's full
 // payment list), matching the pattern already proven for the Intelligence
-// customer directory.
+// customer directory. Extended in TASK-foxhound-recovery-surface-parity.md
+// Phase 3 with amount range, a detected-after cutoff, and configurable page
+// size; see recovery-dashboard-payments-summary.test.ts for those additions.
 
 const now = new Date("2026-07-21T00:00:00.000Z");
 
@@ -19,16 +21,22 @@ async function seededDb() {
   return db;
 }
 
+const BASE_FILTERS: FailedPaymentFilters = {
+  search: null,
+  status: null,
+  declineCategory: null,
+  detectedAfterMs: null,
+  amountMinCents: null,
+  amountMaxCents: null,
+  sort: "newest",
+  page: 1,
+  pageSize: 50,
+};
+
 describe("listFilteredFailedPayments against the seeded demo account", () => {
   it("paginates at 50 per page and totals match the unfiltered count", async () => {
     const db = await seededDb();
-    const page1 = await listFilteredFailedPayments(db, DEMO_ACCOUNT_ID, {
-      search: null,
-      status: null,
-      declineCategory: null,
-      sort: "newest",
-      page: 1,
-    });
+    const page1 = await listFilteredFailedPayments(db, DEMO_ACCOUNT_ID, { ...BASE_FILTERS });
     expect(page1.totalCount).toBe(76);
     expect(page1.payments).toHaveLength(50);
     expect(page1.totalPages).toBe(2);
@@ -36,13 +44,7 @@ describe("listFilteredFailedPayments against the seeded demo account", () => {
 
   it("filters by status", async () => {
     const db = await seededDb();
-    const result = await listFilteredFailedPayments(db, DEMO_ACCOUNT_ID, {
-      search: null,
-      status: "recovered",
-      declineCategory: null,
-      sort: "newest",
-      page: 1,
-    });
+    const result = await listFilteredFailedPayments(db, DEMO_ACCOUNT_ID, { ...BASE_FILTERS, status: "recovered" });
     expect(result.totalCount).toBeGreaterThan(0);
     expect(result.payments.every((p) => p.status === "recovered")).toBe(true);
   });
@@ -50,11 +52,8 @@ describe("listFilteredFailedPayments against the seeded demo account", () => {
   it("filters by decline category", async () => {
     const db = await seededDb();
     const result = await listFilteredFailedPayments(db, DEMO_ACCOUNT_ID, {
-      search: null,
-      status: null,
+      ...BASE_FILTERS,
       declineCategory: "expired",
-      sort: "newest",
-      page: 1,
     });
     expect(result.totalCount).toBeGreaterThan(0);
     expect(result.payments.every((p) => p.declineCategory === "expired")).toBe(true);
@@ -62,49 +61,25 @@ describe("listFilteredFailedPayments against the seeded demo account", () => {
 
   it("finds Acme Industries' scripted failures by name search", async () => {
     const db = await seededDb();
-    const result = await listFilteredFailedPayments(db, DEMO_ACCOUNT_ID, {
-      search: "Acme",
-      status: null,
-      declineCategory: null,
-      sort: "newest",
-      page: 1,
-    });
+    const result = await listFilteredFailedPayments(db, DEMO_ACCOUNT_ID, { ...BASE_FILTERS, search: "Acme" });
     expect(result.totalCount).toBe(3);
     expect(result.payments.every((p) => p.customerName === "Acme Industries")).toBe(true);
   });
 
   it("sorts by amount ascending and descending", async () => {
     const db = await seededDb();
-    const desc = await listFilteredFailedPayments(db, DEMO_ACCOUNT_ID, {
-      search: null,
-      status: null,
-      declineCategory: null,
-      sort: "amount_desc",
-      page: 1,
-    });
+    const desc = await listFilteredFailedPayments(db, DEMO_ACCOUNT_ID, { ...BASE_FILTERS, sort: "amount_desc" });
     const amounts = desc.payments.map((p) => p.amountCents);
     expect(amounts).toEqual([...amounts].sort((a, b) => b - a));
 
-    const asc = await listFilteredFailedPayments(db, DEMO_ACCOUNT_ID, {
-      search: null,
-      status: null,
-      declineCategory: null,
-      sort: "amount_asc",
-      page: 1,
-    });
+    const asc = await listFilteredFailedPayments(db, DEMO_ACCOUNT_ID, { ...BASE_FILTERS, sort: "amount_asc" });
     const ascAmounts = asc.payments.map((p) => p.amountCents);
     expect(ascAmounts).toEqual([...ascAmounts].sort((a, b) => a - b));
   });
 
   it("sorts oldest-first as the reverse of newest-first", async () => {
     const db = await seededDb();
-    const oldest = await listFilteredFailedPayments(db, DEMO_ACCOUNT_ID, {
-      search: null,
-      status: null,
-      declineCategory: null,
-      sort: "oldest",
-      page: 1,
-    });
+    const oldest = await listFilteredFailedPayments(db, DEMO_ACCOUNT_ID, { ...BASE_FILTERS, sort: "oldest" });
     const dates = oldest.payments.map((p) => p.detectedAt.getTime());
     expect(dates).toEqual([...dates].sort((a, b) => a - b));
   });
@@ -112,15 +87,55 @@ describe("listFilteredFailedPayments against the seeded demo account", () => {
   it("combines filters (status + category) as an AND, not an OR", async () => {
     const db = await seededDb();
     const result = await listFilteredFailedPayments(db, DEMO_ACCOUNT_ID, {
-      search: null,
+      ...BASE_FILTERS,
       status: "failed_unrecovered",
       declineCategory: "network",
-      sort: "newest",
-      page: 1,
     });
     for (const p of result.payments) {
       expect(p.status).toBe("failed_unrecovered");
       expect(p.declineCategory).toBe("network");
     }
+  });
+
+  it("filters by amount range", async () => {
+    const db = await seededDb();
+    const result = await listFilteredFailedPayments(db, DEMO_ACCOUNT_ID, {
+      ...BASE_FILTERS,
+      amountMinCents: 10_000,
+      amountMaxCents: 20_000,
+    });
+    expect(result.totalCount).toBeGreaterThan(0);
+    for (const p of result.payments) {
+      expect(p.amountCents).toBeGreaterThanOrEqual(10_000);
+      expect(p.amountCents).toBeLessThanOrEqual(20_000);
+    }
+  });
+
+  it("filters by a detected-after cutoff", async () => {
+    const db = await seededDb();
+    const cutoffMs = now.getTime() - 7 * 24 * 60 * 60 * 1000;
+    const result = await listFilteredFailedPayments(db, DEMO_ACCOUNT_ID, {
+      ...BASE_FILTERS,
+      detectedAfterMs: cutoffMs,
+    });
+    expect(result.totalCount).toBeGreaterThan(0);
+    for (const p of result.payments) {
+      expect(p.detectedAt.getTime()).toBeGreaterThanOrEqual(cutoffMs);
+    }
+  });
+
+  it("pageSize 'all' returns every matching row on page 1", async () => {
+    const db = await seededDb();
+    const result = await listFilteredFailedPayments(db, DEMO_ACCOUNT_ID, { ...BASE_FILTERS, pageSize: "all" });
+    expect(result.payments).toHaveLength(result.totalCount);
+    expect(result.totalPages).toBe(1);
+    expect(result.page).toBe(1);
+  });
+
+  it("a smaller page size changes total pages accordingly", async () => {
+    const db = await seededDb();
+    const result = await listFilteredFailedPayments(db, DEMO_ACCOUNT_ID, { ...BASE_FILTERS, pageSize: 10 });
+    expect(result.payments).toHaveLength(10);
+    expect(result.totalPages).toBe(Math.ceil(76 / 10));
   });
 });

@@ -39,13 +39,26 @@ export async function listFailedPayments(db: Db, accountId: string): Promise<Fai
 }
 
 export type FailedPaymentSort = "newest" | "oldest" | "amount_desc" | "amount_asc";
+export type FailedPaymentPageSize = 10 | 25 | 50 | 100 | "all";
 
-export interface FailedPaymentFilters {
+/** The filter dimensions that narrow WHICH payments match, independent of
+ *  status, sort, or pagination. Shared by the paginated list, the status-pill
+ *  counts (which respect every filter except status, the dimension the pills
+ *  themselves iterate over), and the header stats line. */
+export interface FailedPaymentFilterInput {
   search: string | null;
-  status: string | null;
   declineCategory: string | null;
+  /** Only payments detected on/after this cutoff (the "time" dropdown). */
+  detectedAfterMs: number | null;
+  amountMinCents: number | null;
+  amountMaxCents: number | null;
+}
+
+export interface FailedPaymentFilters extends FailedPaymentFilterInput {
+  status: string | null;
   sort: FailedPaymentSort;
   page: number;
+  pageSize: FailedPaymentPageSize;
 }
 
 export interface FailedPaymentListResult {
@@ -53,28 +66,52 @@ export interface FailedPaymentListResult {
   totalCount: number;
   page: number;
   totalPages: number;
+  pageSize: FailedPaymentPageSize;
 }
 
-const FAILED_PAYMENT_PAGE_SIZE = 50;
+export const DEFAULT_PAYMENT_PAGE_SIZE: FailedPaymentPageSize = 50;
+
+function baseFailedPaymentConditions(accountId: string) {
+  return [
+    byAccountActive(failedPayments.accountId, failedPayments.deletedAt, accountId),
+    eq(failedPayments.isRenewalNoise, false),
+  ];
+}
+
+/** Mutates `conditions` in place, adding one clause per active filter
+ *  dimension. Shared by every query that needs to match "the payments the
+ *  current filters describe" without status (list/summary/pills) or with it
+ *  (the paginated list itself adds status separately, see below). */
+function applyFailedPaymentFilters(conditions: unknown[], filters: FailedPaymentFilterInput): void {
+  if (filters.search) {
+    const term = `%${filters.search}%`;
+    const searchCondition = or(
+      like(failedPayments.customerName, term),
+      like(failedPayments.customerEmail, term),
+      like(failedPayments.planName, term),
+    );
+    if (searchCondition) conditions.push(searchCondition);
+  }
+  if (filters.declineCategory) conditions.push(eq(failedPayments.declineCategory, filters.declineCategory));
+  if (filters.detectedAfterMs !== null) {
+    conditions.push(gte(failedPayments.detectedAt, new Date(filters.detectedAfterMs)));
+  }
+  if (filters.amountMinCents !== null) conditions.push(gte(failedPayments.amountCents, filters.amountMinCents));
+  if (filters.amountMaxCents !== null) conditions.push(lte(failedPayments.amountCents, filters.amountMaxCents));
+}
 
 /** The filtered, sorted, paginated /recovery/payments list. Every filter and
- *  the sort run in SQL, never a client-side pass over the full account. */
+ *  the sort run in SQL, never a client-side pass over the full account.
+ *  `pageSize: "all"` (the "rows per page" control's all-in-one option)
+ *  returns every matching row on page 1, no limit/offset. */
 export async function listFilteredFailedPayments(
   db: Db,
   accountId: string,
   filters: FailedPaymentFilters,
 ): Promise<FailedPaymentListResult> {
-  const conditions = [
-    byAccountActive(failedPayments.accountId, failedPayments.deletedAt, accountId),
-    eq(failedPayments.isRenewalNoise, false),
-  ];
-  if (filters.search) {
-    const term = `%${filters.search}%`;
-    const searchCondition = or(like(failedPayments.customerName, term), like(failedPayments.customerEmail, term));
-    if (searchCondition) conditions.push(searchCondition);
-  }
+  const conditions = baseFailedPaymentConditions(accountId);
+  applyFailedPaymentFilters(conditions, filters);
   if (filters.status) conditions.push(eq(failedPayments.status, filters.status));
-  if (filters.declineCategory) conditions.push(eq(failedPayments.declineCategory, filters.declineCategory));
   const where = and(...conditions);
 
   const [{ n: totalCount }] = await db
@@ -82,8 +119,11 @@ export async function listFilteredFailedPayments(
     .from(failedPayments)
     .where(where);
 
-  const totalPages = Math.max(1, Math.ceil(Number(totalCount) / FAILED_PAYMENT_PAGE_SIZE));
-  const page = Math.min(Math.max(1, filters.page), totalPages);
+  const isAll = filters.pageSize === "all";
+  const totalCountNum = Number(totalCount);
+  const pageSize: number = filters.pageSize === "all" ? Math.max(1, totalCountNum) : filters.pageSize;
+  const totalPages = isAll ? 1 : Math.max(1, Math.ceil(totalCountNum / pageSize));
+  const page = isAll ? 1 : Math.min(Math.max(1, filters.page), totalPages);
 
   const orderBy =
     filters.sort === "oldest"
@@ -94,15 +134,103 @@ export async function listFilteredFailedPayments(
           ? [asc(failedPayments.amountCents)]
           : [desc(failedPayments.detectedAt)];
 
-  const payments = await db
-    .select()
-    .from(failedPayments)
-    .where(where)
-    .orderBy(...orderBy)
-    .limit(FAILED_PAYMENT_PAGE_SIZE)
-    .offset((page - 1) * FAILED_PAYMENT_PAGE_SIZE);
+  const payments = isAll
+    ? await db.select().from(failedPayments).where(where).orderBy(...orderBy)
+    : await db
+        .select()
+        .from(failedPayments)
+        .where(where)
+        .orderBy(...orderBy)
+        .limit(pageSize)
+        .offset((page - 1) * pageSize);
 
-  return { payments, totalCount: Number(totalCount), page, totalPages };
+  return { payments, totalCount: Number(totalCount), page, totalPages, pageSize: filters.pageSize };
+}
+
+export interface AmountBounds {
+  minCents: number;
+  maxCents: number;
+}
+
+const AMOUNT_BOUNDS_STEP_CENTS = 10_000;
+
+/** The dual-handle amount range's absolute bounds: 0 up to the account's
+ *  actual highest failed-payment amount, rounded up to the nearest $100 (a
+ *  hardcoded ceiling would either clip a real merchant's larger invoices or
+ *  waste most of the slider's range on a small one). */
+export async function getAmountBounds(db: Db, accountId: string): Promise<AmountBounds> {
+  const [row] = await db
+    .select({ max: sql<number>`max(${failedPayments.amountCents})` })
+    .from(failedPayments)
+    .where(and(...baseFailedPaymentConditions(accountId)));
+  const maxAmount = row?.max ?? 0;
+  const maxCents = Math.max(AMOUNT_BOUNDS_STEP_CENTS, Math.ceil(maxAmount / AMOUNT_BOUNDS_STEP_CENTS) * AMOUNT_BOUNDS_STEP_CENTS);
+  return { minCents: 0, maxCents };
+}
+
+export interface PaymentStatusCounts {
+  all: number;
+  active: number;
+  recovered: number;
+  failedUnrecovered: number;
+}
+
+/** Tally raw status strings into the canonical PaymentStatusCounts shape.
+ *  Exported so a caller with its own already-fetched rows (e.g. the
+ *  status-pill counts, which respect every filter except status) can reuse
+ *  the exact same counting logic getGlobalPaymentStatusCounts uses. */
+export function tallyStatusCounts(statuses: string[]): PaymentStatusCounts {
+  let active = 0;
+  let recovered = 0;
+  let failedUnrecovered = 0;
+  for (const s of statuses) {
+    if (s === "active") active++;
+    else if (s === "recovered") recovered++;
+    else if (s === "failed_unrecovered") failedUnrecovered++;
+  }
+  return { all: statuses.length, active, recovered, failedUnrecovered };
+}
+
+/** Status counts for the WHOLE account, ignoring every filter (the five
+ *  summary cards' "account state at a glance" row, deliberately unaffected
+ *  by search/category/amount/time/status so it always reads the same). */
+export async function getGlobalPaymentStatusCounts(db: Db, accountId: string): Promise<PaymentStatusCounts> {
+  const rows = await db
+    .select({ status: failedPayments.status })
+    .from(failedPayments)
+    .where(and(...baseFailedPaymentConditions(accountId)));
+  return tallyStatusCounts(rows.map((r) => r.status));
+}
+
+export interface PaymentSummaryRow {
+  status: string;
+  amountCents: number;
+}
+
+/**
+ * Every payment matching search/category/amount/time (deliberately NOT
+ * status, NOT pagination): status + amount only. Feeds two different, both
+ * server-computed things from ONE query, so status-pill counts and the
+ * header stats line can never drift from what the paginated list itself
+ * would return:
+ *   - the status-filter pills' counts: tally these rows by status, ignoring
+ *     the status filter itself (so each pill shows "how many would match if
+ *     you picked this status, given your other filters").
+ *   - the header stats line: the caller further filters these same rows by
+ *     status (if one is selected) to compute at-risk/recovered/rate for
+ *     exactly what the current filters describe.
+ */
+export async function listPaymentSummaryRows(
+  db: Db,
+  accountId: string,
+  filters: FailedPaymentFilterInput,
+): Promise<PaymentSummaryRow[]> {
+  const conditions = baseFailedPaymentConditions(accountId);
+  applyFailedPaymentFilters(conditions, filters);
+  return db
+    .select({ status: failedPayments.status, amountCents: failedPayments.amountCents })
+    .from(failedPayments)
+    .where(and(...conditions));
 }
 
 /** Only the in-progress (status='active') sequences, newest first. */
