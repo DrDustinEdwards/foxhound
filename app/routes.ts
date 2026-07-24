@@ -69,6 +69,7 @@ export default [
       index("./routes/app/recovery/index.tsx"),
       ...prefix("payments", [
         index("./routes/app/recovery/payments/index.tsx"),
+        route("export.csv", "./routes/app/recovery/payments/export.ts"),
         route(":id", "./routes/app/recovery/payments/detail.tsx"),
       ]),
       route("sequences", "./routes/app/recovery/sequences.tsx"),

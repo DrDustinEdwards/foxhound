@@ -57,6 +57,7 @@ const ADMIN_GUARD_FILE = "./layouts/admin-guard.tsx";
 // one-time flow, never a persistent switcher/platform-link destination.
 const NAV_EXCLUDED_ROUTES = new Set([
   "/welcome", // onboarding entry point immediately after signup
+  "/recovery/payments/export.csv", // CSV download resource route, not a nav destination
 ]);
 
 function collectNavCandidatePaths(entries: RouteConfigEntry[], parentPath: string, out: Set<string>): void {
