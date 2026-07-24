@@ -10,7 +10,13 @@ const ITEM_CLASS =
 // Consolidates Billing/Settings/Team/Help/Admin/Sign out into one utility
 // icon (task Part 2: "Settings/Billing/Help/Sign out/Admin all live inside
 // the gear dropdown so the chrome stays a single utility icon column").
-export function GearMenu({ isAdmin }: { isAdmin: boolean }) {
+// `accountLabel` (TASK-foxhound-app-shell-header-stability.md) also moved in
+// here: the header row used to render it as a standalone truncating text
+// node next to the utility cluster, which legacy never did (an avatar, not a
+// name, sits there) and which grew the row's width with Recovery's longer
+// link set. It renders as a non-interactive header line inside this
+// already-existing menu instead of a new header element.
+export function GearMenu({ isAdmin, accountLabel }: { isAdmin: boolean; accountLabel: string }) {
   const location = useLocation();
   const { open, setOpen, ref } = useDropdown<HTMLDivElement>();
 
@@ -27,7 +33,10 @@ export function GearMenu({ isAdmin }: { isAdmin: boolean }) {
       </button>
 
       {open ? (
-        <div className="absolute top-full right-0 z-50 mt-1 min-w-[160px] rounded-md border border-border bg-surface py-1 shadow-lg">
+        <div className="absolute top-full right-0 z-50 mt-1 min-w-[200px] rounded-md border border-border bg-surface py-1 shadow-lg">
+          <div className="truncate border-b border-border px-3 py-2 text-label text-text-tertiary" title={accountLabel}>
+            {accountLabel}
+          </div>
           {PLATFORM_LINKS.map((link) => {
             const isActive = location.pathname === link.to || location.pathname.startsWith(`${link.to}/`);
             return (
