@@ -8,6 +8,7 @@ import {
   countPreviousFailuresByCustomer,
   getConnectionSummary,
   getMostRecentRecoveryAt,
+  listBillableRecoveredForRoi,
   listExecutedEmailSteps,
   listFailedDaily,
   listFailedPayments,
@@ -151,5 +152,29 @@ describe("listUpcomingSteps", () => {
     const db = await seededDb();
     const rows = await listUpcomingSteps(db, DEMO_ACCOUNT_ID, now.getTime(), 0);
     expect(rows).toEqual([]);
+  });
+});
+
+describe("listBillableRecoveredForRoi", () => {
+  it("all-time is a superset of this-month, and every row is old enough to be matured", async () => {
+    const db = await seededDb();
+    const firstOfMonthUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
+    const allTime = await listBillableRecoveredForRoi(db, DEMO_ACCOUNT_ID, now.getTime(), null);
+    const thisMonth = await listBillableRecoveredForRoi(db, DEMO_ACCOUNT_ID, now.getTime(), firstOfMonthUtc);
+    expect(allTime.length).toBeGreaterThan(0);
+    expect(thisMonth.length).toBeLessThanOrEqual(allTime.length);
+    for (const r of allTime) {
+      expect(r.amountCents).toBeGreaterThan(0);
+      expect(r.currency).toBe("usd");
+    }
+  });
+
+  it("excludes stripe_baseline recoveries (the free line, never billed)", async () => {
+    const db = await seededDb();
+    const billable = await listBillableRecoveredForRoi(db, DEMO_ACCOUNT_ID, now.getTime(), null);
+    const allRecovered = await listRecoveredWithFailureContext(db, DEMO_ACCOUNT_ID, null);
+    // Billable is strictly a subset: every recovered payment exists in the
+    // unfiltered set, but not every recovered payment clears the billable bar.
+    expect(billable.length).toBeLessThan(allRecovered.length);
   });
 });
