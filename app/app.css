@@ -626,3 +626,44 @@ body {
   z-index: 30;
   transition: width 0.1s linear;
 }
+
+/* Dual-handle amount range (components/dual-range-slider.tsx,
+   /recovery/payments Phase 3): two native <input type="range"> stacked on
+   the same track. The track itself is transparent and click-through
+   (pointer-events: none) so only the thumbs are interactive, letting either
+   handle be dragged independently without one input's track stealing the
+   other's clicks - the standard technique for a dual-handle range with zero
+   JS and full native keyboard support. */
+.dual-range-input {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  pointer-events: none;
+}
+.dual-range-input::-webkit-slider-runnable-track {
+  -webkit-appearance: none;
+  background: transparent;
+}
+.dual-range-input::-moz-range-track {
+  background: transparent;
+}
+.dual-range-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  pointer-events: auto;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 9999px;
+  background: var(--amber-ui);
+  border: 2px solid var(--surface);
+  cursor: pointer;
+  margin-top: -0.375rem;
+}
+.dual-range-input::-moz-range-thumb {
+  pointer-events: auto;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 9999px;
+  background: var(--amber-ui);
+  border: 2px solid var(--surface);
+  cursor: pointer;
+}
