@@ -2,9 +2,11 @@ import { data, useNavigation } from "react-router";
 
 import { Badge } from "~/components/badge";
 import { DemoGuardedForm } from "~/components/demo-guarded-form";
+import { StatCard } from "~/components/stat-card";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
+import { formatRelativeTime } from "~/lib/dashboard/recovery-window";
 import { formatMoney } from "~/lib/money-format";
 import {
   ATTRIBUTION_KIND_LABELS,
@@ -18,8 +20,8 @@ import {
   recoveryLifecycleTone,
   stepResultTone,
 } from "~/lib/recovery/labels";
+import { isEmailStep, isRetryStep } from "~/lib/recovery/schedule";
 import { getFailedPaymentDetail } from "~/lib/recovery/queries.server";
-import { isRetryStep } from "~/lib/recovery/schedule";
 import type { AttributionKind } from "~/lib/constants";
 
 import type { Route } from "./+types/detail";
@@ -34,7 +36,7 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   const db = getDb(env);
   const detail = await getFailedPaymentDetail(db, auth.membership.accountId, params.id);
   if (!detail) throw new Response("Not Found", { status: 404 });
-  return detail;
+  return { ...detail, nowMs: Date.now() };
 }
 
 // Manual per-payment actions (cancel, retry now, resend, note, mark
@@ -69,13 +71,18 @@ const MANUAL_ACTIONS = [
 ] as const;
 
 export default function PaymentDetail({ loaderData, actionData }: Route.ComponentProps) {
-  const { failedPayment, steps, recovery } = loaderData;
+  const { failedPayment, steps, recovery, nowMs } = loaderData;
   const attributionKind = recovery?.attributionKind as AttributionKind | undefined;
   const creditedStep =
     recovery?.recoveredByStepId != null
       ? steps.find((s) => s.id === recovery.recoveredByStepId)
       : undefined;
   const busy = useNavigation().state !== "idle";
+
+  const executedSteps = steps.filter((s) => s.executedAt !== null);
+  const emailSteps = executedSteps.filter((s) => isEmailStep(s.stepType));
+  const openedEmails = emailSteps.filter((s) => s.openedAt);
+  const clickedEmails = emailSteps.filter((s) => s.clickedAt);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
@@ -102,6 +109,70 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
           {failedPayment.declineCode ? (
             <span className="font-mono text-micro text-text-subtle">{failedPayment.declineCode}</span>
           ) : null}
+        </div>
+      </div>
+
+      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatCard label="Amount" value={formatMoney(failedPayment.amountCents, failedPayment.currency)} />
+        <StatCard
+          label="Decline"
+          value={
+            DECLINE_CATEGORY_LABELS[failedPayment.declineCategory as keyof typeof DECLINE_CATEGORY_LABELS] ??
+            failedPayment.declineCategory
+          }
+        />
+        <StatCard
+          label="Detected"
+          value={formatRelativeTime(failedPayment.detectedAt, nowMs) ?? "-"}
+          subtext={failedPayment.detectedAt.toLocaleDateString()}
+        />
+        <StatCard
+          label="Customer age"
+          value={failedPayment.customerAgeDays != null ? `${failedPayment.customerAgeDays}d` : "-"}
+        />
+      </div>
+
+      <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-2">
+        <div className="rounded-lg border border-border bg-surface p-4">
+          <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Decline details</p>
+          <dl className="mt-3 flex flex-col gap-2">
+            <DetailRow
+              label="Category"
+              value={
+                DECLINE_CATEGORY_LABELS[failedPayment.declineCategory as keyof typeof DECLINE_CATEGORY_LABELS] ??
+                failedPayment.declineCategory
+              }
+            />
+            {failedPayment.declineCode ? <DetailRow label="Code" value={failedPayment.declineCode} mono /> : null}
+            <DetailRow label="Invoice ID" value={failedPayment.stripeInvoiceId} mono />
+            <DetailRow label="Customer ID" value={failedPayment.stripeCustomerId} mono />
+            {failedPayment.customerSince ? (
+              <DetailRow
+                label="Customer since"
+                value={failedPayment.customerSince.toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+              />
+            ) : null}
+            {failedPayment.resolvedAt ? (
+              <DetailRow
+                label={failedPayment.status === "recovered" ? "Recovered" : "Resolved"}
+                value={failedPayment.resolvedAt.toLocaleDateString()}
+              />
+            ) : null}
+          </dl>
+        </div>
+
+        <div className="rounded-lg border border-border bg-surface p-4">
+          <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Email engagement</p>
+          {emailSteps.length === 0 ? (
+            <p className="mt-3 text-label text-text-tertiary">No emails sent yet.</p>
+          ) : (
+            <dl className="mt-3 flex flex-col gap-2">
+              <DetailRow label="Emails sent" value={String(emailSteps.length)} />
+              <DetailRow label="Opened" value={`${openedEmails.length} of ${emailSteps.length}`} />
+              <DetailRow label="Clicked" value={`${clickedEmails.length} of ${emailSteps.length}`} />
+              {recovery ? <DetailRow label="Recovery method" value={ATTRIBUTION_KIND_LABELS[attributionKind ?? "stripe_baseline"]} /> : null}
+            </dl>
+          )}
         </div>
       </div>
 
@@ -142,9 +213,14 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
       </div>
 
       <div className="mt-6 rounded-lg border border-border bg-surface p-4">
-        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
-          Recovery timeline
-        </p>
+        <div className="flex items-center justify-between gap-4">
+          <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Recovery timeline</p>
+          {steps.length > 0 ? (
+            <p className="text-label text-text-tertiary">
+              {executedSteps.length} of {steps.length} steps executed
+            </p>
+          ) : null}
+        </div>
         {steps.length === 0 ? (
           <p className="mt-2 text-label text-text-tertiary">No steps scheduled.</p>
         ) : (
@@ -205,6 +281,15 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+function DetailRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-border-sub pb-2 last:border-0 last:pb-0">
+      <dt className="shrink-0 text-micro text-text-tertiary">{label}</dt>
+      <dd className={`truncate text-label text-text ${mono ? "font-mono" : ""}`}>{value}</dd>
     </div>
   );
 }
