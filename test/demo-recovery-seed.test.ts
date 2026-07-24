@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { ATTRIBUTION_KINDS } from "~/lib/constants";
 import { buildTeamflowBase } from "~/lib/demo/customer-base";
 import { buildRecoverySeed } from "~/lib/demo/recovery-seed";
+import { classifyDecline } from "~/lib/recovery/decline";
 
 // TASK-foxhound-demo-data-engine.md Phase 2: the day-walk failed-payment
 // simulator, win-back, and expiring-card alerts. Every row is built to the
@@ -98,6 +99,19 @@ describe("buildRecoverySeed", () => {
   it("always has at least one currently-active win-back sequence", () => {
     const { winBackSequences } = seed();
     expect(winBackSequences.some((s) => s.status === "active")).toBe(true);
+  });
+
+  // A prior bug sampled the scripted narrative's declineCode independently of
+  // its hardcoded declineCategory, so a hero customer like Acme Industries
+  // could show "Soft decline" next to a fraud code like lost_card. The code
+  // must always classify back to the category it was stored with, for every
+  // failed payment - scripted and day-walk alike.
+  it("every seeded failed payment's declineCode classifies back to its own declineCategory", () => {
+    const { failedPayments } = seed();
+    expect(failedPayments.length).toBeGreaterThan(0);
+    for (const f of failedPayments) {
+      expect(classifyDecline(f.declineCode), `${f.stripeCustomerId} ${f.declineCode}`).toBe(f.declineCategory);
+    }
   });
 
   it("expiring-card alerts are seeded and reference real customers", () => {

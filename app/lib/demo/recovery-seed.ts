@@ -56,20 +56,41 @@ export interface RecoverySeedResult {
 
 // ============================================================================
 // Decline-code sampling (weighted, real Stripe codes -> classifyDecline so the
-// seeded code/category pair can never drift out of sync with decline.ts)
+// seeded code/category pair can never drift out of sync with decline.ts).
+// Every code list here is a subset of decline.ts's own set for that category,
+// so classifyDecline(code) always lands back on the category it was sampled
+// for - both here (the weighted day-walk roll) and via sampleDeclineCodeFor-
+// Category (the scripted narrative's category is already fixed by the event,
+// so the code must be sampled FROM that category, never independently).
 // ============================================================================
 
 const SOFT_CODES = ["insufficient_funds", "do_not_honor", "generic_decline"] as const;
 const EXPIRED_CODES = ["expired_card"] as const;
 const NETWORK_CODES = ["processing_error", "issuer_not_available", "try_again_later"] as const;
 const FRAUD_CODES = ["fraudulent", "lost_card", "stolen_card"] as const;
+const REVOKED_CODES = ["revocation_of_authorization"] as const;
+// Not present in any of decline.ts's category sets, so classifyDecline fails
+// closed to "unknown" - this is the only way to seed an "unknown" row without
+// lying about a code that actually belongs to a known category.
+const UNKNOWN_CODES = ["unrecognized_decline"] as const;
+
+const CODES_BY_CATEGORY: Record<DeclineCategory, readonly string[]> = {
+  soft: SOFT_CODES,
+  network: NETWORK_CODES,
+  expired: EXPIRED_CODES,
+  fraud: FRAUD_CODES,
+  revoked: REVOKED_CODES,
+  unknown: UNKNOWN_CODES,
+};
+
+function sampleDeclineCodeForCategory(seed: string, category: DeclineCategory): string {
+  return pick(`${seed}:code`, CODES_BY_CATEGORY[category]);
+}
 
 function sampleDeclineCode(seed: string): string {
   const r = seededInt(`${seed}:cat`, 100);
-  if (r < 50) return pick(`${seed}:code`, SOFT_CODES);
-  if (r < 70) return pick(`${seed}:code`, EXPIRED_CODES);
-  if (r < 90) return pick(`${seed}:code`, NETWORK_CODES);
-  return pick(`${seed}:code`, FRAUD_CODES);
+  const category = r < 50 ? "soft" : r < 70 ? "expired" : r < 90 ? "network" : "fraud";
+  return sampleDeclineCodeForCategory(seed, category);
 }
 
 // ============================================================================
@@ -654,7 +675,7 @@ export function buildRecoverySeed(accountId: string, customers: DemoCustomer[], 
       idSeq++;
       const detectedAt = daysAgo(ev.detectedDaysAgo);
       const seed = `${c.stripeCustomerId}:${ev.detectedDaysAgo}`;
-      const declineCode = sampleDeclineCode(seed);
+      const declineCode = sampleDeclineCodeForCategory(seed, ev.declineCategory);
       const forcedOutcome: ResolvedOutcome =
         ev.outcome === "active"
           ? { kind: "active" }
