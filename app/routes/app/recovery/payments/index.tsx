@@ -235,7 +235,7 @@ export default function RecoveryPayments({ loaderData }: Route.ComponentProps) {
       </p>
 
       <section className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <StatCard label="Showing" value={String(globalCounts.all)} />
+        <StatCard label="Total payments" value={String(globalCounts.all)} subtext="all filters" />
         <StatCard label="Active" value={String(globalCounts.active)} />
         <StatCard label="Recovered" value={String(globalCounts.recovered)} />
         <StatCard label="Not recovered" value={String(globalCounts.failedUnrecovered)} />
