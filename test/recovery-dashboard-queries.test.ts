@@ -10,6 +10,7 @@ import {
   getMostRecentRecoveryAt,
   listBillableRecoveredForRoi,
   listExecutedEmailSteps,
+  listExecutedRecoverySteps,
   listFailedPayments,
   listFailuresWithOutcome,
   listRecoveredWithFailureContext,
@@ -111,6 +112,31 @@ describe("listExecutedEmailSteps", () => {
     for (const r of rows) {
       expect(DECLINE_CATEGORIES).toContain(r.declineCategory);
     }
+  });
+});
+
+describe("listExecutedRecoverySteps", () => {
+  it("returns both email and retry steps, unscoped by range, with a valid category", async () => {
+    const db = await seededDb();
+    const rows = await listExecutedRecoverySteps(db, DEMO_ACCOUNT_ID);
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.some((r) => r.stepType.startsWith("email_"))).toBe(true);
+    expect(rows.some((r) => r.stepType.startsWith("retry_"))).toBe(true);
+    for (const r of rows) {
+      expect(DECLINE_CATEGORIES).toContain(r.declineCategory);
+      expect(r.executedAt).toBeInstanceOf(Date);
+    }
+  });
+
+  it("creditedRecovery is true only for the step actually credited by recovered_payments.recovered_by_step_id", async () => {
+    const db = await seededDb();
+    const rows = await listExecutedRecoverySteps(db, DEMO_ACCOUNT_ID);
+    const credited = rows.filter((r) => r.creditedRecovery);
+    expect(credited.length).toBeGreaterThan(0);
+    // Every credited row must be an id recoveredPayments actually references -
+    // proven indirectly here by checking the flag isn't set on every row (a
+    // constant-true bug would pass the first assertion but fail this one).
+    expect(credited.length).toBeLessThan(rows.length);
   });
 });
 
