@@ -119,11 +119,15 @@ export function BarChart({
   width = 480,
   height = 160,
   className,
+  topLabel,
 }: {
   data: BarDatum[];
   width?: number;
   height?: number;
   className?: string;
+  /** Optional text rendered above each bar's top edge (e.g. a percentage). Only
+   *  sensible for non-negative data; used by the recovery-timing chart. */
+  topLabel?: (d: BarDatum, i: number) => string;
 }) {
   if (data.length === 0) return null;
   const values = data.map((d) => d.value);
@@ -131,8 +135,9 @@ export function BarChart({
   const min = Math.min(...values, 0);
   const range = max - min || 1;
   const labelSpace = 20;
-  const chartHeight = height - labelSpace;
-  const zeroY = chartHeight - ((0 - min) / range) * chartHeight;
+  const topLabelSpace = topLabel ? 16 : 0;
+  const chartHeight = height - labelSpace - topLabelSpace;
+  const zeroY = topLabelSpace + chartHeight - ((0 - min) / range) * chartHeight;
   const slot = width / data.length;
   const barWidth = slot * 0.6;
 
@@ -163,6 +168,16 @@ export function BarChart({
               fill="currentColor"
               className={BAR_TONE_CLASS_NAME[tone]}
             />
+            {topLabel ? (
+              <text
+                x={x + barWidth / 2}
+                y={Math.max(y - 4, 10)}
+                textAnchor="middle"
+                className="fill-current text-text-tertiary font-mono text-micro"
+              >
+                {topLabel(d, i)}
+              </text>
+            ) : null}
             <text
               x={x + barWidth / 2}
               y={height - 4}
@@ -174,6 +189,104 @@ export function BarChart({
           </g>
         );
       })}
+    </svg>
+  );
+}
+
+export interface GroupedBarSeries {
+  name: string;
+  /** Tailwind text-color utility controlling this series' bars via currentColor. */
+  colorClassName: string;
+  values: number[];
+}
+
+/** Multiple series (e.g. open rate / click rate) grouped side by side per
+ *  label, with a small legend. Used where a single BarChart series isn't
+ *  enough to compare two rates per category. */
+export function GroupedBars({
+  labels,
+  series,
+  max = 100,
+  width = 480,
+  height = 180,
+  className,
+}: {
+  labels: string[];
+  series: GroupedBarSeries[];
+  /** Fixed value ceiling (e.g. 100 for a percentage scale) rather than derived
+   *  from the data, so a chart of rates never rescales per render. */
+  max?: number;
+  width?: number;
+  height?: number;
+  className?: string;
+}) {
+  if (labels.length === 0 || series.length === 0) return null;
+  const labelSpace = 20;
+  const legendSpace = 20;
+  const chartHeight = height - labelSpace - legendSpace;
+  const groupSlot = width / labels.length;
+  const barGap = 2;
+  const barWidth = (groupSlot * 0.7) / series.length;
+
+  return (
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      width="100%"
+      height={height}
+      preserveAspectRatio="none"
+      className={className}
+      role="img"
+      aria-hidden="true"
+    >
+      <line
+        x1={0}
+        y1={legendSpace + chartHeight}
+        x2={width}
+        y2={legendSpace + chartHeight}
+        className="stroke-border"
+        strokeWidth={1}
+      />
+      {labels.map((label, gi) => {
+        const groupX = gi * groupSlot + (groupSlot - barWidth * series.length) / 2;
+        return (
+          <g key={`${label}-${gi}`}>
+            {series.map((s, si) => {
+              const value = s.values[gi] ?? 0;
+              const barHeight = Math.max((value / max) * chartHeight, value === 0 ? 0 : 1);
+              const x = groupX + si * barWidth;
+              const y = legendSpace + chartHeight - barHeight;
+              return (
+                <rect
+                  key={s.name}
+                  x={x + barGap / 2}
+                  y={y}
+                  width={Math.max(barWidth - barGap, 1)}
+                  height={barHeight}
+                  rx={2}
+                  fill="currentColor"
+                  className={s.colorClassName}
+                />
+              );
+            })}
+            <text
+              x={gi * groupSlot + groupSlot / 2}
+              y={height - 4}
+              textAnchor="middle"
+              className="fill-current text-text-subtle font-mono text-micro"
+            >
+              {label}
+            </text>
+          </g>
+        );
+      })}
+      {series.map((s, si) => (
+        <g key={s.name} transform={`translate(${si * 90}, 10)`}>
+          <rect width={8} height={8} rx={2} fill="currentColor" className={s.colorClassName} />
+          <text x={12} y={8} className="fill-current text-text-subtle font-mono text-micro">
+            {s.name}
+          </text>
+        </g>
+      ))}
     </svg>
   );
 }
