@@ -67,6 +67,31 @@ export function countByDayAndCategory(
   return byCategory as Record<DeclineCategory, Map<string, number>>;
 }
 
+export interface DailyCentsPoint {
+  date: string;
+  cents: number;
+}
+
+/** Sum cents per day over the last `rangeDays` days from `nowMs` (oldest to
+ *  newest), zero-filled for days with nothing. Feeds the revenue-trend chart. */
+export function sumCentsByDayWindow(
+  rows: { date: Date; cents: number }[],
+  rangeDays: number,
+  nowMs: number,
+): DailyCentsPoint[] {
+  const byDay = new Map<string, number>();
+  for (const r of rows) {
+    const key = dayKey(r.date);
+    byDay.set(key, (byDay.get(key) ?? 0) + r.cents);
+  }
+  const points: DailyCentsPoint[] = [];
+  for (let i = rangeDays - 1; i >= 0; i--) {
+    const key = dayKey(new Date(nowMs - i * DAY_MS));
+    points.push({ date: key, cents: byDay.get(key) ?? 0 });
+  }
+  return points;
+}
+
 export interface DailyRatePoint {
   date: string;
   /** null when nothing had failed yet as of this date (a true zero state,
