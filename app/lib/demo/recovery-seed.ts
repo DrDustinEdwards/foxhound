@@ -504,6 +504,12 @@ function buildFailure(
       daysToRecover,
       attributionKind: attribution.kind,
       attributionRef: attribution.ref,
+      // attribution.ref IS the credited recovery_steps.id for every non-baseline
+      // kind (attribution.ts: "all three refs point at recovery_steps.id") - the
+      // real webhook path (record-recovery.ts) copies the same value here, so the
+      // seed must too, or every step-performance read (recovered_by_step_id) sees
+      // an attributed recovery with no step credited.
+      recoveredByStepId: attribution.kind === "stripe_baseline" ? null : attribution.ref,
       attributedAt: attribution.kind === "stripe_baseline" ? null : outcome.recoveredAt,
     };
   }
