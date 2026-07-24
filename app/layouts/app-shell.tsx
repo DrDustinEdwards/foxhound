@@ -141,8 +141,8 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
           nothing here shares a stacking context with the marketing-only
           mobile drawer (z-40/z-50) or conflicts with the mobile tab bar
           (fixed to the bottom edge, z-10). */}
-      <header className="sticky top-0 z-20 border-b border-border bg-chrome">
-        <div className="flex h-14 items-center justify-between gap-4 px-6">
+      <header className="sticky top-0 z-20 h-14 border-b border-border bg-chrome">
+        <div className="flex h-full items-center justify-between gap-4 px-6">
           <div className="flex min-w-0 shrink-0 items-center gap-3">
             <Link to="/" aria-label="Foxhound home" className="shrink-0">
               <Wordmark tone="chrome" />
@@ -232,23 +232,28 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
   );
 }
 
-// TASK-foxhound-demo-inline-refusal.md backstop: anything that reaches the
-// server despite the client-side interception (DemoGuardedForm) - JS
-// disabled, a hand-crafted request, a race - lands here instead of on the
-// bare root ErrorBoundary. This route's own loader may not have run (the
-// throw usually comes from appShellMiddleware, before the loader), so this
-// renders a minimal, self-contained header rather than depending on any
-// loaderData (account name, nav links, entitlement) that might not exist.
-// Same message-selection logic as root.tsx, so a thrown data(message,
-// {status}) - the demo read-only guard's shape - still reads as its own
+// This does NOT catch appShellMiddleware's own throws (the demo read-only
+// guard's 405, TASK-foxhound-demo-inline-refusal.md): middleware runs before
+// this layout's loader, so a middleware throw has no rendered layout to
+// attach to yet and is caught by root.tsx's ErrorBoundary instead (confirmed
+// live, TASK-foxhound-header-geometry-unification.md - root's boundary has
+// no header at all). What this DOES catch: an error thrown in a CHILD
+// route's own loader or action, after appShellMiddleware has already
+// succeeded and this layout has already rendered - a case root.tsx's bare
+// boundary would otherwise render for, discarding the account name/nav/
+// entitlement context this layout already resolved. Renders a minimal,
+// self-contained header (no loaderData dependency) since a child-route
+// error still leaves this layout's OWN loader's success ambiguous depending
+// on where in the tree the error surfaced. Same message-selection logic as
+// root.tsx, so a thrown data(message, {status}) still reads as its own
 // message rather than a generic HTTP reason phrase.
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   const { message, details } = resolveErrorBoundaryDetails(error, import.meta.env.DEV);
 
   return (
     <div>
-      <header className="sticky top-0 z-20 border-b border-border bg-chrome">
-        <div className="flex h-14 items-center px-6">
+      <header className="sticky top-0 z-20 h-14 border-b border-border bg-chrome">
+        <div className="flex h-full items-center px-6">
           <Link to="/" aria-label="Foxhound home">
             <Wordmark tone="chrome" />
           </Link>
