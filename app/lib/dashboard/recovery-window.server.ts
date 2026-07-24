@@ -8,7 +8,7 @@ import {
   getMostRecentRecoveryAt,
   listExecutedEmailSteps,
   listExpiringCardAlerts,
-  listFailedDaily,
+  listFailuresWithOutcome,
   listActiveFailedPayments,
   listRecentFailedPayments,
   listRecoveredWithFailureContext,
@@ -118,8 +118,8 @@ export async function getRecoveryDashboardWindow(
   const sparklineCutoffMs = nowMs - SPARKLINE_TRAILING_DAYS * DAY_MS;
 
   const [
-    failedDaily,
-    sparklineFailedDaily,
+    failuresWithOutcome,
+    sparklineFailures,
     recovered,
     activePayments,
     emailSteps,
@@ -131,8 +131,8 @@ export async function getRecoveryDashboardWindow(
     upcomingSteps,
     recentPayments,
   ] = await Promise.all([
-    listFailedDaily(db, accountId, cutoffMs),
-    listFailedDaily(db, accountId, sparklineCutoffMs),
+    listFailuresWithOutcome(db, accountId, cutoffMs),
+    listFailuresWithOutcome(db, accountId, sparklineCutoffMs),
     listRecoveredWithFailureContext(db, accountId, cutoffMs),
     listActiveFailedPayments(db, accountId),
     listExecutedEmailSteps(db, accountId),
@@ -151,35 +151,42 @@ export async function getRecoveryDashboardWindow(
     [...new Set(recentPayments.map((p) => p.stripeCustomerId))],
   );
 
-  // ---- Category breakdown / stats (range-scoped) ----
+  // ---- Category breakdown / stats: ONE cohort (failures detected in this
+  // window, per listFailuresWithOutcome), never legacy's mismatch of a
+  // detected_at-anchored total against a separately recovered_at-anchored
+  // recovered count. ----
   const categoryBreakdown: Partial<Record<DeclineCategory, number>> = {};
   const categoryStats: Partial<Record<DeclineCategory, { total: number; recovered: number }>> = {};
-  for (const row of failedDaily) {
+  let recoveredInCohortCount = 0;
+  for (const row of failuresWithOutcome) {
     categoryBreakdown[row.declineCategory] = (categoryBreakdown[row.declineCategory] ?? 0) + 1;
     const stat = categoryStats[row.declineCategory] ?? { total: 0, recovered: 0 };
     stat.total++;
-    categoryStats[row.declineCategory] = stat;
-  }
-  for (const row of recovered) {
-    const stat = categoryStats[row.declineCategory] ?? { total: 0, recovered: 0 };
-    stat.recovered++;
+    if (row.recoveredAt) {
+      stat.recovered++;
+      recoveredInCohortCount++;
+    }
     categoryStats[row.declineCategory] = stat;
   }
 
-  // ---- Recovery days / timing / avg (range-scoped) ----
-  const recoveryDays = recovered
+  // ---- Recovery days / timing / avg: the recovered subset of the SAME cohort ----
+  const recoveryDays = failuresWithOutcome
+    .filter((r): r is typeof r & { recoveredAt: Date } => r.recoveredAt !== null)
     .map((r) => (r.recoveredAt.getTime() - r.detectedAt.getTime()) / DAY_MS)
     .filter((d) => d >= 0);
   const avgDaysToRecovery =
     recoveryDays.length > 0 ? Math.round((recoveryDays.reduce((a, b) => a + b, 0) / recoveryDays.length) * 10) / 10 : null;
 
-  // ---- Daily recovery-rate trend (range-scoped) ----
-  const failedByDay = countByDay(failedDaily.map((r) => r.detectedAt));
+  // ---- Daily recovery-rate trend: failedByDay from the detected-at cohort,
+  // recoveredByDay from the cash-flow (recovered_at-anchored) population -
+  // deliberately different questions, per the cumulative-rate design (see
+  // recovery-window.ts's own comment on why this is cumulative, not same-day). ----
+  const failedByDay = countByDay(failuresWithOutcome.map((r) => r.detectedAt));
   const recoveredByDay = countByDay(recovered.map((r) => r.recoveredAt));
   const recoveryRateDaily = cumulativeRecoveryRateDaily(failedByDay, recoveredByDay, rangeDays, nowMs);
 
   // ---- Category sparkline: ALWAYS trailing 30 days, independent of `range` ----
-  const sparklineByCatByDay = countByDayAndCategory(sparklineFailedDaily);
+  const sparklineByCatByDay = countByDayAndCategory(sparklineFailures);
   const categorySparkline = categorySparklineWindow(sparklineByCatByDay, nowMs);
 
   // ---- Email engagement (unscoped by range) ----
@@ -218,9 +225,10 @@ export async function getRecoveryDashboardWindow(
   return {
     rangeLabel,
     rangeDays,
-    totalFailedCount: failedDaily.length,
-    recoveredCount: recovered.length,
-    recoveryRatePct: failedDaily.length > 0 ? Math.round((recovered.length / failedDaily.length) * 100) : null,
+    totalFailedCount: failuresWithOutcome.length,
+    recoveredCount: recoveredInCohortCount,
+    recoveryRatePct:
+      failuresWithOutcome.length > 0 ? Math.round((recoveredInCohortCount / failuresWithOutcome.length) * 100) : null,
     recoveredRevenue: groupSumByCurrency(recovered),
     recoveryDaysCount: recoveryDays.length,
     avgDaysToRecovery,
