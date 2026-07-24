@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import * as schema from "~/db/schema";
 import { buildEmailSendRow } from "~/lib/email/dispatch";
-import { buildEmailMessage } from "~/lib/email/send";
+import { buildEmailMessage, sendTransactionalEmail } from "~/lib/email/send";
 import type { EmailJob } from "~/lib/email/types";
 
 const db = drizzle({} as never, { schema });
@@ -91,5 +91,28 @@ describe("buildEmailSendRow (compile against schema)", () => {
     });
     const sql = (stmt as { toSQL(): { sql: string; params: unknown[] } }).toSQL();
     expect(sql.params).toContain("suppressed");
+  });
+});
+
+describe("sendTransactionalEmail (auth sender split, TASK-foxhound-email-provisioning.md)", () => {
+  it("sends from the auth domain, never the dunning EMAIL_FROM_ADDRESS", async () => {
+    const sent: { from: string }[] = [];
+    const env = {
+      EMAIL: {
+        send: async (message: { from: string }) => {
+          sent.push({ from: message.from });
+        },
+      },
+    } as unknown as Env;
+
+    await sendTransactionalEmail(env, {
+      to: "merchant@example.com",
+      subject: "Verify your email",
+      bodyHtml: "<p>hi</p>",
+    });
+
+    expect(sent).toHaveLength(1);
+    expect(sent[0].from).toContain("noreply@auth.foxhoundapp.com");
+    expect(sent[0].from).not.toContain("recovery@send.foxhoundapp.com");
   });
 });

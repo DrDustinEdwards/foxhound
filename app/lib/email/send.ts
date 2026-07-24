@@ -1,4 +1,4 @@
-import { EMAIL_FROM_ADDRESS, UNSUBSCRIBE_PATH } from "~/lib/constants";
+import { EMAIL_AUTH_SENDER_ADDRESS, EMAIL_FROM_ADDRESS, UNSUBSCRIBE_PATH } from "~/lib/constants";
 
 import type { EmailJob } from "./types";
 
@@ -89,7 +89,7 @@ export async function sendTransactionalEmail(
     throw new Error("EMAIL binding is not configured");
   }
   const result = await env.EMAIL.send({
-    from: `${fromDisplayName(message.fromName ?? "Foxhound")} <${EMAIL_FROM_ADDRESS}>`,
+    from: `${fromDisplayName(message.fromName ?? "Foxhound")} <${EMAIL_AUTH_SENDER_ADDRESS}>`,
     to: message.to,
     subject: message.subject,
     html: message.bodyHtml,

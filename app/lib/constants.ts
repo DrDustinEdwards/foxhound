@@ -145,6 +145,16 @@ export type DeclineCategory = (typeof DECLINE_CATEGORIES)[number];
 export const EMAIL_SEND_DOMAIN = "send.foxhoundapp.com";
 /** Envelope From address for merchant dunning copy (merchant display name is prefixed per send). */
 export const EMAIL_FROM_ADDRESS = `recovery@${EMAIL_SEND_DOMAIN}`;
+/** Authenticated domain for transactional platform mail (signup verification,
+ *  password reset) - onboarded separately from EMAIL_SEND_DOMAIN so auth mail's
+ *  reputation never mixes with bulk dunning mail's (TASK-foxhound-email-
+ *  provisioning.md). Never use for merchant-customer sends. */
+export const EMAIL_AUTH_DOMAIN = "auth.foxhoundapp.com";
+/** Envelope From address for transactional auth mail only (sendTransactionalEmail).
+ *  Never EMAIL_FROM_ADDRESS: a signup-verification email from "recovery@" reads
+ *  wrong and would muddy the auth-vs-dunning reputation split this domain split
+ *  exists for. */
+export const EMAIL_AUTH_SENDER_ADDRESS = `noreply@${EMAIL_AUTH_DOMAIN}`;
 /** Public utility path bases for CAN-SPAM one-click unsubscribe and the hosted card-update page. */
 export const UNSUBSCRIBE_PATH = "/u";
 export const CARD_UPDATE_PATH = "/p";

@@ -19,9 +19,8 @@
   // renaming a D1 is not worth it) and the KV keeps id 8ff187... - bindings and
   // data are unchanged from the previous two-env setup.
   //
-  // Filled in future phases per ARCHITECTURE.md:
+  // Filled in a later phase per ARCHITECTURE.md:
   // "queues": { "producers": [...], "consumers": [...] }  -- email dispatch + event consumption (Phase 4c)
-  // "send_email" / EMAIL binding                            -- Cloudflare Email Service (Phase 4c)
 
   "workers_dev": true,
   "routes": [
@@ -52,6 +51,26 @@
       // dashboard title: foxhound-app-kv-staging
       "binding": "APP_KV",
       "id": "8ff1871236394486bd5aac4b408a4253"
+    }
+  ],
+
+  // Cloudflare Email Service send binding (TASK-foxhound-email-provisioning.md).
+  // Three domains onboarded, Enabled + DNS Configured: foxhoundapp.com (apex),
+  // send.foxhoundapp.com (EMAIL_SEND_DOMAIN, dunning), auth.foxhoundapp.com
+  // (EMAIL_AUTH_DOMAIN, transactional auth). No destination_address or
+  // allowed_destination_addresses: Foxhound sends dunning mail to arbitrary
+  // merchant customers, so a destination allowlist would break the product.
+  // allowed_sender_addresses IS set: every send this codebase issues
+  // constructs its own `from` from one of exactly two fixed constants
+  // (EMAIL_FROM_ADDRESS, EMAIL_AUTH_SENDER_ADDRESS), never a caller-supplied
+  // address, so this closes off an entire class of misdirected sends (a bug,
+  // or a future change that mistakenly threads an arbitrary address into
+  // `from`) at the infrastructure level for zero operational cost today. Add
+  // a third address here first if a third sender is ever introduced.
+  "send_email": [
+    {
+      "name": "EMAIL",
+      "allowed_sender_addresses": ["recovery@send.foxhoundapp.com", "noreply@auth.foxhoundapp.com"]
     }
   ],
 
