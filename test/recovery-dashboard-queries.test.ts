@@ -119,9 +119,12 @@ describe("countActiveWinbacks", () => {
 });
 
 describe("getConnectionSummary", () => {
-  it("returns null for the demo account (no stripe_connections row is seeded)", async () => {
+  it("finds the demo account's seeded primary connection", async () => {
     const db = await seededDb();
-    expect(await getConnectionSummary(db, DEMO_ACCOUNT_ID)).toBeNull();
+    const connection = await getConnectionSummary(db, DEMO_ACCOUNT_ID);
+    expect(connection).not.toBeNull();
+    expect(connection!.stripeUserId).toBe("acct_demo_teamflow");
+    expect(connection!.lastWebhookAt).not.toBeNull();
   });
 });
 
