@@ -78,11 +78,17 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
 // The 2px amber bottom border is the ONLY sanctioned amber-on-active state
 // (DESIGN.md) for the desktop primary links; NavLink sets aria-current="page"
-// on the active link itself, nothing extra needed here.
+// on the active link itself, nothing extra needed here. Both states carry
+// the same border-b-2 (transparent when inactive) so a link's own box height
+// never changes between active/inactive - and now that the links live in the
+// single fixed-height header row (TASK-foxhound-app-shell-header-stability.md)
+// rather than their own dedicated row, py-1.5 keeps them visually inline with
+// the switcher/gear instead of the old py-3, which was sized for a row these
+// links used to own by themselves.
 function primaryLinkClassName({ isActive }: { isActive: boolean }): string {
   return isActive
-    ? "inline-block border-b-2 border-amber py-3 text-label font-semibold text-text"
-    : "inline-block border-b-2 border-transparent py-3 text-label text-text-tertiary hover:text-text";
+    ? "inline-block border-b-2 border-amber py-1.5 text-label font-semibold text-text"
+    : "inline-block border-b-2 border-transparent py-1.5 text-label text-text-tertiary hover:text-text";
 }
 
 // Mobile bottom tab bar is chrome (DESIGN.md: "nav/footer/mobile bar stay
@@ -117,14 +123,70 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
     ...PLATFORM_LINKS.filter((link) => link.label === "Billing" || link.label === "Settings"),
   ];
 
+  const accountLabel = accountName ?? email;
+
   return (
     <div>
+      <header className="border-b border-border bg-chrome">
+        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4">
+          <div className="flex min-w-0 shrink-0 items-center gap-3">
+            <Link to="/" aria-label="Foxhound home" className="shrink-0">
+              <Wordmark tone="chrome" />
+            </Link>
+            <ProductSwitcher activeProductKey={nav.activeProductKey} intelligenceEntitled={nav.intelligenceEntitled} />
+            {isDemo ? (
+              <span className="shrink-0 rounded border border-amber px-1.5 py-0.5 font-mono text-micro font-semibold uppercase tracking-wide text-amber">
+                Demo
+              </span>
+            ) : null}
+          </div>
+
+          {/* Primary links and the utility cluster share one right-aligned
+              group (TASK-foxhound-app-shell-header-stability.md): on a
+              platform page or a product with no sub-links (Dashboard,
+              Disputes), the <nav> below simply does not render - no reserved
+              empty row, no height change, since the header's height comes
+              from the row's own h-14, never from this content. */}
+          <div className="flex min-w-0 items-center gap-6">
+            {primaryLinks.length > 0 ? (
+              <nav aria-label="Primary" className="hidden items-center gap-6 md:flex">
+                {primaryLinks.map((link) => (
+                  <NavLink key={link.to} to={link.to} end={link.end} className={primaryLinkClassName}>
+                    {link.label}
+                  </NavLink>
+                ))}
+              </nav>
+            ) : null}
+
+            <div className="hidden shrink-0 items-center gap-1 sm:flex">
+              <ThemeToggle initialTheme={theme} />
+              <GearMenu isAdmin={isAdmin} accountLabel={accountLabel} />
+            </div>
+
+            <div className="flex shrink-0 items-center gap-1 sm:hidden">
+              <ThemeToggle initialTheme={theme} />
+              <GearMenu isAdmin={isAdmin} accountLabel={accountLabel} />
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Below the header, not above it (TASK-foxhound-app-shell-header-
+          stability.md): the header is now the first element on the page in
+          every state, so the wordmark's position never moves between demo
+          and signed-in. Always exactly two lines regardless of
+          demoSignedIn, via the explicit <br />, so the banner's own height
+          cannot vary between the two demo states either - the alternative
+          (a fixed pixel height) would be one more number to keep in sync
+          with the font size instead of a structural guarantee. */}
       {isDemo ? (
         <div className="flex items-center justify-center gap-3 border-b border-border bg-chrome px-4 py-2 text-center">
           <span className="text-label text-chrome-text-secondary">
+            You're viewing a live demo with sample data.
+            <br />
             {demoSignedIn
-              ? "You are viewing a live demo with sample data instead of your real account. Nothing you do here is saved."
-              : "You are viewing a live demo with sample data. Nothing you do here is saved."}
+              ? "Nothing you do here is saved. This is not your real account."
+              : "Nothing you do here is saved."}
           </span>
           <a
             href="/demo/exit"
@@ -134,39 +196,6 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
           </a>
         </div>
       ) : null}
-      <header className="border-b border-border bg-chrome">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <Link to="/" aria-label="Foxhound home" className="shrink-0">
-              <Wordmark tone="chrome" />
-            </Link>
-            <ProductSwitcher activeProductKey={nav.activeProductKey} intelligenceEntitled={nav.intelligenceEntitled} />
-          </div>
-
-          <div className="hidden min-w-0 items-center gap-4 sm:flex">
-            <span className="min-w-0 truncate text-label text-chrome-text-secondary">
-              {accountName ?? email}
-            </span>
-            <ThemeToggle initialTheme={theme} />
-            <GearMenu isAdmin={isAdmin} />
-          </div>
-
-          <div className="flex items-center gap-1 sm:hidden">
-            <ThemeToggle initialTheme={theme} />
-            <GearMenu isAdmin={isAdmin} />
-          </div>
-        </div>
-
-        {primaryLinks.length > 0 ? (
-          <nav aria-label="Primary" className="mx-auto hidden max-w-6xl gap-6 px-4 md:flex">
-            {primaryLinks.map((link) => (
-              <NavLink key={link.to} to={link.to} end={link.end} className={primaryLinkClassName}>
-                {link.label}
-              </NavLink>
-            ))}
-          </nav>
-        ) : null}
-      </header>
 
       {/* Bottom padding reserves space for the fixed mobile tab bar below (a
           sibling of this container, never a flex body: DESIGN.md, avoids the
