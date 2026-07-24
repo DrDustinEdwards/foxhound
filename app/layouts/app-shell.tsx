@@ -127,8 +127,22 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
 
   return (
     <div>
-      <header className="border-b border-border bg-chrome">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4">
+      {/* Full-bleed, not mx-auto max-w-6xl (TASK-foxhound-header-geometry-
+          unification.md): legacy's header is full viewport width on both
+          the marketing site and the app (verified live and in the app
+          screenshot), so a centered column here was the outlier, not the
+          marketing header. Page bodies keep their own independent
+          mx-auto max-w-* wrapper (every route under app-shell already has
+          one), so this only changes the header's own geometry, not where
+          page content sits - the same split legacy used. Sticky, matching
+          the marketing header: the demo banner and page content are
+          separate siblings below <header>, in normal flow, so they scroll
+          out from under the pinned header rather than sticking themselves;
+          nothing here shares a stacking context with the marketing-only
+          mobile drawer (z-40/z-50) or conflicts with the mobile tab bar
+          (fixed to the bottom edge, z-10). */}
+      <header className="sticky top-0 z-20 border-b border-border bg-chrome">
+        <div className="flex h-14 items-center justify-between gap-4 px-6">
           <div className="flex min-w-0 shrink-0 items-center gap-3">
             <Link to="/" aria-label="Foxhound home" className="shrink-0">
               <Wordmark tone="chrome" />
@@ -149,7 +163,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
               from the row's own h-14, never from this content. */}
           <div className="flex min-w-0 items-center gap-6">
             {primaryLinks.length > 0 ? (
-              <nav aria-label="Primary" className="hidden items-center gap-6 md:flex">
+              <nav aria-label="Primary" className="hidden items-center gap-5 md:flex">
                 {primaryLinks.map((link) => (
                   <NavLink key={link.to} to={link.to} end={link.end} className={primaryLinkClassName}>
                     {link.label}
@@ -233,8 +247,8 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 
   return (
     <div>
-      <header className="border-b border-border bg-chrome">
-        <div className="mx-auto flex max-w-6xl items-center px-4 py-3">
+      <header className="sticky top-0 z-20 border-b border-border bg-chrome">
+        <div className="flex h-14 items-center px-6">
           <Link to="/" aria-label="Foxhound home">
             <Wordmark tone="chrome" />
           </Link>
