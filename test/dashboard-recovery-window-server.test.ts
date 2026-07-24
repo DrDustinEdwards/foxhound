@@ -4,6 +4,7 @@ import { DECLINE_CATEGORIES } from "~/lib/constants";
 import { DEMO_ACCOUNT_ID } from "~/lib/demo/constants";
 import { seedDemoAccount } from "~/lib/demo/seed";
 import { getRecoveryDashboardWindow } from "~/lib/dashboard/recovery-window.server";
+import { RECOVERY_RANGES } from "~/lib/dashboard/recovery-window";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -114,5 +115,40 @@ describe("getRecoveryDashboardWindow: the dual-range shape", () => {
     const a = await getRecoveryDashboardWindow(db, DEMO_ACCOUNT_ID, "30d", now.getTime());
     const b = await getRecoveryDashboardWindow(db, DEMO_ACCOUNT_ID, "30d", now.getTime());
     expect(a).toEqual(b);
+  });
+});
+
+describe("getRecoveryDashboardWindow: single-cohort recovery-rate math", () => {
+  // Phase 1 review finding: legacy anchors its failure denominator on
+  // detected_at but its recovered numerator on a separately recovered_at-
+  // filtered query - two different cohorts. A failure detected before the
+  // window that happens to recover inside it inflates the numerator with no
+  // matching denominator entry, which can push a category's (or the
+  // account's overall) rate above 100%, and skews bestCategory toward
+  // whichever category the mismatch distorts hardest. listFailuresWithOutcome
+  // fixes this by deriving total AND recovered from the SAME cohort (failures
+  // detected in the window). This asserts that fix holds across every range.
+  it("recovered never exceeds total, per category and overall, and recoveryRatePct never exceeds 100, across every range", async () => {
+    const db = await seededDb();
+    for (const range of RECOVERY_RANGES) {
+      const w = await getRecoveryDashboardWindow(db, DEMO_ACCOUNT_ID, range, now.getTime());
+
+      expect(w.recoveredCount).toBeLessThanOrEqual(w.totalFailedCount);
+      if (w.recoveryRatePct !== null) {
+        expect(w.recoveryRatePct).toBeGreaterThanOrEqual(0);
+        expect(w.recoveryRatePct).toBeLessThanOrEqual(100);
+      }
+
+      for (const category of DECLINE_CATEGORIES) {
+        const stat = w.categoryStats[category];
+        if (!stat) continue;
+        expect(stat.recovered, `${range} ${category}: recovered <= total`).toBeLessThanOrEqual(stat.total);
+      }
+
+      if (w.bestCategory) {
+        expect(w.bestCategory.rate).toBeGreaterThanOrEqual(0);
+        expect(w.bestCategory.rate).toBeLessThanOrEqual(100);
+      }
+    }
   });
 });

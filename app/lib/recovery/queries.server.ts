@@ -230,34 +230,68 @@ export async function listRecentFailedPayments(
     .limit(limit);
 }
 
-/** Failed payments detected on/after `cutoffMs` (or all time when null),
- *  detected_at + decline_category only. Feeds category breakdown/stats and the
- *  daily recovery-rate trend. Called TWICE by the composed window (once with
- *  the caller's own range cutoff, once with a fixed trailing-30-day cutoff for
- *  the per-category sparklines) rather than reusing one result for both, so a
- *  sub-30-day range never starves the sparkline of real history the way
- *  legacy's reused query silently did. */
-export async function listFailedDaily(
+export interface FailureOutcomeRow {
+  detectedAt: Date;
+  declineCategory: DeclineCategory;
+  /** Null when this failure has not recovered. */
+  recoveredAt: Date | null;
+}
+
+/**
+ * Every failure detected on/after `cutoffMs` (or all time when null), LEFT
+ * JOINed to whether/when it has since recovered. ONE cohort: total count,
+ * recovered count, per-category stats, recovery-days/timing, and the
+ * category breakdown/sparkline/daily-failure-trend all derive from these SAME
+ * rows, filtered the SAME way, never two populations anchored on two
+ * different timestamps.
+ *
+ * TASK-foxhound-recovery-surface-parity.md Phase 1 review finding: legacy's
+ * fetchDashboardData anchors its denominator (totalFailedCount,
+ * categoryStats total) on detected_at, but its numerator (recoveredCount,
+ * categoryStats recovered, recoveryDays/avgDaysToRecovery/timing buckets,
+ * bestCategory) on a SEPARATELY range-filtered recovered_payments query
+ * anchored on recovered_at. A failure detected before the window that
+ * happens to recover inside it lands in legacy's numerator with no matching
+ * denominator entry, which can push a category's (or the account's overall)
+ * recovery rate above 100%, and skews bestCategory toward whichever category
+ * the mismatch distorts hardest. Verified directly against legacy's source,
+ * not ported: this function is the fix, called TWICE by the composed window
+ * (once with the caller's own range cutoff, once with a fixed trailing-30-
+ * day cutoff for the per-category sparklines) rather than reusing one result
+ * for both, so a sub-30-day range never starves the sparkline of real
+ * history either.
+ */
+export async function listFailuresWithOutcome(
   db: Db,
   accountId: string,
   cutoffMs: number | null,
-): Promise<{ detectedAt: Date; declineCategory: DeclineCategory }[]> {
+): Promise<FailureOutcomeRow[]> {
   const conditions = [
     byAccountActive(failedPayments.accountId, failedPayments.deletedAt, accountId),
     eq(failedPayments.isRenewalNoise, false),
   ];
   if (cutoffMs !== null) conditions.push(gte(failedPayments.detectedAt, new Date(cutoffMs)));
   const rows = await db
-    .select({ detectedAt: failedPayments.detectedAt, declineCategory: failedPayments.declineCategory })
+    .select({
+      detectedAt: failedPayments.detectedAt,
+      declineCategory: failedPayments.declineCategory,
+      recoveredAt: recoveredPayments.recoveredAt,
+    })
     .from(failedPayments)
+    .leftJoin(recoveredPayments, eq(recoveredPayments.failedPaymentId, failedPayments.id))
     .where(and(...conditions));
   return rows.map((r) => ({ ...r, declineCategory: r.declineCategory as DeclineCategory }));
 }
 
 /** Recovered payments on/after `cutoffMs` (or all time when null), joined to
  *  their failed payment for detected_at + decline_category (renewal noise
- *  excluded via the join). Feeds recovered revenue, recovery-days/timing, and
- *  the recovered side of category stats. */
+ *  excluded via the join). A cash-flow population, deliberately anchored on
+ *  WHEN THE MONEY CAME BACK: feeds recovered revenue and the recovered-
+ *  payments raw array (the revenue-trend chart's daily bars, and the daily
+ *  recovery-rate chart's calendar-day recovered counts). Never used for the
+ *  total/recovered/category-stats cohort math; that is
+ *  listFailuresWithOutcome, anchored on WHEN THE FAILURE HAPPENED instead,
+ *  deliberately a different question from this one. */
 export async function listRecoveredWithFailureContext(
   db: Db,
   accountId: string,

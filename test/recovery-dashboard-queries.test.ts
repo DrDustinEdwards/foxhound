@@ -10,8 +10,8 @@ import {
   getMostRecentRecoveryAt,
   listBillableRecoveredForRoi,
   listExecutedEmailSteps,
-  listFailedDaily,
   listFailedPayments,
+  listFailuresWithOutcome,
   listRecoveredWithFailureContext,
   listReactivatedWinbacks,
   listUpcomingSteps,
@@ -33,10 +33,10 @@ async function seededDb() {
   return db;
 }
 
-describe("listFailedDaily", () => {
-  it("returns every non-renewal-noise failure at cutoff null (all time)", async () => {
+describe("listFailuresWithOutcome", () => {
+  it("returns every non-renewal-noise failure at cutoff null (all time), with a valid category", async () => {
     const db = await seededDb();
-    const rows = await listFailedDaily(db, DEMO_ACCOUNT_ID, null);
+    const rows = await listFailuresWithOutcome(db, DEMO_ACCOUNT_ID, null);
     expect(rows.length).toBeGreaterThan(0);
     for (const r of rows) {
       expect(DECLINE_CATEGORIES).toContain(r.declineCategory);
@@ -45,12 +45,22 @@ describe("listFailedDaily", () => {
 
   it("a narrower cutoff returns a subset, all within the window", async () => {
     const db = await seededDb();
-    const all = await listFailedDaily(db, DEMO_ACCOUNT_ID, null);
+    const all = await listFailuresWithOutcome(db, DEMO_ACCOUNT_ID, null);
     const cutoffMs = now.getTime() - 7 * DAY_MS;
-    const recent = await listFailedDaily(db, DEMO_ACCOUNT_ID, cutoffMs);
+    const recent = await listFailuresWithOutcome(db, DEMO_ACCOUNT_ID, cutoffMs);
     expect(recent.length).toBeLessThanOrEqual(all.length);
     for (const r of recent) {
       expect(r.detectedAt.getTime()).toBeGreaterThanOrEqual(cutoffMs);
+    }
+  });
+
+  it("recoveredAt, when present, always belongs to a failure detected within the SAME query's cohort (single population, not a mismatched join)", async () => {
+    const db = await seededDb();
+    const cutoffMs = now.getTime() - 30 * DAY_MS;
+    const rows = await listFailuresWithOutcome(db, DEMO_ACCOUNT_ID, cutoffMs);
+    for (const r of rows) {
+      expect(r.detectedAt.getTime()).toBeGreaterThanOrEqual(cutoffMs);
+      if (r.recoveredAt) expect(r.recoveredAt.getTime()).toBeGreaterThanOrEqual(r.detectedAt.getTime());
     }
   });
 });
