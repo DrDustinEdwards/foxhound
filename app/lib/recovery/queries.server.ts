@@ -205,6 +205,30 @@ export async function listExpiringCardAlerts(
 // is read directly, matching every other Recovery query in this file.
 // ============================================================================
 
+const RECENT_FAILED_PAYMENTS_LIMIT = 8;
+
+/** The `limit` most recent failed payments detected on/after `cutoffMs` (or
+ *  all time when null), renewal noise excluded. Feeds the dashboard's recent-
+ *  activity preview (full detail lives at /recovery/payments). */
+export async function listRecentFailedPayments(
+  db: Db,
+  accountId: string,
+  cutoffMs: number | null,
+  limit: number = RECENT_FAILED_PAYMENTS_LIMIT,
+): Promise<FailedPaymentRow[]> {
+  const conditions = [
+    byAccountActive(failedPayments.accountId, failedPayments.deletedAt, accountId),
+    eq(failedPayments.isRenewalNoise, false),
+  ];
+  if (cutoffMs !== null) conditions.push(gte(failedPayments.detectedAt, new Date(cutoffMs)));
+  return db
+    .select()
+    .from(failedPayments)
+    .where(and(...conditions))
+    .orderBy(desc(failedPayments.detectedAt))
+    .limit(limit);
+}
+
 /** Failed payments detected on/after `cutoffMs` (or all time when null),
  *  detected_at + decline_category only. Feeds category breakdown/stats and the
  *  daily recovery-rate trend. Called TWICE by the composed window (once with
