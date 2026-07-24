@@ -184,12 +184,22 @@ export async function getRecoveryDashboardWindow(
   const avgDaysToRecovery =
     recoveryDays.length > 0 ? Math.round((recoveryDays.reduce((a, b) => a + b, 0) / recoveryDays.length) * 10) / 10 : null;
 
-  // ---- Daily recovery-rate trend: failedByDay from the detected-at cohort,
-  // recoveredByDay from the cash-flow (recovered_at-anchored) population -
-  // deliberately different questions, per the cumulative-rate design (see
-  // recovery-window.ts's own comment on why this is cumulative, not same-day). ----
+  // ---- Daily recovery-rate trend: this chart sits beside recoveryRatePct, so
+  // it must share that stat's cohort. Legacy built recoveredByDay from its
+  // recovered_at-anchored query (the same mismatch the headline rate had) and
+  // its own comment claimed the cumulative variant was "always <= 100% on
+  // clean data" - false, because a quiet week after a bad week lets recoveries
+  // of failures detected before the window outrun the in-window denominator.
+  // Sourcing both series from the SAME cohort (failuresWithOutcome) makes the
+  // bound structural: every row counted in recoveredByDay has recoveredAt >=
+  // detectedAt, and detectedAt already put it in failedByDay by that day, so
+  // cumulativeRecovered can never pass cumulativeFailed. No clamp needed. ----
   const failedByDay = countByDay(failuresWithOutcome.map((r) => r.detectedAt));
-  const recoveredByDay = countByDay(recovered.map((r) => r.recoveredAt));
+  const recoveredByDay = countByDay(
+    failuresWithOutcome
+      .filter((r): r is typeof r & { recoveredAt: Date } => r.recoveredAt !== null)
+      .map((r) => r.recoveredAt),
+  );
   const recoveryRateDaily = cumulativeRecoveryRateDaily(failedByDay, recoveredByDay, rangeDays, nowMs);
 
   // ---- Category sparkline: ALWAYS trailing 30 days, independent of `range` ----

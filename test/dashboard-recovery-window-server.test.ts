@@ -3,10 +3,13 @@ import { describe, expect, it } from "vitest";
 import { DECLINE_CATEGORIES } from "~/lib/constants";
 import { DEMO_ACCOUNT_ID } from "~/lib/demo/constants";
 import { seedDemoAccount } from "~/lib/demo/seed";
+import { failedPayments, recoveredPayments } from "~/db";
 import { getRecoveryDashboardWindow } from "~/lib/dashboard/recovery-window.server";
 import { RECOVERY_RANGES } from "~/lib/dashboard/recovery-window";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 // TASK-foxhound-recovery-surface-parity.md Phase 1: the composed windowed
 // read model, run against the real seeded demo account. Two things this
@@ -149,6 +152,55 @@ describe("getRecoveryDashboardWindow: single-cohort recovery-rate math", () => {
         expect(w.bestCategory.rate).toBeGreaterThanOrEqual(0);
         expect(w.bestCategory.rate).toBeLessThanOrEqual(100);
       }
+    }
+  });
+});
+
+describe("getRecoveryDashboardWindow: daily trend shares the headline's cohort", () => {
+  // Same review finding, applied to recoveryRateDaily: failedByDay was
+  // detected_at-anchored but recoveredByDay came from the recovered_at-
+  // anchored cash-flow query, so a batch of OLD failures (detected well
+  // before the window) recovering INSIDE the window inflated the numerator
+  // with no matching denominator entry - a quiet week after a bad week pushes
+  // the cumulative line above 100%. This drives that exact shape directly,
+  // rather than hoping the seeded data happens to contain it.
+  it("recoveries of failures detected before the window never push the daily cumulative rate above 100%, even when they land inside it", async () => {
+    const db = await seededDb();
+    const range = "7d";
+    const oldDetectedAt = new Date(now.getTime() - 40 * DAY_MS); // well before any 7d/30d/90d cutoff
+    const recoveredInsideWindow = new Date(now.getTime() - 2 * DAY_MS); // inside every range
+
+    for (let i = 0; i < 8; i++) {
+      const id = `test_stale_cohort_failure_${i}`;
+      await db.insert(failedPayments).values({
+        id,
+        stripeEventId: `evt_${id}`,
+        stripeInvoiceId: `inv_${id}`,
+        stripeCustomerId: `cus_${id}`,
+        customerEmail: `${id}@example.com`,
+        amountCents: 1000,
+        currency: "usd",
+        declineCategory: "soft",
+        status: "recovered",
+        detectedAt: oldDetectedAt,
+        resolvedAt: recoveredInsideWindow,
+        accountId: DEMO_ACCOUNT_ID,
+      });
+      await db.insert(recoveredPayments).values({
+        id: `test_stale_cohort_recovery_${i}`,
+        failedPaymentId: id,
+        recoveredAt: recoveredInsideWindow,
+        amountCents: 1000,
+        currency: "usd",
+        recoveryMethod: "foxhound_retry",
+        accountId: DEMO_ACCOUNT_ID,
+      });
+    }
+
+    const w = await getRecoveryDashboardWindow(db, DEMO_ACCOUNT_ID, range, now.getTime());
+    expect(w.recoveryRateDaily).toHaveLength(7);
+    for (const point of w.recoveryRateDaily) {
+      if (point.rate !== null) expect(point.rate).toBeLessThanOrEqual(100);
     }
   });
 });

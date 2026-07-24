@@ -102,9 +102,17 @@ export interface DailyRatePoint {
 /**
  * Cumulative running recovery rate for each of the last `rangeDays` days
  * (oldest to newest). Cumulative rather than same-day, so a recovery landing
- * on day X against a failure detected on day Y < X is never double-counted
- * into a same-day rate above 100% (direct port of legacy's own fix and its
- * reasoning, comment preserved because the reasoning is non-obvious).
+ * on day X against a failure detected on day Y < X still counts toward the
+ * right running total instead of only day X's own snapshot.
+ *
+ * This does NOT by itself guarantee the rate stays <= 100%: legacy built
+ * `recoveredByDay` from a recovered_at-anchored population separate from
+ * `failedByDay`'s detected_at-anchored one, and its own comment claimed the
+ * cumulative form was "always <= 100% on clean data" - false, since a quiet
+ * week after a bad week lets pre-window recoveries land inside the window
+ * and outrun a denominator that never counted their failures. The <= 100%
+ * bound is structural only when the caller derives both maps from the SAME
+ * cohort (see getRecoveryDashboardWindow, which does).
  */
 export function cumulativeRecoveryRateDaily(
   failedByDay: Map<string, number>,
