@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, gte, inArray, isNull, like, lte, ne, or, sql } from "drizzle-orm";
 
 import { byAccount, byAccountActive } from "~/db/scope";
+import { billableRecoveryRowConditions } from "~/db/billable";
 import type { Db } from "~/db";
 import {
   accounts,
@@ -397,6 +398,33 @@ export async function getConnectionSummary(db: Db, accountId: string): Promise<C
     lastWebhookAt: connection.lastWebhookAt,
     mrrEstimateCents: account?.mrrEstimateCents ?? null,
   };
+}
+
+/**
+ * Billable-attributed, matured recoveries on/after `windowStartMs` (or all
+ * time when null), for the ROI widget. Reuses `billableRecoveryRowConditions`
+ * directly from app/db/billable.ts, the SAME predicate the real billing run
+ * uses (attribution in BILLABLE_ATTRIBUTION_KINDS, 30-day maturity, not
+ * refunded/disputed/deleted). Deliberately does NOT join billing_line_items
+ * (unlike getBillableRecoveries, which excludes already-invoiced rows to
+ * compute what to bill NEXT): an ROI summary should never shrink just
+ * because an invoice already went out. Legacy's `recovery_method in
+ * ('retry','email_click','manual')` filter is NOT ported (TASK-foxhound-
+ * recovery-surface-parity.md: use BILLABLE_ATTRIBUTION_KINDS and the
+ * maturity window instead).
+ */
+export async function listBillableRecoveredForRoi(
+  db: Db,
+  accountId: string,
+  nowMs: number,
+  windowStartMs: number | null,
+): Promise<{ amountCents: number; currency: string }[]> {
+  const conditions = [billableRecoveryRowConditions(accountId, nowMs)];
+  if (windowStartMs !== null) conditions.push(gte(recoveredPayments.recoveredAt, new Date(windowStartMs)));
+  return db
+    .select({ amountCents: recoveredPayments.amountCents, currency: recoveredPayments.currency })
+    .from(recoveredPayments)
+    .where(and(...conditions));
 }
 
 /** Most recent recovered_at across the account (renewal noise excluded),
