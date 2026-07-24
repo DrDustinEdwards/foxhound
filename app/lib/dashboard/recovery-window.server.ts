@@ -169,9 +169,16 @@ export async function getRecoveryDashboardWindow(
     categoryStats[row.declineCategory] = stat;
   }
 
-  // ---- Recovery days / timing / avg: the recovered subset of the SAME cohort ----
-  const recoveryDays = failuresWithOutcome
-    .filter((r): r is typeof r & { recoveredAt: Date } => r.recoveredAt !== null)
+  // ---- Recovery days / timing / avg: EVENT-anchored (recovered, from
+  // listRecoveredWithFailureContext), not the detected-at cohort above. This
+  // is a distribution over recoveries that happened in this window and how
+  // long each took - a question about the recovery events themselves, same
+  // as recoveredRevenue, not about the cohort of failures that started the
+  // window (which is what totalFailedCount/recoveredCount/categoryStats are
+  // for). Legacy anchors this the same way, off its one recovered_at-anchored
+  // query; the rate/count/category-stats side is the only part that needed
+  // to move onto a single detected-at cohort. ----
+  const recoveryDays = recovered
     .map((r) => (r.recoveredAt.getTime() - r.detectedAt.getTime()) / DAY_MS)
     .filter((d) => d >= 0);
   const avgDaysToRecovery =
