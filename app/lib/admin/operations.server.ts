@@ -35,7 +35,14 @@ export async function getD1SizeBytes(env: Env): Promise<number> {
 
 /** Known applied-migration filenames, in order. Static: the Worker has no
  *  filesystem access to drizzle/migrations at runtime, and this list only
- *  changes when a new migration ships (a deploy-time event anyway). */
+ *  changes when a new migration ships (a deploy-time event anyway).
+ *
+ *  Because it is maintained by hand it had drifted FOUR behind, stopping at 0005
+ *  while the schema was at 0009, so /admin/operations under-reported the schema
+ *  state on the page treated as the authoritative answer for exactly that.
+ *  test/admin-known-migrations.test.ts now asserts this list against the actual
+ *  .sql files on disk, so the next migration that ships without updating it fails
+ *  CI instead of silently shrinking the page. */
 export const KNOWN_MIGRATIONS = [
   "0000_init_foxhound_schema.sql",
   "0001_hardening_win_back_index_and_currency.sql",
@@ -43,6 +50,10 @@ export const KNOWN_MIGRATIONS = [
   "0003_faithful_harrier.sql",
   "0004_narrow_annihilus.sql",
   "0005_stormy_vector.sql",
+  "0006_spooky_gravity.sql",
+  "0007_shallow_the_fallen.sql",
+  "0008_hard_scream.sql",
+  "0009_lethal_gladiator.sql",
 ] as const;
 
 export interface MigrationStatusRow {
