@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import { Badge } from "~/components/badge";
 import { BarChart, GroupedBars, LineArea } from "~/components/charts";
 import { StatCard } from "~/components/stat-card";
+import { Sparkline } from "~/components/charts";
 import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -13,8 +14,10 @@ import {
   type RecoveryDashboardWindow,
 } from "~/lib/dashboard/recovery-window.server";
 import { RECOVERY_RANGES, sumCentsByDayWindow, type RecoveryRange } from "~/lib/dashboard/recovery-window";
-import { recoveryRateClassName } from "~/lib/dashboard/recovery-rate";
+import { recoveryRateBand, recoveryRateClassName } from "~/lib/dashboard/recovery-rate";
 import { formatMoney } from "~/lib/money-format";
+import { formatRelativeFuture, formatTimestamp } from "~/lib/date-format";
+import { DECLINE_CATEGORIES } from "~/lib/constants";
 import { recoveryFeeCents } from "~/lib/billing/fees";
 import { listBillableRecoveredForRoi } from "~/lib/recovery/queries.server";
 import { formatStepType } from "~/lib/recovery/labels";
@@ -99,6 +102,18 @@ function RangeSelector({ range }: { range: RecoveryRange }) {
   );
 }
 
+// "N in recovery", plus the share of MRR that represents when the account has an
+// MRR estimate. mrr_estimate_cents was already carried onto the window and was
+// never divided or rendered, so the amount at risk had no sense of scale: $4,000
+// means something very different at $20k MRR than at $2M.
+function atRiskSubtext(w: RecoveryDashboardWindow, atRisk: { cents: number; currency: string } | null): string {
+  const inRecovery = `${w.activePaymentsCount} in recovery`;
+  const mrr = w.connection?.mrrEstimateCents ?? 0;
+  if (!atRisk || mrr <= 0) return inRecovery;
+  const pct = Math.round((atRisk.cents / mrr) * 1000) / 10;
+  return `${inRecovery} · ${pct}% of MRR`;
+}
+
 function StatCardsPrimary({ w }: { w: RecoveryDashboardWindow }) {
   const revenue = w.recoveredRevenue[0] ?? null;
   const atRisk = w.atRiskRevenue[0] ?? null;
@@ -111,13 +126,13 @@ function StatCardsPrimary({ w }: { w: RecoveryDashboardWindow }) {
       <StatCard
         label="Currently at risk"
         value={atRisk ? formatMoney(atRisk.cents, atRisk.currency) : "$0.00"}
-        subtext={`${w.activePaymentsCount} in recovery`}
+        subtext={atRiskSubtext(w, atRisk)}
       />
       <StatCard
         label="Recovery rate"
         value={w.recoveryRatePct === null ? "-" : `${w.recoveryRatePct}%`}
         valueClassName={w.recoveryRatePct === null ? undefined : recoveryRateClassName(w.recoveryRatePct)}
-        subtext={`${w.recoveredCount} of ${w.totalFailedCount} (30d)`}
+        subtext={`${recoveryRateBand(w.recoveryRatePct)} · ${w.recoveredCount} of ${w.totalFailedCount}`}
       />
     </section>
   );
@@ -126,6 +141,7 @@ function StatCardsPrimary({ w }: { w: RecoveryDashboardWindow }) {
 function StatCardsSecondary({ w }: { w: RecoveryDashboardWindow }) {
   return (
     <section className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+      <StatCard label="Active sequences" value={String(w.activePaymentsCount)} />
       <StatCard label="Win-backs active" value={String(w.activeWinbacksCount)} />
       <StatCard
         label="Cards expiring"
@@ -142,10 +158,12 @@ function StatCardsSecondary({ w }: { w: RecoveryDashboardWindow }) {
         value={w.bestCategory ? DECLINE_CATEGORY_LABELS[w.bestCategory.cat] : "-"}
         subtext={w.bestCategory ? `${w.bestCategory.rate}% recovered` : "Need more data"}
       />
-      <StatCard label="Emails sent" value={String(w.totalEmailsSent)} />
+      {/* One card, engagement as its subtext: the two rates only mean anything
+          against the send count they are drawn from. */}
       <StatCard
-        label="Open / click"
-        value={`${w.openRatePct}% / ${w.clickRatePct}%`}
+        label="Emails sent"
+        value={String(w.totalEmailsSent)}
+        subtext={`${w.openRatePct}% open · ${w.clickRatePct}% click`}
       />
     </section>
   );
@@ -188,6 +206,12 @@ function RoiWidget({
           <p className="mt-1 text-label text-text-tertiary">
             Fee: {formatMoney(roi.feeThisMonthCents, roi.currency)}
           </p>
+          {/* What the merchant kept. The recovered figure minus our fee is the
+              whole promise of the pricing model, and it was left for the reader
+              to work out. */}
+          <p className="mt-1 text-label text-text-secondary">
+            You kept: {formatMoney(roi.thisMonthCents - roi.feeThisMonthCents, roi.currency)}
+          </p>
         </div>
         <div>
           <p className="font-mono text-micro uppercase tracking-wide text-text-subtle">All time</p>
@@ -196,6 +220,9 @@ function RoiWidget({
           </p>
           <p className="mt-1 text-label text-text-tertiary">
             Fee: {formatMoney(roi.feeAllTimeCents, roi.currency)}
+          </p>
+          <p className="mt-1 text-label text-text-secondary">
+            Net to you: {formatMoney(roi.allTimeCents - roi.feeAllTimeCents, roi.currency)}
           </p>
         </div>
       </div>
@@ -264,7 +291,11 @@ function RevenueTrendChart({ w, nowMs }: { w: RecoveryDashboardWindow; nowMs: nu
 }
 
 function DeclineAnalysis({ w }: { w: RecoveryDashboardWindow }) {
-  const categories = Object.keys(w.categoryBreakdown) as (keyof typeof DECLINE_CATEGORY_LABELS)[];
+  // Every category, in a fixed order, not just the ones with rows. Iterating the
+  // breakdown's own keys meant a category with no failures this range vanished
+  // from the list entirely, so the list silently changed shape between ranges
+  // and a zero was indistinguishable from a category that does not exist.
+  const categories = DECLINE_CATEGORIES;
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
       <div className="rounded-lg border border-border bg-surface p-4 md:col-span-3">
@@ -278,6 +309,13 @@ function DeclineAnalysis({ w }: { w: RecoveryDashboardWindow }) {
             {categories.map((cat) => {
               const count = w.categoryBreakdown[cat] ?? 0;
               const pct = Math.round((count / w.totalFailedCount) * 100);
+              const stats = w.categoryStats[cat];
+              // Only claim a recovery rate once there are at least two failures
+              // in the category: "100% recovered" off a single payment is noise
+              // dressed as a statistic.
+              const catRate =
+                stats && stats.total >= 2 ? Math.round((stats.recovered / stats.total) * 100) : null;
+              const spark = w.categorySparkline[cat] ?? [];
               return (
                 <li key={cat} className="flex items-center gap-3">
                   <span className="w-32 shrink-0 text-label text-text-secondary">
@@ -286,8 +324,14 @@ function DeclineAnalysis({ w }: { w: RecoveryDashboardWindow }) {
                   <div className="h-1.5 flex-1 rounded-full bg-border">
                     <div className="h-full rounded-full bg-text-tertiary" style={{ width: `${pct}%` }} />
                   </div>
-                  <span className="w-16 shrink-0 text-right font-mono text-micro text-text-tertiary">
+                  {/* The trailing-30-day shape for this category. Computed by
+                      recovery-window.server.ts all along and rendered nowhere. */}
+                  <span className="shrink-0 text-text-tertiary" aria-hidden="true">
+                    <Sparkline values={spark.map((point) => point.count)} width={56} height={16} />
+                  </span>
+                  <span className="w-28 shrink-0 text-right font-mono text-micro text-text-tertiary">
                     {count} ({pct}%)
+                    {catRate === null ? null : ` · ${catRate}% rec`}
                   </span>
                 </li>
               );
@@ -374,7 +418,7 @@ function WinBackPanel({ w }: { w: RecoveryDashboardWindow }) {
   );
 }
 
-function RecoveryQueuePanel({ w }: { w: RecoveryDashboardWindow }) {
+function RecoveryQueuePanel({ w, nowMs }: { w: RecoveryDashboardWindow; nowMs: number }) {
   return (
     <div className="rounded-lg border border-border bg-surface p-4">
       <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
@@ -394,7 +438,9 @@ function RecoveryQueuePanel({ w }: { w: RecoveryDashboardWindow }) {
               </div>
               <div className="text-right">
                 <p className="font-mono text-label text-text">{formatMoney(s.amountCents, s.currency)}</p>
-                <p className="text-micro text-text-subtle">{s.scheduledAt.toLocaleString()}</p>
+                <p className="text-micro text-text-subtle">
+                  {formatRelativeFuture(s.scheduledAt, nowMs) ?? formatTimestamp(s.scheduledAt)}
+                </p>
               </div>
             </li>
           ))}
@@ -526,7 +572,7 @@ export default function RecoveryDashboard({ loaderData }: Route.ComponentProps) 
           </div>
 
           <div className="mt-5">
-            <RecoveryQueuePanel w={data} />
+            <RecoveryQueuePanel w={data} nowMs={nowMs} />
           </div>
 
           <div className="mt-5">
