@@ -259,9 +259,15 @@ describe("email executor: orchestration + failure isolation", () => {
         persistedResult = patch.result;
       },
     });
-    // usedTemplate is false here: this send resolved from cache, so no generation
-    // was attempted and no fallback was needed.
-    expect(res).toEqual({ action: "email", sent: true, result: "email_sent", usedTemplate: false });
+    // usedTemplate is false and templateReason null here: this send resolved from
+    // cache, so no generation was attempted, no gate ran, and no fallback was needed.
+    expect(res).toEqual({
+      action: "email",
+      sent: true,
+      result: "email_sent",
+      usedTemplate: false,
+      templateReason: null,
+    });
     expect(persistedResult).toBe("email_sent");
   });
 

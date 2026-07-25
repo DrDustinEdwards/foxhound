@@ -20,7 +20,7 @@ import type { StepStatePatch } from "~/lib/recovery/step-state";
 const env = {
   BETTER_AUTH_URL: "https://foxhoundapp.com",
   PHYSICAL_ADDRESS: "1 Test St, Austin TX",
-  ENCRYPTION_KEY: "test-key-not-used-here",
+  ENCRYPTION_KEY: "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
 } as unknown as Env;
 
 function ctx(overrides: Partial<EmailStepContext> = {}): EmailStepContext {
