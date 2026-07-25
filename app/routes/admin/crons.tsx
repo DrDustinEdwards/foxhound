@@ -4,7 +4,7 @@ import { AdminNav } from "~/components/admin-nav";
 import { Badge } from "~/components/badge";
 import { getDb } from "~/db";
 import { logAdminAction } from "~/lib/admin/audit.server";
-import { listCronRows, setCronEnabled } from "~/lib/admin/crons.server";
+import { isKnownCronName, listCronRows, setCronEnabled } from "~/lib/admin/crons.server";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import type { Tone } from "~/lib/recovery/labels";
@@ -32,6 +32,13 @@ export async function action({ context, request }: Route.ActionArgs) {
   const nextEnabled = String(form.get("nextEnabled") ?? "") === "true";
   if (!cronName) {
     return data({ error: "Missing cron name." }, { status: 400 });
+  }
+  // Reject before the write AND before the audit log. setCronEnabled throws on an
+  // unknown name too, but catching it here turns a 500 into a clear 400 and, more
+  // importantly, stops the audit log recording a successful cron.disable for a
+  // cron that does not exist.
+  if (!isKnownCronName(cronName)) {
+    return data({ error: `Unknown cron: ${cronName}` }, { status: 400 });
   }
 
   await setCronEnabled(db, cronName, nextEnabled);

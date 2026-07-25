@@ -65,12 +65,31 @@ export async function getRunHistory(db: Db, cronName: string, limit = 20) {
     .limit(limit);
 }
 
-/** Upsert-by-hand (D1 supports ON CONFLICT via drizzle's onConflictDoUpdate,
- *  but cron_config's primary key is the name itself, so a plain
- *  select-then-insert-or-update reads clearer here for a low-frequency admin
- *  action). Not a money write: plain db call, no DO (mirrors gotcha #25's
- *  operational-write precedent). */
+/** True when `cronName` is a job the registry actually dispatches. */
+export function isKnownCronName(cronName: string): boolean {
+  return CRON_JOBS.some((job) => job.name === cronName);
+}
+
+/**
+ * Upsert-by-hand (D1 supports ON CONFLICT via drizzle's onConflictDoUpdate,
+ * but cron_config's primary key is the name itself, so a plain
+ * select-then-insert-or-update reads clearer here for a low-frequency admin
+ * action). Not a money write: plain db call, no DO (mirrors gotcha #25's
+ * operational-write precedent).
+ *
+ * The name is validated against the registry because an unknown name used to be
+ * written happily, and a missing cron_config row means ENABLED (see
+ * app/lib/cron/gating.ts). Together those turned a typo into a silent failure of
+ * the worst kind: the operator got a success response, the row existed and looked
+ * disabled on inspection, it gated nothing, and the real job kept running. An
+ * admin who believes they stopped a cron has to be right about that.
+ *
+ * Throws rather than no-oping so no caller can treat a rejected write as applied.
+ */
 export async function setCronEnabled(db: Db, cronName: string, enabled: boolean): Promise<void> {
+  if (!isKnownCronName(cronName)) {
+    throw new Error(`unknown cron name: ${cronName}`);
+  }
   const existing = await db.select().from(cronConfig).where(eq(cronConfig.cronName, cronName)).limit(1);
   if (existing.length > 0) {
     await db.update(cronConfig).set({ enabled, updatedAt: new Date() }).where(eq(cronConfig.cronName, cronName));
