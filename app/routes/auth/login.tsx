@@ -18,9 +18,10 @@ export function meta() {
   return [{ title: "Sign in - Foxhound" }];
 }
 
-export function loader({ context }: Route.LoaderArgs) {
+export function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
-  return { googleEnabled: Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) };
+  const verified = new URL(request.url).searchParams.get("verified") === "1";
+  return { googleEnabled: Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET), verified };
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
@@ -55,6 +56,9 @@ export default function Login({ loaderData }: Route.ComponentProps) {
       footer={<>No account? <AuthLink to="/signup">Create one</AuthLink></>}
     >
       <Form method="post" className="flex flex-col gap-4">
+        {loaderData.verified && !actionData?.error ? (
+          <Alert tone="success">Your email is verified. You can sign in now.</Alert>
+        ) : null}
         {actionData?.error ? <Alert tone="error">{actionData.error}</Alert> : null}
         <Field label="Email" name="email" type="email" autoComplete="email" />
         <Field
