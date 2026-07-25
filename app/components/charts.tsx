@@ -99,6 +99,154 @@ export function LineArea({
   );
 }
 
+export interface MultiLineSeries {
+  name: string;
+  /** Tailwind text-color utility controlling this series' stroke via currentColor. */
+  colorClassName: string;
+  /** Rendered dashed, for a secondary series that should read as context rather
+   *  than as the subject of the chart. */
+  dashed?: boolean;
+  /** One entry per label. null is a genuine gap (no data for that point) and
+   *  breaks the line, rather than being drawn as a zero. */
+  values: (number | null)[];
+}
+
+/**
+ * Two or more labeled lines on a shared scale, with a legend and a y axis.
+ *
+ * Distinct from LineArea, which is one series with no axis: this exists for
+ * comparisons where the relationship between the series IS the content, such as
+ * involuntary against voluntary churn. A null in `values` leaves a gap instead
+ * of dropping to zero, because "no snapshot that week" and "zero percent that
+ * week" are different claims and drawing them the same way misreports the data.
+ *
+ * The y axis carries ticks here, unlike the other primitives, because there is
+ * no single headline number a caller could print beside a two-series comparison
+ * to substitute for the scale.
+ */
+export function MultiLine({
+  labels,
+  series,
+  yTickFormat = (v) => String(v),
+  yTickCount = 4,
+  width = 480,
+  height = 180,
+  className,
+}: {
+  labels: string[];
+  series: MultiLineSeries[];
+  yTickFormat?: (value: number) => string;
+  yTickCount?: number;
+  width?: number;
+  height?: number;
+  className?: string;
+}) {
+  if (labels.length < 2 || series.length === 0) return null;
+  const present = series.flatMap((s) => s.values.filter((v): v is number => v !== null));
+  if (present.length === 0) return null;
+
+  const labelSpace = 20;
+  const legendSpace = 20;
+  const axisWidth = 40;
+  const chartHeight = height - labelSpace - legendSpace;
+  const chartWidth = width - axisWidth;
+
+  // Always include zero: a churn-rate chart whose axis starts at 2% makes a
+  // flat line look like a cliff.
+  const max = Math.max(...present, 0);
+  const min = Math.min(...present, 0);
+  const range = max - min || 1;
+  const step = chartWidth / (labels.length - 1);
+  const x = (i: number) => axisWidth + i * step;
+  const y = (v: number) => legendSpace + chartHeight - ((v - min) / range) * chartHeight;
+
+  const ticks = Array.from({ length: yTickCount + 1 }, (_, i) => min + (range * i) / yTickCount);
+
+  return (
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      width="100%"
+      height={height}
+      className={className}
+      role="img"
+      aria-hidden="true"
+    >
+      {ticks.map((t, i) => (
+        <g key={`tick-${i}`}>
+          <line x1={axisWidth} y1={y(t)} x2={width} y2={y(t)} className="stroke-border" strokeWidth={1} opacity={i === 0 ? 1 : 0.4} />
+          <text
+            x={axisWidth - 6}
+            y={y(t) + 3}
+            textAnchor="end"
+            className="fill-current text-text-subtle font-mono text-micro"
+          >
+            {yTickFormat(t)}
+          </text>
+        </g>
+      ))}
+      {series.map((s) => {
+        // Split into runs of consecutive non-null points so a gap breaks the
+        // line instead of drawing a straight segment across missing data.
+        const runs: string[] = [];
+        let current: string[] = [];
+        s.values.forEach((v, i) => {
+          if (v === null) {
+            if (current.length > 1) runs.push(current.join(" "));
+            current = [];
+            return;
+          }
+          current.push(`${x(i)},${y(v)}`);
+        });
+        if (current.length > 1) runs.push(current.join(" "));
+        return (
+          <g key={s.name} className={s.colorClassName}>
+            {runs.map((points, ri) => (
+              <polyline
+                key={ri}
+                points={points}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeDasharray={s.dashed ? "4 2" : undefined}
+              />
+            ))}
+          </g>
+        );
+      })}
+      {labels.map((label, i) =>
+        i === 0 || i === labels.length - 1 ? (
+          <text
+            key={`${label}-${i}`}
+            x={x(i)}
+            y={height - 4}
+            textAnchor={i === 0 ? "start" : "end"}
+            className="fill-current text-text-subtle font-mono text-micro"
+          >
+            {label}
+          </text>
+        ) : null,
+      )}
+      {series.map((s, si) => (
+        <g key={`legend-${s.name}`} transform={`translate(${axisWidth + si * 110}, 10)`}>
+          <line
+            x1={0}
+            y1={4}
+            x2={10}
+            y2={4}
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeDasharray={s.dashed ? "3 2" : undefined}
+            className={s.colorClassName}
+          />
+          <text x={14} y={8} className="fill-current text-text-subtle font-mono text-micro">
+            {s.name}
+          </text>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
 export interface BarDatum {
   label: string;
   value: number;

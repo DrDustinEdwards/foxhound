@@ -58,6 +58,7 @@ export const PRODUCT_MANIFEST: Record<ProductKey, ProductManifestEntry> = {
     links: [
       { label: "Overview", to: "/intelligence", end: true },
       { label: "Customers", to: "/intelligence/customers" },
+      { label: "Churn", to: "/intelligence/churn" },
       { label: "Alerts", to: "/intelligence/alerts" },
       { label: "Reports", to: "/intelligence/reports" },
     ],

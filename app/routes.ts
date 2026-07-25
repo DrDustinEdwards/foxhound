@@ -84,6 +84,7 @@ export default [
       index("./routes/app/intelligence/index.tsx"),
       route("customers", "./routes/app/intelligence/customers.tsx"),
       route("customers/:id", "./routes/app/intelligence/customer.tsx"),
+      route("churn", "./routes/app/intelligence/churn.tsx"),
       route("alerts", "./routes/app/intelligence/alerts.tsx"),
       route("reports", "./routes/app/intelligence/reports.tsx"),
     ]),
