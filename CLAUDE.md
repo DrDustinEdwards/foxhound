@@ -25,13 +25,17 @@ hygiene) are in `capsid/conventions.md`. This file holds only what is true of th
 
 - NEVER clone or copy the legacy repo into the workspace. Read old code surgically at the exact
   paths named in the TASK file.
-  KNOWN GAP (2026-07-16): Capsid's repo tools resolve a namespace to its `primary` repo only and
-  take no repo or label argument, so `read_repo_file` on namespace `recova` now returns Foxhound
-  files. The legacy repos (DrDustinEdwards/recova, DrDustinEdwards/recova-mcp) are not reachable
-  through Capsid until the tools accept a repo selector. Use Claude Code with local gh auth for
-  legacy reads meanwhile. This gap has already caused one misdirected write (a legacy CLAUDE.md
-  landed on this repo's main and was immediately corrected); treat every namespace-addressed
-  repo write as a write to THIS repo.
+  Legacy IS readable through Capsid. The repo selector shipped 2026-07-17: pass `repo` on any
+  Capsid repo tool (`list_repo_tree`, `read_repo_file`, `search_code`, ...) with `"primary"`
+  (foxhound), `"legacy"` (recova), or `"legacy-mcp"` (recova-mcp). Omitting it targets the
+  primary repo, which is why a namespace-addressed call reads Foxhound files. Run
+  `Capsid:namespaces` to confirm the mapping before ever claiming a repo is unreachable.
+  A dated "KNOWN GAP (2026-07-16)" block used to sit here claiming the legacy repos were
+  unreachable and telling you to use Claude Code with local gh auth instead. That was true for
+  one day and has been false since. It cost three separate sessions, because it made the primary
+  parity reference look inaccessible. Deleted 2026-07-25.
+  Still true and worth keeping from that block: a namespace-addressed repo WRITE with no `repo`
+  selector goes to THIS repo. A legacy CLAUDE.md once landed on this repo's main that way.
 - Legacy Supabase (via Supabase MCP where configured) is read-only reference. Target DB is D1 via
   wrangler/bindings.
 - Money-write rule: outcome recording, attributed billing, and webhook claims go through
