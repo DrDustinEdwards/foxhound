@@ -1,8 +1,14 @@
 import { BarChart, CohortGrid, LineArea, isCohortRows } from "~/components/charts";
+import {
+  ConsoleAttentionFeed,
+  ConsoleHeroRow,
+  ConsoleTileRow,
+} from "~/components/console-panels";
 import { StatCard } from "~/components/stat-card";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
+import { getConsoleView } from "~/lib/dashboard/console.server";
 import { getMrrAnalytics, getRecoveryStats } from "~/lib/dashboard/stats.server";
 import { recoveryRateClassName } from "~/lib/dashboard/recovery-rate";
 import { formatMoney } from "~/lib/money-format";
@@ -19,16 +25,23 @@ export async function loader({ context }: Route.LoaderArgs) {
   const db = getDb(env);
   const accountId = auth.membership.accountId;
 
+  const nowMs = Date.now();
   const [stats, mrr] = await Promise.all([
-    getRecoveryStats(db, accountId, Date.now()),
+    getRecoveryStats(db, accountId, nowMs),
     getMrrAnalytics(db, accountId),
   ]);
 
-  return { stats, mrr };
+  // The console's "Platform health" is handed the rate getRecoveryStats already
+  // computed rather than deriving its own. Legacy recomputed a lifetime rate here
+  // with different filters, so the same account showed two different recovery
+  // rates on adjacent screens.
+  const consoleView = await getConsoleView(db, accountId, nowMs, stats.recoveryRatePct);
+
+  return { stats, mrr, consoleView, nowMs };
 }
 
 export default function Dashboard({ loaderData }: Route.ComponentProps) {
-  const { stats, mrr } = loaderData;
+  const { stats, mrr, consoleView, nowMs } = loaderData;
   const revenue = stats.revenueRecovered[0] ?? null;
   const billable = stats.billableRevenue[0] ?? null;
   const fee = stats.feeOwed[0] ?? null;
@@ -39,7 +52,20 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
     <div className="mx-auto max-w-6xl px-4 py-8">
       <h1 className="text-title font-medium text-text">Dashboard</h1>
 
-      <section className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-6">
+        <ConsoleHeroRow hero={consoleView.hero} />
+      </div>
+
+      <div className="mt-4">
+        <ConsoleTileRow tiles={consoleView.tiles} nowMs={nowMs} />
+      </div>
+
+      <ConsoleAttentionFeed
+        rows={consoleView.attention}
+        currency={consoleView.hero.protectedCurrency}
+      />
+
+      <section className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Revenue recovered"
           value={revenue ? formatMoney(revenue.cents, revenue.currency) : "$0.00"}
