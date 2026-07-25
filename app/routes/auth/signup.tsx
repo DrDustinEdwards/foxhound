@@ -1,4 +1,4 @@
-import { data, Form, useActionData, useNavigation } from "react-router";
+import { data, Form, redirect, useActionData, useNavigation } from "react-router";
 
 import {
   AuthShell,
@@ -10,6 +10,7 @@ import {
 } from "~/components/auth-ui";
 import { getAuth } from "~/lib/auth";
 import { authErrorMessage } from "~/lib/auth/http";
+import { getSession } from "~/lib/auth/session";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import type { Route } from "./+types/signup";
@@ -18,8 +19,13 @@ export function meta() {
   return [{ title: "Create account - Foxhound" }];
 }
 
-export function loader({ context }: Route.LoaderArgs) {
+export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
+  // Same session read appShellMiddleware uses (guards.ts): a signed-in
+  // visitor hitting /signup otherwise saw the create-account form while the
+  // header already showed them authenticated.
+  const session = await getSession(env, request);
+  if (session) throw redirect("/dashboard");
   return { googleEnabled: Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) };
 }
 

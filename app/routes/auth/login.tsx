@@ -10,6 +10,7 @@ import {
 } from "~/components/auth-ui";
 import { getAuth } from "~/lib/auth";
 import { authErrorMessage, forwardSetCookie } from "~/lib/auth/http";
+import { getSession } from "~/lib/auth/session";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import type { Route } from "./+types/login";
@@ -18,8 +19,13 @@ export function meta() {
   return [{ title: "Sign in - Foxhound" }];
 }
 
-export function loader({ request, context }: Route.LoaderArgs) {
+export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
+  // Same session read appShellMiddleware uses (guards.ts): a signed-in
+  // visitor hitting /login otherwise saw the sign-in form while the header
+  // already showed them authenticated.
+  const session = await getSession(env, request);
+  if (session) throw redirect("/dashboard");
   const verified = new URL(request.url).searchParams.get("verified") === "1";
   return { googleEnabled: Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET), verified };
 }
