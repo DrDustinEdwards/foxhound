@@ -19,10 +19,12 @@ import {
   listFilteredFailedPayments,
   listPaymentSummaryRows,
   listStepsForFailedPayments,
-  countPreviousFailuresByCustomer,
+  countFailuresByCustomer,
   tallyStatusCounts,
 } from "~/lib/recovery/queries.server";
-import type { FailedPaymentPageSize, FailedPaymentSort } from "~/lib/recovery/queries.server";
+import type { AmountBounds, FailedPaymentPageSize, FailedPaymentSort } from "~/lib/recovery/queries.server";
+import { buildPaymentParams, withParams } from "~/lib/recovery/payment-filters";
+import { priorFailureCount } from "~/lib/recovery/prior-failures";
 import { summarizeSequence } from "~/lib/recovery/sequence-summary";
 import { isPaymentTimeRange, resolvePaymentTimeRangeCutoff, type PaymentTimeRange } from "~/lib/recovery/time-range";
 
@@ -105,7 +107,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   ]);
 
   const [previousFailureCounts, stepRows] = await Promise.all([
-    countPreviousFailuresByCustomer(db, accountId, [...new Set(result.payments.map((p) => p.stripeCustomerId))]),
+    countFailuresByCustomer(db, accountId, [...new Set(result.payments.map((p) => p.stripeCustomerId))]),
     listStepsForFailedPayments(db, accountId, result.payments.map((p) => p.id)),
   ]);
 
@@ -159,38 +161,26 @@ interface Filters {
   amountMaxCents: number;
 }
 
-function buildParams(filters: Filters, overrides: Partial<Record<string, string>> = {}): URLSearchParams {
-  const params = new URLSearchParams();
-  if (filters.search) params.set("q", filters.search);
-  if (filters.status) params.set("status", filters.status);
-  if (filters.declineCategory) params.set("category", filters.declineCategory);
-  if (filters.time !== "all") params.set("time", filters.time);
-  if (filters.sort !== "newest") params.set("sort", filters.sort);
-  if (filters.pageSize !== DEFAULT_PAGE_SIZE) params.set("perPage", String(filters.pageSize));
-  for (const [key, value] of Object.entries(overrides)) {
-    if (value) params.set(key, value);
-    else params.delete(key);
-  }
-  return params;
+function buildParams(
+  filters: Filters,
+  bounds: AmountBounds,
+  overrides: Partial<Record<string, string>> = {},
+): URLSearchParams {
+  return buildPaymentParams(filters, { bounds, defaultPageSize: DEFAULT_PAGE_SIZE, overrides });
 }
 
-function statusPillHref(filters: Filters, status: string): string {
-  const params = buildParams(filters, { status });
-  const qs = params.toString();
-  return qs ? `/recovery/payments?${qs}` : "/recovery/payments";
+function statusPillHref(filters: Filters, bounds: AmountBounds, status: string): string {
+  return withParams("/recovery/payments", buildParams(filters, bounds, { status }));
 }
 
-function pageHref(filters: Filters, page: number): string {
-  const params = buildParams(filters);
+function pageHref(filters: Filters, bounds: AmountBounds, page: number): string {
+  const params = buildParams(filters, bounds);
   if (page > 1) params.set("page", String(page));
-  const qs = params.toString();
-  return qs ? `/recovery/payments?${qs}` : "/recovery/payments";
+  return withParams("/recovery/payments", params);
 }
 
-function exportHref(filters: Filters): string {
-  const params = buildParams(filters);
-  const qs = params.toString();
-  return qs ? `/recovery/payments/export.csv?${qs}` : "/recovery/payments/export.csv";
+function exportHref(filters: Filters, bounds: AmountBounds): string {
+  return withParams("/recovery/payments/export.csv", buildParams(filters, bounds));
 }
 
 const STATUS_PILLS = [
@@ -221,7 +211,7 @@ export default function RecoveryPayments({ loaderData }: Route.ComponentProps) {
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h1 className="text-title font-medium text-text">Payments</h1>
         <Link
-          to={exportHref(filters)}
+          to={exportHref(filters, bounds)}
           className="rounded-md border border-border px-3 py-1.5 text-label text-text-secondary hover:border-border-i"
         >
           Export CSV
@@ -256,7 +246,7 @@ export default function RecoveryPayments({ loaderData }: Route.ComponentProps) {
           return (
             <Link
               key={pill.value}
-              to={statusPillHref(filters, pill.value)}
+              to={statusPillHref(filters, bounds, pill.value)}
               aria-current={active ? "page" : undefined}
               className={`rounded-full border px-3 py-1 text-label ${
                 active ? "border-amber bg-amber text-on-amber" : "border-border text-text-tertiary hover:border-border-i"
@@ -382,7 +372,7 @@ export default function RecoveryPayments({ loaderData }: Route.ComponentProps) {
               </tr>
             ) : (
               result.payments.map((p) => {
-                const priorCount = previousFailureCounts[p.stripeCustomerId] ?? 0;
+                const priorCount = priorFailureCount(previousFailureCounts[p.stripeCustomerId]);
                 const steps = stepSummaries[p.id];
                 return (
                   <tr key={p.id} className="border-b border-border-sub last:border-0">
@@ -427,7 +417,7 @@ export default function RecoveryPayments({ loaderData }: Route.ComponentProps) {
       {result.totalPages > 1 ? (
         <div className="mt-4 flex items-center justify-between text-label text-text-tertiary">
           {result.page > 1 ? (
-            <Link to={pageHref(filters, result.page - 1)} className="text-amber-text hover:underline">
+            <Link to={pageHref(filters, bounds, result.page - 1)} className="text-amber-text hover:underline">
               Previous
             </Link>
           ) : (
@@ -438,7 +428,7 @@ export default function RecoveryPayments({ loaderData }: Route.ComponentProps) {
             {result.totalCount === 1 ? "" : "s"}
           </span>
           {result.page < result.totalPages ? (
-            <Link to={pageHref(filters, result.page + 1)} className="text-amber-text hover:underline">
+            <Link to={pageHref(filters, bounds, result.page + 1)} className="text-amber-text hover:underline">
               Next
             </Link>
           ) : (

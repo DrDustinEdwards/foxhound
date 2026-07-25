@@ -3,7 +3,7 @@ import { DECLINE_CATEGORIES, type DeclineCategory } from "~/lib/constants";
 import { isCardExpiringSoon } from "~/lib/recovery/expiring-card";
 import {
   countActiveWinbacks,
-  countPreviousFailuresByCustomer,
+  countFailuresByCustomer,
   getConnectionSummary,
   getMostRecentRecoveryAt,
   listExecutedEmailSteps,
@@ -145,7 +145,7 @@ export async function getRecoveryDashboardWindow(
     listRecentFailedPayments(db, accountId, cutoffMs),
   ]);
 
-  const previousFailureCounts = await countPreviousFailuresByCustomer(
+  const previousFailureCounts = await countFailuresByCustomer(
     db,
     accountId,
     [...new Set(recentPayments.map((p) => p.stripeCustomerId))],

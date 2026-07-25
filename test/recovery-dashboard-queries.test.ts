@@ -5,7 +5,7 @@ import { DEMO_ACCOUNT_ID } from "~/lib/demo/constants";
 import { seedDemoAccount } from "~/lib/demo/seed";
 import {
   countActiveWinbacks,
-  countPreviousFailuresByCustomer,
+  countFailuresByCustomer,
   getConnectionSummary,
   getMostRecentRecoveryAt,
   listBillableRecoveredForRoi,
@@ -84,7 +84,7 @@ describe("listRecoveredWithFailureContext", () => {
   });
 });
 
-describe("countPreviousFailuresByCustomer", () => {
+describe("countFailuresByCustomer", () => {
   it("counts a repeat-failure customer's other failures, matching a manual count", async () => {
     const db = await seededDb();
     const all = await listFailedPayments(db, DEMO_ACCOUNT_ID);
@@ -93,14 +93,14 @@ describe("countPreviousFailuresByCustomer", () => {
     )?.stripeCustomerId;
     expect(repeatCustomerId).toBeDefined();
 
-    const counts = await countPreviousFailuresByCustomer(db, DEMO_ACCOUNT_ID, [repeatCustomerId!]);
+    const counts = await countFailuresByCustomer(db, DEMO_ACCOUNT_ID, [repeatCustomerId!]);
     const manualCount = all.filter((p) => p.stripeCustomerId === repeatCustomerId).length;
     expect(counts[repeatCustomerId!]).toBe(manualCount);
   });
 
   it("returns an empty map for an empty id list", async () => {
     const db = await seededDb();
-    expect(await countPreviousFailuresByCustomer(db, DEMO_ACCOUNT_ID, [])).toEqual({});
+    expect(await countFailuresByCustomer(db, DEMO_ACCOUNT_ID, [])).toEqual({});
   });
 });
 
