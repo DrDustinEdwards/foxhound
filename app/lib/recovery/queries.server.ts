@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, inArray, isNull, like, lte, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, like, lte, ne, or, sql, type SQL } from "drizzle-orm";
 
 import { byAccount, byAccountActive } from "~/db/scope";
 import { billableRecoveryRowConditions } from "~/db/billable";
@@ -342,7 +342,7 @@ export async function listExecutedRecoverySteps(db: Db, accountId: string): Prom
         eq(recoverySteps.accountId, accountId),
         eq(failedPayments.isRenewalNoise, false),
         sql`${recoverySteps.executedAt} is not null`,
-        ne(recoverySteps.result, "cancelled"),
+        notCancelledResult(),
       ),
     );
   return rows.map((r) => ({
@@ -501,10 +501,22 @@ export async function listRecoveredWithFailureContext(
   return rows.map((r) => ({ ...r, declineCategory: r.declineCategory as DeclineCategory }));
 }
 
-/** Counts of other failed payments for each of the given customer ids
- *  (renewal noise excluded), for the "repeat failure" indicator. Direct port
- *  of legacy's counting logic. */
-export async function countPreviousFailuresByCustomer(
+/**
+ * TOTAL failed payments per customer id (renewal noise excluded), feeding the
+ * "repeat failure" indicator.
+ *
+ * This returns the total, INCLUDING whichever payment is being rendered. A
+ * caller showing "N prior" for one row must subtract that row itself via
+ * priorFailureCount(); it cannot be done here, because a customer can have
+ * several rows on the same page and this map is keyed by customer, not by row.
+ *
+ * The previous version of this function was named countPreviousFailuresByCustomer
+ * and its comment claimed to be a "direct port of legacy's counting logic". It
+ * was not: legacy decremented the tally once per on-page payment
+ * (lib/payments-data.ts:174-178) and this did not, so every row with any
+ * history rendered at least "+1 prior" against itself.
+ */
+export async function countFailuresByCustomer(
   db: Db,
   accountId: string,
   stripeCustomerIds: string[],
@@ -523,6 +535,15 @@ export async function countPreviousFailuresByCustomer(
   const counts: Record<string, number> = {};
   for (const r of rows) counts[r.stripeCustomerId] = (counts[r.stripeCustomerId] ?? 0) + 1;
   return counts;
+}
+
+// `result != 'cancelled'` is NOT the same as "not cancelled" in SQL: for a row
+// whose result IS NULL the comparison evaluates to NULL, which a WHERE clause
+// treats as false, so the row is dropped. An executed step that has not yet
+// recorded a result is a legitimately counted send, so it must survive. This
+// spells the intent out instead.
+function notCancelledResult(): SQL {
+  return sql`(${recoverySteps.result} is null or ${recoverySteps.result} != 'cancelled')`;
 }
 
 /** Executed, non-cancelled email steps (renewal noise excluded), with the
@@ -548,7 +569,7 @@ export async function listExecutedEmailSteps(
         eq(failedPayments.isRenewalNoise, false),
         like(recoverySteps.stepType, "email_%"),
         sql`${recoverySteps.executedAt} is not null`,
-        ne(recoverySteps.result, "cancelled"),
+        notCancelledResult(),
       ),
     );
   return rows.map((r) => ({ ...r, declineCategory: r.declineCategory as DeclineCategory }));
