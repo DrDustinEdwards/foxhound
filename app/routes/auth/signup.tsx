@@ -35,7 +35,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   // 3) but does NOT establish a session. We show a check-your-email state rather
   // than redirecting into the app.
   const res = await getAuth(env).api.signUpEmail({
-    body: { name, email, password },
+    body: { name, email, password, callbackURL: "/login?verified=1" },
     headers: request.headers,
     asResponse: true,
   });

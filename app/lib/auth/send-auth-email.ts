@@ -10,17 +10,24 @@ import { sendTransactionalEmail } from "~/lib/email/send";
 
 export type AuthEmailKind = "email-verification" | "password-reset";
 
+// Link expiry copy: Better Auth's default token lifetime for both flows is
+// 3600 seconds (confirmed in the installed better-auth package source,
+// email-verification.mjs and password.mjs), and authOptions.ts sets no
+// override for either, so the default applies. Update this string if either
+// gets an explicit expiresIn override.
+const LINK_EXPIRY_NOTE = "This link expires in 1 hour.";
+
 const COPY: Record<AuthEmailKind, { subject: string; heading: string; body: string; cta: string }> = {
   "email-verification": {
     subject: "Verify your email",
     heading: "Confirm your email",
-    body: "Confirm your email address to finish setting up your Foxhound account.",
+    body: `Confirm your email address to finish setting up your Foxhound account. ${LINK_EXPIRY_NOTE}`,
     cta: "Verify email",
   },
   "password-reset": {
     subject: "Reset your password",
     heading: "Reset your password",
-    body: "We received a request to reset your Foxhound password. If this was not you, you can ignore this email.",
+    body: `We received a request to reset your Foxhound password. If this was not you, you can ignore this email. ${LINK_EXPIRY_NOTE}`,
     cta: "Reset password",
   },
 };
