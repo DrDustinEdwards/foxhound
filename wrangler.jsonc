@@ -18,9 +18,6 @@
   // The D1 keeps its original name "foxhound-staging" (a dashboard label only;
   // renaming a D1 is not worth it) and the KV keeps id 8ff187... - bindings and
   // data are unchanged from the previous two-env setup.
-  //
-  // Filled in a later phase per ARCHITECTURE.md:
-  // "queues": { "producers": [...], "consumers": [...] }  -- email dispatch + event consumption (Phase 4c)
 
   "workers_dev": true,
   "routes": [
@@ -73,6 +70,36 @@
       "allowed_sender_addresses": ["recovery@send.foxhoundapp.com", "noreply@auth.foxhoundapp.com"]
     }
   ],
+
+  // Email dispatch queue (TASK-foxhound-email-provisioning.md Phase 2). Queue
+  // "foxhound-email" created via `wrangler queues create` (did not exist;
+  // `wrangler queues list` confirmed) - the binding name EMAIL_QUEUE and the
+  // queue name (EMAIL_QUEUE_NAME, constants.ts) are both already load-bearing
+  // in dispatch.ts/consumer.ts, unchanged here. dead_letter_queue is a bare
+  // name, not a binding: Cloudflare auto-creates it on deploy if absent (no
+  // `wrangler queues create` needed for it), and nothing reads from it yet
+  // (EMAIL_DLQ in env.d.ts is declared for a later admin-inspection surface,
+  // not bound here since nothing consumes it). Without an explicit DLQ, a
+  // dunning email that keeps failing is discarded with no trace after
+  // max_retries; max_retries here matches EMAIL_QUEUE_MAX_RETRIES exactly,
+  // since that constant exists specifically to mirror this value.
+  "queues": {
+    "producers": [
+      {
+        "binding": "EMAIL_QUEUE",
+        "queue": "foxhound-email"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "foxhound-email",
+        "max_batch_size": 10,
+        "max_batch_timeout": 30,
+        "max_retries": 3,
+        "dead_letter_queue": "foxhound-email-dlq"
+      }
+    ]
+  },
 
   "durable_objects": {
     "bindings": [
