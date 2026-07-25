@@ -21,6 +21,7 @@ import {
   type CachedStepContent,
   type EmailCopy,
 } from "~/lib/recovery/email-generation";
+import { buildTemplateEmail } from "~/lib/recovery/email-template";
 import { reconcileRetryRecovery as reconcileRetryRecoveryReal } from "~/lib/recovery/record-recovery";
 import type { RetryReconciliationInput } from "~/lib/recovery/record-recovery";
 import type { StepStatePatch } from "~/lib/recovery/step-state";
@@ -264,11 +265,23 @@ export function appendOpenPixel(bodyHtml: string, openUrl: string): string {
   return `${bodyHtml}<img src="${openUrl}" width="1" height="1" alt="" style="display:none">`;
 }
 
+/** email_sends.template label for a generated dunning send. */
+export const TEMPLATE_LABEL_GENERATED = "recovery_dunning";
+/** email_sends.template label for a deterministic-template dunning send. Distinct
+ *  so the fallback RATE is queryable straight off email_sends without conflating
+ *  it with a send failure, which is the only place the fallback is recorded. */
+export const TEMPLATE_LABEL_FALLBACK = "recovery_dunning_template";
+
 /** Build the queued EmailJob for a recovery send. Pure. */
 export function buildRecoveryEmailJob(
   ctx: EmailStepContext,
   copy: EmailCopy,
-  extras: { unsubscribeToken: string; physicalAddress: string; openUrl: string },
+  extras: {
+    unsubscribeToken: string;
+    physicalAddress: string;
+    openUrl: string;
+    usedTemplate?: boolean;
+  },
 ): EmailJob {
   return {
     accountId: ctx.accountId,
@@ -277,7 +290,7 @@ export function buildRecoveryEmailJob(
     fromName: ctx.merchantName,
     subject: copy.subject,
     bodyHtml: appendOpenPixel(copy.bodyHtml, extras.openUrl),
-    template: "recovery_dunning",
+    template: extras.usedTemplate ? TEMPLATE_LABEL_FALLBACK : TEMPLATE_LABEL_GENERATED,
     unsubscribeToken: extras.unsubscribeToken,
     physicalAddress: extras.physicalAddress,
     // Stable per send attempt: a backoff retry is a new attempt, so the count
@@ -357,14 +370,71 @@ export interface EmailStepResult {
   action: "email";
   sent: boolean;
   result: string | null;
+  /** True when the deterministic template was sent instead of generated copy. */
+  usedTemplate: boolean;
+}
+
+/** Build the deterministic fallback for this step, honoring a merchant custom
+ *  body exactly as generated copy would. */
+function templateCopyFor(ctx: EmailStepContext, updateUrl: string, customBody: string | null): EmailCopy {
+  return applyCustomBody(
+    buildTemplateEmail({
+      merchantName: ctx.merchantName,
+      declineCategory: ctx.declineCategory,
+      amountFormatted: formatMoney(ctx.amountCents, ctx.currency),
+      updateUrl,
+    }),
+    customBody,
+  );
 }
 
 /**
- * Execute one email step: resolve content (custom body / cached AI / generate) ->
- * send via the one send module -> pure decision (with the send-attempt backoff) ->
- * operational persist. A content-resolution or send failure is isolated as a
- * transient failure so the sweep continues for other steps/merchants. Clicks on
- * the send's CTA are attributable (the CTA is a click-tracked card-update link).
+ * Resolve the copy to send, falling back to the deterministic template when
+ * generation cannot produce usable copy.
+ *
+ * This exists because a generation failure used to share a catch block with send
+ * failures, so a model outage produced NO email and rescheduled the step on the
+ * send backoff. On a revenue-recovery product that is the wrong direction: a
+ * plain, correct template beats silence. An Anthropic outage should not halt
+ * recovery for every affected merchant on every affected step.
+ *
+ * Two distinct fallback triggers, both landing here:
+ *   - generation THREW (unset or unfunded key, model outage, malformed output)
+ *   - generation returned copy that FAILS the brand-voice quality gate
+ * The second is wired in the following commit; this one handles the throw.
+ *
+ * Genuine SEND failures (EMAIL binding, queue, suppression lookup) are NOT
+ * handled here and keep their existing backoff. That separation is the point.
+ */
+async function resolveCopyForSend(
+  env: Env,
+  ctx: EmailStepContext,
+  updateUrl: string,
+  generate: EmailStepDeps["generate"],
+): Promise<{ copy: EmailCopy; usedTemplate: boolean }> {
+  const plan = resolveContentPlan(ctx.cached);
+  if (plan.source === "cache") {
+    return { copy: plan.copy, usedTemplate: false };
+  }
+  try {
+    const generated = await generate(env, updateUrl, ctx);
+    return { copy: applyCustomBody(generated, plan.customBody), usedTemplate: false };
+  } catch {
+    // Deliberately swallowed. The generation error is not recorded on
+    // last_attempt_error because this step is not failing: it is sending the
+    // template. The fallback is observable through email_sends.template instead,
+    // so the fallback RATE is queryable without conflating it with a send failure.
+    return { copy: templateCopyFor(ctx, updateUrl, plan.customBody), usedTemplate: true };
+  }
+}
+
+/**
+ * Execute one email step: resolve content (custom body / cached AI / generate,
+ * falling back to the template) -> send via the one send module -> pure decision
+ * (with the send-attempt backoff) -> operational persist. A token-signing or send
+ * failure is isolated as a transient failure so the sweep continues for other
+ * steps/merchants. Clicks on the send's CTA are attributable (the CTA is a
+ * click-tracked card-update link).
  */
 export async function executeEmailStep(
   env: Env,
@@ -380,31 +450,34 @@ export async function executeEmailStep(
 
   let attempt: { ok: boolean; permanent?: boolean; error?: string };
   let resolvedCopy: EmailCopy | undefined;
+  let usedTemplate = false;
   try {
     const urls = await buildEngagementUrls(env, ctx, baseUrl);
-    const plan = resolveContentPlan(ctx.cached);
-    const copy =
-      plan.source === "cache"
-        ? plan.copy
-        : applyCustomBody(await generate(env, urls.clickTrackedUpdateUrl, ctx), plan.customBody);
-    resolvedCopy = copy;
+    // Token signing must succeed before either path: the template needs the same
+    // click-tracked CTA the generated copy would carry, so there is no useful
+    // email to send without it. A signing failure stays a transient failure.
+    const resolved = await resolveCopyForSend(env, ctx, urls.clickTrackedUpdateUrl, generate);
+    usedTemplate = resolved.usedTemplate;
+    resolvedCopy = resolved.copy;
     const unsubscribeToken = await signUnsubscribeToken(env, {
       email: ctx.customerEmail,
       accountId: ctx.accountId,
     });
-    const job = buildRecoveryEmailJob(ctx, copy, {
+    const job = buildRecoveryEmailJob(ctx, resolved.copy, {
       unsubscribeToken,
       physicalAddress: env.PHYSICAL_ADDRESS ?? "",
       openUrl: urls.openUrl,
+      usedTemplate,
     });
     attempt = sendResultToAttempt(await send(env, job));
   } catch (err) {
-    // Isolate: a generation/token/send throw is a transient failure for THIS step
+    // Isolate: a token-signing or send throw is a transient failure for THIS step
     // only, rescheduled by the backoff machine; it must not halt the sweep.
+    // A GENERATION throw no longer reaches here; it falls back to the template.
     attempt = { ok: false, permanent: false, error: err instanceof Error ? err.message : "send error" };
   }
 
   const patch = decideEmailStep({ attemptCount: ctx.attemptCount }, attempt, now);
   await persistPatch(env, ctx.stepId, patch, resolvedCopy);
-  return { action: "email", sent: attempt.ok, result: patch.result };
+  return { action: "email", sent: attempt.ok, result: patch.result, usedTemplate };
 }
