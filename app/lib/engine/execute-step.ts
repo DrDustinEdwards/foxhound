@@ -17,6 +17,7 @@ import { formatMoney } from "~/lib/money-format";
 import {
   applyCustomBody,
   generateDunningEmail,
+  passesQualityGate,
   resolveContentPlan,
   type CachedStepContent,
   type EmailCopy,
@@ -372,6 +373,8 @@ export interface EmailStepResult {
   result: string | null;
   /** True when the deterministic template was sent instead of generated copy. */
   usedTemplate: boolean;
+  /** Why the template was used, or null when generated/cached copy was sent. */
+  templateReason: TemplateReason | null;
 }
 
 /** Build the deterministic fallback for this step, honoring a merchant custom
@@ -388,6 +391,9 @@ function templateCopyFor(ctx: EmailStepContext, updateUrl: string, customBody: s
   );
 }
 
+/** Why the deterministic template was used, when it was. */
+export type TemplateReason = "generation_failed" | "quality_gate";
+
 /**
  * Resolve the copy to send, falling back to the deterministic template when
  * generation cannot produce usable copy.
@@ -401,7 +407,19 @@ function templateCopyFor(ctx: EmailStepContext, updateUrl: string, customBody: s
  * Two distinct fallback triggers, both landing here:
  *   - generation THREW (unset or unfunded key, model outage, malformed output)
  *   - generation returned copy that FAILS the brand-voice quality gate
- * The second is wired in the following commit; this one handles the throw.
+ *
+ * On a gate failure the choice is regenerate / fall back / block. Falling back is
+ * right for the same reason as the throw case, and regenerating is actively worse
+ * here: the likeliest violation is `timing_leak`, which the sanitizers cannot fix
+ * by design and which reflects a systematic prompt weakness rather than a dice
+ * roll, so a second call would probably re-fail while doubling latency and spend
+ * inside a 5-minute tick that may be processing many steps. Blocking reproduces
+ * exactly the defect this commit's predecessor fixed.
+ *
+ * The gate runs on the GENERATED copy, before applyCustomBody. The gate exists to
+ * police model output; a merchant-authored custom body is their own voice and
+ * their own choice, and rejecting it for an em dash would be the tool overruling
+ * the user. So a merchant body is applied on top of whichever source wins.
  *
  * Genuine SEND failures (EMAIL binding, queue, suppression lookup) are NOT
  * handled here and keep their existing backoff. That separation is the point.
@@ -411,21 +429,46 @@ async function resolveCopyForSend(
   ctx: EmailStepContext,
   updateUrl: string,
   generate: EmailStepDeps["generate"],
-): Promise<{ copy: EmailCopy; usedTemplate: boolean }> {
+): Promise<{ copy: EmailCopy; usedTemplate: boolean; templateReason: TemplateReason | null }> {
   const plan = resolveContentPlan(ctx.cached);
   if (plan.source === "cache") {
-    return { copy: plan.copy, usedTemplate: false };
+    return { copy: plan.copy, usedTemplate: false, templateReason: null };
   }
+
+  let generated: EmailCopy;
   try {
-    const generated = await generate(env, updateUrl, ctx);
-    return { copy: applyCustomBody(generated, plan.customBody), usedTemplate: false };
+    generated = await generate(env, updateUrl, ctx);
   } catch {
     // Deliberately swallowed. The generation error is not recorded on
     // last_attempt_error because this step is not failing: it is sending the
     // template. The fallback is observable through email_sends.template instead,
     // so the fallback RATE is queryable without conflating it with a send failure.
-    return { copy: templateCopyFor(ctx, updateUrl, plan.customBody), usedTemplate: true };
+    return {
+      copy: templateCopyFor(ctx, updateUrl, plan.customBody),
+      usedTemplate: true,
+      templateReason: "generation_failed",
+    };
   }
+
+  // THE GATE. Until this landed, passesQualityGate and findBrandVoiceViolations
+  // were written, unit tested, and called by nothing in the send path, so
+  // ungated model copy would have reached a merchant's own customers, in that
+  // merchant's voice, the moment PHYSICAL_ADDRESS was set. Dunning bodies are the
+  // only ungrounded AI output with no other backstop: disputes carry mandatory
+  // merchant approval and the Intelligence narrative is merchant-read-only.
+  if (!passesQualityGate(generated)) {
+    return {
+      copy: templateCopyFor(ctx, updateUrl, plan.customBody),
+      usedTemplate: true,
+      templateReason: "quality_gate",
+    };
+  }
+
+  return {
+    copy: applyCustomBody(generated, plan.customBody),
+    usedTemplate: false,
+    templateReason: null,
+  };
 }
 
 /**
@@ -451,6 +494,7 @@ export async function executeEmailStep(
   let attempt: { ok: boolean; permanent?: boolean; error?: string };
   let resolvedCopy: EmailCopy | undefined;
   let usedTemplate = false;
+  let templateReason: TemplateReason | null = null;
   try {
     const urls = await buildEngagementUrls(env, ctx, baseUrl);
     // Token signing must succeed before either path: the template needs the same
@@ -458,6 +502,7 @@ export async function executeEmailStep(
     // email to send without it. A signing failure stays a transient failure.
     const resolved = await resolveCopyForSend(env, ctx, urls.clickTrackedUpdateUrl, generate);
     usedTemplate = resolved.usedTemplate;
+    templateReason = resolved.templateReason;
     resolvedCopy = resolved.copy;
     const unsubscribeToken = await signUnsubscribeToken(env, {
       email: ctx.customerEmail,
@@ -479,5 +524,5 @@ export async function executeEmailStep(
 
   const patch = decideEmailStep({ attemptCount: ctx.attemptCount }, attempt, now);
   await persistPatch(env, ctx.stepId, patch, resolvedCopy);
-  return { action: "email", sent: attempt.ok, result: patch.result, usedTemplate };
+  return { action: "email", sent: attempt.ok, result: patch.result, usedTemplate, templateReason };
 }
