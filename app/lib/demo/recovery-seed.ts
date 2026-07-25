@@ -12,6 +12,8 @@ import { classifyDecline } from "~/lib/recovery/decline";
 import { isEmailStep, isRetryStep, planRecoverySteps, WIN_BACK_SCHEDULE } from "~/lib/recovery/schedule";
 import { isLastWinbackStep, nextWinbackStatus, planWinbackSteps, type WinbackStatus } from "~/lib/recovery/winback";
 
+import { DEMO_ACCOUNT_NAME } from "./constants";
+import { demoEmailCopyFor, demoWinBackCopyFor } from "./email-copy";
 import {
   invoiceAmountCents,
   isDayWalkEligible,
@@ -87,10 +89,32 @@ function sampleDeclineCodeForCategory(seed: string, category: DeclineCategory): 
   return pick(`${seed}:code`, CODES_BY_CATEGORY[category]);
 }
 
+// The category mix for a day-walk failure. Legacy rolled only four categories
+// (50 soft / 20 expired / 20 network / 10 fraud) because those were the only
+// four it had. Foxhound's engine classifies six, and RECOVERY_SCHEDULES,
+// DECLINE_CATEGORY_LABELS, and /recovery/sequences all ship a section for each,
+// so leaving revoked and unknown at zero left two panels reading "No data yet"
+// on every demo visit: the fail-closed classifier and the revoked hard-stop, two
+// deliberate engine behaviors, had no visible evidence anywhere.
+//
+// Both stay rare, because they are rare in reality: a withdrawn authorization
+// and a decline code Stripe does not document are each a few percent of
+// failures, not a fifth. At the day-walk's volume that is a handful of rows,
+// which is enough to populate the section honestly without distorting the
+// headline category mix.
+const CATEGORY_WEIGHTS: { category: DeclineCategory; upTo: number }[] = [
+  { category: "soft", upTo: 46 },
+  { category: "expired", upTo: 64 },
+  { category: "network", upTo: 82 },
+  { category: "fraud", upTo: 92 },
+  { category: "revoked", upTo: 96 },
+  { category: "unknown", upTo: 100 },
+];
+
 function sampleDeclineCode(seed: string): string {
   const r = seededInt(`${seed}:cat`, 100);
-  const category = r < 50 ? "soft" : r < 70 ? "expired" : r < 90 ? "network" : "fraud";
-  return sampleDeclineCodeForCategory(seed, category);
+  const hit = CATEGORY_WEIGHTS.find((w) => r < w.upTo) ?? CATEGORY_WEIGHTS[0];
+  return sampleDeclineCodeForCategory(seed, hit.category);
 }
 
 // ============================================================================
@@ -456,6 +480,26 @@ function buildFailure(
     }
   }
 
+  // Attach the pre-written subject/body to every email step in one pass rather
+  // than at each of the five push sites above, so a new branch cannot silently
+  // ship a body-less email step. Unexecuted future steps get copy too: the real
+  // intake writes the whole schedule up front, and a merchant previewing a
+  // pending step should still see what is queued to go out.
+  const emailContext = {
+    customerName: customer.customerName,
+    amountCents,
+    currency: "usd",
+    planName: planNameFor(customer),
+    merchantName: DEMO_ACCOUNT_NAME,
+  };
+  for (const step of steps) {
+    if (!isEmailStep(step.stepType)) continue;
+    const copy = demoEmailCopyFor(category, step.stepType, emailContext);
+    if (!copy) continue;
+    step.aiSubject = copy.subject;
+    step.aiBodyHtml = copy.bodyHtml;
+  }
+
   const failedPayment: FailedPaymentInsert = {
     id: failedPaymentId,
     stripeEventId: `dfp_evt_${idSeq}`,
@@ -559,10 +603,19 @@ function buildWinback(
     let reactivatedAt: Date | null = null;
     let reactivatedByStepId: string | null = null;
 
+    const winBackContext = {
+      customerName: c.customerName,
+      amountCents: monthlyTotalCents(c),
+      currency: "usd",
+      planName: planNameFor(c),
+      merchantName: DEMO_ACCOUNT_NAME,
+    };
+
     planned.forEach((step) => {
       const stepId = `dwbstep_${i}_${step.stepNumber}`;
       const due = step.scheduledAt.getTime() <= now.getTime();
       const isReactivatingStep = reactivateAfterStep === step.stepNumber && due;
+      const copy = demoWinBackCopyFor(step.stepNumber, winBackContext);
       if (due) {
         steps.push({
           id: stepId,
@@ -573,6 +626,8 @@ function buildWinback(
           executedAt: step.scheduledAt,
           result: "email_sent",
           attemptCount: 1,
+          aiSubject: copy?.subject ?? null,
+          aiBodyHtml: copy?.bodyHtml ?? null,
         });
       } else {
         steps.push({
@@ -582,6 +637,8 @@ function buildWinback(
           stepNumber: step.stepNumber,
           scheduledAt: step.scheduledAt,
           attemptCount: 0,
+          aiSubject: copy?.subject ?? null,
+          aiBodyHtml: copy?.bodyHtml ?? null,
         });
       }
       if (isReactivatingStep) {
