@@ -7,6 +7,7 @@ import type {
   winBackSteps,
 } from "~/db";
 import { findAttributionSignals, resolveAttribution } from "~/lib/recovery/attribution";
+import { DECLINE_CATEGORIES } from "~/lib/constants";
 import type { DeclineCategory } from "~/lib/constants";
 import { classifyDecline } from "~/lib/recovery/decline";
 import { isEmailStep, isRetryStep, planRecoverySteps, WIN_BACK_SCHEDULE } from "~/lib/recovery/schedule";
@@ -790,6 +791,44 @@ export function buildRecoverySeed(accountId: string, customers: DemoCustomer[], 
       arr.push(detectedAt);
       recentByCustomer.set(customer.stripeCustomerId, arr);
     }
+  }
+
+  // Coverage top-up. The weighted roll leaves a rare category (revoked and
+  // unknown sit at 4% each) with zero rows on a meaningful fraction of dates: a
+  // 30-day sweep found `revoked` absent on 11 of 30. A category with zero rows
+  // renders its whole /recovery/sequences section as "No data yet", so on those
+  // days the fail-closed classifier and the revoked hard-stop have no visible
+  // evidence anywhere in the demo. Demo coverage of a shipped panel should not
+  // be left to a dice roll, so place one failure for any category the walk
+  // missed. Same reasoning as the guaranteed currently-active win-back.
+  //
+  // Deliberately AFTER the walk and additive: it does not perturb the walk's own
+  // distribution, and on a date where the roll already covered everything this
+  // loop places nothing at all.
+  const placedCategories = new Set(failedPayments.map((f) => f.declineCategory));
+  let topUpIndex = 0;
+  for (const category of DECLINE_CATEGORIES) {
+    if (placedCategories.has(category)) continue;
+    // Spread the top-ups across distinct days so two missing categories never
+    // land on the same date, and keep them old enough that the sequence has
+    // actually executed rather than sitting entirely in the future.
+    const dayAgoVal = Math.min(WALK_DAYS, 10 + topUpIndex * 3);
+    topUpIndex++;
+    const day = daysAgo(dayAgoVal);
+    const pickSeed = `walk:topup:${category}`;
+    const customer =
+      pickCustomerForDay(eligible, day, pickSeed, recentByCustomer) ?? eligible[0];
+    if (!customer) continue;
+    const declineCode = sampleDeclineCodeForCategory(pickSeed, category);
+    const detectedAt = randomBusinessHour(day, pickSeed);
+    idSeq++;
+    const built = buildFailure(accountId, customer, category, declineCode, detectedAt, now, idSeq, false);
+    failedPayments.push(built.failedPayment);
+    recoverySteps.push(...built.steps);
+    if (built.recovered) recoveredPayments.push(built.recovered);
+    const arr = recentByCustomer.get(customer.stripeCustomerId) ?? [];
+    arr.push(detectedAt);
+    recentByCustomer.set(customer.stripeCustomerId, arr);
   }
 
   const { sequences: winBackSequenceRows, steps: winBackStepRows } = buildWinback(accountId, customers, now);

@@ -130,14 +130,35 @@ describe("the seed writes email copy onto its steps", () => {
 
 describe("the seed exercises every decline category", () => {
   // /recovery/sequences ships a section per category. Before this, revoked and
-  // unknown got zero rows, so two sections read "No data yet" on every visit and
-  // the fail-closed classifier had no visible evidence.
-  it("produces at least one failed payment in each of the six categories", () => {
-    const { failedPayments } = seed();
-    const seen = new Set(failedPayments.map((f) => f.declineCategory));
-    for (const category of DECLINE_CATEGORIES) {
-      expect(seen.has(category), `no seeded failure in category ${category}`).toBe(true);
+  // unknown got zero rows, so two sections read "No data yet" and the
+  // fail-closed classifier had no visible evidence.
+  //
+  // This assertion is swept ACROSS DATES on purpose. The first version checked a
+  // single `now` and passed, and the seed then shipped with `revoked` absent on
+  // 11 of 30 dates: the weighted roll puts revoked and unknown at 4% each, so
+  // zero draws is ordinary, and the live cold seed on 2026-07-25 produced five
+  // categories rather than six. A single-date assertion cannot see that.
+  it("produces at least one failed payment in every category, on every date in a 40-day sweep", () => {
+    const gaps: string[] = [];
+    for (let d = 0; d < 40; d++) {
+      const at = new Date(Date.UTC(2026, 6, 1) + d * 24 * 60 * 60 * 1000);
+      const { failedPayments } = buildRecoverySeed(ACCOUNT_ID, buildTeamflowBase(at), at);
+      const seen = new Set(failedPayments.map((f) => f.declineCategory));
+      const missing = DECLINE_CATEGORIES.filter((c) => !seen.has(c));
+      if (missing.length > 0) gaps.push(`${at.toISOString().slice(0, 10)}: ${missing.join(",")}`);
     }
+    expect(gaps).toEqual([]);
+  });
+
+  it("adds nothing on a date the walk already covered", () => {
+    // 2026-07-21 is a date whose unaided roll already produced all six, so the
+    // top-up must be a no-op there rather than inflating the count.
+    const at = new Date("2026-07-21T00:00:00.000Z");
+    const { failedPayments } = buildRecoverySeed(ACCOUNT_ID, buildTeamflowBase(at), at);
+    const counts = new Map<string, number>();
+    for (const f of failedPayments) counts.set(f.declineCategory, (counts.get(f.declineCategory) ?? 0) + 1);
+    expect([...counts.keys()].sort()).toEqual([...DECLINE_CATEGORIES].sort());
+    expect(failedPayments).toHaveLength(76);
   });
 
   it("keeps revoked and unknown rare rather than distorting the mix", () => {
