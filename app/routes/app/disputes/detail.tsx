@@ -9,7 +9,16 @@ import { authContext } from "~/lib/auth/context";
 import { disputeFeeCents } from "~/lib/billing/fees";
 import type { DisputeState } from "~/lib/constants";
 import { canApprove } from "~/lib/disputes/approval";
-import { DISPUTE_STATE_LABELS, disputeStateTone, isDisputeResolved } from "~/lib/disputes/labels";
+import {
+  DISPUTE_STATE_LABELS,
+  daysUntilDeadline,
+  deadlineClassName,
+  deadlineLabel,
+  deadlineUrgency,
+  disputeStateTone,
+  humanizeDisputeReason,
+  isDisputeResolved,
+} from "~/lib/disputes/labels";
 import {
   approveAndSubmitDispute,
   getConnectionAccessToken,
@@ -17,6 +26,8 @@ import {
   saveDisputeEvidence,
 } from "~/lib/disputes/queries.server";
 import { formatMoney } from "~/lib/money-format";
+import { formatDateShort, formatTimestamp } from "~/lib/date-format";
+import { buildDisputeTimeline } from "~/lib/disputes/timeline";
 
 import type { Route } from "./+types/detail";
 
@@ -24,11 +35,35 @@ export function meta() {
   return [{ title: "Dispute detail - Foxhound" }];
 }
 
+// Stripe's evidence field names, as a merchant should read them. A generic
+// per-word Title Case pass produced "Customer Purchase Ip" and
+// "Customer Email Address"; these are the labels legacy used, which read as
+// sentence case with the initialisms kept upper.
+const EVIDENCE_FIELD_LABELS: Record<string, string> = {
+  billing_address: "Billing address",
+  cancellation_policy_disclosure: "Cancellation policy disclosure",
+  customer_communication: "Customer communication",
+  customer_email_address: "Customer email",
+  customer_name: "Customer name",
+  customer_purchase_ip: "Purchase IP",
+  duplicate_charge_explanation: "Duplicate charge explanation",
+  product_description: "Product description",
+  refund_policy_disclosure: "Refund policy disclosure",
+  service_date: "Service date",
+  service_documentation: "Service documentation",
+  shipping_address: "Shipping address",
+  shipping_carrier: "Shipping carrier",
+  shipping_date: "Ship date",
+  shipping_tracking_number: "Tracking number",
+  subscription_information: "Subscription",
+  uncategorized_text: "Additional notes",
+};
+
 function humanizeFieldName(fieldName: string): string {
-  return fieldName
-    .split("_")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
+  const mapped = EVIDENCE_FIELD_LABELS[fieldName];
+  if (mapped) return mapped;
+  const spaced = fieldName.replace(/_/g, " ").trim();
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
 export async function loader({ context, params }: Route.LoaderArgs) {
@@ -37,7 +72,7 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   const db = getDb(env);
   const detail = await getDisputeDetail(db, auth.membership.accountId, params.id);
   if (!detail) throw new Response("Not Found", { status: 404 });
-  return detail;
+  return { ...detail, nowMs: Date.now() };
 }
 
 export async function action({ context, params, request }: Route.ActionArgs) {
@@ -131,6 +166,21 @@ export default function DisputeDetail({ loaderData }: Route.ComponentProps) {
   const editable = canApprove(state);
   const resolved = isDisputeResolved(state);
   const fee = disputeFeeCents(dispute.amountCents);
+  const daysLeft = daysUntilDeadline(dispute.evidenceDeadline, loaderData.nowMs);
+  const timeline = buildDisputeTimeline({
+    createdAt: dispute.createdAt,
+    amountCents: dispute.amountCents,
+    currency: dispute.currency,
+    reason: dispute.reason,
+    aiGeneratedAt: dispute.aiGeneratedAt,
+    stagedAt: dispute.stagedAt,
+    submittedAt: dispute.submittedAt,
+    submittedBy: dispute.submittedBy,
+    outcomeNotifiedAt: dispute.outcomeNotifiedAt,
+    resolvedAt: dispute.resolvedAt,
+    state: dispute.state,
+    resolvedFeeCents: dispute.resolvedFeeCents,
+  });
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
@@ -140,7 +190,9 @@ export default function DisputeDetail({ loaderData }: Route.ComponentProps) {
             <h1 className="text-title font-medium text-text">
               {dispute.customerName ?? dispute.customerEmail ?? dispute.stripeChargeId}
             </h1>
-            <p className="mt-1 text-label text-text-tertiary">{dispute.reason}</p>
+            <p className="mt-1 text-label text-text-tertiary">
+              {humanizeDisputeReason(dispute.reason)}
+            </p>
           </div>
           <p className="font-mono text-title text-text">{formatMoney(dispute.amountCents, dispute.currency)}</p>
         </div>
@@ -148,11 +200,32 @@ export default function DisputeDetail({ loaderData }: Route.ComponentProps) {
           <Badge tone={disputeStateTone(state)}>{DISPUTE_STATE_LABELS[state] ?? state}</Badge>
           {dispute.evidenceDeadline ? (
             <span className="font-mono text-micro text-text-subtle">
-              Evidence due {dispute.evidenceDeadline.toLocaleDateString()}
+              Evidence due {formatDateShort(dispute.evidenceDeadline)}
+            </span>
+          ) : null}
+          {/* How long is left, toned by urgency. Suppressed once resolved: the
+              deadline is history then and nothing is owed. */}
+          {!resolved && daysLeft !== null ? (
+            <span className={`font-mono text-micro ${deadlineClassName(deadlineUrgency(daysLeft))}`}>
+              {deadlineLabel(daysLeft)}
             </span>
           ) : null}
         </div>
       </div>
+
+      <section className="mt-6 rounded-lg border border-border bg-surface p-4">
+        <h2 className="m-0 font-mono text-micro uppercase tracking-wide text-text-tertiary">Timeline</h2>
+        <ol className="m-0 mt-3 list-none space-y-2 p-0">
+          {timeline.map((item, i) => (
+            <li key={i} className="flex gap-3 text-label">
+              <span className="w-[9.5rem] shrink-0 font-mono text-micro text-text-subtle">
+                {item.at ? formatTimestamp(item.at) : ""}
+              </span>
+              <span className="text-text-secondary">{item.label}</span>
+            </li>
+          ))}
+        </ol>
+      </section>
 
       {actionData && "error" in actionData ? (
         <p className="mt-4 rounded-md border border-red bg-red-bg px-3 py-2 text-label text-error-text" role="alert">
