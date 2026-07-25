@@ -118,10 +118,18 @@ function Tile({
   );
 }
 
-/** A tile's headline number with its unit caption. */
+/**
+ * A tile's headline number with its unit caption.
+ *
+ * flex-wrap is load-bearing, not decoration. The tile grid is two columns at
+ * 375px, which leaves about 131px of content per tile after the outer padding,
+ * the column gap, and the tile's own p-4. A value like "$5,381" beside a caption
+ * like "MRR at risk" does not fit on one line in that space, so without wrapping
+ * the caption would push past the tile edge. Wrapped, it drops under the number.
+ */
 function TileValue({ value, caption, className }: { value: string; caption: string; className?: string }) {
   return (
-    <span className="flex items-baseline justify-between gap-2">
+    <span className="flex flex-wrap items-baseline gap-x-2">
       <span className={`font-mono text-title font-medium tabular-nums ${className ?? "text-text"}`}>{value}</span>
       <span className="font-mono text-micro text-text-tertiary">{caption}</span>
     </span>
