@@ -117,10 +117,17 @@ describe("recovery tick: dispatch, isolation, telemetry", () => {
     expect(result.message).toMatch(/1 failed/);
   });
 
-  it("skips a retry step with no connected token instead of charging blind, and stamps it", async () => {
-    const due = [row({ stepId: "no_token", stepType: "retry_early", connectionAccessToken: null })];
+  it("skips a retry step with no connected token instead of charging blind, and records the attempt", async () => {
+    const due = [
+      row({
+        stepId: "no_token",
+        stepType: "retry_early",
+        connectionAccessToken: null,
+        attemptCount: 1,
+      }),
+    ];
     let charged = false;
-    const stamped: string[] = [];
+    const recorded: { stepId: string; attemptCount: number }[] = [];
     const result = await runRecoveryTick({} as Env, {
       query: async () => due,
       runRetry: async () => {
@@ -129,25 +136,27 @@ describe("recovery tick: dispatch, isolation, telemetry", () => {
       },
       runEmail: async () => ({}),
       flipExhausted: async () => 0,
-      stampUnrunnable: async (_env, stepId) => {
-        stamped.push(stepId);
+      recordMissingToken: async (_env, step) => {
+        recorded.push(step);
+        return null;
       },
     });
     expect(charged).toBe(false);
     expect(result.rowsProcessed).toBe(0);
     expect(result.message).toMatch(/1 skipped/);
-    // Skipping without stamping is what made the step re-select forever.
-    expect(stamped).toEqual(["no_token"]);
+    // Skipping with NO write at all is what made the step re-select forever.
+    // The attempt count has to be threaded through or the grace never bounds.
+    expect(recorded).toEqual([{ stepId: "no_token", attemptCount: 1 }]);
   });
 
-  it("counts an unstampable step as failed, not skipped, because it WILL come back", async () => {
+  it("counts an unrecordable step as failed, not skipped, because it WILL come back", async () => {
     const due = [row({ stepId: "no_token", stepType: "retry_early", connectionAccessToken: null })];
     const result = await runRecoveryTick({} as Env, {
       query: async () => due,
       runRetry: async () => ({ recovered: false }),
       runEmail: async () => ({}),
       flipExhausted: async () => 0,
-      stampUnrunnable: async () => {
+      recordMissingToken: async () => {
         throw new Error("d1 unavailable");
       },
     });

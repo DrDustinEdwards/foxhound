@@ -17,25 +17,40 @@ export interface StepStatePatch {
   result: string | null;
 }
 
+/** How a transient failure is bounded: how many attempts before the step goes
+ *  terminal, and what result it lands on when it does. */
+export interface TransientFailurePolicy {
+  maxAttempts: number;
+  terminalResult: string;
+}
+
 /**
- * Next state after a TRANSIENT send failure (retryable). Increments the attempt
- * count; if attempts are exhausted the step is terminal (`email_failed`),
- * otherwise it is left unexecuted with next_retry_at set from the backoff table
- * (last value repeats).
+ * The generic bounded-retry transition. Increments the attempt count; if
+ * attempts are exhausted the step is terminal with the policy's result,
+ * otherwise it is left UNEXECUTED with next_retry_at set from the backoff table
+ * (last value repeats). Leaving it unexecuted is what makes stepDueCondition
+ * pick it up again, and what keeps it "pending" for the exhausted-sequence
+ * sweep so a sequence still waiting on a backoff is never flipped.
+ *
+ * Generalized from the send-only version so the retry executor can share it:
+ * a retry step with no connected token is a transient condition too (the
+ * merchant is mid-reconnect), and used to go terminal on the very first tick.
+ * See RETRY_TOKEN_MAX_ATTEMPTS and review MEDIUM-2.
  */
-export function afterTransientFailure(
+export function afterTransientFailureWith(
   attemptCount: number,
   error: string,
   now: Date,
+  policy: TransientFailurePolicy,
 ): StepStatePatch {
   const newCount = attemptCount + 1;
-  if (newCount >= SEND_MAX_ATTEMPTS) {
+  if (newCount >= policy.maxAttempts) {
     return {
       attemptCount: newCount,
       lastAttemptError: error,
       nextRetryAt: null,
       executedAt: now,
-      result: "email_failed",
+      result: policy.terminalResult,
     };
   }
   const idx = Math.min(newCount - 1, SEND_RETRY_BACKOFF_MINUTES.length - 1);
@@ -47,6 +62,23 @@ export function afterTransientFailure(
     executedAt: null,
     result: null,
   };
+}
+
+/**
+ * Next state after a TRANSIENT send failure (retryable). Increments the attempt
+ * count; if attempts are exhausted the step is terminal (`email_failed`),
+ * otherwise it is left unexecuted with next_retry_at set from the backoff table
+ * (last value repeats).
+ */
+export function afterTransientFailure(
+  attemptCount: number,
+  error: string,
+  now: Date,
+): StepStatePatch {
+  return afterTransientFailureWith(attemptCount, error, now, {
+    maxAttempts: SEND_MAX_ATTEMPTS,
+    terminalResult: "email_failed",
+  });
 }
 
 /** Next state after a PERMANENT send failure: terminal immediately. */
