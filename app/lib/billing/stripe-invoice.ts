@@ -171,6 +171,16 @@ export async function createPlatformInvoice(
  * a key-only retry would double-charge the merchant. This lookup is what makes
  * the sweep safe at any age, and it also self-heals that scenario rather than
  * merely avoiding it: the invoice is adopted and the missing ref written.
+ *
+ * CONSISTENCY DEPENDENCY (review INFO-1). invoices.search is an INDEXED query and
+ * is eventually consistent: a just-created invoice can be missing from it for a
+ * short window. The whole no-double-charge property rests on this one call, and
+ * it holds today only because the sweep runs monthly, so anything it looks up is
+ * roughly a month old and long since indexed. Shortening the sweep interval, or
+ * calling retryInvoiceCharge soon after a create, silently weakens the guard back
+ * toward the double charge it exists to prevent. If that becomes necessary,
+ * persist the Stripe invoice id at creation time and look it up directly instead
+ * of searching.
  */
 export async function findPlatformInvoiceByBillingId(
   env: Env,
@@ -182,6 +192,27 @@ export async function findPlatformInvoiceByBillingId(
     limit: 1,
   });
   return results.data[0] ?? null;
+}
+
+/**
+ * Finalize an existing platform invoice that is still a Stripe DRAFT.
+ *
+ * Reachable whenever createPlatformInvoice got as far as attaching items and
+ * then threw on its own finalize call: Stripe keeps the draft with the items on
+ * it, our row stays 'draft', and the invoice is stranded. A draft cannot be
+ * paid, so the retry sweep has to finalize before it can collect (review
+ * MEDIUM-1). Reuses createPlatformInvoice's finalize key, so a retry inside the
+ * 24h idempotency window is the same call rather than a second one.
+ */
+export async function finalizePlatformInvoice(
+  env: Env,
+  stripeInvoiceId: string,
+  billingInvoiceId: string,
+): Promise<Stripe.Invoice> {
+  const stripe = getStripe(env);
+  return stripe.invoices.finalizeInvoice(stripeInvoiceId, undefined, {
+    idempotencyKey: platformInvoiceFinalizeIdempotencyKey(billingInvoiceId),
+  });
 }
 
 /** Attempt collection on an existing platform invoice. Separate from creation

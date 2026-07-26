@@ -147,25 +147,42 @@ async function seed(opts: SeedOpts = {}) {
   return db;
 }
 
-/** Stripe stand-in. `existing` is what a metadata search finds. */
+/** Stripe stand-in. `existing` is what a metadata search finds.
+ *
+ *  `pay` used to be hardcoded to `{ status: "paid" }`, so no test anywhere could
+ *  exercise a failed or rejected charge attempt, which is what hid MEDIUM-1.
+ *  It now models Stripe's actual rule: an invoice must be finalized before it
+ *  can be paid, and paying a draft is an error. */
 function stripeDeps(
   existing: { id: string; status: string; hosted_invoice_url?: string | null } | null,
   overrides: Record<string, unknown> = {},
 ) {
   const calls: string[] = [];
+  // Mutable so `finalize` can move it out of draft, exactly as Stripe would.
+  const state = { status: existing?.status ?? null };
   return {
     calls,
+    state,
     deps: {
       findExisting: async () => {
         calls.push("findExisting");
-        return existing as never;
+        return (existing ? { ...existing, status: state.status as string } : null) as never;
       },
       create: async () => {
         calls.push("create");
         return { stripeInvoiceId: "in_platform_new", hostedInvoiceUrl: "https://pay/new" };
       },
+      finalize: async (_env: Env, id: string, billingInvoiceId: string) => {
+        calls.push(`finalize:${id}:${billingInvoiceId}`);
+        if (state.status !== "draft") throw new Error("invoice is already finalized");
+        state.status = "open";
+        return { id, status: "open", hosted_invoice_url: "https://pay/open" } as never;
+      },
       pay: async (_env: Env, id: string, attempt: number) => {
         calls.push(`pay:${id}:${attempt}`);
+        // Stripe's real constraint, and the whole point of MEDIUM-1.
+        if (state.status === "draft") throw new Error("cannot pay a draft invoice");
+        state.status = "paid";
         return { id, status: "paid", hosted_invoice_url: "https://pay/paid" } as never;
       },
       ...overrides,
@@ -327,6 +344,83 @@ describe("collection on a finalized-but-unpaid invoice", () => {
     expect(row.status).toBe("gave_up");
     // And it is out of the sweep's set for good.
     expect(await queryStrandedInvoices({} as Env, 100)).toEqual([]);
+  });
+});
+
+describe("a Stripe invoice stuck in draft (review MEDIUM-1)", () => {
+  // createPlatformInvoice is create, then items, then finalize. A throw on that
+  // last call leaves Stripe holding a DRAFT with the items already attached and
+  // our row on 'draft'. Before this branch the sweep called invoices.pay on it,
+  // Stripe rejected it, the throw skipped writeAttempt so charge_attempt_count
+  // never moved, and it repeated monthly until the age cap wrote it off.
+  it("finalizes the draft first, then pays it, exactly once", async () => {
+    const db = await seed({ status: "draft", stripeInvoiceId: "in_platform_draft" });
+    const { calls, deps } = stripeDeps({ id: "in_platform_draft", status: "draft" });
+    const [invoice] = await queryStrandedInvoices({} as Env, 100);
+
+    const result = await retryInvoiceCharge({} as Env, invoice, NOW_MS, deps);
+    expect(result.outcome).toBe("retried");
+    expect(calls).toEqual([
+      "findExisting",
+      "finalize:in_platform_draft:binv_1",
+      "pay:in_platform_draft:1",
+    ]);
+
+    const [row] = await db.select().from(schema.billingInvoices);
+    expect(row.status).toBe("paid");
+    expect(row.chargeAttemptCount).toBe(1);
+    // And it leaves the sweep's set for good.
+    expect(await queryStrandedInvoices({} as Env, 100)).toEqual([]);
+  });
+
+  it("counts the attempt when finalize fails, so the cap can bind", async () => {
+    const db = await seed({ status: "draft", stripeInvoiceId: "in_platform_draft" });
+    const { deps } = stripeDeps(
+      { id: "in_platform_draft", status: "draft" },
+      {
+        finalize: async () => {
+          throw new Error("stripe unavailable");
+        },
+      },
+    );
+    const [invoice] = await queryStrandedInvoices({} as Env, 100);
+
+    const result = await retryInvoiceCharge({} as Env, invoice, NOW_MS, deps);
+    expect(result.outcome).toBe("failed");
+
+    // Pre-fix this stayed at 0 forever, so max_attempts_reached was unreachable
+    // and only the age cap could ever stop it.
+    const [row] = await db.select().from(schema.billingInvoices);
+    expect(row.chargeAttemptCount).toBe(1);
+    expect(row.status).toBe("payment_failed");
+  });
+
+  it("reaches the attempt cap after repeated failures instead of retrying forever", async () => {
+    const db = await seed({
+      status: "draft",
+      stripeInvoiceId: "in_platform_draft",
+      chargeAttemptCount: FEE_INVOICE_MAX_RETRY_ATTEMPTS,
+    });
+    const { calls, deps } = stripeDeps({ id: "in_platform_draft", status: "draft" });
+    const [invoice] = await queryStrandedInvoices({} as Env, 100);
+
+    const result = await retryInvoiceCharge({} as Env, invoice, NOW_MS, deps);
+    expect(result).toEqual({
+      invoiceId: "binv_1",
+      outcome: "gave_up",
+      reason: "max_attempts_reached",
+    });
+    expect(calls).toEqual(["findExisting"]); // never touched Stripe again
+    expect((await db.select().from(schema.billingInvoices))[0].status).toBe("gave_up");
+  });
+
+  it("does not finalize an invoice that is already open", async () => {
+    await seed({ status: "payment_failed", stripeInvoiceId: "in_platform_open" });
+    const { calls, deps } = stripeDeps({ id: "in_platform_open", status: "open" });
+    const [invoice] = await queryStrandedInvoices({} as Env, 100);
+
+    await retryInvoiceCharge({} as Env, invoice, NOW_MS, deps);
+    expect(calls).toEqual(["findExisting", "pay:in_platform_open:1"]);
   });
 });
 

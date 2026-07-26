@@ -9,6 +9,7 @@ import { decideFeeRetryAction, billingStatusForSettledStripeStatus } from "./fee
 import {
   createPlatformInvoice,
   disputeFeeItemIdempotencyKey,
+  finalizePlatformInvoice,
   findPlatformInvoiceByBillingId,
   payPlatformInvoice,
   recoveryFeeItemIdempotencyKey,
@@ -193,6 +194,7 @@ export interface SweepResult {
 export interface ChargeRetryDeps {
   findExisting: typeof findPlatformInvoiceByBillingId;
   create: typeof createPlatformInvoice;
+  finalize: typeof finalizePlatformInvoice;
   pay: typeof payPlatformInvoice;
 }
 
@@ -213,6 +215,7 @@ export async function retryInvoiceCharge(
 ): Promise<SweepResult> {
   const findExisting = deps.findExisting ?? findPlatformInvoiceByBillingId;
   const create = deps.create ?? createPlatformInvoice;
+  const finalize = deps.finalize ?? finalizePlatformInvoice;
   const pay = deps.pay ?? payPlatformInvoice;
   const now = new Date(nowMs);
 
@@ -294,15 +297,46 @@ export async function retryInvoiceCharge(
   }
 
   const attemptCount = invoice.chargeAttemptCount + 1;
-  const paid = await pay(env, existing.id as string, attemptCount);
-  await writeAttempt(env, invoice, {
-    status: billingStatusForSettledStripeStatus(paid.status ?? "") ?? "payment_failed",
-    stripeInvoiceId: paid.id ?? existing.id ?? null,
-    hostedInvoiceUrl: paid.hosted_invoice_url ?? existing.hosted_invoice_url ?? null,
-    attemptCount,
-    now,
-  });
-  return { invoiceId: invoice.id, outcome: "retried", reason: decision.reason };
+  const stripeInvoiceId = existing.id as string;
+
+  try {
+    // A Stripe DRAFT cannot be paid, it has to be finalized first. This is the
+    // "createPlatformInvoice threw on its own finalize" stranding: Stripe holds
+    // the draft with the items already attached. Before this branch existed the
+    // sweep called invoices.pay on it every month, Stripe rejected it, the throw
+    // skipped writeAttempt entirely so the attempt cap could never bind, and the
+    // invoice was never collected (review MEDIUM-1). The two meanings of "draft"
+    // are now separated: the sentinel above means Stripe has NO invoice, this
+    // means Stripe has a real unfinalized one.
+    if (liveStatus === "draft") {
+      await finalize(env, stripeInvoiceId, invoice.id);
+    }
+    const paid = await pay(env, stripeInvoiceId, attemptCount);
+    await writeAttempt(env, invoice, {
+      status: billingStatusForSettledStripeStatus(paid.status ?? "") ?? "payment_failed",
+      stripeInvoiceId: paid.id ?? stripeInvoiceId,
+      hostedInvoiceUrl: paid.hosted_invoice_url ?? existing.hosted_invoice_url ?? null,
+      attemptCount,
+      now,
+    });
+    return { invoiceId: invoice.id, outcome: "retried", reason: decision.reason };
+  } catch (err) {
+    // Count the attempt even though the Stripe call failed, so a permanently
+    // failing invoice reaches the attempt cap instead of being retried monthly
+    // until the age cap. Recording it is what makes the cap reachable at all.
+    await writeAttempt(env, invoice, {
+      status: "payment_failed",
+      stripeInvoiceId,
+      hostedInvoiceUrl: existing.hosted_invoice_url ?? null,
+      attemptCount,
+      now,
+    });
+    return {
+      invoiceId: invoice.id,
+      outcome: "failed",
+      reason: err instanceof Error ? err.message : "charge attempt failed",
+    };
+  }
 }
 
 function writeAttempt(
