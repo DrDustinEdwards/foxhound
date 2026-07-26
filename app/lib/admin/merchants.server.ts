@@ -7,7 +7,7 @@
 // billing, and webhook claims; a flag toggle or a connection-disconnect stamp
 // is operational, matching the brand-voice-update / cron-toggle precedent).
 
-import { and, count, desc, eq, isNull } from "drizzle-orm";
+import { and, count, desc, eq, isNull, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import type { Db } from "~/db";
@@ -22,6 +22,7 @@ import {
   recoveredPayments,
   stripeConnections,
 } from "~/db";
+import { PAUSE_REASON_MANUAL } from "~/lib/admin/brake";
 import {
   INTELLIGENCE_PRODUCT,
   SUBSCRIPTION_STATUS_ACTIVE,
@@ -170,23 +171,51 @@ export async function setBillingExempt(db: Db, accountId: string, exempt: boolea
  *  cancel (see cancelMerchant).
  *
  *  `reason` records WHY, and only the global emergency brake passes one
- *  (BRAKE_PAUSE_REASON, brake.server.ts). It is written in the same statement as
- *  the flag so the two can never disagree.
+ *  (PAUSE_REASON_BRAKE). It is written in the same statement as the flag so the
+ *  two can never disagree.
  *
- *  Resuming always clears the reason, and an individual pause always clears it
- *  too. That makes the single-account toggle authoritative over the marker: if
- *  an operator individually resumes a brake-paused merchant, the brake stops
- *  owning that row and a later release will not touch it, which is the correct
- *  reading of a human overriding an automated hold. */
+ *  Three cases, and the middle one is a fix for review LOW-2:
+ *
+ *  - **Resume** always clears the reason. A human resuming a brake-paused
+ *    merchant takes that row off the brake's books, which is the correct reading
+ *    of a person overriding an automated hold.
+ *  - **Pause with no explicit reason** (the single-merchant toggle) PRESERVES an
+ *    existing reason and stamps 'manual' only when the row was actually
+ *    unpaused. It used to overwrite unconditionally, so a stale
+ *    /admin/merchants/:id form (rendered before the brake engaged, carrying
+ *    nextPaused=true) silently converted a brake pause into a manual one and
+ *    stranded that merchant paused after the next release. The CASE runs
+ *    server-side in the same UPDATE rather than as a read-then-write, so two
+ *    concurrent operators cannot interleave into a lost marker.
+ *  - **Pause with an explicit reason** (the brake) sets it outright. */
 export async function setProcessingPaused(
   db: Db,
   accountId: string,
   paused: boolean,
   reason: string | null = null,
 ): Promise<void> {
+  if (!paused) {
+    await db
+      .update(accounts)
+      .set({ processingPaused: false, pauseReason: null })
+      .where(eq(accounts.id, accountId));
+    return;
+  }
+
+  if (reason !== null) {
+    await db
+      .update(accounts)
+      .set({ processingPaused: true, pauseReason: reason })
+      .where(eq(accounts.id, accountId));
+    return;
+  }
+
   await db
     .update(accounts)
-    .set({ processingPaused: paused, pauseReason: paused ? reason : null })
+    .set({
+      processingPaused: true,
+      pauseReason: sql`case when ${accounts.processingPaused} = 1 then ${accounts.pauseReason} else ${PAUSE_REASON_MANUAL} end`,
+    })
     .where(eq(accounts.id, accountId));
 }
 

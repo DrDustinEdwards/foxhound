@@ -25,17 +25,20 @@
 // also make the brake structurally different from the single-merchant toggle it
 // is a batch of, which is worse than either shape on its own.
 
-import { and, count, desc, eq, isNotNull, isNull, notLike, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, isNotNull, isNull, ne, notInArray, notLike, or, type SQL } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import { accounts, adminAuditLog, cronConfig } from "~/db";
 import { logAdminAction } from "~/lib/admin/audit.server";
+import { KNOWN_PAUSE_REASONS, PAUSE_REASON_BRAKE } from "~/lib/admin/brake";
 import { setProcessingPaused } from "~/lib/admin/merchants.server";
 import { DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
 import { RECOVERY_TICK_CRON_NAME } from "~/lib/cron/registry";
 
-/** accounts.pause_reason value meaning "the global brake paused this row". */
-export const BRAKE_PAUSE_REASON = "brake";
+/** accounts.pause_reason value meaning "the global brake paused this row".
+ *  Re-exported from the pure module, which owns the vocabulary because the
+ *  single-merchant toggle writes it too. */
+export const BRAKE_PAUSE_REASON = PAUSE_REASON_BRAKE;
 
 export const BRAKE_ACTION_ENGAGE = "brake.engage";
 export const BRAKE_ACTION_RELEASE = "brake.release";
@@ -70,10 +73,20 @@ export function brakePausedCondition(): SQL {
   ) as SQL;
 }
 
-/** Accounts a human paused one at a time: paused with no brake marker. Release
- *  must never touch these. */
+/** Accounts paused outside the brake: paused, carrying anything other than the
+ *  brake marker. Release must never touch these.
+ *
+ *  The null branch is not legacy tolerance, it is required: the demo seeder
+ *  writes processing_paused directly, and any row paused before the pause_reason
+ *  column existed carries null too. Keying this on "not 'brake'" rather than on
+ *  "is 'manual'" means an unrecognised or absent reason is treated as
+ *  not-the-brake's, which is the safe direction: the failure mode is a merchant
+ *  staying paused, never one being resumed by a release that did not pause it. */
 export function individuallyPausedCondition(): SQL {
-  return and(eq(accounts.processingPaused, true), isNull(accounts.pauseReason)) as SQL;
+  return and(
+    eq(accounts.processingPaused, true),
+    or(isNull(accounts.pauseReason), ne(accounts.pauseReason, PAUSE_REASON_BRAKE)),
+  ) as SQL;
 }
 
 async function idsWhere(db: Db, where: SQL): Promise<string[]> {
@@ -239,12 +252,41 @@ export async function listBrakePausedAccountIds(db: Db): Promise<string[]> {
   return idsWhere(db, brakePausedCondition());
 }
 
-/** Guards against a stale marker: a row marked 'brake' that is not actually
- *  paused should not exist, and if it does the panel should say so rather than
- *  quietly under-report what release will touch. */
-export async function countStaleBrakeMarkers(db: Db): Promise<number> {
-  return countWhere(
-    db,
-    and(eq(accounts.processingPaused, false), isNotNull(accounts.pauseReason)) as SQL,
-  );
+export interface StaleMarkerCounts {
+  /** A reason recorded on a row that is NOT paused. Resume clears the reason in
+   *  the same statement as the flag, so this should be unreachable; if it ever
+   *  appears, something wrote processing_paused without going through
+   *  setProcessingPaused. */
+  markedButNotPaused: number;
+  /** A PAUSED row carrying a reason outside KNOWN_PAUSE_REASONS. Release matches
+   *  the exact 'brake' string, so an unrecognised value is a row release will
+   *  silently never touch, and the panel would otherwise report it as merely
+   *  "paused outside the brake" and hide the drift. */
+  pausedWithUnknownReason: number;
+}
+
+/**
+ * Both shapes in which the flag and the reason can disagree (review LOW-2).
+ *
+ * The first version of this probe looked only for a marker on an unpaused row,
+ * which is the shape that cannot happen, and missed every shape that can. The
+ * point of the probe is to catch a row release will never resume, so it has to
+ * look at paused rows too.
+ */
+export async function countStaleMarkers(db: Db): Promise<StaleMarkerCounts> {
+  const [markedButNotPaused, pausedWithUnknownReason] = await Promise.all([
+    countWhere(
+      db,
+      and(eq(accounts.processingPaused, false), isNotNull(accounts.pauseReason)) as SQL,
+    ),
+    countWhere(
+      db,
+      and(
+        eq(accounts.processingPaused, true),
+        isNotNull(accounts.pauseReason),
+        notInArray(accounts.pauseReason, [...KNOWN_PAUSE_REASONS]),
+      ) as SQL,
+    ),
+  ]);
+  return { markedButNotPaused, pausedWithUnknownReason };
 }
