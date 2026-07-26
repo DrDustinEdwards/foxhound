@@ -174,6 +174,19 @@ export const SEND_MAX_ATTEMPTS = 3;
 /** Backoff minutes indexed by (attempt_count - 1); last value repeats. */
 export const SEND_RETRY_BACKOFF_MINUTES = [5, 30, 120] as const;
 
+/**
+ * How many ticks a retry step waits for a usable connected-account token before
+ * it goes terminal on `retry_no_connection`.
+ *
+ * A missing token is TRANSIENT far more often than it is permanent: the merchant
+ * is mid-reconnect, or a token was rotated. Going terminal on the first tick
+ * permanently forfeited the silent retry, and under silent-first ordering that
+ * is the FIRST step for soft and network declines, the one most likely to
+ * recover the money without ever emailing the customer. Same shape and the same
+ * backoff table as a transient send failure (review MEDIUM-2).
+ */
+export const RETRY_TOKEN_MAX_ATTEMPTS = 3;
+
 // ---- Decline classification (rebuild is silent-first; fraud never retries) ----
 // "unknown" is the fail-closed default for any code not in an explicit set
 // below: no auto-retry, same as fraud/expired (app/lib/recovery/decline.ts).

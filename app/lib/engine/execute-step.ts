@@ -97,6 +97,29 @@ export function buildRetryStepPatch(
     .where(and(eq(recoverySteps.id, stepId), isNull(recoverySteps.executedAt)));
 }
 
+/** The operational patch for a retry step that could not be ATTEMPTED, carrying
+ *  the full bounded-retry state (attempt count, error, backoff) rather than just
+ *  a terminal result. Same conditional claim-on-write as buildRetryStepPatch, so
+ *  a redelivered tick cannot double-write. retryResult mirrors result and stays
+ *  null while the step is still being retried. */
+export function buildRetryAttemptPatch(
+  db: Db,
+  stepId: string,
+  patch: StepStatePatch,
+) {
+  return db
+    .update(recoverySteps)
+    .set({
+      attemptCount: patch.attemptCount,
+      lastAttemptError: patch.lastAttemptError,
+      nextRetryAt: patch.nextRetryAt,
+      executedAt: patch.executedAt,
+      result: patch.result,
+      retryResult: patch.result,
+    })
+    .where(and(eq(recoverySteps.id, stepId), isNull(recoverySteps.executedAt)));
+}
+
 /** The reconcileRetryRecovery input for a landed silent retry. Pure. Identifies
  *  the failed payment and the step that just succeeded (foxhound_retry's ref,
  *  the strongest proof of causation, PRICING.md), so a reverse-race correction

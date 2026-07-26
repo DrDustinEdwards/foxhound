@@ -6,15 +6,17 @@ import {
   DEMO_ACCOUNT_ID_PREFIX,
   FAILED_PAYMENT_STATUS_UNRECOVERED,
   RECOVERY_TICK_LIMIT,
+  RETRY_TOKEN_MAX_ATTEMPTS,
 } from "~/lib/constants";
 import {
-  buildRetryStepPatch,
+  buildRetryAttemptPatch,
   executeEmailStep,
   executeRetryStep,
   type EmailStepContext,
   type RetryStepContext,
 } from "~/lib/engine/execute-step";
 import { stepAction } from "~/lib/engine/step-runner";
+import { afterTransientFailureWith } from "~/lib/recovery/step-state";
 
 import type { CronJobResult } from "./run";
 
@@ -39,9 +41,10 @@ import type { CronJobResult } from "./run";
 //   - Termination: every selected step must reach a terminal result or be
 //     rescheduled. A step that is neither is re-selected every tick forever, and
 //     its sequence can never finish. That was the null-token retry bug; see
-//     stampUnrunnableRetryStep. The tick then flips finished sequences to
-//     failed_unrecovered (flipExhaustedSequences), which is the only writer of
-//     that status; 'recovered' still belongs solely to the webhook.
+//     recordMissingTokenAttempt, which reschedules with backoff for a bounded
+//     number of attempts and only then goes terminal. The tick then flips
+//     finished sequences to failed_unrecovered (flipExhaustedSequences), the
+//     only writer of that status; 'recovered' still belongs solely to the webhook.
 //   - Gating: demo accounts, processing-paused accounts, and cancelled accounts
 //     (admin Pass 2: accounts.cancelledAt) are excluded in the query itself.
 //     billing_exempt is NOT a processing gate: an exempt merchant still gets
@@ -266,31 +269,41 @@ export function chooseStepsPerPayment(rows: DueStepRow[]): DueStepRow[] {
 export const RETRY_RESULT_NO_CONNECTION = "retry_no_connection";
 
 /**
- * Stamp a retry step that cannot be attempted, so the sequence moves on.
+ * Record one failed attempt to run a retry step that has no usable connected
+ * token, with BOUNDED GRACE: reschedule with backoff until
+ * RETRY_TOKEN_MAX_ATTEMPTS, then stamp terminal.
  *
- * The tick used to `continue` here without writing anything, which left the step
- * unexecuted with a null result: exactly the shape stepDueCondition selects. So
- * the same step was re-read, re-skipped and re-counted every five minutes,
- * forever, and because it never went terminal its sequence could never finish
- * either. Stamping it lets the schedule proceed to its next step, or exhaust
- * into the failed_unrecovered flip above.
+ * Two bugs bracket this function, and the fix for the first overshot into the
+ * second. Originally the tick did `continue` with no write at all, leaving the
+ * step unexecuted with a null result, which is exactly what stepDueCondition
+ * selects: the same step was re-read and re-skipped every five minutes forever,
+ * and its sequence could never exhaust. Stamping it terminal on the first tick
+ * ended that loop but permanently forfeited the silent retry whenever the token
+ * was only briefly missing (a merchant mid-reconnect, a rotated token), and
+ * under silent-first ordering that is the FIRST and highest-value step for soft
+ * and network declines. Review MEDIUM-2.
  *
- * OPERATIONAL (plain batch, gotcha 25) and conditional on executed_at IS NULL,
- * the same claim-on-write buildRetryStepPatch gives every other retry stamp.
+ * So it now uses the same bounded-retry machinery an email send already had:
+ * attempts 1..N-1 leave the step pending with next_retry_at set, attempt N goes
+ * terminal on retry_no_connection and feeds the exhausted-sequence flip. A step
+ * waiting on this backoff is still "pending", so its sequence is correctly NOT
+ * flipped while the grace window is open.
+ *
+ * OPERATIONAL (plain batch, gotcha 25), conditional on executed_at IS NULL.
+ * Returns the result it wrote, or null while still in grace.
  */
-export async function stampUnrunnableRetryStep(
+export async function recordMissingTokenAttempt(
   env: Env,
-  stepId: string,
+  step: { stepId: string; attemptCount: number },
   now: Date,
-): Promise<void> {
+): Promise<string | null> {
+  const patch = afterTransientFailureWith(step.attemptCount, "no connected stripe token", now, {
+    maxAttempts: RETRY_TOKEN_MAX_ATTEMPTS,
+    terminalResult: RETRY_RESULT_NO_CONNECTION,
+  });
   const db = getDb(env);
-  await db.batch([
-    buildRetryStepPatch(db, stepId, {
-      executedAt: now,
-      result: RETRY_RESULT_NO_CONNECTION,
-      retryResult: RETRY_RESULT_NO_CONNECTION,
-    }),
-  ]);
+  await db.batch([buildRetryAttemptPatch(db, step.stepId, patch)]);
+  return patch.result;
 }
 
 function toRetryContext(row: DueStepRow): RetryStepContext | null {
@@ -346,8 +359,13 @@ export interface RecoveryTickDeps {
   runEmail: (env: Env, ctx: EmailStepContext) => Promise<unknown>;
   /** Find and flip sequences that have run out. Default: the real sweep. */
   flipExhausted: (env: Env, now: Date) => Promise<number>;
-  /** Stamp a retry step with no usable connection. Default: the real write. */
-  stampUnrunnable: (env: Env, stepId: string, now: Date) => Promise<void>;
+  /** Record one failed attempt on a retry step with no usable connection.
+   *  Resolves to the terminal result once grace runs out, else null. */
+  recordMissingToken: (
+    env: Env,
+    step: { stepId: string; attemptCount: number },
+    now: Date,
+  ) => Promise<string | null>;
 }
 
 /**
@@ -373,7 +391,7 @@ export async function runRecoveryTick(
   const runRetry = deps.runRetry ?? executeRetryStep;
   const runEmail = deps.runEmail ?? executeEmailStep;
   const flipExhausted = deps.flipExhausted ?? flipExhaustedSequences;
-  const stampUnrunnable = deps.stampUnrunnable ?? stampUnrunnableRetryStep;
+  const recordMissingToken = deps.recordMissingToken ?? recordMissingTokenAttempt;
 
   const now = new Date();
   const due = await query(env, now);
@@ -396,9 +414,15 @@ export async function runRecoveryTick(
       if (action === "retry") {
         const ctx = toRetryContext(row);
         if (!ctx) {
-          // No connected token: cannot safely charge, and must not leave the
-          // step pending or it re-selects every tick forever.
-          await stampUnrunnable(env, row.stepId, now);
+          // No connected token: cannot safely charge. Record the attempt with
+          // bounded grace rather than either leaving it pending (re-selects
+          // forever) or killing it outright (forfeits the silent retry on a
+          // brief reconnect).
+          await recordMissingToken(
+            env,
+            { stepId: row.stepId, attemptCount: row.attemptCount },
+            now,
+          );
           tally.skipped += 1;
           continue;
         }

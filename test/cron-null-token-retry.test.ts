@@ -19,8 +19,14 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const { flipExhaustedSequences, queryDueRecoverySteps, runRecoveryTick, RETRY_RESULT_NO_CONNECTION } =
-  await import("~/lib/cron/recovery-tick");
+const {
+  flipExhaustedSequences,
+  queryDueRecoverySteps,
+  recordMissingTokenAttempt,
+  runRecoveryTick,
+  RETRY_RESULT_NO_CONNECTION,
+} = await import("~/lib/cron/recovery-tick");
+const { RETRY_TOKEN_MAX_ATTEMPTS } = await import("~/lib/constants");
 const schema = await import("~/db/schema");
 
 /** `mode` picks how the token goes missing: a connection row whose token was
@@ -76,84 +82,133 @@ async function seed(mode: "null-token" | "no-connection", extraSteps: string[] =
   return db;
 }
 
-/** Run a tick with the REAL due-step query, but no real Stripe or email. */
-function tick(onRetry?: () => void) {
-  return runRecoveryTick({} as Env, {
-    runRetry: async () => {
-      onRetry?.();
-      return { recovered: false };
-    },
-    runEmail: async () => ({}),
-  });
-}
-
 beforeEach(() => {
   harness.db = null;
 });
 
+const T0 = new Date("2026-07-26T00:00:00.000Z");
+const minutesAfter = (base: Date, m: number) => new Date(base.getTime() + m * 60_000);
+
 describe.each(["null-token", "no-connection"] as const)(
-  "an unrunnable retry step (%s)",
+  "an unrunnable retry step gets bounded grace (%s)",
   (mode) => {
-    it("is selected once, stamped terminal, and never selected again", async () => {
+    it("reschedules with backoff instead of dying on the first tick", async () => {
+      const db = await seed(mode);
+      expect(await queryDueRecoverySteps({} as Env, T0)).toHaveLength(1);
+
+      const result = await recordMissingTokenAttempt({} as Env, { stepId: "step_retry", attemptCount: 0 }, T0);
+      expect(result).toBeNull(); // still in grace, no terminal result
+
+      const [step] = await db.select().from(schema.recoverySteps);
+      expect(step.attemptCount).toBe(1);
+      expect(step.result).toBeNull();
+      expect(step.executedAt).toBeNull();
+      expect(step.lastAttemptError).toBe("no connected stripe token");
+      // SEND_RETRY_BACKOFF_MINUTES[0] is 5.
+      expect(step.nextRetryAt).toEqual(minutesAfter(T0, 5));
+
+      // Not re-selected until the backoff elapses: the livelock stays fixed.
+      expect(await queryDueRecoverySteps({} as Env, minutesAfter(T0, 1))).toHaveLength(0);
+      expect(await queryDueRecoverySteps({} as Env, minutesAfter(T0, 6))).toHaveLength(1);
+    });
+
+    it("goes terminal only on the last attempt, and exactly once", async () => {
       const db = await seed(mode);
 
-      // Tick 1: the step is genuinely due.
-      expect(await queryDueRecoverySteps({} as Env, new Date("2026-07-26T00:00:00.000Z"))).toHaveLength(1);
+      // Attempts 1 and 2 stay pending.
+      for (const attempt of [0, 1]) {
+        const r = await recordMissingTokenAttempt(
+          {} as Env,
+          { stepId: "step_retry", attemptCount: attempt },
+          T0,
+        );
+        expect(r).toBeNull();
+      }
 
-      let charged = false;
-      const first = await tick(() => {
-        charged = true;
-      });
-      // Still never charges blind. That guard was always right; it just did not
-      // finish the job.
-      expect(charged).toBe(false);
-      expect(first.message).toMatch(/1 skipped/);
+      // Attempt 3 (RETRY_TOKEN_MAX_ATTEMPTS) is terminal.
+      const terminal = await recordMissingTokenAttempt(
+        {} as Env,
+        { stepId: "step_retry", attemptCount: RETRY_TOKEN_MAX_ATTEMPTS - 1 },
+        T0,
+      );
+      expect(terminal).toBe(RETRY_RESULT_NO_CONNECTION);
 
       const [step] = await db.select().from(schema.recoverySteps);
       expect(step.result).toBe(RETRY_RESULT_NO_CONNECTION);
       expect(step.retryResult).toBe(RETRY_RESULT_NO_CONNECTION);
-      expect(step.executedAt).not.toBeNull();
+      expect(step.executedAt).toEqual(T0);
+      expect(step.nextRetryAt).toBeNull();
 
-      // Tick 2: nothing due. Pre-fix this was still 1, and would have been
-      // forever.
-      expect(await queryDueRecoverySteps({} as Env, new Date("2026-07-26T00:05:00.000Z"))).toHaveLength(0);
-      const second = await tick();
-      expect(second.message).toMatch(/0 due/);
-      expect(second.message).toMatch(/0 skipped/);
+      // Never selected again, and the conditional claim-on-write means a
+      // redelivered tick cannot re-terminate it.
+      expect(await queryDueRecoverySteps({} as Env, minutesAfter(T0, 600))).toHaveLength(0);
+      await recordMissingTokenAttempt({} as Env, { stepId: "step_retry", attemptCount: 9 }, minutesAfter(T0, 10));
+      const [again] = await db.select().from(schema.recoverySteps);
+      expect(again.executedAt).toEqual(T0);
+      expect(again.attemptCount).toBe(RETRY_TOKEN_MAX_ATTEMPTS);
     });
   },
 );
 
-describe("what the stamp unblocks", () => {
+describe("a token that comes back mid-grace", () => {
+  it("lets the silent retry run normally instead of having forfeited it", async () => {
+    // The whole point of MEDIUM-2: a merchant mid-reconnect must not lose the
+    // first and highest-value step of a soft-decline sequence.
+    const db = await seed("null-token");
+    await recordMissingTokenAttempt({} as Env, { stepId: "step_retry", attemptCount: 0 }, T0);
+
+    // The merchant reconnects: the token is stored again.
+    await db
+      .update(schema.stripeConnections)
+      .set({ stripeAccessToken: "encrypted:reconnected" });
+
+    let charged = 0;
+    const result = await runRecoveryTick({} as Env, {
+      query: async (env, now) => queryDueRecoverySteps(env, now),
+      runRetry: async () => {
+        charged += 1;
+        return { recovered: false };
+      },
+      runEmail: async () => ({}),
+      flipExhausted: async () => 0,
+    });
+    // The tick's own clock is real time, well past T0 + 5min backoff.
+    expect(charged).toBe(1);
+    expect(result.message).toMatch(/1 retries/);
+  });
+});
+
+describe("what the terminal stamp unblocks", () => {
   it("lets a one-step sequence exhaust into failed_unrecovered", async () => {
-    // The interlock with the exhausted-sequence flip: while the step stayed
-    // pending, the sequence could never be exhausted, so the payment sat in
-    // "In recovery" permanently on top of the wasted work.
     const db = await seed("null-token");
 
-    // Before the stamp the step is pending, so the sequence is not exhausted.
-    expect(await flipExhaustedSequences({} as Env, new Date("2026-07-26T00:00:00.000Z"))).toBe(0);
+    // While the step is pending (in grace) the sequence is NOT exhausted.
+    await recordMissingTokenAttempt({} as Env, { stepId: "step_retry", attemptCount: 0 }, T0);
+    expect(await flipExhaustedSequences({} as Env, T0)).toBe(0);
 
-    // One tick both stamps the step and, in the same pass, flips the now-finished
-    // sequence: the sweep runs after the step loop for exactly this reason.
-    const result = await tick();
-    expect(result.message).toMatch(/1 exhausted/);
+    // Once terminal it is.
+    await recordMissingTokenAttempt(
+      {} as Env,
+      { stepId: "step_retry", attemptCount: RETRY_TOKEN_MAX_ATTEMPTS - 1 },
+      T0,
+    );
+    expect(await flipExhaustedSequences({} as Env, minutesAfter(T0, 1))).toBe(1);
 
     const [payment] = await db.select().from(schema.failedPayments);
     expect(payment.status).toBe("failed_unrecovered");
   });
 
-  it("lets the sequence move on to its next step rather than ending it", async () => {
-    // A stamp is not a stop: the remaining email steps are untouched and still
-    // pending, so a disconnected merchant's customers still get dunned.
+  it("leaves the remaining email steps alone", async () => {
     const db = await seed("null-token", ["email_day1", "email_day3"]);
-    await tick();
+    await recordMissingTokenAttempt(
+      {} as Env,
+      { stepId: "step_retry", attemptCount: RETRY_TOKEN_MAX_ATTEMPTS - 1 },
+      T0,
+    );
 
     const steps = await db.select().from(schema.recoverySteps);
     const pending = steps.filter((s) => s.executedAt === null && s.result === null);
     expect(pending.map((s) => s.stepType).sort()).toEqual(["email_day1", "email_day3"]);
-
-    // And with steps still pending, the sequence is correctly NOT exhausted.
-    expect(await flipExhaustedSequences({} as Env, new Date("2026-07-26T00:01:00.000Z"))).toBe(0);
+    expect(await flipExhaustedSequences({} as Env, minutesAfter(T0, 1))).toBe(0);
   });
 });
