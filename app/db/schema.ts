@@ -60,6 +60,19 @@ export const accounts = sqliteTable("accounts", {
   lastVisitedProduct: text("last_visited_product"),
   billingExempt: bool("billing_exempt").notNull().default(false),
   processingPaused: bool("processing_paused").notNull().default(false),
+  // WHY this account is paused, so the global emergency brake can be released
+  // safely. 'brake' means the global brake paused it; null means a human paused
+  // it individually, or it is not paused at all.
+  //
+  // This column exists because engage and release are deliberately ASYMMETRIC.
+  // Engage skips accounts that are already paused, so the brake never takes
+  // ownership of a merchant an operator paused on purpose. Release then unpauses
+  // ONLY rows carrying this marker, so lifting the brake cannot silently resume
+  // a merchant who was paused for their own reason. Without the marker, release
+  // would have to unpause everything and would quietly undo an unrelated
+  // operator decision, which is the one way a safety control can itself cause an
+  // incident.
+  pauseReason: text("pause_reason"),
   // Operator-initiated cancel/disconnect (admin Pass 2). Distinct from
   // processingPaused on purpose: this is a PROCESSING gate only (recovery-tick,
   // intelligence-sync), never a billing gate. Already-matured, unbilled

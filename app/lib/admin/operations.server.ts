@@ -56,6 +56,7 @@ export const KNOWN_MIGRATIONS = [
   "0009_lethal_gladiator.sql",
   "0010_flimsy_hitman.sql",
   "0011_bouncy_whizzer.sql",
+  "0012_solid_nightmare.sql",
 ] as const;
 
 export interface MigrationStatusRow {
