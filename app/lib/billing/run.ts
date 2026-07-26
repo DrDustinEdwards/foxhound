@@ -15,6 +15,8 @@ import {
   createPlatformInvoice,
   buildInvoiceStripeRefUpdate,
   chargeableLines,
+  disputeFeeItemIdempotencyKey,
+  recoveryFeeItemIdempotencyKey,
   type PlatformInvoiceLineInput,
 } from "./stripe-invoice";
 
@@ -75,6 +77,10 @@ export interface InvoiceBatchInput {
   currency: string;
   periodStart: Date;
   periodEnd: Date;
+  /** YYYY-MM of the period being billed. Part of each recovery line's Stripe
+   *  idempotency key, so the key is stable across retries of the same period
+   *  without depending on the run-scoped billing_invoices id. */
+  periodKey: string;
   idempotencyKey: string;
   createdAt: Date;
   recoveries: BillableRecoveryLite[];
@@ -117,7 +123,17 @@ export function buildBillingInvoiceBatch(db: Db, input: InvoiceBatchInput): Buil
         createdAt: input.createdAt,
       }),
     );
-    lines.push({ type: "recovery_fee", amountCents: fee, description: "Recovery fee" });
+    lines.push({
+      type: "recovery_fee",
+      amountCents: fee,
+      description: "Recovery fee",
+      idempotencyKey: recoveryFeeItemIdempotencyKey(
+        input.accountId,
+        input.periodKey,
+        input.currency,
+        r.id,
+      ),
+    });
   }
 
   for (const d of input.disputes) {
@@ -136,7 +152,12 @@ export function buildBillingInvoiceBatch(db: Db, input: InvoiceBatchInput): Buil
         createdAt: input.createdAt,
       }),
     );
-    lines.push({ type: "dispute_fee", amountCents: fee, description: "Dispute fee" });
+    lines.push({
+      type: "dispute_fee",
+      amountCents: fee,
+      description: "Dispute fee",
+      idempotencyKey: disputeFeeItemIdempotencyKey(d.id),
+    });
   }
 
   const invoiceInsert = db.insert(billingInvoices).values({
@@ -250,6 +271,7 @@ export async function runAccountBilling(
           currency,
           periodStart: period.periodStart,
           periodEnd: period.periodEnd,
+          periodKey: period.periodKey,
           idempotencyKey,
           createdAt,
           recoveries: cr,

@@ -8,7 +8,11 @@ import {
   shouldAttemptPlatformCharge,
   type InvoiceBatchInput,
 } from "~/lib/billing/run";
-import type { PlatformInvoiceLineInput } from "~/lib/billing/stripe-invoice";
+import {
+  disputeFeeItemIdempotencyKey,
+  recoveryFeeItemIdempotencyKey,
+  type PlatformInvoiceLineInput,
+} from "~/lib/billing/stripe-invoice";
 
 const db = drizzle({} as never, { schema });
 const sqlOf = (item: unknown) => (item as { toSQL(): { sql: string; params: unknown[] } }).toSQL();
@@ -19,6 +23,7 @@ const baseInput = (over: Partial<InvoiceBatchInput>): InvoiceBatchInput => ({
   currency: "usd",
   periodStart: new Date("2026-06-01T00:00:00.000Z"),
   periodEnd: new Date("2026-07-01T00:00:00.000Z"),
+  periodKey: "2026-06",
   idempotencyKey: "billing:acc_1:usd:2026-06",
   createdAt: new Date("2026-07-01T00:00:00.000Z"),
   recoveries: [],
@@ -111,9 +116,58 @@ describe("buildBillingInvoiceBatch", () => {
       }),
     );
     expect(lines).toEqual([
-      { type: "recovery_fee", amountCents: 2_000, description: "Recovery fee" },
-      { type: "dispute_fee", amountCents: 10_000, description: "Dispute fee" },
+      {
+        type: "recovery_fee",
+        amountCents: 2_000,
+        description: "Recovery fee",
+        idempotencyKey: recoveryFeeItemIdempotencyKey("acc_1", "2026-06", "usd", "rec_1"),
+      },
+      {
+        type: "dispute_fee",
+        amountCents: 10_000,
+        description: "Dispute fee",
+        idempotencyKey: disputeFeeItemIdempotencyKey("dsp_1"),
+      },
     ]);
+  });
+
+  it("gives every line its own idempotency key, derived from that line's evidence", () => {
+    const { lines } = buildBillingInvoiceBatch(
+      db,
+      baseInput({
+        recoveries: [
+          { id: "rec_1", amountCents: 10_000 },
+          { id: "rec_2", amountCents: 10_000 },
+        ],
+        disputes: [{ id: "dsp_1", amountCents: 50_000, resolvedFeeCents: null }],
+      }),
+    );
+    // Two recovery lines with IDENTICAL amounts and descriptions must still get
+    // distinct keys, or a retry would collapse them into one Stripe item and
+    // silently undercharge. The recovery id is what separates them.
+    const keys = lines.map((l) => l.idempotencyKey);
+    expect(new Set(keys).size).toBe(3);
+    expect(keys[0]).toContain("rec_1");
+    expect(keys[1]).toContain("rec_2");
+    expect(keys[2]).toBe("dispute_fee_item_dsp_1");
+  });
+
+  it("derives a recovery line's key from account+period+currency+recovery, not from the invoice row id", () => {
+    // The billing_invoices id is a fresh uuid on every run attempt, so keying
+    // items off it would produce a different key on a retry and duplicate the
+    // line. These four inputs are all stable across retries of the same period.
+    const base = { recoveries: [{ id: "rec_1", amountCents: 10_000 }] };
+    const first = buildBillingInvoiceBatch(db, baseInput({ ...base, invoiceId: "inv_a" }));
+    const second = buildBillingInvoiceBatch(db, baseInput({ ...base, invoiceId: "inv_b" }));
+    expect(first.lines[0].idempotencyKey).toBe(second.lines[0].idempotencyKey);
+
+    // ...and it does change when any of the four does.
+    const otherPeriod = buildBillingInvoiceBatch(db, baseInput({ ...base, periodKey: "2026-07" }));
+    const otherCurrency = buildBillingInvoiceBatch(db, baseInput({ ...base, currency: "eur" }));
+    const otherAccount = buildBillingInvoiceBatch(db, baseInput({ ...base, accountId: "acc_2" }));
+    for (const other of [otherPeriod, otherCurrency, otherAccount]) {
+      expect(other.lines[0].idempotencyKey).not.toBe(first.lines[0].idempotencyKey);
+    }
   });
 });
 
@@ -122,6 +176,7 @@ describe("shouldAttemptPlatformCharge (the guard: never charge without a stored 
     type: "recovery_fee",
     amountCents: 2_000,
     description: "Recovery fee",
+    idempotencyKey: recoveryFeeItemIdempotencyKey("acc_1", "2026-06", "usd", "rec_1"),
   };
 
   it("false when there is no platform customer id, even with chargeable lines", () => {
@@ -133,6 +188,7 @@ describe("shouldAttemptPlatformCharge (the guard: never charge without a stored 
       type: "adjustment",
       amountCents: -500,
       description: "Goodwill credit",
+      idempotencyKey: "adjustment_never_charged",
     };
     expect(shouldAttemptPlatformCharge("cus_1", [adjustmentOnly])).toBe(false);
     expect(shouldAttemptPlatformCharge("cus_1", [])).toBe(false);
