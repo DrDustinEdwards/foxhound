@@ -114,30 +114,62 @@ describe("the caps are re-derived for a MONTHLY sweep, not copied from legacy", 
     expect(decideFeeRetryAction({ ...base, invoiceStatus: "open" }).action).toBe("pay");
   });
 
-  it("an invoice gets three monthly retries, then the AGE cap stops it", () => {
-    // Worth pinning precisely, because it is not what the caps look like on
-    // paper. With runs 30 days apart and a 90-day age cap, run 4 is 91 days out
-    // and the age branch fires BEFORE the attempt cap is ever reached. So the
-    // effective limit is three retries via max_age_exceeded, not four via
-    // max_attempts_reached. Both caps land in the same place (stop chasing after
-    // about three months); the attempt cap is the one that binds only if runs
-    // are closer together than monthly.
+  /** Walk the REAL cron cadence (`0 4 1 * *`) from the run that wrote the
+   *  invoice. The sweep runs at the START of runMonthlyBilling, so the first
+   *  sweep that can see an invoice is the following month's run, never the one
+   *  that created it. Returns one entry per run. */
+  function walkMonthlyRuns(createdYear: number, createdMonth: number, runs: number): string[] {
+    const createdMs = Date.UTC(createdYear, createdMonth, 1, 4, 0, 0);
     let attemptCount = 0;
     const outcomes: string[] = [];
-    for (let month = 0; month < 5; month++) {
+    for (let run = 1; run <= runs; run++) {
       const decision = decideFeeRetryAction({
         invoiceStatus: "open",
         attemptCount,
-        // Created just before the first sweep, then one run per month.
-        invoiceCreatedMs: NOW - DAY_MS,
-        nowMs: NOW + month * 30 * DAY_MS,
+        invoiceCreatedMs: createdMs,
+        nowMs: Date.UTC(createdYear, createdMonth + run, 1, 4, 0, 0),
       });
       outcomes.push(decision.action === "pay" ? "pay" : decision.reason);
       if (decision.action === "pay") attemptCount++;
     }
-    expect(outcomes).toEqual(["pay", "pay", "pay", "max_age_exceeded", "max_age_exceeded"]);
-    expect(attemptCount).toBe(3);
-    expect(attemptCount).toBeLessThan(FEE_INVOICE_MAX_RETRY_ATTEMPTS);
+    return outcomes;
+  }
+
+  it("stops on the AGE cap after two or three runs, depending on month lengths", () => {
+    // The exact count is calendar-dependent, and pinning a single number is how
+    // this went wrong twice: the original note said three (from a fixture with
+    // the invoice created one day before the first sweep, which cannot happen),
+    // and the review said two (from real August dates). Both are right for their
+    // month. Review LOW-1.
+    //
+    // Created Aug 1: sweeps at 31, 61, 92 days. 92 > 90, so TWO pays.
+    expect(walkMonthlyRuns(2026, 7, 4)).toEqual([
+      "pay",
+      "pay",
+      "max_age_exceeded",
+      "max_age_exceeded",
+    ]);
+
+    // Created Feb 1, where three short months fit inside 90: 28, 59, 89, 120.
+    // 89 is still under the cap, so THREE pays.
+    expect(walkMonthlyRuns(2027, 1, 4)).toEqual([
+      "pay",
+      "pay",
+      "pay",
+      "max_age_exceeded",
+    ]);
+  });
+
+  it("never reaches the attempt ceiling at a monthly cadence, whatever the month", () => {
+    // This is the durable property, and the reason the age cap is the one that
+    // actually governs: 4 attempts are unreachable when runs are a month apart.
+    for (let month = 0; month < 12; month++) {
+      const outcomes = walkMonthlyRuns(2026, month, 6);
+      const pays = outcomes.filter((o) => o === "pay").length;
+      expect(pays).toBeLessThan(FEE_INVOICE_MAX_RETRY_ATTEMPTS);
+      expect(outcomes).toContain("max_age_exceeded");
+      expect(outcomes).not.toContain("max_attempts_reached");
+    }
   });
 
   it("the attempt cap binds instead when runs are closer together", () => {
