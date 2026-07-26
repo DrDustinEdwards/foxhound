@@ -11,7 +11,7 @@ import { classifyDecline } from "~/lib/recovery/decline";
 // Events we act on (legacy parity, trimmed to the money-critical set for 4c):
 //   invoice.payment_failed     -> intake (create failed_payment + recovery steps)
 //   invoice.payment_succeeded  -> recover (owns the 'recovered' status flip)
-//   charge.refunded (full)     -> stamp_refund (unbills the recovery)
+//   charge.refunded            -> stamp_refund (unbills the recovery, any refund)
 //   charge.dispute.created     -> stamp_dispute (dispute intake; feeds the billable predicate)
 //   charge.dispute.closed      -> dispute_resolved (5c: won/lost state + fee snapshot)
 // Everything else is ignored.
@@ -95,9 +95,11 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
     }
     case "charge.refunded": {
       const charge = event.data.object as Stripe.Charge;
-      // Only a FULL refund unbills the recovery; a partial refund is still a
-      // recovery (fee base for partials is a separate policy question).
-      if (!charge.refunded) return { kind: "ignore", reason: "partial_refund" };
+      // ANY refund disqualifies the recovery from billing, full or partial, with
+      // no proration (parity ruling 29: conservative and merchant-favorable,
+      // and there is no credit-note subsystem to unwind a fee after the fact).
+      // This used to gate on charge.refunded (full refunds only), which left a
+      // partially-refunded recovery fully billable.
       const paymentIntentId = asId(charge.payment_intent);
       if (!paymentIntentId) return { kind: "ignore", reason: "no_payment_intent" };
       return { kind: "stamp_refund", paymentIntentId };

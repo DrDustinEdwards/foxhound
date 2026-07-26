@@ -70,13 +70,16 @@ describe("classifyStripeEvent", () => {
     if (intent.kind === "recover") expect(intent.amountPaidCents).toBe(4200);
   });
 
-  it("full charge.refunded -> stamp_refund; partial is ignored", () => {
+  it("charge.refunded -> stamp_refund, partial as well as full (parity ruling 29)", () => {
+    // This assertion used to require a PARTIAL refund to be ignored. Ruling 29
+    // settled it the other way: any refund inside the maturity window
+    // disqualifies the recovery from billing entirely, with no proration.
     expect(
       classifyStripeEvent(event("charge.refunded", { refunded: true, payment_intent: "pi_1" })),
     ).toEqual({ kind: "stamp_refund", paymentIntentId: "pi_1" });
     expect(
       classifyStripeEvent(event("charge.refunded", { refunded: false, payment_intent: "pi_1" })),
-    ).toEqual({ kind: "ignore", reason: "partial_refund" });
+    ).toEqual({ kind: "stamp_refund", paymentIntentId: "pi_1" });
   });
 
   it("charge.dispute.created -> stamp_dispute (dispute intake); unrelated type ignored", () => {
