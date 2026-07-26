@@ -157,16 +157,44 @@ export function buildRecoverBatch(db: Db, input: RecoverBatchInput): MoneyWriteB
   return [claim, statusFlip, ...recovery];
 }
 
-/** charge.refunded: claim + stamp recovered_payments.refunded_at (unbills the
- *  recovery). Fires on ANY refund, full or partial (parity ruling 29). The
- *  isNull guard means the FIRST refund's timestamp wins, so a second partial
- *  refund is a no-op rather than moving the disqualification later. */
+/**
+ * charge.refunded: claim + the refund MARKER on failed_payments + the
+ * recovered_payments stamp. Fires on ANY refund, full or partial (ruling 29).
+ * All three in one atomic batch, so a claim without its marker is impossible.
+ *
+ * TWO writes, not one, because the stamp alone is order-dependent. The stamp is
+ * an UPDATE, so it can only work once a recovered_payments row exists. A refund
+ * processed BEFORE invoice.payment_succeeded matched zero rows, committed its
+ * claim regardless (the claim insert succeeds either way), returned 200, and was
+ * never redelivered: the recovery was then recorded with refunded_at null and
+ * billed at maturity. That is the overcharge this whole path exists to prevent,
+ * and it was reachable from a single transient 500 on the success webhook, not
+ * just from Stripe reordering events. Review HIGH-1.
+ *
+ * The marker closes it from the other side: it is written unconditionally, and
+ * buildRecoveryBatch reads it when inserting, so a later recovery is born
+ * refunded. The two halves are exhaustive because both batches run through the
+ * SAME per-account money-write DO (idFromName(accountId)) and SerialMoneyCommitter
+ * runs one commit at a time, so exactly one of these holds:
+ *   marker commits first  -> the recovery insert's subquery sees it
+ *   recovery commits first -> the stamp below finds the row
+ * There is no interleaving in which both miss, so there is no residual to accept.
+ *
+ * Both writes take the first refund and keep it: the isNull guards make a second
+ * partial refund a no-op rather than moving the disqualification later.
+ */
 export function buildRefundStampBatch(
   db: Db,
   input: { claim: WebhookClaimInput; failedPaymentId: string; at: Date },
 ): MoneyWriteBatch {
   return [
     buildWebhookClaim(db, input.claim),
+    db
+      .update(failedPayments)
+      .set({ refundSignalAt: input.at })
+      .where(
+        and(eq(failedPayments.id, input.failedPaymentId), isNull(failedPayments.refundSignalAt)),
+      ),
     db
       .update(recoveredPayments)
       .set({ refundedAt: input.at })

@@ -1,7 +1,7 @@
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 
 import type { Db, MoneyWriteBatch } from "~/db";
-import { outcomes, recoveredPayments } from "~/db";
+import { failedPayments, outcomes, recoveredPayments } from "~/db";
 import { executeMoneyWrite } from "~/lib/money/execute";
 
 import { isBillableAttribution, type ResolvedAttribution } from "./attribution";
@@ -46,6 +46,12 @@ export interface RecordRecoveryInput {
 export function buildRecoveryBatch(db: Db, input: RecordRecoveryInput): MoneyWriteBatch {
   const attributed = isBillableAttribution(input.attribution.kind);
   const key = `recovery:${input.idempotencyKey}`;
+  // A recovery is born REFUNDED when a charge.refunded already arrived for this
+  // failed payment. Read as a correlated subquery inside the INSERT rather than
+  // as a separate SELECT in the caller, so there is no window between deciding
+  // and writing: the value is resolved at insert time, in this same atomic batch.
+  // See buildRefundStampBatch for the other half and why the pair is exhaustive.
+  const refundedAtFromMarker = sql`(select ${failedPayments.refundSignalAt} from ${failedPayments} where ${failedPayments.id} = ${input.failedPaymentId})`;
   return [
     db.insert(recoveredPayments).values({
       accountId: input.accountId,
@@ -59,6 +65,7 @@ export function buildRecoveryBatch(db: Db, input: RecordRecoveryInput): MoneyWri
       attributionRef: input.attribution.ref,
       // Attributed recoveries stamp attributed_at; baseline stays null (free).
       attributedAt: attributed ? input.recoveredAt : null,
+      refundedAt: refundedAtFromMarker,
     }),
     db.insert(outcomes).values({
       accountId: input.accountId,
