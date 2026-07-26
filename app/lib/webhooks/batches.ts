@@ -1,8 +1,9 @@
-import { and, eq, isNull, notInArray } from "drizzle-orm";
+import { and, eq, inArray, isNull, notInArray } from "drizzle-orm";
 
 import type { Db, MoneyWriteBatch } from "~/db";
 import { disputeEvidence, disputes, failedPayments, recoveredPayments, webhookEvents } from "~/db";
 import { disputeFeeCents } from "~/lib/billing/fees";
+import { RECOVERABLE_FAILED_PAYMENT_STATUSES } from "~/lib/constants";
 import type { DeclineCategory, DisputeState } from "~/lib/constants";
 import type { EvidenceField } from "~/lib/disputes/evidence";
 import { buildRecoveryStepInserts } from "~/lib/engine/intake";
@@ -126,10 +127,22 @@ export interface RecoverBatchInput {
  */
 export function buildRecoverBatch(db: Db, input: RecoverBatchInput): MoneyWriteBatch {
   const claim = buildWebhookClaim(db, input.claim);
+  // Conditional so a replay or concurrent event touches zero rows. The condition
+  // covers failed_unrecovered as well as active: once the exhausted-sequence
+  // sweep started flipping rows, an `= 'active'` check would have quietly
+  // refused to record a customer who paid after the dunning cadence ran out.
+  // Widened deliberately, with findRecoverableFailedPayment as its counterpart
+  // on the lookup side (both would have to be narrow for the drop to happen, and
+  // both are pinned by test/cron-exhausted-sequences.test.ts).
   const statusFlip = db
     .update(failedPayments)
     .set({ status: "recovered", resolvedAt: input.recoveredAt })
-    .where(and(eq(failedPayments.id, input.failedPaymentId), eq(failedPayments.status, "active")));
+    .where(
+      and(
+        eq(failedPayments.id, input.failedPaymentId),
+        inArray(failedPayments.status, [...RECOVERABLE_FAILED_PAYMENT_STATUSES]),
+      ),
+    );
   const recovery = buildRecoveryBatch(db, {
     accountId: input.accountId,
     failedPaymentId: input.failedPaymentId,

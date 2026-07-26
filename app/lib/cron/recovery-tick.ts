@@ -1,7 +1,12 @@
-import { and, asc, eq, isNull, lte, notLike, or, type SQL } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, lte, notExists, notLike, or, type SQL } from "drizzle-orm";
 
+import type { Db } from "~/db";
 import { accounts, failedPayments, getDb, recoverySteps, stripeConnections } from "~/db";
-import { DEMO_ACCOUNT_ID_PREFIX, RECOVERY_TICK_LIMIT } from "~/lib/constants";
+import {
+  DEMO_ACCOUNT_ID_PREFIX,
+  FAILED_PAYMENT_STATUS_UNRECOVERED,
+  RECOVERY_TICK_LIMIT,
+} from "~/lib/constants";
 import {
   executeEmailStep,
   executeRetryStep,
@@ -67,6 +72,96 @@ export function stepDueCondition(now: Date): SQL {
       and(isNull(recoverySteps.nextRetryAt), lte(recoverySteps.scheduledAt, now)),
     ),
   ) as SQL;
+}
+
+// ============================================================================
+// Exhausted sequences
+// ============================================================================
+
+/** A step that has not run yet. Same two columns stepDueCondition keys on, minus
+ *  the timing clause: a step rescheduled by the send backoff is still pending
+ *  (executed_at and result both null, next_retry_at set), so a sequence waiting
+ *  on a backoff is NOT exhausted. */
+function stepPendingCondition(): SQL {
+  return and(
+    isNull(recoverySteps.executedAt),
+    isNull(recoverySteps.result),
+    isNull(recoverySteps.deletedAt),
+  ) as SQL;
+}
+
+/**
+ * failed_payments whose recovery sequence has run out: still 'active', on a
+ * processing-eligible account, with no step left to run.
+ *
+ * Nothing used to write this transition, so a payment that was dunned for thirty
+ * days and never recovered stayed 'active' forever. Every status-keyed count
+ * ("In recovery" on /recovery/payments, the demo-independent dashboard tiles)
+ * drifted upward permanently and told the merchant a payment was being worked
+ * when the engine had finished with it weeks earlier.
+ *
+ * The `exists` half matters: a failed_payment with zero steps has not exhausted
+ * anything, it has not started. Intake always plans at least one step, so that
+ * case is a partially-committed intake rather than a finished sequence, and
+ * flipping it would hide a real problem.
+ */
+export async function queryExhaustedSequences(env: Env, limit: number): Promise<string[]> {
+  const db = getDb(env);
+  const rows = await db
+    .select({ id: failedPayments.id })
+    .from(failedPayments)
+    .innerJoin(accounts, eq(accounts.id, failedPayments.accountId))
+    .where(
+      and(
+        eq(failedPayments.status, "active"),
+        isNull(failedPayments.deletedAt),
+        accountProcessingEligibleCondition(),
+        // At least one step exists...
+        notExists(
+          db
+            .select({ one: recoverySteps.id })
+            .from(recoverySteps)
+            .where(
+              and(
+                eq(recoverySteps.failedPaymentId, failedPayments.id),
+                isNull(recoverySteps.deletedAt),
+                stepPendingCondition(),
+              ),
+            ),
+        ),
+      ),
+    )
+    .limit(limit);
+
+  // ...and none of them is still pending. The "has any step at all" half is
+  // applied here rather than as a second correlated subquery: the set is already
+  // narrow, and a second EXISTS on the same table reads worse than this does.
+  const ids = rows.map((r) => r.id);
+  if (ids.length === 0) return [];
+  const withSteps = await db
+    .selectDistinct({ id: recoverySteps.failedPaymentId })
+    .from(recoverySteps)
+    .where(
+      and(inArray(recoverySteps.failedPaymentId, ids), isNull(recoverySteps.deletedAt)),
+    );
+  return withSteps.map((r) => r.id);
+}
+
+/**
+ * The terminal flip, conditional on status='active' so it lands exactly once no
+ * matter how many ticks observe the same exhausted sequence. OPERATIONAL: a
+ * plain batch, never the money-write DO (gotcha 25). It records that outreach
+ * finished; it moves no money and gates no billing. Note that an already-matured
+ * unbilled recovery on this payment still bills, because app/db/billable.ts
+ * keys on recovered_payments, not on this column.
+ */
+export function buildExhaustedSequenceFlip(db: Db, failedPaymentIds: string[], now: Date) {
+  return db
+    .update(failedPayments)
+    .set({ status: FAILED_PAYMENT_STATUS_UNRECOVERED, resolvedAt: now })
+    .where(
+      and(inArray(failedPayments.id, failedPaymentIds), eq(failedPayments.status, "active")),
+    );
 }
 
 /** One due step joined to the context the executors need. */
@@ -201,6 +296,7 @@ interface TickTally {
   recovered: number;
   skipped: number;
   failed: number;
+  exhausted: number;
   backlog: boolean;
 }
 
@@ -209,6 +305,21 @@ export interface RecoveryTickDeps {
   query: (env: Env, now: Date) => Promise<DueStepRow[]>;
   runRetry: (env: Env, ctx: RetryStepContext) => Promise<{ recovered: boolean }>;
   runEmail: (env: Env, ctx: EmailStepContext) => Promise<unknown>;
+  /** Find and flip sequences that have run out. Default: the real sweep. */
+  flipExhausted: (env: Env, now: Date) => Promise<number>;
+}
+
+/**
+ * Flip every exhausted sequence to failed_unrecovered. Runs AFTER the step loop
+ * so a sequence whose last step just executed is caught in the same tick rather
+ * than lingering 'active' for another five minutes.
+ */
+export async function flipExhaustedSequences(env: Env, now: Date): Promise<number> {
+  const ids = await queryExhaustedSequences(env, RECOVERY_TICK_LIMIT);
+  if (ids.length === 0) return 0;
+  const db = getDb(env);
+  await db.batch([buildExhaustedSequenceFlip(db, ids, now)]);
+  return ids.length;
 }
 
 /** Run one recovery tick. Selects due steps, runs the earliest per payment through
@@ -220,6 +331,7 @@ export async function runRecoveryTick(
   const query = deps.query ?? queryDueRecoverySteps;
   const runRetry = deps.runRetry ?? executeRetryStep;
   const runEmail = deps.runEmail ?? executeEmailStep;
+  const flipExhausted = deps.flipExhausted ?? flipExhaustedSequences;
 
   const now = new Date();
   const due = await query(env, now);
@@ -232,6 +344,7 @@ export async function runRecoveryTick(
     recovered: 0,
     skipped: 0,
     failed: 0,
+    exhausted: 0,
     backlog: due.length >= RECOVERY_TICK_LIMIT,
   };
 
@@ -259,6 +372,22 @@ export async function runRecoveryTick(
     }
   }
 
+  // Isolated like a per-step failure, but counted SEPARATELY: `failed` means
+  // "steps that failed", and folding a bookkeeping sweep into it would make the
+  // number mean two things. Never silent, though: the note is on the recorded
+  // run message, so a sweep that is quietly always failing is visible in
+  // cron_run_history rather than looking like a tick with nothing to flip.
+  let sweepNote = "";
+  try {
+    tally.exhausted = await flipExhausted(env, now);
+  } catch (err) {
+    sweepNote = ", exhausted-sweep FAILED";
+    console.error(
+      "exhausted-sequence sweep failed:",
+      err instanceof Error ? err.message : err,
+    );
+  }
+
   const executed = tally.retries + tally.emails;
   const backlogNote = tally.backlog ? ", BACKLOG (tick hit RECOVERY_TICK_LIMIT)" : "";
   return {
@@ -266,6 +395,7 @@ export async function runRecoveryTick(
     message:
       `${tally.due} due, ${tally.chosen} payments, ${tally.retries} retries ` +
       `(${tally.recovered} recovered), ${tally.emails} emails, ` +
-      `${tally.skipped} skipped, ${tally.failed} failed${backlogNote}`,
+      `${tally.skipped} skipped, ${tally.failed} failed, ` +
+      `${tally.exhausted} exhausted${sweepNote}${backlogNote}`,
   };
 }

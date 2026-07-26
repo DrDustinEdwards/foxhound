@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import type Stripe from "stripe";
 
 import {
@@ -9,6 +9,7 @@ import {
   stripeConnections,
   webhookEvents,
 } from "~/db";
+import { RECOVERABLE_FAILED_PAYMENT_STATUSES } from "~/lib/constants";
 import { buildEvidenceFacts, draftDisputeEvidence } from "~/lib/disputes/evidence";
 import { isDisputeResolved } from "~/lib/disputes/labels";
 import { executeMoneyWrite } from "~/lib/money/execute";
@@ -67,7 +68,12 @@ async function resolveConnection(
   return rows[0] ?? null;
 }
 
-/** Find the current active failed_payment for an invoice, if any (per-invoice dedupe / recover target). */
+/** Find the current ACTIVE failed_payment for an invoice, if any: the per-invoice
+ *  intake dedupe (Stripe emits one payment_failed per collection attempt, and
+ *  only the first spawns a sequence). Deliberately narrower than
+ *  findRecoverableFailedPayment: a new failure on an invoice whose earlier
+ *  sequence exhausted must start a FRESH sequence, not be swallowed as a
+ *  duplicate of the finished one. */
 async function findActiveFailedPayment(
   env: Env,
   accountId: string,
@@ -82,6 +88,33 @@ async function findActiveFailedPayment(
         eq(failedPayments.accountId, accountId),
         eq(failedPayments.stripeInvoiceId, invoiceId),
         eq(failedPayments.status, "active"),
+      ),
+    )
+    .orderBy(desc(failedPayments.detectedAt))
+    .limit(1);
+  return rows[0]?.id ?? null;
+}
+
+/** The failed_payment a successful invoice payment should be recorded against:
+ *  still active, OR already flipped to failed_unrecovered by the exhausted-
+ *  sequence sweep. The second case is a customer paying after the dunning
+ *  cadence ran out, which is a real recovery and must not be dropped. Newest
+ *  first, so when an invoice has both a finished sequence and a newer active
+ *  one, the active one wins. */
+async function findRecoverableFailedPayment(
+  env: Env,
+  accountId: string,
+  invoiceId: string,
+): Promise<string | null> {
+  const db = getDb(env);
+  const rows = await db
+    .select({ id: failedPayments.id })
+    .from(failedPayments)
+    .where(
+      and(
+        eq(failedPayments.accountId, accountId),
+        eq(failedPayments.stripeInvoiceId, invoiceId),
+        inArray(failedPayments.status, [...RECOVERABLE_FAILED_PAYMENT_STATUSES]),
       ),
     )
     .orderBy(desc(failedPayments.detectedAt))
@@ -361,7 +394,7 @@ export async function processConnectedWebhook(
     }
 
     if (intent.kind === "recover") {
-      const failedPaymentId = await findActiveFailedPayment(env, accountId, intent.invoiceId);
+      const failedPaymentId = await findRecoverableFailedPayment(env, accountId, intent.invoiceId);
       if (!failedPaymentId) {
         // A normal renewal payment (no active failure): nothing to recover, claim only.
         const { applied } = await executeMoneyWrite(env, {
