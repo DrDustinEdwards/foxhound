@@ -401,8 +401,11 @@ describe("stale-marker probe catches BOTH disagreeing shapes", () => {
   });
 });
 
-describe("the tick actually honors the pause (the gate the brake depends on)", () => {
-  it("a brake-paused account's due steps are not selected by the recovery tick", async () => {
+describe("the tick's account predicate honors the pause", () => {
+  // Named for what it asserts. The composed selection query and the real mid-run
+  // guard are driven end to end in test/brake-tick-integration.test.ts; this one
+  // covers the predicate in isolation (review LOW-3: the old name overclaimed).
+  it("a brake-paused account drops out of accountProcessingEligibleCondition", async () => {
     const { db, sqlite } = createInMemoryDb();
     await seedAccounts(db);
 
@@ -461,5 +464,32 @@ describe("status panel", () => {
       .values({ cronName: RECOVERY_TICK_CRON_NAME, enabled: false, updatedAt: new Date() });
 
     expect((await getBrakeStatus(db)).tickEnabled).toBe(false);
+  });
+});
+
+describe("LOW-1: cancelled accounts are outside the brake", () => {
+  it("engage skips a cancelled account, so its owed fees are not deferred by the hold", async () => {
+    const { db } = createInMemoryDb();
+    await db.insert(schema.accounts).values([
+      { id: "acc_live", name: "Live", billingExempt: false, processingPaused: false },
+      {
+        id: "acc_cancelled",
+        name: "Gone",
+        billingExempt: false,
+        processingPaused: false,
+        cancelledAt: new Date("2026-07-01T00:00:00.000Z"),
+      },
+    ]);
+
+    const result = await engageBrake(db, { actorEmail: ACTOR });
+
+    expect(result.accountIds).toEqual(["acc_live"]);
+    // processing_paused also gates billing, and a cancelled account's matured
+    // unbilled fees are deliberately still billable, so the brake must not take
+    // ownership of this row.
+    expect(await paused(db, "acc_cancelled")).toEqual({
+      processingPaused: false,
+      pauseReason: null,
+    });
   });
 });

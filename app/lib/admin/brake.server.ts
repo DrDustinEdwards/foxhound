@@ -16,14 +16,26 @@
 // direction"), and merchants.server.ts records the same reasoning for the
 // single-account toggle this batches.
 //
-// Recorded for the money-path review, because it is a real tension rather than
-// an oversight: core.md's standing rule says a write rides the money DO if it
-// "gates billing", and processing_paused IS read by app/db/billable.ts, so a
-// pause does have a billing effect. It is still not a money write. The DO
-// serializes ledger BATCHES (outcomes, invoices, webhook claims); this writes a
-// flag on accounts and touches no ledger row. Routing it through the DO would
-// also make the brake structurally different from the single-merchant toggle it
-// is a batch of, which is worse than either shape on its own.
+// Recorded because it is a real tension rather than an oversight: core.md's
+// standing rule says a write rides the money DO if it "gates billing", and
+// processing_paused IS read by app/db/billable.ts, so a pause does have a
+// billing effect.
+//
+// The decisive argument is not precedent, it is that the DO CANNOT CLOSE THIS
+// RACE. executeMoneyWrite serializes on idFromName(accountId): it orders WRITES
+// to one account. The hazard here is read-then-act across two modules
+// (getBillableRecoveries reads, then executeMoneyWrite commits), and serializing
+// the pause write cannot make a foreign module's earlier read atomic with its
+// later commit. Routing the pause through the DO would cost consistency with the
+// single-merchant toggle this is a batch of, and buy nothing.
+//
+// What actually makes the race safe is a second gate: each per-account billable
+// query re-applies accountBillingEligibleCondition as an INNER JOIN, so a pause
+// landing before the query yields zero rows and no invoice. A pause landing after
+// the build produces an invoice of matured, attributed, unrefunded recoveries
+// that were genuinely owed, which is not an overcharge. Double-billing is
+// impossible in any interleaving: the not-already-billed left join is structural
+// and the idempotency key is pause-independent. A pause only ever defers.
 
 import { and, count, desc, eq, isNotNull, isNull, ne, notInArray, notLike, or, type SQL } from "drizzle-orm";
 
@@ -55,14 +67,21 @@ export const BRAKE_ACTION_RESUME_ACCOUNT = "brake.resume.account";
  * operator paused deliberately (see the pause_reason comment in schema.ts).
  * billing_exempt is skipped because in practice those are our own and comped
  * accounts, and the brake is a merchant-facing safety control. The demo prefix
- * is the firewall every other job honors (non-negotiable #7), and it is the
- * reason the smoke test asserts ZERO: every live account today is demo or
- * exempt.
+ * is the firewall every other job honors (non-negotiable #7).
+ *
+ * Cancelled accounts are skipped too (review LOW-1). Pausing one changes nothing
+ * operationally, because the tick already excludes cancelled accounts, but
+ * processing_paused ALSO gates billing, and a cancelled account's already-matured
+ * unbilled fees are deliberately still billable ("cancel never silently forgives
+ * owed fees", merchants.server.ts). Sweeping them into the brake would defer those
+ * fees for as long as it stayed engaged, and would inflate the engage count with
+ * rows the brake has no reason to touch.
  */
 export function brakeEligibleCondition(): SQL {
   return and(
     eq(accounts.processingPaused, false),
     eq(accounts.billingExempt, false),
+    isNull(accounts.cancelledAt),
     notLike(accounts.id, `${DEMO_ACCOUNT_ID_PREFIX}%`),
   ) as SQL;
 }
