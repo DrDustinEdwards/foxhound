@@ -192,13 +192,20 @@ export const WINBACK_STEP2_HOURS = 72;
 export const WINBACK_STEP3_HOURS = 336;
 
 // ---- Send-attempt retry (transient send failures; SCHEMA.md recovery_steps state) ----
-// 5 attempts, restored from 3 by parity ruling 17 (same unjustified-change finding
-// as the win-back window above). The backoff table is unchanged and shorter than
-// the attempt count on purpose: afterTransientFailureWith clamps the index, so
-// attempts 4 and 5 repeat the final 120-minute wait.
+// 5 attempts over ~17.25 hours, both restored by parity ruling 17.
+//
+// The count was restored first and the SPAN was left behind, which produced a
+// third value (~4.6h) matching neither legacy nor the rebuild: attempts 4 and 5
+// repeated a clamped 120-minute wait, so the tail was flat rather than backed
+// off. The table now carries one entry per non-terminal attempt, so the clamp in
+// afterTransientFailureWith is never reached in normal operation. It stays as a
+// safety net for a future change to SEND_MAX_ATTEMPTS, not as load-bearing
+// behaviour. test/constants-ruling-17.test.ts pins the span by walking the real
+// state machine, so shortening either the table or the count fails CI.
 export const SEND_MAX_ATTEMPTS = 5;
-/** Backoff minutes indexed by (attempt_count - 1); last value repeats. */
-export const SEND_RETRY_BACKOFF_MINUTES = [5, 30, 120] as const;
+/** Backoff minutes indexed by (attempt_count - 1); the last value repeats if the
+ *  table is ever shorter than SEND_MAX_ATTEMPTS - 1. Sums to 1035 minutes. */
+export const SEND_RETRY_BACKOFF_MINUTES = [15, 60, 240, 720] as const;
 
 /**
  * How many ticks a retry step waits for a usable connected-account token before
@@ -260,9 +267,17 @@ export const CRON_LOCK_LEASE_MS = 5 * 60 * 1000;
 /** Cron schedules (UTC). MUST match wrangler.jsonc triggers.crons exactly. */
 export const CRON_SCHEDULE_DAILY = "0 3 * * *"; // 03:00 UTC, retention sweeps
 export const CRON_SCHEDULE_MONTHLY = "0 4 1 * *"; // 04:00 UTC on the 1st, billing run
-/** Recovery tick: sweeps due recovery_steps. Runs every 5 minutes because the
- *  shortest timer in the engine is the 5-minute first send-retry backoff
- *  (SEND_RETRY_BACKOFF_MINUTES[0]); a coarser cadence would lag that backoff. */
+/** Recovery tick: sweeps due recovery_steps. Every 5 minutes.
+ *
+ *  The original rationale (matching the 5-minute first send-retry backoff) no
+ *  longer holds: SEND_RETRY_BACKOFF_MINUTES[0] is 15 since ruling 17 restored
+ *  the legacy span, so the cadence is now finer than the shortest backoff rather
+ *  than equal to it. The cadence still stands on its own terms. It bounds how
+ *  long a newly due step waits, and it bounds how long the emergency brake takes
+ *  to stop the NEXT run, which matters because the in-run guard stops the
+ *  current one (see runRecoveryTick). Recorded rather than silently left stale,
+ *  because a comment justifying a number by another number that has moved is how
+ *  the next reader gets misled. */
 export const CRON_SCHEDULE_RECOVERY_TICK = "*/5 * * * *";
 /** Max due steps a single recovery tick processes, so one run stays bounded and a
  *  backlog drains over successive ticks (mirrors RETENTION_SWEEP_LIMIT). */

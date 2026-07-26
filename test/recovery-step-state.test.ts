@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { SEND_MAX_ATTEMPTS } from "~/lib/constants";
+import { SEND_MAX_ATTEMPTS, SEND_RETRY_BACKOFF_MINUTES } from "~/lib/constants";
 import {
   afterPermanentFailure,
   afterTransientFailure,
@@ -18,8 +18,10 @@ describe("send-attempt state machine", () => {
     expect(s.executedAt).toBeNull();
     expect(s.result).toBeNull();
     expect(s.nextRetryAt).not.toBeNull();
-    // first backoff is 5 minutes
-    expect(s.nextRetryAt!.getTime()).toBe(now.getTime() + 5 * 60_000);
+    // Derived, not literal: the exact span is pinned once in
+    // test/constants-ruling-17.test.ts, and this test is about the transition
+    // shape rather than the number.
+    expect(s.nextRetryAt!.getTime()).toBe(now.getTime() + SEND_RETRY_BACKOFF_MINUTES[0] * 60_000);
     expect(s.lastAttemptError).toBe("timeout");
   });
 
