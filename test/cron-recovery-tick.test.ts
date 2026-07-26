@@ -39,6 +39,11 @@ function row(overrides: Partial<DueStepRow> = {}): DueStepRow {
   };
 }
 
+/** Permissive guard for tests about dispatch rather than gating. Passing it
+ *  explicitly (rather than defaulting the guard open) keeps the real default
+ *  fail-closed, which is the whole point of the mid-run check. */
+const allowAll = async () => ({ tickEnabled: true, accountEligible: true });
+
 describe("recovery tick: SQL gating predicates (compile against schema)", () => {
   it("processing gate excludes demo + paused accounts, but NOT billing_exempt", () => {
     const sql = sqlOf(db.select().from(accounts).where(accountProcessingEligibleCondition()));
@@ -98,6 +103,7 @@ describe("recovery tick: dispatch, isolation, telemetry", () => {
     const emailed: string[] = [];
     const result = await runRecoveryTick({} as Env, {
       query: async () => due,
+      checkGuards: allowAll,
       runRetry: async (_env, ctx) => {
         retried.push(ctx.stepId);
         return { recovered: true };
@@ -130,6 +136,7 @@ describe("recovery tick: dispatch, isolation, telemetry", () => {
     const recorded: { stepId: string; attemptCount: number }[] = [];
     const result = await runRecoveryTick({} as Env, {
       query: async () => due,
+      checkGuards: allowAll,
       runRetry: async () => {
         charged = true;
         return { recovered: false };
@@ -153,6 +160,7 @@ describe("recovery tick: dispatch, isolation, telemetry", () => {
     const due = [row({ stepId: "no_token", stepType: "retry_early", connectionAccessToken: null })];
     const result = await runRecoveryTick({} as Env, {
       query: async () => due,
+      checkGuards: allowAll,
       runRetry: async () => ({ recovered: false }),
       runEmail: async () => ({}),
       flipExhausted: async () => 0,
@@ -162,5 +170,108 @@ describe("recovery tick: dispatch, isolation, telemetry", () => {
     });
     expect(result.message).toMatch(/0 skipped/);
     expect(result.message).toMatch(/1 failed/);
+  });
+});
+
+describe("MEDIUM-1: the brake stops work already in flight, not just the next run", () => {
+  const threeSteps = [
+    row({ stepId: "s1", failedPaymentId: "fp_1", stepType: "retry_early" }),
+    row({ stepId: "s2", failedPaymentId: "fp_2", stepType: "retry_early" }),
+    row({ stepId: "s3", failedPaymentId: "fp_3", stepType: "retry_early" }),
+  ];
+
+  it("stops charging within ONE step when the account is paused mid-run", async () => {
+    const charged: string[] = [];
+    let checks = 0;
+    const result = await runRecoveryTick({} as Env, {
+      query: async () => threeSteps,
+      flipExhausted: async () => 0,
+      runRetry: async (_env, ctx) => {
+        charged.push(ctx.stepId);
+        return { recovered: false };
+      },
+      runEmail: async () => ({}),
+      // The operator engages the brake after the first step has run.
+      checkGuards: async () => {
+        checks += 1;
+        return { tickEnabled: true, accountEligible: checks <= 1 };
+      },
+    });
+
+    // Exactly one charge landed. Before this guard, all three did, because
+    // eligibility was only evaluated when the batch was selected.
+    expect(charged).toEqual(["s1"]);
+    expect(checks).toBe(3); // re-checked per step, not once per run
+    // Audited as skipped, never failed: nothing went wrong, an operator stopped it.
+    expect(result.message).toMatch(/2 skipped \(account paused mid-run\)/);
+    expect(result.message).toMatch(/0 failed/);
+  });
+
+  it("exits cleanly when the tick is disabled mid-run, leaving the rest re-selectable", async () => {
+    const charged: string[] = [];
+    let checks = 0;
+    const result = await runRecoveryTick({} as Env, {
+      query: async () => threeSteps,
+      flipExhausted: async () => 0,
+      runRetry: async (_env, ctx) => {
+        charged.push(ctx.stepId);
+        return { recovered: false };
+      },
+      runEmail: async () => ({}),
+      checkGuards: async () => {
+        checks += 1;
+        return { tickEnabled: checks <= 2, accountEligible: true };
+      },
+    });
+
+    expect(charged).toEqual(["s1", "s2"]);
+    expect(result.message).toMatch(/HALTED \(tick disabled mid-run\)/);
+    expect(result.message).toMatch(/0 failed/);
+    // The untouched steps carry no result and no executed_at, so the next
+    // enabled tick re-selects them: a halt loses nothing.
+    expect(result.message).not.toMatch(/skipped \(account paused mid-run\)/);
+  });
+
+  it("costs one batched read per step, so the guard cannot blow the subrequest budget alone", async () => {
+    // checkTickGuards issues ONE db.batch (two statements) per step. Asserting
+    // the call count keeps a future refactor from turning it into two round
+    // trips, which at RECOVERY_TICK_LIMIT would double the tick's read cost.
+    let checks = 0;
+    await runRecoveryTick({} as Env, {
+      query: async () => threeSteps,
+      flipExhausted: async () => 0,
+      runRetry: async () => ({ recovered: false }),
+      runEmail: async () => ({}),
+      checkGuards: async () => {
+        checks += 1;
+        return { tickEnabled: true, accountEligible: true };
+      },
+    });
+    expect(checks).toBe(threeSteps.length);
+  });
+});
+
+describe("MEDIUM-1: the guard fails CLOSED", () => {
+  it("aborts the tick rather than charging when it cannot read the gates", async () => {
+    // Deliberately outside the per-step try/catch. If the guard read fails we do
+    // not know whether the brake is engaged, and on a loop that charges cards the
+    // safe answer to "I cannot tell" is to stop. A transient D1 error costs one
+    // tick; the steps are untouched and the next tick re-selects them.
+    const charged: string[] = [];
+    await expect(
+      runRecoveryTick({} as Env, {
+        query: async () => [row({ stepId: "s1", stepType: "retry_early" })],
+        flipExhausted: async () => 0,
+        runRetry: async (_env, ctx) => {
+          charged.push(ctx.stepId);
+          return { recovered: false };
+        },
+        runEmail: async () => ({}),
+        checkGuards: async () => {
+          throw new Error("d1 unavailable");
+        },
+      }),
+    ).rejects.toThrow(/d1 unavailable/);
+    expect(charged).toEqual([]);
   });
 });

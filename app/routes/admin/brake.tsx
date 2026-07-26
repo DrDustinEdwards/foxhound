@@ -19,7 +19,7 @@ import {
 import { setCronEnabled } from "~/lib/admin/crons.server";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { RECOVERY_TICK_CRON_NAME } from "~/lib/cron/registry";
+import { RECOVERY_TICK_CRON_NAME } from "~/lib/constants";
 
 import type { Route } from "./+types/brake";
 

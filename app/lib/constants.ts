@@ -282,6 +282,11 @@ export const CRON_SCHEDULE_RECOVERY_TICK = "*/5 * * * *";
 /** Max due steps a single recovery tick processes, so one run stays bounded and a
  *  backlog drains over successive ticks (mirrors RETENTION_SWEEP_LIMIT). */
 export const RECOVERY_TICK_LIMIT = 500;
+/** The recovery tick's registered cron name. Lives here rather than in the cron
+ *  registry because both the registry and the tick itself need it (the tick
+ *  re-reads its own enabled flag mid-run), and the registry imports the tick, so
+ *  naming it there would close an import cycle. */
+export const RECOVERY_TICK_CRON_NAME = "recovery-tick";
 /** Retention windows (ARCHITECTURE.md retention table). Raw rows older than the
  *  window are swept; ai_calls aggregates to monthly before delete. */
 export const RETENTION_ENGAGEMENT_DAYS = 180;
