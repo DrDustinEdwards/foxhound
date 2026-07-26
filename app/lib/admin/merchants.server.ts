@@ -188,35 +188,42 @@ export async function setBillingExempt(db: Db, accountId: string, exempt: boolea
  *    server-side in the same UPDATE rather than as a read-then-write, so two
  *    concurrent operators cannot interleave into a lost marker.
  *  - **Pause with an explicit reason** (the brake) sets it outright. */
-export async function setProcessingPaused(
+export function buildSetProcessingPaused(
   db: Db,
   accountId: string,
   paused: boolean,
   reason: string | null = null,
-): Promise<void> {
+) {
   if (!paused) {
-    await db
+    return db
       .update(accounts)
       .set({ processingPaused: false, pauseReason: null })
       .where(eq(accounts.id, accountId));
-    return;
   }
 
   if (reason !== null) {
-    await db
+    return db
       .update(accounts)
       .set({ processingPaused: true, pauseReason: reason })
       .where(eq(accounts.id, accountId));
-    return;
   }
 
-  await db
+  return db
     .update(accounts)
     .set({
       processingPaused: true,
       pauseReason: sql`case when ${accounts.processingPaused} = 1 then ${accounts.pauseReason} else ${PAUSE_REASON_MANUAL} end`,
     })
     .where(eq(accounts.id, accountId));
+}
+
+export async function setProcessingPaused(
+  db: Db,
+  accountId: string,
+  paused: boolean,
+  reason: string | null = null,
+): Promise<void> {
+  await buildSetProcessingPaused(db, accountId, paused, reason);
 }
 
 /** Whether an account currently holds an active Intelligence subscription row.

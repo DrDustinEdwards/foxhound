@@ -16,19 +16,31 @@ export interface LogAdminActionInput {
   metadata?: Record<string, unknown> | null;
 }
 
+/** The insert statement plus the id it will carry, WITHOUT executing it, so a
+ *  caller batching many audit rows can put them in one db.batch instead of one
+ *  round trip each (the global brake pauses every account at once). Same row
+ *  shape as logAdminAction, which is written in terms of this. */
+export function buildAdminAuditLogInsert(db: Db, input: LogAdminActionInput) {
+  const id = crypto.randomUUID();
+  return {
+    id,
+    statement: db.insert(adminAuditLog).values({
+      id,
+      actorEmail: input.actorEmail,
+      action: input.action,
+      targetUserId: input.targetUserId ?? null,
+      targetEmail: input.targetEmail ?? null,
+      metadata: input.metadata ?? null,
+      createdAt: new Date(),
+    }),
+  };
+}
+
 /** Inserts the audit row and returns its id (admin Pass 2: an adjustment line
  *  item FKs this id, so a caller that needs the reference reads it off the
  *  return value rather than re-querying). */
 export async function logAdminAction(db: Db, input: LogAdminActionInput): Promise<string> {
-  const id = crypto.randomUUID();
-  await db.insert(adminAuditLog).values({
-    id,
-    actorEmail: input.actorEmail,
-    action: input.action,
-    targetUserId: input.targetUserId ?? null,
-    targetEmail: input.targetEmail ?? null,
-    metadata: input.metadata ?? null,
-    createdAt: new Date(),
-  });
+  const { id, statement } = buildAdminAuditLogInsert(db, input);
+  await statement;
   return id;
 }
