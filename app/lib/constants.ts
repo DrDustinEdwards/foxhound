@@ -180,12 +180,23 @@ export const STEP_TIMING_FRAUD_EMAIL_DAY1_HOURS = 2;
 export const STEP_TIMING_REVOKED_EMAIL_HOURS = 2;
 
 // ---- Win-back timing (hours from cancellation) ----
+// The window is 14 days (step 3), restored from the rebuild's 7 by parity ruling
+// 17. The compression to 7 was never justified: a Pass 4 git-blame check found
+// all three values authored once, at file creation, inside a commit about decline
+// classification, with no comment and no decision record. Every other intentional
+// value change in this file carries its reasoning, so the absence was the finding.
+// The interior steps (24h, 72h) stay as the rebuild set them; only the outer bound
+// reverted, because that is the span the ruling names.
 export const WINBACK_STEP1_HOURS = 24;
 export const WINBACK_STEP2_HOURS = 72;
-export const WINBACK_STEP3_HOURS = 168;
+export const WINBACK_STEP3_HOURS = 336;
 
 // ---- Send-attempt retry (transient send failures; SCHEMA.md recovery_steps state) ----
-export const SEND_MAX_ATTEMPTS = 3;
+// 5 attempts, restored from 3 by parity ruling 17 (same unjustified-change finding
+// as the win-back window above). The backoff table is unchanged and shorter than
+// the attempt count on purpose: afterTransientFailureWith clamps the index, so
+// attempts 4 and 5 repeat the final 120-minute wait.
+export const SEND_MAX_ATTEMPTS = 5;
 /** Backoff minutes indexed by (attempt_count - 1); last value repeats. */
 export const SEND_RETRY_BACKOFF_MINUTES = [5, 30, 120] as const;
 

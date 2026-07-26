@@ -39,9 +39,18 @@ describe("cost math", () => {
     expect(computeAiCallCostCents("claude-haiku-4-5-20251001", 1_000_000, 1_000_000)).toBe(600);
   });
 
-  it("rounds small calls to the nearest cent", () => {
-    // 2000 in + 500 out of Sonnet: (0.002*300)+(0.0005*1500) = 0.6 + 0.75 = 1.35 -> 1.
-    expect(computeAiCallCostCents("claude-sonnet-5", 2_000, 500)).toBe(1);
+  it("rounds a partial cent UP, never down (ruling 17 no-undercount policy)", () => {
+    // 2000 in + 500 out of Sonnet: (0.002*300)+(0.0005*1500) = 0.6 + 0.75 = 1.35.
+    // Math.round gave 1 and undercounted; ceil gives 2.
+    expect(computeAiCallCostCents("claude-sonnet-5", 2_000, 500)).toBe(2);
+  });
+
+  it("never records zero for a call that cost something", () => {
+    // 100 prompt tokens of Sonnet = 0.03 cents. Math.round sent this to 0, so a
+    // workload of thousands of small calls tracked as free. This is the case the
+    // policy exists for: the per-call error is one cent, the aggregate error was
+    // the entire spend.
+    expect(computeAiCallCostCents("claude-sonnet-5", 100, 0)).toBe(1);
   });
 });
 
