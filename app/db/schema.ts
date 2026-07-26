@@ -240,6 +240,18 @@ export const failedPayments = sqliteTable(
     accountId: text("account_id").notNull().references(() => accounts.id),
     stripeConnectionId: text("stripe_connection_id").references(() => stripeConnections.id),
     isRenewalNoise: bool("is_renewal_noise").notNull().default(false),
+    /**
+     * When a charge.refunded arrived for this payment (migration 0011). The
+     * ORDER-INDEPENDENT half of refund handling: recovered_payments.refunded_at
+     * can only be stamped once that row exists, so a refund that is processed
+     * BEFORE invoice.payment_succeeded used to update zero rows, commit its
+     * claim anyway, and be lost forever, leaving a refunded recovery fully
+     * billable. This column is written on every refund regardless, and
+     * buildRecoveryBatch reads it so a recovery recorded afterwards is born with
+     * refunded_at already set. First refund wins, matching the recovered_payments
+     * guard. See app/lib/recovery/record-recovery.ts.
+     */
+    refundSignalAt: ts("refund_signal_at"),
   },
   (t) => [
     index("failed_payments_account_idx").on(t.accountId),

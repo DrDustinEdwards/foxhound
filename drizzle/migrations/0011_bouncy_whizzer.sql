@@ -1,0 +1,1 @@
+ALTER TABLE `failed_payments` ADD `refund_signal_at` integer;

@@ -222,6 +222,180 @@ describe("a refunded recovery is not billable at maturity", () => {
   });
 });
 
+// Review HIGH-1. Every test above seeds the recovery row FIRST, so none of them
+// could see the hole: the stamp is an UPDATE, and a refund processed before
+// invoice.payment_succeeded matched zero rows, committed its claim anyway, and
+// was lost forever. The recovery was then recorded with refunded_at null and
+// billed at maturity, which is the exact overcharge this path exists to prevent.
+// It needed no Stripe misordering: one transient 500 on the success webhook
+// opens the window.
+describe("a refund that arrives BEFORE the recovery still unbills it", () => {
+  // A minute before the recovery lands, so the refund is genuinely first.
+  const REFUND_BEFORE_AT = new Date(RECOVERED_AT.getTime() - 60_000);
+
+  /** failed_payment still active, one clicked email step (so the recovery
+   *  attributes to email_engaged and is genuinely BILLABLE), and deliberately
+   *  NO recovered_payments row yet. */
+  async function seedAwaitingRecovery() {
+    const { db } = createInMemoryDb();
+    harness.db = db;
+
+    await db.insert(schema.accounts).values({ id: ACCOUNT_ID, name: "Refund Co", createdAt: NOW });
+    await db.insert(schema.stripeConnections).values({
+      id: CONNECTION_ID,
+      accountId: ACCOUNT_ID,
+      stripeUserId: "acct_connected_1",
+      stripeAccessToken: "encrypted:token",
+      isPrimary: true,
+      createdAt: NOW,
+    });
+    await db.insert(schema.failedPayments).values({
+      id: "fp_1",
+      accountId: ACCOUNT_ID,
+      stripeConnectionId: CONNECTION_ID,
+      stripeEventId: "evt_intake",
+      stripeInvoiceId: "in_recovered_1",
+      stripeCustomerId: "cus_1",
+      customerEmail: "payer@example.com",
+      amountCents: 10_000,
+      currency: "usd",
+      declineCategory: "soft",
+      status: "active",
+      detectedAt: new Date(RECOVERED_AT.getTime() - 5 * 60_000),
+    });
+    await db.insert(schema.recoverySteps).values({
+      id: "step_1",
+      accountId: ACCOUNT_ID,
+      failedPaymentId: "fp_1",
+      stepType: "email_day1",
+      stepNumber: 1,
+      scheduledAt: new Date(RECOVERED_AT.getTime() - 4 * 60_000),
+      executedAt: new Date(RECOVERED_AT.getTime() - 4 * 60_000),
+      result: "email_sent",
+      clickedAt: new Date(RECOVERED_AT.getTime() - 3 * 60_000),
+    });
+    return db;
+  }
+
+  function paymentSucceeded(eventId: string): Stripe.Event {
+    return {
+      id: eventId,
+      type: "invoice.payment_succeeded",
+      account: "acct_connected_1",
+      data: {
+        object: { id: "in_recovered_1", amount_paid: 10_000, currency: "usd", customer: "cus_1" },
+      },
+    } as unknown as Stripe.Event;
+  }
+
+  it("CONTROL: with no refund at all, that same recovery IS billable at maturity", async () => {
+    // Without this the assertions below would pass for the wrong reason.
+    const db = await seedAwaitingRecovery();
+    await processConnectedWebhook({} as Env, paymentSucceeded("evt_ok"), RECOVERED_AT);
+
+    const [recovery] = await db.select().from(schema.recoveredPayments);
+    expect(recovery.attributionKind).toBe("email_engaged");
+    expect(recovery.refundedAt).toBeNull();
+    expect(await getBillableRecoveries(db, ACCOUNT_ID, NOW.getTime())).toHaveLength(1);
+  });
+
+  for (const [label, fullyRefunded] of [
+    ["fully", true],
+    ["partially", false],
+  ] as const) {
+    it(`records the recovery already refunded, and never bills it, when ${label} refunded first`, async () => {
+      const db = await seedAwaitingRecovery();
+
+      // 1. The refund lands with nothing to stamp.
+      expect(
+        await processConnectedWebhook(
+          {} as Env,
+          refundEvent(`evt_early_${label}`, fullyRefunded),
+          REFUND_BEFORE_AT,
+        ),
+      ).toEqual({ status: "applied" });
+
+      const [payment] = await db.select().from(schema.failedPayments);
+      expect(payment.refundSignalAt).toEqual(REFUND_BEFORE_AT);
+      expect(await db.select().from(schema.recoveredPayments)).toHaveLength(0);
+
+      // 2. The recovery lands afterwards and is born refunded.
+      expect(
+        await processConnectedWebhook({} as Env, paymentSucceeded(`evt_late_${label}`), RECOVERED_AT),
+      ).toEqual({ status: "applied" });
+
+      const [recovery] = await db.select().from(schema.recoveredPayments);
+      expect(recovery.attributionKind).toBe("email_engaged"); // billable kind
+      expect(recovery.refundedAt).toEqual(REFUND_BEFORE_AT);
+
+      // Pre-fix this was refunded_at null and a billable row: 20% of refunded money.
+      expect(await getBillableRecoveries(db, ACCOUNT_ID, NOW.getTime())).toHaveLength(0);
+    });
+  }
+
+  it("keeps the FIRST refund's timestamp when two refunds arrive before the recovery", async () => {
+    const db = await seedAwaitingRecovery();
+    await processConnectedWebhook({} as Env, refundEvent("evt_e1", false), REFUND_BEFORE_AT);
+    const later = new Date(REFUND_BEFORE_AT.getTime() + 30_000);
+    await processConnectedWebhook({} as Env, refundEvent("evt_e2", false), later);
+
+    const [payment] = await db.select().from(schema.failedPayments);
+    expect(payment.refundSignalAt).toEqual(REFUND_BEFORE_AT);
+
+    await processConnectedWebhook({} as Env, paymentSucceeded("evt_late"), RECOVERED_AT);
+    const [recovery] = await db.select().from(schema.recoveredPayments);
+    expect(recovery.refundedAt).toEqual(REFUND_BEFORE_AT);
+  });
+
+  it("a marker with no recovery ever recorded is inert", async () => {
+    const db = await seedAwaitingRecovery();
+    await processConnectedWebhook({} as Env, refundEvent("evt_orphan", true), REFUND_BEFORE_AT);
+
+    expect(await db.select().from(schema.recoveredPayments)).toHaveLength(0);
+    const [payment] = await db.select().from(schema.failedPayments);
+    expect(payment.refundSignalAt).toEqual(REFUND_BEFORE_AT);
+    expect(payment.status).toBe("active"); // the refund never resolves the payment
+  });
+
+  it("a recovery for a DIFFERENT failed payment is unaffected by the marker", async () => {
+    // The marker is scoped per failed_payment, not per account or per invoice.
+    const db = await seedAwaitingRecovery();
+    await processConnectedWebhook({} as Env, refundEvent("evt_scoped", true), REFUND_BEFORE_AT);
+
+    await db.insert(schema.failedPayments).values({
+      id: "fp_other",
+      accountId: ACCOUNT_ID,
+      stripeConnectionId: CONNECTION_ID,
+      stripeEventId: "evt_intake_other",
+      stripeInvoiceId: "in_other",
+      stripeCustomerId: "cus_1",
+      customerEmail: "payer@example.com",
+      amountCents: 5_000,
+      currency: "usd",
+      declineCategory: "soft",
+      status: "active",
+      detectedAt: new Date(RECOVERED_AT.getTime() - 5 * 60_000),
+    });
+    harness.invoiceSearchResult = [{ id: "in_other" }];
+
+    await processConnectedWebhook(
+      {} as Env,
+      {
+        id: "evt_other_paid",
+        type: "invoice.payment_succeeded",
+        account: "acct_connected_1",
+        data: { object: { id: "in_other", amount_paid: 5_000, currency: "usd", customer: "cus_1" } },
+      } as unknown as Stripe.Event,
+      RECOVERED_AT,
+    );
+
+    const other = (await db.select().from(schema.recoveredPayments)).find(
+      (r) => r.failedPaymentId === "fp_other",
+    );
+    expect(other?.refundedAt).toBeNull();
+  });
+});
+
 describe("refund resolution failure semantics", () => {
   it("a refund on a payment Foxhound never took in claims and ignores", async () => {
     const { db } = await seedRecoveredPayment();

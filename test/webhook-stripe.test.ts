@@ -200,11 +200,23 @@ describe("webhook batch builders (compile against schema)", () => {
     expect(sqlOf(batch[3]).sql).toMatch(/outcomes/i);
   });
 
-  it("refund/dispute stamp batches = claim + conditional update on recovered_payments", () => {
+  it("refund stamp batch = claim + failed_payments marker + conditional recovered_payments update", () => {
+    // Three statements, not two: the marker is what makes the refund
+    // order-independent (review HIGH-1). It must ride the SAME batch as the
+    // claim, or a claim can commit without it and the refund is lost.
     const refund = buildRefundStampBatch(db, { claim, failedPaymentId: "fp_1", at: now });
-    expect(refund.length).toBe(2);
-    expect(sqlOf(refund[1]).sql).toMatch(/update .*recovered_payments/i);
+    expect(refund.length).toBe(3);
+    expect(sqlOf(refund[0]).sql).toMatch(/insert into .*webhook_events/i);
+    const marker = sqlOf(refund[1]);
+    expect(marker.sql).toMatch(/update .*failed_payments/i);
+    expect(marker.sql).toMatch(/refund_signal_at/i);
+    expect(marker.sql).toMatch(/refund_signal_at.*is null/i); // first refund wins
+    expect(sqlOf(refund[2]).sql).toMatch(/update .*recovered_payments/i);
+  });
+
+  it("dispute stamp batch is unchanged: claim + conditional update on recovered_payments", () => {
     const dispute = buildDisputeStampBatch(db, { claim, failedPaymentId: "fp_1", at: now });
+    expect(dispute.length).toBe(2);
     expect(sqlOf(dispute[1]).sql).toMatch(/update .*recovered_payments/i);
   });
 
