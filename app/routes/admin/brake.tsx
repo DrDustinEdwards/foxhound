@@ -77,6 +77,18 @@ export async function action({ context, request }: Route.ActionArgs) {
 
   if (intent === "engage") {
     const result = await engageBrake(db, { actorEmail: auth.email });
+    if (result.error) {
+      // Partial, not failed. The committed accounts are paused AND marked, so a
+      // release will clean them up; say so rather than leaving the operator to
+      // guess whether re-engaging is safe (it is: engage skips paused rows).
+      return data<ActionResult>({
+        ok: false,
+        error:
+          `Brake PARTIALLY engaged: ${result.affectedCount} of ${result.intendedCount} account(s) paused before a ` +
+          `write failed (${result.error}). The paused accounts carry the brake marker, so Release will resume exactly ` +
+          `them. Re-engaging is safe and will pick up the remainder.`,
+      });
+    }
     return data<ActionResult>({
       ok: true,
       message:
@@ -88,12 +100,20 @@ export async function action({ context, request }: Route.ActionArgs) {
 
   if (intent === "release") {
     const result = await releaseBrake(db, { actorEmail: auth.email });
+    if (result.error) {
+      return data<ActionResult>({
+        ok: false,
+        error:
+          `Brake PARTIALLY released: ${result.affectedCount} of ${result.intendedCount} account(s) resumed before a ` +
+          `write failed (${result.error}). The rest are still paused and still marked; run Release again.`,
+      });
+    }
     return data<ActionResult>({
       ok: true,
       message:
         result.affectedCount === 0
           ? "Brake released. No brake-paused accounts to resume."
-          : `Brake released. Resumed ${result.affectedCount} account(s). Individually paused merchants were left paused.`,
+          : `Brake released. Resumed ${result.affectedCount} account(s). Accounts paused outside the brake were left paused.`,
     });
   }
 
@@ -163,7 +183,10 @@ function EventLine({ label, event }: { label: string; event: { actorEmail: strin
   return (
     <p className="text-label text-text-tertiary">
       {label}: {event.at.toLocaleString()} by <span className="font-mono text-text-secondary">{event.actorEmail}</span>
-      {event.count !== null ? ` (${event.count} account(s))` : null}
+      {/* "intended", because the umbrella row is written before the account
+          writes so that a partial failure still leaves a record of the attempt.
+          The live truth is the count in the state grid above. */}
+      {event.count !== null ? ` (${event.count} account(s) intended)` : null}
     </p>
   );
 }

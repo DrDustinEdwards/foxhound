@@ -27,11 +27,13 @@
 
 import { and, count, desc, eq, isNotNull, isNull, ne, notInArray, notLike, or, type SQL } from "drizzle-orm";
 
+import type { BatchItem } from "drizzle-orm/batch";
+
 import type { Db } from "~/db";
 import { accounts, adminAuditLog, cronConfig } from "~/db";
-import { logAdminAction } from "~/lib/admin/audit.server";
+import { buildAdminAuditLogInsert, logAdminAction } from "~/lib/admin/audit.server";
 import { KNOWN_PAUSE_REASONS, PAUSE_REASON_BRAKE } from "~/lib/admin/brake";
-import { setProcessingPaused } from "~/lib/admin/merchants.server";
+import { buildSetProcessingPaused } from "~/lib/admin/merchants.server";
 import { DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
 import { RECOVERY_TICK_CRON_NAME } from "~/lib/cron/registry";
 
@@ -94,12 +96,143 @@ async function idsWhere(db: Db, where: SQL): Promise<string[]> {
   return rows.map((r) => r.id);
 }
 
+/**
+ * Accounts per db.batch. Each account contributes TWO statements (the flag write
+ * and its audit row), so this is 50 statements per batch and, at the 500-account
+ * RECOVERY_TICK_LIMIT-scale ceiling, 20 batches.
+ *
+ * The number exists because the first version awaited two round trips per
+ * account inside a `for`. At 500 merchants that was ~1002 sequential D1 calls in
+ * one invocation, against a 1000-subrequest ceiling: the control built for a
+ * platform-wide incident was least likely to complete at the scale where an
+ * incident is worst. test/admin-brake.test.ts asserts the arithmetic rather than
+ * trusting this comment.
+ */
+export const BRAKE_CHUNK_ACCOUNTS = 25;
+
+/** The Workers subrequest ceiling this batching is sized against (paid plan). */
+export const SUBREQUEST_BUDGET = 1000;
+
+/** How many account ids the umbrella row samples into its metadata. The
+ *  per-account rows carry every id, so this is a readability cap on one blob,
+ *  not a loss of audit detail. */
+export const AUDIT_ID_SAMPLE_LIMIT = 100;
+
+/** Split ids into batch-sized groups. Pure, so the subrequest arithmetic is
+ *  assertable in a test instead of argued in a comment. */
+export function chunkAccountIds(ids: string[], size: number = BRAKE_CHUNK_ACCOUNTS): string[][] {
+  const out: string[][] = [];
+  for (let i = 0; i < ids.length; i += size) out.push(ids.slice(i, i + size));
+  return out;
+}
+
+/** Subrequests one engage/release costs: the eligibility read, the umbrella row,
+ *  then one batch per chunk. Exported so the budget is a computed fact. */
+export function brakeSubrequestCost(accountCount: number, size: number = BRAKE_CHUNK_ACCOUNTS): number {
+  return 2 + Math.ceil(accountCount / size);
+}
+
+function sampleIds(ids: string[]) {
+  return {
+    accountIds: ids.slice(0, AUDIT_ID_SAMPLE_LIMIT),
+    accountIdsTruncated: ids.length > AUDIT_ID_SAMPLE_LIMIT,
+  };
+}
+
 export interface BrakeResult {
-  /** Accounts actually transitioned by this call. */
+  /** Accounts actually transitioned by this call. On a partial failure this is
+   *  the number that committed, NOT the number intended. */
   affectedCount: number;
   accountIds: string[];
-  /** The umbrella admin_audit_log row id. */
+  /** The umbrella admin_audit_log row id. Written FIRST, so it exists even when
+   *  the account writes fail partway. */
   auditLogId: string;
+  /** Accounts this call set out to transition. Differs from affectedCount only
+   *  on a partial failure. */
+  intendedCount: number;
+  /** Present when a chunk failed. The committed chunks stand and the marker makes
+   *  them releasable; this says the operator should look. */
+  error?: string;
+}
+
+/** Injectable batch executor, so a chunk failure can be simulated in a test
+ *  without a broken D1. Defaults to the real db.batch. */
+export interface BrakeDeps {
+  runBatch: (db: Db, statements: BatchStatements) => Promise<unknown>;
+}
+type BatchStatements = BatchItem<"sqlite">[];
+
+// db.batch's signature demands a non-empty tuple. The caller already guarantees
+// that (an empty group is skipped), so the assertion is confined to this one
+// line rather than smeared across every call site.
+const defaultRunBatch: BrakeDeps["runBatch"] = (db, statements) =>
+  db.batch(statements as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
+
+/**
+ * Apply one transition to every id, umbrella-audit-row FIRST, then chunked
+ * batches of (flag write + per-account audit row).
+ *
+ * Umbrella-first is the ordering that makes a partial failure diagnosable. The
+ * umbrella row is the INTENT record: it names the actor, the time and how many
+ * accounts the operator meant to move. If a chunk then fails, what survives is
+ * an intent row, a partial set of marked rows, and a release that resumes
+ * exactly the marked ones. Writing it last, as the first version did, meant a
+ * mid-loop failure left paused accounts with no record that anyone had engaged.
+ */
+async function applyBrakeTransition(
+  db: Db,
+  input: {
+    accountIds: string[];
+    actorEmail: string;
+    umbrellaAction: string;
+    perAccountAction: string;
+    paused: boolean;
+    reason: string | null;
+  },
+  deps: Partial<BrakeDeps> = {},
+): Promise<BrakeResult> {
+  const runBatch = deps.runBatch ?? defaultRunBatch;
+  const { accountIds } = input;
+
+  const auditLogId = await logAdminAction(db, {
+    actorEmail: input.actorEmail,
+    action: input.umbrellaAction,
+    metadata: { intendedCount: accountIds.length, ...sampleIds(accountIds) },
+  });
+
+  const committed: string[] = [];
+  for (const group of chunkAccountIds(accountIds)) {
+    const statements: BatchStatements = group.flatMap((accountId) => [
+      buildSetProcessingPaused(db, accountId, input.paused, input.reason),
+      buildAdminAuditLogInsert(db, {
+        actorEmail: input.actorEmail,
+        action: input.perAccountAction,
+        metadata: { accountId },
+      }).statement,
+    ]);
+    if (statements.length === 0) continue;
+    try {
+      await runBatch(db, statements);
+      committed.push(...group);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "brake batch failed";
+      console.error(`brake ${input.umbrellaAction} chunk failed:`, message);
+      return {
+        affectedCount: committed.length,
+        accountIds: committed,
+        auditLogId,
+        intendedCount: accountIds.length,
+        error: message,
+      };
+    }
+  }
+
+  return {
+    affectedCount: committed.length,
+    accountIds: committed,
+    auditLogId,
+    intendedCount: accountIds.length,
+  };
 }
 
 /**
@@ -114,25 +247,21 @@ export interface BrakeResult {
 export async function engageBrake(
   db: Db,
   input: { actorEmail: string },
+  deps: Partial<BrakeDeps> = {},
 ): Promise<BrakeResult> {
   const accountIds = await idsWhere(db, brakeEligibleCondition());
-
-  for (const accountId of accountIds) {
-    await setProcessingPaused(db, accountId, true, BRAKE_PAUSE_REASON);
-    await logAdminAction(db, {
+  return applyBrakeTransition(
+    db,
+    {
+      accountIds,
       actorEmail: input.actorEmail,
-      action: BRAKE_ACTION_PAUSE_ACCOUNT,
-      metadata: { accountId },
-    });
-  }
-
-  const auditLogId = await logAdminAction(db, {
-    actorEmail: input.actorEmail,
-    action: BRAKE_ACTION_ENGAGE,
-    metadata: { pausedCount: accountIds.length, accountIds },
-  });
-
-  return { affectedCount: accountIds.length, accountIds, auditLogId };
+      umbrellaAction: BRAKE_ACTION_ENGAGE,
+      perAccountAction: BRAKE_ACTION_PAUSE_ACCOUNT,
+      paused: true,
+      reason: BRAKE_PAUSE_REASON,
+    },
+    deps,
+  );
 }
 
 /**
@@ -149,25 +278,21 @@ export async function engageBrake(
 export async function releaseBrake(
   db: Db,
   input: { actorEmail: string },
+  deps: Partial<BrakeDeps> = {},
 ): Promise<BrakeResult> {
   const accountIds = await idsWhere(db, brakePausedCondition());
-
-  for (const accountId of accountIds) {
-    await setProcessingPaused(db, accountId, false);
-    await logAdminAction(db, {
+  return applyBrakeTransition(
+    db,
+    {
+      accountIds,
       actorEmail: input.actorEmail,
-      action: BRAKE_ACTION_RESUME_ACCOUNT,
-      metadata: { accountId },
-    });
-  }
-
-  const auditLogId = await logAdminAction(db, {
-    actorEmail: input.actorEmail,
-    action: BRAKE_ACTION_RELEASE,
-    metadata: { resumedCount: accountIds.length, accountIds },
-  });
-
-  return { affectedCount: accountIds.length, accountIds, auditLogId };
+      umbrellaAction: BRAKE_ACTION_RELEASE,
+      perAccountAction: BRAKE_ACTION_RESUME_ACCOUNT,
+      paused: false,
+      reason: null,
+    },
+    deps,
+  );
 }
 
 export interface BrakeEvent {
@@ -191,7 +316,7 @@ export interface BrakeStatus {
 
 function readEvent(
   row: { actorEmail: string; createdAt: Date | null; metadata: unknown } | undefined,
-  countKey: "pausedCount" | "resumedCount",
+  countKey: "intendedCount",
 ): BrakeEvent | null {
   if (!row?.createdAt) return null;
   const meta = (row.metadata ?? {}) as Record<string, unknown>;
@@ -242,8 +367,8 @@ export async function getBrakeStatus(db: Db): Promise<BrakeStatus> {
     eligibleCount,
     // A missing cron_config row means ENABLED (app/lib/cron/gating.ts).
     tickEnabled: tickConfig[0]?.enabled ?? true,
-    lastEngage: readEvent(engageRow, "pausedCount"),
-    lastRelease: readEvent(releaseRow, "resumedCount"),
+    lastEngage: readEvent(engageRow, "intendedCount"),
+    lastRelease: readEvent(releaseRow, "intendedCount"),
   };
 }
 

@@ -9,7 +9,11 @@ import {
   isConfirmPhraseValid,
 } from "~/lib/admin/brake";
 import {
+  BRAKE_CHUNK_ACCOUNTS,
   BRAKE_PAUSE_REASON,
+  SUBREQUEST_BUDGET,
+  brakeSubrequestCost,
+  chunkAccountIds,
   countStaleMarkers,
   engageBrake,
   getBrakeStatus,
@@ -112,7 +116,7 @@ describe("engage", () => {
     expect(perAccount).toHaveLength(2);
     expect(umbrella).toHaveLength(1);
     expect(umbrella[0]?.actorEmail).toBe(ACTOR);
-    expect((umbrella[0]?.metadata as { pausedCount: number }).pausedCount).toBe(2);
+    expect((umbrella[0]?.metadata as { intendedCount: number }).intendedCount).toBe(2);
     expect(rows.every((r) => r.actorEmail === ACTOR)).toBe(true);
   });
 
@@ -130,6 +134,84 @@ describe("engage", () => {
     // is a fact worth keeping, even when it changed nothing.
     const engages = (await db.select().from(schema.adminAuditLog)).filter((r) => r.action === "brake.engage");
     expect(engages).toHaveLength(2);
+  });
+});
+
+describe("MEDIUM-2: batching keeps the brake inside the subrequest budget", () => {
+  it("costs a bounded number of subrequests at 500 accounts, where the unbatched shape did not", () => {
+    // Asserted arithmetic, not a comment. The pre-fix shape awaited two round
+    // trips per account inside a loop, so the control built for a platform-wide
+    // incident was the one least likely to complete during one.
+    const unbatched = 1 /* eligibility read */ + 500 * 2 + 1; /* umbrella */
+    expect(unbatched).toBeGreaterThan(SUBREQUEST_BUDGET);
+
+    expect(brakeSubrequestCost(500)).toBe(22);
+    expect(brakeSubrequestCost(500)).toBeLessThan(SUBREQUEST_BUDGET);
+    // Headroom is not marginal: even an order of magnitude more merchants fits.
+    expect(brakeSubrequestCost(5_000)).toBeLessThan(SUBREQUEST_BUDGET);
+  });
+
+  it("chunks cover every account exactly once, with no empty trailing batch", () => {
+    const ids = Array.from({ length: 501 }, (_, i) => `acc_${i}`);
+    const chunks = chunkAccountIds(ids);
+    expect(chunks.flat()).toEqual(ids);
+    expect(chunks.every((c) => c.length > 0)).toBe(true);
+    expect(chunks).toHaveLength(brakeSubrequestCost(ids.length) - 2);
+  });
+
+  it("statements per batch stay well inside a sane D1 batch size", () => {
+    // Two statements per account: the flag write and its audit row.
+    expect(BRAKE_CHUNK_ACCOUNTS * 2).toBeLessThanOrEqual(50);
+  });
+});
+
+describe("MEDIUM-2: a mid-engage failure is diagnosable and releasable", () => {
+  it("keeps the umbrella intent row, commits whole chunks, and release cleans up exactly those", async () => {
+    const { db } = createInMemoryDb();
+    // 30 eligible accounts spans two chunks at BRAKE_CHUNK_ACCOUNTS=25.
+    await db.insert(schema.accounts).values(
+      Array.from({ length: 30 }, (_, i) => ({
+        id: `acc_${String(i).padStart(2, "0")}`,
+        name: `M${i}`,
+        billingExempt: false,
+        processingPaused: false,
+      })),
+    );
+
+    let call = 0;
+    const result = await engageBrake(
+      db,
+      { actorEmail: ACTOR },
+      {
+        runBatch: async (d, statements) => {
+          call += 1;
+          if (call === 2) throw new Error("simulated D1 chunk failure");
+          return d.batch(statements as never);
+        },
+      },
+    );
+
+    // Reported honestly: intended 30, committed 25.
+    expect(result.intendedCount).toBe(30);
+    expect(result.affectedCount).toBe(25);
+    expect(result.error).toMatch(/simulated D1 chunk failure/);
+
+    // The umbrella INTENT row survives, which is the point of writing it first.
+    const umbrella = (await db.select().from(schema.adminAuditLog)).filter(
+      (r) => r.action === "brake.engage",
+    );
+    expect(umbrella).toHaveLength(1);
+    expect((umbrella[0]?.metadata as { intendedCount: number }).intendedCount).toBe(30);
+
+    // Partial pauses are visible and, critically, MARKED.
+    const marked = await listBrakePausedAccountIds(db);
+    expect(marked).toHaveLength(25);
+
+    // And release cleans up exactly the marked rows, leaving the rest alone.
+    const released = await releaseBrake(db, { actorEmail: ACTOR });
+    expect(released.affectedCount).toBe(25);
+    expect(await listBrakePausedAccountIds(db)).toHaveLength(0);
+    expect(await paused(db, "acc_29")).toEqual({ processingPaused: false, pauseReason: null });
   });
 });
 
