@@ -16,19 +16,34 @@ export const DISPUTE_FEE_CAP_CENTS = 50_000;
 export const INTELLIGENCE_PRICE_CENTS = 19_900;
 
 // ---- Fee-invoice collection retry (app/lib/billing/fee-retry.ts) ----
-/** How many charge attempts one platform fee invoice gets before Foxhound stops
- *  chasing it. Legacy's value, carried over unchanged: it is the cap that
- *  actually binds on a monthly cadence. */
+/** Ceiling on charge attempts per platform fee invoice. Legacy's value, carried
+ *  over unchanged, but read the age cap below before assuming it is what stops a
+ *  retry loop: at the monthly cadence this ceiling is never reached. */
 export const FEE_INVOICE_MAX_RETRY_ATTEMPTS = 4;
-/** Age cap for the same. RESCALED from legacy's 14 days, which was tuned to an
- *  HOURLY cron: at Foxhound's monthly cadence a 14-day cap would fire before the
- *  first retry ever ran, making the whole retry path unreachable.
+/**
+ * Age cap for the same, and THE CAP THAT ACTUALLY BINDS IN PRODUCTION. Rescaled
+ * from legacy's 14 days, which was tuned to an HOURLY cron: at Foxhound's
+ * monthly cadence a 14-day cap would fire before the first retry ever ran,
+ * making the whole retry path unreachable.
  *
- *  Note which cap actually binds, because it is not the one it looks like: with
- *  runs 30 days apart, run 4 is 91 days out, so THIS cap fires first and an
- *  invoice gets three retries, not four. The attempt cap only binds if runs are
- *  closer together than monthly. Both land in the same place (stop chasing after
- *  about three months); test/billing-fee-retry.test.ts pins both paths. */
+ * COUNT THE RUNS, because the numbers do not say what they look like. The sweep
+ * runs at the START of runMonthlyBilling, so the earliest sweep that can see an
+ * invoice is a full month AFTER the run that wrote it:
+ *
+ *   Aug 1  invoice created (created_at = this run)
+ *   Sep 1  age 31, attempt 1 -> pay
+ *   Oct 1  age 61, attempt 2 -> pay
+ *   Nov 1  age 92 > 90       -> give_up (max_age_exceeded)
+ *
+ * So TWO or THREE retries, never four: the exact count is calendar-dependent
+ * (three short months fit inside 90 days, three long ones do not), and it is
+ * always the AGE cap that stops the loop. Do not restate it as a single number;
+ * two earlier attempts to do that were each correct only for the month they were
+ * derived from. Stopping after about three months is ACCEPTED as intended
+ * (Dustin, 2026-07-26). The attempt ceiling above only binds if runs are closer
+ * together than monthly. test/billing-fee-retry.test.ts walks the real cron
+ * cadence across every start month and pins the property rather than a count.
+ */
 export const FEE_INVOICE_MAX_RETRY_AGE_DAYS = 90;
 
 // ---- Subscription entitlement (account_subscriptions) ----
