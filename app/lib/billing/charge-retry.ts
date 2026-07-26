@@ -190,12 +190,46 @@ export interface SweepResult {
   reason: string;
 }
 
+/** Whether an account may still be charged, as of right now. */
+export interface ChargeGuard {
+  billingEligible: boolean;
+}
+
+/**
+ * Re-read the billing gate for ONE account, fresh.
+ *
+ * queryStrandedInvoices applies accountBillingEligibleCondition once, in its
+ * select, and then the sweep loops up to 200 rows charging each. That is the
+ * same select-then-loop shape the recovery tick had before its mid-run guard:
+ * an operator who engaged the emergency brake mid-sweep stopped nothing already
+ * selected, while retryInvoiceCharge kept reaching Stripe and charging the
+ * merchant's saved payment method for Foxhound's fee. Discharge review MEDIUM-A.
+ *
+ * It matters most on the one day it is least forgiving: this sweep runs inside
+ * runMonthlyBilling, whose first ever execution is 2026-08-01 and is a
+ * supervised event, which is exactly when someone reaches for the brake.
+ *
+ * Deliberately the SAME predicate the select uses, re-evaluated, so the two can
+ * never disagree about what eligible means.
+ */
+export async function checkChargeGuard(env: Env, accountId: string): Promise<ChargeGuard> {
+  const db = getDb(env);
+  const rows = await db
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(and(eq(accounts.id, accountId), accountBillingEligibleCondition()))
+    .limit(1);
+  return { billingEligible: rows.length > 0 };
+}
+
 /** Injectable Stripe seams, so the sweep is testable without a network call. */
 export interface ChargeRetryDeps {
   findExisting: typeof findPlatformInvoiceByBillingId;
   create: typeof createPlatformInvoice;
   finalize: typeof finalizePlatformInvoice;
   pay: typeof payPlatformInvoice;
+  /** Re-read the billing gate. Default: the real per-account read. */
+  checkGuard: (env: Env, accountId: string) => Promise<ChargeGuard>;
 }
 
 /**
@@ -217,7 +251,23 @@ export async function retryInvoiceCharge(
   const create = deps.create ?? createPlatformInvoice;
   const finalize = deps.finalize ?? finalizePlatformInvoice;
   const pay = deps.pay ?? payPlatformInvoice;
+  const checkGuard = deps.checkGuard ?? checkChargeGuard;
   const now = new Date(nowMs);
+
+  /** Fresh gate read placed immediately before a money-moving Stripe call, so
+   *  the window between the sweep's loop-level check and the charge itself is
+   *  closed rather than merely narrow. Returns a skipped result the caller can
+   *  hand straight back: nothing is written, so the invoice survives untouched
+   *  to the next sweep. */
+  const blockedByGuard = async (): Promise<SweepResult | null> => {
+    const { billingEligible } = await checkGuard(env, invoice.accountId);
+    if (billingEligible) return null;
+    return {
+      invoiceId: invoice.id,
+      outcome: "skipped",
+      reason: "account_not_billing_eligible",
+    };
+  };
 
   if (!invoice.platformCustomerId) {
     // Same guard runAccountBilling applies: never charge without a stored
@@ -253,6 +303,10 @@ export async function retryInvoiceCharge(
     if (lines.length === 0) {
       return { invoiceId: invoice.id, outcome: "skipped", reason: "no_line_items" };
     }
+    // Immediately before the charge, after the line-items read. `create` both
+    // creates AND collects, so this is a money-moving call.
+    const blockedBeforeCreate = await blockedByGuard();
+    if (blockedBeforeCreate) return blockedBeforeCreate;
     const created = await create(env, {
       platformCustomerId: invoice.platformCustomerId,
       currency: invoice.currency,
@@ -298,6 +352,12 @@ export async function retryInvoiceCharge(
 
   const attemptCount = invoice.chargeAttemptCount + 1;
   const stripeInvoiceId = existing.id as string;
+
+  // The SECOND money-moving path, and the one the follow-up task did not name:
+  // payPlatformInvoice collects on an existing Stripe invoice. Guarding only the
+  // create branch would have left the more common retry path unguarded.
+  const blockedBeforePay = await blockedByGuard();
+  if (blockedBeforePay) return blockedBeforePay;
 
   try {
     // A Stripe DRAFT cannot be paid, it has to be finalized first. This is the
@@ -377,8 +437,25 @@ export async function runChargeRetrySweep(
   opts: { limit?: number; deps?: Partial<ChargeRetryDeps> } = {},
 ): Promise<SweepResult[]> {
   const stranded = await queryStrandedInvoices(env, opts.limit ?? 200);
+  const checkGuard = opts.deps?.checkGuard ?? checkChargeGuard;
   const results: SweepResult[] = [];
   for (const invoice of stranded) {
+    // OUTSIDE the per-invoice try/catch, on purpose, exactly like the recovery
+    // tick's guard. If we cannot read whether the brake is engaged we do not
+    // know whether it is safe to charge, and on a sweep that collects from a
+    // merchant's saved card the safe answer to "I cannot tell" is to stop the
+    // whole sweep. A caught-and-continued guard failure would be fail-open.
+    const guard = await checkGuard(env, invoice.accountId);
+    if (!guard.billingEligible) {
+      // Skipped, never failed: nothing went wrong and nothing was written, so
+      // the invoice is untouched and the next sweep picks it up.
+      results.push({
+        invoiceId: invoice.id,
+        outcome: "skipped",
+        reason: "account_not_billing_eligible",
+      });
+      continue;
+    }
     try {
       results.push(await retryInvoiceCharge(env, invoice, nowMs, opts.deps));
     } catch (err) {

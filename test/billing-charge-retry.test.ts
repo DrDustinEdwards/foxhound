@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FEE_INVOICE_MAX_RETRY_ATTEMPTS } from "~/lib/constants";
@@ -513,5 +514,206 @@ describe("stranded-invoice-recovers-on-next-run", () => {
     // leave the ledger untouched.
     await expect(runMonthlyBilling({} as Env, NOW_MS)).resolves.toBeDefined();
     expect((await db.select().from(schema.billingInvoices))[0].status).toBe("draft");
+  });
+});
+
+describe("MEDIUM-A: the brake stops the sweep already in flight", () => {
+  /** Three stranded invoices on three accounts, so the loop has somewhere to go. */
+  async function seedThree() {
+    const db = await seed({ status: "draft", stripeInvoiceId: null, withLineItem: true });
+    for (const n of [2, 3]) {
+      await db.insert(schema.accounts).values({
+        id: `acc_${n}`,
+        name: `Co ${n}`,
+        createdAt: PERIOD_START,
+        platformStripeCustomerId: `cus_platform_${n}`,
+        billingExempt: false,
+      });
+      await db.insert(schema.billingInvoices).values({
+        id: `inv_${n}`,
+        accountId: `acc_${n}`,
+        currency: "usd",
+        periodStart: PERIOD_START,
+        periodEnd: PERIOD_START,
+        status: "draft",
+        totalCents: 2_000,
+        idempotencyKey: `billing:acc_${n}:usd:2026-07`,
+        createdAt: CREATED_AT,
+      });
+      await db.insert(schema.billingLineItems).values({
+        id: `li_${n}`,
+        invoiceId: `inv_${n}`,
+        accountId: `acc_${n}`,
+        type: "recovery_fee",
+        currency: "usd",
+        amountCents: 2_000,
+        description: "fee",
+        createdAt: CREATED_AT,
+      });
+    }
+    return db;
+  }
+
+  it("stops charging within one invoice when the brake engages mid-sweep", async () => {
+    await seedThree();
+    const created: string[] = [];
+    let checks = 0;
+
+    const results = await runChargeRetrySweep({} as Env, NOW_MS, {
+      deps: {
+        findExisting: async () => null,
+        create: async (_env, input) => {
+          created.push(input.billingInvoiceId);
+          return { stripeInvoiceId: "in_new", hostedInvoiceUrl: null };
+        },
+        // Eligible for the first invoice only: the operator hits the brake.
+        checkGuard: async () => {
+          checks += 1;
+          return { billingEligible: checks <= 2 };
+        },
+      },
+    });
+
+    // Exactly one charge landed. Before the guard, all three did.
+    expect(created).toHaveLength(1);
+    // Skipped, never failed: nothing went wrong, an operator stopped it.
+    const skipped = results.filter((r) => r.outcome === "skipped");
+    expect(skipped).toHaveLength(2);
+    expect(results.filter((r) => r.outcome === "failed")).toHaveLength(0);
+    expect(skipped.every((r) => r.reason === "account_not_billing_eligible")).toBe(true);
+  });
+
+  it("leaves a skipped invoice untouched, so the next sweep still finds it", async () => {
+    const db = await seedThree();
+
+    await runChargeRetrySweep({} as Env, NOW_MS, {
+      deps: {
+        findExisting: async () => null,
+        create: async () => ({ stripeInvoiceId: "in_new", hostedInvoiceUrl: null }),
+        checkGuard: async () => ({ billingEligible: false }),
+      },
+    });
+
+    const rows = await db.select().from(schema.billingInvoices);
+    // No status change, no attempt recorded: a skip is not an attempt.
+    expect(rows.every((r) => r.status === "draft")).toBe(true);
+    expect(rows.every((r) => r.chargeAttemptCount === 0)).toBe(true);
+    expect(await queryStrandedInvoices({} as Env, 200)).toHaveLength(3);
+  });
+
+  it("FAILS CLOSED: a guard that throws aborts the sweep instead of charging on", async () => {
+    // The pin that forbids fail-open. If the guard call were moved inside the
+    // per-invoice try/catch, this would resolve and `created` would be non-empty.
+    await seedThree();
+    const created: string[] = [];
+
+    await expect(
+      runChargeRetrySweep({} as Env, NOW_MS, {
+        deps: {
+          findExisting: async () => null,
+          create: async (_env, input) => {
+            created.push(input.billingInvoiceId);
+            return { stripeInvoiceId: "in_new", hostedInvoiceUrl: null };
+          },
+          checkGuard: async () => {
+            throw new Error("d1 unavailable");
+          },
+        },
+      }),
+    ).rejects.toThrow(/d1 unavailable/);
+    expect(created).toEqual([]);
+  });
+
+  it("closes the window between the loop check and the charge itself", async () => {
+    // Eligible at the loop-level check, brake engaged before the Stripe call.
+    // Without the inner guard this charges; with it, nothing moves.
+    await seedThree();
+    const created: string[] = [];
+    let call = 0;
+
+    const results = await runChargeRetrySweep({} as Env, NOW_MS, {
+      limit: 1,
+      deps: {
+        findExisting: async () => null,
+        create: async (_env, input) => {
+          created.push(input.billingInvoiceId);
+          return { stripeInvoiceId: "in_new", hostedInvoiceUrl: null };
+        },
+        checkGuard: async () => {
+          call += 1;
+          return { billingEligible: call === 1 }; // loop yes, pre-charge no
+        },
+      },
+    });
+
+    expect(created).toEqual([]);
+    expect(results[0]?.outcome).toBe("skipped");
+  });
+
+  it("guards the pay path too, not only the create path", async () => {
+    // The retry branch: Stripe already holds an open invoice and the sweep would
+    // collect on it. payPlatformInvoice moves money exactly like create does.
+    await seed({ status: "payment_failed", stripeInvoiceId: "in_existing", withLineItem: true });
+    const { calls, deps } = stripeDeps(
+      { id: "in_existing", status: "open" },
+      { checkGuard: async () => ({ billingEligible: false }) },
+    );
+
+    const result = await retryInvoiceCharge(
+      {} as Env,
+      (await queryStrandedInvoices({} as Env, 10))[0]!,
+      NOW_MS,
+      deps,
+    );
+
+    expect(calls.some((c) => c.startsWith("pay:"))).toBe(false);
+    expect(result.outcome).toBe("skipped");
+  });
+});
+
+describe("MEDIUM-A: the monthly per-account loop self-guards on a mid-run pause", () => {
+  // runMonthlyBilling reads its eligible-account list ONCE and then loops. What
+  // keeps a mid-run brake from billing the remaining accounts is not that list:
+  // it is that runAccountBilling re-runs getBillableRecoveries/getBillableDisputes
+  // per account, and both inner-join accounts with accountBillingEligibleCondition.
+  // The discharge review verified that by reading; nothing enforced it. These pin
+  // it, so the second gate cannot be refactored away silently.
+  //
+  // withLineItem:false leaves rec_1 UNBILLED, so it is genuinely billable and the
+  // assertions are not vacuous.
+
+  it("a paused account's billable set empties the moment the brake marks it", async () => {
+    const db = await seed({ withLineItem: false });
+    const { getBillableRecoveries } = await import("~/db/billable");
+
+    expect(await getBillableRecoveries(db as never, ACCOUNT_ID, NOW_MS)).toHaveLength(1);
+
+    await db
+      .update(schema.accounts)
+      .set({ processingPaused: true, pauseReason: "brake" })
+      .where(eq(schema.accounts.id, ACCOUNT_ID));
+
+    // Same query, same instant, nothing about the recovery itself changed.
+    expect(await getBillableRecoveries(db as never, ACCOUNT_ID, NOW_MS)).toHaveLength(0);
+  });
+
+  it("raises an invoice when running, and none once the brake has marked the account", async () => {
+    // Branch 1: the control. Without this the paused branch could pass vacuously.
+    const running = await seed({ withLineItem: false });
+    const beforeRunning = (await running.select().from(schema.billingInvoices)).length;
+    await runMonthlyBilling({} as Env, NOW_MS);
+    const afterRunning = (await running.select().from(schema.billingInvoices)).length;
+    expect(afterRunning).toBeGreaterThan(beforeRunning);
+
+    // Branch 2: same fixture, account marked by the brake.
+    const paused = await seed({ withLineItem: false });
+    await paused
+      .update(schema.accounts)
+      .set({ processingPaused: true, pauseReason: "brake" })
+      .where(eq(schema.accounts.id, ACCOUNT_ID));
+    const beforePaused = (await paused.select().from(schema.billingInvoices)).length;
+    await runMonthlyBilling({} as Env, NOW_MS);
+    const afterPaused = (await paused.select().from(schema.billingInvoices)).length;
+    expect(afterPaused).toBe(beforePaused);
   });
 });
