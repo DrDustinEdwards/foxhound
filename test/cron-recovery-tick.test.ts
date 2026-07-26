@@ -303,3 +303,37 @@ describe("RECOVERY_TICK_LIMIT is inside an honest subrequest budget", () => {
     expect(RECOVERY_TICK_LIMIT * PER_STEP_SUBREQUESTS + fixed).toBeLessThan(SUBREQUEST_BUDGET);
   });
 });
+
+describe("LOW-C: a halted tick does nothing further", () => {
+  it("skips the exhausted sweep when the tick was disabled mid-run", async () => {
+    let swept = 0;
+    const result = await runRecoveryTick({} as Env, {
+      query: async () => [row({ stepId: "s1", stepType: "retry_early" })],
+      runRetry: async () => ({ recovered: false }),
+      runEmail: async () => ({}),
+      flipExhausted: async () => {
+        swept += 1;
+        return 3;
+      },
+      checkGuards: async () => ({ tickEnabled: false, accountEligible: true }),
+    });
+
+    expect(swept).toBe(0);
+    expect(result.message).toMatch(/exhausted-sweep skipped \(halted\)/);
+  });
+
+  it("still runs the sweep on a normal tick", async () => {
+    let swept = 0;
+    await runRecoveryTick({} as Env, {
+      query: async () => [row({ stepId: "s1", stepType: "retry_early" })],
+      runRetry: async () => ({ recovered: false }),
+      runEmail: async () => ({}),
+      flipExhausted: async () => {
+        swept += 1;
+        return 0;
+      },
+      checkGuards: allowAll,
+    });
+    expect(swept).toBe(1);
+  });
+});

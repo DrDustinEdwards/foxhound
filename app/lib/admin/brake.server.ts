@@ -333,13 +333,21 @@ export interface BrakeStatus {
   lastRelease: BrakeEvent | null;
 }
 
+/** Metadata keys a count may live under, newest first.
+ *
+ *  `intendedCount` is what the umbrella row records now that it is written
+ *  BEFORE the account writes. Rows written before that change carry
+ *  `pausedCount` / `resumedCount`, and reading only the new key left every
+ *  historical engage and release rendering with no number at all (review
+ *  LOW-D). The values were never lost, just unreachable from the panel. */
+const COUNT_KEYS = ["intendedCount", "pausedCount", "resumedCount"] as const;
+
 function readEvent(
   row: { actorEmail: string; createdAt: Date | null; metadata: unknown } | undefined,
-  countKey: "intendedCount",
 ): BrakeEvent | null {
   if (!row?.createdAt) return null;
   const meta = (row.metadata ?? {}) as Record<string, unknown>;
-  const raw = meta[countKey];
+  const raw = COUNT_KEYS.map((k) => meta[k]).find((v) => typeof v === "number");
   return {
     actorEmail: row.actorEmail,
     at: row.createdAt,
@@ -386,8 +394,8 @@ export async function getBrakeStatus(db: Db): Promise<BrakeStatus> {
     eligibleCount,
     // A missing cron_config row means ENABLED (app/lib/cron/gating.ts).
     tickEnabled: tickConfig[0]?.enabled ?? true,
-    lastEngage: readEvent(engageRow, "intendedCount"),
-    lastRelease: readEvent(releaseRow, "intendedCount"),
+    lastEngage: readEvent(engageRow),
+    lastRelease: readEvent(releaseRow),
   };
 }
 

@@ -135,3 +135,30 @@ describe("the real mid-run guard reads live state", () => {
     expect((await checkTickGuards({} as Env, "acc_does_not_exist")).accountEligible).toBe(false);
   });
 });
+
+describe("LOW-B: the tick guard fails closed in BOTH halves", () => {
+  it("treats a missing cron_config row as enabled (gotcha 44), not as a failure", async () => {
+    await seed();
+    expect((await checkTickGuards({} as Env, ACCOUNT_ID)).tickEnabled).toBe(true);
+  });
+
+  it("throws rather than reading a malformed batch result as enabled", async () => {
+    await seed();
+    // The fail-open shape the review flagged: `cfgRows[0]?.enabled ?? true`
+    // could not tell "no row" from "the read did not return what I expected",
+    // and resolved both to enabled on the control whose job is stopping a loop
+    // that charges cards.
+    const realBatch = (harness.db as { batch: (s: unknown[]) => Promise<unknown> }).batch;
+    (harness.db as { batch: unknown }).batch = async () => [{ notAnArray: true }, []];
+    await expect(checkTickGuards({} as Env, ACCOUNT_ID)).rejects.toThrow(/unexpected batch result/);
+    (harness.db as { batch: unknown }).batch = realBatch;
+  });
+
+  it("throws when a present cron_config row carries a non-boolean enabled", async () => {
+    await seed();
+    const realBatch = (harness.db as { batch: (s: unknown[]) => Promise<unknown> }).batch;
+    (harness.db as { batch: unknown }).batch = async () => [[{ enabled: "yes" }], []];
+    await expect(checkTickGuards({} as Env, ACCOUNT_ID)).rejects.toThrow(/not a boolean/);
+    (harness.db as { batch: unknown }).batch = realBatch;
+  });
+});
