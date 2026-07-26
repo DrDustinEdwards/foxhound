@@ -26,7 +26,7 @@ const {
   runRecoveryTick,
   RETRY_RESULT_NO_CONNECTION,
 } = await import("~/lib/cron/recovery-tick");
-const { RETRY_TOKEN_MAX_ATTEMPTS } = await import("~/lib/constants");
+const { RETRY_TOKEN_MAX_ATTEMPTS, SEND_RETRY_BACKOFF_MINUTES } = await import("~/lib/constants");
 const schema = await import("~/db/schema");
 
 /** `mode` picks how the token goes missing: a connection row whose token was
@@ -104,12 +104,16 @@ describe.each(["null-token", "no-connection"] as const)(
       expect(step.result).toBeNull();
       expect(step.executedAt).toBeNull();
       expect(step.lastAttemptError).toBe("no connected stripe token");
-      // SEND_RETRY_BACKOFF_MINUTES[0] is 5.
-      expect(step.nextRetryAt).toEqual(minutesAfter(T0, 5));
+      // Derived from the constant, not a literal: this assertion silently
+      // encoded 5 minutes and had to be hand-edited when ruling 17 restored the
+      // legacy backoff span. The behaviour under test is "reschedules by the
+      // first backoff", not "reschedules by five minutes".
+      const firstBackoff = SEND_RETRY_BACKOFF_MINUTES[0];
+      expect(step.nextRetryAt).toEqual(minutesAfter(T0, firstBackoff));
 
       // Not re-selected until the backoff elapses: the livelock stays fixed.
-      expect(await queryDueRecoverySteps({} as Env, minutesAfter(T0, 1))).toHaveLength(0);
-      expect(await queryDueRecoverySteps({} as Env, minutesAfter(T0, 6))).toHaveLength(1);
+      expect(await queryDueRecoverySteps({} as Env, minutesAfter(T0, firstBackoff - 1))).toHaveLength(0);
+      expect(await queryDueRecoverySteps({} as Env, minutesAfter(T0, firstBackoff + 1))).toHaveLength(1);
     });
 
     it("goes terminal only on the last attempt, and exactly once", async () => {
