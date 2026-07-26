@@ -1,10 +1,11 @@
 import { and, asc, eq, inArray, isNull, lte, notExists, notLike, or, type SQL } from "drizzle-orm";
 
 import type { Db } from "~/db";
-import { accounts, failedPayments, getDb, recoverySteps, stripeConnections } from "~/db";
+import { accounts, cronConfig, failedPayments, getDb, recoverySteps, stripeConnections } from "~/db";
 import {
   DEMO_ACCOUNT_ID_PREFIX,
   FAILED_PAYMENT_STATUS_UNRECOVERED,
+  RECOVERY_TICK_CRON_NAME,
   RECOVERY_TICK_LIMIT,
   RETRY_TOKEN_MAX_ATTEMPTS,
 } from "~/lib/constants";
@@ -238,6 +239,50 @@ export async function queryDueRecoverySteps(env: Env, now: Date): Promise<DueSte
     .limit(RECOVERY_TICK_LIMIT);
 }
 
+/** What the loop re-checks before EACH step. */
+export interface TickGuards {
+  /** recovery-tick's cron_config flag. A missing row means enabled (gotcha #44). */
+  tickEnabled: boolean;
+  /** Whether this step's account is STILL processing-eligible right now. */
+  accountEligible: boolean;
+}
+
+/**
+ * Re-read both gates as of this instant, in ONE db.batch (a batch is a single
+ * round trip, so this costs one subrequest per step rather than two).
+ *
+ * Both gates are evaluated at SELECT time by queryDueRecoverySteps, which was
+ * enough to stop the next run and not the current one. A tick can hold up to
+ * RECOVERY_TICK_LIMIT already-selected steps, and each retry step charges a real
+ * card, so an operator who engaged the brake mid-run watched the panel confirm
+ * "paused" while charges kept landing for minutes. The panel promised "stops all
+ * retries and dunning sends"; this is what makes that promise true.
+ *
+ * The account predicate is the SAME accountProcessingEligibleCondition the
+ * selection query uses, re-evaluated, so the two can never disagree about what
+ * eligible means.
+ */
+export async function checkTickGuards(env: Env, accountId: string): Promise<TickGuards> {
+  const db = getDb(env);
+  const [cfgRows, acctRows] = (await db.batch([
+    db
+      .select({ enabled: cronConfig.enabled })
+      .from(cronConfig)
+      .where(eq(cronConfig.cronName, RECOVERY_TICK_CRON_NAME))
+      .limit(1),
+    db
+      .select({ id: accounts.id })
+      .from(accounts)
+      .where(and(eq(accounts.id, accountId), accountProcessingEligibleCondition()))
+      .limit(1),
+  ])) as [Array<{ enabled: boolean }>, Array<{ id: string }>];
+
+  return {
+    tickEnabled: cfgRows[0]?.enabled ?? true,
+    accountEligible: acctRows.length > 0,
+  };
+}
+
 /** Effective due time of a row (next_retry_at wins over scheduled_at). */
 function dueAtMs(row: DueStepRow): number {
   return (row.nextRetryAt ?? row.scheduledAt).getTime();
@@ -347,9 +392,16 @@ interface TickTally {
   emails: number;
   recovered: number;
   skipped: number;
+  /** Steps skipped because their account stopped being eligible DURING this run
+   *  (almost always the emergency brake). Counted apart from `skipped` so a
+   *  brake engage reads as a deliberate stop, not as engine noise, and apart
+   *  from `failed` because nothing failed. */
+  skippedIneligible: number;
   failed: number;
   exhausted: number;
   backlog: boolean;
+  /** The tick was disabled mid-run and stopped early. */
+  halted: boolean;
 }
 
 /** Injectable seams for runRecoveryTick. Defaults are the real query + executors. */
@@ -366,6 +418,9 @@ export interface RecoveryTickDeps {
     step: { stepId: string; attemptCount: number },
     now: Date,
   ) => Promise<string | null>;
+  /** Re-read the enabled flag + account eligibility before each step. Default:
+   *  the real batched read. */
+  checkGuards: (env: Env, accountId: string) => Promise<TickGuards>;
 }
 
 /**
@@ -392,6 +447,7 @@ export async function runRecoveryTick(
   const runEmail = deps.runEmail ?? executeEmailStep;
   const flipExhausted = deps.flipExhausted ?? flipExhaustedSequences;
   const recordMissingToken = deps.recordMissingToken ?? recordMissingTokenAttempt;
+  const checkGuards = deps.checkGuards ?? checkTickGuards;
 
   const now = new Date();
   const due = await query(env, now);
@@ -403,12 +459,30 @@ export async function runRecoveryTick(
     emails: 0,
     recovered: 0,
     skipped: 0,
+    skippedIneligible: 0,
     failed: 0,
     exhausted: 0,
     backlog: due.length >= RECOVERY_TICK_LIMIT,
+    halted: false,
   };
 
   for (const row of chosen) {
+    // Re-checked per step, not per run. Both gates were evaluated when the batch
+    // was selected; without this, engaging the brake or disabling the tick took
+    // effect only from the NEXT run, while this one kept charging cards.
+    const guards = await checkGuards(env, row.accountId);
+    if (!guards.tickEnabled) {
+      // Exit cleanly and leave the remaining steps untouched. They are still
+      // unexecuted with no result, so the next enabled tick re-selects them:
+      // nothing is lost, and nothing is stamped as failed.
+      tally.halted = true;
+      break;
+    }
+    if (!guards.accountEligible) {
+      tally.skippedIneligible += 1;
+      continue;
+    }
+
     const action = stepAction(row.stepType);
     try {
       if (action === "retry") {
@@ -459,12 +533,19 @@ export async function runRecoveryTick(
 
   const executed = tally.retries + tally.emails;
   const backlogNote = tally.backlog ? ", BACKLOG (tick hit RECOVERY_TICK_LIMIT)" : "";
+  // Both stop conditions are named in the run message, so cron_run_history shows
+  // a deliberate halt as a halt rather than as a quiet short run.
+  const haltedNote = tally.halted ? ", HALTED (tick disabled mid-run)" : "";
+  const pausedNote =
+    tally.skippedIneligible > 0
+      ? `, ${tally.skippedIneligible} skipped (account paused mid-run)`
+      : "";
   return {
     rowsProcessed: executed,
     message:
       `${tally.due} due, ${tally.chosen} payments, ${tally.retries} retries ` +
       `(${tally.recovered} recovered), ${tally.emails} emails, ` +
       `${tally.skipped} skipped, ${tally.failed} failed, ` +
-      `${tally.exhausted} exhausted${sweepNote}${backlogNote}`,
+      `${tally.exhausted} exhausted${pausedNote}${sweepNote}${backlogNote}${haltedNote}`,
   };
 }

@@ -34,8 +34,8 @@ import { accounts, adminAuditLog, cronConfig } from "~/db";
 import { buildAdminAuditLogInsert, logAdminAction } from "~/lib/admin/audit.server";
 import { KNOWN_PAUSE_REASONS, PAUSE_REASON_BRAKE } from "~/lib/admin/brake";
 import { buildSetProcessingPaused } from "~/lib/admin/merchants.server";
-import { DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
-import { RECOVERY_TICK_CRON_NAME } from "~/lib/cron/registry";
+import { DEMO_ACCOUNT_ID_PREFIX, RECOVERY_TICK_CRON_NAME } from "~/lib/constants";
+
 
 /** accounts.pause_reason value meaning "the global brake paused this row".
  *  Re-exported from the pure module, which owns the vocabulary because the

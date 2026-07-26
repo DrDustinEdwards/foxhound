@@ -4,6 +4,7 @@ import {
   CRON_SCHEDULE_DAILY,
   CRON_SCHEDULE_MONTHLY,
   CRON_SCHEDULE_RECOVERY_TICK,
+  RECOVERY_TICK_CRON_NAME,
 } from "~/lib/constants";
 import { DEMO_RESET_CRON_NAME } from "~/lib/demo/constants";
 import { seedDemoAccount } from "~/lib/demo/seed";
@@ -104,13 +105,6 @@ const demoReset: CronHandler = async (env) => {
   await seedDemoAccount(getDb(env), new Date());
   return { rowsProcessed: 1, message: "demo account reseeded" };
 };
-
-/** The recovery tick's registered name. Exported so the admin emergency brake
- *  can offer its disable control without re-typing the literal and drifting from
- *  the registry. setCronEnabled rejects unknown names, so a drift would surface
- *  as a 400 rather than a silent no-op, but not typing it twice is better than
- *  catching it. */
-export const RECOVERY_TICK_CRON_NAME = "recovery-tick";
 
 export const CRON_JOBS: CronJob[] = [
   { name: RECOVERY_TICK_CRON_NAME, schedule: CRON_SCHEDULE_RECOVERY_TICK, handler: recoveryTick },
