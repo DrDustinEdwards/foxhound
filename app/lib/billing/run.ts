@@ -10,6 +10,7 @@ import type { Db, MoneyWriteBatch } from "~/db";
 import { accounts, billingInvoices, billingLineItems, getDb } from "~/db";
 import { executeMoneyWrite } from "~/lib/money/execute";
 
+import { runChargeRetrySweep } from "./charge-retry";
 import { disputeFeeCents, recoveryFeeCents } from "./fees";
 import {
   createPlatformInvoice,
@@ -337,12 +338,34 @@ export async function runAccountBilling(
  * The full monthly run: every billing-eligible account (not exempt, not paused,
  * not a demo account) billed for the prior period. This is the entry point the
  * Phase 4e Cron Trigger invokes. Failures on one account do not abort the rest.
+ *
+ * The charge-dispatch retry sweep runs FIRST, before any new invoice is raised.
+ * A committed invoice whose charge never landed is otherwise stranded forever
+ * (its own idempotency key blocks re-billing the period), and settling last
+ * period's outstanding fee before raising this period's is the order a merchant
+ * would expect. Its failures are logged and never abort the billing run.
  */
 export async function runMonthlyBilling(
   env: Env,
   nowMs: number,
 ): Promise<AccountBillingResult[]> {
   const db = getDb(env);
+
+  try {
+    const swept = await runChargeRetrySweep(env, nowMs);
+    if (swept.length > 0) {
+      const tally = swept.reduce<Record<string, number>>((acc, r) => {
+        acc[r.outcome] = (acc[r.outcome] ?? 0) + 1;
+        return acc;
+      }, {});
+      console.log("charge retry sweep:", JSON.stringify(tally));
+    }
+  } catch (err) {
+    console.error(
+      "charge retry sweep failed:",
+      err instanceof Error ? err.message : err,
+    );
+  }
   const eligible = await db
     .select({ id: accounts.id })
     .from(accounts)

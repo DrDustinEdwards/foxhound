@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import type Stripe from "stripe";
 
 import type { Db, MoneyWriteBatch } from "~/db";
 import { billingInvoices } from "~/db";
@@ -155,6 +156,49 @@ export async function createPlatformInvoice(
     stripeInvoiceId: finalized.id ?? invoice.id,
     hostedInvoiceUrl: finalized.hosted_invoice_url ?? null,
   };
+}
+
+/**
+ * Find an already-created platform invoice for one of our billing_invoices rows,
+ * by the metadata createPlatformInvoice stamps on it. Returns null when Stripe
+ * has none.
+ *
+ * This exists because Stripe idempotency keys EXPIRE AFTER 24 HOURS and the
+ * charge-retry sweep runs monthly. Replaying platformInvoiceIdempotencyKey a
+ * month later does not return the original invoice, it creates a second one, so
+ * for the review-findings scenario-2 stranding (Stripe charged, our follow-up
+ * ref-update write failed, our row still says draft with no stripe_invoice_id)
+ * a key-only retry would double-charge the merchant. This lookup is what makes
+ * the sweep safe at any age, and it also self-heals that scenario rather than
+ * merely avoiding it: the invoice is adopted and the missing ref written.
+ */
+export async function findPlatformInvoiceByBillingId(
+  env: Env,
+  billingInvoiceId: string,
+): Promise<Stripe.Invoice | null> {
+  const stripe = getStripe(env);
+  const results = await stripe.invoices.search({
+    query: `metadata['billing_invoice_id']:'${billingInvoiceId}'`,
+    limit: 1,
+  });
+  return results.data[0] ?? null;
+}
+
+/** Attempt collection on an existing platform invoice. Separate from creation
+ *  because Stripe does not auto-retry a one-off charge_automatically invoice. */
+export async function payPlatformInvoice(
+  env: Env,
+  stripeInvoiceId: string,
+  attemptNumber: number,
+): Promise<Stripe.Invoice> {
+  const stripe = getStripe(env);
+  return stripe.invoices.pay(
+    stripeInvoiceId,
+    {},
+    // Per-ATTEMPT key: two different attempts must really be two attempts, but a
+    // redelivered/duplicated single attempt must not double-charge.
+    { idempotencyKey: `platform-invoice-pay:${stripeInvoiceId}:${attemptNumber}` },
+  );
 }
 
 /** The money-write that stamps the Stripe invoice reference + status onto our

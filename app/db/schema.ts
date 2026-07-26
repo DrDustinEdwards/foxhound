@@ -481,6 +481,12 @@ export const billingInvoices = sqliteTable(
     idempotencyKey: text("idempotency_key").notNull(),
     createdAt: ts("created_at").notNull(),
     finalizedAt: ts("finalized_at"),
+    // Charge-dispatch retry bookkeeping (app/lib/billing/fee-retry.ts, migration
+    // 0010). The ported state machine caps how many times Foxhound chases one
+    // fee invoice, and nothing already in the schema could derive an attempt
+    // count: the row is written once and the Stripe charge seam is stateless.
+    chargeAttemptCount: integer("charge_attempt_count").notNull().default(0),
+    lastChargeAttemptAt: ts("last_charge_attempt_at"),
   },
   (t) => [
     index("billing_invoices_account_idx").on(t.accountId),
