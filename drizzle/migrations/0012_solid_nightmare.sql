@@ -1,0 +1,1 @@
+ALTER TABLE `accounts` ADD `pause_reason` text;

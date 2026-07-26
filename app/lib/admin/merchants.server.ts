@@ -167,9 +167,27 @@ export async function setBillingExempt(db: Db, accountId: string, exempt: boolea
  *  app/lib/intelligence/sync.server.ts's accountProcessingEligible, and (per
  *  PRICING.md) ALSO by the billing gate (app/db/billable.ts): a paused
  *  merchant is not billed while paused, which is deliberate and distinct from
- *  cancel (see cancelMerchant). */
-export async function setProcessingPaused(db: Db, accountId: string, paused: boolean): Promise<void> {
-  await db.update(accounts).set({ processingPaused: paused }).where(eq(accounts.id, accountId));
+ *  cancel (see cancelMerchant).
+ *
+ *  `reason` records WHY, and only the global emergency brake passes one
+ *  (BRAKE_PAUSE_REASON, brake.server.ts). It is written in the same statement as
+ *  the flag so the two can never disagree.
+ *
+ *  Resuming always clears the reason, and an individual pause always clears it
+ *  too. That makes the single-account toggle authoritative over the marker: if
+ *  an operator individually resumes a brake-paused merchant, the brake stops
+ *  owning that row and a later release will not touch it, which is the correct
+ *  reading of a human overriding an automated hold. */
+export async function setProcessingPaused(
+  db: Db,
+  accountId: string,
+  paused: boolean,
+  reason: string | null = null,
+): Promise<void> {
+  await db
+    .update(accounts)
+    .set({ processingPaused: paused, pauseReason: paused ? reason : null })
+    .where(eq(accounts.id, accountId));
 }
 
 /** Whether an account currently holds an active Intelligence subscription row.
