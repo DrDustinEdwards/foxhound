@@ -2,10 +2,15 @@ import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import * as schema from "~/db/schema";
-import { BRAKE_CONFIRM_PHRASES, isBrakeIntent, isConfirmPhraseValid } from "~/lib/admin/brake";
+import {
+  BRAKE_CONFIRM_PHRASES,
+  PAUSE_REASON_MANUAL,
+  isBrakeIntent,
+  isConfirmPhraseValid,
+} from "~/lib/admin/brake";
 import {
   BRAKE_PAUSE_REASON,
-  countStaleBrakeMarkers,
+  countStaleMarkers,
   engageBrake,
   getBrakeStatus,
   listBrakePausedAccountIds,
@@ -183,8 +188,8 @@ describe("release", () => {
   });
 });
 
-describe("an individual pause never carries the brake marker", () => {
-  it("setProcessingPaused(true) leaves pause_reason null, so release cannot claim the row", async () => {
+describe("a manual pause is positively marked and never claimed by release", () => {
+  it("pausing an UNPAUSED account stamps 'manual', so release cannot claim the row", async () => {
     const { db } = createInMemoryDb();
     await db
       .insert(schema.accounts)
@@ -192,10 +197,16 @@ describe("an individual pause never carries the brake marker", () => {
 
     await setProcessingPaused(db, "acc_1", true);
 
-    expect(await paused(db, "acc_1")).toEqual({ processingPaused: true, pauseReason: null });
+    expect(await paused(db, "acc_1")).toEqual({
+      processingPaused: true,
+      pauseReason: PAUSE_REASON_MANUAL,
+    });
     const result = await releaseBrake(db, { actorEmail: ACTOR });
     expect(result.affectedCount).toBe(0);
-    expect(await paused(db, "acc_1")).toEqual({ processingPaused: true, pauseReason: null });
+    expect(await paused(db, "acc_1")).toEqual({
+      processingPaused: true,
+      pauseReason: PAUSE_REASON_MANUAL,
+    });
   });
 
   it("resuming clears any marker, so no stale marker survives", async () => {
@@ -208,7 +219,103 @@ describe("an individual pause never carries the brake marker", () => {
     await setProcessingPaused(db, "acc_1", false);
 
     expect(await paused(db, "acc_1")).toEqual({ processingPaused: false, pauseReason: null });
-    expect(await countStaleBrakeMarkers(db)).toBe(0);
+    expect(await countStaleMarkers(db)).toEqual({
+      markedButNotPaused: 0,
+      pausedWithUnknownReason: 0,
+    });
+  });
+});
+
+describe("LOW-2: a stale per-merchant form cannot strip the brake marker", () => {
+  it("re-pausing an already-brake-paused account PRESERVES the marker, and release still resumes it", async () => {
+    const { db } = createInMemoryDb();
+    await seedAccounts(db);
+    await engageBrake(db, { actorEmail: ACTOR });
+    expect(await paused(db, "acc_normal")).toEqual({
+      processingPaused: true,
+      pauseReason: BRAKE_PAUSE_REASON,
+    });
+
+    // The exact stale-form replay: /admin/merchants/:id rendered BEFORE the
+    // brake engaged carries nextPaused=true, and the operator submits it after.
+    // This used to overwrite the marker with null and strand the merchant.
+    await setProcessingPaused(db, "acc_normal", true);
+
+    expect(await paused(db, "acc_normal")).toEqual({
+      processingPaused: true,
+      pauseReason: BRAKE_PAUSE_REASON,
+    });
+
+    const result = await releaseBrake(db, { actorEmail: ACTOR });
+    expect(result.accountIds.sort()).toEqual(["acc_normal", "acc_normal_2"]);
+    expect(await paused(db, "acc_normal")).toEqual({ processingPaused: false, pauseReason: null });
+  });
+
+  it("a manual pause on an already-manually-paused account is idempotent", async () => {
+    const { db } = createInMemoryDb();
+    await db
+      .insert(schema.accounts)
+      .values({ id: "acc_1", name: "Acme", billingExempt: false, processingPaused: false });
+
+    await setProcessingPaused(db, "acc_1", true);
+    await setProcessingPaused(db, "acc_1", true);
+
+    expect(await paused(db, "acc_1")).toEqual({
+      processingPaused: true,
+      pauseReason: PAUSE_REASON_MANUAL,
+    });
+  });
+});
+
+describe("stale-marker probe catches BOTH disagreeing shapes", () => {
+  it("flags a reason recorded on a row that is not paused", async () => {
+    const { db } = createInMemoryDb();
+    await db.insert(schema.accounts).values({
+      id: "acc_1",
+      name: "Acme",
+      billingExempt: false,
+      processingPaused: false,
+      pauseReason: BRAKE_PAUSE_REASON,
+    });
+
+    expect(await countStaleMarkers(db)).toEqual({
+      markedButNotPaused: 1,
+      pausedWithUnknownReason: 0,
+    });
+  });
+
+  it("flags a PAUSED row carrying a reason release will never match", async () => {
+    // The shape the first probe missed entirely: release keys on the exact
+    // 'brake' string, so this row is paused forever and nothing said so.
+    const { db } = createInMemoryDb();
+    await db.insert(schema.accounts).values({
+      id: "acc_1",
+      name: "Acme",
+      billingExempt: false,
+      processingPaused: true,
+      pauseReason: "legacy_import",
+    });
+
+    expect(await countStaleMarkers(db)).toEqual({
+      markedButNotPaused: 0,
+      pausedWithUnknownReason: 1,
+    });
+    // ...and it is still correctly excluded from release.
+    expect((await releaseBrake(db, { actorEmail: ACTOR })).affectedCount).toBe(0);
+  });
+
+  it("does not flag either known reason in its correct shape", async () => {
+    const { db } = createInMemoryDb();
+    await db.insert(schema.accounts).values([
+      { id: "acc_b", name: "B", billingExempt: false, processingPaused: true, pauseReason: BRAKE_PAUSE_REASON },
+      { id: "acc_m", name: "M", billingExempt: false, processingPaused: true, pauseReason: PAUSE_REASON_MANUAL },
+      { id: "acc_n", name: "N", billingExempt: false, processingPaused: true, pauseReason: null },
+    ]);
+
+    expect(await countStaleMarkers(db)).toEqual({
+      markedButNotPaused: 0,
+      pausedWithUnknownReason: 0,
+    });
   });
 });
 

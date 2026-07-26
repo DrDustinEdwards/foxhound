@@ -11,7 +11,7 @@ import {
   type BrakeIntent,
 } from "~/lib/admin/brake";
 import {
-  countStaleBrakeMarkers,
+  countStaleMarkers,
   engageBrake,
   getBrakeStatus,
   releaseBrake,
@@ -30,7 +30,7 @@ export function meta() {
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const db = getDb(env);
-  const [status, staleMarkers] = await Promise.all([getBrakeStatus(db), countStaleBrakeMarkers(db)]);
+  const [status, staleMarkers] = await Promise.all([getBrakeStatus(db), countStaleMarkers(db)]);
   return { status, staleMarkers };
 }
 
@@ -205,7 +205,10 @@ export default function AdminBrake({ loaderData, actionData }: Route.ComponentPr
             <dd className="font-mono text-label text-text">{status.brakePausedCount}</dd>
           </div>
           <div>
-            <dt className="text-micro text-text-subtle">Paused individually</dt>
+            {/* Not "individually": the demo account is paused by the seeder, and
+                a pre-pause_reason row carries no reason either. What the number
+                actually means is "paused, and release will not touch it". */}
+            <dt className="text-micro text-text-subtle">Paused outside the brake</dt>
             <dd className="font-mono text-label text-text">{status.individuallyPausedCount}</dd>
           </div>
           <div>
@@ -217,9 +220,16 @@ export default function AdminBrake({ loaderData, actionData }: Route.ComponentPr
           <EventLine label="Last engage" event={status.lastEngage} />
           <EventLine label="Last release" event={status.lastRelease} />
         </div>
-        {staleMarkers > 0 ? (
+        {staleMarkers.markedButNotPaused > 0 ? (
           <p role="status" className="mt-3 rounded-md border border-orange bg-orange-bg px-3 py-2 text-label text-warning-text">
-            {staleMarkers} account(s) carry a brake marker but are not paused. Release will not touch them.
+            {staleMarkers.markedButNotPaused} account(s) carry a pause reason but are not paused. Something wrote
+            processing_paused outside setProcessingPaused.
+          </p>
+        ) : null}
+        {staleMarkers.pausedWithUnknownReason > 0 ? (
+          <p role="status" className="mt-3 rounded-md border border-orange bg-orange-bg px-3 py-2 text-label text-warning-text">
+            {staleMarkers.pausedWithUnknownReason} paused account(s) carry an unrecognised pause reason. Release
+            matches only the brake marker, so it will never resume them.
           </p>
         ) : null}
       </section>
