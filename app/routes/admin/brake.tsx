@@ -261,7 +261,7 @@ export default function AdminBrake({ loaderData, actionData }: Route.ComponentPr
         <h2 className="mb-1 text-label font-semibold text-text">The brake: pause every merchant</h2>
         <p className="mb-3 text-label text-text-tertiary">
           Pauses processing for every account that is not a demo account, not billing-exempt, and not already paused.
-          Merchants paused individually keep their pause and are never resumed by a release.
+          Merchants paused outside the brake keep their pause and are never resumed by a release.
         </p>
         <div className="flex flex-col gap-4">
           <ConfirmForm
@@ -276,7 +276,7 @@ export default function AdminBrake({ loaderData, actionData }: Route.ComponentPr
               intent="release"
               label="Release brake"
               busy={busy}
-              description={`Will resume ${status.brakePausedCount} account(s) paused by the brake. ${status.individuallyPausedCount} individually paused account(s) will stay paused.`}
+              description={`Will resume ${status.brakePausedCount} account(s) paused by the brake. ${status.individuallyPausedCount} account(s) paused outside the brake will stay paused.`}
             />
           </div>
         </div>
