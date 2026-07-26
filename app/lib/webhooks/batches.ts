@@ -144,7 +144,10 @@ export function buildRecoverBatch(db: Db, input: RecoverBatchInput): MoneyWriteB
   return [claim, statusFlip, ...recovery];
 }
 
-/** charge.refunded (full): claim + stamp recovered_payments.refunded_at (unbills the recovery). */
+/** charge.refunded: claim + stamp recovered_payments.refunded_at (unbills the
+ *  recovery). Fires on ANY refund, full or partial (parity ruling 29). The
+ *  isNull guard means the FIRST refund's timestamp wins, so a second partial
+ *  refund is a no-op rather than moving the disqualification later. */
 export function buildRefundStampBatch(
   db: Db,
   input: { claim: WebhookClaimInput; failedPaymentId: string; at: Date },

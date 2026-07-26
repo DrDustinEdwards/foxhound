@@ -33,11 +33,15 @@ import { classifyStripeEvent } from "./events";
 // batch. Replays roll back on the webhook_events unique index -> applied=false.
 //
 // Deferred to Phase 8 (needs live Stripe): ML enrichment on intake (extra
-// customer/charge/subscription reads), the paymentIntent->invoice resolution
-// for refund stamping, and live verification of the AI evidence drafting +
-// Stripe dispute submission (both wired inert-but-complete, see
+// customer/charge/subscription reads), and live verification of the AI evidence
+// drafting + Stripe dispute submission (both wired inert-but-complete, see
 // resolveDisputedRecovery and app/lib/disputes/*). Those seams call Stripe and
 // are not exercised in this pass; the batch builders are unit-proven.
+//
+// The paymentIntent->invoice resolution is NO LONGER deferred: refund stamping
+// depends on it, and leaving it unwired meant refunded_at stayed null forever,
+// so the billable predicate could not exclude a refunded recovery and Foxhound
+// would invoice 20% of money the merchant had already given back.
 
 export type WebhookOutcome =
   | { status: "applied" }
@@ -85,6 +89,67 @@ async function findActiveFailedPayment(
   return rows[0]?.id ?? null;
 }
 
+/**
+ * Resolve the connected-account invoice a payment_intent belongs to. Invoice
+ * <-> PaymentIntent linkage is not a direct field on either object in the pinned
+ * API version; search is the seam Stripe exposes for it.
+ *
+ * THROWS on a transient failure (no stored access token, a decrypt failure, any
+ * Stripe error). Returns null ONLY for a clean miss: Stripe answered and no
+ * invoice matches that payment intent. The distinction is the whole point. A
+ * caller that must not lose the event lets the throw reach
+ * processConnectedWebhook's catch, which 500s so Stripe redelivers with nothing
+ * claimed; a best-effort caller catches it itself.
+ */
+async function resolveInvoiceIdForPaymentIntent(
+  env: Env,
+  connectionId: string,
+  paymentIntentId: string,
+): Promise<string | null> {
+  const db = getDb(env);
+  const [connection] = await db
+    .select({ accessToken: stripeConnections.stripeAccessToken })
+    .from(stripeConnections)
+    .where(eq(stripeConnections.id, connectionId))
+    .limit(1);
+  if (!connection?.accessToken) {
+    throw new Error("no stored access token for connection");
+  }
+  const token = await decryptToken(env, connection.accessToken);
+  const stripe = getConnectedStripe(token);
+  const results = await stripe.invoices.search({
+    query: `payment_intent:'${paymentIntentId}'`,
+    limit: 1,
+  });
+  return results.data[0]?.id ?? null;
+}
+
+/**
+ * The failed_payments row a refunded charge belongs to, or null when the refund
+ * is on a payment Foxhound never took in (a normal refund on an invoice that
+ * never failed). Deliberately NOT filtered by status: by the time a refund
+ * arrives the row is 'recovered', which is exactly the case that must be
+ * stamped. Any transient failure throws, per
+ * resolveInvoiceIdForPaymentIntent's contract.
+ */
+async function resolveRefundedFailedPayment(
+  env: Env,
+  accountId: string,
+  connectionId: string,
+  paymentIntentId: string,
+): Promise<string | null> {
+  const invoiceId = await resolveInvoiceIdForPaymentIntent(env, connectionId, paymentIntentId);
+  if (!invoiceId) return null;
+  const db = getDb(env);
+  const rows = await db
+    .select({ id: failedPayments.id })
+    .from(failedPayments)
+    .where(and(eq(failedPayments.accountId, accountId), eq(failedPayments.stripeInvoiceId, invoiceId)))
+    .orderBy(desc(failedPayments.detectedAt))
+    .limit(1);
+  return rows[0]?.id ?? null;
+}
+
 export interface DisputedRecoveryLink {
   failedPayment: {
     id: string;
@@ -119,22 +184,7 @@ async function resolveDisputedRecovery(
   if (!paymentIntentId) return null;
   const db = getDb(env);
   try {
-    const [connection] = await db
-      .select({ accessToken: stripeConnections.stripeAccessToken })
-      .from(stripeConnections)
-      .where(eq(stripeConnections.id, connectionId))
-      .limit(1);
-    if (!connection?.accessToken) return null;
-
-    const token = await decryptToken(env, connection.accessToken);
-    const stripe = getConnectedStripe(token);
-    // Invoice<->PaymentIntent linkage is not a direct field on either object in
-    // the pinned API version; search is the seam Stripe exposes for it.
-    const results = await stripe.invoices.search({
-      query: `payment_intent:'${paymentIntentId}'`,
-      limit: 1,
-    });
-    const invoiceId = results.data[0]?.id ?? null;
+    const invoiceId = await resolveInvoiceIdForPaymentIntent(env, connectionId, paymentIntentId);
     if (!invoiceId) return null;
 
     const [failedPayment] = await db
@@ -421,17 +471,38 @@ export async function processConnectedWebhook(
       return applied ? { status: "applied" } : { status: "duplicate" };
     }
 
-    // stamp_refund: the paymentIntent->invoice resolution is a live Stripe seam
-    // (deferred to Phase 8). Claim the event so replays short-circuit; the
-    // stamp lands once the resolution seam is live.
+    // stamp_refund: ANY refund, full or partial, disqualifies the recovery from
+    // billing entirely (parity ruling 29). resolveRefundedFailedPayment THROWS
+    // on a transient failure instead of resolving to null, and that asymmetry is
+    // deliberate: claiming a refund we could not stamp is the one direction that
+    // overcharges a merchant, so an unresolvable refund leaves the event
+    // unclaimed and 500s for redelivery. A clean miss (a refund on a payment we
+    // never took in) is genuinely nothing to do, and claims.
+    const refundedFailedPaymentId = await resolveRefundedFailedPayment(
+      env,
+      accountId,
+      connectionId,
+      intent.paymentIntentId,
+    );
+    if (!refundedFailedPaymentId) {
+      const { applied } = await executeMoneyWrite(env, {
+        accountId,
+        idempotencyKey,
+        build: (db) => buildClaimOnlyBatch(db, claim),
+      });
+      return applied ? { status: "ignored", reason: "refund_not_ours" } : { status: "duplicate" };
+    }
     const { applied } = await executeMoneyWrite(env, {
       accountId,
       idempotencyKey,
-      build: (db) => buildClaimOnlyBatch(db, claim),
+      build: (db) =>
+        buildRefundStampBatch(db, {
+          claim,
+          failedPaymentId: refundedFailedPaymentId,
+          at: receivedAt,
+        }),
     });
-    return applied
-      ? { status: "ignored", reason: `${intent.kind}_resolution_deferred` }
-      : { status: "duplicate" };
+    return applied ? { status: "applied" } : { status: "duplicate" };
   } catch (err) {
     // Money path: surface so the endpoint 500s and Stripe retries (the batch is
     // atomic + idempotent, so a retry is safe). Never include token material.
