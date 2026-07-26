@@ -39,7 +39,21 @@ export function aiModelCost(model: string): ModelCost {
   return cost;
 }
 
-/** Cost of one AI call in whole USD cents (rounded). Pure. */
+/**
+ * Cost of one AI call in whole USD cents, rounded UP. Pure.
+ *
+ * `ceil`, not `round`, restored by parity ruling 17. Legacy named this a
+ * no-undercount accounting policy and the rebuild reversed it silently: a
+ * Pass 4 git-blame check found this line authored at file creation, in a commit
+ * about model-id drift, so there was never a decision to reverse the policy.
+ *
+ * The direction matters more than the per-call cent. Sub-cent calls are the
+ * common case here (a 2000-token dunning generation costs well under a cent),
+ * and `round` sends every one of those to zero, so a systematic undercount
+ * compounds silently across thousands of calls and cost tracking reads clean
+ * while real spend climbs. Rounding up is wrong by at most a cent per call and
+ * wrong in the safe direction.
+ */
 export function computeAiCallCostCents(
   model: string,
   promptTokens: number,
@@ -49,7 +63,7 @@ export function computeAiCallCostCents(
   const cents =
     (promptTokens / 1_000_000) * cost.inputCentsPer1M +
     (completionTokens / 1_000_000) * cost.outputCentsPer1M;
-  return Math.round(cents);
+  return Math.ceil(cents);
 }
 
 /** Insert one ai_calls row with its computed cost. Operational (not a money write). */
