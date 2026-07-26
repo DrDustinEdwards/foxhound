@@ -70,7 +70,14 @@ export type RetryResult =
   | "retry_succeeded"
   | "retry_card_declined"
   | "retry_error"
-  | "retry_failed";
+  | "retry_failed"
+  /** The account has no usable connected-account token, so the charge was never
+   *  attempted. Distinct from retry_error (a charge that was attempted and blew
+   *  up) because the cause and the fix are different: this one means the
+   *  merchant disconnected Stripe, and it is the merchant who has to act. Kept
+   *  queryable on its own so "how many steps died because a merchant is
+   *  disconnected" is one WHERE clause, not a guess. */
+  | "retry_no_connection";
 
 /** Classify a completed invoices.pay call by the resulting invoice status. */
 export function classifyRetryStatus(invoiceStatus: string | null | undefined): RetryResult {

@@ -39,6 +39,7 @@ const STEP_RESULT_TONE: Record<string, Tone> = {
   retry_card_declined: "failure",
   retry_error: "failure",
   retry_failed: "failure",
+  retry_no_connection: "failure",
   email_failed: "failure",
 };
 
