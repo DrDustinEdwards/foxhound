@@ -264,7 +264,7 @@ export interface TickGuards {
  */
 export async function checkTickGuards(env: Env, accountId: string): Promise<TickGuards> {
   const db = getDb(env);
-  const [cfgRows, acctRows] = (await db.batch([
+  const results = await db.batch([
     db
       .select({ enabled: cronConfig.enabled })
       .from(cronConfig)
@@ -275,10 +275,28 @@ export async function checkTickGuards(env: Env, accountId: string): Promise<Tick
       .from(accounts)
       .where(and(eq(accounts.id, accountId), accountProcessingEligibleCondition()))
       .limit(1),
-  ])) as [Array<{ enabled: boolean }>, Array<{ id: string }>];
+  ]);
+
+  // Both halves fail CLOSED, which they did not before (review LOW-B). The
+  // `?? true` below is correct for a genuinely ABSENT cron_config row (gotcha
+  // #44: missing means enabled), but it used to also swallow a malformed or
+  // unexpected result and read it as "enabled", i.e. fail-open, on the one
+  // control whose job is stopping a loop that charges cards. The account half
+  // meanwhile failed closed by accident (a non-array would throw on .length).
+  // One guard should not fail in two directions, so the shape is now checked
+  // and anything unexpected throws, which the caller treats as a halt.
+  const [cfgRows, acctRows] = results as [unknown, unknown];
+  if (!Array.isArray(cfgRows) || !Array.isArray(acctRows)) {
+    throw new Error("checkTickGuards: unexpected batch result shape");
+  }
+  const cfg = cfgRows[0] as { enabled?: unknown } | undefined;
+  if (cfg !== undefined && typeof cfg.enabled !== "boolean") {
+    throw new Error("checkTickGuards: cron_config.enabled is not a boolean");
+  }
 
   return {
-    tickEnabled: cfgRows[0]?.enabled ?? true,
+    // Absent row means enabled; a present row must say so explicitly.
+    tickEnabled: cfg === undefined ? true : (cfg.enabled as boolean),
     accountEligible: acctRows.length > 0,
   };
 }
@@ -521,14 +539,23 @@ export async function runRecoveryTick(
   // run message, so a sweep that is quietly always failing is visible in
   // cron_run_history rather than looking like a tick with nothing to flip.
   let sweepNote = "";
-  try {
-    tally.exhausted = await flipExhausted(env, now);
-  } catch (err) {
-    sweepNote = ", exhausted-sweep FAILED";
-    console.error(
-      "exhausted-sequence sweep failed:",
-      err instanceof Error ? err.message : err,
-    );
+  if (tally.halted) {
+    // An operator disabled the tick mid-run. "Disabled" should mean the tick
+    // does nothing further, and this sweep was still performing a write pass
+    // after the halt (review LOW-C). It moves no money and it already excludes
+    // brake-paused accounts, so the old behaviour was harmless, just not what
+    // the word means. Skipped and reported, never silent.
+    sweepNote = ", exhausted-sweep skipped (halted)";
+  } else {
+    try {
+      tally.exhausted = await flipExhausted(env, now);
+    } catch (err) {
+      sweepNote = ", exhausted-sweep FAILED";
+      console.error(
+        "exhausted-sequence sweep failed:",
+        err instanceof Error ? err.message : err,
+      );
+    }
   }
 
   const executed = tally.retries + tally.emails;

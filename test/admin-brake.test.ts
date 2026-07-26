@@ -493,3 +493,43 @@ describe("LOW-1: cancelled accounts are outside the brake", () => {
     });
   });
 });
+
+describe("LOW-D: historical audit rows keep their counts", () => {
+  it("reads the legacy metadata keys, so pre-rename engage/release still show a number", async () => {
+    const { db } = createInMemoryDb();
+    await db.insert(schema.accounts).values({ id: "acc_1", name: "A", billingExempt: false });
+    // Exactly the shape written before the umbrella row became intent-first.
+    await db.insert(schema.adminAuditLog).values([
+      {
+        id: "a1",
+        actorEmail: ACTOR,
+        action: "brake.engage",
+        metadata: { pausedCount: 7 },
+        createdAt: new Date("2026-07-26T16:58:00.000Z"),
+      },
+      {
+        id: "a2",
+        actorEmail: ACTOR,
+        action: "brake.release",
+        metadata: { resumedCount: 7 },
+        createdAt: new Date("2026-07-26T16:59:00.000Z"),
+      },
+    ]);
+
+    const status = await getBrakeStatus(db);
+    expect(status.lastEngage?.count).toBe(7);
+    expect(status.lastRelease?.count).toBe(7);
+  });
+
+  it("prefers the current key when both are present", async () => {
+    const { db } = createInMemoryDb();
+    await db.insert(schema.adminAuditLog).values({
+      id: "a1",
+      actorEmail: ACTOR,
+      action: "brake.engage",
+      metadata: { intendedCount: 3, pausedCount: 99 },
+      createdAt: new Date("2026-07-26T17:00:00.000Z"),
+    });
+    expect((await getBrakeStatus(db)).lastEngage?.count).toBe(3);
+  });
+});
