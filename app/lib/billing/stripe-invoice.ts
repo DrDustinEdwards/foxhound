@@ -23,6 +23,12 @@ export interface PlatformInvoiceLineInput {
   /** Billed amount in the invoice currency's minor units. */
   amountCents: number;
   description: string;
+  /** Deterministic Stripe idempotency key for THIS line's invoiceItems.create.
+   *  Derived from the line's own evidence (the recovered payment, the dispute),
+   *  never from a run-scoped value, so the same line replays the same key on any
+   *  later retry. Built by the helpers below; see their comment for why per-item
+   *  keys are load-bearing rather than belt-and-braces. */
+  idempotencyKey: string;
 }
 
 export interface CreatePlatformInvoiceInput {
@@ -57,6 +63,33 @@ export function platformInvoiceIdempotencyKey(billingInvoiceId: string): string 
 }
 export function platformInvoiceFinalizeIdempotencyKey(billingInvoiceId: string): string {
   return `platform-invoice-finalize:${billingInvoiceId}`;
+}
+
+/** Per-LINE idempotency keys, the guard the invoice-level keys cannot provide.
+ *
+ *  createPlatformInvoice is create -> N items -> finalize. The create and
+ *  finalize calls carry keys; the item calls carried NONE. So a failure partway
+ *  through the loop, followed by a retry of the whole function, replayed the
+ *  create key (Stripe returns the ORIGINAL invoice) and then re-added every item
+ *  that had already landed on it. The merchant's invoice doubles the lines it
+ *  got through before the failure. That is the duplicate-charge path, and it is
+ *  reachable the first time the loop is longer than one item and Stripe blips.
+ *
+ *  Legacy's per-item pattern is restored here, widened for Foxhound's grain:
+ *  legacy billed ONE aggregate recovery line per (account, period, currency),
+ *  Foxhound bills one line PER RECOVERY, so the recovery id joins the key.
+ *  Dispute lines key on the dispute id alone, exactly as legacy did, because a
+ *  dispute is billed once ever regardless of which period sweeps it up. */
+export function recoveryFeeItemIdempotencyKey(
+  accountId: string,
+  periodKey: string,
+  currency: string,
+  recoveredPaymentId: string,
+): string {
+  return `recovery_fee_item_${accountId}_${periodKey}_${currency}_${recoveredPaymentId}`;
+}
+export function disputeFeeItemIdempotencyKey(disputeId: string): string {
+  return `dispute_fee_item_${disputeId}`;
 }
 
 /** Creates + finalizes the platform Stripe invoice for one billing_invoices row.
@@ -101,13 +134,16 @@ export async function createPlatformInvoice(
   }
 
   for (const line of lines) {
-    await stripe.invoiceItems.create({
-      customer: input.platformCustomerId,
-      invoice: invoice.id,
-      currency: input.currency,
-      amount: line.amountCents,
-      description: line.description,
-    });
+    await stripe.invoiceItems.create(
+      {
+        customer: input.platformCustomerId,
+        invoice: invoice.id,
+        currency: input.currency,
+        amount: line.amountCents,
+        description: line.description,
+      },
+      { idempotencyKey: line.idempotencyKey },
+    );
   }
 
   const finalized = await stripe.invoices.finalizeInvoice(
