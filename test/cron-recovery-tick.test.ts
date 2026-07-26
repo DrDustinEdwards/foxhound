@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 
 import { accounts, recoverySteps } from "~/db";
 import * as schema from "~/db/schema";
+import { SUBREQUEST_BUDGET } from "~/lib/admin/brake.server";
+import { RECOVERY_TICK_LIMIT } from "~/lib/constants";
 import {
   accountProcessingEligibleCondition,
   chooseStepsPerPayment,
@@ -273,5 +275,31 @@ describe("MEDIUM-1: the guard fails CLOSED", () => {
       }),
     ).rejects.toThrow(/d1 unavailable/);
     expect(charged).toEqual([]);
+  });
+});
+
+describe("RECOVERY_TICK_LIMIT is inside an honest subrequest budget", () => {
+  // Asserted arithmetic, not a comment. 500 was never reachable: a full batch
+  // would have spent thousands of subrequests against a ~1000 ceiling. It only
+  // ever looked safe because a full batch has never occurred on a platform with
+  // one seeded demo account.
+  //
+  // Conservative per-step cost, itemised in the constant's own comment: the
+  // guard read, the Stripe or AI call, the send, and the state write.
+  const PER_STEP_SUBREQUESTS = 5;
+
+  it("pins the limit, so raising it silently fails CI", () => {
+    expect(RECOVERY_TICK_LIMIT).toBe(100);
+  });
+
+  it("a full batch fits, and the old value did not", () => {
+    expect(RECOVERY_TICK_LIMIT * PER_STEP_SUBREQUESTS).toBeLessThan(SUBREQUEST_BUDGET);
+    expect(500 * PER_STEP_SUBREQUESTS).toBeGreaterThan(SUBREQUEST_BUDGET);
+  });
+
+  it("leaves headroom for the fixed per-run costs on top of the steps", () => {
+    // Selection query + exhausted sweep (2 queries) + one cron_run_history write.
+    const fixed = 4;
+    expect(RECOVERY_TICK_LIMIT * PER_STEP_SUBREQUESTS + fixed).toBeLessThan(SUBREQUEST_BUDGET);
   });
 });

@@ -279,9 +279,35 @@ export const CRON_SCHEDULE_MONTHLY = "0 4 1 * *"; // 04:00 UTC on the 1st, billi
  *  because a comment justifying a number by another number that has moved is how
  *  the next reader gets misled. */
 export const CRON_SCHEDULE_RECOVERY_TICK = "*/5 * * * *";
-/** Max due steps a single recovery tick processes, so one run stays bounded and a
- *  backlog drains over successive ticks (mirrors RETENTION_SWEEP_LIMIT). */
-export const RECOVERY_TICK_LIMIT = 500;
+/**
+ * Max due steps a single recovery tick processes, so one run stays bounded and a
+ * backlog drains over successive ticks (mirrors RETENTION_SWEEP_LIMIT).
+ *
+ * 100, down from 500, because 500 was never inside an honest subrequest budget.
+ * Workers allow ~1000 subrequests per invocation, and one step spends several:
+ *
+ *   1  the per-step guard read (one batched round trip, recovery-tick.ts)
+ *   1  the Stripe charge (retry) or the AI generation call (email)
+ *   1  the EMAIL send, on email steps
+ *   1-2 the step-state write, plus attribution reads on a retry
+ *   ------
+ *   ~4-5 per step, so 100 steps is ~400-500 plus the selection query, the
+ *        exhausted sweep and one cron_run_history write.
+ *
+ * At 500 that arithmetic lands around 2000-2500 and the tick could not have
+ * completed a full batch. The old value only ever looked safe because a full
+ * batch has never occurred: the platform has one seeded demo account.
+ *
+ * Lowering it costs nothing in correctness. Unprocessed due steps keep a null
+ * result and a null executed_at, which is exactly what stepDueCondition selects,
+ * so they are re-selected by the next tick five minutes later and the backlog
+ * drains. `backlog` in the run message reports when a tick hit the cap.
+ *
+ * Phase 8: re-derive this from MEASURED per-step subrequest cost rather than the
+ * estimate above. The estimate is deliberately conservative and is not a
+ * substitute for instrumenting a real run.
+ */
+export const RECOVERY_TICK_LIMIT = 100;
 /** The recovery tick's registered cron name. Lives here rather than in the cron
  *  registry because both the registry and the tick itself need it (the tick
  *  re-reads its own enabled flag mid-run), and the registry imports the tick, so
