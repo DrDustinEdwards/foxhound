@@ -8,6 +8,7 @@ import {
   RECOVERY_TICK_LIMIT,
 } from "~/lib/constants";
 import {
+  buildRetryStepPatch,
   executeEmailStep,
   executeRetryStep,
   type EmailStepContext,
@@ -35,6 +36,12 @@ import type { CronJobResult } from "./run";
 //     flips the parent off 'active', which halts its remaining steps. At most one
 //     step per failed_payment runs per tick (silent-first ordering is baked into
 //     the schedule, so earliest-due is correct ordering).
+//   - Termination: every selected step must reach a terminal result or be
+//     rescheduled. A step that is neither is re-selected every tick forever, and
+//     its sequence can never finish. That was the null-token retry bug; see
+//     stampUnrunnableRetryStep. The tick then flips finished sequences to
+//     failed_unrecovered (flipExhaustedSequences), which is the only writer of
+//     that status; 'recovered' still belongs solely to the webhook.
 //   - Gating: demo accounts, processing-paused accounts, and cancelled accounts
 //     (admin Pass 2: accounts.cancelledAt) are excluded in the query itself.
 //     billing_exempt is NOT a processing gate: an exempt merchant still gets
@@ -254,6 +261,38 @@ export function chooseStepsPerPayment(rows: DueStepRow[]): DueStepRow[] {
   return [...best.values()];
 }
 
+/** The terminal result stamped on a retry step that can never run: the account's
+ *  connection is gone or was never stored, so there is no token to charge with. */
+export const RETRY_RESULT_NO_CONNECTION = "retry_no_connection";
+
+/**
+ * Stamp a retry step that cannot be attempted, so the sequence moves on.
+ *
+ * The tick used to `continue` here without writing anything, which left the step
+ * unexecuted with a null result: exactly the shape stepDueCondition selects. So
+ * the same step was re-read, re-skipped and re-counted every five minutes,
+ * forever, and because it never went terminal its sequence could never finish
+ * either. Stamping it lets the schedule proceed to its next step, or exhaust
+ * into the failed_unrecovered flip above.
+ *
+ * OPERATIONAL (plain batch, gotcha 25) and conditional on executed_at IS NULL,
+ * the same claim-on-write buildRetryStepPatch gives every other retry stamp.
+ */
+export async function stampUnrunnableRetryStep(
+  env: Env,
+  stepId: string,
+  now: Date,
+): Promise<void> {
+  const db = getDb(env);
+  await db.batch([
+    buildRetryStepPatch(db, stepId, {
+      executedAt: now,
+      result: RETRY_RESULT_NO_CONNECTION,
+      retryResult: RETRY_RESULT_NO_CONNECTION,
+    }),
+  ]);
+}
+
 function toRetryContext(row: DueStepRow): RetryStepContext | null {
   if (!row.connectionAccessToken) return null; // cannot charge without the connected token
   return {
@@ -307,6 +346,8 @@ export interface RecoveryTickDeps {
   runEmail: (env: Env, ctx: EmailStepContext) => Promise<unknown>;
   /** Find and flip sequences that have run out. Default: the real sweep. */
   flipExhausted: (env: Env, now: Date) => Promise<number>;
+  /** Stamp a retry step with no usable connection. Default: the real write. */
+  stampUnrunnable: (env: Env, stepId: string, now: Date) => Promise<void>;
 }
 
 /**
@@ -332,6 +373,7 @@ export async function runRecoveryTick(
   const runRetry = deps.runRetry ?? executeRetryStep;
   const runEmail = deps.runEmail ?? executeEmailStep;
   const flipExhausted = deps.flipExhausted ?? flipExhaustedSequences;
+  const stampUnrunnable = deps.stampUnrunnable ?? stampUnrunnableRetryStep;
 
   const now = new Date();
   const due = await query(env, now);
@@ -354,7 +396,10 @@ export async function runRecoveryTick(
       if (action === "retry") {
         const ctx = toRetryContext(row);
         if (!ctx) {
-          tally.skipped += 1; // no connected token; cannot safely charge
+          // No connected token: cannot safely charge, and must not leave the
+          // step pending or it re-selects every tick forever.
+          await stampUnrunnable(env, row.stepId, now);
+          tally.skipped += 1;
           continue;
         }
         const result = await runRetry(env, ctx);

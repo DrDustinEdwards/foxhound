@@ -117,9 +117,10 @@ describe("recovery tick: dispatch, isolation, telemetry", () => {
     expect(result.message).toMatch(/1 failed/);
   });
 
-  it("skips a retry step with no connected token instead of charging blind", async () => {
+  it("skips a retry step with no connected token instead of charging blind, and stamps it", async () => {
     const due = [row({ stepId: "no_token", stepType: "retry_early", connectionAccessToken: null })];
     let charged = false;
+    const stamped: string[] = [];
     const result = await runRecoveryTick({} as Env, {
       query: async () => due,
       runRetry: async () => {
@@ -127,9 +128,30 @@ describe("recovery tick: dispatch, isolation, telemetry", () => {
         return { recovered: false };
       },
       runEmail: async () => ({}),
+      flipExhausted: async () => 0,
+      stampUnrunnable: async (_env, stepId) => {
+        stamped.push(stepId);
+      },
     });
     expect(charged).toBe(false);
     expect(result.rowsProcessed).toBe(0);
     expect(result.message).toMatch(/1 skipped/);
+    // Skipping without stamping is what made the step re-select forever.
+    expect(stamped).toEqual(["no_token"]);
+  });
+
+  it("counts an unstampable step as failed, not skipped, because it WILL come back", async () => {
+    const due = [row({ stepId: "no_token", stepType: "retry_early", connectionAccessToken: null })];
+    const result = await runRecoveryTick({} as Env, {
+      query: async () => due,
+      runRetry: async () => ({ recovered: false }),
+      runEmail: async () => ({}),
+      flipExhausted: async () => 0,
+      stampUnrunnable: async () => {
+        throw new Error("d1 unavailable");
+      },
+    });
+    expect(result.message).toMatch(/0 skipped/);
+    expect(result.message).toMatch(/1 failed/);
   });
 });
