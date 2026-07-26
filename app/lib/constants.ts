@@ -38,6 +38,32 @@ export const DEMO_ACCOUNT_ID_PREFIX = "demo_";
 export const RECOVERY_MATURITY_DAYS = 30;
 export const RECOVERY_MATURITY_MS = RECOVERY_MATURITY_DAYS * 24 * 60 * 60 * 1000;
 
+// ---- failed_payments lifecycle ----
+/** Terminal status for a sequence that ran every step without recovering.
+ *  Written ONLY by the recovery tick's exhausted-sequence sweep; the
+ *  invoice.payment_succeeded webhook remains the sole writer of 'recovered'. */
+export const FAILED_PAYMENT_STATUS_UNRECOVERED = "failed_unrecovered";
+
+/**
+ * The statuses a late invoice.payment_succeeded may still recover FROM.
+ *
+ * 'active' is the normal case. 'failed_unrecovered' matters because a customer
+ * who pays on day 45, after a 30-day sequence exhausted, has genuinely been
+ * recovered: the sequence ending is Foxhound giving up on outreach, not the
+ * payment becoming uncollectible. Before the exhausted-sequence flip existed
+ * nothing ever left 'active', so this list had no reason to exist; with the flip
+ * in place, a single-status check would silently drop those recoveries on the
+ * floor (no recovered_payments row, no attribution, no fee).
+ *
+ * Deliberately NOT used for intake dedupe: a NEW failure on an invoice whose
+ * prior sequence exhausted must spawn a fresh sequence, so that path still keys
+ * on 'active' alone.
+ */
+export const RECOVERABLE_FAILED_PAYMENT_STATUSES = [
+  "active",
+  FAILED_PAYMENT_STATUS_UNRECOVERED,
+] as const;
+
 // ---- Canon enum value sets (mirror schema CHECK constraints) ----
 export const ATTRIBUTION_KINDS = [
   "foxhound_retry",
