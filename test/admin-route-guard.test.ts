@@ -38,10 +38,10 @@ describe("admin route guard wiring", () => {
   it("every route file under app/routes/admin/ lives inside the admin-guard layout subtree", () => {
     const allFiles = collectFiles(tree);
     const adminFiles = allFiles.filter((f) => f.startsWith("./routes/admin/"));
-    // Sanity: the fixture itself must find the 11 admin pages, or this test
+    // Sanity: the fixture itself must find the 12 admin pages, or this test
     // is silently checking nothing (a routes.ts refactor that renames the
     // directory would otherwise pass vacuously).
-    expect(adminFiles.length).toBeGreaterThanOrEqual(11);
+    expect(adminFiles.length).toBeGreaterThanOrEqual(12);
 
     const guardNode = findByFile(tree, "./layouts/admin-guard.tsx");
     expect(guardNode).not.toBeNull();
@@ -50,6 +50,16 @@ describe("admin route guard wiring", () => {
     for (const file of adminFiles) {
       expect(guardedFiles.has(file), `${file} is not nested under admin-guard.tsx`).toBe(true);
     }
+  });
+
+  it("the emergency brake specifically is inside the guard", () => {
+    // Named explicitly rather than relying on the sweep above. The brake pauses
+    // processing for every merchant on the platform and can disable the recovery
+    // tick, so it is the single admin route where a wiring mistake is worst, and
+    // it should fail by name rather than as one entry in a set.
+    const guardNode = findByFile(tree, "./layouts/admin-guard.tsx");
+    const guardedFiles = new Set(collectFiles(guardNode?.children ?? []));
+    expect(guardedFiles.has("./routes/admin/brake.tsx")).toBe(true);
   });
 
   it("the admin-guard layout itself lives inside the app-shell layout (session + account required first)", () => {

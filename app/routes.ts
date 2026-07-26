@@ -111,6 +111,7 @@ export default [
         ]),
         route("users", "./routes/admin/users.tsx"),
         route("operations", "./routes/admin/operations.tsx"),
+        route("brake", "./routes/admin/brake.tsx"),
         route("crons", "./routes/admin/crons.tsx"),
         route("webhooks", "./routes/admin/webhooks.tsx"),
         ...prefix("blog", [

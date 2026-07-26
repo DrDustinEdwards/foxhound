@@ -9,6 +9,7 @@ const ADMIN_NAV_ITEMS = [
   { to: "/admin/merchants", label: "Merchants" },
   { to: "/admin/users", label: "Users" },
   { to: "/admin/operations", label: "Operations" },
+  { to: "/admin/brake", label: "Brake" },
   { to: "/admin/crons", label: "Crons" },
   { to: "/admin/webhooks", label: "Webhooks" },
   { to: "/admin/blog", label: "Blog" },
