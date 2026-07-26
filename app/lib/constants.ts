@@ -15,6 +15,22 @@ export const DISPUTE_FEE_CAP_CENTS = 50_000;
 /** Intelligence predictive risk layer: $199/month. */
 export const INTELLIGENCE_PRICE_CENTS = 19_900;
 
+// ---- Fee-invoice collection retry (app/lib/billing/fee-retry.ts) ----
+/** How many charge attempts one platform fee invoice gets before Foxhound stops
+ *  chasing it. Legacy's value, carried over unchanged: it is the cap that
+ *  actually binds on a monthly cadence. */
+export const FEE_INVOICE_MAX_RETRY_ATTEMPTS = 4;
+/** Age cap for the same. RESCALED from legacy's 14 days, which was tuned to an
+ *  HOURLY cron: at Foxhound's monthly cadence a 14-day cap would fire before the
+ *  first retry ever ran, making the whole retry path unreachable.
+ *
+ *  Note which cap actually binds, because it is not the one it looks like: with
+ *  runs 30 days apart, run 4 is 91 days out, so THIS cap fires first and an
+ *  invoice gets three retries, not four. The attempt cap only binds if runs are
+ *  closer together than monthly. Both land in the same place (stop chasing after
+ *  about three months); test/billing-fee-retry.test.ts pins both paths. */
+export const FEE_INVOICE_MAX_RETRY_AGE_DAYS = 90;
+
 // ---- Subscription entitlement (account_subscriptions) ----
 /** account_subscriptions.product for the paid Intelligence tier. The entitlement
  *  gate (isIntelligenceEntitled) and the admin grant path both key on this, so it
