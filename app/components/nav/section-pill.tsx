@@ -9,12 +9,15 @@ import { useDropdown } from "~/lib/nav/use-dropdown";
 // wordmark. Marketing pages track no active product (there is nothing to
 // switch between while browsing marketing), so the label is always "Home".
 //
-// Item set, order, and visual weight are legacy ground truth (screenshot,
-// 2026-07-22), not the shipped app-shell shape: Console, Audit, Recovery,
-// Disputes, Intelligence (gated by intelligenceEntitled, same gate the
-// app-shell switcher uses), a roomy panel with generous padding and larger
-// text than the shipped version, no icons, no separators
-// (TASK-foxhound-pill-menu-parity.md). Billing and Settings are dropped:
+// Item set and order are legacy: Console, Audit, Recovery, Disputes,
+// Intelligence (gated by intelligenceEntitled, same gate the app-shell
+// switcher uses), no icons, no separators.
+//
+// Panel and row styling come from legacy SOURCE, not from the 2026-07-22
+// screenshot that TASK-foxhound-pill-menu-parity.md read them off
+// (ruling 50: source outranks screenshot). That earlier pass produced a
+// roomier panel with larger text than legacy actually ships. Billing and
+// Settings are dropped:
 // Settings is already the gear icon's job, Billing lives in-app. See
 // MARKETING_PILL_ITEMS (app/lib/nav/manifest.ts) for the item data and the
 // Audit-route mapping decision; every href there is covered by
@@ -45,13 +48,13 @@ export function SectionPill({ intelligenceEntitled }: { intelligenceEntitled: bo
       </button>
 
       {open ? (
-        <div className="absolute top-full left-0 z-50 mt-1 min-w-[260px] rounded-md border border-border bg-chrome py-2 shadow-lg">
+        <div className="absolute top-full left-0 z-50 mt-1 min-w-[180px] rounded-md border border-border bg-surface py-1 shadow-lg">
           {items.map((item) => (
             <Link
               key={item.to}
               to={item.to}
               onClick={() => setOpen(false)}
-              className="block px-5 py-3 text-body text-chrome-text-secondary no-underline hover:text-chrome-text"
+              className="block px-3 py-2 text-label text-text-tertiary no-underline transition-opacity duration-150 hover:opacity-80"
             >
               {item.label}
             </Link>
