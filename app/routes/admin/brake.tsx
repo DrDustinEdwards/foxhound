@@ -6,8 +6,10 @@ import { getDb } from "~/db";
 import { logAdminAction } from "~/lib/admin/audit.server";
 import {
   BRAKE_CONFIRM_PHRASES,
+  engageResultMessage,
   isBrakeIntent,
   isConfirmPhraseValid,
+  releaseResultMessage,
   type BrakeIntent,
 } from "~/lib/admin/brake";
 import {
@@ -89,13 +91,7 @@ export async function action({ context, request }: Route.ActionArgs) {
           `them. Re-engaging is safe and will pick up the remainder.`,
       });
     }
-    return data<ActionResult>({
-      ok: true,
-      message:
-        result.affectedCount === 0
-          ? "Brake engaged. No accounts were eligible to pause (every account is demo, cancelled, or already paused)."
-          : `Brake engaged. Paused ${result.affectedCount} account(s).`,
-    });
+    return data<ActionResult>({ ok: true, message: engageResultMessage(result) });
   }
 
   if (intent === "release") {
@@ -108,13 +104,7 @@ export async function action({ context, request }: Route.ActionArgs) {
           `write failed (${result.error}). The rest are still paused and still marked; run Release again.`,
       });
     }
-    return data<ActionResult>({
-      ok: true,
-      message:
-        result.affectedCount === 0
-          ? "Brake released. No brake-paused accounts to resume."
-          : `Brake released. Resumed ${result.affectedCount} account(s). Accounts paused outside the brake were left paused.`,
-    });
+    return data<ActionResult>({ ok: true, message: releaseResultMessage(result) });
   }
 
   const nextEnabled = intent === "tick-enable";
