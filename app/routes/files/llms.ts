@@ -30,7 +30,7 @@ export function loader({ context }: Route.LoaderArgs) {
 
 > Foxhound is a failed-payment recovery, disputes, and subscription-intelligence platform for Stripe merchants. Outcome-based pricing: it earns only when it creates money the merchant can verify, above what Stripe's own tools would have recovered anyway.
 
-Foxhound is built on Stripe Connect for subscription businesses. It sits on top of Stripe and acts after a payment fails, a dispute opens, or a subscription's billing signals change. Read-only Stripe OAuth scope: Foxhound never modifies billing configuration, payment methods, or subscription logic.
+Foxhound is built on Stripe Connect for subscription businesses. It sits on top of Stripe and acts after a payment fails, a dispute opens, or a subscription's billing signals change. Stripe OAuth scope is read and write, because retrying a failed invoice is a write. The write half is used for three things: retrying payment on an invoice that has already failed, setting a customer default payment method after that customer updates their card, and submitting dispute evidence after someone on the merchant team approves it. Foxhound never changes prices, products, or subscription plans, never creates a charge outside an invoice the merchant already issued, and never reaches payouts or bank accounts.
 
 ## Products
 
@@ -72,7 +72,7 @@ Guides on Stripe payment recovery, dispute handling, and subscription intelligen
 
 ## Technical
 
-- Built on Stripe Connect (read-only OAuth scope)
+- Built on Stripe Connect (read and write OAuth scope; the writes are invoice retries, default payment method updates, and approved dispute evidence)
 - Hosted on Cloudflare Workers, database on Cloudflare D1
 - No card data stored; all payment processing goes through Stripe
 - Disconnect any time from the Stripe dashboard
