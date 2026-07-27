@@ -8,6 +8,18 @@ import { Badge } from "~/components/badge";
 // app/components/billing-ledger-row.tsx (LedgerLineItemRow, LedgerFreeRow)
 // but with hardcoded example data, no live query. No competitor can show
 // this screen because the evidence chain IS the product.
+//
+// THREE rows, one per line-item type the ledger can show: a recovery fee, a
+// free stripe_baseline row, and a dispute fee. A fourth row shipped
+// originally, inside a hero wrapper pinned to a fixed 360px with this card set
+// to h-full and overflow-hidden. Measured on the live site, that clipped 62px
+// at the desktop column and 135px at a 375px viewport, so the last row was cut
+// mid sentence and the caption strip below never rendered at all.
+//
+// The card now sizes to its OWN content and the hero wrapper carries min-h
+// rather than h, so nothing here can be silently cut again. Keep it that way:
+// a fixed height on either element brings the whole failure mode back, and it
+// reappears at narrow widths first, where every detail line wraps to two.
 interface MockRow {
   free: boolean;
   label: string;
@@ -29,27 +41,20 @@ const ROWS: MockRow[] = [
     label: "Stripe baseline, FREE",
     amount: "$129.00",
     date: "Jun 9",
-    detail: "No Foxhound action preceded this recovery. Stripe's own retry recovered it.",
+    detail: "No Foxhound action preceded this recovery. Stripe recovered it.",
   },
   {
     free: false,
     label: "Dispute fee",
     amount: "$84.00",
     date: "Jun 2",
-    detail: "Bolt Analytics won a fraudulent dispute for $420.00, evidence reviewed and signed by the merchant.",
-  },
-  {
-    free: false,
-    label: "Recovery fee",
-    amount: "$25.80",
-    date: "May 28",
-    detail: "Card update on May 26 recovered $129.00 from Northstar Inc.",
+    detail: "Bolt Analytics won a $420.00 dispute, evidence signed by the merchant.",
   },
 ];
 
 export function LedgerMock() {
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden rounded-xl border border-border bg-surface">
+    <div className="flex w-full flex-col overflow-hidden rounded-xl border border-border bg-surface">
       <div className="flex items-center gap-1.5 border-b border-border-sub bg-bg px-3 py-2">
         <div className="h-2.5 w-2.5 rounded-full bg-border" />
         <div className="h-2.5 w-2.5 rounded-full bg-border" />

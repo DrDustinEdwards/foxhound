@@ -195,7 +195,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               </div>
             </div>
 
-            <div className="h-[360px] w-full">
+            {/* min-h, not h: the mock sizes to its own content. A fixed height
+                clipped it, because the detail lines wrap to two lines each at
+                narrow widths and the card hides its own overflow. */}
+            <div className="min-h-[360px] w-full">
               <LedgerMock />
             </div>
           </div>
