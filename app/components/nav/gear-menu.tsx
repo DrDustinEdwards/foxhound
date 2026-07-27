@@ -27,13 +27,13 @@ export function GearMenu({ isAdmin, accountLabel }: { isAdmin: boolean; accountL
         onClick={() => setOpen((o) => !o)}
         aria-label="Open menu"
         aria-expanded={open}
-        className="flex h-8 w-8 items-center justify-center rounded-md text-chrome-text-secondary hover:bg-white/10 hover:text-chrome-text"
+        className="flex cursor-pointer items-center justify-center rounded-md border-0 bg-transparent p-1.5 transition-colors duration-150 hover:bg-white/10"
       >
-        <Settings width={16} height={16} strokeWidth={1.5} aria-hidden />
+        <Settings width={16} height={16} strokeWidth={1.5} className="text-chrome-text-secondary" aria-hidden />
       </button>
 
       {open ? (
-        <div className="absolute top-full right-0 z-50 mt-1 min-w-[200px] rounded-md border border-border bg-surface py-1 shadow-lg">
+        <div className="absolute top-full right-0 z-50 mt-1 min-w-[160px] rounded-md border border-border bg-surface py-1 shadow-lg">
           <div className="truncate border-b border-border px-3 py-2 text-label text-text-tertiary" title={accountLabel}>
             {accountLabel}
           </div>

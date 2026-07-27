@@ -74,7 +74,7 @@ export function Header({
   }, [open]);
 
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-border bg-chrome px-6">
+    <header className="flex h-14 items-center justify-between border-b border-border bg-chrome px-6">
       <div className="flex items-center gap-3">
         <Link to="/" aria-label="Foxhound home" onClick={() => setOpen(false)}>
           <Wordmark tone="chrome" />
