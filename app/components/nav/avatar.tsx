@@ -2,19 +2,22 @@ import { Link } from "react-router";
 
 // Replaces the marketing header's "Dashboard" button for an authenticated
 // visitor (TASK-foxhound-marketing-header-v2.md): a compact circular avatar
-// carrying the visitor's display initial, amber accent per app-shell
-// conventions (the app shell's own utility cluster uses the same amber/
-// chrome-text pairing throughout). Always links to /dashboard.
+// carrying the visitor's display initial. Always links to /dashboard.
 //
-// The bottom-right amber dot matches the legacy site's authenticated avatar
-// exactly (recova-eta.vercel.app, inspected live): static presence only,
-// there is no notification system behind it yet.
+// Translucent, not amber-filled (ruling 48). A solid amber disc put a second
+// amber element in a header that already carries the amber CTA, which breaks
+// the one-amber-element discipline in DESIGN.md and was the visible header
+// difference against legacy. The presence dot stays as it is: static, with no
+// notification system behind it.
+//
+// The single-account rule still holds, so this is a plain link and not the
+// account switcher legacy wrapped it in.
 export function Avatar({ initial }: { initial: string }) {
   return (
     <Link
       to="/dashboard"
       aria-label="Dashboard"
-      className="relative flex h-8 w-8 items-center justify-center rounded-full bg-amber font-mono text-label font-semibold text-on-amber hover:bg-amber-dark"
+      className="relative flex h-7 w-7 items-center justify-center rounded-full border border-white/20 bg-white/10 font-mono text-micro font-medium leading-none text-chrome-text transition-colors duration-150 hover:border-amber"
     >
       {initial}
       <span className="absolute right-0 bottom-0 h-2 w-2 rounded-full bg-amber-dark ring-2 ring-chrome" aria-hidden />
