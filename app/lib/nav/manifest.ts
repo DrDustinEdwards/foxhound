@@ -25,6 +25,9 @@ export interface ProductNavLink {
   label: string;
   to: string;
   end?: boolean;
+  /** Gear dropdown only: hidden for a signed-in visitor with no membership,
+   *  matching legacy GearMenu's hasAccount gate on Billing. */
+  requiresAccount?: boolean;
 }
 
 export interface ProductManifestEntry {
@@ -67,11 +70,24 @@ export const PRODUCT_MANIFEST: Record<ProductKey, ProductManifestEntry> = {
 
 // Utility (non-product) destinations, rendered in the gear dropdown, never
 // in the product switcher.
+//
+// Order and gating are legacy's, from legacy components/GearMenu.tsx source:
+// Settings, then Billing (rendered only when hasAccount, because legacy's
+// /console redirects an accountless user to /connect and Billing would be a
+// dead row), then Help. Those three hold legacy's exact relative order and
+// positions.
+//
+// Team is a TEMPORARY divergence, RATIFIED by Dustin 2026-07-27: legacy's gear
+// has no Team row because legacy reaches Team through the settings sub-nav
+// (ledger row S25), which ruling 57 defers out of this campaign. PLATFORM_LINKS
+// is currently the ONLY navigation path to /settings/team, so dropping it now
+// would orphan a live page that legacy never had orphaned. It is appended last
+// so legacy's three keep their positions, and it leaves when S25 ships.
 export const PLATFORM_LINKS: ProductNavLink[] = [
-  { label: "Billing", to: "/billing" },
   { label: "Settings", to: "/settings" },
-  { label: "Team", to: "/settings/team" },
+  { label: "Billing", to: "/billing", requiresAccount: true },
   { label: "Help", to: "/help" },
+  { label: "Team", to: "/settings/team" },
 ];
 
 // The marketing header's authenticated-only SectionPill menu
