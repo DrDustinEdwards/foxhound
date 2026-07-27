@@ -288,6 +288,28 @@ export async function runAccountBilling(
     });
 
     let charged = false;
+    // NO BRAKE RE-CHECK HERE, AND THAT ASYMMETRY WITH THE SWEEP IS DELIBERATE.
+    //
+    // charge-retry.ts re-reads the billing gate immediately before each of its
+    // money-moving Stripe calls, and the obvious next move is to do the same
+    // here. It would be wrong. The ledger batch has ALREADY committed one line
+    // above: the billing_invoices row and its line items exist and the period is
+    // spoken for by the invoice-level idempotency key. Refusing the charge at
+    // this point would not un-bill anything, it would manufacture exactly the
+    // stranded invoice the retry sweep exists to clean up (mode 1: our ledger
+    // committed, Stripe has nothing, and the key collides forever after).
+    //
+    // What actually protects a mid-run brake is upstream and structural: every
+    // per-account billable query inner-joins accounts on
+    // accountBillingEligibleCondition, so a pause landing before the read yields
+    // an empty billable set and no invoice is ever built. A pause landing after
+    // the build produces an invoice of matured, attributed, unrefunded
+    // recoveries that were genuinely owed. A pause defers; it never forgives.
+    //
+    // So the one-invoice window is open on purpose. The sweep collects it on the
+    // next run, which is the correct place for it to be handled. Ratified in the
+    // 2026-07-26 gate review, section 4; recorded here because two passes have
+    // now reached this line and had to re-derive it.
     if (applied && shouldAttemptPlatformCharge(platformCustomerId, summary.lines)) {
       try {
         // platformCustomerId is non-null here (the guard above requires it).
