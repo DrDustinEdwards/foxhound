@@ -678,6 +678,10 @@ describe("MEDIUM-A: the brake stops the sweep already in flight", () => {
   it("FAILS CLOSED: a guard that throws aborts the sweep instead of charging on", async () => {
     // The pin that forbids fail-open. If the guard call were moved inside the
     // per-invoice try/catch, this would resolve and `created` would be non-empty.
+    //
+    // Note what this alone does NOT reach: an always-throwing guard throws on
+    // the FIRST loop-level call, so the two PRE-CHARGE guards inside
+    // retryInvoiceCharge are never exercised. Those are covered below (LOW-2).
     await seedThree();
     const created: string[] = [];
 
@@ -696,6 +700,81 @@ describe("MEDIUM-A: the brake stops the sweep already in flight", () => {
       }),
     ).rejects.toThrow(/d1 unavailable/);
     expect(created).toEqual([]);
+  });
+
+  it("LOW-2: fails closed on the PRE-CREATE guard too, not just the loop-level one", async () => {
+    // Reaches the guard the test above cannot: let the loop-level read succeed,
+    // then throw on the read that happens immediately before `create`. That one
+    // runs inside retryInvoiceCharge, which the sweep calls inside its try, so
+    // it used to be caught, recorded as outcome "failed", and the sweep moved on
+    // to charge the next merchant's card. The comment on the loop-level check
+    // claimed fail-closed for all of them.
+    await seedThree();
+    const created: string[] = [];
+    let call = 0;
+
+    await expect(
+      runChargeRetrySweep({} as Env, NOW_MS, {
+        deps: {
+          findExisting: async () => null,
+          create: async (_env, input) => {
+            created.push(input.billingInvoiceId);
+            return { stripeInvoiceId: "in_new", hostedInvoiceUrl: null };
+          },
+          checkGuard: async () => {
+            call += 1;
+            if (call === 1) return { billingEligible: true }; // loop level: fine
+            throw new Error("d1 unavailable mid-invoice"); // pre-create: unreadable
+          },
+        },
+      }),
+    ).rejects.toThrow(/d1 unavailable mid-invoice/);
+
+    // Nothing charged, and critically the sweep stopped rather than continuing
+    // to invoices two and three.
+    expect(created).toEqual([]);
+    expect(call).toBe(2);
+  });
+
+  it("LOW-2: fails closed on the PRE-PAY guard, the more common retry path", async () => {
+    await seed({ status: "payment_failed", stripeInvoiceId: "in_existing", withLineItem: true });
+    let call = 0;
+    const { calls, deps } = stripeDeps(
+      { id: "in_existing", status: "open" },
+      {
+        checkGuard: async () => {
+          call += 1;
+          if (call === 1) return { billingEligible: true };
+          throw new Error("d1 unavailable before pay");
+        },
+      },
+    );
+
+    await expect(
+      runChargeRetrySweep({} as Env, NOW_MS, { deps }),
+    ).rejects.toThrow(/d1 unavailable before pay/);
+    expect(calls.some((c) => c.startsWith("pay:"))).toBe(false);
+  });
+
+  it("LOW-2: a CHARGE failure is still isolated per invoice, not escalated", async () => {
+    // The other half of the rule, so the fix cannot be read as "any throw aborts
+    // the sweep". A Stripe error on one invoice must still let the rest run.
+    await seedThree();
+    const attempted: string[] = [];
+
+    const results = await runChargeRetrySweep({} as Env, NOW_MS, {
+      deps: {
+        findExisting: async () => null,
+        create: async (_env, input) => {
+          attempted.push(input.billingInvoiceId);
+          throw new Error("stripe is down");
+        },
+        checkGuard: async () => ({ billingEligible: true }),
+      },
+    });
+
+    expect(attempted).toHaveLength(3);
+    expect(results.filter((r) => r.outcome === "failed")).toHaveLength(3);
   });
 
   it("closes the window between the loop check and the charge itself", async () => {

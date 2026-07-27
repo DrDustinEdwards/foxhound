@@ -244,6 +244,30 @@ export async function checkChargeGuard(env: Env, accountId: string): Promise<Cha
   return { billingEligible: rows.length > 0 };
 }
 
+/**
+ * A guard READ that failed, as distinct from a charge that failed.
+ *
+ * The sweep catches per-invoice errors and continues to the next invoice, which
+ * is right for a charge: one merchant's Stripe failure must not stop the others.
+ * It is wrong for a guard read. "I cannot tell whether the brake is engaged" is
+ * not a per-invoice problem, and continuing past it on a sweep that collects
+ * from saved cards is fail-open.
+ *
+ * The loop-level guard sits outside the try and needs no help. The two
+ * PRE-CHARGE guards do: they run inside retryInvoiceCharge, which the sweep
+ * calls inside its try, so a throw there was caught, recorded as
+ * `outcome: "failed"`, and the sweep carried on (review LOW-2). The comment on
+ * the loop-level check claimed fail-closed for all of them; this is what makes
+ * that claim true rather than narrowing it.
+ */
+export class ChargeGuardReadError extends Error {
+  constructor(cause: unknown) {
+    super(cause instanceof Error ? cause.message : "billing guard read failed");
+    this.name = "ChargeGuardReadError";
+    this.cause = cause;
+  }
+}
+
 /** Injectable Stripe seams, so the sweep is testable without a network call. */
 export interface ChargeRetryDeps {
   findExisting: typeof findPlatformInvoiceByBillingId;
@@ -282,7 +306,14 @@ export async function retryInvoiceCharge(
    *  hand straight back: nothing is written, so the invoice survives untouched
    *  to the next sweep. */
   const blockedByGuard = async (): Promise<SweepResult | null> => {
-    const { billingEligible } = await checkGuard(env, invoice.accountId);
+    let billingEligible: boolean;
+    try {
+      ({ billingEligible } = await checkGuard(env, invoice.accountId));
+    } catch (err) {
+      // Rethrown as a distinct type so the sweep's per-invoice catch can let it
+      // through instead of swallowing it into `outcome: "failed"`.
+      throw new ChargeGuardReadError(err);
+    }
     if (billingEligible) return null;
     return {
       invoiceId: invoice.id,
@@ -467,6 +498,12 @@ export async function runChargeRetrySweep(
     // know whether it is safe to charge, and on a sweep that collects from a
     // merchant's saved card the safe answer to "I cannot tell" is to stop the
     // whole sweep. A caught-and-continued guard failure would be fail-open.
+    //
+    // Being outside the try is what makes THIS read fail closed. The two
+    // pre-charge reads inside retryInvoiceCharge cannot be hoisted out here (they
+    // exist precisely to run later, immediately before the Stripe call), so they
+    // throw ChargeGuardReadError and the catch below rethrows it. Both routes end
+    // at the same place: an unreadable guard stops the sweep.
     const guard = await checkGuard(env, invoice.accountId);
     if (!guard.billingEligible) {
       // Skipped, never failed: nothing went wrong and nothing was written, so
@@ -481,6 +518,10 @@ export async function runChargeRetrySweep(
     try {
       results.push(await retryInvoiceCharge(env, invoice, nowMs, opts.deps));
     } catch (err) {
+      // A guard read that failed is not this invoice's problem, it is the
+      // sweep's. Fail closed rather than recording it as one failed invoice and
+      // charging the next merchant's card.
+      if (err instanceof ChargeGuardReadError) throw err;
       results.push({
         invoiceId: invoice.id,
         outcome: "failed",
