@@ -108,6 +108,13 @@ export function speakableWebPageJsonLd(
   };
 }
 
+// NO sitelinks-searchbox SearchAction here, deliberately. It used to declare
+// `/blog?q={search_term_string}`, and no such search exists: /blog, /blog/archive,
+// /blog/tag and /blog/post read no `q` parameter at all (archive reads `tag`, and
+// that is the only search param in the whole blog tree). A SearchAction is a
+// machine-readable promise that the URL template resolves to a working search, so
+// this was a structured-data claim for a feature that was never built. If a real
+// blog search ships, restore it pointing at that route and not before.
 export function websiteJsonLd(url: string) {
   return {
     "@context": "https://schema.org",
@@ -118,11 +125,6 @@ export function websiteJsonLd(url: string) {
     description:
       "Recover failed Stripe payments without billing merchants for what Stripe would have gotten anyway.",
     publisher: { "@id": `${url}/#organization` },
-    potentialAction: {
-      "@type": "SearchAction",
-      target: { "@type": "EntryPoint", urlTemplate: `${url}/blog?q={search_term_string}` },
-      "query-input": "required name=search_term_string",
-    },
   };
 }
 
