@@ -35,7 +35,10 @@ const NAV_LINK_BASE =
   "relative pb-px text-[0.8125rem] no-underline transition-colors duration-150 after:absolute after:bottom-0 after:left-0 after:h-[2px] after:w-full after:origin-left after:bg-amber after:transition-transform after:duration-200";
 const NAV_LINK_INACTIVE =
   "text-chrome-text-secondary after:scale-x-0 hover:text-chrome-text hover:after:scale-x-100";
-const NAV_LINK_ACTIVE = "text-chrome-text after:scale-x-100";
+// font-medium is legacy's own active weight. Without it the active link is
+// distinguished by color and underline only, which is a weaker current-page
+// signal than the site it is meant to match.
+const NAV_LINK_ACTIVE = "text-chrome-text font-medium after:scale-x-100";
 
 export function Header({
   isAuthenticated,
@@ -86,18 +89,26 @@ export function Header({
         ))}
 
         {!isAuthenticated ? (
-          <>
-            <Link to="/login" className={`${NAV_LINK_BASE} ${NAV_LINK_INACTIVE}`}>
-              Sign in
-            </Link>
-            <div className="h-4 w-px bg-border" />
-            <Link
-              to="/audit"
-              className="whitespace-nowrap rounded-md bg-amber px-4 py-2 text-[0.8125rem] font-semibold text-on-amber transition-colors duration-150 hover:bg-amber-dark"
-            >
-              Free audit
-            </Link>
-          </>
+          <Link to="/login" className={`${NAV_LINK_BASE} ${NAV_LINK_INACTIVE}`}>
+            Sign in
+          </Link>
+        ) : null}
+
+        {/* Divider between the link row and the utility cluster. Legacy renders
+            it whenever there are primary links, so it is present for an
+            authenticated visitor too; it used to sit inside the anonymous
+            branch here, which left the signed-in header with no separation
+            between the last nav link and the avatar. Sign in belongs to the
+            link row on legacy, hence above the divider rather than below. */}
+        <div className="h-4 w-px bg-border" />
+
+        {!isAuthenticated ? (
+          <Link
+            to="/audit"
+            className="whitespace-nowrap rounded-md bg-amber px-4 py-2 text-[0.8125rem] font-semibold text-on-amber transition-colors duration-150 hover:bg-amber-dark"
+          >
+            Free audit
+          </Link>
         ) : null}
 
         {isAuthenticated && initial ? <Avatar initial={initial} /> : null}
