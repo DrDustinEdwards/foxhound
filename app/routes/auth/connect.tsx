@@ -1,4 +1,5 @@
 import { and, eq, isNull } from "drizzle-orm";
+import { Check, X } from "lucide-react";
 import { data, Form, redirect, useNavigation } from "react-router";
 
 import { AuthShell, Field, Submit, Alert, AuthLink } from "~/components/auth-ui";
@@ -88,6 +89,71 @@ export async function action({ request, context }: Route.ActionArgs) {
   });
 }
 
+// The access disclosure panel, restored from legacy app/connect/page.tsx
+// (ruling 20d). Legacy told a merchant what the connection could and could not
+// do, in plain terms, on the screen where they grant it; the rebuild shipped the
+// button without it.
+//
+// NOT a verbatim port, because legacy's list is wrong for Foxhound in three
+// places (ruling 39: do not restore legacy defects). Every line below was
+// checked against the code that actually calls Stripe:
+//
+//   - Legacy claimed "Register a webhook to receive payment events". Foxhound
+//     never calls webhookEndpoints.create on a connected account; Connect events
+//     arrive at one platform-level endpoint. Dropped rather than ported.
+//   - Foxhound sets a default payment method (card-update/service.ts calls
+//     customers.update and subscriptions.update) and submits dispute evidence
+//     (disputes/submission.ts calls disputes.update with submit:true). Legacy
+//     disclosed neither. Both are writes a merchant should be told about.
+//   - "Create new charges or move money" needs the qualifier legacy left off:
+//     retrying an invoice DOES move money. What is true is that nothing here
+//     creates a charge outside an invoice the merchant already issued.
+const CONNECTION_CAN = [
+  "Read your invoices, subscriptions, disputes, and customer records",
+  "Retry payment on an invoice that has already failed",
+  "Set a customer default payment method after that customer updates their card",
+  "Submit dispute evidence, only after someone on your team approves it",
+];
+
+const CONNECTION_CANNOT = [
+  "Create a charge outside an invoice you already issued",
+  "Reach your payouts or your bank account",
+  "Store raw card numbers",
+  "Change your prices, products, or subscription plans",
+];
+
+function AccessDisclosure() {
+  return (
+    <div className="mb-6 rounded-lg border border-border bg-bg p-4">
+      <p className="mb-3 font-mono text-micro uppercase tracking-wide text-text-tertiary">
+        What Foxhound can do
+      </p>
+      <ul className="m-0 flex list-none flex-col gap-2 p-0">
+        {CONNECTION_CAN.map((item) => (
+          <li key={item} className="flex items-start gap-2 text-label text-text-secondary">
+            <Check className="mt-0.5 size-4 shrink-0 text-success-text" strokeWidth={1.5} aria-hidden />
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="mb-3 mt-4 font-mono text-micro uppercase tracking-wide text-text-tertiary">
+        What Foxhound can never do
+      </p>
+      <ul className="m-0 flex list-none flex-col gap-2 p-0">
+        {CONNECTION_CANNOT.map((item) => (
+          <li key={item} className="flex items-start gap-2 text-label text-text-secondary">
+            <X className="mt-0.5 size-4 shrink-0 text-error-text" strokeWidth={1.5} aria-hidden />
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-4 text-label text-text-tertiary">
+        You can disconnect at any time from Settings, which stops every active sequence.
+      </p>
+    </div>
+  );
+}
+
 const OAUTH_ERROR_MESSAGES: Record<string, string> = {
   denied: "Stripe connection was cancelled.",
   no_code: "Stripe did not return an authorization code. Please try again.",
@@ -142,11 +208,12 @@ export default function Connect({ loaderData, actionData }: Route.ComponentProps
   return (
     <AuthShell
       title="Connect Stripe"
-      subtitle="Foxhound connects to your Stripe account with read/write access to recover failed payments."
+      subtitle="Foxhound needs read and write access to your Stripe account so it can retry invoices that have failed. Here is exactly what that covers."
       footer={<AuthLink to="/dashboard">Skip for now</AuthLink>}
     >
       {oauthError ? <Alert tone="error">{oauthError}</Alert> : null}
       {actionData?.error ? <Alert tone="error">{actionData.error}</Alert> : null}
+      <AccessDisclosure />
       {loaderData.stripeEnabled ? (
         <Form method="post">
           <Submit disabled={busy}>{busy ? "Redirecting..." : "Connect Stripe"}</Submit>
