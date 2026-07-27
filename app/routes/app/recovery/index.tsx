@@ -523,7 +523,7 @@ export default function RecoveryDashboard({ loaderData }: Route.ComponentProps) 
         <div className="mt-6 rounded-lg border border-border bg-surface p-6 text-center">
           <p className="text-body font-medium text-text">Connect Stripe to start recovering payments</p>
           <p className="mt-2 text-label text-text-tertiary">
-            Foxhound watches for failed payments the moment Stripe is connected, read-only.
+            Foxhound watches for failed payments the moment Stripe is connected.
           </p>
           <Link
             to="/connect"

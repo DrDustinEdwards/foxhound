@@ -163,7 +163,7 @@ export const COMPETITORS: Record<string, CompetitorDef> = {
       },
       {
         dimension: "Merchant-of-record requirement",
-        foxhound: "None. Foxhound connects read-only (and later read-write for recovery actions) to your existing Stripe account; you remain the merchant of record.",
+        foxhound: "None. Foxhound connects to your existing Stripe account with read and write scope, used only to retry failed invoices, set a default payment method after a card update, and submit dispute evidence you approved; you remain the merchant of record.",
         competitor: "Most value is realized on Paddle's own platform, where Paddle is the merchant of record rather than the business using its own direct Stripe account.",
       },
       {

@@ -184,7 +184,7 @@ export default function RecoveryProductPage() {
         sub="The free audit shows your failed invoices today, before you connect anything else."
         ctaHref="/audit"
         ctaLabel="Run your free audit"
-        note="No account required · Read-only Stripe access · Takes 30 seconds"
+        note="No account required · No Stripe connection needed · Takes 30 seconds"
       />
     </>
   );
