@@ -76,3 +76,6 @@ been corrected in those docs yet. If they disagree with this section, this secti
 the incoming content carries an em or en dash. PreToolUse plus exit 2 is the only combination that
 actually blocks; PostToolUse fires too late to undo anything. Do not modify `.claude/settings.json`
 without explicit instruction.
+The hook fails CLOSED if python3 breaks on PATH (missing or crashing): every Write and Edit is
+blocked with a diagnostic naming python3, so if Writes are blocked and no dash is present,
+diagnose python3 first instead of thrashing on retries.
