@@ -50,3 +50,38 @@ export function isBrakeIntent(value: string): value is BrakeIntent {
 export function isConfirmPhraseValid(intent: BrakeIntent, typed: string): boolean {
   return typed.trim() === BRAKE_CONFIRM_PHRASES[intent];
 }
+
+/**
+ * What the panel says after a clean engage or release.
+ *
+ * Both counts are needed because they can now legitimately differ without any
+ * failure: the flag writes re-apply the selecting predicate, so a row that
+ * stopped matching between the eligibility read and its chunk is skipped
+ * (review MEDIUM-1/INFO-2). Reporting the transitioned count alone would leave
+ * an operator staring at "Paused 29" under a button that had just promised 30,
+ * with nothing on the page accounting for the difference. Pure so the wording is
+ * testable without driving the route.
+ */
+function skippedClause(intendedCount: number, affectedCount: number, what: string): string {
+  const skipped = intendedCount - affectedCount;
+  if (skipped <= 0) return "";
+  return ` ${skipped} account(s) ${what} by the time the write ran, so they were left exactly as they are.`;
+}
+
+export function engageResultMessage(result: { affectedCount: number; intendedCount: number }): string {
+  if (result.intendedCount === 0) {
+    return "Brake engaged. No accounts were eligible to pause (every account is demo, cancelled, or already paused).";
+  }
+  return (
+    `Brake engaged. Paused ${result.affectedCount} account(s).` +
+    skippedClause(result.intendedCount, result.affectedCount, "were no longer eligible")
+  );
+}
+
+export function releaseResultMessage(result: { affectedCount: number; intendedCount: number }): string {
+  if (result.intendedCount === 0) return "Brake released. No brake-paused accounts to resume.";
+  return (
+    `Brake released. Resumed ${result.affectedCount} account(s). Accounts paused outside the brake were left paused.` +
+    skippedClause(result.intendedCount, result.affectedCount, "were no longer held by the brake")
+  );
+}

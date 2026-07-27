@@ -5,8 +5,10 @@ import * as schema from "~/db/schema";
 import {
   BRAKE_CONFIRM_PHRASES,
   PAUSE_REASON_MANUAL,
+  engageResultMessage,
   isBrakeIntent,
   isConfirmPhraseValid,
+  releaseResultMessage,
 } from "~/lib/admin/brake";
 import {
   BRAKE_CHUNK_ACCOUNTS,
@@ -80,6 +82,38 @@ describe("confirm phrases (pure)", () => {
   it("rejects unknown intents before any write path is reached", () => {
     expect(isBrakeIntent("engage")).toBe(true);
     expect(isBrakeIntent("delete-everything")).toBe(false);
+  });
+});
+
+describe("INFO-2: the panel accounts for a count that differs from what it promised", () => {
+  it("says nothing extra when every selected account transitioned", () => {
+    expect(engageResultMessage({ affectedCount: 30, intendedCount: 30 })).toBe(
+      "Brake engaged. Paused 30 account(s).",
+    );
+  });
+
+  it("explains the shortfall rather than leaving an unaccountable number", () => {
+    // The button said "Will pause 30". Reporting 29 with no explanation is the
+    // same class of defect as reporting 30 when only 29 moved.
+    const message = engageResultMessage({ affectedCount: 29, intendedCount: 30 });
+    expect(message).toContain("Paused 29 account(s).");
+    expect(message).toContain("1 account(s) were no longer eligible");
+  });
+
+  it("distinguishes 'nothing was eligible' from 'everything got taken in the window'", () => {
+    expect(engageResultMessage({ affectedCount: 0, intendedCount: 0 })).toMatch(/No accounts were eligible/);
+    const raced = engageResultMessage({ affectedCount: 0, intendedCount: 2 });
+    expect(raced).not.toMatch(/No accounts were eligible/);
+    expect(raced).toContain("2 account(s) were no longer eligible");
+  });
+
+  it("reports the same shortfall on release", () => {
+    expect(releaseResultMessage({ affectedCount: 0, intendedCount: 0 })).toBe(
+      "Brake released. No brake-paused accounts to resume.",
+    );
+    expect(releaseResultMessage({ affectedCount: 1, intendedCount: 2 })).toContain(
+      "1 account(s) were no longer held by the brake",
+    );
   });
 });
 
