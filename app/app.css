@@ -3,12 +3,18 @@
 /* Self-hosted fonts. No Google Fonts request at runtime; files vendored
    into app/assets/fonts/. DM Sans ships as a single variable-weight
    woff2 (Google serves one file across the weight range to
-   variable-font-capable clients); DM Mono is static per weight. */
+   variable-font-capable clients); DM Mono is static per weight.
+
+   font-display: optional matches legacy (ruling 51). These files are
+   preloaded in root.tsx, so a warm cache paints the real face on the first
+   frame; optional then buys a cold visit no reflow at all, where swap
+   repaints the whole page once the face arrives. The tradeoff is that a
+   slow cold visit keeps the fallback for that pageview. */
 @font-face {
   font-family: "DM Sans";
   font-style: normal;
   font-weight: 400 700;
-  font-display: swap;
+  font-display: optional;
   src: url("./assets/fonts/dm-sans-variable.woff2") format("woff2");
 }
 
@@ -16,7 +22,7 @@
   font-family: "DM Mono";
   font-style: normal;
   font-weight: 400;
-  font-display: swap;
+  font-display: optional;
   src: url("./assets/fonts/dm-mono-400.woff2") format("woff2");
 }
 
@@ -24,7 +30,7 @@
   font-family: "DM Mono";
   font-style: normal;
   font-weight: 500;
-  font-display: swap;
+  font-display: optional;
   src: url("./assets/fonts/dm-mono-500.woff2") format("woff2");
 }
 
