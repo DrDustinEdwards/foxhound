@@ -145,9 +145,14 @@ describe("MEDIUM-2: batching keeps the brake inside the subrequest budget", () =
     const unbatched = 1 /* eligibility read */ + 500 * 2 + 1; /* umbrella */
     expect(unbatched).toBeGreaterThan(SUBREQUEST_BUDGET);
 
-    expect(brakeSubrequestCost(500)).toBe(22);
+    // Two batches per chunk since MEDIUM-1: the guarded flag writes, then audit
+    // rows for the ids those writes actually transitioned. That doubled the
+    // batch count and bought an audit trail that cannot claim a pause the brake
+    // did not perform. 20 chunks at 500 accounts, so 2 + 40.
+    expect(brakeSubrequestCost(500)).toBe(42);
     expect(brakeSubrequestCost(500)).toBeLessThan(SUBREQUEST_BUDGET);
-    // Headroom is not marginal: even an order of magnitude more merchants fits.
+    // Headroom survived the doubling, and is still not marginal: even an order
+    // of magnitude more merchants fits.
     expect(brakeSubrequestCost(5_000)).toBeLessThan(SUBREQUEST_BUDGET);
   });
 
@@ -156,12 +161,36 @@ describe("MEDIUM-2: batching keeps the brake inside the subrequest budget", () =
     const chunks = chunkAccountIds(ids);
     expect(chunks.flat()).toEqual(ids);
     expect(chunks.every((c) => c.length > 0)).toBe(true);
-    expect(chunks).toHaveLength(brakeSubrequestCost(ids.length) - 2);
+    expect(chunks).toHaveLength((brakeSubrequestCost(ids.length) - 2) / 2);
   });
 
   it("statements per batch stay well inside a sane D1 batch size", () => {
-    // Two statements per account: the flag write and its audit row.
-    expect(BRAKE_CHUNK_ACCOUNTS * 2).toBeLessThanOrEqual(50);
+    // One statement per account per batch now that the flag writes and the audit
+    // rows are separate batches.
+    expect(BRAKE_CHUNK_ACCOUNTS).toBeLessThanOrEqual(50);
+  });
+
+  it("a chunk that transitioned nothing writes no audit batch at all", async () => {
+    // The audit batch is skipped, not sent empty, so an idempotent second engage
+    // costs the eligibility read and the umbrella row and nothing else.
+    const { db } = createInMemoryDb();
+    await seedAccounts(db);
+    await engageBrake(db, { actorEmail: ACTOR });
+
+    let batchCalls = 0;
+    const second = await engageBrake(
+      db,
+      { actorEmail: ACTOR },
+      {
+        runBatch: async (d, statements) => {
+          batchCalls += 1;
+          return d.batch(statements as never);
+        },
+      },
+    );
+
+    expect(second.affectedCount).toBe(0);
+    expect(batchCalls).toBe(0);
   });
 });
 
@@ -178,6 +207,9 @@ describe("MEDIUM-2: a mid-engage failure is diagnosable and releasable", () => {
       })),
     );
 
+    // Batch order per chunk is now [flag writes, audit rows], so call 3 is the
+    // SECOND chunk's flag write: chunk one is fully committed, chunk two is not
+    // written at all.
     let call = 0;
     const result = await engageBrake(
       db,
@@ -185,7 +217,7 @@ describe("MEDIUM-2: a mid-engage failure is diagnosable and releasable", () => {
       {
         runBatch: async (d, statements) => {
           call += 1;
-          if (call === 2) throw new Error("simulated D1 chunk failure");
+          if (call === 3) throw new Error("simulated D1 chunk failure");
           return d.batch(statements as never);
         },
       },
@@ -195,6 +227,11 @@ describe("MEDIUM-2: a mid-engage failure is diagnosable and releasable", () => {
     expect(result.intendedCount).toBe(30);
     expect(result.affectedCount).toBe(25);
     expect(result.error).toMatch(/simulated D1 chunk failure/);
+    // Chunk one's evidence rows landed with it.
+    const perAccount = (await db.select().from(schema.adminAuditLog)).filter(
+      (r) => r.action === "brake.pause.account",
+    );
+    expect(perAccount).toHaveLength(25);
 
     // The umbrella INTENT row survives, which is the point of writing it first.
     const umbrella = (await db.select().from(schema.adminAuditLog)).filter(
@@ -212,6 +249,153 @@ describe("MEDIUM-2: a mid-engage failure is diagnosable and releasable", () => {
     expect(released.affectedCount).toBe(25);
     expect(await listBrakePausedAccountIds(db)).toHaveLength(0);
     expect(await paused(db, "acc_29")).toEqual({ processingPaused: false, pauseReason: null });
+  });
+
+  it("counts a chunk whose flag writes landed but whose audit rows did not", async () => {
+    // The failure mode the split batches introduced. The accounts ARE paused and
+    // marked, so the count must include them and release must clean them up; the
+    // safe direction is over-reporting the pause, never under-reporting it and
+    // leaving marked rows nobody knows to release.
+    const { db } = createInMemoryDb();
+    await seedAccounts(db);
+
+    let call = 0;
+    const result = await engageBrake(
+      db,
+      { actorEmail: ACTOR },
+      {
+        runBatch: async (d, statements) => {
+          call += 1;
+          if (call === 2) throw new Error("audit batch failed");
+          return d.batch(statements as never);
+        },
+      },
+    );
+
+    expect(result.affectedCount).toBe(2);
+    expect(result.error).toMatch(/audit batch failed/);
+    expect(await listBrakePausedAccountIds(db)).toHaveLength(2);
+    expect(
+      (await db.select().from(schema.adminAuditLog)).filter((r) => r.action === "brake.pause.account"),
+    ).toHaveLength(0);
+    expect((await releaseBrake(db, { actorEmail: ACTOR })).affectedCount).toBe(2);
+  });
+});
+
+describe("MEDIUM-1: engage cannot steal a merchant paused for cause mid-write", () => {
+  // The invariant the whole design exists for, tested in the CONCURRENT
+  // direction for the first time. Every other test here seeds a static fixture
+  // and then engages, which only ever exercises the eligibility SELECT. The
+  // defect was in the UPDATE: engage read its ids once and wrote them in chunks,
+  // so a pause landing in that window was overwritten with the brake marker and
+  // resumed by the next release.
+  //
+  // The race is SIMULATED, not asserted around: the runBatch seam is the real
+  // pause point between the eligibility read and the chunk write, and the manual
+  // pause is a real setProcessingPaused against the real schema.
+  it("a for-cause pause landing between the read and the write survives, and release never resumes it", async () => {
+    const { db } = createInMemoryDb();
+    // 30 eligible accounts spans two chunks at BRAKE_CHUNK_ACCOUNTS=25, so the
+    // victim sits in a chunk that has not been written when the pause lands.
+    await db.insert(schema.accounts).values(
+      Array.from({ length: 30 }, (_, i) => ({
+        id: `acc_${String(i).padStart(2, "0")}`,
+        name: `M${i}`,
+        billingExempt: false,
+        processingPaused: false,
+      })),
+    );
+    const VICTIM = "acc_29"; // second chunk
+
+    let batchCalls = 0;
+    const result = await engageBrake(
+      db,
+      { actorEmail: ACTOR },
+      {
+        runBatch: async (d, statements) => {
+          // Operator B pauses a merchant for suspected fraud through
+          // /admin/merchants/:id while operator A's engage is mid-flight. It
+          // lands after the eligibility read and before the victim's chunk.
+          batchCalls += 1;
+          if (batchCalls === 1) await setProcessingPaused(d, VICTIM, true);
+          return d.batch(statements as never);
+        },
+      },
+    );
+
+    // The pause stands, with ITS OWN reason. Before the write-time guard this
+    // read { processingPaused: true, pauseReason: 'brake' }.
+    expect(await paused(db, VICTIM)).toEqual({
+      processingPaused: true,
+      pauseReason: PAUSE_REASON_MANUAL,
+    });
+
+    // 30 were selected, 29 actually transitioned, and the count says 29.
+    expect(result.intendedCount).toBe(30);
+    expect(result.affectedCount).toBe(29);
+    expect(result.accountIds).not.toContain(VICTIM);
+    expect(result.error).toBeUndefined();
+
+    // The whole point: release leaves the for-cause merchant paused. Under the
+    // pre-fix write this resumed them and their due retry steps charged cards on
+    // the next tick, with operator B never told.
+    const released = await releaseBrake(db, { actorEmail: ACTOR });
+    expect(released.affectedCount).toBe(29);
+    expect(await paused(db, VICTIM)).toEqual({
+      processingPaused: true,
+      pauseReason: PAUSE_REASON_MANUAL,
+    });
+  });
+
+  it("files no audit evidence for an account it did not actually pause", async () => {
+    // A count that excludes the skipped row but a per-account audit row that
+    // claims it was paused would just move the lie from the panel to the log.
+    const { db } = createInMemoryDb();
+    await seedAccounts(db);
+
+    let batchCalls = 0;
+    await engageBrake(
+      db,
+      { actorEmail: ACTOR },
+      {
+        runBatch: async (d, statements) => {
+          batchCalls += 1;
+          if (batchCalls === 1) await setProcessingPaused(d, "acc_normal", true);
+          return d.batch(statements as never);
+        },
+      },
+    );
+
+    const perAccount = (await db.select().from(schema.adminAuditLog)).filter(
+      (r) => r.action === "brake.pause.account",
+    );
+    expect(perAccount.map((r) => (r.metadata as { accountId: string }).accountId)).toEqual([
+      "acc_normal_2",
+    ]);
+  });
+
+  it("release skips a merchant resumed by hand mid-release, and does not count them", async () => {
+    // The same race in the other direction. Symmetric guard, symmetric count.
+    const { db } = createInMemoryDb();
+    await seedAccounts(db);
+    await engageBrake(db, { actorEmail: ACTOR });
+
+    let batchCalls = 0;
+    const released = await releaseBrake(
+      db,
+      { actorEmail: ACTOR },
+      {
+        runBatch: async (d, statements) => {
+          batchCalls += 1;
+          if (batchCalls === 1) await setProcessingPaused(d, "acc_normal", false);
+          return d.batch(statements as never);
+        },
+      },
+    );
+
+    expect(released.intendedCount).toBe(2);
+    expect(released.affectedCount).toBe(1);
+    expect(released.accountIds).toEqual(["acc_normal_2"]);
   });
 });
 

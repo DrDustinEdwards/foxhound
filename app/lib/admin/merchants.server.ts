@@ -7,7 +7,7 @@
 // billing, and webhook claims; a flag toggle or a connection-disconnect stamp
 // is operational, matching the brand-voice-update / cron-toggle precedent).
 
-import { and, count, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, count, desc, eq, isNull, sql, type SQL } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import type { Db } from "~/db";
@@ -187,25 +187,49 @@ export async function setBillingExempt(db: Db, accountId: string, exempt: boolea
  *    stranded that merchant paused after the next release. The CASE runs
  *    server-side in the same UPDATE rather than as a read-then-write, so two
  *    concurrent operators cannot interleave into a lost marker.
- *  - **Pause with an explicit reason** (the brake) sets it outright. */
+ *  - **Pause with an explicit reason** (the brake) sets it outright, but only
+ *    where `guard` still holds. See the guard parameter.
+ *
+ *  `guard` is an optional extra condition ANDed into the WHERE, so the caller's
+ *  OWN selection predicate is re-evaluated server-side at write time. The brake
+ *  passes it and nothing else does (review MEDIUM-1): engage reads its eligible
+ *  ids once and then writes them in chunks, so an account paused for cause
+ *  between the read and its chunk was overwritten with the brake marker and
+ *  resumed by the next release. That is the exact hazard the no-reason branch's
+ *  CASE was added for, and the explicit-reason branch three lines up had kept
+ *  the read-then-write shape that reasoning rejects.
+ *
+ *  The guard is a WHERE clause rather than a preserve-existing CASE on purpose.
+ *  A CASE would keep the right reason but still write the row, leaving the
+ *  caller unable to tell a real transition from a no-op; the WHERE skips the row
+ *  outright, which is what makes the RETURNING count below honest.
+ *
+ *  Every branch RETURNs the id it changed. A guarded write that matched nothing
+ *  returns no rows, so a caller can count rows actually TRANSITIONED rather than
+ *  rows it selected (review INFO-2). */
 export function buildSetProcessingPaused(
   db: Db,
   accountId: string,
   paused: boolean,
   reason: string | null = null,
+  guard?: SQL,
 ) {
+  const target = guard ? (and(eq(accounts.id, accountId), guard) as SQL) : eq(accounts.id, accountId);
+
   if (!paused) {
     return db
       .update(accounts)
       .set({ processingPaused: false, pauseReason: null })
-      .where(eq(accounts.id, accountId));
+      .where(target)
+      .returning({ id: accounts.id });
   }
 
   if (reason !== null) {
     return db
       .update(accounts)
       .set({ processingPaused: true, pauseReason: reason })
-      .where(eq(accounts.id, accountId));
+      .where(target)
+      .returning({ id: accounts.id });
   }
 
   return db
@@ -214,7 +238,8 @@ export function buildSetProcessingPaused(
       processingPaused: true,
       pauseReason: sql`case when ${accounts.processingPaused} = 1 then ${accounts.pauseReason} else ${PAUSE_REASON_MANUAL} end`,
     })
-    .where(eq(accounts.id, accountId));
+    .where(target)
+    .returning({ id: accounts.id });
 }
 
 export async function setProcessingPaused(
@@ -222,8 +247,9 @@ export async function setProcessingPaused(
   accountId: string,
   paused: boolean,
   reason: string | null = null,
+  guard?: SQL,
 ): Promise<void> {
-  await buildSetProcessingPaused(db, accountId, paused, reason);
+  await buildSetProcessingPaused(db, accountId, paused, reason, guard);
 }
 
 /** Whether an account currently holds an active Intelligence subscription row.
