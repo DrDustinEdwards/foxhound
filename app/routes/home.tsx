@@ -137,7 +137,10 @@ const FAQS: { question: string; answer: string; node?: React.ReactNode }[] = [
   },
 ];
 
-const COMPAT_TAGS = ["Stripe Billing", "Stripe Checkout", "Custom invoices", "Stripe Subscriptions", "Multi-account"];
+// One Stripe account per Foxhound account: there is no account switcher and no
+// membership UI (app/lib/auth/account.ts, layouts/app-shell.tsx). "Multi-account"
+// sat in this list as a compatibility claim for something that does not exist.
+const COMPAT_TAGS = ["Stripe Billing", "Stripe Checkout", "Custom invoices", "Stripe Subscriptions"];
 
 const PRODUCT_ICONS = {
   audit: ScanSearch,
