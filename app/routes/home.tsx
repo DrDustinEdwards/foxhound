@@ -6,6 +6,7 @@ import { EmailSamples } from "~/components/email-samples";
 import { FadeUp } from "~/components/fade-up";
 import { FaqAccordion } from "~/components/faq-accordion";
 import { LedgerMock } from "~/components/ledger-mock";
+import { RecoveryQueueDemo } from "~/components/recovery-queue-demo";
 import { RecoveryCalculator } from "~/components/recovery-calculator";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -195,11 +196,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               </div>
             </div>
 
-            {/* min-h, not h: the mock sizes to its own content. A fixed height
-                clipped it, because the detail lines wrap to two lines each at
-                narrow widths and the card hides its own overflow. */}
+            {/* min-h, not h: the visual sizes to its own content. A fixed
+                height clipped the previous hero mock, because its lines wrap
+                at narrow widths and the card hides its own overflow. */}
             <div className="min-h-[360px] w-full">
-              <LedgerMock />
+              <RecoveryQueueDemo />
             </div>
           </div>
 
@@ -410,6 +411,31 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               </FadeUp>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Evidence ledger. Relocated out of the hero when the animated recovery
+          queue took that slot (ruling 6). It sits here rather than up top
+          because it is the receipt for the step above it: "pay 20% of matured
+          recoveries" is the claim, and this is what that invoice looks like. */}
+      <section className="border-t border-border-sub px-4 py-20 sm:px-8">
+        <div className="mx-auto max-w-5xl">
+          <FadeUp>
+            <div className="mb-12 text-center">
+              <h2 className="m-0 mb-3 text-2xl font-semibold tracking-tight text-text sm:text-3xl">
+                Every fee shows its work
+              </h2>
+              <p className="m-0 text-body text-text-secondary">
+                Each charge links back to the action that earned it. Recoveries Stripe would have made
+                on its own appear in the same ledger, marked free.
+              </p>
+            </div>
+          </FadeUp>
+          <FadeUp delay={100}>
+            <div className="mx-auto max-w-xl">
+              <LedgerMock />
+            </div>
+          </FadeUp>
         </div>
       </section>
 
