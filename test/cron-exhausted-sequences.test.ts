@@ -1,6 +1,8 @@
 import type Stripe from "stripe";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { RECOVERY_TICK_LIMIT } from "~/lib/constants";
+
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
 // Nothing wrote failed_payments.status = 'failed_unrecovered'. A payment dunned
@@ -236,6 +238,28 @@ describe("the flip itself", () => {
     // `failed` counts STEPS. A sweep failure must not inflate it, or the number
     // means two different things depending on which part of the tick broke.
     expect(result.message).toContain("0 failed");
+  });
+
+  it("LOW-1: is bounded by RECOVERY_TICK_LIMIT, the same constant that caps due steps", async () => {
+    // The second, undocumented consumer of that constant. Dropping it from 500
+    // to 100 cut this sweep fivefold as well, and only the step cap was
+    // reasoned about at the time. Pinned behaviourally so the shared budget is
+    // a fact rather than a comment, and so a future change to one bound cannot
+    // move the other silently.
+    await seed({
+      payments: Array.from({ length: RECOVERY_TICK_LIMIT + 5 }, (_, i) => ({
+        id: `fp_${String(i).padStart(3, "0")}`,
+        invoiceId: `in_${i}`,
+        steps: [ranStep(1)],
+      })),
+    });
+
+    expect(await queryExhaustedSequences({} as Env, RECOVERY_TICK_LIMIT + 5)).toHaveLength(
+      RECOVERY_TICK_LIMIT + 5,
+    );
+    // One tick flips exactly the cap, and the remainder survives for the next.
+    expect(await flipExhaustedSequences({} as Env, NOW)).toBe(RECOVERY_TICK_LIMIT);
+    expect(await flipExhaustedSequences({} as Env, NOW)).toBe(5);
   });
 });
 

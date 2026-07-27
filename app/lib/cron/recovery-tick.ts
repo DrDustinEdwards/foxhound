@@ -445,6 +445,13 @@ export interface RecoveryTickDeps {
  * Flip every exhausted sequence to failed_unrecovered. Runs AFTER the step loop
  * so a sequence whose last step just executed is caught in the same tick rather
  * than lingering 'active' for another five minutes.
+ *
+ * The limit is RECOVERY_TICK_LIMIT, the SAME constant that caps due steps, so
+ * this sweep's bound moves whenever that one does (review LOW-1: the drop from
+ * 500 to 100 quietly cut this sweep fivefold too, and only the step cap was
+ * documented). Deliberate rather than incidental: both bounds keep one
+ * invocation inside one subrequest budget. Unflipped sequences stay 'active' and
+ * are re-selected next tick, so a backlog drains rather than being lost.
  */
 export async function flipExhaustedSequences(env: Env, now: Date): Promise<number> {
   const ids = await queryExhaustedSequences(env, RECOVERY_TICK_LIMIT);
