@@ -303,6 +303,20 @@ export const CRON_SCHEDULE_RECOVERY_TICK = "*/5 * * * *";
  * so they are re-selected by the next tick five minutes later and the backlog
  * drains. `backlog` in the run message reports when a tick hit the cap.
  *
+ * SECOND CONSUMER, and it is not a step cap (review LOW-1). flipExhaustedSequences
+ * passes this same constant to queryExhaustedSequences as that sweep's own limit,
+ * so dropping 500 to 100 ALSO cut the exhausted-sequence flip from at most 500
+ * per tick to at most 100 per tick. That was never stated when the constant
+ * moved, and the arithmetic above accounts only for per-step cost.
+ *
+ * Sharing it is still right: both bounds exist to keep ONE invocation inside ONE
+ * subrequest budget, and the flip is a single batched write however many ids it
+ * carries. The consequence is a drain rate, not a correctness change. At 288
+ * ticks a day a backlog of exhausted-but-still-active sequences clears five
+ * times slower than before, and still clears. If the two bounds ever need to
+ * differ, split the constant rather than re-tuning this one: a step cap and a
+ * sweep cap answer different questions.
+ *
  * Phase 8: re-derive this from MEASURED per-step subrequest cost rather than the
  * estimate above. The estimate is deliberately conservative and is not a
  * substitute for instrumenting a real run.
