@@ -10,7 +10,7 @@ import type { Route } from "./+types/privacy";
 // Ported from legacy app/(marketing)/privacy/page.tsx (Phase 6 Pass 1): same
 // 15-section structure. Legacy's body text ran to roughly 55KB of generic
 // template legal copy; this rewrites each section to describe what Foxhound
-// actually does (Stripe Connect read-only scope, Cloudflare D1/Workers
+// actually does (Stripe Connect read_write scope, Cloudflare D1/Workers
 // storage, first-party engagement tracking, Anthropic-based email drafting,
 // the real retention windows from app/lib/constants.ts) rather than porting
 // the legacy wording verbatim.
@@ -20,7 +20,7 @@ import type { Route } from "./+types/privacy";
 // building: a bordered card between the intro paragraph and the numbered
 // sections. The bullets below are written against THIS page's actual 15
 // sections, not copied from legacy's summary: legacy's policy differs
-// (GDPR/CCPA boilerplate; this one describes Stripe read-only OAuth,
+// (GDPR/CCPA boilerplate; this one describes the real Stripe OAuth scope,
 // Foxhound's own AI-drafting-plus-human-approval flow, and its real
 // retention windows). Legacy's own summary intro claims "click the link
 // following each key point," but the live page renders zero such links
@@ -123,7 +123,7 @@ export default function PrivacyPage() {
           <ul className="m-0 flex list-none flex-col gap-3 p-0 text-label leading-relaxed text-text-secondary">
             <li>
               <strong className="text-text">What information do we collect?</strong> Merchant Stripe
-              data (invoices, subscriptions, disputes, customer records) through a read-only OAuth
+              data (invoices, subscriptions, disputes, customer records) through a Stripe OAuth
               connection, plus first-party engagement signals we generate ourselves, whether a recovery
               email was opened or clicked, never a third-party tracking vendor.
             </li>
@@ -143,8 +143,9 @@ export default function PrivacyPage() {
               long as the account stays active.
             </li>
             <li>
-              <strong className="text-text">How do we keep information safe?</strong> Read-only Stripe
-              OAuth, no card numbers stored, sensitive tokens encrypted at rest with AES-256.
+              <strong className="text-text">How do we keep information safe?</strong> Stripe access is
+              limited to a short list of actions, no card numbers are stored, and sensitive tokens are
+              encrypted at rest with AES-256.
             </li>
             <li>
               <strong className="text-text">What are your rights?</strong> Merchants can review and
@@ -162,9 +163,9 @@ export default function PrivacyPage() {
 
         <Section id="collect" number={1} title="WHAT INFORMATION DO WE COLLECT?">
           <P>
-            From merchants: account and contact information, and the Stripe data your read-only OAuth
-            connection grants us access to, invoices, subscriptions, disputes, and customer records needed
-            to run recovery sequences and dispute drafts.
+            From merchants: account and contact information, and the Stripe data your OAuth connection
+            grants us access to, invoices, subscriptions, disputes, and customer records needed to run
+            recovery sequences and dispute drafts.
           </P>
           <P>
             From merchants&apos; customers: information Stripe already has about a failed payment (name,
@@ -232,9 +233,14 @@ export default function PrivacyPage() {
 
         <Section id="safe" number={8} title="HOW DO WE KEEP YOUR INFORMATION SAFE?">
           <P>
-            Stripe access is read-only OAuth; Foxhound never stores card numbers. Sensitive tokens are
-            encrypted at rest with AES-256. Access to production data is limited to what the Services need
-            to run.
+            The Stripe OAuth connection carries read and write scope, because retrying a failed invoice
+            is a write. Foxhound uses the write half for three things and no others: retrying payment on
+            an invoice that has already failed, setting a customer default payment method after that
+            customer updates their card, and submitting dispute evidence once someone on your team has
+            approved it. It never changes prices, products, or subscription plans, never creates a charge
+            outside an invoice you already issued, and never reaches your payouts or bank account.
+            Foxhound never stores card numbers. Sensitive tokens are encrypted at rest with AES-256.
+            Access to production data is limited to what the Services need to run.
           </P>
         </Section>
 
