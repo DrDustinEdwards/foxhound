@@ -25,7 +25,13 @@ export const PAUSE_REASON_MANUAL = "manual";
 export const KNOWN_PAUSE_REASONS = [PAUSE_REASON_BRAKE, PAUSE_REASON_MANUAL] as const;
 
 /** Every destructive control on the brake panel is gated on typing its exact
- *  phrase. No single-click path exists for any of them. */
+ *  phrase. No single-click path exists for any of them.
+ *
+ *  That claim used to be true of the panel and false of the platform: the same
+ *  recovery tick could be re-enabled in ONE click from /admin/crons, which is a
+ *  different page with none of this friction (review MEDIUM-4). The cron page's
+ *  enable direction now goes through cronEnableConfirmPhrase below, so the
+ *  sentence above holds everywhere the tick can be started, not just here. */
 export const BRAKE_CONFIRM_PHRASES = {
   engage: "PAUSE ALL",
   release: "RESUME ALL",
@@ -49,6 +55,33 @@ export function isBrakeIntent(value: string): value is BrakeIntent {
  */
 export function isConfirmPhraseValid(intent: BrakeIntent, typed: string): boolean {
   return typed.trim() === BRAKE_CONFIRM_PHRASES[intent];
+}
+
+/**
+ * The phrase /admin/crons requires before ENABLING a cron.
+ *
+ * Per-cron rather than one shared word, so a confirmation typed for one job can
+ * never start another: enabling billing-monthly is at least as consequential as
+ * enabling recovery-tick, and a generic "START CRON" would let a stale form or a
+ * misread row start the wrong one.
+ *
+ * Only the enable direction is gated. Stopping a loop that charges cards is
+ * safe; starting one is not, and friction belongs where the damage is.
+ *
+ * Lives in this pure module, not crons.server.ts, for the reason at the top of
+ * the file: the phrase is rendered in a component AND validated in an action, and
+ * importing a .server module into a component body ships the server bundle to the
+ * browser.
+ */
+export function cronEnableConfirmPhrase(cronName: string): string {
+  return `ENABLE ${cronName}`;
+}
+
+/** Trimmed but case-SENSITIVE and never partial, exactly like
+ *  isConfirmPhraseValid. Same reasoning: the phrase exists to force a deliberate
+ *  act, so anything that makes it easier to satisfy by accident defeats it. */
+export function isCronEnableConfirmValid(cronName: string, typed: string): boolean {
+  return typed.trim() === cronEnableConfirmPhrase(cronName);
 }
 
 /**
