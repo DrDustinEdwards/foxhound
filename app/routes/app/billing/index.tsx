@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { data, redirect, useActionData, useNavigation } from "react-router";
 
+import { BillingEstimateCard } from "~/components/billing-estimate-card";
 import { LedgerFreeRow, LedgerLineItemRow } from "~/components/billing-ledger-row";
 import { Badge } from "~/components/badge";
 import { DemoGuardedForm } from "~/components/demo-guarded-form";
@@ -14,6 +15,7 @@ import {
   ensurePlatformCustomer,
   finalizeBillingSetupSession,
 } from "~/lib/billing/platform-customer";
+import { getBillingPreview } from "~/lib/billing/preview.server";
 import { getBillingLedger, listBillingInvoices } from "~/lib/billing/queries.server";
 import { formatMoney } from "~/lib/money-format";
 import { executeMoneyWrite } from "~/lib/money/execute";
@@ -58,16 +60,18 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   }
 
   const db = getDb(env);
-  const [accountRow, ledger, invoices] = await Promise.all([
+  const [accountRow, ledger, invoices, preview] = await Promise.all([
     loadAccountBillingRow(env, accountId),
     getBillingLedger(db, accountId),
     listBillingInvoices(db, accountId),
+    getBillingPreview(db, accountId, Date.now()),
   ]);
 
   return {
     billingSetUp: Boolean(accountRow?.platformStripeCustomerId),
     ledger,
     invoices,
+    preview,
   };
 }
 
@@ -114,7 +118,7 @@ export async function action({ context, request }: Route.ActionArgs) {
 }
 
 export default function Billing({ loaderData }: Route.ComponentProps) {
-  const { billingSetUp, ledger, invoices } = loaderData;
+  const { billingSetUp, ledger, invoices, preview } = loaderData;
   const actionData = useActionData<typeof action>();
   const busy = useNavigation().state !== "idle";
 
@@ -154,6 +158,8 @@ export default function Billing({ loaderData }: Route.ComponentProps) {
           </button>
         </DemoGuardedForm>
       </div>
+
+      <BillingEstimateCard preview={preview} />
 
       {invoices.length > 0 ? (
         <div className="mt-6 rounded-lg border border-border bg-surface p-4">
