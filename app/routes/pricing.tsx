@@ -200,7 +200,7 @@ export default function PricingPage() {
             Connect Stripe, it&apos;s free
           </Link>
           <div className="mt-5 font-mono text-micro text-text-subtle">
-            No account required &middot; Read-only access &middot; Results in 30 seconds
+            No account required &middot; No Stripe connection needed &middot; Results in 30 seconds
           </div>
         </div>
       </section>

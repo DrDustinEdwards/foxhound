@@ -123,7 +123,7 @@ export function RecoveryCalculator() {
         </Link>
       </div>
       <p className="mt-3 text-center font-mono text-micro text-text-subtle">
-        Free audit. No account required. Read-only Stripe access.
+        Free audit. No account required. No Stripe connection needed.
       </p>
     </div>
   );

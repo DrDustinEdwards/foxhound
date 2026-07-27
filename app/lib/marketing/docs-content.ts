@@ -22,7 +22,7 @@ export const DOC_GUIDES: DocGuide[] = [
       {
         heading: "Connecting Stripe",
         body: [
-          "Foxhound connects to your Stripe account through Stripe Connect with read-only OAuth scope. Foxhound reads invoices, subscriptions, disputes, and customer data. It never modifies payment methods, subscription logic, prices, or any other Stripe settings.",
+          "Foxhound connects to your Stripe account through Stripe Connect with read and write OAuth scope, because retrying a failed invoice is a write. Foxhound reads invoices, subscriptions, disputes, and customer data. It writes in three places: retrying payment on an invoice that has already failed, setting a customer default payment method after that customer updates their card, and submitting dispute evidence once someone on your team has approved it. It never changes prices, products, or subscription plans, never creates a charge outside an invoice you already issued, and never reaches your payouts or bank account.",
           "Disconnect at any time from your Stripe dashboard or from Settings inside Foxhound. Disconnecting stops every active sequence immediately.",
         ],
       },
@@ -50,7 +50,7 @@ export const DOC_GUIDES: DocGuide[] = [
       {
         heading: "What it checks",
         body: [
-          "The audit connects read-only to Stripe and looks at failed invoices, expiring cards, open disputes, and basic account health over the trailing period.",
+          "The audit only reads. It looks at failed invoices, expiring cards, open disputes, and basic account health over the trailing period, and writes nothing back to Stripe.",
           "Results are framed around lift: what Stripe's own retries already recovered, what is currently unrecovered, and where Foxhound's silent retries and review-and-sign disputes would add on top.",
         ],
       },

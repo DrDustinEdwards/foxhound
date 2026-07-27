@@ -183,7 +183,7 @@ export default function DisputesProductPage() {
         sub="Connect Stripe and Foxhound starts drafting evidence on every new dispute automatically. You still approve every submission."
         ctaHref="/connect"
         ctaLabel="Connect Stripe"
-        note="Read-only Stripe access · 20% only when you win, capped at $500"
+        note="Evidence reaches Stripe only after you approve it · 20% only when you win, capped at $500"
       />
     </>
   );

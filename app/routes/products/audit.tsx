@@ -38,7 +38,7 @@ export function loader({ context }: Route.LoaderArgs) {
 const STEPS = [
   {
     title: "Connect Stripe",
-    body: "Read-only OAuth connection. Foxhound never touches your billing configuration. Takes 30 seconds.",
+    body: "The audit only reads and writes nothing back to Stripe. Foxhound never touches your billing configuration. Takes 30 seconds.",
   },
   {
     title: "Foxhound runs the diagnostic",
@@ -57,7 +57,7 @@ const FAQS = [
   },
   {
     q: "What Stripe access does the audit request?",
-    a: "Read-only OAuth scope. The audit reads your invoices, subscriptions, disputes, and customer data. It never modifies payment methods, subscription logic, or any other Stripe setting. Disconnect from your Stripe dashboard at any time.",
+    a: "The audit itself only reads: your invoices, subscriptions, disputes, and customer data. It writes nothing back to Stripe. The OAuth connection it uses is the same one every Foxhound product shares, and that carries read and write scope, because Recovery retries failed invoices on it later. Nothing Foxhound does changes your prices, products, or subscription plans. Disconnect from your Stripe dashboard at any time.",
   },
   {
     q: "Will the audit tell me a recovery rate I should expect?",
@@ -146,8 +146,8 @@ export default function AuditProductPage() {
             Free.
           </>
         }
-        sub="A full diagnostic across failed invoices, expiring cards, open disputes, and business health. No signup, no credit card, read-only Stripe access."
-        pricing="Always free · No account required · Read-only Stripe access"
+        sub="A full diagnostic across failed invoices, expiring cards, open disputes, and business health. No signup, no credit card, and it writes nothing back to Stripe."
+        pricing="Always free · No account required · The audit only reads"
         primaryCTA={{ href: "/audit", label: "Run your free audit" }}
         secondaryCTA={{ href: "/docs/audit", label: "Read the guide" }}
       />
@@ -160,7 +160,7 @@ export default function AuditProductPage() {
           "Four diagnostic scopes: failed invoices, expiring cards, disputes, business health",
           "No account required, no fabricated recovery-rate projections",
           "Persistent history once you create a free account",
-          "Read-only Stripe access, your billing configuration is never touched",
+          "The audit only reads, and your billing configuration is never touched",
         ]}
         ctaHref="/audit"
         ctaLabel="Run your free audit"
@@ -168,10 +168,10 @@ export default function AuditProductPage() {
       <ProductFAQ faqs={FAQS} />
       <BottomCTA
         title="Your Stripe account is telling you something."
-        sub="The audit shows you what. Free, read-only, 30 seconds."
+        sub="The audit shows you what. Free, and it writes nothing back to Stripe. 30 seconds."
         ctaHref="/audit"
         ctaLabel="Run your free audit"
-        note="No account required · Read-only access · Results in 30 seconds"
+        note="No account required · Results in 30 seconds"
       />
     </>
   );

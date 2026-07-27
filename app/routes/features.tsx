@@ -237,7 +237,7 @@ const CATEGORIES: Category[] = [
       {
         title: "Stripe Connect OAuth",
         tag: "platform",
-        body: "Read-only connection, connects in under a minute, never touches your billing configuration.",
+        body: "Connects in under a minute, and never touches your billing configuration.",
       },
       {
         title: "Direct platform invoicing",
@@ -260,9 +260,9 @@ const CATEGORIES: Category[] = [
     heading: "Security and compliance",
     features: [
       {
-        title: "Read-only Stripe scope",
+        title: "Narrow Stripe scope",
         tag: "platform",
-        body: "Foxhound requests read-only Stripe Connect access. It reads your data and never modifies your Stripe configuration.",
+        body: "Foxhound requests read and write Stripe Connect access, because retrying a failed invoice is a write. It writes in three places: retrying an invoice that already failed, setting a customer default payment method after a card update, and submitting dispute evidence you approved. It never changes your prices, products, or subscription plans, and never reaches your payouts.",
       },
       {
         title: "AES-256-GCM token encryption",
@@ -374,7 +374,7 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
         sub="Free diagnostic, no account required."
         ctaHref="/audit"
         ctaLabel="Run your free audit"
-        note="No account required · Read-only Stripe access · Takes 30 seconds"
+        note="No account required · No Stripe connection needed · Takes 30 seconds"
       />
 
       <script

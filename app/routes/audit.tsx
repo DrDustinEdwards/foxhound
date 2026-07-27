@@ -204,8 +204,9 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
         <div className="rounded-lg border border-border bg-surface p-6 text-center">
           <p className="mb-2 text-body font-medium text-text">Want the full diagnostic against your real account?</p>
           <p className="mb-5 text-label leading-relaxed text-text-secondary">
-            Create a free account, then connect Stripe with read-only access for the full report: what
-            Stripe already recovered, what is still dying, and what Foxhound would add.
+            Create a free account, then connect Stripe for the full report: what Stripe already
+            recovered, what is still dying, and what Foxhound would add. The audit itself only reads
+            and writes nothing back.
           </p>
           <Link
             to="/signup"
@@ -214,7 +215,7 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
             Create a free account
           </Link>
           <div className="mt-4 font-mono text-micro text-text-subtle">
-            No credit card &middot; Read-only Stripe access &middot; Disconnect anytime
+            No credit card &middot; The audit only reads &middot; Disconnect anytime
           </div>
         </div>
       </div>

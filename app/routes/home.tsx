@@ -79,7 +79,7 @@ const FAQS: { question: string; answer: string; node?: React.ReactNode }[] = [
   {
     question: "Does Foxhound touch my Stripe billing configuration?",
     answer:
-      "No. Foxhound connects with read-only Stripe scope. It reads your failed invoices and subscription data. It never modifies payment methods, subscription logic, prices, or any other Stripe settings.",
+      "No. The connection carries read and write scope, because retrying a failed invoice is a write, but Foxhound writes in only three places: retrying an invoice that has already failed, setting a customer default payment method after that customer updates their card, and submitting dispute evidence you approved. It never changes your prices, products, subscription plans, or any other Stripe setting, and never reaches your payouts.",
   },
   {
     question: "What counts as a recovery Foxhound can bill for?",
@@ -386,7 +386,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             {[
               {
                 title: "Connect Stripe",
-                body: "Read-only OAuth. 60 seconds. Foxhound never touches your billing configuration or existing Stripe setup.",
+                body: "60 seconds. Foxhound never touches your billing configuration or existing Stripe setup.",
               },
               {
                 title: "Foxhound retries quietly, then sends",
@@ -503,7 +503,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           <FadeUp>
             <div className="flex flex-wrap items-center justify-center gap-3">
               {[
-                "Read-only Stripe access",
+                "Never touches your billing configuration",
                 "No card data stored",
                 "AES-256 encryption",
                 "CAN-SPAM compliant",
