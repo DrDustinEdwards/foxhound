@@ -61,12 +61,15 @@ export async function action({ context, request }: Route.ActionArgs) {
     );
   }
 
-  await setCronEnabled(db, cronName, nextEnabled);
+  // INTENT before STATE (review LOW-4), matching applyBrakeTransition and the
+  // brake panel's own tick toggle. A failed audit insert must leave a cron's
+  // enabled state unchanged, never changed-with-no-record.
   await logAdminAction(db, {
     actorEmail: auth.email,
     action: nextEnabled ? "cron.enable" : "cron.disable",
     metadata: { cronName },
   });
+  await setCronEnabled(db, cronName, nextEnabled);
 
   return data({ ok: true });
 }
