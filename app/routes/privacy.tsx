@@ -147,9 +147,9 @@ export default function PrivacyPage() {
               OAuth, no card numbers stored, sensitive tokens encrypted at rest with AES-256.
             </li>
             <li>
-              <strong className="text-text">What are your rights?</strong> Merchants can review, update,
-              or delete account data from Settings or by contacting us. A merchant&apos;s customers
-              should contact that merchant directly.
+              <strong className="text-text">What are your rights?</strong> Merchants can review and
+              update account data in Settings, and can request deletion by contacting us. A
+              merchant&apos;s customers should contact that merchant directly.
             </li>
             <li>
               <strong className="text-text">Is information transferred internationally?</strong>{" "}
@@ -244,10 +244,12 @@ export default function PrivacyPage() {
 
         <Section id="rights" number={10} title="WHAT ARE YOUR PRIVACY RIGHTS?">
           <P>
-            Merchants can review, update, or delete their account data from Settings, or by contacting
-            us. A merchant&apos;s customers should contact that merchant directly, Foxhound processes
-            their data on the merchant&apos;s instructions and is not the right party to field an
-            end-customer request directly.
+            Merchants can review and update their account data from Settings at any time. Deletion is
+            by request rather than self-serve: contact us and we will confirm what will be deleted and
+            what we are required to keep. Section 15 sets out that process. A merchant&apos;s customers
+            should contact that merchant directly, Foxhound processes their data on the
+            merchant&apos;s instructions and is not the right party to field an end-customer request
+            directly.
           </P>
         </Section>
 
