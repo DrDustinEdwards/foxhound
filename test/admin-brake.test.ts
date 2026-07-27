@@ -39,7 +39,8 @@ async function seedAccounts(db: Awaited<ReturnType<typeof createInMemoryDb>>["db
     // Eligible: a normal, running merchant.
     { id: "acc_normal", name: "Normal", billingExempt: false, processingPaused: false },
     { id: "acc_normal_2", name: "Normal 2", billingExempt: false, processingPaused: false },
-    // Not eligible: billing-exempt (ours / comped).
+    // ELIGIBLE, and the point of review MEDIUM-2: billing-exempt (ours / comped)
+    // is a billing flag, never a processing one, so the brake reaches it.
     { id: "acc_exempt", name: "Exempt", billingExempt: true, processingPaused: false },
     // Not eligible: demo, the firewall every job honors.
     { id: `${DEMO_ACCOUNT_ID_PREFIX}teamflow`, name: "Demo", billingExempt: false, processingPaused: false },
@@ -83,19 +84,22 @@ describe("confirm phrases (pure)", () => {
 });
 
 describe("engage", () => {
-  it("pauses exactly the eligible set and leaves demo, exempt and already-paused untouched", async () => {
+  it("pauses exactly the eligible set and leaves demo and already-paused untouched", async () => {
     const { db } = createInMemoryDb();
     await seedAccounts(db);
 
     const result = await engageBrake(db, { actorEmail: ACTOR });
 
-    expect(result.affectedCount).toBe(2);
-    expect(result.accountIds.sort()).toEqual(["acc_normal", "acc_normal_2"]);
+    expect(result.affectedCount).toBe(3);
+    expect(result.accountIds.sort()).toEqual(["acc_exempt", "acc_normal", "acc_normal_2"]);
 
     expect(await paused(db, "acc_normal")).toEqual({ processingPaused: true, pauseReason: BRAKE_PAUSE_REASON });
     expect(await paused(db, "acc_normal_2")).toEqual({ processingPaused: true, pauseReason: BRAKE_PAUSE_REASON });
+    // The exempt account is paused like any other. Before MEDIUM-2 it was
+    // skipped, so a comped merchant's customers kept getting charged through an
+    // incident the panel reported as fully stopped.
+    expect(await paused(db, "acc_exempt")).toEqual({ processingPaused: true, pauseReason: BRAKE_PAUSE_REASON });
     // Untouched, and critically NOT marked, so release cannot claim them.
-    expect(await paused(db, "acc_exempt")).toEqual({ processingPaused: false, pauseReason: null });
     expect(await paused(db, `${DEMO_ACCOUNT_ID_PREFIX}teamflow`)).toEqual({
       processingPaused: false,
       pauseReason: null,
@@ -113,10 +117,10 @@ describe("engage", () => {
     const perAccount = rows.filter((r) => r.action === "brake.pause.account");
     const umbrella = rows.filter((r) => r.action === "brake.engage");
 
-    expect(perAccount).toHaveLength(2);
+    expect(perAccount).toHaveLength(3);
     expect(umbrella).toHaveLength(1);
     expect(umbrella[0]?.actorEmail).toBe(ACTOR);
-    expect((umbrella[0]?.metadata as { intendedCount: number }).intendedCount).toBe(2);
+    expect((umbrella[0]?.metadata as { intendedCount: number }).intendedCount).toBe(3);
     expect(rows.every((r) => r.actorEmail === ACTOR)).toBe(true);
   });
 
@@ -129,7 +133,7 @@ describe("engage", () => {
 
     expect(second.affectedCount).toBe(0);
     expect(second.accountIds).toEqual([]);
-    expect(await listBrakePausedAccountIds(db)).toHaveLength(2);
+    expect(await listBrakePausedAccountIds(db)).toHaveLength(3);
     // The umbrella row is still written: hitting the brake twice in an incident
     // is a fact worth keeping, even when it changed nothing.
     const engages = (await db.select().from(schema.adminAuditLog)).filter((r) => r.action === "brake.engage");
@@ -272,13 +276,13 @@ describe("MEDIUM-2: a mid-engage failure is diagnosable and releasable", () => {
       },
     );
 
-    expect(result.affectedCount).toBe(2);
+    expect(result.affectedCount).toBe(3);
     expect(result.error).toMatch(/audit batch failed/);
-    expect(await listBrakePausedAccountIds(db)).toHaveLength(2);
+    expect(await listBrakePausedAccountIds(db)).toHaveLength(3);
     expect(
       (await db.select().from(schema.adminAuditLog)).filter((r) => r.action === "brake.pause.account"),
     ).toHaveLength(0);
-    expect((await releaseBrake(db, { actorEmail: ACTOR })).affectedCount).toBe(2);
+    expect((await releaseBrake(db, { actorEmail: ACTOR })).affectedCount).toBe(3);
   });
 });
 
@@ -371,6 +375,7 @@ describe("MEDIUM-1: engage cannot steal a merchant paused for cause mid-write", 
     );
     expect(perAccount.map((r) => (r.metadata as { accountId: string }).accountId)).toEqual([
       "acc_normal_2",
+      "acc_exempt",
     ]);
   });
 
@@ -393,9 +398,9 @@ describe("MEDIUM-1: engage cannot steal a merchant paused for cause mid-write", 
       },
     );
 
-    expect(released.intendedCount).toBe(2);
-    expect(released.affectedCount).toBe(1);
-    expect(released.accountIds).toEqual(["acc_normal_2"]);
+    expect(released.intendedCount).toBe(3);
+    expect(released.affectedCount).toBe(2);
+    expect(released.accountIds).toEqual(["acc_normal_2", "acc_exempt"]);
   });
 });
 
@@ -407,9 +412,10 @@ describe("release", () => {
 
     const result = await releaseBrake(db, { actorEmail: ACTOR });
 
-    expect(result.affectedCount).toBe(2);
+    expect(result.affectedCount).toBe(3);
     expect(await paused(db, "acc_normal")).toEqual({ processingPaused: false, pauseReason: null });
     expect(await paused(db, "acc_normal_2")).toEqual({ processingPaused: false, pauseReason: null });
+    expect(await paused(db, "acc_exempt")).toEqual({ processingPaused: false, pauseReason: null });
     // THE test. A blanket "unpause everything" release would resume this row and
     // silently undo an operator's deliberate hold.
     expect(await paused(db, "acc_individually_paused")).toEqual({ processingPaused: true, pauseReason: null });
@@ -437,8 +443,8 @@ describe("release", () => {
 
     const result = await releaseBrake(db, { actorEmail: ACTOR });
 
-    // Only the still-held one is resumed by the brake.
-    expect(result.accountIds).toEqual(["acc_normal_2"]);
+    // Only the still-held ones are resumed by the brake.
+    expect(result.accountIds).toEqual(["acc_normal_2", "acc_exempt"]);
   });
 
   it("re-engaging after a release marks the same accounts again", async () => {
@@ -449,8 +455,8 @@ describe("release", () => {
     await releaseBrake(db, { actorEmail: ACTOR });
     const again = await engageBrake(db, { actorEmail: ACTOR });
 
-    expect(again.affectedCount).toBe(2);
-    expect(await listBrakePausedAccountIds(db)).toHaveLength(2);
+    expect(again.affectedCount).toBe(3);
+    expect(await listBrakePausedAccountIds(db)).toHaveLength(3);
   });
 });
 
@@ -513,7 +519,7 @@ describe("LOW-2: a stale per-merchant form cannot strip the brake marker", () =>
     });
 
     const result = await releaseBrake(db, { actorEmail: ACTOR });
-    expect(result.accountIds.sort()).toEqual(["acc_normal", "acc_normal_2"]);
+    expect(result.accountIds.sort()).toEqual(["acc_exempt", "acc_normal", "acc_normal_2"]);
     expect(await paused(db, "acc_normal")).toEqual({ processingPaused: false, pauseReason: null });
   });
 
@@ -606,9 +612,11 @@ describe("the tick's account predicate honors the pause", () => {
       .select({ id: schema.accounts.id })
       .from(schema.accounts)
       .where(accountProcessingEligibleCondition());
-    // Only the billing-exempt account is still processed, which is correct:
-    // exempt means "never billed", not "never recovered".
-    expect(eligibleAfter.map((r) => r.id)).toEqual(["acc_exempt"]);
+    // Nothing is still processed, INCLUDING the billing-exempt account (review
+    // MEDIUM-2). The tick's predicate has always ignored billing_exempt, so the
+    // only reason an exempt merchant kept charging cards through an engage was
+    // that the brake's own predicate excluded them from being paused at all.
+    expect(eligibleAfter.map((r) => r.id)).toEqual([]);
 
     // And the column the predicate reads is really set on disk.
     const raw = sqlite.prepare("select processing_paused, pause_reason from accounts where id = ?").get("acc_normal");
@@ -624,7 +632,7 @@ describe("status panel", () => {
     const before = await getBrakeStatus(db);
     expect(before.brakePausedCount).toBe(0);
     expect(before.individuallyPausedCount).toBe(1);
-    expect(before.eligibleCount).toBe(2);
+    expect(before.eligibleCount).toBe(3);
     // No cron_config row means ENABLED (gotcha #44), which is the default the
     // panel must render correctly or an operator reads "off" as "on".
     expect(before.tickEnabled).toBe(true);
@@ -634,11 +642,11 @@ describe("status panel", () => {
     await engageBrake(db, { actorEmail: ACTOR });
 
     const after = await getBrakeStatus(db);
-    expect(after.brakePausedCount).toBe(2);
+    expect(after.brakePausedCount).toBe(3);
     expect(after.individuallyPausedCount).toBe(1);
     expect(after.eligibleCount).toBe(0);
     expect(after.lastEngage?.actorEmail).toBe(ACTOR);
-    expect(after.lastEngage?.count).toBe(2);
+    expect(after.lastEngage?.count).toBe(3);
   });
 
   it("reads the tick's disabled state from cron_config", async () => {
