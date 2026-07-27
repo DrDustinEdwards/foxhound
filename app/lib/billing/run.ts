@@ -10,7 +10,7 @@ import type { Db, MoneyWriteBatch } from "~/db";
 import { accounts, billingInvoices, billingLineItems, getDb } from "~/db";
 import { executeMoneyWrite } from "~/lib/money/execute";
 
-import { runChargeRetrySweep } from "./charge-retry";
+import { ChargeGuardReadError, runChargeRetrySweep, type ChargeRetryDeps } from "./charge-retry";
 import { disputeFeeCents, recoveryFeeCents } from "./fees";
 import {
   createPlatformInvoice,
@@ -208,6 +208,48 @@ export interface AccountBillingResult {
   invoices: InvoiceRunResult[];
 }
 
+export type SweepRunStatus = "completed" | "aborted";
+
+/**
+ * What the charge-retry sweep did, in a shape the cron message can name.
+ *
+ * "aborted" is NOT the same as a sweep in which some invoices failed. A failed
+ * invoice is a per-invoice outcome and the sweep carried on to the next one; an
+ * abort means the sweep stopped early because it could not read the billing
+ * gate, so an unknown number of stranded invoices were never looked at at all.
+ *
+ * Those two states used to be indistinguishable from outside. The sweep's tally
+ * was a console.log and the abort was a console.error, so a cron_run_history row
+ * reading "3 accounts, 2 invoices" meant either "nothing was stranded" or "we
+ * never found out", and an operator had no way to tell which (gate review 7.4).
+ */
+export interface SweepRunSummary {
+  status: SweepRunStatus;
+  /** Per-outcome counts of the results the sweep produced. Empty on an abort,
+   *  which discards its partial results by design. */
+  tally: Record<string, number>;
+  /** Why the sweep stopped. Present only when status is "aborted". */
+  abortReason?: string;
+}
+
+export interface MonthlyBillingResult {
+  accounts: AccountBillingResult[];
+  sweep: SweepRunSummary;
+}
+
+/** The sweep clause of the cron_run_history message. Pure, so the wording an
+ *  operator actually reads is asserted in a test rather than eyeballed after a
+ *  deploy. ABORTED is shouted because it is the one value that means a silence
+ *  is not evidence of nothing to do. */
+export function describeSweepRun(sweep: SweepRunSummary): string {
+  if (sweep.status === "aborted") {
+    return `sweep ABORTED (${sweep.abortReason ?? "unknown"})`;
+  }
+  const entries = Object.entries(sweep.tally);
+  if (entries.length === 0) return "sweep found nothing stranded";
+  return `sweep ${entries.map(([outcome, n]) => `${n} ${outcome}`).join(", ")}`;
+}
+
 /**
  * Bills one account for the prior period: reads the billable recoveries + won
  * disputes, groups by currency, and commits one atomic invoice per currency.
@@ -365,29 +407,64 @@ export async function runAccountBilling(
  * A committed invoice whose charge never landed is otherwise stranded forever
  * (its own idempotency key blocks re-billing the period), and settling last
  * period's outstanding fee before raising this period's is the order a merchant
- * would expect. Its failures are logged and never abort the billing run.
+ * would expect. Its failures are reported in the returned summary and never
+ * abort the billing run.
+ *
+ * `opts.sweepDeps` exists so a test can drive a guard-read failure all the way
+ * through this function. It is the only way to reach that path from here: the
+ * sweep's default guard reads the same `accounts` table the loop below reads, so
+ * there is no fixture that breaks one without breaking the other. Nothing in
+ * production passes it.
  */
 export async function runMonthlyBilling(
   env: Env,
   nowMs: number,
-): Promise<AccountBillingResult[]> {
+  opts: { sweepDeps?: Partial<ChargeRetryDeps> } = {},
+): Promise<MonthlyBillingResult> {
   const db = getDb(env);
 
+  let sweep: SweepRunSummary;
   try {
-    const swept = await runChargeRetrySweep(env, nowMs);
-    if (swept.length > 0) {
-      const tally = swept.reduce<Record<string, number>>((acc, r) => {
+    const swept = await runChargeRetrySweep(env, nowMs, { deps: opts.sweepDeps });
+    sweep = {
+      status: "completed",
+      tally: swept.reduce<Record<string, number>>((acc, r) => {
         acc[r.outcome] = (acc[r.outcome] ?? 0) + 1;
         return acc;
-      }, {});
-      console.log("charge retry sweep:", JSON.stringify(tally));
-    }
+      }, {}),
+    };
   } catch (err) {
-    console.error(
-      "charge retry sweep failed:",
-      err instanceof Error ? err.message : err,
-    );
+    // WHERE THE SWEEP'S FAIL-CLOSED PROPERTY STOPS, AND THAT IS DELIBERATE.
+    //
+    // charge-retry.ts says "an unreadable guard stops the sweep", and that is
+    // exactly what it means: the SWEEP. This catch is the boundary. The
+    // new-period loop below still runs in the same invocation, and it still
+    // charges cards.
+    //
+    // That is safe, but not because the sweep vouched for it. It is safe because
+    // the loop below does not depend on the guard that just failed: every
+    // per-account billable query inner-joins accounts on
+    // accountBillingEligibleCondition, so a brake-paused account yields an empty
+    // billable set and no invoice is ever built, and a D1 that cannot be read
+    // makes those queries throw into the per-account catch rather than charge
+    // anything. The protection downstream is structural, and it is a different
+    // mechanism from the one that just failed.
+    //
+    // Recorded because the sweep's own comment reads as a guarantee about the
+    // whole run to anyone who does not follow the call back up to here.
+    sweep = {
+      status: "aborted",
+      tally: {},
+      abortReason:
+        err instanceof ChargeGuardReadError
+          ? `billing guard unreadable: ${err.message}`
+          : err instanceof Error
+            ? err.message
+            : "charge retry sweep failed",
+    };
+    console.error("charge retry sweep aborted:", sweep.abortReason);
   }
+
   const eligible = await db
     .select({ id: accounts.id })
     .from(accounts)
@@ -406,5 +483,5 @@ export async function runMonthlyBilling(
       console.error(`billing run failed for account ${id}:`, err instanceof Error ? err.message : err);
     }
   }
-  return results;
+  return { accounts: results, sweep };
 }
