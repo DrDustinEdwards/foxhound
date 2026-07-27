@@ -68,7 +68,8 @@ vi.mock("~/lib/stripe/client", () => ({
 const { queryStrandedInvoices, retryInvoiceCharge, runChargeRetrySweep, periodKeyOf } = await import(
   "~/lib/billing/charge-retry"
 );
-const { runMonthlyBilling } = await import("~/lib/billing/run");
+const { describeSweepRun, runMonthlyBilling } = await import("~/lib/billing/run");
+const { CRON_JOBS } = await import("~/lib/cron/registry");
 const { engageBrake } = await import("~/lib/admin/brake.server");
 const { accountProcessingEligibleCondition } = await import("~/lib/cron/recovery-tick");
 const { recoveryFeeItemIdempotencyKey } = await import("~/lib/billing/stripe-invoice");
@@ -821,6 +822,196 @@ describe("MEDIUM-A: the brake stops the sweep already in flight", () => {
 
     expect(calls.some((c) => c.startsWith("pay:"))).toBe(false);
     expect(result.outcome).toBe("skipped");
+  });
+});
+
+describe("gate review 7.4: an aborted sweep is visible, and stops exactly where it should", () => {
+  // The sweep aborts rather than continuing when it cannot read the billing
+  // gate. Until the run summary carried that, the abort was a console.error and
+  // nothing else: cron_run_history read "N accounts, M invoices" and status
+  // success whether the sweep had found nothing stranded or had never looked.
+  //
+  // These pin three separate things: that the abort is NAMED, that it does not
+  // touch the invoice it was about to charge, and that it does NOT stop the
+  // new-period billing that runs after it in the same invocation. That last one
+  // is the boundary the gate review described. It is pinned so nobody "fixes"
+  // it into a whole-run abort on the assumption that fail-closed must mean
+  // everything stops.
+
+  /** The stranded invoice (with its line item, so the sweep reaches the
+   *  PRE-CREATE guard) plus a second account carrying an unbilled matured
+   *  recovery, so the new-period loop has real work to do and the boundary
+   *  assertion cannot pass vacuously. */
+  async function seedStrandedPlusBillable() {
+    const db = await seed();
+    await db.insert(schema.accounts).values({
+      id: "acc_newperiod",
+      name: "New Period Co",
+      createdAt: PERIOD_START,
+      platformStripeCustomerId: null,
+      billingExempt: false,
+    });
+    await db.insert(schema.failedPayments).values({
+      id: "fp_np",
+      accountId: "acc_newperiod",
+      stripeEventId: "evt_np",
+      stripeInvoiceId: "in_merchant_np",
+      stripeCustomerId: "cus_np",
+      customerEmail: "np@example.com",
+      amountCents: 5_000,
+      currency: "usd",
+      declineCategory: "soft",
+      status: "recovered",
+      detectedAt: PERIOD_START,
+    });
+    await db.insert(schema.recoveredPayments).values({
+      id: "rec_np",
+      accountId: "acc_newperiod",
+      failedPaymentId: "fp_np",
+      recoveredAt: PERIOD_START,
+      amountCents: 5_000,
+      currency: "usd",
+      recoveryMethod: "foxhound_retry",
+      attributionKind: "foxhound_retry",
+    });
+    return db;
+  }
+
+  /** Eligible at the loop level, unreadable at the pre-charge read. That is the
+   *  sequence that produces a ChargeGuardReadError rather than a raw throw. */
+  function guardThatDiesBeforeCharging() {
+    let calls = 0;
+    return {
+      calls: () => calls,
+      checkGuard: async () => {
+        calls += 1;
+        if (calls === 1) return { billingEligible: true };
+        throw new Error("d1 unavailable");
+      },
+    };
+  }
+
+  it("reports the abort by name, and says which read failed", async () => {
+    await seedStrandedPlusBillable();
+    const guard = guardThatDiesBeforeCharging();
+    const created: string[] = [];
+
+    const { sweep } = await runMonthlyBilling({} as Env, NOW_MS, {
+      sweepDeps: {
+        findExisting: async () => null,
+        create: async (_env, input) => {
+          created.push(input.billingInvoiceId);
+          return { stripeInvoiceId: "in_new", hostedInvoiceUrl: null };
+        },
+        checkGuard: guard.checkGuard,
+      },
+    });
+
+    expect(sweep.status).toBe("aborted");
+    expect(sweep.abortReason).toMatch(/billing guard unreadable/);
+    expect(sweep.abortReason).toMatch(/d1 unavailable/);
+    // It got as far as the pre-charge read and no further.
+    expect(guard.calls()).toBe(2);
+    expect(created).toEqual([]);
+  });
+
+  it("puts ABORTED in the operator-facing message, where a count alone would read as nothing to do", async () => {
+    // The wording is the whole point of the fix, so it is asserted rather than
+    // eyeballed after a deploy.
+    expect(
+      describeSweepRun({ status: "aborted", tally: {}, abortReason: "billing guard unreadable: d1 gone" }),
+    ).toBe("sweep ABORTED (billing guard unreadable: d1 gone)");
+
+    // The two states that used to be indistinguishable from the cron row.
+    expect(describeSweepRun({ status: "completed", tally: {} })).toBe("sweep found nothing stranded");
+    expect(describeSweepRun({ status: "completed", tally: { charged: 2, skipped: 1 } })).toBe(
+      "sweep 2 charged, 1 skipped",
+    );
+  });
+
+  it("leaves the invoice it was about to charge completely untouched", async () => {
+    const db = await seedStrandedPlusBillable();
+    const guard = guardThatDiesBeforeCharging();
+
+    await runMonthlyBilling({} as Env, NOW_MS, {
+      sweepDeps: {
+        findExisting: async () => null,
+        create: async () => ({ stripeInvoiceId: "in_new", hostedInvoiceUrl: null }),
+        checkGuard: guard.checkGuard,
+      },
+    });
+
+    const [stranded] = await db
+      .select()
+      .from(schema.billingInvoices)
+      .where(eq(schema.billingInvoices.id, "binv_1"));
+    expect(stranded.status).toBe("draft");
+    expect(stranded.chargeAttemptCount).toBe(0);
+    expect(stranded.stripeInvoiceId).toBeNull();
+    // Still stranded, so the next sweep picks it up.
+    expect((await queryStrandedInvoices({} as Env, 100)).map((r) => r.id)).toContain("binv_1");
+  });
+
+  it("THE BOUNDARY: the abort stops the sweep and NOT the new-period billing behind it", async () => {
+    // Exactly what the gate review described. The new-period loop does not
+    // depend on the guard that just failed; it re-reads eligibility through the
+    // billable queries' own inner joins. Pinned, not changed.
+    const db = await seedStrandedPlusBillable();
+    const guard = guardThatDiesBeforeCharging();
+
+    const { accounts, sweep } = await runMonthlyBilling({} as Env, NOW_MS, {
+      sweepDeps: {
+        findExisting: async () => null,
+        create: async () => ({ stripeInvoiceId: "in_new", hostedInvoiceUrl: null }),
+        checkGuard: guard.checkGuard,
+      },
+    });
+
+    expect(sweep.status).toBe("aborted");
+    // Both eligible accounts were still walked.
+    expect(accounts.map((a) => a.accountId).sort()).toEqual(["acc_newperiod", "acc_stranded"]);
+    // And the account with an unbilled matured recovery really was invoiced.
+    const raised = await db
+      .select()
+      .from(schema.billingInvoices)
+      .where(eq(schema.billingInvoices.accountId, "acc_newperiod"));
+    expect(raised).toHaveLength(1);
+    expect(raised[0].totalCents).toBeGreaterThan(0);
+  });
+
+  it("says what the sweep DID when it completes, so the aborted branch is not the only one that speaks", async () => {
+    // The control. Without it "aborted" could be the only reachable status and
+    // every assertion above would still pass.
+    const db = await seedStrandedPlusBillable();
+
+    const { sweep } = await runMonthlyBilling({} as Env, NOW_MS, {
+      sweepDeps: {
+        findExisting: async () => null,
+        create: async () => ({ stripeInvoiceId: "in_platform_new", hostedInvoiceUrl: null }),
+        checkGuard: async () => ({ billingEligible: true }),
+      },
+    });
+
+    expect(sweep.status).toBe("completed");
+    expect(sweep.tally).toEqual({ charged: 1 });
+    expect(describeSweepRun(sweep)).toBe("sweep 1 charged");
+    const [stranded] = await db
+      .select()
+      .from(schema.billingInvoices)
+      .where(eq(schema.billingInvoices.id, "binv_1"));
+    expect(stranded.status).toBe("finalized");
+  });
+
+  it("the billing cron actually puts the sweep clause in its history message", async () => {
+    // The wiring, so describeSweepRun cannot be correct and unreferenced. This
+    // goes through the registered handler, not a copy of its message format.
+    await seedStrandedPlusBillable();
+    const job = CRON_JOBS.find((j) => j.name === "billing-monthly");
+    expect(job).toBeDefined();
+
+    const result = await job!.handler({} as Env);
+
+    expect(result.message).toMatch(/^2 accounts, \d+ invoices, sweep /);
   });
 });
 

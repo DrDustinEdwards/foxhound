@@ -1,5 +1,5 @@
 import { getDb } from "~/db";
-import { runMonthlyBilling } from "~/lib/billing/run";
+import { describeSweepRun, runMonthlyBilling } from "~/lib/billing/run";
 import {
   CRON_SCHEDULE_DAILY,
   CRON_SCHEDULE_MONTHLY,
@@ -36,13 +36,21 @@ export interface CronJob {
   handler: CronHandler;
 }
 
-/** The monthly billing run, wrapped as a cron handler (reports invoices created). */
+/** The monthly billing run, wrapped as a cron handler (reports invoices created
+ *  AND what the charge-retry sweep did).
+ *
+ *  The sweep clause is not decoration. The sweep aborts rather than continuing
+ *  when it cannot read the billing gate, and until this line carried its status
+ *  that abort was a console.error and nothing else: the cron row said "success"
+ *  with a count, and an operator could not tell a sweep that found nothing from
+ *  a sweep that never looked. The run itself is still a success, because the
+ *  new-period billing below the sweep really did complete. */
 const billingMonthly: CronHandler = async (env) => {
-  const results = await runMonthlyBilling(env, Date.now());
-  const applied = results.flatMap((r) => r.invoices).filter((i) => i.applied);
+  const { accounts, sweep } = await runMonthlyBilling(env, Date.now());
+  const applied = accounts.flatMap((r) => r.invoices).filter((i) => i.applied);
   return {
     rowsProcessed: applied.length,
-    message: `${results.length} accounts, ${applied.length} invoices`,
+    message: `${accounts.length} accounts, ${applied.length} invoices, ${describeSweepRun(sweep)}`,
   };
 };
 
