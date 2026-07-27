@@ -120,7 +120,13 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
       label: PRODUCT_MANIFEST[key].label,
       to: PRODUCT_MANIFEST[key].href,
     })),
-    ...PLATFORM_LINKS.filter((link) => link.label === "Billing" || link.label === "Settings"),
+    // Order is the tab bar's OWN and is deliberately not inherited from
+    // PLATFORM_LINKS' array order. That array is now ordered for the gear
+    // dropdown (legacy's Settings, Billing, Help), and iterating it directly
+    // would have silently reshuffled these two tabs when the gear was
+    // corrected. Still derived from it, so nav-manifest.test.ts keeps
+    // asserting these hrefs exist in the real route tree.
+    ...["Billing", "Settings"].flatMap((label) => PLATFORM_LINKS.filter((l) => l.label === label)),
   ];
 
   const accountLabel = accountName ?? email;
@@ -174,12 +180,12 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
 
             <div className="hidden shrink-0 items-center gap-1 sm:flex">
               <ThemeToggle initialTheme={theme} />
-              <GearMenu isAdmin={isAdmin} accountLabel={accountLabel} />
+              <GearMenu isAdmin={isAdmin} accountLabel={accountLabel} hasAccount />
             </div>
 
             <div className="flex shrink-0 items-center gap-1 sm:hidden">
               <ThemeToggle initialTheme={theme} />
-              <GearMenu isAdmin={isAdmin} accountLabel={accountLabel} />
+              <GearMenu isAdmin={isAdmin} accountLabel={accountLabel} hasAccount />
             </div>
           </div>
         </div>

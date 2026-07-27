@@ -4,8 +4,11 @@ import { Form, Link, useLocation } from "react-router";
 import { PLATFORM_LINKS } from "~/lib/nav/manifest";
 import { useDropdown } from "~/lib/nav/use-dropdown";
 
+// Legacy's GEAR_ITEM_CLASS verbatim in effect: text-label resolves to
+// 0.8125rem, legacy's own literal value. transition-opacity duration-150 is
+// legacy's; without it the hover:opacity-80 snapped instead of easing.
 const ITEM_CLASS =
-  "block w-full cursor-pointer border-0 bg-transparent px-3 py-2 text-left text-label no-underline hover:opacity-80";
+  "block w-full cursor-pointer border-0 bg-transparent px-3 py-2 text-left text-label no-underline transition-opacity duration-150 hover:opacity-80";
 
 // Consolidates Billing/Settings/Team/Help/Admin/Sign out into one utility
 // icon (task Part 2: "Settings/Billing/Help/Sign out/Admin all live inside
@@ -16,7 +19,15 @@ const ITEM_CLASS =
 // name, sits there) and which grew the row's width with Recovery's longer
 // link set. It renders as a non-interactive header line inside this
 // already-existing menu instead of a new header element.
-export function GearMenu({ isAdmin, accountLabel }: { isAdmin: boolean; accountLabel: string }) {
+export function GearMenu({
+  isAdmin,
+  accountLabel,
+  hasAccount,
+}: {
+  isAdmin: boolean;
+  accountLabel: string;
+  hasAccount: boolean;
+}) {
   const location = useLocation();
   const { open, setOpen, ref } = useDropdown<HTMLDivElement>();
 
@@ -37,7 +48,12 @@ export function GearMenu({ isAdmin, accountLabel }: { isAdmin: boolean; accountL
           <div className="truncate border-b border-border px-3 py-2 text-label text-text-tertiary" title={accountLabel}>
             {accountLabel}
           </div>
-          {PLATFORM_LINKS.map((link) => {
+          {/* Legacy marks the current page with aria-current ONLY: every row
+              keeps text-text-secondary, with no weight or color change. The
+              bolded active row here was an addition legacy's dropdown never
+              had, so the visual active affordance is dropped and the
+              assistive-tech one kept. */}
+          {PLATFORM_LINKS.filter((link) => !link.requiresAccount || hasAccount).map((link) => {
             const isActive = location.pathname === link.to || location.pathname.startsWith(`${link.to}/`);
             return (
               <Link
@@ -45,7 +61,7 @@ export function GearMenu({ isAdmin, accountLabel }: { isAdmin: boolean; accountL
                 to={link.to}
                 onClick={() => setOpen(false)}
                 aria-current={isActive ? "page" : undefined}
-                className={`${ITEM_CLASS} ${isActive ? "font-semibold text-text" : "text-text-secondary"}`}
+                className={`${ITEM_CLASS} text-text-secondary`}
               >
                 {link.label}
               </Link>

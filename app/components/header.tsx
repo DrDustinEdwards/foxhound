@@ -48,6 +48,7 @@ export function Header({
   intelligenceEntitled = false,
   isAdmin = false,
   accountLabel = "",
+  hasAccount = false,
 }: {
   isAuthenticated: boolean;
   theme: Theme;
@@ -59,6 +60,9 @@ export function Header({
   intelligenceEntitled?: boolean;
   isAdmin?: boolean;
   accountLabel?: string;
+  /** Legacy gates the gear's Billing row on this: an accountless visitor is
+   *  redirected to /connect, so Billing would be a dead row. */
+  hasAccount?: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -125,7 +129,7 @@ export function Header({
             of reach from every marketing page. Anonymous visitors keep the
             dimmed inert icon, which is what legacy shows them. */}
         {isAuthenticated ? (
-          <GearMenu isAdmin={isAdmin} accountLabel={accountLabel} />
+          <GearMenu isAdmin={isAdmin} accountLabel={accountLabel} hasAccount={hasAccount} />
         ) : (
           <div className="cursor-default p-1.5 opacity-30" aria-hidden="true">
             <Settings width={16} height={16} strokeWidth={1.5} className="text-chrome-text-secondary" />

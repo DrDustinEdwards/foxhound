@@ -32,6 +32,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       intelligenceEntitled: false,
       isAdmin: false,
       accountLabel: "",
+      hasAccount: false,
     };
   }
 
@@ -51,6 +52,9 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     // name, so the gear dropdown costs the marketing loader no extra query.
     isAdmin: isAdminEmail(env, session.user.email),
     accountLabel: membership?.accountName ?? session.user.email,
+    // Legacy's hasAccount, gating the gear's Billing row. resolveMembership is
+    // already awaited above, so this costs the loader nothing extra.
+    hasAccount: membership !== null,
   };
 }
 
@@ -64,6 +68,7 @@ export default function MarketingLayout({ loaderData }: Route.ComponentProps) {
         intelligenceEntitled={loaderData.intelligenceEntitled}
         isAdmin={loaderData.isAdmin}
         accountLabel={loaderData.accountLabel}
+        hasAccount={loaderData.hasAccount}
       />
       <main className="flex-1">
         <Outlet />
