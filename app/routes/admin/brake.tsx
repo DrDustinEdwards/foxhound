@@ -108,12 +108,18 @@ export async function action({ context, request }: Route.ActionArgs) {
   }
 
   const nextEnabled = intent === "tick-enable";
-  await setCronEnabled(db, RECOVERY_TICK_CRON_NAME, nextEnabled);
+  // INTENT before STATE, the ordering applyBrakeTransition deliberately adopted
+  // and this branch of the same panel did not (review LOW-4). If the audit
+  // insert fails, nothing has changed and there is nothing to have recorded. The
+  // other way round, a failed insert left the tick's enabled state flipped with
+  // no record that anyone flipped it, which is the exact failure the umbrella
+  // row was moved first to prevent.
   await logAdminAction(db, {
     actorEmail: auth.email,
     action: nextEnabled ? "cron.enable" : "cron.disable",
     metadata: { cronName: RECOVERY_TICK_CRON_NAME, via: "brake-panel" },
   });
+  await setCronEnabled(db, RECOVERY_TICK_CRON_NAME, nextEnabled);
   return data<ActionResult>({
     ok: true,
     message: nextEnabled ? "Recovery tick enabled." : "Recovery tick disabled. The loop is stopped for every account.",
