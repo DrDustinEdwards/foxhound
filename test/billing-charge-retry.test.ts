@@ -70,6 +70,7 @@ const { queryStrandedInvoices, retryInvoiceCharge, runChargeRetrySweep, periodKe
 );
 const { runMonthlyBilling } = await import("~/lib/billing/run");
 const { engageBrake } = await import("~/lib/admin/brake.server");
+const { accountProcessingEligibleCondition } = await import("~/lib/cron/recovery-tick");
 const { recoveryFeeItemIdempotencyKey } = await import("~/lib/billing/stripe-invoice");
 const schema = await import("~/db/schema");
 
@@ -263,6 +264,23 @@ describe("the brake and the cancellation ruling compose", () => {
     });
     expect(created).toEqual(["binv_1"]);
     expect(results.map((r) => r.outcome)).toEqual(["charged"]);
+  });
+
+  it("no NEW recovery can accrue for a cancelled account, so no later period can bill one", async () => {
+    // The other half of the MEDIUM-3 ruling, and the reason collecting from a
+    // cancelled account is bounded rather than open-ended: the processing gate
+    // excludes them, so the tick never creates another recovery to bill.
+    const db = await seed();
+    await db
+      .update(schema.accounts)
+      .set({ cancelledAt: new Date("2026-08-15T00:00:00.000Z") })
+      .where(eq(schema.accounts.id, ACCOUNT_ID));
+
+    const stillProcessed = await db
+      .select({ id: schema.accounts.id })
+      .from(schema.accounts)
+      .where(accountProcessingEligibleCondition());
+    expect(stillProcessed).toEqual([]);
   });
 
   it("would strand that invoice if the brake did pause cancelled accounts", async () => {

@@ -62,6 +62,28 @@ const SETTLED_STATUSES = ["paid", "void", "uncollectible", "gave_up"];
  * accountBillingEligibleCondition, so a merchant who became exempt or paused
  * since the invoice was raised stops being chased, matching what the billable
  * queries would do for a new fee.
+ *
+ * CANCELLED ACCOUNTS ARE STILL COLLECTED FROM, AND THAT IS THE DECISION, NOT AN
+ * OVERSIGHT (review MEDIUM-3, ruled 2026-07-26). accountBillingEligibleCondition
+ * does not check cancelledAt, so a cancelled account with an unsettled invoice is
+ * selected here and charged, and the emergency brake has no lever over it,
+ * because the brake deliberately skips cancelled accounts.
+ *
+ * Why that is right:
+ *   - The fees were EARNED on recoveries Foxhound delivered before the merchant
+ *     cancelled. Cancellation is a processing gate by canon, not a debt eraser:
+ *     "cancel never silently forgives owed fees" (merchants.server.ts), and
+ *     recovery-tick.ts records the same rule from the other side.
+ *   - Nothing NEW can accrue after cancellation. accountProcessingEligibleCondition
+ *     excludes cancelled accounts, so no further recovery is ever created for one,
+ *     so no later period can produce a new billable line.
+ *   - Collection is bounded, not indefinite: decideFeeRetryAction's attempt and
+ *     age caps terminate a cancelled account's invoice like any other.
+ *
+ * The two halves have to hold together. Letting the brake pause cancelled
+ * accounts instead would flip this predicate false and defer exactly the
+ * pre-cancellation fees this paragraph says are owed, for as long as the brake
+ * stayed engaged. test/billing-charge-retry.test.ts pins both directions.
  */
 export async function queryStrandedInvoices(env: Env, limit: number): Promise<StrandedInvoice[]> {
   const db = getDb(env);
