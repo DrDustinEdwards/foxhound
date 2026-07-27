@@ -69,27 +69,37 @@ export const BRAKE_ACTION_PAUSE_ACCOUNT = "brake.pause.account";
 export const BRAKE_ACTION_RESUME_ACCOUNT = "brake.resume.account";
 
 /**
- * Accounts the brake will pause: not already paused, not billing-exempt, not a
- * demo account.
+ * Accounts the brake will pause: EVERY account except demo-prefixed, already
+ * paused, and cancelled. Three exclusions, and no others.
  *
  * Already-paused is skipped so the brake never takes ownership of a merchant an
- * operator paused deliberately (see the pause_reason comment in schema.ts).
- * billing_exempt is skipped because in practice those are our own and comped
- * accounts, and the brake is a merchant-facing safety control. The demo prefix
- * is the firewall every other job honors (non-negotiable #7).
+ * operator paused deliberately (see the pause_reason comment in schema.ts). The
+ * demo prefix is the firewall every other job honors (non-negotiable #7).
  *
- * Cancelled accounts are skipped too (review LOW-1). Pausing one changes nothing
- * operationally, because the tick already excludes cancelled accounts, but
- * processing_paused ALSO gates billing, and a cancelled account's already-matured
- * unbilled fees are deliberately still billable ("cancel never silently forgives
- * owed fees", merchants.server.ts). Sweeping them into the brake would defer those
- * fees for as long as it stayed engaged, and would inflate the engage count with
- * rows the brake has no reason to touch.
+ * billing_exempt is NOT an exclusion (review MEDIUM-2). It used to be, defended
+ * as "those are our own and comped accounts, and the brake is a merchant-facing
+ * safety control". That is an argument about BILLING applied to a flag this repo
+ * insists elsewhere is not a processing gate: recovery-tick.ts states outright
+ * that "billing_exempt is NOT a processing gate: an exempt merchant still gets
+ * their money recovered", and a test pins it out of the tick's WHERE. Excluding
+ * exempt accounts here meant a comped merchant's customers kept being dunned and
+ * card-charged through an incident the operator had just declared stopped, with
+ * the panel reporting a fully successful engage. Exempt means Foxhound does not
+ * charge THAT MERCHANT fees; it says nothing about whether their customers
+ * should keep being charged. The brake is an incident control, not a billing one.
+ *
+ * Cancelled accounts ARE skipped (review LOW-1), and this is the half that has
+ * to compose with the ruling in charge-retry.ts's queryStrandedInvoices.
+ * Cancellation already halts processing, so pausing adds nothing operationally,
+ * but processing_paused ALSO gates billing: pausing would flip
+ * accountBillingEligibleCondition false and defer the pre-cancellation fees that
+ * are deliberately still owed ("cancel never silently forgives owed fees",
+ * merchants.server.ts) for as long as the brake stayed engaged. So the brake
+ * leaves them alone and the sweep keeps collecting what they already owe.
  */
 export function brakeEligibleCondition(): SQL {
   return and(
     eq(accounts.processingPaused, false),
-    eq(accounts.billingExempt, false),
     isNull(accounts.cancelledAt),
     notLike(accounts.id, `${DEMO_ACCOUNT_ID_PREFIX}%`),
   ) as SQL;

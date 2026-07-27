@@ -69,6 +69,7 @@ const { queryStrandedInvoices, retryInvoiceCharge, runChargeRetrySweep, periodKe
   "~/lib/billing/charge-retry"
 );
 const { runMonthlyBilling } = await import("~/lib/billing/run");
+const { engageBrake } = await import("~/lib/admin/brake.server");
 const { recoveryFeeItemIdempotencyKey } = await import("~/lib/billing/stripe-invoice");
 const schema = await import("~/db/schema");
 
@@ -219,6 +220,61 @@ describe("queryStrandedInvoices", () => {
 
   it("stops chasing a merchant who became billing-exempt after the invoice was raised", async () => {
     await seed({ billingExempt: true });
+    expect(await queryStrandedInvoices({} as Env, 100)).toEqual([]);
+  });
+});
+
+describe("the brake and the cancellation ruling compose", () => {
+  // The two rulings have to hold TOGETHER, and each is the other's reason.
+  // The brake deliberately skips cancelled accounts (so their owed fees are not
+  // deferred), and the sweep deliberately collects from them (because those fees
+  // were earned before cancellation). Pausing a cancelled account would flip
+  // accountBillingEligibleCondition false and strand the very invoice the sweep
+  // exists to clean up, for as long as the brake stayed engaged.
+  it("engage leaves a cancelled account unpaused, and its pre-cancellation invoice still collects", async () => {
+    const db = await seed();
+    await db
+      .update(schema.accounts)
+      .set({ cancelledAt: new Date("2026-08-15T00:00:00.000Z") })
+      .where(eq(schema.accounts.id, ACCOUNT_ID));
+
+    // The invoice under test was raised BEFORE the cancellation.
+    const [before] = await db.select().from(schema.billingInvoices);
+    expect(before.createdAt.getTime()).toBeLessThan(new Date("2026-08-15T00:00:00.000Z").getTime());
+
+    const result = await engageBrake(db as never, { actorEmail: "admin@foxhoundapp.com" });
+    expect(result.accountIds).not.toContain(ACCOUNT_ID);
+
+    const [account] = await db.select().from(schema.accounts).where(eq(schema.accounts.id, ACCOUNT_ID));
+    expect(account.processingPaused).toBe(false);
+    expect(account.pauseReason).toBeNull();
+
+    // Still selected and still charged, with the brake engaged.
+    expect(await queryStrandedInvoices({} as Env, 100)).toHaveLength(1);
+    const created: string[] = [];
+    const results = await runChargeRetrySweep({} as Env, NOW_MS, {
+      deps: {
+        findExisting: async () => null,
+        create: async (_env, input) => {
+          created.push(input.billingInvoiceId);
+          return { stripeInvoiceId: "in_new", hostedInvoiceUrl: null };
+        },
+      },
+    });
+    expect(created).toEqual(["binv_1"]);
+    expect(results.map((r) => r.outcome)).toEqual(["charged"]);
+  });
+
+  it("would strand that invoice if the brake did pause cancelled accounts", async () => {
+    // The counterfactual, so the exclusion is pinned by consequence rather than
+    // by restating the predicate. Pausing is exactly what the brake used to do
+    // to every non-exempt account before the cancelled clause was added.
+    const db = await seed();
+    await db
+      .update(schema.accounts)
+      .set({ cancelledAt: new Date("2026-08-15T00:00:00.000Z"), processingPaused: true })
+      .where(eq(schema.accounts.id, ACCOUNT_ID));
+
     expect(await queryStrandedInvoices({} as Env, 100)).toEqual([]);
   });
 });
