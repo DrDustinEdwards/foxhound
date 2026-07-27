@@ -5,6 +5,7 @@ import { Badge } from "~/components/badge";
 import { AdminNav } from "~/components/admin-nav";
 import { getDb } from "~/db";
 import { logAdminAction } from "~/lib/admin/audit.server";
+import { PAUSE_REASON_BRAKE } from "~/lib/admin/brake";
 import {
   cancelMerchant,
   getMerchantDetail,
@@ -309,7 +310,11 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
         <div className="flex flex-wrap items-center gap-2">
           {account.cancelledAt ? <Badge tone="failure">Cancelled</Badge> : null}
           {account.billingExempt ? <Badge tone="neutral">Billing exempt</Badge> : null}
-          {account.processingPaused ? <Badge tone="failure">Processing paused</Badge> : null}
+          {account.processingPaused ? (
+            <Badge tone="failure">
+              {account.pauseReason === PAUSE_REASON_BRAKE ? "Paused by brake" : "Processing paused"}
+            </Badge>
+          ) : null}
           {!account.cancelledAt && !account.billingExempt && !account.processingPaused ? (
             <Badge tone="success">Normal</Badge>
           ) : null}
@@ -362,6 +367,22 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
 
           {!account.cancelledAt ? <CancelForm accountId={account.id} /> : null}
         </div>
+
+        {/* Review INFO-E. The pause toggle behaves differently on a row the brake
+            owns, and nothing on this page said so. Both sentences below are the
+            behaviour pinned in test/admin-brake.test.ts: resuming clears the
+            marker, and re-pausing a still-marked row PRESERVES 'brake' via the
+            CASE in buildSetProcessingPaused, so that pause is undone by the next
+            Release. The stale-tab version of that (a form rendered before the
+            brake engaged, submitted after) is exactly how an operator hits it. */}
+        {account.processingPaused && account.pauseReason === PAUSE_REASON_BRAKE ? (
+          <p role="status" className="mt-3 rounded-md border border-orange bg-orange-bg px-3 py-2 text-label text-warning-text">
+            The global emergency brake paused this account, not a person. Resuming here takes it off
+            the brake&apos;s books for good, and a later Release will leave it alone. Pausing it again
+            while the brake still holds it keeps the brake marker, so that pause will NOT survive the
+            next Release. To hold this merchant for its own reasons, resume it first, then pause it.
+          </p>
+        ) : null}
       </section>
 
       <section className="mt-6 rounded-lg border border-border bg-surface p-4">
