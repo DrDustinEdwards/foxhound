@@ -174,7 +174,6 @@ export default function RecoveryProductPage() {
           "Silent retry before any customer-facing email",
           "Card-update link on every email",
           "Open and click tracking per email step",
-          "Unlimited Stripe accounts at the same per-account rate",
         ]}
         ctaHref="/audit"
         ctaLabel="Run your free audit"

@@ -179,12 +179,6 @@ export default function PricingPage() {
         </div>
       </section>
 
-      <section className="px-4 pb-16 sm:px-8">
-        <p className="mx-auto max-w-xl text-center text-label text-text-tertiary">
-          Multiple Stripe accounts are supported at the same per-account rate.
-        </p>
-      </section>
-
       <section className="border-t border-border-sub px-4 py-16 sm:px-8">
         <div className="mx-auto max-w-2xl">
           <h2 className="mb-10 text-center text-title font-medium text-text">Questions</h2>
