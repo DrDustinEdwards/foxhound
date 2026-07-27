@@ -3,6 +3,7 @@ import { data, Form, useNavigation } from "react-router";
 import { AdminNav } from "~/components/admin-nav";
 import { Badge } from "~/components/badge";
 import { getDb } from "~/db";
+import { cronEnableConfirmPhrase, isCronEnableConfirmValid } from "~/lib/admin/brake";
 import { logAdminAction } from "~/lib/admin/audit.server";
 import { isKnownCronName, listCronRows, setCronEnabled } from "~/lib/admin/crons.server";
 import { authContext } from "~/lib/auth/context";
@@ -41,6 +42,25 @@ export async function action({ context, request }: Route.ActionArgs) {
     return data({ error: `Unknown cron: ${cronName}` }, { status: 400 });
   }
 
+  // ENABLE is type-to-confirm; DISABLE stays one click (review MEDIUM-4).
+  // Stopping a scheduled job is safe and an operator in an incident should not
+  // have to type to do it. Starting one is the dangerous direction, and this
+  // page could restart the card-charging recovery tick with a single click while
+  // the brake panel, which gates the identical action behind a phrase, went on
+  // rendering "Tick DISABLED" from its own stale loader data.
+  //
+  // Validated before the write AND before the audit row, matching the brake
+  // panel, so a mistyped confirmation never records an attempt that did not
+  // happen.
+  if (nextEnabled && !isCronEnableConfirmValid(cronName, String(form.get("confirm") ?? ""))) {
+    return data(
+      {
+        error: `Type ${cronEnableConfirmPhrase(cronName)} exactly to enable this cron. Nothing was changed.`,
+      },
+      { status: 400 },
+    );
+  }
+
   await setCronEnabled(db, cronName, nextEnabled);
   await logAdminAction(db, {
     actorEmail: auth.email,
@@ -57,7 +77,56 @@ const RUN_STATUS_TONE: Record<string, Tone> = {
   skipped: "neutral",
 };
 
-export default function AdminCrons({ loaderData }: Route.ComponentProps) {
+/** Disable: one click. Enable: type the cron's own phrase first. The asymmetry
+ *  is the point, so the two directions are rendered as two different controls
+ *  rather than one button whose label flips. */
+function CronToggle({ name, enabled, busy }: { name: string; enabled: boolean; busy: boolean }) {
+  if (enabled) {
+    return (
+      <Form method="post">
+        <input type="hidden" name="cronName" value={name} />
+        <input type="hidden" name="nextEnabled" value="false" />
+        <button
+          type="submit"
+          disabled={busy}
+          className="rounded-md border border-border px-3 py-1.5 text-label text-text hover:border-amber disabled:opacity-60"
+        >
+          Disable
+        </button>
+      </Form>
+    );
+  }
+
+  const phrase = cronEnableConfirmPhrase(name);
+  const inputId = `confirm-enable-${name}`;
+  return (
+    <Form method="post" className="flex flex-wrap items-center gap-2">
+      <input type="hidden" name="cronName" value={name} />
+      <input type="hidden" name="nextEnabled" value="true" />
+      <label htmlFor={inputId} className="text-label text-text-secondary">
+        Type <span className="font-mono text-text">{phrase}</span> to enable
+      </label>
+      <input
+        id={inputId}
+        name="confirm"
+        type="text"
+        autoComplete="off"
+        required
+        placeholder={phrase}
+        className="rounded-md border border-border bg-bg px-3 py-1.5 font-mono text-label text-text placeholder:text-text-subtle"
+      />
+      <button
+        type="submit"
+        disabled={busy}
+        className="rounded-md border border-red px-3 py-1.5 text-label text-error-text hover:bg-red-bg disabled:opacity-60"
+      >
+        Enable
+      </button>
+    </Form>
+  );
+}
+
+export default function AdminCrons({ loaderData, actionData }: Route.ComponentProps) {
   const { crons } = loaderData;
   const busy = useNavigation().state !== "idle";
 
@@ -65,6 +134,12 @@ export default function AdminCrons({ loaderData }: Route.ComponentProps) {
     <div className="mx-auto max-w-5xl px-4 py-8">
       <h1 className="text-title font-medium text-text">Crons</h1>
       <AdminNav />
+
+      {actionData && "error" in actionData && actionData.error ? (
+        <p role="alert" className="mb-4 rounded-md border border-red bg-red-bg px-3 py-2 text-label text-error-text">
+          {actionData.error}
+        </p>
+      ) : null}
 
       <div className="flex flex-col gap-3">
         {crons.map((c) => (
@@ -74,19 +149,9 @@ export default function AdminCrons({ loaderData }: Route.ComponentProps) {
                 <p className="font-mono text-label text-text">{c.name}</p>
                 <p className="font-mono text-micro text-text-subtle">{c.schedule}</p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <Badge tone={c.enabled ? "success" : "neutral"}>{c.enabled ? "Enabled" : "Disabled"}</Badge>
-                <Form method="post">
-                  <input type="hidden" name="cronName" value={c.name} />
-                  <input type="hidden" name="nextEnabled" value={String(!c.enabled)} />
-                  <button
-                    type="submit"
-                    disabled={busy}
-                    className="rounded-md border border-border px-3 py-1.5 text-label text-text hover:border-amber disabled:opacity-60"
-                  >
-                    {c.enabled ? "Disable" : "Enable"}
-                  </button>
-                </Form>
+                <CronToggle name={c.name} enabled={c.enabled} busy={busy} />
               </div>
             </div>
 
