@@ -4,6 +4,7 @@ import { getDb } from "~/db";
 import { Footer } from "~/components/footer";
 import { Header } from "~/components/header";
 import { resolveMembership } from "~/lib/auth/account";
+import { isAdminEmail } from "~/lib/auth/roles";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { getSession } from "~/lib/auth/session";
 import { isIntelligenceEntitled } from "~/lib/intelligence/views.server";
@@ -24,7 +25,14 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const session = await getSession(env, request);
 
   if (!session) {
-    return { isAuthenticated: false as const, theme, initial: null, intelligenceEntitled: false };
+    return {
+      isAuthenticated: false as const,
+      theme,
+      initial: null,
+      intelligenceEntitled: false,
+      isAdmin: false,
+      accountLabel: "",
+    };
   }
 
   const db = getDb(env);
@@ -33,7 +41,17 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const displayName = session.user.name || session.user.email;
   const initial = displayName.charAt(0).toUpperCase();
 
-  return { isAuthenticated: true as const, theme, initial, intelligenceEntitled };
+  return {
+    isAuthenticated: true as const,
+    theme,
+    initial,
+    intelligenceEntitled,
+    // Both are free here: isAdminEmail is an env lookup, and resolveMembership
+    // (already awaited above for the entitlement check) carries the account
+    // name, so the gear dropdown costs the marketing loader no extra query.
+    isAdmin: isAdminEmail(env, session.user.email),
+    accountLabel: membership?.accountName ?? session.user.email,
+  };
 }
 
 export default function MarketingLayout({ loaderData }: Route.ComponentProps) {
@@ -44,6 +62,8 @@ export default function MarketingLayout({ loaderData }: Route.ComponentProps) {
         theme={loaderData.theme}
         initial={loaderData.initial}
         intelligenceEntitled={loaderData.intelligenceEntitled}
+        isAdmin={loaderData.isAdmin}
+        accountLabel={loaderData.accountLabel}
       />
       <main className="flex-1">
         <Outlet />

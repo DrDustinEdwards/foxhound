@@ -3,6 +3,7 @@ import { Link, NavLink } from "react-router";
 import { Menu, Settings, X } from "lucide-react";
 
 import { Avatar } from "./nav/avatar";
+import { GearMenu } from "./nav/gear-menu";
 import { SectionPill } from "./nav/section-pill";
 import { ThemeToggle } from "./theme-toggle";
 import { Wordmark } from "./wordmark";
@@ -45,6 +46,8 @@ export function Header({
   theme,
   initial = null,
   intelligenceEntitled = false,
+  isAdmin = false,
+  accountLabel = "",
 }: {
   isAuthenticated: boolean;
   theme: Theme;
@@ -54,6 +57,8 @@ export function Header({
   // resolve these from.
   initial?: string | null;
   intelligenceEntitled?: boolean;
+  isAdmin?: boolean;
+  accountLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -115,14 +120,12 @@ export function Header({
 
         <ThemeToggle initialTheme={theme} variant="chrome" />
 
+        {/* The same dropdown the app shell uses (ruling 49). This was a bare
+            link to /settings, which put Billing, Help, Admin and Sign out out
+            of reach from every marketing page. Anonymous visitors keep the
+            dimmed inert icon, which is what legacy shows them. */}
         {isAuthenticated ? (
-          <Link
-            to="/settings"
-            aria-label="Settings"
-            className="flex h-8 w-8 items-center justify-center rounded-md text-chrome-text-secondary transition-colors duration-150 hover:bg-white/10 hover:text-chrome-text"
-          >
-            <Settings width={16} height={16} strokeWidth={1.5} aria-hidden />
-          </Link>
+          <GearMenu isAdmin={isAdmin} accountLabel={accountLabel} />
         ) : (
           <div className="cursor-default p-1.5 opacity-30" aria-hidden="true">
             <Settings width={16} height={16} strokeWidth={1.5} className="text-chrome-text-secondary" />
