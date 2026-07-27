@@ -16,6 +16,15 @@
 // direction"), and merchants.server.ts records the same reasoning for the
 // single-account toggle this batches.
 //
+// WHERE THE MARKER INVARIANT ACTUALLY LIVES. "Release never resumes a merchant
+// paused for cause" is enforced in the WHERE of each flag write, not in the
+// eligibility SELECT. Two reviews certified the leak unreachable on the grounds
+// that engage skips already-paused rows; that is true of the SELECT and was
+// false of the UPDATE, which wrote the brake marker over whatever an operator
+// had set in between (review MEDIUM-1). If you find yourself arguing this is
+// safe because of what the select returns, the argument is the one that failed
+// twice: check the write.
+//
 // Recorded because it is a real tension rather than an oversight: core.md's
 // standing rule says a write rides the money DO if it "gates billing", and
 // processing_paused IS read by app/db/billable.ts, so a pause does have a
@@ -116,16 +125,20 @@ async function idsWhere(db: Db, where: SQL): Promise<string[]> {
 }
 
 /**
- * Accounts per db.batch. Each account contributes TWO statements (the flag write
- * and its audit row), so this is 50 statements per batch and, at the 500-account
- * RECOVERY_TICK_LIMIT-scale ceiling, 20 batches.
+ * Accounts per db.batch. A chunk now costs TWO batches, not one: the flag writes
+ * go first, and only the ids they actually transitioned get audit rows (review
+ * MEDIUM-1 made the flag write conditional, so group membership stopped being
+ * proof that anything moved). Each account contributes one statement to each
+ * batch, so a chunk is 25 statements per batch.
  *
  * The number exists because the first version awaited two round trips per
  * account inside a `for`. At 500 merchants that was ~1002 sequential D1 calls in
  * one invocation, against a 1000-subrequest ceiling: the control built for a
  * platform-wide incident was least likely to complete at the scale where an
- * incident is worst. test/admin-brake.test.ts asserts the arithmetic rather than
- * trusting this comment.
+ * incident is worst. Splitting the audit rows off doubles the batch count and
+ * still lands nowhere near that ceiling (42 subrequests at 500 accounts).
+ * test/admin-brake.test.ts asserts the arithmetic rather than trusting this
+ * comment.
  */
 export const BRAKE_CHUNK_ACCOUNTS = 25;
 
@@ -146,9 +159,13 @@ export function chunkAccountIds(ids: string[], size: number = BRAKE_CHUNK_ACCOUN
 }
 
 /** Subrequests one engage/release costs: the eligibility read, the umbrella row,
- *  then one batch per chunk. Exported so the budget is a computed fact. */
+ *  then TWO batches per chunk (flag writes, then audit rows for the ids those
+ *  writes actually transitioned). Exported so the budget is a computed fact.
+ *
+ *  The audit batch is skipped when a chunk transitioned nothing, so this is the
+ *  worst case rather than the exact cost. */
 export function brakeSubrequestCost(accountCount: number, size: number = BRAKE_CHUNK_ACCOUNTS): number {
-  return 2 + Math.ceil(accountCount / size);
+  return 2 + 2 * Math.ceil(accountCount / size);
 }
 
 function sampleIds(ids: string[]) {
@@ -159,8 +176,11 @@ function sampleIds(ids: string[]) {
 }
 
 export interface BrakeResult {
-  /** Accounts actually transitioned by this call. On a partial failure this is
-   *  the number that committed, NOT the number intended. */
+  /** Accounts actually transitioned by this call, counted from the flag writes'
+   *  RETURNING rows. On a partial failure this is the number that committed, NOT
+   *  the number intended; on a clean run it can still be lower than
+   *  `intendedCount`, because a row that stopped matching the guard between the
+   *  eligibility read and its chunk write is skipped (review MEDIUM-1/INFO-2). */
   affectedCount: number;
   accountIds: string[];
   /** The umbrella admin_audit_log row id. Written FIRST, so it exists even when
@@ -188,8 +208,33 @@ const defaultRunBatch: BrakeDeps["runBatch"] = (db, statements) =>
   db.batch(statements as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
 
 /**
- * Apply one transition to every id, umbrella-audit-row FIRST, then chunked
- * batches of (flag write + per-account audit row).
+ * Ids a flag batch actually changed, read from each statement's RETURNING rows.
+ *
+ * Throws rather than defaulting to empty on an unexpected shape. A silent []
+ * here would report "the brake paused 0 accounts" while the rows were in fact
+ * paused, which is the worst possible lie for this control to tell; the recovery
+ * tick's guard takes the same throw-on-unexpected-result line.
+ */
+function transitionedIds(batchResult: unknown): string[] {
+  if (!Array.isArray(batchResult)) {
+    throw new Error("brake: batch result was not an array, cannot tell which rows transitioned");
+  }
+  return batchResult.flatMap((rows) => {
+    if (!Array.isArray(rows)) {
+      throw new Error("brake: a flag write returned no RETURNING rows");
+    }
+    return rows.map((row) => {
+      const id = (row as { id?: unknown }).id;
+      if (typeof id !== "string") throw new Error("brake: a RETURNING row carried no id");
+      return id;
+    });
+  });
+}
+
+/**
+ * Apply one transition to every id, umbrella-audit-row FIRST, then per chunk a
+ * batch of guarded flag writes followed by a batch of audit rows for the ids
+ * those writes actually moved.
  *
  * Umbrella-first is the ordering that makes a partial failure diagnosable. The
  * umbrella row is the INTENT record: it names the actor, the time and how many
@@ -197,6 +242,12 @@ const defaultRunBatch: BrakeDeps["runBatch"] = (db, statements) =>
  * an intent row, a partial set of marked rows, and a release that resumes
  * exactly the marked ones. Writing it last, as the first version did, meant a
  * mid-loop failure left paused accounts with no record that anyone had engaged.
+ *
+ * The flag writes and the audit rows are two batches rather than one interleaved
+ * batch because `guard` can skip a row (review MEDIUM-1). The audit rows have to
+ * be built from what the flag writes RETURNED, or the brake would file evidence
+ * that it paused a merchant it deliberately left alone, which is the same class
+ * of defect as reporting a count of rows it merely selected.
  */
 async function applyBrakeTransition(
   db: Db,
@@ -207,6 +258,9 @@ async function applyBrakeTransition(
     perAccountAction: string;
     paused: boolean;
     reason: string | null;
+    /** Re-applied server-side in each flag write's WHERE, so the predicate that
+     *  selected an account still has to hold when its row is written. */
+    guard: SQL;
   },
   deps: Partial<BrakeDeps> = {},
 ): Promise<BrakeResult> {
@@ -221,18 +275,26 @@ async function applyBrakeTransition(
 
   const committed: string[] = [];
   for (const group of chunkAccountIds(accountIds)) {
-    const statements: BatchStatements = group.flatMap((accountId) => [
-      buildSetProcessingPaused(db, accountId, input.paused, input.reason),
-      buildAdminAuditLogInsert(db, {
-        actorEmail: input.actorEmail,
-        action: input.perAccountAction,
-        metadata: { accountId },
-      }).statement,
-    ]);
-    if (statements.length === 0) continue;
+    const flagWrites: BatchStatements = group.map((accountId) =>
+      buildSetProcessingPaused(db, accountId, input.paused, input.reason, input.guard),
+    );
+    if (flagWrites.length === 0) continue;
     try {
-      await runBatch(db, statements);
-      committed.push(...group);
+      const moved = transitionedIds(await runBatch(db, flagWrites));
+      // Pushed before the audit batch: these rows ARE written and marked, so
+      // they are releasable whether or not their evidence rows land.
+      committed.push(...moved);
+      if (moved.length > 0) {
+        const auditRows: BatchStatements = moved.map(
+          (accountId) =>
+            buildAdminAuditLogInsert(db, {
+              actorEmail: input.actorEmail,
+              action: input.perAccountAction,
+              metadata: { accountId },
+            }).statement,
+        );
+        await runBatch(db, auditRows);
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "brake batch failed";
       console.error(`brake ${input.umbrellaAction} chunk failed:`, message);
@@ -262,6 +324,15 @@ async function applyBrakeTransition(
  * excludes already-paused accounts, so a second engage finds an empty set and
  * writes zero account rows. It still records the umbrella entry, because an
  * operator hitting the brake twice during an incident is a fact worth keeping.
+ *
+ * The SAME predicate is passed as the write-time guard, so idempotence stops
+ * depending on the select being the last word. Reading eligibility once and then
+ * writing in chunks left a window in which an operator could pause a merchant
+ * for cause and have the brake overwrite that pause with its own marker, so the
+ * next release resumed a merchant nobody meant to resume (review MEDIUM-1). This
+ * is the same shape as the recovery tick's mid-run guard and the fee sweep's
+ * pre-charge re-read: re-evaluate the selecting predicate, never a paraphrase of
+ * it, so the two can never disagree about what eligible means.
  */
 export async function engageBrake(
   db: Db,
@@ -278,6 +349,7 @@ export async function engageBrake(
       perAccountAction: BRAKE_ACTION_PAUSE_ACCOUNT,
       paused: true,
       reason: BRAKE_PAUSE_REASON,
+      guard: brakeEligibleCondition(),
     },
     deps,
   );
@@ -293,6 +365,10 @@ export async function engageBrake(
  *
  * A no-op when nothing is engaged, for the same reason engage is: the predicate
  * finds nothing.
+ *
+ * Guarded at write time on the same predicate as engage is, for the same reason.
+ * A merchant resumed by hand between the read and their chunk is skipped rather
+ * than resumed twice, and the reported count says so.
  */
 export async function releaseBrake(
   db: Db,
@@ -309,6 +385,7 @@ export async function releaseBrake(
       perAccountAction: BRAKE_ACTION_RESUME_ACCOUNT,
       paused: false,
       reason: null,
+      guard: brakePausedCondition(),
     },
     deps,
   );
