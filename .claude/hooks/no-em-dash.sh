@@ -13,11 +13,19 @@
 # a real em dash on any box without jq, and the second draft exited 1 on a
 # missing python3, which reads as loud but does not block. If Writes are being
 # blocked and no dash is present, check python3 on PATH first.
+# Stdin is read as BYTES and decoded UTF-8 explicitly. json.load(sys.stdin)
+# used the locale codec, and on a cp1252 Windows host the raw UTF-8 bytes of an
+# em dash decoded to three cp1252 characters, so the U+2014 test missed and a
+# real dash passed (exit 0). Escaped \u2014 in the JSON always blocked, which
+# is why every earlier "hook verified" claim held: the harnesses used
+# json.dumps and only ever exercised the escaped path. Measured on the host
+# 2026-07-27 and reproduced under PYTHONIOENCODING=cp1252.
 # Functionally tested 2026-07-27: em dash in Write content blocks (2), en dash
-# in Edit new_string blocks (2), clean content passes (0), an Edit whose
-# old_string removes a dash passes (0), missing fields pass (0), malformed JSON
-# passes (0), python3 absent blocks (2) with diagnostic, python3 crashing
-# blocks (2) with diagnostic.
+# in Edit new_string blocks (2), RAW UTF-8 dash bytes block (2) under both
+# UTF-8 and cp1252 stdin, clean content passes (0), an Edit whose old_string
+# removes a dash passes (0), missing fields pass (0), malformed JSON passes
+# (0), python3 absent blocks (2) with diagnostic, python3 crashing blocks (2)
+# with diagnostic.
 #
 # Only content and new_string are checked, deliberately: old_string must be
 # allowed to contain a dash, otherwise an edit that fixes one can never run.
@@ -34,7 +42,7 @@ fi
 result=$(python3 -c '
 import json, sys
 try:
-    d = json.load(sys.stdin)
+    d = json.loads(sys.stdin.buffer.read().decode("utf-8"))
 except Exception:
     sys.exit(0)
 ti = d.get("tool_input") or {}
