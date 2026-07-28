@@ -157,7 +157,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     <div>
       {/* 1. Hero */}
       <section className="speakable-hero border-b border-border-sub px-4 pb-16 pt-10 sm:px-8 sm:pb-20 sm:pt-14">
-        <div className="mx-auto max-w-5xl">
+        <div className="mx-auto max-w-[1100px]">
           <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2 lg:gap-16">
             <div className="flex flex-col">
               <h1 className="m-0 mb-5 text-4xl font-semibold leading-[1.05] tracking-tight text-text sm:text-5xl">
@@ -235,7 +235,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
       {/* Stats: the problem */}
       <section className="border-t border-border-sub bg-surface px-4 py-20 sm:px-8">
-        <div className="mx-auto max-w-5xl">
+        <div className="mx-auto max-w-[1100px]">
           <FadeUp>
             <div className="mb-12 text-center">
               <h2 className="m-0 mb-3 text-2xl font-semibold tracking-tight text-text sm:text-3xl">
@@ -268,7 +268,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               },
             ].map((item, i) => (
               <FadeUp key={item.stat} delay={i * 100}>
-                <div className="flex h-full flex-col rounded-lg border border-border bg-surface p-6">
+                <div className="flex h-full flex-col rounded-[12px] border border-border bg-surface p-6">
                   <div className="mb-4 font-mono text-4xl font-semibold leading-none text-text">
                     {item.stat}
                   </div>
@@ -298,7 +298,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
       {/* Stripe plus Foxhound */}
       <section className="border-t border-border-sub px-4 py-20 sm:px-8">
-        <div className="mx-auto max-w-5xl">
+        <div className="mx-auto max-w-[1100px]">
           <FadeUp>
             <div className="mb-12 text-center">
               <h2 className="m-0 mb-3 text-2xl font-semibold tracking-tight text-text sm:text-3xl">
@@ -310,14 +310,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           <div className="flex flex-col gap-4">
             {COMPARISON_ROWS.map((row, i) => (
               <FadeUp key={row.stripeTitle} delay={i * 100} className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="rounded-lg border border-border bg-surface p-6">
+                <div className="rounded-[12px] border border-border bg-surface p-6">
                   <div className="mb-3 text-micro text-text-tertiary">Stripe does this</div>
                   <div className="mb-2 text-body font-medium text-text">{row.stripeTitle}</div>
                   <p className="m-0 text-label leading-relaxed text-text-secondary">{row.stripeBody}</p>
                 </div>
                 <Link
                   to={row.foxhoundHref}
-                  className="group block rounded-lg border border-border bg-surface p-6 hover:border-border-i"
+                  className="group block rounded-[12px] border border-border bg-surface p-6 hover:border-border-i"
                 >
                   <div className="mb-3 font-mono text-micro text-text-tertiary">Foxhound adds this</div>
                   <div className="mb-2 text-body font-semibold text-text">{row.foxhoundTitle}</div>
@@ -340,7 +340,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
       {/* Full-bleed statement */}
       <section className="border-t border-border-sub px-4 py-20 sm:px-8 sm:py-28">
-        <div className="mx-auto max-w-5xl">
+        <div className="mx-auto max-w-[1100px]">
           <FadeUp>
             <p className="mb-6 text-center font-mono text-micro uppercase tracking-widest text-text-subtle">
               The gap Stripe leaves open
@@ -350,7 +350,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               <br />
               <span className="text-amber-text">never come back.</span>
             </h2>
-            <p className="mx-auto mt-8 max-w-xl text-center text-body text-text-secondary sm:text-lg">
+            <p className="mx-auto mt-8 max-w-[560px] text-center text-body text-text-secondary sm:text-lg">
               Stripe&apos;s Smart Retries recover 56% on average. The other 44% needs something Stripe
               doesn&apos;t do: silent retries first, personalized email sequences, decline classification,
               and 30 days of follow-through.
@@ -377,7 +377,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
       {/* How it works */}
       <section className="speakable-how-it-works border-t border-border-sub px-4 py-16 sm:px-8">
-        <div className="mx-auto max-w-5xl">
+        <div className="mx-auto max-w-[1100px]">
           <FadeUp>
             <div className="mb-12 text-center">
               <h2 className="m-0 mb-3 text-2xl font-semibold tracking-tight text-text sm:text-3xl">
@@ -386,7 +386,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               <p className="m-0 text-body text-text-secondary">Live in an afternoon. No code, no setup fees.</p>
             </div>
           </FadeUp>
-          <div className="grid grid-cols-1 overflow-hidden rounded-lg border border-border bg-surface md:grid-cols-3">
+          <div className="grid grid-cols-1 overflow-hidden rounded-[12px] border border-border bg-surface md:grid-cols-3">
             {[
               {
                 title: "Connect Stripe",
@@ -419,7 +419,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           because it is the receipt for the step above it: "pay 20% of matured
           recoveries" is the claim, and this is what that invoice looks like. */}
       <section className="border-t border-border-sub px-4 py-20 sm:px-8">
-        <div className="mx-auto max-w-5xl">
+        <div className="mx-auto max-w-[1100px]">
           <FadeUp>
             <div className="mb-12 text-center">
               <h2 className="m-0 mb-3 text-2xl font-semibold tracking-tight text-text sm:text-3xl">
@@ -432,7 +432,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             </div>
           </FadeUp>
           <FadeUp delay={100}>
-            <div className="mx-auto max-w-xl">
+            <div className="mx-auto max-w-[600px]">
               <LedgerMock />
             </div>
           </FadeUp>
@@ -441,19 +441,19 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
       {/* Calculator */}
       <section className="border-t border-border-sub bg-surface px-4 py-20 sm:px-8">
-        <div className="mx-auto max-w-5xl">
+        <div className="mx-auto max-w-[1100px]">
           <FadeUp>
             <div className="mb-10 text-center">
               <h2 className="m-0 mb-3 text-2xl font-semibold tracking-tight text-text sm:text-3xl">
                 How much are you leaving on the table?
               </h2>
-              <p className="mx-auto m-0 max-w-md text-body text-text-secondary">
+              <p className="mx-auto m-0 max-w-[480px] text-body text-text-secondary">
                 Adjust your MRR and see the estimate. Foxhound takes{" "}
                 <span className="font-mono">20%</span> of what it recovers. Nothing if it recovers nothing.
               </p>
             </div>
           </FadeUp>
-          <div className="mx-auto max-w-xl">
+          <div className="mx-auto max-w-[600px]">
             <RecoveryCalculator />
           </div>
         </div>
@@ -461,7 +461,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
       {/* Products */}
       <section id="products" className="scroll-mt-16 border-t border-border-sub px-4 py-20 sm:px-8">
-        <div className="mx-auto max-w-5xl">
+        <div className="mx-auto max-w-[1100px]">
           <FadeUp>
             <div className="mb-12 text-center">
               <h2 className="m-0 mb-3 text-2xl font-semibold tracking-tight text-text sm:text-3xl">
@@ -477,7 +477,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 <FadeUp key={p.key} delay={i * 80}>
                   <Link
                     to={p.href}
-                    className="block h-full rounded-lg border border-border bg-surface p-6 hover:border-border-i"
+                    className="block h-full rounded-[12px] border border-border bg-surface p-6 hover:border-border-i"
                   >
                     <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-surface2">
                       <Icon className="h-[18px] w-[18px] text-text-secondary" strokeWidth={1.8} aria-hidden />
@@ -495,18 +495,18 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
       {/* Email samples */}
       <section className="border-t border-border-sub px-4 py-20 sm:px-8">
-        <div className="mx-auto max-w-5xl">
+        <div className="mx-auto max-w-[1100px]">
           <FadeUp>
             <div className="mb-10 text-center">
               <h2 className="m-0 mb-3 text-2xl font-semibold tracking-tight text-text sm:text-3xl">
                 What a Foxhound recovery email looks like
               </h2>
-              <p className="mx-auto m-0 max-w-md text-body text-text-secondary">
+              <p className="mx-auto m-0 max-w-[480px] text-body text-text-secondary">
                 Pick a decline type and generate a real one. Every account customizes its own brand voice.
               </p>
             </div>
           </FadeUp>
-          <div className="mx-auto max-w-xl">
+          <div className="mx-auto max-w-[600px]">
             <EmailSamples />
           </div>
         </div>
@@ -514,7 +514,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
       {/* FAQ */}
       <section className="speakable-faq border-t border-border-sub px-4 py-16 sm:px-8">
-        <div className="mx-auto max-w-2xl">
+        <div className="mx-auto max-w-[760px]">
           <FadeUp>
             <div className="mb-12 text-center">
               <h2 className="m-0 mb-3 text-2xl font-semibold tracking-tight text-text sm:text-3xl">
@@ -528,7 +528,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
       {/* Security trust bar */}
       <section className="border-t border-border-sub px-4 py-10 sm:px-8">
-        <div className="mx-auto max-w-5xl">
+        <div className="mx-auto max-w-[1100px]">
           <FadeUp>
             <div className="flex flex-wrap items-center justify-center gap-3">
               {[
@@ -573,7 +573,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           index's own sections), never the full-body select. */}
       {latestPosts.length > 0 ? (
         <section className="border-t border-border-sub bg-surface px-4 py-16 sm:px-8">
-          <div className="mx-auto max-w-5xl">
+          <div className="mx-auto max-w-[1100px]">
             <FadeUp>
               <div className="mb-8 flex items-center justify-between">
                 <p className="m-0 font-mono text-micro uppercase tracking-wide text-text-tertiary">
@@ -601,11 +601,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
       {/* Closing CTA */}
       <section className="border-t border-border-sub px-4 py-20 sm:px-8">
-        <div className="mx-auto max-w-2xl text-center">
+        <div className="mx-auto max-w-[760px] text-center">
           <h2 className="m-0 mb-4 text-2xl font-semibold tracking-tight text-text sm:text-3xl">
             See what your Stripe account is leaking
           </h2>
-          <p className="mx-auto m-0 mb-7 max-w-lg text-body leading-relaxed text-text-secondary">
+          <p className="mx-auto m-0 mb-7 max-w-[560px] text-body leading-relaxed text-text-secondary">
             Connect Stripe for a free diagnostic. Results in <span className="font-mono">30</span> seconds.
             No setup, no card.
           </p>
