@@ -164,13 +164,22 @@
        copy            0.875rem    card and paragraph body
        caption         0.75rem     small labels
        source          0.625rem    source attribution links
+       page-title      2rem        shared marketing page header h1
 
-     The last three arrived with M4 pricing (legacy pricing/page.tsx:129 card
-     name, :131 price, :179 FAQ h2). A prior note claimed M4 needed only two
+     card-title, price and subsection arrived with M4 pricing (legacy
+     pricing/page.tsx:129 card name, :131 price, :179 FAQ h2). A prior note claimed M4 needed only two
      tokens; reading source showed three, because that note had accounted for
      the FAQ heading's sm step (1.75rem, already --text-section) and not its
      1.5rem base. card-title and Tailwind's stock text-lg coincide at 1.125rem;
      the token exists so the value is ours rather than a framework default.
+
+     page-title arrived with the shared marketing header row (legacy
+     components/MarketingPageHeader.tsx:44, its h1). It is deliberately not
+     --text-section-lg, which holds the same 2rem today but means "section h2 at
+     sm" and may move with the section role. It is also not a retune of
+     --text-display (1.75rem): that token has 15 carriers, mostly font-mono
+     numerics in the console, stat cards and product prices, whose legacy values
+     the parity walk has not read yet.
 
      Why these are ADDITIVE and mutate nothing: --text-label (0.8125rem) is
      shared with the app shell and admin, whose legacy type values have not been
@@ -197,6 +206,7 @@
   --text-copy: 0.875rem;
   --text-caption: 0.75rem;
   --text-source: 0.625rem;
+  --text-page-title: 2rem;
 }
 
 :root,
