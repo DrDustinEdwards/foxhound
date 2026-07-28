@@ -54,3 +54,42 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # Deploy-consistency gate. A Worker rollout is not instantaneous: for a
+      # few minutes some colos still run the PREVIOUS version, which renders
+      # HTML referencing the previous content-hashed asset while the new
+      # deployment no longer serves that hash. A visitor in that window gets a
+      # 404 for the stylesheet and an unstyled page. Observed live 2026-07-28.
+      #
+      # This is NOT a caching problem and a cache purge does not address it:
+      # the HTML response carries no Cache-Control and no CF-Cache-Status, so
+      # it is never edge-cached, while /assets/* is immutable and returns HIT.
+      #
+      # The step asserts the deployed HTML references the asset hash THIS build
+      # produced, and that the asset actually resolves. It runs after the
+      # deploy, so a failure does not roll anything back; it converts a silent
+      # inconsistency window into a loud signal instead of leaving the next
+      # session to rediscover it during verification.
+      - name: Verify deploy consistency
+        run: |
+          set -uo pipefail
+          EXPECTED=$(basename "$(ls build/client/assets/root-*.css | head -1)")
+          echo "expected asset from this build: $EXPECTED"
+          for i in $(seq 1 30); do
+            REF=$(curl -sS "https://foxhoundapp.com/?ci=${GITHUB_SHA}-${i}" \
+              | grep -o '/assets/root-[^"]*\.css' | head -1)
+            if [ -n "$REF" ]; then
+              CODE=$(curl -s -o /dev/null -w '%{http_code}' "https://foxhoundapp.com${REF}")
+              echo "attempt ${i}: html references ${REF} (http ${CODE})"
+              if [ "$(basename "$REF")" = "$EXPECTED" ] && [ "$CODE" = "200" ]; then
+                echo "deploy is consistent: HTML and asset agree on $EXPECTED"
+                exit 0
+              fi
+            else
+              echo "attempt ${i}: no stylesheet reference found in the HTML"
+            fi
+            sleep 10
+          done
+          echo "FAILED: after 5 minutes the deployed HTML still does not reference $EXPECTED with a resolving asset."
+          echo "The deploy itself may be fine; this means the rollout had not converged."
+          exit 1
