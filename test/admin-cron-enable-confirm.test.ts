@@ -135,7 +135,14 @@ describe("the /admin/crons action enforces the asymmetry", () => {
       expect(result.data.ok, job.name).toBe(true);
       expect((await stateOf(db, job.name)).enabled, job.name).toBe(false);
     }
-  });
+    // 10s, not the 5s default. This and the ENABLE case below each build a
+    // FRESH in-memory database per cron, applying every committed migration
+    // verbatim, once for each of the 13 registered jobs. That is roughly 2.4s
+    // of real schema setup, and the per-iteration isolation is deliberate: the
+    // ENABLE case asserts the audit table is still EMPTY, which a shared
+    // database would not prove. The cost is inherent, not a missing mock or a
+    // real timer, so the margin is widened rather than the design changed.
+  }, 10_000);
 
   it("gates ENABLE for every registered cron, not only the recovery tick", async () => {
     // billing-monthly moves money on its first ever run; a rule that only
@@ -145,7 +152,9 @@ describe("the /admin/crons action enforces the asymmetry", () => {
       expect(result.data.error, job.name).toMatch(/exactly to enable/);
       expect(await auditRows(db), job.name).toEqual([]);
     }
-  });
+    // 10s for the same reason as the DISABLE case above: 13 fresh databases,
+    // each with the full migration set applied.
+  }, 10_000);
 
   it("still rejects an unknown cron name before the confirmation is even considered", async () => {
     const { db, result } = await run({
