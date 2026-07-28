@@ -11,7 +11,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import { resolveErrorBoundaryDetails } from "~/lib/errors/boundary-message";
 import { resolveNavContext } from "~/lib/nav/context.server";
 import { PLATFORM_LINKS, PRODUCT_MANIFEST, PRODUCT_ORDER } from "~/lib/nav/manifest";
-import { getThemeFromRequest } from "~/lib/theme.server";
+import { resolveThemeForRequest } from "~/lib/theme.server";
 
 import type { Route } from "./+types/app-shell";
 
@@ -71,7 +71,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     isAdmin: auth.isAdmin,
     isDemo: auth.isDemo,
     demoSignedIn: auth.demoSignedIn,
-    theme: getThemeFromRequest(request),
+    theme: await resolveThemeForRequest(env, request),
     nav,
   };
 }
@@ -179,12 +179,12 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
             ) : null}
 
             <div className="hidden shrink-0 items-center gap-1 sm:flex">
-              <ThemeToggle initialTheme={theme} />
+              <ThemeToggle initialTheme={theme} isAuthenticated />
               <GearMenu isAdmin={isAdmin} accountLabel={accountLabel} hasAccount />
             </div>
 
             <div className="flex shrink-0 items-center gap-1 sm:hidden">
-              <ThemeToggle initialTheme={theme} />
+              <ThemeToggle initialTheme={theme} isAuthenticated />
               <GearMenu isAdmin={isAdmin} accountLabel={accountLabel} hasAccount />
             </div>
           </div>

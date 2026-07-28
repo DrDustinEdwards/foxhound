@@ -80,6 +80,12 @@ const EXCLUDED_PREFIXES = [
   // index, same reasoning as /demo/exit.
   "/marketing/generate-email-sample",
   "/webhooks/",
+  // API resource routes: action-only JSON endpoints, no HTML, nothing to
+  // index. Covers /api/theme (ruling 59's theme persistence write) and
+  // /api/auth/*. Note the auth one is a wildcard so it was already skipped as
+  // non-static; this prefix is what classifies the STATIC ones, and /api/theme
+  // is the first of those.
+  "/api/",
   // Machine-readable files: either not HTML (llms*.txt, feed.rss, og/*
   // images) or the sitemap/robots routes themselves.
   "/sitemap.xml",

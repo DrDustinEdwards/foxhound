@@ -151,6 +151,10 @@ export default [
   // Better Auth HTTP surface (sign-in/up/out, verify, reset, OAuth callbacks).
   route("api/auth/*", "./routes/api/auth.ts"),
 
+  // Theme persistence (ruling 59). Action-only resource route; the read side
+  // is resolveThemeForRequest in lib/theme.server.ts.
+  route("api/theme", "./routes/api/theme.ts"),
+
   // Logout (action-only resource route; clears the session, redirects to /login)
   route("logout", "./routes/auth/logout.ts"),
 ] satisfies RouteConfig;

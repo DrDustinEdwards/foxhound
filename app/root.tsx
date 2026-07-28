@@ -8,22 +8,27 @@ import dmMono500 from "./assets/fonts/dm-mono-500.woff2?url";
 import { cloudflareContext } from "./lib/cloudflare-context";
 import { resolveErrorBoundaryDetails } from "./lib/errors/boundary-message";
 import { DEFAULT_THEME } from "./lib/theme";
-import { getThemeFromRequest } from "./lib/theme.server";
+import { resolveThemeForRequest } from "./lib/theme.server";
 
 export function meta() {
   return [{ title: "Foxhound" }];
 }
 
-// Cookie-persisted theme, read once at the root so <html data-theme> is
-// correct on the very first byte (no flash of the wrong mode). nonce comes
+// Theme read once at the root so <html data-theme> is correct on the very
+// first byte (no flash of the wrong mode). resolveThemeForRequest, not the
+// cookie reader: an authenticated merchant's stored accounts.theme has to win
+// HERE, because reading it only in a layout would leave them rendering the
+// default on a new device and then correcting, which is the exact flash this
+// loader exists to prevent (ruling 59). Anonymous requests still touch no DB.
+// nonce comes
 // from workers/app.ts's per-request generateNonce() (TASK-foxhound-csp-
 // nonce-hydration.md), threaded via cloudflareContext so <Scripts>/
 // <ScrollRestoration> below can carry the SAME value applySecurityHeaders
 // puts in the Content-Security-Policy header - a mismatch would make the
 // browser reject its own hydration scripts.
-export function loader({ request, context }: Route.LoaderArgs) {
-  const { nonce } = context.get(cloudflareContext);
-  return { theme: getThemeFromRequest(request), nonce };
+export async function loader({ request, context }: Route.LoaderArgs) {
+  const { env, nonce } = context.get(cloudflareContext);
+  return { theme: await resolveThemeForRequest(env, request), nonce };
 }
 
 export function Layout({ children }: { children: React.ReactNode }) {
