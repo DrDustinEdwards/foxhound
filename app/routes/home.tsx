@@ -177,13 +177,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               <div className="animate-fade-up delay-240 flex flex-wrap items-center gap-4">
                 <Link
                   to="/audit"
-                  className="inline-flex items-center gap-1.5 rounded-md bg-amber px-5 py-2.5 text-label font-semibold text-on-amber hover:bg-amber-dark"
+                  className="inline-flex items-center gap-1.5 rounded-md bg-amber px-5 py-2.5 text-subhead font-semibold text-on-amber hover:bg-amber-dark"
                 >
                   Run your free audit
                 </Link>
                 <Link
                   to="/demos"
-                  className="group inline-flex items-center gap-1.5 rounded-md border border-border-i px-5 py-2.5 text-label font-medium text-text-secondary hover:text-text"
+                  className="group inline-flex items-center gap-1.5 rounded-md border border-border-i px-5 py-2.5 text-subhead font-medium text-text-secondary hover:text-text"
                 >
                   See it live
                   <ArrowRight
@@ -212,7 +212,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   href="https://stripe.com/connect"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-mono text-micro text-purple no-underline hover:opacity-80"
+                  className="font-mono text-caption text-purple no-underline hover:opacity-80"
                 >
                   Built on Stripe Connect
                 </a>
@@ -221,7 +221,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               {["Baseline recoveries are free", "No fee until 30-day maturity", "Disconnect anytime"].map(
                 (label, i, arr) => (
                   <li key={label} className="flex items-center gap-3">
-                    <span className="font-mono text-micro text-text-subtle">{label}</span>
+                    <span className="font-mono text-caption text-text-subtle">{label}</span>
                     {i < arr.length - 1 ? (
                       <span aria-hidden="true" className="text-border-sub">&middot;</span>
                     ) : null}
@@ -311,7 +311,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             {COMPARISON_ROWS.map((row, i) => (
               <FadeUp key={row.stripeTitle} delay={i * 100} className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="card-elevated rounded-[12px] border border-border bg-surface p-6">
-                  <div className="mb-3 text-micro text-text-tertiary">Stripe does this</div>
+                  <div className="mb-3 text-caption text-text-tertiary">Stripe does this</div>
                   <div className="mb-2 text-body font-medium text-text">{row.stripeTitle}</div>
                   <p className="m-0 text-copy leading-[1.55] text-text-secondary">{row.stripeBody}</p>
                 </div>
@@ -322,7 +322,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   <div className="mb-3 text-[0.75rem] font-medium text-amber-text">Foxhound adds this</div>
                   <div className="mb-2 text-body font-semibold text-text">{row.foxhoundTitle}</div>
                   <p className="m-0 text-copy leading-[1.55] text-text-secondary">{row.foxhoundBody}</p>
-                  <div className="mt-4 font-mono text-micro text-amber-text">
+                  <div className="mt-4 font-mono text-caption text-amber-text">
                     Learn more{" "}
                     <ArrowRight
                       className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
@@ -576,10 +576,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           <div className="mx-auto max-w-[1100px]">
             <FadeUp>
               <div className="mb-8 flex items-center justify-between">
-                <p className="m-0 font-mono text-micro uppercase tracking-wide text-text-tertiary">
-                  From the blog
-                </p>
-                <Link to="/blog" className="group text-label text-text-secondary hover:text-text">
+                {/* Legacy renders this as plain 0.875rem secondary text, not a
+                    mono uppercase eyebrow: text-[0.875rem] text-text-secondary,
+                    with no font-mono, no uppercase and no tracking (M3
+                    divergence 36). */}
+                <p className="m-0 text-copy text-text-secondary">From the blog</p>
+                <Link to="/blog" className="group text-caption text-text-tertiary hover:text-text">
                   All articles{" "}
                   <ArrowRight
                     className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
@@ -615,10 +617,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           >
             Connect Stripe, it&apos;s free
           </Link>
-          <div className="mt-5 font-mono text-micro text-text-subtle">
+          <div className="mt-5 font-mono text-caption text-text-subtle">
             No account required &middot; Results in 30 seconds &middot; Disconnect anytime
           </div>
-          <div className="mt-2 font-mono text-micro text-text-subtle">{COMPAT_TAGS.join(" · ")}</div>
+          <div className="mt-2 font-mono text-caption text-text-subtle">{COMPAT_TAGS.join(" · ")}</div>
           <div className="mt-8 flex flex-wrap justify-center gap-4 border-t border-border-sub pt-6">
             <Link to="/demos/recovery" className="group text-label text-text-secondary hover:text-text">
               View Recovery demo{" "}
