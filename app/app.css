@@ -142,6 +142,47 @@
   --text-body: 1rem;
   --text-label: 0.8125rem;
   --text-micro: 0.6875rem;
+
+  /* Marketing type scale (M3 divergence 44, ruling 44/60 sequencing).
+     Legacy's marketing surface runs its own scale, and four of its sizes have
+     no slot in the app scale above. Named by ROLE so a caller picks the one
+     matching what it is rendering, never the one matching a number.
+
+       role            value       legacy source
+       hero            2.75rem     h1 base, page.tsx
+       hero-lg         4rem        h1 at sm
+       section         1.75rem     section h2 base
+       section-lg      2rem        section h2 at sm
+       statement       2.25rem     the full-bleed 44% h2, base
+       statement-md    3.5rem      that h2 at sm
+       statement-lg    4.5rem      that h2 at lg
+       subhead         0.9375rem   section subtitles under an h2
+       copy            0.875rem    card and paragraph body
+       caption         0.75rem     small labels
+       source          0.625rem    source attribution links
+
+     Why these are ADDITIVE and mutate nothing: --text-label (0.8125rem) is
+     shared with the app shell and admin, whose legacy type values have not been
+     read yet, so retuning it would silently restyle surfaces the parity walk has
+     not reached. --text-section deliberately carries the same value as
+     --text-display today; they are separate roles and either may move without
+     the other, so this is not a redundant alias.
+
+     Line-height and letter-spacing stay as arbitrary utilities at the call site,
+     exactly as legacy writes them, because they vary per element rather than per
+     role: legacy's card body is leading-[1.6] on the stat card and leading-[1.55]
+     on the comparison and how-it-works bodies. */
+  --text-hero: 2.75rem;
+  --text-hero-lg: 4rem;
+  --text-section: 1.75rem;
+  --text-section-lg: 2rem;
+  --text-statement: 2.25rem;
+  --text-statement-md: 3.5rem;
+  --text-statement-lg: 4.5rem;
+  --text-subhead: 0.9375rem;
+  --text-copy: 0.875rem;
+  --text-caption: 0.75rem;
+  --text-source: 0.625rem;
 }
 
 :root,
