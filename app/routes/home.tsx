@@ -160,7 +160,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         <div className="mx-auto max-w-[1100px]">
           <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2 lg:gap-16">
             <div className="flex flex-col">
-              <h1 className="m-0 mb-5 text-4xl font-semibold leading-[1.05] tracking-tight text-text sm:text-5xl">
+              <h1 className="animate-fade-up delay-80 m-0 mb-5 text-4xl font-semibold leading-[1.05] tracking-tight text-text sm:text-5xl">
                 You pay when
                 <br />
                 Foxhound recovers.
@@ -168,13 +168,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 <span className="text-amber-text">Not before.</span>
               </h1>
 
-              <p className="m-0 mb-8 text-body leading-relaxed text-text-secondary">
+              <p className="animate-fade-up delay-160 m-0 mb-8 text-body leading-relaxed text-text-secondary">
                 Recovery is <span className="font-mono text-text">20%</span> of what Foxhound recovers.
                 Anything Stripe would have recovered on its own is free, always. And nothing is billed
                 until you have held the money for <span className="font-mono text-text">30</span> days.
               </p>
 
-              <div className="flex flex-wrap items-center gap-4">
+              <div className="animate-fade-up delay-240 flex flex-wrap items-center gap-4">
                 <Link
                   to="/audit"
                   className="inline-flex items-center gap-1.5 rounded-md bg-amber px-5 py-2.5 text-label font-semibold text-on-amber hover:bg-amber-dark"
@@ -199,7 +199,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             {/* min-h, not h: the visual sizes to its own content. A fixed
                 height clipped the previous hero mock, because its lines wrap
                 at narrow widths and the card hides its own overflow. */}
-            <div className="min-h-[360px] w-full">
+            <div className="animate-fade-in delay-320 min-h-[360px] w-full">
               <RecoveryQueueDemo />
             </div>
           </div>
@@ -268,7 +268,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               },
             ].map((item, i) => (
               <FadeUp key={item.stat} delay={i * 100}>
-                <div className="flex h-full flex-col rounded-[12px] border border-border bg-surface p-6">
+                <div className="card-elevated flex h-full flex-col rounded-[12px] border border-border bg-surface p-6">
                   <div className="mb-4 font-mono text-[2.75rem] font-semibold leading-none text-amber-text">
                     {item.stat}
                   </div>
@@ -310,14 +310,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           <div className="flex flex-col gap-4">
             {COMPARISON_ROWS.map((row, i) => (
               <FadeUp key={row.stripeTitle} delay={i * 100} className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="rounded-[12px] border border-border bg-surface p-6">
+                <div className="card-elevated rounded-[12px] border border-border bg-surface p-6">
                   <div className="mb-3 text-micro text-text-tertiary">Stripe does this</div>
                   <div className="mb-2 text-body font-medium text-text">{row.stripeTitle}</div>
                   <p className="m-0 text-label leading-relaxed text-text-secondary">{row.stripeBody}</p>
                 </div>
                 <Link
                   to={row.foxhoundHref}
-                  className="group block rounded-[12px] border border-border bg-surface p-6 hover:border-border-i"
+                  className="card-elevated hover-spring group block rounded-[12px] border border-border bg-surface p-6 hover:-translate-y-1 hover:border-amber"
                 >
                   <div className="mb-3 text-[0.75rem] font-medium text-amber-text">Foxhound adds this</div>
                   <div className="mb-2 text-body font-semibold text-text">{row.foxhoundTitle}</div>
@@ -477,7 +477,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 <FadeUp key={p.key} delay={i * 80}>
                   <Link
                     to={p.href}
-                    className="block h-full rounded-[12px] border border-border bg-surface p-6 hover:border-border-i"
+                    className="card-elevated hover-spring block h-full rounded-[12px] border border-border bg-surface p-6 hover:-translate-y-1 hover:border-amber"
                   >
                     <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-surface2">
                       <Icon className="h-[18px] w-[18px] text-amber-text" strokeWidth={1.8} aria-hidden />
