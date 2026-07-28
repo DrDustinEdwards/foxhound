@@ -143,23 +143,34 @@
   --text-label: 0.8125rem;
   --text-micro: 0.6875rem;
 
-  /* Marketing type scale (M3 divergence 44, ruling 44/60 sequencing).
-     Legacy's marketing surface runs its own scale, and four of its sizes have
-     no slot in the app scale above. Named by ROLE so a caller picks the one
-     matching what it is rendering, never the one matching a number.
+  /* Marketing type scale (M3 divergence 44, then M4 pricing; ruling 44/60
+     sequencing). Legacy's marketing surface runs its own scale, and several of
+     its sizes have no slot in the app scale above. Named by ROLE so a caller
+     picks the one matching what it is rendering, never the one matching a
+     number.
 
        role            value       legacy source
        hero            2.75rem     h1 base, page.tsx
        hero-lg         4rem        h1 at sm
        section         1.75rem     section h2 base
        section-lg      2rem        section h2 at sm
+       subsection      1.5rem      smaller section h2 base, steps to section at sm
        statement       2.25rem     the full-bleed 44% h2, base
        statement-md    3.5rem      that h2 at sm
        statement-lg    4.5rem      that h2 at lg
+       card-title      1.125rem    plan/product card name
+       price           2.5rem      price figure
        subhead         0.9375rem   section subtitles under an h2
        copy            0.875rem    card and paragraph body
        caption         0.75rem     small labels
        source          0.625rem    source attribution links
+
+     The last three arrived with M4 pricing (legacy pricing/page.tsx:129 card
+     name, :131 price, :179 FAQ h2). A prior note claimed M4 needed only two
+     tokens; reading source showed three, because that note had accounted for
+     the FAQ heading's sm step (1.75rem, already --text-section) and not its
+     1.5rem base. card-title and Tailwind's stock text-lg coincide at 1.125rem;
+     the token exists so the value is ours rather than a framework default.
 
      Why these are ADDITIVE and mutate nothing: --text-label (0.8125rem) is
      shared with the app shell and admin, whose legacy type values have not been
@@ -176,9 +187,12 @@
   --text-hero-lg: 4rem;
   --text-section: 1.75rem;
   --text-section-lg: 2rem;
+  --text-subsection: 1.5rem;
   --text-statement: 2.25rem;
   --text-statement-md: 3.5rem;
   --text-statement-lg: 4.5rem;
+  --text-card-title: 1.125rem;
+  --text-price: 2.5rem;
   --text-subhead: 0.9375rem;
   --text-copy: 0.875rem;
   --text-caption: 0.75rem;
