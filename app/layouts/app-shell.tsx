@@ -147,7 +147,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
           nothing here shares a stacking context with the marketing-only
           mobile drawer (z-40/z-50) or conflicts with the mobile tab bar
           (fixed to the bottom edge, z-10). */}
-      <header className="sticky top-0 z-20 h-14 border-b border-border bg-chrome">
+      <header className="h-14 border-b border-border bg-chrome">
         <div className="flex h-full items-center justify-between gap-4 px-6">
           <div className="flex min-w-0 shrink-0 items-center gap-3">
             <Link to="/" aria-label="Foxhound home" className="shrink-0">
@@ -258,7 +258,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 
   return (
     <div>
-      <header className="sticky top-0 z-20 h-14 border-b border-border bg-chrome">
+      <header className="h-14 border-b border-border bg-chrome">
         <div className="flex h-full items-center px-6">
           <Link to="/" aria-label="Foxhound home">
             <Wordmark tone="chrome" />
