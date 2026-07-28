@@ -166,6 +166,13 @@ dist
 !.env.example
 .wrangler/
 
+# Machine-local, never committed. settings.local.json is personal per
+# capsid/conventions.md; the file exists here untracked and the ignore line
+# was missing. The *.local glob covers any local-only credential or scratch
+# file so one can never be staged by accident.
+.claude/settings.local.json
+.claude/*.local
+
 # react router
 /build/
 /.react-router/
