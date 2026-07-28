@@ -1,7 +1,6 @@
 import { ArrowRight, Check } from "lucide-react";
 import { Link } from "react-router";
 
-import { FaqAccordion } from "~/components/faq-accordion";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { faqPageJsonLd, siteUrl } from "~/lib/seo/jsonld";
@@ -188,7 +187,20 @@ export default function PricingPage() {
           <h2 className="mb-10 text-center text-subsection font-medium tracking-[-0.01em] text-text sm:text-section">
             Questions
           </h2>
-          <FaqAccordion faqs={FAQS.map((f) => ({ question: f.question, answer: f.answer }))} />
+          {/* Static list, not the shared FaqAccordion. Legacy makes this choice
+              per surface: pricing/page.tsx:181-188 is a plain ul with every
+              answer always visible, while its home page does use an accordion
+              (components/FaqAccordion.tsx, imported at (marketing)/page.tsx:7).
+              Foxhound had flattened both onto the accordion. Ruled 2026-07-28:
+              match legacy per surface, so home keeps the accordion. */}
+          <ul className="m-0 flex list-none flex-col gap-3 p-0">
+            {FAQS.map((faq) => (
+              <li key={faq.question} className="rounded-[12px] border border-border bg-surface p-6">
+                <div className="mb-2 text-subhead font-medium text-text">{faq.question}</div>
+                <p className="m-0 text-copy leading-[1.6] text-text-secondary">{faq.answer}</p>
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
 
