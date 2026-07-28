@@ -8,7 +8,7 @@ import { isAdminEmail } from "~/lib/auth/roles";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { getSession } from "~/lib/auth/session";
 import { isIntelligenceEntitled } from "~/lib/intelligence/views.server";
-import { getThemeFromRequest } from "~/lib/theme.server";
+import { resolveThemeForRequest } from "~/lib/theme.server";
 
 import type { Route } from "./+types/marketing";
 
@@ -21,7 +21,10 @@ import type { Route } from "./+types/marketing";
 // (TASK-foxhound-marketing-header-v2.md).
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
-  const theme = getThemeFromRequest(request);
+  // Same resolver the root loader uses, so the toggle's icon and
+  // <html data-theme> cannot disagree for a merchant whose stored theme
+  // differs from this device's cookie (ruling 59).
+  const theme = await resolveThemeForRequest(env, request);
   const session = await getSession(env, request);
 
   if (!session) {

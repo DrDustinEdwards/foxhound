@@ -122,7 +122,7 @@ export function Header({
 
         {isAuthenticated && initial ? <Avatar initial={initial} /> : null}
 
-        <ThemeToggle initialTheme={theme} variant="chrome" />
+        <ThemeToggle initialTheme={theme} variant="chrome" isAuthenticated={isAuthenticated} />
 
         {/* The same dropdown the app shell uses (ruling 49). This was a bare
             link to /settings, which put Billing, Help, Admin and Sign out out
@@ -138,7 +138,7 @@ export function Header({
       </div>
 
       <div className="flex items-center gap-2 sm:hidden">
-        <ThemeToggle initialTheme={theme} variant="chrome" />
+        <ThemeToggle initialTheme={theme} variant="chrome" isAuthenticated={isAuthenticated} />
         {!isAuthenticated ? (
           <Link
             to="/login"

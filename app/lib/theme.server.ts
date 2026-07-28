@@ -1,19 +1,84 @@
-import { DEFAULT_THEME, isTheme, THEME_COOKIE, type Theme } from "./theme";
+import { eq } from "drizzle-orm";
 
-// Cookie-persisted theme (task Appendix A: "persisted via cookie so SSR
-// renders the right mode with no flash", the legacy getThemeForRequest
-// pattern rebuilt for Workers/RR8). Not HttpOnly: the client toggle
-// (theme-toggle.tsx) writes it directly via document.cookie for an
-// optimistic flip with zero round-trip.
-export function getThemeFromRequest(request: Request): Theme {
+import { getDb, type Db } from "~/db";
+import { accounts } from "~/db/schema";
+import { resolveMembership } from "./auth/account";
+import { getSession } from "./auth/session";
+import { DEFAULT_THEME, isTheme, resolveThemePreference, THEME_COOKIE, type Theme } from "./theme";
+
+// Better Auth's default session cookie is `better-auth.session_token` (no
+// cookiePrefix is configured in auth/options.ts). Matching the suffix is enough
+// to answer "could this request possibly be signed in", which is all the gate
+// below needs.
+const SESSION_COOKIE_MARKER = "session_token";
+
+/** The theme cookie's value, or null when absent or malformed. */
+export function getThemeCookie(request: Request): Theme | null {
   const header = request.headers.get("Cookie") ?? "";
   for (const part of header.split(";")) {
     const eq = part.indexOf("=");
     if (eq === -1) continue;
-    const name = part.slice(0, eq).trim();
-    if (name !== THEME_COOKIE) continue;
+    if (part.slice(0, eq).trim() !== THEME_COOKIE) continue;
     const value = part.slice(eq + 1).trim();
-    return isTheme(value) ? value : DEFAULT_THEME;
+    return isTheme(value) ? value : null;
   }
-  return DEFAULT_THEME;
+  return null;
+}
+
+/**
+ * Cookie-only theme read. Kept for callers that must stay synchronous and
+ * zero-DB. Prefer resolveThemeForRequest anywhere a stored preference should
+ * win (ruling 59).
+ */
+export function getThemeFromRequest(request: Request): Theme {
+  return getThemeCookie(request) ?? DEFAULT_THEME;
+}
+
+/**
+ * The theme this request should render under, preferring the merchant's stored
+ * accounts.theme over the device cookie (ruling 59; legacy reader spec is
+ * lib/theme-server.ts:18-19).
+ *
+ * ANONYMOUS REQUESTS STAY ZERO-DB, which the marketing loader depends on: with
+ * no Better Auth session cookie present this cannot be a signed-in request, so
+ * it returns the cookie value without touching D1. The session and account
+ * reads only happen for requests that could actually have a stored preference.
+ *
+ * This is a READ. The matching write is setAccountTheme below, which must be
+ * called from an action, never a loader.
+ */
+export async function resolveThemeForRequest(env: Env, request: Request): Promise<Theme> {
+  const cookieTheme = getThemeCookie(request);
+
+  const header = request.headers.get("Cookie") ?? "";
+  if (!header.includes(SESSION_COOKIE_MARKER)) {
+    return resolveThemePreference({ accountTheme: null, cookieTheme });
+  }
+
+  const session = await getSession(env, request);
+  if (!session) return resolveThemePreference({ accountTheme: null, cookieTheme });
+
+  const db = getDb(env);
+  const membership = await resolveMembership(db, session.user.id);
+  if (!membership) return resolveThemePreference({ accountTheme: null, cookieTheme });
+
+  const row = await db
+    .select({ theme: accounts.theme })
+    .from(accounts)
+    .where(eq(accounts.id, membership.accountId))
+    .get();
+
+  return resolveThemePreference({ accountTheme: row?.theme ?? null, cookieTheme });
+}
+
+/**
+ * Persist a merchant's theme to their account so it follows them across
+ * devices and sessions (ruling 59).
+ *
+ * ACTION ONLY. Loaders must not mutate, and that includes helpers they call:
+ * a nav-context write once hid outside the routes tree for weeks (core.md
+ * standing rules). The only caller is the action in routes/api/theme.ts.
+ */
+export async function setAccountTheme(db: Db, accountId: string, theme: Theme): Promise<void> {
+  await db.update(accounts).set({ theme }).where(eq(accounts.id, accountId));
 }
