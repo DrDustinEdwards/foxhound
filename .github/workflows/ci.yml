@@ -65,31 +65,66 @@ jobs:
       # the HTML response carries no Cache-Control and no CF-Cache-Status, so
       # it is never edge-cached, while /assets/* is immutable and returns HIT.
       #
-      # The step asserts the deployed HTML references the asset hash THIS build
-      # produced, and that the asset actually resolves. It runs after the
-      # deploy, so a failure does not roll anything back; it converts a silent
-      # inconsistency window into a loud signal instead of leaving the next
-      # session to rediscover it during verification.
+      # The step asserts that EVERY content-hashed asset the deployed HTML
+      # references belongs to THIS build, and that each one resolves. It runs
+      # after the deploy, so a failure does not roll anything back; it converts
+      # a silent inconsistency window into a loud signal instead of leaving the
+      # next session to rediscover it during verification.
+      #
+      # It checked only the stylesheet until 2026-07-28. That was too narrow and
+      # said so on its own: commit 7fa396d changed TypeScript and no CSS, the
+      # stylesheet hash was therefore unchanged, the guard passed on attempt 1,
+      # and seconds later a request to a route added by that very commit
+      # returned 404 because the Worker had not converged. A guard proves only
+      # the thing it measures, and that one measured stylesheet convergence
+      # while being read as measuring deploy convergence.
+      #
+      # The rule is now mechanical rather than a guess at which entry matters:
+      # stale HTML necessarily names hashed files this build never produced, so
+      # every reference must exist in build/client. That covers the JS entry,
+      # every route and vendor chunk, the React Router manifest, and the CSS.
       - name: Verify deploy consistency
         run: |
           set -uo pipefail
-          EXPECTED=$(basename "$(ls build/client/assets/root-*.css | head -1)")
-          echo "expected asset from this build: $EXPECTED"
           for i in $(seq 1 30); do
-            REF=$(curl -sS "https://foxhoundapp.com/?ci=${GITHUB_SHA}-${i}" \
-              | grep -o '/assets/root-[^"]*\.css' | head -1)
-            if [ -n "$REF" ]; then
-              CODE=$(curl -s -o /dev/null -w '%{http_code}' "https://foxhoundapp.com${REF}")
-              echo "attempt ${i}: html references ${REF} (http ${CODE})"
-              if [ "$(basename "$REF")" = "$EXPECTED" ] && [ "$CODE" = "200" ]; then
-                echo "deploy is consistent: HTML and asset agree on $EXPECTED"
-                exit 0
-              fi
-            else
-              echo "attempt ${i}: no stylesheet reference found in the HTML"
+            REFS=$(curl -sS "https://foxhoundapp.com/?ci=${GITHUB_SHA}-${i}" \
+              | grep -oE '/assets/[A-Za-z0-9._-]+\.(js|css)' | sort -u)
+
+            if [ -z "$REFS" ]; then
+              echo "attempt ${i}: no hashed asset references found in the HTML"
+              sleep 10
+              continue
             fi
+
+            COUNT=$(printf '%s\n' "$REFS" | wc -l | tr -d ' ')
+            MISSING=""
+            for ref in $REFS; do
+              [ -f "build/client${ref}" ] || MISSING="${MISSING} ${ref}"
+            done
+
+            if [ -n "$MISSING" ]; then
+              echo "attempt ${i}: HTML references assets this build did not produce:${MISSING}"
+              sleep 10
+              continue
+            fi
+
+            # Only once the whole set belongs to this build is it worth paying
+            # for the HTTP checks, which catch an asset that is referenced and
+            # named correctly but has not finished uploading.
+            BAD=""
+            for ref in $REFS; do
+              CODE=$(curl -s -o /dev/null -w '%{http_code}' "https://foxhoundapp.com${ref}")
+              [ "$CODE" = "200" ] || BAD="${BAD} ${ref}(${CODE})"
+            done
+
+            if [ -z "$BAD" ]; then
+              echo "deploy is consistent: all ${COUNT} referenced assets belong to this build and resolve 200"
+              exit 0
+            fi
+
+            echo "attempt ${i}: ${COUNT} assets match this build but do not all resolve:${BAD}"
             sleep 10
           done
-          echo "FAILED: after 5 minutes the deployed HTML still does not reference $EXPECTED with a resolving asset."
+          echo "FAILED: after 5 minutes the deployed HTML still does not reference this build's assets."
           echo "The deploy itself may be fine; this means the rollout had not converged."
           exit 1
