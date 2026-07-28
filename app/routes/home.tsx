@@ -212,7 +212,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   href="https://stripe.com/connect"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-mono text-caption text-purple no-underline hover:opacity-80"
+                  className="font-mono text-caption text-cobalt-text no-underline hover:opacity-80"
                 >
                   Built on Stripe Connect
                 </a>
@@ -615,7 +615,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             to="/audit"
             className="inline-flex items-center gap-2 rounded-md bg-amber px-6 py-3 text-body font-semibold text-on-amber hover:bg-amber-dark"
           >
-            Connect Stripe, it&apos;s free
+            Connect Stripe, it is free
           </Link>
           <div className="mt-5 font-mono text-caption text-text-subtle">
             No account required &middot; Results in 30 seconds &middot; Disconnect anytime
