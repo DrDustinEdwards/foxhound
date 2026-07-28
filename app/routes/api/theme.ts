@@ -13,7 +13,12 @@ import type { Route } from "./+types/theme";
 //
 // ACTION ONLY, deliberately: this route exports no loader. Loaders must not
 // mutate, and the write helper it calls is documented action-only for the same
-// reason. A GET therefore 405s rather than quietly doing nothing.
+// reason.
+//
+// A GET is rejected by React Router itself with 400 before the action runs,
+// because the route has no loader; verified against the deployed endpoint. The
+// method check below therefore never sees a GET, and exists for the other
+// non-POST verbs (PUT, PATCH, DELETE) that DO route to the action.
 //
 // The toggle calls this fire-and-forget: the DOM already flipped optimistically,
 // so a failed write must not roll back what the merchant is looking at. The
