@@ -134,8 +134,12 @@ export default function PricingPage() {
         subtext="Two outcome-based products and one flat subscription with a free tier. Audit is always free."
       />
 
-      <section className="px-4 pb-12 sm:px-8">
-        <div className="mx-auto max-w-5xl">
+      {/* Legacy's pricing card grid is max-w-[1200px], NOT the 1100px the home
+          page uses. The container width is a per-page value, not a site-wide
+          constant, which is why ruling 60 says check it per surface rather than
+          bulk-replacing max-w-5xl everywhere. */}
+      <section className="px-5 pb-12 sm:px-8">
+        <div className="mx-auto max-w-[1200px]">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {CARDS.map((card) => (
               <div
@@ -179,17 +183,17 @@ export default function PricingPage() {
         </div>
       </section>
 
-      <section className="border-t border-border-sub px-4 py-16 sm:px-8">
-        <div className="mx-auto max-w-2xl">
+      <section className="border-t border-border-sub px-5 py-16 sm:px-8">
+        <div className="mx-auto max-w-[760px]">
           <h2 className="mb-10 text-center text-title font-medium text-text">Questions</h2>
           <FaqAccordion faqs={FAQS.map((f) => ({ question: f.question, answer: f.answer }))} />
         </div>
       </section>
 
-      <section className="border-t border-border-sub px-4 py-20 sm:px-8">
-        <div className="mx-auto max-w-xl text-center">
+      <section className="border-t border-border-sub px-5 py-20 sm:px-8">
+        <div className="mx-auto max-w-[760px] text-center">
           <h2 className="mb-4 text-title font-medium text-text">See what your Stripe account is leaking</h2>
-          <p className="mx-auto mb-7 max-w-lg text-body leading-relaxed text-text-secondary">
+          <p className="mx-auto mb-7 max-w-[560px] text-body leading-relaxed text-text-secondary">
             Connect Stripe for a free diagnostic. Failed invoices, expiring cards, open disputes, and
             business health. Results in <span className="font-mono">30</span> seconds.
           </p>
