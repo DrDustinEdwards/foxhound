@@ -147,17 +147,17 @@ export default function PricingPage() {
                 id={card.id}
                 className="relative flex scroll-mt-[60px] flex-col rounded-[12px] border border-border bg-surface p-6"
               >
-                <div className="mb-4 text-title font-medium text-text">{card.name}</div>
+                <div className="mb-4 text-card-title font-medium text-text">{card.name}</div>
                 <div className="mb-1">
-                  <span className="font-mono text-3xl font-medium leading-none tracking-[-0.02em] text-amber-text">
+                  <span className="font-mono text-price font-medium leading-none tracking-[-0.02em] text-amber-text">
                     {card.price}
                   </span>
                 </div>
-                <div className="mb-4 font-mono text-micro text-text-tertiary">
+                <div className="mb-4 font-mono text-caption text-text-tertiary">
                   {card.priceLabel ?? <>&nbsp;</>}
                 </div>
-                <p className="m-0 mb-5 text-label leading-relaxed text-text-secondary">{card.description}</p>
-                <ul className="m-0 flex list-none flex-col gap-2.5 p-0 text-label leading-snug text-text-secondary">
+                <p className="m-0 mb-5 text-label leading-[1.55] text-text-secondary">{card.description}</p>
+                <ul className="m-0 flex list-none flex-col gap-2.5 p-0 text-label leading-[1.45] text-text-secondary">
                   {card.features.map((feature) => (
                     <li key={feature} className="flex items-start gap-2">
                       <Check width={14} height={14} strokeWidth={2.5} className="mt-[3px] flex-shrink-0 text-amber-text" aria-hidden />
@@ -185,15 +185,19 @@ export default function PricingPage() {
 
       <section className="border-t border-border-sub px-5 py-16 sm:px-8">
         <div className="mx-auto max-w-[760px]">
-          <h2 className="mb-10 text-center text-title font-medium text-text">Questions</h2>
+          <h2 className="mb-10 text-center text-subsection font-medium tracking-[-0.01em] text-text sm:text-section">
+            Questions
+          </h2>
           <FaqAccordion faqs={FAQS.map((f) => ({ question: f.question, answer: f.answer }))} />
         </div>
       </section>
 
       <section className="border-t border-border-sub px-5 py-20 sm:px-8">
         <div className="mx-auto max-w-[760px] text-center">
-          <h2 className="mb-4 text-title font-medium text-text">See what your Stripe account is leaking</h2>
-          <p className="mx-auto mb-7 max-w-[560px] text-body leading-relaxed text-text-secondary">
+          <h2 className="mb-4 text-section font-medium tracking-[-0.01em] text-text sm:text-section-lg">
+            See what your Stripe account is leaking
+          </h2>
+          <p className="mx-auto mb-7 max-w-[560px] text-subhead leading-[1.55] text-text-secondary">
             Connect Stripe for a free diagnostic. Failed invoices, expiring cards, open disputes, and
             business health. Results in <span className="font-mono">30</span> seconds.
           </p>
@@ -203,7 +207,7 @@ export default function PricingPage() {
           >
             Connect Stripe, it is free
           </Link>
-          <div className="mt-5 font-mono text-micro text-text-subtle">
+          <div className="mt-5 font-mono text-caption text-text-subtle">
             No account required &middot; No Stripe connection needed &middot; Results in 30 seconds
           </div>
         </div>
