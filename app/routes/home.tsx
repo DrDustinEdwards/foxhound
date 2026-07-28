@@ -160,7 +160,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         <div className="mx-auto max-w-[1100px]">
           <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2 lg:gap-16">
             <div className="flex flex-col">
-              <h1 className="animate-fade-up delay-80 m-0 mb-5 text-4xl font-semibold leading-[1.05] tracking-tight text-text sm:text-5xl">
+              <h1 className="animate-fade-up delay-80 m-0 mb-5 text-hero font-semibold leading-[1.02] tracking-[-0.03em] text-text sm:text-hero-lg sm:tracking-[-0.04em]">
                 You pay when
                 <br />
                 Foxhound recovers.
@@ -238,10 +238,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         <div className="mx-auto max-w-[1100px]">
           <FadeUp>
             <div className="mb-12 text-center">
-              <h2 className="m-0 mb-3 text-2xl font-semibold tracking-tight text-text sm:text-3xl">
+              <h2 className="m-0 mb-3 text-section font-semibold tracking-[-0.02em] text-text sm:text-section-lg">
                 The revenue you&apos;re losing isn&apos;t showing up as churn.
               </h2>
-              <p className="m-0 text-body text-text-secondary">
+              <p className="m-0 text-subhead text-text-secondary">
                 Stripe&apos;s own data on failed payments and what happens next.
               </p>
             </div>
@@ -272,14 +272,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   <div className="mb-4 font-mono text-[2.75rem] font-semibold leading-none text-amber-text">
                     {item.stat}
                   </div>
-                  <p className="m-0 mb-4 flex-1 text-label leading-relaxed text-text-secondary">
+                  <p className="m-0 mb-4 flex-1 text-copy leading-[1.6] text-text-secondary">
                     {item.body}
                   </p>
                   <a
                     href={item.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="group font-mono text-micro text-text-subtle no-underline hover:text-text-tertiary"
+                    className="group font-mono text-source text-text-subtle no-underline hover:text-text-tertiary"
                   >
                     Source: {item.source}{" "}
                     <ArrowUpRight
@@ -301,10 +301,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         <div className="mx-auto max-w-[1100px]">
           <FadeUp>
             <div className="mb-12 text-center">
-              <h2 className="m-0 mb-3 text-2xl font-semibold tracking-tight text-text sm:text-3xl">
+              <h2 className="m-0 mb-3 text-section font-semibold tracking-[-0.02em] text-text sm:text-section-lg">
                 Stripe plus Foxhound
               </h2>
-              <p className="m-0 text-body text-text-secondary">What Stripe does, and what Foxhound adds on top.</p>
+              <p className="m-0 text-subhead text-text-secondary">What Stripe does, and what Foxhound adds on top.</p>
             </div>
           </FadeUp>
           <div className="flex flex-col gap-4">
@@ -313,7 +313,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 <div className="card-elevated rounded-[12px] border border-border bg-surface p-6">
                   <div className="mb-3 text-micro text-text-tertiary">Stripe does this</div>
                   <div className="mb-2 text-body font-medium text-text">{row.stripeTitle}</div>
-                  <p className="m-0 text-label leading-relaxed text-text-secondary">{row.stripeBody}</p>
+                  <p className="m-0 text-copy leading-[1.55] text-text-secondary">{row.stripeBody}</p>
                 </div>
                 <Link
                   to={row.foxhoundHref}
@@ -321,7 +321,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 >
                   <div className="mb-3 text-[0.75rem] font-medium text-amber-text">Foxhound adds this</div>
                   <div className="mb-2 text-body font-semibold text-text">{row.foxhoundTitle}</div>
-                  <p className="m-0 text-label leading-relaxed text-text-secondary">{row.foxhoundBody}</p>
+                  <p className="m-0 text-copy leading-[1.55] text-text-secondary">{row.foxhoundBody}</p>
                   <div className="mt-4 font-mono text-micro text-amber-text">
                     Learn more{" "}
                     <ArrowRight
@@ -345,7 +345,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             <p className="mb-6 text-center font-mono text-micro uppercase tracking-widest text-text-subtle">
               The gap Stripe leaves open
             </p>
-            <h2 className="m-0 text-center text-4xl font-semibold leading-none tracking-tight text-text sm:text-6xl lg:text-7xl">
+            <h2 className="m-0 text-center text-statement font-semibold leading-[1.0] tracking-[-0.04em] text-text sm:text-statement-md lg:text-statement-lg">
               <span className="font-mono">44%</span> of failed payments
               <br />
               <span className="text-amber-text">never come back.</span>
@@ -360,7 +360,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 href="https://stripe.com/billing"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group font-mono text-micro text-text-subtle no-underline hover:text-text-tertiary"
+                className="group font-mono text-source text-text-subtle no-underline hover:text-text-tertiary"
               >
                 Source: stripe.com/billing{" "}
                 <ArrowUpRight
@@ -380,10 +380,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         <div className="mx-auto max-w-[1100px]">
           <FadeUp>
             <div className="mb-12 text-center">
-              <h2 className="m-0 mb-3 text-2xl font-semibold tracking-tight text-text sm:text-3xl">
+              <h2 className="m-0 mb-3 text-section font-semibold tracking-[-0.02em] text-text sm:text-section-lg">
                 How it works
               </h2>
-              <p className="m-0 text-body text-text-secondary">Live in an afternoon. No code, no setup fees.</p>
+              <p className="m-0 text-subhead text-text-secondary">Live in an afternoon. No code, no setup fees.</p>
             </div>
           </FadeUp>
           <div className="grid grid-cols-1 overflow-hidden rounded-[12px] border border-border bg-surface md:grid-cols-3">
@@ -407,7 +407,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 className={`p-7 ${i < 2 ? "border-b border-border md:border-b-0 md:border-r" : ""}`}
               >
                 <div className="mb-2 text-body font-medium text-text">{s.title}</div>
-                <p className="m-0 text-label leading-relaxed text-text-secondary">{s.body}</p>
+                <p className="m-0 text-copy leading-[1.55] text-text-secondary">{s.body}</p>
               </FadeUp>
             ))}
           </div>
@@ -422,10 +422,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         <div className="mx-auto max-w-[1100px]">
           <FadeUp>
             <div className="mb-12 text-center">
-              <h2 className="m-0 mb-3 text-2xl font-semibold tracking-tight text-text sm:text-3xl">
+              <h2 className="m-0 mb-3 text-section font-semibold tracking-[-0.02em] text-text sm:text-section-lg">
                 Every fee shows its work
               </h2>
-              <p className="m-0 text-body text-text-secondary">
+              <p className="m-0 text-subhead text-text-secondary">
                 Each charge links back to the action that earned it. Recoveries Stripe would have made
                 on its own appear in the same ledger, marked free.
               </p>
@@ -444,10 +444,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         <div className="mx-auto max-w-[1100px]">
           <FadeUp>
             <div className="mb-10 text-center">
-              <h2 className="m-0 mb-3 text-2xl font-semibold tracking-tight text-text sm:text-3xl">
+              <h2 className="m-0 mb-3 text-section font-semibold tracking-[-0.02em] text-text sm:text-section-lg">
                 How much are you leaving on the table?
               </h2>
-              <p className="mx-auto m-0 max-w-[480px] text-body text-text-secondary">
+              <p className="mx-auto m-0 max-w-[480px] text-subhead text-text-secondary">
                 Adjust your MRR and see the estimate. Foxhound takes{" "}
                 <span className="font-mono">20%</span> of what it recovers. Nothing if it recovers nothing.
               </p>
@@ -464,10 +464,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         <div className="mx-auto max-w-[1100px]">
           <FadeUp>
             <div className="mb-12 text-center">
-              <h2 className="m-0 mb-3 text-2xl font-semibold tracking-tight text-text sm:text-3xl">
+              <h2 className="m-0 mb-3 text-section font-semibold tracking-[-0.02em] text-text sm:text-section-lg">
                 Start with recovery.
               </h2>
-              <p className="m-0 text-body text-text-secondary">Add the rest when you need it.</p>
+              <p className="m-0 text-subhead text-text-secondary">Add the rest when you need it.</p>
             </div>
           </FadeUp>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -483,7 +483,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       <Icon className="h-[18px] w-[18px] text-amber-text" strokeWidth={1.8} aria-hidden />
                     </div>
                     <div className="mb-1.5 text-body font-medium text-text">{p.name}</div>
-                    <p className="m-0 mb-4 text-label leading-relaxed text-text-secondary">{p.description}</p>
+                    <p className="m-0 mb-4 text-copy leading-[1.55] text-text-secondary">{p.description}</p>
                     <div className="font-mono text-label text-amber-text">{p.price}</div>
                   </Link>
                 </FadeUp>
@@ -498,10 +498,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         <div className="mx-auto max-w-[1100px]">
           <FadeUp>
             <div className="mb-10 text-center">
-              <h2 className="m-0 mb-3 text-2xl font-semibold tracking-tight text-text sm:text-3xl">
+              <h2 className="m-0 mb-3 text-section font-semibold tracking-[-0.02em] text-text sm:text-section-lg">
                 What a Foxhound recovery email looks like
               </h2>
-              <p className="mx-auto m-0 max-w-[480px] text-body text-text-secondary">
+              <p className="mx-auto m-0 max-w-[480px] text-subhead text-text-secondary">
                 Pick a decline type and generate a real one. Every account customizes its own brand voice.
               </p>
             </div>
@@ -517,7 +517,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         <div className="mx-auto max-w-[760px]">
           <FadeUp>
             <div className="mb-12 text-center">
-              <h2 className="m-0 mb-3 text-2xl font-semibold tracking-tight text-text sm:text-3xl">
+              <h2 className="m-0 mb-3 text-section font-semibold tracking-[-0.02em] text-text sm:text-section-lg">
                 Common questions
               </h2>
             </div>
@@ -602,7 +602,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       {/* Closing CTA */}
       <section className="border-t border-border-sub px-4 py-20 sm:px-8">
         <div className="mx-auto max-w-[760px] text-center">
-          <h2 className="m-0 mb-4 text-2xl font-semibold tracking-tight text-text sm:text-3xl">
+          <h2 className="m-0 mb-4 text-section font-semibold tracking-[-0.02em] text-text sm:text-section-lg">
             See what your Stripe account is leaking
           </h2>
           <p className="mx-auto m-0 mb-7 max-w-[560px] text-body leading-relaxed text-text-secondary">
