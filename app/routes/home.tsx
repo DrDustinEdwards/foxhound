@@ -97,28 +97,28 @@ const FAQS: { question: string; answer: string; node?: React.ReactNode }[] = [
         held for 30 or more days, at{" "}
         <Link
           to="/products/recovery"
-          className="text-text-secondary underline underline-offset-2 hover:text-amber-text"
+          className="text-amber-text underline underline-offset-2 transition-opacity duration-150 hover:opacity-80"
         >
           20%
         </Link>
         .{" "}
         <Link
           to="/products/disputes"
-          className="text-text-secondary underline underline-offset-2 hover:text-amber-text"
+          className="text-amber-text underline underline-offset-2 transition-opacity duration-150 hover:opacity-80"
         >
           Disputes
         </Link>{" "}
         are 20% of wins only, capped at $500 per dispute.{" "}
         <Link
           to="/products/intelligence"
-          className="text-text-secondary underline underline-offset-2 hover:text-amber-text"
+          className="text-amber-text underline underline-offset-2 transition-opacity duration-150 hover:opacity-80"
         >
           Intelligence
         </Link>
         &apos;s predictive layer is $199 per month flat.{" "}
         <Link
           to="/products/audit"
-          className="text-text-secondary underline underline-offset-2 hover:text-amber-text"
+          className="text-amber-text underline underline-offset-2 transition-opacity duration-150 hover:opacity-80"
         >
           Audit
         </Link>{" "}
@@ -165,7 +165,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 <br />
                 Foxhound recovers.
                 <br />
-                Not before.
+                <span className="text-amber-text">Not before.</span>
               </h1>
 
               <p className="m-0 mb-8 text-body leading-relaxed text-text-secondary">
@@ -269,7 +269,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             ].map((item, i) => (
               <FadeUp key={item.stat} delay={i * 100}>
                 <div className="flex h-full flex-col rounded-[12px] border border-border bg-surface p-6">
-                  <div className="mb-4 font-mono text-4xl font-semibold leading-none text-text">
+                  <div className="mb-4 font-mono text-[2.75rem] font-semibold leading-none text-amber-text">
                     {item.stat}
                   </div>
                   <p className="m-0 mb-4 flex-1 text-label leading-relaxed text-text-secondary">
@@ -319,7 +319,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   to={row.foxhoundHref}
                   className="group block rounded-[12px] border border-border bg-surface p-6 hover:border-border-i"
                 >
-                  <div className="mb-3 font-mono text-micro text-text-tertiary">Foxhound adds this</div>
+                  <div className="mb-3 text-[0.75rem] font-medium text-amber-text">Foxhound adds this</div>
                   <div className="mb-2 text-body font-semibold text-text">{row.foxhoundTitle}</div>
                   <p className="m-0 text-label leading-relaxed text-text-secondary">{row.foxhoundBody}</p>
                   <div className="mt-4 font-mono text-micro text-amber-text">
@@ -480,7 +480,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     className="block h-full rounded-[12px] border border-border bg-surface p-6 hover:border-border-i"
                   >
                     <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-surface2">
-                      <Icon className="h-[18px] w-[18px] text-text-secondary" strokeWidth={1.8} aria-hidden />
+                      <Icon className="h-[18px] w-[18px] text-amber-text" strokeWidth={1.8} aria-hidden />
                     </div>
                     <div className="mb-1.5 text-body font-medium text-text">{p.name}</div>
                     <p className="m-0 mb-4 text-label leading-relaxed text-text-secondary">{p.description}</p>
