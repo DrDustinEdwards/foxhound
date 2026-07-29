@@ -9,9 +9,20 @@ import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/index";
 
-// Ported from legacy app/(marketing)/products/page.tsx (Phase 6 Pass 1).
-// This is now the single /products/* index (task: collapse legacy's three
-// duplicate trees, /product/*, /products, /features, onto one pattern).
+// Ported from legacy app/(marketing)/products/page.tsx (Phase 6 Pass 1),
+// treatment restored to legacy by the M5 parity walk (2026-07-29).
+//
+// The Phase 6 note that used to sit here, that this is "the single /products/*
+// index" collapsing legacy's three trees, is REVOKED: ruling 55 reverts the
+// spoke URLs to legacy's /product/*, and the hrefs in lib/marketing/products.ts
+// change in that commit, not this one.
+//
+// Card descriptions, prices and the meta description all diverge from legacy
+// and all carry product-capability or pricing claims, so they are FROZEN for
+// ruling 20d's copy-accuracy pass and are deliberately untouched here. The
+// price/priceLabel split is the same: legacy renders one amber mono string,
+// Foxhound splits the claim across two elements. Only the price element's
+// COLOR is a treatment item, and that is what this walk fixed.
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return marketingMeta({
@@ -40,7 +51,7 @@ export default function ProductsIndexPage() {
     <>
       <MarketingPageHeader eyebrow="Products" title="Four products" subtext="Use them independently or together." />
 
-      <main className="mx-auto max-w-3xl px-4 pb-16 sm:px-8">
+      <main className="mx-auto max-w-[720px] px-5 pb-16 sm:px-8">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {Object.values(PRODUCTS).map((p) => {
             const Icon = ICONS[p.key];
@@ -48,14 +59,14 @@ export default function ProductsIndexPage() {
               <Link
                 key={p.key}
                 to={p.href}
-                className="group block rounded-lg border border-border bg-surface p-5 hover:border-border-i"
+                className="group block rounded-lg border border-border bg-surface p-5 transition-all duration-150 hover:-translate-y-1 hover:border-amber"
               >
                 <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-surface2">
-                  <Icon className="h-[18px] w-[18px] text-text-secondary" strokeWidth={1.8} aria-hidden />
+                  <Icon className="h-[18px] w-[18px] text-amber-text" strokeWidth={1.8} aria-hidden />
                 </div>
-                <div className="mb-2 text-body font-medium text-text">{p.name}</div>
+                <div className="mb-2 text-item-title font-medium text-text">{p.name}</div>
                 <div className="mb-3 text-label leading-relaxed text-text-secondary">{p.description}</div>
-                <div className="mb-4 font-mono text-label text-text">
+                <div className="mb-4 font-mono text-label text-amber-text">
                   {p.price}
                   {p.priceLabel ? <span className="text-text-tertiary"> {p.priceLabel}</span> : null}
                 </div>
