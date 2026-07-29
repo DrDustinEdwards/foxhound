@@ -9,7 +9,7 @@ import {
   ProductPricing,
 } from "~/components/product-sections";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { siteUrl } from "~/lib/seo/jsonld";
+import { siteUrl, speakableWebPageJsonLd } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/audit";
@@ -133,19 +133,15 @@ const BLOCKS = [
   },
 ];
 
-export default function AuditProductPage() {
+export default function AuditProductPage({ loaderData }: Route.ComponentProps) {
+  const { siteUrl: url } = loaderData;
+
   return (
     <>
       <ProductHero
         productName="Audit"
         Icon={ScanSearch}
-        headline={
-          <>
-            See what your Stripe account is leaking.
-            <br />
-            Free.
-          </>
-        }
+        headline="See what your Stripe account is leaking. Free."
         sub="A full diagnostic across failed invoices, expiring cards, open disputes, and business health. No signup, no credit card, and it writes nothing back to Stripe."
         pricing="Always free · No account required · The audit only reads"
         primaryCTA={{ href: "/audit", label: "Run your free audit" }}
@@ -172,6 +168,23 @@ export default function AuditProductPage() {
         ctaHref="/audit"
         ctaLabel="Run your free audit"
         note="No account required · Results in 30 seconds"
+      />
+      {/* SpeakableSpecification. The selectors point at classes injected by
+          product-sections.tsx, which is why the classes and this script have to
+          land together. Legacy carries the same three on every spoke; M7 to M9
+          inherit the classes from the shared component but still need their own
+          script, and their pages are not read yet. */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(
+            speakableWebPageJsonLd(url, {
+              name: "Audit - Foxhound",
+              path: "/products/audit",
+              selectors: [".speakable-hero", ".speakable-description", ".speakable-features"],
+            }),
+          ),
+        }}
       />
     </>
   );
