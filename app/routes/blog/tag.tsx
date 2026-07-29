@@ -60,7 +60,8 @@ export default function BlogTagPage({ loaderData }: Route.ComponentProps) {
         </p>
       </div>
 
-      <main className="mx-auto max-w-5xl px-4 py-12 sm:px-8">
+      {/* div, not main: marketing.tsx already renders this page's one main landmark. */}
+      <div className="mx-auto max-w-5xl px-4 py-12 sm:px-8">
         {posts.length === 0 ? (
           <p className="text-center text-body text-text-secondary">No articles tagged {label} yet.</p>
         ) : (
@@ -70,7 +71,7 @@ export default function BlogTagPage({ loaderData }: Route.ComponentProps) {
             ))}
           </div>
         )}
-      </main>
+      </div>
 
       <script
         type="application/ld+json"

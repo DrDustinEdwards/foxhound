@@ -87,7 +87,8 @@ export default function TermsPage() {
     <>
       <MarketingPageHeader eyebrow="Legal" title="Terms of Service" subtext="Last updated July 18, 2026" />
 
-      <main className="mx-auto max-w-2xl px-4 pb-16 sm:px-8">
+      {/* div, not main: marketing.tsx already renders this page's one main landmark. */}
+      <div className="mx-auto max-w-2xl px-4 pb-16 sm:px-8">
         <section className="mb-12">
           <h2 className="mb-3 font-mono text-micro uppercase tracking-wide text-text-tertiary">Contents</h2>
           <ol className="m-0 grid grid-cols-1 gap-x-6 gap-y-1.5 p-0 sm:grid-cols-2">
@@ -516,7 +517,7 @@ export default function TermsPage() {
             </Link>
           </P>
         </Section>
-      </main>
+      </div>
     </>
   );
 }

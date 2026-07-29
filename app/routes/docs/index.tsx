@@ -36,7 +36,8 @@ export default function DocsIndexPage() {
     <>
       <MarketingPageHeader eyebrow="User guides" title="Documentation" subtext="Documentation for the Foxhound platform." />
 
-      <main className="mx-auto max-w-2xl px-4 pb-16 sm:px-8">
+      {/* div, not main: marketing.tsx already renders this page's one main landmark. */}
+      <div className="mx-auto max-w-2xl px-4 pb-16 sm:px-8">
         <div className="flex flex-col gap-4">
           <Link
             to={`/docs/${platform.slug}`}
@@ -98,7 +99,7 @@ export default function DocsIndexPage() {
             />
           </Link>
         </div>
-      </main>
+      </div>
     </>
   );
 }
