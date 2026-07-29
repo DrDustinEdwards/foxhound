@@ -214,14 +214,8 @@ export function ProductPricing({
           <ul className="m-0 mb-8 list-none space-y-3 p-0">
             {points.map((point) => (
               <li key={point} className="flex items-start gap-3 text-copy text-text-secondary">
-                {/* Legacy writes this glyph as a numeric HTML entity. Written
-                    as the literal U+2713 character instead, because
-                    check-tokens.mjs's hex-color matcher reads that entity's
-                    digits as a hex color literal and blocks the write. Same
-                    rendered character. The over-broad matcher is reported
-                    rather than patched from inside a parity commit. */}
                 <span aria-hidden="true" className="mt-0.5 flex-shrink-0 text-green">
-                  {"✓"}
+                  &#10003;
                 </span>
                 <span>{point}</span>
               </li>
