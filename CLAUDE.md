@@ -3,6 +3,24 @@
 Working directory is the `foxhound` repo ONLY. This repo is the Cloudflare-native rebuild;
 the legacy Recova app is a separate, frozen repo (`DrDustinEdwards/recova`).
 
+## PRIME DIRECTIVE (Dustin, verbatim intent, 2026-07-27)
+
+**"I want the new site to be like the old site, except built to be native on Cloudflare."**
+
+This outranks every rule below. For every user-facing surface (marketing, auth, app shell,
+product pages, emails) LEGACY IS THE SPEC: pixel treatment, interaction behavior and
+information architecture match legacy source unless a ruling in Capsid `recova/parity/
+DECISIONS.md` records Dustin's ratification of the divergence.
+
+Only three divergence classes need no per-item ratification: internals required by the
+Cloudflare-native stack and invisible to the user; Foxhound branding where canon already
+defines it; and truthfulness fixes where legacy copy lied. Anything recorded anywhere as a
+"deliberate improvement" or a "locked decision" WITHOUT a quoted Dustin ratification is a
+re-opened parity defect, not a decision, and is corrected toward legacy rather than defended.
+
+The ratified list is CLOSED and lives in DECISIONS.md's PRIME DIRECTIVE item 3. No agent adds
+to it. Fix direction is a ruling, never an agent default.
+
 ## Session ritual
 
 Start: read `capsid/conventions.md` (portfolio canon), then `recova/core.md` (the namespace key
@@ -15,8 +33,10 @@ End: write a `session-YYYY-MM-DD.md` episodic (type `episodic`, under ~2KB) to t
 
 Canon lives in Capsid, not in this repo. `docs/canon/` is deprecated and holds pointer stubs only.
 Do not restore document content there: it drifted from Capsid once already (the repo copies were
-missing the Charts decision and the single-account rule, and carried em dashes that Capsid strips
-on write).
+missing the Charts decision and the then-current single-account rule, and carried em dashes that
+Capsid strips on write). That single-account rule was REVOKED by ruling 53 on 2026-07-27:
+multi-account is the product. It survives in this sentence only as evidence that repo copies
+drift, never as a live constraint.
 
 Portfolio-wide rules (git attribution, writing style, agent conduct, design tokens, secrets
 hygiene) are in `capsid/conventions.md`. This file holds only what is true of this repo.
