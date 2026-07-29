@@ -10,7 +10,7 @@ import {
   ProductPricing,
 } from "~/components/product-sections";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { siteUrl } from "~/lib/seo/jsonld";
+import { siteUrl, speakableWebPageJsonLd } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/recovery";
@@ -143,19 +143,15 @@ const BLOCKS = [
   },
 ];
 
-export default function RecoveryProductPage() {
+export default function RecoveryProductPage({ loaderData }: Route.ComponentProps) {
+  const { siteUrl: url } = loaderData;
+
   return (
     <>
       <ProductHero
         productName="Recovery"
         Icon={RefreshCw}
-        headline={
-          <>
-            <span className="font-mono">20%</span> of what Foxhound recovers.
-            <br />
-            Nothing Stripe would have gotten anyway.
-          </>
-        }
+        headline={"20% of what Foxhound recovers.\nNothing Stripe would have gotten anyway."}
         sub="Silent retries first, then AI-drafted email sequences across 30 days. Four decline categories, four different sequences. Nothing is billed until the recovery has matured for 30 days."
         pricing="20% of Foxhound-attributed recoveries · No monthly fee · Baseline recoveries are free"
         primaryCTA={{ href: "/audit", label: "Run your free audit" }}
@@ -185,6 +181,20 @@ export default function RecoveryProductPage() {
         ctaHref="/audit"
         ctaLabel="Run your free audit"
         note="No account required · No Stripe connection needed · Takes 30 seconds"
+      />
+      {/* SpeakableSpecification. The selectors point at classes injected by
+          product-sections.tsx. Legacy carries this on every spoke. */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(
+            speakableWebPageJsonLd(url, {
+              name: "Recovery - Foxhound",
+              path: "/products/recovery",
+              selectors: [".speakable-hero", ".speakable-description", ".speakable-features"],
+            }),
+          ),
+        }}
       />
     </>
   );
