@@ -196,7 +196,7 @@ export default function PricingPage() {
           <ul className="m-0 flex list-none flex-col gap-3 p-0">
             {FAQS.map((faq) => (
               <li key={faq.question} className="rounded-[12px] border border-border bg-surface p-6">
-                <div className="mb-2 text-subhead font-medium text-text">{faq.question}</div>
+                <div className="mb-2 text-item-title font-medium text-text">{faq.question}</div>
                 <p className="m-0 text-copy leading-[1.6] text-text-secondary">{faq.answer}</p>
               </li>
             ))}

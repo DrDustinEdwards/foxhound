@@ -160,7 +160,8 @@
        statement-lg    4.5rem      that h2 at lg
        card-title      1.125rem    plan/product card name
        price           2.5rem      price figure
-       subhead         0.9375rem   section subtitles under an h2
+       item-title      0.9375rem   card name, FAQ question, h3 subheading
+       subhead         0.9375rem   section subtitles under an h2, header subtext
        copy            0.875rem    card and paragraph body
        caption         0.75rem     small labels
        source          0.625rem    source attribution links
@@ -172,6 +173,21 @@
      the FAQ heading's sm step (1.75rem, already --text-section) and not its
      1.5rem base. card-title and Tailwind's stock text-lg coincide at 1.125rem;
      the token exists so the value is ours rather than a framework default.
+
+     item-title arrived with the M5 /products walk (Dustin, 2026-07-29). It
+     carries the SAME 0.9375rem as subhead because legacy runs one value across
+     two roles, and the roles are what the token set names. A complete
+     non-truncated scan of legacy app/(marketing) returns 15 carriers of
+     text-[0.9375rem] font-medium text-text: the products card name
+     (products/page.tsx:82), the pricing FAQ question (pricing/page.tsx:184),
+     docs index card titles (docs/page.tsx:77,:94), the h3 of all five docs
+     guides, blog post-detail item titles (PostDetailBody.tsx:182,:195,:235),
+     the home blog-card h3 (page.tsx:578), and the privacy and terms h3s. That
+     is an item title, not a section subtitle, so it gets its own name rather
+     than borrowing subhead's because the numbers coincide. The pricing FAQ
+     question moved off subhead in the same commit; subhead keeps the header
+     subtext, the home section subtitles and the home hero buttons. Twelve
+     further legacy carriers land here as M11 to M21 are walked.
 
      page-title arrived with the shared marketing header row (legacy
      components/MarketingPageHeader.tsx:44, its h1). It is deliberately not
@@ -202,6 +218,7 @@
   --text-statement-lg: 4.5rem;
   --text-card-title: 1.125rem;
   --text-price: 2.5rem;
+  --text-item-title: 0.9375rem;
   --text-subhead: 0.9375rem;
   --text-copy: 0.875rem;
   --text-caption: 0.75rem;
