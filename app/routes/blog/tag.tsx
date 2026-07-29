@@ -61,11 +61,11 @@ export default function BlogTagPage({ loaderData }: Route.ComponentProps) {
       </div>
 
       {/* div, not main: marketing.tsx already renders this page's one main landmark. */}
-      <div className="mx-auto max-w-5xl px-4 py-12 sm:px-8">
+      <div className="mx-auto max-w-[1100px] px-5 py-16 sm:px-8">
         {posts.length === 0 ? (
           <p className="text-center text-body text-text-secondary">No articles tagged {label} yet.</p>
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {posts.map((post) => (
               <BlogPostCard key={post.slug} post={post} />
             ))}

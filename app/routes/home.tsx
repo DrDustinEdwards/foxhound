@@ -1,7 +1,6 @@
 import { ArrowRight, ArrowUpRight, RefreshCw, ScanSearch, Shield, TrendingUp } from "lucide-react";
 import { Link } from "react-router";
 
-import { BlogPostCard } from "~/components/blog/blog-post-card";
 import { EmailSamples } from "~/components/email-samples";
 import { FadeUp } from "~/components/fade-up";
 import { FaqAccordion } from "~/components/faq-accordion";
@@ -572,7 +571,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           (listPublishedPosts, same as the perf remediation and the blog
           index's own sections), never the full-body select. */}
       {latestPosts.length > 0 ? (
-        <section className="border-t border-border-sub bg-surface px-4 py-16 sm:px-8">
+        <section className="border-t border-border-sub bg-surface px-5 py-16 sm:px-8">
           <div className="mx-auto max-w-[1100px]">
             <FadeUp>
               <div className="mb-8 flex items-center justify-between">
@@ -591,12 +590,38 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   />
                 </Link>
               </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                {latestPosts.map((post) => (
-                  <BlogPostCard key={post.slug} post={post} />
-                ))}
-              </div>
             </FadeUp>
+            {/* Home's blog card is NOT the shared BlogPostCard (M3 divergence
+                35, resolved with M3b). Legacy hand-rolls a different card here:
+                bg-bg on a bg-surface section, a 10px radius, a hover lift, a
+                plain mono de-hyphenated tag rather than a capitalised pill, an
+                item-title h3, and NO excerpt. Legacy's own BlogPostCard.tsx is
+                consumed only by /blog and /blog/tag, verified from call sites.
+                Ruling 63: a faithful component does not license applying it
+                where legacy did not. Legacy also reveals each card separately,
+                staggered 80ms, rather than revealing the whole grid at once. */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              {latestPosts.map((post, i) => (
+                <FadeUp key={post.slug} delay={i * 80}>
+                  <Link
+                    to={`/blog/${post.slug}`}
+                    className="hover-spring flex h-full flex-col gap-3 rounded-[10px] border border-border bg-bg p-5 no-underline hover:-translate-y-1 hover:border-amber"
+                  >
+                    {post.tags[0] ? (
+                      <div className="font-mono text-micro text-text-tertiary">
+                        {post.tags[0].replace(/-/g, " ")}
+                      </div>
+                    ) : null}
+                    <h3 className="m-0 line-clamp-2 text-item-title font-medium leading-snug text-text">
+                      {post.title}
+                    </h3>
+                    <span className="mt-auto font-mono text-micro text-text-tertiary">
+                      {post.readingTimeMinutes} min read
+                    </span>
+                  </Link>
+                </FadeUp>
+              ))}
+            </div>
           </div>
         </section>
       ) : null}
