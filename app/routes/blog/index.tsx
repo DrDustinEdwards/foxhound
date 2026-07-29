@@ -79,7 +79,7 @@ export default function BlogIndexPage({ loaderData }: Route.ComponentProps) {
 
   return (
     <div>
-      <div className="mx-auto max-w-5xl px-4 pb-6 pt-16 sm:px-8">
+      <div className="mx-auto max-w-[1080px] px-5 pb-10 pt-16 sm:px-8">
         <FadeUp>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -136,7 +136,7 @@ export default function BlogIndexPage({ loaderData }: Route.ComponentProps) {
 function BlogHero({ post }: { post: BlogPostSummary }) {
   return (
     <section className="border-b border-border-sub bg-surface">
-      <div className="mx-auto grid max-w-5xl grid-cols-1 items-center gap-8 px-4 py-12 sm:px-8 lg:grid-cols-2 lg:py-16">
+      <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-8 px-4 py-12 sm:px-6 lg:grid-cols-2 lg:px-8 lg:py-16">
         <div>
           <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Featured</p>
           <h2 className="mt-3 text-title font-medium leading-tight text-text">
@@ -196,7 +196,7 @@ function BlogHero({ post }: { post: BlogPostSummary }) {
 function BlogSection({ section, posts }: { section: BlogSectionConfig; posts: BlogPostSummary[] }) {
   return (
     <section className="border-b border-border-sub">
-      <div className="mx-auto max-w-5xl px-4 py-10 sm:px-8">
+      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="font-mono text-micro uppercase tracking-wide text-amber-text">{section.label}</p>
@@ -228,7 +228,7 @@ function BlogSection({ section, posts }: { section: BlogSectionConfig; posts: Bl
 function BlogLatestStrip({ posts }: { posts: BlogPostSummary[] }) {
   return (
     <section>
-      <div className="mx-auto max-w-5xl px-4 py-10 sm:px-8">
+      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
         <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Latest</p>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {posts.map((post) => (
