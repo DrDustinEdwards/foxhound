@@ -10,7 +10,7 @@ import {
   ProductPricing,
 } from "~/components/product-sections";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { siteUrl } from "~/lib/seo/jsonld";
+import { siteUrl, speakableWebPageJsonLd } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/disputes";
@@ -144,19 +144,15 @@ const BLOCKS = [
   },
 ];
 
-export default function DisputesProductPage() {
+export default function DisputesProductPage({ loaderData }: Route.ComponentProps) {
+  const { siteUrl: url } = loaderData;
+
   return (
     <>
       <ProductHero
         productName="Disputes"
         Icon={Shield}
-        headline={
-          <>
-            Evidence drafted for you.
-            <br />
-            You review and sign every submission.
-          </>
-        }
+        headline={"Evidence drafted for you.\nYou review and sign every submission."}
         sub="When a dispute opens, Foxhound drafts evidence from your recovery history, Stripe signals, and transaction data. A human on your team reviews and approves it before anything reaches Stripe."
         pricing="20% of won disputes, capped at $500 · Nothing on losses or accepted disputes"
         primaryCTA={{ href: "/connect", label: "Connect Stripe" }}
@@ -184,6 +180,20 @@ export default function DisputesProductPage() {
         ctaHref="/connect"
         ctaLabel="Connect Stripe"
         note="Evidence reaches Stripe only after you approve it · 20% only when you win, capped at $500"
+      />
+      {/* SpeakableSpecification. The selectors point at classes injected by
+          product-sections.tsx. Legacy carries this on every spoke. */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(
+            speakableWebPageJsonLd(url, {
+              name: "Disputes - Foxhound",
+              path: "/products/disputes",
+              selectors: [".speakable-hero", ".speakable-description", ".speakable-features"],
+            }),
+          ),
+        }}
       />
     </>
   );

@@ -11,7 +11,7 @@ import {
   ProductPricing,
 } from "~/components/product-sections";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { siteUrl } from "~/lib/seo/jsonld";
+import { siteUrl, speakableWebPageJsonLd } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/intelligence";
@@ -132,19 +132,15 @@ const BLOCKS = [
   },
 ];
 
-export default function IntelligenceProductPage() {
+export default function IntelligenceProductPage({ loaderData }: Route.ComponentProps) {
+  const { siteUrl: url } = loaderData;
+
   return (
     <>
       <ProductHero
         productName="Intelligence"
         Icon={TrendingUp}
-        headline={
-          <>
-            MRR analytics, free.
-            <br />
-            Predictive risk scoring, <span className="font-mono">$199/mo</span>.
-          </>
-        }
+        headline={"MRR analytics, free.\nPredictive risk scoring, $199/mo."}
         sub="MRR, movements, churn, and cohort analytics come free with every Recovery account. The predictive risk layer that flags at-risk customers before they churn is the paid upgrade on top."
         pricing="Free MRR analytics for Recovery merchants · $199/mo for predictive risk scoring"
         primaryCTA={{ href: "/audit", label: "Run your free audit" }}
@@ -171,6 +167,20 @@ export default function IntelligenceProductPage() {
         ctaHref="/audit"
         ctaLabel="Run your free audit"
         note="MRR analytics are free with Recovery, no separate signup"
+      />
+      {/* SpeakableSpecification. The selectors point at classes injected by
+          product-sections.tsx. Legacy carries this on every spoke. */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(
+            speakableWebPageJsonLd(url, {
+              name: "Intelligence - Foxhound",
+              path: "/products/intelligence",
+              selectors: [".speakable-hero", ".speakable-description", ".speakable-features"],
+            }),
+          ),
+        }}
       />
     </>
   );

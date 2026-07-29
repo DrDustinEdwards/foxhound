@@ -2,8 +2,6 @@ import { ArrowRight } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Link } from "react-router";
 
-import { FaqAccordion } from "~/components/faq-accordion";
-
 // Shared building blocks for the four /products/* pages, ported from legacy
 // components/product/ProductSections.tsx. All four spokes delegate every pixel
 // of chrome to this file, exactly as legacy's own header comment says they do,
@@ -42,7 +40,7 @@ export function ProductHero({
 }: {
   productName: string;
   Icon: LucideIcon;
-  headline: React.ReactNode;
+  headline: string;
   sub: string;
   pricing: string;
   primaryCTA: CTA;
@@ -233,19 +231,11 @@ export function ProductPricing({
   );
 }
 
-// NOT ported toward legacy: see the file-header note. Legacy re-exports its own
-// ProductFAQ.tsx from the same barrel and that file has not been read, so this
-// keeps its pre-walk treatment rather than guessing. Divergence 38 stays open.
-export function ProductFAQ({ faqs }: { faqs: { q: string; a: React.ReactNode }[] }) {
-  return (
-    <section className="border-b border-border-sub px-4 py-16 sm:px-8">
-      <div className="mx-auto max-w-2xl">
-        <h2 className="mb-8 text-center text-title font-medium text-text">Questions</h2>
-        <FaqAccordion faqs={faqs.map((f) => ({ question: f.q, answer: f.a }))} />
-      </div>
-    </section>
-  );
-}
+// Re-exported from ./product-faq, mirroring legacy's own barrel re-export of
+// components/product/ProductFAQ.tsx. Divergence 38 CLOSED: legacy's per-product
+// accordion is a different component from its home-page one, and the spokes now
+// render the per-product one. See product-faq.tsx for why.
+export { ProductFAQ } from "~/components/product-faq";
 
 export function BottomCTA({
   title,
