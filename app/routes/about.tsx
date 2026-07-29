@@ -32,7 +32,8 @@ export default function AboutPage({ loaderData }: Route.ComponentProps) {
         subtext="Foxhound is a small, US company built on Stripe Connect."
       />
 
-      <main className="mx-auto max-w-2xl px-4 pb-20 sm:px-8">
+      {/* div, not main: marketing.tsx already renders this page's one main landmark. */}
+      <div className="mx-auto max-w-2xl px-4 pb-20 sm:px-8">
         <div className="flex flex-col gap-6 text-body leading-relaxed text-text-secondary">
           <p>
             Foxhound is built and run by Dustin Edwards. It started as a rebuild of an earlier payment
@@ -59,7 +60,7 @@ export default function AboutPage({ loaderData }: Route.ComponentProps) {
             .
           </p>
         </div>
-      </main>
+      </div>
 
       {/* personJsonLd's worksFor references the Organization node by @id
           (jsonld.ts); that node must actually be emitted on this page or

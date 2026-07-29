@@ -51,7 +51,8 @@ export default function ProductsIndexPage() {
     <>
       <MarketingPageHeader eyebrow="Products" title="Four products" subtext="Use them independently or together." />
 
-      <main className="mx-auto max-w-[720px] px-5 pb-16 sm:px-8">
+      {/* div, not main: marketing.tsx already renders this page's one main landmark. */}
+      <div className="mx-auto max-w-[720px] px-5 pb-16 sm:px-8">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {Object.values(PRODUCTS).map((p) => {
             const Icon = ICONS[p.key];
@@ -83,7 +84,7 @@ export default function ProductsIndexPage() {
             );
           })}
         </div>
-      </main>
+      </div>
     </>
   );
 }
