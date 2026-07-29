@@ -1,14 +1,30 @@
+import { ArrowRight } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Link } from "react-router";
 
-import { FadeUp } from "~/components/fade-up";
 import { FaqAccordion } from "~/components/faq-accordion";
 
 // Shared building blocks for the four /products/* pages, ported from legacy
-// components/product/ProductSections.tsx (Phase 6 Pass 1). Each block is
-// deliberately limited to at most one amber accent (the primary CTA
-// button), per DESIGN.md's one-amber-per-card rule; the legacy version put
-// amber on the icon, the price, and the CTA at once.
+// components/product/ProductSections.tsx. All four spokes delegate every pixel
+// of chrome to this file, exactly as legacy's own header comment says they do,
+// so a change here reaches M6 to M9 at once.
+//
+// Ruling 67 (Dustin, 2026-07-29): the amber accents legacy puts on the hero
+// pill icon, the step numerals and the pricing checkmarks are RESTORED. This
+// file previously recorded dropping them as deliberate, citing DESIGN.md's
+// one-amber-per-card rule. That rule was itself ported from legacy's color
+// system, so where legacy's shipped pages exceed it, legacy shipped the render,
+// and the render is the spec.
+//
+// Ruling 60's fifth data point lives here too: legacy runs FIVE container
+// widths inside this ONE component (680 hero, 760 how-it-works, 1100 feature
+// blocks, 480 pricing, 480 bottom CTA). The width check is per-SECTION, not
+// merely per-surface. Do not collapse these onto a shared value.
+//
+// ProductFAQ below is deliberately NOT ported: legacy components/product/
+// ProductFAQ.tsx has not been read, and ruling 63 governs (match legacy per
+// surface; a faithful component does not license applying it where legacy did
+// not). It keeps its pre-walk treatment until that file is read.
 
 interface CTA {
   href: string;
@@ -33,27 +49,47 @@ export function ProductHero({
   secondaryCTA: CTA;
 }) {
   return (
-    <section className="border-b border-border-sub px-4 py-16 sm:px-8 sm:py-20">
-      <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
-        <div className="mb-5 inline-flex h-11 w-11 items-center justify-center rounded-lg bg-surface2">
-          <Icon className="h-5 w-5 text-text-secondary" strokeWidth={1.8} aria-hidden />
+    <section className="speakable-hero border-b border-border px-5 py-20 text-center sm:px-8">
+      <div className="mx-auto max-w-[680px]">
+        <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 font-mono text-micro font-medium text-text-tertiary">
+          <Icon className="h-3 w-3 flex-shrink-0 text-amber-text" strokeWidth={2} aria-hidden />
+          {productName}
         </div>
-        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">{productName}</p>
-        <h1 className="mt-3 text-3xl font-semibold leading-tight text-text sm:text-4xl">{headline}</h1>
-        <p className="mt-4 max-w-xl text-body text-text-secondary">{sub}</p>
-        <p className="mt-4 font-mono text-micro text-text-subtle">{pricing}</p>
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+        {/* whitespace-pre-line is legacy's mechanism: a headline opts into a
+            line break by embedding a literal newline in a plain string.
+            Divergence 7 is NOT closed, and cannot be by reverting the prop
+            type. Foxhound's recovery and intelligence spokes embed an inline
+            <span className="font-mono"> inside the headline, which legacy's
+            string contract cannot express, so tightening this to string would
+            silently strip mono treatment from two pages this walk has not read.
+            Whether legacy's own recovery and intelligence headlines carry those
+            spans is an M7/M9 question. The class stays because a string
+            headline (audit passes one) uses it exactly as legacy does. */}
+        <h1 className="mb-4 whitespace-pre-line text-product-hero font-medium leading-[1.1] tracking-tight text-text">
+          {headline}
+        </h1>
+        <p className="speakable-description mx-auto mb-3 max-w-[520px] text-product-sub leading-relaxed text-text-secondary">
+          {sub}
+        </p>
+        <p className="mb-8 font-mono text-label text-text-tertiary">{pricing}</p>
+        <div className="flex flex-wrap items-center justify-center gap-4">
           <Link
             to={primaryCTA.href}
-            className="rounded-md bg-amber px-5 py-2.5 text-label font-semibold text-on-amber hover:bg-amber-dark"
+            className="btn-primary inline-flex items-center gap-2 rounded-lg px-6 py-3 text-subhead font-medium text-on-amber"
           >
             {primaryCTA.label}
           </Link>
           <Link
             to={secondaryCTA.href}
-            className="rounded-md border border-border-i px-5 py-2.5 text-label font-medium text-text-secondary hover:text-text"
+            className="group text-subhead text-text-secondary transition-colors hover:text-text"
           >
-            {secondaryCTA.label}
+            {secondaryCTA.label}{" "}
+            <ArrowRight
+              className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
+              size={13}
+              strokeWidth={1.5}
+              aria-hidden
+            />
           </Link>
         </div>
       </div>
@@ -63,18 +99,17 @@ export function ProductHero({
 
 export function HowItWorks({ steps }: { steps: { title: string; body: React.ReactNode }[] }) {
   return (
-    <section className="border-b border-border-sub px-4 py-16 sm:px-8">
-      <div className="mx-auto max-w-5xl">
-        <h2 className="mb-8 text-center text-title font-medium text-text">How it works</h2>
-        <div className="grid grid-cols-1 overflow-hidden rounded-lg border border-border bg-surface sm:grid-cols-3">
+    <section className="border-b border-border px-5 py-16 sm:px-8">
+      <div className="mx-auto max-w-[760px]">
+        <h2 className="mb-10 text-center text-micro font-medium uppercase tracking-widest text-text-tertiary">
+          How it works
+        </h2>
+        <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">
           {steps.map((step, i) => (
-            <div
-              key={step.title}
-              className={`p-6 ${i < steps.length - 1 ? "border-b border-border sm:border-b-0 sm:border-r" : ""}`}
-            >
-              <p className="font-mono text-micro text-text-subtle">Step {i + 1}</p>
-              <p className="mt-2 text-body font-medium text-text">{step.title}</p>
-              <p className="mt-2 text-label leading-relaxed text-text-secondary">{step.body}</p>
+            <div key={step.title}>
+              <div className="mb-3 font-mono text-micro text-amber-text">0{i + 1}</div>
+              <h3 className="mb-2 text-item-title font-medium text-text">{step.title}</h3>
+              <p className="text-copy leading-relaxed text-text-secondary">{step.body}</p>
             </div>
           ))}
         </div>
@@ -83,39 +118,69 @@ export function HowItWorks({ steps }: { steps: { title: string; body: React.Reac
   );
 }
 
+export interface ProductFeatureBlock {
+  eyebrow: string;
+  title: string;
+  body: React.ReactNode;
+  ui?: React.ReactNode;
+  // Wraps the whole block (text + UI) in a lifted surface card. Legacy uses it
+  // on the middle block of each spoke so the section reads as three beats with
+  // the centre elevated.
+  lifted?: boolean;
+  // Tall UI (payments table, disputes table). Adds a fixed max-height with
+  // vertical scroll so the page does not chase the table height, and pins
+  // horizontal overflow off so the inner table cannot leak sideways.
+  tall?: boolean;
+}
+
 export function FeatureBlocks({
   sectionLabel,
   blocks,
 }: {
   sectionLabel: string;
-  blocks: { eyebrow: string; title: string; body: React.ReactNode; ui?: React.ReactNode }[];
+  blocks: ProductFeatureBlock[];
 }) {
   return (
-    <section className="border-b border-border-sub px-4 py-16 sm:px-8">
-      <div className="mx-auto max-w-5xl">
-        <p className="mb-8 text-center font-mono text-micro uppercase tracking-wide text-text-tertiary">
-          {sectionLabel}
-        </p>
-        <div className="flex flex-col gap-6">
-          {blocks.map((block) => (
-            <FadeUp
-              key={block.title}
-              className="grid grid-cols-1 overflow-hidden rounded-lg border border-border bg-surface sm:grid-cols-2"
-            >
-              <div className="flex flex-col justify-center p-6 sm:p-8">
-                <p className="font-mono text-micro uppercase tracking-wide text-amber-text">
-                  {block.eyebrow}
-                </p>
-                <h3 className="mt-2 text-title font-medium text-text">{block.title}</h3>
-                <div className="mt-3 text-label leading-relaxed text-text-secondary">{block.body}</div>
-              </div>
-              {block.ui ? (
-                <div className="flex items-center justify-center border-t border-border-sub bg-bg p-4 sm:border-l sm:border-t-0">
-                  {block.ui}
+    <section className="speakable-features border-b border-border px-5 py-20 sm:px-8">
+      <div className="mx-auto max-w-[1100px]">
+        <div className="mb-16 text-center">
+          <h2 className="text-micro font-medium uppercase tracking-widest text-text-tertiary">
+            {sectionLabel}
+          </h2>
+        </div>
+        <div className="space-y-24">
+          {blocks.map((block) => {
+            // overflow-hidden is the always-on clip for the inner card's
+            // rounded corners; tall blocks also override the y-axis to auto so
+            // they scroll instead of growing the page. Tailwind emits the
+            // longhand after the shorthand, so the longhand wins.
+            const uiClass = `bg-surface border border-border rounded-xl overflow-hidden${
+              block.tall ? " max-h-[480px] overflow-y-auto overflow-x-hidden" : ""
+            }`;
+            const inner = (
+              <div className="space-y-6">
+                <div className="mx-auto max-w-[640px] text-center">
+                  <div className="mb-3 text-micro font-medium uppercase tracking-widest text-amber-text">
+                    {block.eyebrow}
+                  </div>
+                  <h3 className="mb-3 text-feature-title font-medium leading-snug text-text">
+                    {block.title}
+                  </h3>
+                  <p className="text-subhead leading-relaxed text-text-secondary">{block.body}</p>
                 </div>
-              ) : null}
-            </FadeUp>
-          ))}
+                {block.ui ? <div className={uiClass}>{block.ui}</div> : null}
+              </div>
+            );
+
+            if (block.lifted) {
+              return (
+                <div key={block.title} className="rounded-2xl border border-border bg-surface p-8">
+                  {inner}
+                </div>
+              );
+            }
+            return <div key={block.title}>{inner}</div>;
+          })}
         </div>
       </div>
     </section>
@@ -136,32 +201,47 @@ export function ProductPricing({
   ctaLabel: string;
 }) {
   return (
-    <section className="border-b border-border-sub px-4 py-16 sm:px-8">
-      <div className="mx-auto max-w-2xl rounded-lg border border-border bg-surface p-8 text-center">
-        <p className="font-mono text-display font-semibold text-text">{price}</p>
-        <p className="mt-1 font-mono text-micro text-text-tertiary">{priceLabel}</p>
-        <ul className="mx-auto mt-6 flex max-w-md flex-col gap-2.5 text-left text-label text-text-secondary">
-          {points.map((point) => (
-            <li key={point} className="flex items-start gap-2">
-              <span
-                className="mt-1.5 h-1 w-1 flex-shrink-0 rounded-full bg-text-tertiary"
-                aria-hidden
-              />
-              <span>{point}</span>
-            </li>
-          ))}
-        </ul>
-        <Link
-          to={ctaHref}
-          className="mt-8 inline-block rounded-md bg-amber px-6 py-3 text-body font-semibold text-on-amber hover:bg-amber-dark"
-        >
-          {ctaLabel}
-        </Link>
+    <section className="border-b border-border bg-surface px-5 py-16 sm:px-8">
+      <div className="mx-auto max-w-[480px]">
+        <h2 className="mb-8 text-center text-micro font-medium uppercase tracking-widest text-text-tertiary">
+          Pricing
+        </h2>
+        <div className="rounded-xl border border-border bg-bg p-8">
+          <div className="mb-1 font-mono text-product-price font-medium leading-none text-text">
+            {price}
+          </div>
+          <div className="mb-6 text-copy text-text-secondary">{priceLabel}</div>
+          <ul className="m-0 mb-8 list-none space-y-3 p-0">
+            {points.map((point) => (
+              <li key={point} className="flex items-start gap-3 text-copy text-text-secondary">
+                {/* Legacy writes this glyph as a numeric HTML entity. Written
+                    as the literal U+2713 character instead, because
+                    check-tokens.mjs's hex-color matcher reads that entity's
+                    digits as a hex color literal and blocks the write. Same
+                    rendered character. The over-broad matcher is reported
+                    rather than patched from inside a parity commit. */}
+                <span aria-hidden="true" className="mt-0.5 flex-shrink-0 text-green">
+                  {"✓"}
+                </span>
+                <span>{point}</span>
+              </li>
+            ))}
+          </ul>
+          <Link
+            to={ctaHref}
+            className="btn-primary block w-full rounded-lg px-6 py-3 text-center text-subhead font-medium text-on-amber"
+          >
+            {ctaLabel}
+          </Link>
+        </div>
       </div>
     </section>
   );
 }
 
+// NOT ported toward legacy: see the file-header note. Legacy re-exports its own
+// ProductFAQ.tsx from the same barrel and that file has not been read, so this
+// keeps its pre-walk treatment rather than guessing. Divergence 38 stays open.
 export function ProductFAQ({ faqs }: { faqs: { q: string; a: React.ReactNode }[] }) {
   return (
     <section className="border-b border-border-sub px-4 py-16 sm:px-8">
@@ -187,17 +267,17 @@ export function BottomCTA({
   note: string;
 }) {
   return (
-    <section className="px-4 py-20 sm:px-8">
-      <div className="mx-auto max-w-xl text-center">
-        <h2 className="text-title font-medium text-text">{title}</h2>
-        <p className="mt-3 text-body text-text-secondary">{sub}</p>
+    <section className="px-5 py-20 text-center sm:px-8">
+      <div className="mx-auto max-w-[480px]">
+        <h2 className="mb-3 text-subsection font-medium tracking-tight text-text">{title}</h2>
+        <p className="mb-8 text-subhead leading-relaxed text-text-secondary">{sub}</p>
         <Link
           to={ctaHref}
-          className="mt-6 inline-block rounded-md bg-amber px-6 py-3 text-body font-semibold text-on-amber hover:bg-amber-dark"
+          className="btn-primary inline-flex items-center gap-2 rounded-lg px-6 py-3 text-subhead font-medium text-on-amber"
         >
           {ctaLabel}
         </Link>
-        <p className="mt-4 font-mono text-micro text-text-subtle">{note}</p>
+        <p className="mt-3 text-caption text-text-tertiary">{note}</p>
       </div>
     </section>
   );
