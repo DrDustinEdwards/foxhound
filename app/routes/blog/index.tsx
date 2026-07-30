@@ -7,29 +7,28 @@ import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { formatTagChip } from "~/lib/blog/format";
 import {
-  getAllPublishedPosts,
   getFeaturedPost,
   getPostsBySlug,
   listPublishedPosts,
   type BlogPostSummary,
 } from "~/lib/blog/queries.server";
-import { SECTIONS, SECTION_MIN_CLUSTER_SIZE, type BlogSectionConfig } from "~/lib/blog/sections";
+import { SECTIONS, type BlogSectionConfig } from "~/lib/blog/sections";
 import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/index";
 
-// Ported from legacy app/(marketing)/blog/page.tsx (Phase 6 Pass 2): a
-// featured-post hero, four curated topic sections, and a "latest" strip of
-// non-featured posts. Two deliberate departures from legacy, both per the
-// task spec:
-//   - No /blog/archive. ROUTES.md's Public section lists exactly /blog,
-//     /blog/:slug, /blog/tag/:tag; the legacy "All articles" link had no
-//     canon home to point to, so it is dropped, not ported.
-//   - A section only renders once its underlying tag cluster has 8+
-//     published posts (SECTION_MIN_CLUSTER_SIZE), not just "some of its
-//     curated slugs resolved". Pre-import (zero rows) every section is
-//     empty, which is the correct, honest state, not a bug.
+// Ported from legacy app/(marketing)/blog/page.tsx: a featured-post hero, four
+// curated topic sections, and a "latest" strip of non-featured posts.
+//
+// Both of the departures previously recorded here are gone (M11 walk, ruling
+// 72 session). The first was already false when written: it said /blog/archive
+// was "dropped, not ported", while this file links to it and app/routes/blog/
+// archive.tsx exists. The second was an 8-post SECTION_MIN_CLUSTER_SIZE gate on
+// each topic section, justified here as a deliberate departure "per the task
+// spec" with no ratification; legacy renders a section whenever any of its
+// curated slugs resolve. Reverted to legacy's condition, keeping only the
+// posts.length > 0 floor so a zero-card section still cannot render.
 export function meta({ loaderData }: Route.MetaArgs) {
   return marketingMeta({
     title: "Blog - Foxhound",
@@ -44,27 +43,18 @@ export async function loader({ context }: Route.LoaderArgs) {
   const db = getDb(env);
   const allSectionSlugs = SECTIONS.flatMap((s) => s.slugs);
 
-  const [featured, latest8, sectionPosts, allPublished] = await Promise.all([
+  const [featured, latest8, sectionPosts] = await Promise.all([
     getFeaturedPost(db),
     listPublishedPosts(db, 8),
     getPostsBySlug(db, allSectionSlugs),
-    getAllPublishedPosts(db),
   ]);
-
-  const tagCounts = new Map<string, number>();
-  for (const post of allPublished) {
-    for (const tag of post.tags) tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
-  }
 
   const bySlug = new Map(sectionPosts.map((p) => [p.slug, p]));
   const sections = SECTIONS.map((section) => {
-    const qualifies = (tagCounts.get(section.id) ?? 0) >= SECTION_MIN_CLUSTER_SIZE;
-    const posts = qualifies
-      ? section.slugs.flatMap((slug) => {
-          const p = bySlug.get(slug);
-          return p ? [p] : [];
-        })
-      : [];
+    const posts = section.slugs.flatMap((slug) => {
+      const p = bySlug.get(slug);
+      return p ? [p] : [];
+    });
     return { section, posts };
   }).filter((s) => s.posts.length > 0);
 
@@ -83,17 +73,23 @@ export default function BlogIndexPage({ loaderData }: Route.ComponentProps) {
         <FadeUp>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Posts</p>
-              <h1 className="mt-3 text-display font-medium text-text">Blog</h1>
-              <p className="mt-3 max-w-xl text-body text-text-secondary">
+              <p className="mb-3 text-micro font-medium uppercase tracking-widest text-text-tertiary">Posts</p>
+              <h1 className="mb-3 text-page-title font-medium tracking-tight text-text">Blog</h1>
+              <p className="mb-0 max-w-[560px] text-subhead leading-relaxed text-text-secondary">
                 Guides on Stripe payment recovery, dispute handling, and subscription intelligence.
               </p>
             </div>
             <Link
               to="/blog/archive"
-              className="shrink-0 font-mono text-label text-text-tertiary hover:text-text"
+              className="group shrink-0 font-mono text-sm text-text-tertiary transition-colors hover:text-text"
             >
-              All articles
+              All articles{" "}
+              <ArrowRight
+                className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
+                size={13}
+                strokeWidth={1.5}
+                aria-hidden
+              />
             </Link>
           </div>
         </FadeUp>
@@ -138,14 +134,14 @@ function BlogHero({ post }: { post: BlogPostSummary }) {
     <section className="border-b border-border-sub bg-surface">
       <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-8 px-4 py-12 sm:px-6 lg:grid-cols-2 lg:px-8 lg:py-16">
         <div>
-          <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Featured</p>
-          <h2 className="mt-3 text-title font-medium leading-tight text-text">
-            <Link to={`/blog/${post.slug}`} className="hover:text-amber-text">
+          <p className="text-caption font-mono uppercase tracking-widest text-amber-text">Featured</p>
+          <h2 className="mt-3 text-3xl font-bold leading-tight text-text lg:text-4xl">
+            <Link to={`/blog/${post.slug}`} className="text-text transition-colors hover:text-amber-text">
               {post.title}
             </Link>
           </h2>
-          <p className="mt-3 line-clamp-3 text-body leading-relaxed text-text-secondary">{post.excerpt}</p>
-          <div className="mt-4 flex flex-wrap items-center gap-2 font-mono text-micro text-text-tertiary">
+          <p className="mt-3 line-clamp-3 text-base leading-relaxed text-text-secondary">{post.excerpt}</p>
+          <div className="mt-4 flex flex-wrap items-center gap-2 font-mono text-sm text-text-tertiary">
             <span>{post.readingTimeMinutes} min read</span>
             {post.tags[0] ? (
               <>
@@ -153,8 +149,8 @@ function BlogHero({ post }: { post: BlogPostSummary }) {
                   &middot;
                 </span>
                 <Link
-                  to={`/blog/tag/${post.tags[0]}`}
-                  className="rounded-full border border-border bg-surface2 px-2 py-0.5 uppercase tracking-wide text-text-secondary hover:border-amber hover:text-text"
+                  to={`/blog/tag/${encodeURIComponent(post.tags[0])}`}
+                  className="rounded-full border border-border bg-surface2 px-2 py-0.5 text-micro uppercase tracking-wide text-text-secondary transition-colors hover:border-amber hover:text-text"
                 >
                   {formatTagChip(post.tags[0])}
                 </Link>
@@ -163,7 +159,7 @@ function BlogHero({ post }: { post: BlogPostSummary }) {
           </div>
           <Link
             to={`/blog/${post.slug}`}
-            className="group mt-6 inline-flex items-center gap-2 rounded-md bg-amber px-5 py-2.5 text-label font-medium text-on-amber hover:bg-amber-dark"
+            className="group mt-6 inline-flex items-center gap-2 rounded-lg bg-amber px-5 py-2.5 font-medium text-on-amber transition-colors hover:bg-amber-dark"
           >
             Read the guide
             <ArrowRight
@@ -183,10 +179,51 @@ function BlogHero({ post }: { post: BlogPostSummary }) {
               src={post.coverImageUrl}
               alt={post.coverImageAlt ?? post.title}
               className="h-full w-full object-cover"
+              loading="eager"
+              fetchPriority="high"
             />
           </Link>
         ) : (
-          <div className="aspect-video w-full rounded-xl border border-border-sub bg-bg" aria-hidden="true" />
+          <div className="aspect-video w-full overflow-hidden rounded-xl border border-border-sub">
+            {/* Legacy's hand-drawn cover fallback, ported from app/(marketing)/blog/page.tsx.
+                Legacy inlines four literal colours plus a [data-theme="light"] override block.
+                Its two dark values are exactly our --bg and --amber-text, and its two light
+                values are exactly what those same tokens hold under [data-theme="light"]
+                (verified against app.css), so the var() form renders identically in both
+                themes and legacy's override block becomes redundant. Keeping the literals
+                would also trip check-tokens, which bans raw hex outside the token file. */}
+            <svg
+              width="100%"
+              height="100%"
+              viewBox="0 0 560 315"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+              preserveAspectRatio="xMidYMid slice"
+            >
+              <style>{`
+                .dz-base { fill: var(--bg); }
+                .dz-band { fill: var(--amber-text); }
+              `}</style>
+              <rect width="560" height="315" className="dz-base" />
+              <polygon points="0,0    90,0   0,160" className="dz-band" />
+              <polygon points="100,0  130,0  80,315   0,315  0,190" className="dz-band" />
+              <polygon points="160,0  230,0  175,315  100,315" className="dz-band" />
+              <polygon points="248,0  262,0  210,315  198,315" className="dz-band" />
+              <polygon points="295,0  345,0  295,315  228,315" className="dz-band" />
+              <polygon points="368,0  392,0  350,315  328,315" className="dz-band" />
+              <polygon points="430,0  500,0  462,315  378,315" className="dz-band" />
+              <polygon points="520,0  535,0  500,315  488,315" className="dz-band" />
+              <polygon points="548,0  560,0  560,40  528,315  515,315" className="dz-band" />
+              <polygon points="0,0    80,0   0,30" className="dz-base" />
+              <polygon points="0,60   260,0  320,0   0,160" className="dz-base" />
+              <polygon points="0,178  295,0  312,0   0,195" className="dz-base" />
+              <polygon points="0,230  380,0  430,0   40,315  0,315" className="dz-base" />
+              <polygon points="60,315  460,0  540,0   170,315" className="dz-base" />
+              <polygon points="192,315 540,20 555,0   560,0  560,18  218,315" className="dz-base" />
+              <polygon points="270,315 560,80 560,190 400,315" className="dz-base" />
+              <polygon points="445,315 560,240 560,268 468,315" className="dz-base" />
+            </svg>
+          </div>
         )}
       </div>
     </section>
@@ -195,16 +232,16 @@ function BlogHero({ post }: { post: BlogPostSummary }) {
 
 function BlogSection({ section, posts }: { section: BlogSectionConfig; posts: BlogPostSummary[] }) {
   return (
-    <section className="border-b border-border-sub">
+    <section className="border-b border-border-sub bg-bg">
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="font-mono text-micro uppercase tracking-wide text-amber-text">{section.label}</p>
-            <p className="mt-1 max-w-2xl text-label text-text-secondary">{section.description}</p>
+            <p className="font-mono text-sm uppercase tracking-widest text-amber-text">{section.label}</p>
+            <p className="mt-1 max-w-2xl text-sm text-text-secondary">{section.description}</p>
           </div>
           <Link
             to={section.tagHref}
-            className="group whitespace-nowrap text-label font-medium text-amber-text hover:opacity-80"
+            className="group whitespace-nowrap text-sm font-medium text-amber-text hover:underline"
           >
             See all{" "}
             <ArrowRight
@@ -227,9 +264,9 @@ function BlogSection({ section, posts }: { section: BlogSectionConfig; posts: Bl
 
 function BlogLatestStrip({ posts }: { posts: BlogPostSummary[] }) {
   return (
-    <section>
+    <section className="bg-bg">
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Latest</p>
+        <p className="font-mono text-sm uppercase tracking-widest text-text-tertiary">Latest</p>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {posts.map((post) => (
             <BlogPostCard key={post.slug} post={post} />
