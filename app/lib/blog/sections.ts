@@ -64,9 +64,3 @@ export const SECTIONS: BlogSectionConfig[] = [
     ],
   },
 ];
-
-// Minimum published posts a tag cluster needs before its home-page section
-// renders (task spec, Phase 6 Pass 2 STOP B). Below this, the section is
-// skipped even if some of its curated slugs already resolve, so a topic
-// never appears "complete" on the homepage before it actually is.
-export const SECTION_MIN_CLUSTER_SIZE = 8;
