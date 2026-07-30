@@ -84,7 +84,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
 
 function formatDate(d: Date | null): string {
   if (!d) return "";
-  return d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 }
 
 export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
@@ -101,12 +101,12 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
   const showPublished = post.showPublishedAt && post.publishedAt;
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-16 sm:px-8">
+    <div className="mx-auto max-w-[1100px] px-5 py-16 sm:px-8">
       <ReadingProgressBar targetId="blog-post-article" />
 
       <Link
         to="/blog"
-        className="group mb-8 inline-flex items-center gap-1.5 text-label text-text-tertiary hover:text-text"
+        className="group mb-8 inline-flex items-center gap-1.5 text-label text-text-tertiary transition-colors hover:text-text"
       >
         <ArrowLeft
           className="transition-transform group-hover:-translate-x-0.5"
@@ -134,10 +134,10 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
               {post.tags.map((t) => (
                 <Link
                   key={t}
-                  to={`/blog/tag/${t}`}
-                  className="rounded-full border border-border bg-surface px-2 py-0.5 font-mono text-micro text-text-tertiary hover:border-amber hover:text-text"
+                  to={`/blog/tag/${encodeURIComponent(t)}`}
+                  className="rounded-full border border-border bg-surface px-2 py-0.5 font-mono text-micro text-text-tertiary transition-colors hover:border-amber hover:text-text"
                 >
-                  {formatTagChip(t)}
+                  {t}
                 </Link>
               ))}
             </div>
@@ -146,7 +146,11 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
           <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-label text-text-tertiary">
             {showPublished ? <time dateTime={post.publishedAt!.toISOString()}>{formatDate(post.publishedAt)}</time> : null}
             {showPublished && showUpdated ? <span aria-hidden="true"> &middot; </span> : null}
-            {showUpdated ? <>Updated {formatDate(post.updatedAt)}</> : null}
+            {showUpdated ? (
+              <>
+                Updated <time dateTime={post.updatedAt!.toISOString()}>{formatDate(post.updatedAt)}</time>
+              </>
+            ) : null}
             {showPublished || showUpdated ? (
               <span aria-hidden="true" className="opacity-40">
                 &middot;
@@ -159,8 +163,10 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
             <span>{post.author}</span>
           </div>
 
-          <h1 className="mb-4 text-display font-medium leading-tight text-text">{post.title}</h1>
-          <p className="mb-6 text-body leading-relaxed text-text-secondary">{post.excerpt}</p>
+          <h1 className="mb-4 text-page-title font-medium leading-tight tracking-tight text-text">{post.title}</h1>
+          <p className="mb-8 border-b border-border pb-8 text-product-sub leading-relaxed text-text-secondary">
+            {post.excerpt}
+          </p>
 
           <ShareRow url={canonical} title={post.title} />
 
@@ -174,13 +180,13 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
 
       {related.length > 0 ? (
         <section aria-label="Further reading" className="mt-12 max-w-[680px] border-t border-border pt-8">
-          <p className="mb-3 font-mono text-micro uppercase tracking-wide text-text-tertiary">Further reading</p>
+          <p className="mb-3 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">Further reading</p>
           <ul className="m-0 flex list-none flex-col gap-2 p-0">
             {related.map((r) => (
               <li key={r.id}>
                 <Link
                   to={`/blog/${r.slug}`}
-                  className="group inline-flex items-center gap-1.5 text-body text-text hover:text-amber-text"
+                  className="group inline-flex items-center gap-1.5 text-item-title text-text transition-colors hover:text-amber-text"
                 >
                   {r.title}
                   <ArrowRight
@@ -197,11 +203,11 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
       ) : null}
 
       <div className="mt-12 flex items-start gap-4 border-t border-border pt-8">
-        <img src="/favicon.svg" alt="Foxhound" width={44} height={44} className="h-11 w-11 shrink-0 rounded-lg" />
+        <img src="/favicon.svg" alt="Foxhound" width={44} height={44} className="h-11 w-11 shrink-0 rounded-[10px]" />
         <div>
-          <p className="mb-0.5 font-mono text-micro uppercase tracking-wide text-text-tertiary">Published by</p>
-          <p className="mb-1 text-body font-medium text-text">{post.author}</p>
-          <p className="m-0 text-label leading-relaxed text-text-secondary">
+          <p className="mb-0.5 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">Published by</p>
+          <p className="mb-1 text-item-title font-medium text-text">{post.author}</p>
+          <p className="m-0 text-copy leading-relaxed text-text-secondary">
             Foxhound recovers failed Stripe payments, handles disputes, and surfaces subscription
             intelligence. 20% of Foxhound-attributed recoveries only, nothing until then.
           </p>
@@ -209,13 +215,16 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
       </div>
 
       {previous || next ? (
-        <nav aria-label="Adjacent posts" className="mt-16 grid grid-cols-1 gap-4 border-t border-border pt-8 sm:grid-cols-2">
+        <nav
+          aria-label="Adjacent posts"
+          className="mx-auto mt-16 grid max-w-[1100px] grid-cols-1 gap-4 border-t border-border pt-8 sm:grid-cols-2"
+        >
           {previous ? (
             <Link
               to={`/blog/${previous.slug}`}
-              className="group block rounded-lg border border-border bg-surface p-5 hover:border-border-i"
+              className="group block rounded-lg border border-border bg-surface p-5 transition-colors hover:border-border-i"
             >
-              <div className="mb-1 inline-flex items-center gap-1 font-mono text-micro uppercase tracking-wide text-text-tertiary">
+              <div className="mb-1 inline-flex items-center gap-1 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">
                 <ArrowLeft
                   className="transition-transform group-hover:-translate-x-0.5"
                   size={13}
@@ -224,7 +233,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
                 />
                 Previous post
               </div>
-              <div className="text-body font-medium leading-snug text-text">{previous.title}</div>
+              <div className="text-item-title font-medium leading-snug text-text">{previous.title}</div>
             </Link>
           ) : (
             <span />
@@ -232,9 +241,9 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
           {next ? (
             <Link
               to={`/blog/${next.slug}`}
-              className="group block rounded-lg border border-border bg-surface p-5 hover:border-border-i sm:text-right"
+              className="group block rounded-lg border border-border bg-surface p-5 transition-colors hover:border-border-i sm:text-right"
             >
-              <div className="mb-1 font-mono text-micro uppercase tracking-wide text-text-tertiary">
+              <div className="mb-1 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">
                 Next post{" "}
                 <ArrowRight
                   className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
@@ -243,7 +252,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
                   aria-hidden
                 />
               </div>
-              <div className="text-body font-medium leading-snug text-text">{next.title}</div>
+              <div className="text-item-title font-medium leading-snug text-text">{next.title}</div>
             </Link>
           ) : (
             <span />
@@ -251,16 +260,22 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
         </nav>
       ) : null}
 
-      <div className="mx-auto mt-16 max-w-xl border-t border-border pt-12 text-center">
-        <h2 className="mb-2 text-title font-medium text-text">Run your free Stripe audit</h2>
-        <p className="mx-auto mb-6 max-w-md text-body leading-relaxed text-text-secondary">
+      <div className="mx-auto mt-16 max-w-[760px] border-t border-border pt-12 text-center">
+        <h2 className="mb-2 text-feature-title font-medium text-text">Run your free Stripe audit</h2>
+        <p className="mx-auto mb-6 max-w-[480px] text-item-title leading-relaxed text-text-secondary">
           See exactly what your account is leaking. Free, no account required.
         </p>
         <Link
           to="/audit"
-          className="inline-flex items-center gap-2 rounded-md bg-amber px-6 py-3 text-body font-semibold text-on-amber hover:bg-amber-dark"
+          className="btn-primary group inline-block rounded-md px-6 py-3 text-item-title font-semibold text-on-amber"
         >
-          Start free audit
+          Start free audit{" "}
+          <ArrowRight
+            className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
+            size={13}
+            strokeWidth={1.5}
+            aria-hidden
+          />
         </Link>
       </div>
 

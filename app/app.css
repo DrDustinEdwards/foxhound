@@ -836,18 +836,20 @@ body {
   color: var(--amber-text);
 }
 
-/* Reading progress bar (components/blog/reading-progress-bar.tsx). `top` is
-   set inline by the component (measured off the real header height), not
-   here: header.tsx's height is content-driven, not a fixed constant, so it
-   previously overlapped the sticky header instead of sitting below it
-   (Phase 6 review finding). */
+/* Reading progress bar, rendered above the site header on the post page.
+   Legacy's own wording for the same rule (globals.css), and its top: 0 plus
+   z-index: 100 are what put the bar over the nav deliberately (ruling 73c).
+   pointer-events: none is legacy's too, and load-bearing: without it the 3px
+   strip sits over the header and swallows clicks. */
 .blog-progress-bar {
   position: fixed;
+  top: 0;
   left: 0;
   height: 3px;
   background: var(--amber);
-  z-index: 30;
+  z-index: 100;
   transition: width 0.1s linear;
+  pointer-events: none;
 }
 
 /* Dual-handle amount range (components/dual-range-slider.tsx,
