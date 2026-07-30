@@ -1,8 +1,8 @@
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router";
 
+import { BlogHeaderIntro } from "~/components/blog/blog-header-intro";
 import { BlogPostCard } from "~/components/blog/blog-post-card";
-import { FadeUp } from "~/components/fade-up";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { formatTagChip } from "~/lib/blog/format";
@@ -70,29 +70,21 @@ export default function BlogIndexPage({ loaderData }: Route.ComponentProps) {
   return (
     <div>
       <div className="mx-auto max-w-[1080px] px-5 pb-10 pt-16 sm:px-8">
-        <FadeUp>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="mb-3 text-micro font-medium uppercase tracking-widest text-text-tertiary">Posts</p>
-              <h1 className="mb-3 text-page-title font-medium tracking-tight text-text">Blog</h1>
-              <p className="mb-0 max-w-[560px] text-subhead leading-relaxed text-text-secondary">
-                Guides on Stripe payment recovery, dispute handling, and subscription intelligence.
-              </p>
-            </div>
-            <Link
-              to="/blog/archive"
-              className="group shrink-0 font-mono text-sm text-text-tertiary transition-colors hover:text-text"
-            >
-              All articles{" "}
-              <ArrowRight
-                className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
-                size={13}
-                strokeWidth={1.5}
-                aria-hidden
-              />
-            </Link>
-          </div>
-        </FadeUp>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <BlogHeaderIntro />
+          <Link
+            to="/blog/archive"
+            className="group shrink-0 font-mono text-sm text-text-tertiary transition-colors hover:text-text"
+          >
+            All articles{" "}
+            <ArrowRight
+              className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
+              size={13}
+              strokeWidth={1.5}
+              aria-hidden
+            />
+          </Link>
+        </div>
       </div>
 
       {featured ? <BlogHero post={featured} /> : null}
