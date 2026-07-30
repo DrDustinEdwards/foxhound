@@ -3,40 +3,45 @@ import { Link } from "react-router";
 
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { getAllPublishedPosts, getPublishedPostsByTag } from "~/lib/blog/queries.server";
+import {
+  getAllPublishedPosts,
+  getPublishedPostsByTag,
+  getPublishedTagSet,
+} from "~/lib/blog/queries.server";
 import { CANONICAL_TAGS, labelForTag } from "~/lib/blog/tags";
 import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/archive";
 
-// Ported from legacy /blog/archive (TASK-foxhound-parity-cluster-b.md fix
-// 3), confirmed live on recova-eta.vercel.app/blog/archive before building:
-// a "Blog" back-link, an "All articles" H1 with an article count, a row of
-// tag-filter pills (?tag=slug, one per canonical tag plus "All"), and a
-// compact divided list (title + excerpt + reading time per row) - not a
-// card grid, deliberately different from the tag-archive route's layout.
-// Tag pills use this repo's own 8 canonical tags (blog/tags.ts), not
-// legacy's own category set, since the two sites' tag taxonomies differ.
+// Ported from legacy app/(marketing)/blog/archive/page.tsx: a "Blog"
+// back-link, an H1 that names the active filter, an article count, a row of
+// tag-filter pills (?tag=slug, plus "All"), and a compact divided list
+// (title + excerpt + reading time per row), not a card grid. Legacy makes
+// that list/grid split deliberately: /blog/tag/:tag renders cards, this page
+// renders rows.
 //
-// Trimmed columns throughout: getAllPublishedPosts and
-// getPublishedPostsByTag both select SUMMARY_COLUMNS, the same trimmed
-// select the perf remediation put under the tag-archive route, and
-// getPublishedPostsByTag filters in SQL rather than fetching every
-// published post and filtering in memory.
+// Pills (Dustin, ruling 72 session): CANONICAL_TAGS stays the full canonical
+// list because the sitemap and llms.txt enumerate it, but a pill renders only
+// for a tag that has at least one published post. Legacy hardcodes five
+// categories; Foxhound's taxonomy has eight, and showing a chip that leads to
+// an empty page is worse than either. This replaces an unratified "the two
+// sites' tag taxonomies differ" note that had simply rendered all eight.
 //
-// Restores blog/index.tsx's dropped inbound link: that file's header
-// previously documented "No /blog/archive... the legacy 'All articles'
-// link had no canon home to point to, so it is dropped, not ported" - this
-// task is the sanctioned exception (task rule: "No route changes beyond
-// /blog/archive").
+// Trimmed columns throughout: getAllPublishedPosts and getPublishedPostsByTag
+// both select SUMMARY_COLUMNS, and getPublishedPostsByTag filters in SQL
+// rather than fetching every published post and filtering in memory.
 
+// Legacy varies both title and description by the active tag; a static pair
+// described the unfiltered page even when ?tag= narrowed it.
 export function meta({ loaderData }: Route.MetaArgs) {
+  const label = loaderData?.activeTag ? labelForTag(loaderData.activeTag) : null;
   return marketingMeta({
-    title: "All articles - Foxhound Blog",
-    description:
-      "Every published guide on Stripe payment recovery, dispute handling, and subscription intelligence.",
-    path: "/blog/archive",
+    title: label ? `${label} - Foxhound Blog` : "All articles - Foxhound Blog",
+    description: label
+      ? `All Foxhound articles on ${label}.`
+      : "Every published guide on Stripe payment recovery, dispute handling, and subscription intelligence.",
+    path: loaderData?.activeTag ? `/blog/archive?tag=${loaderData.activeTag}` : "/blog/archive",
     siteUrl: loaderData?.siteUrl ?? "",
   });
 }
@@ -46,24 +51,31 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const db = getDb(env);
   const tag = new URL(request.url).searchParams.get("tag");
   const activeTag = tag && (CANONICAL_TAGS as readonly string[]).includes(tag) ? tag : null;
-  const posts = activeTag ? await getPublishedPostsByTag(db, activeTag) : await getAllPublishedPosts(db);
-  return { siteUrl: siteUrl(env), posts, activeTag };
+  const [posts, tagsWithPosts] = await Promise.all([
+    activeTag ? getPublishedPostsByTag(db, activeTag) : getAllPublishedPosts(db),
+    getPublishedTagSet(db),
+  ]);
+  const withPosts = new Set(tagsWithPosts);
+  const visibleTags = CANONICAL_TAGS.filter((t) => withPosts.has(t));
+  return { siteUrl: siteUrl(env), posts, activeTag, visibleTags };
 }
 
 function pillClassName(active: boolean): string {
+  const base = "rounded-full border px-3 py-1.5 font-mono text-xs no-underline transition-colors";
   return active
-    ? "rounded-full border border-amber bg-amber px-3 py-1.5 font-mono text-micro text-on-amber no-underline"
-    : "rounded-full border border-border bg-surface px-3 py-1.5 font-mono text-micro text-text-secondary no-underline hover:border-border-i hover:text-text";
+    ? `${base} border-amber bg-amber text-on-amber`
+    : `${base} border-border-sub bg-surface text-text-secondary hover:border-border hover:text-text`;
 }
 
 export default function BlogArchivePage({ loaderData }: Route.ComponentProps) {
-  const { siteUrl: url, posts, activeTag } = loaderData;
+  const { siteUrl: url, posts, activeTag, visibleTags } = loaderData;
+  const activeLabel = activeTag ? labelForTag(activeTag) : "All articles";
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-16 sm:px-8">
+    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
       <Link
         to="/blog"
-        className="group mb-8 inline-flex items-center gap-1.5 text-label text-text-tertiary hover:text-text"
+        className="group mb-8 inline-flex items-center gap-1.5 text-label text-text-tertiary transition-colors hover:text-text"
       >
         <ArrowLeft
           className="transition-transform group-hover:-translate-x-0.5"
@@ -74,16 +86,16 @@ export default function BlogArchivePage({ loaderData }: Route.ComponentProps) {
         Blog
       </Link>
 
-      <h1 className="text-display font-medium text-text">All articles</h1>
-      <p className="mt-1 font-mono text-label text-text-tertiary">
+      <h1 className="mt-3 text-2xl font-bold text-text">{activeLabel}</h1>
+      <p className="mt-1 font-mono text-sm text-text-secondary">
         {posts.length} {posts.length === 1 ? "article" : "articles"}
       </p>
 
-      <div className="mt-8 flex flex-wrap gap-2">
+      <div className="mb-8 mt-8 flex flex-wrap gap-2">
         <Link to="/blog/archive" className={pillClassName(!activeTag)}>
           All
         </Link>
-        {CANONICAL_TAGS.map((t) => (
+        {visibleTags.map((t) => (
           <Link key={t} to={`/blog/archive?tag=${t}`} className={pillClassName(activeTag === t)}>
             {labelForTag(t)}
           </Link>
@@ -91,20 +103,20 @@ export default function BlogArchivePage({ loaderData }: Route.ComponentProps) {
       </div>
 
       {posts.length === 0 ? (
-        <p className="mt-10 text-body text-text-secondary">No articles in this category yet.</p>
+        <p className="text-sm text-text-secondary">No articles found.</p>
       ) : (
-        <div className="mt-8 flex flex-col divide-y divide-border-sub">
+        <div className="flex flex-col divide-y divide-border-sub">
           {posts.map((post) => (
             <Link
               key={post.slug}
               to={`/blog/${post.slug}`}
-              className="group -mx-2 flex items-start gap-4 rounded-lg px-2 py-4 no-underline hover:bg-surface"
+              className="group -mx-2 flex items-start gap-4 rounded-lg px-2 py-4 no-underline transition-colors hover:bg-surface"
             >
               <div className="min-w-0 flex-1">
-                <p className="line-clamp-1 text-label font-semibold text-text group-hover:text-amber-text">
+                <p className="line-clamp-1 text-sm font-semibold leading-snug text-text transition-colors group-hover:text-amber-text">
                   {post.title}
                 </p>
-                <p className="mt-0.5 line-clamp-1 text-micro text-text-secondary">{post.excerpt}</p>
+                <p className="mt-0.5 line-clamp-1 text-xs text-text-secondary">{post.excerpt}</p>
               </div>
               <span className="mt-0.5 shrink-0 font-mono text-micro text-text-tertiary">
                 {post.readingTimeMinutes} min
