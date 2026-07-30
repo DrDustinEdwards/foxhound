@@ -33,8 +33,8 @@ export function TableOfContents({
 
   return (
     <aside className="hidden lg:block">
-      <div className="sticky top-24">
-        <div className="mb-3 font-mono text-micro uppercase tracking-wide text-text-tertiary">Contents</div>
+      <div className="sticky top-8">
+        <div className="mb-3 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">Contents</div>
         <nav>
           <TocList items={items} compact={false} />
         </nav>
@@ -51,7 +51,7 @@ function TocList({ items, compact }: { items: TocItem[]; compact: boolean }) {
           <Link
             to={`#${item.id}`}
             className={`block transition-colors hover:text-amber-text ${
-              item.level === 3 ? "text-label text-text-tertiary" : "text-label text-text-secondary"
+              item.level === 3 ? "text-label text-text-tertiary" : "text-copy text-text-secondary"
             } ${compact ? "py-0.5" : "py-1"}`}
           >
             {item.text}
