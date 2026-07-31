@@ -75,11 +75,11 @@ function Section({ id, number, title, children }: { id: string; number: number; 
 }
 
 function H3({ children }: { children: React.ReactNode }) {
-  return <h3 className="mb-2 mt-6 text-body font-medium text-text">{children}</h3>;
+  return <h3 className="mb-2 mt-6 text-item-title font-medium text-text">{children}</h3>;
 }
 
 function P({ children }: { children: React.ReactNode }) {
-  return <p className="mb-4 text-label leading-relaxed text-text-secondary">{children}</p>;
+  return <p className="mb-4 text-item-title leading-relaxed text-text-secondary">{children}</p>;
 }
 
 export default function TermsPage() {
@@ -88,13 +88,13 @@ export default function TermsPage() {
       <MarketingPageHeader eyebrow="Legal" title="Terms of Service" subtext="Last updated July 18, 2026" />
 
       {/* div, not main: marketing.tsx already renders this page's one main landmark. */}
-      <div className="mx-auto max-w-2xl px-4 pb-16 sm:px-8">
+      <div className="mx-auto max-w-[720px] px-6 pb-16">
         <section className="mb-12">
-          <h2 className="mb-3 font-mono text-micro uppercase tracking-wide text-text-tertiary">Contents</h2>
+          <h2 className="mb-3 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">Contents</h2>
           <ol className="m-0 grid grid-cols-1 gap-x-6 gap-y-1.5 p-0 sm:grid-cols-2">
             {SECTIONS.map((s) => (
               <li key={s.id} className="list-none text-label">
-                <a href={`#${s.id}`} className="text-amber-text underline underline-offset-2 hover:opacity-80">
+                <a href={`#${s.id}`} className="text-amber-text underline underline-offset-2 hover:text-amber">
                   {s.number}. {s.title}
                 </a>
               </li>
@@ -128,7 +128,7 @@ export default function TermsPage() {
           </P>
           <P>
             You can contact us by email at{" "}
-            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-amber-text underline underline-offset-2 hover:opacity-80">
+            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-amber-text underline underline-offset-2 hover:text-amber">
               {SUPPORT_EMAIL}
             </a>
             .
@@ -243,7 +243,7 @@ export default function TermsPage() {
 
         <Section id="purchases" number={5} title="PURCHASES AND PAYMENT">
           <P>We accept the following forms of payment:</P>
-          <ul className="mb-4 list-disc space-y-1.5 pl-6 text-label leading-relaxed text-text-secondary">
+          <ul className="mb-4 list-disc space-y-1.5 pl-6 text-item-title leading-relaxed text-text-secondary">
             <li>Visa</li>
             <li>Mastercard</li>
             <li>American Express</li>
@@ -285,7 +285,7 @@ export default function TermsPage() {
 
         <Section id="prohibited" number={7} title="PROHIBITED ACTIVITIES">
           <P>You may not access or use the Services for any purpose other than that for which we make the Services available. As a user, you agree not to:</P>
-          <ul className="mb-4 list-disc space-y-1.5 pl-6 text-label leading-relaxed text-text-secondary">
+          <ul className="mb-4 list-disc space-y-1.5 pl-6 text-item-title leading-relaxed text-text-secondary">
             <li>Systematically retrieve data to create a collection or database without written permission.</li>
             <li>Trick, defraud, or mislead us or other users, including attempts to learn account credentials.</li>
             <li>Circumvent, disable, or otherwise interfere with security-related features of the Services.</li>
@@ -345,7 +345,7 @@ export default function TermsPage() {
         <Section id="privacy" number={12} title="PRIVACY POLICY">
           <P>
             We care about data privacy and security. Please review our{" "}
-            <Link to="/privacy" className="text-amber-text underline underline-offset-2 hover:opacity-80">
+            <Link to="/privacy" className="text-amber-text underline underline-offset-2 hover:text-amber">
               Privacy Policy
             </Link>
             . By using the Services, you agree to be bound by our Privacy Policy, which is incorporated
@@ -507,12 +507,12 @@ export default function TermsPage() {
             Foxhound
             <br />
             Email:{" "}
-            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-amber-text underline underline-offset-2 hover:opacity-80">
+            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-amber-text underline underline-offset-2 hover:text-amber">
               {SUPPORT_EMAIL}
             </a>
             <br />
             Website:{" "}
-            <Link to="/" className="text-amber-text underline underline-offset-2 hover:opacity-80">
+            <Link to="/" className="text-amber-text underline underline-offset-2 hover:text-amber">
               foxhoundapp.com
             </Link>
           </P>
