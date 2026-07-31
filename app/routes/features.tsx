@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router";
 
+import { HealthScoreBadge } from "~/components/docs/health-score-badge";
+import { SequenceTimeline } from "~/components/docs/sequence-timeline";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
@@ -84,6 +86,33 @@ interface Category {
 // carried over from legacy's features-data.ts (ruling 38).
 function sectionId(heading: string): string {
   return heading.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+// Legacy renders an inline example inside three sections, keyed by section id
+// (features/page.tsx's SectionInlineExample). Two are restored here now that
+// their components exist (rulings 78/79), which discharges the matching part of
+// M10's remainder. The THIRD, legacy's visibility stat grid, stays unbuilt: its
+// 26.6% and $6,884 are legacy's figures, so whether Foxhound shows its own
+// numbers or none is the copy pass's call under ruling 20d (ruling 77).
+//
+// The threshold sentence states FOXHOUND's bands, not legacy's. Legacy's reads
+// "red below 34, amber 34-66, green at or above 67", which is false here; this
+// is the sanctioned truthfulness class, not a copy rewrite.
+function SectionInlineExample({ id }: { id: string }) {
+  if (id === "automation") {
+    return <SequenceTimeline category="soft" />;
+  }
+  if (id === "intelligence") {
+    return (
+      <div className="my-6 flex items-center gap-3 text-label text-text-secondary">
+        <HealthScoreBadge score={20} />
+        <HealthScoreBadge score={50} />
+        <HealthScoreBadge score={82} />
+        <span>red below 40, amber 40-69, green at or above 70.</span>
+      </div>
+    );
+  }
+  return null;
 }
 
 const CATEGORIES: Category[] = [
@@ -407,6 +436,7 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
                   <div className="mb-6">
                     <h2 className="mb-1 text-title font-medium text-text">{category.heading}</h2>
                   </div>
+                  <SectionInlineExample id={sectionId(category.heading)} />
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {category.features.map((feature) => (
                       <div
