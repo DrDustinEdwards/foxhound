@@ -37,13 +37,13 @@ export default function DocsIndexPage() {
       <MarketingPageHeader eyebrow="User guides" title="Documentation" subtext="Documentation for the Foxhound platform." />
 
       {/* div, not main: marketing.tsx already renders this page's one main landmark. */}
-      <div className="mx-auto max-w-2xl px-4 pb-16 sm:px-8">
+      <div className="mx-auto max-w-[720px] px-6 pb-16">
         <div className="flex flex-col gap-4">
           <Link
             to={`/docs/${platform.slug}`}
-            className="group block rounded-lg border border-border bg-surface p-5 hover:border-border-i"
+            className="group block rounded-lg border border-border bg-surface p-5 transition-colors hover:border-amber"
           >
-            <div className="mb-2 text-body font-medium text-text">{platform.title}</div>
+            <div className="mb-2 text-item-title font-medium text-text">{platform.title}</div>
             <div className="mb-4 text-label leading-relaxed text-text-secondary">{platform.description}</div>
             <div className="text-label text-amber-text">
               Read guide{" "}
@@ -61,9 +61,9 @@ export default function DocsIndexPage() {
               <Link
                 key={g.slug}
                 to={`/docs/${g.slug}`}
-                className="group block rounded-lg border border-border bg-surface p-5 hover:border-border-i"
+                className="group block rounded-lg border border-border bg-surface p-5 transition-colors hover:border-amber"
               >
-                <div className="mb-2 text-body font-medium text-text">{g.title}</div>
+                <div className="mb-2 text-item-title font-medium text-text">{g.title}</div>
                 <div className="mb-4 text-label leading-relaxed text-text-secondary">{g.description}</div>
                 <div className="text-label text-amber-text">
                   Read guide{" "}
@@ -80,8 +80,11 @@ export default function DocsIndexPage() {
         </div>
 
         <div className="mt-12 flex flex-wrap items-center gap-6 text-label">
-          <Link to="/products" className="group text-amber-text hover:opacity-80">
-            See all products{" "}
+          <Link
+            to="/features"
+            className="group text-amber-text transition-opacity duration-150 hover:opacity-80"
+          >
+            See all features{" "}
             <ArrowRight
               className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
               size={13}
@@ -89,7 +92,10 @@ export default function DocsIndexPage() {
               aria-hidden
             />
           </Link>
-          <Link to="/pricing" className="group text-amber-text hover:opacity-80">
+          <Link
+            to="/pricing"
+            className="group text-amber-text transition-opacity duration-150 hover:opacity-80"
+          >
             View pricing{" "}
             <ArrowRight
               className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
