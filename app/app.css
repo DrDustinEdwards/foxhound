@@ -244,6 +244,13 @@
   --text-product-sub: 1.0625rem;
   --text-feature-title: 1.375rem;
   --text-product-price: 3rem;
+  /* Product tag pill on /features (legacy FeatureCard.tsx's local ProductTag,
+     text-[0.625rem]). Its value collides with --text-source, and the two stay
+     separate on purpose: --text-source is home's citation-attribution role and
+     this is a tag role, so coupling them would let a correction to either
+     silently restyle the other. Rulings 65 and 68 rule against merging role
+     tokens on a value match. Marketing scale 20 to 21. */
+  --text-tag: 0.625rem;
 }
 
 :root,

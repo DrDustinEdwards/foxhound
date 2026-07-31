@@ -1,7 +1,6 @@
 import { useState } from "react";
+import { Link } from "react-router";
 
-import { Badge } from "~/components/badge";
-import { BottomCTA } from "~/components/product-sections";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
@@ -30,14 +29,45 @@ const TAG_LABEL: Record<Tag, string> = {
   intelligence: "Intelligence",
 };
 
-const FILTERS: { key: "all" | Tag; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "platform", label: "Platform" },
-  { key: "audit", label: "Audit" },
-  { key: "recovery", label: "Recovery" },
-  { key: "disputes", label: "Disputes" },
-  { key: "intelligence", label: "Intelligence" },
-];
+const FILTERS = ["All", "Platform", "Audit", "Recovery", "Disputes", "Intelligence"] as const;
+
+type FilterValue = (typeof FILTERS)[number];
+
+// Legacy colour-codes the product tag per product (components/features/
+// FeatureCard.tsx's local ProductTag). Deliberately NOT the shared Badge:
+// legacy hand-rolls this pill local to the card, Badge is the app-surface
+// status pill on 20+ other carriers, and routing this onto it rendered every
+// tag neutral grey and uppercased, which legacy never does.
+const PRODUCT_TAG_CLASS: Record<Tag, string> = {
+  recovery: "border-amber bg-amber-bg text-amber-text",
+  disputes: "border-blue bg-blue-bg text-cobalt-text",
+  intelligence: "border-green bg-green-bg text-green",
+  audit: "border-border bg-surface2 text-text-tertiary",
+  platform: "border-border bg-surface2 text-text-tertiary",
+};
+
+// CSS-only filter, ported from legacy's mechanism rather than just its rules.
+// FeatureFilterShell sets data-feature-filter on the wrapper and these
+// selectors hide any card whose data-product does not match. No per-card
+// state, no re-render, and every card stays server-rendered and crawlable.
+// Foxhound's CSP allows this: style-src is 'self' 'unsafe-inline'.
+const FILTER_CSS = `
+[data-feature-filter="Recovery"] [data-product]:not([data-product="Recovery"]) { display: none; }
+[data-feature-filter="Disputes"] [data-product]:not([data-product="Disputes"]) { display: none; }
+[data-feature-filter="Intelligence"] [data-product]:not([data-product="Intelligence"]) { display: none; }
+[data-feature-filter="Audit"] [data-product]:not([data-product="Audit"]) { display: none; }
+[data-feature-filter="Platform"] [data-product]:not([data-product="Platform"]) { display: none; }
+`.trim();
+
+function ProductTag({ tag }: { tag: Tag }) {
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 font-mono text-tag font-medium ${PRODUCT_TAG_CLASS[tag]}`}
+    >
+      {TAG_LABEL[tag]}
+    </span>
+  );
+}
 
 interface Feature {
   title: string;
@@ -48,6 +78,12 @@ interface Feature {
 interface Category {
   heading: string;
   features: Feature[];
+}
+
+// Section anchors are slugified from Foxhound's OWN headings below, never
+// carried over from legacy's features-data.ts (ruling 38).
+function sectionId(heading: string): string {
+  return heading.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
 const CATEGORIES: Category[] = [
@@ -315,67 +351,95 @@ export function loader({ context }: Route.LoaderArgs) {
 
 export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
   const { siteUrl: url } = loaderData;
-  const [filter, setFilter] = useState<"all" | Tag>("all");
-
-  const visibleCategories = CATEGORIES.map((category) => ({
-    ...category,
-    features: category.features.filter((f) => filter === "all" || f.tag === filter),
-  })).filter((category) => category.features.length > 0);
+  const [filter, setFilter] = useState<FilterValue>("All");
 
   return (
     <div>
+      <style>{FILTER_CSS}</style>
       <MarketingPageHeader
         eyebrow="Platform"
         title="Features"
         subtext="Everything Foxhound does. Organized by capability, tagged by product."
       />
 
-      <div className="mx-auto max-w-5xl px-4 pb-8 sm:px-8">
-        <div className="flex flex-wrap gap-2 border-b border-border-sub pb-8">
-          {FILTERS.map((f) => (
-            <button
-              key={f.key}
-              type="button"
-              onClick={() => setFilter(f.key)}
-              aria-pressed={filter === f.key}
-              className={`rounded-full border px-3.5 py-1.5 text-label font-medium transition-colors duration-150 ${
-                filter === f.key
-                  ? "border-amber bg-amber text-on-amber"
-                  : "border-border text-text-secondary hover:border-border-i hover:text-text"
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <div className="mx-auto max-w-[1100px] px-5 pb-16 sm:px-8">
+        <div data-feature-filter={filter}>
+          <div role="tablist" aria-label="Filter features by product" className="mb-10 flex flex-wrap gap-2">
+            {FILTERS.map((f) => (
+              <button
+                key={f}
+                type="button"
+                role="tab"
+                aria-selected={filter === f}
+                onClick={() => setFilter(f)}
+                className={`rounded-full border px-3 py-1.5 font-mono text-caption font-medium transition-colors ${
+                  filter === f
+                    ? "border-amber bg-amber text-on-amber"
+                    : "border-border bg-surface text-text-secondary hover:border-amber-text hover:text-text"
+                }`}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
 
-      <div className="mx-auto max-w-5xl px-4 pb-16 sm:px-8">
-        {visibleCategories.map((category) => (
-          <section key={category.heading} className="border-b border-border-sub py-8 last:border-0">
-            <h2 className="mb-4 text-title font-medium text-text">{category.heading}</h2>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {category.features.map((feature) => (
-                <div key={feature.title} className="rounded-lg border border-border bg-surface p-4">
-                  <div className="mb-2 flex items-start justify-between gap-2">
-                    <p className="text-label font-medium text-text">{feature.title}</p>
-                    <Badge tone="neutral">{TAG_LABEL[feature.tag]}</Badge>
+          <div className="grid grid-cols-1 gap-12 lg:grid-cols-[220px_1fr]">
+            <aside className="hidden lg:block">
+              <nav aria-label="Sections" className="sticky top-20 space-y-1">
+                {CATEGORIES.map((category) => (
+                  <a
+                    key={category.heading}
+                    href={`#${sectionId(category.heading)}`}
+                    className="block border-l border-border py-1 pl-3 text-label text-text-secondary transition-colors hover:border-amber-text hover:text-text"
+                  >
+                    {category.heading}
+                  </a>
+                ))}
+              </nav>
+            </aside>
+
+            {/* Legacy wraps this column in <main>; Foxhound renders one main
+                landmark per document from the layout (ratified), so this is a
+                plain div. */}
+            <div className="space-y-16">
+              {CATEGORIES.map((category) => (
+                <section key={category.heading} id={sectionId(category.heading)} className="scroll-mt-20">
+                  <div className="mb-6">
+                    <h2 className="mb-1 text-title font-medium text-text">{category.heading}</h2>
                   </div>
-                  <p className="text-label leading-relaxed text-text-secondary">{feature.body}</p>
-                </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {category.features.map((feature) => (
+                      <div
+                        key={feature.title}
+                        data-product={TAG_LABEL[feature.tag]}
+                        className="rounded-lg border border-border bg-surface p-4"
+                      >
+                        <div className="mb-2 flex items-start justify-between gap-3">
+                          <span className="text-copy font-medium text-text">{feature.title}</span>
+                          <ProductTag tag={feature.tag} />
+                        </div>
+                        <p className="m-0 text-label leading-relaxed text-text-secondary">{feature.body}</p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
               ))}
             </div>
-          </section>
-        ))}
-      </div>
+          </div>
+        </div>
 
-      <BottomCTA
-        title="See what your Stripe account is leaking."
-        sub="Free diagnostic, no account required."
-        ctaHref="/audit"
-        ctaLabel="Run your free audit"
-        note="No account required · No Stripe connection needed · Takes 30 seconds"
-      />
+        <div className="mt-24 border-t border-border pt-12 text-center">
+          <p className="mx-auto mb-6 max-w-[400px] text-item-title text-text-secondary">
+            See what your Stripe account is leaking. Free diagnostic, no account required.
+          </p>
+          <Link
+            to="/audit"
+            className="btn-primary inline-flex items-center gap-2 rounded-lg px-6 py-3 text-item-title font-medium text-on-amber"
+          >
+            Run your free audit
+          </Link>
+        </div>
+      </div>
 
       <script
         type="application/ld+json"
