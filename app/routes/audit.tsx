@@ -1,7 +1,6 @@
 import { data, Form, Link, useNavigation } from "react-router";
 
 import { Alert, Field, Submit } from "~/components/auth-ui";
-import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { estimateLeakage, recordEstimatorRun, type EstimatorResult } from "~/lib/estimator/estimate.server";
@@ -124,15 +123,27 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
   const busy = useNavigation().state !== "idle";
 
   return (
-    <div>
-      <MarketingPageHeader
-        eyebrow="Free lost revenue audit"
-        title="See what your Stripe account is leaking"
-        subtext="Enter your MRR and customer count for a directional estimate. No signup, no credit card, 30 seconds."
-      />
+    <div className="mx-auto max-w-[680px] px-4 py-10 text-center md:px-8 md:py-20">
+      {/* Bespoke hero, restored per ruling 64: legacy's /audit sits OUTSIDE
+          (marketing) and never used MarketingPageHeader. Foxhound had flattened
+          it onto the shared header, ruling 63's pattern. The h1 clamp is
+          legacy's, converted px to rem (Dustin, ruling 85): identical at a 16px
+          root, and unlike px it responds to a user's font-size setting. */}
+      <div className="mb-6 inline-block rounded-full border border-[rgb(from_var(--amber)_r_g_b_/_0.27)] bg-[rgb(from_var(--amber)_r_g_b_/_0.13)] px-3 py-1 font-mono text-xs tracking-[0.06em] text-amber-text">
+        FREE LOST REVENUE AUDIT
+      </div>
 
-      <div className="mx-auto max-w-2xl px-4 pb-16 sm:px-8">
-        <div className="mb-10 rounded-lg border border-border bg-surface p-6">
+      <h1 className="m-0 mb-5 text-[clamp(1.75rem,5vw,2.75rem)] font-semibold leading-[1.15] tracking-[-1px]">
+        See what your Stripe account is leaking
+      </h1>
+
+      <p className="m-0 mb-10 text-product-sub leading-[1.6] text-text-subtle">
+        Enter your MRR and customer count for a directional estimate. No signup, no credit card, 30
+        seconds.
+      </p>
+
+      <div>
+        <div className="mb-10 rounded-lg border border-border bg-surface p-6 text-left">
           <p className="mb-4 font-mono text-micro uppercase tracking-wide text-text-tertiary">
             Free leakage estimator
           </p>
@@ -176,7 +187,7 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
           )}
         </div>
 
-        <div className="mb-10 rounded-lg border border-border-sub bg-surface2 px-4 py-3 text-label leading-relaxed text-text-tertiary">
+        <div className="mb-10 rounded-lg border border-border-sub bg-surface2 px-4 py-3 text-left text-label leading-relaxed text-text-tertiary">
           Industry commentary on subscription businesses puts monthly failed-payment revenue leakage
           somewhere in the low single-digit percent of MRR for most accounts, typically higher for
           smaller, lower-touch accounts and lower for larger ones with more mature dunning already in
@@ -184,24 +195,56 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
           result), not a claim about your specific account until you connect Stripe.
         </div>
 
-        <section className="mb-10">
-          <h2 className="mb-4 text-title font-medium text-text">What the full audit covers</h2>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {/* Legacy's single covers CARD with a dot list, replacing a 2-up grid of
+            bordered sub-cards Foxhound had. Legacy's in-card CTA ("See my
+            numbers" to /audit/connect) is NOT ported: that route does not exist
+            here, row U1 is DEFECT-OPEN. */}
+        <div className="mb-6 rounded-2xl border border-border bg-surface p-6 md:p-10">
+          <div className="mb-5 text-xs font-medium uppercase tracking-[0.06em] text-text-tertiary">
+            What the full audit covers
+          </div>
+          <div>
             {[
               ["Failed invoices", "What is unrecovered right now, and the estimated recoverable amount."],
               ["Expiring cards", "Customers whose cards expire soon, and the MRR at risk before failures happen."],
               ["Open disputes", "Unmanaged chargebacks and revenue at risk without evidence submitted."],
               ["Business health", "MRR, ARR, active subscriptions, voluntary vs. involuntary churn."],
             ].map(([title, desc]) => (
-              <div key={title} className="rounded-lg border border-border bg-surface p-4">
-                <p className="mb-1 text-label font-medium text-text">{title}</p>
-                <p className="text-label leading-relaxed text-text-tertiary">{desc}</p>
+              <div key={title} className="mb-3 flex items-start gap-3 text-left">
+                <div className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-amber" />
+                <div>
+                  <div className="mb-0.5 text-sm font-medium text-text">{title}</div>
+                  <div className="text-label text-text-subtle">{desc}</div>
+                </div>
               </div>
             ))}
           </div>
-        </section>
+        </div>
 
-        <div className="rounded-lg border border-border bg-surface p-6 text-center">
+        {/* Legacy's two stat cards, restored as treatment (ruling 87). The
+            figures carry Foxhound's already-live claims, not legacy's "2 to 3%"
+            industry benchmark, which legacy's own comment calls marketing copy;
+            the short-form wording is recorded for ruling 20d's pass. */}
+        <div className="my-10 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="rounded-[12px] border border-border bg-surface p-5">
+            <div className="mb-1 font-mono text-[1.75rem] font-bold text-green">Low single digits</div>
+            <div className="text-xs text-text-subtle">percent of MRR fails every month for most accounts</div>
+          </div>
+          <div className="rounded-[12px] border border-border bg-surface p-5">
+            <div className="mb-1 font-mono text-[1.75rem] font-bold text-blue">$0</div>
+            <div className="text-xs text-text-subtle">cost to run this estimate today</div>
+          </div>
+        </div>
+
+        <div className="mb-4 text-label text-text-subtle">Want to see the app before connecting?</div>
+        <a
+          href="/demos/recovery"
+          className="text-sm text-amber-text no-underline transition-opacity duration-500 hover:opacity-80"
+        >
+          View live demo &rarr;
+        </a>
+
+        <div className="mt-10 rounded-lg border border-border bg-surface p-6 text-center">
           <p className="mb-2 text-body font-medium text-text">Want the full diagnostic against your real account?</p>
           <p className="mb-5 text-label leading-relaxed text-text-secondary">
             Create a free account, then connect Stripe for the full report: what Stripe already
