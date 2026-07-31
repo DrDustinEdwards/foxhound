@@ -76,54 +76,54 @@ export default function DocGuidePage({ loaderData }: Route.ComponentProps) {
   const sectionIds = guide.sections.map((section) => slugify(section.heading));
 
   return (
-    <div>
-      <div className="border-b border-border-sub px-4 py-16 text-center sm:px-8">
-        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Docs</p>
-        <h1 className="mt-3 text-display font-medium text-text">{guide.title}</h1>
-        <p className="mx-auto mt-3 max-w-xl text-body text-text-secondary">{guide.description}</p>
-      </div>
+    <div className="mx-auto max-w-[760px] px-6 py-16">
+      <nav aria-label="Breadcrumb" className="mb-8 text-micro text-text-tertiary">
+        <Link to="/docs" className="transition-colors hover:text-text">
+          Docs
+        </Link>
+        <span className="mx-2" aria-hidden="true">
+          &rarr;
+        </span>
+        <span>{guide.title}</span>
+      </nav>
 
-      <div className="mx-auto max-w-2xl px-4 py-16 sm:px-8">
-        <nav aria-label="Breadcrumb" className="mb-8 font-mono text-micro text-text-tertiary">
-          <Link to="/docs" className="hover:text-text">
-            Docs
-          </Link>
-          <span className="mx-2" aria-hidden="true">
-            &rarr;
-          </span>
-          <span>{guide.title}</span>
+      <div className="mb-3 text-micro font-medium uppercase tracking-widest text-text-tertiary">User Guide</div>
+      <h1 className="mb-3 text-page-title font-medium tracking-tight text-text">{guide.title}</h1>
+      <p className="mb-10 text-item-title leading-relaxed text-text-secondary">{guide.description}</p>
+
+      {guide.sections.length > 1 ? (
+        <nav aria-label="Contents" className="mb-12 rounded-lg border border-border bg-surface p-5">
+          <div className="mb-3 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">Contents</div>
+          <ol className="m-0 grid list-none grid-cols-1 gap-x-6 gap-y-1.5 p-0 sm:grid-cols-2">
+            {guide.sections.map((section, i) => (
+              <li key={section.heading} className="text-label">
+                <a
+                  href={`#${sectionIds[i]}`}
+                  className="text-amber-text underline underline-offset-2 hover:text-amber"
+                >
+                  Part {i + 1}. {section.heading}
+                </a>
+              </li>
+            ))}
+          </ol>
         </nav>
+      ) : null}
 
-        {guide.sections.length > 1 ? (
-          <nav aria-label="Contents" className="mb-10 rounded-lg border border-border bg-surface p-5">
-            <p className="mb-3 font-mono text-micro uppercase tracking-wide text-text-tertiary">Contents</p>
-            <ol className="m-0 grid list-none grid-cols-1 gap-1.5 p-0 sm:grid-cols-2">
-              {guide.sections.map((section, i) => (
-                <li key={section.heading}>
-                  <a href={`#${sectionIds[i]}`} className="text-label text-text-secondary hover:text-text">
-                    Part {i + 1}. {section.heading}
-                  </a>
-                </li>
-              ))}
-            </ol>
-          </nav>
-        ) : null}
-
-        <div className="flex flex-col gap-10">
-          {guide.sections.map((section, i) => (
-            <section key={section.heading}>
-              <h2 id={sectionIds[i]} className="mb-3 scroll-mt-20 text-title font-medium text-text">
-                {section.heading}
-              </h2>
-              <div className="flex flex-col gap-3 text-body leading-relaxed text-text-secondary">
-                {section.body.map((paragraph) => (
-                  <p key={paragraph}>{paragraph}</p>
-                ))}
-              </div>
-            </section>
+      {guide.sections.map((section, i) => (
+        <section key={section.heading}>
+          <div className="mb-2 mt-16 text-micro font-medium uppercase tracking-widest text-amber-text">
+            Part {i + 1}
+          </div>
+          <h2 id={sectionIds[i]} className="mb-6 scroll-mt-20 text-title font-medium text-text">
+            {section.heading}
+          </h2>
+          {section.body.map((paragraph) => (
+            <p key={paragraph} className="mb-4 text-item-title leading-relaxed text-text-secondary">
+              {paragraph}
+            </p>
           ))}
-        </div>
-      </div>
+        </section>
+      ))}
     </div>
   );
 }
