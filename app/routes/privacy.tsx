@@ -81,7 +81,7 @@ function Section({ id, number, title, children }: { id: string; number: number; 
 }
 
 function P({ children }: { children: React.ReactNode }) {
-  return <p className="mb-4 text-label leading-relaxed text-text-secondary">{children}</p>;
+  return <p className="mb-4 text-item-title leading-relaxed text-text-secondary">{children}</p>;
 }
 
 export default function PrivacyPage() {
@@ -89,13 +89,13 @@ export default function PrivacyPage() {
     <>
       <MarketingPageHeader eyebrow="Legal" title="Privacy Policy" subtext="Last updated July 18, 2026" />
 
-      <div className="mx-auto max-w-2xl px-4 pb-16 sm:px-8">
+      <div className="mx-auto max-w-[720px] px-6 pb-16">
         <section className="mb-12">
-          <h2 className="mb-3 font-mono text-micro uppercase tracking-wide text-text-tertiary">Contents</h2>
+          <h2 className="mb-3 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">Contents</h2>
           <ol className="m-0 grid grid-cols-1 gap-x-6 gap-y-1.5 p-0 sm:grid-cols-2">
             {SECTIONS.map((s) => (
               <li key={s.id} className="list-none text-label">
-                <a href={`#${s.id}`} className="text-amber-text underline underline-offset-2 hover:opacity-80">
+                <a href={`#${s.id}`} className="text-amber-text underline underline-offset-2 hover:text-amber">
                   {s.number}. {s.title}
                 </a>
               </li>
@@ -112,15 +112,15 @@ export default function PrivacyPage() {
           merchant&apos;s behalf.
         </P>
 
-        <section className="mb-8 rounded-lg border border-border bg-surface p-6">
-          <h2 className="mb-3 font-mono text-micro uppercase tracking-wide text-text-tertiary">
+        <section className="mb-8 mt-8 rounded-[12px] border border-border bg-surface p-6">
+          <h2 className="mb-3 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">
             Summary of key points
           </h2>
-          <p className="mb-4 text-label leading-relaxed text-text-secondary">
+          <p className="mb-4 text-item-title leading-relaxed text-text-secondary">
             This summary covers the key points from our Privacy Policy below. Use the contents list
             above to jump to the full detail on any topic.
           </p>
-          <ul className="m-0 flex list-none flex-col gap-3 p-0 text-label leading-relaxed text-text-secondary">
+          <ul className="m-0 flex list-none flex-col gap-3 p-0 text-copy leading-relaxed text-text-secondary">
             <li>
               <strong className="text-text">What information do we collect?</strong> Merchant Stripe
               data (invoices, subscriptions, disputes, customer records) through a Stripe OAuth
@@ -285,11 +285,11 @@ export default function PrivacyPage() {
         <Section id="contact" number={14} title="HOW CAN YOU CONTACT US ABOUT THIS NOTICE?">
           <P>
             Email{" "}
-            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-amber-text underline underline-offset-2 hover:opacity-80">
+            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-amber-text underline underline-offset-2 hover:text-amber">
               {SUPPORT_EMAIL}
             </a>
             . See also our{" "}
-            <Link to="/terms" className="text-amber-text underline underline-offset-2 hover:opacity-80">
+            <Link to="/terms" className="text-amber-text underline underline-offset-2 hover:text-amber">
               Terms of Service
             </Link>
             .
