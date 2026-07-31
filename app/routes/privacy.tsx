@@ -116,7 +116,7 @@ export default function PrivacyPage() {
           <h2 className="mb-3 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">
             Summary of key points
           </h2>
-          <p className="mb-4 text-item-title leading-relaxed text-text-secondary">
+          <p className="mb-4 text-copy leading-relaxed text-text-secondary">
             This summary covers the key points from our Privacy Policy below. Use the contents list
             above to jump to the full detail on any topic.
           </p>
