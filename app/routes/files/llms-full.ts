@@ -1,3 +1,5 @@
+import { getDb } from "~/db";
+import { getPublishedTagSet } from "~/lib/blog/queries.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { siteUrl, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 
@@ -6,16 +8,26 @@ import type { Route } from "./+types/llms-full";
 // Rewritten from scratch against legacy app/llms-full.txt/route.ts (Phase 6
 // Pass 2). Same constraints as llms.ts: real product lineup only (no
 // Scale/Grow/AI Cost), no stale pricing, all URLs from siteUrl(env), and no
-// enumerated blog article list (see llms.ts's comment; nothing is imported
-// yet, so a generic pointer to /blog and the tag archives is the honest
-// choice here too). No specific pricing numbers appear anywhere below, same
+// enumerated blog article list. That last point's ORIGINAL reason ("nothing
+// is imported yet") went stale once 45 posts landed and is corrected here:
+// the article list still is not enumerated, but now because the archives and
+// the sitemap are the always-accurate index, not because there is nothing to
+// list. No specific pricing numbers appear anywhere below, same
 // reasoning as llms.ts (a Phase 6 review found the prior draft's "spec
 // sheet, not blog copy" exemption didn't hold against the standing rule,
 // which names this file directly); /pricing is the one place numbers are
 // stated plainly.
-export function loader({ context }: Route.LoaderArgs) {
+export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const url = siteUrl(env);
+
+  // Only archives carrying a published post are listed, and the count claim
+  // ("8 canonical tags") is gone with them (ruling 88). Three of the eight
+  // served zero posts, so this file asserted content that does not exist on
+  // the highest-authority surface we publish.
+  const tagLines = (await getPublishedTagSet(getDb(env)))
+    .map((tag) => `- ${url}/blog/tag/${tag}`)
+    .join("\n");
 
   const content = `# Foxhound: Full Content Index
 
@@ -103,16 +115,9 @@ No setup fees. No minimum commitments. No per-seat charges. Current rates: ${url
 
 ## Blog
 
-Guides on Stripe payment recovery, dispute handling, decline codes, subscription intelligence, SaaS pricing and metrics, and product comparisons live at ${url}/blog. Content is organized under 8 canonical tags, each with its own archive:
+Guides on Stripe payment recovery, dispute handling, decline codes, subscription intelligence, and product comparisons live at ${url}/blog. Content is organized by topic, each with its own archive:
 
-- ${url}/blog/tag/payment-recovery
-- ${url}/blog/tag/disputes
-- ${url}/blog/tag/subscription-intelligence
-- ${url}/blog/tag/decline-codes
-- ${url}/blog/tag/stripe-for-saas
-- ${url}/blog/tag/saas-pricing
-- ${url}/blog/tag/saas-metrics
-- ${url}/blog/tag/comparisons
+${tagLines}
 
 Individual article titles and URLs are not enumerated here; the archive pages above and ${url}/sitemap.xml are the current, always-accurate index.
 
