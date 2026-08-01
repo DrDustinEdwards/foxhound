@@ -41,24 +41,38 @@ interface SitemapEntry {
 // routes.ts and never added here now fails CI instead of silently missing
 // from search indexing (TASK-foxhound-seo-remediation.md M4:
 // foxhound-audit-seo.md flagged /features missing this way).
+// Priorities and changeFrequency are aligned to legacy's app/sitemap.ts
+// (ruling 91). They are format hints with no truth content, so legacy is the
+// spec. Legacy's lastModified is deliberately NOT restored: it sets
+// `new Date()` on every static entry, telling crawlers every page changed on
+// this request, which is false and degrades crawl scheduling. Ruling 39
+// class, do not restore a legacy defect.
+//
+// The /products/* spoke paths stay as-is: legacy serves /product/* (singular)
+// and ruling 55 reverts these, but until that rename ships, emitting
+// /product/* here would publish sitemap entries pointing at routes that do
+// not exist. 55-dependent, resolves with the rename.
 export const STATIC_PAGES: SitemapEntry[] = [
   { path: "/", changeFrequency: "weekly", priority: 1.0 },
-  { path: "/pricing", changeFrequency: "monthly", priority: 0.9 },
+  { path: "/pricing", changeFrequency: "monthly", priority: 0.8 },
   { path: "/products", changeFrequency: "monthly", priority: 0.9 },
-  { path: "/products/audit", changeFrequency: "monthly", priority: 0.8 },
-  { path: "/products/recovery", changeFrequency: "monthly", priority: 0.8 },
-  { path: "/products/disputes", changeFrequency: "monthly", priority: 0.8 },
-  { path: "/products/intelligence", changeFrequency: "monthly", priority: 0.8 },
-  { path: "/features", changeFrequency: "monthly", priority: 0.6 },
+  { path: "/products/audit", changeFrequency: "monthly", priority: 0.9 },
+  { path: "/products/recovery", changeFrequency: "monthly", priority: 0.9 },
+  { path: "/products/disputes", changeFrequency: "monthly", priority: 0.9 },
+  { path: "/products/intelligence", changeFrequency: "monthly", priority: 0.9 },
+  { path: "/features", changeFrequency: "monthly", priority: 0.8 },
+  // NET-NEW (no legacy pair): /about, /decline-codes, /compare and their
+  // children. Ruling 56 permits a NET-NEW surface listing ITSELF; none of
+  // them changes an entry for a ported page.
   { path: "/about", changeFrequency: "monthly", priority: 0.5 },
   { path: "/demos", changeFrequency: "monthly", priority: 0.7 },
-  { path: "/docs", changeFrequency: "weekly", priority: 0.7 },
-  { path: "/audit", changeFrequency: "monthly", priority: 0.8 },
+  { path: "/docs", changeFrequency: "weekly", priority: 0.8 },
+  { path: "/audit", changeFrequency: "monthly", priority: 0.9 },
   { path: "/privacy", changeFrequency: "yearly", priority: 0.3 },
   { path: "/terms", changeFrequency: "yearly", priority: 0.3 },
   { path: "/blog", changeFrequency: "weekly", priority: 0.8 },
   // TASK-foxhound-parity-cluster-b.md fix 3: restores legacy's archive page.
-  { path: "/blog/archive", changeFrequency: "weekly", priority: 0.6 },
+  { path: "/blog/archive", changeFrequency: "weekly", priority: 0.7 },
   // Pass 3 extension point: decline-codes and compare hubs + their
   // templated per-code/per-competitor pages, added below via
   // DECLINE_CODES/COMPETITOR_ORDER rather than hand-listed here.
@@ -70,8 +84,8 @@ export const STATIC_PAGES: SitemapEntry[] = [
 // below (a static list already in the repo, not hand-duplicated here).
 const docEntries: SitemapEntry[] = DOC_GUIDES.map((g) => ({
   path: `/docs/${g.slug}`,
-  changeFrequency: "monthly",
-  priority: 0.6,
+  changeFrequency: "weekly",
+  priority: 0.7,
 }));
 
 function xmlEscape(s: string): string {
@@ -102,10 +116,14 @@ export async function loader({ context }: Route.LoaderArgs) {
 
   const tagsWithPosts = new Set<string>();
   for (const post of posts) for (const tag of post.tags) tagsWithPosts.add(tag);
+  // Legacy hardcodes five tag URLs at 0.7, except comparisons at 0.6. A
+  // generator cannot reproduce a per-tag exception without hand-listing the
+  // very data it derives from, so all tags take legacy's majority value; the
+  // comparisons nuance is recorded rather than encoded.
   const tagEntries: SitemapEntry[] = [...tagsWithPosts].map((tag) => ({
     path: `/blog/tag/${tag}`,
     changeFrequency: "weekly",
-    priority: 0.6,
+    priority: 0.7,
   }));
 
   const declineCodeEntries: SitemapEntry[] = DECLINE_CODES.map((c) => ({
