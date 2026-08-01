@@ -1,3 +1,5 @@
+import { getDb } from "~/db";
+import { getPublishedTagSet } from "~/lib/blog/queries.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { siteUrl, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 
@@ -22,9 +24,20 @@ import type { Route } from "./+types/llms";
 // here would either be empty noise or a stale/aspirational claim. Pointing
 // at /blog and /blog/tag/* is honest today and needs no follow-up edit
 // once the import lands.
-export function loader({ context }: Route.LoaderArgs) {
+export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const url = siteUrl(env);
+
+  // Only archives that actually carry a published post are advertised
+  // (ruling 88). This file previously listed all eight canonical tags, three
+  // of which served zero posts, so the highest-authority surface we publish
+  // was pointing AI crawlers at empty pages, and an unknown tag returns 200
+  // rather than 404, making an empty archive indistinguishable from a garbage
+  // URL. Legacy enumerates only topics that have articles; content-gating
+  // matches it and self-corrects as roadmap content lands.
+  const tagList = (await getPublishedTagSet(getDb(env)))
+    .map((tag) => `${url}/blog/tag/${tag}`)
+    .join(", ");
 
   const content = `# Foxhound
 
@@ -68,7 +81,7 @@ Foxhound is built on Stripe Connect for subscription businesses. It sits on top 
 
 ## Blog
 
-Guides on Stripe payment recovery, dispute handling, and subscription intelligence: [${url}/blog](${url}/blog). Browse by topic at ${url}/blog/tag/payment-recovery, ${url}/blog/tag/disputes, ${url}/blog/tag/subscription-intelligence, ${url}/blog/tag/decline-codes, ${url}/blog/tag/stripe-for-saas, ${url}/blog/tag/saas-pricing, ${url}/blog/tag/saas-metrics, and ${url}/blog/tag/comparisons.
+Guides on Stripe payment recovery, dispute handling, and subscription intelligence: [${url}/blog](${url}/blog). Browse by topic at ${tagList}.
 
 ## Technical
 
