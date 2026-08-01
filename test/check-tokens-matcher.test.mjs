@@ -96,3 +96,47 @@ describe("px font-size matchers are unchanged", () => {
     expect(scanContent("app/routes/files/og.ts", 'fontSize: "13px"')).toEqual([]);
   });
 });
+
+describe("px font sizes wrapped in a function are caught too", () => {
+  // The blind spot this block was written for, found on M22's /audit hero.
+  // The original matcher required text-[Npx] literally, so px inside clamp()
+  // slipped straight past it: legacy's text-[clamp(28px,5vw,44px)] would have
+  // shipped a hero frozen against the reader's font-size setting, and the
+  // guard would have stayed green. Measured before widening: zero existing
+  // non-exempt carriers, so this closes a hole rather than papering one over.
+  it("flags px inside a Tailwind clamp()", () => {
+    expect(scanContent(TSX, '<h1 className="text-[clamp(28px,5vw,44px)]">x</h1>')).toHaveLength(1);
+  });
+
+  it("flags px inside a raw css clamp()", () => {
+    expect(scanContent(CSS, "font-size: clamp(28px, 5vw, 44px);")).toHaveLength(1);
+  });
+
+  it("flags px inside min() and max()", () => {
+    expect(scanContent(TSX, '<p className="text-[min(14px,2vw)]">x</p>')).toHaveLength(1);
+    expect(scanContent(TSX, '<p className="text-[max(14px,2vw)]">x</p>')).toHaveLength(1);
+  });
+
+  it("flags px inside calc()", () => {
+    expect(scanContent(CSS, "font-size: calc(1rem + 2px);")).toHaveLength(1);
+  });
+
+  // The decisive negative pair: the SAME clamp shape in rem must stay silent,
+  // or the widened matcher would flag the very fix it exists to encourage.
+  it("does not flag an all-rem clamp", () => {
+    expect(scanContent(TSX, '<h1 className="text-[clamp(1.75rem,5vw,2.75rem)]">x</h1>')).toEqual([]);
+    expect(scanContent(CSS, "font-size: clamp(1.75rem, 5vw, 2.75rem);")).toEqual([]);
+  });
+
+  it("does not flag a px length that is not a font size", () => {
+    // Only font sizes are governed. Spacing, borders and offsets in px are
+    // fine, and a matcher that swept those in would be wrong in the other
+    // direction.
+    expect(scanContent(TSX, '<div className="mt-[7px] w-[680px]" />')).toEqual([]);
+    expect(scanContent(CSS, "padding: 10px; border-radius: 12px;")).toEqual([]);
+  });
+
+  it("still exempts function-wrapped px on the og image route", () => {
+    expect(scanContent("app/routes/files/og.ts", "font-size: clamp(28px, 5vw, 44px);")).toEqual([]);
+  });
+});
