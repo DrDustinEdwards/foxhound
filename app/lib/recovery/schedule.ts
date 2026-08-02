@@ -17,13 +17,23 @@ import {
 } from "~/lib/constants";
 
 // Recovery schedules: the ordered steps run after a failed payment, per decline
-// category. Rebuild ordering is SILENT-FIRST (PRICING.md): retryable declines
-// (soft, network) lead with a silent Foxhound retry BEFORE the first dunning
-// email. Non-retryable declines (expired, fraud) cannot be silently recovered,
-// so they lead with an email that carries the card-update link. Fraud never
-// retries (a 21-day retry risks the issuer's fraud counter -> higher fees).
+// category. Ordering is SILENT-FIRST: retryable declines (soft, network) lead
+// with a silent Foxhound retry BEFORE the first dunning email. Non-retryable
+// declines (expired, fraud) cannot be silently recovered, so they lead with an
+// email that carries the card-update link. Fraud never retries (a 21-day retry
+// risks the issuer's fraud counter -> higher fees).
 //
-// This is a deliberate change from legacy, where soft/expired led with email_day1.
+// This diverges from legacy, where soft and expired led with email_day1, and it
+// is RATIFIED (Dustin, 2026-08-01, ruling 80). Retrying quietly before any
+// customer-facing email is the better product under PRICING.md's outcome model:
+// a transient card failure recovers without the merchant's customer being
+// dunned over a blip, and Stripe-baseline recoveries are free anyway.
+//
+// The previous comment called this "a deliberate change from legacy" while
+// citing PRICING.md, with no ratification line. That was the calcification
+// pattern (a doc cited to overrule legacy's behavior) and it is struck: the
+// ruling is the authority now, not the citation. Ruling 78's SequenceTimeline
+// already renders from RECOVERY_SCHEDULES, so engine, diagram and copy agree.
 
 export interface ScheduledStep {
   stepType: string;
