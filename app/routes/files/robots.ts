@@ -10,9 +10,24 @@ import type { Route } from "./+types/robots";
 // (marketing, blog, docs, pricing, /audit) is crawlable.
 //
 // The per-bot allow rules are GEO signals for AI crawlers and LLM-powered
-// search: each gets its own rule (not grouped), per the task spec. Bytespider
-// and CCBot are explicitly denied (undifferentiated training scrapers, not
-// AI products with a citation/answer surface).
+// search: each gets its own rule, not grouped.
+//
+// The bot set is legacy's allow-posture updated for 2026 (Dustin, ruling 90).
+// It is NOT a ratification of what this file used to do: an earlier version
+// denied CCBot and dropped four bots legacy allows, justified by a comment
+// citing "the task spec", which is the calcification pattern (a doc cited to
+// overrule legacy) and is struck.
+//
+// All thirteen bots legacy names are allowed, CCBot included: Common Crawl
+// feeds the training sets the AI-citation strategy targets, so denying it
+// contradicts the strategy published on this very site (llms.txt invites
+// exactly these crawlers). The four legacy bots that had gone missing
+// (anthropic-ai, Applebot, Applebot-Extended, DuckDuckBot) are restored.
+// Three newer citation-surface agents are kept as a ratified addition
+// (Claude-SearchBot, Claude-User, Perplexity-User).
+//
+// Bytespider is the ONE ratified deny: an undifferentiated training scraper
+// with no citation or answer surface, so no upside to the strategy above.
 const DISALLOW_PATHS = [
   "/dashboard",
   "/recovery",
@@ -37,21 +52,29 @@ const DISALLOW_PATHS = [
   "/auth/",
 ];
 
+// Legacy's thirteen, in legacy's order, then the three ratified additions.
 const ALLOWED_BOTS = [
+  "GPTBot",
+  "ChatGPT-User",
+  "OAI-SearchBot",
+  "ClaudeBot",
+  "anthropic-ai",
+  "PerplexityBot",
+  "Applebot",
+  "Applebot-Extended",
+  "Google-Extended",
   "Googlebot",
   "Bingbot",
-  "GPTBot",
-  "OAI-SearchBot",
-  "ChatGPT-User",
-  "ClaudeBot",
+  "DuckDuckBot",
+  "CCBot",
+  // Ratified additions (Dustin, ruling 90): citation-surface agents that did
+  // not exist when legacy's list was written.
   "Claude-SearchBot",
   "Claude-User",
-  "PerplexityBot",
   "Perplexity-User",
-  "Google-Extended",
 ];
 
-const DENIED_BOTS = ["Bytespider", "CCBot"];
+const DENIED_BOTS = ["Bytespider"];
 
 function buildRobotsTxt(url: string): string {
   const lines: string[] = [];
