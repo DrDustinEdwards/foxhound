@@ -42,8 +42,11 @@ interface SitemapEntry {
 // from search indexing (TASK-foxhound-seo-remediation.md M4:
 // foxhound-audit-seo.md flagged /features missing this way).
 // Priorities and changeFrequency are aligned to legacy's app/sitemap.ts
-// (ruling 91). They are format hints with no truth content, so legacy is the
-// spec. Legacy's lastModified is deliberately NOT restored: it sets
+// (ruling 89, for LEGACY-PAIRED entries only; the NET-NEW entries below keep
+// their own values, having no legacy spec, per ruling 56). They are format
+// hints with no truth content, so legacy is the spec. An earlier version of
+// this comment cited ruling 91, which is the index cell cap, not this;
+// corrected. Legacy's lastModified is deliberately NOT restored: it sets
 // `new Date()` on every static entry, telling crawlers every page changed on
 // this request, which is false and degrades crawl scheduling. Ruling 39
 // class, do not restore a legacy defect.
