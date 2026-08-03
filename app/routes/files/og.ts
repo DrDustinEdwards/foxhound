@@ -11,13 +11,27 @@ import { ImageResponse } from "workers-og";
 //       the app's DM Sans Variable file carries -- confirmed at request
 //       time ("Cannot read properties of undefined (reading '265')" deep
 //       inside opentype.js's table parser, again swallowed into an empty
-//       PNG). DM Mono's static per-weight files have none of those tables,
-//       so this card uses DM Mono for every line of text, not just the
-//       wordmark. That is a legitimate on-brand choice, not a workaround
-//       dressed up as one: DM Mono is already this app's font for every
-//       number/stat and the wordmark itself (wordmark.tsx), and reads
-//       cleanly at OG card sizes.
+//       PNG).
+//
+// This file previously concluded from (b) that the card should use DM Mono
+// for EVERY line of text, calling it "a legitimate on-brand choice, not a
+// workaround dressed up as one". Ruling 96 (Dustin, 2026-08-03) corrected
+// that: the constraint rules out one FILE, not the typeface. Legacy's card is
+// sans throughout (app/og/route.tsx, `system-ui, sans-serif`), and a STATIC
+// per-weight DM Sans instance parses exactly as DM Mono's static file does.
+// scripts/build-og-fonts.py derives dm-sans-{400,500,600}.ttf from the same
+// dm-sans-variable.woff2 the app already ships, stripping fvar/gvar/avar/
+// HVAR/STAT so the table set matches dm-mono-500.ttf, the file already proven
+// to parse at request time. A constraint that rules out an artifact is not a
+// licence to change the design, and recording that change as deliberate
+// without a ratification is what PRIME DIRECTIVE item 4 exists to catch.
+//
+// DM Mono is retained for the WORDMARK only: that is Foxhound's own brand
+// treatment (wordmark.tsx), sanctioned under PRIME DIRECTIVE item 2(b).
 import dmMono500 from "~/assets/fonts/dm-mono-500.ttf?inline";
+import dmSans400 from "~/assets/fonts/dm-sans-400.ttf?inline";
+import dmSans500 from "~/assets/fonts/dm-sans-500.ttf?inline";
+import dmSans600 from "~/assets/fonts/dm-sans-600.ttf?inline";
 
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { siteUrl } from "~/lib/seo/jsonld";
@@ -56,7 +70,9 @@ const COLOR_WORDMARK = "#f5f5f3";
 const COLOR_AMBER = "#f0b429";
 const COLOR_TEXT_SECONDARY = "#a8a49e";
 const COLOR_TEXT_TERTIARY = "#928d87";
+const COLOR_ON_AMBER = "#0d0e0c";
 const FONT = "DM Mono";
+const FONT_SANS = "DM Sans";
 
 // Only `<`/`>` need escaping here: the title/tag are placed as a <div>'s
 // TEXT content (never an attribute value), and workers-og's HTMLRewriter-
@@ -81,24 +97,45 @@ function wordmarkHtml(fontSize: number): string {
   </div>`;
 }
 
+// Legacy's default card (app/og/route.tsx): wordmark 80px, tagline 28px at
+// letter-spacing -0.01em with 24px above it, then an 18px amber line at
+// weight 500 with 8px above that. Sizes and spacing are legacy's; the COPY is
+// Foxhound's and stays 20d-frozen (legacy's "20% of recovered revenue" is a
+// pricing claim, Foxhound's attribution wording is the accurate one).
+// Legacy sets no max-width or text-align here; the centred container does it.
 function defaultCardHtml(): string {
-  return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:1200px;height:630px;background-color:${COLOR_BG};font-family:'${FONT}';">
-    ${wordmarkHtml(64)}
-    <div style="display:flex;margin-top:28px;font-size:24px;color:${COLOR_TEXT_SECONDARY};max-width:800px;text-align:center;">Recover failed Stripe payments without overbilling for it.</div>
-    <div style="display:flex;margin-top:20px;font-size:16px;color:${COLOR_AMBER};letter-spacing:0.04em;text-transform:uppercase;">Pay only on Foxhound-attributed recoveries</div>
+  return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:1200px;height:630px;background-color:${COLOR_BG};font-family:'${FONT_SANS}';">
+    ${wordmarkHtml(80)}
+    <div style="display:flex;margin-top:24px;font-size:28px;color:${COLOR_TEXT_SECONDARY};letter-spacing:-0.01em;">Recover failed Stripe payments without overbilling for it.</div>
+    <div style="display:flex;margin-top:8px;font-size:18px;font-weight:500;color:${COLOR_AMBER};">Pay only on Foxhound-attributed recoveries</div>
   </div>`;
 }
 
-function blogCardHtml(title: string, tag: string, host: string): string {
+// Legacy's blog card, ported structure for structure (app/og/route.tsx):
+// an amber 10px dot plus an 18px weight-500 amber eyebrow, the title at
+// 56px (48px past 50 characters) weight 600 with line-height 1.15 and
+// letter-spacing -0.03em, the post EXCERPT beneath it at 22px, and a footer
+// pairing the host with an amber pill. Foxhound had dropped the excerpt
+// entirely, replaced the pill with a tag chip, and shrunk the title; all four
+// were unratified. Branding only is Foxhound's: "Foxhound Blog", "FOXHOUND".
+function blogCardHtml(title: string, description: string, host: string): string {
   const safeTitle = escapeHtml(title);
-  const label = escapeHtml(tag || "Blog");
-  const titleFontSize = title.length > 60 ? 40 : 48;
-  return `<div style="display:flex;flex-direction:column;justify-content:space-between;width:1200px;height:630px;background-color:${COLOR_BG};padding:72px;font-family:'${FONT}';">
-    ${wordmarkHtml(28)}
-    <div style="display:flex;font-size:${titleFontSize}px;font-weight:500;line-height:1.3;color:${COLOR_WORDMARK};max-width:1000px;">${safeTitle}</div>
+  const safeDescription = escapeHtml(description);
+  const titleFontSize = title.length > 50 ? 48 : 56;
+  const descriptionHtml = safeDescription
+    ? `\n      <div style="display:flex;font-size:22px;color:${COLOR_TEXT_SECONDARY};line-height:1.5;max-width:800px;">${safeDescription}</div>`
+    : "";
+  return `<div style="display:flex;flex-direction:column;justify-content:space-between;width:1200px;height:630px;background-color:${COLOR_BG};padding:72px 80px;font-family:'${FONT_SANS}';">
+    <div style="display:flex;align-items:center;">
+      <div style="display:flex;width:10px;height:10px;border-radius:50%;background-color:${COLOR_AMBER};margin-right:12px;"></div>
+      <div style="display:flex;font-size:18px;font-weight:500;color:${COLOR_AMBER};letter-spacing:-0.02em;">Foxhound Blog</div>
+    </div>
+    <div style="display:flex;flex-direction:column;">
+      <div style="display:flex;font-size:${titleFontSize}px;font-weight:600;line-height:1.15;letter-spacing:-0.03em;color:${COLOR_WORDMARK};max-width:900px;${safeDescription ? "margin-bottom:24px;" : ""}">${safeTitle}</div>${descriptionHtml}
+    </div>
     <div style="display:flex;align-items:center;justify-content:space-between;">
-      <div style="display:flex;font-size:16px;letter-spacing:0.04em;text-transform:uppercase;color:${COLOR_AMBER};">${label}</div>
-      <div style="display:flex;font-size:16px;color:${COLOR_TEXT_TERTIARY};">${escapeHtml(host)}</div>
+      <div style="display:flex;font-size:18px;color:${COLOR_TEXT_TERTIARY};">${escapeHtml(host)}</div>
+      <div style="display:flex;background-color:${COLOR_AMBER};color:${COLOR_ON_AMBER};font-size:14px;font-weight:600;padding:8px 20px;border-radius:8px;letter-spacing:0.04em;">FOXHOUND</div>
     </div>
   </div>`;
 }
@@ -121,18 +158,25 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
   const url = new URL(request.url);
   const type = params.params === "blog" ? "blog" : "default";
   const title = url.searchParams.get("title") ?? "Foxhound";
-  const tag = url.searchParams.get("tag") ?? "";
+  // `description` is legacy's parameter name and legacy's content: the post
+  // excerpt. It replaced `tag`, which legacy's card never carried (ruling 96).
+  const description = url.searchParams.get("description") ?? "";
   // Derived from SITE_URL (site URL discipline, TASK-foxhound-phase6.md),
   // never hardcoded: previously this card always showed "foxhoundapp.com"
   // literally, wrong on every card generated before the Phase 9 domain
   // cutover (Phase 6 review finding).
   const host = new URL(siteUrl(env)).host;
 
-  const element = type === "blog" ? blogCardHtml(title, tag, host) : defaultCardHtml();
+  const element = type === "blog" ? blogCardHtml(title, description, host) : defaultCardHtml();
 
   return new ImageResponse(element, {
     width: 1200,
     height: 630,
-    fonts: [{ name: FONT, data: dataUrlToArrayBuffer(dmMono500), weight: 500, style: "normal" }],
+    fonts: [
+      { name: FONT, data: dataUrlToArrayBuffer(dmMono500), weight: 500, style: "normal" },
+      { name: FONT_SANS, data: dataUrlToArrayBuffer(dmSans400), weight: 400, style: "normal" },
+      { name: FONT_SANS, data: dataUrlToArrayBuffer(dmSans500), weight: 500, style: "normal" },
+      { name: FONT_SANS, data: dataUrlToArrayBuffer(dmSans600), weight: 600, style: "normal" },
+    ],
   });
 }

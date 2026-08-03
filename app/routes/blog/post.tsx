@@ -8,7 +8,6 @@ import { ShareRow } from "~/components/blog/share-row";
 import { TableOfContents } from "~/components/blog/table-of-contents";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { formatTagChip } from "~/lib/blog/format";
 import { extractFaqPairs, renderMarkdown } from "~/lib/blog/markdown.server";
 import { getNextPost, getPostBySlug, getPostLinks, getPreviousPost } from "~/lib/blog/queries.server";
 import {
@@ -55,9 +54,12 @@ export async function loader({ params, context }: Route.LoaderArgs) {
   return { siteUrl: siteUrl(env), post, html, toc, previous, next, related, faqPairs };
 }
 
-function ogImageUrl(url: string, title: string, tag: string | undefined): string {
+// Legacy passes the post EXCERPT as `description` and renders it on the card
+// (legacy app/og/route.tsx). Foxhound had been passing the first tag instead,
+// which legacy's card never carried; corrected under ruling 96.
+function ogImageUrl(url: string, title: string, description: string | undefined): string {
   const params = new URLSearchParams({ title });
-  if (tag) params.set("tag", formatTagChip(tag));
+  if (description) params.set("description", description);
   return `${url}/og/blog?${params.toString()}`;
 }
 
@@ -67,7 +69,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
   const title = post.ogTitle ?? post.title;
   const description = post.ogDescription ?? post.excerpt;
   const canonical = post.canonicalUrl ?? `${url}/blog/${post.slug}`;
-  const image = post.coverImageUrl ?? ogImageUrl(url, title, post.tags[0]);
+  const image = post.coverImageUrl ?? ogImageUrl(url, title, post.ogDescription ?? post.excerpt);
 
   return marketingMeta({
     title: `${title} - Foxhound Blog`,
@@ -91,7 +93,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
   const { siteUrl: url, post, html, toc, previous, next, related, faqPairs } = loaderData;
 
   const canonical = post.canonicalUrl ?? `${url}/blog/${post.slug}`;
-  const image = post.coverImageUrl ?? ogImageUrl(url, post.ogTitle ?? post.title, post.tags[0]);
+  const image = post.coverImageUrl ?? ogImageUrl(url, post.ogTitle ?? post.title, post.ogDescription ?? post.excerpt);
 
   const showUpdated =
     post.showUpdatedAt &&
