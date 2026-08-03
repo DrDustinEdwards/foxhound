@@ -22,20 +22,38 @@ export async function loader({ context }: Route.LoaderArgs) {
   const db = getDb(env);
 
   const posts = await getAllPublishedPosts(db);
-  const buildDate = new Date().toUTCString();
+
+  // lastBuildDate is "the last time the content of the channel changed"
+  // (RSS 2.0): when a post last published, NOT when this request happened.
+  // Legacy stamps `new Date()` on every request. That is the same always-now
+  // defect ruling 89 refused to import into the sitemap, where legacy sets
+  // lastModified to now on every static entry, and it was caught here by
+  // ruling 90's cross-surface check: the sitemap and this feed serve the same
+  // crawler audience and were asserting opposite things about the same 45
+  // posts. Ruling 89 is EXTENDED to this file (Dustin, 2026-08-03).
+  // getAllPublishedPosts orders by publishedAt DESC, so the first post with a
+  // date is the newest.
+  const newestPublishedAt = posts.find((post) => post.publishedAt)?.publishedAt;
+  const lastBuildDate = newestPublishedAt
+    ? `\n    <lastBuildDate>${newestPublishedAt.toUTCString()}</lastBuildDate>`
+    : "";
 
   const items = posts
     .map((post) => {
       const postUrl = `${url}/blog/${post.slug}`;
-      const pubDate = post.publishedAt ? post.publishedAt.toUTCString() : buildDate;
+      // OMITTED rather than defaulted to now, same ruling: an item whose
+      // pubDate reads "now" on every fetch re-surfaces forever in any reader
+      // that sorts by date. pubDate is optional in RSS 2.0; a wrong one is not.
+      const pubDate = post.publishedAt
+        ? `\n      <pubDate>${post.publishedAt.toUTCString()}</pubDate>`
+        : "";
       const categories = post.tags.map((tag) => `<category>${xmlEscapeAttr(tag)}</category>`).join("");
       return `
     <item>
       <title><![CDATA[${post.title}]]></title>
       <link>${postUrl}</link>
       <guid isPermaLink="true">${postUrl}</guid>
-      <description><![CDATA[${post.excerpt}]]></description>
-      <pubDate>${pubDate}</pubDate>
+      <description><![CDATA[${post.excerpt}]]></description>${pubDate}
       <author>${xmlEscapeAttr(SUPPORT_EMAIL)} (${xmlEscapeAttr(post.author)})</author>
       ${categories}
     </item>`;
@@ -48,8 +66,7 @@ export async function loader({ context }: Route.LoaderArgs) {
     <title>Foxhound Blog</title>
     <link>${url}/blog</link>
     <description>Guides on Stripe payment recovery, dispute handling, and subscription intelligence.</description>
-    <language>en-us</language>
-    <lastBuildDate>${buildDate}</lastBuildDate>
+    <language>en-us</language>${lastBuildDate}
     <atom:link href="${url}/feed.rss" rel="self" type="application/rss+xml"/>
     ${items}
   </channel>
