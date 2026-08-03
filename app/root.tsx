@@ -45,6 +45,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        {/* Legacy declares the feed site-wide from its root layout
+            (app/layout.tsx, metadata.alternates.types), so every legacy page
+            carries this link. Foxhound had the feed route but advertised it
+            from nowhere: not here, not the sitemap, not robots.txt, not the
+            llms pair, verified live. A feed nothing points at is shipped but
+            dark, reachable only by guessing the URL. Row F5.
+            The href is relative where legacy's is absolute: legacy hardcodes
+            recovamrr.com, which Foxhound's site-URL discipline bars, and this
+            element has no env access. Relative resolves identically for every
+            feed reader and cannot go stale at the Phase 9 cutover. */}
+        <link rel="alternate" type="application/rss+xml" href="/feed.rss" />
         <link rel="preload" href={dmSansVariable} as="font" type="font/woff2" crossOrigin="anonymous" />
         <link rel="preload" href={dmMono400} as="font" type="font/woff2" crossOrigin="anonymous" />
         <link rel="preload" href={dmMono500} as="font" type="font/woff2" crossOrigin="anonymous" />
