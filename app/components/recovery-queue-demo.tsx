@@ -272,10 +272,17 @@ export function RecoveryQueueDemo() {
             {STEPS.map((label, i) => (
               <div
                 key={label}
-                // w-7, not legacy's w-8: seven chips plus gaps have to clear a
-                // 320px viewport inside two levels of px-4, and w-8 left about
-                // eight pixels of slack, which a scrollbar eats.
-                className={`flex h-5 w-7 shrink-0 items-center justify-center rounded border font-mono text-micro transition-colors duration-300 ${STEP_CLASS[stepStateAt(i, frame.done)]}`}
+                // w-8 and NO shrink-0, both legacy's (components/hero/
+                // RecoveryDemo.tsx stepClass). This row previously carried w-7
+                // plus shrink-0, justified as clearing a 320px viewport. The
+                // measurement inverted that: legacy already handles narrow
+                // viewports, by letting the chips COMPRESS under flex's default
+                // shrink of 1. Legacy sets flex-shrink-0 on the status icons and
+                // deliberately not here. Foxhound had added shrink-0, which turns
+                // a flexible 248px row into a rigid one, and then narrowed the
+                // chips to make the rigid row fit. The narrowing compensated for
+                // a self-inflicted constraint, not for anything legacy does.
+                className={`flex h-5 w-8 items-center justify-center rounded border font-mono text-micro transition-colors duration-300 ${STEP_CLASS[stepStateAt(i, frame.done)]}`}
               >
                 {label}
               </div>
