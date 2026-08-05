@@ -95,7 +95,12 @@ export default function Signup({ loaderData }: Route.ComponentProps) {
         />
         <Submit disabled={busy}>{busy ? "Creating..." : "Create account"}</Submit>
       </Form>
-      {loaderData.googleEnabled ? <GoogleButton label="Sign up with Google" /> : null}
+      {/* "Continue with Google" is legacy's label on BOTH auth pages
+          (app/(auth)/login/page.tsx:120 and signup/page.tsx:94). Foxhound used
+          it on /login and "Sign up with Google" here, so its own two auth pages
+          disagreed where legacy's agree. Pure drift, no claim content, so it
+          reverts in the walk under ruling 20's split rule. */}
+      {loaderData.googleEnabled ? <GoogleButton label="Continue with Google" /> : null}
     </AuthShell>
   );
 }
