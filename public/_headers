@@ -1,2 +1,24 @@
+# Static-asset responses are served by Cloudflare's asset server WITHOUT
+# invoking the Worker (wrangler.jsonc's assets block sets no run_worker_first),
+# so applySecurityHeaders in workers/app.ts never runs for them. Measured live
+# before this file changed: an HTML page and /robots.txt carried 6 of 6 security
+# headers while every hashed asset and /favicon.svg carried 0 of 6.
+#
+# Legacy applied its header set to `source: '/(.*)'` in next.config.ts, which on
+# Vercel covered static files too, so this was a legacy-present gap rather than a
+# preference (ruling 106). The five below are byte-identical to SECURITY_HEADERS
+# in app/lib/http/security-headers.ts, and test/static-headers.test.ts fails in
+# both directions if the two ever drift apart.
+#
+# Content-Security-Policy is deliberately NOT here. Foxhound's CSP carries a
+# per-request nonce and cannot be expressed as a static header; ruling 93 protects
+# that strength as class 2(a) and it is never traded away for uniformity.
+/*
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
