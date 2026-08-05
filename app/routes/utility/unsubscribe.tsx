@@ -11,6 +11,17 @@ export function meta() {
   return [{ title: "Unsubscribe - Foxhound" }];
 }
 
+// This URL is per-recipient and token-bearing, so it is never cacheable by any
+// shared intermediary (Dustin, 2026-08-04). Neither side sent a directive here:
+// legacy sets no Cache-Control on its unsubscribe route either, and Foxhound's
+// own e/o pixel was the only one of the four tokenised routes that did. Same
+// correctness class as the F2 robots row, where Foxhound already disallows
+// /u/ /p/ /e/ that legacy crawled and the ledger records that it must not be
+// reverted; robots.txt is advisory and a cache directive is not.
+export function headers() {
+  return { "Cache-Control": "no-store, no-cache, must-revalidate, private" };
+}
+
 // CAN-SPAM one-click unsubscribe (ROUTES.md public-utility /u/:token, ARCHITECTURE
 // non-negotiable #8). Every dunning email signs a real unsubscribe token
 // (execute-step.ts) into a /u/:token link plus the RFC 8058 List-Unsubscribe /
