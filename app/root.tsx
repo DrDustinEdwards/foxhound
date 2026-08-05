@@ -44,7 +44,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        {/* Legacy declares icon=/favicon.png and apple=/apple-touch-icon.png from
+            its root layout, both resolving to one 512x512 PNG. Foxhound shipped
+            only the SVG, so both raster paths 404'd and no apple-touch
+            declaration existed at all: ledger row F21, and the blocker on F5's
+            RSS channel image (ruling 99). The rasters are generated from this
+            same SVG by scripts/build-icons.mjs (ruling 108).
+            The SVG stays and is declared first: it is a Foxhound addition legacy
+            has no counterpart for, browsers that understand it prefer it, and
+            removing a working better icon to match legacy's item set exactly
+            would be a parity point bought with a real regression. Recorded on
+            row F21 rather than left as silent drift. */}
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <link rel="icon" type="image/png" href="/favicon.png" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         {/* Legacy declares the feed site-wide from its root layout
             (app/layout.tsx, metadata.alternates.types), so every legacy page
             carries this link. Foxhound had the feed route but advertised it
