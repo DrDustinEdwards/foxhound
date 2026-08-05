@@ -4,7 +4,7 @@ import { Link } from "react-router";
 import { BlogPostCard } from "~/components/blog/blog-post-card";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { labelForTag } from "~/lib/blog/tags";
+import { CANONICAL_TAGS, labelForTag } from "~/lib/blog/tags";
 import { getPublishedPostsByTag } from "~/lib/blog/queries.server";
 import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
@@ -12,14 +12,32 @@ import { marketingMeta } from "~/lib/seo/meta";
 import type { Route } from "./+types/tag";
 
 // Ported from legacy app/(marketing)/blog/tag/[tag]/page.tsx (Phase 6 Pass
-// 2), rebuilt against the 8 canonical tags (tags.ts), not legacy's 5. An
-// unrecognized tag still renders (humanized label, honest empty state)
-// rather than 404ing, matching legacy's leniency; the canonical set is a
-// content-authoring convention, not a route-level allowlist.
+// 2), rebuilt against the 8 canonical tags (tags.ts), not legacy's 5.
+//
+// An UNKNOWN tag 404s (Dustin, 2026-08-04). This diverges from legacy, whose
+// tag route has no notFound() and renders "No articles tagged X yet." for any
+// string at all. That soft-404 is a ruling 39 legacy defect in the
+// false-machine-readable-data family rulings 89 and 96 already govern: a
+// not-found URL answering 200 asserts the page exists, which is the same shape
+// as legacy's always-now lastModified and lastBuildDate, and the family
+// attaches to the DEFECT rather than to the file it was first found in.
+// Measured before ruling: this was the ONLY one of Foxhound's six
+// unknown-slug surfaces that did not 404 (posts, decline codes, competitors,
+// docs guides and unknown paths all did), so preserving legacy's leniency made
+// Foxhound internally inconsistent as well as wrong. It also closes ruling
+// 88's recorded harm, that an empty archive was indistinguishable from a
+// garbage URL to a crawler following llms.txt.
+//
+// The gate is CANONICAL_TAGS membership, not post count. A canonical tag
+// carrying zero posts is a real empty state and still renders its 200; only a
+// tag outside the set is not-found.
 export async function loader({ params, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const db = getDb(env);
   const tag = params.tag;
+  if (!(CANONICAL_TAGS as readonly string[]).includes(tag)) {
+    throw new Response("Not found", { status: 404 });
+  }
   const posts = await getPublishedPostsByTag(db, tag);
   return { siteUrl: siteUrl(env), tag, posts };
 }
