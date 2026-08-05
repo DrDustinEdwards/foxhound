@@ -68,6 +68,11 @@ export async function loader({ context }: Route.LoaderArgs) {
     <description>Guides on Stripe payment recovery, dispute handling, and subscription intelligence.</description>
     <language>en-us</language>${lastBuildDate}
     <atom:link href="${url}/feed.rss" rel="self" type="application/rss+xml"/>
+    <image>
+      <url>${url}/favicon.png</url>
+      <title>Foxhound Blog</title>
+      <link>${url}/blog</link>
+    </image>
     ${items}
   </channel>
 </rss>`;
