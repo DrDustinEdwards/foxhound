@@ -14,6 +14,15 @@ import { DEFAULT_THEME } from "~/lib/theme";
 
 import type { Route } from "./+types/card-update";
 
+// Per-recipient, token-bearing, and it resolves to a specific failed payment
+// and a Stripe Checkout session, so it is never cacheable by a shared
+// intermediary (Dustin, 2026-08-04). See the same note on unsubscribe.tsx:
+// neither side sent a directive, and the e/o pixel was the only one of the four
+// tokenised routes that did.
+export function headers() {
+  return { "Cache-Control": "no-store, no-cache, must-revalidate, private" };
+}
+
 export function meta() {
   return [{ title: "Update payment method - Foxhound" }];
 }
