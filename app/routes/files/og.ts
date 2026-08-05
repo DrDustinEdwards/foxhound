@@ -15,7 +15,7 @@ import { ImageResponse } from "workers-og";
 //
 // This file previously concluded from (b) that the card should use DM Mono
 // for EVERY line of text, calling it "a legitimate on-brand choice, not a
-// workaround dressed up as one". Ruling 96 (Dustin, 2026-08-03) corrected
+// workaround dressed up as one". Ruling 96 (Dustin, 2026-08-02) corrected
 // that: the constraint rules out one FILE, not the typeface. Legacy's card is
 // sans throughout (app/og/route.tsx, `system-ui, sans-serif`), and a STATIC
 // per-weight DM Sans instance parses exactly as DM Mono's static file does.
