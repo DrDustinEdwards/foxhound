@@ -100,8 +100,16 @@ function primaryLinkClassName({ isActive }: { isActive: boolean }): string {
 // screen's bottom edge), just now on the correct surface. Fresh-context review
 // caught this rendering on bg-surface instead, which put the active tab's
 // amber text on a white background in light mode at ~1.9:1 contrast.
+// min-h-[56px] and justify-center are legacy's, from components/BottomTabBar.tsx
+// (ruling 133 treatment item 2). The bar measured 34px here because py-2 was
+// sizing it off its content; legacy names a floor instead and centres within it,
+// so the two go together - min-h alone would top-align the label in a 56px box.
+// Legacy also carries min-w-0, font-mono, text-[0.6875rem], gap-1, hover:text-amber
+// and a text-chrome-text active state; those are recorded in parity/S-APP-SHELL.md
+// as open treatment items, NOT built here, because the active-colour one is the
+// divergence line 114's comment protects and it needs a ruling first.
 function tabLinkClassName({ isActive }: { isActive: boolean }): string {
-  return `flex flex-1 flex-col items-center gap-0.5 py-2 text-micro ${
+  return `flex min-h-[56px] flex-1 flex-col items-center justify-center gap-0.5 text-micro ${
     isActive ? "text-amber" : "text-chrome-text-tertiary"
   }`;
 }
@@ -141,13 +149,15 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
           marketing header. Page bodies keep their own independent
           mx-auto max-w-* wrapper (every route under app-shell already has
           one), so this only changes the header's own geometry, not where
-          page content sits - the same split legacy used. Sticky, matching
-          the marketing header: the demo banner and page content are
-          separate siblings below <header>, in normal flow, so they scroll
-          out from under the pinned header rather than sticking themselves;
-          nothing here shares a stacking context with the marketing-only
-          mobile drawer (z-40/z-50) or conflicts with the mobile tab bar
-          (fixed to the bottom edge, z-10). */}
+          page content sits - the same split legacy used. NOT sticky: this
+          said "Sticky, matching the marketing header" until 2026-08-05, which
+          had been false since 82bdc11 reverted it under ruling 47 (legacy's
+          SiteNavClient carries no sticky/top/z anywhere, and ruling 47 governs
+          both headers). The element below is a plain static h-14 row. The demo
+          banner and page content are separate siblings below <header>, in
+          normal flow. Stacking: the tab bar is z-50 at the bottom edge and the
+          marketing drawer is z-40/z-50, but that drawer renders from
+          layouts/marketing.tsx and never shares a document with this shell. */}
       <header className="h-14 border-b border-border bg-chrome">
         <div className="flex h-full items-center justify-between gap-4 px-6">
           <div className="flex min-w-0 shrink-0 items-center gap-3">
@@ -220,8 +230,12 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
 
       {/* Bottom padding reserves space for the fixed mobile tab bar below (a
           sibling of this container, never a flex body: DESIGN.md, avoids the
-          position:fixed breakage on mobile Chrome). */}
-      <div className="pb-16 md:pb-0">
+          position:fixed breakage on mobile Chrome). The breakpoint follows the
+          bar's: legacy's wrapper is pb-16 sm:pb-0 and its bar is sm:hidden, so
+          the reserve and the thing it reserves for turn off together. Leaving
+          this at md:pb-0 while the bar moved to sm:hidden would reserve 64px
+          between 640 and 767 for a bar that is not rendered. */}
+      <div className="pb-16 sm:pb-0">
         <Outlet />
         {/* Legacy renders SiteFooter variant="app" INSIDE the padded wrapper and
             keeps the tab bar a sibling outside it (app/(app)/layout.tsx), so the
@@ -230,9 +244,20 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
         <Footer variant="app" />
       </div>
 
+      {/* Three of ruling 133's treatment items, all legacy's values from
+          components/BottomTabBar.tsx. sm:hidden, not md:hidden: legacy cuts the
+          bar off at 640px and Foxhound was showing one from 640 to 767 where
+          legacy shows none. z-50, not z-10. And the safe-area inset, whose
+          absence puts the bar under the iOS home indicator, which is a defect on
+          hardware rather than a style preference. The inline style is legacy's
+          own mechanism too: env() is a runtime device value, so it cannot be a
+          build-time utility class. The marketing drawer also sits at z-40/z-50,
+          which is fine because it renders from layouts/marketing.tsx and this
+          renders from the app shell; the two never share a document. */}
       <nav
         aria-label="Primary"
-        className="fixed inset-x-0 bottom-0 z-10 flex border-t border-border bg-chrome md:hidden"
+        style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+        className="fixed inset-x-0 bottom-0 z-50 flex border-t border-border bg-chrome sm:hidden"
       >
         {mobileTabs.map((tab) => (
           <NavLink key={tab.to} to={tab.to} className={tabLinkClassName}>
