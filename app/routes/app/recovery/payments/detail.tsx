@@ -85,7 +85,13 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
   const clickedEmails = emailSteps.filter((s) => s.clickedAt);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8">
+    <div className="mx-auto max-w-[1000px] px-8 py-10">
+      {/* Ruling 147 f1-f3, legacy
+      app/(app)/recovery/payments/[id]/PaymentDetailClient.tsx:
+      max-w-[1000px] mx-auto px-8 py-10. NOTE 147 recorded this as "half
+      legacy's width" too; also WRONG. Legacy is 1000px against max-w-3xl's
+      768px, so 232px narrower, not 512. And legacy's px-8 here is FLAT, with
+      no responsive step at all, unlike every 1280px page. */}
       <div className="rounded-lg border border-border bg-surface p-4">
         <div className="flex items-start justify-between gap-4">
           <div>

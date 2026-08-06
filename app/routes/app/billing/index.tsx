@@ -131,7 +131,13 @@ export default function Billing({ loaderData }: Route.ComponentProps) {
   ].sort((a, b) => b.date.getTime() - a.date.getTime());
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8">
+    <div className="mx-auto max-w-[720px] px-5 sm:px-8 py-8 md:py-10">
+      {/* Ruling 147 f1-f3, legacy app/(app)/billing/page.tsx: max-w-[720px]
+      mx-auto px-5 sm:px-8 py-8 md:py-10. NOTE 147 recorded billing as "half
+      legacy's width"; that was WRONG. Legacy is 720px and max-w-3xl is 768px,
+      so Foxhound was 48px WIDER, not 512px narrower. Legacy also steps
+      horizontal padding at sm, not md, and starts from px-5 not px-4. Same
+      720/px-5 kit legacy uses on /help and the legal pages. */}
       <h1 className="text-title font-medium text-text">Billing</h1>
 
       {actionData && "error" in actionData ? (

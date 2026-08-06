@@ -236,7 +236,30 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
           this at md:pb-0 while the bar moved to sm:hidden would reserve 64px
           between 640 and 767 for a bar that is not rendered. */}
       <div className="pb-16 sm:pb-0">
-        <Outlet />
+        {/* Ruling 146. Legacy carries a <main> on every app page and Foxhound's
+            authenticated tree carried NONE: `git grep "<main"` over
+            app/routes/app/** returned zero, and the only one reachable under
+            this shell was in the ErrorBoundary below, which renders only when a
+            child route throws. Plain gap under PRIME DIRECTIVE item 1.
+
+            Placed HERE rather than on each page, for three reasons. It closes
+            the whole authenticated surface at once instead of the six rows the
+            S2-S9 set walk happened to cover. It makes "exactly one" structural
+            rather than a convention each new route has to remember, which is
+            what item 3's marketing ratification turns on. And it matches
+            Foxhound's own ratified pattern in layouts/marketing.tsx, which is
+            likewise <main> in the layout carrying no container.
+
+            Legacy's own <main> IS the width container (max-w-[1280px] etc). Here
+            the container stays on the page, so Foxhound renders <main><div
+            class="container">, one wrapper deeper than legacy. Landmark and
+            rendered geometry are identical; the extra element is recorded rather
+            than glossed. The footer stays OUTSIDE main, which is legacy's
+            relationship too: legacy's SiteFooter is a layout sibling of the page
+            content, never inside its main. */}
+        <main>
+          <Outlet />
+        </main>
         {/* Legacy renders SiteFooter variant="app" INSIDE the padded wrapper and
             keeps the tab bar a sibling outside it (app/(app)/layout.tsx), so the
             fixed bar never overlaps the footer's bottom row on mobile. Same
