@@ -34,7 +34,7 @@ async function measure(width, label, path) {
     // Enter the demo session first, then navigate. goto on the entry route sets
     // the cookie; without it every app route 302s to /login and every landmark
     // reading would be about the wrong page (129's class).
-    await page.goto(`${BASE}${path}`, { waitUntil: "networkidle" });
+    const resp = await page.goto(`${BASE}${path}`, { waitUntil: "networkidle" });
     const landed = await page.evaluate(() => location.pathname);
     if (landed !== path) {
       throw new Error(
@@ -43,17 +43,21 @@ async function measure(width, label, path) {
       );
     }
     // THE PATH GUARD IS NOT ENOUGH. A 500 rendered by the root error boundary
-    // keeps location.pathname correct, so the first run of this script reported
-    // "zero <main>" thirty times while the real cause was a JSX parse error and
-    // every page was an error page. Assert the page actually RENDERED.
-    const broke = await page.evaluate(() => {
-      const t = document.body.innerText;
-      return /Something went wrong|Unexpected Server Error|Internal Server Error|Application Error/i.test(t);
-    });
-    if (broke) {
+    // keeps location.pathname correct, so an earlier run reported "zero <main>"
+    // thirty times while the real cause was a JSX parse error and every page was
+    // an error page.
+    //
+    // THE FIRST VERSION OF THIS GUARD MATCHED BODY TEXT AND WAS WORTHLESS. It
+    // looked for "Something went wrong" and three siblings; the real 500 page's
+    // entire visible text is the single word "Error" in 1769 bytes, so the guard
+    // sat green through a deliberately broken page. That is ruling 114 in the
+    // instrument written to fix an instrument: it probed the COPY, not the
+    // MECHANISM. The status code is the mechanism and cannot be reworded.
+    const status = resp ? resp.status() : 0;
+    if (status !== 200) {
       throw new Error(
-        `${path} RENDERED AN ERROR BOUNDARY, not the page. Every landmark and container reading ` +
-          `here would be about the error page. Asserting the condition applied, per 132/137.`,
+        `${path} RETURNED HTTP ${status}, not 200. The page did not render, so every landmark and ` +
+          `container reading here would be about an error page. Asserting the condition applied (132/137/150).`,
       );
     }
     return page.evaluate(() => {
