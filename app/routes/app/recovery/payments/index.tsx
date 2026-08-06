@@ -207,7 +207,11 @@ export default function RecoveryPayments({ loaderData }: Route.ComponentProps) {
   } = loaderData;
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
+    <div className="mx-auto max-w-[1280px] px-4 md:px-8 py-10">
+      {/* Ruling 147 f1-f3, legacy app/(app)/recovery/payments/PaymentsClient.tsx:
+      max-w-[1280px] mx-auto px-4 md:px-8 py-10. Vertical is a flat py-10 here,
+      NOT console's py-8 md:py-10: legacy's rhythm varies per page and the set
+      is not uniform. */}
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h1 className="text-title font-medium text-text">Payments</h1>
         <Link

@@ -494,7 +494,11 @@ export default function RecoveryDashboard({ loaderData }: Route.ComponentProps) 
   const { data, data30d, roi, watchingForFailures, range, nowMs } = loaderData;
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
+    <div className="mx-auto max-w-[1280px] px-4 md:px-8 py-8 md:py-10">
+      {/* Ruling 147 f1-f3, legacy app/(app)/recovery/dashboard/page.tsx:
+      max-w-[1280px] mx-auto px-4 md:px-8 py-8 md:py-10. Legacy also carries
+      w-full min-w-0 there; not ported, it guards an overflow case in legacy's
+      own flex parent that this tree does not have. Recorded, not built. */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-title font-medium text-text">Recovery</h1>

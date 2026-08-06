@@ -49,7 +49,10 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
   const cohortRows = isCohortRows(rawCohorts) ? rawCohorts : [];
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
+    <div className="mx-auto max-w-[1280px] px-4 md:px-8 py-8 md:py-10">
+      {/* Ruling 147 f1-f3, legacy app/(app)/console/page.tsx: the <main> there is
+      max-w-[1280px] mx-auto px-4 md:px-8 py-8 md:py-10. max-w-6xl was 1152px,
+      128px short, and px-4/py-8 never took legacy's md step. */}
       <h1 className="text-title font-medium text-text">Dashboard</h1>
 
       <div className="mt-6">

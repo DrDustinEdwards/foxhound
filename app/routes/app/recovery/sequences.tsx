@@ -142,7 +142,9 @@ export default function RecoverySequences({ loaderData }: Route.ComponentProps) 
   const { performance, sections } = loaderData;
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
+    <div className="mx-auto max-w-[1280px] px-4 md:px-8 py-10">
+      {/* Ruling 147 f1-f3, legacy app/(app)/recovery/sequence/page.tsx:
+      max-w-[1280px] mx-auto px-4 md:px-8 py-10. Flat py-10, like payments. */}
       <h1 className="text-title font-medium text-text">Sequences</h1>
       <p className="mt-2 text-label text-text-tertiary">Live performance data from your recovery emails</p>
 
