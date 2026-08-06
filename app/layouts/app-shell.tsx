@@ -1,5 +1,6 @@
 import { Link, NavLink, Outlet, type ShouldRevalidateFunctionArgs } from "react-router";
 
+import { Footer } from "~/components/footer";
 import { Wordmark } from "~/components/wordmark";
 import { GearMenu } from "~/components/nav/gear-menu";
 import { ProductSwitcher } from "~/components/nav/product-switcher";
@@ -222,6 +223,11 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
           position:fixed breakage on mobile Chrome). */}
       <div className="pb-16 md:pb-0">
         <Outlet />
+        {/* Legacy renders SiteFooter variant="app" INSIDE the padded wrapper and
+            keeps the tab bar a sibling outside it (app/(app)/layout.tsx), so the
+            fixed bar never overlaps the footer's bottom row on mobile. Same
+            placement here for the same reason. */}
+        <Footer variant="app" />
       </div>
 
       <nav

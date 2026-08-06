@@ -97,38 +97,65 @@ function LinkColumn({
   );
 }
 
-export function Footer() {
+// Legacy runs ONE footer component across three variants and switches only what
+// sits ABOVE the bottom row (components/SiteFooter.tsx): marketing adds the
+// four-column link grid, auth adds Privacy and Terms into the bottom row, and
+// app is the bottom row alone. Porting the same shape rather than a second
+// component keeps the two surfaces from drifting, which is the whole reason
+// legacy built it this way.
+//
+// The "auth" variant is deliberately NOT implemented yet: Foxhound renders auth
+// pages inside the marketing shell, which is row A1 and BLOCKED pending Dustin.
+// Building an auth variant now would prejudge that call.
+export type FooterVariant = "marketing" | "app";
+
+export function Footer({ variant = "marketing" }: { variant?: FooterVariant } = {}) {
   const { pathname } = useLocation();
+  const hasColumnsAbove = variant === "marketing";
 
   return (
     <footer className="border-t border-border bg-chrome">
       <div className="mx-auto max-w-[1200px] px-5 sm:px-8">
-        <div className="grid grid-cols-1 gap-10 py-12 sm:grid-cols-4 lg:grid-cols-5">
-          {/* Wordmark column. The brand mark itself is reserved for the
-              bottom row, matching legacy: this column is the wordmark only. */}
-          <div>
-            <Link to="/" className="no-underline">
-              <Wordmark tone="chrome" />
-            </Link>
-            <p className="mt-3 max-w-[240px] text-[0.875rem] leading-relaxed text-chrome-text-secondary">
-              The recovery layer for Stripe merchants.
-            </p>
+        {hasColumnsAbove ? (
+          <div className="grid grid-cols-1 gap-10 py-12 sm:grid-cols-4 lg:grid-cols-5">
+            {/* Wordmark column. The brand mark itself is reserved for the
+                bottom row, matching legacy: this column is the wordmark only. */}
+            <div>
+              <Link to="/" className="no-underline">
+                <Wordmark tone="chrome" />
+              </Link>
+              <p className="mt-3 max-w-[240px] text-[0.875rem] leading-relaxed text-chrome-text-secondary">
+                The recovery layer for Stripe merchants.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-6 sm:col-span-3 lg:col-span-4 lg:grid-cols-4">
+              {COLUMNS.map((col) => (
+                <LinkColumn key={col.heading} heading={col.heading} links={col.links} pathname={pathname} />
+              ))}
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-6 sm:col-span-3 lg:col-span-4 lg:grid-cols-4">
-            {COLUMNS.map((col) => (
-              <LinkColumn key={col.heading} heading={col.heading} links={col.links} pathname={pathname} />
-            ))}
-          </div>
-        </div>
+        ) : null}
 
-        <div className="flex h-14 items-center justify-between border-t border-border">
+        {/* The inner border separates the column grid from the row, so it is
+            legacy's and only appears when something sits above. On the app
+            variant the footer's own border-t already separates it from page
+            content, and an inner rule would read as a stray line. */}
+        <div
+          className={`flex h-14 items-center justify-between ${
+            hasColumnsAbove ? "border-t border-border" : ""
+          }`}
+        >
           <div className="flex items-center gap-2.5">
             <img src="/favicon.svg" alt="" width={28} height={28} className="shrink-0" aria-hidden />
             <span className="font-mono text-[0.6875rem] text-chrome-text-secondary">
               © 2026 Foxhound
             </span>
           </div>
-          {/* Social icons land here when Foxhound handles exist. */}
+          {/* Legacy's bottom row carries three social links here on EVERY
+              variant, including app. They stay out under ruling 10 until
+              Foxhound handles exist; linking the recovamrr handles is banned.
+              The empty flex slot preserves legacy's justify-between shape so
+              they drop straight in. */}
           <div className="flex items-center gap-4" />
         </div>
       </div>
