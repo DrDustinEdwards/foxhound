@@ -5,7 +5,7 @@
 // under test is hidden. The conclusion was refuted; the debt that caused it is
 // what this script exists to pay.
 //
-// WHY NOT THE BROWSER EXTENSION. Measured 2026-08-06: its resize_window reports
+// WHY NOT THE BROWSER EXTENSION. Measured 2026-08-05: its resize_window reports
 // "Successfully resized" and the viewport does not move. The MCP tab is a
 // background tab (document.visibilityState === "hidden", zero resize events
 // fired), so the window resize never reaches its layout. A harness built on
