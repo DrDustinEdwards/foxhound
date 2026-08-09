@@ -10,6 +10,7 @@ import {
 import { HEALTH_SCORE_AT_RISK_THRESHOLD } from "~/lib/constants";
 import { RESOLVED_DISPUTE_STATES } from "~/lib/disputes/labels";
 import { isIntelligenceEntitled } from "~/lib/intelligence/views.server";
+import { groupSumByCurrency } from "./stats.server";
 import {
   ATTENTION_ROWS_PER_CATEGORY,
   DISPUTE_ATTENTION_LIMIT,
@@ -217,8 +218,13 @@ export async function getConsoleView(
 
   const protectedThisMonthCents = monthRecovered.reduce((s, r) => s + r.cents, 0);
   const protectedCurrency = monthRecovered[0]?.currency ?? "usd";
-  const atRiskCents = activeFailed.reduce((s, p) => s + p.amountCents, 0);
-  const atRiskCurrency = activeFailed[0]?.currency ?? "usd";
+  // Grouped per currency, never a flat reduce: summing amountCents across
+  // currencies produced a total that was the arithmetic sum of USD and EUR
+  // labelled with whichever row sorted first. `[0]` is the same convention
+  // dashboard.tsx already uses for every other CurrencyAmount[] it renders.
+  const atRisk = groupSumByCurrency(activeFailed)[0] ?? null;
+  const atRiskCents = atRisk?.cents ?? 0;
+  const atRiskCurrency = atRisk?.currency ?? "usd";
   const openDisputeCount = Number(openDisputeRows[0]?.n ?? 0);
 
   // Exhausted sequences need each active payment's steps. One batched read for

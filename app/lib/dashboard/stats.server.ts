@@ -16,7 +16,14 @@ export interface CurrencyAmount {
   cents: number;
 }
 
-function groupSumByCurrency(rows: { currency: string; amountCents: number }[]): CurrencyAmount[] {
+/**
+ * Sum cents per currency. Exported because three dashboard surfaces render the
+ * same money totals and each carried its own copy. A local reduce that ignores
+ * currency silently adds EUR to USD and labels the result with whichever row
+ * happened to be first, which is what the console's at-risk hero shipped.
+ * One number, one computation.
+ */
+export function groupSumByCurrency(rows: { currency: string; amountCents: number }[]): CurrencyAmount[] {
   const totals = new Map<string, number>();
   for (const row of rows) {
     totals.set(row.currency, (totals.get(row.currency) ?? 0) + row.amountCents);

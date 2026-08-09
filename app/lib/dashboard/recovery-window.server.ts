@@ -18,6 +18,7 @@ import {
   type FailedPaymentRow,
   type UpcomingStepRow,
 } from "~/lib/recovery/queries.server";
+import { groupSumByCurrency } from "./stats.server";
 import type { CurrencyAmount } from "./stats.server";
 import {
   bestCategory,
@@ -53,12 +54,6 @@ import {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const UPCOMING_STEPS_WINDOW_MS = 48 * 60 * 60 * 1000;
-
-function groupSumByCurrency(rows: { currency: string; amountCents: number }[]): CurrencyAmount[] {
-  const totals = new Map<string, number>();
-  for (const row of rows) totals.set(row.currency, (totals.get(row.currency) ?? 0) + row.amountCents);
-  return [...totals.entries()].map(([currency, cents]) => ({ currency, cents }));
-}
 
 export interface RecoveryDashboardWindow {
   rangeLabel: string;
