@@ -25,6 +25,7 @@ import {
 } from "~/lib/recovery/queries.server";
 import type { AmountBounds, FailedPaymentPageSize, FailedPaymentSort } from "~/lib/recovery/queries.server";
 import { buildPaymentParams, withParams } from "~/lib/recovery/payment-filters";
+import { nextRovingIndex } from "~/lib/a11y/roving-index";
 import { priorFailureCount } from "~/lib/recovery/prior-failures";
 import { summarizeSequence } from "~/lib/recovery/sequence-summary";
 import { isPaymentTimeRange, resolvePaymentTimeRangeCutoff, type PaymentTimeRange } from "~/lib/recovery/time-range";
@@ -235,12 +236,9 @@ function StatusPills({
   }
 
   function onKeyDown(event: React.KeyboardEvent, index: number) {
-    const last = STATUS_PILLS.length - 1;
-    let next: number | null = null;
-    if (event.key === "ArrowRight" || event.key === "ArrowDown") next = index === last ? 0 : index + 1;
-    else if (event.key === "ArrowLeft" || event.key === "ArrowUp") next = index === 0 ? last : index - 1;
-    else if (event.key === "Home") next = 0;
-    else if (event.key === "End") next = last;
+    // Index arithmetic lives in ~/lib/a11y/roving-index so it is testable;
+    // vitest runs environment: "node" with no DOM (ruling 209's residue).
+    const next = nextRovingIndex(event.key, index, STATUS_PILLS.length);
     if (next === null) return;
     event.preventDefault();
     groupRef.current?.querySelectorAll<HTMLAnchorElement>('[role="radio"]')[next]?.focus();
