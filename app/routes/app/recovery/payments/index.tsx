@@ -1,4 +1,5 @@
-import { Form, Link } from "react-router";
+import { useRef } from "react";
+import { Form, Link, useNavigate } from "react-router";
 
 import { Badge } from "~/components/badge";
 import { DualRangeSlider } from "~/components/dual-range-slider";
@@ -190,6 +191,91 @@ const STATUS_PILLS = [
   { value: "failed_unrecovered", label: "Not recovered" },
 ] as const;
 
+interface PillCounts {
+  all: number;
+  active: number;
+  recovered: number;
+  failedUnrecovered: number;
+}
+
+/**
+ * Legacy's status filter is a `role="radiogroup"` with a roving tabindex and
+ * full arrow-key handling (app/(app)/recovery/payments/components/
+ * PaymentsFilters.tsx). Foxhound shipped four plain links: it RENDERS the same
+ * and ANNOUNCES nothing, so a screen reader hears four unrelated links rather
+ * than one four-option control, and a keyboard user tabs through every option
+ * instead of arrowing within a single stop.
+ *
+ * Third and last of ruling 189's accessibility unit, after 146's main landmark
+ * and 197's <h2> conversion. Legacy ACTIVATES on arrow rather than merely
+ * moving focus, so arrowing both focuses and applies the filter; that is ported
+ * rather than approximated. Home and End jump to first and last, as legacy does.
+ *
+ * The links stay links because Foxhound's filter state lives in the URL, not in
+ * client state. Every className below is byte-identical to the pre-port markup:
+ * this changes semantics only, per 197's standard while 187's type freeze holds.
+ */
+function StatusPills({
+  filters,
+  bounds,
+  pillCounts,
+}: {
+  filters: Filters;
+  bounds: AmountBounds;
+  pillCounts: PillCounts;
+}) {
+  const groupRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+
+  function countFor(value: string): number {
+    if (value === "") return pillCounts.all;
+    if (value === "active") return pillCounts.active;
+    if (value === "recovered") return pillCounts.recovered;
+    return pillCounts.failedUnrecovered;
+  }
+
+  function onKeyDown(event: React.KeyboardEvent, index: number) {
+    const last = STATUS_PILLS.length - 1;
+    let next: number | null = null;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") next = index === last ? 0 : index + 1;
+    else if (event.key === "ArrowLeft" || event.key === "ArrowUp") next = index === 0 ? last : index - 1;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = last;
+    if (next === null) return;
+    event.preventDefault();
+    groupRef.current?.querySelectorAll<HTMLAnchorElement>('[role="radio"]')[next]?.focus();
+    navigate(statusPillHref(filters, bounds, STATUS_PILLS[next].value));
+  }
+
+  return (
+    <div
+      ref={groupRef}
+      role="radiogroup"
+      aria-label="Filter by status"
+      className="mt-6 flex flex-wrap gap-2"
+    >
+      {STATUS_PILLS.map((pill, index) => {
+        const active = filters.status === pill.value;
+        return (
+          <Link
+            key={pill.value}
+            to={statusPillHref(filters, bounds, pill.value)}
+            role="radio"
+            aria-checked={active}
+            tabIndex={active ? 0 : -1}
+            onKeyDown={(event) => onKeyDown(event, index)}
+            className={`rounded-full border px-3 py-1 text-label ${
+              active ? "border-amber bg-amber text-on-amber" : "border-border text-text-tertiary hover:border-border-i"
+            }`}
+          >
+            {pill.label} <span className="font-mono text-micro">{countFor(pill.value)}</span>
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function RecoveryPayments({ loaderData }: Route.ComponentProps) {
   const {
     result,
@@ -239,28 +325,7 @@ export default function RecoveryPayments({ loaderData }: Route.ComponentProps) {
         />
       </section>
 
-      <div className="mt-6 flex flex-wrap gap-2">
-        {STATUS_PILLS.map((pill) => {
-          const count =
-            pill.value === "" ? pillCounts.all
-            : pill.value === "active" ? pillCounts.active
-            : pill.value === "recovered" ? pillCounts.recovered
-            : pillCounts.failedUnrecovered;
-          const active = filters.status === pill.value;
-          return (
-            <Link
-              key={pill.value}
-              to={statusPillHref(filters, bounds, pill.value)}
-              aria-current={active ? "page" : undefined}
-              className={`rounded-full border px-3 py-1 text-label ${
-                active ? "border-amber bg-amber text-on-amber" : "border-border text-text-tertiary hover:border-border-i"
-              }`}
-            >
-              {pill.label} <span className="font-mono text-micro">{count}</span>
-            </Link>
-          );
-        })}
-      </div>
+      <StatusPills filters={filters} bounds={bounds} pillCounts={pillCounts} />
 
       <Form method="get" className="mt-4 flex flex-col gap-4 rounded-lg border border-border bg-surface p-4">
         <input type="hidden" name="status" value={filters.status} />
