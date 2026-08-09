@@ -1,3 +1,4 @@
+import { Activity, AlertCircle, Clock, CreditCard, Percent, RefreshCw, Send, Tag, TrendingUp } from "lucide-react";
 import { Link } from "react-router";
 
 import { Badge } from "~/components/badge";
@@ -120,16 +121,16 @@ function StatCardsPrimary({ w }: { w: RecoveryDashboardWindow }) {
   return (
     <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
       <StatCard
-        label="Recovered (30d)"
+        label="Recovered (30d)" icon={TrendingUp} iconClassName="text-success-text"
         value={revenue ? formatMoney(revenue.cents, revenue.currency) : "$0.00"}
       />
       <StatCard
-        label="Currently at risk"
+        label="Currently at risk" icon={AlertCircle} iconClassName="text-error-text"
         value={atRisk ? formatMoney(atRisk.cents, atRisk.currency) : "$0.00"}
         subtext={atRiskSubtext(w, atRisk)}
       />
       <StatCard
-        label="Recovery rate"
+        label="Recovery rate" icon={Percent}
         value={w.recoveryRatePct === null ? "-" : `${w.recoveryRatePct}%`}
         valueClassName={w.recoveryRatePct === null ? undefined : recoveryRateClassName(w.recoveryRatePct)}
         subtext={`${recoveryRateBand(w.recoveryRatePct)} · ${w.recoveredCount} of ${w.totalFailedCount}`}
@@ -141,27 +142,27 @@ function StatCardsPrimary({ w }: { w: RecoveryDashboardWindow }) {
 function StatCardsSecondary({ w }: { w: RecoveryDashboardWindow }) {
   return (
     <section className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-      <StatCard label="Active sequences" value={String(w.activePaymentsCount)} />
-      <StatCard label="Win-backs active" value={String(w.activeWinbacksCount)} />
+      <StatCard label="Active sequences" icon={Activity} value={String(w.activePaymentsCount)} />
+      <StatCard label="Win-backs active" icon={RefreshCw} iconClassName="text-cobalt-text" value={String(w.activeWinbacksCount)} />
       <StatCard
-        label="Cards expiring"
+        label="Cards expiring" icon={CreditCard}
         value={String(w.expiringCardsCount)}
         valueClassName={w.expiringCardsCount > 0 ? "text-amber-text" : undefined}
       />
       <StatCard
-        label="Avg. days to recover"
+        label="Avg. days to recover" icon={Clock}
         value={w.avgDaysToRecovery === null ? "-" : `${w.avgDaysToRecovery}d`}
         subtext={w.avgDaysToRecovery === null ? "No data" : `across ${w.recoveryDaysCount}`}
       />
       <StatCard
-        label="Best decline category"
+        label="Best decline category" icon={Tag}
         value={w.bestCategory ? DECLINE_CATEGORY_LABELS[w.bestCategory.cat] : "-"}
         subtext={w.bestCategory ? `${w.bestCategory.rate}% recovered` : "Need more data"}
       />
       {/* One card, engagement as its subtext: the two rates only mean anything
           against the send count they are drawn from. */}
       <StatCard
-        label="Emails sent"
+        label="Emails sent" icon={Send}
         value={String(w.totalEmailsSent)}
         subtext={`${w.openRatePct}% open · ${w.clickRatePct}% click`}
       />
@@ -176,10 +177,10 @@ function RoiWidget({
 }) {
   if (roi.thisMonthCents === 0 && roi.allTimeCents === 0) {
     return (
-      <section className="rounded-lg border border-border bg-surface p-5">
-        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
+      <section className="rounded-[12px] border border-border bg-surface px-6 py-5">
+        <h2 className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
           Foxhound-attributed revenue
-        </p>
+        </h2>
         <p className="mt-2 text-label text-text-tertiary">
           Nothing Foxhound has attributed and matured yet. Recoveries where a Foxhound action
           provably preceded payment appear here once they have held for 30 days. Stripe-baseline
@@ -189,10 +190,10 @@ function RoiWidget({
     );
   }
   return (
-    <section className="rounded-lg border border-border bg-surface p-5">
-      <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
+    <section className="rounded-[12px] border border-border bg-surface px-6 py-5">
+      <h2 className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
         Foxhound-attributed revenue
-      </p>
+      </h2>
       <p className="mt-1 text-label text-text-tertiary">
         20% of Foxhound-attributed recoveries, once matured 30 days. Stripe-baseline recoveries are
         free, always.
@@ -234,10 +235,10 @@ function RecoveryRateTrendChart({ w }: { w: RecoveryDashboardWindow }) {
   const firstNonNull = w.recoveryRateDaily.findIndex((p) => p.rate !== null);
   const hasData = firstNonNull !== -1;
   return (
-    <div className="rounded-lg border border-border bg-surface p-4">
-      <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
+    <div className="rounded-[12px] border border-border bg-surface px-6 py-5">
+      <h2 className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
         Recovery rate ({w.rangeLabel})
-      </p>
+      </h2>
       {hasData ? (
         <div className="mt-3 text-green">
           <LineArea
@@ -260,10 +261,10 @@ function RevenueTrendChart({ w, nowMs }: { w: RecoveryDashboardWindow; nowMs: nu
   const total = w.recoveredRevenue[0] ?? null;
   if (w.recoveredPayments.length === 0) {
     return (
-      <div className="rounded-lg border border-border bg-surface p-4">
-        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
+      <div className="rounded-[12px] border border-border bg-surface px-6 py-5">
+        <h2 className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
           Revenue recovered ({w.rangeLabel})
-        </p>
+        </h2>
         <p className="mt-4 text-label text-text-tertiary">No recoveries in this range yet.</p>
       </div>
     );
@@ -274,10 +275,10 @@ function RevenueTrendChart({ w, nowMs }: { w: RecoveryDashboardWindow; nowMs: nu
     nowMs,
   );
   return (
-    <div className="rounded-lg border border-border bg-surface p-4">
-      <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
+    <div className="rounded-[12px] border border-border bg-surface px-6 py-5">
+      <h2 className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
         Revenue recovered ({w.rangeLabel})
-      </p>
+      </h2>
       <p className="mt-1 font-mono text-title text-text">
         {total ? formatMoney(total.cents, total.currency) : "$0.00"}
       </p>
@@ -298,10 +299,10 @@ function DeclineAnalysis({ w }: { w: RecoveryDashboardWindow }) {
   const categories = DECLINE_CATEGORIES;
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
-      <div className="rounded-lg border border-border bg-surface p-4 md:col-span-3">
-        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
+      <div className="rounded-[12px] border border-border bg-surface px-6 py-5 md:col-span-3">
+        <h2 className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
           Decline breakdown ({w.rangeLabel})
-        </p>
+        </h2>
         {w.totalFailedCount === 0 ? (
           <p className="mt-4 text-label text-text-tertiary">No declined payments yet.</p>
         ) : (
@@ -339,10 +340,10 @@ function DeclineAnalysis({ w }: { w: RecoveryDashboardWindow }) {
           </ul>
         )}
       </div>
-      <div className="rounded-lg border border-border bg-surface p-4 md:col-span-2">
-        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
+      <div className="rounded-[12px] border border-border bg-surface px-6 py-5 md:col-span-2">
+        <h2 className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
           Email engagement by category
-        </p>
+        </h2>
         {w.emailCategoryPerformance.length === 0 ? (
           <p className="mt-4 text-label text-text-tertiary">No recovery emails sent yet.</p>
         ) : (
@@ -372,10 +373,10 @@ function DeclineAnalysis({ w }: { w: RecoveryDashboardWindow }) {
 function RecoveryTimingChart({ w }: { w: RecoveryDashboardWindow }) {
   const total = w.recoveryTimingBuckets.reduce((s, b) => s + b.count, 0);
   return (
-    <div className="rounded-lg border border-border bg-surface p-4">
-      <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
+    <div className="rounded-[12px] border border-border bg-surface px-6 py-5">
+      <h2 className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
         Recovery timing (30d)
-      </p>
+      </h2>
       {total === 0 ? (
         <p className="mt-4 text-label text-text-tertiary">No recoveries yet.</p>
       ) : (
@@ -393,10 +394,10 @@ function RecoveryTimingChart({ w }: { w: RecoveryDashboardWindow }) {
 function WinBackPanel({ w }: { w: RecoveryDashboardWindow }) {
   const revenue = w.reactivatedRevenue[0] ?? null;
   return (
-    <div className="rounded-lg border border-border bg-surface p-4">
-      <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
+    <div className="rounded-[12px] border border-border bg-surface px-6 py-5">
+      <h2 className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
         Win-back attribution ({w.rangeLabel})
-      </p>
+      </h2>
       {w.reactivatedCount === 0 ? (
         <p className="mt-4 text-label text-text-tertiary">
           No reactivations yet. Foxhound reaches out for 7 days after a cancellation.
@@ -420,10 +421,10 @@ function WinBackPanel({ w }: { w: RecoveryDashboardWindow }) {
 
 function RecoveryQueuePanel({ w, nowMs }: { w: RecoveryDashboardWindow; nowMs: number }) {
   return (
-    <div className="rounded-lg border border-border bg-surface p-4">
-      <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
+    <div className="rounded-[12px] border border-border bg-surface px-6 py-5">
+      <h2 className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
         Recovery queue (next 48h)
-      </p>
+      </h2>
       {w.upcomingSteps.length === 0 ? (
         <p className="mt-4 text-label text-text-tertiary">
           Nothing in the queue. All your recent payments came through clean.
@@ -452,11 +453,11 @@ function RecoveryQueuePanel({ w, nowMs }: { w: RecoveryDashboardWindow; nowMs: n
 
 function PaymentsPreview({ w }: { w: RecoveryDashboardWindow }) {
   return (
-    <div className="rounded-lg border border-border bg-surface p-4">
+    <div className="rounded-[12px] border border-border bg-surface px-6 py-5">
       <div className="flex items-center justify-between">
-        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
+        <h2 className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
           Recent activity
-        </p>
+        </h2>
         <Link to="/recovery/payments" className="text-label text-amber-text hover:underline">
           View all payments
         </Link>
@@ -590,21 +591,21 @@ export default function RecoveryDashboard({ loaderData }: Route.ComponentProps) 
           <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Link
               to="/recovery/sequences"
-              className="rounded-lg border border-border bg-surface p-4 hover:border-border-i"
+              className="rounded-[12px] border border-border bg-surface px-6 py-5 hover:border-border-i"
             >
               <p className="text-body font-medium text-text">Sequences</p>
               <p className="mt-1 text-label text-text-tertiary">Recovery sequences in progress.</p>
             </Link>
             <Link
               to="/recovery/winback"
-              className="rounded-lg border border-border bg-surface p-4 hover:border-border-i"
+              className="rounded-[12px] border border-border bg-surface px-6 py-5 hover:border-border-i"
             >
               <p className="text-body font-medium text-text">Win-back</p>
               <p className="mt-1 text-label text-text-tertiary">Active win-back outreach.</p>
             </Link>
             <Link
               to="/recovery/expiring-cards"
-              className="rounded-lg border border-border bg-surface p-4 hover:border-border-i"
+              className="rounded-[12px] border border-border bg-surface px-6 py-5 hover:border-border-i"
             >
               <p className="text-body font-medium text-text">Expiring cards</p>
               <p className="mt-1 text-label text-text-tertiary">Cards expiring soon, before they fail.</p>
