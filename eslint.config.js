@@ -18,4 +18,16 @@ export default tseslint.config(
       },
     },
   },
+  {
+    // Build and check scripts are Node, not Worker. Without this they lint as
+    // browser code and every `process.exit` in a gate reads as an undefined
+    // global, which is why `eslint .` was already red on main before check:all
+    // existed to notice.
+    files: ["scripts/**/*.mjs"],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+    },
+  },
 );
