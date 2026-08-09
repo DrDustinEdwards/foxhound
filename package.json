@@ -15,7 +15,10 @@
     "auth:generate": "better-auth generate --config app/lib/auth/generate.config.ts --output app/db/auth-schema.ts --yes",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "wrangler d1 migrations apply foxhound-staging --remote",
-    "db:seed:benchmark": "wrangler d1 execute foxhound-staging --remote --file=./drizzle/seed/benchmark_data.sql"
+    "db:seed:benchmark": "wrangler d1 execute foxhound-staging --remote --file=./drizzle/seed/benchmark_data.sql",
+    "check-canon": "node scripts/check-canon.mjs",
+    "check-gates": "node scripts/check-gates.mjs",
+    "check:all": "npm run typecheck && npm run lint && npm run test && npm run check-tokens && npm run check-gates"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.111.0",
