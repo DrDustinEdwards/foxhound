@@ -6,8 +6,12 @@ import { accountMembers, accounts, user } from "~/db";
 import { INVITE_TTL_MS, MEMBER_ROLE, MEMBER_STATUS } from "./roles";
 
 // Resolves the Better Auth user -> business account relationship, and owns the
-// account_members lifecycle (create account, invite, accept). Single-account per
-// user for the rebuild (legacy model); multi-account switching is out of scope.
+// account_members lifecycle (create account, invite, accept). At HEAD a user
+// holds at most one ACTIVE membership, enforced by the partial unique index
+// `account_members_one_active_per_user_uq` and re-checked here; multi-account
+// switching is NOT BUILT. Repaired under ruling 232: this line used to call
+// multi-account "out of scope", which ruling 53 made false by ruling it the
+// product direction. Not built is the true statement; out of scope is not.
 
 export interface Membership {
   memberId: string;

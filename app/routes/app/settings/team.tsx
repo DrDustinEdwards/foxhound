@@ -13,8 +13,11 @@ export function meta() {
   return [{ title: "Team - Foxhound" }];
 }
 
-// Single-account model (app/lib/auth/account.ts): invites add a member to this
-// one account, they never create or switch accounts. There is no member
+// One ACTIVE membership per user at HEAD (app/lib/auth/account.ts, enforced by
+// `account_members_one_active_per_user_uq`): invites add a member to this one
+// account, and creating or switching accounts is not built. Reworded under
+// ruling 232 from "Single-account model", which named DESIGN.md's revoked rule
+// rather than the constraint the code actually enforces. There is no member
 // removal or role change here because account_members has no status beyond
 // active/pending to represent it (a schema decision, not built this slice).
 export async function loader({ context }: Route.LoaderArgs) {
