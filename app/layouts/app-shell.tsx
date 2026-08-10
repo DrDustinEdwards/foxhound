@@ -50,8 +50,12 @@ function requestPathname(request: Request): string {
 // model (product switcher -> contextual primary links -> utility cluster),
 // layout-rendered once, ZERO extra DB queries in the nav component itself
 // (resolveNavContext runs ONCE here; the nav components below only read the
-// props it produced). No account switcher (DESIGN.md: single-account by
-// construction) and no admin-bypass hack (the real role guard governs /admin
+// props it produced). No account switcher, because at HEAD a user holds at most
+// one ACTIVE membership (`account_members_one_active_per_user_uq`, app/db/
+// schema.ts), so there is nothing to switch between. This line used to cite
+// DESIGN.md's "single-account by construction" rule, which ruling 53 revoked;
+// repaired under ruling 232 to state the enforcing code instead of the dead
+// authority. And no admin-bypass hack (the real role guard governs /admin
 // visibility, matching PRODUCT_MANIFEST's own gate).
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env, ctx } = context.get(cloudflareContext);

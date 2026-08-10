@@ -2,7 +2,12 @@ export function meta() {
   return [{ title: "Help - Foxhound" }];
 }
 
-const SECTIONS = [
+// Exported so the copy is assertable by test. Ruling 232: the Team entry stated
+// DESIGN.md's single-account RULE, which ruling 53 revoked, as a permanent
+// product property. What the code enforces is narrower and still true today, so
+// the copy describes the behavior at HEAD rather than the revoked rule, and does
+// not promise the multi-account build that has not shipped.
+export const SECTIONS = [
   {
     title: "Recovery",
     body: "When a subscription payment fails, Foxhound classifies the decline and runs a silent retry before ever emailing your customer, so a payment that would have quietly gone through is never turned into a dunning email. Non-retryable declines (an expired card, a suspected fraud block) lead with the email carrying a hosted card-update link instead. Every step is visible on the payment's detail page under Recovery.",
@@ -17,7 +22,7 @@ const SECTIONS = [
   },
   {
     title: "Team",
-    body: "Invite teammates from Settings > Team. Foxhound is single-account: an invited teammate joins your one account, they cannot create or switch between separate accounts.",
+    body: "Invite teammates from Settings > Team. An invited teammate joins the account you already own. Each person belongs to one account at a time today, so the app has no account switcher.",
   },
   {
     title: "Brand voice",

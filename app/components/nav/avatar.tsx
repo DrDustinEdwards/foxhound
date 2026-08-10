@@ -10,8 +10,13 @@ import { Link } from "react-router";
 // difference against legacy. The presence dot stays as it is: static, with no
 // notification system behind it.
 //
-// The single-account rule still holds, so this is a plain link and not the
-// account switcher legacy wrapped it in.
+// A plain link, not the account switcher legacy wrapped it in. The reason is
+// the CODE, not DESIGN.md's single-account rule, which ruling 53 revoked and
+// which this comment used to cite as still holding (145's dead-citation table,
+// repaired under ruling 232): at HEAD a user holds at most one ACTIVE
+// membership, enforced by `account_members_one_active_per_user_uq` in
+// app/db/schema.ts, so there is nothing for a switcher to switch between.
+// If the multi-account build ships, this comment is the thing to revisit.
 export function Avatar({ initial }: { initial: string }) {
   return (
     <Link
