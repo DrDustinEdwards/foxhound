@@ -12,14 +12,21 @@
   },
 
   // Single environment. Worker "foxhound" at foxhoundapp.com (Phase 9 domain
-  // cutover, TASK-foxhound-domain-cutover.md), with workers_dev left enabled
-  // during the transition so foxhound.dustin-edwards.workers.dev keeps
-  // serving until the cutover is verified; a follow-up commit disables it.
+  // cutover, TASK-foxhound-domain-cutover.md). workers_dev was left enabled
+  // during the transition so foxhound.dustin-edwards.workers.dev kept serving
+  // until the cutover was verified. This is the follow-up that config promised:
+  // the cutover is verified by this repo's own standard, since the CI
+  // deploy-consistency gate polls https://foxhoundapp.com directly, so the
+  // second unauthenticated origin serving the same Worker, D1 and KV is closed.
+  //
   // The D1 keeps its original name "foxhound-staging" (a dashboard label only;
   // renaming a D1 is not worth it) and the KV keeps id 8ff187... - bindings and
-  // data are unchanged from the previous two-env setup.
+  // data are unchanged from the previous two-env setup. Note what that means in
+  // practice: "foxhound-staging" IS the production database, and every --remote
+  // command naming it is a production write. scripts/db-migrate.mjs guards the
+  // migration path for that reason. A rename or rebind is planned, not done.
 
-  "workers_dev": true,
+  "workers_dev": false,
   "routes": [
     { "pattern": "foxhoundapp.com", "custom_domain": true },
     { "pattern": "www.foxhoundapp.com", "custom_domain": true }
