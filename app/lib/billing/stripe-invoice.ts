@@ -11,12 +11,27 @@ import { getStripe } from "~/lib/stripe/client";
 // correction) are internal ledger entries and NEVER create a Stripe charge, and
 // admin_granted subscription rows never touch Stripe either (PRICING.md).
 //
-// LIVE sends are deferred to Phase 8: they need the platform Stripe test key AND
-// the merchant's platform customer id, which Phase 5 billing-setup collects (no
-// column stores it yet). The line-selection + status math here are unit-proven;
-// createPlatformInvoice throws unless its preconditions hold, so the billing run
-// never charges by accident. The run computes the ledger; charge dispatch is a
-// separate, later step wired once the customer mapping exists.
+// Corrected 2026-08-11. This block used to say the merchant's platform customer
+// id had "no column stores it yet" and that charge dispatch was "a separate,
+// later step wired once the customer mapping exists". Both were false, and had
+// been for some time.
+//
+// accounts.platform_stripe_customer_id has existed since migration
+// 0005_stormy_vector.sql and is present in every snapshot through 0012.
+// Billing-setup populates it through a single write path,
+// app/routes/app/billing/index.tsx:101, persisted before the redirect out to
+// Stripe Checkout so the return leg's ownership check has an account-bound
+// value to compare. Charge dispatch is wired: run.ts:358 and
+// charge-retry.ts:297.
+//
+// THE PHASE 5 GATE IS SATISFIED. It was believed open, and this stale comment
+// is the most likely reason, so anything sequenced behind "Phase 5 collects the
+// customer id" should be re-examined rather than assumed still blocked.
+//
+// What genuinely remains for live charges is the platform Stripe key and the
+// deliberate decision to turn dispatch on. The line-selection and status math
+// here are unit-proven, and createPlatformInvoice throws unless its
+// preconditions hold, so the billing run still never charges by accident.
 
 export interface PlatformInvoiceLineInput {
   /** billing_line_items.type */
