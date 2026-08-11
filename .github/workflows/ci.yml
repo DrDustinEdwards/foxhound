@@ -49,6 +49,36 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Schema before code, always, and in this order for a specific reason.
+      # Migrations were manual-only until 2026-08-11: nothing in CI applied
+      # them, so a commit that added a migration deployed code expecting the new
+      # schema against an unmigrated database. That is not a risk that needs an
+      # unlucky sequence to bite, it is the guaranteed outcome of shipping any
+      # migration and forgetting the manual step. The first request touching the
+      # new column 500s.
+      #
+      # Placed after `needs: verify` and before the deploy: a failing typecheck
+      # or test never reaches the database, and a failing migration never
+      # reaches the Worker. If this step fails the deploy does not run, which is
+      # the correct direction: old code against an old schema still works.
+      #
+      # DB_MIGRATE_CONFIRM is deliberate. scripts/db-migrate.mjs defaults to the
+      # local database and demands explicit acknowledgement before touching the
+      # remote one, because the database named "foxhound-staging" is production.
+      # CI opts in on purpose; a developer's reflexive `npm run db:migrate` does
+      # not.
+      - name: Apply database migrations
+        run: npm run db:migrate
+        env:
+          DB_MIGRATE_CONFIRM: "1"
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # Known gap, accepted for now (batch-two candidate): `verify` and `deploy`
+      # run on separate runners and each does its own `npm ci` and build. They
+      # build the same commit but not the same artifact, so what ships here is a
+      # rebuild rather than the exact bytes that were tested. Closing it means
+      # uploading the build from `verify` and downloading it here.
       - name: Build and deploy
         run: npm run deploy
         env:
