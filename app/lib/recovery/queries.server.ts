@@ -239,10 +239,32 @@ export async function listActiveFailedPayments(db: Db, accountId: string): Promi
   return all.filter((f) => f.status === "active");
 }
 
+export interface PreviousFailureRow {
+  id: string;
+  detectedAt: Date;
+  declineCategory: string;
+  status: string;
+  amountCents: number;
+  currency: string;
+}
+
 export interface FailedPaymentDetail {
   failedPayment: FailedPaymentRow;
   steps: RecoveryStepRow[];
   recovery: RecoveredPaymentRow | null;
+  /** Legacy's "Previous failures" list: the same customer's other failed
+   *  payments, newest first, capped at five
+   *  (app/(app)/recovery/payments/[id]/page.tsx at 6034a8ba). */
+  previousFailures: PreviousFailureRow[];
+  /** Legacy's estimated LTV, computed FRESH: the mean of this customer's
+   *  recovered payments times twelve. Null below legacy's own threshold of TWO
+   *  recovered payments, which is the gate legacy writes
+   *  (`allCustomerPayments.length >= 2`), not a guess.
+   *
+   *  failed_payments.customer_ltv_cents is deliberately NOT reused: it holds a
+   *  different value, and shipping it under legacy's "est. LTV" label would put
+   *  a wrong number on a money surface (ruling 253's column guard). */
+  estimatedLtvCents: number | null;
 }
 
 /** The full timeline for one failed payment, scoped to the account. Null when
@@ -278,11 +300,60 @@ export async function getFailedPaymentDetail(
       ),
   ]);
 
+  // Legacy's two customer-scoped reads, both account-scoped here as every read
+  // in this tree is. The previous-failures query mirrors legacy exactly:
+  // same stripe_customer_id, excluding THIS payment, newest first, five.
+  const [previousFailures, customerRecovered] = await Promise.all([
+    db
+      .select({
+        id: failedPayments.id,
+        detectedAt: failedPayments.detectedAt,
+        declineCategory: failedPayments.declineCategory,
+        status: failedPayments.status,
+        amountCents: failedPayments.amountCents,
+        currency: failedPayments.currency,
+      })
+      .from(failedPayments)
+      .where(
+        and(
+          eq(failedPayments.accountId, accountId),
+          eq(failedPayments.stripeCustomerId, failedPayment.stripeCustomerId),
+          ne(failedPayments.id, failedPaymentId),
+          isNull(failedPayments.deletedAt),
+        ),
+      )
+      .orderBy(desc(failedPayments.detectedAt))
+      .limit(5),
+    db
+      .select({ amountCents: recoveredPayments.amountCents })
+      .from(recoveredPayments)
+      .innerJoin(failedPayments, eq(recoveredPayments.failedPaymentId, failedPayments.id))
+      .where(
+        and(
+          eq(recoveredPayments.accountId, accountId),
+          eq(failedPayments.stripeCustomerId, failedPayment.stripeCustomerId),
+        ),
+      ),
+  ]);
+
   return {
     failedPayment,
     steps: [...steps].sort((a, b) => (a.stepNumber ?? 0) - (b.stepNumber ?? 0)),
     recovery: recoveries[0] ?? null,
+    previousFailures,
+    estimatedLtvCents: estimateCustomerLtvCents(customerRecovered.map((r) => r.amountCents)),
   };
+}
+
+/** Legacy's LTV arithmetic, lifted verbatim from
+ *  app/(app)/recovery/payments/[id]/page.tsx at 6034a8ba:
+ *  `(sum / length) * 12`, and only when there are at least TWO recovered
+ *  payments to average. Below that legacy passes null and renders no subtext
+ *  at all, so this returns null rather than inventing a one-sample mean. */
+export function estimateCustomerLtvCents(amounts: number[]): number | null {
+  if (amounts.length < 2) return null;
+  const sum = amounts.reduce((total, cents) => total + cents, 0);
+  return (sum / amounts.length) * 12;
 }
 
 /** Every recovery_steps row across a set of failed payments (the /recovery/sequences

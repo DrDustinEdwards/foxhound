@@ -1,3 +1,7 @@
+import { useState } from "react";
+
+import { ChevronDown } from "lucide-react";
+
 import { data, useNavigation } from "react-router";
 
 import { Badge } from "~/components/badge";
@@ -22,6 +26,7 @@ import {
 } from "~/lib/recovery/labels";
 import { isEmailStep } from "~/lib/recovery/schedule";
 import { getFailedPaymentDetail } from "~/lib/recovery/queries.server";
+import { sanitizeEmailPreviewHtml } from "~/lib/recovery/email-preview.server";
 import type { AttributionKind } from "~/lib/constants";
 
 import type { Route } from "./+types/detail";
@@ -36,7 +41,17 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   const db = getDb(env);
   const detail = await getFailedPaymentDetail(db, auth.membership.accountId, params.id);
   if (!detail) throw new Response("Not Found", { status: 404 });
-  return { ...detail, nowMs: Date.now() };
+  // Ruling 256: sanitize SERVER-SIDE, before aiBodyHtml is ever part of a
+  // response, through the helper the sequences preview already uses. Legacy
+  // sanitized client-side with DOMPurify on the same allowlist and shipped the
+  // raw string in its SSR payload; doing it here means no unsanitized body ever
+  // reaches the browser, which is class (a) under ruling 93 and honors Dustin's
+  // ratified intent more strictly than mirroring legacy's mechanism would.
+  const steps = detail.steps.map((step) => ({
+    ...step,
+    previewHtml: step.aiBodyHtml ? sanitizeEmailPreviewHtml(step.aiBodyHtml) : null,
+  }));
+  return { ...detail, steps, nowMs: Date.now() };
 }
 
 // Manual per-payment actions (cancel, retry now, resend, note, mark
@@ -89,7 +104,8 @@ export const MANUAL_ACTIONS = [
 export const ACTIONS_VISIBLE_STATUS = "active";
 
 export default function PaymentDetail({ loaderData, actionData }: Route.ComponentProps) {
-  const { failedPayment, steps, recovery, nowMs } = loaderData;
+  const { failedPayment, steps, recovery, previousFailures, estimatedLtvCents, nowMs } = loaderData;
+  const [expandedStepId, setExpandedStepId] = useState<string | null>(null);
   const attributionKind = recovery?.attributionKind as AttributionKind | undefined;
   const creditedStep =
     recovery?.recoveredByStepId != null
@@ -163,6 +179,13 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
         <StatCard
           label="Customer age"
           value={failedPayment.customerAgeDays != null ? `${failedPayment.customerAgeDays}d` : "-"}
+          // Legacy renders NO subtext below two recovered payments, so an absent
+          // subtext here is legacy's own behaviour rather than a missing element.
+          subtext={
+            estimatedLtvCents != null
+              ? `~${formatMoney(Math.round(estimatedLtvCents), failedPayment.currency)} est. LTV`
+              : undefined
+          }
         />
       </div>
 
@@ -207,6 +230,40 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
               {recovery ? <DetailRow label="Recovery method" value={ATTRIBUTION_KIND_LABELS[attributionKind ?? "stripe_baseline"]} /> : null}
             </dl>
           )}
+
+          {/* Legacy's "Previous failures (N)" block sits inside this same card,
+              under a top rule, one row per prior failure linking to its detail
+              page (PaymentDetailClient.tsx at 7f54aa45). */}
+          {previousFailures.length > 0 ? (
+            <>
+              <p className="mt-4 border-t border-border pt-4 text-micro font-medium text-text-subtle">
+                Previous failures ({previousFailures.length})
+              </p>
+              <ul className="mt-1 flex flex-col">
+                {previousFailures.map((p) => (
+                  <li key={p.id}>
+                    <a
+                      href={`/recovery/payments/${p.id}`}
+                      className="flex items-center justify-between border-b border-border-sub py-1.5 no-underline"
+                    >
+                      <span className="text-micro text-text-subtle">
+                        {formatRelativeTime(p.detectedAt, nowMs) ?? "-"}
+                      </span>
+                      <span className="flex items-center gap-2">
+                        <Badge tone="neutral">
+                          {DECLINE_CATEGORY_LABELS[p.declineCategory as keyof typeof DECLINE_CATEGORY_LABELS] ??
+                            p.declineCategory}
+                        </Badge>
+                        <span className="font-mono text-micro text-text">
+                          {formatMoney(p.amountCents, p.currency)}
+                        </span>
+                      </span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
         </div>
       </div>
 
@@ -275,26 +332,94 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
               return (
                 <li
                   key={step.id}
-                  className="flex items-center justify-between gap-4 border-b border-border-sub pb-3 last:border-0 last:pb-0"
+                  className="border-b border-border-sub pb-3 last:border-0 last:pb-0"
                 >
-                  <div>
-                    <p className="text-body text-text">
-                      {step.stepNumber ?? "-"}. {formatStepType(step.stepType)}
-                    </p>
-                    <p className="text-label text-text-tertiary">
-                      {step.executedAt
-                        ? `Ran ${step.executedAt.toLocaleString()}`
-                        : `Scheduled for ${step.scheduledAt.toLocaleString()}`}
-                    </p>
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-body text-text">
+                        {step.stepNumber ?? "-"}. {formatStepType(step.stepType)}
+                      </p>
+                      {step.aiSubject ? (
+                        <p className="text-micro text-text-subtle">&quot;{step.aiSubject}&quot;</p>
+                      ) : null}
+                      <p className="text-label text-text-tertiary">
+                        {step.executedAt
+                          ? `Ran ${step.executedAt.toLocaleString()}`
+                          : `Scheduled for ${step.scheduledAt.toLocaleString()}`}
+                      </p>
+                    </div>
+                    <Badge tone={stepResultTone(step.result)}>
+                      {step.result ? formatStepResult(step.result) : "Pending"}
+                    </Badge>
                   </div>
-                  <Badge tone={stepResultTone(step.result)}>
-                    {step.result ? formatStepResult(step.result) : "Pending"}
-                  </Badge>
+
+                  {/* Legacy's expander, treatment per 250: a View email control
+                      with a down arrow on a SENT email step, expanding the body
+                      inline. The body was sanitized server-side in the loader
+                      (ruling 256), so what is injected here has already been
+                      through legacy's own allowlist. */}
+                  {step.executedAt && step.previewHtml ? (
+                    <div className="mt-2">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedStepId(expandedStepId === step.id ? null : step.id)}
+                        aria-expanded={expandedStepId === step.id}
+                        className="text-micro text-text-subtle hover:text-text"
+                      >
+                        {expandedStepId === step.id ? "Hide email" : "View email"}{" "}
+                        <ChevronDown
+                          className={`inline-block h-3 w-3 transition-transform ${
+                            expandedStepId === step.id ? "rotate-180" : ""
+                          }`}
+                          strokeWidth={1.5}
+                          aria-hidden="true"
+                        />
+                      </button>
+                      {expandedStepId === step.id ? (
+                        <div
+                          className="mt-2 rounded-lg border border-border bg-bg p-4 text-label text-text"
+                          // Sanitized in the loader by sanitizeEmailPreviewHtml,
+                          // the same helper and allowlist the sequences preview
+                          // uses. Never render step.aiBodyHtml directly here.
+                          dangerouslySetInnerHTML={{ __html: step.previewHtml }}
+                        />
+                      ) : null}
+                    </div>
+                  ) : null}
                 </li>
               );
             })}
           </ol>
         )}
+      </div>
+
+      {/* Legacy's INTERNAL NOTES card, treatment per 250's capture: a textarea
+          with placeholder copy and an amber Save note button. The column
+          (failed_payments.notes) already exists, so the value renders today.
+          SAVING is Phase 2: this form posts the same intent the action handler
+          refuses, so the button returns the honest not-available message rather
+          than pretending to persist. A dead button that silently does nothing
+          would be worse than one that says so. */}
+      <div className="mt-6 rounded-lg border border-border bg-surface p-4">
+        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Internal notes</p>
+        <DemoGuardedForm method="post">
+          <input type="hidden" name="intent" value="note" />
+          <textarea
+            name="note"
+            aria-label="Internal notes for this payment"
+            defaultValue={failedPayment.notes ?? ""}
+            placeholder="Add a note about this payment or customer..."
+            rows={3}
+            className="mt-3 w-full resize-y rounded-lg border border-border-i bg-bg px-3.5 py-2.5 text-label text-text"
+          />
+          <button
+            type="submit"
+            disabled={busy}
+            className="mt-3 rounded-md border border-amber bg-amber px-4 py-2 text-label font-semibold text-on-amber hover:bg-amber-dark disabled:opacity-60"
+          >
+            Save note
+          </button>
+        </DemoGuardedForm>
       </div>
 
       {/* Ruling 250: the action row is STATE-CONDITIONAL. Dustin's capture of
