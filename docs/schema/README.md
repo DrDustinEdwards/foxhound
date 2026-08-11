@@ -42,15 +42,33 @@ state in a `d1_migrations` table; `migrations_dir` is set per-database in
 npm run db:generate
 
 # 2. apply (idempotent; wrangler skips already-applied migrations)
-npm run db:migrate:staging      # wrangler d1 migrations apply foxhound-staging   --env staging   --remote
-npm run db:migrate:production   # wrangler d1 migrations apply foxhound-production --env production --remote
+npm run db:migrate                        # LOCAL database only. Safe default.
+npm run db:migrate -- --remote-confirm    # REMOTE, i.e. PRODUCTION. Deliberate.
 ```
 
-Both databases carry identical structure (49 tables, 59 named indexes). Production
-is structure-only; it takes no data until the Phase 9 cutover. Migration `0001`
-(post-review hardening) adds the win_back_steps account index and `currency`
-columns to `accounts` and `customer_context`; it is purely additive (see
-legacy-map.md).
+Corrected 2026-08-11. This section previously named `db:migrate:staging` and
+`db:migrate:production`, and passed `--env staging` / `--env production`.
+**Neither script exists, and neither `--env` does either**: `wrangler.jsonc`
+declares a single environment with no `env.*` blocks. Following the old
+instructions produced a script-not-found error, and the natural recovery was to
+reach for the one script that did exist, which was an unguarded `--remote`
+against live data.
+
+**Read this before running the remote form.** The database bound as `DB` is
+named `foxhound-staging` and **is the production database**. The single-
+environment `wrangler.jsonc` binds it to the Worker serving foxhoundapp.com; the
+separate `foxhound-production` database is bound nowhere and takes no traffic.
+The name is a leftover dashboard label, so every `--remote` command naming
+`foxhound-staging` writes to production.
+
+`npm run db:migrate` therefore defaults to the local database and refuses the
+remote one unless you pass `--remote-confirm` (or set `DB_MIGRATE_CONFIRM=1`,
+which is what CI does). See `scripts/db-migrate.mjs`. CI applies migrations
+after `verify` and before the deploy, so schema always precedes code.
+
+Migration `0001` (post-review hardening) adds the win_back_steps account index
+and `currency` columns to `accounts` and `customer_context`; it is purely
+additive (see legacy-map.md).
 
 Verified on apply: all tables/indexes present; CHECK constraints reject bad values
 (`engagement_events_type_ck`); the billing line-item unique keys reject a second
@@ -80,10 +98,18 @@ and the report land in `scripts/out/` (gitignored).
 
 ## Binding and environment facts
 
-- Code binding: `DB` (both environments).
+- Code binding: `DB`.
 - D1 databases: `foxhound-staging` (`4aa23f57-244e-4e24-850c-66486e7ba92d`),
   `foxhound-production` (`ae406c63-ede5-4031-b5fc-2e821565ac19`).
-- All Phase 2 work and verification ran on **staging**; production got structure only.
+- **`foxhound-staging` is the live production database.** It is the only D1 bound
+  in `wrangler.jsonc`, which declares a single environment, and that Worker
+  serves foxhoundapp.com. `foxhound-production` is bound nowhere and takes no
+  traffic. The names are inverted relative to reality and a rename or rebind is
+  planned but not done, so treat the name as a label and the binding as the
+  truth.
+- All Phase 2 work and verification ran on what was then staging; the two-
+  environment split described elsewhere in this file predates the single-
+  environment cutover.
 
 ## Better Auth boundary (Phase 3)
 

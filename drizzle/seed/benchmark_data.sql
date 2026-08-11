@@ -1,9 +1,17 @@
 -- Seeds benchmark_data for the no-auth estimator (Phase 6 Pass 3,
 -- PRICING.md: "No-auth estimator first: MRR + customer count -> benchmark
--- leakage estimate"). Run with:
---   wrangler d1 execute foxhound-staging --remote --file=./drizzle/seed/benchmark_data.sql
--- (npm run db:seed:benchmark). Idempotent: re-running replaces the same rows
--- rather than duplicating them.
+-- leakage estimate").
+--
+-- RETAINED AS A RECORD, NOT AS A RUNNABLE STEP. The npm script that invoked
+-- this (db:seed:benchmark) was removed 2026-08-11. Its job is done: the rows
+-- below are live, and the script was a hardcoded `--remote` write to the
+-- database named foxhound-staging, which IS production. Keeping a one-command
+-- path to overwrite live reference data earned nothing once the seed had run.
+--
+-- This file stays because it is the only record of what those values are and
+-- where they came from. Applying it again is a deliberate act: read it, then
+-- run wrangler by hand. Idempotent, and scoped to one cohort by the DELETE
+-- below, so a re-run replaces the same four rows rather than duplicating them.
 --
 -- SOURCING (directional, not audited, DESIGN.md flagship-surface-3
 -- confidence-caveat convention applies to every number this seeds):
