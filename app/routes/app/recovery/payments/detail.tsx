@@ -20,7 +20,7 @@ import {
   recoveryLifecycleTone,
   stepResultTone,
 } from "~/lib/recovery/labels";
-import { isEmailStep, isRetryStep } from "~/lib/recovery/schedule";
+import { isEmailStep } from "~/lib/recovery/schedule";
 import { getFailedPaymentDetail } from "~/lib/recovery/queries.server";
 import type { AttributionKind } from "~/lib/constants";
 
@@ -61,14 +61,32 @@ export async function action({ context, params }: Route.ActionArgs) {
   return data({ error: MANUAL_ACTIONS_NOT_AVAILABLE_MESSAGE }, { status: 400 });
 }
 
-const MANUAL_ACTIONS = [
-  { intent: "cancel", label: "Cancel subscription" },
-  { intent: "retry_now", label: "Retry now" },
-  { intent: "resend", label: "Resend last email" },
-  { intent: "note", label: "Add a note" },
-  { intent: "mark_recovered", label: "Mark recovered" },
-  { intent: "override_next_email", label: "Override next email" },
+// Legacy's action set, in legacy's order, read from
+// app/(app)/recovery/payments/[id]/PaymentDetailClient.tsx at 7f54aa45: trigger
+// the next step, mark recovered, stop the sequence, resend the last email. Four,
+// not the six this route used to render.
+//
+// "Stop recovery" is the ONE ratified substitution (ruling 251, PRIME DIRECTIVE
+// item 3, 2026-08-10). It replaces BOTH legacy's "Cancel recovery" and this
+// file's own "Cancel subscription". The old label was a defect: it promised to
+// end the customer's subscription when the action only ends the dunning
+// sequence. Do not "restore" legacy's wording here.
+//
+// `conditional` marks the two legacy renders only when its precondition holds:
+// trigger needs a pending step, resend needs a sent email to resend.
+export const MANUAL_ACTIONS = [
+  { intent: "trigger", label: "Trigger next step now", variant: "primary", needs: "nextStep" },
+  { intent: "mark_recovered", label: "Mark as recovered", variant: "default", needs: null },
+  { intent: "cancel", label: "Stop recovery", variant: "danger", needs: null },
+  { intent: "resend", label: "Resend last email", variant: "default", needs: "lastEmail" },
 ] as const;
+
+// Ruling 250, from Dustin's capture of legacy at status Failed_unrecovered: NO
+// action buttons render in a terminal state. Legacy's own gate is
+// `payment.status === 'active'` (PaymentDetailClient.tsx), and Foxhound shares
+// that vocabulary exactly (labels.ts: active / recovered / failed_unrecovered),
+// so the condition ports one to one rather than being inferred from the capture.
+export const ACTIONS_VISIBLE_STATUS = "active";
 
 export default function PaymentDetail({ loaderData, actionData }: Route.ComponentProps) {
   const { failedPayment, steps, recovery, nowMs } = loaderData;
@@ -83,6 +101,16 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
   const emailSteps = executedSteps.filter((s) => isEmailStep(s.stepType));
   const openedEmails = emailSteps.filter((s) => s.openedAt);
   const clickedEmails = emailSteps.filter((s) => s.clickedAt);
+
+  // Legacy's two preconditions, read from PaymentDetailClient.tsx at 7f54aa45:
+  // nextStep is the first step with neither an execution nor a result, and
+  // lastEmailStep is the most recent sent email carrying a generated body.
+  const nextStep = steps.find((s) => s.executedAt === null && s.result === null) ?? null;
+  const lastEmailStep = emailSteps.filter((s) => s.aiSubject && s.aiBodyHtml).slice(-1)[0] ?? null;
+  const actionsVisible = failedPayment.status === ACTIONS_VISIBLE_STATUS;
+  const visibleActions = MANUAL_ACTIONS.filter(
+    (a) => a.needs === null || (a.needs === "nextStep" ? nextStep !== null : lastEmailStep !== null),
+  );
 
   return (
     <div className="mx-auto max-w-[1000px] px-8 py-10">
@@ -182,8 +210,17 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
         </div>
       </div>
 
-      <div className="mt-6 rounded-lg border border-border bg-surface p-4">
-        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Outcome</p>
+      {/* Ruling 251, Dustin's distinction requirement in his words: "it needs to
+          be more distinguished from everything else". This card is the receipt
+          for the 20 percent attribution fee, so it must not share the standard
+          card treatment. Distinction is carried by the amber accent border and
+          the tinted amber surface, the two tokens DESIGN.md already reserves for
+          the brand accent, rather than by a new token or a size change: every
+          other card on this page is `border-border bg-surface`, so the accent
+          alone separates it at a glance without inventing anything. Flagged for
+          Dustin's review on the demo. */}
+      <div className="mt-6 rounded-lg border border-amber bg-amber-bg p-4">
+        <p className="font-mono text-micro uppercase tracking-wide text-amber-text">Outcome</p>
         {recovery ? (
           <div className="mt-2 flex flex-col gap-2">
             {/* The real lifecycle state, read from refunded_at/disputed_at, never
@@ -232,11 +269,9 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
         ) : (
           <ol className="mt-3 flex flex-col gap-3">
             {steps.map((step) => {
-              const channel = isRetryStep(step.stepType)
-                ? "Silent"
-                : step.stepType === "card_update"
-                  ? "Customer action"
-                  : "Customer email";
+              // Ruling 251: the per-step channel label is REMOVED. Legacy carries
+              // no such tag; its glyph and chip treatment is the spec, and removal
+              // is the zero-ratification path.
               return (
                 <li
                   key={step.id}
@@ -245,9 +280,6 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                   <div>
                     <p className="text-body text-text">
                       {step.stepNumber ?? "-"}. {formatStepType(step.stepType)}
-                      <span className="ml-2 text-micro uppercase tracking-wide text-text-subtle">
-                        {channel}
-                      </span>
                     </p>
                     <p className="text-label text-text-tertiary">
                       {step.executedAt
@@ -265,28 +297,41 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
         )}
       </div>
 
-      <div className="mt-6 rounded-lg border border-border bg-surface p-4">
-        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Manual actions</p>
-        {actionData && "error" in actionData ? (
-          <p className="mt-2 rounded-md border border-red bg-red-bg px-3 py-2 text-label text-error-text" role="alert">
-            {actionData.error}
-          </p>
-        ) : null}
-        <div className="mt-3 flex flex-wrap gap-2">
-          {MANUAL_ACTIONS.map((a) => (
-            <DemoGuardedForm key={a.intent} method="post">
-              <input type="hidden" name="intent" value={a.intent} />
-              <button
-                type="submit"
-                disabled={busy}
-                className="rounded-md border border-border px-3 py-1.5 text-label text-text-secondary hover:border-border-i disabled:opacity-60"
-              >
-                {a.label}
-              </button>
-            </DemoGuardedForm>
-          ))}
+      {/* Ruling 250: the action row is STATE-CONDITIONAL. Dustin's capture of
+          legacy at Failed_unrecovered shows NO action buttons at all, and
+          legacy's own gate is `payment.status === 'active'`, so a terminal
+          payment renders nothing here rather than a row of dead controls.
+          The handler still refuses every intent; Phase 2 wires the engine. */}
+      {actionsVisible ? (
+        <div className="mt-6 rounded-lg border border-border bg-surface p-4">
+          <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Manual actions</p>
+          {actionData && "error" in actionData ? (
+            <p className="mt-2 rounded-md border border-red bg-red-bg px-3 py-2 text-label text-error-text" role="alert">
+              {actionData.error}
+            </p>
+          ) : null}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {visibleActions.map((a) => (
+              <DemoGuardedForm key={a.intent} method="post">
+                <input type="hidden" name="intent" value={a.intent} />
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className={`rounded-md border px-3 py-1.5 text-label disabled:opacity-60 ${
+                    a.variant === "primary"
+                      ? "border-amber bg-amber font-semibold text-on-amber hover:bg-amber-dark"
+                      : a.variant === "danger"
+                        ? "border-border text-error-text hover:border-red"
+                        : "border-border text-text-secondary hover:border-border-i"
+                  }`}
+                >
+                  {a.label}
+                </button>
+              </DemoGuardedForm>
+            ))}
+          </div>
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }
