@@ -185,10 +185,16 @@ function exportHref(filters: Filters, bounds: AmountBounds): string {
   return withParams("/recovery/payments/export.csv", buildParams(filters, bounds));
 }
 
+// Legacy's STATUS_TABS order exactly (PaymentsFilters.tsx): All, Active,
+// Recovered, Cancelled, Failed. "Cancelled" was MISSING here until S7 Phase 2
+// Session B, which is what S6's row already recorded ("the status filter set
+// differs and LOSES a value"). Without it, a payment stopped by "Stop recovery"
+// was reachable only under All and counted by no pill at all.
 const STATUS_PILLS = [
   { value: "", label: "All" },
   { value: "active", label: "In recovery" },
   { value: "recovered", label: "Recovered" },
+  { value: "cancelled", label: "Cancelled" },
   { value: "failed_unrecovered", label: "Not recovered" },
 ] as const;
 
@@ -197,6 +203,7 @@ interface PillCounts {
   active: number;
   recovered: number;
   failedUnrecovered: number;
+  cancelled: number;
 }
 
 /**
@@ -228,10 +235,15 @@ function StatusPills({
   const groupRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
+  // Every pill reads its own count explicitly. This used to fall through to
+  // failedUnrecovered for anything unmatched, which was harmless while the last
+  // pill WAS failed_unrecovered and became a wrong number the moment Cancelled
+  // was added: the new pill would have displayed the not-recovered total.
   function countFor(value: string): number {
     if (value === "") return pillCounts.all;
     if (value === "active") return pillCounts.active;
     if (value === "recovered") return pillCounts.recovered;
+    if (value === "cancelled") return pillCounts.cancelled;
     return pillCounts.failedUnrecovered;
   }
 

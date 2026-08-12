@@ -12,7 +12,12 @@ import {
   stripeConnections,
   winBackSequences,
 } from "~/db";
-import type { DeclineCategory } from "~/lib/constants";
+import {
+  FAILED_PAYMENT_STATUS_ACTIVE,
+  FAILED_PAYMENT_STATUS_CANCELLED,
+  FAILED_PAYMENT_STATUS_UNRECOVERED,
+  type DeclineCategory,
+} from "~/lib/constants";
 
 // Recovery-surface read models (Phase 5 slice 5b): failed payments, their
 // recovery_steps timeline, win-back sequences, and expiring-card alerts. Every
@@ -173,6 +178,11 @@ export interface PaymentStatusCounts {
   active: number;
   recovered: number;
   failedUnrecovered: number;
+  /** Merchant-stopped sequences (S7's "Stop recovery", ruling 262 decision two).
+   *  Counted separately because operator-terminated is not the same outcome as
+   *  exhausted, and folding it into failedUnrecovered would overstate how often
+   *  the engine ran out of road. */
+  cancelled: number;
 }
 
 /** Tally raw status strings into the canonical PaymentStatusCounts shape.
@@ -183,12 +193,14 @@ export function tallyStatusCounts(statuses: string[]): PaymentStatusCounts {
   let active = 0;
   let recovered = 0;
   let failedUnrecovered = 0;
+  let cancelled = 0;
   for (const s of statuses) {
-    if (s === "active") active++;
+    if (s === FAILED_PAYMENT_STATUS_ACTIVE) active++;
     else if (s === "recovered") recovered++;
-    else if (s === "failed_unrecovered") failedUnrecovered++;
+    else if (s === FAILED_PAYMENT_STATUS_UNRECOVERED) failedUnrecovered++;
+    else if (s === FAILED_PAYMENT_STATUS_CANCELLED) cancelled++;
   }
-  return { all: statuses.length, active, recovered, failedUnrecovered };
+  return { all: statuses.length, active, recovered, failedUnrecovered, cancelled };
 }
 
 /** Status counts for the WHOLE account, ignoring every filter (the five

@@ -82,6 +82,20 @@ export const FAILED_PAYMENT_STATUS_ACTIVE = "active";
 export const FAILED_PAYMENT_STATUS_UNRECOVERED = "failed_unrecovered";
 
 /**
+ * Terminal status for a sequence a MERCHANT stopped on purpose (S7's "Stop
+ * recovery"), ruling 262 decision two. Deliberately DISTINCT from
+ * `failed_unrecovered`: operator-terminated and exhausted mean different things,
+ * the same reason Stripe keeps `void` and `uncollectible` apart, and folding
+ * them would destroy the paper trail for why outreach ended.
+ *
+ * No schema migration adds this. `failed_payments.status` is `text NOT NULL`
+ * with NO CHECK constraint (verified across all 13 committed migrations), so the
+ * column already accepts it and the value is enforced by this vocabulary alone.
+ * Legacy writes the same string, from its cancel route and its Stripe webhook.
+ */
+export const FAILED_PAYMENT_STATUS_CANCELLED = "cancelled";
+
+/**
  * The statuses a late invoice.payment_succeeded may still recover FROM.
  *
  * 'active' is the normal case. 'failed_unrecovered' matters because a customer
