@@ -70,6 +70,12 @@ export const RECOVERY_MATURITY_DAYS = 30;
 export const RECOVERY_MATURITY_MS = RECOVERY_MATURITY_DAYS * 24 * 60 * 60 * 1000;
 
 // ---- failed_payments lifecycle ----
+/** The in-recovery status: a sequence is running and manual actions apply.
+ *  Legacy gates its whole action row on this one value (PaymentDetailClient.tsx
+ *  at blob 7f54aa45: `const isActive = payment.status === 'active'`), and three
+ *  of its four action handlers re-check it server-side before mutating. */
+export const FAILED_PAYMENT_STATUS_ACTIVE = "active";
+
 /** Terminal status for a sequence that ran every step without recovering.
  *  Written ONLY by the recovery tick's exhausted-sequence sweep; the
  *  invoice.payment_succeeded webhook remains the sole writer of 'recovered'. */
