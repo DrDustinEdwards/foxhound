@@ -1,4 +1,5 @@
 import { SEND_MAX_ATTEMPTS, SEND_RETRY_BACKOFF_MINUTES } from "~/lib/constants";
+import { isEmailStep } from "~/lib/recovery/schedule";
 
 // The recovery_steps send-attempt state machine (SCHEMA.md: attempt_count,
 // last_attempt_error, next_retry_at folded into the design). A transient send
@@ -124,4 +125,68 @@ export function classifyRetryError(err: unknown): RetryResult {
 
 export function isRetrySucceeded(result: RetryResult): boolean {
   return result === "retry_succeeded";
+}
+
+// ---- Manual-action preconditions (S7 Phase 2) ----
+//
+// Legacy gates two of its four manual actions on the state of the step list, and
+// it does so in the CLIENT (PaymentDetailClient.tsx at blob 7f54aa45). Foxhound
+// has to apply the same two gates in two places: the route component, to decide
+// which buttons render, and the server dispatcher, to refuse a hand-crafted POST
+// that the button would not have offered. These selectors exist so those two
+// places cannot drift apart, which is the failure this campaign keeps finding
+// when the same predicate is written twice.
+//
+// Pure and free of any db or env import, so the route component can call them
+// without pulling server code into its client chunk.
+
+/** The step-row fields the two selectors read. Structural rather than the schema
+ *  row type, so a loader row, a demo row and a test fixture all satisfy it. */
+export interface ManualActionStepRow {
+  executedAt: Date | null;
+  result: string | null;
+  stepType: string;
+  aiSubject: string | null;
+  aiBodyHtml: string | null;
+}
+
+/**
+ * Legacy's `nextStep`, the gate for "Trigger next step now": the FIRST step with
+ * neither an execution nor a result. Read from PaymentDetailClient.tsx 7f54aa45:
+ *
+ *   const pendingSteps = steps.filter(s => !s.executed_at && !s.result)
+ *   const nextStep = pendingSteps[0] || null
+ *
+ * Note this deliberately does NOT filter by due time. A manual trigger is the
+ * merchant overriding the schedule, so a step scheduled for tomorrow is still
+ * the next one to fire; that is legacy's behavior and the whole point of the
+ * button.
+ */
+export function nextPendingStep<T extends ManualActionStepRow>(steps: readonly T[]): T | null {
+  return steps.find((s) => s.executedAt === null && s.result === null) ?? null;
+}
+
+/**
+ * Legacy's `lastEmailStep`, the gate for "Resend last email": the last EXECUTED
+ * email step that carries generated copy. Read from PaymentDetailClient.tsx
+ * 7f54aa45 lines 149 and 154:
+ *
+ *   const emailSteps = steps.filter(s => s.step_type.startsWith('email_') && s.executed_at)
+ *   const lastEmailStep = emailSteps.filter(s => s.ai_subject && s.ai_body_html).slice(-1)[0]
+ *
+ * Ordering caveat, carried from parity/S7-PHASE2-SCOPE.md section 1.5: legacy's
+ * CLIENT picks by array order (slice(-1)) while legacy's resend ROUTE re-queries
+ * by executed_at descending, so the two can disagree about WHICH email is last.
+ * That disagreement does not reach this selector, which answers only whether a
+ * resendable email EXISTS, and existence is identical under either ordering.
+ * Choosing which row to actually resend belongs to the session that wires the
+ * resend intent.
+ */
+export function lastResendableEmailStep<T extends ManualActionStepRow>(
+  steps: readonly T[],
+): T | null {
+  const resendable = steps.filter(
+    (s) => s.executedAt !== null && isEmailStep(s.stepType) && s.aiSubject && s.aiBodyHtml,
+  );
+  return resendable[resendable.length - 1] ?? null;
 }

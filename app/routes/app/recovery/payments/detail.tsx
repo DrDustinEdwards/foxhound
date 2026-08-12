@@ -25,7 +25,9 @@ import {
   stepResultTone,
 } from "~/lib/recovery/labels";
 import { isEmailStep } from "~/lib/recovery/schedule";
+import { lastResendableEmailStep, nextPendingStep } from "~/lib/recovery/step-state";
 import { getFailedPaymentDetail } from "~/lib/recovery/queries.server";
+import { dispatchManualAction } from "~/lib/recovery/manual-actions.server";
 import { sanitizeEmailPreviewHtml } from "~/lib/recovery/email-preview.server";
 import type { AttributionKind } from "~/lib/constants";
 
@@ -63,16 +65,26 @@ export async function loader({ context, params }: Route.LoaderArgs) {
 // safe to build against.
 const MANUAL_ACTIONS_NOT_AVAILABLE_MESSAGE = "This action isn't available yet.";
 
-export async function action({ context, params }: Route.ActionArgs) {
+export async function action({ context, params, request }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
   const db = getDb(env);
-  // Scoped read even though it is discarded: proves the id belongs to this
-  // account before responding, the same 404-on-mismatch contract every other
-  // action in this tree honors, so a wired-up follow-up can lean on this
-  // shape without re-deriving it.
-  const detail = await getFailedPaymentDetail(db, auth.membership.accountId, params.id);
-  if (!detail) throw new Response("Not Found", { status: 404 });
+  const form = await request.formData();
+  // The shared dispatcher owns account scoping, ownership and the per-intent
+  // preconditions (app/lib/recovery/manual-actions.server.ts). accountId comes
+  // from the session, never from the form.
+  const outcome = await dispatchManualAction(
+    db,
+    auth.membership.accountId,
+    params.id,
+    form.get("intent"),
+  );
+  // BEHAVIOR IS DELIBERATELY UNCHANGED THIS SESSION (ruling 260, Session A).
+  // Every intent that passes its gates resolves to not_wired, and every refusal
+  // collapses to the same 400 the handler already returned, so this commit lands
+  // the plumbing without moving a single user-visible response. Sessions B
+  // through E give each reason its own answer as they wire the intent.
+  if (outcome.reason === "not_found") throw new Response("Not Found", { status: 404 });
   return data({ error: MANUAL_ACTIONS_NOT_AVAILABLE_MESSAGE }, { status: 400 });
 }
 
@@ -118,11 +130,12 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
   const openedEmails = emailSteps.filter((s) => s.openedAt);
   const clickedEmails = emailSteps.filter((s) => s.clickedAt);
 
-  // Legacy's two preconditions, read from PaymentDetailClient.tsx at 7f54aa45:
-  // nextStep is the first step with neither an execution nor a result, and
-  // lastEmailStep is the most recent sent email carrying a generated body.
-  const nextStep = steps.find((s) => s.executedAt === null && s.result === null) ?? null;
-  const lastEmailStep = emailSteps.filter((s) => s.aiSubject && s.aiBodyHtml).slice(-1)[0] ?? null;
+  // Legacy's two preconditions, read from PaymentDetailClient.tsx at 7f54aa45.
+  // These are the SAME selectors the server dispatcher gates on, imported from
+  // one place so the buttons that render and the POSTs the server accepts cannot
+  // drift apart.
+  const nextStep = nextPendingStep(steps);
+  const lastEmailStep = lastResendableEmailStep(steps);
   const actionsVisible = failedPayment.status === ACTIONS_VISIBLE_STATUS;
   const visibleActions = MANUAL_ACTIONS.filter(
     (a) => a.needs === null || (a.needs === "nextStep" ? nextStep !== null : lastEmailStep !== null),
