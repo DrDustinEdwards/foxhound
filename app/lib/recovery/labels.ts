@@ -26,6 +26,12 @@ export const FAILED_PAYMENT_STATUS_LABELS: Record<string, string> = {
   active: "In recovery",
   recovered: "Recovered",
   failed_unrecovered: "Not recovered",
+  // Legacy's own word, READ from its status tabs rather than invented:
+  // app/(app)/recovery/payments/components/PaymentsFilters.tsx STATUS_TABS
+  // carries { key: 'cancelled', label: 'Cancelled' }. The three labels above are
+  // pre-existing renames of legacy's "Active" and "Failed" (S6's row records
+  // them); this one matches legacy exactly, so it adds no new divergence.
+  cancelled: "Cancelled",
 };
 
 // Values match Badge's BadgeTone (app/components/badge.tsx) so callers pass
