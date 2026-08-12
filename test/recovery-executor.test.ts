@@ -261,12 +261,16 @@ describe("email executor: orchestration + failure isolation", () => {
     });
     // usedTemplate is false and templateReason null here: this send resolved from
     // cache, so no generation was attempted, no gate ran, and no fallback was needed.
+    // `suppressed` is false because the injected send returned status "sent"; the
+    // field exists so a trigger can tell "we did not email them" apart from "we
+    // emailed them", which sendResultToAttempt collapses (S7 Phase 2 Session C).
     expect(res).toEqual({
       action: "email",
       sent: true,
       result: "email_sent",
       usedTemplate: false,
       templateReason: null,
+      suppressed: false,
     });
     expect(persistedResult).toBe("email_sent");
   });
