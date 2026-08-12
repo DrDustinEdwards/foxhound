@@ -27,7 +27,7 @@ import {
 import { isEmailStep } from "~/lib/recovery/schedule";
 import { lastResendableEmailStep, nextPendingStep } from "~/lib/recovery/step-state";
 import { getFailedPaymentDetail } from "~/lib/recovery/queries.server";
-import { dispatchManualAction } from "~/lib/recovery/manual-actions.server";
+import { dispatchManualAction, moneyWriteCommit } from "~/lib/recovery/manual-actions.server";
 import { sanitizeEmailPreviewHtml } from "~/lib/recovery/email-preview.server";
 import type { AttributionKind } from "~/lib/constants";
 
@@ -72,20 +72,57 @@ export async function action({ context, params, request }: Route.ActionArgs) {
   const form = await request.formData();
   // The shared dispatcher owns account scoping, ownership and the per-intent
   // preconditions (app/lib/recovery/manual-actions.server.ts). accountId comes
-  // from the session, never from the form.
-  const outcome = await dispatchManualAction(
+  // from the session, never from the form. Every mutation it performs rides the
+  // per-account money-write DO through this commit binding (262 decision four).
+  const outcome = await dispatchManualAction({
     db,
-    auth.membership.accountId,
-    params.id,
-    form.get("intent"),
-  );
-  // BEHAVIOR IS DELIBERATELY UNCHANGED THIS SESSION (ruling 260, Session A).
-  // Every intent that passes its gates resolves to not_wired, and every refusal
-  // collapses to the same 400 the handler already returned, so this commit lands
-  // the plumbing without moving a single user-visible response. Sessions B
-  // through E give each reason its own answer as they wire the intent.
-  if (outcome.reason === "not_found") throw new Response("Not Found", { status: 404 });
-  return data({ error: MANUAL_ACTIONS_NOT_AVAILABLE_MESSAGE }, { status: 400 });
+    accountId: auth.membership.accountId,
+    failedPaymentId: params.id,
+    intent: form.get("intent"),
+    note: form.get("note"),
+    commit: moneyWriteCommit(env),
+  });
+
+  if (outcome.ok) {
+    return data(
+      { notice: outcome.intent === "note" ? "Note saved." : "Recovery stopped." },
+      { status: 200 },
+    );
+  }
+
+  // Legacy's own status codes and strings, per intent, from
+  // parity/S7-PHASE2-SCOPE.md section 1.7. Intents this session has not wired
+  // keep returning the unchanged not-available message.
+  switch (outcome.reason) {
+    case "not_found":
+      throw new Response("Not Found", { status: 404 });
+    case "not_active":
+      return data({ error: "Payment is not active" }, { status: 400 });
+    case "no_pending_step":
+      return data({ error: "No pending steps" }, { status: 400 });
+    case "no_email_to_resend":
+      return data({ error: "No email to resend" }, { status: 400 });
+    case "already_resolved":
+      // Legacy answers 200 `{ success: true, alreadyResolved: true }` and its
+      // client then reports plain success, which tells the merchant something
+      // untrue. Same status code, honest sentence: class (c).
+      return data(
+        { notice: "This payment was already resolved, so nothing was stopped." },
+        { status: 200 },
+      );
+    case "write_failed":
+      return data(
+        {
+          error:
+            outcome.intent === "note"
+              ? "Failed to save note"
+              : "Could not stop recovery. Please try again.",
+        },
+        { status: 500 },
+      );
+    default:
+      return data({ error: MANUAL_ACTIONS_NOT_AVAILABLE_MESSAGE }, { status: 400 });
+  }
 }
 
 // Legacy's action set, in legacy's order, read from
@@ -406,13 +443,36 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
         )}
       </div>
 
+      {/* Action feedback sits OUTSIDE the actions card on purpose. It used to
+          live inside it, which was fine while every intent was refused: the
+          status could not change, so the card was always still there to render
+          the message. Now a successful Stop recovery moves the payment to a
+          terminal status, the card correctly stops rendering, and a message
+          nested inside it would vanish on the very submit it exists to report.
+          One block, ungated, serving the notes form and the action row alike. */}
+      {actionData && "error" in actionData ? (
+        <p
+          className="mt-6 rounded-md border border-red bg-red-bg px-3 py-2 text-label text-error-text"
+          role="alert"
+        >
+          {actionData.error}
+        </p>
+      ) : null}
+      {actionData && "notice" in actionData ? (
+        <p
+          className="mt-6 rounded-md border border-green bg-green-bg px-3 py-2 text-label text-green"
+          role="status"
+        >
+          {actionData.notice}
+        </p>
+      ) : null}
+
       {/* Legacy's INTERNAL NOTES card, treatment per 250's capture: a textarea
           with placeholder copy and an amber Save note button. The column
-          (failed_payments.notes) already exists, so the value renders today.
-          SAVING is Phase 2: this form posts the same intent the action handler
-          refuses, so the button returns the honest not-available message rather
-          than pretending to persist. A dead button that silently does nothing
-          would be worse than one that says so. */}
+          (failed_payments.notes) already exists. SAVING is WIRED as of Session B
+          (262 decision four): the form posts the `note` intent, the dispatcher
+          scopes it to this account, and the update commits through the
+          per-account money-write DO. */}
       <div className="mt-6 rounded-lg border border-border bg-surface p-4">
         <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Internal notes</p>
         <DemoGuardedForm method="post">
@@ -443,11 +503,6 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
       {actionsVisible ? (
         <div className="mt-6 rounded-lg border border-border bg-surface p-4">
           <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Manual actions</p>
-          {actionData && "error" in actionData ? (
-            <p className="mt-2 rounded-md border border-red bg-red-bg px-3 py-2 text-label text-error-text" role="alert">
-              {actionData.error}
-            </p>
-          ) : null}
           <div className="mt-3 flex flex-wrap gap-2">
             {visibleActions.map((a) => (
               <DemoGuardedForm key={a.intent} method="post">
