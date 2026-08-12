@@ -369,7 +369,72 @@ export async function recordMissingTokenAttempt(
   return patch.result;
 }
 
-function toRetryContext(row: DueStepRow): RetryStepContext | null {
+/**
+ * The same joined row queryDueRecoverySteps builds, for ONE step chosen by a
+ * MERCHANT rather than by the schedule (S7's "Trigger next step now").
+ *
+ * Three deliberate differences from the cron's own selection, each with a reason:
+ *
+ * `stepDueCondition` is NOT applied. A manual trigger is the merchant overriding
+ * the schedule, so a step scheduled for tomorrow is still the one to fire; that
+ * is legacy's behaviour and the entire point of the button. The step must still
+ * be UNEXECUTED with no result, which the caller enforces through the shared
+ * nextPendingStep selector, the same predicate the button renders from.
+ *
+ * The account scope is added, because this is reached from a request rather than
+ * from a sweep and the payment must belong to the caller.
+ *
+ * `accountProcessingEligibleCondition` IS kept. The emergency brake pauses
+ * PROCESSING, and executing a step is processing; a button that charges a card
+ * while the brake is engaged would make the brake a lie. Note this is the ACCOUNT
+ * gate only: the recovery-tick cron_config flag is deliberately NOT consulted,
+ * because disabling the scheduler is a statement about automatic runs and a
+ * merchant pressing a button is not one.
+ */
+export async function queryStepForManualTrigger(
+  db: Db,
+  accountId: string,
+  stepId: string,
+): Promise<DueStepRow | null> {
+  const rows = await db
+    .select({
+      stepId: recoverySteps.id,
+      stepType: recoverySteps.stepType,
+      stepNumber: recoverySteps.stepNumber,
+      accountId: recoverySteps.accountId,
+      failedPaymentId: recoverySteps.failedPaymentId,
+      scheduledAt: recoverySteps.scheduledAt,
+      nextRetryAt: recoverySteps.nextRetryAt,
+      attemptCount: recoverySteps.attemptCount,
+      customBody: recoverySteps.customBody,
+      aiSubject: recoverySteps.aiSubject,
+      aiBodyHtml: recoverySteps.aiBodyHtml,
+      invoiceId: failedPayments.stripeInvoiceId,
+      amountCents: failedPayments.amountCents,
+      currency: failedPayments.currency,
+      customerEmail: failedPayments.customerEmail,
+      declineCategory: failedPayments.declineCategory,
+      connectionAccessToken: stripeConnections.stripeAccessToken,
+      merchantName: stripeConnections.senderName,
+      brandVoice: stripeConnections.brandVoice,
+    })
+    .from(recoverySteps)
+    .innerJoin(failedPayments, eq(failedPayments.id, recoverySteps.failedPaymentId))
+    .innerJoin(accounts, eq(accounts.id, recoverySteps.accountId))
+    .leftJoin(stripeConnections, eq(stripeConnections.id, failedPayments.stripeConnectionId))
+    .where(
+      and(
+        eq(recoverySteps.id, stepId),
+        eq(recoverySteps.accountId, accountId),
+        eq(failedPayments.status, "active"),
+        accountProcessingEligibleCondition(),
+      ),
+    )
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export function toRetryContext(row: DueStepRow): RetryStepContext | null {
   if (!row.connectionAccessToken) return null; // cannot charge without the connected token
   return {
     stepId: row.stepId,
@@ -382,7 +447,7 @@ function toRetryContext(row: DueStepRow): RetryStepContext | null {
   };
 }
 
-function toEmailContext(row: DueStepRow): EmailStepContext {
+export function toEmailContext(row: DueStepRow): EmailStepContext {
   return {
     stepId: row.stepId,
     accountId: row.accountId,
