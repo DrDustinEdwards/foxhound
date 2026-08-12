@@ -336,7 +336,19 @@ export function sendResultToAttempt(result: EmailJobResult): {
 
 /** The operational email-step patch: the state-machine transition, plus caching
  *  the resolved copy onto ai_subject/ai_body_html so a backoff retry reuses it
- *  instead of regenerating. Plain db, not the money DO. */
+ *  instead of regenerating. Plain db, not the money DO.
+ *
+ *  Claims the step conditionally (WHERE executed_at IS NULL), the same
+ *  claim-on-write buildRetryStepPatch and buildRetryAttemptPatch already carry.
+ *  Ruling 260: until this claim existed, the email path was guarded only by the
+ *  cron holding sole-caller status under its lock, so ANY second caller (the
+ *  manual "Trigger next step now" action is the first) could re-send an email
+ *  step that had already executed. The claim is a no-op for the cron, which was
+ *  already serialized, and a guard for every other caller.
+ *
+ *  Still-retrying rows are unaffected: a step in backoff has executed_at NULL by
+ *  construction, so the claim passes and the attempt-count/backoff transition
+ *  lands exactly as before. Only an ALREADY-executed step is now refused. */
 export function buildEmailStepPatch(
   db: Db,
   stepId: string,
@@ -353,7 +365,7 @@ export function buildEmailStepPatch(
       result: patch.result,
       ...(cache ? { aiSubject: cache.subject, aiBodyHtml: cache.bodyHtml } : {}),
     })
-    .where(eq(recoverySteps.id, stepId));
+    .where(and(eq(recoverySteps.id, stepId), isNull(recoverySteps.executedAt)));
 }
 
 /** Injectable seams for executeEmailStep. Defaults are the real IO. */
