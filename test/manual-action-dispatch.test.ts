@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 
 import type { Db } from "~/db";
 import { accounts, failedPayments, recoverySteps } from "~/db/schema";
+import { queryStepForManualTrigger, type DueStepRow } from "~/lib/cron/recovery-tick";
+import { buildEmailStepPatch } from "~/lib/engine/execute-step";
 import {
   MANUAL_ACTION_INTENTS,
   MANUAL_ACTION_REQUIRES_ACTIVE,
@@ -15,6 +17,7 @@ import {
   parseManualActionIntent,
   parseManualIntent,
   type ManualActionCommit,
+  type TriggerDeps,
 } from "~/lib/recovery/manual-actions.server";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
@@ -132,6 +135,22 @@ const SENT_EMAIL: StepSeed = {
   aiBodyHtml: "<p>Body</p>",
 };
 
+/** Trigger deps that fail loudly. A test that reaches an executor it did not
+ *  intend to exercise gets an error, never a silent pass. */
+function unusedTriggerDeps(): TriggerDeps {
+  return {
+    loadStep: async () => {
+      throw new Error("loadStep called unexpectedly");
+    },
+    runRetry: async () => {
+      throw new Error("runRetry called unexpectedly");
+    },
+    runEmail: async () => {
+      throw new Error("runEmail called unexpectedly");
+    },
+  };
+}
+
 function request(db: Db, commit: ManualActionCommit, over: Record<string, unknown> = {}) {
   return {
     db,
@@ -141,6 +160,7 @@ function request(db: Db, commit: ManualActionCommit, over: Record<string, unknow
     // only cares about ownership cannot mutate anything on its way to the answer.
     intent: "mark_recovered",
     commit,
+    trigger: unusedTriggerDeps(),
     now,
     ...over,
   } as Parameters<typeof dispatchManualAction>[0];
@@ -249,11 +269,6 @@ describe("manual actions: per-intent preconditions", () => {
     expect(
       await dispatchManualAction(request(a.db, inMemoryCommit(a.sqlite, a.db), { intent: "trigger" })),
     ).toEqual({ ok: false, reason: "no_pending_step" });
-
-    const b = seed({ steps: [SENT_EMAIL, PENDING] });
-    expect(
-      await dispatchManualAction(request(b.db, inMemoryCommit(b.sqlite, b.db), { intent: "trigger" })),
-    ).toEqual({ ok: false, reason: "not_wired", intent: "trigger" });
   });
 
   it("resend needs an executed email step carrying generated copy", async () => {
@@ -350,6 +365,374 @@ describe("note save: legacy's contract, through the money DO seam", () => {
     expect(keys[0]).toBe(keys[1]);
     expect(keys[2]).not.toBe(keys[0]);
     expect(keys[0].startsWith("manual:note:fp_mine:")).toBe(true);
+  });
+});
+
+describe("trigger: legacy's six statuses, ported", () => {
+  /** A DueStepRow good enough for both context mappers. */
+  function stepRow(over: Partial<DueStepRow> = {}): DueStepRow {
+    return {
+      stepId: "step_pending",
+      stepType: "email_day1",
+      stepNumber: 1,
+      accountId: "acc_1",
+      failedPaymentId: "fp_mine",
+      scheduledAt: now,
+      nextRetryAt: null,
+      attemptCount: 0,
+      customBody: null,
+      aiSubject: null,
+      aiBodyHtml: null,
+      invoiceId: "in_1",
+      amountCents: 4200,
+      currency: "usd",
+      customerEmail: "customer@example.com",
+      declineCategory: "soft",
+      connectionAccessToken: "iv:cipher",
+      merchantName: "Acme",
+      brandVoice: null,
+      ...over,
+    } as DueStepRow;
+  }
+
+  function triggerReq(
+    db: Db,
+    sqlite: Database.Database,
+    deps: Partial<TriggerDeps>,
+    steps: StepSeed[] = [PENDING],
+  ) {
+    void steps;
+    return request(db, inMemoryCommit(sqlite, db), {
+      intent: "trigger",
+      trigger: { ...unusedTriggerDeps(), ...deps },
+    });
+  }
+
+  it("a step that is neither an email nor a retry is a 400, before any executor runs", async () => {
+    const { sqlite, db } = seed({ steps: [{ id: "step_pending", stepType: "card_update_signal" }] });
+    expect(await dispatchManualAction(triggerReq(db, sqlite, {}))).toEqual({
+      ok: false,
+      reason: "unknown_step_type",
+      stepType: "card_update_signal",
+    });
+  });
+
+  it("a paused or braked account refuses rather than executing", async () => {
+    const { sqlite, db } = seed({ steps: [PENDING] });
+    expect(
+      await dispatchManualAction(triggerReq(db, sqlite, { loadStep: async () => null })),
+    ).toEqual({ ok: false, reason: "processing_paused" });
+  });
+
+  it("the real loader applies the account scope and the brake", async () => {
+    const { sqlite, db } = seed({ steps: [PENDING] });
+    // Owner reaches it.
+    expect(await queryStepForManualTrigger(db, "acc_1", "step_pending")).not.toBeNull();
+    // Another account does not, even with the right step id.
+    expect(await queryStepForManualTrigger(db, "acc_2", "step_pending")).toBeNull();
+    // Brake engaged: processing_paused excludes the account.
+    runStatement(sqlite, db.update(accounts).set({ processingPaused: true }).where(eq(accounts.id, "acc_1")));
+    expect(await queryStepForManualTrigger(db, "acc_1", "step_pending")).toBeNull();
+  });
+
+  it("the loader ignores the SCHEDULE, so a not-yet-due step can still be fired", async () => {
+    // Legacy's whole point: the merchant overrides the cadence. The cron's own
+    // query would exclude this row; this one must not.
+    const future = new Date(now.getTime() + 7 * 24 * 3600 * 1000);
+    const { sqlite, db } = seed();
+    runStatement(
+      sqlite,
+      db.insert(recoverySteps).values({
+        id: "step_future",
+        accountId: "acc_1",
+        failedPaymentId: "fp_mine",
+        stepType: "email_day7",
+        scheduledAt: future,
+        attemptCount: 0,
+      }),
+    );
+    expect(await queryStepForManualTrigger(db, "acc_1", "step_future")).not.toBeNull();
+  });
+
+  it("a retry with no connected token refuses and writes nothing", async () => {
+    const { sqlite, db } = seed({ steps: [{ id: "step_pending", stepType: "retry_4hr" }] });
+    expect(
+      await dispatchManualAction(
+        triggerReq(db, sqlite, {
+          loadStep: async () => stepRow({ stepType: "retry_4hr", connectionAccessToken: null }),
+        }),
+      ),
+    ).toEqual({ ok: false, reason: "step_failed", result: "retry_no_connection" });
+    expect(dueStepCount(sqlite)).toBe(1); // untouched, so reconnect-and-retry works
+  });
+
+  it("a succeeded retry is a 200 carrying the STORED result", async () => {
+    const { sqlite, db } = seed({ steps: [{ id: "step_pending", stepType: "retry_4hr" }] });
+    expect(
+      await dispatchManualAction(
+        triggerReq(db, sqlite, {
+          loadStep: async () => stepRow({ stepType: "retry_4hr" }),
+          runRetry: async () => {
+            runStatement(
+              sqlite,
+              db
+                .update(recoverySteps)
+                .set({ executedAt: now, result: "retry_succeeded", retryResult: "retry_succeeded" })
+                .where(eq(recoverySteps.id, "step_pending")),
+            );
+            return { action: "retry", executed: true, recovered: true, retryResult: "retry_succeeded" };
+          },
+        }),
+      ),
+    ).toEqual({
+      ok: true,
+      intent: "trigger",
+      action: "retry",
+      result: "retry_succeeded",
+      subject: null,
+    });
+  });
+
+  it("a DECLINED retry is still a 200, exactly as legacy's prefix rule gives", async () => {
+    const { sqlite, db } = seed({ steps: [{ id: "step_pending", stepType: "retry_4hr" }] });
+    const out = await dispatchManualAction(
+      triggerReq(db, sqlite, {
+        loadStep: async () => stepRow({ stepType: "retry_4hr" }),
+        runRetry: async () => {
+          runStatement(
+            sqlite,
+            db
+              .update(recoverySteps)
+              .set({ executedAt: now, result: "retry_card_declined", retryResult: "retry_card_declined" })
+              .where(eq(recoverySteps.id, "step_pending")),
+          );
+          return {
+            action: "retry",
+            executed: true,
+            recovered: false,
+            retryResult: "retry_card_declined",
+          };
+        },
+      }),
+    );
+    expect(out).toMatchObject({ ok: true, action: "retry", result: "retry_card_declined" });
+  });
+
+  it("a sent email is a 200 carrying the stored subject", async () => {
+    const { sqlite, db } = seed({ steps: [PENDING] });
+    const out = await dispatchManualAction(
+      triggerReq(db, sqlite, {
+        loadStep: async () => stepRow(),
+        runEmail: async () => {
+          runStatement(
+            sqlite,
+            db
+              .update(recoverySteps)
+              .set({ executedAt: now, result: "email_sent", aiSubject: "Your payment failed" })
+              .where(eq(recoverySteps.id, "step_pending")),
+          );
+          return {
+            action: "email",
+            sent: true,
+            result: "email_sent",
+            usedTemplate: false,
+            templateReason: null,
+            suppressed: false,
+          };
+        },
+      }),
+    );
+    expect(out).toEqual({
+      ok: true,
+      intent: "trigger",
+      action: "email",
+      result: "email_sent",
+      subject: "Your payment failed",
+    });
+  });
+
+  it("a SUPPRESSED recipient is 409, even though the step lands on email_sent", async () => {
+    // Foxhound has no distinct stored result for suppression: processEmailJob
+    // treats it as a terminal success. Reading the stored row alone would report
+    // a send that never happened, which is why the executor's flag is checked.
+    const { sqlite, db } = seed({ steps: [PENDING] });
+    const out = await dispatchManualAction(
+      triggerReq(db, sqlite, {
+        loadStep: async () => stepRow(),
+        runEmail: async () => {
+          runStatement(
+            sqlite,
+            db
+              .update(recoverySteps)
+              .set({ executedAt: now, result: "email_sent" })
+              .where(eq(recoverySteps.id, "step_pending")),
+          );
+          return {
+            action: "email",
+            sent: true,
+            result: "email_sent",
+            usedTemplate: false,
+            templateReason: null,
+            suppressed: true,
+          };
+        },
+      }),
+    );
+    expect(out).toEqual({ ok: false, reason: "customer_unsubscribed" });
+  });
+
+  it("a transient send failure is 503: the step stayed unexecuted for the backoff", async () => {
+    const { sqlite, db } = seed({ steps: [PENDING] });
+    const out = await dispatchManualAction(
+      triggerReq(db, sqlite, {
+        loadStep: async () => stepRow(),
+        // The state machine leaves executed_at and result NULL and sets a backoff.
+        runEmail: async () => ({
+          action: "email",
+          sent: false,
+          result: null,
+          usedTemplate: false,
+          templateReason: null,
+          suppressed: false,
+        }),
+      }),
+    );
+    expect(out).toEqual({ ok: false, reason: "send_retrying" });
+  });
+
+  it("a terminal send failure is 502 carrying the stored result", async () => {
+    const { sqlite, db } = seed({ steps: [PENDING] });
+    const out = await dispatchManualAction(
+      triggerReq(db, sqlite, {
+        loadStep: async () => stepRow(),
+        runEmail: async () => {
+          runStatement(
+            sqlite,
+            db
+              .update(recoverySteps)
+              .set({ executedAt: now, result: "email_failed" })
+              .where(eq(recoverySteps.id, "step_pending")),
+          );
+          return {
+            action: "email",
+            sent: false,
+            result: "email_failed",
+            usedTemplate: false,
+            templateReason: null,
+            suppressed: false,
+          };
+        },
+      }),
+    );
+    expect(out).toEqual({ ok: false, reason: "step_failed", result: "email_failed" });
+  });
+
+  it("an executor that throws is 502 rather than a crash", async () => {
+    const { sqlite, db } = seed({ steps: [PENDING] });
+    const out = await dispatchManualAction(
+      triggerReq(db, sqlite, {
+        loadStep: async () => stepRow(),
+        runEmail: async () => {
+          throw new Error("stripe exploded");
+        },
+      }),
+    );
+    expect(out).toEqual({ ok: false, reason: "step_failed", result: null });
+  });
+});
+
+describe("trigger: the concurrent-claim race", () => {
+  it("a second trigger claims ZERO rows and reports the winner's stored result", async () => {
+    // Ruling 260's guard, exercised at the TRIGGER level rather than at the
+    // patch builder. Racer A (say the cron tick) already executed the step. This
+    // trigger's executor runs its REAL patch through buildEmailStepPatch, whose
+    // WHERE executed_at IS NULL refuses the write. The dispatcher then reports
+    // what is STORED, which is A's result, not this caller's own decision.
+    const { sqlite, db } = seed({ steps: [PENDING] });
+    let claimedRows = -1;
+    const out = await dispatchManualAction(
+      request(db, inMemoryCommit(sqlite, db), {
+        intent: "trigger",
+        trigger: {
+          ...unusedTriggerDeps(),
+          loadStep: async () =>
+            ({
+              stepId: "step_pending",
+              stepType: "email_day1",
+              stepNumber: 1,
+              accountId: "acc_1",
+              failedPaymentId: "fp_mine",
+              scheduledAt: now,
+              nextRetryAt: null,
+              attemptCount: 0,
+              customBody: null,
+              aiSubject: null,
+              aiBodyHtml: null,
+              invoiceId: "in_1",
+              amountCents: 4200,
+              currency: "usd",
+              customerEmail: "customer@example.com",
+              declineCategory: "soft",
+              connectionAccessToken: "iv:cipher",
+              merchantName: "Acme",
+              brandVoice: null,
+            }) as DueStepRow,
+          runEmail: async () => {
+            // THE RACE WINDOW. The dispatcher has already read this step as
+            // pending and handed it to the executor. Racer A (a cron tick) now
+            // executes and persists it before this caller's own persist lands.
+            runStatement(
+              sqlite,
+              db
+                .update(recoverySteps)
+                .set({ executedAt: now, result: "email_sent", aiSubject: "A's subject" })
+                .where(eq(recoverySteps.id, "step_pending")),
+            );
+            // The loser's REAL persist, through the real claim-guarded builder.
+            claimedRows = runStatement(
+              sqlite,
+              buildEmailStepPatch(
+                db,
+                "step_pending",
+                {
+                  attemptCount: 1,
+                  lastAttemptError: null,
+                  nextRetryAt: null,
+                  executedAt: later,
+                  result: "email_failed",
+                },
+                { subject: "B's subject", bodyHtml: "<p>B</p>" },
+              ),
+            );
+            return {
+              action: "email",
+              sent: false,
+              result: "email_failed",
+              usedTemplate: false,
+              templateReason: null,
+              suppressed: false,
+            };
+          },
+        },
+      }),
+    );
+
+    // The claim refused the second write.
+    expect(claimedRows).toBe(0);
+    // And the answer is the WINNER's, not the loser's own decision.
+    expect(out).toEqual({
+      ok: true,
+      intent: "trigger",
+      action: "email",
+      result: "email_sent",
+      subject: "A's subject",
+    });
+
+    const row = sqlite
+      .prepare("select result, ai_subject from recovery_steps where id = 'step_pending'")
+      .get() as { result: string; ai_subject: string };
+    expect(row.result).toBe("email_sent");
+    expect(row.ai_subject).toBe("A's subject");
   });
 });
 

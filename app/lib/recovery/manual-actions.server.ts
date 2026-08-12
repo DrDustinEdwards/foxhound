@@ -3,6 +3,21 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 import type { MoneyWriteBatch, MoneyWriteBuilder } from "~/db/money-write";
 import type { Db } from "~/db";
 import { failedPayments, recoverySteps } from "~/db";
+import {
+  queryStepForManualTrigger,
+  toEmailContext,
+  toRetryContext,
+  type DueStepRow,
+} from "~/lib/cron/recovery-tick";
+import {
+  executeEmailStep,
+  executeRetryStep,
+  type EmailStepContext,
+  type EmailStepResult,
+  type RetryStepContext,
+  type RetryStepResult,
+} from "~/lib/engine/execute-step";
+import { stepAction } from "~/lib/engine/step-runner";
 import { FAILED_PAYMENT_STATUS_ACTIVE, FAILED_PAYMENT_STATUS_CANCELLED } from "~/lib/constants";
 import { executeMoneyWrite } from "~/lib/money/execute";
 
@@ -80,11 +95,19 @@ export function parseManualIntent(raw: unknown): ManualIntent | null {
 export type ManualActionOutcome =
   | { ok: true; intent: "note" }
   | { ok: true; intent: "cancel" }
+  /** The step ran. `action` is which executor ran it; `result` is the STORED
+   *  step result, and `subject` the stored ai_subject for an email send. */
+  | { ok: true; intent: "trigger"; action: "retry" | "email"; result: string; subject: string | null }
   | { ok: false; reason: "unknown_intent" }
   | { ok: false; reason: "not_found" }
   | { ok: false; reason: "not_active"; intent: ManualIntent }
   | { ok: false; reason: "no_pending_step" }
   | { ok: false; reason: "no_email_to_resend" }
+  | { ok: false; reason: "unknown_step_type"; stepType: string }
+  | { ok: false; reason: "processing_paused" }
+  | { ok: false; reason: "customer_unsubscribed" }
+  | { ok: false; reason: "send_retrying" }
+  | { ok: false; reason: "step_failed"; result: string | null }
   | { ok: false; reason: "already_resolved"; intent: "cancel" }
   | { ok: false; reason: "write_failed"; intent: ManualIntent }
   | { ok: false; reason: "not_wired"; intent: ManualActionIntent };
@@ -266,6 +289,26 @@ export function buildStopRecoveryBatch(db: Db, input: StopRecoveryInput): MoneyW
 // Dispatch
 // ---------------------------------------------------------------------------
 
+/**
+ * The IO the trigger intent needs, injected so the dispatcher never touches
+ * `Env` directly and both executor branches are drivable in tests. The defaults
+ * are the cron's own loader and executors; nothing here is a parallel engine.
+ */
+export interface TriggerDeps {
+  loadStep: (accountId: string, stepId: string) => Promise<DueStepRow | null>;
+  runRetry: (ctx: RetryStepContext) => Promise<RetryStepResult>;
+  runEmail: (ctx: EmailStepContext) => Promise<EmailStepResult>;
+}
+
+/** Bind the real executors to `env`. The route's only job is to call this. */
+export function triggerDepsFor(env: Env, db: Db): TriggerDeps {
+  return {
+    loadStep: (accountId, stepId) => queryStepForManualTrigger(db, accountId, stepId),
+    runRetry: (ctx) => executeRetryStep(env, ctx),
+    runEmail: (ctx) => executeEmailStep(env, ctx),
+  };
+}
+
 export interface ManualActionRequest {
   db: Db;
   /** The CALLER'S resolved account, from the session. Never from the form. */
@@ -276,6 +319,7 @@ export interface ManualActionRequest {
   /** Raw `note` form value, read only for the note intent. */
   note?: unknown;
   commit: ManualActionCommit;
+  trigger: TriggerDeps;
   now?: Date;
 }
 
@@ -305,8 +349,12 @@ export async function dispatchManualAction(
     return { ok: false, reason: "not_active", intent };
   }
 
-  if (intent === "trigger" && nextPendingStep(detail.steps) === null) {
-    return { ok: false, reason: "no_pending_step" };
+  if (intent === "trigger") {
+    // The SHARED selector, the same predicate the button renders from, so the
+    // step the server fires is the step the merchant was offered.
+    const pending = nextPendingStep(detail.steps);
+    if (pending === null) return { ok: false, reason: "no_pending_step" };
+    return triggerNextStep(req, pending.id, pending.stepType);
   }
 
   if (intent === "resend" && lastResendableEmailStep(detail.steps) === null) {
@@ -317,6 +365,100 @@ export async function dispatchManualAction(
   if (intent === "cancel") return stopRecovery(req);
 
   return { ok: false, reason: "not_wired", intent };
+}
+
+/**
+ * Run the next pending step now, through the SAME executors the 5-minute cron
+ * dispatches to. Legacy does exactly this and says why in its own route header:
+ * its earlier inline implementation was "a degraded parallel" with no
+ * suppression check, no unsubscribe token and no idempotency, and reuse inherits
+ * all of it. Foxhound reuses for the same reason, and additionally inherits the
+ * money-path rules the executors already honour.
+ *
+ * MONEY INVARIANTS, unchanged by this path and deliberately so: the executors'
+ * recovery_steps writes stay OPERATIONAL on their existing plain-batch path, and
+ * `reconcileRetryRecovery` remains the only money-DO hop, exactly as when the
+ * cron calls it. No new DO hop is added. 262 decision four governs mutations a
+ * session AUTHORS; this session authors none, it calls a pre-existing engine.
+ */
+async function triggerNextStep(
+  req: ManualActionRequest,
+  stepId: string,
+  stepType: string,
+): Promise<ManualActionOutcome> {
+  const action = stepAction(stepType);
+  if (action === null) return { ok: false, reason: "unknown_step_type", stepType };
+
+  const row = await req.trigger.loadStep(req.accountId, stepId);
+  // The row's own gates already passed in the dispatcher (ownership, active
+  // payment), so the remaining reason it can be missing is the ACCOUNT being
+  // ineligible: the emergency brake is engaged, processing is paused, or the
+  // account is cancelled. Executing a step is processing, so the brake holds
+  // here exactly as it holds over the cron.
+  if (!row) return { ok: false, reason: "processing_paused" };
+
+  let suppressed = false;
+  try {
+    if (action === "retry") {
+      const ctx = toRetryContext(row);
+      // No connected token: the charge is not attempted at all. The cron records
+      // bounded grace here and lets the sweep re-select; a merchant pressing a
+      // button gets told instead, and nothing is written, so reconnecting and
+      // pressing again is the whole remedy.
+      if (!ctx) return { ok: false, reason: "step_failed", result: "retry_no_connection" };
+      await req.trigger.runRetry(ctx);
+    } else {
+      const result = await req.trigger.runEmail(toEmailContext(row));
+      suppressed = result.suppressed;
+    }
+  } catch {
+    return { ok: false, reason: "step_failed", result: null };
+  }
+
+  // Legacy re-reads the step after its executors return, because they return
+  // void. Foxhound's return the result directly, so this read is not needed to
+  // learn what was DECIDED. It is kept because it answers a different and
+  // better question: what is actually STORED. The email patch is claim-guarded
+  // (WHERE executed_at IS NULL, ruling 260), so a caller that loses the claim
+  // decided one thing while the database holds the winner's. Reporting the
+  // stored row is the only honest answer under that race.
+  const [after] = await req.db
+    .select({
+      result: recoverySteps.result,
+      aiSubject: recoverySteps.aiSubject,
+    })
+    .from(recoverySteps)
+    .where(and(eq(recoverySteps.id, stepId), eq(recoverySteps.accountId, req.accountId)))
+    .limit(1);
+
+  const stored = after?.result ?? null;
+
+  // Suppression is checked FIRST and from the executor's return, not from the
+  // stored result, because Foxhound has no distinct stored value for it: a
+  // suppressed recipient is a terminal success whose step lands on `email_sent`
+  // (processEmailJob's contract, and sendResultToAttempt collapses the two).
+  // Legacy stores `skipped_unsubscribed` and answers 409; without this branch
+  // Foxhound would report a send that never happened.
+  if (suppressed) return { ok: false, reason: "customer_unsubscribed" };
+
+  if (stored === null) {
+    // The send-attempt state machine left the step unexecuted and retryable, so
+    // the next tick picks it up after the backoff. Legacy answers 503 here.
+    return { ok: false, reason: "send_retrying" };
+  }
+  if (stored === "retry_no_connection") {
+    return { ok: false, reason: "step_failed", result: stored };
+  }
+  if (stored.startsWith("email_sent") || stored.startsWith("retry_")) {
+    return {
+      ok: true,
+      intent: "trigger",
+      action,
+      result: stored,
+      subject: after?.aiSubject ?? null,
+    };
+  }
+  return { ok: false, reason: "step_failed", result: stored };
 }
 
 async function saveNote(req: ManualActionRequest): Promise<ManualActionOutcome> {

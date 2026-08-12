@@ -27,7 +27,11 @@ import {
 import { isEmailStep } from "~/lib/recovery/schedule";
 import { lastResendableEmailStep, nextPendingStep } from "~/lib/recovery/step-state";
 import { getFailedPaymentDetail } from "~/lib/recovery/queries.server";
-import { dispatchManualAction, moneyWriteCommit } from "~/lib/recovery/manual-actions.server";
+import {
+  dispatchManualAction,
+  moneyWriteCommit,
+  triggerDepsFor,
+} from "~/lib/recovery/manual-actions.server";
 import { sanitizeEmailPreviewHtml } from "~/lib/recovery/email-preview.server";
 import type { AttributionKind } from "~/lib/constants";
 
@@ -65,6 +69,17 @@ export async function loader({ context, params }: Route.LoaderArgs) {
 // safe to build against.
 const MANUAL_ACTIONS_NOT_AVAILABLE_MESSAGE = "This action isn't available yet.";
 
+/** Legacy's client never reads a success body, so it says only "Step triggered
+ *  successful" for every outcome. Foxhound's banner is the visible surface, and
+ *  a retry that DECLINED is not the same news as one that paid, so the stored
+ *  result is reported rather than flattened into one word. */
+function triggerNotice(action: "retry" | "email", result: string): string {
+  if (action === "email") return "Next step triggered: the email was sent.";
+  if (result === "retry_succeeded") return "Next step triggered: the retry succeeded.";
+  if (result === "retry_card_declined") return "Next step triggered: the card was declined.";
+  return `Next step triggered: the retry did not succeed (${result}).`;
+}
+
 export async function action({ context, params, request }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
@@ -81,9 +96,13 @@ export async function action({ context, params, request }: Route.ActionArgs) {
     intent: form.get("intent"),
     note: form.get("note"),
     commit: moneyWriteCommit(env),
+    trigger: triggerDepsFor(env, db),
   });
 
   if (outcome.ok) {
+    if (outcome.intent === "trigger") {
+      return data({ notice: triggerNotice(outcome.action, outcome.result) }, { status: 200 });
+    }
     return data(
       { notice: outcome.intent === "note" ? "Note saved." : "Recovery stopped." },
       { status: 200 },
@@ -102,6 +121,26 @@ export async function action({ context, params, request }: Route.ActionArgs) {
       return data({ error: "No pending steps" }, { status: 400 });
     case "no_email_to_resend":
       return data({ error: "No email to resend" }, { status: 400 });
+    case "unknown_step_type":
+      return data({ error: "Unknown step type" }, { status: 400 });
+    case "processing_paused":
+      // No legacy counterpart: legacy has no emergency brake. Executing a step
+      // is processing, so a paused or braked account refuses here exactly as the
+      // cron would skip it, rather than charging a card the brake was engaged to
+      // protect.
+      return data(
+        { error: "Recovery processing is paused for this account." },
+        { status: 409 },
+      );
+    case "customer_unsubscribed":
+      return data({ error: "Customer has unsubscribed from emails" }, { status: 409 });
+    case "send_retrying":
+      return data(
+        { error: "Email send failed temporarily; it will retry automatically" },
+        { status: 503 },
+      );
+    case "step_failed":
+      return data({ error: `Step failed${outcome.result ? `: ${outcome.result}` : ""}` }, { status: 502 });
     case "already_resolved":
       // Legacy answers 200 `{ success: true, alreadyResolved: true }` and its
       // client then reports plain success, which tells the merchant something
