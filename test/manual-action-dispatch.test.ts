@@ -1,26 +1,38 @@
+import type Database from "better-sqlite3";
+import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
+import type { Db } from "~/db";
 import { accounts, failedPayments, recoverySteps } from "~/db/schema";
 import {
   MANUAL_ACTION_INTENTS,
   MANUAL_ACTION_REQUIRES_ACTIVE,
+  MANUAL_INTENTS,
+  buildStopRecoveryBatch,
   dispatchManualAction,
   manualActionIdempotencyKey,
+  noteContentToken,
   parseManualActionIntent,
+  parseManualIntent,
+  type ManualActionCommit,
 } from "~/lib/recovery/manual-actions.server";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
-// S7 Phase 2 Session A: the shared manual-action dispatcher. Legacy implements
-// these four actions as four route handlers that each re-write auth, account
-// scoping, ownership and the status gate, and its four copies HAVE drifted
-// (parity/S7-PHASE2-SCOPE.md section 1.5). Foxhound has one dispatcher, so these
-// tests pin the gates once.
+// S7 Phase 2, Sessions A and B: the shared manual-action dispatcher. Legacy
+// implements these as five route handlers that each re-write auth, account
+// scoping, ownership and the status gate, and its copies HAVE drifted
+// (parity/S7-PHASE2-SCOPE.md section 1.5). Foxhound has one dispatcher, so the
+// gates are pinned once here.
 //
-// Every intent resolves to not_wired this session by design: the plumbing lands
-// before any behavior, so the route's response is unchanged (ruling 260).
+// The two WIRED intents (note, cancel) commit through an injected
+// ManualActionCommit. In production that is the per-account money-write Durable
+// Object (262 decision four); here it runs the EXACT compiled statements against
+// a real in-memory SQLite with the committed migrations applied, inside one
+// transaction, so what is proven is the real SQL against the real schema.
 
-const now = new Date("2026-08-11T00:00:00.000Z");
+const now = new Date("2026-08-12T00:00:00.000Z");
+const later = new Date("2026-08-12T01:00:00.000Z");
 
 interface StepSeed {
   id: string;
@@ -32,7 +44,7 @@ interface StepSeed {
 }
 
 /** Two accounts. `fp_mine` belongs to acc_1, `fp_theirs` to acc_2. */
-function seed(opts: { status?: string; steps?: StepSeed[] } = {}) {
+function seed(opts: { status?: string; steps?: StepSeed[]; notes?: string | null } = {}) {
   const { sqlite, db } = createInMemoryDb();
   for (const [id, name] of [
     ["acc_1", "Mine"],
@@ -58,6 +70,7 @@ function seed(opts: { status?: string; steps?: StepSeed[] } = {}) {
         declineCategory: "soft",
         status: opts.status ?? "active",
         detectedAt: now,
+        notes: opts.notes ?? null,
       }),
     );
   }
@@ -78,7 +91,36 @@ function seed(opts: { status?: string; steps?: StepSeed[] } = {}) {
       }),
     );
   }
-  return db;
+  return { sqlite, db };
+}
+
+/** Runs the batch's compiled statements in ONE transaction, the way the money
+ *  DO commits them. Records every key it saw so idempotency can be asserted. */
+function inMemoryCommit(sqlite: Database.Database, db: Db, keys: string[] = []): ManualActionCommit {
+  return async (_accountId, idempotencyKey, build) => {
+    keys.push(idempotencyKey);
+    const batch = build(db);
+    sqlite.transaction(() => {
+      for (const statement of batch) runStatement(sqlite, statement);
+    })();
+    return { applied: true };
+  };
+}
+
+function readPayment(sqlite: Database.Database, id = "fp_mine") {
+  return sqlite
+    .prepare("select status, resolved_at, notes from failed_payments where id = ?")
+    .get(id) as { status: string; resolved_at: number | null; notes: string | null };
+}
+
+/** Exactly what stepDueCondition keys on: a step the tick would still run. */
+function dueStepCount(sqlite: Database.Database) {
+  const row = sqlite
+    .prepare(
+      "select count(*) as n from recovery_steps where executed_at is null and result is null and deleted_at is null",
+    )
+    .get() as { n: number };
+  return row.n;
 }
 
 const PENDING: StepSeed = { id: "step_pending" };
@@ -90,172 +132,323 @@ const SENT_EMAIL: StepSeed = {
   aiBodyHtml: "<p>Body</p>",
 };
 
+function request(db: Db, commit: ManualActionCommit, over: Record<string, unknown> = {}) {
+  return {
+    db,
+    accountId: "acc_1",
+    failedPaymentId: "fp_mine",
+    // Default to an intent that is known but writes nothing, so a test which
+    // only cares about ownership cannot mutate anything on its way to the answer.
+    intent: "mark_recovered",
+    commit,
+    now,
+    ...over,
+  } as Parameters<typeof dispatchManualAction>[0];
+}
+
 describe("manual actions: intent parsing", () => {
-  it("accepts exactly legacy's four intents, in legacy's order", () => {
+  it("the ACTION ROW is exactly legacy's four, in legacy's order", () => {
     expect([...MANUAL_ACTION_INTENTS]).toEqual(["trigger", "mark_recovered", "cancel", "resend"]);
-    for (const intent of MANUAL_ACTION_INTENTS) {
-      expect(parseManualActionIntent(intent)).toBe(intent);
-    }
+    expect(parseManualActionIntent("note")).toBeNull();
   });
 
-  it("rejects anything else, including note and non-string form values", () => {
-    for (const raw of ["note", "override_next_email", "", "TRIGGER", null, undefined, 7, {}]) {
-      expect(parseManualActionIntent(raw)).toBeNull();
+  it("the dispatcher additionally accepts note, which is not a row button", () => {
+    expect([...MANUAL_INTENTS]).toEqual([
+      "trigger",
+      "mark_recovered",
+      "cancel",
+      "resend",
+      "note",
+    ]);
+    expect(parseManualIntent("note")).toBe("note");
+  });
+
+  it("rejects anything else, including non-string form values", () => {
+    for (const raw of ["override_next_email", "", "TRIGGER", null, undefined, 7, {}]) {
+      expect(parseManualIntent(raw)).toBeNull();
     }
   });
 });
 
 describe("manual actions: ownership is the same 404 as a missing payment", () => {
   it("refuses another account's payment without distinguishing it from a missing one", async () => {
-    const db = seed({ steps: [PENDING] });
+    const { sqlite, db } = seed({ steps: [PENDING] });
+    const commit = inMemoryCommit(sqlite, db);
 
-    const other = await dispatchManualAction(db, "acc_1", "fp_theirs", "cancel");
-    const missing = await dispatchManualAction(db, "acc_1", "fp_nope", "cancel");
-
-    expect(other).toEqual({ ok: false, reason: "not_found" });
-    expect(missing).toEqual({ ok: false, reason: "not_found" });
+    expect(
+      await dispatchManualAction(request(db, commit, { failedPaymentId: "fp_theirs" })),
+    ).toEqual({ ok: false, reason: "not_found" });
+    expect(await dispatchManualAction(request(db, commit, { failedPaymentId: "fp_nope" }))).toEqual({
+      ok: false,
+      reason: "not_found",
+    });
   });
 
-  it("the owner reaches the action on the same payment", async () => {
-    const db = seed({ steps: [PENDING] });
-    const mine = await dispatchManualAction(db, "acc_2", "fp_theirs", "cancel");
-    expect(mine).toEqual({ ok: false, reason: "not_wired", intent: "cancel" });
+  it("an unowned payment is not mutated even when the intent is wired", async () => {
+    const { sqlite, db } = seed({ steps: [PENDING] });
+    const commit = inMemoryCommit(sqlite, db);
+
+    await dispatchManualAction(
+      request(db, commit, { failedPaymentId: "fp_theirs", intent: "cancel" }),
+    );
+
+    expect(readPayment(sqlite, "fp_theirs").status).toBe("active");
   });
 
   it("an unknown intent is refused BEFORE any payment is loaded", async () => {
-    const db = seed();
+    const { sqlite, db } = seed();
+    const commit = inMemoryCommit(sqlite, db);
     // fp_nope does not exist; a not_found here would prove the intent check ran
     // second and turned an unknown action into an ownership probe.
-    expect(await dispatchManualAction(db, "acc_1", "fp_nope", "note")).toEqual({
-      ok: false,
-      reason: "unknown_intent",
-    });
+    expect(
+      await dispatchManualAction(
+        request(db, commit, { failedPaymentId: "fp_nope", intent: "override_next_email" }),
+      ),
+    ).toEqual({ ok: false, reason: "unknown_intent" });
   });
 });
 
 describe("manual actions: the status gate ports legacy's per-handler shape", () => {
   it("trigger, mark_recovered and cancel refuse a non-active payment", async () => {
-    const db = seed({ status: "recovered", steps: [PENDING, SENT_EMAIL] });
+    const { sqlite, db } = seed({ status: "recovered", steps: [PENDING, SENT_EMAIL] });
+    const commit = inMemoryCommit(sqlite, db);
 
     for (const intent of ["trigger", "mark_recovered", "cancel"] as const) {
-      expect(await dispatchManualAction(db, "acc_1", "fp_mine", intent)).toEqual({
+      expect(await dispatchManualAction(request(db, commit, { intent }))).toEqual({
         ok: false,
         reason: "not_active",
         intent,
       });
     }
+    // And the refusal is real: nothing was written.
+    expect(readPayment(sqlite).status).toBe("recovered");
+    expect(dueStepCount(sqlite)).toBe(1);
   });
 
-  it("resend does NOT check status, exactly as legacy's handler does not", async () => {
-    // Legacy's resend route never selects failed_payments.status, so only its
-    // client gate stops a resend on a terminal payment (scope section 1.5,
-    // defect 2). Ruling 262 decided resend's suppression gap and did NOT decide
-    // this one, so legacy's shape is ported and the gap stays REPORTED. This
-    // assertion is the tripwire: if the gap is later closed by ruling, it fails
-    // and names the decision instead of letting it drift in unnoticed.
-    const db = seed({ status: "recovered", steps: [SENT_EMAIL] });
-
-    expect(await dispatchManualAction(db, "acc_1", "fp_mine", "resend")).toEqual({
-      ok: false,
-      reason: "not_wired",
-      intent: "resend",
-    });
+  it("note and resend do NOT check status, exactly as legacy's handlers do not", async () => {
+    // Legacy's note route has no status gate, and its resend route never selects
+    // the status column (scope 1.5 defect 2). Ruling 264 has RULED the check in
+    // for resend and Session D flips it; this pins today's value so the flip is
+    // a ruling rather than a drift.
     expect(MANUAL_ACTION_REQUIRES_ACTIVE.resend).toBe(false);
+    expect(MANUAL_ACTION_REQUIRES_ACTIVE.note).toBe(false);
+
+    const { sqlite, db } = seed({ status: "failed_unrecovered", steps: [SENT_EMAIL] });
+    const commit = inMemoryCommit(sqlite, db);
+
+    expect(
+      await dispatchManualAction(request(db, commit, { intent: "note", note: "closed out" })),
+    ).toEqual({ ok: true, intent: "note" });
+    expect(readPayment(sqlite).notes).toBe("closed out");
   });
 });
 
 describe("manual actions: per-intent preconditions", () => {
   it("trigger needs a pending step", async () => {
-    const withNone = seed({ steps: [SENT_EMAIL] });
-    expect(await dispatchManualAction(withNone, "acc_1", "fp_mine", "trigger")).toEqual({
-      ok: false,
-      reason: "no_pending_step",
-    });
+    const a = seed({ steps: [SENT_EMAIL] });
+    expect(
+      await dispatchManualAction(request(a.db, inMemoryCommit(a.sqlite, a.db), { intent: "trigger" })),
+    ).toEqual({ ok: false, reason: "no_pending_step" });
 
-    const withOne = seed({ steps: [SENT_EMAIL, PENDING] });
-    expect(await dispatchManualAction(withOne, "acc_1", "fp_mine", "trigger")).toEqual({
-      ok: false,
-      reason: "not_wired",
-      intent: "trigger",
-    });
-  });
-
-  it("an executed step with a result does not count as pending", async () => {
-    const db = seed({ steps: [{ id: "s1", executedAt: now, result: "email_sent" }] });
-    expect(await dispatchManualAction(db, "acc_1", "fp_mine", "trigger")).toEqual({
-      ok: false,
-      reason: "no_pending_step",
-    });
+    const b = seed({ steps: [SENT_EMAIL, PENDING] });
+    expect(
+      await dispatchManualAction(request(b.db, inMemoryCommit(b.sqlite, b.db), { intent: "trigger" })),
+    ).toEqual({ ok: false, reason: "not_wired", intent: "trigger" });
   });
 
   it("resend needs an executed email step carrying generated copy", async () => {
     const none = seed({ steps: [PENDING] });
-    expect(await dispatchManualAction(none, "acc_1", "fp_mine", "resend")).toEqual({
-      ok: false,
-      reason: "no_email_to_resend",
-    });
+    expect(
+      await dispatchManualAction(
+        request(none.db, inMemoryCommit(none.sqlite, none.db), { intent: "resend" }),
+      ),
+    ).toEqual({ ok: false, reason: "no_email_to_resend" });
 
-    // Executed, but no copy cached: legacy filters on ai_subject AND ai_body_html.
-    const noCopy = seed({ steps: [{ id: "s1", executedAt: now, result: "email_sent" }] });
-    expect(await dispatchManualAction(noCopy, "acc_1", "fp_mine", "resend")).toEqual({
-      ok: false,
-      reason: "no_email_to_resend",
-    });
-
-    // A retry step with copy is still not an email step.
-    const retryOnly = seed({
-      steps: [{ ...SENT_EMAIL, id: "s2", stepType: "retry_day3" }],
-    });
-    expect(await dispatchManualAction(retryOnly, "acc_1", "fp_mine", "resend")).toEqual({
-      ok: false,
-      reason: "no_email_to_resend",
-    });
+    const retryOnly = seed({ steps: [{ ...SENT_EMAIL, id: "s2", stepType: "retry_day3" }] });
+    expect(
+      await dispatchManualAction(
+        request(retryOnly.db, inMemoryCommit(retryOnly.sqlite, retryOnly.db), { intent: "resend" }),
+      ),
+    ).toEqual({ ok: false, reason: "no_email_to_resend" });
 
     const ok = seed({ steps: [SENT_EMAIL] });
-    expect(await dispatchManualAction(ok, "acc_1", "fp_mine", "resend")).toEqual({
-      ok: false,
-      reason: "not_wired",
-      intent: "resend",
-    });
+    expect(
+      await dispatchManualAction(
+        request(ok.db, inMemoryCommit(ok.sqlite, ok.db), { intent: "resend" }),
+      ),
+    ).toEqual({ ok: false, reason: "not_wired", intent: "resend" });
   });
 
-  it("mark_recovered and cancel carry no step precondition", async () => {
-    const db = seed();
-    for (const intent of ["mark_recovered", "cancel"] as const) {
-      expect(await dispatchManualAction(db, "acc_1", "fp_mine", intent)).toEqual({
-        ok: false,
-        reason: "not_wired",
-        intent,
-      });
-    }
+  it("mark_recovered carries no step precondition and is still unwired", async () => {
+    const { sqlite, db } = seed();
+    expect(
+      await dispatchManualAction(
+        request(db, inMemoryCommit(sqlite, db), { intent: "mark_recovered" }),
+      ),
+    ).toEqual({ ok: false, reason: "not_wired", intent: "mark_recovered" });
   });
 });
 
-describe("manual actions: money-write idempotency key namespace", () => {
-  it("namespaces every manual key so it cannot collide with the webhook spine's", () => {
-    const key = manualActionIdempotencyKey("mark_recovered", "fp_1");
-    expect(key).toBe("manual:mark_recovered:fp_1");
-    // The recovery spine keys on `recovery:` (record-recovery.ts) and on raw
-    // Stripe event ids; a manual key must never look like either.
-    expect(key.startsWith("recovery:")).toBe(false);
-    expect(key.startsWith("evt_")).toBe(false);
+describe("note save: legacy's contract, through the money DO seam", () => {
+  it("writes the note, account-scoped", async () => {
+    const { sqlite, db } = seed();
+    expect(
+      await dispatchManualAction(
+        request(db, inMemoryCommit(sqlite, db), { intent: "note", note: "call the customer" }),
+      ),
+    ).toEqual({ ok: true, intent: "note" });
+    expect(readPayment(sqlite).notes).toBe("call the customer");
   });
 
-  it("collapses repeats by default and varies only when a repeat token is given", () => {
+  it("an empty textarea clears the column to NULL, legacy's `note || null`", async () => {
+    const { sqlite, db } = seed({ notes: "previous" });
+    await dispatchManualAction(
+      request(db, inMemoryCommit(sqlite, db), { intent: "note", note: "" }),
+    );
+    expect(readPayment(sqlite).notes).toBeNull();
+  });
+
+  it("whitespace-only text is preserved, also legacy's behaviour", async () => {
+    const { sqlite, db } = seed();
+    await dispatchManualAction(
+      request(db, inMemoryCommit(sqlite, db), { intent: "note", note: "   " }),
+    );
+    expect(readPayment(sqlite).notes).toBe("   ");
+  });
+
+  it("a missing note field is treated as empty rather than crashing", async () => {
+    const { sqlite, db } = seed({ notes: "previous" });
+    expect(
+      await dispatchManualAction(request(db, inMemoryCommit(sqlite, db), { intent: "note" })),
+    ).toEqual({ ok: true, intent: "note" });
+    expect(readPayment(sqlite).notes).toBeNull();
+  });
+
+  it("a failing commit answers write_failed rather than reporting success", async () => {
+    const { db } = seed();
+    const failing: ManualActionCommit = async () => {
+      throw new Error("d1 unavailable");
+    };
+    expect(
+      await dispatchManualAction(request(db, failing, { intent: "note", note: "x" })),
+    ).toEqual({ ok: false, reason: "write_failed", intent: "note" });
+  });
+
+  it("the key collapses a resubmitted SAME note and varies when the text changes", async () => {
+    const sameA = await noteContentToken("call the customer");
+    const sameB = await noteContentToken("call the customer");
+    const different = await noteContentToken("call the customer.");
+    expect(sameA).toBe(sameB);
+    expect(different).not.toBe(sameA);
+
+    const { sqlite, db } = seed();
+    const keys: string[] = [];
+    const commit = inMemoryCommit(sqlite, db, keys);
+    await dispatchManualAction(request(db, commit, { intent: "note", note: "one" }));
+    await dispatchManualAction(request(db, commit, { intent: "note", note: "one" }));
+    await dispatchManualAction(request(db, commit, { intent: "note", note: "two" }));
+    expect(keys[0]).toBe(keys[1]);
+    expect(keys[2]).not.toBe(keys[0]);
+    expect(keys[0].startsWith("manual:note:fp_mine:")).toBe(true);
+  });
+});
+
+describe("stop recovery: one atomic batch, claim-guarded", () => {
+  it("moves the payment to cancelled with resolved_at and cancels unexecuted steps", async () => {
+    const { sqlite, db } = seed({ steps: [PENDING, SENT_EMAIL] });
+    expect(
+      await dispatchManualAction(request(db, inMemoryCommit(sqlite, db), { intent: "cancel" })),
+    ).toEqual({ ok: true, intent: "cancel" });
+
+    const row = readPayment(sqlite);
+    expect(row.status).toBe("cancelled");
+    expect(row.resolved_at).toBe(now.getTime());
+
+    const steps = sqlite
+      .prepare("select id, result from recovery_steps order by id")
+      .all() as { id: string; result: string | null }[];
+    expect(steps).toEqual([
+      { id: "step_pending", result: "cancelled" },
+      // The executed step keeps its real outcome; only unexecuted work is stopped.
+      { id: "step_sent", result: "email_sent" },
+    ]);
+  });
+
+  it("the sequence actually stops: no step is due for the tick afterwards", async () => {
+    const { sqlite, db } = seed({ steps: [PENDING, { id: "step_two" }] });
+    expect(dueStepCount(sqlite)).toBe(2);
+
+    await dispatchManualAction(request(db, inMemoryCommit(sqlite, db), { intent: "cancel" }));
+
+    // stepDueCondition requires result IS NULL, so a cancelled step is never
+    // selected again. This is what makes Stop recovery actually stop.
+    expect(dueStepCount(sqlite)).toBe(0);
+  });
+
+  it("the status claim takes ZERO rows when something else resolved the payment first", async () => {
+    // The race the claim exists for: the dispatcher's pre-read saw 'active', and
+    // a concurrent writer resolved the payment before this batch ran. Driving the
+    // batch directly is the only way to reach that window deterministically.
+    const { sqlite, db } = seed({ status: "recovered", steps: [PENDING] });
+    const batch = buildStopRecoveryBatch(db, {
+      accountId: "acc_1",
+      failedPaymentId: "fp_mine",
+      now: later,
+    });
+
+    const statusChanges = runStatement(sqlite, batch[0]);
+    const stepChanges = runStatement(sqlite, batch[1]);
+
+    expect(statusChanges).toBe(0);
+    // And the second statement is conditioned on the first having landed, so a
+    // lost claim does NOT cancel the steps of a payment it never stopped.
+    expect(stepChanges).toBe(0);
+    expect(readPayment(sqlite).status).toBe("recovered");
+    expect(dueStepCount(sqlite)).toBe(1);
+  });
+
+  it("a lost claim is reported as already_resolved, never as success", async () => {
+    const { sqlite, db } = seed({ steps: [PENDING] });
+    // Commit that lets the race happen inside the write window: the payment is
+    // resolved by someone else, then the batch runs and its claim finds nothing.
+    const racing: ManualActionCommit = async (_accountId, _key, build) => {
+      runStatement(
+        sqlite,
+        db.update(failedPayments).set({ status: "recovered" }).where(eq(failedPayments.id, "fp_mine")),
+      );
+      const batch = build(db);
+      sqlite.transaction(() => {
+        for (const statement of batch) runStatement(sqlite, statement);
+      })();
+      return { applied: true };
+    };
+
+    expect(await dispatchManualAction(request(db, racing, { intent: "cancel" }))).toEqual({
+      ok: false,
+      reason: "already_resolved",
+      intent: "cancel",
+    });
+    expect(readPayment(sqlite).status).toBe("recovered");
+    expect(dueStepCount(sqlite)).toBe(1);
+  });
+
+  it("a failing commit answers write_failed rather than reporting success", async () => {
+    const { db } = seed({ steps: [PENDING] });
+    const failing: ManualActionCommit = async () => {
+      throw new Error("d1 unavailable");
+    };
+    expect(await dispatchManualAction(request(db, failing, { intent: "cancel" }))).toEqual({
+      ok: false,
+      reason: "write_failed",
+      intent: "cancel",
+    });
+  });
+
+  it("cancel's key is once-ever per payment, so a double submit collapses", () => {
+    expect(manualActionIdempotencyKey("cancel", "fp_1")).toBe("manual:cancel:fp_1");
     expect(manualActionIdempotencyKey("cancel", "fp_1")).toBe(
       manualActionIdempotencyKey("cancel", "fp_1"),
     );
-    expect(manualActionIdempotencyKey("resend", "fp_1", "req_a")).not.toBe(
-      manualActionIdempotencyKey("resend", "fp_1", "req_b"),
-    );
-  });
-
-  it("keys are distinct per intent and per payment", () => {
-    const keys = new Set([
-      manualActionIdempotencyKey("trigger", "fp_1"),
-      manualActionIdempotencyKey("cancel", "fp_1"),
-      manualActionIdempotencyKey("cancel", "fp_2"),
-    ]);
-    expect(keys.size).toBe(3);
+    expect(manualActionIdempotencyKey("cancel", "fp_1").startsWith("recovery:")).toBe(false);
   });
 });

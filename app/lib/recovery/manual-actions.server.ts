@@ -1,54 +1,70 @@
-import type { MoneyWriteBuilder } from "~/db/money-write";
+import { and, eq, isNull, sql } from "drizzle-orm";
+
+import type { MoneyWriteBatch, MoneyWriteBuilder } from "~/db/money-write";
 import type { Db } from "~/db";
-import { FAILED_PAYMENT_STATUS_ACTIVE } from "~/lib/constants";
+import { failedPayments, recoverySteps } from "~/db";
+import { FAILED_PAYMENT_STATUS_ACTIVE, FAILED_PAYMENT_STATUS_CANCELLED } from "~/lib/constants";
 import { executeMoneyWrite } from "~/lib/money/execute";
 
 import { getFailedPaymentDetail } from "./queries.server";
 import { lastResendableEmailStep, nextPendingStep } from "./step-state";
 
-// The shared entry point for S7's four manual payment-detail actions: Trigger
-// next step now, Mark as recovered, Stop recovery, Resend last email. Legacy
-// ships these as four separate Next.js route handlers that each re-implement
-// auth, account scoping, ownership and the status gate
-// (app/api/payments/[id]/{trigger,recover,cancel,resend}/route.ts, read in full
-// in parity/S7-PHASE2-SCOPE.md section 1). Foxhound has one POST target and one
-// dispatcher, so those four checks are written once and cannot drift, which is
-// exactly where legacy's four copies DID drift: its resend handler resolves the
-// account through a different helper than its three siblings and skips the
-// status gate entirely (scope section 1.5, defects 2 and 4).
+// The shared entry point for S7's manual payment-detail actions: legacy's four
+// action-row intents (Trigger next step now, Mark as recovered, Stop recovery,
+// Resend last email) plus the internal-notes save. Legacy ships these as five
+// separate Next.js route handlers that each re-implement auth, account scoping,
+// ownership and the status gate (app/api/payments/[id]/*, read in full in
+// parity/S7-PHASE2-SCOPE.md section 1). Foxhound has one POST target and one
+// dispatcher, so those checks are written once and cannot drift, which is
+// exactly where legacy's copies DID drift: its resend handler resolves the
+// account through a different helper than its siblings and skips the status gate
+// entirely (scope section 1.5, defects 2 and 4).
 //
-// THIS SESSION LANDS PLUMBING, NOT BEHAVIOR (ruling 260, Session A). Every
-// intent resolves to NOT_WIRED after its preconditions pass, so the route's
-// response is unchanged. Sessions B through E replace one NOT_WIRED at a time,
-// each governed by its own ruling in 262.
+// WIRED SO FAR: note and cancel (Session B). trigger (C), resend (D) and
+// mark_recovered (E) still resolve to NOT_WIRED after their preconditions pass.
 //
-// Money-path contract, ruling 262 decision four: EVERY Phase 2 mutation routes
-// through the per-account money-write Durable Object. No intent mutates yet, so
-// nothing is committed here; commitManualActionWrite below is the seam each
-// wiring session commits through, and it is the only sanctioned path. A future
-// intent that reaches for getDb().batch() directly is a defect, not a shortcut.
+// MONEY-PATH CONTRACT, ruling 262 decision four: EVERY Phase 2 mutation routes
+// through the per-account money-write Durable Object, without exception and
+// regardless of whether the individual write touches a fee-bearing table. The DO
+// is what serializes writes per account; a bypass reintroduces exactly the races
+// it exists to kill. Both wired intents commit through `ManualActionCommit`, and
+// an intent that reaches for db.batch() directly is a defect, not a shortcut.
 
-/** Legacy's four actions, in legacy's order. `note` is deliberately NOT here:
- *  it is a separate POST target in legacy with no money surface, no status gate
- *  and no precondition, and test/payment-detail-actions.test.ts pins its absence
- *  from the action row. */
+/** Legacy's four ACTION-ROW actions, in legacy's order. `note` is deliberately
+ *  NOT here: it is a separate control below the timeline, not a row button, and
+ *  test/payment-detail-actions.test.ts pins its absence from the row. */
 export const MANUAL_ACTION_INTENTS = ["trigger", "mark_recovered", "cancel", "resend"] as const;
 
 export type ManualActionIntent = (typeof MANUAL_ACTION_INTENTS)[number];
 
-/** Narrow an untrusted form value to a known intent. Returns null for anything
- *  else, including `note`, so an unrecognized POST is refused rather than
- *  falling through to a default action. */
+/** The notes-save intent. A separate POST target in legacy, with no status gate,
+ *  no precondition and no action-row presence. */
+export const NOTE_INTENT = "note";
+
+/** Everything the dispatcher accepts: the action row plus the notes save. */
+export const MANUAL_INTENTS = [...MANUAL_ACTION_INTENTS, NOTE_INTENT] as const;
+
+export type ManualIntent = (typeof MANUAL_INTENTS)[number];
+
+/** Narrow an untrusted form value to an ACTION-ROW intent. Returns null for
+ *  anything else, `note` included, because the row does not carry it. */
 export function parseManualActionIntent(raw: unknown): ManualActionIntent | null {
   return typeof raw === "string" && (MANUAL_ACTION_INTENTS as readonly string[]).includes(raw)
     ? (raw as ManualActionIntent)
     : null;
 }
 
+/** Narrow an untrusted form value to any intent the dispatcher accepts. */
+export function parseManualIntent(raw: unknown): ManualIntent | null {
+  return typeof raw === "string" && (MANUAL_INTENTS as readonly string[]).includes(raw)
+    ? (raw as ManualIntent)
+    : null;
+}
+
 /**
- * Why a manual action did not run, or that it passed every gate and is simply
- * not wired yet. Mapped to a response by the caller; nothing here formats user
- * copy, so the route owns the strings and this module owns the decision.
+ * What happened, or why nothing did. Mapped to a response by the caller; nothing
+ * here formats user copy, so the route owns the strings and this module owns the
+ * decision.
  *
  * The refusal reasons mirror legacy's own status codes, recorded per action in
  * scope section 1.7:
@@ -56,60 +72,230 @@ export function parseManualActionIntent(raw: unknown): ManualActionIntent | null
  *   not_active         -> legacy 400 "Payment is not active"
  *   no_pending_step    -> legacy 400 "No pending steps"    (trigger only)
  *   no_email_to_resend -> legacy 400 "No email to resend"  (resend only)
+ *   already_resolved   -> legacy's `{ success: true, alreadyResolved: true }`
  *   unknown_intent     -> no legacy equivalent; legacy encodes the action in the
- *                         URL path, so an unknown action 404s at the router. One
+ *                         URL path, so an unknown action 404s at its router. One
  *                         POST target means Foxhound has to reject it in code.
  */
 export type ManualActionOutcome =
+  | { ok: true; intent: "note" }
+  | { ok: true; intent: "cancel" }
   | { ok: false; reason: "unknown_intent" }
   | { ok: false; reason: "not_found" }
-  | { ok: false; reason: "not_active"; intent: ManualActionIntent }
+  | { ok: false; reason: "not_active"; intent: ManualIntent }
   | { ok: false; reason: "no_pending_step" }
   | { ok: false; reason: "no_email_to_resend" }
+  | { ok: false; reason: "already_resolved"; intent: "cancel" }
+  | { ok: false; reason: "write_failed"; intent: ManualIntent }
   | { ok: false; reason: "not_wired"; intent: ManualActionIntent };
 
 /**
  * Whether an intent requires status 'active' server-side.
  *
- * Three of legacy's four handlers re-check the status after the ownership read
- * and 400 if it is not active. Legacy's RESEND HANDLER DOES NOT: it never selects
- * the status column, so only the client's `isActive` gate stops a resend on a
- * recovered or terminal payment (scope section 1.5, defect 2, and scope section
- * 4 raises the question). Ruling 262 decided resend's SUPPRESSION gap and did not
- * decide this one, so legacy's shape is ported exactly rather than silently
- * hardened, and the gap is carried as a REPORTED open question. If it is later
- * ruled closed, this map is the single line that changes.
+ * Three of legacy's four action handlers re-check the status after the ownership
+ * read and 400 if it is not active. Two entries deliberately read false:
+ *
+ * `note` because legacy's note route has no status gate at all, and a merchant
+ * annotating a closed payment is a legitimate thing to do.
+ *
+ * `resend` because legacy's RESEND HANDLER never selects the status column, so
+ * only its client gate stops a resend on a terminal payment (scope 1.5 defect 2).
+ * **Ruling 264 has since RULED the server-side check REQUIRED for resend**, and
+ * Session D flips this entry under that authority. It is left false here because
+ * flipping it without wiring resend would change a refusal reason for an intent
+ * this session does not own. The tripwire test on this value stays.
  */
-export const MANUAL_ACTION_REQUIRES_ACTIVE: Record<ManualActionIntent, boolean> = {
+export const MANUAL_ACTION_REQUIRES_ACTIVE: Record<ManualIntent, boolean> = {
   trigger: true,
   mark_recovered: true,
   cancel: true,
   resend: false,
+  note: false,
 };
 
+// ---------------------------------------------------------------------------
+// Money-write routing (262 decision four)
+// ---------------------------------------------------------------------------
+
+/** Commit a manual action's atomic batch, serialized on the account. */
+export type ManualActionCommit = (
+  accountId: string,
+  idempotencyKey: string,
+  build: MoneyWriteBuilder,
+) => Promise<{ applied: boolean }>;
+
+/** The real commit path: the per-account money-write Durable Object. Bound to
+ *  `env` by the route and injected, so the dispatcher stays testable against a
+ *  real SQLite without a Workers runtime. */
+export function moneyWriteCommit(env: Env): ManualActionCommit {
+  return (accountId, idempotencyKey, build) =>
+    executeMoneyWrite(env, { accountId, idempotencyKey, build });
+}
+
 /**
- * Resolve and gate one manual action against the caller's own account.
+ * The idempotency key for a manual action's money write.
  *
- * Ownership is enforced the same way every other read in this tree enforces it:
+ * Omit `repeatToken` for an intent that may happen AT MOST ONCE per payment, so
+ * a double-submit or a retried request collapses onto the same key and the DO's
+ * seen-set makes the second attempt a no-op. Stop recovery is once-ever: a
+ * stopped sequence stays stopped, and re-running it would be meaningless.
+ *
+ * Pass a `repeatToken` where collapsing would silently swallow a genuinely new
+ * request. The namespace guarantees no manual key can ever collide with the
+ * webhook spine's, which are Stripe event ids and `recovery:`-prefixed.
+ */
+export function manualActionIdempotencyKey(
+  intent: ManualIntent,
+  failedPaymentId: string,
+  repeatToken?: string,
+): string {
+  const base = `manual:${intent}:${failedPaymentId}`;
+  return repeatToken === undefined ? base : `${base}:${repeatToken}`;
+}
+
+/**
+ * The note key's repeat token: a digest of the note's CONTENT.
+ *
+ * This is the shape the brief asks for and the reason is worth stating. A key
+ * fixed per payment would collapse every later edit into a no-op, so the second
+ * thing a merchant ever typed would be silently discarded. A key varying per
+ * request would make a retried submission write twice, which for this update is
+ * harmless but defeats the point of having a key at all. Keying on the content
+ * gives both: re-submitting the SAME text is a true no-op, and changing one
+ * character is a new key that applies.
+ */
+export async function noteContentToken(note: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(note));
+  return Array.from(new Uint8Array(digest).slice(0, 8))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+// ---------------------------------------------------------------------------
+// Atomic batches. Exported pure so each is unit-tested against the real schema.
+// ---------------------------------------------------------------------------
+
+export interface SaveNoteInput {
+  accountId: string;
+  failedPaymentId: string;
+  /** Raw textarea value. Empty string becomes NULL, exactly as legacy does. */
+  note: string;
+}
+
+/** Legacy's note contract, one statement (app/api/payments/[id]/note/route.ts):
+ *  `.update({ notes: note || null }).eq('id', id).eq('account_id', ...)`. The
+ *  `|| null` is legacy's, so a cleared textarea clears the column rather than
+ *  storing an empty string; whitespace-only text is preserved, also as legacy. */
+export function buildSaveNoteBatch(db: Db, input: SaveNoteInput): MoneyWriteBatch {
+  return [
+    db
+      .update(failedPayments)
+      .set({ notes: input.note || null })
+      .where(
+        and(
+          eq(failedPayments.id, input.failedPaymentId),
+          eq(failedPayments.accountId, input.accountId),
+        ),
+      ),
+  ];
+}
+
+export interface StopRecoveryInput {
+  accountId: string;
+  failedPaymentId: string;
+  now: Date;
+}
+
+/**
+ * Stop recovery, as ONE atomic batch: the payment goes terminal and every
+ * unexecuted step is cancelled together, or neither happens.
+ *
+ * TWO GUARDS, and the first is a deliberate hardening over legacy.
+ *
+ * (1) The status UPDATE carries `status = 'active'` in its WHERE, so it CLAIMS
+ * the active-to-cancelled transition rather than asserting it. Legacy's cancel
+ * route does NOT do this; it fires an unconditional `Promise.all` and discards
+ * both results, which was safe for legacy only because nothing bills on cancel.
+ * Legacy's own RECOVER route uses exactly this claim shape and explains why: a
+ * concurrent writer can resolve the payment between the read and the write. That
+ * window is real here too, and a terminal overwrite inside it would assert a
+ * FALSE state, recording a merchant-stopped sequence over a payment that had
+ * actually been recovered. Ruling 262 decision four routes this through the DO
+ * precisely to kill such races; the claim is the same intent expressed in SQL.
+ *
+ * (2) The steps UPDATE is conditioned on the payment ACTUALLY being cancelled
+ * now, via a correlated subquery. Statements in a batch run in order inside one
+ * transaction, so this reads statement (1)'s effect: if the claim took zero rows
+ * because something else resolved the payment first, the subquery is false and
+ * no step is touched. That is what keeps "do not cancel steps when the claim
+ * loses" true without branching, which a single atomic batch cannot do.
+ *
+ * Step cancellation is what actually stops the engine: `stepDueCondition`
+ * requires `result IS NULL`, so a cancelled step is never selected again. The
+ * exhausted-sequence sweep is separately safe, since it gates on status
+ * 'active' and a cancelled payment no longer matches.
+ */
+export function buildStopRecoveryBatch(db: Db, input: StopRecoveryInput): MoneyWriteBatch {
+  const paymentIsCancelled = sql`exists (select 1 from ${failedPayments} where ${failedPayments.id} = ${input.failedPaymentId} and ${failedPayments.accountId} = ${input.accountId} and ${failedPayments.status} = ${FAILED_PAYMENT_STATUS_CANCELLED})`;
+  return [
+    db
+      .update(failedPayments)
+      .set({ status: FAILED_PAYMENT_STATUS_CANCELLED, resolvedAt: input.now })
+      .where(
+        and(
+          eq(failedPayments.id, input.failedPaymentId),
+          eq(failedPayments.accountId, input.accountId),
+          eq(failedPayments.status, FAILED_PAYMENT_STATUS_ACTIVE),
+        ),
+      ),
+    db
+      .update(recoverySteps)
+      .set({ result: FAILED_PAYMENT_STATUS_CANCELLED })
+      .where(
+        and(
+          eq(recoverySteps.failedPaymentId, input.failedPaymentId),
+          eq(recoverySteps.accountId, input.accountId),
+          isNull(recoverySteps.executedAt),
+          paymentIsCancelled,
+        ),
+      ),
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// Dispatch
+// ---------------------------------------------------------------------------
+
+export interface ManualActionRequest {
+  db: Db;
+  /** The CALLER'S resolved account, from the session. Never from the form. */
+  accountId: string;
+  failedPaymentId: string;
+  /** Raw `intent` form value, untrusted. */
+  intent: unknown;
+  /** Raw `note` form value, read only for the note intent. */
+  note?: unknown;
+  commit: ManualActionCommit;
+  now?: Date;
+}
+
+/**
+ * Resolve, gate and (where wired) perform one manual action against the caller's
+ * own account.
+ *
+ * Ownership is enforced the way every other read in this tree enforces it:
  * getFailedPaymentDetail is account-scoped, so a payment belonging to another
- * account is indistinguishable from one that does not exist, and both land on
- * not_found. That is legacy's contract too (its handlers filter on account_id
- * and return the same 404 for a mismatch), and it is what keeps a payment id
- * from being an enumeration oracle across tenants.
- *
- * `accountId` is the CALLER'S resolved account and must come from the request's
- * authenticated session, never from the submitted form.
+ * account is indistinguishable from one that does not exist and both land on
+ * not_found. That is legacy's contract too, and it is what stops a payment id
+ * being an enumeration oracle across tenants.
  */
 export async function dispatchManualAction(
-  db: Db,
-  accountId: string,
-  failedPaymentId: string,
-  rawIntent: unknown,
+  req: ManualActionRequest,
 ): Promise<ManualActionOutcome> {
-  const intent = parseManualActionIntent(rawIntent);
+  const intent = parseManualIntent(req.intent);
   if (!intent) return { ok: false, reason: "unknown_intent" };
 
-  const detail = await getFailedPaymentDetail(db, accountId, failedPaymentId);
+  const detail = await getFailedPaymentDetail(req.db, req.accountId, req.failedPaymentId);
   if (!detail) return { ok: false, reason: "not_found" };
 
   if (
@@ -127,53 +313,68 @@ export async function dispatchManualAction(
     return { ok: false, reason: "no_email_to_resend" };
   }
 
+  if (intent === NOTE_INTENT) return saveNote(req);
+  if (intent === "cancel") return stopRecovery(req);
+
   return { ok: false, reason: "not_wired", intent };
 }
 
-/**
- * The idempotency key for a manual action's money write.
- *
- * Omit `repeatToken` for an intent that may happen AT MOST ONCE for a payment,
- * so a double-submit or a retried request collapses onto the same key and the
- * Durable Object's seen-set makes the second attempt a no-op. Mark as recovered
- * and Stop recovery are both once-ever: a payment is recovered once, and a
- * stopped sequence stays stopped.
- *
- * Pass a `repeatToken` for an intent a merchant may legitimately perform more
- * than once, where collapsing would silently swallow the second request. Resend
- * is the clear case: sending the same email twice on purpose is a real thing a
- * merchant does, so its key has to vary per request rather than per payment.
- *
- * The choice per intent is NOT made here, because it is a behavioral decision
- * belonging to the session that wires that intent (262 decisions one, two, three
- * and five each govern one). This function only guarantees the namespace, so no
- * manual action can ever collide with the webhook spine's own keys, which are
- * Stripe event ids and `recovery:`-prefixed.
- */
-export function manualActionIdempotencyKey(
-  intent: ManualActionIntent,
-  failedPaymentId: string,
-  repeatToken?: string,
-): string {
-  const base = `manual:${intent}:${failedPaymentId}`;
-  return repeatToken === undefined ? base : `${base}:${repeatToken}`;
+async function saveNote(req: ManualActionRequest): Promise<ManualActionOutcome> {
+  const note = typeof req.note === "string" ? req.note : "";
+  const key = manualActionIdempotencyKey(
+    NOTE_INTENT,
+    req.failedPaymentId,
+    await noteContentToken(note),
+  );
+  try {
+    await req.commit(req.accountId, key, (db) =>
+      buildSaveNoteBatch(db, {
+        accountId: req.accountId,
+        failedPaymentId: req.failedPaymentId,
+        note,
+      }),
+    );
+  } catch {
+    // Legacy answers 500 "Failed to save note" here. The error itself is not
+    // surfaced: it would carry query shape to the browser and tells a merchant
+    // nothing they can act on.
+    return { ok: false, reason: "write_failed", intent: NOTE_INTENT };
+  }
+  return { ok: true, intent: NOTE_INTENT };
 }
 
-/**
- * The ONLY sanctioned way a manual action mutates (ruling 262 decision four).
- * Serializes on the account through the money-write Durable Object and commits
- * the caller's statements as one atomic batch, so two manual actions on the same
- * account, or a manual action racing the webhook spine, cannot interleave.
- *
- * Nothing calls this yet: every intent returns not_wired this session. It is
- * exported now so each wiring session inherits the routing rather than choosing
- * it, which is the mistake ruling 262 exists to prevent.
- */
-export async function commitManualActionWrite(
-  env: Env,
-  accountId: string,
-  idempotencyKey: string,
-  build: MoneyWriteBuilder,
-): Promise<{ applied: boolean }> {
-  return executeMoneyWrite(env, { accountId, idempotencyKey, build });
+async function stopRecovery(req: ManualActionRequest): Promise<ManualActionOutcome> {
+  const now = req.now ?? new Date();
+  try {
+    await req.commit(req.accountId, manualActionIdempotencyKey("cancel", req.failedPaymentId), (db) =>
+      buildStopRecoveryBatch(db, {
+        accountId: req.accountId,
+        failedPaymentId: req.failedPaymentId,
+        now,
+      }),
+    );
+  } catch {
+    return { ok: false, reason: "write_failed", intent: "cancel" };
+  }
+
+  // The commit result reports whether the KEY was newly applied, not whether the
+  // claim took a row, so the honest answer to "did this actually stop anything"
+  // comes from reading the status back. Anything other than cancelled means a
+  // concurrent writer resolved the payment inside the claim window, which is
+  // legacy's `alreadyResolved` case answered truthfully rather than as success.
+  const [after] = await req.db
+    .select({ status: failedPayments.status })
+    .from(failedPayments)
+    .where(
+      and(
+        eq(failedPayments.id, req.failedPaymentId),
+        eq(failedPayments.accountId, req.accountId),
+      ),
+    )
+    .limit(1);
+
+  if (after?.status !== FAILED_PAYMENT_STATUS_CANCELLED) {
+    return { ok: false, reason: "already_resolved", intent: "cancel" };
+  }
+  return { ok: true, intent: "cancel" };
 }
