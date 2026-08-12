@@ -410,6 +410,23 @@ export interface EmailStepResult {
   usedTemplate: boolean;
   /** Why the template was used, or null when generated/cached copy was sent. */
   templateReason: TemplateReason | null;
+  /**
+   * True when the recipient was SUPPRESSED and no mail left the building.
+   *
+   * The step still lands on a successful result, which is correct for the
+   * sequence: a suppressed recipient is a terminal success, not a failure to
+   * retry (processEmailJob's own contract). But "we did not email them because
+   * they unsubscribed" and "we emailed them" are different answers to a merchant
+   * who just pressed Trigger next step now, and legacy answers the first with a
+   * distinct 409. Foxhound had no way to tell them apart, because
+   * sendResultToAttempt collapses `sent` and `suppressed` to the same ok.
+   *
+   * ADDITIVE and read-only: no write, no money path, no DO hop changes. The
+   * recovery tick types its runEmail seam as Promise<unknown> and ignores the
+   * return value entirely, so the cron cannot see this field and its behaviour
+   * is bit-for-bit unchanged.
+   */
+  suppressed: boolean;
 }
 
 /** Build the deterministic fallback for this step, honoring a merchant custom
@@ -530,6 +547,7 @@ export async function executeEmailStep(
   let resolvedCopy: EmailCopy | undefined;
   let usedTemplate = false;
   let templateReason: TemplateReason | null = null;
+  let suppressed = false;
   try {
     const urls = await buildEngagementUrls(env, ctx, baseUrl);
     // Token signing must succeed before either path: the template needs the same
@@ -549,7 +567,9 @@ export async function executeEmailStep(
       openUrl: urls.openUrl,
       usedTemplate,
     });
-    attempt = sendResultToAttempt(await send(env, job));
+    const sendResult = await send(env, job);
+    suppressed = sendResult.status === "suppressed";
+    attempt = sendResultToAttempt(sendResult);
   } catch (err) {
     // Isolate: a token-signing or send throw is a transient failure for THIS step
     // only, rescheduled by the backoff machine; it must not halt the sweep.
@@ -559,5 +579,12 @@ export async function executeEmailStep(
 
   const patch = decideEmailStep({ attemptCount: ctx.attemptCount }, attempt, now);
   await persistPatch(env, ctx.stepId, patch, resolvedCopy);
-  return { action: "email", sent: attempt.ok, result: patch.result, usedTemplate, templateReason };
+  return {
+    action: "email",
+    sent: attempt.ok,
+    result: patch.result,
+    usedTemplate,
+    templateReason,
+    suppressed,
+  };
 }
