@@ -174,13 +174,23 @@ export function nextPendingStep<T extends ManualActionStepRow>(steps: readonly T
  *   const emailSteps = steps.filter(s => s.step_type.startsWith('email_') && s.executed_at)
  *   const lastEmailStep = emailSteps.filter(s => s.ai_subject && s.ai_body_html).slice(-1)[0]
  *
- * Ordering caveat, carried from parity/S7-PHASE2-SCOPE.md section 1.5: legacy's
- * CLIENT picks by array order (slice(-1)) while legacy's resend ROUTE re-queries
- * by executed_at descending, so the two can disagree about WHICH email is last.
- * That disagreement does not reach this selector, which answers only whether a
- * resendable email EXISTS, and existence is identical under either ordering.
- * Choosing which row to actually resend belongs to the session that wires the
- * resend intent.
+ * ORDERING, settled by Session D (268). Legacy disagrees with ITSELF here: its
+ * CLIENT picks by array order (`slice(-1)`) while its resend ROUTE re-queries
+ * ordered by `executed_at` descending. **Legacy's SERVER rule wins**, because the
+ * server is what actually chooses the mail to send and the client's array order
+ * is an artifact of whatever order its query happened to return. The
+ * disagreement is legacy's own and is not reconciled here, only decided.
+ *
+ * Picking the maximum `executed_at` rather than the last array element also
+ * makes this selector order-independent, which matters because
+ * getFailedPaymentDetail's steps query carries no ORDER BY: relying on array
+ * position would have made the chosen email depend on SQLite's row order.
+ *
+ * Ties (two steps sharing an identical `executed_at`) fall back to the later
+ * array position, so the result stays deterministic rather than arbitrary.
+ *
+ * The EXISTENCE answer is unchanged by any of this, which is what keeps the
+ * button's render gate and the server's choice in agreement.
  */
 export function lastResendableEmailStep<T extends ManualActionStepRow>(
   steps: readonly T[],
@@ -188,5 +198,9 @@ export function lastResendableEmailStep<T extends ManualActionStepRow>(
   const resendable = steps.filter(
     (s) => s.executedAt !== null && isEmailStep(s.stepType) && s.aiSubject && s.aiBodyHtml,
   );
-  return resendable[resendable.length - 1] ?? null;
+  return resendable.reduce<T | null>((best, step) => {
+    if (best === null) return step;
+    // >= keeps the later array position on an exact tie.
+    return step.executedAt!.getTime() >= best.executedAt!.getTime() ? step : best;
+  }, null);
 }
