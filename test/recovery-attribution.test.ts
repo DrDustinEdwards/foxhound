@@ -2,7 +2,11 @@ import { drizzle } from "drizzle-orm/d1";
 import { describe, expect, it } from "vitest";
 
 import * as schema from "~/db/schema";
-import { ATTRIBUTION_KINDS, BILLABLE_ATTRIBUTION_KINDS } from "~/lib/constants";
+import {
+  ATTRIBUTION_KINDS,
+  BILLABLE_ATTRIBUTION_KINDS,
+  MANUAL_ATTRIBUTION_KIND,
+} from "~/lib/constants";
 import {
   type AttributionStepRow,
   findAttributionSignals,
@@ -40,13 +44,32 @@ describe("resolveAttribution", () => {
     expect(isBillableAttribution("stripe_baseline")).toBe(false);
   });
 
-  it("BILLABLE_ATTRIBUTION_KINDS is exactly ATTRIBUTION_KINDS minus stripe_baseline (Phase 5 review LOW/INFO fix)", () => {
+  it("every attribution kind is CONSCIOUSLY classified billable or free", () => {
     // app/db/billable.ts's SQL predicate and isBillableAttribution here both
     // consolidated onto this one allow-list (2026-07-19); this guards against
     // the two ever drifting apart again if a future attribution kind is added
     // to the CHECK constraint without also updating the allow-list.
-    const nonBaseline = ATTRIBUTION_KINDS.filter((k) => k !== "stripe_baseline");
-    expect([...BILLABLE_ATTRIBUTION_KINDS].sort()).toEqual([...nonBaseline].sort());
+    //
+    // RESHAPED BY RULING 262 DECISION ONE, S7 Phase 2 Session E. This used to
+    // assert billable === ATTRIBUTION_KINDS minus stripe_baseline, which held
+    // only while exactly four kinds existed and "not baseline" happened to mean
+    // "billable". `manual` is the fifth kind and it is FREE, so that equivalence
+    // is now false. The guard's real intent, stated in its own comment above, is
+    // that a new kind cannot ship without being classified, and that is what the
+    // assertion now encodes: the two sets PARTITION ATTRIBUTION_KINDS exactly, so
+    // a sixth kind added to neither list still fails here.
+    const FREE_ATTRIBUTION_KINDS = ["stripe_baseline", MANUAL_ATTRIBUTION_KIND];
+    expect([...BILLABLE_ATTRIBUTION_KINDS, ...FREE_ATTRIBUTION_KINDS].sort()).toEqual(
+      [...ATTRIBUTION_KINDS].sort(),
+    );
+    // Disjoint, so a kind cannot be quietly counted as both.
+    for (const kind of FREE_ATTRIBUTION_KINDS) {
+      expect([...BILLABLE_ATTRIBUTION_KINDS]).not.toContain(kind);
+    }
+  });
+
+  it("a MERCHANT-asserted recovery is never billable (262 decision one)", () => {
+    expect(isBillableAttribution(MANUAL_ATTRIBUTION_KIND)).toBe(false);
   });
 });
 

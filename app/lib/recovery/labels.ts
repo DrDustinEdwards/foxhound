@@ -20,6 +20,9 @@ export const ATTRIBUTION_KIND_LABELS: Record<AttributionKind, string> = {
   email_engaged: "Email engaged",
   card_update: "Card update",
   stripe_baseline: "Stripe baseline",
+  // Legacy's own word, READ from PaymentDetailClient.tsx at blob 7f54aa45, which
+  // renders `recovery_method === 'manual' ? 'Manual'`. Never billable (262 one).
+  manual: "Manual",
 };
 
 export const FAILED_PAYMENT_STATUS_LABELS: Record<string, string> = {

@@ -363,7 +363,7 @@ export const recoveredPayments = sqliteTable(
     index("recovered_payments_failed_payment_idx").on(t.failedPaymentId),
     check(
       "recovered_payments_attribution_kind_ck",
-      sql`${t.attributionKind} in ('foxhound_retry', 'email_engaged', 'card_update', 'stripe_baseline')`,
+      sql`${t.attributionKind} in ('foxhound_retry', 'email_engaged', 'card_update', 'stripe_baseline', 'manual')`,
     ),
   ],
 );
