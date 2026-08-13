@@ -1,4 +1,4 @@
-PRAGMA foreign_keys=OFF;--> statement-breakpoint
+PRAGMA defer_foreign_keys = true;--> statement-breakpoint
 CREATE TABLE `__new_recovered_payments` (
 	`id` text PRIMARY KEY NOT NULL,
 	`failed_payment_id` text NOT NULL,
@@ -27,6 +27,6 @@ CREATE TABLE `__new_recovered_payments` (
 INSERT INTO `__new_recovered_payments`("id", "failed_payment_id", "recovered_at", "amount_cents", "currency", "recovery_method", "recovered_by_step_id", "deleted_at", "recovery_step_type", "days_to_recover", "recovery_attempt_number", "recovery_trigger", "account_id", "refunded_at", "attribution_kind", "attribution_ref", "attributed_at", "disputed_at") SELECT "id", "failed_payment_id", "recovered_at", "amount_cents", "currency", "recovery_method", "recovered_by_step_id", "deleted_at", "recovery_step_type", "days_to_recover", "recovery_attempt_number", "recovery_trigger", "account_id", "refunded_at", "attribution_kind", "attribution_ref", "attributed_at", "disputed_at" FROM `recovered_payments`;--> statement-breakpoint
 DROP TABLE `recovered_payments`;--> statement-breakpoint
 ALTER TABLE `__new_recovered_payments` RENAME TO `recovered_payments`;--> statement-breakpoint
-PRAGMA foreign_keys=ON;--> statement-breakpoint
+PRAGMA defer_foreign_keys = false;--> statement-breakpoint
 CREATE INDEX `recovered_payments_account_idx` ON `recovered_payments` (`account_id`);--> statement-breakpoint
 CREATE INDEX `recovered_payments_failed_payment_idx` ON `recovered_payments` (`failed_payment_id`);
