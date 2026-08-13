@@ -1,0 +1,1 @@
+ALTER TABLE `accounts` ADD `live_sends_enabled` integer DEFAULT false NOT NULL;
