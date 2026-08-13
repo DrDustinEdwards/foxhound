@@ -59,6 +59,26 @@ export const accounts = sqliteTable("accounts", {
   lastVisitedPath: text("last_visited_path"),
   lastVisitedProduct: text("last_visited_product"),
   billingExempt: bool("billing_exempt").notNull().default(false),
+  /**
+   * THE LIVE-SEND FLAG, ratified 2026-08-09 in commit 9766ff5 and scheduled onto
+   * S7 Phase 2 Session D by ruling 268. Per-account, DEFAULTING OFF, checked in
+   * processEmailJob immediately before sendEmail.
+   *
+   * It exists because nothing in this codebase ever CHOSE to be a send kill
+   * switch. What actually stopped mail leaving was an UNSET PHYSICAL_ADDRESS
+   * secret, which throws a CAN-SPAM compliance error inside buildEmailMessage: a
+   * compliance guard doing duty as a switch nobody selected, undocumented as one,
+   * and a single populated env var away from every eligible account mailing at
+   * once. This column is the control that should have been there instead.
+   *
+   * 268 decoupled it from 9766ff5's own trigger condition deliberately. The
+   * letter of that ratification was "the same commit as whatever first makes live
+   * sends reachable", and 267 established the cron had ALREADY passed that point
+   * before the ratification was written, so the letter could never fire again and
+   * its purpose would have died with it. At zero live merchants this disables
+   * nothing real, which is what makes now the cheapest moment it will ever have.
+   */
+  liveSendsEnabled: bool("live_sends_enabled").notNull().default(false),
   processingPaused: bool("processing_paused").notNull().default(false),
   // WHY this account is paused, so the global emergency brake can be released
   // safely. 'brake' means the global brake paused it; null means a human paused
