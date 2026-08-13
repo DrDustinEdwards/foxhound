@@ -30,6 +30,7 @@ import { getFailedPaymentDetail } from "~/lib/recovery/queries.server";
 import {
   dispatchManualAction,
   moneyWriteCommit,
+  resendDepsFor,
   triggerDepsFor,
 } from "~/lib/recovery/manual-actions.server";
 import { sanitizeEmailPreviewHtml } from "~/lib/recovery/email-preview.server";
@@ -97,11 +98,15 @@ export async function action({ context, params, request }: Route.ActionArgs) {
     note: form.get("note"),
     commit: moneyWriteCommit(env),
     trigger: triggerDepsFor(env, db),
+    resend: resendDepsFor(env),
   });
 
   if (outcome.ok) {
     if (outcome.intent === "trigger") {
       return data({ notice: triggerNotice(outcome.action, outcome.result) }, { status: 200 });
+    }
+    if (outcome.intent === "resend") {
+      return data({ notice: `Email resent: "${outcome.subject}"` }, { status: 200 });
     }
     return data(
       { notice: outcome.intent === "note" ? "Note saved." : "Recovery stopped." },
@@ -134,6 +139,28 @@ export async function action({ context, params, request }: Route.ActionArgs) {
       );
     case "customer_unsubscribed":
       return data({ error: "Customer has unsubscribed from emails" }, { status: 409 });
+    case "live_sends_disabled":
+      // No legacy counterpart: legacy has no send switch. Honest rather than a
+      // silent success, because nothing was mailed (268).
+      return data(
+        { error: "Live email sending is switched off for this account." },
+        { status: 409 },
+      );
+    case "resend_failed":
+      return data(
+        { error: `Failed to resend${outcome.detail ? `: ${outcome.detail}` : ""}` },
+        { status: 500 },
+      );
+    case "resend_logged_failed":
+      // The mail IS gone; only the timeline row failed. Reporting a plain failure
+      // would contradict the customer's inbox and invite a second send.
+      return data(
+        {
+          error:
+            "The email was resent, but recording it on the timeline failed. Do not resend again.",
+        },
+        { status: 500 },
+      );
     case "send_retrying":
       return data(
         { error: "Email send failed temporarily; it will retry automatically" },
