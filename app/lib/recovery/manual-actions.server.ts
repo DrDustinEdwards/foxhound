@@ -21,7 +21,12 @@ import { processEmailJob, type EmailJobResult } from "~/lib/email/dispatch";
 import type { EmailJob } from "~/lib/email/types";
 import { signUnsubscribeToken } from "~/lib/email/unsubscribe-token";
 import { stepAction } from "~/lib/engine/step-runner";
-import { FAILED_PAYMENT_STATUS_ACTIVE, FAILED_PAYMENT_STATUS_CANCELLED } from "~/lib/constants";
+import {
+  FAILED_PAYMENT_STATUS_ACTIVE,
+  FAILED_PAYMENT_STATUS_CANCELLED,
+  MANUAL_ATTRIBUTION_KIND,
+} from "~/lib/constants";
+import { buildRecoveryBatch } from "./record-recovery";
 import { executeMoneyWrite } from "~/lib/money/execute";
 
 import { getFailedPaymentDetail } from "./queries.server";
@@ -98,6 +103,7 @@ export function parseManualIntent(raw: unknown): ManualIntent | null {
 export type ManualActionOutcome =
   | { ok: true; intent: "note" }
   | { ok: true; intent: "cancel" }
+  | { ok: true; intent: "mark_recovered" }
   /** The step ran. `action` is which executor ran it; `result` is the STORED
    *  step result, and `subject` the stored ai_subject for an email send. */
   | { ok: true; intent: "trigger"; action: "retry" | "email"; result: string; subject: string | null }
@@ -117,7 +123,7 @@ export type ManualActionOutcome =
   | { ok: false; reason: "resend_logged_failed" }
   | { ok: false; reason: "send_retrying" }
   | { ok: false; reason: "step_failed"; result: string | null }
-  | { ok: false; reason: "already_resolved"; intent: "cancel" }
+  | { ok: false; reason: "already_resolved"; intent: "cancel" | "mark_recovered" }
   | { ok: false; reason: "write_failed"; intent: ManualIntent }
   | { ok: false; reason: "not_wired"; intent: ManualActionIntent };
 
@@ -324,6 +330,88 @@ export function buildResendStepBatch(db: Db, input: ResendStepInput): MoneyWrite
   ];
 }
 
+export interface MarkRecoveredInput {
+  accountId: string;
+  failedPaymentId: string;
+  amountCents: number;
+  currency: string;
+  now: Date;
+}
+
+/**
+ * Mark as recovered, as ONE atomic batch through the per-account money-write DO.
+ *
+ * ENTERS THROUGH THE SPINE'S OWN RECORDER (262 decision five). Statement two is
+ * `buildRecoveryBatch`, the exact builder the invoice.payment_succeeded webhook
+ * uses, not a parallel insert. "No second writer of recovered_payments" is
+ * satisfied by one BUILDER, and the fee row and the moat row stay a single
+ * atomic pair rather than drifting apart.
+ *
+ * THE IDEMPOTENCY GUARD IS INHERITED, NOT INVENTED, and this is why no unique
+ * index was added to recovered_payments. `buildRecoveryBatch` derives its
+ * outcomes key from its `idempotencyKey` input, and the webhook passes the
+ * FAILED PAYMENT ID (webhooks/batches.ts). Passing the same here puts both
+ * callers in one key space, `recovery:<failedPaymentId>`, guarded by the real
+ * partial unique index `outcomes_idempotency_uq`. Whichever commits second rolls
+ * the whole batch back, fee row included. A unique index on
+ * recovered_payments.failed_payment_id would be a second mechanism for a
+ * guarantee that already holds, bought with a UNIQUE migration on a fee-bearing
+ * table that fails to apply if any duplicate already exists.
+ *
+ * THE CLAIM SHAPE is legacy's own and the one 265 ratified for cancel: the
+ * status UPDATE carries `status = 'active'`, so it CLAIMS the transition rather
+ * than asserting it. Legacy's recover route explains why in its own comment: the
+ * webhook can resolve the payment between the read and the write.
+ *
+ * NEVER BILLABLE (262 decision one): the attribution kind is `manual`, which is
+ * absent from BILLABLE_ATTRIBUTION_KINDS, so `buildRecoveryBatch` stamps
+ * `attributed_at` NULL and every billing predicate skips the row while the moat
+ * keeps it.
+ *
+ * STEP THREE is legacy's, read from source rather than assumed symmetric with
+ * cancel: recover also resolves the unexecuted steps to `cancelled`. It is
+ * conditioned on the claim having landed, through a correlated subquery reading
+ * statement one's effect inside the same transaction, so a lost race cancels
+ * nothing. Foxhound also scopes it by account, which legacy's does not.
+ */
+export function buildMarkRecoveredBatch(db: Db, input: MarkRecoveredInput): MoneyWriteBatch {
+  const paymentIsRecovered = sql`exists (select 1 from ${failedPayments} where ${failedPayments.id} = ${input.failedPaymentId} and ${failedPayments.accountId} = ${input.accountId} and ${failedPayments.status} = ${"recovered"})`;
+  return [
+    db
+      .update(failedPayments)
+      .set({ status: "recovered", resolvedAt: input.now })
+      .where(
+        and(
+          eq(failedPayments.id, input.failedPaymentId),
+          eq(failedPayments.accountId, input.accountId),
+          eq(failedPayments.status, FAILED_PAYMENT_STATUS_ACTIVE),
+        ),
+      ),
+    ...buildRecoveryBatch(db, {
+      accountId: input.accountId,
+      failedPaymentId: input.failedPaymentId,
+      amountCents: input.amountCents,
+      currency: input.currency,
+      recoveredAt: input.now,
+      attribution: { kind: MANUAL_ATTRIBUTION_KIND, ref: null },
+      recoveredByStepId: null,
+      recoveryMethod: MANUAL_ATTRIBUTION_KIND,
+      idempotencyKey: input.failedPaymentId,
+    }),
+    db
+      .update(recoverySteps)
+      .set({ result: "cancelled" })
+      .where(
+        and(
+          eq(recoverySteps.failedPaymentId, input.failedPaymentId),
+          eq(recoverySteps.accountId, input.accountId),
+          isNull(recoverySteps.executedAt),
+          paymentIsRecovered,
+        ),
+      ),
+  ];
+}
+
 export interface StopRecoveryInput {
   accountId: string;
   failedPaymentId: string;
@@ -524,8 +612,62 @@ export async function dispatchManualAction(
 
   if (intent === NOTE_INTENT) return saveNote(req);
   if (intent === "cancel") return stopRecovery(req);
+  if (intent === "mark_recovered") {
+    return markRecovered(req, detail.failedPayment.amountCents, detail.failedPayment.currency);
+  }
 
   return { ok: false, reason: "not_wired", intent };
+}
+
+/**
+ * Record a merchant-asserted recovery through the spine's own recorder.
+ *
+ * The idempotency key is once-ever per payment, `manual:mark_recovered:<id>`,
+ * confirmed against the spine's own convention from money-writer.ts and
+ * record-recovery.ts rather than chosen freely: the DO's seen-set is keyed on
+ * this string, and a payment recovers once, so a double submit collapses. Note
+ * this key and the OUTCOMES key are different instruments doing different jobs.
+ * The DO key stops the same request being applied twice; the outcomes key
+ * (`recovery:<failedPaymentId>`, shared with the webhook) stops two DIFFERENT
+ * callers recording the same payment. Only the second protects against the
+ * webhook, which is why it and not the DO key is the guarantee that matters.
+ */
+async function markRecovered(
+  req: ManualActionRequest,
+  amountCents: number,
+  currency: string,
+): Promise<ManualActionOutcome> {
+  const now = req.now ?? new Date();
+  let applied: boolean;
+  try {
+    const result = await req.commit(
+      req.accountId,
+      manualActionIdempotencyKey("mark_recovered", req.failedPaymentId),
+      (db) =>
+        buildMarkRecoveredBatch(db, {
+          accountId: req.accountId,
+          failedPaymentId: req.failedPaymentId,
+          amountCents,
+          currency,
+          now,
+        }),
+    );
+    applied = result.applied;
+  } catch {
+    // The outcomes unique index rejecting a replay surfaces here as a thrown
+    // constraint error only if it escapes the committer; the committer itself
+    // maps it to applied=false. Either way the honest answer is the same: this
+    // payment was already recorded by someone.
+    return { ok: false, reason: "already_resolved", intent: "mark_recovered" };
+  }
+
+  if (!applied) {
+    // The DO reported an idempotent no-op: either this exact request already
+    // landed, or the webhook recorded the recovery first and the shared outcomes
+    // key rolled this batch back. Legacy's own alreadyResolved answer.
+    return { ok: false, reason: "already_resolved", intent: "mark_recovered" };
+  }
+  return { ok: true, intent: "mark_recovered" };
 }
 
 /**

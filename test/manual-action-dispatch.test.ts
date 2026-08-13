@@ -332,13 +332,35 @@ describe("manual actions: per-intent preconditions", () => {
     ).toEqual({ ok: true, intent: "resend", subject: "Subject" });
   });
 
-  it("mark_recovered carries no step precondition and is still unwired", async () => {
+  it("mark_recovered carries no step precondition and is now WIRED", async () => {
+    // Session E. The in-memory commit runs the real statements, so this also
+    // proves the dispatcher hands the batch the payment's own amount and
+    // currency rather than inventing them.
     const { sqlite, db } = seed();
     expect(
       await dispatchManualAction(
         request(db, inMemoryCommit(sqlite, db), { intent: "mark_recovered" }),
       ),
-    ).toEqual({ ok: false, reason: "not_wired", intent: "mark_recovered" });
+    ).toEqual({ ok: true, intent: "mark_recovered" });
+    const row = sqlite
+      .prepare("select amount_cents, currency, attribution_kind from recovered_payments")
+      .get() as { amount_cents: number; currency: string; attribution_kind: string };
+    expect(row).toEqual({ amount_cents: 4200, currency: "usd", attribution_kind: "manual" });
+  });
+
+  it("a second mark_recovered answers already_resolved, never a second fee row", async () => {
+    const { sqlite, db } = seed();
+    const commit = inMemoryCommit(sqlite, db);
+    await dispatchManualAction(request(db, commit, { intent: "mark_recovered" }));
+    // The payment is now 'recovered', so the dispatcher's own active-only gate
+    // answers first. The batch-level guarantee is proven separately in
+    // test/mark-recovered.test.ts against the real committer.
+    expect(
+      await dispatchManualAction(request(db, commit, { intent: "mark_recovered" })),
+    ).toEqual({ ok: false, reason: "not_active", intent: "mark_recovered" });
+    expect(
+      (sqlite.prepare("select count(*) as n from recovered_payments").get() as { n: number }).n,
+    ).toBe(1);
   });
 });
 
