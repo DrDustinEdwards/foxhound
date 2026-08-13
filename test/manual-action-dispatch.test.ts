@@ -16,9 +16,13 @@ import {
   noteContentToken,
   parseManualActionIntent,
   parseManualIntent,
+  resendRepeatToken,
   type ManualActionCommit,
+  type ResendDeps,
+  type ResendSendInput,
   type TriggerDeps,
 } from "~/lib/recovery/manual-actions.server";
+import type { EmailJobResult } from "~/lib/email/dispatch";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
@@ -151,6 +155,32 @@ function unusedTriggerDeps(): TriggerDeps {
   };
 }
 
+/** A send seam that fails loudly, so a test reaching the mailer unintentionally
+ *  gets an error rather than a silent pass. */
+function unusedResendDeps(): ResendDeps {
+  return {
+    send: async () => {
+      throw new Error("resend.send called unexpectedly");
+    },
+  };
+}
+
+/** A send seam returning a chosen result, recording what it was asked to send. */
+function fakeSend(result: Partial<EmailJobResult>, sent: ResendSendInput[] = []): ResendDeps {
+  return {
+    send: async (input) => {
+      sent.push(input);
+      return {
+        status: "sent",
+        providerMessageId: "prov_1",
+        error: null,
+        retryable: false,
+        ...result,
+      } as EmailJobResult;
+    },
+  };
+}
+
 function request(db: Db, commit: ManualActionCommit, over: Record<string, unknown> = {}) {
   return {
     db,
@@ -161,6 +191,7 @@ function request(db: Db, commit: ManualActionCommit, over: Record<string, unknow
     intent: "mark_recovered",
     commit,
     trigger: unusedTriggerDeps(),
+    resend: unusedResendDeps(),
     now,
     ...over,
   } as Parameters<typeof dispatchManualAction>[0];
@@ -245,12 +276,16 @@ describe("manual actions: the status gate ports legacy's per-handler shape", () 
     expect(dueStepCount(sqlite)).toBe(1);
   });
 
-  it("note and resend do NOT check status, exactly as legacy's handlers do not", async () => {
-    // Legacy's note route has no status gate, and its resend route never selects
-    // the status column (scope 1.5 defect 2). Ruling 264 has RULED the check in
-    // for resend and Session D flips it; this pins today's value so the flip is
-    // a ruling rather than a drift.
-    expect(MANUAL_ACTION_REQUIRES_ACTIVE.resend).toBe(false);
+  it("RESEND NOW CHECKS STATUS, flipped by RULING 264, and note still does not", async () => {
+    // THE TRIPWIRE, FLIPPED. Session A pinned this `false` because legacy's resend
+    // route never selects the status column (scope 1.5, defect 2), and pinned it
+    // precisely so the value could not change by drift. **Ruling 264 changed it by
+    // ruling:** resending a dunning email about a payment already recovered or
+    // cancelled asserts a FALSE state to the customer and manufactures the
+    // complaints the suppression check exists to prevent, and a client-side state
+    // gate is treatment, never authority. The test did its job.
+    expect(MANUAL_ACTION_REQUIRES_ACTIVE.resend).toBe(true);
+    // Note has no status gate in legacy and 264 did not reach it.
     expect(MANUAL_ACTION_REQUIRES_ACTIVE.note).toBe(false);
 
     const { sqlite, db } = seed({ status: "failed_unrecovered", steps: [SENT_EMAIL] });
@@ -289,9 +324,12 @@ describe("manual actions: per-intent preconditions", () => {
     const ok = seed({ steps: [SENT_EMAIL] });
     expect(
       await dispatchManualAction(
-        request(ok.db, inMemoryCommit(ok.sqlite, ok.db), { intent: "resend" }),
+        request(ok.db, inMemoryCommit(ok.sqlite, ok.db), {
+          intent: "resend",
+          resend: fakeSend({ status: "sent" }),
+        }),
       ),
-    ).toEqual({ ok: false, reason: "not_wired", intent: "resend" });
+    ).toEqual({ ok: true, intent: "resend", subject: "Subject" });
   });
 
   it("mark_recovered carries no step precondition and is still unwired", async () => {
@@ -733,6 +771,191 @@ describe("trigger: the concurrent-claim race", () => {
       .get() as { result: string; ai_subject: string };
     expect(row.result).toBe("email_sent");
     expect(row.ai_subject).toBe("A's subject");
+  });
+});
+
+describe("resend: legacy's intent, not legacy's defects", () => {
+  function resendReq(
+    db: Db,
+    sqlite: Database.Database,
+    deps: ResendDeps,
+    keys: string[] = [],
+    over: Record<string, unknown> = {},
+  ) {
+    return request(db, inMemoryCommit(sqlite, db, keys), {
+      intent: "resend",
+      resend: deps,
+      ...over,
+    });
+  }
+
+  function resendSteps(sqlite: Database.Database) {
+    return sqlite
+      .prepare(
+        "select step_type, step_number, executed_at, result, ai_subject, ai_body_html from recovery_steps where step_type = 'email_resend'",
+      )
+      .all() as {
+      step_type: string;
+      step_number: number | null;
+      executed_at: number | null;
+      result: string;
+      ai_subject: string;
+      ai_body_html: string;
+    }[];
+  }
+
+  it("refuses a NON-ACTIVE payment, the flip ruling 264 ordered", async () => {
+    const { sqlite, db } = seed({ status: "recovered", steps: [SENT_EMAIL] });
+    expect(
+      await dispatchManualAction(resendReq(db, sqlite, unusedResendDeps())),
+    ).toEqual({ ok: false, reason: "not_active", intent: "resend" });
+    // The refusal is real: no mail attempted (the seam would have thrown) and no
+    // timeline row written.
+    expect(resendSteps(sqlite)).toHaveLength(0);
+  });
+
+  it("refuses when there is no email to resend, legacy's 400", async () => {
+    const { sqlite, db } = seed({ steps: [PENDING] });
+    expect(await dispatchManualAction(resendReq(db, sqlite, unusedResendDeps()))).toEqual({
+      ok: false,
+      reason: "no_email_to_resend",
+    });
+  });
+
+  it("sends the last email and records it as its own timeline step", async () => {
+    const { sqlite, db } = seed({ steps: [SENT_EMAIL] });
+    const sent: ResendSendInput[] = [];
+
+    const out = await dispatchManualAction(
+      resendReq(db, sqlite, fakeSend({ status: "sent", providerMessageId: "prov_9" }, sent)),
+    );
+
+    expect(out).toEqual({ ok: true, intent: "resend", subject: "Subject" });
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({
+      accountId: "acc_1",
+      recoveryStepId: "step_sent",
+      to: "customer@example.com",
+      subject: "Subject",
+      bodyHtml: "<p>Body</p>",
+    });
+
+    // Legacy's insert shape: a NEW row, step_number null, executed now.
+    const rows = resendSteps(sqlite);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      step_type: "email_resend",
+      step_number: null,
+      result: "email_sent",
+      ai_subject: "Subject",
+      ai_body_html: "<p>Body</p>",
+    });
+    expect(rows[0].executed_at).toBe(now.getTime());
+    // The original send is untouched: a resend adds an event, never mutates one.
+    const original = sqlite
+      .prepare("select result from recovery_steps where id = 'step_sent'")
+      .get() as { result: string };
+    expect(original.result).toBe("email_sent");
+  });
+
+  it("the timeline insert rides the per-account money-write DO (262 four)", async () => {
+    const { sqlite, db } = seed({ steps: [SENT_EMAIL] });
+    const keys: string[] = [];
+    await dispatchManualAction(
+      resendReq(db, sqlite, fakeSend({ providerMessageId: "prov_9" }), keys),
+    );
+    expect(keys).toHaveLength(1);
+    expect(keys[0].startsWith("manual:resend:fp_mine:")).toBe(true);
+    expect(keys[0].startsWith("recovery:")).toBe(false);
+  });
+
+  it("a SUPPRESSED recipient is an honest refusal and writes NOTHING", async () => {
+    // 262 decision three: suppression is mandatory and the merchant is told.
+    // Legacy would have mailed them, because its route has no suppression check.
+    const { sqlite, db } = seed({ steps: [SENT_EMAIL] });
+    const keys: string[] = [];
+    const out = await dispatchManualAction(
+      resendReq(db, sqlite, fakeSend({ status: "suppressed", providerMessageId: null }), keys),
+    );
+    expect(out).toEqual({ ok: false, reason: "customer_unsubscribed" });
+    expect(resendSteps(sqlite)).toHaveLength(0);
+    expect(keys).toHaveLength(0); // no money write attempted at all
+  });
+
+  it("a BLOCKED send (live-send flag off) refuses and writes NOTHING", async () => {
+    const { sqlite, db } = seed({ steps: [SENT_EMAIL] });
+    const keys: string[] = [];
+    const out = await dispatchManualAction(
+      resendReq(db, sqlite, fakeSend({ status: "blocked", providerMessageId: null }), keys),
+    );
+    expect(out).toEqual({ ok: false, reason: "live_sends_disabled" });
+    expect(resendSteps(sqlite)).toHaveLength(0);
+    expect(keys).toHaveLength(0);
+  });
+
+  it("a failed send reports the provider's reason and writes nothing", async () => {
+    const { sqlite, db } = seed({ steps: [SENT_EMAIL] });
+    const out = await dispatchManualAction(
+      resendReq(db, sqlite, fakeSend({ status: "failed", error: "smtp 550", retryable: true })),
+    );
+    expect(out).toEqual({ ok: false, reason: "resend_failed", detail: "smtp 550" });
+    expect(resendSteps(sqlite)).toHaveLength(0);
+  });
+
+  it("a send that THROWS is a refusal, not a crash", async () => {
+    const { sqlite, db } = seed({ steps: [SENT_EMAIL] });
+    const out = await dispatchManualAction(
+      resendReq(db, sqlite, {
+        send: async () => {
+          throw new Error("binding gone");
+        },
+      }),
+    );
+    expect(out).toEqual({ ok: false, reason: "resend_failed", detail: null });
+  });
+
+  it("mail sent but the row failing is its OWN answer, never a plain failure", async () => {
+    // The customer has the email. Telling the merchant "failed" would invite a
+    // second send to someone who already received one.
+    const { db } = seed({ steps: [SENT_EMAIL] });
+    const failingCommit: ManualActionCommit = async () => {
+      throw new Error("d1 unavailable");
+    };
+    const out = await dispatchManualAction(
+      request(db, failingCommit, { intent: "resend", resend: fakeSend({ status: "sent" }) }),
+    );
+    expect(out).toEqual({ ok: false, reason: "resend_logged_failed" });
+  });
+
+  it("the key collapses a retried PERSIST of one send and separates two sends", () => {
+    // 265's reasoning applied to the send EVENT rather than the submit: the same
+    // provider id is the same mail, a new provider id is new mail.
+    expect(resendRepeatToken("prov_1", "step_a", now)).toBe(
+      resendRepeatToken("prov_1", "step_a", later),
+    );
+    expect(resendRepeatToken("prov_2", "step_a", now)).not.toBe(
+      resendRepeatToken("prov_1", "step_a", now),
+    );
+    // No provider id: cannot collapse, which errs toward recording rather than
+    // losing a send.
+    expect(resendRepeatToken(null, "step_a", now)).not.toBe(
+      resendRepeatToken(null, "step_a", later),
+    );
+  });
+
+  it("picks the last email by EXECUTED_AT, not by array position", async () => {
+    // Legacy's server rule. Its client disagrees by array order (scope 1.5) and
+    // the server wins. Seeded so array order and executed_at order DISAGREE.
+    const { sqlite, db } = seed({
+      steps: [
+        { ...SENT_EMAIL, id: "step_newer", aiSubject: "NEWER", executedAt: later },
+        { ...SENT_EMAIL, id: "step_older", aiSubject: "OLDER", executedAt: now },
+      ],
+    });
+    const sent: ResendSendInput[] = [];
+    await dispatchManualAction(resendReq(db, sqlite, fakeSend({ status: "sent" }, sent)));
+    expect(sent[0].subject).toBe("NEWER");
+    expect(sent[0].recoveryStepId).toBe("step_newer");
   });
 });
 

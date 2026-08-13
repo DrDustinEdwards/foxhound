@@ -17,6 +17,9 @@ import {
   type RetryStepContext,
   type RetryStepResult,
 } from "~/lib/engine/execute-step";
+import { processEmailJob, type EmailJobResult } from "~/lib/email/dispatch";
+import type { EmailJob } from "~/lib/email/types";
+import { signUnsubscribeToken } from "~/lib/email/unsubscribe-token";
 import { stepAction } from "~/lib/engine/step-runner";
 import { FAILED_PAYMENT_STATUS_ACTIVE, FAILED_PAYMENT_STATUS_CANCELLED } from "~/lib/constants";
 import { executeMoneyWrite } from "~/lib/money/execute";
@@ -105,7 +108,13 @@ export type ManualActionOutcome =
   | { ok: false; reason: "no_email_to_resend" }
   | { ok: false; reason: "unknown_step_type"; stepType: string }
   | { ok: false; reason: "processing_paused" }
+  | { ok: true; intent: "resend"; subject: string }
   | { ok: false; reason: "customer_unsubscribed" }
+  | { ok: false; reason: "live_sends_disabled" }
+  | { ok: false; reason: "resend_failed"; detail: string | null }
+  /** The mail went out and only the timeline row failed. Distinct on purpose:
+   *  reporting a plain failure would contradict the customer's inbox. */
+  | { ok: false; reason: "resend_logged_failed" }
   | { ok: false; reason: "send_retrying" }
   | { ok: false; reason: "step_failed"; result: string | null }
   | { ok: false; reason: "already_resolved"; intent: "cancel" }
@@ -132,7 +141,17 @@ export const MANUAL_ACTION_REQUIRES_ACTIVE: Record<ManualIntent, boolean> = {
   trigger: true,
   mark_recovered: true,
   cancel: true,
-  resend: false,
+  // FLIPPED FROM false BY RULING 264, and this is the one place in this campaign
+  // where a pinned test changes: it changes by RULING, never by drift. Legacy's
+  // resend route never selects the status column, so only its client gate stops a
+  // resend on a terminal payment (scope 1.5, defect 2), and Session A ported that
+  // shape exactly with a tripwire test pinning `false` so any later change had to
+  // be argued rather than slipped in. 264 argues it: resending a dunning email
+  // about a payment already recovered or cancelled asserts a FALSE state to the
+  // customer and manufactures exactly the complaints the suppression check exists
+  // to prevent, and a client-side state gate is treatment, never authority. The
+  // tripwire did its job by making this a ruling.
+  resend: true,
   note: false,
 };
 
@@ -223,6 +242,88 @@ export function buildSaveNoteBatch(db: Db, input: SaveNoteInput): MoneyWriteBatc
   ];
 }
 
+/** email_sends.template label for a merchant-initiated resend. Distinct from the
+ *  engine's own labels so "how much mail was resent by hand" is one WHERE clause. */
+export const TEMPLATE_LABEL_RESEND = "recovery_resend";
+
+/** The step_type legacy writes for a resend, so the timeline shows it as its own
+ *  event rather than mutating the original send's row. */
+export const RESEND_STEP_TYPE = "email_resend";
+
+/**
+ * The resend key's repeat token, chosen under 265's key-design reasoning.
+ *
+ * The unit of identity here is the SEND EVENT, not the submission and not the
+ * payment. A per-payment key would collapse every later resend into the first,
+ * silently discarding deliberate ones. A per-request key would collapse nothing.
+ * Keying on the provider's own message id collapses exactly the case worth
+ * collapsing, a retried PERSIST of a send that already happened, while a
+ * genuinely new send carries a new id and applies.
+ *
+ * This is also why the token is NOT derived from the submit: because the send
+ * precedes the persist (268), a double-click produces TWO real sends, and
+ * collapsing their rows would hide mail that actually reached the customer. The
+ * row should record what happened, not what was clicked.
+ *
+ * The fallback, when the provider returns no id, is step plus timestamp: it
+ * cannot collapse, which errs toward recording a send twice rather than losing
+ * one. Under-recording a send is the worse failure on a compliance surface.
+ */
+export function resendRepeatToken(
+  providerMessageId: string | null,
+  stepId: string,
+  now: Date,
+): string {
+  return providerMessageId ?? `${stepId}:${now.getTime()}`;
+}
+
+export interface ResendStepInput {
+  accountId: string;
+  failedPaymentId: string;
+  subject: string;
+  bodyHtml: string;
+  providerMessageId: string | null;
+  now: Date;
+}
+
+/**
+ * Legacy's resend timeline row, one statement (its route's own insert): a NEW
+ * recovery_steps row with step_type `email_resend`, `step_number` null, executed
+ * now, carrying the resent copy and the provider's send id.
+ *
+ * Schema-legal without a migration: `step_number` is a nullable integer and
+ * `step_type` and `result` are free text with no CHECK, verified against the
+ * committed migrations. `result` is `email_sent`, matching what the engine writes
+ * for a delivered send, so the timeline renders it with the existing tone map
+ * rather than needing a new vocabulary entry.
+ *
+ * THE PROVIDER ID IS NOT ON THIS ROW, and that is a deliberate internal
+ * difference. Legacy carries a `resend_message_id` column on its step;
+ * recovery_steps has no such column and does not need one, because
+ * processEmailJob already logged this send to `email_sends` with its
+ * `provider_message_id`, its template label and its recipient hash. Duplicating
+ * it here would create a second home for the same fact. Class (a): invisible to
+ * the merchant, who sees the timeline row either way.
+ *
+ * NO fee row and NO outcome row, which is legacy's own shape: a resend is
+ * outreach, not a recovery, and nothing about it is billable.
+ */
+export function buildResendStepBatch(db: Db, input: ResendStepInput): MoneyWriteBatch {
+  return [
+    db.insert(recoverySteps).values({
+      accountId: input.accountId,
+      failedPaymentId: input.failedPaymentId,
+      stepType: RESEND_STEP_TYPE,
+      stepNumber: null,
+      scheduledAt: input.now,
+      executedAt: input.now,
+      result: "email_sent",
+      aiSubject: input.subject,
+      aiBodyHtml: input.bodyHtml,
+    }),
+  ];
+}
+
 export interface StopRecoveryInput {
   accountId: string;
   failedPaymentId: string;
@@ -300,6 +401,60 @@ export interface TriggerDeps {
   runEmail: (ctx: EmailStepContext) => Promise<EmailStepResult>;
 }
 
+/**
+ * The IO the resend intent needs. One seam, so the send path is drivable in
+ * tests without a Workers runtime and the dispatcher never touches `Env`.
+ */
+export interface ResendSendInput {
+  accountId: string;
+  recoveryStepId: string;
+  to: string;
+  subject: string;
+  bodyHtml: string;
+  now: Date;
+}
+
+export interface ResendDeps {
+  send: (input: ResendSendInput) => Promise<EmailJobResult>;
+}
+
+/**
+ * Bind the real send path to `env`: processEmailJob, which is suppression gate,
+ * live-send flag, send, and email_sends log, in that order. `queueMessageId` is
+ * null because this is the synchronous path, exactly as the engine's defaultSend
+ * passes null.
+ *
+ * THE CAN-SPAM FIELDS ARE ASSEMBLED HERE, and this is where legacy's resend
+ * differs most. Legacy's route sends a raw provider call with NO unsubscribe
+ * token and NO List-Unsubscribe header, two of the four defects its own sibling
+ * trigger route documents as the degraded parallel it removed from itself (scope
+ * 1.5). EmailJob makes them non-optional, and buildEmailMessage throws without a
+ * physical address, so the pipeline refuses to send a non-compliant message at
+ * all. 262 decision three ports the intent, not the defect.
+ */
+export function resendDepsFor(env: Env): ResendDeps {
+  return {
+    send: async (input) => {
+      const unsubscribeToken = await signUnsubscribeToken(env, {
+        email: input.to,
+        accountId: input.accountId,
+      });
+      const job: EmailJob = {
+        accountId: input.accountId,
+        recoveryStepId: input.recoveryStepId,
+        to: input.to,
+        subject: input.subject,
+        bodyHtml: input.bodyHtml,
+        template: TEMPLATE_LABEL_RESEND,
+        unsubscribeToken,
+        physicalAddress: env.PHYSICAL_ADDRESS ?? "",
+        idempotencyKey: `resend:${input.recoveryStepId}:${input.now.getTime()}`,
+      };
+      return processEmailJob(env, job, null);
+    },
+  };
+}
+
 /** Bind the real executors to `env`. The route's only job is to call this. */
 export function triggerDepsFor(env: Env, db: Db): TriggerDeps {
   return {
@@ -320,6 +475,7 @@ export interface ManualActionRequest {
   note?: unknown;
   commit: ManualActionCommit;
   trigger: TriggerDeps;
+  resend: ResendDeps;
   now?: Date;
 }
 
@@ -357,14 +513,102 @@ export async function dispatchManualAction(
     return triggerNextStep(req, pending.id, pending.stepType);
   }
 
-  if (intent === "resend" && lastResendableEmailStep(detail.steps) === null) {
-    return { ok: false, reason: "no_email_to_resend" };
+  if (intent === "resend") {
+    // The SHARED selector, now picking by executed_at descending (legacy's SERVER
+    // rule, settled in step-state.ts), so the mail the server resends is the one
+    // legacy's own route would have chosen.
+    const last = lastResendableEmailStep(detail.steps);
+    if (last === null) return { ok: false, reason: "no_email_to_resend" };
+    return resendLastEmail(req, last, detail.failedPayment.customerEmail);
   }
 
   if (intent === NOTE_INTENT) return saveNote(req);
   if (intent === "cancel") return stopRecovery(req);
 
   return { ok: false, reason: "not_wired", intent };
+}
+
+/**
+ * Resend the last dunning email, through the SAME send path the engine uses.
+ *
+ * Legacy's own resend route is the degraded parallel its SIBLING trigger route
+ * documents and removed from itself: no suppression check, no unsubscribe token,
+ * no List-Unsubscribe header, a raw provider call with no idempotency, and a
+ * different auth helper from its three siblings (scope 1.5, defects 1 to 4).
+ * Ruling 262 decision three ports the INTENT and not the defect, so this goes
+ * through processEmailJob, which gates suppression, applies the live-send flag,
+ * sends through the one send module and logs to email_sends.
+ *
+ * SEND-PRECEDES-PERSIST (268) APPLIES HERE TOO, and is stated rather than solved.
+ * The idempotency key protects the ROW, not the send: two submits racing inside
+ * the same second both reach processEmailJob before either persists, so both can
+ * mail. That is the same shared defect 268 named and parked with a design owed,
+ * and no executor semantics are changed here.
+ */
+async function resendLastEmail(
+  req: ManualActionRequest,
+  step: { id: string; stepType: string; aiSubject: string | null; aiBodyHtml: string | null },
+  customerEmail: string,
+): Promise<ManualActionOutcome> {
+  const now = req.now ?? new Date();
+  const subject = step.aiSubject ?? "";
+  const bodyHtml = step.aiBodyHtml ?? "";
+
+  let result: EmailJobResult;
+  try {
+    result = await req.resend.send({
+      accountId: req.accountId,
+      recoveryStepId: step.id,
+      to: customerEmail,
+      subject,
+      bodyHtml,
+      now,
+    });
+  } catch {
+    return { ok: false, reason: "resend_failed", detail: null };
+  }
+
+  // A suppressed recipient is an HONEST REFUSAL to the merchant, never a silent
+  // success (262 decision three). Nothing is inserted: no mail left, so there is
+  // no send to record on the timeline.
+  if (result.status === "suppressed") {
+    return { ok: false, reason: "customer_unsubscribed" };
+  }
+  if (result.status === "blocked") {
+    return { ok: false, reason: "live_sends_disabled" };
+  }
+  if (result.status !== "sent") {
+    return { ok: false, reason: "resend_failed", detail: result.error };
+  }
+
+  // The timeline row, through the per-account money-write DO (262 decision four).
+  // This is a mutation this session AUTHORS, so it rides the DO regardless of the
+  // row not being fee-bearing: the DO is what serializes an account's writes.
+  try {
+    await req.commit(
+      req.accountId,
+      manualActionIdempotencyKey(
+        "resend",
+        req.failedPaymentId,
+        resendRepeatToken(result.providerMessageId, step.id, now),
+      ),
+      (db) =>
+        buildResendStepBatch(db, {
+          accountId: req.accountId,
+          failedPaymentId: req.failedPaymentId,
+          subject,
+          bodyHtml,
+          providerMessageId: result.providerMessageId,
+          now,
+        }),
+    );
+  } catch {
+    // The mail is already gone; only the timeline row failed. Say so rather than
+    // reporting a failure the customer's inbox contradicts.
+    return { ok: false, reason: "resend_logged_failed" };
+  }
+
+  return { ok: true, intent: "resend", subject };
 }
 
 /**
