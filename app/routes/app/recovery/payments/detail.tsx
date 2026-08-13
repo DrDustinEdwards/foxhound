@@ -108,6 +108,9 @@ export async function action({ context, params, request }: Route.ActionArgs) {
     if (outcome.intent === "resend") {
       return data({ notice: `Email resent: "${outcome.subject}"` }, { status: 200 });
     }
+    if (outcome.intent === "mark_recovered") {
+      return data({ notice: "Marked as recovered." }, { status: 200 });
+    }
     return data(
       { notice: outcome.intent === "note" ? "Note saved." : "Recovery stopped." },
       { status: 200 },
@@ -173,7 +176,12 @@ export async function action({ context, params, request }: Route.ActionArgs) {
       // client then reports plain success, which tells the merchant something
       // untrue. Same status code, honest sentence: class (c).
       return data(
-        { notice: "This payment was already resolved, so nothing was stopped." },
+        {
+          notice:
+            outcome.intent === "cancel"
+              ? "This payment was already resolved, so nothing was stopped."
+              : "This payment was already recorded as recovered.",
+        },
         { status: 200 },
       );
     case "write_failed":

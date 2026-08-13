@@ -12,13 +12,29 @@ import { isBillableAttribution, type ResolvedAttribution } from "./attribution";
 // baseline recoveries are recorded with equal fidelity; baseline is the free
 // line (PRICING.md spine #2).
 //
-// Boundary: the invoice.payment_succeeded webhook is the SOLE recorder of a
-// recovery (buildRecoverBatch in webhooks/batches.ts is the only caller of
-// buildRecoveryBatch's insert) and the sole owner of the failed_payments
-// 'recovered' status flip. The retry executor (execute-step.ts) never inserts
-// here; it only calls reconcileRetryRecovery below, an UPDATE-only correction
-// for the narrow reverse-race window (review Finding 1 + 2). Phase 4b builds
-// and unit-tests the insert path.
+// Boundary: the invoice.payment_succeeded webhook is the PRIMARY recorder of a
+// recovery (buildRecoverBatch in webhooks/batches.ts) and the primary owner of
+// the failed_payments 'recovered' status flip. The retry executor
+// (execute-step.ts) never inserts here; it only calls reconcileRetryRecovery
+// below, an UPDATE-only correction for the narrow reverse-race window (review
+// Finding 1 + 2). Phase 4b builds and unit-tests the insert path.
+//
+// SECOND DESIGNED CALLER, added by S7 Phase 2 Session E under ruling 262
+// decision five: buildMarkRecoveredBatch (app/lib/recovery/manual-actions.server.ts)
+// records a MERCHANT-asserted recovery through THIS builder rather than through
+// a parallel insert of its own. "No second writer of recovered_payments" is
+// honored by there being one BUILDER, not by there being one caller.
+//
+// WHAT MAKES A SECOND CALLER SAFE, and it is the reason no unique index was
+// added to recovered_payments: the outcomes idempotency key below is derived
+// from the FAILED PAYMENT, not from the event. buildRecoverBatch passes
+// `idempotencyKey: failedPaymentId` (webhooks/batches.ts) and the manual path
+// passes the same, so both callers write the identical key
+// `recovery:<failedPaymentId>` into a column carrying a real partial UNIQUE
+// index (outcomes_idempotency_uq, migration 0000). Whichever commits second
+// violates it, the whole atomic batch rolls back INCLUDING the
+// recovered_payments insert, and executeMoneyWrite reports applied=false. One
+// recovery per failed payment across any number of callers, by construction.
 //
 // Idempotency: the outcomes row carries a stable key (outcomes_idempotency_uq),
 // so a webhook redelivery makes the whole atomic batch fail the unique
