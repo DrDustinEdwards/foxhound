@@ -37,8 +37,10 @@ import type { loader as appShellLoader } from "~/layouts/app-shell";
 import { runBulkAction } from "~/lib/recovery/bulk-actions.server";
 import {
   failedIds,
+  isBulkActionIntent,
   isBulkRefusal,
   orderForDisplay,
+  type BulkActionIntent,
   type BulkFailureReason,
 } from "~/lib/recovery/bulk-results";
 import {
@@ -357,14 +359,101 @@ const BULK_REASON_LABELS: Record<BulkFailureReason, string> = {
   not_active: "No longer active",
   already_resolved: "Already resolved",
   write_failed: "The change did not save",
+  no_pending_step: "No step left to run",
+  unknown_step_type: "This step has no action",
+  processing_paused: "Processing is paused for this account",
+  customer_unsubscribed: "The customer is unsubscribed, so nothing was sent",
+  send_retrying: "The send did not go through, and will be retried",
+  step_failed: "The step ran and did not complete",
   unexpected: "Unexpected response, nothing changed",
 };
 
-/** The bulk intents this surface can name. Only cancel is wired in Session 2;
- *  trigger and mark_recovered are Session 3 and their buttons stay inert. */
-const BULK_INTENT_LABELS: Record<string, string> = {
-  cancel: "Stop recovery",
-};
+/** Per-intent copy for the bar, the confirmation and the result surface.
+ *
+ *  Every intent names its own verb rather than sharing one, because 274
+ *  decision one's ban on folding applies to the WORDS as much as to the
+ *  counts: a merchant reading a result list needs to know a payment was
+ *  stopped, or run, or recorded, not that something generic happened to it.
+ *  `label` is the button and the confirmation's action name; `didLabel` and
+ *  `didNotLabel` are the per-row verdicts. */
+const BULK_INTENTS = {
+  trigger: {
+    label: "Trigger next step",
+    didLabel: "Ran",
+    didNotLabel: "Did not run",
+    question: "Run the next step now for",
+    consequence:
+      "Each payment's next scheduled step runs immediately, and a step that sends email will send it.",
+  },
+  mark_recovered: {
+    label: "Mark recovered",
+    didLabel: "Recorded",
+    didNotLabel: "Not recorded",
+    question: "Mark as recovered",
+    consequence:
+      "This records a recovery you have confirmed elsewhere. It does not charge anyone and it does not contact the customer.",
+  },
+  cancel: {
+    label: "Stop recovery",
+    didLabel: "Stopped",
+    didNotLabel: "Not stopped",
+    question: "Stop recovery for",
+    consequence:
+      "Their remaining steps will not send. This does not refund anything and it does not contact the customer.",
+  },
+} as const satisfies Record<BulkActionIntent, {
+  label: string;
+  didLabel: string;
+  didNotLabel: string;
+  question: string;
+  consequence: string;
+}>;
+
+function bulkCopy(intent: string) {
+  return isBulkActionIntent(intent) ? BULK_INTENTS[intent] : null;
+}
+
+/**
+ * One bulk control, shared by all three intents.
+ *
+ * Below the confirmation threshold it is a plain submit carrying its own
+ * intent, which is the whole wiring: the browser's form submitter supplies the
+ * name and value, so there is no click handler in the mutating path at all.
+ * Above it, or over the ceiling, it becomes a button that opens the dialog and
+ * the dialog carries the submit instead, so a large bulk money action cannot be
+ * fired by one click anywhere on this page (274 decision four).
+ */
+function BulkIntentButton({
+  intent,
+  count,
+  showCount = false,
+  needsConfirm,
+  submitting,
+  onConfirm,
+  className,
+}: {
+  intent: BulkActionIntent;
+  count: number;
+  showCount?: boolean;
+  needsConfirm: boolean;
+  submitting: boolean;
+  onConfirm: () => void;
+  className: string;
+}) {
+  return (
+    <button
+      type={needsConfirm ? "button" : "submit"}
+      name="intent"
+      value={intent}
+      disabled={submitting}
+      onClick={needsConfirm ? onConfirm : undefined}
+      className={className}
+    >
+      {BULK_INTENTS[intent].label}
+      {showCount ? ` (${count})` : ""}
+    </button>
+  );
+}
 
 export default function RecoveryPayments({ loaderData, actionData }: Route.ComponentProps) {
   const {
@@ -430,8 +519,15 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
 
   const [dismissedFor, setDismissedFor] = useState<unknown>(null);
   const dismissed = dismissedFor === bulk;
-  const [confirmFor, setConfirmFor] = useState<{ from: unknown } | null>(null);
-  const confirming = confirmFor !== null && confirmFor.from === bulk;
+  // The confirmation is tagged with the response it was opened against AND the
+  // intent it was opened for, so three buttons share one dialog without three
+  // pieces of state, and the dialog can never name one action while its submit
+  // carries another.
+  const [confirmFor, setConfirmFor] = useState<{
+    from: unknown;
+    intent: BulkActionIntent;
+  } | null>(null);
+  const confirming = confirmFor !== null && confirmFor.from === bulk ? confirmFor.intent : null;
 
   const selectionCount = selectedCount(selected, rows);
   const actionable = actionableSelection(selected, rows);
@@ -589,22 +685,34 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
             <p className="text-label text-text">
               {bulk.refused === "empty"
                 ? "Nothing was selected, so nothing was changed."
-                : `${bulk.submitted} payments is more than the limit of ${bulk.ceiling} per submission. Nothing was changed and nothing was trimmed to fit. Narrow the selection and try again.`}
+                : bulk.refused === "unknown_intent"
+                  ? "That is not an action this page performs. Nothing was changed."
+                  : `${bulk.submitted} payments is more than the limit of ${bulk.ceiling} per submission. Nothing was changed and nothing was trimmed to fit. Narrow the selection and try again.`}
             </p>
           ) : (
             <>
               <p className="text-label text-text">
-                {BULK_INTENT_LABELS[bulk.intent] ?? bulk.intent}
+                {bulkCopy(bulk.intent)?.label ?? bulk.intent}
               </p>
               <ul className="mt-2 flex flex-col gap-1">
                 {orderForDisplay(bulk.results).map((r) => (
                   <li key={r.id} className="text-micro">
                     <span className={r.ok ? "text-green" : "text-red"}>
-                      {r.ok ? "Stopped" : "Not stopped"}
+                      {r.ok
+                        ? (bulkCopy(bulk.intent)?.didLabel ?? "Applied")
+                        : (bulkCopy(bulk.intent)?.didNotLabel ?? "Not applied")}
                     </span>
                     <span className="ml-2 text-text">{rowLabel(r.id)}</span>
                     {r.reason ? (
                       <span className="ml-2 text-text-subtle">{BULK_REASON_LABELS[r.reason]}</span>
+                    ) : null}
+                    {/* The dispatcher's own detail, carried rather than folded: the
+                        STORED step result on a trigger, the offending step type, the
+                        failure's result string. A retry that ran and was declined is a
+                        true success whose detail says what happened to the charge, and
+                        reporting it as a flat Ran would be the fold 274 one bans. */}
+                    {r.detail ? (
+                      <span className="ml-2 font-mono text-text-subtle">{r.detail}</span>
                     ) : null}
                   </li>
                 ))}
@@ -778,14 +886,15 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
             {confirming ? (
               <div
                 role="alertdialog"
-                aria-label="Confirm stop recovery"
+                aria-label={`Confirm ${BULK_INTENTS[confirming].label}`}
                 className="rounded-md border border-amber/40 px-4 py-3"
               >
                 {overCeiling ? (
                   <>
                     <p className="text-label text-text">
-                      {actionable.length} payments selected, and Stop recovery takes at
-                      most {BULK_ACTION_MAX_PER_SUBMISSION} at a time.
+                      {actionable.length} payments selected, and{" "}
+                      {BULK_INTENTS[confirming].label} takes at most{" "}
+                      {BULK_ACTION_MAX_PER_SUBMISSION} at a time.
                     </p>
                     <p className="mt-1 text-micro text-text-subtle">
                       Nothing has been changed, and nothing will be trimmed to fit.
@@ -795,11 +904,10 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                 ) : (
                   <>
                     <p className="text-label text-text">
-                      Stop recovery for {actionable.length} payments?
+                      {BULK_INTENTS[confirming].question} {actionable.length} payments?
                     </p>
                     <p className="mt-1 text-micro text-text-subtle">
-                      Their remaining steps will not send. This does not refund
-                      anything and it does not contact the customer.
+                      {BULK_INTENTS[confirming].consequence}
                     </p>
                   </>
                 )}
@@ -808,11 +916,11 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                     <button
                       type="submit"
                       name="intent"
-                      value="cancel"
+                      value={confirming}
                       disabled={submitting}
-                      className="rounded-md border border-red/30 bg-transparent px-3.5 py-1.5 text-micro text-red disabled:opacity-60"
+                      className="rounded-md border border-amber/40 bg-transparent px-3.5 py-1.5 text-micro text-text disabled:opacity-60"
                     >
-                      Stop recovery for {actionable.length} payments
+                      {BULK_INTENTS[confirming].label} for {actionable.length} payments
                     </button>
                   ) : null}
                   <button
@@ -830,32 +938,35 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
               <div className="h-5 w-px bg-border" />
               {actionable.length > 0 ? (
                 <>
-                  <button
-                    type="button"
-                    disabled
+                  {/* SESSION 3 wires the two that were inert. All three take the
+                      same path: same fan-out, same ceiling, same confirmation, same
+                      itemised result surface. The only per-intent thing is the
+                      value on the control, which is what the server reads. */}
+                  <BulkIntentButton
+                    intent="trigger"
+                    count={actionable.length}
+                    showCount
+                    needsConfirm={needsConfirm || overCeiling}
+                    submitting={submitting}
+                    onConfirm={() => setConfirmFor({ from: bulk, intent: "trigger" })}
                     className="rounded-md border-none bg-amber px-3.5 py-1.5 text-micro font-semibold text-on-amber disabled:opacity-60"
-                  >
-                    Trigger next step ({actionable.length})
-                  </button>
-                  <button
-                    type="button"
-                    disabled
+                  />
+                  <BulkIntentButton
+                    intent="mark_recovered"
+                    count={actionable.length}
+                    needsConfirm={needsConfirm || overCeiling}
+                    submitting={submitting}
+                    onConfirm={() => setConfirmFor({ from: bulk, intent: "mark_recovered" })}
                     className="rounded-md border border-green/30 bg-transparent px-3.5 py-1.5 text-micro text-green disabled:opacity-60"
-                  >
-                    Mark recovered
-                  </button>
-                  <button
-                    type={needsConfirm || overCeiling ? "button" : "submit"}
-                    name="intent"
-                    value="cancel"
-                    disabled={submitting}
-                    onClick={
-                      needsConfirm || overCeiling ? () => setConfirmFor({ from: bulk }) : undefined
-                    }
+                  />
+                  <BulkIntentButton
+                    intent="cancel"
+                    count={actionable.length}
+                    needsConfirm={needsConfirm || overCeiling}
+                    submitting={submitting}
+                    onConfirm={() => setConfirmFor({ from: bulk, intent: "cancel" })}
                     className="rounded-md border border-red/30 bg-transparent px-3.5 py-1.5 text-micro text-red disabled:opacity-60"
-                  >
-                    Stop recovery ({actionable.length})
-                  </button>
+                  />
                 </>
               ) : null}
               <button

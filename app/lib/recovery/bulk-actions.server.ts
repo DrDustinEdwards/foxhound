@@ -7,7 +7,12 @@ import {
   type ResendDeps,
   type TriggerDeps,
 } from "./manual-actions.server";
-import { toItemResult, type BulkActionRefusal, type BulkActionResult } from "./bulk-results";
+import {
+  isBulkActionIntent,
+  toItemResult,
+  type BulkActionRefusal,
+  type BulkActionResult,
+} from "./bulk-results";
 
 // S6 bulk actions, Session 2 (274 decisions one, four and five).
 //
@@ -25,6 +30,25 @@ import { toItemResult, type BulkActionRefusal, type BulkActionResult } from "./b
 // that is not owned answers not_found exactly as it would singly, and a payment
 // that is no longer active answers not_active. Nothing is filtered out silently
 // on the way in: an id that was sent appears in the results with its reason.
+//
+// SESSION 3 adds the two remaining intents and NO mechanism. Trigger and
+// mark_recovered ride this same function; what changed is the vocabulary the
+// results can carry (bulk-results.ts) and an intent allow-list, which Session 2
+// shipped without.
+//
+// SEND-PRECEDES-PERSIST (268) APPLIES TO BULK TRIGGER, WITH THE SURFACE
+// MULTIPLIED, and is STATED here rather than solved, exactly as 268 parked it.
+// The defect is the executor's: an email step's claim (WHERE executed_at IS
+// NULL) prevents the double WRITE, not the double SEND, so a manual trigger
+// racing the 5-minute tick inside the same window can put two copies of one
+// dunning email in a customer's inbox. Bulk does not create that race and does
+// not widen it per payment; it multiplies the number of payments exposed to it
+// in one click, so N selected email steps are N independent chances at the same
+// shared defect. Two things bound it and neither is a fix: 274 decision four's
+// confirmation and ceiling bound N, and the executors are untouched here (267),
+// so the exposure is exactly the single-payment one, N times. The design is owed
+// at the pre-first-merchant hardening pass (272), and no session may quietly
+// close it by changing executor semantics from this layer.
 
 /**
  * Run `task` over `items` with at most `limit` in flight.
@@ -79,16 +103,33 @@ export interface RunBulkActionInput {
 /**
  * Fan one intent out over many payments and report what happened to each.
  *
- * The ceiling is enforced HERE and not only in the browser, because a hand
- * crafted POST is exactly the case the client-side confirmation cannot cover.
- * Over the ceiling the whole submission is REFUSED with its own count reported;
- * it is never trimmed to the first hundred, which would mutate a set the
- * merchant never chose (274 decision four).
+ * THREE THINGS ARE REFUSED WHOLE, before any payment is touched, and all three
+ * are enforced HERE and not only in the browser, because a hand crafted POST is
+ * exactly the case a client-side control cannot cover.
+ *
+ * An intent outside the bulk set. The dispatcher accepts five intents and bulk
+ * offers three, legacy's own set (scope 1.5). Without this gate a POST carrying
+ * intent=resend would have fanned a real send out over the whole selection and
+ * intent=note would have blanked N notes, neither of them reachable from the
+ * interface and neither of them bounded by anything the ceiling checks.
+ *
+ * An empty submission, which is a refusal rather than a successful nothing.
+ *
+ * A submission over the ceiling, REFUSED with its own count reported. It is
+ * never trimmed to the first hundred, which would mutate a set the merchant
+ * never chose (274 decision four).
  */
 export async function runBulkAction(
   input: RunBulkActionInput,
 ): Promise<BulkActionResult | BulkActionRefusal> {
   const ids = [...new Set(input.ids)];
+  if (!isBulkActionIntent(input.intent)) {
+    return {
+      refused: "unknown_intent",
+      submitted: ids.length,
+      ceiling: BULK_ACTION_MAX_PER_SUBMISSION,
+    };
+  }
   if (ids.length === 0) {
     return { refused: "empty", submitted: 0, ceiling: BULK_ACTION_MAX_PER_SUBMISSION };
   }

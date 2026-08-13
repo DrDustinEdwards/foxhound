@@ -166,22 +166,29 @@ describe("bulk selection: the bar is still the selection layer it was", () => {
     expect(LIST_ROUTE).toContain("onClick={() => setSelected(new Set())}");
   });
 
-  it("legacy's three labels in legacy's order, with Stop recovery per 251", () => {
-    // Slice the BUTTON ROW, not the whole bar. Session 2 added a confirmation
-    // panel above the row whose own copy says "Stop recovery", which put that
-    // string earlier in source than "Mark recovered" and failed an assertion
-    // about button ORDER using text that is not a button. The matcher was
-    // wrong, not the order (239).
+  it("legacy's three actions in legacy's order, with Stop recovery per 251", () => {
+    // The ORDER now lives in the controls and the LABELS in the intent map,
+    // because Session 3 replaced three hand-written buttons with one shared
+    // component. Both halves are still asserted, just at the two places they
+    // moved to. An earlier version of this matcher sliced up to the literal
+    // "Clear" and swept in the Clear button's own onClick, and a later one read
+    // button order off text the confirmation panel also contains: the matcher
+    // was wrong both times, not the code (239).
     const whole = LIST_ROUTE.slice(LIST_ROUTE.indexOf('aria-label="Bulk actions"'));
     const bar = whole.slice(whole.indexOf("{actionable.length > 0 ? ("));
-    const trigger = bar.indexOf("Trigger next step");
-    const recovered = bar.indexOf("Mark recovered");
-    const stop = bar.indexOf("Stop recovery");
+    const trigger = bar.indexOf('intent="trigger"');
+    const recovered = bar.indexOf('intent="mark_recovered"');
+    const stop = bar.indexOf('intent="cancel"');
     expect(trigger).toBeGreaterThan(-1);
     expect(recovered).toBeGreaterThan(trigger);
     expect(stop).toBeGreaterThan(recovered);
+
+    // And the labels those intents render, legacy's own strings.
+    expect(LIST_ROUTE).toContain('label: "Trigger next step"');
+    expect(LIST_ROUTE).toContain('label: "Mark recovered"');
     // 251 ratified "Stop recovery" for this subject on BOTH sides, so legacy's
     // own "Cancel recovery" wording is NOT reintroduced here.
-    expect(bar).not.toContain("Cancel recovery");
+    expect(LIST_ROUTE).toContain('label: "Stop recovery"');
+    expect(LIST_ROUTE).not.toContain("Cancel recovery");
   });
 });
