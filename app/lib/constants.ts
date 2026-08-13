@@ -121,8 +121,23 @@ export const ATTRIBUTION_KINDS = [
   "email_engaged",
   "card_update",
   "stripe_baseline",
+  /**
+   * A MERCHANT asserted this payment came back, through S7's "Mark as recovered".
+   * Its own kind per ruling 262 decision one, and NEVER in
+   * BILLABLE_ATTRIBUTION_KINDS below: the moat keeps the row because money that
+   * returned is a fact worth recording, and billing ignores it because a
+   * merchant's own click is not evidence that Foxhound caused the payment.
+   * PRICING.md rev 3 controls, and legacy is the diverging side of this one
+   * question: its billable set includes recovery_method 'manual'.
+   */
+  "manual",
 ] as const;
 export type AttributionKind = (typeof ATTRIBUTION_KINDS)[number];
+
+/** The merchant-asserted attribution kind. Named so no call site spells the
+ *  string, since it is simultaneously an attribution kind and a recovery_method
+ *  value and the two must not drift apart. NEVER billable (262 decision one). */
+export const MANUAL_ATTRIBUTION_KIND = "manual";
 
 /** Attribution kinds that make a recovery billable (everything except the free baseline). */
 export const BILLABLE_ATTRIBUTION_KINDS = [
