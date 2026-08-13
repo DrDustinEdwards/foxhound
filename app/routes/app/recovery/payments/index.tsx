@@ -1,5 +1,5 @@
-import { useRef } from "react";
-import { Form, Link, useNavigate } from "react-router";
+import { useRef, useState } from "react";
+import { Form, Link, useNavigate, useRouteLoaderData } from "react-router";
 
 import { Badge } from "~/components/badge";
 import { DualRangeSlider } from "~/components/dual-range-slider";
@@ -26,6 +26,14 @@ import {
 import type { AmountBounds, FailedPaymentPageSize, FailedPaymentSort } from "~/lib/recovery/queries.server";
 import { buildPaymentParams, withParams } from "~/lib/recovery/payment-filters";
 import { nextRovingIndex } from "~/lib/a11y/roving-index";
+import {
+  actionableSelection,
+  allVisibleSelected,
+  selectedCount,
+  toggleAllVisible,
+  toggleOne,
+} from "~/lib/recovery/bulk-selection";
+import type { loader as appShellLoader } from "~/layouts/app-shell";
 import { priorFailureCount } from "~/lib/recovery/prior-failures";
 import { summarizeSequence } from "~/lib/recovery/sequence-summary";
 import { isPaymentTimeRange, resolvePaymentTimeRangeCutoff, type PaymentTimeRange } from "~/lib/recovery/time-range";
@@ -302,6 +310,20 @@ export default function RecoveryPayments({ loaderData }: Route.ComponentProps) {
     filters,
   } = loaderData;
 
+  // S6 bulk selection, Session 1 (274). Client-only and per page, which is
+  // legacy's own model: it is never persisted, never in the URL, and lost on
+  // pagination. Every read goes through the pure helpers, so the effective
+  // selection is the stored set INTERSECTED with what is on screen and 274
+  // decision three's prune-on-filter holds by construction rather than by an
+  // effect that has to fire.
+  const shell = useRouteLoaderData<typeof appShellLoader>("app-shell");
+  const isDemo = Boolean(shell?.isDemo);
+  const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
+  const rows = result.payments;
+  const selectionCount = selectedCount(selected, rows);
+  const actionable = actionableSelection(selected, rows);
+  const headerChecked = allVisibleSelected(selected, rows);
+
   return (
     <div className="mx-auto max-w-[1280px] px-4 md:px-8 py-10">
       {/* Ruling 147 f1-f3, legacy app/(app)/recovery/payments/PaymentsClient.tsx:
@@ -432,6 +454,23 @@ export default function RecoveryPayments({ loaderData }: Route.ComponentProps) {
         <table className="w-full text-left text-label">
           <thead>
             <tr className="border-b border-border text-micro uppercase tracking-wide text-text-tertiary">
+              {/* Legacy gates BOTH checkboxes on !isDemo (PaymentsTable.tsx and
+                  PaymentRow.tsx at the shas parity/S6-BULK-SCOPE.md pins), so the
+                  demo renders no column at all rather than a disabled one. Foxhound
+                  reads isDemo the way DemoGuardedForm already does, off the
+                  app-shell loader, adding no query. The 405 middleware remains the
+                  security boundary; this is treatment. */}
+              {!isDemo ? (
+                <th className="w-10 px-4 py-3 font-normal">
+                  <input
+                    type="checkbox"
+                    checked={headerChecked}
+                    onChange={() => setSelected(toggleAllVisible(selected, rows))}
+                    aria-label="Select all payments"
+                    className="h-6 w-6 cursor-pointer accent-amber"
+                  />
+                </th>
+              ) : null}
               <th className="px-4 py-3 font-normal">Customer</th>
               <th className="px-4 py-3 font-normal">Amount</th>
               <th className="px-4 py-3 font-normal">Decline</th>
@@ -443,7 +482,7 @@ export default function RecoveryPayments({ loaderData }: Route.ComponentProps) {
           <tbody>
             {result.payments.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-body text-text-tertiary">
+                <td colSpan={isDemo ? 6 : 7} className="px-4 py-8 text-center text-body text-text-tertiary">
                   {filters.search || filters.status || filters.declineCategory
                     ? "No payments match these filters."
                     : "No failed payments yet. Foxhound will list every failed payment it detects here."}
@@ -455,6 +494,17 @@ export default function RecoveryPayments({ loaderData }: Route.ComponentProps) {
                 const steps = stepSummaries[p.id];
                 return (
                   <tr key={p.id} className="border-b border-border-sub last:border-0">
+                    {!isDemo ? (
+                      <td className="px-4 py-3">
+                        <input
+                          type="checkbox"
+                          checked={selected.has(p.id)}
+                          onChange={() => setSelected(toggleOne(selected, p.id))}
+                          aria-label={`Select payment for ${p.customerEmail}`}
+                          className="h-6 w-6 cursor-pointer accent-amber"
+                        />
+                      </td>
+                    ) : null}
                     <td className="px-4 py-3">
                       <Link to={`/recovery/payments/${p.id}`} className="text-text hover:text-amber">
                         {p.customerName ?? p.customerEmail}
@@ -519,6 +569,58 @@ export default function RecoveryPayments({ loaderData }: Route.ComponentProps) {
           {result.totalCount} result{result.totalCount === 1 ? "" : "s"}
         </p>
       )}
+
+      {/* Legacy's BulkActionBar, treatment and gating ported from the blob
+          parity/S6-BULK-SCOPE.md pins: fixed, centred, above the fold, shown
+          only when something is selected and never in demo, with the three
+          actions themselves gated on there being an ACTIONABLE (active) row.
+          SESSION 1 IS THE SELECTION LAYER ONLY (274): the three buttons carry
+          NO handler and are disabled, because a control that looks live and
+          does nothing is worse than one that says it is not ready. Session 2
+          removes `disabled` and wires the POST target. Clear IS wired, because
+          clearing is selection state and mutates nothing. */}
+      {!isDemo && selectionCount > 0 ? (
+        <div
+          role="region"
+          aria-label="Bulk actions"
+          className="fixed bottom-6 left-1/2 z-[100] flex max-w-[90vw] -translate-x-1/2 flex-wrap items-center gap-3 rounded-lg border border-border bg-surface px-5 py-3.5 shadow-[0_8px_32px_rgba(0,0,0,0.4)]"
+        >
+          <span className="text-label text-text-subtle">{selectionCount} selected</span>
+          <div className="h-5 w-px bg-border" />
+          {actionable.length > 0 ? (
+            <>
+              <button
+                type="button"
+                disabled
+                className="rounded-md border-none bg-amber px-3.5 py-1.5 text-micro font-semibold text-on-amber disabled:opacity-60"
+              >
+                Trigger next step ({actionable.length})
+              </button>
+              <button
+                type="button"
+                disabled
+                className="rounded-md border border-green/30 bg-transparent px-3.5 py-1.5 text-micro text-green disabled:opacity-60"
+              >
+                Mark recovered
+              </button>
+              <button
+                type="button"
+                disabled
+                className="rounded-md border border-red/30 bg-transparent px-3.5 py-1.5 text-micro text-red disabled:opacity-60"
+              >
+                Stop recovery
+              </button>
+            </>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => setSelected(new Set())}
+            className="border-none bg-transparent text-micro text-text-subtle"
+          >
+            Clear
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
