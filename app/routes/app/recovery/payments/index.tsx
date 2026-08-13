@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { Form, Link, useNavigate, useRouteLoaderData } from "react-router";
+import { useRef, useState } from "react";
+import { Form, Link, data, useNavigate, useNavigation, useRouteLoaderData } from "react-router";
 
 import { Badge } from "~/components/badge";
 import { DualRangeSlider } from "~/components/dual-range-slider";
@@ -34,6 +34,22 @@ import {
   toggleOne,
 } from "~/lib/recovery/bulk-selection";
 import type { loader as appShellLoader } from "~/layouts/app-shell";
+import { runBulkAction } from "~/lib/recovery/bulk-actions.server";
+import {
+  failedIds,
+  isBulkRefusal,
+  orderForDisplay,
+  type BulkFailureReason,
+} from "~/lib/recovery/bulk-results";
+import {
+  moneyWriteCommit,
+  resendDepsFor,
+  triggerDepsFor,
+} from "~/lib/recovery/manual-actions.server";
+import {
+  BULK_ACTION_CONFIRM_THRESHOLD,
+  BULK_ACTION_MAX_PER_SUBMISSION,
+} from "~/lib/constants";
 import { priorFailureCount } from "~/lib/recovery/prior-failures";
 import { summarizeSequence } from "~/lib/recovery/sequence-summary";
 import { isPaymentTimeRange, resolvePaymentTimeRangeCutoff, type PaymentTimeRange } from "~/lib/recovery/time-range";
@@ -158,6 +174,45 @@ export async function loader({ context, request }: Route.LoaderArgs) {
       amountMaxCents: amountMaxParsed ?? bounds.maxCents,
     },
   };
+}
+
+/**
+ * The bulk POST target, Session 2 (274 decisions one, four and five).
+ *
+ * An action on THIS route rather than a sibling, following the repo's own
+ * precedent: detail.tsx carries the loader and the action for the forms it
+ * renders, and posting here re-runs this loader so the list reflects the
+ * mutations without a second navigation. app/routes.ts keeps its sibling
+ * resource route (export.csv) for a NON-component response, which this is not.
+ *
+ * Nothing the browser sends is trusted: every id is re-derived through
+ * dispatchManualAction's own account-scoped read and per-intent preconditions,
+ * so an unowned id answers not_found exactly as it would singly. Nothing is
+ * dropped on the way in either, so an id that was submitted appears in the
+ * results carrying its reason.
+ */
+export async function action({ context, request }: Route.ActionArgs) {
+  const { env } = context.get(cloudflareContext);
+  const auth = context.get(authContext);
+  const db = getDb(env);
+  const form = await request.formData();
+  const intent = String(form.get("intent") ?? "");
+  const ids = form.getAll("ids").map(String).filter(Boolean);
+
+  const outcome = await runBulkAction({
+    db,
+    accountId: auth.membership.accountId,
+    intent,
+    ids,
+    commit: moneyWriteCommit(env),
+    trigger: triggerDepsFor(env, db),
+    resend: resendDepsFor(env),
+  });
+
+  // ONE shape either way. A refusal is still an answer about this
+  // submission, so it rides the same key and the client narrows it with
+  // isBulkRefusal rather than probing two optional fields.
+  return data({ bulk: outcome }, { status: isBulkRefusal(outcome) ? 400 : 200 });
 }
 
 interface Filters {
@@ -294,7 +349,24 @@ function StatusPills({
   );
 }
 
-export default function RecoveryPayments({ loaderData }: Route.ComponentProps) {
+/** Why one payment did not take the action, in the merchant's words. 274
+ *  decision one bans bare counts, so every failed row names its own reason
+ *  rather than being folded into "3 failed". */
+const BULK_REASON_LABELS: Record<BulkFailureReason, string> = {
+  not_found: "No longer on this account",
+  not_active: "No longer active",
+  already_resolved: "Already resolved",
+  write_failed: "The change did not save",
+  unexpected: "Unexpected response, nothing changed",
+};
+
+/** The bulk intents this surface can name. Only cancel is wired in Session 2;
+ *  trigger and mark_recovered are Session 3 and their buttons stay inert. */
+const BULK_INTENT_LABELS: Record<string, string> = {
+  cancel: "Stop recovery",
+};
+
+export default function RecoveryPayments({ loaderData, actionData }: Route.ComponentProps) {
   const {
     result,
     globalCounts,
@@ -318,11 +390,61 @@ export default function RecoveryPayments({ loaderData }: Route.ComponentProps) {
   // effect that has to fire.
   const shell = useRouteLoaderData<typeof appShellLoader>("app-shell");
   const isDemo = Boolean(shell?.isDemo);
-  const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
+  // The stored selection is tagged with the response it was last edited
+  // against, which is what lets the SELECTION be derived rather than synced.
+  // See the Session 2 block below for why that matters.
+  const [sel, setSel] = useState<{ ids: ReadonlySet<string>; from: unknown }>(() => ({
+    ids: new Set<string>(),
+    from: undefined,
+  }));
   const rows = result.payments;
+
+  // S6 Session 2 (274 decisions one and four).
+  //
+  // FAILURES STAY SELECTED. When a response lands the selection becomes
+  // exactly the ids that failed, so the next click retries precisely those
+  // and nothing else; successes drop out.
+  //
+  // NOTHING HERE IS AN EFFECT. The first version of this synced state to the
+  // response inside useEffect and the lint rule refused it, correctly: this
+  // is not synchronisation with an external system, it is a value that the
+  // response already determines. So each of the three pieces of post-response
+  // behaviour is derived from WHICH response is currently in hand, by tagging
+  // the stored state with the response it belongs to:
+  //
+  //   selection  the stored set wins once it has been edited against THIS
+  //              response; until then the failed ids are the selection
+  //   dismissal  belongs to one response, so the next response is a new
+  //              thing to say and the panel is open again
+  //   confirming closes on its own when a response lands, because the
+  //              response it was opened against is no longer the current one
+  //
+  // actionData is a NEW object per submission, so identity is the tag.
+  const navigation = useNavigation();
+  const submitting = navigation.formMethod === "POST";
+  const bulk = actionData?.bulk;
+  const applied = bulk && !isBulkRefusal(bulk) ? bulk : null;
+  const selected: ReadonlySet<string> =
+    sel.from !== bulk && applied ? new Set(failedIds(applied.results)) : sel.ids;
+  const setSelected = (ids: ReadonlySet<string>) => setSel({ ids, from: bulk });
+
+  const [dismissedFor, setDismissedFor] = useState<unknown>(null);
+  const dismissed = dismissedFor === bulk;
+  const [confirmFor, setConfirmFor] = useState<{ from: unknown } | null>(null);
+  const confirming = confirmFor !== null && confirmFor.from === bulk;
+
   const selectionCount = selectedCount(selected, rows);
   const actionable = actionableSelection(selected, rows);
   const headerChecked = allVisibleSelected(selected, rows);
+
+  // The client half of the ceiling. The server enforces it too and refuses
+  // the whole submission, because a hand crafted POST never sees this line.
+  const overCeiling = actionable.length > BULK_ACTION_MAX_PER_SUBMISSION;
+  const needsConfirm = actionable.length > BULK_ACTION_CONFIRM_THRESHOLD;
+  const rowLabel = (id: string) => {
+    const row = result.payments.find((p) => p.id === id);
+    return row ? (row.customerName ?? row.customerEmail) : id;
+  };
 
   return (
     <div className="mx-auto max-w-[1280px] px-4 md:px-8 py-10">
@@ -450,6 +572,61 @@ export default function RecoveryPayments({ loaderData }: Route.ComponentProps) {
         </div>
       </Form>
 
+      {/* S6 Session 2 result surface (274 decision one). ITEMISED, failures
+          first, and it persists until the merchant dismisses it. There is no
+          timer here on purpose: a bulk money action that partly failed is not
+          something to flash and take away, and a merchant who looks up after
+          the request lands must still be able to read which payments did not
+          take it. Every row names its own payment and its own reason, so no
+          outcome is folded into a bare count. */}
+      {bulk && !dismissed ? (
+        <div
+          role="status"
+          aria-label="Bulk action result"
+          className="mt-6 rounded-lg border border-border bg-surface px-5 py-4"
+        >
+          {isBulkRefusal(bulk) ? (
+            <p className="text-label text-text">
+              {bulk.refused === "empty"
+                ? "Nothing was selected, so nothing was changed."
+                : `${bulk.submitted} payments is more than the limit of ${bulk.ceiling} per submission. Nothing was changed and nothing was trimmed to fit. Narrow the selection and try again.`}
+            </p>
+          ) : (
+            <>
+              <p className="text-label text-text">
+                {BULK_INTENT_LABELS[bulk.intent] ?? bulk.intent}
+              </p>
+              <ul className="mt-2 flex flex-col gap-1">
+                {orderForDisplay(bulk.results).map((r) => (
+                  <li key={r.id} className="text-micro">
+                    <span className={r.ok ? "text-green" : "text-red"}>
+                      {r.ok ? "Stopped" : "Not stopped"}
+                    </span>
+                    <span className="ml-2 text-text">{rowLabel(r.id)}</span>
+                    {r.reason ? (
+                      <span className="ml-2 text-text-subtle">{BULK_REASON_LABELS[r.reason]}</span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+              {failedIds(bulk.results).length > 0 ? (
+                <p className="mt-2 text-micro text-text-subtle">
+                  The payments that did not take it are still selected, so the next
+                  attempt is exactly those.
+                </p>
+              ) : null}
+            </>
+          )}
+          <button
+            type="button"
+            onClick={() => setDismissedFor(bulk)}
+            className="mt-3 border-none bg-transparent text-micro text-text-subtle"
+          >
+            Dismiss
+          </button>
+        </div>
+      ) : null}
+
       <div className="mt-6 overflow-x-auto rounded-lg border border-border">
         <table className="w-full text-left text-label">
           <thead>
@@ -574,51 +751,122 @@ export default function RecoveryPayments({ loaderData }: Route.ComponentProps) {
           parity/S6-BULK-SCOPE.md pins: fixed, centred, above the fold, shown
           only when something is selected and never in demo, with the three
           actions themselves gated on there being an ACTIONABLE (active) row.
-          SESSION 1 IS THE SELECTION LAYER ONLY (274): the three buttons carry
-          NO handler and are disabled, because a control that looks live and
-          does nothing is worse than one that says it is not ready. Session 2
-          removes `disabled` and wires the POST target. Clear IS wired, because
-          clearing is selection state and mutates nothing. */}
+          SESSION 2 WIRES ONE INTENT (274). Stop recovery posts to this route
+          action; Trigger next step and Mark recovered stay disabled for
+          Session 3, because a control that looks live and does nothing is
+          worse than one that says it is not ready. Clear is selection state
+          and mutates nothing.
+          THE FORM CARRIES `actionable`, NOT the whole selection, so the set
+          the label counts is the set that is submitted. The server re-derives
+          every id regardless: this is treatment, never authority. */}
       {!isDemo && selectionCount > 0 ? (
         <div
           role="region"
           aria-label="Bulk actions"
           className="fixed bottom-6 left-1/2 z-[100] flex max-w-[90vw] -translate-x-1/2 flex-wrap items-center gap-3 rounded-lg border border-border bg-surface px-5 py-3.5 shadow-[0_8px_32px_rgba(0,0,0,0.4)]"
         >
-          <span className="text-label text-text-subtle">{selectionCount} selected</span>
-          <div className="h-5 w-px bg-border" />
-          {actionable.length > 0 ? (
-            <>
+          <Form method="post" className="flex flex-col gap-3">
+            {actionable.map((id) => (
+              <input key={id} type="hidden" name="ids" value={id} />
+            ))}
+            {/* 274 decision four. Above the threshold the action does not fire
+                on the first click: it opens this, which names the EXACT count
+                and the EXACT action. Over the ceiling there is no confirm
+                button at all, because the submission is refused whole rather
+                than trimmed to the first hundred, and the ceiling is stated
+                rather than left to be discovered. */}
+            {confirming ? (
+              <div
+                role="alertdialog"
+                aria-label="Confirm stop recovery"
+                className="rounded-md border border-amber/40 px-4 py-3"
+              >
+                {overCeiling ? (
+                  <>
+                    <p className="text-label text-text">
+                      {actionable.length} payments selected, and Stop recovery takes at
+                      most {BULK_ACTION_MAX_PER_SUBMISSION} at a time.
+                    </p>
+                    <p className="mt-1 text-micro text-text-subtle">
+                      Nothing has been changed, and nothing will be trimmed to fit.
+                      Narrow the selection to {BULK_ACTION_MAX_PER_SUBMISSION} or fewer.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-label text-text">
+                      Stop recovery for {actionable.length} payments?
+                    </p>
+                    <p className="mt-1 text-micro text-text-subtle">
+                      Their remaining steps will not send. This does not refund
+                      anything and it does not contact the customer.
+                    </p>
+                  </>
+                )}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {!overCeiling ? (
+                    <button
+                      type="submit"
+                      name="intent"
+                      value="cancel"
+                      disabled={submitting}
+                      className="rounded-md border border-red/30 bg-transparent px-3.5 py-1.5 text-micro text-red disabled:opacity-60"
+                    >
+                      Stop recovery for {actionable.length} payments
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => setConfirmFor(null)}
+                    className="border-none bg-transparent text-micro text-text-subtle"
+                  >
+                    Back
+                  </button>
+                </div>
+              </div>
+            ) : null}
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-label text-text-subtle">{selectionCount} selected</span>
+              <div className="h-5 w-px bg-border" />
+              {actionable.length > 0 ? (
+                <>
+                  <button
+                    type="button"
+                    disabled
+                    className="rounded-md border-none bg-amber px-3.5 py-1.5 text-micro font-semibold text-on-amber disabled:opacity-60"
+                  >
+                    Trigger next step ({actionable.length})
+                  </button>
+                  <button
+                    type="button"
+                    disabled
+                    className="rounded-md border border-green/30 bg-transparent px-3.5 py-1.5 text-micro text-green disabled:opacity-60"
+                  >
+                    Mark recovered
+                  </button>
+                  <button
+                    type={needsConfirm || overCeiling ? "button" : "submit"}
+                    name="intent"
+                    value="cancel"
+                    disabled={submitting}
+                    onClick={
+                      needsConfirm || overCeiling ? () => setConfirmFor({ from: bulk }) : undefined
+                    }
+                    className="rounded-md border border-red/30 bg-transparent px-3.5 py-1.5 text-micro text-red disabled:opacity-60"
+                  >
+                    Stop recovery ({actionable.length})
+                  </button>
+                </>
+              ) : null}
               <button
                 type="button"
-                disabled
-                className="rounded-md border-none bg-amber px-3.5 py-1.5 text-micro font-semibold text-on-amber disabled:opacity-60"
+                onClick={() => setSelected(new Set())}
+                className="border-none bg-transparent text-micro text-text-subtle"
               >
-                Trigger next step ({actionable.length})
+                Clear
               </button>
-              <button
-                type="button"
-                disabled
-                className="rounded-md border border-green/30 bg-transparent px-3.5 py-1.5 text-micro text-green disabled:opacity-60"
-              >
-                Mark recovered
-              </button>
-              <button
-                type="button"
-                disabled
-                className="rounded-md border border-red/30 bg-transparent px-3.5 py-1.5 text-micro text-red disabled:opacity-60"
-              >
-                Stop recovery
-              </button>
-            </>
-          ) : null}
-          <button
-            type="button"
-            onClick={() => setSelected(new Set())}
-            className="border-none bg-transparent text-micro text-text-subtle"
-          >
-            Clear
-          </button>
+            </div>
+          </Form>
         </div>
       ) : null}
     </div>

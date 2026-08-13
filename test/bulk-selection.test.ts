@@ -145,23 +145,21 @@ describe("bulk selection: the demo renders NO checkbox, and non-demo renders the
   });
 });
 
-describe("bulk selection: Session 1 wires NO mutation", () => {
-  it("the three bulk buttons carry no handler and are disabled", () => {
-    // Slice the ACTIONABLE block precisely. An earlier version of this matcher
-    // sliced up to the literal "Clear" and swept in the Clear button's own
-    // onClick, which sits before its label in source: the matcher was wrong, not
-    // the code (239). Bounded here by the block's own opening and closing.
+describe("bulk selection: the bar is still the selection layer it was", () => {
+  // Session 1 asserted here that NO button was wired. Session 2 wired exactly
+  // one of them, so that assertion was retired rather than weakened, and the
+  // wiring it was guarding is now pinned in test/bulk-actions.test.ts, which
+  // asserts which button is live and which two are not. What stays here is the
+  // selection layer itself, which Session 2 did not change.
+  it("Clear is still selection-only, mutating nothing on the server", () => {
     const bar = LIST_ROUTE.slice(LIST_ROUTE.indexOf('aria-label="Bulk actions"'));
     const start = bar.indexOf("{actionable.length > 0 ? (");
-    const end = bar.indexOf(") : null}", start);
     expect(start).toBeGreaterThan(-1);
-    expect(end).toBeGreaterThan(start);
-    const actionableBlock = bar.slice(start, end);
-    // Three action buttons, each disabled, none carrying an onClick. The
-    // negative lookahead excludes the `disabled:opacity-60` Tailwind class,
-    // which a bare \bdisabled\b counted as a fourth, fifth and sixth attribute.
-    expect(actionableBlock.match(/disabled(?!:)/g)).toHaveLength(3);
-    expect(actionableBlock).not.toContain("onClick");
+    // Clear sits AFTER the actionable block and carries no intent, so it can
+    // never submit: an empty-intent POST is not something it can produce.
+    const clear = bar.slice(bar.indexOf("setSelected(new Set())"));
+    expect(clear).not.toContain("type=\"submit\"");
+    expect(clear).not.toContain("name=\"intent\"");
   });
 
   it("Clear IS wired, because clearing selection mutates nothing", () => {
@@ -169,7 +167,13 @@ describe("bulk selection: Session 1 wires NO mutation", () => {
   });
 
   it("legacy's three labels in legacy's order, with Stop recovery per 251", () => {
-    const bar = LIST_ROUTE.slice(LIST_ROUTE.indexOf('aria-label="Bulk actions"'));
+    // Slice the BUTTON ROW, not the whole bar. Session 2 added a confirmation
+    // panel above the row whose own copy says "Stop recovery", which put that
+    // string earlier in source than "Mark recovered" and failed an assertion
+    // about button ORDER using text that is not a button. The matcher was
+    // wrong, not the order (239).
+    const whole = LIST_ROUTE.slice(LIST_ROUTE.indexOf('aria-label="Bulk actions"'));
+    const bar = whole.slice(whole.indexOf("{actionable.length > 0 ? ("));
     const trigger = bar.indexOf("Trigger next step");
     const recovered = bar.indexOf("Mark recovered");
     const stop = bar.indexOf("Stop recovery");

@@ -357,6 +357,40 @@ export const CRON_SCHEDULE_RECOVERY_TICK = "*/5 * * * *";
  * substitute for instrumenting a real run.
  */
 export const RECOVERY_TICK_LIMIT = 100;
+
+// ---- S6 bulk actions (ruling 274 decision four and five) ----
+/**
+ * Above this many payments, a bulk MONEY submission requires a confirmation
+ * naming the exact count and the action. Below it, the click stands on its own.
+ * The number is the seat's (274 decision four); no repo convention governed it
+ * and none conflicts with it.
+ */
+export const BULK_ACTION_CONFIRM_THRESHOLD = 25;
+
+/**
+ * Hard ceiling per bulk submission. Over this the submission is REFUSED whole
+ * and its own count reported; it is never trimmed to the first hundred, which
+ * would mutate a set the merchant never chose (274 decision four).
+ *
+ * It coincides with RECOVERY_TICK_LIMIT above, and the coincidence is load
+ * bearing rather than cosmetic: that constant exists to keep ONE invocation
+ * inside ONE subrequest budget at roughly 4 to 5 subrequests per unit of work,
+ * and a bulk fan-out of 100 dispatcher calls sits in the same envelope. The two
+ * are kept SEPARATE constants because they answer different questions, exactly
+ * as RECOVERY_TICK_LIMIT's own comment instructs for its second consumer.
+ */
+export const BULK_ACTION_MAX_PER_SUBMISSION = 100;
+
+/**
+ * How many payments a bulk fan-out processes at once. Legacy uses an UNCAPPED
+ * Promise.all over the whole selection; this bounds the burst.
+ *
+ * NEW, not inherited: the repo carries no concurrency utility and no comparable
+ * constant, measured across app/. Small because the per-account money-write DO
+ * already serialises the commits, so a higher number would widen only the read
+ * phase and the peak subrequest burst, buying nothing on the write path.
+ */
+export const BULK_ACTION_CONCURRENCY = 5;
 /** The recovery tick's registered cron name. Lives here rather than in the cron
  *  registry because both the registry and the tick itself need it (the tick
  *  re-reads its own enabled flag mid-run), and the registry imports the tick, so
