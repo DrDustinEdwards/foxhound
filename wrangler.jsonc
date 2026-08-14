@@ -80,23 +80,32 @@
 
   // Email dispatch queue (TASK-foxhound-email-provisioning.md Phase 2). Queue
   // "foxhound-email" created via `wrangler queues create` (did not exist;
-  // `wrangler queues list` confirmed) - the binding name EMAIL_QUEUE and the
-  // queue name (EMAIL_QUEUE_NAME, constants.ts) are both already load-bearing
-  // in dispatch.ts/consumer.ts, unchanged here. dead_letter_queue is a bare
-  // name, not a binding: Cloudflare auto-creates it on deploy if absent (no
+  // `wrangler queues list` confirmed); the queue name lives in EMAIL_QUEUE_NAME
+  // (constants.ts) and is load-bearing in consumer.ts. dead_letter_queue is a
+  // bare name, not a binding: Cloudflare auto-creates it on deploy if absent (no
   // `wrangler queues create` needed for it), and nothing reads from it yet
   // (EMAIL_DLQ in env.d.ts is declared for a later admin-inspection surface,
   // not bound here since nothing consumes it). Without an explicit DLQ, a
   // dunning email that keeps failing is discarded with no trace after
   // max_retries; max_retries here matches EMAIL_QUEUE_MAX_RETRIES exactly,
   // since that constant exists specifically to mirror this value.
+  //
+  // THE PRODUCER IS DELETED 2026-08-14 under ruling 280 as amended by 281a. The
+  // EMAIL_QUEUE binding existed solely so `enqueueEmail` could call
+  // env.EMAIL_QUEUE.send; that export had zero callers and zero producers into
+  // this queue anywhere, re-measured at HEAD 937ac0c, so no code could reach the
+  // binding and it goes with the export. THIS IS THE DEPLOY-AFFECTING PART: it
+  // changes the Worker's declared bindings, so it proves through CI's deploy job
+  // like a migration.
+  //
+  // THE CONSUMER DELIBERATELY STAYS. consumer.ts dispatches by queue name and
+  // also serves foxhound-email-events, the bounce and complaint path core.md's
+  // blocker 6 depends on, whose own instruction is "do not rebuild the
+  // consumer". This registration is what keeps that handler reachable, so
+  // dropping it would manufacture the rebuild blocker 6 forbids. A queue with a
+  // consumer and no producer is coherent; if an async send path is ever wanted,
+  // the producer is six lines and one binding to restore.
   "queues": {
-    "producers": [
-      {
-        "binding": "EMAIL_QUEUE",
-        "queue": "foxhound-email"
-      }
-    ],
     "consumers": [
       {
         "queue": "foxhound-email",

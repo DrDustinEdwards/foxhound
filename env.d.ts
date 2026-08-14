@@ -43,7 +43,6 @@ interface Env {
   // The send binding shape is a Foxhound adapter; the real Email Service call is
   // finalized in Phase 8 when the binding is live.
   EMAIL?: EmailSendBinding;
-  EMAIL_QUEUE?: Queue<unknown>;
   EMAIL_DLQ?: Queue<unknown>;
   // CAN-SPAM sender postal address (ARCHITECTURE #8: required before any send).
   PHYSICAL_ADDRESS?: string;

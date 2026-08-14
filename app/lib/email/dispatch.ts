@@ -11,10 +11,17 @@ import type { EmailJob } from "./types";
 //
 // Corrected 2026-08-11. This header used to describe "producer (enqueue onto
 // the Queue) + consumer orchestration" as though the queue were the live path.
-// It is not, and measurement says so: enqueueEmail has ZERO call sites in this
-// repository, so nothing ever puts a message on foxhound-email. The producer
-// binding and the consumer config both exist in wrangler.jsonc, and the queue's
-// retry ceiling and dead-letter queue are therefore dead infrastructure today.
+// It is not, and measurement said so: enqueueEmail had ZERO call sites in this
+// repository, so nothing ever put a message on foxhound-email.
+//
+// THE PRODUCER IS DELETED 2026-08-14 under ruling 280 as amended by 281a. The
+// `enqueueEmail` export and the EMAIL_QUEUE producer binding are gone, deadness
+// re-measured at HEAD 937ac0c over all 567 tracked files with an untruncated
+// git grep: zero callers, zero producers into foxhound-email anywhere, zero
+// references in tests. The CONSUMER stays: consumer.ts also serves
+// foxhound-email-events, which is the bounce and complaint path core.md's
+// blocker 6 depends on, and its own instruction is "do not rebuild the
+// consumer". So the queue registration is what keeps that handler reachable.
 //
 // The LIVE path bypasses the queue entirely and is synchronous inside the
 // 5-minute recovery cron:
@@ -39,37 +46,6 @@ export interface EmailJobResult {
   error: string | null;
   /** True when the queue message should be retried (transient send failure). */
   retryable: boolean;
-}
-
-// BINDING PRE-CONDITION BEFORE THIS IS WIRED. Ratified 2026-08-09.
-//
-// enqueueEmail currently has ZERO call sites. When it is wired to anything, the
-// send gate lands in the SAME commit: a per-account live flag, defaulting OFF,
-// checked in processEmailJob. Not a follow-up, not a separate PR.
-//
-// The reason is that there is no send-enable flag anywhere in this codebase
-// today. Grepped 2026-08-11 for EMAIL_ENABLED, sendEnabled, dryRun, sandbox and
-// the rest: nothing email-related exists. What actually stops mail leaving is
-// an unset PHYSICAL_ADDRESS secret, which makes buildEmailMessage throw
-// "email blocked: missing CAN-SPAM physical address" at app/lib/email/send.ts:33-38.
-//
-// That is a compliance guard doing duty as a kill switch. It is undocumented as
-// a switch, nobody chose it as one, and it is a single populated env var away
-// from every eligible account receiving live mail. Accounts are eligible by
-// default (processing_paused defaults false) and the recovery cron is enabled
-// by default when its config row is absent, so the blast radius on the day that
-// var gets set is every eligible account at once.
-//
-// The same pre-condition is repeated at processEmailJob, which is the live path.
-// Wiring this producer does not satisfy it; the flag has to be checked where the
-// send actually happens.
-
-/** Enqueue an email job. Producer seam; throws if the queue is not configured. */
-export async function enqueueEmail(env: Env, job: EmailJob): Promise<void> {
-  if (!env.EMAIL_QUEUE) {
-    throw new Error("EMAIL_QUEUE binding is not configured");
-  }
-  await env.EMAIL_QUEUE.send(job);
 }
 
 /** SHA-256 hex of a recipient address; email_sends stores this, never the raw address. */
@@ -107,14 +83,31 @@ export function buildEmailSendRow(
   });
 }
 
-// THE BINDING PRE-CONDITION IS NOW SATISFIED. Ratified 2026-08-09, rescoped
-// 2026-08-11 after measuring which path is live, and BUILT here by S7 Phase 2
-// Session D under ruling 268.
+// THE BINDING PRE-CONDITION IS NOW SATISFIED. Ratified 2026-08-09 (9766ff5),
+// rescoped 2026-08-11 after measuring which path is live, BUILT here by S7 Phase 2
+// Session D under ruling 268, and this is now its SOLE anchor.
+//
+// THE ANCHOR MOVED HERE 2026-08-14, per ruling 281a's requirement that
+// 9766ff5's precondition comment move with the deletion rather than die. It was
+// attached to `enqueueEmail`, which is deleted under 280. Its surviving
+// substance, which existed nowhere else, is carried in full:
+//
+//   The precondition read "when it is wired to anything, the send gate lands in
+//   the SAME commit: a per-account live flag, defaulting OFF, checked in
+//   processEmailJob. Not a follow-up, not a separate PR." It was written on the
+//   PRODUCER because that was the seam expected to be wired first. It never was.
+//   What it guarded against, recorded because the blast radius is the reason the
+//   precondition existed: accounts are eligible by default (processing_paused
+//   defaults false) and the recovery cron is enabled by default when its config
+//   row is absent, so on the day PHYSICAL_ADDRESS is set, every eligible account
+//   would have mailed at once. The precondition always pointed HERE anyway, in
+//   its own words: "wiring this producer does not satisfy it; the flag has to be
+//   checked where the send actually happens."
 //
 // What it asked for: a per-account live flag, defaulting OFF, checked in THIS
 // function before sendEmail. processEmailJob is the live path (the recovery cron
-// calls it synchronously via defaultSend); enqueueEmail is on no path at all, so
-// gating the producer would have gated nothing.
+// calls it synchronously via defaultSend); the deleted producer was on no path at
+// all, so gating it would have gated nothing.
 //
 // Why it was scheduled rather than triggered: 9766ff5's own condition was "the
 // same commit as whatever first makes live sends reachable", and ruling 267
@@ -236,8 +229,10 @@ export async function processEmailJob(
  * `EmailJob.accountId` is nullable in the type; measured 2026-08-12, no live
  * caller passes null. processEmailJob has exactly two callers, defaultSend in
  * execute-step.ts (accountId from a non-null EmailStepContext) and the queue
- * consumer (which nothing enqueues to). So the null branch is unreachable today
- * and exists so it can never become a bypass.
+ * consumer, which since 2026-08-14 nothing CAN enqueue to: the producer and its
+ * EMAIL_QUEUE binding were deleted under 280, so that caller is unreachable
+ * rather than merely unused. So the null branch is unreachable today and exists
+ * so it can never become a bypass.
  *
  * SCOPE, stated rather than assumed: this gates processEmailJob, which is the
  * dunning path. `sendTransactionalEmail` reaches `env.EMAIL` DIRECTLY and is not

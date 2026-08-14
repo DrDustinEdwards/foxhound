@@ -177,7 +177,6 @@ export function getEnvSanity(env: Env): EnvSanityRow[] {
     ["PHYSICAL_ADDRESS", "secret"],
     ["SENTRY_DSN", "secret"],
     ["EMAIL", "binding"],
-    ["EMAIL_QUEUE", "binding"],
     ["EMAIL_DLQ", "binding"],
   ];
   return rows.map(([name, kind]) => ({
