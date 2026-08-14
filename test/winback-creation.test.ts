@@ -203,7 +203,10 @@ describe("290: the eligibility gates are wired, per condition", () => {
   const PROCESS = readFileSync("app/lib/webhooks/process.ts", "utf8");
 
   it("involuntary churn returns without a sequence", () => {
-    expect(PROCESS).toContain("hasActiveFailedPayment(env, accountId, intent.customerId)");
+    // UPDATED 2026-08-14 under 291: the read was hasActiveFailedPayment, a
+    // boolean, and became listActiveFailedPaymentIds because the branch now also
+    // STOPS those recoveries through 265's ratified transition. Still no win-back.
+    expect(PROCESS).toContain("listActiveFailedPaymentIds(env, accountId, intent.customerId)");
     expect(PROCESS).toContain('reason: "involuntary_churn"');
   });
 
@@ -220,13 +223,24 @@ describe("290: the eligibility gates are wired, per condition", () => {
   });
 
   it("every ineligible path still CLAIMS the event", () => {
-    // Four ignore branches, each committing buildClaimOnlyBatch, so a redelivery
-    // of an ineligible cancellation short-circuits instead of re-reading Stripe.
+    // Four ignore branches, so a redelivery of an ineligible cancellation
+    // short-circuits instead of re-reading Stripe.
+    //
+    // UPDATED 2026-08-14 under 291: this counted buildClaimOnlyBatch and expected
+    // 4. The involuntary branch now commits buildInvoluntaryStopBatch instead,
+    // which carries the claim itself, so the COUNT moved while the property did
+    // not. Asserting the property directly rather than one builder's name.
     const branch = PROCESS.slice(
       PROCESS.indexOf('if (intent.kind === "winback_start")'),
       PROCESS.indexOf("// stamp_refund:"),
     );
-    expect(branch.split("buildClaimOnlyBatch").length - 1).toBe(4);
+    const claimOnly = branch.split("buildClaimOnlyBatch").length - 1;
+    const involuntary = branch.split("buildInvoluntaryStopBatch").length - 1;
+    expect(claimOnly).toBe(3);
+    expect(involuntary).toBe(1);
+    // Every one of the four ignore returns is preceded by a committing build.
+    expect(claimOnly + involuntary).toBe(4);
+    expect(branch.split('status: "ignored"').length - 1).toBe(4);
   });
 
   it("the involuntary CANCEL side effect is raised, not silently dropped", () => {

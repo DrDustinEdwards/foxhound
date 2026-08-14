@@ -239,28 +239,67 @@ export const STEP_TIMING_FRAUD_EMAIL_DAY1_HOURS = 2;
 export const STEP_TIMING_REVOKED_EMAIL_HOURS = 2;
 
 // ---- Win-back timing (hours from cancellation) ----
-// The window is 14 days (step 3), restored from the rebuild's 7 by parity ruling
-// 17. The compression to 7 was never justified: a Pass 4 git-blame check found
-// all three values authored once, at file creation, inside a commit about decline
-// classification, with no comment and no decision record. Every other intentional
-// value change in this file carries its reasoning, so the absence was the finding.
-// The interior steps (24h, 72h) stay as the rebuild set them; only the outer bound
-// reverted, because that is the span the ruling names.
-export const WINBACK_STEP1_HOURS = 24;
+// LEGACY'S SCHEDULE EXACTLY: 1h, 96h, 336h.
+//
+// The window is 14 days (step 3), restored from the rebuild's 7 by parity CHUNKS
+// item 17. The compression to 7 was never justified: a Pass 4 git-blame check
+// found all three values authored once, at file creation, inside a commit about
+// decline classification, with no comment and no decision record. Every other
+// intentional value change in this file carries its reasoning, so the absence was
+// the finding.
+//
+// THE INTERIOR STEPS ARE ALIGNED 2026-08-14 by ruling 291, 24h to 1h and 72h to
+// 96h. This comment previously read "the interior steps (24h, 72h) stay as the
+// rebuild set them; only the outer bound reverted, because that is the span the
+// ruling names", and Session 6 correctly STOPPED on it as a recorded rationale.
+// 291 answered the escalation: that sentence records only which span the earlier
+// restoration REACHED, and the blame finding above is proof the interiors were
+// never RATIFIED rather than proof they were. Provenance is not ratification, and
+// under the PRIME DIRECTIVE an unratified user-facing divergence is a defect.
+// The counter-argument is on record and declined: a 24h first touch reads gentler
+// than legacy's 1h, but that is taste against spec, and the silent-first
+// reasoning that justifies Foxhound's RECOVERY reordering does not apply to a
+// cancellation, where there is no payment to quietly retry.
+//
+// CITATION, per 291: "item 17" here is CHUNKS item 17, the constants trio, NOT
+// volume ruling 17, which is a different subject. A numbered citation names its
+// numbering.
+export const WINBACK_STEP1_HOURS = 1;
+export const WINBACK_STEP2_HOURS = 96;
+export const WINBACK_STEP3_HOURS = 336;
+
 /**
  * Skip starting a win-back sequence when this customer had a failed payment
  * RESOLVED (cancelled or recovered) within this many days before cancelling.
  * Ported verbatim from legacy's WINBACK_RECENT_RESOLVED_DAYS = 7 with legacy's
  * own reason: it keeps Foxhound from chasing a customer it has just chased.
  * Added 2026-08-14 with the win-back creation path (290); it had no Foxhound
- * counterpart because nothing created a sequence to gate.
+ * counterpart because nothing created a sequence to gate. Moved below the step
+ * trio 2026-08-14 so the three timing values read together.
  */
 export const WINBACK_RECENT_RESOLVED_DAYS = 7;
-export const WINBACK_STEP2_HOURS = 72;
-export const WINBACK_STEP3_HOURS = 336;
+
+/**
+ * Win-back step 1 delay for a customer Intelligence has NOT flagged
+ * `winback_priority`, when Intelligence is active on the account (291, ported
+ * verbatim from legacy). Legacy's literal: `step1OffsetHours = 4`, measured
+ * against its 1h default, so this DELAYS the unflagged rather than accelerating
+ * the flagged. Only meaningful because WINBACK_STEP1_HOURS is now legacy's 1.
+ */
+export const WINBACK_UNFLAGGED_STEP1_HOURS = 4;
+
+/**
+ * The `customer_context.health_factors.recommended_action` value legacy compares
+ * against for the win-back gate (291). Ported verbatim. It has NO producer in
+ * Foxhound today and does not appear in the demo seed's vocabulary either, which
+ * is the bound M9 records; the constant exists so the comparison is legacy's
+ * string rather than a literal invented at the call site.
+ */
+export const WINBACK_PRIORITY_ACTION = "winback_priority";
 
 // ---- Send-attempt retry (transient send failures; SCHEMA.md recovery_steps state) ----
-// 5 attempts over ~17.25 hours, both restored by parity ruling 17.
+// 5 attempts over ~17.25 hours, both restored by parity CHUNKS item 17 (the
+// same item as the win-back trio above; named by its numbering per 291).
 //
 // The count was restored first and the SPAN was left behind, which produced a
 // third value (~4.6h) matching neither legacy nor the rebuild: attempts 4 and 5

@@ -55,18 +55,34 @@ export interface PlannedWinbackStep {
   scheduledAt: Date;
 }
 
-/** Plan the win-back steps for a sequence, scheduled off the cancellation time. */
+/**
+ * Plan the win-back steps for a sequence, scheduled off the cancellation time.
+ *
+ * `step1OffsetHours` overrides step ONE only, which is legacy's exact shape:
+ * `step.stepNumber === 1 ? step1OffsetHours : step.offsetHours`. It exists for
+ * the Intelligence gate (291): on an account running Intelligence, a customer
+ * NOT flagged `winback_priority` is DELAYED from the 1h default to 4h, to cut
+ * noise on lower-value churners. Steps 2 and 3 are never touched, in legacy or
+ * here. Omitted, the schedule is used as written.
+ */
 export function planWinbackSteps(input: {
   winBackSequenceId: string;
   accountId: string;
   canceledAt: Date;
+  step1OffsetHours?: number;
 }): PlannedWinbackStep[] {
-  return WIN_BACK_SCHEDULE.map((step) => ({
-    winBackSequenceId: input.winBackSequenceId,
-    accountId: input.accountId,
-    stepNumber: step.stepNumber,
-    scheduledAt: new Date(input.canceledAt.getTime() + step.offsetHours * HOUR_MS),
-  }));
+  return WIN_BACK_SCHEDULE.map((step) => {
+    const offsetHours =
+      step.stepNumber === 1 && input.step1OffsetHours !== undefined
+        ? input.step1OffsetHours
+        : step.offsetHours;
+    return {
+      winBackSequenceId: input.winBackSequenceId,
+      accountId: input.accountId,
+      stepNumber: step.stepNumber,
+      scheduledAt: new Date(input.canceledAt.getTime() + offsetHours * HOUR_MS),
+    };
+  });
 }
 
 /** True when `stepNumber` is the last scheduled win-back step. */
