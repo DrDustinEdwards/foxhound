@@ -161,6 +161,7 @@ export function getEnvSanity(env: Env): EnvSanityRow[] {
     ["APP_KV", "binding"],
     ["MONEY_WRITER", "binding"],
     ["CRON_LOCK", "binding"],
+    ["RATE_LIMITER", "binding"],
     ["BETTER_AUTH_URL", "var"],
     ["TURNSTILE_SITE_KEY", "var"],
     ["BETTER_AUTH_SECRET", "secret"],

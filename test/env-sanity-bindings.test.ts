@@ -60,14 +60,15 @@ describe("env sanity: no phantom bindings", () => {
     expect(readFileSync("env.d.ts", "utf8")).not.toContain("EMAIL_DLQ");
   });
 
-  // REPORTED, NOT REPAIRED (190), and deliberately NOT asserted so this file
-  // stays green while the finding stands: the INVERSE gap is real. RATE_LIMITER
-  // is declared in wrangler.jsonc and is absent from getEnvSanity's list, so the
-  // sanity surface under-reports a live binding. That is exactly the masking 287
-  // predicted a phantom would hide, found by this session's own measurement, and
-  // its repair is unassigned. When it is assigned, the assertion to add is the
-  // mirror of the one above: every declared binding appears in the sanity list.
-  it("documents the reported inverse gap without asserting it", () => {
+  // THE INVERSE GAP IS CLOSED 2026-08-14 under 290. RATE_LIMITER was declared in
+  // wrangler.jsonc and missing from getEnvSanity, so the sanity surface
+  // under-reported a live binding: exactly the masking 287 predicted a phantom
+  // would hide. The previous version of this test PINNED that gap as the measured
+  // state and was written to fail the moment it was fixed, which is what happened
+  // and what prompted this edit rather than a silent drift. It is now the mirror
+  // of the assertion above, so the two together close the loop in both directions:
+  // no sanity row without a declaration, and no declaration without a sanity row.
+  it("every binding wrangler.jsonc declares appears in the sanity list", () => {
     const declared = declaredBindings();
     const claimed = new Set(
       getEnvSanity({} as Env)
@@ -75,9 +76,6 @@ describe("env sanity: no phantom bindings", () => {
         .map((r) => r.name),
     );
     const missing = [...declared].filter((n) => !claimed.has(n));
-    // Pinned as the MEASURED state on 2026-08-14, so this test starts failing
-    // the moment the gap is fixed or a second one appears, which is the prompt
-    // to update the record rather than a silent drift.
-    expect(missing).toEqual(["RATE_LIMITER"]);
+    expect(missing).toEqual([]);
   });
 });
