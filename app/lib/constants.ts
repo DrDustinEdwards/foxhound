@@ -106,13 +106,37 @@ export const FAILED_PAYMENT_STATUS_CANCELLED = "cancelled";
  * in place, a single-status check would silently drop those recoveries on the
  * floor (no recovered_payments row, no attribution, no fee).
  *
+ * 'cancelled' JOINED THE LIST 2026-08-14 under ruling 284 decision one, which is
+ * the whole of that session's build. A merchant's "Stop recovery" is FOXHOUND
+ * WORKFLOW STATE, not Stripe state: Stripe does not rescind the invoice, and a
+ * past-due invoice can still be paid after the merchant's workflow moved on.
+ * When it is, the money is a FACT, so the recovery is recorded and the status
+ * flips to 'recovered' because the status must tell the truth. Billing is not
+ * affected by this list at all: attribution resolves by the NORMAL precedence
+ * from the steps that actually ran, so a pure post-stop payment has no Foxhound
+ * signal, records `stripe_baseline`, and bills NOTHING, while a click that
+ * provably preceded the stop keeps its kind and bills. The stop click therefore
+ * neither launders a Foxhound recovery free nor bills one Foxhound did not cause.
+ *
+ * DIVERGENCE FROM LEGACY, ratified onto PRIME DIRECTIVE item 3 under 284:
+ * legacy's handlePaymentSucceeded selects `.eq('status','active')` alone, so a
+ * cancelled payment is never found and legacy records nothing at all, losing the
+ * row, the moat entry and the truthful status. Measured at source, not inferred.
+ *
  * Deliberately NOT used for intake dedupe: a NEW failure on an invoice whose
  * prior sequence exhausted must spawn a fresh sequence, so that path still keys
  * on 'active' alone.
+ *
+ * TWO call sites and they must stay symmetric, which is why this is one constant
+ * and not two literals: findRecoverableFailedPayment (webhooks/process.ts) finds
+ * the row, and buildRecoverBatch's status flip (webhooks/batches.ts) accepts it.
+ * Both would have to be widened for the recovery to land, and both are widened
+ * here at once.
  */
 export const RECOVERABLE_FAILED_PAYMENT_STATUSES = [
   "active",
   FAILED_PAYMENT_STATUS_UNRECOVERED,
+  FAILED_PAYMENT_STATUS_CANCELLED,
 ] as const;
 
 // ---- Canon enum value sets (mirror schema CHECK constraints) ----
