@@ -148,8 +148,15 @@ describe("S6 stat cards: legacy's five, with Cancelled restored (266)", () => {
     // label, which is a separately recorded and still-open divergence (188) that
     // this fold does not touch.
     const labels = [...cardBlock().matchAll(/label="([^"]+)"/g)].map((m) => m[1]);
+    // UPDATED 2026-08-14 under 284's Session 1: this expected "Total payments"
+    // in position one and the comment above called the label "a separately
+    // recorded and still-open divergence (188) that this fold does not touch".
+    // 279 corrected 188 and 284 assigned the card, so position one is now
+    // legacy's own word. The old expectation is REPLACED rather than annotated
+    // around, since a test pinning a superseded state is the same stale-record
+    // class the campaign repairs everywhere else.
     expect(labels).toEqual([
-      "Total payments",
+      "Showing",
       "Active",
       "Recovered",
       "Cancelled",
@@ -172,9 +179,9 @@ describe("S6 stat cards: legacy's five, with Cancelled restored (266)", () => {
   });
 
   it("carries legacy's own muted treatment for this card", () => {
-    // PaymentsStats gives Cancelled `text-text-subtle`. The other four cards'
-    // legacy colours are a separate, newly measured divergence this fold reports
-    // and does not close.
+    // PaymentsStats gives Cancelled `text-text-subtle`. The remaining value
+    // colours were reported by that fold and are CLOSED 2026-08-14 under 284;
+    // they are asserted in test/s6-stat-card-treatment.test.ts.
     expect(cardBlock()).toContain('valueClassName="text-text-subtle"');
   });
 

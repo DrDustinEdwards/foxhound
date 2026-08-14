@@ -203,9 +203,17 @@ export function tallyStatusCounts(statuses: string[]): PaymentStatusCounts {
   return { all: statuses.length, active, recovered, failedUnrecovered, cancelled };
 }
 
-/** Status counts for the WHOLE account, ignoring every filter (the five
- *  summary cards' "account state at a glance" row, deliberately unaffected
- *  by search/category/amount/time/status so it always reads the same). */
+/** Status counts for the WHOLE account, ignoring every filter: the five
+ *  summary cards' "account state at a glance" row, unaffected by
+ *  search/category/amount/time.
+ *
+ *  ONE card reads a different member of this same result depending on the
+ *  selected status pill, "Showing", which is legacy's own behaviour at its
+ *  PaymentsClient.tsx call site (279). That is a different KEY off this
+ *  unfiltered tally and never a filtered query, so this function stays
+ *  status-independent and still runs once. This comment read
+ *  "search/category/amount/time/status ... so it always reads the same" until
+ *  2026-08-14, which stopped being true when the Showing card landed. */
 export async function getGlobalPaymentStatusCounts(db: Db, accountId: string): Promise<PaymentStatusCounts> {
   const rows = await db
     .select({ status: failedPayments.status })
