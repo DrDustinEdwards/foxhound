@@ -49,6 +49,15 @@ export type WebhookIntent =
       createdAt: Date;
     }
   | { kind: "dispute_resolved"; stripeDisputeId: string; won: boolean }
+  | {
+      kind: "winback_start";
+      subscriptionId: string;
+      customerId: string;
+      cancelReason: string | null;
+      planName: string | null;
+      amountCents: number | null;
+      currency: string | null;
+    }
   | { kind: "ignore"; reason: string };
 
 function asId(ref: string | { id?: string } | null | undefined): string | null {
@@ -133,6 +142,33 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
         return { kind: "ignore", reason: "dispute_not_resolved" };
       }
       return { kind: "dispute_resolved", stripeDisputeId: dispute.id, won: dispute.status === "won" };
+    }
+    case "customer.subscription.deleted": {
+      // Win-back intake (290). Legacy's handleSubscriptionDeleted is the spec.
+      // Everything reachable WITHOUT a Stripe call is pulled here, per this
+      // file's own no-extra-calls rule; the customer EMAIL is not on the
+      // subscription object and legacy fetches it separately, so that read and
+      // legacy's `if (!customerEmail) return` gate live in the processor.
+      const subscription = event.data.object as Stripe.Subscription;
+      if (!subscription.id) return { kind: "ignore", reason: "no_subscription_id" };
+      const customerId = asId(subscription.customer);
+      if (!customerId) return { kind: "ignore", reason: "no_customer" };
+      // Legacy reads plan, amount and currency off the FIRST subscription item's
+      // price, and tolerates all three being absent.
+      const price = subscription.items?.data?.[0]?.price ?? null;
+      const product = price?.product;
+      return {
+        kind: "winback_start",
+        subscriptionId: subscription.id,
+        customerId,
+        cancelReason: subscription.cancellation_details?.reason ?? null,
+        planName:
+          product && typeof product !== "string" && "name" in product
+            ? ((product as Stripe.Product).name ?? null)
+            : null,
+        amountCents: price?.unit_amount ?? null,
+        currency: price?.currency ?? null,
+      };
     }
     default:
       return { kind: "ignore", reason: "unhandled_type" };

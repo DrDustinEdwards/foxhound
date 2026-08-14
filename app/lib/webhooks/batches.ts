@@ -1,7 +1,15 @@
 import { and, eq, inArray, isNull, notInArray } from "drizzle-orm";
 
 import type { Db, MoneyWriteBatch } from "~/db";
-import { disputeEvidence, disputes, failedPayments, recoveredPayments, webhookEvents } from "~/db";
+import {
+  disputeEvidence,
+  disputes,
+  failedPayments,
+  recoveredPayments,
+  webhookEvents,
+  winBackSequences,
+  winBackSteps,
+} from "~/db";
 import { disputeFeeCents } from "~/lib/billing/fees";
 import { RECOVERABLE_FAILED_PAYMENT_STATUSES } from "~/lib/constants";
 import type { DeclineCategory, DisputeState } from "~/lib/constants";
@@ -10,6 +18,7 @@ import { buildRecoveryStepInserts } from "~/lib/engine/intake";
 import type { ResolvedAttribution } from "~/lib/recovery/attribution";
 import { buildRecoveryBatch } from "~/lib/recovery/record-recovery";
 import { planRecoverySteps } from "~/lib/recovery/schedule";
+import { planWinbackSteps, WINBACK_STATUS } from "~/lib/recovery/winback";
 
 // The atomic DO batches for connected-account webhook processing. Every webhook
 // side effect is committed together with the webhook_events CLAIM in ONE batch
@@ -358,4 +367,70 @@ export function buildDisputeResolutionBatch(db: Db, input: DisputeResolutionInpu
 /** claim-only batch: a verified event we resolved to nothing actionable, still claimed so replays short-circuit. */
 export function buildClaimOnlyBatch(db: Db, claim: WebhookClaimInput): MoneyWriteBatch {
   return [buildWebhookClaim(db, claim)];
+}
+
+export interface WinbackStartInput {
+  claim: WebhookClaimInput;
+  accountId: string;
+  stripeConnectionId: string | null;
+  stripeCustomerId: string;
+  stripeSubscriptionId: string;
+  customerEmail: string;
+  customerName: string | null;
+  planName: string | null;
+  amountCents: number | null;
+  currency: string | null;
+  cancelReason: string | null;
+  canceledAt: Date;
+}
+
+/**
+ * customer.subscription.deleted: claim + the win-back sequence + its steps, all
+ * atomic. Ported from legacy's handleSubscriptionDeleted (290); this is
+ * planWinbackSteps' FIRST production caller, the planner having existed since
+ * the rebuild with only the demo seeder and its own test calling it.
+ *
+ * EXACTLY-ONCE IS STRUCTURAL, not a second mechanism: win_back_sequences carries
+ * a real UNIQUE index on stripe_subscription_id (win_back_sequences_subscription_uq,
+ * schema.ts), so a redelivery's insert violates it, the whole atomic batch rolls
+ * back INCLUDING the steps and the claim, and executeMoneyWrite reports
+ * applied=false. That is the spine's payment-not-event principle applied to a
+ * subscription: the key is the SUBSCRIPTION, never the event id, so two different
+ * events for one cancellation still collapse to one sequence. No migration was
+ * needed and none was written; legacy's own replay guard is a SELECT, which this
+ * keeps as a cheap pre-check while the index is what actually guarantees it.
+ */
+export function buildWinbackStartBatch(db: Db, input: WinbackStartInput): MoneyWriteBatch {
+  const sequenceId = crypto.randomUUID();
+  const steps = planWinbackSteps({
+    winBackSequenceId: sequenceId,
+    accountId: input.accountId,
+    canceledAt: input.canceledAt,
+  });
+  return [
+    buildWebhookClaim(db, input.claim),
+    db.insert(winBackSequences).values({
+      id: sequenceId,
+      accountId: input.accountId,
+      stripeConnectionId: input.stripeConnectionId,
+      stripeCustomerId: input.stripeCustomerId,
+      stripeSubscriptionId: input.stripeSubscriptionId,
+      customerEmail: input.customerEmail,
+      customerName: input.customerName,
+      planName: input.planName,
+      amountCents: input.amountCents,
+      currency: input.currency,
+      cancelReason: input.cancelReason,
+      status: WINBACK_STATUS.ACTIVE,
+      createdAt: input.canceledAt,
+    }),
+    ...steps.map((step) =>
+      db.insert(winBackSteps).values({
+        winBackSequenceId: step.winBackSequenceId,
+        accountId: step.accountId,
+        stepNumber: step.stepNumber,
+        scheduledAt: step.scheduledAt,
+      }),
+    ),
+  ];
 }

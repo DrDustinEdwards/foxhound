@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, gte, inArray } from "drizzle-orm";
 import type Stripe from "stripe";
 
 import {
@@ -8,8 +8,13 @@ import {
   recoverySteps,
   stripeConnections,
   webhookEvents,
+  winBackSequences,
 } from "~/db";
-import { RECOVERABLE_FAILED_PAYMENT_STATUSES } from "~/lib/constants";
+import {
+  DAY_MS,
+  RECOVERABLE_FAILED_PAYMENT_STATUSES,
+  WINBACK_RECENT_RESOLVED_DAYS,
+} from "~/lib/constants";
 import { buildEvidenceFacts, draftDisputeEvidence } from "~/lib/disputes/evidence";
 import { isDisputeResolved } from "~/lib/disputes/labels";
 import { executeMoneyWrite } from "~/lib/money/execute";
@@ -24,6 +29,7 @@ import {
   buildIntakeBatch,
   buildRecoverBatch,
   buildRefundStampBatch,
+  buildWinbackStartBatch,
   type WebhookClaimInput,
 } from "./batches";
 import { classifyStripeEvent } from "./events";
@@ -120,6 +126,99 @@ async function findRecoverableFailedPayment(
     .orderBy(desc(failedPayments.detectedAt))
     .limit(1);
   return rows[0]?.id ?? null;
+}
+
+/** Legacy's involuntary-churn test: does this customer have ANY failed payment
+ *  still ACTIVE? Legacy keys on 'active' alone and so does this. */
+async function hasActiveFailedPayment(
+  env: Env,
+  accountId: string,
+  stripeCustomerId: string,
+): Promise<boolean> {
+  const rows = await getDb(env)
+    .select({ id: failedPayments.id })
+    .from(failedPayments)
+    .where(
+      and(
+        eq(failedPayments.accountId, accountId),
+        eq(failedPayments.stripeCustomerId, stripeCustomerId),
+        eq(failedPayments.status, "active"),
+      ),
+    )
+    .limit(1);
+  return rows.length > 0;
+}
+
+/** Legacy's already-chased test: a failed payment RESOLVED (cancelled or
+ *  recovered) since the cutoff. Legacy's status pair exactly. */
+async function hasRecentlyResolvedFailedPayment(
+  env: Env,
+  accountId: string,
+  stripeCustomerId: string,
+  cutoffMs: number,
+): Promise<boolean> {
+  const rows = await getDb(env)
+    .select({ id: failedPayments.id })
+    .from(failedPayments)
+    .where(
+      and(
+        eq(failedPayments.accountId, accountId),
+        eq(failedPayments.stripeCustomerId, stripeCustomerId),
+        inArray(failedPayments.status, ["cancelled", "recovered"]),
+        gte(failedPayments.resolvedAt, new Date(cutoffMs)),
+      ),
+    )
+    .limit(1);
+  return rows.length > 0;
+}
+
+/** Legacy's replay pre-check: an existing sequence for this subscription. */
+async function findWinbackSequence(
+  env: Env,
+  accountId: string,
+  stripeSubscriptionId: string,
+): Promise<string | null> {
+  const rows = await getDb(env)
+    .select({ id: winBackSequences.id })
+    .from(winBackSequences)
+    .where(
+      and(
+        eq(winBackSequences.accountId, accountId),
+        eq(winBackSequences.stripeSubscriptionId, stripeSubscriptionId),
+      ),
+    )
+    .limit(1);
+  return rows[0]?.id ?? null;
+}
+
+/**
+ * The connected-account customer, for the email a win-back sequence needs.
+ * BEST EFFORT BY DESIGN, and deliberately unlike resolveInvoiceIdForPaymentIntent
+ * above: legacy wraps its own customers.retrieve in a try/catch and then falls
+ * through to `if (!customerEmail) return`, so a Stripe failure and a customer
+ * with no email reach the same place. Returning null here reproduces that. The
+ * asymmetry is safe because nothing is overcharged by NOT starting a win-back,
+ * which is the opposite of the refund path's exposure.
+ */
+async function resolveConnectedCustomer(
+  env: Env,
+  connectionId: string,
+  stripeCustomerId: string,
+): Promise<{ email: string | null; name: string | null } | null> {
+  try {
+    const [connection] = await getDb(env)
+      .select({ accessToken: stripeConnections.stripeAccessToken })
+      .from(stripeConnections)
+      .where(eq(stripeConnections.id, connectionId))
+      .limit(1);
+    if (!connection?.accessToken) return null;
+    const token = await decryptToken(env, connection.accessToken);
+    const customer = await getConnectedStripe(token).customers.retrieve(stripeCustomerId);
+    if (customer.deleted) return null;
+    return { email: customer.email ?? null, name: customer.name ?? null };
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -499,6 +598,103 @@ export async function processConnectedWebhook(
             // auto-resolved win carries no fee (PRICING.md rev 3).
             foxhoundSubmitted: dispute.submittedAt != null,
             resolvedAt: receivedAt,
+          }),
+      });
+      return applied ? { status: "applied" } : { status: "duplicate" };
+    }
+
+    if (intent.kind === "winback_start") {
+      // WIN-BACK CREATION (290), ported from legacy's handleSubscriptionDeleted.
+      // Legacy's eligibility conditions in legacy's order; each returns without
+      // a sequence, and each still CLAIMS the event so redelivery short-circuits.
+      //
+      // 1. INVOLUNTARY CHURN. Legacy: `.eq('status','active')` over this
+      //    customer's failed_payments, `const isInvoluntary = ... length > 0`,
+      //    and when true it cancels those payments and returns WITHOUT a
+      //    win-back. A customer whose card failed did not choose to leave, so
+      //    chasing them with a win-back is the wrong sequence.
+      //    SCOPE, stated rather than silently dropped: the GUARD is ported here.
+      //    Legacy's accompanying SIDE EFFECT, flipping those failed_payments to
+      //    'cancelled' and resolving their steps, is NOT ported in this fold and
+      //    is RAISED: that exact transition is 265's ratified Stop-recovery
+      //    shape, which claims on `status = 'active'` and conditions the steps
+      //    on the claim landing, and legacy's unconditional per-row update would
+      //    either duplicate or contradict it. Re-deciding a ratified money
+      //    transition is a ruling, not a build session's default.
+      const involuntary = await hasActiveFailedPayment(env, accountId, intent.customerId);
+      if (involuntary) {
+        const { applied } = await executeMoneyWrite(env, {
+          accountId,
+          idempotencyKey,
+          build: (db) => buildClaimOnlyBatch(db, claim),
+        });
+        return applied ? { status: "ignored", reason: "involuntary_churn" } : { status: "duplicate" };
+      }
+
+      // 2. RECENTLY CHASED. Legacy: statuses ['cancelled','recovered'] with
+      //    `resolved_at >= sevenDaysAgo`, WINBACK_RECENT_RESOLVED_DAYS = 7,
+      //    "keeps Recova from chasing customers we already chased".
+      const recentlyResolved = await hasRecentlyResolvedFailedPayment(
+        env,
+        accountId,
+        intent.customerId,
+        receivedAt.getTime() - WINBACK_RECENT_RESOLVED_DAYS * DAY_MS,
+      );
+      if (recentlyResolved) {
+        const { applied } = await executeMoneyWrite(env, {
+          accountId,
+          idempotencyKey,
+          build: (db) => buildClaimOnlyBatch(db, claim),
+        });
+        return applied ? { status: "ignored", reason: "recently_resolved" } : { status: "duplicate" };
+      }
+
+      // 3. REPLAY GUARD. Legacy keys its own on stripe_subscription_id: "one
+      //    win-back sequence per cancelled subscription, ever". This SELECT is
+      //    the cheap pre-check; the real guarantee is the unique index, which
+      //    makes a concurrent redelivery roll the whole batch back.
+      const existing = await findWinbackSequence(env, accountId, intent.subscriptionId);
+      if (existing) {
+        const { applied } = await executeMoneyWrite(env, {
+          accountId,
+          idempotencyKey,
+          build: (db) => buildClaimOnlyBatch(db, claim),
+        });
+        return applied ? { status: "ignored", reason: "winback_exists" } : { status: "duplicate" };
+      }
+
+      // 4. THE EMAIL GATE. Legacy fetches the customer and returns on a missing
+      //    address: a sequence with nobody to mail is three dead rows. The read
+      //    is best-effort, so a Stripe failure ignores rather than 500s, which
+      //    matches legacy catching its own retrieve and falling through to the
+      //    same empty-email return.
+      const customer = await resolveConnectedCustomer(env, connectionId, intent.customerId);
+      if (!customer?.email) {
+        const { applied } = await executeMoneyWrite(env, {
+          accountId,
+          idempotencyKey,
+          build: (db) => buildClaimOnlyBatch(db, claim),
+        });
+        return applied ? { status: "ignored", reason: "no_customer_email" } : { status: "duplicate" };
+      }
+
+      const { applied } = await executeMoneyWrite(env, {
+        accountId,
+        idempotencyKey,
+        build: (db) =>
+          buildWinbackStartBatch(db, {
+            claim,
+            accountId,
+            stripeConnectionId: connectionId,
+            stripeCustomerId: intent.customerId,
+            stripeSubscriptionId: intent.subscriptionId,
+            customerEmail: customer.email as string,
+            customerName: customer.name ?? null,
+            planName: intent.planName,
+            amountCents: intent.amountCents,
+            currency: intent.currency,
+            cancelReason: intent.cancelReason,
+            canceledAt: receivedAt,
           }),
       });
       return applied ? { status: "applied" } : { status: "duplicate" };
