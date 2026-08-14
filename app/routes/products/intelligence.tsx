@@ -39,15 +39,15 @@ export function loader({ context }: Route.LoaderArgs) {
 const STEPS = [
   {
     title: "Every Recovery merchant gets MRR analytics, free",
-    body: "MRR, movements, churn, and cohorts are computed from your Stripe subscription data the moment you connect Recovery. No separate signup, no trial that expires.",
+    body: "MRR, movements, churn, and cohorts are computed from your Stripe subscription data, with no manual entry and no separate signup. They refresh on a scheduled run, so the first set appears at the next run after you connect rather than instantly.",
   },
   {
-    title: "The paid layer adds prediction",
-    body: "For $199/mo, a predictive risk-scoring layer sits on top of the free analytics, surfacing which customers are trending toward churn before it happens.",
+    title: "The paid layer scores every customer",
+    body: "For $199/mo, each customer gets a 0-100 health score built from named signals: payment-timing drift, billing volatility, refunds and disputes, recovery engagement, and tenure. Scores refresh daily and sort the customers who need attention to the top.",
   },
   {
-    title: "Signals feed back into Recovery and Disputes",
-    body: "Risk signals from the paid layer can adjust Recovery sequence timing and Disputes triage for accounts that opt in.",
+    title: "The score is not a black box",
+    body: "Every factor that moved a customer's score away from the baseline is listed on their page, with the reason in plain language. You can see why a customer is flagged, not just that they are.",
   },
 ];
 
@@ -58,7 +58,11 @@ const FAQS = [
   },
   {
     q: "What is the difference between the free tier and the paid layer?",
-    a: "The free tier reports what already happened: MRR, movements, churn, cohorts. The paid layer predicts what is about to happen: which customers are trending toward risk before they churn.",
+    a: "The free tier reports account-level totals: MRR, movements, churn, cohorts. The paid layer works per customer, scoring each one 0-100 from their own payment timing, billing changes, refunds, disputes, recovery engagement, and tenure, so the customers carrying the most risk sort to the top before they cancel.",
+  },
+  {
+    q: "Is the risk score a validated prediction?",
+    a: "Not yet, and we will not claim otherwise. The score is a deterministic reading of the signals a customer has actually generated, and each score is logged with the horizon it was made for. Grading those logged scores against what really happened is not built yet, so no accuracy figure exists and none is advertised.",
   },
   {
     q: "What is the difference between Intelligence and the free Audit?",
@@ -88,13 +92,20 @@ function FreeTierPreview() {
   );
 }
 
-// Honesty note (see product-page report): app/routes/app/intelligence/*.tsx
-// are still RouteStub placeholders, there is no shipped predictive-scoring
-// screen to mirror yet. This preview instead reuses the one real, already-
-// built primitive DESIGN.md and app/components/charts.tsx name for exactly
-// this future surface ("an Intelligence risk row", see the Meter doc comment
-// in charts.tsx), rather than inventing a table layout with no basis in the
-// codebase.
+// CORRECTED 2026-08-14 under 281c, which named this comment as the stale
+// artifact. It read "app/routes/app/intelligence/*.tsx are still RouteStub
+// placeholders, there is no shipped predictive-scoring screen to mirror yet",
+// and that is FALSE at HEAD: none of the six Intelligence routes uses
+// RouteStub, and all of them render. Measured on the deployed demo, /intelligence
+// returning 207 customers scored with a 155/49/3 healthy/watch/at-risk
+// distribution, /intelligence/customers listing 207 sorted health-ascending, and
+// /intelligence/churn rendering MRR at risk by band.
+//
+// The preview below still uses the Meter primitive DESIGN.md and
+// app/components/charts.tsx name for this surface ("an Intelligence risk row",
+// see the Meter doc comment in charts.tsx). That choice stands on its own: it
+// mirrors the shipped bands rather than inventing a layout, and the sample
+// values are labelled as a sample account.
 function PaidLayerPreview() {
   const ROWS = [
     { name: "Acme Analytics", mrrAtRisk: "$1,240 MRR at risk", risk: 82, tone: "negative" as const },
@@ -154,7 +165,7 @@ export default function IntelligenceProductPage({ loaderData }: Route.ComponentP
         points={[
           "MRR, movements, churn, and cohorts: free for every Recovery merchant",
           "Predictive risk scoring: the paid account-wide layer",
-          "Risk signals can feed Recovery timing and Disputes triage",
+          "A 0-100 health score per customer, refreshed daily, with every factor shown",
           "No manual data entry, computed from Stripe subscription data",
         ]}
         ctaHref="/audit"
