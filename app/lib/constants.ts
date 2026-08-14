@@ -247,6 +247,15 @@ export const STEP_TIMING_REVOKED_EMAIL_HOURS = 2;
 // The interior steps (24h, 72h) stay as the rebuild set them; only the outer bound
 // reverted, because that is the span the ruling names.
 export const WINBACK_STEP1_HOURS = 24;
+/**
+ * Skip starting a win-back sequence when this customer had a failed payment
+ * RESOLVED (cancelled or recovered) within this many days before cancelling.
+ * Ported verbatim from legacy's WINBACK_RECENT_RESOLVED_DAYS = 7 with legacy's
+ * own reason: it keeps Foxhound from chasing a customer it has just chased.
+ * Added 2026-08-14 with the win-back creation path (290); it had no Foxhound
+ * counterpart because nothing created a sequence to gate.
+ */
+export const WINBACK_RECENT_RESOLVED_DAYS = 7;
 export const WINBACK_STEP2_HOURS = 72;
 export const WINBACK_STEP3_HOURS = 336;
 
