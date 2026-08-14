@@ -10,7 +10,9 @@ import {
 import { WIN_BACK_SCHEDULE } from "~/lib/recovery/schedule";
 import { afterTransientFailure } from "~/lib/recovery/step-state";
 
-// Parity ruling 17 value pins.
+// Parity CHUNKS item 17 value pins. (Per 291 a numbered citation names its
+// numbering: this is CHUNKS item 17, the constants trio, not volume ruling 17.
+// The FILENAME still says ruling-17 and is left alone as churn; reported.)
 //
 // The ruling's finding was that three constants changed with no comment, no
 // commit-message mention and no decision record, and that nothing would catch a
@@ -26,6 +28,16 @@ import { afterTransientFailure } from "~/lib/recovery/step-state";
 describe("ruling 17: win-back window", () => {
   it("spans 14 days, the legacy value", () => {
     expect(WINBACK_STEP3_HOURS).toBe(336);
+  });
+
+  it("carries legacy's INTERIOR steps too, aligned by 291", () => {
+    // The interiors were 24h and 72h against legacy's 1h and 96h. 291 ruled the
+    // divergence a defect: the earlier restoration reached only the outer bound,
+    // and the blame finding above is proof the interiors were never ratified.
+    // Pinned as VALUES for the same reason step 3 is: the symbolic assertion
+    // below cannot notice a number changing.
+    expect(WINBACK_STEP1_HOURS).toBe(1);
+    expect(WINBACK_STEP2_HOURS).toBe(96);
   });
 
   it("is the span the planner actually schedules, not just a loose constant", () => {

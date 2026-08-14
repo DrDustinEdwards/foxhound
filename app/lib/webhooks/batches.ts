@@ -18,6 +18,7 @@ import { buildRecoveryStepInserts } from "~/lib/engine/intake";
 import type { ResolvedAttribution } from "~/lib/recovery/attribution";
 import { buildRecoveryBatch } from "~/lib/recovery/record-recovery";
 import { planRecoverySteps } from "~/lib/recovery/schedule";
+import { buildStopRecoveryBatch } from "~/lib/recovery/manual-actions.server";
 import { planWinbackSteps, WINBACK_STATUS } from "~/lib/recovery/winback";
 
 // The atomic DO batches for connected-account webhook processing. Every webhook
@@ -369,6 +370,46 @@ export function buildClaimOnlyBatch(db: Db, claim: WebhookClaimInput): MoneyWrit
   return [buildWebhookClaim(db, claim)];
 }
 
+/**
+ * customer.subscription.deleted where the customer still has ACTIVE failed
+ * payments: legacy's involuntary-churn branch. Legacy stops those recoveries and
+ * starts NO win-back, because a customer whose card failed did not choose to
+ * leave. Ported under 291.
+ *
+ * THE TRANSITION IS 265'S, NOT LEGACY'S. Legacy fires an unconditional per-row
+ * `Promise.all` and discards both results. Foxhound already has a RATIFIED
+ * active-to-cancelled transition in buildStopRecoveryBatch: the status UPDATE
+ * CLAIMS on `status = 'active'`, and the steps UPDATE is conditioned on that
+ * claim having landed via a correlated subquery. Reusing it is what keeps this
+ * from seating a second writer against a ratified money transition, and it means
+ * a raced or redelivered stop cannot double-resolve: the claim takes zero rows
+ * the second time and the steps subquery is then reading a row this batch did
+ * not cancel.
+ *
+ * The builder is reused UNCHANGED. It takes (accountId, failedPaymentId, now)
+ * and asserts nothing about who is stopping the recovery, so a system-caused
+ * stop needs no redesign, which is what 291 asked this session to determine.
+ */
+export interface InvoluntaryStopInput {
+  claim: WebhookClaimInput;
+  accountId: string;
+  failedPaymentIds: string[];
+  now: Date;
+}
+
+export function buildInvoluntaryStopBatch(db: Db, input: InvoluntaryStopInput): MoneyWriteBatch {
+  return [
+    buildWebhookClaim(db, input.claim),
+    ...input.failedPaymentIds.flatMap((failedPaymentId) =>
+      buildStopRecoveryBatch(db, {
+        accountId: input.accountId,
+        failedPaymentId,
+        now: input.now,
+      }),
+    ),
+  ];
+}
+
 export interface WinbackStartInput {
   claim: WebhookClaimInput;
   accountId: string;
@@ -382,6 +423,8 @@ export interface WinbackStartInput {
   currency: string | null;
   cancelReason: string | null;
   canceledAt: Date;
+  /** Step-1 override from the Intelligence gate (291). Undefined = the default. */
+  step1OffsetHours?: number;
 }
 
 /**
@@ -406,6 +449,7 @@ export function buildWinbackStartBatch(db: Db, input: WinbackStartInput): MoneyW
     winBackSequenceId: sequenceId,
     accountId: input.accountId,
     canceledAt: input.canceledAt,
+    step1OffsetHours: input.step1OffsetHours,
   });
   return [
     buildWebhookClaim(db, input.claim),
