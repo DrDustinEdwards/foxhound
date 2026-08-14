@@ -257,10 +257,10 @@ function exportHref(filters: Filters, bounds: AmountBounds): string {
 // was reachable only under All and counted by no pill at all.
 const STATUS_PILLS = [
   { value: "", label: "All" },
-  { value: "active", label: "In recovery" },
+  { value: "active", label: "Active" },
   { value: "recovered", label: "Recovered" },
   { value: "cancelled", label: "Cancelled" },
-  { value: "failed_unrecovered", label: "Not recovered" },
+  { value: "failed_unrecovered", label: "Failed" },
 ] as const;
 
 interface PillCounts {
@@ -568,7 +568,27 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
         <StatCard label="Total payments" value={String(globalCounts.all)} subtext="all filters" />
         <StatCard label="Active" value={String(globalCounts.active)} />
         <StatCard label="Recovered" value={String(globalCounts.recovered)} />
-        <StatCard label="Not recovered" value={String(globalCounts.failedUnrecovered)} />
+        {/* 266's gap, closed 2026-08-14. Legacy's PaymentsStats.tsx (blob
+            b386c66, read whole) is Showing / Active / Recovered / Cancelled /
+            Recovery rate, and position four is Cancelled. Foxhound had a "Not
+            recovered" card here, which legacy does not have anywhere, so under
+            item 3's inverse corollary (112) it was an unratified Foxhound
+            addition and is corrected toward legacy rather than kept alongside.
+            The consequence 266 named is what this closes: a payment stopped by
+            Stop recovery was counted by the pill and by no card at all.
+            NO NEW QUERY SHAPE. `globalCounts.cancelled` has existed since
+            Session B (265) taught tallyStatusCounts the fourth status; the gap
+            was never a missing number, it was a missing card.
+            `text-text-subtle` is legacy's own colour for this card. The other
+            four cards' legacy value colours (amber, green, and a thresholded
+            rate) are a separate divergence, measured for the first time by this
+            fold and REPORTED rather than swept, since restyling four cards is
+            not what this session was assigned. */}
+        <StatCard
+          label="Cancelled"
+          value={String(globalCounts.cancelled)}
+          valueClassName="text-text-subtle"
+        />
         <StatCard
           label="Recovery rate"
           value={globalRecoveryRatePct === null ? "-" : `${globalRecoveryRatePct}%`}

@@ -64,7 +64,7 @@ describe("buildPaymentsCsv", () => {
       "Customer,Email,Plan,Amount,Currency,Decline category,Decline code,Status,Detected at",
     );
     expect(lines[1]).toBe(
-      "Jordan Lee,jordan@example.com,Growth,49.99,usd,Soft decline,insufficient_funds,In recovery,2026-07-01T00:00:00.000Z",
+      "Jordan Lee,jordan@example.com,Growth,49.99,usd,Soft decline,insufficient_funds,Active,2026-07-01T00:00:00.000Z",
     );
   });
 

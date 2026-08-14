@@ -26,14 +26,28 @@ export const ATTRIBUTION_KIND_LABELS: Record<AttributionKind, string> = {
 };
 
 export const FAILED_PAYMENT_STATUS_LABELS: Record<string, string> = {
-  active: "In recovery",
+  // ALL FOUR are legacy's own words, READ from its status tabs rather than
+  // invented: app/(app)/recovery/payments/components/PaymentsFilters.tsx
+  // STATUS_TABS carries All / Active / Recovered / Cancelled / Failed.
+  //
+  // `active` and `failed_unrecovered` read "In recovery" and "Not recovered"
+  // until 2026-08-14. Those renames were never ratified: PRIME DIRECTIVE item 3
+  // was read in full and carries neither, and no ruling in any volume does, so
+  // under item 3 they were unratified user-visible divergences and were
+  // corrected toward legacy rather than defended. S6's row had carried them as
+  // OPEN since the contents walk.
+  //
+  // LEGACY DISAGREES WITH ITSELF HERE and the disagreement is recorded rather
+  // than harmonised (275). Its status TABS say "Failed", but its list-row badge
+  // (PaymentRow.tsx) and its detail badge (PaymentDetailClient.tsx) both render
+  // `{payment.status}` raw under CSS `capitalize`, so legacy's badges show the
+  // column value and read "Failed_unrecovered". This table gives every surface
+  // the tab word. Shipping a database enum to a merchant is a defect, and the
+  // direction of that fix is a ruling, not a build session's default, so the
+  // difference is REPORTED and legacy's raw-value rendering is not ported.
+  active: "Active",
   recovered: "Recovered",
-  failed_unrecovered: "Not recovered",
-  // Legacy's own word, READ from its status tabs rather than invented:
-  // app/(app)/recovery/payments/components/PaymentsFilters.tsx STATUS_TABS
-  // carries { key: 'cancelled', label: 'Cancelled' }. The three labels above are
-  // pre-existing renames of legacy's "Active" and "Failed" (S6's row records
-  // them); this one matches legacy exactly, so it adds no new divergence.
+  failed_unrecovered: "Failed",
   cancelled: "Cancelled",
 };
 
