@@ -1,0 +1,220 @@
+import { readFileSync } from "node:fs";
+
+import { describe, expect, it } from "vitest";
+
+import { computeHealthScore } from "~/lib/intelligence/risk";
+import { buildPredictionFields } from "~/lib/intelligence/predictions";
+
+// RULING 281c, executed 2026-08-14: "verify-then-claim gains its concrete plan,
+// the Intelligence routes are REAL with the line-92 RouteStub comment as the
+// stale artifact, risk, predictions and signals exercised on REAL data and the
+// marketing copy corrected to match the evidence IN EITHER DIRECTION".
+//
+// 280 THREE governs the standard: "no Intelligence claim ships without the
+// measurement or source that backs it named at the claim."
+//
+// Each assertion below pins a CLAIM to the EVIDENCE that decided it. Where the
+// evidence refuted the claim, the assertion pins that the claim is gone AND
+// that the fact which refuted it still holds, so re-adding the copy without
+// building the feature fails here.
+
+const PAGE = readFileSync("app/routes/products/intelligence.tsx", "utf8");
+
+describe("281c: claims the evidence REFUTED are gone, and stay gone", () => {
+  it("the Recovery-timing and Disputes-triage feed-back claim is removed", () => {
+    // MEASURED: nothing wires a risk signal into either. Recovery step timing is
+    // the static RECOVERY_SCHEDULES table keyed on decline category; the only
+    // intelligence imports outside app/lib/intelligence are the two cron
+    // registrations; triage fields exist ONLY in the demo seed.
+    expect(PAGE).not.toContain("adjust Recovery sequence timing");
+    expect(PAGE).not.toContain("feed Recovery timing and Disputes triage");
+    expect(PAGE).not.toContain("Disputes triage");
+  });
+
+  it("the FACT that refuted it still holds: no intelligence import in the recovery path", () => {
+    for (const f of [
+      "app/lib/recovery/schedule.ts",
+      "app/lib/engine/execute-step.ts",
+      "app/lib/webhooks/process.ts",
+    ]) {
+      expect(readFileSync(f, "utf8")).not.toContain("lib/intelligence");
+    }
+    // And step timing is a static table, not a scored decision.
+    const schedule = readFileSync("app/lib/recovery/schedule.ts", "utf8");
+    expect(schedule).toContain("RECOVERY_SCHEDULES");
+    expect(schedule).not.toContain("healthScore");
+  });
+
+  it("the instant-availability claim is removed", () => {
+    // MEASURED: the MRR/movements/churn/cohort producer is the intelligence-sync
+    // cron on CRON_SCHEDULE_MONTHLY, and there is no on-connect trigger, so
+    // "the moment you connect" was false.
+    expect(PAGE).not.toContain("the moment you connect");
+  });
+
+  it("the FACT that refuted it still holds: sync is a scheduled cron, not on-connect", () => {
+    const registry = readFileSync("app/lib/cron/registry.ts", "utf8");
+    expect(registry).toContain('{ name: "intelligence-sync", schedule: CRON_SCHEDULE_MONTHLY');
+    // No route triggers the sync; if one is ever added this assertion is the
+    // place to revisit the copy.
+    for (const f of ["app/routes/auth/connect.tsx"]) {
+      expect(readFileSync(f, "utf8")).not.toContain("runIntelligenceSync");
+    }
+  });
+
+  it("the bare prediction claim is removed", () => {
+    // MEASURED: predictions are LOGGED and never GRADED, so no accuracy exists.
+    expect(PAGE).not.toContain("predicts what is about to happen");
+  });
+
+  it("the FACT that refuted it still holds: nothing grades a prediction", () => {
+    // realizedOutcome has no production writer. The only non-null-assigning
+    // mention outside the read paths is the demo seed writing null.
+    const predictions = readFileSync("app/lib/intelligence/predictions.ts", "utf8");
+    expect(predictions).toContain("realizedOutcome / gradedAt are left unset");
+    // The customer page renders the ungraded state honestly.
+    expect(readFileSync("app/routes/app/intelligence/customer.tsx", "utf8")).toContain(
+      'realizedOutcome ?? "pending"',
+    );
+  });
+});
+
+describe("281c: the stale artifact the ruling named", () => {
+  it("the RouteStub comment is corrected, and the routes really are not stubs", () => {
+    expect(PAGE).not.toContain("are still RouteStub placeholders");
+    expect(PAGE).toContain("none of the six Intelligence routes uses");
+    for (const f of [
+      "app/routes/app/intelligence/index.tsx",
+      "app/routes/app/intelligence/customers.tsx",
+      "app/routes/app/intelligence/customer.tsx",
+      "app/routes/app/intelligence/churn.tsx",
+      "app/routes/app/intelligence/alerts.tsx",
+      "app/routes/app/intelligence/reports.tsx",
+    ]) {
+      expect(readFileSync(f, "utf8")).not.toContain("RouteStub");
+    }
+  });
+});
+
+describe("281c: claims the evidence SUPPORTS, with the source named", () => {
+  it("the free-tier list is exactly what the engine computes", () => {
+    // MrrMovements carries new/expansion/contraction/churn/reactivation plus the
+    // two churn rates, and buildCohortBreakdown produces the cohort rows.
+    const mrr = readFileSync("app/lib/intelligence/mrr.ts", "utf8");
+    for (const field of [
+      "newMrrCents",
+      "expansionMrrCents",
+      "contractionMrrCents",
+      "churnMrrCents",
+      "reactivationMrrCents",
+      "voluntaryChurnRateBps",
+      "involuntaryChurnRateBps",
+    ]) {
+      expect(mrr).toContain(field);
+    }
+    expect(mrr).toContain("buildCohortBreakdown");
+    expect(PAGE).toContain("MRR, movements, churn, and cohorts");
+  });
+
+  it("the named scoring signals are the ones risk.ts actually scores", () => {
+    // The copy now lists the signals by name, so the copy and the engine cannot
+    // drift without this failing.
+    const risk = readFileSync("app/lib/intelligence/risk.ts", "utf8");
+    for (const signal of [
+      "payment_latency",
+      "billing_volatility",
+      "refunds_disputes",
+      "recovery_engagement",
+      "tenure",
+    ]) {
+      expect(risk).toContain(signal);
+    }
+    expect(PAGE).toContain("payment-timing drift, billing volatility, refunds and disputes");
+    expect(PAGE).toContain("recovery engagement, and tenure");
+  });
+
+  it("the daily refresh claim matches the cron that computes the score", () => {
+    const registry = readFileSync("app/lib/cron/registry.ts", "utf8");
+    expect(registry).toContain('{ name: "intelligence-ai", schedule: CRON_SCHEDULE_DAILY');
+    const aiRun = readFileSync("app/lib/intelligence/ai-run.server.ts", "utf8");
+    expect(aiRun).toContain("computeHealthScore");
+    expect(PAGE).toContain("refreshed daily");
+  });
+
+  it("the not-a-black-box claim matches a surface that really lists factors", () => {
+    expect(readFileSync("app/routes/app/intelligence/customer.tsx", "utf8")).toContain(
+      "detail.healthFactors",
+    );
+    expect(PAGE).toContain("The score is not a black box");
+  });
+
+  it("the honest-accuracy FAQ says what PRICING requires it to say", () => {
+    // PRICING.md: "Accuracy claims in marketing only after backtests support
+    // them." The page now states the absence rather than implying the presence.
+    expect(PAGE).toContain("Is the risk score a validated prediction?");
+    expect(PAGE).toContain("no accuracy figure exists and none is advertised");
+  });
+});
+
+describe("281c: risk and predictions EXERCISED, not just read", () => {
+  it("a customer with real adverse signals scores below the at-risk band", () => {
+    const now = Date.UTC(2026, 7, 14);
+    const result = computeHealthScore({
+      nowMs: now,
+      subscriptionAgeDays: 30,
+      planChangeCount: 3,
+      seatChangeCount: 1,
+      intervalSwitchCount: 1,
+      paymentLatencyDriftDays: 4,
+      refundCount: 1,
+      disputeCount: 1,
+      recoverySignals: { failedPaymentCount: 2 } as never,
+      engagementSignals: null,
+    });
+    // Baseline 70, minus latency, volatility, refunds/disputes and no engagement.
+    expect(result.score).toBeLessThan(40);
+    const signals = result.factors.map((f) => f.signal).sort();
+    expect(signals).toEqual([
+      "billing_volatility",
+      "payment_latency",
+      "recovery_engagement",
+      "refunds_disputes",
+    ]);
+    // Every factor carries the plain-language detail the copy promises.
+    for (const f of result.factors) expect(f.detail.length).toBeGreaterThan(0);
+  });
+
+  it("a clean long-tenured customer scores healthy with no adverse factors", () => {
+    const result = computeHealthScore({
+      nowMs: Date.UTC(2026, 7, 14),
+      subscriptionAgeDays: 720,
+      planChangeCount: 0,
+      seatChangeCount: 0,
+      intervalSwitchCount: 0,
+      paymentLatencyDriftDays: 0,
+      refundCount: 0,
+      disputeCount: 0,
+      recoverySignals: null,
+      engagementSignals: null,
+    });
+    expect(result.score).toBeGreaterThan(70);
+    expect(result.factors.map((f) => f.signal)).toEqual(["tenure"]);
+  });
+
+  it("a prediction is logged with a horizon and NO realized outcome", () => {
+    // This is the shape the honest-accuracy FAQ describes: logged, ungraded.
+    const fields = buildPredictionFields({
+      accountId: "acc_1",
+      stripeCustomerId: "cus_1",
+      score: 31,
+      factors: [{ signal: "payment_latency", deltaPoints: -12, detail: "later" }],
+      horizonDays: 30,
+      predictedAt: new Date("2026-08-14T00:00:00.000Z"),
+    });
+    expect(fields.horizonDays).toBe(30);
+    expect(fields.bandEvidenceHash).toMatch(/^[0-9a-f]{8}$/);
+    // The row shape carries no grading fields at all: nothing to fill them.
+    expect(Object.keys(fields)).not.toContain("realizedOutcome");
+    expect(Object.keys(fields)).not.toContain("gradedAt");
+  });
+});
