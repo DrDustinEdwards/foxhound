@@ -25,6 +25,7 @@ import {
 } from "~/lib/recovery/queries.server";
 import type { AmountBounds, FailedPaymentPageSize, FailedPaymentSort } from "~/lib/recovery/queries.server";
 import { buildPaymentParams, withParams } from "~/lib/recovery/payment-filters";
+import { recoveryRateValueClass, showingCountFor } from "~/lib/recovery/payments-stats";
 import { nextRovingIndex } from "~/lib/a11y/roving-index";
 import {
   actionableSelection,
@@ -565,9 +566,31 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
       </p>
 
       <section className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <StatCard label="Total payments" value={String(globalCounts.all)} subtext="all filters" />
-        <StatCard label="Active" value={String(globalCounts.active)} />
-        <StatCard label="Recovered" value={String(globalCounts.recovered)} />
+        {/* 279's two raised items, closed 2026-08-14 under 284's Session 1.
+            THE SHOWING CARD. Legacy's first card is labelled "Showing" and its
+            value is `globalCounts[status] ?? globalCounts.all`, read at the
+            PaymentsClient.tsx call site. So it is a GLOBAL count that responds
+            ONLY to the selected status pill, never to search, category, date or
+            amount. 188 called it "a LOGIC divergence inside a copy divergence:
+            filtered count against global" and BOTH halves were wrong; 279
+            corrected it from the first read of that call site and VOL3 carries
+            the marker. NO NEW QUERY SHAPE: every number this needs is already
+            on globalCounts.
+            The secondary caption that stood under this value is REMOVED.
+            Legacy's card renders label and value only, so removing it restores
+            legacy and is a repair rather than a divergence (252). It also became
+            actively false the moment the value started tracking the pill. */}
+        <StatCard label="Showing" value={String(showingCountFor(globalCounts, filters.status))} />
+        {/* THE VALUE COLOURS, legacy's own, ported through StatCard's existing
+            optional valueClassName additively per 199. Legacy passes a
+            colorClass on ALL FIVE cards, not four: Showing `text-text`, Active
+            `text-amber-text`, Recovered `text-green`, Cancelled
+            `text-text-subtle`, Recovery rate thresholded. Showing's is
+            `text-text`, which is exactly StatCard's own default, so it needs no
+            prop and is not a divergence. Cancelled landed at 352de6a. That
+            leaves THREE outstanding, not the four 279 and the S6 row recorded. */}
+        <StatCard label="Active" value={String(globalCounts.active)} valueClassName="text-amber-text" />
+        <StatCard label="Recovered" value={String(globalCounts.recovered)} valueClassName="text-green" />
         {/* 266's gap, closed 2026-08-14. Legacy's PaymentsStats.tsx (blob
             b386c66, read whole) is Showing / Active / Recovered / Cancelled /
             Recovery rate, and position four is Cancelled. Foxhound had a "Not
@@ -579,19 +602,30 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
             NO NEW QUERY SHAPE. `globalCounts.cancelled` has existed since
             Session B (265) taught tallyStatusCounts the fourth status; the gap
             was never a missing number, it was a missing card.
-            `text-text-subtle` is legacy's own colour for this card. The other
-            four cards' legacy value colours (amber, green, and a thresholded
-            rate) are a separate divergence, measured for the first time by this
-            fold and REPORTED rather than swept, since restyling four cards is
-            not what this session was assigned. */}
+            `text-text-subtle` is legacy's own colour for this card. The
+            remaining value colours, which that fold measured and REPORTED as
+            open, are CLOSED 2026-08-14 under 284: they were THREE and not the
+            "other four" recorded here, because legacy colours all five cards and
+            Showing's is StatCard's own default. */}
         <StatCard
           label="Cancelled"
           value={String(globalCounts.cancelled)}
           valueClassName="text-text-subtle"
         />
+        {/* Legacy's thresholds, read from source: >= 36 green, >= 21 amber,
+            else red, both boundaries inclusive.
+            REPORTED, NOT REPAIRED (190): legacy computes
+            `globalCounts.all > 0 ? Math.round(...) : 0`, so an account with no
+            failed payments renders "0%" in RED, while Foxhound renders "-".
+            That value divergence predates this fold and closing it was not this
+            session's assignment, so the threshold is applied only where a rate
+            exists and the empty case keeps StatCard's default. */}
         <StatCard
           label="Recovery rate"
           value={globalRecoveryRatePct === null ? "-" : `${globalRecoveryRatePct}%`}
+          valueClassName={
+            globalRecoveryRatePct === null ? undefined : recoveryRateValueClass(globalRecoveryRatePct)
+          }
         />
       </section>
 
