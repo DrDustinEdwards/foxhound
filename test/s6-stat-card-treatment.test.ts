@@ -164,6 +164,23 @@ describe("S6 stat cards: the route renders legacy's treatment", () => {
     expect(cardBlock()).toContain("recoveryRateValueClass(globalRecoveryRatePct)");
   });
 
+  it("an EMPTY account reads 0% in legacy's red band, never a hyphen", () => {
+    // REPAIRED 2026-08-14 under 285. Legacy computes
+    // `globalCounts.all > 0 ? Math.round(...) : 0` and colours the result by the
+    // same thresholds, so an account with no failed payments shows "0%" in red.
+    // Foxhound rendered a hyphen with no colour, an unratified divergence and so
+    // a defect under the PRIME DIRECTIVE.
+    expect(LIST_ROUTE).toContain(
+      "globalCounts.all > 0 ? Math.round((globalCounts.recovered / globalCounts.all) * 100) : 0",
+    );
+    // The hyphen branch is gone from the card, both in the value and the class.
+    expect(cardBlock()).not.toContain('"-"');
+    expect(cardBlock()).not.toContain("=== null");
+    expect(cardBlock()).toContain("value={`${globalRecoveryRatePct}%`}");
+    // And 0 lands in the red band, which is what makes the repair visible.
+    expect(recoveryRateValueClass(0)).toBe("text-red");
+  });
+
   it("every legacy token maps to an existing Foxhound token, none minted", () => {
     // Legacy's four non-default classes all exist in Foxhound's CSS under the
     // same names, verified in app/app.css, so this port approximates nothing.

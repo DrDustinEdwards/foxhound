@@ -152,7 +152,11 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   const recoveredCents = headerRows.filter((r) => r.status === "recovered").reduce((s, r) => s + r.amountCents, 0);
   const recoveredRowCount = headerRows.filter((r) => r.status === "recovered").length;
   const headerRecoveryRatePct = headerRows.length > 0 ? Math.round((recoveredRowCount / headerRows.length) * 100) : null;
-  const globalRecoveryRatePct = globalCounts.all > 0 ? Math.round((globalCounts.recovered / globalCounts.all) * 100) : null;
+  // Legacy's exact computation, ported 2026-08-14 under 285: an account with no
+  // failed payments reads 0, never null. This returned null and rendered a hyphen
+  // until then, an unratified divergence and so a defect under the PRIME
+  // DIRECTIVE. Legacy: `globalCounts.all > 0 ? Math.round(...) : 0`.
+  const globalRecoveryRatePct = globalCounts.all > 0 ? Math.round((globalCounts.recovered / globalCounts.all) * 100) : 0;
 
   return {
     result,
@@ -614,18 +618,17 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
         />
         {/* Legacy's thresholds, read from source: >= 36 green, >= 21 amber,
             else red, both boundaries inclusive.
-            REPORTED, NOT REPAIRED (190): legacy computes
-            `globalCounts.all > 0 ? Math.round(...) : 0`, so an account with no
-            failed payments renders "0%" in RED, while Foxhound renders "-".
-            That value divergence predates this fold and closing it was not this
-            session's assignment, so the threshold is applied only where a rate
-            exists and the empty case keeps StatCard's default. */}
+            THE EMPTY-ACCOUNT CASE IS REPAIRED 2026-08-14 under 285. This card
+            rendered a hyphen with no colour when an account had no failed
+            payments; legacy renders "0%" in its RED band, because 0 is below the
+            21 cutoff like any other low rate. No ratification existed for the
+            hyphen, so under the PRIME DIRECTIVE it was a defect and is corrected
+            toward legacy. The seat recorded the counter-argument, a red zero
+            greeting a new account, and declined it. */}
         <StatCard
           label="Recovery rate"
-          value={globalRecoveryRatePct === null ? "-" : `${globalRecoveryRatePct}%`}
-          valueClassName={
-            globalRecoveryRatePct === null ? undefined : recoveryRateValueClass(globalRecoveryRatePct)
-          }
+          value={`${globalRecoveryRatePct}%`}
+          valueClassName={recoveryRateValueClass(globalRecoveryRatePct)}
         />
       </section>
 
