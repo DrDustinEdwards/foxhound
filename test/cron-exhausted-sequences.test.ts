@@ -7,7 +7,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 
 // Nothing wrote failed_payments.status = 'failed_unrecovered'. A payment dunned
 // for thirty days and never recovered stayed 'active' forever, so every
-// status-keyed count drifted upward permanently and "In recovery" lied.
+// status-keyed count drifted upward permanently and "Active" lied.
 //
 // The flip creates a second problem the sweep alone does not solve: once a row
 // leaves 'active', the invoice.payment_succeeded path has to still accept it, or

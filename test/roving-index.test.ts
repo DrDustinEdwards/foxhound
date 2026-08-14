@@ -15,7 +15,7 @@ import { nextRovingIndex } from "~/lib/a11y/roving-index";
 // verified is that a non-handled key returns null, which is the condition the
 // component uses to skip preventDefault entirely.
 
-const N = 4; // the four status pills: All, In recovery, Recovered, Not recovered
+const N = 5; // the five status pills: All, Active, Recovered, Cancelled, Failed
 
 describe("nextRovingIndex: arrows move forward and wrap", () => {
   it("ArrowRight advances", () => {

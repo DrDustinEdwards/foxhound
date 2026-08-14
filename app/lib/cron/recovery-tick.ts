@@ -107,7 +107,7 @@ function stepPendingCondition(): SQL {
  *
  * Nothing used to write this transition, so a payment that was dunned for thirty
  * days and never recovered stayed 'active' forever. Every status-keyed count
- * ("In recovery" on /recovery/payments, the demo-independent dashboard tiles)
+ * ("Active" on /recovery/payments, the demo-independent dashboard tiles)
  * drifted upward permanently and told the merchant a payment was being worked
  * when the engine had finished with it weeks earlier.
  *
