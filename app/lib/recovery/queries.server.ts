@@ -1,10 +1,26 @@
-import { and, asc, desc, eq, gte, inArray, isNull, like, lte, ne, or, sql, type SQL } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gte,
+  inArray,
+  isNull,
+  like,
+  lte,
+  ne,
+  notInArray,
+  or,
+  sql,
+  type SQL,
+} from "drizzle-orm";
 
 import { byAccount, byAccountActive } from "~/db/scope";
 import { billableRecoveryRowConditions } from "~/db/billable";
 import type { Db } from "~/db";
 import {
   accounts,
+  disputes,
   expiringCardAlerts,
   failedPayments,
   recoveredPayments,
@@ -18,6 +34,7 @@ import {
   FAILED_PAYMENT_STATUS_UNRECOVERED,
   type DeclineCategory,
 } from "~/lib/constants";
+import { RESOLVED_DISPUTE_STATES } from "~/lib/disputes/labels";
 
 // Recovery-surface read models (Phase 5 slice 5b): failed payments, their
 // recovery_steps timeline, win-back sequences, and expiring-card alerts. Every
@@ -285,6 +302,12 @@ export interface FailedPaymentDetail {
    *  different value, and shipping it under legacy's "est. LTV" label would put
    *  a wrong number on a money surface (ruling 253's column guard). */
   estimatedLtvCents: number | null;
+  /** Legacy's open-dispute badge (PaymentDetailClient.tsx 243-251 at blob
+   *  7f54aa45): this customer's disputes that are still in play. Legacy also
+   *  gated the badge on an account_products entitlement; 298 dropped that table
+   *  as vestigial and 304 ruled the badge renders on the dispute predicate
+   *  ALONE, so this is the whole gate. */
+  openDisputes: { id: string }[];
 }
 
 /** The full timeline for one failed payment, scoped to the account. Null when
@@ -323,7 +346,7 @@ export async function getFailedPaymentDetail(
   // Legacy's two customer-scoped reads, both account-scoped here as every read
   // in this tree is. The previous-failures query mirrors legacy exactly:
   // same stripe_customer_id, excluding THIS payment, newest first, five.
-  const [previousFailures, customerRecovered] = await Promise.all([
+  const [previousFailures, customerRecovered, openDisputes] = await Promise.all([
     db
       .select({
         id: failedPayments.id,
@@ -354,6 +377,20 @@ export async function getFailedPaymentDetail(
           eq(failedPayments.stripeCustomerId, failedPayment.stripeCustomerId),
         ),
       ),
+    // Open disputes for THIS customer. "Open" is derived from
+    // RESOLVED_DISPUTE_STATES, the same constant isDisputeResolved reads, so the
+    // SQL and the helper cannot drift: adding a resolved state updates both.
+    db
+      .select({ id: disputes.id })
+      .from(disputes)
+      .where(
+        and(
+          eq(disputes.accountId, accountId),
+          eq(disputes.stripeCustomerId, failedPayment.stripeCustomerId),
+          notInArray(disputes.state, [...RESOLVED_DISPUTE_STATES]),
+        ),
+      )
+      .orderBy(desc(disputes.createdAt)),
   ]);
 
   return {
@@ -362,6 +399,7 @@ export async function getFailedPaymentDetail(
     recovery: recoveries[0] ?? null,
     previousFailures,
     estimatedLtvCents: estimateCustomerLtvCents(customerRecovered.map((r) => r.amountCents)),
+    openDisputes,
   };
 }
 
