@@ -32,16 +32,20 @@
   // deploy. 301 landed 54 of 55 tables at exact parity, the one difference being
   // sqlite_sequence, a SQLite internal.
   //
-  // 7469d599 IS THE FROZEN PRE-RENAME SNAPSHOT AND IS NOT DELETED. It stays
-  // until Dustin retires it from the dashboard himself. No agent, this session
-  // or any later one, calls d1_database_delete on 7469d599 under any framing.
-  // The two earlier databases, 4aa23f57 and the old empty foxhound-production
-  // ae406c63, are already GONE: Dustin retired them himself, which is exactly
-  // what that rule reserves to him. Measured 2026-08-15, both unreachable by id.
+  // EVERY EARLIER DATABASE IS GONE, and who deleted each one is recorded because
+  // the no-delete rule is about WHO may act, not about the fact of deletion.
+  // 4aa23f57 was deleted by the SEAT under 302's quoted delegation; 7469d599 by
+  // the seat under 303; the old empty foxhound-production ae406c63 was retired
+  // by Dustin himself. Measured 2026-08-15: all three unreachable by id.
   //
-  // The KV keeps id 8ff187... and still carries a "-staging" label; only the D1
-  // has been renamed. scripts/db-migrate.mjs still guards the migration path,
-  // and every --remote command naming "foxhound" is a production write.
+  // The no-delete sentence 299 and 301 carried is DISCHARGED, not dropped. It
+  // protected 7469d599 until 303 authorised its deletion, and it did its job:
+  // no agent deleted anything without a quoted ruling naming the id.
+  //
+  // The KV is id 8ff187... and is now titled "foxhound" too (renamed 303), so
+  // no "-staging" label survives anywhere. scripts/db-migrate.mjs still guards
+  // the migration path, and every --remote command naming "foxhound" is a
+  // production write.
 
   "workers_dev": false,
   "routes": [
@@ -69,7 +73,7 @@
   ],
   "kv_namespaces": [
     {
-      // dashboard title: foxhound-app-kv-staging
+      // dashboard title: foxhound (renamed 303; verified by id, not by name)
       "binding": "APP_KV",
       "id": "8ff1871236394486bd5aac4b408a4253"
     }
