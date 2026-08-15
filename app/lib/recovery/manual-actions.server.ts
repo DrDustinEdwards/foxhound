@@ -43,14 +43,15 @@ import { lastResendableEmailStep, nextPendingStep } from "./step-state";
 // account through a different helper than its siblings and skips the status gate
 // entirely (scope section 1.5, defects 2 and 4).
 //
-// WIRED SO FAR: note and cancel (Session B). trigger (C), resend (D) and
-// mark_recovered (E) still resolve to NOT_WIRED after their preconditions pass.
+// ALL FIVE ARE WIRED, across Sessions B through E and closed out at 272. No
+// intent resolves to a refusal for want of an implementation; every refusal this
+// module returns is a real precondition answering for a real reason.
 //
 // MONEY-PATH CONTRACT, ruling 262 decision four: EVERY Phase 2 mutation routes
 // through the per-account money-write Durable Object, without exception and
 // regardless of whether the individual write touches a fee-bearing table. The DO
 // is what serializes writes per account; a bypass reintroduces exactly the races
-// it exists to kill. Both wired intents commit through `ManualActionCommit`, and
+// it exists to kill. Every mutating intent commits through `ManualActionCommit`, and
 // an intent that reaches for db.batch() directly is a defect, not a shortcut.
 
 /** Legacy's four ACTION-ROW actions, in legacy's order. `note` is deliberately
