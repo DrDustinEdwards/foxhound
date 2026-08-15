@@ -38,7 +38,12 @@ describe("isDueByInterval (min-interval gate)", () => {
 describe("cron_run_history logging", () => {
   it("records the job, status, and rows processed", () => {
     const { sql, params } = sqlOf(
+      // `id` became REQUIRED at 313, adjudicated rather than silently filled in.
+      // The run id used to be defaulted by the schema, which meant nothing knew
+      // it, and a failure alert cannot name a run whose id was never returned.
+      // The caller mints it now, so this fixture supplies one.
       buildCronRunInsert(db, {
+        id: "run_fixed_for_test",
         cronName: "retention-ai-calls",
         startedAt: now,
         finishedAt: now,

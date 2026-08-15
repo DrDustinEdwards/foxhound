@@ -146,6 +146,22 @@
         "max_batch_timeout": 30,
         "max_retries": 3,
         "dead_letter_queue": "foxhound-email-dlq"
+      },
+      // THE DEAD-LETTER QUEUE NOW HAS A CONSUMER (313). It had ZERO until this,
+      // measured against the account with `wrangler queues list`, which is what
+      // made the comment below literally true: a dunning email that exhausted its
+      // retries was discarded with no trace. The consumer routes to the SAME
+      // worker; workers/app.ts branches on batch.queue and writes an
+      // email_dead_letters row, then raises one alert per day.
+      //
+      // NO dead_letter_queue of its own, deliberately: a DLQ for the DLQ would
+      // just move the same silent discard one hop further out. A message that
+      // fails to be RECORDED is counted in the batch result instead.
+      {
+        "queue": "foxhound-email-dlq",
+        "max_batch_size": 10,
+        "max_batch_timeout": 30,
+        "max_retries": 3
       }
     ]
   },

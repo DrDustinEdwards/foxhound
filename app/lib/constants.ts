@@ -360,6 +360,11 @@ export const ENGAGEMENT_CLICK_PATH = "/e/c";
 export const EMAIL_QUEUE_MAX_RETRIES = 3;
 /** Queue names (batch.queue switch in the consumer; Dustin creates queues with these names). */
 export const EMAIL_QUEUE_NAME = "foxhound-email";
+/** The dead-letter queue for EMAIL_QUEUE_NAME. Declared in wrangler.jsonc as the
+ *  consumer's `dead_letter_queue` since the queues were provisioned, and given a
+ *  CONSUMER at 313: until then it had zero consumers and a dunning email that
+ *  exhausted its retries was discarded with no trace. */
+export const EMAIL_DLQ_QUEUE_NAME = "foxhound-email-dlq";
 export const EMAIL_EVENTS_QUEUE_NAME = "foxhound-email-events";
 
 // ---- Cron Triggers + retention (ARCHITECTURE.md: all scheduled jobs are Cron

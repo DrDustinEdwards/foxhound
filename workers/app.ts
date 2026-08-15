@@ -2,6 +2,7 @@ import { withSentry } from "@sentry/cloudflare";
 import { createRequestHandler, RouterContextProvider } from "react-router";
 
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { EMAIL_DLQ_QUEUE_NAME } from "~/lib/constants";
 import { runCronJob } from "~/lib/cron/run";
 import { applySecurityHeaders, generateNonce } from "~/lib/http/security-headers";
 import { enforceRateLimit } from "~/lib/http/rate-limit";
@@ -42,6 +43,23 @@ export default withSentry<Env>(
     // Inert until the queue consumer config is added to wrangler.jsonc (Dustin
     // provisions the queues + Email Service).
     async queue(batch, env) {
+      // TWO QUEUES, ONE HANDLER (313). The dead-letter queue routes here too, so
+      // the branch is on the queue NAME. Before this, foxhound-email-dlq had ZERO
+      // consumers (measured) and a repeatedly-failing dunning email was discarded
+      // with no trace after max_retries; this branch writes the row that ends
+      // that. Imported dynamically for the same reason scheduled() is: it keeps
+      // the dead-letter and alerting import graph out of the normal send path.
+      if (batch.queue === EMAIL_DLQ_QUEUE_NAME) {
+        const { recordDeadLetters } = await import("~/lib/email/dead-letters.server");
+        const { getDb } = await import("~/db");
+        await recordDeadLetters(
+          env,
+          getDb(env),
+          batch.messages.map((m) => ({ id: m.id, attempts: m.attempts, body: m.body })),
+          new Date(),
+        );
+        return;
+      }
       await handleQueueBatch(batch, env);
     },
     // Cron Triggers (Phase 4e). Dispatch every registered job on the fired

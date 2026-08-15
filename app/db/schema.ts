@@ -440,9 +440,68 @@ export const emailSends = sqliteTable(
     providerMessageId: text("provider_message_id"),
     error: text("error"),
     sentAt: ts("sent_at"),
+    /** The cron run that produced this send (313). Ruling 311 measured that a
+     *  send could not be attributed to its run: nothing joined email_sends to
+     *  cron_run_history, so "which run sent this" meant correlating timestamps.
+     *
+     *  NULLABLE, and deliberately NOT a foreign key. The retention windows
+     *  DISAGREE: email_sends is kept 180 days (RETENTION_EMAIL_SENDS_DAYS) and
+     *  cron_run_history 90 (RETENTION_CRON_HISTORY_DAYS), so between days 90 and
+     *  180 a send legitimately outlives its run and an FK would make the
+     *  cron-history retention sweeper fail on exactly those rows. This column
+     *  records provenance; it is not a live relation. */
+    cronRunId: text("cron_run_id"),
     createdAt: ts("created_at").notNull(),
   },
   (t) => [index("email_sends_account_idx").on(t.accountId)],
+);
+
+/** Dead-lettered dunning emails (313). Until this table the queue's
+ *  `dead_letter_queue` was a bare NAME with no consumer, and wrangler.jsonc's own
+ *  comment recorded the consequence: "a dunning email that keeps failing is
+ *  discarded with no trace after max_retries". This is the trace. Writing the row
+ *  is the whole job; retry-from-DLQ is deliberately NOT built here.
+ *
+ *  Carries a recipientHash rather than an address, matching email_sends' privacy
+ *  shape: a dead letter is a diagnostic, not a mailbox. */
+export const emailDeadLetters = sqliteTable(
+  "email_dead_letters",
+  {
+    id: id(),
+    accountId: text("account_id"),
+    recoveryStepId: text("recovery_step_id"),
+    winBackStepId: text("win_back_step_id"),
+    queueMessageId: text("queue_message_id"),
+    template: text("template"),
+    recipientHash: text("recipient_hash"),
+    /** Delivery attempts the queue made before giving up. */
+    attempts: integer("attempts"),
+    error: text("error"),
+    createdAt: ts("created_at").notNull(),
+  },
+  (t) => [index("email_dead_letters_account_idx").on(t.accountId)],
+);
+
+/** One row per alert actually sent (313), which is ALSO the dedupe key: the
+ *  unique index on (cron_name, kind, alerted_on) means a second alert for the
+ *  same cron, same kind, same UTC day is refused by the DATABASE rather than by
+ *  application logic that two concurrent cron invocations could race.
+ *
+ *  A D1 row rather than a new binding, per 313: the cheapest primitive already
+ *  present wins. */
+export const cronAlerts = sqliteTable(
+  "cron_alerts",
+  {
+    id: id(),
+    cronName: text("cron_name").notNull(),
+    /** "failure" | "stale" | "dead_letter" */
+    kind: text("kind").notNull(),
+    /** UTC date, YYYY-MM-DD. The day-granularity half of the dedupe key. */
+    alertedOn: text("alerted_on").notNull(),
+    detail: text("detail"),
+    createdAt: ts("created_at").notNull(),
+  },
+  (t) => [uniqueIndex("cron_alerts_dedupe_uq").on(t.cronName, t.kind, t.alertedOn)],
 );
 
 export const engagementEvents = sqliteTable(
