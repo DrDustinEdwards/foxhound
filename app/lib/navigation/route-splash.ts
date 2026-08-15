@@ -27,11 +27,40 @@
  *  mark recovered, note save). A plain navigation is the one with NO formMethod,
  *  and that is the whole reason this predicate is not just a state check.
  *
- *  SCOPE IS DELIBERATELY NARROWER THAN LEGACY'S. 305 bounds the build to the
- *  detail surface, so only the payment detail path splashes here. Legacy
- *  splashes on seven further segments with the identical file; extending to
- *  them is a change to this ONE predicate and is a ruling, not an agent's
- *  default.
+ *  SCOPE IS NOW LEGACY'S WHOLE SET (306, which ruled the extension PARITY rather
+ *  than divergence). 305 had bounded the build to the detail surface alone.
+ *
+ *  THE SET, mapped from the eight-blob scan rather than from memory. Legacy's
+ *  eight segments collapse to FIVE Foxhound paths, and the collapse is the
+ *  interesting part:
+ *
+ *    legacy recovery/dashboard        -> /recovery            (URL revert pending)
+ *    legacy recovery/payments         -> /recovery/payments
+ *    legacy recovery/payments/[id]    -> /recovery/payments/:id
+ *    legacy recovery/sequence         -> /recovery/sequences  (URL revert pending)
+ *    legacy settings                  -> /settings
+ *    legacy recovery/demo             -> /recovery            (same path)
+ *    legacy recovery/demo/payments    -> /recovery/payments   (same path)
+ *    legacy recovery/demo/sequence    -> /recovery/sequences  (same path)
+ *
+ *  THREE of legacy's eight are DEMO duplicates, and Foxhound serves demo at the
+ *  SAME paths as the real app rather than under a /demo prefix, so they need no
+ *  entry of their own. Two of the remaining five sit at URLs Foxhound has not
+ *  reverted yet (S5's /recovery for legacy's /recovery/dashboard, S9's
+ *  /recovery/sequences for legacy's /recovery/sequence); if either revert lands,
+ *  this set moves with it.
+ *
+ *  WHAT IS DELIBERATELY EXCLUDED, because legacy has NO loading.tsx for it:
+ *  /dashboard (the console), /disputes, /intelligence, /billing, /help, and the
+ *  two NET-NEW recovery routes /recovery/winback and /recovery/expiring-cards.
+ *  Legacy is the spec, and a splash where legacy shows none would be an invention.
+ *
+ *  ONE BOUND, stated rather than assumed. Next's loading.tsx is generally
+ *  understood to wrap a segment AND its children, which would mean legacy also
+ *  splashed /settings/team. That is framework semantics this repo cannot verify
+ *  from an installed source, and the scan proves only WHICH FILES EXIST. So the
+ *  set here is exactly the segments that HAVE a loading.tsx, and /settings/team
+ *  is RAISED for a ruling rather than covered on an inference.
  */
 
 /** The shape this predicate needs from RR's `Navigation`, narrowed so the
@@ -43,19 +72,39 @@ export type SplashNavigation = {
 };
 
 /** `/recovery/payments/:id` and nothing else under that prefix. The list itself
- *  is one segment shorter, and export.csv is a resource route that returns a
- *  file rather than a page, so neither may splash. */
+ *  is one segment shorter and has its own entry below, and export.csv is a
+ *  resource route that returns a file rather than a page, so it never splashes. */
 const PAYMENT_DETAIL_PATH = /^\/recovery\/payments\/(?!export\.csv$)[^/]+$/;
+
+/** Legacy's remaining four segments, as Foxhound serves them. Exact paths, not
+ *  prefixes: a prefix on /recovery would swallow winback and expiring-cards,
+ *  which are NET-NEW and have no legacy loading.tsx to port. */
+const SPLASH_PATHS: ReadonlySet<string> = new Set([
+  "/recovery",
+  "/recovery/payments",
+  "/recovery/sequences",
+  "/settings",
+]);
 
 export function isPaymentDetailPath(pathname: string): boolean {
   return PAYMENT_DETAIL_PATH.test(pathname);
 }
 
+/** Every path legacy splashes, mapped onto Foxhound's routes. */
+export function isSplashPath(pathname: string): boolean {
+  // A trailing slash is the same page; without this a stray "/recovery/" would
+  // silently stall instead of splashing.
+  const path = pathname.length > 1 && pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
+  return SPLASH_PATHS.has(path) || isPaymentDetailPath(path);
+}
+
 export function shouldShowRouteSplash(navigation: SplashNavigation): boolean {
   // Settled: whatever is on screen is the answer, never a splash.
   if (navigation.state !== "loading") return false;
-  // Post-submission revalidation, not a navigation. See the header note.
+  // Post-submission revalidation, not a navigation. See the header note. This
+  // guard is what keeps a money action from blanking the page, and 306 extends
+  // its reach: it now protects five paths rather than one.
   if (navigation.formMethod != null) return false;
   const pathname = navigation.location?.pathname;
-  return pathname != null && isPaymentDetailPath(pathname);
+  return pathname != null && isSplashPath(pathname);
 }

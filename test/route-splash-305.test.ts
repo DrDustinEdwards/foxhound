@@ -64,26 +64,41 @@ describe("305: the splash shows DURING a pending navigation", () => {
 });
 
 describe("305 THE MONEY GUARD: a POST's revalidation is not a navigation", () => {
-  it("does NOT splash while revalidating after an action", () => {
+  // EXTENDED BY 306, not joined by siblings. 306 required these two to hold
+  // across the extension, and extending the existing assertions is stronger than
+  // adding new ones beside them: a sixth path added to the predicate without a
+  // matching entry here leaves SPLASH_PATHS and this list visibly out of step,
+  // where a sibling test would simply not cover it.
+  const EVERY_SPLASH_PATH = [
+    DETAIL,
+    "/recovery",
+    "/recovery/payments",
+    "/recovery/sequences",
+    "/settings",
+  ];
+
+  it("does NOT splash while revalidating after an action, on ANY splash path", () => {
     // Read from the installed Navigation union: the "loading" state carries
     // `formMethod: Submission["formMethod"] | undefined`, so post-submission
     // revalidation is ALSO state "loading". Without this branch every one of the
     // five wired money intents would blank the page mid-action. This assertion
     // is the reason the predicate is not a bare state check.
-    expect(
-      shouldShowRouteSplash({
-        state: "loading",
-        formMethod: "POST",
-        location: { pathname: DETAIL },
-      }),
-    ).toBe(false);
+    for (const pathname of EVERY_SPLASH_PATH) {
+      expect(
+        shouldShowRouteSplash({ state: "loading", formMethod: "POST", location: { pathname } }),
+        `revalidation splashed on ${pathname}`,
+      ).toBe(false);
+    }
   });
 
-  it("holds for every method a form can submit", () => {
-    for (const formMethod of ["POST", "PUT", "PATCH", "DELETE", "GET"]) {
-      expect(
-        shouldShowRouteSplash({ state: "loading", formMethod, location: { pathname: DETAIL } }),
-      ).toBe(false);
+  it("holds for every method a form can submit, on ANY splash path", () => {
+    for (const pathname of EVERY_SPLASH_PATH) {
+      for (const formMethod of ["POST", "PUT", "PATCH", "DELETE", "GET"]) {
+        expect(
+          shouldShowRouteSplash({ state: "loading", formMethod, location: { pathname } }),
+          `${formMethod} revalidation splashed on ${pathname}`,
+        ).toBe(false);
+      }
     }
   });
 });
@@ -95,11 +110,17 @@ describe("305: the path predicate is the detail route and nothing else", () => {
   });
 
   it("does NOT match the list, which is one segment shorter", () => {
-    // 305 bounds the build to the detail surface. Legacy splashes on the list
-    // too, with the identical file, and extending to it is a ruling.
+    // The PATH predicate still excludes the list: the list is not a detail page.
     expect(isPaymentDetailPath("/recovery/payments")).toBe(false);
+    // ADJUDICATED AND INVERTED BY 306, not silently flipped. This assertion's
+    // second half used to read that the list does NOT splash, which was correct
+    // under 305's deliberate detail-only bound and became FALSE when 306 ruled
+    // the extension parity rather than divergence. It was a bounded-scope
+    // assertion, not a regression guard, so it is re-pointed at the new truth
+    // with the reason recorded, the same adjudication 296 applied to the stale
+    // note-intent test. The live behaviour now lives in route-splash-306.
     expect(shouldShowRouteSplash({ state: "loading", location: { pathname: "/recovery/payments" } })).toBe(
-      false,
+      true,
     );
   });
 
