@@ -19,8 +19,20 @@ interface Env {
 
   // ---- Phase 4a: Stripe Connect + token encryption ----
   // AES-256-GCM key for encrypting connected-account Stripe tokens at rest.
-  // 64 hex chars (32 bytes). Decrypted tokens are NEVER logged.
+  // 64 hex chars (32 bytes). Decrypted tokens are NEVER logged. This is the
+  // ACTIVE key: everything new is encrypted under it.
   ENCRYPTION_KEY?: string;
+  // The active key's id, written into every ciphertext as `v1:<keyId>:...` so a
+  // decrypt can resolve the right key instead of guessing (312). OPTIONAL and
+  // defaults to "k1", which is why the already-set ENCRYPTION_KEY secret keeps
+  // working with no config change.
+  ENCRYPTION_KEY_ID?: string;
+  // DECRYPT-ONLY previous keys as "id:hex,id:hex", set during a rotation so rows
+  // written under the old key still read while the re-encrypt writer moves them
+  // (app/lib/stripe/key-rotation.server.ts). Never used to encrypt. Dropped once
+  // that writer reports nothing left on old keys. The full runbook is in the
+  // header of app/lib/stripe/encryption.ts.
+  ENCRYPTION_KEYS_OLD?: string;
   // Foxhound's Stripe platform secret key (test key on staging). Used for the
   // Connect OAuth token exchange, account retrieve, and webhook constructEvent.
   STRIPE_SECRET_KEY?: string;
