@@ -63,14 +63,15 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   return { ...detail, steps, nowMs: Date.now() };
 }
 
-// Manual per-payment actions (cancel, retry now, resend, note, mark
-// recovered, override the next email): not built yet for anyone, demo or
-// real account, not only refused in demo. Honest "not available yet" rather
-// than a half-wired action that fakes success for a real merchant. See
-// TASK-foxhound-recovery-manual-actions.md (Capsid, recova namespace) for the
-// real implementation, which the account_id-scoped read above already makes
-// safe to build against.
-const MANUAL_ACTIONS_NOT_AVAILABLE_MESSAGE = "This action isn't available yet.";
+// Manual per-payment actions: ALL FIVE ARE WIRED (272), each committing through
+// the per-account money-write DO per 262 decision four. The notes save and Stop
+// recovery landed at `2c8cf51` (265), Trigger next step now at `7047a8f` (267),
+// Resend last email at `3d47a28` (269), and Mark as recovered at `74ad6df` (271),
+// the last entering through the spine's own buildRecoveryBatch and never a second
+// writer of recovered_payments. This block used to say none of them was built for
+// anyone, which was true until 265 and stale for every session after it, and the
+// MANUAL_ACTIONS_NOT_AVAILABLE_MESSAGE it introduced is gone with it: nothing
+// could reach that string once the switch below grew a case for every reason.
 
 /** Legacy's client never reads a success body, so it says only "Step triggered
  *  successful" for every outcome. Foxhound's banner is the visible surface, and
@@ -120,8 +121,10 @@ export async function action({ context, params, request }: Route.ActionArgs) {
   }
 
   // Legacy's own status codes and strings, per intent, from
-  // parity/S7-PHASE2-SCOPE.md section 1.7. Intents this session has not wired
-  // keep returning the unchanged not-available message.
+  // parity/S7-PHASE2-SCOPE.md section 1.7. Every reason the dispatcher can
+  // return has a case below, and the default is a typed exhaustiveness check
+  // rather than a message, so a NEW reason is a compile error here instead of a
+  // string a merchant reads.
   switch (outcome.reason) {
     case "not_found":
       throw new Response("Not Found", { status: 404 });
@@ -196,8 +199,22 @@ export async function action({ context, params, request }: Route.ActionArgs) {
         },
         { status: 500 },
       );
-    default:
-      return data({ error: MANUAL_ACTIONS_NOT_AVAILABLE_MESSAGE }, { status: 400 });
+    case "unknown_intent":
+      // REACHABLE, and the only reason the old default ever really served: the
+      // rendered forms all submit one of the five intents, so this answers a
+      // hand-crafted POST. The message it used to give, "This action isn't
+      // available yet", promised a feature to someone asking for one that does
+      // not exist, which is the opposite of honest.
+      return data({ error: "Unrecognized action." }, { status: 400 });
+    default: {
+      // Statically UNREACHABLE: every reason ManualActionOutcome can carry has a
+      // case above, so `outcome` narrows to never here and this assignment is
+      // what enforces it. Adding a reason without a case becomes a COMPILE
+      // error rather than a string a merchant reads. 288's no-dead-conditional
+      // rule, moved from a runtime branch into the type system.
+      const exhaustive: never = outcome;
+      return exhaustive;
+    }
   }
 }
 
@@ -313,9 +330,16 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                 text button that flips to a green confirmation for 2000ms.
                 Legacy's confirmation glyph is a literal U+2713; this uses
                 lucide's Check for the reason stated on the timeline glyph
-                below. plan_name is NOT this session's item and is absent here. */}
+                below. */}
             <div className="mt-1 flex flex-wrap items-center gap-3">
-              <p className="text-label text-text-tertiary">{failedPayment.customerEmail}</p>
+              {/* Legacy shows this sub-line ONLY when a customer name exists
+                  (PaymentDetailClient.tsx 254-256 at blob 7f54aa45), because the
+                  h1 above already falls back to the email: rendering it
+                  unconditionally printed the same address twice on every
+                  nameless payment. Straight parity repair. */}
+              {failedPayment.customerName ? (
+                <p className="text-label text-text-tertiary">{failedPayment.customerEmail}</p>
+              ) : null}
               <button
                 type="button"
                 onClick={copyEmail}
@@ -331,6 +355,17 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                   "Copy email"
                 )}
               </button>
+              {/* Legacy's plan name, PaymentDetailClient.tsx 263 at blob
+                  7f54aa45: a middot then the plan, only when present, and AFTER
+                  the Copy email control in legacy's own order. The column has
+                  been on failed_payments all along (schema.ts:244) and
+                  getFailedPaymentDetail selects whole rows, so this needed no
+                  loader field at all, one fewer than the scope doc estimated. */}
+              {failedPayment.planName ? (
+                <p className="text-label text-text-tertiary">
+                  &middot; {failedPayment.planName}
+                </p>
+              ) : null}
             </div>
           </div>
           <p className="font-mono text-title text-text">
@@ -756,7 +791,8 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
           legacy at Failed_unrecovered shows NO action buttons at all, and
           legacy's own gate is `payment.status === 'active'`, so a terminal
           payment renders nothing here rather than a row of dead controls.
-          The handler still refuses every intent; Phase 2 wires the engine. */}
+          Every intent behind these buttons is WIRED (272); the gate is legacy's
+          own, not a stand-in for an unbuilt engine. */}
       {actionsVisible ? (
         <div className="mt-6 rounded-lg border border-border bg-surface p-4">
           <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Manual actions</p>

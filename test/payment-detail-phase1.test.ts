@@ -97,8 +97,23 @@ describe("notes textarea renders with an honest submit path", () => {
     expect(ROUTE).toContain("bg-amber");
   });
 
-  it("posts the note intent, so the handler refuses it honestly rather than faking a save", () => {
+  it("posts the note intent, which the dispatcher handles as a real save", () => {
+    // RENAMED AND RE-POINTED (296), with the adjudication recorded rather than
+    // silently swapped. The old name said the handler "refuses it honestly
+    // rather than faking a save" and its second assertion pinned
+    // MANUAL_ACTIONS_NOT_AVAILABLE_MESSAGE. Both were true only while the save
+    // was unwired. 265 wired it and 272 closed the phase, so that assertion was
+    // DEAD, not a misnamed regression guard, and it was the last thing keeping
+    // the constant alive: a test was holding a dead string in the route.
+    //
+    // The surviving half IS a live regression guard: the form must keep
+    // submitting the intent the dispatcher branches on, or the save silently
+    // stops reaching it.
     expect(ROUTE).toContain('value="note"');
-    expect(ROUTE).toContain("MANUAL_ACTIONS_NOT_AVAILABLE_MESSAGE");
+    expect(ROUTE).toContain("dispatchManualAction");
+    // The dead constant's DECLARATION is gone. Matched on the declaration form,
+    // not the bare name, because the route's own comment now records that it was
+    // removed and a bare match would fire on that prose.
+    expect(ROUTE).not.toContain("MANUAL_ACTIONS_NOT_AVAILABLE_MESSAGE = ");
   });
 });
