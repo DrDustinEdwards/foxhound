@@ -37,9 +37,20 @@ describe("env sanity: no phantom bindings", () => {
     // below would pass vacuously against a matcher that reads nothing.
     const declared = declaredBindings();
     expect(declared.size).toBeGreaterThanOrEqual(5);
-    for (const known of ["DB", "APP_KV", "EMAIL", "MONEY_WRITER", "CRON_LOCK"]) {
+    // APP_KV LEFT THIS CALIBRATION LIST AT 310, adjudicated rather than silently
+    // dropped. It was a sample name proving the matcher reads real declarations,
+    // correct while the KV binding existed and false the moment 310 removed it
+    // for having ZERO consumers. It was never a guard ABOUT APP_KV: the two
+    // directional assertions below are what police the sanity surface, and both
+    // still pass precisely because the binding and the sanity row were removed
+    // TOGETHER. Had only one side been removed, one of them would have failed,
+    // which is the loop working.
+    for (const known of ["DB", "EMAIL", "MONEY_WRITER", "CRON_LOCK"]) {
       expect(declared).toContain(known);
     }
+    // The removal must be real on the wrangler side, not just absent from the
+    // list above: this fails if the binding is ever re-added without a consumer.
+    expect(declared).not.toContain("APP_KV");
     // And it must NOT pick names out of prose, which is what stripping the
     // comments buys: EMAIL_DLQ is still discussed there and is not a binding.
     expect(WRANGLER).toContain("EMAIL_DLQ");

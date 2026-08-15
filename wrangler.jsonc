@@ -71,13 +71,21 @@
       "migrations_dir": "drizzle/migrations"
     }
   ],
-  "kv_namespaces": [
-    {
-      // dashboard title: foxhound (renamed 303; verified by id, not by name)
-      "binding": "APP_KV",
-      "id": "8ff1871236394486bd5aac4b408a4253"
-    }
-  ],
+  // NO KV BINDING, deliberately. The APP_KV binding was REMOVED 2026-08-15 by
+  // ruling 310, after `env.APP_KV` measured ZERO consumers across app/ and
+  // workers/: it was bound here and enumerated on the env-sanity surface while
+  // nothing whatsoever read it, so that surface reported a binding no request
+  // could ever exercise.
+  //
+  // THE NAMESPACE ITSELF IS NOT DELETED. KV id 8ff1871236394486bd5aac4b408a4253
+  // (dashboard title "foxhound", renamed by ruling 303) stays, and rides the
+  // cold-check deletion protocol 302 established for databases: no agent deletes
+  // it under any framing without Dustin's explicit per-namespace authorization
+  // AND a same-minute cold verification, both recorded. Unbinding is reversible
+  // in one line; deleting the namespace is not.
+  //
+  // If a consumer ever appears, re-add the binding here rather than minting a new
+  // namespace: the id above is the one 303 renamed.
 
   // Cloudflare Email Service send binding (TASK-foxhound-email-provisioning.md).
   // Three domains onboarded, Enabled + DNS Configured: foxhoundapp.com (apex),
