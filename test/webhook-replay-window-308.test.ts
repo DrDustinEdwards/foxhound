@@ -10,8 +10,14 @@ import { describe, expect, it } from "vitest";
 // captured request can be replayed against a money path.
 //
 // MEASURED at HEAD before this was written: exactly ONE call site,
-// app/lib/stripe/webhook.ts, and both webhook endpoints route through it. The
-// workers/webhooks/*.ts files are TODO stubs with no call.
+// app/lib/stripe/webhook.ts, and both webhook endpoints route through it.
+//
+// UPDATED AT 312: this note used to add "the workers/webhooks/*.ts files are
+// TODO stubs with no call". Those files are DELETED. 311 found that all 22 files
+// under workers/crons, workers/webhooks and workers/queues were one-line TODO
+// comments shadowing the real implementations, and that they had already misled
+// two sessions into misreading the system; 312 purged them. The scan below still
+// walks workers/, which now holds only real modules.
 //
 // BOUND, stated per 246: this is a SOURCE-SHAPE guard, not a behavioural one.
 // Proving the effective tolerance at runtime would mean signing a payload with a
