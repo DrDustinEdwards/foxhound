@@ -1,6 +1,8 @@
-import { Link, NavLink, Outlet, type ShouldRevalidateFunctionArgs } from "react-router";
+import { Link, NavLink, Outlet, useNavigation, type ShouldRevalidateFunctionArgs } from "react-router";
 
 import { Footer } from "~/components/footer";
+import { RouteSplash } from "~/components/route-splash";
+import { shouldShowRouteSplash } from "~/lib/navigation/route-splash";
 import { Wordmark } from "~/components/wordmark";
 import { GearMenu } from "~/components/nav/gear-menu";
 import { ProductSwitcher } from "~/components/nav/product-switcher";
@@ -121,6 +123,10 @@ function tabLinkClassName({ isActive }: { isActive: boolean }): string {
 export default function AppLayout({ loaderData }: Route.ComponentProps) {
   const { accountName, email, isAdmin, isDemo, demoSignedIn, theme, nav } = loaderData;
   const activeProduct = PRODUCT_MANIFEST[nav.activeProductKey];
+  // Legacy's loading.tsx, ported to RR8's substrate (305). The decision lives in
+  // a pure predicate so it can be tested without a DOM; see its header for why a
+  // bare state check would blank this page during every money action.
+  const splash = shouldShowRouteSplash(useNavigation());
   const primaryLinks = nav.isPlatformPage ? [] : activeProduct.links;
 
   // Mobile tab bar keeps its shipped, already-reviewed shape (gotcha #57):
@@ -262,7 +268,11 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
             relationship too: legacy's SiteFooter is a layout sibling of the page
             content, never inside its main. */}
         <main>
-          <Outlet />
+          {/* Legacy replaces the SEGMENT's content with its splash and keeps the
+              layout chrome mounted, so the nav and footer stay put and only the
+              page swaps. Rendering it here, in place of the Outlet, is the same
+              relationship on RR8's substrate. */}
+          {splash ? <RouteSplash /> : <Outlet />}
         </main>
         {/* Legacy renders SiteFooter variant="app" INSIDE the padded wrapper and
             keeps the tab bar a sibling outside it (app/(app)/layout.tsx), so the
