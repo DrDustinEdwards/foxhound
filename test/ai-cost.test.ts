@@ -39,7 +39,7 @@ describe("cost math", () => {
     expect(computeAiCallCostCents("claude-haiku-4-5-20251001", 1_000_000, 1_000_000)).toBe(600);
   });
 
-  it("rounds a partial cent UP, never down (ruling 17 no-undercount policy)", () => {
+  it("rounds a partial cent UP, never down (CHUNKS item 17 no-undercount policy)", () => {
     // 2000 in + 500 out of Sonnet: (0.002*300)+(0.0005*1500) = 0.6 + 0.75 = 1.35.
     // Math.round gave 1 and undercounted; ceil gives 2.
     expect(computeAiCallCostCents("claude-sonnet-5", 2_000, 500)).toBe(2);
