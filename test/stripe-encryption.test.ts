@@ -12,7 +12,13 @@ describe("Stripe token encryption", () => {
     const encrypted = await encryptToken(env, secret);
 
     expect(encrypted).not.toContain(secret);
-    expect(encrypted.split(":")).toHaveLength(2); // ivHex:cipherHex
+    // ADJUDICATED AT 312, not silently updated. This read `toHaveLength(2)` for
+    // the pre-rotation `ivHex:cipherHex` format. 312 added a key id, so a stored
+    // value now names the key that encrypted it, which is what makes rotation
+    // possible at all. The assertion was right for the old format and is
+    // re-pointed at the new one; the shape is pinned in detail by
+    // test/key-rotation-312.test.ts.
+    expect(encrypted.split(":")).toHaveLength(4); // v1:keyId:ivHex:cipherHex
     expect(await decryptToken(env, encrypted)).toBe(secret);
   });
 
@@ -25,11 +31,15 @@ describe("Stripe token encryption", () => {
   });
 
   it("rejects a tampered ciphertext (GCM auth tag)", async () => {
+    // Re-pointed at the four-part format by 312. The tamper must still land in
+    // the CIPHER, not the envelope: flipping a byte of the key id would be
+    // rejected by key resolution instead of by the auth tag, which would leave
+    // the GCM integrity check unproven.
     const encrypted = await encryptToken(env, "tok_value");
-    const [iv, cipher] = encrypted.split(":");
+    const [version, keyId, iv, cipher] = encrypted.split(":");
     const lastByte = cipher.slice(-2);
     const flipped = cipher.slice(0, -2) + (lastByte === "00" ? "01" : "00");
-    await expect(decryptToken(env, `${iv}:${flipped}`)).rejects.toThrow();
+    await expect(decryptToken(env, `${version}:${keyId}:${iv}:${flipped}`)).rejects.toThrow();
   });
 
   it("requires a 32-byte key", async () => {
