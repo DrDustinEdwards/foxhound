@@ -228,6 +228,13 @@ export async function executeRetryStep(
 
 /** Everything the email executor needs, loaded by the cron. */
 export interface EmailStepContext {
+  /** The cron run that is executing this step (313), stamped onto the
+   *  email_sends row so a send can be attributed to its run. NULL for every
+   *  non-cron caller, which is the enumeration recorded in canon: the manual
+   *  "Trigger next step now" and "Resend last email" actions, the bulk actions,
+   *  and any test driving the executor directly all run on a request thread with
+   *  no cron run to name. */
+  cronRunId?: string | null;
   stepId: string;
   accountId: string;
   failedPaymentId: string;
@@ -320,6 +327,7 @@ export function buildRecoveryEmailJob(
     // Stable per send attempt: a backoff retry is a new attempt, so the count
     // distinguishes it from the prior try.
     idempotencyKey: `${ctx.stepId}:${ctx.attemptCount}`,
+    cronRunId: ctx.cronRunId ?? null,
   };
 }
 

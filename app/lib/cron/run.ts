@@ -4,6 +4,7 @@ import type { Db } from "~/db";
 import { cronConfig, cronRunHistory, getDb } from "~/db";
 import { CRON_LOCK_LEASE_MS } from "~/lib/constants";
 
+import { alertCronFailure, type AlertOutcome } from "./alerts.server";
 import { isCronEnabled, isDueByInterval } from "./gating";
 
 // The cron runner: the single wrapper every scheduled job goes through. It
@@ -18,7 +19,13 @@ export interface CronJobResult {
   rowsProcessed: number;
   message?: string;
 }
-export type CronHandler = (env: Env) => Promise<CronJobResult>;
+/** What a handler learns about the run it is executing inside (313). Optional
+ *  so the twelve handlers that do not send email are untouched: only the paths
+ *  that WRITE an email_sends row need to attribute it. */
+export interface CronRunContext {
+  runId: string;
+}
+export type CronHandler = (env: Env, ctx?: CronRunContext) => Promise<CronJobResult>;
 
 export type CronRunStatus = "success" | "failed" | "skipped";
 export interface CronRunOutcome {
@@ -26,12 +33,22 @@ export interface CronRunOutcome {
   status: CronRunStatus;
   rowsProcessed: number;
   message?: string;
+  /** The cron_run_history id, on runs that executed (313). Absent on skips,
+   *  which write no history row. */
+  runId?: string;
+  /** What the failure alert did, on failed runs (313). Carried rather than
+   *  thrown: the alert path is fail-open by design, so its outcome is data. */
+  alert?: AlertOutcome;
 }
 
 /** The cron_run_history insert for one executed run. Operational, not a money write. */
 export function buildCronRunInsert(
   db: Db,
   input: {
+    /** Minted by the CALLER (313) rather than defaulted by the schema, so the
+     *  run can be named in a failure alert. A row whose id nothing knows cannot
+     *  be referenced by the thing that reports on it. */
+    id: string;
     cronName: string;
     startedAt: Date;
     finishedAt: Date;
@@ -41,6 +58,7 @@ export function buildCronRunInsert(
   },
 ) {
   return db.insert(cronRunHistory).values({
+    id: input.id,
     cronName: input.cronName,
     startedAt: input.startedAt,
     finishedAt: input.finishedAt,
@@ -53,6 +71,7 @@ export function buildCronRunInsert(
 
 async function recordRun(
   env: Env,
+  runId: string,
   cronName: string,
   startedAt: Date,
   status: Exclude<CronRunStatus, "skipped">,
@@ -60,6 +79,7 @@ async function recordRun(
   message: string | null,
 ): Promise<void> {
   await buildCronRunInsert(getDb(env), {
+    id: runId,
     cronName,
     startedAt,
     finishedAt: new Date(),
@@ -110,14 +130,25 @@ export async function runCronJob(
   }
 
   const startedAt = new Date();
+  const runId = crypto.randomUUID();
   try {
-    const result = await handler(env);
-    await recordRun(env, cronName, startedAt, "success", result.rowsProcessed, result.message ?? null);
+    const result = await handler(env, { runId });
+    await recordRun(env, runId, cronName, startedAt, "success", result.rowsProcessed, result.message ?? null);
     return { cronName, status: "success", rowsProcessed: result.rowsProcessed, message: result.message };
   } catch (err) {
     const message = err instanceof Error ? err.message : "cron error";
-    await recordRun(env, cronName, startedAt, "failed", 0, message);
-    return { cronName, status: "failed", rowsProcessed: 0, message };
+    await recordRun(env, runId, cronName, startedAt, "failed", 0, message);
+    // THE ALERT (313). Deliberately AFTER the history write, so the run is on the
+    // record even if alerting is broken, and deliberately FAIL-OPEN: alertCronFailure
+    // never throws, and its outcome is carried on the result rather than raised.
+    // An observability tool that can fail a money job is worse than none.
+    const alert = await alertCronFailure(
+      env,
+      getDb(env),
+      { cronName, runId, error: message },
+      new Date(),
+    );
+    return { cronName, status: "failed", rowsProcessed: 0, message, runId, alert };
   } finally {
     await lock.release();
   }

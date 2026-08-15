@@ -79,6 +79,7 @@ export function buildEmailSendRow(
     providerMessageId: input.providerMessageId,
     error: input.error,
     sentAt: input.status === "sent" ? input.now : null,
+    cronRunId: input.job.cronRunId ?? null,
     createdAt: input.now,
   });
 }

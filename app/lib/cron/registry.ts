@@ -11,6 +11,7 @@ import { seedDemoAccount } from "~/lib/demo/seed";
 import { runIntelligenceAiForAllAccounts } from "~/lib/intelligence/ai-run.server";
 import { runIntelligenceSyncForAllAccounts } from "~/lib/intelligence/sync.server";
 
+import { runCronHealthCheck } from "./alerts.server";
 import { runRecoveryTick } from "./recovery-tick";
 import type { CronHandler } from "./run";
 import {
@@ -82,7 +83,7 @@ const intelligenceSync: CronHandler = async (env) => {
 /** The recovery tick (Phase 4e): sweeps due recovery_steps and runs each through
  *  its executor. High cadence (every 5 minutes) because it drives real-time
  *  retries + dunning sends; see app/lib/cron/recovery-tick.ts. */
-const recoveryTick: CronHandler = (env) => runRecoveryTick(env);
+const recoveryTick: CronHandler = (env, ctx) => runRecoveryTick(env, {}, ctx?.runId ?? null);
 
 /** The Intelligence AI half (health scoring -> predictions -> alerts ->
  *  nightly narrative), wrapped as a cron handler. Runs on the daily/nightly
@@ -114,8 +115,20 @@ const demoReset: CronHandler = async (env) => {
   return { rowsProcessed: 1, message: "demo account reseeded" };
 };
 
+/** The never-executed and overdue detector (313). Ruling 311 measured that a cron
+ *  which fails, or never runs at all, notifies nobody: billing-monthly has never
+ *  executed once in any environment and nothing would have said so.
+ *
+ *  It reads CRON_JOBS at CALL time rather than module-init time, which is what
+ *  makes the self-reference below safe: the array is fully constructed long
+ *  before any cron fires. Expectations are therefore DERIVED from the registry,
+ *  so a job added tomorrow is watched automatically instead of being forgotten. */
+const cronHealth: CronHandler = async (env) =>
+  runCronHealthCheck(env, getDb(env), CRON_JOBS, new Date());
+
 export const CRON_JOBS: CronJob[] = [
   { name: RECOVERY_TICK_CRON_NAME, schedule: CRON_SCHEDULE_RECOVERY_TICK, handler: recoveryTick },
+  { name: "cron-health", schedule: CRON_SCHEDULE_DAILY, handler: cronHealth },
   { name: DEMO_RESET_CRON_NAME, schedule: CRON_SCHEDULE_DAILY, handler: demoReset },
   { name: "billing-monthly", schedule: CRON_SCHEDULE_MONTHLY, handler: billingMonthly },
   { name: "intelligence-sync", schedule: CRON_SCHEDULE_MONTHLY, handler: intelligenceSync },

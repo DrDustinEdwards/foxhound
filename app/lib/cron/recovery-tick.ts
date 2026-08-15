@@ -531,6 +531,10 @@ export async function flipExhaustedSequences(env: Env, now: Date): Promise<numbe
 export async function runRecoveryTick(
   env: Env,
   deps: Partial<RecoveryTickDeps> = {},
+  /** The cron run this tick belongs to (313), stamped onto every email_sends row
+   *  it produces. Null when the tick is driven from a test or any non-cron
+   *  caller, which is exactly what the nullable column records. */
+  cronRunId: string | null = null,
 ): Promise<CronJobResult> {
   const query = deps.query ?? queryDueRecoverySteps;
   const runRetry = deps.runRetry ?? executeRetryStep;
@@ -594,7 +598,7 @@ export async function runRecoveryTick(
         tally.retries += 1;
         if (result.recovered) tally.recovered += 1;
       } else if (action === "email") {
-        await runEmail(env, toEmailContext(row));
+        await runEmail(env, { ...toEmailContext(row), cronRunId });
         tally.emails += 1;
       } else {
         tally.skipped += 1; // unknown step type (e.g. the card_update signal row)

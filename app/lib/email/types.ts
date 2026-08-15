@@ -21,4 +21,6 @@ export interface EmailJob {
   physicalAddress: string;
   /** Stable per logical send so a re-delivery is recognizable by the caller. */
   idempotencyKey: string;
+  /** The cron run that produced this send (313). Null for request-thread sends. */
+  cronRunId?: string | null;
 }
