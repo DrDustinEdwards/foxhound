@@ -1,0 +1,19 @@
+# Ruling 304: one line ending in the index, always LF.
+#
+# The mixed regime this replaces was not theoretical. Sessions 14 and 15 each
+# lost edits to it: an anchor spanning one LF line and one CRLF line in the same
+# file matches under no uniform substitution, which is how it surfaced both
+# times. Normalizing kills the class rather than the instances.
+#
+# Binary pins are the three types actually present, enumerated not guessed:
+# 2 png, 4 ttf, 3 woff2. The bat and cmd pins are forward-looking; neither
+# extension exists in the tree today, and both genuinely need CRLF if added.
+
+* text=auto eol=lf
+
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+*.png binary
+*.ttf binary
+*.woff2 binary
