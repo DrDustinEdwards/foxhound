@@ -55,11 +55,11 @@ reach for the one script that did exist, which was an unguarded `--remote`
 against live data.
 
 **Read this before running the remote form.** The database bound as `DB` is
-named `foxhound-staging` and **is the production database**. The single-
+named `foxhound-production` and **is the production database**. The single-
 environment `wrangler.jsonc` binds it to the Worker serving foxhoundapp.com; the
 separate `foxhound-production` database is bound nowhere and takes no traffic.
 The name is a leftover dashboard label, so every `--remote` command naming
-`foxhound-staging` writes to production.
+`foxhound-production` writes to production.
 
 `npm run db:migrate` therefore defaults to the local database and refuses the
 remote one unless you pass `--remote-confirm` (or set `DB_MIGRATE_CONFIRM=1`,
@@ -99,9 +99,11 @@ and the report land in `scripts/out/` (gitignored).
 ## Binding and environment facts
 
 - Code binding: `DB`.
-- D1 databases: `foxhound-staging` (`4aa23f57-244e-4e24-850c-66486e7ba92d`),
+- D1 databases: `foxhound-production` (`7469d599-8556-4958-aad2-39bddf79b4de`);
+  the former `foxhound-staging` (`4aa23f57-244e-4e24-850c-66486e7ba92d`) is the
+  frozen pre-move snapshot from ruling 299 and is not deleted by any agent,
   `foxhound-production` (`ae406c63-ede5-4031-b5fc-2e821565ac19`).
-- **`foxhound-staging` is the live production database.** It is the only D1 bound
+- **`foxhound-production` is the live production database.** It is the only D1 bound
   in `wrangler.jsonc`, which declares a single environment, and that Worker
   serves foxhoundapp.com. `foxhound-production` is bound nowhere and takes no
   traffic. The names are inverted relative to reality and a rename or rebind is

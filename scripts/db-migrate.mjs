@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 // Guarded wrapper around `wrangler d1 migrations apply`.
 //
-// Why this exists. The D1 bound as DB is named "foxhound-staging" and IS the
+// Why this exists. The D1 bound as DB is named "foxhound-production" and IS the
 // production database. wrangler.jsonc declares a single environment, the Worker
-// serves foxhoundapp.com, and that same config binds DB to foxhound-staging;
+// serves foxhoundapp.com, and that same config binds DB to foxhound-production;
 // the config says so outright in its own comment. The separate
 // foxhound-production database is bound nowhere.
 //
-// So every `--remote` command naming foxhound-staging is a production write,
+// So every `--remote` command naming foxhound-production is a production write,
 // while reading like a staging one. The npm script used to be a bare
-// `wrangler d1 migrations apply foxhound-staging --remote`, which meant a
+// `wrangler d1 migrations apply foxhound-production --remote`, which meant a
 // reflexive `npm run db:migrate` applied migrations to live data with nothing
 // asked and nothing confirmed.
 //
@@ -27,7 +27,7 @@
 
 import { spawnSync } from "node:child_process";
 
-const DATABASE = "foxhound-staging";
+const DATABASE = "foxhound-production";
 
 const args = process.argv.slice(2);
 const confirmedByFlag = args.includes("--remote-confirm");
