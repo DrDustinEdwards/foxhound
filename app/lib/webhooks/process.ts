@@ -2,7 +2,6 @@ import { and, desc, eq, gte, inArray } from "drizzle-orm";
 import type Stripe from "stripe";
 
 import {
-  accountProducts,
   customerContext,
   disputes,
   getDb,
@@ -14,15 +13,14 @@ import {
 } from "~/db";
 import {
   DAY_MS,
-  INTELLIGENCE_PRODUCT,
   RECOVERABLE_FAILED_PAYMENT_STATUSES,
-  SUBSCRIPTION_STATUS_ACTIVE,
   WINBACK_PRIORITY_ACTION,
   WINBACK_RECENT_RESOLVED_DAYS,
   WINBACK_UNFLAGGED_STEP1_HOURS,
 } from "~/lib/constants";
 import { buildEvidenceFacts, draftDisputeEvidence } from "~/lib/disputes/evidence";
 import { isDisputeResolved } from "~/lib/disputes/labels";
+import { isIntelligenceEntitled } from "~/lib/intelligence/views.server";
 import { executeMoneyWrite } from "~/lib/money/execute";
 import { findAttributionSignals, resolveAttribution } from "~/lib/recovery/attribution";
 import { getConnectedStripe } from "~/lib/stripe/client";
@@ -160,7 +158,7 @@ async function listActiveFailedPaymentIds(
  * Legacy's Intelligence win-back gate, resolved to a step-1 offset in hours.
  * Returns undefined when the gate does not apply, which leaves the schedule's
  * own default in place. Fails OPEN on any error, exactly as legacy does with its
- * try/catch around the same two reads.
+ * try/catch around the same two lookups (entitlement, then customer context).
  */
 async function resolveWinbackStep1Offset(
   env: Env,
@@ -169,19 +167,8 @@ async function resolveWinbackStep1Offset(
 ): Promise<number | undefined> {
   try {
     const db = getDb(env);
-    const [product] = await db
-      .select({ id: accountProducts.id })
-      .from(accountProducts)
-      .where(
-        and(
-          eq(accountProducts.accountId, accountId),
-          eq(accountProducts.product, INTELLIGENCE_PRODUCT),
-          eq(accountProducts.status, SUBSCRIPTION_STATUS_ACTIVE),
-        ),
-      )
-      .limit(1);
     // Intelligence not active on this account: legacy leaves the default.
-    if (!product) return undefined;
+    if (!(await isIntelligenceEntitled(db, accountId))) return undefined;
     const [ctx] = await db
       .select({ healthFactors: customerContext.healthFactors })
       .from(customerContext)
@@ -738,7 +725,8 @@ export async function processConnectedWebhook(
         return applied ? { status: "ignored", reason: "no_customer_email" } : { status: "duplicate" };
       }
 
-      // 5. THE INTELLIGENCE GATE (291), ported verbatim from legacy:
+      // 5. THE INTELLIGENCE GATE (291), SEMANTICALLY ported from legacy (292).
+      //    Legacy's provenance, quoted:
       //
       //      const { data: intelligenceProduct } = await supabase
       //        .from('account_products').select('status')
@@ -748,18 +736,30 @@ export async function processConnectedWebhook(
       //        ... if (recommendation !== 'winback_priority') { step1OffsetHours = 4 }
       //      }
       //
-      // Same table, same value, same direction: on an account running
-      // Intelligence, a customer NOT flagged winback_priority is DELAYED from the
-      // 1h default to 4h. A flagged customer keeps the default. Legacy falls open
-      // to the default on any lookup error and so does this.
+      // THE READ TARGETS THE CAPABILITY, NOT THE STORAGE. Legacy's row IS an
+      // Intelligence entitlement, and Foxhound's live entitlement is
+      // isIntelligenceEntitled over account_subscriptions, which keys the SAME
+      // two constants legacy keys, INTELLIGENCE_PRODUCT and
+      // SUBSCRIPTION_STATUS_ACTIVE. account_products exists here but is
+      // VESTIGIAL: one admin SELECT, zero writers. Reading it verbatim
+      // reproduced legacy's letter and lost its meaning, because the gate stayed
+      // dead even after an admin grant. 292 rules that equivalence MEASURED, so
+      // this is a port and not an invented mapping. The same mapping is already
+      // precedent here: dashboard/console.server.ts gates the Intelligence tile
+      // on the real entitlement, for this exact reason.
       //
-      // UNREACHABLE TODAY, bounded and stated rather than dropped (M9 carries the
-      // same bound): account_products has ZERO writers in Foxhound, so the outer
-      // condition cannot be true, and `winback_priority` appears nowhere in
-      // Foxhound's recommended_action vocabulary, which is demo-seed only. Both
-      // are M9 items, grantable-not-buyable and the absent producer. The gate is
-      // ported verbatim anyway because that is legacy-faithful; dropping it would
-      // be a divergence, and it starts working the day either producer lands.
+      // Value and direction are unchanged and stay legacy's: on an entitled
+      // account a customer NOT flagged winback_priority is DELAYED from the 1h
+      // default to 4h, and a flagged customer keeps the default. Legacy falls
+      // open to the default on any lookup error and so does this.
+      //
+      // THE REMAINING BOUND, halved by this rewire (M9 carries it): the gate is
+      // now REACHABLE, because grantIntelligence writes exactly the row
+      // isIntelligenceEntitled reads. What it still cannot do is DISCRIMINATE:
+      // nothing in Foxhound writes `winback_priority` into recommended_action,
+      // and the demo seed's vocabulary does not contain the value either, so on
+      // a granted account every customer takes the unflagged 4h branch today.
+      // The flagged branch starts working the day a producer lands.
       const step1OffsetHours = await resolveWinbackStep1Offset(env, accountId, intent.customerId);
 
       const { applied } = await executeMoneyWrite(env, {

@@ -31,13 +31,24 @@ describe("281c: claims the evidence REFUTED are gone, and stay gone", () => {
     expect(PAGE).not.toContain("Disputes triage");
   });
 
-  it("the FACT that refuted it still holds: no intelligence import in the recovery path", () => {
-    for (const f of [
-      "app/lib/recovery/schedule.ts",
-      "app/lib/engine/execute-step.ts",
-      "app/lib/webhooks/process.ts",
-    ]) {
+  it("the FACT that refuted it still holds: no intelligence SCORING in the recovery path", () => {
+    for (const f of ["app/lib/recovery/schedule.ts", "app/lib/engine/execute-step.ts"]) {
       expect(readFileSync(f, "utf8")).not.toContain("lib/intelligence");
+    }
+    // process.ts is ADJUDICATED here, not exempted (292). It gained exactly one
+    // intelligence import, the win-back ENTITLEMENT read, which is a yes/no on a
+    // paid subscription and NOT a risk signal. The claim this assertion protects
+    // named RECOVERY SEQUENCE timing and DISPUTES TRIAGE; win-back timing is
+    // neither, which is the same distinction 292 used to keep the item-3 entry
+    // alive rather than retire it. So the matcher narrows to the subject: the
+    // file may read the entitlement, and may NOT read a score or a prediction.
+    const processSource = readFileSync("app/lib/webhooks/process.ts", "utf8");
+    const intelligenceImports = [
+      ...processSource.matchAll(/from "~\/lib\/intelligence\/[^"]+"/g),
+    ].map((m) => m[0]);
+    expect(intelligenceImports).toEqual(['from "~/lib/intelligence/views.server"']);
+    for (const scored of ["computeHealthScore", "healthScore", "buildPredictionFields"]) {
+      expect(processSource).not.toContain(scored);
     }
     // And step timing is a static table, not a scored decision.
     const schedule = readFileSync("app/lib/recovery/schedule.ts", "utf8");
