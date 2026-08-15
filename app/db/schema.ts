@@ -169,23 +169,6 @@ export const stripeConnections = sqliteTable(
   (t) => [index("stripe_connections_account_idx").on(t.accountId)],
 );
 
-export const accountProducts = sqliteTable(
-  "account_products",
-  {
-    id: id(),
-    accountId: text("account_id").notNull().references(() => accounts.id),
-    product: text("product").notNull(),
-    status: text("status").notNull(),
-    stripeSubscriptionItemId: text("stripe_subscription_item_id"),
-    activatedAt: ts("activated_at"),
-    cancelledAt: ts("cancelled_at"),
-    trialEndsAt: ts("trial_ends_at"),
-    createdAt: ts("created_at"),
-    stripeConnectionId: text("stripe_connection_id").references(() => stripeConnections.id),
-  },
-  (t) => [index("account_products_account_idx").on(t.accountId)],
-);
-
 export const accountSubscriptions = sqliteTable(
   "account_subscriptions",
   {

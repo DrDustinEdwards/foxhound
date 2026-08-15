@@ -292,7 +292,7 @@ function AdjustmentForm({
 }
 
 export default function AdminMerchantDetail({ loaderData, actionData }: Route.ComponentProps) {
-  const { account, connections, products, subscriptions, recoveryActivity, disputeActivity, recentInvoices, adjustmentToken } =
+  const { account, connections, subscriptions, recoveryActivity, disputeActivity, recentInvoices, adjustmentToken } =
     loaderData;
 
   // The paid Intelligence tier is entitled iff an active intelligence subscription
@@ -416,41 +416,29 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
         )}
       </section>
 
-      <section className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="rounded-lg border border-border bg-surface p-4">
-          <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Products</p>
-          {products.length === 0 ? (
-            <p className="mt-2 text-label text-text-tertiary">None.</p>
-          ) : (
-            <ul className="mt-2 flex flex-col gap-1.5">
-              {products.map((p) => (
-                <li key={p.id} className="flex items-center justify-between text-label">
-                  <span className="text-text">{p.product}</span>
-                  <Badge tone={p.status === "active" ? "success" : "neutral"}>{p.status}</Badge>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        <div className="rounded-lg border border-border bg-surface p-4">
-          <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Subscriptions</p>
-          {subscriptions.length === 0 ? (
-            <p className="mt-2 text-label text-text-tertiary">None.</p>
-          ) : (
-            <ul className="mt-2 flex flex-col gap-1.5">
-              {subscriptions.map((s) => (
-                <li key={s.id} className="flex items-center justify-between text-label">
-                  <span className="text-text">
-                    {s.product}
-                    {s.adminGranted ? <span className="ml-1.5 text-text-subtle">(admin-granted)</span> : null}
-                  </span>
-                  <Badge tone={s.status === "active" ? "success" : "neutral"}>{s.status}</Badge>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+      {/* The Products card was REMOVED with the account_products table (298).
+          It had ZERO writers, so it rendered "None." for every merchant on every
+          visit since the rebuild: a permanently empty card describing a table
+          nothing filled. Subscriptions was its grid partner and is now a plain
+          full-width section, matching this page's four other full-width sections
+          rather than sitting alone in a grid built for two. */}
+      <section className="mt-6 rounded-lg border border-border bg-surface p-4">
+        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Subscriptions</p>
+        {subscriptions.length === 0 ? (
+          <p className="mt-2 text-label text-text-tertiary">None.</p>
+        ) : (
+          <ul className="mt-2 flex flex-col gap-1.5">
+            {subscriptions.map((s) => (
+              <li key={s.id} className="flex items-center justify-between text-label">
+                <span className="text-text">
+                  {s.product}
+                  {s.adminGranted ? <span className="ml-1.5 text-text-subtle">(admin-granted)</span> : null}
+                </span>
+                <Badge tone={s.status === "active" ? "success" : "neutral"}>{s.status}</Badge>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
