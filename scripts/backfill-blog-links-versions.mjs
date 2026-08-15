@@ -26,7 +26,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const APPLY = process.argv.includes("--apply");
-const DB_NAME = "foxhound-staging";
+const DB_NAME = "foxhound-production";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = join(SCRIPT_DIR, "out");

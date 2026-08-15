@@ -22,7 +22,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const DRY_RUN = process.argv.includes("--dry-run");
-const DB_NAME = "foxhound-staging";
+const DB_NAME = "foxhound-production";
 const ENV = "staging";
 
 const SB_URL = process.env.SUPABASE_URL;

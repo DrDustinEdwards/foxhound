@@ -16,7 +16,7 @@ import { fileURLToPath } from "node:url";
 import { writeFileSync } from "node:fs";
 
 const APPLY = process.argv.includes("--apply");
-const DB_NAME = "foxhound-staging";
+const DB_NAME = "foxhound-production";
 const FIELDS = ["og_title", "og_description"];
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));

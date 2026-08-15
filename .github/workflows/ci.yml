@@ -64,7 +64,7 @@ jobs:
       #
       # DB_MIGRATE_CONFIRM is deliberate. scripts/db-migrate.mjs defaults to the
       # local database and demands explicit acknowledgement before touching the
-      # remote one, because the database named "foxhound-staging" is production.
+      # remote one, because the database named "foxhound-production" is production.
       # CI opts in on purpose; a developer's reflexive `npm run db:migrate` does
       # not.
       - name: Apply database migrations
