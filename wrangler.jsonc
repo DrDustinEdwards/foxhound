@@ -19,12 +19,22 @@
   // deploy-consistency gate polls https://foxhoundapp.com directly, so the
   // second unauthenticated origin serving the same Worker, D1 and KV is closed.
   //
-  // The D1 keeps its original name "foxhound-staging" (a dashboard label only;
-  // renaming a D1 is not worth it) and the KV keeps id 8ff187... - bindings and
-  // data are unchanged from the previous two-env setup. Note what that means in
-  // practice: "foxhound-staging" IS the production database, and every --remote
-  // command naming it is a production write. scripts/db-migrate.mjs guards the
-  // migration path for that reason. A rename or rebind is planned, not done.
+  // THE D1 REBIND IS DONE (299, 2026-08-15). The app binds
+  // "foxhound-production", id 7469d599-8556-4958-aad2-39bddf79b4de. For most of
+  // this rebuild the binding was "foxhound-staging", id
+  // 4aa23f57-244e-4e24-850c-66486e7ba92d, which was a dashboard label only: that
+  // database WAS production, and every --remote command naming it was a
+  // production write. There is no D1 rename API, so the fix was a new database
+  // plus this rebind: export, create, load, count-walk parity across all 55
+  // tables, then rebind and deploy.
+  //
+  // 4aa23f57 IS THE FROZEN PRE-MOVE SNAPSHOT AND IS NOT DELETED. It stays until
+  // Dustin deletes it himself from the dashboard. No agent, this session or any
+  // later one, calls d1_database_delete on 4aa23f57 under any framing.
+  //
+  // The KV keeps id 8ff187...; only the D1 moved. scripts/db-migrate.mjs still
+  // guards the migration path, and every --remote command naming
+  // "foxhound-production" is now the production write.
 
   "workers_dev": false,
   "routes": [
@@ -45,8 +55,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "foxhound-staging",
-      "database_id": "4aa23f57-244e-4e24-850c-66486e7ba92d",
+      "database_name": "foxhound-production",
+      "database_id": "7469d599-8556-4958-aad2-39bddf79b4de",
       "migrations_dir": "drizzle/migrations"
     }
   ],

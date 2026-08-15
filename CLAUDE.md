@@ -72,7 +72,9 @@ hygiene) are in `capsid/conventions.md`. This file holds only what is true of th
 
 ## Single environment (decided 2026-07-12)
 
-One Worker `foxhound`, one D1 (dashboard label foxhound-staging, id 4aa23f57...), one KV
+One Worker `foxhound`, one D1 (foxhound-production, id 7469d599..., rebound 2026-08-15
+by ruling 299; the former foxhound-staging, id 4aa23f57..., is the frozen pre-move
+snapshot and is NOT deleted by any agent), one KV
 (foxhound-app-kv-staging). No `--env` flag anywhere: not in wrangler commands, not in CI. At
 Phase 9 this single Worker takes app.foxhoundapp.com.
 
