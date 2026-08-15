@@ -1,8 +1,8 @@
 import { useState } from "react";
 
-import { ChevronDown } from "lucide-react";
+import { ArrowUpRight, Check, ChevronDown, Circle, Mail, RotateCcw } from "lucide-react";
 
-import { data, useNavigation } from "react-router";
+import { Link, data, useNavigation, useRouteLoaderData } from "react-router";
 
 import { Badge } from "~/components/badge";
 import { DemoGuardedForm } from "~/components/demo-guarded-form";
@@ -23,6 +23,7 @@ import {
   recoveryLifecycleStatus,
   recoveryLifecycleTone,
   stepResultTone,
+  type Tone,
 } from "~/lib/recovery/labels";
 import { isEmailStep } from "~/lib/recovery/schedule";
 import { lastResendableEmailStep, nextPendingStep } from "~/lib/recovery/step-state";
@@ -35,6 +36,7 @@ import {
 } from "~/lib/recovery/manual-actions.server";
 import { sanitizeEmailPreviewHtml } from "~/lib/recovery/email-preview.server";
 import type { AttributionKind } from "~/lib/constants";
+import type { loader as appShellLoader } from "~/layouts/app-shell";
 
 import type { Route } from "./+types/detail";
 
@@ -226,9 +228,36 @@ export const MANUAL_ACTIONS = [
 // so the condition ports one to one rather than being inferred from the capture.
 export const ACTIONS_VISIBLE_STATUS = "active";
 
+/** Legacy's own 2000ms hold on the "Copied" confirmation (PaymentDetailClient.tsx
+ *  221 at blob 7f54aa45). Named rather than inlined so the value is greppable. */
+export const COPIED_RESET_MS = 2000;
+
+/** Legacy's back link, PaymentDetailClient.tsx 130-132. Legacy's real target is
+ *  `/recovery/dashboard`; Foxhound's recovery dashboard is the `/recovery` index
+ *  (app/routes.ts), and S5 carries the URL revert as its own open item, so this
+ *  points at the URL that exists today. In demo legacy returns to the payments
+ *  list, which Foxhound serves at the same path for demo and real alike. */
+export const BACK_LINK_REAL = { href: "/recovery", label: "Back to dashboard" };
+export const BACK_LINK_DEMO = { href: "/recovery/payments", label: "Back to payments" };
+
 export default function PaymentDetail({ loaderData, actionData }: Route.ComponentProps) {
   const { failedPayment, steps, recovery, previousFailures, estimatedLtvCents, nowMs } = loaderData;
   const [expandedStepId, setExpandedStepId] = useState<string | null>(null);
+  // Read off the app-shell loader, the way DemoGuardedForm and the payments
+  // list already do, so the demo variants below cost no query. Legacy gates its
+  // own Stripe links and back link on the same flag.
+  const shell = useRouteLoaderData<typeof appShellLoader>("app-shell");
+  const isDemo = Boolean(shell?.isDemo);
+  const backLink = isDemo ? BACK_LINK_DEMO : BACK_LINK_REAL;
+  const [copied, setCopied] = useState(false);
+
+  // Legacy's copyEmail, PaymentDetailClient.tsx 218-222 at blob 7f54aa45:
+  // clipboard write, flip to a green confirmation, revert after 2000ms.
+  function copyEmail() {
+    void navigator.clipboard?.writeText(failedPayment.customerEmail);
+    setCopied(true);
+    setTimeout(() => setCopied(false), COPIED_RESET_MS);
+  }
   const attributionKind = recovery?.attributionKind as AttributionKind | undefined;
   const creditedStep =
     recovery?.recoveredByStepId != null
@@ -260,13 +289,49 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
       legacy's width" too; also WRONG. Legacy is 1000px against max-w-3xl's
       768px, so 232px narrower, not 512. And legacy's px-8 here is FLAT, with
       no responsive step at all, unlike every 1280px page. */}
+
+      {/* Legacy's back link, PaymentDetailClient.tsx 231-233 at blob 7f54aa45:
+          above the header, its own line, subtle and small, with a leading arrow.
+          Legacy uses a bare <a>; this uses RR8's Link so an in-app navigation
+          stays client-side, which is the stack-native mechanism and invisible to
+          the user (class (a) under 93). */}
+      <Link
+        to={backLink.href}
+        className="mb-4 inline-block text-label text-text-subtle no-underline transition-opacity hover:opacity-80"
+      >
+        &larr; {backLink.label}
+      </Link>
+
       <div className="rounded-lg border border-border bg-surface p-4">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-title font-medium text-text">
               {failedPayment.customerName ?? failedPayment.customerEmail}
             </h1>
-            <p className="mt-1 text-label text-text-tertiary">{failedPayment.customerEmail}</p>
+            {/* Legacy's email line carries the Copy email control beside it
+                (PaymentDetailClient.tsx 253-262 at blob 7f54aa45): a borderless
+                text button that flips to a green confirmation for 2000ms.
+                Legacy's confirmation glyph is a literal U+2713; this uses
+                lucide's Check for the reason stated on the timeline glyph
+                below. plan_name is NOT this session's item and is absent here. */}
+            <div className="mt-1 flex flex-wrap items-center gap-3">
+              <p className="text-label text-text-tertiary">{failedPayment.customerEmail}</p>
+              <button
+                type="button"
+                onClick={copyEmail}
+                className={`inline-flex items-center gap-1 text-micro ${
+                  copied ? "text-green" : "text-text-subtle hover:text-text"
+                }`}
+              >
+                {copied ? (
+                  <>
+                    <Check className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" /> Copied
+                  </>
+                ) : (
+                  "Copy email"
+                )}
+              </button>
+            </div>
           </div>
           <p className="font-mono text-title text-text">
             {formatMoney(failedPayment.amountCents, failedPayment.currency)}
@@ -284,6 +349,67 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
             <span className="font-mono text-micro text-text-subtle">{failedPayment.declineCode}</span>
           ) : null}
         </div>
+      </div>
+
+      {/* Legacy's two Stripe deep links, PaymentDetailClient.tsx 329-360 at blob
+          7f54aa45, in legacy's own slot: after the header block and immediately
+          BEFORE the info cards. Legacy renders these links AND the invoice and
+          customer ids as rows inside Decline details (378-379), so the rows below
+          are legacy's too and stay. In demo legacy swaps both for disabled
+          buttons titled "Connect Stripe to use this", because a demo account has
+          no Stripe objects to open. */}
+      <div className="mt-6 flex flex-wrap gap-2.5">
+        {isDemo ? (
+          <>
+            <button
+              type="button"
+              disabled
+              title="Connect Stripe to use this"
+              className="cursor-not-allowed rounded-md border border-border-sub px-3 py-1.5 text-micro text-text-subtle opacity-50"
+            >
+              View invoice in Stripe
+            </button>
+            <button
+              type="button"
+              disabled
+              title="Connect Stripe to use this"
+              className="cursor-not-allowed rounded-md border border-border-sub px-3 py-1.5 text-micro text-text-subtle opacity-50"
+            >
+              View customer in Stripe
+            </button>
+          </>
+        ) : (
+          <>
+            <a
+              href={`https://dashboard.stripe.com/invoices/${failedPayment.stripeInvoiceId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group rounded-md border border-border px-3 py-1.5 text-micro text-text-subtle no-underline transition-colors hover:border-text-tertiary"
+            >
+              View invoice in Stripe{" "}
+              <ArrowUpRight
+                className="inline-block transition-transform group-hover:-translate-y-px group-hover:translate-x-px"
+                size={12}
+                strokeWidth={1.5}
+                aria-hidden="true"
+              />
+            </a>
+            <a
+              href={`https://dashboard.stripe.com/customers/${failedPayment.stripeCustomerId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group rounded-md border border-border px-3 py-1.5 text-micro text-text-subtle no-underline transition-colors hover:border-text-tertiary"
+            >
+              View customer in Stripe{" "}
+              <ArrowUpRight
+                className="inline-block transition-transform group-hover:-translate-y-px group-hover:translate-x-px"
+                size={12}
+                strokeWidth={1.5}
+                aria-hidden="true"
+              />
+            </a>
+          </>
+        )}
       </div>
 
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -450,6 +576,15 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
         ) : (
           <ol className="mt-3 flex flex-col gap-3">
             {steps.map((step) => {
+              // Legacy's own gate for the per-step engagement indicators
+              // (PaymentDetailClient.tsx 540 at blob 7f54aa45): an executed EMAIL
+              // step whose result is not email_failed, because a mail that never
+              // sent cannot have been opened or clicked.
+              const showEngagement =
+                step.executedAt !== null &&
+                isEmailStep(step.stepType) &&
+                step.result !== "email_failed";
+              const showExpander = step.executedAt !== null && step.previewHtml !== null;
               // Ruling 251: the per-step channel label is REMOVED. Legacy carries
               // no such tag; its glyph and chip treatment is the spec, and removal
               // is the zero-ratification path.
@@ -458,7 +593,13 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                   key={step.id}
                   className="border-b border-border-sub pb-3 last:border-0 last:pb-0"
                 >
-                  <div className="flex items-center justify-between gap-4">
+                  <div className="flex gap-4">
+                    <StepGlyph
+                      executed={step.executedAt !== null}
+                      isEmail={isEmailStep(step.stepType)}
+                      tone={stepResultTone(step.result)}
+                    />
+                    <div className="flex min-w-0 flex-1 items-center justify-between gap-4">
                     <div>
                       <p className="text-body text-text">
                         {step.stepNumber ?? "-"}. {formatStepType(step.stepType)}
@@ -475,16 +616,55 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                     <Badge tone={stepResultTone(step.result)}>
                       {step.result ? formatStepResult(step.result) : "Pending"}
                     </Badge>
+                    </div>
                   </div>
 
-                  {/* Legacy's expander, treatment per 250: a View email control
-                      with a down arrow on a SENT email step, expanding the body
-                      inline. The body was sanitized server-side in the loader
-                      (ruling 256), so what is injected here has already been
-                      through legacy's own allowlist. */}
-                  {step.executedAt && step.previewHtml ? (
-                    <div className="mt-2">
-                      <button
+                  {/* Legacy's engagement row, PaymentDetailClient.tsx 540-557 at
+                      blob 7f54aa45: the per-step opened and clicked indicators
+                      and the View email control share ONE row, which is why the
+                      expander moves inside it rather than keeping its own div.
+                      Its gate and its ruling 250 treatment are unchanged, and its
+                      body is still the loader-sanitized previewHtml (ruling 256).
+                      Glyphs are lucide Check and Circle for the reason StepGlyph
+                      states; legacy uses the literal U+2713 and U+25CB.
+                      NOT this item and deliberately untouched: the AGGREGATE
+                      Opened and Clicked rows in the Email engagement card above. */}
+                  {showEngagement || showExpander ? (
+                    <div className="mt-2 flex flex-wrap items-center gap-4">
+                      {showEngagement ? (
+                        <>
+                          <span
+                            className={`inline-flex items-center gap-1 text-micro ${
+                              step.openedAt ? "text-green" : "text-text-subtle"
+                            }`}
+                          >
+                            {step.openedAt ? (
+                              <Check className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
+                            ) : (
+                              <Circle className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
+                            )}
+                            {step.openedAt
+                              ? `Opened ${formatRelativeTime(step.openedAt, nowMs) ?? ""}`.trim()
+                              : "Not opened"}
+                          </span>
+                          <span
+                            className={`inline-flex items-center gap-1 text-micro ${
+                              step.clickedAt ? "text-green" : "text-text-subtle"
+                            }`}
+                          >
+                            {step.clickedAt ? (
+                              <Check className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
+                            ) : (
+                              <Circle className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
+                            )}
+                            {step.clickedAt
+                              ? `Clicked ${formatRelativeTime(step.clickedAt, nowMs) ?? ""}`.trim()
+                              : "Not clicked"}
+                          </span>
+                        </>
+                      ) : null}
+                      {showExpander ? (
+                        <button
                         type="button"
                         onClick={() => setExpandedStepId(expandedStepId === step.id ? null : step.id)}
                         aria-expanded={expandedStepId === step.id}
@@ -498,17 +678,20 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                           strokeWidth={1.5}
                           aria-hidden="true"
                         />
-                      </button>
-                      {expandedStepId === step.id ? (
-                        <div
-                          className="mt-2 rounded-lg border border-border bg-bg p-4 text-label text-text"
-                          // Sanitized in the loader by sanitizeEmailPreviewHtml,
-                          // the same helper and allowlist the sequences preview
-                          // uses. Never render step.aiBodyHtml directly here.
-                          dangerouslySetInnerHTML={{ __html: step.previewHtml }}
-                        />
+                        </button>
                       ) : null}
                     </div>
+                  ) : null}
+                  {/* The expanded body sits BELOW legacy's row, as it does in
+                      legacy (559-563), not inside it. */}
+                  {step.previewHtml && expandedStepId === step.id ? (
+                    <div
+                      className="mt-2 rounded-lg border border-border bg-bg p-4 text-label text-text"
+                      // Sanitized in the loader by sanitizeEmailPreviewHtml, the
+                      // same helper and allowlist the sequences preview uses.
+                      // Never render step.aiBodyHtml directly here.
+                      dangerouslySetInnerHTML={{ __html: step.previewHtml }}
+                    />
                   ) : null}
                 </li>
               );
@@ -599,7 +782,86 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
           </div>
         </div>
       ) : null}
+
+      {/* Legacy's recovery success banner, PaymentDetailClient.tsx 599-612 at
+          blob 7f54aa45. Legacy's gate is BOTH halves, a recovered status AND a
+          recovered_payments row, so a status flip without a row renders nothing,
+          and the amount appears twice, once in the sentence and once large and
+          mono on the right.
+          PLACEMENT: legacy's banner is the LAST element on the page and this is
+          the last element here. Job 4 item 1 of parity/S7-REMAINDER-SCOPE.md is
+          an OPEN ruling on this page's section order; if it lands, the action row
+          moves up to legacy's slot and this banner STAYS last, which is why last
+          is the stable placement to take now.
+          The method reads through ATTRIBUTION_KIND_LABELS, the same table the
+          Email engagement card above already uses for "Recovery method", rather
+          than legacy's recovery_method vocabulary, which Foxhound does not carry.
+          Type scale is FROZEN in both directions under 187, so this uses the
+          page's existing steps rather than legacy's rem values. */}
+      {failedPayment.status === "recovered" && recovery ? (
+        <div className="mt-6 flex items-center justify-between gap-4 rounded-lg border border-green bg-green-bg p-4">
+          <div>
+            <p className="text-body font-medium text-green">Payment recovered</p>
+            <p className="mt-1 text-label text-text-subtle">
+              {formatMoney(recovery.amountCents, recovery.currency)} recovered via{" "}
+              {ATTRIBUTION_KIND_LABELS[(recovery.attributionKind as AttributionKind) ?? "stripe_baseline"]}
+              {formatRelativeTime(recovery.recoveredAt, nowMs)
+                ? ` - ${formatRelativeTime(recovery.recoveredAt, nowMs)}`
+                : ""}
+            </p>
+          </div>
+          <p className="font-mono text-title font-bold text-green">
+            {formatMoney(recovery.amountCents, recovery.currency)}
+          </p>
+        </div>
+      ) : null}
     </div>
+  );
+}
+
+/**
+ * Legacy's timeline node, PaymentDetailClient.tsx 452-463 at blob 7f54aa45: a
+ * 32px round node holding an envelope on an email step and a repeat glyph on a
+ * retry, tinted by the step's result once executed and grey while pending.
+ *
+ * TWO MECHANISM DIVERGENCES, both stated rather than silent.
+ *
+ * ONE, THE COLOUR SOURCE. Legacy derives this node AND the result chip beside it
+ * from ONE value, `getStepResultColor(step.result)`, so the two always agree.
+ * That map keys on `email_sent_ai` and `email_sent_fallback`, which Foxhound has
+ * NEVER written: a grep over app/ and test/ returns zero for both, while Foxhound
+ * writes `email_sent`. Porting the map verbatim would leave every real email
+ * step's node grey beside a green chip, breaking the very agreement legacy's
+ * shape exists to hold. So the node reads `stepResultTone`, the SAME source the
+ * chip reads. That is 292's semantic-port rule: the port targets the capability,
+ * node and chip agree, not the storage, legacy's string literals.
+ *
+ * TWO, THE GLYPH. Legacy renders the literal characters U+2709 and U+21BA.
+ * capsid/conventions.md bans emoji in UI and makes lucide-react the icon default,
+ * and U+2709 carries an emoji presentation variant on common platforms, so these
+ * are lucide's Mail and RotateCcw in the same node at the same size. Raised for
+ * ratification; the rendered result is the same two symbols.
+ *
+ * Legacy's executed background is its result colour at 13 percent alpha, and
+ * green-bg and red-bg ARE those tinted tokens, so success and failure are exact.
+ * Neutral-executed has no tinted counterpart and uses surface2, the one
+ * approximation here, named rather than passed off as a match.
+ */
+function StepGlyph({ executed, isEmail, tone }: { executed: boolean; isEmail: boolean; tone: Tone }) {
+  const skin = !executed
+    ? "border-border bg-border text-text-tertiary"
+    : tone === "success"
+      ? "border-green bg-green-bg text-green"
+      : tone === "failure"
+        ? "border-red bg-red-bg text-error-text"
+        : "border-border-sub bg-surface2 text-text-subtle";
+  const Glyph = isEmail ? Mail : RotateCcw;
+  return (
+    <span
+      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${skin}`}
+    >
+      <Glyph className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+    </span>
   );
 }
 
