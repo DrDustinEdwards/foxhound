@@ -307,7 +307,7 @@ export const WINBACK_PRIORITY_ACTION = "winback_priority";
 // off. The table now carries one entry per non-terminal attempt, so the clamp in
 // afterTransientFailureWith is never reached in normal operation. It stays as a
 // safety net for a future change to SEND_MAX_ATTEMPTS, not as load-bearing
-// behaviour. test/constants-ruling-17.test.ts pins the span by walking the real
+// behaviour. test/constants-chunks-17.test.ts pins the span by walking the real
 // state machine, so shortening either the table or the count fails CI.
 export const SEND_MAX_ATTEMPTS = 5;
 /** Backoff minutes indexed by (attempt_count - 1); the last value repeats if the
@@ -377,7 +377,7 @@ export const CRON_SCHEDULE_MONTHLY = "0 4 1 * *"; // 04:00 UTC on the 1st, billi
 /** Recovery tick: sweeps due recovery_steps. Every 5 minutes.
  *
  *  The original rationale (matching the 5-minute first send-retry backoff) no
- *  longer holds: SEND_RETRY_BACKOFF_MINUTES[0] is 15 since ruling 17 restored
+ *  longer holds: SEND_RETRY_BACKOFF_MINUTES[0] is 15 since CHUNKS item 17 restored
  *  the legacy span, so the cadence is now finer than the shortest backoff rather
  *  than equal to it. The cadence still stands on its own terms. It bounds how
  *  long a newly due step waits, and it bounds how long the emergency brake takes

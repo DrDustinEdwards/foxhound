@@ -42,7 +42,8 @@ export function aiModelCost(model: string): ModelCost {
 /**
  * Cost of one AI call in whole USD cents, rounded UP. Pure.
  *
- * `ceil`, not `round`, restored by parity ruling 17. Legacy named this a
+ * `ceil`, not `round`, restored by parity CHUNKS item 17 (named by its numbering per 291, not
+ * volume ruling 17). Legacy named this a
  * no-undercount accounting policy and the rebuild reversed it silently: a
  * Pass 4 git-blame check found this line authored at file creation, in a commit
  * about model-id drift, so there was never a decision to reverse the policy.

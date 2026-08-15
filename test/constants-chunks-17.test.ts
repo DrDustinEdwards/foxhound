@@ -25,7 +25,7 @@ import { afterTransientFailure } from "~/lib/recovery/step-state";
 // correct for those tests and is precisely why none of them notices the number
 // changing. Something has to assert the number itself.
 
-describe("ruling 17: win-back window", () => {
+describe("CHUNKS item 17: win-back window", () => {
   it("spans 14 days, the legacy value", () => {
     expect(WINBACK_STEP3_HOURS).toBe(336);
   });
@@ -52,7 +52,7 @@ describe("ruling 17: win-back window", () => {
   });
 });
 
-describe("ruling 17: send-retry policy", () => {
+describe("CHUNKS item 17: send-retry policy", () => {
   it("allows 5 attempts", () => {
     expect(SEND_MAX_ATTEMPTS).toBe(5);
   });
@@ -73,7 +73,7 @@ describe("ruling 17: send-retry policy", () => {
   });
 });
 
-describe("ruling 17: the grace span the state machine actually produces", () => {
+describe("CHUNKS item 17: the grace span the state machine actually produces", () => {
   // Walks the REAL transition function rather than re-reading the table, so this
   // fails if the table, the count, or the clamp logic changes the lived cadence.
   function walkGrace(): { waitsMinutes: number[]; terminalAtAttempt: number } {
