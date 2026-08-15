@@ -24,7 +24,7 @@ import { writeFileSync } from "node:fs";
 
 const APPLY = process.argv.includes("--apply");
 const RECONSTRUCT = process.argv.includes("--reconstruct-log");
-const DB_NAME = "foxhound-production";
+const DB_NAME = "foxhound";
 const FIELDS = ["author", "title", "excerpt", "body"];
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));

@@ -19,22 +19,29 @@
   // deploy-consistency gate polls https://foxhoundapp.com directly, so the
   // second unauthenticated origin serving the same Worker, D1 and KV is closed.
   //
-  // THE D1 REBIND IS DONE (299, 2026-08-15). The app binds
-  // "foxhound-production", id 7469d599-8556-4958-aad2-39bddf79b4de. For most of
-  // this rebuild the binding was "foxhound-staging", id
-  // 4aa23f57-244e-4e24-850c-66486e7ba92d, which was a dashboard label only: that
-  // database WAS production, and every --remote command naming it was a
-  // production write. There is no D1 rename API, so the fix was a new database
-  // plus this rebind: export, create, load, count-walk parity across all 55
-  // tables, then rebind and deploy.
+  // THE DATABASE IS NOW PLAINLY NAMED (301, 2026-08-15). The app binds
+  // "foxhound", id 3ad240ed-de30-4684-a181-1da33ea08b65. The name finally
+  // matches the thing: no label to read past, no inversion to remember.
   //
-  // 4aa23f57 IS THE FROZEN PRE-MOVE SNAPSHOT AND IS NOT DELETED. It stays until
-  // Dustin deletes it himself from the dashboard. No agent, this session or any
-  // later one, calls d1_database_delete on 4aa23f57 under any framing.
+  // The lineage, because two moves in one day is easy to misread. For most of
+  // the rebuild the binding was "foxhound-staging", id 4aa23f57, a dashboard
+  // label only: that database WAS production. 299 ended that deferral by moving
+  // to "foxhound-production", id 7469d599. 301 finished the job by moving to
+  // "foxhound". There is no D1 rename API, so each step was a new database:
+  // export, create, load in foreign-key order, count-walk parity, rebind,
+  // deploy. 301 landed 54 of 55 tables at exact parity, the one difference being
+  // sqlite_sequence, a SQLite internal.
   //
-  // The KV keeps id 8ff187...; only the D1 moved. scripts/db-migrate.mjs still
-  // guards the migration path, and every --remote command naming
-  // "foxhound-production" is now the production write.
+  // 7469d599 IS THE FROZEN PRE-RENAME SNAPSHOT AND IS NOT DELETED. It stays
+  // until Dustin retires it from the dashboard himself. No agent, this session
+  // or any later one, calls d1_database_delete on 7469d599 under any framing.
+  // The two earlier databases, 4aa23f57 and the old empty foxhound-production
+  // ae406c63, are already GONE: Dustin retired them himself, which is exactly
+  // what that rule reserves to him. Measured 2026-08-15, both unreachable by id.
+  //
+  // The KV keeps id 8ff187... and still carries a "-staging" label; only the D1
+  // has been renamed. scripts/db-migrate.mjs still guards the migration path,
+  // and every --remote command naming "foxhound" is a production write.
 
   "workers_dev": false,
   "routes": [
@@ -55,8 +62,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "foxhound-production",
-      "database_id": "7469d599-8556-4958-aad2-39bddf79b4de",
+      "database_name": "foxhound",
+      "database_id": "3ad240ed-de30-4684-a181-1da33ea08b65",
       "migrations_dir": "drizzle/migrations"
     }
   ],

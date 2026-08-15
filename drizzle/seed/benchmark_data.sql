@@ -5,7 +5,7 @@
 -- RETAINED AS A RECORD, NOT AS A RUNNABLE STEP. The npm script that invoked
 -- this (db:seed:benchmark) was removed 2026-08-11. Its job is done: the rows
 -- below are live, and the script was a hardcoded `--remote` write to the
--- database named foxhound-production, which IS production. Keeping a one-command
+-- database named foxhound, which IS production. Keeping a one-command
 -- path to overwrite live reference data earned nothing once the seed had run.
 --
 -- This file stays because it is the only record of what those values are and

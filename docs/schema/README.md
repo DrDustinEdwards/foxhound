@@ -55,11 +55,11 @@ reach for the one script that did exist, which was an unguarded `--remote`
 against live data.
 
 **Read this before running the remote form.** The database bound as `DB` is
-named `foxhound-production` and **is the production database**. The single-
-environment `wrangler.jsonc` binds it to the Worker serving foxhoundapp.com; the
-separate `foxhound-production` database is bound nowhere and takes no traffic.
-The name is a leftover dashboard label, so every `--remote` command naming
-`foxhound-production` writes to production.
+named `foxhound` and **is the production database**. The single-environment
+`wrangler.jsonc` binds it to the Worker serving foxhoundapp.com. Since ruling 301
+the name simply matches the thing: there is no leftover label to read past and no
+second database to confuse it with. Every `--remote` command naming `foxhound`
+writes to production.
 
 `npm run db:migrate` therefore defaults to the local database and refuses the
 remote one unless you pass `--remote-confirm` (or set `DB_MIGRATE_CONFIRM=1`,
@@ -99,15 +99,21 @@ and the report land in `scripts/out/` (gitignored).
 ## Binding and environment facts
 
 - Code binding: `DB`.
-- D1 databases: `foxhound-production` (`7469d599-8556-4958-aad2-39bddf79b4de`);
-  the former `foxhound-staging` (`4aa23f57-244e-4e24-850c-66486e7ba92d`) is the
-  frozen pre-move snapshot from ruling 299 and is not deleted by any agent,
-  `foxhound-production` (`ae406c63-ede5-4031-b5fc-2e821565ac19`).
-- **`foxhound-production` is the live production database.** It is the only D1 bound
+- D1 databases: `foxhound` (`3ad240ed-de30-4684-a181-1da33ea08b65`), the live
+  one. `foxhound-production` (`7469d599-8556-4958-aad2-39bddf79b4de`) is the
+  frozen pre-rename snapshot from ruling 301 and is not deleted by any agent.
+  Two earlier databases are GONE, retired by Dustin himself and measured
+  unreachable 2026-08-15: `foxhound-staging` (`4aa23f57-244e-4e24-850c-66486e7ba92d`)
+  and an old empty `foxhound-production` (`ae406c63-ede5-4031-b5fc-2e821565ac19`).
+  **This list was garbled between 299 and 301 and is repaired here rather than
+  patched again:** 299's sweep replaced the string `foxhound-staging` in this doc
+  without noticing that a DIFFERENT database already carried the name it replaced
+  it with, so the doc briefly asserted that the live database was also bound
+  nowhere.
+- **`foxhound` is the live production database.** It is the only D1 bound
   in `wrangler.jsonc`, which declares a single environment, and that Worker
-  serves foxhoundapp.com. `foxhound-production` is bound nowhere and takes no
-  traffic. The names are inverted relative to reality and a rename or rebind is
-  planned but not done, so treat the name as a label and the binding as the
+  serves foxhoundapp.com. The name no longer needs reading past: the inversion
+  this section used to warn about is what ruling 301 removed. Treat the
   truth.
 - All Phase 2 work and verification ran on what was then staging; the two-
   environment split described elsewhere in this file predates the single-
