@@ -88,6 +88,12 @@ export const PLATFORM_LINKS: ProductNavLink[] = [
   { label: "Billing", to: "/billing", requiresAccount: true },
   { label: "Help", to: "/help" },
   { label: "Team", to: "/settings/team" },
+  // Audit settings (S30, built at 315). Legacy lists it in the settings
+  // SIDEBAR under a "Products" group; Foxhound has no sidebar, so it rides the
+  // same mechanism Team does and for the same reason: this is otherwise the
+  // only navigation path to a live page. It leaves with Team when S25 ships
+  // legacy's sub-nav.
+  { label: "Audit settings", to: "/settings/audit" },
 ];
 
 // The marketing header's authenticated-only SectionPill menu
