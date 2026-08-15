@@ -159,7 +159,11 @@ export interface EnvSanityRow {
 export function getEnvSanity(env: Env): EnvSanityRow[] {
   const rows: Array<[string, EnvSanityKind]> = [
     ["DB", "binding"],
-    ["APP_KV", "binding"],
+    // APP_KV was listed here until 310. The binding is gone from wrangler.jsonc
+    // because `env.APP_KV` had ZERO consumers, and leaving it enumerated would
+    // report a permanently-unset binding forever. This surface exists to show
+    // what is MISSING, so a row that can never be set is noise that trains a
+    // reader to ignore the column. The namespace itself is retained, unbound.
     ["MONEY_WRITER", "binding"],
     ["CRON_LOCK", "binding"],
     ["RATE_LIMITER", "binding"],

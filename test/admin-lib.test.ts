@@ -62,10 +62,18 @@ describe("getEnvSanity", () => {
     expect(JSON.stringify(rows)).not.toContain("ops@example.com");
   });
 
-  it("covers every DB/APP_KV/DO binding this Worker declares", () => {
+  it("covers every DB/DO binding this Worker declares", () => {
+    // APP_KV LEFT THIS LIST AND THIS TEST'S NAME AT 310, the SECOND anchor the
+    // binding's removal touched and the one an isolated test run missed. It was
+    // a sample of bindings the surface should cover, correct while the KV was
+    // bound and false once 310 removed it for having ZERO consumers.
+    // Adjudicated rather than silently dropped: the assertion was never about
+    // APP_KV specifically, and test/env-sanity-bindings.test.ts is what actually
+    // polices this surface, in both directions.
     const rows = getEnvSanity({} as Env);
     const names = rows.map((r) => r.name);
-    expect(names).toEqual(expect.arrayContaining(["DB", "APP_KV", "MONEY_WRITER", "CRON_LOCK"]));
+    expect(names).toEqual(expect.arrayContaining(["DB", "MONEY_WRITER", "CRON_LOCK"]));
+    expect(names).not.toContain("APP_KV");
   });
 });
 
