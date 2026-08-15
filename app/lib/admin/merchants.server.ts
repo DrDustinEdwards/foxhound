@@ -12,7 +12,6 @@ import type { BatchItem } from "drizzle-orm/batch";
 
 import type { Db } from "~/db";
 import {
-  accountProducts,
   accountSubscriptions,
   accounts,
   billingInvoices,
@@ -88,7 +87,6 @@ export async function listMerchants(db: Db): Promise<MerchantListRow[]> {
 export interface MerchantDetail {
   account: typeof accounts.$inferSelect;
   connections: Array<typeof stripeConnections.$inferSelect>;
-  products: Array<typeof accountProducts.$inferSelect>;
   subscriptions: Array<typeof accountSubscriptions.$inferSelect>;
   recoveryActivity: {
     activeCount: number;
@@ -109,10 +107,9 @@ export async function getMerchantDetail(db: Db, accountId: string): Promise<Merc
   const account = accountRows[0];
   if (!account) return null;
 
-  const [connections, products, subscriptions, activeCount, recoveredCount, allDisputes, recentInvoices] =
+  const [connections, subscriptions, activeCount, recoveredCount, allDisputes, recentInvoices] =
     await Promise.all([
       db.select().from(stripeConnections).where(eq(stripeConnections.accountId, accountId)),
-      db.select().from(accountProducts).where(eq(accountProducts.accountId, accountId)),
       db.select().from(accountSubscriptions).where(eq(accountSubscriptions.accountId, accountId)),
       db
         .select({ n: count() })
@@ -143,7 +140,6 @@ export async function getMerchantDetail(db: Db, accountId: string): Promise<Merc
   return {
     account,
     connections,
-    products,
     subscriptions,
     recoveryActivity: { activeCount, recoveredCount },
     disputeActivity,
