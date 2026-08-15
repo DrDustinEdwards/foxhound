@@ -73,10 +73,12 @@ hygiene) are in `capsid/conventions.md`. This file holds only what is true of th
 ## Single environment (decided 2026-07-12)
 
 One Worker `foxhound`, one D1 (**foxhound**, id 3ad240ed..., renamed 2026-08-15 by
-ruling 301; the former foxhound-production, id 7469d599..., is the frozen pre-rename
-snapshot and is NOT deleted by any agent, while foxhound-staging 4aa23f57 and the old
-empty foxhound-production ae406c63 are already gone, retired by Dustin himself), one KV
-(foxhound-app-kv-staging). No `--env` flag anywhere: not in wrangler commands, not in CI. At
+ruling 301), one KV (**foxhound**, id 8ff187..., renamed by ruling 303). Every earlier
+database is GONE and the attribution matters, because the no-delete rule is about WHO
+may act: 4aa23f57 was deleted by the SEAT under 302's quoted delegation, 7469d599 by
+the seat under 303, and only the old empty ae406c63 was retired by Dustin himself.
+The no-delete sentence those rulings carried has therefore been DISCHARGED rather
+than quietly dropped: it protected 7469d599 until 303 authorised its deletion. No `--env` flag anywhere: not in wrangler commands, not in CI. At
 Phase 9 this single Worker takes app.foxhoundapp.com.
 
 The two-environment language in ARCHITECTURE.md and rebuild-plan.md is SUPERSEDED and has not
