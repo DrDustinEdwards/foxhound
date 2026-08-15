@@ -18,7 +18,7 @@ import { fileURLToPath } from "node:url";
 import { writeFileSync } from "node:fs";
 
 const APPLY = process.argv.includes("--apply");
-const DB_NAME = "foxhound-production";
+const DB_NAME = "foxhound";
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const WRANGLER_BIN = join(SCRIPT_DIR, "..", "node_modules", "wrangler", "bin", "wrangler.js");
 
