@@ -15,11 +15,13 @@
  *     rendered size, and the token is used because conventions prefer it over a
  *     minted arbitrary value.
  *
- *  RAISED, NOT BUILT (190): legacy announces nothing to assistive technology
- *  here, no role="status" and no aria-live, so a screen reader user gets
- *  silence during the pause. Adding one would be an unratified divergence from
- *  legacy on a surface the PRIME DIRECTIVE makes legacy's, so it is reported for
- *  a ruling instead of taken on initiative.
+ *  RAISED, NOT BUILT (190), AND STILL PENDING AFTER 306: legacy announces
+ *  nothing to assistive technology here, no role="status" and no aria-live, so a
+ *  screen reader user gets silence during the pause. 306 put the question to
+ *  Dustin and carried an explicit instruction not to add it unratified; no
+ *  ratification arrived with that brief, so it stays unbuilt and the splash now
+ *  renders silently on FIVE paths rather than one, which widens the gap without
+ *  changing its character. Adding it is a ruling, not an agent's initiative.
  */
 export function RouteSplash() {
   return (
