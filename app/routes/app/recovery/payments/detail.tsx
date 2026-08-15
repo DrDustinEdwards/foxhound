@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { ArrowUpRight, Check, ChevronDown, Circle, Mail, RotateCcw } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Check, ChevronDown, Circle, Mail, RotateCcw, Shield } from "lucide-react";
 
 import { Link, data, useNavigation, useRouteLoaderData } from "react-router";
 
@@ -258,7 +258,8 @@ export const BACK_LINK_REAL = { href: "/recovery", label: "Back to dashboard" };
 export const BACK_LINK_DEMO = { href: "/recovery/payments", label: "Back to payments" };
 
 export default function PaymentDetail({ loaderData, actionData }: Route.ComponentProps) {
-  const { failedPayment, steps, recovery, previousFailures, estimatedLtvCents, nowMs } = loaderData;
+  const { failedPayment, steps, recovery, previousFailures, estimatedLtvCents, openDisputes, nowMs } =
+    loaderData;
   const [expandedStepId, setExpandedStepId] = useState<string | null>(null);
   // Read off the app-shell loader, the way DemoGuardedForm and the payments
   // list already do, so the demo variants below cost no query. Legacy gates its
@@ -322,9 +323,42 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
       <div className="rounded-lg border border-border bg-surface p-4">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-title font-medium text-text">
-              {failedPayment.customerName ?? failedPayment.customerEmail}
-            </h1>
+            {/* Legacy pairs the title and the open-dispute badge in one wrapping
+                flex row (PaymentDetailClient.tsx 236-252 at blob 7f54aa45). */}
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-title font-medium text-text">
+                {failedPayment.customerName ?? failedPayment.customerEmail}
+              </h1>
+              {/* Legacy's open-dispute badge, 243-251. Legacy gated it on
+                  `disputesActive && openDisputes.length > 0`; the entitlement
+                  half read account_products, which 298 dropped as vestigial, so
+                  304 rules the badge renders on the DISPUTE PREDICATE ALONE.
+                  That predicate is real: the loader derives "open" from
+                  RESOLVED_DISPUTE_STATES, the constant isDisputeResolved reads.
+                  Purple is legacy's own choice here and fits DESIGN's reservation
+                  rather than bending it: a dispute IS a Stripe object, which is
+                  what purple is reserved for. Foxhound has a real
+                  `purple-border` token, so legacy's `border-purple/40` opacity
+                  hack is not reproduced.
+                  DEMO: this needs no demo branch. Legacy hid it in demo only
+                  because its entitlement gate was false there; the demo seeds
+                  real disputes, so rendering the truth IS legacy's behaviour. */}
+              {openDisputes.length > 0 ? (
+                <Link
+                  to={`/disputes/${openDisputes[0].id}`}
+                  className="group inline-flex items-center gap-1 rounded border border-purple-border bg-purple-bg px-2 py-0.5 text-micro text-purple no-underline hover:opacity-80"
+                >
+                  <Shield className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
+                  {openDisputes.length === 1 ? "1 open dispute" : `${openDisputes.length} open disputes`}{" "}
+                  <ArrowRight
+                    className="inline-block transition-transform group-hover:translate-x-0.5"
+                    size={13}
+                    strokeWidth={1.5}
+                    aria-hidden="true"
+                  />
+                </Link>
+              ) : null}
+            </div>
             {/* Legacy's email line carries the Copy email control beside it
                 (PaymentDetailClient.tsx 253-262 at blob 7f54aa45): a borderless
                 text button that flips to a green confirmation for 2000ms.
@@ -385,6 +419,69 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
           ) : null}
         </div>
       </div>
+
+      {/* SECTION ORDER IS LEGACY'S (304, closing 295 Q1). Read from blob
+          7f54aa45: back and header, then the action RESULT banner, then the
+          action BUTTONS, then the Stripe links, info cards, details and
+          engagement, timeline, internal notes, and the success banner last.
+          Both blocks below used to sit at the bottom of this page. The Outcome
+          card keeps its slot because legacy has no counterpart to move it to,
+          and the success banner was already last. */}
+      {/* Action feedback sits OUTSIDE the actions card on purpose. It used to
+          live inside it, which was fine while every intent was refused: the
+          status could not change, so the card was always still there to render
+          the message. Now a successful Stop recovery moves the payment to a
+          terminal status, the card correctly stops rendering, and a message
+          nested inside it would vanish on the very submit it exists to report.
+          One block, ungated, serving the notes form and the action row alike. */}
+      {actionData && "error" in actionData ? (
+        <p
+          className="mt-6 rounded-md border border-red bg-red-bg px-3 py-2 text-label text-error-text"
+          role="alert"
+        >
+          {actionData.error}
+        </p>
+      ) : null}
+      {actionData && "notice" in actionData ? (
+        <p
+          className="mt-6 rounded-md border border-green bg-green-bg px-3 py-2 text-label text-green"
+          role="status"
+        >
+          {actionData.notice}
+        </p>
+      ) : null}
+
+      {/* Ruling 250: the action row is STATE-CONDITIONAL. Dustin's capture of
+          legacy at Failed_unrecovered shows NO action buttons at all, and
+          legacy's own gate is `payment.status === 'active'`, so a terminal
+          payment renders nothing here rather than a row of dead controls.
+          Every intent behind these buttons is WIRED (272); the gate is legacy's
+          own, not a stand-in for an unbuilt engine. */}
+      {actionsVisible ? (
+        <div className="mt-6 rounded-lg border border-border bg-surface p-4">
+          <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Manual actions</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {visibleActions.map((a) => (
+              <DemoGuardedForm key={a.intent} method="post">
+                <input type="hidden" name="intent" value={a.intent} />
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className={`rounded-md border px-3 py-1.5 text-label disabled:opacity-60 ${
+                    a.variant === "primary"
+                      ? "border-amber bg-amber font-semibold text-on-amber hover:bg-amber-dark"
+                      : a.variant === "danger"
+                        ? "border-border text-error-text hover:border-red"
+                        : "border-border text-text-secondary hover:border-border-i"
+                  }`}
+                >
+                  {a.label}
+                </button>
+              </DemoGuardedForm>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {/* Legacy's two Stripe deep links, PaymentDetailClient.tsx 329-360 at blob
           7f54aa45, in legacy's own slot: after the header block and immediately
@@ -735,29 +832,6 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
         )}
       </div>
 
-      {/* Action feedback sits OUTSIDE the actions card on purpose. It used to
-          live inside it, which was fine while every intent was refused: the
-          status could not change, so the card was always still there to render
-          the message. Now a successful Stop recovery moves the payment to a
-          terminal status, the card correctly stops rendering, and a message
-          nested inside it would vanish on the very submit it exists to report.
-          One block, ungated, serving the notes form and the action row alike. */}
-      {actionData && "error" in actionData ? (
-        <p
-          className="mt-6 rounded-md border border-red bg-red-bg px-3 py-2 text-label text-error-text"
-          role="alert"
-        >
-          {actionData.error}
-        </p>
-      ) : null}
-      {actionData && "notice" in actionData ? (
-        <p
-          className="mt-6 rounded-md border border-green bg-green-bg px-3 py-2 text-label text-green"
-          role="status"
-        >
-          {actionData.notice}
-        </p>
-      ) : null}
 
       {/* Legacy's INTERNAL NOTES card, treatment per 250's capture: a textarea
           with placeholder copy and an amber Save note button. The column
@@ -787,48 +861,17 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
         </DemoGuardedForm>
       </div>
 
-      {/* Ruling 250: the action row is STATE-CONDITIONAL. Dustin's capture of
-          legacy at Failed_unrecovered shows NO action buttons at all, and
-          legacy's own gate is `payment.status === 'active'`, so a terminal
-          payment renders nothing here rather than a row of dead controls.
-          Every intent behind these buttons is WIRED (272); the gate is legacy's
-          own, not a stand-in for an unbuilt engine. */}
-      {actionsVisible ? (
-        <div className="mt-6 rounded-lg border border-border bg-surface p-4">
-          <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Manual actions</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {visibleActions.map((a) => (
-              <DemoGuardedForm key={a.intent} method="post">
-                <input type="hidden" name="intent" value={a.intent} />
-                <button
-                  type="submit"
-                  disabled={busy}
-                  className={`rounded-md border px-3 py-1.5 text-label disabled:opacity-60 ${
-                    a.variant === "primary"
-                      ? "border-amber bg-amber font-semibold text-on-amber hover:bg-amber-dark"
-                      : a.variant === "danger"
-                        ? "border-border text-error-text hover:border-red"
-                        : "border-border text-text-secondary hover:border-border-i"
-                  }`}
-                >
-                  {a.label}
-                </button>
-              </DemoGuardedForm>
-            ))}
-          </div>
-        </div>
-      ) : null}
 
       {/* Legacy's recovery success banner, PaymentDetailClient.tsx 599-612 at
           blob 7f54aa45. Legacy's gate is BOTH halves, a recovered status AND a
           recovered_payments row, so a status flip without a row renders nothing,
           and the amount appears twice, once in the sentence and once large and
           mono on the right.
-          PLACEMENT: legacy's banner is the LAST element on the page and this is
-          the last element here. Job 4 item 1 of parity/S7-REMAINDER-SCOPE.md is
-          an OPEN ruling on this page's section order; if it lands, the action row
-          moves up to legacy's slot and this banner STAYS last, which is why last
-          is the stable placement to take now.
+          PLACEMENT: legacy's banner is the LAST element on the page and this
+          is the last element here. That open ordering question is now CLOSED by
+          304: the action row moved up to legacy's slot and this banner stayed
+          exactly where it was, which is why last was the stable placement to
+          take before the ruling landed.
           The method reads through ATTRIBUTION_KIND_LABELS, the same table the
           Email engagement card above already uses for "Recovery method", rather
           than legacy's recovery_method vocabulary, which Foxhound does not carry.
