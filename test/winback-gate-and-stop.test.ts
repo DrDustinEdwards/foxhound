@@ -76,9 +76,12 @@ describe("291 B: the gate delays the UNFLAGGED, on the aligned base", () => {
     expect(weird.slice(1)).toEqual([96, 336]);
   });
 
-  it("the gate reads legacy's table and legacy's value", () => {
-    expect(PROCESS).toContain("accountProducts.product, INTELLIGENCE_PRODUCT");
-    expect(PROCESS).toContain("accountProducts.status, SUBSCRIPTION_STATUS_ACTIVE");
+  it("the gate reads the LIVE capability and legacy's value (292)", () => {
+    // 292's semantic port: the STORAGE moved to the live entitlement, the value
+    // and the direction stayed legacy's. The vestigial table is gone from this
+    // file entirely, so a revert cannot hide in a leftover import.
+    expect(PROCESS).toContain("isIntelligenceEntitled(db, accountId)");
+    expect(PROCESS).not.toContain("accountProducts");
     expect(PROCESS).toContain("recommendation === WINBACK_PRIORITY_ACTION");
     expect(WINBACK_PRIORITY_ACTION).toBe("winback_priority");
   });
@@ -87,8 +90,14 @@ describe("291 B: the gate delays the UNFLAGGED, on the aligned base", () => {
     expect(PROCESS).toContain("// Fail open: the default schedule, never a silently different cadence.");
   });
 
-  it("the unreachability bound is stated in code, not dropped", () => {
-    expect(PROCESS).toContain("account_products has ZERO writers in Foxhound");
+  it("the bound is HALVED, not dropped and not left standing whole (292)", () => {
+    // The account_products half died with the read it justified: leaving it as
+    // prose after the code stopped depending on it is 288's dead-conditional
+    // rule. The producer half is still true and still stated.
+    expect(PROCESS).not.toContain("account_products has ZERO writers in Foxhound");
+    expect(PROCESS).toContain(
+      "nothing in Foxhound writes `winback_priority` into recommended_action,",
+    );
   });
 });
 
