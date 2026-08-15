@@ -124,8 +124,7 @@ export type ManualActionOutcome =
   | { ok: false; reason: "send_retrying" }
   | { ok: false; reason: "step_failed"; result: string | null }
   | { ok: false; reason: "already_resolved"; intent: "cancel" | "mark_recovered" }
-  | { ok: false; reason: "write_failed"; intent: ManualIntent }
-  | { ok: false; reason: "not_wired"; intent: ManualActionIntent };
+  | { ok: false; reason: "write_failed"; intent: ManualIntent };
 
 /**
  * Whether an intent requires status 'active' server-side.
@@ -616,7 +615,15 @@ export async function dispatchManualAction(
     return markRecovered(req, detail.failedPayment.amountCents, detail.failedPayment.currency);
   }
 
-  return { ok: false, reason: "not_wired", intent };
+  // Every member of ManualIntent is handled above, so `intent` is `never` here.
+  // This used to return a runtime `not_wired` that nothing could reach: it dates
+  // from Session A, when the dispatcher was built DELIBERATELY unwired (260),
+  // and it was left standing after 272 wired all five. The type system enforces
+  // the same intent strictly better. A SIXTH intent added to MANUAL_INTENTS
+  // without a branch here is now a COMPILE error, where the old string would
+  // have shipped and answered a merchant with a refusal nobody wrote on purpose.
+  const exhaustive: never = intent;
+  return exhaustive;
 }
 
 /**
