@@ -46,6 +46,12 @@ import type { Route } from "./+types/audit";
 //    inline below at its own geometry rather than a new shared component being
 //    minted for one consumer.
 //
+// 5. THE "written by AI" CLAUSE IS DROPPED from the digest description, ruled by
+//    Dustin in 316's session. Class (c), a truthfulness fix: legacy's digest
+//    leads with an AI summary this codebase cannot produce, so porting the
+//    clause verbatim promised something no send could carry. The rest of the
+//    sentence is legacy's, unchanged. See app/lib/audit/digest.server.ts.
+//
 // NULL IS OFF and legacy agrees: its own page reads `?? false` and `?? 90`, so
 // the defaulting lives in the READ and no column DEFAULT is added. See
 // app/lib/settings/audit-settings.ts.
@@ -175,9 +181,15 @@ export default function AuditSettings({ loaderData, actionData }: Route.Componen
           <div className="flex items-center justify-between border-t border-border py-4">
             <div className="pr-4">
               <div className="mb-0.5 text-label text-text">Monthly audit digest</div>
+              {/* "written by AI" REMOVED under 316's session, ratified by Dustin.
+                  Legacy's digest leads with runAudit()'s aiSummary; Foxhound's
+                  audit entry point produces no summary and ANTHROPIC_API_KEY has
+                  no credit balance (core.md blocker 2), so the clause promised
+                  something the send cannot carry. Divergence 5, and the only
+                  edit to legacy's verbatim copy. */}
               <div className="text-micro text-text-subtle">
                 On the 1st of each month, we run a fresh audit and email you a comparison
-                versus the prior month, written by AI. No extra charge.
+                versus the prior month. No extra charge.
               </div>
             </div>
             <Toggle enabled={autoRun} onChange={setAutoRun} label="Monthly audit digest" />

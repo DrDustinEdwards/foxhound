@@ -29,9 +29,13 @@ describe("cron registry", () => {
     expect(WRANGLER_CRONS).toContain(CRON_SCHEDULE_RECOVERY_TICK);
   });
 
-  it("dispatches billing and intelligence sync on the monthly schedule, intelligence AI + retention on the daily one", () => {
+  it("dispatches billing, intelligence sync and the audit digest on the monthly schedule, intelligence AI + retention on the daily one", () => {
     const monthly = jobsForSchedule(CRON_SCHEDULE_MONTHLY);
-    expect(monthly.map((j) => j.name)).toEqual(["billing-monthly", "intelligence-sync"]);
+    expect(monthly.map((j) => j.name)).toEqual([
+      "billing-monthly",
+      "intelligence-sync",
+      "audit-digest",
+    ]);
 
     const daily = jobsForSchedule(CRON_SCHEDULE_DAILY);
     expect(daily.map((j) => j.name)).toContain("intelligence-ai");
