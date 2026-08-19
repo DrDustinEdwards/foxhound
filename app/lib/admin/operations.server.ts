@@ -4,6 +4,10 @@
 
 import { count } from "drizzle-orm";
 
+// drizzle-kit writes this on every `generate`, so it cannot fall behind the
+// migrations it records. Bundled at build time; the Worker has no filesystem.
+import migrationJournal from "../../../drizzle/migrations/meta/_journal.json";
+
 import type { Db } from "~/db";
 import {
   aiCalls,
@@ -33,38 +37,30 @@ export async function getD1SizeBytes(env: Env): Promise<number> {
   return result.meta.size_after;
 }
 
-/** Known applied-migration filenames, in order. Static: the Worker has no
- *  filesystem access to drizzle/migrations at runtime, and this list only
- *  changes when a new migration ships (a deploy-time event anyway).
+/** Applied-migration filenames, in order, DERIVED from drizzle's own journal.
  *
- *  Because it is maintained by hand it had drifted FOUR behind, stopping at 0005
- *  while the schema was at 0009, so /admin/operations under-reported the schema
- *  state on the page treated as the authoritative answer for exactly that.
- *  test/admin-known-migrations.test.ts now asserts this list against the actual
- *  .sql files on disk, so the next migration that ships without updating it fails
- *  CI instead of silently shrinking the page. */
-export const KNOWN_MIGRATIONS = [
-  "0000_init_foxhound_schema.sql",
-  "0001_hardening_win_back_index_and_currency.sql",
-  "0002_famous_reaper.sql",
-  "0003_faithful_harrier.sql",
-  "0004_narrow_annihilus.sql",
-  "0005_stormy_vector.sql",
-  "0006_spooky_gravity.sql",
-  "0007_shallow_the_fallen.sql",
-  "0008_hard_scream.sql",
-  "0009_lethal_gladiator.sql",
-  "0010_flimsy_hitman.sql",
-  "0011_bouncy_whizzer.sql",
-  "0012_solid_nightmare.sql",
-  "0013_short_vulture.sql",
-  "0014_flashy_rawhide_kid.sql",
-  "0015_steady_azazel.sql",
-  // 313: cron_alerts (the alert dedupe key), email_dead_letters (the DLQ trace),
-  // and email_sends.cron_run_id (send-to-run attribution). All additive.
-  "0016_steep_union_jack.sql",
-  "0017_brainy_gravity.sql",
-] as const;
+ *  THE HAND-MAINTAINED LIST IS GONE (317). It failed twice: it drifted FOUR
+ *  behind in July (stopping at 0005 against a schema at 0009, so
+ *  /admin/operations under-reported schema state on the page treated as the
+ *  authoritative answer for exactly that), and it went red again at 316 when
+ *  0017 shipped. A list that a human must remember to update is a defect
+ *  generator, and the guard around it only converted silent drift into a CI
+ *  failure someone still had to fix by hand.
+ *
+ *  `drizzle/migrations/meta/_journal.json` is written by `drizzle-kit generate`
+ *  itself, so it cannot fall behind the migrations it records. Importing it is a
+ *  plain JSON import (resolveJsonModule), bundled at BUILD time, which is what
+ *  keeps this working in a Worker with no filesystem at runtime. Sorting by
+ *  `idx` rather than trusting array order makes the ordering explicit, since
+ *  `getMigrationStatus` renders these in sequence.
+ *
+ *  test/admin-known-migrations.test.ts still cross-checks against the actual
+ *  .sql files on disk. That check is now the load-bearing one: it catches a
+ *  migration file present without a journal entry, or a journal entry whose file
+ *  is missing, neither of which the journal can self-report. */
+export const KNOWN_MIGRATIONS: readonly string[] = [...migrationJournal.entries]
+  .sort((a, b) => a.idx - b.idx)
+  .map((entry) => `${entry.tag}.sql`);
 
 export interface MigrationStatusRow {
   name: string;

@@ -5,15 +5,22 @@ import { describe, expect, it } from "vitest";
 
 import { KNOWN_MIGRATIONS } from "~/lib/admin/operations.server";
 
-// KNOWN_MIGRATIONS is hand-maintained (the Worker has no filesystem at runtime),
-// and it had drifted four behind: it stopped at 0005 while the schema was at
-// 0009, so /admin/operations under-reported the schema state on the page that is
-// treated as the authoritative answer for it.
+// KNOWN_MIGRATIONS WAS hand-maintained and failed twice: it drifted four behind
+// in July (stopping at 0005 against a schema at 0009, so /admin/operations
+// under-reported schema state on the page treated as the authoritative answer
+// for it), and it went red again at 316 when 0017 shipped. Under 317 it is now
+// DERIVED from drizzle's own `meta/_journal.json`, which drizzle-kit rewrites on
+// every generate.
 //
-// This asserts the list against the migrations actually on disk, so the next
-// migration that ships without updating it fails CI. Deriving the expectation
-// from the directory rather than from a second hand-written list is the point: a
-// coverage test whose expected set comes from the thing under test proves nothing.
+// WHAT THAT CHANGES ABOUT THIS FILE, stated rather than left misleading: the old
+// "agrees with the drizzle journal's order" assertion is now TAUTOLOGICAL, since
+// the journal is the source. It is replaced below by the two checks the journal
+// cannot make about itself (a .sql on disk with no journal entry, or a journal
+// entry whose file is missing) plus a guard that the list stays derived.
+//
+// The expectation is still built from the DIRECTORY rather than a second
+// hand-written list: a coverage test whose expected set comes from the thing
+// under test proves nothing.
 
 const MIGRATIONS_DIR = fileURLToPath(new URL("../drizzle/migrations", import.meta.url));
 const JOURNAL = fileURLToPath(new URL("../drizzle/migrations/meta/_journal.json", import.meta.url));
@@ -35,15 +42,33 @@ describe("KNOWN_MIGRATIONS tracks the migrations directory", () => {
     expect(phantom).toEqual([]);
   });
 
-  // drizzle-kit's journal is the authoritative ORDER. Filename sort and journal
-  // order agree today; if a future migration breaks that, this catches it rather
-  // than letting /admin/operations render a misleading sequence.
-  it("agrees with the drizzle journal's order", () => {
+  // NOT a comparison of KNOWN_MIGRATIONS to the journal: that is now definitional
+  // and would pass by construction. This is the journal against the DIRECTORY,
+  // which is the pair that can actually disagree, and it fails in both
+  // directions: a .sql added by hand without drizzle-kit, or a journal entry
+  // whose file was deleted or renamed.
+  it("the journal and the migrations directory agree, in both directions", () => {
     const journal = JSON.parse(readFileSync(JOURNAL, "utf8")) as { entries: { idx: number; tag: string }[] };
-    const journalOrder = [...journal.entries]
-      .sort((a, b) => a.idx - b.idx)
-      .map((e) => `${e.tag}.sql`);
-    expect([...KNOWN_MIGRATIONS]).toEqual(journalOrder);
+    const journalFiles = [...journal.entries].sort((a, b) => a.idx - b.idx).map((e) => `${e.tag}.sql`);
+    const onDisk = migrationFilesOnDisk();
+
+    expect(journalFiles.filter((f) => !onDisk.includes(f))).toEqual([]); // journal entry, no file
+    expect(onDisk.filter((f) => !journalFiles.includes(f))).toEqual([]); // file, no journal entry
+    // Pair the content check with a count check, so "no disagreements" cannot
+    // mean "nothing was read".
+    expect(onDisk.length).toBeGreaterThan(0);
+    expect(journalFiles).toHaveLength(onDisk.length);
+  });
+
+  it("STAYS DERIVED: operations.server.ts hardcodes no migration filename", () => {
+    // The regression guard for 317's actual fix. If someone reintroduces a hand
+    // list, this fails even though every assertion above would still pass.
+    const source = readFileSync(
+      fileURLToPath(new URL("../app/lib/admin/operations.server.ts", import.meta.url)),
+      "utf8",
+    );
+    const hardcoded = source.match(/"\d{4}_[a-z0-9_]+\.sql"/g) ?? [];
+    expect(hardcoded).toEqual([]);
   });
 
   it("has no duplicates", () => {

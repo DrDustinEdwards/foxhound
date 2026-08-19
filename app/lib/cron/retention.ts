@@ -1,5 +1,5 @@
 import type { BatchItem } from "drizzle-orm/batch";
-import { and, inArray, isNull, lt, sql } from "drizzle-orm";
+import { and, inArray, isNull, lt, sql, type SQL } from "drizzle-orm";
 import type { SQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
 
 import type { Db } from "~/db";
@@ -17,6 +17,7 @@ import {
 } from "~/db";
 import {
   DAY_MS,
+  DELETE_ID_BATCH_SIZE,
   RETENTION_AI_CALLS_DAYS,
   RETENTION_CRON_HISTORY_DAYS,
   RETENTION_EMAIL_SENDS_DAYS,
@@ -49,8 +50,68 @@ export function monthKeyUTC(when: Date): string {
   return `${when.getUTCFullYear()}-${String(when.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-/** Delete up to RETENTION_SWEEP_LIMIT rows older than the cutoff, returning the
- *  count. Selects ids first so the count is exact and the delete is bounded. */
+/** Split an id list into chunks that fit under D1's bound-parameter ceiling.
+ *  Pure, and exported so the boundary is directly testable at a row count ABOVE
+ *  the ceiling, which is the only assertion that would have caught the original
+ *  bug. */
+export function chunkIds<T>(ids: readonly T[], size: number = DELETE_ID_BATCH_SIZE): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < ids.length; i += size) out.push(ids.slice(i, i + size) as T[]);
+  return out;
+}
+
+/** Delete up to RETENTION_SWEEP_LIMIT rows matching a predicate, returning the
+ *  count.
+ *
+ *  THE DELETE CARRIES NO ID LIST. It re-expresses the same bounded selection as
+ *  a SUBQUERY, so its bound-parameter count is CONSTANT (the predicate's own
+ *  operands plus the limit) no matter how many rows match. That is the whole
+ *  difference between a fix and a larger version of the bug: an id list costs
+ *  O(rows) parameters and breaks the day a table crosses D1_MAX_BOUND_PARAMS.
+ *  retention-health-score failed every day for 29 days that way, building 417
+ *  placeholders against a documented ceiling of 100.
+ *
+ *  Batching the id list would also have worked and is deliberately NOT what this
+ *  does: a predicate that needs no id list cannot regress if someone later
+ *  raises RETENTION_SWEEP_LIMIT or edits a chunk size, whereas a batched delete
+ *  stays one careless constant away from the same failure.
+ *
+ *  THE LEADING SELECT SURVIVES, AND ONLY TO COUNT. `rowsAffected` is not uniform
+ *  across the two drivers this code runs on (D1 returns D1Result.meta, the
+ *  better-sqlite3 driver the tests use returns RunResult.changes), so counting
+ *  here keeps production and the harness reading the same number rather than
+ *  agreeing by luck.
+ *
+ *  The two statements evaluate the same predicate at slightly different moments,
+ *  so a row that ages in between could be swept in place of one that was counted.
+ *  Immaterial for an age-based sweep: every matching row is equally deletable,
+ *  the tick stays bounded either way, and the remainder is swept next tick. Crons
+ *  are serialized per name by the CronLock DO, so no second sweep of the same
+ *  table runs alongside this one. */
+async function deleteBoundedWhere(
+  db: Db,
+  table: SQLiteTable,
+  idColumn: SQLiteColumn,
+  predicate: SQL,
+): Promise<number> {
+  const rows = await db
+    .select({ id: idColumn })
+    .from(table)
+    .where(predicate)
+    .limit(RETENTION_SWEEP_LIMIT);
+  if (rows.length === 0) return 0;
+  await db
+    .delete(table)
+    .where(
+      inArray(
+        idColumn,
+        db.select({ id: idColumn }).from(table).where(predicate).limit(RETENTION_SWEEP_LIMIT),
+      ),
+    );
+  return rows.length;
+}
+
+/** Age-based sweep: the common case, where the predicate is one timestamp. */
 async function deleteOlderThan(
   db: Db,
   table: SQLiteTable,
@@ -58,15 +119,7 @@ async function deleteOlderThan(
   tsColumn: SQLiteColumn,
   cutoff: Date,
 ): Promise<number> {
-  const rows = await db
-    .select({ id: idColumn })
-    .from(table)
-    .where(lt(tsColumn, cutoff))
-    .limit(RETENTION_SWEEP_LIMIT);
-  if (rows.length === 0) return 0;
-  const ids = rows.map((r) => r.id as string);
-  await db.delete(table).where(inArray(idColumn, ids));
-  return ids.length;
+  return deleteBoundedWhere(db, table, idColumn, lt(tsColumn, cutoff));
 }
 
 export async function sweepEngagementEvents(env: Env): Promise<CronJobResult> {
@@ -129,19 +182,22 @@ export async function sweepPage404Daily(env: Env): Promise<CronJobResult> {
   return { rowsProcessed: rows };
 }
 
-/** Non-actioned social leads only (a lead we replied to is kept). */
+/** Non-actioned social leads only (a lead we replied to is kept).
+ *
+ *  Two predicate terms rather than one, but still a PREDICATE: it goes through
+ *  the same subquery delete as the age-only sweeps and carries no id list. This
+ *  site had its own copy of the select-then-inArray shape, so it carried the
+ *  same latent bug as the shared helper and would have fired the day
+ *  social_leads crossed the ceiling. */
 export async function sweepSocialLeads(env: Env): Promise<CronJobResult> {
-  const db = getDb(env);
   const cutoff = cutoffFor(RETENTION_SOCIAL_LEADS_DAYS, Date.now());
-  const rows = await db
-    .select({ id: socialLeads.id })
-    .from(socialLeads)
-    .where(and(lt(socialLeads.scoutRunAt, cutoff), isNull(socialLeads.repliedAt)))
-    .limit(RETENTION_SWEEP_LIMIT);
-  if (rows.length === 0) return { rowsProcessed: 0 };
-  const ids = rows.map((r) => r.id);
-  await db.delete(socialLeads).where(inArray(socialLeads.id, ids));
-  return { rowsProcessed: ids.length };
+  const rows = await deleteBoundedWhere(
+    getDb(env),
+    socialLeads,
+    socialLeads.id,
+    and(lt(socialLeads.scoutRunAt, cutoff), isNull(socialLeads.repliedAt)) as SQL,
+  );
+  return { rowsProcessed: rows };
 }
 
 export interface AiCallRow {
@@ -221,9 +277,26 @@ export async function sweepAiCalls(env: Env): Promise<CronJobResult> {
       }),
   );
 
-  const del = db.delete(aiCalls).where(inArray(aiCalls.id, rows.map((r) => r.id)));
-  // One atomic batch: the aged rows are deleted in the same transaction that
-  // rolls them into the monthly buckets, so a crash never double-counts.
-  await db.batch([upserts[0], ...upserts.slice(1), del]);
+  // THE ONE SITE WHERE AN ID LIST IS SEMANTICALLY REQUIRED, so this one is
+  // BATCHED rather than converted to a predicate.
+  //
+  // The other sweeps may re-express their delete as "whatever currently matches
+  // the predicate", because every matching row is equally deletable. This one
+  // may not: it must delete EXACTLY the rows it just aggregated into
+  // ai_calls_monthly. A subquery re-evaluating `created_at < cutoff` inside the
+  // batch would also match rows written after the SELECT, and deleting those
+  // would drop AI calls that were never rolled into a monthly bucket. That is
+  // silent loss in a cost ledger, which is worse than the bug being fixed.
+  //
+  // So the ids stay, and are chunked under D1's ceiling. The chunks go into the
+  // SAME batch as the upserts, so the aggregate-then-delete stays one atomic
+  // transaction and a crash still never double-counts.
+  const deletes = chunkIds(rows.map((r) => r.id)).map((chunk) =>
+    db.delete(aiCalls).where(inArray(aiCalls.id, chunk)),
+  );
+  await db.batch([upserts[0], ...upserts.slice(1), ...deletes] as [
+    BatchItem<"sqlite">,
+    ...BatchItem<"sqlite">[],
+  ]);
   return { rowsProcessed: rows.length, message: `${groups.length} monthly buckets` };
 }

@@ -487,6 +487,25 @@ export const RETENTION_PAGE_404_DAILY_DAYS = 365;
  *  a large backlog drains over successive ticks). */
 export const RETENTION_SWEEP_LIMIT = 5_000;
 
+/** D1's DOCUMENTED ceiling on bound parameters in ONE query.
+ *
+ *  Measured from Cloudflare's own limits page (developers.cloudflare.com/d1/
+ *  platform/limits/, "Maximum bound parameters per query"), not from memory,
+ *  because a remembered number is what let this ship. Recorded next to the
+ *  OBSERVED figure that broke: retention-health-score built a DELETE with
+ *  **417** placeholders, one per aged row, and failed every day for 29 days
+ *  (2026-07-22 to 2026-08-19) with rows_processed 0.
+ *
+ *  A query whose parameter count scales with ROW COUNT is the bug class. Prefer
+ *  a set-based predicate that needs no id list at all; batch under this ceiling
+ *  only where the id list is semantically required. */
+export const D1_MAX_BOUND_PARAMS = 100;
+
+/** Ids per DELETE where an id list is unavoidable. Ten percent under the
+ *  documented ceiling, so a caller that adds one incidental bound parameter to
+ *  the same statement does not silently cross it. */
+export const DELETE_ID_BATCH_SIZE = 90;
+
 // ---- Audit product (Phase 6 Pass 3: full-audit lift-band data/query layer) ----
 /** Trailing window the audit scans for failed/recovered invoices (legacy parity). */
 export const AUDIT_LOOKBACK_DAYS = 90;
