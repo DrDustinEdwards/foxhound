@@ -160,12 +160,22 @@ describe("315: the toggle round-trips through the REAL action", () => {
 });
 
 describe("315: legacy's treatment and placement", () => {
-  it("carries legacy's copy verbatim", () => {
+  it("carries legacy's copy verbatim, except the one clause 316's session ruled out", () => {
     expect(ROUTE).toContain("Lookback period");
     expect(ROUTE).toContain("How far back we look when calculating your audit.");
     expect(ROUTE).toContain("Monthly audit digest");
     expect(ROUTE).toContain("On the 1st of each month, we run a fresh audit and email you a comparison");
     expect(ROUTE).toContain("Lookback period and monthly digest options.");
+  });
+
+  it("DOES NOT promise an AI-written digest, which nothing can produce", () => {
+    // Divergence 5, ruled by Dustin in 316's session. Legacy's digest leads with
+    // runAudit()'s aiSummary; Foxhound's audit entry point produces no summary
+    // and ANTHROPIC_API_KEY has no credit (core.md blocker 2). Asserted against
+    // the COMMENT-STRIPPED source, because the comment recording the ruling
+    // necessarily quotes the clause it removed.
+    expect(ROUTE_CODE).not.toContain("written by AI");
+    expect(ROUTE_CODE).toContain("versus the prior month. No extra charge.");
   });
 
   it("carries legacy's card and toggle geometry", () => {

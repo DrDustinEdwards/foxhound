@@ -63,6 +63,7 @@ export const KNOWN_MIGRATIONS = [
   // 313: cron_alerts (the alert dedupe key), email_dead_letters (the DLQ trace),
   // and email_sends.cron_run_id (send-to-run attribution). All additive.
   "0016_steep_union_jack.sql",
+  "0017_brainy_gravity.sql",
 ] as const;
 
 export interface MigrationStatusRow {

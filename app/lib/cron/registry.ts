@@ -1,4 +1,5 @@
 import { getDb } from "~/db";
+import { describeDigestRun, runAuditDigest } from "~/lib/audit/digest.server";
 import { describeSweepRun, runMonthlyBilling } from "~/lib/billing/run";
 import {
   CRON_SCHEDULE_DAILY,
@@ -126,12 +127,31 @@ const demoReset: CronHandler = async (env) => {
 const cronHealth: CronHandler = async (env) =>
   runCronHealthCheck(env, getDb(env), CRON_JOBS, new Date());
 
+/** The monthly audit digest (316), closing the promise /settings/audit makes:
+ *  "on the 1st of each month, we run a fresh audit and email you a comparison
+ *  versus the prior month".
+ *
+ *  CRON_SCHEDULE_MONTHLY IS "0 4 1 * *", the 1st of the month, which is what the
+ *  page promises. The schedule matches the copy rather than the copy being bent
+ *  to a schedule, and it is already in wrangler.jsonc triggers AND already
+ *  mapped in alerts.server.ts's SCHEDULE_PERIOD_MS, so cron-health can judge
+ *  this job's staleness instead of reporting it as an unknown-schedule blind
+ *  spot. Legacy fired at 09:00 UTC and this fires at 04:00; the hour is
+ *  invisible to the merchant, whose promise is the DAY.
+ *
+ *  It passes the run id so a digest row can name the run that produced it. */
+const auditDigest: CronHandler = async (env, ctx) => {
+  const result = await runAuditDigest(env, new Date(), ctx?.runId ?? null);
+  return { rowsProcessed: result.sent, message: describeDigestRun(result) };
+};
+
 export const CRON_JOBS: CronJob[] = [
   { name: RECOVERY_TICK_CRON_NAME, schedule: CRON_SCHEDULE_RECOVERY_TICK, handler: recoveryTick },
   { name: "cron-health", schedule: CRON_SCHEDULE_DAILY, handler: cronHealth },
   { name: DEMO_RESET_CRON_NAME, schedule: CRON_SCHEDULE_DAILY, handler: demoReset },
   { name: "billing-monthly", schedule: CRON_SCHEDULE_MONTHLY, handler: billingMonthly },
   { name: "intelligence-sync", schedule: CRON_SCHEDULE_MONTHLY, handler: intelligenceSync },
+  { name: "audit-digest", schedule: CRON_SCHEDULE_MONTHLY, handler: auditDigest },
   { name: "intelligence-ai", schedule: CRON_SCHEDULE_DAILY, handler: intelligenceAi },
   { name: "retention-engagement-events", schedule: CRON_SCHEDULE_DAILY, handler: sweepEngagementEvents },
   { name: "retention-email-sends", schedule: CRON_SCHEDULE_DAILY, handler: sweepEmailSends },
