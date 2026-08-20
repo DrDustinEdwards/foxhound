@@ -58,6 +58,43 @@ export const authOptions = {
     // See docs/auth/README.md.
     expiresIn: SESSION_EXPIRES_IN_SECONDS,
     updateAge: SESSION_UPDATE_AGE_SECONDS,
+    // WHICH business account this session is currently looking at (ruling 326,
+    // phase (a)). Declared HERE rather than hand-added to app/db/auth-schema.ts
+    // because Better Auth owns that file and regenerates it; a hand-added column
+    // would survive exactly until the next `npm run auth:generate`. Declaring it
+    // as an additionalField is also what makes Better Auth's own session reads
+    // and writes carry the value instead of stripping it.
+    //
+    // Legacy keeps this marker in an `active_account_id` COOKIE
+    // (lib/account.ts:130-137, app/api/account/switch/route.ts:32). Foxhound puts
+    // it on the session ROW instead: server-authoritative on a money path, it
+    // dies with the session, and it needs no cross-device reconciliation. Class
+    // (a) internals divergence, ruled at 326 item 5.
+    //
+    // `input: false` is the money-path half: without it a client could set the
+    // field through a sign-in or sign-up payload and choose which account its own
+    // session points at. It is writable only by the server-side switch action
+    // (phase (b)), which ports legacy's validation from
+    // app/api/account/switch/route.ts:18-28: the target must be an account the
+    // caller ACTIVELY holds, or the switch is refused.
+    //
+    // NO FOREIGN KEY to accounts.id, deliberately, and this is the reason rather
+    // than an omission. `session` is generated from these options, so a
+    // `.references()` cannot be expressed here and any hand-written one would be
+    // erased on the next generate; it would also point a Better-Auth-owned table
+    // at a business table. ON DELETE SET NULL is not lost, because a dangling
+    // marker is not trusted anyway: resolveActiveMembership re-checks on every
+    // read that the marked account is one the user still actively holds, and
+    // falls back to the earliest membership otherwise. That check is STRICTLY
+    // STRONGER than the FK, since it also catches a marker pointing at an account
+    // that still exists but whose membership was revoked.
+    additionalFields: {
+      activeAccountId: {
+        type: "string",
+        required: false,
+        input: false,
+      },
+    },
   },
   advanced: {
     // Match the app's id convention (text uuid, crypto.randomUUID) used across

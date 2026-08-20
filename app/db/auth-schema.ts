@@ -2,6 +2,13 @@
 // Regenerate with: npm run auth:generate  (then `npm run db:generate` for the
 // migration). Better Auth owns these tables (user/session/account/verification);
 // our business tables live in schema.ts. See docs/auth/README.md.
+//
+// THE GENERATOR OVERWRITES THIS FILE WHOLE, INCLUDING THIS HEADER, so after
+// every `npm run auth:generate` this whole comment block has to be put back by
+// hand. Recorded here because the header was silently lost on the 326 phase (a)
+// regenerate and only a diff caught it. `session.active_account_id` below is NOT
+// hand-added either: it comes from `session.additionalFields` in
+// app/lib/auth/options.ts, which is where its reasoning lives.
 import { relations, sql } from "drizzle-orm";
 import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
 
@@ -39,6 +46,7 @@ export const session = sqliteTable(
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
+    activeAccountId: text("active_account_id"),
   },
   (table) => [index("session_userId_idx").on(table.userId)],
 );

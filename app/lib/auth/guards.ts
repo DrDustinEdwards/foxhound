@@ -16,7 +16,7 @@ import {
   resolveDemoMembership,
 } from "~/lib/demo/session";
 
-import { resolveMembership } from "./account";
+import { resolveActiveMembership } from "./account";
 import { authContext } from "./context";
 import { isAdminEmail } from "./roles";
 import { getSession } from "./session";
@@ -88,7 +88,24 @@ export const appShellMiddleware: MiddlewareFunction<Response> = async (
   const useDemo = resolvesToDemo(Boolean(session), hasDemoCookie(request), pathname);
 
   if (session && !useDemo) {
-    const membership = await resolveMembership(getDb(env), session.user.id);
+    // The ONE chokepoint that turns a session into an account for the whole app
+    // shell: 27 files read `membership.accountId` off authContext and none of
+    // them resolves an account itself (parity/MULTI-ACCOUNT-QUERY-AUDIT.md), so
+    // whichever account is decided here is the account every one of them acts
+    // on, including the money routes. That is why the marker is passed HERE and
+    // nowhere else.
+    //
+    // `session.session.activeAccountId` is null for every session in existence
+    // at phase (a): the column ships empty and only phase (b)'s switch action
+    // ever writes it. resolveActiveMembership therefore falls back to the
+    // earliest membership, which is byte for byte what resolveMembership did
+    // before ruling 326. Nothing user-visible moves this session; the wiring is
+    // in place so phase (b) adds a writer, not a new call path.
+    const membership = await resolveActiveMembership(
+      getDb(env),
+      session.user.id,
+      session.session.activeAccountId ?? null,
+    );
     if (!membership) throw redirect("/connect");
 
     context.set(authContext, {

@@ -3,20 +3,34 @@ import { describe, expect, it } from "vitest";
 
 import type { Db } from "~/db";
 import { accountMembers, accounts } from "~/db/schema";
-import { acceptInvite, createAccountForUser } from "~/lib/auth/account";
+import { acceptInvite, createAccountForUser, resolveMembership } from "~/lib/auth/account";
 import { MEMBER_ROLE, MEMBER_STATUS } from "~/lib/auth/roles";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
 // Cross-tenant regression for account-scoping audit MEDIUM #4: acceptInvite is a
-// read-then-write (check the user has no active membership, then activate the
-// invite row). Two concurrent accepts of two different invites can both read
-// "no membership" before either commits, so the read alone cannot enforce the
-// single-account invariant. The account_members_one_active_per_user_uq partial
-// unique index is the structural guard, and acceptInvite maps the rejected write
-// back to already_member. Proven against a REAL in-memory SQLite with the
-// committed migrations applied, so the index (not a SQL-shape assertion) is what
-// stops the second membership.
+// read-then-write (check the user's memberships, then activate the invite row),
+// so two concurrent accepts can both pass the read before either commits and the
+// read alone cannot enforce anything. A database index is the structural guard,
+// and acceptInvite maps the rejected write back to already_member. Proven against
+// a REAL in-memory SQLite with the committed migrations applied, so the index
+// (not a SQL-shape assertion) is what stops the second membership.
+//
+// REAIMED AT PHASE (a) OF THE MULTI-ACCOUNT BUILD (rulings 324 and 326). The
+// guard used to be `account_members_one_active_per_user_uq`, unique on `user_id`
+// alone, and this file asserted that a user could never hold two active
+// memberships. That is the constraint 324 STRUCK: many accounts per user is the
+// product, and legacy has always worked that way. The property worth protecting
+// survives in a narrower form and is what the rewritten cases below assert:
+//
+//   ACROSS two accounts, a double accept is now LEGAL and both land.
+//   WITHIN one account, a double accept is still refused, by the replacement
+//   index `account_members_user_account_active_uq` on (user_id, account_id).
+//
+// Legacy agrees on both halves: app/api/invite/accept/route.ts:47-57 (blob
+// 13708537) scopes its own duplicate check to `(account_id, user_id)`, not to
+// the user. The tests are therefore not weakened, they are re-aimed at the pair
+// that was always the real invariant.
 
 const now = new Date("2026-07-20T00:00:00.000Z");
 const USER = "user_1";
@@ -98,7 +112,7 @@ describe("MEDIUM #4: concurrent invite acceptance cannot land two active members
     expect(row[0].status).toBe(MEMBER_STATUS.ACTIVE);
   });
 
-  it("two concurrent accepts yield exactly one active membership (the DB rejects the second)", async () => {
+  it("two concurrent accepts for DIFFERENT accounts both land, and that is the point of 324", async () => {
     const { sqlite, db } = seedTwoInvites();
 
     // Racer A wins and commits its activation.
@@ -107,7 +121,9 @@ describe("MEDIUM #4: concurrent invite acceptance cannot land two active members
 
     // Racer B already passed its existing-membership read (null, captured before
     // A committed), so it proceeds straight to activation. Its UPDATE is the
-    // exact statement acceptInvite issues; the unique index must reject it.
+    // exact statement acceptInvite issues. Under the struck index this threw;
+    // under the replacement it is a legitimate second membership on a second
+    // account, which is precisely the behaviour the product now wants.
     const bWrite = db
       .update(accountMembers)
       .set({
@@ -117,21 +133,68 @@ describe("MEDIUM #4: concurrent invite acceptance cannot land two active members
         inviteExpiresAt: null,
       })
       .where(eq(accountMembers.id, "mem_B"));
-    expect(() => runStatement(sqlite, bWrite)).toThrow(/unique constraint/i);
+    expect(() => runStatement(sqlite, bWrite)).not.toThrow();
+
+    const active = await activeMemberships(db);
+    expect(active).toHaveLength(2);
+    expect(active.map((m) => m.accountId).sort()).toEqual(["acc_A", "acc_B"]);
+  });
+
+  it("two concurrent accepts for the SAME account are still rejected by the DB", async () => {
+    // The half of the old assertion that survives 324, and the one that was
+    // always the real defect: one user, two active rows, one account. A second
+    // pending invite to acc_A, racing the first.
+    const { sqlite, db } = seedTwoInvites();
+    runStatement(
+      sqlite,
+      db.insert(accountMembers).values({
+        id: "mem_A2",
+        accountId: "acc_A",
+        userId: null,
+        role: MEMBER_ROLE.MEMBER,
+        invitedEmail: EMAIL,
+        status: MEMBER_STATUS.PENDING,
+        inviteToken: "tok_A2",
+        inviteExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        createdAt: now,
+      }),
+    );
+
+    const a = await acceptInvite(db, "tok_A", USER, EMAIL);
+    expect(a.ok).toBe(true);
+
+    const duplicate = db
+      .update(accountMembers)
+      .set({
+        userId: USER,
+        status: MEMBER_STATUS.ACTIVE,
+        inviteToken: null,
+        inviteExpiresAt: null,
+      })
+      .where(eq(accountMembers.id, "mem_A2"));
+    expect(() => runStatement(sqlite, duplicate)).toThrow(/unique constraint/i);
 
     const active = await activeMemberships(db);
     expect(active).toHaveLength(1);
     expect(active[0].accountId).toBe("acc_A");
   });
 
-  it("acceptInvite that loses the race returns already_member instead of throwing", async () => {
+  it("acceptInvite whose competitor took a DIFFERENT account now succeeds, and the user holds both", async () => {
     const { sqlite, db } = seedTwoInvites();
 
     // Reproduce the read-then-write race inside one accept deterministically:
     // acceptInvite reads existingMembership = null, THEN a concurrent accept
-    // commits an active membership for the same user, THEN acceptInvite's own
-    // UPDATE runs and the unique index rejects it. We land the competitor in the
+    // commits an active membership for the same user on acc_A, THEN
+    // acceptInvite's own UPDATE for acc_B runs. We land the competitor in the
     // write window by intercepting the single db.update() acceptInvite makes.
+    //
+    // The struck index turned that into an already_member refusal. It is now a
+    // success: the two activations are for two different accounts, which is the
+    // legal case. `evaluateAcceptInvite`'s own already_member refusal (layer 2,
+    // ruling 326) does NOT fire here, because it runs on the read and the read
+    // happened before the competitor committed. That refusal is removed in phase
+    // (b); this case documents that the DATABASE already permits what layer 2
+    // still blocks on the non-racing path.
     let injected = false;
     const racingDb = new Proxy(db as object, {
       get(target, prop, receiver) {
@@ -162,10 +225,10 @@ describe("MEDIUM #4: concurrent invite acceptance cannot land two active members
 
     const result = await acceptInvite(racingDb, "tok_B", USER, EMAIL);
 
-    expect(result).toEqual({ ok: false, reason: "already_member" });
+    expect(result).toEqual({ ok: true, accountId: "acc_B" });
     const active = await activeMemberships(db);
-    expect(active).toHaveLength(1);
-    expect(active[0].accountId).toBe("acc_A"); // the racer's account, not B
+    expect(active).toHaveLength(2);
+    expect(active.map((m) => m.accountId).sort()).toEqual(["acc_A", "acc_B"]);
   });
 });
 
@@ -180,7 +243,28 @@ describe("MEDIUM #4 sibling: concurrent account creation cannot land two active 
     expect(active).toHaveLength(1);
   });
 
-  it("a create-account submit that loses the race returns already_member, not a 500, and leaves no orphan account", async () => {
+  // KNOWN DEFECT, RECORDED RATHER THAN ASSERTED AWAY, owed to phase (d).
+  //
+  // The create-account double-submit race is NO LONGER CAUGHT. The struck index
+  // was unique on user_id, so the loser's owner-membership insert violated it and
+  // the whole batch rolled back. The replacement is unique on
+  // (user_id, account_id), and the two racing submits mint two DIFFERENT account
+  // ids, so neither violates it and both commit: one double-click, two accounts.
+  //
+  // It is invisible at HEAD, which is why phase (a) ships with it: resolveMembership
+  // returns the earliest membership, so the loser's account is never resolved and
+  // no surface can reach it. It is still an orphan row per double submit.
+  //
+  // The fix belongs to phase (d), which owns connect.tsx (this function's only
+  // caller) and builds the add-account flow. Once an intentional second account
+  // has its own marked path, an UNMARKED create is a duplicate submit by
+  // definition and can be refused on that basis. Phase (a) is forbidden from
+  // touching connect.tsx (ruling 326), so this is named, not fixed.
+  //
+  // This case asserts what the code ACTUALLY does now. It is deliberately not
+  // written to pass under both behaviours, so phase (d) has to come back and
+  // change it on purpose.
+  it("a create-account submit that loses the race NOW SUCCEEDS and leaves a second account (phase (d) fixes this)", async () => {
     const { sqlite, db } = createInMemoryDb();
 
     // The winning concurrent submit already created this user's account + active
@@ -200,13 +284,15 @@ describe("MEDIUM #4 sibling: concurrent account creation cannot land two active 
 
     const result = await createAccountForUser(withAtomicBatch(sqlite, db), USER, "Loser Co");
 
-    expect(result).toEqual({ ok: false, reason: "already_member" });
-    // The rejected owner insert rolled the whole batch back: no "Loser Co" row.
-    const accountRows = await db.select({ id: accounts.id, name: accounts.name }).from(accounts);
-    expect(accountRows).toEqual([{ id: "acc_W", name: "Winner Co" }]);
-    // Still exactly one active membership, in the winner's account.
+    expect(result.ok).toBe(true);
+    // Both accounts exist. "Loser Co" is the orphan the defect note above names.
+    const accountRows = await db.select({ name: accounts.name }).from(accounts);
+    expect(accountRows.map((r) => r.name).sort()).toEqual(["Loser Co", "Winner Co"]);
+    // Two active memberships for one user, which the database now permits.
     const active = await activeMemberships(db);
-    expect(active).toHaveLength(1);
-    expect(active[0].accountId).toBe("acc_W");
+    expect(active).toHaveLength(2);
+    // And the invisibility half: every existing caller resolves the EARLIEST
+    // membership, so the orphan is unreachable from any surface at phase (a).
+    expect(await resolveMembership(db, USER)).toMatchObject({ accountId: "acc_W" });
   });
 });
