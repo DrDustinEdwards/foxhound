@@ -17,6 +17,8 @@ export {
   type MemberStatus,
 } from "./roles";
 export {
+  listMemberships,
+  resolveActiveMembership,
   resolveMembership,
   createAccountForUser,
   getInviteByToken,

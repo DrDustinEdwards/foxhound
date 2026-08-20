@@ -129,13 +129,33 @@ export const accountMembers = sqliteTable(
   },
   (t) => [
     index("account_members_account_idx").on(t.accountId),
-    // At most one ACTIVE membership per user (the single-account invariant).
-    // Pending invite rows carry a null user_id and status 'pending', so they are
-    // excluded. Makes the invariant database-enforced; the read-check in
-    // acceptInvite stays as a fast path, this is the backstop against a
-    // concurrent double-accept landing two active memberships.
-    uniqueIndex("account_members_one_active_per_user_uq")
-      .on(t.userId)
+    // A user joins a given account AT MOST ONCE, and may join MANY accounts.
+    //
+    // This replaces `account_members_one_active_per_user_uq`, which was the same
+    // partial unique on `user_id` ALONE and therefore capped every user at one
+    // active membership. Ruling 324 struck it: Dustin ruled multi-account into
+    // the parity campaign, and a Foxhound-internal rule that prevents parity is a
+    // rule to remove, not a constraint to work around. The 232 comments that
+    // described the old index as a live invariant are re-classified in phase (g);
+    // this one is the index, so it describes the new one.
+    //
+    // WHAT LEGACY ACTUALLY ENFORCES, measured in 326 phase (a) Job 0 rather than
+    // inferred. Legacy's DATABASE enforces NOTHING here: `account_members` has
+    // one index, the NON-unique `account_members_user_status_idx` on
+    // `(user_id, status)` (docs/reference/database.md, blob ae81ba51, the Indexes
+    // table, which does mark uniques where they exist). Legacy's APPLICATION does
+    // enforce exactly this pair: app/api/invite/accept/route.ts:47-57 (blob
+    // 13708537) looks up an existing membership by `account_id` AND `user_id` AND
+    // status active and short-circuits rather than activating a second. So the
+    // pair below is legacy's real invariant, moved down one layer to where a race
+    // cannot get past it.
+    //
+    // Pending invite rows carry a null user_id and status 'pending' and are
+    // excluded twice over. The read-checks in acceptInvite and
+    // createAccountForUser stay as fast paths; this is the backstop against a
+    // concurrent double-accept of the SAME account's invite.
+    uniqueIndex("account_members_user_account_active_uq")
+      .on(t.userId, t.accountId)
       .where(sql`${t.status} = 'active'`),
   ],
 );

@@ -6,12 +6,19 @@ import { accountMembers, accounts, user } from "~/db";
 import { INVITE_TTL_MS, MEMBER_ROLE, MEMBER_STATUS } from "./roles";
 
 // Resolves the Better Auth user -> business account relationship, and owns the
-// account_members lifecycle (create account, invite, accept). At HEAD a user
-// holds at most one ACTIVE membership, enforced by the partial unique index
-// `account_members_one_active_per_user_uq` and re-checked here; multi-account
-// switching is NOT BUILT. Repaired under ruling 232: this line used to call
-// multi-account "out of scope", which ruling 53 made false by ruling it the
-// product direction. Not built is the true statement; out of scope is not.
+// account_members lifecycle (create account, invite, accept). A user may hold
+// MANY active memberships, one per account, which is legacy's model
+// (lib/account.ts's resolveAccount selects them with no limit and returns
+// allMemberships "so callers (e.g. nav) can render an account switcher").
+// Ruling 324 struck the constraint that prevented it; ruling 326 phased the
+// build, and this is phase (a): the schema and the resolver split, with NO
+// user-visible change. The switcher, the switch action and the second-account
+// connect flow are phases (b), (d) and (e) and are NOT built here.
+//
+// Repaired under ruling 232: this comment used to call multi-account "out of
+// scope", which ruling 53 made false by ruling it the product direction, and was
+// then repaired to "not built". As of phase (a) the SCHEMA supports it and the
+// SURFACES do not, which is the accurate statement now.
 
 export interface Membership {
   memberId: string;
@@ -20,12 +27,22 @@ export interface Membership {
   role: string;
 }
 
-/** The user's active account membership, or null if they have no account yet. */
-export async function resolveMembership(
+/**
+ * Every account the user actively belongs to, earliest first.
+ *
+ * Ordered by createdAt then id so the list, and therefore the fallback pick in
+ * `resolveActiveMembership`, is stable across requests. Legacy's equivalent is
+ * `resolveAccount`'s `allMemberships` (lib/account.ts:110-125), which is
+ * likewise unlimited; the account switcher in phase (e) renders this list.
+ *
+ * Distinct from `listMembers` at the bottom of this file, which goes the other
+ * way: the MEMBERS of one account, for the team settings view.
+ */
+export async function listMemberships(
   db: Db,
   userId: string,
-): Promise<Membership | null> {
-  const rows = await db
+): Promise<Membership[]> {
+  return db
     .select({
       memberId: accountMembers.id,
       accountId: accountMembers.accountId,
@@ -40,13 +57,59 @@ export async function resolveMembership(
         eq(accountMembers.status, MEMBER_STATUS.ACTIVE),
       ),
     )
-    // Deterministic resolution: the earliest active membership wins, so a user
-    // with more than one active row always resolves to the same account (the
-    // single-account invariant is enforced below, but ordering makes resolution
-    // stable regardless). createdAt then id as a stable tiebreaker.
-    .orderBy(accountMembers.createdAt, accountMembers.id)
-    .limit(1);
-  return rows[0] ?? null;
+    .orderBy(accountMembers.createdAt, accountMembers.id);
+}
+
+/**
+ * The membership this request should act as: the marked one when the marker
+ * names an account the user ACTIVELY holds, the earliest membership otherwise.
+ *
+ * `activeAccountId` is `session.active_account_id` (see the additionalFields
+ * block in options.ts for why it lives on the session row rather than in
+ * legacy's cookie). The marker is NEVER trusted on its own. It is matched
+ * against the user's own active memberships, which is legacy's validation from
+ * app/api/account/switch/route.ts:18-28 moved from write time to read time, and
+ * strictly safer for it: legacy checks membership only when the cookie is SET,
+ * so a legacy cookie outlives the membership it names, while this re-checks on
+ * every read. A marker pointing at an account the user never held, or held and
+ * had revoked, or that no longer exists, FALLS BACK rather than throwing: this
+ * is on the path of every authenticated request, and a stale marker must not be
+ * able to lock a user out of an account they legitimately hold.
+ *
+ * NOTE FOR PHASE (b): the fallback is deliberately silent, which is right for a
+ * stale marker and wrong for a switch attempt. The switch action does its own
+ * explicit membership check and REFUSES (legacy answers 403), rather than
+ * calling this and letting a bad target quietly resolve to some other account.
+ */
+export async function resolveActiveMembership(
+  db: Db,
+  userId: string,
+  activeAccountId: string | null,
+): Promise<Membership | null> {
+  const memberships = await listMemberships(db, userId);
+  if (activeAccountId) {
+    const marked = memberships.find((m) => m.accountId === activeAccountId);
+    if (marked) return marked;
+  }
+  return memberships[0] ?? null;
+}
+
+/**
+ * The user's account membership with no active-account marker: the earliest one.
+ *
+ * PHASE (a) COMPATIBILITY SHIM, not the long-term shape. It is exactly
+ * `resolveActiveMembership(db, userId, null)`, so every caller that has not yet
+ * been taught about the marker keeps its pre-326 behaviour byte for byte. The
+ * remaining callers are the theme read/write pair (ruling 53 item (e)), the
+ * marketing layout's has-an-account boolean, and the connect pair, which is
+ * phase (d)'s to change and deliberately untouched here. `guards.ts` no longer
+ * calls this; it passes the session's marker to `resolveActiveMembership`.
+ */
+export async function resolveMembership(
+  db: Db,
+  userId: string,
+): Promise<Membership | null> {
+  return resolveActiveMembership(db, userId, null);
 }
 
 export type CreateAccountResult =
@@ -58,12 +121,26 @@ export type CreateAccountResult =
  * owner membership together or neither). Not a money write, so a plain D1 batch
  * is the right atomicity primitive here.
  *
- * The caller guards on `resolveMembership` first, but that is a read-then-write:
- * two concurrent create-account submits can both read "no membership" and both
- * reach here. The `account_members_one_active_per_user_uq` index is the guard,
- * exactly as in `acceptInvite`. The loser's owner-membership insert violates it,
- * which aborts the whole batch (D1 batches are atomic, so no orphan account row
- * is left behind), and we map it back to `already_member`.
+ * THE DOUBLE-SUBMIT RACE IS NO LONGER CAUGHT HERE, and that is a real change of
+ * behaviour rather than a wording repair. This paragraph used to say the
+ * `account_members_one_active_per_user_uq` index was the guard: two concurrent
+ * create-account submits both read "no membership", both reach here, and the
+ * loser's owner-membership insert violated the one-active-membership index,
+ * aborting its batch. That index is dropped (ruling 324). Its replacement is
+ * unique on `(user_id, account_id)`, and the two racing submits mint two
+ * DIFFERENT account ids, so neither violates it and BOTH now succeed. The
+ * `isUniqueConstraintError` branch below is consequently unreachable from this
+ * function at phase (a).
+ *
+ * At HEAD that is invisible: `resolveMembership` returns the earliest
+ * membership, so the loser's account is simply never resolved. It is still a
+ * defect (an orphan account row per double-submit) and it is recorded as owed to
+ * PHASE (d), which owns `connect.tsx`, this function's only caller, and is where
+ * the guard belongs: an intentional second account goes through the
+ * add-account flow, so an UNMARKED create is a duplicate submit by definition.
+ * Phase (a) does not touch connect.tsx (ruling 326), so it is named, not fixed.
+ *
+ * The branch is kept rather than deleted because phase (d) needs it back.
  */
 export async function createAccountForUser(
   db: Db,
@@ -169,8 +246,25 @@ export type AcceptInviteResult =
  * Pure decision for whether a fetched invite can be accepted by this user: the
  * invite must exist, the invited email must match (invites are not
  * transferable), and the user must not already hold an active membership
- * elsewhere (the single-account invariant). Split from `acceptInvite` so the
- * three rejection branches are unit-testable without a database.
+ * anywhere. Split from `acceptInvite` so the three rejection branches are
+ * unit-testable without a database.
+ *
+ * THE `already_member` REFUSAL IS ENFORCEMENT LAYER 2 (ruling 326), AND IT IS
+ * LEFT STANDING ON PURPOSE THIS SESSION. Ruling 324 struck the DATABASE layer;
+ * this application refusal survives it untouched and would still block a user
+ * from joining a second account by invite, which is why dropping the index alone
+ * does not deliver multi-account. Phase (a) is schema-only and moves nothing
+ * user-visible, so removing it here would ship a behaviour change this session
+ * is not scoped for. PHASE (b) REMOVES IT.
+ *
+ * What it becomes in phase (b) is not a guess: legacy's
+ * app/api/invite/accept/route.ts:47-57 (blob 13708537) scopes the same check to
+ * `(account_id, user_id)` rather than to the user, and treats a hit as SUCCESS
+ * with a redirect, not as an error. So the port is a narrowing plus a change of
+ * verdict, and `already_member` stops being a refusal at all.
+ *
+ * Layer 3 is `resolveMembership`'s earliest-membership pick, now the explicit
+ * shim above.
  */
 export function evaluateAcceptInvite(
   invite: InviteView | null,
@@ -190,15 +284,20 @@ export function evaluateAcceptInvite(
  * user's current membership, run the pure decision, and on success activate
  * the member row and clear the token.
  *
- * The existing-membership read is only a fast path. Two concurrent accepts of
- * two different invites can both read `existingMembership = null` before either
- * commits, so the read alone cannot enforce the single-account invariant. The
- * `account_members_one_active_per_user_uq` partial unique index is the real
- * guard: only one of the racing activations can create an active row for the
- * user; the loser's UPDATE hits the constraint, which we map back to
- * `already_member`. (The per-account money-write DO cannot serialize this: the
- * two invites belong to two different accounts, so they route to two different
- * DOs. The database index is the only structural stop.)
+ * The existing-membership read is only a fast path, and the index behind it has
+ * CHANGED SHAPE under ruling 324. It used to be
+ * `account_members_one_active_per_user_uq`, unique on `user_id` alone, so two
+ * concurrent accepts of two DIFFERENT accounts' invites raced and the loser hit
+ * the constraint. That is now legal: many accounts per user is the product. The
+ * replacement, `account_members_user_account_active_uq`, is unique on
+ * `(user_id, account_id)`, so what it still refuses is the case that was always
+ * the real defect, two concurrent accepts of invites to the SAME account
+ * landing two active rows for one user there. The loser's UPDATE hits the
+ * constraint and is mapped back to `already_member` exactly as before.
+ *
+ * That narrower guard is still the only structural stop for its case: the
+ * per-account money-write DO cannot serialize a cross-account race, since two
+ * invites to two accounts route to two different DOs.
  */
 export async function acceptInvite(
   db: Db,
