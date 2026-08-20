@@ -11,10 +11,9 @@ import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 // Cross-tenant regression for account-scoping audit MEDIUM #4: acceptInvite is a
 // read-then-write (check the user's memberships, then activate the invite row),
 // so two concurrent accepts can both pass the read before either commits and the
-// read alone cannot enforce anything. A database index is the structural guard,
-// and acceptInvite maps the rejected write back to already_member. Proven against
-// a REAL in-memory SQLite with the committed migrations applied, so the index
-// (not a SQL-shape assertion) is what stops the second membership.
+// read alone cannot enforce anything. A database index is the structural guard.
+// Proven against a REAL in-memory SQLite with the committed migrations applied,
+// so the index (not a SQL-shape assertion) is what stops the second membership.
 //
 // REAIMED AT PHASE (a) OF THE MULTI-ACCOUNT BUILD (rulings 324 and 326). The
 // guard used to be `account_members_one_active_per_user_uq`, unique on `user_id`
@@ -31,6 +30,13 @@ import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 // 13708537) scopes its own duplicate check to `(account_id, user_id)`, not to
 // the user. The tests are therefore not weakened, they are re-aimed at the pair
 // that was always the real invariant.
+//
+// PHASE (b), RULING 327, CHANGES WHAT THE COLLISION REPORTS. The database still
+// refuses a duplicate active pair, but `acceptInvite` no longer surfaces that as
+// a failure: the loser's UPDATE failed precisely because the winner already made
+// this user a member of this account, so the caller's question is answered yes
+// and the result is `{ ok: true, alreadyMember: true }` with nothing written.
+// `already_member` is gone as a rejection reason entirely.
 
 const now = new Date("2026-07-20T00:00:00.000Z");
 const USER = "user_1";
@@ -100,7 +106,7 @@ describe("MEDIUM #4: concurrent invite acceptance cannot land two active members
 
     const result = await acceptInvite(db, "tok_A", USER, EMAIL);
 
-    expect(result).toEqual({ ok: true, accountId: "acc_A" });
+    expect(result).toEqual({ ok: true, accountId: "acc_A", alreadyMember: false });
     const active = await activeMemberships(db);
     expect(active).toHaveLength(1);
     expect(active[0].accountId).toBe("acc_A");
@@ -179,6 +185,41 @@ describe("MEDIUM #4: concurrent invite acceptance cannot land two active members
     expect(active[0].accountId).toBe("acc_A");
   });
 
+  it("a SECOND accept of the same account reports success and writes nothing (327)", async () => {
+    // The same collision seen through acceptInvite rather than through raw SQL.
+    // Pre-327 this was `{ ok: false, reason: "already_member" }`, so a merchant
+    // double-clicking Accept saw a failure over a membership that existed.
+    const { sqlite, db } = seedTwoInvites();
+    runStatement(
+      sqlite,
+      db.insert(accountMembers).values({
+        id: "mem_A2",
+        accountId: "acc_A",
+        userId: null,
+        role: MEMBER_ROLE.MEMBER,
+        invitedEmail: EMAIL,
+        status: MEMBER_STATUS.PENDING,
+        inviteToken: "tok_A2",
+        inviteExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        createdAt: now,
+      }),
+    );
+
+    await acceptInvite(db, "tok_A", USER, EMAIL);
+    const second = await acceptInvite(db, "tok_A2", USER, EMAIL);
+
+    expect(second).toEqual({ ok: true, accountId: "acc_A", alreadyMember: true });
+    const active = await activeMemberships(db);
+    expect(active).toHaveLength(1);
+    // Nothing written: the second invite row is untouched, token intact.
+    const row = await db
+      .select({ token: accountMembers.inviteToken, status: accountMembers.status })
+      .from(accountMembers)
+      .where(eq(accountMembers.id, "mem_A2"));
+    expect(row[0].token).toBe("tok_A2");
+    expect(row[0].status).toBe(MEMBER_STATUS.PENDING);
+  });
+
   it("acceptInvite whose competitor took a DIFFERENT account now succeeds, and the user holds both", async () => {
     const { sqlite, db } = seedTwoInvites();
 
@@ -225,7 +266,7 @@ describe("MEDIUM #4: concurrent invite acceptance cannot land two active members
 
     const result = await acceptInvite(racingDb, "tok_B", USER, EMAIL);
 
-    expect(result).toEqual({ ok: true, accountId: "acc_B" });
+    expect(result).toEqual({ ok: true, accountId: "acc_B", alreadyMember: false });
     const active = await activeMemberships(db);
     expect(active).toHaveLength(2);
     expect(active.map((m) => m.accountId).sort()).toEqual(["acc_A", "acc_B"]);

@@ -16,7 +16,7 @@ import {
   resolveDemoMembership,
 } from "~/lib/demo/session";
 
-import { resolveActiveMembership } from "./account";
+import { listMemberships, resolveActiveMembershipFrom } from "./account";
 import { authContext } from "./context";
 import { isAdminEmail } from "./roles";
 import { getSession } from "./session";
@@ -95,15 +95,24 @@ export const appShellMiddleware: MiddlewareFunction<Response> = async (
     // on, including the money routes. That is why the marker is passed HERE and
     // nowhere else.
     //
-    // `session.session.activeAccountId` is null for every session in existence
-    // at phase (a): the column ships empty and only phase (b)'s switch action
-    // ever writes it. resolveActiveMembership therefore falls back to the
-    // earliest membership, which is byte for byte what resolveMembership did
-    // before ruling 326. Nothing user-visible moves this session; the wiring is
-    // in place so phase (b) adds a writer, not a new call path.
-    const membership = await resolveActiveMembership(
-      getDb(env),
-      session.user.id,
+    // `session.session.activeAccountId` NOW HAS A WRITER, as of phase (b):
+    // app/routes/api/account-switch.ts, and the invite accept. It is still null
+    // for every session that has not switched, and the fallback for that case is
+    // the earliest membership, byte for byte what resolveMembership did before
+    // ruling 326. (This paragraph said "null for every session in existence" at
+    // phase (a); that was true when it was written and phase (b) is what made it
+    // false, so it is corrected here rather than left reading as current.)
+    //
+    // ONE membership query per request, not two: phase (b) needs both the full
+    // list (AuthContext.memberships) and the resolved one, so the list is
+    // fetched here and `resolveActiveMembershipFrom` picks from it. The only
+    // extra query is legacy's last_visited_path tier, and that runs only when a
+    // user holds MORE than one membership and the marker missed.
+    const db = getDb(env);
+    const memberships = await listMemberships(db, session.user.id);
+    const membership = await resolveActiveMembershipFrom(
+      db,
+      memberships,
       session.session.activeAccountId ?? null,
     );
     if (!membership) throw redirect("/connect");
@@ -113,6 +122,8 @@ export const appShellMiddleware: MiddlewareFunction<Response> = async (
       userName: session.user.name,
       email: session.user.email,
       membership,
+      memberships,
+      activeAccountId: membership.accountId,
       isAdmin: isAdminEmail(env, session.user.email),
       isDemo: false,
       demoSignedIn: false,
@@ -141,6 +152,12 @@ export const appShellMiddleware: MiddlewareFunction<Response> = async (
       userName: DEMO_ACCOUNT_NAME,
       email: DEMO_MEMBER_EMAIL,
       membership,
+      // The demo has exactly one account and no switching. A signed-in visitor
+      // previewing the demo must NOT see their real accounts offered here, so
+      // this is the demo membership alone rather than anything read from their
+      // session. The demo_ firewall is unchanged by phase (b).
+      memberships: [membership],
+      activeAccountId: membership.accountId,
       isAdmin: false,
       isDemo: true,
       demoSignedIn: Boolean(session),

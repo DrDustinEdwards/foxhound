@@ -239,23 +239,32 @@ describe("resolveActiveMembership turns a session marker into an account", () =>
 describe("the guards.ts chokepoint passes the session marker", () => {
   const GUARDS = fileURLToPath(new URL("../app/lib/auth/guards.ts", import.meta.url));
 
-  it("appShellMiddleware calls resolveActiveMembership with session.session.activeAccountId", () => {
+  it("appShellMiddleware resolves with session.session.activeAccountId", () => {
     const source = readFileSync(GUARDS, "utf8");
 
     // Scoped to the CALL, never to the import line: an assertion that matches
-    // `import { resolveActiveMembership }` would pass against a call site that
-    // had stopped using it entirely (ruling 316's vacuous-assertion catch).
-    const call = source.match(/resolveActiveMembership\(([\s\S]*?)\);/);
+    // `import { resolveActiveMembershipFrom }` would pass against a call site
+    // that had stopped using it entirely (ruling 316's vacuous-assertion catch).
+    //
+    // PHASE (b) RENAMED WHAT IS CALLED HERE, and this guard caught it: guards.ts
+    // now takes the membership LIST (for AuthContext.memberships) and resolves
+    // from it with `resolveActiveMembershipFrom`, so one query serves both. The
+    // property under guard is unchanged and is not the function's name: the
+    // marker must reach the resolver. Matching either name keeps the guard
+    // pointed at that property rather than at this week's spelling.
+    const call = source.match(/resolveActiveMembership(?:From)?\(([\s\S]*?)\);/);
     expect(call).not.toBeNull();
 
     const args = call![1];
-    expect(args).toContain("session.user.id");
     expect(args).toContain("session.session.activeAccountId");
     // A hardcoded null in the third position is the exact regression this guard
     // exists to catch: it type-checks, it keeps every behavioural test green
     // (the marker is null everywhere at phase (a)), and it silently disables
     // account switching the moment phase (b) ships a writer.
     expect(args).not.toMatch(/,\s*null\s*,?\s*$/);
+    // The user still has to be the one whose memberships are read, whichever
+    // shape the resolver takes.
+    expect(source).toMatch(/listMemberships\([\s\S]*?session\.user\.id/);
   });
 
   it("guards.ts no longer imports the pre-326 resolver", () => {

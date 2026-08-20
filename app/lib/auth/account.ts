@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray, isNotNull } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import { accountMembers, accounts, user } from "~/db";
@@ -76,20 +76,90 @@ export async function listMemberships(
  * is on the path of every authenticated request, and a stale marker must not be
  * able to lock a user out of an account they legitimately hold.
  *
- * NOTE FOR PHASE (b): the fallback is deliberately silent, which is right for a
- * stale marker and wrong for a switch attempt. The switch action does its own
- * explicit membership check and REFUSES (legacy answers 403), rather than
- * calling this and letting a bad target quietly resolve to some other account.
+ * The fallback is deliberately silent, which is right for a stale marker and
+ * wrong for a switch attempt. `/api/account/switch` does its own explicit
+ * membership check and REFUSES with legacy's 403, rather than calling this and
+ * letting a bad target quietly resolve to some other account.
  */
 export async function resolveActiveMembership(
   db: Db,
   userId: string,
   activeAccountId: string | null,
 ): Promise<Membership | null> {
-  const memberships = await listMemberships(db, userId);
-  if (activeAccountId) {
-    const marked = memberships.find((m) => m.accountId === activeAccountId);
-    if (marked) return marked;
+  return resolveActiveMembershipFrom(db, await listMemberships(db, userId), activeAccountId);
+}
+
+/** The marked membership, or null when the marker is absent or names an account
+ *  the user does not actively hold. Pure, so the "never trust the marker" rule
+ *  is testable without a database. */
+export function pickMarkedMembership(
+  memberships: Membership[],
+  activeAccountId: string | null,
+): Membership | null {
+  if (!activeAccountId) return null;
+  return memberships.find((m) => m.accountId === activeAccountId) ?? null;
+}
+
+/**
+ * The same resolution over a membership list the caller already has.
+ *
+ * `guards.ts` needs BOTH the full list (for AuthContext.memberships) and the
+ * resolved one, and issuing `listMemberships` twice per authenticated request to
+ * get them would be the obvious waste. This is the split that avoids it.
+ *
+ * THE FALLBACK ORDER IS LEGACY'S, read from lib/account.ts (blob `9bb58874`)
+ * lines 126-155 rather than assumed:
+ *
+ *   1. the marked membership, when the marker names an account actively held;
+ *   2. else an account with a non-null `last_visited_path`, which is legacy's
+ *      "no cookie: prefer the account that has a non-null last_visited_path"
+ *      query at :139-148;
+ *   3. else the first.
+ *
+ * TIER 2 ONLY RUNS WHEN THERE IS MORE THAN ONE MEMBERSHIP AND TIER 1 MISSED,
+ * which is legacy's structure exactly: its whole cookie-and-visited block sits
+ * inside `if (memberships.length > 1)`. Every user in production holds one
+ * membership today, so tier 2 costs the common path nothing, and a second query
+ * on every authenticated request would have been a real cost for a case that
+ * cannot yet occur.
+ *
+ * ONE DELIBERATE DIVERGENCE, class (a) internals, same class as phase (a)'s
+ * earliest-membership ordering. Legacy's tier-2 query is
+ * `.in(accountIds).not('last_visited_path','is',null).limit(1).maybeSingle()`
+ * with NO ordering, so with two visited accounts it returns whichever row
+ * Postgres feels like and a user can land somewhere different on consecutive
+ * requests. This orders by the same `createdAt, id` the membership list uses, so
+ * the pick is stable. Legacy's nondeterminism is a defect, not a behaviour to
+ * reproduce; the tier itself is ported faithfully.
+ */
+export async function resolveActiveMembershipFrom(
+  db: Db,
+  memberships: Membership[],
+  activeAccountId: string | null,
+): Promise<Membership | null> {
+  const marked = pickMarkedMembership(memberships, activeAccountId);
+  if (marked) return marked;
+  if (memberships.length <= 1) return memberships[0] ?? null;
+
+  const visited = await db
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(
+      and(
+        inArray(
+          accounts.id,
+          memberships.map((m) => m.accountId),
+        ),
+        isNotNull(accounts.lastVisitedPath),
+      ),
+    )
+    .orderBy(accounts.createdAt, accounts.id)
+    .limit(1);
+
+  const visitedId = visited[0]?.id;
+  if (visitedId) {
+    const match = memberships.find((m) => m.accountId === visitedId);
+    if (match) return match;
   }
   return memberships[0] ?? null;
 }
@@ -97,13 +167,21 @@ export async function resolveActiveMembership(
 /**
  * The user's account membership with no active-account marker: the earliest one.
  *
- * PHASE (a) COMPATIBILITY SHIM, not the long-term shape. It is exactly
+ * COMPATIBILITY SHIM, not the long-term shape. It is exactly
  * `resolveActiveMembership(db, userId, null)`, so every caller that has not yet
- * been taught about the marker keeps its pre-326 behaviour byte for byte. The
- * remaining callers are the theme read/write pair (ruling 53 item (e)), the
- * marketing layout's has-an-account boolean, and the connect pair, which is
- * phase (d)'s to change and deliberately untouched here. `guards.ts` no longer
- * calls this; it passes the session's marker to `resolveActiveMembership`.
+ * been taught about the marker keeps its pre-326 behaviour byte for byte.
+ *
+ * Four callers remain after phase (b), and each is deliberate rather than
+ * pending: the theme read/write pair (ruling 53 item (e)) and the marketing
+ * layout's has-an-account boolean, none of which is account-scoped in a way a
+ * switch should change, and the connect pair, which is phase (d)'s to rewrite
+ * and is untouched here on purpose. `guards.ts` does NOT call this; it passes
+ * the session's marker to `resolveActiveMembershipFrom`.
+ *
+ * The theme pair is the one worth a second look in phase (f): a merchant who
+ * switches accounts arguably wants that account's theme, and today they get the
+ * earliest account's. Named rather than changed, because ruling 53 item (e)
+ * owns that decision and this session is not it.
  */
 export async function resolveMembership(
   db: Db,
@@ -239,65 +317,81 @@ export async function createInvite(
 }
 
 export type AcceptInviteResult =
-  | { ok: true; accountId: string }
-  | { ok: false; reason: "invalid" | "email_mismatch" | "already_member" };
+  | { ok: true; accountId: string; alreadyMember: boolean }
+  | { ok: false; reason: "invalid" | "email_mismatch" };
+
+/**
+ * `already_member` IS GONE AS A REFUSAL (ruling 327), and the shape above is
+ * the whole of the change. It used to be the third rejection reason, and it was
+ * enforcement layer 2 of the three that made Foxhound single-account: an
+ * application refusal that survived 324's strike of the index and would still
+ * have blocked a user from joining a second account by invite.
+ *
+ * It is removed by CHANGING THE VERDICT rather than by deleting the check,
+ * because legacy still has the check and simply answers differently.
+ * app/api/invite/accept/route.ts:47-57 (blob `13708537`) looks the membership up
+ * by `account_id` AND `user_id` AND active, and on a hit returns
+ * `{ success: true, redirect: '/console' }`. So the port is a NARROWING (from
+ * "holds any account" to "holds THIS account") plus a change of verdict (from
+ * error to success), and `alreadyMember` is what carries the second half: the
+ * caller learns it wrote nothing, and still sends the user to the account.
+ */
 
 /**
  * Pure decision for whether a fetched invite can be accepted by this user: the
- * invite must exist, the invited email must match (invites are not
- * transferable), and the user must not already hold an active membership
- * anywhere. Split from `acceptInvite` so the three rejection branches are
+ * invite must exist, and the invited email must match, because invites are not
+ * transferable. Split from `acceptInvite` so both rejection branches are
  * unit-testable without a database.
  *
- * THE `already_member` REFUSAL IS ENFORCEMENT LAYER 2 (ruling 326), AND IT IS
- * LEFT STANDING ON PURPOSE THIS SESSION. Ruling 324 struck the DATABASE layer;
- * this application refusal survives it untouched and would still block a user
- * from joining a second account by invite, which is why dropping the index alone
- * does not deliver multi-account. Phase (a) is schema-only and moves nothing
- * user-visible, so removing it here would ship a behaviour change this session
- * is not scoped for. PHASE (b) REMOVES IT.
- *
- * What it becomes in phase (b) is not a guess: legacy's
- * app/api/invite/accept/route.ts:47-57 (blob 13708537) scopes the same check to
- * `(account_id, user_id)` rather than to the user, and treats a hit as SUCCESS
- * with a redirect, not as an error. So the port is a narrowing plus a change of
- * verdict, and `already_member` stops being a refusal at all.
- *
- * Layer 3 is `resolveMembership`'s earliest-membership pick, now the explicit
- * shim above.
+ * `existingOnInvitedAccount` is the caller's active membership ON THE ACCOUNT
+ * THE INVITE IS FOR, not anywhere. When it is present the answer is SUCCESS with
+ * `alreadyMember: true`, so the caller writes nothing and sends the user to the
+ * account they already hold. That is legacy's behaviour and, since ruling 324,
+ * the only defensible one: refusing here would mean a user who already belongs
+ * to Acme cannot follow a second Acme invite link, and a user who belongs to
+ * Acme cannot join Globex at all.
  */
 export function evaluateAcceptInvite(
   invite: InviteView | null,
-  existingMembership: Membership | null,
+  existingOnInvitedAccount: Membership | null,
   userEmail: string,
 ): AcceptInviteResult {
   if (!invite) return { ok: false, reason: "invalid" };
   if (!invite.invitedEmail || invite.invitedEmail !== normalizeInviteEmail(userEmail)) {
     return { ok: false, reason: "email_mismatch" };
   }
-  if (existingMembership) return { ok: false, reason: "already_member" };
-  return { ok: true, accountId: invite.accountId };
+  // Order matters and is legacy's: the email check runs BEFORE the membership
+  // check (route.ts:41-44 answers `wrong_user` 403 first), so an invite
+  // addressed to somebody else is refused even when the caller happens to be a
+  // member of the account already.
+  if (existingOnInvitedAccount) {
+    return { ok: true, accountId: invite.accountId, alreadyMember: true };
+  }
+  return { ok: true, accountId: invite.accountId, alreadyMember: false };
 }
 
 /**
- * Accept a pending invite for the signed-in user: fetch the invite + the
- * user's current membership, run the pure decision, and on success activate
- * the member row and clear the token.
+ * Accept a pending invite for the signed-in user: fetch the invite and the
+ * caller's membership ON THAT INVITE'S ACCOUNT, run the pure decision, and
+ * unless they already hold it, activate the member row and clear the token.
  *
- * The existing-membership read is only a fast path, and the index behind it has
- * CHANGED SHAPE under ruling 324. It used to be
- * `account_members_one_active_per_user_uq`, unique on `user_id` alone, so two
- * concurrent accepts of two DIFFERENT accounts' invites raced and the loser hit
- * the constraint. That is now legal: many accounts per user is the product. The
- * replacement, `account_members_user_account_active_uq`, is unique on
- * `(user_id, account_id)`, so what it still refuses is the case that was always
- * the real defect, two concurrent accepts of invites to the SAME account
- * landing two active rows for one user there. The loser's UPDATE hits the
- * constraint and is mapped back to `already_member` exactly as before.
+ * The membership read is scoped to the invited account, which is the narrowing
+ * ruling 327 ordered, and it is only a fast path either way. The index behind it
+ * also changed shape under 324: `account_members_user_account_active_uq` is
+ * unique on `(user_id, account_id)`, so two concurrent accepts of invites to
+ * TWO accounts now both succeed, which is the product, while two concurrent
+ * accepts of invites to the SAME account still collide.
  *
- * That narrower guard is still the only structural stop for its case: the
- * per-account money-write DO cannot serialize a cross-account race, since two
- * invites to two accounts route to two different DOs.
+ * THAT COLLISION IS NOW REPORTED AS SUCCESS, not as a refusal, and the reasoning
+ * is the same as the fast path's: the loser's UPDATE failed precisely because
+ * the winner already made this user a member of this account, so the caller's
+ * question ("can they get in?") is answered yes. Returning an error there would
+ * make a double-click on Accept show a failure over a membership that exists.
+ * `alreadyMember: true` records that this call wrote nothing.
+ *
+ * The per-account money-write DO cannot serialize a cross-account race, since
+ * two invites to two accounts route to two different DOs, but that race is legal
+ * now and needs no serializing.
  */
 export async function acceptInvite(
   db: Db,
@@ -306,9 +400,11 @@ export async function acceptInvite(
   userEmail: string,
 ): Promise<AcceptInviteResult> {
   const invite = await getInviteByToken(db, token);
-  const existingMembership = invite ? await resolveMembership(db, userId) : null;
-  const result = evaluateAcceptInvite(invite, existingMembership, userEmail);
-  if (!result.ok || !invite) return result;
+  const existing = invite
+    ? await findActiveMembership(db, userId, invite.accountId)
+    : null;
+  const result = evaluateAcceptInvite(invite, existing, userEmail);
+  if (!result.ok || !invite || result.alreadyMember) return result;
 
   try {
     await db
@@ -321,14 +417,47 @@ export async function acceptInvite(
       })
       .where(eq(accountMembers.id, invite.memberId));
   } catch (err) {
-    // Lost the race: another accept already activated a membership for this
-    // user, so the unique index rejected this activation. Fail closed.
     if (isUniqueConstraintError(err)) {
-      return { ok: false, reason: "already_member" };
+      return { ok: true, accountId: invite.accountId, alreadyMember: true };
     }
     throw err;
   }
   return result;
+}
+
+/**
+ * One user's ACTIVE membership on ONE account, or null.
+ *
+ * This is the exact query legacy's two account-scoped checks make:
+ * `app/api/invite/accept/route.ts:48-53` before activating an invite, and
+ * `app/api/account/switch/route.ts:18-25` before honouring a switch. Both filter
+ * `user_id`, `account_id` and `status = 'active'` and take at most one row.
+ * Shared here so the switch action and the invite accept cannot drift apart on
+ * what "is a member" means, which is the whole question both of them turn on.
+ */
+export async function findActiveMembership(
+  db: Db,
+  userId: string,
+  accountId: string,
+): Promise<Membership | null> {
+  const rows = await db
+    .select({
+      memberId: accountMembers.id,
+      accountId: accountMembers.accountId,
+      accountName: accounts.name,
+      role: accountMembers.role,
+    })
+    .from(accountMembers)
+    .innerJoin(accounts, eq(accountMembers.accountId, accounts.id))
+    .where(
+      and(
+        eq(accountMembers.userId, userId),
+        eq(accountMembers.accountId, accountId),
+        eq(accountMembers.status, MEMBER_STATUS.ACTIVE),
+      ),
+    )
+    .limit(1);
+  return rows[0] ?? null;
 }
 
 /** True for a SQLite/D1 UNIQUE-constraint violation, however the driver wraps it. */
