@@ -19,6 +19,9 @@ export {
 export {
   listMemberships,
   resolveActiveMembership,
+  resolveActiveMembershipFrom,
+  pickMarkedMembership,
+  findActiveMembership,
   resolveMembership,
   createAccountForUser,
   getInviteByToken,
@@ -31,6 +34,7 @@ export {
   type InviteView,
   type AcceptInviteResult,
 } from "./account";
+export { setSessionActiveAccount, safeReturnPath } from "./active-account";
 export { authContext, type AuthContext } from "./context";
 export { appShellMiddleware, adminOnlyMiddleware } from "./guards";
 export {

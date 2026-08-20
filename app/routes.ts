@@ -156,6 +156,11 @@ export default [
   // is resolveThemeForRequest in lib/theme.server.ts.
   route("api/theme", "./routes/api/theme.ts"),
 
+  // Active-account switch (ruling 326 phase (b)). Action-only resource route at
+  // legacy's own path, which components/SiteNav.tsx passes to the switcher as
+  // switchAccountUrl. The switcher itself is phase (e).
+  route("api/account/switch", "./routes/api/account-switch.ts"),
+
   // Logout (action-only resource route; clears the session, redirects to /login)
   route("logout", "./routes/auth/logout.ts"),
 ] satisfies RouteConfig;
