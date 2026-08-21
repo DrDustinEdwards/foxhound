@@ -37,6 +37,7 @@ export const DOC_GUIDES: DocGuide[] = [
         heading: "Team and brand voice",
         body: [
           "Invite teammates from Settings. Every account has one brand voice field, used across all recovery email copy.",
+          "Settings and Email holds the sender name, the name your customers see in the From line of every recovery email. Set it before your first send: until you do, recovery mail goes out from \"Support\". Send test email delivers a sample to your own address through the real sending path, so the From line you see is the one your customers get.",
         ],
       },
     ],
