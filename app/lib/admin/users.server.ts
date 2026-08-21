@@ -38,9 +38,10 @@ export async function listPlatformUsers(db: Db, env: Env): Promise<PlatformUserR
     .leftJoin(accounts, eq(accounts.id, accountMembers.accountId))
     .orderBy(desc(user.createdAt));
 
-  // A user can still have more than one account_members row: at most one ACTIVE
-  // membership (now schema-enforced by account_members_one_active_per_user_uq,
-  // migration 0006) plus any number of pending invites to other accounts. The
+  // A user can have MANY account_members rows: one ACTIVE membership per
+  // account they belong to (`account_members_user_account_active_uq` allows the
+  // pair once), plus any number of pending invites. Ruling 324 struck the index
+  // that capped this at one; the collapse below matters MORE now, not less. The
   // left joins would otherwise duplicate this user across those rows. Collapse
   // to one row per user, preferring an ACTIVE membership over a pending invite,
   // so the admin list always shows one line per person.

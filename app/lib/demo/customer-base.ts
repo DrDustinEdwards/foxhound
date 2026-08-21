@@ -1,8 +1,9 @@
 import type { DeclineCategory } from "~/lib/constants";
 
 // Shared demo customer base: a pure, deterministic 200-customer Teamflow roster
-// (+ a 200-customer Bolt roster, built but not seeded yet: single-account demo,
-// TASK-foxhound-demo-data-engine.md locked constraint #3). Ported near-verbatim
+// (+ a 200-customer Bolt roster, built but not seeded yet: the demo seeds ONE
+// account, TASK-foxhound-demo-data-engine.md locked constraint #3, which is a
+// demo decision and not the struck single-account rule). Ported near-verbatim
 // from legacy lib/demo-customer-base.ts.
 //
 // Pure: no DB access, no env reads, no I/O. Reproducible: every customer's
@@ -672,8 +673,8 @@ function teamflowScripted(now: Date): DemoCustomer[] {
 }
 
 // ============================================================================
-// Scripted customers - Bolt (built for parity, not seeded yet: single-account
-// demo per TASK-foxhound-demo-data-engine.md locked constraint #3)
+// Scripted customers - Bolt (built for parity, not seeded yet: the demo seeds
+// one account, TASK-foxhound-demo-data-engine.md locked constraint #3)
 // ============================================================================
 
 function boltScripted(now: Date): DemoCustomer[] {

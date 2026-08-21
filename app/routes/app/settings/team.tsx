@@ -13,11 +13,13 @@ export function meta() {
   return [{ title: "Team - Foxhound" }];
 }
 
-// One ACTIVE membership per user at HEAD (app/lib/auth/account.ts, enforced by
-// `account_members_one_active_per_user_uq`): invites add a member to this one
-// account, and creating or switching accounts is not built. Reworded under
-// ruling 232 from "Single-account model", which named DESIGN.md's revoked rule
-// rather than the constraint the code actually enforces. There is no member
+// This page is scoped to ONE account, the active one: invites add a member to
+// the account the caller is currently looking at. That is unchanged by
+// multi-account; what changed is that the caller can now switch which account
+// that is (ruling 326 phases (a) to (e)). This comment previously cited
+// `account_members_one_active_per_user_uq` and said "creating or switching
+// accounts is not built", both true when written and both false now: 324 struck
+// that index and phase (e) shipped the switcher. There is no member
 // removal or role change here because account_members has no status beyond
 // active/pending to represent it (a schema decision, not built this slice).
 export async function loader({ context }: Route.LoaderArgs) {

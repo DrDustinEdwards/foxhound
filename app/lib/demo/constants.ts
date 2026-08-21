@@ -1,7 +1,10 @@
 import { DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
 
-// The single demo account (Foxhound is single-account per user, so one seeded
-// account is the whole demo; the legacy two-account carousel does not apply).
+// The single demo account. ONE seeded account is the whole demo by choice, not
+// by constraint: Foxhound is multi-account as of ruling 324, and the app shell
+// deliberately renders NO switcher on the demo (app/layouts/app-shell.tsx), so
+// legacy's two-account carousel still does not apply. This sentence used to
+// give the reason as "Foxhound is single-account per user", which is now false.
 // Its id carries the DEMO_ACCOUNT_ID_PREFIX so every prefix-based firewall
 // (billable.ts, recovery-tick, intelligence sync/ai) excludes it automatically.
 export const DEMO_ACCOUNT_ID = `${DEMO_ACCOUNT_ID_PREFIX}teamflow`;
