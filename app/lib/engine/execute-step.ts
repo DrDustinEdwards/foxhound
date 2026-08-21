@@ -245,8 +245,21 @@ export interface EmailStepContext {
   customerEmail: string;
   amountCents: number;
   currency: string;
-  /** Merchant display name for the From header and the copy's voice. */
+  /** Merchant name for the COPY's voice. Carries a readable fallback
+   *  ("your subscription") so a body sentence still scans when the merchant has
+   *  set no sender name. NOT the From header: see senderName. */
   merchantName: string;
+  /** The merchant's configured `sender_name`, RAW and nullable, for the From
+   *  header only (S33).
+   *
+   *  THESE WERE ONE FIELD UNTIL S33 AND THAT WAS THE BUG. `fromName` was fed
+   *  from merchantName, so with `sender_name` unset (it had no writer at all,
+   *  because this settings surface is the writer) the copy fallback leaked into
+   *  the From header and every recovery email came from a sender literally
+   *  called "your subscription". Legacy keeps them separate too: its From uses
+   *  `merchant.sender_name || 'Support'` (lib/recovery-execution.ts:197) while
+   *  its prompt takes the sender name on its own. */
+  senderName: string | null;
   /** Optional merchant-configured brand voice. */
   voiceDescription?: string | null;
   /** Cached content on the recovery_steps row (custom body / prior AI copy). */
@@ -318,7 +331,7 @@ export function buildRecoveryEmailJob(
     accountId: ctx.accountId,
     recoveryStepId: ctx.stepId,
     to: ctx.customerEmail,
-    fromName: ctx.merchantName,
+    fromName: ctx.senderName,
     subject: copy.subject,
     bodyHtml: appendOpenPixel(copy.bodyHtml, extras.openUrl),
     template: extras.usedTemplate ? TEMPLATE_LABEL_FALLBACK : TEMPLATE_LABEL_GENERATED,

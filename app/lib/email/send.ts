@@ -7,7 +7,10 @@ import type { EmailJob } from "./types";
 // through here. Message construction is pure and unit-tested; the binding call is
 // the single seam finalized when Email Service is live (Phase 8).
 
-const DEFAULT_FROM_NAME = "Billing";
+// Legacy's From fallback, verbatim: `merchant.sender_name || 'Support'` in
+// lib/recovery-execution.ts:197, and the same string again in its test-email
+// route. It was "Billing" here, which no legacy surface produces.
+const DEFAULT_FROM_NAME = "Support";
 
 /** Escape the few characters that would break an HTML attribute/text context. */
 function escapeHtml(s: string): string {

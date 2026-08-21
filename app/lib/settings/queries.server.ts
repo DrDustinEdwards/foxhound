@@ -79,3 +79,40 @@ export async function listAccountConnections(
     .where(eq(stripeConnections.accountId, accountId))
     .orderBy(stripeConnections.connectedAt, stripeConnections.id);
 }
+
+export interface SenderSettingsConnection {
+  id: string;
+  senderName: string | null;
+}
+
+/**
+ * The account's PRIMARY live connection and its sender name, or null.
+ *
+ * Legacy reads the primary connection for this section (`getPrimaryConnection`
+ * in `settings-data.ts`, consumed by `settings/email/page.tsx`), so the sender
+ * settings are per-connection values surfaced for ONE connection. That is a
+ * genuine ambiguity once a login holds several accounts, and this walk records
+ * it rather than resolving it.
+ *
+ * `is_primary = true AND disconnected_at IS NULL` is reader 2's exact pattern
+ * (`getConnectionSummary`), and it matters here for the reason 333 gave: S37
+ * leaves `is_primary` SET on a disconnected row, so a reader without the null
+ * check would hand the settings form a severed connection to write to.
+ */
+export async function getPrimarySenderConnection(
+  db: Db,
+  accountId: string,
+): Promise<SenderSettingsConnection | null> {
+  const rows = await db
+    .select({ id: stripeConnections.id, senderName: stripeConnections.senderName })
+    .from(stripeConnections)
+    .where(
+      and(
+        eq(stripeConnections.accountId, accountId),
+        eq(stripeConnections.isPrimary, true),
+        isNull(stripeConnections.disconnectedAt),
+      ),
+    )
+    .limit(1);
+  return rows[0] ?? null;
+}

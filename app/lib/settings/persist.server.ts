@@ -108,3 +108,54 @@ export function buildBrandVoiceUpdate(
     .set({ brandVoice })
     .where(and(eq(stripeConnections.id, connectionId), eq(stripeConnections.accountId, accountId)));
 }
+
+// ---------------------------------------------------------------------------
+// S33: the sender settings on the connection (rulings 14, 40's launch-blocker
+// list, and this session's brief).
+// ---------------------------------------------------------------------------
+
+/**
+ * Bound on `sender_name`. LEGACY HAS NO BOUND: `EmailSection.tsx` renders a bare
+ * `type="text"` with no maxLength and no pattern, and `settings/update/route.ts`
+ * writes `formData.get('sender_name')?.toString() || null` with no validation at
+ * all. 80 is this session's brief, recorded as an ADDITION rather than a port.
+ *
+ * It is not arbitrary: this value becomes the display name of an RFC 5322 From
+ * header on every recovery email. `fromDisplayName` in app/lib/email/send.ts
+ * already strips quotes and CR/LF, so header INJECTION is handled without a
+ * length rule; the bound is about a display name that mail clients truncate
+ * anyway, not about safety.
+ */
+export const SENDER_NAME_MAX_LENGTH = 80;
+
+export interface SenderSettingsInput {
+  senderName: string;
+}
+
+/**
+ * Writes `sender_name` and NOTHING ELSE.
+ *
+ * THE ALLOWLIST IS THE POINT, and it is legacy's own design rather than a
+ * correction of it: `settings/update/route.ts` is nineteen
+ * `if (formData.has('<name>'))` guards over named account columns plus eight
+ * more over named connection columns, and its comment records that the
+ * unconditional version clobbered every other section's columns to null. This
+ * builder names one column, so a form posting `brand_voice` or `billing_exempt`
+ * alongside it writes neither.
+ *
+ * SECURITY, the same rule buildBrandVoiceUpdate carries: `connectionId` arrives
+ * from a client-POSTed field, so the WHERE pins `account_id` too. Tenant
+ * isolation is DB-enforced, not caller-dependent, and a foreign connectionId
+ * matches zero rows rather than overwriting another merchant's From header.
+ */
+export function buildSenderSettingsUpdate(
+  db: Db,
+  accountId: string,
+  connectionId: string,
+  input: SenderSettingsInput,
+) {
+  return db
+    .update(stripeConnections)
+    .set({ senderName: input.senderName })
+    .where(and(eq(stripeConnections.id, connectionId), eq(stripeConnections.accountId, accountId)));
+}
