@@ -1,6 +1,7 @@
 import { and, eq, inArray, isNotNull } from "drizzle-orm";
 
 import type { Db } from "~/db";
+import { executeMoneyWrite } from "~/lib/money/execute";
 import { accountMembers, accounts, user } from "~/db";
 
 import { INVITE_TTL_MS, MEMBER_ROLE, MEMBER_STATUS } from "./roles";
@@ -199,28 +200,41 @@ export type CreateAccountResult =
  * owner membership together or neither). Not a money write, so a plain D1 batch
  * is the right atomicity primitive here.
  *
- * THE DOUBLE-SUBMIT RACE IS NO LONGER CAUGHT HERE, and that is a real change of
- * behaviour rather than a wording repair. This paragraph used to say the
- * `account_members_one_active_per_user_uq` index was the guard: two concurrent
- * create-account submits both read "no membership", both reach here, and the
- * loser's owner-membership insert violated the one-active-membership index,
- * aborting its batch. That index is dropped (ruling 324). Its replacement is
- * unique on `(user_id, account_id)`, and the two racing submits mint two
- * DIFFERENT account ids, so neither violates it and BOTH now succeed. The
- * `isUniqueConstraintError` branch below is consequently unreachable from this
- * function at phase (a).
+ * THE DOUBLE-SUBMIT RACE IS FIXED HERE BY SERIALIZATION, NOT BY A CONSTRAINT,
+ * which is what ruling 327 ordered and phase (a) left owed.
  *
- * At HEAD that is invisible: `resolveMembership` returns the earliest
- * membership, so the loser's account is simply never resolved. It is still a
- * defect (an orphan account row per double-submit) and it is recorded as owed to
- * PHASE (d), which owns `connect.tsx`, this function's only caller, and is where
- * the guard belongs: an intentional second account goes through the
- * add-account flow, so an UNMARKED create is a duplicate submit by definition.
- * Phase (a) does not touch connect.tsx (ruling 326), so it is named, not fixed.
+ * The history matters because it explains the shape. The old guard was
+ * `account_members_one_active_per_user_uq`, unique on `user_id`: two concurrent
+ * submits both read "no membership", both reached here, and the loser's
+ * owner-membership insert violated the index and aborted its batch. Ruling 324
+ * struck that index, because capping a user at one active membership is the
+ * single line that made Foxhound single-account. Its replacement is unique on
+ * `(user_id, account_id)`, and two racing submits mint two DIFFERENT account
+ * ids, so neither violates it and both used to succeed: one double-click, two
+ * accounts.
  *
- * The branch is kept rather than deleted because phase (d) needs it back.
+ * 327 named the fix and named what it must not be: "an idempotency key on the
+ * connect submit, not a per-user constraint". So this write now goes through the
+ * money-write Durable Object partitioned by the USER
+ * (`firstConnectPartition(userId)`), which makes the two racing submits queue
+ * behind each other instead of running concurrently, and the loser then finds
+ * the membership the winner just created and returns it.
+ *
+ * WHY THE MONEY DO AT ALL, for a write that creates no money row.
+ * ARCHITECTURE.md's test is whether a write "links a Stripe account or customer
+ * to the account", and this is the first half of exactly that: the account it
+ * creates exists to have a Stripe connection attached to it seconds later, by
+ * the callback, through the same DO. Serializing the pair in one place is the
+ * point.
+ *
+ * The re-read is still a read-then-write, but it is now a SERIALIZED one: the
+ * DO admits one caller at a time for this user, so the loser's read happens
+ * after the winner's commit rather than beside it. The
+ * `isUniqueConstraintError` branch stays as the backstop for the case the
+ * database can still catch, a second membership on the SAME account.
  */
 export async function createAccountForUser(
+  env: Env,
   db: Db,
   userId: string,
   name: string,
@@ -228,26 +242,61 @@ export async function createAccountForUser(
   const accountId = crypto.randomUUID();
   const now = new Date();
   try {
-    await db.batch([
-      db.insert(accounts).values({ id: accountId, name, createdAt: now }),
-      db.insert(accountMembers).values({
-        id: crypto.randomUUID(),
-        accountId,
-        userId,
-        role: MEMBER_ROLE.OWNER,
-        status: MEMBER_STATUS.ACTIVE,
-        createdAt: now,
-      }),
-    ]);
+    const { applied } = await executeMoneyWrite(env, {
+      // Partitioned by the USER, not by the account: the account does not exist
+      // yet, and the two racing submits mint two different ids, so keying on
+      // either would put them in two Durable Objects and serialize nothing.
+      accountId: firstConnectPartition(userId),
+      // THE SAME KEY FOR BOTH RACERS, which is the whole fix. The first commit
+      // applies; the second is recognised as a re-delivery and no-ops, so the
+      // loser's account row is never written rather than being written and then
+      // orphaned. 327 ruled for exactly this and against a per-user constraint.
+      idempotencyKey: `connect:first:${userId}`,
+      build: (tx) => [
+        tx.insert(accounts).values({ id: accountId, name, createdAt: now }),
+        tx.insert(accountMembers).values({
+          id: crypto.randomUUID(),
+          accountId,
+          userId,
+          role: MEMBER_ROLE.OWNER,
+          status: MEMBER_STATUS.ACTIVE,
+          createdAt: now,
+        }),
+      ],
+    });
+
+    if (!applied) {
+      // Lost the race. The winner's account is committed by now (the DO runs
+      // these in order), so report THEIR id rather than the one minted above,
+      // which was never written. Returning the local id here would be the same
+      // orphan defect wearing a success.
+      const existing = await listMemberships(db, userId);
+      const won = existing[0];
+      return won
+        ? { ok: true, accountId: won.accountId }
+        : { ok: false, reason: "already_member" };
+    }
   } catch (err) {
-    // Lost the create-account race: a concurrent submit already created this
-    // user's account, so the one-active-membership index rejected this insert.
+    // The backstop the database can still provide: a second ACTIVE membership on
+    // the SAME account, which `account_members_user_account_active_uq` refuses.
     if (isUniqueConstraintError(err)) {
       return { ok: false, reason: "already_member" };
     }
     throw err;
   }
   return { ok: true, accountId };
+}
+
+/**
+ * The money-write partition for the one write that has no account to key on.
+ *
+ * Namespaced so it can never collide with a real account id (those are UUIDs and
+ * carry no colon), and defined here rather than inlined so the single exception
+ * to "the partition is an account id" is greppable. See the `accountId` field
+ * on MoneyWrite for why it exists.
+ */
+export function firstConnectPartition(userId: string): string {
+  return `user:${userId}`;
 }
 
 export interface InviteView {

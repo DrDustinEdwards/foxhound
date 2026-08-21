@@ -38,7 +38,7 @@ vi.mock("~/lib/auth/session", () => ({ getSession: async () => harness.session }
 const { listSwitcherAccounts } = await import("~/lib/nav/accounts.server");
 const { listMemberships } = await import("~/lib/auth/account");
 const { ADD_ACCOUNT_PATH } = await import("~/lib/nav/paths");
-const { ADD_ACCOUNT_ACTION, buildAddAccountState, parseConnectState } = await import(
+const { ADD_ACCOUNT_ACTION, buildConnectState, parseConnectState } = await import(
   "~/lib/stripe/connect-state"
 );
 const { accountLabel, accountInitial } = await import("~/components/nav/account-switcher");
@@ -347,7 +347,7 @@ describe("the add-account route marks its OAuth state", () => {
     // `action: 'add_account'` "so the callback creates a new account"
     // (blob 60f93b27). Without the marker the callback's default branch upserts
     // onto the existing account, which is the defect, not the feature.
-    expect(parseConnectState(state).action).toBe(ADD_ACCOUNT_ACTION);
+    expect(parseConnectState(state)?.action).toBe(ADD_ACCOUNT_ACTION);
     // Legacy puts the SAME payload in the cookie, and Foxhound's callback
     // compares the two by string equality, so they must match exactly.
     const cookie = res.headers.get("set-cookie")!;
@@ -367,11 +367,13 @@ describe("the add-account route marks its OAuth state", () => {
     expect(res.headers.get("location")).toBe("/login");
   });
 
-  it("FAILS CLOSED when the active account is not the one the callback would attach to", async () => {
-    // connect-callback.ts:48 resolves with the null-marker shim, so it attaches
-    // to the EARLIEST membership. Before the switcher shipped those could not
-    // differ. They can now, and a mismatch would put a live payment processor on
-    // the wrong merchant's ledger, so the flow is refused rather than started.
+  it("NO LONGER fails closed when active and earliest differ (phase (d) retired that guard)", async () => {
+    // Phase (e) refused this case, because connect-callback.ts attached to the
+    // EARLIEST membership and would have put a live payment processor on the
+    // wrong ledger. Phase (d) made add_account mint its own account instead, so
+    // the question the guard asked has no answer to get wrong, and refusing
+    // would now block the feature rather than protect it. Ruling 329 ratified
+    // the guard for its window and assigned the window's closure.
     seedAccount("acct_a", "Acme", 1_000);
     seedAccount("acct_b", "Globex", 2_000);
     seedMembership("m1", "acct_a", 1_000);
@@ -380,8 +382,8 @@ describe("the add-account route marks its OAuth state", () => {
 
     const res = await run();
 
-    expect(res.headers.get("location")).toBe("/connect?error=add_account_unavailable");
-    expect(res.headers.get("set-cookie")).toBeNull();
+    expect(res.headers.get("location")).toContain("connect.stripe.com");
+    expect(res.headers.get("location")).not.toContain("add_account_unavailable");
   });
 
   it("proceeds when the active account IS the earliest, the single-account case", async () => {
@@ -396,20 +398,20 @@ describe("the add-account route marks its OAuth state", () => {
 
 describe("the state payload format", () => {
   it("round-trips the marker", () => {
-    const state = buildAddAccountState("csrf-value");
-    expect(parseConnectState(state)).toEqual({ csrf: "csrf-value", action: ADD_ACCOUNT_ACTION });
+    const state = buildConnectState(ADD_ACCOUNT_ACTION, "nonce-value");
+    expect(parseConnectState(state)).toEqual({ nonce: "nonce-value", action: ADD_ACCOUNT_ACTION });
   });
 
-  it("reads a bare uuid as csrf with no action, which is every first connect today", () => {
-    expect(parseConnectState("6f1c9b1e-0000-4000-8000-000000000000")).toEqual({
-      csrf: "6f1c9b1e-0000-4000-8000-000000000000",
-    });
+  it("REFUSES a bare uuid, which phase (d) made an invalid state", () => {
+    // Phase (e) read an unparseable state as a bare csrf with no action, which
+    // is legacy's own fallback and legacy's own hole: an action-less state runs
+    // the default branch. Ruling 329 phase (d) mints both flows, so it can
+    // require the shape.
+    expect(parseConnectState("6f1c9b1e-0000-4000-8000-000000000000")).toBeNull();
   });
 
-  it("refuses to invent an action from an arbitrary JSON payload", () => {
-    expect(parseConnectState(JSON.stringify({ csrf: "x", action: "something_else" }))).toEqual({
-      csrf: "x",
-    });
+  it("refuses an action outside the two known ones", () => {
+    expect(parseConnectState(JSON.stringify({ nonce: "x", action: "something_else" }))).toBeNull();
   });
 
   it("the route is mounted at the path the switcher links to", async () => {
