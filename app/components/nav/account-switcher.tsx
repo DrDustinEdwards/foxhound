@@ -47,6 +47,46 @@ export function accountInitial(a: SwitcherAccount): string {
   return accountLabel(a).charAt(0).toUpperCase();
 }
 
+/** The two ways an open menu closes without a choice being made, and the
+ *  teardown that removes both.
+ *
+ *  EXTRACTED SO IT CAN BE TESTED. The vitest environment here is `node` with no
+ *  DOM, so a rendered-component test would have meant adding jsdom and a
+ *  testing library to prove a two-line handler. This takes the event target as a
+ *  parameter instead, so a test hands it a recorder and drives the real
+ *  handlers, which is a behavioural check rather than a grep over the source.
+ *
+ *  Both listeners go on and come off together. Registering Escape somewhere else
+ *  would let it outlive the open state and close a menu that had already gone. */
+export function bindSwitcherDismiss({
+  target,
+  isInside,
+  close,
+}: {
+  target: Pick<Document, "addEventListener" | "removeEventListener">;
+  isInside: (node: unknown) => boolean;
+  close: () => void;
+}): () => void {
+  // mousedown rather than click, legacy's choice (AccountSwitcher.tsx:36-45), so
+  // a drag that starts outside closes it too.
+  const onMouseDown = (e: Event) => {
+    if (!isInside((e as MouseEvent).target)) close();
+  };
+  // Escape is Foxhound's, ratified at ruling 329. Legacy has no key handler, so
+  // a keyboard user could only dismiss this by clicking elsewhere. Class (a)
+  // internals under an accessibility floor: invisible in a screenshot, no
+  // geometry, no copy, and it cannot change what the menu does.
+  const onKeyDown = (e: Event) => {
+    if ((e as KeyboardEvent).key === "Escape") close();
+  };
+  target.addEventListener("mousedown", onMouseDown);
+  target.addEventListener("keydown", onKeyDown);
+  return () => {
+    target.removeEventListener("mousedown", onMouseDown);
+    target.removeEventListener("keydown", onKeyDown);
+  };
+}
+
 export function AccountSwitcher({
   accounts,
   activeAccountId,
@@ -65,13 +105,21 @@ export function AccountSwitcher({
 
   // Legacy's close-on-outside-click, mousedown rather than click so a drag that
   // starts outside closes it too (AccountSwitcher.tsx:36-45).
+  //
+  // ESCAPE IS FOXHOUND'S, RATIFIED AT RULING 329. Legacy has no key handler at
+  // all, so a keyboard user who opens this menu can only close it by clicking
+  // somewhere else. Class (a) internals under an accessibility floor: it is
+  // invisible in any screenshot, it touches no geometry and no copy, and it
+  // cannot change what the menu does. Registered alongside the mousedown so both
+  // are added and removed by the same effect and neither can outlive the open
+  // state.
   useEffect(() => {
     if (!open) return;
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    return bindSwitcherDismiss({
+      target: document,
+      isInside: (node) => Boolean(ref.current?.contains(node as Node)),
+      close: () => setOpen(false),
+    });
   }, [open]);
 
   async function switchAccount(accountId: string) {
