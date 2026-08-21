@@ -4,6 +4,7 @@ import { Footer } from "~/components/footer";
 import { RouteSplash } from "~/components/route-splash";
 import { shouldShowRouteSplash } from "~/lib/navigation/route-splash";
 import { Wordmark } from "~/components/wordmark";
+import { AccountSwitcher } from "~/components/nav/account-switcher";
 import { GearMenu } from "~/components/nav/gear-menu";
 import { ProductSwitcher } from "~/components/nav/product-switcher";
 import { ThemeToggle } from "~/components/theme-toggle";
@@ -13,6 +14,7 @@ import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { resolveErrorBoundaryDetails } from "~/lib/errors/boundary-message";
 import { resolveNavContext } from "~/lib/nav/context.server";
+import { listSwitcherAccounts } from "~/lib/nav/accounts.server";
 import { PLATFORM_LINKS, PRODUCT_MANIFEST, PRODUCT_ORDER } from "~/lib/nav/manifest";
 import { resolveThemeForRequest } from "~/lib/theme.server";
 
@@ -50,15 +52,23 @@ function requestPathname(request: Request): string {
 
 // Nav rebuild (TASK-foxhound-design-system-port.md Part 2): the three-level
 // model (product switcher -> contextual primary links -> utility cluster),
-// layout-rendered once, ZERO extra DB queries in the nav component itself
-// (resolveNavContext runs ONCE here; the nav components below only read the
-// props it produced). No account switcher, because at HEAD a user holds at most
-// one ACTIVE membership (`account_members_one_active_per_user_uq`, app/db/
-// schema.ts), so there is nothing to switch between. This line used to cite
-// DESIGN.md's "single-account by construction" rule, which ruling 53 revoked;
-// repaired under ruling 232 to state the enforcing code instead of the dead
-// authority. And no admin-bypass hack (the real role guard governs /admin
-// visibility, matching PRODUCT_MANIFEST's own gate).
+// layout-rendered once, ZERO extra DB queries in the nav COMPONENTS themselves
+// (resolveNavContext and listSwitcherAccounts run ONCE here; the components
+// below only read the props they produced). And no admin-bypass hack (the real
+// role guard governs /admin visibility, matching PRODUCT_MANIFEST's own gate).
+//
+// THE ACCOUNT SWITCHER IS BUILT AS OF RULING 326 PHASE (e). This comment said
+// "No account switcher, because at HEAD a user holds at most one ACTIVE
+// membership (`account_members_one_active_per_user_uq`)", which was a live
+// invariant when written and is now false twice over: 324 struck that index and
+// phase (a) replaced it with `account_members_user_account_active_uq` on
+// (user_id, account_id). One of 232's carriers, discharged here by the build
+// rather than by another repair to its wording.
+//
+// `auth.memberships` comes off the chokepoint (phase (b)); the
+// stripe_connections lookup that turns it into switcher rows happens HERE, in
+// the nav's own loader, per ruling 328 and per legacy's own structure
+// (components/SiteNav.tsx:73-90, never resolveAccount).
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env, ctx } = context.get(cloudflareContext);
   const auth = context.get(authContext);
@@ -74,6 +84,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   return {
     accountName: auth.membership.accountName,
+    accounts: await listSwitcherAccounts(db, auth.memberships),
+    activeAccountId: auth.activeAccountId,
     email: auth.email,
     isAdmin: auth.isAdmin,
     isDemo: auth.isDemo,
@@ -121,7 +133,8 @@ function tabLinkClassName({ isActive }: { isActive: boolean }): string {
 }
 
 export default function AppLayout({ loaderData }: Route.ComponentProps) {
-  const { accountName, email, isAdmin, isDemo, demoSignedIn, theme, nav } = loaderData;
+  const { accountName, accounts, activeAccountId, email, isAdmin, isDemo, demoSignedIn, theme, nav } =
+    loaderData;
   const activeProduct = PRODUCT_MANIFEST[nav.activeProductKey];
   // Legacy's loading.tsx, ported to RR8's substrate (305). The decision lives in
   // a pure predicate so it can be tested without a DOM; see its header for why a
@@ -199,12 +212,22 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
               </nav>
             ) : null}
 
+            {/* Legacy's utility order, left to right: [avatar] [theme] [gear]
+                (components/SiteNavClient.tsx's desktop cluster). The demo shell
+                renders no switcher: a demo visitor has one hardcoded account and
+                the demo_ firewall stays exactly as it was. */}
             <div className="hidden shrink-0 items-center gap-1 sm:flex">
+              {!isDemo && accounts.length > 0 ? (
+                <AccountSwitcher accounts={accounts} activeAccountId={activeAccountId} />
+              ) : null}
               <ThemeToggle initialTheme={theme} isAuthenticated />
               <GearMenu isAdmin={isAdmin} accountLabel={accountLabel} hasAccount />
             </div>
 
             <div className="flex shrink-0 items-center gap-1 sm:hidden">
+              {!isDemo && accounts.length > 0 ? (
+                <AccountSwitcher accounts={accounts} activeAccountId={activeAccountId} />
+              ) : null}
               <ThemeToggle initialTheme={theme} isAuthenticated />
               <GearMenu isAdmin={isAdmin} accountLabel={accountLabel} hasAccount />
             </div>

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, NavLink } from "react-router";
 import { Menu, Settings, X } from "lucide-react";
 
-import { Avatar } from "./nav/avatar";
+import { AccountSwitcher, type SwitcherAccount } from "./nav/account-switcher";
 import { GearMenu } from "./nav/gear-menu";
 import { SectionPill } from "./nav/section-pill";
 import { ThemeToggle } from "./theme-toggle";
@@ -44,11 +44,12 @@ const NAV_LINK_ACTIVE = "text-chrome-text font-medium after:scale-x-100";
 export function Header({
   isAuthenticated,
   theme,
-  initial = null,
   intelligenceEntitled = false,
   isAdmin = false,
   accountLabel = "",
   hasAccount = false,
+  accounts = [],
+  activeAccountId = null,
 }: {
   isAuthenticated: boolean;
   theme: Theme;
@@ -56,13 +57,17 @@ export function Header({
   // marketing layout (card-update.tsx, unsubscribe.tsx) always render
   // Header with isAuthenticated=false and have no session context to
   // resolve these from.
-  initial?: string | null;
   intelligenceEntitled?: boolean;
   isAdmin?: boolean;
   accountLabel?: string;
   /** Legacy gates the gear's Billing row on this: an accountless visitor is
    *  redirected to /connect, so Billing would be a dead row. */
   hasAccount?: boolean;
+  /** Every account the visitor actively holds, for the switcher (ruling 326
+   *  phase (e)). Empty for an anonymous visitor and for the two standalone
+   *  public-utility routes that render this header with no session. */
+  accounts?: SwitcherAccount[];
+  activeAccountId?: string | null;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -120,7 +125,19 @@ export function Header({
           </Link>
         ) : null}
 
-        {isAuthenticated && initial ? <Avatar initial={initial} /> : null}
+        {/* LEGACY'S RENDER RULE, read from components/SiteNavClient.tsx:
+            `accounts.length > 0 && (multiSeat || (isAuthenticated && hasAccount))`.
+            The second clause is what decides it: legacy SHOWS the switcher at
+            ONE account, listing that account and the + Add account row. It is
+            hidden only when the visitor has no account at all, which is also how
+            the anonymous marketing header stays byte-identical to before. `initial`
+            is no longer part of the condition: the switcher derives its own
+            letter from the ACTIVE ACCOUNT's label (legacy's accountInitial), not
+            from the person's name, which is what makes the letter change when
+            you switch. */}
+        {isAuthenticated && accounts.length > 0 ? (
+          <AccountSwitcher accounts={accounts} activeAccountId={activeAccountId ?? undefined} />
+        ) : null}
 
         <ThemeToggle initialTheme={theme} variant="chrome" isAuthenticated={isAuthenticated} />
 
@@ -146,6 +163,14 @@ export function Header({
           >
             Sign in
           </Link>
+        ) : null}
+        {/* Legacy renders a SECOND instance in the mobile cluster
+            (SiteNavClient.tsx's `flex sm:hidden` block), gated on
+            `isAuthenticated && accountAvatarVisible`, between the theme toggle
+            and the hamburger. Foxhound's mobile cluster carried no avatar at
+            all, so this is a legacy element arriving rather than one moving. */}
+        {isAuthenticated && accounts.length > 0 ? (
+          <AccountSwitcher accounts={accounts} activeAccountId={activeAccountId ?? undefined} />
         ) : null}
         <button
           type="button"
