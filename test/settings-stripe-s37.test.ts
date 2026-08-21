@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
-import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
+import { createInMemoryDb } from "./helpers/inmemory-db";
 
 // S37: disconnect per connection, and cancel account. Rulings 40 and 333.
 //
@@ -415,6 +415,34 @@ describe("PLANT 5: cancel stops processing, disconnects all, and leaves billing 
     expect(markerOf("sess_1")).toBe(ACTIVE);
     const remaining = await listMemberships(db, USER);
     expect(remaining.map((m) => m.accountId)).toEqual([ACTIVE]);
+  });
+});
+
+describe("PLANT 6: the docs describe the control that now exists", () => {
+  const DOCS = readFileSync(
+    fileURLToPath(new URL("../app/lib/marketing/docs-content.ts", import.meta.url)),
+    "utf8",
+  );
+
+  it("the disconnect promise is per connection, and no longer claims it stops everything", () => {
+    // The sentence promised a Settings disconnect that did not exist, which is
+    // the launch blocker S37 closes. It also claimed "Disconnecting stops every
+    // active sequence immediately", and that went false the moment multi-account
+    // shipped: a merchant holding two connected Stripe accounts keeps running on
+    // the other one. Truthfulness fixes need no ratification (PRIME DIRECTIVE).
+    expect(DOCS).toContain("from Settings inside Foxhound");
+    expect(DOCS).toContain("one connected Stripe account at a time");
+    expect(DOCS).not.toContain("stops every active sequence immediately");
+    expect(DOCS).toContain("keeps running");
+  });
+
+  it("it does not let a merchant read disconnect as a way out of owed fees", () => {
+    // cancelled_at is absent from app/db/billable.ts on purpose, so neither a
+    // disconnect nor a cancel forgives matured, unbilled recoveries. PLANT 5
+    // asserts that in the database; this asserts we say so.
+    expect(DOCS).toContain("does not waive fees");
+    expect(DOCS).toContain("still invoice");
+    expect(DOCS).toContain("Danger zone");
   });
 });
 
