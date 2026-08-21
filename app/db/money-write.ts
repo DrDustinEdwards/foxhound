@@ -16,6 +16,19 @@ export type MoneyWriteBuilder = (db: Db) => MoneyWriteBatch;
 
 /** A money-write request: serialized per account, idempotent on the key. */
 export interface MoneyWrite {
+  /**
+   * THE DURABLE OBJECT'S PARTITION KEY. It is the account id for every write
+   * that touches an existing account, which is all of them but one.
+   *
+   * The exception is the write that CREATES a first account (ruling 329 phase
+   * (d)), where there is no account id yet to serialize on and the thing that
+   * must be serialized is the USER: two racing submits mint two different
+   * account ids, so keying on either would put them in two Durable Objects and
+   * serialize nothing. That call passes `firstConnectPartition(userId)`, which
+   * is a namespaced sentinel rather than an id, and it is the only caller that
+   * does. The DO itself is unchanged and does not care: `executeMoneyWrite`
+   * feeds this straight to `idFromName`.
+   */
   accountId: string;
   /** Re-delivery with the same key is a no-op (SCHEMA.md spine #4). */
   idempotencyKey: string;

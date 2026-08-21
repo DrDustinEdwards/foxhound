@@ -1,12 +1,16 @@
 import { and, eq } from "drizzle-orm";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { Db } from "~/db";
 import { accountMembers, accounts } from "~/db/schema";
 import { acceptInvite, createAccountForUser, resolveMembership } from "~/lib/auth/account";
 import { MEMBER_ROLE, MEMBER_STATUS } from "~/lib/auth/roles";
 
+import { executeMoneyWrite } from "~/lib/money/execute";
+
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
+
+vi.mock("~/lib/money/execute", () => ({ executeMoneyWrite: vi.fn() }));
 
 // Cross-tenant regression for account-scoping audit MEDIUM #4: acceptInvite is a
 // read-then-write (check the user's memberships, then activate the invite row),
@@ -79,25 +83,27 @@ function activeMemberships(db: Db) {
     );
 }
 
-// createAccountForUser uses db.batch(), a D1 primitive the better-sqlite3 driver
-// does not implement. Supply a faithful atomic batch: sqlite.transaction rolls
-// the whole batch back if any statement throws (a UNIQUE violation), matching
-// D1's all-or-nothing semantics, so the no-orphan-account assertion is real.
-function withAtomicBatch(sqlite: Parameters<typeof runStatement>[0], db: Db): Db {
-  return new Proxy(db as object, {
-    get(target, prop, receiver) {
-      if (prop === "batch") {
-        return (stmts: unknown[]) => {
-          sqlite.transaction((list: unknown[]) => {
-            for (const s of list) runStatement(sqlite, s);
-          })(stmts);
-          return Promise.resolve([]);
-        };
-      }
-      const value = Reflect.get(target, prop, receiver);
-      return typeof value === "function" ? value.bind(target) : value;
-    },
-  }) as Db;
+// createAccountForUser now commits through the money-write Durable Object
+// (ruling 329 phase (d)), which the better-sqlite3 harness has no binding for.
+// This models the DO faithfully in the two ways the assertions depend on:
+// sqlite.transaction gives the batch D1's all-or-nothing semantics, and the seen
+// set gives it the idempotency that makes a re-delivered key a no-op. Without
+// the second half the double-submit test would prove nothing, because the fix
+// IS the idempotency.
+const seen = new Set<string>();
+const ENV = {} as Env;
+
+function installDo(sqlite: Parameters<typeof runStatement>[0], db: Db): void {
+  seen.clear();
+  vi.mocked(executeMoneyWrite).mockImplementation(async (_env, write) => {
+    if (seen.has(write.idempotencyKey)) return { applied: false };
+    seen.add(write.idempotencyKey);
+    const statements = write.build(db);
+    sqlite.transaction(() => {
+      for (const stmt of statements) runStatement(sqlite, stmt);
+    })();
+    return { applied: true };
+  });
 }
 
 describe("MEDIUM #4: concurrent invite acceptance cannot land two active memberships", () => {
@@ -276,40 +282,57 @@ describe("MEDIUM #4: concurrent invite acceptance cannot land two active members
 describe("MEDIUM #4 sibling: concurrent account creation cannot land two active memberships", () => {
   it("createAccountForUser creates an account + active owner membership for a fresh user (no regression)", async () => {
     const { sqlite, db } = createInMemoryDb();
+    installDo(sqlite, db);
 
-    const result = await createAccountForUser(withAtomicBatch(sqlite, db), USER, "Fresh Co");
+    const result = await createAccountForUser(ENV, db, USER, "Fresh Co");
 
     expect(result.ok).toBe(true);
     const active = await activeMemberships(db);
     expect(active).toHaveLength(1);
   });
 
-  // KNOWN DEFECT, RECORDED RATHER THAN ASSERTED AWAY, owed to phase (d).
+  // THE DEBT 327 NAMED AND PHASE (a) LEFT RED ON PURPOSE, NOW PAID.
   //
-  // The create-account double-submit race is NO LONGER CAUGHT. The struck index
-  // was unique on user_id, so the loser's owner-membership insert violated it and
-  // the whole batch rolled back. The replacement is unique on
-  // (user_id, account_id), and the two racing submits mint two DIFFERENT account
-  // ids, so neither violates it and both commit: one double-click, two accounts.
+  // This case asserted the DEFECT for two sessions: the struck index was unique
+  // on user_id, its replacement is unique on (user_id, account_id), and two
+  // racing submits mint two different account ids, so neither violated it and
+  // both committed. One double-click, two accounts. Phase (a) rewrote the
+  // assertion to the broken behaviour deliberately, so phase (d) would have to
+  // come back and change it on purpose rather than inherit a green.
   //
-  // It is invisible at HEAD, which is why phase (a) ships with it: resolveMembership
-  // returns the earliest membership, so the loser's account is never resolved and
-  // no surface can reach it. It is still an orphan row per double submit.
-  //
-  // The fix belongs to phase (d), which owns connect.tsx (this function's only
-  // caller) and builds the add-account flow. Once an intentional second account
-  // has its own marked path, an UNMARKED create is a duplicate submit by
-  // definition and can be refused on that basis. Phase (a) is forbidden from
-  // touching connect.tsx (ruling 326), so this is named, not fixed.
-  //
-  // This case asserts what the code ACTUALLY does now. It is deliberately not
-  // written to pass under both behaviours, so phase (d) has to come back and
-  // change it on purpose.
-  it("a create-account submit that loses the race NOW SUCCEEDS and leaves a second account (phase (d) fixes this)", async () => {
+  // The fix is 327's, verbatim: "an idempotency key on the connect submit, not a
+  // per-user constraint". Both submits go through ONE money-write Durable Object
+  // partitioned by the user with the SAME key, so the second is a re-delivery
+  // and no-ops, and the loser reports the winner's account.
+  it("two concurrent first-connect submits yield ONE account and ONE membership", async () => {
     const { sqlite, db } = createInMemoryDb();
+    installDo(sqlite, db);
 
-    // The winning concurrent submit already created this user's account + active
-    // owner membership. The loser read "no membership" before that committed.
+    const [winner, loser] = await Promise.all([
+      createAccountForUser(ENV, db, USER, "First Co"),
+      createAccountForUser(ENV, db, USER, "Second Co"),
+    ]);
+
+    expect(winner.ok).toBe(true);
+    expect(loser.ok).toBe(true);
+    // BOTH report the same account, which is the part that matters to the
+    // caller: /connect redirects and the loader must find the account they were
+    // told about.
+    expect(winner.ok && loser.ok && winner.accountId).toBe(loser.ok && loser.accountId);
+
+    const accountRows = await db.select({ name: accounts.name }).from(accounts);
+    expect(accountRows).toHaveLength(1);
+    const active = await activeMemberships(db);
+    expect(active).toHaveLength(1);
+  });
+
+  it("a submit that loses to an already-committed winner reports the winner's account", async () => {
+    const { sqlite, db } = createInMemoryDb();
+    installDo(sqlite, db);
+
+    // The winning submit already committed, under the key this user's first
+    // connect always uses.
+    seen.add(`connect:first:${USER}`);
     runStatement(sqlite, db.insert(accounts).values({ id: "acc_W", name: "Winner Co" }));
     runStatement(
       sqlite,
@@ -323,17 +346,15 @@ describe("MEDIUM #4 sibling: concurrent account creation cannot land two active 
       }),
     );
 
-    const result = await createAccountForUser(withAtomicBatch(sqlite, db), USER, "Loser Co");
+    const result = await createAccountForUser(ENV, db, USER, "Loser Co");
 
-    expect(result.ok).toBe(true);
-    // Both accounts exist. "Loser Co" is the orphan the defect note above names.
+    // No "Loser Co" row anywhere: the DO recognised the re-delivery and wrote
+    // nothing, so there is no orphan to be invisible.
     const accountRows = await db.select({ name: accounts.name }).from(accounts);
-    expect(accountRows.map((r) => r.name).sort()).toEqual(["Loser Co", "Winner Co"]);
-    // Two active memberships for one user, which the database now permits.
+    expect(accountRows.map((r) => r.name)).toEqual(["Winner Co"]);
     const active = await activeMemberships(db);
-    expect(active).toHaveLength(2);
-    // And the invisibility half: every existing caller resolves the EARLIEST
-    // membership, so the orphan is unreachable from any surface at phase (a).
+    expect(active).toHaveLength(1);
+    expect(result).toEqual({ ok: true, accountId: "acc_W" });
     expect(await resolveMembership(db, USER)).toMatchObject({ accountId: "acc_W" });
   });
 });

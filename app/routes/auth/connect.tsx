@@ -7,6 +7,7 @@ import { getDb, stripeConnections } from "~/db";
 import { createAccountForUser, getSession, resolveMembership } from "~/lib/auth";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { buildConnectAuthorizeUrl } from "~/lib/stripe/connect";
+import { buildConnectState, CONNECT_ACTION } from "~/lib/stripe/connect-state";
 import { setStateCookie } from "~/lib/stripe/state-cookie";
 
 import type { Route } from "./+types/connect";
@@ -62,9 +63,12 @@ export async function action({ request, context }: Route.ActionArgs) {
   const membership = await resolveMembership(db, session.user.id);
 
   // No account yet: create it. The membership read above is a fast path, not a
-  // lock: a concurrent double-submit can lose the single-account race, in which
-  // case createAccountForUser returns already_member instead of throwing. Either
-  // way the account now exists, so both outcomes redirect to /connect, where the
+  // lock, and it never was: a concurrent double-submit can pass it twice. What
+  // stops the second submit is inside createAccountForUser, which serializes
+  // both through one money-write Durable Object partitioned by the user and
+  // gives them the SAME idempotency key, so the loser is a no-op that reports
+  // the winner's account (ruling 329 phase (d), the debt 327 named). Either way
+  // the account now exists, so both outcomes redirect to /connect, where the
   // loader re-reads the membership and shows the Connect Stripe step.
   if (!membership) {
     const form = await request.formData();
@@ -72,7 +76,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     if (!name) {
       return data({ error: "Enter a name for your account." }, { status: 400 });
     }
-    await createAccountForUser(db, session.user.id, name);
+    await createAccountForUser(env, db, session.user.id, name);
     return redirect("/connect");
   }
 
@@ -83,7 +87,12 @@ export async function action({ request, context }: Route.ActionArgs) {
       { status: 400 },
     );
   }
-  const state = crypto.randomUUID();
+  // MARKED "connect" as of ruling 329 phase (d). It used to be a bare
+  // crypto.randomUUID(), which the callback could only read as "not
+  // add_account". An unmarked state is how legacy's own add-account control
+  // falls through to the upsert branch (DEFECT 1), so both flows now say what
+  // they are and the callback refuses anything that says neither.
+  const state = buildConnectState(CONNECT_ACTION);
   return redirect(buildConnectAuthorizeUrl(env, state), {
     headers: { "Set-Cookie": setStateCookie(state) },
   });
