@@ -19,7 +19,14 @@ import { MODEL_RECOVERY_EMAIL } from "~/lib/constants";
 
 // Em dash / en dash: the most recognizable AI tell. Replace a dash (with any
 // surrounding spaces) by a comma so the pause reads naturally.
-const DASH_PATTERN = /\s*[—–]\s*/g;
+//
+// The two characters are written as \u escapes rather than literals, per
+// capsid/conventions.md: where source code needs the literal dash (it names a
+// normalization regex as the example), write it as a \uXXXX escape so the
+// file stays clean under the rule it enforces, and stays greppable. A regex
+// character class reads the escape as that character, so the pattern is
+// unchanged. Ruling 331.
+const DASH_PATTERN = /\s*[\u2014\u2013]\s*/g;
 
 /** Strip em/en dashes, replacing each with a comma. Pure, deterministic. */
 export function stripEmDashes(text: string): string {
@@ -75,7 +82,7 @@ export function findBrandVoiceViolations(copy: EmailCopy): BrandVoiceViolation[]
   const violations = new Set<BrandVoiceViolation>();
   const both = `${copy.subject}\n${copy.bodyHtml}`;
   if (!copy.subject.trim() || !copy.bodyHtml.trim()) violations.add("empty");
-  if (/[—–]/.test(both)) violations.add("em_dash");
+  if (/[\u2014\u2013]/.test(both)) violations.add("em_dash");
   for (const phrase of AI_TELL_PHRASES) {
     // fresh lastIndex: these are /g regexes reused across calls
     phrase.lastIndex = 0;
