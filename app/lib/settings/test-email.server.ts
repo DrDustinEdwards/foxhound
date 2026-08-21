@@ -1,0 +1,102 @@
+import { getDb } from "~/db";
+import { processEmailJob } from "~/lib/email/dispatch";
+import type { EmailJobResult } from "~/lib/email/dispatch";
+import { signUnsubscribeToken } from "~/lib/email/unsubscribe-token";
+import { buildTemplateEmail } from "~/lib/recovery/email-template";
+import { getPrimarySenderConnection } from "~/lib/settings/queries.server";
+
+// S39, the "Send test email" control, ported from legacy's
+// app/(app)/settings/test-email/route.ts (blob dcc3a06f).
+//
+// THE POINT OF THIS CONTROL IS THAT IT IS NOT A SIMULATION. It goes through
+// processEmailJob, the same function the recovery cron's defaultSend calls, so
+// it passes the suppression gate, the per-account live-send gate, and
+// buildEmailMessage's CAN-SPAM guard, and it writes an email_sends row for
+// whatever happens. A merchant who clicks it and gets "blocked" has learned a
+// true thing about their account.
+//
+// THREE DIVERGENCES FROM LEGACY, each classed:
+//
+// 1. NO AI GENERATION. Legacy calls Anthropic and falls back to a fixed string
+//    on error. Foxhound previews `buildTemplateEmail`, its own deterministic
+//    dunning template. Class (c) truthfulness: ANTHROPIC_API_KEY has no credit
+//    (core.md blocker 2), so the AI path would fail on every click and the
+//    merchant would be shown the fallback while being told it was a sample of
+//    their AI copy. Previewing the template shows them what would actually send
+//    today.
+// 2. THE ROUTE'S OWN ACTION, not a separate POST route. Same class (a)
+//    divergence S30 took and for the same reason: it avoids building ledger row
+//    S39 as a side effect of this row.
+// 3. NO `replyTo`. Legacy passes one; Foxhound's send path has no Reply-To
+//    reader at all, which is why `reply_to_email` is not rendered either.
+//
+// The sample customer is legacy's: a soft decline on a $99 plan.
+
+const SAMPLE_AMOUNT_FORMATTED = "$99.00";
+const SAMPLE_DECLINE_CATEGORY = "soft";
+export const TEST_EMAIL_TEMPLATE = "settings_test";
+export const TEST_EMAIL_SUBJECT_PREFIX = "[PREVIEW] ";
+
+/** Legacy's preview banner, which is what stops a merchant mistaking the sample
+ *  for a real customer send sitting in their own inbox. */
+function previewBanner(): string {
+  return (
+    `<p style="background:#1a1c18;border-bottom:2px solid #d9a441;padding:10px 24px;` +
+    `font-size:12px;color:#d9a441;text-align:center;margin:0 0 24px">` +
+    `PREVIEW. This is a sample recovery email. Your real recovery emails look like this.</p>`
+  );
+}
+
+export interface SendTestEmailResult {
+  result: EmailJobResult;
+  sentTo: string;
+}
+
+/**
+ * Send one preview recovery email to the signed-in merchant's own address.
+ *
+ * `to` is the SESSION user's email and is never taken from the form, so this
+ * control cannot be pointed at a third party. The idempotency key carries the
+ * account and the address so a double-click is recognizable in email_sends.
+ */
+export async function sendTestEmail(
+  env: Env,
+  accountId: string,
+  recipientEmail: string,
+): Promise<SendTestEmailResult> {
+  const db = getDb(env);
+  const connection = await getPrimarySenderConnection(db, accountId);
+
+  const copy = buildTemplateEmail({
+    merchantName: connection?.senderName ?? "your subscription",
+    declineCategory: SAMPLE_DECLINE_CATEGORY,
+    amountFormatted: SAMPLE_AMOUNT_FORMATTED,
+    updateUrl: `${env.BETTER_AUTH_URL ?? ""}/settings/email`,
+  });
+
+  const unsubscribeToken = await signUnsubscribeToken(env, {
+    email: recipientEmail,
+    accountId,
+  });
+
+  const result = await processEmailJob(
+    env,
+    {
+      accountId,
+      to: recipientEmail,
+      // The whole reason this control exists: the merchant sees the From header
+      // their customers will see, produced by the same field they just saved.
+      fromName: connection?.senderName ?? null,
+      subject: `${TEST_EMAIL_SUBJECT_PREFIX}${copy.subject}`,
+      bodyHtml: `${previewBanner()}${copy.bodyHtml}`,
+      template: TEST_EMAIL_TEMPLATE,
+      unsubscribeToken,
+      physicalAddress: env.PHYSICAL_ADDRESS ?? "",
+      idempotencyKey: `settings-test:${accountId}:${recipientEmail}`,
+      cronRunId: null,
+    },
+    null,
+  );
+
+  return { result, sentTo: recipientEmail };
+}

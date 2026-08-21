@@ -59,6 +59,7 @@ function emailCtx(overrides: Partial<EmailStepContext> = {}): EmailStepContext {
     amountCents: 4200,
     currency: "usd",
     merchantName: "Acme",
+    senderName: "Acme",
     voiceDescription: null,
     cached: { customBody: null, cachedSubject: "Subject", cachedBodyHtml: "<p>Body</p>" },
     ...overrides,

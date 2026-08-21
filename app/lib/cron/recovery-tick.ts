@@ -459,6 +459,9 @@ export function toEmailContext(row: DueStepRow): EmailStepContext {
     amountCents: row.amountCents,
     currency: row.currency,
     merchantName: row.merchantName ?? "your subscription",
+    // RAW for the From header: no copy fallback here, so send.ts applies the
+    // From-appropriate default instead of a body-copy phrase (S33).
+    senderName: row.merchantName,
     voiceDescription: row.brandVoice,
     cached: {
       customBody: row.customBody,

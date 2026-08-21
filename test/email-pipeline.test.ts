@@ -36,9 +36,14 @@ describe("buildEmailMessage (CAN-SPAM + from)", () => {
     expect(msg.headers?.["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
   });
 
-  it("falls back to a default sender name when none is given", () => {
+  // S33 moved this expectation from "Billing" to "Support". Legacy's fallback is
+  // `merchant.sender_name || 'Support'` (lib/recovery-execution.ts:197, and the
+  // same string in its test-email route); "Billing" is a name no legacy surface
+  // produces. The assertion moved because the behaviour was corrected toward
+  // legacy, not to keep a suite green.
+  it("falls back to legacy's default sender name when none is given", () => {
     expect(buildEmailMessage(job({ fromName: null }), "https://x").from).toBe(
-      "Billing <recovery@send.foxhoundapp.com>",
+      "Support <recovery@send.foxhoundapp.com>",
     );
   });
 

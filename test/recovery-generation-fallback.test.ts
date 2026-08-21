@@ -35,6 +35,7 @@ function ctx(overrides: Partial<EmailStepContext> = {}): EmailStepContext {
     amountCents: 4900,
     currency: "usd",
     merchantName: "Teamflow",
+    senderName: "Teamflow",
     voiceDescription: null,
     cached: { customBody: null, cachedSubject: null, cachedBodyHtml: null },
     ...overrides,

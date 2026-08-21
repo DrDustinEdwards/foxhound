@@ -94,6 +94,11 @@ export const PLATFORM_LINKS: ProductNavLink[] = [
   // only navigation path to a live page. It leaves with Team when S25 ships
   // legacy's sub-nav.
   { label: "Audit settings", to: "/settings/audit" },
+  // Email settings (S33). Same mechanism and the same reason as Team and
+  // Audit settings: legacy lists it in a settings SIDEBAR Foxhound does not
+  // have, so PLATFORM_LINKS is otherwise the only navigation path to a live
+  // page. It leaves with the other two when S25 ships legacy sub-nav.
+  { label: "Email settings", to: "/settings/email" },
 ];
 
 // The marketing header's authenticated-only SectionPill menu
