@@ -4,9 +4,13 @@ export function meta() {
 
 // Exported so the copy is assertable by test. Ruling 232: the Team entry stated
 // DESIGN.md's single-account RULE, which ruling 53 revoked, as a permanent
-// product property. What the code enforces is narrower and still true today, so
-// the copy describes the behavior at HEAD rather than the revoked rule, and does
-// not promise the multi-account build that has not shipped.
+// product property, so the copy was reworded to describe behaviour at HEAD.
+//
+// THE LAST CLAUSE OF THAT NOTE IS NOW FALSE and is corrected rather than left:
+// it read "does not promise the multi-account build that has not shipped", and
+// the multi-account build HAS shipped (rulings 324 to 329, phases (a) to (e)).
+// The copy below is not re-promised on that basis; whether Help should now
+// describe switching accounts is a copy decision this comment does not make.
 export const SECTIONS = [
   {
     title: "Recovery",
