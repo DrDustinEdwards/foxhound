@@ -405,7 +405,7 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
                   <p className="font-mono text-micro text-text-subtle">{c.stripeUserId}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  {c.isPrimary ? <Badge tone="neutral">Primary</Badge> : null}
+                  {c.isPrimary && !c.disconnectedAt ? <Badge tone="neutral">Primary</Badge> : null}
                   <Badge tone={c.disconnectedAt ? "failure" : "success"}>
                     {c.disconnectedAt ? "Disconnected" : "Active"}
                   </Badge>

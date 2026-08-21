@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import { stripeConnections } from "~/db";
@@ -36,12 +36,14 @@ export interface SwitcherAccount {
  * also keeps the anonymous marketing loader at zero DB reads (ruling 59's rule
  * for that surface) since it never gets here with memberships in hand.
  *
- * NOT FILTERED ON `disconnected_at`, deliberately, because legacy is not
- * either: SiteNav.tsx filters on `is_primary` alone. A disconnected primary
- * still names the Stripe account this Foxhound account belonged to, which is
- * what the label wants. `stripe_connections_account_primary_idx` in legacy does
- * carry the `disconnected_at IS NULL` half, but it is an index for a different
- * query, not this one.
+ * FILTERED ON `disconnected_at IS NULL` (ruling 333). This paragraph used to
+ * argue the opposite, that a disconnected primary still names the Stripe
+ * account and SiteNav.tsx filters on `is_primary` alone. S37 made that reading
+ * wrong rather than merely debatable: once a merchant can disconnect from
+ * Settings, `is_primary` survives the disconnect by design (333 ruled against
+ * promotion and against clearing the flag), so an unfiltered reader keeps
+ * naming a Stripe account the merchant just severed. The flag is only harmless
+ * because its readers filter, and this is reader 1 of the three.
  */
 export async function listSwitcherAccounts(
   db: Db,
@@ -60,6 +62,7 @@ export async function listSwitcherAccounts(
       and(
         inArray(stripeConnections.accountId, accountIds),
         eq(stripeConnections.isPrimary, true),
+        isNull(stripeConnections.disconnectedAt),
       ),
     );
 

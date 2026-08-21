@@ -422,3 +422,81 @@ export async function cancelMerchant(
 
   return { cancelledAt: now, connectionsDisconnected: disconnected.length, deauthorizeErrors };
 }
+
+// ---------------------------------------------------------------------------
+// S37: disconnect ONE connection from Settings (rulings 40 and 333).
+//
+// The same posture as cancelMerchant above, narrowed to a single connection:
+// plain batch, local commit first, Stripe revoke best-effort after. 333 ruled
+// this explicitly onto cancelMerchant's path and OFF executeMoneyWrite, because
+// a second writer on stripe_connections.disconnected_at with a different
+// atomicity guarantee is 262 decision five's shape one table over.
+// ---------------------------------------------------------------------------
+
+/** Stamps disconnectedAt and NOTHING else. is_primary deliberately survives:
+ *  333 ruled against promotion and against clearing the flag, because legacy
+ *  does neither. The three is_primary readers filter on disconnected_at
+ *  instead, which is the change that makes the flag harmless. */
+export function buildDisconnectConnectionBatch(db: Db, connectionId: string, now: Date): CancelBatch {
+  return [
+    db.update(stripeConnections).set({ disconnectedAt: now }).where(eq(stripeConnections.id, connectionId)),
+  ];
+}
+
+export interface DisconnectConnectionResult {
+  disconnectedAt: Date;
+  /** Set when the OAuth revoke failed. The local disconnect still stands: the
+   *  merchant asked to disconnect and IS disconnected, and the revoke is a
+   *  retriable follow-up the caller surfaces as a warning, never a rollback. */
+  deauthorizeError?: string;
+}
+
+export interface DisconnectConnectionDeps {
+  deauthorize: (env: Env, stripeUserId: string) => Promise<{ ok: boolean; error?: string }>;
+}
+
+export async function disconnectConnection(
+  env: Env,
+  connection: { id: string; stripeUserId: string },
+  deps: Partial<DisconnectConnectionDeps> = {},
+): Promise<DisconnectConnectionResult> {
+  const deauthorize = deps.deauthorize ?? deauthorizeConnectedAccount;
+  const db = getDb(env);
+  const now = new Date();
+
+  await db.batch(buildDisconnectConnectionBatch(db, connection.id, now));
+
+  const revoke = await deauthorize(env, connection.stripeUserId);
+  if (!revoke.ok) {
+    console.error(`stripe deauthorize failed for connection ${connection.id}:`, revoke.error);
+    return { disconnectedAt: now, deauthorizeError: revoke.error ?? "unknown error" };
+  }
+  return { disconnectedAt: now };
+}
+
+/**
+ * The ownership check, and the only one the Settings route gets. Filters on the
+ * connection id AND the caller's ACTIVE account AND disconnected_at IS NULL, so
+ * a connection under another account the caller holds is refused exactly like
+ * one they do not hold at all, and an already-disconnected row cannot be
+ * stamped twice. Returns null on every refusing case, which the route turns
+ * into a 403 having written nothing.
+ */
+export async function findLiveConnection(
+  db: Db,
+  accountId: string,
+  connectionId: string,
+): Promise<{ id: string; stripeUserId: string } | null> {
+  const rows = await db
+    .select({ id: stripeConnections.id, stripeUserId: stripeConnections.stripeUserId })
+    .from(stripeConnections)
+    .where(
+      and(
+        eq(stripeConnections.id, connectionId),
+        eq(stripeConnections.accountId, accountId),
+        isNull(stripeConnections.disconnectedAt),
+      ),
+    )
+    .limit(1);
+  return rows[0] ?? null;
+}

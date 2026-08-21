@@ -41,3 +41,41 @@ export async function getActiveConnectionBrandVoice(
     .limit(1);
   return rows[0] ?? null;
 }
+
+export interface SettingsConnection {
+  id: string;
+  name: string | null;
+  stripeUserId: string;
+  connectedAt: Date | null;
+  disconnectedAt: Date | null;
+}
+
+/**
+ * Every Stripe connection on the account, live and disconnected, oldest first.
+ *
+ * S37 renders the LIVE ones as legacy's StripeSection does (blob `4068961e`) and
+ * keeps the disconnected ones out of the list, matching legacy, whose loader
+ * passes only what its own query returned. They are selected here anyway so the
+ * route can tell "this account never connected" from "this account disconnected
+ * everything", which drives two different empty states.
+ *
+ * Ordered by `connected_at` so the list is stable across requests. Legacy's
+ * component imposes no order at all and renders whatever its loader hands it,
+ * which is the same nondeterminism class 326 corrected on the membership list.
+ */
+export async function listAccountConnections(
+  db: Db,
+  accountId: string,
+): Promise<SettingsConnection[]> {
+  return db
+    .select({
+      id: stripeConnections.id,
+      name: stripeConnections.name,
+      stripeUserId: stripeConnections.stripeUserId,
+      connectedAt: stripeConnections.connectedAt,
+      disconnectedAt: stripeConnections.disconnectedAt,
+    })
+    .from(stripeConnections)
+    .where(eq(stripeConnections.accountId, accountId))
+    .orderBy(stripeConnections.connectedAt, stripeConnections.id);
+}
