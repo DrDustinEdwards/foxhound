@@ -56,6 +56,10 @@ export default [
     route("reset-password", "./routes/auth/reset-password.tsx"),
     route("connect", "./routes/auth/connect.tsx"),
     route("connect/callback", "./routes/auth/connect-callback.ts"),
+    // The switcher's "+ Add account" (ruling 326 phase (e), first half of (d)).
+    // Legacy mounts this at /api/stripe/connect-additional; the path here
+    // mirrors Foxhound's own connect routes instead.
+    route("connect/additional", "./routes/auth/connect-additional.ts"),
     route("invite/:token", "./routes/auth/invite.tsx"),
 
     // Google OAuth start (POST): builds the provider URL + CSRF state cookie.
