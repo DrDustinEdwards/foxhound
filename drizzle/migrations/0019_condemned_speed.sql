@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `expiring_card_alerts_card_month_uq` ON `expiring_card_alerts` (`account_id`,`stripe_customer_id`,`expires_month`,`expires_year`);
