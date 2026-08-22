@@ -438,7 +438,7 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
 
       <SettingsCard
         title="Intelligence context"
-        description="Optional. These help score risk more accurately once Intelligence scoring is available; they do not change anything today."
+        description="Optional. Foxhound gives these to the AI that writes your recovery emails, so the copy knows what kind of business it is writing for. They will also feed risk scoring once Intelligence scoring is available."
         action="intelligence-context"
         result={result}
       >
