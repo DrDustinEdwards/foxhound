@@ -160,6 +160,13 @@ export interface MerchantBrandVoice {
   industry?: string | null;
   customerType?: string | null;
   mrrCents?: number | null;
+  /** S31's four per-category voices, from `stripe_connections`. Each is the
+   *  voice for ONE decline category; absent means "same as main voice", which
+   *  is what legacy's own select labels the empty option. */
+  voiceSoft?: string | null;
+  voiceExpired?: string | null;
+  voiceNetwork?: string | null;
+  voiceFraud?: string | null;
 }
 
 /**
@@ -188,10 +195,54 @@ export function merchantContextLine(merchant: MerchantBrandVoice): string | null
 const DEFAULT_VOICE =
   "warm, plain, and direct; a real person from the business writing a short note";
 
-/** Resolve the brand-voice descriptor for the prompt, with a sensible default. */
-export function resolveBrandVoice(merchant: MerchantBrandVoice): string {
-  const voice = merchant.voiceDescription?.trim();
-  return voice && voice.length > 0 ? voice : DEFAULT_VOICE;
+/**
+ * Resolve the brand-voice descriptor for the prompt.
+ *
+ * LEGACY'S ORDER, PORTED VERBATIM from `lib/email-generation.ts:38-48`
+ * (blob `e28d780e`): the category's own voice, else the general voice, else a
+ * constant default. Every rung uses a falsy check on both sides, so an EMPTY
+ * STRING and NULL behave identically and both fall through. That is what makes
+ * "Same as main voice" storable as NULL rather than needing a sentinel.
+ *
+ * THE CATEGORY ARGUMENT IS THE WHOLE POINT and its absence was the defect:
+ * Foxhound narrowed a legacy feature to a single voice by dropping it (337
+ * binding 6, removed under 324 as a Foxhound-internal narrowing).
+ *
+ * SIX CATEGORIES, FOUR COLUMNS, and the two extras need no decision. Legacy's
+ * `switch` has a `default:` arm returning the fallback for any category it has
+ * no column for, so `revoked` and `unknown` resolve to the general voice by
+ * porting the switch rather than by inventing columns for them.
+ */
+export function resolveBrandVoice(
+  merchant: MerchantBrandVoice,
+  declineCategory: string,
+): string {
+  const general = merchant.voiceDescription?.trim();
+  const fallback = general && general.length > 0 ? general : DEFAULT_VOICE;
+
+  const categoryVoice = categoryVoiceFor(merchant, declineCategory)?.trim();
+  return categoryVoice && categoryVoice.length > 0 ? categoryVoice : fallback;
+}
+
+/** The column for one category, or undefined where legacy has none. Separated
+ *  so the six-against-four mapping is one readable place. */
+function categoryVoiceFor(
+  merchant: MerchantBrandVoice,
+  declineCategory: string,
+): string | null | undefined {
+  switch (declineCategory) {
+    case "soft":
+      return merchant.voiceSoft;
+    case "expired":
+      return merchant.voiceExpired;
+    case "network":
+      return merchant.voiceNetwork;
+    case "fraud":
+      return merchant.voiceFraud;
+    default:
+      // `revoked` and `unknown` land here, as does anything unrecognised.
+      return undefined;
+  }
 }
 
 // ---- Generation seam (isolated; inert without ANTHROPIC_API_KEY) ----
@@ -283,6 +334,20 @@ export function buildUserPrompt(input: GenerateEmailInput): string {
  * and the end-to-end send path lands in Phase 4c. The pure helpers above are the
  * tested surface.
  */
+/**
+ * The exact prompt pair `generateDunningEmail` sends. PURE and exported so the
+ * brand-voice resolution is observable: the resolved voice lands in the SYSTEM
+ * string, not the user string, so a plant reading only the user prompt would
+ * miss it entirely. 337 binding 4: reach the real assembly, do not rebuild it
+ * in the test.
+ */
+export function buildPrompts(input: GenerateEmailInput): { system: string; user: string } {
+  return {
+    system: buildSystemPrompt(resolveBrandVoice(input.merchant, input.declineCategory)),
+    user: buildUserPrompt(input),
+  };
+}
+
 export async function generateDunningEmail(
   env: Env,
   input: GenerateEmailInput,
@@ -291,6 +356,7 @@ export async function generateDunningEmail(
     throw new Error("ANTHROPIC_API_KEY is not set");
   }
   const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+  const prompts = buildPrompts(input);
 
   const response = await client.messages.create({
     model: MODEL_RECOVERY_EMAIL,
@@ -300,8 +366,8 @@ export async function generateDunningEmail(
       effort: "low",
       format: { type: "json_schema", schema: OUTPUT_SCHEMA },
     },
-    system: buildSystemPrompt(resolveBrandVoice(input.merchant)),
-    messages: [{ role: "user", content: buildUserPrompt(input) }],
+    system: prompts.system,
+    messages: [{ role: "user", content: prompts.user }],
   });
 
   const textBlock = response.content.find((b) => b.type === "text");

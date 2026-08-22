@@ -40,6 +40,10 @@ function row(overrides: Partial<DueStepRow> = {}): DueStepRow {
     merchantIndustry: null,
     primaryCustomerType: null,
     merchantMrrCents: null,
+    brandVoiceSoft: null,
+    brandVoiceExpired: null,
+    brandVoiceNetwork: null,
+    brandVoiceFraud: null,
     ...overrides,
   };
 }

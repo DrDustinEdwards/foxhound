@@ -201,6 +201,11 @@ export interface DueStepRow {
   merchantIndustry: string | null;
   primaryCustomerType: string | null;
   merchantMrrCents: number | null;
+  /** S31's four per-category voices, from `stripe_connections`. */
+  brandVoiceSoft: string | null;
+  brandVoiceExpired: string | null;
+  brandVoiceNetwork: string | null;
+  brandVoiceFraud: string | null;
 }
 
 /** Fetch due steps for active failed payments on processing-eligible accounts,
@@ -231,6 +236,10 @@ export async function queryDueRecoverySteps(env: Env, now: Date): Promise<DueSte
       merchantIndustry: accounts.merchantIndustry,
       primaryCustomerType: accounts.primaryCustomerType,
       merchantMrrCents: accounts.merchantMrrSelfReported,
+      brandVoiceSoft: stripeConnections.brandVoiceSoft,
+      brandVoiceExpired: stripeConnections.brandVoiceExpired,
+      brandVoiceNetwork: stripeConnections.brandVoiceNetwork,
+      brandVoiceFraud: stripeConnections.brandVoiceFraud,
     })
     .from(recoverySteps)
     .innerJoin(failedPayments, eq(failedPayments.id, recoverySteps.failedPaymentId))
@@ -428,6 +437,10 @@ export async function queryStepForManualTrigger(
       merchantIndustry: accounts.merchantIndustry,
       primaryCustomerType: accounts.primaryCustomerType,
       merchantMrrCents: accounts.merchantMrrSelfReported,
+      brandVoiceSoft: stripeConnections.brandVoiceSoft,
+      brandVoiceExpired: stripeConnections.brandVoiceExpired,
+      brandVoiceNetwork: stripeConnections.brandVoiceNetwork,
+      brandVoiceFraud: stripeConnections.brandVoiceFraud,
     })
     .from(recoverySteps)
     .innerJoin(failedPayments, eq(failedPayments.id, recoverySteps.failedPaymentId))
@@ -477,6 +490,10 @@ export function toEmailContext(row: DueStepRow): EmailStepContext {
     merchantIndustry: row.merchantIndustry,
     primaryCustomerType: row.primaryCustomerType,
     merchantMrrCents: row.merchantMrrCents,
+    brandVoiceSoft: row.brandVoiceSoft,
+    brandVoiceExpired: row.brandVoiceExpired,
+    brandVoiceNetwork: row.brandVoiceNetwork,
+    brandVoiceFraud: row.brandVoiceFraud,
     cached: {
       customBody: row.customBody,
       cachedSubject: row.aiSubject,

@@ -267,6 +267,12 @@ export interface EmailStepContext {
   merchantIndustry?: string | null;
   primaryCustomerType?: string | null;
   merchantMrrCents?: number | null;
+  /** S31's four per-category voices. `declineCategory` above selects among
+   *  them; the step's own category is what makes them reachable. */
+  brandVoiceSoft?: string | null;
+  brandVoiceExpired?: string | null;
+  brandVoiceNetwork?: string | null;
+  brandVoiceFraud?: string | null;
   /** Cached content on the recovery_steps row (custom body / prior AI copy). */
   cached: CachedStepContent;
 }
@@ -437,6 +443,10 @@ export function buildGenerateEmailInput(
       industry: ctx.merchantIndustry,
       customerType: ctx.primaryCustomerType,
       mrrCents: ctx.merchantMrrCents,
+      voiceSoft: ctx.brandVoiceSoft,
+      voiceExpired: ctx.brandVoiceExpired,
+      voiceNetwork: ctx.brandVoiceNetwork,
+      voiceFraud: ctx.brandVoiceFraud,
     },
     stepType: ctx.stepType,
     declineCategory: ctx.declineCategory,
