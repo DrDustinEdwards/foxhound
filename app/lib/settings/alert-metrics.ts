@@ -1,0 +1,73 @@
+import { ALERT_METRICS, ALERT_DIRECTIONS } from "~/lib/constants";
+import type { AlertDirection, AlertMetric } from "~/lib/constants";
+
+// S28's metric vocabulary, in a CLIENT-SAFE module because the create form
+// renders it. Nothing here touches the database.
+//
+// THE LIST IS FOXHOUND'S FOUR, NOT LEGACY'S ELEVEN, and that is the whole
+// decision on this row. `ALERT_METRICS` is the nightly evaluator's own enum
+// (app/lib/constants.ts) and `evaluateAlerts` SKIPS an alert whose metric key
+// has no computed value that run. Legacy's picker offers eleven, of which
+// Foxhound computes exactly one (`mrr_at_risk_cents`); offering the other ten
+// would let a merchant configure an alert that can never fire and never say so.
+// When the evaluator learns a metric, it goes in ALERT_METRICS and appears here
+// by construction, which is why this derives from that constant rather than
+// repeating it.
+
+export const ALERT_METRIC_LABELS: Record<AlertMetric, string> = {
+  health_score_avg: "Average health score",
+  mrr_at_risk_cents: "MRR at risk",
+  mrr_churn_cents: "Churned MRR",
+  mrr_contraction_cents: "Contracted MRR",
+};
+
+export const ALERT_DIRECTION_LABELS: Record<AlertDirection, string> = {
+  below: "Drops below",
+  above: "Rises above",
+};
+
+/** The metrics denominated in cents, so the form takes dollars and the table
+ *  prints currency. `health_score_avg` is a 0 to 100 score and is neither. */
+const CENTS_METRICS: ReadonlySet<string> = new Set([
+  "mrr_at_risk_cents",
+  "mrr_churn_cents",
+  "mrr_contraction_cents",
+]);
+
+export function isCentsMetric(metric: string): boolean {
+  return CENTS_METRICS.has(metric);
+}
+
+export function isAlertMetric(value: string): value is AlertMetric {
+  return (ALERT_METRICS as readonly string[]).includes(value);
+}
+
+export function isAlertDirection(value: string): value is AlertDirection {
+  return (ALERT_DIRECTIONS as readonly string[]).includes(value);
+}
+
+export function alertMetricLabel(metric: string): string {
+  return isAlertMetric(metric) ? ALERT_METRIC_LABELS[metric] : metric;
+}
+
+/** Threshold as the merchant reads it: currency for cents metrics, a bare
+ *  number for the score. Mirrors legacy's formatThreshold. */
+export function formatThresholdValue(metric: string, value: number): string {
+  if (isCentsMetric(metric)) {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 0,
+    }).format(value / 100);
+  }
+  return String(value);
+}
+
+/** "MRR at risk rises above $5,000", the Condition column. */
+export function alertConditionLabel(metric: string, direction: string, value: number): string {
+  const dir = isAlertDirection(direction) ? ALERT_DIRECTION_LABELS[direction].toLowerCase() : direction;
+  return `${alertMetricLabel(metric)} ${dir} ${formatThresholdValue(metric, value)}`;
+}
+
+export { ALERT_METRICS, ALERT_DIRECTIONS };
+export type { AlertDirection, AlertMetric };

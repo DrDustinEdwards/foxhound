@@ -99,6 +99,8 @@ export const PLATFORM_LINKS: ProductNavLink[] = [
   // have, so PLATFORM_LINKS is otherwise the only navigation path to a live
   // page. It leaves with the other two when S25 ships legacy sub-nav.
   { label: "Email settings", to: "/settings/email" },
+  // Alerts (S28). Same mechanism and reason as Team, Audit and Email settings.
+  { label: "Alerts", to: "/settings/alerts" },
 ];
 
 // The marketing header's authenticated-only SectionPill menu
