@@ -89,3 +89,20 @@ export function planWinbackSteps(input: {
 export function isLastWinbackStep(stepNumber: number): boolean {
   return stepNumber >= WIN_BACK_SCHEDULE.length;
 }
+
+/**
+ * May this sequence still be resubscribed from its email's button (343
+ * binding 4)?
+ *
+ * ONLY `reactivated` AND `resolved` REFUSE, and `exhausted` deliberately does
+ * NOT. Legacy flips its own sequence terminal the moment step 3 is SENT
+ * (`if (step.step_number === 3)` sets status 'completed' straight after the
+ * claim), so gating the button on a non-terminal status would ship step 3 with
+ * a button that is dead on arrival, in the one email whose subject is "Last
+ * chance to reactivate your account". A customer who cancelled and has not
+ * come back may act on the last email; a customer who already came back, or
+ * whose sequence ended some other way, has nothing left to do here.
+ */
+export function isWinbackResubscribable(status: string): boolean {
+  return status !== WINBACK_STATUS.REACTIVATED && status !== WINBACK_STATUS.RESOLVED;
+}
