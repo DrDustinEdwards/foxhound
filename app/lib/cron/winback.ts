@@ -1,9 +1,8 @@
-import { and, eq, isNull, lte, notLike, or, sql } from "drizzle-orm";
+import { and, eq, isNull, lte, or, sql } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import { accounts, getDb, stripeConnections, winBackSequences, winBackSteps } from "~/db";
 import { signCardUpdateToken } from "~/lib/card-update/token";
-import { DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
 import { processEmailJob } from "~/lib/email/dispatch";
 import { recordOutcome } from "~/lib/engine/outcomes";
 import { accountProcessingEligibleCondition } from "~/lib/cron/recovery-tick";
@@ -56,9 +55,13 @@ export interface DueWinbackStep {
  * The due-step query, legacy's filters one for one.
  *
  * THE DEMO EXCLUSION IS HERE, at the query, which is legacy's own placement
- * (`.not('account_id','in', DEMO_ACCOUNT_IDS_FILTER)`) and the same
- * prefix firewall every other Foxhound cron applies. `processEmailJob`'s
- * `liveSendsEnabled` gate is the second, independent layer.
+ * (`.not('account_id','in', DEMO_ACCOUNT_IDS_FILTER)`). It arrives through
+ * `accountProcessingEligibleCondition()`, which ALREADY carries the same
+ * `notLike` on DEMO_ACCOUNT_ID_PREFIX along with the paused and cancelled
+ * gates. A second explicit notLike was written here first and removed: it was
+ * the identical predicate on the identical column, so it read as defence in
+ * depth while proving nothing, and a mutation deleting it stayed green.
+ * `processEmailJob`'s `liveSendsEnabled` gate is the real second layer.
  */
 export async function queryDueWinbackSteps(
   db: Db,
@@ -97,7 +100,6 @@ export async function queryDueWinbackSteps(
         // waits out `next_retry_at`; a fresh step carries NULL.
         or(isNull(winBackSteps.nextRetryAt), lte(winBackSteps.nextRetryAt, now)),
         eq(winBackSequences.status, WINBACK_STATUS.ACTIVE),
-        notLike(accounts.id, `${DEMO_ACCOUNT_ID_PREFIX}%`),
         accountProcessingEligibleCondition(),
       ),
     )
