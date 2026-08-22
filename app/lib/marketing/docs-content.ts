@@ -50,6 +50,7 @@ export const DOC_GUIDES: DocGuide[] = [
         heading: "Team and brand voice",
         body: [
           "Invite teammates from Settings and Team. The account owner can remove any member other than themselves, and access ends immediately. Every account has one brand voice field, used across all recovery email copy.",
+          "The industry, customer type and monthly revenue you enter under Settings go to the AI with every recovery email, so a message written for a B2B SaaS account does not read like one written for a consumer store. Leave them blank and the copy simply omits that context.",
           "Settings and Email holds the sender name, the name your customers see in the From line of every recovery email. Set it before your first send: until you do, recovery mail goes out from \"Support\". Send test email delivers a sample to your own address through the real sending path, so the From line you see is the one your customers get.",
         ],
       },
