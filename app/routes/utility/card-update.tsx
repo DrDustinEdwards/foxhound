@@ -3,12 +3,18 @@ import { data, Form, redirect, useNavigation } from "react-router";
 
 import { Alert, AuthShell, Submit } from "~/components/auth-ui";
 import { Header } from "~/components/header";
-import { expiringCardAlerts, failedPayments, getDb, stripeConnections } from "~/db";
+import { expiringCardAlerts, failedPayments, getDb, stripeConnections, winBackSequences } from "~/db";
 import { buildCardUpdateSignal, hasCardUpdateSignal } from "~/lib/card-update/signal";
-import { createCardUpdateSession, finalizeCardUpdateSession } from "~/lib/card-update/service";
+import {
+  createCardUpdateSession,
+  createResubscribeSession,
+  finalizeCardUpdateSession,
+} from "~/lib/card-update/service";
 import { verifyCardUpdateToken } from "~/lib/card-update/token";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
 import { formatMoney } from "~/lib/money-format";
+import { isWinbackResubscribable } from "~/lib/recovery/winback";
 import { decryptToken } from "~/lib/stripe/encryption";
 import { DEFAULT_THEME } from "~/lib/theme";
 
@@ -47,7 +53,13 @@ type LoaderState =
   // there is no amount to name and the subtitle is simply omitted. Every other
   // string on the page is unchanged between the two modes.
   | { state: "ready"; amountCents?: number; currency?: string }
-  | { state: "done" };
+  | { state: "done" }
+  // RESUBSCRIBE MODE (343 binding 4). A separate set of states, because
+  // nothing has failed and no card is being collected: the customer
+  // cancelled, and the one button restarts the subscription on Stripe.
+  | { state: "resubscribe"; planName: string | null }
+  | { state: "handled" }
+  | { state: "resubscribed" };
 
 export interface ConnectionCandidate {
   id: string;
@@ -132,6 +144,60 @@ async function loadAlertTarget(
   };
 }
 
+/** What resubscribe mode resolves to. Deliberately NOT a CardUpdateTarget:
+ *  there is no failed payment, no amount and no card to collect. */
+export interface ResubscribeTarget {
+  sequenceId: string;
+  stripeCustomerId: string;
+  stripeSubscriptionId: string;
+  planName: string | null;
+  status: string;
+  connection: ConnectionCandidate | null;
+}
+
+/**
+ * RESUBSCRIBE MODE's target, read off `win_back_sequences`.
+ *
+ * The sequence carries the cancelled subscription id, which is what the price
+ * is re-read from at click time: neither side stores a price id, because
+ * legacy's billing portal never needed one.
+ */
+async function loadResubscribeTarget(
+  env: Env,
+  sequenceId: string,
+  accountId: string,
+): Promise<ResubscribeTarget | null> {
+  const db = getDb(env);
+  const [sequenceRows, connectionRows] = await Promise.all([
+    db
+      .select({
+        id: winBackSequences.id,
+        stripeCustomerId: winBackSequences.stripeCustomerId,
+        stripeSubscriptionId: winBackSequences.stripeSubscriptionId,
+        planName: winBackSequences.planName,
+        status: winBackSequences.status,
+        stripeConnectionId: winBackSequences.stripeConnectionId,
+      })
+      .from(winBackSequences)
+      .where(and(eq(winBackSequences.id, sequenceId), eq(winBackSequences.accountId, accountId)))
+      .limit(1),
+    db
+      .select({ id: stripeConnections.id, stripeAccessToken: stripeConnections.stripeAccessToken })
+      .from(stripeConnections)
+      .where(and(eq(stripeConnections.accountId, accountId), isNull(stripeConnections.disconnectedAt))),
+  ]);
+  const sequence = sequenceRows[0];
+  if (!sequence) return null;
+  return {
+    sequenceId: sequence.id,
+    stripeCustomerId: sequence.stripeCustomerId,
+    stripeSubscriptionId: sequence.stripeSubscriptionId,
+    planName: sequence.planName,
+    status: sequence.status,
+    connection: resolveConnectionForFailedPayment(connectionRows, sequence.stripeConnectionId),
+  };
+}
+
 async function loadTarget(env: Env, failedPaymentId: string, accountId: string) {
   const db = getDb(env);
   const [failedPaymentRows, connectionRows] = await Promise.all([
@@ -192,12 +258,93 @@ async function resolveTarget(
   return null;
 }
 
+/**
+ * RESUBSCRIBE MODE's loader. Renders one of three states and reads nothing it
+ * does not render: no Stripe call happens here, because 343 binding 4 puts the
+ * Checkout Session on the CLICK and not on the render.
+ */
+async function resubscribeLoader(
+  env: Env,
+  request: Request,
+  sequenceId: string,
+  accountId: string,
+) {
+  const target = await loadResubscribeTarget(env, sequenceId, accountId);
+  if (!target || !target.connection?.stripeAccessToken) {
+    return data<LoaderState>({ state: "invalid" });
+  }
+  if (!isWinbackResubscribable(target.status)) {
+    return data<LoaderState>({ state: "handled" });
+  }
+  // Stripe returns the customer here after a completed session. Foxhound writes
+  // NOTHING on this return: session 52 owns the reactivation, keyed off the
+  // metadata on the session Stripe reports back through the webhook, which is
+  // authoritative where a browser redirect is not.
+  if (new URL(request.url).searchParams.get("done") === "1") {
+    return data<LoaderState>({ state: "resubscribed" });
+  }
+  return data<LoaderState>({ state: "resubscribe", planName: target.planName });
+}
+
+/**
+ * RESUBSCRIBE MODE's POST. Creates the Checkout Session on the CONNECTED
+ * account and redirects to Stripe.
+ *
+ * It records no outcome: `winback_reactivated` belongs to the completion, which
+ * session 52 owns, and a click is not a reactivation. It writes no row either,
+ * because neither `win_back_sequences` nor `win_back_steps` carries a session
+ * id column and 343 binding 5 adds no migration, so THE METADATA IS THE LINK.
+ */
+async function resubscribeAction(
+  env: Env,
+  request: Request,
+  input: { token: string; sequenceId: string; accountId: string; stepNumber: number },
+) {
+  // Demo accounts refuse AT THE STRIPE-CALL GATE. The demo seed's connection
+  // carries no usable token, so this would fail anyway; refusing on the id
+  // makes the firewall the reason rather than an accident of seed data.
+  if (input.accountId.startsWith(DEMO_ACCOUNT_ID_PREFIX)) {
+    return data({ error: "This link is not available on a demo account." }, { status: 400 });
+  }
+
+  const target = await loadResubscribeTarget(env, input.sequenceId, input.accountId);
+  const encryptedAccessToken = target?.connection?.stripeAccessToken;
+  if (!target || !encryptedAccessToken || !isWinbackResubscribable(target.status)) {
+    return data({ error: "This reactivation link is no longer active." }, { status: 400 });
+  }
+
+  try {
+    const accessToken = await decryptToken(env, encryptedAccessToken);
+    const url = new URL(request.url);
+    const session = await createResubscribeSession({
+      accessToken,
+      customerId: target.stripeCustomerId,
+      subscriptionId: target.stripeSubscriptionId,
+      winBackSequenceId: target.sequenceId,
+      winBackStepNumber: input.stepNumber,
+      successUrl: `${url.origin}/p/${input.token}?done=1`,
+      cancelUrl: `${url.origin}/p/${input.token}`,
+    });
+    if (!session) {
+      return data({ error: "This plan is no longer available." }, { status: 400 });
+    }
+    return redirect(session.url);
+  } catch {
+    // Never log the error object: it can carry request/token context.
+    return data({ error: "Could not start the reactivation. Please try again." }, { status: 502 });
+  }
+}
+
 export async function loader({ request, params, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const token = params.token;
   const payload = token ? await verifyCardUpdateToken(env, token) : null;
   if (!payload) {
     return data<LoaderState>({ state: "invalid" });
+  }
+
+  if (payload.winBackSequenceId) {
+    return resubscribeLoader(env, request, payload.winBackSequenceId, payload.accountId);
   }
 
   const target = await resolveTarget(env, payload);
@@ -265,6 +412,15 @@ export async function action({ request, params, context }: Route.ActionArgs) {
     return data({ error: "This link is invalid or has expired." }, { status: 400 });
   }
 
+  if (payload.winBackSequenceId) {
+    return resubscribeAction(env, request, {
+      token: token as string,
+      sequenceId: payload.winBackSequenceId,
+      accountId: payload.accountId,
+      stepNumber: payload.winBackStepNumber ?? 0,
+    });
+  }
+
   const target = await resolveTarget(env, payload);
   const encryptedAccessToken = target?.connection?.stripeAccessToken;
   if (!target || target.resolved || !encryptedAccessToken) {
@@ -296,6 +452,13 @@ export default function CardUpdate({ loaderData, actionData }: Route.ComponentPr
       && loaderData.currency !== undefined
       ? `A recent payment of ${formatMoney(loaderData.amountCents, loaderData.currency)} did not go through.`
       : undefined;
+  // Legacy has no page here at all, its button going straight to a Stripe
+  // portal, so there is no portal-return copy to port and this is the fewest
+  // words that still tell the customer what they are restarting.
+  const resubscribeLine =
+    loaderData.state === "resubscribe" && loaderData.planName
+      ? `Your ${loaderData.planName} plan.`
+      : undefined;
 
   return (
     <>
@@ -320,6 +483,23 @@ export default function CardUpdate({ loaderData, actionData }: Route.ComponentPr
           <Alert tone="success">
             Your payment method has been updated. Thank you.
           </Alert>
+        </AuthShell>
+      ) : state === "handled" ? (
+        <AuthShell title="Nothing to do here">
+          <Alert tone="success">
+            This subscription has already been reactivated. No action is needed.
+          </Alert>
+        </AuthShell>
+      ) : state === "resubscribed" ? (
+        <AuthShell title="Welcome back">
+          <Alert tone="success">Your subscription has been restarted. Thank you.</Alert>
+        </AuthShell>
+      ) : state === "resubscribe" ? (
+        <AuthShell title="Reactivate your subscription" subtitle={resubscribeLine}>
+          {actionData?.error ? <Alert tone="error">{actionData.error}</Alert> : null}
+          <Form method="post">
+            <Submit disabled={busy}>{busy ? "Redirecting..." : "Reactivate my account"}</Submit>
+          </Form>
         </AuthShell>
       ) : (
         <AuthShell title="Update your payment method" subtitle={amountLine}>
