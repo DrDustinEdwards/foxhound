@@ -154,6 +154,35 @@ export interface MerchantBrandVoice {
   merchantName: string;
   /** Optional merchant-configured tone/voice description. */
   voiceDescription?: string | null;
+  /** S27's three merchant-context fields, from `accounts`. All optional: a
+   *  merchant who filled none gets no context line at all, which is legacy's
+   *  behaviour and not a placeholder. */
+  industry?: string | null;
+  customerType?: string | null;
+  mrrCents?: number | null;
+}
+
+/**
+ * Legacy's merchant-context line, reproduced from
+ * `lib/email-generation.ts:243-249` (blob `e28d780e`).
+ *
+ * THIS IS THE READER FOR S27's THREE COLUMNS. They had a writer on /settings and
+ * no reader anywhere, under legacy's own help string "Used to personalize
+ * recovery emails", so the promise was false at HEAD (336 binding 4 rules the
+ * fix is the reader, not removing the fields).
+ *
+ * Legacy's exact shape, kept rather than improved: three optional parts joined
+ * by a SPACE, prefixed "Merchant context: ", and the whole line omitted when
+ * every part is absent. MRR is stored in cents and divided by 100 for the
+ * prompt, as legacy divides it. `mrrCents` of 0 is falsy on both sides, so a
+ * merchant reporting zero MRR contributes no part.
+ */
+export function merchantContextLine(merchant: MerchantBrandVoice): string | null {
+  const parts: string[] = [];
+  if (merchant.industry) parts.push(`${merchant.industry} business`);
+  if (merchant.customerType) parts.push(`serving ${merchant.customerType} customers`);
+  if (merchant.mrrCents) parts.push(`with ~$${Math.round(merchant.mrrCents / 100)}/month MRR`);
+  return parts.length > 0 ? `Merchant context: ${parts.join(" ")}` : null;
 }
 
 const DEFAULT_VOICE =
@@ -225,10 +254,15 @@ export function categoryGuidance(declineCategory: string): string | null {
   return null;
 }
 
-function buildUserPrompt(input: GenerateEmailInput): string {
+export function buildUserPrompt(input: GenerateEmailInput): string {
   const guidance = categoryGuidance(input.declineCategory);
+  // Exported so a plant can observe the prompt the model actually receives.
+  // The merchant-context line is the OUTPUT of S27's reader: without it the
+  // three columns reach nothing.
+  const merchantContext = merchantContextLine(input.merchant);
   return [
     `Business: ${input.merchant.merchantName}`,
+    merchantContext ?? "",
     `A customer's payment of ${input.amountFormatted} did not go through`,
     `(reason category: ${input.declineCategory}).`,
     guidance ?? `Write a brief note asking them to fix it using this link: ${input.updateUrl}`,

@@ -262,6 +262,10 @@ export interface EmailStepContext {
   senderName: string | null;
   /** Optional merchant-configured brand voice. */
   voiceDescription?: string | null;
+  /** S27's merchant-context three, carried to the generation prompt. */
+  merchantIndustry?: string | null;
+  primaryCustomerType?: string | null;
+  merchantMrrCents?: number | null;
   /** Cached content on the recovery_steps row (custom body / prior AI copy). */
   cached: CachedStepContent;
 }
@@ -415,7 +419,13 @@ async function defaultPersistEmailPatch(
 
 function defaultGenerate(env: Env, updateUrl: string, ctx: EmailStepContext): Promise<EmailCopy> {
   return generateDunningEmail(env, {
-    merchant: { merchantName: ctx.merchantName, voiceDescription: ctx.voiceDescription },
+    merchant: {
+      merchantName: ctx.merchantName,
+      voiceDescription: ctx.voiceDescription,
+      industry: ctx.merchantIndustry,
+      customerType: ctx.primaryCustomerType,
+      mrrCents: ctx.merchantMrrCents,
+    },
     stepType: ctx.stepType,
     declineCategory: ctx.declineCategory,
     amountFormatted: formatMoney(ctx.amountCents, ctx.currency),
