@@ -241,6 +241,25 @@ describe("PLANT 2: the page renders one button and calls no Stripe", () => {
     expect(await load(token)).toEqual({ state: "invalid" });
   });
 
+  it("AND STAYS INVALID WHEN EVERY OTHER LAYER IS SATISFIED", async () => {
+    // Reaching the sequence lookup's account scope ALONE (340 binding 3).
+    // THREE layers refuse a cross-account read: the sequence query's own
+    // account filter, the connection query's account filter, and
+    // resolveConnectionForFailedPayment's pin on the sequence's recorded
+    // connection id. The other two are satisfied deliberately here, by giving
+    // the foreign account a live connection AND pointing the sequence at it,
+    // so only the first layer can refuse. That row shape is unreachable in
+    // production, which is the point: a layer proven only in company is not
+    // proven.
+    seedAccount("acct_other", "c_other");
+    seedSequence({ connectionId: "c_other" });
+    const token = await resubscribeToken({ accountId: "acct_other" });
+
+    expect(await load(token)).toEqual({ state: "invalid" });
+    expect(JSON.stringify(await post(token))).toContain("no longer active");
+    expect(harness.sessionsCreated).toEqual([]);
+  });
+
   it("a sequence whose connection is gone is invalid, never a dead button", async () => {
     seedSequence({ connectionId: null });
     sqlite.prepare("UPDATE stripe_connections SET disconnected_at = 2000 WHERE id = 'c1'").run();
@@ -289,7 +308,11 @@ describe("PLANT 3: the click creates exactly one Checkout Session", () => {
     // THE CONNECTED ACCOUNT, never the platform key. Standard Connect's OAuth
     // access token is a full API key for that account, so there is no
     // stripeAccount header to assert; the token IS the account.
-    expect(harness.connectedTokens).toContain("plain:cipher");
+    //
+    // EVERY client in the flow is asserted, not just one of them: `toContain`
+    // stayed green under a mutation that dropped the merchant's token from the
+    // subscription read while the Checkout call still carried it.
+    expect(harness.connectedTokens).toEqual(["plain:cipher", "plain:cipher"]);
     expect(harness.platformClientCalls).toBe(0);
   });
 
