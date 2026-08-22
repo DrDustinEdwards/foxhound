@@ -32,11 +32,13 @@ import type { Route } from "./+types/email";
 //    a column nothing reads is a false promise, so both are PORTABLE AFTER
 //    their readers rather than ported now. Recorded in
 //    parity/SETTINGS-SPEC-FROM-DOCS.md, not silently dropped.
-// 2. `sender_name` IS REQUIRED AND BOUNDED AT 80. LEGACY IS NEITHER: it writes
-//    `|| null` on an empty box and has no maxLength. This is an ADDITION from
-//    this session's brief and it is NOT a truthfulness fix, because legacy's
-//    empty case is perfectly deliverable through its `|| 'Support'` fallback,
-//    which Foxhound now matches. It needs Dustin's ratification or reverting.
+// 2. `sender_name` IS OPTIONAL, matching legacy, and BOUNDED AT 80, which
+//    legacy is not. The requirement shipped for one session and 335 reverted it:
+//    legacy writes `|| null` on an empty box and its empty case delivers through
+//    the `|| 'Support'` fallback Foxhound matches, so requiring it was an
+//    unratified user-visible divergence. The BOUND stays, flagged for Dustin as
+//    input hygiene on a header field, and is still an addition rather than a
+//    port.
 // 3. THE WRITE PATH is this route's own action rather than legacy's shared
 //    `/settings/update` (row S38, unbuilt). Class (a), exactly S30's divergence
 //    1, and it avoids building S38 as a side effect.
@@ -88,14 +90,13 @@ export async function action({ request, context }: Route.ActionArgs) {
         { status: 400 },
       );
     }
-    const senderName = String(form.get("senderName") ?? "").trim();
-    if (!senderName) {
-      return data<ActionResult>(
-        { action: intent, ok: false, error: "Sender name is required." },
-        { status: 400 },
-      );
-    }
-    if (senderName.length > SENDER_NAME_MAX_LENGTH) {
+    // OPTIONAL, per ruling 335. It was required for one session and that was an
+    // unratified divergence: legacy writes `|| null` on an empty box, and its
+    // empty case delivers through the `|| 'Support'` fallback Foxhound matches.
+    // A user-visible divergence stands only on Dustin's ratification.
+    const raw = String(form.get("senderName") ?? "").trim();
+    const senderName = raw.length > 0 ? raw : null;
+    if (senderName && senderName.length > SENDER_NAME_MAX_LENGTH) {
       return data<ActionResult>(
         {
           action: intent,

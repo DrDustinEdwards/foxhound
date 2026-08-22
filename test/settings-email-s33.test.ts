@@ -179,12 +179,17 @@ describe("PLANT 1: the save writes sender_name and nothing else", () => {
 });
 
 describe("PLANT 2: sender_name is required and bounded", () => {
-  it("400 and no write when the field is empty", async () => {
+  it("an EMPTY box saves as null and the send still delivers, which is legacy", async () => {
+    // 335 reverted the requirement this assertion used to pin. Legacy writes
+    // `|| null` on an empty box and has no required check, and its empty case
+    // is deliverable through the `|| 'Support'` fallback. The clear is a real
+    // operation a merchant may want, not an input error.
     seedConnection({ id: "c1", senderName: "Existing" });
+
     const res = await post({ _action: "sender", connectionId: "c1", senderName: "   " });
-    expect(res.status).toBe(400);
-    expect(String(res.body.error)).toBe("Sender name is required.");
-    expect(connectionRow("c1").senderName).toBe("Existing");
+
+    expect(res.status).toBe(200);
+    expect(connectionRow("c1").senderName).toBeNull();
   });
 
   it("400 and no write one character over the bound, and 200 exactly at it", async () => {
@@ -211,8 +216,12 @@ describe("PLANT 2: sender_name is required and bounded", () => {
   it("the error strings carry no wide dashes", async () => {
     seedConnection({ id: "c1" });
     const wide = new RegExp("[" + String.fromCharCode(0x2014, 0x2013) + "]");
-    const empty = await post({ _action: "sender", connectionId: "c1", senderName: "" });
-    expect(String(empty.body.error)).not.toMatch(wide);
+    const over = await post({
+      _action: "sender",
+      connectionId: "c1",
+      senderName: "x".repeat(SENDER_NAME_MAX_LENGTH + 1),
+    });
+    expect(String(over.body.error)).not.toMatch(wide);
   });
 });
 
