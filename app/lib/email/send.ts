@@ -1,6 +1,6 @@
 import { EMAIL_AUTH_SENDER_ADDRESS, EMAIL_FROM_ADDRESS, UNSUBSCRIBE_PATH } from "~/lib/constants";
 
-import type { EmailJob } from "./types";
+import type { EmailAudience, EmailJob } from "./types";
 
 // THE ONE send module (ARCHITECTURE.md non-negotiable #3: only this file touches
 // the EMAIL binding). Everything else enqueues a job; the queue consumer calls
@@ -34,6 +34,23 @@ function fromDisplayName(name: string | null | undefined): string {
  * a non-compliant send can never reach the binding.
  */
 export function buildEmailMessage(job: EmailJob, baseUrl: string): EmailSendMessage {
+  // FAIL CLOSED: an absent audience is treated as the customer case, so a job
+  // that forgets the field gets the CAN-SPAM guard rather than skipping it.
+  const audience: EmailAudience = job.audience ?? "customer";
+
+  if (audience === "merchant") {
+    // Platform-to-our-own-user mail: no postal footer, no unsubscribe, exactly
+    // as sendTransactionalEmail already does and exactly as legacy sends its
+    // merchant notification. See the EmailAudience doc for why an unsubscribe
+    // here would be actively harmful.
+    return {
+      from: `${fromDisplayName(job.fromName)} <${EMAIL_FROM_ADDRESS}>`,
+      to: job.to,
+      subject: job.subject,
+      html: job.bodyHtml,
+    };
+  }
+
   if (!job.physicalAddress || !job.physicalAddress.trim()) {
     throw new Error("email blocked: missing CAN-SPAM physical address");
   }
