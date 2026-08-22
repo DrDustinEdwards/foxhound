@@ -25,6 +25,7 @@ vi.mock("~/db", async (importOriginal) => ({
 
 const { queryDueRecoverySteps, toEmailContext } = await import("~/lib/cron/recovery-tick");
 const { buildUserPrompt, merchantContextLine } = await import("~/lib/recovery/email-generation");
+const { buildGenerateEmailInput } = await import("~/lib/engine/execute-step");
 
 const ACCOUNT = "acct_1";
 const NOW = new Date(10_000_000);
@@ -70,19 +71,11 @@ async function promptForAccount(): Promise<string> {
   const rows = await queryDueRecoverySteps({} as Env, NOW);
   expect(rows).toHaveLength(1);
   const ctx = toEmailContext(rows[0]);
-  return buildUserPrompt({
-    merchant: {
-      merchantName: ctx.merchantName,
-      voiceDescription: ctx.voiceDescription,
-      industry: ctx.merchantIndustry,
-      customerType: ctx.primaryCustomerType,
-      mrrCents: ctx.merchantMrrCents,
-    },
-    stepType: ctx.stepType,
-    declineCategory: ctx.declineCategory,
-    amountFormatted: "$99.00",
-    updateUrl: "https://foxhoundapp.test/u/1",
-  });
+  // buildGenerateEmailInput is the PRODUCTION assembly, not a hand-built
+  // object. Hand-building it here left the link where the context is actually
+  // attached uncovered, and a mutation that deleted those three lines went
+  // green until this call replaced it.
+  return buildUserPrompt(buildGenerateEmailInput("https://foxhoundapp.test/u/1", ctx));
 }
 
 describe("PLANT 1: each column reaches the prompt, observed at the output", () => {
