@@ -3,7 +3,7 @@ import { data, Form, redirect, useNavigation } from "react-router";
 
 import { Alert, AuthShell, Submit } from "~/components/auth-ui";
 import { Header } from "~/components/header";
-import { failedPayments, getDb, stripeConnections } from "~/db";
+import { expiringCardAlerts, failedPayments, getDb, stripeConnections } from "~/db";
 import { buildCardUpdateSignal, hasCardUpdateSignal } from "~/lib/card-update/signal";
 import { createCardUpdateSession, finalizeCardUpdateSession } from "~/lib/card-update/service";
 import { verifyCardUpdateToken } from "~/lib/card-update/token";
@@ -43,7 +43,10 @@ type LoaderState =
   | { state: "invalid" }
   | { state: "resolved" }
   | { state: "setup_failed" }
-  | { state: "ready"; amountCents: number; currency: string }
+  // `amountCents`/`currency` are ABSENT in alert mode: nothing has failed, so
+  // there is no amount to name and the subtitle is simply omitted. Every other
+  // string on the page is unchanged between the two modes.
+  | { state: "ready"; amountCents?: number; currency?: string }
   | { state: "done" };
 
 export interface ConnectionCandidate {
@@ -74,6 +77,61 @@ export function resolveConnectionForFailedPayment(
   return candidates.length === 1 ? candidates[0] : null;
 }
 
+/** What both modes resolve to: enough to open a Checkout session and finalize it. */
+interface CardUpdateTarget {
+  /** Present in recovery mode only; alert mode records no attribution signal. */
+  failedPaymentId: string | null;
+  stripeCustomerId: string;
+  /** Recovery mode may pin the subscription; an alert has none, and
+   *  finalizeCardUpdateSession already updates the CUSTOMER default either way. */
+  subscriptionId: string | null;
+  connection: ConnectionCandidate | null;
+  /** True when there is nothing left to do (a payment already resolved). */
+  resolved: boolean;
+  amountCents?: number;
+  currency?: string;
+}
+
+/**
+ * ALERT MODE's target. The alert row carries the customer and the connection
+ * the scan found it on, so nothing here depends on a failed payment existing.
+ *
+ * A soft-deleted alert resolves to nothing and the page renders "invalid",
+ * rather than inviting a customer to update a card against a withdrawn warning.
+ */
+async function loadAlertTarget(
+  env: Env,
+  alertId: string,
+  accountId: string,
+): Promise<CardUpdateTarget | null> {
+  const db = getDb(env);
+  const [alertRows, connectionRows] = await Promise.all([
+    db
+      .select({
+        id: expiringCardAlerts.id,
+        stripeCustomerId: expiringCardAlerts.stripeCustomerId,
+        stripeConnectionId: expiringCardAlerts.stripeConnectionId,
+        deletedAt: expiringCardAlerts.deletedAt,
+      })
+      .from(expiringCardAlerts)
+      .where(and(eq(expiringCardAlerts.id, alertId), eq(expiringCardAlerts.accountId, accountId)))
+      .limit(1),
+    db
+      .select({ id: stripeConnections.id, stripeAccessToken: stripeConnections.stripeAccessToken })
+      .from(stripeConnections)
+      .where(and(eq(stripeConnections.accountId, accountId), isNull(stripeConnections.disconnectedAt))),
+  ]);
+  const alert = alertRows[0];
+  if (!alert || alert.deletedAt) return null;
+  return {
+    failedPaymentId: null,
+    stripeCustomerId: alert.stripeCustomerId,
+    subscriptionId: null,
+    connection: resolveConnectionForFailedPayment(connectionRows, alert.stripeConnectionId),
+    resolved: false,
+  };
+}
+
 async function loadTarget(env: Env, failedPaymentId: string, accountId: string) {
   const db = getDb(env);
   const [failedPaymentRows, connectionRows] = await Promise.all([
@@ -102,6 +160,38 @@ async function loadTarget(env: Env, failedPaymentId: string, accountId: string) 
   return { failedPayment, connection };
 }
 
+/**
+ * Dispatch on which id the token carries. A token with NEITHER resolves to
+ * null and the page renders "invalid", so the optional `failedPaymentId` can
+ * never become a way to reach a live Checkout session with no target.
+ */
+async function resolveTarget(
+  env: Env,
+  payload: { failedPaymentId?: string; expiringCardAlertId?: string; accountId: string },
+): Promise<CardUpdateTarget | null> {
+  if (payload.failedPaymentId) {
+    const { failedPayment, connection } = await loadTarget(
+      env,
+      payload.failedPaymentId,
+      payload.accountId,
+    );
+    if (!failedPayment) return null;
+    return {
+      failedPaymentId: failedPayment.id,
+      stripeCustomerId: failedPayment.stripeCustomerId,
+      subscriptionId: failedPayment.subscriptionId,
+      connection,
+      resolved: failedPayment.status !== "active",
+      amountCents: failedPayment.amountCents,
+      currency: failedPayment.currency,
+    };
+  }
+  if (payload.expiringCardAlertId) {
+    return loadAlertTarget(env, payload.expiringCardAlertId, payload.accountId);
+  }
+  return null;
+}
+
 export async function loader({ request, params, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const token = params.token;
@@ -110,11 +200,15 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
     return data<LoaderState>({ state: "invalid" });
   }
 
-  const { failedPayment, connection } = await loadTarget(env, payload.failedPaymentId, payload.accountId);
-  if (!failedPayment || !connection?.stripeAccessToken) {
+  const target = await resolveTarget(env, payload);
+  // Bound here rather than read through the object later: narrowing a property
+  // does not survive being copied to another const, and the encrypted token is
+  // the only thing this branch needs from the connection.
+  const encryptedAccessToken = target?.connection?.stripeAccessToken;
+  if (!target || !encryptedAccessToken) {
     return data<LoaderState>({ state: "invalid" });
   }
-  if (failedPayment.status !== "active") {
+  if (target.resolved) {
     return data<LoaderState>({ state: "resolved" });
   }
 
@@ -122,22 +216,29 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
   const sessionId = url.searchParams.get("session_id");
   if (sessionId) {
     try {
-      const accessToken = await decryptToken(env, connection.stripeAccessToken);
+      const accessToken = await decryptToken(env, encryptedAccessToken);
       const result = await finalizeCardUpdateSession({
         accessToken,
         sessionId,
-        subscriptionId: failedPayment.subscriptionId,
+        subscriptionId: target.subscriptionId,
       });
       if (!result.ok) {
         return data<LoaderState>({ state: "setup_failed" });
       }
-      const db = getDb(env);
-      if (!(await hasCardUpdateSignal(db, failedPayment.id))) {
-        await buildCardUpdateSignal(db, {
-          failedPaymentId: failedPayment.id,
-          accountId: payload.accountId,
-          occurredAt: new Date(),
-        });
+      // THE ATTRIBUTION SIGNAL IS RECOVERY MODE ONLY (341 binding 2). It writes
+      // a recovery_steps row that findAttributionSignals reads as billable
+      // `card_update`, and an alert has no failed payment to attribute to. An
+      // alert-mode update therefore triggers no retry and records nothing here;
+      // the alert's own outcome row is its record.
+      if (target.failedPaymentId) {
+        const db = getDb(env);
+        if (!(await hasCardUpdateSignal(db, target.failedPaymentId))) {
+          await buildCardUpdateSignal(db, {
+            failedPaymentId: target.failedPaymentId,
+            accountId: payload.accountId,
+            occurredAt: new Date(),
+          });
+        }
       }
     } catch {
       // Never log the error object: it can carry request/token context.
@@ -151,8 +252,8 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
   if (done) return data<LoaderState>({ state: "done" });
   return data<LoaderState>({
     state: "ready",
-    amountCents: failedPayment.amountCents,
-    currency: failedPayment.currency,
+    amountCents: target.amountCents,
+    currency: target.currency,
   });
 }
 
@@ -164,17 +265,18 @@ export async function action({ request, params, context }: Route.ActionArgs) {
     return data({ error: "This link is invalid or has expired." }, { status: 400 });
   }
 
-  const { failedPayment, connection } = await loadTarget(env, payload.failedPaymentId, payload.accountId);
-  if (!failedPayment || failedPayment.status !== "active" || !connection?.stripeAccessToken) {
+  const target = await resolveTarget(env, payload);
+  const encryptedAccessToken = target?.connection?.stripeAccessToken;
+  if (!target || target.resolved || !encryptedAccessToken) {
     return data({ error: "This payment method link is no longer active." }, { status: 400 });
   }
 
   try {
-    const accessToken = await decryptToken(env, connection.stripeAccessToken);
+    const accessToken = await decryptToken(env, encryptedAccessToken);
     const url = new URL(request.url);
     const session = await createCardUpdateSession({
       accessToken,
-      customerId: failedPayment.stripeCustomerId,
+      customerId: target.stripeCustomerId,
       successUrl: `${url.origin}/p/${token}?session_id={CHECKOUT_SESSION_ID}`,
       cancelUrl: `${url.origin}/p/${token}`,
     });
@@ -190,6 +292,8 @@ export default function CardUpdate({ loaderData, actionData }: Route.ComponentPr
   const state = loaderData.state;
   const amountLine =
     loaderData.state === "ready"
+      && loaderData.amountCents !== undefined
+      && loaderData.currency !== undefined
       ? `A recent payment of ${formatMoney(loaderData.amountCents, loaderData.currency)} did not go through.`
       : undefined;
 
