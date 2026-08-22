@@ -152,3 +152,43 @@ export function buildSenderSettingsUpdate(
     .set({ senderName: input.senderName })
     .where(and(eq(stripeConnections.id, connectionId), eq(stripeConnections.accountId, accountId)));
 }
+
+export interface CategoryVoicesInput {
+  soft: string | null;
+  expired: string | null;
+  network: string | null;
+  fraud: string | null;
+}
+
+/**
+ * Writes the FOUR per-category voice columns and nothing else. S31.
+ *
+ * The allowlist is legacy's own design: `settings/update/route.ts` guards each
+ * of `brand_voice_soft`, `brand_voice_expired`, `brand_voice_network` and
+ * `brand_voice_fraud` with its own `formData.has(...)` and writes
+ * `?.toString() || null`, so an empty selection stores NULL. Null is the real
+ * state here, not a gap: `resolveBrandVoice` reads it as "same as main voice".
+ *
+ * The generic `brand_voice` is NOT touched. Legacy's brand-voice page does not
+ * render it either; it is written from a different form.
+ *
+ * SECURITY, the rule buildBrandVoiceUpdate and buildSenderSettingsUpdate carry:
+ * `connectionId` arrives from a client-POSTed field, so the WHERE pins
+ * `account_id` and a foreign id matches zero rows.
+ */
+export function buildCategoryVoicesUpdate(
+  db: Db,
+  accountId: string,
+  connectionId: string,
+  input: CategoryVoicesInput,
+) {
+  return db
+    .update(stripeConnections)
+    .set({
+      brandVoiceSoft: input.soft,
+      brandVoiceExpired: input.expired,
+      brandVoiceNetwork: input.network,
+      brandVoiceFraud: input.fraud,
+    })
+    .where(and(eq(stripeConnections.id, connectionId), eq(stripeConnections.accountId, accountId)));
+}
