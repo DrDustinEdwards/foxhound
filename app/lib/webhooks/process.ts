@@ -23,6 +23,7 @@ import { isDisputeResolved } from "~/lib/disputes/labels";
 import { isIntelligenceEntitled } from "~/lib/intelligence/views.server";
 import { executeMoneyWrite } from "~/lib/money/execute";
 import { sendRecoveryNotification } from "~/lib/recovery/merchant-notification.server";
+import { buildCandidateUpsert, isInsideLeadWindow } from "~/lib/cron/expiring-cards";
 import { findAttributionSignals, resolveAttribution } from "~/lib/recovery/attribution";
 import { getConnectedStripe } from "~/lib/stripe/client";
 import { decryptToken } from "~/lib/stripe/encryption";
@@ -456,6 +457,49 @@ async function resolveRecoveryAttribution(env: Env, failedPaymentId: string) {
   return { attribution, recoveredByStepId, recoveryMethod };
 }
 
+/**
+ * The card behind a customer.updated, retrieving the payment method only when
+ * the event did not already carry one (legacy's second half).
+ *
+ * Returns null when there is no card to read, which the caller treats as a
+ * claim-only ignore rather than an error: a customer update that touches no
+ * card is an ordinary event, not a failure.
+ */
+async function resolveExpiringCard(
+  env: Env,
+  connectionId: string,
+  intent: { card: { expMonth: number; expYear: number; brand: string | null; last4: string | null } | null; paymentMethodId: string | null },
+): Promise<{ expMonth: number; expYear: number; brand: string | null; last4: string | null } | null> {
+  if (intent.card) return intent.card;
+  if (!intent.paymentMethodId) return null;
+  try {
+    const rows = await getDb(env)
+      .select({ token: stripeConnections.stripeAccessToken })
+      .from(stripeConnections)
+      .where(eq(stripeConnections.id, connectionId))
+      .limit(1);
+    const encrypted = rows[0]?.token;
+    if (!encrypted) return null;
+    const stripe = getConnectedStripe(await decryptToken(env, encrypted));
+    const pm = await stripe.paymentMethods.retrieve(intent.paymentMethodId);
+    if (!pm.card?.exp_month || !pm.card?.exp_year) return null;
+    return {
+      expMonth: pm.card.exp_month,
+      expYear: pm.card.exp_year,
+      brand: pm.card.brand ?? null,
+      last4: pm.card.last4 ?? null,
+    };
+  } catch (err) {
+    // A Stripe failure here loses one candidate; the nightly scan finds the
+    // same card again. Never fail the webhook for it.
+    console.error(
+      "expiring-card payment method lookup failed:",
+      err instanceof Error ? err.message : err,
+    );
+    return null;
+  }
+}
+
 /** Process one verified connected-account event. */
 export async function processConnectedWebhook(
   env: Env,
@@ -575,6 +619,50 @@ export async function processConnectedWebhook(
       if (applied) {
         await sendRecoveryNotification(env, { accountId, failedPaymentId });
       }
+      return applied ? { status: "applied" } : { status: "duplicate" };
+    }
+
+    if (intent.kind === "record_expiring_card") {
+      // WRITER TWO (341 binding 4). It RECORDS and never sends: legacy's
+      // handleCustomerUpdated writes the candidate row and the nightly cron
+      // owns every send, so a card update cannot email a customer directly.
+      //
+      // The claim is the money write, as every branch here does; the candidate
+      // upsert rides the same batch so a replayed event cannot double-write.
+      const card = await resolveExpiringCard(env, connectionId, intent);
+      if (!card || !isInsideLeadWindow(card.expMonth, card.expYear, receivedAt)) {
+        const { applied } = await executeMoneyWrite(env, {
+          accountId,
+          idempotencyKey,
+          build: (db) => buildClaimOnlyBatch(db, claim),
+        });
+        return applied
+          ? { status: "ignored", reason: card ? "card_outside_lead_window" : "no_card" }
+          : { status: "duplicate" };
+      }
+
+      const { applied } = await executeMoneyWrite(env, {
+        accountId,
+        idempotencyKey,
+        build: (db) => [
+          ...buildClaimOnlyBatch(db, claim),
+          buildCandidateUpsert(
+            db,
+            {
+              accountId,
+              connectionId,
+              stripeCustomerId: intent.customerId,
+              customerEmail: intent.customerEmail,
+              customerName: intent.customerName,
+              cardBrand: card.brand,
+              cardLast4: card.last4,
+              expiresMonth: card.expMonth,
+              expiresYear: card.expYear,
+            },
+            receivedAt,
+          ),
+        ],
+      });
       return applied ? { status: "applied" } : { status: "duplicate" };
     }
 
