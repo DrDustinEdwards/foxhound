@@ -20,6 +20,7 @@ import {
 } from "~/lib/constants";
 import { buildEvidenceFacts, draftDisputeEvidence } from "~/lib/disputes/evidence";
 import { isDisputeResolved } from "~/lib/disputes/labels";
+import { recordOutcome } from "~/lib/engine/outcomes";
 import { isIntelligenceEntitled } from "~/lib/intelligence/views.server";
 import { executeMoneyWrite } from "~/lib/money/execute";
 import { sendRecoveryNotification } from "~/lib/recovery/merchant-notification.server";
@@ -884,6 +885,33 @@ export async function processConnectedWebhook(
             step1OffsetHours,
           }),
       });
+      // THE STARTED OUTCOME (343 binding 2), the pre-existing divergence this
+      // session fixes. Legacy records `winback_sequence_started` at creation;
+      // buildWinbackStartBatch wrote the sequence and its steps and recorded
+      // nothing, so a Foxhound merchant's moat was missing a row legacy has.
+      //
+      // It hooks AFTER the money write and only when it applied, which is 339
+      // binding 1's pattern: `applied` is this delivery's claim, false on a
+      // replay because the webhook claim collides and the whole batch rolls
+      // back. The outcome's own idempotency key is keyed on the SUBSCRIPTION,
+      // which is what legacy keys its one-sequence-ever guard on and what
+      // win_back_sequences_subscription_uq enforces here, so the two layers
+      // agree on granularity.
+      if (applied) {
+        await recordOutcome(env, {
+          accountId,
+          product: "recovery",
+          eventType: "winback_sequence_started",
+          outcome: "started",
+          eventData: {
+            amountCents: intent.amountCents,
+            currency: intent.currency,
+            cancelReason: intent.cancelReason,
+          },
+          idempotencyKey: `winback-started:${intent.subscriptionId}`,
+          outcomeAt: receivedAt,
+        });
+      }
       return applied ? { status: "applied" } : { status: "duplicate" };
     }
 
