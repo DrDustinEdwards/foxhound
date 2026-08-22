@@ -1,5 +1,11 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { authContext } from "~/lib/auth/context";
+import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -22,6 +28,8 @@ const { queryDueRecoverySteps, toEmailContext } = await import("~/lib/cron/recov
 const { buildPrompts, resolveBrandVoice } = await import("~/lib/recovery/email-generation");
 const { buildGenerateEmailInput } = await import("~/lib/engine/execute-step");
 const { DECLINE_CATEGORIES } = await import("~/lib/constants");
+const { BRAND_VOICE_PRESETS, CATEGORY_VOICE_ROWS } = await import("~/lib/settings/brand-voice-presets");
+const { action: brandVoiceAction } = await import("~/routes/app/settings/brand-voice");
 
 const ACCOUNT = "acct_1";
 const NOW = new Date(10_000_000);
@@ -196,5 +204,175 @@ describe("PLANT 4: 309's bound holds", () => {
     );
     expect(disputes).not.toContain("findBrandVoiceViolations");
     expect(disputes).not.toContain("passesQualityGate");
+  });
+});
+
+describe("PLANT 5: the settings surface renders exactly the four legacy fields", () => {
+  const SOURCE = readFileSync(
+    fileURLToPath(new URL("../app/routes/app/settings/brand-voice.tsx", import.meta.url)),
+    "utf8",
+  );
+  const code = SOURCE.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+
+  it("the four categories legacy has a column for, and NOT the two it does not", () => {
+    for (const key of ["soft", "expired", "network", "fraud"]) {
+      expect(CATEGORY_VOICE_ROWS.some((r) => r.key === key)).toBe(true);
+    }
+    // revoked and unknown resolve to the general voice through legacy's default
+    // arm. A field for them would be inventing a column.
+    expect(CATEGORY_VOICE_ROWS).toHaveLength(4);
+    expect(code).not.toContain("voice_revoked");
+    expect(code).not.toContain("voice_unknown");
+  });
+
+  it("carries legacy's option set and its custom reveal", () => {
+    expect(code).toContain("Same as main voice");
+    expect(code).toContain("Custom...");
+    expect(BRAND_VOICE_PRESETS).toHaveLength(7);
+  });
+
+  it("no bound on any field, which is legacy", () => {
+    expect(code).not.toContain("maxLength");
+    expect(code).not.toContain("required");
+  });
+
+  it("the write goes through DemoGuardedForm", () => {
+    expect(code).toContain('<DemoGuardedForm method="post"');
+    expect(code).not.toContain('<Form method="post"');
+    expect(code).not.toContain('<form method="post"');
+  });
+
+  it("the docs describe the built shape, not one field", () => {
+    const docs = readFileSync(
+      fileURLToPath(new URL("../app/lib/marketing/docs-content.ts", import.meta.url)),
+      "utf8",
+    );
+    expect(docs).not.toContain("one brand voice field");
+    expect(docs).toContain("a different tone for each failure category");
+    expect(docs).toContain("falls back to the main one");
+  });
+});
+
+describe("PLANT 6: the save writes exactly the four columns", () => {
+  const ctx = {
+    get(key: unknown) {
+      if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+      if (key === authContext) {
+        return {
+          userId: "user_1",
+          userName: "Owner",
+          email: "owner@acme.test",
+          membership: { memberId: "m2", accountId: ACCOUNT, accountName: "Acme", role: "owner" },
+          memberships: [
+            { memberId: "m1", accountId: "acct_other", accountName: "Other", role: "owner" },
+            { memberId: "m2", accountId: ACCOUNT, accountName: "Acme", role: "owner" },
+          ],
+          activeAccountId: ACCOUNT,
+          isAdmin: false,
+          isDemo: false,
+          demoSignedIn: false,
+        };
+      }
+      throw new Error("unexpected context key");
+    },
+  } as unknown as Parameters<typeof brandVoiceAction>[0]["context"];
+
+  async function post(fields: Record<string, string>): Promise<number> {
+    const form = new FormData();
+    for (const [k, v] of Object.entries(fields)) form.append(k, v);
+    const res = (await brandVoiceAction({
+      context: ctx,
+      request: new Request("https://foxhoundapp.test/settings/brand-voice", {
+        method: "POST",
+        body: form,
+      }),
+      params: {},
+    } as never)) as unknown as { init?: { status?: number } };
+    return res.init?.status ?? 200;
+  }
+
+  function connectionRow() {
+    return sqlite
+      .prepare(
+        "SELECT brand_voice AS general, brand_voice_soft AS soft, brand_voice_expired AS expired, brand_voice_network AS network, brand_voice_fraud AS fraud FROM stripe_connections WHERE id = 'c1'",
+      )
+      .get() as Record<string, string | null>;
+  }
+
+  it("saves the four and leaves the GENERAL voice alone", async () => {
+    seed("soft", { general: "house voice" });
+
+    const status = await post({
+      connectionId: "c1",
+      voice_soft: "gentle",
+      voice_expired: "practical",
+      voice_network: "reassuring",
+      voice_fraud: "calm",
+    });
+
+    expect(status).toBe(200);
+    const row = connectionRow();
+    expect(row.soft).toBe("gentle");
+    expect(row.expired).toBe("practical");
+    expect(row.network).toBe("reassuring");
+    expect(row.fraud).toBe("calm");
+    // Legacy's page does not render the general voice and must not clobber it.
+    expect(row.general).toBe("house voice");
+  });
+
+  it("A POSTED FIFTH VOICE NAME WRITES NOTHING", async () => {
+    seed("soft", { general: "house voice" });
+
+    await post({
+      connectionId: "c1",
+      voice_soft: "gentle",
+      voice_revoked: "sneaky",
+      voice_unknown: "sneaky",
+      brand_voice: "hijacked",
+      brandVoice: "hijacked",
+      senderName: "hijacked",
+    });
+
+    const row = connectionRow();
+    expect(row.soft).toBe("gentle");
+    expect(row.general).toBe("house voice");
+    const sender = sqlite
+      .prepare("SELECT sender_name AS s FROM stripe_connections WHERE id = 'c1'")
+      .get() as { s: string | null };
+    expect(sender.s).toBe("Alex");
+    // The two categories legacy has no column for stored nowhere at all.
+    const cols = sqlite.prepare("PRAGMA table_info(stripe_connections)").all() as { name: string }[];
+    expect(cols.some((c) => c.name === "brand_voice_revoked")).toBe(false);
+  });
+
+  it("an empty selection stores NULL, which reads back as same-as-main", async () => {
+    seed("soft", { general: "house voice", soft: "gentle" });
+    await post({ connectionId: "c1", voice_soft: "", voice_expired: "  " });
+    const row = connectionRow();
+    expect(row.soft).toBeNull();
+    expect(row.expired).toBeNull();
+  });
+
+  it("400 and NO write with no connection id", async () => {
+    seed("soft", { general: "house voice", soft: "gentle" });
+    expect(await post({ voice_soft: "changed" })).toBe(400);
+    expect(connectionRow().soft).toBe("gentle");
+  });
+
+  it("a connection on ANOTHER account is refused by the WHERE", async () => {
+    seed("soft", { general: "house voice", soft: "gentle" });
+    sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES ('acct_other', 'Other', 1000)").run();
+    sqlite
+      .prepare(
+        "INSERT INTO stripe_connections (id, account_id, stripe_user_id, is_primary, brand_voice_soft, connected_at, created_at) VALUES ('c_theirs', 'acct_other', 'acct_x', 1, 'theirs', 1000, 1000)",
+      )
+      .run();
+
+    await post({ connectionId: "c_theirs", voice_soft: "hijacked" });
+
+    const theirs = sqlite
+      .prepare("SELECT brand_voice_soft AS s FROM stripe_connections WHERE id = 'c_theirs'")
+      .get() as { s: string | null };
+    expect(theirs.s).toBe("theirs");
   });
 });

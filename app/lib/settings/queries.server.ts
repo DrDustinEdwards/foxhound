@@ -116,3 +116,48 @@ export async function getPrimarySenderConnection(
     .limit(1);
   return rows[0] ?? null;
 }
+
+export interface PrimaryBrandVoices {
+  id: string;
+  soft: string | null;
+  expired: string | null;
+  network: string | null;
+  fraud: string | null;
+}
+
+/**
+ * The account's PRIMARY live connection and its four per-category voices, or
+ * null. S31.
+ *
+ * Legacy reads the primary connection for this page too
+ * (`settings/brand-voice/page.tsx`, blob `81435702`), so these are
+ * per-connection values surfaced for one connection, the same ambiguity S33's
+ * reader records for a login holding several accounts.
+ *
+ * `is_primary = true AND disconnected_at IS NULL` for the reason 333 gave: S37
+ * leaves `is_primary` SET on a disconnected row, so a reader without the null
+ * check would hand the form a severed connection to write to.
+ */
+export async function getPrimaryBrandVoices(
+  db: Db,
+  accountId: string,
+): Promise<PrimaryBrandVoices | null> {
+  const rows = await db
+    .select({
+      id: stripeConnections.id,
+      soft: stripeConnections.brandVoiceSoft,
+      expired: stripeConnections.brandVoiceExpired,
+      network: stripeConnections.brandVoiceNetwork,
+      fraud: stripeConnections.brandVoiceFraud,
+    })
+    .from(stripeConnections)
+    .where(
+      and(
+        eq(stripeConnections.accountId, accountId),
+        eq(stripeConnections.isPrimary, true),
+        isNull(stripeConnections.disconnectedAt),
+      ),
+    )
+    .limit(1);
+  return rows[0] ?? null;
+}

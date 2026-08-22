@@ -103,6 +103,8 @@ export const PLATFORM_LINKS: ProductNavLink[] = [
   { label: "Alerts", to: "/settings/alerts" },
   // API keys (S29). Same mechanism and reason as the others above.
   { label: "API keys", to: "/settings/api-keys" },
+  // Brand voice (S31). Same mechanism and reason as the others above.
+  { label: "Brand voice", to: "/settings/brand-voice" },
 ];
 
 // The marketing header's authenticated-only SectionPill menu
