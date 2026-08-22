@@ -196,6 +196,11 @@ export interface DueStepRow {
   connectionAccessToken: string | null;
   merchantName: string | null;
   brandVoice: string | null;
+  /** S27's merchant-context three, from `accounts`. Read into the generation
+   *  prompt by `merchantContextLine`. */
+  merchantIndustry: string | null;
+  primaryCustomerType: string | null;
+  merchantMrrCents: number | null;
 }
 
 /** Fetch due steps for active failed payments on processing-eligible accounts,
@@ -223,6 +228,9 @@ export async function queryDueRecoverySteps(env: Env, now: Date): Promise<DueSte
       connectionAccessToken: stripeConnections.stripeAccessToken,
       merchantName: stripeConnections.senderName,
       brandVoice: stripeConnections.brandVoice,
+      merchantIndustry: accounts.merchantIndustry,
+      primaryCustomerType: accounts.primaryCustomerType,
+      merchantMrrCents: accounts.merchantMrrSelfReported,
     })
     .from(recoverySteps)
     .innerJoin(failedPayments, eq(failedPayments.id, recoverySteps.failedPaymentId))
@@ -417,6 +425,9 @@ export async function queryStepForManualTrigger(
       connectionAccessToken: stripeConnections.stripeAccessToken,
       merchantName: stripeConnections.senderName,
       brandVoice: stripeConnections.brandVoice,
+      merchantIndustry: accounts.merchantIndustry,
+      primaryCustomerType: accounts.primaryCustomerType,
+      merchantMrrCents: accounts.merchantMrrSelfReported,
     })
     .from(recoverySteps)
     .innerJoin(failedPayments, eq(failedPayments.id, recoverySteps.failedPaymentId))
@@ -463,6 +474,9 @@ export function toEmailContext(row: DueStepRow): EmailStepContext {
     // From-appropriate default instead of a body-copy phrase (S33).
     senderName: row.merchantName,
     voiceDescription: row.brandVoice,
+    merchantIndustry: row.merchantIndustry,
+    primaryCustomerType: row.primaryCustomerType,
+    merchantMrrCents: row.merchantMrrCents,
     cached: {
       customBody: row.customBody,
       cachedSubject: row.aiSubject,

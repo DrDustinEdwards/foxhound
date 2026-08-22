@@ -37,6 +37,9 @@ function row(overrides: Partial<DueStepRow> = {}): DueStepRow {
     connectionAccessToken: "iv:cipher",
     merchantName: "Acme",
     brandVoice: null,
+    merchantIndustry: null,
+    primaryCustomerType: null,
+    merchantMrrCents: null,
     ...overrides,
   };
 }
