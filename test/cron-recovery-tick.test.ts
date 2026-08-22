@@ -151,7 +151,7 @@ describe("recovery tick: dispatch, isolation, telemetry", () => {
         return { recovered: false };
       },
       runEmail: async () => ({}),
-      flipExhausted: async () => 0,
+      flipExhausted: async () => [],
       recordMissingToken: async (_env, step) => {
         recorded.push(step);
         return null;
@@ -172,7 +172,7 @@ describe("recovery tick: dispatch, isolation, telemetry", () => {
       checkGuards: allowAll,
       runRetry: async () => ({ recovered: false }),
       runEmail: async () => ({}),
-      flipExhausted: async () => 0,
+      flipExhausted: async () => [],
       recordMissingToken: async () => {
         throw new Error("d1 unavailable");
       },
@@ -194,7 +194,7 @@ describe("MEDIUM-1: the brake stops work already in flight, not just the next ru
     let checks = 0;
     const result = await runRecoveryTick({} as Env, {
       query: async () => threeSteps,
-      flipExhausted: async () => 0,
+      flipExhausted: async () => [],
       runRetry: async (_env, ctx) => {
         charged.push(ctx.stepId);
         return { recovered: false };
@@ -221,7 +221,7 @@ describe("MEDIUM-1: the brake stops work already in flight, not just the next ru
     let checks = 0;
     const result = await runRecoveryTick({} as Env, {
       query: async () => threeSteps,
-      flipExhausted: async () => 0,
+      flipExhausted: async () => [],
       runRetry: async (_env, ctx) => {
         charged.push(ctx.stepId);
         return { recovered: false };
@@ -248,7 +248,7 @@ describe("MEDIUM-1: the brake stops work already in flight, not just the next ru
     let checks = 0;
     await runRecoveryTick({} as Env, {
       query: async () => threeSteps,
-      flipExhausted: async () => 0,
+      flipExhausted: async () => [],
       runRetry: async () => ({ recovered: false }),
       runEmail: async () => ({}),
       checkGuards: async () => {
@@ -270,7 +270,7 @@ describe("MEDIUM-1: the guard fails CLOSED", () => {
     await expect(
       runRecoveryTick({} as Env, {
         query: async () => [row({ stepId: "s1", stepType: "retry_early" })],
-        flipExhausted: async () => 0,
+        flipExhausted: async () => [],
         runRetry: async (_env, ctx) => {
           charged.push(ctx.stepId);
           return { recovered: false };
@@ -320,7 +320,11 @@ describe("LOW-C: a halted tick does nothing further", () => {
       runEmail: async () => ({}),
       flipExhausted: async () => {
         swept += 1;
-        return 3;
+        return [
+          { failedPaymentId: "fp1", accountId: "acc1" },
+          { failedPaymentId: "fp2", accountId: "acc1" },
+          { failedPaymentId: "fp3", accountId: "acc1" },
+        ];
       },
       checkGuards: async () => ({ tickEnabled: false, accountEligible: true }),
     });
@@ -337,7 +341,7 @@ describe("LOW-C: a halted tick does nothing further", () => {
       runEmail: async () => ({}),
       flipExhausted: async () => {
         swept += 1;
-        return 0;
+        return [];
       },
       checkGuards: allowAll,
     });

@@ -18,6 +18,7 @@ import {
 } from "~/lib/engine/execute-step";
 import { stepAction } from "~/lib/engine/step-runner";
 import { afterTransientFailureWith } from "~/lib/recovery/step-state";
+import { sendSequenceCompleteNotification } from "~/lib/recovery/sequence-complete-notification.server";
 
 import type { CronJobResult } from "./run";
 
@@ -527,7 +528,7 @@ export interface RecoveryTickDeps {
   runRetry: (env: Env, ctx: RetryStepContext) => Promise<{ recovered: boolean }>;
   runEmail: (env: Env, ctx: EmailStepContext) => Promise<unknown>;
   /** Find and flip sequences that have run out. Default: the real sweep. */
-  flipExhausted: (env: Env, now: Date) => Promise<number>;
+  flipExhausted: (env: Env, now: Date) => Promise<ClaimedSequence[]>;
   /** Record one failed attempt on a retry step with no usable connection.
    *  Resolves to the terminal result once grace runs out, else null. */
   recordMissingToken: (
@@ -552,12 +553,36 @@ export interface RecoveryTickDeps {
  * invocation inside one subrequest budget. Unflipped sequences stay 'active' and
  * are re-selected next tick, so a backlog drains rather than being lost.
  */
-export async function flipExhaustedSequences(env: Env, now: Date): Promise<number> {
+export interface ClaimedSequence {
+  failedPaymentId: string;
+  accountId: string;
+}
+
+export async function flipExhaustedSequences(env: Env, now: Date): Promise<ClaimedSequence[]> {
   const ids = await queryExhaustedSequences(env, RECOVERY_TICK_LIMIT);
-  if (ids.length === 0) return 0;
+  if (ids.length === 0) return [];
   const db = getDb(env);
   await db.batch([buildExhaustedSequenceFlip(db, ids, now)]);
-  return ids.length;
+
+  // WHICH ids the claim actually took, not which it considered. The flip is
+  // conditional on status='active', so a sequence another tick already flipped
+  // is silently skipped, and the old `ids.length` counted it anyway. Reading
+  // back on `resolved_at = now` identifies exactly this flip's rows, because
+  // `now` is this tick's own timestamp and the claim is what wrote it.
+  //
+  // This is what the sequence-complete notification hangs off: it must fire
+  // once per real transition, the same discipline the recovery notification
+  // takes from executeMoneyWrite's `applied`.
+  return db
+    .select({ failedPaymentId: failedPayments.id, accountId: failedPayments.accountId })
+    .from(failedPayments)
+    .where(
+      and(
+        inArray(failedPayments.id, ids),
+        eq(failedPayments.status, FAILED_PAYMENT_STATUS_UNRECOVERED),
+        eq(failedPayments.resolvedAt, now),
+      ),
+    );
 }
 
 /** Run one recovery tick. Selects due steps, runs the earliest per payment through
@@ -658,7 +683,15 @@ export async function runRecoveryTick(
     sweepNote = ", exhausted-sweep skipped (halted)";
   } else {
     try {
-      tally.exhausted = await flipExhausted(env, now);
+      const claimed = await flipExhausted(env, now);
+      tally.exhausted = claimed.length;
+      // THE SEQUENCE-COMPLETE NOTIFICATION, after the terminal claim commits and
+      // only for the sequences this tick actually claimed. Never throws (its own
+      // catch), because the terminal state and its outcome are already written
+      // and a mail failure must not unwind them or fail the tick.
+      for (const sequence of claimed) {
+        await sendSequenceCompleteNotification(env, sequence);
+      }
     } catch (err) {
       sweepNote = ", exhausted-sweep FAILED";
       console.error(

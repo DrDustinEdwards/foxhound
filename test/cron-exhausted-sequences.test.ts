@@ -208,14 +208,18 @@ describe("the flip itself", () => {
       payments: [{ id: "fp_done", invoiceId: "in_1", steps: [ranStep(1), ranStep(2)] }],
     });
 
-    expect(await flipExhaustedSequences({} as Env, NOW)).toBe(1);
+    // The flip now returns WHAT IT CLAIMED, so the shape is asserted too: a
+    // count alone could not tell a claimed sequence from a considered one.
+    expect(await flipExhaustedSequences({} as Env, NOW)).toEqual([
+      { failedPaymentId: expect.any(String), accountId: expect.any(String) },
+    ]);
     const [afterFirst] = await db.select().from(schema.failedPayments);
     expect(afterFirst.status).toBe("failed_unrecovered");
     expect(afterFirst.resolvedAt).toEqual(NOW);
 
     // A second sweep finds nothing: the row is no longer 'active'.
     const later = new Date(NOW.getTime() + 5 * 60 * 1000);
-    expect(await flipExhaustedSequences({} as Env, later)).toBe(0);
+    expect((await flipExhaustedSequences({} as Env, later)).length).toBe(0);
     const [afterSecond] = await db.select().from(schema.failedPayments);
     expect(afterSecond.resolvedAt).toEqual(NOW); // not overwritten
   });
@@ -258,8 +262,8 @@ describe("the flip itself", () => {
       RECOVERY_TICK_LIMIT + 5,
     );
     // One tick flips exactly the cap, and the remainder survives for the next.
-    expect(await flipExhaustedSequences({} as Env, NOW)).toBe(RECOVERY_TICK_LIMIT);
-    expect(await flipExhaustedSequences({} as Env, NOW)).toBe(5);
+    expect((await flipExhaustedSequences({} as Env, NOW)).length).toBe(RECOVERY_TICK_LIMIT);
+    expect((await flipExhaustedSequences({} as Env, NOW)).length).toBe(5);
   });
 });
 

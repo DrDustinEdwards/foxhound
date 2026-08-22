@@ -174,7 +174,7 @@ describe("a token that comes back mid-grace", () => {
         return { recovered: false };
       },
       runEmail: async () => ({}),
-      flipExhausted: async () => 0,
+      flipExhausted: async () => [],
     });
     // The tick's own clock is real time, well past T0 + 5min backoff.
     expect(charged).toBe(1);
@@ -188,7 +188,7 @@ describe("what the terminal stamp unblocks", () => {
 
     // While the step is pending (in grace) the sequence is NOT exhausted.
     await recordMissingTokenAttempt({} as Env, { stepId: "step_retry", attemptCount: 0 }, T0);
-    expect(await flipExhaustedSequences({} as Env, T0)).toBe(0);
+    expect((await flipExhaustedSequences({} as Env, T0)).length).toBe(0);
 
     // Once terminal it is.
     await recordMissingTokenAttempt(
@@ -196,7 +196,7 @@ describe("what the terminal stamp unblocks", () => {
       { stepId: "step_retry", attemptCount: RETRY_TOKEN_MAX_ATTEMPTS - 1 },
       T0,
     );
-    expect(await flipExhaustedSequences({} as Env, minutesAfter(T0, 1))).toBe(1);
+    expect((await flipExhaustedSequences({} as Env, minutesAfter(T0, 1))).length).toBe(1);
 
     const [payment] = await db.select().from(schema.failedPayments);
     expect(payment.status).toBe("failed_unrecovered");
@@ -213,6 +213,6 @@ describe("what the terminal stamp unblocks", () => {
     const steps = await db.select().from(schema.recoverySteps);
     const pending = steps.filter((s) => s.executedAt === null && s.result === null);
     expect(pending.map((s) => s.stepType).sort()).toEqual(["email_day1", "email_day3"]);
-    expect(await flipExhaustedSequences({} as Env, minutesAfter(T0, 1))).toBe(0);
+    expect((await flipExhaustedSequences({} as Env, minutesAfter(T0, 1))).length).toBe(0);
   });
 });
