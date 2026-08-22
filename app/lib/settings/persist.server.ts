@@ -120,7 +120,10 @@ export function buildBrandVoiceUpdate(
 export { SENDER_NAME_MAX_LENGTH } from "./sender-name";
 
 export interface SenderSettingsInput {
-  senderName: string;
+  /** NULL when the merchant clears the box, which is legacy's behaviour:
+   *  `formData.get('sender_name')?.toString() || null`. Null is a real state,
+   *  not a gap: the From header falls back to "Support" and delivers. */
+  senderName: string | null;
 }
 
 /**
