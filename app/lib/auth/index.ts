@@ -30,6 +30,7 @@ export {
   evaluateAcceptInvite,
   normalizeInviteEmail,
   listMembers,
+  removeMember,
   type Membership,
   type InviteView,
   type AcceptInviteResult,
