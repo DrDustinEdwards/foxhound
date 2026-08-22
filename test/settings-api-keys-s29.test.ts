@@ -247,6 +247,14 @@ describe("PLANT 5: the list is live, merchant-scoped and this account's", () => 
         "INSERT INTO api_keys (id, account_id, key_hash, label, scope, created_at) VALUES ('k_theirs', ?, 'h', 'Theirs', ?, 1000)",
       )
       .run(OTHER, MCP_TOKEN_SCOPE.MERCHANT);
+    // An admin-scoped row that DOES carry this account id. issueMcpToken never
+    // makes one, so the account filter alone would not exclude it; the scope
+    // filter is what does, and without this row that filter is untestable.
+    sqlite
+      .prepare(
+        "INSERT INTO api_keys (id, account_id, key_hash, label, scope, created_at) VALUES ('k_admin_scoped', ?, 'h2', 'Wrong scope', ?, 1000)",
+      )
+      .run(ACCOUNT, MCP_TOKEN_SCOPE.ADMIN);
 
     const loaded = (await loader({
       context: ctxFor(true),
@@ -286,5 +294,19 @@ describe("PLANT 6: the render carries legacy's control set", () => {
   it("the length bound is imported from the client-safe module", () => {
     expect(SOURCE).toContain('API_KEY_LABEL_MAX_LENGTH } from "~/lib/settings/api-key-label"');
     expect(SOURCE).not.toMatch(/API_KEY_LABEL_MAX_LENGTH[^;]*from "[^"]*\.server"/);
+  });
+});
+
+describe("PLANT 7: the docs describe the key lifecycle honestly", () => {
+  const DOCS = readFileSync(
+    fileURLToPath(new URL("../app/lib/marketing/docs-content.ts", import.meta.url)),
+    "utf8",
+  );
+
+  it("says the key is shown once and that only its hash is stored", () => {
+    expect(DOCS).toContain("Settings and API keys");
+    expect(DOCS).toContain("shown once");
+    expect(DOCS).toContain("only its hash is stored");
+    expect(DOCS).toContain("A revoked key stops working immediately.");
   });
 });

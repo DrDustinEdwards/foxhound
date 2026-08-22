@@ -89,8 +89,14 @@ const ctx = {
         userId: "user_1",
         userName: "Owner",
         email: "owner@acme.test",
-        membership: { memberId: "m1", accountId: ACCOUNT, accountName: "Acme", role: "owner" },
-        memberships: [{ memberId: "m1", accountId: ACCOUNT, accountName: "Acme", role: "owner" }],
+        membership: { memberId: "m2", accountId: ACCOUNT, accountName: "Acme", role: "owner" },
+        // The caller holds TWO accounts and is switched to the LATER one, so a
+        // reader that resolved the earliest membership instead of the active
+        // one fails rather than coincidentally agreeing.
+        memberships: [
+          { memberId: "m1", accountId: OTHER, accountName: "Other", role: "owner" },
+          { memberId: "m2", accountId: ACCOUNT, accountName: "Acme", role: "owner" },
+        ],
         activeAccountId: ACCOUNT,
         isAdmin: false,
         isDemo: false,
@@ -318,8 +324,10 @@ describe("PLANT 4: the render offers legacy's control set, minus what would lie"
 });
 
 describe("PLANT 5: the loader is scoped to the active account", () => {
-  it("returns this account's alerts and history only", async () => {
+  it("returns the ACTIVE account's alerts, never the earliest membership's", async () => {
     seedAlert({ id: "a_mine" });
+    // OTHER is an account the SAME caller holds, and it is their earliest
+    // membership. This is the case a first-membership shim gets wrong.
     seedAlert({ id: "a_theirs", accountId: OTHER });
 
     const loaded = (await loader({
@@ -330,5 +338,31 @@ describe("PLANT 5: the loader is scoped to the active account", () => {
 
     expect(loaded.alerts.map((a) => a.id)).toEqual(["a_mine"]);
     expect(loaded.history).toEqual([]);
+  });
+});
+
+describe("PLANT 6: the docs describe what was built, including what it does not do", () => {
+  const DOCS = readFileSync(
+    fileURLToPath(new URL("../app/lib/marketing/docs-content.ts", import.meta.url)),
+    "utf8",
+  );
+
+  it("names the four metrics and no others", () => {
+    expect(DOCS).toContain("Settings and Alerts");
+    for (const shown of ["average health score", "MRR at risk", "churned MRR", "contracted MRR"]) {
+      expect(DOCS).toContain(shown);
+    }
+    // Legacy metrics Foxhound does not compute must not be promised HERE.
+    // Scoped to the Alerts section: "recovery rate" is legitimate prose in the
+    // recovery guide, and a whole-file assertion caught that instead.
+    const section = DOCS.slice(DOCS.indexOf('heading: "Alerts"'), DOCS.indexOf('heading: "API keys"'));
+    for (const absent of ["recovery rate", "active sequences", "open disputes"]) {
+      expect(section.toLowerCase()).not.toContain(absent);
+    }
+  });
+
+  it("says plainly that nothing is delivered yet", () => {
+    expect(DOCS).toContain("does not email or Slack you when an alert fires yet");
+    expect(DOCS).toContain("Recent triggers");
   });
 });
