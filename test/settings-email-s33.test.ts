@@ -405,6 +405,20 @@ describe("PLANT 7: the shared settings surfaces still stand", () => {
     expect(manifest).toContain('to: "/settings/email"');
   });
 
+  it("the component's constant does not come from a .server module", () => {
+    // The build catches this as "Server-only module referenced by client", and
+    // it caught exactly this constant: the form renders
+    // maxLength={SENDER_NAME_MAX_LENGTH}, so importing it from persist.server
+    // ships drizzle and the table objects in this route's client chunk. Pinned
+    // here because a scoped test run does not run the build.
+    const route = readFileSync(
+      fileURLToPath(new URL("../app/routes/app/settings/email.tsx", import.meta.url)),
+      "utf8",
+    );
+    expect(route).toContain('SENDER_NAME_MAX_LENGTH } from "~/lib/settings/sender-name"');
+    expect(route).not.toMatch(/SENDER_NAME_MAX_LENGTH[^;]*from "[^"]*\.server"/);
+  });
+
   it("the loader hands the form the primary LIVE connection, never a disconnected one", async () => {
     // S37 leaves is_primary SET on a disconnected row, so a reader without the
     // null check would hand this form a severed connection to write to.

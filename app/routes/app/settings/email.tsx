@@ -5,7 +5,8 @@ import { DemoGuardedForm } from "~/components/demo-guarded-form";
 import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { SENDER_NAME_MAX_LENGTH, buildSenderSettingsUpdate } from "~/lib/settings/persist.server";
+import { buildSenderSettingsUpdate } from "~/lib/settings/persist.server";
+import { SENDER_NAME_MAX_LENGTH } from "~/lib/settings/sender-name";
 import { getPrimarySenderConnection } from "~/lib/settings/queries.server";
 import { sendTestEmail } from "~/lib/settings/test-email.server";
 
