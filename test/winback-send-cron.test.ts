@@ -436,3 +436,23 @@ describe("PLANT 5: step 3 flips the sequence terminal, as legacy does", () => {
     expect(sequenceRows()[0].status).toBe("active");
   });
 });
+
+describe("PLANT 6: the docs say what the engine now does", () => {
+  it("the recovery guide describes the sequence, its exclusions, and that it is not billed", async () => {
+    const { DOC_GUIDES } = await import("~/lib/marketing/docs-content");
+    const recovery = DOC_GUIDES.find((g) => g.slug === "recovery");
+    const section = recovery?.sections.find((s) => s.heading === "When a customer cancels");
+
+    expect(section).toBeDefined();
+    const body = (section?.body ?? []).join(" ");
+    // The schedule the cron actually sends on: 1h, 96h, 336h.
+    expect(body).toContain("an hour after the cancellation");
+    expect(body).toContain("four days");
+    expect(body).toContain("fourteen");
+    // The two gates the trigger really applies (290 to 292).
+    expect(body).toContain("failing");
+    expect(body).toContain("seven days");
+    // 343 binding 1, stated to the merchant.
+    expect(body).toContain("A reactivation is not billed");
+  });
+});
