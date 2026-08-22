@@ -38,12 +38,18 @@ export const TEST_EMAIL_TEMPLATE = "settings_test";
 export const TEST_EMAIL_SUBJECT_PREFIX = "[PREVIEW] ";
 
 /** Legacy's preview banner, which is what stops a merchant mistaking the sample
- *  for a real customer send sitting in their own inbox. */
+ *  for a real customer send sitting in their own inbox.
+ *
+ *  PLAIN SEMANTIC HTML, no inline colours. Legacy's is a tinted bar built from
+ *  its EMAIL_COLORS module; Foxhound has no such module (the same wall
+ *  buildDigestEmail hit, app/lib/audit/digest.server.ts:107) and minting one is
+ *  not this row. check-tokens enforces that structurally: raw hex outside the
+ *  token file and px font sizes both fail the build, and this banner failed it
+ *  once already. The words carry the warning instead of the colour. */
 function previewBanner(): string {
   return (
-    `<p style="background:#1a1c18;border-bottom:2px solid #d9a441;padding:10px 24px;` +
-    `font-size:12px;color:#d9a441;text-align:center;margin:0 0 24px">` +
-    `PREVIEW. This is a sample recovery email. Your real recovery emails look like this.</p>`
+    `<p><strong>PREVIEW.</strong> This is a sample recovery email. ` +
+    `Your real recovery emails look like this.</p>`
   );
 }
 

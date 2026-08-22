@@ -114,19 +114,10 @@ export function buildBrandVoiceUpdate(
 // list, and this session's brief).
 // ---------------------------------------------------------------------------
 
-/**
- * Bound on `sender_name`. LEGACY HAS NO BOUND: `EmailSection.tsx` renders a bare
- * `type="text"` with no maxLength and no pattern, and `settings/update/route.ts`
- * writes `formData.get('sender_name')?.toString() || null` with no validation at
- * all. 80 is this session's brief, recorded as an ADDITION rather than a port.
- *
- * It is not arbitrary: this value becomes the display name of an RFC 5322 From
- * header on every recovery email. `fromDisplayName` in app/lib/email/send.ts
- * already strips quotes and CR/LF, so header INJECTION is handled without a
- * length rule; the bound is about a display name that mail clients truncate
- * anyway, not about safety.
- */
-export const SENDER_NAME_MAX_LENGTH = 80;
+// SENDER_NAME_MAX_LENGTH lives in the client-safe sender-name.ts, because the
+// form renders it as maxLength and a .server import would ship drizzle in that
+// route client chunk. Re-exported so server callers have one import site.
+export { SENDER_NAME_MAX_LENGTH } from "./sender-name";
 
 export interface SenderSettingsInput {
   senderName: string;
