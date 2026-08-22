@@ -67,6 +67,7 @@ const { claimWinbackReactivation, daysSinceCancel } = await import(
   "~/lib/recovery/winback-reactivation.server"
 );
 const { findAttributionSignals } = await import("~/lib/recovery/attribution");
+const { readWinbackSequenceId } = await import("~/lib/recovery/winback-metadata");
 const { getBillableRecoveries } = await import("~/db/billable");
 
 const ACCOUNT = "acct_1";
@@ -164,6 +165,15 @@ describe("PLANT 1: the classifier reads the sequence id off the session", () => 
     expect(classifyStripeEvent(checkoutEvent({ win_back_sequence_id: "" })).kind).toBe("ignore");
   });
 
+  it("THE HELPER ITSELF REFUSES AN EMPTY VALUE, reached past the classifier's guard", () => {
+    // classifyStripeEvent's own `if (!sequenceId)` also refuses an empty
+    // string, so the helper's rule was never observable through it.
+    expect(readWinbackSequenceId({ win_back_sequence_id: "" })).toBeNull();
+    expect(readWinbackSequenceId({})).toBeNull();
+    expect(readWinbackSequenceId(null)).toBeNull();
+    expect(readWinbackSequenceId({ win_back_sequence_id: "wb_9" })).toBe("wb_9");
+  });
+
   it("carries the invoice's subscription onto the recover intent", () => {
     const intent = classifyStripeEvent(invoiceEvent("sub_new"));
     expect(intent.kind === "recover" && intent.subscriptionId).toBe("sub_new");
@@ -246,6 +256,26 @@ describe("PLANT 2: checkout.session.completed reactivates", () => {
     expect(again).toEqual({ status: "ignored", reason: "winback_already_handled" });
     expect(outcomeRows()).toHaveLength(1);
     expect(sequenceRows()[0].reactivatedAt).toBe(RECEIVED.getTime());
+  });
+
+  it("A LOST CLAIM RECORDS NO OUTCOME, reaching that guard past the status check", async () => {
+    // The status pre-check normally refuses first, so the `if (!claimed)`
+    // guard is unreachable through it. `reactivated_at` already set with the
+    // status still active is exactly the state the claim's second condition
+    // exists for, and it lets the load succeed while the claim fails.
+    seedSequence();
+    sqlite
+      .prepare("UPDATE win_back_sequences SET reactivated_at = ? WHERE id = 'wb_1'")
+      .run(RECEIVED.getTime() - 1000);
+
+    const result = await processConnectedWebhook(
+      env,
+      checkoutEvent({ win_back_sequence_id: "wb_1" }),
+      RECEIVED,
+    );
+
+    expect(result).toEqual({ status: "ignored", reason: "winback_duplicate" });
+    expect(outcomeRows()).toEqual([]);
   });
 
   it("the claim itself refuses a second take", async () => {

@@ -141,6 +141,20 @@ describe("PLANT 2: a replayed deletion records none", () => {
     expect(outcomeRows()).toHaveLength(1);
   });
 
+  it("AND THE `applied` GATE IS REACHED ALONE, with the outcome key removed", async () => {
+    // The gate and the outcome's idempotency key both stop a second started
+    // row, and in the ordinary replay they fire together, so neither is proven.
+    // Deleting the outcome row leaves ONLY the gate: the webhook claim still
+    // collides, applied is false, and nothing may be recorded.
+    await processConnectedWebhook(env, deletedEvent("evt_1"), RECEIVED);
+    sqlite.prepare("DELETE FROM outcomes").run();
+
+    const again = await processConnectedWebhook(env, deletedEvent("evt_1"), RECEIVED);
+
+    expect(again).toEqual({ status: "duplicate" });
+    expect(outcomeRows()).toEqual([]);
+  });
+
   it("AND THE OUTCOME KEY IS THE SECOND LAYER, reached on its own", async () => {
     // With the sequence row deleted the pre-check cannot refuse, so only the
     // outcome's own idempotency key can stop a second started row. Each layer

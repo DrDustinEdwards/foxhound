@@ -15,6 +15,7 @@ const harness = vi.hoisted(() => ({
   db: null as unknown,
   jobs: [] as Record<string, unknown>[],
   outcome: { status: "sent" } as { status: string },
+  stealClaim: null as null | (() => Promise<unknown>),
 }));
 
 vi.mock("~/db", async (importOriginal) => ({
@@ -25,6 +26,11 @@ vi.mock("~/db", async (importOriginal) => ({
 vi.mock("~/lib/email/dispatch", () => ({
   processEmailJob: async (_env: unknown, job: Record<string, unknown>) => {
     harness.jobs.push(job);
+    // Emulates a CONCURRENT TICK taking the claim while this send is in
+    // flight, which is the only way the claim can lose and the only way to
+    // reach the `if (!claimed)` guard on its own. Without this the outcome's
+    // idempotency key masks the guard entirely.
+    if (harness.stealClaim) await harness.stealClaim();
     return harness.outcome;
   },
 }));
@@ -41,7 +47,8 @@ vi.mock("~/lib/money/execute", () => ({
   },
 }));
 
-const { runWinbackSends, queryDueWinbackSteps, claimStepSent } = await import("~/lib/cron/winback");
+const { runWinbackSends, queryDueWinbackSteps, claimStepSent, claimSequenceExhausted } =
+  await import("~/lib/cron/winback");
 const { buildWinbackEmail, winbackSubject } = await import("~/lib/recovery/winback-email");
 const { verifyCardUpdateToken } = await import("~/lib/card-update/token");
 
@@ -63,6 +70,7 @@ beforeEach(() => {
   harness.db = db;
   harness.jobs = [];
   harness.outcome = { status: "sent" };
+  harness.stealClaim = null;
   seedAccount(ACCOUNT);
 });
 
@@ -180,6 +188,23 @@ describe("PLANT 1: the copy is legacy's, per step", () => {
     expect(html).toContain("<p>Hi there,</p>");
     expect(html).toContain("Thanks,<br>Support");
     expect(html).toContain("Come Back");
+  });
+
+  it("THE PLAN FALLBACK IS ASSERTED ON STEP ONE, the only body that names a plan", () => {
+    // Steps 2 and 3 carry no {{plan_name}}, so a mutation to the plan fallback
+    // was invisible until this reached the step that actually uses it.
+    const html = buildWinbackEmail({
+      stepNumber: 1,
+      customerName: null,
+      planName: null,
+      senderName: null,
+      resubscribeUrl: "u",
+    });
+
+    // Legacy's own output, awkwardness included: the template already says
+    // "your {{plan_name}} subscription", so the fallback reads back doubled.
+    // Ported verbatim rather than smoothed, because legacy is the spec.
+    expect(html).toContain("cancelled your your subscription subscription");
   });
 
   it("step 3 carries legacy's last-chance label", () => {
@@ -426,6 +451,19 @@ describe("PLANT 5: step 3 flips the sequence terminal, as legacy does", () => {
     expect(sequenceRows()[0].resolvedAt).toBeNull();
   });
 
+  it("THE FLIP'S STATUS CONDITION IS REACHED ALONE: it never clobbers a reactivation", async () => {
+    // The due query already refuses a non-active sequence, so runWinbackSends
+    // can never present one to the flip. Calling the flip directly is the only
+    // way to prove its own condition, and the state it guards against is real:
+    // a customer who reactivates between the query and the flip.
+    seedSequence({ status: "reactivated" });
+
+    await claimSequenceExhausted(db, "wb_1", NOW);
+
+    expect(sequenceRows()[0].status).toBe("reactivated");
+    expect(sequenceRows()[0].resolvedAt).toBeNull();
+  });
+
   it("A REFUSED STEP 3 DOES NOT FLIP IT: the flip follows the claim, not the attempt", async () => {
     seedSequence();
     seedStep({ stepNumber: 3 });
@@ -437,7 +475,29 @@ describe("PLANT 5: step 3 flips the sequence terminal, as legacy does", () => {
   });
 });
 
-describe("PLANT 6: the docs say what the engine now does", () => {
+describe("PLANT 6: a lost claim records nothing, and the cron is registered", () => {
+  it("A CONCURRENT TICK'S CLAIM STOPS THE OUTCOME, reaching the guard alone", async () => {
+    seedSequence();
+    seedStep();
+    harness.stealClaim = () => claimStepSent(db, "st_1", new Date(NOW.getTime() - 1000));
+
+    const result = await runWinbackSends(env, NOW);
+
+    expect(result).toEqual({ sent: 0, skipped: 1 });
+    // The other tick's send owns the step and its outcome; this one records none.
+    expect(outcomeRows()).toEqual([]);
+    expect(stepRows()[0].executedAt).toBe(NOW.getTime() - 1000);
+  });
+
+  it("THE CRON IS REGISTERED on the high-cadence schedule", async () => {
+    const { CRON_JOBS } = await import("~/lib/cron/registry");
+    const job = CRON_JOBS.find((j) => j.name === "winback-send");
+    expect(job).toBeDefined();
+    expect(job?.schedule).toBe("*/5 * * * *");
+  });
+});
+
+describe("PLANT 7: the docs say what the engine now does", () => {
   it("the recovery guide describes the sequence, its exclusions, and that it is not billed", async () => {
     const { DOC_GUIDES } = await import("~/lib/marketing/docs-content");
     const recovery = DOC_GUIDES.find((g) => g.slug === "recovery");
