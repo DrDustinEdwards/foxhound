@@ -22,6 +22,7 @@ import { buildEvidenceFacts, draftDisputeEvidence } from "~/lib/disputes/evidenc
 import { isDisputeResolved } from "~/lib/disputes/labels";
 import { isIntelligenceEntitled } from "~/lib/intelligence/views.server";
 import { executeMoneyWrite } from "~/lib/money/execute";
+import { sendRecoveryNotification } from "~/lib/recovery/merchant-notification.server";
 import { findAttributionSignals, resolveAttribution } from "~/lib/recovery/attribution";
 import { getConnectedStripe } from "~/lib/stripe/client";
 import { decryptToken } from "~/lib/stripe/encryption";
@@ -561,6 +562,19 @@ export async function processConnectedWebhook(
             idempotencyKey: failedPaymentId,
           }),
       });
+      // THE MERCHANT NOTIFICATION, after the money write has committed and
+      // changing nothing about it. `applied` is this delivery's transition
+      // claim: false on a replay, because the outcomes idempotency key collides
+      // and the whole batch rolls back, so a redelivered webhook sends no
+      // second email. Legacy gates the same notification on the same thing, its
+      // active-to-recovered update returning rows.
+      //
+      // It never throws (its own try/catch), for legacy's reason: the recovery
+      // and its fee are already recorded and a mail failure must not unwind
+      // them or fail the webhook.
+      if (applied) {
+        await sendRecoveryNotification(env, { accountId, failedPaymentId });
+      }
       return applied ? { status: "applied" } : { status: "duplicate" };
     }
 
