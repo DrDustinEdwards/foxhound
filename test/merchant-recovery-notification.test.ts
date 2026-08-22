@@ -98,7 +98,8 @@ describe("PLANT 1: a recovery with the toggle NULL sends one email", () => {
 
     const result = await sendRecoveryNotification(env, { accountId: ACCOUNT, failedPaymentId: FP });
 
-    expect(result?.status).toBe("sent");
+    expect(result.kind).toBe("sent");
+    expect(result.kind === "sent" && result.result.status).toBe("sent");
     expect(harness.sent).toHaveLength(1);
     expect(harness.sent[0].to).toBe("ops@acme.test");
     expect(harness.sent[0].subject).toBe("Payment recovered: $99.00 from Jane Buyer");
@@ -135,7 +136,8 @@ describe("PLANT 2: the toggle and the recipient are legacy's", () => {
   it("FALSE sends nothing and logs nothing", async () => {
     seed({ enabled: 0 });
     const result = await sendRecoveryNotification(env, { accountId: ACCOUNT, failedPaymentId: FP });
-    expect(result).toBeNull();
+    // A named REFUSAL, not a swallowed crash. The two used to look identical.
+    expect(result).toEqual({ kind: "skipped", reason: "disabled" });
     expect(harness.sent).toHaveLength(0);
     expect(sendRows()).toHaveLength(0);
   });
@@ -146,8 +148,9 @@ describe("PLANT 2: the toggle and the recipient are legacy's", () => {
     // merchant never nominated.
     seed({ notificationEmail: null, enabled: null });
     const result = await sendRecoveryNotification(env, { accountId: ACCOUNT, failedPaymentId: FP });
-    expect(result).toBeNull();
+    expect(result).toEqual({ kind: "skipped", reason: "no_recipient" });
     expect(harness.sent).toHaveLength(0);
+    expect(sendRows()).toHaveLength(0);
   });
 });
 
@@ -157,7 +160,7 @@ describe("PLANT 3: the demo refusal is the same gate every send meets", () => {
 
     const result = await sendRecoveryNotification(env, { accountId: ACCOUNT, failedPaymentId: FP });
 
-    expect(result?.status).toBe("blocked");
+    expect(result.kind === "sent" && result.result.status).toBe("blocked");
     expect(harness.sent).toHaveLength(0);
     const rows = sendRows();
     expect(rows).toHaveLength(1);
@@ -183,8 +186,8 @@ describe("PLANT 4: a send failure leaves the recovery recorded", () => {
       failedPaymentId: FP,
     });
 
-    expect(result?.status).toBe("failed");
-    expect(result?.retryable).toBe(true);
+    expect(result.kind === "sent" && result.result.status).toBe("failed");
+    expect(result.kind === "sent" && result.result.retryable).toBe(true);
     // The recovery row is untouched by a mail failure.
     const fp = sqlite.prepare("SELECT status FROM failed_payments WHERE id = ?").get(FP) as {
       status: string;
@@ -198,7 +201,7 @@ describe("PLANT 4: a send failure leaves the recovery recorded", () => {
       accountId: "acct_missing",
       failedPaymentId: "fp_missing",
     });
-    expect(result).toBeNull();
+    expect(result).toEqual({ kind: "skipped", reason: "not_found" });
   });
 });
 
@@ -352,5 +355,51 @@ describe("PLANT 8: the copy says what sends and what does not", () => {
     expect(section).toContain("It sends once per recovery");
     expect(section).toContain("Set no notification email and Foxhound sends nothing");
     expect(section).toContain("are not built yet");
+  });
+});
+
+describe("PLANT 9: the cases a single happy fixture cannot reach", () => {
+  it("an EMPTY customer name falls back to the email, which `??` would not do", async () => {
+    // Legacy writes `customer_name || customer_email`. A null-coalescing port
+    // behaves identically on NULL and differently on "", so a fixture with only
+    // a null name cannot tell the two apart.
+    seed({ enabled: null, customerName: "" });
+    await sendRecoveryNotification(env, { accountId: ACCOUNT, failedPaymentId: FP });
+    expect(harness.sent[0].subject).toBe("Payment recovered: $99.00 from buyer@acme.test");
+  });
+
+  it("a payment on ANOTHER account is not found, so the read is account-scoped", async () => {
+    seed({ enabled: null });
+    sqlite
+      .prepare("INSERT INTO accounts (id, name, created_at, notification_email) VALUES ('acct_other', 'Other', 1000, 'them@other.test')")
+      .run();
+
+    // The payment exists; it just is not this account's.
+    const result = await sendRecoveryNotification(env, {
+      accountId: "acct_other",
+      failedPaymentId: FP,
+    });
+
+    expect(result).toEqual({ kind: "skipped", reason: "not_found" });
+    expect(harness.sent).toHaveLength(0);
+  });
+
+  it("a DATABASE failure is caught and named, never thrown at the webhook", async () => {
+    // processEmailJob swallows send errors itself, so only a failure BEFORE it
+    // exercises the outer catch. That catch is the reason a mail problem cannot
+    // unwind a committed recovery or fail the webhook.
+    harness.db = {
+      select() {
+        throw new Error("d1 exploded");
+      },
+    };
+
+    const result = await sendRecoveryNotification(env, {
+      accountId: ACCOUNT,
+      failedPaymentId: FP,
+    });
+
+    expect(result.kind).toBe("error");
+    expect(result.kind === "error" && result.message).toBe("d1 exploded");
   });
 });
