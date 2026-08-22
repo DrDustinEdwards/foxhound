@@ -384,3 +384,31 @@ describe("PLANT 5: the cron is registered and shaped like the others", () => {
     expect(expiringCardSubject({ cardBrand: "visa", cardLast4: "4242" })).not.toMatch(wide);
   });
 });
+
+describe("PLANT 6: the docs describe the alert, including what it does not do", () => {
+  const DOCS = readFileSync(
+    fileURLToPath(new URL("../app/lib/marketing/docs-content.ts", import.meta.url)),
+    "utf8",
+  );
+  const section = DOCS.slice(
+    DOCS.indexOf('heading: "Before a card expires"'),
+    DOCS.indexOf('heading: "What counts as billable"'),
+  );
+
+  it("names the cadence, the window, the sender and the link", () => {
+    expect(section).toContain("checks your active subscriptions nightly");
+    expect(section).toContain("inside 30 days of expiring");
+    expect(section).toContain("comes from your sender name");
+    expect(section).toContain("hosted card-update page");
+  });
+
+  it("says it sends once, and that an expired card is not warned about", () => {
+    expect(section).toContain("once per card and expiry month");
+    expect(section).toContain("already expired is not warned about");
+  });
+
+  it("SAYS PLAINLY THAT IT IS NOT BILLABLE, which is the pricing question 341 ruled", () => {
+    expect(section).toContain("Nothing about this alert is billable");
+    expect(section).toContain("prevents a failure rather than recovering one");
+  });
+});
