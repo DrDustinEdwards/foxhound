@@ -102,6 +102,7 @@ export default [
       route("audit", "./routes/app/settings/audit.tsx"),
       route("email", "./routes/app/settings/email.tsx"),
       route("alerts", "./routes/app/settings/alerts.tsx"),
+      route("api-keys", "./routes/app/settings/api-keys.tsx"),
     ]),
     route("help", "./routes/app/help.tsx"),
     route("welcome", "./routes/app/welcome.tsx"),
