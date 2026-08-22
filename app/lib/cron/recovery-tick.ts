@@ -564,15 +564,33 @@ export async function flipExhaustedSequences(env: Env, now: Date): Promise<Claim
   const db = getDb(env);
   await db.batch([buildExhaustedSequenceFlip(db, ids, now)]);
 
-  // WHICH ids the claim actually took, not which it considered. The flip is
-  // conditional on status='active', so a sequence another tick already flipped
-  // is silently skipped, and the old `ids.length` counted it anyway. Reading
-  // back on `resolved_at = now` identifies exactly this flip's rows, because
-  // `now` is this tick's own timestamp and the claim is what wrote it.
-  //
-  // This is what the sequence-complete notification hangs off: it must fire
-  // once per real transition, the same discipline the recovery notification
-  // takes from executeMoneyWrite's `applied`.
+  return readClaimedSequences(db, ids, now);
+}
+
+/**
+ * WHICH ids the flip actually took, not which it considered.
+ *
+ * The flip is conditional on `status='active'`, so a sequence another tick
+ * already claimed is silently skipped while the old `ids.length` counted it
+ * anyway. Narrowing on `resolved_at = now` identifies exactly this flip's rows,
+ * because `now` is this tick's own timestamp and the claim is what wrote it.
+ *
+ * EXPORTED because the narrowing is otherwise unprovable: inside
+ * `flipExhaustedSequences` every candidate is claimed, since the query and the
+ * flip run back to back on one thread, so a mutation that returns all
+ * candidates cannot be caught through the public function. Reached directly, a
+ * row that is in `ids` but carries a different `resolved_at` shows the
+ * difference (337 binding 4).
+ *
+ * This is what the sequence-complete notification hangs off: it must fire once
+ * per real transition, the same discipline the recovery notification takes from
+ * executeMoneyWrite's `applied`.
+ */
+export function readClaimedSequences(
+  db: Db,
+  ids: string[],
+  now: Date,
+): Promise<ClaimedSequence[]> {
   return db
     .select({ failedPaymentId: failedPayments.id, accountId: failedPayments.accountId })
     .from(failedPayments)
