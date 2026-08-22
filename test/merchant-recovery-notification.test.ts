@@ -326,3 +326,31 @@ describe("PLANT 7: the money write is untouched", () => {
     expect(src).not.toContain("db.update");
   });
 });
+
+describe("PLANT 8: the copy says what sends and what does not", () => {
+  it("the settings card no longer claims notifications are not sending", () => {
+    // It read "Notifications aren't sending yet", which this engine made false.
+    // A control may not assert a falsehood (333).
+    const route = readFileSync(
+      fileURLToPath(new URL("../app/routes/app/settings/index.tsx", import.meta.url)),
+      "utf8",
+    );
+    expect(route).not.toContain("Notifications aren't sending yet");
+    expect(route).toContain("Foxhound emails you when it recovers a payment");
+    // And it still says which ones are NOT built, rather than implying all are.
+    expect(route).toContain("are not built yet");
+  });
+
+  it("the docs describe the one notification that exists and no others", () => {
+    // Line for the heading map: platform, "Notifications", body[0] and body[1].
+    const docs = readFileSync(
+      fileURLToPath(new URL("../app/lib/marketing/docs-content.ts", import.meta.url)),
+      "utf8",
+    );
+    const section = docs.slice(docs.indexOf('heading: "Notifications"'), docs.indexOf('heading: "Alerts"'));
+    expect(section).toContain("emails the notification email set in Settings");
+    expect(section).toContain("It sends once per recovery");
+    expect(section).toContain("Set no notification email and Foxhound sends nothing");
+    expect(section).toContain("are not built yet");
+  });
+});

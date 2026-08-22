@@ -34,6 +34,13 @@ export const DOC_GUIDES: DocGuide[] = [
         ],
       },
       {
+        heading: "Notifications",
+        body: [
+          "When Foxhound recovers a payment, it emails the notification email set in Settings, with the amount, the customer, and the decline that started it. It sends once per recovery: a repeated webhook from Stripe does not produce a second email.",
+          "Set no notification email and Foxhound sends nothing, which is also how you turn it off. The weekly digest, Slack delivery, and the sequence-complete notice are not built yet.",
+        ],
+      },
+      {
         heading: "Alerts",
         body: [
           "Settings and Alerts lets you set a threshold on a metric Foxhound tracks: average health score, MRR at risk, churned MRR, and contracted MRR. Choose whether the metric dropping below or rising above your number counts, and Foxhound checks every night.",
