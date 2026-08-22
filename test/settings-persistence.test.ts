@@ -25,16 +25,16 @@ describe("settings persistence builders (compile against schema)", () => {
     expect(params).toContain("acc_1");
   });
 
-  it("email settings update writes both notification addresses, nulls allowed", () => {
+  it("email settings update writes notification_email and NOT digest_email", () => {
+    // digest_email was removed under 336 binding 3: a Foxhound invention with
+    // no legacy counterpart and no reader. This assertion moved from requiring
+    // the column to forbidding it, because the behaviour was corrected.
     const { sql, params } = sqlOf(
-      buildEmailSettingsUpdate(db, "acc_1", {
-        notificationEmail: "ops@acme.com",
-        digestEmail: null,
-      }),
+      buildEmailSettingsUpdate(db, "acc_1", { notificationEmail: "ops@acme.com" }),
     );
     expect(sql).toMatch(/update .*accounts/i);
     expect(sql).toMatch(/notification_email/);
-    expect(sql).toMatch(/digest_email/);
+    expect(sql).not.toMatch(/digest_email/);
     expect(params).toContain("ops@acme.com");
     expect(params).toContain("acc_1");
   });
