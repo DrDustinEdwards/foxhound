@@ -142,7 +142,8 @@ describe("PLANT 2: legacy's resolution order, all three rungs", () => {
       ({ sqlite, db } = createInMemoryDb());
       harness.db = db;
       const prompt = await systemPromptFor(category, {});
-      expect(prompt).toContain("warm, plain, and direct");
+      // Legacy's BRAND_VOICE_DEFAULT byte for byte (338).
+      expect(prompt).toContain("Friendly and direct. Write like a real person, not a company.");
     }
   });
 
@@ -153,8 +154,8 @@ describe("PLANT 2: legacy's resolution order, all three rungs", () => {
     expect(
       resolveBrandVoice({ merchantName: "A", voiceDescription: "g", voiceSoft: "   " }, "soft"),
     ).toBe("g");
-    expect(resolveBrandVoice({ merchantName: "A", voiceDescription: "", voiceSoft: "" }, "soft")).toMatch(
-      /warm, plain, and direct/,
+    expect(resolveBrandVoice({ merchantName: "A", voiceDescription: "", voiceSoft: "" }, "soft")).toBe(
+      "Friendly and direct. Write like a real person, not a company.",
     );
   });
 });

@@ -192,8 +192,13 @@ export function merchantContextLine(merchant: MerchantBrandVoice): string | null
   return parts.length > 0 ? `Merchant context: ${parts.join(" ")}` : null;
 }
 
-const DEFAULT_VOICE =
-  "warm, plain, and direct; a real person from the business writing a short note";
+/** Legacy's `BRAND_VOICE_DEFAULT`, byte for byte (`lib/constants.ts:21`).
+ *  ALIGNED under ruling 338: this string is user-facing output in every email a
+ *  merchant who sets no voice sends, and legacy is the spec for that output.
+ *  Foxhound's own wording, "warm, plain, and direct; a real person from the
+ *  business writing a short note", was an unratified divergence on the third
+ *  rung of resolveBrandVoice. */
+const DEFAULT_VOICE = "Friendly and direct. Write like a real person, not a company.";
 
 /**
  * Resolve the brand-voice descriptor for the prompt.
