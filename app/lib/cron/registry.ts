@@ -13,6 +13,7 @@ import { runIntelligenceAiForAllAccounts } from "~/lib/intelligence/ai-run.serve
 import { runIntelligenceSyncForAllAccounts } from "~/lib/intelligence/sync.server";
 
 import { describeExpiringCardRun, runExpiringCards } from "~/lib/cron/expiring-cards";
+import { describeWinbackRun, runWinbackSends } from "~/lib/cron/winback";
 import { runCronHealthCheck } from "./alerts.server";
 import { runRecoveryTick } from "./recovery-tick";
 import type { CronHandler } from "./run";
@@ -131,6 +132,22 @@ const demoReset: CronHandler = async (env) => {
  *  warning per unsent candidate. CRON_SCHEDULE_DAILY matches legacy's nightly
  *  cadence, and the CronLockDurableObject lease in run.ts is what stops two
  *  ticks scanning at once. */
+/** The win-back send pass (343, 344). Legacy's own header says it "Runs hourly
+ *  via Vercel Cron (piggybacking on process-recovery schedule)", so its cadence
+ *  IS the recovery cron's cadence, and CRON_SCHEDULE_RECOVERY_TICK is that
+ *  cadence here. Reusing it needs no new wrangler.jsonc trigger, which is the
+ *  same reasoning intelligence-sync and intelligence-ai already record.
+ *
+ *  It fires more often than legacy's hour, never less, and that is a fidelity
+ *  gain rather than a divergence: legacy's own constant asks for step 1 "1 hour
+ *  after cancellation" and hourly polling delivers it up to two hours late. The
+ *  CronLockDurableObject lease in run.ts is what stops two ticks sending at
+ *  once, and the per-step claim is what stops a double send if one ever did. */
+const winbackSend: CronHandler = async (env) => {
+  const result = await runWinbackSends(env, new Date());
+  return { rowsProcessed: result.sent, message: describeWinbackRun(result) };
+};
+
 const expiringCards: CronHandler = async (env) => {
   const result = await runExpiringCards(env, new Date());
   return { rowsProcessed: result.send.sent, message: describeExpiringCardRun(result) };
@@ -159,6 +176,7 @@ const auditDigest: CronHandler = async (env, ctx) => {
 
 export const CRON_JOBS: CronJob[] = [
   { name: RECOVERY_TICK_CRON_NAME, schedule: CRON_SCHEDULE_RECOVERY_TICK, handler: recoveryTick },
+  { name: "winback-send", schedule: CRON_SCHEDULE_RECOVERY_TICK, handler: winbackSend },
   { name: "cron-health", schedule: CRON_SCHEDULE_DAILY, handler: cronHealth },
   { name: "expiring-cards", schedule: CRON_SCHEDULE_DAILY, handler: expiringCards },
   { name: DEMO_RESET_CRON_NAME, schedule: CRON_SCHEDULE_DAILY, handler: demoReset },
