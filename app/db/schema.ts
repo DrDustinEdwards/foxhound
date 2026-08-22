@@ -388,7 +388,29 @@ export const expiringCardAlerts = sqliteTable(
     stripeConnectionId: text("stripe_connection_id").references(() => stripeConnections.id),
     deletedAt: ts("deleted_at"),
   },
-  (t) => [index("expiring_card_alerts_account_idx").on(t.accountId)],
+  (t) => [
+    index("expiring_card_alerts_account_idx").on(t.accountId),
+    // ONE CANDIDATE PER CARD EXPIRY MONTH, enforced by the database (341
+    // binding 3, and 314's "dedupe at the database").
+    //
+    // Legacy's webhook writer upserts `onConflict:
+    // 'account_id,stripe_customer_id,expires_month,expires_year'`, which only
+    // works against a unique index, so legacy has this and Foxhound did not.
+    // Without it BOTH writers, the nightly scan and the customer.updated
+    // webhook, race to insert the same tuple and the merchant's customer gets
+    // two identical warnings.
+    //
+    // PLAIN, not partial on `deleted_at IS NULL`, because that is legacy's
+    // shape: a soft-deleted alert therefore blocks a fresh candidate for the
+    // same card and month, which is legacy's behaviour and is recorded rather
+    // than improved.
+    uniqueIndex("expiring_card_alerts_card_month_uq").on(
+      t.accountId,
+      t.stripeCustomerId,
+      t.expiresMonth,
+      t.expiresYear,
+    ),
+  ],
 );
 
 export const winBackSequences = sqliteTable(
