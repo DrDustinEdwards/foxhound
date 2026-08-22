@@ -101,6 +101,8 @@ export const PLATFORM_LINKS: ProductNavLink[] = [
   { label: "Email settings", to: "/settings/email" },
   // Alerts (S28). Same mechanism and reason as Team, Audit and Email settings.
   { label: "Alerts", to: "/settings/alerts" },
+  // API keys (S29). Same mechanism and reason as the others above.
+  { label: "API keys", to: "/settings/api-keys" },
 ];
 
 // The marketing header's authenticated-only SectionPill menu
