@@ -21,6 +21,11 @@ import {
 import { buildEvidenceFacts, draftDisputeEvidence } from "~/lib/disputes/evidence";
 import { isDisputeResolved } from "~/lib/disputes/labels";
 import { recordOutcome } from "~/lib/engine/outcomes";
+import { readWinbackSequenceId } from "~/lib/recovery/winback-metadata";
+import {
+  reactivateWinbackSequence,
+  WINBACK_REACTIVATABLE_STATUSES,
+} from "~/lib/recovery/winback-reactivation.server";
 import { isIntelligenceEntitled } from "~/lib/intelligence/views.server";
 import { executeMoneyWrite } from "~/lib/money/execute";
 import { sendRecoveryNotification } from "~/lib/recovery/merchant-notification.server";
@@ -502,6 +507,67 @@ async function resolveExpiringCard(
 }
 
 /** Process one verified connected-account event. */
+/**
+ * The invoice-side reactivation attempt (344 binding 1).
+ *
+ * Legacy matches on the CUSTOMER and nothing else. This uses the customer only
+ * to decide whether a Stripe read is worth making, and matches on the sequence
+ * id carried in the subscription's metadata. A win-back sequence that exists
+ * for the customer but whose id is not the one on the paid subscription is NOT
+ * reactivated, which is the whole point.
+ *
+ * Best effort throughout: a Stripe failure here must not fail the webhook, on
+ * which a real recovery and its fee may depend.
+ */
+export async function tryWinbackReactivationFromInvoice(
+  env: Env,
+  input: {
+    accountId: string;
+    connectionId: string;
+    customerId: string | null;
+    subscriptionId: string | null;
+    now: Date;
+  },
+): Promise<void> {
+  if (!input.customerId || !input.subscriptionId) return;
+  const db = getDb(env);
+  const candidates = await db
+    .select({ id: winBackSequences.id })
+    .from(winBackSequences)
+    .where(
+      and(
+        eq(winBackSequences.accountId, input.accountId),
+        eq(winBackSequences.stripeCustomerId, input.customerId),
+        inArray(winBackSequences.status, WINBACK_REACTIVATABLE_STATUSES),
+      ),
+    )
+    .limit(1);
+  if (candidates.length === 0) return;
+
+  let sequenceId: string | null = null;
+  try {
+    const [connection] = await db
+      .select({ accessToken: stripeConnections.stripeAccessToken })
+      .from(stripeConnections)
+      .where(eq(stripeConnections.id, input.connectionId))
+      .limit(1);
+    if (!connection?.accessToken) return;
+    const stripe = getConnectedStripe(await decryptToken(env, connection.accessToken));
+    const subscription = await stripe.subscriptions.retrieve(input.subscriptionId);
+    sequenceId = readWinbackSequenceId(subscription.metadata);
+  } catch {
+    // Never log the error object: it can carry request context.
+    return;
+  }
+  if (!sequenceId) return;
+
+  await reactivateWinbackSequence(env, {
+    accountId: input.accountId,
+    sequenceId,
+    now: input.now,
+  });
+}
+
 export async function processConnectedWebhook(
   env: Env,
   event: Stripe.Event,
@@ -577,7 +643,52 @@ export async function processConnectedWebhook(
       return applied ? { status: "applied" } : { status: "duplicate" };
     }
 
+    if (intent.kind === "winback_reactivate") {
+      // THE REACTIVATION, PRIMARY PATH. The session carries the sequence id
+      // Foxhound put on it at the resubscribe click, so the match is exact and
+      // needs no Stripe read (344 binding 1).
+      //
+      // THE FLIP RUNS FIRST AND THROUGH THE PLAIN BATCH PATH (343 binding 3),
+      // and its own status condition is the idempotency claim: a redelivery
+      // flips zero rows and records no second outcome, whether it arrives
+      // before or after the webhook claim below lands.
+      const outcome = await reactivateWinbackSequence(env, {
+        accountId,
+        sequenceId: intent.sequenceId,
+        now: receivedAt,
+      });
+      const { applied } = await executeMoneyWrite(env, {
+        accountId,
+        idempotencyKey,
+        build: (db) => buildClaimOnlyBatch(db, claim),
+      });
+      if (!applied) return { status: "duplicate" };
+      return outcome.status === "reactivated"
+        ? { status: "applied" }
+        : { status: "ignored", reason: `winback_${outcome.status}` };
+    }
+
     if (intent.kind === "recover") {
+      // THE REACTIVATION, SECOND PATH, and legacy's own event. It runs BEFORE
+      // the recovery block for legacy's stated reason: that block returns early
+      // when it loses its transition claim, and the two are independent.
+      //
+      // THE PREFILTER IS A COST GUARD, NEVER THE MATCH. Reading the
+      // subscription's metadata costs a Stripe call, and the overwhelming
+      // majority of paid invoices are ordinary renewals, so the cheap DB
+      // question "does this customer have a live win-back at all" is asked
+      // first. The MATCH is still the metadata id and only the metadata id,
+      // which is exactly what stops legacy's defect: a customer with a live
+      // sequence who pays a DIFFERENT subscription passes the prefilter and
+      // then fails the match, as it should.
+      await tryWinbackReactivationFromInvoice(env, {
+        accountId,
+        connectionId,
+        customerId: intent.customerId,
+        subscriptionId: intent.subscriptionId,
+        now: receivedAt,
+      });
+
       const failedPaymentId = await findRecoverableFailedPayment(env, accountId, intent.invoiceId);
       if (!failedPaymentId) {
         // A normal renewal payment (no active failure): nothing to recover, claim only.
