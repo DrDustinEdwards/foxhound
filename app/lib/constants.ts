@@ -377,6 +377,13 @@ export const CARD_UPDATE_TOKEN_MAX_AGE_MS = 30 * DAY_MS;
 /** Max time a single run may hold a per-cron DO lock before the lease lapses. */
 export const CRON_LOCK_LEASE_MS = 5 * 60 * 1000;
 /** Cron schedules (UTC). MUST match wrangler.jsonc triggers.crons exactly. */
+/** How far ahead the expiring-card alert looks, in days. Legacy's
+ *  `EXPIRING_CARD_DAYS_AHEAD = 30` (lib/constants.ts:39), ported as the number
+ *  it is. The guard it feeds is a BAND: a card expiring further out than this
+ *  is too early to warn about, and one that has ALREADY expired is not warned
+ *  about at all, because the failure has happened and dunning owns it. */
+export const EXPIRING_CARD_DAYS_AHEAD = 30;
+
 export const CRON_SCHEDULE_DAILY = "0 3 * * *"; // 03:00 UTC, retention sweeps
 export const CRON_SCHEDULE_MONTHLY = "0 4 1 * *"; // 04:00 UTC on the 1st, billing run
 /** Recovery tick: sweeps due recovery_steps. Every 5 minutes.
