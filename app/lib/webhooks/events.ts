@@ -1,6 +1,7 @@
 import type Stripe from "stripe";
 
 import { type DeclineCategory } from "~/lib/constants";
+import { readWinbackSequenceId } from "~/lib/recovery/winback-metadata";
 import { classifyDecline } from "~/lib/recovery/decline";
 
 // Pure Stripe-event classification for the connected-account webhook. Maps a
@@ -32,8 +33,18 @@ export type WebhookIntent =
       kind: "recover";
       invoiceId: string;
       customerId: string | null;
+      /** The invoice's subscription, when it has one. A win-back reactivation
+       *  is read off THIS subscription's metadata (344 binding 1). */
+      subscriptionId: string | null;
       amountPaidCents: number;
       currency: string;
+    }
+  | {
+      /** A Checkout Session completed carrying a win-back sequence id, which is
+       *  the EXACT reactivation signal: the session Foxhound created on the
+       *  resubscribe click carries the id in its own metadata (344). */
+      kind: "winback_reactivate";
+      sequenceId: string;
     }
   | { kind: "stamp_refund"; paymentIntentId: string }
   | {
@@ -112,6 +123,12 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
         kind: "recover",
         invoiceId: invoice.id,
         customerId: asId(invoice.customer),
+        // On the pinned API version the invoice no longer types `subscription`,
+        // and legacy reads it through the same cast.
+        subscriptionId: asId(
+          (invoice as Stripe.Invoice & { subscription?: string | { id: string } | null })
+            .subscription,
+        ),
         amountPaidCents: invoice.amount_paid ?? 0,
         currency: invoice.currency ?? "usd",
       };
@@ -183,6 +200,15 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
         amountCents: price?.unit_amount ?? null,
         currency: price?.currency ?? null,
       };
+    }
+    case "checkout.session.completed": {
+      // The reactivation's PRIMARY path, and the only one that needs no Stripe
+      // read: Foxhound put the sequence id on this session itself when the
+      // customer clicked the resubscribe button (344).
+      const session = event.data.object as Stripe.Checkout.Session;
+      const sequenceId = readWinbackSequenceId(session.metadata);
+      if (!sequenceId) return { kind: "ignore", reason: "not_a_winback_checkout" };
+      return { kind: "winback_reactivate", sequenceId };
     }
     case "customer.updated": {
       // Legacy reads the card from the deprecated `sources` array first and

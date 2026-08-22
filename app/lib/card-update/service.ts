@@ -1,3 +1,7 @@
+import {
+  WINBACK_SEQUENCE_METADATA_KEY,
+  WINBACK_STEP_METADATA_KEY,
+} from "~/lib/recovery/winback-metadata";
 import { getConnectedStripe } from "~/lib/stripe/client";
 
 // Card-update payment-method collection (Phase 5 slice 5g, PRICING.md
@@ -89,13 +93,10 @@ export async function finalizeCardUpdateSession(input: {
 // creation, so Foxhound never calls `subscriptions.create` and never writes a
 // subscription itself.
 
-/** Metadata keys the created Checkout Session and its subscription carry, so
- *  session 52 can match a completion to a sequence by ID rather than by
- *  customer. Legacy matches `(account_id, stripe_customer_id, status)` and
- *  nothing else, which credits an unrelated renewal on a second subscription
- *  as a win-back; these keys are that same intent expressed exactly. */
-export const WINBACK_SEQUENCE_METADATA_KEY = "win_back_sequence_id";
-export const WINBACK_STEP_METADATA_KEY = "win_back_step_number";
+// The metadata keys the created Checkout Session and its subscription carry.
+// They live in ~/lib/recovery/winback-metadata so the webhook classifier that
+// READS them and this creator that WRITES them share one definition (316).
+export { WINBACK_SEQUENCE_METADATA_KEY, WINBACK_STEP_METADATA_KEY };
 
 export interface ResubscribeSessionParamsInput {
   customerId: string;
