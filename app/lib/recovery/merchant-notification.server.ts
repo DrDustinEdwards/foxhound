@@ -40,6 +40,20 @@ export interface RecoveryNotificationContext {
   failedPaymentId: string;
 }
 
+/**
+ * Why nothing was sent, or what happened when something was.
+ *
+ * THE `skipped` REASONS ARE THE POINT. An earlier shape returned `null` for
+ * every non-send, which made a deliberate refusal indistinguishable from a
+ * crash the catch had swallowed: deleting the recipient guard threw on
+ * `null.trim()`, the catch returned null, and the plant that asserted null
+ * passed. A refusal now names itself and an error names itself.
+ */
+export type RecoveryNotificationOutcome =
+  | { kind: "sent"; result: EmailJobResult }
+  | { kind: "skipped"; reason: "not_found" | "no_recipient" | "disabled" }
+  | { kind: "error"; message: string };
+
 interface NotificationData {
   notificationEmail: string;
   customerLabel: string;
@@ -111,7 +125,7 @@ export function recoveryNotifyBody(data: {
 export async function loadNotificationData(
   db: Db,
   ctx: RecoveryNotificationContext,
-): Promise<NotificationData | null> {
+): Promise<NotificationData | { skipped: "not_found" | "no_recipient" | "disabled" }> {
   const [accountRows, paymentRows] = await Promise.all([
     db
       .select({
@@ -141,9 +155,9 @@ export async function loadNotificationData(
 
   const account = accountRows[0];
   const payment = paymentRows[0];
-  if (!account || !payment) return null;
-  if (!account.notificationEmail) return null;
-  if (account.enabled === false) return null;
+  if (!account || !payment) return { skipped: "not_found" };
+  if (!account.notificationEmail) return { skipped: "no_recipient" };
+  if (account.enabled === false) return { skipped: "disabled" };
 
   return {
     notificationEmail: account.notificationEmail,
@@ -172,11 +186,11 @@ export async function loadNotificationData(
 export async function sendRecoveryNotification(
   env: Env,
   ctx: RecoveryNotificationContext,
-): Promise<EmailJobResult | null> {
+): Promise<RecoveryNotificationOutcome> {
   try {
     const db = getDb(env);
     const data = await loadNotificationData(db, ctx);
-    if (!data) return null;
+    if ("skipped" in data) return { kind: "skipped", reason: data.skipped };
 
     const baseUrl = env.BETTER_AUTH_URL ?? "";
     const bodyHtml = recoveryNotifyBody({
@@ -187,7 +201,7 @@ export async function sendRecoveryNotification(
       paymentUrl: `${baseUrl}/recovery/payments/${ctx.failedPaymentId}`,
     });
 
-    return await processEmailJob(
+    const result = await processEmailJob(
       env,
       {
         accountId: ctx.accountId,
@@ -207,11 +221,13 @@ export async function sendRecoveryNotification(
       },
       null,
     );
+    return { kind: "sent", result };
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
     console.error(
       `recovery notification failed for account ${ctx.accountId} payment ${ctx.failedPaymentId}:`,
-      err instanceof Error ? err.message : err,
+      message,
     );
-    return null;
+    return { kind: "error", message };
   }
 }
