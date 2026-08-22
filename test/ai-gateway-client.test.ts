@@ -1,3 +1,4 @@
+import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -151,7 +152,6 @@ describe("PLANT 3: no call site builds its own client", () => {
     // The expected set comes from the tree, not from the constant above, and
     // fails in BOTH directions: a new constructor anywhere, or a listed file
     // that stopped calling the factory.
-    const { execSync } = require("node:child_process") as typeof import("node:child_process");
     const hits = execSync('git grep -l "createAnthropicClient(env)" -- "app/**/*.ts"', {
       encoding: "utf8",
     })
