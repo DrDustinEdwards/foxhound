@@ -8,9 +8,27 @@ import { CARD_UPDATE_TOKEN_MAX_AGE_MS } from "~/lib/constants";
 // (CARD_UPDATE_TOKEN_MAX_AGE_MS): a stale link asking a customer to enter a
 // new card should not work forever.
 
+/**
+ * TWO MODES, exactly one id each (341 binding 2).
+ *
+ * RECOVERY MODE carries `failedPaymentId`: a payment failed, the dunning email
+ * links here, and a successful update records the `card_update` attribution
+ * signal the recovery path reads.
+ *
+ * ALERT MODE carries `expiringCardAlertId`: nothing has failed yet. An
+ * expiring-card alert warns a customer before the card lapses, so there IS no
+ * failed payment to name, which is why `failedPaymentId` had to become
+ * optional. An alert-mode update triggers no retry, writes no recovery step and
+ * records no attribution signal: the alert's own outcome is the record.
+ *
+ * `verifyCardUpdateToken` refuses a token carrying NEITHER id, so the optional
+ * field cannot become a way to mint a token that resolves to nothing.
+ */
 export interface CardUpdateTokenPayload {
-  /** failed_payments.id this card update applies to. */
-  failedPaymentId: string;
+  /** failed_payments.id this card update applies to. Recovery mode. */
+  failedPaymentId?: string;
+  /** expiring_card_alerts.id this card update applies to. Alert mode. */
+  expiringCardAlertId?: string;
   accountId: string;
   /** Epoch ms the token was issued, for expiry. */
   iat: number;
@@ -74,7 +92,12 @@ export async function verifyCardUpdateToken(
     const ok = await crypto.subtle.verify("HMAC", key, sig, payloadBytes);
     if (!ok) return null;
     const parsed = JSON.parse(new TextDecoder().decode(payloadBytes)) as CardUpdateTokenPayload;
-    if (!parsed.failedPaymentId || !parsed.accountId || typeof parsed.iat !== "number") {
+    // EXACTLY ONE MODE, and a token carrying neither id is refused here rather
+    // than resolving to nothing downstream. This is the fail-closed half of
+    // making `failedPaymentId` optional (341 binding 2): the field is optional,
+    // the REQUIREMENT that a token names a target is not.
+    const hasTarget = Boolean(parsed.failedPaymentId) || Boolean(parsed.expiringCardAlertId);
+    if (!hasTarget || !parsed.accountId || typeof parsed.iat !== "number") {
       return null;
     }
     if (Date.now() - parsed.iat > CARD_UPDATE_TOKEN_MAX_AGE_MS) return null;
