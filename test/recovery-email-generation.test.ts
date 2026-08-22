@@ -130,12 +130,12 @@ describe("applyCustomBody + brand voice", () => {
   });
 
   it("resolves a default voice when the merchant has none, else the merchant's", () => {
-    expect(resolveBrandVoice({ merchantName: "Acme" })).toMatch(/warm/);
+    expect(resolveBrandVoice({ merchantName: "Acme" }, "soft")).toMatch(/warm/);
     expect(
-      resolveBrandVoice({ merchantName: "Acme", voiceDescription: "  " }),
+      resolveBrandVoice({ merchantName: "Acme", voiceDescription: "  " }, "soft"),
     ).toMatch(/warm/);
     expect(
-      resolveBrandVoice({ merchantName: "Acme", voiceDescription: "cheeky and brief" }),
+      resolveBrandVoice({ merchantName: "Acme", voiceDescription: "cheeky and brief" }, "soft"),
     ).toBe("cheeky and brief");
   });
 });
