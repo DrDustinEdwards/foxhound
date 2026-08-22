@@ -26,7 +26,8 @@ vi.mock("~/db", async (importOriginal) => ({
 
 const { sendSequenceCompleteNotification, sequenceCompleteSubject, sequenceCompleteBody, SEQUENCE_COMPLETE_TEMPLATE } =
   await import("~/lib/recovery/sequence-complete-notification.server");
-const { flipExhaustedSequences, queryExhaustedSequences } = await import("~/lib/cron/recovery-tick");
+const { flipExhaustedSequences, queryExhaustedSequences, readClaimedSequences, buildExhaustedSequenceFlip } =
+  await import("~/lib/cron/recovery-tick");
 const { LIVE_SENDS_DISABLED_ERROR } = await import("~/lib/email/dispatch");
 
 const ACCOUNT = "acct_1";
@@ -349,5 +350,55 @@ describe("PLANT 6: the docs describe the notice and its exclusivity", () => {
     expect(section).not.toContain("the sequence-complete notice are not built");
     // The two that genuinely are still unbuilt keep saying so.
     expect(section).toContain("The weekly digest and Slack delivery are not built yet.");
+  });
+});
+
+describe("PLANT 7: the two layers of the claim, each proven on its own", () => {
+  // Inside flipExhaustedSequences the query and the flip run back to back on
+  // one thread, so every candidate is claimed and neither layer is observable
+  // through the public function. Reached directly, both are.
+
+  it("THE FLIP IS A CLAIM: an already-terminal row is not re-stamped", async () => {
+    seedAccount({ enabled: null });
+    seedPayment({ id: "fp_done", status: "failed_unrecovered" });
+    sqlite.prepare("UPDATE failed_payments SET resolved_at = 1234 WHERE id = 'fp_done'").run();
+
+    // Its id is handed to the flip anyway, which is what a concurrent tick
+    // would do. The `status = 'active'` guard is the only thing refusing it.
+    await db.batch([buildExhaustedSequenceFlip(db, ["fp_done"], new Date(9_999_999))]);
+
+    const row = sqlite
+      .prepare("SELECT resolved_at AS r FROM failed_payments WHERE id = 'fp_done'")
+      .get() as { r: number };
+    expect(row.r).toBe(1234);
+  });
+
+  it("THE READ-BACK NARROWS: a candidate this flip did not claim is excluded", async () => {
+    seedAccount({ enabled: null });
+    seedPayment({ id: "fp_mine" });
+    seedPayment({ id: "fp_theirs" });
+    const now = new Date(5_000_000);
+
+    // fp_mine is claimed by THIS flip; fp_theirs was already terminal, stamped
+    // by another tick at a different time. Both are in the candidate list.
+    sqlite
+      .prepare("UPDATE failed_payments SET status = 'failed_unrecovered', resolved_at = 4000 WHERE id = 'fp_theirs'")
+      .run();
+    await db.batch([buildExhaustedSequenceFlip(db, ["fp_mine", "fp_theirs"], now)]);
+
+    const claimed = await readClaimedSequences(db, ["fp_mine", "fp_theirs"], now);
+
+    expect(claimed).toEqual([{ failedPaymentId: "fp_mine", accountId: ACCOUNT }]);
+  });
+
+  it("a row terminal at a DIFFERENT time is excluded even with the same status", async () => {
+    seedAccount({ enabled: null });
+    seedPayment({ id: "fp_old", status: "failed_unrecovered" });
+    sqlite.prepare("UPDATE failed_payments SET resolved_at = 4000 WHERE id = 'fp_old'").run();
+
+    expect(await readClaimedSequences(db, ["fp_old"], new Date(5_000_000))).toEqual([]);
+    // And it IS found at its own timestamp, so the filter is the timestamp and
+    // not something incidental.
+    expect(await readClaimedSequences(db, ["fp_old"], new Date(4000))).toHaveLength(1);
   });
 });
