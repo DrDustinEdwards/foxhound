@@ -531,3 +531,47 @@ export async function listMembers(db: Db, accountId: string) {
     .leftJoin(user, eq(accountMembers.userId, user.id))
     .where(eq(accountMembers.accountId, accountId));
 }
+
+/**
+ * Remove one member from an account. S26, ported from legacy's
+ * `app/api/team/remove/route.ts` (blob `3fd92550`, 1,942 bytes).
+ *
+ * LEGACY DELETES THE ROW, and this does too. It is not a status change: legacy
+ * has no "removed" status and neither does this schema, so inventing one would
+ * be a Foxhound addition on a membership table the money path reads.
+ *
+ * THREE REFUSALS, all legacy's, and all enforced HERE rather than by the
+ * caller. The route also gates on owner, but a guard that only exists in the
+ * component is not a guard:
+ *   1. the target must be on THIS account, so the WHERE pins `account_id`;
+ *   2. an OWNER is never removable, which is also what stops an owner removing
+ *      themselves, since only an owner can reach this at all;
+ *   3. a missing or foreign id matches zero rows and reports `not_found`
+ *      rather than reporting success for a delete that did nothing.
+ *
+ * A plain account-state write, not a money write: removing a member changes who
+ * may sign in to an account, never an outcome, an attributed fee or a webhook
+ * claim (333's line, and `cancelMerchant`'s precedent).
+ */
+export type RemoveMemberResult =
+  | { ok: true }
+  | { ok: false; reason: "not_found" | "is_owner" };
+
+export async function removeMember(
+  db: Db,
+  accountId: string,
+  memberId: string,
+): Promise<RemoveMemberResult> {
+  const rows = await db
+    .select({ id: accountMembers.id, role: accountMembers.role })
+    .from(accountMembers)
+    .where(and(eq(accountMembers.id, memberId), eq(accountMembers.accountId, accountId)))
+    .limit(1);
+
+  const target = rows[0];
+  if (!target) return { ok: false, reason: "not_found" };
+  if (target.role === MEMBER_ROLE.OWNER) return { ok: false, reason: "is_owner" };
+
+  await db.delete(accountMembers).where(eq(accountMembers.id, memberId));
+  return { ok: true };
+}
