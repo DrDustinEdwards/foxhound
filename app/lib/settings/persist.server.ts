@@ -23,7 +23,6 @@ export function buildAccountProfileUpdate(
 
 export interface EmailSettingsInput {
   notificationEmail: string | null;
-  digestEmail: string | null;
 }
 
 export function buildEmailSettingsUpdate(
@@ -31,12 +30,12 @@ export function buildEmailSettingsUpdate(
   accountId: string,
   input: EmailSettingsInput,
 ) {
+  // ONE column. `digest_email` was here and is gone (336 binding 3): no legacy
+  // counterpart, no reader, and the audit digest sends to `notification_email`.
+  // Leaving it in the set would keep a write alive for a field no form posts.
   return db
     .update(accounts)
-    .set({
-      notificationEmail: input.notificationEmail,
-      digestEmail: input.digestEmail,
-    })
+    .set({ notificationEmail: input.notificationEmail })
     .where(eq(accounts.id, accountId));
 }
 

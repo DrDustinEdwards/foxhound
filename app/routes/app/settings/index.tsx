@@ -71,9 +71,14 @@ export async function action({ request, context }: Route.ActionArgs) {
       return data({ action: intent, ok: true });
     }
     case "email": {
+      // S36 / ruling 336 binding 3: `digest_email` is REMOVED from this form.
+      // It is a Foxhound invention with no legacy column, no legacy field and
+      // no reader: the audit digest sends to `notification_email`. A field that
+      // writes a column nothing reads is a false promise, and one legacy never
+      // had is an unratified addition on top of it. The COLUMN stays, because
+      // dropping it is a migration and none is owed here.
       await buildEmailSettingsUpdate(db, accountId, {
         notificationEmail: str("notificationEmail"),
-        digestEmail: str("digestEmail"),
       });
       return data({ action: intent, ok: true });
     }
@@ -411,7 +416,7 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
 
       <SettingsCard
         title="Email"
-        description="Where Foxhound sends account notifications and the weekly digest."
+        description="Where Foxhound sends account notifications."
         action="email"
         result={result}
       >
@@ -421,13 +426,6 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
           type="email"
           required={false}
           defaultValue={account.notificationEmail ?? ""}
-        />
-        <Field
-          label="Digest email"
-          name="digestEmail"
-          type="email"
-          required={false}
-          defaultValue={account.digestEmail ?? ""}
         />
       </SettingsCard>
 
