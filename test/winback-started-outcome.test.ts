@@ -141,17 +141,29 @@ describe("PLANT 2: a replayed deletion records none", () => {
     expect(outcomeRows()).toHaveLength(1);
   });
 
-  it("AND THE `applied` GATE IS REACHED ALONE, with the outcome key removed", async () => {
-    // The gate and the outcome's idempotency key both stop a second started
-    // row, and in the ordinary replay they fire together, so neither is proven.
-    // Deleting the outcome row leaves ONLY the gate: the webhook claim still
-    // collides, applied is false, and nothing may be recorded.
-    await processConnectedWebhook(env, deletedEvent("evt_1"), RECEIVED);
-    sqlite.prepare("DELETE FROM outcomes").run();
+  it("AND THE `applied` GATE IS REACHED ALONE, through the index the pre-check cannot see", async () => {
+    // THE ASYMMETRY THIS EXPLOITS IS REAL. findWinbackSequence is scoped to the
+    // ACCOUNT, but win_back_sequences_subscription_uq is on stripe_subscription_id
+    // ALONE and is therefore global. So a subscription id already held by
+    // ANOTHER account passes the pre-check and then collides at the index: the
+    // batch rolls back, applied is false, and the branch is reached with no
+    // sequence created. Nothing else in the system can produce that state, and
+    // it is exactly what the gate exists for. Without it a started outcome
+    // would be recorded for a sequence that does not exist.
+    sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES ('acct_2', 'Other', 1000)").run();
+    sqlite
+      .prepare(
+        "INSERT INTO win_back_sequences (id, account_id, stripe_customer_id, stripe_subscription_id, customer_email, status, created_at) VALUES ('wb_other', 'acct_2', 'cus_9', 'sub_1', 'x@y.test', 'active', 1000)",
+      )
+      .run();
 
-    const again = await processConnectedWebhook(env, deletedEvent("evt_1"), RECEIVED);
+    const result = await processConnectedWebhook(env, deletedEvent("evt_1", "sub_1"), RECEIVED);
 
-    expect(again).toEqual({ status: "duplicate" });
+    expect(result).toEqual({ status: "duplicate" });
+    // No sequence was created on THIS account, so no started outcome may exist.
+    expect(
+      sqlite.prepare("SELECT id FROM win_back_sequences WHERE account_id = ?").all(ACCOUNT),
+    ).toEqual([]);
     expect(outcomeRows()).toEqual([]);
   });
 
