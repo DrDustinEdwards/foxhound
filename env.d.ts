@@ -49,6 +49,16 @@ interface Env {
   // inert until this is present. Generated copy is sanitized before use.
   ANTHROPIC_API_KEY?: string;
 
+  // Cloudflare AI Gateway base URL for the Anthropic provider, shape
+  // https://gateway.ai.cloudflare.com/v1/{account_id}/{gateway_id}/anthropic
+  // (346, session 54). OPTIONAL BY DESIGN: set, every Anthropic client routes
+  // through the gateway and its metadata log; unset, the SDK's own default
+  // applies and nothing changes, which is what local runs and the test suite
+  // want. Bring-your-own-key, so ANTHROPIC_API_KEY stays the credential and
+  // there is no gateway-side billing. A plain var, never a secret: it carries
+  // an account id and a gateway name, no credential.
+  AI_GATEWAY_BASE_URL?: string;
+
   // ---- Phase 4c: email pipeline (Dustin-provisioned; wrangler bindings added
   // once the queue exists + Email Service is enabled on the zone). Declared
   // ambient + optional so the code is guarded and deploy stays green until then.

@@ -1,5 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
-
+import { createAnthropicClient } from "~/lib/ai/client";
 import { MODEL_RECOVERY_EMAIL } from "~/lib/constants";
 import { sanitizeCopy } from "~/lib/recovery/email-generation";
 
@@ -142,7 +141,7 @@ export async function draftDisputeEvidence(env: Env, facts: EvidenceFacts): Prom
   if (!env.ANTHROPIC_API_KEY) return fields;
 
   try {
-    const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+    const client = createAnthropicClient(env);
     const response = await client.messages.create({
       model: MODEL_RECOVERY_EMAIL,
       max_tokens: 500,

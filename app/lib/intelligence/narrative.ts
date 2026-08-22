@@ -1,5 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
-
+import { createAnthropicClient } from "~/lib/ai/client";
 import { MODEL_INTELLIGENCE_NARRATIVE } from "~/lib/constants";
 import { formatMoney } from "~/lib/money-format";
 import { sanitizeCopy } from "~/lib/recovery/email-generation";
@@ -155,7 +154,7 @@ export async function generateIntelligenceNarrative(
   if (!env.ANTHROPIC_API_KEY) {
     throw new Error("ANTHROPIC_API_KEY is not set");
   }
-  const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+  const client = createAnthropicClient(env);
 
   const response = await client.messages.create({
     model: MODEL_INTELLIGENCE_NARRATIVE,

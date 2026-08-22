@@ -1,5 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
-
+import { createAnthropicClient } from "~/lib/ai/client";
 import { MODEL_RECOVERY_EMAIL } from "~/lib/constants";
 
 // AI dunning-copy generation. Copy is written in the MERCHANT's brand voice, not
@@ -360,7 +359,7 @@ export async function generateDunningEmail(
   if (!env.ANTHROPIC_API_KEY) {
     throw new Error("ANTHROPIC_API_KEY is not set");
   }
-  const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+  const client = createAnthropicClient(env);
   const prompts = buildPrompts(input);
 
   const response = await client.messages.create({
