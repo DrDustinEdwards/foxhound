@@ -331,3 +331,23 @@ describe("PLANT 5: the tick hooks the notification on the claim", () => {
     ).not.toMatch(wide);
   });
 });
+
+describe("PLANT 6: the docs describe the notice and its exclusivity", () => {
+  const DOCS = readFileSync(
+    fileURLToPath(new URL("../app/lib/marketing/docs-content.ts", import.meta.url)),
+    "utf8",
+  );
+  const section = DOCS.slice(DOCS.indexOf('heading: "Notifications"'), DOCS.indexOf('heading: "Alerts"'));
+
+  it("says what ends a sequence and that the two notices never both fire", () => {
+    // Line for the heading map: platform, "Notifications", body[1].
+    expect(section).toContain("runs out of steps without the payment coming back");
+    expect(section).toContain("you never get both for one payment");
+  });
+
+  it("no longer lists the sequence-complete notice as unbuilt", () => {
+    expect(section).not.toContain("the sequence-complete notice are not built");
+    // The two that genuinely are still unbuilt keep saying so.
+    expect(section).toContain("The weekly digest and Slack delivery are not built yet.");
+  });
+});
