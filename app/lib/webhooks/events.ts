@@ -58,6 +58,20 @@ export type WebhookIntent =
       amountCents: number | null;
       currency: string | null;
     }
+  | {
+      /** customer.updated carrying a card inside the expiring-card lead window.
+       *  Legacy's handleCustomerUpdated is the spec: it RECORDS a candidate and
+       *  never sends, the nightly cron owning every send. */
+      kind: "record_expiring_card";
+      customerId: string;
+      customerEmail: string;
+      customerName: string | null;
+      /** The card, when the event already carries it. */
+      card: { expMonth: number; expYear: number; brand: string | null; last4: string | null } | null;
+      /** Otherwise the payment method to retrieve, per this file's rule that the
+       *  classifier makes no Stripe call. */
+      paymentMethodId: string | null;
+    }
   | { kind: "ignore"; reason: string };
 
 function asId(ref: string | { id?: string } | null | undefined): string | null {
@@ -168,6 +182,49 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
             : null,
         amountCents: price?.unit_amount ?? null,
         currency: price?.currency ?? null,
+      };
+    }
+    case "customer.updated": {
+      // Legacy reads the card from the deprecated `sources` array first and
+      // falls back to retrieving `invoice_settings.default_payment_method`.
+      // Both halves are reproduced, the retrieve deferred to the processor
+      // because this function makes no Stripe call (the same split
+      // customer.subscription.deleted takes for the customer email).
+      const customer = event.data.object as Stripe.Customer;
+      if (!customer.id) return { kind: "ignore", reason: "no_customer" };
+      const email = customer.email ?? "";
+      if (!email) return { kind: "ignore", reason: "no_customer_email" };
+
+      const sources = (customer as Stripe.Customer & {
+        sources?: { data?: { object?: string; exp_month?: number; exp_year?: number; brand?: string; last4?: string }[] };
+      }).sources?.data;
+      const source = sources?.[0];
+      if (source && source.object === "card" && source.exp_month && source.exp_year) {
+        return {
+          kind: "record_expiring_card",
+          customerId: customer.id,
+          customerEmail: email,
+          customerName: customer.name ?? null,
+          card: {
+            expMonth: source.exp_month,
+            expYear: source.exp_year,
+            brand: source.brand ?? null,
+            last4: source.last4 ?? null,
+          },
+          paymentMethodId: null,
+        };
+      }
+
+      const defaultPm = customer.invoice_settings?.default_payment_method;
+      const pmId = asId(defaultPm);
+      if (!pmId) return { kind: "ignore", reason: "no_card_on_customer" };
+      return {
+        kind: "record_expiring_card",
+        customerId: customer.id,
+        customerEmail: email,
+        customerName: customer.name ?? null,
+        card: null,
+        paymentMethodId: pmId,
       };
     }
     default:
