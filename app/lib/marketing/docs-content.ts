@@ -34,9 +34,22 @@ export const DOC_GUIDES: DocGuide[] = [
         ],
       },
       {
+        heading: "Alerts",
+        body: [
+          "Settings and Alerts lets you set a threshold on a metric Foxhound tracks: average health score, MRR at risk, churned MRR, and contracted MRR. Choose whether the metric dropping below or rising above your number counts, and Foxhound checks every night.",
+          "Every breach is recorded and shown under Recent triggers on that page. Foxhound does not email or Slack you when an alert fires yet, so the page is where you read them.",
+        ],
+      },
+      {
+        heading: "API keys",
+        body: [
+          "Settings and API keys issues credentials for external AI agents and automations. A key is shown once, when you generate it, and only its hash is stored, so Foxhound cannot show it to you again. Name each key so you can tell them apart, and revoke any key from the same page. A revoked key stops working immediately.",
+        ],
+      },
+      {
         heading: "Team and brand voice",
         body: [
-          "Invite teammates from Settings. Every account has one brand voice field, used across all recovery email copy.",
+          "Invite teammates from Settings and Team. The account owner can remove any member other than themselves, and access ends immediately. Every account has one brand voice field, used across all recovery email copy.",
           "Settings and Email holds the sender name, the name your customers see in the From line of every recovery email. Set it before your first send: until you do, recovery mail goes out from \"Support\". Send test email delivers a sample to your own address through the real sending path, so the From line you see is the one your customers get.",
         ],
       },

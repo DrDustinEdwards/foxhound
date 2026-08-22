@@ -240,7 +240,28 @@ describe("PLANT 4: the render carries legacy's control set", () => {
   });
 
   it("the remove control posts through DemoGuardedForm like every settings write", () => {
-    expect(code).toContain('<DemoGuardedForm method="post"');
+    // Asserted on the REMOVE block specifically, and against a raw lowercase
+    // <form> as well as a capitalised <Form>: swapping in a plain element
+    // type-checks fine and would silently leave the demo firewall's UX layer.
+    const removeBlock = code.slice(code.indexOf("m.removable ?"), code.indexOf("Remove member"));
+    expect(removeBlock).toContain('<DemoGuardedForm method="post"');
     expect(code).not.toContain('<Form method="post"');
+    expect(code).not.toContain('<form method="post"');
+  });
+});
+
+describe("PLANT 5: the docs describe the control that now exists", () => {
+  const DOCS = readFileSync(
+    fileURLToPath(new URL("../app/lib/marketing/docs-content.ts", import.meta.url)),
+    "utf8",
+  );
+
+  it("names removal, who can do it, and when access ends", () => {
+    // Line for the heading map: platform, "Team and brand voice", body[0]. It
+    // promised invites and stopped there, which was accurate while nothing
+    // could remove a member.
+    expect(DOCS).toContain("Invite teammates from Settings and Team");
+    expect(DOCS).toContain("can remove any member other than themselves");
+    expect(DOCS).toContain("access ends immediately");
   });
 });
