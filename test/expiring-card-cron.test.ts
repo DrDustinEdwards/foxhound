@@ -412,3 +412,60 @@ describe("PLANT 6: the docs describe the alert, including what it does not do", 
     expect(section).toContain("prevents a failure rather than recovering one");
   });
 });
+
+describe("PLANT 7: the claim and the fallbacks, each reached alone", () => {
+  async function seedStamped(sentAt: number | null) {
+    sqlite
+      .prepare(
+        "INSERT INTO expiring_card_alerts (id, account_id, stripe_connection_id, stripe_customer_id, customer_email, card_brand, card_last4, expires_month, expires_year, created_at, alert_sent_at) VALUES ('al_1', ?, 'c1', 'cus_1', 'buyer@acme.test', 'visa', '4242', 11, 2026, 1000, ?)",
+      )
+      .run(ACCOUNT, sentAt);
+  }
+
+  it("THE CLAIM IS CONDITIONAL: an already-stamped alert is not re-stamped", async () => {
+    // Reached directly. Inside the send pass the query already excludes sent
+    // candidates, so that filter alone hides whether the claim is conditional,
+    // and a mutation to either layer looks harmless (340 binding 3).
+    seedAccount({ enabled: null });
+    await seedStamped(4000);
+
+    const { claimSent } = await import("~/lib/cron/expiring-cards");
+    const took = await claimSent(db, "al_1", NOW);
+
+    expect(took).toBe(false);
+    const row = sqlite
+      .prepare("SELECT alert_sent_at AS s FROM expiring_card_alerts WHERE id = 'al_1'")
+      .get() as { s: number };
+    expect(row.s).toBe(4000);
+  });
+
+  it("and an UNSTAMPED alert is claimed exactly once", async () => {
+    seedAccount({ enabled: null });
+    await seedStamped(null);
+
+    const { claimSent } = await import("~/lib/cron/expiring-cards");
+    expect(await claimSent(db, "al_1", NOW)).toBe(true);
+    // A second attempt at a later time finds it already taken.
+    expect(await claimSent(db, "al_1", new Date(NOW.getTime() + 1000))).toBe(false);
+  });
+
+  it("legacy's fallbacks fill every absent field", async () => {
+    seedAccount({ enabled: null, senderName: null });
+    sqlite
+      .prepare(
+        "INSERT INTO expiring_card_alerts (id, account_id, stripe_connection_id, stripe_customer_id, customer_email, customer_name, card_brand, card_last4, expires_month, expires_year, created_at) VALUES ('al_2', ?, 'c1', 'cus_2', 'buyer@acme.test', NULL, NULL, NULL, 3, 2027, 1000)",
+      )
+      .run(ACCOUNT);
+
+    await sendExpiringCardAlerts(env, new Date("2027-02-15T00:00:00Z"));
+
+    // customer_name -> "there", card_brand -> "Card", card_last4 -> "****",
+    // sender_name -> "Support". All four are legacy's.
+    expect(harness.sent[0].subject).toBe("Action required: Your Card card ending in **** is expiring");
+    expect(harness.sent[0].html).toContain("Hi there,");
+    expect(harness.sent[0].html).toContain("<strong>Card card ending in ****</strong>");
+    expect(harness.sent[0].html).toContain("is expiring on <strong>03/2027</strong>");
+    expect(harness.sent[0].html).toContain("Thanks,<br>Support");
+    expect(harness.sent[0].from.startsWith("Support <")).toBe(true);
+  });
+});
