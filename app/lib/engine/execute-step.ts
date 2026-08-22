@@ -21,6 +21,7 @@ import {
   resolveContentPlan,
   type CachedStepContent,
   type EmailCopy,
+  type GenerateEmailInput,
 } from "~/lib/recovery/email-generation";
 import { buildTemplateEmail } from "~/lib/recovery/email-template";
 import { reconcileRetryRecovery as reconcileRetryRecoveryReal } from "~/lib/recovery/record-recovery";
@@ -417,8 +418,19 @@ async function defaultPersistEmailPatch(
   await db.batch([buildEmailStepPatch(db, stepId, patch, cache)]);
 }
 
-function defaultGenerate(env: Env, updateUrl: string, ctx: EmailStepContext): Promise<EmailCopy> {
-  return generateDunningEmail(env, {
+/**
+ * The generation input for one step. PURE and exported so the assembly itself
+ * is testable: `generateDunningEmail` needs ANTHROPIC_API_KEY, so a plant that
+ * hand-built this object would prove the prompt builder works while leaving THIS
+ * link, where the context is actually attached, uncovered. Measured: dropping
+ * the three merchant-context fields here went green until the plant reached
+ * through this function.
+ */
+export function buildGenerateEmailInput(
+  updateUrl: string,
+  ctx: EmailStepContext,
+): GenerateEmailInput {
+  return {
     merchant: {
       merchantName: ctx.merchantName,
       voiceDescription: ctx.voiceDescription,
@@ -430,7 +442,11 @@ function defaultGenerate(env: Env, updateUrl: string, ctx: EmailStepContext): Pr
     declineCategory: ctx.declineCategory,
     amountFormatted: formatMoney(ctx.amountCents, ctx.currency),
     updateUrl,
-  });
+  };
+}
+
+function defaultGenerate(env: Env, updateUrl: string, ctx: EmailStepContext): Promise<EmailCopy> {
+  return generateDunningEmail(env, buildGenerateEmailInput(updateUrl, ctx));
 }
 
 export interface EmailStepResult {
