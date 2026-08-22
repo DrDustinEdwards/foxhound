@@ -12,6 +12,7 @@ import { seedDemoAccount } from "~/lib/demo/seed";
 import { runIntelligenceAiForAllAccounts } from "~/lib/intelligence/ai-run.server";
 import { runIntelligenceSyncForAllAccounts } from "~/lib/intelligence/sync.server";
 
+import { describeExpiringCardRun, runExpiringCards } from "~/lib/cron/expiring-cards";
 import { runCronHealthCheck } from "./alerts.server";
 import { runRecoveryTick } from "./recovery-tick";
 import type { CronHandler } from "./run";
@@ -124,6 +125,17 @@ const demoReset: CronHandler = async (env) => {
  *  makes the self-reference below safe: the array is fully constructed long
  *  before any cron fires. Expectations are therefore DERIVED from the registry,
  *  so a job added tomorrow is watched automatically instead of being forgotten. */
+/** The nightly expiring-card alert (341). Two passes in one job, like legacy:
+ *  scan every connected account's active subscriptions for cards inside the
+ *  30-day lead window and record a candidate, then send one customer-facing
+ *  warning per unsent candidate. CRON_SCHEDULE_DAILY matches legacy's nightly
+ *  cadence, and the CronLockDurableObject lease in run.ts is what stops two
+ *  ticks scanning at once. */
+const expiringCards: CronHandler = async (env) => {
+  const result = await runExpiringCards(env, new Date());
+  return { rowsProcessed: result.send.sent, message: describeExpiringCardRun(result) };
+};
+
 const cronHealth: CronHandler = async (env) =>
   runCronHealthCheck(env, getDb(env), CRON_JOBS, new Date());
 
@@ -148,6 +160,7 @@ const auditDigest: CronHandler = async (env, ctx) => {
 export const CRON_JOBS: CronJob[] = [
   { name: RECOVERY_TICK_CRON_NAME, schedule: CRON_SCHEDULE_RECOVERY_TICK, handler: recoveryTick },
   { name: "cron-health", schedule: CRON_SCHEDULE_DAILY, handler: cronHealth },
+  { name: "expiring-cards", schedule: CRON_SCHEDULE_DAILY, handler: expiringCards },
   { name: DEMO_RESET_CRON_NAME, schedule: CRON_SCHEDULE_DAILY, handler: demoReset },
   { name: "billing-monthly", schedule: CRON_SCHEDULE_MONTHLY, handler: billingMonthly },
   { name: "intelligence-sync", schedule: CRON_SCHEDULE_MONTHLY, handler: intelligenceSync },
