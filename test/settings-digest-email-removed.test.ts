@@ -116,10 +116,16 @@ describe("PLANT 2: the field does not render", () => {
     expect(code).not.toContain("Digest email");
   });
 
-  it("the card no longer promises a weekly digest destination", () => {
+  it("the EMAIL card no longer promises a weekly digest destination", () => {
     // The description said "Where Foxhound sends account notifications and the
     // weekly digest", naming a destination that did not exist.
-    expect(code).not.toContain("weekly digest");
+    //
+    // SCOPED TO THAT CARD. The whole-file form of this assertion broke when the
+    // Notifications card started naming the weekly digest to say it is NOT
+    // built, which is the opposite of the promise this pins against.
+    const emailCard = code.slice(code.indexOf('title="Email"'), code.indexOf('title="Notifications"'));
+    expect(emailCard).not.toContain("weekly digest");
+    expect(emailCard).toContain("Where Foxhound sends account notifications.");
   });
 
   it("the notification email field is still there", () => {

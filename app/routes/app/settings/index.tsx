@@ -431,8 +431,9 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
 
       <SettingsCard title="Notifications" action="notifications" submittable={false}>
         <p className="text-label text-text-secondary">
-          Notifications aren't sending yet. There's nothing to configure here until they do; check
-          back once this ships.
+          Foxhound emails you when it recovers a payment, at the notification email above. That is
+          the only notification sending today; the weekly digest, Slack, and the sequence-complete
+          notice are not built yet, so there is nothing to configure here until they are.
         </p>
       </SettingsCard>
 
