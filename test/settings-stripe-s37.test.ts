@@ -44,7 +44,12 @@ vi.mock("~/lib/stripe/connect", () => ({
   },
 }));
 
-const { action, loader } = await import("~/routes/app/settings/index");
+// SESSION 59 SPLIT S37'S TWO CONTROLS ONTO LEGACY'S TWO PAGES: the
+// per-connection disconnect to /settings/stripe (hub entry 1) and the account
+// cancel to /settings/account (hub entry 12). The plants below are unchanged in
+// substance; `post` routes each intent to the action that now owns it.
+const { action: stripeAction, loader } = await import("~/routes/app/settings/stripe");
+const { action: accountAction } = await import("~/routes/app/settings/account");
 const schema = await import("~/db/schema");
 const { listSwitcherAccounts } = await import("~/lib/nav/accounts.server");
 const { listMemberships } = await import("~/lib/auth/account");
@@ -160,12 +165,13 @@ const ctx = {
     }
     throw new Error("unexpected context key");
   },
-} as unknown as Parameters<typeof action>[0]["context"];
+} as unknown as Parameters<typeof stripeAction>[0]["context"];
 
 async function post(fields: Record<string, string>): Promise<{ status: number; body: Record<string, unknown> }> {
   const form = new FormData();
   for (const [k, v] of Object.entries(fields)) form.append(k, v);
-  const res = (await action({
+  const owner = fields._action === "cancel-account" ? accountAction : stripeAction;
+  const res = (await owner({
     context: ctx,
     request: new Request("https://foxhoundapp.test/settings", { method: "POST", body: form }),
     params: {},
@@ -174,10 +180,11 @@ async function post(fields: Record<string, string>): Promise<{ status: number; b
 }
 
 describe("PLANT 1: the client method and the route method agree", () => {
-  const SOURCE = readFileSync(
-    fileURLToPath(new URL("../app/routes/app/settings/index.tsx", import.meta.url)),
-    "utf8",
-  );
+  // BOTH pages, because S37's two controls now live on two of them.
+  const SOURCE = [
+    readFileSync(fileURLToPath(new URL("../app/routes/app/settings/stripe.tsx", import.meta.url)), "utf8"),
+    readFileSync(fileURLToPath(new URL("../app/routes/app/settings/account.tsx", import.meta.url)), "utf8"),
+  ].join("\n");
 
   it("both S37 forms POST, and the route handles them in its action", () => {
     // LEGACY'S DEFECT, asserted against. Its client sent
@@ -447,24 +454,32 @@ describe("PLANT 6: the docs describe the control that now exists", () => {
 });
 
 describe("PLANT 7: the demo firewall is untouched", () => {
-  const SOURCE = readFileSync(
-    fileURLToPath(new URL("../app/routes/app/settings/index.tsx", import.meta.url)),
+  // Session 59 put the two controls on two pages, so each block is read from
+  // the page that now owns it.
+  const STRIPE_SOURCE = readFileSync(
+    fileURLToPath(new URL("../app/routes/app/settings/stripe.tsx", import.meta.url)),
     "utf8",
   );
+  const ACCOUNT_SOURCE = readFileSync(
+    fileURLToPath(new URL("../app/routes/app/settings/account.tsx", import.meta.url)),
+    "utf8",
+  );
+  /** Both pages together, for the assertions that are about the pair. */
+  const BOTH = [STRIPE_SOURCE, ACCOUNT_SOURCE].join("\n");
 
   it("both S37 controls render inside DemoGuardedForm, like every other settings write", () => {
     // The hard refusal is appShellMiddleware's 405 on any non-GET for a demo
     // caller, which this session does not touch. DemoGuardedForm is the UX over
     // it, and using it keeps S37 identical to the five settings cards beside it.
-    const stripeBlock = SOURCE.slice(SOURCE.indexOf("function StripeSection"), SOURCE.indexOf("function DangerZone"));
-    const dangerBlock = SOURCE.slice(SOURCE.indexOf("function DangerZone"));
+    const stripeBlock = STRIPE_SOURCE.slice(STRIPE_SOURCE.indexOf("function StripeSection"));
+    const dangerBlock = ACCOUNT_SOURCE.slice(ACCOUNT_SOURCE.indexOf("function DangerZone"));
     expect(stripeBlock).toContain("<DemoGuardedForm method=\"post\"");
     expect(dangerBlock).toContain("<DemoGuardedForm method=\"post\"");
-    expect(SOURCE).not.toContain("<Form method=\"post\"");
+    expect(BOTH).not.toContain("<Form method=\"post\"");
   });
 
   it("no demo constant or firewall helper is referenced here", () => {
-    expect(SOURCE).not.toContain("DEMO_ACCOUNT_ID");
-    expect(SOURCE).not.toContain("resolveDemoMembership");
+    expect(BOTH).not.toContain("DEMO_ACCOUNT_ID");
+    expect(BOTH).not.toContain("resolveDemoMembership");
   });
 });

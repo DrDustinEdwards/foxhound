@@ -96,16 +96,23 @@ export default [
       index("./routes/app/billing/index.tsx"),
       route("invoices/:id", "./routes/app/billing/invoice.tsx"),
     ]),
-    ...prefix("settings", [
-      index("./routes/app/settings/index.tsx"),
-      route("team", "./routes/app/settings/team.tsx"),
-      route("audit", "./routes/app/settings/audit.tsx"),
-      route("email", "./routes/app/settings/email.tsx"),
-      route("alerts", "./routes/app/settings/alerts.tsx"),
-      route("api-keys", "./routes/app/settings/api-keys.tsx"),
-      route("brand-voice", "./routes/app/settings/brand-voice.tsx"),
-      route("notifications", "./routes/app/settings/notifications.tsx"),
-      route("features", "./routes/app/settings/features.tsx"),
+    // S24 and S25 (336 binding 2): legacy's settings HUB plus a sub-nav layout,
+    // replacing Foxhound's stack of inline cards. Every entry below is a link on
+    // that hub, in legacy's order.
+    layout("./layouts/settings.tsx", [
+      ...prefix("settings", [
+        index("./routes/app/settings/hub.tsx"),
+        route("stripe", "./routes/app/settings/stripe.tsx"),
+        route("email", "./routes/app/settings/email.tsx"),
+        route("brand-voice", "./routes/app/settings/brand-voice.tsx"),
+        route("features", "./routes/app/settings/features.tsx"),
+        route("audit", "./routes/app/settings/audit.tsx"),
+        route("notifications", "./routes/app/settings/notifications.tsx"),
+        route("alerts", "./routes/app/settings/alerts.tsx"),
+        route("team", "./routes/app/settings/team.tsx"),
+        route("api-keys", "./routes/app/settings/api-keys.tsx"),
+        route("account", "./routes/app/settings/account.tsx"),
+      ]),
     ]),
     route("help", "./routes/app/help.tsx"),
     route("welcome", "./routes/app/welcome.tsx"),

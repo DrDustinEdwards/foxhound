@@ -1,3 +1,4 @@
+import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
@@ -25,7 +26,12 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const { action } = await import("~/routes/app/settings/index");
+// SESSION 59 MOVED THE SUBJECT, NOT THE PROPERTY. The Email card this suite
+// pinned lived on the /settings index; session 56 gave `notification_email` a
+// purpose-built page and session 59 removed the card, which was a SECOND writer
+// for one column. 336 binding 3's property is unchanged and is asserted at the
+// surface that now owns the column.
+const { action } = await import("~/routes/app/settings/notifications");
 
 const ACCOUNT = "acct_1";
 
@@ -84,7 +90,6 @@ function accountRow(): { notificationEmail: string | null; digestEmail: string |
 describe("PLANT 1: a posted digest_email writes nothing", () => {
   it("the notification email saves and digest_email is untouched", async () => {
     const status = await post({
-      _action: "email",
       notificationEmail: "new@acme.test",
       digestEmail: "hijacked@evil.test",
       digest_email: "hijacked@evil.test",
@@ -99,14 +104,14 @@ describe("PLANT 1: a posted digest_email writes nothing", () => {
   });
 
   it("an empty notification email still nulls, so the removal narrowed nothing else", async () => {
-    await post({ _action: "email", notificationEmail: "" });
+    await post({ notificationEmail: "" });
     expect(accountRow().notificationEmail).toBeNull();
   });
 });
 
 describe("PLANT 2: the field does not render", () => {
   const SOURCE = readFileSync(
-    fileURLToPath(new URL("../app/routes/app/settings/index.tsx", import.meta.url)),
+    fileURLToPath(new URL("../app/routes/app/settings/notifications.tsx", import.meta.url)),
     "utf8",
   );
   const code = SOURCE.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
@@ -116,16 +121,18 @@ describe("PLANT 2: the field does not render", () => {
     expect(code).not.toContain("Digest email");
   });
 
-  it("the EMAIL card no longer promises a weekly digest destination", () => {
-    // The description said "Where Foxhound sends account notifications and the
-    // weekly digest", naming a destination that did not exist.
-    //
-    // SCOPED TO THAT CARD. The whole-file form of this assertion broke when the
-    // Notifications card started naming the weekly digest to say it is NOT
-    // built, which is the opposite of the promise this pins against.
-    const emailCard = code.slice(code.indexOf('title="Email"'), code.indexOf('title="Notifications"'));
-    expect(emailCard).not.toContain("weekly digest");
-    expect(emailCard).toContain("Where Foxhound sends account notifications.");
+  it("THE PAGE IS THE ONLY WRITER OF notification_email", () => {
+    // The /settings index carried an Email card writing the same column until
+    // session 59 removed it. Two surfaces writing one column means the later
+    // save wins silently, which is why the card went rather than being moved.
+    const writers = execSync('git grep -l notificationEmail -- app/routes || true', {
+      encoding: "utf8",
+    })
+      .trim()
+      .split("\n")
+      .filter(Boolean)
+      .sort();
+    expect(writers).toEqual(["app/routes/app/settings/notifications.tsx"]);
   });
 
   it("the notification email field is still there", () => {
