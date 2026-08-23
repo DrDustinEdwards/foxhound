@@ -348,10 +348,11 @@ describe("PLANT 6: the docs describe the notice and its exclusivity", () => {
 
   it("no longer lists the sequence-complete notice as unbuilt", () => {
     expect(section).not.toContain("the sequence-complete notice are not built");
-    // Session 55 built the digest, so SLACK is the only one still unbuilt and
-    // the line names it alone. The digest must no longer be listed as unbuilt.
-    expect(section).toContain("Slack delivery is not built yet.");
-    expect(section).not.toContain("The weekly digest and Slack delivery are not built yet.");
+    // Session 55 built the digest and session 56 built Slack, so NOTHING in
+    // this section is listed as unbuilt any more. What it must still do is say
+    // what each channel actually does.
+    expect(section).not.toContain("not built yet");
+    expect(section).toContain("Slack delivery posts to an incoming webhook");
   });
 });
 

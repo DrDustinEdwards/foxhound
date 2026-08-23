@@ -420,7 +420,8 @@ describe("PLANT 5: the docs describe the built behaviour", () => {
     // The three facts a merchant needs: when, that it is off by default, and
     // that a quiet week still produces one.
     expect(body).toContain("previous seven days");
-    expect(body).toContain("off until you turn it on");
+    // Session 56 built the page, so the sentence now names it.
+    expect(body).toContain("off until you enable it on the notifications page");
     expect(body).toContain("even in a quiet week");
   });
 });

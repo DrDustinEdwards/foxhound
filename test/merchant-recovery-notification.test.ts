@@ -357,8 +357,10 @@ describe("PLANT 8: the copy says what sends and what does not", () => {
     expect(section).toContain("emails the notification email set in Settings");
     expect(section).toContain("It sends once per recovery");
     expect(section).toContain("Set no notification email and Foxhound sends nothing");
-    // Session 55 built the digest; Slack is the only unbuilt one left.
-    expect(section).toContain("Slack delivery is not built yet");
+    // Sessions 55 and 56 built the digest and Slack, so the section now says
+    // what each does rather than that either is missing.
+    expect(section).not.toContain("not built yet");
+    expect(section).toContain("Slack delivery posts to an incoming webhook");
   });
 });
 
