@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gte, isNull, isNotNull, like, notInArray, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, isNull, isNotNull, like, notInArray, sql } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import {
@@ -77,33 +77,49 @@ export interface DigestAccount {
  * while proving nothing (session 52's reversal 11).
  */
 export async function queryDigestAccounts(db: Db): Promise<DigestAccount[]> {
-  const rows = await db
+  const candidates = await db
     .select({
       accountId: accounts.id,
       notificationEmail: accounts.notificationEmail,
-      senderName: sql<string | null>`(
-        select ${stripeConnections.senderName} from ${stripeConnections}
-        where ${stripeConnections.accountId} = ${accounts.id}
-          and ${stripeConnections.isPrimary} = 1
-          and ${stripeConnections.disconnectedAt} is null
-        limit 1
-      )`,
-      hasConnection: sql<number>`(
-        select count(*) from ${stripeConnections}
-        where ${stripeConnections.accountId} = ${accounts.id}
-          and ${stripeConnections.isPrimary} = 1
-          and ${stripeConnections.disconnectedAt} is null
-      )`,
     })
     .from(accounts)
     .where(and(eq(accounts.digestEnabled, true), accountProcessingEligibleCondition()));
 
-  return rows
-    .filter((r) => r.notificationEmail !== null && Number(r.hasConnection) > 0)
-    .map((r) => ({
-      accountId: r.accountId,
-      notificationEmail: r.notificationEmail as string,
-      senderName: r.senderName,
+  const withEmail = candidates.filter(
+    (a): a is { accountId: string; notificationEmail: string } => a.notificationEmail !== null,
+  );
+  if (withEmail.length === 0) return [];
+
+  // LEGACY'S OWN SHAPE: one batch fetch of the primary connections, then a Map
+  // lookup per account, "instead of N round-trips inside the per-account loop"
+  // as its comment puts it.
+  const connections = await db
+    .select({
+      accountId: stripeConnections.accountId,
+      senderName: stripeConnections.senderName,
+    })
+    .from(stripeConnections)
+    .where(
+      and(
+        inArray(
+          stripeConnections.accountId,
+          withEmail.map((a) => a.accountId),
+        ),
+        eq(stripeConnections.isPrimary, true),
+        isNull(stripeConnections.disconnectedAt),
+      ),
+    );
+  const byAccount = new Map(connections.map((c) => [c.accountId, c.senderName]));
+
+  // A missing or disconnected primary connection SKIPS the account, as legacy
+  // does: a digest about a Stripe account Foxhound can no longer read is a
+  // report on nothing.
+  return withEmail
+    .filter((a) => byAccount.has(a.accountId))
+    .map((a) => ({
+      accountId: a.accountId,
+      notificationEmail: a.notificationEmail,
+      senderName: byAccount.get(a.accountId) ?? null,
     }));
 }
 
