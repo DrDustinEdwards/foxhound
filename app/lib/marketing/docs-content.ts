@@ -38,8 +38,8 @@ export const DOC_GUIDES: DocGuide[] = [
         body: [
           "When Foxhound recovers a payment, it emails the notification email set in Settings, with the amount, the customer, and the decline that started it. It sends once per recovery: a repeated webhook from Stripe does not produce a second email.",
           "When a sequence runs out of steps without the payment coming back, Foxhound emails the same address to say so, with the customer and the amount, so you can decide whether to chase it or write it off. A payment that recovers gets the recovery email instead: you never get both for one payment.",
-          "Set no notification email and Foxhound sends nothing, which is also how you turn either one off. Slack delivery is not built yet.",
-          "The weekly digest is a Monday morning summary of the previous seven days: revenue recovered, recovery rate, payments failed and recovered, revenue still at risk, active sequences, emails sent, and win-back sequences running. It is off until you turn it on in Settings, it goes to the same notification email, and it arrives once a week even in a quiet week, so a week with nothing in it still tells you that.",
+          "Set no notification email and Foxhound sends nothing, which is also how you turn either one off. Slack delivery posts to an incoming webhook you paste on the notifications page, when a recovery email goes out and when a retry recovers a payment.",
+          "The weekly digest is a Monday morning summary of the previous seven days: revenue recovered, recovery rate, payments failed and recovered, revenue still at risk, active sequences, emails sent, and win-back sequences running. It is off until you enable it on the notifications page, it goes to the same notification email, and it arrives once a week even in a quiet week, so a week with nothing in it still tells you that.",
         ],
       },
       {
