@@ -4,6 +4,7 @@ import { createRequestHandler, RouterContextProvider } from "react-router";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { EMAIL_DLQ_QUEUE_NAME } from "~/lib/constants";
 import { runCronJob } from "~/lib/cron/run";
+import { applyCachePolicy } from "~/lib/http/cache-policy";
 import { applySecurityHeaders, generateNonce } from "~/lib/http/security-headers";
 import { enforceRateLimit } from "~/lib/http/rate-limit";
 import { handleQueueBatch } from "~/lib/queue/consumer";
@@ -32,12 +33,16 @@ export default withSentry<Env>(
       // request must never reach a sign-in DB lookup or dispatch a
       // password-reset/verification email (audit M-1).
       const limited = await enforceRateLimit(request, env);
-      if (limited) return applySecurityHeaders(limited, nonce);
+      if (limited) return applyCachePolicy(request, applySecurityHeaders(limited, nonce));
 
       const context = new RouterContextProvider();
       context.set(cloudflareContext, { env, ctx, nonce });
       const response = await requestHandler(request, context);
-      return applySecurityHeaders(response, nonce);
+      // THE CACHE POLICY, applied in the one place every response already
+      // passes through (345 binding 4). A route's own `headers` export would be
+      // per route and a new route would default to nothing, which under RFC
+      // 9111 heuristic freshness is not the same as "not cached".
+      return applyCachePolicy(request, applySecurityHeaders(response, nonce));
     },
     // Queue consumer (email dispatch; bounce/complaint events added in 4c-C3).
     // Inert until the queue consumer config is added to wrangler.jsonc (Dustin
