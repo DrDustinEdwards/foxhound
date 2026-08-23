@@ -132,6 +132,34 @@ describe("PLANT 4: every settings path the docs name resolves", () => {
     }
   });
 
+  it("THE GUIDE DESCRIBES THE HUB, and names what is NOT on it", async () => {
+    const { DOC_GUIDES } = await import("~/lib/marketing/docs-content");
+    const body = DOC_GUIDES.flatMap((g) => g.sections)
+      .flatMap((s) => s.body)
+      .join(" ");
+
+    expect(body).toContain("Settings is a hub:");
+
+    // BOTH DIRECTIONS. The LIST clause is the part before the caveat, and it
+    // must name every rendered entry AND nothing else: a one-way check let a
+    // mutation add "Disputes" to the list and stay green.
+    const listClause = body.slice(
+      body.indexOf("Settings is a hub:"),
+      body.indexOf("Disputes and Intelligence settings are not built yet"),
+    );
+    for (const entry of SETTINGS_HUB_ENTRIES) {
+      expect(listClause, `${entry.label} is named in the guide`).toContain(entry.label);
+    }
+    expect(listClause, "the list names a page the hub does not render").not.toContain("Disputes");
+    expect(listClause, "the list names a page the hub does not render").not.toContain(
+      "Intelligence",
+    );
+
+    // And the two that are absent are named as absent rather than omitted in
+    // silence, which is what stops the sentence going stale when they ship.
+    expect(body).toContain("Disputes and Intelligence settings are not built yet");
+  });
+
   it("the relocated destinations are named at their NEW home", async () => {
     const { DOC_GUIDES } = await import("~/lib/marketing/docs-content");
     const body = DOC_GUIDES.flatMap((g) => g.sections)
@@ -180,6 +208,31 @@ describe("PLANT 5: the split left no surface without a writer", () => {
     // writer at all after the split.
     expect(brandVoice).toContain('name="brandVoice"');
     expect(brandVoice).toContain("buildBrandVoiceUpdate");
+  });
+
+  it("THE ACCOUNT PAGE CARRIES LEGACY'S EMAIL LINE AND SIGN OUT (S27, session 60)", () => {
+    // Legacy's AccountSection opens with the signed-in address and a sign-out
+    // control. Both were absent until session 60. Sign out POSTs to the
+    // existing /logout route rather than legacy's GET link.
+    expect(account).toContain("{userEmail}");
+    expect(account).toContain('action="/logout"');
+    expect(account).toContain("Sign out");
+  });
+
+  it("AND IT DOES NOT OFFER DELETE, which is 333 binding 2 and row S40", () => {
+    // Legacy's danger zone deletes and cascades recovered_payments, the table
+    // PRICING rev 3 bills on. Foxhound cancels, and the label says so.
+    //
+    // COMMENTS STRIPPED FIRST: the page's own comment EXPLAINS that deletion is
+    // a separate row, so a raw grep fails on the explanation (session 57's
+    // lesson, one page over).
+    const code = account
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .split("\n")
+      .filter((line) => !line.trim().startsWith("//"))
+      .join("\n");
+    expect(code).not.toContain("Delete account");
+    expect(code).toContain("Cancel account");
   });
 
   it("the stripe page carries the per-connection disconnect", () => {
