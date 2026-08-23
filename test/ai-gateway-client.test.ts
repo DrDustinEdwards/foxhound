@@ -80,6 +80,10 @@ const CALL_SITES = [
   "app/lib/disputes/evidence.ts",
   "app/lib/intelligence/narrative.ts",
   "app/lib/marketing/home-email-sample.server.ts",
+  // Session 58's win-back generator. THE GUARD CAUGHT THIS ITSELF: the derived
+  // list went from four to five the moment the new file was committed, which is
+  // the both-directions failure this plant exists for.
+  "app/lib/recovery/winback-generation.ts",
 ];
 
 describe("PLANT 1: the base URL is opt in, by environment", () => {
@@ -188,6 +192,12 @@ describe("PLANT 4: the request shape at every call site is unchanged", () => {
       "app/lib/marketing/home-email-sample.server.ts": {
         model: "model: MODEL_MARKETING_EMAIL_SAMPLE",
         maxTokens: "max_tokens: 400",
+      },
+      // Legacy's own win-back call is max_tokens 1000, which differs from the
+      // dunning path's 2000 and is ported as legacy has it.
+      "app/lib/recovery/winback-generation.ts": {
+        model: "model: MODEL_RECOVERY_EMAIL",
+        maxTokens: "max_tokens: 1000",
       },
     };
 
