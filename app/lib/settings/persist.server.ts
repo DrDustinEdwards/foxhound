@@ -68,6 +68,32 @@ export function buildNotificationSettingsUpdate(
   return db.update(accounts).set(input).where(eq(accounts.id, accountId));
 }
 
+/**
+ * S34's TWO feature toggles, and nothing else.
+ *
+ * Legacy's features page (blob d130d2c8, 1,160 bytes) selects exactly
+ * `winback_notifications_enabled` and `expiring_card_notifications_enabled`,
+ * and its FeaturesSection (blob e7559f6b, 1,536 bytes) renders exactly two
+ * toggles. **IT NEVER TOUCHES `account_products`**, which is what the S34 row
+ * cell claims and what session 44's walk denied; the walk is right.
+ *
+ * Separate from buildNotificationSettingsUpdate on purpose: these are a
+ * different page, and one builder spanning both would let either page write
+ * columns it does not render.
+ */
+export interface FeatureSettingsInput {
+  winbackNotificationsEnabled: boolean;
+  expiringCardNotificationsEnabled: boolean;
+}
+
+export function buildFeatureSettingsUpdate(
+  db: Db,
+  accountId: string,
+  input: FeatureSettingsInput,
+) {
+  return db.update(accounts).set(input).where(eq(accounts.id, accountId));
+}
+
 // The three optional Intelligence context fields (SCHEMA.md customer_context):
 // merchant-entered inputs the scoring engine will read once it exists. They
 // are writable now even though nothing consumes them yet (PRICING.md rev 3

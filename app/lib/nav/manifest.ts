@@ -108,6 +108,9 @@ export const PLATFORM_LINKS: ProductNavLink[] = [
   // Notifications (S36). The writer five engines waited on: it sets
   // digest_enabled, the Slack pair, and the two email toggles.
   { label: "Notifications", to: "/settings/notifications" },
+  // Features (S34). The writer for the win-back and expiring-card toggles
+  // sessions 52 and 49 built their crons against.
+  { label: "Features", to: "/settings/features" },
 ];
 
 // The marketing header's authenticated-only SectionPill menu
