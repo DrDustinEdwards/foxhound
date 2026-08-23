@@ -110,6 +110,7 @@ export const DOC_GUIDES: DocGuide[] = [
           "Foxhound checks your active subscriptions nightly and, when a card is inside 30 days of expiring, emails that customer once to ask them to update it. The email comes from your sender name and links to the same hosted card-update page a dunning email uses.",
           "It sends once per card and expiry month, never repeatedly, and a card that has already expired is not warned about, because at that point the payment has failed and the recovery sequence has it.",
           "Nothing about this alert is billable. It prevents a failure rather than recovering one, so there is no recovered payment and no fee.",
+          "Expiring card alerts are on unless you turn them off on the features page.",
         ],
       },
       {
@@ -118,6 +119,7 @@ export const DOC_GUIDES: DocGuide[] = [
           "When a subscription is cancelled voluntarily, Foxhound starts a win-back sequence: three emails, the first an hour after the cancellation, then one at four days and a last one at fourteen. Each links to a page where that customer can restart the same plan through Stripe.",
           "It does not start for a subscription that ended because payments were failing, because that is a recovery and the recovery sequence already has it, and it does not start for a customer you chased in the last seven days. The sequence stops as soon as they come back.",
           "A reactivation is not billed. Win-back brings back a customer who chose to leave, which is not the recovery of a failed payment, so there is no recovered payment and no fee.",
+          "Win-back sequences are on unless you turn them off on the features page.",
         ],
       },
       {
