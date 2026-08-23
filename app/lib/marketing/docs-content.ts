@@ -23,7 +23,7 @@ export const DOC_GUIDES: DocGuide[] = [
         heading: "Connecting Stripe",
         body: [
           "Foxhound connects to your Stripe account through Stripe Connect with read and write OAuth scope, because retrying a failed invoice is a write. Foxhound reads invoices, subscriptions, disputes, and customer data. It writes in three places: retrying payment on an invoice that has already failed, setting a customer default payment method after that customer updates their card, and submitting dispute evidence once someone on your team has approved it. It never changes prices, products, or subscription plans, never creates a charge outside an invoice you already issued, and never reaches your payouts or bank account.",
-          "Disconnect at any time from your Stripe dashboard or from Settings inside Foxhound, one connected Stripe account at a time. Disconnecting stops recovery work on that Stripe account immediately, and any other Stripe account you have connected keeps running. It does not close your Foxhound account and it does not waive fees already earned on recoveries Foxhound attributed, which still invoice. To stop everything, cancel the account under Danger zone in Settings.",
+          "Disconnect at any time from your Stripe dashboard or from Settings inside Foxhound, one connected Stripe account at a time. Disconnecting stops recovery work on that Stripe account immediately, and any other Stripe account you have connected keeps running. It does not close your Foxhound account and it does not waive fees already earned on recoveries Foxhound attributed, which still invoice. To stop everything, cancel the account under Danger zone in Settings and My account.",
         ],
       },
       {
@@ -36,7 +36,7 @@ export const DOC_GUIDES: DocGuide[] = [
       {
         heading: "Notifications",
         body: [
-          "When Foxhound recovers a payment, it emails the notification email set in Settings, with the amount, the customer, and the decline that started it. It sends once per recovery: a repeated webhook from Stripe does not produce a second email.",
+          "When Foxhound recovers a payment, it emails the notification email set in Settings and Notifications, with the amount, the customer, and the decline that started it. It sends once per recovery: a repeated webhook from Stripe does not produce a second email.",
           "When a sequence runs out of steps without the payment coming back, Foxhound emails the same address to say so, with the customer and the amount, so you can decide whether to chase it or write it off. A payment that recovers gets the recovery email instead: you never get both for one payment.",
           "Set no notification email and Foxhound sends nothing, which is also how you turn either one off. Slack delivery posts to an incoming webhook you paste on the notifications page, when a recovery email goes out and when a retry recovers a payment.",
           "The weekly digest is a Monday morning summary of the previous seven days: revenue recovered, recovery rate, payments failed and recovered, revenue still at risk, active sequences, emails sent, and win-back sequences running. It is off until you enable it on the notifications page, it goes to the same notification email, and it arrives once a week even in a quiet week, so a week with nothing in it still tells you that.",
@@ -58,8 +58,8 @@ export const DOC_GUIDES: DocGuide[] = [
       {
         heading: "Team and brand voice",
         body: [
-          "Invite teammates from Settings and Team. The account owner can remove any member other than themselves, and access ends immediately. Every account has a main brand voice, and Settings and Brand voice can set a different tone for each failure category: soft declines, expired cards, network declines, and fraud or hard declines. A category you leave on \"Same as main voice\" falls back to the main one.",
-          "The industry, customer type and monthly revenue you enter under Settings go to the AI with every recovery email, so a message written for a B2B SaaS account does not read like one written for a consumer store. Leave them blank and the copy simply omits that context.",
+          "Invite teammates from Settings and Team. The account owner can remove any member other than themselves, and access ends immediately. Settings and Brand voice holds the main brand voice and, below it, a different tone for each failure category: soft declines, expired cards, network declines, and fraud or hard declines. A category you leave on \"Same as main voice\" falls back to the main one.",
+          "The industry, customer type and monthly revenue you enter under Settings and My account go to the AI with every recovery email, so a message written for a B2B SaaS account does not read like one written for a consumer store. Leave them blank and the copy simply omits that context.",
           "Settings and Email holds the sender name, the name your customers see in the From line of every recovery email. Set it before your first send: until you do, recovery mail goes out from \"Support\". Send test email delivers a sample to your own address through the real sending path, so the From line you see is the one your customers get.",
         ],
       },
