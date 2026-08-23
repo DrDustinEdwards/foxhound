@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull } from "drizzle-orm";
 import type Stripe from "stripe";
 
 import {
@@ -73,7 +73,23 @@ export type WebhookOutcome =
  *  stripe_connections row it resolved through (Phase 5 review MEDIUM fix
  *  companion, 2026-07-19): an account can have more than one active
  *  connection, so failed_payments intake records which one a payment
- *  actually belongs to, not just which account. */
+ *  actually belongs to, not just which account.
+ *
+ *  LIVE ROWS ONLY (ruling 356 binding 3, DEFECT 4). This is the ONE reader that
+ *  routes money: whichever row it returns decides whose ledger every failed
+ *  payment, recovered payment, outcome and billing line item for this Stripe
+ *  account lands on. It used to match on `stripe_user_id` alone, so a
+ *  DISCONNECTED history row could answer for a Stripe account that had since
+ *  been connected somewhere else, and S37's disconnect leaves exactly such rows
+ *  behind. 333's rule that a disconnected connection cannot be the primary of
+ *  anything, applied to the reader where getting it wrong costs money.
+ *
+ *  NO ORDERING IS NEEDED, and that is a fact about the schema rather than an
+ *  omission: `stripe_connections_live_stripe_account_uq` makes at most one live
+ *  row possible per `stripe_user_id`, so `.limit(1)` has nothing to choose
+ *  between. The filter and the index are INDEPENDENT layers, deliberately, and
+ *  each is proven alone (340 binding 3): the index stops the second live row
+ *  being written, this stops a disconnected row answering. */
 async function resolveConnection(
   env: Env,
   connectedAccountId: string,
@@ -82,7 +98,12 @@ async function resolveConnection(
   const rows = await db
     .select({ accountId: stripeConnections.accountId, connectionId: stripeConnections.id })
     .from(stripeConnections)
-    .where(eq(stripeConnections.stripeUserId, connectedAccountId))
+    .where(
+      and(
+        eq(stripeConnections.stripeUserId, connectedAccountId),
+        isNull(stripeConnections.disconnectedAt),
+      ),
+    )
     .limit(1);
   return rows[0] ?? null;
 }
