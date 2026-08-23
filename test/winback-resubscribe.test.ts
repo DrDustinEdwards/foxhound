@@ -108,10 +108,15 @@ beforeEach(() => {
 function seedAccount(accountId: string, connectionId = "c1"): void {
   sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, 'Acme', 1000)").run(accountId);
   sqlite
+      // ONE LIVE CONNECTION PER STRIPE ACCOUNT (356). The Stripe account id is
+      // derived from the Foxhound account rather than hardcoded, because a
+      // shared literal made every two-account fixture violate the unique
+      // index the moment it shipped, and production could never have had two
+      // merchants on one connected account anyway.
     .prepare(
-      "INSERT INTO stripe_connections (id, account_id, stripe_user_id, is_primary, stripe_access_token, connected_at, created_at) VALUES (?, ?, 'acct_s', 1, 'cipher', 1000, 1000)",
+      "INSERT INTO stripe_connections (id, account_id, stripe_user_id, is_primary, stripe_access_token, connected_at, created_at) VALUES (?, ?, ?, 1, 'cipher', 1000, 1000)",
     )
-    .run(connectionId, accountId);
+    .run(connectionId, accountId, `acct_s_${accountId}`);
 }
 
 function seedSequence(

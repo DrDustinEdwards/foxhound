@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `stripe_connections_live_stripe_account_uq` ON `stripe_connections` (`stripe_user_id`) WHERE "stripe_connections"."disconnected_at" is null;
