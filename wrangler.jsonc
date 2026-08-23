@@ -11,30 +11,6 @@
     "enabled": true
   },
 
-  // WORKERS CACHE (345 binding 4, enabled session 53). Enabled only AFTER the
-  // response policy in app/lib/http/cache-policy.ts shipped and was proven in
-  // production, because two documented facts make a blind enable a data leak:
-  //
-  //   1. Bypass is triggered by Set-Cookie on the RESPONSE and Authorization on
-  //      the REQUEST, and NOT by a request Cookie header. The marketing layout
-  //      renders the signed-in account switcher on the same URLs anonymous
-  //      visitors fetch, so without the policy a cached signed-in render of /
-  //      would be served to a stranger.
-  //   2. Responses with no Cache-Control are eligible for RFC 9111 heuristic
-  //      freshness, so "we set no header" never meant "it will not be cached".
-  //      Every response now leaves the fetch entry with an explicit directive.
-  //
-  // COST, accepted knowingly: with caching on, every request is billed at the
-  // standard Workers request rate INCLUDING static asset requests, which are
-  // normally free (developers.cloudflare.com/workers/cache/).
-  //
-  // cross_version_cache is left at its default of false, so the Worker version
-  // is part of the cache key and every deploy resets the cache. That is what a
-  // repo-authored site wants and it is why the marketing TTL can be 300s.
-  "cache": {
-    "enabled": true
-  },
-
   // Single environment. Worker "foxhound" at foxhoundapp.com (Phase 9 domain
   // cutover, TASK-foxhound-domain-cutover.md). workers_dev was left enabled
   // during the transition so foxhound.dustin-edwards.workers.dev kept serving
