@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { CRON_JOBS, jobsForSchedule } from "~/lib/cron/registry";
+import { readFileSync } from "node:fs";
+
 import {
   CRON_SCHEDULE_DAILY,
   CRON_SCHEDULE_MONTHLY,
@@ -9,7 +11,23 @@ import {
 
 // The schedules wired into wrangler.jsonc triggers.crons. A job on any other
 // schedule would never fire, so this list is the contract the registry must honor.
-const WRANGLER_CRONS = ["*/5 * * * *", "0 3 * * *", "0 4 1 * *"];
+//
+// DERIVED FROM wrangler.jsonc, not transcribed from it. It was a hardcoded
+// array until session 55, which is the shape capsid/conventions.md warns about:
+// a list mirroring filesystem state that a change has to remember to update, so
+// it went stale the moment a fourth trigger was added and the guard reported
+// the config as missing an entry the config actually had. Reading the file
+// makes the assertion about the real contract and fails in BOTH directions.
+const WRANGLER_CRONS: string[] = (() => {
+  const raw = readFileSync("wrangler.jsonc", "utf8");
+  // JSONC: drop whole-line comments only. A blanket "//" strip would eat the
+  // scheme separator inside every https:// value in this file.
+  const stripped = raw
+    .split("\n")
+    .filter((line) => !line.trim().startsWith("//"))
+    .join("\n");
+  return (JSON.parse(stripped) as { triggers?: { crons?: string[] } }).triggers?.crons ?? [];
+})();
 
 describe("cron registry", () => {
   it("job names are unique", () => {
@@ -19,8 +37,19 @@ describe("cron registry", () => {
 
   it("every job schedule is wired in wrangler triggers.crons", () => {
     for (const job of CRON_JOBS) {
-      expect(WRANGLER_CRONS).toContain(job.schedule);
+      expect(WRANGLER_CRONS, `${job.name} would never fire`).toContain(job.schedule);
     }
+  });
+
+  it("AND EVERY WIRED TRIGGER HAS A JOB, so a dead cron expression is caught too", () => {
+    const scheduled = new Set(CRON_JOBS.map((j) => j.schedule));
+    for (const cron of WRANGLER_CRONS) {
+      expect(scheduled, `${cron} wakes the Worker and dispatches nothing`).toContain(cron);
+    }
+  });
+
+  it("the derived list is non-empty, so a parse failure cannot read as a pass", () => {
+    expect(WRANGLER_CRONS.length).toBeGreaterThanOrEqual(4);
   });
 
   it("the schedule constants match wrangler triggers", () => {

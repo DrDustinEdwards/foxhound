@@ -386,6 +386,10 @@ export const EXPIRING_CARD_DAYS_AHEAD = 30;
 
 export const CRON_SCHEDULE_DAILY = "0 3 * * *"; // 03:00 UTC, retention sweeps
 export const CRON_SCHEDULE_MONTHLY = "0 4 1 * *"; // 04:00 UTC on the 1st, billing run
+// Monday 08:00 UTC, legacy's weekly-digest cadence verbatim (session 55). The
+// FIRST new cron expression this repo has needed: every other job reuses the
+// tick, daily or monthly schedules.
+export const CRON_SCHEDULE_WEEKLY = "0 8 * * 1";
 /** Recovery tick: sweeps due recovery_steps. Every 5 minutes.
  *
  *  The original rationale (matching the 5-minute first send-retry backoff) no

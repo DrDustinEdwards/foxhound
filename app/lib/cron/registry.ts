@@ -3,6 +3,7 @@ import { describeDigestRun, runAuditDigest } from "~/lib/audit/digest.server";
 import { describeSweepRun, runMonthlyBilling } from "~/lib/billing/run";
 import {
   CRON_SCHEDULE_DAILY,
+  CRON_SCHEDULE_WEEKLY,
   CRON_SCHEDULE_MONTHLY,
   CRON_SCHEDULE_RECOVERY_TICK,
   RECOVERY_TICK_CRON_NAME,
@@ -13,6 +14,7 @@ import { runIntelligenceAiForAllAccounts } from "~/lib/intelligence/ai-run.serve
 import { runIntelligenceSyncForAllAccounts } from "~/lib/intelligence/sync.server";
 
 import { describeExpiringCardRun, runExpiringCards } from "~/lib/cron/expiring-cards";
+import { describeWeeklyDigestRun, runWeeklyDigest } from "~/lib/cron/digest";
 import { describeWinbackRun, runWinbackSends } from "~/lib/cron/winback";
 import { runCronHealthCheck } from "./alerts.server";
 import { runRecoveryTick } from "./recovery-tick";
@@ -143,6 +145,16 @@ const demoReset: CronHandler = async (env) => {
  *  after cancellation" and hourly polling delivers it up to two hours late. The
  *  CronLockDurableObject lease in run.ts is what stops two ticks sending at
  *  once, and the per-step claim is what stops a double send if one ever did. */
+/** The weekly merchant digest (337 binding 2, session 55). Legacy runs it
+ *  Monday 08:00 UTC and this matches, which needed the FIRST new wrangler cron
+ *  expression this repo has added: every other job reuses the five-minute
+ *  tick, daily or monthly. NULL is OFF on digest_enabled, the one toggle with
+ *  that semantic. */
+const weeklyDigest: CronHandler = async (env) => {
+  const result = await runWeeklyDigest(env, new Date());
+  return { rowsProcessed: result.sent, message: describeWeeklyDigestRun(result) };
+};
+
 const winbackSend: CronHandler = async (env) => {
   const result = await runWinbackSends(env, new Date());
   return { rowsProcessed: result.sent, message: describeWinbackRun(result) };
@@ -177,6 +189,7 @@ const auditDigest: CronHandler = async (env, ctx) => {
 export const CRON_JOBS: CronJob[] = [
   { name: RECOVERY_TICK_CRON_NAME, schedule: CRON_SCHEDULE_RECOVERY_TICK, handler: recoveryTick },
   { name: "winback-send", schedule: CRON_SCHEDULE_RECOVERY_TICK, handler: winbackSend },
+  { name: "weekly-digest", schedule: CRON_SCHEDULE_WEEKLY, handler: weeklyDigest },
   { name: "cron-health", schedule: CRON_SCHEDULE_DAILY, handler: cronHealth },
   { name: "expiring-cards", schedule: CRON_SCHEDULE_DAILY, handler: expiringCards },
   { name: DEMO_RESET_CRON_NAME, schedule: CRON_SCHEDULE_DAILY, handler: demoReset },
