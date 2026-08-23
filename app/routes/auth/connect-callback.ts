@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { redirect } from "react-router";
 
 import { accountMembers, accounts, getDb, stripeConnections } from "~/db";
@@ -90,6 +90,58 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   }
 }
 
+/**
+ * Where a Stripe account is LIVE right now, from the whole table.
+ *
+ * ONE PREDICATE FOR BOTH BRANCHES (ruling 356 binding 2, DEFECT 4). The two
+ * branches used to ask this question differently and only one of them asked it
+ * properly: `addAccount` looked at every row, while `attachToActiveAccount`
+ * scoped its lookup to the CALLER'S OWN accounts, so a Stripe account live on a
+ * merchant this caller has never heard of read as unattached and a second live
+ * row was written. `resolveConnection` then routed that Stripe account's money
+ * to whichever of the two rows came first. The scoped query's own comment
+ * described the global behaviour it did not implement, which is how it survived
+ * review.
+ *
+ * LIVE ONLY, matching the index that now backs this. A disconnected row is a
+ * history row: it must not refuse a reconnect here, exactly as it does not
+ * violate `stripe_connections_live_stripe_account_uq`. The index makes at most
+ * one live row possible, so `.limit(1)` is now a fact about the data rather
+ * than a choice about which of several rows to prefer.
+ *
+ * A DISCRIMINATED OUTCOME, never a bare id or null (339 binding 5): "nobody
+ * holds it", "the caller holds it here" and "somebody else holds it" are three
+ * different answers with three different responses, and collapsing the last two
+ * into a nullable id is what made the old call sites easy to get wrong.
+ */
+export type LiveAttachment =
+  | { status: "unattached" }
+  | { status: "held_by_caller"; accountId: string }
+  | { status: "held_elsewhere" };
+
+export async function findLiveAttachment(
+  db: Db,
+  stripeUserId: string,
+  heldAccountIds: string[],
+): Promise<LiveAttachment> {
+  const rows = await db
+    .select({ accountId: stripeConnections.accountId })
+    .from(stripeConnections)
+    .where(
+      and(
+        eq(stripeConnections.stripeUserId, stripeUserId),
+        isNull(stripeConnections.disconnectedAt),
+      ),
+    )
+    .limit(1);
+
+  const accountId = rows[0]?.accountId;
+  if (!accountId) return { status: "unattached" };
+  return heldAccountIds.includes(accountId)
+    ? { status: "held_by_caller", accountId }
+    : { status: "held_elsewhere" };
+}
+
 /** Where a merchant lands once a connection is live on `accountId`. */
 async function destinationFor(db: Db, accountId: string): Promise<string> {
   const [row] = await db
@@ -139,34 +191,30 @@ async function addAccount(
   memberships: { accountId: string }[],
   oauth: StripeOAuthResult,
 ): Promise<Response> {
-  const heldAccountIds = memberships.map((m) => m.accountId);
+  // Is this Stripe account already live somewhere? Asked BEFORE anything is
+  // written and before any further Stripe call, through the one predicate both
+  // branches share.
+  const attachment = await findLiveAttachment(
+    db,
+    oauth.stripeUserId,
+    memberships.map((m) => m.accountId),
+  );
 
-  // Is this Stripe account already attached somewhere? Asked BEFORE anything is
-  // written, and answered in two halves because the two answers are different
-  // kinds of thing.
-  const attached = await db
-    .select({
-      accountId: stripeConnections.accountId,
-    })
-    .from(stripeConnections)
-    .where(eq(stripeConnections.stripeUserId, oauth.stripeUserId))
-    .limit(1);
-  const attachedTo = attached[0]?.accountId ?? null;
-
-  if (attachedTo && heldAccountIds.includes(attachedTo)) {
+  if (attachment.status === "held_by_caller") {
     // Already theirs. Legacy would upsert and, from the switcher's "+ Add
     // account", mint a duplicate account around a connection that already
     // exists. Take them to the account instead and write nothing: a merchant who
     // re-runs add-account for a Stripe account they already added has asked to
-    // go there, not to have a second empty account. Class (c) truthfulness fix.
-    return landOn(db, sessionId, attachedTo);
+    // go there, not to have a second empty account. Ruling 330 binding 2, class
+    // (c) truthfulness fix, unchanged by this session.
+    return landOn(db, sessionId, attachment.accountId);
   }
 
-  if (attachedTo) {
-    // Attached to an account this user does NOT hold. Refuse, and say only that
-    // it is already connected: naming the account, or even confirming which one,
+  if (attachment.status === "held_elsewhere") {
+    // Live on an account this user does NOT hold. Refuse, and say only that it
+    // is already connected: naming the account, or even confirming which one,
     // would leak another merchant's tenancy to whoever controls the Stripe
-    // account. No em dash, no account id, no hint.
+    // account (329 R3). No account id, no hint.
     return bounceTo("/connect?error=stripe_account_already_connected");
   }
 
@@ -224,30 +272,29 @@ async function attachToActiveAccount(
   // No account to attach to; back to setup, where /connect creates one.
   if (!membership) return bounceTo("/connect?error=no_code");
 
-  // This Stripe account may already be attached elsewhere. Legacy's upsert is
-  // keyed on `stripe_user_id` alone and would MOVE it; refuse instead, unless it
-  // is already on an account this caller holds, which is the reconnect case.
-  const elsewhere = await db
-    .select({ accountId: stripeConnections.accountId })
-    .from(stripeConnections)
-    .where(
-      and(
-        eq(stripeConnections.stripeUserId, oauth.stripeUserId),
-        inArray(
-          stripeConnections.accountId,
-          memberships.map((m) => m.accountId),
-        ),
-      ),
-    )
-    .limit(1);
-  const heldElsewhere = elsewhere[0]?.accountId ?? null;
-  if (heldElsewhere && heldElsewhere !== membership.accountId) {
-    // The merchant holds BOTH accounts, so this is not a tenancy leak. It is
-    // also not a reconnect: moving a live connection between two of their own
-    // ledgers would re-point every future webhook for that Stripe account, and
-    // silently re-attribute the recoveries it produces. Refuse and say so.
-    // Same error param as the not-yours case, deliberately: the two differ in
-    // who owns the other account, and the response must not.
+  // THE SAME PREDICATE `addAccount` USES, which is the DEFECT 4 fix (356
+  // binding 2). This lookup was scoped `inArray(accountId, memberships)`, so it
+  // could only ever see the caller's own accounts: a Stripe account live on a
+  // stranger's Foxhound account read as unattached here and a second live row
+  // was written. Legacy's upsert is keyed on `stripe_user_id` alone and would
+  // MOVE the connection; Foxhound refuses instead, and now refuses in both
+  // directions rather than only within one merchant.
+  const attachment = await findLiveAttachment(
+    db,
+    oauth.stripeUserId,
+    memberships.map((m) => m.accountId),
+  );
+  const heldOnAnother =
+    attachment.status === "held_elsewhere" ||
+    (attachment.status === "held_by_caller" && attachment.accountId !== membership.accountId);
+  if (heldOnAnother) {
+    // ONE ERROR PARAM FOR BOTH CASES, deliberately. Held by a stranger is a
+    // tenancy question and held by this merchant's own second account is not,
+    // but the response must not distinguish them: a caller who controls the
+    // Stripe account could otherwise learn whether it sits on somebody else's
+    // ledger. Moving it would be worse than refusing either way, since it
+    // re-points every future webhook for that Stripe account and silently
+    // re-attributes the recoveries it produces.
     return bounceTo("/connect?error=stripe_account_already_connected");
   }
 
