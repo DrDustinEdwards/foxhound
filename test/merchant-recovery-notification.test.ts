@@ -341,7 +341,10 @@ describe("PLANT 8: the copy says what sends and what does not", () => {
     expect(route).not.toContain("Notifications aren't sending yet");
     expect(route).toContain("Foxhound emails you when it recovers a payment");
     // And it still says which ones are NOT built, rather than implying all are.
-    expect(route).toContain("are not built yet");
+    // Updated session 55: the digest shipped, so Slack is the only one left,
+    // and the card now says the digest has no switch on this page yet.
+    expect(route).toContain("Slack delivery is not built yet");
+    expect(route).not.toContain("the weekly digest, Slack, and the sequence-complete");
   });
 
   it("the docs describe the one notification that exists and no others", () => {
@@ -354,7 +357,8 @@ describe("PLANT 8: the copy says what sends and what does not", () => {
     expect(section).toContain("emails the notification email set in Settings");
     expect(section).toContain("It sends once per recovery");
     expect(section).toContain("Set no notification email and Foxhound sends nothing");
-    expect(section).toContain("are not built yet");
+    // Session 55 built the digest; Slack is the only unbuilt one left.
+    expect(section).toContain("Slack delivery is not built yet");
   });
 });
 
