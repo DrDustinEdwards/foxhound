@@ -119,6 +119,8 @@ export async function getPrimarySenderConnection(
 
 export interface PrimaryBrandVoices {
   id: string;
+  /** The general `brand_voice`, the third rung of resolveBrandVoice. */
+  general: string | null;
   soft: string | null;
   expired: string | null;
   network: string | null;
@@ -145,6 +147,10 @@ export async function getPrimaryBrandVoices(
   const rows = await db
     .select({
       id: stripeConnections.id,
+      // The GENERAL voice, added session 59 when the brand-voice page took over
+      // the field the /settings index used to carry. Legacy's own form writes
+      // both from one submit.
+      general: stripeConnections.brandVoice,
       soft: stripeConnections.brandVoiceSoft,
       expired: stripeConnections.brandVoiceExpired,
       network: stripeConnections.brandVoiceNetwork,
