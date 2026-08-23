@@ -4,7 +4,12 @@ import { data, Form, redirect, useNavigation } from "react-router";
 
 import { AuthShell, Field, Submit, Alert, AuthLink } from "~/components/auth-ui";
 import { getDb, stripeConnections } from "~/db";
-import { createAccountForUser, getSession, resolveMembership } from "~/lib/auth";
+import {
+  createAccountForUser,
+  getSession,
+  resolveActiveMembership,
+  resolveMembership,
+} from "~/lib/auth";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { buildConnectAuthorizeUrl } from "~/lib/stripe/connect";
 import { buildConnectState, CONNECT_ACTION } from "~/lib/stripe/connect-state";
@@ -27,7 +32,20 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   if (!session) throw redirect("/login");
 
   const db = getDb(env);
-  const membership = await resolveMembership(db, session.user.id);
+  // THE ACTIVE ACCOUNT, not the earliest. This loader renders an account NAME
+  // and that account's connection state on the screen where a merchant grants a
+  // live payment processor, and the OAuth flow the action starts attaches to
+  // whichever account the CALLBACK resolves, which is the active one
+  // (connect-callback.ts:223, phase (d)). While this read used the null-marker
+  // shim the two disagreed: a merchant switched to a second account, then
+  // bounced back here by any `/connect?error=...` redirect, was shown the first
+  // account's name and the first account's "already connected" state for a flow
+  // that would attach somewhere else. Session 61, phase (c).
+  const membership = await resolveActiveMembership(
+    db,
+    session.user.id,
+    session.session.activeAccountId ?? null,
+  );
 
   let hasConnection = false;
   if (membership) {
@@ -60,6 +78,13 @@ export async function action({ request, context }: Route.ActionArgs) {
   if (!session) throw redirect("/login");
 
   const db = getDb(env);
+  // THE SHIM IS CORRECT HERE, and it is the last caller left. This action reads
+  // only `!membership`, which is "does this user hold ANY account", and that
+  // answer is identical under every resolution: the marked membership and the
+  // earliest membership are both non-null exactly when the user holds one. No
+  // account IDENTITY is consumed below, so nothing can resolve to the wrong
+  // account. Kept rather than substituted so the shim keeps a live caller and a
+  // test, instead of becoming dead code the next session deletes on sight.
   const membership = await resolveMembership(db, session.user.id);
 
   // No account yet: create it. The membership read above is a fast path, not a

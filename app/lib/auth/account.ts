@@ -172,17 +172,20 @@ export async function resolveActiveMembershipFrom(
  * `resolveActiveMembership(db, userId, null)`, so every caller that has not yet
  * been taught about the marker keeps its pre-326 behaviour byte for byte.
  *
- * Four callers remain after phase (b), and each is deliberate rather than
- * pending: the theme read/write pair (ruling 53 item (e)) and the marketing
- * layout's has-an-account boolean, none of which is account-scoped in a way a
- * switch should change, and the connect pair, which is phase (d)'s to rewrite
- * and is untouched here on purpose. `guards.ts` does NOT call this; it passes
- * the session's marker to `resolveActiveMembershipFrom`.
+ * ONE CALLER REMAINS after phase (c)'s re-audit: `connect.tsx`'s ACTION, which
+ * reads only `!membership`. That question ("does this user hold any account at
+ * all") has the same answer under every resolution, so no account identity is
+ * consumed and no wrong account is reachable. `guards.ts` does NOT call this; it
+ * passes the session's marker to `resolveActiveMembershipFrom`.
  *
- * The theme pair is the one worth a second look in phase (f): a merchant who
- * switches accounts arguably wants that account's theme, and today they get the
- * earliest account's. Named rather than changed, because ruling 53 item (e)
- * owns that decision and this session is not it.
+ * THE OTHER THREE WERE DEFECTS, NOT DELIBERATE, and this paragraph used to say
+ * otherwise. It claimed the theme pair and the connect loader were "not
+ * account-scoped in a way a switch should change"; all three read or write a
+ * value keyed BY `accountId`, so all three were account-scoped and all three
+ * answered for the wrong account once phase (e) made switching possible. Fixed
+ * in session 61, each with a two-account plant. The theme pair needed no ruling
+ * because legacy resolves both its halves through `resolveAccount`, its own
+ * active-account resolver, so the active account was always the spec.
  */
 export async function resolveMembership(
   db: Db,
