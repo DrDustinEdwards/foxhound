@@ -472,10 +472,20 @@ describe("PLANT 7: the demo firewall is untouched", () => {
     // caller, which this session does not touch. DemoGuardedForm is the UX over
     // it, and using it keeps S37 identical to the five settings cards beside it.
     const stripeBlock = STRIPE_SOURCE.slice(STRIPE_SOURCE.indexOf("function StripeSection"));
-    const dangerBlock = ACCOUNT_SOURCE.slice(ACCOUNT_SOURCE.indexOf("function DangerZone"));
+    // BOUNDED AT THE FUNCTION, not at end of file: slicing to the end swept in
+    // the account page's sign-out section below it, which is not an S37 control.
+    const dangerBlock = ACCOUNT_SOURCE.slice(
+      ACCOUNT_SOURCE.indexOf("function DangerZone"),
+      ACCOUNT_SOURCE.indexOf("export default function"),
+    );
     expect(stripeBlock).toContain("<DemoGuardedForm method=\"post\"");
     expect(dangerBlock).toContain("<DemoGuardedForm method=\"post\"");
-    expect(BOTH).not.toContain("<Form method=\"post\"");
+    // SCOPED TO THE S37 BLOCKS. The account page also carries a sign-out,
+    // which is a session action rather than a settings write and uses the same
+    // plain Form the nav's gear menu does; a whole-file assertion would fail on
+    // it and say nothing about S37.
+    expect(stripeBlock).not.toContain("<Form method=\"post\"");
+    expect(dangerBlock).not.toContain("<Form method=\"post\"");
   });
 
   it("no demo constant or firewall helper is referenced here", () => {
