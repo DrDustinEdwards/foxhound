@@ -27,6 +27,11 @@ import { buildTemplateEmail } from "~/lib/recovery/email-template";
 import { reconcileRetryRecovery as reconcileRetryRecoveryReal } from "~/lib/recovery/record-recovery";
 import type { RetryReconciliationInput } from "~/lib/recovery/record-recovery";
 import type { StepStatePatch } from "~/lib/recovery/step-state";
+import {
+  loadSlackCustomer,
+  postToSlack,
+  resolveSlackTarget,
+} from "~/lib/notify/slack.server";
 import { getConnectedStripe } from "~/lib/stripe/client";
 import { decryptToken } from "~/lib/stripe/encryption";
 
@@ -214,6 +219,11 @@ export async function executeRetryStep(
   await persistPatch(env, ctx.stepId, decision.patch);
   if (decision.recovered) {
     await reconcileRecovery(env, buildRetryReconciliationInput(ctx, now));
+    // SLACK, legacy's `payment_recovered` post. It fires ONLY on a succeeded
+    // retry, which is legacy's own extra condition, and it runs after the
+    // reconciliation so a Slack outage cannot cost a recorded recovery. It
+    // never throws: every path returns a discriminated outcome.
+    await notifySlackRecovered(env, ctx);
   }
   return {
     action: "retry",
@@ -221,6 +231,44 @@ export async function executeRetryStep(
     recovered: decision.recovered,
     retryResult: decision.retryResult,
   };
+}
+
+
+/**
+ * Legacy's two Slack posts, wired at legacy's two sites.
+ *
+ * BOTH GATE FIRST. `resolveSlackTarget` refuses a demo account, a disabled
+ * toggle (NULL included) and a missing webhook before anything else is read,
+ * so the customer lookup below only happens for an account that will actually
+ * receive a post.
+ */
+async function notifySlackEmailSent(env: Env, ctx: EmailStepContext): Promise<void> {
+  const target = await resolveSlackTarget(env, ctx.accountId);
+  if (target.status !== "ready") return;
+  const customer = await loadSlackCustomer(env, ctx.failedPaymentId, "there");
+  if (!customer) return;
+  await postToSlack(target.webhookUrl, {
+    type: "email_sent",
+    stepType: ctx.stepType,
+    customerEmail: customer.customerEmail,
+    customerName: customer.customerName,
+    amount: formatMoney(ctx.amountCents, ctx.currency),
+  });
+}
+
+async function notifySlackRecovered(env: Env, ctx: RetryStepContext): Promise<void> {
+  const target = await resolveSlackTarget(env, ctx.accountId);
+  if (target.status !== "ready") return;
+  const customer = await loadSlackCustomer(env, ctx.failedPaymentId, "Customer");
+  if (!customer) return;
+  await postToSlack(target.webhookUrl, {
+    type: "payment_recovered",
+    // Legacy passes step.step_type here too, though the title ignores it.
+    stepType: "retry",
+    customerEmail: customer.customerEmail,
+    customerName: customer.customerName,
+    amount: formatMoney(ctx.amountCents, ctx.currency),
+  });
 }
 
 // ============================================================================
@@ -636,6 +684,12 @@ export async function executeEmailStep(
 
   const patch = decideEmailStep({ attemptCount: ctx.attemptCount }, attempt, now);
   await persistPatch(env, ctx.stepId, patch, resolvedCopy);
+  // SLACK, legacy's `email_sent` post, after the step is persisted and only on
+  // a send that succeeded. A Slack failure cannot unwind the send or change the
+  // step's result.
+  if (attempt.ok) {
+    await notifySlackEmailSent(env, ctx);
+  }
   return {
     action: "email",
     sent: attempt.ok,
