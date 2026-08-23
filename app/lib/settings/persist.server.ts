@@ -39,14 +39,25 @@ export function buildEmailSettingsUpdate(
     .where(eq(accounts.id, accountId));
 }
 
+/**
+ * The SIX controls legacy's notifications page renders, and no others.
+ *
+ * It carried `winbackNotificationsEnabled` and `expiringCardNotificationsEnabled`
+ * until session 56, and it had no caller. Legacy's
+ * `NotificationsSection.tsx` (blob 494c6dfa, 4,573 bytes) renders FOUR toggles
+ * and two text fields; the win-back and expiring-card toggles live on S34's
+ * features page, which is 336's reversal against the docs' "six toggles". A
+ * builder that writes columns its page never shows is 336 binding 3's defect
+ * inverted, so the two were removed rather than left for a future caller to
+ * pass by accident.
+ */
 export interface NotificationSettingsInput {
-  digestEnabled: boolean;
-  slackNotificationsEnabled: boolean;
+  notificationEmail: string | null;
   slackWebhookUrl: string | null;
+  slackNotificationsEnabled: boolean;
+  digestEnabled: boolean;
   recoveryNotificationsEnabled: boolean;
   sequenceCompleteNotificationsEnabled: boolean;
-  winbackNotificationsEnabled: boolean;
-  expiringCardNotificationsEnabled: boolean;
 }
 
 export function buildNotificationSettingsUpdate(

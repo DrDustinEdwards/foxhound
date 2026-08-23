@@ -39,23 +39,45 @@ describe("settings persistence builders (compile against schema)", () => {
     expect(params).toContain("acc_1");
   });
 
-  it("notification settings update writes every toggle plus the slack webhook", () => {
+  it("notification settings update writes the SIX controls legacy's page renders", () => {
     const { sql, params } = sqlOf(
       buildNotificationSettingsUpdate(db, "acc_1", {
-        digestEnabled: true,
-        slackNotificationsEnabled: false,
+        notificationEmail: "ops@acme.com",
         slackWebhookUrl: "https://hooks.slack.com/x",
+        slackNotificationsEnabled: false,
+        digestEnabled: true,
         recoveryNotificationsEnabled: true,
         sequenceCompleteNotificationsEnabled: true,
-        winbackNotificationsEnabled: false,
-        expiringCardNotificationsEnabled: true,
       }),
     );
     expect(sql).toMatch(/update .*accounts/i);
-    expect(sql).toMatch(/digest_enabled/);
+    expect(sql).toMatch(/notification_email/);
     expect(sql).toMatch(/slack_webhook_url/);
+    expect(sql).toMatch(/slack_notifications_enabled/);
+    expect(sql).toMatch(/digest_enabled/);
+    expect(sql).toMatch(/recovery_notifications_enabled/);
+    expect(sql).toMatch(/sequence_complete_notifications_enabled/);
     expect(params).toContain("https://hooks.slack.com/x");
     expect(params).toContain("acc_1");
+  });
+
+  it("AND WRITES NEITHER S34 COLUMN, which legacy renders on a different page", () => {
+    // 336's reversal: the docs say six toggles, legacy's component has four,
+    // and win-back and expiring-card live on the features page. A builder that
+    // wrote them from here would be a page silently setting columns it never
+    // shows.
+    const { sql } = sqlOf(
+      buildNotificationSettingsUpdate(db, "acc_1", {
+        notificationEmail: null,
+        slackWebhookUrl: null,
+        slackNotificationsEnabled: false,
+        digestEnabled: false,
+        recoveryNotificationsEnabled: true,
+        sequenceCompleteNotificationsEnabled: true,
+      }),
+    );
+    expect(sql).not.toMatch(/winback_notifications_enabled/);
+    expect(sql).not.toMatch(/expiring_card_notifications_enabled/);
   });
 
   it("intelligence context update writes industry, customer type, and self-reported MRR in cents", () => {
