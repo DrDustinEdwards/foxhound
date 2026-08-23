@@ -111,6 +111,10 @@ export const PLATFORM_LINKS: ProductNavLink[] = [
   // Features (S34). The writer for the win-back and expiring-card toggles
   // sessions 52 and 49 built their crons against.
   { label: "Features", to: "/settings/features" },
+  // S24 and S25 (session 59): legacy's hub gained two sub-pages when the
+  // inline cards were split off it.
+  { label: "Stripe connections", to: "/settings/stripe" },
+  { label: "My account", to: "/settings/account" },
 ];
 
 // The marketing header's authenticated-only SectionPill menu

@@ -163,8 +163,10 @@ describe("PLANT 4: the claim the reader makes true is stated, and the false one 
   it("the settings card no longer says the fields change nothing", () => {
     // It read "they do not change anything today", which the reader made false
     // the moment it landed. A control may not assert a falsehood (333).
+    // Session 59 moved this card to /settings/account, which is where legacy's
+    // own docs place the merchant-context fields.
     const route = readFileSync(
-      fileURLToPath(new URL("../app/routes/app/settings/index.tsx", import.meta.url)),
+      fileURLToPath(new URL("../app/routes/app/settings/account.tsx", import.meta.url)),
       "utf8",
     );
     expect(route).not.toContain("they do not change anything today");

@@ -334,17 +334,19 @@ describe("PLANT 8: the copy says what sends and what does not", () => {
   it("the settings card no longer claims notifications are not sending", () => {
     // It read "Notifications aren't sending yet", which this engine made false.
     // A control may not assert a falsehood (333).
+    // SESSION 59 MOVED THE SUBJECT. The prose card this pinned lived on the
+    // /settings index; session 56 built the real notifications page and session
+    // 59 removed the card, whose copy had been false for three sessions. The
+    // property now lives where the controls do: the page states what sends by
+    // rendering a toggle for each, so the claim cannot go stale as prose does.
     const route = readFileSync(
-      fileURLToPath(new URL("../app/routes/app/settings/index.tsx", import.meta.url)),
+      fileURLToPath(new URL("../app/routes/app/settings/notifications.tsx", import.meta.url)),
       "utf8",
     );
     expect(route).not.toContain("Notifications aren't sending yet");
-    expect(route).toContain("Foxhound emails you when it recovers a payment");
-    // And it still says which ones are NOT built, rather than implying all are.
-    // Updated session 55: the digest shipped, so Slack is the only one left,
-    // and the card now says the digest has no switch on this page yet.
-    expect(route).toContain("Slack delivery is not built yet");
-    expect(route).not.toContain("the weekly digest, Slack, and the sequence-complete");
+    expect(route).toContain("Payment recovered notification");
+    expect(route).toContain("Sequence complete notification");
+    expect(route).toContain("Slack notifications");
   });
 
   it("the docs describe the one notification that exists and no others", () => {

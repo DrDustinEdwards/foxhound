@@ -392,13 +392,18 @@ describe("PLANT 7: the shared settings surfaces still stand", () => {
   it("S37's route keeps both its intents and its own guards", () => {
     // This row adds a settings ROUTE beside /settings; the regression that
     // matters is the S37 controls on the index route, which share the surface.
-    const s37 = readFileSync(
-      fileURLToPath(new URL("../app/routes/app/settings/index.tsx", import.meta.url)),
+    // Session 59 split the two S37 controls onto legacy's two pages.
+    const stripePage = readFileSync(
+      fileURLToPath(new URL("../app/routes/app/settings/stripe.tsx", import.meta.url)),
       "utf8",
     );
-    expect(s37).toContain('value="disconnect-stripe"');
-    expect(s37).toContain('value="cancel-account"');
-    expect(s37).toContain('name="connectionId" value={conn.id}');
+    const accountPage = readFileSync(
+      fileURLToPath(new URL("../app/routes/app/settings/account.tsx", import.meta.url)),
+      "utf8",
+    );
+    expect(stripePage).toContain('value="disconnect-stripe"');
+    expect(accountPage).toContain('value="cancel-account"');
+    expect(stripePage).toContain('name="connectionId" value={conn.id}');
   });
 
   it("the email route is registered and reachable from the nav", () => {
