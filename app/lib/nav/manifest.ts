@@ -105,6 +105,9 @@ export const PLATFORM_LINKS: ProductNavLink[] = [
   { label: "API keys", to: "/settings/api-keys" },
   // Brand voice (S31). Same mechanism and reason as the others above.
   { label: "Brand voice", to: "/settings/brand-voice" },
+  // Notifications (S36). The writer five engines waited on: it sets
+  // digest_enabled, the Slack pair, and the two email toggles.
+  { label: "Notifications", to: "/settings/notifications" },
 ];
 
 // The marketing header's authenticated-only SectionPill menu
