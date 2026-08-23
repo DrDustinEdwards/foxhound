@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 
 import { getDb, type Db } from "~/db";
 import { accounts } from "~/db/schema";
-import { resolveMembership } from "./auth/account";
+import { resolveActiveMembership } from "./auth/account";
 import { getSession } from "./auth/session";
 import { DEFAULT_THEME, isTheme, resolveThemePreference, THEME_COOKIE, type Theme } from "./theme";
 
@@ -59,7 +59,21 @@ export async function resolveThemeForRequest(env: Env, request: Request): Promis
   if (!session) return resolveThemePreference({ accountTheme: null, cookieTheme });
 
   const db = getDb(env);
-  const membership = await resolveMembership(db, session.user.id);
+  // THE ACTIVE ACCOUNT, not the earliest. This read used the null-marker shim
+  // until session 61's phase (c) re-audit, so a merchant who had switched saw
+  // the theme of the account they switched away from.
+  //
+  // LEGACY ALREADY DECIDED THIS, which is why it needed no ruling: its reader
+  // (lib/theme-server.ts, blob `7fd9693e`) resolves through `resolveAccount`,
+  // the same cookie-aware active-account resolver every other legacy surface
+  // uses, and so does its writer (app/api/account/theme/route.ts, blob
+  // `968ba672`). Foxhound's split was an accident of phase (b) leaving the pair
+  // on the shim, not a Foxhound decision about whether theme follows a switch.
+  const membership = await resolveActiveMembership(
+    db,
+    session.user.id,
+    session.session.activeAccountId ?? null,
+  );
   if (!membership) return resolveThemePreference({ accountTheme: null, cookieTheme });
 
   const row = await db

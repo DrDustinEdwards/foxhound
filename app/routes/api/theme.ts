@@ -1,5 +1,5 @@
 import { getDb } from "~/db";
-import { resolveMembership } from "~/lib/auth/account";
+import { resolveActiveMembership } from "~/lib/auth/account";
 import { getSession } from "~/lib/auth/session";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { setAccountTheme } from "~/lib/theme.server";
@@ -48,7 +48,16 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 
   const db = getDb(env);
-  const membership = await resolveMembership(db, session.user.id);
+  // THE ACTIVE ACCOUNT, not the earliest, and it has to move with the read in
+  // lib/theme.server.ts or the pair disagrees: a merchant who had switched
+  // would toggle, watch the row they are not looking at change, and see the
+  // colour snap back on the next request. Legacy resolves both halves the same
+  // way (app/api/account/theme/route.ts, blob `968ba672`). Session 61, phase (c).
+  const membership = await resolveActiveMembership(
+    db,
+    session.user.id,
+    session.session.activeAccountId ?? null,
+  );
   if (!membership) {
     return Response.json({ error: "no_account" }, { status: 404 });
   }
