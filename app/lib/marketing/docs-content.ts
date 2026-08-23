@@ -31,6 +31,7 @@ export const DOC_GUIDES: DocGuide[] = [
         body: [
           "Each monthly run bills the prior month's matured recoveries, meaning recoveries held for 30 or more days, at 20%. Recoveries Stripe would have gotten on its own are never billed. Disputes are billed at 20% of wins only, capped at $500 per dispute. Intelligence's predictive layer is a flat $199 per month.",
           "A payment method goes on file once, in Settings. Invoices and the full evidence ledger are visible under Billing at any time.",
+          "Settings is a hub: Stripe connections, Email, Brand voice, Features, Audit, Notifications, Alerts, Team, API keys, and My account, each on its own page with a sub-nav down the side. Disputes and Intelligence settings are not built yet, so the hub does not list them.",
         ],
       },
       {
