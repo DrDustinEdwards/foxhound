@@ -104,6 +104,7 @@ export default [
       route("alerts", "./routes/app/settings/alerts.tsx"),
       route("api-keys", "./routes/app/settings/api-keys.tsx"),
       route("brand-voice", "./routes/app/settings/brand-voice.tsx"),
+      route("notifications", "./routes/app/settings/notifications.tsx"),
     ]),
     route("help", "./routes/app/help.tsx"),
     route("welcome", "./routes/app/welcome.tsx"),
