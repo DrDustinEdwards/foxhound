@@ -6,7 +6,10 @@ import { DemoGuardedForm } from "~/components/demo-guarded-form";
 import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { buildCategoryVoicesUpdate } from "~/lib/settings/persist.server";
+import {
+  buildBrandVoiceUpdate,
+  buildCategoryVoicesUpdate,
+} from "~/lib/settings/persist.server";
 import { getPrimaryBrandVoices } from "~/lib/settings/queries.server";
 import {
   BRAND_VOICE_PRESETS,
@@ -57,6 +60,7 @@ export async function loader({ context }: Route.LoaderArgs) {
   const voices = await getPrimaryBrandVoices(getDb(env), auth.membership.accountId);
   return {
     connectionId: voices?.id ?? null,
+    generalVoice: voices?.general ?? "",
     stored: {
       soft: voices?.soft ?? null,
       expired: voices?.expired ?? null,
@@ -99,6 +103,23 @@ export async function action({ request, context }: Route.ActionArgs) {
     network: read("network"),
     fraud: read("fraud"),
   });
+
+  // THE GENERAL VOICE, and legacy writes it from THIS form too. Its
+  // BrandVoiceSection posts `brand_voice_preset` / `brand_voice_custom`
+  // alongside the four category hidden inputs, and its update route resolves
+  // them into the single `brand_voice` column (settings/update/route.ts:115-118).
+  //
+  // It arrived here in session 59, when the /settings index that used to carry
+  // it was split into legacy's hub. Session 46's note that "the general
+  // brand_voice is NOT on it: that field belongs to a different form" described
+  // Foxhound's then-current arrangement, not legacy's.
+  const general = String(form.get("brandVoice") ?? "").trim();
+  await buildBrandVoiceUpdate(
+    db,
+    auth.membership.accountId,
+    connectionId,
+    general.length > 0 ? general : null,
+  );
   return data<ActionResult>({ ok: true });
 }
 
@@ -158,7 +179,7 @@ function CategoryVoice({
 }
 
 export default function BrandVoiceSettings({ loaderData, actionData }: Route.ComponentProps) {
-  const { connectionId, stored } = loaderData;
+  const { connectionId, generalVoice, stored } = loaderData;
   const result = actionData as ActionResult | undefined;
   const busy = useNavigation().state !== "idle";
 
@@ -178,6 +199,31 @@ export default function BrandVoiceSettings({ loaderData, actionData }: Route.Com
 
         <DemoGuardedForm method="post" className="flex flex-col gap-0">
           <input type="hidden" name="connectionId" value={connectionId ?? ""} />
+
+          {/* THE GENERAL VOICE, the third rung of resolveBrandVoice (338
+              binding 1). Legacy writes it from THIS form too, through a preset
+              picker whose value its update route resolves into `brand_voice`.
+              It arrived here in session 59 when the /settings index that used to
+              carry it was split into legacy's hub, and it sits ABOVE the four
+              because it is what they fall back to. */}
+          <div className="flex flex-col gap-1.5 border-b border-border pb-5">
+            <label htmlFor="brandVoice" className="text-label text-text">
+              Brand voice
+            </label>
+            <p className="text-caption text-text-subtle">
+              Every recovery email is written in this voice unless the decline category below
+              overrides it. Leave blank for a neutral default tone.
+            </p>
+            <textarea
+              id="brandVoice"
+              name="brandVoice"
+              rows={3}
+              defaultValue={generalVoice}
+              placeholder="Warm, plain, and direct; a real person from the business writing a short note"
+              className="rounded-md border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-text-subtle focus-visible:border-amber"
+            />
+          </div>
+
           {CATEGORY_VOICE_ROWS.map((row) => (
             <CategoryVoice key={row.key} row={row} stored={stored[row.key]} />
           ))}
