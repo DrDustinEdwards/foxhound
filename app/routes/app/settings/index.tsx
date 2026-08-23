@@ -431,9 +431,10 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
 
       <SettingsCard title="Notifications" action="notifications" submittable={false}>
         <p className="text-label text-text-secondary">
-          Foxhound emails you when it recovers a payment, at the notification email above. That is
-          the only notification sending today; the weekly digest, Slack, and the sequence-complete
-          notice are not built yet, so there is nothing to configure here until they are.
+          Foxhound emails you when it recovers a payment, and when a recovery sequence ends
+          without recovering one, at the notification email above. The weekly digest is built
+          and runs every Monday, but the switch that turns it on is not on this page yet, so it
+          stays off. Slack delivery is not built yet.
         </p>
       </SettingsCard>
 
