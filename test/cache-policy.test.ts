@@ -10,6 +10,7 @@ import {
   hasSessionCookie,
   PRIVATE_DIRECTIVE,
   resolveCacheControl,
+  VARY_HEADER_VALUE,
 } from "~/lib/http/cache-policy";
 
 // SESSION 53 / 345 binding 4: the response cache policy, shipped BEFORE the
@@ -251,7 +252,75 @@ describe("PLANT 5: routes that set their own directive keep it", () => {
   });
 });
 
-describe("PLANT 6: the policy is applied at the one choke point", () => {
+describe("PLANT 6: Vary: Cookie keys the cache by session presence (348)", () => {
+  // THE HEADER THE CACHE-CONTROL POLICY COULD NOT REPLACE. The Worker does not
+  // run on a cache hit, so a directive computed inside it cannot govern what is
+  // SERVED. Vary moves the decision into the cache key, which is the only layer
+  // that runs on a hit.
+
+  it.each(PUBLIC_ROUTES)("%s carries Vary: Cookie when anonymous", (path) => {
+    const applied = applyCachePolicy(request(path), new Response("x"));
+    expect(applied.headers.get("Vary")).toBe("Cookie");
+  });
+
+  it.each(PRIVATE_ROUTES)("%s does NOT gain Vary", (path) => {
+    const applied = applyCachePolicy(request(path), new Response("x"));
+    expect(applied.headers.get("Vary")).toBeNull();
+  });
+
+  it("a PUBLIC route that sets its OWN Cache-Control still gets Vary", () => {
+    // The files routes set their own directive and are still public-class, so
+    // the question Vary answers still applies to them.
+    const existing = new Response("x", {
+      headers: { "Cache-Control": "public, max-age=86400" },
+    });
+    const applied = applyCachePolicy(request("/robots.txt"), existing);
+    expect(applied.headers.get("Cache-Control")).toBe("public, max-age=86400");
+    expect(applied.headers.get("Vary")).toBe("Cookie");
+  });
+
+  it("A PRIVATE route that sets its own Cache-Control keeps it AND gains nothing", () => {
+    const existing = new Response("x", {
+      headers: { "Cache-Control": "no-store, no-cache, must-revalidate, private" },
+    });
+    const applied = applyCachePolicy(request("/p/tok"), existing);
+    expect(applied.headers.get("Cache-Control")).toBe(
+      "no-store, no-cache, must-revalidate, private",
+    );
+    expect(applied.headers.get("Vary")).toBeNull();
+  });
+
+  it("THE THEME-ONLY CASE stays public AND carries Vary", () => {
+    const applied = applyCachePolicy(request("/", "theme=dark"), new Response("x"));
+    expect(applied.headers.get("Cache-Control")).toBe(CACHE_DIRECTIVES.marketing);
+    expect(applied.headers.get("Vary")).toBe("Cookie");
+  });
+
+  it("a signed-in public-class request is private and still carries Vary", () => {
+    const applied = applyCachePolicy(request("/", PROD_COOKIE), new Response("x"));
+    expect(applied.headers.get("Cache-Control")).toBe(PRIVATE_DIRECTIVE);
+    expect(applied.headers.get("Vary")).toBe("Cookie");
+  });
+
+  it("an EXISTING Vary is appended to, never clobbered, and never duplicated", () => {
+    const withVary = new Response("x", { headers: { Vary: "Accept-Encoding" } });
+    expect(applyCachePolicy(request("/"), withVary).headers.get("Vary")).toBe(
+      "Accept-Encoding, Cookie",
+    );
+
+    const already = new Response("x", { headers: { Vary: "Cookie" } });
+    expect(applyCachePolicy(request("/"), already).headers.get("Vary")).toBe("Cookie");
+
+    const cased = new Response("x", { headers: { Vary: "cookie" } });
+    expect(applyCachePolicy(request("/"), cased).headers.get("Vary")).toBe("cookie");
+  });
+
+  it("the value is the literal Cookie, asserted directly", () => {
+    expect(VARY_HEADER_VALUE).toBe("Cookie");
+  });
+});
+
+describe("PLANT 7: the policy is applied at the one choke point", () => {
   it("the fetch entry applies it to both the rate-limited and the handled response", () => {
     const source = readFileSync("workers/app.ts", "utf8");
     expect(source).toContain("applyCachePolicy(request, applySecurityHeaders(limited, nonce))");

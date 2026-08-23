@@ -144,6 +144,42 @@ export function resolveCacheControl(request: Request): string {
 }
 
 /**
+ * `Vary: Cookie` on every PUBLIC-class response (348).
+ *
+ * THIS IS WHAT THE CACHE-CONTROL POLICY ALONE COULD NOT DO, and session 53's
+ * first attempt proved it: THE WORKER DOES NOT RUN ON A CACHE HIT
+ * (developers.cloudflare.com/workers/cache/configuration/). The cache is
+ * consulted BEFORE the Worker, so a directive computed inside the Worker
+ * governs what is STORED and can say nothing about what is SERVED. A stored
+ * anonymous render of `/` was returned to a signed-in request, three times, and
+ * the enable was reverted.
+ *
+ * Vary moves the decision into the CACHE KEY, which is the only layer that runs
+ * on a hit: Cloudflare "stores a separate cached variant per distinct
+ * combination of the listed request header values", so a request carrying a
+ * session cookie cannot match the variant stored for a request carrying none.
+ *
+ * THE COST, stated because it shapes the hit rate rather than being a footnote:
+ * values are compared VERBATIM with no normalization, so every distinct Cookie
+ * header is its own variant. A cookie-less visitor, which is most first-time
+ * and crawler traffic, shares one variant; a visitor carrying `theme=dark` gets
+ * a second; `theme=light` a third. That is fragmentation, not a leak, and the
+ * variants are all the same anonymous body.
+ */
+export const VARY_HEADER_VALUE = "Cookie";
+
+function appendVary(headers: Headers, value: string): void {
+  const existing = headers.get("Vary");
+  if (!existing) {
+    headers.set("Vary", value);
+    return;
+  }
+  const parts = existing.split(",").map((p) => p.trim()).filter(Boolean);
+  if (parts.some((p) => p.toLowerCase() === value.toLowerCase())) return;
+  headers.set("Vary", [...parts, value].join(", "));
+}
+
+/**
  * Apply the policy on the way out.
  *
  * A RESPONSE THAT ALREADY SET ITS OWN `Cache-Control` KEEPS IT. The files and
@@ -152,14 +188,28 @@ export function resolveCacheControl(request: Request): string {
  * in two places. Everything else, which is every route that sets none today,
  * gets an explicit directive so nothing is left to heuristic freshness.
  *
- * Only GET and HEAD are cacheable at all, but the header is set on every method
- * anyway: it costs nothing and it means a POST response can never be stored by
- * an intermediary either.
+ * VARY IS APPLIED BY CLASS, NOT BY WHICH DIRECTIVE WON. A public-class route
+ * gets `Vary: Cookie` even when it set its own Cache-Control, because the
+ * question Vary answers is "could this response differ by cookie", and the
+ * answer for a public-class URL is yes whatever header the route chose. The
+ * PRIVATE class never gets it: those responses are `no-store` and are never
+ * stored, so there is no variant to key.
+ *
+ * Only GET and HEAD are cacheable at all, but the headers are set on every
+ * method anyway: it costs nothing and it means a POST response can never be
+ * stored by an intermediary either.
  */
 export function applyCachePolicy(request: Request, response: Response): Response {
-  if (response.headers.has("Cache-Control")) return response;
+  const isPublicClass = classifyPath(new URL(request.url).pathname) !== "private";
+  if (response.headers.has("Cache-Control") && !isPublicClass) return response;
+
   const headers = new Headers(response.headers);
-  headers.set("Cache-Control", resolveCacheControl(request));
+  if (!headers.has("Cache-Control")) {
+    headers.set("Cache-Control", resolveCacheControl(request));
+  }
+  if (isPublicClass) {
+    appendVary(headers, VARY_HEADER_VALUE);
+  }
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
