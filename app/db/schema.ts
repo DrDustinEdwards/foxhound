@@ -186,7 +186,29 @@ export const stripeConnections = sqliteTable(
     brandVoiceNetwork: text("brand_voice_network"),
     brandVoiceFraud: text("brand_voice_fraud"),
   },
-  (t) => [index("stripe_connections_account_idx").on(t.accountId)],
+  (t) => [
+    index("stripe_connections_account_idx").on(t.accountId),
+    // ONE LIVE FOXHOUND ACCOUNT PER STRIPE ACCOUNT (ruling 356, DEFECT 4).
+    //
+    // Money routing depends on this. `resolveConnection` maps an incoming
+    // connected webhook to an account by `stripe_user_id` alone, so every
+    // failed payment, recovered payment, outcome and billing line item for a
+    // Stripe account follows whichever row that lookup returns. That is sound
+    // only if the live mapping is ONE-TO-ONE, and until this index nothing
+    // enforced it: two users who both hold Stripe access to one account could
+    // attach it to two Foxhound accounts, and the webhook layer would honour
+    // the wrong one faithfully and forever.
+    //
+    // SCOPED TO LIVE ROWS, which is binding 4 and not an accident of shape. S37
+    // disconnects by stamping `disconnected_at` and leaving the row, so a
+    // uniqueness rule over the whole table would make the first disconnect a
+    // permanent ban on ever connecting that Stripe account again, here or
+    // anywhere. Under this WHERE clause a disconnected row is invisible to the
+    // constraint and reconnect stays legal.
+    uniqueIndex("stripe_connections_live_stripe_account_uq")
+      .on(t.stripeUserId)
+      .where(sql`${t.disconnectedAt} is null`),
+  ],
 );
 
 export const accountSubscriptions = sqliteTable(
