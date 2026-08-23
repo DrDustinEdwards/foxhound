@@ -1,4 +1,4 @@
-import { data, useNavigation } from "react-router";
+import { data, Form, useNavigation } from "react-router";
 
 import { Alert, Field } from "~/components/auth-ui";
 import { DemoGuardedForm } from "~/components/demo-guarded-form";
@@ -40,7 +40,9 @@ export async function loader({ context }: Route.LoaderArgs) {
   const auth = context.get(authContext);
   const account = await getAccount(getDb(env), auth.membership.accountId);
   if (!account) throw new Response("Not Found", { status: 404 });
-  return { account, cancelledAt: account.cancelledAt };
+  // The signed-in address, which legacy's AccountSection displays above its
+  // sign-out control (blob a154ac8f, 3,839 bytes).
+  return { account, cancelledAt: account.cancelledAt, userEmail: auth.email };
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
@@ -163,7 +165,7 @@ function DangerZone({ cancelledAt, result }: { cancelledAt: Date | null; result?
 }
 
 export default function AccountSettings({ loaderData, actionData }: Route.ComponentProps) {
-  const { account, cancelledAt } = loaderData;
+  const { account, cancelledAt, userEmail } = loaderData;
   const result = actionData as ActionResult | undefined;
 
   return (
@@ -174,6 +176,23 @@ export default function AccountSettings({ loaderData, actionData }: Route.Compon
           Profile, appearance, and account lifecycle.
         </p>
       </header>
+
+      {/* Legacy's AccountSection opens with the signed-in address and a sign-out
+          control beside it (blob a154ac8f). Both were absent from Foxhound's
+          account surface until session 60; the address is a display, and the
+          sign-out is a POST to the existing /logout resource route rather than
+          legacy's GET link, because signing out is a state change. */}
+      <section className="flex flex-col items-start gap-3 rounded-lg border border-border bg-surface p-5 md:flex-row md:items-center md:justify-between">
+        <div className="text-label text-text">{userEmail}</div>
+        <Form method="post" action="/logout">
+          <button
+            type="submit"
+            className="whitespace-nowrap rounded-md border border-border bg-transparent px-4 py-2 text-label text-text-tertiary transition-colors duration-150 hover:border-text-tertiary"
+          >
+            Sign out
+          </button>
+        </Form>
+      </section>
 
       <SettingsCard title="Account" action="profile" result={result}>
         <Field label="Account name" name="name" required defaultValue={account.name ?? ""} />
