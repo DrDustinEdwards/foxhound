@@ -30,17 +30,30 @@ const CARD = "rounded-lg border border-border bg-surface p-4";
 const CARD_LABEL = "mb-1 text-micro uppercase tracking-widest text-text-tertiary";
 
 /** Legacy's four audit scope cards (blob `dc1d18dd`), at its two-column grid.
- *  BUILD rather than redraw: Foxhound's own /audit page names the same four
- *  scopes, so the descriptions here are that page's copy and the two agree. */
+ *  REDRAWN IN SESSION 66 with /audit's restated copy under ruling 360. Session
+ *  65 built it as a BUILD, taking /audit's four scope names on the grounds that
+ *  the page and the docs should agree. They still agree; the page moved. Legacy
+ *  computes all four scopes in runAudit and Foxhound computes none, so both
+ *  surfaces now name what exists rather than what an audit would cover.
+ *
+ *  BUSINESS HEALTH IS THE ONE TOPIC THAT DID NOT SURVIVE: Foxhound has MRR and
+ *  its movement, and no ARR, no active-subscription count and no churn in basis
+ *  points. */
 function AuditScopes() {
   const scopes: [string, string][] = [
-    ["Failed invoices", "What is unrecovered right now, and the estimated recoverable amount."],
+    [
+      "Failed payments",
+      "Every failed payment Foxhound has detected, what came back, and what is still unrecovered.",
+    ],
     [
       "Expiring cards",
-      "Customers whose cards expire soon, and the MRR at risk before failures happen.",
+      "Cards inside thirty days of expiring, and the customers Foxhound has already emailed about them.",
     ],
-    ["Open disputes", "Unmanaged chargebacks and revenue at risk without evidence submitted."],
-    ["Business health", "MRR, ARR, active subscriptions, voluntary and involuntary churn."],
+    ["Open disputes", "Chargebacks still waiting on evidence, with the deadline on each one."],
+    [
+      "MRR and movement",
+      "Monthly recurring revenue, what is at risk, and the new, expansion and churn behind the total.",
+    ],
   ];
   return (
     <div className="my-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
