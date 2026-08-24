@@ -34,17 +34,23 @@ describe("PLANT 1: a plain string is still a paragraph, unchanged", () => {
     );
   });
 
-  it("EVERY PRE-EXISTING SECTION IS STILL PLAIN STRINGS, so none of them moved", () => {
-    // The stronger form of the claim above: not "a string renders the same" but
-    // "the shipped content is still strings". A section quietly converted to
-    // rich blocks would pass the first test and fail this one.
-    const shipped = DOC_GUIDES.filter((g) => g.slug !== "platform" && g.slug !== "recovery");
-    const blocks = shipped.flatMap((g) => g.sections).flatMap((s) => s.body);
-    // EIGHT, pinned exactly. Part two of this campaign authors these three
-    // guides and will change the number on purpose, which is the point: a
-    // section appearing here by accident should fail rather than pass.
-    expect(blocks).toHaveLength(8);
-    expect(blocks.every((b) => typeof b === "string")).toBe(true);
+  it("ALL FIVE GUIDES ARE AUTHORED, and the plain-string form is still in use", () => {
+    // PART TWO CHANGED THIS ON PURPOSE, which part one's version of this test
+    // said in as many words: it pinned the three unauthored guides at eight
+    // plain strings so that authoring them would have to come here and say so.
+    //
+    // What it pins now is the property that outlives both parts: every guide
+    // carries rich blocks, AND plain strings are still a live form rather than
+    // a legacy path nothing exercises.
+    const blocks = DOC_GUIDES.flatMap((g) => g.sections).flatMap((s) => s.body);
+    expect(DOC_GUIDES).toHaveLength(5);
+    expect(blocks.length).toBeGreaterThan(150);
+    expect(blocks.some((b) => typeof b === "string")).toBe(true);
+    expect(blocks.some((b) => typeof b !== "string")).toBe(true);
+    for (const guide of DOC_GUIDES) {
+      const rich = guide.sections.flatMap((s) => s.body).filter((b) => typeof b !== "string");
+      expect(rich.length, `${guide.slug} carries no rich blocks`).toBeGreaterThan(0);
+    }
   });
 });
 

@@ -70,7 +70,7 @@ describe("PLANT 1: the guide's shape", () => {
     const h3s = recovery.sections
       .flatMap((s) => s.body)
       .filter((b): b is { kind: "h3"; text: string } => typeof b !== "string" && b.kind === "h3");
-    expect(h3s).toHaveLength(20);
+    expect(h3s).toHaveLength(21);
   });
 });
 

@@ -2,6 +2,8 @@ import { Link } from "react-router";
 
 import type { DocBlock, DocInline, DocRich } from "~/lib/marketing/docs-content";
 
+import { DocWidget } from "./doc-widgets";
+
 // Legacy's docs block vocabulary, at legacy's treatment on Foxhound's tokens.
 //
 // WHERE IT CAME FROM, and it is not where ruling 325 said. The sixteen files in
@@ -126,6 +128,12 @@ function Block({ block }: { block: DocBlock }) {
           ))}
         </ul>
       );
+
+    // A PREVIEW WIDGET, ruled by the session 65 walk. It takes no data and no
+    // loader: every one either draws a fixed picture or derives its content from
+    // a compile-time constant the engine already owns.
+    case "widget":
+      return <DocWidget name={block.name} />;
 
     case "table":
       return (
