@@ -195,6 +195,7 @@ export const DOC_GUIDES: DocGuide[] = [
           { kind: "note", body: "The audit's Stripe connection is separate from the one a Foxhound account uses, and it is read-only. Your billing configuration, your subscriptions and your payment methods are never touched." },
           { kind: "h3", text: "The four scopes" },
           { kind: "widget", name: "audit-scopes" },
+          { kind: "note", body: "Failed invoices is the scope that produces numbers today. The other three are named because the audit page names them, and they are what the scope is being built toward rather than what it currently returns. Saying so here is better than letting a merchant read a blank section as a broken one." },
         ],
       },
       {

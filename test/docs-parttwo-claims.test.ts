@@ -236,6 +236,13 @@ describe("PLANT 3: every capability sentence, tied to its code", () => {
     );
   });
 
+  it("AUDIT: says WHICH scope produces numbers, rather than implying all four do", () => {
+    // The widget names four scopes because /audit names four. The engine
+    // computes one. A guide that showed the four and stayed quiet would inherit
+    // the live page's own over-promise instead of correcting it.
+    expect(AUDIT).toContain("Failed invoices is the scope that produces numbers today.");
+  });
+
   it("AUDIT: no fabricated recovery rate, and it says why", () => {
     expect(AUDIT).toContain("The audit does not project a recovery rate from platform-wide statistics");
     expect(AUDIT).toContain(
