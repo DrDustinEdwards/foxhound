@@ -390,9 +390,13 @@ describe("PLANT 6: the docs describe the alert, including what it does not do", 
     fileURLToPath(new URL("../app/lib/marketing/docs-content.ts", import.meta.url)),
     "utf8",
   );
+  // RELOCATED, NOT WEAKENED. Session 64 moved these sentences into the
+  // PLATFORM guide, which is where legacy documents both engines (its
+  // Part 2, Additional features). The sentences are unchanged and so are
+  // the assertions; only the guide they are found in moved.
   const section = DOCS.slice(
-    DOCS.indexOf('heading: "Before a card expires"'),
-    DOCS.indexOf('heading: "What counts as billable"'),
+    DOCS.indexOf('text: "Expiring card alerts"'),
+    DOCS.indexOf('text: "Win-back sequences"'),
   );
 
   it("names the cadence, the window, the sender and the link", () => {

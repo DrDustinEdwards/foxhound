@@ -82,7 +82,7 @@ describe("PLANT 1: the guide's shape", () => {
 describe("PLANT 2: every capability sentence, tied to its code", () => {
   it("EXPIRING CARDS: nightly, thirty days ahead, once per card and month", () => {
     expect(TEXT).toContain(
-      "Once a night Foxhound reads the active subscriptions on your connected account and finds the cards inside thirty days of expiring.",
+      "Foxhound checks your active subscriptions nightly and, when a card is inside 30 days of expiring, emails that customer once to ask them to update it.",
     );
     expect(EXPIRING_CARD_DAYS_AHEAD).toBe(30);
     expect(CRON_JOBS.map((c) => c.name)).toContain("expiring-cards");
