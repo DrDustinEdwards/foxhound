@@ -36,7 +36,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
   return marketingMeta({
     title: "Free Stripe Revenue Leakage Audit - Foxhound",
     description:
-      "Estimate what your Stripe account is leaking to failed payments in 30 seconds. No signup, no credit card. Connect Stripe afterward for the full diagnostic.",
+      "Estimate what your Stripe account is leaking to failed payments in 30 seconds. No signup, no credit card. Connect Stripe afterward to see your real numbers.",
     path: "/audit",
     siteUrl: loaderData?.siteUrl ?? "",
   });
@@ -198,17 +198,44 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
         {/* Legacy's single covers CARD with a dot list, replacing a 2-up grid of
             bordered sub-cards Foxhound had. Legacy's in-card CTA ("See my
             numbers" to /audit/connect) is NOT ported: that route does not exist
-            here, row U1 is DEFECT-OPEN. */}
+            here, row U1 is DEFECT-OPEN.
+
+            RESTATED IN SESSION 66 UNDER RULING 360, and the walk is why. This
+            section read "What the full audit covers" and named four scopes.
+            Legacy really does compute all four, in lib/audit-engine.ts's
+            runAudit, from live Stripe reads of subscriptions, disputes and
+            invoices. FOXHOUND HAS NO SUCH RUN AT ALL: nothing anywhere writes
+            `audit_runs` (the only insert is a test fixture), and
+            full-audit.server.ts's lift bands are a query layer this route's own
+            header records as wired to nothing.
+
+            So the four topics stay and the CLAIM changes. Each line below now
+            describes a surface that exists and has a producer, rather than
+            scopes of a diagnostic that never runs. Class (c): the copy lied,
+            and the fix is the copy, because building the run is an engine and
+            three of its four scopes need live Stripe calls. */}
         <div className="mb-6 rounded-2xl border border-border bg-surface p-6 md:p-10">
           <div className="mb-5 text-xs font-medium uppercase tracking-[0.06em] text-text-tertiary">
-            What the full audit covers
+            What Foxhound shows you once Stripe is connected
           </div>
           <div>
             {[
-              ["Failed invoices", "What is unrecovered right now, and the estimated recoverable amount."],
-              ["Expiring cards", "Customers whose cards expire soon, and the MRR at risk before failures happen."],
-              ["Open disputes", "Unmanaged chargebacks and revenue at risk without evidence submitted."],
-              ["Business health", "MRR, ARR, active subscriptions, voluntary vs. involuntary churn."],
+              [
+                "Failed payments",
+                "Every failed payment Foxhound has detected, what came back, and what is still unrecovered.",
+              ],
+              [
+                "Expiring cards",
+                "Cards inside thirty days of expiring, and the customers Foxhound has already emailed about them.",
+              ],
+              [
+                "Open disputes",
+                "Chargebacks still waiting on evidence, with the deadline on each one.",
+              ],
+              [
+                "MRR and movement",
+                "Monthly recurring revenue, what is at risk, and the new, expansion and churn behind the total.",
+              ],
             ].map(([title, desc]) => (
               <div key={title} className="mb-3 flex items-start gap-3 text-left">
                 <div className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-amber" />
@@ -245,11 +272,17 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
         </a>
 
         <div className="mt-10 rounded-lg border border-border bg-surface p-6 text-center">
-          <p className="mb-2 text-body font-medium text-text">Want the full diagnostic against your real account?</p>
+          {/* SESSION 66, same restatement as the covers section above. This
+              promised "the full report" of three lift bands. Only one of the
+              three has a live path: computeFoxhoundAddsCents reaches a merchant
+              through the monthly summary email. The other two need a live
+              Stripe read nothing calls. So the CTA now promises what connecting
+              actually does, which is more than a report anyway. */}
+          <p className="mb-2 text-body font-medium text-text">Want your real numbers instead of an estimate?</p>
           <p className="mb-5 text-label leading-relaxed text-text-secondary">
-            Create a free account, then connect Stripe for the full report: what Stripe already
-            recovered, what is still dying, and what Foxhound would add. The audit itself only reads
-            and writes nothing back.
+            Create a free account and connect Stripe. Foxhound starts working the failed payments it
+            finds, and your dashboard shows what came back and what is still at risk. Turn on the
+            monthly summary under Settings and Audit to get it by email.
           </p>
           <Link
             to="/signup"
