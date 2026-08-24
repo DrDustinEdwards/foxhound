@@ -338,7 +338,11 @@ describe("PLANT 6: the docs describe the notice and its exclusivity", () => {
     fileURLToPath(new URL("../app/lib/marketing/docs-content.ts", import.meta.url)),
     "utf8",
   );
-  const section = DOCS.slice(DOCS.indexOf('heading: "Notifications"'), DOCS.indexOf('heading: "Alerts"'));
+  // REPOINTED, NOT WEAKENED (354 reversal 9). Session 64 gave the docs a
+  // block vocabulary, so Notifications and Alerts are H3 blocks inside the
+  // settings section rather than top-level `heading:` keys. The assertions
+  // below are unchanged; only the slice that finds the section moved.
+  const section = DOCS.slice(DOCS.indexOf('text: "Notifications"'), DOCS.indexOf('text: "Alerts"'));
 
   it("says what ends a sequence and that the two notices never both fire", () => {
     // Line for the heading map: platform, "Notifications", body[1].
