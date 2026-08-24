@@ -505,11 +505,17 @@ describe("PLANT 6: a lost claim records nothing, and the cron is registered", ()
 describe("PLANT 7: the docs say what the engine now does", () => {
   it("the recovery guide describes the sequence, its exclusions, and that it is not billed", async () => {
     const { DOC_GUIDES } = await import("~/lib/marketing/docs-content");
-    const recovery = DOC_GUIDES.find((g) => g.slug === "recovery");
-    const section = recovery?.sections.find((s) => s.heading === "When a customer cancels");
+    // RELOCATED, NOT WEAKENED. Session 64 moved these sentences into the
+    // PLATFORM guide, which is where legacy documents both engines (its
+    // Part 2, Additional features). The sentences are unchanged and so are
+    // the assertions; only the guide they are found in moved.
+    const platform = DOC_GUIDES.find((g) => g.slug === "platform");
+    const section = platform?.sections.find((s) => s.heading === "Additional features");
 
     expect(section).toBeDefined();
-    const body = (section?.body ?? []).join(" ");
+    const body = (section?.body ?? [])
+      .map((b) => (typeof b === "string" ? b : JSON.stringify(b)))
+      .join(" ");
     // The schedule the cron actually sends on: 1h, 96h, 336h.
     expect(body).toContain("an hour after the cancellation");
     expect(body).toContain("four days");
