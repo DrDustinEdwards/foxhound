@@ -122,6 +122,50 @@ const SURFACES: { name: string; run: (ctx: unknown, url: string) => Promise<unkn
   },
 ];
 
+const detailRoutes = {
+  payment: await import("~/routes/app/recovery/payments/detail"),
+  dispute: await import("~/routes/app/disputes/detail"),
+  invoice: await import("~/routes/app/billing/invoice"),
+  customer: await import("~/routes/app/intelligence/customer"),
+};
+
+/** The four id-bearing detail routes, keyed on the ACTING account's own row.
+ *  `px` is that account's row-id prefix, which is how each surface asks for its
+ *  own data rather than a hardcoded id that would only exist for one of them. */
+const DETAIL_SURFACES: {
+  name: string;
+  run: (ctx: unknown, px: string) => Promise<unknown>;
+}[] = [
+  {
+    name: "recovery/payments/:id",
+    run: (c, px) => callWithParams(detailRoutes.payment.loader, c, { id: `fp_${px}_1` }),
+  },
+  {
+    name: "disputes/:id",
+    run: (c, px) => callWithParams(detailRoutes.dispute.loader, c, { id: `dsp_${px}_1` }),
+  },
+  {
+    name: "billing/invoices/:id",
+    run: (c, px) => callWithParams(detailRoutes.invoice.loader, c, { id: `inv_${px}_1` }),
+  },
+  {
+    name: "intelligence/customers/:id",
+    run: (c, px) => callWithParams(detailRoutes.customer.loader, c, { id: `cus_${px}_1` }),
+  },
+];
+
+async function callWithParams(
+  loader: unknown,
+  context: unknown,
+  params: Record<string, string>,
+): Promise<unknown> {
+  return (loader as (a: unknown) => Promise<unknown>)({
+    context,
+    request: new Request("https://foxhoundapp.test/detail"),
+    params,
+  });
+}
+
 async function call(loader: unknown, context: unknown, path: string): Promise<unknown> {
   return (loader as (a: unknown) => Promise<unknown>)({
     context,
@@ -377,15 +421,21 @@ async function renderAll(accountId: string, withOther: boolean): Promise<Record<
   for (const surface of SURFACES) {
     out[surface.name] = JSON.stringify(await surface.run(ctx, ""));
   }
+  const px = accountId.slice(5, 9);
+  for (const surface of DETAIL_SURFACES) {
+    out[surface.name] = JSON.stringify(await surface.run(ctx, px));
+  }
   return out;
 }
+
+const ALL_SURFACE_NAMES = [...SURFACES, ...DETAIL_SURFACES].map((s) => s.name);
 
 describe("PHASE (f): every surface renders the active account and nothing else", () => {
   it("SEEDS BOTH ACCOUNTS FOR REAL, so an empty-fixture pass is impossible", async () => {
     // 259's data-dependent zero. Two renders of two empty databases are also
     // identical, and would pass every assertion below while proving nothing.
     const withB = await renderAll(A, true);
-    expect(Object.keys(withB)).toHaveLength(SURFACES.length);
+    expect(Object.keys(withB)).toHaveLength(ALL_SURFACE_NAMES.length);
     expect(withB["dashboard"]).toContain("recoveryRatePct");
     expect(withB["settings/team"]).toContain("m_alph");
     expect(withB["recovery/payments"]).toContain("Payer alph");
@@ -404,7 +454,7 @@ describe("PHASE (f): every surface renders the active account and nothing else",
       const withOther = await renderAll(actor, true);
       const alone = await renderAll(actor, false);
 
-      const blended = SURFACES.map((s) => s.name).filter((n) => withOther[n] !== alone[n]);
+      const blended = ALL_SURFACE_NAMES.filter((n) => withOther[n] !== alone[n]);
       // Named surfaces in the failure message, so a blend reports WHICH page
       // rather than a wall of JSON.
       expect(blended).toEqual([]);
@@ -417,7 +467,7 @@ describe("PHASE (f): every surface renders the active account and nothing else",
     // thing under test proves nothing; this pins that the surfaces are live.
     const asA = await renderAll(A, true);
     const asB = await renderAll(B, true);
-    const same = SURFACES.map((s) => s.name).filter((n) => asA[n] === asB[n]);
+    const same = ALL_SURFACE_NAMES.filter((n) => asA[n] === asB[n]);
     expect(same).toEqual([]);
   });
 });
@@ -473,7 +523,7 @@ describe("PHASE (f) JOB 3: switching accounts moves every surface", () => {
     // EVERY surface moved. Asserting a handful of stats would leave the rest
     // unproven, so this asserts the whole render set changed and that none of
     // it still matches what Alpha saw.
-    const unchanged = SURFACES.map((s) => s.name).filter((n) => before.render[n] === after.render[n]);
+    const unchanged = ALL_SURFACE_NAMES.filter((n) => before.render[n] === after.render[n]);
     expect(unchanged).toEqual([]);
 
     // And the theme follows the account, which is 356's ratified fix reaching
@@ -533,5 +583,96 @@ async function renderFromSession(): Promise<{ accountId: string; render: Record<
   for (const surface of SURFACES) {
     render[surface.name] = JSON.stringify(await surface.run(ctx, ""));
   }
+  const px = membership.accountId.slice(5, 9);
+  for (const surface of DETAIL_SURFACES) {
+    render[surface.name] = JSON.stringify(await surface.run(ctx, px));
+  }
   return { accountId: membership.accountId, render };
 }
+
+describe("PHASE (f): the id-bearing routes refuse the OTHER account's ids", () => {
+  it("404s on every detail route when the id belongs to the other account", async () => {
+    // The differential proves a detail route does not BLEND. This proves it does
+    // not SERVE: an id is caller-supplied, so a route that scoped its summary
+    // query and not its detail query would pass the differential and still hand
+    // one merchant another's invoice.
+    await renderAll(A, true);
+    const ctx = contextFor(A, "Alpha Ltd");
+    const beta = B.slice(5, 9);
+
+    for (const surface of DETAIL_SURFACES) {
+      let status: number | string = "resolved";
+      try {
+        const result = await surface.run(ctx, beta);
+        // intelligence/customer returns a value rather than throwing when it is
+        // not entitled, so a resolved value is only acceptable if it carries no
+        // detail at all.
+        status = JSON.stringify(result);
+      } catch (thrown) {
+        status = thrown instanceof Response ? thrown.status : "threw";
+      }
+      expect(status, `${surface.name} served a foreign id`).toBe(404);
+    }
+  });
+});
+
+describe("PHASE (f): the app shell, the ONE surface that must see other accounts", () => {
+  it("keeps everything per-account EXCEPT the switcher list, which is the point of it", async () => {
+    // The differential's rule is inverted here on purpose. `listSwitcherAccounts`
+    // exists to render the accounts a caller can switch TO, so its output MUST
+    // change when a second account exists. Everything else the shell loads
+    // (account name, nav context, theme) must not.
+    const appShell = await import("~/layouts/app-shell");
+
+    const render = async (withOther: boolean) => {
+      const fresh = createInMemoryDb();
+      sqlite = fresh.sqlite;
+      harness.db = fresh.db;
+      seed(A, "Alpha Ltd", 1, 2);
+      if (withOther) seed(B, "Beta Ltd", 7, 3);
+      sessionHarness.session = null;
+      const memberships = withOther
+        ? [
+            { memberId: "m_a", accountId: A, accountName: "Alpha Ltd", role: "owner" },
+            { memberId: "m_b", accountId: B, accountName: "Beta Ltd", role: "owner" },
+          ]
+        : [{ memberId: "m_a", accountId: A, accountName: "Alpha Ltd", role: "owner" }];
+      const ctx = {
+        get(key: unknown) {
+          if (key === cloudflareContext) {
+            return {
+              env: {} as Env,
+              ctx: { waitUntil() {} } as unknown as ExecutionContext,
+              nonce: "n",
+            };
+          }
+          return {
+            userId: USER,
+            userName: USER,
+            email: "owner@alpha.test",
+            membership: memberships[0],
+            memberships,
+            activeAccountId: A,
+            isAdmin: false,
+            isDemo: false,
+            demoSignedIn: false,
+          };
+        },
+      };
+      return (await call(appShell.loader, ctx, "/dashboard")) as Record<string, unknown>;
+    };
+
+    const withB = await render(true);
+    const alone = await render(false);
+
+    // The switcher list is the deliberate exception, and it really does move.
+    expect((withB.accounts as unknown[]).length).toBe(2);
+    expect((alone.accounts as unknown[]).length).toBe(1);
+
+    // Everything else is identical, which is the same differential as above
+    // applied to the one surface that has to be carved out of it.
+    const strip = (r: Record<string, unknown>) =>
+      JSON.stringify(Object.fromEntries(Object.entries(r).filter(([k]) => k !== "accounts")));
+    expect(strip(withB)).toBe(strip(alone));
+  });
+});
