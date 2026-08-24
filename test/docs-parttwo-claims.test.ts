@@ -179,10 +179,15 @@ describe("PLANT 2: the widgets draw what the engine computes", () => {
   });
 
   it("AUDIT SCOPES: the same four names the /audit page renders", () => {
+    // MOVED IN SESSION 66, and the guard firing is the mechanism working. The
+    // page's four names changed under ruling 360 when the walk found nothing
+    // writes `audit_runs`, and this assertion went red rather than letting the
+    // docs picture keep the old promise.
     const html = renderWidget("audit-scopes");
-    for (const scope of ["Failed invoices", "Expiring cards", "Open disputes", "Business health"]) {
+    for (const scope of ["Failed payments", "Expiring cards", "Open disputes", "MRR and movement"]) {
       expect(html).toContain(scope);
     }
+    expect(html).not.toContain("Business health");
   });
 
   it("CUSTOMER COLUMNS: Foxhound's six, with no Recommended action column", () => {
@@ -236,11 +241,13 @@ describe("PLANT 3: every capability sentence, tied to its code", () => {
     );
   });
 
-  it("AUDIT: says WHICH scope produces numbers, rather than implying all four do", () => {
-    // The widget names four scopes because /audit names four. The engine
-    // computes one. A guide that showed the four and stayed quiet would inherit
-    // the live page's own over-promise instead of correcting it.
-    expect(AUDIT).toContain("Failed invoices is the scope that produces numbers today.");
+  it("AUDIT: says there is no full audit run, which is what session 66 measured", () => {
+    // Session 65 wrote that Failed invoices was the one scope producing numbers.
+    // Session 66's walk found something stronger: nothing writes `audit_runs` at
+    // all, so no scope produces an audit number, and the page and the guide both
+    // now describe the surfaces that do exist.
+    expect(AUDIT).toContain("Foxhound runs no full audit of its own yet.");
+    expect(AUDIT).not.toContain("The other three are named because the audit page names them");
   });
 
   it("AUDIT: no fabricated recovery rate, and it says why", () => {

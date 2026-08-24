@@ -193,9 +193,10 @@ export const DOC_GUIDES: DocGuide[] = [
           { kind: "p", body: [ "The audit at ", { link: "/audit", to: "/audit" }, " connects to Stripe with read-only OAuth and reads the trailing period. It needs no Foxhound account, and the link can be handed to somebody else who can run it against their own Stripe account without signing up." ] },
           "The audit only reads. It looks at failed invoices, expiring cards, open disputes, and basic account health over the trailing period, and writes nothing back to Stripe.",
           { kind: "note", body: "The audit's Stripe connection is separate from the one a Foxhound account uses, and it is read-only. Your billing configuration, your subscriptions and your payment methods are never touched." },
-          { kind: "h3", text: "The four scopes" },
+          { kind: "h3", text: "What you get once Stripe is connected" },
           { kind: "widget", name: "audit-scopes" },
-          { kind: "note", body: "Failed invoices is the scope that produces numbers today. The other three are named because the audit page names them, and they are what the scope is being built toward rather than what it currently returns. Saying so here is better than letting a merchant read a blank section as a broken one." },
+          "Foxhound runs no full audit of its own yet. Legacy runs one, reading your Stripe subscriptions, disputes and invoices live and writing a report; nothing in Foxhound does that, and nothing writes an audit record. What you get instead is the four things above, each on its own page and each kept current by the engines that are already running.",
+          "The monthly summary is the one part that arrives without you looking. Turn it on under Settings and Audit and Foxhound emails what it added for you last month, from its own records rather than from a fresh read of Stripe.",
         ],
       },
       {
