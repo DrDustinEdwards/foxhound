@@ -6,6 +6,8 @@
 // (no auto-submit language, silent-first framing, baseline-free, singular
 // brand voice, no fabricated recovery-rate numbers).
 
+import type { DocWidgetName } from "~/components/docs/doc-widgets";
+
 // THE BLOCK VOCABULARY, extended in session 64 to carry legacy's own.
 //
 // A PLAIN STRING IS STILL A PARAGRAPH, which is the whole point of the shape: the
@@ -38,7 +40,8 @@ export type DocBlock =
   | { kind: "tip"; body: DocRich }
   | { kind: "steps"; items: DocRich[] }
   | { kind: "list"; items: DocRich[] }
-  | { kind: "table"; columns: string[]; rows: DocRich[][] };
+  | { kind: "table"; columns: string[]; rows: DocRich[][] }
+  | { kind: "widget"; name: DocWidgetName };
 
 export interface DocGuide {
   slug: string;
@@ -185,16 +188,32 @@ export const DOC_GUIDES: DocGuide[] = [
       "Free Stripe diagnostic. What Stripe already recovered, what is still dying, and what Foxhound would add.",
     sections: [
       {
-        heading: "What it checks",
+        heading: "How the audit works",
         body: [
+          { kind: "p", body: [ "The audit at ", { link: "/audit", to: "/audit" }, " connects to Stripe with read-only OAuth and reads the trailing period. It needs no Foxhound account, and the link can be handed to somebody else who can run it against their own Stripe account without signing up." ] },
           "The audit only reads. It looks at failed invoices, expiring cards, open disputes, and basic account health over the trailing period, and writes nothing back to Stripe.",
-          "Results are framed around lift: what Stripe's own retries already recovered, what is currently unrecovered, and where Foxhound's silent retries and review-and-sign disputes would add on top.",
+          { kind: "note", body: "The audit's Stripe connection is separate from the one a Foxhound account uses, and it is read-only. Your billing configuration, your subscriptions and your payment methods are never touched." },
+          { kind: "h3", text: "The four scopes" },
+          { kind: "widget", name: "audit-scopes" },
         ],
       },
       {
-        heading: "No fabricated numbers",
+        heading: "Reading your results",
         body: [
+          "Results are framed around lift: what Stripe's own retries already recovered, what is currently unrecovered, and where Foxhound's silent retries and review-and-sign disputes would add on top.",
+          { kind: "h3", text: "Failed invoices" },
+          "Every failed invoice in the window, with what Stripe's own retries already brought back, what is still unrecovered, and what Foxhound would add on top of that. The three are shown apart because they are three different things, and only the third is what Foxhound is for.",
+          { kind: "h3", text: "No fabricated numbers" },
           "The audit does not project a recovery rate from platform-wide statistics, there is no long-running platform history to draw one from yet. It reports what your account actually shows, plainly.",
+          { kind: "note", body: "Legacy's audit applies a flat 30% recovery estimate to at-risk value and calls it a conservative industry baseline. Foxhound does not, on this page or anywhere else, because there is no Foxhound history to draw such a rate from and a number invented for a sales argument is the kind of claim this product exists not to make." },
+        ],
+      },
+      {
+        heading: "Running it every month",
+        body: [
+          "With a Foxhound account you can have the audit re-run itself. Turn on auto-run under Settings and Audit, and on the first of each month Foxhound runs it and emails you the result at your notification address.",
+          "The monthly digest reads Foxhound's own numbers rather than calling Stripe again, so it needs no live connection and costs nothing.",
+          { kind: "note", body: "The lookback control on the same settings page has no reader yet. It is stated here rather than hidden: the monthly digest is all-time and does not use it." },
         ],
       },
     ],
@@ -222,6 +241,7 @@ export const DOC_GUIDES: DocGuide[] = [
           { kind: "h3", text: "Rows per page" },
           "The selector above the table shows 10, 25, 50, 100, or all of them. It starts at 50.",
           { kind: "h3", text: "What each status means" },
+          { kind: "widget", name: "payment-statuses" },
           { kind: "list", items: [
             [{ strong: "Active." }, " The sequence is running and at least one step is still ahead of it."],
             [{ strong: "Recovered." }, " The invoice was paid, and every remaining step was cancelled."],
@@ -262,7 +282,11 @@ export const DOC_GUIDES: DocGuide[] = [
             ["Revoked", "The customer withdrew the mandate", "A single email. There is nothing to retry against"],
             ["Unknown", "A decline code the engine does not recognise", "Emails only, failing closed: no silent retry against a code that has not been classified"],
           ] },
+          { kind: "widget", name: "decline-categories" },
           { kind: "note", body: "Legacy classified four categories. Foxhound classifies six, and the two extra ones are both cases where a retry would be wrong: a revoked mandate and a decline code nothing has mapped." },
+          { kind: "h3", text: "The schedule for each category" },
+          "Each category's steps in order, from the engine's own schedule table. A retry is amber and an email is not, so the shape of a category is readable at a glance: soft and network open with a quiet retry, and the other four never retry at all.",
+          { kind: "widget", name: "sequence-timelines" },
           { kind: "h3", text: "Reading the sequences page" },
           { kind: "p", body: [ "The page at ", { link: "/recovery/sequences", to: "/recovery/sequences" }, " reads across your whole recovery history by category. For each step it shows how many went out, the open rate, the click rate and the most recent subject line used. A retry step shows how often the retry worked instead." ] },
           { kind: "h3", text: "How recovery emails are written" },
@@ -335,16 +359,45 @@ export const DOC_GUIDES: DocGuide[] = [
     description: "Evidence drafted for you. You review and sign every submission.",
     sections: [
       {
-        heading: "Draft, then a human approves",
+        heading: "How disputes work",
         body: [
-          "When a dispute opens, Foxhound drafts evidence from your recovery history, prior charges, and Stripe signals. Every draft moves through review before it can be approved, and every submission requires your explicit sign-off.",
-          "There is no auto-submit toggle. There never has been. Nothing reaches Stripe without a person on your team approving it first.",
+          "When a dispute opens on your connected Stripe account, Foxhound gets the webhook within seconds and starts assembling evidence. It pulls the recovery email history for that customer, the prior charges on the same card, the address and card verification results, the Stripe Radar signals, and whether 3D Secure authentication happened.",
+          "What comes out is a draft. It sits and waits for a person.",
+          { kind: "h3", text: "The state a dispute is in" },
+          { kind: "widget", name: "dispute-states" },
+          { kind: "note", body: "The approval step is enforced by the database, not by a setting. There is no state that reaches Stripe without passing through an approval, and no way to configure one." },
         ],
       },
       {
-        heading: "Pricing",
+        heading: "Evidence building",
+        body: [
+          "Foxhound stages evidence from five sources automatically.",
+          { kind: "steps", items: [
+            "Prior charge history: previous successful charges from the same customer on the same card.",
+            "Recovery email history: if a sequence ran for this customer, the email content and whether it was opened or clicked.",
+            "Address and card verification results from the original charge.",
+            "Stripe Radar signals: the risk score and any rules that fired.",
+            "3D Secure: whether authentication was completed.",
+          ] },
+          "The free-text field at the bottom of the evidence form is for everything else: shipping details, support tickets, correspondence. Add it before anyone approves.",
+        ],
+      },
+      {
+        heading: "Review and submit",
+        body: [
+          "Read the staged evidence on the dispute's page, add what only you know, and approve it. Approval is what allows submission, and Foxhound submits to Stripe through the API once it has one.",
+          { kind: "h3", text: "There is no auto-submit" },
+          "There is no auto-submit toggle. There never has been.",
+          { kind: "note", body: "Legacy submits automatically 24 hours before the deadline when a setting is on. Foxhound does not have that setting and will not: the approval gate is schema-enforced, so a submission with nobody's name on it cannot be built, let alone configured." },
+          { kind: "h3", text: "Accepting instead" },
+          "Accepting closes the dispute without submitting evidence. Stripe charges you its dispute fee, and Foxhound charges nothing on a dispute you accept.",
+        ],
+      },
+      {
+        heading: "Billing",
         body: [
           "20% of disputes Foxhound wins, capped at $500 per dispute. Nothing on disputes you lose or accept.",
+          "Nothing is charged on a dispute you lose, a dispute you accept, or a dispute you handled yourself outside Foxhound.",
         ],
       },
     ],
@@ -352,18 +405,40 @@ export const DOC_GUIDES: DocGuide[] = [
   {
     slug: "intelligence",
     title: "Intelligence",
-    description: "Free MRR analytics for every Recovery merchant. Predictive risk scoring is the paid layer.",
+    description:
+      "Free MRR analytics for every Recovery merchant. Predictive risk scoring is the paid layer.",
     sections: [
       {
-        heading: "What is free",
+        heading: "How Intelligence works",
         body: [
-          "Every Recovery merchant gets MRR, movements, churn, and cohort analytics at no charge. This is not a trial, it stays free for as long as you use Recovery.",
+          "Intelligence runs nightly across the customers on your connected Stripe account. For each one it reads three things: whether they have engaged with a recovery email recently, what their payment history looks like, and what they are worth to you. Those combine into a score from 0 to 100.",
+          "The score is a way of sorting. What it is for is finding the customers worth your attention before they leave.",
+          { kind: "h3", text: "The three bands" },
+          { kind: "widget", name: "health-bands" },
+          { kind: "note", body: "Legacy bands at 0 to 33, 34 to 66 and 67 up. Foxhound's cutoffs are its own and they are stricter in the middle: a score of 38 reads as at risk here and would read as watch on legacy. The picture above is drawn from the same constant the engine scores with, so the two cannot drift." },
         ],
       },
       {
-        heading: "What is paid",
+        heading: "Customers",
         body: [
+          "The customers page lists everyone on the account, sorted by score with the lowest first, and it can be searched and filtered by plan and by band.",
+          { kind: "widget", name: "customer-columns" },
+          { kind: "note", body: "Legacy's customer table carries a Recommended action column. Foxhound has no producer for that column, so it is not shown rather than shown empty. The signals that moved a score are shown instead, which is the part a person can act on." },
+        ],
+      },
+      {
+        heading: "Churn and MRR",
+        body: [
+          "The churn page splits your monthly recurring revenue across the three bands, so the question it answers is how much money is sitting in at-risk customers rather than how many of them there are.",
+          "The MRR view carries total monthly recurring revenue, how many customers are active, and the movement behind the total: new, expansion, reactivation, contraction and churn. A month whose headline barely moves can still be hiding a lot of both, which is what the movement view is for.",
+        ],
+      },
+      {
+        heading: "What is free and what is paid",
+        body: [
+          "Every Recovery merchant gets MRR, movements, churn, and cohort analytics at no charge. This is not a trial, it stays free for as long as you use Recovery.",
           "The $199 per month layer adds predictive risk scoring on top of the free analytics, surfacing which customers are trending toward churn before it happens.",
+          { kind: "note", body: "The paid layer is granted rather than bought at the moment. There is no self-serve checkout for it yet, so it is turned on for an account rather than purchased from a page." },
         ],
       },
     ],
