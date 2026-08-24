@@ -6,11 +6,45 @@
 // (no auto-submit language, silent-first framing, baseline-free, singular
 // brand voice, no fabricated recovery-rate numbers).
 
+// THE BLOCK VOCABULARY, extended in session 64 to carry legacy's own.
+//
+// A PLAIN STRING IS STILL A PARAGRAPH, which is the whole point of the shape: the
+// twelve sections that shipped in sessions 42 to 60 are arrays of strings and
+// render through exactly the path they always did. Anything richer is a tagged
+// object, so the two forms cannot be confused and no pre-existing sentence had to
+// be rewritten to extend the schema.
+//
+// Legacy's inline set is Strong, Code, RelLink and a bare font-mono span; its
+// block set is H3, Note, Tip, Steps, List and a reference table. There is no
+// related-links BLOCK on either guide: legacy writes "See the Recovery guide for
+// ..." as an ordinary paragraph with a RelLink inside it, which is why `link` is
+// an inline here and not a block of its own.
+
+export type DocInline =
+  | string
+  | { code: string }
+  | { strong: string }
+  | { mono: string }
+  | { link: string; to: string };
+
+/** A string, or a run of inline nodes. */
+export type DocRich = string | DocInline[];
+
+export type DocBlock =
+  | string
+  | { kind: "p"; body: DocInline[] }
+  | { kind: "h3"; text: string }
+  | { kind: "note"; body: DocRich }
+  | { kind: "tip"; body: DocRich }
+  | { kind: "steps"; items: DocRich[] }
+  | { kind: "list"; items: DocRich[] }
+  | { kind: "table"; columns: string[]; rows: DocRich[][] };
+
 export interface DocGuide {
   slug: string;
   title: string;
   description: string;
-  sections: { heading: string; body: string[] }[];
+  sections: { heading: string; body: DocBlock[] }[];
 }
 
 export const DOC_GUIDES: DocGuide[] = [
