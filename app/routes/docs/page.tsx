@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 
+import { DocBlocks } from "~/components/docs/doc-blocks";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { getDocGuide } from "~/lib/marketing/docs-content";
 import { siteUrl } from "~/lib/seo/jsonld";
@@ -117,11 +118,7 @@ export default function DocGuidePage({ loaderData }: Route.ComponentProps) {
           <h2 id={sectionIds[i]} className="mb-6 scroll-mt-20 text-title font-medium text-text">
             {section.heading}
           </h2>
-          {section.body.map((paragraph) => (
-            <p key={paragraph} className="mb-4 text-item-title leading-relaxed text-text-secondary">
-              {paragraph}
-            </p>
-          ))}
+          <DocBlocks blocks={section.body} />
         </section>
       ))}
     </div>
