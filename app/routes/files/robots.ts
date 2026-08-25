@@ -28,7 +28,7 @@ import type { Route } from "./+types/robots";
 //
 // Bytespider is the ONE ratified deny: an undifferentiated training scraper
 // with no citation or answer surface, so no upside to the strategy above.
-const DISALLOW_PATHS = [
+export const DISALLOW_PATHS = [
   "/dashboard",
   // The audit's NON-MARKETING surfaces only. `/audit` itself is the public
   // estimator and stays crawlable, so this cannot be a bare "/audit" prefix.
@@ -68,7 +68,7 @@ const DISALLOW_PATHS = [
 ];
 
 // Legacy's thirteen, in legacy's order, then the three ratified additions.
-const ALLOWED_BOTS = [
+export const ALLOWED_BOTS = [
   "GPTBot",
   "ChatGPT-User",
   "OAI-SearchBot",
@@ -89,21 +89,50 @@ const ALLOWED_BOTS = [
   "Perplexity-User",
 ];
 
-const DENIED_BOTS = ["Bytespider"];
+export const DENIED_BOTS = ["Bytespider"];
 
-function buildRobotsTxt(url: string): string {
+/**
+ * One allow-group: `Allow: /` plus the SAME disallow set the wildcard carries.
+ *
+ * THE DISALLOWS ARE REPEATED IN EVERY NAMED GROUP, AND THAT REPETITION IS THE
+ * WHOLE FIX (368 ruling 1). Google's robots.txt documentation is explicit:
+ * "User agent specific groups and global groups (`*`) are not combined." A
+ * crawler that matches a named group uses ONLY that group. So the sixteen groups
+ * below, which carried a bare `Allow: /`, were not narrowing the wildcard rules,
+ * they were REPLACING them: Googlebot, Bingbot, GPTBot, ClaudeBot and twelve
+ * others were invited into every path the wildcard excludes.
+ *
+ * The authenticated paths were never a data leak, because they redirect to
+ * login. `/e/` was the one that mattered: `/e/c/:token` writes
+ * `recovery_steps.clicked_at`, which `findAttributionSignals` reads as the
+ * `email_engaged` signal, which is a BILLABLE attribution kind. A crawler
+ * following a pasted dunning link could record a click no human made, one step
+ * from an invoice. Reclassified by 368 from crawl hygiene to money integrity.
+ *
+ * THE NAMED GROUPS STILL EXIST FOR THE REASON THEY ALWAYS DID: to say YES
+ * explicitly to the crawlers the AI-citation strategy depends on, which a bare
+ * wildcard cannot do for an agent that looks for its own name. What changes is
+ * that saying yes to the public content no longer says yes to everything else.
+ *
+ * ROBOTS.TXT IS THE ADVISORY HALF AND IS NOT SUFFICIENT ALONE (368 ruling 1): a
+ * user-triggered fetcher does not uniformly honour it. The enforcing half is the
+ * server-side guard at the click recorder, app/lib/engagement/agents.ts.
+ */
+function allowGroup(bot: string): string[] {
+  return [
+    `User-agent: ${bot}`,
+    "Allow: /",
+    ...DISALLOW_PATHS.map((path) => `Disallow: ${path}`),
+    "",
+  ];
+}
+
+export function buildRobotsTxt(url: string): string {
   const lines: string[] = [];
 
-  lines.push("User-agent: *");
-  lines.push("Allow: /");
-  for (const path of DISALLOW_PATHS) lines.push(`Disallow: ${path}`);
-  lines.push("");
+  lines.push(...allowGroup("*"));
 
-  for (const bot of ALLOWED_BOTS) {
-    lines.push(`User-agent: ${bot}`);
-    lines.push("Allow: /");
-    lines.push("");
-  }
+  for (const bot of ALLOWED_BOTS) lines.push(...allowGroup(bot));
 
   for (const bot of DENIED_BOTS) {
     lines.push(`User-agent: ${bot}`);
