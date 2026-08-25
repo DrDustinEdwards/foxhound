@@ -181,12 +181,16 @@ export default function AuditSettings({ loaderData, actionData }: Route.Componen
           <div className="flex items-center justify-between border-t border-border py-4">
             <div className="pr-4">
               <div className="mb-0.5 text-label text-text">Monthly audit digest</div>
-              {/* "written by AI" REMOVED under 316's session, ratified by Dustin.
-                  Legacy's digest leads with runAudit()'s aiSummary; Foxhound's
-                  audit entry point produces no summary and ANTHROPIC_API_KEY has
-                  no credit balance (core.md blocker 2), so the clause promised
-                  something the send cannot carry. Divergence 5, and the only
-                  edit to legacy's verbatim copy. */}
+              {/* LEGACY'S COPY, RESTORED IN FULL AT PHASE (g). 316 cut "written
+                  by AI" because Foxhound's audit entry point produced no summary
+                  at the time, which was true then and is not now: the engine's
+                  summary ships from phase (c) and the merged email leads with it.
+                  The clause stays out anyway, on the OTHER half of 316's reason
+                  and on the portfolio rule: ANTHROPIC_API_KEY still has no credit
+                  (core.md blocker 2), so an unfunded key would serve the fallback
+                  paragraph under a promise of AI, and naming the vendor in
+                  merchant copy is forbidden regardless. Divergence 5 stands with
+                  its reason narrowed to the half that is still true. */}
               <div className="text-micro text-text-subtle">
                 On the 1st of each month, we run a fresh audit and email you a comparison
                 versus the prior month. No extra charge.

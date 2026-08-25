@@ -154,6 +154,7 @@ export const DOC_GUIDES: DocGuide[] = [
             [{ strong: "Sequence complete." }, " Emailed when every step has run and the payment has not come back."],
             [{ strong: "Slack." }, " Posts to your channel on a recovery email and on a successful retry."],
             [{ strong: "Weekly digest." }, " Monday morning summary of the previous seven days."],
+            [{ strong: "Monthly audit report." }, " One email on the 1st, switched on under Settings and Audit, carrying a fresh audit of your Stripe account and what Foxhound recovered for you."],
           ] },
           { kind: "note", body: "Win-back and expiring-card alerts are switches on the features page rather than the notifications page, because they turn the engine off rather than changing who hears about it." },
           { kind: "h3", text: "Alerts" },
@@ -197,7 +198,7 @@ export const DOC_GUIDES: DocGuide[] = [
           { kind: "widget", name: "audit-scopes" },
           "Foxhound runs the full audit on demand: connect Stripe from the audit page and the run happens while you wait. The engine reads your invoices, subscriptions, disputes and card-update events and works out six things: what failed, what is expiring, what is past due, whether Stripe is updating cards for you, where your disputes stand, and your recurring revenue. It takes about thirty seconds and needs no Foxhound account.",
           "A run is readable under Audit history, with each one on its own page, when the Stripe account you audited is the one connected to your Foxhound account. Audit somebody else's account and you still see the results, and they are not filed into your history. Where a scope could not be read, it says so rather than showing you a zero, because a zero that means unknown is worse than no number at all.",
-          "The monthly summary is the one part that arrives without you looking. Turn it on under Settings and Audit and Foxhound emails what it added for you last month, from its own records rather than from a fresh read of Stripe.",
+          "The monthly report is the one part that arrives without you looking. Turn it on under Settings and Audit and on the 1st of each month Foxhound runs the whole audit again and emails you the result, with a link to that run and a line saying what it recovered for you.",
         ],
       },
       {
@@ -215,8 +216,9 @@ export const DOC_GUIDES: DocGuide[] = [
         heading: "Running it every month",
         body: [
           "With a Foxhound account you can have the audit re-run itself. Turn on auto-run under Settings and Audit, and on the first of each month Foxhound runs it and emails you the result at your notification address.",
-          "The monthly digest reads Foxhound's own numbers rather than calling Stripe again, so it needs no live connection and costs nothing.",
-          { kind: "note", body: "The lookback control on the same settings page has no reader yet. It is stated here rather than hidden: the monthly digest is all-time and does not use it." },
+          "It is ONE email. The report reads your Stripe account fresh, the same way the audit you run by hand does, and it carries what Foxhound recovered for you as a line inside it rather than as a second message. Nothing is billed for it.",
+          "The email uses the lookback you set on the same page and links to that run, so you can open the whole thing. A scope Stripe would not answer for says so in the email, exactly as it does on the page.",
+          { kind: "note", body: "The monthly report needs a live Stripe connection, because it reads your account rather than only Foxhound's own records. Turn auto-run off and nothing is sent." },
         ],
       },
     ],
