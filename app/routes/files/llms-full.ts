@@ -48,7 +48,7 @@ Contact: ${SUPPORT_EMAIL}
 
 ### Audit (free)
 
-A Stripe diagnostic that starts without creating an account. The free estimate connects to Stripe not at all: it runs on figures the merchant enters. The full report against a real account needs a free account and the same Stripe connection every other Foxhound product uses, which is read and write scope; the audit itself only reads. It produces a structured report: failed invoices, expiring cards, open disputes, and business health signals, split into what Stripe's own tools already recovered, what is still failing, and what Foxhound would add.
+A Stripe diagnostic that starts without creating an account. The free estimate connects to Stripe not at all: it runs on figures the merchant enters. The full report against a real Stripe account needs no Foxhound account either: it connects with its own READ-ONLY OAuth grant, which is a different and narrower scope than the read-and-write one a merchant grants at onboarding, and which is held in a short-lived cookie rather than stored. It produces a structured report: failed invoices, expiring cards, open disputes, and business health signals, split into what Stripe's own tools already recovered, what is still failing, and what Foxhound would add.
 
 URL: ${url}/products/audit
 Docs: ${url}/docs/audit
@@ -95,7 +95,7 @@ No setup fees. No minimum commitments. No per-seat charges. Current rates: ${url
 
 ## Technical architecture
 
-- Stripe Connect: read and write OAuth scope. Foxhound reads invoices, subscriptions, disputes, and customer data. It writes in exactly three places: retrying payment on an invoice that has already failed, setting a customer default payment method after that customer updates their card, and submitting dispute evidence after someone on the merchant team approves it. It never changes prices, products, or subscription plans, never creates a charge outside an invoice the merchant already issued, and never reaches payouts or bank accounts.
+- Stripe Connect: two scopes. The free audit requests read-only and can write nothing at all. Merchant onboarding requests read and write. Foxhound reads invoices, subscriptions, disputes, and customer data. It writes in exactly three places: retrying payment on an invoice that has already failed, setting a customer default payment method after that customer updates their card, and submitting dispute evidence after someone on the merchant team approves it. It never changes prices, products, or subscription plans, never creates a charge outside an invoice the merchant already issued, and never reaches payouts or bank accounts.
 - Deployment: Cloudflare Workers, React Router in framework mode
 - Database: Cloudflare D1
 - Email delivery: Cloudflare Email Service, sent from the merchant's own domain
