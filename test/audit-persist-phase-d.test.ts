@@ -260,3 +260,39 @@ describe("PLANT 5: the audit is still free", () => {
     expect(Object.keys(row).length).toBeGreaterThanOrEqual(28);
   });
 });
+
+describe("PLANT 6: end to end, and a failed scope visible at every layer", () => {
+  it("engine to prompt to save to read-back, with one scope unread throughout", async () => {
+    // The whole chain on fixtures. One read fails and the failure has to survive
+    // four hand-offs without becoming a zero at any of them, which is the single
+    // property 362 ruling 2 exists for.
+    const { buildAuditSummaryPrompt } = await import("~/lib/audit/summary");
+    const { generateAuditSummary } = await import("~/lib/audit/summary.server");
+
+    const result = auditWith({
+      uncollectibleInvoices: ok<Stripe.Invoice>([invoice({ amount_due: 50_000 })]),
+      disputes: failedRead("Could not read disputes from Stripe: rate limited"),
+    });
+
+    // LAYER 1, the engine.
+    expect(result.failedInvoices.ok).toBe(true);
+    expect(result.disputes.ok).toBe(false);
+
+    // LAYER 2, the prompt.
+    const prompt = buildAuditSummaryPrompt(result);
+    expect(prompt).toContain("Failed invoices (last 90 days): $500.00 across 1 invoices");
+    expect(prompt).toContain("Open disputes: could not be read");
+
+    // LAYER 3, the summary call. No key here, so the fallback arm, which is the
+    // arm a merchant sees today under launch blocker 2.
+    const summary = await generateAuditSummary({} as Env, result);
+    expect(summary.source).toBe("fallback");
+
+    // LAYER 4, the save and the read-back.
+    const id = await saveAuditRun({} as Env, result, context({ summary: summary.summary }));
+    const row = (await getAuditRun(db, ACCOUNT_A, id))!;
+    expect(row.failedInvoicesCents).toBe(50_000);
+    expect(row.openDisputesCount).toBeNull();
+    expect(row.aiSummary).toBe(AUDIT_SUMMARY_FALLBACK);
+  });
+});
