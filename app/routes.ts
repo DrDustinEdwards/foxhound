@@ -26,6 +26,17 @@ export default [
       route(":competitor", "./routes/compare/competitor.tsx"),
     ]),
     route("audit", "./routes/audit.tsx"),
+    // The anonymous audit pair and its live results page (phase (f), 362
+    // ruling 1). These sit under the MARKETING shell, not the app shell,
+    // because every one of them serves a visitor with no Foxhound account:
+    // /audit/connect is the consent screen, /audit/callback is the OAuth
+    // return, and /audit/results renders a run held together by a five-minute
+    // cookie. Legacy mounts all three under its own marketing chrome for the
+    // same reason. The two AUTHENTICATED audit surfaces (/audit/history and
+    // /audit/runs/:id) stay under the app shell where they were built.
+    route("audit/connect", "./routes/audit/connect.tsx"),
+    route("audit/callback", "./routes/audit/callback.ts"),
+    route("audit/results", "./routes/audit/results.tsx"),
     route("marketing/generate-email-sample", "./routes/marketing/generate-email-sample.ts"),
     ...prefix("blog", [
       index("./routes/blog/index.tsx"),
