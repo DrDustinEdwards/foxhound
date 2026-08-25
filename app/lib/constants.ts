@@ -665,6 +665,32 @@ export const AUDIT_TOKEN_TTL_SECONDS = 300;
 export const RATE_LIMIT_AUDIT = { max: 10, windowMs: 60 * 60 * 1000 } as const;
 
 /**
+ * The merchant MCP endpoint's AUTHENTICATED bucket, keyed on the api_keys row id.
+ *
+ * 120 PER MINUTE, and the reasoning rather than a round number: an agent
+ * commonly fans out several tool calls per user turn, and a read-only surface
+ * has no write to serialize, so two per second sustained is generous for real
+ * use. It is low enough that a runaway agent loop is capped inside a minute
+ * rather than discovering itself in a bill. Keyed on the KEY, not the IP,
+ * because the caller of a server-to-server endpoint is the credential and its
+ * address may move.
+ */
+export const RATE_LIMIT_MCP = { max: 120, windowMs: 60 * 1000 } as const;
+/**
+ * The UNAUTHENTICATED bucket, keyed on cf-connecting-ip, spent only when
+ * authentication FAILS.
+ *
+ * 20 PER MINUTE, matching the existing `public` bucket's number rather than
+ * inventing one. The only thing an unauthenticated caller can obtain here is a
+ * 401, so twenty is generous for a misconfigured client retrying and tight
+ * against guessing at the key space. It is deliberately NOT spent on successful
+ * requests: a per-IP cap on authenticated traffic would break a team behind one
+ * NAT for no security gain, since a real agent is already bounded by its own key
+ * bucket above.
+ */
+export const RATE_LIMIT_MCP_ANON = { max: 20, windowMs: 60 * 1000 } as const;
+
+/**
  * Statement descriptor shown on a merchant's card statement for platform
  * invoice charges (Stripe's cap is 22 characters). Settled by the
  * operating-entity ruling (recova/decisions.md, 2026-07-21): entity-independent,

@@ -7,6 +7,7 @@ import { runCronJob } from "~/lib/cron/run";
 import { applyCachePolicy } from "~/lib/http/cache-policy";
 import { applySecurityHeaders, generateNonce } from "~/lib/http/security-headers";
 import { enforceRateLimit } from "~/lib/http/rate-limit";
+import { handleMcpRequest } from "~/lib/mcp/handler.server";
 import { handleQueueBatch } from "~/lib/queue/consumer";
 
 // Durable Objects exported from the worker entry so wrangler can bind them.
@@ -34,6 +35,18 @@ export default withSentry<Env>(
       // password-reset/verification email (audit M-1).
       const limited = await enforceRateLimit(request, env);
       if (limited) return applyCachePolicy(request, applySecurityHeaders(limited, nonce));
+
+      // THE MERCHANT MCP ENDPOINT, before the router (370, roadmap item 3).
+      // It is JSON-RPC over POST with its own header contract and its own bearer
+      // auth; none of the router's loader/action machinery applies, and mounting
+      // it here keeps the MCP import graph off every page render. Returns null
+      // for any other path, so this costs one pathname comparison.
+      //
+      // It still passes through applySecurityHeaders and applyCachePolicy below,
+      // which is what pins it PRIVATE: the policy classifies anything unmatched
+      // as private, and /mcp is unmatched deliberately.
+      const mcp = await handleMcpRequest(request, env);
+      if (mcp) return applyCachePolicy(request, applySecurityHeaders(mcp, nonce));
 
       const context = new RouterContextProvider();
       context.set(cloudflareContext, { env, ctx, nonce });
