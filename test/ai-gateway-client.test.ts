@@ -1,5 +1,5 @@
-import { execSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -75,6 +75,28 @@ async function callOnce(env: Env): Promise<void> {
 /** Every module that builds an Anthropic client. The list is DERIVED from a
  *  grep in the coverage plant below, so a fifth call site added tomorrow fails
  *  that test rather than being quietly missed. */
+/** Every .ts under app/ whose source contains `needle`, tree-walked so an
+ *  uncommitted file counts. Paths are repo-relative with forward slashes. */
+function filesContaining(needle: string): string[] {
+  const root = fileURLToPath(new URL("../app", import.meta.url));
+  const found: string[] = [];
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir)) {
+      const full = `${dir}/${entry}`;
+      if (statSync(full).isDirectory()) {
+        walk(full);
+        continue;
+      }
+      if (!/\.tsx?$/.test(entry)) continue;
+      if (readFileSync(full, "utf8").includes(needle)) {
+        found.push(`app/${full.slice(root.length + 1).split("\\").join("/")}`);
+      }
+    }
+  };
+  walk(root);
+  return found.sort();
+}
+
 const CALL_SITES = [
   "app/lib/recovery/email-generation.ts",
   "app/lib/disputes/evidence.ts",
@@ -84,6 +106,9 @@ const CALL_SITES = [
   // list went from four to five the moment the new file was committed, which is
   // the both-directions failure this plant exists for.
   "app/lib/recovery/winback-generation.ts",
+  // Session 69's audit summary. THE GUARD CAUGHT THIS ONE TOO, and in catching
+  // it showed its own blind spot; see the derivation below.
+  "app/lib/audit/summary.server.ts",
 ];
 
 describe("PLANT 1: the base URL is opt in, by environment", () => {
@@ -152,31 +177,37 @@ describe("PLANT 3: no call site builds its own client", () => {
     }
   });
 
-  it("AND THE LIST IS DERIVED, so a fifth call site cannot be missed", () => {
+  it("AND THE LIST IS DERIVED, so a sixth call site cannot be missed", () => {
     // The expected set comes from the tree, not from the constant above, and
     // fails in BOTH directions: a new constructor anywhere, or a listed file
     // that stopped calling the factory.
-    const hits = execSync('git grep -l "createAnthropicClient(env)" -- "app/**/*.ts"', {
-      encoding: "utf8",
-    })
-      .trim()
-      .split("\n")
-      .filter((p) => p !== "app/lib/ai/client.ts")
-      .sort();
-
+    //
+    // IT WALKS THE TREE RATHER THAN THE INDEX, as of session 69. It used
+    // `git grep`, which cannot see a file that has not been committed, so it
+    // stayed green while a sixth call site sat uncommitted in the working tree
+    // and only fired one commit later. A guard that reports a violation after
+    // the fact was not watching at the moment that mattered.
+    const hits = filesContaining("createAnthropicClient(env)").filter(
+      (path) => path !== "app/lib/ai/client.ts",
+    );
     expect(hits).toEqual([...CALL_SITES].sort());
 
-    const constructors = execSync('git grep -l "new Anthropic(" -- "app/**/*.ts" || true', {
-      encoding: "utf8",
-    }).trim();
     // The factory is the only module allowed to construct one.
-    expect(constructors === "" ? [] : constructors.split("\n")).toEqual(["app/lib/ai/client.ts"]);
+    expect(filesContaining("new Anthropic(")).toEqual(["app/lib/ai/client.ts"]);
   });
 });
 
 describe("PLANT 4: the request shape at every call site is unchanged", () => {
   it("the models, token budgets and output formats are byte-identical", () => {
-    const expected: Record<string, { model: string; maxTokens: string }> = {
+    // `structured` is the five JSON-returning call sites. THE AUDIT SUMMARY IS
+    // PROSE, on both sides: legacy asks for three sentences and reads the text
+    // block back, so pinning a json_schema on it would be a divergence invented
+    // by this guard rather than found in the code. The flag is what keeps the
+    // rule true of the sites it is actually about.
+    const expected: Record<
+      string,
+      { model: string; maxTokens: string; structured?: boolean }
+    > = {
       "app/lib/recovery/email-generation.ts": {
         model: "model: MODEL_RECOVERY_EMAIL",
         maxTokens: "max_tokens: 2000",
@@ -199,12 +230,28 @@ describe("PLANT 4: the request shape at every call site is unchanged", () => {
         model: "model: MODEL_RECOVERY_EMAIL",
         maxTokens: "max_tokens: 1000",
       },
+      // The audit summary. Legacy's MODEL_HAIKU_PINNED is the same dated Haiku
+      // string Foxhound's constant carries, and its budget is 300, so this row
+      // is a port with nothing to reconcile.
+      "app/lib/audit/summary.server.ts": {
+        model: "model: MODEL_AUDIT_SUMMARY",
+        maxTokens: "max_tokens: AUDIT_SUMMARY_MAX_TOKENS",
+        structured: false,
+      },
     };
+
+    // NON-VACUOUS: five of the six really are structured, so the flag cannot be
+    // read as "the rule was switched off".
+    expect(Object.values(expected).filter((w) => w.structured !== false)).toHaveLength(5);
 
     for (const [path, want] of Object.entries(expected)) {
       const source = readFileSync(path, "utf8");
       expect(source, path).toContain(want.model);
       expect(source, path).toContain(want.maxTokens);
+      if (want.structured === false) {
+        expect(source, path).not.toContain("json_schema");
+        continue;
+      }
       expect(source, path).toContain('thinking: { type: "disabled" }');
       expect(source, path).toContain('format: { type: "json_schema", schema: OUTPUT_SCHEMA }');
     }
