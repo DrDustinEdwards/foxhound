@@ -30,6 +30,10 @@ import type { Route } from "./+types/robots";
 // with no citation or answer surface, so no upside to the strategy above.
 const DISALLOW_PATHS = [
   "/dashboard",
+  // The audit's AUTHENTICATED surfaces only. `/audit` itself is the public
+  // estimator and stays crawlable, so this cannot be a bare "/audit" prefix.
+  "/audit/history",
+  "/audit/runs/",
   "/recovery",
   "/disputes",
   "/intelligence",

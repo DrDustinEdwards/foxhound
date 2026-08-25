@@ -42,6 +42,10 @@ const EXCLUDED_PREFIXES = [
   // Authenticated app shell + admin: never public, never crawlable, and
   // already Disallow'd in robots.txt.
   "/dashboard",
+  // The audit's authenticated surfaces. A bare "/audit" would also exclude the
+  // PUBLIC estimator, which is the one page here that should be indexed.
+  "/audit/history",
+  "/audit/runs/",
   "/recovery",
   "/disputes",
   "/intelligence",
