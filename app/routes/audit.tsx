@@ -3,6 +3,7 @@ import { data, Form, Link, useNavigation } from "react-router";
 import { Alert, Field, Submit } from "~/components/auth-ui";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { AUDIT_LOOKBACK_DAYS } from "~/lib/constants";
 import { estimateLeakage, recordEstimatorRun, type EstimatorResult } from "~/lib/estimator/estimate.server";
 import { formatMoney } from "~/lib/money-format";
 import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
@@ -196,45 +197,50 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
         </div>
 
         {/* Legacy's single covers CARD with a dot list, replacing a 2-up grid of
-            bordered sub-cards Foxhound had. Legacy's in-card CTA ("See my
-            numbers" to /audit/connect) is NOT ported: that route does not exist
-            here, row U1 is DEFECT-OPEN.
+            bordered sub-cards Foxhound had.
 
-            RESTATED IN SESSION 66 UNDER RULING 360, and the walk is why. This
-            section read "What the full audit covers" and named four scopes.
-            Legacy really does compute all four, in lib/audit-engine.ts's
-            runAudit, from live Stripe reads of subscriptions, disputes and
-            invoices. FOXHOUND HAS NO SUCH RUN AT ALL: nothing anywhere writes
-            `audit_runs` (the only insert is a test fixture), and
-            full-audit.server.ts's lift bands are a query layer this route's own
-            header records as wired to nothing.
+            UN-RESTATED IN SESSION 71, PHASE (f), which is what session 66's
+            restatement was waiting for. 66 rewrote this section because
+            NOTHING IN FOXHOUND RAN AN AUDIT: no engine, no trigger, no row.
+            Phases (a) to (e) built the engine, the summary, the persistence and
+            the two authenticated surfaces, and (f) built the door. A visitor can
+            now click the button below, authorize read-only, and get all four of
+            these computed from their own live Stripe account.
 
-            So the four topics stay and the CLAIM changes. Each line below now
-            describes a surface that exists and has a producer, rather than
-            scopes of a diagnostic that never runs. Class (c): the copy lied,
-            and the fix is the copy, because building the run is an engine and
-            three of its four scopes need live Stripe calls. */}
+            So the CLAIM goes back to describing the audit, and the heading with
+            it. Two clauses of legacy's own copy are still NOT restored, because
+            they name renders Foxhound does not have: legacy's "estimated
+            recoverable amount" comes from AUDIT_RECOVERY_ESTIMATE_PCT and its
+            dispute "historical win rate" is a platform figure, both NOT PORTED
+            at 365 binding 31. The expiring-cards line says what the engine's
+            predicate actually does, which includes already-expired cards; legacy
+            says "next 30 days" and counts them too.
+
+            FOUR LINES, NOT SIX, and that is legacy's editorial call matched
+            rather than an omission. Both engines compute six scopes; legacy's
+            card lists four and folds past-due subscriptions and the Card Updater
+            advisory into the run itself. Both render on the results page. */}
         <div className="mb-6 rounded-2xl border border-border bg-surface p-6 md:p-10">
           <div className="mb-5 text-xs font-medium uppercase tracking-[0.06em] text-text-tertiary">
-            What Foxhound shows you once Stripe is connected
+            What the audit covers
           </div>
           <div>
             {[
               [
-                "Failed payments",
-                "Every failed payment Foxhound has detected, what came back, and what is still unrecovered.",
+                "Failed invoices",
+                `Payments Stripe marked uncollectible in the last ${AUDIT_LOOKBACK_DAYS} days, and the decline reason behind each one.`,
               ],
               [
                 "Expiring cards",
-                "Cards inside thirty days of expiring, and the customers Foxhound has already emailed about them.",
+                "Customers whose card has expired or expires within the next month, and the MRR at risk before those payments fail.",
               ],
               [
                 "Open disputes",
-                "Chargebacks still waiting on evidence, with the deadline on each one.",
+                "Unmanaged chargebacks, your won and lost record, and revenue accepted without evidence submission.",
               ],
               [
-                "MRR and movement",
-                "Monthly recurring revenue, what is at risk, and the new, expansion and churn behind the total.",
+                "Business health",
+                "MRR, ARR, active subscriptions, voluntary versus involuntary churn rate.",
               ],
             ].map(([title, desc]) => (
               <div key={title} className="mb-3 flex items-start gap-3 text-left">
@@ -245,6 +251,18 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Legacy's in-card CTA, restored with its route. Session 66 recorded
+              it as NOT ported because /audit/connect did not exist; it does. */}
+          <Link
+            to="/audit/connect"
+            className="mb-2 mt-8 block rounded-[10px] bg-amber px-8 py-4 text-base font-bold text-on-amber no-underline hover:bg-amber-dark"
+          >
+            See my numbers
+          </Link>
+          <div className="mt-2 text-label text-text-subtle">
+            Read-only Stripe access. 30 seconds. No account required.
           </div>
         </div>
 
@@ -272,26 +290,27 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
         </a>
 
         <div className="mt-10 rounded-lg border border-border bg-surface p-6 text-center">
-          {/* SESSION 66, same restatement as the covers section above. This
-              promised "the full report" of three lift bands. Only one of the
-              three has a live path: computeFoxhoundAddsCents reaches a merchant
-              through the monthly summary email. The other two need a live
-              Stripe read nothing calls. So the CTA now promises what connecting
-              actually does, which is more than a report anyway. */}
+          {/* SESSION 71, PHASE (f): the second half of session 66's restatement
+              coming back. 66 pointed this at /signup because the audit could not
+              be run, so the honest offer was the product rather than the
+              diagnostic. The diagnostic exists now, needs no account, and is the
+              top of PRICING rev 3's funnel, so the CTA is the audit again and
+              signup is what the RESULTS page offers afterwards, which is where
+              legacy puts it too. */}
           <p className="mb-2 text-body font-medium text-text">Want your real numbers instead of an estimate?</p>
           <p className="mb-5 text-label leading-relaxed text-text-secondary">
-            Create a free account and connect Stripe. Foxhound starts working the failed payments it
-            finds, and your dashboard shows what came back and what is still at risk. Turn on the
-            monthly summary under Settings and Audit to get it by email.
+            Connect Stripe read-only and Foxhound runs the full audit on the spot: what failed and
+            why, what is expiring, where your disputes stand, and your recurring revenue. No account
+            needed, and nothing is written back to Stripe.
           </p>
           <Link
-            to="/signup"
+            to="/audit/connect"
             className="inline-flex items-center gap-2 rounded-md bg-amber px-5 py-2.5 text-label font-medium text-on-amber hover:bg-amber-dark"
           >
-            Create a free account
+            Run the free audit
           </Link>
           <div className="mt-4 font-mono text-micro text-text-subtle">
-            No credit card &middot; The audit only reads &middot; Disconnect anytime
+            No account required &middot; The audit only reads &middot; Nothing is stored
           </div>
         </div>
       </div>
@@ -328,11 +347,15 @@ function EstimatorResultCard({ result, currency }: { result: EstimatorResult; cu
         {formatMoney(result.low, currency)} to {formatMoney(result.high, currency)} in monthly
         failed-payment leakage. Connect Stripe for your account's actual numbers.
       </p>
+      {/* The estimator's own next step, repointed in phase (f). An estimate
+          built from an MRR band is a directional guess; the audit reads the
+          merchant's actual account, takes no account to run, and is what this
+          card has been promising as "your real numbers" all along. */}
       <Link
-        to="/signup"
+        to="/audit/connect"
         className="inline-flex items-center gap-2 rounded-md bg-amber px-5 py-2.5 text-label font-medium text-on-amber hover:bg-amber-dark"
       >
-        Create a free account to see your real numbers
+        Run the free audit on your real numbers
       </Link>
     </div>
   );

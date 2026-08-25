@@ -80,38 +80,90 @@ describe("PLANT 1: the finding the restatement rests on", () => {
   });
 });
 
-describe("PLANT 2: the restated cards", () => {
-  it("the section no longer claims a full audit covers four scopes", () => {
-    expect(AUDIT_CODE).not.toContain("What the full audit covers");
-    expect(AUDIT_CODE).toContain("What Foxhound shows you once Stripe is connected");
+describe("PLANT 2: the cards, UN-RESTATED in session 71 phase (f)", () => {
+  // THIS IS WHAT THE RESTATEMENT WAS ALWAYS FOR. Session 66 rewrote these four
+  // lines because no audit could run, and every assertion below was written in
+  // its negative form on the understanding that it would invert on the day a
+  // visitor could complete the flow. Phase (f) is that day: /audit/connect mints
+  // a read-only grant, /audit/callback exchanges it, and /audit/results runs the
+  // engine over the merchant's live Stripe account.
+  it("the section claims what the audit covers again, in legacy's words", () => {
+    expect(AUDIT_CODE).toContain("What the audit covers");
+    expect(AUDIT_CODE).not.toContain("What Foxhound shows you once Stripe is connected");
   });
 
-  it("each of the four lines describes a surface that exists", () => {
-    // The topics survive the restatement; the CLAIM about them is what moved.
-    for (const title of ["Failed payments", "Expiring cards", "Open disputes", "MRR and movement"]) {
+  it("each of the four lines names a scope the ENGINE computes", () => {
+    for (const title of [
+      "Failed invoices",
+      "Expiring cards",
+      "Open disputes",
+      "Business health",
+    ]) {
       expect(AUDIT_PROSE, `${title} missing`).toContain(title);
     }
-    // And each named surface really is there, asserted against routes.ts rather
-    // than against the copy's own confidence.
-    const routes = read("app/routes.ts");
-    expect(routes).toContain('route("expiring-cards"');
-    expect(routes).toContain('...prefix("disputes"');
-    expect(routes).toContain('...prefix("intelligence"');
+    // DERIVED, not trusted. Each card's scope is asserted against the engine's
+    // own result type rather than against the copy's confidence. A card naming a
+    // scope `runAudit` does not return is the over-promise 360 opened M22 for,
+    // and this is the direction that check has to run now that the cards claim
+    // an audit again.
+    const engine = read("app/lib/audit/engine.ts");
+    for (const scope of ["failedInvoices", "expiringCards", "disputes", "health"]) {
+      expect(engine, `${scope} is not a scope of AuditResult`).toContain(
+        `  ${scope}: ScopeOutcome<`,
+      );
+    }
   });
 
-  it("BUSINESS HEALTH IS GONE, because Foxhound computes no ARR and no churn bps", () => {
-    // The one scope whose topic did not survive: legacy's card promises MRR,
-    // ARR, active subscriptions and voluntary versus involuntary churn in basis
-    // points. Foxhound has MRR and its movement and none of the other three.
-    expect(AUDIT_CODE).not.toContain("Business health");
-    expect(AUDIT_CODE).not.toContain("ARR");
-    expect(AUDIT_CODE).not.toContain("involuntary churn");
+  it("BUSINESS HEALTH IS BACK, because the engine computes ARR and both churn rates", () => {
+    // Session 66 asserted this topic GONE, on the measurement that Foxhound had
+    // MRR and none of the other three. HealthScope now carries all four, so the
+    // assertion inverts against the very type that made it false.
+    expect(AUDIT_CODE).toContain("Business health");
+    expect(AUDIT_CODE).toContain("ARR");
+    expect(AUDIT_CODE).toContain("involuntary churn");
+    const engine = read("app/lib/audit/engine.ts");
+    for (const field of [
+      "arrCents",
+      "activeSubscriptionsCount",
+      "voluntaryChurnRateBps",
+      "involuntaryChurnRateBps",
+    ]) {
+      expect(engine, `HealthScope is missing ${field}`).toContain(`  ${field}: number;`);
+    }
   });
 
-  it("the CTA promises what connecting does, not a report that does not exist", () => {
+  it("TWO CLAUSES OF LEGACY'S OWN COPY STAY OUT, because those renders do not exist", () => {
+    // 365 binding 31 ruled both NOT PORTABLE, and un-restating the cards must
+    // not quietly re-promise what the surfaces still refuse to draw: legacy's
+    // "estimated recoverable amount" is AUDIT_RECOVERY_ESTIMATE_PCT, and its
+    // dispute "historical win rate" is a platform figure with no Foxhound
+    // history behind it.
+    expect(AUDIT_PROSE).not.toContain("estimated recoverable amount");
+    expect(AUDIT_PROSE).not.toContain("win rate");
+    // COMMENTS STRIPPED FIRST. The sections module's own header NAMES both
+    // absent renders in order to explain why they are absent, so a raw grep
+    // fails on the explanation. Session 57's trap, walked into once here on the
+    // first run of this assertion and fixed the standing way.
+    const sections = code(read("app/components/audit/sections.tsx"));
+    expect(sections).not.toContain("AUDIT_RECOVERY_ESTIMATE_PCT");
+    expect(sections).not.toContain("Platform median");
+  });
+
+  it("every CTA on the page points at the flow that now exists", () => {
+    // THREE CONTROLS, and session 66 repointed all three at /signup because the
+    // audit could not run. Counted rather than merely checked present: a stray
+    // /signup left on one of the three is the N-1-of-N miss the
+    // enumerate-every-site rule exists for.
     expect(AUDIT_PROSE).not.toContain("the full report");
-    expect(AUDIT_PROSE).toContain("Want your real numbers instead of an estimate?");
-    expect(AUDIT_PROSE).toContain("Turn on the monthly summary under Settings and Audit");
+    expect(AUDIT_PROSE).toContain("See my numbers");
+    expect(AUDIT_PROSE).toContain("Read-only Stripe access. 30 seconds. No account required.");
+    expect(AUDIT_PROSE).toContain("Run the free audit");
+    expect(AUDIT_PROSE).toContain("Run the free audit on your real numbers");
+    const connectLinks = AUDIT_CODE.match(/to="\/audit\/connect"/g) ?? [];
+    expect(connectLinks).toHaveLength(3);
+    expect(AUDIT_CODE).not.toContain('to="/signup"');
+    // And the destination is a real route, asserted against routes.ts.
+    expect(read("app/routes.ts")).toContain('route("audit/connect"');
   });
 
   it("and the meta description stops promising a full diagnostic", () => {
@@ -191,16 +243,20 @@ describe("PLANT 4: the docs guide agrees with the page", () => {
     expect(text).not.toContain("The other three are named because the audit page names them");
   });
 
-  it("and says what is true at this sha: an engine that can run, and nothing to start it", () => {
-    // MOVED IN SESSION 70. Session 66's sentence said "nothing writes an audit
-    // record", which phases (a) to (d) made false. What is still true is the
-    // half that matters to a merchant: nothing starts a run.
+  it("and says what is true at this sha: the audit RUNS", () => {
+    // MOVED IN SESSION 71, and this is the version with no hedge left in it,
+    // because phase (f) removed the thing every previous hedge was about.
     expect(text).toContain(
-      "Foxhound can now compute a full audit and record it, and nothing starts one yet.",
+      "Foxhound runs the full audit on demand: connect Stripe from the audit page and the run happens while you wait.",
     );
     expect(text).toContain(
       "Where a scope could not be read, it says so rather than showing you a zero",
     );
+    // EVERY EARLIER STATE OF THE SENTENCE, asserted absent rather than only the
+    // most recent one. A guide that accumulates its own history is how two
+    // contradictory claims end up on one page.
     expect(text).not.toContain("nothing writes an audit record");
+    expect(text).not.toContain("nothing starts one yet");
+    expect(text).not.toContain("Until there is a way to start a run");
   });
 });

@@ -190,13 +190,13 @@ export const DOC_GUIDES: DocGuide[] = [
       {
         heading: "How the audit works",
         body: [
-          { kind: "p", body: [ "The audit at ", { link: "/audit", to: "/audit" }, " connects to Stripe with read-only OAuth and reads the trailing period. It needs no Foxhound account, and the link can be handed to somebody else who can run it against their own Stripe account without signing up." ] },
+          { kind: "p", body: [ "The audit at ", { link: "/audit", to: "/audit" }, " connects to Stripe with read-only OAuth and reads the trailing period. It needs no Foxhound account, and the link can be handed to somebody else who can run it against their own Stripe account without signing up. Read-only is the access Foxhound asks Stripe for and the access it checks it was given: a grant that comes back wider than that is refused rather than used." ] },
           "The audit only reads. It looks at failed invoices, expiring cards, open disputes, and basic account health over the trailing period, and writes nothing back to Stripe.",
           { kind: "note", body: "The audit's Stripe connection is separate from the one a Foxhound account uses, and it is read-only. Your billing configuration, your subscriptions and your payment methods are never touched." },
           { kind: "h3", text: "What you get once Stripe is connected" },
           { kind: "widget", name: "audit-scopes" },
-          "Foxhound can now compute a full audit and record it, and nothing starts one yet. The engine reads your invoices, subscriptions, disputes and card-update events and works out six things: what failed, what is expiring, what is past due, whether Stripe is updating cards for you, where your disputes stand, and your recurring revenue. Until there is a way to start a run, what you get is the four things above, each on its own page and each kept current by the engines that are already running.",
-          "A run that has happened is readable under Audit history, with each one on its own page. Where a scope could not be read, it says so rather than showing you a zero, because a zero that means unknown is worse than no number at all.",
+          "Foxhound runs the full audit on demand: connect Stripe from the audit page and the run happens while you wait. The engine reads your invoices, subscriptions, disputes and card-update events and works out six things: what failed, what is expiring, what is past due, whether Stripe is updating cards for you, where your disputes stand, and your recurring revenue. It takes about thirty seconds and needs no Foxhound account.",
+          "A run is readable under Audit history, with each one on its own page, when the Stripe account you audited is the one connected to your Foxhound account. Audit somebody else's account and you still see the results, and they are not filed into your history. Where a scope could not be read, it says so rather than showing you a zero, because a zero that means unknown is worse than no number at all.",
           "The monthly summary is the one part that arrives without you looking. Turn it on under Settings and Audit and Foxhound emails what it added for you last month, from its own records rather than from a fresh read of Stripe.",
         ],
       },

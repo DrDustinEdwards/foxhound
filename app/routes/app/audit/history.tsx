@@ -19,12 +19,18 @@ import type { Route } from "./+types/history";
 // writer for one pair of columns, which is 336 binding 3's defect, so this page
 // LINKS to the one that exists.
 //
-// ITS "RUN NEW AUDIT" BUTTON POINTS AT A ROUTE THAT DOES NOT EXIST HERE.
-// Legacy's targets `/audit/connect`, the anonymous OAuth start, which is phase
-// (f)'s. A button that cannot do the thing it names is the class 329 ruled on:
-// a control that cannot yet do the right thing must do nothing rather than the
-// wrong thing. So the header carries a sentence instead of a dead button, and
-// the button arrives with (f).
+// ITS "RUN NEW AUDIT" BUTTON ARRIVED WITH PHASE (f). This page shipped in (e)
+// with a sentence instead, because the route the button names, `/audit/connect`,
+// did not exist yet and 329 ruled that a control which cannot do the right thing
+// must do nothing rather than the wrong thing. `/audit/connect` is built now, so
+// both states carry legacy's button at legacy's destination: "Run first audit"
+// on the empty state, "Run new audit" in the populated header.
+//
+// THE DESTINATION IS THE ANONYMOUS FLOW, AND THAT IS LEGACY'S SHAPE, not an
+// oversight. Legacy's signed-in merchant re-authorizes through the same
+// `/audit/connect` a stranger uses; the results page then notices the session
+// and files the run. Foxhound does the same, with the account check phase (f)
+// added on top of it.
 
 export function meta() {
   return [{ title: "Audit history - Foxhound" }];
@@ -74,18 +80,25 @@ export default function AuditHistory({ loaderData }: Route.ComponentProps) {
         <div className="rounded-xl border border-border bg-surface p-8 text-center md:p-12">
           <h1 className="m-0 mb-2 text-title font-semibold text-text">No audit runs yet</h1>
           <p className="m-0 mb-2 text-label text-text-secondary">
-            A full diagnostic reads your Stripe account and records what it found.
+            Run a full diagnostic of your Stripe account.
           </p>
           <p className="m-0 text-caption text-text-tertiary">
-            Running one on demand is not built yet. Turn on the monthly run under Settings and
-            Audit and the first one will appear here.
+            Free, on demand, takes 30 seconds. It reads only.
           </p>
-          <Link
-            to="/settings/audit"
-            className="mt-6 inline-block rounded-md border border-border bg-surface px-5 py-2.5 text-label font-semibold text-text no-underline hover:border-amber"
-          >
-            Audit settings
-          </Link>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <Link
+              to="/audit/connect"
+              className="inline-block rounded-md bg-amber px-5 py-2.5 text-label font-semibold text-on-amber no-underline hover:bg-amber-dark"
+            >
+              Run first audit
+            </Link>
+            <Link
+              to="/settings/audit"
+              className="inline-block rounded-md border border-border bg-surface px-5 py-2.5 text-label font-semibold text-text no-underline hover:border-amber"
+            >
+              Audit settings
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -100,12 +113,20 @@ export default function AuditHistory({ loaderData }: Route.ComponentProps) {
             Last run {formatDate(last.runAt)}
           </p>
         </div>
-        <Link
-          to="/settings/audit"
-          className="inline-block rounded-md border border-border bg-surface px-5 py-2.5 text-label font-semibold text-text no-underline hover:border-amber"
-        >
-          Audit settings
-        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <Link
+            to="/settings/audit"
+            className="inline-block rounded-md border border-border bg-surface px-5 py-2.5 text-label font-semibold text-text no-underline hover:border-amber"
+          >
+            Audit settings
+          </Link>
+          <Link
+            to="/audit/connect"
+            className="inline-block rounded-md bg-amber px-5 py-2.5 text-label font-semibold text-on-amber no-underline hover:bg-amber-dark"
+          >
+            Run new audit
+          </Link>
+        </div>
       </div>
 
       {last.summary ? (

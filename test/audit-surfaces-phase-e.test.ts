@@ -225,6 +225,14 @@ describe("PLANT 4: what these surfaces must NOT carry", () => {
 
   const runSource = source("app/routes/app/audit/run.tsx");
   const historySource = source("app/routes/app/audit/history.tsx");
+  // THE SECTIONS MOVED IN PHASE (f), and two assertions below moved with them.
+  // Session 70 scoped them to run.tsx because it was the only renderer; the live
+  // anonymous results page is the second, so the four sections were extracted to
+  // one component module and these now assert against the place BOTH surfaces
+  // read from. That is a strictly stronger check than the pair it replaces: it
+  // could previously have passed on run.tsx while a second copy of the render
+  // coalesced its nulls, which is exactly the drift the extraction prevents.
+  const sectionsSource = source("app/components/audit/sections.tsx");
 
   it("no recoverable estimate, no platform medians, no recovery-rate bands", () => {
     // Three legacy renders, all already NOT PORTABLE: the estimate built from
@@ -250,12 +258,25 @@ describe("PLANT 4: what these surfaces must NOT carry", () => {
     expect(historySource).toContain('to="/settings/audit"');
   });
 
-  it("NO DEAD RUN-NEW-AUDIT BUTTON, because the flow it names is phase (f)'s", () => {
-    // 329's ratified rule: a control that cannot yet do the right thing must do
-    // nothing rather than the wrong thing.
-    expect(historySource).not.toContain("/audit/connect");
-    expect(historySource).not.toContain("Run new audit");
-    expect(runSource).not.toContain("/audit/connect");
+  it("THE RUN-NEW-AUDIT BUTTON IS LIVE, because phase (f) built the flow it names", () => {
+    // INVERTED IN SESSION 71, and this is the assertion doing the job it was
+    // written for. Session 70 shipped a sentence instead of a button under 329's
+    // rule that a control which cannot yet do the right thing must do nothing,
+    // and pinned the absence so the button could not appear before its route
+    // did. Both halves now hold: the control exists, and so does /audit/connect.
+    expect(historySource).toContain("/audit/connect");
+    expect(historySource).toContain("Run new audit");
+    expect(historySource).toContain("Run first audit");
+    expect(runSource).toContain("/audit/connect");
+    // The sentence it replaced is gone rather than left beside its own button.
+    expect(historySource).not.toContain("Running one on demand is not built yet");
+    // DERIVED: the destination is a real route, so this cannot go green against
+    // a button that 404s. That is the direction the old plant was protecting.
+    const routes = readFileSync(
+      fileURLToPath(new URL("../app/routes.ts", import.meta.url)),
+      "utf8",
+    );
+    expect(routes).toContain('route("audit/connect", "./routes/audit/connect.tsx")');
   });
 
   it("no copy-link affordance, because legacy's link is not shareable", () => {
@@ -284,13 +305,30 @@ describe("PLANT 4: what these surfaces must NOT carry", () => {
   });
 
   it("renders SIX decline categories, derived, not legacy's four", () => {
-    expect(runSource).toContain("DECLINE_CATEGORY_LABELS");
-    expect(runSource).not.toContain('label="Soft declines"');
+    expect(sectionsSource).toContain("DECLINE_CATEGORY_LABELS");
+    expect(sectionsSource).not.toContain('label="Soft declines"');
   });
 
   it("the unread sentence is one string, used rather than retyped", () => {
     expect(SCOPE_UNREAD).toBe("Could not be read on this run.");
-    expect(runSource).toContain("SCOPE_UNREAD");
+    expect(sectionsSource).toContain("SCOPE_UNREAD");
     expect(SCOPE_UNREAD).not.toContain(String.fromCharCode(0x2014));
+  });
+
+  it("AND THERE IS EXACTLY ONE COPY OF THE SECTIONS, so the null cannot drift", () => {
+    // The reason the two assertions above could safely move to one file. If a
+    // surface ever inlines its own copy of a section instead of importing this
+    // one, the `?? 0` defect 365 binding 2 named gets a second place to live and
+    // only one of the two would be re-read. Derived: every route that renders a
+    // run must import from the shared module.
+    for (const [name, code] of [
+      ["stored run", runSource],
+      ["live results", source("app/routes/audit/results.tsx")],
+    ] as const) {
+      expect(code, `${name} does not import the shared sections`).toContain(
+        'from "~/components/audit/sections"',
+      );
+      expect(code, `${name} re-implements a section`).not.toContain("function AuditRecoverySection");
+    }
   });
 });

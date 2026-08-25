@@ -42,10 +42,17 @@ const EXCLUDED_PREFIXES = [
   // Authenticated app shell + admin: never public, never crawlable, and
   // already Disallow'd in robots.txt.
   "/dashboard",
-  // The audit's authenticated surfaces. A bare "/audit" would also exclude the
+  // The audit's authenticated surfaces, plus the anonymous OAuth pair and the
+  // live results page (phase (f)). A bare "/audit" would also exclude the
   // PUBLIC estimator, which is the one page here that should be indexed.
+  // Legacy's own sitemap lists /audit and none of these, which is the same
+  // call: a consent screen, an OAuth return and a cookie-gated render are
+  // steps inside a flow, not pages a crawler should land on.
   "/audit/history",
   "/audit/runs/",
+  "/audit/connect",
+  "/audit/callback",
+  "/audit/results",
   "/recovery",
   "/disputes",
   "/intelligence",
