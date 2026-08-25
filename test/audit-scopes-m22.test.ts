@@ -40,9 +40,16 @@ const AUDIT_CODE = code(AUDIT_PAGE);
 const AUDIT_PROSE = AUDIT_CODE.replace(/\s+/g, " ");
 
 describe("PLANT 1: the finding the restatement rests on", () => {
-  it("NOTHING IN app/ WRITES audit_runs, so no audit run exists to report", () => {
-    // DERIVED, not transcribed. The day a producer lands, this goes red and the
-    // four cards get their walk again rather than staying restated by inertia.
+  it("EXACTLY ONE MODULE WRITES audit_runs, and it is the audit's own", () => {
+    // MOVED IN SESSION 69, WHICH IS WHAT THIS PLANT WAS FOR. Session 66 asserted
+    // that NOTHING wrote `audit_runs`, and said in as many words that the day a
+    // producer landed it would go red and the cards would get their walk again.
+    // Phase (d) is that producer, so the assertion moves from "none" to "one,
+    // and it is the expected one", which still fails in both directions.
+    //
+    // THE CARDS STAY RESTATED, and the reason is unchanged: a run now exists but
+    // nothing TRIGGERS one yet. Phases (e) through (g) build the surfaces and the
+    // cron, and the cards get their walk again when they do.
     const writers: string[] = [];
     const walk = (dir: string) => {
       for (const entry of readdirSync(dir)) {
@@ -55,7 +62,9 @@ describe("PLANT 1: the finding the restatement rests on", () => {
       }
     };
     walk(fileURLToPath(new URL("app", ROOT)));
-    expect(writers).toEqual([]);
+    expect(writers.map((p) => p.slice(p.indexOf("app/")).split("\\").join("/"))).toEqual([
+      "app/lib/audit/persist.server.ts",
+    ]);
   });
 
   it("and the lift-band layer is still wired to no route", () => {
