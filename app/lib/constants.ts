@@ -522,6 +522,13 @@ export const DELETE_ID_BATCH_SIZE = 90;
 export const AUDIT_LOOKBACK_DAYS = 90;
 /** Bounded work per audit run: caps Stripe invoice pagination (mirrors RETENTION_SWEEP_LIMIT). */
 export const AUDIT_MAX_INVOICES_SCANNED = 2000;
+/** Stripe's events API retains 30 days regardless of the audit's lookback, so the
+ *  Card Updater signal is measured over 30 days on BOTH sides of its ratio. Legacy
+ *  hardcodes the same number for the same reason and documents it in its type. */
+export const CAU_EVENT_RETENTION_DAYS = 30;
+/** Below this many expired-card declines in the CAU window, the absence of update
+ *  events says nothing worth telling a merchant, so no advisory is raised. */
+export const MIN_EXPIRED_DECLINES_FOR_CAU_ADVISORY = 3;
 
 // ---- Intelligence deterministic engine (customer_context + mrr_snapshots) ----
 /** Bounded work per sync run: caps how many of an account's Stripe customers
