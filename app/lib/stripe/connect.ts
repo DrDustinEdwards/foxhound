@@ -1,6 +1,7 @@
 import type Stripe from "stripe";
 
 import {
+  STRIPE_AUDIT_SCOPE,
   STRIPE_CONNECT_AUTHORIZE_URL,
   STRIPE_CONNECT_SCOPE,
 } from "~/lib/constants";
@@ -19,17 +20,57 @@ export function connectRedirectUri(env: Env): string {
   return `${env.BETTER_AUTH_URL}/connect/callback`;
 }
 
-/** Build the Stripe Connect authorize URL with a CSRF state value. */
-export function buildConnectAuthorizeUrl(env: Env, state: string): string {
+/**
+ * The anonymous audit's redirect_uri (phase (f)). A SECOND registered URI, which
+ * is legacy's shape too: its audit flow lands on /audit/callback while its
+ * merchant flow lands on the auth callback, and Stripe matches redirect_uri
+ * exactly. Both have to be registered on the platform's Connect settings before
+ * either flow works in production; that is on core.md's credentials list.
+ */
+export function auditRedirectUri(env: Env): string {
+  if (!env.BETTER_AUTH_URL) throw new Error("BETTER_AUTH_URL is not set");
+  return `${env.BETTER_AUTH_URL}/audit/callback`;
+}
+
+/**
+ * Build the Stripe Connect authorize URL with a CSRF state value.
+ *
+ * THE SCOPE IS A PARAMETER WITH read_write AS ITS DEFAULT, so the onboarding
+ * caller is unchanged and the audit caller has to say what it wants. Defaulting
+ * to the write scope is deliberate rather than lazy: an audit route that forgets
+ * to pass a scope gets the loud parity default that every plant is watching,
+ * not a quiet read-only one nobody would notice was missing from the audit.
+ */
+export function buildConnectAuthorizeUrl(
+  env: Env,
+  state: string,
+  options: { scope?: string; redirectUri?: string } = {},
+): string {
   if (!env.STRIPE_CLIENT_ID) throw new Error("STRIPE_CLIENT_ID is not set");
   const params = new URLSearchParams({
     client_id: env.STRIPE_CLIENT_ID,
-    scope: STRIPE_CONNECT_SCOPE,
+    scope: options.scope ?? STRIPE_CONNECT_SCOPE,
     response_type: "code",
     state,
-    redirect_uri: connectRedirectUri(env),
+    redirect_uri: options.redirectUri ?? connectRedirectUri(env),
   });
   return `${STRIPE_CONNECT_AUTHORIZE_URL}?${params.toString()}`;
+}
+
+/**
+ * The audit flow's authorize URL: READ-ONLY, always, and the only caller that
+ * names STRIPE_AUDIT_SCOPE.
+ *
+ * 362 ruling 1, and the reason it is its own function rather than an options
+ * object at the call site: the scope is the whole ruling, so it belongs
+ * somewhere a plant can assert it once and have it hold for every caller that
+ * ever starts an audit.
+ */
+export function buildAuditAuthorizeUrl(env: Env, state: string): string {
+  return buildConnectAuthorizeUrl(env, state, {
+    scope: STRIPE_AUDIT_SCOPE,
+    redirectUri: auditRedirectUri(env),
+  });
 }
 
 export interface StripeOAuthResult {

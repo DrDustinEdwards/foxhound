@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { redirect } from "react-router";
 
 import { accountMembers, accounts, getDb, stripeConnections } from "~/db";
@@ -17,8 +17,9 @@ import {
   fetchConnectedAccountName,
   type StripeOAuthResult,
 } from "~/lib/stripe/connect";
-import { ADD_ACCOUNT_ACTION, verifyConnectState } from "~/lib/stripe/connect-state";
+import { ADD_ACCOUNT_ACTION, AUDIT_ACTION, verifyConnectState } from "~/lib/stripe/connect-state";
 import { encryptToken } from "~/lib/stripe/encryption";
+import { findLiveAttachment } from "~/lib/stripe/connections.server";
 import { clearStateCookie, readStateCookie } from "~/lib/stripe/state-cookie";
 
 import type { Route } from "./+types/connect-callback";
@@ -66,10 +67,19 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   // The whole trust decision, before the code is exchanged and before anything
   // is read or written: the state must be one WE minted (byte-identical to the
-  // HttpOnly cookie) and must name one of the two known actions. See
-  // verifyConnectState for why the comparison is on raw strings.
+  // HttpOnly cookie) and must name a known action. See verifyConnectState for
+  // why the comparison is on raw strings.
   const action = verifyConnectState(state, readStateCookie(request));
   if (!action) return bounce("invalid_state");
+  // AND IT MUST NOT BE THE AUDIT'S. Phase (f) added a third action to the shared
+  // state shape, and this is the half of that decision that lives here: a state
+  // minted by the anonymous read-only flow is refused BEFORE the exchange, so a
+  // read-only audit grant can never reach the branch that attaches a connection
+  // or mints an account. The audit callback refuses the other two symmetrically.
+  // Neither cookie can carry the other's state today, since the two flows use
+  // different cookie names; this refuses on the payload as well, so the guard
+  // does not depend on that staying true.
+  if (action === AUDIT_ACTION) return bounce("invalid_state");
 
   const session = await getSession(env, request);
   if (!session) throw redirect("/login");
@@ -90,57 +100,17 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   }
 }
 
-/**
- * Where a Stripe account is LIVE right now, from the whole table.
- *
- * ONE PREDICATE FOR BOTH BRANCHES (ruling 356 binding 2, DEFECT 4). The two
- * branches used to ask this question differently and only one of them asked it
- * properly: `addAccount` looked at every row, while `attachToActiveAccount`
- * scoped its lookup to the CALLER'S OWN accounts, so a Stripe account live on a
- * merchant this caller has never heard of read as unattached and a second live
- * row was written. `resolveConnection` then routed that Stripe account's money
- * to whichever of the two rows came first. The scoped query's own comment
- * described the global behaviour it did not implement, which is how it survived
- * review.
- *
- * LIVE ONLY, matching the index that now backs this. A disconnected row is a
- * history row: it must not refuse a reconnect here, exactly as it does not
- * violate `stripe_connections_live_stripe_account_uq`. The index makes at most
- * one live row possible, so `.limit(1)` is now a fact about the data rather
- * than a choice about which of several rows to prefer.
- *
- * A DISCRIMINATED OUTCOME, never a bare id or null (339 binding 5): "nobody
- * holds it", "the caller holds it here" and "somebody else holds it" are three
- * different answers with three different responses, and collapsing the last two
- * into a nullable id is what made the old call sites easy to get wrong.
- */
-export type LiveAttachment =
-  | { status: "unattached" }
-  | { status: "held_by_caller"; accountId: string }
-  | { status: "held_elsewhere" };
-
-export async function findLiveAttachment(
-  db: Db,
-  stripeUserId: string,
-  heldAccountIds: string[],
-): Promise<LiveAttachment> {
-  const rows = await db
-    .select({ accountId: stripeConnections.accountId })
-    .from(stripeConnections)
-    .where(
-      and(
-        eq(stripeConnections.stripeUserId, stripeUserId),
-        isNull(stripeConnections.disconnectedAt),
-      ),
-    )
-    .limit(1);
-
-  const accountId = rows[0]?.accountId;
-  if (!accountId) return { status: "unattached" };
-  return heldAccountIds.includes(accountId)
-    ? { status: "held_by_caller", accountId }
-    : { status: "held_elsewhere" };
-}
+// findLiveAttachment MOVED IN PHASE (f) to app/lib/stripe/connections.server.ts,
+// unchanged, because a third caller appeared: the anonymous audit's live results
+// page, which is a `.tsx` route with a default export. Importing the predicate
+// from THIS module put the database, the money-write executor and the token
+// encryption on that page's client graph.
+//
+// IT IS NOT RE-EXPORTED FROM HERE, and the reason is worth keeping: a re-export
+// is a NON-loader export of a route module, so the dot-server guard rejects it
+// outright ("other route exports depend on a server-only module"). Attempting
+// the re-export to spare one test its import path is what proved that, and the
+// guard was right. 356's tests import the predicate from its module.
 
 /** Where a merchant lands once a connection is live on `accountId`. */
 async function destinationFor(db: Db, accountId: string): Promise<string> {
