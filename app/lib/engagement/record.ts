@@ -3,6 +3,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import type { Db } from "~/db";
 import { getDb, engagementEvents, recoverySteps } from "~/db";
 
+import type { EngagementRecordResult, EngagementSource } from "./agents";
 import type { EngagementTokenPayload } from "./token";
 
 // First-party engagement recording. A verified open/click hit writes an idempotent
@@ -11,6 +12,21 @@ import type { EngagementTokenPayload } from "./token";
 // recovery_steps.clicked_at, which is the email_engaged attribution signal the
 // invoice.payment_succeeded webhook reads (PRICING.md: click is billable, open is
 // Intelligence-only). Operational writes (not money), so a plain db.batch().
+//
+// THE SOURCE ARGUMENT IS REQUIRED, AND THAT IS THE GUARD (368 ruling 1). Both
+// recorders take an `EngagementSource` and write NOTHING when it is automated.
+// Required rather than optional-defaulting-to-human, because a new caller that
+// forgets it must fail to COMPILE rather than quietly resume fabricating clicks.
+// The classification lives in ./agents.ts; the refusal lives HERE, at the write,
+// so a caller reaching the recorder from somewhere other than the redirect route
+// cannot route around it.
+//
+// BOTH RECORDERS, NOT ONLY THE BILLABLE ONE. The click is what 368 ruled on,
+// because clicked_at is what findAttributionSignals reads and email_engaged is
+// what gets invoiced. The open pixel writes the same shape of fabricated row and
+// stamps opened_at, which feeds Intelligence rather than billing. Guarding one
+// and not the other would be the N-1-of-N miss the enumerate-every-site rule
+// exists for: one bug class, two sites, one helper.
 
 export function buildEngagementInsert(
   db: Db,
@@ -53,7 +69,13 @@ export function buildClickStamp(db: Db, stepId: string, now: Date) {
     .where(and(eq(recoverySteps.id, stepId), isNull(recoverySteps.clickedAt)));
 }
 
-export async function recordOpen(env: Env, payload: EngagementTokenPayload): Promise<void> {
+export async function recordOpen(
+  env: Env,
+  payload: EngagementTokenPayload,
+  source: EngagementSource,
+): Promise<EngagementRecordResult> {
+  if (source.automated) return { recorded: false, reason: source.reason };
+
   const db = getDb(env);
   const now = new Date();
   await db.batch([
@@ -66,9 +88,23 @@ export async function recordOpen(env: Env, payload: EngagementTokenPayload): Pro
     }),
     buildOpenStamp(db, payload.stepId, now),
   ]);
+  return { recorded: true };
 }
 
-export async function recordClick(env: Env, payload: EngagementTokenPayload): Promise<void> {
+/**
+ * THE BILLABLE ONE. `buildClickStamp` sets `recovery_steps.clicked_at`, which
+ * `findAttributionSignals` reads as the `email_engaged` signal, which is in
+ * `BILLABLE_ATTRIBUTION_KINDS`. An automated source returns BEFORE the batch, so
+ * neither the engagement_events row nor the stamp is written and no attribution
+ * can arise from the request.
+ */
+export async function recordClick(
+  env: Env,
+  payload: EngagementTokenPayload,
+  source: EngagementSource,
+): Promise<EngagementRecordResult> {
+  if (source.automated) return { recorded: false, reason: source.reason };
+
   const db = getDb(env);
   const now = new Date();
   await db.batch([
@@ -82,4 +118,5 @@ export async function recordClick(env: Env, payload: EngagementTokenPayload): Pr
     }),
     buildClickStamp(db, payload.stepId, now),
   ]);
+  return { recorded: true };
 }

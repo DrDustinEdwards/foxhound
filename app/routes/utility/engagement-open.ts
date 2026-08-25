@@ -1,4 +1,5 @@
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { classifyEngagementRequest } from "~/lib/engagement/agents";
 import { recordOpen } from "~/lib/engagement/record";
 import { verifyEngagementToken } from "~/lib/engagement/token";
 
@@ -16,13 +17,16 @@ const PIXEL = Uint8Array.from([
   0x01, 0x00, 0x01, 0x00, 0x00, 0x02, 0x02, 0x44, 0x01, 0x00, 0x3b,
 ]);
 
-export async function loader({ params, context }: Route.LoaderArgs) {
+export async function loader({ params, request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const payload = params.token ? await verifyEngagementToken(env, params.token) : null;
   if (payload && payload.kind === "open") {
     // Best-effort: a tracking write must never fail the pixel response.
+    // The pixel is returned identically either way; only the write is gated.
+    const source = classifyEngagementRequest(request, "open");
     try {
-      await recordOpen(env, payload);
+      const result = await recordOpen(env, payload, source);
+      if (!result.recorded) console.debug("engagement open skipped:", result.reason);
     } catch {
       /* swallow */
     }
