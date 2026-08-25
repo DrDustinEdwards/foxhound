@@ -246,7 +246,12 @@ describe("PLANT 3: every capability sentence, tied to its code", () => {
     // Session 66's walk found something stronger: nothing writes `audit_runs` at
     // all, so no scope produces an audit number, and the page and the guide both
     // now describe the surfaces that do exist.
-    expect(AUDIT).toContain("Foxhound runs no full audit of its own yet.");
+    // MOVED IN SESSION 70. Phases (a) to (d) built the engine and the record, so
+    // "no full audit" is now half false; what remains true is that nothing
+    // starts a run.
+    expect(AUDIT).toContain(
+      "Foxhound can now compute a full audit and record it, and nothing starts one yet.",
+    );
     expect(AUDIT).not.toContain("The other three are named because the audit page names them");
   });
 

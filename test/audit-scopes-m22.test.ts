@@ -191,7 +191,16 @@ describe("PLANT 4: the docs guide agrees with the page", () => {
     expect(text).not.toContain("The other three are named because the audit page names them");
   });
 
-  it("and says what the page says: no audit run, and here is what does exist", () => {
-    expect(text).toContain("Foxhound runs no full audit of its own yet.");
+  it("and says what is true at this sha: an engine that can run, and nothing to start it", () => {
+    // MOVED IN SESSION 70. Session 66's sentence said "nothing writes an audit
+    // record", which phases (a) to (d) made false. What is still true is the
+    // half that matters to a merchant: nothing starts a run.
+    expect(text).toContain(
+      "Foxhound can now compute a full audit and record it, and nothing starts one yet.",
+    );
+    expect(text).toContain(
+      "Where a scope could not be read, it says so rather than showing you a zero",
+    );
+    expect(text).not.toContain("nothing writes an audit record");
   });
 });
