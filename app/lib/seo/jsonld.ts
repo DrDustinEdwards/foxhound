@@ -203,3 +203,61 @@ export function breadcrumbListJsonLd(url: string, items: { name: string; path: s
     })),
   };
 }
+
+/**
+ * A documentation guide, as schema.org's own type for technical documentation.
+ *
+ * TechArticle RATHER THAN BlogPosting OR WebPage, and the choice is the site's
+ * existing vocabulary applied rather than a new one invented. The blog already
+ * emits BlogPosting through `articleJsonLd`; marketing pages emit WebPage plus
+ * SpeakableSpecification. Neither fits a user guide: BlogPosting claims a dated
+ * editorial post with an author, and a bare WebPage says nothing about the page
+ * being documentation. TechArticle is a subtype of Article built for exactly
+ * this, so a crawler gets the stronger signal without Foxhound minting a type it
+ * uses nowhere else.
+ *
+ * THE PUBLISHER IS THE SAME @id THE REST OF THE SITE USES, so the guides join
+ * the existing Organization node rather than describing a second publisher.
+ *
+ * NO AUTHOR AND NO dateModified. The guides are house documentation with no
+ * named byline, and the content module tracks no per-guide revision; inventing
+ * either would be a fabricated claim in a file whose whole purpose is to be
+ * quoted by machines.
+ */
+export function techArticleJsonLd(
+  url: string,
+  opts: { headline: string; description: string; path: string; datePublished: string },
+) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "TechArticle",
+    headline: opts.headline,
+    description: opts.description,
+    url: `${url}${opts.path}`,
+    datePublished: opts.datePublished,
+    inLanguage: "en",
+    isPartOf: { "@type": "WebSite", "@id": `${url}/#website` },
+    publisher: { "@id": `${url}/#organization` },
+  };
+}
+
+/** The docs index as an ItemList of its guides, in the order the page renders
+ *  them, so a crawler reading the hub gets the set rather than five unrelated
+ *  pages it has to discover by link-following. */
+export function docsItemListJsonLd(
+  url: string,
+  guides: { title: string; description: string; slug: string }[],
+) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: "Foxhound documentation",
+    itemListElement: guides.map((guide, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: guide.title,
+      description: guide.description,
+      url: `${url}/docs/${guide.slug}`,
+    })),
+  };
+}

@@ -4,7 +4,7 @@ import { Link } from "react-router";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { DOC_GUIDES } from "~/lib/marketing/docs-content";
-import { siteUrl } from "~/lib/seo/jsonld";
+import { breadcrumbListJsonLd, docsItemListJsonLd, siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/index";
@@ -28,7 +28,8 @@ export function loader({ context }: Route.LoaderArgs) {
   return { siteUrl: siteUrl(env) };
 }
 
-export default function DocsIndexPage() {
+export default function DocsIndexPage({ loaderData }: Route.ComponentProps) {
+  const url = loaderData.siteUrl;
   const platform = DOC_GUIDES.find((g) => g.slug === "platform")!;
   const productGuides = DOC_GUIDES.filter((g) => g.slug !== "platform");
 
@@ -106,6 +107,19 @@ export default function DocsIndexPage() {
           </Link>
         </div>
       </div>
+
+      {/* The hub as a LIST, so a crawler reading /docs gets the set rather than
+          five pages it has to discover by link-following. Derived from
+          DOC_GUIDES in render order, so a sixth guide joins it by construction. */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify([
+            docsItemListJsonLd(url, DOC_GUIDES),
+            breadcrumbListJsonLd(url, [{ name: "Docs", path: "/docs" }]),
+          ]),
+        }}
+      />
     </>
   );
 }
