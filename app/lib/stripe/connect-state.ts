@@ -1,8 +1,11 @@
 // The Stripe Connect OAuth `state` payload, and the one place that decides
 // whether a callback's state is trustworthy.
 //
-// ONE SHAPE FOR BOTH FLOWS as of ruling 329 phase (d): `{nonce, action}` where
-// action is "connect" or "add_account". Legacy carries the same idea and the
+// ONE SHAPE FOR ALL THREE FLOWS: `{nonce, action}` where action is "connect",
+// "add_account" (ruling 329 phase (d)) or "audit" (phase (f), 362 ruling 1).
+// The third arrived with the anonymous read-only pair and cost this module one
+// constant and one array entry, which is what "reuse the minted state shape with
+// a new action" was supposed to cost. Legacy carries the same idea and the
 // same marker spelling in app/api/stripe/connect-additional/route.ts (blob
 // `60f93b27`), which builds `{ csrf, action: 'add_account' }` with the comment
 // "Encode action into state so the callback creates a new account". The field is
@@ -23,7 +26,7 @@
 // branch is exactly the hole this file exists to close: an action-less state
 // resolves to the DEFAULT branch, which is how legacy's own "+ Add account"
 // silently upserts onto the first account (ruling 326's DEFECT 1). Foxhound
-// mints both sides, so it can require the strict shape.
+// mints every side, so it can require the strict shape.
 //
 // THE ONE COST, named rather than discovered: an OAuth flow started before this
 // deploy and finished after it carries the old bare-uuid state and is REFUSED
@@ -35,8 +38,21 @@ export const ADD_ACCOUNT_ACTION = "add_account";
 /** The first-connect and reconnect flow. Legacy has no name for this; it is
  *  legacy's default branch, made explicit so there is no unmarked state. */
 export const CONNECT_ACTION = "connect";
+/**
+ * The ANONYMOUS AUDIT flow (phase (f)). Legacy has no marker for this either,
+ * because legacy mints its audit state as a bare `crypto.randomUUID()` in a
+ * separate route with a separate cookie and never has to tell the two apart.
+ *
+ * FOXHOUND MINTS ONE SHAPE FOR ALL THREE, so both callbacks can ask the same
+ * question and get a name back. That is the point of adding a third action
+ * rather than writing a parallel state module: the audit callback refuses
+ * anything that is not "audit", and /connect/callback refuses "audit", so a
+ * read-only audit grant can never be walked into the branch that attaches a
+ * connection or mints an account. With a bare uuid neither callback could tell.
+ */
+export const AUDIT_ACTION = "audit";
 
-export const CONNECT_ACTIONS = [CONNECT_ACTION, ADD_ACCOUNT_ACTION] as const;
+export const CONNECT_ACTIONS = [CONNECT_ACTION, ADD_ACCOUNT_ACTION, AUDIT_ACTION] as const;
 export type ConnectAction = (typeof CONNECT_ACTIONS)[number];
 
 export interface ConnectState {
@@ -62,7 +78,7 @@ export function buildConnectState(action: ConnectAction, nonce: string = crypto.
 
 /**
  * Parse a state payload, STRICTLY. Returns null for anything that is not the
- * exact shape: not JSON, no nonce, no action, or an action outside the two.
+ * exact shape: not JSON, no nonce, no action, or an action outside the three.
  *
  * Null means refuse. It never falls back to treating the raw string as a nonce,
  * and it never defaults a missing action, because both of those are ways an
@@ -96,7 +112,10 @@ export function parseConnectState(raw: string): ConnectState | null {
  * is parsed. Comparing parsed nonces instead would let a caller vary the action
  * while keeping the nonce, which is precisely the escalation this guards: a
  * merchant who legitimately started a "connect" flow could rewrite the query
- * param to "add_account" and get a whole new account minted.
+ * param to "add_account" and get a whole new account minted. The audit action
+ * makes the same question worth asking in the other direction, and each callback
+ * asks it: /connect/callback refuses "audit", /audit/callback refuses the other
+ * two, so neither grant can be spent on the other's branch.
  */
 export function verifyConnectState(
   stateParam: string | null,

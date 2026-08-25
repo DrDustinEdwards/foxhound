@@ -589,12 +589,61 @@ export type AlertDirection = (typeof ALERT_DIRECTIONS)[number];
 export const STRIPE_API_VERSION = "2026-06-24.dahlia";
 /** Stripe Connect OAuth authorize endpoint. */
 export const STRIPE_CONNECT_AUTHORIZE_URL = "https://connect.stripe.com/oauth/authorize";
-/** Connect OAuth scope (read_write, legacy parity). */
+/**
+ * Connect OAuth scope at MERCHANT ONBOARDING: read_write, legacy parity.
+ *
+ * THIS IS REQUESTED EXACTLY ONCE IN FOXHOUND, from /connect (362 ruling 1). An
+ * audit prospect who converts re-authorizes here; the audit's own flow requests
+ * STRIPE_AUDIT_SCOPE below and never this.
+ */
 export const STRIPE_CONNECT_SCOPE = "read_write";
+/**
+ * Connect OAuth scope for the ANONYMOUS AUDIT: read-only, and this is the one
+ * place the divergence from legacy lives.
+ *
+ * Legacy's app/api/audit/connect/route.ts:19 requests `read_write` for an audit,
+ * so a stranger's Stripe account hands a write-capable token to a flow that
+ * never writes. Its own consent screen says "We need read-only access" and lists
+ * "Create new charges or move money" under what it can never do, its guide says
+ * "It requests read-only access only", and Foxhound's published copy says "The
+ * audit only reads." Four sentences either side, all saying read-only, around
+ * one parameter that says otherwise. 362 ruling 1: the copy is the intent, so
+ * the code is the defect. Class (c) truthfulness fix.
+ */
+export const STRIPE_AUDIT_SCOPE = "read_only";
 /** CSRF state cookie name for the Connect OAuth flow. */
 export const STRIPE_OAUTH_STATE_COOKIE = "stripe_oauth_state";
+/**
+ * CSRF state cookie name for the AUDIT OAuth flow. Legacy's own name, verbatim.
+ *
+ * A SECOND NAME, NOT A SHARED ONE, and legacy separates them for the reason that
+ * matters: the two flows can be in flight in one browser at once. A merchant
+ * halfway through /connect who opens the audit would otherwise have their
+ * connect state overwritten and land on `invalid_state` at the end of a flow
+ * they started correctly.
+ */
+export const AUDIT_OAUTH_STATE_COOKIE = "audit_oauth_state";
 /** Connect OAuth state cookie lifetime: 10 minutes (legacy parity). */
 export const STRIPE_OAUTH_STATE_TTL_SECONDS = 600;
+/**
+ * The anonymous audit's access-token cookie, at legacy's semantics exactly
+ * (app/audit/callback/route.ts:51-56): HttpOnly, Secure, SameSite=Lax, five
+ * minutes, scoped to /audit.
+ *
+ * THE COOKIE IS THE WHOLE GRANT, on both sides. Legacy stores the audit token in
+ * no table (the name occurs twice in its tree: the callback sets it, the results
+ * page reads it) and never deauthorizes, so five minutes is the entire window in
+ * which anything can use it. Foxhound stores it in no table either.
+ */
+export const AUDIT_TOKEN_COOKIE = "audit_access_token";
+/** Audit access-token cookie lifetime: 5 minutes (legacy parity). */
+export const AUDIT_TOKEN_TTL_SECONDS = 300;
+/**
+ * The audit OAuth pair's IP rate limit: legacy's RATE_LIMIT_AUDIT
+ * (lib/constants.ts:111), 10 per hour, applied to the start and the callback.
+ * Spent through the EXISTING limiter (311) with no change to it.
+ */
+export const RATE_LIMIT_AUDIT = { max: 10, windowMs: 60 * 60 * 1000 } as const;
 
 /**
  * Statement descriptor shown on a merchant's card statement for platform

@@ -56,7 +56,14 @@ vi.mock("~/lib/stripe/encryption", () => ({
 vi.mock("~/lib/money/execute", () => ({ executeMoneyWrite: vi.fn() }));
 
 const { executeMoneyWrite } = await import("~/lib/money/execute");
-const { loader, findLiveAttachment } = await import("~/routes/auth/connect-callback");
+const { loader } = await import("~/routes/auth/connect-callback");
+// MOVED IN PHASE (f) to app/lib/stripe/connections.server.ts. The predicate is
+// unchanged and is still the one definition all three callers share; it left the
+// route module because the audit's live results page needs it and a `.tsx` route
+// importing a route module drags the database onto its client graph. The
+// dot-server build guard refuses a re-export from a route module, so the import
+// path moves with the code rather than being papered over.
+const { findLiveAttachment } = await import("~/lib/stripe/connections.server");
 const { buildConnectState, ADD_ACCOUNT_ACTION, CONNECT_ACTION } = await import(
   "~/lib/stripe/connect-state"
 );
