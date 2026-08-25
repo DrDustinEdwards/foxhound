@@ -399,6 +399,25 @@ export const CRON_SCHEDULE_MONTHLY = "0 4 1 * *"; // 04:00 UTC on the 1st, billi
 // FIRST new cron expression this repo has needed: every other job reuses the
 // tick, daily or monthly schedules.
 export const CRON_SCHEDULE_WEEKLY = "0 8 * * 1";
+/**
+ * The merged monthly audit: 09:00 UTC on the 1st, which is LEGACY'S HOUR.
+ *
+ * 316 registered the audit digest on CRON_SCHEDULE_MONTHLY (04:00) and argued
+ * the hour was invisible to the merchant because the promise is the DAY. That
+ * held while the job only read Foxhound's own rows. It does not hold now: the
+ * merged job runs the real audit against the merchant's live Stripe account on
+ * the same morning as `billing-monthly` and `intelligence-sync`, and stacking a
+ * per-account Stripe walk plus an AI call on the hour that already carries the
+ * billing run is a self-inflicted collision. Legacy's 09:00 separates them, and
+ * legacy's hour is the spec under the prime directive anyway.
+ *
+ * The SECOND new cron expression this repo has needed. Adding one has three
+ * sites and all three are covered: this constant, the wrangler.jsonc triggers
+ * array, and alerts.server.ts's SCHEDULE_PERIOD_MS, without which cron-health
+ * reports the job as an unknown-schedule blind spot rather than judging its
+ * staleness. A derived plant asserts all three agree.
+ */
+export const CRON_SCHEDULE_MONTHLY_AUDIT = "0 9 1 * *";
 /** Recovery tick: sweeps due recovery_steps. Every 5 minutes.
  *
  *  The original rationale (matching the 5-minute first send-retry backoff) no

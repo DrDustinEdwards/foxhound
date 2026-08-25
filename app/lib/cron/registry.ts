@@ -1,10 +1,11 @@
 import { getDb } from "~/db";
-import { describeDigestRun, runAuditDigest } from "~/lib/audit/digest.server";
+import { describeMonthlyAuditRun, runMonthlyAudit } from "~/lib/audit/monthly.server";
 import { describeSweepRun, runMonthlyBilling } from "~/lib/billing/run";
 import {
   CRON_SCHEDULE_DAILY,
   CRON_SCHEDULE_WEEKLY,
   CRON_SCHEDULE_MONTHLY,
+  CRON_SCHEDULE_MONTHLY_AUDIT,
   CRON_SCHEDULE_RECOVERY_TICK,
   RECOVERY_TICK_CRON_NAME,
 } from "~/lib/constants";
@@ -168,22 +169,27 @@ const expiringCards: CronHandler = async (env) => {
 const cronHealth: CronHandler = async (env) =>
   runCronHealthCheck(env, getDb(env), CRON_JOBS, new Date());
 
-/** The monthly audit digest (316), closing the promise /settings/audit makes:
- *  "on the 1st of each month, we run a fresh audit and email you a comparison
- *  versus the prior month".
+/** THE MERGED MONTHLY AUDIT (362 ruling 3, phase (g)). It runs the real audit
+ *  against each opted-in merchant's live Stripe account, records the run, and
+ *  sends the ONE monthly email.
  *
- *  CRON_SCHEDULE_MONTHLY IS "0 4 1 * *", the 1st of the month, which is what the
- *  page promises. The schedule matches the copy rather than the copy being bent
- *  to a schedule, and it is already in wrangler.jsonc triggers AND already
- *  mapped in alerts.server.ts's SCHEDULE_PERIOD_MS, so cron-health can judge
- *  this job's staleness instead of reporting it as an unknown-schedule blind
- *  spot. Legacy fired at 09:00 UTC and this fires at 04:00; the hour is
- *  invisible to the merchant, whose promise is the DAY.
+ *  IT REPLACES `audit-digest`, WHICH IS GONE FROM THIS LIST. 316 registered a
+ *  second monthly send here, gated on the same toggle and addressed to the same
+ *  recipient; session 67's walk found the two on a collision course and 362
+ *  ruled one email. The digest's number is now a line item in this one.
  *
- *  It passes the run id so a digest row can name the run that produced it. */
-const auditDigest: CronHandler = async (env, ctx) => {
-  const result = await runAuditDigest(env, new Date(), ctx?.runId ?? null);
-  return { rowsProcessed: result.sent, message: describeDigestRun(result) };
+ *  CRON_SCHEDULE_MONTHLY_AUDIT IS "0 9 1 * *", LEGACY'S HOUR, not the 04:00 the
+ *  digest rode. 316 argued the hour was invisible to a merchant whose promise is
+ *  the DAY, which was true of a job that only read Foxhound's own rows. This one
+ *  walks live Stripe and calls the model per account, so putting it on the hour
+ *  that already carries billing-monthly and intelligence-sync would be a
+ *  self-inflicted collision. See the constant for the three sites a new
+ *  expression has to land in.
+ *
+ *  It passes the run id so a claim row can name the run that produced it. */
+const monthlyAudit: CronHandler = async (env, ctx) => {
+  const result = await runMonthlyAudit(env, new Date(), ctx?.runId ?? null);
+  return { rowsProcessed: result.sent, message: describeMonthlyAuditRun(result) };
 };
 
 export const CRON_JOBS: CronJob[] = [
@@ -195,7 +201,7 @@ export const CRON_JOBS: CronJob[] = [
   { name: DEMO_RESET_CRON_NAME, schedule: CRON_SCHEDULE_DAILY, handler: demoReset },
   { name: "billing-monthly", schedule: CRON_SCHEDULE_MONTHLY, handler: billingMonthly },
   { name: "intelligence-sync", schedule: CRON_SCHEDULE_MONTHLY, handler: intelligenceSync },
-  { name: "audit-digest", schedule: CRON_SCHEDULE_MONTHLY, handler: auditDigest },
+  { name: "monthly-audit", schedule: CRON_SCHEDULE_MONTHLY_AUDIT, handler: monthlyAudit },
   { name: "intelligence-ai", schedule: CRON_SCHEDULE_DAILY, handler: intelligenceAi },
   { name: "retention-engagement-events", schedule: CRON_SCHEDULE_DAILY, handler: sweepEngagementEvents },
   { name: "retention-email-sends", schedule: CRON_SCHEDULE_DAILY, handler: sweepEmailSends },

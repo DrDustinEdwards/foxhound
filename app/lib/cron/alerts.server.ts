@@ -2,7 +2,12 @@ import { and, desc, eq } from "drizzle-orm";
 
 import type { Db } from "~/db/client";
 import { cronAlerts, cronRunHistory } from "~/db/schema";
-import { CRON_SCHEDULE_DAILY, CRON_SCHEDULE_MONTHLY, CRON_SCHEDULE_RECOVERY_TICK } from "~/lib/constants";
+import {
+  CRON_SCHEDULE_DAILY,
+  CRON_SCHEDULE_MONTHLY,
+  CRON_SCHEDULE_MONTHLY_AUDIT,
+  CRON_SCHEDULE_RECOVERY_TICK,
+} from "~/lib/constants";
 import { sendTransactionalEmail } from "~/lib/email/send";
 import { SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 
@@ -51,6 +56,11 @@ const SCHEDULE_PERIOD_MS: Record<string, number> = {
   [CRON_SCHEDULE_RECOVERY_TICK]: 5 * 60 * 1000,
   [CRON_SCHEDULE_DAILY]: 24 * 60 * 60 * 1000,
   [CRON_SCHEDULE_MONTHLY]: 31 * 24 * 60 * 60 * 1000,
+  // The merged monthly audit's own hour (362 ruling 3). Mapped at the same
+  // period as the other monthly jobs: a schedule missing from this map is
+  // reported as `unknown_schedule`, which is a blind spot rather than an alert,
+  // so a new expression that skips this line silently stops being watched.
+  [CRON_SCHEDULE_MONTHLY_AUDIT]: 31 * 24 * 60 * 60 * 1000,
 };
 
 /** A job may miss this many periods before it is called stale. Two rather than

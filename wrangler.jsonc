@@ -252,6 +252,6 @@
     // "0 8 * * 1" added session 55 for the weekly merchant digest, which
     // ports legacy's Monday 08:00 UTC cadence. Every schedule in the cron
     // registry MUST appear here or the job never fires, and a test guards it.
-    "crons": ["*/5 * * * *", "0 3 * * *", "0 4 1 * *", "0 8 * * 1"]
+    "crons": ["*/5 * * * *", "0 3 * * *", "0 4 1 * *", "0 8 * * 1", "0 9 1 * *"]
   }
 }
