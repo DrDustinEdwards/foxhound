@@ -94,6 +94,12 @@ export const PLATFORM_LINKS: ProductNavLink[] = [
   // only navigation path to a live page. It leaves with Team when S25 ships
   // legacy's sub-nav.
   { label: "Audit settings", to: "/settings/audit" },
+  // Audit history (phase (e), session 70). Same mechanism and the same reason
+  // as Audit settings beside it: legacy reaches its own /audit/dashboard from
+  // the settings sidebar Foxhound has no equivalent of, and without this row
+  // the page has no navigation path at all. It leaves with the others when S25
+  // ships legacy's sub-nav.
+  { label: "Audit history", to: "/audit/history" },
   // Email settings (S33). Same mechanism and the same reason as Team and
   // Audit settings: legacy lists it in a settings SIDEBAR Foxhound does not
   // have, so PLATFORM_LINKS is otherwise the only navigation path to a live

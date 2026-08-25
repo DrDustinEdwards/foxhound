@@ -114,6 +114,15 @@ export default [
         route("account", "./routes/app/settings/account.tsx"),
       ]),
     ]),
+    // The audit's authenticated surfaces (phase (e)). Legacy mounts these at
+    // /audit/dashboard and /audit/results/[id] inside its own marketing-chrome
+    // layout; Foxhound's /audit is the anonymous estimator under the marketing
+    // shell, so these two live under the APP shell where a signed-in merchant's
+    // own data belongs, and take names that cannot collide with it.
+    ...prefix("audit", [
+      route("history", "./routes/app/audit/history.tsx"),
+      route("runs/:id", "./routes/app/audit/run.tsx"),
+    ]),
     route("help", "./routes/app/help.tsx"),
     route("welcome", "./routes/app/welcome.tsx"),
 
