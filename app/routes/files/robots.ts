@@ -65,6 +65,10 @@ export const DISALLOW_PATHS = [
   "/admin",
   "/api/",
   "/auth/",
+  // The merchant MCP endpoint (370). An agent connects with a bearer key and a
+  // crawler has no business there: it is POST-only, so a crawl can only ever
+  // collect a 405. Every named group inherits this by the parity rule below.
+  "/mcp",
 ];
 
 // Legacy's thirteen, in legacy's order, then the three ratified additions.
