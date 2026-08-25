@@ -359,7 +359,7 @@ describe("PLANT 3: the callback, and what it refuses", () => {
   });
 
   it("REFUSES THE OTHER FLOWS' ACTIONS, so a connect grant cannot land here", async () => {
-    for (const action of [CONNECT_ACTION, ADD_ACCOUNT_ACTION]) {
+    for (const action of [CONNECT_ACTION, ADD_ACCOUNT_ACTION] as const) {
       const state = buildConnectState(action);
       const response = await call({ code: "ac_1", state }, { [AUDIT_OAUTH_STATE_COOKIE]: state });
       expect(response.headers.get("Location"), `${action} was accepted`).toBe(
