@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 import {
   CRON_SCHEDULE_DAILY,
   CRON_SCHEDULE_MONTHLY,
+  CRON_SCHEDULE_MONTHLY_AUDIT,
   CRON_SCHEDULE_RECOVERY_TICK,
 } from "~/lib/constants";
 
@@ -55,20 +56,31 @@ describe("cron registry", () => {
   it("the schedule constants match wrangler triggers", () => {
     expect(WRANGLER_CRONS).toContain(CRON_SCHEDULE_DAILY);
     expect(WRANGLER_CRONS).toContain(CRON_SCHEDULE_MONTHLY);
+    expect(WRANGLER_CRONS).toContain(CRON_SCHEDULE_MONTHLY_AUDIT);
     expect(WRANGLER_CRONS).toContain(CRON_SCHEDULE_RECOVERY_TICK);
   });
 
-  it("dispatches billing, intelligence sync and the audit digest on the monthly schedule, intelligence AI + retention on the daily one", () => {
+  it("dispatches billing and intelligence sync on the monthly schedule, intelligence AI + retention on the daily one", () => {
+    // THE AUDIT DIGEST LEFT THIS LIST IN PHASE (g), and this assertion catching
+    // it is the guard working. 362 ruling 3 merged its send into the monthly
+    // audit and moved the merged job to legacy's own 09:00 hour, so the 04:00
+    // slot is back to the two jobs that were there before 316.
     const monthly = jobsForSchedule(CRON_SCHEDULE_MONTHLY);
-    expect(monthly.map((j) => j.name)).toEqual([
-      "billing-monthly",
-      "intelligence-sync",
-      "audit-digest",
-    ]);
+    expect(monthly.map((j) => j.name)).toEqual(["billing-monthly", "intelligence-sync"]);
+    expect(monthly.map((j) => j.name)).not.toContain("audit-digest");
 
     const daily = jobsForSchedule(CRON_SCHEDULE_DAILY);
     expect(daily.map((j) => j.name)).toContain("intelligence-ai");
     expect(daily.filter((j) => j.name.startsWith("retention-")).length).toBeGreaterThanOrEqual(8);
+  });
+
+  it("and the merged monthly audit has LEGACY'S HOUR to itself", () => {
+    // Kept STRICT rather than relaxed to toContain: a second job arriving on
+    // this expression would be a second per-account Stripe walk on the same
+    // minute, which is the collision moving off 04:00 was meant to avoid.
+    expect(jobsForSchedule(CRON_SCHEDULE_MONTHLY_AUDIT).map((j) => j.name)).toEqual([
+      "monthly-audit",
+    ]);
   });
 
   it("dispatches the demo reset on the daily schedule", () => {

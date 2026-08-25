@@ -69,14 +69,19 @@ describe("PLANT 1: the finding the restatement rests on", () => {
 
   it("and the lift-band layer is still wired to no route", () => {
     // full-audit.server.ts's two computations. computeFoxhoundAddsCents has one
-    // caller, the monthly digest; computeStripeInvoiceLiftBands has none.
-    // COMMENTS STRIPPED FIRST. digest.server.ts's own header EXPLAINS that
-    // computeStripeInvoiceLiftBands is deliberately not called here, so a raw
-    // grep fails on the explanation. Session 57's lesson, and this plant walked
-    // straight into it on the first run.
-    const digest = code(read("app/lib/audit/digest.server.ts"));
-    expect(digest).toContain("computeFoxhoundAddsCents");
-    expect(digest).not.toContain("computeStripeInvoiceLiftBands");
+    // caller, the merged monthly audit; computeStripeInvoiceLiftBands has none.
+    //
+    // MOVED IN PHASE (g). digest.server.ts is gone, because 362 ruling 3 merged
+    // its send into the monthly audit, and monthly.server.ts is the module that
+    // absorbed it. The property is unchanged and still holds in both directions.
+    //
+    // COMMENTS STRIPPED FIRST, and the reason survived the move: the reading
+    // module's own header EXPLAINS that computeStripeInvoiceLiftBands is
+    // deliberately not called, so a raw grep fails on the explanation. Session
+    // 57's lesson, which this plant walked straight into on its first run.
+    const monthly = code(read("app/lib/audit/monthly.server.ts"));
+    expect(monthly).toContain("computeFoxhoundAddsCents");
+    expect(monthly).not.toContain("computeStripeInvoiceLiftBands");
   });
 });
 
