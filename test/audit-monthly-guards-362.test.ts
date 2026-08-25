@@ -83,12 +83,19 @@ describe("PLANT 1: EXACTLY ONE monthly merchant email hangs off the audit toggle
 
   it("the surviving module really does send, so PLANT 1 cannot pass by sending nothing", () => {
     // The non-vacuous half. An assertion that "exactly one module sends" is
-    // satisfied just as well by one module that has stopped sending, which is
+    // satisfied just as well by one module that has STOPPED sending, which is
     // the failure mode 362 ruling 3 would produce if the merge dropped the email
     // instead of merging it.
+    //
+    // THIS ASSERTION WAS VACUOUS ON ITS FIRST CUT AND ITS OWN MUTATION CAUGHT
+    // IT. It matched the bare identifier `sendTransactionalEmail`, which the
+    // IMPORT LINE satisfies, so replacing the call with `Promise.resolve` left it
+    // green. It now requires a CALL: the name followed by an open paren and the
+    // env argument. 363 binding 17's shape, one subsystem over, and the reason
+    // both arms of a derived plant get mutated rather than one.
     const monthly = code(read("app/lib/audit/monthly.server.ts"));
-    expect(monthly).toContain("sendTransactionalEmail");
-    expect(monthly).toContain("isDigestEnabled");
+    expect(monthly).toMatch(/await sendTransactionalEmail\(\s*env,/);
+    expect(monthly).toMatch(/isDigestEnabled\(/);
     expect(monthly).toContain("notificationEmail");
   });
 });
@@ -316,14 +323,25 @@ describe("PLANT 5: a real run leaves no money row behind", () => {
       createdAt: NOW,
     });
 
+    const delivered: { to: string }[] = [];
     const env = {
       DB: {},
-      EMAIL: { send: async () => ({ id: "m" }) },
+      EMAIL: {
+        send: async (m: { to: string }) => {
+          delivered.push(m);
+          return { id: "m" };
+        },
+      },
       BETTER_AUTH_URL: "https://foxhoundapp.test",
     } as unknown as Env;
 
     const result = await runMonthlyAudit(env, NOW, null);
     expect(result.sent).toBe(1);
+    // AND THE MESSAGE ACTUALLY LEFT. `result.sent` is a counter the run
+    // increments; asserting it alone would pass against a run that counted a
+    // send it never made, which is exactly what the arm-2 mutation produced.
+    expect(delivered).toHaveLength(1);
+    expect(delivered[0]).toMatchObject({ to: "owner@merchant.test" });
 
     const count = (t: string) =>
       (sqlite.prepare(`SELECT COUNT(*) AS n FROM ${t}`).get() as { n: number }).n;
