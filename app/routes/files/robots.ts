@@ -30,10 +30,21 @@ import type { Route } from "./+types/robots";
 // with no citation or answer surface, so no upside to the strategy above.
 const DISALLOW_PATHS = [
   "/dashboard",
-  // The audit's AUTHENTICATED surfaces only. `/audit` itself is the public
+  // The audit's NON-MARKETING surfaces only. `/audit` itself is the public
   // estimator and stays crawlable, so this cannot be a bare "/audit" prefix.
+  // Legacy disallows `/audit/dashboard` and `/audit/results/` and leaves
+  // `/audit/connect` and the bare `/audit/results` crawlable; the second of
+  // those is a legacy near-miss, since `/audit/results/` with the slash does
+  // not match `/audit/results` without one, and the page it leaves open is a
+  // token-gated render of somebody's live financials that only ever redirects
+  // for a crawler. Foxhound disallows the exact path. `/audit/connect` and
+  // `/audit/callback` join it: one is a step inside a flow, the other is an
+  // OAuth return, and neither is a destination.
   "/audit/history",
   "/audit/runs/",
+  "/audit/connect",
+  "/audit/callback",
+  "/audit/results",
   "/recovery",
   "/disputes",
   "/intelligence",

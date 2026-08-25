@@ -241,18 +241,24 @@ describe("PLANT 3: every capability sentence, tied to its code", () => {
     );
   });
 
-  it("AUDIT: says there is no full audit run, which is what session 66 measured", () => {
-    // Session 65 wrote that Failed invoices was the one scope producing numbers.
-    // Session 66's walk found something stronger: nothing writes `audit_runs` at
-    // all, so no scope produces an audit number, and the page and the guide both
-    // now describe the surfaces that do exist.
-    // MOVED IN SESSION 70. Phases (a) to (d) built the engine and the record, so
-    // "no full audit" is now half false; what remains true is that nothing
-    // starts a run.
+  it("AUDIT: says the audit RUNS, which is what phase (f) made true", () => {
+    // THE THIRD AND LAST STATE OF THIS SENTENCE, and the arc is the point.
+    // Session 65: "Failed invoices is the scope that produces numbers today."
+    // Session 66's walk found something stronger and the sentence became
+    // "nothing writes an audit record". Phases (a) to (d) made that half false
+    // and session 70 halved it again to "can compute and record, nothing starts
+    // one yet". Phase (f) built the thing that starts one, so the hedge is gone
+    // and the guide says what the product does.
     expect(AUDIT).toContain(
-      "Foxhound can now compute a full audit and record it, and nothing starts one yet.",
+      "Foxhound runs the full audit on demand: connect Stripe from the audit page and the run happens while you wait.",
     );
+    // EVERY EARLIER STATE OF THE SENTENCE IS ASSERTED ABSENT, not just the last
+    // one. A guide that accumulates its own history is how two contradictory
+    // claims end up on one page, which is the failure 360 opened M22 for.
     expect(AUDIT).not.toContain("The other three are named because the audit page names them");
+    expect(AUDIT).not.toContain("nothing writes an audit record");
+    expect(AUDIT).not.toContain("nothing starts one yet");
+    expect(AUDIT).not.toContain("Until there is a way to start a run");
   });
 
   it("AUDIT: no fabricated recovery rate, and it says why", () => {
