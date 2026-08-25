@@ -1,3 +1,5 @@
+import type { AuditResult, ScopeOutcome } from "./engine";
+
 import type { AuditRunRow } from "./persist.server";
 
 // Reading a STORED run back for the surfaces. Phase (e).
@@ -18,8 +20,20 @@ export interface StoredScope<T> {
   data: T | null;
 }
 
-export interface StoredAuditRun {
-  id: string;
+/**
+ * What a surface renders, from EITHER source.
+ *
+ * TWO PRODUCERS, ONE SHAPE, ADDED IN PHASE (f). `toStoredAuditRun` maps a stored
+ * row; `toAuditRunView` maps an in-memory result the engine just produced for
+ * the live anonymous page. Legacy shares its four section components between its
+ * stored-run page and its live results page the same way, and the alternative
+ * here was a second copy of every section rendering a second shape, which is how
+ * the `?? 0` defect ends up fixed in one of them and not the other.
+ *
+ * NO `id`. A live run has none: it may never be stored at all. The id lives on
+ * StoredAuditRun below, where it is real, and no section component reads it.
+ */
+export interface AuditRunView {
   runAt: Date;
   lookbackDays: number;
   currency: string;
@@ -52,6 +66,49 @@ export interface StoredAuditRun {
     voluntaryChurnRateBps: number;
     involuntaryChurnRateBps: number;
   } | null;
+}
+
+/** A run that was stored, and therefore has an id to link to. */
+export interface StoredAuditRun extends AuditRunView {
+  id: string;
+}
+
+/** A scope's data, or null when the scope could not be read. The in-memory twin
+ *  of the NULL column, so both producers say "unknown" the same way. */
+function live<T>(scope: ScopeOutcome<T>): T | null {
+  return scope.ok ? scope.data : null;
+}
+
+/**
+ * Map an in-memory result to the render shape, for the live page.
+ *
+ * THE DISCRIMINATED OUTCOME COLLAPSES TO null HERE AND NOWHERE EARLIER. Between
+ * the engine and this line the reason a scope failed is still carried; the
+ * surfaces do not print it, because "the disputes call failed with a 401" is our
+ * problem and "could not be read" is the merchant's. The reason stays available
+ * to a caller that wants to log it.
+ */
+export function toAuditRunView(result: AuditResult, summary: string | null): AuditRunView {
+  const cardUpdater = live(result.cardUpdater);
+  return {
+    runAt: result.meta.ranAt,
+    lookbackDays: result.meta.lookbackDays,
+    currency: result.meta.currency,
+    summary,
+    failedInvoices: live(result.failedInvoices),
+    expiringCards: live(result.expiringCards),
+    pastDueSubscriptions: live(result.pastDueSubscriptions),
+    cardUpdater:
+      cardUpdater === null
+        ? null
+        : {
+            eventsInWindow: cardUpdater.eventsInWindow,
+            expiredCardDeclinesInWindow: cardUpdater.expiredCardDeclinesInWindow,
+            advisory: cardUpdater.advisory,
+          },
+    disputes: live(result.disputes),
+    health: live(result.health),
+  };
 }
 
 /** A record of numbers from stored JSON, dropping anything that is not one. */
