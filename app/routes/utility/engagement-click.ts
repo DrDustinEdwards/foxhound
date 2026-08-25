@@ -1,4 +1,5 @@
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { classifyEngagementRequest } from "~/lib/engagement/agents";
 import { recordClick } from "~/lib/engagement/record";
 import { verifyEngagementToken } from "~/lib/engagement/token";
 
@@ -37,7 +38,7 @@ function noStoreRedirect(url: string): Response {
   });
 }
 
-export async function loader({ params, context }: Route.LoaderArgs) {
+export async function loader({ params, request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const fallback = env.BETTER_AUTH_URL || "/";
   const payload = params.token ? await verifyEngagementToken(env, params.token) : null;
@@ -45,9 +46,21 @@ export async function loader({ params, context }: Route.LoaderArgs) {
   if (!payload || payload.kind !== "click" || !payload.url || !isSafeUrl(payload.url)) {
     return noStoreRedirect(fallback);
   }
+  // THE REDIRECT IS IDENTICAL EITHER WAY (368 ruling 1). The guard decides
+  // whether the billable signal is WRITTEN, never what the caller receives: a
+  // bot and a customer get the same 302 to the same destination, so nothing here
+  // is a challenge, a fingerprint or a cost to a real click.
+  const source = classifyEngagementRequest(request, "click");
+
   // Best-effort: never block the customer's redirect on a tracking write.
   try {
-    await recordClick(env, payload);
+    const result = await recordClick(env, payload, source);
+    if (!result.recorded) {
+      // Debug level: a skipped click is expected traffic, not an incident. The
+      // reason is logged because "why is this merchant's engagement lower than
+      // their sends" is a question somebody will ask.
+      console.debug("engagement click skipped:", result.reason);
+    }
   } catch {
     /* swallow */
   }
