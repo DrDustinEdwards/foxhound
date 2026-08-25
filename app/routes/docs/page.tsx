@@ -3,7 +3,7 @@ import { Link } from "react-router";
 import { DocBlocks } from "~/components/docs/doc-blocks";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { getDocGuide } from "~/lib/marketing/docs-content";
-import { siteUrl } from "~/lib/seo/jsonld";
+import { breadcrumbListJsonLd, siteUrl, techArticleJsonLd } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/page";
@@ -73,7 +73,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
 }
 
 export default function DocGuidePage({ loaderData }: Route.ComponentProps) {
-  const { guide } = loaderData;
+  const { guide, siteUrl: url } = loaderData;
   const sectionIds = guide.sections.map((section) => slugify(section.heading));
 
   return (
@@ -121,6 +121,31 @@ export default function DocGuidePage({ loaderData }: Route.ComponentProps) {
           <DocBlocks blocks={section.body} />
         </section>
       ))}
+
+      {/* JSON-LD (368 roadmap item 2). The five guides were the ONLY page class
+          on the site with no structured data, which session 73 measured: eleven
+          @types across marketing, zero here, on the pages most worth citing.
+
+          ONE BLOCK, AN ARRAY OF TWO, matching how every marketing page emits
+          (see routes/home.tsx). The headline is the same string the h1 renders,
+          from one variable, so the two cannot drift; a plant asserts it. */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify([
+            techArticleJsonLd(url, {
+              headline: guide.title,
+              description: guide.description,
+              path: `/docs/${guide.slug}`,
+              datePublished: guide.datePublished,
+            }),
+            breadcrumbListJsonLd(url, [
+              { name: "Docs", path: "/docs" },
+              { name: guide.title, path: `/docs/${guide.slug}` },
+            ]),
+          ]),
+        }}
+      />
     </div>
   );
 }

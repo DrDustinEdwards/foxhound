@@ -47,12 +47,31 @@ export interface DocGuide {
   slug: string;
   title: string;
   description: string;
+  /**
+   * ISO date the guide first shipped, for the TechArticle JSON-LD.
+   *
+   * MEASURED FROM GIT, NOT CHOSEN. All five guides first appear in commit
+   * `5478d6b` (2026-07-19); `git log -S'slug: "<slug>"'` returns that date for
+   * every one of them. A publication date is a factual claim a crawler may
+   * surface, so it is derived rather than invented, and it is per guide rather
+   * than one module constant so a guide added later carries its own truth.
+   *
+   * NO `dateModified` COUNTERPART, deliberately. The content module tracks no
+   * per-guide revision and the Worker has no git at runtime, so the only honest
+   * options were a fabricated timestamp or none. TechArticle requires neither.
+   */
+  datePublished: string;
   sections: { heading: string; body: DocBlock[] }[];
 }
+
+/** The date every guide in DOC_GUIDES first shipped. See DocGuide.datePublished
+ *  for the measurement. */
+export const DOCS_FIRST_PUBLISHED = "2026-07-19";
 
 export const DOC_GUIDES: DocGuide[] = [
   {
     slug: "platform",
+    datePublished: DOCS_FIRST_PUBLISHED,
     title: "Platform",
     description: "Connecting Stripe, settings, team management, and billing.",
     sections: [
@@ -184,6 +203,7 @@ export const DOC_GUIDES: DocGuide[] = [
   },
   {
     slug: "audit",
+    datePublished: DOCS_FIRST_PUBLISHED,
     title: "Audit",
     description:
       "Free Stripe diagnostic. What Stripe already recovered, what is still dying, and what Foxhound would add.",
@@ -225,6 +245,7 @@ export const DOC_GUIDES: DocGuide[] = [
   },
   {
     slug: "recovery",
+    datePublished: DOCS_FIRST_PUBLISHED,
     title: "Recovery",
     description: "Managing failed payments, reading sequences, and what each dashboard number means.",
     sections: [
@@ -360,6 +381,7 @@ export const DOC_GUIDES: DocGuide[] = [
   },
   {
     slug: "disputes",
+    datePublished: DOCS_FIRST_PUBLISHED,
     title: "Disputes",
     description: "Evidence drafted for you. You review and sign every submission.",
     sections: [
@@ -409,6 +431,7 @@ export const DOC_GUIDES: DocGuide[] = [
   },
   {
     slug: "intelligence",
+    datePublished: DOCS_FIRST_PUBLISHED,
     title: "Intelligence",
     description:
       "Free MRR analytics for every Recovery merchant. Predictive risk scoring is the paid layer.",
