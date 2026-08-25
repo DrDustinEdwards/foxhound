@@ -77,11 +77,18 @@ async function seed() {
   const revoked = `${MCP_TOKEN_PREFIX}revoked`;
   const admin = `${MCP_TOKEN_PREFIX}admin`;
   const demo = `${MCP_TOKEN_PREFIX}demo`;
+  const adminWithAccount = `${MCP_TOKEN_PREFIX}adminacct`;
   await mint(ACCOUNT, MCP_TOKEN_SCOPE.MERCHANT, good);
   await mint(ACCOUNT, MCP_TOKEN_SCOPE.MERCHANT, revoked, true);
   await mint(null, MCP_TOKEN_SCOPE.ADMIN, admin);
+  // AN ADMIN KEY CARRYING AN ACCOUNT ID, which `issueMcpToken` cannot produce
+  // (it nulls the account for admin scope). Inserted directly, because it is the
+  // ONLY fixture that isolates the scope check: a normal admin key is refused by
+  // the null-account branch one line later, so neutering the scope check leaves
+  // every other assertion green. Found by mutation, not by reading.
+  await mint(ACCOUNT, MCP_TOKEN_SCOPE.ADMIN, adminWithAccount);
   await mint(DEMO_ACCOUNT, MCP_TOKEN_SCOPE.MERCHANT, demo);
-  return { db, good, revoked, admin, demo };
+  return { db, good, revoked, admin, adminWithAccount, demo };
 }
 
 interface CallOptions {
@@ -316,7 +323,7 @@ describe("PLANT 3: the 401 is byte-stable across every failure", () => {
     // THE LEAK THIS CLOSES. A body that varied would tell an attacker which of
     // their guesses was a real key that had been revoked, which is user
     // enumeration wearing different clothes.
-    const { good, revoked, admin, demo } = await seed();
+    const { good, revoked, admin, adminWithAccount, demo } = await seed();
     void good;
 
     const cases: (string | null)[] = [
@@ -324,7 +331,8 @@ describe("PLANT 3: the 401 is byte-stable across every failure", () => {
       "not-a-bearer", // wrong prefix
       `${MCP_TOKEN_PREFIX}nonexistent`, // right prefix, unknown
       revoked, // real key, revoked
-      admin, // real key, wrong scope for this endpoint
+      admin, // admin scope, null account
+      adminWithAccount, // admin scope WITH an account: isolates the scope check
       demo, // real merchant key on a demo account
     ];
 
@@ -338,6 +346,16 @@ describe("PLANT 3: the 401 is byte-stable across every failure", () => {
     // ONE distinct body across all six.
     expect(seen.size).toBe(1);
     expect([...seen][0]).toContain("Unauthorized");
+  });
+
+  it("THE SCOPE CHECK IS LOAD-BEARING ON ITS OWN, not masked by the null account", async () => {
+    // A normal admin key has a null account and is refused one line later, so
+    // this is the only case that proves the scope check discriminates. Its
+    // absence let a mutation of that check pass green; the fixture exists
+    // because of that mutation.
+    const { adminWithAccount } = await seed();
+    const { status } = await call({ token: adminWithAccount });
+    expect(status).toBe(401);
   });
 
   it("and a VALID key reaches the registry, so the refusals are the guard", async () => {
