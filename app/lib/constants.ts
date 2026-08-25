@@ -203,6 +203,14 @@ export const MODEL_EMAIL_QUALITY = "claude-haiku-4-5-20251001";
 /** Unauthenticated home-page email sample generator: copy generation, not
  *  money-path reasoning, so the cheap model is correct here too. */
 export const MODEL_MARKETING_EMAIL_SAMPLE = "claude-haiku-4-5-20251001";
+/** The audit's three-sentence summary. NO DIVERGENCE FROM LEGACY HERE: its
+ *  `MODEL_HAIKU_PINNED` is this same dated Haiku 4.5 snapshot, byte for byte,
+ *  so 353 binding 6 has nothing to rule on. Its own constant because the audit
+ *  is its own subsystem and a later retier should not have to guess which of
+ *  three Haiku callers it meant. */
+export const MODEL_AUDIT_SUMMARY = "claude-haiku-4-5-20251001";
+/** Legacy's own budget for the summary, ported as found. Three sentences. */
+export const AUDIT_SUMMARY_MAX_TOKENS = 300;
 
 /**
  * Every model id the app may call. The ai_calls cost map (app/lib/ai/cost.ts)
@@ -215,6 +223,7 @@ export const AI_MODEL_IDS = [
   MODEL_INTELLIGENCE_NARRATIVE,
   MODEL_EMAIL_QUALITY,
   MODEL_MARKETING_EMAIL_SAMPLE,
+  MODEL_AUDIT_SUMMARY,
 ] as const;
 
 // ---- Recovery step timing (hours from failure detection) ----
