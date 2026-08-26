@@ -87,7 +87,9 @@ Guides on Stripe payment recovery, dispute handling, and subscription intelligen
 
 Foxhound exposes a Model Context Protocol endpoint at ${url}/mcp, so an AI agent can read a merchant's own Foxhound data on their behalf. A merchant generates a key under Settings and API keys inside their account and gives it to the agent as a bearer token; the key decides which account the agent reads, one key to one account, always the one that issued it.
 
-The tools are READ ONLY. An agent can read audit runs, the recovery queue, disputes, the billing ledger and invoices, the recurring-revenue overview, churn, customers, alerts and connected Stripe accounts. There is no tool that changes a setting, submits dispute evidence, cancels an account, disconnects Stripe or issues another key: those do not exist rather than being switched off.
+Most tools read: audit runs, the recovery queue, disputes, the billing ledger and invoices, the recurring-revenue overview, churn, customers, alerts and connected Stripe accounts. Four tools write, and only to settings: the audit lookback and monthly report, the win-back and expiring-card features, notification email and Slack webhook and toggles, and the sender name on a connected Stripe account. Each write runs the same validation the settings page runs and is recorded with the key that made it, the tool used and the field names touched, never the values.
+
+There is no tool that submits dispute evidence, cancels an account, disconnects Stripe, issues another key or moves money: those do not exist rather than being switched off.
 
 Customer names are never sent through the endpoint and email addresses are masked to their first character and domain. The Stripe customer id comes through whole, so an agent can correlate and ask a follow-up question without being able to contact anybody.
 
