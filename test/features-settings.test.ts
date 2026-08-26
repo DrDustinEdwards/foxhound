@@ -258,7 +258,10 @@ describe("PLANT 4: the page un-gates nothing else, which is 176 disproven", () =
       .filter((line) => !line.trim().startsWith("//"))
       .join("\n");
 
-    expect(code).toContain("buildFeatureSettingsUpdate");
+    // REPOINTED IN SESSION 79: the page writes through the shared apply layer so
+    // the form and the MCP `set_feature_settings` tool cannot validate
+    // differently. The property is unchanged; the writer's name moved.
+    expect(code).toContain("applyFeatureSettings");
     expect(code).not.toContain("account_products");
     expect(code).not.toContain("accountSubscriptions");
     expect(code).not.toContain("isIntelligenceEntitled");

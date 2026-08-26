@@ -6,10 +6,10 @@ import { Alert, Submit } from "~/components/auth-ui";
 import { DemoGuardedForm } from "~/components/demo-guarded-form";
 import { accounts, getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
+import { applyAuditSettings } from "~/lib/settings/apply.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import {
   LOOKBACK_OPTIONS,
-  normalizeLookback,
   readAuditSettings,
 } from "~/lib/settings/audit-settings";
 
@@ -85,17 +85,16 @@ export async function action({ request, context }: Route.ActionArgs) {
   const db = getDb(env);
   const form = await request.formData();
 
-  // Clamped SERVER-SIDE. Legacy clamps on render and posts the clamped value,
-  // which is a client-side guarantee only; an action takes whatever is posted.
-  const lookbackDays = normalizeLookback(form.get("audit_lookback_days"));
-  const autoRun = form.get("audit_auto_run") === "true";
-
-  await db
-    .update(accounts)
-    .set({ auditLookbackDays: lookbackDays, auditAutoRun: autoRun })
-    .where(eq(accounts.id, membership.accountId));
-
-  return data({ ok: true, lookbackDays, autoRun });
+  // THE CORE MOVED TO apply.server.ts IN SESSION 79, so this action and the
+  // MCP `set_audit_settings` tool validate and write through one implementation.
+  // Clamping is still SERVER-SIDE inside it: legacy clamps on render and posts
+  // the clamped value, which is a client-side guarantee only.
+  const result = await applyAuditSettings(db, membership.accountId, {
+    lookbackDays: form.get("audit_lookback_days"),
+    autoRun: form.get("audit_auto_run"),
+  });
+  if (!result.ok) return data({ ok: false, error: result.error }, { status: 400 });
+  return data({ ok: true, ...result.state });
 }
 
 /** Legacy's components/Toggle.tsx at its own geometry (blob 0ebdd395): a
