@@ -1,8 +1,8 @@
-import { and, eq, getTableColumns, inArray, isNotNull, isNull, lte, notLike, type SQL } from "drizzle-orm";
+import { and, eq, getTableColumns, inArray, isNotNull, isNull, lte, notLike, sql, type SQL } from "drizzle-orm";
 
 import { BILLABLE_ATTRIBUTION_KINDS, DEMO_ACCOUNT_ID_PREFIX, RECOVERY_MATURITY_MS } from "~/lib/constants";
 import type { Db } from "./client";
-import { accounts, billingLineItems, disputeApprovals, disputes, recoveredPayments } from "./schema";
+import { accounts, billingInvoices, billingLineItems, disputeApprovals, disputes, recoveredPayments } from "./schema";
 
 // THE single source of truth for the billable sets (PRICING.md maturity-window
 // billing + SCHEMA.md spine #3). No other module reimplements these predicates.
@@ -116,4 +116,93 @@ export function getBillableDisputes(db: Db, accountId: string, asOfMs: number) {
         isNull(billingLineItems.id),
       ),
     );
+}
+
+
+/** Everything the guarded recovery-fee line insert needs. The fee is computed
+ *  in Foxhound code and passed in as a bound constant: the 20% rate stays out
+ *  of SQL (PRICING.md, "the rates live in Foxhound code"). */
+export interface GuardedRecoveryLineInput {
+  lineItemId: string;
+  invoiceId: string;
+  accountId: string;
+  currency: string;
+  recoveredPaymentId: string;
+  feeCents: number;
+  description: string;
+  createdAt: Date;
+  /** The same asOf the billable read used, so the batch re-evaluates the SAME
+   *  maturity cutoff rather than a slightly later one. */
+  asOfMs: number;
+}
+
+/**
+ * A recovery-fee line item that RE-CHECKS THE BILLABLE PREDICATE AS IT WRITES.
+ *
+ * The billing run reads the billable set outside the Durable Object and then
+ * inserted from that in-memory list (ruling 376(3)). The per-account DO
+ * serializes the WRITES, not the read, so a refund landing in the gap between
+ * the two was invoiced: the row was billable when it was read and was not when
+ * it was written, and nothing looked again.
+ *
+ * This is an INSERT ... SELECT, so the predicate is evaluated by the database
+ * at write time, inside the batch, against the row as it exists at that moment.
+ * A refunded, disputed, deleted, unmatured or no-longer-attributed recovery
+ * selects zero rows and inserts zero lines; nothing else about the batch
+ * changes, and the invoice total is derived from the lines that actually
+ * landed rather than the ones that were hoped for.
+ *
+ * DISPUTES ARE THE SAME CLASS AND ARE DELIBERATELY NOT CONVERTED HERE. 377's
+ * dispatch scopes 376(3) to the recovery predicate, a dispute's billable state
+ * is a state-machine transition rather than a stamped column, and the unique
+ * index on dispute_id already stops the double-bill that matters. Left as a
+ * named gap rather than a silent one.
+ */
+export function buildGuardedRecoveryLineInsert(db: Db, input: GuardedRecoveryLineInput) {
+  return db.insert(billingLineItems).select(
+    db
+      .select({
+        // Projected in the table's own column order. The `id` default is a
+        // JS-side $defaultFn and does NOT fire on an insert-select, so the
+        // caller supplies a deterministic id.
+        id: sql<string>`${input.lineItemId}`.as("id"),
+        invoiceId: sql<string>`${input.invoiceId}`.as("invoice_id"),
+        accountId: sql<string>`${input.accountId}`.as("account_id"),
+        type: sql<string>`${"recovery_fee"}`.as("type"),
+        currency: sql<string>`${input.currency}`.as("currency"),
+        amountCents: sql<number>`${input.feeCents}`.as("amount_cents"),
+        feeCents: sql<number>`${input.feeCents}`.as("fee_cents"),
+        // Taken from the SELECTED row, not from the caller: if no row survives
+        // the predicate there is nothing to point the evidence FK at.
+        recoveredPaymentId: recoveredPayments.id,
+        disputeId: sql<string | null>`null`.as("dispute_id"),
+        adminAuditLogId: sql<string | null>`null`.as("admin_audit_log_id"),
+        description: sql<string>`${input.description}`.as("description"),
+        createdAt: sql<number>`${input.createdAt.getTime()}`.as("created_at"),
+      })
+      .from(recoveredPayments)
+      .where(
+        and(
+          eq(recoveredPayments.id, input.recoveredPaymentId),
+          billableRecoveryRowConditions(input.accountId, input.asOfMs),
+        ),
+      ),
+  );
+}
+
+/**
+ * Set an invoice's total from the line items that ACTUALLY COMMITTED.
+ *
+ * The companion to the guarded insert above and not optional beside it: if a
+ * line can silently not land, a total computed in JS from the pre-write list
+ * overstates the invoice by exactly the fee that was withdrawn. Derived in the
+ * same batch so the invoice and its lines can never disagree.
+ */
+export function buildInvoiceTotalFromLines(db: Db, invoiceId: string) {
+  return db
+    .update(billingInvoices)
+    .set({
+      totalCents: sql<number>`(select coalesce(sum(${billingLineItems.amountCents}), 0) from ${billingLineItems} where ${billingLineItems.invoiceId} = ${invoiceId})`,
+    })
+    .where(eq(billingInvoices.id, invoiceId));
 }
