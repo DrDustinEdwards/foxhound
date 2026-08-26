@@ -14,6 +14,8 @@ import {
 import { listFailedPayments } from "~/lib/recovery/queries.server";
 import { readAccountAuditSettings } from "~/lib/settings/audit-settings.server";
 import {
+  applyAlertConfig,
+  applyAlertCreate,
   applyAuditSettings,
   applyBrandVoice,
   applyFeatureSettings,
@@ -473,6 +475,72 @@ const WRITE_TOOLS: McpTool[] = [
               ? { merchantMrrSelfReported: args.merchant_mrr_self_reported }
               : {}),
           },
+          ctx.trace,
+        ),
+      ),
+  },
+  {
+    // TWO ALERT TOOLS, NOT ONE, AND THE FORM'S ACTION IS THE ARGUMENT. Its two
+    // branches share no field, no check and no refusal: create takes four
+    // values and no id, config takes an id and a verb. Folding them into one
+    // tool would mean a schema whose required fields depend on another field's
+    // value, which is the shape an agent gets wrong, and a foreign-id guard
+    // sitting on a path that sometimes has no id to guard.
+    name: "create_alert",
+    description:
+      "Create a nightly alert on one metric for this account. Foxhound checks it every night and records each breach. Amount metrics take a threshold in dollars. Alerts are recorded and shown in the app; nothing is delivered by email or Slack yet.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        metric: { type: "string", description: "One of the metrics get_alerts reports." },
+        direction: { type: "string", description: "Whether the metric rising or dropping fires." },
+        threshold: {
+          type: ["number", "string"],
+          description: "Dollars for amount metrics, a plain count otherwise.",
+        },
+        label: { type: "string", description: "Optional name for the alert." },
+      },
+      required: ["metric", "direction", "threshold"],
+    },
+    execute: async (ctx, args) =>
+      applied(
+        await applyAlertCreate(
+          ctx.db,
+          ctx.accountId,
+          {
+            metric: args.metric,
+            direction: args.direction,
+            threshold: args.threshold,
+            label: args.label,
+          },
+          ctx.now,
+          ctx.trace,
+        ),
+      ),
+  },
+  {
+    name: "set_alert_config",
+    // DELETION IS NAMED IN THE DESCRIPTION rather than left to be discovered,
+    // because it takes the alert's firing history with it and that is not
+    // recoverable. It is the form's own third verb, so withholding it would
+    // have been a divergence from the surface a merchant already has.
+    description:
+      "Switch one of this account's existing alerts on or off, or delete it. Deleting also removes that alert's recorded breaches. Alert ids come from get_alerts.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        alert_id: { type: "string", description: "From get_alerts." },
+        enabled: { type: "boolean", description: "Whether the alert should fire." },
+        deleted: { type: "boolean", description: "True to delete it. Overrides enabled." },
+      },
+      required: ["alert_id"],
+    },
+    execute: async (ctx, args) =>
+      applied(
+        await applyAlertConfig(
+          ctx.db,
+          ctx.accountId,
+          { alertId: args.alert_id, enabled: args.enabled, deleted: args.deleted },
           ctx.trace,
         ),
       ),
