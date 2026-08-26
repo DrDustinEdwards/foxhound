@@ -3,6 +3,8 @@ import type { BatchItem } from "drizzle-orm/batch";
 
 import {
   accountBillingEligibleCondition,
+  buildGuardedRecoveryLineInsert,
+  buildInvoiceTotalFromLines,
   getBillableDisputes,
   getBillableRecoveries,
 } from "~/db/billable";
@@ -84,6 +86,9 @@ export interface InvoiceBatchInput {
   periodKey: string;
   idempotencyKey: string;
   createdAt: Date;
+  /** The run's asOf, re-evaluated by the guarded line insert so the batch
+   *  applies the SAME maturity cutoff the billable read applied. */
+  asOfMs: number;
   recoveries: BillableRecoveryLite[];
   disputes: BillableDisputeLite[];
 }
@@ -95,6 +100,47 @@ export interface BuiltInvoiceBatch {
   /** The plain line data, alongside the SQL batch, so the caller can hand it to
    *  createPlatformInvoice after the write commits without a re-query. */
   lines: PlatformInvoiceLineInput[];
+}
+
+/**
+ * Re-read one invoice's committed line items and rebuild the Stripe input from
+ * them. Used after the money batch commits, because a guarded line can decline
+ * to insert itself and the pre-write list would then overstate the invoice.
+ */
+async function readCommittedInvoice(
+  db: Db,
+  opts: { invoiceId: string; accountId: string; currency: string; periodKey: string },
+): Promise<{ totalCents: number; lineItemCount: number; lines: PlatformInvoiceLineInput[] }> {
+  const rows = await db
+    .select({
+      type: billingLineItems.type,
+      amountCents: billingLineItems.amountCents,
+      description: billingLineItems.description,
+      recoveredPaymentId: billingLineItems.recoveredPaymentId,
+      disputeId: billingLineItems.disputeId,
+    })
+    .from(billingLineItems)
+    .where(eq(billingLineItems.invoiceId, opts.invoiceId));
+
+  const lines: PlatformInvoiceLineInput[] = rows.map((row) => ({
+    type: row.type,
+    amountCents: row.amountCents,
+    description: row.description ?? "",
+    idempotencyKey: row.recoveredPaymentId
+      ? recoveryFeeItemIdempotencyKey(
+          opts.accountId,
+          opts.periodKey,
+          opts.currency,
+          row.recoveredPaymentId,
+        )
+      : disputeFeeItemIdempotencyKey(row.disputeId ?? ""),
+  }));
+
+  return {
+    totalCents: rows.reduce((sum, row) => sum + row.amountCents, 0),
+    lineItemCount: rows.length,
+    lines,
+  };
 }
 
 /**
@@ -111,17 +157,20 @@ export function buildBillingInvoiceBatch(db: Db, input: InvoiceBatchInput): Buil
   for (const r of input.recoveries) {
     const fee = recoveryFeeCents(r.amountCents);
     total += fee;
+    // GUARDED: the predicate is re-evaluated by the database as this row is
+    // written, inside the batch (ruling 376(3)). A refund landing between the
+    // billable read and this write selects zero rows and bills nothing.
     lineItems.push(
-      db.insert(billingLineItems).values({
+      buildGuardedRecoveryLineInsert(db, {
+        lineItemId: crypto.randomUUID(),
         invoiceId: input.invoiceId,
         accountId: input.accountId,
-        type: "recovery_fee",
         currency: input.currency,
-        amountCents: fee,
-        feeCents: fee,
         recoveredPaymentId: r.id,
+        feeCents: fee,
         description: "Recovery fee",
         createdAt: input.createdAt,
+        asOfMs: input.asOfMs,
       }),
     );
     lines.push({
@@ -173,7 +222,15 @@ export function buildBillingInvoiceBatch(db: Db, input: InvoiceBatchInput): Buil
     createdAt: input.createdAt,
   });
 
-  const batch: MoneyWriteBatch = [invoiceInsert, ...lineItems];
+  // The invoice row carries the JS total, then the last statement in the batch
+  // replaces it with the sum of the lines that ACTUALLY landed. Without this a
+  // withdrawn line would leave the invoice overstated by exactly its fee, which
+  // is the same defect one level up.
+  const batch: MoneyWriteBatch = [
+    invoiceInsert,
+    ...lineItems,
+    buildInvoiceTotalFromLines(db, input.invoiceId),
+  ];
   return { batch, totalCents: total, lineItemCount: lineItems.length, lines };
 }
 
@@ -317,6 +374,7 @@ export async function runAccountBilling(
           periodKey: period.periodKey,
           idempotencyKey,
           createdAt,
+          asOfMs: nowMs,
           recoveries: cr,
           disputes: cd,
         });
@@ -328,6 +386,25 @@ export async function runAccountBilling(
         return built.batch;
       },
     });
+
+    // THE STRIPE CALL BILLS WHAT COMMITTED, NOT WHAT WAS PLANNED.
+    //
+    // summary.lines is built before the write from the in-memory billable list.
+    // Now that a line can be withdrawn by its own guard as it writes, handing
+    // that list to Stripe would move the defect rather than close it: the
+    // ledger would be right and the merchant's invoice would still carry the
+    // refunded recovery's fee. So the committed rows are re-read and they are
+    // what Stripe is told about. The keys are re-derived from each row's own
+    // evidence FK, exactly as buildBillingInvoiceBatch derives them, so a
+    // retry of the same period replays the same idempotency keys.
+    if (applied) {
+      summary = await readCommittedInvoice(db, {
+        invoiceId,
+        accountId,
+        currency,
+        periodKey: period.periodKey,
+      });
+    }
 
     let charged = false;
     // NO BRAKE RE-CHECK HERE, AND THAT ASYMMETRY WITH THE SWEEP IS DELIBERATE.

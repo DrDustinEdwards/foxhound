@@ -26,6 +26,7 @@ const baseInput = (over: Partial<InvoiceBatchInput>): InvoiceBatchInput => ({
   periodKey: "2026-06",
   idempotencyKey: "billing:acc_1:usd:2026-06",
   createdAt: new Date("2026-07-01T00:00:00.000Z"),
+  asOfMs: new Date("2026-07-01T00:00:00.000Z").getTime(),
   recoveries: [],
   disputes: [],
   ...over,
