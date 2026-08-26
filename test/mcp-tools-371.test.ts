@@ -146,13 +146,13 @@ const callTool = (token: string, name: string, args: Record<string, unknown> = {
 // ============================================================================
 
 describe("PLANT 1: the tools are registered and describable", () => {
-  it("tools/list returns exactly seventeen, with schemas that parse", async () => {
+  it("tools/list returns exactly twenty-one, with schemas that parse", async () => {
     const { tokens } = await seed();
     const { status, json } = await call(tokens[MINE], "tools/list");
     expect(status).toBe(200);
     const tools = (json as { result: { tools: { name: string; inputSchema: unknown }[] } }).result
       .tools;
-    expect(tools).toHaveLength(19);
+    expect(tools).toHaveLength(21);
     expect(tools.map((t) => t.name).sort()).toEqual([...MERCHANT_TOOL_NAMES].sort());
     for (const tool of tools) {
       // Every schema round-trips as JSON and is an object schema, which is what
@@ -170,7 +170,7 @@ describe("PLANT 1: the tools are registered and describable", () => {
     // HANDS BACK, which a future consumer might not serialize at all: a logger,
     // a cache, or an SDK that reflects over the object.
     const descriptors = MERCHANT_TOOLS.list() as unknown as Record<string, unknown>[];
-    expect(descriptors).toHaveLength(19);
+    expect(descriptors).toHaveLength(21);
     for (const descriptor of descriptors) {
       expect(Object.keys(descriptor).sort()).toEqual(["description", "inputSchema", "name"]);
       expect("execute" in descriptor).toBe(false);
@@ -184,11 +184,18 @@ describe("PLANT 1: the tools are registered and describable", () => {
   it("every name is one verb_noun vocabulary, and none is on the denylist", () => {
     for (const name of MERCHANT_TOOL_NAMES) {
       expect(name, `${name} is not snake_case`).toMatch(/^[a-z]+(_[a-z]+)+$/);
-      // THREE VERBS SINCE SESSION 79: the four write tools use `set_`. The
-      // vocabulary is still closed, which is the property, and widening it is a
-      // deliberate edit rather than a relaxation to any prefix.
+      // FOUR VERBS SINCE SESSION 80, and this plant caught the fourth arriving
+      // unannounced: `create_alert` is the first tool that makes a row rather
+      // than changing one, so `set_` was the wrong word for it and no existing
+      // verb was the right one. The vocabulary is still CLOSED, which is the
+      // property; widening it is a deliberate edit, never a relaxation to any
+      // prefix. Every `create_` name still has to clear the denylist below,
+      // which is where `create_api_key` and `create_invoice` die.
       expect(
-        name.startsWith("list_") || name.startsWith("get_") || name.startsWith("set_"),
+        name.startsWith("list_") ||
+          name.startsWith("get_") ||
+          name.startsWith("set_") ||
+          name.startsWith("create_"),
         `${name} verb`,
       ).toBe(true);
       expect(isDeniedToolName(name), `${name} is denied`).toBe(false);
@@ -379,7 +386,7 @@ describe("PLANT 5: the end to end, through the real transport", () => {
     ).toBe("2025-06-18");
 
     const list = await call(tokens[MINE], "tools/list");
-    expect((list.json as { result: { tools: unknown[] } }).result.tools).toHaveLength(19);
+    expect((list.json as { result: { tools: unknown[] } }).result.tools).toHaveLength(21);
 
     for (const [name, args] of [
       ["get_audit_settings", {}],
@@ -437,9 +444,9 @@ describe("PLANT 6: the tools stay read-only", () => {
       "executeMoneyWrite",
       "recordOutcome",
       "saveAuditRun",
-      "createAlert",
-      "setAlertEnabled",
-      "deleteAlert",
+      "buildAlertInsert",
+      "buildAlertEnabledUpdate",
+      "buildAlertDelete",
       "createAccountApiKey",
       "revokeAccountApiKey",
       "submitDisputeEvidence",
