@@ -49,6 +49,11 @@ export const FAILED_PAYMENT_STATUS_LABELS: Record<string, string> = {
   recovered: "Recovered",
   failed_unrecovered: "Failed",
   cancelled: "Cancelled",
+  // 377(1). Not one of legacy's four tab words, because legacy has no such
+  // state: it starts its sequence on the first failure, which is the defect
+  // this status exists to fix. Phrased as the merchant's question ("who is
+  // working this right now") rather than as the column value.
+  stripe_retrying: "Stripe retrying",
 };
 
 // Values match Badge's BadgeTone (app/components/badge.tsx) so callers pass

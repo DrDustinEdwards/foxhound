@@ -349,6 +349,9 @@ describe("intake dedupe stays narrow", () => {
           currency: "usd",
           customer: "cus_1",
           customer_email: "payer@example.com",
+          // Stated rather than omitted (377(1)): Stripe has finished with this
+          // invoice, so the fresh sequence starts on this event.
+          next_payment_attempt: null,
         },
       },
     } as unknown as Stripe.Event;

@@ -126,7 +126,13 @@ describe("284 one: the gate widens to cancelled, and stays symmetric", () => {
     // The other two must survive: widening for one status must not drop another.
     expect([...RECOVERABLE_FAILED_PAYMENT_STATUSES]).toContain("active");
     expect([...RECOVERABLE_FAILED_PAYMENT_STATUSES]).toContain("failed_unrecovered");
-    expect(RECOVERABLE_FAILED_PAYMENT_STATUSES).toHaveLength(3);
+    // FOUR since 2026-08-26, not three. 377(1)'s intake split added
+    // 'stripe_retrying', and this pin is what caught it, which is the pin doing
+    // its job rather than a nuisance: a status list that grows silently is how
+    // a recovery goes missing. 284's three all survive, asserted above; the
+    // addition is recorded on the constant with the plant that measures it.
+    expect([...RECOVERABLE_FAILED_PAYMENT_STATUSES]).toContain("stripe_retrying");
+    expect(RECOVERABLE_FAILED_PAYMENT_STATUSES).toHaveLength(4);
   });
 
   it("the status flip accepts a cancelled row and writes recovered", () => {

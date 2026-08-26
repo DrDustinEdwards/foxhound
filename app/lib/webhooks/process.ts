@@ -13,11 +13,14 @@ import {
 } from "~/db";
 import {
   DAY_MS,
+  FAILED_PAYMENT_STATUS_STRIPE_RETRYING,
+  LIVE_FAILED_PAYMENT_STATUSES,
   RECOVERABLE_FAILED_PAYMENT_STATUSES,
   WINBACK_PRIORITY_ACTION,
   WINBACK_RECENT_RESOLVED_DAYS,
   WINBACK_UNFLAGGED_STEP1_HOURS,
 } from "~/lib/constants";
+import type { DeclineCategory } from "~/lib/constants";
 import { buildEvidenceFacts, draftDisputeEvidence } from "~/lib/disputes/evidence";
 import { isDisputeResolved } from "~/lib/disputes/labels";
 import { recordOutcome } from "~/lib/engine/outcomes";
@@ -44,6 +47,7 @@ import {
   buildRefundStampBatch,
   buildWinbackStartBatch,
   type WebhookClaimInput,
+  buildSequenceStartBatch,
 } from "./batches";
 import { classifyStripeEvent } from "./events";
 
@@ -118,21 +122,29 @@ async function findActiveFailedPayment(
   env: Env,
   accountId: string,
   invoiceId: string,
-): Promise<string | null> {
+): Promise<{ id: string; status: string; declineCategory: string } | null> {
   const db = getDb(env);
   const rows = await db
-    .select({ id: failedPayments.id })
+    .select({
+      id: failedPayments.id,
+      status: failedPayments.status,
+      declineCategory: failedPayments.declineCategory,
+    })
     .from(failedPayments)
+    // LIVE, not just active (377(1)). A second payment_failed on the same
+    // invoice has to FIND the stripe_retrying row so it can promote it; a
+    // status-active-only read would miss it and create a second row for the
+    // same invoice, which is the per-invoice dedupe this function exists to be.
     .where(
       and(
         eq(failedPayments.accountId, accountId),
         eq(failedPayments.stripeInvoiceId, invoiceId),
-        eq(failedPayments.status, "active"),
+        inArray(failedPayments.status, LIVE_FAILED_PAYMENT_STATUSES),
       ),
     )
     .orderBy(desc(failedPayments.detectedAt))
     .limit(1);
-  return rows[0]?.id ?? null;
+  return rows[0] ?? null;
 }
 
 /** The failed_payment a successful invoice payment should be recorded against:
@@ -177,7 +189,13 @@ async function listActiveFailedPaymentIds(
       and(
         eq(failedPayments.accountId, accountId),
         eq(failedPayments.stripeCustomerId, stripeCustomerId),
-        eq(failedPayments.status, "active"),
+        // LIVE, not just active. THIS IS HALT 1 OF SESSION 82 (377(1)): the
+        // whole reason the row is created during Stripe's retry window instead
+        // of being deferred. A subscription cancelled while the payment sits in
+        // stripe_retrying is involuntary churn, and if this read cannot see the
+        // row the cancellation looks voluntary and spawns a win-back campaign
+        // at customers whose card just failed.
+        inArray(failedPayments.status, LIVE_FAILED_PAYMENT_STATUSES),
       ),
     );
   return rows.map((r) => r.id);
@@ -633,15 +651,50 @@ export async function processConnectedWebhook(
 
     if (intent.kind === "intake") {
       // Per-invoice dedupe: Stripe emits one payment_failed per collection
-      // attempt; only the first spawns the sequence.
+      // attempt. The FIRST creates the row; a later one either promotes it out
+      // of stripe_retrying or is a no-op claim (377(1)).
       const existing = await findActiveFailedPayment(env, accountId, intent.invoiceId);
       if (existing) {
+        if (
+          existing.status === FAILED_PAYMENT_STATUS_STRIPE_RETRYING &&
+          intent.stripeGaveUp
+        ) {
+          // Stripe has stopped retrying. The sequence starts NOW, anchored on
+          // this moment rather than on the original failure, which is what
+          // makes "Foxhound starts when Stripe stops" true.
+          const { applied } = await executeMoneyWrite(env, {
+            accountId,
+            // KEYED ON THE PAYMENT, NOT THE EVENT. Two different give-up events
+            // for one invoice (a final payment_failed and a marked_uncollectible)
+            // can both pass the status read above, because that read happens
+            // outside the Durable Object. Keyed on the event they would both
+            // commit and the payment would get two cadences; keyed on the
+            // payment the DO's seen-set makes the second a no-op.
+            idempotencyKey: `sequence-start:${existing.id}`,
+            build: (db) =>
+              buildSequenceStartBatch(db, {
+                claim,
+                failedPaymentId: existing.id,
+                accountId,
+                declineCategory: intent.declineCategory,
+                startedAt: receivedAt,
+              }),
+          });
+          return applied ? { status: "applied" } : { status: "duplicate" };
+        }
         const { applied } = await executeMoneyWrite(env, {
           accountId,
           idempotencyKey,
           build: (db) => buildClaimOnlyBatch(db, claim),
         });
-        return applied ? { status: "ignored", reason: "duplicate_attempt" } : { status: "duplicate" };
+        return applied
+          ? {
+              status: "ignored",
+              reason: existing.status === FAILED_PAYMENT_STATUS_STRIPE_RETRYING
+                ? "stripe_still_retrying"
+                : "duplicate_attempt",
+            }
+          : { status: "duplicate" };
       }
       const failedPaymentId = crypto.randomUUID();
       const { applied } = await executeMoneyWrite(env, {
@@ -663,6 +716,40 @@ export async function processConnectedWebhook(
             declineCode: intent.declineCode,
             declineCategory: intent.declineCategory,
             detectedAt: receivedAt,
+            stripeGaveUp: intent.stripeGaveUp,
+          }),
+      });
+      return applied ? { status: "applied" } : { status: "duplicate" };
+    }
+
+    // invoice.marked_uncollectible: Stripe has written the invoice off, which is
+    // the other way it can be finished with a payment (377(1)). Same promotion,
+    // same conditional flip, so an uncollectible arriving after a final
+    // payment_failed plans no second sequence.
+    if (intent.kind === "stripe_gave_up") {
+      const existing = await findActiveFailedPayment(env, accountId, intent.invoiceId);
+      if (!existing || existing.status !== FAILED_PAYMENT_STATUS_STRIPE_RETRYING) {
+        const { applied } = await executeMoneyWrite(env, {
+          accountId,
+          idempotencyKey,
+          build: (db) => buildClaimOnlyBatch(db, claim),
+        });
+        return applied
+          ? { status: "ignored", reason: existing ? "sequence_already_started" : "no_failed_payment" }
+          : { status: "duplicate" };
+      }
+      const { applied } = await executeMoneyWrite(env, {
+        accountId,
+        // Same payment-scoped key as the payment_failed promotion above, so the
+        // two events cannot each start a sequence for one invoice.
+        idempotencyKey: `sequence-start:${existing.id}`,
+        build: (db) =>
+          buildSequenceStartBatch(db, {
+            claim,
+            failedPaymentId: existing.id,
+            accountId,
+            declineCategory: existing.declineCategory as DeclineCategory,
+            startedAt: receivedAt,
           }),
       });
       return applied ? { status: "applied" } : { status: "duplicate" };

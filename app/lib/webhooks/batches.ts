@@ -11,7 +11,11 @@ import {
   winBackSteps,
 } from "~/db";
 import { disputeFeeCents } from "~/lib/billing/fees";
-import { RECOVERABLE_FAILED_PAYMENT_STATUSES } from "~/lib/constants";
+import {
+  FAILED_PAYMENT_STATUS_ACTIVE,
+  FAILED_PAYMENT_STATUS_STRIPE_RETRYING,
+  RECOVERABLE_FAILED_PAYMENT_STATUSES,
+} from "~/lib/constants";
 import type { DeclineCategory, DisputeState } from "~/lib/constants";
 import type { EvidenceField } from "~/lib/disputes/evidence";
 import { buildRecoveryStepInserts } from "~/lib/engine/intake";
@@ -74,13 +78,30 @@ export interface IntakeBatchInput {
   currency: string;
   declineCode: string | null;
   declineCategory: DeclineCategory;
+  /** When Foxhound first saw this payment fail. Recorded once and never moved,
+   *  including when the sequence is planned later: the dashboard measures
+   *  days-to-recover and failures-per-day from it, so moving it would rewrite
+   *  history to say the payment failed on the day Stripe gave up. */
   detectedAt: Date;
+  /**
+   * Whether Stripe has stopped retrying (ruling 377(1)). False parks the row in
+   * `stripe_retrying` with NO steps planned; true is the old behaviour, a live
+   * sequence from the first event, which is what a hard decline gets because
+   * Stripe never retries one.
+   */
+  stripeGaveUp: boolean;
 }
 
 /**
  * invoice.payment_failed: claim + insert the failed_payments row (core fields;
- * ML enrichment via extra Stripe reads is a deferred seam) + the silent-first
- * recovery_steps sequence. All atomic.
+ * ML enrichment via extra Stripe reads is a deferred seam) +, ONLY when Stripe
+ * has given up, the silent-first recovery_steps sequence. All atomic.
+ *
+ * The split is ruling 377(1). Foxhound used to plan the sequence on the first
+ * failure, so its 4-hour retry and day-1 email ran while Stripe's own Smart
+ * Retries were still scheduled, and a click on a Foxhound email during Stripe's
+ * window made Stripe's recovery billable. The row is still created immediately,
+ * because the involuntary-churn guard keys on it existing.
  */
 export function buildIntakeBatch(db: Db, input: IntakeBatchInput): MoneyWriteBatch {
   const claim = buildWebhookClaim(db, input.claim);
@@ -97,12 +118,16 @@ export function buildIntakeBatch(db: Db, input: IntakeBatchInput): MoneyWriteBat
     currency: input.currency,
     declineCode: input.declineCode,
     declineCategory: input.declineCategory,
-    status: "active",
+    status: input.stripeGaveUp
+      ? FAILED_PAYMENT_STATUS_ACTIVE
+      : FAILED_PAYMENT_STATUS_STRIPE_RETRYING,
     detectedAt: input.detectedAt,
     processor: "stripe",
     processorPaymentId: input.invoiceId,
     processorCustomerId: input.customerId,
   });
+  if (!input.stripeGaveUp) return [claim, fpInsert];
+
   const stepInserts = buildRecoveryStepInserts(
     db,
     planRecoverySteps({
@@ -113,6 +138,64 @@ export function buildIntakeBatch(db: Db, input: IntakeBatchInput): MoneyWriteBat
     }),
   );
   return [claim, fpInsert, ...stepInserts];
+}
+
+export interface SequenceStartBatchInput {
+  claim: WebhookClaimInput;
+  failedPaymentId: string;
+  accountId: string;
+  declineCategory: DeclineCategory;
+  /**
+   * THE SCHEDULE ANCHOR, which is the moment Stripe gave up, not the moment the
+   * payment first failed. schedule.ts:143 adds every offset to whatever it is
+   * handed and is untouched, as are RECOVERY_SCHEDULES: what moved is the value
+   * passed in.
+   *
+   * The row's own `detected_at` stays where it was, and the two are deliberately
+   * different numbers. 377(1) records the cost of the split as "day 30 becomes
+   * roughly day 58", which is counted from the ORIGINAL failure; that arithmetic
+   * only works if detected_at still marks it. Moving the column instead would
+   * make every sequence look like it finished on day 30 and would move the
+   * payment's failure date on the dashboard.
+   */
+  startedAt: Date;
+}
+
+/**
+ * Stripe has stopped retrying: flip a `stripe_retrying` row to `active` and plan
+ * its sequence, atomically with the claim (ruling 377(1)).
+ *
+ * THE UPDATE IS CONDITIONAL ON THE ROW STILL BEING `stripe_retrying`, so a
+ * second promotion flips nothing. That alone is NOT what stops a second
+ * cadence, and the first version of this comment claimed it was. A plant that
+ * ran this batch directly measured the truth: a WHERE matching zero rows does
+ * not abort a batch, so the step inserts landed anyway and the payment got
+ * sixteen steps. What actually stops it is the caller's idempotency key, which
+ * is scoped to the PAYMENT rather than the event (see process.ts), so the money
+ * Durable Object treats a second promotion of the same payment as already done.
+ * Recorded this way because the wrong version was believable.
+ */
+export function buildSequenceStartBatch(db: Db, input: SequenceStartBatchInput): MoneyWriteBatch {
+  const claim = buildWebhookClaim(db, input.claim);
+  const flip = db
+    .update(failedPayments)
+    .set({ status: FAILED_PAYMENT_STATUS_ACTIVE })
+    .where(
+      and(
+        eq(failedPayments.id, input.failedPaymentId),
+        eq(failedPayments.status, FAILED_PAYMENT_STATUS_STRIPE_RETRYING),
+      ),
+    );
+  const stepInserts = buildRecoveryStepInserts(
+    db,
+    planRecoverySteps({
+      failedPaymentId: input.failedPaymentId,
+      accountId: input.accountId,
+      declineCategory: input.declineCategory,
+      detectedAt: input.startedAt,
+    }),
+  );
+  return [claim, flip, ...stepInserts];
 }
 
 export interface RecoverBatchInput {
