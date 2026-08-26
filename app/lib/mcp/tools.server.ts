@@ -13,6 +13,12 @@ import {
 } from "~/lib/intelligence/views.server";
 import { listFailedPayments } from "~/lib/recovery/queries.server";
 import { readAccountAuditSettings } from "~/lib/settings/audit-settings.server";
+import {
+  applyAuditSettings,
+  applyFeatureSettings,
+  applyNotificationSettings,
+  applySenderName,
+} from "~/lib/settings/apply.server";
 import { listAccountConnections } from "~/lib/settings/queries.server";
 
 import { redactCustomerFields, redactPaymentFields } from "./redact";
@@ -243,12 +249,157 @@ const TOOLS: McpTool[] = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// The write tools (372's item-4 ruling, first four of eight)
+// ---------------------------------------------------------------------------
+//
+// FOUR OF THE EIGHT THIS SESSION, ratified by Dustin on the sizing. These are
+// the settings whose form actions are single-concern and 13 to 25 lines, so the
+// core could be extracted cleanly. The other four (brand voice, email settings,
+// alerts, intelligence context) sit inside multi-branch actions of 47 to 61
+// lines where the extraction is surgery on live merchant self-service, and they
+// are a named session rather than a rushed half of this one.
+//
+// EVERY WRITE GOES THROUGH THE FORM'S OWN CODE PATH. Each tool calls the same
+// `applyX` the route action calls: same bounds, same allowlist, same refusal
+// STRING, one implementation. A plant asserts the tool and the form refuse the
+// same input with the same sentence, derived over the shared function so drift
+// is not expressible.
+//
+// EVERY WRITE LEAVES A TRACE. The tool passes a `WriteTrace` carrying the api
+// key id, and the trace row goes in the SAME batch as the write, so a change
+// without its trace is not a state the database can reach. The form omits the
+// trace, because a signed-in human's change is already attributable through the
+// session.
+//
+// NO MONEY TOOL EXISTS HERE, and none will: the HUMAN-FOREVER denylist is
+// unchanged and still refuses at registry construction.
+
+/** Turn an apply result into a tool response, or a tool error carrying the
+ *  form's own refusal string. */
+function applied<T>(
+  result: { ok: true; fields: string[]; state: T } | { ok: false; error: string },
+): { updated: string[]; state: T } {
+  if (!result.ok) throw new ToolInputError(result.error);
+  return { updated: result.fields, state: result.state };
+}
+
+const WRITE_TOOLS: McpTool[] = [
+  {
+    name: "set_audit_settings",
+    description:
+      "Set this account's audit lookback window and whether the monthly audit report is switched on. The lookback is clamped to the allowed values rather than refused.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        lookback_days: { type: "integer", description: "30, 60, 90 or 180. Other values clamp." },
+        auto_run: { type: "boolean", description: "Send the monthly audit report." },
+      },
+      required: ["lookback_days", "auto_run"],
+    },
+    execute: async (ctx, args) =>
+      applied(
+        await applyAuditSettings(
+          ctx.db,
+          ctx.accountId,
+          { lookbackDays: args.lookback_days, autoRun: args.auto_run },
+          ctx.trace,
+        ),
+      ),
+  },
+  {
+    name: "set_feature_settings",
+    description:
+      "Switch this account's win-back sequences and expiring-card alerts on or off. These turn the engines off, not the notifications about them.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        winback_notifications_enabled: { type: "boolean" },
+        expiring_card_notifications_enabled: { type: "boolean" },
+      },
+      required: ["winback_notifications_enabled", "expiring_card_notifications_enabled"],
+    },
+    execute: async (ctx, args) =>
+      applied(
+        await applyFeatureSettings(
+          ctx.db,
+          ctx.accountId,
+          {
+            winbackNotificationsEnabled: args.winback_notifications_enabled,
+            expiringCardNotificationsEnabled: args.expiring_card_notifications_enabled,
+          },
+          ctx.trace,
+        ),
+      ),
+  },
+  {
+    name: "set_notification_settings",
+    description:
+      "Set this account's notification email, Slack webhook and the four notification toggles. A webhook off Slack's own host is refused, and clearing the email turns every notification off.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        notification_email: { type: "string", description: "Empty or omitted clears it." },
+        slack_webhook_url: {
+          type: "string",
+          description: "Must be on https://hooks.slack.com/. Empty clears it.",
+        },
+        slack_notifications_enabled: { type: "boolean" },
+        digest_enabled: { type: "boolean" },
+        recovery_notifications_enabled: { type: "boolean" },
+        sequence_complete_notifications_enabled: { type: "boolean" },
+      },
+      required: [],
+    },
+    execute: async (ctx, args) =>
+      applied(
+        await applyNotificationSettings(
+          ctx.db,
+          ctx.accountId,
+          {
+            notificationEmail: args.notification_email,
+            slackWebhookUrl: args.slack_webhook_url ?? "",
+            slackNotificationsEnabled: args.slack_notifications_enabled,
+            digestEnabled: args.digest_enabled,
+            recoveryNotificationsEnabled: args.recovery_notifications_enabled,
+            sequenceCompleteNotificationsEnabled: args.sequence_complete_notifications_enabled,
+          },
+          ctx.trace,
+        ),
+      ),
+  },
+  {
+    name: "set_sender_name",
+    description:
+      "Set the From name on one connected Stripe account's recovery emails. Empty clears it and mail goes out from Support. The connection must belong to this account.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        connection_id: { type: "string", description: "From list_connections." },
+        sender_name: { type: "string", description: "Up to 80 characters. Empty clears it." },
+      },
+      required: ["connection_id"],
+    },
+    execute: async (ctx, args) =>
+      applied(
+        await applySenderName(
+          ctx.db,
+          ctx.accountId,
+          { connectionId: args.connection_id, senderName: args.sender_name },
+          ctx.trace,
+        ),
+      ),
+  },
+];
+
 /** The live registry. Built through `defineToolRegistry`, so the HUMAN-FOREVER
  *  denylist runs over these thirteen names at module load. */
-export const MERCHANT_TOOLS: McpToolRegistry = defineToolRegistry(TOOLS);
+export const MERCHANT_TOOLS: McpToolRegistry = defineToolRegistry([...TOOLS, ...WRITE_TOOLS]);
 
 /** The tool names, exported so a plant can assert the set without re-listing it. */
-export const MERCHANT_TOOL_NAMES = TOOLS.map((t) => t.name);
+export const MERCHANT_TOOL_NAMES = [...TOOLS, ...WRITE_TOOLS].map((t) => t.name);
+/** The write half, named so a plant can assert exactly these carry a trace. */
+export const MERCHANT_WRITE_TOOL_NAMES = WRITE_TOOLS.map((t) => t.name);
 
 export { ToolInputError };
 export type { McpToolContext };

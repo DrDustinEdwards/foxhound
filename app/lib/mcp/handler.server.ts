@@ -203,7 +203,9 @@ async function dispatch(
       const rawArgs = body.params?.["arguments"];
       const args = rawArgs && typeof rawArgs === "object" ? (rawArgs as Record<string, unknown>) : {};
       try {
-        const data = await tool.execute(ctx, args);
+        // THE TRACE NAMES THE TOOL BEING RUN, built here rather than passed in,
+        // so a tool cannot record a different tool's name against its write.
+        const data = await tool.execute({ ...ctx, trace: { ...ctx.trace, tool: name } }, args);
         return { status: 200, result: toolResult(data) };
       } catch (err) {
         // A HELPER FAILURE NEVER THROWS THROUGH THE TRANSPORT. It comes back as a
@@ -306,11 +308,13 @@ export async function handleMcpRequest(
   }
 
   const id = validated.body.id ?? null;
+  const now = new Date();
   const outcome = await dispatch(validated.body, registry, {
     env,
     db: getDb(env),
     accountId: authenticated.auth.accountId,
-    now: new Date(),
+    now,
+    trace: { apiKeyId: authenticated.auth.keyId, tool: "", now },
   });
   if (outcome.error) {
     return errorResponse(outcome.status, id, outcome.error.code, outcome.error.message);
