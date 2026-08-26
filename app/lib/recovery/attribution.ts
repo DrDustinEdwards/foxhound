@@ -59,6 +59,9 @@ export interface AttributionStepRow {
   stepType: string;
   result: string | null;
   clickedAt: Date | null;
+  /** Set when the click failed a scanner test (ruling 377(4) phase one). Such a
+   *  click is recorded and displayed, and never bills. */
+  clickSuspectReason?: string | null;
 }
 
 /** Milliseconds of a step's click. Built through `new Date` rather than
@@ -119,6 +122,12 @@ export function findAttributionSignals(
   const recoveredAtMs = recoveredAt.getTime();
   const clicked = steps
     .filter((s) => s.clickedAt != null)
+    // A SUSPECT CLICK NEVER BILLS (ruling 377(4) phase one). It is still stamped
+    // on the step and still shown on the ledger, because suppressing it would
+    // make a scanner fetch indistinguishable from a customer who never engaged
+    // and would destroy the evidence the merchant is owed. It simply cannot be
+    // the reason a recovery is attributed to Foxhound.
+    .filter((s) => !s.clickSuspectReason)
     .filter((s) => {
       const ms = clickedAtMs(s);
       return ms < recoveredAtMs && recoveredAtMs - ms <= EMAIL_ENGAGEMENT_WINDOW_MS;

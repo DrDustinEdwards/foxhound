@@ -341,6 +341,10 @@ export const recoverySteps = sqliteTable(
     deletedAt: ts("deleted_at"),
     emailOpenedCount: integer("email_opened_count"),
     emailClickedCount: integer("email_clicked_count"),
+    /** Why this step's click is not trusted as human engagement, or null when it
+     *  is (ruling 377(4) phase one). Nullable text rather than a boolean so the
+     *  ledger can say WHICH test the click failed. */
+    clickSuspectReason: text("click_suspect_reason"),
     lastOpenedAt: ts("last_opened_at"),
     lastClickedAt: ts("last_clicked_at"),
     timeToOpenMinutes: integer("time_to_open_minutes"),

@@ -74,7 +74,7 @@ describe("engagement record builders (compile against schema)", () => {
   });
 
   it("click stamp sets clicked_at only when null (first click = the attribution signal)", () => {
-    const sql = sqlOf(buildClickStamp(db, "step_1", now));
+    const sql = sqlOf(buildClickStamp(db, "step_1", now, null));
     expect(sql.sql).toMatch(/update .*recovery_steps/i);
     expect(sql.sql).toMatch(/clicked_at/i);
     expect(sql.sql).toMatch(/is null/i);

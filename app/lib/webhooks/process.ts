@@ -491,6 +491,7 @@ async function resolveRecoveryAttribution(
       stepType: recoverySteps.stepType,
       result: recoverySteps.result,
       clickedAt: recoverySteps.clickedAt,
+      clickSuspectReason: recoverySteps.clickSuspectReason,
     })
     .from(recoverySteps)
     .where(eq(recoverySteps.failedPaymentId, failedPaymentId));
