@@ -83,6 +83,14 @@ Foxhound is built on Stripe Connect for subscription businesses. It sits on top 
 
 Guides on Stripe payment recovery, dispute handling, and subscription intelligence: [${url}/blog](${url}/blog). Browse by topic at ${tagList}.
 
+## For agents
+
+Foxhound exposes a Model Context Protocol endpoint at ${url}/mcp, so an AI agent can read a merchant's own Foxhound data on their behalf. A merchant generates a key under Settings and API keys inside their account and gives it to the agent as a bearer token; the key decides which account the agent reads, one key to one account, always the one that issued it.
+
+The tools are READ ONLY. An agent can read audit runs, the recovery queue, disputes, the billing ledger and invoices, the recurring-revenue overview, churn, customers, alerts and connected Stripe accounts. There is no tool that changes a setting, submits dispute evidence, cancels an account, disconnects Stripe or issues another key: those do not exist rather than being switched off.
+
+Customer names are never sent through the endpoint and email addresses are masked to their first character and domain. The Stripe customer id comes through whole, so an agent can correlate and ask a follow-up question without being able to contact anybody.
+
 ## Technical
 
 - Built on Stripe Connect. The free audit requests a read-only OAuth scope; merchant onboarding requests read and write, and the writes are invoice retries, default payment method updates, and approved dispute evidence

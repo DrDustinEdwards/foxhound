@@ -140,7 +140,10 @@ export default function ApiKeySettings({ loaderData, actionData }: Route.Compone
       <header>
         <h1 className="text-h2 text-text">API keys</h1>
         <p className="mt-1 text-label text-text-tertiary">
-          Connect Foxhound data to external AI agents and automations.
+          Connect an AI agent to this account's Foxhound data, read-only, at{" "}
+          <span className="font-mono">/mcp</span>. A key lets an agent read your audit runs,
+          recovery, disputes, billing and customer health. It cannot change anything, and
+          customer names and full email addresses are never sent.
         </p>
       </header>
 
