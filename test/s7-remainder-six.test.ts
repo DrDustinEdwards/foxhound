@@ -154,7 +154,16 @@ describe("295 item 5: the per-step opened and clicked indicators", () => {
 
   it("greens an engaged step and leaves an unengaged one subtle", () => {
     expect(SOURCE).toContain('step.openedAt ? "text-green" : "text-text-subtle"');
-    expect(SOURCE).toContain('step.clickedAt ? "text-green" : "text-text-subtle"');
+    // The CLICK arm gained a second condition under ruling 377(4): a click the
+    // scanner tests flagged is recorded and shown, and is not dressed as
+    // engagement, so it stays subtle rather than going green. Legacy's
+    // green-when-engaged treatment is unchanged for a click we do trust, which
+    // is what this pin is for. Matched whitespace-independently, because the
+    // condition is now long enough that the formatter owns its line breaks.
+    const collapsed = SOURCE.replace(/\s+/g, " ");
+    expect(collapsed).toContain(
+      'step.clickedAt && !step.clickSuspectReason ? "text-green" : "text-text-subtle"',
+    );
   });
 
   it("REGRESSION GUARD: the AGGREGATE engagement rows are untouched", () => {

@@ -8,7 +8,7 @@ export interface EngagementTokenPayload {
   /** recovery_steps.id the email belongs to. */
   stepId: string;
   accountId: string;
-  kind: "open" | "click";
+  kind: "open" | "click" | "honeypot";
   /** Click destination (absent for opens). Only http(s) is honored at redirect time. */
   url?: string;
 }
@@ -69,7 +69,7 @@ export async function verifyEngagementToken(
     const ok = await crypto.subtle.verify("HMAC", key, sig, payloadBytes);
     if (!ok) return null;
     const parsed = JSON.parse(new TextDecoder().decode(payloadBytes)) as EngagementTokenPayload;
-    if (!parsed.stepId || !parsed.accountId || (parsed.kind !== "open" && parsed.kind !== "click")) {
+    if (!parsed.stepId || !parsed.accountId || (parsed.kind !== "open" && parsed.kind !== "click" && parsed.kind !== "honeypot")) {
       return null;
     }
     return parsed;

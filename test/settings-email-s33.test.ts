@@ -259,7 +259,12 @@ describe("PLANT 3: the saved name becomes the From header", () => {
     const job = buildRecoveryEmailJob(
       ctxOut,
       { subject: "s", bodyHtml: "<p>b</p>" },
-      { unsubscribeToken: "tok", physicalAddress: "1 Test Way", openUrl: "https://x/o" },
+      {
+        unsubscribeToken: "tok",
+        physicalAddress: "1 Test Way",
+        openUrl: "https://x/o",
+        honeypotUrl: "https://x/h",
+      },
     );
     return buildEmailMessage(job, "https://foxhoundapp.test").from;
   }

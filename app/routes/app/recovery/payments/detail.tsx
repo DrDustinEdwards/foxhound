@@ -17,6 +17,7 @@ import {
   DECLINE_CATEGORY_LABELS,
   FAILED_PAYMENT_STATUS_LABELS,
   RECOVERY_LIFECYCLE_LABELS,
+  clickSuspectLabel,
   failedPaymentStatusTone,
   formatStepResult,
   formatStepType,
@@ -779,18 +780,27 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                               ? `Opened ${formatRelativeTime(step.openedAt, nowMs) ?? ""}`.trim()
                               : "Not opened"}
                           </span>
+                          {/* A SUSPECT CLICK IS SHOWN AS WHAT IT IS (377(4)).
+                              It is not hidden and not dressed as engagement:
+                              the merchant is owed the fact that something
+                              fetched the link, and the fact that we are not
+                              billing them for it. */}
                           <span
                             className={`inline-flex items-center gap-1 text-micro ${
-                              step.clickedAt ? "text-green" : "text-text-subtle"
+                              step.clickedAt && !step.clickSuspectReason
+                                ? "text-green"
+                                : "text-text-subtle"
                             }`}
                           >
-                            {step.clickedAt ? (
+                            {step.clickedAt && !step.clickSuspectReason ? (
                               <Check className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
                             ) : (
                               <Circle className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
                             )}
                             {step.clickedAt
-                              ? `Clicked ${formatRelativeTime(step.clickedAt, nowMs) ?? ""}`.trim()
+                              ? step.clickSuspectReason
+                                ? `Clicked ${formatRelativeTime(step.clickedAt, nowMs) ?? ""}, not counted (${clickSuspectLabel(step.clickSuspectReason)})`.trim()
+                                : `Clicked ${formatRelativeTime(step.clickedAt, nowMs) ?? ""}`.trim()
                               : "Not clicked"}
                           </span>
                         </>

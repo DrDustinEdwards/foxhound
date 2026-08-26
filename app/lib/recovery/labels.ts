@@ -135,3 +135,15 @@ export function formatStepResult(result: string): string {
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ");
 }
+
+/** Merchant-facing words for why a click was not counted (ruling 377(4)).
+ *  Plain description, never a vendor name or an accusation: the merchant needs
+ *  to know the click was not billed and why, not to adjudicate it. */
+const CLICK_SUSPECT_LABELS: Record<string, string> = {
+  too_fast: "opened by a scanner, too fast to be a person",
+  honeypot: "an automated client followed every link",
+};
+
+export function clickSuspectLabel(reason: string): string {
+  return CLICK_SUSPECT_LABELS[reason] ?? "not verified as a person";
+}

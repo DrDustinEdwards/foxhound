@@ -445,6 +445,34 @@ export const CARD_UPDATE_PATH = "/p";
 /** Engagement tracking path bases (first-party open pixel + click redirect). */
 export const ENGAGEMENT_OPEN_PATH = "/e/o";
 export const ENGAGEMENT_CLICK_PATH = "/e/c";
+/** The honeypot link's route (ruling 377(4) phase one). Deliberately shaped
+ *  like its siblings so it is indistinguishable in the markup. */
+export const ENGAGEMENT_HONEYPOT_PATH = "/e/h";
+
+/**
+ * A click landing sooner than this after the email was sent is `too_fast`
+ * (ruling 377(4) phase one).
+ *
+ * The walk that produced 377(4) found the click guard reads four things and
+ * none of them separates a scanner from a person: IP is persisted nowhere,
+ * `email_clicked_count` and `time_to_open_minutes` have zero writers, and an
+ * enterprise link scanner (SafeLinks, Proofpoint, Mimecast) presents a full
+ * browser user agent, so 369's named-bot list cannot see it. The only live
+ * discriminator already stored is `clicked_at - executed_at`, and nothing read
+ * it.
+ *
+ * Sixty seconds is chosen against how the scanners behave rather than how
+ * people do: they fetch on delivery, which is seconds after the send, while a
+ * person has to receive the mail, notice it and open it. It is not a proof of
+ * humanity and is not meant to be. It is one cheap test that a whole class of
+ * false billable clicks fails.
+ */
+export const CLICK_SUSPECT_MIN_SECONDS = 60;
+export const CLICK_SUSPECT_MIN_MS = CLICK_SUSPECT_MIN_SECONDS * 1000;
+
+/** Why a click is not trusted. Stored on recovery_steps.click_suspect_reason. */
+export const CLICK_SUSPECT_TOO_FAST = "too_fast";
+export const CLICK_SUSPECT_HONEYPOT = "honeypot";
 /** Queue consumer retry ceiling before dead-letter (mirrors the wrangler consumer config). */
 export const EMAIL_QUEUE_MAX_RETRIES = 3;
 /** Queue names (batch.queue switch in the consumer; Dustin creates queues with these names). */

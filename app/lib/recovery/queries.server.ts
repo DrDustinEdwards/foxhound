@@ -458,6 +458,7 @@ export async function listExecutedRecoverySteps(db: Db, accountId: string): Prom
       result: recoverySteps.result,
       openedAt: recoverySteps.openedAt,
       clickedAt: recoverySteps.clickedAt,
+      clickSuspectReason: recoverySteps.clickSuspectReason,
       aiSubject: recoverySteps.aiSubject,
       aiBodyHtml: recoverySteps.aiBodyHtml,
       declineCategory: failedPayments.declineCategory,
@@ -689,6 +690,7 @@ export async function listExecutedEmailSteps(
       declineCategory: failedPayments.declineCategory,
       openedAt: recoverySteps.openedAt,
       clickedAt: recoverySteps.clickedAt,
+      clickSuspectReason: recoverySteps.clickSuspectReason,
     })
     .from(recoverySteps)
     .innerJoin(failedPayments, eq(failedPayments.id, recoverySteps.failedPaymentId))

@@ -170,6 +170,9 @@ export default [
   route("p/:token", "./routes/utility/card-update.tsx"),
   route("e/o/:token", "./routes/utility/engagement-open.ts"),
   route("e/c/:token", "./routes/utility/engagement-click.ts"),
+  // The honeypot (377(4) phase one). Shaped like its siblings on purpose: a
+  // scanner that could tell the trap from the real link would not fall in it.
+  route("e/h/:token", "./routes/utility/engagement-honeypot.ts"),
 
   // Webhooks (resource routes, no shell; POST-only, signature-verified)
   route("webhooks/stripe", "./routes/webhooks/stripe.ts"),

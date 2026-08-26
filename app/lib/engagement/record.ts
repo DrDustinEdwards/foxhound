@@ -3,6 +3,12 @@ import { and, eq, isNull } from "drizzle-orm";
 import type { Db } from "~/db";
 import { getDb, engagementEvents, recoverySteps } from "~/db";
 
+import {
+  CLICK_SUSPECT_HONEYPOT,
+  CLICK_SUSPECT_MIN_MS,
+  CLICK_SUSPECT_TOO_FAST,
+} from "~/lib/constants";
+
 import type { EngagementRecordResult, EngagementSource } from "./agents";
 import type { EngagementTokenPayload } from "./token";
 
@@ -61,12 +67,36 @@ export function buildOpenStamp(db: Db, stepId: string, now: Date) {
     .where(and(eq(recoverySteps.id, stepId), isNull(recoverySteps.openedAt)));
 }
 
-/** First-click stamp: sets clicked_at once. This is the email_engaged attribution signal. */
-export function buildClickStamp(db: Db, stepId: string, now: Date) {
+/** First-click stamp: sets clicked_at once. This is the email_engaged attribution signal.
+ *
+ *  `suspectReason` is written ONLY when there is one. Passing null must not
+ *  clear an existing mark: the honeypot can be fetched before the real click
+ *  arrives, and a stamp that blanked the column would launder exactly the click
+ *  the honeypot caught. */
+export function buildClickStamp(db: Db, stepId: string, now: Date, suspectReason: string | null) {
   return db
     .update(recoverySteps)
-    .set({ clickedAt: now, lastClickedAt: now })
+    .set(
+      suspectReason
+        ? { clickedAt: now, lastClickedAt: now, clickSuspectReason: suspectReason }
+        : { clickedAt: now, lastClickedAt: now },
+    )
     .where(and(eq(recoverySteps.id, stepId), isNull(recoverySteps.clickedAt)));
+}
+
+/**
+ * Mark a step's click suspect because the invisible honeypot link in its email
+ * was fetched (ruling 377(4) phase one).
+ *
+ * Unconditional on clicked_at: the fetch order is not ours to control, so this
+ * marks the step whether the real click has already landed or has not arrived
+ * yet. It never clears a reason that is already there.
+ */
+export function buildHoneypotStamp(db: Db, stepId: string) {
+  return db
+    .update(recoverySteps)
+    .set({ clickSuspectReason: CLICK_SUSPECT_HONEYPOT })
+    .where(and(eq(recoverySteps.id, stepId), isNull(recoverySteps.clickSuspectReason)));
 }
 
 export async function recordOpen(
@@ -107,6 +137,19 @@ export async function recordClick(
 
   const db = getDb(env);
   const now = new Date();
+
+  // THE ONLY DISCRIMINATOR ALREADY STORED. An enterprise link scanner presents a
+  // full browser user agent, so 369's named-bot list cannot see it, but it
+  // fetches on delivery: seconds after the send, not minutes. This reads the
+  // gap the schema has always carried and nothing ever looked at.
+  const [step] = await db
+    .select({ executedAt: recoverySteps.executedAt })
+    .from(recoverySteps)
+    .where(eq(recoverySteps.id, payload.stepId))
+    .limit(1);
+  const tooFast =
+    step?.executedAt != null && now.getTime() - step.executedAt.getTime() < CLICK_SUSPECT_MIN_MS;
+
   await db.batch([
     buildEngagementInsert(db, {
       accountId: payload.accountId,
@@ -116,7 +159,28 @@ export async function recordClick(
       idempotencyKey: `click:${payload.stepId}`,
       occurredAt: now,
     }),
-    buildClickStamp(db, payload.stepId, now),
+    buildClickStamp(db, payload.stepId, now, tooFast ? CLICK_SUSPECT_TOO_FAST : null),
   ]);
+  return { recorded: true };
+}
+
+/**
+ * A fetch of the invisible honeypot link. THE CLICK IS STILL RECORDED, and this
+ * only marks it, because a suppressed click would be indistinguishable from a
+ * customer who never engaged and the merchant would lose the evidence trail.
+ * What changes is that it can never bill.
+ */
+export async function recordHoneypot(
+  env: Env,
+  payload: EngagementTokenPayload,
+): Promise<EngagementRecordResult> {
+  // NO engagement_events ROW. That table's event_type carries a CHECK
+  // constraint pinned to ('open', 'click'), and SQLite cannot widen a CHECK
+  // without rebuilding the table, which is not a migration this change earns:
+  // engagement_events records what the CUSTOMER did, and a honeypot fetch is by
+  // definition not that. The mark on the step is the record, and its reason
+  // column says which test the click failed, which is what the ledger reads.
+  const db = getDb(env);
+  await db.batch([buildHoneypotStamp(db, payload.stepId)]);
   return { recorded: true };
 }
