@@ -17,6 +17,7 @@ import {
   applyAuditSettings,
   applyBrandVoice,
   applyFeatureSettings,
+  applyIntelligenceContext,
   applyNotificationSettings,
   applySenderName,
 } from "~/lib/settings/apply.server";
@@ -432,6 +433,45 @@ const WRITE_TOOLS: McpTool[] = [
             ...(args.expired !== undefined ? { expired: args.expired } : {}),
             ...(args.network !== undefined ? { network: args.network } : {}),
             ...(args.fraud !== undefined ? { fraud: args.fraud } : {}),
+          },
+          ctx.trace,
+        ),
+      ),
+  },
+  {
+    name: "set_intelligence_context",
+    description:
+      "Tell Foxhound what kind of business this is: industry, primary customer type, and self-reported monthly recurring revenue in dollars. The recovery-email writer is given these, and risk scoring will read them. Omit a field to leave it as it is; send an empty string to clear it.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        merchant_industry: { type: "string", description: 'For example "B2B SaaS".' },
+        primary_customer_type: { type: "string", description: 'For example "small businesses".' },
+        merchant_mrr_self_reported: {
+          type: ["number", "string"],
+          description: "US dollars, not cents. Empty clears it.",
+        },
+      },
+      required: [],
+    },
+    // The same omitted-key rule as set_brand_voice, and the same reason: these
+    // three are set once and left, so turning an omission into a null would
+    // erase context the merchant entered by hand.
+    execute: async (ctx, args) =>
+      applied(
+        await applyIntelligenceContext(
+          ctx.db,
+          ctx.accountId,
+          {
+            ...(args.merchant_industry !== undefined
+              ? { merchantIndustry: args.merchant_industry }
+              : {}),
+            ...(args.primary_customer_type !== undefined
+              ? { primaryCustomerType: args.primary_customer_type }
+              : {}),
+            ...(args.merchant_mrr_self_reported !== undefined
+              ? { merchantMrrSelfReported: args.merchant_mrr_self_reported }
+              : {}),
           },
           ctx.trace,
         ),
