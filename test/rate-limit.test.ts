@@ -66,7 +66,6 @@ const IN_PROCESS_AUTH_POSTS = [
   ["/forgot-password", "api.requestPasswordReset"],
   ["/reset-password", "api.resetPassword"],
   ["/auth/google", "api.signInSocial"],
-  ["/logout", "api.signOut"],
 ] as const;
 
 describe("resolveRateLimitBinding", () => {
@@ -124,6 +123,21 @@ describe("resolveRateLimitBinding", () => {
     expect(resolveRateLimitBinding(post("/connect"))).toBeNull();
     expect(resolveRateLimitBinding(post("/connect/additional"))).toBeNull();
     expect(resolveRateLimitBinding(post("/invite/tok_abc123"))).toBeNull();
+  });
+
+  // /logout IS THE THIRD INNOCENT CASE, and it moved here from the throttled
+  // table above. It reaches api.signOut, so unlike /connect and /invite it does
+  // clear the "calls a Better Auth method" bar; it fails the one that matters.
+  // Signing out tests no credential and sends no mail, and the bucket is
+  // per-IP, so throttling it would let a shared-IP team spend on logouts the
+  // budget their next sign-in needs. Ruling 378 call (a) took it out.
+  //
+  // Asserted null on every spelling the normalizer folds, so the exclusion
+  // cannot be quietly undone by the matcher widening around it.
+  it("leaves POST /logout alone, in every spelling the router would route", () => {
+    for (const path of ["/logout", "/LOGOUT", "/logout/", "/logout///", "/%6Cogout"]) {
+      expect(resolveRateLimitBinding(post(path))).toBeNull();
+    }
   });
 
   it("does not fire on paths that merely start with an auth path's letters", () => {

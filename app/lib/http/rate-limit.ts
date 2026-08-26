@@ -19,9 +19,15 @@
 // through getAuth(env).api, but it is the session READ every authenticated
 // loader in the app performs, so "touches getAuth().api" would mean throttling
 // the whole app; /connect and /invite/:token reach only that read, both
-// already require a session, and both stay out. If a new route under
-// app/routes/auth calls an api.* method other than getSession, its path
-// belongs in the set below.
+// already require a session, and both stay out. /logout reaches api.signOut,
+// which is neither a credential nor a mail method, and is excluded for a
+// second reason recorded at the set itself (ruling 378 call (a)).
+//
+// So the test for a NEW route under app/routes/auth is not "does it call an
+// api.* method other than getSession". It is: can an unauthenticated caller
+// make this action test a credential or send mail? If yes, its path belongs in
+// the set below. If it only tears down or reads a session the caller already
+// holds, throttling it spends the sign-in budget and buys nothing.
 //
 // THE MATCHER MUST NORMALIZE THE WAY THE ROUTER DOES, or it is bypassable by
 // spelling. React Router matches on a DECODED pathname
@@ -73,14 +79,22 @@ export interface RateLimitRule {
 
 /** Every path under app/routes/auth whose action calls a Better Auth
  *  credential or mail method in-process. Lowercase, no trailing slash: compare
- *  against routedPath(), never against a raw URL.pathname. */
+ *  against routedPath(), never against a raw URL.pathname.
+ *
+ *  /logout IS DELIBERATELY NOT HERE, and it is the one exclusion that is not
+ *  about which method the action calls. logout.ts does reach
+ *  getAuth(env).api.signOut, so it meets the letter of the rule above, but
+ *  signing out is not an abuse surface: it takes a valid session cookie to do
+ *  anything, it sends no mail, and it tests no credential. Throttling it only
+ *  costs, because the bucket is per-IP: a shared-IP team logging out would
+ *  spend the same ten-per-minute budget their next SIGN-IN needs, which is the
+ *  request this file exists to keep available. Ruling 378 call (a). */
 const AUTH_ACTION_PATHS = new Set([
   "/login", // login.tsx -> api.signInEmail
   "/signup", // signup.tsx -> api.signUpEmail
   "/forgot-password", // forgot-password.tsx -> api.requestPasswordReset
   "/reset-password", // reset-password.tsx -> api.resetPassword
   "/auth/google", // google-start.ts -> api.signInSocial
-  "/logout", // logout.ts -> api.signOut
 ]);
 
 /** Marketing pages whose POST is the enter/estimate action. */
