@@ -152,7 +152,7 @@ describe("PLANT 1: the tools are registered and describable", () => {
     expect(status).toBe(200);
     const tools = (json as { result: { tools: { name: string; inputSchema: unknown }[] } }).result
       .tools;
-    expect(tools).toHaveLength(17);
+    expect(tools).toHaveLength(18);
     expect(tools.map((t) => t.name).sort()).toEqual([...MERCHANT_TOOL_NAMES].sort());
     for (const tool of tools) {
       // Every schema round-trips as JSON and is an object schema, which is what
@@ -170,7 +170,7 @@ describe("PLANT 1: the tools are registered and describable", () => {
     // HANDS BACK, which a future consumer might not serialize at all: a logger,
     // a cache, or an SDK that reflects over the object.
     const descriptors = MERCHANT_TOOLS.list() as unknown as Record<string, unknown>[];
-    expect(descriptors).toHaveLength(17);
+    expect(descriptors).toHaveLength(18);
     for (const descriptor of descriptors) {
       expect(Object.keys(descriptor).sort()).toEqual(["description", "inputSchema", "name"]);
       expect("execute" in descriptor).toBe(false);
@@ -379,7 +379,7 @@ describe("PLANT 5: the end to end, through the real transport", () => {
     ).toBe("2025-06-18");
 
     const list = await call(tokens[MINE], "tools/list");
-    expect((list.json as { result: { tools: unknown[] } }).result.tools).toHaveLength(17);
+    expect((list.json as { result: { tools: unknown[] } }).result.tools).toHaveLength(18);
 
     for (const [name, args] of [
       ["get_audit_settings", {}],
