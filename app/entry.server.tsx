@@ -48,7 +48,7 @@ export default async function handleRequest(
   const { nonce } = loadContext.get(cloudflareContext);
 
   let shellRendered = false;
-  let userAgent = request.headers.get("user-agent");
+  const userAgent = request.headers.get("user-agent");
 
   const body = await renderToReadableStream(
     <ServerRouter context={routerContext} url={request.url} nonce={nonce} />,

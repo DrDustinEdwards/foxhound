@@ -118,9 +118,8 @@ async function reconstructLog() {
       const original = reverseSwap(current);
       if (original !== current) {
         touched = true;
-        const occurrences = fieldOccurrences(swapBrand(original) === current ? original : original);
-        // occurrences counted against the reconstructed "before" text, same
-        // definition fieldOccurrences() uses elsewhere (counts Recova/Recova's).
+        // Counted against the reconstructed "before" text, same definition
+        // fieldOccurrences() uses elsewhere (counts Recova/Recova's).
         const trueOccurrences = (original.match(/Recova(?:'s)?/g) ?? []).length;
         totals[field] += trueOccurrences;
         if (field === "author" || field === "title" || field === "excerpt") {
