@@ -14,11 +14,8 @@ import {
   alertConditionLabel,
   alertMetricLabel,
   formatThresholdValue,
-  isAlertDirection,
-  isAlertMetric,
-  isCentsMetric,
 } from "~/lib/settings/alert-metrics";
-import { createAlert, deleteAlert, setAlertEnabled } from "~/lib/settings/alerts.server";
+import { applyAlertConfig, applyAlertCreate } from "~/lib/settings/apply.server";
 
 import type { Route } from "./+types/alerts";
 
@@ -72,60 +69,46 @@ export async function action({ request, context }: Route.ActionArgs) {
   const form = await request.formData();
   const intent = String(form.get("_action") ?? "");
 
+  // TWO BRANCHES, TWO APPLY FUNCTIONS, and the split below is the one this
+  // action always had: creating takes four fields and no id, changing takes an
+  // id and one verb. Every refusal string moved with the check that produces
+  // it, so the sentences a merchant reads are unchanged and are now the same
+  // sentences an agent reads.
   if (intent === "create") {
-    const metric = String(form.get("metric") ?? "");
-    const direction = String(form.get("direction") ?? "");
-    // The metric and direction are checked against the EVALUATOR'S enums, not
-    // against whatever the select happened to render. A posted value the
-    // evaluator cannot compute is refused here rather than stored and skipped
-    // silently every night.
-    if (!isAlertMetric(metric)) {
-      return data<ActionResult>(
-        { action: intent, ok: false, error: "Choose a metric Foxhound tracks." },
-        { status: 400 },
-      );
-    }
-    if (!isAlertDirection(direction)) {
-      return data<ActionResult>(
-        { action: intent, ok: false, error: "Choose whether the metric rises or drops." },
-        { status: 400 },
-      );
-    }
-    const raw = String(form.get("threshold") ?? "").trim();
-    const parsed = Number(raw);
-    if (!raw || !Number.isFinite(parsed) || parsed < 0) {
-      return data<ActionResult>(
-        { action: intent, ok: false, error: "Enter a threshold of zero or more." },
-        { status: 400 },
-      );
-    }
-    // Cents metrics take dollars in the form and store cents, matching the
-    // column the evaluator compares against.
-    const thresholdValue = isCentsMetric(metric) ? Math.round(parsed * 100) : parsed;
-    const labelRaw = String(form.get("label") ?? "").trim();
-    await createAlert(
+    const result = await applyAlertCreate(
       db,
       accountId,
-      { metric, direction, thresholdValue, label: labelRaw.length > 0 ? labelRaw : null },
+      {
+        metric: form.get("metric"),
+        direction: form.get("direction"),
+        threshold: form.get("threshold"),
+        label: form.get("label"),
+      },
       new Date(),
     );
+    if (!result.ok) {
+      return data<ActionResult>(
+        { action: intent, ok: false, error: result.error },
+        { status: 400 },
+      );
+    }
     return data<ActionResult>({ action: intent, ok: true });
   }
 
   if (intent === "toggle" || intent === "delete") {
-    const alertId = String(form.get("alertId") ?? "").trim();
-    if (!alertId) {
+    // An alert this account does not own now REFUSES rather than reporting a
+    // zero-row write as success. The pill and the delete button only ever offer
+    // the caller's own ids, so nothing about the page changes.
+    const result = await applyAlertConfig(db, accountId, {
+      alertId: form.get("alertId"),
+      deleted: intent === "delete",
+      enabled: String(form.get("enabled") ?? "") === "true",
+    });
+    if (!result.ok) {
       return data<ActionResult>(
-        { action: intent, ok: false, error: "Select an alert." },
+        { action: intent, ok: false, error: result.error },
         { status: 400 },
       );
-    }
-    // Both writers pin account_id, so an alert on another account matches zero
-    // rows and changes nothing.
-    if (intent === "delete") {
-      await deleteAlert(db, accountId, alertId);
-    } else {
-      await setAlertEnabled(db, accountId, alertId, String(form.get("enabled") ?? "") === "true");
     }
     return data<ActionResult>({ action: intent, ok: true });
   }
