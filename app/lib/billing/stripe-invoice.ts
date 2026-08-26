@@ -272,3 +272,48 @@ export function buildInvoiceStripeRefUpdate(
       .where(eq(billingInvoices.id, input.billingInvoiceId)),
   ];
 }
+
+/** Deterministic key for the credit note that reverses ONE fee line. Derived
+ *  from the line's own id, so a redelivered refund replays the same key and
+ *  Stripe returns the original note instead of issuing a second one. */
+export function creditNoteIdempotencyKey(lineItemId: string): string {
+  return `credit-note:${lineItemId}`;
+}
+
+export interface CreditNoteInput {
+  /** The Stripe invoice the fee was charged on. */
+  stripeInvoiceId: string;
+  /** Minor units to credit, equal to the fee line being reversed. */
+  amountCents: number;
+  /** Our billing_line_items.id for the fee, for the key and for reconciliation. */
+  feeLineItemId: string;
+  memo: string;
+}
+
+/**
+ * Credit a fee line back on the platform invoice it was charged on
+ * (ruling 377(5), PRICING.md rev 5 item 1).
+ *
+ * `credit_amount` is Stripe's "apply this to the customer's balance" mode, as
+ * opposed to `refund_amount`, which moves cash. That is the whole point of the
+ * ruling: Stripe holds the credit against the customer in THAT currency and
+ * draws it down on their next finalized invoice, so no money leaves and no
+ * card is touched. A cash refund is Dustin's call and is not this path.
+ */
+export async function createCreditNote(
+  env: Env,
+  input: CreditNoteInput,
+): Promise<{ creditNoteId: string }> {
+  const stripe = getStripe(env);
+  const note = await stripe.creditNotes.create(
+    {
+      invoice: input.stripeInvoiceId,
+      credit_amount: input.amountCents,
+      memo: input.memo,
+      metadata: { fee_line_item_id: input.feeLineItemId },
+    },
+    { idempotencyKey: creditNoteIdempotencyKey(input.feeLineItemId) },
+  );
+  if (!note.id) throw new Error("stripe credit note create returned no id");
+  return { creditNoteId: note.id };
+}
