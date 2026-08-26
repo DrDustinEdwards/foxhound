@@ -349,6 +349,11 @@ describe("PLANT 7: the policy is applied at the one choke point", () => {
         "app/routes/files/sitemap.ts",
         "app/routes/utility/card-update.tsx",
         "app/routes/utility/engagement-click.ts",
+        // The honeypot (377(4)). Same no-store header as its siblings, for the
+        // same reason and one more: a cached response would let a scanner's
+        // fetch be served without ever reaching the recorder, so the trap would
+        // spring once and never again.
+        "app/routes/utility/engagement-honeypot.ts",
         "app/routes/utility/engagement-open.ts",
         "app/routes/utility/unsubscribe.tsx",
       ].sort(),

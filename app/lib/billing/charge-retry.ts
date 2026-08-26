@@ -360,12 +360,49 @@ export async function retryInvoiceCharge(
     // creates AND collects, so this is a money-moving call.
     const blockedBeforeCreate = await blockedByGuard();
     if (blockedBeforeCreate) return blockedBeforeCreate;
-    const created = await create(env, {
-      platformCustomerId: invoice.platformCustomerId,
-      currency: invoice.currency,
-      lines,
-      billingInvoiceId: invoice.id,
-    });
+    let created;
+    try {
+      created = await create(env, {
+        platformCustomerId: invoice.platformCustomerId,
+        // Passed explicitly, and asserted by a plant. Stripe bills a
+        // multi-currency customer in a second currency only when `currency` is
+        // set on the invoice AND on every invoice item, and this is the value
+        // that reaches both (ruling 377(6)).
+        currency: invoice.currency,
+        lines,
+        billingInvoiceId: invoice.id,
+      });
+    } catch (err) {
+      // COUNT THE ATTEMPT EVEN THOUGH THE STRIPE CALL FAILED (ruling 377(6)).
+      //
+      // The pay path below has always done this; the CREATE path did not, so a
+      // throw here propagated to the sweep's per-invoice catch with nothing
+      // written. charge_attempt_count never moved, decideFeeRetryAction's
+      // attempt cap was therefore unreachable on this branch, and an invoice
+      // whose create fails permanently was retried every month until the AGE
+      // cap eventually stopped it. Recording the attempt is what makes the cap
+      // reachable at all.
+      //
+      // NO ChargeGuardReadError RETHROW HERE, deliberately. The obvious guard
+      // is to let a guard-read failure through rather than count it as a charge
+      // attempt, and one was written. A plant proved it UNREACHABLE: the gate is
+      // read by blockedByGuard ABOVE this try, so its throw never enters this
+      // catch, and `create` cannot raise that type. It was removed rather than
+      // kept as unfalsifiable defence. The propagation itself is still asserted,
+      // by the test that makes checkGuard throw.
+      await writeAttempt(env, invoice, {
+        status: "payment_failed",
+        stripeInvoiceId: null,
+        hostedInvoiceUrl: null,
+        attemptCount,
+        now,
+      });
+      return {
+        invoiceId: invoice.id,
+        outcome: "failed",
+        reason: err instanceof Error ? err.message : "charge create failed",
+      };
+    }
     await writeAttempt(env, invoice, {
       status: "finalized",
       stripeInvoiceId: created.stripeInvoiceId,

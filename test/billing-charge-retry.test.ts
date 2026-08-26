@@ -316,6 +316,53 @@ describe("mode 1: the create threw, Stripe has nothing", () => {
     expect(row.lastChargeAttemptAt).toEqual(NOW);
   });
 
+  // RULING 377(6). The pay path has always counted a failed attempt; the CREATE
+  // path did not, so a throw here reached the sweep's per-invoice catch with
+  // NOTHING written. charge_attempt_count never moved, decideFeeRetryAction's
+  // attempt cap was unreachable on this branch, and an invoice whose create
+  // fails permanently was retried every month until the AGE cap eventually
+  // stopped it. Recording the attempt is what makes the cap reachable.
+  it("COUNTS THE ATTEMPT when the create throws, so the cap is reachable", async () => {
+    const db = await seed();
+    const { deps } = stripeDeps(null, {
+      create: async () => {
+        throw new Error("stripe unavailable");
+      },
+    });
+    const [invoice] = await queryStrandedInvoices({} as Env, 100);
+
+    const result = await retryInvoiceCharge({} as Env, invoice, NOW_MS, deps);
+
+    expect(result.outcome).toBe("failed");
+    expect(result.reason).toBe("stripe unavailable");
+
+    const [row] = await db.select().from(schema.billingInvoices);
+    // Pre-fix this stayed 0 forever, however many times the create failed.
+    expect(row.chargeAttemptCount).toBe(1);
+    expect(row.status).toBe("payment_failed");
+    expect(row.lastChargeAttemptAt).toEqual(NOW);
+    // No Stripe id was obtained, so none is recorded.
+    expect(row.stripeInvoiceId).toBeNull();
+  });
+
+  it("a guard-read failure is still the SWEEP's problem and is not counted here", async () => {
+    const db = await seed();
+    const { deps } = stripeDeps(null, {
+      checkGuard: async () => {
+        throw new Error("d1 unavailable");
+      },
+    });
+    const [invoice] = await queryStrandedInvoices({} as Env, 100);
+
+    // It must propagate as ChargeGuardReadError rather than being swallowed
+    // into a counted charge attempt: failing closed on a guard read is what
+    // stops the sweep charging the next merchant's card.
+    await expect(retryInvoiceCharge({} as Env, invoice, NOW_MS, deps)).rejects.toThrow();
+
+    const [row] = await db.select().from(schema.billingInvoices);
+    expect(row.chargeAttemptCount).toBe(0);
+  });
+
   it("rebuilds the line keys from the committed line items, not from the billable queries", async () => {
     // The billable queries exclude already-billed rows, so on a retry they
     // return nothing. Deriving the lines from the ledger is what makes the
