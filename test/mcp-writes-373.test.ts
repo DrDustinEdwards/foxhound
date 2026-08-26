@@ -241,6 +241,15 @@ describe("PLANT 3: validator parity, over the shared function", () => {
       expect(body, `${route} still writes directly`).not.toMatch(
         /build(Feature|Notification|Sender)SettingsUpdate\(/,
       );
+      // NOR DOES IT CALL A VALIDATOR ITSELF. This arm was missing on the first
+      // cut and a mutation walked through it: a route can keep calling `applyX`
+      // AND grow its own `normalizeSlackWebhookUrl` beside it, which is exactly
+      // the two-implementations state the extraction existed to prevent. The
+      // CALL is forbidden, not the import, because a route may legitimately
+      // import a bound or an option list to render with.
+      expect(body, `${route} validates on its own`).not.toMatch(
+        /normalize(SlackWebhookUrl|Lookback)\s*\(/,
+      );
     }
     const tools = strip(read("app/lib/mcp/tools.server.ts"));
     expect(tools).toContain('from "~/lib/settings/apply.server"');
