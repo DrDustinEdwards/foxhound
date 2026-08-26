@@ -4,10 +4,12 @@ import type { Db } from "~/db";
 import { accounts, mcpWrites, stripeConnections } from "~/db";
 
 import { normalizeLookback } from "./audit-settings";
+import { parseDollarsToCents } from "./dollars";
 import {
   buildBrandVoiceUpdate,
   buildCategoryVoicesUpdate,
   buildFeatureSettingsUpdate,
+  buildIntelligenceContextUpdate,
   buildNotificationSettingsUpdate,
   buildSenderSettingsUpdate,
 } from "./persist.server";
@@ -373,6 +375,97 @@ export async function applyBrandVoice(
       }),
       buildBrandVoiceUpdate(db, accountId, connectionId, state.general),
     ],
+    trace,
+  );
+  return { ok: true, fields, state };
+}
+
+export interface IntelligenceContextState {
+  merchantIndustry: string | null;
+  primaryCustomerType: string | null;
+  merchantMrrSelfReportedCents: number | null;
+}
+
+/** The refusal for an amount that is neither blank nor a number. The form used
+ *  to show none, because it did not have one. */
+export const MRR_ERROR = "Enter a monthly recurring revenue of zero or more, or leave it blank.";
+
+/**
+ * The three merchant-context fields the Intelligence card writes.
+ *
+ * WHAT THEY ARE FOR, because it decides how carefully they are handled: like
+ * the brand voice, these are fed to the model that writes recovery copy, and
+ * they will feed risk scoring when that engine lands. Free text, no bound,
+ * matching the form and legacy.
+ *
+ * ABSENT MEANS LEAVE ALONE, the rule `applyBrandVoice` carries and for the same
+ * reason. All three are set once and forgotten, the form posts all three every
+ * time so nothing changes for it, and an agent updating only the industry must
+ * not blank the other two.
+ *
+ * A NON-BLANK AMOUNT THAT IS NOT A NUMBER IS NOW REFUSED, and this is a fix
+ * rather than a new bound. `parseDollarsToCents` returns null for "abc" and for
+ * a negative, and the action stored that null and answered "Saved": the field
+ * is a plain text input, so a person could always type into it and be told
+ * their entry was kept when it had been discarded. That is 374 binding 3's
+ * lesson one table over, and registering a tool is the widening it warns about.
+ * BLANK IS STILL NULL, because clearing the field is a real thing to want.
+ */
+export async function applyIntelligenceContext(
+  db: Db,
+  accountId: string,
+  input: {
+    merchantIndustry?: unknown;
+    primaryCustomerType?: unknown;
+    merchantMrrSelfReported?: unknown;
+  },
+  trace?: WriteTrace,
+): Promise<ApplyResult<IntelligenceContextState>> {
+  const found = await db
+    .select({
+      merchantIndustry: accounts.merchantIndustry,
+      primaryCustomerType: accounts.primaryCustomerType,
+      merchantMrrSelfReportedCents: accounts.merchantMrrSelfReported,
+    })
+    .from(accounts)
+    .where(eq(accounts.id, accountId))
+    .limit(1);
+  // The caller's own account, resolved from their credential rather than from
+  // an argument, so there is no foreign-id case here to refuse.
+  if (found.length === 0) return { ok: false, error: "This account no longer exists." };
+  const stored = found[0];
+
+  const fields: string[] = [];
+  const state: IntelligenceContextState = { ...stored };
+
+  if (input.merchantIndustry !== undefined) {
+    fields.push("merchant_industry");
+    state.merchantIndustry = asOptionalText(input.merchantIndustry);
+  }
+  if (input.primaryCustomerType !== undefined) {
+    fields.push("primary_customer_type");
+    state.primaryCustomerType = asOptionalText(input.primaryCustomerType);
+  }
+  if (input.merchantMrrSelfReported !== undefined) {
+    const raw =
+      typeof input.merchantMrrSelfReported === "number"
+        ? String(input.merchantMrrSelfReported)
+        : typeof input.merchantMrrSelfReported === "string"
+          ? input.merchantMrrSelfReported
+          : "";
+    const cents = parseDollarsToCents(raw);
+    // Blank clears. Non-blank that would not parse is the refusal, which is why
+    // the two cases are separated rather than both reading as null.
+    if (cents === null && raw.trim().length > 0) return { ok: false, error: MRR_ERROR };
+    fields.push("merchant_mrr_self_reported");
+    state.merchantMrrSelfReportedCents = cents;
+  }
+
+  await commit(
+    db,
+    accountId,
+    fields,
+    buildIntelligenceContextUpdate(db, accountId, state),
     trace,
   );
   return { ok: true, fields, state };

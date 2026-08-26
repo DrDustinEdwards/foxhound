@@ -6,11 +6,9 @@ import { SettingsCard, type ActionResult } from "~/components/settings-card";
 import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import {
-  buildAccountProfileUpdate,
-  buildIntelligenceContextUpdate,
-} from "~/lib/settings/persist.server";
-import { formatCentsAsDollars, parseDollarsToCents } from "~/lib/settings/dollars";
+import { applyIntelligenceContext } from "~/lib/settings/apply.server";
+import { buildAccountProfileUpdate } from "~/lib/settings/persist.server";
+import { formatCentsAsDollars } from "~/lib/settings/dollars";
 import { getAccount } from "~/lib/settings/queries.server";
 import { cancelMerchant } from "~/lib/admin/merchants.server";
 import { getSession, listMemberships, setSessionActiveAccount } from "~/lib/auth";
@@ -71,13 +69,26 @@ export async function action({ request, context }: Route.ActionArgs) {
       return data<ActionResult>({ action: intent, ok: true });
     }
     case "intelligence-context": {
-      await buildIntelligenceContextUpdate(db, accountId, {
-        merchantIndustry: str("merchantIndustry"),
-        primaryCustomerType: str("primaryCustomerType"),
-        merchantMrrSelfReportedCents: parseDollarsToCents(
-          String(form.get("merchantMrrSelfReported") ?? ""),
-        ),
+      // THE ONLY BRANCH OF THIS ACTION THAT MOVED. The profile above and the
+      // danger zone below are untouched and reach no tool: cancelling an
+      // account is on the HUMAN-FOREVER denylist, and the registry refuses the
+      // name outright.
+      //
+      // Every key is posted on every submit, so the form still writes all three
+      // columns. It passes the raw strings, because trimming and parsing are
+      // the apply layer's job now and doing either here would be the second
+      // implementation the layer exists to prevent.
+      const result = await applyIntelligenceContext(db, accountId, {
+        merchantIndustry: String(form.get("merchantIndustry") ?? ""),
+        primaryCustomerType: String(form.get("primaryCustomerType") ?? ""),
+        merchantMrrSelfReported: String(form.get("merchantMrrSelfReported") ?? ""),
       });
+      if (!result.ok) {
+        return data<ActionResult>(
+          { action: intent, ok: false, error: result.error },
+          { status: 400 },
+        );
+      }
       return data<ActionResult>({ action: intent, ok: true });
     }
     case "cancel-account": {
