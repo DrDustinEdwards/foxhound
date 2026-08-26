@@ -35,14 +35,19 @@ export interface CreateAlertInput {
  */
 export const ALERT_DEFAULT_CHANNEL = "email";
 
-export async function createAlert(
+/** THE STATEMENT, NOT THE AWAIT. Session 80: every settings write goes through
+ *  `commit`, which hands the write and its trace row to `db.batch` together, so
+ *  these four builders return statements the way persist.server.ts's do. The id
+ *  is passed in rather than minted here, because the caller has to know it to
+ *  report it back. */
+export function buildAlertInsert(
   db: Db,
   accountId: string,
   input: CreateAlertInput,
   now: Date,
-): Promise<{ id: string }> {
-  const id = crypto.randomUUID();
-  await db.insert(alerts).values({
+  id: string,
+) {
+  return db.insert(alerts).values({
     id,
     accountId,
     metric: input.metric,
@@ -53,18 +58,17 @@ export async function createAlert(
     enabled: true,
     createdAt: now,
   });
-  return { id };
 }
 
 /** Enable or disable one alert. Legacy's On/Off pill. A disabled alert stays on
  *  the list and stops firing; `evaluateAlerts` filters on `enabled`. */
-export async function setAlertEnabled(
+export function buildAlertEnabledUpdate(
   db: Db,
   accountId: string,
   alertId: string,
   enabled: boolean,
-): Promise<void> {
-  await db
+) {
+  return db
     .update(alerts)
     .set({ enabled })
     .where(and(eq(alerts.id, alertId), eq(alerts.accountId, accountId)));
@@ -78,9 +82,15 @@ export async function setAlertEnabled(
  * record of what fired, and legacy drops them the same way by cascading, so the
  * history for a deleted alert goes with it rather than being orphaned.
  */
-export async function deleteAlert(db: Db, accountId: string, alertId: string): Promise<void> {
-  await db
+export function buildAlertHistoryDelete(db: Db, accountId: string, alertId: string) {
+  return db
     .delete(alertHistory)
     .where(and(eq(alertHistory.alertId, alertId), eq(alertHistory.accountId, accountId)));
-  await db.delete(alerts).where(and(eq(alerts.id, alertId), eq(alerts.accountId, accountId)));
+}
+
+/** The alert row itself. Batched AFTER the history delete above, never before:
+ *  D1 runs a batch in order, and the foreign key is the reason the order is not
+ *  a preference. */
+export function buildAlertDelete(db: Db, accountId: string, alertId: string) {
+  return db.delete(alerts).where(and(eq(alerts.id, alertId), eq(alerts.accountId, accountId)));
 }
