@@ -468,13 +468,19 @@ describe("PLANT 7: the copy release, and every earlier state gone", () => {
   const s29 = read("app/routes/app/settings/api-keys.tsx");
   const llms = read("app/routes/files/llms.ts");
 
-  it("S29 describes a live endpoint, its four writes, and the redaction default", () => {
+  it("S29 describes a live endpoint, its eight writes, and the redaction default", () => {
     // MOVED IN SESSION 79. "read-only" and "cannot change anything" were true of
     // the thirteen and became false the moment four write tools shipped; a copy
     // carrier that kept them would be understating what a key grants, which is
     // the same defect as overstating it.
     expect(s29).toContain("/mcp");
-    expect(s29).toContain("change four settings");
+    // SESSION 80 moved it to eight. The earlier count is asserted ABSENT, not
+    // merely superseded: a page that still said four would understate what a
+    // key grants, which is the same defect as the over-promise below.
+    expect(s29).toContain("change eight settings");
+    expect(s29).not.toContain("change four settings");
+    expect(s29).toContain("brand voice");
+    expect(s29).toContain("switch off and delete");
     expect(s29).toContain("Every change it makes is logged with");
     expect(s29).toContain("cannot move money");
     expect(s29).toContain("customer names and full email addresses are");
@@ -492,7 +498,11 @@ describe("PLANT 7: the copy release, and every earlier state gone", () => {
   it("the docs say where the endpoint is, what it reads, and what it cannot do", () => {
     expect(platform).toContain("foxhoundapp.com/mcp");
     expect(platform).toContain("Most of the tools READ");
-    expect(platform).toContain("Four tools WRITE");
+    expect(platform).toContain("Eight tools WRITE");
+    expect(platform).not.toContain("Four tools WRITE");
+    // The omitted-versus-empty rule is a thing an agent has to be told, because
+    // guessing it wrong in one direction erases a merchant's settings.
+    expect(platform).toContain("Leaving a field out of a write leaves it as it is");
     expect(platform).toContain("Every change an agent makes is recorded with the key");
     expect(platform).not.toContain("The tools are READ ONLY");
     expect(platform).toContain("absent by construction");
@@ -504,7 +514,9 @@ describe("PLANT 7: the copy release, and every earlier state gone", () => {
     expect(llms).toContain("Model Context Protocol endpoint at ${url}/mcp");
     expect(llms).toContain("Settings and API keys");
     expect(llms).toContain("Most tools read");
-    expect(llms).toContain("Four tools write, and only to settings");
+    expect(llms).toContain("Eight tools write, and only to settings");
+    expect(llms).not.toContain("Four tools write, and only to settings");
+    expect(llms).toContain("A field left out of a write is left as it is");
     expect(llms).not.toContain("The tools are READ ONLY");
     expect(llms).toContain("masked to their first character and domain");
   });
