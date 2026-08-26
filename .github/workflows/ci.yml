@@ -27,6 +27,15 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      # Lint is one of the four gates check-gates reports as wired, and until
+      # ruling 378 call (b) it was the one gate CI did not run. It went red at
+      # some point and stayed red, invisibly, because check:all was the only
+      # thing that ran it and nothing ran check:all. A gate the pipeline does
+      # not run is not a gate (153, 318). test/ci-gate-parity.test.ts now fails
+      # if this step and the check:all chain ever disagree again.
+      - name: Lint
+        run: npm run lint
+
       - name: Build
         run: npm run build
 
