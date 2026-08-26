@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { Check, RefreshCw, X } from "lucide-react";
 
 // The home hero visual: a looping, self-running view of the recovery queue
@@ -131,6 +131,39 @@ const FRAMES: Frame[] = [
 
 const FINAL_FRAME = FRAMES.length - 1;
 
+const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+
+// prefers-reduced-motion is an external store, so it is READ through
+// useSyncExternalStore rather than sampled into state inside the animation
+// effect. Two reasons, one per direction.
+//
+// The lint reason: settling the frame with setFrameIndex(FINAL_FRAME) in the
+// effect body is a synchronous setState in an effect
+// (react-hooks/set-state-in-effect). Hoisting it to a lazy useState initialiser
+// would not do, because this component server-renders: window does not exist
+// there, so the server and the first client render would disagree and hydration
+// would mismatch. useSyncExternalStore exists for exactly that shape, and takes
+// the server snapshot as its third argument.
+//
+// The correctness reason: the old read happened once on mount, so a visitor who
+// turned reduced motion ON while the page sat open kept the loop running. That
+// is the WCAG 2.2.2 case this behaviour is here to serve.
+function subscribeToReducedMotion(onStoreChange: () => void): () => void {
+  const query = window.matchMedia(REDUCED_MOTION_QUERY);
+  query.addEventListener("change", onStoreChange);
+  return () => query.removeEventListener("change", onStoreChange);
+}
+
+function getReducedMotion(): boolean {
+  return window.matchMedia(REDUCED_MOTION_QUERY).matches;
+}
+
+// The server cannot know the preference, so it renders the animation's first
+// frame, which is what it rendered before this change too.
+function getReducedMotionOnServer(): boolean {
+  return false;
+}
+
 function stepStateAt(index: number, done: number): StepState {
   if (index < done) return "done";
   if (index === done) return "active";
@@ -173,22 +206,24 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: str
 }
 
 export function RecoveryQueueDemo() {
-  const [frameIndex, setFrameIndex] = useState(0);
+  const reducedMotion = useSyncExternalStore(
+    subscribeToReducedMotion,
+    getReducedMotion,
+    getReducedMotionOnServer,
+  );
+  const [tickIndex, setTickIndex] = useState(0);
   const [pulse, setPulse] = useState(true);
 
   useEffect(() => {
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
-    if (reduced.matches) {
-      // Settle on the finished state and schedule nothing at all.
-      setFrameIndex(FINAL_FRAME);
-      return;
-    }
+    // Settle on the finished state and schedule nothing at all. The frame is
+    // derived below rather than assigned here, so nothing is set in this body.
+    if (reducedMotion) return;
 
     let frame = 0;
     let frameTimer: ReturnType<typeof setTimeout>;
     const advance = () => {
       frame = (frame + 1) % FRAMES.length;
-      setFrameIndex(frame);
+      setTickIndex(frame);
       frameTimer = setTimeout(advance, FRAMES[frame].holdMs);
     };
     frameTimer = setTimeout(advance, FRAMES[0].holdMs);
@@ -198,9 +233,9 @@ export function RecoveryQueueDemo() {
       clearTimeout(frameTimer);
       clearInterval(pulseTimer);
     };
-  }, []);
+  }, [reducedMotion]);
 
-  const frame = FRAMES[frameIndex];
+  const frame = FRAMES[reducedMotion ? FINAL_FRAME : tickIndex];
   const activePayment = PAYMENTS[frame.activeSequence];
 
   return (

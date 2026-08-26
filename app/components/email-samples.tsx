@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useFetcher } from "react-router";
 
 import type { MarketingEmailCategory, MarketingEmailCopy } from "~/lib/marketing/email-sample-fallbacks";
@@ -41,9 +41,20 @@ export function EmailSamples() {
   const fetcher = useFetcher<MarketingEmailCopy>();
   const busy = fetcher.state !== "idle";
 
-  useEffect(() => {
+  // `result` is fetcher.data, EXCEPT that switching category clears it and it
+  // stays cleared until the next generate lands, so it cannot be derived from
+  // fetcher.data alone: the response carries no category to compare against.
+  //
+  // Copying it across in an effect cost a render every time (react-hooks/
+  // set-state-in-effect). This is React's documented replacement: adjust state
+  // during render, guarded on the value having actually changed. React
+  // re-renders immediately without committing the first pass, so there is no
+  // cascading render and no flash of the stale sample.
+  const [seenData, setSeenData] = useState(fetcher.data);
+  if (fetcher.data !== seenData) {
+    setSeenData(fetcher.data);
     if (fetcher.data) setResult(fetcher.data);
-  }, [fetcher.data]);
+  }
 
   function selectCategory(id: MarketingEmailCategory) {
     setActiveId(id);
