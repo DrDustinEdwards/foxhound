@@ -73,7 +73,13 @@ describe("PLANT 1: the guide's shape", () => {
       .filter((b): b is { kind: "h3"; text: string } => typeof b !== "string" && b.kind === "h3");
     // Legacy's platform guide runs 24 H3. Foxhound carries the ones that are
     // true at HEAD; the count is pinned so a silent deletion fails.
-    expect(h3s).toHaveLength(23);
+    //
+    // 23 TO 24 IN SESSION 77, deliberately: "Connecting an agent" joined the
+    // API-keys section when the MCP endpoint went live and the S29 hold
+    // released. The count moving is the guard working, not noise, and it is
+    // updated with the reason rather than relaxed to a floor.
+    expect(h3s).toHaveLength(24);
+    expect(h3s.map((h) => h.text)).toContain("Connecting an agent");
     expect(h3s.map((h) => h.text)).toContain("Expiring card alerts");
     expect(h3s.map((h) => h.text)).toContain("Win-back sequences");
   });
