@@ -6,9 +6,8 @@ import { accounts, getDb } from "~/db";
 import { eq } from "drizzle-orm";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { buildNotificationSettingsUpdate } from "~/lib/settings/persist.server";
+import { applyNotificationSettings } from "~/lib/settings/apply.server";
 import {
-  normalizeSlackWebhookUrl,
   SLACK_WEBHOOK_PLACEHOLDER,
 } from "~/lib/settings/slack-webhook";
 
@@ -101,23 +100,21 @@ export async function action({ request, context }: Route.ActionArgs) {
   const db = getDb(env);
   const form = await request.formData();
 
-  const webhook = normalizeSlackWebhookUrl(String(form.get("slackWebhookUrl") ?? ""));
-  if (!webhook.ok) {
-    return data<ActionResult>({ ok: false, error: webhook.error }, { status: 400 });
-  }
-
-  const email = String(form.get("notificationEmail") ?? "").trim();
-
-  await buildNotificationSettingsUpdate(db, auth.membership.accountId, {
-    // Legacy's `|| null`: clearing the box is how a merchant turns every
-    // notification off, which 339 binding 1 already relies on.
-    notificationEmail: email.length > 0 ? email : null,
-    slackWebhookUrl: webhook.value,
+  // THE WEBHOOK RULE AND THE SIX COLUMNS moved to apply.server.ts in session 79.
+  // Its refusal string is this form's refusal string, which is what lets the MCP
+  // `set_notification_settings` tool show an agent the same sentence a person
+  // sees rather than a second wording of the same rule.
+  const result = await applyNotificationSettings(db, auth.membership.accountId, {
+    notificationEmail: form.get("notificationEmail"),
+    slackWebhookUrl: String(form.get("slackWebhookUrl") ?? ""),
     slackNotificationsEnabled: checked(form, "slackNotificationsEnabled"),
     digestEnabled: checked(form, "digestEnabled"),
     recoveryNotificationsEnabled: checked(form, "recoveryNotificationsEnabled"),
     sequenceCompleteNotificationsEnabled: checked(form, "sequenceCompleteNotificationsEnabled"),
   });
+  if (!result.ok) {
+    return data<ActionResult>({ ok: false, error: result.error }, { status: 400 });
+  }
   return data<ActionResult>({ ok: true });
 }
 

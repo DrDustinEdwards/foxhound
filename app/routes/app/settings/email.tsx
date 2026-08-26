@@ -5,8 +5,8 @@ import { DemoGuardedForm } from "~/components/demo-guarded-form";
 import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { buildSenderSettingsUpdate } from "~/lib/settings/persist.server";
 import { SENDER_NAME_MAX_LENGTH } from "~/lib/settings/sender-name";
+import { applySenderName } from "~/lib/settings/apply.server";
 import { getPrimarySenderConnection } from "~/lib/settings/queries.server";
 import { sendTestEmail } from "~/lib/settings/test-email.server";
 
@@ -83,32 +83,22 @@ export async function action({ request, context }: Route.ActionArgs) {
   const intent = String(form.get("_action") ?? "");
 
   if (intent === "sender") {
-    const connectionId = String(form.get("connectionId") ?? "").trim();
-    if (!connectionId) {
-      return data<ActionResult>(
-        { action: intent, ok: false, error: "Connect Stripe before setting a sender name." },
-        { status: 400 },
-      );
+    // THE SENDER BRANCH'S CORE moved to apply.server.ts in session 79; the
+    // test-email branch below is untouched. Both refusals and the 80-character
+    // bound live there now, so the MCP `set_sender_name` tool refuses with this
+    // form's own sentences.
+    //
+    // The name stays OPTIONAL, per ruling 335: it was required for one session
+    // and that was an unratified divergence, since legacy writes `|| null` on an
+    // empty box and its empty case delivers through the `|| 'Support'` fallback
+    // Foxhound matches.
+    const result = await applySenderName(db, accountId, {
+      connectionId: form.get("connectionId"),
+      senderName: form.get("senderName"),
+    });
+    if (!result.ok) {
+      return data<ActionResult>({ action: intent, ok: false, error: result.error }, { status: 400 });
     }
-    // OPTIONAL, per ruling 335. It was required for one session and that was an
-    // unratified divergence: legacy writes `|| null` on an empty box, and its
-    // empty case delivers through the `|| 'Support'` fallback Foxhound matches.
-    // A user-visible divergence stands only on Dustin's ratification.
-    const raw = String(form.get("senderName") ?? "").trim();
-    const senderName = raw.length > 0 ? raw : null;
-    if (senderName && senderName.length > SENDER_NAME_MAX_LENGTH) {
-      return data<ActionResult>(
-        {
-          action: intent,
-          ok: false,
-          error: `Sender name must be ${SENDER_NAME_MAX_LENGTH} characters or fewer.`,
-        },
-        { status: 400 },
-      );
-    }
-    // ONE column. A form posting brandVoice or billingExempt beside it writes
-    // neither, because the builder names sender_name and nothing else.
-    await buildSenderSettingsUpdate(db, accountId, connectionId, { senderName });
     return data<ActionResult>({ action: intent, ok: true });
   }
 

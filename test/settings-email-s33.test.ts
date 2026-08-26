@@ -172,8 +172,14 @@ describe("PLANT 1: the save writes sender_name and nothing else", () => {
   it("refuses a connection on ANOTHER account and writes nothing", async () => {
     seedConnection({ id: "c_theirs", accountId: OTHER, senderName: "Theirs" });
     const res = await post({ _action: "sender", connectionId: "c_theirs", senderName: "Hijacked" });
-    // The WHERE pins account_id, so a foreign id matches zero rows.
-    expect(res.status).toBe(200);
+    // CHANGED IN SESSION 79, and the assertion now matches this test's own name.
+    // It asserted 200: the WHERE pinned account_id so a foreign id matched zero
+    // rows and the write silently no-opped into a SUCCESS. A save that reports
+    // success for a change it did not make is the class this campaign keeps
+    // fixing, and it mattered more once an MCP tool could pass the id as an
+    // argument rather than getting it from the page's own loader. The shared
+    // apply layer now verifies ownership and refuses.
+    expect(res.status).toBe(400);
     expect(connectionRow("c_theirs").senderName).toBe("Theirs");
   });
 });

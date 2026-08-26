@@ -6,7 +6,7 @@ import { DemoGuardedForm } from "~/components/demo-guarded-form";
 import { accounts, getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { buildFeatureSettingsUpdate } from "~/lib/settings/persist.server";
+import { applyFeatureSettings } from "~/lib/settings/apply.server";
 
 import type { Route } from "./+types/features";
 
@@ -77,9 +77,11 @@ export async function action({ request, context }: Route.ActionArgs) {
   const auth = context.get(authContext);
   const form = await request.formData();
 
-  // TWO columns. A form posting digestEnabled beside them writes neither,
-  // because the builder names these two and nothing else.
-  await buildFeatureSettingsUpdate(getDb(env), auth.membership.accountId, {
+  // TWO columns, through the shared apply layer (session 79) so this action and
+  // the MCP `set_feature_settings` tool cannot disagree. A form posting
+  // digestEnabled beside them writes neither, because the builder names these
+  // two and nothing else.
+  await applyFeatureSettings(getDb(env), auth.membership.accountId, {
     winbackNotificationsEnabled: checked(form, "winbackNotificationsEnabled"),
     expiringCardNotificationsEnabled: checked(form, "expiringCardNotificationsEnabled"),
   });
