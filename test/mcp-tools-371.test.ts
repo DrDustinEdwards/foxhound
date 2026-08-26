@@ -162,14 +162,23 @@ describe("PLANT 1: the thirteen are registered and describable", () => {
     }
   });
 
-  it("the list carries NO executor, which would be a function leaking into JSON", async () => {
-    const { tokens } = await seed();
-    const { text, json } = await call(tokens[MINE], "tools/list");
-    expect(text).not.toContain("execute");
-    const tools = (json as { result: { tools: Record<string, unknown>[] } }).result.tools;
-    for (const tool of tools) {
-      expect(Object.keys(tool).sort()).toEqual(["description", "inputSchema", "name"]);
+  it("the list carries NO executor, checked BEFORE serialization", async () => {
+    // THIS ASSERTION WAS VACUOUS ON ITS FIRST CUT AND ITS OWN MUTATION CAUGHT
+    // IT. It checked the PARSED response, and `JSON.stringify` silently drops
+    // function-valued properties, so returning the raw tool objects from
+    // `list()` left it green. The property worth guarding is what the registry
+    // HANDS BACK, which a future consumer might not serialize at all: a logger,
+    // a cache, or an SDK that reflects over the object.
+    const descriptors = MERCHANT_TOOLS.list() as unknown as Record<string, unknown>[];
+    expect(descriptors).toHaveLength(13);
+    for (const descriptor of descriptors) {
+      expect(Object.keys(descriptor).sort()).toEqual(["description", "inputSchema", "name"]);
+      expect("execute" in descriptor).toBe(false);
     }
+    // And the wire form agrees, which is the weaker half kept for completeness.
+    const { tokens } = await seed();
+    const { text } = await call(tokens[MINE], "tools/list");
+    expect(text).not.toContain("execute");
   });
 
   it("every name is one verb_noun vocabulary, and none is on the denylist", () => {
