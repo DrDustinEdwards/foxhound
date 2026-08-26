@@ -122,14 +122,21 @@ const resultOf = (json: never) =>
 // ============================================================================
 
 describe("PLANT 1: the four are registered as writes", () => {
-  it("the write half is exactly four, and the whole list is seventeen", () => {
-    expect(MERCHANT_WRITE_TOOL_NAMES).toEqual([
+  it("the four this session shipped are the first four writes, in order", () => {
+    // SESSION 80 ADDS THE REST, so this no longer pins the whole list: the
+    // registry size and the final eight are asserted by that session's suite,
+    // which is the one that has to stay right about them. What THIS suite is
+    // still the authority on is that its own four are registered, are writes,
+    // and did not get reordered or quietly dropped by a later session.
+    expect(MERCHANT_WRITE_TOOL_NAMES.slice(0, 4)).toEqual([
       "set_audit_settings",
       "set_feature_settings",
       "set_notification_settings",
       "set_sender_name",
     ]);
-    expect(MERCHANT_TOOL_NAMES).toHaveLength(17);
+    for (const name of MERCHANT_WRITE_TOOL_NAMES.slice(0, 4)) {
+      expect(MERCHANT_TOOL_NAMES).toContain(name);
+    }
   });
 
   it("and NONE of them is on the HUMAN-FOREVER denylist", () => {

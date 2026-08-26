@@ -15,6 +15,7 @@ import { listFailedPayments } from "~/lib/recovery/queries.server";
 import { readAccountAuditSettings } from "~/lib/settings/audit-settings.server";
 import {
   applyAuditSettings,
+  applyBrandVoice,
   applyFeatureSettings,
   applyNotificationSettings,
   applySenderName,
@@ -386,6 +387,52 @@ const WRITE_TOOLS: McpTool[] = [
           ctx.db,
           ctx.accountId,
           { connectionId: args.connection_id, senderName: args.sender_name },
+          ctx.trace,
+        ),
+      ),
+  },
+  {
+    name: "set_brand_voice",
+    // WHAT AN AGENT IS ACTUALLY WRITING, said plainly, because the honest
+    // description is also the safe one: this text lands in the system prompt
+    // that writes the merchant's recovery emails. It is not sanitised on the
+    // way in, exactly as the form does not sanitise it, and it does not need to
+    // be: `sanitizeCopy` and `passesQualityGate` run on what comes back out.
+    description:
+      "Set the tone Foxhound writes this connection's recovery emails in: a general voice, plus an optional override for each decline category. The text is free-form guidance for the writer, not a template. Omit a field to leave it as it is; send an empty string to clear it back to the general voice. The connection must belong to this account.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        connection_id: { type: "string", description: "From list_connections." },
+        general: { type: "string", description: "The voice for every category with no override." },
+        soft: { type: "string", description: "Soft declines: insufficient funds and the like." },
+        expired: { type: "string", description: "Expired card." },
+        network: { type: "string", description: "Network and issuer declines." },
+        fraud: { type: "string", description: "Suspected fraud." },
+      },
+      required: ["connection_id"],
+    },
+    execute: async (ctx, args) =>
+      applied(
+        await applyBrandVoice(
+          ctx.db,
+          ctx.accountId,
+          {
+            connectionId: args.connection_id,
+            // SPREAD RATHER THAN NAMED, and this is the one place it matters.
+            // Writing `general: args.general` would turn an omitted key into an
+            // explicit `undefined`, which is the same value, so that would be
+            // fine; writing `general: args.general ?? ""` would NOT be, because
+            // it would clear the column on every call that left it out. The
+            // four category voices are the ones a merchant sets once and never
+            // touches, so that mistake would be silent and unrecoverable: there
+            // is no read tool to restore them from.
+            ...(args.general !== undefined ? { general: args.general } : {}),
+            ...(args.soft !== undefined ? { soft: args.soft } : {}),
+            ...(args.expired !== undefined ? { expired: args.expired } : {}),
+            ...(args.network !== undefined ? { network: args.network } : {}),
+            ...(args.fraud !== undefined ? { fraud: args.fraud } : {}),
+          },
           ctx.trace,
         ),
       ),
