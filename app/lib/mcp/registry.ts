@@ -75,6 +75,15 @@ export interface McpToolContext {
   db: Db;
   accountId: string;
   now: Date;
+  /**
+   * WHO IS WRITING, carried so a write tool can record its trace in the same
+   * batch as the write (372's item-4 ruling). Read tools ignore it.
+   *
+   * It is built from the bearer key the transport already verified, so a tool
+   * cannot name a different author: the api key id is the one `verifyMcpToken`
+   * returned, not an argument.
+   */
+  trace: { apiKeyId: string; tool: string; now: Date };
 }
 
 /** What a tool exposes to a client. No executor: this is the shape `tools/list`

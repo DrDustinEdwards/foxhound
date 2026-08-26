@@ -145,14 +145,14 @@ const callTool = (token: string, name: string, args: Record<string, unknown> = {
 
 // ============================================================================
 
-describe("PLANT 1: the thirteen are registered and describable", () => {
-  it("tools/list returns exactly thirteen, with schemas that parse", async () => {
+describe("PLANT 1: the tools are registered and describable", () => {
+  it("tools/list returns exactly seventeen, with schemas that parse", async () => {
     const { tokens } = await seed();
     const { status, json } = await call(tokens[MINE], "tools/list");
     expect(status).toBe(200);
     const tools = (json as { result: { tools: { name: string; inputSchema: unknown }[] } }).result
       .tools;
-    expect(tools).toHaveLength(13);
+    expect(tools).toHaveLength(17);
     expect(tools.map((t) => t.name).sort()).toEqual([...MERCHANT_TOOL_NAMES].sort());
     for (const tool of tools) {
       // Every schema round-trips as JSON and is an object schema, which is what
@@ -170,7 +170,7 @@ describe("PLANT 1: the thirteen are registered and describable", () => {
     // HANDS BACK, which a future consumer might not serialize at all: a logger,
     // a cache, or an SDK that reflects over the object.
     const descriptors = MERCHANT_TOOLS.list() as unknown as Record<string, unknown>[];
-    expect(descriptors).toHaveLength(13);
+    expect(descriptors).toHaveLength(17);
     for (const descriptor of descriptors) {
       expect(Object.keys(descriptor).sort()).toEqual(["description", "inputSchema", "name"]);
       expect("execute" in descriptor).toBe(false);
@@ -184,7 +184,13 @@ describe("PLANT 1: the thirteen are registered and describable", () => {
   it("every name is one verb_noun vocabulary, and none is on the denylist", () => {
     for (const name of MERCHANT_TOOL_NAMES) {
       expect(name, `${name} is not snake_case`).toMatch(/^[a-z]+(_[a-z]+)+$/);
-      expect(name.startsWith("list_") || name.startsWith("get_"), `${name} verb`).toBe(true);
+      // THREE VERBS SINCE SESSION 79: the four write tools use `set_`. The
+      // vocabulary is still closed, which is the property, and widening it is a
+      // deliberate edit rather than a relaxation to any prefix.
+      expect(
+        name.startsWith("list_") || name.startsWith("get_") || name.startsWith("set_"),
+        `${name} verb`,
+      ).toBe(true);
       expect(isDeniedToolName(name), `${name} is denied`).toBe(false);
     }
   });
@@ -373,7 +379,7 @@ describe("PLANT 5: the end to end, through the real transport", () => {
     ).toBe("2025-06-18");
 
     const list = await call(tokens[MINE], "tools/list");
-    expect((list.json as { result: { tools: unknown[] } }).result.tools).toHaveLength(13);
+    expect((list.json as { result: { tools: unknown[] } }).result.tools).toHaveLength(17);
 
     for (const [name, args] of [
       ["get_audit_settings", {}],
@@ -455,11 +461,17 @@ describe("PLANT 7: the copy release, and every earlier state gone", () => {
   const s29 = read("app/routes/app/settings/api-keys.tsx");
   const llms = read("app/routes/files/llms.ts");
 
-  it("S29 describes a live endpoint, read-only, with the redaction default", () => {
+  it("S29 describes a live endpoint, its four writes, and the redaction default", () => {
+    // MOVED IN SESSION 79. "read-only" and "cannot change anything" were true of
+    // the thirteen and became false the moment four write tools shipped; a copy
+    // carrier that kept them would be understating what a key grants, which is
+    // the same defect as overstating it.
     expect(s29).toContain("/mcp");
-    expect(s29).toContain("read-only");
-    expect(s29).toContain("cannot change anything");
-    expect(s29).toContain("customer names and full email addresses are never sent");
+    expect(s29).toContain("change four settings");
+    expect(s29).toContain("Every change it makes is logged with");
+    expect(s29).toContain("cannot move money");
+    expect(s29).toContain("customer names and full email addresses are");
+    expect(s29).not.toContain("cannot change anything");
   });
 
   it("THE OVER-PROMISE THAT 368 NAMED IS GONE, in its exact words", () => {
@@ -472,7 +484,10 @@ describe("PLANT 7: the copy release, and every earlier state gone", () => {
 
   it("the docs say where the endpoint is, what it reads, and what it cannot do", () => {
     expect(platform).toContain("foxhoundapp.com/mcp");
-    expect(platform).toContain("The tools are READ ONLY");
+    expect(platform).toContain("Most of the tools READ");
+    expect(platform).toContain("Four tools WRITE");
+    expect(platform).toContain("Every change an agent makes is recorded with the key");
+    expect(platform).not.toContain("The tools are READ ONLY");
     expect(platform).toContain("absent by construction");
     expect(platform).toContain("Customer names are never sent");
   });
@@ -481,7 +496,9 @@ describe("PLANT 7: the copy release, and every earlier state gone", () => {
     expect(llms).toContain("## For agents");
     expect(llms).toContain("Model Context Protocol endpoint at ${url}/mcp");
     expect(llms).toContain("Settings and API keys");
-    expect(llms).toContain("The tools are READ ONLY");
+    expect(llms).toContain("Most tools read");
+    expect(llms).toContain("Four tools write, and only to settings");
+    expect(llms).not.toContain("The tools are READ ONLY");
     expect(llms).toContain("masked to their first character and domain");
   });
 
