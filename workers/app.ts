@@ -45,8 +45,17 @@ export default withSentry<Env>(
       // It still passes through applySecurityHeaders and applyCachePolicy below,
       // which is what pins it PRIVATE: the policy classifies anything unmatched
       // as private, and /mcp is unmatched deliberately.
-      const mcp = await handleMcpRequest(request, env);
-      if (mcp) return applyCachePolicy(request, applySecurityHeaders(mcp, nonce));
+      // THE PATH IS CHECKED HERE, BEFORE THE IMPORT, and that ordering is the
+      // whole reason the endpoint is mounted at this level. A dynamic import
+      // outside this branch would be evaluated on every page render, which is
+      // exactly the cost the mount was meant to avoid; the branch keeps the tool
+      // module's graph (thirteen helpers, the ORM, the billing and intelligence
+      // views) off every marketing request.
+      if (new URL(request.url).pathname === "/mcp") {
+        const { MERCHANT_TOOLS } = await import("~/lib/mcp/tools.server");
+        const mcp = await handleMcpRequest(request, env, MERCHANT_TOOLS);
+        if (mcp) return applyCachePolicy(request, applySecurityHeaders(mcp, nonce));
+      }
 
       const context = new RouterContextProvider();
       context.set(cloudflareContext, { env, ctx, nonce });
