@@ -148,6 +148,13 @@
       "when": 1787524842956,
       "tag": "0020_fearless_vision",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1787712114269,
+      "tag": "0021_lonely_squadron_sinister",
+      "breakpoints": true
     }
   ]
 }

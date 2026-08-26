@@ -1182,6 +1182,43 @@ export const adminAuditLog = sqliteTable("admin_audit_log", {
   createdAt: ts("created_at").notNull(),
 });
 
+/**
+ * The write trace for the merchant MCP (372's item-4 ruling: "write-audit
+ * logging of key id per write").
+ *
+ * WHY A NEW TABLE AND NOT `admin_audit_log`. That table is PLATFORM-scoped: its
+ * actor is an admin email, it has no `account_id`, and it has no column for a
+ * key. An agent write has no admin and no email; writing merchant self-service
+ * changes into the platform admin trail would put two different subjects in one
+ * table keyed on a field one of them cannot fill. Measured at HEAD before this
+ * table was added, and stated in parity/AGENT-SURFACE.md.
+ *
+ * FIELD NAMES, NEVER VALUES. `fields` records WHICH columns a tool touched, not
+ * what it wrote. A trace carrying the new brand voice would be a second copy of
+ * merchant content living in a log with different retention and different
+ * readers, which is a worse problem than the one the trace solves.
+ *
+ * `api_key_id` IS A SOFT REF, deliberately, mirroring `email_sends.cron_run_id`
+ * and 314's FK-retention catch: the trace must survive anything that happens to
+ * the key, and a revoked or reaped key must not take its own history with it.
+ * A trace that can be deleted by the party it traces is not a trace.
+ */
+export const mcpWrites = sqliteTable(
+  "mcp_writes",
+  {
+    id: id(),
+    accountId: text("account_id").notNull().references(() => accounts.id),
+    /** api_keys.id. Soft ref; see the header. */
+    apiKeyId: text("api_key_id").notNull(),
+    /** The MCP tool name that performed the write. */
+    tool: text("tool").notNull(),
+    /** The column names touched. Names only, never values. */
+    fields: json<string[]>("fields"),
+    createdAt: ts("created_at").notNull(),
+  },
+  (t) => [index("mcp_writes_account_idx").on(t.accountId)],
+);
+
 export const aiCalls = sqliteTable(
   "ai_calls",
   {
