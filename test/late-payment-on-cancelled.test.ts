@@ -185,7 +185,7 @@ describe("284 one: the recovery is recorded through the spine's sole builder", (
     const steps = sqlite
       .prepare("select id, step_type as stepType, result, clicked_at as clickedAt from recovery_steps where failed_payment_id = ?")
       .all("fp_pure") as { id: string; stepType: string; result: string | null; clickedAt: Date | null }[];
-    const attribution = resolveAttribution(findAttributionSignals(steps));
+    const attribution = resolveAttribution(findAttributionSignals(steps, now));
 
     expect(attribution.kind).toBe("stripe_baseline");
     expect(isBillableAttribution(attribution.kind)).toBe(false);
@@ -228,7 +228,11 @@ describe("284 one: the recovery is recorded through the spine's sole builder", (
     const steps = sqlite
       .prepare("select id, step_type as stepType, result, clicked_at as clickedAt from recovery_steps where failed_payment_id = ?")
       .all("fp_clicked") as { id: string; stepType: string; result: string | null; clickedAt: Date | null }[];
-    const attribution = resolveAttribution(findAttributionSignals(steps));
+    // A second after the click, because the click must PRECEDE the payment to
+    // have caused it (377(2)) and this fixture stamps both at `now`. The test's
+    // subject is unchanged: a click before the merchant's stop still bills.
+    const recoveredAt = new Date(now.getTime() + 1_000);
+    const attribution = resolveAttribution(findAttributionSignals(steps, recoveredAt));
 
     expect(attribution.kind).toBe("email_engaged");
     expect(isBillableAttribution(attribution.kind)).toBe(true);

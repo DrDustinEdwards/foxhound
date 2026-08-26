@@ -531,6 +531,7 @@ function buildFailure(
         result: s.result ?? null,
         clickedAt: s.clickedAt ?? null,
       })),
+      outcome.recoveredAt,
     );
     const attribution = resolveAttribution(signals);
     const daysToRecover = Math.max(

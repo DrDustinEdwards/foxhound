@@ -66,6 +66,25 @@ export const DEMO_ACCOUNT_ID_PREFIX = "demo_";
 
 // ---- Maturity window (PRICING.md maturity-window billing) ----
 /** A recovery is billable only once it is at least this old (refund window absorption). */
+/**
+ * How long before a recovery a click can have happened and still be its cause
+ * (PRICING.md rev 5 item 4, ruling 377(2)).
+ *
+ * `email_engaged` used to mean "any step on this payment has clicked_at set",
+ * with no window and no ordering, which is legacy's rule
+ * (`executedSteps.some(s => s.last_clicked_at)`). Legacy got away with it by
+ * bounding the RECOVERY instead: its handlePaymentSucceeded requires
+ * status='active' and its day-30 sweep flips the row, so a late payment
+ * recorded nothing at all. 284 deliberately widened Foxhound so late
+ * recoveries DO record; it never ruled that a months-old click caused them.
+ *
+ * Fourteen days is Stripe's own recommended retry window, and a customer who
+ * acts on a dunning email acts inside it. Outside it the recovery still
+ * records, as `stripe_baseline`, free.
+ */
+export const EMAIL_ENGAGEMENT_WINDOW_DAYS = 14;
+export const EMAIL_ENGAGEMENT_WINDOW_MS = EMAIL_ENGAGEMENT_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+
 export const RECOVERY_MATURITY_DAYS = 30;
 export const RECOVERY_MATURITY_MS = RECOVERY_MATURITY_DAYS * 24 * 60 * 60 * 1000;
 

@@ -78,6 +78,11 @@ describe("resolveAttribution", () => {
 // findAttributionSignals before resolveAttribution. These prove the wiring
 // a card_update signal actually reaches resolveAttribution as cardUpdateRef,
 // and that it does not override a signal earlier in precedence.
+// The recovery instant these signals are resolved against. Inside the 14-day
+// engagement window of the one click fixture below (377(2)), so the window
+// never silently decides an assertion that is about precedence.
+const RECOVERED_AT = new Date("2026-07-05T00:00:00.000Z");
+
 describe("findAttributionSignals (webhooks/process.ts's read of recovery_steps)", () => {
   const step = (over: Partial<AttributionStepRow>): AttributionStepRow => ({
     id: "step_x",
@@ -92,15 +97,15 @@ describe("findAttributionSignals (webhooks/process.ts's read of recovery_steps)"
       step({ id: "step_1", stepType: "email_day1", result: "email_sent" }),
       step({ id: "step_2", stepType: "card_update", result: "card_updated" }),
     ];
-    const signals = findAttributionSignals(steps);
+    const signals = findAttributionSignals(steps, RECOVERED_AT);
     expect(signals.cardUpdateRef).toBe("step_2");
     expect(resolveAttribution(signals)).toEqual({ kind: "card_update", ref: "step_2" });
   });
 
   it("an incomplete card_update step (no result yet) is not a signal", () => {
     const steps = [step({ id: "step_1", stepType: "card_update", result: null })];
-    expect(findAttributionSignals(steps).cardUpdateRef).toBeNull();
-    expect(resolveAttribution(findAttributionSignals(steps))).toEqual({
+    expect(findAttributionSignals(steps, RECOVERED_AT).cardUpdateRef).toBeNull();
+    expect(resolveAttribution(findAttributionSignals(steps, RECOVERED_AT))).toEqual({
       kind: "stripe_baseline",
       ref: null,
     });
@@ -111,7 +116,7 @@ describe("findAttributionSignals (webhooks/process.ts's read of recovery_steps)"
       step({ id: "step_1", stepType: "retry_early", result: "retry_succeeded" }),
       step({ id: "step_2", stepType: "card_update", result: "card_updated" }),
     ];
-    const signals = findAttributionSignals(steps);
+    const signals = findAttributionSignals(steps, RECOVERED_AT);
     expect(signals.succeededRetryStepId).toBe("step_1");
     expect(signals.cardUpdateRef).toBe("step_2");
     // Both signals are present in the row set; precedence must still pick retry.
@@ -123,7 +128,7 @@ describe("findAttributionSignals (webhooks/process.ts's read of recovery_steps)"
       step({ id: "step_1", stepType: "email_day1", clickedAt: new Date("2026-07-01T00:00:00.000Z") }),
       step({ id: "step_2", stepType: "card_update", result: "card_updated" }),
     ];
-    const signals = findAttributionSignals(steps);
+    const signals = findAttributionSignals(steps, RECOVERED_AT);
     expect(signals.clickedEngagementId).toBe("step_1");
     expect(signals.cardUpdateRef).toBe("step_2");
     // card_update outranks email_engaged in precedence (attribution.ts).
@@ -132,7 +137,7 @@ describe("findAttributionSignals (webhooks/process.ts's read of recovery_steps)"
 
   it("no signals at all falls through to stripe_baseline, never a false card_update", () => {
     const steps = [step({ id: "step_1", stepType: "email_day1", result: "email_sent" })];
-    expect(resolveAttribution(findAttributionSignals(steps))).toEqual({
+    expect(resolveAttribution(findAttributionSignals(steps, RECOVERED_AT))).toEqual({
       kind: "stripe_baseline",
       ref: null,
     });

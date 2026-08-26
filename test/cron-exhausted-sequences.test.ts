@@ -308,8 +308,19 @@ describe("a late recovery on a flipped row still wins", () => {
 
     const recoveries = await db.select().from(schema.recoveredPayments);
     expect(recoveries).toHaveLength(1);
-    // The click on step 2 is still the attribution signal, so this is billable.
-    expect(recoveries[0].attributionKind).toBe("email_engaged");
+    // FLIPPED BY RULING 377(2); carried in parity/REVERSALS.md as 377(a).
+    //
+    // This asserted `email_engaged` across a 43-day gap (clicked 2026-06-27,
+    // paid 2026-08-09), and it asserted it only because nothing else had been
+    // ruled: 284 widened the gate so LATE RECOVERIES RECORD, which it still
+    // does, and never ruled that a six-week-old click was their cause.
+    // `email_engaged` now needs a click inside 14 days that precedes the
+    // payment, so this recovery records with equal fidelity and bills nothing.
+    //
+    // 284 ITSELF STANDS. The row is still found, still flips to recovered, and
+    // still lands in the ledger; only the KIND changed, and only for a stale
+    // click.
+    expect(recoveries[0].attributionKind).toBe("stripe_baseline");
     expect(recoveries[0].amountCents).toBe(10_000);
   });
 
