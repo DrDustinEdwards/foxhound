@@ -207,7 +207,18 @@ describe("PLANT 5: the split left no surface without a writer", () => {
     // so that is where it went; without this the column would have had no
     // writer at all after the split.
     expect(brandVoice).toContain('name="brandVoice"');
-    expect(brandVoice).toContain("buildBrandVoiceUpdate");
+    // The writer moved BEHIND `applyBrandVoice` in session 80, so the name this
+    // pinned is no longer in the route. The property is unchanged and so is the
+    // reason for asserting it: the column still has a writer reached from this
+    // page. Both halves are named, because "the route calls applyBrandVoice" is
+    // only worth anything while applyBrandVoice is what writes the column.
+    expect(brandVoice).toContain("applyBrandVoice");
+    expect(
+      readFileSync(
+        fileURLToPath(new URL("../app/lib/settings/apply.server.ts", import.meta.url)),
+        "utf8",
+      ),
+    ).toContain("buildBrandVoiceUpdate");
   });
 
   it("THE ACCOUNT PAGE CARRIES LEGACY'S EMAIL LINE AND SIGN OUT (S27, session 60)", () => {

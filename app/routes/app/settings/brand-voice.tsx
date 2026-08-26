@@ -6,10 +6,7 @@ import { DemoGuardedForm } from "~/components/demo-guarded-form";
 import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import {
-  buildBrandVoiceUpdate,
-  buildCategoryVoicesUpdate,
-} from "~/lib/settings/persist.server";
+import { applyBrandVoice } from "~/lib/settings/apply.server";
 import { getPrimaryBrandVoices } from "~/lib/settings/queries.server";
 import {
   BRAND_VOICE_PRESETS,
@@ -81,30 +78,11 @@ export async function action({ request, context }: Route.ActionArgs) {
   const db = getDb(env);
   const form = await request.formData();
 
-  const connectionId = String(form.get("connectionId") ?? "").trim();
-  if (!connectionId) {
-    return data<ActionResult>(
-      { ok: false, error: "Connect Stripe before setting a brand voice." },
-      { status: 400 },
-    );
-  }
-
-  // FOUR NAMED FIELDS. A form posting `voice_revoked`, `brand_voice` or any
-  // other column name contributes nothing: the input is built by naming each
-  // key, and the writer names each column.
-  const read = (key: CategoryVoiceKey): string | null => {
-    const raw = String(form.get(voiceFieldName(key)) ?? "").trim();
-    return raw.length > 0 ? raw : null;
-  };
-
-  await buildCategoryVoicesUpdate(db, auth.membership.accountId, connectionId, {
-    soft: read("soft"),
-    expired: read("expired"),
-    network: read("network"),
-    fraud: read("fraud"),
-  });
-
-  // THE GENERAL VOICE, and legacy writes it from THIS form too. Its
+  // FIVE NAMED FIELDS, read here and validated nowhere here. A form posting
+  // `voice_revoked` or any other column name contributes nothing: the input is
+  // built by naming each key, and `applyBrandVoice` names each column.
+  //
+  // THE GENERAL VOICE COMES FROM THIS FORM TOO, and legacy is why. Its
   // BrandVoiceSection posts `brand_voice_preset` / `brand_voice_custom`
   // alongside the four category hidden inputs, and its update route resolves
   // them into the single `brand_voice` column (settings/update/route.ts:115-118).
@@ -113,13 +91,22 @@ export async function action({ request, context }: Route.ActionArgs) {
   // it was split into legacy's hub. Session 46's note that "the general
   // brand_voice is NOT on it: that field belongs to a different form" described
   // Foxhound's then-current arrangement, not legacy's.
-  const general = String(form.get("brandVoice") ?? "").trim();
-  await buildBrandVoiceUpdate(
-    db,
-    auth.membership.accountId,
-    connectionId,
-    general.length > 0 ? general : null,
-  );
+  //
+  // Every key is supplied on every post, including empty ones, so the form
+  // keeps writing all five columns exactly as it did.
+  const read = (key: CategoryVoiceKey): string => String(form.get(voiceFieldName(key)) ?? "");
+
+  const result = await applyBrandVoice(db, auth.membership.accountId, {
+    connectionId: form.get("connectionId"),
+    general: String(form.get("brandVoice") ?? ""),
+    soft: read("soft"),
+    expired: read("expired"),
+    network: read("network"),
+    fraud: read("fraud"),
+  });
+  if (!result.ok) {
+    return data<ActionResult>({ ok: false, error: result.error }, { status: 400 });
+  }
   return data<ActionResult>({ ok: true });
 }
 

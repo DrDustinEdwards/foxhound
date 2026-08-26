@@ -371,7 +371,16 @@ describe("PLANT 4: every write leaves a trace naming the key", () => {
     const strip = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, "");
     const apply = strip(read("app/lib/settings/apply.server.ts"));
     expect(apply).toContain("batch(statements)");
-    expect(apply).toContain("[statement, traceInsert(db, accountId, fields, trace)]");
+    // Session 80 widened `commit` to take an ARRAY of writes, because brand
+    // voice lands two statements. The literal this used to pin changed shape;
+    // the property did not, so it is pinned by shape instead: the trace is the
+    // last element of the one array that goes to batch, and there is exactly
+    // one place that array is built.
+    expect(apply).toContain("[...writes, traceInsert(db, accountId, fields, trace)]");
+    expect(apply.match(/traceInsert\(db, accountId, fields, trace\)/g)).toHaveLength(1);
+    // And no applyX may reach db.batch on its own, which would be a second,
+    // unaudited way to write a setting.
+    expect(apply.match(/\.batch\(/g)).toHaveLength(1);
   });
 });
 

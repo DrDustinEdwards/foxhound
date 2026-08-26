@@ -5,6 +5,8 @@ import { accounts, mcpWrites, stripeConnections } from "~/db";
 
 import { normalizeLookback } from "./audit-settings";
 import {
+  buildBrandVoiceUpdate,
+  buildCategoryVoicesUpdate,
   buildFeatureSettingsUpdate,
   buildNotificationSettingsUpdate,
   buildSenderSettingsUpdate,
@@ -61,17 +63,22 @@ function traceInsert(db: Db, accountId: string, fields: string[], trace: WriteTr
   });
 }
 
-/** Run the write, plus its trace when there is one, as one batch. */
+/** Run the write, plus its trace when there is one, as one batch.
+ *
+ *  `statement` takes an ARRAY when one setting spans two tables or two
+ *  statements: brand voice writes the general column and the four category
+ *  columns through two allowlisted builders, and both plus the trace have to
+ *  land or none of them do. The route used to `await` those two separately,
+ *  so a failure between them left half a voice stored. */
 async function commit(
   db: Db,
   accountId: string,
   fields: string[],
-  statement: unknown,
+  statement: unknown | unknown[],
   trace: WriteTrace | undefined,
 ) {
-  const statements = trace
-    ? [statement, traceInsert(db, accountId, fields, trace)]
-    : [statement];
+  const writes = Array.isArray(statement) ? statement : [statement];
+  const statements = trace ? [...writes, traceInsert(db, accountId, fields, trace)] : writes;
   await (db as unknown as { batch: (s: unknown[]) => Promise<unknown> }).batch(statements);
 }
 
@@ -248,4 +255,125 @@ export async function applySenderName(
     trace,
   );
   return { ok: true, fields, state: { connectionId, senderName } };
+}
+
+export interface BrandVoiceState {
+  connectionId: string;
+  general: string | null;
+  soft: string | null;
+  expired: string | null;
+  network: string | null;
+  fraud: string | null;
+}
+
+/** The five voice columns, keyed the way callers name them and valued the way
+ *  the trace records them. Naming each one IS the allowlist. */
+const BRAND_VOICE_COLUMNS = {
+  general: "brand_voice",
+  soft: "brand_voice_soft",
+  expired: "brand_voice_expired",
+  network: "brand_voice_network",
+  fraud: "brand_voice_fraud",
+} as const;
+
+type BrandVoiceKey = keyof typeof BRAND_VOICE_COLUMNS;
+
+/** One sentence for both refusals, and it is the form's own. */
+const NO_CONNECTION_FOR_VOICE = "Connect Stripe before setting a brand voice.";
+
+/**
+ * The general voice plus the four decline-category voices, on one connection.
+ *
+ * NO BOUND AND NO SANITISER ON THE WAY IN, which is legacy and is the form:
+ * no maxLength, no pattern, no required. Adding one here would be an
+ * unratified user-visible divergence, and it would also be guarding the wrong
+ * end. This text becomes part of the SYSTEM PROMPT that generates a recovery
+ * email (`resolveBrandVoice` feeds `buildSystemPrompt`), so what protects the
+ * merchant is on the OUTPUT side and already ships: every generated subject and
+ * body goes through `sanitizeCopy`, and `passesQualityGate` rejects the result
+ * before it is sent. An agent writing this column is writing a prompt fragment,
+ * and the fragment is not trusted downstream any more than a person's is.
+ *
+ * ABSENT MEANS LEAVE ALONE; EMPTY MEANS CLEAR. The form always posts all five
+ * (four hidden inputs plus the textarea), so it always supplies every key and
+ * this distinction never fires for it: `form.get` returns "" for a cleared box,
+ * which stores NULL exactly as legacy's `|| null` does. A TOOL caller can omit
+ * a key, and omission must not wipe four categories the merchant set in the UI.
+ * There is no `get_brand_voice` read tool to preserve them from, so silently
+ * clearing on omission would be unrecoverable rather than merely surprising.
+ * This is not a second validator: the bounds, the allowlist and the refusal
+ * string are one implementation. It only decides which columns are in the SET.
+ *
+ * THE CONNECTION IS VERIFIED, and this closes a silent no-op the route shipped
+ * with. Both builders pin `account_id`, so a foreign or stale `connectionId`
+ * matched zero rows and the action returned 200 with nothing written. 374
+ * binding 3: a zero-row UPDATE reported as success is a lie the moment the
+ * input source widens, and registering a tool is exactly that widening.
+ */
+export async function applyBrandVoice(
+  db: Db,
+  accountId: string,
+  input: {
+    connectionId: unknown;
+    general?: unknown;
+    soft?: unknown;
+    expired?: unknown;
+    network?: unknown;
+    fraud?: unknown;
+  },
+  trace?: WriteTrace,
+): Promise<ApplyResult<BrandVoiceState>> {
+  const connectionId = typeof input.connectionId === "string" ? input.connectionId.trim() : "";
+  if (!connectionId) return { ok: false, error: NO_CONNECTION_FOR_VOICE };
+
+  // The ownership check and the read of the current voices are ONE query: the
+  // fallback below needs the stored values, and a separate existence check
+  // would be a second round trip for the same row.
+  const found = await db
+    .select({
+      general: stripeConnections.brandVoice,
+      soft: stripeConnections.brandVoiceSoft,
+      expired: stripeConnections.brandVoiceExpired,
+      network: stripeConnections.brandVoiceNetwork,
+      fraud: stripeConnections.brandVoiceFraud,
+    })
+    .from(stripeConnections)
+    .where(and(eq(stripeConnections.id, connectionId), eq(stripeConnections.accountId, accountId)))
+    .limit(1);
+  if (found.length === 0) return { ok: false, error: NO_CONNECTION_FOR_VOICE };
+  const stored = found[0];
+
+  const fields: string[] = [];
+  const resolve = (key: BrandVoiceKey): string | null => {
+    const supplied = input[key];
+    if (supplied === undefined) return stored[key];
+    fields.push(BRAND_VOICE_COLUMNS[key]);
+    return asOptionalText(supplied);
+  };
+
+  const state: BrandVoiceState = {
+    connectionId,
+    general: resolve("general"),
+    soft: resolve("soft"),
+    expired: resolve("expired"),
+    network: resolve("network"),
+    fraud: resolve("fraud"),
+  };
+
+  await commit(
+    db,
+    accountId,
+    fields,
+    [
+      buildCategoryVoicesUpdate(db, accountId, connectionId, {
+        soft: state.soft,
+        expired: state.expired,
+        network: state.network,
+        fraud: state.fraud,
+      }),
+      buildBrandVoiceUpdate(db, accountId, connectionId, state.general),
+    ],
+    trace,
+  );
+  return { ok: true, fields, state };
 }
