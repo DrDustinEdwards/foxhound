@@ -179,6 +179,11 @@ export function buildGuardedRecoveryLineInsert(db: Db, input: GuardedRecoveryLin
         adminAuditLogId: sql<string | null>`null`.as("admin_audit_log_id"),
         description: sql<string>`${input.description}`.as("description"),
         createdAt: sql<number>`${input.createdAt.getTime()}`.as("created_at"),
+        // Added by ruling 377(5). A fee line is not a credit, so both are null,
+        // but drizzle's insert-select requires EVERY column in table order and
+        // an omission is a runtime error, not a type error.
+        stripeCreditNoteId: sql<string | null>`null`.as("stripe_credit_note_id"),
+        creditsLineItemId: sql<string | null>`null`.as("credits_line_item_id"),
       })
       .from(recoveredPayments)
       .where(

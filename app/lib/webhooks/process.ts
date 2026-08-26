@@ -30,6 +30,10 @@ import {
   WINBACK_REACTIVATABLE_STATUSES,
 } from "~/lib/recovery/winback-reactivation.server";
 import { isIntelligenceEntitled } from "~/lib/intelligence/views.server";
+import {
+  issueCreditNoteForEvidence,
+  refundedRecoveryIdsFor,
+} from "~/lib/billing/credit-note";
 import { executeMoneyWrite } from "~/lib/money/execute";
 import { sendRecoveryNotification } from "~/lib/recovery/merchant-notification.server";
 import { buildCandidateUpsert, isInsideLeadWindow } from "~/lib/cron/expiring-cards";
@@ -970,6 +974,17 @@ export async function processConnectedWebhook(
             resolvedAt: receivedAt,
           }),
       });
+
+      // A dispute Foxhound WON, billed, and then lost on reopening is the
+      // 120-day case maturity cannot reach (377(5)). Same shape as the refund
+      // above: after the commit, never unwinding it, keyed on the fee line.
+      if (applied && !intent.won) {
+        await issueCreditNoteForEvidence(
+          env,
+          { disputeId: dispute.id },
+          { now: receivedAt, description: "Dispute lost after billing: fee credited" },
+        );
+      }
       return applied ? { status: "applied" } : { status: "duplicate" };
     }
 
@@ -1174,6 +1189,24 @@ export async function processConnectedWebhook(
           at: receivedAt,
         }),
     });
+
+    // THE CLAWBACK, AFTER THE STAMP COMMITS (ruling 377(5)). It depends on a
+    // Stripe call, so it cannot ride the batch above, and it must not be able
+    // to unwind it: the refund is a fact whether or not Stripe answers.
+    //
+    // Only on `applied`. A replayed refund event has already had its credit
+    // considered on the first delivery, and the fee line's own key would refuse
+    // a second note anyway; not re-entering keeps a redelivery storm from
+    // calling Stripe once per delivery.
+    if (applied) {
+      for (const recoveredPaymentId of await refundedRecoveryIdsFor(env, refundedFailedPaymentId)) {
+        await issueCreditNoteForEvidence(
+          env,
+          { recoveredPaymentId },
+          { now: receivedAt, description: "Refunded recovery: fee credited" },
+        );
+      }
+    }
     return applied ? { status: "applied" } : { status: "duplicate" };
   } catch (err) {
     // Money path: surface so the endpoint 500s and Stripe retries (the batch is

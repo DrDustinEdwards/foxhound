@@ -668,20 +668,46 @@ export const billingLineItems = sqliteTable(
     adminAuditLogId: text("admin_audit_log_id").references(() => adminAuditLog.id),
     description: text("description"),
     createdAt: ts("created_at").notNull(),
+    /** The Stripe credit note this line records (type 'credit' only, ruling
+     *  377(5)). Stored so the ledger can show the merchant the note that was
+     *  issued and so a replay can recognise the work as already done. */
+    stripeCreditNoteId: text("stripe_credit_note_id"),
+    /** The fee line this credit reverses (type 'credit' only). Self-reference
+     *  rather than a bare flag, because "one credit note per fee line" is only
+     *  enforceable if the pairing is a column a unique index can sit on. */
+    creditsLineItemId: text("credits_line_item_id"),
   },
   (t) => [
     index("billing_line_items_invoice_idx").on(t.invoiceId),
     index("billing_line_items_account_idx").on(t.accountId),
-    // structural no-double-billing: one line item per recovery, one per dispute
+    // STRUCTURAL NO-DOUBLE-BILLING: one FEE line per recovery, one per dispute.
+    //
+    // Scoped to the fee types under ruling 377(5). A credit line carries the
+    // SAME evidence FK as the fee it reverses, which is what makes the ledger
+    // read action -> recovery -> fee -> credit without a join through a third
+    // table, and an unscoped index would have refused that row. The guard these
+    // indexes exist for is unchanged and is the thing actually asserted: a
+    // recovery still cannot carry two recovery_fee lines.
     uniqueIndex("billing_line_items_recovery_uq")
       .on(t.recoveredPaymentId)
-      .where(sql`${t.recoveredPaymentId} is not null`),
+      .where(sql`${t.recoveredPaymentId} is not null and ${t.type} = 'recovery_fee'`),
     uniqueIndex("billing_line_items_dispute_uq")
       .on(t.disputeId)
-      .where(sql`${t.disputeId} is not null`),
+      .where(sql`${t.disputeId} is not null and ${t.type} = 'dispute_fee'`),
     check(
       "billing_line_items_type_ck",
-      sql`${t.type} in ('recovery_fee', 'dispute_fee', 'subscription', 'adjustment')`,
+      sql`${t.type} in ('recovery_fee', 'dispute_fee', 'subscription', 'adjustment', 'credit')`,
+    ),
+    // ONE CREDIT NOTE PER FEE LINE (ruling 377(5)), enforced by the database
+    // rather than by the caller remembering. A redelivered refund event, or two
+    // events racing, cannot produce a second credit against the same fee: the
+    // insert violates this index and the whole money batch rolls back.
+    uniqueIndex("billing_line_items_credits_line_uq").on(t.creditsLineItemId),
+    // A credit line is meaningless without the fee it reverses and the note
+    // Stripe issued, and no other type may carry them.
+    check(
+      "billing_line_items_credit_shape_ck",
+      sql`(${t.type} = 'credit') = (${t.creditsLineItemId} is not null)`,
     ),
     // I3 (Phase 5 review, closed admin Pass 2): an adjustment line item is
     // never valid without its admin_audit_log entry. DB-enforced, not just
