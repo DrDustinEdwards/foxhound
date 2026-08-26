@@ -459,6 +459,10 @@ async function findDisputeByStripeId(
  */
 async function resolveRecoveryAttribution(env: Env, failedPaymentId: string) {
   const db = getDb(env);
+  // Deliberately unordered. Which click attributes the recovery is decided by
+  // findAttributionSignals, which sorts by clickedAt desc (ruling 377(3)), so
+  // this query's row order cannot reach the ledger. Ordering here as well would
+  // give two guards for one rule and neither could be shown to fail alone.
   const steps = await db
     .select({
       id: recoverySteps.id,

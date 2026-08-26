@@ -57,6 +57,13 @@ export interface AttributionStepRow {
   clickedAt: Date | null;
 }
 
+/** Milliseconds of a step's click. Built through `new Date` rather than
+ *  `.getTime()` directly so a driver handing back an ISO string instead of a
+ *  Date cannot make the comparator throw on the money path. */
+function clickedAtMs(step: AttributionStepRow): number {
+  return new Date(step.clickedAt as Date).getTime();
+}
+
 /**
  * Find the attribution signals present in a failed payment's recovery_steps,
  * pure so it is unit-testable without a database (webhooks/process.ts fetches
@@ -73,7 +80,26 @@ export function findAttributionSignals(steps: AttributionStepRow[]): Attribution
   const cardUpdate = steps.find(
     (s) => s.stepType === "card_update" && s.result === "card_updated",
   );
-  const clicked = steps.find((s) => s.clickedAt != null);
+  // THE LATEST CLICK WINS, AND THE ORDERING IS DONE HERE (ruling 377(3)).
+  //
+  // This was `steps.find((s) => s.clickedAt != null)` against a caller query
+  // that has no `orderBy` (webhooks/process.ts), so which click became the
+  // billable signal was decided by D1 row order. That is a bug on the money
+  // path: the attributing step id is the evidence FK the merchant's invoice
+  // line points at, so row order was choosing what the ledger says caused the
+  // recovery. Legacy ordered `executed_at desc` and the rebuild dropped it.
+  //
+  // The sort lives in this pure function rather than in the caller's SQL on
+  // purpose. It is the selection itself, it is provable without a database,
+  // and it fixes every caller at once: process.ts and demo/recovery-seed.ts
+  // both read rows and hand them here, and a future caller with any row order
+  // gets the same answer. Adding `orderBy` to the query as well would leave
+  // two overlapping guards where neither can be shown to fail on its own.
+  //
+  // `filter` returns a fresh array, so sorting it cannot reorder the caller's.
+  const clicked = steps
+    .filter((s) => s.clickedAt != null)
+    .sort((a, b) => clickedAtMs(b) - clickedAtMs(a))[0];
   return {
     succeededRetryStepId: succeededRetry?.id ?? null,
     cardUpdateRef: cardUpdate?.id ?? null,
