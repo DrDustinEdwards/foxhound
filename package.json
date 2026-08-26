@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.111.0",
-    "@sentry/cloudflare": "^10.65.0",
+    "@sentry/cloudflare": "10.66.0",
     "better-auth": "^1.6.23",
     "drizzle-orm": "^0.45.2",
     "highlight.js": "^11.11.1",
