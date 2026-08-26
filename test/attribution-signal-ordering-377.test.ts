@@ -30,8 +30,13 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 const ACCOUNT = "acct_ordering";
 const PAYMENT = "fp_ordering";
 
-const EARLY_CLICK = new Date("2026-08-01T10:00:00.000Z");
+const EARLY_CLICK = new Date("2026-08-15T10:00:00.000Z");
 const LATE_CLICK = new Date("2026-08-20T10:00:00.000Z");
+// RECOVERED_AT is chosen so BOTH clicks sit inside the 14-day engagement
+// window (377(2)). If the early click fell outside it, these tests would pass
+// because the WINDOW excluded it and would say nothing about ordering, which
+// is the neighbouring-guard trap 371 binding 5 names.
+const RECOVERED_AT = new Date("2026-08-21T10:00:00.000Z");
 
 async function seed(steps: { id: string; clickedAt: Date | null; result?: string | null; stepType?: string }[]) {
   const { db } = createInMemoryDb();
@@ -95,7 +100,7 @@ describe("attribution signal ordering: the latest click wins", () => {
     // exactly the order that made the old `find` right by luck.
     expect(rows.map((r) => r.id)).toEqual(["step_late", "step_early"]);
 
-    expect(findAttributionSignals(rows).clickedEngagementId).toBe("step_late");
+    expect(findAttributionSignals(rows, RECOVERED_AT).clickedEngagementId).toBe("step_late");
   });
 
   it("AND attributes the later click when it sits at the HIGHER rowid, which is where the bug lived", async () => {
@@ -110,7 +115,7 @@ describe("attribution signal ordering: the latest click wins", () => {
     // returned step_early and the invoice line cited a click three weeks stale.
     expect(rows.map((r) => r.id)).toEqual(["step_early", "step_late"]);
 
-    expect(findAttributionSignals(rows).clickedEngagementId).toBe("step_late");
+    expect(findAttributionSignals(rows, RECOVERED_AT).clickedEngagementId).toBe("step_late");
   });
 
   it("the attribution kind and its evidence ref both follow the later click", async () => {
@@ -119,12 +124,12 @@ describe("attribution signal ordering: the latest click wins", () => {
       { id: "step_early", clickedAt: EARLY_CLICK },
     ]);
 
-    const attribution = resolveAttribution(findAttributionSignals(await readStepsAsProcessDoes(db)));
+    const attribution = resolveAttribution(findAttributionSignals(await readStepsAsProcessDoes(db), RECOVERED_AT));
     expect(attribution).toEqual({ kind: "email_engaged", ref: "step_late" });
   });
 
   it("three clicks out of order still resolve to the newest", async () => {
-    const middle = new Date("2026-08-10T10:00:00.000Z");
+    const middle = new Date("2026-08-17T10:00:00.000Z");
     const db = await seed([
       { id: "step_middle", clickedAt: middle },
       { id: "step_late", clickedAt: LATE_CLICK },
@@ -133,7 +138,7 @@ describe("attribution signal ordering: the latest click wins", () => {
 
     const rows = await readStepsAsProcessDoes(db);
     expect(rows).toHaveLength(3);
-    expect(findAttributionSignals(rows).clickedEngagementId).toBe("step_late");
+    expect(findAttributionSignals(rows, RECOVERED_AT).clickedEngagementId).toBe("step_late");
   });
 
   it("does not reorder the caller's array, which would move the other signals", async () => {
@@ -144,18 +149,18 @@ describe("attribution signal ordering: the latest click wins", () => {
 
     const rows = await readStepsAsProcessDoes(db);
     const before = rows.map((r) => r.id);
-    findAttributionSignals(rows);
+    findAttributionSignals(rows, RECOVERED_AT);
     expect(rows.map((r) => r.id)).toEqual(before);
   });
 
   it("a single click is still the signal, and an unclicked set still has none", async () => {
     const one = await seed([{ id: "step_only", clickedAt: LATE_CLICK }]);
-    expect(findAttributionSignals(await readStepsAsProcessDoes(one)).clickedEngagementId).toBe(
+    expect(findAttributionSignals(await readStepsAsProcessDoes(one), RECOVERED_AT).clickedEngagementId).toBe(
       "step_only",
     );
 
     const none = await seed([{ id: "step_sent", clickedAt: null }]);
-    expect(findAttributionSignals(await readStepsAsProcessDoes(none)).clickedEngagementId).toBeNull();
+    expect(findAttributionSignals(await readStepsAsProcessDoes(none), RECOVERED_AT).clickedEngagementId).toBeNull();
   });
 
   it("a succeeded retry still outranks the newest click, so ordering did not change priority", async () => {
@@ -164,7 +169,7 @@ describe("attribution signal ordering: the latest click wins", () => {
       { id: "step_retry", clickedAt: null, stepType: "retry_early", result: "retry_succeeded" },
     ]);
 
-    const attribution = resolveAttribution(findAttributionSignals(await readStepsAsProcessDoes(db)));
+    const attribution = resolveAttribution(findAttributionSignals(await readStepsAsProcessDoes(db), RECOVERED_AT));
     expect(attribution).toEqual({ kind: "foxhound_retry", ref: "step_retry" });
   });
 

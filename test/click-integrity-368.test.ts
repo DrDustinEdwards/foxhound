@@ -287,8 +287,15 @@ describe("PLANT 4: the attribution chain cannot start from a skipped request", (
       return [{ id: s.id, stepType: s.stepType, result: s.result, clickedAt: s.clickedAt }];
     };
 
-    const botAttribution = resolveAttribution(findAttributionSignals(await rowsFor(STEP_A)));
-    const humanAttribution = resolveAttribution(findAttributionSignals(await rowsFor(STEP_B)));
+    // Derived from the click that was actually stamped, one minute later, so
+    // this stays a test about bot filtering rather than about the 14-day
+    // engagement window (377(2)). recordClick stamps with its own clock, so a
+    // recoveredAt built from this file's NOW would land BEFORE the click and
+    // the window would decide the assertion instead of the bot guard.
+    const clickedRow = await stepRow(db, STEP_B);
+    const RECOVERED_AT = new Date((clickedRow.clickedAt as Date).getTime() + 60_000);
+    const botAttribution = resolveAttribution(findAttributionSignals(await rowsFor(STEP_A), RECOVERED_AT));
+    const humanAttribution = resolveAttribution(findAttributionSignals(await rowsFor(STEP_B), RECOVERED_AT));
 
     expect(botAttribution.kind).toBe("stripe_baseline");
     expect(isBillableAttribution(botAttribution.kind)).toBe(false);

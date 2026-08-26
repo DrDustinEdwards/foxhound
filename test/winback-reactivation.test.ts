@@ -371,7 +371,7 @@ describe("PLANT 4: nothing about a reactivation is billable", () => {
   it("findAttributionSignals reads recovery_steps and a win-back has none", () => {
     // The reader's input type IS recovery_steps rows. A win-back writes none,
     // so there is nothing for it to attribute, by construction.
-    expect(findAttributionSignals([])).toEqual({
+    expect(findAttributionSignals([], new Date("2026-08-01T00:00:00.000Z"))).toEqual({
       succeededRetryStepId: null,
       cardUpdateRef: null,
       clickedEngagementId: null,

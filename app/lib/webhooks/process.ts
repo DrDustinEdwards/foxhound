@@ -475,7 +475,11 @@ async function findDisputeByStripeId(
  * email (email_engaged), else the free stripe_baseline. Mirrors the legacy
  * recovery_trigger logic on the SCHEMA.md attribution spine.
  */
-async function resolveRecoveryAttribution(env: Env, failedPaymentId: string) {
+async function resolveRecoveryAttribution(
+  env: Env,
+  failedPaymentId: string,
+  recoveredAt: Date,
+) {
   const db = getDb(env);
   // Deliberately unordered. Which click attributes the recovery is decided by
   // findAttributionSignals, which sorts by clickedAt desc (ruling 377(3)), so
@@ -491,7 +495,7 @@ async function resolveRecoveryAttribution(env: Env, failedPaymentId: string) {
     .from(recoverySteps)
     .where(eq(recoverySteps.failedPaymentId, failedPaymentId));
 
-  const signals = findAttributionSignals(steps);
+  const signals = findAttributionSignals(steps, recoveredAt);
   const attribution = resolveAttribution(signals);
   const recoveredByStepId =
     signals.succeededRetryStepId ?? signals.cardUpdateRef ?? signals.clickedEngagementId ?? null;
@@ -812,7 +816,7 @@ export async function processConnectedWebhook(
         return applied ? { status: "ignored", reason: "no_active_failure" } : { status: "duplicate" };
       }
       const { attribution, recoveredByStepId, recoveryMethod } =
-        await resolveRecoveryAttribution(env, failedPaymentId);
+        await resolveRecoveryAttribution(env, failedPaymentId, receivedAt);
       const { applied } = await executeMoneyWrite(env, {
         accountId,
         idempotencyKey,

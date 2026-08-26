@@ -1,4 +1,8 @@
-import { BILLABLE_ATTRIBUTION_KINDS, type AttributionKind } from "~/lib/constants";
+import {
+  BILLABLE_ATTRIBUTION_KINDS,
+  EMAIL_ENGAGEMENT_WINDOW_MS,
+  type AttributionKind,
+} from "~/lib/constants";
 import { isRetryStep } from "~/lib/recovery/schedule";
 
 // Attribution is first-class (SCHEMA.md spine #1, PRICING.md): a recovery is
@@ -73,7 +77,16 @@ function clickedAtMs(step: AttributionStepRow): number {
  * app/lib/card-update/signal.ts); a clicked dunning email has clickedAt set.
  * All three refs point at recovery_steps.id (SCHEMA.md spine #1).
  */
-export function findAttributionSignals(steps: AttributionStepRow[]): AttributionSignals {
+export function findAttributionSignals(
+  steps: AttributionStepRow[],
+  /**
+   * When the money actually arrived. REQUIRED, with no default, because the
+   * window below is the difference between billing a merchant and not, and a
+   * caller that forgot to say would silently get the old unbounded rule back.
+   * Every call site is therefore listed by the compiler.
+   */
+  recoveredAt: Date,
+): AttributionSignals {
   const succeededRetry = steps.find(
     (s) => isRetryStep(s.stepType) && s.result === "retry_succeeded",
   );
@@ -97,8 +110,19 @@ export function findAttributionSignals(steps: AttributionStepRow[]): Attribution
   // two overlapping guards where neither can be shown to fail on its own.
   //
   // `filter` returns a fresh array, so sorting it cannot reorder the caller's.
+  // THE CLICK MUST PRECEDE THE RECOVERY AND BE RECENT ENOUGH TO HAVE CAUSED IT
+  // (ruling 377(2)). Both halves matter and each has its own failure. A click
+  // AFTER the payment cannot have caused it; that is a customer tidying an
+  // inbox, and reading it as causation bills the merchant for their own
+  // customer's housekeeping. A click months before is the 284 case: the
+  // recovery is real and records, but Foxhound's email is not why.
+  const recoveredAtMs = recoveredAt.getTime();
   const clicked = steps
     .filter((s) => s.clickedAt != null)
+    .filter((s) => {
+      const ms = clickedAtMs(s);
+      return ms < recoveredAtMs && recoveredAtMs - ms <= EMAIL_ENGAGEMENT_WINDOW_MS;
+    })
     .sort((a, b) => clickedAtMs(b) - clickedAtMs(a))[0];
   return {
     succeededRetryStepId: succeededRetry?.id ?? null,
