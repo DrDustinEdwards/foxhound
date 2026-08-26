@@ -96,6 +96,47 @@ export const FAILED_PAYMENT_STATUS_UNRECOVERED = "failed_unrecovered";
 export const FAILED_PAYMENT_STATUS_CANCELLED = "cancelled";
 
 /**
+ * STRIPE STILL OWNS THIS PAYMENT. The invoice has failed at least once and
+ * Stripe's own Smart Retries are still scheduled, so Foxhound has recorded the
+ * payment and planned NOTHING (ruling 377(1)).
+ *
+ * The split exists because the docs' promise, "Foxhound starts after Stripe's
+ * own Smart Retries have run and failed", was false at HEAD: intake spawned the
+ * sequence on the FIRST invoice.payment_failed, so Foxhound's 4-hour retry and
+ * day-1 email ran while Stripe was still trying, and a coincident click made
+ * Stripe's own recovery billable.
+ *
+ * The row is created anyway rather than waiting, because halt 1 of session 82
+ * measured what waiting costs: the involuntary-churn guard keys on a
+ * failed_payments row, and an empty window would turn a card-failure
+ * cancellation into a win-back. So the row exists from the first failure and
+ * carries this status until Stripe gives up.
+ *
+ * No migration adds this value. failed_payments.status is text NOT NULL with NO
+ * CHECK constraint, the same reason recorded on FAILED_PAYMENT_STATUS_CANCELLED
+ * above, so the vocabulary in this file is the enforcement.
+ */
+export const FAILED_PAYMENT_STATUS_STRIPE_RETRYING = "stripe_retrying";
+
+/**
+ * The statuses of a failed payment that is LIVE: Foxhound has it and it has not
+ * reached a terminal state. Both mean "this customer has an unpaid invoice
+ * right now"; they differ only in whose retry clock is running.
+ *
+ * ONE constant rather than two literals because both readers must widen
+ * together. listActiveFailedPaymentIds (the involuntary-churn guard, 377(1)
+ * halt 1) has to see a stripe_retrying row or a cancellation during Stripe's
+ * own retry window reads as voluntary churn and triggers a win-back at exactly
+ * the wrong moment. findActiveFailedPayment (the per-invoice intake dedupe) has
+ * to see it or the second payment_failed on the same invoice creates a SECOND
+ * row instead of promoting the first.
+ */
+export const LIVE_FAILED_PAYMENT_STATUSES = [
+  FAILED_PAYMENT_STATUS_ACTIVE,
+  FAILED_PAYMENT_STATUS_STRIPE_RETRYING,
+] as const;
+
+/**
  * The statuses a late invoice.payment_succeeded may still recover FROM.
  *
  * 'active' is the normal case. 'failed_unrecovered' matters because a customer
@@ -132,11 +173,31 @@ export const FAILED_PAYMENT_STATUS_CANCELLED = "cancelled";
  * the row, and buildRecoverBatch's status flip (webhooks/batches.ts) accepts it.
  * Both would have to be widened for the recovery to land, and both are widened
  * here at once.
+ *
+ * 'stripe_retrying' JOINED THE LIST 2026-08-26 under ruling 377(1), and it is
+ * an ADDITION FORCED BY THAT SPLIT rather than a re-opening of 284. Once intake
+ * parks a payment while Stripe's own retries run, the overwhelmingly COMMON
+ * outcome is that Stripe's retry succeeds. Without this entry that payment is
+ * found by nothing: no recovered_payments row, no moat entry, and the failed
+ * payment sits in 'stripe_retrying' forever while the customer is paid up.
+ * Measured, not reasoned: the plant "a payment on a parked invoice still
+ * records" in test/intake-split-377.test.ts fails with zero recoveries against
+ * a list without it.
+ *
+ * It changes no billing. Attribution resolves from the steps that actually ran
+ * and a parked row has none, so the recovery records `stripe_baseline` and
+ * bills NOTHING, which is the correct answer: Stripe's own retry got the money.
+ * That is the same argument 284 made for 'cancelled', reaching the same place.
+ * FLAGGED FOR RATIFICATION: the seat's brief said not to touch this constant,
+ * scoped to the click window in 377(2); this entry is 377(1)'s consequence and
+ * is recorded here rather than worked around at a call site, because the whole
+ * reason this is one constant is that both readers widen together.
  */
 export const RECOVERABLE_FAILED_PAYMENT_STATUSES = [
   "active",
   FAILED_PAYMENT_STATUS_UNRECOVERED,
   FAILED_PAYMENT_STATUS_CANCELLED,
+  FAILED_PAYMENT_STATUS_STRIPE_RETRYING,
 ] as const;
 
 // ---- Canon enum value sets (mirror schema CHECK constraints) ----

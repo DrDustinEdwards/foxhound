@@ -40,13 +40,20 @@ describe("classifyStripeEvent", () => {
         customer: "cus_1",
         customer_email: "a@b.com",
         last_finalization_error: { decline_code: "expired_card" },
+        // STATED, NOT OMITTED (377(1)). An absent next_payment_attempt reads as
+        // null, which is "Stripe gave up", so a fixture that leaves it out
+        // cannot tell a working gate from a missing one. expired_card is a hard
+        // decline and Stripe does not retry one, so null is also what Stripe
+        // really sends here.
+        next_payment_attempt: null,
       }),
     );
     expect(intent.kind).toBe("intake");
     if (intent.kind === "intake") {
       expect(intent.invoiceId).toBe("in_1");
-      expect(intent.declineCategory).toBe("expired");
+        expect(intent.declineCategory).toBe("expired");
       expect(intent.amountCents).toBe(4200);
+      expect(intent.stripeGaveUp).toBe(true);
     }
   });
 
@@ -164,6 +171,9 @@ describe("webhook batch builders (compile against schema)", () => {
       declineCode: "insufficient_funds",
       declineCategory: "soft",
       detectedAt: now,
+      // Stripe has given up, so this is the full sequence. The waiting arm has
+      // its own coverage in test/intake-split-377.test.ts.
+      stripeGaveUp: true,
     });
     // claim + failed_payment + 8 soft-schedule steps
     expect(batch.length).toBe(10);

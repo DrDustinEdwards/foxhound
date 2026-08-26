@@ -28,6 +28,26 @@ export type WebhookIntent =
       currency: string;
       declineCode: string | null;
       declineCategory: DeclineCategory;
+      /**
+       * TRUE when Stripe has stopped retrying this invoice, read from
+       * `next_payment_attempt` being null (ruling 377(1)). This is the whole
+       * gate: while Stripe has another attempt scheduled the payment is
+       * Stripe's, and Foxhound plans nothing.
+       *
+       * It needs no special case for hard declines. Stripe does not retry an
+       * expired card, a fraud block or a revoked card, so those invoices carry
+       * a null next_payment_attempt on the FIRST failure and start immediately
+       * through this same field. Only soft and network declines wait, which is
+       * exactly the set Stripe actually retries.
+       */
+      stripeGaveUp: boolean;
+    }
+  | {
+      /** invoice.marked_uncollectible: Stripe has written the invoice off, so
+       *  it is unambiguously finished with it. Promotes a stripe_retrying row
+       *  the same way a final payment_failed does (377(1)). */
+      kind: "stripe_gave_up";
+      invoiceId: string;
     }
   | {
       kind: "recover";
@@ -106,6 +126,10 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
         null;
       return {
         kind: "intake",
+        // Stripe sends `next_payment_attempt` as a unix timestamp while it
+        // still intends to retry, and null once it has stopped. Absent is
+        // treated as null, which is the same thing Stripe means by it.
+        stripeGaveUp: (invoice.next_payment_attempt ?? null) === null,
         invoiceId: invoice.id,
         customerId: asId(invoice.customer) ?? "",
         customerEmail: invoice.customer_email ?? "",
@@ -252,6 +276,11 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
         card: null,
         paymentMethodId: pmId,
       };
+    }
+    case "invoice.marked_uncollectible": {
+      const invoice = event.data.object as Stripe.Invoice;
+      if (!invoice.id) return { kind: "ignore", reason: "no_invoice_id" };
+      return { kind: "stripe_gave_up", invoiceId: invoice.id };
     }
     default:
       return { kind: "ignore", reason: "unhandled_type" };
