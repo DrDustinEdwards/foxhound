@@ -391,14 +391,14 @@ describe("PLANT 4: the registry is EMPTY and can never hold a denied name", () =
       expect(isDeniedToolName(fragment), `${fragment} not denied`).toBe(true);
       expect(() =>
         defineToolRegistry([
-          { name: fragment, description: "d", inputSchema: { type: "object" } },
+          { name: fragment, description: "d", inputSchema: { type: "object" }, execute: async () => ({}) },
         ]),
       ).toThrow(/HUMAN-FOREVER/);
       // And as a SUBSTRING, which is the point: the risk is a name that contains
       // the fragment, not one that equals it.
       expect(() =>
         defineToolRegistry([
-          { name: `merchant_${fragment}_v2`, description: "d", inputSchema: { type: "object" } },
+          { name: `merchant_${fragment}_v2`, description: "d", inputSchema: { type: "object" }, execute: async () => ({}) },
         ]),
       ).toThrow(/HUMAN-FOREVER/);
     }
@@ -421,8 +421,8 @@ describe("PLANT 4: the registry is EMPTY and can never hold a denied name", () =
     // The non-vacuous half. A denylist that rejected every name would satisfy
     // every assertion above and make session 77 impossible.
     const registry = defineToolRegistry([
-      { name: "list_audit_runs", description: "d", inputSchema: { type: "object" } },
-      { name: "get_intelligence_overview", description: "d", inputSchema: { type: "object" } },
+      { name: "list_audit_runs", description: "d", inputSchema: { type: "object" }, execute: async () => ({}) },
+      { name: "get_intelligence_overview", description: "d", inputSchema: { type: "object" }, execute: async () => ({}) },
     ]);
     expect(registry.list().map((t) => t.name)).toEqual([
       "list_audit_runs",
@@ -435,8 +435,8 @@ describe("PLANT 4: the registry is EMPTY and can never hold a denied name", () =
   it("a duplicate name throws, because a shadowed tool cannot be reasoned about", () => {
     expect(() =>
       defineToolRegistry([
-        { name: "dup", description: "d", inputSchema: { type: "object" } },
-        { name: "dup", description: "d", inputSchema: { type: "object" } },
+        { name: "dup", description: "d", inputSchema: { type: "object" }, execute: async () => ({}) },
+        { name: "dup", description: "d", inputSchema: { type: "object" }, execute: async () => ({}) },
       ]),
     ).toThrow(/registered twice/);
   });

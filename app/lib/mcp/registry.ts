@@ -1,3 +1,5 @@
+import type { Db } from "~/db";
+
 // The tool registry, and the refusal that is the point of it.
 //
 // EMPTY THIS SESSION, DELIBERATELY. 370 split the transport and the thirteen
@@ -59,7 +61,26 @@ export const DENIED_TOOL_FRAGMENTS: readonly string[] = [
   "api_key_create",
 ];
 
-export interface McpTool {
+/**
+ * What every executor receives. Declared HERE rather than in tools.server.ts so
+ * the registry can type its executors without importing the tool module, which
+ * would be a cycle: the tools import the registry to be defined by it.
+ *
+ * No user and no session, only the account the bearer key resolved to (371
+ * binding 2). That absence is what makes the HUMAN-FOREVER five enforceable by
+ * construction rather than by policy.
+ */
+export interface McpToolContext {
+  env: Env;
+  db: Db;
+  accountId: string;
+  now: Date;
+}
+
+/** What a tool exposes to a client. No executor: this is the shape `tools/list`
+ *  returns, and shipping the function with it would be a leak waiting to be
+ *  serialized. */
+export interface McpToolDescriptor {
   name: string;
   description: string;
   /** JSON Schema. Plain object rather than a zod schema: MCP's `inputSchema` IS
@@ -67,8 +88,16 @@ export interface McpTool {
   inputSchema: { type: "object"; properties?: Record<string, unknown>; required?: string[] };
 }
 
+/** A registered tool: its descriptor plus the read it performs. The context
+ *  carries the account the bearer key resolved to; no tool takes an account as
+ *  an argument, so an agent cannot be talked into changing it. */
+export interface McpTool extends McpToolDescriptor {
+  execute: (ctx: McpToolContext, args: Record<string, unknown>) => Promise<unknown>;
+}
+
 export interface McpToolRegistry {
-  list(): McpTool[];
+  /** The PUBLIC shape only. `tools/list` must never serialize an executor. */
+  list(): McpToolDescriptor[];
   get(name: string): McpTool | null;
 }
 
@@ -101,17 +130,20 @@ export function defineToolRegistry(tools: McpTool[]): McpToolRegistry {
     byName.set(tool.name, tool);
   }
   return {
-    list: () => [...byName.values()],
+    list: () =>
+      [...byName.values()].map(({ name, description, inputSchema }) => ({
+        name,
+        description,
+        inputSchema,
+      })),
     get: (name: string) => byName.get(name) ?? null,
   };
 }
 
 /**
- * The registry this endpoint serves. EMPTY until session 77 registers the
- * thirteen read tools from the design's Table 5.
- *
- * Built through `defineToolRegistry` even while empty, so the denylist is on the
- * live path from the first commit rather than being wired up later beside the
- * tools it is supposed to police.
+ * An empty registry, kept as the transport's DEFAULT so `handleMcpRequest` has a
+ * safe fallback and so a test can drive the transport without the tool module's
+ * import graph. The live thirteen are in ./tools.server.ts, which the worker
+ * entry passes in.
  */
-export const MERCHANT_TOOLS: McpToolRegistry = defineToolRegistry([]);
+export const EMPTY_REGISTRY: McpToolRegistry = defineToolRegistry([]);

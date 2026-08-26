@@ -16,7 +16,7 @@ import {
   validateMcpRequest,
   type McpRequestBody,
 } from "./protocol";
-import { MERCHANT_TOOLS, type McpToolRegistry } from "./registry";
+import { EMPTY_REGISTRY, type McpToolContext, type McpToolRegistry } from "./registry";
 
 // THE MERCHANT MCP ENDPOINT (370, roadmap item 3, first of two).
 //
@@ -161,15 +161,23 @@ async function authenticate(
   return { ok: true, auth: { keyId: verified.keyId, accountId: verified.accountId } };
 }
 
-/** Dispatch one validated request. Tools are refused by name here because the
- *  registry is empty; session 77 replaces the refusal with execution. */
-function dispatch(
+/** What a tool execution returns on the wire. MCP reports a TOOL failure inside
+ *  the result with `isError`, and reserves JSON-RPC errors for PROTOCOL
+ *  failures. The distinction matters: an unknown tool is the caller's mistake
+ *  and a failed read is information the agent should see and can act on. */
+function toolResult(data: unknown, isError = false) {
+  return {
+    content: [{ type: "text", text: JSON.stringify(data) }],
+    structuredContent: data,
+    ...(isError ? { isError: true } : {}),
+  };
+}
+
+async function dispatch(
   body: McpRequestBody,
   registry: McpToolRegistry,
-): { status: number; result?: unknown; error?: { code: number; message: string } } {
-  const id = body.id ?? null;
-  void id;
-
+  ctx: McpToolContext,
+): Promise<{ status: number; result?: unknown; error?: { code: number; message: string } }> {
   switch (body.method) {
     case "initialize": {
       const requested = body.params?.["protocolVersion"];
@@ -192,11 +200,20 @@ function dispatch(
           error: { code: MCP_ERROR.METHOD_NOT_FOUND, message: `Unknown tool: ${name}` },
         };
       }
-      // Unreachable while the registry is empty; session 77 executes here.
-      return {
-        status: 500,
-        error: { code: MCP_ERROR.INTERNAL, message: "Tool execution is not implemented" },
-      };
+      const rawArgs = body.params?.["arguments"];
+      const args = rawArgs && typeof rawArgs === "object" ? (rawArgs as Record<string, unknown>) : {};
+      try {
+        const data = await tool.execute(ctx, args);
+        return { status: 200, result: toolResult(data) };
+      } catch (err) {
+        // A HELPER FAILURE NEVER THROWS THROUGH THE TRANSPORT. It comes back as a
+        // tool error carrying the reason, so the agent can retry or report
+        // rather than seeing a 500 with no explanation. The message is the
+        // error's own text and never the object, which can carry query context.
+        const reason = err instanceof Error ? err.message : "unknown error";
+        console.debug("mcp tool failed:", name, reason);
+        return { status: 200, result: toolResult({ error: reason, tool: name }, true) };
+      }
     }
     default:
       // "If the server does not implement the requested RPC method, it MUST
@@ -215,7 +232,7 @@ function dispatch(
 export async function handleMcpRequest(
   request: Request,
   env: Env,
-  registry: McpToolRegistry = MERCHANT_TOOLS,
+  registry: McpToolRegistry = EMPTY_REGISTRY,
 ): Promise<Response | null> {
   const url = new URL(request.url);
   if (url.pathname !== "/mcp") return null;
@@ -289,7 +306,12 @@ export async function handleMcpRequest(
   }
 
   const id = validated.body.id ?? null;
-  const outcome = dispatch(validated.body, registry);
+  const outcome = await dispatch(validated.body, registry, {
+    env,
+    db: getDb(env),
+    accountId: authenticated.auth.accountId,
+    now: new Date(),
+  });
   if (outcome.error) {
     return errorResponse(outcome.status, id, outcome.error.code, outcome.error.message);
   }
