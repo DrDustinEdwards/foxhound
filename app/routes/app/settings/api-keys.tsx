@@ -140,10 +140,13 @@ export default function ApiKeySettings({ loaderData, actionData }: Route.Compone
       <header>
         <h1 className="text-h2 text-text">API keys</h1>
         <p className="mt-1 text-label text-text-tertiary">
-          Connect an AI agent to this account's Foxhound data, read-only, at{" "}
+          Connect an AI agent to this account's Foxhound data at{" "}
           <span className="font-mono">/mcp</span>. A key lets an agent read your audit runs,
-          recovery, disputes, billing and customer health. It cannot change anything, and
-          customer names and full email addresses are never sent.
+          recovery, disputes, billing and customer health, and change four settings: audit,
+          features, notifications and your sender name. Every change it makes is logged with
+          the key that made it. It cannot move money, submit dispute evidence, disconnect
+          Stripe or cancel your account, and customer names and full email addresses are
+          never sent.
         </p>
       </header>
 
