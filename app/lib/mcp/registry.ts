@@ -168,7 +168,7 @@ export function defineToolRegistry(tools: McpTool[]): McpToolRegistry {
 /**
  * An empty registry, kept as the transport's DEFAULT so `handleMcpRequest` has a
  * safe fallback and so a test can drive the transport without the tool module's
- * import graph. The live thirteen are in ./tools.server.ts, which the worker
- * entry passes in.
+ * import graph. The live ones are in ./tools.server.ts, which the worker entry
+ * passes in.
  */
 export const EMPTY_REGISTRY: McpToolRegistry = defineToolRegistry([]);

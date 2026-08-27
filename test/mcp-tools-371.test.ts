@@ -12,7 +12,9 @@ import { isDeniedToolName } from "~/lib/mcp/registry";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// SESSION 77: THE THIRTEEN READ TOOLS, under 370's DEFAULT-REDACT.
+// SESSION 77: THE THIRTEEN READ TOOLS, under 370's DEFAULT-REDACT. The read
+// count is fifteen since session 83 added 375's two approved readers, and the
+// redaction moved to the registry boundary in the same session (376 item 7).
 //
 // THE TWO PROPERTIES THAT MATTER, and everything below serves one of them:
 //
@@ -146,13 +148,13 @@ const callTool = (token: string, name: string, args: Record<string, unknown> = {
 // ============================================================================
 
 describe("PLANT 1: the tools are registered and describable", () => {
-  it("tools/list returns exactly twenty-one, with schemas that parse", async () => {
+  it("tools/list returns exactly twenty-three, with schemas that parse", async () => {
     const { tokens } = await seed();
     const { status, json } = await call(tokens[MINE], "tools/list");
     expect(status).toBe(200);
     const tools = (json as { result: { tools: { name: string; inputSchema: unknown }[] } }).result
       .tools;
-    expect(tools).toHaveLength(21);
+    expect(tools).toHaveLength(23);
     expect(tools.map((t) => t.name).sort()).toEqual([...MERCHANT_TOOL_NAMES].sort());
     for (const tool of tools) {
       // Every schema round-trips as JSON and is an object schema, which is what
@@ -170,7 +172,7 @@ describe("PLANT 1: the tools are registered and describable", () => {
     // HANDS BACK, which a future consumer might not serialize at all: a logger,
     // a cache, or an SDK that reflects over the object.
     const descriptors = MERCHANT_TOOLS.list() as unknown as Record<string, unknown>[];
-    expect(descriptors).toHaveLength(21);
+    expect(descriptors).toHaveLength(23);
     for (const descriptor of descriptors) {
       expect(Object.keys(descriptor).sort()).toEqual(["description", "inputSchema", "name"]);
       expect("execute" in descriptor).toBe(false);
@@ -219,8 +221,8 @@ describe("PLANT 1: the tools are registered and describable", () => {
 });
 
 describe("PLANT 2: every tool reads the key's account and only it", () => {
-  it("EACH OF THE THIRTEEN, driven end to end with two accounts seeded", async () => {
-    // PARAMETERIZED OVER THE SHIPPED LIST, so a fourteenth tool is covered the
+  it("EACH REGISTERED TOOL, driven end to end with two accounts seeded", async () => {
+    // PARAMETERIZED OVER THE SHIPPED LIST, so the next tool is covered the
     // day it is added. The other account's data is present and distinctive, so a
     // leak returns rows rather than an empty list.
     const { tokens } = await seed();
@@ -242,8 +244,8 @@ describe("PLANT 2: every tool reads the key's account and only it", () => {
   });
 
   it("and the SAME tools answer differently for the other key, so the scoping is real", async () => {
-    // Without this, thirteen assertions that "theirs" is absent would be
-    // satisfied by thirteen tools that return nothing at all.
+    // Without this, an assertion per tool that "theirs" is absent would be
+    // satisfied by a registry of tools that return nothing at all.
     const { tokens } = await seed();
     const mine = await callTool(tokens[MINE], "list_customers");
     const theirs = await callTool(tokens[THEIRS], "list_customers");
@@ -392,7 +394,7 @@ describe("PLANT 5: the end to end, through the real transport", () => {
     ).toBe("2025-06-18");
 
     const list = await call(tokens[MINE], "tools/list");
-    expect((list.json as { result: { tools: unknown[] } }).result.tools).toHaveLength(21);
+    expect((list.json as { result: { tools: unknown[] } }).result.tools).toHaveLength(23);
 
     for (const [name, args] of [
       ["get_audit_settings", {}],

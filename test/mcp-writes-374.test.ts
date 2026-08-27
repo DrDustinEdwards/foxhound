@@ -173,7 +173,7 @@ const connectionOf = async (db: Awaited<ReturnType<typeof seed>>["db"], account:
 
 // ============================================================================
 
-describe("PLANT 1: item 4 is closed at eight writes and twenty-one tools", () => {
+describe("PLANT 1: item 4 is closed at eight writes, beside a read half that grows", () => {
   it("the eight, named and in the order they shipped", () => {
     expect(MERCHANT_WRITE_TOOL_NAMES).toEqual([
       "set_audit_settings",
@@ -185,7 +185,11 @@ describe("PLANT 1: item 4 is closed at eight writes and twenty-one tools", () =>
       "create_alert",
       "set_alert_config",
     ]);
-    expect(MERCHANT_TOOL_NAMES).toHaveLength(21);
+    // THE WRITE HALF IS THE PIN, not the total. Session 83 added two read
+    // tools and a total pinned at 21 would have gone red for a change item 4
+    // has no opinion about, which is how a count guard teaches people to edit
+    // the number rather than read the assertion.
+    expect(MERCHANT_WRITE_TOOL_NAMES).toHaveLength(8);
   });
 
   it("THERE IS NO set_email_settings, and the reason is not an omission", () => {

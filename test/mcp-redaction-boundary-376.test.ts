@@ -84,6 +84,8 @@ const READ_TOOL_ARGS: Record<string, Record<string, unknown>> = {
   list_disputes: {},
   get_billing: {},
   list_connections: {},
+  get_brand_voice: {},
+  get_intelligence_context: {},
 };
 
 /**
