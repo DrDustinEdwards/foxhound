@@ -9,6 +9,11 @@ import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/features";
+import {
+  DECLINE_CATEGORY_COUNT_WORD,
+  DECLINE_CATEGORY_COUNT_WORD_LOWER,
+  DECLINE_CATEGORY_PHRASE,
+} from "~/lib/marketing/decline-categories";
 
 // Ported from legacy /features (recova-eta.vercel.app/features), restored as
 // a public route per the 2026-07-22 parity-over-consolidation amendment
@@ -185,9 +190,9 @@ const CATEGORIES: Category[] = [
         body: "A paid layer on top of the free analytics that scores customers by churn risk before it happens.",
       },
       {
-        title: "Four decline categories, four sequences",
+        title: `${DECLINE_CATEGORY_COUNT_WORD} decline categories, ${DECLINE_CATEGORY_COUNT_WORD_LOWER} sequences`,
         tag: "recovery",
-        body: "Every Stripe decline code maps to soft, network, expired, or fraud. Timing and retry strategy differ by category.",
+        body: `Every Stripe decline code maps to ${DECLINE_CATEGORY_PHRASE}. Timing and retry strategy differ by category.`,
       },
       {
         title: "Fail-closed on unrecognized declines",
