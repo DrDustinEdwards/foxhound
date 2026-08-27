@@ -169,6 +169,13 @@
       "when": 1787787084424,
       "tag": "0023_tearful_iron_man",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1787788949619,
+      "tag": "0024_nifty_micromax",
+      "breakpoints": true
     }
   ]
 }

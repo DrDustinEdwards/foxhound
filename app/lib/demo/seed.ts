@@ -30,7 +30,7 @@ import {
 import { grantIntelligence } from "~/lib/admin/merchants.server";
 import { isBillableDisputeRow, isBillableRecoveryRow } from "~/lib/billing/billable-predicates";
 import { disputeFeeCents, recoveryFeeCents } from "~/lib/billing/fees";
-import { CRON_LOCK_LEASE_MS } from "~/lib/constants";
+import { CRON_LOCK_LEASE_MS, DISPUTE_FEE_CAP_CENTS} from "~/lib/constants";
 
 import {
   DEMO_ACCOUNT_ID,
@@ -316,7 +316,7 @@ export async function seedDemoAccount(db: Db, now: Date): Promise<void> {
       );
     }
     for (const d of billableDisputes) {
-      const fee = d.resolvedFeeCents ?? disputeFeeCents(d.amountCents);
+      const fee = d.resolvedFeeCents ?? disputeFeeCents(d.amountCents, DISPUTE_FEE_CAP_CENTS);
       invoiceTotal += fee;
       lineItemStmts.push(
         db.insert(billingLineItems).values({

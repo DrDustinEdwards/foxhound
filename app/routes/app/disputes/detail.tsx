@@ -1,3 +1,4 @@
+import { DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
 import * as Sentry from "@sentry/cloudflare";
 import { data, useActionData, useNavigation } from "react-router";
 
@@ -165,7 +166,7 @@ export default function DisputeDetail({ loaderData }: Route.ComponentProps) {
   const state = dispute.state as DisputeState;
   const editable = canApprove(state);
   const resolved = isDisputeResolved(state);
-  const fee = disputeFeeCents(dispute.amountCents);
+  const fee = disputeFeeCents(dispute.amountCents, DISPUTE_FEE_CAP_CENTS);
   const daysLeft = daysUntilDeadline(dispute.evidenceDeadline, loaderData.nowMs);
   const timeline = buildDisputeTimeline({
     createdAt: dispute.createdAt,

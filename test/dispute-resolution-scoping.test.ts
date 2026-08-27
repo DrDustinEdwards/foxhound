@@ -1,3 +1,4 @@
+import { DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
 import { and, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
@@ -67,6 +68,9 @@ describe("HIGH #3: dispute resolution UPDATE cannot cross tenants", () => {
       amountCents: 50_000,
       currency: "usd",
       foxhoundSubmitted: true,
+      // A USD dispute: the cap needs no conversion (377(7)).
+      cap: { capMinorUnits: DISPUTE_FEE_CAP_CENTS, rate: null, quoteId: null, quotedAt: null },
+      capError: null,
       resolvedAt: now,
     });
     const changed = runStatement(sqlite, batch[1]); // batch[1] is the disputes UPDATE
@@ -88,6 +92,9 @@ describe("HIGH #3: dispute resolution UPDATE cannot cross tenants", () => {
       amountCents: 50_000,
       currency: "usd",
       foxhoundSubmitted: true,
+      // A USD dispute: the cap needs no conversion (377(7)).
+      cap: { capMinorUnits: DISPUTE_FEE_CAP_CENTS, rate: null, quoteId: null, quotedAt: null },
+      capError: null,
       resolvedAt: now,
     });
     const changed = runStatement(sqlite, batch[1]);

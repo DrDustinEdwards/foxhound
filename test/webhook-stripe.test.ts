@@ -301,6 +301,9 @@ describe("webhook batch builders (compile against schema)", () => {
       amountCents: 50_000,
       currency: "usd",
       foxhoundSubmitted: true,
+      // A USD dispute: the cap needs no conversion (377(7)).
+      cap: { capMinorUnits: DISPUTE_FEE_CAP_CENTS, rate: null, quoteId: null, quotedAt: null },
+      capError: null,
       resolvedAt: now,
     });
     expect(won.length).toBe(2);
@@ -324,6 +327,9 @@ describe("webhook batch builders (compile against schema)", () => {
       amountCents: 10_000_00,
       currency: "usd",
       foxhoundSubmitted: true,
+      // A USD dispute: the cap needs no conversion (377(7)).
+      cap: { capMinorUnits: DISPUTE_FEE_CAP_CENTS, rate: null, quoteId: null, quotedAt: null },
+      capError: null,
       resolvedAt: now,
     });
     expect(sqlOf(wonAtCap[1]).params).toContain(DISPUTE_FEE_CAP_CENTS);
@@ -336,6 +342,9 @@ describe("webhook batch builders (compile against schema)", () => {
       amountCents: 50_000,
       currency: "usd",
       foxhoundSubmitted: true,
+      // A USD dispute: the cap needs no conversion (377(7)).
+      cap: { capMinorUnits: DISPUTE_FEE_CAP_CENTS, rate: null, quoteId: null, quotedAt: null },
+      capError: null,
       resolvedAt: now,
     });
     const lostUpdate = sqlOf(lost[1]);
@@ -353,6 +362,9 @@ describe("webhook batch builders (compile against schema)", () => {
       amountCents: 50_000,
       currency: "usd",
       foxhoundSubmitted: false,
+      // A USD dispute: the cap needs no conversion (377(7)).
+      cap: { capMinorUnits: DISPUTE_FEE_CAP_CENTS, rate: null, quoteId: null, quotedAt: null },
+      capError: null,
       resolvedAt: now,
     });
     const update = sqlOf(wonNotSubmitted[1]);

@@ -30,6 +30,7 @@ import {
   WINBACK_REACTIVATABLE_STATUSES,
 } from "~/lib/recovery/winback-reactivation.server";
 import { isIntelligenceEntitled } from "~/lib/intelligence/views.server";
+import { resolveDisputeCap, type ResolvedDisputeCap } from "~/lib/billing/dispute-cap";
 import {
   issueCreditNoteForEvidence,
   refundedRecoveryIdsFor,
@@ -956,6 +957,23 @@ export async function processConnectedWebhook(
         });
         return applied ? { status: "ignored", reason: "already_resolved" } : { status: "duplicate" };
       }
+      // THE CAP IS CONVERTED HERE, BEFORE THE BATCH (ruling 377(7)). It needs a
+      // Stripe FX quote and an external call cannot ride the money batch. A
+      // failure is recorded and the fee is left unsnapshotted, which is the
+      // fail-closed shape: the dispute resolves either way, and an unpriced win
+      // is simply not billable until it can be priced. The old flat 50,000 is
+      // never used as a fallback, because a wrong number invoiced silently is
+      // worse than a right one invoiced late.
+      let cap: ResolvedDisputeCap | null = null;
+      let capError: string | null = null;
+      if (intent.won && dispute.submittedAt != null) {
+        try {
+          cap = await resolveDisputeCap(env, dispute.currency, receivedAt);
+        } catch (err) {
+          capError = err instanceof Error ? err.message : "fx quote failed";
+        }
+      }
+
       const { applied } = await executeMoneyWrite(env, {
         accountId,
         idempotencyKey,
@@ -967,6 +985,8 @@ export async function processConnectedWebhook(
             won: intent.won,
             amountCents: dispute.amountCents,
             currency: dispute.currency,
+            cap,
+            capError,
             // A fee is snapshotted only if Foxhound actually submitted this
             // dispute (submitted_at set post-Stripe). A merchant-fought or
             // auto-resolved win carries no fee (PRICING.md rev 3).
