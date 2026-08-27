@@ -117,6 +117,42 @@ export async function getPrimarySenderConnection(
   return rows[0] ?? null;
 }
 
+export interface MerchantContext {
+  merchantIndustry: string | null;
+  primaryCustomerType: string | null;
+  merchantMrrSelfReportedCents: number | null;
+}
+
+/**
+ * The three merchant-context fields, and ONLY those three.
+ *
+ * A NARROW READER RATHER THAN `getAccount`, deliberately. The account row
+ * carries the Stripe customer id, the billing state and every other column on
+ * `accounts`, and the caller that needed this reader is an MCP tool: reusing the
+ * wide reader would have handed a third-party agent the whole row to expose
+ * three fields of it. The route has `getAccount` and is welcome to it.
+ *
+ * The shape is `IntelligenceContextState`'s field for field, so the reader and
+ * `applyIntelligenceContext` agree by construction and an agent reads back
+ * exactly the three values it can write (375: a writer an agent cannot read
+ * first forces the echo workaround).
+ *
+ * The account comes from the caller's credential, so there is no foreign-id case
+ * to refuse here, which is the same reason the writer has none.
+ */
+export async function getMerchantContext(db: Db, accountId: string): Promise<MerchantContext | null> {
+  const rows = await db
+    .select({
+      merchantIndustry: accounts.merchantIndustry,
+      primaryCustomerType: accounts.primaryCustomerType,
+      merchantMrrSelfReportedCents: accounts.merchantMrrSelfReported,
+    })
+    .from(accounts)
+    .where(eq(accounts.id, accountId))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
 export interface PrimaryBrandVoices {
   id: string;
   /** The general `brand_voice`, the third rung of resolveBrandVoice. */

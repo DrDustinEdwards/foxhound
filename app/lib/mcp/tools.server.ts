@@ -23,7 +23,11 @@ import {
   applyNotificationSettings,
   applySenderName,
 } from "~/lib/settings/apply.server";
-import { listAccountConnections } from "~/lib/settings/queries.server";
+import {
+  getMerchantContext,
+  getPrimaryBrandVoices,
+  listAccountConnections,
+} from "~/lib/settings/queries.server";
 
 import {
   defineToolRegistry,
@@ -32,7 +36,8 @@ import {
   type McpToolRegistry,
 } from "./registry";
 
-// THE THIRTEEN READ TOOLS (370 Table 5, ruled at 371). Every one wraps a helper
+// THE FIFTEEN READ TOOLS: 370 Table 5's thirteen, ruled at 371, plus the two
+// readers 375 approved and session 83 shipped. Every one wraps a helper
 // that already existed and was already account-scoped; this file is transport,
 // not logic, which is what made the two-session estimate hold.
 //
@@ -158,7 +163,7 @@ function required(args: ToolArgs, name: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// The thirteen
+// The reads
 // ---------------------------------------------------------------------------
 
 const TOOLS: McpTool[] = [
@@ -312,6 +317,34 @@ const TOOLS: McpTool[] = [
     execute: async (ctx) => ({
       connections: await listAccountConnections(ctx.db, ctx.accountId),
     }),
+  },
+  // THE TWO READERS 375 APPROVED, riding here as that ruling said they would.
+  //
+  // WHY THEY EXIST AT ALL, which is the whole argument for them: sessions 79 and
+  // 80 shipped `set_brand_voice` and `set_intelligence_context` with no way to
+  // read either back. An agent asked to soften one voice had to send all five or
+  // guess, and an agent asked to correct the industry had to overwrite the two
+  // fields beside it blind. A writer an agent cannot read first forces the echo
+  // workaround, where the agent asks the merchant to paste the current value in.
+  //
+  // EACH RETURNS EXACTLY WHAT ITS WRITER TAKES, field for field, so read-then-
+  // write round-trips rather than approximately round-trips. That is also what
+  // makes 374 binding 4's omission rule usable: leaving a field out leaves it
+  // alone, which is only a safe instruction if the agent can see what it is
+  // leaving alone.
+  {
+    name: "get_brand_voice",
+    description:
+      "Read the brand voice on this account's primary connected Stripe account: the general voice and the four per-category ones. Returns null when the account has no live primary connection. The connection id it returns is the one set_brand_voice takes.",
+    inputSchema: EMPTY_SCHEMA,
+    execute: async (ctx) => ({ voices: await getPrimaryBrandVoices(ctx.db, ctx.accountId) }),
+  },
+  {
+    name: "get_intelligence_context",
+    description:
+      "Read the merchant context the recovery-email writer is given: the industry, the primary customer type and the self-reported monthly recurring revenue in cents. These are the three fields set_intelligence_context writes.",
+    inputSchema: EMPTY_SCHEMA,
+    execute: async (ctx) => ({ context: await getMerchantContext(ctx.db, ctx.accountId) }),
   },
 ];
 
@@ -610,7 +643,9 @@ const WRITE_TOOLS: McpTool[] = [
 ];
 
 /** The live registry. Built through `defineToolRegistry`, so the HUMAN-FOREVER
- *  denylist runs over these thirteen names at module load. */
+ *  denylist runs over every name at module load, and every executor is wrapped
+ *  in the redactor at the same moment. No count is written here: a number in a
+ *  comment beside the array it counts is a number that goes stale silently. */
 export const MERCHANT_TOOLS: McpToolRegistry = defineToolRegistry([...TOOLS, ...WRITE_TOOLS]);
 
 /** The tool names, exported so a plant can assert the set without re-listing it. */
