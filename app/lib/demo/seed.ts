@@ -348,8 +348,9 @@ async function demoAccountExists(db: Db): Promise<boolean> {
 }
 
 interface DemoResetLock {
-  acquire(leaseMs: number): Promise<boolean>;
-  release(): Promise<void>;
+  /** The holder's token, or null when the lock is held (376 item 14). */
+  acquire(leaseMs: number): Promise<string | null>;
+  release(token: string): Promise<void>;
 }
 
 const ENSURE_SEED_POLL_INTERVAL_MS = 150;
@@ -360,8 +361,8 @@ const ENSURE_SEED_POLL_MAX_ITERATIONS = 20; // ~3s, past one 1-2s reseed
 export async function ensureDemoSeededWithLock(db: Db, lock: DemoResetLock): Promise<void> {
   if (await demoAccountExists(db)) return; // fast path, no lock
 
-  const acquired = await lock.acquire(CRON_LOCK_LEASE_MS);
-  if (!acquired) {
+  const lockToken = await lock.acquire(CRON_LOCK_LEASE_MS);
+  if (lockToken === null) {
     // The reset cron (or another enter) is mid-seed. Do not seed a second time
     // and do not fall through to an empty shell: poll for it to land.
     for (let i = 0; i < ENSURE_SEED_POLL_MAX_ITERATIONS; i++) {
@@ -377,7 +378,7 @@ export async function ensureDemoSeededWithLock(db: Db, lock: DemoResetLock): Pro
       await seedDemoAccount(db, new Date());
     }
   } finally {
-    await lock.release();
+    await lock.release(lockToken);
   }
 }
 

@@ -124,8 +124,13 @@ export async function runCronJob(
 
   const lockNs = env.CRON_LOCK;
   const lock = lockNs.get(lockNs.idFromName(cronName));
-  const acquired = await lock.acquire(CRON_LOCK_LEASE_MS);
-  if (!acquired) {
+  // THE TOKEN IS THE FENCE (376 item 14). `acquire` hands back the holder's
+  // token, and the `finally` below hands that same token to `release`, so this
+  // run can only ever free ITS OWN lease. An overrunning run whose lease has
+  // already lapsed releases nothing, rather than freeing the lease of the run
+  // that replaced it.
+  const lockToken = await lock.acquire(CRON_LOCK_LEASE_MS);
+  if (lockToken === null) {
     return { cronName, status: "skipped", rowsProcessed: 0, message: "locked" };
   }
 
@@ -150,6 +155,6 @@ export async function runCronJob(
     );
     return { cronName, status: "failed", rowsProcessed: 0, message, runId, alert };
   } finally {
-    await lock.release();
+    await lock.release(lockToken);
   }
 }

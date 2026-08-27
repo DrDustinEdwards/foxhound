@@ -32,23 +32,48 @@ vi.mock("~/db", async (importOriginal) => ({
 const { runCronJob } = await import("~/lib/cron/run");
 const { CRON_LOCK_LEASE_MS } = await import("~/lib/constants");
 
-type LockCalls = { acquired: number; released: number };
+/** The recovery tick's period, written as the number rather than derived from
+ *  the schedule string, so the lease assertion below does not move when the
+ *  thing it is compared against moves. */
+const RECOVERY_TICK_PERIOD_MS = 5 * 60 * 1000;
+/** Cloudflare's documented Cron Trigger wall-time cap, the second bar the lease
+ *  has to clear. developers.cloudflare.com/workers/platform/limits/ */
+const CRON_TRIGGER_WALL_TIME_CAP_MS = 15 * 60 * 1000;
+
+type LockCalls = {
+  acquired: number;
+  released: number;
+  /** Tokens the stub handed out, in order. */
+  granted: string[];
+  /** Tokens the runner handed back, in order. */
+  releasedWith: string[];
+};
 
 /** A fake CRON_LOCK namespace whose stub grants the first claim and denies every
  *  later one, which is what a genuinely overlapping firing looks like from the
- *  second runner's side. */
+ *  second runner's side.
+ *
+ *  FENCED SINCE 376 ITEM 14: a granted acquire returns a TOKEN and release takes
+ *  one, so the stub records which token each release carried. That is what lets
+ *  the plant below assert the runner hands back its own. */
 function lockNamespace(grants: boolean[], calls: LockCalls) {
   let i = 0;
+  let minted = 0;
   const stub = {
     acquire: async (leaseMs: number) => {
       calls.acquired += 1;
       expect(leaseMs, "the runner must pass the lease, never an unbounded hold").toBe(
         CRON_LOCK_LEASE_MS,
       );
-      return grants[i++] ?? false;
+      const granted = grants[i++] ?? false;
+      if (!granted) return null;
+      const token = `tok_${++minted}`;
+      calls.granted.push(token);
+      return token;
     },
-    release: async () => {
+    release: async (token: string) => {
       calls.released += 1;
+      calls.releasedWith.push(token);
     },
   };
   return { get: () => stub, idFromName: (name: string) => name };
@@ -64,7 +89,7 @@ describe("310 item 1: the cron runner honours the lock", () => {
     // The decisive assertion. A runner that acquired, was denied, and ran anyway
     // would still report "locked" while doing the work twice, so the handler
     // spy is what makes this a real proof rather than a status check.
-    const calls: LockCalls = { acquired: 0, released: 0 };
+    const calls: LockCalls = { acquired: 0, released: 0, granted: [], releasedWith: [] };
     const env = envWith([false], calls);
     const handler = vi.fn(async () => ({ rowsProcessed: 99 }));
 
@@ -77,7 +102,7 @@ describe("310 item 1: the cron runner honours the lock", () => {
   });
 
   it("a granted lock runs the handler exactly once and releases", async () => {
-    const calls: LockCalls = { acquired: 0, released: 0 };
+    const calls: LockCalls = { acquired: 0, released: 0, granted: [], releasedWith: [] };
     const env = envWith([true], calls);
     const handler = vi.fn(async () => ({ rowsProcessed: 3 }));
 
@@ -92,7 +117,7 @@ describe("310 item 1: the cron runner honours the lock", () => {
     // The same lock instance across both runs, which is what idFromName(cronName)
     // guarantees in production: one instance per cron, so the second firing sees
     // the first one's claim.
-    const calls: LockCalls = { acquired: 0, released: 0 };
+    const calls: LockCalls = { acquired: 0, released: 0, granted: [], releasedWith: [] };
     const env = envWith([true, false], calls);
     const handler = vi.fn(async () => ({ rowsProcessed: 1 }));
 
@@ -108,7 +133,7 @@ describe("310 item 1: the cron runner honours the lock", () => {
   it("REGRESSION GUARD: a THROWING handler still releases the lock", async () => {
     // Without the `finally`, one exception wedges the cron until the lease
     // lapses. Proven non-vacuous by its own plant per 296.
-    const calls: LockCalls = { acquired: 0, released: 0 };
+    const calls: LockCalls = { acquired: 0, released: 0, granted: [], releasedWith: [] };
     const env = envWith([true], calls);
     const handler = vi.fn(async () => {
       throw new Error("handler blew up");
@@ -120,12 +145,41 @@ describe("310 item 1: the cron runner honours the lock", () => {
     expect(calls.released, "a thrown handler must not wedge the cron").toBe(1);
   });
 
+  it("THE RUNNER RELEASES ITS OWN TOKEN, not a bare release", async () => {
+    // The caller half of the fence. A runner that called release() with nothing,
+    // or with a token it did not hold, would free whatever lease is current.
+    const calls: LockCalls = { acquired: 0, released: 0, granted: [], releasedWith: [] };
+    const env = envWith([true], calls);
+
+    await runCronJob(env, "recovery-tick", async () => ({ rowsProcessed: 1 }));
+
+    expect(calls.releasedWith).toEqual(calls.granted);
+    expect(calls.releasedWith).toHaveLength(1);
+  });
+
+  it("and a THROWING handler releases its own token too", async () => {
+    const calls: LockCalls = { acquired: 0, released: 0, granted: [], releasedWith: [] };
+    const env = envWith([true], calls);
+
+    await runCronJob(env, "recovery-tick", async () => {
+      throw new Error("handler blew up");
+    });
+
+    expect(calls.releasedWith).toEqual(calls.granted);
+  });
+
   it("the lease is bounded, so a crashed run cannot hold the lock forever", async () => {
-    // The self-expiry 310 required of a new lock is already the shape here: the
-    // lease is finite and matches the tick interval, so even a run that dies
-    // without releasing frees the job within one period. The acquire assertion
-    // inside the fake pins that the runner passes exactly this value.
-    expect(CRON_LOCK_LEASE_MS).toBe(5 * 60 * 1000);
-    expect(CRON_LOCK_LEASE_MS).toBeGreaterThan(0);
+    // 376 item 14 MOVED THIS NUMBER, and the old assertion is why it is worth
+    // restating rather than editing quietly: the lease used to be five minutes,
+    // which is EXACTLY the recovery tick's period, so this test's own comment
+    // ("matches the tick interval") described the defect approvingly.
+    //
+    // Sixteen clears both bars: longer than the tick period, so a slow run does
+    // not hand its lock to its successor, and longer than Cloudflare's 15-minute
+    // Cron Trigger wall-time cap, so an expired lease means the holder is dead
+    // rather than slow.
+    expect(CRON_LOCK_LEASE_MS).toBe(16 * 60 * 1000);
+    expect(CRON_LOCK_LEASE_MS).toBeGreaterThan(RECOVERY_TICK_PERIOD_MS);
+    expect(CRON_LOCK_LEASE_MS).toBeGreaterThan(CRON_TRIGGER_WALL_TIME_CAP_MS);
   });
 });

@@ -496,8 +496,35 @@ export const DAY_MS = 24 * 60 * 60 * 1000;
  *  (mirrors the longest recovery step schedule, EMAIL_DAY30, so a link stays
  *  valid for the full life of the sequence that carries it). */
 export const CARD_UPDATE_TOKEN_MAX_AGE_MS = 30 * DAY_MS;
-/** Max time a single run may hold a per-cron DO lock before the lease lapses. */
-export const CRON_LOCK_LEASE_MS = 5 * 60 * 1000;
+/**
+ * Max time a single run may hold a per-cron DO lock before the lease lapses.
+ *
+ * SIXTEEN MINUTES, AND THE NUMBER IS DERIVED (376 item 14). It was five, which
+ * is EXACTLY the recovery tick's period (CRON_SCHEDULE_RECOVERY_TICK, every five
+ * minutes), so a tick that ran a second long had its lease expire at the instant
+ * its successor fired. The lease
+ * has to clear two different bars and sixteen is the smaller number that clears
+ * both:
+ *
+ *   1. LONGER THAN THE TICK PERIOD, so a slow-but-alive run does not hand its
+ *      lock to the run behind it. Five minutes cleared this by zero.
+ *   2. LONGER THAN A RUN CAN POSSIBLY LIVE, so an expired lease means the holder
+ *      is DEAD rather than merely slow. Cloudflare caps a Cron Trigger
+ *      invocation at 15 minutes of wall time
+ *      (developers.cloudflare.com/workers/platform/limits/), so 16 gives one
+ *      minute past the platform's own hard kill.
+ *
+ * The fence and the lease are different guarantees and both are needed. The
+ * fence stops a stale holder FREEING a lease it no longer owns; only a lease
+ * longer than the maximum runtime stops two runs being live at once in the first
+ * place.
+ *
+ * WHAT IT COSTS, stated rather than left implicit: a run whose isolate is killed
+ * without its `finally` reaching release wedges that job for up to sixteen
+ * minutes, which is three recovery ticks. cron-health's staleness alert fires at
+ * two missed periods, so that outage announces itself rather than being silent.
+ */
+export const CRON_LOCK_LEASE_MS = 16 * 60 * 1000;
 /** Cron schedules (UTC). MUST match wrangler.jsonc triggers.crons exactly. */
 /** How far ahead the expiring-card alert looks, in days. Legacy's
  *  `EXPIRING_CARD_DAYS_AHEAD = 30` (lib/constants.ts:39), ported as the number
