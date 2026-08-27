@@ -224,13 +224,34 @@ export default function TermsPage() {
             submit will be true, accurate, current, and complete; (2) you will maintain the accuracy of
             such information; (3) you have the legal capacity and agree to comply with these Legal Terms;
             (4) you are not a minor in the jurisdiction in which you reside; (5) you will not access the
-            Services through automated or non-human means; (6) you will not use the Services for any
+            Services through automated or non-human means, except through the Foxhound MCP endpoint
+            using an API key issued to your account, which is governed by the API terms below; (6) you
+            will not use the Services for any
             illegal or unauthorized purpose; and (7) your use will not violate any applicable law or
             regulation.
           </P>
           <P>
             If you provide any information that is untrue, inaccurate, not current, or incomplete, we have
             the right to suspend or terminate your account.
+          </P>
+
+          <H3>API terms</H3>
+          <P>
+            Foxhound publishes a Model Context Protocol endpoint so that an AI agent you choose can read
+            and manage your own account on your behalf. Access requires an API key you generate inside
+            your account. Keys are scoped to the single account that issued them, they can be revoked at
+            any time from the same page, and rate limits apply.
+          </P>
+          <P>
+            Some actions are never available to an API key, whatever the key or the agent: submitting
+            dispute evidence, connecting a Stripe account, disconnecting a Stripe account, and anything
+            that records an outcome or bills. Those require a signed-in person, and the endpoint exposes
+            no tool for them.
+          </P>
+          <P>
+            You are responsible for everything done under your keys, including actions taken by an agent
+            you have given a key to, exactly as you are responsible for actions taken by a person you have
+            given access to. Revoke a key you no longer control.
           </P>
         </Section>
 
@@ -295,7 +316,10 @@ export default function TermsPage() {
             <li>Use the Services in a manner inconsistent with applicable laws or regulations.</li>
             <li>Engage in unauthorized framing of or linking to the Services.</li>
             <li>Upload or transmit viruses, Trojan horses, or similar material.</li>
-            <li>Use automated scripts, bots, or data-mining tools against the Services.</li>
+            <li>
+              Use automated scripts, bots, or data-mining tools against the Services, other than the
+              Foxhound MCP endpoint used with an API key issued to your account.
+            </li>
             <li>Delete copyright or proprietary rights notices from any Content.</li>
             <li>Impersonate another user or person.</li>
             <li>Interfere with or disrupt the Services or connected networks.</li>
