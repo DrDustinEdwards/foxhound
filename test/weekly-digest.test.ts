@@ -43,6 +43,7 @@ const {
   hasDigestThisWeek,
   collectDigestNumbers,
   DIGEST_WINDOW_MS,
+  DIGEST_CLAIM_WINDOW_MS,
 } = await import("~/lib/cron/digest");
 const { buildDigestEmail, digestSubject, recoveryRate, resolveDigestCurrency, escapeDigestHtml } =
   await import("~/lib/recovery/digest-email");
@@ -410,6 +411,61 @@ describe("PLANT 4: one digest per account per week", () => {
     const result = await runWeeklyDigest(env, NOW);
 
     expect(result).toEqual({ sent: 0, skipped: 1 });
+  });
+});
+
+describe("PLANT 6: the digest does not skip itself (376 item 13)", () => {
+  // THE DEFECT, in one sentence: the claim asked for a send newer than
+  // `now - 7d` with `now` fixed at run start, and last week's row was written
+  // moments AFTER last week's run started, so it sat inside the window by
+  // exactly the duration of last week's run and every second Monday was eaten.
+  //
+  // EVERY DATE HERE IS ABSOLUTE AND NONE IS DERIVED FROM THE CONSTANT UNDER
+  // TEST. 350's own reversals record a window mutation that proved nothing
+  // because the fixtures moved with the constant; these are two real Mondays
+  // and a real 90 seconds.
+  const MONDAY_1 = new Date("2026-11-02T08:00:00Z");
+  const MONDAY_2 = new Date("2026-11-09T08:00:00Z");
+  /** Last week's send row, written 90 seconds after last week's run started,
+   *  which is what a completed send looks like on the clock. */
+  const MONDAY_1_SEND = new Date("2026-11-02T08:01:30Z");
+
+  it("TWO CONSECUTIVE MONDAYS BOTH SEND", async () => {
+    seedDigestSend(MONDAY_1_SEND);
+
+    const second = await runWeeklyDigest(env, MONDAY_2);
+
+    // Against the pre-fix claim this reads {sent: 0, skipped: 1}: `now - 7d` on
+    // Monday 2 is 08:00:00 on Monday 1, and the row at 08:01:30 is newer.
+    expect(second).toEqual({ sent: 1, skipped: 0 });
+    expect(harness.jobs).toHaveLength(1);
+  });
+
+  it("and the 90 seconds is what did it: a row ON last week's run start also sends", async () => {
+    // The boundary itself, so the fix is not merely "90 seconds of slack". A row
+    // written at the very instant last week's run started is still last week's.
+    seedDigestSend(MONDAY_1);
+
+    expect((await runWeeklyDigest(env, MONDAY_2)).sent).toBe(1);
+  });
+
+  it("CONTROL: a second run ten minutes later still sends nothing", async () => {
+    // The half that must NOT regress. Widening the claim window fixes the skip
+    // by weakening the claim, so the claim has to be shown still claiming.
+    seedDigestSend(MONDAY_1_SEND);
+
+    const rerun = await runWeeklyDigest(env, new Date("2026-11-02T08:10:00Z"));
+
+    expect(rerun).toEqual({ sent: 0, skipped: 1 });
+    expect(harness.jobs).toEqual([]);
+  });
+
+  it("CONTROL: the DATA window is untouched, still seven days", () => {
+    // 376 item 13 moved the CLAIM window only. A fix that shortened the data
+    // window would quietly change every figure on the email.
+    expect(DIGEST_WINDOW_MS).toBe(604_800_000);
+    expect(DIGEST_CLAIM_WINDOW_MS).toBe(518_400_000);
+    expect(DIGEST_WINDOW_MS - DIGEST_CLAIM_WINDOW_MS).toBe(86_400_000);
   });
 });
 
