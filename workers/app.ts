@@ -98,6 +98,11 @@ export default withSentry<Env>(
       // import graph (app/lib/cron/registry.ts) out of the fetch()/queue()
       // code paths, which never call this. See foxhound-audit-perf.md H-2.
       const { jobsForSchedule } = await import("~/lib/cron/registry");
+      // NO TRY/CATCH HERE, AND THAT IS DELIBERATE. Per-job isolation lives in
+      // runCronJob, which is total: it returns a failed outcome rather than
+      // throwing, including for infrastructure failures outside the handler. A
+      // second guard here would be two guards for one rule (381 binding e), and
+      // the one that a plant can drive directly is the one that keeps it.
       for (const job of jobsForSchedule(controller.cron)) {
         await runCronJob(env, job.name, job.handler);
       }

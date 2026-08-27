@@ -97,6 +97,77 @@ export async function runCronJob(
   cronName: string,
   handler: CronHandler,
 ): Promise<CronRunOutcome> {
+  try {
+    return await executeCronJob(env, cronName, handler);
+  } catch (err) {
+    // THE INFRASTRUCTURE GUARD (376 item 15's verify-first list, session 85).
+    //
+    // WHAT WAS WRONG. The try/catch inside `executeCronJob` wraps the HANDLER
+    // and nothing else. Everything before it (the config read, the interval
+    // read, acquiring the lock) and the history write after it run unguarded, so
+    // a D1 blip or a Durable Object hiccup did not fail this job, it threw out
+    // of `runCronJob` entirely. `scheduled()` iterates the jobs for a schedule
+    // with no guard of its own, so that one throw skipped EVERY REMAINING JOB on
+    // that schedule, silently: no history row, no alert, nothing to read
+    // afterwards saying they had not run. On the daily schedule that is seven
+    // jobs behind the first one to trip, including four retention sweeps.
+    //
+    // ONE AUTHORITY, HERE. `runCronJob` is now total: it either returns an
+    // outcome or returns a failed outcome, and never throws. The loop in
+    // `scheduled()` is therefore safe without a second try/catch of its own,
+    // which would be two guards for one rule (381 binding e).
+    const message = err instanceof Error ? err.message : "cron infrastructure error";
+    return {
+      cronName,
+      status: "failed",
+      rowsProcessed: 0,
+      message,
+      ...(await recordInfrastructureFailure(env, cronName, message)),
+    };
+  }
+}
+
+/**
+ * Best-effort record of a failure that happened OUTSIDE the handler.
+ *
+ * BEST-EFFORT IS THE HONEST WORD, and the limit is worth stating rather than
+ * implying: the commonest cause of an infrastructure throw here is D1 being
+ * unreachable, and D1 is also what a history row is written to. When that is the
+ * failure, there is nowhere to record it and the outcome is returned to the
+ * caller without a row. What this DOES buy is every other case: a Durable Object
+ * hiccup, a lock RPC failure, a bad binding, all of which leave D1 fine and are
+ * recorded normally.
+ *
+ * It never throws, or it would defeat the guard that calls it.
+ */
+async function recordInfrastructureFailure(
+  env: Env,
+  cronName: string,
+  message: string,
+): Promise<{ runId?: string; alert?: AlertOutcome }> {
+  const runId = crypto.randomUUID();
+  try {
+    await recordRun(env, runId, cronName, new Date(), "failed", 0, message);
+  } catch {
+    // Nothing to do and nowhere to say it: see above.
+    return {};
+  }
+  try {
+    // The same alert a handler failure raises (313). An infrastructure failure
+    // that recorded a row and told nobody would be exactly the silence 313 was
+    // built to end.
+    const alert = await alertCronFailure(env, getDb(env), { cronName, runId, error: message }, new Date());
+    return { runId, alert };
+  } catch {
+    return { runId };
+  }
+}
+
+async function executeCronJob(
+  env: Env,
+  cronName: string,
+  handler: CronHandler,
+): Promise<CronRunOutcome> {
   const db = getDb(env);
 
   const cfg = (
@@ -155,6 +226,15 @@ export async function runCronJob(
     );
     return { cronName, status: "failed", rowsProcessed: 0, message, runId, alert };
   } finally {
-    await lock.release(lockToken);
+    // A FAILED RELEASE MUST NOT REWRITE THE RUN'S OUTCOME. A throw from here
+    // would replace the return value above, so a successful run whose lock
+    // release failed would be reported as a failure, contradicting the history
+    // row that already says success. The lease is the backstop: an unreleased
+    // lock lapses on its own, which is the whole reason it is a lease.
+    try {
+      await lock.release(lockToken);
+    } catch {
+      // Deliberately swallowed. See above.
+    }
   }
 }
