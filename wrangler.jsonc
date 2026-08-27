@@ -163,13 +163,20 @@
   // changes the Worker's declared bindings, so it proves through CI's deploy job
   // like a migration.
   //
-  // THE CONSUMER DELIBERATELY STAYS. consumer.ts dispatches by queue name and
-  // also serves foxhound-email-events, the bounce and complaint path core.md's
-  // blocker 6 depends on, whose own instruction is "do not rebuild the
-  // consumer". This registration is what keeps that handler reachable, so
-  // dropping it would manufacture the rebuild blocker 6 forbids. A queue with a
-  // consumer and no producer is coherent; if an async send path is ever wanted,
-  // the producer is six lines and one binding to restore.
+  // THE CONSUMER DELIBERATELY STAYS. A queue with a consumer and no producer is
+  // coherent; if an async send path is ever wanted, the producer is six lines
+  // and one binding to restore.
+  //
+  // THE SENTENCE THAT USED TO END THIS PARAGRAPH WAS WRONG, and it is corrected
+  // rather than deleted because it was load-bearing in a ruling. It read: "This
+  // registration is what keeps that handler reachable, so dropping it would
+  // manufacture the rebuild blocker 6 forbids." It pointed at the WRONG QUEUE.
+  // consumer.ts dispatches on `batch.queue`, and the bounce-and-complaint arm
+  // matches EMAIL_EVENTS_QUEUE_NAME, so the foxhound-email registration below
+  // never made that arm reachable by anything. Registering one queue does not
+  // reach a handler that branches on another. Found by 376 item (9) against a
+  // live `wrangler queues list`, which also showed the events queue did not
+  // exist on the account at all.
   "queues": {
     "consumers": [
       {
@@ -191,6 +198,34 @@
       // fails to be RECORDED is counted in the batch result instead.
       {
         "queue": "foxhound-email-dlq",
+        "max_batch_size": 10,
+        "max_batch_timeout": 30,
+        "max_retries": 3
+      },
+      // THE BOUNCE AND COMPLAINT QUEUE (376 item (9), core.md blocker 6). The
+      // queue was created on the account in the same session as this line
+      // (`wrangler queues create foxhound-email-events`, id 4b5439fe...); it did
+      // not exist before, so consumer.ts's second arm was unreachable twice
+      // over: no registration and no queue.
+      //
+      // Retry posture matches foxhound-email. NO dead_letter_queue, and that is
+      // where the consumer's own code overrode the "same posture" default: the
+      // DLQ arm in workers/app.ts hands every message to recordDeadLetters,
+      // which casts the body to EmailJob and builds an email dead-letter row.
+      // An EmailServiceEvent is not that shape, so pointing this queue at
+      // foxhound-email-dlq would file bounce events as malformed emails, and a
+      // second DLQ nothing consumes would only move the discard one hop, which
+      // is the reasoning already recorded above for the DLQ's own lack of one.
+      // The residual is stated rather than hidden: an event that exhausts its
+      // retries is dropped, and giving events their own recorder is a build,
+      // not a config line.
+      //
+      // STILL MISSING AFTER THIS: the Email Sending event subscription, which
+      // Dustin creates in the dashboard. Until it exists this queue has a
+      // consumer and no producer, so the handler is reachable and nothing
+      // reaches it. That is the last half of blocker 6.
+      {
+        "queue": "foxhound-email-events",
         "max_batch_size": 10,
         "max_batch_timeout": 30,
         "max_retries": 3
