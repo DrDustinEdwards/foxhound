@@ -1,8 +1,9 @@
 import "highlight.js/styles/github-dark.css";
 
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import { Link } from "react-router";
+import { Link, redirect } from "react-router";
 
+import { redirectedBlogSlug } from "~/lib/blog/slug-redirects";
 import { ReadingProgressBar } from "~/components/blog/reading-progress-bar";
 import { ShareRow } from "~/components/blog/share-row";
 import { TableOfContents } from "~/components/blog/table-of-contents";
@@ -37,6 +38,18 @@ import type { Route } from "./+types/post";
 export async function loader({ params, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const db = getDb(env);
+  // THE RENAMED COMPARISON SLUGS (376 item 21), checked BEFORE the lookup.
+  //
+  // Before the lookup rather than in the 404 branch, deliberately: an old slug
+  // must redirect whether or not a post happens to still answer to it, so the
+  // canonical URL is the new one from the moment this ships. Putting it after
+  // the miss would make the redirect depend on the database having already been
+  // renamed, which is a race between a deploy and a data change.
+  const renamed = redirectedBlogSlug(params.slug);
+  if (renamed) {
+    throw redirect(`/blog/${renamed}`, 301);
+  }
+
   const post = await getPostBySlug(db, params.slug);
   if (!post) {
     throw new Response("Not found", { status: 404 });
