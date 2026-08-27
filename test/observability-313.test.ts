@@ -6,9 +6,11 @@ import {
   claimAlertSlot,
   findStaleCrons,
   runCronHealthCheck,
+  SCHEDULE_PERIOD_MS,
   sendAlert,
   utcDay,
 } from "~/lib/cron/alerts.server";
+import { CRON_JOBS } from "~/lib/cron/registry";
 import { recordDeadLetters } from "~/lib/email/dead-letters.server";
 import { buildEmailSendRow } from "~/lib/email/dispatch";
 import type { EmailJob } from "~/lib/email/types";
@@ -162,6 +164,46 @@ describe("313 A: the never-executed detector", () => {
     expect(stale).toEqual([
       { cronName: "mystery", lastRunAt: NOW, reason: "unknown_schedule" },
     ]);
+  });
+
+  it("EVERY SCHEDULE THE REGISTRY USES HAS A PERIOD (376 item 15)", () => {
+    // THE DEFECT THIS CLOSES. CRON_SCHEDULE_WEEKLY was never added to the period
+    // table, so weekly-digest reported `unknown_schedule` every single day from
+    // the moment session 55 introduced the repo's first new cron expression. The
+    // table's own comment predicted this exact failure and did not prevent it,
+    // because "it announces itself" means a line in a daily report nobody reads.
+    //
+    // DERIVED FROM THE REGISTRY, never a hand list: the set under test is
+    // whatever CRON_JOBS actually schedules, so a schedule added next year is
+    // covered on the day it is added rather than on the day somebody remembers.
+    const scheduled = [...new Set(CRON_JOBS.map((j) => j.schedule))];
+
+    // THE READER, MUTATED (379 binding 3). A derivation that returns nothing
+    // makes "every schedule has a period" vacuously true, and this guard would
+    // pass over an empty registry while every job on earth went unwatched.
+    expect(scheduled.length).toBeGreaterThan(0);
+    expect(scheduled.length).toBe(new Set(CRON_JOBS.map((j) => j.schedule)).size);
+    // And the registry genuinely holds the job whose schedule was missing, so
+    // this is not passing because weekly-digest quietly left the registry.
+    expect(CRON_JOBS.map((j) => j.name)).toContain("weekly-digest");
+
+    for (const schedule of scheduled) {
+      expect(SCHEDULE_PERIOD_MS[schedule], `no period for schedule ${schedule}`).toBeGreaterThan(0);
+    }
+  });
+
+  it("and every job in the registry is answerable, driven through findStaleCrons", () => {
+    // The behavioural half. The check above reads the table; this one drives the
+    // real reader over every registered job and refuses `unknown_schedule`,
+    // because a table key that exists but is never consulted would satisfy the
+    // check above while the report still said unknown.
+    const jobs = CRON_JOBS.map((j) => ({ name: j.name, schedule: j.schedule }));
+    const lastRun = new Map(jobs.map((j) => [j.name, NOW] as const));
+
+    const stale = findStaleCrons(jobs, lastRun, NOW);
+
+    expect(jobs.length).toBeGreaterThan(0);
+    expect(stale.filter((s) => s.reason === "unknown_schedule")).toEqual([]);
   });
 
   it("the health check alerts on findings and reports what it did", async () => {
