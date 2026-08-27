@@ -264,7 +264,7 @@ export const DOC_GUIDES: DocGuide[] = [
           { kind: "h3", text: "Filtering and search" },
           { kind: "list", items: [
             [{ strong: "Search." }, " Matches on customer name, email, or plan name."],
-            [{ strong: "Status." }, " Active, recovered, cancelled, or failed unrecovered."],
+            [{ strong: "Status." }, " Stripe retrying, active, recovered, cancelled, or failed unrecovered."],
             [{ strong: "Decline category." }, " Narrows to one category."],
             [{ strong: "Date range." }, " Filters on when the failure was detected."],
             [{ strong: "Amount range." }, " A slider bounded by the smallest and largest amounts you actually have."],
@@ -276,6 +276,7 @@ export const DOC_GUIDES: DocGuide[] = [
           { kind: "h3", text: "What each status means" },
           { kind: "widget", name: "payment-statuses" },
           { kind: "list", items: [
+            [{ strong: "Stripe retrying." }, " Stripe is still attempting the payment on its own schedule. Foxhound is watching and has planned no steps yet."],
             [{ strong: "Active." }, " The sequence is running and at least one step is still ahead of it."],
             [{ strong: "Recovered." }, " The invoice was paid, and every remaining step was cancelled."],
             [{ strong: "Cancelled." }, " You stopped the sequence, or the subscription behind it ended."],
@@ -358,7 +359,7 @@ export const DOC_GUIDES: DocGuide[] = [
           { kind: "h3", text: "A payment is not showing up" },
           { kind: "list", items: [
             [{ strong: "Is the Stripe account still connected?" }, " Settings and Stripe connections lists every live connection on this account."],
-            [{ strong: "Has Stripe finished its own retries?" }, " Foxhound only gets the webhook once Stripe has given up. While Stripe is still trying, the payment will not appear."],
+            [{ strong: "Has Stripe finished its own retries?" }, " The payment appears as soon as it fails, marked as Stripe's to retry. Foxhound's sequence starts when Stripe stops."],
             [{ strong: "Is the payment on the account you are looking at?" }, " If you hold more than one, check the account switcher in the header."],
             [{ strong: "Is Stripe still reaching Foxhound?" }, " The webhook health line on the dashboard says so."],
           ] },
