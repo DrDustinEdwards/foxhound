@@ -2,7 +2,7 @@ import { getAuditRun, listAuditRuns } from "~/lib/audit/persist.server";
 import { toStoredAuditRun } from "~/lib/audit/render";
 import { getBillingPreview } from "~/lib/billing/preview.server";
 import { getBillingLedger, listBillingInvoices } from "~/lib/billing/queries.server";
-import { listDisputes } from "~/lib/disputes/queries.server";
+import { listDisputes, type DisputeRow } from "~/lib/disputes/queries.server";
 import {
   getAlertsView,
   getChurnView,
@@ -25,7 +25,6 @@ import {
 } from "~/lib/settings/apply.server";
 import { listAccountConnections } from "~/lib/settings/queries.server";
 
-import { redactCustomerFields, redactPaymentFields } from "./redact";
 import {
   defineToolRegistry,
   type McpTool,
@@ -49,10 +48,18 @@ import {
 // executor here imports `executeMoneyWrite`, `recordOutcome` or a billing
 // writer. A plant sweeps this file for all three.
 //
-// REDACTION IS DEFAULT-ON FOR THE THREE PII TOOLS (370). `list_customers`,
-// `get_customer_health` and `list_failed_payments` return the customer id and a
-// masked email and never a name. See ./redact.ts for what the ruling was and why
-// the line falls there.
+// REDACTION IS DEFAULT-ON FOR EVERY TOOL, AND NOT ONE LINE OF IT IS IN THIS
+// FILE (376 item 7). 370's rule used to be three calls to a helper, made by the
+// three tools whose authors knew to make them, and three tools that returned
+// customer rows made none: `list_disputes`, `get_churn` and
+// `get_intelligence_overview`. The rule now applies at the registry boundary, so
+// registering a tool is what redacts it. See ./redact.ts.
+//
+// WHICH MEANS A TOOL HERE MUST NEVER MASK ANYTHING ITSELF. A second masker in
+// this file would be a second authority for one rule, and the plant that mutates
+// the boundary would stay green while this file quietly held the property up
+// (381 binding e). A tool's job is to choose WHICH fields to return, never to
+// disguise one.
 
 type ToolArgs = Record<string, unknown>;
 
@@ -88,6 +95,61 @@ function stringArg(args: ToolArgs, name: string): string | null {
 /** A tool that took a required argument and did not get it. Returned as a tool
  *  error rather than thrown, so the agent can correct itself. */
 class ToolInputError extends Error {}
+
+/**
+ * What a dispute looks like on the wire, and why it is a PICK rather than a row.
+ *
+ * `listDisputes` is `db.select()` over a 60-column table, and that table holds
+ * far more about a customer than the two fields 370 ruled on: `customerIp`,
+ * `billingAddress`, the model-written `aiResponseText` and `triageReasoning`,
+ * and four JSON blobs including `priorChargesJson` and `recoveryEmailsJson`,
+ * which carry the customer's purchase history and the text of mail Foxhound
+ * sent them. The boundary redactor cannot help with any of it: those are not
+ * name or email fields, and widening the redactor to cover them would be
+ * rewriting 370's ruling by guessing at field names.
+ *
+ * SO THE FIX IS AT THE OTHER END. The tool returns the fields an agent needs to
+ * reason about a dispute (what it is, what it is worth, where it stands, when it
+ * is due, what it will cost) and the raw row never reaches the boundary at all.
+ * The customer id comes through whole, as everywhere else on this endpoint, so a
+ * follow-up question is still possible.
+ *
+ * THIS IS AN ALLOWLIST AND IT IS MEANT TO BE. A new column added to `disputes`
+ * next year does not appear here, which is the correct default for a table this
+ * one is a window onto: a new column reaches an agent when somebody decides it
+ * should, not because it was added.
+ *
+ * `customerEmail` IS LISTED, deliberately, and arrives masked from the boundary.
+ * Dropping it instead would be this file quietly deciding a field 370 ruled
+ * VISIBLE-BUT-MASKED should be invisible, and would leave the endpoint with no
+ * way to correlate a dispute to a customer an agent has already seen elsewhere.
+ */
+function disputeForAgent(row: DisputeRow) {
+  return {
+    id: row.id,
+    stripeDisputeId: row.stripeDisputeId,
+    stripeChargeId: row.stripeChargeId,
+    stripeCustomerId: row.stripeCustomerId,
+    customerEmail: row.customerEmail,
+    amountCents: row.amountCents,
+    currency: row.currency,
+    reason: row.reason,
+    status: row.status,
+    state: row.state,
+    outcome: row.outcome,
+    outcomeAmountCents: row.outcomeAmountCents,
+    evidenceDeadline: row.evidenceDeadline,
+    submittedAt: row.submittedAt,
+    resolvedAt: row.resolvedAt,
+    createdAt: row.createdAt,
+    smartDisputesStatus: row.smartDisputesStatus,
+    triageRecommendation: row.triageRecommendation,
+    triageConfidence: row.triageConfidence,
+    resolvedFeeCents: row.resolvedFeeCents,
+    resolvedFeeCurrency: row.resolvedFeeCurrency,
+    resolvedFeeError: row.resolvedFeeError,
+  };
+}
 
 function required(args: ToolArgs, name: string): string {
   const value = stringArg(args, name);
@@ -166,7 +228,7 @@ const TOOLS: McpTool[] = [
         sort: "health_asc",
         page: intArg(args, "page", 1, 10_000),
       });
-      return { ...result, customers: result.customers.map(redactCustomerFields) };
+      return result;
     },
   },
   {
@@ -186,7 +248,7 @@ const TOOLS: McpTool[] = [
         ctx.accountId,
         required(args, "stripe_customer_id"),
       );
-      return { customer: detail ? redactCustomerFields(detail) : null };
+      return { customer: detail };
     },
   },
   {
@@ -214,7 +276,7 @@ const TOOLS: McpTool[] = [
     execute: async (ctx, args) => {
       const rows = await listFailedPayments(ctx.db, ctx.accountId);
       const limit = intArg(args, "limit", 50, 100);
-      return { payments: rows.slice(0, limit).map(redactPaymentFields), total: rows.length };
+      return { payments: rows.slice(0, limit), total: rows.length };
     },
   },
   {
@@ -225,7 +287,7 @@ const TOOLS: McpTool[] = [
     execute: async (ctx, args) => {
       const rows = await listDisputes(ctx.db, ctx.accountId);
       const limit = intArg(args, "limit", 50, 100);
-      return { disputes: rows.slice(0, limit), total: rows.length };
+      return { disputes: rows.slice(0, limit).map(disputeForAgent), total: rows.length };
     },
   },
   {

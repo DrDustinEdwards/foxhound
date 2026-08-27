@@ -1,5 +1,7 @@
 import type { Db } from "~/db";
 
+import { redactToolResult } from "./redact";
+
 // The tool registry, and the refusal that is the point of it.
 //
 // EMPTY THIS SESSION, DELIBERATELY. 370 split the transport and the thirteen
@@ -136,7 +138,21 @@ export function defineToolRegistry(tools: McpTool[]): McpToolRegistry {
     if (byName.has(tool.name)) {
       throw new Error(`MCP tool "${tool.name}" is registered twice`);
     }
-    byName.set(tool.name, tool);
+    // REGISTRATION IS WHAT APPLIES THE REDACTION (376 item 7). The executor
+    // stored here is the tool's own wrapped in `redactToolResult`, so 370's
+    // DEFAULT-REDACT holds for every tool in the registry rather than for the
+    // three tools whose authors remembered to call a helper. A tool cannot skip
+    // it by forgetting, because a tool never calls it, and it cannot skip it by
+    // not registering, because an unregistered tool has no way to be called.
+    //
+    // WRAPPED HERE RATHER THAN AT THE HANDLER for one reason worth stating: the
+    // handler is not the only caller. `get()` hands the tool to whoever asks,
+    // and a future caller that is not the JSON-RPC dispatch would otherwise get
+    // the raw executor and be redaction-free by default.
+    byName.set(tool.name, {
+      ...tool,
+      execute: async (ctx, args) => redactToolResult(await tool.execute(ctx, args)),
+    });
   }
   return {
     list: () =>
