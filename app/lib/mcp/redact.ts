@@ -16,22 +16,40 @@
 // that helps a merchant reason and an agent that has quietly exported a customer
 // list.
 //
-// ONE IMPLEMENTATION, and the tools import it rather than each masking inline.
-// Three tools carry PII and three inline maskers would be three places for the
-// rule to drift, with only the one somebody re-read staying correct.
+// THE APPLICATION POINT MOVED IN SESSION 83, AND THAT IS THE WHOLE FIX (376
+// item 7). 370 scoped the rule to three tools that each called a helper on the
+// way out, so the redaction was a thing a tool REMEMBERED to do. Three tools
+// forgot: `list_disputes` returned `db.select()` over a table carrying a name
+// and an email, and `get_churn` and `get_intelligence_overview` passed views
+// carrying `customerName` straight through. Meanwhile the published copy on
+// /docs and llms.txt promised the endpoint redacts, with no per-tool
+// qualification. The promise was right and the scope was wrong.
+//
+// SO THE RULE IS NOW STRUCTURAL AND APPLIES AT THE TOOL RETURN BOUNDARY.
+// `defineToolRegistry` wraps every executor it registers in `redactToolResult`,
+// which walks whatever the tool returned and redacts the two fields wherever
+// they appear, at any depth. A tool cannot skip it, because a tool never calls
+// it: registration is what applies it, and an unregistered tool is not callable.
+// A new tool written next year by somebody who never reads this file is covered
+// on the day it is registered.
+//
+// ONE AUTHORITY, NOT TWO (381 binding e). The per-tool helpers this file used to
+// export are GONE rather than kept alongside the boundary. Two places applying
+// one rule is two places for it to drift, and a plant that mutates one while the
+// other silently holds the assertion up is a guard proving nothing.
 
-/** What a masked customer looks like on the wire. The id is intact because it is
- *  the correlation key an agent needs to ask a follow-up question about the same
- *  customer, and it is a Stripe identifier rather than a person's identity. */
-export interface RedactedCustomer {
-  stripeCustomerId: string;
-  /** First character plus domain, or null when there was no email. */
-  customerEmail: string | null;
-  /** ALWAYS null. Present in the shape rather than deleted, so a consumer that
-   *  expects the field gets an explicit null instead of undefined and cannot
-   *  mistake "redacted" for "the helper forgot". */
-  customerName: null;
-}
+/**
+ * The two field names the rule removes, as the wire spells them.
+ *
+ * NAMING THEM IS THE ALLOWLIST, and the codebase earns that: `customerName` and
+ * `customerEmail` are the only spellings any helper uses for these two values,
+ * measured across app/lib. The narrowness is deliberate in the other direction
+ * too. A merchant's OWN address arrives at the endpoint as `notificationEmail`
+ * and `senderName` and must come through whole, because it is the merchant's
+ * own settings value being read back by the merchant's own key; masking it
+ * would break the settings readers to protect nobody.
+ */
+export const REDACTED_CUSTOMER_FIELDS = ["customerName", "customerEmail"] as const;
 
 /**
  * Mask an email to its first character and its domain.
@@ -52,38 +70,72 @@ export function maskEmail(email: string | null | undefined): string | null {
 }
 
 /**
- * Apply the default to one customer-shaped row.
+ * Mask a value that ARRIVED IN THE EMAIL FIELD, whatever it turned out to be.
  *
- * TAKES THE WHOLE ROW AND RETURNS THE WHOLE ROW, with the two fields replaced
- * and everything else passed through untouched. Written this way rather than as
- * a picker so a helper that gains a new NON-PII field keeps returning it without
- * anyone editing this file, while a helper that gains a new PII field is a
- * decision somebody has to make deliberately.
+ * The boundary walks untyped data, so the value under `customerEmail` is
+ * whatever a helper put there rather than whatever a type says. A number, an
+ * object or an array in that field is a shape nobody predicted, and the one
+ * answer that cannot leak is the fully masked one. Null and undefined stay
+ * null, because absence is not a value to hide.
  */
-export function redactCustomerFields<
-  T extends { stripeCustomerId: string; customerEmail?: string | null; customerName?: string | null },
->(row: T): Omit<T, "customerEmail" | "customerName"> & RedactedCustomer {
-  const { customerEmail, customerName, ...rest } = row;
-  void customerName;
-  return {
-    ...rest,
-    stripeCustomerId: row.stripeCustomerId,
-    customerEmail: maskEmail(customerEmail),
-    customerName: null,
-  } as Omit<T, "customerEmail" | "customerName"> & RedactedCustomer;
+function maskUnknownEmail(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "string") return "***";
+  return maskEmail(value);
 }
 
 /**
- * The failed-payment shape, which carries a customer email under the same rule
- * but has no name field and keys on `stripeCustomerId` from a different table.
+ * Redact every customer field in a tool's return value, at any depth.
+ *
+ * TAKES THE WHOLE RESULT AND RETURNS THE WHOLE RESULT, rebuilt with the two
+ * fields replaced and everything else copied through untouched. Written as a
+ * walk rather than as a picker so a tool that gains a new NON-PII field keeps
+ * returning it without anyone editing this file, while a tool that gains a new
+ * PII field is a decision somebody has to make deliberately here.
+ *
+ * WHY IT RECURSES rather than checking the top level. A tool result is a
+ * container: `{ customers: [...] }`, `{ disputes: [...] }`, `{ topAtRisk: [...]
+ * }`, and `get_churn` buries its rows two deep. A top-level check would have
+ * passed every one of the three tools that were leaking.
+ *
+ * DATES ARE RETURNED AS THEY ARE, deliberately. Spreading a Date yields an empty
+ * object, which would have turned every `createdAt` on the endpoint into `{}`
+ * and been a data-loss bug shipped by a privacy fix.
+ *
+ * The `seen` map keeps a cycle from recursing forever and makes a shared
+ * subtree redact once. It maps original to REDACTED output, so revisiting a node
+ * returns the redacted copy rather than the raw one: a cycle must not be the
+ * path where the rule fails open.
  */
-export function redactPaymentFields<
-  T extends { stripeCustomerId: string; customerEmail?: string | null },
->(row: T): Omit<T, "customerEmail"> & { stripeCustomerId: string; customerEmail: string | null } {
-  const { customerEmail, ...rest } = row;
-  return {
-    ...rest,
-    stripeCustomerId: row.stripeCustomerId,
-    customerEmail: maskEmail(customerEmail),
-  } as Omit<T, "customerEmail"> & { stripeCustomerId: string; customerEmail: string | null };
+export function redactToolResult(value: unknown, seen: WeakMap<object, unknown> = new WeakMap()): unknown {
+  if (value === null || typeof value !== "object") return value;
+  if (value instanceof Date) return value;
+
+  const node = value as object;
+  if (seen.has(node)) return seen.get(node);
+
+  if (Array.isArray(value)) {
+    const out: unknown[] = [];
+    seen.set(node, out);
+    for (const item of value) out.push(redactToolResult(item, seen));
+    return out;
+  }
+
+  const out: Record<string, unknown> = {};
+  seen.set(node, out);
+  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+    if (key === "customerName") {
+      // ALWAYS null, and present rather than deleted, so a consumer that expects
+      // the field gets an explicit null instead of undefined and cannot mistake
+      // "redacted" for "the helper forgot".
+      out[key] = null;
+      continue;
+    }
+    if (key === "customerEmail") {
+      out[key] = maskUnknownEmail(item);
+      continue;
+    }
+    out[key] = redactToolResult(item, seen);
+  }
+  return out;
 }

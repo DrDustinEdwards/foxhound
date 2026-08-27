@@ -7,7 +7,7 @@ import { accounts, apiKeys, customerContext, failedPayments } from "~/db/schema"
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
 import { DOC_GUIDES } from "~/lib/marketing/docs-content";
 import { MCP_PROTOCOL_VERSION } from "~/lib/mcp/protocol";
-import { maskEmail, redactCustomerFields, redactPaymentFields } from "~/lib/mcp/redact";
+import { maskEmail, redactToolResult } from "~/lib/mcp/redact";
 import { isDeniedToolName } from "~/lib/mcp/registry";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
@@ -310,13 +310,13 @@ describe("PLANT 3: the redaction default (370)", () => {
     expect(maskEmail("@leading.test")).toBe("***");
   });
 
-  it("the redactors null the name and never merely omit it", () => {
-    const out = redactCustomerFields({
+  it("the redactor nulls the name and never merely omits it", () => {
+    const out = redactToolResult({
       stripeCustomerId: "cus_1",
       customerName: "Real Name",
       customerEmail: "real@example.test",
       mrrContributionCents: 100,
-    });
+    }) as Record<string, unknown>;
     expect(out.customerName).toBeNull();
     expect("customerName" in out).toBe(true);
     expect(out.customerEmail).toBe("r***@example.test");
@@ -324,22 +324,28 @@ describe("PLANT 3: the redaction default (370)", () => {
     expect(out.mrrContributionCents).toBe(100);
     expect(out.stripeCustomerId).toBe("cus_1");
 
-    const payment = redactPaymentFields({
+    // The payment shape carries an email and no name at all, and the walk
+    // redacts what is there rather than requiring both.
+    const payment = redactToolResult({
       stripeCustomerId: "cus_1",
       customerEmail: "real@example.test",
       amountCents: 500,
-    });
+    }) as Record<string, unknown>;
     expect(payment.customerEmail).toBe("r***@example.test");
     expect(payment.amountCents).toBe(500);
+    expect("customerName" in payment).toBe(false);
   });
 
-  it("ONE IMPLEMENTATION: no tool masks inline", () => {
-    // Three inline maskers would be three places for the rule to drift, with
-    // only the one somebody re-read staying correct.
+  it("ONE IMPLEMENTATION: no tool masks inline, because no tool redacts at all", () => {
+    // A second masker in the tools file would be a second authority for one
+    // rule, and the boundary plant below would stay green while this file
+    // quietly held the property up (381 binding e).
     const tools = code(read("app/lib/mcp/tools.server.ts"));
-    expect(tools).toContain('from "./redact"');
     expect(tools).not.toContain("lastIndexOf(\"@\")");
     expect(tools).not.toContain("***");
+    expect(tools).not.toContain("redact");
+    // And the authority is where it is claimed to be.
+    expect(code(read("app/lib/mcp/registry.ts"))).toContain("redactToolResult");
   });
 });
 
