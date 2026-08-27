@@ -15,7 +15,13 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // so it is exercised here against the real in-memory schema without needing a
 // Durable Object namespace.
 
-function stubLock(acquireImpl: () => Promise<boolean> = async () => true) {
+/** FENCED SINCE 376 ITEM 14: a granted acquire hands back a token and release
+ *  takes one, so this stub returns a token rather than `true` and null rather
+ *  than `false`. The seed path holds the same contract as the cron runner. */
+function stubLock(acquireImpl: () => Promise<string | null> = async () => "tok_demo") {
+  // `release` takes a token in the contract and this fake ignores it, so it
+  // declares no parameter at all rather than an unused one: a narrower function
+  // is assignable, and lint refuses a parameter nothing reads.
   return { acquire: vi.fn(acquireImpl), release: vi.fn(async () => undefined) };
 }
 
@@ -70,7 +76,7 @@ describe("ensureDemoSeededWithLock", () => {
 
   it("contention: lock denied, polls until the row appears, never seeds itself", async () => {
     const { db } = createInMemoryDb();
-    const lock = stubLock(async () => false);
+    const lock = stubLock(async () => null);
 
     const ensured = ensureDemoSeededWithLock(db, lock);
     setTimeout(() => {
