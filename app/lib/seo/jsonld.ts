@@ -66,12 +66,25 @@ export function softwareApplicationJsonLd(url: string) {
     description:
       "Recover failed Stripe subscription payments with silent retries and AI-drafted email sequences. 20% of Foxhound-attributed recoveries only, nothing Stripe would have recovered anyway.",
     publisher: { "@id": `${url}/#organization` },
-    offers: {
-      "@type": "Offer",
-      price: "0",
-      priceCurrency: "USD",
-      description: "Free audit. Recovery at 20% of Foxhound-attributed recoveries.",
-    },
+    // NO `offers` BLOCK, DELIBERATELY (376 item 22, verified true at 2569400).
+    //
+    // It used to read `price: "0"` with the description "Free audit. Recovery at
+    // 20% of Foxhound-attributed recoveries." The description was accurate and
+    // the PRICE WAS NOT: zero is the audit's price, and a crawler reading this
+    // object reads one price for the whole application. Recovery is a percentage
+    // of money it creates and Intelligence is a monthly fee, so "0" told search
+    // engines the product is free when two thirds of it is not.
+    //
+    // REMOVED RATHER THAN TURNED INTO A RANGE, and the reason is that the range
+    // has no top. An AggregateOffer needs a lowPrice and a highPrice, and 20% of
+    // an unknown recovered amount has no highPrice that is not invented. A
+    // fabricated ceiling in a machine-readable field is the same class of defect
+    // as the "0", one digit further from being noticed. Foxhound has no single
+    // price, so it publishes none; /pricing states all three in prose, which is
+    // where a number belongs when it needs a sentence to be true.
+    //
+    // The day a fixed-price plan exists with a checkout behind it, an Offer here
+    // becomes both truthful and worth having.
   };
 }
 
