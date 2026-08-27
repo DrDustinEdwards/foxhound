@@ -522,6 +522,12 @@ interface TickTally {
   halted: boolean;
 }
 
+/** How many failing step ids the run message names before it truncates. Five is
+ *  enough to see whether a tick's failures share a cause and short enough that a
+ *  total outage does not write a message thousands of ids long. The count of the
+ *  rest is always appended, so the cap is never silent. */
+export const FAILED_STEP_IDS_IN_MESSAGE = 5;
+
 /** Injectable seams for runRecoveryTick. Defaults are the real query + executors. */
 export interface RecoveryTickDeps {
   query: (env: Env, now: Date) => Promise<DueStepRow[]>;
@@ -636,6 +642,15 @@ export async function runRecoveryTick(
     backlog: due.length >= RECOVERY_TICK_LIMIT,
     halted: false,
   };
+  /** Every step that threw this tick, kept so the run's recorded message can
+   *  NAME them rather than only count them. */
+  const failedSteps: {
+    stepId: string;
+    failedPaymentId: string;
+    stepType: string;
+    errorClass: string;
+    message: string;
+  }[] = [];
 
   for (const row of chosen) {
     // Re-checked per step, not per run. Both gates were evaluated when the batch
@@ -680,9 +695,27 @@ export async function runRecoveryTick(
       } else {
         tally.skipped += 1; // unknown step type (e.g. the card_update signal row)
       }
-    } catch {
+    } catch (err) {
       // Isolate: one step's failure never halts the sweep for the others.
       tally.failed += 1;
+      // AND SAY WHICH ONE (376's verify-first list, session 85). This used to be
+      // a bare `catch {}` that incremented a counter, so a tick reporting "3
+      // failed" named no step, no payment and no error: the only way to find out
+      // was to re-run the sweep by hand and hope it failed the same way. The
+      // error was not even bound to a name, so nothing could have been logged
+      // without editing this line.
+      //
+      // THE CLASS, NOT JUST THE MESSAGE. A message tells you what went wrong
+      // once; the class tells you whether tonight's three failures are one fault
+      // or three, which is the first question on reading a tick that failed.
+      failedSteps.push({
+        stepId: row.stepId,
+        failedPaymentId: row.failedPaymentId,
+        stepType: row.stepType,
+        errorClass: err instanceof Error ? err.constructor.name : typeof err,
+        message: err instanceof Error ? err.message : String(err),
+      });
+      console.error("recovery step failed:", JSON.stringify(failedSteps[failedSteps.length - 1]));
     }
   }
 
@@ -720,6 +753,27 @@ export async function runRecoveryTick(
   }
 
   const executed = tally.retries + tally.emails;
+  // THE FAILING STEPS, NAMED IN THE RUN'S OWN RECORD. `console.error` above
+  // reaches wrangler tail, which is a live stream nobody is watching at 03:00;
+  // cron_run_history is what somebody actually reads the next morning, and a row
+  // saying "3 failed" with no ids sends them back to the logs they no longer
+  // have.
+  //
+  // BOUNDED, AND THE TRUNCATION SAYS SO. A tick can select up to
+  // RECOVERY_TICK_LIMIT steps, so an outage that fails all of them would
+  // otherwise write a message thousands of ids long. The first few identify the
+  // fault; the count identifies the scale. A silent cap would read as "only
+  // these failed", which is worse than a number.
+  const failedNote = failedSteps.length
+    ? `, failed: ${failedSteps
+        .slice(0, FAILED_STEP_IDS_IN_MESSAGE)
+        .map((f) => `${f.stepId}(${f.errorClass})`)
+        .join(" ")}${
+        failedSteps.length > FAILED_STEP_IDS_IN_MESSAGE
+          ? ` +${failedSteps.length - FAILED_STEP_IDS_IN_MESSAGE} more`
+          : ""
+      }`
+    : "";
   const backlogNote = tally.backlog ? ", BACKLOG (tick hit RECOVERY_TICK_LIMIT)" : "";
   // Both stop conditions are named in the run message, so cron_run_history shows
   // a deliberate halt as a halt rather than as a quiet short run.
@@ -734,6 +788,6 @@ export async function runRecoveryTick(
       `${tally.due} due, ${tally.chosen} payments, ${tally.retries} retries ` +
       `(${tally.recovered} recovered), ${tally.emails} emails, ` +
       `${tally.skipped} skipped, ${tally.failed} failed, ` +
-      `${tally.exhausted} exhausted${pausedNote}${sweepNote}${backlogNote}${haltedNote}`,
+      `${tally.exhausted} exhausted${pausedNote}${failedNote}${sweepNote}${backlogNote}${haltedNote}`,
   };
 }

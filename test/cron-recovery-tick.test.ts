@@ -1,5 +1,5 @@
 import { drizzle } from "drizzle-orm/d1";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { accounts, recoverySteps } from "~/db";
 import * as schema from "~/db/schema";
@@ -8,6 +8,7 @@ import { RECOVERY_TICK_LIMIT } from "~/lib/constants";
 import {
   accountProcessingEligibleCondition,
   chooseStepsPerPayment,
+  FAILED_STEP_IDS_IN_MESSAGE,
   runRecoveryTick,
   stepDueCondition,
   type DueStepRow,
@@ -346,5 +347,170 @@ describe("LOW-C: a halted tick does nothing further", () => {
       checkGuards: allowAll,
     });
     expect(swept).toBe(1);
+  });
+});
+
+describe("a failing step is NAMED, not just counted (376's verify-first list)", () => {
+  // THE PREMISE, VERIFIED AT afb4334: the per-step catch was `catch {` with a
+  // bare `tally.failed += 1` and nothing else. The error was not even bound to a
+  // name, so a tick reporting "3 failed" named no step, no payment and no error
+  // class, and the only way to find out was to re-run the sweep and hope it
+  // failed the same way.
+
+  it("THE FAILING STEP'S ID IS IN THE RUN'S RECORDED MESSAGE", async () => {
+    const result = await runRecoveryTick({} as Env, {
+      query: async () => [row({ stepId: "step_boom", failedPaymentId: "fp_boom" })],
+      checkGuards: allowAll,
+      runRetry: async () => ({ recovered: false }),
+      runEmail: async () => {
+        throw new TypeError("cannot read properties of null");
+      },
+      flipExhausted: async () => [],
+      recordMissingToken: async () => null,
+    });
+
+    // cron_run_history is what somebody reads the next morning, when the live
+    // log stream is long gone.
+    expect(result.message).toMatch(/1 failed/);
+    expect(result.message).toContain("step_boom");
+    // AND THE ERROR CLASS, which is what says whether tonight's failures are one
+    // fault or several.
+    expect(result.message).toContain("TypeError");
+  });
+
+  it("the sweep still continues past the failing step", async () => {
+    // The isolation the bare catch did buy, kept: naming the failure must not
+    // turn it back into a halt.
+    const ran: string[] = [];
+    const result = await runRecoveryTick({} as Env, {
+      query: async () => [
+        row({ stepId: "s_bad", failedPaymentId: "fp_1" }),
+        row({ stepId: "s_good", failedPaymentId: "fp_2" }),
+      ],
+      checkGuards: allowAll,
+      runRetry: async () => ({ recovered: false }),
+      runEmail: async (_env, ctx) => {
+        if (ctx.stepId === "s_bad") throw new Error("boom");
+        ran.push(ctx.stepId);
+        return {};
+      },
+      flipExhausted: async () => [],
+      recordMissingToken: async () => null,
+    });
+
+    expect(ran).toEqual(["s_good"]);
+    expect(result.message).toMatch(/1 emails/);
+    expect(result.message).toMatch(/1 failed/);
+    expect(result.message).toContain("s_bad");
+  });
+
+  it("THE LOG CARRIES step id, payment id AND error class", async () => {
+    // The run message is bounded and carries two fields; the log is where the
+    // whole record goes. Asserted over the logged PAYLOAD rather than over the
+    // message, because these are two different deliverables and a test that
+    // only reads the message would let the log regress silently.
+    const logged: string[] = [];
+    const spy = vi.spyOn(console, "error").mockImplementation((...args: unknown[]) => {
+      logged.push(args.map(String).join(" "));
+    });
+    try {
+      await runRecoveryTick({} as Env, {
+        query: async () => [row({ stepId: "s_logged", failedPaymentId: "fp_logged" })],
+        checkGuards: allowAll,
+        runRetry: async () => ({ recovered: false }),
+        runEmail: async () => {
+          throw new TypeError("null is not an object");
+        },
+        flipExhausted: async () => [],
+        recordMissingToken: async () => null,
+      });
+    } finally {
+      spy.mockRestore();
+    }
+
+    const line = logged.find((l) => l.includes("s_logged"));
+    expect(line, "the failure was not logged at all").toBeDefined();
+    expect(line).toContain("fp_logged");
+    expect(line).toContain("TypeError");
+    expect(line).toContain("null is not an object");
+  });
+
+  it("A NON-ERROR THROW is still named, and does not itself throw", async () => {
+    // `err instanceof Error` is false for a thrown string, and reaching for
+    // .message or .constructor on it would turn a step failure into a tick
+    // failure. Real code throws non-Errors: a rejected fetch body, a library
+    // that throws a plain object.
+    const logged: string[] = [];
+    const spy = vi.spyOn(console, "error").mockImplementation((...args: unknown[]) => {
+      logged.push(args.map(String).join(" "));
+    });
+    let result;
+    try {
+      result = await runRecoveryTick({} as Env, {
+        query: async () => [row({ stepId: "s_string_throw" })],
+        checkGuards: allowAll,
+        runRetry: async () => ({ recovered: false }),
+        runEmail: async () => {
+          throw "just a string";
+        },
+        flipExhausted: async () => [],
+        recordMissingToken: async () => null,
+      });
+    } finally {
+      spy.mockRestore();
+    }
+
+    // The thrown VALUE survives into the log. Reaching for `.message` on a
+    // string yields undefined rather than throwing, so without this assertion
+    // the fallback could be removed and every non-Error failure would log
+    // `"message": undefined` with nothing going red.
+    expect(logged.find((l) => l.includes("s_string_throw"))).toContain("just a string");
+
+    // `typeof err` for the class, so the rendered class is the lowercase
+    // "string" rather than the constructor's "String". Asserted exactly, because
+    // this is the branch that separates the non-Error path from the Error one.
+    expect(result.message).toContain("s_string_throw(string)");
+    expect(result.message).toMatch(/1 failed/);
+  });
+
+  it("THE CAP IS NOT SILENT: past the limit the message says how many more", async () => {
+    // A tick can select up to RECOVERY_TICK_LIMIT steps, so an outage failing
+    // all of them must not write a message thousands of ids long. It must also
+    // not read as "only these five failed".
+    const many = Array.from({ length: FAILED_STEP_IDS_IN_MESSAGE + 3 }, (_, i) =>
+      row({ stepId: `s_${i}`, failedPaymentId: `fp_${i}` }),
+    );
+    const result = await runRecoveryTick({} as Env, {
+      query: async () => many,
+      checkGuards: allowAll,
+      runRetry: async () => ({ recovered: false }),
+      runEmail: async () => {
+        throw new Error("outage");
+      },
+      flipExhausted: async () => [],
+      recordMissingToken: async () => null,
+    });
+
+    expect(result.message).toContain("s_0");
+    expect(result.message).toContain(`s_${FAILED_STEP_IDS_IN_MESSAGE - 1}`);
+    expect(result.message).not.toContain(`s_${FAILED_STEP_IDS_IN_MESSAGE}(`);
+    expect(result.message).toContain("+3 more");
+    expect(result.message).toMatch(new RegExp(`${FAILED_STEP_IDS_IN_MESSAGE + 3} failed`));
+  });
+
+  it("a clean tick says nothing about failures", async () => {
+    // The note must not appear when there is nothing to report, or every healthy
+    // run carries a dangling label.
+    const result = await runRecoveryTick({} as Env, {
+      query: async () => [row({ stepId: "s_ok" })],
+      checkGuards: allowAll,
+      runRetry: async () => ({ recovered: false }),
+      runEmail: async () => ({}),
+      flipExhausted: async () => [],
+      recordMissingToken: async () => null,
+    });
+
+    expect(result.message).toMatch(/0 failed/);
+    expect(result.message).not.toContain("failed:");
   });
 });
