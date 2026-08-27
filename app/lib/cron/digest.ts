@@ -45,8 +45,37 @@ import {
 // binding 3): legacy selects `.eq('digest_enabled', true)`, so an account that
 // never opted in is not mailed.
 
-/** Legacy's window: seven days back from the tick. */
+/** Legacy's window: seven days back from the tick. THE DATA WINDOW, and it does
+ *  not move (350 binding 1, restated by 376 item 13). */
 export const DIGEST_WINDOW_MS = 7 * DAY_MS;
+
+/**
+ * THE CLAIM WINDOW, which is the DATA window minus a day, and the reason is a
+ * defect this constant exists to fix (376 item 13, a reversal of 350 binding 3).
+ *
+ * WHAT WENT WRONG. The claim asked "is there a digest send newer than
+ * `now - 7d`", with `now` fixed at run start. Last week's run started at the
+ * same clock time, so `now - 7d` lands on last week's run START, while last
+ * week's `email_sends` row was written a moment AFTER that start, when the send
+ * completed. The row is therefore inside the window by exactly the duration of
+ * last week's run, the claim reads "already sent", and the digest skips itself.
+ * Every other week, for nearly every account, and nondeterministically: whether
+ * it fires depends on how long the previous run took.
+ *
+ * WHY A DAY RATHER THAN A SECOND. The gap being corrected for is bounded by how
+ * long one run can take, and Cloudflare caps a Cron Trigger invocation at 15
+ * minutes of wall time, so any slack over 15 minutes closes it. A day is 96
+ * times that bound and needs no revisiting if the job gets slower; and it costs
+ * nothing, because the job is weekly, so the only run that can land inside a
+ * six-day claim window is one somebody triggered by hand.
+ *
+ * WHY NOT AN ISO WEEK KEY, the other option on the table: 350 binding 1 defines
+ * this job's week as a ROLLING seven days and every data query is built on that.
+ * Keying the claim on a calendar week would leave the job with two different
+ * meanings of "week", and would change a shipped behaviour (a digest sent last
+ * Friday no longer blocks Monday's) that no ruling has asked to change.
+ */
+export const DIGEST_CLAIM_WINDOW_MS = DIGEST_WINDOW_MS - DAY_MS;
 
 /** Legacy takes the top three at-risk customers. */
 export const DIGEST_HIGH_RISK_LIMIT = 3;
@@ -136,6 +165,10 @@ export async function queryDigestAccounts(db: Db): Promise<DigestAccount[]> {
  * What makes it safe is the CronLockDurableObject lease, which stops two ticks
  * running at once; the two are independent layers and each is reached alone in
  * the plants.
+ *
+ * THE CALLER PASSES THE CLAIM WINDOW, NOT THE DATA WINDOW (376 item 13). This
+ * function takes whatever start it is given and has no opinion, which is why the
+ * defect lived in the caller rather than here; see DIGEST_CLAIM_WINDOW_MS.
  */
 export async function hasDigestThisWeek(
   db: Db,
@@ -273,10 +306,16 @@ export async function runWeeklyDigest(env: Env, now: Date): Promise<DigestRunRes
   const db = getDb(env);
   const result: DigestRunResult = { sent: 0, skipped: 0 };
   const windowStart = new Date(now.getTime() - DIGEST_WINDOW_MS);
+  // TWO WINDOWS, DELIBERATELY DIFFERENT, and the difference is the whole fix
+  // (376 item 13). The DATA window stays legacy's seven days; the CLAIM window
+  // is a day shorter so last week's send row, written moments after last week's
+  // run started, falls OUTSIDE it and this week's digest is not skipped by its
+  // own predecessor.
+  const claimWindowStart = new Date(now.getTime() - DIGEST_CLAIM_WINDOW_MS);
 
   for (const account of await queryDigestAccounts(db)) {
     try {
-      if (await hasDigestThisWeek(db, account.accountId, windowStart)) {
+      if (await hasDigestThisWeek(db, account.accountId, claimWindowStart)) {
         result.skipped += 1;
         continue;
       }
