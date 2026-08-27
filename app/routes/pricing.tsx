@@ -220,8 +220,16 @@ export default function PricingPage() {
           >
             Connect Stripe, it is free
           </Link>
+          {/* 376 item 20: this line used to read "No account required . No Stripe
+              connection needed . Results in 30 seconds" directly under a button
+              that says Connect Stripe. Both halves were true of DIFFERENT
+              products, which is what made the pair a contradiction: the
+              estimator needs no connection, the full audit is a connection. The
+              line now names which is which. Same element, same separators, same
+              place: only the words changed. */}
           <div className="mt-5 font-mono text-caption text-text-subtle">
-            No account required &middot; No Stripe connection needed &middot; Results in 30 seconds
+            Estimator: no account, no Stripe connection &middot; Full audit: read-only Stripe
+            connection, no account, 30 seconds
           </div>
         </div>
       </section>
