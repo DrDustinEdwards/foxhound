@@ -15,6 +15,7 @@ import { faqPageJsonLd, organizationJsonLd, siteUrl, softwareApplicationJsonLd, 
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/home";
+import { DECLINE_CATEGORY_PHRASE } from "~/lib/marketing/decline-categories";
 
 // Marketing home page (Phase 6 Pass 1). Ported from legacy
 // app/(marketing)/page.tsx: structure kept (hero, stats, Stripe+Foxhound
@@ -61,7 +62,7 @@ const COMPARISON_ROWS: ComparisonRow[] = [
       "Fixed retry schedule. No customer communication. No logic for why the payment failed, soft decline, expired card, and fraud all treated the same.",
     foxhoundTitle: "Silent retries, then intelligent sequences",
     foxhoundBody:
-      "A quiet retry runs before any customer ever sees an email, so we never dun someone for a payment we could have recovered without bothering them. Declines are classified soft, network, expired, or fraud, each handled differently across 30 days.",
+      `A quiet retry runs before any customer ever sees an email, so we never dun someone for a payment we could have recovered without bothering them. Declines are classified ${DECLINE_CATEGORY_PHRASE}, each handled differently across 30 days.`,
     foxhoundHref: "/products/recovery",
   },
   {

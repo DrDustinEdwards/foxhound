@@ -7,6 +7,7 @@ import { faqPageJsonLd, siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/pricing";
+import { DECLINE_CATEGORY_COUNT_WORD, DECLINE_CATEGORY_COUNT_WORD_LOWER } from "~/lib/marketing/decline-categories";
 
 // Ported from legacy app/(marketing)/pricing/page.tsx (Phase 6 Pass 1).
 // Structure kept: audit-first card order, 4-card grid, annual note, FAQ,
@@ -58,7 +59,7 @@ const CARDS: PricingCard[] = [
     price: "20%",
     priceLabel: "of Foxhound-attributed recoveries",
     description:
-      "Silent retries first, then AI-drafted email sequences across 30 days. Four decline categories, four different sequences.",
+      `Silent retries first, then AI-drafted email sequences across 30 days. ${DECLINE_CATEGORY_COUNT_WORD} decline categories, ${DECLINE_CATEGORY_COUNT_WORD_LOWER} different sequences.`,
     features: [
       "Silent retry before any customer email",
       "30-day sequences across 4 decline categories",

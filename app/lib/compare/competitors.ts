@@ -1,4 +1,5 @@
 // Competitor comparison data for /compare (Phase 6 Pass 3, net-new).
+import { DECLINE_CATEGORY_COUNT_WORD_LOWER } from "~/lib/marketing/decline-categories";
 //
 // SOURCING DISCIPLINE (TASK-foxhound-phase6.md): every Foxhound-side row is
 // stated plainly from PRICING.md/DESIGN.md canon. Every competitor-side
@@ -126,7 +127,7 @@ export const COMPETITORS: Record<string, CompetitorDef> = {
       },
       {
         dimension: "What it does",
-        foxhound: "Silent retries first, then AI-drafted dunning email sequences across 30 days, tuned to four decline categories.",
+        foxhound: `Silent retries first, then AI-drafted dunning email sequences across 30 days, tuned to ${DECLINE_CATEGORY_COUNT_WORD_LOWER} decline categories.`,
         competitor: "Dunning email sequences for failed payments, plus account-management support from a human team on top of the software.",
       },
       {
