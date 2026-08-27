@@ -97,7 +97,13 @@ const CARDS: PricingCard[] = [
       "Predictive risk scoring: the paid $199/mo layer",
       "Health signals feed Recovery timing and Disputes triage",
       "Account-wide, not per-customer",
-      "Annual billing: 10 months paid, 2 months free",
+      // 377(8): the annual term comes off the page until a checkout exists. An
+      // offer with no way to accept it fails the FTC's bona fide test whatever
+      // the intent behind it, and nothing in the billing run can sell or invoice
+      // an annual term today: run.ts emits recovery_fee and dispute_fee lines
+      // only. PRICING rev 3's 10-month term is unchanged and returns the day a
+      // purchase path ships. The $199 figure is untouched.
+      "Granted during early access; ask us",
     ],
   },
 ];
