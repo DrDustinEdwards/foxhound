@@ -439,7 +439,18 @@ export function sendResultToAttempt(result: EmailJobResult): {
   permanent?: boolean;
   error?: string;
 } {
-  if (result.status === "sent" || result.status === "suppressed") return { ok: true };
+  // `duplicate` IS OK, and treating it otherwise would be the defect (385). It
+  // means the send claim was already taken for this exact key, so the mail is
+  // accounted for. Reporting it as a failure would push the step into backoff
+  // and retry with a FRESH key, since the recovery key is `stepId:attemptCount`,
+  // and that retry would send the very email the claim exists to prevent.
+  //
+  // This is the one executor-semantics change 385 requires, and it is a widening
+  // of the ok set rather than a change to any existing status: `sent`,
+  // `suppressed`, `failed` and `blocked` all mean exactly what they meant.
+  if (result.status === "sent" || result.status === "suppressed" || result.status === "duplicate") {
+    return { ok: true };
+  }
   return { ok: false, permanent: false, error: result.error ?? "send failed" };
 }
 

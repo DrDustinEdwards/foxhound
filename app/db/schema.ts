@@ -519,9 +519,28 @@ export const emailSends = sqliteTable(
      *  cron-history retention sweeper fail on exactly those rows. This column
      *  records provenance; it is not a live relation. */
     cronRunId: text("cron_run_id"),
+    /** THE SEND CLAIM (385). `EmailJob.idempotencyKey` existed from the start and
+     *  was read by NOTHING, which 376 item 15 recorded: the type promised a
+     *  dedupe the code never performed. This column is its first reader.
+     *
+     *  The row is written BEFORE the provider call with status `pending`, so a
+     *  worker killed between the send and the log leaves the claim behind and
+     *  the retry finds it instead of sending again. That is the residual 385
+     *  left open when it ruled the step-level send-then-claim order stays.
+     *
+     *  NULLABLE, and the index is partial, because only CLAIMED sends carry a
+     *  key. Suppressed and blocked rows are logged with a null key deliberately:
+     *  a blocked row is the live-send flag refusing, and if it held the key then
+     *  switching the merchant on would find the claim and skip the send forever. */
+    idempotencyKey: text("idempotency_key"),
     createdAt: ts("created_at").notNull(),
   },
-  (t) => [index("email_sends_account_idx").on(t.accountId)],
+  (t) => [
+    index("email_sends_account_idx").on(t.accountId),
+    uniqueIndex("email_sends_idempotency_uq")
+      .on(t.idempotencyKey)
+      .where(sql`${t.idempotencyKey} is not null`),
+  ],
 );
 
 /** Dead-lettered dunning emails (313). Until this table the queue's
