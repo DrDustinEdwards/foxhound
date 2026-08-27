@@ -16,6 +16,7 @@
 // source of truth for fee math, cap included) or from resolved_fee_cents once
 // resolution has stamped it. Nothing here re-inlines a percentage.
 
+import { DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
 import { disputeFeeCents } from "~/lib/billing/fees";
 import { isDisputeResolved } from "./labels";
 
@@ -75,7 +76,7 @@ export function computeDisputeStats(rows: DisputeStatsInput[]): DisputeStats {
     // evidence. A merchant-fought or auto-resolved win is a win with no fee, so
     // it must not land in this total.
     if (!row.submittedAt) continue;
-    feesOwedCents += row.resolvedFeeCents ?? disputeFeeCents(row.amountCents);
+    feesOwedCents += row.resolvedFeeCents ?? disputeFeeCents(row.amountCents, DISPUTE_FEE_CAP_CENTS);
   }
 
   const resolvedCount = wonCount + lostCount;

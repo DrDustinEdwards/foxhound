@@ -4,6 +4,7 @@ import { getBillableDisputes, getBillableRecoveries } from "~/db/billable";
 import { byAccountActive } from "~/db/scope";
 import type { Db } from "~/db";
 import { accounts, recoveredPayments } from "~/db";
+import { DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
 import { disputeFeeCents, recoveryFeeCents } from "~/lib/billing/fees";
 
 // The /billing fee preview (ruling 33): what the next monthly run will invoice,
@@ -153,7 +154,7 @@ export async function getBillingPreview(
       // Mirrors buildBillingInvoiceBatch exactly: the cap-applied snapshot taken
       // at resolution wins, and the fee function is the fallback for a dispute
       // resolved before that column was written.
-      cents: d.resolvedFeeCents ?? disputeFeeCents(d.amountCents),
+      cents: d.resolvedFeeCents ?? disputeFeeCents(d.amountCents, DISPUTE_FEE_CAP_CENTS),
     })),
   ];
 

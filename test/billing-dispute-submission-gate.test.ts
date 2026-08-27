@@ -95,7 +95,7 @@ describe("getBillableDisputes: Foxhound-submitted gate (review HIGH)", () => {
     const rows = await getBillableDisputes(db, ACCOUNT_ID, ASOF);
     expect(rows).toHaveLength(1);
     expect(rows[0].id).toBe("d_submitted");
-    expect(disputeFeeCents(rows[0].amountCents)).toBe(10_000);
+    expect(disputeFeeCents(rows[0].amountCents, DISPUTE_FEE_CAP_CENTS)).toBe(10_000);
   });
 
   it("the fee caps at $500 for a large Foxhound-submitted win", async () => {
@@ -104,7 +104,7 @@ describe("getBillableDisputes: Foxhound-submitted gate (review HIGH)", () => {
 
     const rows = await getBillableDisputes(db, ACCOUNT_ID, ASOF);
     expect(rows).toHaveLength(1);
-    expect(disputeFeeCents(rows[0].amountCents)).toBe(DISPUTE_FEE_CAP_CENTS);
+    expect(disputeFeeCents(rows[0].amountCents, DISPUTE_FEE_CAP_CENTS)).toBe(DISPUTE_FEE_CAP_CENTS);
   });
 
   it("a merchant-fought win (no approval row, no submitted_at) is NOT billable", async () => {

@@ -1,3 +1,4 @@
+import { DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
 import type { disputeApprovals, disputeEvidence, disputes } from "~/db";
 import { disputeFeeCents } from "~/lib/billing/fees";
 
@@ -255,7 +256,7 @@ export function buildDisputesSeed(accountId: string, now: Date, memberEmail: str
     const won = spec.state === "resolved_won";
     // Approved a day or two after the dispute was created; submitted right after.
     const approvedAt = spec.foxhoundSubmitted ? ago(Math.max(0, spec.createdDaysAgo - 1)) : null;
-    const resolvedFeeCents = won && spec.foxhoundSubmitted ? disputeFeeCents(spec.amountCents) : null;
+    const resolvedFeeCents = won && spec.foxhoundSubmitted ? disputeFeeCents(spec.amountCents, DISPUTE_FEE_CAP_CENTS) : null;
 
     disputeRows.push({
       id: spec.id,

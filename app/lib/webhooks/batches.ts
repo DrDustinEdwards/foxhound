@@ -10,6 +10,7 @@ import {
   winBackSequences,
   winBackSteps,
 } from "~/db";
+import type { ResolvedDisputeCap } from "~/lib/billing/dispute-cap";
 import { disputeFeeCents } from "~/lib/billing/fees";
 import {
   FAILED_PAYMENT_STATUS_ACTIVE,
@@ -408,6 +409,14 @@ export interface DisputeResolutionInput {
   /** The disputed amount, read from the existing dispute row (the fee base). */
   amountCents: number;
   currency: string;
+  /** The USD 500 cap in THIS dispute's currency, converted at resolution
+   *  (ruling 377(7)). Null when the quote failed, which is the fail-closed
+   *  case: no fee is snapshotted. */
+  cap: ResolvedDisputeCap | null;
+  /** Why the cap could not be resolved, stored on the row so the dispute's
+   *  unbilled state has a stated reason rather than looking like a win nobody
+   *  charged for. */
+  capError: string | null;
   /** Whether Foxhound actually drafted AND submitted the evidence for this
    *  dispute (disputes.submitted_at set). A win Foxhound did NOT submit
    *  (merchant-fought, or auto-resolved) is never billable (PRICING.md rev 3),
@@ -435,8 +444,19 @@ export function buildDisputeResolutionBatch(db: Db, input: DisputeResolutionInpu
       .set({
         state: input.won ? "resolved_won" : "resolved_lost",
         resolvedAt: input.resolvedAt,
-        resolvedFeeCents: billableWin ? disputeFeeCents(input.amountCents) : null,
-        resolvedFeeCurrency: billableWin ? input.currency : null,
+        // THE CAP IS RESOLVED BEFORE THIS BATCH IS BUILT (ruling 377(7)). It
+        // needs a Stripe FX quote, and an external call cannot live inside the
+        // money batch, so process.ts fetches it and hands the result in. A
+        // quote that failed arrives as a null cap and the fee is NOT
+        // snapshotted: the dispute resolves, and it is simply not billable
+        // until a run that can price it. Never the flat 50,000.
+        resolvedFeeCents:
+          billableWin && input.cap ? disputeFeeCents(input.amountCents, input.cap.capMinorUnits) : null,
+        resolvedFeeCurrency: billableWin && input.cap ? input.currency : null,
+        resolvedFeeRate: input.cap?.rate ?? null,
+        resolvedFeeQuoteId: input.cap?.quoteId ?? null,
+        resolvedFeeRateAt: input.cap?.quotedAt ?? null,
+        resolvedFeeError: input.capError ?? null,
       })
       .where(
         and(

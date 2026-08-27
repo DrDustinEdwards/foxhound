@@ -1,3 +1,4 @@
+import { DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
 import { eq } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
@@ -187,7 +188,7 @@ export function buildBillingInvoiceBatch(db: Db, input: InvoiceBatchInput): Buil
   }
 
   for (const d of input.disputes) {
-    const fee = d.resolvedFeeCents ?? disputeFeeCents(d.amountCents);
+    const fee = d.resolvedFeeCents ?? disputeFeeCents(d.amountCents, DISPUTE_FEE_CAP_CENTS);
     total += fee;
     lineItems.push(
       db.insert(billingLineItems).values({

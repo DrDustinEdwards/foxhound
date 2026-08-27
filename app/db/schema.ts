@@ -776,6 +776,18 @@ export const disputes = sqliteTable(
     state: text("state").notNull().default("draft"),
     resolvedFeeCents: integer("resolved_fee_cents"),
     resolvedFeeCurrency: text("resolved_fee_currency"),
+    /** The USD-to-dispute-currency rate the $500 cap was converted at, with the
+     *  quote that produced it and when (ruling 377(7), PRICING rev 5 item 2).
+     *  Null on a USD dispute, where nothing is converted. Stored so the ledger
+     *  line can show the merchant the rate they were capped at rather than
+     *  asking them to take the number on trust. */
+    resolvedFeeRate: real("resolved_fee_rate"),
+    resolvedFeeQuoteId: text("resolved_fee_quote_id"),
+    resolvedFeeRateAt: ts("resolved_fee_rate_at"),
+    /** Why the fee could NOT be snapshotted. Set when the FX quote failed, in
+     *  which case resolved_fee_cents stays null and the dispute is not billable
+     *  until it is resolved again. Fail closed, never a flat-cap fallback. */
+    resolvedFeeError: text("resolved_fee_error"),
   },
   (t) => [
     index("disputes_account_idx").on(t.accountId),

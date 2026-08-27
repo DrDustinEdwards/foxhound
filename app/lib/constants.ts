@@ -10,7 +10,12 @@ export const RECOVERY_FEE_BPS = 2000;
 export const DISPUTE_FEE_BPS = 2000;
 /** ...capped at $500 per dispute (PRICING.md rev 3: anchored to value delivered,
  *  roughly 2x the median all-in cost of losing a dispute; binds only above a
- *  ~$2,500 disputed amount, the percentage governs below that). */
+ *  ~$2,500 disputed amount, the percentage governs below that).
+ *
+ *  USD MINOR UNITS, always, and it is not the cap a non-USD dispute is charged
+ *  under (rev 5 item 2, ruling 377(7)). That one is this number converted at
+ *  Stripe's rate on the resolution day; see dispute-cap.ts. Reading this as
+ *  "50,000 of whatever currency" is the defect rev 5 removed. */
 export const DISPUTE_FEE_CAP_CENTS = 50_000;
 /** Intelligence predictive risk layer: $199/month. */
 export const INTELLIGENCE_PRICE_CENTS = 19_900;
