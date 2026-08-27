@@ -264,7 +264,11 @@ describe("PLANT 3: every capability sentence, tied to its code", () => {
   it("AUDIT: no fabricated recovery rate, and it says why", () => {
     expect(AUDIT).toContain("The audit does not project a recovery rate from platform-wide statistics");
     expect(AUDIT).toContain(
-      "Legacy's audit applies a flat 30% recovery estimate to at-risk value and calls it a conservative industry baseline. Foxhound does not",
+      // 376 item 17 took the previous product's name out of the customer docs.
+      // The claim this pins is unchanged, which is why the substring moved
+      // rather than the assertion being dropped: Foxhound publishes no flat
+      // recovery estimate, and that sentence is still the one on the page.
+      "Foxhound applies no flat recovery estimate to at-risk value",
     );
   });
 });
