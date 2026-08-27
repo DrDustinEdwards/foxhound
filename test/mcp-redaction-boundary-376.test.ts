@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { accounts, apiKeys, customerContext, disputes, failedPayments } from "~/db/schema";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
 import { defineToolRegistry, type McpToolContext } from "~/lib/mcp/registry";
-import { redactToolResult } from "~/lib/mcp/redact";
+import { REDACTED_CUSTOMER_FIELDS, redactToolResult } from "~/lib/mcp/redact";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -297,6 +297,78 @@ describe("PLANT 2: REGISTRATION is what redacts, so a tool nobody has written ye
     expect(out.rows[0].stripeCustomerId).toBe("cus_1");
   });
 
+  it("AN IP AND A BILLING ADDRESS REACH THE WIRE AND ARE REDACTED (383)", async () => {
+    // 383 ruled location into the set: an address is more reachable than an
+    // email and an IP is where somebody was. This drives them through a
+    // REGISTERED tool, because registration is the thing that applies the rule,
+    // and nothing in the product returns either field any more: list_disputes
+    // projects them away, so without a synthetic carrier the new half of the
+    // ruling would have no executed coverage at all.
+    const registry = defineToolRegistry([
+      {
+        name: "list_future_locations",
+        description: "A tool that returns the two fields 383 added.",
+        inputSchema: { type: "object", properties: {}, required: [] },
+        execute: async () => ({
+          rows: [
+            {
+              stripeCustomerId: "cus_1",
+              customerIp: "203.0.113.77",
+              billingAddress: "14 Coriander Lane, Bakersfield",
+              customerPhone: "+1 555 0134",
+              amountCents: 4200,
+            },
+          ],
+        }),
+      },
+    ]);
+
+    const out = (await registry.get("list_future_locations")!.execute(ctx, {})) as {
+      rows: Record<string, unknown>[];
+    };
+    expect(out.rows[0].customerIp).toBeNull();
+    expect(out.rows[0].billingAddress).toBeNull();
+    // Listed against a column that does not exist yet, on purpose: the day a
+    // helper starts returning one it is already covered.
+    expect(out.rows[0].customerPhone).toBeNull();
+    // Dropped, not deleted, and the row is still useful.
+    expect("customerIp" in out.rows[0]).toBe(true);
+    expect(out.rows[0].amountCents).toBe(4200);
+    expect(out.rows[0].stripeCustomerId).toBe("cus_1");
+    // And over the bytes, which is where a missed nested case would show.
+    expect(JSON.stringify(out)).not.toContain("203.0.113.77");
+    expect(JSON.stringify(out)).not.toContain("Coriander Lane");
+    expect(JSON.stringify(out)).not.toContain("555 0134");
+  });
+
+  it("THE CONSTANT IS WHAT ENFORCES: every listed field is redacted, derived from the constant", () => {
+    // 379 binding 3 applied to this guard's own reader. The subject is DERIVED
+    // from REDACTED_CUSTOMER_FIELDS rather than re-listed here, so removing a
+    // field from the constant removes its protection AND is caught, and the
+    // assertion cannot silently stop covering a field somebody deletes.
+    const names = Object.keys(REDACTED_CUSTOMER_FIELDS);
+    expect(names.length).toBeGreaterThan(0);
+    // The set 383 ruled, asserted by membership so the plant that removes one is
+    // red here as well as on the wire.
+    expect(names.sort()).toEqual([
+      "billingAddress",
+      "customerEmail",
+      "customerIp",
+      "customerName",
+      "customerPhone",
+    ]);
+
+    const row: Record<string, unknown> = { keepMe: "untouched" };
+    for (const name of names) row[name] = `RAW-${name}@example.test`;
+    const out = redactToolResult(row) as Record<string, unknown>;
+
+    for (const name of names) {
+      expect(out[name], `${name} came back raw`).not.toBe(row[name]);
+      expect(JSON.stringify(out), `${name} leaked`).not.toContain(`RAW-${name}`);
+    }
+    expect(out.keepMe).toBe("untouched");
+  });
+
   it("the wrapping is on `get`, not only on the transport", async () => {
     // `get()` hands the tool to whoever asks. A future caller that is not the
     // JSON-RPC dispatch must not be redaction-free by default, which is why the
@@ -360,6 +432,21 @@ describe("PLANT 3: the walk itself", () => {
     expect(JSON.stringify(out)).not.toContain(MY_EMAIL);
     // Absence is not a value to hide.
     expect(out.d.customerEmail).toBeNull();
+  });
+
+  it("a field named after an Object prototype member is NOT treated as redacted", () => {
+    // Why the rules live in a Map. A plain object lookup walks the prototype
+    // chain, so `constructor` and `toString` would each find a function there,
+    // read as "this field has a rule", and be nulled. Real data does carry keys
+    // like these: a JSON blob keyed by user input can hold anything.
+    const out = redactToolResult({
+      constructor: "a real value",
+      toString: "another real value",
+      valueOf: 7,
+    }) as Record<string, unknown>;
+    expect(out.constructor).toBe("a real value");
+    expect(out.toString).toBe("another real value");
+    expect(out.valueOf).toBe(7);
   });
 
   it("leaves the MERCHANT's own address alone", () => {

@@ -9,12 +9,22 @@
 // the tools return the customer id and a masked email sufficient for
 // correlation, with every count, amount, state and date intact.
 //
-// SO THE REDACTION IS NARROW ON PURPOSE. It removes exactly two things, identity
-// and reachability, and nothing else. An agent can still tell you which customer
-// is at risk, how much they are worth, when they last paid and what failed; it
-// cannot tell you their name or write to them. That is the line between an agent
-// that helps a merchant reason and an agent that has quietly exported a customer
-// list.
+// SO THE REDACTION IS NARROW ON PURPOSE. It removes IDENTITY, REACHABILITY and
+// LOCATION, and nothing else. An agent can still tell you which customer is at
+// risk, how much they are worth, when they last paid and what failed; it cannot
+// tell you who they are, write to them, or say where they were. That is the line
+// between an agent that helps a merchant reason and an agent that has quietly
+// exported a customer list.
+//
+// LOCATION JOINED THE SET AT 383, and the boundary of the ruling is worth
+// stating because session 83 asked the question the wrong way round. `customerIp`
+// and `billingAddress` are IN: an address is more reachable than an email and an
+// IP is where somebody was. Purchase history and Foxhound's own generated text
+// are OUT: `priorChargesJson`, `recoveryEmailsJson` and `aiResponseText` are
+// facts about the MERCHANT'S RELATIONSHIP with a customer rather than about the
+// person, and a redactor that started nulling them would be deciding what a
+// merchant may read about their own business. Those are kept off the wire by the
+// tool that would otherwise return them, not by this file.
 //
 // THE APPLICATION POINT MOVED IN SESSION 83, AND THAT IS THE WHOLE FIX (376
 // item 7). 370 scoped the rule to three tools that each called a helper on the
@@ -27,7 +37,7 @@
 //
 // SO THE RULE IS NOW STRUCTURAL AND APPLIES AT THE TOOL RETURN BOUNDARY.
 // `defineToolRegistry` wraps every executor it registers in `redactToolResult`,
-// which walks whatever the tool returned and redacts the two fields wherever
+// which walks whatever the tool returned and redacts every listed field wherever
 // they appear, at any depth. A tool cannot skip it, because a tool never calls
 // it: registration is what applies it, and an unregistered tool is not callable.
 // A new tool written next year by somebody who never reads this file is covered
@@ -38,18 +48,52 @@
 // one rule is two places for it to drift, and a plant that mutates one while the
 // other silently holds the assertion up is a guard proving nothing.
 
+/** What the rule does to a field it owns. `drop` is null, `mask-email` keeps the
+ *  first character and the domain. Two treatments, because 370 ruled a masked
+ *  address is worth keeping for correlation and nothing else on this list has a
+ *  correlation use the Stripe customer id does not already serve. */
+type RedactionRule = "drop" | "mask-email";
+
 /**
- * The two field names the rule removes, as the wire spells them.
+ * THE FIELDS THE RULE REMOVES AND WHAT IT DOES TO EACH. This constant is the
+ * authority (383): the walk below reads it and contains no field name of its
+ * own, so adding or removing a field here is the whole edit, and a field removed
+ * here is genuinely unprotected, which is what makes the plant meaningful.
  *
- * NAMING THEM IS THE ALLOWLIST, and the codebase earns that: `customerName` and
- * `customerEmail` are the only spellings any helper uses for these two values,
- * measured across app/lib. The narrowness is deliberate in the other direction
- * too. A merchant's OWN address arrives at the endpoint as `notificationEmail`
- * and `senderName` and must come through whole, because it is the merchant's
- * own settings value being read back by the merchant's own key; masking it
- * would break the settings readers to protect nobody.
+ * NAMING THEM IS THE ALLOWLIST, and the codebase earns that: measured across
+ * app/ and workers/, these are the only spellings in use, and `customerIp` and
+ * `billingAddress` exist on exactly one table (`disputes`).
+ *
+ * `customerPhone` IS LISTED AGAINST A COLUMN THAT DOES NOT EXIST, deliberately
+ * and on 383's instruction. No table carries a phone today. Listing it now costs
+ * one line and means the day a helper starts returning one, it is redacted
+ * before anybody notices it shipped, rather than after. A rule that only covers
+ * the columns that exist is a rule that fails on the next migration.
+ *
+ * THE NARROWNESS IS DELIBERATE IN THE OTHER DIRECTION TOO. A merchant's OWN
+ * address arrives at the endpoint as `notificationEmail` and `senderName` and
+ * must come through whole, because it is the merchant's own settings value being
+ * read back by the merchant's own key; masking it would break the settings
+ * readers to protect nobody.
  */
-export const REDACTED_CUSTOMER_FIELDS = ["customerName", "customerEmail"] as const;
+export const REDACTED_CUSTOMER_FIELDS: Readonly<Record<string, RedactionRule>> = {
+  customerName: "drop",
+  customerEmail: "mask-email",
+  customerPhone: "drop",
+  customerIp: "drop",
+  billingAddress: "drop",
+};
+
+/**
+ * The same rules as a Map, built once at module load.
+ *
+ * A MAP RATHER THAN THE OBJECT ITSELF, and this is a correctness fix rather than
+ * a style choice: a plain object lookup walks the prototype chain, so a tool
+ * returning a field named `constructor` or `toString` would find a function
+ * there, read as "this field has a rule", and be nulled. A Map has no prototype
+ * chain to inherit from, so only the five names above match.
+ */
+const RULES = new Map<string, RedactionRule>(Object.entries(REDACTED_CUSTOMER_FIELDS));
 
 /**
  * Mask an email to its first character and its domain.
@@ -87,11 +131,12 @@ function maskUnknownEmail(value: unknown): string | null {
 /**
  * Redact every customer field in a tool's return value, at any depth.
  *
- * TAKES THE WHOLE RESULT AND RETURNS THE WHOLE RESULT, rebuilt with the two
- * fields replaced and everything else copied through untouched. Written as a
+ * TAKES THE WHOLE RESULT AND RETURNS THE WHOLE RESULT, rebuilt with every listed
+ * field replaced and everything else copied through untouched. Written as a
  * walk rather than as a picker so a tool that gains a new NON-PII field keeps
  * returning it without anyone editing this file, while a tool that gains a new
- * PII field is a decision somebody has to make deliberately here.
+ * PII field is a decision somebody has to make deliberately, in
+ * REDACTED_CUSTOMER_FIELDS and nowhere else.
  *
  * WHY IT RECURSES rather than checking the top level. A tool result is a
  * container: `{ customers: [...] }`, `{ disputes: [...] }`, `{ topAtRisk: [...]
@@ -124,15 +169,15 @@ export function redactToolResult(value: unknown, seen: WeakMap<object, unknown> 
   const out: Record<string, unknown> = {};
   seen.set(node, out);
   for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
-    if (key === "customerName") {
-      // ALWAYS null, and present rather than deleted, so a consumer that expects
+    const rule = RULES.get(key);
+    if (rule !== undefined) {
+      // A REDACTED FIELD IS REPLACED, NEVER DELETED, so a consumer that expects
       // the field gets an explicit null instead of undefined and cannot mistake
-      // "redacted" for "the helper forgot".
-      out[key] = null;
-      continue;
-    }
-    if (key === "customerEmail") {
-      out[key] = maskUnknownEmail(item);
+      // "redacted" for "the helper forgot". The redacted value is never walked:
+      // there is nothing under a dropped field worth recursing into, and
+      // recursing would be the one path where a nested raw value survives its
+      // own parent being removed.
+      out[key] = rule === "mask-email" ? maskUnknownEmail(item) : null;
       continue;
     }
     out[key] = redactToolResult(item, seen);

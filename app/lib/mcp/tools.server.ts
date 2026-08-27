@@ -109,9 +109,17 @@ class ToolInputError extends Error {}
  * `billingAddress`, the model-written `aiResponseText` and `triageReasoning`,
  * and four JSON blobs including `priorChargesJson` and `recoveryEmailsJson`,
  * which carry the customer's purchase history and the text of mail Foxhound
- * sent them. The boundary redactor cannot help with any of it: those are not
- * name or email fields, and widening the redactor to cover them would be
- * rewriting 370's ruling by guessing at field names.
+ * sent them.
+ *
+ * 383 SPLIT THAT LIST, and this comment is corrected rather than left standing.
+ * `customerIp` and `billingAddress` ARE redacted at the boundary now, so the
+ * sentence that used to sit here, that the redactor could not help with any of
+ * it, was true when written and is false today. The projection stays as DEFENCE
+ * IN DEPTH on those two and remains the ONLY cover for the rest, because 383
+ * deliberately declined to redact purchase history and Foxhound's own generated
+ * text: those are facts about the merchant's relationship with a customer rather
+ * than about the person, and nulling them would be deciding what a merchant may
+ * read about their own business.
  *
  * SO THE FIX IS AT THE OTHER END. The tool returns the fields an agent needs to
  * reason about a dispute (what it is, what it is worth, where it stands, when it
