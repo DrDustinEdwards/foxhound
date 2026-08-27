@@ -129,7 +129,7 @@ const FAQS: { question: string; answer: string; node?: React.ReactNode }[] = [
   {
     question: "Can I see what the emails look like before they send?",
     answer:
-      "Yes. Every generated email is visible in your dashboard before and after it sends, with open and click tracking. You can customize your brand voice, or write your own subject lines.",
+      "Each email is written at send time from the customer, the decline and your brand voice, so there is no draft sitting there to preview. Every email that goes out is visible in your dashboard afterwards, with click tracking. You set the brand voice that shapes all of them, in one place or per decline category.",
   },
   {
     question: "Can I cancel or pause anytime?",
