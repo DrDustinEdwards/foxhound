@@ -347,7 +347,14 @@ describe("PLANT 4: every refusal, and none of them records an outcome", () => {
 
     expect(result.sent).toBe(0);
     expect(alertRows()[0].sentAt).toBeNull();
-    expect(sendRows()[0].status).toBe("failed");
+    // 385 MOVED THIS VALUE, and the test's own name is why it is worth
+    // restating rather than editing quietly. The claim row is written BEFORE the
+    // provider call and stays `pending` when the provider refuses, because this
+    // code cannot tell a refusal from an acceptance whose response was lost.
+    // What the name promises, "so tomorrow retries", still holds and is asserted
+    // below: a RECORDED refusal may be re-taken under the same key.
+    expect(sendRows()[0].status).toBe("pending");
+    expect(sendRows()[0].error).toBeTruthy();
     expect(outcomeRows()).toEqual([]);
   });
 });

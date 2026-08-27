@@ -176,6 +176,13 @@
       "when": 1787788949619,
       "tag": "0024_nifty_micromax",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1787853498058,
+      "tag": "0025_daily_kid_colt",
+      "breakpoints": true
     }
   ]
 }

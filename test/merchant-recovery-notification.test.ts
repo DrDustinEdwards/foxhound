@@ -193,7 +193,12 @@ describe("PLANT 4: a send failure leaves the recovery recorded", () => {
       status: string;
     };
     expect(fp.status).toBe("recovered");
-    expect(sendRows()[0].status).toBe("failed");
+    // 385: the row is the send CLAIM, written before the provider call, and it
+    // stays `pending` with the provider's error on it. The JOB result is still
+    // `failed` and retryable (asserted above); it is the ROW that now records an
+    // unknown outcome rather than asserting no mail left.
+    expect(sendRows()[0].status).toBe("pending");
+    expect(sendRows()[0].error).toBeTruthy();
   });
 
   it("a missing account or payment returns null rather than throwing", async () => {

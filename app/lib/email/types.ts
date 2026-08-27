@@ -38,7 +38,29 @@ export interface EmailJob {
   unsubscribeToken: string;
   /** CAN-SPAM sender postal address (required for merchant-customer sends). */
   physicalAddress: string;
-  /** Stable per logical send so a re-delivery is recognizable by the caller. */
+  /**
+   * THE SEND CLAIM'S KEY. Stable per logical send, and REQUIRED: an empty one is
+   * refused rather than sent unclaimed.
+   *
+   * This comment used to read "stable per logical send so a re-delivery is
+   * recognizable by the caller", which described a dedupe that did not exist.
+   * 376 item 15 measured it: the field was read by NOTHING, so nothing
+   * recognised anything. 385 made it real, and this now describes what the code
+   * does rather than what the field was named for.
+   *
+   * WHAT IT DOES NOW. `processEmailJob` inserts an `email_sends` row carrying
+   * this key, with status `pending`, BEFORE calling the provider, under the
+   * partial unique index `email_sends_idempotency_uq`. A second job with the same
+   * key loses the insert and returns `duplicate` without sending. So the key is
+   * not advisory: two jobs sharing one are one send.
+   *
+   * WHICH MAKES THE KEY'S SHAPE A CALLER'S DECISION WITH REAL CONSEQUENCES. A
+   * key that varies per attempt (the recovery path's `stepId:attemptCount`)
+   * permits a retry after a failure, because the retry carries a new key. A key
+   * that is stable across attempts (the win-back path's `winback-step:stepId`)
+   * does not: once its claim stands, that logical send is finished, whatever the
+   * provider said. Both are defensible and they are not interchangeable.
+   */
   idempotencyKey: string;
   /** The cron run that produced this send (313). Null for request-thread sends. */
   cronRunId?: string | null;

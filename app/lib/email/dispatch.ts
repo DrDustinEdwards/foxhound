@@ -1,7 +1,8 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNotNull } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import { accounts, getDb, emailSends } from "~/db";
+import { isUniqueConstraintError } from "~/lib/money/serializer";
 
 import { sendEmail } from "./send";
 import { isSuppressed } from "./suppression";
@@ -34,7 +35,12 @@ import type { EmailJob } from "./types";
 // two paths. Retries on the live path come from decideEmailStep's backoff, not
 // from the queue.
 
-export type EmailSendStatus = "sent" | "suppressed" | "failed" | "blocked";
+export type EmailSendStatus = "sent" | "suppressed" | "failed" | "blocked" | "pending" | "duplicate";
+
+/** email_sends.error for a claim that reached the provider and never came back
+ *  with an answer. Not used as a status: the ROW stays `pending`, because
+ *  "pending" is the honest word for a send whose outcome nobody knows. */
+export const SEND_CLAIM_MISSING_KEY_ERROR = "email job has no idempotency key";
 
 /** email_sends.error for a send the live-send flag refused. A stable string so
  *  "how many sends did the flag stop" is one WHERE clause, not a guess. */
@@ -66,9 +72,15 @@ export function buildEmailSendRow(
     recipientHash: string;
     queueMessageId: string | null;
     now: Date;
+    /** Set ONLY on the claim row (385). Suppressed and blocked rows leave it
+     *  null on purpose: a blocked row is the live-send flag refusing, and a key
+     *  on it would mean switching the merchant on finds the claim and skips the
+     *  send forever. */
+    idempotencyKey?: string | null;
   },
 ) {
   return db.insert(emailSends).values({
+    idempotencyKey: input.idempotencyKey ?? null,
     accountId: input.job.accountId,
     recoveryStepId: input.job.recoveryStepId ?? null,
     winBackStepId: input.job.winBackStepId ?? null,
@@ -193,31 +205,152 @@ export async function processEmailJob(
     };
   }
 
+  // THE SEND CLAIM (385), and it is written BEFORE the provider call.
+  //
+  // WHAT IT CLOSES. 385 ruled the step-level send-then-claim order stays on both
+  // the recovery and win-back paths, and named the residual it leaves: a worker
+  // killed between the provider accepting and the step being claimed re-sends
+  // once the lock's lease lapses, because nothing recorded that the mail had
+  // gone. That residual cannot be closed at the step layer, because whatever the
+  // step writes is written after the send too. It closes here, one layer down:
+  // the row exists before the provider is called, so a worker that dies at any
+  // point after this line leaves evidence behind.
+  //
+  // THE UNIQUE INDEX IS THE GUARD, not this read. There is no check-then-act
+  // here: the insert either wins or violates `email_sends_idempotency_uq`, so
+  // two workers racing on the same key cannot both proceed however the timing
+  // falls.
+  //
+  // A DENIED CLAIM IS NOT A FAILURE. It means this logical send is already
+  // accounted for, so it comes back as `duplicate`, non-retryable, and
+  // sendResultToAttempt treats it as ok. Reporting it as a failure would send
+  // the step into backoff and, on the recovery path, retry with a FRESH key
+  // (`stepId:attemptCount`), which would send the very email this claim exists
+  // to prevent.
+  const claimed = await claimSend(db, { job, recipientHash, queueMessageId, now });
+  if (!claimed) {
+    return { status: "duplicate", providerMessageId: null, error: null, retryable: false };
+  }
+
   try {
     const { providerMessageId } = await sendEmail(env, job);
-    await logSend(db, {
-      job,
-      status: "sent",
-      providerMessageId,
-      error: null,
-      recipientHash,
-      queueMessageId,
-      now,
-    });
+    await flipClaimToSent(db, job.idempotencyKey, providerMessageId, now);
     return { status: "sent", providerMessageId, error: null, retryable: false };
   } catch (err) {
     const error = err instanceof Error ? err.message : "send failed";
-    await logSend(db, {
-      job,
-      status: "failed",
-      providerMessageId: null,
-      error,
-      recipientHash,
-      queueMessageId,
-      now,
-    });
+    // THE ROW STAYS `pending`, WITH THE ERROR ON IT. Not flipped to `failed`,
+    // and the difference is the whole point: `failed` would assert that no mail
+    // left, and this code cannot know that. A provider that throws after
+    // accepting the message looks identical from here to one that refused it.
+    // `pending` plus an error is the honest record of an unknown outcome, and it
+    // keeps the claim standing so a retry cannot gamble on the answer.
+    await recordClaimError(db, job.idempotencyKey, error);
     return { status: "failed", providerMessageId: null, error, retryable: true };
   }
+}
+
+/**
+ * Take the claim for one logical send, or discover that somebody already has.
+ *
+ * Returns true when THIS call inserted the row. False means the unique index
+ * refused it, which is the duplicate case and the only error swallowed here: any
+ * other failure propagates, so a broken database fails the job CLOSED with no
+ * mail sent rather than sending unrecorded mail.
+ */
+async function claimSend(
+  db: Db,
+  input: {
+    job: EmailJob;
+    recipientHash: string;
+    queueMessageId: string | null;
+    now: Date;
+  },
+): Promise<boolean> {
+  // FAIL CLOSED ON A MISSING KEY. An empty key would be stored as a real value
+  // and collide with every other keyless send, so the claim would start refusing
+  // unrelated mail. Every caller passes one; this refuses loudly rather than
+  // quietly sending unclaimed.
+  if (!input.job.idempotencyKey || !input.job.idempotencyKey.trim()) {
+    throw new Error(SEND_CLAIM_MISSING_KEY_ERROR);
+  }
+  try {
+    await buildEmailSendRow(db, {
+      job: input.job,
+      status: "pending",
+      providerMessageId: null,
+      error: null,
+      recipientHash: input.recipientHash,
+      queueMessageId: input.queueMessageId,
+      now: input.now,
+      idempotencyKey: input.job.idempotencyKey,
+    });
+    return true;
+  } catch (err) {
+    if (!isUniqueConstraintError(err)) throw err;
+    return retakeRefusedClaim(db, input.job.idempotencyKey, input.now);
+  }
+}
+
+/**
+ * A claim already exists for this key. Decide whether this caller may take it
+ * over, and the distinction is the whole subtlety of the design.
+ *
+ * AN OUTCOME NOBODY KNOWS IS NOT A FAILURE. The claim row is written before the
+ * provider call, so it exists in two very different situations:
+ *
+ *   1. `error IS NULL`: the worker never came back. It may have sent the mail
+ *      and died before recording it, which is exactly the residual 385 left
+ *      open. NOBODY MAY RETRY THIS. Skipping is the only safe answer, because
+ *      the alternative is sending a second copy to a real customer.
+ *   2. `error IS NOT NULL`: the provider was asked and refused, and we wrote
+ *      down what it said. No mail left. A retry is not only safe, it is what
+ *      every caller with a stable key already expects.
+ *
+ * WHY CASE 2 HAS TO EXIST, measured rather than assumed: of the eleven email
+ * idempotency-key shapes in this repo, SEVEN are stable across attempts
+ * (`expiring-card:alertId`, `winback-step:stepId`, `recovery-notify:paymentId`
+ * and others). Only the recovery step's own `stepId:attemptCount` and two
+ * siblings vary per try. Under a rule that skipped on any existing row, one
+ * transient provider failure would permanently consume those sends, and
+ * `expiring-card-cron.test.ts` already has a test named "a send FAILURE leaves
+ * the candidate unsent so tomorrow retries" asserting the opposite.
+ *
+ * THE RE-TAKE IS ONE CONDITIONAL STATEMENT, not a read followed by a write
+ * (380): the UPDATE carries `error IS NOT NULL` in its own WHERE and RETURNING
+ * says whether this caller won it, so two workers racing on a refused claim
+ * cannot both proceed.
+ *
+ * THE RESIDUAL THIS LEAVES, stated rather than buried: a provider that ACCEPTS
+ * the message and then fails to answer is recorded as an error, and the retry
+ * will send a second copy. That is the narrow at-least-once case, and it is a
+ * strictly smaller window than the one 385 closed, which was every worker death
+ * anywhere after the send.
+ */
+async function retakeRefusedClaim(db: Db, idempotencyKey: string, now: Date): Promise<boolean> {
+  const retaken = await db
+    .update(emailSends)
+    .set({ status: "pending", error: null, createdAt: now })
+    .where(and(eq(emailSends.idempotencyKey, idempotencyKey), isNotNull(emailSends.error)))
+    .returning({ id: emailSends.id });
+  return retaken.length === 1;
+}
+
+/** Flip a standing claim to `sent` once the provider has accepted it. */
+async function flipClaimToSent(
+  db: Db,
+  idempotencyKey: string,
+  providerMessageId: string | null,
+  now: Date,
+): Promise<void> {
+  await db
+    .update(emailSends)
+    .set({ status: "sent", providerMessageId, sentAt: now })
+    .where(eq(emailSends.idempotencyKey, idempotencyKey));
+}
+
+/** Record what the provider said on a claim that stays `pending`. */
+async function recordClaimError(db: Db, idempotencyKey: string, error: string): Promise<void> {
+  await db.update(emailSends).set({ error }).where(eq(emailSends.idempotencyKey, idempotencyKey));
 }
 
 /**
