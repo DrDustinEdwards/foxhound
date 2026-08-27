@@ -7,6 +7,7 @@ import {
   CRON_SCHEDULE_MONTHLY,
   CRON_SCHEDULE_MONTHLY_AUDIT,
   CRON_SCHEDULE_RECOVERY_TICK,
+  CRON_SCHEDULE_WEEKLY,
 } from "~/lib/constants";
 import { sendTransactionalEmail } from "~/lib/email/send";
 import { SUPPORT_EMAIL } from "~/lib/seo/jsonld";
@@ -51,9 +52,25 @@ export function utcDay(now: Date): string {
  *  without a cron-expression parser (a dependency, and adding one is a build
  *  decision rather than an agent's). A schedule absent from this table is
  *  REPORTED as unknown rather than silently treated as healthy, so adding a
- *  fourth schedule surfaces here instead of creating a blind spot. */
-const SCHEDULE_PERIOD_MS: Record<string, number> = {
+ *  fourth schedule surfaces here instead of creating a blind spot.
+ *
+ *  THAT SURFACING IS A DAILY LINE IN A TABLE NOBODY READS, and 376 item 15 is
+ *  the proof: the weekly schedule was missing here for the whole life of the
+ *  weekly digest and the blind spot reported itself, correctly, into the void.
+ *  The guard that actually closes it is a test that derives this table's keys
+ *  from the registry's schedules, so the gap fails a build instead. Exported for
+ *  that test, which is the only reason this is not module-private. */
+export const SCHEDULE_PERIOD_MS: Record<string, number> = {
   [CRON_SCHEDULE_RECOVERY_TICK]: 5 * 60 * 1000,
+  // THE WEEKLY DIGEST'S SCHEDULE (376 item 15). It was missing from this table
+  // from the day session 55 added the repo's first new cron expression, so
+  // cron-health reported weekly-digest as `unknown_schedule` every day since:
+  // the one job in the registry that this table could not answer for.
+  //
+  // The comment three lines below predicted exactly this and did not prevent it,
+  // which is why the parity plant now derives the schedule set from the registry
+  // rather than trusting a warning to be read.
+  [CRON_SCHEDULE_WEEKLY]: 7 * 24 * 60 * 60 * 1000,
   [CRON_SCHEDULE_DAILY]: 24 * 60 * 60 * 1000,
   [CRON_SCHEDULE_MONTHLY]: 31 * 24 * 60 * 60 * 1000,
   // The merged monthly audit's own hour (362 ruling 3). Mapped at the same
