@@ -59,6 +59,7 @@ export default [
     route("about", "./routes/about.tsx"),
     route("privacy", "./routes/privacy.tsx"),
     route("terms", "./routes/terms.tsx"),
+    route("security", "./routes/security.tsx"),
 
     // Auth (marketing shell per DESIGN.md: "no visual seam at login")
     route("login", "./routes/auth/login.tsx"),
