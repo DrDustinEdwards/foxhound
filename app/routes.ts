@@ -184,6 +184,7 @@ export default [
   route("llms.txt", "./routes/files/llms.ts"),
   route("llms-full.txt", "./routes/files/llms-full.ts"),
   route("feed.rss", "./routes/files/feed.ts"),
+  route(".well-known/security.txt", "./routes/files/security-txt.ts"),
   route("og/:params", "./routes/files/og.ts"),
 
   // Auth callback (resource route, no shell)

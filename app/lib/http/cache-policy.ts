@@ -108,6 +108,9 @@ const FILES_EXACT = new Set([
   "/llms.txt",
   "/llms-full.txt",
   "/feed.rss",
+  // RFC 9116 (377 item 11). A static text file whose only variable is the
+  // request clock, so it caches exactly like the other files routes.
+  "/.well-known/security.txt",
 ]);
 
 /**
