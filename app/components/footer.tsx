@@ -52,6 +52,7 @@ export const COLUMNS: { heading: string; links: { to: string; label: string }[] 
     links: [
       { to: "/privacy", label: "Privacy" },
       { to: "/terms", label: "Terms" },
+      { to: "/security", label: "Security" },
     ],
   },
 ];
@@ -148,7 +149,7 @@ export function Footer({ variant = "marketing" }: { variant?: FooterVariant } = 
           <div className="flex items-center gap-2.5">
             <img src="/favicon.svg" alt="" width={28} height={28} className="shrink-0" aria-hidden />
             <span className="font-mono text-[0.6875rem] text-chrome-text-secondary">
-              © 2026 Foxhound
+              © 2026 Foxhound. Operated by Dustin Edwards, sole proprietor, Texas.
             </span>
           </div>
           {/* Legacy's bottom row carries three social links here on EVERY

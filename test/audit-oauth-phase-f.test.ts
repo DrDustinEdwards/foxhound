@@ -259,7 +259,19 @@ describe("PLANT 1: THE SCOPE PARAMETER, which is the whole of 362 ruling 1", () 
       }
     };
     walk(fileURLToPath(new URL("app", ROOT)));
-    expect(callers.sort()).toEqual(["app/lib/constants.ts", "app/lib/stripe/connect.ts"]);
+    expect(callers.sort()).toEqual([
+      "app/lib/constants.ts",
+      "app/lib/stripe/connect.ts",
+      // /security DESCRIBES the two scopes to a reader and interpolates the
+      // constants rather than typing "read_write", so it is a documentation
+      // reference and not a request site (377 item 11). It is listed here rather
+      // than excused by loosening the grep, and the assertion below keeps the
+      // ruling's real subject intact: a prose page may name the scope, and may
+      // never build an authorize URL.
+      "app/routes/security.tsx",
+    ]);
+    expect(code(read("app/routes/security.tsx"))).not.toContain("buildConnectAuthorizeUrl");
+    expect(code(read("app/routes/security.tsx"))).not.toContain("buildAuditAuthorizeUrl");
     // The audit's builder is the only caller of the read-only constant, so the
     // ruling has one enforcement point rather than one per route.
     expect(code(read("app/lib/stripe/connect.ts"))).toContain("STRIPE_AUDIT_SCOPE");

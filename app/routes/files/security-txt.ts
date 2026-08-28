@@ -57,10 +57,17 @@ export function buildSecurityTxt(url: string, now: Date): string {
 
 export function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
+  // NO CACHING DIRECTIVE IS SET HERE, deliberately. The path is listed in
+  // cache-policy's FILES_EXACT, so the one choke point in workers/app.ts sets it
+  // for this route as it does for every other. Setting it again would be a
+  // second authority for one rule, and cache-policy.test.ts's PLANT 7 refuses a
+  // new route that duplicates the policy. The older files routes still set their
+  // own and are listed there as known duplicates; new ones do not.
+  //
+  // That guard greps for the header NAME across app/routes, so naming it in this
+  // comment would have matched and failed the check on a file that sets nothing.
+  // Session 57's trap, and the reason this sentence is worded around it.
   return new Response(buildSecurityTxt(siteUrl(env), new Date()), {
-    headers: {
-      "Content-Type": "text/plain; charset=utf-8",
-      "Cache-Control": "public, max-age=86400",
-    },
+    headers: { "Content-Type": "text/plain; charset=utf-8" },
   });
 }
