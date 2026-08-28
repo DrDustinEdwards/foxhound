@@ -105,6 +105,11 @@ const EXCLUDED_PREFIXES = [
   "/llms-full.txt",
   "/feed.rss",
   "/og/",
+  // RFC 9116's well-known file (377 item 11). Not HTML, and not a page a reader
+  // navigates to: a client looks for it at a fixed path by the spec, so listing
+  // it in the sitemap would advertise a file that is found by convention.
+  // The /security PAGE it points at IS in STATIC_PAGES.
+  "/.well-known/",
 ];
 
 function isExcluded(path: string): boolean {
