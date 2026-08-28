@@ -90,6 +90,7 @@ const MARKETING_EXACT = new Set([
   "/about",
   "/privacy",
   "/terms",
+  "/security",
   "/audit",
   "/products",
   "/compare",
