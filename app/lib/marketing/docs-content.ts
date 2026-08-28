@@ -7,6 +7,7 @@
 // brand voice, no fabricated recovery-rate numbers).
 
 import type { DocWidgetName } from "~/components/docs/doc-widgets";
+import { CLICK_SUSPECT_MIN_SECONDS, EMAIL_ENGAGEMENT_WINDOW_DAYS } from "~/lib/constants";
 
 // THE BLOCK VOCABULARY, extended in session 64 to carry legacy's own.
 //
@@ -351,6 +352,8 @@ export const DOC_GUIDES: DocGuide[] = [
           "The dashboard shows whether Stripe is still reaching Foxhound. A webhook inside the last day reads as receiving normally, nothing for a day reads as quiet, and nothing for more than three days is flagged as a problem worth checking. A brand new connection that has not seen one yet says so rather than reading as a failure.",
           { kind: "h3", text: "What counts as billable" },
           "A recovery is billable only when a Foxhound action provably preceded payment: a scheduled retry succeeded, a dunning email was clicked or otherwise engaged (not just opened), or a card was updated through a Foxhound page. Everything else is Stripe's own baseline recovery, recorded and shown to you, never billed.",
+          `A click only counts if it came within ${EMAIL_ENGAGEMENT_WINDOW_DAYS} days before the payment came back. A customer who clicks and then pays two months later was not brought back by that email, so the recovery records as Stripe's own baseline and is free.`,
+          { kind: "note", body: `Some clicks are not people. A click that arrives within ${CLICK_SUSPECT_MIN_SECONDS} seconds of the email being sent, or on a link no human can see, is marked suspect: corporate mail scanners follow every link in a message before it reaches the inbox. A suspect click is shown on the ledger with its reason and is never billed.` },
         ],
       },
       {

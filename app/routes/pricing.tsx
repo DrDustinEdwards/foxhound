@@ -3,6 +3,7 @@ import { Link } from "react-router";
 
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { EMAIL_ENGAGEMENT_WINDOW_DAYS } from "~/lib/constants";
 import { faqPageJsonLd, siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
@@ -117,7 +118,7 @@ const FAQS = [
   {
     question: 'What counts as a "recovered" payment?',
     answer:
-      "A payment is recovered when a Foxhound action provably preceded payment: a scheduled retry succeeded, a dunning email was clicked or otherwise engaged, or a card was updated through a Foxhound page. Payments Stripe's own Smart Retries recover independently are recorded as free and never billed.",
+      `A payment is recovered when a Foxhound action provably preceded payment: a scheduled retry succeeded, a dunning email was clicked or otherwise engaged, or a card was updated through a Foxhound page. A click counts only if it came within ${EMAIL_ENGAGEMENT_WINDOW_DAYS} days before the payment, and a click Foxhound marks suspect, such as one from a mail scanner following links, is shown on the ledger and never billed. Payments Stripe's own Smart Retries recover independently are recorded as free and never billed.`,
   },
   {
     question: "When am I actually billed?",
