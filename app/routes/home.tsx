@@ -16,6 +16,7 @@ import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/home";
 import { DECLINE_CATEGORY_PHRASE } from "~/lib/marketing/decline-categories";
+import { STAT_AS_OF, STRIPE_UNRECOVERED_RATE_PERCENT } from "~/lib/marketing/statistics";
 
 // Marketing home page (Phase 6 Pass 1). Ported from legacy
 // app/(marketing)/page.tsx: structure kept (hero, stats, Stripe+Foxhound
@@ -249,22 +250,25 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             {[
               {
-                stat: "56%",
-                body: "of failed recurring payments are recovered by Stripe's own tools on average. The other 44% doesn't come back without additional sequences.",
+                stat: "55%",
+                body: "of failed payments are recovered by Stripe's own tools on average. The other 45% does not come back without additional sequences.",
                 source: "stripe.com/billing",
                 href: "https://stripe.com/billing",
+                asOf: STAT_AS_OF,
               },
               {
                 stat: "1 in 4",
                 body: "subscription cancellations are purely due to payment failures. These customers never chose to leave, their payment just failed.",
-                source: "stripe.com/blog",
+                source: "stripe.com/blog/how-we-built-it-smart-retries",
                 href: "https://stripe.com/blog/how-we-built-it-smart-retries",
+                asOf: STAT_AS_OF,
               },
               {
                 stat: "7 months",
                 body: "is how long recovered subscriptions continue on average. One recovered payment is not one month of revenue, it is most of a year.",
-                source: "stripe.com/blog",
+                source: "stripe.com/blog/how-we-built-it-smart-retries",
                 href: "https://stripe.com/blog/how-we-built-it-smart-retries",
+                asOf: STAT_AS_OF,
               },
             ].map((item, i) => (
               <FadeUp key={item.stat} delay={i * 100}>
@@ -281,7 +285,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     rel="noopener noreferrer"
                     className="group font-mono text-source text-text-subtle no-underline hover:text-text-tertiary"
                   >
-                    Source: {item.source}{" "}
+                    Source: {item.source}, read {item.asOf}{" "}
                     <ArrowUpRight
                       className="inline-block transition-transform duration-150 group-hover:translate-x-px group-hover:-translate-y-px"
                       size={12}
@@ -346,12 +350,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               The gap Stripe leaves open
             </p>
             <h2 className="m-0 text-center text-statement font-semibold leading-[1.0] tracking-[-0.04em] text-text sm:text-statement-md lg:text-statement-lg">
-              <span className="font-mono">44%</span> of failed payments
+              <span className="font-mono">{STRIPE_UNRECOVERED_RATE_PERCENT}%</span> of failed payments
               <br />
               <span className="text-amber-text">never come back.</span>
             </h2>
             <p className="mx-auto mt-8 max-w-[560px] text-center text-body text-text-secondary sm:text-lg">
-              Stripe&apos;s Smart Retries recover 56% on average. The other 44% needs something Stripe
+              Stripe&apos;s Smart Retries recover 55% on average. The other 45% needs something Stripe
               doesn&apos;t do: silent retries first, personalized email sequences, decline classification,
               and 30 days of follow-through.
             </p>

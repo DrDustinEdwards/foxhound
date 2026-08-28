@@ -1,4 +1,11 @@
 import { useState } from "react";
+
+import { STAT_AS_OF, STRIPE_RECOVERY_RATE_PERCENT } from "~/lib/marketing/statistics";
+
+/** The slider's starting position. An ASSUMPTION the visitor may change, never a
+ *  Foxhound result: 52 is where the page has always started and is kept so the
+ *  first render is unchanged. */
+const DEFAULT_ASSUMED_RECOVERY_SHARE = 52;
 import { Link } from "react-router";
 
 // Ported AS-IS from legacy components/marketing/RecoveryCalculator.tsx
@@ -9,11 +16,19 @@ import { Link } from "react-router";
 // changed.
 export function RecoveryCalculator() {
   const [mrr, setMrr] = useState(25000);
+  // THE RECOVERY SHARE IS THE VISITOR'S ASSUMPTION, NOT FOXHOUND'S CLAIM
+  // (377(9)). It used to be a hardcoded share with a footnote calling it
+  // illustrative, which is a Foxhound recovery rate in everything but name:
+  // every visitor saw the same number and it was ours. Foxhound has no ledger to
+  // draw a rate from and the docs refuse to project one, so the only honest
+  // version of this control is one the reader sets. The default stays at 52 so
+  // the page looks the same on arrival; what changed is who owns the number.
+  const [recoveryShare, setRecoveryShare] = useState(DEFAULT_ASSUMED_RECOVERY_SHARE);
 
   const failedRevenue = Math.round(mrr * 0.08); // 8% of MRR fails
-  const stripeRecovers = Math.round(failedRevenue * 0.56); // Stripe Smart Retries: 56%
+  const stripeRecovers = Math.round(failedRevenue * (STRIPE_RECOVERY_RATE_PERCENT / 100));
   const remaining = failedRevenue - stripeRecovers; // what Stripe could not get
-  const foxhoundRecovers = Math.round(remaining * 0.52); // illustrative recovery share of the remainder
+  const foxhoundRecovers = Math.round(remaining * (recoveryShare / 100));
   const foxhoundFee = Math.round(foxhoundRecovers * 0.2); // 20% outcome fee
   const netGain = foxhoundRecovers - foxhoundFee; // net to merchant
   const netGainAnnual = netGain * 12;
@@ -60,6 +75,38 @@ export function RecoveryCalculator() {
         </div>
       </div>
 
+      <div className="mb-6">
+        <div className="mb-2 flex items-center justify-between">
+          <label
+            htmlFor="recovery-share-slider"
+            className="font-mono text-micro uppercase tracking-wide text-text-tertiary"
+          >
+            Assumed recovery of the remainder
+          </label>
+          <span className="font-mono text-body font-medium text-text">{recoveryShare}%</span>
+        </div>
+        <input
+          id="recovery-share-slider"
+          type="range"
+          min={0}
+          max={100}
+          step={1}
+          value={recoveryShare}
+          onChange={(e) => setRecoveryShare(Number(e.target.value))}
+          className="w-full accent-amber"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={recoveryShare}
+          aria-valuetext={`${recoveryShare}%`}
+          // Same react-dom hydration workaround as the slider above.
+          suppressHydrationWarning
+        />
+        <div className="mt-1 flex justify-between">
+          <span className="font-mono text-micro text-text-subtle">0%</span>
+          <span className="font-mono text-micro text-text-subtle">100%</span>
+        </div>
+      </div>
+
       <div className="mb-6 flex flex-col">
         <Row
           label="Failed payments per month"
@@ -68,7 +115,7 @@ export function RecoveryCalculator() {
         />
         <Row
           label="Stripe Smart Retries recover"
-          sub="56% average, stripe.com/billing"
+          sub={`${STRIPE_RECOVERY_RATE_PERCENT}% average, stripe.com/billing, read ${STAT_AS_OF}`}
           value={fmt(stripeRecovers)}
           valueClassName="text-text-secondary"
         />
@@ -110,8 +157,9 @@ export function RecoveryCalculator() {
       </div>
 
       <p className="mb-6 text-center font-mono text-micro text-text-subtle">
-        Stripe 56% recovery: stripe.com/billing. The Foxhound recovery share above is an
-        illustrative estimate, not a platform-wide average.
+        Stripe {STRIPE_RECOVERY_RATE_PERCENT}% recovery: stripe.com/billing, read {STAT_AS_OF}. The
+        recovery share is an assumption you set, not a Foxhound result: Foxhound does not project a
+        recovery rate.
       </p>
 
       <div className="flex justify-center">
