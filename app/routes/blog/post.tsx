@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Link, redirect } from "react-router";
 
 import { redirectedBlogSlug } from "~/lib/blog/slug-redirects";
+import { isWithdrawnBlogSlug, WITHDRAWN_BLOG_MESSAGE } from "~/lib/blog/withdrawn";
 import { ReadingProgressBar } from "~/components/blog/reading-progress-bar";
 import { ShareRow } from "~/components/blog/share-row";
 import { TableOfContents } from "~/components/blog/table-of-contents";
@@ -48,6 +49,18 @@ export async function loader({ params, context }: Route.LoaderArgs) {
   const renamed = redirectedBlogSlug(params.slug);
   if (renamed) {
     throw redirect(`/blog/${renamed}`, 301);
+  }
+
+  // WITHDRAWN POSTS ANSWER 410, NOT 404 (391). The row is unpublished, so the
+  // lookup below would return null and this route would 404, which says "we have
+  // nothing here" and is indistinguishable from a typo. 410 says the page existed
+  // and is deliberately gone. Checked before the lookup for the same reason the
+  // redirect is: the answer must not depend on what the database happens to hold.
+  if (isWithdrawnBlogSlug(params.slug)) {
+    throw new Response(WITHDRAWN_BLOG_MESSAGE, {
+      status: 410,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
   }
 
   const post = await getPostBySlug(db, params.slug);
