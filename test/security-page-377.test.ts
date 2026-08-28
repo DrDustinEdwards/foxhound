@@ -11,6 +11,7 @@ import {
   STRIPE_AUDIT_SCOPE,
   STRIPE_CONNECT_SCOPE,
 } from "~/lib/constants";
+import { classifyPath } from "~/lib/http/cache-policy";
 import { DENIED_TOOL_FRAGMENTS } from "~/lib/mcp/registry";
 import { STATIC_PAGES } from "~/routes/files/sitemap";
 import { GOVERNING_LAW_JURISDICTION, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
@@ -175,5 +176,29 @@ describe("PLANT 4: the page is reachable", () => {
 
   it("and the footer carries the entity line (377 item 11)", () => {
     expect(footer).toContain("Operated by Dustin Edwards, sole proprietor, Texas");
+  });
+});
+
+describe("PLANT 5: every page in the sitemap is publicly cacheable", () => {
+  // THE GUARD THAT WOULD HAVE CAUGHT THIS ONE. /security shipped in the sitemap,
+  // the footer and the route tree, and was served `private, no-store`, because
+  // cache-policy classifies everything unlisted as private and nobody listed it.
+  // Measured live before this test existed.
+  //
+  // DERIVED FROM STATIC_PAGES rather than listing the pages again: a public page
+  // that a crawler is invited to index must not be uncacheable, and the next
+  // page added is covered on the day it enters the sitemap.
+  it("no STATIC_PAGES entry classifies as private", () => {
+    const paths = STATIC_PAGES.map((p) => p.path);
+    expect(paths.length).toBeGreaterThan(5);
+    for (const path of paths) {
+      expect(classifyPath(path), `${path} is in the sitemap but served private`).not.toBe("private");
+    }
+  });
+
+  it("and /security specifically is marketing, like /privacy and /terms", () => {
+    expect(classifyPath("/security")).toBe("marketing");
+    expect(classifyPath("/privacy")).toBe("marketing");
+    expect(classifyPath("/terms")).toBe("marketing");
   });
 });
