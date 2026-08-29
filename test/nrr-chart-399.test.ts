@@ -1,0 +1,193 @@
+import { createElement, type ReactElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { MemoryRouter } from "react-router";
+import { describe, expect, it } from "vitest";
+
+import IntelligenceOverviewPage from "~/routes/app/intelligence/index";
+import { accounts, mrrSnapshots } from "~/db";
+import {
+  getMrrSnapshotSeries,
+  type HealthDistributionDay,
+  type IntelligenceOverview,
+  type MrrSnapshotPoint,
+} from "~/lib/intelligence/views.server";
+
+import { createInMemoryDb } from "./helpers/inmemory-db";
+
+// Ruling 399, session 90 job 2. NRRChart is one of the four legacy elements the
+// 394 walk never saw: legacy's DEMO twin does not render it, so the walk could
+// not have found it, and the row recorded absences it did not have. Legacy's
+// real dashboard mounts it at app/(app)/intelligence/dashboard/page.tsx:11,
+// between MRRTrendChart and MRRMovementChart. Component read whole at
+// app/(app)/intelligence/dashboard/components/NRRChart.tsx:
+//
+//   gate     hasData = data.some(d => (d.net_revenue_retention_bps ?? 0) > 0)
+//   shell    bg-surface border border-border rounded-[12px] px-6 py-5 mb-5
+//   eyebrow  "Net Revenue Retention"
+//   sub      "Above 100% means expansion exceeds churn (90 days)"
+//   plot     recharts LineChart height={140}, one Line, stroke var(--blue),
+//            strokeWidth 2, dot={false}
+//   axes     YAxis tickFormatter `${v}%`, XAxis interval="preserveStartEnd",
+//            both axisLine={false} tickLine={false}
+//   marker   ReferenceLine y={100}, stroke var(--border-i), dasharray "3 3"
+//   legend   none. It is a single-series chart.
+//
+// ONE DELIBERATE DIVERGENCE, 78/79 truth-over-treatment, the same one ruling 399
+// ratified on the churn chart: the window is TWELVE MONTHS, not ninety days.
+// Legacy's snapshot job is daily, so "(90 days)" is true there and it samples
+// every 7th row to thin the axis. Foxhound's intelligence-sync is a MONTHLY cron
+// (app/lib/cron/registry.ts:203), so ninety days is three points, the weekly
+// sampling has nothing to thin, and legacy's sentence would be a false claim
+// about our own data. The card says twelve months and means it.
+
+const Page = IntelligenceOverviewPage as unknown as (props: {
+  loaderData: {
+    entitled: true;
+    overview: IntelligenceOverview;
+    healthDistribution: HealthDistributionDay[];
+    mrrSeries: MrrSnapshotPoint[];
+  };
+}) => ReactElement;
+
+const overview: IntelligenceOverview = {
+  currency: "usd",
+  scoredCustomerCount: 2,
+  scoreDistribution: { healthy: 1, watch: 1, atRisk: 0 },
+  mrrAtRiskCents: 0,
+  atRiskCustomerCount: 0,
+  topAtRisk: [],
+  narrative: null,
+  narrativeGeneratedAt: null,
+};
+
+function point(month: number, nrrPct: number | null): MrrSnapshotPoint {
+  return {
+    at: new Date(Date.UTC(2026, month, 1)),
+    nrrPct,
+    newMrrCents: 0,
+    expansionMrrCents: 0,
+    reactivationMrrCents: 0,
+    contractionMrrCents: 0,
+    churnMrrCents: 0,
+  };
+}
+
+const series = [point(0, 98.5), point(1, 101.2), point(2, 104), point(3, 103.4)];
+
+function render(mrrSeries: MrrSnapshotPoint[]): string {
+  return renderToStaticMarkup(
+    createElement(
+      MemoryRouter,
+      null,
+      createElement(Page, {
+        loaderData: { entitled: true, overview, healthDistribution: [], mrrSeries },
+      }),
+    ),
+  );
+}
+
+describe("S16 NRR chart, built toward legacy (399)", () => {
+  it("renders legacy's card copy with Foxhound's real window", () => {
+    const html = render(series);
+    expect(html).toContain("Net Revenue Retention");
+    expect(html).toContain("Above 100% means expansion exceeds churn, last 12 months");
+    // The window is the divergence a reader is most likely to "correct" back to
+    // legacy's literal, which would make the sentence false here.
+    expect(html).not.toContain("(90 days)");
+  });
+
+  it("draws the 100% reference line legacy marks the comparison with", () => {
+    const html = render(series);
+    expect(html).toContain('stroke-dasharray="3 3"');
+    expect(html).toContain("stroke-border-i");
+  });
+
+  it("renders no legend, because legacy renders none on a single series", () => {
+    const html = render(series);
+    const start = html.indexOf("Net Revenue Retention");
+    const card = html.slice(start, html.indexOf("</section>", start));
+    // The legend swatch is a 14x4 line marker; on this card there must be none.
+    expect(card).not.toContain('viewBox="0 0 14 4"');
+  });
+
+  it("percent-formats the y ticks", () => {
+    const html = render(series);
+    expect(html).toMatch(/\d+(\.\d)?%/);
+  });
+
+  it("is withheld entirely when no snapshot carries a retention figure", () => {
+    // Legacy's own gate. An account whose first sync has no prior period gets
+    // no empty frame.
+    expect(render([point(0, null), point(1, null)])).not.toContain("Net Revenue Retention");
+    expect(render([point(0, 0), point(1, 0)])).not.toContain("Net Revenue Retention");
+  });
+});
+
+describe("getMrrSnapshotSeries", () => {
+  const NOW = Date.UTC(2026, 7, 29, 12, 0, 0);
+
+  async function seed(rows: { monthsAgo: number; nrrBps: number | null }[]) {
+    const { db } = createInMemoryDb();
+    const now = new Date(NOW);
+    await db.insert(accounts).values({ id: "acc_1", name: "Acme", currency: "usd", createdAt: now });
+    let n = 0;
+    for (const r of rows) {
+      const snapshotDate = new Date(NOW);
+      snapshotDate.setUTCMonth(snapshotDate.getUTCMonth() - r.monthsAgo);
+      await db.insert(mrrSnapshots).values({
+        id: "mrr_" + n++,
+        accountId: "acc_1",
+        snapshotDate,
+        totalMrrCents: 100_000,
+        newMrrCents: 1_000,
+        expansionMrrCents: 2_000,
+        contractionMrrCents: 3_000,
+        churnMrrCents: 4_000,
+        reactivationMrrCents: 5_000,
+        activeCustomersCount: 10,
+        newCustomersCount: 1,
+        churnedCustomersCount: 1,
+        perPlanBreakdown: [],
+        perCohortBreakdown: [],
+        perChannelBreakdown: [],
+        netRevenueRetentionBps: r.nrrBps,
+        currency: "usd",
+        createdAt: now,
+      });
+    }
+    return db;
+  }
+
+  it("converts bps to percent and keeps null as null", async () => {
+    // 10250 bps is 102.5%. Legacy coerces a null to 0 and draws it, which reads
+    // as total churn on a chart whose whole subject is the 100 line.
+    const db = await seed([
+      { monthsAgo: 2, nrrBps: 10_250 },
+      { monthsAgo: 1, nrrBps: null },
+    ]);
+    const points = await getMrrSnapshotSeries(db, "acc_1", NOW);
+    expect(points.map((p) => p.nrrPct)).toEqual([102.5, null]);
+  });
+
+  it("windows to twelve months and returns oldest first", async () => {
+    const db = await seed([
+      { monthsAgo: 14, nrrBps: 9_000 },
+      { monthsAgo: 3, nrrBps: 10_000 },
+      { monthsAgo: 1, nrrBps: 11_000 },
+    ]);
+    const points = await getMrrSnapshotSeries(db, "acc_1", NOW);
+    expect(points.map((p) => p.nrrPct)).toEqual([100, 110]);
+  });
+
+  it("carries the five movement components the sibling chart needs", async () => {
+    const db = await seed([{ monthsAgo: 1, nrrBps: 10_000 }]);
+    const [p] = await getMrrSnapshotSeries(db, "acc_1", NOW);
+    expect(p).toMatchObject({
+      newMrrCents: 1_000,
+      expansionMrrCents: 2_000,
+      contractionMrrCents: 3_000,
+      churnMrrCents: 4_000,
+      reactivationMrrCents: 5_000,
+    });
+  });
+});

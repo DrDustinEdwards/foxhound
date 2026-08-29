@@ -11,6 +11,7 @@ import {
   getHealthDistribution,
   type HealthDistributionDay,
   type IntelligenceOverview,
+  type MrrSnapshotPoint,
 } from "~/lib/intelligence/views.server";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
@@ -57,6 +58,7 @@ const Page = IntelligenceOverviewPage as unknown as (props: {
     entitled: true;
     overview: IntelligenceOverview;
     healthDistribution: HealthDistributionDay[];
+    mrrSeries: MrrSnapshotPoint[];
   };
 }) => ReactElement;
 
@@ -84,7 +86,12 @@ function render(days: HealthDistributionDay[] = healthDistribution): string {
     createElement(
       MemoryRouter,
       null,
-      createElement(Page, { loaderData: { entitled: true, overview, healthDistribution: days } }),
+      createElement(Page, {
+        // The sibling MRR charts are this page's other two 399 jobs and carry
+        // their own suites; an empty series keeps them off this render so a
+        // count assertion here measures one chart.
+        loaderData: { entitled: true, overview, healthDistribution: days, mrrSeries: [] },
+      }),
     ),
   );
 }

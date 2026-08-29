@@ -448,6 +448,68 @@ export async function listCustomerTiers(db: Db, accountId: string): Promise<stri
 // ============================================================================
 
 /** How many high-risk customers the churn table lists. */
+// ---- MRR snapshot series for the dashboard (S16, legacy's NRRChart) ----
+// Ruling 399 entered NRRChart and MRRMovementChart on row S16 as legacy
+// elements the 394 walk never saw, because legacy's demo twin does not render
+// them. Both read the same mrr_snapshots rows legacy's dashboard selects at
+// app/(app)/intelligence/dashboard/page.tsx.
+
+/** Legacy's dashboard windows these charts at 90 days and samples every 7th
+ *  row, because its snapshot job is daily. Foxhound's `intelligence-sync` is
+ *  MONTHLY (app/lib/cron/registry.ts), so ninety days is three points and the
+ *  weekly sampling has nothing to thin. Same window the churn chart already
+ *  ships under 78/79, and the card copy says twelve months rather than
+ *  repeating legacy's sentence about data we do not have. */
+const MRR_CHART_MONTHS = 12;
+
+export interface MrrSnapshotPoint {
+  at: Date;
+  /** Net revenue retention as a percentage. null where the snapshot recorded
+   *  none: an account's first sync has no prior period to retain against, and
+   *  legacy's `?? 0` would draw that as total churn. */
+  nrrPct: number | null;
+  newMrrCents: number;
+  expansionMrrCents: number;
+  reactivationMrrCents: number;
+  contractionMrrCents: number;
+  churnMrrCents: number;
+}
+
+/** The dashboard's MRR snapshot series. Caller must have already checked
+ *  entitlement. */
+export async function getMrrSnapshotSeries(
+  db: Db,
+  accountId: string,
+  nowMs: number,
+): Promise<MrrSnapshotPoint[]> {
+  const cutoff = new Date(nowMs);
+  cutoff.setUTCMonth(cutoff.getUTCMonth() - MRR_CHART_MONTHS);
+
+  const rows = await db
+    .select({
+      snapshotDate: mrrSnapshots.snapshotDate,
+      netRevenueRetentionBps: mrrSnapshots.netRevenueRetentionBps,
+      newMrrCents: mrrSnapshots.newMrrCents,
+      expansionMrrCents: mrrSnapshots.expansionMrrCents,
+      reactivationMrrCents: mrrSnapshots.reactivationMrrCents,
+      contractionMrrCents: mrrSnapshots.contractionMrrCents,
+      churnMrrCents: mrrSnapshots.churnMrrCents,
+    })
+    .from(mrrSnapshots)
+    .where(and(eq(mrrSnapshots.accountId, accountId), gte(mrrSnapshots.snapshotDate, cutoff)))
+    .orderBy(asc(mrrSnapshots.snapshotDate));
+
+  return rows.map((r) => ({
+    at: r.snapshotDate,
+    nrrPct: r.netRevenueRetentionBps === null ? null : r.netRevenueRetentionBps / 100,
+    newMrrCents: r.newMrrCents,
+    expansionMrrCents: r.expansionMrrCents,
+    reactivationMrrCents: r.reactivationMrrCents,
+    contractionMrrCents: r.contractionMrrCents,
+    churnMrrCents: r.churnMrrCents,
+  }));
+}
+
 // ---- Customer health distribution (S16, legacy's HealthDistributionChart) ----
 // Ruling 399: legacy's REAL dashboard renders this chart, so Foxhound's
 // score-distribution card is a PORT to align rather than an addition. Legacy:

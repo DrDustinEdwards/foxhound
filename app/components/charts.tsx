@@ -178,6 +178,8 @@ export function MultiLine({
   yTickCount = 4,
   maxXLabels = 8,
   height = 180,
+  referenceValue,
+  showLegend = true,
   className,
 }: {
   labels: string[];
@@ -187,6 +189,14 @@ export function MultiLine({
   /** Ceiling on x labels drawn, including the first and the last. */
   maxXLabels?: number;
   height?: number;
+  /** A dashed horizontal rule at this y value, legacy's recharts
+   *  `<ReferenceLine>`. Drawn only when the value falls inside the plotted
+   *  range, because a reference line clamped to an edge reads as an axis. */
+  referenceValue?: number;
+  /** Legacy renders a `<Legend />` only where more than one series shares the
+   *  plot; on a single-series chart the swatch is noise. Additive default, so
+   *  the existing two-series consumer is untouched (199's rule). */
+  showLegend?: boolean;
   className?: string;
 }) {
   if (labels.length < 2 || series.length === 0) return null;
@@ -194,14 +204,19 @@ export function MultiLine({
   if (present.length === 0) return null;
 
   const labelSpace = 20;
-  const legendSpace = 20;
+  // Reserved only when it is drawn, so a single-series chart gives the strip
+  // back to the plot rather than leaving a 20px hole under the x labels.
+  const legendSpace = showLegend ? 20 : 0;
   const axisWidth = 40;
   const plotHeight = height - labelSpace - legendSpace;
 
   // Always include zero: a churn-rate chart whose axis starts at 2% makes a
-  // flat line look like a cliff.
-  const max = Math.max(...present, 0);
-  const min = Math.min(...present, 0);
+  // flat line look like a cliff. A reference value joins the extent for the
+  // same reason, so an NRR series sitting entirely above 100 still shows the
+  // 100 line it is being compared against.
+  const extent = referenceValue === undefined ? present : [...present, referenceValue];
+  const max = Math.max(...extent, 0);
+  const min = Math.min(...extent, 0);
   const range = max - min || 1;
   // Percentages of the plot box, so the browser does the width arithmetic the
   // server cannot.
@@ -232,6 +247,18 @@ export function MultiLine({
           role="img"
           aria-hidden="true"
         >
+          {referenceValue === undefined ? null : (
+            <line
+              x1={0}
+              y1={y(referenceValue)}
+              x2={100}
+              y2={y(referenceValue)}
+              className="stroke-border-i"
+              strokeWidth={1}
+              strokeDasharray="3 3"
+              vectorEffect="non-scaling-stroke"
+            />
+          )}
           {series.map((s) => {
             // Split into runs of consecutive non-null points so a gap breaks the
             // line instead of drawing a straight segment across missing data.
@@ -284,7 +311,7 @@ export function MultiLine({
         })}
       </div>
       <div className="flex items-center justify-center gap-4" style={{ height: legendSpace }}>
-        {series.map((s) => (
+        {(showLegend ? series : []).map((s) => (
           <span key={`legend-${s.name}`} className="flex items-center gap-1.5">
             <svg
               width={14}
