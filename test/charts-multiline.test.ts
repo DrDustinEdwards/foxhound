@@ -27,8 +27,12 @@ describe("MultiLine", () => {
 
   it("renders the dashed series dashed and the solid one not", () => {
     const html = render({ labels: ["Jan", "Feb", "Mar"], series: [solid, dashed] });
-    // Two dash occurrences for the dashed series: its polyline and its legend swatch.
-    expect(html.match(/stroke-dasharray="4 2"/g)).toHaveLength(1);
+    // Two dash occurrences for the dashed series: its polyline and its legend
+    // swatch, which carries the series' own pattern the way legacy recharts'
+    // Legend takes its swatch from the Line it describes. The solid series
+    // contributes neither. The comment said two and the assertion said one
+    // because the swatch used to be drawn "3 2".
+    expect(html.match(/stroke-dasharray="4 2"/g)).toHaveLength(2);
   });
 
   // A gap and a zero are different claims. Drawing a missing point as zero would
@@ -65,11 +69,15 @@ describe("MultiLine", () => {
     expect(html).toContain("0%");
   });
 
-  it("labels only the first and last x positions, so labels cannot overprint", () => {
+  // WAS "labels only the first and last x positions, so labels cannot
+  // overprint". That assertion pinned breakage 3 of ruling 398: two labels on a
+  // twelve-point series is not overprint protection, it is an unlabelled axis.
+  // Legacy renders every interior label that fits (interval="preserveStartEnd").
+  it("labels the interior x positions too, keeping the first and the last", () => {
     const html = render({ labels: ["Jan", "Feb", "Mar", "Apr"], series: [solid] });
     expect(html).toContain("Jan");
     expect(html).toContain("Apr");
-    expect(html).not.toContain("Feb");
+    expect(html).toContain("Feb");
   });
 
   it("returns nothing when there is too little to plot", () => {
