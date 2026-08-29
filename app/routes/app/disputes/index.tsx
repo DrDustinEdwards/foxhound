@@ -1,6 +1,7 @@
 import { Link } from "react-router";
 
 import { Badge } from "~/components/badge";
+import { SyncDisputeLink, type SyncDisputeResult } from "~/components/sync-dispute-link";
 import { StatCard } from "~/components/stat-card";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -17,6 +18,7 @@ import {
   humanizeDisputeReason,
   isDisputeResolved,
 } from "~/lib/disputes/labels";
+import { importDisputeFromStripe } from "~/lib/disputes/manual-import.server";
 import { listDisputes } from "~/lib/disputes/queries.server";
 import { computeDisputeStats } from "~/lib/disputes/stats";
 import { formatMoney } from "~/lib/money-format";
@@ -59,11 +61,56 @@ export async function loader({ context }: Route.LoaderArgs) {
   // and the per-row cells always render their own.
   const currency = disputes[0]?.currency ?? "usd";
 
-  return { disputes: sorted, stats, currency, nowMs: Date.now() };
+  // Withheld from the demo exactly as legacy withholds it: legacy's demo twin
+  // renders DisputesDashboardView alone, and importing a real Stripe dispute
+  // into the shared demo account is meaningless. The middleware's method gate
+  // is still the boundary for a hand-crafted POST.
+  return { disputes: sorted, stats, currency, nowMs: Date.now(), isDemo: auth.isDemo };
 }
 
-export default function Disputes({ loaderData }: Route.ComponentProps) {
-  const { disputes, stats, currency, nowMs } = loaderData;
+// Manual dispute import (ruling 400 halt ruling 1). The endpoint is this
+// route's own action rather than legacy's /api/disputes/sync, which is class
+// (a) internals and the pattern rulings 315 and 355 already set for this repo.
+//
+// IT IS DEMO-BLOCKED WITHOUT A LINE OF ITS OWN. This route nests under the app
+// shell, so appShellMiddleware runs first and demoBlocksMethod refuses every
+// non-GET with the read-only 405 before the action is reached. Putting the
+// endpoint at /api/* would have moved it OUTSIDE that firewall and required a
+// second copy of the rule.
+//
+// Account scoping is likewise not re-derived here: authContext is the one
+// chokepoint that turns a session into an account for the whole shell, and the
+// import acts on that account's own Stripe connection.
+const RESULT_MESSAGE: Record<string, SyncDisputeResult> = {
+  imported: { ok: true, message: "Dispute imported." },
+  // Not an error. Either this import already ran or the webhook got there
+  // first; both mean the dispute is on the books exactly once.
+  already_imported: { ok: true, message: "That dispute is already imported." },
+  invalid_id: { ok: false, message: 'Stripe dispute IDs start with "dp_".' },
+  not_connected: { ok: false, message: "Connect Stripe before importing a dispute." },
+  not_found: { ok: false, message: "No dispute with that ID on your Stripe account." },
+};
+
+export async function action({ request, context }: Route.ActionArgs) {
+  if (request.method !== "POST") {
+    return Response.json({ error: "method_not_allowed" }, { status: 405 });
+  }
+  const { env } = context.get(cloudflareContext);
+  const auth = context.get(authContext);
+
+  const form = await request.formData();
+  const posted = form.get("stripe_dispute_id");
+  const result = await importDisputeFromStripe(
+    env,
+    auth.membership.accountId,
+    typeof posted === "string" ? posted : "",
+    new Date(),
+  );
+  return { sync: RESULT_MESSAGE[result.status] };
+}
+
+export default function Disputes({ loaderData, actionData }: Route.ComponentProps) {
+  const { disputes, stats, currency, nowMs, isDemo } = loaderData;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
@@ -156,6 +203,13 @@ export default function Disputes({ loaderData }: Route.ComponentProps) {
           </div>
         </>
       )}
+
+      {/* Legacy renders SyncDisputeLink directly below DisputesDashboardView and
+          OUTSIDE its empty-state branch, so it shows on both states. That is
+          deliberate on legacy's part and kept here: an account with no disputes
+          yet is exactly the one importing a dispute that predates the
+          connection. */}
+      {isDemo ? null : <SyncDisputeLink result={actionData?.sync} />}
     </div>
   );
 }

@@ -397,8 +397,15 @@ export interface DisputedRecoveryLink {
  * Stripe/DB error all resolve to null so dispute intake still proceeds
  * (without the recovery link and its evidence facts), never blocked by this
  * seam.
+ *
+ * EXPORTED under ruling 400 for the manual dispute import
+ * (app/lib/disputes/manual-import.server.ts), which enriches a hand-imported
+ * dispute through this same seam. Two enrichment paths would be two answers to
+ * "which recovery does this disputed charge belong to", and a manually imported
+ * dispute that skipped the recovery link would silently stay billable on a
+ * recovery it should have excluded.
  */
-async function resolveDisputedRecovery(
+export async function resolveDisputedRecovery(
   env: Env,
   accountId: string,
   connectionId: string,
