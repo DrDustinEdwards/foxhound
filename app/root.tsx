@@ -1,5 +1,4 @@
 import {
-  isRouteErrorResponse,
   Links,
   Meta,
   Outlet,
@@ -10,12 +9,11 @@ import {
 
 import type { Route } from "./+types/root";
 import "./app.css";
-import { Wordmark } from "./components/wordmark";
+import { ErrorView } from "./components/error-view";
 import dmSansVariable from "./assets/fonts/dm-sans-variable.woff2?url";
 import dmMono400 from "./assets/fonts/dm-mono-400.woff2?url";
 import dmMono500 from "./assets/fonts/dm-mono-500.woff2?url";
 import { cloudflareContext } from "./lib/cloudflare-context";
-import { resolveErrorBoundaryDetails } from "./lib/errors/boundary-message";
 import { DEFAULT_THEME } from "./lib/theme";
 import { resolveThemeForRequest } from "./lib/theme.server";
 
@@ -98,97 +96,9 @@ export default function App() {
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-  // error.data carries whatever a route (or middleware, e.g. the demo
-  // read-only guard in app/lib/auth/guards.ts) threw via data(), so a
-  // deliberate rejection reads as its own message rather than the generic
-  // HTTP reason phrase a bare thrown Response would otherwise leave it with.
-  const { details } = resolveErrorBoundaryDetails(error, import.meta.env.DEV);
-  const stack = import.meta.env.DEV && error instanceof Error ? error.stack : undefined;
-
-  const routeError = isRouteErrorResponse(error) ? error : null;
-  const isNotFound = routeError?.status === 404;
-  // Legacy hardcodes "500" because Next's App Router does not expose a status to
-  // error.tsx (its own global-error.tsx comment says so and passes statusCode={0}).
-  // React Router does expose it, so a 503 reads 503 instead of claiming 500.
-  // Treatment is legacy's, the figure is Foxhound's real state: rulings 78/79.
-  const code = isNotFound ? "404" : routeError ? String(routeError.status) : "500";
-  const heading = isNotFound ? "Page not found" : "Something went wrong";
-  const body = isNotFound ? "The page you're looking for doesn't exist or has been moved." : details;
-
-  const PRIMARY =
-    "bg-amber text-on-amber px-6 py-3 rounded-lg text-sm font-semibold no-underline font-sans";
-  const SECONDARY =
-    "bg-transparent text-text px-6 py-3 rounded-lg text-sm font-medium no-underline border border-border font-sans";
-
-  // Legacy runs ONE chrome kit across not-found.tsx and error.tsx: the same
-  // absolute nav, the same centred block, the same footer, differing only in the
-  // numeral, its colour, the copy and the CTA set. Ported as one boundary with
-  // two states, the M20/M21 shared-legal-kit shape (ruling 82).
-  return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center bg-bg">
-      <nav className="absolute left-0 right-0 top-0 flex h-14 items-center border-b border-border bg-bg px-6">
-        <a href="/" className="no-underline">
-          <Wordmark />
-        </a>
-      </nav>
-
-      <div className="px-6 text-center">
-        <p
-          className={`m-0 mb-4 font-mono text-[5rem] font-bold leading-none ${
-            isNotFound ? "text-amber-text" : "text-red"
-          }`}
-          role="img"
-          aria-label={code}
-        >
-          {code}
-        </p>
-        <h1 className="m-0 mb-2 text-2xl font-semibold text-text">{heading}</h1>
-        <p className="m-0 mb-8 text-base text-text-tertiary">{body}</p>
-
-        <div className="flex flex-wrap justify-center gap-3">
-          {isNotFound ? (
-            <>
-              <a href="/recovery" className={PRIMARY}>
-                Go to dashboard
-              </a>
-              <a href="/demos/recovery" className={SECONDARY}>
-                View demo
-              </a>
-              <a href="/" className={SECONDARY}>
-                Go home
-              </a>
-            </>
-          ) : (
-            <>
-              {/* Legacy's first CTA calls Next's reset(). React Router gives an
-                  ErrorBoundary no equivalent, so a reload is the closest honest
-                  affordance for the same intent, retry this page. */}
-              <button type="button" onClick={() => location.reload()} className={`${PRIMARY} border-0 cursor-pointer`}>
-                Try again
-              </button>
-              <a href="/recovery" className={SECONDARY}>
-                Go to dashboard
-              </a>
-              {/* Legacy's third is "Go to recovamrr.com", a cross-host link from
-                  the app subdomain to the marketing site. Foxhound is one host,
-                  so its counterpart is home rather than a dropped item. */}
-              <a href="/" className={SECONDARY}>
-                Go home
-              </a>
-            </>
-          )}
-        </div>
-
-        {stack && (
-          <pre className="mt-8 max-w-full overflow-x-auto rounded-md border border-border bg-surface p-4 text-left text-label text-text-tertiary">
-            <code>{stack}</code>
-          </pre>
-        )}
-      </div>
-
-      <div className="absolute bottom-0 w-full p-6 text-center text-sm text-text-tertiary">
-        &copy; 2026 Foxhound
-      </div>
-    </main>
-  );
+  // The view lives in components/error-view.tsx so it can be rendered in a
+  // test; root.tsx itself cannot be imported there (app.css, the `?url` font
+  // assets and lib/theme.server). error.data carries whatever a route threw via
+  // data(), which the view resolves through resolveErrorBoundaryDetails.
+  return <ErrorView error={error} isDev={import.meta.env.DEV} />;
 }
