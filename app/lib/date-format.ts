@@ -25,6 +25,18 @@ export function formatDateShort(date: Date | null): string {
   });
 }
 
+/** "Jan 5", no year. Empty string for null. For chart axes inside a window
+ *  short enough that the year is noise, which is what legacy's Intelligence
+ *  charts render (`{ month: "short", day: "numeric", timeZone: "UTC" }`). */
+export function formatDateMonthDay(date: Date | null): string {
+  if (!date) return "";
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 /** "Jan 5, 2026, 3:04 PM". Empty string for null. */
 export function formatTimestamp(date: Date | null): string {
   if (!date) return "";

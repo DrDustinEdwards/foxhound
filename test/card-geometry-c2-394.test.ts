@@ -52,12 +52,27 @@ describe("C2: each surface carries its own legacy shell geometry", () => {
     expect(s).toContain('className="mt-3 rounded-[12px] border border-border bg-surface px-6 py-5"');
   });
 
-  it("S16: the two HELD shells are NOT touched (396)", () => {
-    // The score-distribution chart and the most-at-risk table are held for
-    // Dustin's screenshot review. Geometry is not a licence to restyle them.
+  it("S16: the ONE still-HELD shell is not touched (396 as narrowed by 399)", () => {
+    // THIS ASSERTION USED TO COVER TWO SHELLS AND ONE OF THEM WAS RELEASED.
+    // 396 held both the score-distribution chart and the most-at-risk table for
+    // Dustin's screenshot review, on the walk's claim that legacy had neither.
+    // 399 measured that claim against legacy's REAL dashboard and it was half
+    // false: HealthDistributionChart is legacy's own
+    // (app/(app)/intelligence/dashboard/page.tsx:12), so the chart is a PORT to
+    // align and needs no ratification, while the at-risk TABLE is still the one
+    // true addition and stays held. Pinning the chart's pre-port geometry here
+    // would have been this suite defending the divergence it exists to catch,
+    // which is 397's finding in its structural form.
     const s = src("routes/app/intelligence/index.tsx");
-    expect(s).toContain('<div className="mt-3 rounded-lg border border-border bg-surface p-4">');
     expect(s).toContain('className="mt-3 overflow-x-auto rounded-lg border border-border"');
+  });
+
+  it("S16 health distribution: the ported chart carries legacy's own 12px shell", () => {
+    // legacy app/(app)/intelligence/dashboard/components/HealthDistributionChart.tsx:39
+    //   bg-surface border border-border rounded-[12px] px-6 py-5 mb-5
+    const s = src("routes/app/intelligence/index.tsx");
+    expect(s).toContain('className="mt-8 rounded-[12px] border border-border bg-surface px-6 py-5"');
+    expect(s).not.toContain('<div className="mt-3 rounded-lg border border-border bg-surface p-4">');
   });
 
   it("S17 customers: the table shell is legacy's 12px on a surface fill", () => {

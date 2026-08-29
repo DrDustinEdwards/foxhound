@@ -448,6 +448,79 @@ export async function listCustomerTiers(db: Db, accountId: string): Promise<stri
 // ============================================================================
 
 /** How many high-risk customers the churn table lists. */
+// ---- Customer health distribution (S16, legacy's HealthDistributionChart) ----
+// Ruling 399: legacy's REAL dashboard renders this chart, so Foxhound's
+// score-distribution card is a PORT to align rather than an addition. Legacy:
+// app/(app)/intelligence/dashboard/components/HealthDistributionChart.tsx, fed
+// from app/(app)/intelligence/dashboard/page.tsx's health_score_history select
+// over the last 90 days.
+
+const HEALTH_DISTRIBUTION_DAYS = 90;
+/** Legacy samples every 7th day so the x axis stays readable across the window. */
+const HEALTH_DISTRIBUTION_SAMPLE_STRIDE = 7;
+
+export interface HealthDistributionDay {
+  /** UTC calendar day, YYYY-MM-DD. */
+  date: string;
+  atRisk: number;
+  watch: number;
+  healthy: number;
+}
+
+/**
+ * Customer count per health band per UTC day, sampled, over the last 90 days.
+ *
+ * The window is legacy's 90 days and it is TRUE of Foxhound's own data here:
+ * `intelligence-ai` is a DAILY cron (app/lib/cron/registry.ts), the same cadence
+ * legacy's scorer runs at, so ninety days of history means ninety rows to bucket
+ * rather than the monthly cadence that forced the churn chart's twelve-month
+ * window under 78/79.
+ *
+ * The BANDS are Foxhound's, which is the 78/79 truth-over-treatment split the
+ * S19 row already settled: legacy hardcodes 0-33 / 34-66 / 67-100 inside this
+ * component, Foxhound scores against `healthScoreBand`, and rendering legacy's
+ * cutoffs over Foxhound's scores would put a customer in a band the rest of the
+ * app does not put them in.
+ */
+export async function getHealthDistribution(
+  db: Db,
+  accountId: string,
+  nowMs: number,
+): Promise<HealthDistributionDay[]> {
+  const cutoff = new Date(nowMs);
+  cutoff.setUTCDate(cutoff.getUTCDate() - HEALTH_DISTRIBUTION_DAYS);
+
+  const rows = await db
+    .select({
+      recordedAt: healthScoreHistory.recordedAt,
+      healthScore: healthScoreHistory.healthScore,
+    })
+    .from(healthScoreHistory)
+    .where(
+      and(eq(healthScoreHistory.accountId, accountId), gte(healthScoreHistory.recordedAt, cutoff)),
+    )
+    .orderBy(asc(healthScoreHistory.recordedAt));
+
+  const byDay = new Map<string, HealthDistributionDay>();
+  for (const row of rows) {
+    const date = row.recordedAt.toISOString().split("T")[0];
+    let day = byDay.get(date);
+    if (!day) {
+      day = { date, atRisk: 0, watch: 0, healthy: 0 };
+      byDay.set(date, day);
+    }
+    const band = healthScoreBand(row.healthScore);
+    if (band === "at_risk") day.atRisk += 1;
+    else if (band === "watch") day.watch += 1;
+    else day.healthy += 1;
+  }
+
+  const days = Array.from(byDay.values()).sort((a, b) => a.date.localeCompare(b.date));
+  return days.filter(
+    (_, i) => i % HEALTH_DISTRIBUTION_SAMPLE_STRIDE === 0 || i === days.length - 1,
+  );
+}
+
 const CHURN_TOP_HIGH_RISK_LIMIT = 20;
 
 // How far back the churn-rate chart looks. Legacy used 90 days and then kept
