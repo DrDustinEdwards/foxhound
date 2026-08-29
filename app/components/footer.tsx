@@ -13,12 +13,24 @@ import { Wordmark } from "./wordmark";
 // from landing on a ported surface without a ruling, so they are removed here
 // and tracked in the ledger's ruling 56 leak audit.
 //
-// Two legacy elements are deliberately absent, both by ruling:
-//   - the "Connect via MCP from any AI client" line, which stays out until
-//     MCP ships (ruling 8, promise-ahead-of-product);
-//   - the three social icons, which stay out until Foxhound handles exist
-//     (DEFECT-OPEN, external dependency). The bottom row keeps legacy's
-//     justify-between shape so they drop straight into the right slot.
+// ONE legacy element is still deliberately absent: the three social icons,
+// which stay out until Foxhound handles exist (DEFECT-OPEN, external
+// dependency). The bottom row keeps legacy's justify-between shape so they
+// drop straight into the right slot.
+//
+// The MCP line's ruling-8 gate is DISCHARGED and the line is restored (394
+// halt 2). The gate was conditional on MCP shipping, and it has: workers/app.ts
+// mounts /mcp, `verifyMcpToken` resolves an account from a bearer key, the
+// merchant tool registry is live, and S29 issues the keys. A gate whose
+// condition is met and which nobody moved is a block held past its own terms,
+// so this is a fix TOWARD legacy rather than a Foxhound addition.
+
+/**
+ * Legacy's MCP line, verbatim. Exported so the copy is assertable by test, the
+ * same reason help.tsx exports SECTIONS.
+ */
+export const MCP_LINE = "Connect via MCP from any AI client";
+
 export const COLUMNS: { heading: string; links: { to: string; label: string }[] }[] = [
   {
     heading: "Product",
@@ -127,6 +139,12 @@ export function Footer({ variant = "marketing" }: { variant?: FooterVariant } = 
               </Link>
               <p className="mt-3 max-w-[240px] text-[0.875rem] leading-relaxed text-chrome-text-secondary">
                 The recovery layer for Stripe merchants.
+              </p>
+              {/* Legacy's own line and legacy's own treatment, read from
+                  components/SiteFooter.tsx: a plain <p> under the blurb, not a
+                  link, mt-3 font-mono at 0.6875rem on chrome-text-secondary. */}
+              <p className="mt-3 font-mono text-[0.6875rem] text-chrome-text-secondary">
+                {MCP_LINE}
               </p>
             </div>
             <div className="grid grid-cols-2 gap-6 sm:col-span-3 lg:col-span-4 lg:grid-cols-4">
