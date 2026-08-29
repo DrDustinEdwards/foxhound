@@ -1,5 +1,7 @@
 import type Stripe from "stripe";
 
+import { disputeIntakeFields } from "~/lib/disputes/stripe-dispute";
+
 import { type DeclineCategory } from "~/lib/constants";
 import { readWinbackSequenceId } from "~/lib/recovery/winback-metadata";
 import { classifyDecline } from "~/lib/recovery/decline";
@@ -170,23 +172,14 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
     }
     case "charge.dispute.created": {
       const dispute = event.data.object as Stripe.Dispute;
-      const chargeId = asId(dispute.charge);
-      if (!chargeId) return { kind: "ignore", reason: "no_charge" };
       if (!dispute.id) return { kind: "ignore", reason: "no_dispute_id" };
-      return {
-        kind: "stamp_dispute",
-        stripeDisputeId: dispute.id,
-        chargeId,
-        paymentIntentId: asId(dispute.payment_intent),
-        amountCents: dispute.amount ?? 0,
-        currency: dispute.currency ?? "usd",
-        reason: dispute.reason ?? "general",
-        status: dispute.status ?? "needs_response",
-        evidenceDeadline: dispute.evidence_details?.due_by
-          ? new Date(dispute.evidence_details.due_by * 1000)
-          : null,
-        createdAt: dispute.created ? new Date(dispute.created * 1000) : new Date(),
-      };
+      // The mapping moved to app/lib/disputes/stripe-dispute.ts under ruling
+      // 400, because the manual import reads a Stripe.Dispute too and the two
+      // intake paths have to produce the same row from the same object. A null
+      // here is the charge-less case this branch already ignored.
+      const fields = disputeIntakeFields(dispute, new Date());
+      if (!fields) return { kind: "ignore", reason: "no_charge" };
+      return { kind: "stamp_dispute", ...fields };
     }
     case "charge.dispute.closed": {
       const dispute = event.data.object as Stripe.Dispute;
