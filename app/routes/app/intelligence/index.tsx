@@ -59,6 +59,24 @@ export default function IntelligenceOverviewPage({ loaderData }: Route.Component
   const hasNrr = mrrSeries.some((p) => (p.nrrPct ?? 0) > 0);
   const mrrLabels = mrrSeries.map((p) => formatDateMonthDay(p.at));
 
+  // Legacy's MRRMovementChart works in whole dollars and renders contraction
+  // and churn below the baseline (MRRMovementChart.tsx:32-38).
+  const movement = mrrSeries.map((p) => ({
+    newMrr: Math.round(p.newMrrCents / 100),
+    expansion: Math.round(p.expansionMrrCents / 100),
+    reactivation: Math.round(p.reactivationMrrCents / 100),
+    contraction: -Math.round(p.contractionMrrCents / 100),
+    churn: -Math.round(p.churnMrrCents / 100),
+  }));
+  const hasMovement = movement.some(
+    (m) =>
+      m.newMrr !== 0 ||
+      m.expansion !== 0 ||
+      m.reactivation !== 0 ||
+      m.contraction !== 0 ||
+      m.churn !== 0,
+  );
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <h1 className="text-title font-medium text-text">Intelligence</h1>
@@ -118,6 +136,74 @@ export default function IntelligenceOverviewPage({ loaderData }: Route.Component
                       name: "NRR",
                       colorClassName: "text-blue",
                       values: mrrSeries.map((p) => p.nrrPct),
+                    },
+                  ]}
+                />
+              </div>
+            </section>
+          ) : null}
+
+          {/* Legacy's MRRMovementChart, built (ruling 399: the second of the two
+              dashboard charts the 394 walk never saw; legacy mounts it at
+              app/(app)/intelligence/dashboard/page.tsx:13, directly under
+              NRRChart). Source read whole at
+              app/(app)/intelligence/dashboard/components/MRRMovementChart.tsx.
+
+              Legacy's five series, its stacking (New, expansion and
+              reactivation up from the baseline, contraction and churn down),
+              its dollar y ticks and its gate on any non-zero movement.
+
+              "by week" becomes "by month", 78/79 again: legacy samples a daily
+              snapshot job every 7 rows, so its buckets really are weeks.
+              intelligence-sync is monthly here, so a week is not a bucket we
+              have and the sentence would name a cadence we do not run.
+
+              PURPLE ON REACTIVATION IS LEGACY'S AND IT IS FLAGGED, not slipped
+              in. DESIGN.md reserves purple for Stripe Connect UI and "win-back
+              attribution", nothing else ever. Reactivation MRR IS win-back
+              attribution measured in money: it is revenue from customers who
+              had churned and came back, which is what win_back_sequences
+              exists to produce. So legacy's colour and Foxhound's reservation
+              agree here rather than collide. If that reading is wrong it is one
+              class name to change. */}
+          {hasMovement && mrrLabels.length > 0 ? (
+            <section className="mt-8 rounded-[12px] border border-border bg-surface px-6 py-5">
+              <h2 className="m-0 font-mono text-micro uppercase tracking-wide text-text-tertiary">
+                MRR movement
+              </h2>
+              <p className="m-0 mt-1 text-label text-text-tertiary">
+                New, expansion, contraction, and churn by month
+              </p>
+              <div className="mt-4">
+                <StackedBars
+                  height={200}
+                  labels={mrrLabels}
+                  yTickFormat={(v) => `$${Math.abs(Math.round(v))}`}
+                  series={[
+                    {
+                      name: "New",
+                      colorClassName: "text-green",
+                      values: movement.map((m) => m.newMrr),
+                    },
+                    {
+                      name: "Expansion",
+                      colorClassName: "text-blue",
+                      values: movement.map((m) => m.expansion),
+                    },
+                    {
+                      name: "Reactivation",
+                      colorClassName: "text-purple",
+                      values: movement.map((m) => m.reactivation),
+                    },
+                    {
+                      name: "Contraction",
+                      colorClassName: "text-orange",
+                      values: movement.map((m) => m.contraction),
+                    },
+                    {
+                      name: "Churn",
+                      colorClassName: "text-red",
+                      values: movement.map((m) => m.churn),
                     },
                   ]}
                 />
