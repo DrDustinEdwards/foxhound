@@ -86,7 +86,7 @@ export default function IntelligenceOverviewPage({ loaderData }: Route.Component
             <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
               This month's narrative
             </p>
-            <div className="mt-3 rounded-lg border border-border bg-surface p-4">
+            <div className="mt-3 rounded-[12px] border border-border bg-surface px-6 py-5">
               {overview.narrative ? (
                 <>
                   <p className="text-body text-text">{overview.narrative}</p>

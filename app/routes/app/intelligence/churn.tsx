@@ -111,7 +111,7 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
       ) : null}
 
       {view.scoredCustomerCount === 0 ? (
-        <section className="rounded-lg border border-border bg-surface p-10 text-center">
+        <section className="rounded-[12px] border border-border bg-surface p-10 text-center">
           <h2 className="m-0 text-body font-medium text-text">Health scores are being calculated.</h2>
           <p className="m-0 mx-auto mt-2 max-w-[420px] text-label leading-relaxed text-text-tertiary">
             Check back after the next Intelligence sync.
@@ -125,7 +125,7 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
               return (
                 <div
                   key={band}
-                  className={`rounded-lg border bg-surface p-4 ${BAND_BORDER_CLASS[band]}`}
+                  className={`rounded-[12px] border bg-surface px-5 py-4 ${BAND_BORDER_CLASS[band]}`}
                 >
                   <div className="flex items-baseline justify-between">
                     <span className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
@@ -148,7 +148,7 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
           </div>
 
           {view.topHighRisk.length > 0 ? (
-            <section className="overflow-hidden rounded-lg border border-border bg-surface">
+            <section className="overflow-hidden rounded-[12px] border border-border bg-surface">
               <div className="border-b border-border px-4 py-3">
                 <h2 className="m-0 text-label font-semibold text-text">High-risk customers by MRR</h2>
                 <p className="m-0 mt-1 text-micro text-text-tertiary">
