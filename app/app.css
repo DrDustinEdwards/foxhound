@@ -260,7 +260,14 @@
 
   /* Elevation stack. */
   --bg: #111210;
-  --surface: #1a1c18;
+  /* --surface is legacy's #181917 (394 C1). It had drifted to #1a1c18, which
+     is --chrome's value one line down and legacy's value for THAT token, so
+     the card surface and the nav/footer surface had collapsed onto one colour.
+     verification-gotchas names this exact pair as unfalsifiable by a dark-mode
+     eye check, since both read identically until light mode splits them. It
+     was caught by reading the token, not the render. --chrome below is
+     UNCHANGED and correct: legacy's --chrome is #1a1c18 too. */
+  --surface: #181917;
   --surface2: #222420;
   --sunken: #0d0e0c;
   --hover: #252720;
@@ -269,7 +276,11 @@
 
   /* Text scale (4 levels + disabled), audited contrast ratios per
      Appendix A: tertiary 5.7:1, subtle 5.0:1. */
-  --text: #f0ede8;
+  /* Legacy's #e5e8e2 (394 C1), its own comment rating it 15.2:1 AAA on --bg.
+     Foxhound carried #f0ede8, which is --chrome-text's value: the same
+     collapse as --surface above, one token family over. --chrome-text keeps
+     #f0ede8 and is correct, because that is legacy's value for it. */
+  --text: #e5e8e2;
   --text-secondary: #a8a49e;
   --text-tertiary: #928d87;
   --text-subtle: #8a837b;
@@ -352,7 +363,8 @@
   --violet-border: #45165a;
 
   /* Borders: subtle/default/strong/interactive/focus, distinct levels. */
-  --border: #2e3028;
+  /* Legacy's #2a2b28 (394 C1). Foxhound carried #2e3028. */
+  --border: #2a2b28;
   --border-sub: #222420;
   --border-strong: #4a4c44;
   --border-i: #65695d;
