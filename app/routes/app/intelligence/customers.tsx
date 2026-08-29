@@ -66,6 +66,9 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     result,
     tiers,
     filters: { search: search ?? "", tier: tier ?? "", healthBand: healthBand ?? "", sort },
+    // Already resolved on every authenticated request, so the H1 costs no
+    // extra query (app/lib/auth/account.ts Membership).
+    accountName: auth.membership.accountName,
     nowMs: Date.now(),
   };
 }
@@ -93,13 +96,32 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
     );
   }
 
-  const { result, tiers, filters, nowMs } = loaderData;
+  const { result, tiers, filters, accountName, nowMs } = loaderData;
   const now = new Date(nowMs);
+
+  // Legacy's H1 is `{accountName} customers`
+  // (app/(app)/intelligence/customers/page.tsx:74), which reads as the account's
+  // own book of customers rather than a generic page label. It matters more here
+  // than it did in legacy: multi-account shipped (core.md phases (a) to (e)), so
+  // a merchant holding several accounts can now be looking at any of them, and
+  // the H1 is what says which.
+  //
+  // THE NULL BRANCH IS NOT LEGACY'S AND IS FLAGGED. Legacy computes
+  // `membership.account.name ?? 'Customers'` and then renders "{that} customers",
+  // so an account with no name gets the H1 "Customers customers". That is a
+  // legacy defect in ruling 39's class rather than a treatment to port, and
+  // fix direction is a ruling, so it is raised rather than reproduced: with no
+  // name the heading is just "Customers", which is what the page said before
+  // this change.
+  const heading = accountName ? `${accountName} customers` : "Customers";
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h1 className="text-title font-medium text-text">Customers</h1>
+        {/* Type stays Foxhound's: 179/187 freeze the type scale in BOTH
+            directions, and the 394 walk already recorded legacy's 24px/600
+            against this 20px/500 as FROZEN. Only the words change. */}
+        <h1 className="text-title font-medium text-text">{heading}</h1>
         <p className="font-mono text-label text-text-tertiary">
           {result.totalCount} {result.totalCount === 1 ? "customer" : "customers"} ·{" "}
           {formatMoney(result.totalMrrCents, "usd")}/mo
