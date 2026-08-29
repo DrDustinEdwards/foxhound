@@ -25,6 +25,27 @@ export function formatDateShort(date: Date | null): string {
   });
 }
 
+/** "3d ago" / "5h ago" / "20m ago" / "Just now", and "never" for null.
+ *
+ *  Ported from legacy lib/format.ts timeAgo, which /help's platform-status
+ *  panel renders beside each cron. Legacy reads Date.now() inside the helper;
+ *  this takes nowMs so the server and client renders agree, the same reason
+ *  every formatter in this module pins its timezone. Distinct from
+ *  formatRelativeTime in app/lib/dashboard/recovery-window.ts, which is
+ *  day-granularity ("Today" / "Yesterday" / "Nd ago") and would report a cron
+ *  that ran twenty minutes ago as "Today". */
+export function formatTimeAgo(date: Date | null, nowMs: number): string {
+  if (!date) return "never";
+  const diff = nowMs - date.getTime();
+  const days = Math.floor(diff / 86_400_000);
+  const hours = Math.floor(diff / 3_600_000);
+  const mins = Math.floor(diff / 60_000);
+  if (days > 0) return `${days}d ago`;
+  if (hours > 0) return `${hours}h ago`;
+  if (mins > 0) return `${mins}m ago`;
+  return "Just now";
+}
+
 /** "Jan 5", no year. Empty string for null. For chart axes inside a window
  *  short enough that the year is noise, which is what legacy's Intelligence
  *  charts render (`{ month: "short", day: "numeric", timeZone: "UTC" }`). */
