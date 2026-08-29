@@ -1,13 +1,18 @@
 import { Link } from "react-router";
 
-import { BarChart, Meter } from "~/components/charts";
+import { Meter, StackedBars } from "~/components/charts";
 import { IntelligenceUpsell } from "~/components/intelligence-upsell";
 import { StatCard } from "~/components/stat-card";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
+import { formatDateMonthDay } from "~/lib/date-format";
 import { healthScoreMeterTone } from "~/lib/intelligence/health-band";
-import { getIntelligenceOverview, isIntelligenceEntitled } from "~/lib/intelligence/views.server";
+import {
+  getHealthDistribution,
+  getIntelligenceOverview,
+  isIntelligenceEntitled,
+} from "~/lib/intelligence/views.server";
 import { formatMoney } from "~/lib/money-format";
 
 import type { Route } from "./+types/index";
@@ -25,8 +30,11 @@ export async function loader({ context }: Route.LoaderArgs) {
   const entitled = await isIntelligenceEntitled(db, accountId);
   if (!entitled) return { entitled: false as const };
 
-  const overview = await getIntelligenceOverview(db, accountId);
-  return { entitled: true as const, overview };
+  const [overview, healthDistribution] = await Promise.all([
+    getIntelligenceOverview(db, accountId),
+    getHealthDistribution(db, accountId, Date.now()),
+  ]);
+  return { entitled: true as const, overview, healthDistribution };
 }
 
 export default function IntelligenceOverviewPage({ loaderData }: Route.ComponentProps) {
@@ -39,7 +47,7 @@ export default function IntelligenceOverviewPage({ loaderData }: Route.Component
     );
   }
 
-  const { overview } = loaderData;
+  const { overview, healthDistribution } = loaderData;
   const { scoreDistribution } = overview;
 
   return (
@@ -67,20 +75,58 @@ export default function IntelligenceOverviewPage({ loaderData }: Route.Component
             />
           </section>
 
-          <section className="mt-8">
-            <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
-              Score distribution
-            </p>
-            <div className="mt-3 rounded-lg border border-border bg-surface p-4">
-              <BarChart
-                data={[
-                  { label: "Healthy", value: scoreDistribution.healthy, tone: "positive" },
-                  { label: "Watch", value: scoreDistribution.watch, tone: "neutral" },
-                  { label: "At risk", value: scoreDistribution.atRisk, tone: "negative" },
-                ]}
-              />
-            </div>
-          </section>
+          {/* Legacy's HealthDistributionChart, ported (ruling 399: the 394 walk
+              called this an addition against the demo twin, and legacy's REAL
+              dashboard renders it, so the owed work is ALIGNMENT toward
+              app/(app)/intelligence/dashboard/components/HealthDistributionChart.tsx).
+
+              What changed: the card used to plot a single snapshot of today's
+              three band counts as three bars. Legacy plots the counts as a
+              STACKED TIME SERIES, one stack per sampled day across the window,
+              which is a different chart answering a different question (how the
+              book of customers is moving, not where it stands tonight).
+
+              Shell, eyebrow and sub are legacy's, with its raw type values
+              mapped onto Foxhound's tokens rather than ported literally,
+              because 179/187 freeze the type scale in BOTH directions. Same
+              treatment the churn chart shipped with at 384c0db.
+
+              Bands are Foxhound's (78/79), see getHealthDistribution. */}
+          {healthDistribution.length > 0 ? (
+            <section className="mt-8 rounded-[12px] border border-border bg-surface px-6 py-5">
+              <h2 className="m-0 font-mono text-micro uppercase tracking-wide text-text-tertiary">
+                Customer health distribution
+              </h2>
+              <p className="m-0 mt-1 text-label text-text-tertiary">
+                Customer count per health band over 90 days
+              </p>
+              <div className="mt-4">
+                <StackedBars
+                  height={200}
+                  labels={healthDistribution.map((d) =>
+                    formatDateMonthDay(new Date(`${d.date}T00:00:00Z`)),
+                  )}
+                  series={[
+                    {
+                      name: "High risk",
+                      colorClassName: "text-red",
+                      values: healthDistribution.map((d) => d.atRisk),
+                    },
+                    {
+                      name: "Medium risk",
+                      colorClassName: "text-amber",
+                      values: healthDistribution.map((d) => d.watch),
+                    },
+                    {
+                      name: "Healthy",
+                      colorClassName: "text-green",
+                      values: healthDistribution.map((d) => d.healthy),
+                    },
+                  ]}
+                />
+              </div>
+            </section>
+          ) : null}
 
           <section className="mt-8">
             <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">

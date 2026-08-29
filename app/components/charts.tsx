@@ -311,6 +311,178 @@ export function MultiLine({
   );
 }
 
+export interface StackedBarSeries {
+  name: string;
+  /** Tailwind text-color utility controlling this series' fill via currentColor. */
+  colorClassName: string;
+  /** One entry per label. Counts, so never null: a band with nobody in it is a
+   *  real zero, unlike MultiLine's null-is-a-gap rate series. */
+  values: number[];
+}
+
+/**
+ * Bars stacked per x position, with a y axis, x labels and a legend.
+ *
+ * Ported toward legacy's HealthDistributionChart and MRRMovementChart
+ * (recova app/(app)/intelligence/dashboard/components/), both of which are
+ * recharts `<BarChart>` with `<Bar stackId>` inside a ResponsiveContainer.
+ *
+ * IT DOES NOT USE THE `BarChart` PRIMITIVE ABOVE, and that is the point rather
+ * than duplication. BarChart carries exactly the defect ruling 399 measured and
+ * repaired in MultiLine: a fixed pixel viewBox at `width="100%"` with its
+ * `<text>` INSIDE the box. Its `preserveAspectRatio="none"` then stretches the
+ * label glyphs horizontally with the plot, which is the S9 step-performance
+ * chart's colliding-label defect. So the geometry here follows MultiLine's
+ * repaired shape: only the plot is stretched, in a unitless 0-100 box, and the
+ * y ticks, x labels and legend are real HTML around it at their own size.
+ *
+ * ONE DELIBERATE DIVERGENCE FROM LEGACY, flagged rather than slipped in: legacy
+ * rounds the top bar's outer corners (`radius={[2, 2, 0, 0]}`). A 2px rx inside
+ * a non-uniformly stretched box is scaled with the box and smears into an
+ * ellipse whose width tracks the card, so it is omitted rather than rendered
+ * wrong. Same reasoning as 399's non-scaling strokes, applied to a corner.
+ */
+export function StackedBars({
+  labels,
+  series,
+  yTickFormat = (v) => String(v),
+  yTickCount = 4,
+  maxXLabels = 8,
+  height = 200,
+  className,
+}: {
+  labels: string[];
+  series: StackedBarSeries[];
+  yTickFormat?: (value: number) => string;
+  yTickCount?: number;
+  /** Ceiling on x labels drawn, including the first and the last. */
+  maxXLabels?: number;
+  height?: number;
+  className?: string;
+}) {
+  if (labels.length === 0 || series.length === 0) return null;
+
+  // Stacks run both ways: a movement chart puts churn and contraction below the
+  // baseline. Positives and negatives accumulate separately from zero, which is
+  // recharts' behaviour for two stackIds sharing an axis.
+  const positiveTotals = labels.map((_, i) =>
+    series.reduce((sum, s) => sum + Math.max(s.values[i] ?? 0, 0), 0),
+  );
+  const negativeTotals = labels.map((_, i) =>
+    series.reduce((sum, s) => sum + Math.min(s.values[i] ?? 0, 0), 0),
+  );
+  const max = Math.max(...positiveTotals, 0);
+  const min = Math.min(...negativeTotals, 0);
+  const range = max - min || 1;
+
+  const labelSpace = 20;
+  const legendSpace = 20;
+  const axisWidth = 40;
+  const plotHeight = height - labelSpace - legendSpace;
+
+  const y = (v: number) => 100 - ((v - min) / range) * 100;
+  const slot = 100 / labels.length;
+  const barWidth = slot * 0.6;
+
+  const ticks = Array.from({ length: yTickCount + 1 }, (_, i) => min + (range * i) / yTickCount);
+  const shownXLabels = xLabelIndexes(labels.length, maxXLabels);
+  const zeroY = y(0);
+
+  return (
+    <div className={className}>
+      <div className="flex" style={{ height: plotHeight }}>
+        <div className="relative shrink-0" style={{ width: axisWidth }}>
+          {ticks.map((t, i) => (
+            <span
+              key={`tick-${i}`}
+              className="absolute right-1.5 -translate-y-1/2 font-mono text-micro text-text-subtle"
+              style={{ top: `${y(t)}%` }}
+            >
+              {yTickFormat(t)}
+            </span>
+          ))}
+        </div>
+        <svg
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          className="h-full w-full"
+          role="img"
+          aria-hidden="true"
+        >
+          {/* The baseline, drawn only when the data actually crosses it. */}
+          {min < 0 ? (
+            <line
+              x1={0}
+              y1={zeroY}
+              x2={100}
+              y2={zeroY}
+              className="stroke-border"
+              strokeWidth={1}
+              vectorEffect="non-scaling-stroke"
+            />
+          ) : null}
+          {labels.map((label, i) => {
+            const x = i * slot + (slot - barWidth) / 2;
+            let positiveBase = 0;
+            let negativeBase = 0;
+            return (
+              <g key={`${label}-${i}`}>
+                {series.map((s) => {
+                  const value = s.values[i] ?? 0;
+                  if (value === 0) return null;
+                  const base = value > 0 ? positiveBase : negativeBase;
+                  const top = y(base + value);
+                  const bottom = y(base);
+                  if (value > 0) positiveBase += value;
+                  else negativeBase += value;
+                  return (
+                    <rect
+                      key={s.name}
+                      x={x}
+                      y={Math.min(top, bottom)}
+                      width={barWidth}
+                      height={Math.abs(bottom - top)}
+                      fill="currentColor"
+                      className={s.colorClassName}
+                    />
+                  );
+                })}
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+      <div className="relative" style={{ height: labelSpace, marginLeft: axisWidth }}>
+        {shownXLabels.map((i) => {
+          const isFirst = i === 0;
+          const isLast = i === labels.length - 1;
+          return (
+            <span
+              key={`x-${i}`}
+              className={`absolute top-1 font-mono text-micro text-text-subtle ${
+                isFirst || isLast ? "" : "-translate-x-1/2"
+              }`}
+              style={isLast ? { right: 0 } : { left: `${i * slot + slot / 2}%` }}
+            >
+              {labels[i]}
+            </span>
+          );
+        })}
+      </div>
+      <div className="flex flex-wrap items-center justify-center gap-4" style={{ height: legendSpace }}>
+        {series.map((s) => (
+          <span key={`legend-${s.name}`} className="flex items-center gap-1.5">
+            <svg width={8} height={8} viewBox="0 0 8 8" aria-hidden="true" className={s.colorClassName}>
+              <rect width={8} height={8} rx={2} fill="currentColor" />
+            </svg>
+            <span className="font-mono text-micro text-text-subtle">{s.name}</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export interface BarDatum {
   label: string;
   value: number;
