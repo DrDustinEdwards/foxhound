@@ -79,16 +79,22 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
       {/* Rendered whenever it has data, independently of whether any customer is
           scored yet: the rate series comes from mrr_snapshots, a different table,
           so gating it on the scored-customer count would withhold real history
-          for an unrelated reason. */}
+          for an unrelated reason.
+
+          Shell, copy and chart are legacy's ChurnRateChart.tsx read whole
+          (rounded-[12px] px-6 py-5 mb-6, eyebrow then sub then chart, ruling
+          398), with legacy's own "vs" sentence carrying Foxhound's real window:
+          the snapshot cron is monthly here, so the series is twelve months and
+          saying "last 90 days" would be a false claim about our own data. */}
       {hasRateData ? (
-        <section className="mb-6 rounded-lg border border-border bg-surface p-4">
+        <section className="mb-6 rounded-[12px] border border-border bg-surface px-6 py-5">
           <h2 className="m-0 font-mono text-micro uppercase tracking-wide text-text-tertiary">
             Churn rate over time
           </h2>
           <p className="m-0 mt-1 text-label text-text-tertiary">
-            Involuntary churn (payment failures) against voluntary churn (cancellations).
+            Involuntary churn (payment failures) vs voluntary churn (cancellations), last 12 months
           </p>
-          <div className="mt-3">
+          <div className="mt-4">
             <MultiLine
               labels={view.ratePoints.map((p) => formatDateShort(p.at))}
               yTickFormat={(v) => `${Math.round(v * 10) / 10}%`}

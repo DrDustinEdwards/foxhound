@@ -112,6 +112,26 @@ export interface MultiLineSeries {
 }
 
 /**
+ * Which x positions carry a label. Always the first and the last, then as many
+ * evenly spaced interior ones as `maxLabels` allows, which is legacy recharts'
+ * `interval="preserveStartEnd"` behaviour expressed without a measurement pass.
+ * An interior label landing within half a stride of the end is dropped, because
+ * that is the pair that would collide.
+ */
+export function xLabelIndexes(count: number, maxLabels: number): number[] {
+  const last = count - 1;
+  if (last <= 0) return [0];
+  const room = Math.max(2, Math.min(maxLabels, count));
+  const stride = Math.max(1, Math.ceil(last / (room - 1)));
+  const indexes: number[] = [];
+  for (let i = 0; i < last; i += stride) indexes.push(i);
+  const lastShown = indexes[indexes.length - 1] ?? 0;
+  if (indexes.length > 1 && last - lastShown <= stride / 2) indexes.pop();
+  indexes.push(last);
+  return indexes;
+}
+
+/**
  * Two or more labeled lines on a shared scale, with a legend and a y axis.
  *
  * Distinct from LineArea, which is one series with no axis: this exists for
@@ -123,13 +143,40 @@ export interface MultiLineSeries {
  * The y axis carries ticks here, unlike the other primitives, because there is
  * no single headline number a caller could print beside a two-series comparison
  * to substitute for the scale.
+ *
+ * REPAIRED under ruling 398 toward legacy's real ChurnRateChart
+ * (recova app/(app)/intelligence/churn/components/ChurnRateChart.tsx), which is
+ * recharts inside a ResponsiveContainer. Three measured breakages and the one
+ * structural cause behind all three:
+ *
+ *   The whole chart used to be a single SVG with a fixed 480x180 viewBox,
+ *   `width="100%"`, a pixel `height`, and no preserveAspectRatio. Uniform
+ *   scaling is then capped by the height, so the drawing stayed 480px wide and
+ *   sat in the middle of a 1168px card with the rest empty (breakage 1); the
+ *   legend was drawn INSIDE that box at y=10 against a top gridline at y=20
+ *   (breakage 2); and only the first and last x labels were emitted, because
+ *   any interior label would have overprinted at 480px (breakage 3).
+ *
+ *   Adding `preserveAspectRatio="none"` is NOT the fix: that is what the other
+ *   primitives here do, and it is why the S9 step-performance chart's labels
+ *   render as one run of colliding stretched text. A fluid width at a fixed
+ *   height cannot scale text uniformly, so the text leaves the SVG. Only the
+ *   plot geometry is stretched, in a unitless 0-100 box with non-scaling
+ *   strokes; the y ticks, x labels and legend are real HTML around it, at their
+ *   own size. That is legacy's rendered result without legacy's client-side
+ *   measurement pass, which DESIGN.md's Charts section rules out.
+ *
+ *   Legend position follows legacy's `<Legend />` default (verticalAlign
+ *   "bottom", centered), so it is below the plot rather than over it. Gridlines
+ *   go with it: legacy renders no CartesianGrid, no axis line and no tick line
+ *   on this chart, only the tick labels.
  */
 export function MultiLine({
   labels,
   series,
   yTickFormat = (v) => String(v),
   yTickCount = 4,
-  width = 480,
+  maxXLabels = 8,
   height = 180,
   className,
 }: {
@@ -137,7 +184,8 @@ export function MultiLine({
   series: MultiLineSeries[];
   yTickFormat?: (value: number) => string;
   yTickCount?: number;
-  width?: number;
+  /** Ceiling on x labels drawn, including the first and the last. */
+  maxXLabels?: number;
   height?: number;
   className?: string;
 }) {
@@ -148,102 +196,118 @@ export function MultiLine({
   const labelSpace = 20;
   const legendSpace = 20;
   const axisWidth = 40;
-  const chartHeight = height - labelSpace - legendSpace;
-  const chartWidth = width - axisWidth;
+  const plotHeight = height - labelSpace - legendSpace;
 
   // Always include zero: a churn-rate chart whose axis starts at 2% makes a
   // flat line look like a cliff.
   const max = Math.max(...present, 0);
   const min = Math.min(...present, 0);
   const range = max - min || 1;
-  const step = chartWidth / (labels.length - 1);
-  const x = (i: number) => axisWidth + i * step;
-  const y = (v: number) => legendSpace + chartHeight - ((v - min) / range) * chartHeight;
+  // Percentages of the plot box, so the browser does the width arithmetic the
+  // server cannot.
+  const x = (i: number) => (i / (labels.length - 1)) * 100;
+  const y = (v: number) => 100 - ((v - min) / range) * 100;
 
   const ticks = Array.from({ length: yTickCount + 1 }, (_, i) => min + (range * i) / yTickCount);
+  const shownXLabels = xLabelIndexes(labels.length, maxXLabels);
 
   return (
-    <svg
-      viewBox={`0 0 ${width} ${height}`}
-      width="100%"
-      height={height}
-      className={className}
-      role="img"
-      aria-hidden="true"
-    >
-      {ticks.map((t, i) => (
-        <g key={`tick-${i}`}>
-          <line x1={axisWidth} y1={y(t)} x2={width} y2={y(t)} className="stroke-border" strokeWidth={1} opacity={i === 0 ? 1 : 0.4} />
-          <text
-            x={axisWidth - 6}
-            y={y(t) + 3}
-            textAnchor="end"
-            className="fill-current text-text-subtle font-mono text-micro"
-          >
-            {yTickFormat(t)}
-          </text>
-        </g>
-      ))}
-      {series.map((s) => {
-        // Split into runs of consecutive non-null points so a gap breaks the
-        // line instead of drawing a straight segment across missing data.
-        const runs: string[] = [];
-        let current: string[] = [];
-        s.values.forEach((v, i) => {
-          if (v === null) {
+    <div className={className}>
+      <div className="flex" style={{ height: plotHeight }}>
+        <div className="relative shrink-0" style={{ width: axisWidth }}>
+          {ticks.map((t, i) => (
+            <span
+              key={`tick-${i}`}
+              className="absolute right-1.5 -translate-y-1/2 font-mono text-micro text-text-subtle"
+              style={{ top: `${y(t)}%` }}
+            >
+              {yTickFormat(t)}
+            </span>
+          ))}
+        </div>
+        <svg
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          className="h-full w-full"
+          role="img"
+          aria-hidden="true"
+        >
+          {series.map((s) => {
+            // Split into runs of consecutive non-null points so a gap breaks the
+            // line instead of drawing a straight segment across missing data.
+            const runs: string[] = [];
+            let current: string[] = [];
+            s.values.forEach((v, i) => {
+              if (v === null) {
+                if (current.length > 1) runs.push(current.join(" "));
+                current = [];
+                return;
+              }
+              current.push(`${x(i)},${y(v)}`);
+            });
             if (current.length > 1) runs.push(current.join(" "));
-            current = [];
-            return;
-          }
-          current.push(`${x(i)},${y(v)}`);
-        });
-        if (current.length > 1) runs.push(current.join(" "));
-        return (
-          <g key={s.name} className={s.colorClassName}>
-            {runs.map((points, ri) => (
-              <polyline
-                key={ri}
-                points={points}
-                fill="none"
+            return (
+              <g key={s.name} className={s.colorClassName}>
+                {runs.map((points, ri) => (
+                  <polyline
+                    key={ri}
+                    points={points}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    strokeDasharray={s.dashed ? "4 2" : undefined}
+                    // Without this the non-uniform stretch thickens the stroke
+                    // horizontally and smears the dash pattern with it.
+                    vectorEffect="non-scaling-stroke"
+                  />
+                ))}
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+      <div className="relative" style={{ height: labelSpace, marginLeft: axisWidth }}>
+        {shownXLabels.map((i) => {
+          const isFirst = i === 0;
+          const isLast = i === labels.length - 1;
+          return (
+            <span
+              key={`x-${i}`}
+              className={`absolute top-1 font-mono text-micro text-text-subtle ${
+                isFirst || isLast ? "" : "-translate-x-1/2"
+              }`}
+              style={isLast ? { right: 0 } : { left: `${x(i)}%` }}
+            >
+              {labels[i]}
+            </span>
+          );
+        })}
+      </div>
+      <div className="flex items-center justify-center gap-4" style={{ height: legendSpace }}>
+        {series.map((s) => (
+          <span key={`legend-${s.name}`} className="flex items-center gap-1.5">
+            <svg
+              width={14}
+              height={4}
+              viewBox="0 0 14 4"
+              aria-hidden="true"
+              className={s.colorClassName}
+            >
+              <line
+                x1={0}
+                y1={2}
+                x2={14}
+                y2={2}
                 stroke="currentColor"
                 strokeWidth={2}
                 strokeDasharray={s.dashed ? "4 2" : undefined}
               />
-            ))}
-          </g>
-        );
-      })}
-      {labels.map((label, i) =>
-        i === 0 || i === labels.length - 1 ? (
-          <text
-            key={`${label}-${i}`}
-            x={x(i)}
-            y={height - 4}
-            textAnchor={i === 0 ? "start" : "end"}
-            className="fill-current text-text-subtle font-mono text-micro"
-          >
-            {label}
-          </text>
-        ) : null,
-      )}
-      {series.map((s, si) => (
-        <g key={`legend-${s.name}`} transform={`translate(${axisWidth + si * 110}, 10)`}>
-          <line
-            x1={0}
-            y1={4}
-            x2={10}
-            y2={4}
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeDasharray={s.dashed ? "3 2" : undefined}
-            className={s.colorClassName}
-          />
-          <text x={14} y={8} className="fill-current text-text-subtle font-mono text-micro">
-            {s.name}
-          </text>
-        </g>
-      ))}
-    </svg>
+            </svg>
+            <span className="font-mono text-micro text-text-subtle">{s.name}</span>
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
 
