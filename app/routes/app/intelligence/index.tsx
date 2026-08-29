@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 
-import { Meter, StackedBars } from "~/components/charts";
+import { Meter, MultiLine, StackedBars } from "~/components/charts";
 import { IntelligenceUpsell } from "~/components/intelligence-upsell";
 import { StatCard } from "~/components/stat-card";
 import { getDb } from "~/db";
@@ -11,6 +11,7 @@ import { healthScoreMeterTone } from "~/lib/intelligence/health-band";
 import {
   getHealthDistribution,
   getIntelligenceOverview,
+  getMrrSnapshotSeries,
   isIntelligenceEntitled,
 } from "~/lib/intelligence/views.server";
 import { formatMoney } from "~/lib/money-format";
@@ -30,11 +31,13 @@ export async function loader({ context }: Route.LoaderArgs) {
   const entitled = await isIntelligenceEntitled(db, accountId);
   if (!entitled) return { entitled: false as const };
 
-  const [overview, healthDistribution] = await Promise.all([
+  const nowMs = Date.now();
+  const [overview, healthDistribution, mrrSeries] = await Promise.all([
     getIntelligenceOverview(db, accountId),
-    getHealthDistribution(db, accountId, Date.now()),
+    getHealthDistribution(db, accountId, nowMs),
+    getMrrSnapshotSeries(db, accountId, nowMs),
   ]);
-  return { entitled: true as const, overview, healthDistribution };
+  return { entitled: true as const, overview, healthDistribution, mrrSeries };
 }
 
 export default function IntelligenceOverviewPage({ loaderData }: Route.ComponentProps) {
@@ -47,8 +50,14 @@ export default function IntelligenceOverviewPage({ loaderData }: Route.Component
     );
   }
 
-  const { overview, healthDistribution } = loaderData;
+  const { overview, healthDistribution, mrrSeries } = loaderData;
   const { scoreDistribution } = overview;
+
+  // Legacy gates the NRR card on any snapshot carrying a positive retention
+  // figure, so an account that has never had a prior period to retain against
+  // gets no empty frame (NRRChart.tsx:15).
+  const hasNrr = mrrSeries.some((p) => (p.nrrPct ?? 0) > 0);
+  const mrrLabels = mrrSeries.map((p) => formatDateMonthDay(p.at));
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
@@ -74,6 +83,47 @@ export default function IntelligenceOverviewPage({ loaderData }: Route.Component
               subtext="Healthy / Watch / At risk"
             />
           </section>
+
+          {/* Legacy's NRRChart, built (ruling 399: an element the 394 walk never
+              saw, because legacy's demo twin does not render it; the real page
+              mounts it at app/(app)/intelligence/dashboard/page.tsx:11, between
+              the MRR trend and the MRR movement charts). Source read whole at
+              app/(app)/intelligence/dashboard/components/NRRChart.tsx.
+
+              Legacy's own copy, with its window replaced by Foxhound's real one
+              under 78/79: legacy says "(90 days)" against a daily snapshot job,
+              and intelligence-sync is monthly here, so ninety days would be
+              three points and the sentence would misdescribe our own data. Same
+              correction the churn chart shipped at 384c0db.
+
+              Single series, so no legend: legacy renders no Legend on this
+              chart. The dashed rule at 100 is legacy's ReferenceLine. */}
+          {hasNrr && mrrLabels.length > 1 ? (
+            <section className="mt-8 rounded-[12px] border border-border bg-surface px-6 py-5">
+              <h2 className="m-0 font-mono text-micro uppercase tracking-wide text-text-tertiary">
+                Net Revenue Retention
+              </h2>
+              <p className="m-0 mt-1 text-label text-text-tertiary">
+                Above 100% means expansion exceeds churn, last 12 months
+              </p>
+              <div className="mt-4">
+                <MultiLine
+                  height={140}
+                  showLegend={false}
+                  referenceValue={100}
+                  labels={mrrLabels}
+                  yTickFormat={(v) => `${Math.round(v * 10) / 10}%`}
+                  series={[
+                    {
+                      name: "NRR",
+                      colorClassName: "text-blue",
+                      values: mrrSeries.map((p) => p.nrrPct),
+                    },
+                  ]}
+                />
+              </div>
+            </section>
+          ) : null}
 
           {/* Legacy's HealthDistributionChart, ported (ruling 399: the 394 walk
               called this an addition against the demo twin, and legacy's REAL
