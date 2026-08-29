@@ -6,11 +6,19 @@ export function meta() {
 // DESIGN.md's single-account RULE, which ruling 53 revoked, as a permanent
 // product property, so the copy was reworded to describe behaviour at HEAD.
 //
-// THE LAST CLAUSE OF THAT NOTE IS NOW FALSE and is corrected rather than left:
-// it read "does not promise the multi-account build that has not shipped", and
-// the multi-account build HAS shipped (rulings 324 to 329, phases (a) to (e)).
-// The copy below is not re-promised on that basis; whether Help should now
-// describe switching accounts is a copy decision this comment does not make.
+// THAT REWORDING HAS NOW BEEN OVERTAKEN TWICE OVER, and 394 halt 3 is the
+// correction. It described one-account-at-a-time as current behaviour, which
+// migration 0018 ended: `account_members_one_active_per_user_uq` is dropped and
+// `account_members_user_account_active_uq` keys on (user, account), so a login
+// holds many. It also told merchants the app has no account switcher while the
+// switcher renders in both header clusters, and the platform guide describes
+// using it. That is 20b's class read backwards: not a promise ahead of the
+// product, but a denial behind it, and the more damaging of the two, because a
+// merchant who believes it will not look for a control that is on their screen.
+//
+// The copy below states what ships and nothing further. The open question this
+// comment does NOT decide is how much of the account model Help should carry;
+// that is S23's row, whose other divergences fix with the row.
 export const SECTIONS = [
   {
     title: "Recovery",
@@ -26,7 +34,7 @@ export const SECTIONS = [
   },
   {
     title: "Team",
-    body: "Invite teammates from Settings > Team. An invited teammate joins the account you already own. Each person belongs to one account at a time today, so the app has no account switcher.",
+    body: "Invite teammates from Settings > Team. An invited teammate joins the account that invited them. One Foxhound login can hold several accounts, each with its own Stripe connection and settings, and the account switcher in the header moves between them.",
   },
   {
     title: "Brand voice",
