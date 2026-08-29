@@ -98,7 +98,7 @@ export default function Disputes({ loaderData }: Route.ComponentProps) {
             />
           </div>
 
-          <div className="mt-6 overflow-x-auto rounded-lg border border-border">
+          <div className="mt-6 overflow-x-auto rounded-[12px] border border-border bg-surface">
             <table className="w-full text-left text-label">
               <thead>
                 <tr className="border-b border-border text-micro uppercase tracking-wide text-text-tertiary">

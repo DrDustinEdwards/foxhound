@@ -185,7 +185,7 @@ export default function DisputeDetail({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
-      <div className="rounded-lg border border-border bg-surface p-4">
+      <div className="rounded-[12px] border border-border bg-surface px-5 py-4">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-title font-medium text-text">
@@ -214,7 +214,7 @@ export default function DisputeDetail({ loaderData }: Route.ComponentProps) {
         </div>
       </div>
 
-      <section className="mt-6 rounded-lg border border-border bg-surface p-4">
+      <section className="mt-6 rounded-[12px] border border-border bg-surface px-5 py-4">
         <h2 className="m-0 font-mono text-micro uppercase tracking-wide text-text-tertiary">Timeline</h2>
         <ol className="m-0 mt-3 list-none space-y-2 p-0">
           {timeline.map((item, i) => (
@@ -234,7 +234,7 @@ export default function DisputeDetail({ loaderData }: Route.ComponentProps) {
         </p>
       ) : null}
 
-      <div className="mt-6 rounded-lg border border-border bg-surface p-4">
+      <div className="mt-6 rounded-[12px] border border-border bg-surface px-5 py-4">
         <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Evidence draft</p>
         {evidence.length === 0 ? (
           <p className="mt-2 text-label text-text-tertiary">No evidence recorded yet.</p>
@@ -272,7 +272,7 @@ export default function DisputeDetail({ loaderData }: Route.ComponentProps) {
       </div>
 
       {editable ? (
-        <div className="mt-6 rounded-lg border border-border bg-surface p-4">
+        <div className="mt-6 rounded-[12px] border border-border bg-surface px-5 py-4">
           <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
             Approve and submit
           </p>
@@ -294,7 +294,7 @@ export default function DisputeDetail({ loaderData }: Route.ComponentProps) {
           </DemoGuardedForm>
         </div>
       ) : (
-        <div className="mt-6 rounded-lg border border-border bg-surface p-4">
+        <div className="mt-6 rounded-[12px] border border-border bg-surface px-5 py-4">
           <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Approval</p>
           {approval ? (
             <p className="mt-2 text-label text-text-tertiary">
