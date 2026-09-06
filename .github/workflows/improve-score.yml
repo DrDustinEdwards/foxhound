@@ -64,10 +64,13 @@ jobs:
         continue-on-error: true
         run: npm run typecheck
 
+      # vitest's JSON reporter writes a jest-shaped summary file; counts come from
+      # it, never from parsing the terminal summary, whose "Tests N passed" line is
+      # wrapped in ANSI colour codes that broke the old regex.
       - name: Test
         id: test
         continue-on-error: true
-        run: npm test 2>&1 | tee test-output.txt
+        run: npm test -- --reporter=json --outputFile=test-report.json
 
       - name: Measure
         id: measure
@@ -75,13 +78,13 @@ jobs:
         run: |
           set -uo pipefail
           BUILD_PASSES=0; [ "${{ steps.build.outcome }}" = "success" ] && BUILD_PASSES=1
-          # vitest prints "Tests  N passed | M failed (T)".
+          # Read the JSON report; "" (-> null) when it was never written.
           RATE=$(node -e '
             const fs=require("fs");
             try {
-              const line=/^\s*Tests\s+(.+)$/m.exec(fs.readFileSync("test-output.txt","utf8"));
-              if(!line){process.stdout.write("");}
-              else{const p=Number(/(\d+) passed/.exec(line[1])?.[1]??"0"),f=Number(/(\d+) failed/.exec(line[1])?.[1]??"0");process.stdout.write(p+f>0?String(p/(p+f)):"");}
+              const r=JSON.parse(fs.readFileSync("test-report.json","utf8"));
+              const p=r.numPassedTests||0,f=r.numFailedTests||0;
+              process.stdout.write(p+f>0?String(p/(p+f)):"");
             } catch { process.stdout.write(""); }
           ')
           if npm run lint > lint-output.txt 2>&1; then LINT_COUNT=0; else LINT_COUNT=$(grep -cE "^[[:space:]]+[0-9]+:[0-9]+" lint-output.txt || true); [ "${LINT_COUNT}" = "0" ] && LINT_COUNT=""; fi
@@ -170,13 +173,21 @@ jobs:
           fi
 
       # R2 holdout secrets are env ON THIS STEP ONLY; no attempt code runs here.
+      # The aws CLI reads only the AWS_* names, so the secrets are mapped onto
+      # them (R2_ACCESS_KEY_ID was invisible to it: every sync failed with
+      # "Unable to locate credentials" and the holdout scored 0). Checksums are
+      # when_required because R2 rejects the CRC headers newer aws CLIs send by
+      # default.
       - name: Pull the holdout suite
         id: holdout
         continue-on-error: true
         env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.IMPROVE_HOLDOUT_R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.IMPROVE_HOLDOUT_R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+          AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
           R2_ACCOUNT_ID: ${{ secrets.IMPROVE_HOLDOUT_R2_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ secrets.IMPROVE_HOLDOUT_R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.IMPROVE_HOLDOUT_R2_SECRET_ACCESS_KEY }}
           IMPROVE_NAMESPACE: ${{ vars.IMPROVE_NAMESPACE }}
         run: |
           set -euo pipefail
