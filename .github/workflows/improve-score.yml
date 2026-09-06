@@ -1,31 +1,17 @@
 name: improve-score
 
-# THE SCORER. foxhound copy. This namespace's PRIMARY repo; legacy recova and recova-mcp are hotfix-only and must not get this file.
+# THE SCORER, SPLIT INTO TWO JOBS (audit 2026-09-06, option a). foxhound copy.
+# This namespace's PRIMARY repo; legacy recova and recova-mcp must not get this file.
 #
-# COPIED FROM capsid-mcp/.github/workflows/improve-score.yml on 2026-09-05. Only the
-# Build, Test, Lint and Measure blocks differ, which are the blocks that file
-# documents as per-repo. If the dispatch contract, the signing or the holdout pull
-# needs changing, change it there and re-copy rather than editing one copy.
+#   build  (PER REPO, no secrets) runs this repo's own build/test/lint/measure and
+#          writes a normalized metrics.json plus the attempt source under code/.
+#   score  (BYTE-IDENTICAL across all five roster repos) overlays the source, pulls
+#          the holdout, counts passes from node --test's TAP reporter via
+#          scripts/improve-report.mjs (never an exit code), reads metrics.json,
+#          signs and posts.
 #
-# THE SCORER. The improve loop dispatches this; it does not run on push.
-#
-# WHY CI IS THE SCORER AT ALL. A Cloudflare Worker cannot run npm ci, a build, or a
-# test suite: there is no process to spawn. Anchor metrics computed in the Worker
-# would therefore be proxies wearing an anchor's name, and an anchor is the one
-# number in this system that must not be a proxy. So the real toolchain runs here,
-# in the repo being scored, and posts the result back.
-#
-# THIS FILE IS THE REFERENCE COPY. Every namespace on the improve roster needs one
-# (capsid, dustinedwards, foxhound, foxing, germomics). The steps that differ per repo
-# are the build, test and lint commands and the bundle-size measurement; everything
-# else is identical and should be copied verbatim.
-#
-# THE WORKFLOW IS ALWAYS RESOLVED ON THE DEFAULT BRANCH, never on the attempt
-# branch. src/github.ts dispatches with ref = default branch and passes the branch
-# to score as an INPUT, so an attempt cannot rewrite the thing that measures it.
-# The deterministic half of the reward-hacking monitor also refuses any diff
-# touching .github/, which is belt and braces: this is the mechanism, that is the
-# policy, and both are kept.
+# ONLY THE build JOB DIFFERS PER REPO. The score job and scripts/improve-report.mjs
+# are copied verbatim from capsid-mcp; edit them there and re-copy.
 
 on:
   workflow_dispatch:
@@ -44,23 +30,25 @@ permissions:
   contents: read
 
 jobs:
-  score:
-    name: score
+  build:
+    name: build (per-repo, no secrets)
     runs-on: ubuntu-latest
+    timeout-minutes: 25
+    outputs:
+      head_sha: ${{ steps.head.outputs.sha }}
     steps:
-      # CI MINUTES ARE MEASURED, not reported as zero. The arc asked for the column
-      # because the loop spends two budgets and only one of them was being
-      # recorded, and a column that always reads 0 is worse than no column.
-      - name: Stamp the start
-        id: started
-        run: echo "epoch=$(date -u +%s)" >> "$GITHUB_OUTPUT"
-
-      # Third party actions are pinned by COMMIT SHA, not by tag, for the reason
-      # ci.yml states at length: a tag is a moving pointer its owner can repoint,
-      # and this job holds credentials.
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           ref: ${{ inputs.branch }}
+          persist-credentials: false
+
+      - name: Capture the attempt head sha
+        id: head
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Stamp the start
+        id: started
+        run: echo "epoch=$(date -u +%s)" > started.txt
 
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
@@ -70,13 +58,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # EVERY MEASUREMENT STEP IS continue-on-error, AND ONLY THESE.
-      #
-      # This inverts ci.yml's rule, which says nothing should set it, and the
-      # inversion is the point: here a failing build IS the measurement. A build
-      # step that failed the job would mean a broken attempt reported nothing, and
-      # a report that never arrives is indistinguishable from a Worker that is down.
-      # It has to arrive saying build_passes = 0.
+      # ---- PER-REPO. foxhound: react-router, vitest, eslint. ----
       - name: Build
         id: build
         continue-on-error: true
@@ -87,32 +69,107 @@ jobs:
         continue-on-error: true
         run: npm test 2>&1 | tee test-output.txt
 
-      - name: Lint
-        id: lint
+      - name: Measure
+        id: measure
         continue-on-error: true
-        run: npm run lint
+        run: |
+          set -uo pipefail
+          BUILD_PASSES=0; [ "${{ steps.build.outcome }}" = "success" ] && BUILD_PASSES=1
+          # vitest prints "Tests  N passed | M failed (T)".
+          RATE=$(node -e '
+            const fs=require("fs");
+            try {
+              const line=/^\s*Tests\s+(.+)$/m.exec(fs.readFileSync("test-output.txt","utf8"));
+              if(!line){process.stdout.write("");}
+              else{const p=Number(/(\d+) passed/.exec(line[1])?.[1]??"0"),f=Number(/(\d+) failed/.exec(line[1])?.[1]??"0");process.stdout.write(p+f>0?String(p/(p+f)):"");}
+            } catch { process.stdout.write(""); }
+          ')
+          if npm run lint > lint-output.txt 2>&1; then LINT_COUNT=0; else LINT_COUNT=$(grep -cE "^[[:space:]]+[0-9]+:[0-9]+" lint-output.txt || true); [ "${LINT_COUNT}" = "0" ] && LINT_COUNT=""; fi
+          BUNDLE_BYTES=$(npm run build > /dev/null 2>&1 && du -sb build 2>/dev/null | cut -f1 || echo "")
+          BUILD_PASSES="${BUILD_PASSES}" RATE="${RATE}" LINT_COUNT="${LINT_COUNT}" BUNDLE_BYTES="${BUNDLE_BYTES}" node -e '
+            const n=(v)=>(v===undefined||v===""?null:Number(v));
+            process.stdout.write(JSON.stringify({
+              build_passes: Number(process.env.BUILD_PASSES||"0"),
+              test_pass_rate: n(process.env.RATE),
+              lint_count: n(process.env.LINT_COUNT),
+              bundle_size_bytes: n(process.env.BUNDLE_BYTES),
+            }));
+          ' > metrics.json
+          cat metrics.json
 
-      # THE HOLDOUT SET, pulled from R2 with a read-only token held as a repo secret.
-      #
-      # The token is never in the Worker's environment, so the attempt-generating
-      # path could not leak it even if it wanted to; the Worker reads only the
-      # manifest, to check a report has not shrunk the suite it claims to have
-      # passed. test/improve-holdout.test.ts asserts both halves.
-      #
-      # ONE SHARED TOKEN across all five repos, `capsid-holdout-read` (ruled
-      # 2026-09-05). It is NOT scoped per namespace, so the credential does not
-      # constrain which namespace's prefix this job could read. Two things do:
-      #
-      #   1. The manifest total. A mistyped IMPROVE_NAMESPACE pulls the wrong suite
-      #      and then fails closed at the Worker on the size mismatch, rather than
-      #      scoring against tests that were never this namespace's.
-      #   2. Step scoping, below. The R2 secrets are `env:` on THIS STEP ONLY, never
-      #      job-wide, and no attempt code runs here. Attempt code executing later
-      #      against the downloaded suite has no credential to reuse. Do not hoist
-      #      these three secrets to the job level; that is the whole protection.
-      #
-      # Accepted risk: if that one token leaks, all five suites are readable, where a
-      # prefix-scoped token would have exposed one.
+      # PER-REPO: the source tree(s) the holdout imports. foxhound: app, workers.
+      - name: Stage the scored source
+        run: |
+          set -euo pipefail
+          mkdir -p code
+          cp -r app code/
+          cp -r workers code/
+
+      - name: Upload the attempt artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: attempt
+          retention-days: 1
+          path: |
+            metrics.json
+            started.txt
+            code
+
+  # ============================================================================
+  # BYTE-IDENTICAL BELOW THIS LINE ACROSS ALL FIVE ROSTER REPOS. Do not edit one
+  # copy; edit capsid-mcp's and re-copy.
+  # ============================================================================
+  score:
+    name: score (holds secrets)
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version-file: .nvmrc
+          # Off because it would auto-run the package manager to locate a cache dir
+          # before corepack has provisioned pnpm for a pnpm-workspace repo.
+          package-manager-cache: false
+
+      # PACKAGE-MANAGER AGNOSTIC so this job stays byte-identical across an npm repo
+      # and a pnpm workspace: pnpm-lock.yaml picks pnpm (via corepack, honouring the
+      # repo's packageManager field), otherwise npm ci. No setup-node cache, because
+      # a cache key would have to name one manager.
+      - name: Install dependencies
+        run: |
+          set -euo pipefail
+          if [ -f pnpm-lock.yaml ]; then
+            corepack enable
+            pnpm install --frozen-lockfile
+          else
+            npm ci
+          fi
+
+      - name: Download the attempt artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: attempt
+          path: attempt
+
+      - name: Overlay the attempt source
+        run: |
+          set -euo pipefail
+          # Path-preserving: Job A stages each scored tree under code/ keeping its
+          # full path (e.g. code/src, code/packages/core), so copying code/. back to
+          # the repo root lands each tree where the holdout imports it, nested dirs
+          # included. Byte-identical across all five repos; only what Job A stages
+          # differs.
+          if [ -d attempt/code ]; then
+            cp -r attempt/code/. .
+          fi
+
+      # R2 holdout secrets are env ON THIS STEP ONLY; no attempt code runs here.
       - name: Pull the holdout suite
         id: holdout
         continue-on-error: true
@@ -124,173 +181,66 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p .improve-holdout
-          # aws-cli speaks the R2 S3 API. The prefix comes from the repo variable,
-          # NOT from the credential, which is shared across the five repos; the
-          # endpoint is account-specific.
           aws s3 sync \
             "s3://capsid-improve-holdout/improve/holdout/${IMPROVE_NAMESPACE}/" \
             .improve-holdout/ \
             --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
-          ls -la .improve-holdout/
 
+      # Count passes from the TAP reporter via the trusted script, never exit codes.
       - name: Run the holdout suite
         id: holdout_run
         continue-on-error: true
         run: |
           set -uo pipefail
-          # The manifest declares how many tests there are. The Worker refuses a
-          # report whose total disagrees with it, so this count is read from the
-          # manifest rather than from whatever happened to be downloaded.
-          TOTAL=$(node -e 'const m=require("./.improve-holdout/manifest.json");process.stdout.write(String(m.total))')
-          # PER-REPO, and load-bearing. A holdout case that imports this repo's source
-          # needs whatever loader the repo's own tests use, or it fails to LOAD and is
-          # counted as a failing case. capsid-mcp's src has extensionless internal
-          # imports, so bare `node --test` cannot resolve them; measured 2026-09-05.
-          # An unfixed loader means holdout_pass_rate 0 against an anchor of min 1.0,
-          # which reverts every attempt forever and reads as a broken loop rather than
-          # a misconfigured one. Conditional, so the same file works in a repo with no
-          # such hook.
+          TOTAL=$(node -e 'try{process.stdout.write(String(require("./.improve-holdout/manifest.json").total))}catch{process.stdout.write("")}')
           LOADER=""
           [ -f ./test/resolve-ts.mjs ] && LOADER="--import ./test/resolve-ts.mjs"
           PASSED=0
           for f in .improve-holdout/*.test.*; do
             [ -e "$f" ] || continue
+            REPORT=".improve-holdout/.report-$(node -e 'process.stdout.write(require("crypto").randomUUID())').json"
             # shellcheck disable=SC2086
-            if node --test $LOADER "$f" > /dev/null 2>&1; then PASSED=$((PASSED+1)); fi
+            node --test --test-reporter=tap --test-reporter-destination="$REPORT" $LOADER "$f" > /dev/null 2>&1 || true
+            if node scripts/improve-report.mjs --holdout "$REPORT"; then
+              PASSED=$((PASSED+1))
+            fi
           done
           echo "total=${TOTAL}" >> "$GITHUB_OUTPUT"
           echo "passed=${PASSED}" >> "$GITHUB_OUTPUT"
 
-      - name: Measure
-        id: measure
-        continue-on-error: true
-        run: |
-          set -uo pipefail
-          # PER-REPO. These three lines are what changes between repos; everything
-          # else in this file is identical. Each writes a number or an empty string,
-          # and an empty string becomes null in the report, which the Worker treats
-          # as "not reported" and therefore as unprovable rather than as zero.
-          # PER-REPO. These are the commands this repo's own check:all chain runs
-          # (typecheck, lint, test), rather than commands chosen for it. wrangler.jsonc
-          # is committed here, so `wrangler types` inside typecheck resolves without
-          # credentials.
-          #
-          # LINT_COUNT FAILS TO EMPTY RATHER THAN TO ZERO. A zero would read as a
-          # perfect score, so it is only emitted when eslint actually exited clean. If
-          # eslint failed but no problem lines could be counted, the reporter format has
-          # moved and the honest answer is "unprovable", which null says and 0 does not.
-          if npm run lint > lint-output.txt 2>&1; then
-            LINT_COUNT=0
-          else
-            LINT_COUNT=$(grep -cE "^[[:space:]]+[0-9]+:[0-9]+" lint-output.txt || true)
-            [ "${LINT_COUNT}" = "0" ] && LINT_COUNT=""
-          fi
-          BUNDLE_BYTES=$(npm run build > /dev/null 2>&1 && du -sb build 2>/dev/null | cut -f1 || echo "")
-          # vitest's default reporter prints a "Tests" summary line, e.g.
-          #   Tests  255 passed | 2 failed (257)
-          # An unmatched line yields "" (unprovable) rather than a fabricated rate.
-          TEST_PASS_RATE=$(node -e '
-            const fs=require("fs");
-            try {
-              const t=fs.readFileSync("test-output.txt","utf8");
-              const line=/^\s*Tests\s+(.+)$/m.exec(t);
-              if (!line) { process.stdout.write(""); }
-              else {
-                const pass=Number(/(\d+) passed/.exec(line[1])?.[1] ?? "0");
-                const fail=Number(/(\d+) failed/.exec(line[1])?.[1] ?? "0");
-                process.stdout.write(pass+fail>0 ? String(pass/(pass+fail)) : "");
-              }
-            } catch { process.stdout.write(""); }
-          ')
-          echo "lint_count=${LINT_COUNT}" >> "$GITHUB_OUTPUT"
-          echo "bundle_bytes=${BUNDLE_BYTES}" >> "$GITHUB_OUTPUT"
-          echo "test_pass_rate=${TEST_PASS_RATE}" >> "$GITHUB_OUTPUT"
-
-      # THE REPORT. Signed with this namespace's derived key and posted back.
-      #
-      # if: always() is load-bearing. Every step above is continue-on-error so that
-      # a failure is a measurement, and this step still has to run when one of them
-      # failed: the whole point is to report build_passes = 0 rather than to report
-      # nothing. A report that never arrives is treated by the Worker as a revert
-      # after 20 minutes, which is correct but slow and tells nobody why.
+      # RUN_ID, ATTEMPT_ID and the key are in THIS step's own env so a poisoned
+      # GITHUB_ENV cannot override them; NODE_OPTIONS is cleared; the HMAC is
+      # computed by node with the key read from the environment, never argv; curl is
+      # absolute-pathed. ci_minutes is computed before the body.
       - name: Post the score report
         if: always()
         env:
           IMPROVE_SCORE_KEY: ${{ secrets.IMPROVE_SCORE_KEY }}
           IMPROVE_NAMESPACE: ${{ vars.IMPROVE_NAMESPACE }}
           CAPSID_URL: https://capsid.dustin-edwards.workers.dev
-          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          RUN_ID: ${{ inputs.run_id }}
+          ATTEMPT_ID: ${{ inputs.attempt_id }}
+          ATTEMPT_HEAD_SHA: ${{ needs.build.outputs.head_sha }}
           HOLDOUT_TOTAL: ${{ steps.holdout_run.outputs.total }}
           HOLDOUT_PASSED: ${{ steps.holdout_run.outputs.passed }}
-          LINT_COUNT: ${{ steps.measure.outputs.lint_count }}
-          BUNDLE_BYTES: ${{ steps.measure.outputs.bundle_bytes }}
-          TEST_PASS_RATE: ${{ steps.measure.outputs.test_pass_rate }}
-          STARTED_EPOCH: ${{ steps.started.outputs.epoch }}
+          NODE_OPTIONS: ""
         run: |
           set -euo pipefail
           if [ -z "${IMPROVE_SCORE_KEY}" ]; then
             echo "IMPROVE_SCORE_KEY is unset; the report cannot be signed and will not be sent." >&2
-            echo "Derive it with scripts/improve-derive-key.mjs in capsid-mcp and set it as a repo secret." >&2
             exit 1
           fi
-
-          BUILD_PASSES=0
-          [ "${BUILD_OUTCOME}" = "success" ] && BUILD_PASSES=1
-
-          # An unmeasured metric is null, never 0. The Worker excludes a null from
-          # scoring; a 0 would read as a perfect lint count and a catastrophic pass
-          # rate, which is the coercion the report parser refuses on purpose.
-          num_or_null() { if [ -z "${1:-}" ]; then printf 'null'; else printf '%s' "$1"; fi; }
-
-          BODY=$(node -e '
-            const [buildPasses, holdoutTotal, holdoutPassed, lintCount, bundleBytes, testPassRate] = process.argv.slice(1);
-            const n = (v) => (v === "null" || v === "" ? null : Number(v));
-            process.stdout.write(JSON.stringify({
-              namespace: process.env.IMPROVE_NAMESPACE,
-              run_id: process.env.RUN_ID,
-              attempt_id: process.env.ATTEMPT_ID,
-              head_sha: process.env.GITHUB_SHA,
-              anchors: { build_passes: Number(buildPasses) },
-              secondary: {
-                test_pass_rate: n(testPassRate),
-                lint_count: n(lintCount),
-                error_count: null,
-                p95_latency_ms: null,
-                bundle_size_bytes: n(bundleBytes),
-              },
-              holdout: { total: n(holdoutTotal) ?? 0, passed: n(holdoutPassed) ?? 0 },
-              ci_minutes: Number(process.env.CI_MINUTES ?? "0"),
-            }));
-          ' "${BUILD_PASSES}" "$(num_or_null "${HOLDOUT_TOTAL}")" "$(num_or_null "${HOLDOUT_PASSED}")" \
-            "$(num_or_null "${LINT_COUNT}")" "$(num_or_null "${BUNDLE_BYTES}")" "$(num_or_null "${TEST_PASS_RATE}")")
-
-          export CI_MINUTES=$(node -e '
-            const started = Number(process.env.STARTED_EPOCH || "0");
-            const now = Math.floor(Date.now() / 1000);
-            process.stdout.write(started > 0 ? ((now - started) / 60).toFixed(2) : "0");
-          ')
-
+          STARTED_EPOCH=$(sed -n 's/^epoch=//p' attempt/started.txt 2>/dev/null || echo "")
+          export CI_MINUTES=$(S="${STARTED_EPOCH}" N="$(date -u +%s)" node -e 'const s=Number(process.env.S||"0"),n=Number(process.env.N||"0");process.stdout.write(s>0?((n-s)/60).toFixed(2):"0")')
+          BODY=$(node scripts/improve-report.mjs attempt/metrics.json "${HOLDOUT_TOTAL}" "${HOLDOUT_PASSED}")
           TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          # The timestamp is INSIDE the signature, not beside it, or it would be a
-          # header an attacker rewrites for free to defeat the age check.
-          SIG=$(printf '%s.%s' "${TS}" "${BODY}" | openssl dgst -sha256 -hmac "${IMPROVE_SCORE_KEY}" -hex | sed 's/^.*= //')
-
-          # The key is never echoed. BODY carries only numbers.
+          SIG=$(TS="${TS}" BODY="${BODY}" node -e 'const c=require("crypto");const h=c.createHmac("sha256",process.env.IMPROVE_SCORE_KEY);h.update(process.env.TS+"."+process.env.BODY);process.stdout.write(h.digest("hex"))')
           echo "Posting score report for ${ATTEMPT_ID}:"
           echo "${BODY}"
-
-          curl --fail-with-body --silent --show-error \
+          /usr/bin/curl --fail-with-body --silent --show-error \
             -X POST "${CAPSID_URL}/improve/score" \
             -H "Content-Type: application/json" \
             -H "X-Improve-Namespace: ${IMPROVE_NAMESPACE}" \
             -H "X-Improve-Timestamp: ${TS}" \
             -H "X-Improve-Signature: ${SIG}" \
             --data "${BODY}"
-    # RUN_ID and ATTEMPT_ID are passed as ENVIRONMENT, never interpolated into a
-    # shell script body. An input interpolated into a script is a shell injection,
-    # and the fact that these are built by a Worker out of ids it generated itself
-    # is not a reason to skip the rule.
-    env:
-      RUN_ID: ${{ inputs.run_id }}
-      ATTEMPT_ID: ${{ inputs.attempt_id }}
-      STARTED_AT: ${{ github.event.repository.pushed_at }}
