@@ -248,6 +248,31 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/holdout"
           aws s3 sync "s3://${HOLDOUT_BUCKET}/${HOLDOUT_PREFIX}" "${RUNNER_TEMP}/holdout/" --endpoint-url "${HOLDOUT_ENDPOINT}"
 
+      # THE HOLDOUT IMPORT MANIFEST, checked before anything runs (ruled
+      # 2026-09-08). improve/holdout/<ns>/imports.txt lists every name the hidden
+      # suite imports out of this repo's source. It is committed and not secret:
+      # an export name is already in the source.
+      #
+      # Why it is a gate rather than a note. The bloat pass removed two exports on
+      # a scan that found no caller in src/ or test/; the holdout imported both,
+      # and the holdout is structurally invisible to anything that runs in the
+      # repo. 28 of 30 against an anchor of min 1.0, and nothing local could have
+      # predicted it. This fails in BOTH directions: the dead-export check treats
+      # a listed name as a caller, and this step refuses a case importing a name
+      # that is not listed, so the list cannot fall behind the suite.
+      #
+      # It runs on the TRUSTED copy, over the R2 sync, before the container. It
+      # never prints a case filename.
+      - name: Check the holdout import manifest
+        env:
+          NODE_BIN: ${{ steps.trusted.outputs.node }}
+          IMPROVE_NAMESPACE: ${{ vars.IMPROVE_NAMESPACE }}
+        run: |
+          set -euo pipefail
+          "${NODE_BIN}" "${RUNNER_TEMP}/trusted/improve-report.mjs" --check-holdout-imports \
+            "${RUNNER_TEMP}/holdout" "${IMPROVE_NAMESPACE}" \
+            "improve/holdout/${IMPROVE_NAMESPACE}/imports.txt"
+
       # THE ONLY PLACE ATTEMPT CODE EVER RUNS IN THIS JOB, and it runs with no
       # network, a read-only root, no workspace mount, and no secret in scope.
       #
@@ -265,7 +290,14 @@ jobs:
       # took vitest and everything downstream of vite with it, and biome could not
       # resolve its binary at all. Pure-JS tooling (node --test, tsc) was fine,
       # which is exactly why capsid-mcp measured clean while three repos reported
-      # null. bookworm-slim matches the runner.
+      # null. bookworm matches the runner.
+      #
+      # THE FULL IMAGE, NOT slim, BECAUSE IT CARRIES git. A foxhound test shells
+      # out to git and slim answered "git: not found", failing one file of 255.
+      # Ruled 2026-09-08: add the tool rather than exclude the file, because
+      # excluding a file to make a number go up is how a score stops describing
+      # the suite. There is no second way in: apt-get cannot run behind
+      # --network none, so the tool has to be in the image or absent.
       #
       # RESULTS LEAVE AS A STDOUT PIPE. There is no seekable TAP destination for
       # the child to rewrite: the reporter writes to the container's stdout, the
@@ -306,7 +338,7 @@ jobs:
             -v "${GITHUB_WORKSPACE}:/repo:ro" \
             -w /work \
             --entrypoint /bin/sh \
-            node:24.14.1-bookworm-slim@sha256:b506e7321f176aae77317f99d67a24b272c1f09f1d10f1761f2773447d8da26c \
+            node:24.14.1-bookworm@sha256:80fc934952c8f1b2b4d39907af7211f8a9fff1a4c2cf673fb49099292c251cec \
             -c '
               set -u
               # The nonce becomes a SHELL variable and leaves the environment, so
