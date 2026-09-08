@@ -49,6 +49,18 @@ export function markers(nonce = "") {
   return { case: `${p}-CASE `, test: `${p}-TEST`, lint: `${p}-LINT`, status: `${p}-STATUS `, end: `${p}-END` };
 }
 
+// One segment of the container's output stream: a holdout case, or one of the two
+// secondary phases, plus the exit status the trusted shell printed after it.
+// Declared once because splitStream builds them and both readers narrow them, and
+// an inline shape in three places is three chances to disagree.
+/**
+ * @typedef {object} Segment
+ * @property {string} kind
+ * @property {string} name
+ * @property {string[]} lines
+ * @property {number | null} status
+ */
+
 // ---- the per-repo command map -----------------------------------------------
 //
 // WHY THE MAP LIVES HERE. The secondaries used to be measured by Job A, which
@@ -182,26 +194,39 @@ export function holdoutFilePassed(text) {
  */
 export function splitStream(text, nonce = "") {
   const m = markers(nonce);
-  /** @type {{ kind: string, name: string, lines: string[], status: number | null }[]} */
+  /** @type {Segment[]} */
   const segments = [];
-  /** @type {{ kind: string, name: string, lines: string[], status: number | null } | null} */
+  /** @type {Segment | null} */
   let current = null;
   let terminated = false;
+  // `open` RETURNS the segment and the loop assigns `current`, rather than
+  // assigning it from inside the closure. A checker cannot follow an assignment
+  // made in a callback, so the closure form narrowed `current` to `never` at
+  // every later use: it type-checks under this repo's config, which does not
+  // check .mjs bodies, and fails under dustinedwards-info's, which does. Same
+  // behaviour, one fewer place for a stricter copy of this file to disagree.
+  /**
+   * @param {string} kind
+   * @param {string} name
+   * @returns {Segment}
+   */
   const open = (kind, name) => {
-    current = { kind, name, lines: [], status: null };
-    segments.push(current);
+    /** @type {Segment} */
+    const segment = { kind, name, lines: [], status: null };
+    segments.push(segment);
+    return segment;
   };
   for (const line of text.split("\n")) {
     if (line.startsWith(m.case)) {
-      open("case", line.slice(m.case.length).trim());
+      current = open("case", line.slice(m.case.length).trim());
       continue;
     }
     if (line === m.test) {
-      open("test", "test");
+      current = open("test", "test");
       continue;
     }
     if (line === m.lint) {
-      open("lint", "lint");
+      current = open("lint", "lint");
       continue;
     }
     if (line.startsWith(m.status)) {
@@ -268,20 +293,41 @@ export function holdoutPassCount(text, nonce = "") {
 export function secondaryFromStream(text, namespace, nonce = "") {
   const { segments, terminated } = splitStream(text, nonce);
   const spec = /** @type {Record<string, any>} */ (SECONDARY_COMMANDS)[namespace] ?? {};
-  const find = (kind) => segments.find((s) => s.kind === kind) ?? null;
+  /** @param {string} kind @returns {Segment | null} */
+  const find = (kind) => segments.find((/** @type {Segment} */ s) => s.kind === kind) ?? null;
+  // A phase RAN if the container finished and the phase reported an exit status
+  // that is not "could not execute" (126, 127). Written as an explicit null check
+  // rather than a predicate helper so the narrowing is visible to a checker: the
+  // callers below dereference `.lines` on the strength of it.
+  /** @param {Segment | null} seg */
   const ran = (seg) => terminated && seg !== null && seg.status !== null && seg.status < 126;
 
   const testSeg = find("test");
-  const test_pass_rate = ran(testSeg) ? testPassRate(testSeg.lines.join("\n")) : null;
+  const test_pass_rate = testSeg !== null && ran(testSeg) ? testPassRate(testSeg.lines.join("\n")) : null;
 
   const lintSeg = find("lint");
+  /** @type {number | null} */
   let lint_count = null;
-  if (ran(lintSeg) && spec.lint_pattern) {
+  if (lintSeg !== null && ran(lintSeg) && spec.lint_pattern) {
     const re = new RegExp(spec.lint_pattern);
-    lint_count = lintSeg.lines.filter((l) => re.test(l)).length;
+    lint_count = lintSeg.lines.filter((/** @type {string} */ l) => re.test(l)).length;
   }
   return { test_pass_rate, lint_count };
 }
+
+// THE SECONDARY METRICS THIS SCORER ACTUALLY REPORTS, in report order.
+//
+// It used to be five. error_count and p95_latency_ms were emitted as a literal
+// null on every run, by every repo, since the loop was built, and were declared in
+// all five scores documents as though they were signals (audits 2026-09-07, MAJOR
+// 5.7). A document that lists a metric nobody measures is worse than one that
+// lists fewer: it reads as five signals and behaves as three, and germomics'
+// reads as five and behaves as one.
+//
+// test/null-metrics.test.ts derives seedScoresDoc's Secondary list from this array
+// and fails in BOTH directions, so a metric cannot be declared in the canon
+// without something reporting it, or reported without being declared.
+export const REPORTED_SECONDARY = ["test_pass_rate", "lint_count", "bundle_size_bytes"];
 
 // A metric read from Job A's metrics.json: a finite number, or null for anything
 // else (missing, "", non-finite). Coercion is refused so a stray value cannot read
@@ -372,6 +418,10 @@ function main(argv) {
         );
       }
     }
+    /**
+     * @param {string} name
+     * @param {number | null} value
+     */
     const line = (name, value) => `${name}=${value === null ? "" : String(value)}\n`;
     process.stdout.write(line("test_pass_rate", recomputed.test_pass_rate) + line("lint_count", recomputed.lint_count));
     return;
@@ -417,8 +467,6 @@ function main(argv) {
     secondary: {
       test_pass_rate: metric(numOrNull(process.env.SECONDARY_TEST_PASS_RATE)),
       lint_count: metric(numOrNull(process.env.SECONDARY_LINT_COUNT)),
-      error_count: null,
-      p95_latency_ms: null,
       bundle_size_bytes: metric(m.bundle_size_bytes),
     },
     holdout: { total: numOrNull(holdoutTotal) ?? 0, passed: numOrNull(holdoutPassed) ?? 0 },
