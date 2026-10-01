@@ -163,7 +163,7 @@ jobs:
       # NODE_MODULES IS CACHED IN THIS JOB AND IN NO OTHER. This job checks out the
       # DEFAULT branch only and never puts attempt code on the runner, so nothing an
       # attempt wrote can reach what is saved here. Job A is the opposite case and
-      # caches no directory attempt code can write; test/workflow-pins.test.ts is the
+      # caches no directory attempt code can write; test/workflow-policy.test.ts is the
       # guard and capsid/conventions.md carries the rule.
       #
       # NO restore-keys, deliberately. A near miss must never half-restore a
@@ -248,7 +248,7 @@ jobs:
         env:
           IMPROVE_SCORE_KEY: ${{ secrets.IMPROVE_SCORE_KEY }}
           IMPROVE_NAMESPACE: ${{ vars.IMPROVE_NAMESPACE }}
-          CAPSID_URL: https://capsid.dustin-edwards.workers.dev
+          CAPSID_URL: https://mcp.dustinedwards.info
           AWS_DEFAULT_REGION: auto
           AWS_REQUEST_CHECKSUM_CALCULATION: when_required
           AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
@@ -537,7 +537,7 @@ jobs:
         env:
           IMPROVE_SCORE_KEY: ${{ secrets.IMPROVE_SCORE_KEY }}
           IMPROVE_NAMESPACE: ${{ vars.IMPROVE_NAMESPACE }}
-          CAPSID_URL: https://capsid.dustin-edwards.workers.dev
+          CAPSID_URL: https://mcp.dustinedwards.info
           RUN_ID: ${{ inputs.run_id }}
           ATTEMPT_ID: ${{ inputs.attempt_id }}
           ATTEMPT_HEAD_SHA: ${{ needs.build.outputs.head_sha }}
