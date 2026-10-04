@@ -47,7 +47,7 @@ describe("applySecurityHeaders", () => {
     );
     const csp = result.headers.get("Content-Security-Policy");
     expect(csp).toContain("default-src 'self'");
-    expect(csp).toContain(`script-src 'self' 'nonce-${TEST_NONCE}' https://challenges.cloudflare.com`);
+    expect(csp).toContain(`script-src 'self' 'nonce-${TEST_NONCE}' https://challenges.cloudflare.com https://static.cloudflareinsights.com`);
     expect(csp).toContain("frame-src https://challenges.cloudflare.com");
     expect(csp).toContain("frame-ancestors 'none'");
     expect(csp).toContain("style-src 'self' 'unsafe-inline'");
@@ -106,5 +106,16 @@ describe("applySecurityHeaders", () => {
     const result = applySecurityHeaders(withOwnHeader, TEST_NONCE);
 
     expect(result.headers.get("X-Frame-Options")).toBe("SAMEORIGIN");
+  });
+
+  // Cloudflare Web Analytics injects its beacon at the edge; public sites allow it
+  // (Dustin's ruling, 2026-10-03). It reports to this origin's /cdn-cgi/rum, so
+  // connect-src must stay 'self' and no other host may enter script-src.
+  it("allows exactly Turnstile and the Web Analytics beacon as external script hosts", () => {
+    const csp = applySecurityHeaders(new Response(null), TEST_NONCE).headers.get("Content-Security-Policy") ?? "";
+    const directive = (name: string) => csp.split(";").map((d) => d.trim()).find((d) => d.startsWith(`${name} `)) ?? "";
+    const hosts = directive("script-src").split(" ").slice(1).filter((token) => token.startsWith("https://"));
+    expect(hosts).toEqual(["https://challenges.cloudflare.com", "https://static.cloudflareinsights.com"]);
+    expect(directive("connect-src")).toBe("connect-src 'self'");
   });
 });
