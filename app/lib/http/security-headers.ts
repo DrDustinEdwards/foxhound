@@ -28,9 +28,14 @@
 //    app/routes/app/billing/index.tsx), never an HTML <form action> to
 //    Stripe, so checkout.stripe.com does not belong in form-action (a CSP
 //    form-action directive does not apply to Location-header redirects).
-//  - No external font/image/analytics origins: fonts are self-hosted and
-//    preloaded from root.tsx; no <img src="https://..."> beyond same-origin;
-//    no js.stripe.com / Stripe Elements usage anywhere in the client tree.
+//  - No external origins except Cloudflare's own: Turnstile
+//    (challenges.cloudflare.com) and the Web Analytics beacon
+//    (static.cloudflareinsights.com), which Cloudflare injects at the edge and
+//    which public sites allow (Dustin's ruling, 2026-10-03). The beacon reports
+//    to this origin's /cdn-cgi/rum, so connect-src stays 'self'. Fonts are
+//    self-hosted and preloaded from root.tsx; no <img src="https://..."> beyond
+//    same-origin; no js.stripe.com / Stripe Elements usage anywhere in the
+//    client tree.
 
 /** A fresh per-request nonce: 16 cryptographically random bytes, base64
  *  (24 chars with padding, comfortably over the 22-char floor the CSP nonce
@@ -49,7 +54,7 @@ export function generateNonce(): string {
 function buildContentSecurityPolicy(nonce: string): string {
   return (
     "default-src 'self'; " +
-    `script-src 'self' 'nonce-${nonce}' https://challenges.cloudflare.com; ` +
+    `script-src 'self' 'nonce-${nonce}' https://challenges.cloudflare.com https://static.cloudflareinsights.com; ` +
     "frame-src https://challenges.cloudflare.com; " +
     "frame-ancestors 'none'; " +
     "style-src 'self' 'unsafe-inline'; " +
