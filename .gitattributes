@@ -17,3 +17,6 @@
 *.png binary
 *.ttf binary
 *.woff2 binary
+
+# Hooks run under bash on every host; a CRLF shebang line breaks them.
+.claude/hooks/*.sh text eol=lf
