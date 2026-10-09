@@ -184,6 +184,58 @@ function appendVary(headers: Headers, value: string): void {
 }
 
 /**
+ * KEEP CLOUDFLARE WEB ANALYTICS OFF SIGNED-IN AND TOKEN PAGES
+ * (job_0927572db276, Dustin's ruling 2026-10-04: count public pages only).
+ *
+ * Automatic beacon injection is zone-wide and path rules need the Pro plan, so
+ * the exclusion has to come from the Worker. Cloudflare's Web Analytics FAQ says
+ * a response whose Cache-Control includes `no-transform` is not modified by the
+ * proxy, so no beacon is injected. Side effect: Cloudflare also skips
+ * compression for such a response, so this is applied to HTML only, never to
+ * assets, resource routes or marketing pages.
+ *
+ * The prefixes mirror the `app-shell` layout in app/routes.ts (admin included,
+ * it lives inside that layout) plus the four bearer-token pages, whose paths
+ * carry ids and tokens that must not reach a third-party analytics store.
+ * test/cache-policy.test.ts fails if a top-level app-shell route is missing.
+ */
+export const NO_TRANSFORM_PREFIXES = [
+  "/dashboard",
+  "/billing",
+  "/recovery",
+  "/disputes",
+  "/intelligence",
+  "/settings",
+  "/audit/history",
+  "/audit/runs/",
+  "/help",
+  "/welcome",
+  "/admin",
+  "/p/",
+  "/u/",
+  "/invite/",
+  "/reset-password",
+];
+
+function needsNoTransform(pathname: string, response: Response): boolean {
+  const type = response.headers.get("Content-Type") ?? "";
+  if (!type.toLowerCase().includes("text/html")) return false;
+  return NO_TRANSFORM_PREFIXES.some(
+    (prefix) =>
+      pathname === prefix ||
+      pathname.startsWith(prefix.endsWith("/") ? prefix : `${prefix}/`),
+  );
+}
+
+/** Merge into the one Cache-Control value; never a second header. */
+function addNoTransform(headers: Headers): void {
+  const existing = headers.get("Cache-Control") ?? "";
+  const parts = existing.split(",").map((p) => p.trim()).filter(Boolean);
+  if (parts.some((p) => p.toLowerCase() === "no-transform")) return;
+  headers.set("Cache-Control", [...parts, "no-transform"].join(", "));
+}
+
+/**
  * Apply the policy on the way out.
  *
  * A RESPONSE THAT ALREADY SET ITS OWN `Cache-Control` KEEPS IT. The files and
@@ -204,13 +256,16 @@ function appendVary(headers: Headers, value: string): void {
  * stored by an intermediary either.
  */
 export function applyCachePolicy(request: Request, response: Response): Response {
-  const isPublicClass = classifyPath(new URL(request.url).pathname) !== "private";
-  if (response.headers.has("Cache-Control") && !isPublicClass) return response;
+  const pathname = new URL(request.url).pathname;
+  const isPublicClass = classifyPath(pathname) !== "private";
+  const wantsNoTransform = needsNoTransform(pathname, response);
+  if (response.headers.has("Cache-Control") && !isPublicClass && !wantsNoTransform) return response;
 
   const headers = new Headers(response.headers);
   if (!headers.has("Cache-Control")) {
     headers.set("Cache-Control", resolveCacheControl(request));
   }
+  if (wantsNoTransform) addNoTransform(headers);
   if (isPublicClass) {
     appendVary(headers, VARY_HEADER_VALUE);
   }
