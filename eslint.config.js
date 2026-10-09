@@ -5,7 +5,9 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: ["build/", ".react-router/", ".wrangler/", "worker-configuration.d.ts"],
+    // .stryker-tmp/ and reports/ are StrykerJS sandboxes and output (stryker.config.mjs);
+    // a run that is interrupted leaves an instrumented copy of the repo behind.
+    ignores: ["build/", ".react-router/", ".wrangler/", "worker-configuration.d.ts", ".stryker-tmp/", "reports/"],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
