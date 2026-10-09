@@ -17,6 +17,11 @@
     "db:migrate": "node scripts/db-migrate.mjs",
     "check-canon": "node scripts/check-canon.mjs",
     "check-gates": "node scripts/check-gates.mjs",
+    "report:knip": "knip --no-exit-code",
+    "report:duplication": "jscpd",
+    "report:page-weight": "node scripts/report-page-weight.mjs",
+    "report:assertions": "node scripts/report-assertionless-tests.mjs",
+    "report:bloat": "npm run report:knip && npm run report:duplication && npm run report:page-weight && npm run report:assertions",
     "check:all": "npm run typecheck && npm run lint && npm run test && npm run check-tokens && npm run check-gates"
   },
   "dependencies": {
@@ -53,6 +58,8 @@
     "eslint": "^9.20.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.7.0",
+    "jscpd": "^5.4.1",
+    "knip": "^6.41.0",
     "playwright": "^1.62.1",
     "tailwindcss": "^4.1.0",
     "typescript": "5.9.3",
