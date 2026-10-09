@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Summarise a StrykerJS run (job_30ab4e0e8702). Measurement only: it reads
-// reports/mutation/mutation.json (written by `npx stryker run`, see
-// stryker.config.mjs) and prints the mutation score, the per-test kill matrix
+// every reports/mutation/*.json (one per chunk, or mutation.json for a single
+// run, written by `npx stryker run`, see stryker.config.mjs), merges them, and
+// prints the mutation score, the per-test kill matrix
 // summary and the pruning CANDIDATES the job defines. It deletes nothing and
 // decides nothing; the seat reads the list.
 //
@@ -16,32 +17,44 @@
 //
 // Pass --json to write reports/mutation/kill-matrix.json (per test: file, name,
 // kills, unique kills, candidate kind, protected).
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(fileURLToPath(new URL(".", import.meta.url)), "..");
-const report = JSON.parse(readFileSync(resolve(ROOT, "reports/mutation/mutation.json"), "utf8"));
+const DIR = resolve(ROOT, "reports/mutation");
+const reports = readdirSync(DIR)
+  .filter((name) => name.endsWith(".json") && name !== "kill-matrix.json")
+  .map((name) => JSON.parse(readFileSync(resolve(DIR, name), "utf8")));
+if (reports.length === 0) {
+  console.error("report-mutation: no reports/mutation/*.json. Run Stryker first (stryker.config.mjs).");
+  process.exit(1);
+}
 
 const PROTECTED =
   /billing|billable|money|payment|charge|invoice|refund|credit|fee|stripe|webhook|dispute|auth|session|tenant|isolation|account-scope|cross-account|member|role|admin-route-guard|fix|bug|regression|seen red|plant/i;
 
+// Test ids are per run, so across chunks a test is keyed by file and name.
 const tests = new Map();
-for (const [file, entry] of Object.entries(report.testFiles ?? {})) {
-  for (const test of entry.tests ?? []) {
-    tests.set(test.id, { id: test.id, file, name: test.name, kills: new Set() });
-  }
-}
-
 const counts = {};
 const killers = new Map();
-for (const [file, entry] of Object.entries(report.files ?? {})) {
-  for (const mutant of entry.mutants ?? []) {
-    counts[mutant.status] = (counts[mutant.status] ?? 0) + 1;
-    const key = `${file}#${mutant.id}`;
-    const by = mutant.killedBy ?? [];
-    killers.set(key, by.length);
-    for (const id of by) tests.get(id)?.kills.add(key);
+for (const report of reports) {
+  const keyOf = new Map();
+  for (const [file, entry] of Object.entries(report.testFiles ?? {})) {
+    for (const test of entry.tests ?? []) {
+      const key = `${file}::${test.name}`;
+      keyOf.set(test.id, key);
+      if (!tests.has(key)) tests.set(key, { file, name: test.name, kills: new Set() });
+    }
+  }
+  for (const [file, entry] of Object.entries(report.files ?? {})) {
+    for (const mutant of entry.mutants ?? []) {
+      counts[mutant.status] = (counts[mutant.status] ?? 0) + 1;
+      const key = `${file}#${mutant.id}`;
+      const by = mutant.killedBy ?? [];
+      killers.set(key, by.length);
+      for (const id of by) tests.get(keyOf.get(id))?.kills.add(key);
+    }
   }
 }
 
@@ -62,6 +75,7 @@ for (const test of tests.values()) {
 
 const zero = rows.filter((r) => r.kind === "zero-kill");
 const covered = rows.filter((r) => r.kind === "covered");
+console.log(`Reports merged: ${reports.length}`);
 console.log("Mutant status counts:", counts);
 console.log(`Mutation score (killed+timeout over all valid): ${pct(killed, valid)}`);
 console.log(`Mutation score over covered code: ${pct(killed, killed + survived)}`);
