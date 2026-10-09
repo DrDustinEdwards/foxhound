@@ -62,7 +62,7 @@ export function EmailSamples() {
   }
 
   function generate() {
-    fetcher.submit({ category: activeId }, { method: "post", action: "/marketing/generate-email-sample" });
+    void fetcher.submit({ category: activeId }, { method: "post", action: "/marketing/generate-email-sample" });
   }
 
   return (

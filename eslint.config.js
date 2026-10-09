@@ -19,6 +19,22 @@ export default tseslint.config(
     },
   },
   {
+    // Workers Best Practices: "Do not leave promises floating". A dropped
+    // promise is a swallowed error or a task cut off at response end.
+    // Type-aware, so scoped to app and workers source (tests excluded).
+    files: ["app/**/*.{ts,tsx}", "workers/**/*.ts"],
+    ignores: ["**/*.test.{ts,tsx}"],
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    rules: {
+      "@typescript-eslint/no-floating-promises": "error",
+    },
+  },
+  {
     // Build and check scripts are Node, not Worker. Without this they lint as
     // browser code and every `process.exit` in a gate reads as an undefined
     // global, which is why `eslint .` was already red on main before check:all
