@@ -176,7 +176,7 @@ export function AccountSwitcher({
                 role="menuitem"
                 onClick={() => {
                   setOpen(false);
-                  if (!isActive) switchAccount(a.id);
+                  if (!isActive) void switchAccount(a.id);
                 }}
                 disabled={switching}
                 className={`flex w-full cursor-pointer items-center gap-2 border-0 bg-transparent px-3 py-2 text-left text-label transition-opacity duration-150 hover:opacity-80 disabled:opacity-40 ${
