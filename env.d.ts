@@ -3,6 +3,10 @@
 // Env interface in worker-configuration.d.ts. Non-secret config (BETTER_AUTH_URL,
 // GOOGLE_CLIENT_ID) lives in wrangler.jsonc `vars` and is typed by `wrangler types`.
 interface Env {
+  // Nightly D1 dump bucket (job_f7f35d4b7ac7). Declared here, not in wrangler.jsonc,
+  // until Dustin creates the bucket and adds the r2_buckets binding; the backup
+  // job fails loudly while it is unbound and /health says so.
+  BACKUPS?: R2Bucket;
   SENTRY_DSN?: string;
   // Better Auth signing key. Required in real environments; absent locally is
   // tolerated (dev-only default) but flagged.
