@@ -92,10 +92,12 @@ export interface CreatePostInput {
   ogTitle?: string | null;
   ogDescription?: string | null;
   canonicalUrl?: string | null;
+  /** Caller-chosen id (the Carrel adapter, whose create names the id). */
+  id?: string;
 }
 
 export async function createPost(db: Db, input: CreatePostInput): Promise<string> {
-  const id = crypto.randomUUID();
+  const id = input.id ?? crypto.randomUUID();
   const now = new Date();
   await db.insert(blogPosts).values({
     id,

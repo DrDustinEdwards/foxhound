@@ -36,6 +36,16 @@ export default withSentry<Env>(
       const limited = await enforceRateLimit(request, env);
       if (limited) return applyCachePolicy(request, applySecurityHeaders(limited, nonce));
 
+      // CARREL'S SITE API (job_cbe1b96107fc), before the router. Null for any path
+      // outside /api/carrel/v1; inside it the package enforces rate limit, key and
+      // route in that order. The path is checked before the import so the adapter
+      // graph stays off every page render, as the MCP mount below does.
+      if (new URL(request.url).pathname.startsWith("/api/carrel/v1")) {
+        const { handleCarrelRequest } = await import("~/lib/carrel/handler.server");
+        const carrel = await handleCarrelRequest(request, env);
+        if (carrel) return applyCachePolicy(request, applySecurityHeaders(carrel, nonce));
+      }
+
       // THE MERCHANT MCP ENDPOINT, before the router (370, roadmap item 3).
       // It is JSON-RPC over POST with its own header contract and its own bearer
       // auth; none of the router's loader/action machinery applies, and mounting

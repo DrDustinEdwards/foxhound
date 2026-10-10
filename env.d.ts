@@ -3,6 +3,10 @@
 // Env interface in worker-configuration.d.ts. Non-secret config (BETTER_AUTH_URL,
 // GOOGLE_CLIENT_ID) lives in wrangler.jsonc `vars` and is typed by `wrangler types`.
 interface Env {
+  // Carrel's key for the site-api mount at /api/carrel/v1 (job_cbe1b96107fc).
+  // Separate and revocable; read only by app/lib/carrel/handler.server.ts.
+  // Unset or shorter than 32 characters, the mount refuses every request.
+  CARREL_SITE_KEY?: string;
   // Nightly D1 dump bucket (job_f7f35d4b7ac7). Declared here, not in wrangler.jsonc,
   // until Dustin creates the bucket and adds the r2_buckets binding; the backup
   // job fails loudly while it is unbound and /health says so.
