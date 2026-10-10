@@ -184,3 +184,20 @@ export function redactToolResult(value: unknown, seen: WeakMap<object, unknown> 
   }
   return out;
 }
+
+/** An email address anywhere in free text. Deliberately loose: a false match
+ *  masks a little too much, a miss would send an address out. */
+const EMAIL_IN_TEXT = /[^\s@'"<>(),;:]+@[^\s@'"<>(),;:]+\.[^\s@'"<>(),;:]+/g;
+
+/**
+ * Mask every email address inside a sentence, by the same rule as a field.
+ *
+ * FOR ERROR TEXT, which is the one string a tool sends that the field walk
+ * above never sees. A refusal can echo the agent's own input, and that input
+ * can be an address; `No customer alice@example.com` goes out as
+ * `No customer a***@example.com`. Names cannot be found in free text this way,
+ * which is why ./server.ts never sends an unexpected error's text at all.
+ */
+export function maskEmailsInText(text: string): string {
+  return text.replace(EMAIL_IN_TEXT, (match) => maskEmail(match) ?? "***");
+}

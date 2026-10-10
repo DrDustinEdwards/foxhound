@@ -1,6 +1,7 @@
 import { createMcpHandler, fromJsonSchema, McpServer, type JsonSchemaType } from "@modelcontextprotocol/server";
 
-import type { McpToolContext, McpToolRegistry } from "./registry";
+import { maskEmailsInText } from "./redact";
+import { ToolInputError, type McpToolContext, type McpToolRegistry } from "./registry";
 
 // THE PROTOCOL, FROM THE OFFICIAL SDK (MCP ruling rule 8, 2026-10-10).
 //
@@ -50,6 +51,23 @@ function toolResult(data: unknown, isError = false) {
 }
 
 /**
+ * The error text an agent is allowed to see.
+ *
+ * A REFUSAL is a sentence Foxhound wrote for the agent, so it goes out, with
+ * any email address in it masked: it can echo the agent's own input.
+ *
+ * ANYTHING ELSE is a failure nobody wrote for an agent. A database error can
+ * carry the values of the query it failed on, a customer's name or address
+ * among them, and no rule can find a name in free text. So its message never
+ * leaves the server: it goes to the log, and the agent is told to try again.
+ */
+export function errorForAgent(tool: string, err: unknown): string {
+  if (err instanceof ToolInputError) return maskEmailsInText(err.message);
+  console.error("mcp tool failed:", tool, err instanceof Error ? err.message : String(err));
+  return `${tool} could not finish because of an error inside Foxhound. Try again; if it keeps failing, the merchant can report it from the Foxhound app.`;
+}
+
+/**
  * One server for one request, with every registered tool on it in registry
  * order, so `tools/list` is deterministic.
  */
@@ -76,12 +94,7 @@ export function buildMcpServer(registry: McpToolRegistry, ctx: McpToolContext): 
           );
           return toolResult(data);
         } catch (err) {
-          // A HELPER FAILURE NEVER THROWS THROUGH THE TRANSPORT. The message is
-          // the error's own text and never the object, which can carry query
-          // context.
-          const reason = err instanceof Error ? err.message : "unknown error";
-          console.debug("mcp tool failed:", descriptor.name, reason);
-          return toolResult({ error: reason, tool: descriptor.name }, true);
+          return toolResult({ error: errorForAgent(descriptor.name, err), tool: descriptor.name }, true);
         }
       },
     );

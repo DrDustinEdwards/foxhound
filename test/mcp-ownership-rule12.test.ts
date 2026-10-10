@@ -28,8 +28,10 @@ import { mcpRequest, readMcp, toolOutput } from "./helpers/mcp-client";
 // it and return or change it. Each case proves three things: my own id works
 // (so the refusal is the check, not a broken tool), the other merchant's id is
 // refused as not found, and the other merchant's row reads back unchanged.
-// Removing the account predicate from any helper behind these tools turns the
+// Removing the account predicate from any helper behind these tools turned the
 // matching case red; that was run by hand for each one when this file landed.
+// The two connection-id cases now have a second check in front of the writer
+// (PLANT 4's clear refusal), so for those it takes removing both to go red.
 //
 // AND THE TABLE IS COMPLETE BY CONSTRUCTION. The first plant walks every
 // tool's input schema for an argument ending in _id and fails unless each one
@@ -288,3 +290,27 @@ describe("PLANT 3: the lists only ever hold my rows", () => {
     }
   });
 });
+
+describe("PLANT 4: another merchant's connection id gets a refusal that says so", () => {
+  // The writers reuse the settings form's sentence ("Connect Stripe before
+  // setting a sender name."), which is right for a person with no connection
+  // and wrong for an agent that sent an id it should not have. The tool checks
+  // the id against this account's own connections first and says what to fix.
+  for (const section of ["sender_name", "brand_voice"] as const) {
+    it(`${section}: names the id, says it is not this account's, and says where ids come from`, async () => {
+      const { db, tokens } = await seed();
+      const before = await theirRows(db);
+      const crossed = toolOutput(
+        await callTool(tokens[MINE], "foxhound_update_settings", {
+          [section]: { connection_id: `sc_${THEIRS}`, ...(section === "sender_name" ? { sender_name: "x" } : { general: "x" }) },
+        }),
+      );
+      expect(crossed.isError).toBe(true);
+      expect(crossed.data.error).toBe(
+        `Connection sc_${THEIRS} is not one of this account's Stripe connections. Take a connection id from foxhound_get_settings.`,
+      );
+      expect(await theirRows(db)).toEqual(before);
+    });
+  }
+});
+

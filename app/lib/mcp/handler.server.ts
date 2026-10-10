@@ -7,6 +7,7 @@ import {
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE, verifyMcpToken } from "~/lib/auth/mcp-tokens";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
 
+import { answersIn, recordToolCalls, toolCallsIn } from "./call-log.server";
 import { EMPTY_REGISTRY, type McpToolRegistry } from "./registry";
 import { serveMcp } from "./server";
 
@@ -218,6 +219,17 @@ export async function handleMcpRequest(
     return errorResponse(429, null, MCP_ERROR.INVALID_REQUEST, "Too many requests");
   }
 
+  // THE TOOL CALLS IN THIS REQUEST, read from a clone before the SDK reads the
+  // body, so the call log (rule 12.4) sees every call that got past the door.
+  // A body that is not JSON holds no call; the SDK answers it with a parse error.
+  let body: unknown = null;
+  try {
+    body = await request.clone().json();
+  } catch {
+    body = null;
+  }
+  const calls = toolCallsIn(body);
+
   const now = new Date();
   const response = await serveMcp(request, registry, {
     env,
@@ -229,6 +241,17 @@ export async function handleMcpRequest(
   // Belt and braces with the worker's own cache policy: an answer carrying a
   // merchant's data must never be stored by an intermediary, whatever the SDK
   // set. (The 2026-07-28 cache hints in the body are for the client only.)
+  if (calls.length > 0) {
+    const text = await response.clone().text();
+    await recordToolCalls(
+      getDb(env),
+      { accountId: authenticated.auth.accountId, apiKeyId: authenticated.auth.keyId },
+      calls,
+      answersIn(text, response.headers.get("content-type")),
+      now,
+    );
+  }
+
   const headers = new Headers(response.headers);
   headers.set("Cache-Control", "private, no-store");
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
