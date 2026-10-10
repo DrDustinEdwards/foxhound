@@ -17,9 +17,8 @@
   "routes": [{ "pattern": "admin-mcp.foxhoundapp.com", "custom_domain": true }],
   "services": [{ "binding": "FOXHOUND", "service": "foxhound" }],
   "kv_namespaces": [
-    // Grants and tokens for workers-oauth-provider. Create it with
-    // `npx wrangler kv namespace create foxhound-admin-mcp-oauth` and put its id here.
-    { "binding": "OAUTH_KV", "id": "REPLACE_WITH_OAUTH_KV_ID" }
+    // Grants and tokens for workers-oauth-provider: the foxhound-admin-mcp-oauth namespace.
+    { "binding": "OAUTH_KV", "id": "32200ad2d6974a29934965aba8d497ae" }
   ],
   "vars": {
     "ADMIN_MCP_ORIGIN": "https://admin-mcp.foxhoundapp.com",
