@@ -15,6 +15,7 @@ const ADMIN_NAV_ITEMS = [
   { to: "/admin/blog", label: "Blog" },
   { to: "/admin/social", label: "Social" },
   { to: "/admin/audit-log", label: "Audit log" },
+  { to: "/admin/staged", label: "Staged" },
 ] as const;
 
 function linkClassName({ isActive }: { isActive: boolean }): string {
