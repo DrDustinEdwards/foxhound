@@ -177,6 +177,14 @@ describe("PLANT 2: the reads", () => {
     }
   });
 
+  it("GET /me names the acting admin, so the MCP can ask at sign-in whether someone is an admin", async () => {
+    const { keys } = await seed();
+    const { status, json } = await api("/me", asAdmin(keys.admin));
+    expect(status).toBe(200);
+    expect(json.data).toEqual({ actor: ADMIN });
+    expect((await api("/me", { key: keys.admin, actor: NOT_ADMIN })).status).toBe(403);
+  });
+
   it("merchant search finds by name or id, and pages with a cursor", async () => {
     const { keys } = await seed();
     const { json } = await api("/merchants?query=beta", asAdmin(keys.admin));

@@ -203,6 +203,14 @@ async function merchantForAgent(db: Db, accountId: string) {
 
 const ROUTES: ApiRoute[] = [
   {
+    // Who the API takes the caller to be. The admin MCP asks this at sign-in,
+    // so whether a person is an admin is answered here, from ADMIN_EMAIL, and
+    // nowhere else.
+    method: "GET",
+    pattern: "/me",
+    handler: async ({ caller }) => ({ actor: caller.actorEmail }),
+  },
+  {
     method: "GET",
     pattern: "/whats-next",
     handler: async ({ db }) => {
