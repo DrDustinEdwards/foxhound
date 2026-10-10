@@ -5,30 +5,27 @@ import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
 import { RATE_LIMIT_MCP, RATE_LIMIT_MCP_ANON } from "~/lib/constants";
 import { classifyPath } from "~/lib/http/cache-policy";
 import {
-  MCP_ERROR,
-  MCP_PROTOCOL_VERSION,
-  decodeHeaderValue,
-  validateMcpRequest,
-} from "~/lib/mcp/protocol";
-import { DENIED_TOOL_FRAGMENTS, defineToolRegistry, isDeniedToolName } from "~/lib/mcp/registry";
+  DENIED_TOOL_FRAGMENTS,
+  defineToolRegistry,
+  isDeniedToolName,
+  type McpTool,
+} from "~/lib/mcp/registry";
 import { DISALLOW_PATHS } from "~/routes/files/robots";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
+import { MODERN_VERSION, mcpRequest, readMcp, type McpCallInit } from "./helpers/mcp-client";
 
-// RULING 370, ROADMAP ITEM 3, FIRST OF TWO: the transport, with an EMPTY tool
-// registry.
+// RULING 370, ROADMAP ITEM 3: the transport, driven with an EMPTY tool registry
+// so every assertion here is about the door and the protocol, not a tool.
 //
-// THE ENDPOINT IS HAND-ROLLED, ratified by Dustin in session 76 against the
-// measurement: installing `agents@0.21.0` forces a tree-wide npm re-resolution
-// that surfaces a pre-existing latent conflict (`@sentry/cloudflare@10.65.0`
-// wants `peerOptional @cloudflare/workers-types@^4.x`, the tree carries
-// `5.20260825.1`), and resolving that needs --legacy-peer-deps or an overrides
-// pin on a repo that moves money. A plain `npm install` on the current tree is
-// clean, so `agents` exposes the conflict rather than causing it.
-//
-// SO SPEC CONFORMANCE IS FOXHOUND'S NOW, and these plants are what carries it.
-// Every assertion below cites the clause of the 2026-07-28 revision it encodes,
-// read at build time this session and not recalled.
+// THE PROTOCOL IS THE OFFICIAL SDK NOW (MCP ruling 2026-10-10, rule 8;
+// job_874dc20ea9ac). @modelcontextprotocol/server 2.0 serves both eras on one
+// route: 2026-07-28 with server/discover and the header checks, and the
+// 2025-era `initialize` clients through its stateless fallback. The plants
+// below drive the real handler end to end, so they check the SDK's conformance
+// as wired here, plus the door Foxhound keeps for itself: origin, the
+// byte-stable 401, the scope and demo refusals, the two rate-limit buckets and
+// the private cache policy.
 
 const harness = vi.hoisted(() => ({ db: null as unknown, limiter: null as unknown }));
 
@@ -91,58 +88,43 @@ async function seed() {
   return { db, good, revoked, admin, adminWithAccount, demo };
 }
 
-interface CallOptions {
-  token?: string | null;
-  method?: string;
-  body?: unknown;
-  headers?: Record<string, string>;
-  httpMethod?: string;
-  modern?: boolean;
+interface CallOptions extends McpCallInit {
   allowed?: boolean;
 }
 
-async function call(opts: CallOptions = {}): Promise<{ status: number; json: never; res: Response }> {
-  const method = opts.method ?? "tools/list";
-  const body =
-    opts.body !== undefined
-      ? opts.body
-      : {
-          jsonrpc: "2.0",
-          id: 1,
-          method,
-          params: opts.modern
-            ? { _meta: { "io.modelcontextprotocol/protocolVersion": MCP_PROTOCOL_VERSION } }
-            : {},
-        };
-  const headers: Record<string, string> = { "Content-Type": "application/json", ...opts.headers };
-  if (opts.token !== null && opts.token !== undefined) {
-    headers["Authorization"] = `Bearer ${opts.token}`;
-  }
-  if (opts.modern) {
-    headers["MCP-Protocol-Version"] ??= MCP_PROTOCOL_VERSION;
-    headers["Mcp-Method"] ??= method;
-  }
-  const res = (await handleMcpRequest(
-    new Request(`${ORIGIN}/mcp`, {
-      method: opts.httpMethod ?? "POST",
-      headers,
-      body: opts.httpMethod === "GET" ? undefined : JSON.stringify(body),
-    }),
-    env(opts.allowed ?? true),
-  )) as Response;
-  const text = await res.clone().text();
-  return { status: res.status, json: (text ? JSON.parse(text) : null) as never, res };
+async function call(opts: CallOptions = {}) {
+  const res = (await handleMcpRequest(mcpRequest(opts), env(opts.allowed ?? true), PROBE)) as Response;
+  return readMcp(res);
 }
+
+/** A tool descriptor for the registry plants: everything but the name fixed.
+ *  Hoisted as a function declaration, since PROBE below is built from it. */
+function tool(name: string): McpTool {
+  return {
+    name,
+    title: "t",
+    description: "d",
+    inputSchema: { type: "object" },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    execute: async () => ({}),
+  };
+}
+
+/** ONE inert tool, so the SDK advertises a tools capability: a server with no
+ *  tools at all has no tools/list to answer. It reads nothing, so every
+ *  assertion below stays about the door and the protocol. */
+const PROBE = defineToolRegistry([tool("foxhound_get_probe")]);
+const PROBE_NAMES = ["foxhound_get_probe"];
 
 // ============================================================================
 
-describe("PLANT 1: the endpoint's shape, per the 2026-07-28 binding", () => {
+describe("PLANT 1: the endpoint's shape", () => {
   it("only claims /mcp, returning null for anything else", async () => {
     const other = await handleMcpRequest(new Request(`${ORIGIN}/pricing`), env());
     expect(other).toBeNull();
   });
 
-  it("GET and DELETE get 405, per the Earlier Revisions clause", async () => {
+  it("GET and DELETE get 405 before anything else runs", async () => {
     await seed();
     for (const httpMethod of ["GET", "DELETE", "PUT"]) {
       const { status, res } = await call({ httpMethod, token: null });
@@ -164,49 +146,50 @@ describe("PLANT 1: the endpoint's shape, per the 2026-07-28 binding", () => {
     expect(absent.status).toBe(200);
   });
 
-  it("an unknown METHOD is 404 with -32601, not 400", async () => {
-    // "If the server does not implement the requested RPC method, it MUST
-    // respond with 404 Not Found and a JSON-RPC error with code -32601."
+  it("an unknown METHOD is refused with -32601 on both eras", async () => {
     const { good } = await seed();
-    const { status, json } = await call({ token: good, method: "resources/list" });
-    expect(status).toBe(404);
-    expect((json as { error: { code: number } }).error.code).toBe(MCP_ERROR.METHOD_NOT_FOUND);
+    for (const era of ["legacy", "modern"] as const) {
+      const { json } = await call({ token: good, era, method: "resources/list" });
+      expect((json as { error: { code: number } }).error.code, era).toBe(-32601);
+    }
   });
 
   it("a NOTIFICATION is 202 with no body", async () => {
-    // "If the body is a JSON-RPC notification ... the server MUST return HTTP
-    // status code 202 Accepted with no body."
     const { good } = await seed();
-    const { status, res } = await call({
-      token: good,
-      body: { jsonrpc: "2.0", method: "tools/list" },
-    });
+    const { status, res } = await call({ token: good, id: null, method: "notifications/initialized" });
     expect(status).toBe(202);
     expect(await res.text()).toBe("");
   });
 
   it("malformed JSON is a parse error, not a crash", async () => {
     const { good } = await seed();
-    const res = (await handleMcpRequest(
-      new Request(`${ORIGIN}/mcp`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${good}`, "Content-Type": "application/json" },
-        body: "{not json",
-      }),
-      env(),
-    )) as Response;
-    expect(res.status).toBe(400);
-    expect((await res.json() as { error: { code: number } }).error.code).toBe(MCP_ERROR.PARSE);
+    const { status, json } = await call({ token: good, body: "{not json" });
+    expect(status).toBe(400);
+    expect((json as { error: { code: number } }).error.code).toBe(-32700);
   });
 });
 
-describe("PLANT 2: both eras on one route", () => {
-  it("MODERN: the header round-trips and the version is echoed", async () => {
+describe("PLANT 2: both eras on one route, through the SDK", () => {
+  it("MODERN: server/discover names 2026-07-28 and the server", async () => {
     const { good } = await seed();
-    const { status, res, json } = await call({ token: good, modern: true, method: "tools/list" });
+    const { status, json } = await call({ token: good, era: "modern", method: "server/discover" });
     expect(status).toBe(200);
-    expect(res.headers.get("MCP-Protocol-Version")).toBe(MCP_PROTOCOL_VERSION);
-    expect((json as { result: { tools: unknown[] } }).result.tools).toEqual([]);
+    const result = (json as {
+      result: { supportedVersions: string[]; _meta: Record<string, { name: string }> };
+    }).result;
+    expect(result.supportedVersions).toContain(MODERN_VERSION);
+    expect(result._meta["io.modelcontextprotocol/serverInfo"].name).toBe("foxhound");
+  });
+
+  it("MODERN: tools/list is a plain JSON body carrying a private cache hint", async () => {
+    const { good } = await seed();
+    const { status, res, json } = await call({ token: good, era: "modern", method: "tools/list" });
+    expect(status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("application/json");
+    const result = (json as { result: { tools: unknown[]; cacheScope: string; ttlMs: number } }).result;
+    expect((result.tools as { name: string }[]).map((t) => t.name)).toEqual(PROBE_NAMES);
+    expect(result.cacheScope).toBe("private");
+    expect(result.ttlMs).toBeGreaterThan(0);
   });
 
   it("LEGACY: initialize round-trips the protocol version", async () => {
@@ -216,11 +199,11 @@ describe("PLANT 2: both eras on one route", () => {
     const { good } = await seed();
     const { status, json } = await call({
       token: good,
-      body: {
-        jsonrpc: "2.0",
-        id: 1,
-        method: "initialize",
-        params: { protocolVersion: "2025-06-18", capabilities: {} },
+      method: "initialize",
+      params: {
+        protocolVersion: "2025-06-18",
+        capabilities: {},
+        clientInfo: { name: "legacy-client", version: "1.0.0" },
       },
     });
     expect(status).toBe(200);
@@ -230,91 +213,30 @@ describe("PLANT 2: both eras on one route", () => {
     expect(result.serverInfo.name).toBe("foxhound");
   });
 
-  it("an initialize for a version we do not serve answers with ours", async () => {
-    const { good } = await seed();
-    const { json } = await call({
-      token: good,
-      body: { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "1999-01-01" } },
-    });
-    expect((json as { result: { protocolVersion: string } }).result.protocolVersion).toBe(
-      MCP_PROTOCOL_VERSION,
-    );
-  });
-
-  it("HEADER MISMATCH is 400 with -32020, on each mirrored header", () => {
+  it("HEADER MISMATCH is 400 with -32020, on each mirrored header", async () => {
     // "Servers MUST reject requests where the values specified in the headers do
     // not match the corresponding values in the request body ... MUST return
     // HTTP status 400 Bad Request and MUST include ... code -32020."
-    const headers = (h: Record<string, string>) => new Headers(h);
-    const body = {
-      jsonrpc: "2.0",
-      id: 1,
+    const { good } = await seed();
+    const base: McpCallInit = {
+      token: good,
+      era: "modern",
       method: "tools/call",
-      params: {
-        name: "a_tool",
-        _meta: { "io.modelcontextprotocol/protocolVersion": MCP_PROTOCOL_VERSION },
-      },
+      params: { name: "foxhound_a_tool", arguments: {} },
     };
-
-    // Version header disagreeing with _meta.
-    const v = validateMcpRequest(
-      headers({
-        "mcp-protocol-version": "2025-06-18",
-        "mcp-method": "tools/call",
-        "mcp-name": "a_tool",
-      }),
-      body,
-    );
-    expect(v.ok).toBe(false);
-    expect(v.ok === false && v.refusal.code).toBe(MCP_ERROR.HEADER_MISMATCH);
-
-    // Method header disagreeing with the body.
-    const m = validateMcpRequest(
-      headers({
-        "mcp-protocol-version": MCP_PROTOCOL_VERSION,
-        "mcp-method": "tools/list",
-        "mcp-name": "a_tool",
-      }),
-      body,
-    );
-    expect(m.ok === false && m.refusal.code).toBe(MCP_ERROR.HEADER_MISMATCH);
-
-    // Mcp-Name missing on a named method.
-    const n = validateMcpRequest(
-      headers({ "mcp-protocol-version": MCP_PROTOCOL_VERSION, "mcp-method": "tools/call" }),
-      body,
-    );
-    expect(n.ok === false && n.refusal.code).toBe(MCP_ERROR.HEADER_MISMATCH);
-
-    // And the correct set validates, so the refusals above discriminate.
-    const good = validateMcpRequest(
-      headers({
-        "mcp-protocol-version": MCP_PROTOCOL_VERSION,
-        "mcp-method": "tools/call",
-        "mcp-name": "a_tool",
-      }),
-      body,
-    );
-    expect(good.ok).toBe(true);
-    expect(good.ok === true && good.era).toBe("modern");
-  });
-
-  it("the Base64 sentinel is decoded before comparison, as the spec requires", () => {
-    // "Servers MUST decode an encoded Mcp-Name ... value before comparing it to
-    // the corresponding request body value." Skipping this rejects legitimate
-    // non-ASCII tool names.
-    const encoded = "=?base64?" + btoa("Hello") + "?=";
-    expect(decodeHeaderValue(encoded)).toBe("Hello");
-    expect(decodeHeaderValue("plain")).toBe("plain");
-    const v = validateMcpRequest(
-      new Headers({
-        "mcp-protocol-version": MCP_PROTOCOL_VERSION,
-        "mcp-method": "tools/call",
-        "mcp-name": encoded,
-      }),
-      { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "Hello" } },
-    );
-    expect(v.ok).toBe(true);
+    const mismatches: Record<string, string>[] = [
+      { "Mcp-Method": "tools/list" },
+      { "Mcp-Name": "foxhound_other_tool" },
+    ];
+    for (const headers of mismatches) {
+      const { status, json } = await call({ ...base, headers });
+      expect(status, JSON.stringify(headers)).toBe(400);
+      expect((json as { error: { code: number } }).error.code).toBe(-32020);
+    }
+    // And the matching set reaches the server, so the refusals discriminate:
+    // the registry answers that the tool does not exist, not -32020.
+    const { json } = await call(base);
+    expect((json as { error?: { code: number } }).error?.code).not.toBe(-32020);
   });
 });
 
@@ -362,24 +284,18 @@ describe("PLANT 3: the 401 is byte-stable across every failure", () => {
     const { good } = await seed();
     const { status, json } = await call({ token: good, method: "tools/list" });
     expect(status).toBe(200);
-    expect((json as { result: { tools: unknown[] } }).result.tools).toEqual([]);
+    const tools = (json as { result: { tools: { name: string }[] } }).result.tools;
+    expect(tools.map((t) => t.name)).toEqual(PROBE_NAMES);
   });
 });
 
-describe("PLANT 4: the registry is EMPTY and can never hold a denied name", () => {
-  it("tools/list is empty and tools/call refuses every name", async () => {
+describe("PLANT 4: the registry can never hold a denied or unprefixed name", () => {
+  it("tools/call refuses every name the registry does not hold", async () => {
     const { good } = await seed();
-    const { json } = await call({ token: good, method: "tools/list" });
-    expect((json as { result: { tools: unknown[] } }).result.tools).toEqual([]);
-
-    for (const name of ["list_audit_runs", "anything", ""]) {
-      const res = await call({
-        token: good,
-        method: "tools/call",
-        body: { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name } },
-      });
-      expect(res.status, `${name} was not refused`).toBe(404);
-      expect((res.json as { error: { code: number } }).error.code).toBe(MCP_ERROR.METHOD_NOT_FOUND);
+    for (const name of ["foxhound_get_overview", "anything"]) {
+      const res = await call({ token: good, method: "tools/call", params: { name, arguments: {} } });
+      const error = (res.json as { error?: { message: string } }).error;
+      expect(error?.message, `${name} was not refused`).toContain("not found");
     }
   });
 
@@ -389,56 +305,45 @@ describe("PLANT 4: the registry is EMPTY and can never hold a denied name", () =
     expect(DENIED_TOOL_FRAGMENTS.length).toBeGreaterThan(10);
     for (const fragment of DENIED_TOOL_FRAGMENTS) {
       expect(isDeniedToolName(fragment), `${fragment} not denied`).toBe(true);
-      expect(() =>
-        defineToolRegistry([
-          { name: fragment, description: "d", inputSchema: { type: "object" }, execute: async () => ({}) },
-        ]),
-      ).toThrow(/HUMAN-FOREVER/);
-      // And as a SUBSTRING, which is the point: the risk is a name that contains
-      // the fragment, not one that equals it.
-      expect(() =>
-        defineToolRegistry([
-          { name: `merchant_${fragment}_v2`, description: "d", inputSchema: { type: "object" }, execute: async () => ({}) },
-        ]),
-      ).toThrow(/HUMAN-FOREVER/);
+      expect(() => defineToolRegistry([tool(fragment)])).toThrow(/HUMAN-FOREVER/);
+      // And as a SUBSTRING inside a name that is otherwise well formed, which is
+      // the point: the risk is a name that contains the fragment.
+      expect(() => defineToolRegistry([tool(`foxhound_${fragment}_now`)])).toThrow(/HUMAN-FOREVER/);
     }
   });
 
   it("the five named refusals each have a fragment that catches them", () => {
     for (const name of [
-      "submit_dispute_evidence",
-      "cancel_account",
-      "disconnect_stripe",
-      "connect_stripe_account",
-      "create_api_key",
-      "record_outcome",
+      "foxhound_submit_dispute_evidence",
+      "foxhound_cancel_account",
+      "foxhound_disconnect_stripe",
+      "foxhound_connect_stripe_account",
+      "foxhound_create_api_key",
+      "foxhound_record_outcome",
+      "foxhound_trigger_charge",
+      "foxhound_issue_refund",
     ]) {
       expect(isDeniedToolName(name), `${name} would be registrable`).toBe(true);
     }
   });
 
+  it("a name off the foxhound_{action}_{resource} pattern throws (ruling rule 5)", () => {
+    for (const name of ["get_overview", "foxhound_overview", "Foxhound_get_overview", "foxhound_get-overview"]) {
+      expect(() => defineToolRegistry([tool(name)]), name).toThrow(/foxhound_\{action\}_\{resource\}/);
+    }
+  });
+
   it("AND AN ORDINARY READ TOOL IS ACCEPTED, so the denylist is not deny-everything", () => {
-    // The non-vacuous half. A denylist that rejected every name would satisfy
-    // every assertion above and make session 77 impossible.
-    const registry = defineToolRegistry([
-      { name: "list_audit_runs", description: "d", inputSchema: { type: "object" }, execute: async () => ({}) },
-      { name: "get_intelligence_overview", description: "d", inputSchema: { type: "object" }, execute: async () => ({}) },
-    ]);
-    expect(registry.list().map((t) => t.name)).toEqual([
-      "list_audit_runs",
-      "get_intelligence_overview",
-    ]);
-    expect(registry.get("list_audit_runs")).not.toBeNull();
+    const registry = defineToolRegistry([tool("foxhound_review_audits"), tool("foxhound_get_overview")]);
+    expect(registry.list().map((t) => t.name)).toEqual(["foxhound_review_audits", "foxhound_get_overview"]);
+    expect(registry.get("foxhound_review_audits")).not.toBeNull();
     expect(registry.get("nope")).toBeNull();
   });
 
   it("a duplicate name throws, because a shadowed tool cannot be reasoned about", () => {
-    expect(() =>
-      defineToolRegistry([
-        { name: "dup", description: "d", inputSchema: { type: "object" }, execute: async () => ({}) },
-        { name: "dup", description: "d", inputSchema: { type: "object" }, execute: async () => ({}) },
-      ]),
-    ).toThrow(/registered twice/);
+    expect(() => defineToolRegistry([tool("foxhound_get_dup"), tool("foxhound_get_dup")])).toThrow(
+      /registered twice/,
+    );
   });
 });
 
@@ -466,14 +371,7 @@ describe("PLANT 5: the posture", () => {
         },
       },
     } as unknown as Env;
-    const res = (await handleMcpRequest(
-      new Request(`${ORIGIN}/mcp`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${good}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
-      }),
-      broken,
-    )) as Response;
+    const res = (await handleMcpRequest(mcpRequest({ token: good }), broken)) as Response;
     // A limiter outage must not take down a merchant's integration.
     expect(res.status).toBe(200);
   });

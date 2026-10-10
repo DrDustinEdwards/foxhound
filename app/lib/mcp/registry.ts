@@ -4,12 +4,10 @@ import { redactToolResult } from "./redact";
 
 // The tool registry, and the refusal that is the point of it.
 //
-// EMPTY THIS SESSION, DELIBERATELY. 370 split the transport and the thirteen
-// tools across two sessions. What ships here is the endpoint plus a registry
-// with nothing in it, NOT a stub tool: a placeholder tool would be a surface a
-// client could call and a thing the S29 copy could be read as promising, and
-// removing it later would be a breaking change to a published tool list. An
-// empty list is honest and costs nothing to grow.
+// THE LIVE TOOLS ARE IN ./tools.server.ts, regrouped to the 2026-10-10 MCP
+// ruling (capsid/rulings/mcp-2026-10-10.md): twelve whole-job tools named
+// foxhound_{action}_{resource}, each carrying all four behaviour hints. This
+// module is the gate every one of them passes through at load.
 //
 // THE DENYLIST IS THE HUMAN-FOREVER FIVE, ENFORCED BY CONSTRUCTION (368 ruling
 // 4, ratified again at 370). Dispute submission, account cancel, Stripe
@@ -88,18 +86,34 @@ export interface McpToolContext {
   trace: { apiKeyId: string; tool: string; now: Date };
 }
 
+/**
+ * The four behaviour hints the 2026-10-10 ruling (rule 6) requires on every
+ * tool, set honestly so a client can ask before acting. All four are REQUIRED
+ * here rather than optional as in the spec: a missing hint is read by a client
+ * as the spec's default, and the default for destructiveHint is true, so an
+ * omission would be a statement nobody made.
+ */
+export interface McpToolAnnotations {
+  readOnlyHint: boolean;
+  destructiveHint: boolean;
+  idempotentHint: boolean;
+  openWorldHint: boolean;
+}
+
 /** What a tool exposes to a client. No executor: this is the shape `tools/list`
  *  returns, and shipping the function with it would be a leak waiting to be
  *  serialized. */
 export interface McpToolDescriptor {
   name: string;
+  title: string;
   description: string;
   /** JSON Schema. Plain object rather than a zod schema: MCP's `inputSchema` IS
-   *  JSON Schema, and the repo carries no schema library to convert one. */
+   *  JSON Schema, and the SDK's `fromJsonSchema` takes it as written. */
   inputSchema: { type: "object"; properties?: Record<string, unknown>; required?: string[] };
+  annotations: McpToolAnnotations;
 }
 
-/** A registered tool: its descriptor plus the read it performs. The context
+/** A registered tool: its descriptor plus the work it performs. The context
  *  carries the account the bearer key resolved to; no tool takes an account as
  *  an argument, so an agent cannot be talked into changing it. */
 export interface McpTool extends McpToolDescriptor {
@@ -119,6 +133,10 @@ export function isDeniedToolName(name: string): boolean {
   return DENIED_TOOL_FRAGMENTS.some((fragment) => lower.includes(fragment));
 }
 
+/** Every name is `foxhound_{action}_{resource}` (ruling rule 5): the service
+ *  prefix, then at least an action and a resource, snake case. */
+export const TOOL_NAME_PATTERN = /^foxhound(_[a-z]+){2,}$/;
+
 /**
  * Build a registry, refusing any denied name at construction time.
  *
@@ -134,6 +152,9 @@ export function defineToolRegistry(tools: McpTool[]): McpToolRegistry {
       throw new Error(
         `MCP tool "${tool.name}" is on the HUMAN-FOREVER denylist (368 ruling 4) and cannot be registered`,
       );
+    }
+    if (!TOOL_NAME_PATTERN.test(tool.name)) {
+      throw new Error(`MCP tool "${tool.name}" is not named foxhound_{action}_{resource}`);
     }
     if (byName.has(tool.name)) {
       throw new Error(`MCP tool "${tool.name}" is registered twice`);
@@ -156,10 +177,12 @@ export function defineToolRegistry(tools: McpTool[]): McpToolRegistry {
   }
   return {
     list: () =>
-      [...byName.values()].map(({ name, description, inputSchema }) => ({
+      [...byName.values()].map(({ name, title, description, inputSchema, annotations }) => ({
         name,
+        title,
         description,
         inputSchema,
+        annotations,
       })),
     get: (name: string) => byName.get(name) ?? null,
   };

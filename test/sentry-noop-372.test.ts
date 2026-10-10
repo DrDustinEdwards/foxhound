@@ -138,7 +138,7 @@ describe("PLANT 3: the Sentry surface Foxhound uses is unchanged", () => {
   it("and nothing new crept into the import surface", () => {
     // DERIVED over the tree: if a later session starts using a third Sentry API,
     // this goes red and the surface gets re-reviewed on purpose. Comments are
-    // stripped, because this file and protocol.ts both DISCUSS the package by
+    // stripped, because this file DISCUSSES the package by
     // name (session 57's trap, walked into twice in this campaign already).
     const strip = (s: string) =>
       s

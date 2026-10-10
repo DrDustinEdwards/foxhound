@@ -7,18 +7,15 @@ import {
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE, verifyMcpToken } from "~/lib/auth/mcp-tokens";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
 
-import {
-  MCP_ERROR,
-  MCP_PROTOCOL_VERSION,
-  initializeResult,
-  mcpErrorBody,
-  mcpResultBody,
-  validateMcpRequest,
-  type McpRequestBody,
-} from "./protocol";
-import { EMPTY_REGISTRY, type McpToolContext, type McpToolRegistry } from "./registry";
+import { EMPTY_REGISTRY, type McpToolRegistry } from "./registry";
+import { serveMcp } from "./server";
 
-// THE MERCHANT MCP ENDPOINT (370, roadmap item 3, first of two).
+// THE MERCHANT MCP ENDPOINT (370, roadmap item 3; brought to the 2026-10-10
+// MCP ruling by job_874dc20ea9ac).
+//
+// THIS FILE IS THE DOOR, NOT THE PROTOCOL. It decides who may call (origin,
+// bearer key, scope, demo refusal, rate limits) and hands an authenticated
+// request to the official SDK in ./server.ts, which speaks both protocol eras.
 //
 // Stateless Streamable HTTP at /mcp, mounted at the WORKER level rather than as
 // a React Router route, because this is JSON-RPC over POST with its own header
@@ -39,6 +36,13 @@ import { EMPTY_REGISTRY, type McpToolContext, type McpToolRegistry } from "./reg
 // all produce the SAME body and the same status. A body that varied would tell
 // an attacker which of their guesses was a real key that had been revoked, which
 // is the classic user-enumeration leak wearing different clothes.
+
+/** JSON-RPC codes this file answers with itself, before the SDK is reached. */
+const MCP_ERROR = { INVALID_REQUEST: -32600 } as const;
+
+function mcpErrorBody(id: string | number | null, code: number, message: string) {
+  return { jsonrpc: "2.0", id, error: { code, message } };
+}
 
 /** What the endpoint resolved before dispatching. */
 export interface McpAuthContext {
@@ -161,72 +165,6 @@ async function authenticate(
   return { ok: true, auth: { keyId: verified.keyId, accountId: verified.accountId } };
 }
 
-/** What a tool execution returns on the wire. MCP reports a TOOL failure inside
- *  the result with `isError`, and reserves JSON-RPC errors for PROTOCOL
- *  failures. The distinction matters: an unknown tool is the caller's mistake
- *  and a failed read is information the agent should see and can act on. */
-function toolResult(data: unknown, isError = false) {
-  return {
-    content: [{ type: "text", text: JSON.stringify(data) }],
-    structuredContent: data,
-    ...(isError ? { isError: true } : {}),
-  };
-}
-
-async function dispatch(
-  body: McpRequestBody,
-  registry: McpToolRegistry,
-  ctx: McpToolContext,
-): Promise<{ status: number; result?: unknown; error?: { code: number; message: string } }> {
-  switch (body.method) {
-    case "initialize": {
-      const requested = body.params?.["protocolVersion"];
-      return {
-        status: 200,
-        result: initializeResult(typeof requested === "string" ? requested : null),
-      };
-    }
-    case "tools/list":
-      return { status: 200, result: { tools: registry.list() } };
-    case "tools/call": {
-      const name = typeof body.params?.["name"] === "string" ? body.params["name"] : "";
-      const tool = registry.get(name);
-      if (!tool) {
-        // THE SPEC'S SHAPE FOR AN UNKNOWN TOOL. Every name lands here while the
-        // registry is empty, which is the correct answer rather than a stub:
-        // the tool genuinely does not exist.
-        return {
-          status: 404,
-          error: { code: MCP_ERROR.METHOD_NOT_FOUND, message: `Unknown tool: ${name}` },
-        };
-      }
-      const rawArgs = body.params?.["arguments"];
-      const args = rawArgs && typeof rawArgs === "object" ? (rawArgs as Record<string, unknown>) : {};
-      try {
-        // THE TRACE NAMES THE TOOL BEING RUN, built here rather than passed in,
-        // so a tool cannot record a different tool's name against its write.
-        const data = await tool.execute({ ...ctx, trace: { ...ctx.trace, tool: name } }, args);
-        return { status: 200, result: toolResult(data) };
-      } catch (err) {
-        // A HELPER FAILURE NEVER THROWS THROUGH THE TRANSPORT. It comes back as a
-        // tool error carrying the reason, so the agent can retry or report
-        // rather than seeing a 500 with no explanation. The message is the
-        // error's own text and never the object, which can carry query context.
-        const reason = err instanceof Error ? err.message : "unknown error";
-        console.debug("mcp tool failed:", name, reason);
-        return { status: 200, result: toolResult({ error: reason, tool: name }, true) };
-      }
-    }
-    default:
-      // "If the server does not implement the requested RPC method, it MUST
-      // respond with 404 Not Found and a JSON-RPC error with code -32601."
-      return {
-        status: 404,
-        error: { code: MCP_ERROR.METHOD_NOT_FOUND, message: `Method not found: ${body.method}` },
-      };
-  }
-}
-
 /**
  * The endpoint. Returns null when the request is not for /mcp, so the worker
  * entry can fall through to the router without a second URL parse there.
@@ -280,46 +218,18 @@ export async function handleMcpRequest(
     return errorResponse(429, null, MCP_ERROR.INVALID_REQUEST, "Too many requests");
   }
 
-  let raw: unknown;
-  try {
-    raw = await request.json();
-  } catch {
-    return errorResponse(400, null, MCP_ERROR.PARSE, "Request body is not valid JSON");
-  }
-
-  const validated = validateMcpRequest(request.headers, raw);
-  if (!validated.ok) {
-    const id =
-      raw && typeof raw === "object" && "id" in raw
-        ? ((raw as { id?: string | number | null }).id ?? null)
-        : null;
-    return errorResponse(
-      validated.refusal.status,
-      id,
-      validated.refusal.code,
-      validated.refusal.message,
-    );
-  }
-
-  // "If the body is a JSON-RPC notification ... the server MUST return HTTP
-  // status code 202 Accepted with no body."
-  if (validated.isNotification) {
-    return new Response(null, { status: 202, headers: { "Cache-Control": "private, no-store" } });
-  }
-
-  const id = validated.body.id ?? null;
   const now = new Date();
-  const outcome = await dispatch(validated.body, registry, {
+  const response = await serveMcp(request, registry, {
     env,
     db: getDb(env),
     accountId: authenticated.auth.accountId,
     now,
     trace: { apiKeyId: authenticated.auth.keyId, tool: "", now },
   });
-  if (outcome.error) {
-    return errorResponse(outcome.status, id, outcome.error.code, outcome.error.message);
-  }
-  return jsonResponse(outcome.status, mcpResultBody(id, outcome.result), {
-    "MCP-Protocol-Version": MCP_PROTOCOL_VERSION,
-  });
+  // Belt and braces with the worker's own cache policy: an answer carrying a
+  // merchant's data must never be stored by an intermediary, whatever the SDK
+  // set. (The 2026-07-28 cache hints in the body are for the client only.)
+  const headers = new Headers(response.headers);
+  headers.set("Cache-Control", "private, no-store");
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
