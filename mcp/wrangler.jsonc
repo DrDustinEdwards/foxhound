@@ -1,0 +1,33 @@
+// The Foxhound Admin MCP Worker (job_21de68b30fc2). The ONE exception to
+// Foxhound's single-Worker rule (CLAUDE.md), kept apart so the process an admin
+// AI talks to can reach no money: it holds no Stripe key, no D1, no queue, no
+// Durable Object and no money binding. Its only route into Foxhound is the
+// FOXHOUND service binding to the admin API.
+//
+// Deploy with: npx wrangler deploy --config mcp/wrangler.jsonc
+// test/admin-mcp-worker-mcp7.test.ts fails if a binding is added here.
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "foxhound-admin-mcp",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  // Required by workers-oauth-provider to fetch a Client ID Metadata Document.
+  "compatibility_flags": ["global_fetch_strictly_public"],
+  "observability": { "enabled": true },
+  "routes": [{ "pattern": "admin-mcp.foxhoundapp.com", "custom_domain": true }],
+  "services": [{ "binding": "FOXHOUND", "service": "foxhound" }],
+  "kv_namespaces": [
+    // Grants and tokens for workers-oauth-provider. Create it with
+    // `npx wrangler kv namespace create foxhound-admin-mcp-oauth` and put its id here.
+    { "binding": "OAUTH_KV", "id": "REPLACE_WITH_OAUTH_KV_ID" }
+  ],
+  "vars": {
+    "ADMIN_MCP_ORIGIN": "https://admin-mcp.foxhoundapp.com",
+    // The Cloudflare Access team domain, e.g. <team>.cloudflareaccess.com.
+    "ACCESS_TEAM_DOMAIN": ""
+  }
+  // Secrets, set with `npx wrangler secret put <NAME> --config mcp/wrangler.jsonc`:
+  //   FOXHOUND_ADMIN_API_KEY     from scripts/issue-admin-api-key.mjs
+  //   ACCESS_SAAS_CLIENT_ID      the Access for SaaS application
+  //   ACCESS_SAAS_CLIENT_SECRET  ditto
+}

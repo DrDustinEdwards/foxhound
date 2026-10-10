@@ -30,6 +30,8 @@ Parity finishes first. Only after it does Foxhound get the careful Capsomer trea
 
 One Worker `foxhound` and one D1 `foxhound`. No KV binding. No `--env` flag anywhere, not in wrangler commands and not in CI. Every deploy is production. If ARCHITECTURE.md or rebuild-plan.md still describe two environments, correct them; they are out of date.
 
+The one exception (MCP ruling 2026-10-10, rule 9 amendment): `foxhound-admin-mcp`, the Foxhound Admin MCP at admin-mcp.foxhoundapp.com, in `mcp/` with its own `mcp/wrangler.jsonc`. It is separate so that it holds no Stripe key, no D1 and no money binding: its only bindings are a service binding to `foxhound` and its own OAuth KV, and everything it does is a call to the admin API at /api/admin/v1. No other second Worker is allowed, and that Worker never gains a binding beyond those two.
+
 ## Verification
 
 - Crons: invoke the cron handler and check wrangler tail.
