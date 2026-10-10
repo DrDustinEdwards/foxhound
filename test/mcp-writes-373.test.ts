@@ -11,6 +11,7 @@ import { SENDER_NAME_MAX_LENGTH } from "~/lib/settings/sender-name";
 import { isDeniedToolName } from "~/lib/mcp/registry";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
+import { mcpRequest, readMcp, toolOutput } from "./helpers/mcp-client";
 
 // SESSION 79: THE FIRST FOUR WRITE TOOLS (372's item-4 ruling).
 //
@@ -27,6 +28,12 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 //      there is only one: `applyX` is what both callers invoke.
 //   3. EVERY WRITE LEAVES A TRACE naming the key, in the same batch as the write.
 //   4. THE MONEY TOOLS STILL DO NOT EXIST.
+//
+// THE 2026-10-10 REGROUP (job_874dc20ea9ac) folded the four tools into SECTIONS
+// of one tool, foxhound_update_settings: `audit`, `features`, `notifications`
+// and `sender_name`. Every property above is unchanged and is now proven through
+// that tool; the trace names it rather than the old per-setting tool. The regroup
+// added one property of its own, plant 6: exactly one section per call.
 
 const harness = vi.hoisted(() => ({ db: null as unknown }));
 vi.mock("~/db", async (importOriginal) => ({
@@ -49,7 +56,8 @@ const read = (path: string) => readFileSync(fileURLToPath(new URL(path, ROOT)), 
 const MINE = "acct_mine";
 const THEIRS = "acct_theirs";
 const NOW = new Date("2026-08-25T12:00:00.000Z");
-const ORIGIN = "https://foxhoundapp.test";
+const UPDATE = "foxhound_update_settings";
+const SECTIONS = ["audit", "features", "notifications", "sender_name", "brand_voice", "intelligence_context"];
 
 function env(): Env {
   return {
@@ -97,46 +105,44 @@ async function seed() {
 }
 
 async function callTool(token: string, name: string, args: Record<string, unknown> = {}) {
-  const res = (await handleMcpRequest(
-    new Request(`${ORIGIN}/mcp`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        id: 1,
-        method: "tools/call",
-        params: { name, arguments: args },
-      }),
-    }),
-    env(),
-    MERCHANT_TOOLS,
-  )) as Response;
-  const text = await res.text();
-  return { status: res.status, text, json: JSON.parse(text) as never };
+  const answer = await readMcp(
+    (await handleMcpRequest(
+      mcpRequest({ token, method: "tools/call", params: { name, arguments: args } }),
+      env(),
+      MERCHANT_TOOLS,
+    )) as Response,
+  );
+  return { status: answer.status, text: answer.text, ...toolOutput(answer) };
 }
 
-const resultOf = (json: never) =>
-  (json as unknown as { result: { isError?: boolean; structuredContent: Record<string, unknown> } })
-    .result;
+/** One section of foxhound_update_settings, which is how each of the old four
+ *  write tools is now called. */
+const updateSettings = (token: string, section: string, fields: Record<string, unknown>) =>
+  callTool(token, UPDATE, { [section]: fields });
+
+const errorOf = (data: Record<string, unknown>) => (data as { error: string }).error;
 
 // ============================================================================
 
 describe("PLANT 1: the four are registered as writes", () => {
-  it("the four this session shipped are the first four writes, in order", () => {
-    // SESSION 80 ADDS THE REST, so this no longer pins the whole list: the
-    // registry size and the final eight are asserted by that session's suite,
-    // which is the one that has to stay right about them. What THIS suite is
-    // still the authority on is that its own four are registered, are writes,
-    // and did not get reordered or quietly dropped by a later session.
-    expect(MERCHANT_WRITE_TOOL_NAMES.slice(0, 4)).toEqual([
-      "set_audit_settings",
-      "set_feature_settings",
-      "set_notification_settings",
-      "set_sender_name",
+  it("the four this session shipped are the first four sections of the one settings writer, in order", () => {
+    // THE REGROUP MADE THEM SECTIONS. What THIS suite is still the authority on
+    // is that its own four are registered, are writes, and did not get
+    // reordered or quietly dropped by a later session. Registry size and the
+    // other sections are asserted by the suites that own them.
+    expect(MERCHANT_WRITE_TOOL_NAMES).toContain(UPDATE);
+    expect(MERCHANT_TOOL_NAMES).toContain(UPDATE);
+    const tool = MERCHANT_TOOLS.list().find((t) => t.name === UPDATE);
+    expect(Object.keys(tool?.inputSchema.properties ?? {}).slice(0, 4)).toEqual([
+      "audit",
+      "features",
+      "notifications",
+      "sender_name",
     ]);
-    for (const name of MERCHANT_WRITE_TOOL_NAMES.slice(0, 4)) {
-      expect(MERCHANT_TOOL_NAMES).toContain(name);
-    }
+    // A write, and hinted as one: a client that trusted the hints would
+    // otherwise run it without asking.
+    expect(tool?.annotations.readOnlyHint).toBe(false);
+    expect(tool?.annotations.destructiveHint).toBe(true);
   });
 
   it("and NONE of them is on the HUMAN-FOREVER denylist", () => {
@@ -147,8 +153,10 @@ describe("PLANT 1: the four are registered as writes", () => {
 
   it("THE FIVE REFUSALS ARE STILL ABSENT from tools/list", async () => {
     // The control that matters most on a session that added writes: the money
-    // and lifecycle actions gained no tool, and cannot.
-    for (const name of [
+    // and lifecycle actions gained no tool, and cannot. Checked bare and under
+    // the foxhound_ prefix every name now carries, so the prefix is not a way
+    // around the denylist.
+    for (const bare of [
       "submit_dispute_evidence",
       "cancel_account",
       "disconnect_stripe",
@@ -156,21 +164,24 @@ describe("PLANT 1: the four are registered as writes", () => {
       "create_api_key",
       "record_outcome",
     ]) {
-      expect(MERCHANT_TOOL_NAMES).not.toContain(name);
-      expect(isDeniedToolName(name), `${name} would be registrable`).toBe(true);
+      for (const name of [bare, `foxhound_${bare}`]) {
+        expect(MERCHANT_TOOL_NAMES).not.toContain(name);
+        expect(isDeniedToolName(name), `${name} would be registrable`).toBe(true);
+      }
     }
   });
 });
 
 describe("PLANT 2: a write lands on the caller's account and nowhere else", () => {
-  it("set_audit_settings changes MINE and leaves THEIRS untouched", async () => {
+  it("the audit section changes MINE and leaves THEIRS untouched", async () => {
     const { db, tokens } = await seed();
-    const { status, json } = await callTool(tokens[MINE], "set_audit_settings", {
+    const { status, isError, data } = await updateSettings(tokens[MINE], "audit", {
       lookback_days: 60,
       auto_run: true,
     });
     expect(status).toBe(200);
-    expect(resultOf(json).isError).toBeUndefined();
+    expect(isError).toBe(false);
+    expect(data.section).toBe("audit");
 
     const mine = (await db.select().from(accounts).where(eq(accounts.id, MINE)))[0];
     const theirs = (await db.select().from(accounts).where(eq(accounts.id, THEIRS)))[0];
@@ -184,12 +195,12 @@ describe("PLANT 2: a write lands on the caller's account and nowhere else", () =
 
   it("SET THEN GET: the read tool reflects the write, end to end", async () => {
     const { tokens } = await seed();
-    await callTool(tokens[MINE], "set_audit_settings", { lookback_days: 180, auto_run: true });
-    const { json } = await callTool(tokens[MINE], "get_audit_settings");
-    expect(resultOf(json).structuredContent).toEqual({ lookbackDays: 180, autoRun: true });
+    await updateSettings(tokens[MINE], "audit", { lookback_days: 180, auto_run: true });
+    const { data } = await callTool(tokens[MINE], "foxhound_get_settings");
+    expect(data.audit).toEqual({ lookbackDays: 180, autoRun: true });
   });
 
-  it("set_sender_name REFUSES A CONNECTION THIS ACCOUNT DOES NOT OWN", async () => {
+  it("the sender_name section REFUSES A CONNECTION THIS ACCOUNT DOES NOT OWN", async () => {
     // THE STACKED-GUARD CASE. The form never had to check ownership because its
     // loader only ever offered the caller's own connection; a tool takes the id
     // as an ARGUMENT, so the check has to be explicit or the argument is a way
@@ -197,25 +208,27 @@ describe("PLANT 2: a write lands on the caller's account and nowhere else", () =
     // connection id belonging to the other account, so only the ownership check
     // can produce the refusal.
     const { db, tokens } = await seed();
-    const { json } = await callTool(tokens[MINE], "set_sender_name", {
+    const { isError, data } = await updateSettings(tokens[MINE], "sender_name", {
       connection_id: `sc_${THEIRS}`,
       sender_name: "Hijacked",
     });
-    expect(resultOf(json).isError).toBe(true);
+    expect(isError).toBe(true);
+    expect(data.tool).toBe(UPDATE);
 
     const theirs = (
       await db.select().from(stripeConnections).where(eq(stripeConnections.id, `sc_${THEIRS}`))
     )[0];
     expect(theirs.senderName ?? null).toBeNull();
+    expect(await db.select().from(mcpWrites)).toHaveLength(0);
   });
 
   it("and the SAME call against its own connection succeeds, so the refusal discriminates", async () => {
     const { db, tokens } = await seed();
-    const { json } = await callTool(tokens[MINE], "set_sender_name", {
+    const { isError } = await updateSettings(tokens[MINE], "sender_name", {
       connection_id: `sc_${MINE}`,
       sender_name: "Acme Billing",
     });
-    expect(resultOf(json).isError).toBeUndefined();
+    expect(isError).toBe(false);
     const mine = (
       await db.select().from(stripeConnections).where(eq(stripeConnections.id, `sc_${MINE}`))
     )[0];
@@ -264,40 +277,53 @@ describe("PLANT 3: validator parity, over the shared function", () => {
 
   it("a bad Slack webhook is refused with THE FORM'S OWN SENTENCE", async () => {
     const { tokens } = await seed();
-    const { json } = await callTool(tokens[MINE], "set_notification_settings", {
+    const { isError, data } = await updateSettings(tokens[MINE], "notifications", {
       slack_webhook_url: "https://evil.test/hook",
     });
-    const result = resultOf(json);
-    expect(result.isError).toBe(true);
+    expect(isError).toBe(true);
     // The exact string the form shows a person, not a paraphrase for agents.
-    expect((result.structuredContent as { error: string }).error).toBe(SLACK_WEBHOOK_ERROR);
+    expect(errorOf(data)).toBe(SLACK_WEBHOOK_ERROR);
+  });
+
+  it("a good Slack webhook is stored but never echoed back: the answer says only that one is set", async () => {
+    const { db, tokens } = await seed();
+    const url = "https://hooks.slack.com/services/T0ECHO/B0ECHO/echoWombatSecret";
+    const answer = await callTool(tokens[MINE], UPDATE, { notifications: { slack_webhook_url: url } });
+    const { isError, data } = answer;
+    expect(isError).toBe(false);
+    expect((data.state as { slackWebhookConfigured: boolean }).slackWebhookConfigured).toBe(true);
+    expect(answer.text).not.toContain("echoWombatSecret");
+    expect(answer.text).not.toContain("slackWebhookUrl");
+    // Stored all the same, so the absence above is the projection, not a refusal.
+    const [row] = await db.select().from(accounts).where(eq(accounts.id, MINE));
+    expect(row.slackWebhookUrl).toBe(url);
   });
 
   it("an over-long sender name is refused with the form's own sentence and bound", async () => {
     const { tokens } = await seed();
-    const { json } = await callTool(tokens[MINE], "set_sender_name", {
+    const { isError, data } = await updateSettings(tokens[MINE], "sender_name", {
       connection_id: `sc_${MINE}`,
       sender_name: "x".repeat(SENDER_NAME_MAX_LENGTH + 1),
     });
-    const result = resultOf(json);
-    expect(result.isError).toBe(true);
-    expect((result.structuredContent as { error: string }).error).toBe(
+    expect(isError).toBe(true);
+    expect(errorOf(data)).toBe(
       `Sender name must be ${SENDER_NAME_MAX_LENGTH} characters or fewer.`,
     );
     // Exactly at the bound is accepted, so the refusal is the bound and not a
     // blanket rejection of long strings.
-    const ok = await callTool(tokens[MINE], "set_sender_name", {
+    const ok = await updateSettings(tokens[MINE], "sender_name", {
       connection_id: `sc_${MINE}`,
       sender_name: "x".repeat(SENDER_NAME_MAX_LENGTH),
     });
-    expect(resultOf(ok.json).isError).toBeUndefined();
+    expect(ok.isError).toBe(false);
   });
 
   it("the lookback CLAMPS rather than refusing, which is the form's behaviour", async () => {
     const { tokens } = await seed();
-    await callTool(tokens[MINE], "set_audit_settings", { lookback_days: 9999, auto_run: false });
-    const { json } = await callTool(tokens[MINE], "get_audit_settings");
-    expect((resultOf(json).structuredContent as { lookbackDays: number }).lookbackDays).toBe(90);
+    const set = await updateSettings(tokens[MINE], "audit", { lookback_days: 9999, auto_run: false });
+    expect(set.isError).toBe(false);
+    const { data } = await callTool(tokens[MINE], "foxhound_get_settings");
+    expect((data.audit as { lookbackDays: number }).lookbackDays).toBe(90);
   });
 
   it("and the shared function refuses identically when called as a FORM would", async () => {
@@ -323,13 +349,15 @@ describe("PLANT 3: validator parity, over the shared function", () => {
 describe("PLANT 4: every write leaves a trace naming the key", () => {
   it("a row per write, carrying the key id, the tool and the fields", async () => {
     const { db, tokens } = await seed();
-    await callTool(tokens[MINE], "set_audit_settings", { lookback_days: 30, auto_run: true });
+    await updateSettings(tokens[MINE], "audit", { lookback_days: 30, auto_run: true });
 
     const rows = await db.select().from(mcpWrites);
     expect(rows).toHaveLength(1);
     expect(rows[0].accountId).toBe(MINE);
     expect(rows[0].apiKeyId).toBe(`key_${MINE}`);
-    expect(rows[0].tool).toBe("set_audit_settings");
+    // The tool the agent called, which after the regroup is the settings
+    // writer; the fields say which section it touched.
+    expect(rows[0].tool).toBe(UPDATE);
     expect(rows[0].fields).toEqual(["audit_lookback_days", "audit_auto_run"]);
   });
 
@@ -337,7 +365,7 @@ describe("PLANT 4: every write leaves a trace naming the key", () => {
     // A trace carrying the new sender name would be a second copy of merchant
     // content in a log with different retention and different readers.
     const { db, tokens } = await seed();
-    await callTool(tokens[MINE], "set_sender_name", {
+    await updateSettings(tokens[MINE], "sender_name", {
       connection_id: `sc_${MINE}`,
       sender_name: "Zebulon Quicksilver Billing",
     });
@@ -348,7 +376,7 @@ describe("PLANT 4: every write leaves a trace naming the key", () => {
 
   it("A REFUSED WRITE LEAVES NO TRACE AND NO CHANGE", async () => {
     const { db, tokens } = await seed();
-    await callTool(tokens[MINE], "set_notification_settings", {
+    await updateSettings(tokens[MINE], "notifications", {
       slack_webhook_url: "https://evil.test/hook",
     });
     expect(await db.select().from(mcpWrites)).toHaveLength(0);
@@ -394,7 +422,7 @@ describe("PLANT 4: every write leaves a trace naming the key", () => {
 describe("PLANT 5: the write tools carry no PII and no money path", () => {
   it("a write response echoes only the new state, which has no customer data", async () => {
     const { tokens } = await seed();
-    const { text } = await callTool(tokens[MINE], "set_notification_settings", {
+    const { text } = await updateSettings(tokens[MINE], "notifications", {
       notification_email: "owner@merchant.test",
       recovery_notifications_enabled: true,
     });
@@ -419,5 +447,59 @@ describe("PLANT 5: the write tools carry no PII and no money path", () => {
     ]) {
       expect(apply, `${forbidden} reached the apply layer`).not.toContain(forbidden);
     }
+  });
+});
+
+describe("PLANT 6: exactly one section per call", () => {
+  // THE PROPERTY THE REGROUP ADDED. Each section is one form's batch, so a call
+  // naming two would be two commits, and a refusal in the second would leave
+  // the first applied with no way for the agent to tell from one answer. The
+  // refusal comes BEFORE either section runs, so the two-section call below
+  // sends two individually valid sections and proves neither landed.
+  const sentence = (sent: string) =>
+    `Send exactly one of ${SECTIONS.join(", ")}; this call sent ${sent}. Make one call per group.`;
+
+  it("a call naming ZERO sections is refused with a sentence naming the sections", async () => {
+    const { db, tokens } = await seed();
+    const { isError, data } = await callTool(tokens[MINE], UPDATE, {});
+    expect(isError).toBe(true);
+    expect(errorOf(data)).toBe(sentence("none"));
+    expect(data.tool).toBe(UPDATE);
+    expect(await db.select().from(mcpWrites)).toHaveLength(0);
+  });
+
+  it("a call naming TWO sections is refused, names both, and changes nothing", async () => {
+    const { db, tokens } = await seed();
+    const { isError, data } = await callTool(tokens[MINE], UPDATE, {
+      audit: { lookback_days: 30, auto_run: true },
+      notifications: { notification_email: "owner@merchant.test", digest_enabled: true },
+    });
+    expect(isError).toBe(true);
+    expect(errorOf(data)).toBe(sentence("audit and notifications"));
+
+    const mine = (await db.select().from(accounts).where(eq(accounts.id, MINE)))[0];
+    expect(mine.auditLookbackDays).toBe(90);
+    expect(mine.auditAutoRun).toBe(false);
+    expect(mine.notificationEmail ?? null).toBeNull();
+    expect(await db.select().from(mcpWrites)).toHaveLength(0);
+  });
+
+  it("and EACH of those sections alone is accepted, so the refusal is the count", async () => {
+    const { db, tokens } = await seed();
+    expect((await updateSettings(tokens[MINE], "audit", { lookback_days: 30, auto_run: true })).isError).toBe(
+      false,
+    );
+    expect(
+      (
+        await updateSettings(tokens[MINE], "notifications", {
+          notification_email: "owner@merchant.test",
+          digest_enabled: true,
+        })
+      ).isError,
+    ).toBe(false);
+    const mine = (await db.select().from(accounts).where(eq(accounts.id, MINE)))[0];
+    expect(mine.auditLookbackDays).toBe(30);
+    expect(mine.notificationEmail).toBe("owner@merchant.test");
+    expect(await db.select().from(mcpWrites)).toHaveLength(2);
   });
 });

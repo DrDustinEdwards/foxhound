@@ -11,7 +11,13 @@ import {
   listCustomerDirectory,
   listCustomerTiers,
 } from "~/lib/intelligence/views.server";
-import { listFailedPayments } from "~/lib/recovery/queries.server";
+import {
+  getFailedPaymentDetail,
+  getGlobalPaymentStatusCounts,
+  listFilteredFailedPayments,
+  type FailedPaymentPageSize,
+  type RecoveryStepRow,
+} from "~/lib/recovery/queries.server";
 import { readAccountAuditSettings } from "~/lib/settings/audit-settings.server";
 import {
   applyAlertConfig,
@@ -22,84 +28,133 @@ import {
   applyIntelligenceContext,
   applyNotificationSettings,
   applySenderName,
+  type NotificationSettingsState,
 } from "~/lib/settings/apply.server";
 import {
+  getAccount,
   getMerchantContext,
   getPrimaryBrandVoices,
+  getPrimarySenderConnection,
   listAccountConnections,
 } from "~/lib/settings/queries.server";
 
 import {
   defineToolRegistry,
   type McpTool,
+  type McpToolAnnotations,
   type McpToolContext,
   type McpToolRegistry,
 } from "./registry";
 
-// THE FIFTEEN READ TOOLS: 370 Table 5's thirteen, ruled at 371, plus the two
-// readers 375 approved and session 83 shipped. Every one wraps a helper
-// that already existed and was already account-scoped; this file is transport,
-// not logic, which is what made the two-session estimate hold.
+// THE MERCHANT TOOLS, REGROUPED TO THE 2026-10-10 MCP RULING (job_874dc20ea9ac).
+//
+// Twenty-three one-endpoint tools became twelve whole-job ones (rule 3: 5 to 15
+// per server; rule 4: outcomes, not API mirrors), each named
+// foxhound_{action}_{resource} (rule 5) and carrying all four behaviour hints
+// set honestly (rule 6). Ten read and two write. Read and write are never
+// merged into one tool, so a read never carries a write's hints and a client
+// never has to confirm a read. The design is capsid/research/design-mcp-servers.md
+// section 5; its optional twelfth, foxhound_stage_recovery_action, is left out
+// because no pending-actions table exists, and foxhound_get_settings takes its
+// place so every writer still has a reader (375's argument, below).
 //
 // THE ACCOUNT COMES FROM THE KEY AND NOWHERE ELSE. Each executor receives the
 // account the bearer token resolved to and passes it to the helper. No tool
-// takes an account id as an argument, and that is the design rather than an
-// omission: an argument would be a thing an agent could be talked into changing,
-// and the helpers all pin the account in their own predicates anyway, so the two
-// layers agree by construction.
+// takes an account id as an argument.
 //
-// READ ONLY, ENFORCED THREE WAYS. Every helper below is a SELECT; the registry's
-// denylist refuses any name that smells like a write (368 ruling 4); and no
-// executor here imports `executeMoneyWrite`, `recordOutcome` or a billing
-// writer. A plant sweeps this file for all three.
+// EVERY ID AN AGENT PASSES IS PROVED TO BE THIS ACCOUNT'S (rule 12.1). The
+// helpers each pin the account in their own predicate (payment, customer, audit
+// run, connection, alert), so another merchant's id reads as "not found" rather
+// than as their row. test/mcp-ownership-rule12.test.ts plants another
+// merchant's real row behind every id-taking argument and fails if any tool
+// returns or changes it. Recova's trigger_immediate_retry, which inserted a
+// retry for any failed_payment_id it was handed, is the hole that test exists
+// to keep out.
+//
+// NO MONEY TOOL EXISTS HERE, and none will: the HUMAN-FOREVER denylist in
+// ./registry.ts refuses one at construction. Every helper below is a SELECT or
+// one of the settings writers the app's own forms call; nothing imports
+// `executeMoneyWrite`, `recordOutcome`, a billing writer or a dispute writer.
 //
 // REDACTION IS DEFAULT-ON FOR EVERY TOOL, AND NOT ONE LINE OF IT IS IN THIS
-// FILE (376 item 7). 370's rule used to be three calls to a helper, made by the
-// three tools whose authors knew to make them, and three tools that returned
-// customer rows made none: `list_disputes`, `get_churn` and
-// `get_intelligence_overview`. The rule now applies at the registry boundary, so
-// registering a tool is what redacts it. See ./redact.ts.
-//
-// WHICH MEANS A TOOL HERE MUST NEVER MASK ANYTHING ITSELF. A second masker in
-// this file would be a second authority for one rule, and the plant that mutates
-// the boundary would stay green while this file quietly held the property up
-// (381 binding e). A tool's job is to choose WHICH fields to return, never to
-// disguise one.
+// FILE (376 item 7). Registering a tool is what redacts it; see ./redact.ts. A
+// tool's job is to choose WHICH fields to return, never to disguise one.
 
 type ToolArgs = Record<string, unknown>;
 
-/**
- * THE ONE PAGINATION SHAPE, stated here and reused by every tool that paginates,
- * so an agent learns it once. Helpers differ in whether they take a page number
- * or a row limit, and that difference is theirs; what an agent sees is the same
- * two optional integers everywhere.
- */
-const PAGE_PROPERTIES = {
-  page: { type: "integer", minimum: 1, description: "1-based page number. Defaults to 1." },
-  limit: {
-    type: "integer",
-    minimum: 1,
-    maximum: 100,
-    description: "Maximum rows to return. Defaults to the helper's own page size.",
-  },
-} as const;
+/** Every read: changes nothing, safe to repeat, touches nothing outside Foxhound. */
+const READ: McpToolAnnotations = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: false,
+};
 
-const EMPTY_SCHEMA = { type: "object" as const, properties: {}, required: [] as string[] };
-
-function intArg(args: ToolArgs, name: string, fallback: number, max: number): number {
-  const raw = args[name];
-  if (typeof raw !== "number" || !Number.isInteger(raw) || raw < 1) return fallback;
-  return Math.min(raw, max);
-}
+/** A tool that took bad input and did not do anything. Returned as a tool
+ *  error carrying a sentence that says how to fix the input. */
+class ToolInputError extends Error {}
 
 function stringArg(args: ToolArgs, name: string): string | null {
   const raw = args[name];
   return typeof raw === "string" && raw.length > 0 ? raw : null;
 }
 
-/** A tool that took a required argument and did not get it. Returned as a tool
- *  error rather than thrown, so the agent can correct itself. */
-class ToolInputError extends Error {}
+function required(args: ToolArgs, name: string, from: string): string {
+  const value = stringArg(args, name);
+  if (value === null) throw new ToolInputError(`Missing required argument ${name}. ${from}`);
+  return value;
+}
+
+// ---------------------------------------------------------------------------
+// Pagination (rule 7)
+// ---------------------------------------------------------------------------
+//
+// ONE SHAPE EVERYWHERE: a list takes an optional `cursor` and answers with
+// `has_more` and `next_cursor` (null on the last page). The cursor is opaque to
+// the agent and names the tool it came from, so a cursor from one list handed
+// to another is refused with a sentence rather than read as a page number.
+// It carries a position and nothing else: the account still comes from the key
+// on every page, so a cursor cannot widen what a page may read.
+
+const CURSOR_PROPERTY = {
+  type: "string",
+  description: "Omit for the first page. To read on, pass next_cursor from the previous answer.",
+} as const;
+
+function encodeCursor(tool: string, page: number): string {
+  return btoa(JSON.stringify({ t: tool, p: page })).replace(/=+$/, "");
+}
+
+/** The 1-based page a cursor names, or 1 when there is none. */
+function decodeCursor(tool: string, args: ToolArgs): number {
+  const raw = args["cursor"];
+  if (raw === undefined || raw === null || raw === "") return 1;
+  const refusal = new ToolInputError(
+    `That cursor was not issued by ${tool}. Omit cursor to start from the first page.`,
+  );
+  if (typeof raw !== "string") throw refusal;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(atob(raw));
+  } catch {
+    throw refusal;
+  }
+  const { t, p } = (parsed ?? {}) as { t?: unknown; p?: unknown };
+  if (t !== tool || typeof p !== "number" || !Number.isInteger(p) || p < 1) throw refusal;
+  return p;
+}
+
+function pageInfo(tool: string, page: number, totalPages: number) {
+  const hasMore = page < totalPages;
+  return { has_more: hasMore, next_cursor: hasMore ? encodeCursor(tool, page + 1) : null };
+}
+
+/** One page of an in-memory list the helper already scoped to the account. */
+function slicePage<T>(tool: string, rows: T[], page: number, pageSize: number) {
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const items = rows.slice((page - 1) * pageSize, page * pageSize);
+  return { items, total: rows.length, ...pageInfo(tool, page, totalPages) };
+}
 
 /**
  * What a dispute looks like on the wire, and why it is a PICK rather than a row.
@@ -164,150 +219,272 @@ function disputeForAgent(row: DisputeRow) {
   };
 }
 
-function required(args: ToolArgs, name: string): string {
-  const value = stringArg(args, name);
-  if (value === null) throw new ToolInputError(`Missing required argument: ${name}`);
-  return value;
+/**
+ * A recovery step on the wire, as a PICK for the same reason disputes are one.
+ * The row carries the email Foxhound wrote to the customer (`aiSubject`,
+ * `aiBodyHtml`, `customBody`), which greets them by name, and the send error
+ * text, which can carry their address. 383 keeps Foxhound's generated text off
+ * the wire at the tool rather than in the redactor, so the tool returns what an
+ * agent needs to reason about the sequence (what ran, when, what happened, how
+ * the customer engaged) and never the letter itself.
+ */
+function stepForAgent(row: RecoveryStepRow) {
+  return {
+    id: row.id,
+    stepType: row.stepType,
+    stepNumber: row.stepNumber,
+    scheduledAt: row.scheduledAt,
+    executedAt: row.executedAt,
+    result: row.result,
+    retryResult: row.retryResult,
+    attemptCount: row.attemptCount,
+    nextRetryAt: row.nextRetryAt,
+    openedAt: row.openedAt,
+    clickedAt: row.clickedAt,
+    emailOpenedCount: row.emailOpenedCount,
+    emailClickedCount: row.emailClickedCount,
+    abVariant: row.abVariant,
+  };
 }
 
 // ---------------------------------------------------------------------------
-// The reads
+// The ten reads
 // ---------------------------------------------------------------------------
 
-const TOOLS: McpTool[] = [
+const PAYMENT_PAGE_SIZES = [10, 25, 50, 100] as const;
+const DISPUTE_PAGE_SIZE = 25;
+const AUDIT_RUN_PAGE_SIZE = 12;
+/** The audit-run history the helper is asked for. It takes a limit, not an
+ *  offset, so pages are cut from this many of the newest runs. */
+const AUDIT_RUN_HISTORY_LIMIT = 120;
+
+function paymentPageSize(args: ToolArgs): FailedPaymentPageSize {
+  const raw = args["page_size"];
+  if (raw === undefined) return 25;
+  if (typeof raw === "number" && (PAYMENT_PAGE_SIZES as readonly number[]).includes(raw)) {
+    return raw as FailedPaymentPageSize;
+  }
+  throw new ToolInputError(`page_size must be one of ${PAYMENT_PAGE_SIZES.join(", ")}.`);
+}
+
+const READ_TOOLS: McpTool[] = [
   {
-    name: "list_audit_runs",
+    name: "foxhound_get_overview",
+    title: "Account overview",
     description:
-      "List this account's stored audit runs, newest first, with each scope's figures or null where a scope could not be read on that run.",
-    inputSchema: { type: "object", properties: { limit: PAGE_PROPERTIES.limit }, required: [] },
-    execute: async (ctx, args) => {
-      const rows = await listAuditRuns(ctx.db, ctx.accountId, intArg(args, "limit", 24, 100));
-      return { runs: rows.map(toStoredAuditRun) };
+      "Start here. Read this account's recurring-revenue overview (MRR, movement, customer counts, the latest report summary), the failed-payment counts by recovery status, and the Stripe accounts connected to it. Access tokens are never returned, and nothing can be connected or disconnected here.",
+    inputSchema: { type: "object", properties: {}, required: [] },
+    annotations: READ,
+    execute: async (ctx) => {
+      const [overview, payment_status_counts, connections] = await Promise.all([
+        getIntelligenceOverview(ctx.db, ctx.accountId),
+        getGlobalPaymentStatusCounts(ctx.db, ctx.accountId),
+        listAccountConnections(ctx.db, ctx.accountId),
+      ]);
+      return { overview, payment_status_counts, connections };
     },
   },
   {
-    name: "get_audit_run",
+    name: "foxhound_list_payments",
+    title: "List failed payments",
     description:
-      "Fetch one stored audit run by id. Returns null figures for any scope that could not be read, never a zero standing in for unknown.",
-    inputSchema: {
-      type: "object",
-      properties: { run_id: { type: "string", description: "The audit run's id." } },
-      required: ["run_id"],
-    },
-    execute: async (ctx, args) => {
-      const row = await getAuditRun(ctx.db, ctx.accountId, required(args, "run_id"));
-      return { run: row ? toStoredAuditRun(row) : null };
-    },
-  },
-  {
-    name: "get_audit_settings",
-    description:
-      "Read this account's audit lookback window and whether the monthly audit report is switched on. Cannot change them.",
-    inputSchema: EMPTY_SCHEMA,
-    execute: async (ctx) => readAccountAuditSettings(ctx.db, ctx.accountId),
-  },
-  {
-    name: "get_intelligence_overview",
-    description:
-      "Read the account's recurring-revenue overview: MRR, movement, customer counts and the latest report summary.",
-    inputSchema: EMPTY_SCHEMA,
-    execute: async (ctx) => getIntelligenceOverview(ctx.db, ctx.accountId),
-  },
-  {
-    name: "get_churn",
-    description:
-      "Read churn bands, the churn chart series and the highest-risk customers for this account.",
-    inputSchema: EMPTY_SCHEMA,
-    execute: async (ctx) => getChurnView(ctx.db, ctx.accountId, ctx.now.getTime()),
-  },
-  {
-    name: "list_customers",
-    description:
-      "List this account's customers with health, tier and MRR. Customer names are never returned and emails are masked; the Stripe customer id is the key for follow-up calls.",
+      "List this account's failed payments, newest first, with amount, decline category and recovery status. Filter by status or decline category. Paginated: pass next_cursor back to read on. Customer emails are masked and no name is returned. Use foxhound_get_payment with an id from here for one payment's recovery steps.",
     inputSchema: {
       type: "object",
       properties: {
-        ...PAGE_PROPERTIES,
-        search: { type: "string", description: "Match against the customer id or email." },
-        tier: { type: "string", description: "Filter to one plan tier." },
+        status: {
+          type: "string",
+          description: "Only payments in this recovery status, for example active, recovered, failed or cancelled.",
+        },
+        decline_category: {
+          type: "string",
+          description: "Only payments with this decline category, for example soft, expired, network or fraud.",
+        },
+        page_size: { type: "integer", enum: [...PAYMENT_PAGE_SIZES], description: "Rows per page. Defaults to 25." },
+        cursor: CURSOR_PROPERTY,
       },
       required: [],
     },
+    annotations: READ,
     execute: async (ctx, args) => {
-      const result = await listCustomerDirectory(ctx.db, ctx.accountId, {
-        search: stringArg(args, "search"),
-        tier: stringArg(args, "tier"),
-        healthBand: null,
-        sort: "health_asc",
-        page: intArg(args, "page", 1, 10_000),
+      const tool = "foxhound_list_payments";
+      const page = decodeCursor(tool, args);
+      const pageSize = paymentPageSize(args);
+      const result = await listFilteredFailedPayments(ctx.db, ctx.accountId, {
+        search: null,
+        declineCategory: stringArg(args, "decline_category"),
+        detectedAfterMs: null,
+        amountMinCents: null,
+        amountMaxCents: null,
+        status: stringArg(args, "status"),
+        sort: "newest",
+        page,
+        pageSize,
       });
-      return result;
+      // The helper clamps a page past the end back to the last page, which is
+      // right for a screen and wrong for a cursor: past the end is empty.
+      const payments = page > result.totalPages ? [] : result.payments;
+      return { payments, total: result.totalCount, ...pageInfo(tool, page, result.totalPages) };
     },
   },
   {
-    name: "get_customer_health",
+    name: "foxhound_get_payment",
+    title: "Get one failed payment",
     description:
-      "Read one customer's health score, its factors and its history. The name is never returned and the email is masked.",
+      "Read one of this account's failed payments with its recovery steps in order (what ran, when and how the customer engaged; never the email text), the recovery if there was one, the same customer's previous failures and any open disputes. Payment ids come from foxhound_list_payments. Cannot retry, pause, resume or cancel recovery; that stays in the Foxhound app.",
+    inputSchema: {
+      type: "object",
+      properties: { payment_id: { type: "string", description: "The failed payment's id, from foxhound_list_payments." } },
+      required: ["payment_id"],
+    },
+    annotations: READ,
+    execute: async (ctx, args) => {
+      const paymentId = required(args, "payment_id", "Take one from foxhound_list_payments.");
+      const detail = await getFailedPaymentDetail(ctx.db, ctx.accountId, paymentId);
+      if (!detail) {
+        throw new ToolInputError(
+          `No failed payment ${paymentId} on this account. Take an id from foxhound_list_payments.`,
+        );
+      }
+      return { ...detail, steps: detail.steps.map(stepForAgent) };
+    },
+  },
+  {
+    name: "foxhound_list_customers",
+    title: "List customers",
+    description:
+      "List this account's customers with health score, plan tier and MRR, lowest health first, plus the plan tiers present. tier filters to one plan tier. Paginated, 50 a page: pass next_cursor back to read on. Names are never returned and emails are masked; the Stripe customer id is the key for foxhound_get_customer.",
     inputSchema: {
       type: "object",
       properties: {
-        stripe_customer_id: { type: "string", description: "The Stripe customer id." },
+        tier: { type: "string", description: "Only customers on this plan tier, as listed in tiers." },
+        cursor: CURSOR_PROPERTY,
+      },
+      required: [],
+    },
+    annotations: READ,
+    execute: async (ctx, args) => {
+      const tool = "foxhound_list_customers";
+      const page = decodeCursor(tool, args);
+      const [result, tiers] = await Promise.all([
+        // NO SEARCH, on purpose: the directory's search matches customer names,
+        // so a search argument would let an agent confirm a guessed name the
+        // redactor never sends. A customer is found by tier or by paging.
+        listCustomerDirectory(ctx.db, ctx.accountId, {
+          search: null,
+          tier: stringArg(args, "tier"),
+          healthBand: null,
+          sort: "health_asc",
+          page,
+        }),
+        listCustomerTiers(ctx.db, ctx.accountId),
+      ]);
+      const customers = page > result.totalPages ? [] : result.customers;
+      return {
+        customers,
+        total: result.totalCount,
+        total_mrr_cents: result.totalMrrCents,
+        tiers,
+        ...pageInfo(tool, page, result.totalPages),
+      };
+    },
+  },
+  {
+    name: "foxhound_get_customer",
+    title: "Get one customer",
+    description:
+      "Read one of this account's customers: health score, its factors, its history and the churn predictions. The name is never returned and the email is masked. Customer ids come from foxhound_list_customers.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        stripe_customer_id: { type: "string", description: "The Stripe customer id, from foxhound_list_customers." },
       },
       required: ["stripe_customer_id"],
     },
+    annotations: READ,
     execute: async (ctx, args) => {
-      const detail = await getCustomerHealthDetail(
-        ctx.db,
-        ctx.accountId,
-        required(args, "stripe_customer_id"),
-      );
-      return { customer: detail };
+      const customerId = required(args, "stripe_customer_id", "Take one from foxhound_list_customers.");
+      const customer = await getCustomerHealthDetail(ctx.db, ctx.accountId, customerId);
+      if (!customer) {
+        throw new ToolInputError(
+          `No customer ${customerId} on this account. Take an id from foxhound_list_customers.`,
+        );
+      }
+      return { customer };
     },
   },
   {
-    name: "list_customer_tiers",
-    description: "List the distinct plan tiers present on this account's customers.",
-    inputSchema: EMPTY_SCHEMA,
-    execute: async (ctx) => ({ tiers: await listCustomerTiers(ctx.db, ctx.accountId) }),
+    name: "foxhound_get_intelligence",
+    title: "Churn and alerts",
+    description:
+      "Read this account's subscription intelligence: churn bands, the churn chart series, the highest-risk customers, and the metric alerts with their recent firings. Alert ids from here are the ones foxhound_manage_alerts takes.",
+    inputSchema: { type: "object", properties: {}, required: [] },
+    annotations: READ,
+    execute: async (ctx) => {
+      const [churn, alerts] = await Promise.all([
+        getChurnView(ctx.db, ctx.accountId, ctx.now.getTime()),
+        getAlertsView(ctx.db, ctx.accountId),
+      ]);
+      return { churn, alerts: alerts.alerts, alert_history: alerts.history };
+    },
   },
   {
-    name: "get_alerts",
+    name: "foxhound_list_disputes",
+    title: "List disputes",
     description:
-      "Read this account's configured metric alerts and their recent firings. Cannot create, enable or delete one.",
-    inputSchema: EMPTY_SCHEMA,
-    execute: async (ctx) => getAlertsView(ctx.db, ctx.accountId),
+      "List this account's disputes, newest first, with state, amount, evidence deadline and triage recommendation. Paginated, 25 a page: pass next_cursor back to read on. Read only: cannot submit evidence, approve a submission or accept a dispute; those stay in the Foxhound app.",
+    inputSchema: { type: "object", properties: { cursor: CURSOR_PROPERTY }, required: [] },
+    annotations: READ,
+    execute: async (ctx, args) => {
+      const tool = "foxhound_list_disputes";
+      const page = decodeCursor(tool, args);
+      const rows = await listDisputes(ctx.db, ctx.accountId);
+      const { items, ...rest } = slicePage(tool, rows, page, DISPUTE_PAGE_SIZE);
+      return { disputes: items.map(disputeForAgent), ...rest };
+    },
   },
   {
-    name: "list_failed_payments",
+    name: "foxhound_review_audits",
+    title: "Review audits",
     description:
-      "List this account's failed payments with amounts, decline categories and recovery status. Customer emails are masked and no name is returned.",
+      "Read this account's audit settings and its stored audit runs, newest first, with each scope's figures or null where a scope could not be read. Pass run_id for one run in full. Paginated, 12 a page: pass next_cursor back to read on.",
     inputSchema: {
       type: "object",
-      properties: { limit: PAGE_PROPERTIES.limit },
+      properties: {
+        run_id: { type: "string", description: "One audit run's id, from an earlier answer. Omit to list runs." },
+        cursor: CURSOR_PROPERTY,
+      },
       required: [],
     },
+    annotations: READ,
     execute: async (ctx, args) => {
-      const rows = await listFailedPayments(ctx.db, ctx.accountId);
-      const limit = intArg(args, "limit", 50, 100);
-      return { payments: rows.slice(0, limit), total: rows.length };
+      const tool = "foxhound_review_audits";
+      const runId = stringArg(args, "run_id");
+      if (runId !== null) {
+        const row = await getAuditRun(ctx.db, ctx.accountId, runId);
+        if (!row) {
+          throw new ToolInputError(
+            `No audit run ${runId} on this account. Omit run_id to list this account's runs.`,
+          );
+        }
+        return { run: toStoredAuditRun(row) };
+      }
+      const page = decodeCursor(tool, args);
+      const [settings, rows] = await Promise.all([
+        readAccountAuditSettings(ctx.db, ctx.accountId),
+        listAuditRuns(ctx.db, ctx.accountId, AUDIT_RUN_HISTORY_LIMIT),
+      ]);
+      const { items, ...rest } = slicePage(tool, rows, page, AUDIT_RUN_PAGE_SIZE);
+      return { settings, runs: items.map(toStoredAuditRun), ...rest };
     },
   },
   {
-    name: "list_disputes",
+    name: "foxhound_get_billing",
+    title: "Foxhound billing",
     description:
-      "List this account's disputes with their state, amount and deadline. Cannot submit evidence or approve a submission.",
-    inputSchema: { type: "object", properties: { limit: PAGE_PROPERTIES.limit }, required: [] },
-    execute: async (ctx, args) => {
-      const rows = await listDisputes(ctx.db, ctx.accountId);
-      const limit = intArg(args, "limit", 50, 100);
-      return { disputes: rows.slice(0, limit).map(disputeForAgent), total: rows.length };
-    },
-  },
-  {
-    name: "get_billing",
-    description:
-      "Read this account's own Foxhound billing: the attributed-recovery ledger, past invoices and the next run's preview. Cannot issue, pay or void anything.",
-    inputSchema: EMPTY_SCHEMA,
+      "Read this account's own Foxhound billing: the attributed-recovery ledger, past invoices and the next billing run's preview. Read only: cannot issue, pay, adjust or void anything.",
+    inputSchema: { type: "object", properties: {}, required: [] },
+    annotations: READ,
     execute: async (ctx) => {
       const [ledger, invoices, preview] = await Promise.all([
         getBillingLedger(ctx.db, ctx.accountId),
@@ -317,70 +494,65 @@ const TOOLS: McpTool[] = [
       return { ledger, invoices, preview };
     },
   },
+  // THE READER FOR EVERY SETTING foxhound_update_settings WRITES (375's
+  // argument, kept): a writer an agent cannot read first forces it to guess or
+  // to ask the merchant to paste the current value in. Each section returns
+  // the fields its writer section takes, so read-then-write round-trips.
   {
-    name: "list_connections",
+    name: "foxhound_get_settings",
+    title: "Read settings",
     description:
-      "List the Stripe accounts connected to this Foxhound account, with their names and live state. Access tokens are never returned and cannot be connected or disconnected here.",
-    inputSchema: EMPTY_SCHEMA,
-    execute: async (ctx) => ({
-      connections: await listAccountConnections(ctx.db, ctx.accountId),
-    }),
-  },
-  // THE TWO READERS 375 APPROVED, riding here as that ruling said they would.
-  //
-  // WHY THEY EXIST AT ALL, which is the whole argument for them: sessions 79 and
-  // 80 shipped `set_brand_voice` and `set_intelligence_context` with no way to
-  // read either back. An agent asked to soften one voice had to send all five or
-  // guess, and an agent asked to correct the industry had to overwrite the two
-  // fields beside it blind. A writer an agent cannot read first forces the echo
-  // workaround, where the agent asks the merchant to paste the current value in.
-  //
-  // EACH RETURNS EXACTLY WHAT ITS WRITER TAKES, field for field, so read-then-
-  // write round-trips rather than approximately round-trips. That is also what
-  // makes 374 binding 4's omission rule usable: leaving a field out leaves it
-  // alone, which is only a safe instruction if the agent can see what it is
-  // leaving alone.
-  {
-    name: "get_brand_voice",
-    description:
-      "Read the brand voice on this account's primary connected Stripe account: the general voice and the four per-category ones. Returns null when the account has no live primary connection. The connection id it returns is the one set_brand_voice takes.",
-    inputSchema: EMPTY_SCHEMA,
-    execute: async (ctx) => ({ voices: await getPrimaryBrandVoices(ctx.db, ctx.accountId) }),
-  },
-  {
-    name: "get_intelligence_context",
-    description:
-      "Read the merchant context the recovery-email writer is given: the industry, the primary customer type and the self-reported monthly recurring revenue in cents. These are the three fields set_intelligence_context writes.",
-    inputSchema: EMPTY_SCHEMA,
-    execute: async (ctx) => ({ context: await getMerchantContext(ctx.db, ctx.accountId) }),
+      "Read every setting foxhound_update_settings can change: audit window, the two engine toggles, notification email and toggles, the connected Stripe accounts, the primary connection's sender name and brand voice, and the business context the email writer is given. The Slack webhook URL is never returned, only whether one is set.",
+    inputSchema: { type: "object", properties: {}, required: [] },
+    annotations: READ,
+    execute: async (ctx) => {
+      const [account, audit, connections, sender, brand_voice, intelligence_context] = await Promise.all([
+        getAccount(ctx.db, ctx.accountId),
+        readAccountAuditSettings(ctx.db, ctx.accountId),
+        listAccountConnections(ctx.db, ctx.accountId),
+        getPrimarySenderConnection(ctx.db, ctx.accountId),
+        getPrimaryBrandVoices(ctx.db, ctx.accountId),
+        getMerchantContext(ctx.db, ctx.accountId),
+      ]);
+      return {
+        audit,
+        features: {
+          winbackNotificationsEnabled: account?.winbackNotificationsEnabled ?? null,
+          expiringCardNotificationsEnabled: account?.expiringCardNotificationsEnabled ?? null,
+        },
+        notifications: {
+          notificationEmail: account?.notificationEmail ?? null,
+          slackWebhookConfigured: Boolean(account?.slackWebhookUrl),
+          slackNotificationsEnabled: account?.slackNotificationsEnabled ?? null,
+          digestEnabled: account?.digestEnabled ?? null,
+          recoveryNotificationsEnabled: account?.recoveryNotificationsEnabled ?? null,
+          sequenceCompleteNotificationsEnabled: account?.sequenceCompleteNotificationsEnabled ?? null,
+        },
+        connections,
+        sender,
+        brand_voice,
+        intelligence_context,
+      };
+    },
   },
 ];
 
 // ---------------------------------------------------------------------------
-// The write tools (372's item-4 ruling, first four of eight)
+// The two writes (372's item-4 ruling, eight writers folded into two tools)
 // ---------------------------------------------------------------------------
 //
-// FOUR OF THE EIGHT THIS SESSION, ratified by Dustin on the sizing. These are
-// the settings whose form actions are single-concern and 13 to 25 lines, so the
-// core could be extracted cleanly. The other four (brand voice, email settings,
-// alerts, intelligence context) sit inside multi-branch actions of 47 to 61
-// lines where the extraction is surgery on live merchant self-service, and they
-// are a named session rather than a rushed half of this one.
-//
-// EVERY WRITE GOES THROUGH THE FORM'S OWN CODE PATH. Each tool calls the same
+// EVERY WRITE GOES THROUGH THE FORM'S OWN CODE PATH. Each section calls the same
 // `applyX` the route action calls: same bounds, same allowlist, same refusal
-// STRING, one implementation. A plant asserts the tool and the form refuse the
-// same input with the same sentence, derived over the shared function so drift
-// is not expressible.
+// STRING, one implementation.
 //
 // EVERY WRITE LEAVES A TRACE. The tool passes a `WriteTrace` carrying the api
-// key id, and the trace row goes in the SAME batch as the write, so a change
-// without its trace is not a state the database can reach. The form omits the
-// trace, because a signed-in human's change is already attributable through the
-// session.
+// key id and this tool's name, and the trace row goes in the SAME batch as the
+// write, so a change without its trace is not a state the database can reach.
 //
-// NO MONEY TOOL EXISTS HERE, and none will: the HUMAN-FOREVER denylist is
-// unchanged and still refuses at registry construction.
+// ONE SECTION PER CALL. Each section is one form's batch, so a call that named
+// two would be two commits, and a refusal in the second would leave the first
+// applied with no way for the agent to tell from one answer. Requiring exactly
+// one keeps every call all-or-nothing.
 
 /** Turn an apply result into a tool response, or a tool error carrying the
  *  form's own refusal string. */
@@ -391,273 +563,282 @@ function applied<T>(
   return { updated: result.fields, state: result.state };
 }
 
+/** Copy only the keys the agent sent, renamed, so an omitted key stays
+ *  omitted. Writing `{ general: args.general ?? "" }` would clear the column on
+ *  every call that left it out, which for a voice set once and never touched
+ *  again would be silent and unrecoverable. */
+function sentOnly(section: ToolArgs, names: Record<string, string>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [from, to] of Object.entries(names)) {
+    if (section[from] !== undefined) out[to] = section[from];
+  }
+  return out;
+}
+
+function withoutWebhookUrl(
+  result: Parameters<typeof applied<NotificationSettingsState>>[0],
+) {
+  const { updated, state } = applied(result);
+  const { slackWebhookUrl, ...rest } = state;
+  return { updated, state: { ...rest, slackWebhookConfigured: Boolean(slackWebhookUrl) } };
+}
+
+type SettingsSection = (ctx: McpToolContext, section: ToolArgs) => Promise<unknown>;
+
+const SETTINGS_SECTIONS: Record<string, SettingsSection> = {
+  audit: async (ctx, s) =>
+    applied(
+      await applyAuditSettings(
+        ctx.db,
+        ctx.accountId,
+        { lookbackDays: s.lookback_days, autoRun: s.auto_run },
+        ctx.trace,
+      ),
+    ),
+  features: async (ctx, s) =>
+    applied(
+      await applyFeatureSettings(
+        ctx.db,
+        ctx.accountId,
+        {
+          winbackNotificationsEnabled: s.winback_notifications_enabled,
+          expiringCardNotificationsEnabled: s.expiring_card_notifications_enabled,
+        },
+        ctx.trace,
+      ),
+    ),
+  // The webhook URL is a credential for the merchant's Slack, so the answer
+  // says whether one is set, as foxhound_get_settings does, and never echoes it.
+  notifications: async (ctx, s) =>
+    withoutWebhookUrl(
+      await applyNotificationSettings(
+        ctx.db,
+        ctx.accountId,
+        {
+          notificationEmail: s.notification_email,
+          slackWebhookUrl: s.slack_webhook_url ?? "",
+          slackNotificationsEnabled: s.slack_notifications_enabled,
+          digestEnabled: s.digest_enabled,
+          recoveryNotificationsEnabled: s.recovery_notifications_enabled,
+          sequenceCompleteNotificationsEnabled: s.sequence_complete_notifications_enabled,
+        },
+        ctx.trace,
+      ),
+    ),
+  sender_name: async (ctx, s) =>
+    applied(
+      await applySenderName(
+        ctx.db,
+        ctx.accountId,
+        { connectionId: s.connection_id, senderName: s.sender_name },
+        ctx.trace,
+      ),
+    ),
+  // This text lands in the system prompt that writes the merchant's recovery
+  // emails. It is not sanitised on the way in, exactly as the form does not
+  // sanitise it: `sanitizeCopy` and `passesQualityGate` run on what comes out.
+  brand_voice: async (ctx, s) =>
+    applied(
+      await applyBrandVoice(
+        ctx.db,
+        ctx.accountId,
+        {
+          connectionId: s.connection_id,
+          ...sentOnly(s, { general: "general", soft: "soft", expired: "expired", network: "network", fraud: "fraud" }),
+        },
+        ctx.trace,
+      ),
+    ),
+  intelligence_context: async (ctx, s) =>
+    applied(
+      await applyIntelligenceContext(
+        ctx.db,
+        ctx.accountId,
+        sentOnly(s, {
+          merchant_industry: "merchantIndustry",
+          primary_customer_type: "primaryCustomerType",
+          merchant_mrr_self_reported: "merchantMrrSelfReported",
+        }),
+        ctx.trace,
+      ),
+    ),
+};
+
+const SECTION_NAMES = Object.keys(SETTINGS_SECTIONS);
+
+const ALERT_ACTIONS = ["create", "enable", "disable", "delete"] as const;
+
 const WRITE_TOOLS: McpTool[] = [
   {
-    name: "set_audit_settings",
+    name: "foxhound_update_settings",
+    title: "Change settings",
     description:
-      "Set this account's audit lookback window and whether the monthly audit report is switched on. The lookback is clamped to the allowed values rather than refused.",
+      "Change one group of this account's settings per call: send exactly one of audit, features, notifications, sender_name, brand_voice or intelligence_context. Read the current values first with foxhound_get_settings. Values overwrite what is there: in notifications every field is replaced and an omitted Slack webhook is cleared; in brand_voice and intelligence_context an omitted field is left alone and an empty string clears it. Connection ids come from foxhound_get_settings and must belong to this account.",
     inputSchema: {
       type: "object",
       properties: {
-        lookback_days: { type: "integer", description: "30, 60, 90 or 180. Other values clamp." },
-        auto_run: { type: "boolean", description: "Send the monthly audit report." },
-      },
-      required: ["lookback_days", "auto_run"],
-    },
-    execute: async (ctx, args) =>
-      applied(
-        await applyAuditSettings(
-          ctx.db,
-          ctx.accountId,
-          { lookbackDays: args.lookback_days, autoRun: args.auto_run },
-          ctx.trace,
-        ),
-      ),
-  },
-  {
-    name: "set_feature_settings",
-    description:
-      "Switch this account's win-back sequences and expiring-card alerts on or off. These turn the engines off, not the notifications about them.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        winback_notifications_enabled: { type: "boolean" },
-        expiring_card_notifications_enabled: { type: "boolean" },
-      },
-      required: ["winback_notifications_enabled", "expiring_card_notifications_enabled"],
-    },
-    execute: async (ctx, args) =>
-      applied(
-        await applyFeatureSettings(
-          ctx.db,
-          ctx.accountId,
-          {
-            winbackNotificationsEnabled: args.winback_notifications_enabled,
-            expiringCardNotificationsEnabled: args.expiring_card_notifications_enabled,
+        audit: {
+          type: "object",
+          description: "The audit window and the monthly audit report.",
+          properties: {
+            lookback_days: { type: "integer", description: "30, 60, 90 or 180. Other values clamp." },
+            auto_run: { type: "boolean", description: "Send the monthly audit report." },
           },
-          ctx.trace,
-        ),
-      ),
-  },
-  {
-    name: "set_notification_settings",
-    description:
-      "Set this account's notification email, Slack webhook and the four notification toggles. A webhook off Slack's own host is refused, and clearing the email turns every notification off.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        notification_email: { type: "string", description: "Empty or omitted clears it." },
-        slack_webhook_url: {
-          type: "string",
-          description: "Must be on https://hooks.slack.com/. Empty clears it.",
+          required: ["lookback_days", "auto_run"],
         },
-        slack_notifications_enabled: { type: "boolean" },
-        digest_enabled: { type: "boolean" },
-        recovery_notifications_enabled: { type: "boolean" },
-        sequence_complete_notifications_enabled: { type: "boolean" },
-      },
-      required: [],
-    },
-    execute: async (ctx, args) =>
-      applied(
-        await applyNotificationSettings(
-          ctx.db,
-          ctx.accountId,
-          {
-            notificationEmail: args.notification_email,
-            slackWebhookUrl: args.slack_webhook_url ?? "",
-            slackNotificationsEnabled: args.slack_notifications_enabled,
-            digestEnabled: args.digest_enabled,
-            recoveryNotificationsEnabled: args.recovery_notifications_enabled,
-            sequenceCompleteNotificationsEnabled: args.sequence_complete_notifications_enabled,
+        features: {
+          type: "object",
+          description: "Switch the win-back and expiring-card engines on or off (the engines, not the notifications about them).",
+          properties: {
+            winback_notifications_enabled: { type: "boolean" },
+            expiring_card_notifications_enabled: { type: "boolean" },
           },
-          ctx.trace,
-        ),
-      ),
-  },
-  {
-    name: "set_sender_name",
-    description:
-      "Set the From name on one connected Stripe account's recovery emails. Empty clears it and mail goes out from Support. The connection must belong to this account.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        connection_id: { type: "string", description: "From list_connections." },
-        sender_name: { type: "string", description: "Up to 80 characters. Empty clears it." },
-      },
-      required: ["connection_id"],
-    },
-    execute: async (ctx, args) =>
-      applied(
-        await applySenderName(
-          ctx.db,
-          ctx.accountId,
-          { connectionId: args.connection_id, senderName: args.sender_name },
-          ctx.trace,
-        ),
-      ),
-  },
-  {
-    name: "set_brand_voice",
-    // WHAT AN AGENT IS ACTUALLY WRITING, said plainly, because the honest
-    // description is also the safe one: this text lands in the system prompt
-    // that writes the merchant's recovery emails. It is not sanitised on the
-    // way in, exactly as the form does not sanitise it, and it does not need to
-    // be: `sanitizeCopy` and `passesQualityGate` run on what comes back out.
-    description:
-      "Set the tone Foxhound writes this connection's recovery emails in: a general voice, plus an optional override for each decline category. The text is free-form guidance for the writer, not a template. Omit a field to leave it as it is; send an empty string to clear it back to the general voice. The connection must belong to this account.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        connection_id: { type: "string", description: "From list_connections." },
-        general: { type: "string", description: "The voice for every category with no override." },
-        soft: { type: "string", description: "Soft declines: insufficient funds and the like." },
-        expired: { type: "string", description: "Expired card." },
-        network: { type: "string", description: "Network and issuer declines." },
-        fraud: { type: "string", description: "Suspected fraud." },
-      },
-      required: ["connection_id"],
-    },
-    execute: async (ctx, args) =>
-      applied(
-        await applyBrandVoice(
-          ctx.db,
-          ctx.accountId,
-          {
-            connectionId: args.connection_id,
-            // SPREAD RATHER THAN NAMED, and this is the one place it matters.
-            // Writing `general: args.general` would turn an omitted key into an
-            // explicit `undefined`, which is the same value, so that would be
-            // fine; writing `general: args.general ?? ""` would NOT be, because
-            // it would clear the column on every call that left it out. The
-            // four category voices are the ones a merchant sets once and never
-            // touches, so that mistake would be silent and unrecoverable: there
-            // is no read tool to restore them from.
-            ...(args.general !== undefined ? { general: args.general } : {}),
-            ...(args.soft !== undefined ? { soft: args.soft } : {}),
-            ...(args.expired !== undefined ? { expired: args.expired } : {}),
-            ...(args.network !== undefined ? { network: args.network } : {}),
-            ...(args.fraud !== undefined ? { fraud: args.fraud } : {}),
+          required: ["winback_notifications_enabled", "expiring_card_notifications_enabled"],
+        },
+        notifications: {
+          type: "object",
+          description: "Notification email, Slack webhook and the four notification toggles. Every field is replaced. Clearing the email turns every notification off.",
+          properties: {
+            notification_email: { type: "string", description: "Empty or omitted clears it." },
+            slack_webhook_url: {
+              type: "string",
+              description: "Must be on https://hooks.slack.com/. Empty or omitted clears it; send it again to keep it.",
+            },
+            slack_notifications_enabled: { type: "boolean" },
+            digest_enabled: { type: "boolean" },
+            recovery_notifications_enabled: { type: "boolean" },
+            sequence_complete_notifications_enabled: { type: "boolean" },
           },
-          ctx.trace,
-        ),
-      ),
-  },
-  {
-    name: "set_intelligence_context",
-    description:
-      "Tell Foxhound what kind of business this is: industry, primary customer type, and self-reported monthly recurring revenue in dollars. The recovery-email writer is given these, and risk scoring will read them. Omit a field to leave it as it is; send an empty string to clear it.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        merchant_industry: { type: "string", description: 'For example "B2B SaaS".' },
-        primary_customer_type: { type: "string", description: 'For example "small businesses".' },
-        merchant_mrr_self_reported: {
-          type: ["number", "string"],
-          description: "US dollars, not cents. Empty clears it.",
+          required: [],
+        },
+        sender_name: {
+          type: "object",
+          description: "The From name on one connection's recovery emails.",
+          properties: {
+            connection_id: { type: "string", description: "From foxhound_get_settings." },
+            sender_name: { type: "string", description: "Up to 80 characters. Empty clears it and mail goes out from Support." },
+          },
+          required: ["connection_id"],
+        },
+        brand_voice: {
+          type: "object",
+          description: "The tone Foxhound writes one connection's recovery emails in: free-form guidance for the writer, not a template.",
+          properties: {
+            connection_id: { type: "string", description: "From foxhound_get_settings." },
+            general: { type: "string", description: "The voice for every category with no override." },
+            soft: { type: "string", description: "Soft declines: insufficient funds and the like." },
+            expired: { type: "string", description: "Expired card." },
+            network: { type: "string", description: "Network and issuer declines." },
+            fraud: { type: "string", description: "Suspected fraud." },
+          },
+          required: ["connection_id"],
+        },
+        intelligence_context: {
+          type: "object",
+          description: "What kind of business this is. The recovery-email writer is given these.",
+          properties: {
+            merchant_industry: { type: "string", description: 'For example "B2B SaaS".' },
+            primary_customer_type: { type: "string", description: 'For example "small businesses".' },
+            merchant_mrr_self_reported: {
+              type: ["number", "string"],
+              description:
+                "US dollars, not cents. foxhound_get_settings reports it in cents as merchantMrrSelfReportedCents, so divide by 100 before sending it back. Empty clears it.",
+            },
+          },
+          required: [],
         },
       },
       required: [],
     },
-    // The same omitted-key rule as set_brand_voice, and the same reason: these
-    // three are set once and left, so turning an omission into a null would
-    // erase context the merchant entered by hand.
-    execute: async (ctx, args) =>
-      applied(
-        await applyIntelligenceContext(
-          ctx.db,
-          ctx.accountId,
-          {
-            ...(args.merchant_industry !== undefined
-              ? { merchantIndustry: args.merchant_industry }
-              : {}),
-            ...(args.primary_customer_type !== undefined
-              ? { primaryCustomerType: args.primary_customer_type }
-              : {}),
-            ...(args.merchant_mrr_self_reported !== undefined
-              ? { merchantMrrSelfReported: args.merchant_mrr_self_reported }
-              : {}),
-          },
-          ctx.trace,
-        ),
-      ),
+    // Destructive because a value is overwritten, and clearing the notification
+    // email silences every notification. Idempotent because the same call twice
+    // leaves the same settings.
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+    execute: async (ctx, args) => {
+      const sent = SECTION_NAMES.filter((name) => args[name] !== undefined);
+      if (sent.length !== 1) {
+        throw new ToolInputError(
+          `Send exactly one of ${SECTION_NAMES.join(", ")}; this call sent ${sent.length === 0 ? "none" : sent.join(" and ")}. Make one call per group.`,
+        );
+      }
+      const name = sent[0];
+      const section = args[name];
+      if (!section || typeof section !== "object" || Array.isArray(section)) {
+        throw new ToolInputError(`${name} must be an object of that group's fields.`);
+      }
+      return { section: name, ...((await SETTINGS_SECTIONS[name](ctx, section as ToolArgs)) as object) };
+    },
   },
   {
-    // TWO ALERT TOOLS, NOT ONE, AND THE FORM'S ACTION IS THE ARGUMENT. Its two
-    // branches share no field, no check and no refusal: create takes four
-    // values and no id, config takes an id and a verb. Folding them into one
-    // tool would mean a schema whose required fields depend on another field's
-    // value, which is the shape an agent gets wrong, and a foreign-id guard
-    // sitting on a path that sometimes has no id to guard.
-    name: "create_alert",
+    name: "foxhound_manage_alerts",
+    title: "Manage alerts",
+    // DELETION IS NAMED rather than left to be discovered, because it takes the
+    // alert's firing history with it and that is not recoverable.
     description:
-      "Create a nightly alert on one metric for this account. Foxhound checks it every night and records each breach. Amount metrics take a threshold in dollars. Alerts are recorded and shown in the app; nothing is delivered by email or Slack yet.",
+      "Create, enable, disable or delete one of this account's nightly metric alerts. action create takes metric, direction and threshold (dollars for amount metrics, a plain count otherwise) and an optional label; enable, disable and delete take alert_id from foxhound_get_intelligence, which must belong to this account. Deleting also removes that alert's recorded breaches. Alerts are recorded and shown in the app; nothing is delivered by email or Slack yet.",
     inputSchema: {
       type: "object",
       properties: {
-        metric: { type: "string", description: "One of the metrics get_alerts reports." },
-        direction: { type: "string", description: "Whether the metric rising or dropping fires." },
+        action: { type: "string", enum: [...ALERT_ACTIONS], description: "What to do." },
+        alert_id: { type: "string", description: "For enable, disable and delete: from foxhound_get_intelligence." },
+        metric: { type: "string", description: "For create: one of the metrics foxhound_get_intelligence reports." },
+        direction: { type: "string", description: "For create: whether the metric rising or dropping fires." },
         threshold: {
           type: ["number", "string"],
-          description: "Dollars for amount metrics, a plain count otherwise.",
+          description: "For create: dollars for amount metrics, a plain count otherwise.",
         },
-        label: { type: "string", description: "Optional name for the alert." },
+        label: { type: "string", description: "For create: an optional name for the alert." },
       },
-      required: ["metric", "direction", "threshold"],
+      required: ["action"],
     },
-    execute: async (ctx, args) =>
-      applied(
-        await applyAlertCreate(
-          ctx.db,
-          ctx.accountId,
-          {
-            metric: args.metric,
-            direction: args.direction,
-            threshold: args.threshold,
-            label: args.label,
-          },
-          ctx.now,
-          ctx.trace,
-        ),
-      ),
-  },
-  {
-    name: "set_alert_config",
-    // DELETION IS NAMED IN THE DESCRIPTION rather than left to be discovered,
-    // because it takes the alert's firing history with it and that is not
-    // recoverable. It is the form's own third verb, so withholding it would
-    // have been a divergence from the surface a merchant already has.
-    description:
-      "Switch one of this account's existing alerts on or off, or delete it. Deleting also removes that alert's recorded breaches. Alert ids come from get_alerts.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        alert_id: { type: "string", description: "From get_alerts." },
-        enabled: { type: "boolean", description: "Whether the alert should fire." },
-        deleted: { type: "boolean", description: "True to delete it. Overrides enabled." },
-      },
-      required: ["alert_id"],
+    // Destructive because delete is; not idempotent because create makes a new
+    // alert each time.
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
+    execute: async (ctx, args) => {
+      const action = args["action"];
+      if (action === "create") {
+        if (args["alert_id"] !== undefined) {
+          throw new ToolInputError("create makes a new alert and takes no alert_id. Drop alert_id, or use enable, disable or delete.");
+        }
+        return {
+          action,
+          ...applied(
+            await applyAlertCreate(
+              ctx.db,
+              ctx.accountId,
+              { metric: args.metric, direction: args.direction, threshold: args.threshold, label: args.label },
+              ctx.now,
+              ctx.trace,
+            ),
+          ),
+        };
+      }
+      if (action === "enable" || action === "disable" || action === "delete") {
+        required(args, "alert_id", "Take one from foxhound_get_intelligence.");
+        return {
+          action,
+          ...applied(
+            await applyAlertConfig(
+              ctx.db,
+              ctx.accountId,
+              { alertId: args.alert_id, enabled: action === "enable", deleted: action === "delete" },
+              ctx.trace,
+            ),
+          ),
+        };
+      }
+      throw new ToolInputError(`action must be one of ${ALERT_ACTIONS.join(", ")}.`);
     },
-    execute: async (ctx, args) =>
-      applied(
-        await applyAlertConfig(
-          ctx.db,
-          ctx.accountId,
-          { alertId: args.alert_id, enabled: args.enabled, deleted: args.deleted },
-          ctx.trace,
-        ),
-      ),
   },
 ];
 
 /** The live registry. Built through `defineToolRegistry`, so the HUMAN-FOREVER
- *  denylist runs over every name at module load, and every executor is wrapped
- *  in the redactor at the same moment. No count is written here: a number in a
- *  comment beside the array it counts is a number that goes stale silently. */
-export const MERCHANT_TOOLS: McpToolRegistry = defineToolRegistry([...TOOLS, ...WRITE_TOOLS]);
+ *  denylist and the name rule run over every name at module load, and every
+ *  executor is wrapped in the redactor at the same moment. */
+export const MERCHANT_TOOLS: McpToolRegistry = defineToolRegistry([...READ_TOOLS, ...WRITE_TOOLS]);
 
 /** The tool names, exported so a plant can assert the set without re-listing it. */
-export const MERCHANT_TOOL_NAMES = [...TOOLS, ...WRITE_TOOLS].map((t) => t.name);
+export const MERCHANT_TOOL_NAMES = [...READ_TOOLS, ...WRITE_TOOLS].map((t) => t.name);
 /** The write half, named so a plant can assert exactly these carry a trace. */
 export const MERCHANT_WRITE_TOOL_NAMES = WRITE_TOOLS.map((t) => t.name);
 

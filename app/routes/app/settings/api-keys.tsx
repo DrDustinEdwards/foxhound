@@ -142,10 +142,10 @@ export default function ApiKeySettings({ loaderData, actionData }: Route.Compone
         <p className="mt-1 text-label text-text-tertiary">
           Connect an AI agent to this account's Foxhound data at{" "}
           <span className="font-mono">/mcp</span>. A key lets an agent read your audit runs,
-          recovery, disputes, billing and customer health, and change eight settings: audit,
+          recovery, disputes, billing and customer health, and change your settings: audit,
           features, notifications, your sender name, your brand voice, your business context,
-          and the alerts it can create, switch off and delete. Leaving a field out of a
-          change leaves it as it is. Every change it makes is logged with the key that
+          and the alerts it can create, switch off and delete. Leaving a field out of
+          the brand voice or business context leaves it as it is. Every change it makes is logged with the key that
           made it. It cannot move money, submit dispute evidence, disconnect Stripe or
           cancel your account, and customer names and full email addresses are never sent.
         </p>
