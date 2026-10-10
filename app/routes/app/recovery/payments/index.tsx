@@ -324,7 +324,7 @@ function StatusPills({
     if (next === null) return;
     event.preventDefault();
     groupRef.current?.querySelectorAll<HTMLAnchorElement>('[role="radio"]')[next]?.focus();
-    navigate(statusPillHref(filters, bounds, STATUS_PILLS[next].value));
+    void navigate(statusPillHref(filters, bounds, STATUS_PILLS[next].value));
   }
 
   return (

@@ -108,9 +108,11 @@ const VERIFY_SCRIPTS = VERIFY_COMMANDS.map(npmScriptName).filter((s): s is strin
 // Steps the verify job runs that are deliberately NOT check:all gates. `build`
 // is here because conventions require a build before every push while check:all
 // does not chain one, so it is enforced in CI and asserted below on its own.
+// `report:bloat` is here because it is a warn-only report, not a gate: it exits
+// 0 on every finding (job_30ab4e0e8702) and still runs locally by name.
 // Anything else appearing in CI without a check:all entry fails the second
 // direction, which is the point.
-const DECLARED_NON_GATE_STEPS = new Set(["build"]);
+const DECLARED_NON_GATE_STEPS = new Set(["build", "report:bloat"]);
 
 describe("CI enforces exactly the gates check:all names", () => {
   // Guard the instrument before trusting it. An assertion that can pass by

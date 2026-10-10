@@ -1,0 +1,9 @@
+{
+  "path": ["app", "workers"],
+  "format": ["typescript", "tsx"],
+  "ignore": ["**/*.test.*", "**/*.d.ts", "**/+types/**", "app/assets/**"],
+  "reporters": ["console"],
+  "absolute": false,
+  "gitignore": true,
+  "silent": true
+}

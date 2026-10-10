@@ -105,6 +105,8 @@ const EXCLUDED_PREFIXES = [
   "/llms-full.txt",
   "/feed.rss",
   "/og/",
+  // JSON health for monitors (job_f7f35d4b7ac7), not a page.
+  "/health",
   // RFC 9116's well-known file (377 item 11). Not HTML, and not a page a reader
   // navigates to: a client looks for it at a fixed path by the spec, so listing
   // it in the sitemap would advertise a file that is found by convention.

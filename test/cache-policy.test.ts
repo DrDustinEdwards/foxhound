@@ -347,6 +347,9 @@ describe("PLANT 7: the policy is applied at the one choke point", () => {
         "app/routes/files/llms.ts",
         "app/routes/files/robots.ts",
         "app/routes/files/sitemap.ts",
+        // Names Cache-Control in a comment only: the policy pins this route
+        // private/no-store (job_f7f35d4b7ac7).
+        "app/routes/health.ts",
         "app/routes/utility/card-update.tsx",
         "app/routes/utility/engagement-click.ts",
         // The honeypot (377(4)). Same no-store header as its siblings, for the

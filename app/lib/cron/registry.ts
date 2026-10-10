@@ -14,6 +14,7 @@ import { seedDemoAccount } from "~/lib/demo/seed";
 import { runIntelligenceAiForAllAccounts } from "~/lib/intelligence/ai-run.server";
 import { runIntelligenceSyncForAllAccounts } from "~/lib/intelligence/sync.server";
 
+import { runD1Backup } from "~/lib/backup/d1-backup";
 import { describeExpiringCardRun, runExpiringCards } from "~/lib/cron/expiring-cards";
 import { describeWeeklyDigestRun, runWeeklyDigest } from "~/lib/cron/digest";
 import { describeWinbackRun, runWinbackSends } from "~/lib/cron/winback";
@@ -166,6 +167,10 @@ const expiringCards: CronHandler = async (env) => {
   return { rowsProcessed: result.send.sent, message: describeExpiringCardRun(result) };
 };
 
+/** The nightly D1 dump into R2 (job_f7f35d4b7ac7). Reuses the daily schedule, so no
+ *  new wrangler.jsonc trigger. See app/lib/backup/d1-backup.ts. */
+const d1Backup: CronHandler = (env) => runD1Backup(env, new Date());
+
 const cronHealth: CronHandler = async (env) =>
   runCronHealthCheck(env, getDb(env), CRON_JOBS, new Date());
 
@@ -198,6 +203,7 @@ export const CRON_JOBS: CronJob[] = [
   { name: "weekly-digest", schedule: CRON_SCHEDULE_WEEKLY, handler: weeklyDigest },
   { name: "cron-health", schedule: CRON_SCHEDULE_DAILY, handler: cronHealth },
   { name: "expiring-cards", schedule: CRON_SCHEDULE_DAILY, handler: expiringCards },
+  { name: "d1-backup", schedule: CRON_SCHEDULE_DAILY, handler: d1Backup },
   { name: DEMO_RESET_CRON_NAME, schedule: CRON_SCHEDULE_DAILY, handler: demoReset },
   { name: "billing-monthly", schedule: CRON_SCHEDULE_MONTHLY, handler: billingMonthly },
   { name: "intelligence-sync", schedule: CRON_SCHEDULE_MONTHLY, handler: intelligenceSync },

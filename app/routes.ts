@@ -179,6 +179,9 @@ export default [
   route("webhooks/stripe", "./routes/webhooks/stripe.ts"),
   route("webhooks/stripe-platform", "./routes/webhooks/stripe-platform.ts"),
 
+  // Health (unauthenticated JSON; backup age only, no merchant data)
+  route("health", "./routes/health.ts"),
+
   // Files (resource routes, no shell)
   route("sitemap.xml", "./routes/files/sitemap.ts"),
   route("robots.txt", "./routes/files/robots.ts"),

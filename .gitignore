@@ -188,3 +188,7 @@ scripts/out/
 
 # Project MCP config: carries a driver bearer token
 .mcp.json
+
+# StrykerJS mutation runs (stryker.config.mjs): sandbox and reports, never committed
+.stryker-tmp/
+reports/

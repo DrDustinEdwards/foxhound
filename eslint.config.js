@@ -5,7 +5,9 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: ["build/", ".react-router/", ".wrangler/", "worker-configuration.d.ts"],
+    // .stryker-tmp/ and reports/ are StrykerJS sandboxes and output (stryker.config.mjs);
+    // a run that is interrupted leaves an instrumented copy of the repo behind.
+    ignores: ["build/", ".react-router/", ".wrangler/", "worker-configuration.d.ts", ".stryker-tmp/", "reports/"],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
@@ -16,6 +18,22 @@ export default tseslint.config(
         ...globals.browser,
         ...globals.worker,
       },
+    },
+  },
+  {
+    // Workers Best Practices: "Do not leave promises floating". A dropped
+    // promise is a swallowed error or a task cut off at response end.
+    // Type-aware, so scoped to app and workers source (tests excluded).
+    files: ["app/**/*.{ts,tsx}", "workers/**/*.ts"],
+    ignores: ["**/*.test.{ts,tsx}"],
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    rules: {
+      "@typescript-eslint/no-floating-promises": "error",
     },
   },
   {
