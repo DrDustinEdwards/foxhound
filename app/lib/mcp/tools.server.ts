@@ -44,6 +44,7 @@ import {
   type McpToolAnnotations,
   type McpToolContext,
   type McpToolRegistry,
+  ToolInputError,
 } from "./registry";
 
 // THE MERCHANT TOOLS, REGROUPED TO THE 2026-10-10 MCP RULING (job_874dc20ea9ac).
@@ -90,9 +91,6 @@ const READ: McpToolAnnotations = {
   openWorldHint: false,
 };
 
-/** A tool that took bad input and did not do anything. Returned as a tool
- *  error carrying a sentence that says how to fix the input. */
-class ToolInputError extends Error {}
 
 function stringArg(args: ToolArgs, name: string): string | null {
   const raw = args[name];
@@ -583,6 +581,28 @@ function withoutWebhookUrl(
   return { updated, state: { ...rest, slackWebhookConfigured: Boolean(slackWebhookUrl) } };
 }
 
+/**
+ * Refuse a connection id that is not this account's, in words an agent can act
+ * on, before the writer runs.
+ *
+ * The writers prove ownership themselves (rule 12.1) and refuse a foreign id
+ * with the settings form's sentence, "Connect Stripe before setting a sender
+ * name.", which is right for a person with no connection and misleading for an
+ * agent that sent an id it should not have. This check says what is wrong and
+ * where a good id comes from. It is the second check, not the only one: the
+ * writer's own predicate still stands behind it.
+ */
+async function requireOwnConnection(ctx: McpToolContext, section: ToolArgs): Promise<void> {
+  const connectionId = section.connection_id;
+  if (typeof connectionId !== "string" || connectionId.length === 0) return;
+  const own = await listAccountConnections(ctx.db, ctx.accountId);
+  if (!own.some((connection) => connection.id === connectionId)) {
+    throw new ToolInputError(
+      `Connection ${connectionId} is not one of this account's Stripe connections. Take a connection id from foxhound_get_settings.`,
+    );
+  }
+}
+
 type SettingsSection = (ctx: McpToolContext, section: ToolArgs) => Promise<unknown>;
 
 const SETTINGS_SECTIONS: Record<string, SettingsSection> = {
@@ -625,20 +645,23 @@ const SETTINGS_SECTIONS: Record<string, SettingsSection> = {
         ctx.trace,
       ),
     ),
-  sender_name: async (ctx, s) =>
-    applied(
+  sender_name: async (ctx, s) => {
+    await requireOwnConnection(ctx, s);
+    return applied(
       await applySenderName(
         ctx.db,
         ctx.accountId,
         { connectionId: s.connection_id, senderName: s.sender_name },
         ctx.trace,
       ),
-    ),
+    );
+  },
   // This text lands in the system prompt that writes the merchant's recovery
   // emails. It is not sanitised on the way in, exactly as the form does not
   // sanitise it: `sanitizeCopy` and `passesQualityGate` run on what comes out.
-  brand_voice: async (ctx, s) =>
-    applied(
+  brand_voice: async (ctx, s) => {
+    await requireOwnConnection(ctx, s);
+    return applied(
       await applyBrandVoice(
         ctx.db,
         ctx.accountId,
@@ -648,7 +671,8 @@ const SETTINGS_SECTIONS: Record<string, SettingsSection> = {
         },
         ctx.trace,
       ),
-    ),
+    );
+  },
   intelligence_context: async (ctx, s) =>
     applied(
       await applyIntelligenceContext(

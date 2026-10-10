@@ -133,6 +133,14 @@ export function isDeniedToolName(name: string): boolean {
   return DENIED_TOOL_FRAGMENTS.some((fragment) => lower.includes(fragment));
 }
 
+/**
+ * A REFUSAL: the tool did nothing and says how to fix the input. The one kind
+ * of error whose message is written for the agent, so the only kind whose
+ * message reaches it (./server.ts). Declared here so the transport can tell it
+ * apart without importing the tool module.
+ */
+export class ToolInputError extends Error {}
+
 /** Every name is `foxhound_{action}_{resource}` (ruling rule 5): the service
  *  prefix, then at least an action and a resource, snake case. */
 export const TOOL_NAME_PATTERN = /^foxhound(_[a-z]+){2,}$/;

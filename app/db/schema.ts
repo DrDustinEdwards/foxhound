@@ -1280,6 +1280,46 @@ export const mcpWrites = sqliteTable(
   (t) => [index("mcp_writes_account_idx").on(t.accountId)],
 );
 
+/**
+ * Every MCP tool call, one row each (MCP ruling 2026-10-10, rule 12.4): the
+ * caller, the arguments and the result.
+ *
+ * WRITTEN AT THE DOOR, not in a tool (app/lib/mcp/call-log.server.ts), so a call
+ * the SDK refused at its schema check or a call naming a tool that does not
+ * exist is logged as surely as a call that ran. `mcp_writes` stays the
+ * field-level trace that commits in the same batch as a write; this is the
+ * wider record of what every key asked for.
+ *
+ * APPEND-ONLY IN THE SCHEMA. Migration 0026 adds triggers that abort any UPDATE
+ * or DELETE on this table, so no code path can rewrite what a key did.
+ *
+ * THE RESULT IS KEPT AS AN OUTCOME, never as the data a read returned, so the
+ * log does not become a second copy of the merchant's customers. `arguments`
+ * has the Slack webhook URL replaced and `error` has email addresses masked.
+ *
+ * `api_key_id` IS A SOFT REF, as on `mcp_writes`: the record must survive the
+ * key being revoked or reaped.
+ */
+export const mcpCalls = sqliteTable(
+  "mcp_calls",
+  {
+    id: id(),
+    accountId: text("account_id").notNull().references(() => accounts.id),
+    /** api_keys.id. Soft ref; see the header. */
+    apiKeyId: text("api_key_id").notNull(),
+    /** The tool name the call asked for, whether or not it exists. */
+    tool: text("tool").notNull(),
+    /** The arguments as sent, with credentials replaced. */
+    arguments: json<Record<string, unknown>>("arguments"),
+    /** ok | tool_error | protocol_error */
+    outcome: text("outcome").notNull(),
+    /** The error text the agent was given, emails masked; null on ok. */
+    error: text("error"),
+    createdAt: ts("created_at").notNull(),
+  },
+  (t) => [index("mcp_calls_account_idx").on(t.accountId, t.createdAt)],
+);
+
 export const aiCalls = sqliteTable(
   "ai_calls",
   {
