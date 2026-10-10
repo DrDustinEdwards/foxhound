@@ -159,6 +159,7 @@ export default [
         ]),
         route("social", "./routes/admin/social.tsx"),
         route("audit-log", "./routes/admin/audit-log.tsx"),
+        route("staged", "./routes/admin/staged.tsx"),
       ]),
     ]),
   ]),

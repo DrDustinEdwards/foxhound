@@ -1320,6 +1320,73 @@ export const mcpCalls = sqliteTable(
   (t) => [index("mcp_calls_account_idx").on(t.accountId, t.createdAt)],
 );
 
+/**
+ * Changes an admin AI asked for that start or change money, waiting for a person
+ * (MCP ruling 2026-10-10, DECIDE answer 4; job_21de68b30fc2).
+ *
+ * The Foxhound Admin API may pause directly, because pausing stops money
+ * moving. Resuming a merchant, releasing the brake, re-enabling a cron,
+ * exempting an account from billing and granting a plan all start or change
+ * money, so the API only STAGES them here. Nothing is applied until an admin
+ * confirms the row in /admin/staged, signed in, and the confirmation runs the
+ * same helper the matching /admin screen runs.
+ *
+ * `status` is pending, confirmed, rejected or failed. A pending row older than
+ * seven days can no longer be confirmed (app/lib/admin/staged.server.ts). Every
+ * transition writes an admin_audit_log row naming the admin who made it.
+ */
+export const stagedChanges = sqliteTable(
+  "staged_changes",
+  {
+    id: id(),
+    /** resume_account | release_brake | cron_enable | billing_exempt | intelligence_grant */
+    kind: text("kind").notNull(),
+    targetAccountId: text("target_account_id").references(() => accounts.id),
+    targetCronName: text("target_cron_name"),
+    /** Kind-specific values, for example { exempt: true }. */
+    params: json<Record<string, unknown>>("params"),
+    /** Why the requester wants it, as they said it. */
+    note: text("note"),
+    status: text("status").notNull().default("pending"),
+    requestedBy: text("requested_by").notNull(),
+    /** Where the request came from: "admin-api" today. */
+    requestedVia: text("requested_via").notNull(),
+    requestedAt: ts("requested_at").notNull(),
+    decidedBy: text("decided_by"),
+    decidedAt: ts("decided_at"),
+    /** What applying it did, or why it failed. */
+    result: json<Record<string, unknown>>("result"),
+  },
+  (t) => [index("staged_changes_status_idx").on(t.status, t.requestedAt)],
+);
+
+/**
+ * Every call to the Foxhound Admin API, one row each (MCP ruling rule 12.4 for
+ * the admin server, whose own Worker holds no database).
+ *
+ * APPEND-ONLY IN THE SCHEMA, as `mcp_calls` is: migration 0027 adds triggers
+ * that abort any UPDATE or DELETE. Only calls that passed both credentials are
+ * logged; a refused call has no acting admin to name.
+ */
+export const adminApiCalls = sqliteTable(
+  "admin_api_calls",
+  {
+    id: id(),
+    actorEmail: text("actor_email").notNull(),
+    /** api_keys.id of the admin key. Soft ref, as on mcp_writes. */
+    apiKeyId: text("api_key_id").notNull(),
+    method: text("method").notNull(),
+    /** The path under /api/admin/v1, without the query. */
+    path: text("path").notNull(),
+    /** The query parameters and JSON body, as sent. */
+    input: json<Record<string, unknown>>("input"),
+    status: integer("status").notNull(),
+    error: text("error"),
+    createdAt: ts("created_at").notNull(),
+  },
+  (t) => [index("admin_api_calls_created_idx").on(t.createdAt)],
+);
+
 export const aiCalls = sqliteTable(
   "ai_calls",
   {

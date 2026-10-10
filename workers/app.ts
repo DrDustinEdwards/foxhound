@@ -46,6 +46,16 @@ export default withSentry<Env>(
         if (carrel) return applyCachePolicy(request, applySecurityHeaders(carrel, nonce));
       }
 
+      // THE FOXHOUND ADMIN API (job_21de68b30fc2), before the router. Null for any
+      // path outside /api/admin/v1; inside it an admin-scope key AND an acting
+      // admin on ADMIN_EMAIL are checked on every call. Its only intended caller
+      // is the Foxhound Admin MCP Worker over a service binding.
+      if (new URL(request.url).pathname.startsWith("/api/admin/v1")) {
+        const { handleAdminApiRequest } = await import("~/lib/admin-api/handler.server");
+        const admin = await handleAdminApiRequest(request, env);
+        if (admin) return applyCachePolicy(request, applySecurityHeaders(admin, nonce));
+      }
+
       // THE MERCHANT MCP ENDPOINT, before the router (370, roadmap item 3).
       // It is JSON-RPC over POST with its own header contract and its own bearer
       // auth; none of the router's loader/action machinery applies, and mounting
