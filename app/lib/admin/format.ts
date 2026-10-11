@@ -20,5 +20,8 @@ export function formatBytes(bytes: number): string {
     value /= 1024;
     unitIndex += 1;
   }
-  return `${value.toFixed(value < 10 ? 2 : 1)} ${units[unitIndex]}`;
+  // Rounded, then trailing zeros dropped: "876 KB", "1.5 MB", "2.25 GB", never
+  // "876.0 KB" (Dustin's review, 2026-10-11).
+  const rounded = Number(value.toFixed(value < 10 ? 2 : 1));
+  return `${rounded} ${units[unitIndex]}`;
 }

@@ -8,8 +8,11 @@ import { logAdminAction } from "~/lib/admin/audit.server";
 import { adminContext } from "~/lib/admin/context";
 import { createPost, listAllPostsForAdmin, uniqueSlugFromTitle } from "~/lib/blog/admin-queries.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import type { AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/index";
+
+export const handle: AdminHandle = { page: "Blog" };
 
 export function meta() {
   return [{ title: "Blog - Foxhound admin" }];
@@ -59,8 +62,7 @@ export default function AdminBlogIndex({ loaderData }: Route.ComponentProps) {
   const busy = useNavigation().state !== "idle";
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
-      <h1 className="mb-6 text-title font-medium text-text">Blog</h1>
+    <div>
 
       <div className="mb-6 rounded-lg border border-border bg-surface p-4">
         <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">New post</p>

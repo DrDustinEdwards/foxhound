@@ -1,9 +1,15 @@
-import { getDb } from "~/db";
+import { Link } from "react-router";
+
 import { AdminTime } from "~/components/admin-time";
-import { listAuditLog } from "~/lib/admin/audit-log.server";
+import { getDb } from "~/db";
+import { auditTarget, describeAuditAction } from "~/lib/admin/audit-describe";
+import { listAuditLog, loadAuditLookups } from "~/lib/admin/audit-log.server";
+import type { AdminHandle } from "~/lib/admin/page";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import type { Route } from "./+types/audit-log";
+
+export const handle: AdminHandle = { page: "Audit log" };
 
 export function meta() {
   return [{ title: "Audit log - Foxhound admin" }];
@@ -12,7 +18,15 @@ export function meta() {
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const db = getDb(env);
-  const entries = await listAuditLog(db);
+  const rows = await listAuditLog(db);
+  const lookups = await loadAuditLookups(db, rows);
+  const entries = rows.map((e) => ({
+    id: e.id,
+    createdAt: e.createdAt,
+    actorEmail: e.actorEmail,
+    action: describeAuditAction(e.action),
+    target: auditTarget(e, lookups),
+  }));
   return { entries };
 }
 
@@ -20,8 +34,7 @@ export default function AdminAuditLog({ loaderData }: Route.ComponentProps) {
   const { entries } = loaderData;
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
-      <h1 className="mb-6 text-title font-medium text-text">Audit log</h1>
+    <div>
 
       {entries.length === 0 ? (
         <p className="rounded-lg border border-dashed border-border p-6 text-body text-text-tertiary">
@@ -32,7 +45,7 @@ export default function AdminAuditLog({ loaderData }: Route.ComponentProps) {
         <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-left text-label">
             <thead>
-              <tr className="border-b border-border text-micro uppercase tracking-wide text-text-tertiary">
+              <tr className="border-b border-border text-label text-text-tertiary">
                 <th className="px-4 py-3 font-normal">When</th>
                 <th className="px-4 py-3 font-normal">Actor</th>
                 <th className="px-4 py-3 font-normal">Action</th>
@@ -44,9 +57,17 @@ export default function AdminAuditLog({ loaderData }: Route.ComponentProps) {
                 <tr key={e.id} className="border-b border-border-sub last:border-0">
                   <td className="px-4 py-3 text-text-tertiary"><AdminTime at={e.createdAt} /></td>
                   <td className="px-4 py-3 text-text">{e.actorEmail}</td>
-                  <td className="px-4 py-3 font-mono text-micro text-text">{e.action}</td>
-                  <td className="px-4 py-3 text-text-tertiary">
-                    {e.targetEmail ?? e.targetUserId ?? (e.metadata ? JSON.stringify(e.metadata) : "-")}
+                  <td className="px-4 py-3 text-text">{e.action}</td>
+                  <td className="px-4 py-3 text-text-secondary">
+                    {e.target === null ? (
+                      <span className="text-text-subtle">None</span>
+                    ) : e.target.href ? (
+                      <Link to={e.target.href} className="underline underline-offset-2 hover:text-amber">
+                        {e.target.label}
+                      </Link>
+                    ) : (
+                      e.target.label
+                    )}
                   </td>
                 </tr>
               ))}

@@ -3,7 +3,7 @@
 // surface) and excludes demo accounts (DEMO_ACCOUNT_ID_PREFIX), matching the
 // accountBillingEligibleCondition demo-exclusion convention in app/db/billable.ts.
 
-import { and, count, desc, eq, notLike, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, notLike } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import { accounts, cronConfig, cronRunHistory, failedPayments, mrrSnapshots } from "~/db";
@@ -17,6 +17,9 @@ export interface PlatformOverview {
   mrrByCurrency: Array<{ currency: string; totalCents: number; accountCount: number }>;
   cronHealth: {
     failedLast24h: number;
+    /** The failed runs themselves (newest first), so the Overview can link to
+     *  each one on /admin/crons. */
+    failedRuns: Array<{ id: string; cronName: string; finishedAt: Date; message: string | null }>;
     lastRunAt: Date | null;
     disabledCount: number;
   };
@@ -71,16 +74,23 @@ async function mrrUnderManagement(db: Db): Promise<PlatformOverview["mrrByCurren
 
 async function cronHealth(db: Db): Promise<PlatformOverview["cronHealth"]> {
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  const [failedRows, lastRunRows, disabledRows] = await Promise.all([
+  const [failedRuns, lastRunRows, disabledRows] = await Promise.all([
     db
-      .select({ n: count() })
+      .select({
+        id: cronRunHistory.id,
+        cronName: cronRunHistory.cronName,
+        finishedAt: cronRunHistory.finishedAt,
+        message: cronRunHistory.message,
+      })
       .from(cronRunHistory)
-      .where(and(eq(cronRunHistory.status, "failed"), sql`${cronRunHistory.finishedAt} >= ${since.getTime()}`)),
+      .where(and(eq(cronRunHistory.status, "failed"), gte(cronRunHistory.finishedAt, since)))
+      .orderBy(desc(cronRunHistory.finishedAt)),
     db.select({ finishedAt: cronRunHistory.finishedAt }).from(cronRunHistory).orderBy(desc(cronRunHistory.finishedAt)).limit(1),
     db.select({ n: count() }).from(cronConfig).where(eq(cronConfig.enabled, false)),
   ]);
   return {
-    failedLast24h: failedRows[0]?.n ?? 0,
+    failedLast24h: failedRuns.length,
+    failedRuns,
     lastRunAt: lastRunRows[0]?.finishedAt ?? null,
     disabledCount: disabledRows[0]?.n ?? 0,
   };

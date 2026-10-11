@@ -3,8 +3,11 @@ import { AdminTime } from "~/components/admin-time";
 import { getDb } from "~/db";
 import { listPlatformUsers } from "~/lib/admin/users.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import type { AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/users";
+
+export const handle: AdminHandle = { page: "Users" };
 
 export function meta() {
   return [{ title: "Users - Foxhound admin" }];
@@ -21,8 +24,7 @@ export default function AdminUsers({ loaderData }: Route.ComponentProps) {
   const { users } = loaderData;
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
-      <h1 className="mb-6 text-title font-medium text-text">Users</h1>
+    <div>
 
       {users.length === 0 ? (
         <p className="rounded-lg border border-dashed border-border p-6 text-body text-text-tertiary">

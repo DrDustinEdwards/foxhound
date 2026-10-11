@@ -12,6 +12,7 @@ import {
 } from "~/lib/admin/staged.server";
 import { adminContext } from "~/lib/admin/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import type { AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/staged";
 
@@ -19,6 +20,8 @@ import type { Route } from "./+types/staged";
 // asked for that start or change money, waiting for a person. Confirming one
 // applies it under the SIGNED-IN admin, through the same helper the matching
 // screen uses, and asks for the same typed phrase where that screen does.
+
+export const handle: AdminHandle = { page: "Staged changes" };
 
 export function meta() {
   return [{ title: "Staged changes - Foxhound admin" }];
@@ -79,8 +82,7 @@ export default function AdminStaged({ loaderData, actionData }: Route.ComponentP
   const busy = useNavigation().state !== "idle";
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
-      <h1 className="mb-6 text-title font-medium text-text">Staged changes</h1>
+    <div>
 
       <p className="mb-4 text-body text-text-tertiary">
         Changes the admin AI asked for that start or change money. Nothing here has happened yet.

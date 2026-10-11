@@ -17,11 +17,16 @@ import {
 import { renderMarkdown } from "~/lib/blog/markdown.server";
 import { CANONICAL_TAGS } from "~/lib/blog/tags";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import type { AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/detail";
 
-export function meta() {
-  return [{ title: "Edit post - Foxhound admin" }];
+export const handle: AdminHandle<{ post: { title: string } }> = {
+  page: (data: { post: { title: string } }) => data.post.title,
+};
+
+export function meta({ loaderData }: Route.MetaArgs) {
+  return [{ title: `${loaderData?.post.title ?? "Post"} - Foxhound admin` }];
 }
 
 export async function loader({ context, params }: Route.LoaderArgs) {
@@ -117,9 +122,8 @@ export default function AdminBlogDetail({ loaderData }: Route.ComponentProps) {
   const selectedLinkIds = new Set(links.map((l) => l.targetId));
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-title font-medium text-text">{post.title}</h1>
+    <div>
+      <div className="flex flex-wrap items-center justify-end gap-3">
         <div className="flex items-center gap-2">
           <Badge tone={post.published ? "success" : "neutral"}>{post.published ? "Published" : "Draft"}</Badge>
           <Form method="post">

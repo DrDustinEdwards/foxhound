@@ -22,8 +22,11 @@ import { setCronEnabled } from "~/lib/admin/crons.server";
 import { adminContext } from "~/lib/admin/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { RECOVERY_TICK_CRON_NAME } from "~/lib/constants";
+import type { AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/brake";
+
+export const handle: AdminHandle = { page: "Emergency brake" };
 
 export function meta() {
   return [{ title: "Emergency brake - Foxhound admin" }];
@@ -193,8 +196,7 @@ export default function AdminBrake({ loaderData, actionData }: Route.ComponentPr
   const engaged = status.brakePausedCount > 0;
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8">
-      <h1 className="mb-6 text-title font-medium text-text">Emergency brake</h1>
+    <div>
 
       {actionData?.error ? (
         <p role="alert" className="mb-4 rounded-md border border-red bg-red-bg px-3 py-2 text-label text-error-text">

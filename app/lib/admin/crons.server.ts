@@ -15,25 +15,37 @@ export interface CronRow {
   enabled: boolean;
   minIntervalMinutes: number | null;
   lastRun: {
+    id: string;
     status: string;
     finishedAt: Date;
     rowsProcessed: number | null;
     message: string | null;
   } | null;
+  /** This cron's failed runs in the last 24 hours, newest first: the runs the
+   *  Overview's cron health counts and links to. */
+  recentFailures: Array<{ id: string; finishedAt: Date; message: string | null }>;
 }
+
+const FAILURE_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 /** One row per registered job (app/lib/cron/registry.ts is the source of
  *  truth for what jobs exist; cron_config only overrides enabled/interval - a
  *  missing config row means enabled, per app/lib/cron/gating.ts). */
-export async function listCronRows(db: Db): Promise<CronRow[]> {
+export async function listCronRows(db: Db, now: number = Date.now()): Promise<CronRow[]> {
   const [configRows, lastRuns] = await Promise.all([
     db.select().from(cronConfig),
     db.select().from(cronRunHistory).orderBy(desc(cronRunHistory.finishedAt)).limit(500),
   ]);
   const configByName = new Map(configRows.map((c) => [c.cronName, c]));
   const lastRunByName = new Map<string, (typeof lastRuns)[number]>();
+  const failuresByName = new Map<string, CronRow["recentFailures"]>();
   for (const run of lastRuns) {
     if (!lastRunByName.has(run.cronName)) lastRunByName.set(run.cronName, run);
+    if (run.status === "failed" && now - run.finishedAt.getTime() <= FAILURE_WINDOW_MS) {
+      const list = failuresByName.get(run.cronName) ?? [];
+      list.push({ id: run.id, finishedAt: run.finishedAt, message: run.message });
+      failuresByName.set(run.cronName, list);
+    }
   }
 
   return CRON_JOBS.map((job) => {
@@ -46,12 +58,14 @@ export async function listCronRows(db: Db): Promise<CronRow[]> {
       minIntervalMinutes: config?.minIntervalMinutes ?? null,
       lastRun: lastRun
         ? {
+            id: lastRun.id,
             status: lastRun.status,
             finishedAt: lastRun.finishedAt,
             rowsProcessed: lastRun.rowsProcessed,
             message: lastRun.message,
           }
         : null,
+      recentFailures: failuresByName.get(job.name) ?? [],
     };
   });
 }

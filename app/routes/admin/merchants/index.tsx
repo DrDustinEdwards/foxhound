@@ -5,8 +5,11 @@ import { Badge } from "~/components/badge";
 import { getDb } from "~/db";
 import { listMerchants } from "~/lib/admin/merchants.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import type { AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/index";
+
+export const handle: AdminHandle = { page: "Merchants" };
 
 export function meta() {
   return [{ title: "Merchants - Foxhound admin" }];
@@ -29,8 +32,7 @@ export default function AdminMerchants({ loaderData }: Route.ComponentProps) {
   const { merchants } = loaderData;
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
-      <h1 className="mb-6 text-title font-medium text-text">Merchants</h1>
+    <div>
 
       {merchants.length === 0 ? (
         <p className="rounded-lg border border-dashed border-border p-6 text-body text-text-tertiary">

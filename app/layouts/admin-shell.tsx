@@ -1,11 +1,13 @@
-import { useState } from "react";
-import { Link, Outlet, useLocation, useRouteLoaderData } from "react-router";
+import { useEffect, useRef, useState } from "react";
+import { Link, Outlet, useLocation, useMatches, useNavigation, useRouteLoaderData } from "react-router";
 import {
   Activity,
+  CircleUser,
   Clock,
   FileText,
   LayoutDashboard,
   ListChecks,
+  Menu as MenuIcon,
   OctagonPause,
   ScrollText,
   Share2,
@@ -13,10 +15,14 @@ import {
   Users,
   Webhook,
 } from "lucide-react";
+import { openSheet } from "capsomer/behaviour/admin-shell";
 import { AdminShell, type AdminEntry } from "capsomer/react/admin-shell";
+import { ThemeSwitch } from "capsomer/react/theme-switch";
+import { Time } from "capsomer/react/time";
 
 import "~/admin.css";
 import { adminContext } from "~/lib/admin/context";
+import { adminPageName } from "~/lib/admin/page";
 import { getAdminSession } from "~/lib/auth/access.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { DEFAULT_THEME, THEME_COOKIE, type Theme } from "~/lib/theme";
@@ -42,7 +48,7 @@ export const middleware: Route.MiddlewareFunction[] = [
 ];
 
 export function loader({ context }: Route.LoaderArgs) {
-  return { email: context.get(adminContext).email };
+  return { email: context.get(adminContext).email, readAt: Date.now() };
 }
 
 const icon = (Icon: typeof LayoutDashboard) => <Icon className="cap-admin-icon" aria-hidden />;
@@ -66,23 +72,76 @@ const ENTRIES: Array<AdminEntry & { match: (path: string) => boolean }> = [
 
 // Capsomer's tokens are keyed on data-cap-theme. It follows the site's own
 // theme, which the root loader already resolved for <html data-theme>, so the
-// server render has the right palette and nothing flashes.
-function useAdminTheme(): [Theme, () => void] {
+// server render has the right palette and nothing flashes. Capsomer's Light
+// and Dark switch sets <html data-theme> and announces a "cap-theme" event;
+// this keeps the admin's palette and Foxhound's fh_theme cookie in step with it.
+function useAdminTheme(): Theme {
   const rootData = useRouteLoaderData<typeof rootLoader>("root");
   const [theme, setTheme] = useState<Theme>(rootData?.theme ?? DEFAULT_THEME);
-  const toggle = () => {
-    const next: Theme = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    document.documentElement.setAttribute("data-theme", next);
-    document.cookie = `${THEME_COOKIE}=${next}; path=/; max-age=31536000; SameSite=Lax`;
+  useEffect(() => {
+    const onTheme = (e: Event) => {
+      const choice = (e as CustomEvent<{ choice?: string }>).detail?.choice;
+      if (choice !== "light" && choice !== "dark") return;
+      setTheme(choice);
+      document.cookie = `${THEME_COOKIE}=${choice}; path=/; max-age=31536000; SameSite=Lax`;
+    };
+    document.addEventListener("cap-theme", onTheme);
+    return () => document.removeEventListener("cap-theme", onTheme);
+  }, []);
+  return theme;
+}
+
+// When the page's data was last read: the server's time on the first load,
+// then each time a navigation, a form or a revalidation finishes (every one
+// re-runs the page's loader). The top bar says it in words, so nobody reads
+// minutes-old numbers as live.
+function useReadAt(serverReadAt: number): number {
+  const [readAt, setReadAt] = useState(serverReadAt);
+  const navigation = useNavigation();
+  const { key } = useLocation();
+  const wasBusy = useRef(false);
+  useEffect(() => {
+    if (navigation.state !== "idle") {
+      wasBusy.current = true;
+    } else if (wasBusy.current) {
+      wasBusy.current = false;
+      setReadAt(Date.now());
+    }
+  }, [navigation.state, key]);
+  return readAt;
+}
+
+// Phone only: the strip and the menu live in the shell's sheet, so the top bar
+// gets the two ways into it, the menu and the account (the sheet's account rows:
+// View site, Sign out).
+function PhoneControls() {
+  const open = (focusAccount: boolean) => (e: React.MouseEvent<HTMLButtonElement>) => {
+    const shell = e.currentTarget.closest<HTMLElement>("[data-cap='admin-shell']");
+    if (!shell) return;
+    openSheet(shell);
+    if (focusAccount) {
+      shell.querySelector<HTMLElement>(".cap-admin-sheet-account a, .cap-admin-sheet-account button")?.focus();
+    }
   };
-  return [theme, toggle];
+  return (
+    <span className="fh-admin-phone-controls">
+      <button type="button" className="fh-admin-icon-btn" aria-label="Menu" onClick={open(false)}>
+        <MenuIcon className="cap-admin-icon" aria-hidden />
+      </button>
+      <button type="button" className="fh-admin-icon-btn" aria-label="Account" onClick={open(true)}>
+        <CircleUser className="cap-admin-icon" aria-hidden />
+      </button>
+    </span>
+  );
 }
 
 export default function AdminShellLayout({ loaderData }: Route.ComponentProps) {
   const { pathname } = useLocation();
-  const [theme, toggleTheme] = useAdminTheme();
+  const matches = useMatches();
+  const theme = useAdminTheme();
+  const readAt = useReadAt(loaderData.readAt);
   const nav = ENTRIES.map(({ match, ...entry }) => ({ ...entry, current: match(pathname) }));
+  const page = adminPageName(matches) ?? "Foxhound admin";
   const { email } = loaderData;
 
   return (
@@ -97,18 +156,26 @@ export default function AdminShellLayout({ loaderData }: Route.ComponentProps) {
             {children}
           </Link>
         )}
+        status={
+          <span className="fh-admin-bar-page">
+            <h1 className="fh-admin-page-name">{page}</h1>
+            <span>
+              Updated <Time at={readAt} />
+            </span>
+          </span>
+        }
+        actions={
+          <>
+            <ThemeSwitch prefKey="foxhound-admin-theme" initial={theme} />
+            <PhoneControls />
+          </>
+        }
         account={{
           name: email,
           initials: (email[0] ?? "A").toUpperCase(),
           role: "Administrator",
           email,
-          appLinks: [
-            { label: "View site", href: "/" },
-            {
-              label: theme === "dark" ? "Switch to light theme" : "Switch to dark theme",
-              onClick: toggleTheme,
-            },
-          ],
+          appLinks: [{ label: "View site", href: "/" }],
           // Access owns sign-out: it ends the Access session, then shows its
           // own login.
           onSignOut: () => {
@@ -116,7 +183,12 @@ export default function AdminShellLayout({ loaderData }: Route.ComponentProps) {
           },
         }}
       >
-        <Outlet />
+        {/* The one page frame (Capsomer's .cap-admin-page): every admin page
+            starts at the same left edge with the same width and padding. No
+            page sets its own column (test/admin-review-1011.test.ts). */}
+        <div className="cap-admin-page">
+          <Outlet />
+        </div>
       </AdminShell>
     </div>
   );

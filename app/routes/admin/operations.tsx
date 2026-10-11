@@ -3,6 +3,7 @@ import { AdminTime } from "~/components/admin-time";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { D1_ALERT_THRESHOLD, D1_CAP_BYTES, formatBytes } from "~/lib/admin/format";
+import type { AdminHandle } from "~/lib/admin/page";
 import {
   getD1SizeBytes,
   getEnvSanity,
@@ -11,6 +12,8 @@ import {
 } from "~/lib/admin/operations.server";
 
 import type { Route } from "./+types/operations";
+
+export const handle: AdminHandle = { page: "Operations" };
 
 export function meta() {
   return [{ title: "Operations - Foxhound admin" }];
@@ -40,8 +43,7 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
   const overAlertThreshold = capPct >= D1_ALERT_THRESHOLD;
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
-      <h1 className="mb-6 text-title font-medium text-text">Operations</h1>
+    <div>
 
       <section className="rounded-lg border border-border bg-surface p-4">
         <div className="flex items-center justify-between">

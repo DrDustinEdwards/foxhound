@@ -10,11 +10,15 @@ describe("formatBytes", () => {
     expect(formatBytes(512)).toBe("512 B");
   });
 
-  it("renders KB/MB/GB with 2 decimals under 10, 1 decimal at or above 10", () => {
-    expect(formatBytes(1024)).toBe("1.00 KB");
-    expect(formatBytes(1024 * 1024)).toBe("1.00 MB");
-    expect(formatBytes(15 * 1024 * 1024)).toBe("15.0 MB");
-    expect(formatBytes(1024 * 1024 * 1024)).toBe("1.00 GB");
+  it("renders KB/MB/GB rounded to 2 decimals under 10, 1 at or above 10, with no trailing zeros", () => {
+    expect(formatBytes(1024)).toBe("1 KB");
+    expect(formatBytes(1024 * 1024)).toBe("1 MB");
+    expect(formatBytes(15 * 1024 * 1024)).toBe("15 MB");
+    expect(formatBytes(1024 * 1024 * 1024)).toBe("1 GB");
+    expect(formatBytes(876 * 1024)).toBe("876 KB");
+    expect(formatBytes(1.5 * 1024 * 1024)).toBe("1.5 MB");
+    expect(formatBytes(2.25 * 1024 * 1024 * 1024)).toBe("2.25 GB");
+    expect(formatBytes(15.44 * 1024 * 1024)).toBe("15.4 MB");
   });
 });
 

@@ -21,11 +21,17 @@ import { BILLING_INVOICE_STATUS_LABELS, billingInvoiceStatusTone } from "~/lib/b
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { formatMoney } from "~/lib/money-format";
 import { parseDollarsToCents } from "~/lib/settings/dollars";
+import type { AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/detail";
 
-export function meta() {
-  return [{ title: "Merchant detail - Foxhound admin" }];
+export const handle: AdminHandle<{ account: { name: string | null; id: string } }> = {
+  page: (data: { account: { name: string | null; id: string } }) => data.account.name ?? data.account.id,
+};
+
+export function meta({ loaderData }: Route.MetaArgs) {
+  const name = loaderData ? (loaderData.account.name ?? loaderData.account.id) : "Merchant";
+  return [{ title: `${name} - Foxhound admin` }];
 }
 
 export async function loader({ context, params }: Route.LoaderArgs) {
@@ -302,8 +308,7 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
   );
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
-      <h1 className="mb-6 text-title font-medium text-text">{account.name ?? account.id}</h1>
+    <div>
 
       <section className="rounded-lg border border-border bg-surface p-4">
         <div className="flex flex-wrap items-center gap-2">

@@ -4,8 +4,11 @@ import { StatCard } from "~/components/stat-card";
 import { getDb } from "~/db";
 import { getWebhookHealthSummary, listRecentWebhookEvents } from "~/lib/admin/webhooks.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import type { AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/webhooks";
+
+export const handle: AdminHandle = { page: "Webhooks" };
 
 export function meta() {
   return [{ title: "Webhooks - Foxhound admin" }];
@@ -22,8 +25,7 @@ export default function AdminWebhooks({ loaderData }: Route.ComponentProps) {
   const { summary, events } = loaderData;
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
-      <h1 className="mb-6 text-title font-medium text-text">Webhooks</h1>
+    <div>
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard label="Received (24h)" value={String(summary.totalLast24h)} />

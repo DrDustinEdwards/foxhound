@@ -10,6 +10,9 @@
 @import "capsomer/dialog.css";
 @import "capsomer/popover.css";
 @import "capsomer/time.css";
+@import "capsomer/theme-switch.css";
+@import "capsomer/stat-tile.css";
+@import "capsomer/status.css";
 
 /* Capsomer's faces, self-hosted from @fontsource (latin and latin-ext) and
    bundled with this stylesheet: Schibsted Grotesk for the UI, Martian Mono for
@@ -91,4 +94,63 @@
   background: var(--ground);
   color: var(--text);
   font-family: var(--ui);
+}
+
+/* The top bar's left side: the page's one heading, then how fresh its data is.
+   AdminShell 0.8.0 draws this itself (`page`, `status`); on 0.7.1 it is the
+   bar's status slot. */
+.fh-admin-bar-page {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-4);
+}
+.fh-admin-page-name {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--fs-lead);
+  font-weight: 600;
+}
+
+/* Phone only: the menu and the account, which live in the shell's sheet. */
+.fh-admin-phone-controls {
+  display: none;
+  gap: var(--space-2);
+}
+.fh-admin-icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: max(var(--control), var(--target));
+  height: max(var(--control), var(--target));
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  background: var(--surface);
+  color: var(--text);
+}
+.fh-admin-icon-btn:hover {
+  background: var(--sunken);
+}
+
+@media (max-width: 820px) {
+  .fh-admin-phone-controls {
+    display: inline-flex;
+  }
+  /* The tab bar is sticky at the bottom of the screen: the page keeps a bar's
+     height of room under its last line, so nothing ever sits behind it. */
+  .fh-admin .cap-admin-page {
+    padding-bottom: calc(var(--space-6) + 4.5rem + env(safe-area-inset-bottom, 0rem));
+  }
+}
+
+/* A run linked to from the Overview (/admin/crons#run-...) is marked when it
+   is the target. */
+.fh-admin :target {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+/* Land a linked run a third of the way down the screen, with its cron's name
+   and schedule above it in view, not under the top edge. */
+.fh-admin [id^="run-"],
+.fh-admin [id^="cron-"] {
+  scroll-margin-block-start: 30vh;
 }
