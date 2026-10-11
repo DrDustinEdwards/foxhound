@@ -7,10 +7,6 @@ interface Env {
   // Separate and revocable; read only by app/lib/carrel/handler.server.ts.
   // Unset or shorter than 32 characters, the mount refuses every request.
   CARREL_SITE_KEY?: string;
-  // Nightly D1 dump bucket (job_f7f35d4b7ac7). Declared here, not in wrangler.jsonc,
-  // until Dustin creates the bucket and adds the r2_buckets binding; the backup
-  // job fails loudly while it is unbound and /health says so.
-  BACKUPS?: R2Bucket;
   SENTRY_DSN?: string;
   // Better Auth signing key. Required in real environments; absent locally is
   // tolerated (dev-only default) but flagged.

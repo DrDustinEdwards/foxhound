@@ -76,7 +76,7 @@ export function assertDumpIsSafe(result: DumpResult): void {
 function requireBucket(env: Env): R2Like {
   if (!env.BACKUPS) {
     throw new BackupVerificationError(
-      "BACKUPS R2 binding is not configured (see the steps in the job_f7f35d4b7ac7 PR)",
+      "BACKUPS R2 binding is not configured (wrangler.jsonc r2_buckets should bind foxhound-backups)",
     );
   }
   return env.BACKUPS as unknown as R2Like;
