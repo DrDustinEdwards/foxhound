@@ -103,6 +103,16 @@
       "migrations_dir": "drizzle/migrations"
     }
   ],
+  // Nightly D1 dump bucket (job_f7f35d4b7ac7, bound under job_7bbec6ab48d1).
+  // Bucket foxhound-backups was created on the account 2026-10-09. The d1-backup
+  // cron job (app/lib/backup/d1-backup.ts) writes here and /health reads the
+  // newest run from it; until this binding existed every nightly run threw.
+  "r2_buckets": [
+    {
+      "binding": "BACKUPS",
+      "bucket_name": "foxhound-backups"
+    }
+  ],
   // NO KV BINDING, deliberately. The APP_KV binding was REMOVED 2026-08-15 by
   // ruling 310, after `env.APP_KV` measured ZERO consumers across app/ and
   // workers/: it was bound here and enumerated on the env-sanity surface while
