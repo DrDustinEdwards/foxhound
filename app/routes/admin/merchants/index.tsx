@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 
-import { AdminNav } from "~/components/admin-nav";
+import { AdminTime } from "~/components/admin-time";
 import { Badge } from "~/components/badge";
 import { getDb } from "~/db";
 import { listMerchants } from "~/lib/admin/merchants.server";
@@ -9,7 +9,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import type { Route } from "./+types/index";
 
 export function meta() {
-  return [{ title: "Merchants - Foxhound Admin" }];
+  return [{ title: "Merchants - Foxhound admin" }];
 }
 
 export async function loader({ context }: Route.LoaderArgs) {
@@ -30,8 +30,7 @@ export default function AdminMerchants({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
-      <h1 className="text-title font-medium text-text">Merchants</h1>
-      <AdminNav />
+      <h1 className="mb-6 text-title font-medium text-text">Merchants</h1>
 
       {merchants.length === 0 ? (
         <p className="rounded-lg border border-dashed border-border p-6 text-body text-text-tertiary">
@@ -74,7 +73,7 @@ export default function AdminMerchants({ loaderData }: Route.ComponentProps) {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-text-tertiary">
-                    {m.createdAt ? m.createdAt.toLocaleDateString() : "-"}
+                    <AdminTime at={m.createdAt} empty="-" />
                   </td>
                 </tr>
               ))}

@@ -1,5 +1,5 @@
-import { AdminNav } from "~/components/admin-nav";
 import { Badge } from "~/components/badge";
+import { AdminTime } from "~/components/admin-time";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { D1_ALERT_THRESHOLD, D1_CAP_BYTES, formatBytes } from "~/lib/admin/format";
@@ -13,7 +13,7 @@ import {
 import type { Route } from "./+types/operations";
 
 export function meta() {
-  return [{ title: "Operations - Foxhound Admin" }];
+  return [{ title: "Operations - Foxhound admin" }];
 }
 
 export async function loader({ context }: Route.LoaderArgs) {
@@ -41,8 +41,7 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
-      <h1 className="text-title font-medium text-text">Operations</h1>
-      <AdminNav />
+      <h1 className="mb-6 text-title font-medium text-text">Operations</h1>
 
       <section className="rounded-lg border border-border bg-surface p-4">
         <div className="flex items-center justify-between">
@@ -111,7 +110,7 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
                     <Badge tone={m.applied ? "success" : "failure"}>{m.applied ? "Applied" : "Not applied"}</Badge>
                   </td>
                   <td className="py-2 text-text-tertiary">
-                    {m.appliedAt ? m.appliedAt.toLocaleString() : "-"}
+                    <AdminTime at={m.appliedAt} empty="-" />
                   </td>
                 </tr>
               ))}

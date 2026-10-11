@@ -1,8 +1,8 @@
 import { useState } from "react";
+import { AdminTime } from "~/components/admin-time";
 import { data, Form, useNavigation } from "react-router";
 
 import { Badge } from "~/components/badge";
-import { AdminNav } from "~/components/admin-nav";
 import { getDb } from "~/db";
 import { logAdminAction } from "~/lib/admin/audit.server";
 import { PAUSE_REASON_BRAKE } from "~/lib/admin/brake";
@@ -15,7 +15,7 @@ import {
   setProcessingPaused,
 } from "~/lib/admin/merchants.server";
 import { INTELLIGENCE_PRODUCT, SUBSCRIPTION_STATUS_ACTIVE } from "~/lib/constants";
-import { authContext } from "~/lib/auth/context";
+import { adminContext } from "~/lib/admin/context";
 import { createAdjustment } from "~/lib/billing/adjustment";
 import { BILLING_INVOICE_STATUS_LABELS, billingInvoiceStatusTone } from "~/lib/billing/labels";
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -25,7 +25,7 @@ import { parseDollarsToCents } from "~/lib/settings/dollars";
 import type { Route } from "./+types/detail";
 
 export function meta() {
-  return [{ title: "Merchant detail - Foxhound Admin" }];
+  return [{ title: "Merchant detail - Foxhound admin" }];
 }
 
 export async function loader({ context, params }: Route.LoaderArgs) {
@@ -54,7 +54,7 @@ interface ActionResult {
 // app-shell session guard), and each writes an admin_audit_log row.
 export async function action({ context, request, params }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
+  const auth = context.get(adminContext);
   const db = getDb(env);
   const accountId = params.id;
 
@@ -303,8 +303,7 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
-      <h1 className="text-title font-medium text-text">{account.name ?? account.id}</h1>
-      <AdminNav />
+      <h1 className="mb-6 text-title font-medium text-text">{account.name ?? account.id}</h1>
 
       <section className="rounded-lg border border-border bg-surface p-4">
         <div className="flex flex-wrap items-center gap-2">
@@ -323,11 +322,11 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
           Account id <span className="font-mono text-text">{account.id}</span>
         </p>
         <p className="text-label text-text-tertiary">
-          Created {account.createdAt ? account.createdAt.toLocaleString() : "unknown"}
+          Created <AdminTime at={account.createdAt} empty="unknown" />
         </p>
         {account.cancelledAt ? (
           <p className="text-label text-text-tertiary">
-            Cancelled {account.cancelledAt.toLocaleString()}
+            Cancelled <AdminTime at={account.cancelledAt} />
           </p>
         ) : null}
         <p className="text-label text-text-tertiary">

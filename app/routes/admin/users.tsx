@@ -1,5 +1,5 @@
-import { AdminNav } from "~/components/admin-nav";
 import { Badge } from "~/components/badge";
+import { AdminTime } from "~/components/admin-time";
 import { getDb } from "~/db";
 import { listPlatformUsers } from "~/lib/admin/users.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -7,7 +7,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import type { Route } from "./+types/users";
 
 export function meta() {
-  return [{ title: "Users - Foxhound Admin" }];
+  return [{ title: "Users - Foxhound admin" }];
 }
 
 export async function loader({ context }: Route.LoaderArgs) {
@@ -22,8 +22,7 @@ export default function AdminUsers({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
-      <h1 className="text-title font-medium text-text">Users</h1>
-      <AdminNav />
+      <h1 className="mb-6 text-title font-medium text-text">Users</h1>
 
       {users.length === 0 ? (
         <p className="rounded-lg border border-dashed border-border p-6 text-body text-text-tertiary">
@@ -66,7 +65,7 @@ export default function AdminUsers({ loaderData }: Route.ComponentProps) {
                       <span className="text-text-tertiary">Merchant</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-text-tertiary">{u.createdAt.toLocaleDateString()}</td>
+                  <td className="px-4 py-3 text-text-tertiary"><AdminTime at={u.createdAt} /></td>
                 </tr>
               ))}
             </tbody>

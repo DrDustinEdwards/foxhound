@@ -1,10 +1,10 @@
 import { data, Form, useActionData, useNavigation } from "react-router";
 
-import { AdminNav } from "~/components/admin-nav";
+import { AdminTime } from "~/components/admin-time";
 import { Badge } from "~/components/badge";
 import { getDb } from "~/db";
 import { logAdminAction } from "~/lib/admin/audit.server";
-import { authContext } from "~/lib/auth/context";
+import { adminContext } from "~/lib/admin/context";
 import {
   getPostForAdmin,
   getPostLinksForAdmin,
@@ -21,7 +21,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import type { Route } from "./+types/detail";
 
 export function meta() {
-  return [{ title: "Edit post - Foxhound Admin" }];
+  return [{ title: "Edit post - Foxhound admin" }];
 }
 
 export async function loader({ context, params }: Route.LoaderArgs) {
@@ -46,7 +46,7 @@ type ActionResult = { intent: string; ok: boolean; error?: string };
 
 export async function action({ context, params, request }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
+  const auth = context.get(adminContext);
   const db = getDb(env);
   const postId = params.id;
 
@@ -134,7 +134,6 @@ export default function AdminBlogDetail({ loaderData }: Route.ComponentProps) {
           </Form>
         </div>
       </div>
-      <AdminNav />
 
       <p className="mb-6 font-mono text-micro text-text-subtle">
         /blog/{post.slug} - slug is fixed after creation (SEO stability)
@@ -362,7 +361,7 @@ export default function AdminBlogDetail({ loaderData }: Route.ComponentProps) {
                   <li key={v.id} className="border-b border-border-sub pb-2 text-label last:border-0">
                     <p className="text-text">{v.title}</p>
                     <p className="text-text-tertiary">
-                      {v.savedAt.toLocaleString()}
+                      <AdminTime at={v.savedAt} />
                       {v.savedBy ? ` - ${v.savedBy}` : ""}
                     </p>
                   </li>

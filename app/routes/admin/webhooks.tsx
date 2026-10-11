@@ -1,5 +1,5 @@
-import { AdminNav } from "~/components/admin-nav";
 import { Badge } from "~/components/badge";
+import { AdminTime } from "~/components/admin-time";
 import { StatCard } from "~/components/stat-card";
 import { getDb } from "~/db";
 import { getWebhookHealthSummary, listRecentWebhookEvents } from "~/lib/admin/webhooks.server";
@@ -8,7 +8,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import type { Route } from "./+types/webhooks";
 
 export function meta() {
-  return [{ title: "Webhooks - Foxhound Admin" }];
+  return [{ title: "Webhooks - Foxhound admin" }];
 }
 
 export async function loader({ context }: Route.LoaderArgs) {
@@ -23,8 +23,7 @@ export default function AdminWebhooks({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
-      <h1 className="text-title font-medium text-text">Webhooks</h1>
-      <AdminNav />
+      <h1 className="mb-6 text-title font-medium text-text">Webhooks</h1>
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard label="Received (24h)" value={String(summary.totalLast24h)} />
@@ -64,7 +63,7 @@ export default function AdminWebhooks({ loaderData }: Route.ComponentProps) {
                         {e.errorMessage ? "Error" : e.processed ? "Processed" : "Pending"}
                       </Badge>
                     </td>
-                    <td className="py-2 pr-4 text-text-tertiary">{e.receivedAt.toLocaleString()}</td>
+                    <td className="py-2 pr-4 text-text-tertiary"><AdminTime at={e.receivedAt} /></td>
                     <td className="py-2 text-text-tertiary">{e.errorMessage ?? "-"}</td>
                   </tr>
                 ))}

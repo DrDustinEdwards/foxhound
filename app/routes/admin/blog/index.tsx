@@ -1,18 +1,18 @@
 import { data, Form, redirect, useActionData, useNavigation } from "react-router";
+import { AdminTime } from "~/components/admin-time";
 import { Link } from "react-router";
 
-import { AdminNav } from "~/components/admin-nav";
 import { Badge } from "~/components/badge";
 import { getDb } from "~/db";
 import { logAdminAction } from "~/lib/admin/audit.server";
-import { authContext } from "~/lib/auth/context";
+import { adminContext } from "~/lib/admin/context";
 import { createPost, listAllPostsForAdmin, uniqueSlugFromTitle } from "~/lib/blog/admin-queries.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import type { Route } from "./+types/index";
 
 export function meta() {
-  return [{ title: "Blog - Foxhound Admin" }];
+  return [{ title: "Blog - Foxhound admin" }];
 }
 
 export async function loader({ context }: Route.LoaderArgs) {
@@ -24,7 +24,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 
 export async function action({ context, request }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
+  const auth = context.get(adminContext);
   const db = getDb(env);
 
   const form = await request.formData();
@@ -60,8 +60,7 @@ export default function AdminBlogIndex({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
-      <h1 className="text-title font-medium text-text">Blog</h1>
-      <AdminNav />
+      <h1 className="mb-6 text-title font-medium text-text">Blog</h1>
 
       <div className="mb-6 rounded-lg border border-border bg-surface p-4">
         <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">New post</p>
@@ -116,7 +115,7 @@ export default function AdminBlogIndex({ loaderData }: Route.ComponentProps) {
                     <Badge tone={p.published ? "success" : "neutral"}>{p.published ? "Published" : "Draft"}</Badge>
                   </td>
                   <td className="px-4 py-3 text-text-tertiary">{p.tags.join(", ") || "-"}</td>
-                  <td className="px-4 py-3 text-text-tertiary">{p.updatedAt.toLocaleDateString()}</td>
+                  <td className="px-4 py-3 text-text-tertiary"><AdminTime at={p.updatedAt} /></td>
                 </tr>
               ))}
             </tbody>

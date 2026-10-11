@@ -85,8 +85,9 @@ describe("no-transform on signed-in and token HTML", () => {
     expect(end).toBeGreaterThan(start);
     const block = source.slice(start, end);
     const segments = new Set<string>();
-    // Direct children of the layout (indent 4), plus the two prefixes that sit
-    // inside nested pathless layouts (settings, admin-guard).
+    // Direct children of the layout (indent 4), plus the prefixes that sit
+    // inside nested layouts (settings, and admin's own shell, which follows the
+    // app shell in routes.ts).
     for (const m of block.matchAll(/^ {4}(?:\.\.\.prefix|route)\("([a-z-]+)(?:\/[^"]*)?"/gm)) {
       segments.add(m[1]);
     }

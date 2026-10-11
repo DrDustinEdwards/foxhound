@@ -1,3 +1,9 @@
+/* Capsomer's layers (the admin only, app/admin.css) sit above Tailwind's base
+   and below its components and utilities: its element rules win inside the
+   admin shell, and Tailwind classes on page content still win over Capsomer.
+   Pages that never load Capsomer have no cap layer, so this changes nothing
+   for them. */
+@layer theme, base, cap, components, utilities;
 @import "tailwindcss";
 
 /* Self-hosted fonts. No Google Fonts request at runtime; files vendored

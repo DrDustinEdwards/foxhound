@@ -137,30 +137,31 @@ export default [
     ]),
     route("help", "./routes/app/help.tsx"),
     route("welcome", "./routes/app/welcome.tsx"),
+  ]),
 
-    // Admin (role-guarded; reuses the app shell, no distinct admin shell in
-    // ROUTES.md). The pathless admin-guard layout adds the admin-role middleware
-    // (404 for non-admins) without changing the URL structure or the shell.
-    layout("./layouts/admin-guard.tsx", [
-      ...prefix("admin", [
-        index("./routes/admin/index.tsx"),
-        ...prefix("merchants", [
-          index("./routes/admin/merchants/index.tsx"),
-          route(":id", "./routes/admin/merchants/detail.tsx"),
-        ]),
-        route("users", "./routes/admin/users.tsx"),
-        route("operations", "./routes/admin/operations.tsx"),
-        route("brake", "./routes/admin/brake.tsx"),
-        route("crons", "./routes/admin/crons.tsx"),
-        route("webhooks", "./routes/admin/webhooks.tsx"),
-        ...prefix("blog", [
-          index("./routes/admin/blog/index.tsx"),
-          route(":id", "./routes/admin/blog/detail.tsx"),
-        ]),
-        route("social", "./routes/admin/social.tsx"),
-        route("audit-log", "./routes/admin/audit-log.tsx"),
-        route("staged", "./routes/admin/staged.tsx"),
+  // Admin: its own layout, Capsomer's AdminShell, behind Cloudflare Access
+  // (job_6566f4776fdf). Not under the app shell: no merchant session, account or
+  // demo cookie is involved. admin-shell.tsx's middleware verifies Access's JWT
+  // and the ADMIN_EMAIL allowlist (404 otherwise) before any admin loader runs.
+  layout("./layouts/admin-shell.tsx", [
+    ...prefix("admin", [
+      index("./routes/admin/index.tsx"),
+      ...prefix("merchants", [
+        index("./routes/admin/merchants/index.tsx"),
+        route(":id", "./routes/admin/merchants/detail.tsx"),
       ]),
+      route("users", "./routes/admin/users.tsx"),
+      route("operations", "./routes/admin/operations.tsx"),
+      route("brake", "./routes/admin/brake.tsx"),
+      route("crons", "./routes/admin/crons.tsx"),
+      route("webhooks", "./routes/admin/webhooks.tsx"),
+      ...prefix("blog", [
+        index("./routes/admin/blog/index.tsx"),
+        route(":id", "./routes/admin/blog/detail.tsx"),
+      ]),
+      route("social", "./routes/admin/social.tsx"),
+      route("audit-log", "./routes/admin/audit-log.tsx"),
+      route("staged", "./routes/admin/staged.tsx"),
     ]),
   ]),
 

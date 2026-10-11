@@ -1,19 +1,19 @@
 import { data, Form, useNavigation } from "react-router";
 
-import { AdminNav } from "~/components/admin-nav";
+import { AdminTime } from "~/components/admin-time";
 import { Badge } from "~/components/badge";
 import { getDb } from "~/db";
 import { cronEnableConfirmPhrase, isCronEnableConfirmValid } from "~/lib/admin/brake";
 import { logAdminAction } from "~/lib/admin/audit.server";
 import { isKnownCronName, listCronRows, setCronEnabled } from "~/lib/admin/crons.server";
-import { authContext } from "~/lib/auth/context";
+import { adminContext } from "~/lib/admin/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import type { Tone } from "~/lib/recovery/labels";
 
 import type { Route } from "./+types/crons";
 
 export function meta() {
-  return [{ title: "Crons - Foxhound Admin" }];
+  return [{ title: "Crons - Foxhound admin" }];
 }
 
 export async function loader({ context }: Route.LoaderArgs) {
@@ -25,7 +25,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 
 export async function action({ context, request }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
+  const auth = context.get(adminContext);
   const db = getDb(env);
 
   const form = await request.formData();
@@ -135,8 +135,7 @@ export default function AdminCrons({ loaderData, actionData }: Route.ComponentPr
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
-      <h1 className="text-title font-medium text-text">Crons</h1>
-      <AdminNav />
+      <h1 className="mb-6 text-title font-medium text-text">Crons</h1>
 
       {actionData && "error" in actionData && actionData.error ? (
         <p role="alert" className="mb-4 rounded-md border border-red bg-red-bg px-3 py-2 text-label text-error-text">
@@ -162,7 +161,7 @@ export default function AdminCrons({ loaderData, actionData }: Route.ComponentPr
               {c.lastRun ? (
                 <div className="flex flex-wrap items-center gap-3 text-label">
                   <Badge tone={RUN_STATUS_TONE[c.lastRun.status] ?? "neutral"}>{c.lastRun.status}</Badge>
-                  <span className="text-text-tertiary">{c.lastRun.finishedAt.toLocaleString()}</span>
+                  <span className="text-text-tertiary"><AdminTime at={c.lastRun.finishedAt} /></span>
                   {c.lastRun.rowsProcessed !== null ? (
                     <span className="text-text-tertiary">{c.lastRun.rowsProcessed} rows</span>
                   ) : null}
