@@ -118,9 +118,11 @@ describe("PLANT 1: a recovery with the toggle NULL sends one email", () => {
   it("the body carries legacy's wording and the payment link", async () => {
     seed({ enabled: null, declineCategory: "expired" });
     await sendRecoveryNotification(env, { accountId: ACCOUNT, failedPaymentId: FP });
+    // J02: Capsomer's frame. The all-bold first line is the mail's heading, and
+    // the sentence keeps legacy's words without the bold run.
     const html = harness.sent[0].html;
-    expect(html).toContain("<strong>Payment recovered.</strong>");
-    expect(html).toContain("Jane Buyer just paid <strong>$99.00</strong>");
+    expect(html).toMatch(/<h1[^>]*>Payment recovered\.<\/h1>/);
+    expect(html).toContain("Jane Buyer just paid $99.00.");
     expect(html).toContain("recovered it automatically after a expired decline");
     expect(html).toContain(`https://foxhoundapp.test/recovery/payments/${FP}`);
   });

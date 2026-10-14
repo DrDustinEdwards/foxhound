@@ -133,8 +133,9 @@ describe("PLANT 1: an exhausted sequence sends one email with legacy's strings",
     seedAccount({ enabled: null });
     seedPayment({});
     await sendSequenceCompleteNotification(env, { accountId: ACCOUNT, failedPaymentId: FP });
+    // J02: Capsomer's frame; the all-bold first line is the mail's heading.
     const html = harness.sent[0].html;
-    expect(html).toContain("<strong>Recovery sequence complete.</strong>");
+    expect(html).toMatch(/<h1[^>]*>Recovery sequence complete\.<\/h1>/);
     expect(html).toContain("The recovery sequence for Jane Buyer ($99.00) has ended without a");
     expect(html).toContain("manually reach out or write off this balance");
     expect(html).toContain(`https://foxhoundapp.test/recovery/payments/${FP}`);
