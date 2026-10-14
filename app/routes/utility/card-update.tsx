@@ -1,7 +1,17 @@
+import { Alert, Banner } from "capsomer/react/banner";
+import { Button } from "capsomer/react/button";
 import { and, eq, isNull } from "drizzle-orm";
+import type { ReactNode } from "react";
 import { data, Form, redirect, useNavigation } from "react-router";
 
-import { Alert, AuthShell, Submit } from "~/components/auth-ui";
+import "capsomer/banner.css";
+import "capsomer/button.css";
+// Capsomer's tokens and the teal family (capbase layer), which the Button, the
+// Banner and Alert, and the focus ring read. The site header loads the same
+// file; importing it here keeps the page whole under any layout.
+import "~/site-header.css";
+
+import { AuthShell } from "~/components/auth-ui";
 import { Header } from "~/components/header";
 import { expiringCardAlerts, failedPayments, getDb, stripeConnections, winBackSequences } from "~/db";
 import { buildCardUpdateSignal, hasCardUpdateSignal } from "~/lib/card-update/signal";
@@ -442,6 +452,28 @@ export async function action({ request, params, context }: Route.ActionArgs) {
   }
 }
 
+/**
+ * The page's own parts (J62, row F8), inside AuthShell's form column. They are
+ * Capsomer's (Q12): a Banner for a state the page lands in, an Alert beside the
+ * button for a failure of that button's action, and the primary Button. The
+ * wrapper puts them in Capsomer's teal family with Foxhound's own neutrals
+ * (.fh-cap, the pairing the site header and the legal pages use), so the
+ * button is teal (Q11) and the focus ring inside it is the family's teal
+ * ring. Capsomer's banner and button text is 13px, the label
+ * size, so the page stays on the five sizes (RULES.md 5.2).
+ *
+ * Recova has no page here (its emails link straight to a Stripe billing
+ * portal session), so there is no Recova arrangement to follow: the words, the
+ * order and the frame are Foxhound's own, unchanged by this job.
+ */
+function CardUpdateBody({ children }: { children: ReactNode }) {
+  return (
+    <div className="fh-cap flex flex-col gap-6 [--border-focus:var(--ring)]" data-family="teal" data-card-update="">
+      {children}
+    </div>
+  );
+}
+
 export default function CardUpdate({ loaderData, actionData }: Route.ComponentProps) {
   const busy = useNavigation().state !== "idle";
   const state = loaderData.state;
@@ -468,48 +500,58 @@ export default function CardUpdate({ loaderData, actionData }: Route.ComponentPr
       <Header isAuthenticated={false} />
       {state === "invalid" ? (
         <AuthShell title="Link not found">
-          <Alert tone="error">This link is invalid or has expired.</Alert>
+          <CardUpdateBody>
+            <Banner tone="crit">This link is invalid or has expired.</Banner>
+          </CardUpdateBody>
         </AuthShell>
       ) : state === "resolved" ? (
         <AuthShell title="Nothing to do here">
-          <Alert tone="success">
-            This payment has already been resolved. No action is needed.
-          </Alert>
+          <CardUpdateBody>
+            <Banner tone="ok">This payment has already been resolved. No action is needed.</Banner>
+          </CardUpdateBody>
         </AuthShell>
       ) : state === "done" ? (
         <AuthShell title="Payment method updated">
-          <Alert tone="success">
-            Your payment method has been updated. Thank you.
-          </Alert>
+          <CardUpdateBody>
+            <Banner tone="ok">Your payment method has been updated. Thank you.</Banner>
+          </CardUpdateBody>
         </AuthShell>
       ) : state === "handled" ? (
         <AuthShell title="Nothing to do here">
-          <Alert tone="success">
-            This subscription has already been reactivated. No action is needed.
-          </Alert>
+          <CardUpdateBody>
+            <Banner tone="ok">This subscription has already been reactivated. No action is needed.</Banner>
+          </CardUpdateBody>
         </AuthShell>
       ) : state === "resubscribed" ? (
         <AuthShell title="Welcome back">
-          <Alert tone="success">Your subscription has been restarted. Thank you.</Alert>
+          <CardUpdateBody>
+            <Banner tone="ok">Your subscription has been restarted. Thank you.</Banner>
+          </CardUpdateBody>
         </AuthShell>
       ) : state === "resubscribe" ? (
         <AuthShell title="Reactivate your subscription" subtitle={resubscribeLine}>
-          {actionData?.error ? <Alert tone="error">{actionData.error}</Alert> : null}
-          <Form method="post">
-            <Submit disabled={busy}>{busy ? "Redirecting..." : "Reactivate my account"}</Submit>
-          </Form>
+          <CardUpdateBody>
+            {actionData?.error ? <Alert tone="crit">{actionData.error}</Alert> : null}
+            <Form method="post">
+              <Button type="submit" variant="primary" pending={busy}>
+                {busy ? "Redirecting..." : "Reactivate my account"}
+              </Button>
+            </Form>
+          </CardUpdateBody>
         </AuthShell>
       ) : (
         <AuthShell title="Update your payment method" subtitle={amountLine}>
-          {state === "setup_failed" ? (
-            <Alert tone="error">
-              We could not confirm your payment method update. Please try again.
-            </Alert>
-          ) : null}
-          {actionData?.error ? <Alert tone="error">{actionData.error}</Alert> : null}
-          <Form method="post">
-            <Submit disabled={busy}>{busy ? "Redirecting..." : "Update payment method"}</Submit>
-          </Form>
+          <CardUpdateBody>
+            {state === "setup_failed" ? (
+              <Alert tone="crit">We could not confirm your payment method update. Please try again.</Alert>
+            ) : null}
+            {actionData?.error ? <Alert tone="crit">{actionData.error}</Alert> : null}
+            <Form method="post">
+              <Button type="submit" variant="primary" pending={busy}>
+                {busy ? "Redirecting..." : "Update payment method"}
+              </Button>
+            </Form>
+          </CardUpdateBody>
         </AuthShell>
       )}
     </>
