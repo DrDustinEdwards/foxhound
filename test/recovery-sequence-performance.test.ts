@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
+import * as constants from "~/lib/constants";
 import { DECLINE_CATEGORIES } from "~/lib/constants";
+import { RECOVERY_SCHEDULES } from "~/lib/recovery/schedule";
 import {
   buildCategorySections,
   buildStepCard,
@@ -206,5 +208,37 @@ describe("buildCategorySections", () => {
     const fraudDay1 = fraud.stepCards.find((c) => c.stepType === "email_day1")!;
     if (fraudDay1.kind !== "email") throw new Error("expected email card");
     expect(fraudDay1.sent).toBe(1);
+  });
+});
+
+// The Sequences page shows each category's own timing (RULES.md 2.1: step
+// timing is read from the engine, never retyped). A table keyed by step type
+// alone showed one category's offset under another's: after J85 the expired and
+// unknown day 1 chip said "1 day" for a 1 hour send, network's retry_day2 and
+// day 3 said 2 and 3 days for 1 and 2, and fraud's day 1 said "1 day" for 2 hours.
+describe("each category's timing chips are that category's own offsets", () => {
+  it("every card's chip is formatStepTiming of its own schedule offset", () => {
+    const sections = buildCategorySections(DECLINE_CATEGORIES, []);
+    for (const section of sections) {
+      const schedule = RECOVERY_SCHEDULES[section.category];
+      expect(section.stepCards.map((c) => c.timingLabel), section.category).toEqual(
+        schedule.map((s) => formatStepTiming(s.offsetHours)),
+      );
+    }
+  });
+
+  it("reads the engine constants where categories differ", () => {
+    const chip = (category: (typeof DECLINE_CATEGORIES)[number], stepType: string) =>
+      buildCategorySections(DECLINE_CATEGORIES, [])
+        .find((s) => s.category === category)!
+        .stepCards.find((c) => c.stepType === stepType)!.timingLabel;
+    expect(chip("expired", "email_day1")).toBe(formatStepTiming(constants.STEP_TIMING_EMAIL_DAY1_HOURS));
+    expect(chip("unknown", "email_day1")).toBe(formatStepTiming(constants.STEP_TIMING_EMAIL_DAY1_HOURS));
+    expect(chip("soft", "email_day1")).toBe(formatStepTiming(constants.STEP_TIMING_SOFT_EMAIL_DAY1_HOURS));
+    expect(chip("fraud", "email_day1")).toBe(formatStepTiming(constants.STEP_TIMING_FRAUD_EMAIL_DAY1_HOURS));
+    expect(chip("network", "retry_day2")).toBe(formatStepTiming(constants.STEP_TIMING_NETWORK_RETRY_DAY2_HOURS));
+    expect(chip("soft", "retry_day2")).toBe(formatStepTiming(constants.STEP_TIMING_RETRY_DAY2_HOURS));
+    expect(chip("network", "email_day3")).toBe(formatStepTiming(constants.STEP_TIMING_NETWORK_EMAIL_DAY3_HOURS));
+    expect(chip("soft", "email_day3")).toBe(formatStepTiming(constants.STEP_TIMING_EMAIL_DAY3_HOURS));
   });
 });
