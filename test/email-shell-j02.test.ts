@@ -375,7 +375,11 @@ describe("transactional mail carries both parts and never the footer", () => {
   });
 
   it("password reset", async () => {
-    await sendPasswordResetEmail(env, "owner@acme.test", `${BASE}/reset?token=EXAMPLE-NOT-A-TOKEN`);
+    await sendPasswordResetEmail(env, {
+      to: "owner@acme.test",
+      url: `${BASE}/api/auth/reset-password/EXAMPLE-NOT-A-TOKEN?callbackURL=%2Freset-password`,
+      token: "EXAMPLE-NOT-A-TOKEN",
+    });
     const m = only();
     expectBothParts(m, ["Reset your password", "If this was not you, you can ignore this email."]);
     expectNoCustomerFooter(m);

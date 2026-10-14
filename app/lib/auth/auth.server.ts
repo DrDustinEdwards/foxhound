@@ -54,8 +54,8 @@ function buildAuth(env: Env) {
     // route through the one EMAIL-binding send module (never logged).
     emailAndPassword: {
       ...authOptions.emailAndPassword,
-      sendResetPassword: async ({ user, url }) => {
-        const sent = await sendPasswordResetEmail(env, user.email, url);
+      sendResetPassword: async ({ user, url, token }) => {
+        const sent = await sendPasswordResetEmail(env, { to: user.email, url, token });
         // A refused send is thrown by name so it is not silent (J82). Better
         // Auth runs this hook through runInBackgroundOrAwait, which catches the
         // throw and logs it, and answers the form the same way whether or not a

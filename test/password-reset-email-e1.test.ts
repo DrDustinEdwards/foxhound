@@ -24,7 +24,20 @@ interface SentMessage {
   [key: string]: unknown;
 }
 
-const harness = vi.hoisted(() => ({ db: null as unknown }));
+const harness = vi.hoisted(() => ({ db: null as unknown, renderThrows: false }));
+
+// Lets one test make the reset render throw, to prove the send still answers by
+// name instead of throwing. Off everywhere else, so the real render runs.
+vi.mock("~/lib/email/templates", async (importOriginal) => {
+  const real = await importOriginal<typeof import("~/lib/email/templates")>();
+  return {
+    ...real,
+    renderFoxhoundResetEmail: (input: Parameters<typeof real.renderFoxhoundResetEmail>[0]) => {
+      if (harness.renderThrows) throw new Error(`render broke on ${input.url}`);
+      return real.renderFoxhoundResetEmail(input);
+    },
+  };
+});
 
 // auth.server.ts builds its Drizzle adapter from getDb(env); hand it the real
 // schema in memory instead of a D1 binding.
@@ -38,7 +51,8 @@ const { sendPasswordResetEmail } = await import("~/lib/auth/send-auth-email");
 
 const BASE = "https://foxhoundapp.com";
 const TO = "jane@example.com";
-const URL_FIXTURE = `${BASE}/api/auth/reset-password/EXAMPLE-NOT-A-TOKEN?callbackURL=%2Freset-password`;
+const TOKEN = "EXAMPLE-NOT-A-TOKEN";
+const URL_FIXTURE = `${BASE}/api/auth/reset-password/${TOKEN}?callbackURL=%2Freset-password`;
 
 // Foxhound's words, as they were before J82. Written out here, not imported, so
 // a change to the copy in the app has to change this file too.
@@ -91,6 +105,7 @@ beforeEach(() => {
   let db: ReturnType<typeof createInMemoryDb>["db"];
   ({ sqlite, db } = createInMemoryDb());
   harness.db = db;
+  harness.renderThrows = false;
   sent = [];
 });
 
@@ -181,7 +196,7 @@ describe("E1: the reset mail is sent on Better Auth's reset hook, and only there
 
 describe("E1: what the reset mail says and carries", () => {
   it("is Capsomer's reset template, byte for byte, with Foxhound's words", async () => {
-    const outcome = await sendPasswordResetEmail(makeEnv(), TO, URL_FIXTURE);
+    const outcome = await sendPasswordResetEmail(makeEnv(), { to: TO, url: URL_FIXTURE, token: TOKEN });
     expect(outcome).toEqual({ status: "sent", providerMessageId: "msg_1" });
     expect(sent).toHaveLength(1);
     const m = sent[0];
@@ -192,7 +207,7 @@ describe("E1: what the reset mail says and carries", () => {
   });
 
   it("every line of the text part, in order", async () => {
-    await sendPasswordResetEmail(makeEnv(), TO, URL_FIXTURE);
+    await sendPasswordResetEmail(makeEnv(), { to: TO, url: URL_FIXTURE, token: TOKEN });
     expect(sent[0].subject).toBe("Reset your password");
     expect(sent[0].text).toBe(
       [
@@ -217,7 +232,7 @@ describe("E1: what the reset mail says and carries", () => {
   });
 
   it("the HTML part carries the same words, one h1 and one button", async () => {
-    await sendPasswordResetEmail(makeEnv(), TO, URL_FIXTURE);
+    await sendPasswordResetEmail(makeEnv(), { to: TO, url: URL_FIXTURE, token: TOKEN });
     const { html } = sent[0];
     expect(html.startsWith("<!doctype html>")).toBe(true);
     expect(html).toContain('<html lang="en">');
@@ -234,7 +249,7 @@ describe("E1: what the reset mail says and carries", () => {
   });
 
   it("comes from Foxhound at the auth sender, with no Reply-To, footer, unsubscribe or tracking", async () => {
-    await sendPasswordResetEmail(makeEnv(), TO, URL_FIXTURE);
+    await sendPasswordResetEmail(makeEnv(), { to: TO, url: URL_FIXTURE, token: TOKEN });
     const m = sent[0];
     expect(m.from).toBe(`Foxhound <${EMAIL_AUTH_SENDER_ADDRESS}>`);
     expect(m.to).toBe(TO);
@@ -255,34 +270,42 @@ describe("E1: what the reset mail says and carries", () => {
 describe("E1: a refused send comes back named, and the link is never logged", () => {
   it("no EMAIL binding: email_binding_missing", async () => {
     const logged = consoleSpies();
-    const outcome = await sendPasswordResetEmail(makeEnv(null), TO, URL_FIXTURE);
+    const outcome = await sendPasswordResetEmail(makeEnv(null), { to: TO, url: URL_FIXTURE, token: TOKEN });
     expect(outcome).toEqual({ status: "failed", reason: "email_binding_missing", error: null });
     expect(logged()).not.toContain("EXAMPLE-NOT-A-TOKEN");
   });
 
-  it("the binding throws: provider_error, with the link scrubbed from the error", async () => {
+  it("the binding throws: provider_error, with the link, token and recipient scrubbed from the error", async () => {
     const logged = consoleSpies();
     const env = makeEnv({
       send: async () => {
-        throw new Error(`rejected message with link ${URL_FIXTURE}`);
+        throw new Error(`rejected message to ${TO} with link ${URL_FIXTURE} and token ${TOKEN}`);
       },
     });
-    const outcome = await sendPasswordResetEmail(env, TO, URL_FIXTURE);
+    const outcome = await sendPasswordResetEmail(env, { to: TO, url: URL_FIXTURE, token: TOKEN });
     expect(outcome.status).toBe("failed");
     if (outcome.status !== "failed") return;
     expect(outcome.reason).toBe("provider_error");
-    expect(outcome.error).toContain("rejected message with link");
+    expect(outcome.error).toContain("rejected message to");
     expect(outcome.error).not.toContain("EXAMPLE-NOT-A-TOKEN");
+    expect(outcome.error).not.toContain(TO);
     expect(logged()).not.toContain("EXAMPLE-NOT-A-TOKEN");
   });
 
   it("a link Capsomer refuses (not https): link_refused, nothing sent", async () => {
-    const outcome = await sendPasswordResetEmail(
-      makeEnv(),
-      TO,
-      "http://localhost:5173/reset-password/EXAMPLE-NOT-A-TOKEN?callbackURL=%2Freset-password",
-    );
+    const outcome = await sendPasswordResetEmail(makeEnv(), {
+      to: TO,
+      url: "http://localhost:5173/api/auth/reset-password/EXAMPLE-NOT-A-TOKEN?callbackURL=%2Freset-password",
+      token: TOKEN,
+    });
     expect(outcome).toEqual({ status: "failed", reason: "link_refused", error: null });
+    expect(sent).toHaveLength(0);
+  });
+
+  it("an https link whose render throws: render_failed, nothing sent, nothing thrown", async () => {
+    harness.renderThrows = true;
+    const outcome = await sendPasswordResetEmail(makeEnv(), { to: TO, url: URL_FIXTURE, token: TOKEN });
+    expect(outcome).toEqual({ status: "failed", reason: "render_failed", error: null });
     expect(sent).toHaveLength(0);
   });
 

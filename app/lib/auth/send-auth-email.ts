@@ -1,4 +1,4 @@
-import { checkUrl } from "capsomer/email";
+import type { Rendered } from "capsomer/email";
 
 import {
   sendRenderedTransactionalEmail,
@@ -101,43 +101,43 @@ function durationInWords(seconds: number): string {
 
 export type PasswordResetOutcome =
   | TransactionalSendOutcome
-  | { status: "failed"; reason: "link_refused"; error: null };
-
-/** The token in a Better Auth reset link: the path segment after /reset-password/. */
-function resetToken(url: string): string | null {
-  try {
-    return new URL(url).pathname.split("/").filter(Boolean).pop() ?? null;
-  } catch {
-    return null;
-  }
-}
+  | { status: "failed"; reason: "link_refused" | "render_failed"; error: null };
 
 /**
  * Send the password reset to `to`, carrying Better Auth's `url` untouched.
- * Never throws for a refused send; every refusal comes back by name:
- *   - link_refused: the link is not one Capsomer carries (not https:), so
- *     nothing is rendered or sent. Production's BETTER_AUTH_URL is https.
+ * `token` is the one Better Auth hands the sendResetPassword hook. Never
+ * throws; every refusal comes back by name:
+ *   - link_refused: the link is not https:, which Capsomer refuses, so nothing
+ *     is sent. Production's BETTER_AUTH_URL is https.
+ *   - render_failed: any other throw from the render; nothing is sent.
  *   - email_binding_missing: no EMAIL binding.
- *   - provider_error: the binding threw; its message comes back with the link
- *     and the token cut out.
+ *   - provider_error: the binding threw; its message comes back with the link,
+ *     the token and the recipient cut out.
  * The link is never logged here, and never put in an error.
  */
-export async function sendPasswordResetEmail(env: Env, to: string, url: string): Promise<PasswordResetOutcome> {
+export async function sendPasswordResetEmail(
+  env: Env,
+  reset: { to: string; url: string; token: string },
+): Promise<PasswordResetOutcome> {
+  const { to, url, token } = reset;
+  let rendered: Rendered;
   try {
-    checkUrl(url);
+    rendered = renderFoxhoundResetEmail({
+      to,
+      url,
+      expiresIn: durationInWords(PASSWORD_RESET_EXPIRES_IN_SECONDS),
+      copy: PASSWORD_RESET_COPY,
+    });
   } catch {
-    return { status: "failed", reason: "link_refused", error: null };
+    return { status: "failed", reason: isHttps(url) ? "render_failed" : "link_refused", error: null };
   }
-  const rendered = renderFoxhoundResetEmail({
-    to,
-    url,
-    expiresIn: durationInWords(PASSWORD_RESET_EXPIRES_IN_SECONDS),
-    copy: PASSWORD_RESET_COPY,
-  });
-  const token = resetToken(url);
-  return sendRenderedTransactionalEmail(env, {
-    to,
-    rendered,
-    redact: token ? [url, token] : [url],
-  });
+  return sendRenderedTransactionalEmail(env, { to, rendered, redact: [url, token, to] });
+}
+
+function isHttps(url: string): boolean {
+  try {
+    return new URL(url).protocol === "https:";
+  } catch {
+    return false;
+  }
 }
