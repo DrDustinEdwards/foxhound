@@ -96,7 +96,7 @@ describe("the rendered 410 (394 halt 4)", () => {
     const html = withdrawn();
     const numeral = html.match(/<p[^>]*aria-label="410"[^>]*>410<\/p>/);
     expect(numeral, "the 410 numeral is not rendered").not.toBeNull();
-    expect(numeral![0]).toContain("text-amber-text");
+    expect(numeral![0]).toContain("text-brand-text");
     expect(numeral![0]).not.toContain("text-red");
   });
 });

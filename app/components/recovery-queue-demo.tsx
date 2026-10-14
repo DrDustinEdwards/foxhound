@@ -172,19 +172,19 @@ function stepStateAt(index: number, done: number): StepState {
 
 const STATUS_ICON_CLASS: Record<Status, string> = {
   failed: "bg-red-bg text-red",
-  running: "bg-amber-bg text-amber-text",
+  running: "bg-brand-bg text-brand-text",
   recovered: "bg-green-bg text-green",
 };
 
 const AMOUNT_CLASS: Record<Status, string> = {
   failed: "text-text-subtle",
-  running: "text-amber-text",
+  running: "text-brand-text",
   recovered: "text-green",
 };
 
 const STEP_CLASS: Record<StepState, string> = {
   done: "border-green bg-green-bg text-green",
-  active: "border-amber-border-interactive bg-amber-bg text-amber-text",
+  active: "border-brand-border-interactive bg-brand-bg text-brand-text",
   pending: "border-border text-text-subtle",
 };
 

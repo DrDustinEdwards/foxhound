@@ -28,10 +28,10 @@ export const FEATURE_FILTER_CSS = `
 // /blog: the classes of legacy's hand-drawn cover fallback SVG.
 export const BLOG_COVER_FALLBACK_CSS = `
 .dz-base { fill: var(--bg); }
-.dz-band { fill: var(--amber-text); }
+.dz-band { fill: var(--brand-text); }
 `.trim();
 
 export const INLINE_STYLE_HASHES: readonly string[] = [
   "sha256-kauF8mYaRsSeQ+zliDpLHTpyel4lJpD4YfS8YtTBTp4=", // FEATURE_FILTER_CSS
-  "sha256-0WXyCw+6GA6LdFjAebBNREbOrw9UT7f8lS0VS8ye9Tc=", // BLOG_COVER_FALLBACK_CSS
+  "sha256-jhMI5icJZb23S3t6rnr6WoUj4k7g5rjXoiGq1e8iGvA=", // BLOG_COVER_FALLBACK_CSS
 ];

@@ -33,11 +33,11 @@
 @import "@fontsource/martian-mono/latin-500.css";
 
 /* The admin pages are written with Foxhound's Tailwind utilities (bg-surface,
-   text-text-tertiary, border-border, amber, the status triads). Inside the
+   text-text-tertiary, border-border, the brand accent, the status triads). Inside the
    admin those names resolve to Capsomer's tokens, so the pages wear Capsomer's
    palette and faces without a second set of components. --surface, --sunken and
-   --text already share a name with Capsomer's and need no line here. Amber,
-   Foxhound's brand accent, becomes Capsomer's accent. */
+   --text already share a name with Capsomer's and need no line here. The brand
+   accent (teal, Q11) becomes Capsomer's teal accent. */
 .fh-admin {
   --bg: var(--ground);
   --surface2: var(--raised);
@@ -56,16 +56,15 @@
   --text-subtle: var(--dim);
   --text-disabled: var(--dim);
 
-  --amber-ui: var(--primary);
-  --amber: var(--primary);
-  --amber-light: var(--accent-soft);
-  --amber-dark: var(--primary-hover);
-  --amber-active: var(--primary-hover);
-  --amber-bg: var(--accent-soft);
-  --amber-text: var(--accent-text);
-  --amber-border: var(--accent-line);
-  --amber-border-interactive: var(--accent);
-  --text-on-amber: var(--primary-fg);
+  --brand-ui: var(--primary);
+  --brand: var(--primary);
+  --brand-dark: var(--primary-hover);
+  --brand-bg: var(--accent-soft);
+  --brand-text: var(--accent-text);
+  --brand-text-hover: var(--accent-hover);
+  --brand-border: var(--accent-line);
+  --brand-border-interactive: var(--accent);
+  --text-on-brand: var(--primary-fg);
 
   --green: var(--ok);
   --green-bg: var(--ok-soft);

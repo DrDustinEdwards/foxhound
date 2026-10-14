@@ -84,7 +84,7 @@ export function Field({
         {label}
       </span>
       <input
-        className="rounded-md border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-text-subtle focus-visible:border-amber disabled:text-text-tertiary disabled:opacity-70"
+        className="rounded-md border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-text-subtle focus-visible:border-brand disabled:text-text-tertiary disabled:opacity-70"
         name={name}
         type={type}
         autoComplete={autoComplete}
@@ -107,7 +107,7 @@ export function Submit({
     <button
       type="submit"
       disabled={disabled}
-      className="rounded-md bg-amber px-4 py-2 text-body font-medium text-on-amber disabled:opacity-60"
+      className="rounded-md bg-brand px-4 py-2 text-body font-medium text-on-brand disabled:opacity-60"
     >
       {children}
     </button>
@@ -162,7 +162,7 @@ export function GoogleButton({ label }: { label: string }) {
 
 export function AuthLink({ to, children }: { to: string; children: React.ReactNode }) {
   return (
-    <Link to={to} className="text-amber-text underline-offset-2 hover:underline">
+    <Link to={to} className="text-brand-text underline-offset-2 hover:underline">
       {children}
     </Link>
   );

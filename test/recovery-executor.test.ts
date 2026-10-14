@@ -4,8 +4,8 @@ import { describe, expect, it } from "vitest";
 
 import * as schema from "~/db/schema";
 import { SEND_MAX_ATTEMPTS } from "~/lib/constants";
+import { appendOpenPixel } from "~/lib/email/templates";
 import {
-  appendOpenPixel,
   buildEmailStepPatch,
   buildEngagementUrls,
   buildRetryReconciliationInput,

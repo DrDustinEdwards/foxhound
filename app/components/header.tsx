@@ -19,7 +19,7 @@ export const NAV_LINKS = [
 // The public site's header, on Capsomer's site header (capsomer 0.9.0;
 // docs/design/design-site-header.md in capsomer). Dustin's answers of
 // 2026-10-13 are approved differences from legacy, recorded in
-// parity/APPROVED-DIFFERENCES.md: teal on the dark band in place of amber, the
+// parity/APPROVED-DIFFERENCES.md: teal on the dark band in place of the old gold accent, the
 // business switcher on the left as a square tile before the product switcher,
 // the avatar menu last in place of the gear, one icon button for the theme,
 // 56px and sticky, and the phone's one row with everything else in a sheet.

@@ -164,7 +164,7 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
                   return (
                     <tr key={d.id} className="border-b border-border-sub last:border-0">
                       <td className="px-4 py-3">
-                        <Link to={`/disputes/${d.id}`} className="text-text hover:text-amber">
+                        <Link to={`/disputes/${d.id}`} className="text-text hover:text-brand-text">
                           {d.customerName ?? d.customerEmail ?? d.stripeChargeId}
                         </Link>
                       </td>

@@ -164,7 +164,7 @@ export default function AlertSettings({ loaderData, actionData }: Route.Componen
           {creating ? null : (
             <a
               href="?new=1"
-              className="rounded-md bg-amber px-4 py-2 text-label font-semibold text-on-amber no-underline transition-opacity duration-500 hover:opacity-80"
+              className="rounded-md bg-brand px-4 py-2 text-label font-semibold text-on-brand no-underline transition-opacity duration-500 hover:opacity-80"
             >
               Create alert
             </a>
@@ -249,7 +249,7 @@ export default function AlertSettings({ loaderData, actionData }: Route.Componen
               <select
                 name="metric"
                 defaultValue={metric}
-                className="rounded-md border border-border bg-surface px-3 py-2 text-label text-text focus-visible:border-amber"
+                className="rounded-md border border-border bg-surface px-3 py-2 text-label text-text focus-visible:border-brand"
               >
                 {ALERT_METRICS.map((m) => (
                   <option key={m} value={m}>
@@ -284,7 +284,7 @@ export default function AlertSettings({ loaderData, actionData }: Route.Componen
                 step={1}
                 required
                 placeholder="5000"
-                className="rounded-md border border-border bg-surface px-3 py-2 font-mono text-label text-text placeholder:text-text-subtle focus-visible:border-amber"
+                className="rounded-md border border-border bg-surface px-3 py-2 font-mono text-label text-text placeholder:text-text-subtle focus-visible:border-brand"
               />
               <span className="text-micro text-text-subtle">
                 Money metrics are in dollars. Average health score is a number from 0 to 100.
@@ -299,7 +299,7 @@ export default function AlertSettings({ loaderData, actionData }: Route.Componen
                 name="label"
                 type="text"
                 placeholder="e.g. Churn running hot"
-                className="rounded-md border border-border bg-surface px-3 py-2 text-label text-text placeholder:text-text-subtle focus-visible:border-amber"
+                className="rounded-md border border-border bg-surface px-3 py-2 text-label text-text placeholder:text-text-subtle focus-visible:border-brand"
               />
             </label>
 
@@ -307,7 +307,7 @@ export default function AlertSettings({ loaderData, actionData }: Route.Componen
               <button
                 type="submit"
                 disabled={busy}
-                className="rounded-md bg-amber px-4 py-2 text-label font-semibold text-on-amber transition-opacity duration-500 hover:opacity-80 disabled:opacity-60"
+                className="rounded-md bg-brand px-4 py-2 text-label font-semibold text-on-brand transition-opacity duration-500 hover:opacity-80 disabled:opacity-60"
               >
                 {busy ? "Creating..." : "Create alert"}
               </button>

@@ -1,5 +1,16 @@
-import { Link } from "react-router";
-
+import {
+  LegalBody,
+  LegalContents,
+  LegalH3 as H3,
+  LegalLink,
+  LegalList,
+  LegalMailto,
+  LegalP as P,
+  LegalPreambleHeading,
+  LegalRule,
+  LegalSection as Section,
+  type LegalSectionDef,
+} from "~/components/legal-page";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { GOVERNING_LAW_JURISDICTION, siteUrl, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
@@ -13,6 +24,11 @@ import type { Route } from "./+types/terms";
 // per copy corrections #1, #3, #4, #8 (silent-first, baseline-free,
 // review-and-sign disputes, maturity-window billing); every other section
 // is boilerplate legal structure carried over unchanged in substance.
+//
+// J51 (job_615a012e7035, row M21): the chrome kit (column, contents, rule,
+// section, h3, paragraph, lists, links) is shared with /privacy in
+// ~/components/legal-page, as Recova's two pages share one (blob 88005fad).
+// Links are Capsomer teal, text is on the five sizes. Copy waits for Dustin.
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return marketingMeta({
@@ -28,13 +44,7 @@ export function loader({ context }: Route.LoaderArgs) {
   return { siteUrl: siteUrl(env) };
 }
 
-interface SectionDef {
-  id: string;
-  number: number;
-  title: string;
-}
-
-const SECTIONS: SectionDef[] = [
+const SECTIONS: LegalSectionDef[] = [
   { id: "services", number: 1, title: "OUR SERVICES" },
   { id: "ip", number: 2, title: "INTELLECTUAL PROPERTY RIGHTS" },
   { id: "user-representations", number: 3, title: "USER REPRESENTATIONS" },
@@ -63,49 +73,19 @@ const SECTIONS: SectionDef[] = [
   { id: "contact", number: 26, title: "CONTACT US" },
 ];
 
-function Section({ id, number, title, children }: { id: string; number: number; title: string; children: React.ReactNode }) {
-  return (
-    <section>
-      <h2 id={id} className="mb-4 mt-12 scroll-mt-20 text-title font-medium text-text">
-        {number}. {title}
-      </h2>
-      {children}
-    </section>
-  );
-}
-
-function H3({ children }: { children: React.ReactNode }) {
-  return <h3 className="mb-2 mt-6 text-item-title font-medium text-text">{children}</h3>;
-}
-
-function P({ children }: { children: React.ReactNode }) {
-  return <p className="mb-4 text-item-title leading-relaxed text-text-secondary">{children}</p>;
-}
-
 export default function TermsPage() {
   return (
     <>
       <MarketingPageHeader eyebrow="Legal" title="Terms of Service" subtext="Last updated July 18, 2026" />
 
-      {/* div, not main: marketing.tsx already renders this page's one main landmark. */}
-      <div className="mx-auto max-w-[720px] px-6 pb-16">
-        <section className="mb-12">
-          <h2 className="mb-3 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">Contents</h2>
-          <ol className="m-0 grid grid-cols-1 gap-x-6 gap-y-1.5 p-0 sm:grid-cols-2">
-            {SECTIONS.map((s) => (
-              <li key={s.id} className="list-none text-label">
-                <a href={`#${s.id}`} className="text-amber-text underline underline-offset-2 hover:text-amber">
-                  {s.number}. {s.title}
-                </a>
-              </li>
-            ))}
-          </ol>
-        </section>
+      {/* LegalBody is a div, not main: marketing.tsx already renders this page's one main landmark. */}
+      <LegalBody>
+        <LegalContents heading="Contents" sections={SECTIONS} />
 
-        <hr className="my-10 border-border" />
+        <LegalRule />
 
         <section>
-          <h2 className="mb-4 mt-12 text-title font-medium text-text">AGREEMENT TO OUR LEGAL TERMS</h2>
+          <LegalPreambleHeading>AGREEMENT TO OUR LEGAL TERMS</LegalPreambleHeading>
           <P>
             We are Foxhound (&quot;Company,&quot; &quot;we,&quot; &quot;us,&quot; &quot;our&quot;), operated by
             Dustin Edwards, a sole proprietor based in {GOVERNING_LAW_JURISDICTION}, United States.
@@ -128,9 +108,7 @@ export default function TermsPage() {
           </P>
           <P>
             You can contact us by email at{" "}
-            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-amber-text underline underline-offset-2 hover:text-amber">
-              {SUPPORT_EMAIL}
-            </a>
+            <LegalMailto email={SUPPORT_EMAIL} />
             .
           </P>
           <P>
@@ -264,12 +242,12 @@ export default function TermsPage() {
 
         <Section id="purchases" number={5} title="PURCHASES AND PAYMENT">
           <P>We accept the following forms of payment:</P>
-          <ul className="mb-4 list-disc space-y-1.5 pl-6 text-item-title leading-relaxed text-text-secondary">
+          <LegalList>
             <li>Visa</li>
             <li>Mastercard</li>
             <li>American Express</li>
             <li>Discover</li>
-          </ul>
+          </LegalList>
           <P>
             You agree to provide current, complete, and accurate purchase and account information for all
             purchases made via the Services, and to keep it updated. Sales tax will be added where
@@ -306,7 +284,7 @@ export default function TermsPage() {
 
         <Section id="prohibited" number={7} title="PROHIBITED ACTIVITIES">
           <P>You may not access or use the Services for any purpose other than that for which we make the Services available. As a user, you agree not to:</P>
-          <ul className="mb-4 list-disc space-y-1.5 pl-6 text-item-title leading-relaxed text-text-secondary">
+          <LegalList>
             <li>Systematically retrieve data to create a collection or database without written permission.</li>
             <li>Trick, defraud, or mislead us or other users, including attempts to learn account credentials.</li>
             <li>Circumvent, disable, or otherwise interfere with security-related features of the Services.</li>
@@ -327,7 +305,7 @@ export default function TermsPage() {
             <li>Bypass measures designed to prevent or restrict access to the Services.</li>
             <li>Copy or adapt the Services&apos; software.</li>
             <li>Use the Services to compete with us without our express written permission.</li>
-          </ul>
+          </LegalList>
         </Section>
 
         <Section id="contributions" number={8} title="USER GENERATED CONTRIBUTIONS">
@@ -369,9 +347,7 @@ export default function TermsPage() {
         <Section id="privacy" number={12} title="PRIVACY POLICY">
           <P>
             We care about data privacy and security. Please review our{" "}
-            <Link to="/privacy" className="text-amber-text underline underline-offset-2 hover:text-amber">
-              Privacy Policy
-            </Link>
+            <LegalLink to="/privacy">Privacy Policy</LegalLink>
             . By using the Services, you agree to be bound by our Privacy Policy, which is incorporated
             into these Legal Terms. The Services are hosted in the United States; if you access them from a
             region with different data protection laws, you consent to your data being transferred to and
@@ -531,17 +507,13 @@ export default function TermsPage() {
             Foxhound
             <br />
             Email:{" "}
-            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-amber-text underline underline-offset-2 hover:text-amber">
-              {SUPPORT_EMAIL}
-            </a>
+            <LegalMailto email={SUPPORT_EMAIL} />
             <br />
             Website:{" "}
-            <Link to="/" className="text-amber-text underline underline-offset-2 hover:text-amber">
-              foxhoundapp.com
-            </Link>
+            <LegalLink to="/">foxhoundapp.com</LegalLink>
           </P>
         </Section>
-      </div>
+      </LegalBody>
     </>
   );
 }

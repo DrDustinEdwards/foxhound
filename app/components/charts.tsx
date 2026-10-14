@@ -1,6 +1,6 @@
 // Shared hand-rolled SVG chart primitives (DESIGN.md Charts section). Built once
 // here in slice 5a, reused by 5e (Intelligence) and Phase 6. No charting library:
-// a library's own inline-styled SVG fights the no-inline-hex / one-amber-per-card
+// a library's own inline-styled SVG fights the no-inline-hex / one-accent-per-card
 // / reserved-purple rules, and its responsive container is client-only (no SSR on
 // Workers). Every primitive here is a pure, SSR-safe function component: colors
 // come from `currentColor` (the parent sets a Tailwind text-color class) or from
@@ -711,7 +711,7 @@ export function Meter({
 }: {
   value: number;
   max?: number;
-  tone?: "positive" | "negative" | "neutral" | "amber";
+  tone?: "positive" | "negative" | "neutral" | "caution";
   label?: string;
 }) {
   const pct = Math.max(0, Math.min(100, (value / max) * 100));
@@ -720,8 +720,8 @@ export function Meter({
       ? "bg-green"
       : tone === "negative"
         ? "bg-red"
-        : tone === "amber"
-          ? "bg-amber"
+        : tone === "caution"
+          ? "bg-caution"
           : "bg-text-tertiary";
 
   return (

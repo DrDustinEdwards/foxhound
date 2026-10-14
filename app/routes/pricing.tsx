@@ -156,7 +156,7 @@ export default function PricingPage() {
               >
                 <div className="mb-4 text-card-title font-medium text-text">{card.name}</div>
                 <div className="mb-1">
-                  <span className="font-mono text-price font-medium leading-none tracking-[-0.02em] text-amber-text">
+                  <span className="font-mono text-price font-medium leading-none tracking-[-0.02em] text-brand-text">
                     {card.price}
                   </span>
                 </div>
@@ -167,14 +167,14 @@ export default function PricingPage() {
                 <ul className="m-0 flex list-none flex-col gap-2.5 p-0 text-label leading-[1.45] text-text-secondary">
                   {card.features.map((feature) => (
                     <li key={feature} className="flex items-start gap-2">
-                      <Check width={14} height={14} strokeWidth={2.5} className="mt-[3px] flex-shrink-0 text-amber-text" aria-hidden />
+                      <Check width={14} height={14} strokeWidth={2.5} className="mt-[3px] flex-shrink-0 text-brand-text" aria-hidden />
                       <span>{feature}</span>
                     </li>
                   ))}
                 </ul>
                 <Link
                   to={`/products/${card.id}`}
-                  className="group mt-5 text-label text-amber-text no-underline transition-opacity duration-150 hover:opacity-80"
+                  className="group mt-5 text-label text-brand-text no-underline transition-opacity duration-150 hover:opacity-80"
                 >
                   Learn more{" "}
                   <ArrowRight
@@ -223,7 +223,7 @@ export default function PricingPage() {
           </p>
           <Link
             to="/audit"
-            className="inline-flex items-center gap-2 rounded-md bg-amber px-6 py-3 text-body font-semibold text-on-amber hover:bg-amber-dark"
+            className="inline-flex items-center gap-2 rounded-md bg-brand px-6 py-3 text-body font-semibold text-on-brand hover:bg-brand-dark"
           >
             Connect Stripe, it is free
           </Link>

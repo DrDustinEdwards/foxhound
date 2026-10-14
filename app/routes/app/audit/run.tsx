@@ -82,7 +82,7 @@ export default function AuditRunPage({ loaderData }: Route.ComponentProps) {
             </Link>
             <Link
               to="/audit/connect"
-              className="inline-block rounded-md bg-amber px-5 py-2.5 text-label font-semibold text-on-amber no-underline hover:bg-amber-dark"
+              className="inline-block rounded-md bg-brand px-5 py-2.5 text-label font-semibold text-on-brand no-underline hover:bg-brand-dark"
             >
               Run new audit
             </Link>

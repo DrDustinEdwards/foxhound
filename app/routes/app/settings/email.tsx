@@ -48,7 +48,7 @@ import type { Route } from "./+types/email";
 //
 // UNRESOLVED: legacy's inputs carry a global `settings-input` class defined
 // outside the render chain, so its box treatment (height, padding, radius) was
-// not read. `border-i` and `--amber` ARE Foxhound tokens; the inputs below use
+// not read. `border-i` and `--brand` ARE Foxhound tokens; the inputs below use
 // this codebase's own settings-field treatment.
 
 export function meta() {
@@ -161,7 +161,7 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
               defaultValue={senderName}
               placeholder="e.g. Alex from Acme"
               maxLength={SENDER_NAME_MAX_LENGTH}
-              className="rounded-md border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-text-subtle focus-visible:border-amber"
+              className="rounded-md border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-text-subtle focus-visible:border-brand"
             />
             <span className="text-micro text-text-subtle">
               Name that appears in the From field of recovery emails
@@ -171,7 +171,7 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
             <button
               type="submit"
               disabled={busy}
-              className="rounded-md bg-amber px-4 py-2 text-label font-semibold text-on-amber transition-opacity duration-500 hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-md bg-brand px-4 py-2 text-label font-semibold text-on-brand transition-opacity duration-500 hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {busy ? "Saving..." : "Save"}
             </button>

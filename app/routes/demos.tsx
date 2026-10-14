@@ -96,7 +96,7 @@ export default function DemosPage() {
               <p className="mb-6 mt-2 flex-1 text-sm text-text-secondary">{entry.blurb}</p>
               <Link
                 to={entry.href}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-amber py-2.5 text-sm font-medium text-on-amber transition-opacity transition-transform hover:opacity-90 active:scale-[0.97]"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-brand py-2.5 text-sm font-medium text-on-brand transition-opacity transition-transform hover:opacity-90 active:scale-[0.97]"
               >
                 <entry.Icon className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
                 View {entry.name} demo

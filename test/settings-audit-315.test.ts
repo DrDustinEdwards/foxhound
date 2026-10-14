@@ -186,7 +186,7 @@ describe("315: legacy's treatment and placement", () => {
     expect(ROUTE_CODE).toContain("h-5 w-5");
     expect(ROUTE_CODE).toContain("translateX(16px)");
     // legacy's active pill
-    expect(ROUTE_CODE).toContain("border-amber bg-amber font-semibold text-on-amber");
+    expect(ROUTE_CODE).toContain("border-brand bg-brand font-semibold text-on-brand");
   });
 
   it("posts BOTH values as hidden inputs, which is legacy's form shape", () => {

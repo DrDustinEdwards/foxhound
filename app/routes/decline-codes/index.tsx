@@ -67,7 +67,7 @@ export default function DeclineCodesIndex({ loaderData }: Route.ComponentProps) 
                 >
                   <div className="mb-2 font-mono text-label font-medium text-text">{code.displayName}</div>
                   <div className="mb-3 font-mono text-micro text-text-tertiary">{code.code}</div>
-                  <div className="text-label text-amber-text">
+                  <div className="text-label text-brand-text">
                     Read more{" "}
                     <ArrowRight
                       className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"

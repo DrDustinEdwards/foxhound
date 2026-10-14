@@ -6,6 +6,8 @@ import {
   route,
 } from "@react-router/dev/routes";
 
+import { INDEXNOW_KEY_PATH } from "./lib/seo/indexnow-key";
+
 export default [
   layout("./layouts/marketing.tsx", [
     index("./routes/home.tsx"),
@@ -191,6 +193,9 @@ export default [
   route("llms-full.txt", "./routes/files/llms-full.ts"),
   route("feed.rss", "./routes/files/feed.ts"),
   route(".well-known/security.txt", "./routes/files/security-txt.ts"),
+  // The IndexNow key file (job_b0b24df12155): /<key>.txt at the root, named
+  // after Foxhound's own key so the path and the body cannot drift apart.
+  route(INDEXNOW_KEY_PATH.slice(1), "./routes/files/indexnow-key.ts"),
   route("og/:params", "./routes/files/og.ts"),
 
   // Auth callback (resource route, no shell)
