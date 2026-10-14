@@ -138,7 +138,7 @@ function StripeSection({
           <p className="text-label text-text">No Stripe account connected</p>
           <a
             href="/connect"
-            className="whitespace-nowrap rounded-md bg-amber px-4 py-2 text-label font-semibold text-on-amber no-underline transition-opacity duration-500 hover:opacity-80"
+            className="whitespace-nowrap rounded-md bg-brand px-4 py-2 text-label font-semibold text-on-brand no-underline transition-opacity duration-500 hover:opacity-80"
           >
             Connect Stripe
           </a>

@@ -46,7 +46,7 @@ type FilterValue = (typeof FILTERS)[number];
 // status pill on 20+ other carriers, and routing this onto it rendered every
 // tag neutral grey and uppercased, which legacy never does.
 const PRODUCT_TAG_CLASS: Record<Tag, string> = {
-  recovery: "border-amber bg-amber-bg text-amber-text",
+  recovery: "border-brand bg-brand-bg text-brand-text",
   disputes: "border-blue bg-blue-bg text-cobalt-text",
   intelligence: "border-green bg-green-bg text-green",
   audit: "border-border bg-surface2 text-text-tertiary",
@@ -101,7 +101,7 @@ function sectionId(heading: string): string {
 // numbers or none is the copy pass's call under ruling 20d (ruling 77).
 //
 // The threshold sentence states FOXHOUND's bands, not legacy's. Legacy's reads
-// "red below 34, amber 34-66, green at or above 67", which is false here; this
+// "red below 34, [accent] 34-66, green at or above 67", which is false here; this
 // is the sanctioned truthfulness class, not a copy rewrite.
 function SectionInlineExample({ id }: { id: string }) {
   if (id === "automation") {
@@ -113,7 +113,7 @@ function SectionInlineExample({ id }: { id: string }) {
         <HealthScoreBadge score={20} />
         <HealthScoreBadge score={50} />
         <HealthScoreBadge score={82} />
-        <span>red below 40, amber 40-69, green at or above 70.</span>
+        <span>red below 40, orange 40-69, green at or above 70.</span>
       </div>
     );
   }
@@ -408,8 +408,8 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
                 onClick={() => setFilter(f)}
                 className={`rounded-full border px-3 py-1.5 font-mono text-caption font-medium transition-colors ${
                   filter === f
-                    ? "border-amber bg-amber text-on-amber"
-                    : "border-border bg-surface text-text-secondary hover:border-amber-text hover:text-text"
+                    ? "border-brand bg-brand text-on-brand"
+                    : "border-border bg-surface text-text-secondary hover:border-brand-text hover:text-text"
                 }`}
               >
                 {f}
@@ -424,7 +424,7 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
                   <a
                     key={category.heading}
                     href={`#${sectionId(category.heading)}`}
-                    className="block border-l border-border py-1 pl-3 text-label text-text-secondary transition-colors hover:border-amber-text hover:text-text"
+                    className="block border-l border-border py-1 pl-3 text-label text-text-secondary transition-colors hover:border-brand-text hover:text-text"
                   >
                     {category.heading}
                   </a>
@@ -469,7 +469,7 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
           </p>
           <Link
             to="/audit"
-            className="btn-primary inline-flex items-center gap-2 rounded-lg px-6 py-3 text-item-title font-medium text-on-amber"
+            className="btn-primary inline-flex items-center gap-2 rounded-lg px-6 py-3 text-item-title font-medium text-on-brand"
           >
             Run your free audit
           </Link>

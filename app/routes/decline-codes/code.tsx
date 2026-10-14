@@ -105,7 +105,7 @@ export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
           </p>
           <Link
             to="/audit"
-            className="inline-flex items-center gap-2 rounded-md bg-amber px-5 py-2.5 text-label font-medium text-on-amber hover:bg-amber-dark"
+            className="inline-flex items-center gap-2 rounded-md bg-brand px-5 py-2.5 text-label font-medium text-on-brand hover:bg-brand-dark"
           >
             Run your free audit
           </Link>

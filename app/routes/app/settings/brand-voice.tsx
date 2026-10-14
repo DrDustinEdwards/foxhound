@@ -140,7 +140,7 @@ function CategoryVoice({
         aria-label={`Brand voice preset for ${row.label}`}
         value={preset}
         onChange={(e) => setPreset(e.target.value)}
-        className="rounded-md border border-border bg-surface px-3 py-2 text-label text-text focus-visible:border-amber"
+        className="rounded-md border border-border bg-surface px-3 py-2 text-label text-text focus-visible:border-brand"
       >
         <option value="">Same as main voice</option>
         {BRAND_VOICE_PRESETS.map((p) => (
@@ -158,7 +158,7 @@ function CategoryVoice({
           value={custom}
           onChange={(e) => setCustom(e.target.value)}
           placeholder="e.g. warm and empathetic, like a helpful friend. Never pushy, always understanding."
-          className="rounded-md border border-border bg-surface px-3 py-2 text-label text-text placeholder:text-text-subtle focus-visible:border-amber"
+          className="rounded-md border border-border bg-surface px-3 py-2 text-label text-text placeholder:text-text-subtle focus-visible:border-brand"
         />
       ) : null}
     </div>
@@ -207,7 +207,7 @@ export default function BrandVoiceSettings({ loaderData, actionData }: Route.Com
               rows={3}
               defaultValue={generalVoice}
               placeholder="Warm, plain, and direct; a real person from the business writing a short note"
-              className="rounded-md border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-text-subtle focus-visible:border-amber"
+              className="rounded-md border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-text-subtle focus-visible:border-brand"
             />
           </div>
 
@@ -218,7 +218,7 @@ export default function BrandVoiceSettings({ loaderData, actionData }: Route.Com
             <button
               type="submit"
               disabled={busy}
-              className="rounded-md bg-amber px-4 py-2 text-label font-semibold text-on-amber transition-opacity duration-500 hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-md bg-brand px-4 py-2 text-label font-semibold text-on-brand transition-opacity duration-500 hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {busy ? "Saving..." : "Save"}
             </button>

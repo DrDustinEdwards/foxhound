@@ -2,7 +2,7 @@ import type { AttributionKind, DeclineCategory } from "~/lib/constants";
 
 // Human-readable labels + status-taxonomy tones for the recovery surfaces
 // (Phase 5 slice 5b). Pure so the mapping is unit-tested and reused across the
-// payment list, payment detail, and sequences views. Amber is reserved (DESIGN.md:
+// payment list, payment detail, and sequences views. The brand accent (teal) is reserved (DESIGN.md:
 // the action color, one per card); none of these tones use it. Purple is
 // reserved exclusively for win-back attribution (see winback-labels usage).
 
@@ -79,7 +79,7 @@ export function stepResultTone(result: string | null): Tone {
 }
 
 /** "recovered" is success, "failed_unrecovered" is a terminal failure, "active"
- *  (still in progress) is neutral, never amber (amber is reserved, DESIGN.md). */
+ *  (still in progress) is neutral, never the brand accent (it is reserved, DESIGN.md). */
 export function failedPaymentStatusTone(status: string): Tone {
   if (status === "recovered") return "success";
   if (status === "failed_unrecovered") return "failure";

@@ -132,7 +132,7 @@ function SequenceTimelines() {
                   <div
                     className={`inline-flex flex-col items-center rounded-lg border px-3 py-1.5 text-micro ${
                       isRetryStep(step.stepType)
-                        ? "border-amber bg-amber-bg text-amber-text"
+                        ? "border-brand bg-brand-bg text-brand-text"
                         : "border-border bg-bg text-text-secondary"
                     }`}
                   >
@@ -166,11 +166,11 @@ function formatOffset(hours: number): string {
 /** The three health bands with Foxhound's OWN cutoffs, replacing both legacy's
  *  HealthScoreBadge (0-33 / 34-66 / 67-100) and its ChurnRiskSummary, whose
  *  content is entirely the Teamflow demo's money. Legacy's cutoffs would call a
- *  38 amber where Foxhound calls it at risk. */
+ *  38 in the middle band where Foxhound calls it at risk. */
 function HealthBands() {
   const bands: [string, string, string][] = [
     ["At risk", `Below ${HEALTH_SCORE_AT_RISK_THRESHOLD}`, "text-error-text"],
-    ["Watch", `${HEALTH_SCORE_AT_RISK_THRESHOLD} to ${WATCH_CEILING - 1}`, "text-amber-text"],
+    ["Watch", `${HEALTH_SCORE_AT_RISK_THRESHOLD} to ${WATCH_CEILING - 1}`, "text-caution"],
     ["Healthy", `${WATCH_CEILING} and above`, "text-green"],
   ];
   return (
@@ -237,7 +237,7 @@ function DisputeStates() {
     <div className="my-6 flex flex-col gap-2">
       {Object.entries(DISPUTE_STATE_LABELS).map(([key, label], i) => (
         <div key={key} className={`flex items-start gap-3 ${CARD}`}>
-          <span className="shrink-0 font-mono text-micro text-amber-text">
+          <span className="shrink-0 font-mono text-micro text-brand-text">
             {String(i + 1).padStart(2, "0")}
           </span>
           <div>

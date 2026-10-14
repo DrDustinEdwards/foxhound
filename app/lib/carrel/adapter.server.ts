@@ -83,7 +83,15 @@ function parse(source: string): PostSource {
   }
 }
 
-export function carrelAdapter(db: Db): SiteAdapter {
+/** Side effects the adapter reports to its mount, kept out of the adapter so it
+ *  stays a pure function of the database (the conformance suite runs it bare). */
+export interface CarrelAdapterHooks {
+  /** A save or publish left this post published: its public URL is new or
+   *  changed. Must not throw and must not be awaited (job_b0b24df12155). */
+  onLive?: (slug: string) => void;
+}
+
+export function carrelAdapter(db: Db, hooks: CarrelAdapterHooks = {}): SiteAdapter {
   async function load(id: string): Promise<PostRow | null> {
     const rows = await db.select().from(blogPosts).where(eq(blogPosts.id, id)).limit(1);
     return rows[0] ?? null;
@@ -99,6 +107,19 @@ export function carrelAdapter(db: Db): SiteAdapter {
   async function writeResult(id: string, changeId: string): Promise<WriteResult> {
     const row = await load(id);
     if (!row) throw new NotFoundError();
+    // INDEXNOW (job_b0b24df12155). Recova submits on every save that leaves the
+    // post published, the publish itself and an edit of a live post alike, and
+    // never on unpublish. writeResult runs after exactly the writes that can do
+    // that (saveDraft, publish, unpublish), and unpublish leaves it a draft. The
+    // hook moves when Carrel's blog publishing (J11, job_09c55603e321) and
+    // Prelum's blog pages (J19 job_deffd581af37, J61 job_2ee0cfdd5c29) land.
+    if (row.published) {
+      try {
+        hooks.onLive?.(row.slug);
+      } catch {
+        // A notification never fails the write it reports.
+      }
+    }
     return { id, version: versionOf(row), status: statusOf(row), changeId };
   }
 

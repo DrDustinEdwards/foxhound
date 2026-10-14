@@ -50,7 +50,7 @@ function TocList({ items, compact }: { items: TocItem[]; compact: boolean }) {
         <li key={item.id} className={item.level === 3 ? "pl-4" : ""}>
           <Link
             to={`#${item.id}`}
-            className={`block transition-colors hover:text-amber-text ${
+            className={`block transition-colors hover:text-brand-text ${
               item.level === 3 ? "text-label text-text-tertiary" : "text-copy text-text-secondary"
             } ${compact ? "py-0.5" : "py-1"}`}
           >

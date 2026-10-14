@@ -85,7 +85,7 @@ describe("formatRelativeFuture", () => {
 });
 
 describe("recoveryRateBand", () => {
-  // Thresholds are DESIGN.md canon: 0-20 red, 21-35 amber, 36+ green.
+  // Thresholds are DESIGN.md canon: 0-20 red, 21-35 caution, 36+ green.
   it("names the band at and around each boundary", () => {
     expect(recoveryRateBand(0)).toBe("Below target");
     expect(recoveryRateBand(20)).toBe("Below target");
@@ -111,6 +111,6 @@ describe("recoveryRateClassNameOrNull", () => {
 
   it("matches the non-null helper for real rates", () => {
     expect(recoveryRateClassNameOrNull(50)).toBe("text-success-text");
-    expect(recoveryRateClassNameOrNull(25)).toBe("text-amber-text");
+    expect(recoveryRateClassNameOrNull(25)).toBe("text-caution");
   });
 });

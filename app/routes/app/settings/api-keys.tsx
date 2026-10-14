@@ -162,7 +162,7 @@ export default function ApiKeySettings({ loaderData, actionData }: Route.Compone
           {creating || rawKey ? null : (
             <a
               href="?new=1"
-              className="rounded-md bg-amber px-4 py-2 text-label font-semibold text-on-amber no-underline transition-opacity duration-500 hover:opacity-80"
+              className="rounded-md bg-brand px-4 py-2 text-label font-semibold text-on-brand no-underline transition-opacity duration-500 hover:opacity-80"
             >
               Generate new key
             </a>
@@ -218,7 +218,7 @@ export default function ApiKeySettings({ loaderData, actionData }: Route.Compone
             <pre className="mt-3 overflow-x-auto whitespace-pre-wrap break-all rounded-md border border-border bg-surface p-4 font-mono text-micro text-text">
               {rawKey}
             </pre>
-            <p className="mt-3 text-micro text-amber">
+            <p className="mt-3 text-micro text-brand-text">
               This key will not be shown again. Copy it now and store it somewhere safe.
             </p>
             <div className="mt-4">
@@ -247,7 +247,7 @@ export default function ApiKeySettings({ loaderData, actionData }: Route.Compone
                 required
                 maxLength={API_KEY_LABEL_MAX_LENGTH}
                 placeholder="e.g. My AI agent"
-                className="rounded-md border border-border bg-surface px-3 py-2 text-label text-text placeholder:text-text-subtle focus-visible:border-amber"
+                className="rounded-md border border-border bg-surface px-3 py-2 text-label text-text placeholder:text-text-subtle focus-visible:border-brand"
               />
             </label>
 
@@ -266,7 +266,7 @@ export default function ApiKeySettings({ loaderData, actionData }: Route.Compone
                     Admin
                   </label>
                 </div>
-                <span className="text-micro text-amber">
+                <span className="text-micro text-brand-text">
                   Admin keys are platform wide and can reach any merchant account. Use with care.
                 </span>
               </fieldset>
@@ -276,7 +276,7 @@ export default function ApiKeySettings({ loaderData, actionData }: Route.Compone
               <button
                 type="submit"
                 disabled={busy}
-                className="rounded-md bg-amber px-4 py-2 text-label font-semibold text-on-amber transition-opacity duration-500 hover:opacity-80 disabled:opacity-60"
+                className="rounded-md bg-brand px-4 py-2 text-label font-semibold text-on-brand transition-opacity duration-500 hover:opacity-80 disabled:opacity-60"
               >
                 {busy ? "Generating..." : "Generate key"}
               </button>

@@ -470,7 +470,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                   disabled={busy}
                   className={`rounded-md border px-3 py-1.5 text-label disabled:opacity-60 ${
                     a.variant === "primary"
-                      ? "border-amber bg-amber font-semibold text-on-amber hover:bg-amber-dark"
+                      ? "border-brand bg-brand font-semibold text-on-brand hover:bg-brand-dark"
                       : a.variant === "danger"
                         ? "border-border text-error-text hover:border-red"
                         : "border-border text-text-secondary hover:border-border-i"
@@ -653,14 +653,14 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
       {/* Ruling 251, Dustin's distinction requirement in his words: "it needs to
           be more distinguished from everything else". This card is the receipt
           for the 20 percent attribution fee, so it must not share the standard
-          card treatment. Distinction is carried by the amber accent border and
-          the tinted amber surface, the two tokens DESIGN.md already reserves for
+          card treatment. Distinction is carried by the teal brand accent border and
+          the tinted brand surface, the two tokens DESIGN.md already reserves for
           the brand accent, rather than by a new token or a size change: every
           other card on this page is `border-border bg-surface`, so the accent
           alone separates it at a glance without inventing anything. Flagged for
           Dustin's review on the demo. */}
-      <div className="mt-6 rounded-lg border border-amber bg-amber-bg p-4">
-        <p className="font-mono text-micro uppercase tracking-wide text-amber-text">Outcome</p>
+      <div className="mt-6 rounded-lg border border-brand bg-brand-bg p-4">
+        <p className="font-mono text-micro uppercase tracking-wide text-brand-text">Outcome</p>
         {recovery ? (
           <div className="mt-2 flex flex-col gap-2">
             {/* The real lifecycle state, read from refunded_at/disputed_at, never
@@ -844,7 +844,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
 
 
       {/* Legacy's INTERNAL NOTES card, treatment per 250's capture: a textarea
-          with placeholder copy and an amber Save note button. The column
+          with placeholder copy and a teal (brand) Save note button. The column
           (failed_payments.notes) already exists. SAVING is WIRED as of Session B
           (262 decision four): the form posts the `note` intent, the dispatcher
           scopes it to this account, and the update commits through the
@@ -864,7 +864,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
           <button
             type="submit"
             disabled={busy}
-            className="mt-3 rounded-md border border-amber bg-amber px-4 py-2 text-label font-semibold text-on-amber hover:bg-amber-dark disabled:opacity-60"
+            className="mt-3 rounded-md border border-brand bg-brand px-4 py-2 text-label font-semibold text-on-brand hover:bg-brand-dark disabled:opacity-60"
           >
             Save note
           </button>

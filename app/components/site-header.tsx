@@ -16,7 +16,7 @@ import { THEME_COOKIE, type Theme } from "~/lib/theme";
 /** Where Capsomer's theme button remembers the choice in this browser. */
 export const THEME_PREF_KEY = "fh-theme";
 
-/** The wordmark: `fo x hound` in DM Mono, the x in teal (it was amber). */
+/** The wordmark: `fo x hound` in DM Mono, the x in teal (Q11: teal throughout). */
 export function headerLogo(href = "/"): HeaderLogo {
   return {
     href,

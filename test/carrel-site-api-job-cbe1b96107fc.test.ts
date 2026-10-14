@@ -14,6 +14,8 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 const KEY = "k".repeat(40);
 const ORIGIN = "https://foxhoundapp.com";
 const BASE = `${ORIGIN}/api/carrel/v1`;
+/** The handler takes the request's ExecutionContext (job_b0b24df12155). */
+const CTX = { waitUntil: () => {}, passThroughOnException: () => {} } as unknown as ExecutionContext;
 
 function setup(limit = () => true) {
   const { db, sqlite } = createInMemoryDb();
@@ -125,6 +127,7 @@ describe("the key reaches only the prefix", () => {
       const response = await handleCarrelRequest(
         new Request(`${ORIGIN}${path}`, { headers: { authorization: `Bearer ${KEY}` } }),
         { DB: {}, CARREL_SITE_KEY: KEY } as unknown as Env,
+        CTX,
       );
       expect(response).toBeNull();
     },
@@ -138,7 +141,7 @@ describe("the key reaches only the prefix", () => {
       RATE_LIMITER: { idFromName: (n: string) => n, get: () => stub },
     } as unknown as Env;
     const ask = (key: string) =>
-      handleCarrelRequest(new Request(`${BASE}/meta`, { headers: { authorization: `Bearer ${key}` } }), env);
+      handleCarrelRequest(new Request(`${BASE}/meta`, { headers: { authorization: `Bearer ${key}` } }), env, CTX);
     expect((await ask(KEY))?.status).toBe(200);
     expect((await ask("x".repeat(40)))?.status).toBe(401);
   });

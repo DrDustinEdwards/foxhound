@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { INDEXNOW_KEY_PATH } from "~/lib/seo/indexnow-key";
 import { STATIC_PAGES } from "~/routes/files/sitemap";
 import routes from "~/routes";
 
@@ -112,6 +113,10 @@ const EXCLUDED_PREFIXES = [
   // it in the sitemap would advertise a file that is found by convention.
   // The /security PAGE it points at IS in STATIC_PAGES.
   "/.well-known/",
+  // The IndexNow key file (job_b0b24df12155). A verification file the engines
+  // fetch by the protocol's convention, not a page; Recova's sitemap leaves its
+  // own key file out too.
+  INDEXNOW_KEY_PATH,
 ];
 
 function isExcluded(path: string): boolean {

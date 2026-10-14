@@ -11,7 +11,7 @@ import { Link } from "react-router";
 // Ported AS-IS from legacy components/marketing/RecoveryCalculator.tsx
 // (Phase 6 Pass 1): pure client math, unchanged multipliers. Only the
 // imports (next/link -> react-router Link), the custom slider CSS (replaced
-// with a native range input using the amber accent token), and the label
+// with a native range input using the brand accent token, teal), and the label
 // copy (baseline-free / 30-day maturity framing, corrections #1 and #8)
 // changed.
 export function RecoveryCalculator() {
@@ -57,7 +57,7 @@ export function RecoveryCalculator() {
           step={1000}
           value={mrr}
           onChange={(e) => setMrr(Number(e.target.value))}
-          className="w-full accent-amber"
+          className="w-full accent-brand"
           aria-valuemin={1000}
           aria-valuemax={500000}
           aria-valuenow={mrr}
@@ -93,7 +93,7 @@ export function RecoveryCalculator() {
           step={1}
           value={recoveryShare}
           onChange={(e) => setRecoveryShare(Number(e.target.value))}
-          className="w-full accent-amber"
+          className="w-full accent-brand"
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={recoveryShare}
@@ -165,7 +165,7 @@ export function RecoveryCalculator() {
       <div className="flex justify-center">
         <Link
           to="/audit"
-          className="w-full rounded-lg bg-amber px-6 py-3 text-center text-body font-semibold text-on-amber hover:bg-amber-dark sm:w-auto sm:min-w-[280px]"
+          className="w-full rounded-lg bg-brand px-6 py-3 text-center text-body font-semibold text-on-brand hover:bg-brand-dark sm:w-auto sm:min-w-[280px]"
         >
           Get your actual numbers free
         </Link>

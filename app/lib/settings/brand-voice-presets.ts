@@ -49,7 +49,7 @@ export const CATEGORY_VOICE_ROWS: readonly CategoryVoiceRow[] = [
     key: "expired",
     label: "Expired card",
     description: "Card expired. Customer needs to update their payment method.",
-    dotClass: "bg-amber",
+    dotClass: "bg-brand",
   },
   {
     key: "network",

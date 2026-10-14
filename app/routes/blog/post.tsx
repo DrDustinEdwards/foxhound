@@ -163,7 +163,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
                 <Link
                   key={t}
                   to={`/blog/tag/${encodeURIComponent(t)}`}
-                  className="rounded-full border border-border bg-surface px-2 py-0.5 font-mono text-micro text-text-tertiary transition-colors hover:border-amber hover:text-text"
+                  className="rounded-full border border-border bg-surface px-2 py-0.5 font-mono text-micro text-text-tertiary transition-colors hover:border-brand hover:text-text"
                 >
                   {t}
                 </Link>
@@ -214,7 +214,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
               <li key={r.id}>
                 <Link
                   to={`/blog/${r.slug}`}
-                  className="group inline-flex items-center gap-1.5 text-item-title text-text transition-colors hover:text-amber-text"
+                  className="group inline-flex items-center gap-1.5 text-item-title text-text transition-colors hover:text-brand-text"
                 >
                   {r.title}
                   <ArrowRight
@@ -295,7 +295,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
         </p>
         <Link
           to="/audit"
-          className="btn-primary group inline-block rounded-md px-6 py-3 text-item-title font-semibold text-on-amber"
+          className="btn-primary group inline-block rounded-md px-6 py-3 text-item-title font-semibold text-on-brand"
         >
           Start free audit{" "}
           <ArrowRight

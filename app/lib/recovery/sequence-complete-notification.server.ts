@@ -66,6 +66,10 @@ export function sequenceCompleteSubject(data: {
  * PLAIN SEMANTIC HTML, no inline colours: legacy styles its button from
  * EMAIL_COLORS, which Foxhound does not have, and check-tokens fails the build
  * on raw hex.
+ *
+ * The title line is a real heading (J02 review): the email frame no longer
+ * promotes an all-bold paragraph to a heading, so the same words that were
+ * `<p><strong>` are now `<h1>`, and render as the mail's title.
  */
 export function sequenceCompleteBody(data: {
   amountCents: number;
@@ -75,7 +79,7 @@ export function sequenceCompleteBody(data: {
 }): string {
   const amount = formatNotifyAmount(data.amountCents, data.currency);
   return (
-    `<p><strong>Recovery sequence complete.</strong></p>` +
+    `<h1>Recovery sequence complete.</h1>` +
     `<p>The recovery sequence for ${data.customerLabel} (${amount}) has ended without a ` +
     `successful payment. You may want to manually reach out or write off this balance.</p>` +
     `<p><a href="${data.paymentUrl}">View payment</a></p>`

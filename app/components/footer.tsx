@@ -97,7 +97,7 @@ function LinkColumn({
                 to={link.to}
                 aria-current={isActive ? "page" : undefined}
                 className={`text-[0.875rem] no-underline transition-colors ${
-                  isActive ? "text-amber" : "text-chrome-text hover:text-amber"
+                  isActive ? "text-chrome-brand" : "text-chrome-text hover:text-chrome-brand"
                 }`}
               >
                 {link.label}
