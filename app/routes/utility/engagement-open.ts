@@ -5,8 +5,10 @@ import { verifyEngagementToken } from "~/lib/engagement/token";
 
 import type { Route } from "./+types/engagement-open";
 
-// Engagement open pixel (ROUTES.md: /e/o/:token). A verified token records an
-// idempotent open (feeds Intelligence only, never billing). We ALWAYS return the
+// Engagement open pixel (ROUTES.md: /e/o/:token). A verified token from a person
+// records the open (feeds Intelligence only, never billing): one idempotent
+// engagement_events row per step, and on the step Recova's per-open counters
+// (buildOpenStamp, row F9). We ALWAYS return the
 // 1x1 pixel, even on a bad/missing token, so nothing about validity leaks and the
 // email renders cleanly.
 
