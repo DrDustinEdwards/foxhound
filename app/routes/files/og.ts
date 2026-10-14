@@ -34,6 +34,7 @@ import dmSans500 from "~/assets/fonts/dm-sans-500.ttf?inline";
 import dmSans600 from "~/assets/fonts/dm-sans-600.ttf?inline";
 
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { EMBEDDABLE_RESOURCE_HEADERS } from "~/lib/http/header-set";
 import { siteUrl } from "~/lib/seo/jsonld";
 
 import type { Route } from "./+types/og";
@@ -169,7 +170,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 
   const element = type === "blog" ? blogCardHtml(title, description, host) : defaultCardHtml();
 
-  return new ImageResponse(element, {
+  const image = new ImageResponse(element, {
     width: 1200,
     height: 630,
     fonts: [
@@ -179,4 +180,12 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
       { name: FONT_SANS, data: dataUrlToArrayBuffer(dmSans600), weight: 600, style: "normal" },
     ],
   });
+  // A card is an image other sites show (og:image previews, embeds), so it
+  // sends Cross-Origin-Resource-Policy: cross-origin; the Worker's default is
+  // same-origin, and its merge keeps this route-set value (header-set.ts,
+  // EMBEDDABLE_RESOURCE_HEADERS). Rebuilt rather than mutated in place because
+  // a Response's headers may be immutable.
+  const headers = new Headers(image.headers);
+  for (const [name, value] of Object.entries(EMBEDDABLE_RESOURCE_HEADERS)) headers.set(name, value);
+  return new Response(image.body, { status: image.status, statusText: image.statusText, headers });
 }

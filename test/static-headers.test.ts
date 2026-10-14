@@ -1,7 +1,11 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { renderStaticHeadersFile, SECURITY_HEADERS } from "~/lib/http/header-set";
+import {
+  EMBEDDABLE_STATIC_PATHS,
+  renderStaticHeadersFile,
+  SECURITY_HEADERS,
+} from "~/lib/http/header-set";
 
 // public/_headers carries the security header set for static-asset responses,
 // which the Worker never sees (RULES.md 4.2: run_worker_first stays off). A
@@ -18,6 +22,21 @@ import { renderStaticHeadersFile, SECURITY_HEADERS } from "~/lib/http/header-set
 // the intended outcome.
 
 const HEADERS_FILE = new URL("../public/_headers", import.meta.url);
+
+/** The names a block detaches with Cloudflare's `! Name` syntax. */
+function detachedIn(text: string, rule: string): string[] {
+  const out: string[] = [];
+  let inBlock = false;
+  for (const raw of text.split("\n")) {
+    if (raw.trim() === "" || raw.trimStart().startsWith("#")) continue;
+    if (!/^\s/.test(raw)) {
+      inBlock = raw.trim() === rule;
+      continue;
+    }
+    if (inBlock && raw.trim().startsWith("!")) out.push(raw.trim().slice(1).trim());
+  }
+  return out;
+}
 
 /** Parse one block of a Cloudflare _headers file into name/value pairs. */
 function parseBlock(text: string, rule: string): Map<string, string> {
@@ -61,6 +80,19 @@ describe("public/_headers is generated from the Worker's security header set", (
   it("carries no header the Worker does not send", () => {
     const orphans = [...parsed.keys()].filter((name) => !(name in SECURITY_HEADERS));
     expect(orphans, "public/_headers has entries SECURITY_HEADERS does not").toEqual([]);
+  });
+
+  // F5 / ruling 99: /favicon.png is the RSS channel image, which feed readers
+  // and other sites load cross-origin, and Recova sent no CORP at all. The /*
+  // block's same-origin would block that, and Cloudflare JOINS a header two
+  // rules set ("same-origin, cross-origin", which browsers read as invalid), so
+  // each embeddable path detaches the inherited value and sets cross-origin.
+  it("lets the feed's channel image and the favicon be embedded cross-origin", () => {
+    expect([...EMBEDDABLE_STATIC_PATHS].sort()).toEqual(["/favicon.png", "/favicon.svg"]);
+    for (const path of EMBEDDABLE_STATIC_PATHS) {
+      expect(detachedIn(text, path), path).toEqual(["Cross-Origin-Resource-Policy"]);
+      expect(parseBlock(text, path).get("Cross-Origin-Resource-Policy"), path).toBe("cross-origin");
+    }
   });
 
   it("keeps the immutable cache rule on hashed assets", () => {

@@ -13,7 +13,7 @@ import {
   CSP_REPORT_GROUP,
   CSP_REPORT_PATH,
 } from "~/lib/http/content-security-policy";
-import { SECURITY_HEADER_OVERRIDES, SECURITY_HEADERS } from "~/lib/http/header-set";
+import { SECURITY_HEADER_OVERRIDES, SECURITY_HEADERS, withClipboardWriteSelf } from "~/lib/http/header-set";
 
 // audit finding H-1 (foxhound-audit-security.md): the Worker shipped zero
 // security headers on any route. Since J22 (F16, RULES.md 4.2, Q4) the set is
@@ -142,6 +142,21 @@ describe("the declared header set (site-runtime standard plus Foxhound's overrid
     expect(policy).not.toContain("clipboard-write=()");
   });
 
+  it("still finds clipboard-write in OWASP's upstream list (a change upstream fails CI, not the Worker's start)", () => {
+    const features = (STANDARD_SECURITY_HEADERS["Permissions-Policy"] ?? "").split(",").map((d) => d.trim().split("=")[0]);
+    expect(features).toContain("clipboard-write");
+  });
+
+  it("sets clipboard-write=(self) by parsing the list, whatever the upstream spelling", () => {
+    const spaced = withClipboardWriteSelf("camera=(),clipboard-write=( ),  usb=()");
+    expect(spaced.split(", ")).toEqual(["camera=()", "clipboard-write=(self)", "usb=()"]);
+    const absent = withClipboardWriteSelf("camera=(), usb=()");
+    expect(absent.split(", ")).toEqual(["camera=()", "usb=()", "clipboard-write=(self)"]);
+    const listed = withClipboardWriteSelf(STANDARD_SECURITY_HEADERS["Permissions-Policy"] ?? "");
+    expect(listed.match(/clipboard-write=/g)).toHaveLength(1);
+    expect(listed).toBe(SECURITY_HEADERS["Permissions-Policy"]);
+  });
+
   it("runs OWASP's own validator suite and fails exactly the cases Foxhound skips or overrides on purpose", () => {
     const suite = parseYaml(
       readFileSync("node_modules/@dustinedwards/site-runtime/oshp-tests-suite.yml", "utf8"),
@@ -232,6 +247,12 @@ describe("applySecurityHeaders", () => {
       "https://static.cloudflareinsights.com/beacon.min.js/",
     ]);
     expect(directive(csp, "connect-src")).toBe("connect-src 'self'");
+  });
+
+  it("has exactly one frame-src, so a later sources.frame cannot shadow or be shadowed by the hand-written one", () => {
+    const csp = applied().headers.get("Content-Security-Policy") ?? "";
+    const frameSrc = csp.split(";").map((d) => d.trim()).filter((d) => d.split(/\s+/)[0]?.toLowerCase() === "frame-src");
+    expect(frameSrc).toEqual(["frame-src https://challenges.cloudflare.com"]);
   });
 
   it("frames only Turnstile: frame-src is no wider than before J22 (no 'self')", () => {

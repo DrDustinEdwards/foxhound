@@ -6,11 +6,18 @@
 // line per violation to Workers Logs instead, with less in it.
 //
 // WHAT IS KEPT: the directive, the disposition, and the blocked resource as
-// origin plus path, or a CSP keyword ("inline", "eval"). The page URL is never
-// kept and neither is a query string: /u/, /p/ and /e/c/ links carry one
-// person's token (RULES.md 3.5), and a sign-in page can carry an address.
+// its ORIGIN only, or a CSP keyword ("inline", "eval"). Never a path and never
+// a query string, and the page URL not at all: for frame-ancestors and
+// navigation violations the blocked URL is a Foxhound page, and /u/, /p/ and
+// /e/c/ paths carry one person's token (RULES.md 3.5); a sign-in page's query
+// can carry an address.
 
+/** The most bytes of one report body that are read; the rest is refused. */
 export const CSP_REPORT_MAX_BYTES = 16 * 1024;
+
+/** The most violations one request may log. A 16 KB batch holds about 150,
+ *  and one browser bug should cost five log lines, not a page of them. */
+export const CSP_REPORT_MAX_LOGGED = 5;
 
 export type CspViolation = { directive: string; blocked: string; disposition: string };
 
@@ -22,9 +29,9 @@ function blockedResource(raw: string | null): string {
   if (!raw) return "unknown";
   try {
     const url = new URL(raw);
-    return url.protocol === "http:" || url.protocol === "https:" ? `${url.origin}${url.pathname}` : url.protocol;
+    return url.protocol === "http:" || url.protocol === "https:" ? url.origin : url.protocol;
   } catch {
-    // A keyword such as "inline", "eval" or "self", never a URL with a query.
+    // A keyword such as "inline", "eval" or "self", never a URL.
     return /^[a-z-]+$/i.test(raw) ? raw : "unknown";
   }
 }
@@ -48,4 +55,28 @@ export function summariseCspReport(body: unknown): CspViolation[] {
   }
   if (isObject(body) && isObject(body["csp-report"])) return [one(body["csp-report"])];
   return [];
+}
+
+/**
+ * The body as text, read chunk by chunk with a running byte count, or null as
+ * soon as it passes `maxBytes`. Content-Length is only a hint: a chunked body
+ * has none, and request.text() would buffer all of it before any check.
+ */
+export async function readCapped(request: Request, maxBytes: number): Promise<string | null> {
+  if (!request.body) return "";
+  const reader = request.body.getReader();
+  const decoder = new TextDecoder();
+  let total = 0;
+  let text = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel();
+      return null;
+    }
+    text += decoder.decode(value, { stream: true });
+  }
+  return text + decoder.decode();
 }

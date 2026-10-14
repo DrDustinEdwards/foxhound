@@ -34,11 +34,14 @@
 //    fade-up.tsx, reading-progress-bar.tsx, faq-accordion.tsx and others) are
 //    allowed by style-src-attr 'unsafe-inline', which runs no code. The two
 //    inline <style> elements are trusted by hash (inline-styles.ts).
-//  - form-action is 'self' only. Stripe Checkout is started with a
-//    server-side `redirect(session.url)` (app/routes/utility/card-update.tsx,
-//    app/routes/app/billing/index.tsx), never an HTML <form action> to
-//    Stripe, so checkout.stripe.com does not belong in form-action (a CSP
-//    form-action directive does not apply to Location-header redirects).
+//  - form-action is 'self' only. Stripe Checkout starts through a React Router
+//    <Form method="post"> (DemoGuardedForm on app/routes/app/billing/index.tsx,
+//    Form on app/routes/utility/card-update.tsx) whose action returns
+//    `redirect(session.url)`. Once hydrated, that submission is a fetch and the
+//    router then navigates to Stripe, which form-action does not govern. A
+//    native POST made before hydration that redirects to checkout.stripe.com
+//    would be refused, because Chromium applies form-action to the redirect
+//    after a form submission (pre-existing, reported, not changed here).
 //  - No external origins except Cloudflare's own: Turnstile
 //    (challenges.cloudflare.com, script and frame) and the Web Analytics beacon,
 //    which Cloudflare injects at the edge and which public sites allow (Dustin's
@@ -68,21 +71,32 @@ export const CSP_REPORT_GROUP = "csp-endpoint";
 
 const TURNSTILE = "https://challenges.cloudflare.com";
 
+// BUILT AND VALIDATED ONCE, at module load, with a placeholder nonce; only the
+// nonce is swapped per request. Every check the builder makes (sources, hashes,
+// the report sink, the nonce's own shape) has run on this exact policy, and
+// test/csp-memo.test.ts proves the per-request string equals the builder's own
+// output for that nonce. The placeholder is a valid nonce the builder accepts
+// and generateNonce cannot produce (24 base64 characters always end in "==",
+// this one has none), so the substitution can only hit the nonce sources.
+const NONCE_PLACEHOLDER = "Rk9YSE9VTkROT05DRVBMQUNFSE9MREVS";
+const POLICY = buildContentSecurityPolicy({
+  sources: {
+    script: [TURNSTILE],
+    img: ["data:"],
+  },
+  nonce: NONCE_PLACEHOLDER,
+  styleHashes: INLINE_STYLE_HASHES,
+  styleAttributesInline: true,
+  cloudflareWebAnalytics: true,
+  extraDirectives: [`frame-src ${TURNSTILE}`],
+  reportUri: CSP_REPORT_PATH,
+  reportTo: CSP_REPORT_GROUP,
+});
+const POLICY_PARTS = POLICY.value.split(`'nonce-${NONCE_PLACEHOLDER}'`);
+
 /** The policy for one response, carrying that request's nonce. */
 function contentSecurityPolicy(nonce: string) {
-  return buildContentSecurityPolicy({
-    sources: {
-      script: [TURNSTILE],
-      img: ["data:"],
-    },
-    nonce,
-    styleHashes: INLINE_STYLE_HASHES,
-    styleAttributesInline: true,
-    cloudflareWebAnalytics: true,
-    extraDirectives: [`frame-src ${TURNSTILE}`],
-    reportUri: CSP_REPORT_PATH,
-    reportTo: CSP_REPORT_GROUP,
-  });
+  return { name: POLICY.name, value: POLICY_PARTS.join(`'nonce-${nonce}'`) };
 }
 
 /**
