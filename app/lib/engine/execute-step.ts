@@ -596,6 +596,11 @@ type ResolvedCopy = { copy: EmailCopy; usedTemplate: boolean; templateReason: Te
  * inside a 5-minute tick that may be processing many steps. Blocking reproduces
  * exactly the defect this commit's predecessor fixed.
  *
+ * The one exception lives INSIDE the seam, not here: legacy's timing-word guard
+ * (job J01) retries once when the SUBJECT says "today" or "tonight", then
+ * hard-strips what still leaks, so those nine phrases rarely reach this gate.
+ * See applyTimingWordGuard in recovery/email-generation.ts.
+ *
  * The gate runs on the GENERATED copy, before applyCustomBody. The gate exists to
  * police model output; a merchant-authored custom body is their own voice and
  * their own choice, and rejecting it for an em dash would be the tool overruling
