@@ -124,7 +124,8 @@ describe("PLANT 2: the suspect-click rule is stated and derived", () => {
 });
 
 describe("PLANT 3: /pricing states the same rule", () => {
-  const pricing = read("app/routes/pricing.tsx");
+  // /pricing's FAQ copy lives in lib/marketing/pricing-copy.ts since J54.
+  const pricing = read("app/lib/marketing/pricing-copy.ts");
 
   it("the billable FAQ carries both halves, derived", () => {
     // Re-verified at a0c41ac: /pricing's FAQ did state the billable rule, and
