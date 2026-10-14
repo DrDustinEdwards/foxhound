@@ -372,30 +372,6 @@ export async function buildEngagementUrls(
   };
 }
 
-/** Append the first-party open pixel to a body. Pure. */
-export function appendOpenPixel(bodyHtml: string, openUrl: string): string {
-  return `${bodyHtml}<img src="${openUrl}" width="1" height="1" alt="" style="display:none">`;
-}
-
-/**
- * Append the invisible honeypot link (ruling 377(4) phase one). Pure.
- *
- * A person cannot see it, reach it with a keyboard, or hear it: it is
- * display:none, aria-hidden and tabindex -1 together, because any one of those
- * alone leaves a route to it. A client that fetches it is following every link
- * in the message, which is what a link scanner does and what a reader does not.
- *
- * ITS TEXT IS DELIBERATELY DULL. Anything that reads as bait ("do not click")
- * is a hint to whoever is reading the source, and the trap works by being
- * uninteresting.
- */
-export function appendHoneypotLink(bodyHtml: string, honeypotUrl: string): string {
-  return (
-    `${bodyHtml}<a href="${honeypotUrl}" style="display:none" aria-hidden="true" ` +
-    `tabindex="-1">Account details</a>`
-  );
-}
-
 /** email_sends.template label for a generated dunning send. */
 export const TEMPLATE_LABEL_GENERATED = "recovery_dunning";
 /** email_sends.template label for a deterministic-template dunning send. Distinct
@@ -421,7 +397,10 @@ export function buildRecoveryEmailJob(
     to: ctx.customerEmail,
     fromName: ctx.senderName,
     subject: copy.subject,
-    bodyHtml: appendHoneypotLink(appendOpenPixel(copy.bodyHtml, extras.openUrl), extras.honeypotUrl),
+    bodyHtml: copy.bodyHtml,
+    // The pixel and the trap travel beside the body, and the one templates
+    // module (app/lib/email/templates.ts) places them in the HTML part only.
+    tracking: { openUrl: extras.openUrl, honeypotUrl: extras.honeypotUrl },
     template: extras.usedTemplate ? TEMPLATE_LABEL_FALLBACK : TEMPLATE_LABEL_GENERATED,
     unsubscribeToken: extras.unsubscribeToken,
     physicalAddress: extras.physicalAddress,

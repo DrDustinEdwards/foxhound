@@ -1,5 +1,15 @@
-import { Link } from "react-router";
+import { Panel } from "capsomer/react/panel";
 
+import {
+  LegalBody,
+  LegalContents,
+  LegalLink,
+  LegalMailto,
+  LegalP as P,
+  LegalRule,
+  LegalSection as Section,
+  type LegalSectionDef,
+} from "~/components/legal-page";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { siteUrl, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
@@ -26,10 +36,18 @@ import type { Route } from "./+types/privacy";
 // following each key point," but the live page renders zero such links
 // (checked directly, 0 `<a>` elements inside its summary list) - a legacy
 // copy/content mismatch, not something to replicate; this version's intro
-// only promises what actually exists here (the Contents list above).
+// only promises what actually exists here (the table of contents below).
 //
-// Also fixes a duplicate nested <main> landmark noticed while touching
-// this component: marketing.tsx already renders the page's one <main>.
+// J51 (job_615a012e7035, row M20) put the page in Recova's order, read from
+// its source (blob 8f8dfb8e, lines 46-192): intro, summary card, table of
+// contents, rule, sections. Foxhound had the contents and rule first. The
+// summary card is Capsomer's Panel (Q12), the contents heading is Recova's
+// "Table of Contents", and the chrome kit (column, contents, rule, section,
+// paragraph, links) is shared with /terms in ~/components/legal-page. The one
+// word of copy touched is "above" to "below" in the summary's intro, so that
+// it still points the right way. Everything else in the copy waits for Dustin.
+//
+// The page has one main landmark: marketing.tsx renders it.
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return marketingMeta({
@@ -45,13 +63,7 @@ export function loader({ context }: Route.LoaderArgs) {
   return { siteUrl: siteUrl(env) };
 }
 
-interface SectionDef {
-  id: string;
-  number: number;
-  title: string;
-}
-
-const SECTIONS: SectionDef[] = [
+const SECTIONS: LegalSectionDef[] = [
   { id: "collect", number: 1, title: "WHAT INFORMATION DO WE COLLECT?" },
   { id: "process", number: 2, title: "HOW DO WE PROCESS YOUR INFORMATION?" },
   { id: "legal-bases", number: 3, title: "WHAT LEGAL BASES DO WE RELY ON?" },
@@ -69,42 +81,12 @@ const SECTIONS: SectionDef[] = [
   { id: "review", number: 15, title: "HOW CAN YOU REVIEW, UPDATE, OR DELETE YOUR DATA?" },
 ];
 
-function Section({ id, number, title, children }: { id: string; number: number; title: string; children: React.ReactNode }) {
-  return (
-    <section>
-      <h2 id={id} className="mb-4 mt-12 scroll-mt-20 text-title font-medium text-text">
-        {number}. {title}
-      </h2>
-      {children}
-    </section>
-  );
-}
-
-function P({ children }: { children: React.ReactNode }) {
-  return <p className="mb-4 text-item-title leading-relaxed text-text-secondary">{children}</p>;
-}
-
 export default function PrivacyPage() {
   return (
     <>
       <MarketingPageHeader eyebrow="Legal" title="Privacy Policy" subtext="Last updated July 18, 2026" />
 
-      <div className="mx-auto max-w-[720px] px-6 pb-16">
-        <section className="mb-12">
-          <h2 className="mb-3 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">Contents</h2>
-          <ol className="m-0 grid grid-cols-1 gap-x-6 gap-y-1.5 p-0 sm:grid-cols-2">
-            {SECTIONS.map((s) => (
-              <li key={s.id} className="list-none text-label">
-                <a href={`#${s.id}`} className="text-brand-text underline underline-offset-2 hover:text-brand-text-hover">
-                  {s.number}. {s.title}
-                </a>
-              </li>
-            ))}
-          </ol>
-        </section>
-
-        <hr className="my-10 border-border" />
-
+      <LegalBody>
         <P>
           This notice describes how Foxhound (&quot;we,&quot; &quot;us,&quot; &quot;our&quot;) collects,
           uses, and shares information when a merchant connects a Stripe account and when that
@@ -112,54 +94,57 @@ export default function PrivacyPage() {
           merchant&apos;s behalf.
         </P>
 
-        <section className="mb-8 mt-8 rounded-[12px] border border-border bg-surface p-6">
-          <h2 className="mb-3 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">
-            Summary of key points
-          </h2>
-          <p className="mb-4 text-copy leading-relaxed text-text-secondary">
-            This summary covers the key points from our Privacy Policy below. Use the contents list
-            above to jump to the full detail on any topic.
-          </p>
-          <ul className="m-0 flex list-none flex-col gap-3 p-0 text-copy leading-relaxed text-text-secondary">
-            <li>
-              <strong className="text-text">What information do we collect?</strong> Merchant Stripe
-              data (invoices, subscriptions, disputes, customer records) through a Stripe OAuth
-              connection, plus first-party engagement signals we generate ourselves, whether a recovery
-              email was opened or clicked, never a third-party tracking vendor.
-            </li>
-            <li>
-              <strong className="text-text">Do we use artificial intelligence?</strong> Yes, to draft
-              recovery email copy and dispute evidence. Dispute evidence always requires a human on the
-              merchant&apos;s team to review and approve before it reaches Stripe.
-            </li>
-            <li>
-              <strong className="text-text">Who do we share information with?</strong> Only the
-              infrastructure providers that run the Services: Stripe, Cloudflare, and Anthropic. We do
-              not sell personal information or share it for anyone else&apos;s marketing.
-            </li>
-            <li>
-              <strong className="text-text">How long do we keep information?</strong> Engagement events
-              and email sends for 180 days, webhook and AI call logs for 90 days, billing records for as
-              long as the account stays active.
-            </li>
-            <li>
-              <strong className="text-text">How do we keep information safe?</strong> Stripe access is
-              limited to a short list of actions, no card numbers are stored, and sensitive tokens are
-              encrypted at rest with AES-256.
-            </li>
-            <li>
-              <strong className="text-text">What are your rights?</strong> Merchants can review and
-              update account data in Settings, and can request deletion by contacting us. A
-              merchant&apos;s customers should contact that merchant directly.
-            </li>
-            <li>
-              <strong className="text-text">Is information transferred internationally?</strong>{" "}
-              Foxhound is a US company under US jurisdiction; Cloudflare Workers may process a request at
-              an edge location outside the US as ordinary delivery, but our data stores and governing law
-              are US-based.
-            </li>
-          </ul>
-        </section>
+        <div className="my-8">
+          <Panel title="Summary of key points">
+            <p className="m-0 text-label leading-relaxed text-text-secondary">
+              This summary covers the key points from our Privacy Policy below. Use the Table of
+              Contents to jump to the full detail on any topic.
+            </p>
+            <ul className="m-0 flex list-none flex-col gap-3 p-0 text-label leading-relaxed text-text-secondary">
+              <li>
+                <strong className="font-medium text-text">What information do we collect?</strong> Merchant Stripe
+                data (invoices, subscriptions, disputes, customer records) through a Stripe OAuth
+                connection, plus first-party engagement signals we generate ourselves, whether a recovery
+                email was opened or clicked, never a third-party tracking vendor.
+              </li>
+              <li>
+                <strong className="font-medium text-text">Do we use artificial intelligence?</strong> Yes, to draft
+                recovery email copy and dispute evidence. Dispute evidence always requires a human on the
+                merchant&apos;s team to review and approve before it reaches Stripe.
+              </li>
+              <li>
+                <strong className="font-medium text-text">Who do we share information with?</strong> Only the
+                infrastructure providers that run the Services: Stripe, Cloudflare, and Anthropic. We do
+                not sell personal information or share it for anyone else&apos;s marketing.
+              </li>
+              <li>
+                <strong className="font-medium text-text">How long do we keep information?</strong> Engagement events
+                and email sends for 180 days, webhook and AI call logs for 90 days, billing records for as
+                long as the account stays active.
+              </li>
+              <li>
+                <strong className="font-medium text-text">How do we keep information safe?</strong> Stripe access is
+                limited to a short list of actions, no card numbers are stored, and sensitive tokens are
+                encrypted at rest with AES-256.
+              </li>
+              <li>
+                <strong className="font-medium text-text">What are your rights?</strong> Merchants can review and
+                update account data in Settings, and can request deletion by contacting us. A
+                merchant&apos;s customers should contact that merchant directly.
+              </li>
+              <li>
+                <strong className="font-medium text-text">Is information transferred internationally?</strong>{" "}
+                Foxhound is a US company under US jurisdiction; Cloudflare Workers may process a request at
+                an edge location outside the US as ordinary delivery, but our data stores and governing law
+                are US-based.
+              </li>
+            </ul>
+          </Panel>
+        </div>
+
+        <LegalContents heading="Table of Contents" sections={SECTIONS} />
+
+        <LegalRule />
 
         <Section id="collect" number={1} title="WHAT INFORMATION DO WE COLLECT?">
           <P>
@@ -285,13 +270,9 @@ export default function PrivacyPage() {
         <Section id="contact" number={14} title="HOW CAN YOU CONTACT US ABOUT THIS NOTICE?">
           <P>
             Email{" "}
-            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-brand-text underline underline-offset-2 hover:text-brand-text-hover">
-              {SUPPORT_EMAIL}
-            </a>
+            <LegalMailto email={SUPPORT_EMAIL} />
             . See also our{" "}
-            <Link to="/terms" className="text-brand-text underline underline-offset-2 hover:text-brand-text-hover">
-              Terms of Service
-            </Link>
+            <LegalLink to="/terms">Terms of Service</LegalLink>
             .
           </P>
         </Section>
@@ -304,7 +285,7 @@ export default function PrivacyPage() {
             records tied to fees already charged).
           </P>
         </Section>
-      </div>
+      </LegalBody>
     </>
   );
 }

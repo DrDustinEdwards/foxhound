@@ -240,13 +240,18 @@ describe("PLANT 3: the send, at legacy's strings and on the customer audience", 
     seedAccount({ enabled: null });
     await seedCandidate();
     await sendExpiringCardAlerts(env, NOW);
+    // J02: Capsomer's frame has no bold run, so legacy's words are asserted in
+    // both parts and the emphasis is not.
     const html = harness.sent[0].html;
+    const text = (harness.sent[0] as { text?: string }).text ?? "";
+    expect(text).toContain("your visa card ending in 4242 is expiring on 11/2026.");
+    expect(html).toContain("your visa card ending in 4242 is expiring on 11/2026.");
     expect(html).toContain("Hi Jane Buyer,");
-    expect(html).toContain("<strong>visa card ending in 4242</strong>");
-    expect(html).toContain("is expiring on <strong>11/2026</strong>");
     expect(html).toContain("To avoid any interruption to your service");
     expect(html).toContain("Update Payment Method");
-    expect(html).toContain("If you've already updated your card, you can ignore this message.");
+    // Capsomer escapes the apostrophe in the HTML part (&#39;), so the
+    // sentence is read from the text part.
+    expect(text).toContain("If you've already updated your card, you can ignore this message.");
     expect(html).toContain("https://foxhoundapp.test/p/");
   });
 
@@ -473,10 +478,13 @@ describe("PLANT 7: the claim and the fallbacks, each reached alone", () => {
     // customer_name -> "there", card_brand -> "Card", card_last4 -> "****",
     // sender_name -> "Support". All four are legacy's.
     expect(harness.sent[0].subject).toBe("Action required: Your Card card ending in **** is expiring");
+    // J02: words, not markup. "Thanks," and the sender are two paragraphs in
+    // Capsomer's frame, and two lines in the text part.
+    const text = (harness.sent[0] as { text?: string }).text ?? "";
     expect(harness.sent[0].html).toContain("Hi there,");
-    expect(harness.sent[0].html).toContain("<strong>Card card ending in ****</strong>");
-    expect(harness.sent[0].html).toContain("is expiring on <strong>03/2027</strong>");
-    expect(harness.sent[0].html).toContain("Thanks,<br>Support");
+    expect(text).toContain("Hi there,");
+    expect(text).toContain("your Card card ending in **** is expiring on 03/2027.");
+    expect(text).toContain("Thanks,\n\nSupport");
     expect(harness.sent[0].from.startsWith("Support <")).toBe(true);
   });
 });
