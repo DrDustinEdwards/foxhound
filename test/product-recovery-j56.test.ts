@@ -6,7 +6,12 @@ import { describe, expect, it } from "vitest";
 import { isBillableRecoveryRow } from "~/lib/billing/billable-predicates";
 import { recoveryFeeCents } from "~/lib/billing/fees";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { EXPIRING_CARD_DAYS_AHEAD, RECOVERY_FEE_BPS, type DeclineCategory } from "~/lib/constants";
+import {
+  BILLABLE_ATTRIBUTION_KINDS,
+  EXPIRING_CARD_DAYS_AHEAD,
+  RECOVERY_FEE_BPS,
+  type DeclineCategory,
+} from "~/lib/constants";
 import { recoveryRateBand } from "~/lib/dashboard/recovery-rate";
 import { DEMO_ACCOUNT_ID } from "~/lib/demo/constants";
 import { buildTeamflowBase } from "~/lib/demo/customer-base";
@@ -15,6 +20,7 @@ import { formatMoney } from "~/lib/money-format";
 import { DECLINE_CATEGORY_LABELS, FAILED_PAYMENT_STATUS_LABELS, formatStepType } from "~/lib/recovery/labels";
 import { isRetryStep, RECOVERY_SCHEDULES, WIN_BACK_SCHEDULE } from "~/lib/recovery/schedule";
 import routes from "~/routes";
+import { buildRecoveryPreview } from "~/lib/marketing/recovery-preview.server";
 import RecoveryProductPage, { loader } from "~/routes/products/recovery";
 
 // J56 (job_95c1374a28ad), the Recovery spoke. Recova's spec, read whole at
@@ -152,6 +158,13 @@ describe("/products/recovery follows Recova's sections, in Recova's order (J56)"
     const winbackDays = Math.round(WIN_BACK_SCHEDULE[WIN_BACK_SCHEDULE.length - 1].offsetHours / 24);
     expect(body).toContain(`Win-back sequences on cancellation (${WIN_BACK_SCHEDULE.length} steps over ${winbackDays} days)`);
     expect(body).toContain(`Expiring card alerts (daily, ${EXPIRING_CARD_DAYS_AHEAD}-day window)`);
+    // The quality gate is a deterministic brand-voice check, not an AI audit.
+    expect(body).toContain("AI-written emails with a quality check pass");
+    expect(body).not.toMatch(/AI quality audit/);
+    // The hero and block 1 count the same sequences.
+    expect(body).toContain(
+      `${COUNT_WORDS[CATEGORIES.length]} decline categories handled with ${COUNT_WORDS[DISTINCT_SEQUENCES].toLowerCase()} different sequences.`,
+    );
   });
 
   it("does not offer the custom email body editor Foxhound does not build", () => {
@@ -214,7 +227,18 @@ describe("the dashboard preview is the demo seed through Foxhound's own math (J5
     const first = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
     const billable = seed.recoveredPayments.filter((r) => isBillableRecoveryRow(r, nowMs));
     const all = billable.reduce((s, r) => s + r.amountCents, 0);
-    const month = billable.filter((r) => r.recoveredAt.getTime() >= first).reduce((s, r) => s + r.amountCents, 0);
+    // This month: every Foxhound-attributed recovery since the 1st, matured or
+    // not, never refunded, disputed or deleted.
+    const month = seed.recoveredPayments
+      .filter(
+        (r) =>
+          (BILLABLE_ATTRIBUTION_KINDS as readonly string[]).includes(r.attributionKind ?? "") &&
+          r.refundedAt == null &&
+          r.disputedAt == null &&
+          r.deletedAt == null &&
+          r.recoveredAt.getTime() >= first,
+      )
+      .reduce((s, r) => s + r.amountCents, 0);
     expect(all, "the demo has billable recoveries to show").toBeGreaterThan(0);
     const pct = RECOVERY_FEE_BPS / 100;
     const m = (c: number) => escape(formatMoney(c, "usd"));
@@ -228,6 +252,12 @@ describe("the dashboard preview is the demo seed through Foxhound's own math (J5
         `All time Total recovered by Foxhound ${m(all)} Total fees paid ${m(recoveryFeeCents(all))} Net to you ${m(all - recoveryFeeCents(all))}`,
       ),
     );
+  });
+
+  it("never shows the demo earning nothing this month (mid-month, the seed has attributed recoveries)", () => {
+    const preview = buildRecoveryPreview(new Date("2026-10-14T12:00:00Z"));
+    expect(preview.roi.thisMonth.recovered).not.toBe("$0.00");
+    expect(preview.roi.thisMonth.fee).not.toBe("$0.00");
   });
 
   it("draws no chart Recova does not draw here", () => {
@@ -269,7 +299,9 @@ describe("the payments preview is the demo seed's most recent failures (J56)", a
       expect(cells).toContain(f.declineCode as string);
       const steps = seed.recoverySteps.filter((s) => s.failedPaymentId === f.id);
       const done = steps.filter((s) => s.executedAt).length;
-      expect(cells).toContain(`${done}/${steps.length}`);
+      // Intake writes the whole schedule up front, so the total is the
+      // category's schedule even when the payment recovered part way.
+      expect(cells).toContain(`${done}/${RECOVERY_SCHEDULES[f.declineCategory as DeclineCategory].length}`);
       const next = steps.find((s) => !s.executedAt && !s.result);
       if (next) expect(cells).toContain(`Next: ${formatStepType(next.stepType)}`);
       expect(cells).toContain(FAILED_PAYMENT_STATUS_LABELS[f.status as string]);

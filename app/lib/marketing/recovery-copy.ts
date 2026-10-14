@@ -4,13 +4,15 @@ import {
   RECOVERY_MATURITY_DAYS,
   type DeclineCategory,
 } from "~/lib/constants";
-import { RECOVERY_SCHEDULES, WIN_BACK_SCHEDULE } from "~/lib/recovery/schedule";
+import { WIN_BACK_SCHEDULE } from "~/lib/recovery/schedule";
 
 import {
+  countWord,
   DECLINE_CATEGORY_COUNT,
   DECLINE_CATEGORY_COUNT_WORD,
   DECLINE_CATEGORY_COUNT_WORD_LOWER,
   DECLINE_CATEGORY_PHRASE,
+  DISTINCT_SEQUENCE_COUNT,
   RECOVERY_SEQUENCE_DAYS,
 } from "./decline-categories";
 
@@ -30,28 +32,6 @@ import {
 // Every one of these is listed in the J56 PR notes for the seat to read.
 
 const pct = `${RECOVERY_FEE_BPS / 100}%`;
-
-const COUNT_WORDS: Record<number, string> = {
-  1: "One",
-  2: "Two",
-  3: "Three",
-  4: "Four",
-  5: "Five",
-  6: "Six",
-  7: "Seven",
-  8: "Eight",
-};
-
-/**
- * How many different step sequences the engine runs. Recova's title says "Four
- * categories. Four different sequences." over a table where two of its four
- * were the same (expired and fraud). Foxhound's expired and unknown share one
- * schedule, so the count of sequences is read from the schedules, not assumed
- * to equal the count of categories.
- */
-export const DISTINCT_SEQUENCE_COUNT = new Set(
-  (Object.keys(RECOVERY_SCHEDULES) as DeclineCategory[]).map((c) => JSON.stringify(RECOVERY_SCHEDULES[c])),
-).size;
 
 const WINBACK_STEPS = WIN_BACK_SCHEDULE.length;
 const WINBACK_DAYS = Math.round(WIN_BACK_SCHEDULE[WIN_BACK_SCHEDULE.length - 1].offsetHours / 24);
@@ -75,7 +55,10 @@ export const RECOVERY_HERO = {
   // recoveries it attributes to its own action; Stripe-baseline recoveries are
   // free (PRICING.md; app/lib/billing/billable-predicates.ts).
   headline: `${pct} of what Foxhound recovers.\nNothing before that.`,
-  sub: `AI-written email sequences and card network retries across ${RECOVERY_SEQUENCE_DAYS} days. ${DECLINE_CATEGORY_COUNT_WORD} decline categories handled with different sequences. You pay only when Foxhound recovers a payment.`,
+  // Consistency: Recova reads "Four decline categories handled with different
+  // sequences". Foxhound's expired and unknown share one schedule, so the
+  // sequence count is named, as block 1's title names it.
+  sub: `AI-written email sequences and card network retries across ${RECOVERY_SEQUENCE_DAYS} days. ${DECLINE_CATEGORY_COUNT_WORD} decline categories handled with ${countWord(DISTINCT_SEQUENCE_COUNT).toLowerCase()} different sequences. You pay only when Foxhound recovers a payment.`,
   // Truthfulness: Recova reads "of recovered revenue"; see the headline.
   pricing: `${pct} of Foxhound-attributed recoveries · No monthly fee · Invoiced monthly`,
 };
@@ -107,7 +90,7 @@ export const RECOVERY_SECTION_LABEL = "What you see after connecting";
 export const RECOVERY_BLOCKS = {
   categories: {
     eyebrow: "Smarter than Smart Retries",
-    title: `${DECLINE_CATEGORY_COUNT_WORD} categories. ${COUNT_WORDS[DISTINCT_SEQUENCE_COUNT] ?? DISTINCT_SEQUENCE_COUNT} different sequences.`,
+    title: `${DECLINE_CATEGORY_COUNT_WORD} categories. ${countWord(DISTINCT_SEQUENCE_COUNT)} different sequences.`,
     // Split around the Smart Retries link Recova embeds in this paragraph.
     bodyBefore: "Stripe's",
     linkText: "Smart Retries",
@@ -136,9 +119,10 @@ export const RECOVERY_PRICING = {
   points: [
     "No monthly fee, you pay nothing until Foxhound recovers a payment",
     `${RECOVERY_SEQUENCE_DAYS}-day sequences across ${DECLINE_CATEGORY_COUNT} decline categories`,
-    // Recova names the model. Copy says "AI" and never a model or vendor
-    // (capsid/conventions.md 5.3).
-    "AI-written emails with an AI quality audit pass",
+    // Truthfulness: Recova's "Haiku quality audit pass" names a model and an
+    // AI audit. Foxhound's gate (passesQualityGate, app/lib/recovery/
+    // email-generation.ts) is a deterministic brand-voice check.
+    "AI-written emails with a quality check pass",
     // Truthfulness: no card-network timing (see the second step).
     "Retry timing per decline category",
     `Win-back sequences on cancellation (${WINBACK_STEPS} steps over ${WINBACK_DAYS} days)`,

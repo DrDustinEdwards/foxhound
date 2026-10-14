@@ -1,6 +1,6 @@
 import { isBillableRecoveryRow } from "~/lib/billing/billable-predicates";
 import { recoveryFeeCents } from "~/lib/billing/fees";
-import { RECOVERY_FEE_BPS, type DeclineCategory } from "~/lib/constants";
+import { RECOVERY_FEE_BPS, RECOVERY_MATURITY_MS, type DeclineCategory } from "~/lib/constants";
 import { recoveryRateBand, recoveryRateTone } from "~/lib/dashboard/recovery-rate";
 import { formatRelativeTime } from "~/lib/dashboard/recovery-window";
 import { groupSumByCurrency } from "~/lib/dashboard/stats.server";
@@ -9,6 +9,8 @@ import { buildTeamflowBase } from "~/lib/demo/customer-base";
 import { buildRecoverySeed } from "~/lib/demo/recovery-seed";
 import { formatMoney } from "~/lib/money-format";
 import { FAILED_PAYMENT_STATUS_LABELS, formatStepType } from "~/lib/recovery/labels";
+import { RECOVERY_SCHEDULES } from "~/lib/recovery/schedule";
+import { summarizeSequence } from "~/lib/recovery/sequence-summary";
 
 import type { PreviewPaymentRow, RecoveryPreview, RoiColumn } from "./recovery-preview";
 
@@ -25,8 +27,9 @@ import type { PreviewPaymentRow, RecoveryPreview, RoiColumn } from "./recovery-p
 // - Currently at risk: every active failure, as listActiveFailedPayments.
 // - Recovery rate: the 30-day cohort of failures by the date they failed, as
 //   getRecoveryDashboardWindow, with recoveryRateBand's word.
-// - ROI: billable recoveries (isBillableRecoveryRow) and recoveryFeeCents, as
-//   the dashboard's RoiWidget, for this calendar month and all time.
+// - ROI: recoveryFeeCents on Foxhound-attributed recoveries: all time, the
+//   billable ones (isBillableRecoveryRow) as the dashboard's RoiWidget; this
+//   month, every attributed recovery since the 1st (see below).
 // - Payments: the eight most recent failures, as listRecentFailedPayments,
 //   with each one's steps and the customer's failure count.
 //
@@ -89,24 +92,47 @@ export function buildRecoveryPreview(now: Date): RecoveryPreview {
 
   const billable = seed.recoveredPayments.filter((r) => isBillableRecoveryRow(r, nowMs));
   const firstOfMonth = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
+  // This month: Foxhound-attributed recoveries since the 1st, matured or not.
+  // Asking isBillableRecoveryRow as of each row's own maturity date keeps the
+  // engine's attribution allow-list and its refund, dispute and delete checks
+  // while setting the 30-day wait aside: a recovery made this month cannot
+  // have matured yet, so the dashboard's billable-and-this-month filter is
+  // always empty (reported as its own job in the J56 notes).
+  const thisMonth = seed.recoveredPayments.filter(
+    (r) =>
+      r.recoveredAt.getTime() >= firstOfMonth &&
+      isBillableRecoveryRow(r, r.recoveredAt.getTime() + RECOVERY_MATURITY_MS),
+  );
 
   const failuresByCustomer = new Map<string, number>();
   for (const f of failures) failuresByCustomer.set(f.stripeCustomerId, (failuresByCustomer.get(f.stripeCustomerId) ?? 0) + 1);
 
   const rows = failures.slice(0, PREVIEW_PAYMENT_ROWS).map((f): PreviewPaymentRow => {
-    const steps = seed.recoverySteps.filter((s) => s.failedPaymentId === f.id);
-    const next = steps.find((s) => !s.executedAt && !s.result);
+    const summary = summarizeSequence(
+      seed.recoverySteps
+        .filter((s) => s.failedPaymentId === f.id)
+        .map((s) => ({
+          stepNumber: s.stepNumber ?? null,
+          stepType: s.stepType,
+          scheduledAt: s.scheduledAt,
+          executedAt: s.executedAt ?? null,
+        })),
+    );
+    const category = f.declineCategory as DeclineCategory;
     return {
       id: f.id,
       customer: f.customerName ?? f.customerEmail,
       email: f.customerName ? f.customerEmail : null,
       plan: f.planName ?? null,
       amount: formatMoney(f.amountCents, f.currency ?? "usd"),
-      category: f.declineCategory as DeclineCategory,
+      category,
       declineCode: f.declineCode ?? null,
-      stepsDone: steps.filter((s) => s.executedAt).length,
-      stepsTotal: steps.length,
-      nextStep: next ? formatStepType(next.stepType) : null,
+      stepsDone: summary.completedCount,
+      // Real intake writes the category's whole schedule up front
+      // (planRecoverySteps); the demo seed writes only the steps a recovered
+      // payment reached, so the total is the schedule's, not the rows'.
+      stepsTotal: RECOVERY_SCHEDULES[category].length,
+      nextStep: summary.nextStep ? formatStepType(summary.nextStep.stepType) : null,
       status: f.status,
       statusLabel: FAILED_PAYMENT_STATUS_LABELS[f.status] ?? f.status,
       failureCount: failuresByCustomer.get(f.stripeCustomerId) ?? 1,
@@ -126,7 +152,7 @@ export function buildRecoveryPreview(now: Date): RecoveryPreview {
     },
     roi: {
       feePct: RECOVERY_FEE_BPS / 100,
-      thisMonth: roiColumn(billable.filter((r) => r.recoveredAt.getTime() >= firstOfMonth)),
+      thisMonth: roiColumn(thisMonth),
       allTime: roiColumn(billable),
     },
     payments: { totalCount: failures.length, activeCount: active.length, rows },

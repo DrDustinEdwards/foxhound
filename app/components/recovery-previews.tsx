@@ -3,6 +3,7 @@ import type { LucideIcon } from "lucide-react";
 import { Pill, Status, type Tone } from "capsomer/react/status";
 import { Link } from "react-router";
 
+import { timingLabel } from "~/components/docs/sequence-timeline";
 import type { DeclineCategory } from "~/lib/constants";
 import type { RecoveryRateTone } from "~/lib/dashboard/recovery-rate";
 import { CATEGORY_PILL_WORDS } from "~/lib/marketing/recovery-copy";
@@ -22,11 +23,6 @@ import { isRetryStep, RECOVERY_SCHEDULES } from "~/lib/recovery/schedule";
 // Recova draws no chart in any of the three, so neither does this page.
 
 const CATEGORIES = Object.keys(RECOVERY_SCHEDULES) as DeclineCategory[];
-
-/** Recova's step timing words: "4 hr" under a day, "Day N" from a day on. */
-function timing(offsetHours: number): string {
-  return offsetHours < 24 ? `${offsetHours} hr` : `Day ${Math.round(offsetHours / 24)}`;
-}
 
 function SequenceSteps({ category }: { category: DeclineCategory }) {
   const steps = RECOVERY_SCHEDULES[category];
@@ -49,7 +45,7 @@ function SequenceSteps({ category }: { category: DeclineCategory }) {
                   <li key={step.stepType} className="flex items-center gap-1">
                     <Pill variant={retry ? "secondary" : "outline"}>
                       {retry ? "Retry" : "Email"}
-                      <span className="font-mono">{timing(step.offsetHours)}</span>
+                      <span className="font-mono">{timingLabel(step.offsetHours)}</span>
                     </Pill>
                     {i < steps.length - 1 ? (
                       <span className="h-px w-4 shrink-0 bg-border" aria-hidden="true" />
