@@ -92,7 +92,7 @@ export async function action({ context, params, request }: Route.ActionArgs) {
     // leaves the post published. A save changes neither the slug nor the
     // published flag, so the row read above still answers both. Fire and
     // forget; it never fails or delays the save.
-    if (post.published) scheduleIndexNow(env, ctx, [blogPostUrl(post.slug)]);
+    if (post.published) scheduleIndexNow(request, ctx, [blogPostUrl(post.slug)]);
     return data<ActionResult>({ intent, ok: true });
   }
 
@@ -108,7 +108,7 @@ export async function action({ context, params, request }: Route.ActionArgs) {
     // unpublish submits nothing, as in Recova. This hook and the save's move
     // when Carrel's blog publishing (J11, job_09c55603e321) and Prelum's blog
     // pages (J19 job_deffd581af37, J61 job_2ee0cfdd5c29) land.
-    if (published) scheduleIndexNow(env, ctx, [blogPostUrl(post.slug)]);
+    if (published) scheduleIndexNow(request, ctx, [blogPostUrl(post.slug)]);
     return data<ActionResult>({ intent, ok: true });
   }
 

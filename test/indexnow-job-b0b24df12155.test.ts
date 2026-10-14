@@ -55,12 +55,14 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function envFor(siteOrigin = ORIGIN): Env {
+/** The env every request sees, dev and previews included: wrangler.jsonc sets
+ *  BETTER_AUTH_URL to production, so the env cannot tell them apart. */
+function envFor(): Env {
   const stub = { check: async () => ({ allowed: true, retryAfterSec: 0 }) };
   return {
     DB: {},
     CARREL_SITE_KEY: SITE_KEY,
-    BETTER_AUTH_URL: siteOrigin,
+    BETTER_AUTH_URL: ORIGIN,
     RATE_LIMITER: { idFromName: (n: string) => n, get: () => stub },
   } as unknown as Env;
 }
@@ -88,9 +90,10 @@ const SOURCE = serializePostSource({
   body: "Hello **world**.\n",
 });
 
-function carrel(path: string, body: unknown, env = envFor()) {
+function carrel(path: string, body: unknown, origin = ORIGIN) {
+  const env = envFor();
   return handleCarrelRequest(
-    new Request(`${ORIGIN}/api/carrel/v1${path}`, {
+    new Request(`${origin}/api/carrel/v1${path}`, {
       method: path.endsWith("/draft") ? "PUT" : "POST",
       headers: { authorization: `Bearer ${SITE_KEY}`, "content-type": "application/json" },
       body: JSON.stringify(body),
@@ -189,16 +192,6 @@ describe("(b) a publish submits exactly Foxhound's changed URL", () => {
     expect(captured).toEqual([]);
   });
 
-  it("a site not running at https://foxhoundapp.com (local dev, a preview) never pings the engine", async () => {
-    freshDb();
-    const local = envFor("http://localhost:5173");
-    await carrel("/content/p1/draft", { source: SOURCE, expectedVersion: null, changeId: "c1" }, local);
-    const pub = await carrel("/content/p1/publish", { expectedVersion: await carrelVersion("p1"), changeId: "c2" }, local);
-    expect(pub?.status).toBe(200);
-    await settled();
-    expect(captured).toEqual([]);
-  });
-
   it("the helper drops URLs that are not Foxhound's and is a no-op on an empty list", async () => {
     await indexNow.submitToIndexNow([]);
     await indexNow.submitToIndexNow(["https://recovamrr.com/blog/x", "http://foxhoundapp.com/blog/y"]);
@@ -211,17 +204,17 @@ describe("(b) a publish submits exactly Foxhound's changed URL", () => {
 
 const ACTOR = "admin@foxhoundapp.com";
 
-function adminCall(postId: string, fields: Record<string, string>, siteOrigin = ORIGIN) {
+function adminCall(postId: string, fields: Record<string, string>, origin = ORIGIN) {
   const context = {
     get(key: unknown) {
-      if (key === cloudflareContext) return { env: envFor(siteOrigin), ctx, nonce: "n" };
+      if (key === cloudflareContext) return { env: envFor(), ctx, nonce: "n" };
       if (key === adminContext) return { email: ACTOR };
       throw new Error("unexpected context key");
     },
   };
   const body = new FormData();
   for (const [k, v] of Object.entries(fields)) body.append(k, v);
-  const request = new Request(`${ORIGIN}/admin/blog/${postId}`, { method: "POST", body });
+  const request = new Request(`${origin}/admin/blog/${postId}`, { method: "POST", body });
   return adminDetail.action({ context, request, params: { id: postId } } as never) as unknown as Promise<{
     data: { ok: boolean };
   }>;
@@ -263,6 +256,42 @@ describe("(b) the /admin/blog editor path", () => {
     expect((await adminCall(id, { _intent: "unpublish" })).data.ok).toBe(true);
     await settled();
     expect(captured).toEqual([]);
+  });
+});
+
+// THE GUARD IS THE REQUEST'S ORIGIN, not the env (review of job_b0b24df12155).
+// Every env here says https://foxhoundapp.com, as wrangler.jsonc does for dev
+// and previews too; only the host the publish arrived on differs.
+const ELSEWHERE = ["http://localhost:5173", "https://foxhound-preview.example.workers.dev"];
+
+describe("(b) only a publish arriving on https://foxhoundapp.com submits", () => {
+  it.each(ELSEWHERE)("Carrel publish on %s sends nothing", async (origin) => {
+    freshDb();
+    await carrel("/content/p1/draft", { source: SOURCE, expectedVersion: null, changeId: "c1" }, origin);
+    const pub = await carrel("/content/p1/publish", { expectedVersion: await carrelVersion("p1"), changeId: "c2" }, origin);
+    expect(pub?.status).toBe(200);
+    await settled();
+    expect(captured).toEqual([]);
+  });
+
+  it.each(ELSEWHERE)("admin publish on %s sends nothing", async (origin) => {
+    const db = freshDb();
+    const id = await seedPost(db);
+    expect((await adminCall(id, { _intent: "publish" }, origin)).data.ok).toBe(true);
+    await settled();
+    expect(captured).toEqual([]);
+  });
+
+  it("the same publish on https://foxhoundapp.com sends, on both paths", async () => {
+    const db = freshDb();
+    const id = await seedPost(db);
+    await adminCall(id, { _intent: "publish" }, ORIGIN);
+    await carrel("/content/p1/draft", { source: SOURCE, expectedVersion: null, changeId: "c1" }, ORIGIN);
+    await carrel("/content/p1/publish", { expectedVersion: await carrelVersion("p1"), changeId: "c2" }, ORIGIN);
+    await settled();
+    expect(captured).toHaveLength(2);
+    expectFoxhoundSubmission(captured[0], "dunning-that-works");
+    expectFoxhoundSubmission(captured[1], "why-cards-fail");
   });
 });
 

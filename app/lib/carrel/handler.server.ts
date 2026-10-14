@@ -33,11 +33,11 @@ export function carrelLimiter(env: Env): RateLimiter {
 export async function handleCarrelRequest(
   request: Request,
   env: Env,
-  ctx?: ExecutionContext,
+  ctx: ExecutionContext,
 ): Promise<Response | null> {
   const api = createSiteApi({
     adapter: carrelAdapter(getDb(env), {
-      onLive: (slug) => scheduleIndexNow(env, ctx, [blogPostUrl(slug)]),
+      onLive: (slug) => scheduleIndexNow(request, ctx, [blogPostUrl(slug)]),
     }),
     key: env.CARREL_SITE_KEY,
     limiter: carrelLimiter(env),
