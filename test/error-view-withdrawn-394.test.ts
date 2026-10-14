@@ -96,8 +96,10 @@ describe("the rendered 410 (394 halt 4)", () => {
     const html = withdrawn();
     const numeral = html.match(/<p[^>]*aria-label="410"[^>]*>410<\/p>/);
     expect(numeral, "the 410 numeral is not rendered").not.toBeNull();
-    expect(numeral![0]).toContain("text-amber-text");
-    expect(numeral![0]).not.toContain("text-red");
+    // J21 moved the tones onto data-tone (teal accent text and --crit,
+    // app/error-page.css); the expected-versus-fault split is the same one.
+    expect(numeral![0]).toContain('data-tone="expected"');
+    expect(numeral![0]).not.toContain('data-tone="fault"');
   });
 });
 
@@ -117,6 +119,6 @@ describe("the other two states are untouched", () => {
     expect(html).toContain("Boom");
     // The fault tone is still the fault tone.
     expect(html).toMatch(/aria-label="500"/);
-    expect(html.match(/<p[^>]*aria-label="500"[^>]*>500<\/p>/)![0]).toContain("text-red");
+    expect(html.match(/<p[^>]*aria-label="500"[^>]*>500<\/p>/)![0]).toContain('data-tone="fault"');
   });
 });
