@@ -308,7 +308,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
           <>
             <span className="fh-app-page-name">{pageName}</span>
             {isDemo ? (
-              <span className="rounded border border-brand px-1.5 py-0.5 font-mono text-micro font-semibold uppercase tracking-wide text-brand">
+              <span className="rounded border border-brand px-1.5 py-0.5 font-mono text-micro font-semibold uppercase tracking-wide text-brand-text">
                 Demo
               </span>
             ) : null}

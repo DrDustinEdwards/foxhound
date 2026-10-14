@@ -308,10 +308,12 @@
      #249398 with #070f0f on it (Capsomer's dark primary and primary-fg).
      --brand-dark is the hover step of a fill, so in dark it is lighter, not
      darker: the text on a fill is dark, and a darker teal would drop it under
-     4.5:1. Ratios (WCAG 2.2): #070f0f on #249398 5.26:1, on #55a8ab 6.99:1;
-     #249398 as text on --bg 5.10:1 and on --surface 4.79:1; #97c8cb on --bg
-     10.23:1 and on --surface 9.61:1; --brand-border-interactive 3.85:1 on
-     --bg; --border-focus 5.10:1 on --bg. */
+     4.5:1. Text on a page surface takes --brand-text, never --brand: the
+     fill is 4.25:1 on --surface2 in dark. Ratios (WCAG 2.2): #070f0f on
+     #249398 5.26:1, on #55a8ab 6.99:1; #249398 as a boundary or a graphic
+     5.10:1 on --bg and 4.79:1 on --surface; #97c8cb on --bg 10.23:1 and on
+     --surface 9.61:1; --brand-border-interactive 3.85:1 on --bg;
+     --border-focus 5.10:1 on --bg. */
   --brand-ui: #249398;
   --brand: var(--brand-ui);
   --brand-light: #97c8cb;
@@ -454,8 +456,8 @@
 
   /* The brand accent in light (see the dark block): Capsomer's light primary
      #077478 with its primary-fg #fbfefe as the fill (5.48:1), hovering to
-     #01585c (8.12:1); as text or a boundary #077478 is 5.14:1 on --bg and
-     5.56:1 on --surface. --brand-text is Capsomer's light accent text,
+     #01585c (8.12:1); as a boundary or a graphic #077478 is 5.14:1 on --bg
+     and 5.56:1 on --surface. --brand-text is Capsomer's light accent text,
      #01585c: 7.61:1 on --bg, 8.23:1 on --surface. --brand-border-interactive
      and --border-focus are the family's core #008489: 4.17:1 on --bg, 4.50:1
      on --surface. On the chrome, dark in both modes, the accent is

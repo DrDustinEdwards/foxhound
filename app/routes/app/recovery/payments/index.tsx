@@ -848,7 +848,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                       </td>
                     ) : null}
                     <td className="px-4 py-3">
-                      <Link to={`/recovery/payments/${p.id}`} className="text-text hover:text-brand">
+                      <Link to={`/recovery/payments/${p.id}`} className="text-text hover:text-brand-text">
                         {p.customerName ?? p.customerEmail}
                       </Link>
                       {priorCount > 0 ? (

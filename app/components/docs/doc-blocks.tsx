@@ -40,7 +40,7 @@ function InlineRun({ inline }: { inline: DocInline }) {
   // RelLink. An in-app path routes through Link so the marketing shell is not
   // torn down; anything else (a mailto, an external doc) is a plain anchor,
   // which is what legacy does for its support address.
-  const className = "text-brand-text underline underline-offset-2 hover:text-brand";
+  const className = "text-brand-text underline underline-offset-2";
   return inline.to.startsWith("/") ? (
     <Link to={inline.to} className={className}>
       {inline.link}

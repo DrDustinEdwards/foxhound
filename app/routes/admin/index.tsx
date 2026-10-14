@@ -106,7 +106,7 @@ export default function AdminOverview({ loaderData }: Route.ComponentProps) {
           <h2 id="cron-health" className="text-label font-semibold text-text">
             Cron health
           </h2>
-          <Link to="/admin/crons" className="inline-flex items-center gap-1 text-label text-text-tertiary hover:text-brand">
+          <Link to="/admin/crons" className="inline-flex items-center gap-1 text-label text-text-tertiary hover:text-brand-text">
             View crons
             <ArrowRight className="h-4 w-4" aria-hidden />
           </Link>

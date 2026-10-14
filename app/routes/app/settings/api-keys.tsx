@@ -218,7 +218,7 @@ export default function ApiKeySettings({ loaderData, actionData }: Route.Compone
             <pre className="mt-3 overflow-x-auto whitespace-pre-wrap break-all rounded-md border border-border bg-surface p-4 font-mono text-micro text-text">
               {rawKey}
             </pre>
-            <p className="mt-3 text-micro text-brand">
+            <p className="mt-3 text-micro text-brand-text">
               This key will not be shown again. Copy it now and store it somewhere safe.
             </p>
             <div className="mt-4">
@@ -266,7 +266,7 @@ export default function ApiKeySettings({ loaderData, actionData }: Route.Compone
                     Admin
                   </label>
                 </div>
-                <span className="text-micro text-brand">
+                <span className="text-micro text-brand-text">
                   Admin keys are platform wide and can reach any merchant account. Use with care.
                 </span>
               </fieldset>

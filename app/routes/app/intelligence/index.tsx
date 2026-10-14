@@ -307,7 +307,7 @@ export default function IntelligenceOverviewPage({ loaderData }: Route.Component
                         <td className="px-4 py-3">
                           <Link
                             to={`/intelligence/customers/${c.stripeCustomerId}`}
-                            className="text-text hover:text-brand"
+                            className="text-text hover:text-brand-text"
                           >
                             {c.customerName ?? c.stripeCustomerId}
                           </Link>

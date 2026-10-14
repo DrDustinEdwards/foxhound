@@ -108,7 +108,7 @@ export default function AdminBlogIndex({ loaderData }: Route.ComponentProps) {
               {posts.map((p) => (
                 <tr key={p.id} className="border-b border-border-sub last:border-0">
                   <td className="px-4 py-3">
-                    <Link to={`/admin/blog/${p.id}`} className="text-text hover:text-brand">
+                    <Link to={`/admin/blog/${p.id}`} className="text-text hover:text-brand-text">
                       {p.title}
                     </Link>
                     {p.featured ? <span className="ml-2 text-text-subtle">(featured)</span> : null}

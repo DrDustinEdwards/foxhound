@@ -471,7 +471,7 @@ function PaymentsPreview({ w }: { w: RecoveryDashboardWindow }) {
           {w.recentPayments.map((p) => (
             <li key={p.id} className="flex items-center justify-between gap-3 border-b border-border-sub pb-2 last:border-0">
               <Link to={`/recovery/payments/${p.id}`} className="min-w-0 flex-1">
-                <p className="truncate text-label text-text hover:text-brand">
+                <p className="truncate text-label text-text hover:text-brand-text">
                   {p.customerName ?? p.customerEmail}
                   {(w.previousFailureCounts[p.stripeCustomerId] ?? 0) > 0 ? (
                     <span className="ml-2 text-micro text-text-subtle">
