@@ -6,11 +6,11 @@ Foxhound is the Cloudflare-native rebuild of Recova: failed-payment recovery, di
 
 **"I want the new site to be like the old site, except built to be native on Cloudflare."**
 
-This outranks every rule below. For every user-facing surface (marketing, auth, app shell, product pages, emails) LEGACY IS THE SPEC: pixel treatment, interaction behavior and information architecture match legacy source unless `parity/APPROVED-DIFFERENCES.md` in Capsid records Dustin's approval of the difference.
+This outranks every rule below. For every user-facing surface (marketing, auth, app shell, product pages, emails) LEGACY IS THE SPEC for content, layout, features, interaction behavior and information architecture, unless `parity/APPROVED-DIFFERENCES.md` in Capsid records Dustin's approval of the difference.
 
 Only three kinds of difference need no per-item approval: internals required by the Cloudflare-native stack and invisible to the user; Foxhound branding where canon already defines it; and truthfulness fixes where legacy copy lied. Anything recorded as a "deliberate improvement" or a "locked decision" WITHOUT Dustin's quoted approval is a re-opened parity defect, corrected toward legacy. No agent adds to the approved list. Fix direction is a ruling, never an agent default.
 
-Parity finishes first. Only after it does Foxhound get the careful Capsomer treatment (capsid/decisions.md, 2026-10-04); until then no change moves its look toward Capsomer.
+Look and components come from Capsomer now, on every surface, teal throughout, with Capsomer's per-site layer where Foxhound needs its own. Dustin answered "yes, the ui will be the same" on 2026-10-14; his seventeen answers, verbatim with message ids, are in Capsid `foxhound/parity/ANSWERS-2026-10-14.md`. Shared family pieces replace Foxhound's own: Enarratio charts, Prelum for blog pages, feeds, sitemap and llms.txt, site-runtime security headers and sign-in limiter, Capsomer's email component for the email shell, Cloudflare Access for admin, and Carrel for admin Social and the blog editor (`foxhound/RULES.md` 1.1 and 1.7). This supersedes the 2026-10-04 ruling that Capsomer waits until parity is done.
 
 ## Rules that come first
 
