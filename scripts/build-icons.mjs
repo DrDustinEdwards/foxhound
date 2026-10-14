@@ -1,67 +1,95 @@
-// Generate the raster icons from public/favicon.svg (ruling 108).
+// Build the favicon set from Foxhound's one mark (app/lib/brand/hound-mark.ts).
 //
 //   npm install --no-save sharp && node scripts/build-icons.mjs
 //
 // Run by hand when the mark changes. sharp is deliberately NOT a repo
 // dependency: this is a one-off authoring tool, the same posture as
 // scripts/build-og-fonts.py, and the output is committed so a fresh clone
-// needs neither.
+// needs neither. Node reads the .ts module directly (type stripping, Node 22.18
+// and later), so the path data has one home and this script never copies it.
 //
-// Why these files exist at all. Legacy ships ONE 512x512 palette PNG served at
-// both /favicon.png and /apple-touch-icon.png (byte-identical, verified against
-// the live legacy site: 52,188 bytes, 512x512, colortype 3), and declares both
-// in its root layout. Foxhound shipped only favicon.svg, so /favicon.png and
-// /apple-touch-icon.png both 404'd and no apple-touch declaration existed. That
-// is ledger row F21, and it was blocking F5's RSS channel <image>, which needs a
-// raster (ruling 99).
+// It writes three files:
+//   public/favicon.svg           the mark in the header band's teal on the dark
+//                                rounded square, so it reads in a light and a
+//                                dark browser tab alike;
+//   public/favicon.png           that SVG at 512;
+//   public/apple-touch-icon.png  that SVG at 512.
 //
-// A note on fidelity, so nobody reads the output as a downscale artifact: the
-// source SVG sets font-family="monospace", so a browser rendering favicon.svg
-// today already resolves a SYSTEM mono font rather than the app's DM Mono. This
-// rasteriser resolves it the same way, so the PNG matches what the SVG renders,
-// and neither matches the wordmark's DM Mono. That is a property of the mark as
-// authored, not something introduced here.
-import { readFileSync, writeFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+// The mark is a PLACEHOLDER hound head until Dustin picks the real logo
+// (capsomer #65 item 15). The real logo replaces hound-mark.ts and this script
+// rebuilds all three.
+//
+// Sizes. Legacy ships ONE 512x512 PNG at both /favicon.png and
+// /apple-touch-icon.png (ledger row F21, ruling 108), and both stay at that
+// size: legacy is the spec, and the route splash (96) and the RSS channel
+// image read favicon.png, so a smaller PNG would blur them.
+import { writeFileSync } from "node:fs";
 
 import sharp from "sharp";
 
-const here = fileURLToPath(new URL(".", import.meta.url));
+import { HOUND_MARK_PATH, HOUND_MARK_VIEWBOX } from "../app/lib/brand/hound-mark.ts";
+
 const pub = new URL("../public/", import.meta.url);
 
-const SIZE = 512; // legacy's, measured from its live PNG rather than assumed
-const OUTPUTS = ["favicon.png", "apple-touch-icon.png"];
+// The band's colours (app/app.css: --bg in the dark theme, --header-teal). This
+// script is outside app/, where the raw-hex rule (scripts/check-tokens.mjs)
+// does not reach, because an SVG favicon cannot read CSS custom properties.
+const SQUARE = "#111210";
+const TEAL = "#249398";
+const TEAL_RGB = [0x24, 0x93, 0x98];
 
-const svg = readFileSync(new URL("favicon.svg", pub));
+// The mark sits in a 26 square centred on the 32 tile, 3 from each edge.
+const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- PLACEHOLDER: a hound's head until Dustin picks the real logo (capsomer #65 item 15).
+       Built by scripts/build-icons.mjs from app/lib/brand/hound-mark.ts; do not edit by hand. -->
+  <rect width="32" height="32" rx="6" fill="${SQUARE}"/>
+  <svg x="3" y="3" width="26" height="26" viewBox="${HOUND_MARK_VIEWBOX}">
+    <path fill="${TEAL}" fill-rule="evenodd" d="${HOUND_MARK_PATH}"/>
+  </svg>
+</svg>
+`;
 
-const png = await sharp(svg, { density: 384 })
-  .resize(SIZE, SIZE, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
-  .png()
-  .toBuffer();
+const OUTPUTS = [
+  { name: "favicon.png", size: 512 },
+  { name: "apple-touch-icon.png", size: 512 },
+];
 
-// Verify before writing, because a rasteriser that silently produces a blank
-// image is the same failure shape as the OG card's empty PNG: a 200 and a file
-// of plausible size that contains nothing. Assert the teal x is actually there
-// (Q11: teal throughout; the mark's x is the header band's teal, #249398).
-const { data, info } = await sharp(png).raw().toBuffer({ resolveWithObject: true });
-if (info.width !== SIZE || info.height !== SIZE) {
-  throw new Error(`expected ${SIZE}x${SIZE}, got ${info.width}x${info.height}`);
-}
-let teal = 0;
-for (let i = 0; i < data.length; i += info.channels) {
-  // #249398 with a little tolerance for antialiasing at the glyph edges
-  if (Math.abs(data[i] - 0x24) < 24 && Math.abs(data[i + 1] - 0x93) < 24 && Math.abs(data[i + 2] - 0x98) < 24) {
-    teal++;
+const rasters = [];
+for (const { name, size } of OUTPUTS) {
+  const png = await sharp(Buffer.from(svg), { density: 384 })
+    .resize(size, size, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .png()
+    .toBuffer();
+
+  // Verify before writing, because a rasteriser that silently produces a blank
+  // image is the same failure shape as the OG card's empty PNG: a 200 and a
+  // file of plausible size that contains nothing. Assert the teal is actually
+  // there, and in a share of the tile a drawn head fills (well over a tenth).
+  const { data, info } = await sharp(png).raw().toBuffer({ resolveWithObject: true });
+  if (info.width !== size || info.height !== size) {
+    throw new Error(`${name}: expected ${size}x${size}, got ${info.width}x${info.height}`);
   }
-}
-if (teal < 200) {
-  throw new Error(`only ${teal} teal pixels: the glyph did not render, refusing to write a blank icon`);
+  let teal = 0;
+  for (let i = 0; i < data.length; i += info.channels) {
+    // #249398 with a little tolerance for antialiasing at the edges
+    if (
+      Math.abs(data[i] - TEAL_RGB[0]) < 24 &&
+      Math.abs(data[i + 1] - TEAL_RGB[1]) < 24 &&
+      Math.abs(data[i + 2] - TEAL_RGB[2]) < 24
+    ) {
+      teal++;
+    }
+  }
+  const share = teal / (size * size);
+  if (share < 0.15) {
+    throw new Error(`${name}: only ${teal} teal pixels (${(share * 100).toFixed(1)}%): the mark did not render, refusing to write a blank icon`);
+  }
+  rasters.push({ name, png, teal, share });
 }
 
-for (const name of OUTPUTS) {
+writeFileSync(new URL("favicon.svg", pub), svg);
+for (const { name, png, teal, share } of rasters) {
   writeFileSync(new URL(name, pub), png);
+  console.log(`wrote ${name}: ${png.length} bytes, ${teal} teal pixels (${(share * 100).toFixed(1)}%, guard is 15%)`);
 }
-
-console.log(`wrote ${OUTPUTS.join(" and ")} at ${info.width}x${info.height}, ${png.length} bytes`);
-console.log(`teal pixels: ${teal} (blank-output guard threshold is 200)`);
-console.log(`source: ${here}../public/favicon.svg`);
+console.log("wrote favicon.svg");
