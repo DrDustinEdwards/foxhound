@@ -18,6 +18,7 @@ import { getAccount } from "~/lib/settings/queries.server";
 import { cancelMerchant } from "~/lib/admin/merchants.server";
 import { getAuth, getSession, listMemberships, setSessionActiveAccount } from "~/lib/auth";
 import { deleteUserAccount } from "~/lib/auth/delete-account.server";
+import { deletionConsequence, ownedAccountNames } from "~/lib/auth/deletion-copy";
 
 import type { Route } from "./+types/account";
 
@@ -52,7 +53,15 @@ export async function loader({ context }: Route.LoaderArgs) {
   if (!account) throw new Response("Not Found", { status: 404 });
   // The signed-in address, which legacy's AccountSection displays above its
   // sign-out control (blob a154ac8f, 3,839 bytes).
-  return { account, cancelledAt: account.cancelledAt, userEmail: auth.email };
+  return {
+    account,
+    cancelledAt: account.cancelledAt,
+    userEmail: auth.email,
+    // Every account this person owns, which a deletion clears, so the
+    // confirmation can say which (review fix F2). From the session's
+    // memberships, so this loader reads no other account's rows (ruling 326).
+    ownedAccountNames: ownedAccountNames(auth.memberships),
+  };
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
@@ -164,7 +173,15 @@ export async function action({ request, context }: Route.ActionArgs) {
  * its label says what it does. "Delete account" is legacy's control (S40),
  * below it, and deletes the person.
  */
-function DangerZone({ cancelledAt, result }: { cancelledAt: Date | null; result?: ActionResult }) {
+function DangerZone({
+  cancelledAt,
+  ownedAccountNames,
+  result,
+}: {
+  cancelledAt: Date | null;
+  ownedAccountNames: Array<string | null>;
+  result?: ActionResult;
+}) {
   const busy = useNavigation().state !== "idle";
   return (
     <section className="rounded-lg border border-border bg-surface p-5">
@@ -200,7 +217,7 @@ function DangerZone({ cancelledAt, result }: { cancelledAt: Date | null; result?
           </DemoGuardedForm>
         </>
       )}
-      <DeleteAccount result={result} />
+      <DeleteAccount ownedAccountNames={ownedAccountNames} result={result} />
     </section>
   );
 }
@@ -219,13 +236,21 @@ const KEEP_BUTTON_ID = "delete-account-keep";
  * Two departures, both recorded in the PR. The confirm text is rewritten
  * because Recova's, which says the payment data is deleted too, would be
  * false here: Foxhound keeps the record of recovered payments (Q14),
- * a truthfulness fix (RULES.md 1.2). And focus moves to "Keep my account" when
+ * a truthfulness fix (RULES.md 1.2). It also names what goes for this person
+ * (deletionConsequence): nothing but the login for a member who owns no
+ * account, and every owned account by name for an owner of several. And focus moves to "Keep my account" when
  * the confirmation opens, and back to "Delete account" when it closes, where
  * Recova drops focus on a removed button; that is accessibility, not a change
  * of behaviour (RULES.md 1.5), and starting on the safe choice is Capsomer's
  * confirm rule.
  */
-function DeleteAccount({ result }: { result?: ActionResult }) {
+function DeleteAccount({
+  ownedAccountNames,
+  result,
+}: {
+  ownedAccountNames: Array<string | null>;
+  result?: ActionResult;
+}) {
   const navigation = useNavigation();
   const deleting = navigation.state !== "idle" && navigation.formData?.get("_action") === "delete-account";
   const [confirming, setConfirming] = useState(false);
@@ -249,10 +274,7 @@ function DeleteAccount({ result }: { result?: ActionResult }) {
         <DemoGuardedForm method="post" className="flex flex-col gap-3">
           <input type="hidden" name="_action" value="delete-account" />
           <CapAlert tone="crit" title="Are you sure?">
-            This will permanently delete your account and your personal data, remove your
-            customers&apos; names and emails, and cancel all active recovery sequences. Foxhound
-            keeps the amounts, dates and Stripe ids of the payments it recovered, because its fees
-            are billed on them. This cannot be undone.
+            {deletionConsequence(ownedAccountNames)}
           </CapAlert>
           <div className="flex gap-2.5">
             <Button type="submit" variant="danger" pending={deleting}>
@@ -277,7 +299,7 @@ function DeleteAccount({ result }: { result?: ActionResult }) {
 }
 
 export default function AccountSettings({ loaderData, actionData }: Route.ComponentProps) {
-  const { account, cancelledAt, userEmail } = loaderData;
+  const { account, cancelledAt, userEmail, ownedAccountNames } = loaderData;
   const result = actionData as ActionResult | undefined;
 
   return (
@@ -336,7 +358,7 @@ export default function AccountSettings({ loaderData, actionData }: Route.Compon
         />
       </SettingsCard>
 
-      <DangerZone cancelledAt={cancelledAt} result={result} />
+      <DangerZone cancelledAt={cancelledAt} ownedAccountNames={ownedAccountNames} result={result} />
     </div>
   );
 }

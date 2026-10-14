@@ -134,6 +134,7 @@ describe("S40: the Danger zone control", () => {
               account: { name: "Acme", merchantIndustry: null, primaryCustomerType: null, merchantMrrSelfReported: null },
               cancelledAt,
               userEmail: "owner@acme.test",
+              ownedAccountNames: ["Acme"],
             },
             actionData: undefined,
           }),
@@ -161,7 +162,11 @@ describe("S40: the Danger zone control", () => {
     // Recova's copy says "all payment data" is deleted. Foxhound keeps the
     // record of recovered payments (Q14), so that sentence would be false here.
     expect(source).not.toContain("all payment data");
-    expect(source).toMatch(/keeps the amounts, dates and Stripe ids of the payments it recovered/);
+    // The words are per case (review fix F2), built by deletionConsequence.
+    expect(source).toContain("{deletionConsequence(ownedAccountNames)}");
+    const copy = readFileSync(fileURLToPath(new URL("../app/lib/auth/deletion-copy.ts", import.meta.url)), "utf8");
+    expect(copy).not.toContain("all payment data");
+    expect(copy).toMatch(/keeps the amounts, dates and Stripe ids of the payments it recovered/);
   });
 });
 

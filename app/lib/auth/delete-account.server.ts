@@ -43,6 +43,7 @@ import {
   winBackSequences,
   winBackSteps,
 } from "~/db";
+import { logAdminAction } from "~/lib/admin/audit.server";
 import { deauthorizeConnectedAccount } from "~/lib/stripe/connect";
 
 import { MEMBER_ROLE, MEMBER_STATUS } from "./roles";
@@ -521,6 +522,31 @@ export type DeleteAccountResult =
 export interface DeleteAccountDeps {
   deleteLocal: (env: Env, userId: string, now: Date) => Promise<DeleteAccountLocalResult>;
   deauthorize: (env: Env, stripeUserId: string) => Promise<{ ok: boolean; error?: string }>;
+  recordDeauthorizeFailure: (env: Env, userId: string, failure: DeauthorizeFailure) => Promise<void>;
+}
+
+export interface DeauthorizeFailure {
+  connectionId: string;
+  stripeUserId: string;
+  error: string;
+}
+
+export const ACCOUNT_DELETION_DEAUTHORIZE_FAILED_ACTION = "user_self_deleted_account_deauthorize_failed";
+
+/** One durable admin_audit_log row for a Stripe grant that could not be revoked
+ *  after a deletion, through the one audit writer. Ids and the error only: the
+ *  person's email and name are already gone and are not written back here. */
+export async function recordDeauthorizeFailure(db: Db, userId: string, failure: DeauthorizeFailure): Promise<void> {
+  await logAdminAction(db, {
+    actorEmail: ACCOUNT_DELETION_AUDIT_ACTOR,
+    action: ACCOUNT_DELETION_DEAUTHORIZE_FAILED_ACTION,
+    targetUserId: userId,
+    metadata: {
+      connection_id: failure.connectionId,
+      stripe_user_id: failure.stripeUserId,
+      error: failure.error,
+    },
+  });
 }
 
 /**
@@ -536,6 +562,7 @@ export async function deleteUserAccount(
 ): Promise<DeleteAccountResult> {
   const deleteLocal = deps.deleteLocal ?? ((e, id, now) => deleteUserAccountLocal(getDb(e), id, now));
   const deauthorize = deps.deauthorize ?? deauthorizeConnectedAccount;
+  const recordFailure = deps.recordDeauthorizeFailure ?? ((e, id, f) => recordDeauthorizeFailure(getDb(e), id, f));
 
   const local = await deleteLocal(env, userId, new Date());
   if (local.status === "not_found") return local;
@@ -544,9 +571,19 @@ export async function deleteUserAccount(
   for (const c of local.liveConnections) {
     const result = await deauthorize(env, c.stripeUserId);
     if (!result.ok) {
-      deauthorizeErrors.push({ connectionId: c.id, stripeUserId: c.stripeUserId, error: result.error ?? "unknown error" });
+      const failure = { connectionId: c.id, stripeUserId: c.stripeUserId, error: result.error ?? "unknown error" };
+      deauthorizeErrors.push(failure);
       console.error(`stripe deauthorize failed after account deletion, connection ${c.id}:`, result.error);
+      // Nobody is signed in to see this once the account is gone, so the
+      // failure is written where an operator finds it (/admin/audit-log). A
+      // failed write is logged and never reports the deletion as failed.
+      try {
+        await recordFailure(env, userId, failure);
+      } catch (err) {
+        console.error(`could not record deauthorize failure for connection ${c.id}:`, err);
+      }
     }
   }
   return { status: "deleted", accountIds: local.accountIds, deauthorizeErrors };
 }
+
