@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
-import type { HeaderAccount, HeaderLogo, LinkProps } from "capsomer/react/site-header";
+import type { HeaderAccount, LinkProps } from "capsomer/react/site-header";
 
 import "~/site-header.css";
 import { switchAccount, switchTargetFromHref } from "~/components/nav/account-switcher";
@@ -16,18 +16,9 @@ import { THEME_COOKIE, type Theme } from "~/lib/theme";
 /** Where Capsomer's theme button remembers the choice in this browser. */
 export const THEME_PREF_KEY = "fh-theme";
 
-/** The wordmark: `fo x hound` in DM Mono, the x in teal (Q11: teal throughout). */
-export function headerLogo(href = "/"): HeaderLogo {
-  return {
-    href,
-    label: "Foxhound home",
-    wordmark: (
-      <span className="fh-wordmark" aria-hidden>
-        fo<span className="fh-wordmark-x">x</span>hound
-      </span>
-    ),
-  };
-}
+// The wordmark lives in its own module so the root error page (error-view.tsx)
+// can draw it without pulling this file's CSS and switcher code into every page.
+export { headerLogo } from "./header-logo";
 
 // Routes that leave the React Router app (a POST endpoint, Stripe's OAuth hop,
 // Cloudflare Access) get a plain anchor and a full document load.
