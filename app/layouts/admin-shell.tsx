@@ -13,9 +13,10 @@ import {
   Users,
   Webhook,
 } from "lucide-react";
-import { AdminShell, type AdminEntry } from "capsomer/react/admin-shell";
+import { AdminShell, FAMILY_APPS, type AdminApp, type AdminEntry } from "capsomer/react/admin-shell";
 
 import "~/admin.css";
+import { HoundMark } from "~/components/hound-mark";
 import { headerLogo, personInitials, renderHeaderLink, THEME_PREF_KEY, useThemeMemory } from "~/components/site-header";
 import { adminContext } from "~/lib/admin/context";
 import { adminPageName } from "~/lib/admin/page";
@@ -68,6 +69,18 @@ const ENTRIES: Array<AdminEntry & { match: (path: string) => boolean }> = [
   { id: "audit-log", label: "Audit log", href: "/admin/audit-log", group: "Records", icon: icon(ScrollText), match: (p) => p.startsWith("/admin/audit-log") },
 ];
 
+// The family strip as Capsomer draws it, with Foxhound's own mark in its place.
+// Capsomer's strip still draws the x for Foxhound until Dustin picks the real
+// logo (capsomer #65 item 15); here Foxhound shows its PLACEHOLDER hound head
+// (app/lib/brand/hound-mark.ts) meanwhile. Every other app keeps Capsomer's mark.
+const STRIP_APPS: AdminApp[] = FAMILY_APPS.map(({ id, label, href, logo }) => ({
+  id,
+  label,
+  href,
+  logo: id === "foxhound" ? <HoundMark className="cap-admin-logo" /> : logo,
+  current: id === "foxhound",
+}));
+
 // Capsomer's tokens are keyed on data-cap-theme. It follows the site's own
 // theme, which the root loader already resolved for <html data-theme>, so the
 // server render has the right palette and nothing flashes. The header's theme
@@ -94,7 +107,7 @@ export default function AdminShellLayout({ loaderData }: Route.ComponentProps) {
   const { email } = loaderData;
 
   // Your admin (Capsomer's owner variant): the strip of the family's apps,
-  // Foxhound marked (its mark is still the x until Dustin picks one), then the
+  // Foxhound marked with its PLACEHOLDER hound head (STRIP_APPS), then the
   // grouped menu. The header is the site's own: the wordmark, the theme button
   // and the avatar menu last. Search and Inbox are left out: the Foxhound admin
   // has no search and no inbox for them to open, and a control that does
@@ -107,6 +120,7 @@ export default function AdminShellLayout({ loaderData }: Route.ComponentProps) {
         title="Foxhound admin"
         page={page}
         nav={nav}
+        apps={STRIP_APPS}
         prefKey="foxhound-admin"
         logo={headerLogo("/admin")}
         band="dark"

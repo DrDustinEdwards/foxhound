@@ -61,7 +61,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
             has no counterpart for, browsers that understand it prefer it, and
             removing a working better icon to match legacy's item set exactly
             would be a parity point bought with a real regression. Recorded on
-            row F21 rather than left as silent drift. */}
+            row F21 rather than left as silent drift.
+            Since the hound mark (job_afa3591dac7e) the PNG favicon is 32 square
+            and the apple touch icon 180, the sizes browsers ask for; all three
+            are built from app/lib/brand/hound-mark.ts. */}
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <link rel="icon" type="image/png" href="/favicon.png" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
