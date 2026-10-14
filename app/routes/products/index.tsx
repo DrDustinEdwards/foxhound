@@ -3,9 +3,15 @@ import { Link } from "react-router";
 
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { PRODUCTS } from "~/lib/marketing/products";
+import { PRODUCT_ORDER, PRODUCTS } from "~/lib/marketing/products";
 import { siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
+
+import "capsomer/panel.css";
+// Capsomer's tokens and the teal family (capbase layer), which the panel, the
+// accent text and the focus ring read. The site header loads the same file;
+// importing it here keeps the page whole under any layout.
+import "~/site-header.css";
 
 import type { Route } from "./+types/index";
 
@@ -51,34 +57,46 @@ export default function ProductsIndexPage() {
     <>
       <MarketingPageHeader eyebrow="Products" title="Four products" subtext="Use them independently or together." />
 
-      {/* div, not main: marketing.tsx already renders this page's one main landmark. */}
-      <div className="mx-auto max-w-[720px] px-5 pb-16 sm:px-8">
+      {/* div, not main: marketing.tsx already renders this page's one main landmark.
+          Recova's 720px column, in Capsomer's teal family with Foxhound's own
+          neutrals (.fh-cap, as the site header and the legal pages); the focus
+          ring reads the family's teal ring here, as in Capsomer's own parts. */}
+      <div
+        className="fh-cap mx-auto max-w-[720px] px-5 pb-16 sm:px-8 [--border-focus:var(--ring)]"
+        data-family="teal"
+      >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {Object.values(PRODUCTS).map((p) => {
-            const Icon = ICONS[p.key];
+          {PRODUCT_ORDER.map((key) => {
+            const p = PRODUCTS[key];
+            const Icon = ICONS[key];
             return (
-              <Link
-                key={p.key}
-                to={p.href}
-                className="group block rounded-lg border border-border bg-surface p-5 transition-all duration-150 hover:-translate-y-1 hover:border-brand"
-              >
-                <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-surface2">
-                  <Icon className="h-[18px] w-[18px] text-brand-text" strokeWidth={1.8} aria-hidden />
-                </div>
-                <div className="mb-2 text-item-title font-medium text-text">{p.name}</div>
-                <div className="mb-3 text-label leading-relaxed text-text-secondary">{p.description}</div>
-                <div className="mb-4 font-mono text-label text-brand-text">
-                  {p.price}
-                  {p.priceLabel ? <span className="text-text-tertiary"> {p.priceLabel}</span> : null}
-                </div>
-                <div className="text-label text-brand-text">
-                  Learn more{" "}
-                  <ArrowRight
-                    className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
-                    size={13}
-                    strokeWidth={1.5}
-                    aria-hidden
-                  />
+              // Capsomer's panel, body only, as the whole-card link Recova draws.
+              // Capsomer has no link card yet: no hover lift or hover border,
+              // which Recova has (see the PR notes, a Capsomer job to post).
+              // "group" carries no style; it drives the arrow's nudge below.
+              <Link key={key} to={p.href} className="cap-panel group">
+                <div className="cap-panel-body">
+                  {/* One block, so the body's grid gap leaves Recova's own spacing alone. */}
+                  <div>
+                    <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-surface2">
+                      <Icon className="h-[18px] w-[18px] text-accent-text" strokeWidth={1.8} aria-hidden />
+                    </div>
+                    <div className="mb-2 text-body font-medium text-text">{p.name}</div>
+                    <div className="mb-3 text-label leading-relaxed text-text-secondary">{p.description}</div>
+                    <div className="mb-4 font-mono text-label text-accent-text">
+                      {p.price}
+                      {p.priceLabel ? <span className="text-text-tertiary"> {p.priceLabel}</span> : null}
+                    </div>
+                    <div className="text-label text-accent-text">
+                      Learn more{" "}
+                      <ArrowRight
+                        className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
+                        size={13}
+                        strokeWidth={1.5}
+                        aria-hidden
+                      />
+                    </div>
+                  </div>
                 </div>
               </Link>
             );
