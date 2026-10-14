@@ -3,7 +3,9 @@ import { ServerRouter } from "react-router";
 import { isbot } from "isbot";
 import { renderToReadableStream } from "react-dom/server";
 
+import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { recordPage404 } from "~/lib/errors/page-404.server";
 
 export const streamTimeout = 5_000;
 
@@ -45,7 +47,27 @@ export default async function handleRequest(
     });
   }
 
-  const { nonce } = loadContext.get(cloudflareContext);
+  const { env, ctx, nonce } = loadContext.get(cloudflareContext);
+
+  // THE 404 COUNT (ruling 37, job J21): page_404_daily, read by the admin API's
+  // /health top_404s_7d. Every document 404 passes through here with this
+  // status, an unmatched URL and a route that throws a 404 alike, which is the
+  // same pair Recova's not-found.tsx counted. GET only: HEAD returned above, and
+  // a POST that 404s is a form aimed at a missing route, not a page someone
+  // went looking for.
+  //
+  // waitUntil, so the write never holds or fails the page; the catch logs
+  // rather than swallowing (capsid conventions-web rule 5), since a count that
+  // silently stops is how this table sat empty. getDb runs inside the promise
+  // so a missing binding is logged the same way instead of throwing here.
+  if (responseStatusCode === 404 && request.method.toUpperCase() === "GET") {
+    const url = new URL(request.url);
+    ctx.waitUntil(
+      Promise.resolve()
+        .then(() => recordPage404(getDb(env), url, new Date()))
+        .catch((error: unknown) => console.error("page_404_daily write failed", error)),
+    );
+  }
 
   let shellRendered = false;
   const userAgent = request.headers.get("user-agent");
