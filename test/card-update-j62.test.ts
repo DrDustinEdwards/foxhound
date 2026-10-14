@@ -1,11 +1,27 @@
 import { readFileSync } from "node:fs";
 
-import { createElement } from "react";
+import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, RouterProvider } from "react-router";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import CardUpdate from "~/routes/utility/card-update";
+// Capsomer's real Button, wrapped only to keep hold of the click handler its
+// rendered <button> carries, so a test can click the button the page really
+// drew. The wrapper calls the real Button inside its own render (hooks and
+// all) and returns its element unchanged, so the markup is Capsomer's.
+const clicks = vi.hoisted(() => ({ handlers: [] as ((e: unknown) => void)[] }));
+vi.mock("capsomer/react/button", async (importOriginal) => {
+  const real = await importOriginal<typeof import("capsomer/react/button")>();
+  function Button(props: Parameters<typeof real.Button>[0]) {
+    const el = real.Button(props) as ReactElement<{ onClick?: (e: unknown) => void; children?: unknown }>;
+    const btn = el.type === "button" ? el : (el.props.children as ReactElement<{ onClick?: (e: unknown) => void }>[])[0];
+    if (btn.props.onClick) clicks.handlers.push(btn.props.onClick);
+    return el;
+  }
+  return { ...real, Button };
+});
+
+const { default: CardUpdate } = await import("~/routes/utility/card-update");
 
 // J62 (job_323ed2a2f37e), row F8: the hosted card update page at /p/:token,
 // built from Capsomer's parts (Q12), teal (Q11) and on the five text sizes
@@ -218,5 +234,115 @@ describe("J62: Foxhound's own Checkout flow, never Recova's billing portal link"
   it("the guard can see a billing portal call, so its silence means something", () => {
     expect("stripe.billingPortal.sessions.create({})").toMatch(/billingPortal\s*\./);
     expect('"https://billing.stripe.com"').toMatch(/billing\.stripe\.com/);
+  });
+});
+
+/**
+ * Render the page while a POST to its own action is in flight: the router's
+ * navigation is "submitting" because the action never settles, which is what
+ * a customer sees between pressing the button and Stripe's redirect.
+ */
+async function renderSubmitting(loaderData: LoaderData): Promise<string> {
+  const props = { loaderData, params: { token: "t" }, matches: [] } as unknown as Props;
+  const router = createMemoryRouter(
+    [{ path: "*", element: createElement(CardUpdate, props), action: () => new Promise(() => {}) }],
+    { initialEntries: ["/p/t"] },
+  );
+  void router.navigate("/p/t", { formMethod: "post", formData: new FormData() });
+  for (let i = 0; i < 20 && router.state.navigation.state !== "submitting"; i++) await Promise.resolve();
+  expect(router.state.navigation.state, "the POST is in flight").toBe("submitting");
+  return renderToStaticMarkup(createElement(RouterProvider, { router }));
+}
+
+describe("J62 review: the button while the Checkout redirect starts", () => {
+  for (const [name, state] of [["recovery", READY], ["resubscribe", RESUBSCRIBE]] as const) {
+    it(`${name}: the pending button says so (aria-busy, spinner, Redirecting... as its name)`, async () => {
+      const html = body(await renderSubmitting(state));
+      const btn = tagWith(html, /cap-btn/);
+      expect(btn).toContain('aria-busy="true"');
+      expect(html).toContain('class="cap-btn-spinner"');
+      expect(html).toContain("Redirecting...");
+      expect(html.match(/<button/g)?.length).toBe(1);
+    });
+
+    it(`${name}: a second press while pending is stopped before the form can submit again`, async () => {
+      clicks.handlers = [];
+      await renderSubmitting(state);
+      expect(clicks.handlers.length, "the page drew Capsomer's button").toBeGreaterThan(0);
+      const click = clicks.handlers[clicks.handlers.length - 1];
+      const prevented = vi.fn();
+      click({ preventDefault: prevented });
+      expect(prevented).toHaveBeenCalledTimes(1);
+    });
+
+    it(`${name}: when idle the same press goes through (the guard discriminates)`, () => {
+      clicks.handlers = [];
+      render(state);
+      const click = clicks.handlers[clicks.handlers.length - 1];
+      const prevented = vi.fn();
+      click({ preventDefault: prevented });
+      expect(prevented).not.toHaveBeenCalled();
+    });
+  }
+});
+
+describe("J62 frame: one Capsomer card on its own, not the sign-in frame", () => {
+  const ALL: LoaderData[] = [
+    READY,
+    RESUBSCRIBE,
+    { state: "invalid" },
+    { state: "resolved" },
+    { state: "done" },
+    { state: "handled" },
+    { state: "resubscribed" },
+    { state: "setup_failed" },
+  ];
+
+  it("no merchant sales panel: none of AuthShell's brand panel reaches the customer", () => {
+    for (const s of ALL) {
+      const html = body(render(s));
+      expect(html, s.state).not.toContain("Outcome-based recovery for Stripe merchants.");
+      expect(html, s.state).not.toContain("Pay only on the payments Foxhound actually recovers.");
+      expect(html, s.state).not.toMatch(/gradient-brand-violet|bg-chrome|md:grid-cols-2/);
+    }
+  });
+
+  it("the page's content is one Capsomer panel inside the teal wrapper, holding the one h1", () => {
+    for (const s of ALL) {
+      const html = render(s, { error: "x" });
+      expect(html.match(/<main/g)?.length, s.state).toBe(1);
+      expect(html.match(/<h1/g)?.length, s.state).toBe(1);
+      const main = body(html);
+      const wrap = main.indexOf('data-card-update=""');
+      const panel = main.indexOf('class="cap-panel"');
+      expect(wrap, s.state).toBeGreaterThan(-1);
+      expect(panel, s.state).toBeGreaterThan(wrap);
+      expect(main.match(/class="cap-panel"/g)?.length, s.state).toBe(1);
+      expect(main.indexOf("<h1"), s.state).toBeGreaterThan(panel);
+    }
+  });
+
+  it("the Foxhound wordmark heads the card, above the heading", () => {
+    const main = body(render(READY));
+    const panel = main.indexOf('class="cap-panel"');
+    const mark = main.indexOf(">x</span>hound</span>");
+    expect(panel, "the card is on the page").toBeGreaterThan(-1);
+    expect(mark).toBeGreaterThan(panel);
+    expect(mark).toBeLessThan(main.indexOf("<h1"));
+  });
+
+  it("the column is narrow and keeps a 16px side margin on a phone", () => {
+    const main = body(render(READY));
+    const open = main.slice(0, main.indexOf(">") + 1);
+    expect(open).toMatch(/\bpx-4\b/);
+    expect(open).toMatch(/\bmax-w-md\b/);
+    expect(open).toMatch(/\bmx-auto\b/);
+  });
+
+  it("the sign-in pages keep AuthShell: only this page left it", () => {
+    for (const f of ["login", "signup", "forgot-password", "reset-password"]) {
+      expect(readFileSync(`app/routes/auth/${f}.tsx`, "utf8"), f).toMatch(/<AuthShell\b/);
+    }
+    expect(readFileSync("app/routes/utility/card-update.tsx", "utf8")).not.toMatch(/<AuthShell\b|import \{[^}]*\bAuthShell\b/);
   });
 });
