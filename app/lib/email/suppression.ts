@@ -1,8 +1,7 @@
-import { and, eq, isNotNull } from "drizzle-orm";
+import { and, eq, isNotNull, isNull } from "drizzle-orm";
 
 import { getDb, emailSuppressions } from "~/db";
 
-import { buildSuppressionInsert } from "./events";
 import type { UnsubscribeTokenPayload } from "./unsubscribe-token";
 
 // Suppression gate: never send to an address that has bounced or unsubscribed.
@@ -34,13 +33,18 @@ export type UnsubscribeOutcome = "unsubscribed" | "already";
  * The raw token is stored as the traceability marker, mirroring how a bounce
  * stores its provider event id.
  *
- * Suppression is one row per address (the email unique index), and every
- * Foxhound writer of that table sets suppressed_at (buildSuppressionInsert), so
- * a row for the address means it is suppressed. The insert's RETURNING says
- * which visit this is: a row back means this visit suppressed the address; none
- * means an earlier unsubscribe, a bounce or a complaint already had, which is
- * "already" unsubscribed, as Recova reads any suppressed_at. A second click, or
- * a List-Unsubscribe POST after a GET, is a no-op, never an error.
+ * Suppression is one row per address (the email unique index). Foxhound's own
+ * writers always set suppressed_at, but rows migrated from Recova can carry it
+ * NULL, because Recova registered a token row per send. So the write is an
+ * upsert whose update runs only on a row that is not yet suppressed:
+ *  - no row: inserted, and this visit unsubscribed;
+ *  - a row with suppressed_at NULL: suppressed now with reason=unsubscribe and
+ *    this link's token and account, so the row records the opt-out that caused
+ *    it (Recova's own update branch), and this visit unsubscribed;
+ *  - a suppressed row (an earlier unsubscribe, a bounce, a complaint): the
+ *    setWhere refuses the update, nothing comes back, and the address is
+ *    "already" unsubscribed, as Recova reads any suppressed_at. A second click,
+ *    or a List-Unsubscribe POST after a GET, is a no-op, never an error.
  */
 export async function recordUnsubscribe(
   env: Env,
@@ -48,12 +52,21 @@ export async function recordUnsubscribe(
   token: string,
 ): Promise<UnsubscribeOutcome> {
   const db = getDb(env);
-  const inserted = await buildSuppressionInsert(db, {
-    email: payload.email,
-    token,
-    reason: UNSUBSCRIBE_REASON,
-    accountId: payload.accountId,
-    now: new Date(),
-  }).returning({ id: emailSuppressions.id });
-  return inserted.length > 0 ? "unsubscribed" : "already";
+  const now = new Date();
+  const written = await db
+    .insert(emailSuppressions)
+    .values({
+      email: payload.email,
+      token,
+      reason: UNSUBSCRIBE_REASON,
+      accountId: payload.accountId,
+      suppressedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: emailSuppressions.email,
+      set: { suppressedAt: now, reason: UNSUBSCRIBE_REASON, token, accountId: payload.accountId },
+      setWhere: isNull(emailSuppressions.suppressedAt),
+    })
+    .returning({ id: emailSuppressions.id });
+  return written.length > 0 ? "unsubscribed" : "already";
 }

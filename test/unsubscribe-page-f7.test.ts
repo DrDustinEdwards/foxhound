@@ -31,6 +31,7 @@ vi.mock("~/db", async (importOriginal) => ({
 
 const route = await import("~/routes/utility/unsubscribe");
 const { signUnsubscribeToken } = await import("~/lib/email/unsubscribe-token");
+const { isSuppressed } = await import("~/lib/email/suppression");
 
 const ACCOUNT = "acct_sample";
 const EMAIL = "sam@example.com";
@@ -123,6 +124,33 @@ describe("F7 loader: Recova's four states on Foxhound's engine", () => {
     expect(await callLoader(env, token)).toEqual({ state: "already", email: EMAIL });
     const rows = await suppressionRows(db);
     expect(rows[0]?.reason).toBe("bounce");
+  });
+
+  it("a migrated Recova row with no suppressed_at is suppressed now and records this opt-out", async () => {
+    // Recova registered a token row per send with suppressed_at NULL. Such a row
+    // conflicts on the address; skipping it would say "already" while mail kept going.
+    const db = await seed();
+    const env = makeEnv();
+    await db.insert(accounts).values({ id: "acct_other", name: "Other" });
+    await db.insert(emailSuppressions).values({
+      email: EMAIL,
+      token: "tok_recova_registered",
+      reason: null,
+      accountId: "acct_other",
+      suppressedAt: null,
+    });
+    expect(await isSuppressed(env, EMAIL)).toBe(false);
+    const token = await signUnsubscribeToken(env, { email: EMAIL, accountId: ACCOUNT });
+
+    expect(await callLoader(env, token)).toEqual({ state: "done" });
+    const rows = await suppressionRows(db);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.suppressedAt).not.toBeNull();
+    expect(rows[0]?.reason).toBe("unsubscribe");
+    expect(rows[0]?.token).toBe(token);
+    expect(rows[0]?.accountId).toBe(ACCOUNT);
+    expect(await isSuppressed(env, EMAIL)).toBe(true);
+    expect(await callLoader(env, token)).toEqual({ state: "already", email: EMAIL });
   });
 
   it("a tampered or unknown token is the invalid state and writes nothing", async () => {
@@ -238,9 +266,14 @@ describe("F7 page: Recova's copy and layout on Capsomer's parts", () => {
     expect(mark?.[0]).toContain("size-12");
   });
 
-  it("has a visually hidden h1 so the page keeps a heading without changing Recova's look", () => {
-    const body = main(render({ state: "done" } as LoaderData));
-    expect(body).toMatch(/<h1 class="sr-only">Unsubscribe<\/h1>/);
+  it.each([
+    { data: { state: "invalid" }, heading: "Unsubscribe link not valid" },
+    { data: { state: "already", email: EMAIL }, heading: "Already unsubscribed" },
+    { data: { state: "done" }, heading: "Unsubscribed" },
+  ] as const)("$data.state names its outcome in a visually hidden h1", ({ data, heading }) => {
+    const body = main(render(data as LoaderData));
+    const h1s = [...body.matchAll(/<h1 class="sr-only">([^<]*)<\/h1>/g)].map((m) => m[1]);
+    expect(h1s).toEqual([heading]);
   });
 
   it.each(STATES)("$data.state announces the result through a status paragraph", ({ data, copy }) => {

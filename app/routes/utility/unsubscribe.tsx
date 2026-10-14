@@ -128,6 +128,12 @@ function message(data: LoaderState): string {
   }
 }
 
+const HEADING: Record<LoaderState["state"], string> = {
+  invalid: "Unsubscribe link not valid",
+  already: "Already unsubscribed",
+  done: "Unsubscribed",
+};
+
 // The status mark: Recova's 48px circle on the tone's tint with a 1px edge in the
 // tone, a check for success and an X for failure. Capsomer 0.9.0 has no round
 // status mark (status.css draws a glyph or a pill), so it is composed here from
@@ -159,8 +165,9 @@ export default function Unsubscribe({ loaderData }: Route.ComponentProps) {
           data-family="teal"
         >
           {/* The page's heading, for screen readers only: Recova's page has none
-              visible, and the wordmark is not one. */}
-          <h1 className="sr-only">Unsubscribe</h1>
+              visible, and the wordmark is not one. It names the outcome, so the
+              result is in the heading as well as the status paragraph. */}
+          <h1 className="sr-only">{HEADING[loaderData.state]}</h1>
           <div className="mb-8">
             <Wordmark size="title" />
           </div>
