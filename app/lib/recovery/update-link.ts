@@ -12,10 +12,12 @@ import { verifyEngagementToken } from "~/lib/engagement/token";
 // (RULES.md 3.15), because the template always carries it.
 //
 // WHAT COUNTS AS CARRYING THE LINK: the minted URL as the exact value of an
-// href. Printed as text it is not counted, because a client that does not
-// autolink leaves the customer nothing to press. Comparison is byte for byte:
-// the URL is the base URL plus base64url tokens, so it has no character HTML
-// would escape.
+// anchor's own href, the one place a customer can press it. Not counted: the URL
+// printed as text (a client that does not autolink leaves nothing to press), an
+// href inside an HTML comment, a `data-href`, `href=` text inside another
+// attribute's value, or an href on any tag but `<a>`. Comparison is byte for
+// byte: the URL is the base URL plus base64url tokens, so it has no character
+// HTML would escape.
 //
 // COPY READ BACK FROM STORAGE is the one case where the exact link cannot be
 // expected. A card-update token carries its issue time, so the link a backoff
@@ -24,12 +26,30 @@ import { verifyEngagementToken } from "~/lib/engagement/token";
 // link minted for THIS send's target and is still live. A link for another
 // step, another payment or another account, or an expired one, does not pass.
 
-const HREF = /\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/gi;
+// A comment runs to `-->`, or to the end of the body when it is never closed,
+// which is how a browser reads an unclosed one.
+const COMMENT = /<!--[\s\S]*?(?:-->|$)/g;
+// An `<a>` start tag (not `<abbr>`, `<area>` or any other name starting with
+// a), with its attribute text. Quoted values are consumed whole, so a `>`
+// inside one does not end the tag.
+const ANCHOR_TAG = /<a(?=[\s>/])((?:[^>"']|"[^"]*"|'[^']*')*)>/gi;
+// One attribute: its name, then an optional double-quoted, single-quoted or
+// unquoted value. Walking attributes one by one is what keeps `data-href` and
+// `href=` text inside another attribute's value from reading as the href.
+const ATTRIBUTE = /([^\s"'>/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g;
 
-/** Every href value in a body, in order. Pure. */
+/** Every anchor href value in a body, in order, ignoring comments. Pure. */
 export function hrefsIn(bodyHtml: string): string[] {
   const out: string[] = [];
-  for (const m of bodyHtml.matchAll(HREF)) out.push(m[1] ?? m[2] ?? m[3] ?? "");
+  const html = bodyHtml.replace(COMMENT, "");
+  for (const tag of html.matchAll(ANCHOR_TAG)) {
+    for (const attr of (tag[1] ?? "").matchAll(ATTRIBUTE)) {
+      if (attr[1].toLowerCase() !== "href") continue;
+      out.push(attr[2] ?? attr[3] ?? attr[4] ?? "");
+      // A browser uses the first href and ignores any repeat.
+      break;
+    }
+  }
   return out;
 }
 

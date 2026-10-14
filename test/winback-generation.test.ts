@@ -35,7 +35,12 @@ const { buildWinbackPrompt, WINBACK_VOICE_FALLBACK } = await import(
   "~/lib/recovery/winback-generation"
 );
 const { buildWinbackEmail } = await import("~/lib/recovery/winback-email");
-const { signCardUpdateToken } = await import("~/lib/card-update/token");
+const { signCardUpdateToken, verifyCardUpdateToken } = await import("~/lib/card-update/token");
+
+/** The link is LIVE, so a test that refuses it proves a mismatch, not expiry. */
+async function expectLive(link: string): Promise<void> {
+  expect(await verifyCardUpdateToken(env, link.split("/p/")[1])).not.toBeNull();
+}
 
 const ACCOUNT = "acct_1";
 const NOW = new Date("2026-11-02T12:00:00Z");
@@ -135,15 +140,17 @@ function stepRow() {
     .get() as { result: string | null; aiSubject: string | null; aiBody: string | null };
 }
 
-/** A resubscribe link minted at an EARLIER moment than the tick, as an earlier
- *  tick would have minted it. */
+/** A resubscribe link minted four days BEFORE the real now, as an earlier tick
+ *  would have minted it. Relative to the real clock, never a fixed date: a
+ *  fixed mint date expires 30 days later (CARD_UPDATE_TOKEN_MAX_AGE_MS) and
+ *  turns every test that relies on a live link red on that day. */
 async function resubscribeLink(opts: {
   sequenceId: string;
   stepNumber: number;
   accountId?: string;
-  at?: number;
 }): Promise<string> {
-  const clock = vi.spyOn(Date, "now").mockReturnValue(opts.at ?? Date.UTC(2026, 9, 30));
+  const fourDaysAgo = Date.now() - 4 * 24 * 60 * 60 * 1000;
+  const clock = vi.spyOn(Date, "now").mockReturnValue(fourDaysAgo);
   const token = await signCardUpdateToken(env, {
     winBackSequenceId: opts.sequenceId,
     winBackStepNumber: opts.stepNumber,
@@ -285,6 +292,7 @@ describe("PLANT 2: a live generation sends the model's copy", () => {
     // The cached body carries the link an earlier tick minted for this step,
     // which is what a cached body written by resolveWinbackCopy carries.
     const link = await resubscribeLink({ sequenceId: "wb_1", stepNumber: 1 });
+    await expectLive(link);
     sqlite
       .prepare(
         "UPDATE win_back_steps SET ai_subject = 'Cached subject', ai_body_html = ? WHERE id = 'st_1'",
@@ -483,6 +491,7 @@ describe("PLANT 5: no win-back email leaves without its resubscribe link", () =>
   it("A CACHED BODY LINKING ANOTHER STEP'S RESUBSCRIBE is replaced by the template", async () => {
     seedStep(1);
     const wrong = await resubscribeLink({ sequenceId: "wb_1", stepNumber: 2 });
+    await expectLive(wrong);
     sqlite
       .prepare("UPDATE win_back_steps SET ai_subject = 'Cached subject', ai_body_html = ? WHERE id = 'st_1'")
       .run(`<p><a href="${wrong}">Reactivate</a></p>`);
@@ -496,6 +505,7 @@ describe("PLANT 5: no win-back email leaves without its resubscribe link", () =>
   it("A CACHED BODY LINKING ANOTHER SEQUENCE is replaced by the template", async () => {
     seedStep(1);
     const wrong = await resubscribeLink({ sequenceId: "wb_other", stepNumber: 1 });
+    await expectLive(wrong);
     sqlite
       .prepare("UPDATE win_back_steps SET ai_subject = 'Cached subject', ai_body_html = ? WHERE id = 'st_1'")
       .run(`<p><a href="${wrong}">Reactivate</a></p>`);

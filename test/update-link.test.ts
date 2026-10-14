@@ -36,6 +36,30 @@ describe("hrefsIn and linksTo", () => {
     expect(linksTo(`<p>${URL}</p>`, URL)).toBe(false);
   });
 
+  // Only an anchor's own href is a link a customer can press. Each of these
+  // carries the URL somewhere that is not one.
+  const NOT_LINKS: { name: string; html: string }[] = [
+    { name: "a data-href attribute", html: `<a data-href="${URL}">x</a>` },
+    { name: "an href inside an HTML comment", html: `<!-- <a href="${URL}">x</a> --><p>Hi</p>` },
+    { name: "literal href= text", html: `<p>href="${URL}"</p>` },
+    { name: "href= text inside another attribute's value", html: `<a title='see href="${URL}"'>x</a>` },
+    { name: "an href on a tag that is not an anchor", html: `<div href="${URL}">x</div>` },
+    { name: "an href on an abbr, whose name starts with a", html: `<abbr href="${URL}">x</abbr>` },
+    { name: "an unclosed comment", html: `<p>Hi</p><!-- <a href="${URL}">x</a>` },
+  ];
+  for (const c of NOT_LINKS) {
+    it(`does not count ${c.name}`, () => {
+      expect(hrefsIn(c.html)).not.toContain(URL);
+      expect(linksTo(c.html, URL)).toBe(false);
+    });
+  }
+
+  it("still counts an anchor whose href follows other attributes, in any case", () => {
+    expect(linksTo(`<A class="btn" data-x='1' HREF="${URL}">x</A>`, URL)).toBe(true);
+    expect(linksTo(`<a\n  style="color: red"\n  href='${URL}'>x</a>`, URL)).toBe(true);
+    expect(linksTo(`<a title="a > b" href="${URL}">x</a>`, URL)).toBe(true);
+  });
+
   it("never matches an empty link", () => {
     expect(linksTo(`<a href="">x</a>`, "")).toBe(false);
   });
