@@ -183,7 +183,7 @@ export default function Billing({ loaderData }: Route.ComponentProps) {
                 {invoices.map((invoice) => (
                   <tr key={invoice.id} className="border-b border-border-sub last:border-0">
                     <td className="py-2 pr-4">
-                      <a href={`/billing/invoices/${invoice.id}`} className="text-text hover:text-amber">
+                      <a href={`/billing/invoices/${invoice.id}`} className="text-text hover:text-brand-text">
                         {invoice.periodStart.toLocaleDateString()} - {invoice.periodEnd.toLocaleDateString()}
                       </a>
                     </td>

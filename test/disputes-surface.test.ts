@@ -61,10 +61,10 @@ describe("deadline urgency", () => {
     expect(deadlineUrgency(8)).toBe("normal");
   });
 
-  it("tones urgent red, soon amber, and normal plain", () => {
+  it("tones urgent red, soon caution, and normal plain", () => {
     expect(deadlineClassName("overdue")).toBe("text-error-text");
     expect(deadlineClassName("urgent")).toBe("text-error-text");
-    expect(deadlineClassName("soon")).toBe("text-amber-text");
+    expect(deadlineClassName("soon")).toBe("text-caution");
     expect(deadlineClassName("normal")).toBe("text-text-tertiary");
   });
 

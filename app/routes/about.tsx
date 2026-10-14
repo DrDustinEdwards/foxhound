@@ -54,7 +54,7 @@ export default function AboutPage({ loaderData }: Route.ComponentProps) {
           </p>
           <p>
             Questions, bug reports, or just curious how something works: reach out at{" "}
-            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-amber-text underline underline-offset-2 hover:opacity-80">
+            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-brand-text underline underline-offset-2 hover:opacity-80">
               {SUPPORT_EMAIL}
             </a>
             .

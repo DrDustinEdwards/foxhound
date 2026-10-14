@@ -98,28 +98,28 @@ const FAQS: { question: string; answer: string; node?: React.ReactNode }[] = [
         held for 30 or more days, at{" "}
         <Link
           to="/products/recovery"
-          className="text-amber-text underline underline-offset-2 transition-opacity duration-150 hover:opacity-80"
+          className="text-brand-text underline underline-offset-2 transition-opacity duration-150 hover:opacity-80"
         >
           20%
         </Link>
         .{" "}
         <Link
           to="/products/disputes"
-          className="text-amber-text underline underline-offset-2 transition-opacity duration-150 hover:opacity-80"
+          className="text-brand-text underline underline-offset-2 transition-opacity duration-150 hover:opacity-80"
         >
           Disputes
         </Link>{" "}
         are 20% of wins only, capped at $500 per dispute.{" "}
         <Link
           to="/products/intelligence"
-          className="text-amber-text underline underline-offset-2 transition-opacity duration-150 hover:opacity-80"
+          className="text-brand-text underline underline-offset-2 transition-opacity duration-150 hover:opacity-80"
         >
           Intelligence
         </Link>
         &apos;s predictive layer is $199 per month flat.{" "}
         <Link
           to="/products/audit"
-          className="text-amber-text underline underline-offset-2 transition-opacity duration-150 hover:opacity-80"
+          className="text-brand-text underline underline-offset-2 transition-opacity duration-150 hover:opacity-80"
         >
           Audit
         </Link>{" "}
@@ -166,7 +166,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 <br />
                 Foxhound recovers.
                 <br />
-                <span className="text-amber-text">Not before.</span>
+                <span className="text-brand-text">Not before.</span>
               </h1>
 
               <p className="animate-fade-up delay-160 m-0 mb-8 text-body leading-relaxed text-text-secondary">
@@ -178,7 +178,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               <div className="animate-fade-up delay-240 flex flex-wrap items-center gap-4">
                 <Link
                   to="/audit"
-                  className="inline-flex items-center gap-1.5 rounded-md bg-amber px-5 py-2.5 text-subhead font-semibold text-on-amber hover:bg-amber-dark"
+                  className="inline-flex items-center gap-1.5 rounded-md bg-brand px-5 py-2.5 text-subhead font-semibold text-on-brand hover:bg-brand-dark"
                 >
                   Run your free audit
                 </Link>
@@ -273,7 +273,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             ].map((item, i) => (
               <FadeUp key={item.stat} delay={i * 100}>
                 <div className="card-elevated flex h-full flex-col rounded-[12px] border border-border bg-surface p-6">
-                  <div className="mb-4 font-mono text-[2.75rem] font-semibold leading-none text-amber-text">
+                  <div className="mb-4 font-mono text-[2.75rem] font-semibold leading-none text-brand-text">
                     {item.stat}
                   </div>
                   <p className="m-0 mb-4 flex-1 text-copy leading-[1.6] text-text-secondary">
@@ -321,12 +321,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 </div>
                 <Link
                   to={row.foxhoundHref}
-                  className="card-elevated hover-spring group block rounded-[12px] border border-border bg-surface p-6 hover:-translate-y-1 hover:border-amber"
+                  className="card-elevated hover-spring group block rounded-[12px] border border-border bg-surface p-6 hover:-translate-y-1 hover:border-brand"
                 >
-                  <div className="mb-3 text-[0.75rem] font-medium text-amber-text">Foxhound adds this</div>
+                  <div className="mb-3 text-[0.75rem] font-medium text-brand-text">Foxhound adds this</div>
                   <div className="mb-2 text-body font-semibold text-text">{row.foxhoundTitle}</div>
                   <p className="m-0 text-copy leading-[1.55] text-text-secondary">{row.foxhoundBody}</p>
-                  <div className="mt-4 font-mono text-caption text-amber-text">
+                  <div className="mt-4 font-mono text-caption text-brand-text">
                     Learn more{" "}
                     <ArrowRight
                       className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
@@ -352,7 +352,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             <h2 className="m-0 text-center text-statement font-semibold leading-[1.0] tracking-[-0.04em] text-text sm:text-statement-md lg:text-statement-lg">
               <span className="font-mono">{STRIPE_UNRECOVERED_RATE_PERCENT}%</span> of failed payments
               <br />
-              <span className="text-amber-text">never come back.</span>
+              <span className="text-brand-text">never come back.</span>
             </h2>
             <p className="mx-auto mt-8 max-w-[560px] text-center text-body text-text-secondary sm:text-lg">
               Stripe&apos;s Smart Retries recover 55% on average. The other 45% needs something Stripe
@@ -481,14 +481,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 <FadeUp key={p.key} delay={i * 80}>
                   <Link
                     to={p.href}
-                    className="card-elevated hover-spring block h-full rounded-[12px] border border-border bg-surface p-6 hover:-translate-y-1 hover:border-amber"
+                    className="card-elevated hover-spring block h-full rounded-[12px] border border-border bg-surface p-6 hover:-translate-y-1 hover:border-brand"
                   >
                     <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-surface2">
-                      <Icon className="h-[18px] w-[18px] text-amber-text" strokeWidth={1.8} aria-hidden />
+                      <Icon className="h-[18px] w-[18px] text-brand-text" strokeWidth={1.8} aria-hidden />
                     </div>
                     <div className="mb-1.5 text-body font-medium text-text">{p.name}</div>
                     <p className="m-0 mb-4 text-copy leading-[1.55] text-text-secondary">{p.description}</p>
-                    <div className="font-mono text-label text-amber-text">{p.price}</div>
+                    <div className="font-mono text-label text-brand-text">{p.price}</div>
                   </Link>
                 </FadeUp>
               );
@@ -610,7 +610,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 <FadeUp key={post.slug} delay={i * 80}>
                   <Link
                     to={`/blog/${post.slug}`}
-                    className="hover-spring flex h-full flex-col gap-3 rounded-[10px] border border-border bg-bg p-5 no-underline hover:-translate-y-1 hover:border-amber"
+                    className="hover-spring flex h-full flex-col gap-3 rounded-[10px] border border-border bg-bg p-5 no-underline hover:-translate-y-1 hover:border-brand"
                   >
                     {post.tags[0] ? (
                       <div className="font-mono text-micro text-text-tertiary">
@@ -643,7 +643,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           </p>
           <Link
             to="/audit"
-            className="inline-flex items-center gap-2 rounded-md bg-amber px-6 py-3 text-body font-semibold text-on-amber hover:bg-amber-dark"
+            className="inline-flex items-center gap-2 rounded-md bg-brand px-6 py-3 text-body font-semibold text-on-brand hover:bg-brand-dark"
           >
             Connect Stripe, it is free
           </Link>

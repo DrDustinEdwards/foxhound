@@ -130,7 +130,7 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
           it onto the shared header, ruling 63's pattern. The h1 clamp is
           legacy's, converted px to rem (Dustin, ruling 85): identical at a 16px
           root, and unlike px it responds to a user's font-size setting. */}
-      <div className="mb-6 inline-block rounded-full border border-[rgb(from_var(--amber)_r_g_b_/_0.27)] bg-[rgb(from_var(--amber)_r_g_b_/_0.13)] px-3 py-1 font-mono text-xs tracking-[0.06em] text-amber-text">
+      <div className="mb-6 inline-block rounded-full border border-[rgb(from_var(--brand)_r_g_b_/_0.27)] bg-[rgb(from_var(--brand)_r_g_b_/_0.13)] px-3 py-1 font-mono text-xs tracking-[0.06em] text-brand-text">
         FREE LOST REVENUE AUDIT
       </div>
 
@@ -169,7 +169,7 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
                     <select
                       name="currency"
                       defaultValue="usd"
-                      className="rounded-md border border-border bg-surface px-3 py-2 text-body text-text focus-visible:border-amber"
+                      className="rounded-md border border-border bg-surface px-3 py-2 text-body text-text focus-visible:border-brand"
                     >
                       <option value="usd">USD</option>
                       <option value="eur">EUR</option>
@@ -244,7 +244,7 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
               ],
             ].map(([title, desc]) => (
               <div key={title} className="mb-3 flex items-start gap-3 text-left">
-                <div className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-amber" />
+                <div className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
                 <div>
                   <div className="mb-0.5 text-sm font-medium text-text">{title}</div>
                   <div className="text-label text-text-subtle">{desc}</div>
@@ -257,7 +257,7 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
               it as NOT ported because /audit/connect did not exist; it does. */}
           <Link
             to="/audit/connect"
-            className="mb-2 mt-8 block rounded-[10px] bg-amber px-8 py-4 text-base font-bold text-on-amber no-underline hover:bg-amber-dark"
+            className="mb-2 mt-8 block rounded-[10px] bg-brand px-8 py-4 text-base font-bold text-on-brand no-underline hover:bg-brand-dark"
           >
             See my numbers
           </Link>
@@ -284,7 +284,7 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
         <div className="mb-4 text-label text-text-subtle">Want to see the app before connecting?</div>
         <a
           href="/demos/recovery"
-          className="text-sm text-amber-text no-underline transition-opacity duration-500 hover:opacity-80"
+          className="text-sm text-brand-text no-underline transition-opacity duration-500 hover:opacity-80"
         >
           View live demo &rarr;
         </a>
@@ -305,7 +305,7 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
           </p>
           <Link
             to="/audit/connect"
-            className="inline-flex items-center gap-2 rounded-md bg-amber px-5 py-2.5 text-label font-medium text-on-amber hover:bg-amber-dark"
+            className="inline-flex items-center gap-2 rounded-md bg-brand px-5 py-2.5 text-label font-medium text-on-brand hover:bg-brand-dark"
           >
             Run the free audit
           </Link>
@@ -353,7 +353,7 @@ function EstimatorResultCard({ result, currency }: { result: EstimatorResult; cu
           card has been promising as "your real numbers" all along. */}
       <Link
         to="/audit/connect"
-        className="inline-flex items-center gap-2 rounded-md bg-amber px-5 py-2.5 text-label font-medium text-on-amber hover:bg-amber-dark"
+        className="inline-flex items-center gap-2 rounded-md bg-brand px-5 py-2.5 text-label font-medium text-on-brand hover:bg-brand-dark"
       >
         Run the free audit on your real numbers
       </Link>

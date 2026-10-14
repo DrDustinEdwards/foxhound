@@ -167,7 +167,7 @@ function ConfirmForm({
           className={
             danger
               ? "rounded-md border border-red px-3 py-1.5 text-label text-error-text hover:bg-red-bg disabled:opacity-60"
-              : "rounded-md border border-border px-3 py-1.5 text-label text-text hover:border-amber disabled:opacity-60"
+              : "rounded-md border border-border px-3 py-1.5 text-label text-text hover:border-brand disabled:opacity-60"
           }
         >
           {label}

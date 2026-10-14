@@ -62,7 +62,7 @@ export default function AdminAuditLog({ loaderData }: Route.ComponentProps) {
                     {e.target === null ? (
                       <span className="text-text-subtle">None</span>
                     ) : e.target.href ? (
-                      <Link to={e.target.href} className="underline underline-offset-2 hover:text-amber">
+                      <Link to={e.target.href} className="underline underline-offset-2 hover:text-brand-text">
                         {e.target.label}
                       </Link>
                     ) : (

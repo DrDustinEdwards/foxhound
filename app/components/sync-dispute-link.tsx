@@ -8,7 +8,7 @@ import { Form, useNavigation } from "react-router";
 // merchant importing a pre-connection dispute is most likely to be looking at.
 //
 // Legacy's shape kept: a quiet text link that swaps itself for a bordered card
-// with one mono input, an amber submit and a Cancel, plus the explanatory line
+// with one mono input, a teal (brand) submit and a Cancel, plus the explanatory line
 // underneath. Legacy's raw type values are mapped onto Foxhound's app scale
 // rather than ported literally (179/187 freeze the type scale in both
 // directions); every other class string is legacy's.
@@ -85,7 +85,7 @@ export function SyncDisputeLink({ result }: { result?: SyncDisputeResult }) {
           <button
             type="submit"
             disabled={syncing}
-            className="rounded-md bg-amber px-4 py-2 text-label font-semibold text-on-amber hover:bg-amber-dark disabled:opacity-60"
+            className="rounded-md bg-brand px-4 py-2 text-label font-semibold text-on-brand hover:bg-brand-dark disabled:opacity-60"
           >
             {syncing ? "Syncing..." : "Import dispute"}
           </button>

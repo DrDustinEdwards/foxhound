@@ -53,7 +53,7 @@ export default function CompareIndex({ loaderData }: Route.ComponentProps) {
                 <p className="mb-1 font-mono text-micro uppercase tracking-wide text-text-tertiary">{c.category}</p>
                 <p className="mb-2 text-body font-medium text-text">Foxhound vs {c.name}</p>
                 <p className="mb-4 text-label leading-relaxed text-text-secondary">{c.oneLiner}</p>
-                <div className="text-label text-amber-text">
+                <div className="text-label text-brand-text">
                   See the comparison{" "}
                   <ArrowRight
                     className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"

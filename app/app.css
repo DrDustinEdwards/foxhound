@@ -85,20 +85,30 @@
   --color-text-subtle: var(--text-subtle);
   --color-text-disabled: var(--text-disabled);
   --color-wordmark: var(--wordmark);
-  --color-amber: var(--amber);
-  --color-amber-ui: var(--amber-ui);
-  --color-amber-light: var(--amber-light);
-  --color-amber-dark: var(--amber-dark);
-  --color-amber-active: var(--amber-active);
-  --color-amber-bg: var(--amber-bg);
-  --color-amber-text: var(--amber-text);
-  --color-amber-border: var(--amber-border);
-  --color-amber-border-interactive: var(--amber-border-interactive);
-  --color-on-amber: var(--text-on-amber);
+  --color-brand: var(--brand);
+  --color-brand-dark: var(--brand-dark);
+  --color-brand-bg: var(--brand-bg);
+  --color-brand-text: var(--brand-text);
+  --color-brand-text-hover: var(--brand-text-hover);
+  --color-brand-border: var(--brand-border);
+  --color-brand-border-interactive: var(--brand-border-interactive);
+  --color-on-brand: var(--text-on-brand);
+  /* Caution, named by meaning: the middle band of a red / caution / green
+     scale (near target, watch, deadline soon, a stale cron, MRR at risk,
+     expiring cards). Recova drew it in its accent colour; Foxhound's accent is
+     teal, which reads as neutral beside green, so caution takes the warning
+     status tokens (job_3037f6d2a135 review). Changing the caution palette is
+     these three lines. Inline, so the admin's mapping of the warning tokens
+     applies. Text: #f97316 dark (6.70:1 on --bg, 5.59:1 on --surface2),
+     #7a5c00 light (5.78:1 on --bg, 5.86:1 on --caution-bg). */
+  --color-caution: var(--warning-text);
+  --color-caution-bg: var(--orange-bg);
+  --color-caution-border: var(--warning-border);
   --color-chrome: var(--chrome);
   --color-chrome-text: var(--chrome-text);
   --color-chrome-text-secondary: var(--chrome-text-secondary);
   --color-chrome-text-tertiary: var(--chrome-text-tertiary);
+  --color-chrome-brand: var(--chrome-brand);
   --color-cobalt: var(--cobalt-ui);
   --color-cobalt-hover: var(--cobalt-hover);
   --color-cobalt-active: var(--cobalt-active);
@@ -309,21 +319,31 @@
   --text-disabled: #8a837b;
   --wordmark: #f5f5f3;
 
-  /* Amber: two roles, two tokens (DESIGN.md rule 3). --amber-ui drives
-     backgrounds/borders; --amber-text is the text-safe variant (identical
-     in dark, split from ui in light for contrast). */
-  --amber-ui: #f0b429;
-  --amber: var(--amber-ui);
-  --amber-light: #ffd166;
-  --amber-dark: #d4941a;
-  --amber-active: #b87c10;
-  --amber-bg: #1e1a0a;
-  --amber-bg2: #1f1a0a;
-  --amber-text: #f0b429;
-  --amber-border: #3d3010;
-  --amber-border-interactive: #826217;
-  --text-on-amber: #0d0e0c;
-  --border-focus: #f0b429;
+  /* The brand accent: teal throughout (Q11, Dustin "yes", 2026-10-14;
+     Capsid foxhound/parity/ANSWERS-2026-10-14.md), from Capsomer's teal family
+     (capsomer/tokens/family-teal.css, core #008489). Two roles, two tokens
+     (DESIGN.md rule 3): --brand-ui drives fills and borders; --brand-text is
+     the text-safe variant. In dark the fill is the header band's teal,
+     #249398 with #070f0f on it (Capsomer's dark primary and primary-fg).
+     --brand-dark is the hover step of a fill, so in dark it is lighter, not
+     darker: the text on a fill is dark, and a darker teal would drop it under
+     4.5:1. Text on a page surface takes --brand-text, never --brand: the
+     fill is 4.25:1 on --surface2 in dark. Ratios (WCAG 2.2): #070f0f on
+     #249398 5.26:1, on #55a8ab 6.99:1; #249398 as a boundary or a graphic
+     5.10:1 on --bg and 4.79:1 on --surface; #97c8cb on --bg 10.23:1 and on
+     --surface 9.61:1; --brand-border-interactive 3.85:1 on --bg;
+     --border-focus 5.10:1 on --bg. */
+  --brand-ui: #249398;
+  --brand: var(--brand-ui);
+  --brand-dark: #55a8ab;
+  --brand-bg: #1a2d2e;
+  --brand-text: #97c8cb;
+  /* A brand-text link on hover: Capsomer's accent-hover, 15.86:1 on --bg. */
+  --brand-text-hover: #e3eeee;
+  --brand-border: #294547;
+  --brand-border-interactive: #2d7c80;
+  --text-on-brand: #070f0f;
+  --border-focus: #249398;
 
   /* Chrome (nav/footer/mobile bar): dark in both modes, defined once here. */
   --chrome: #1a1c18;
@@ -331,6 +351,9 @@
   --chrome-text-secondary: #a8a49e;
   --chrome-text-tertiary: #928d87;
   --chrome-border: #2a2b28;
+  /* The brand accent on the chrome: the header band's teal, one value in both
+     modes because the chrome is dark in both (4.66:1 on --chrome). */
+  --chrome-brand: var(--header-teal);
 
   /* Teal on the header band (Capsomer's teal family, Dustin's answer 1 of
      2026-10-13, recorded in parity/APPROVED-DIFFERENCES.md): the band stays
@@ -413,7 +436,6 @@
   --shadow-lg: 0 12px 32px rgb(0 0 0 / 40%);
   --scrim-light: rgb(0 0 0 / 45%);
   --scrim-dark: rgb(0 0 0 / 72%);
-  --scrim-amber: rgb(240 180 41 / 15%);
   --scrim-violet: rgb(180 41 240 / 15%);
 
   --warning: var(--orange);
@@ -422,10 +444,10 @@
   --error-bg: var(--red-bg);
   --bg-surface: var(--surface);
   --border-default: var(--border);
-  --gradient-brand: linear-gradient(135deg, var(--amber-ui), var(--amber-dark));
+  --gradient-brand: linear-gradient(135deg, var(--brand-ui), var(--brand-dark));
   --gradient-cobalt: linear-gradient(135deg, var(--cobalt-hover), var(--cobalt-active));
   --gradient-violet: linear-gradient(135deg, #721b98, var(--violet-vivid));
-  --gradient-brand-violet: linear-gradient(135deg, var(--amber-ui), var(--violet-vivid));
+  --gradient-brand-violet: linear-gradient(135deg, var(--chrome-brand), var(--violet-vivid));
   --gradient-dark: linear-gradient(135deg, var(--bg), var(--surface));
   --gradient-subtle: linear-gradient(180deg, var(--surface), var(--bg));
 }
@@ -439,7 +461,7 @@
   --surface2: #ffffff;
   --sunken: #eeede8;
   --hover: #e6e4de;
-  --selected: #fdf3d8;
+  --selected: #e8f5f5;
   --bg-disabled: #f2f2f2;
 
   --text: #14150f;
@@ -449,18 +471,25 @@
   --text-disabled: #636959;
   --wordmark: #181917;
 
-  --amber-ui: #f0b429;
-  --amber: var(--amber-ui);
-  --amber-light: #f0b429;
-  --amber-dark: #d4941a;
-  --amber-active: #9e6a0a;
-  --amber-text: #8a5c06;
-  --amber-border: #f5d98a;
-  --amber-border-interactive: #b2861f;
-  --text-on-amber: #0d0e0c;
-  --border-focus: #b5820d;
-  --amber-bg: #fff5d6;
-  --amber-bg2: #faecbf;
+  /* The brand accent in light (see the dark block): Capsomer's light primary
+     #077478 with its primary-fg #fbfefe as the fill (5.48:1), hovering to
+     #01585c (8.12:1); as a boundary or a graphic #077478 is 5.14:1 on --bg
+     and 5.56:1 on --surface. --brand-text is Capsomer's light accent text,
+     #01585c: 7.61:1 on --bg, 8.23:1 on --surface. --brand-border-interactive
+     and --border-focus are the family's core #008489: 4.17:1 on --bg, 4.50:1
+     on --surface. On the chrome, dark in both modes, the accent is
+     --chrome-brand, not this. */
+  --brand-ui: #077478;
+  --brand: var(--brand-ui);
+  --brand-dark: #01585c;
+  --brand-text: #01585c;
+  /* A brand-text link on hover: Capsomer's accent-hover, 15.90:1 on --bg. */
+  --brand-text-hover: #0c1e1f;
+  --brand-border: #badadb;
+  --brand-border-interactive: #008489;
+  --text-on-brand: #fbfefe;
+  --border-focus: #008489;
+  --brand-bg: #e8f5f5;
 
   --cobalt-ui: #2965f0;
   --cobalt-hover: #104fe0;
@@ -525,7 +554,6 @@
   --shadow-lg: 0 12px 32px rgb(0 0 0 / 12%);
   --scrim-light: rgb(0 0 0 / 45%);
   --scrim-dark: rgb(0 0 0 / 72%);
-  --scrim-amber: rgb(240 180 41 / 15%);
   --scrim-violet: rgb(180 41 240 / 15%);
 
   --warning: var(--orange);
@@ -534,10 +562,10 @@
   --error-bg: var(--red-bg);
   --bg-surface: var(--surface);
   --border-default: var(--border);
-  --gradient-brand: linear-gradient(135deg, var(--amber-ui), var(--amber-dark));
+  --gradient-brand: linear-gradient(135deg, var(--brand-ui), var(--brand-dark));
   --gradient-cobalt: linear-gradient(135deg, var(--cobalt-hover), var(--cobalt-active));
   --gradient-violet: linear-gradient(135deg, #721b98, var(--violet-vivid));
-  --gradient-brand-violet: linear-gradient(135deg, var(--amber-ui), var(--violet-vivid));
+  --gradient-brand-violet: linear-gradient(135deg, var(--chrome-brand), var(--violet-vivid));
   --gradient-dark: linear-gradient(135deg, var(--bg), var(--surface));
   --gradient-subtle: linear-gradient(180deg, var(--surface), var(--bg));
 }
@@ -585,9 +613,9 @@
     0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
 
-/* Primary amber CTA, ported from legacy app/globals.css:640 for the M6 product
+/* Primary brand-accent CTA (teal, Q11), ported from legacy app/globals.css:640 for the M6 product
    spokes (divergence 10: legacy uses this class, Foxhound was hand-rolling
-   `bg-amber hover:bg-amber-dark` at each call site). Pair it with text-on-amber
+   `bg-brand hover:bg-brand-dark` at each call site). Pair it with text-on-brand
    and the normal radius/padding/font utilities, exactly as legacy does.
 
    Sits OUTSIDE the reduced-motion guard because that is where legacy defines
@@ -599,14 +627,14 @@
    opt-outs, globals.css:768-802). That is a site-wide affordance, not this
    component's, and it belongs to a site-wide ledger row rather than to M6. */
 .btn-primary {
-  background: var(--amber);
+  background: var(--brand);
   transition:
     background 150ms ease,
     transform 150ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .btn-primary:hover {
-  background: var(--amber-dark);
+  background: var(--brand-dark);
 }
 
 .btn-primary:active {
@@ -773,14 +801,14 @@ body {
   margin-bottom: 0.375rem;
 }
 .blog-prose a {
-  color: var(--amber-text);
+  color: var(--brand-text);
   text-decoration: underline;
 }
 .blog-prose a:hover {
   opacity: 0.8;
 }
 .blog-prose blockquote {
-  border-left: 3px solid var(--amber);
+  border-left: 3px solid var(--brand);
   padding-left: 1rem;
   margin: 1.5rem 0;
   color: var(--text-secondary);
@@ -792,7 +820,7 @@ body {
   background: var(--surface);
   padding: 0.125rem 0.375rem;
   border-radius: 4px;
-  color: var(--amber-text);
+  color: var(--brand-text);
 }
 .blog-prose pre {
   background: var(--surface);
@@ -849,11 +877,11 @@ body {
 .blog-callout-content > :last-child {
   margin-bottom: 0;
 }
-.blog-callout-tip { border-color: var(--amber-border-interactive); }
+.blog-callout-tip { border-color: var(--brand-border-interactive); }
 .blog-callout-warning,
 .blog-callout-danger { border-color: var(--red); }
 .blog-pullquote {
-  border-left: 2px solid var(--amber);
+  border-left: 2px solid var(--brand);
   padding-left: 1.25rem;
   font-size: 1.0625rem;
   font-style: italic;
@@ -899,7 +927,7 @@ body {
   border-radius: 8px;
 }
 .blog-bookmark-link {
-  color: var(--amber-text);
+  color: var(--brand-text);
 }
 
 /* Reading progress bar, rendered above the site header on the post page.
@@ -912,7 +940,7 @@ body {
   top: 0;
   left: 0;
   height: 3px;
-  background: var(--amber);
+  background: var(--brand);
   z-index: 100;
   transition: width 0.1s linear;
   pointer-events: none;
@@ -944,7 +972,7 @@ body {
   width: 1rem;
   height: 1rem;
   border-radius: 9999px;
-  background: var(--amber-ui);
+  background: var(--brand-ui);
   border: 2px solid var(--surface);
   cursor: pointer;
   margin-top: -0.375rem;
@@ -954,7 +982,7 @@ body {
   width: 1rem;
   height: 1rem;
   border-radius: 9999px;
-  background: var(--amber-ui);
+  background: var(--brand-ui);
   border: 2px solid var(--surface);
   cursor: pointer;
 }

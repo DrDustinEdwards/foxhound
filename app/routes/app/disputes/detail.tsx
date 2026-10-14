@@ -251,7 +251,7 @@ export default function DisputeDetail({ loaderData }: Route.ComponentProps) {
                   defaultValue={field.fieldValue}
                   readOnly={!editable}
                   rows={4}
-                  className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text disabled:opacity-60 focus-visible:border-amber"
+                  className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text disabled:opacity-60 focus-visible:border-brand"
                   disabled={!editable}
                 />
               </label>
@@ -261,7 +261,7 @@ export default function DisputeDetail({ loaderData }: Route.ComponentProps) {
                 <button
                   type="submit"
                   disabled={busy}
-                  className="rounded-md bg-amber px-4 py-2 text-body font-medium text-on-amber disabled:opacity-60"
+                  className="rounded-md bg-brand px-4 py-2 text-body font-medium text-on-brand disabled:opacity-60"
                 >
                   {busy ? "Saving..." : "Save changes"}
                 </button>
@@ -287,7 +287,7 @@ export default function DisputeDetail({ loaderData }: Route.ComponentProps) {
             <button
               type="submit"
               disabled={busy}
-              className="rounded-md bg-amber px-4 py-2 text-body font-medium text-on-amber disabled:opacity-60"
+              className="rounded-md bg-brand px-4 py-2 text-body font-medium text-on-brand disabled:opacity-60"
             >
               {busy ? "Submitting..." : `Approve and submit (fee ${formatMoney(fee, dispute.currency)})`}
             </button>

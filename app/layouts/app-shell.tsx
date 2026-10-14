@@ -308,7 +308,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
           <>
             <span className="fh-app-page-name">{pageName}</span>
             {isDemo ? (
-              <span className="rounded border border-amber px-1.5 py-0.5 font-mono text-micro font-semibold uppercase tracking-wide text-amber">
+              <span className="rounded border border-brand px-1.5 py-0.5 font-mono text-micro font-semibold uppercase tracking-wide text-brand-text">
                 Demo
               </span>
             ) : null}
@@ -343,7 +343,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
             </span>
             <a
               href="/demo/exit"
-              className="shrink-0 rounded-md border border-border px-2.5 py-1 text-label font-medium text-chrome-text hover:border-amber"
+              className="shrink-0 rounded-md border border-border px-2.5 py-1 text-label font-medium text-chrome-text hover:border-chrome-brand"
             >
               {demoSignedIn ? "Exit demo, return to your account" : "Exit demo"}
             </a>
@@ -392,7 +392,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
       <main className="flex flex-col items-center justify-center gap-4 px-4 py-16 text-center">
         <h1 className="text-title font-medium text-text">{message}</h1>
         <p className="max-w-md text-body text-text-secondary">{details}</p>
-        <Link to="/dashboard" className="text-label text-amber-text hover:underline">
+        <Link to="/dashboard" className="text-label text-brand-text hover:underline">
           Back to Foxhound
         </Link>
       </main>
