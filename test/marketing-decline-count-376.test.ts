@@ -70,7 +70,8 @@ describe("PLANT 2: every marketing carrier derives the number", () => {
   const CARRIERS: { file: string; mustUse: string[] }[] = [
     { file: "app/routes/pricing.tsx", mustUse: ["DECLINE_CATEGORY_COUNT_WORD"] },
     {
-      file: "app/routes/features.tsx",
+      // /features' copy moved here with J60.
+      file: "app/lib/marketing/features-content.ts",
       mustUse: ["DECLINE_CATEGORY_COUNT_WORD", "DECLINE_CATEGORY_PHRASE"],
     },
     { file: "app/lib/compare/competitors.ts", mustUse: ["DECLINE_CATEGORY_COUNT_WORD_LOWER"] },
