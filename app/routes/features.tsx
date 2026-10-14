@@ -11,6 +11,7 @@ import {
   FEATURES_META_DESCRIPTION,
   FEATURES_SUBTEXT,
   featureSections,
+  healthBandExampleScores,
   healthBandSentence,
   type Feature,
   type FeatureFilterValue,
@@ -93,9 +94,9 @@ function SectionInlineExample({ id }: { id: string }) {
   if (id === "intelligence") {
     return (
       <div className="my-6 flex items-center gap-3 text-label text-text-secondary">
-        <HealthScoreBadge score={20} />
-        <HealthScoreBadge score={50} />
-        <HealthScoreBadge score={82} />
+        {healthBandExampleScores().map((score) => (
+          <HealthScoreBadge key={score} score={score} />
+        ))}
         <span>{healthBandSentence()}</span>
       </div>
     );
@@ -128,7 +129,7 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
     // Capsomer's teal family with Foxhound's neutrals. Foxhound's global focus
     // ring reads --border-focus (app.css); inside this page it reads the
     // family's --ring, so a keyboard user sees teal as in Capsomer's own parts.
-    <div className="fh-cap [--border-focus:var(--ring)]" data-family="teal">
+    <div className="fh-cap fh-features [--border-focus:var(--ring)]" data-family="teal">
       <style>{FEATURE_FILTER_CSS}</style>
       <MarketingPageHeader eyebrow="Platform" title="Features" subtext={FEATURES_SUBTEXT} />
 

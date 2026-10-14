@@ -422,6 +422,24 @@ describe("/features look: Capsomer's parts, teal, five sizes (Q11, Q12, RULES.md
   });
 });
 
+describe("/features focus rule (J60 review)", () => {
+  it("hands chips and the button their own ring on /features only, never under forced colours", () => {
+    const root = postcss.parse(readFileSync(repoFile("app/app.css"), "utf8"));
+    const hits: { selector: string; media: string | null }[] = [];
+    root.walkRules((r) => {
+      let media: string | null = null;
+      for (let p = r.parent; p && p.type !== "root"; p = p.parent) {
+        if (p.type === "atrule" && (p as { name?: string }).name === "media") media = (p as { params: string }).params;
+      }
+      if (/\.cap-(chip|btn)\b/.test(r.selector) && r.selector.includes(":focus-visible")) hits.push({ selector: r.selector, media });
+    });
+    expect(hits).toEqual([
+      { selector: ".fh-features :is(.cap-chip, .cap-btn):focus-visible", media: "not (forced-colors: active)" },
+    ]);
+    expect(render()).toMatch(/<div class="fh-cap fh-features[^"]*" data-family="teal"/);
+  });
+});
+
 describe("/features filter (Recova's mechanism, J60)", () => {
   it("renders with the wrapper set to All, so nothing is hidden before a press", () => {
     expect(render()).toContain('data-feature-filter="All"');

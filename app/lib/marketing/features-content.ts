@@ -93,6 +93,30 @@ export function cronIsDaily(expr: string): boolean {
   return /^\d+ \d+ \* \* \*$/.test(expr);
 }
 
+/** The cadence word for a schedule: "nightly" for a daily run (Foxhound's
+ *  daily jobs run at night, UTC), "weekly", "monthly", or "every N minutes". */
+export function cronCadence(expr: string): string {
+  if (/^\*\/\d+ \* \* \* \*$/.test(expr)) return `every ${cronEveryMinutes(expr)} minutes`;
+  if (cronIsDaily(expr)) return "nightly";
+  if (/^\d+ \d+ \* \* \d$/.test(expr)) return "weekly";
+  if (/^\d+ \d+ \d+ \* \*$/.test(expr)) return "monthly";
+  throw new Error(`no cadence word for schedule: ${expr}`);
+}
+
+/** When in its period a schedule runs: "the 1st of each month" for a monthly
+ *  run, "each Tuesday" for a weekly one, "each night" for a daily one. */
+export function cronWhen(expr: string): string {
+  const cadence = cronCadence(expr);
+  if (cadence === "monthly") return `the ${ordinal(cronMonthDay(expr))} of each month`;
+  if (cadence === "weekly") return `each ${cronWeekday(expr)}`;
+  if (cadence === "nightly") return "each night";
+  return cadence;
+}
+
+function capitalize(word: string): string {
+  return word.charAt(0).toUpperCase() + word.slice(1);
+}
+
 /** The day of the month of a monthly "M H D * *" schedule. */
 export function cronMonthDay(expr: string): number {
   const m = /^\d+ \d+ (\d+) \* \*$/.exec(expr);
@@ -146,6 +170,22 @@ function recoveryRateBands(): { redMax: number; cautionMax: number } {
   return { redMax, cautionMax };
 }
 
+/** The three example scores beside the health-band sentence, one per band.
+ *  Recova shows 20, 50 and 82; each is kept while it lands in its band under
+ *  Foxhound's thresholds, and becomes the band's midpoint if a threshold moves
+ *  past it, so a badge never shows a score in the wrong band. */
+export function healthBandExampleScores(): [number, number, number] {
+  const bands: [number, number, number][] = [
+    [20, 0, HEALTH_SCORE_AT_RISK_THRESHOLD - 1],
+    [50, HEALTH_SCORE_AT_RISK_THRESHOLD, WATCH_CEILING - 1],
+    [82, WATCH_CEILING, 100],
+  ];
+  const [a, b, c] = bands.map(([recova, lo, hi]) =>
+    recova >= lo && recova <= hi ? recova : Math.floor((lo + hi) / 2),
+  );
+  return [a, b, c];
+}
+
 /** Foxhound's health bands, as the intelligence section's example states them. */
 export function healthBandSentence(): string {
   return `red below ${HEALTH_SCORE_AT_RISK_THRESHOLD}, orange ${HEALTH_SCORE_AT_RISK_THRESHOLD}-${WATCH_CEILING - 1}, green at or above ${WATCH_CEILING}.`;
@@ -155,11 +195,17 @@ export function healthBandSentence(): string {
 
 export function featureSections(facts: FeatureFacts): FeatureSection[] {
   const tick = cronEveryMinutes(CRON_SCHEDULE_RECOVERY_TICK);
-  const billingDay = ordinal(cronMonthDay(CRON_SCHEDULE_MONTHLY));
-  const auditDay = ordinal(cronMonthDay(CRON_SCHEDULE_MONTHLY_AUDIT));
+  const billingWhen = cronWhen(CRON_SCHEDULE_MONTHLY);
+  const auditWhen = cronWhen(CRON_SCHEDULE_MONTHLY_AUDIT);
   const digestDay = cronWeekday(CRON_SCHEDULE_WEEKLY);
-  const nightly = cronIsDaily(CRON_SCHEDULE_DAILY) ? "nightly" : "on schedule";
-  const daily = cronIsDaily(CRON_SCHEDULE_DAILY) ? "daily" : "scheduled";
+  // Each cadence word is read from the schedule its job runs on (the cron
+  // registry pairs job and schedule; test/features-j60.test.ts checks it).
+  const nightly = cronCadence(CRON_SCHEDULE_DAILY);
+  const Nightly = capitalize(nightly);
+  const daily = cronIsDaily(CRON_SCHEDULE_DAILY) ? "daily" : cronCadence(CRON_SCHEDULE_DAILY);
+  const monthly = cronCadence(CRON_SCHEDULE_MONTHLY);
+  const Monthly = capitalize(monthly);
+  const auditCadence = cronCadence(CRON_SCHEDULE_MONTHLY_AUDIT);
   const fee = `${RECOVERY_FEE_BPS / 100}%`;
   const { redMax, cautionMax } = recoveryRateBands();
   const [winStep1, winStep2, winStep3] = WIN_BACK_SCHEDULE.map((s) => s.offsetHours);
@@ -186,28 +232,28 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
           product: "Recovery",
         },
         {
-          name: "Nightly expiring card alerts",
-          description: `Finds every card expiring within ${EXPIRING_CARD_DAYS_AHEAD} days each night and emails the customer a link to Foxhound's card-update page.`,
+          name: `${Nightly} expiring card alerts`,
+          description: `${Nightly}, finds every card expiring within ${EXPIRING_CARD_DAYS_AHEAD} days and emails the customer a link to Foxhound's card-update page.`,
           product: "Recovery",
         },
         {
-          name: "Nightly intelligence scoring",
-          description: "Computes health scores, predictions, and alerts for every customer nightly.",
+          name: `${Nightly} intelligence scoring`,
+          description: `Computes health scores, predictions, and alerts for every customer ${nightly}.`,
           product: "Intelligence",
         },
         {
-          name: "Monthly MRR snapshots",
-          description: `Pulls subscription data from Stripe and computes MRR, NRR, GRR, and the movement waterfall. Updated monthly, on the ${billingDay}.`,
+          name: `${Monthly} MRR snapshots`,
+          description: `Pulls subscription data from Stripe and computes MRR, NRR, GRR, and the movement waterfall. Updated ${monthly}, on ${billingWhen}.`,
           product: "Intelligence",
         },
         {
-          name: "Monthly recovery billing",
-          description: `Invoices ${fee} of matured Foxhound-attributed recoveries (held ${RECOVERY_MATURITY_DAYS} days or more) on the ${billingDay} of each month. Recoveries Stripe would have made anyway are never billed.`,
+          name: `${Monthly} recovery billing`,
+          description: `Invoices ${fee} of matured Foxhound-attributed recoveries (held ${RECOVERY_MATURITY_DAYS} days or more) on ${billingWhen}. Recoveries Stripe would have made anyway are never billed.`,
           product: "Platform",
         },
         {
-          name: "Monthly audit auto-run",
-          description: `Re-runs your Stripe diagnostic on the ${auditDay} of each month and emails you the results. Toggle on in Settings.`,
+          name: `${capitalize(auditCadence)} audit auto-run`,
+          description: `Re-runs your Stripe diagnostic on ${auditWhen} and emails you the results. Toggle on in Settings.`,
           product: "Audit",
         },
         {
@@ -216,8 +262,8 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
           product: "Platform",
         },
         {
-          name: "Nightly demo reset",
-          description: "Rebuilds the demo account's data nightly. The demo never touches live Stripe.",
+          name: `${Nightly} demo reset`,
+          description: `Rebuilds the demo account's data ${nightly}. The demo never touches live Stripe.`,
           product: "Platform",
         },
         {
@@ -267,7 +313,7 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
           product: "Audit",
         },
         {
-          name: "AI nightly analyst",
+          name: `AI ${nightly} analyst`,
           description: `Claude writes a plain-English narrative of the account's at-risk customers ${nightly}, from their real scores. It phrases the numbers, never invents one.`,
           product: "Intelligence",
         },
@@ -427,7 +473,7 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "Intelligence dashboard",
-          description: "MRR, NRR trend, MRR movement chart, health score distribution, and the monthly AI narrative.",
+          description: `MRR, NRR trend, MRR movement chart, health score distribution, and the ${nightly} AI narrative.`,
           product: "Intelligence",
         },
         {
@@ -528,7 +574,7 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "Audit auto-run toggle",
-          description: `Enable the monthly audit in Settings. It runs on the ${auditDay} and emails you the results.`,
+          description: `Enable the ${auditCadence} audit in Settings. It runs on ${auditWhen} and emails you the results.`,
           product: "Audit",
         },
         {
@@ -627,7 +673,7 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         {
           name: "Anthropic API",
           description:
-            "Claude Sonnet writes recovery emails, dispute evidence, and the nightly narrative. Claude Haiku writes audit summaries.",
+            `Claude Sonnet writes recovery emails, dispute evidence, and the ${nightly} narrative. Claude Haiku writes audit summaries.`,
           product: "Platform",
         },
         {
@@ -734,7 +780,7 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: `${facts.cronJobCount} cron jobs`,
-          description: `All ${facts.cronJobCount} registered. Scheduled from every ${tick} minutes to monthly. Status visible at /help.`,
+          description: `All ${facts.cronJobCount} registered. Scheduled from every ${tick} minutes to ${monthly}. Status visible at /help.`,
           product: "Platform",
         },
         {
@@ -756,7 +802,7 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "Demo system",
-          description: `A demo account (${DEMO_ACCOUNT_NAME}) that opens the real app read-only. Nightly reset.`,
+          description: `A demo account (${DEMO_ACCOUNT_NAME}) that opens the real app read-only. ${Nightly} reset.`,
           product: "Platform",
         },
         {
