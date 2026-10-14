@@ -73,12 +73,14 @@ export function buildRecoveryPreview(now: Date): RecoveryPreview {
     .filter((f) => !f.isRenewalNoise && f.deletedAt == null)
     .map((f) => ({ ...f, id: f.id as string, detectedAt: f.detectedAt as Date, status: f.status as string }))
     .sort((a, b) => b.detectedAt.getTime() - a.detectedAt.getTime());
-  const failureIds = new Set(failures.map((f) => f.id));
+  // listRecoveredWithFailureContext joins on renewal noise only, not on a
+  // soft-deleted failure, so the recovered total does the same.
+  const noiseIds = new Set(seed.failedPayments.filter((f) => f.isRenewalNoise).map((f) => f.id));
   const recoveredIds = new Set(seed.recoveredPayments.map((r) => r.failedPaymentId));
 
   const cutoff30 = nowMs - 30 * DAY_MS;
   const recovered30 = seed.recoveredPayments.filter(
-    (r) => failureIds.has(r.failedPaymentId) && r.recoveredAt.getTime() >= cutoff30,
+    (r) => !noiseIds.has(r.failedPaymentId) && r.recoveredAt.getTime() >= cutoff30,
   );
   const active = failures.filter((f) => f.status === "active");
   const cohort = failures.filter((f) => f.detectedAt.getTime() >= cutoff30);
