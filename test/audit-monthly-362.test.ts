@@ -210,12 +210,14 @@ async function seedRecovery(db: TestDb, accountId: string, cents: number, curren
   });
 }
 
-/** Collect every message body the run sent. */
+/** Collect every message body the run sent. Since J02 the body is read from
+ *  the plain-text part, which Capsomer writes from the same blocks as the HTML
+ *  part, so a sentence is asserted as words rather than as markup. */
 function collector() {
   const bodies: string[] = [];
   const to: string[] = [];
   const e = env(async (m) => {
-    bodies.push((m as { html?: string }).html ?? "");
+    bodies.push((m as { text?: string }).text ?? "");
     to.push((m as { to: string }).to);
     return { id: "m" };
   });
@@ -508,8 +510,8 @@ describe("(1): the cron is REGISTERED and the real runner executes it", () => {
     const { bodies, env: e } = collector();
     await runMonthlyAudit(e, NOW, null);
 
-    expect(bodies[0]).toContain(`<strong>Open disputes:</strong> ${SCOPE_UNREAD}`);
-    expect(bodies[0]).not.toContain("<strong>Open disputes:</strong> 0");
+    expect(bodies[0]).toContain(`Open disputes: ${SCOPE_UNREAD}`);
+    expect(bodies[0]).not.toContain("Open disputes: 0");
     // The stored row carries the same unknown, as a NULL rather than a zero.
     const stored = await db.select().from(auditRuns);
     expect(stored[0].openDisputesCount).toBeNull();

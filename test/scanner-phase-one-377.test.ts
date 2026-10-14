@@ -231,7 +231,7 @@ describe("trigger two: the honeypot", () => {
 
 describe("the trap is invisible and looks like everything else", () => {
   it("the injected link is hidden three ways, because one is escapable", async () => {
-    const { appendHoneypotLink } = await import("~/lib/engine/execute-step");
+    const { appendHoneypotLink } = await import("~/lib/email/templates");
     const html = appendHoneypotLink("<p>body</p>", "https://foxhoundapp.test/e/h/tok");
 
     expect(html).toContain("<p>body</p>");
@@ -244,7 +244,7 @@ describe("the trap is invisible and looks like everything else", () => {
   });
 
   it("its text gives no hint that it is a trap", async () => {
-    const { appendHoneypotLink } = await import("~/lib/engine/execute-step");
+    const { appendHoneypotLink } = await import("~/lib/email/templates");
     const html = appendHoneypotLink("", "https://x/e/h/t").toLowerCase();
     for (const tell of ["do not", "don't", "bot", "trap", "honeypot", "robot"]) {
       expect(html).not.toContain(tell);
@@ -252,7 +252,7 @@ describe("the trap is invisible and looks like everything else", () => {
   });
 
   it("the send carries the pixel AND the trap together", async () => {
-    const { appendOpenPixel, appendHoneypotLink } = await import("~/lib/engine/execute-step");
+    const { appendOpenPixel, appendHoneypotLink } = await import("~/lib/email/templates");
     const html = appendHoneypotLink(appendOpenPixel("<p>b</p>", "https://x/e/o/t"), "https://x/e/h/t");
     expect(html).toContain("/e/o/t");
     expect(html).toContain("/e/h/t");
