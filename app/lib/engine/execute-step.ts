@@ -25,6 +25,7 @@ import {
   type GenerateEmailInput,
 } from "~/lib/recovery/email-generation";
 import { buildTemplateEmail } from "~/lib/recovery/email-template";
+import { linksTo, storedCopyCarriesRecoveryLink } from "~/lib/recovery/update-link";
 import { reconcileRetryRecovery as reconcileRetryRecoveryReal } from "~/lib/recovery/record-recovery";
 import type { RetryReconciliationInput } from "~/lib/recovery/record-recovery";
 import type { StepStatePatch } from "~/lib/recovery/step-state";
@@ -567,8 +568,11 @@ function templateCopyFor(ctx: EmailStepContext, updateUrl: string, customBody: s
   );
 }
 
-/** Why the deterministic template was used, when it was. */
-export type TemplateReason = "generation_failed" | "quality_gate";
+/** Why the deterministic template was used, when it was. `missing_update_link`
+ *  means the copy that would have gone out did not link the update page. */
+export type TemplateReason = "generation_failed" | "quality_gate" | "missing_update_link";
+
+type ResolvedCopy = { copy: EmailCopy; usedTemplate: boolean; templateReason: TemplateReason | null };
 
 /**
  * Resolve the copy to send, falling back to the deterministic template when
@@ -605,7 +609,7 @@ async function resolveCopyForSend(
   ctx: EmailStepContext,
   updateUrl: string,
   generate: EmailStepDeps["generate"],
-): Promise<{ copy: EmailCopy; usedTemplate: boolean; templateReason: TemplateReason | null }> {
+): Promise<ResolvedCopy> {
   const plan = resolveContentPlan(ctx.cached);
   if (plan.source === "cache") {
     return { copy: plan.copy, usedTemplate: false, templateReason: null };
@@ -648,6 +652,51 @@ async function resolveCopyForSend(
 }
 
 /**
+ * THE UPDATE-LINK CHECK, after the copy is resolved and before the send. No
+ * dunning email leaves without its update link, because a body without it
+ * loses the recovery and the billable click while the send still succeeds.
+ *
+ * Fresh copy (generated, or the template) must link the URL minted for this
+ * send exactly. Copy read back from the step row (cached or custom body) may
+ * instead carry a link an earlier attempt minted for the same step and payment
+ * that is still live, because a card-update token carries its issue time and so
+ * a retry's freshly minted link never matches the stored one byte for byte.
+ *
+ * Copy that fails is replaced by the BARE template, without the merchant's
+ * custom body, because a custom body is exactly the body that failed. The
+ * template links the minted URL by construction; if it ever did not, this
+ * throws, the executor records a transient failure, and nothing is sent.
+ */
+async function withUpdateLink(
+  env: Env,
+  ctx: EmailStepContext,
+  baseUrl: string,
+  updateUrl: string,
+  resolved: ResolvedCopy,
+): Promise<ResolvedCopy> {
+  // The body came off the step row when a custom body exists (it wins over
+  // every source) or when the plan sent cached copy.
+  const fromStorage =
+    ctx.cached.customBody != null || resolveContentPlan(ctx.cached).source === "cache";
+  const carries = fromStorage
+    ? await storedCopyCarriesRecoveryLink(env, resolved.copy.bodyHtml, {
+        baseUrl,
+        mintedUrl: updateUrl,
+        stepId: ctx.stepId,
+        accountId: ctx.accountId,
+        failedPaymentId: ctx.failedPaymentId,
+      })
+    : linksTo(resolved.copy.bodyHtml, updateUrl);
+  if (carries) return resolved;
+
+  const template = templateCopyFor(ctx, updateUrl, null);
+  if (!linksTo(template.bodyHtml, updateUrl)) {
+    throw new Error("update link missing from the template; not sending");
+  }
+  return { copy: template, usedTemplate: true, templateReason: "missing_update_link" };
+}
+
+/**
  * Execute one email step: resolve content (custom body / cached AI / generate,
  * falling back to the template) -> send via the one send module -> pure decision
  * (with the send-attempt backoff) -> operational persist. A token-signing or send
@@ -677,7 +726,13 @@ export async function executeEmailStep(
     // Token signing must succeed before either path: the template needs the same
     // click-tracked CTA the generated copy would carry, so there is no useful
     // email to send without it. A signing failure stays a transient failure.
-    const resolved = await resolveCopyForSend(env, ctx, urls.clickTrackedUpdateUrl, generate);
+    const resolved = await withUpdateLink(
+      env,
+      ctx,
+      baseUrl,
+      urls.clickTrackedUpdateUrl,
+      await resolveCopyForSend(env, ctx, urls.clickTrackedUpdateUrl, generate),
+    );
     usedTemplate = resolved.usedTemplate;
     templateReason = resolved.templateReason;
     resolvedCopy = resolved.copy;

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   TEMPLATE_LABEL_FALLBACK,
   TEMPLATE_LABEL_GENERATED,
+  buildEngagementUrls,
   executeEmailStep,
   type EmailStepContext,
 } from "~/lib/engine/execute-step";
@@ -50,13 +51,15 @@ interface Captured {
 /** Drive executeEmailStep with injected seams, capturing what it tried to send
  *  and persist. `generate` defaults to throwing, which is the outage case. */
 async function run(opts: {
-  generate?: () => Promise<EmailCopy>;
+  generate?: (updateUrl: string) => Promise<EmailCopy>;
   send?: (job: EmailJob) => Promise<EmailJobResult>;
   context?: Partial<EmailStepContext>;
 }) {
   const captured: Captured = { jobs: [], patches: [] };
   const result = await executeEmailStep(env, ctx(opts.context), {
-    generate: opts.generate ?? (() => Promise.reject(new Error("anthropic 503"))),
+    generate: opts.generate
+      ? (_e, updateUrl) => opts.generate!(updateUrl)
+      : () => Promise.reject(new Error("anthropic 503")),
     send:
       opts.send
         ? (_e, job) => {
@@ -91,7 +94,10 @@ describe("a generation failure sends the template instead of nothing", () => {
 
   it("labels a normal generated send distinctly, so the fallback rate is queryable", async () => {
     const { result, captured } = await run({
-      generate: async () => ({ subject: "Quick note", bodyHtml: "<p>Please update your card.</p>" }),
+      generate: async (url) => ({
+        subject: "Quick note",
+        bodyHtml: `<p>Please <a href="${url}">update your card</a>.</p>`,
+      }),
     });
     expect(result.usedTemplate).toBe(false);
     expect(captured.jobs[0].template).toBe(TEMPLATE_LABEL_GENERATED);
@@ -126,10 +132,14 @@ describe("a generation failure sends the template instead of nothing", () => {
   });
 
   // A merchant override must survive the fallback exactly as it survives
-  // generation: custom_body wins over the template body too.
+  // generation: custom_body wins over the template body too, provided it
+  // carries the update link (a custom body without it is replaced, see
+  // recovery-update-link-guard.test.ts).
   it("keeps a merchant custom body when falling back", async () => {
+    const { clickTrackedUpdateUrl } = await buildEngagementUrls(env, ctx(), "https://foxhoundapp.com");
+    const customBody = `<p>Merchant wrote this. <a href="${clickTrackedUpdateUrl}">Update</a></p>`;
     const { captured } = await run({
-      context: { cached: { customBody: "<p>Merchant wrote this.</p>", cachedSubject: null, cachedBodyHtml: null } },
+      context: { cached: { customBody, cachedSubject: null, cachedBodyHtml: null } },
     });
     expect(captured.jobs[0].bodyHtml).toContain("Merchant wrote this.");
   });
@@ -184,13 +194,14 @@ describe("genuine send failures keep their backoff", () => {
 
 describe("cached copy is untouched by the fallback", () => {
   it("sends cached copy without generating or falling back", async () => {
+    const { clickTrackedUpdateUrl } = await buildEngagementUrls(env, ctx(), "https://foxhoundapp.com");
     const { result, captured } = await run({
       generate: () => Promise.reject(new Error("must not be called")),
       context: {
         cached: {
           customBody: null,
           cachedSubject: "Cached subject",
-          cachedBodyHtml: "<p>Cached body.</p>",
+          cachedBodyHtml: `<p>Cached body. <a href="${clickTrackedUpdateUrl}">Update</a></p>`,
         },
       },
     });

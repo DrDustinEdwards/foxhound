@@ -254,7 +254,11 @@ describe("email executor: send-result mapping + persist", () => {
 describe("email executor: orchestration + failure isolation", () => {
   it("a cached-content send marks the step sent and persists once", async () => {
     let persistedResult: string | null = "unset";
-    const res = await executeEmailStep(env, emailCtx(), {
+    // Cached copy carries the update link an earlier attempt minted for this
+    // step, as every cached body the executor writes does.
+    const { clickTrackedUpdateUrl } = await buildEngagementUrls(env, emailCtx(), "https://foxhound.example");
+    const cachedBodyHtml = `<p>Body <a href="${clickTrackedUpdateUrl}">Update</a></p>`;
+    const res = await executeEmailStep(env, emailCtx({ cached: { customBody: null, cachedSubject: "Subject", cachedBodyHtml } }), {
       send: async () => ({ status: "sent", providerMessageId: "p1", error: null, retryable: false }),
       persistPatch: async (_env, _id, patch) => {
         persistedResult = patch.result;

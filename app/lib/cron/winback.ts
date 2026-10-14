@@ -15,6 +15,7 @@ import {
   WINBACK_TEMPLATE,
 } from "~/lib/recovery/winback-email";
 import { generateWinbackEmail } from "~/lib/recovery/winback-generation";
+import { linksTo, storedCopyCarriesResubscribeLink } from "~/lib/recovery/update-link";
 import { isLastWinbackStep, WINBACK_STATUS } from "~/lib/recovery/winback";
 
 // THE WIN-BACK SEND CRON. Ported from legacy's
@@ -222,6 +223,14 @@ export interface WinbackCopy {
  * EVERY FAILURE FALLS BACK. A missing key, a throw, a parse miss or a failed
  * gate all end at legacy's template, and the step records
  * `email_sent_fallback`, so a merchant's customer always gets an email.
+ *
+ * SO DOES COPY WITHOUT THE LINK. The resubscribe link is the email's only
+ * button, so generated copy must link the URL minted for this send exactly, and
+ * cached copy must link either that URL or a still-live one an earlier tick
+ * minted for the same sequence and step (a token carries its issue time, so the
+ * two never match byte for byte). Generated copy that fails is not cached. The
+ * template links the minted URL by construction; if it ever did not, this
+ * throws, the tick's catch skips the step unclaimed, and nothing is sent.
  */
 export async function resolveWinbackCopy(
   env: Env,
@@ -229,21 +238,35 @@ export async function resolveWinbackCopy(
   step: DueWinbackStep,
   resubscribeUrl: string,
 ): Promise<WinbackCopy> {
-  const template = (): WinbackCopy => ({
-    subject: winbackSubject({ stepNumber: step.stepNumber, planName: step.planName }),
-    bodyHtml: buildWinbackEmail({
+  const template = (): WinbackCopy => {
+    const bodyHtml = buildWinbackEmail({
       stepNumber: step.stepNumber,
       customerName: step.customerName,
       planName: step.planName,
       senderName: step.senderName,
       resubscribeUrl,
-    }),
-    result: "email_sent_fallback",
-  });
+    });
+    if (!linksTo(bodyHtml, resubscribeUrl)) {
+      throw new Error("resubscribe link missing from the win-back template; not sending");
+    }
+    return {
+      subject: winbackSubject({ stepNumber: step.stepNumber, planName: step.planName }),
+      bodyHtml,
+      result: "email_sent_fallback",
+    };
+  };
 
   // Legacy's cache check, first: "if a previous tick already generated this
   // step's copy, reuse it rather than paying for another Claude call".
   if (step.cachedSubject && step.cachedBodyHtml) {
+    const carries = await storedCopyCarriesResubscribeLink(env, step.cachedBodyHtml, {
+      baseUrl: env.BETTER_AUTH_URL ?? "",
+      mintedUrl: resubscribeUrl,
+      sequenceId: step.sequenceId,
+      stepNumber: step.stepNumber,
+      accountId: step.accountId,
+    });
+    if (!carries) return template();
     return {
       subject: step.cachedSubject,
       bodyHtml: step.cachedBodyHtml,
@@ -264,6 +287,7 @@ export async function resolveWinbackCopy(
       resubscribeUrl,
     });
     if (!passesQualityGate(generated)) return template();
+    if (!linksTo(generated.bodyHtml, resubscribeUrl)) return template();
 
     // Persisted BEFORE the send, which is legacy's placement and its reason.
     await db

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   TEMPLATE_LABEL_FALLBACK,
   TEMPLATE_LABEL_GENERATED,
+  buildEngagementUrls,
   executeEmailStep,
   type EmailStepContext,
 } from "~/lib/engine/execute-step";
@@ -46,10 +47,21 @@ function ctx(overrides: Partial<EmailStepContext> = {}): EmailStepContext {
   };
 }
 
+/** A link of the kind the executor mints for this step, for copy that must
+ *  carry one (a custom body or cached copy read back from the step row). */
+async function stepLink(): Promise<string> {
+  return (await buildEngagementUrls(env, ctx(), "https://foxhoundapp.com")).clickTrackedUpdateUrl;
+}
+
 async function runWithGenerated(copy: EmailCopy, context: Partial<EmailStepContext> = {}) {
   const jobs: EmailJob[] = [];
   const result = await executeEmailStep(env, ctx(context), {
-    generate: async () => copy,
+    // `{{LINK}}` stands where a model writes the update link it was given, so
+    // passing copy carries the link and the gate is the only thing under test.
+    generate: async (_e, updateUrl) => ({
+      subject: copy.subject,
+      bodyHtml: copy.bodyHtml.replaceAll("{{LINK}}", updateUrl),
+    }),
     send: (_e, job) => {
       jobs.push(job);
       return Promise.resolve({ status: "sent" } as EmailJobResult);
@@ -61,7 +73,7 @@ async function runWithGenerated(copy: EmailCopy, context: Partial<EmailStepConte
 
 const CLEAN: EmailCopy = {
   subject: "A payment issue with Teamflow",
-  bodyHtml: "<p>Your payment did not go through. You can update your card here.</p>",
+  bodyHtml: '<p>Your payment did not go through. You can <a href="{{LINK}}">update your card here</a>.</p>',
 };
 
 // One violating sample PER RULE CLASS, not one clean sample. Each of these is a
@@ -179,9 +191,10 @@ describe("the gate polices the model, not the merchant", () => {
   // Rejecting it for an em dash would be the tool overruling the user, so the
   // gate runs on the GENERATED copy before applyCustomBody.
   it("keeps a merchant custom body containing an em dash", async () => {
+    const link = await stepLink();
     const { job } = await runWithGenerated(CLEAN, {
       cached: {
-        customBody: "<p>We tried your card — it did not work. Please update it.</p>",
+        customBody: `<p>We tried your card — it did not work. Please <a href="${link}">update it</a>.</p>`,
         cachedSubject: null,
         cachedBodyHtml: null,
       },
@@ -190,11 +203,12 @@ describe("the gate polices the model, not the merchant", () => {
   });
 
   it("still falls back for the SUBJECT when generation violates and a custom body exists", async () => {
+    const link = await stepLink();
     const { result, job } = await runWithGenerated(
       { subject: "Your day 3 reminder", bodyHtml: "<p>Generated body.</p>" },
       {
         cached: {
-          customBody: "<p>Merchant body.</p>",
+          customBody: `<p>Merchant body. <a href="${link}">Update</a></p>`,
           cachedSubject: null,
           cachedBodyHtml: null,
         },
@@ -218,7 +232,7 @@ describe("the gate does not touch cached copy", () => {
         cached: {
           customBody: null,
           cachedSubject: "Cached — subject with a dash",
-          cachedBodyHtml: "<p>Cached body.</p>",
+          cachedBodyHtml: `<p>Cached body. <a href="${await stepLink()}">Update</a></p>`,
         },
       }),
       {
