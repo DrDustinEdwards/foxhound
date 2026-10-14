@@ -1,3 +1,4 @@
+import { readFileSync as readSource } from "node:fs";
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -47,7 +48,6 @@ const { loader } = await import("~/routes/auth/connect-callback");
 const { verifyConnectState, buildConnectState, ADD_ACCOUNT_ACTION, CONNECT_ACTION } = await import(
   "~/lib/stripe/connect-state"
 );
-const { bindSwitcherDismiss } = await import("~/components/nav/account-switcher");
 const schema = await import("~/db/schema");
 const { STRIPE_OAUTH_STATE_COOKIE } = await import("~/lib/constants");
 
@@ -403,52 +403,27 @@ describe("PLANT 5: an unminted or unknown state is refused before any write", ()
   });
 });
 
-describe("PLANT 8: Escape closes the menu, and outside mousedown still does", () => {
-  function recorder() {
-    const handlers = new Map<string, (e: unknown) => void>();
-    const removed: string[] = [];
-    const target = {
-      addEventListener: (type: string, fn: (e: unknown) => void) => handlers.set(type, fn),
-      removeEventListener: (type: string) => removed.push(type),
-    } as unknown as Document;
-    return { handlers, removed, target };
-  }
+describe("PLANT 8: Escape closes the switcher's panel, and an outside press still does", () => {
+  // Capsomer 0.9.0 moved the switcher into the site header (Dustin's answer 3 of
+  // 2026-10-13): its panel is Capsomer's disclosure panel, wired by
+  // capsomer/behaviour/site-header's wirePanel, which owns Escape and light
+  // dismiss for every header panel. Foxhound's own bindSwitcherDismiss went
+  // with the old dropdown, so this pins the two halves that remain: Foxhound
+  // hands the switcher to the header, and the header's behaviour closes a
+  // panel on Escape and on a press outside it.
+  const read = (p: string) => readSource(new URL(p, import.meta.url), "utf8");
 
-  it("Escape closes", () => {
-    const { handlers, target } = recorder();
-    let closed = 0;
-    bindSwitcherDismiss({ target, isInside: () => false, close: () => (closed += 1) });
-    handlers.get("keydown")!({ key: "Escape" });
-    expect(closed).toBe(1);
+  it("both headers hand the business switcher to Capsomer's switcher slot", () => {
+    expect(read("../app/components/header.tsx")).toMatch(/businessSwitcher\(accounts, activeAccountId\)/);
+    expect(read("../app/components/header.tsx")).toContain("switchers={switchers}");
+    expect(read("../app/layouts/app-shell.tsx")).toMatch(/businessSwitcher\(accounts, activeAccountId\)/);
+    expect(read("../app/layouts/app-shell.tsx")).toContain("switchers={business ? [business, products] : [products]}");
   });
 
-  it("another key does not, which is what makes the first case discriminate", () => {
-    const { handlers, target } = recorder();
-    let closed = 0;
-    bindSwitcherDismiss({ target, isInside: () => false, close: () => (closed += 1) });
-    handlers.get("keydown")!({ key: "Enter" });
-    handlers.get("keydown")!({ key: "Esc" });
-    expect(closed).toBe(0);
-  });
-
-  it("legacy's outside mousedown still closes, and an inside one does not", () => {
-    const { handlers, target } = recorder();
-    let closed = 0;
-    let inside = false;
-    bindSwitcherDismiss({ target, isInside: () => inside, close: () => (closed += 1) });
-
-    handlers.get("mousedown")!({ target: {} });
-    expect(closed).toBe(1);
-
-    inside = true;
-    handlers.get("mousedown")!({ target: {} });
-    expect(closed).toBe(1);
-  });
-
-  it("teardown removes BOTH listeners, so neither outlives the open state", () => {
-    const { removed, target } = recorder();
-    bindSwitcherDismiss({ target, isInside: () => false, close: () => {} })();
-    expect(removed.sort()).toEqual(["keydown", "mousedown"]);
+  it("the header's panel behaviour closes on Escape, on no other key, and on an outside press", () => {
+    const behaviour = read("../node_modules/capsomer/dist/components/site-header/site-header.js");
+    expect(behaviour).toContain('if (e.key !== "Escape")');
+    expect(behaviour).toMatch(/on\(document, "pointerdown"[\s\S]{0,200}!panel\.contains\(t\) && !trigger\.contains\(t\)\)\s*close\(\)/);
   });
 });
 

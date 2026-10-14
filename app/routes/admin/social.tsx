@@ -1,13 +1,15 @@
-import { AdminNav } from "~/components/admin-nav";
 import { Badge } from "~/components/badge";
 import { getDb } from "~/db";
 import { getSocialSnapshot } from "~/lib/admin/social.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import type { AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/social";
 
+export const handle: AdminHandle = { page: "Social" };
+
 export function meta() {
-  return [{ title: "Social - Foxhound Admin" }];
+  return [{ title: "Social - Foxhound admin" }];
 }
 
 export async function loader({ context }: Route.LoaderArgs) {
@@ -21,9 +23,7 @@ export default function AdminSocial({ loaderData }: Route.ComponentProps) {
   const { config, recentLeads, recentPosts } = loaderData;
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
-      <h1 className="text-title font-medium text-text">Social</h1>
-      <AdminNav />
+    <div>
 
       <p className="rounded-lg border border-dashed border-border p-4 text-label text-text-tertiary">
         The scout/responder/poster engine isn't built yet. This page reads the real

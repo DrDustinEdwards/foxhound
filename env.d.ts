@@ -20,6 +20,14 @@ interface Env {
   // Admin allowlist (C4). Comma-separated emails granted the admin role.
   // Access-control sensitive -> secret, not a committed var. Unset => no admins.
   ADMIN_EMAIL?: string;
+  // Cloudflare Access in front of /admin (app/lib/auth/access.server.ts). The
+  // team domain (https://<team>.cloudflareaccess.com) and the Access
+  // application's AUD tag. Either unset => nobody is admin (fails closed).
+  ACCESS_TEAM_DOMAIN?: string;
+  ACCESS_AUD?: string;
+  // "1" in .dev.vars only: lets localhost into /admin as the first ADMIN_EMAIL,
+  // since no Access sits in front of `npm run dev`. Ignored on any other host.
+  ACCESS_DEV_BYPASS?: string;
 
   // ---- Phase 4a: Stripe Connect + token encryption ----
   // AES-256-GCM key for encrypting connected-account Stripe tokens at rest.

@@ -41,7 +41,9 @@ const { ADD_ACCOUNT_PATH } = await import("~/lib/nav/paths");
 const { ADD_ACCOUNT_ACTION, buildConnectState, parseConnectState } = await import(
   "~/lib/stripe/connect-state"
 );
-const { accountLabel, accountInitial } = await import("~/components/nav/account-switcher");
+const { accountLabel, accountInitial, businessSwitcher, switchAccountHref, switchTargetFromHref } = await import(
+  "~/components/nav/account-switcher"
+);
 const { loader: addAccountLoader } = await import("~/routes/auth/connect-additional");
 
 const USER = "user_1";
@@ -191,8 +193,19 @@ function code(path: string): string {
     .replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
 }
 
-describe("the rendered switcher matches legacy's structure", () => {
+describe("the switcher, in Capsomer's site header (Dustin's answer 3, 2026-10-13)", () => {
+  // Phase (e) built the switcher to legacy's AccountSwitcher.tsx (blob
+  // 70567b69) as a round avatar on the right. Capsomer 0.9.0's site header
+  // moves it to the LEFT as a square tile with the business's initial, before
+  // the product switcher, and its panel is Capsomer's. That is an approved
+  // difference (parity/APPROVED-DIFFERENCES.md), so legacy's geometry
+  // assertions went with the old dropdown. What legacy fixed and the move
+  // keeps is pinned here: the rows, the switch transport and the add row.
   const SOURCE = code("../app/components/nav/account-switcher.tsx");
+  const accounts = [
+    { id: "acct_a", name: "Acme Supply Co.", stripeUserId: null },
+    { id: "acct_b", name: null, stripeUserId: "acct_1Stripe" },
+  ];
 
   it("the comment stripper actually stripped something", () => {
     // Calibration, so "not present" cannot quietly mean "nothing was read".
@@ -202,48 +215,46 @@ describe("the rendered switcher matches legacy's structure", () => {
     );
     expect(SOURCE.length).toBeGreaterThan(500);
     expect(SOURCE.length).toBeLessThan(raw.length);
-    expect(raw).toContain("bg-amber-dark");
-    expect(SOURCE).not.toContain("bg-amber-dark");
+    expect(raw).toContain("AccountSwitcher.tsx:112");
+    expect(SOURCE).not.toContain("AccountSwitcher.tsx:112");
   });
 
-  it("carries legacy's measurable geometry", () => {
-    // From components/AccountSwitcher.tsx (blob 70567b69), enumerated in the
-    // session episodic before any of this was written.
-    expect(SOURCE).toContain("h-7 w-7"); // 28px trigger
-    expect(SOURCE).toContain("min-w-[200px]"); // dropdown width
-    expect(SOURCE).toContain("z-50");
-    expect(SOURCE).toContain("h-6 w-6"); // 24px row avatar
-    expect(SOURCE).toContain("px-3 py-2"); // row padding
-    expect(SOURCE).toContain("my-1 border-t border-border"); // the divider
-    expect(SOURCE).toContain("font-semibold text-text"); // active row weight
-    expect(SOURCE).toContain("text-text-tertiary"); // inactive row
+  it("is a square tile with the ACTIVE account's initial and label", () => {
+    const sw = businessSwitcher(accounts, "acct_b");
+    expect(sw?.tile).toBe("A");
+    expect(sw?.label).toBe("acct_1Stripe");
+    expect(sw?.name).toBe("Switch account: acct_1Stripe");
+    // Falls back to the first account when the active id is unknown.
+    expect(businessSwitcher(accounts, "gone")?.label).toBe("Acme Supply Co.");
   });
 
-  it("uses the amber dot at legacy's two sizes, with no ring", () => {
-    // 8px on the trigger, 6px on the active row (AccountSwitcher.tsx:73, :99).
-    expect(SOURCE).toContain("h-2 w-2 rounded-full bg-amber");
-    expect(SOURCE).toContain("h-1.5 w-1.5 rounded-full bg-amber");
-    // The avatar this replaces carried `bg-amber-dark ring-2 ring-chrome`, an
-    // unratified divergence corrected toward legacy. If either comes back the
-    // dot has drifted again.
-    expect(SOURCE).not.toContain("bg-amber-dark");
-    expect(SOURCE).not.toContain("ring-chrome");
+  it("lists every account, the active one current, then + Add account", () => {
+    const sw = businessSwitcher(accounts, "acct_a")!;
+    expect(sw.groups).toHaveLength(1);
+    const links = sw.groups[0]!.links;
+    expect(links.map((l) => [l.label, Boolean(l.current)])).toEqual([
+      ["Acme Supply Co.", true],
+      ["acct_1Stripe", false],
+      ["+ Add account", false],
+    ]);
+    expect(links.at(-1)).toEqual({ id: "add-account", label: "+ Add account", href: ADD_ACCOUNT_PATH });
   });
 
-  it("renders the row parts legacy renders", () => {
-    expect(SOURCE).toContain("accountInitial(a)");
-    expect(SOURCE).toContain("accountLabel(a)");
-    expect(SOURCE).toContain("truncate");
-    expect(SOURCE).toContain("+ Add account");
-    expect(SOURCE).toContain('aria-label="Switch account"');
-    expect(SOURCE).toContain("aria-expanded={open}");
+  it("is absent with no account at all", () => {
+    expect(businessSwitcher([], null)).toBeNull();
   });
 
-  it("hard-navigates after the POST, which is legacy's re-read", () => {
+  it("an account row switches through the POST, then hard-navigates (legacy's re-read)", () => {
+    expect(switchTargetFromHref(switchAccountHref("acct_b"))).toBe("acct_b");
+    expect(switchTargetFromHref("/settings")).toBeNull();
     expect(SOURCE).toContain("window.location.assign");
     expect(SOURCE).toContain("window.location.pathname + window.location.search");
     // The switch itself goes to phase (b)'s action.
     expect(SOURCE).toContain('"/api/account/switch"');
+    // The header draws that row as a button, and a current row switches nothing.
+    const RENDER = code("../app/components/site-header.tsx");
+    expect(RENDER).toContain("switchTargetFromHref(href)");
+    expect(RENDER).toContain("if (!isCurrent) void switchAccount(switchTo)");
   });
 
   it("the + Add account href is the marked route and is NEVER /connect", () => {
@@ -251,8 +262,8 @@ describe("the rendered switcher matches legacy's structure", () => {
     // at "/connect", which falls through to the callback's upsert branch and
     // attaches the new Stripe account to the user's FIRST account instead of
     // creating a second one. Ruling 326 ported the intent, never the transport.
-    expect(SOURCE).toContain("href={ADD_ACCOUNT_PATH}");
-    expect(SOURCE).not.toContain('href="/connect"');
+    expect(SOURCE).toContain("href: ADD_ACCOUNT_PATH");
+    expect(SOURCE).not.toContain('href: "/connect"');
     expect(ADD_ACCOUNT_PATH).not.toBe("/connect");
     expect(ADD_ACCOUNT_PATH).toBe("/connect/additional");
   });
@@ -278,12 +289,11 @@ describe("the render rule, read from legacy's nav", () => {
     expect(HEADER).toContain("accounts.length > 0");
   });
 
-  it("both M1 and S1 mount the same component", () => {
-    expect(HEADER).toContain("<AccountSwitcher");
-    expect(SHELL).toContain("<AccountSwitcher");
-    // Two instances in each, desktop and mobile, as legacy has.
-    expect(HEADER.match(/<AccountSwitcher/g) ?? []).toHaveLength(2);
-    expect(SHELL.match(/<AccountSwitcher/g) ?? []).toHaveLength(2);
+  it("both M1 and S1 build the same switcher", () => {
+    // One header serves desktop and phone (Capsomer draws the switcher in the
+    // row on a desktop and in the sheet on a phone), so each builds it once.
+    expect(HEADER.match(/businessSwitcher\(/g) ?? []).toHaveLength(1);
+    expect(SHELL.match(/businessSwitcher\(/g) ?? []).toHaveLength(1);
   });
 
   it("the demo shell renders no switcher, so the demo_ firewall is untouched", () => {

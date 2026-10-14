@@ -47,11 +47,10 @@ function findByFile(entries: RouteConfigEntry[], file: string): RouteConfigEntry
 // only proves a manifest entry points somewhere real; it would not catch a
 // real nav-worthy route being silently dropped FROM the manifest. Walks only
 // the app-shell subtree (marketing/admin/webhook/utility routes have no
-// product-switcher or platform-link presence to check), skips the
-// admin-guard subtree (admin keeps its own AdminNav, task Part 2 rule:
-// "do not rebuild its structure"), and skips any path containing a dynamic
-// segment (a :id detail page is never itself a nav destination).
-const ADMIN_GUARD_FILE = "./layouts/admin-guard.tsx";
+// product-switcher or platform-link presence to check; /admin has its own
+// AdminShell layout outside the app shell since job_6566f4776fdf), and skips
+// any path containing a dynamic segment (a :id detail page is never itself a
+// nav destination).
 
 // Routes intentionally absent from the nav manifest: reached by redirect or
 // one-time flow, never a persistent switcher/platform-link destination.
@@ -62,7 +61,6 @@ const NAV_EXCLUDED_ROUTES = new Set([
 
 function collectNavCandidatePaths(entries: RouteConfigEntry[], parentPath: string, out: Set<string>): void {
   for (const entry of entries) {
-    if (entry.file === ADMIN_GUARD_FILE) continue;
     let path = parentPath;
     if (entry.path) {
       const segment = entry.path.replace(/^\/+|\/+$/g, "");

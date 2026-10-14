@@ -1,6 +1,6 @@
 import { data, Form, useNavigation } from "react-router";
 
-import { AdminNav } from "~/components/admin-nav";
+import { AdminTime } from "~/components/admin-time";
 import { Badge } from "~/components/badge";
 import { getDb } from "~/db";
 import {
@@ -10,8 +10,9 @@ import {
   rejectStagedChange,
   stagedConfirmPhrase,
 } from "~/lib/admin/staged.server";
-import { authContext } from "~/lib/auth/context";
+import { adminContext } from "~/lib/admin/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import type { AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/staged";
 
@@ -20,8 +21,10 @@ import type { Route } from "./+types/staged";
 // applies it under the SIGNED-IN admin, through the same helper the matching
 // screen uses, and asks for the same typed phrase where that screen does.
 
+export const handle: AdminHandle = { page: "Staged changes" };
+
 export function meta() {
-  return [{ title: "Staged changes - Foxhound Admin" }];
+  return [{ title: "Staged changes - Foxhound admin" }];
 }
 
 export async function loader({ context }: Route.LoaderArgs) {
@@ -44,7 +47,7 @@ interface ActionResult {
 
 export async function action({ context, request }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
+  const auth = context.get(adminContext);
   const db = getDb(env);
 
   const form = await request.formData();
@@ -79,9 +82,7 @@ export default function AdminStaged({ loaderData, actionData }: Route.ComponentP
   const busy = useNavigation().state !== "idle";
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
-      <h1 className="text-title font-medium text-text">Staged changes</h1>
-      <AdminNav />
+    <div>
 
       <p className="mb-4 text-body text-text-tertiary">
         Changes the admin AI asked for that start or change money. Nothing here has happened yet.
@@ -109,7 +110,7 @@ export default function AdminStaged({ loaderData, actionData }: Route.ComponentP
             <div key={row.id} className="rounded-lg border border-border bg-surface p-4">
               <p className="text-body text-text">{row.summary}</p>
               <p className="mt-1 text-label text-text-tertiary">
-                Asked for by {row.requestedBy} via {row.requestedVia}, {row.requestedAt.toLocaleString()}
+                Asked for by {row.requestedBy} via {row.requestedVia}, <AdminTime at={row.requestedAt} />
                 {row.note ? `: ${row.note}` : ""}
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -170,7 +171,7 @@ export default function AdminStaged({ loaderData, actionData }: Route.ComponentP
                       <Badge tone={STATUS_TONE[row.status as keyof typeof STATUS_TONE] ?? "neutral"}>{row.status}</Badge>
                     </td>
                     <td className="px-4 py-3 text-text-tertiary">{row.decidedBy ?? "-"}</td>
-                    <td className="px-4 py-3 text-text-tertiary">{row.decidedAt?.toLocaleString() ?? "-"}</td>
+                    <td className="px-4 py-3 text-text-tertiary"><AdminTime at={row.decidedAt} empty="-" /></td>
                   </tr>
                 ))}
               </tbody>

@@ -1,19 +1,22 @@
 import { data, Form, useNavigation } from "react-router";
+import { Status, type Tone as StatusTone } from "capsomer/react/status";
 
-import { AdminNav } from "~/components/admin-nav";
-import { Badge } from "~/components/badge";
+import { AdminTime } from "~/components/admin-time";
 import { getDb } from "~/db";
 import { cronEnableConfirmPhrase, isCronEnableConfirmValid } from "~/lib/admin/brake";
 import { logAdminAction } from "~/lib/admin/audit.server";
 import { isKnownCronName, listCronRows, setCronEnabled } from "~/lib/admin/crons.server";
-import { authContext } from "~/lib/auth/context";
+import { adminContext } from "~/lib/admin/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import type { Tone } from "~/lib/recovery/labels";
+import { cronAnchor, cronRunAnchor, describeCronSchedule } from "~/lib/admin/crons";
+import type { AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/crons";
 
+export const handle: AdminHandle = { page: "Crons" };
+
 export function meta() {
-  return [{ title: "Crons - Foxhound Admin" }];
+  return [{ title: "Crons - Foxhound admin" }];
 }
 
 export async function loader({ context }: Route.LoaderArgs) {
@@ -25,7 +28,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 
 export async function action({ context, request }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
+  const auth = context.get(adminContext);
   const db = getDb(env);
 
   const form = await request.formData();
@@ -74,10 +77,12 @@ export async function action({ context, request }: Route.ActionArgs) {
   return data({ ok: true });
 }
 
-const RUN_STATUS_TONE: Record<string, Tone> = {
-  success: "success",
-  failed: "failure",
-  skipped: "neutral",
+// A run's status in words, with Capsomer's status glyph (shape, word and
+// colour together), not an uppercase code-style badge.
+const RUN_STATUS: Record<string, { tone: StatusTone; word: string }> = {
+  success: { tone: "ok", word: "Succeeded" },
+  failed: { tone: "crit", word: "Failed" },
+  skipped: { tone: "nodata", word: "Skipped" },
 };
 
 /** Disable: one click. Enable: type the cron's own phrase first. The asymmetry
@@ -134,47 +139,74 @@ export default function AdminCrons({ loaderData, actionData }: Route.ComponentPr
   const busy = useNavigation().state !== "idle";
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
-      <h1 className="text-title font-medium text-text">Crons</h1>
-      <AdminNav />
-
+    <div className="grid gap-3">
       {actionData && "error" in actionData && actionData.error ? (
-        <p role="alert" className="mb-4 rounded-md border border-red bg-red-bg px-3 py-2 text-label text-error-text">
+        <p role="alert" className="rounded-md border border-red bg-red-bg px-3 py-2 text-label text-error-text">
           {actionData.error}
         </p>
       ) : null}
 
-      <div className="flex flex-col gap-3">
-        {crons.map((c) => (
-          <div key={c.name} className="rounded-lg border border-border bg-surface p-4">
+      {crons.map((c) => {
+        const words = describeCronSchedule(c.schedule);
+        const status = c.lastRun ? (RUN_STATUS[c.lastRun.status] ?? { tone: "info" as const, word: c.lastRun.status }) : null;
+        return (
+          <section
+            key={c.name}
+            id={cronAnchor(c.name)}
+            aria-labelledby={`${cronAnchor(c.name)}-name`}
+            className="rounded-lg border border-border bg-surface p-4"
+          >
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="font-mono text-label text-text">{c.name}</p>
-                <p className="font-mono text-micro text-text-subtle">{c.schedule}</p>
+                <h2 id={`${cronAnchor(c.name)}-name`} className="text-body font-semibold text-text">
+                  {c.name}
+                </h2>
+                <p className="text-label text-text-secondary">
+                  {words ?? c.schedule}
+                  {words ? <span className="ml-2 text-text-subtle">{c.schedule}</span> : null}
+                </p>
               </div>
               <div className="flex flex-wrap items-center gap-3">
-                <Badge tone={c.enabled ? "success" : "neutral"}>{c.enabled ? "Enabled" : "Disabled"}</Badge>
+                <Status tone={c.enabled ? "ok" : "nodata"}>{c.enabled ? "On" : "Switched off"}</Status>
                 <CronToggle name={c.name} enabled={c.enabled} busy={busy} />
               </div>
             </div>
 
-            <div className="mt-3 border-t border-border-sub pt-3">
-              {c.lastRun ? (
-                <div className="flex flex-wrap items-center gap-3 text-label">
-                  <Badge tone={RUN_STATUS_TONE[c.lastRun.status] ?? "neutral"}>{c.lastRun.status}</Badge>
-                  <span className="text-text-tertiary">{c.lastRun.finishedAt.toLocaleString()}</span>
-                  {c.lastRun.rowsProcessed !== null ? (
-                    <span className="text-text-tertiary">{c.lastRun.rowsProcessed} rows</span>
-                  ) : null}
+            <div className="mt-3 grid gap-2 border-t border-border-sub pt-3 text-label">
+              {c.lastRun && status ? (
+                <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span className="text-text-tertiary">Last run</span>
+                  <Status tone={status.tone}>{status.word}</Status>
+                  <span className="text-text-tertiary">
+                    <AdminTime at={c.lastRun.finishedAt} />
+                  </span>
                   {c.lastRun.message ? <span className="text-text-tertiary">{c.lastRun.message}</span> : null}
-                </div>
+                </p>
               ) : (
-                <p className="text-label text-text-tertiary">No runs recorded yet.</p>
+                <p className="text-text-tertiary">No runs recorded yet.</p>
               )}
+
+              {c.recentFailures.length > 0 ? (
+                <div className="rounded-md border border-error-border bg-red-bg p-3">
+                  <p className="font-semibold text-error-text">
+                    {c.recentFailures.length === 1
+                      ? "1 failed run in the last 24 hours"
+                      : `${c.recentFailures.length} failed runs in the last 24 hours`}
+                  </p>
+                  <ul className="mt-1 grid gap-1">
+                    {c.recentFailures.map((run) => (
+                      <li key={run.id} id={cronRunAnchor(run.id)} className="rounded-sm text-text">
+                        Failed <AdminTime at={run.finishedAt} />
+                        {run.message ? <span className="text-text-secondary">: {run.message}</span> : null}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
             </div>
-          </div>
-        ))}
-      </div>
+          </section>
+        );
+      })}
     </div>
   );
 }

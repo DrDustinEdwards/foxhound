@@ -1,13 +1,48 @@
-import { Link, NavLink, Outlet, useNavigation, type ShouldRevalidateFunctionArgs } from "react-router";
+import {
+  Link,
+  Outlet,
+  useLocation,
+  useNavigate,
+  useNavigation,
+  useRouteLoaderData,
+  useSubmit,
+  type ShouldRevalidateFunctionArgs,
+} from "react-router";
+import {
+  BarChart3,
+  Bell,
+  CalendarClock,
+  CreditCard,
+  FileText,
+  LayoutDashboard,
+  ListOrdered,
+  Receipt,
+  RotateCcw,
+  Scale,
+  Settings,
+  TrendingDown,
+  Undo2,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
+import { AdminShell, type AdminEntry } from "capsomer/react/admin-shell";
+import { SiteHeader, type HeaderSwitcher } from "capsomer/react/site-header";
+import "capsomer/admin-shell.css";
+import "capsomer/time.css";
 
 import { Footer } from "~/components/footer";
 import { RouteSplash } from "~/components/route-splash";
+import { businessSwitcher } from "~/components/nav/account-switcher";
+import {
+  businessRows,
+  currentRow,
+  headerLogo,
+  personInitials,
+  renderHeaderLink,
+  THEME_PREF_KEY,
+  useThemeMemory,
+} from "~/components/site-header";
 import { shouldShowRouteSplash } from "~/lib/navigation/route-splash";
-import { Wordmark } from "~/components/wordmark";
-import { AccountSwitcher } from "~/components/nav/account-switcher";
-import { GearMenu } from "~/components/nav/gear-menu";
-import { ProductSwitcher } from "~/components/nav/product-switcher";
-import { ThemeToggle } from "~/components/theme-toggle";
 import { appShellMiddleware } from "~/lib/auth/guards";
 import { authContext } from "~/lib/auth/context";
 import { getDb } from "~/db";
@@ -15,8 +50,13 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import { resolveErrorBoundaryDetails } from "~/lib/errors/boundary-message";
 import { resolveNavContext } from "~/lib/nav/context.server";
 import { listSwitcherAccounts } from "~/lib/nav/accounts.server";
-import { PLATFORM_LINKS, PRODUCT_MANIFEST, PRODUCT_ORDER } from "~/lib/nav/manifest";
+import { PLATFORM_LINKS, PRODUCT_MANIFEST, PRODUCT_ORDER, type ProductKey, type ProductNavLink } from "~/lib/nav/manifest";
+import { DEFAULT_THEME } from "~/lib/theme";
 import { resolveThemeForRequest } from "~/lib/theme.server";
+import { useCollapseKey } from "~/lib/use-collapse-key";
+import { useReadAt } from "~/lib/use-read-at";
+
+import type { loader as rootLoader } from "~/root";
 
 import type { Route } from "./+types/app-shell";
 
@@ -92,239 +132,233 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     demoSignedIn: auth.demoSignedIn,
     theme: await resolveThemeForRequest(env, request),
     nav,
+    userName: auth.userName,
+    // When this page's data was read, for the page bar's "Updated ..." line.
+    readAt: Date.now(),
   };
 }
 
-// The 2px amber bottom border is the ONLY sanctioned amber-on-active state
-// (DESIGN.md) for the desktop primary links; NavLink sets aria-current="page"
-// on the active link itself, nothing extra needed here. Both states carry
-// the same border-b-2 (transparent when inactive) so a link's own box height
-// never changes between active/inactive - and now that the links live in the
-// single fixed-height header row (TASK-foxhound-app-shell-header-stability.md)
-// rather than their own dedicated row, py-1.5 keeps them visually inline with
-// the switcher/gear instead of the old py-3, which was sized for a row these
-// links used to own by themselves.
-function primaryLinkClassName({ isActive }: { isActive: boolean }): string {
-  return isActive
-    ? "inline-block border-b-2 border-amber py-1.5 text-label font-semibold text-text"
-    : "inline-block border-b-2 border-transparent py-1.5 text-label text-text-tertiary hover:text-text";
+// The merchant app on Capsomer's dashboard shell (AdminShell's user variant,
+// capsomer 0.9.0), under the same site header as the public site. Dustin's
+// answers of 2026-10-13 are approved differences from legacy, recorded in
+// parity/APPROVED-DIFFERENCES.md: the business switcher on the left as a
+// square tile, then the product switcher ("Acme Supply Co. / Recovery"); the
+// avatar menu last in place of the gear; teal on the dark band; the product's
+// pages as a 288px menu on the left in place of the links in the header row;
+// a page bar naming the page and how fresh it is; and on a phone one row, a
+// sheet for everything else, and a bottom bar of at most five tabs.
+//
+// Everything under the menu is the page as it was: the shell takes Foxhound's
+// own neutrals (.fh-cap, app.css), so only the accents are teal, and every
+// page keeps its own column.
+
+const ICONS: Record<string, LucideIcon> = {
+  "/dashboard": LayoutDashboard,
+  "/recovery": RotateCcw,
+  "/recovery/payments": CreditCard,
+  "/recovery/sequences": ListOrdered,
+  "/recovery/winback": Undo2,
+  "/recovery/expiring-cards": CalendarClock,
+  "/disputes": Scale,
+  "/intelligence": BarChart3,
+  "/intelligence/customers": Users,
+  "/intelligence/churn": TrendingDown,
+  "/intelligence/alerts": Bell,
+  "/intelligence/reports": FileText,
+  "/settings": Settings,
+  "/billing": Receipt,
+  "/settings/team": Users,
+};
+
+function icon(href: string) {
+  const Icon = ICONS[href] ?? LayoutDashboard;
+  return <Icon className="cap-admin-icon" aria-hidden />;
 }
 
-// Mobile bottom tab bar is chrome (DESIGN.md: "nav/footer/mobile bar stay
-// dark in both modes"), dark in both modes like the desktop header - so the
-// active state uses the raw amber-ui token safely (amber on the always-dark
-// chrome background is 9.2:1, review-verified), the same sanctioned adaptation
-// as before (gotcha #57 - a bottom border reads oddly on a tab already at the
-// screen's bottom edge), just now on the correct surface. Fresh-context review
-// caught this rendering on bg-surface instead, which put the active tab's
-// amber text on a white background in light mode at ~1.9:1 contrast.
-// min-h-[56px] and justify-center are legacy's, from components/BottomTabBar.tsx
-// (ruling 133 treatment item 2). The bar measured 34px here because py-2 was
-// sizing it off its content; legacy names a floor instead and centres within it,
-// so the two go together - min-h alone would top-align the label in a 56px box.
-// Legacy also carries min-w-0, font-mono, text-[0.6875rem], gap-1, hover:text-amber
-// and a text-chrome-text active state; those are recorded in parity/S-APP-SHELL.md
-// as open treatment items, NOT built here, because the active-colour one is the
-// divergence line 114's comment protects and it needs a ruling first.
-function tabLinkClassName({ isActive }: { isActive: boolean }): string {
-  return `flex min-h-[56px] flex-1 flex-col items-center justify-center gap-0.5 text-micro ${
-    isActive ? "text-amber" : "text-chrome-text-tertiary"
-  }`;
+
+// A product's pages, or the product itself when it has one page.
+function productPages(key: ProductKey): ProductNavLink[] {
+  const product = PRODUCT_MANIFEST[key];
+  return product.links.length > 0 ? product.links : [{ label: "Overview", to: product.href }];
 }
+
+// The menu's Account group: the three account pages the mockup's dashboard
+// lists. Every other settings page stays in the avatar menu, as the gear had it.
+const ACCOUNT_PAGES = ["Settings", "Billing", "Team"].flatMap((label) => PLATFORM_LINKS.filter((l) => l.label === label));
 
 export default function AppLayout({ loaderData }: Route.ComponentProps) {
-  const { accountName, accounts, activeAccountId, email, isAdmin, isDemo, demoSignedIn, theme, nav } =
+  const { accountName, accounts, activeAccountId, email, isAdmin, isDemo, demoSignedIn, theme, nav, userName } =
     loaderData;
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const submit = useSubmit();
+  useThemeMemory(theme, "account");
+  useCollapseKey();
+  const readAt = useReadAt(loaderData.readAt);
   const activeProduct = PRODUCT_MANIFEST[nav.activeProductKey];
   // Legacy's loading.tsx, ported to RR8's substrate (305). The decision lives in
   // a pure predicate so it can be tested without a DOM; see its header for why a
   // bare state check would blank this page during every money action.
   const splash = shouldShowRouteSplash(useNavigation());
-  const primaryLinks = nav.isPlatformPage ? [] : activeProduct.links;
 
-  // Mobile tab bar keeps its shipped, already-reviewed shape (gotcha #57):
-  // every product plus Billing/Settings as flat tabs, not the desktop's
-  // switcher + contextual-links split (375px has no room for both a
-  // switcher and a sub-nav row). Intelligence is now entitlement-gated,
-  // which it never was before this port.
-  const mobileTabs: { label: string; to: string }[] = [
+  // The menu: the product you are in, its pages; then your account's pages. On
+  // a platform page (settings, billing, help) the product is the last one you
+  // visited, as the switcher already says.
+  const pages = productPages(nav.activeProductKey);
+  const currentPage = nav.isPlatformPage ? undefined : currentRow(pathname, pages);
+  const currentAccountPage = currentRow(pathname, ACCOUNT_PAGES);
+  const menu: AdminEntry[] = [
+    ...pages.map((l) => ({
+      id: l.to,
+      label: l.label,
+      href: l.to,
+      group: activeProduct.label,
+      icon: icon(l.to),
+      current: l === currentPage,
+    })),
+    ...ACCOUNT_PAGES.map((l) => ({
+      id: l.to,
+      label: l.label,
+      href: l.to,
+      group: "Account",
+      icon: icon(l.to),
+      current: l === currentAccountPage,
+    })),
+  ];
+
+  // The page bar's name: the page you are on, said once.
+  const platformPage = currentRow(pathname, PLATFORM_LINKS);
+  const pageName = currentPage
+    ? currentPage.label === "Overview"
+      ? `${activeProduct.label} overview`
+      : currentPage.label
+    : nav.isPlatformPage
+      ? (platformPage?.label ?? "Foxhound")
+      : activeProduct.label;
+
+  // The phone's bottom bar keeps the tabs the app had, every product then
+  // Billing and Settings, up to Capsomer's five (no More: the menu button opens
+  // the full list). With Intelligence that is the four products and Settings;
+  // Billing is in the avatar menu and the sheet.
+  const tabLinks: ProductNavLink[] = [
     ...PRODUCT_ORDER.filter((key) => key !== "intelligence" || nav.intelligenceEntitled).map((key) => ({
       label: PRODUCT_MANIFEST[key].label,
       to: PRODUCT_MANIFEST[key].href,
     })),
-    // Order is the tab bar's OWN and is deliberately not inherited from
-    // PLATFORM_LINKS' array order. That array is now ordered for the gear
-    // dropdown (legacy's Settings, Billing, Help), and iterating it directly
-    // would have silently reshuffled these two tabs when the gear was
-    // corrected. Still derived from it, so nav-manifest.test.ts keeps
-    // asserting these hrefs exist in the real route tree.
     ...["Billing", "Settings"].flatMap((label) => PLATFORM_LINKS.filter((l) => l.label === label)),
   ];
+  const currentTab = currentRow(pathname, tabLinks);
+  const tabs: AdminEntry[] = (
+    tabLinks.length > 5 ? tabLinks.filter((l) => l.label !== "Billing") : tabLinks
+  ).map((l) => ({
+    id: `tab-${l.to}`,
+    label: l.label,
+    href: l.to,
+    icon: icon(l.to),
+    current: l === currentTab,
+  }));
 
-  const accountLabel = accountName ?? email;
+  // The switchers: the business (not in the demo, whose one hardcoded account
+  // keeps the demo_ firewall as it was), then the product.
+  const business = !isDemo && accounts.length > 0 ? businessSwitcher(accounts, activeAccountId) : null;
+  const products: HeaderSwitcher = {
+    id: "products",
+    label: activeProduct.label,
+    name: `Product: ${activeProduct.label}`,
+    sheetLabel: "Products",
+    groups: [
+      {
+        label: "Products",
+        links: PRODUCT_ORDER.filter((key) => key !== "intelligence" || nav.intelligenceEntitled).map((key) => ({
+          id: key,
+          label: PRODUCT_MANIFEST[key].label,
+          href: PRODUCT_MANIFEST[key].href,
+          current: key === nav.activeProductKey,
+        })),
+      },
+    ],
+  };
+
+  // The avatar menu, in place of the gear: who you are; the business's rows
+  // under its name, Admin for an admin at their end (AdminShell's menu takes
+  // one group of the app's rows); Help; Sign out last.
+  const accountRows = businessRows(true);
+  const currentAccountRow = currentRow(pathname, accountRows);
 
   return (
-    <div>
-      {/* Full-bleed, not mx-auto max-w-6xl (TASK-foxhound-header-geometry-
-          unification.md): legacy's header is full viewport width on both
-          the marketing site and the app (verified live and in the app
-          screenshot), so a centered column here was the outlier, not the
-          marketing header. Page bodies keep their own independent
-          mx-auto max-w-* wrapper (every route under app-shell already has
-          one), so this only changes the header's own geometry, not where
-          page content sits - the same split legacy used. NOT sticky: this
-          said "Sticky, matching the marketing header" until 2026-08-05, which
-          had been false since 82bdc11 reverted it under ruling 47 (legacy's
-          SiteNavClient carries no sticky/top/z anywhere, and ruling 47 governs
-          both headers). The element below is a plain static h-14 row. The demo
-          banner and page content are separate siblings below <header>, in
-          normal flow. Stacking: the tab bar is z-50 at the bottom edge and the
-          marketing drawer is z-40/z-50, but that drawer renders from
-          layouts/marketing.tsx and never shares a document with this shell. */}
-      <header className="h-14 border-b border-border bg-chrome">
-        <div className="flex h-full items-center justify-between gap-4 px-6">
-          <div className="flex min-w-0 shrink-0 items-center gap-3">
-            <Link to="/" aria-label="Foxhound home" className="shrink-0">
-              <Wordmark tone="chrome" />
-            </Link>
-            <ProductSwitcher activeProductKey={nav.activeProductKey} intelligenceEntitled={nav.intelligenceEntitled} />
+    <div className="fh-cap fh-app" data-family="teal">
+      <AdminShell
+        variant="user"
+        // The app's name: the phone sheet's heading ("Foxhound menu") and,
+        // with the page, the tab title ("Payments · Foxhound"), which
+        // AdminShell sets on every app that uses it.
+        title="Foxhound"
+        nav={menu}
+        navLabel={activeProduct.label}
+        tabs={tabs}
+        page={pageName}
+        prefKey="foxhound-app"
+        logo={headerLogo("/")}
+        band="dark"
+        switchers={business ? [business, products] : [products]}
+        themePrefKey={THEME_PREF_KEY}
+        renderLink={renderHeaderLink}
+        updated={{ at: readAt }}
+        status={
+          <>
+            <span className="fh-app-page-name">{pageName}</span>
             {isDemo ? (
-              <span className="shrink-0 rounded border border-amber px-1.5 py-0.5 font-mono text-micro font-semibold uppercase tracking-wide text-amber">
+              <span className="rounded border border-amber px-1.5 py-0.5 font-mono text-micro font-semibold uppercase tracking-wide text-amber">
                 Demo
               </span>
             ) : null}
-          </div>
-
-          {/* Primary links and the utility cluster share one right-aligned
-              group (TASK-foxhound-app-shell-header-stability.md): on a
-              platform page or a product with no sub-links (Dashboard,
-              Disputes), the <nav> below simply does not render - no reserved
-              empty row, no height change, since the header's height comes
-              from the row's own h-14, never from this content. */}
-          <div className="flex min-w-0 items-center gap-6">
-            {primaryLinks.length > 0 ? (
-              <nav aria-label="Primary" className="hidden items-center gap-5 md:flex">
-                {primaryLinks.map((link) => (
-                  <NavLink key={link.to} to={link.to} end={link.end} className={primaryLinkClassName}>
-                    {link.label}
-                  </NavLink>
-                ))}
-              </nav>
-            ) : null}
-
-            {/* Legacy's utility order, left to right: [avatar] [theme] [gear]
-                (components/SiteNavClient.tsx's desktop cluster). The demo shell
-                renders no switcher: a demo visitor has one hardcoded account and
-                the demo_ firewall stays exactly as it was. */}
-            <div className="hidden shrink-0 items-center gap-1 sm:flex">
-              {!isDemo && accounts.length > 0 ? (
-                <AccountSwitcher accounts={accounts} activeAccountId={activeAccountId} />
-              ) : null}
-              <ThemeToggle initialTheme={theme} isAuthenticated />
-              <GearMenu isAdmin={isAdmin} accountLabel={accountLabel} hasAccount />
-            </div>
-
-            <div className="flex shrink-0 items-center gap-1 sm:hidden">
-              {!isDemo && accounts.length > 0 ? (
-                <AccountSwitcher accounts={accounts} activeAccountId={activeAccountId} />
-              ) : null}
-              <ThemeToggle initialTheme={theme} isAuthenticated />
-              <GearMenu isAdmin={isAdmin} accountLabel={accountLabel} hasAccount />
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Below the header, not above it (TASK-foxhound-app-shell-header-
-          stability.md): the header is now the first element on the page in
-          every state, so the wordmark's position never moves between demo
-          and signed-in. Always exactly two lines regardless of
-          demoSignedIn, via the explicit <br />, so the banner's own height
-          cannot vary between the two demo states either - the alternative
-          (a fixed pixel height) would be one more number to keep in sync
-          with the font size instead of a structural guarantee. */}
-      {isDemo ? (
-        <div className="flex items-center justify-center gap-3 border-b border-border bg-chrome px-4 py-2 text-center">
-          <span className="text-label text-chrome-text-secondary">
-            You're viewing a live demo with sample data.
-            <br />
-            {demoSignedIn
-              ? "Nothing you do here is saved. This is not your real account."
-              : "Nothing you do here is saved."}
-          </span>
-          <a
-            href="/demo/exit"
-            className="shrink-0 rounded-md border border-border px-2.5 py-1 text-label font-medium text-chrome-text hover:border-amber"
-          >
-            {demoSignedIn ? "Exit demo, return to your account" : "Exit demo"}
-          </a>
-        </div>
-      ) : null}
-
-      {/* Bottom padding reserves space for the fixed mobile tab bar below (a
-          sibling of this container, never a flex body: DESIGN.md, avoids the
-          position:fixed breakage on mobile Chrome). The breakpoint follows the
-          bar's: legacy's wrapper is pb-16 sm:pb-0 and its bar is sm:hidden, so
-          the reserve and the thing it reserves for turn off together. Leaving
-          this at md:pb-0 while the bar moved to sm:hidden would reserve 64px
-          between 640 and 767 for a bar that is not rendered. */}
-      <div className="pb-16 sm:pb-0">
-        {/* Ruling 146. Legacy carries a <main> on every app page and Foxhound's
-            authenticated tree carried NONE: `git grep "<main"` over
-            app/routes/app/** returned zero, and the only one reachable under
-            this shell was in the ErrorBoundary below, which renders only when a
-            child route throws. Plain gap under PRIME DIRECTIVE item 1.
-
-            Placed HERE rather than on each page, for three reasons. It closes
-            the whole authenticated surface at once instead of the six rows the
-            S2-S9 set walk happened to cover. It makes "exactly one" structural
-            rather than a convention each new route has to remember, which is
-            what item 3's marketing ratification turns on. And it matches
-            Foxhound's own ratified pattern in layouts/marketing.tsx, which is
-            likewise <main> in the layout carrying no container.
-
-            Legacy's own <main> IS the width container (max-w-[1280px] etc). Here
-            the container stays on the page, so Foxhound renders <main><div
-            class="container">, one wrapper deeper than legacy. Landmark and
-            rendered geometry are identical; the extra element is recorded rather
-            than glossed. The footer stays OUTSIDE main, which is legacy's
-            relationship too: legacy's SiteFooter is a layout sibling of the page
-            content, never inside its main. */}
-        <main>
-          {/* Legacy replaces the SEGMENT's content with its splash and keeps the
-              layout chrome mounted, so the nav and footer stay put and only the
-              page swaps. Rendering it here, in place of the Outlet, is the same
-              relationship on RR8's substrate. */}
-          {splash ? <RouteSplash /> : <Outlet />}
-        </main>
-        {/* Legacy renders SiteFooter variant="app" INSIDE the padded wrapper and
-            keeps the tab bar a sibling outside it (app/(app)/layout.tsx), so the
-            fixed bar never overlaps the footer's bottom row on mobile. Same
-            placement here for the same reason. */}
-        <Footer variant="app" />
-      </div>
-
-      {/* Three of ruling 133's treatment items, all legacy's values from
-          components/BottomTabBar.tsx. sm:hidden, not md:hidden: legacy cuts the
-          bar off at 640px and Foxhound was showing one from 640 to 767 where
-          legacy shows none. z-50, not z-10. And the safe-area inset, whose
-          absence puts the bar under the iOS home indicator, which is a defect on
-          hardware rather than a style preference. The inline style is legacy's
-          own mechanism too: env() is a runtime device value, so it cannot be a
-          build-time utility class. The marketing drawer also sits at z-40/z-50,
-          which is fine because it renders from layouts/marketing.tsx and this
-          renders from the app shell; the two never share a document. */}
-      <nav
-        aria-label="Primary"
-        style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
-        className="fixed inset-x-0 bottom-0 z-50 flex border-t border-border bg-chrome sm:hidden"
+          </>
+        }
+        onHelp={() => void navigate("/help")}
+        account={{
+          name: userName || email,
+          initials: personInitials(userName, email),
+          email: userName ? email : undefined,
+          appLabel: accountName ?? email,
+          appLinks: [
+            ...accountRows.map((l) => ({ label: l.label, href: l.to, current: l === currentAccountRow })),
+            ...(isAdmin ? [{ label: "Admin", href: "/admin" }] : []),
+          ],
+          onSignOut: () => void submit(null, { method: "post", action: "/logout" }),
+        }}
       >
-        {mobileTabs.map((tab) => (
-          <NavLink key={tab.to} to={tab.to} className={tabLinkClassName}>
-            <span className="w-full truncate text-center">{tab.label}</span>
-          </NavLink>
-        ))}
-      </nav>
+        {/* The demo banner, at the top of the page under the page bar: the
+            header is the first element on the page in every state, so the
+            wordmark never moves between demo and signed-in. Always exactly two
+            lines regardless of demoSignedIn, via the explicit <br />, so the
+            banner's own height cannot vary between the two demo states. */}
+        {isDemo ? (
+          <div className="flex items-center justify-center gap-3 border-b border-border bg-chrome px-4 py-2 text-center">
+            <span className="text-label text-chrome-text-secondary">
+              You're viewing a live demo with sample data.
+              <br />
+              {demoSignedIn
+                ? "Nothing you do here is saved. This is not your real account."
+                : "Nothing you do here is saved."}
+            </span>
+            <a
+              href="/demo/exit"
+              className="shrink-0 rounded-md border border-border px-2.5 py-1 text-label font-medium text-chrome-text hover:border-amber"
+            >
+              {demoSignedIn ? "Exit demo, return to your account" : "Exit demo"}
+            </a>
+          </div>
+        ) : null}
+        {/* Ruling 146: exactly one <main> on every app page. It is the shell's
+            own (AdminShell's main region, #cap-main, the skip link's target),
+            and the page renders inside it. Legacy replaces the SEGMENT's
+            content with its splash and keeps the layout chrome mounted, so the
+            header, menu and footer stay put and only the page swaps. The
+            footer stays below the page, as legacy's SiteFooter is a sibling of
+            the page content. */}
+        <div className="fh-app-page">{splash ? <RouteSplash /> : <Outlet />}</div>
+        <Footer variant="app" />
+      </AdminShell>
     </div>
   );
 }
@@ -346,16 +380,15 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
 // message rather than a generic HTTP reason phrase.
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   const { message, details } = resolveErrorBoundaryDetails(error, import.meta.env.DEV);
+  // The header's theme button still saves where the layout's did.
+  const rootTheme = useRouteLoaderData<typeof rootLoader>("root")?.theme ?? DEFAULT_THEME;
+  useThemeMemory(rootTheme, "account");
 
   return (
     <div>
-      <header className="h-14 border-b border-border bg-chrome">
-        <div className="flex h-full items-center px-6">
-          <Link to="/" aria-label="Foxhound home">
-            <Wordmark tone="chrome" />
-          </Link>
-        </div>
-      </header>
+      <div className="fh-cap fh-site-header" data-family="teal">
+        <SiteHeader logo={headerLogo("/")} themePrefKey={THEME_PREF_KEY} sheetTitle="Foxhound menu" renderLink={renderHeaderLink} />
+      </div>
       <main className="flex flex-col items-center justify-center gap-4 px-4 py-16 text-center">
         <h1 className="text-title font-medium text-text">{message}</h1>
         <p className="max-w-md text-body text-text-secondary">{details}</p>

@@ -37,7 +37,7 @@ export {
 } from "./account";
 export { setSessionActiveAccount, safeReturnPath } from "./active-account";
 export { authContext, type AuthContext } from "./context";
-export { appShellMiddleware, adminOnlyMiddleware } from "./guards";
+export { appShellMiddleware } from "./guards";
 export {
   MCP_TOKEN_SCOPE,
   MCP_TOKEN_PREFIX,

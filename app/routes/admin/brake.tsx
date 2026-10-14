@@ -1,6 +1,6 @@
 import { data, Form, useNavigation } from "react-router";
 
-import { AdminNav } from "~/components/admin-nav";
+import { AdminTime } from "~/components/admin-time";
 import { Badge } from "~/components/badge";
 import { getDb } from "~/db";
 import { logAdminAction } from "~/lib/admin/audit.server";
@@ -19,14 +19,17 @@ import {
   releaseBrake,
 } from "~/lib/admin/brake.server";
 import { setCronEnabled } from "~/lib/admin/crons.server";
-import { authContext } from "~/lib/auth/context";
+import { adminContext } from "~/lib/admin/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { RECOVERY_TICK_CRON_NAME } from "~/lib/constants";
+import type { AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/brake";
 
+export const handle: AdminHandle = { page: "Emergency brake" };
+
 export function meta() {
-  return [{ title: "Emergency brake - Foxhound Admin" }];
+  return [{ title: "Emergency brake - Foxhound admin" }];
 }
 
 export async function loader({ context }: Route.LoaderArgs) {
@@ -54,7 +57,7 @@ interface ActionResult {
  */
 export async function action({ context, request }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
+  const auth = context.get(adminContext);
   const db = getDb(env);
 
   const form = await request.formData();
@@ -178,7 +181,7 @@ function EventLine({ label, event }: { label: string; event: { actorEmail: strin
   if (!event) return <p className="text-label text-text-tertiary">{label}: never</p>;
   return (
     <p className="text-label text-text-tertiary">
-      {label}: {event.at.toLocaleString()} by <span className="font-mono text-text-secondary">{event.actorEmail}</span>
+      {label}: <AdminTime at={event.at} /> by <span className="font-mono text-text-secondary">{event.actorEmail}</span>
       {/* "intended", because the umbrella row is written before the account
           writes so that a partial failure still leaves a record of the attempt.
           The live truth is the count in the state grid above. */}
@@ -193,9 +196,7 @@ export default function AdminBrake({ loaderData, actionData }: Route.ComponentPr
   const engaged = status.brakePausedCount > 0;
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8">
-      <h1 className="text-title font-medium text-text">Emergency brake</h1>
-      <AdminNav />
+    <div>
 
       {actionData?.error ? (
         <p role="alert" className="mb-4 rounded-md border border-red bg-red-bg px-3 py-2 text-label text-error-text">

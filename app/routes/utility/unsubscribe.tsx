@@ -3,7 +3,6 @@ import { Header } from "~/components/header";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { recordUnsubscribe } from "~/lib/email/suppression";
 import { verifyUnsubscribeToken } from "~/lib/email/unsubscribe-token";
-import { DEFAULT_THEME } from "~/lib/theme";
 
 import type { Route } from "./+types/unsubscribe";
 
@@ -34,8 +33,8 @@ export function headers() {
 // visit (or the List-Unsubscribe POST arriving after a preview GET) is a no-op.
 //
 // No auth: the visitor is a merchant's customer, not a Foxhound account holder, so
-// there is no session or theme cookie to thread (DEFAULT_THEME is the SSR default,
-// same posture as card-update.tsx). Account scope comes from the signed token
+// there is no session to thread; the header takes the root loader's theme, as in
+// card-update.tsx. Account scope comes from the signed token
 // payload, never from a query param.
 
 type LoaderState = { state: "invalid" } | { state: "done" };
@@ -70,7 +69,7 @@ export async function action({ params, context }: Route.ActionArgs): Promise<Res
 export default function Unsubscribe({ loaderData }: Route.ComponentProps) {
   return (
     <>
-      <Header isAuthenticated={false} theme={DEFAULT_THEME} />
+      <Header isAuthenticated={false} />
       {loaderData.state === "invalid" ? (
         <AuthShell title="Link not found">
           <Alert tone="error">This unsubscribe link is invalid or has expired.</Alert>

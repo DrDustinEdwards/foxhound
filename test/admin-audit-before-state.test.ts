@@ -2,7 +2,7 @@ import type Database from "better-sqlite3";
 import { describe, expect, it, vi } from "vitest";
 
 import { BRAKE_CONFIRM_PHRASES, cronEnableConfirmPhrase } from "~/lib/admin/brake";
-import { authContext } from "~/lib/auth/context";
+import { adminContext } from "~/lib/admin/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { RECOVERY_TICK_CRON_NAME } from "~/lib/constants";
 
@@ -37,7 +37,7 @@ const ACTOR = "admin@foxhoundapp.com";
 const fakeContext = {
   get(key: unknown) {
     if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
-    if (key === authContext) return { email: ACTOR };
+    if (key === adminContext) return { email: ACTOR };
     throw new Error("unexpected context key");
   },
 } as unknown as Parameters<typeof cronsAction>[0]["context"];

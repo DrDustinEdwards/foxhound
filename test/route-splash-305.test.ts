@@ -183,9 +183,13 @@ describe("305: the shell hosts it in the Outlet's place", () => {
   });
 
   it("REGRESSION GUARD: the shell keeps its single main landmark (146)", () => {
-    // The splash went inside <main>, not beside it. Two landmarks, or a splash
-    // that escaped main, would both break 146's ratified structure.
-    expect(SHELL_CODE.match(/<main>/g)?.length).toBe(1);
-    expect(SHELL_CODE).toMatch(/<main>[\s\S]{0,200}splash/);
+    // The splash goes inside <main>, not beside it. Since Capsomer 0.9.0 the
+    // main region is the dashboard shell's own (AdminShell's #cap-main), which
+    // renders its children inside it, so the layout writes no <main> of its
+    // own: the splash and the Outlet are AdminShell's children. Two landmarks,
+    // or a splash that escaped main, would both break 146's ratified structure.
+    const DEFAULT_LAYOUT = SHELL_CODE.slice(SHELL_CODE.indexOf("export default function AppLayout"), SHELL_CODE.indexOf("export function ErrorBoundary"));
+    expect(DEFAULT_LAYOUT).not.toMatch(/<main\b/);
+    expect(DEFAULT_LAYOUT).toMatch(/<AdminShell[\s\S]*\{splash \? <RouteSplash \/> : <Outlet \/>\}[\s\S]*<\/AdminShell>/);
   });
 });

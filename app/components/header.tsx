@@ -1,13 +1,11 @@
-import { useEffect, useState } from "react";
-import { Link, NavLink } from "react-router";
-import { Menu, Settings, X } from "lucide-react";
+import { useLocation, useRouteLoaderData, useSubmit } from "react-router";
+import { SiteHeader, type HeaderSection, type HeaderSwitcher } from "capsomer/react/site-header";
 
-import { AccountSwitcher, type SwitcherAccount } from "./nav/account-switcher";
-import { GearMenu } from "./nav/gear-menu";
-import { SectionPill } from "./nav/section-pill";
-import { ThemeToggle } from "./theme-toggle";
-import { Wordmark } from "./wordmark";
-import type { Theme } from "~/lib/theme";
+import { businessSwitcher, type SwitcherAccount } from "./nav/account-switcher";
+import { headerLogo, merchantAccountMenu, renderHeaderLink, THEME_PREF_KEY, useThemeMemory } from "./site-header";
+import { MARKETING_PILL_ITEMS } from "~/lib/nav/manifest";
+import { DEFAULT_THEME, type Theme } from "~/lib/theme";
+import type { loader as rootLoader } from "~/root";
 
 export const NAV_LINKS = [
   { to: "/products", label: "Products" },
@@ -18,29 +16,23 @@ export const NAV_LINKS = [
   { to: "/blog", label: "Blog" },
 ];
 
-// Legacy parity port v2 (TASK-foxhound-marketing-header-v2.md): the prior
-// pass (TASK-foxhound-marketing-nav-parity.md) fixed surface and link set;
-// this fixes STRUCTURE. Read directly off the live legacy header
-// (recova-eta.vercel.app, inspected at desktop and mobile widths): full-bleed
-// h-14 bar (no max-w-6xl container - legacy's bar IS the full viewport
-// width), links right-aligned with an amber-underline hover/active
-// treatment, a thin divider before the CTA, and a gear icon that is always
-// rendered but dimmed/inert for an anonymous visitor and a live /settings
-// link once authenticated.
+// The public site's header, on Capsomer's site header (capsomer 0.9.0;
+// docs/design/design-site-header.md in capsomer). Dustin's answers of
+// 2026-10-13 are approved differences from legacy, recorded in
+// parity/APPROVED-DIFFERENCES.md: teal on the dark band in place of amber, the
+// business switcher on the left as a square tile before the product switcher,
+// the avatar menu last in place of the gear, one icon button for the theme,
+// 56px and sticky, and the phone's one row with everything else in a sheet.
 //
-// Nav link classes are legacy's own, verbatim: the after:-pseudo-element
-// underline scales from 0 to full width on hover (transform, not width, so
-// it is compositor-only) and snaps to full width when NavLink's isActive is
-// true, with no separate "current page" affordance beyond that.
-const NAV_LINK_BASE =
-  "relative pb-px text-[0.8125rem] no-underline transition-colors duration-150 after:absolute after:bottom-0 after:left-0 after:h-[2px] after:w-full after:origin-left after:bg-amber after:transition-transform after:duration-200";
-const NAV_LINK_INACTIVE =
-  "text-chrome-text-secondary after:scale-x-0 hover:text-chrome-text hover:after:scale-x-100";
-// font-medium is legacy's own active weight. Without it the active link is
-// distinguished by color and underline only, which is a weaker current-page
-// signal than the site it is meant to match.
-const NAV_LINK_ACTIVE = "text-chrome-text font-medium after:scale-x-100";
-
+// What legacy fixed and this keeps: the band is Foxhound's chrome, dark in both
+// modes, full width with 24px sides; the wordmark in DM Mono links home; the
+// section links sit on the right, before a thin divider, with an underline on
+// the current one and legacy's weight 500; Free audit is the one button for a
+// visitor who is signed out.
+//
+// Signed out: Sign in holds the account's place, last, as a text link (an icon
+// on a phone). Signed in: the business switcher and the product switcher after
+// the wordmark, and the avatar menu last.
 export function Header({
   isAuthenticated,
   theme,
@@ -50,202 +42,97 @@ export function Header({
   hasAccount = false,
   accounts = [],
   activeAccountId = null,
+  userName = null,
+  email = "",
+  skipTo,
 }: {
   isAuthenticated: boolean;
-  theme: Theme;
+  /** The layout's resolved theme. Left out on a page with no loader of its
+   *  own for it, which then takes the root's (the theme <html> was drawn in). */
+  theme?: Theme;
   // Optional: the two standalone public-utility routes outside the
   // marketing layout (card-update.tsx, unsubscribe.tsx) always render
   // Header with isAuthenticated=false and have no session context to
   // resolve these from.
   intelligenceEntitled?: boolean;
   isAdmin?: boolean;
+  /** The business you are acting as, the label over its rows in the avatar
+   *  menu. */
   accountLabel?: string;
-  /** Legacy gates the gear's Billing row on this: an accountless visitor is
-   *  redirected to /connect, so Billing would be a dead row. */
+  /** Legacy gates Billing on this: an accountless visitor is redirected to
+   *  /connect, so Billing would be a dead row. */
   hasAccount?: boolean;
   /** Every account the visitor actively holds, for the switcher (ruling 326
    *  phase (e)). Empty for an anonymous visitor and for the two standalone
    *  public-utility routes that render this header with no session. */
   accounts?: SwitcherAccount[];
   activeAccountId?: string | null;
+  userName?: string | null;
+  email?: string;
+  /** The page's main region, for the skip link (first in the tab order). */
+  skipTo?: string;
 }) {
-  const [open, setOpen] = useState(false);
+  const { pathname } = useLocation();
+  const submit = useSubmit();
+  const rootTheme = useRouteLoaderData<typeof rootLoader>("root")?.theme;
+  useThemeMemory(theme ?? rootTheme ?? DEFAULT_THEME, isAuthenticated ? "account" : "cookie");
 
-  // Body scroll lock while the drawer is open (legacy behavior, confirmed
-  // live: document.body computed overflow flips to "hidden" while the
-  // drawer is open).
-  useEffect(() => {
-    if (!open) return;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [open]);
+  const sections: HeaderSection[] = NAV_LINKS.map((item) => ({
+    id: item.to,
+    label: item.label,
+    href: item.to,
+    current: pathname === item.to || pathname.startsWith(`${item.to}/`),
+  }));
+
+  // LEGACY'S RENDER RULE for the business switcher (components/SiteNavClient.tsx):
+  // shown from ONE account, hidden only when the visitor has none.
+  const business = isAuthenticated && accounts.length > 0 ? businessSwitcher(accounts, activeAccountId) : null;
+  // The product switcher, legacy's pill: marketing pages track no active
+  // product, so it reads "Home", and it lists legacy's Console, Audit,
+  // Recovery, Disputes, Intelligence (gated as in the app).
+  const products: HeaderSwitcher = {
+    id: "products",
+    label: "Home",
+    name: "Products: Home",
+    sheetLabel: "Products",
+    groups: [
+      {
+        label: "Products",
+        links: MARKETING_PILL_ITEMS.filter((i) => !i.requiresIntelligenceEntitlement || intelligenceEntitled).map(
+          (i) => ({ id: i.to, label: i.label, href: i.to }),
+        ),
+      },
+    ],
+  };
+  const switchers = isAuthenticated ? [...(business ? [business] : []), products] : [];
 
   return (
-    <header className="flex h-14 items-center justify-between border-b border-border bg-chrome px-6">
-      <div className="flex items-center gap-3">
-        <Link to="/" aria-label="Foxhound home" onClick={() => setOpen(false)}>
-          <Wordmark tone="chrome" />
-        </Link>
-        {isAuthenticated ? <SectionPill intelligenceEntitled={intelligenceEntitled} /> : null}
-      </div>
-
-      <div className="hidden items-center gap-5 sm:flex">
-        {NAV_LINKS.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            className={({ isActive }) => `${NAV_LINK_BASE} ${isActive ? NAV_LINK_ACTIVE : NAV_LINK_INACTIVE}`}
-          >
-            {item.label}
-          </NavLink>
-        ))}
-
-        {!isAuthenticated ? (
-          <Link to="/login" className={`${NAV_LINK_BASE} ${NAV_LINK_INACTIVE}`}>
-            Sign in
-          </Link>
-        ) : null}
-
-        {/* Divider between the link row and the utility cluster. Legacy renders
-            it whenever there are primary links, so it is present for an
-            authenticated visitor too; it used to sit inside the anonymous
-            branch here, which left the signed-in header with no separation
-            between the last nav link and the avatar. Sign in belongs to the
-            link row on legacy, hence above the divider rather than below. */}
-        <div className="h-4 w-px bg-border" />
-
-        {!isAuthenticated ? (
-          <Link
-            to="/audit"
-            className="whitespace-nowrap rounded-md bg-amber px-4 py-2 text-[0.8125rem] font-semibold text-on-amber transition-colors duration-150 hover:bg-amber-dark"
-          >
-            Free audit
-          </Link>
-        ) : null}
-
-        {/* LEGACY'S RENDER RULE, read from components/SiteNavClient.tsx:
-            `accounts.length > 0 && (multiSeat || (isAuthenticated && hasAccount))`.
-            The second clause is what decides it: legacy SHOWS the switcher at
-            ONE account, listing that account and the + Add account row. It is
-            hidden only when the visitor has no account at all, which is also how
-            the anonymous marketing header stays byte-identical to before. `initial`
-            is no longer part of the condition: the switcher derives its own
-            letter from the ACTIVE ACCOUNT's label (legacy's accountInitial), not
-            from the person's name, which is what makes the letter change when
-            you switch. */}
-        {isAuthenticated && accounts.length > 0 ? (
-          <AccountSwitcher accounts={accounts} activeAccountId={activeAccountId ?? undefined} />
-        ) : null}
-
-        <ThemeToggle initialTheme={theme} variant="chrome" isAuthenticated={isAuthenticated} />
-
-        {/* The same dropdown the app shell uses (ruling 49). This was a bare
-            link to /settings, which put Billing, Help, Admin and Sign out out
-            of reach from every marketing page. Anonymous visitors keep the
-            dimmed inert icon, which is what legacy shows them. */}
-        {isAuthenticated ? (
-          <GearMenu isAdmin={isAdmin} accountLabel={accountLabel} hasAccount={hasAccount} />
-        ) : (
-          <div className="cursor-default p-1.5 opacity-30" aria-hidden="true">
-            <Settings width={16} height={16} strokeWidth={1.5} className="text-chrome-text-secondary" />
-          </div>
-        )}
-      </div>
-
-      <div className="flex items-center gap-2 sm:hidden">
-        <ThemeToggle initialTheme={theme} variant="chrome" isAuthenticated={isAuthenticated} />
-        {!isAuthenticated ? (
-          <Link
-            to="/login"
-            className="px-1 text-[0.8125rem] text-chrome-text-secondary no-underline transition-colors duration-150 hover:text-chrome-text"
-          >
-            Sign in
-          </Link>
-        ) : null}
-        {/* Legacy renders a SECOND instance in the mobile cluster
-            (SiteNavClient.tsx's `flex sm:hidden` block), gated on
-            `isAuthenticated && accountAvatarVisible`, between the theme toggle
-            and the hamburger. Foxhound's mobile cluster carried no avatar at
-            all, so this is a legacy element arriving rather than one moving. */}
-        {isAuthenticated && accounts.length > 0 ? (
-          <AccountSwitcher accounts={accounts} activeAccountId={activeAccountId ?? undefined} />
-        ) : null}
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          aria-expanded={open}
-          aria-controls="mobile-nav-drawer"
-          aria-label="Toggle menu"
-          className="flex items-center justify-center rounded-md border border-border p-2 text-chrome-text"
-        >
-          <Menu size={18} aria-hidden />
-        </button>
-      </div>
-
-      {/* Legacy-parity slide-in drawer (right, 280px), replacing the prior
-          inline dropdown. Overlay + panel both stay mounted (not
-          conditionally rendered) so the transform/opacity transitions play
-          on both open and close; closed state is also `invisible` so the
-          off-screen panel cannot receive keyboard focus. */}
-      <div
-        aria-hidden="true"
-        onClick={() => setOpen(false)}
-        className={`fixed inset-0 z-40 bg-black/50 transition-opacity duration-250 sm:hidden ${
-          open ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
-        }`}
+    <div className="fh-cap fh-site-header" data-family="teal">
+      <SiteHeader
+        logo={headerLogo("/")}
+        links="right"
+        sections={sections}
+        switchers={switchers}
+        extras={isAuthenticated ? [] : [{ id: "audit", label: "Free audit", kind: "button", href: "/audit" }]}
+        themePrefKey={THEME_PREF_KEY}
+        account={
+          isAuthenticated
+            ? merchantAccountMenu({
+                name: userName,
+                email,
+                businessName: hasAccount ? accountLabel || null : null,
+                hasAccount,
+                isAdmin,
+                pathname,
+                onSignOut: () => void submit(null, { method: "post", action: "/logout" }),
+              })
+            : undefined
+        }
+        signIn={isAuthenticated ? undefined : { href: "/login" }}
+        skipTo={skipTo}
+        sheetTitle="Foxhound menu"
+        renderLink={renderHeaderLink}
       />
-      <aside
-        id="mobile-nav-drawer"
-        className={`fixed top-0 right-0 z-50 flex h-full w-[280px] flex-col bg-chrome shadow-lg transition-transform duration-250 ease-out sm:hidden ${
-          open ? "visible translate-x-0" : "invisible translate-x-full"
-        }`}
-      >
-        <div className="flex justify-end px-4 pt-4">
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            aria-label="Close menu"
-            className="flex items-center justify-center rounded-md border-0 bg-transparent p-1.5 transition-colors duration-150 hover:bg-white/10"
-          >
-            <X size={20} className="text-chrome-text-secondary" aria-hidden />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-6 pt-6">
-          {NAV_LINKS.map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              onClick={() => setOpen(false)}
-              className="block border-b border-border py-3 text-[0.9375rem] text-chrome-text-secondary no-underline transition-all duration-200 hover:text-chrome-text"
-            >
-              {item.label}
-            </Link>
-          ))}
-        </div>
-
-        <div className="flex flex-col gap-3 border-t border-border px-6 pt-4 pb-8">
-          {isAuthenticated ? (
-            <Link
-              to="/dashboard"
-              onClick={() => setOpen(false)}
-              className="rounded-md bg-amber px-6 py-3 text-center text-[0.9375rem] font-semibold text-on-amber transition-colors duration-150 hover:bg-amber-dark"
-            >
-              Dashboard
-            </Link>
-          ) : (
-            <Link
-              to="/audit"
-              onClick={() => setOpen(false)}
-              className="rounded-md bg-amber px-6 py-3 text-center text-[0.9375rem] font-semibold text-on-amber transition-colors duration-150 hover:bg-amber-dark"
-            >
-              Free audit
-            </Link>
-          )}
-        </div>
-      </aside>
-    </header>
+    </div>
   );
 }

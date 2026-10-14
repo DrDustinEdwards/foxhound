@@ -16,7 +16,6 @@ import { DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
 import { formatMoney } from "~/lib/money-format";
 import { isWinbackResubscribable } from "~/lib/recovery/winback";
 import { decryptToken } from "~/lib/stripe/encryption";
-import { DEFAULT_THEME } from "~/lib/theme";
 
 import type { Route } from "./+types/card-update";
 
@@ -464,10 +463,9 @@ export default function CardUpdate({ loaderData, actionData }: Route.ComponentPr
     <>
       {/* No Foxhound session concept applies to this public, no-login page
           (the visitor is a merchant's customer, not a Foxhound account
-          holder); DEFAULT_THEME is a safe SSR default since a stateless,
-          usually-single-visit link isn't worth threading a cookie read
-          through this route's LoaderState union for. */}
-      <Header isAuthenticated={false} theme={DEFAULT_THEME} />
+          holder). The header takes the root loader's theme, the one <html>
+          was drawn in, so its theme button never flips the page. */}
+      <Header isAuthenticated={false} />
       {state === "invalid" ? (
         <AuthShell title="Link not found">
           <Alert tone="error">This link is invalid or has expired.</Alert>

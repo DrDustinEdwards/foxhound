@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { eq } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
 
-import { authContext } from "~/lib/auth/context";
+import { adminContext } from "~/lib/admin/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import routes from "~/routes";
 
@@ -36,7 +36,7 @@ const NOW = new Date();
 const fakeContext = {
   get(key: unknown) {
     if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
-    if (key === authContext) return { email: CONFIRMER };
+    if (key === adminContext) return { email: CONFIRMER };
     throw new Error("unexpected context key");
   },
 } as unknown as Parameters<typeof action>[0]["context"];
@@ -102,12 +102,12 @@ describe("/admin/staged", () => {
     expect(row.status).toBe("pending");
   });
 
-  it("sits inside the admin guard, and the admin nav links to it", () => {
+  it("sits inside the admin shell's Access gate, and the admin menu links to it", () => {
     const flat = JSON.stringify(routes);
-    const guardAt = flat.indexOf("./layouts/admin-guard.tsx");
+    const guardAt = flat.indexOf("./layouts/admin-shell.tsx");
     expect(guardAt).toBeGreaterThan(-1);
     expect(flat.indexOf("./routes/admin/staged.tsx")).toBeGreaterThan(guardAt);
-    expect(read("app/components/admin-nav.tsx")).toContain('"/admin/staged"');
+    expect(read("app/layouts/admin-shell.tsx")).toContain('"/admin/staged"');
   });
 });
 

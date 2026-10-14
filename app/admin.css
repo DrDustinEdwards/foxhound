@@ -1,0 +1,128 @@
+/* The admin's design system, loaded only with the admin routes (imported by
+   app/layouts/admin-shell.tsx), so no customer or marketing page downloads it.
+   Capsomer: layers, tokens, both themes, the base rules, and the pieces
+   AdminShell and its time and tooltip use. The layer order is declared at the top
+   of app.css, so Capsomer sits above Tailwind's base and below its utilities.
+   Foxhound's family is teal (Dustin's answer 1 of 2026-10-13): its tokens come
+   after the themes, so the accents are teal in both. */
+@import "capsomer/tokens.css";
+@import "capsomer/themes.css" layer(cap.tokens);
+@import "capsomer/family-teal.css" layer(cap.tokens);
+@import "capsomer/base.css";
+@import "capsomer/site-header.css";
+@import "capsomer/admin-shell.css";
+@import "capsomer/dialog.css";
+@import "capsomer/popover.css";
+@import "capsomer/time.css";
+@import "capsomer/theme-switch.css";
+@import "capsomer/stat-tile.css";
+@import "capsomer/status.css";
+
+/* Capsomer's faces, self-hosted from @fontsource (latin and latin-ext) and
+   bundled with this stylesheet: Schibsted Grotesk for the UI, Martian Mono for
+   figures. */
+@import "@fontsource/schibsted-grotesk/latin-400.css";
+@import "@fontsource/schibsted-grotesk/latin-500.css";
+@import "@fontsource/schibsted-grotesk/latin-600.css";
+@import "@fontsource/schibsted-grotesk/latin-700.css";
+@import "@fontsource/schibsted-grotesk/latin-ext-400.css";
+@import "@fontsource/schibsted-grotesk/latin-ext-500.css";
+@import "@fontsource/schibsted-grotesk/latin-ext-600.css";
+@import "@fontsource/schibsted-grotesk/latin-ext-700.css";
+@import "@fontsource/martian-mono/latin-400.css";
+@import "@fontsource/martian-mono/latin-500.css";
+
+/* The admin pages are written with Foxhound's Tailwind utilities (bg-surface,
+   text-text-tertiary, border-border, amber, the status triads). Inside the
+   admin those names resolve to Capsomer's tokens, so the pages wear Capsomer's
+   palette and faces without a second set of components. --surface, --sunken and
+   --text already share a name with Capsomer's and need no line here. Amber,
+   Foxhound's brand accent, becomes Capsomer's accent. */
+.fh-admin {
+  --bg: var(--ground);
+  --surface2: var(--raised);
+  --hover: var(--sel);
+  --selected: var(--sel);
+  --bg-disabled: var(--sunken);
+
+  --border: var(--line);
+  --border-sub: var(--line);
+  --border-strong: var(--line-strong);
+  --border-i: var(--line-strong);
+  --border-focus: var(--ring);
+
+  --text-secondary: var(--muted);
+  --text-tertiary: var(--muted);
+  --text-subtle: var(--dim);
+  --text-disabled: var(--dim);
+
+  --amber-ui: var(--primary);
+  --amber: var(--primary);
+  --amber-light: var(--accent-soft);
+  --amber-dark: var(--primary-hover);
+  --amber-active: var(--primary-hover);
+  --amber-bg: var(--accent-soft);
+  --amber-text: var(--accent-text);
+  --amber-border: var(--accent-line);
+  --amber-border-interactive: var(--accent);
+  --text-on-amber: var(--primary-fg);
+
+  --green: var(--ok);
+  --green-bg: var(--ok-soft);
+  --success-text: var(--ok);
+  --success-border: var(--ok-soft);
+  --success-border-interactive: var(--ok);
+  --red: var(--crit);
+  --red-dark: var(--crit);
+  --red-bg: var(--crit-soft);
+  --error-text: var(--crit);
+  --error-border: var(--crit-soft);
+  --error-border-interactive: var(--crit);
+  --orange: var(--warn);
+  --orange-bg: var(--warn-soft);
+  --warning-text: var(--warn);
+  --warning-border: var(--warn-soft);
+  --warning-border-interactive: var(--warn);
+  --blue: var(--info);
+  --blue-bg: var(--info-soft);
+  --info-border: var(--info-soft);
+  --info-border-interactive: var(--info);
+  --cobalt-ui: var(--info);
+  --cobalt-text: var(--info);
+  --cobalt-bg: var(--info-soft);
+  --cobalt-border: var(--info-soft);
+
+  --font-dm-sans: var(--ui);
+  --font-dm-mono: var(--mono);
+
+  background: var(--ground);
+  color: var(--text);
+  font-family: var(--ui);
+}
+
+/* The page bar's left side: the page's one heading, then how fresh its data is
+   ("Updated 6 minutes ago", AdminShell's own line). AdminShell 0.9.0 names the
+   page in its trail only below the top level, so the heading rides in the
+   bar's status slot and is put first. */
+.fh-admin .cap-admin-bar-status {
+  order: -1;
+}
+.fh-admin-page-name {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--fs-lead);
+  font-weight: 600;
+}
+
+/* A run linked to from the Overview (/admin/crons#run-...) is marked when it
+   is the target. */
+.fh-admin :target {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+/* Land a linked run a third of the way down the screen, with its cron's name
+   and schedule above it in view, not under the top edge. */
+.fh-admin [id^="run-"],
+.fh-admin [id^="cron-"] {
+  scroll-margin-block-start: 30vh;
+}

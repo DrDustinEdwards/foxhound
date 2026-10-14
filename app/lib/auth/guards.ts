@@ -25,6 +25,12 @@ import { getSession } from "./session";
 // data requests, where the Cloudflare env is available). These guard the route
 // trees defined in ROUTES.md.
 
+// Since job_6566f4776fdf /admin is no longer under the app shell at all (it has
+// its own layout behind Cloudflare Access, app/layouts/admin-shell.tsx), so
+// this middleware never sees an /admin request. The /admin exclusion below is
+// kept as a pure rule so a future route under the app shell at /admin cannot
+// quietly resolve to the demo.
+//
 // /admin always resolves from the real session, never the demo cookie (see
 // the precedence rule documented on appShellMiddleware below). Matched by
 // pathname rather than by route tree position: this middleware runs before
@@ -72,8 +78,8 @@ export function resolvesToDemo(hasSession: boolean, demoCookiePresent: boolean, 
  *     the demo cookie can resolve to.
  *   - The no-session path is untouched: an anonymous demo visitor (no
  *     session at all) resolves the demo exactly as before, on every path
- *     including /admin, and still 404s at adminOnlyMiddleware (demo
- *     authContext is hardcoded isAdmin=false below).
+ *     including /admin (demo authContext is hardcoded isAdmin=false
+ *     below; /admin itself now sits behind Cloudflare Access).
  *   - The read-only method gate (demoBlocksMethod) and the seeded-membership
  *     check (resolveDemoMembership) are unchanged; only which caller reaches
  *     them is new.
@@ -166,19 +172,4 @@ export const appShellMiddleware: MiddlewareFunction<Response> = async (
   }
 
   throw redirect("/login");
-};
-
-/**
- * Admin guard: nests under the app-shell guard, so authContext is already set.
- * Non-admins get a 404 (not 403) so /admin's existence is not disclosed.
- */
-export const adminOnlyMiddleware: MiddlewareFunction<Response> = async (
-  { context },
-  next,
-) => {
-  const auth = context.get(authContext);
-  if (!auth.isAdmin) {
-    throw new Response("Not Found", { status: 404 });
-  }
-  return next();
 };
