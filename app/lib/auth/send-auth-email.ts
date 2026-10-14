@@ -42,22 +42,19 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-// Inline hex is sanctioned here only (DESIGN.md email exception: HTML email
-// renders with no stylesheet loaded, cannot consume CSS custom properties).
-// Values below are app.css's light-theme token hex (email clients assume a
-// white canvas, unlike og.ts's dark-canvas render): text #14150f, secondary
-// #2f312d, subtle #6e706c, amber-ui #f0b429, on-amber #0d0e0c. Keep in sync
-// with app.css if those change.
+// Plain semantic HTML, no inline styles (J02). The frame, colours and type come
+// from Capsomer's shared email component through app/lib/email/templates.ts,
+// which reads this as a heading, a paragraph, a button and two lines of fine
+// print, and writes the plain-text part from the same blocks. The wording is
+// unchanged.
 function renderAuthEmail(kind: AuthEmailKind, url: string): string {
   const c = COPY[kind];
   const href = escapeHtml(url);
   return (
-    `<p style="font-size:16px;font-weight:600;margin:0 0 12px;color:#14150f">${c.heading}</p>` +
-    `<p style="font-size:14px;color:#2f312d;margin:0 0 20px">${c.body}</p>` +
-    `<p style="margin:0 0 20px"><a href="${href}" ` +
-    `style="display:inline-block;padding:10px 18px;background:#f0b429;color:#0d0e0c;` +
-    `border-radius:6px;text-decoration:none;font-size:14px;font-weight:600">${c.cta}</a></p>` +
-    `<p style="font-size:12px;color:#6e706c;margin:0">If the button does not work, paste this link into your browser:<br>${href}</p>`
+    `<h1>${c.heading}</h1>` +
+    `<p>${c.body}</p>` +
+    `<p><a href="${href}">${c.cta}</a></p>` +
+    `<p><small>If the button does not work, paste this link into your browser:<br>${href}</small></p>`
   );
 }
 
