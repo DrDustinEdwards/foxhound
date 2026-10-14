@@ -35,7 +35,7 @@ export interface LegalSectionDef {
 
 /**
  * Recova's legal column, in Capsomer's teal family. One main landmark stays the
- * layout's. Foxhound's global focus ring reads --border-focus (amber, app.css);
+ * layout's. Foxhound's global focus ring reads --border-focus (app.css);
  * inside this column it reads the family's --ring instead, so a keyboard user
  * sees teal here as in Capsomer's own components.
  */
