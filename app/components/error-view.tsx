@@ -4,7 +4,7 @@ import { WITHDRAWN_BLOG_HEADING, WITHDRAWN_BLOG_REASON } from "~/lib/blog/withdr
 import { resolveErrorBoundaryDetails } from "~/lib/errors/boundary-message";
 import "~/error-page.css";
 
-import { headerLogo } from "./site-header";
+import { headerLogo } from "./header-logo";
 
 // The root ErrorBoundary's view, lifted out of app/root.tsx unchanged apart
 // from the withdrawal state added below.
