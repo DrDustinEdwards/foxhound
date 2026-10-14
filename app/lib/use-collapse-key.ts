@@ -8,8 +8,9 @@ import { useEffect } from "react";
 export function useCollapseKey(): void {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "[" || e.ctrlKey || e.metaKey || e.altKey) return;
-      if ((e.target as Element | null)?.closest?.("input, textarea, select, [contenteditable='true']")) return;
+      if (e.key !== "[" || e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented || e.isComposing) return;
+      const target = e.target as HTMLElement | null;
+      if (target?.isContentEditable || target?.closest?.("input, textarea, select")) return;
       const toggle = document.querySelector<HTMLButtonElement>(".cap-admin-collapse");
       if (!toggle || toggle.getClientRects().length === 0) return;
       e.preventDefault();

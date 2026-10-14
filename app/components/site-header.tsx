@@ -76,8 +76,8 @@ export function personInitials(name: string | null | undefined, email: string): 
   return (email[0] ?? "?").toUpperCase();
 }
 
-function isOn(pathname: string, to: string): boolean {
-  return pathname === to || pathname.startsWith(`${to}/`);
+function isOn(pathname: string, to: string, end = false): boolean {
+  return pathname === to || (!end && pathname.startsWith(`${to}/`));
 }
 
 /** The business's rows in the avatar menu, under its name: the design's list
@@ -104,8 +104,8 @@ export function businessRows(hasAccount: boolean) {
 
 /** The row of `links` for the page you are on: the longest match, so
  *  /settings/team marks Team and not Settings too. */
-export function currentRow<T extends { to: string }>(pathname: string, links: T[]): T | undefined {
-  return links.filter((l) => isOn(pathname, l.to)).sort((a, b) => b.to.length - a.to.length)[0];
+export function currentRow<T extends { to: string; end?: boolean }>(pathname: string, links: T[]): T | undefined {
+  return links.filter((l) => isOn(pathname, l.to, l.end)).sort((a, b) => b.to.length - a.to.length)[0];
 }
 
 /** The avatar menu, last in the header, in place of the gear (Dustin's answer
@@ -159,7 +159,7 @@ export function merchantAccountMenu({
  *  devices, anyone else's to the cookie. Exclusive, as in legacy's
  *  NavThemeToggle. Fire-and-forget: the page has already switched, so a failed
  *  write must not switch it back; the next request reconciles. */
-export function useThemeMemory(serverTheme: Theme, save: "account" | "cookie"): Theme {
+export function useThemeMemory(serverTheme: Theme, save: "account" | "cookie", onChange?: (theme: Theme) => void): void {
   useState(() => {
     if (typeof window === "undefined") return null;
     try {
@@ -169,20 +169,18 @@ export function useThemeMemory(serverTheme: Theme, save: "account" | "cookie"): 
     }
     return null;
   });
-  const [theme, setTheme] = useState<Theme>(serverTheme);
   const showing = useRef<Theme>(serverTheme);
   useEffect(() => {
     const onTheme = (e: Event) => {
       const choice = (e as CustomEvent<{ choice?: string }>).detail?.choice;
       if ((choice !== "light" && choice !== "dark") || choice === showing.current) return;
       showing.current = choice;
-      setTheme(choice);
+      onChange?.(choice);
       persistTheme(choice, save);
     };
     document.addEventListener("cap-theme", onTheme);
     return () => document.removeEventListener("cap-theme", onTheme);
-  }, [save]);
-  return theme;
+  }, [save, onChange]);
 }
 
 function persistTheme(theme: Theme, save: "account" | "cookie"): void {

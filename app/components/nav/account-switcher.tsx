@@ -45,6 +45,8 @@ export function switchTargetFromHref(href: string): string | null {
   return href.startsWith(SWITCH_ACCOUNT_PREFIX) ? href.slice(SWITCH_ACCOUNT_PREFIX.length) : null;
 }
 
+let switching = false;
+
 /** The switch itself goes to phase (b)'s action, then a HARD navigation, legacy's
  *  pattern (AccountSwitcher.tsx:55-59): every loader on the page resolved through
  *  the old marker, so a soft navigation would leave stale account data on screen.
@@ -52,11 +54,20 @@ export function switchTargetFromHref(href: string): string | null {
  *  `assign()` rather than legacy's `location.href = ...`: identical behaviour,
  *  and the react-hooks/immutability rule rejects the assignment form. */
 export async function switchAccount(accountId: string, switchAccountUrl = "/api/account/switch"): Promise<void> {
-  await fetch(switchAccountUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ accountId }),
-  });
+  // One switch at a time, as the old menu's disabled rows had it: a second
+  // click before the reload would race two POSTs for the session marker.
+  if (switching) return;
+  switching = true;
+  try {
+    await fetch(switchAccountUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ accountId }),
+    });
+  } catch (error) {
+    switching = false;
+    throw error;
+  }
   window.location.assign(window.location.pathname + window.location.search);
 }
 

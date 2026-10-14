@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Outlet, useLocation, useMatches, useNavigate, useRouteLoaderData } from "react-router";
 import {
   Activity,
@@ -16,14 +16,14 @@ import {
 import { AdminShell, type AdminEntry } from "capsomer/react/admin-shell";
 
 import "~/admin.css";
-import { headerLogo, personInitials, renderHeaderLink, THEME_PREF_KEY } from "~/components/site-header";
+import { headerLogo, personInitials, renderHeaderLink, THEME_PREF_KEY, useThemeMemory } from "~/components/site-header";
 import { adminContext } from "~/lib/admin/context";
 import { adminPageName } from "~/lib/admin/page";
 import { getAdminSession } from "~/lib/auth/access.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { useCollapseKey } from "~/lib/use-collapse-key";
 import { useReadAt } from "~/lib/use-read-at";
-import { DEFAULT_THEME, THEME_COOKIE, type Theme } from "~/lib/theme";
+import { DEFAULT_THEME, type Theme } from "~/lib/theme";
 
 import type { Route } from "./+types/admin-shell";
 import type { loader as rootLoader } from "~/root";
@@ -77,26 +77,8 @@ const ENTRIES: Array<AdminEntry & { match: (path: string) => boolean }> = [
 function useAdminTheme(): Theme {
   const rootData = useRouteLoaderData<typeof rootLoader>("root");
   const initial = rootData?.theme ?? DEFAULT_THEME;
-  useState(() => {
-    if (typeof window === "undefined") return null;
-    try {
-      localStorage.setItem(THEME_PREF_KEY, initial);
-    } catch {
-      // Storage blocked: the button falls back to <html data-theme>.
-    }
-    return null;
-  });
   const [theme, setTheme] = useState<Theme>(initial);
-  useEffect(() => {
-    const onTheme = (e: Event) => {
-      const choice = (e as CustomEvent<{ choice?: string }>).detail?.choice;
-      if (choice !== "light" && choice !== "dark") return;
-      setTheme(choice);
-      document.cookie = `${THEME_COOKIE}=${choice}; path=/; max-age=31536000; SameSite=Lax`;
-    };
-    document.addEventListener("cap-theme", onTheme);
-    return () => document.removeEventListener("cap-theme", onTheme);
-  }, []);
+  useThemeMemory(initial, "cookie", setTheme);
   return theme;
 }
 
@@ -133,7 +115,9 @@ export default function AdminShellLayout({ loaderData }: Route.ComponentProps) {
         updated={{ at: readAt }}
         status={<h1 className="fh-admin-page-name">{page}</h1>}
         viewSite="/"
-        onHelp={() => void navigate("/help")}
+        // /help is a merchant page behind the app shell; the admin has no merchant
+        // session, so its Help opens the public docs.
+        onHelp={() => void navigate("/docs")}
         account={{
           name: email,
           initials: personInitials(null, email),

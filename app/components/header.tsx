@@ -1,10 +1,11 @@
-import { useLocation, useSubmit } from "react-router";
+import { useLocation, useRouteLoaderData, useSubmit } from "react-router";
 import { SiteHeader, type HeaderSection, type HeaderSwitcher } from "capsomer/react/site-header";
 
 import { businessSwitcher, type SwitcherAccount } from "./nav/account-switcher";
 import { headerLogo, merchantAccountMenu, renderHeaderLink, THEME_PREF_KEY, useThemeMemory } from "./site-header";
 import { MARKETING_PILL_ITEMS } from "~/lib/nav/manifest";
-import type { Theme } from "~/lib/theme";
+import { DEFAULT_THEME, type Theme } from "~/lib/theme";
+import type { loader as rootLoader } from "~/root";
 
 export const NAV_LINKS = [
   { to: "/products", label: "Products" },
@@ -46,7 +47,9 @@ export function Header({
   skipTo,
 }: {
   isAuthenticated: boolean;
-  theme: Theme;
+  /** The layout's resolved theme. Left out on a page with no loader of its
+   *  own for it, which then takes the root's (the theme <html> was drawn in). */
+  theme?: Theme;
   // Optional: the two standalone public-utility routes outside the
   // marketing layout (card-update.tsx, unsubscribe.tsx) always render
   // Header with isAuthenticated=false and have no session context to
@@ -71,7 +74,8 @@ export function Header({
 }) {
   const { pathname } = useLocation();
   const submit = useSubmit();
-  useThemeMemory(theme, isAuthenticated ? "account" : "cookie");
+  const rootTheme = useRouteLoaderData<typeof rootLoader>("root")?.theme;
+  useThemeMemory(theme ?? rootTheme ?? DEFAULT_THEME, isAuthenticated ? "account" : "cookie");
 
   const sections: HeaderSection[] = NAV_LINKS.map((item) => ({
     id: item.to,

@@ -4,6 +4,7 @@ import {
   useLocation,
   useNavigate,
   useNavigation,
+  useRouteLoaderData,
   useSubmit,
   type ShouldRevalidateFunctionArgs,
 } from "react-router";
@@ -50,9 +51,12 @@ import { resolveErrorBoundaryDetails } from "~/lib/errors/boundary-message";
 import { resolveNavContext } from "~/lib/nav/context.server";
 import { listSwitcherAccounts } from "~/lib/nav/accounts.server";
 import { PLATFORM_LINKS, PRODUCT_MANIFEST, PRODUCT_ORDER, type ProductKey, type ProductNavLink } from "~/lib/nav/manifest";
+import { DEFAULT_THEME } from "~/lib/theme";
 import { resolveThemeForRequest } from "~/lib/theme.server";
 import { useCollapseKey } from "~/lib/use-collapse-key";
 import { useReadAt } from "~/lib/use-read-at";
+
+import type { loader as rootLoader } from "~/root";
 
 import type { Route } from "./+types/app-shell";
 
@@ -171,14 +175,6 @@ function icon(href: string) {
   return <Icon className="cap-admin-icon" aria-hidden />;
 }
 
-function isOn(pathname: string, link: { to: string; end?: boolean }): boolean {
-  return pathname === link.to || (!link.end && pathname.startsWith(`${link.to}/`));
-}
-
-// The longest match wins, so /settings/team marks Team and not Settings.
-function currentOf<T extends { to: string; end?: boolean }>(pathname: string, links: T[]): T | undefined {
-  return links.filter((l) => isOn(pathname, l)).sort((a, b) => b.to.length - a.to.length)[0];
-}
 
 // A product's pages, or the product itself when it has one page.
 function productPages(key: ProductKey): ProductNavLink[] {
@@ -209,8 +205,8 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
   // a platform page (settings, billing, help) the product is the last one you
   // visited, as the switcher already says.
   const pages = productPages(nav.activeProductKey);
-  const currentPage = nav.isPlatformPage ? undefined : currentOf(pathname, pages);
-  const currentAccountPage = currentOf(pathname, ACCOUNT_PAGES);
+  const currentPage = nav.isPlatformPage ? undefined : currentRow(pathname, pages);
+  const currentAccountPage = currentRow(pathname, ACCOUNT_PAGES);
   const menu: AdminEntry[] = [
     ...pages.map((l) => ({
       id: l.to,
@@ -231,7 +227,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
   ];
 
   // The page bar's name: the page you are on, said once.
-  const platformPage = currentOf(pathname, PLATFORM_LINKS);
+  const platformPage = currentRow(pathname, PLATFORM_LINKS);
   const pageName = currentPage
     ? currentPage.label === "Overview"
       ? `${activeProduct.label} overview`
@@ -251,6 +247,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
     })),
     ...["Billing", "Settings"].flatMap((label) => PLATFORM_LINKS.filter((l) => l.label === label)),
   ];
+  const currentTab = currentRow(pathname, tabLinks);
   const tabs: AdminEntry[] = (
     tabLinks.length > 5 ? tabLinks.filter((l) => l.label !== "Billing") : tabLinks
   ).map((l) => ({
@@ -258,7 +255,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
     label: l.label,
     href: l.to,
     icon: icon(l.to),
-    current: l === currentOf(pathname, tabLinks),
+    current: l === currentTab,
   }));
 
   // The switchers: the business (not in the demo, whose one hardcoded account
@@ -383,6 +380,9 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
 // message rather than a generic HTTP reason phrase.
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   const { message, details } = resolveErrorBoundaryDetails(error, import.meta.env.DEV);
+  // The header's theme button still saves where the layout's did.
+  const rootTheme = useRouteLoaderData<typeof rootLoader>("root")?.theme ?? DEFAULT_THEME;
+  useThemeMemory(rootTheme, "account");
 
   return (
     <div>
