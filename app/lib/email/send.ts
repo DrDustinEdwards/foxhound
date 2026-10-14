@@ -1,5 +1,7 @@
 import { EMAIL_AUTH_SENDER_ADDRESS, EMAIL_FROM_ADDRESS, UNSUBSCRIBE_PATH } from "~/lib/constants";
 
+import type { Rendered } from "capsomer/email";
+
 import { renderFoxhoundEmail } from "./templates";
 import type { EmailAudience, EmailJob } from "./types";
 
@@ -129,4 +131,47 @@ export async function sendTransactionalEmail(
     text: rendered.text,
   });
   return { providerMessageId: (result && "id" in result ? result.id : null) ?? null };
+}
+
+/**
+ * What a transactional send that does not throw comes back with. The names
+ * reuse email_sends' statuses ("sent", "failed"); `reason` says which refusal.
+ */
+export type TransactionalSendOutcome =
+  | { status: "sent"; providerMessageId: string | null }
+  | { status: "failed"; reason: "email_binding_missing" | "provider_error"; error: string | null };
+
+/**
+ * Send a transactional mail that is already rendered (the password reset, on
+ * Capsomer's reset template, J82) through the same single binding seam, with
+ * the same From and the same absence of footer, unsubscribe and tracking as
+ * sendTransactionalEmail. It never throws: a refusal comes back named. Every
+ * string in `redact` (the reset link, its token) is cut out of a provider's
+ * error before it is returned, so a provider that echoes the message cannot put
+ * the link into a log.
+ */
+export async function sendRenderedTransactionalEmail(
+  env: Env,
+  message: { to: string; rendered: Rendered; fromName?: string | null; redact?: string[] },
+): Promise<TransactionalSendOutcome> {
+  if (!env.EMAIL) {
+    return { status: "failed", reason: "email_binding_missing", error: null };
+  }
+  const fromName = fromDisplayName(message.fromName ?? "Foxhound");
+  try {
+    const result = await env.EMAIL.send({
+      from: `${fromName} <${EMAIL_AUTH_SENDER_ADDRESS}>`,
+      to: message.to,
+      subject: message.rendered.subject,
+      html: message.rendered.html,
+      text: message.rendered.text,
+    });
+    return { status: "sent", providerMessageId: (result && "id" in result ? result.id : null) ?? null };
+  } catch (err) {
+    let error = err instanceof Error ? err.message : String(err);
+    for (const secret of message.redact ?? []) {
+      if (secret) error = error.split(secret).join("[redacted]");
+    }
+    return { status: "failed", reason: "provider_error", error };
+  }
 }

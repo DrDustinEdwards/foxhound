@@ -255,7 +255,7 @@ describe("E1: what the reset mail says and carries", () => {
 describe("E1: a refused send comes back named, and the link is never logged", () => {
   it("no EMAIL binding: email_binding_missing", async () => {
     const logged = consoleSpies();
-    const outcome = await sendPasswordResetEmail(makeEnv(undefined), TO, URL_FIXTURE);
+    const outcome = await sendPasswordResetEmail(makeEnv(null), TO, URL_FIXTURE);
     expect(outcome).toEqual({ status: "failed", reason: "email_binding_missing", error: null });
     expect(logged()).not.toContain("EXAMPLE-NOT-A-TOKEN");
   });
