@@ -230,20 +230,25 @@ describe("PLANT 5: the split left no surface without a writer", () => {
     expect(account).toContain("Sign out");
   });
 
-  it("AND IT DOES NOT OFFER DELETE, which is 333 binding 2 and row S40", () => {
-    // Legacy's danger zone deletes and cascades recovered_payments, the table
-    // PRICING rev 3 bills on. Foxhound cancels, and the label says so.
+  it("offers Cancel (333 binding 2) and, since S40, Delete through the deletion that keeps fee evidence", () => {
+    // Until S40 this asserted Delete was ABSENT, because legacy's delete
+    // cascades recovered_payments, the table PRICING rev 3 bills on. Dustin
+    // ruled Q14 and Q16 (parity/ANSWERS-2026-10-14.md): deletion keeps those
+    // records with personal details removed. So Delete is now offered, and the
+    // assertion that matters is that it reaches the deletion module and not a
+    // cascade.
     //
-    // COMMENTS STRIPPED FIRST: the page's own comment EXPLAINS that deletion is
-    // a separate row, so a raw grep fails on the explanation (session 57's
-    // lesson, one page over).
+    // COMMENTS STRIPPED FIRST: the page's own comments explain the history, so
+    // a raw grep would match the explanation (session 57's lesson).
     const code = account
       .replace(/\/\*[\s\S]*?\*\//g, "")
       .split("\n")
       .filter((line) => !line.trim().startsWith("//"))
       .join("\n");
-    expect(code).not.toContain("Delete account");
     expect(code).toContain("Cancel account");
+    expect(code).toContain("Delete account");
+    expect(code).toContain("deleteUserAccount(env, auth.userId)");
+    expect(code).not.toMatch(/delete_account_cascade|delete\(recoveredPayments\)/);
   });
 
   it("the stripe page carries the per-connection disconnect", () => {

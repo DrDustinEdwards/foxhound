@@ -48,6 +48,12 @@ export const DENIED_TOOL_FRAGMENTS: readonly string[] = [
   "connect_stripe",
   "stripe_connect",
   "add_account",
+  // Account deletion (row S40): a person deletes their own account, signed in,
+  // and no key or agent ever can (RULES.md 3.6, cancel's family).
+  "delete_account",
+  "account_delete",
+  "delete_user",
+  "user_delete",
   // Anything that records an outcome or bills.
   "record_outcome",
   "outcome",
