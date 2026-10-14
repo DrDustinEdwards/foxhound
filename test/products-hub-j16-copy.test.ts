@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it } from "vitest";
 
-import { DISPUTE_FEE_BPS, INTELLIGENCE_PRICE_CENTS, RECOVERY_FEE_BPS } from "~/lib/constants";
+import { DISPUTE_FEE_BPS, DISPUTE_FEE_CAP_CENTS, INTELLIGENCE_PRICE_CENTS, RECOVERY_FEE_BPS } from "~/lib/constants";
 import { formatMoneyShort } from "~/lib/money-format";
 import ProductsIndexPage, { meta } from "~/routes/products/index";
 
@@ -14,7 +14,11 @@ import ProductsIndexPage, { meta } from "~/routes/products/index";
 // what Foxhound bills: only Foxhound-attributed recoveries
 // (app/lib/billing/billable-predicates.ts, isBillableRecoveryRow), where
 // Recova's "of recoveries" would claim a fee on the baseline too (truthfulness,
-// RULES.md 1.2). products-hub-j16-derivation.test.ts proves the numbers are read,
+// RULES.md 1.2). Two more truthfulness fixes: the Disputes price names the
+// per-dispute cap billing applies (app/lib/billing/run.ts, DISPUTE_FEE_CAP_CENTS),
+// and the Intelligence price says what the $199 buys, the predictive layer,
+// because Foxhound's MRR analytics are free (app/routes/app/dashboard.tsx reads
+// them with no entitlement check). products-hub-j16-derivation.test.ts proves the numbers are read,
 // not typed.
 
 function render(): string {
@@ -45,12 +49,12 @@ const SPEC = [
   {
     name: "Disputes",
     description: "Chargeback response and recovery. Pay only on success.",
-    price: `${pct(DISPUTE_FEE_BPS)} on wins`,
+    price: `${pct(DISPUTE_FEE_BPS)} on wins, capped at ${formatMoneyShort(DISPUTE_FEE_CAP_CENTS, "usd")}`,
   },
   {
     name: "Intelligence",
     description: "MRR analytics, churn prediction, customer health scoring, AI narrative",
-    price: `${formatMoneyShort(INTELLIGENCE_PRICE_CENTS, "usd")}/mo`,
+    price: `${formatMoneyShort(INTELLIGENCE_PRICE_CENTS, "usd")}/mo for predictive risk scoring`,
   },
 ] as const;
 

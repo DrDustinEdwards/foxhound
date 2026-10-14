@@ -11,6 +11,7 @@ vi.mock("~/lib/constants", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/lib/constants")>()),
   RECOVERY_FEE_BPS: 1500,
   DISPUTE_FEE_BPS: 2500,
+  DISPUTE_FEE_CAP_CENTS: 75_000,
   INTELLIGENCE_PRICE_CENTS: 24_900,
 }));
 
@@ -30,16 +31,17 @@ describe("/products hub prices follow the constants (J16)", () => {
     expect(html).toContain(">15% of Foxhound-attributed recoveries<");
   });
 
-  it("Disputes' fee comes from DISPUTE_FEE_BPS", () => {
-    expect(html).toContain(">25% on wins<");
+  it("Disputes' fee and cap come from DISPUTE_FEE_BPS and DISPUTE_FEE_CAP_CENTS", () => {
+    expect(html).toContain(">25% on wins, capped at $750<");
   });
 
   it("Intelligence's price comes from INTELLIGENCE_PRICE_CENTS", () => {
-    expect(html).toContain(">$249/mo<");
+    expect(html).toContain(">$249/mo for predictive risk scoring<");
   });
 
   it("shows none of today's typed figures once the constants move", () => {
     expect(html).not.toContain("20%");
     expect(html).not.toContain("$199");
+    expect(html).not.toContain("$500");
   });
 });
