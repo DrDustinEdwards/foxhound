@@ -1,6 +1,7 @@
 import { createSiteApi, type RateLimiter } from "@dustinedwards/site-api";
 
 import { getDb } from "~/db";
+import { blogPostUrl, scheduleIndexNow } from "~/lib/seo/indexnow.server";
 
 import { carrelAdapter } from "./adapter.server";
 
@@ -27,10 +28,17 @@ export function carrelLimiter(env: Env): RateLimiter {
   };
 }
 
-/** Null when the request is outside the prefix, so the caller falls through. */
-export async function handleCarrelRequest(request: Request, env: Env): Promise<Response | null> {
+/** Null when the request is outside the prefix, so the caller falls through.
+ *  `ctx` keeps an IndexNow submission alive after the response is sent. */
+export async function handleCarrelRequest(
+  request: Request,
+  env: Env,
+  ctx?: ExecutionContext,
+): Promise<Response | null> {
   const api = createSiteApi({
-    adapter: carrelAdapter(getDb(env)),
+    adapter: carrelAdapter(getDb(env), {
+      onLive: (slug) => scheduleIndexNow(env, ctx, [blogPostUrl(slug)]),
+    }),
     key: env.CARREL_SITE_KEY,
     limiter: carrelLimiter(env),
   });

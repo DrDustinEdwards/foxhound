@@ -17,6 +17,7 @@ import {
 import { renderMarkdown } from "~/lib/blog/markdown.server";
 import { CANONICAL_TAGS } from "~/lib/blog/tags";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { blogPostUrl, scheduleIndexNow } from "~/lib/seo/indexnow.server";
 import type { AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/detail";
@@ -50,7 +51,7 @@ export async function loader({ context, params }: Route.LoaderArgs) {
 type ActionResult = { intent: string; ok: boolean; error?: string };
 
 export async function action({ context, params, request }: Route.ActionArgs) {
-  const { env } = context.get(cloudflareContext);
+  const { env, ctx } = context.get(cloudflareContext);
   const auth = context.get(adminContext);
   const db = getDb(env);
   const postId = params.id;
@@ -87,6 +88,11 @@ export async function action({ context, params, request }: Route.ActionArgs) {
       showPublishedAt: form.get("showPublishedAt") === "on",
     });
     await logAdminAction(db, { actorEmail: auth.email, action: "blog.update", metadata: { postId, slug: post.slug } });
+    // INDEXNOW (job_b0b24df12155): Recova's editor submits on every save that
+    // leaves the post published. A save changes neither the slug nor the
+    // published flag, so the row read above still answers both. Fire and
+    // forget; it never fails or delays the save.
+    if (post.published) scheduleIndexNow(env, ctx, [blogPostUrl(post.slug)]);
     return data<ActionResult>({ intent, ok: true });
   }
 
@@ -98,6 +104,11 @@ export async function action({ context, params, request }: Route.ActionArgs) {
       action: published ? "blog.publish" : "blog.unpublish",
       metadata: { postId, slug: post.slug },
     });
+    // INDEXNOW (job_b0b24df12155): a publish is the URL going live; an
+    // unpublish submits nothing, as in Recova. This hook and the save's move
+    // when Carrel's blog publishing (J11, job_09c55603e321) and Prelum's blog
+    // pages (J19 job_deffd581af37, J61 job_2ee0cfdd5c29) land.
+    if (published) scheduleIndexNow(env, ctx, [blogPostUrl(post.slug)]);
     return data<ActionResult>({ intent, ok: true });
   }
 
