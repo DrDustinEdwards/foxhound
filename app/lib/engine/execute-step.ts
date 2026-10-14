@@ -294,6 +294,10 @@ export interface EmailStepContext {
   attemptCount: number;
   declineCategory: string;
   customerEmail: string;
+  /** failed_payments.customer_name, raw and nullable. The day 1, 3 and 7
+   *  templates greet with it, falling back to Recova's "there" (J85). Optional
+   *  so a caller that has no name behaves as a payment with none. */
+  customerName?: string | null;
   amountCents: number;
   currency: string;
   /** Merchant name for the COPY's voice. Carries a readable fallback
@@ -380,6 +384,18 @@ export const TEMPLATE_LABEL_GENERATED = "recovery_dunning";
  *  it with a send failure, which is the only place the fallback is recorded. */
 export const TEMPLATE_LABEL_FALLBACK = "recovery_dunning_template";
 
+/**
+ * Recova's footer sentence on every recovery email (lib/email.ts wrapEmailHtml,
+ * blob 3f882729): "You're receiving this from {senderName} about a recent
+ * payment. (c) {year}", with the sender name as Recova's From has it
+ * (`sender_name || 'Support'`). J02 left it out as a copy change for the email
+ * rows to settle; rows E4 to E6 carry it (J85). Pure.
+ */
+export function recoveryFooterNote(senderName: string | null | undefined, year: number): string {
+  const name = senderName?.trim() ? senderName.trim() : "Support";
+  return `You're receiving this from ${name} about a recent payment. \u00a9 ${year}`;
+}
+
 /** Build the queued EmailJob for a recovery send. Pure. */
 export function buildRecoveryEmailJob(
   ctx: EmailStepContext,
@@ -390,6 +406,8 @@ export function buildRecoveryEmailJob(
     openUrl: string;
     honeypotUrl: string;
     usedTemplate?: boolean;
+    /** The send time, for the footer's year. Defaults to now. */
+    now?: Date;
   },
 ): EmailJob {
   return {
@@ -405,6 +423,7 @@ export function buildRecoveryEmailJob(
     template: extras.usedTemplate ? TEMPLATE_LABEL_FALLBACK : TEMPLATE_LABEL_GENERATED,
     unsubscribeToken: extras.unsubscribeToken,
     physicalAddress: extras.physicalAddress,
+    footerNote: recoveryFooterNote(ctx.senderName, (extras.now ?? new Date()).getUTCFullYear()),
     // Stable per send attempt: a backoff retry is a new attempt, so the count
     // distinguishes it from the prior try.
     idempotencyKey: `${ctx.stepId}:${ctx.attemptCount}`,
@@ -563,6 +582,10 @@ function templateCopyFor(ctx: EmailStepContext, updateUrl: string, customBody: s
       declineCategory: ctx.declineCategory,
       amountFormatted: formatMoney(ctx.amountCents, ctx.currency),
       updateUrl,
+      // Recova's per-step words for the steps that have them (J85).
+      stepType: ctx.stepType,
+      customerName: ctx.customerName ?? null,
+      senderName: ctx.senderName,
     }),
     customBody,
   );
@@ -746,6 +769,7 @@ export async function executeEmailStep(
       honeypotUrl: urls.honeypotUrl,
       openUrl: urls.openUrl,
       usedTemplate,
+      now,
     });
     const sendResult = await send(env, job);
     suppressed = sendResult.status === "suppressed";

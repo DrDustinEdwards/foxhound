@@ -193,6 +193,8 @@ export interface DueStepRow {
   amountCents: number;
   currency: string;
   customerEmail: string;
+  /** failed_payments.customer_name, for the day 1, 3 and 7 greeting (J85). */
+  customerName: string | null;
   declineCategory: string;
   connectionAccessToken: string | null;
   merchantName: string | null;
@@ -230,6 +232,7 @@ export async function queryDueRecoverySteps(env: Env, now: Date): Promise<DueSte
       amountCents: failedPayments.amountCents,
       currency: failedPayments.currency,
       customerEmail: failedPayments.customerEmail,
+      customerName: failedPayments.customerName,
       declineCategory: failedPayments.declineCategory,
       connectionAccessToken: stripeConnections.stripeAccessToken,
       merchantName: stripeConnections.senderName,
@@ -431,6 +434,7 @@ export async function queryStepForManualTrigger(
       amountCents: failedPayments.amountCents,
       currency: failedPayments.currency,
       customerEmail: failedPayments.customerEmail,
+      customerName: failedPayments.customerName,
       declineCategory: failedPayments.declineCategory,
       connectionAccessToken: stripeConnections.stripeAccessToken,
       merchantName: stripeConnections.senderName,
@@ -481,6 +485,7 @@ export function toEmailContext(row: DueStepRow): EmailStepContext {
     attemptCount: row.attemptCount,
     declineCategory: row.declineCategory,
     customerEmail: row.customerEmail,
+    customerName: row.customerName,
     amountCents: row.amountCents,
     currency: row.currency,
     merchantName: row.merchantName ?? "your subscription",
