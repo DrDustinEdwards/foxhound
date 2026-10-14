@@ -170,7 +170,7 @@ function ActionButton({ children, tone = "default" }: { children: React.ReactNod
       className={
         tone === "danger"
           ? "rounded-md border border-red px-3 py-1.5 text-label text-error-text hover:bg-red-bg disabled:opacity-60"
-          : "rounded-md border border-border px-3 py-1.5 text-label text-text hover:border-amber disabled:opacity-60"
+          : "rounded-md border border-border px-3 py-1.5 text-label text-text hover:border-brand disabled:opacity-60"
       }
     >
       {children}
@@ -243,7 +243,7 @@ function AdjustmentForm({
           <select
             name="direction"
             defaultValue="credit"
-            className="rounded-md border border-border bg-surface px-3 py-2 text-body text-text focus-visible:border-amber"
+            className="rounded-md border border-border bg-surface px-3 py-2 text-body text-text focus-visible:border-brand"
           >
             <option value="credit">Credit merchant (reduces what they owe)</option>
             <option value="correction">Correction (increases what they owe)</option>
@@ -257,7 +257,7 @@ function AdjustmentForm({
             inputMode="decimal"
             placeholder="0.00"
             required
-            className="w-32 rounded-md border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-text-subtle focus-visible:border-amber"
+            className="w-32 rounded-md border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-text-subtle focus-visible:border-brand"
           />
         </label>
         <label className="flex flex-col gap-1.5">
@@ -267,7 +267,7 @@ function AdjustmentForm({
             type="text"
             defaultValue={defaultCurrency}
             required
-            className="w-20 rounded-md border border-border bg-surface px-3 py-2 text-body text-text focus-visible:border-amber"
+            className="w-20 rounded-md border border-border bg-surface px-3 py-2 text-body text-text focus-visible:border-brand"
           />
         </label>
       </div>
@@ -278,14 +278,14 @@ function AdjustmentForm({
           rows={2}
           required
           placeholder="Goodwill credit for a delayed dunning email; error correction for..."
-          className="rounded-md border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-text-subtle focus-visible:border-amber"
+          className="rounded-md border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-text-subtle focus-visible:border-brand"
         />
       </label>
       <div>
         <button
           type="submit"
           disabled={busy}
-          className="rounded-md bg-amber px-4 py-2 text-body font-medium text-on-amber disabled:opacity-60"
+          className="rounded-md bg-brand px-4 py-2 text-body font-medium text-on-brand disabled:opacity-60"
         >
           Record adjustment
         </button>

@@ -41,20 +41,21 @@ const png = await sharp(svg, { density: 384 })
 
 // Verify before writing, because a rasteriser that silently produces a blank
 // image is the same failure shape as the OG card's empty PNG: a 200 and a file
-// of plausible size that contains nothing. Assert the amber is actually there.
+// of plausible size that contains nothing. Assert the teal x is actually there
+// (Q11: teal throughout; the mark's x is the header band's teal, #249398).
 const { data, info } = await sharp(png).raw().toBuffer({ resolveWithObject: true });
 if (info.width !== SIZE || info.height !== SIZE) {
   throw new Error(`expected ${SIZE}x${SIZE}, got ${info.width}x${info.height}`);
 }
-let amber = 0;
+let teal = 0;
 for (let i = 0; i < data.length; i += info.channels) {
-  // #f0b429 with a little tolerance for antialiasing at the glyph edges
-  if (Math.abs(data[i] - 0xf0) < 24 && Math.abs(data[i + 1] - 0xb4) < 24 && Math.abs(data[i + 2] - 0x29) < 40) {
-    amber++;
+  // #249398 with a little tolerance for antialiasing at the glyph edges
+  if (Math.abs(data[i] - 0x24) < 24 && Math.abs(data[i + 1] - 0x93) < 24 && Math.abs(data[i + 2] - 0x98) < 24) {
+    teal++;
   }
 }
-if (amber < 200) {
-  throw new Error(`only ${amber} amber pixels: the glyph did not render, refusing to write a blank icon`);
+if (teal < 200) {
+  throw new Error(`only ${teal} teal pixels: the glyph did not render, refusing to write a blank icon`);
 }
 
 for (const name of OUTPUTS) {
@@ -62,5 +63,5 @@ for (const name of OUTPUTS) {
 }
 
 console.log(`wrote ${OUTPUTS.join(" and ")} at ${info.width}x${info.height}, ${png.length} bytes`);
-console.log(`amber pixels: ${amber} (blank-output guard threshold is 200)`);
+console.log(`teal pixels: ${teal} (blank-output guard threshold is 200)`);
 console.log(`source: ${here}../public/favicon.svg`);

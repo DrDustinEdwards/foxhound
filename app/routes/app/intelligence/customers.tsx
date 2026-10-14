@@ -139,7 +139,7 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
             name="q"
             defaultValue={filters.search}
             placeholder="Search"
-            className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text placeholder:text-text-subtle focus-visible:border-amber"
+            className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text placeholder:text-text-subtle focus-visible:border-brand"
           />
         </label>
         <label className="flex flex-col gap-1.5">
@@ -147,7 +147,7 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
           <select
             name="tier"
             defaultValue={filters.tier}
-            className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-amber"
+            className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-brand"
           >
             <option value="">All plans</option>
             {tiers.map((t) => (
@@ -162,7 +162,7 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
           <select
             name="band"
             defaultValue={filters.healthBand}
-            className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-amber"
+            className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-brand"
           >
             <option value="">All health bands</option>
             {HEALTH_BANDS.map((b) => (
@@ -177,7 +177,7 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
           <select
             name="sort"
             defaultValue={filters.sort}
-            className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-amber"
+            className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-brand"
           >
             <option value="health_asc">Health, lowest first</option>
             <option value="mrr_desc">MRR, highest first</option>
@@ -185,7 +185,7 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
         </label>
         <button
           type="submit"
-          className="rounded-md bg-amber px-4 py-2 text-body font-medium text-on-amber"
+          className="rounded-md bg-brand px-4 py-2 text-body font-medium text-on-brand"
         >
           Filter
         </button>
@@ -219,7 +219,7 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
                     <td className="px-4 py-3">
                       <Link
                         to={`/intelligence/customers/${c.stripeCustomerId}`}
-                        className="text-text hover:text-amber"
+                        className="text-text hover:text-brand-text"
                       >
                         {c.customerName ?? c.customerEmail ?? c.stripeCustomerId}
                       </Link>
@@ -275,7 +275,7 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
       {result.totalPages > 1 ? (
         <div className="mt-4 flex items-center justify-between text-label text-text-tertiary">
           {result.page > 1 ? (
-            <Link to={pageHref(filters, result.page - 1)} className="text-amber-text hover:underline">
+            <Link to={pageHref(filters, result.page - 1)} className="text-brand-text hover:underline">
               Previous
             </Link>
           ) : (
@@ -285,7 +285,7 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
             Page {result.page} of {result.totalPages}
           </span>
           {result.page < result.totalPages ? (
-            <Link to={pageHref(filters, result.page + 1)} className="text-amber-text hover:underline">
+            <Link to={pageHref(filters, result.page + 1)} className="text-brand-text hover:underline">
               Next
             </Link>
           ) : (

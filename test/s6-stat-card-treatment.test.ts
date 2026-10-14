@@ -17,10 +17,10 @@ import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 // bytes). Legacy's five cards and their colorClass values:
 //
 //   Showing        text-text          <- StatCard's own default, so no prop
-//   Active         text-amber-text
+//   Active         text-brand-text
 //   Recovered      text-green
 //   Cancelled      text-text-subtle   <- landed at 352de6a
-//   Recovery rate  >=36 text-green, >=21 text-amber-text, else text-red
+//   Recovery rate  >=36 text-green, >=21 text-caution (legacy: its accent text), else text-red
 //
 // TWO INHERITED COUNTS ARE REFUTED HERE, both measured from that read:
 //   * 279 and the S6 row say legacy passes colours on FOUR cards and Foxhound on
@@ -74,9 +74,9 @@ describe("S6 recovery-rate colour: legacy's thresholds, both boundaries inclusiv
     expect(recoveryRateValueClass(100)).toBe("text-green");
   });
 
-  it("21 to 35 is amber", () => {
-    expect(recoveryRateValueClass(21)).toBe("text-amber-text");
-    expect(recoveryRateValueClass(35)).toBe("text-amber-text");
+  it("21 to 35 is caution", () => {
+    expect(recoveryRateValueClass(21)).toBe("text-caution");
+    expect(recoveryRateValueClass(35)).toBe("text-caution");
   });
 
   it("below 21 is red", () => {
@@ -89,7 +89,7 @@ describe("S6 recovery-rate colour: legacy's thresholds, both boundaries inclusiv
     // from both sides. An off-by-one here ships a differently coloured number
     // under an identical-looking card.
     expect(recoveryRateValueClass(35)).not.toBe("text-green");
-    expect(recoveryRateValueClass(20)).not.toBe("text-amber-text");
+    expect(recoveryRateValueClass(20)).not.toBe("text-caution");
   });
 });
 
@@ -155,8 +155,8 @@ describe("S6 stat cards: the route renders legacy's treatment", () => {
     expect(cardBlock()).not.toContain('subtext="all filters"');
   });
 
-  it("Active carries legacy's amber and Recovered legacy's green", () => {
-    expect(cardBlock()).toContain('valueClassName="text-amber-text"');
+  it("Active carries the brand accent (teal, Q11) and Recovered legacy's green", () => {
+    expect(cardBlock()).toContain('valueClassName="text-brand-text"');
     expect(cardBlock()).toContain('valueClassName="text-green"');
   });
 
@@ -185,7 +185,7 @@ describe("S6 stat cards: the route renders legacy's treatment", () => {
     // Legacy's four non-default classes all exist in Foxhound's CSS under the
     // same names, verified in app/app.css, so this port approximates nothing.
     const css = readFileSync("app/app.css", "utf8");
-    for (const token of ["--color-amber-text", "--color-green", "--color-red"]) {
+    for (const token of ["--color-brand-text", "--color-caution", "--color-green", "--color-red"]) {
       expect(css).toContain(token);
     }
   });

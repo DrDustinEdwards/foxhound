@@ -12,7 +12,6 @@ const HEX_EXEMPT = [
   "app/app.css",
   "app/routes/files/og.ts",
   "app/lib/email/",
-  "app/lib/auth/send-auth-email.ts",
 ];
 
 // Sanctioned raw-px-font-size surfaces: email clients and Satori/SVG
@@ -22,7 +21,6 @@ const HEX_EXEMPT = [
 const PX_FONT_EXEMPT = [
   "app/routes/files/og.ts",
   "app/lib/email/",
-  "app/lib/auth/send-auth-email.ts",
 ];
 
 const HEX_PATTERN = /#[0-9a-fA-F]{3,8}\b/g;

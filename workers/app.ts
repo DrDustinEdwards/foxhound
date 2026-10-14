@@ -42,7 +42,7 @@ export default withSentry<Env>(
       // graph stays off every page render, as the MCP mount below does.
       if (new URL(request.url).pathname.startsWith("/api/carrel/v1")) {
         const { handleCarrelRequest } = await import("~/lib/carrel/handler.server");
-        const carrel = await handleCarrelRequest(request, env);
+        const carrel = await handleCarrelRequest(request, env, ctx);
         if (carrel) return applyCachePolicy(request, applySecurityHeaders(carrel, nonce));
       }
 

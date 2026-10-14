@@ -70,13 +70,13 @@ function StatRow({
   );
 }
 
-/** Legacy's AuditAISummary (blob `5ba213df`): amber left rail, mono uppercase
+/** Legacy's AuditAISummary (blob `5ba213df`): an accent left rail (teal here, Q11), mono uppercase
  *  label, one paragraph. Renders nothing when there is no summary. */
 export function AuditSummary({ summary }: { summary: string | null }) {
   if (!summary) return null;
   return (
-    <section className="mb-5 rounded-xl border border-border border-l-2 border-l-amber bg-surface p-6">
-      <div className="mb-3 font-mono text-micro font-medium uppercase tracking-widest text-amber-text">
+    <section className="mb-5 rounded-xl border border-border border-l-2 border-l-brand bg-surface p-6">
+      <div className="mb-3 font-mono text-micro font-medium uppercase tracking-widest text-brand-text">
         AI Summary
       </div>
       <p className="m-0 text-item-title leading-relaxed text-text">{summary}</p>
@@ -120,7 +120,7 @@ export function AuditRecoverySection({ run }: { run: AuditRunView }) {
             {`Card Updater: ${run.cardUpdater.eventsInWindow} card${run.cardUpdater.eventsInWindow === 1 ? "" : "s"} auto-updated in the last 30 days (${run.cardUpdater.expiredCardDeclinesInWindow} expired-card decline${run.cardUpdater.expiredCardDeclinesInWindow === 1 ? "" : "s"} in the same window).`}
           </div>
           {run.cardUpdater.advisory ? (
-            <div className="mt-2 rounded-md border border-amber bg-amber-bg px-3 py-2 text-micro text-amber-text">
+            <div className="mt-2 rounded-md border border-brand bg-brand-bg px-3 py-2 text-micro text-brand-text">
               {run.cardUpdater.advisory}
             </div>
           ) : null}

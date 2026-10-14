@@ -42,7 +42,7 @@ export default function BillingInvoice({ loaderData }: Route.ComponentProps) {
             {BILLING_INVOICE_STATUS_LABELS[invoice.status] ?? invoice.status}
           </Badge>
           {invoice.stripeInvoiceUrl ? (
-            <a href={invoice.stripeInvoiceUrl} target="_blank" rel="noreferrer" className="text-label text-amber-text hover:underline">
+            <a href={invoice.stripeInvoiceUrl} target="_blank" rel="noreferrer" className="text-label text-brand-text hover:underline">
               View Stripe invoice
             </a>
           ) : null}

@@ -100,7 +100,7 @@ export default function BlogIndexPage({ loaderData }: Route.ComponentProps) {
           <p className="text-body text-text-secondary">
             Nothing published yet. Check back soon, or read the product docs in the meantime.
           </p>
-          <Link to="/docs" className="mt-4 inline-block text-label text-amber-text hover:opacity-80">
+          <Link to="/docs" className="mt-4 inline-block text-label text-brand-text hover:opacity-80">
             Read the docs
           </Link>
         </div>
@@ -126,9 +126,9 @@ function BlogHero({ post }: { post: BlogPostSummary }) {
     <section className="border-b border-border-sub bg-surface">
       <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-8 px-4 py-12 sm:px-6 lg:grid-cols-2 lg:px-8 lg:py-16">
         <div>
-          <p className="text-caption font-mono uppercase tracking-widest text-amber-text">Featured</p>
+          <p className="text-caption font-mono uppercase tracking-widest text-brand-text">Featured</p>
           <h2 className="mt-3 text-3xl font-bold leading-tight text-text lg:text-4xl">
-            <Link to={`/blog/${post.slug}`} className="text-text transition-colors hover:text-amber-text">
+            <Link to={`/blog/${post.slug}`} className="text-text transition-colors hover:text-brand-text">
               {post.title}
             </Link>
           </h2>
@@ -142,7 +142,7 @@ function BlogHero({ post }: { post: BlogPostSummary }) {
                 </span>
                 <Link
                   to={`/blog/tag/${encodeURIComponent(post.tags[0])}`}
-                  className="rounded-full border border-border bg-surface2 px-2 py-0.5 text-micro uppercase tracking-wide text-text-secondary transition-colors hover:border-amber hover:text-text"
+                  className="rounded-full border border-border bg-surface2 px-2 py-0.5 text-micro uppercase tracking-wide text-text-secondary transition-colors hover:border-brand hover:text-text"
                 >
                   {formatTagChip(post.tags[0])}
                 </Link>
@@ -151,7 +151,7 @@ function BlogHero({ post }: { post: BlogPostSummary }) {
           </div>
           <Link
             to={`/blog/${post.slug}`}
-            className="group mt-6 inline-flex items-center gap-2 rounded-lg bg-amber px-5 py-2.5 font-medium text-on-amber transition-colors hover:bg-amber-dark"
+            className="group mt-6 inline-flex items-center gap-2 rounded-lg bg-brand px-5 py-2.5 font-medium text-on-brand transition-colors hover:bg-brand-dark"
           >
             Read the guide
             <ArrowRight
@@ -179,7 +179,7 @@ function BlogHero({ post }: { post: BlogPostSummary }) {
           <div className="aspect-video w-full overflow-hidden rounded-xl border border-border-sub">
             {/* Legacy's hand-drawn cover fallback, ported from app/(marketing)/blog/page.tsx.
                 Legacy inlines four literal colours plus a [data-theme="light"] override block.
-                Its two dark values are exactly our --bg and --amber-text, and its two light
+                Its two dark values are exactly our --bg and --brand-text, and its two light
                 values are exactly what those same tokens hold under [data-theme="light"]
                 (verified against app.css), so the var() form renders identically in both
                 themes and legacy's override block becomes redundant. Keeping the literals
@@ -194,7 +194,7 @@ function BlogHero({ post }: { post: BlogPostSummary }) {
             >
               <style>{`
                 .dz-base { fill: var(--bg); }
-                .dz-band { fill: var(--amber-text); }
+                .dz-band { fill: var(--brand-text); }
               `}</style>
               <rect width="560" height="315" className="dz-base" />
               <polygon points="0,0    90,0   0,160" className="dz-band" />
@@ -228,12 +228,12 @@ function BlogSection({ section, posts }: { section: BlogSectionConfig; posts: Bl
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="font-mono text-sm uppercase tracking-widest text-amber-text">{section.label}</p>
+            <p className="font-mono text-sm uppercase tracking-widest text-brand-text">{section.label}</p>
             <p className="mt-1 max-w-2xl text-sm text-text-secondary">{section.description}</p>
           </div>
           <Link
             to={section.tagHref}
-            className="group whitespace-nowrap text-sm font-medium text-amber-text hover:underline"
+            className="group whitespace-nowrap text-sm font-medium text-brand-text hover:underline"
           >
             See all{" "}
             <ArrowRight

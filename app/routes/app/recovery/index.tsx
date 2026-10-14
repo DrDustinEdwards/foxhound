@@ -92,7 +92,7 @@ function RangeSelector({ range }: { range: RecoveryRange }) {
           aria-current={range === r ? "page" : undefined}
           className={`rounded-md border px-2.5 py-1 font-mono text-micro ${
             range === r
-              ? "border-amber bg-amber text-on-amber"
+              ? "border-brand bg-brand text-on-brand"
               : "border-border text-text-tertiary hover:border-border-i"
           }`}
         >
@@ -147,7 +147,7 @@ function StatCardsSecondary({ w }: { w: RecoveryDashboardWindow }) {
       <StatCard
         label="Cards expiring" icon={CreditCard}
         value={String(w.expiringCardsCount)}
-        valueClassName={w.expiringCardsCount > 0 ? "text-amber-text" : undefined}
+        valueClassName={w.expiringCardsCount > 0 ? "text-caution" : undefined}
       />
       <StatCard
         label="Avg. days to recover" icon={Clock}
@@ -458,7 +458,7 @@ function PaymentsPreview({ w }: { w: RecoveryDashboardWindow }) {
         <h2 className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
           Recent activity
         </h2>
-        <Link to="/recovery/payments" className="text-label text-amber-text hover:underline">
+        <Link to="/recovery/payments" className="text-label text-brand-text hover:underline">
           View all payments
         </Link>
       </div>
@@ -471,7 +471,7 @@ function PaymentsPreview({ w }: { w: RecoveryDashboardWindow }) {
           {w.recentPayments.map((p) => (
             <li key={p.id} className="flex items-center justify-between gap-3 border-b border-border-sub pb-2 last:border-0">
               <Link to={`/recovery/payments/${p.id}`} className="min-w-0 flex-1">
-                <p className="truncate text-label text-text hover:text-amber">
+                <p className="truncate text-label text-text hover:text-brand-text">
                   {p.customerName ?? p.customerEmail}
                   {(w.previousFailureCounts[p.stripeCustomerId] ?? 0) > 0 ? (
                     <span className="ml-2 text-micro text-text-subtle">
@@ -532,7 +532,7 @@ export default function RecoveryDashboard({ loaderData }: Route.ComponentProps) 
           </p>
           <Link
             to="/connect"
-            className="mt-4 inline-flex items-center gap-2 rounded-md bg-amber px-5 py-2.5 text-label font-medium text-on-amber hover:bg-amber-dark"
+            className="mt-4 inline-flex items-center gap-2 rounded-md bg-brand px-5 py-2.5 text-label font-medium text-on-brand hover:bg-brand-dark"
           >
             Connect Stripe
           </Link>

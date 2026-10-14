@@ -18,9 +18,9 @@ import { headerLogo } from "./header-logo";
 // the component renders in a plain node test under MemoryRouter, so the plants
 // read what a reader reads.
 
-// THE LOOK (J21): Capsomer's button, teal, Foxhound's five text sizes. J81
-// (teal site-wide) has not landed, so the amber this page used is replaced
-// here only; the rest of the site keeps its amber until J81.
+// THE LOOK (J21): Capsomer's button, teal, Foxhound's five text sizes. Teal
+// throughout (Q11) has since landed site-wide, so this page and the rest of
+// the site share the one accent.
 //
 // Recova's buttons are 44px tall (px-6 py-3, text-sm). Capsomer's nearest is
 // data-size="lg" in its comfortable density: 40px with a pointer, 44px on a
@@ -68,8 +68,8 @@ export function ErrorView({ error, isDev = false }: { error: unknown; isDev?: bo
       ? WITHDRAWN_BLOG_REASON
       : details;
 
-  // The numeral's colour is the kit's fault signal: Recova's amber for an
-  // expected condition (404), red for a fault. A withdrawal is expected, so it
+  // The numeral's colour is the kit's fault signal: the brand accent (teal) for
+  // an expected condition (404), red for a fault. A withdrawal is expected, so it
   // takes the expected tone. Red here would be the same error framing the
   // heading just stopped doing, one element over. On the teal family the
   // expected tone is the accent text and the fault is --crit (app/error-page.css);

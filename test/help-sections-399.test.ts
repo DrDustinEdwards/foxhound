@@ -24,7 +24,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 //              "Quick answers, guides, and platform status."
 //   section 1  "Common questions", six QUICK_ANSWERS as h3 + p pairs
 //   section 2  "Guides", PLATFORM_GUIDE full width then four PRODUCT_GUIDES in
-//              a 2-col grid, each rounded-lg border p-4 hover:border-amber
+//              a 2-col grid, each rounded-lg border p-4 hover:border-brand
 //   section 3  "Platform status", a "Background jobs" card of four crons with a
 //              time-ago and a status dot, then an "MCP connectors" card
 //   section 4  "Contact", a bordered block with a mailto and the business-day
@@ -135,7 +135,7 @@ describe("S23 /help: Common questions", () => {
   });
 
   it("keeps the recovery-rate bands, which ARE true of Foxhound", () => {
-    // DESIGN.md: 0-20 red, 21-35 amber, 36+ green. Ported unchanged, and pinned
+    // DESIGN.md: 0-20 red, 21-35 caution, 36+ green. Ported unchanged, and pinned
     // so a later reader can see it was checked rather than copied.
     expect(QUICK_ANSWERS[2].a).toContain("21-35% is typical");
   });
@@ -179,7 +179,7 @@ describe("S23 /help: Platform status", () => {
 
   it("gives each status its own dot colour", () => {
     const html = render();
-    for (const cls of ["bg-green", "bg-amber", "bg-red", "bg-text-tertiary"]) {
+    for (const cls of ["bg-green", "bg-caution", "bg-red", "bg-text-tertiary"]) {
       expect(html).toContain(cls);
     }
   });

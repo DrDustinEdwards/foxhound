@@ -92,11 +92,16 @@ interface Env {
 // Foxhound's adapter shape over the Cloudflare Email Service send binding. The
 // concrete binding call lives only in app/lib/email/send.ts and is finalized when
 // Email Service is enabled (Phase 8).
+//
+// `text` is the plain-text part (J02): the Email Service send builder accepts
+// `text` beside `html` (workerd's EmailReplyMessageBuilder), and every message
+// Foxhound sends carries both, rendered from one Capsomer template.
 interface EmailSendMessage {
   from: string;
   to: string;
   subject: string;
   html: string;
+  text: string;
   headers?: Record<string, string>;
 }
 interface EmailSendBinding {

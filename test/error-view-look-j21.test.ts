@@ -33,7 +33,7 @@ function ctas(html: string): string[] {
 }
 
 describe.each(Object.entries(STATES))("the %s page", (_name, page) => {
-  it("carries no amber anywhere (J81 has not landed; this page is teal now)", () => {
+  it("carries no amber anywhere (Q11: teal throughout)", () => {
     expect(page()).not.toMatch(/amber/);
   });
 

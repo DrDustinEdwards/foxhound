@@ -29,9 +29,14 @@ describe("buildEmailMessage (CAN-SPAM + from)", () => {
   it("appends an unsubscribe link and the physical address, and sets the List-Unsubscribe header", () => {
     const msg = buildEmailMessage(job(), "https://foxhound.example");
     expect(msg.from).toBe("Acme <recovery@send.foxhoundapp.com>");
-    expect(msg.html).toContain("<p>Please update your card.</p>");
+    // J02: the body sits in Capsomer's frame, so the words are asserted, in the
+    // HTML part and in the plain-text part made from the same blocks.
+    expect(msg.html).toContain("Please update your card.");
+    expect(msg.text).toContain("Please update your card.");
     expect(msg.html).toContain("https://foxhound.example/u/unsub_tok");
     expect(msg.html).toContain("123 Main St, Springfield");
+    expect(msg.text).toContain("Unsubscribe: https://foxhound.example/u/unsub_tok");
+    expect(msg.text).toContain("123 Main St, Springfield");
     expect(msg.headers?.["List-Unsubscribe"]).toBe("<https://foxhound.example/u/unsub_tok>");
     expect(msg.headers?.["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
   });

@@ -2,6 +2,8 @@
 // message and log it. Produced by the recovery/win-back engine (Phase 4b/4e),
 // consumed by the queue handler. Kept transport-agnostic; only send.ts touches
 // the binding.
+import type { EmailTracking } from "./templates";
+
 /**
  * Who the message is addressed to, which decides whether CAN-SPAM applies.
  *
@@ -66,4 +68,10 @@ export interface EmailJob {
   cronRunId?: string | null;
   /** Defaults to "customer", the CAN-SPAM-bearing case. */
   audience?: EmailAudience;
+  /**
+   * The open pixel and the scanner trap of a dunning send (J02). Carried beside
+   * the body rather than inside it, so the frame places them in the HTML part
+   * only and the text part never shows them. Absent on every other send.
+   */
+  tracking?: EmailTracking | null;
 }

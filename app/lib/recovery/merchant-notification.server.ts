@@ -92,6 +92,10 @@ export function recoveryNotifySubject(data: {
  * EMAIL_COLORS module, which Foxhound does not have (the wall buildDigestEmail
  * and the S33 preview banner both hit), and check-tokens fails the build on raw
  * hex. The anchor stays an anchor.
+ *
+ * The title line is a real heading (J02 review): the email frame no longer
+ * promotes an all-bold paragraph to a heading, so the same words that were
+ * `<p><strong>` are now `<h1>`, and render as the mail's title.
  */
 export function recoveryNotifyBody(data: {
   amountCents: number;
@@ -102,7 +106,7 @@ export function recoveryNotifyBody(data: {
 }): string {
   const amount = formatNotifyAmount(data.amountCents, data.currency);
   return (
-    `<p><strong>Payment recovered.</strong></p>` +
+    `<h1>Payment recovered.</h1>` +
     `<p>${data.customerLabel} just paid <strong>${amount}</strong>. ` +
     `Foxhound recovered it automatically after a ${data.declineCategory} decline.</p>` +
     `<p><a href="${data.paymentUrl}">View payment</a></p>`

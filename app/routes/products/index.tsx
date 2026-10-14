@@ -20,7 +20,7 @@ import type { Route } from "./+types/index";
 // Card descriptions, prices and the meta description all diverge from legacy
 // and all carry product-capability or pricing claims, so they are FROZEN for
 // ruling 20d's copy-accuracy pass and are deliberately untouched here. The
-// price/priceLabel split is the same: legacy renders one amber mono string,
+// price/priceLabel split is the same: legacy renders one accent mono string,
 // Foxhound splits the claim across two elements. Only the price element's
 // COLOR is a treatment item, and that is what this walk fixed.
 
@@ -60,18 +60,18 @@ export default function ProductsIndexPage() {
               <Link
                 key={p.key}
                 to={p.href}
-                className="group block rounded-lg border border-border bg-surface p-5 transition-all duration-150 hover:-translate-y-1 hover:border-amber"
+                className="group block rounded-lg border border-border bg-surface p-5 transition-all duration-150 hover:-translate-y-1 hover:border-brand"
               >
                 <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-surface2">
-                  <Icon className="h-[18px] w-[18px] text-amber-text" strokeWidth={1.8} aria-hidden />
+                  <Icon className="h-[18px] w-[18px] text-brand-text" strokeWidth={1.8} aria-hidden />
                 </div>
                 <div className="mb-2 text-item-title font-medium text-text">{p.name}</div>
                 <div className="mb-3 text-label leading-relaxed text-text-secondary">{p.description}</div>
-                <div className="mb-4 font-mono text-label text-amber-text">
+                <div className="mb-4 font-mono text-label text-brand-text">
                   {p.price}
                   {p.priceLabel ? <span className="text-text-tertiary"> {p.priceLabel}</span> : null}
                 </div>
-                <div className="text-label text-amber-text">
+                <div className="text-label text-brand-text">
                   Learn more{" "}
                   <ArrowRight
                     className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"

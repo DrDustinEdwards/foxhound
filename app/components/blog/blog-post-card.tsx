@@ -19,7 +19,7 @@ export function BlogPostCard({ post }: { post: BlogPostSummary }) {
   return (
     <Link
       to={`/blog/${post.slug}`}
-      className="flex flex-col gap-3 rounded-xl border border-border-sub bg-surface p-5 no-underline transition-colors hover:border-amber"
+      className="flex flex-col gap-3 rounded-xl border border-border-sub bg-surface p-5 no-underline transition-colors hover:border-brand"
     >
       {tag ? (
         <span className="w-fit rounded-full border border-border bg-surface2 px-2 py-0.5 font-mono text-micro uppercase tracking-wide text-text-secondary">

@@ -54,7 +54,7 @@ export default function AdminMerchants({ loaderData }: Route.ComponentProps) {
               {merchants.map((m) => (
                 <tr key={m.id} className="border-b border-border-sub last:border-0">
                   <td className="px-4 py-3">
-                    <Link to={`/admin/merchants/${m.id}`} className="text-text hover:text-amber">
+                    <Link to={`/admin/merchants/${m.id}`} className="text-text hover:text-brand-text">
                       {m.name ?? m.id}
                     </Link>
                   </td>

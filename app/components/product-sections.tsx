@@ -7,10 +7,10 @@ import { Link } from "react-router";
 // of chrome to this file, exactly as legacy's own header comment says they do,
 // so a change here reaches M6 to M9 at once.
 //
-// Ruling 67 (Dustin, 2026-07-29): the amber accents legacy puts on the hero
+// Ruling 67 (Dustin, 2026-07-29): the accents legacy puts on the hero
 // pill icon, the step numerals and the pricing checkmarks are RESTORED. This
 // file previously recorded dropping them as deliberate, citing DESIGN.md's
-// one-amber-per-card rule. That rule was itself ported from legacy's color
+// one-accent-per-card rule. That rule was itself ported from legacy's color
 // system, so where legacy's shipped pages exceed it, legacy shipped the render,
 // and the render is the spec.
 //
@@ -50,7 +50,7 @@ export function ProductHero({
     <section className="speakable-hero border-b border-border px-5 py-20 text-center sm:px-8">
       <div className="mx-auto max-w-[680px]">
         <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 font-mono text-micro font-medium text-text-tertiary">
-          <Icon className="h-3 w-3 flex-shrink-0 text-amber-text" strokeWidth={2} aria-hidden />
+          <Icon className="h-3 w-3 flex-shrink-0 text-brand-text" strokeWidth={2} aria-hidden />
           {productName}
         </div>
         {/* whitespace-pre-line is legacy's mechanism: a headline opts into a
@@ -73,7 +73,7 @@ export function ProductHero({
         <div className="flex flex-wrap items-center justify-center gap-4">
           <Link
             to={primaryCTA.href}
-            className="btn-primary inline-flex items-center gap-2 rounded-lg px-6 py-3 text-subhead font-medium text-on-amber"
+            className="btn-primary inline-flex items-center gap-2 rounded-lg px-6 py-3 text-subhead font-medium text-on-brand"
           >
             {primaryCTA.label}
           </Link>
@@ -105,7 +105,7 @@ export function HowItWorks({ steps }: { steps: { title: string; body: React.Reac
         <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">
           {steps.map((step, i) => (
             <div key={step.title}>
-              <div className="mb-3 font-mono text-micro text-amber-text">0{i + 1}</div>
+              <div className="mb-3 font-mono text-micro text-brand-text">0{i + 1}</div>
               <h3 className="mb-2 text-item-title font-medium text-text">{step.title}</h3>
               <p className="text-copy leading-relaxed text-text-secondary">{step.body}</p>
             </div>
@@ -158,7 +158,7 @@ export function FeatureBlocks({
             const inner = (
               <div className="space-y-6">
                 <div className="mx-auto max-w-[640px] text-center">
-                  <div className="mb-3 text-micro font-medium uppercase tracking-widest text-amber-text">
+                  <div className="mb-3 text-micro font-medium uppercase tracking-widest text-brand-text">
                     {block.eyebrow}
                   </div>
                   <h3 className="mb-3 text-feature-title font-medium leading-snug text-text">
@@ -221,7 +221,7 @@ export function ProductPricing({
           </ul>
           <Link
             to={ctaHref}
-            className="btn-primary block w-full rounded-lg px-6 py-3 text-center text-subhead font-medium text-on-amber"
+            className="btn-primary block w-full rounded-lg px-6 py-3 text-center text-subhead font-medium text-on-brand"
           >
             {ctaLabel}
           </Link>
@@ -257,7 +257,7 @@ export function BottomCTA({
         <p className="mb-8 text-subhead leading-relaxed text-text-secondary">{sub}</p>
         <Link
           to={ctaHref}
-          className="btn-primary inline-flex items-center gap-2 rounded-lg px-6 py-3 text-subhead font-medium text-on-amber"
+          className="btn-primary inline-flex items-center gap-2 rounded-lg px-6 py-3 text-subhead font-medium text-on-brand"
         >
           {ctaLabel}
         </Link>

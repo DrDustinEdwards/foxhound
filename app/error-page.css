@@ -15,8 +15,8 @@
 @import "capsomer/family-teal.css" layer(capbase);
 @import "capsomer/button.css";
 
-/* The numeral's two tones (Recova's amber-text and red, carried onto the teal
-   family): the family's accent text for an expected state (404, the 410
+/* The numeral's two tones (Recova's expected-state accent and red, carried
+   onto the teal family): the family's accent text for an expected state (404, the 410
    withdrawal), its critical colour for a fault. Both read from the
    data-family="teal" wrapper, so they switch with the theme on their own. */
 .fh-error-page .fh-error-numeral {
@@ -27,7 +27,7 @@
 }
 
 /* Foxhound's global focus rule (app.css, *:focus-visible) is unlayered, so it
-   beats Capsomer's layered ring on every element: a 2px amber outline, and
+   beats Capsomer's layered ring on every element: a 2px --border-focus outline, and
    corners squared to 2px on the focused button itself. Reverting those three
    properties to the layer below hands the button back its own ring (3px,
    opaque, the family's --ring, button.md "The default and its reason"); it
@@ -42,8 +42,8 @@
 /* The bar, in the site header's band colours (app.css, .fh-cap
    .cap-site-header): Foxhound's chrome, its line, and the header's wordmark in
    chrome text. Its home link is not a Capsomer component, so it keeps
-   Foxhound's global ring, with the ring's colour taken off amber for the
-   band's teal, the one the site header's ring uses on the same chrome. */
+   Foxhound's global ring, with the ring's colour taken off the page's
+   --border-focus for the band's teal, the one the site header's ring uses on the same chrome. */
 .fh-error-page .fh-error-bar {
   --border-focus: var(--header-teal);
   --header-fg: var(--chrome-text);
