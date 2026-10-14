@@ -140,23 +140,31 @@ describe("J53: the access-disclosure panel (ruling 20(d)), true of Foxhound's sc
     expect(new URL(url).searchParams.get("scope")).toBe("read_write");
   });
 
-  it("what Foxhound can do: Recova's true lines word for word, then the two writes Recova left out", () => {
+  it("what Foxhound can do: every read and write the grant is used for", () => {
     const t = text(render(CONNECT));
     inOrder(t, [
       "What Foxhound can do",
-      "View failed invoices and payment history",
+      // Main's wider read line stays until Dustin rules (RULES.md 2.2, PR #65
+      // open question 1): Recova's "View failed invoices and payment history"
+      // says less than Foxhound reads (all customers, subscriptions, invoices,
+      // charges and disputes).
+      "Read your invoices, subscriptions, disputes, and customer records",
       "Retry failed invoice payments",
       "Set a customer default payment method after that customer updates their card",
+      // Win-back: card-update/service.ts createResubscribeSession opens a
+      // subscription-mode Checkout on the connected account.
+      "Open a Stripe checkout when a former customer chooses to resubscribe",
       "Submit dispute evidence, only after someone on your team approves it",
       "What Foxhound can never do",
     ]);
+    expect(t).not.toContain("View failed invoices and payment history");
   });
 
   it("what Foxhound can never do: Recova's true lines word for word, its false one corrected", () => {
     const t = text(render(CONNECT));
     inOrder(t, [
       "What Foxhound can never do",
-      "Create a charge outside an invoice you already issued",
+      "Charge a customer except by retrying a failed invoice or through a checkout they complete",
       "Access your payouts or bank account",
       "Store raw card data",
       "Connect Stripe",
@@ -170,6 +178,17 @@ describe("J53: the access-disclosure panel (ruling 20(d)), true of Foxhound's sc
     expect(t).not.toContain("Register a webhook");
     // Retrying an invoice moves money, so "never move money" is false.
     expect(t).not.toContain("Create new charges or move money");
+  });
+
+  it("never claims Foxhound charges only on invoices the merchant issued, while win-back checkout exists", () => {
+    // The win-back resubscribe checkout makes a new subscription, invoice and
+    // charge on the merchant's account when the customer completes it, so
+    // "outside an invoice you already issued" is false while it exists.
+    const service = readFileSync("app/lib/card-update/service.ts", "utf8");
+    expect(service).toMatch(/export async function createResubscribeSession/);
+    expect(service).toMatch(/mode: "subscription"/);
+    const t = text(render(CONNECT));
+    expect(t).not.toMatch(/outside an invoice you already issued/i);
   });
 
   it("nothing Recova's panel lacks is added beyond the truthfulness fixes", () => {

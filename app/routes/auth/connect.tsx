@@ -139,33 +139,37 @@ export async function action({ request, context }: Route.ActionArgs) {
 // app/connect/page.tsx (blob a79ee373, lines 21 to 31 and 59 to 77), restored
 // on the screen where a merchant grants the connection (J53, row A6).
 //
-// RECOVA'S LINES ARE KEPT WORD FOR WORD WHERE THEY ARE TRUE OF FOXHOUND. Three
-// are not, and are fixed as copy, never by narrowing the scope (RULES.md 2.2):
+// RECOVA'S LINES ARE KEPT WORD FOR WORD WHERE THEY ARE TRUE OF FOXHOUND AND SAY
+// AS MUCH AS THE GRANT DOES. The rest are fixed as copy, never by narrowing the
+// scope (RULES.md 2.2):
 //
+//   - The read line stays the wider one main carried until Dustin rules (PR #65,
+//     open question 1). Recova's "View failed invoices and payment history" says
+//     less than Foxhound reads: every customer, subscription, invoice and charge
+//     (intelligence/sync.server.ts), disputes and payment methods.
 //   - "Register a webhook to receive payment events" is dropped. Foxhound never
 //     calls webhookEndpoints.create on a connected account; Connect events reach
 //     one platform-level endpoint.
-//   - "Create new charges or move money" is false: retrying an invoice moves
-//     money. What is true is that nothing here creates a charge outside an
-//     invoice the merchant already issued.
 //   - Recova's "can do" list names one write, retrying an invoice. Foxhound's
-//     read_write grant is used for two more, so leaving them off would make the
-//     list say less than the grant does: setting a customer's default payment
-//     method (card-update/service.ts, customers.update and
-//     subscriptions.update) and submitting dispute evidence a person approved
-//     (disputes/submission.ts, disputes.update with submit:true).
-//
-// Nothing else is added: Foxhound's earlier wording and its extra lines went
-// back to Recova's in J53, and are listed in the PR as questions for Dustin.
+//     grant is used for three more, so each is listed: setting a customer's
+//     default payment method (card-update/service.ts, customers.update and
+//     subscriptions.update), opening a subscription-mode Stripe checkout for a
+//     win-back customer who chooses to resubscribe (createResubscribeSession),
+//     and submitting dispute evidence a person approved (disputes/submission.ts).
+//   - "Create new charges or move money" is false: a retried invoice moves money,
+//     and a completed win-back checkout makes a new subscription, invoice and
+//     charge. What is true is that Foxhound charges a customer only those two
+//     ways.
 const CONNECTION_CAN = [
-  "View failed invoices and payment history",
+  "Read your invoices, subscriptions, disputes, and customer records",
   "Retry failed invoice payments",
   "Set a customer default payment method after that customer updates their card",
+  "Open a Stripe checkout when a former customer chooses to resubscribe",
   "Submit dispute evidence, only after someone on your team approves it",
 ];
 
 const CONNECTION_CANNOT = [
-  "Create a charge outside an invoice you already issued",
+  "Charge a customer except by retrying a failed invoice or through a checkout they complete",
   "Access your payouts or bank account",
   "Store raw card data",
 ];
