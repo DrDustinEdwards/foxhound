@@ -27,8 +27,9 @@ function render(page: ComponentType, path: string): string {
 
 /** The legal body: Recova's 720px column, everything after the shared page header. */
 function body(html: string): string {
-  const i = html.lastIndexOf("<div", html.indexOf("max-w-[720px]"));
-  expect(i, "the 720px legal column is on the page").toBeGreaterThan(-1);
+  const col = html.indexOf("max-w-[720px]");
+  expect(col, "the 720px legal column is on the page").toBeGreaterThan(-1);
+  const i = html.lastIndexOf("<div", col);
   return html.slice(i);
 }
 
@@ -128,10 +129,10 @@ describe("/privacy: Recova's arrangement", () => {
     for (const s of strongs) expect(s).toContain("font-medium");
   });
 
-  it("points the summary at the contents list where it now is, below it", () => {
+  it("points the summary at the Table of Contents by its heading", () => {
     const summary = legal.slice(at(legal, 'class="cap-panel'), at(legal, ">Table of Contents</h2>"));
     expect(summary).not.toMatch(/contents list\s+above/);
-    expect(summary).toMatch(/below/);
+    expect(summary).toMatch(/Use the Table of\s+Contents/);
   });
 });
 

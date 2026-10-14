@@ -149,8 +149,8 @@
      answers of 2026-10-13 and Q11 of 2026-10-14): text-accent-text for a link
      and hover:text-accent-hover for its hover. Capsomer's own base.css gives
      every link exactly these two; Foxhound does not load that file, so pages
-     that adopt teal name them. Outside a teal family the variables are unset
-     and these utilities do nothing. First used by the legal pages (J51); the
+     that adopt teal name them. Outside a teal family they take whatever
+     family is in scope (the admin's :root is purple), so set data-family. First used by the legal pages (J51); the
      site-wide teal job (J81) can reuse them. */
   --color-accent-text: var(--accent-text);
   --color-accent-hover: var(--accent-hover);

@@ -97,8 +97,8 @@ export default function PrivacyPage() {
         <div className="my-8">
           <Panel title="Summary of key points">
             <p className="m-0 text-label leading-relaxed text-text-secondary">
-              This summary covers the key points from our Privacy Policy below. Use the contents list
-              below to jump to the full detail on any topic.
+              This summary covers the key points from our Privacy Policy below. Use the Table of
+              Contents to jump to the full detail on any topic.
             </p>
             <ul className="m-0 flex list-none flex-col gap-3 p-0 text-label leading-relaxed text-text-secondary">
               <li>

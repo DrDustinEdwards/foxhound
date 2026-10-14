@@ -2,6 +2,10 @@ import type { ReactNode } from "react";
 import { Link } from "react-router";
 
 import "capsomer/panel.css";
+// Capsomer's tokens and the teal family (capbase layer), which the Panel, the
+// link roles and the focus ring read. The site header loads the same file;
+// importing it here keeps these pages whole under any layout.
+import "~/site-header.css";
 
 // The legal pages' one chrome kit (J51, rows M20 and M21). Recova's privacy and
 // terms pages share their wrapper, Section, H3, P, contents list, rule and link
@@ -65,10 +69,12 @@ export function LegalRule() {
   return <hr className="my-10 border-border" />;
 }
 
+const LEGAL_H2 = "mb-4 mt-12 text-title font-medium text-text";
+
 export function LegalSection({ id, number, title, children }: LegalSectionDef & { children: ReactNode }) {
   return (
     <section>
-      <h2 id={id} className="mb-4 mt-12 scroll-mt-20 text-title font-medium text-text">
+      <h2 id={id} className={`${LEGAL_H2} scroll-mt-20`}>
         {number}. {title}
       </h2>
       {children}
@@ -78,7 +84,7 @@ export function LegalSection({ id, number, title, children }: LegalSectionDef & 
 
 /** Terms' unnumbered preamble heading: Recova gives it no scroll margin, being in no contents list. */
 export function LegalPreambleHeading({ children }: { children: ReactNode }) {
-  return <h2 className="mb-4 mt-12 text-title font-medium text-text">{children}</h2>;
+  return <h2 className={LEGAL_H2}>{children}</h2>;
 }
 
 export function LegalH3({ children }: { children: ReactNode }) {
