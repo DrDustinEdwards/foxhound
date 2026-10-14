@@ -40,6 +40,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       // constant, not a query, and the header renders no switcher for them.
       accounts: [],
       activeAccountId: null,
+      userName: null,
+      email: "",
     };
   }
 
@@ -79,6 +81,10 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     // Legacy's hasAccount, gating the gear's Billing row. The membership is
     // already resolved above, so this costs the loader nothing extra.
     hasAccount: membership !== null,
+    // Who you are, the first line of the avatar menu: off the session already
+    // in hand, no query.
+    userName: session.user.name || null,
+    email: session.user.email,
   };
 }
 
@@ -94,8 +100,11 @@ export default function MarketingLayout({ loaderData }: Route.ComponentProps) {
         hasAccount={loaderData.hasAccount}
         accounts={loaderData.accounts}
         activeAccountId={loaderData.activeAccountId}
+        userName={loaderData.userName}
+        email={loaderData.email}
+        skipTo="#main"
       />
-      <main className="flex-1">
+      <main id="main" className="flex-1">
         <Outlet />
       </main>
       <Footer />

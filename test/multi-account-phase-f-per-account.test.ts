@@ -671,8 +671,10 @@ describe("PHASE (f): the app shell, the ONE surface that must see other accounts
 
     // Everything else is identical, which is the same differential as above
     // applied to the one surface that has to be carved out of it.
+    // readAt is when the loader ran, for the page bar's "Updated ..." line: a
+    // clock reading, not account data, so it differs between any two calls.
     const strip = (r: Record<string, unknown>) =>
-      JSON.stringify(Object.fromEntries(Object.entries(r).filter(([k]) => k !== "accounts")));
+      JSON.stringify(Object.fromEntries(Object.entries(r).filter(([k]) => k !== "accounts" && k !== "readAt")));
     expect(strip(withB)).toBe(strip(alone));
   });
 });

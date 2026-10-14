@@ -2,8 +2,14 @@
    and below its components and utilities: its element rules win inside the
    admin shell, and Tailwind classes on page content still win over Capsomer.
    Pages that never load Capsomer have no cap layer, so this changes nothing
-   for them. */
-@layer theme, base, cap, components, utilities;
+   for them.
+
+   capbase holds Capsomer's tokens on the public site and the merchant app
+   (app/site-header.css), below everything else: the site header and the
+   dashboard shell read them, and where a Capsomer token shares a name with
+   one of Tailwind's (--radius-xl, --ease-out) Tailwind's still wins, so no
+   page's own look moves. */
+@layer capbase, theme, base, cap, components, utilities;
 @import "tailwindcss";
 
 /* Self-hosted fonts. No Google Fonts request at runtime; files vendored
@@ -314,6 +320,15 @@
   --chrome-text: #f0ede8;
   --chrome-text-secondary: #a8a49e;
   --chrome-text-tertiary: #928d87;
+  --chrome-border: #2a2b28;
+
+  /* Teal on the header band (Capsomer's teal family, Dustin's answer 1 of
+     2026-10-13, recorded in parity/APPROVED-DIFFERENCES.md): the band stays
+     dark in both modes, so its accent and the text on it are one pair in both.
+     The page's own teal (panels, the sheet, the tab bar) is the family's
+     accent text, #01585c light and #97c8cb dark, from capsomer/family-teal.css. */
+  --header-teal: #249398;
+  --header-teal-fg: #070f0f;
 
   /* Cobalt: reinstated secondary (exact complement, H:221.9). Superseded
      the Phase 6 removal per TASK-foxhound-design-system-port.md. */
@@ -932,4 +947,129 @@ body {
   background: var(--amber-ui);
   border: 2px solid var(--surface);
   cursor: pointer;
+}
+
+/* Capsomer's site header and dashboard shell, in Foxhound's colours.
+
+   The neutrals Capsomer reads (--ground, --surface, --text, --line and the
+   rest) are Foxhound's own, so a panel, the phone's sheet, the merchant app's
+   menu and every page under it look as they did; only the accents come from
+   Capsomer's teal family (data-family="teal" on the same element, Dustin's
+   answer 1 of 2026-10-13). --surface, --sunken and --text share a name with
+   Capsomer's, so their Foxhound values are read once at the root, before the
+   family's are set lower down. */
+:root {
+  --fh-surface: var(--surface);
+  --fh-sunken: var(--sunken);
+  --fh-text: var(--text);
+}
+.fh-cap {
+  --ground: var(--bg);
+  --surface: var(--fh-surface);
+  --raised: var(--surface2);
+  --sunken: var(--fh-sunken);
+  --text: var(--fh-text);
+  --muted: var(--text-secondary);
+  --dim: var(--text-tertiary);
+  --line: var(--border);
+  --line-strong: var(--border-strong);
+  --font-ui: var(--font-dm-sans), Arial, sans-serif;
+  --ui: var(--font-dm-sans), Arial, sans-serif;
+  --mono: var(--font-dm-mono), monospace;
+}
+/* The public site's header is the only thing in its wrapper: no box of its
+   own, so the header sticks to the window rather than to a wrapper as tall as
+   itself. */
+.fh-site-header {
+  display: contents;
+}
+
+/* The band: Foxhound's chrome, dark in both modes, with teal on it. The same
+   on the public site, the merchant app and the admin. */
+.fh-cap .cap-site-header,
+.fh-admin .cap-site-header {
+  --header-bg: var(--chrome);
+  --header-fg: var(--chrome-text);
+  --header-fg-muted: var(--chrome-text-secondary);
+  --header-line: var(--chrome-border);
+  --header-accent: var(--header-teal);
+  --header-cta: var(--header-teal);
+  --header-cta-fg: var(--header-teal-fg);
+  --header-avatar: var(--header-teal);
+  --header-avatar-fg: var(--header-teal-fg);
+  --ring: var(--header-teal);
+  --font-ui: var(--font-dm-sans), Arial, sans-serif;
+}
+/* Foxhound's own focus rule above squares every focused element's corners;
+   the header's round avatar and its panels keep their own shapes. */
+.cap-site-header :focus-visible,
+.cap-site-header-panel :focus-visible {
+  border-radius: revert-layer;
+}
+
+/* The wordmark in the header: DM Mono, the x in teal. */
+.fh-wordmark {
+  font-family: "DM Mono", monospace;
+  font-size: 1.125rem;
+  font-weight: 500;
+  letter-spacing: -0.5px;
+  color: var(--header-fg);
+}
+.fh-wordmark-x {
+  color: var(--header-teal);
+}
+
+/* The business tile in the switcher's panel and the phone's sheet: a square
+   with the business's initial, like the one on its button. */
+.fh-account-tile {
+  display: grid;
+  place-items: center;
+  inline-size: 20px;
+  block-size: 20px;
+  border-radius: 5px;
+  background: var(--hover);
+  color: var(--text);
+  font-family: var(--font-dm-mono), monospace;
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+[aria-current] > * > .fh-account-tile,
+[aria-current] > .fh-account-tile {
+  background: var(--header-teal);
+  color: var(--header-teal-fg);
+}
+
+/* The merchant app's page bar: the page's name first, then how fresh its data
+   is (AdminShell's "Updated ..." line), then the demo badge. AdminShell names a
+   page only in its trail below the top level, so the name rides in the bar's
+   status slot and is put first. Each page keeps its own heading. */
+.fh-app .cap-admin-bar-status {
+  order: -1;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+}
+.fh-app-page-name {
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+/* On a phone the section links move into the sheet, so with the links on the
+   right nothing pushes the tools to the right edge any more (capsomer 0.9.0
+   gives the tools a fixed margin after the links). Put them back at the edge,
+   where the design's phone row has them. */
+@media (max-width: 767.98px) {
+  .cap-site-header[data-links="right"] .cap-site-header-tools {
+    margin-inline-start: auto;
+  }
+}
+
+/* The phone's sheet pins the account rows under its list so Sign out is
+   always in view. Foxhound's avatar menu holds a business's nine rows, which
+   would leave the list itself a sliver, so the pinned rows are Settings (its
+   hub reaches every settings page), Help, Admin for an admin and Sign out, as
+   the design's phone sheet shows them; the rest stay in the avatar menu. */
+.fh-cap .cap-site-header-sheet-account li:has(> a[href]:not([href="/settings"], [href="/help"], [href="/admin"])) {
+  display: none;
 }
