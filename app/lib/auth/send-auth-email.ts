@@ -46,7 +46,7 @@ function escapeHtml(s: string): string {
 // renders with no stylesheet loaded, cannot consume CSS custom properties).
 // Values below are app.css's light-theme token hex (email clients assume a
 // white canvas, unlike og.ts's dark-canvas render): text #14150f, secondary
-// #2f312d, subtle #6e706c, amber-ui #f0b429, on-amber #0d0e0c. Keep in sync
+// #2f312d, subtle #6e706c, brand-ui #077478, on-brand #fbfefe (teal, Q11). Keep in sync
 // with app.css if those change.
 function renderAuthEmail(kind: AuthEmailKind, url: string): string {
   const c = COPY[kind];
@@ -55,7 +55,7 @@ function renderAuthEmail(kind: AuthEmailKind, url: string): string {
     `<p style="font-size:16px;font-weight:600;margin:0 0 12px;color:#14150f">${c.heading}</p>` +
     `<p style="font-size:14px;color:#2f312d;margin:0 0 20px">${c.body}</p>` +
     `<p style="margin:0 0 20px"><a href="${href}" ` +
-    `style="display:inline-block;padding:10px 18px;background:#f0b429;color:#0d0e0c;` +
+    `style="display:inline-block;padding:10px 18px;background:#077478;color:#fbfefe;` +
     `border-radius:6px;text-decoration:none;font-size:14px;font-weight:600">${c.cta}</a></p>` +
     `<p style="font-size:12px;color:#6e706c;margin:0">If the button does not work, paste this link into your browser:<br>${href}</p>`
   );
