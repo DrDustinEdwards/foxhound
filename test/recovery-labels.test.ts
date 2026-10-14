@@ -30,7 +30,7 @@ describe("stepResultTone", () => {
 });
 
 describe("failedPaymentStatusTone", () => {
-  it("recovered is success, everything else is neutral (never amber)", () => {
+  it("recovered is success, everything else is neutral (never the brand accent)", () => {
     expect(failedPaymentStatusTone("recovered")).toBe("success");
     expect(failedPaymentStatusTone("active")).toBe("neutral");
   });

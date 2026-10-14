@@ -77,12 +77,12 @@ export default function AdminBlogIndex({ loaderData }: Route.ComponentProps) {
             name="title"
             placeholder="Post title"
             required
-            className="min-w-64 flex-1 rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text placeholder:text-text-subtle focus-visible:border-amber"
+            className="min-w-64 flex-1 rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text placeholder:text-text-subtle focus-visible:border-brand"
           />
           <button
             type="submit"
             disabled={busy}
-            className="rounded-md bg-amber px-4 py-2 text-body font-medium text-on-amber disabled:opacity-60"
+            className="rounded-md bg-brand px-4 py-2 text-body font-medium text-on-brand disabled:opacity-60"
           >
             {busy ? "Creating..." : "Create draft"}
           </button>
@@ -108,7 +108,7 @@ export default function AdminBlogIndex({ loaderData }: Route.ComponentProps) {
               {posts.map((p) => (
                 <tr key={p.id} className="border-b border-border-sub last:border-0">
                   <td className="px-4 py-3">
-                    <Link to={`/admin/blog/${p.id}`} className="text-text hover:text-amber">
+                    <Link to={`/admin/blog/${p.id}`} className="text-text hover:text-brand">
                       {p.title}
                     </Link>
                     {p.featured ? <span className="ml-2 text-text-subtle">(featured)</span> : null}

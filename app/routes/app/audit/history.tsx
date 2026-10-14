@@ -88,13 +88,13 @@ export default function AuditHistory({ loaderData }: Route.ComponentProps) {
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             <Link
               to="/audit/connect"
-              className="inline-block rounded-md bg-amber px-5 py-2.5 text-label font-semibold text-on-amber no-underline hover:bg-amber-dark"
+              className="inline-block rounded-md bg-brand px-5 py-2.5 text-label font-semibold text-on-brand no-underline hover:bg-brand-dark"
             >
               Run first audit
             </Link>
             <Link
               to="/settings/audit"
-              className="inline-block rounded-md border border-border bg-surface px-5 py-2.5 text-label font-semibold text-text no-underline hover:border-amber"
+              className="inline-block rounded-md border border-border bg-surface px-5 py-2.5 text-label font-semibold text-text no-underline hover:border-brand"
             >
               Audit settings
             </Link>
@@ -116,13 +116,13 @@ export default function AuditHistory({ loaderData }: Route.ComponentProps) {
         <div className="flex flex-wrap items-center gap-3">
           <Link
             to="/settings/audit"
-            className="inline-block rounded-md border border-border bg-surface px-5 py-2.5 text-label font-semibold text-text no-underline hover:border-amber"
+            className="inline-block rounded-md border border-border bg-surface px-5 py-2.5 text-label font-semibold text-text no-underline hover:border-brand"
           >
             Audit settings
           </Link>
           <Link
             to="/audit/connect"
-            className="inline-block rounded-md bg-amber px-5 py-2.5 text-label font-semibold text-on-amber no-underline hover:bg-amber-dark"
+            className="inline-block rounded-md bg-brand px-5 py-2.5 text-label font-semibold text-on-brand no-underline hover:bg-brand-dark"
           >
             Run new audit
           </Link>
@@ -130,8 +130,8 @@ export default function AuditHistory({ loaderData }: Route.ComponentProps) {
       </div>
 
       {last.summary ? (
-        <section className="mb-5 rounded-xl border border-border border-l-2 border-l-amber bg-surface p-6">
-          <div className="mb-3 font-mono text-micro font-medium uppercase tracking-widest text-amber-text">
+        <section className="mb-5 rounded-xl border border-border border-l-2 border-l-brand bg-surface p-6">
+          <div className="mb-3 font-mono text-micro font-medium uppercase tracking-widest text-brand-text">
             AI Summary
           </div>
           <p className="m-0 text-item-title leading-relaxed text-text">{last.summary}</p>
@@ -178,7 +178,7 @@ export default function AuditHistory({ loaderData }: Route.ComponentProps) {
                   <td className="py-3 text-right">
                     <Link
                       to={`/audit/runs/${run.id}`}
-                      className="text-label text-amber-text no-underline hover:opacity-80"
+                      className="text-label text-brand-text no-underline hover:opacity-80"
                     >
                       View
                     </Link>

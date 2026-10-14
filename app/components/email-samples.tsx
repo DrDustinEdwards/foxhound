@@ -18,20 +18,20 @@ interface CategoryMeta {
   id: MarketingEmailCategory;
   label: string;
   desc: string;
-  tone: "blue" | "orange" | "amber" | "red";
+  tone: "blue" | "orange" | "brand" | "red";
 }
 
 const CATEGORIES: CategoryMeta[] = [
   { id: "soft", label: "Insufficient funds", desc: "Soft decline", tone: "blue" },
   { id: "network", label: "Processing failure", desc: "Network decline", tone: "orange" },
-  { id: "expired", label: "Expired card", desc: "Card needs updating", tone: "amber" },
+  { id: "expired", label: "Expired card", desc: "Card needs updating", tone: "brand" },
   { id: "fraud", label: "Suspected fraud", desc: "do_not_honor", tone: "red" },
 ];
 
 const TONE_CLASSES: Record<CategoryMeta["tone"], string> = {
   blue: "bg-blue-bg border-blue text-blue",
   orange: "bg-orange-bg border-orange text-warning-text",
-  amber: "bg-amber-bg border-amber-border-interactive text-amber-text",
+  brand: "bg-brand-bg border-brand-border-interactive text-brand-text",
   red: "bg-red-bg border-red text-error-text",
 };
 
@@ -104,7 +104,7 @@ export function EmailSamples() {
             type="button"
             onClick={generate}
             disabled={busy}
-            className="w-full rounded-md bg-amber px-5 py-2.5 text-label font-semibold text-on-amber hover:bg-amber-dark disabled:opacity-60 sm:w-auto sm:min-w-[280px]"
+            className="w-full rounded-md bg-brand px-5 py-2.5 text-label font-semibold text-on-brand hover:bg-brand-dark disabled:opacity-60 sm:w-auto sm:min-w-[280px]"
           >
             {busy ? "Generating..." : "Generate recovery email"}
           </button>

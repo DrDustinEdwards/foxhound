@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-// Thin amber bar pinned to the top of the viewport, tracking scroll progress
+// Thin teal (brand accent) bar pinned to the top of the viewport, tracking scroll progress
 // through the article element it targets. Ported from legacy
 // app/(marketing)/blog/[slug]/ReadingProgressBar.tsx. RR8 has no 'use client'
 // directive (that's Next-specific); this is just a plain client component,

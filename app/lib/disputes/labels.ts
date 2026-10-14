@@ -5,7 +5,7 @@ import type { Tone } from "~/lib/recovery/labels";
 // (Phase 5 slice 5c). Pure and unit-tested, mirroring app/lib/recovery/labels.ts.
 // Tone is shared from the recovery module rather than redefined (same 3-value
 // subset of Badge's BadgeTone); resolved_won is the only success, resolved_lost
-// the only failure, everything pre-resolution is neutral (amber is reserved,
+// the only failure, everything pre-resolution is neutral (the brand accent is reserved,
 // DESIGN.md, and a dispute mid-review is not itself a success or a failure).
 
 export const DISPUTE_STATE_LABELS: Record<DisputeState, string> = {
@@ -93,7 +93,7 @@ export function deadlineUrgency(daysRemaining: number | null): DeadlineUrgency {
 const DEADLINE_CLASS_NAME: Record<DeadlineUrgency, string> = {
   overdue: "text-error-text",
   urgent: "text-error-text",
-  soon: "text-amber-text",
+  soon: "text-brand-text",
   normal: "text-text-tertiary",
 };
 

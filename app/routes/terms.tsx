@@ -94,7 +94,7 @@ export default function TermsPage() {
           <ol className="m-0 grid grid-cols-1 gap-x-6 gap-y-1.5 p-0 sm:grid-cols-2">
             {SECTIONS.map((s) => (
               <li key={s.id} className="list-none text-label">
-                <a href={`#${s.id}`} className="text-amber-text underline underline-offset-2 hover:text-amber">
+                <a href={`#${s.id}`} className="text-brand-text underline underline-offset-2 hover:text-brand">
                   {s.number}. {s.title}
                 </a>
               </li>
@@ -128,7 +128,7 @@ export default function TermsPage() {
           </P>
           <P>
             You can contact us by email at{" "}
-            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-amber-text underline underline-offset-2 hover:text-amber">
+            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-brand-text underline underline-offset-2 hover:text-brand">
               {SUPPORT_EMAIL}
             </a>
             .
@@ -369,7 +369,7 @@ export default function TermsPage() {
         <Section id="privacy" number={12} title="PRIVACY POLICY">
           <P>
             We care about data privacy and security. Please review our{" "}
-            <Link to="/privacy" className="text-amber-text underline underline-offset-2 hover:text-amber">
+            <Link to="/privacy" className="text-brand-text underline underline-offset-2 hover:text-brand">
               Privacy Policy
             </Link>
             . By using the Services, you agree to be bound by our Privacy Policy, which is incorporated
@@ -531,12 +531,12 @@ export default function TermsPage() {
             Foxhound
             <br />
             Email:{" "}
-            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-amber-text underline underline-offset-2 hover:text-amber">
+            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-brand-text underline underline-offset-2 hover:text-brand">
               {SUPPORT_EMAIL}
             </a>
             <br />
             Website:{" "}
-            <Link to="/" className="text-amber-text underline underline-offset-2 hover:text-amber">
+            <Link to="/" className="text-brand-text underline underline-offset-2 hover:text-brand">
               foxhoundapp.com
             </Link>
           </P>

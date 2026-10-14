@@ -112,7 +112,7 @@ function StatCard({
   return (
     <Link
       to={to}
-      className="block rounded-lg border border-border bg-surface p-5 no-underline transition-colors hover:border-amber"
+      className="block rounded-lg border border-border bg-surface p-5 no-underline transition-colors hover:border-brand"
     >
       <div className="mb-2 font-mono text-micro uppercase tracking-widest text-text-tertiary">
         {label}
@@ -133,7 +133,7 @@ function EntryRow({ entry }: { entry: SettingsHubEntry }) {
   return (
     <Link
       to={entry.to}
-      className="flex items-center justify-between rounded-lg border border-border bg-surface px-4 py-3 no-underline transition-colors hover:border-amber"
+      className="flex items-center justify-between rounded-lg border border-border bg-surface px-4 py-3 no-underline transition-colors hover:border-brand"
     >
       <div>
         <p className="text-label font-medium text-text">{entry.label}</p>

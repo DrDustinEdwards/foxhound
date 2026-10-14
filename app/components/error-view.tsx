@@ -18,7 +18,7 @@ import { Wordmark } from "./wordmark";
 // read what a reader reads.
 
 const PRIMARY =
-  "bg-amber text-on-amber px-6 py-3 rounded-lg text-sm font-semibold no-underline font-sans";
+  "bg-brand text-on-brand px-6 py-3 rounded-lg text-sm font-semibold no-underline font-sans";
 const SECONDARY =
   "bg-transparent text-text px-6 py-3 rounded-lg text-sm font-medium no-underline border border-border font-sans";
 
@@ -55,11 +55,11 @@ export function ErrorView({ error, isDev = false }: { error: unknown; isDev?: bo
       ? WITHDRAWN_BLOG_REASON
       : details;
 
-  // The numeral's colour is the kit's fault signal: amber for an expected
+  // The numeral's colour is the kit's fault signal: the brand accent (teal) for an expected
   // condition (404), red for a fault. A withdrawal is expected, so it takes
-  // amber. Red here would be the same error framing the heading just stopped
+  // the brand accent. Red here would be the same error framing the heading just stopped
   // doing, one element over.
-  const numeralTone = isNotFound || isWithdrawn ? "text-amber-text" : "text-red";
+  const numeralTone = isNotFound || isWithdrawn ? "text-brand-text" : "text-red";
 
   // Legacy runs ONE chrome kit across not-found.tsx and error.tsx: the same
   // absolute nav, the same centred block, the same footer, differing only in the

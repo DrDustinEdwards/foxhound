@@ -98,7 +98,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 }
 
 /** Legacy's components/Toggle.tsx at its own geometry (blob 0ebdd395): a
- *  role="switch" button, 24 by 40 track, 20px thumb translated 16px, amber when
+ *  role="switch" button, 24 by 40 track, 20px thumb translated 16px, teal (brand) when
  *  on and border when off. Inline rather than a shared component, because this is
  *  its only consumer in the tree today. */
 function Toggle({
@@ -117,8 +117,8 @@ function Toggle({
       aria-checked={enabled}
       aria-label={label}
       onClick={() => onChange(!enabled)}
-      className={`no-spring relative inline-flex h-6 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${
-        enabled ? "bg-amber" : "bg-border"
+      className={`no-spring relative inline-flex h-6 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${
+        enabled ? "bg-brand" : "bg-border"
       }`}
     >
       <span
@@ -166,7 +166,7 @@ export default function AuditSettings({ loaderData, actionData }: Route.Componen
                     aria-pressed={active}
                     className={`rounded-md border px-3 py-1.5 text-label transition-colors duration-150 ${
                       active
-                        ? "border-amber bg-amber font-semibold text-on-amber"
+                        ? "border-brand bg-brand font-semibold text-on-brand"
                         : "border-border bg-surface text-text-tertiary hover:bg-surface2 hover:text-text"
                     }`}
                   >

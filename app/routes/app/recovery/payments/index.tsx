@@ -345,7 +345,7 @@ function StatusPills({
             tabIndex={active ? 0 : -1}
             onKeyDown={(event) => onKeyDown(event, index)}
             className={`rounded-full border px-3 py-1 text-label ${
-              active ? "border-amber bg-amber text-on-amber" : "border-border text-text-tertiary hover:border-border-i"
+              active ? "border-brand bg-brand text-on-brand" : "border-border text-text-tertiary hover:border-border-i"
             }`}
           >
             {pill.label} <span className="font-mono text-micro">{countFor(pill.value)}</span>
@@ -588,12 +588,12 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
         {/* THE VALUE COLOURS, legacy's own, ported through StatCard's existing
             optional valueClassName additively per 199. Legacy passes a
             colorClass on ALL FIVE cards, not four: Showing `text-text`, Active
-            `text-amber-text`, Recovered `text-green`, Cancelled
+            `text-brand-text`, Recovered `text-green`, Cancelled
             `text-text-subtle`, Recovery rate thresholded. Showing's is
             `text-text`, which is exactly StatCard's own default, so it needs no
             prop and is not a divergence. Cancelled landed at 352de6a. That
             leaves THREE outstanding, not the four 279 and the S6 row recorded. */}
-        <StatCard label="Active" value={String(globalCounts.active)} valueClassName="text-amber-text" />
+        <StatCard label="Active" value={String(globalCounts.active)} valueClassName="text-brand-text" />
         <StatCard label="Recovered" value={String(globalCounts.recovered)} valueClassName="text-green" />
         {/* 266's gap, closed 2026-08-14. Legacy's PaymentsStats.tsx (blob
             b386c66, read whole) is Showing / Active / Recovered / Cancelled /
@@ -616,7 +616,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
           value={String(globalCounts.cancelled)}
           valueClassName="text-text-subtle"
         />
-        {/* Legacy's thresholds, read from source: >= 36 green, >= 21 amber,
+        {/* Legacy's thresholds, read from source: >= 36 green, >= 21 accent (teal here),
             else red, both boundaries inclusive.
             THE EMPTY-ACCOUNT CASE IS REPAIRED 2026-08-14 under 285. This card
             rendered a hyphen with no colour when an account had no failed
@@ -644,7 +644,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
               name="q"
               defaultValue={filters.search}
               placeholder="Search"
-              className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text placeholder:text-text-subtle focus-visible:border-amber"
+              className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text placeholder:text-text-subtle focus-visible:border-brand"
             />
           </label>
           <label className="flex flex-col gap-1.5">
@@ -652,7 +652,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
             <select
               name="time"
               defaultValue={filters.time}
-              className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-amber"
+              className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-brand"
             >
               <option value="all">All time</option>
               <option value="today">Today</option>
@@ -666,7 +666,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
             <select
               name="category"
               defaultValue={filters.declineCategory}
-              className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-amber"
+              className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-brand"
             >
               <option value="">All declines</option>
               {DECLINE_CATEGORY_OPTIONS.map((c) => (
@@ -681,7 +681,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
             <select
               name="sort"
               defaultValue={filters.sort}
-              className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-amber"
+              className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-brand"
             >
               <option value="newest">Newest first</option>
               <option value="oldest">Oldest first</option>
@@ -694,7 +694,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
             <select
               name="perPage"
               defaultValue={String(filters.pageSize)}
-              className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-amber"
+              className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-brand"
             >
               {PAGE_SIZE_OPTIONS.map((size) => (
                 <option key={size} value={size}>
@@ -703,7 +703,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
               ))}
             </select>
           </label>
-          <button type="submit" className="rounded-md bg-amber px-4 py-2 text-body font-medium text-on-amber">
+          <button type="submit" className="rounded-md bg-brand px-4 py-2 text-body font-medium text-on-brand">
             Filter
           </button>
         </div>
@@ -809,7 +809,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                     checked={headerChecked}
                     onChange={() => setSelected(toggleAllVisible(selected, rows))}
                     aria-label="Select all payments"
-                    className="h-6 w-6 cursor-pointer accent-amber"
+                    className="h-6 w-6 cursor-pointer accent-brand"
                   />
                 </th>
               ) : null}
@@ -843,12 +843,12 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                           checked={selected.has(p.id)}
                           onChange={() => setSelected(toggleOne(selected, p.id))}
                           aria-label={`Select payment for ${p.customerEmail}`}
-                          className="h-6 w-6 cursor-pointer accent-amber"
+                          className="h-6 w-6 cursor-pointer accent-brand"
                         />
                       </td>
                     ) : null}
                     <td className="px-4 py-3">
-                      <Link to={`/recovery/payments/${p.id}`} className="text-text hover:text-amber">
+                      <Link to={`/recovery/payments/${p.id}`} className="text-text hover:text-brand">
                         {p.customerName ?? p.customerEmail}
                       </Link>
                       {priorCount > 0 ? (
@@ -888,7 +888,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
       {result.totalPages > 1 ? (
         <div className="mt-4 flex items-center justify-between text-label text-text-tertiary">
           {result.page > 1 ? (
-            <Link to={pageHref(filters, bounds, result.page - 1)} className="text-amber-text hover:underline">
+            <Link to={pageHref(filters, bounds, result.page - 1)} className="text-brand-text hover:underline">
               Previous
             </Link>
           ) : (
@@ -899,7 +899,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
             {result.totalCount === 1 ? "" : "s"}
           </span>
           {result.page < result.totalPages ? (
-            <Link to={pageHref(filters, bounds, result.page + 1)} className="text-amber-text hover:underline">
+            <Link to={pageHref(filters, bounds, result.page + 1)} className="text-brand-text hover:underline">
               Next
             </Link>
           ) : (
@@ -944,7 +944,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
               <div
                 role="alertdialog"
                 aria-label={`Confirm ${BULK_INTENTS[confirming].label}`}
-                className="rounded-md border border-amber/40 px-4 py-3"
+                className="rounded-md border border-brand/40 px-4 py-3"
               >
                 {overCeiling ? (
                   <>
@@ -975,7 +975,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                       name="intent"
                       value={confirming}
                       disabled={submitting}
-                      className="rounded-md border border-amber/40 bg-transparent px-3.5 py-1.5 text-micro text-text disabled:opacity-60"
+                      className="rounded-md border border-brand/40 bg-transparent px-3.5 py-1.5 text-micro text-text disabled:opacity-60"
                     >
                       {BULK_INTENTS[confirming].label} for {actionable.length} payments
                     </button>
@@ -1006,7 +1006,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                     needsConfirm={needsConfirm || overCeiling}
                     submitting={submitting}
                     onConfirm={() => setConfirmFor({ from: bulk, intent: "trigger" })}
-                    className="rounded-md border-none bg-amber px-3.5 py-1.5 text-micro font-semibold text-on-amber disabled:opacity-60"
+                    className="rounded-md border-none bg-brand px-3.5 py-1.5 text-micro font-semibold text-on-brand disabled:opacity-60"
                   />
                   <BulkIntentButton
                     intent="mark_recovered"

@@ -15,8 +15,8 @@ import type { AttentionRow, AttentionTone, ConsoleHero, ConsoleTiles } from "~/l
 // Type-only imports from the .server module are safe (erased at build). No value
 // import from it appears here, which is what would fail the client build.
 
-/** Dot color per attention tone. Amber is not used: a dot is decoration, and the
- *  one-amber-per-card budget belongs to something a merchant can act on. */
+/** Dot color per attention tone. The brand accent is not used: a dot is decoration, and the
+ *  one-accent-per-card budget belongs to something a merchant can act on. */
 const TONE_DOT_CLASS: Record<AttentionTone, string> = {
   urgent: "bg-red",
   warning: "bg-warning-text",
@@ -138,7 +138,7 @@ function TileValue({ value, caption, className }: { value: string; caption: stri
 
 /** The call-to-action an inactive tile shows instead of a number. */
 function TileCta({ label }: { label: string }) {
-  return <span className="text-micro font-medium text-amber-text">{label}</span>;
+  return <span className="text-micro font-medium text-brand-text">{label}</span>;
 }
 
 export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: number }) {
@@ -190,7 +190,7 @@ export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: n
             <TileValue
               value={formatMoneyShort(tiles.highRiskMrrCents, tiles.recoveredCurrency)}
               caption="MRR at risk"
-              className={tiles.highRiskMrrCents > 0 ? "text-amber-text" : "text-success-text"}
+              className={tiles.highRiskMrrCents > 0 ? "text-brand-text" : "text-success-text"}
             />
             <span className="text-micro text-text-subtle">
               {tiles.highRiskCustomerCount > 0
@@ -202,7 +202,7 @@ export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: n
           <span className="text-micro text-text-subtle">
             <span className="font-mono">{formatMoneyShort(INTELLIGENCE_PRICE_CENTS, "usd")}/mo</span>
             {" · "}
-            <span className="font-medium text-amber-text">Subscribe</span>
+            <span className="font-medium text-brand-text">Subscribe</span>
           </span>
         )}
       </Tile>

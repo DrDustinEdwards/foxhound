@@ -131,7 +131,7 @@ export default function AdminBlogDetail({ loaderData }: Route.ComponentProps) {
             <button
               type="submit"
               disabled={busy}
-              className="rounded-md border border-border px-3 py-1.5 text-label text-text hover:border-amber disabled:opacity-60"
+              className="rounded-md border border-border px-3 py-1.5 text-label text-text hover:border-brand disabled:opacity-60"
             >
               {post.published ? "Unpublish" : "Publish"}
             </button>
@@ -165,7 +165,7 @@ export default function AdminBlogDetail({ loaderData }: Route.ComponentProps) {
               name="title"
               defaultValue={post.title}
               required
-              className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-amber"
+              className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-brand"
             />
           </label>
 
@@ -175,7 +175,7 @@ export default function AdminBlogDetail({ loaderData }: Route.ComponentProps) {
               name="excerpt"
               defaultValue={post.excerpt}
               rows={2}
-              className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-amber"
+              className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-brand"
             />
           </label>
 
@@ -187,7 +187,7 @@ export default function AdminBlogDetail({ loaderData }: Route.ComponentProps) {
               name="body"
               defaultValue={post.body}
               rows={20}
-              className="rounded-md border border-border bg-surface2 px-3 py-2 font-mono text-micro text-text focus-visible:border-amber"
+              className="rounded-md border border-border bg-surface2 px-3 py-2 font-mono text-micro text-text focus-visible:border-brand"
             />
           </label>
 
@@ -197,7 +197,7 @@ export default function AdminBlogDetail({ loaderData }: Route.ComponentProps) {
               type="text"
               name="author"
               defaultValue={post.author}
-              className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-amber"
+              className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-brand"
             />
           </label>
 
@@ -211,7 +211,7 @@ export default function AdminBlogDetail({ loaderData }: Route.ComponentProps) {
                     name="tags"
                     value={tag}
                     defaultChecked={post.tags?.includes(tag) ?? false}
-                    className="h-4 w-4 rounded border-border accent-amber"
+                    className="h-4 w-4 rounded border-border accent-brand"
                   />
                   {tag}
                 </label>
@@ -224,7 +224,7 @@ export default function AdminBlogDetail({ loaderData }: Route.ComponentProps) {
               type="checkbox"
               name="featured"
               defaultChecked={post.featured}
-              className="h-4 w-4 rounded border-border accent-amber"
+              className="h-4 w-4 rounded border-border accent-brand"
             />
             Featured
           </label>
@@ -236,7 +236,7 @@ export default function AdminBlogDetail({ loaderData }: Route.ComponentProps) {
                 type="text"
                 name="coverImageUrl"
                 defaultValue={post.coverImageUrl ?? ""}
-                className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-amber"
+                className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-brand"
               />
             </label>
             <label className="flex flex-col gap-1.5">
@@ -245,7 +245,7 @@ export default function AdminBlogDetail({ loaderData }: Route.ComponentProps) {
                 type="text"
                 name="coverImageAlt"
                 defaultValue={post.coverImageAlt ?? ""}
-                className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-amber"
+                className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-brand"
               />
             </label>
           </div>
@@ -257,7 +257,7 @@ export default function AdminBlogDetail({ loaderData }: Route.ComponentProps) {
                 type="text"
                 name="ogTitle"
                 defaultValue={post.ogTitle ?? ""}
-                className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-amber"
+                className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-brand"
               />
             </label>
             <label className="flex flex-col gap-1.5">
@@ -266,7 +266,7 @@ export default function AdminBlogDetail({ loaderData }: Route.ComponentProps) {
                 type="text"
                 name="ogDescription"
                 defaultValue={post.ogDescription ?? ""}
-                className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-amber"
+                className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-brand"
               />
             </label>
           </div>
@@ -277,7 +277,7 @@ export default function AdminBlogDetail({ loaderData }: Route.ComponentProps) {
               type="text"
               name="canonicalUrl"
               defaultValue={post.canonicalUrl ?? ""}
-              className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-amber"
+              className="rounded-md border border-border bg-surface2 px-3 py-2 text-body text-text focus-visible:border-brand"
             />
           </label>
 
@@ -287,7 +287,7 @@ export default function AdminBlogDetail({ loaderData }: Route.ComponentProps) {
                 type="checkbox"
                 name="showUpdatedAt"
                 defaultChecked={post.showUpdatedAt}
-                className="h-4 w-4 rounded border-border accent-amber"
+                className="h-4 w-4 rounded border-border accent-brand"
               />
               Show "updated" date
             </label>
@@ -296,7 +296,7 @@ export default function AdminBlogDetail({ loaderData }: Route.ComponentProps) {
                 type="checkbox"
                 name="showPublishedAt"
                 defaultChecked={post.showPublishedAt}
-                className="h-4 w-4 rounded border-border accent-amber"
+                className="h-4 w-4 rounded border-border accent-brand"
               />
               Show "published" date
             </label>
@@ -306,7 +306,7 @@ export default function AdminBlogDetail({ loaderData }: Route.ComponentProps) {
             <button
               type="submit"
               disabled={busy}
-              className="rounded-md bg-amber px-4 py-2 text-body font-medium text-on-amber disabled:opacity-60"
+              className="rounded-md bg-brand px-4 py-2 text-body font-medium text-on-brand disabled:opacity-60"
             >
               {busy ? "Saving..." : "Save"}
             </button>
@@ -337,7 +337,7 @@ export default function AdminBlogDetail({ loaderData }: Route.ComponentProps) {
                       name="linkTargetIds"
                       value={p.id}
                       defaultChecked={selectedLinkIds.has(p.id)}
-                      className="h-4 w-4 rounded border-border accent-amber"
+                      className="h-4 w-4 rounded border-border accent-brand"
                     />
                     {p.title}
                   </label>
@@ -348,7 +348,7 @@ export default function AdminBlogDetail({ loaderData }: Route.ComponentProps) {
               <button
                 type="submit"
                 disabled={busy}
-                className="rounded-md border border-border px-3 py-1.5 text-label text-text hover:border-amber disabled:opacity-60"
+                className="rounded-md border border-border px-3 py-1.5 text-label text-text hover:border-brand disabled:opacity-60"
               >
                 Save links
               </button>

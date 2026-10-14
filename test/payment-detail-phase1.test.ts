@@ -92,9 +92,9 @@ describe("notes textarea renders with an honest submit path", () => {
     expect(ROUTE).toContain("Add a note about this payment or customer...");
   });
 
-  it("carries legacy's amber Save note button", () => {
+  it("carries the brand-accent (teal) Save note button", () => {
     expect(ROUTE).toContain("Save note");
-    expect(ROUTE).toContain("bg-amber");
+    expect(ROUTE).toContain("bg-brand");
   });
 
   it("posts the note intent, which the dispatcher handles as a real save", () => {

@@ -60,7 +60,7 @@ function StepPerformanceChart({ chart }: { chart: ReturnType<typeof summarizeSte
       series={[
         { name: "Open rate", colorClassName: "text-green", values: chart.map((c) => c.openRatePct) },
         { name: "Click rate", colorClassName: "text-blue", values: chart.map((c) => c.clickRatePct) },
-        { name: "Recovery rate", colorClassName: "text-amber", values: chart.map((c) => c.recoveryRatePct) },
+        { name: "Recovery rate", colorClassName: "text-brand", values: chart.map((c) => c.recoveryRatePct) },
       ]}
     />
   );

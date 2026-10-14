@@ -187,7 +187,7 @@ export default function AuditConnect({ loaderData }: Route.ComponentProps) {
           {"Read-only · Secure · Free · "}
           <Link
             to="/demos/recovery"
-            className="text-amber-text no-underline transition-opacity duration-500 hover:opacity-80"
+            className="text-brand-text no-underline transition-opacity duration-500 hover:opacity-80"
           >
             See a demo first
           </Link>

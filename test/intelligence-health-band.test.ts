@@ -22,7 +22,7 @@ describe("healthScoreBand", () => {
 describe("healthScoreMeterTone", () => {
   it("maps bands to meter tones", () => {
     expect(healthScoreMeterTone(10)).toBe("negative");
-    expect(healthScoreMeterTone(50)).toBe("amber");
+    expect(healthScoreMeterTone(50)).toBe("brand");
     expect(healthScoreMeterTone(90)).toBe("positive");
   });
 });

@@ -97,7 +97,7 @@ function CronToggle({ name, enabled, busy }: { name: string; enabled: boolean; b
         <button
           type="submit"
           disabled={busy}
-          className="rounded-md border border-border px-3 py-1.5 text-label text-text hover:border-amber disabled:opacity-60"
+          className="rounded-md border border-border px-3 py-1.5 text-label text-text hover:border-brand disabled:opacity-60"
         >
           Disable
         </button>

@@ -320,7 +320,7 @@ export const DOC_GUIDES: DocGuide[] = [
           { kind: "widget", name: "decline-categories" },
           { kind: "note", body: "Foxhound classifies six categories, and two of them are cases where a retry would be wrong: a revoked mandate and a decline code nothing has mapped." },
           { kind: "h3", text: "The schedule for each category" },
-          "Each category's steps in order, from the engine's own schedule table. A retry is amber and an email is not, so the shape of a category is readable at a glance: soft and network open with a quiet retry, and the other four never retry at all.",
+          "Each category's steps in order, from the engine's own schedule table. A retry is teal and an email is not, so the shape of a category is readable at a glance: soft and network open with a quiet retry, and the other four never retry at all.",
           { kind: "widget", name: "sequence-timelines" },
           { kind: "h3", text: "Reading the sequences page" },
           { kind: "p", body: [ "The page at ", { link: "/recovery/sequences", to: "/recovery/sequences" }, " reads across your whole recovery history by category. For each step it shows how many went out, the open rate, the click rate and the most recent subject line used. A retry step shows how often the retry worked instead." ] },

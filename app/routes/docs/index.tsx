@@ -42,11 +42,11 @@ export default function DocsIndexPage({ loaderData }: Route.ComponentProps) {
         <div className="flex flex-col gap-4">
           <Link
             to={`/docs/${platform.slug}`}
-            className="group block rounded-lg border border-border bg-surface p-5 transition-colors hover:border-amber"
+            className="group block rounded-lg border border-border bg-surface p-5 transition-colors hover:border-brand"
           >
             <div className="mb-2 text-item-title font-medium text-text">{platform.title}</div>
             <div className="mb-4 text-label leading-relaxed text-text-secondary">{platform.description}</div>
-            <div className="text-label text-amber-text">
+            <div className="text-label text-brand-text">
               Read guide{" "}
               <ArrowRight
                 className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
@@ -62,11 +62,11 @@ export default function DocsIndexPage({ loaderData }: Route.ComponentProps) {
               <Link
                 key={g.slug}
                 to={`/docs/${g.slug}`}
-                className="group block rounded-lg border border-border bg-surface p-5 transition-colors hover:border-amber"
+                className="group block rounded-lg border border-border bg-surface p-5 transition-colors hover:border-brand"
               >
                 <div className="mb-2 text-item-title font-medium text-text">{g.title}</div>
                 <div className="mb-4 text-label leading-relaxed text-text-secondary">{g.description}</div>
-                <div className="text-label text-amber-text">
+                <div className="text-label text-brand-text">
                   Read guide{" "}
                   <ArrowRight
                     className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
@@ -83,7 +83,7 @@ export default function DocsIndexPage({ loaderData }: Route.ComponentProps) {
         <div className="mt-12 flex flex-wrap items-center gap-6 text-label">
           <Link
             to="/features"
-            className="group text-amber-text transition-opacity duration-150 hover:opacity-80"
+            className="group text-brand-text transition-opacity duration-150 hover:opacity-80"
           >
             See all features{" "}
             <ArrowRight
@@ -95,7 +95,7 @@ export default function DocsIndexPage({ loaderData }: Route.ComponentProps) {
           </Link>
           <Link
             to="/pricing"
-            className="group text-amber-text transition-opacity duration-150 hover:opacity-80"
+            className="group text-brand-text transition-opacity duration-150 hover:opacity-80"
           >
             View pricing{" "}
             <ArrowRight

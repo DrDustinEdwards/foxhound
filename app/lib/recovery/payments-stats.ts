@@ -54,7 +54,7 @@ export function showingCountFor(counts: StatusCountsShape, status: string): numb
  * Legacy's thresholded colour for the "Recovery rate" card value:
  *
  *   colorClass: recoveryRate >= 36 ? 'text-green'
- *             : recoveryRate >= 21 ? 'text-amber-text'
+ *             : recoveryRate >= 21 ? 'text-brand-text'
  *             : 'text-red'
  *
  * The two cutoffs are legacy's own numbers, read from source rather than
@@ -64,6 +64,6 @@ export function showingCountFor(counts: StatusCountsShape, status: string): numb
  */
 export function recoveryRateValueClass(ratePct: number): string {
   if (ratePct >= 36) return "text-green";
-  if (ratePct >= 21) return "text-amber-text";
+  if (ratePct >= 21) return "text-brand-text";
   return "text-red";
 }

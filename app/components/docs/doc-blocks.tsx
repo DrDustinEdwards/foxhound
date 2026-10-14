@@ -40,7 +40,7 @@ function InlineRun({ inline }: { inline: DocInline }) {
   // RelLink. An in-app path routes through Link so the marketing shell is not
   // torn down; anything else (a mailto, an external doc) is a plain anchor,
   // which is what legacy does for its support address.
-  const className = "text-amber-text underline underline-offset-2 hover:text-amber";
+  const className = "text-brand-text underline underline-offset-2 hover:text-brand";
   return inline.to.startsWith("/") ? (
     <Link to={inline.to} className={className}>
       {inline.link}
@@ -90,7 +90,7 @@ function Block({ block }: { block: DocBlock }) {
 
     case "tip":
       return (
-        <div className="my-4 border-l-2 border-amber pl-4 text-label leading-relaxed text-text-secondary">
+        <div className="my-4 border-l-2 border-brand pl-4 text-label leading-relaxed text-text-secondary">
           <span className="font-medium text-text">Tip.</span> <Rich content={block.body} />
         </div>
       );
@@ -107,7 +107,7 @@ function Block({ block }: { block: DocBlock }) {
                   every Step. Deriving it from the index means a step cannot be
                   inserted without renumbering the ones after it, which legacy's
                   hand-written form allows and nobody wants. */}
-              <span className="shrink-0 font-mono text-amber-text">
+              <span className="shrink-0 font-mono text-brand-text">
                 {String(i + 1).padStart(2, "0")}
               </span>
               <span>

@@ -1,4 +1,4 @@
-// Health-score band thresholds for the Intelligence UI (red at risk, amber
+// Health-score band thresholds for the Intelligence UI (red at risk, teal
 // watch, green healthy). Mirrors app/lib/dashboard/recovery-rate.ts. The
 // at-risk cutoff is HEALTH_SCORE_AT_RISK_THRESHOLD, the same one that drives
 // MRR-at-risk exposure and the narrative's top-N selection; "watch" is the
@@ -18,7 +18,7 @@ export function healthScoreBand(score: number): HealthScoreBand {
 
 const CLASS_NAME: Record<HealthScoreBand, string> = {
   at_risk: "text-error-text",
-  watch: "text-amber-text",
+  watch: "text-brand-text",
   healthy: "text-success-text",
 };
 
@@ -26,12 +26,12 @@ export function healthScoreClassName(score: number): string {
   return CLASS_NAME[healthScoreBand(score)];
 }
 
-const METER_TONE: Record<HealthScoreBand, "negative" | "amber" | "positive"> = {
+const METER_TONE: Record<HealthScoreBand, "negative" | "brand" | "positive"> = {
   at_risk: "negative",
-  watch: "amber",
+  watch: "brand",
   healthy: "positive",
 };
 
-export function healthScoreMeterTone(score: number): "negative" | "amber" | "positive" {
+export function healthScoreMeterTone(score: number): "negative" | "brand" | "positive" {
   return METER_TONE[healthScoreBand(score)];
 }

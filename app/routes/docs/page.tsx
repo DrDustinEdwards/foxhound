@@ -100,7 +100,7 @@ export default function DocGuidePage({ loaderData }: Route.ComponentProps) {
               <li key={section.heading} className="text-label">
                 <a
                   href={`#${sectionIds[i]}`}
-                  className="text-amber-text underline underline-offset-2 hover:text-amber"
+                  className="text-brand-text underline underline-offset-2 hover:text-brand"
                 >
                   Part {i + 1}. {section.heading}
                 </a>
@@ -112,7 +112,7 @@ export default function DocGuidePage({ loaderData }: Route.ComponentProps) {
 
       {guide.sections.map((section, i) => (
         <section key={section.heading}>
-          <div className="mb-2 mt-16 text-micro font-medium uppercase tracking-widest text-amber-text">
+          <div className="mb-2 mt-16 text-micro font-medium uppercase tracking-widest text-brand-text">
             Part {i + 1}
           </div>
           <h2 id={sectionIds[i]} className="mb-6 scroll-mt-20 text-title font-medium text-text">

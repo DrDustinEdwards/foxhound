@@ -91,8 +91,8 @@ function itemClass(active: boolean): string {
   return [
     "flex items-center gap-2 px-3 py-2 text-label no-underline transition-colors duration-150",
     active
-      ? "border-l-2 border-amber font-medium text-chrome-text"
-      : "border-l-2 border-transparent text-chrome-text-secondary hover:text-amber",
+      ? "border-l-2 border-chrome-brand font-medium text-chrome-text"
+      : "border-l-2 border-transparent text-chrome-text-secondary hover:text-chrome-brand",
   ].join(" ");
 }
 

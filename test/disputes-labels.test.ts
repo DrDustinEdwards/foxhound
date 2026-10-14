@@ -8,7 +8,7 @@ describe("disputeStateTone", () => {
     expect(disputeStateTone("resolved_lost")).toBe("failure");
   });
 
-  it("every pre-resolution state is neutral, never amber", () => {
+  it("every pre-resolution state is neutral, never the brand accent", () => {
     expect(disputeStateTone("draft")).toBe("neutral");
     expect(disputeStateTone("pending_review")).toBe("neutral");
     expect(disputeStateTone("approved")).toBe("neutral");

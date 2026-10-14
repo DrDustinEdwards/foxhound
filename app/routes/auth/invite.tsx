@@ -108,7 +108,7 @@ export default function Invite({ loaderData, actionData }: Route.ComponentProps)
         subtitle={subtitle}
         footer={
           <Form method="post" action="/logout">
-            <button type="submit" className="text-amber hover:underline">
+            <button type="submit" className="text-brand hover:underline">
               Sign out
             </button>
           </Form>

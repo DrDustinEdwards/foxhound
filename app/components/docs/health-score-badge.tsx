@@ -6,14 +6,14 @@ import { healthScoreBand } from "~/lib/intelligence/health-band";
 // table columns.
 //
 // The BANDS are Foxhound's, not legacy's, and deliberately so (ruling 79).
-// Legacy hardcodes red at or below 33, amber 34-66, green at or above 67.
+// Legacy hardcodes red at or below 33, its accent colour 34-66, green at or above 67.
 // Foxhound's engine bands at_risk below 40, watch 40-69, healthy at or above
 // 70, guarded by test/intelligence-health-band.test.ts. Carrying legacy's
-// numbers over would render a 38 amber here while the product classifies it
+// numbers over would render a 38 in the middle band here while the product classifies it
 // at_risk, so the colour is driven from healthScoreBand rather than restated.
 const BAND_CLASS: Record<ReturnType<typeof healthScoreBand>, string> = {
   at_risk: "border-red bg-red-bg text-error-text",
-  watch: "border-amber bg-amber-bg text-amber-text",
+  watch: "border-brand bg-brand-bg text-brand-text",
   healthy: "border-green bg-green-bg text-green",
 };
 

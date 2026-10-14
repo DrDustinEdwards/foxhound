@@ -42,7 +42,7 @@ const BAND_RANGE_LABEL: Record<HealthScoreBand, string> = {
 
 const BAND_BORDER_CLASS: Record<HealthScoreBand, string> = {
   at_risk: "border-error-border",
-  watch: "border-amber-border",
+  watch: "border-brand-border",
   healthy: "border-success-border",
 };
 
@@ -185,7 +185,7 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
                         <td className="px-4 py-3">
                           <Link
                             to={`/intelligence/customers/${row.stripeCustomerId}`}
-                            className="text-text no-underline hover:text-amber-text"
+                            className="text-text no-underline hover:text-brand-text"
                           >
                             <span className="block font-medium">{row.customerName ?? "(unnamed)"}</span>
                             <span className="block font-mono text-micro text-text-subtle">

@@ -155,14 +155,14 @@ function WhatsNext({
               {runId ? (
                 <Link
                   to={`/audit/runs/${runId}`}
-                  className="inline-block rounded-md border border-border bg-surface px-5 py-2.5 text-label font-semibold text-text no-underline hover:border-amber"
+                  className="inline-block rounded-md border border-border bg-surface px-5 py-2.5 text-label font-semibold text-text no-underline hover:border-brand"
                 >
                   Open this run
                 </Link>
               ) : null}
               <Link
                 to="/audit/history"
-                className="inline-block rounded-md border border-border bg-surface px-5 py-2.5 text-label font-semibold text-text no-underline hover:border-amber"
+                className="inline-block rounded-md border border-border bg-surface px-5 py-2.5 text-label font-semibold text-text no-underline hover:border-brand"
               >
                 View audit history
               </Link>
@@ -191,7 +191,7 @@ function WhatsNext({
       <div className="text-center">
         <Link
           to="/signup"
-          className="inline-block rounded-md bg-amber px-5 py-2.5 text-label font-semibold text-on-amber no-underline hover:bg-amber-dark"
+          className="inline-block rounded-md bg-brand px-5 py-2.5 text-label font-semibold text-on-brand no-underline hover:bg-brand-dark"
         >
           Start recovering this revenue. Free until we do.
         </Link>
