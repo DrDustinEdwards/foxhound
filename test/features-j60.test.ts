@@ -395,6 +395,14 @@ describe("/features look: Capsomer's parts, teal, five sizes (Q11, Q12, RULES.md
     expect(html).not.toContain("btn-primary");
   });
 
+  it("draws the sequence timeline's timing labels at full strength", () => {
+    // At opacity-70 they measured 3.69:1 (light) and 3.64:1 (dark) on the
+    // rendered page, under WCAG's 4.5:1 for their size.
+    const intel = sections(html).find((s) => s.includes('id="automation"')) ?? "";
+    expect(intel).toMatch(/<span class="font-mono text-micro">Day 1<\/span>/);
+    expect(intel).not.toMatch(/opacity-\d/);
+  });
+
   it("carries no amber anywhere on the page", () => {
     expect(html).not.toMatch(/amber/i);
   });
