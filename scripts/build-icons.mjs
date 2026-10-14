@@ -12,19 +12,17 @@
 //   public/favicon.svg           the mark in the header band's teal on the dark
 //                                rounded square, so it reads in a light and a
 //                                dark browser tab alike;
-//   public/favicon.png           that SVG at 32;
-//   public/apple-touch-icon.png  that SVG at 180.
+//   public/favicon.png           that SVG at 512;
+//   public/apple-touch-icon.png  that SVG at 512.
 //
 // The mark is a PLACEHOLDER hound head until Dustin picks the real logo
 // (capsomer #65 item 15). The real logo replaces hound-mark.ts and this script
 // rebuilds all three.
 //
-// History. Legacy shipped ONE 512x512 PNG at both /favicon.png and
-// /apple-touch-icon.png (ledger row F21, ruling 108), and the first version of
-// this script matched it. The hound job (job_afa3591dac7e) sets the sizes to
-// the ones browsers ask for: 32 for the PNG favicon, 180 for the apple touch
-// icon. The RSS channel <image> (app/routes/files/feed.ts) moved to the 180 one,
-// so it does not shrink to 32.
+// Sizes. Legacy ships ONE 512x512 PNG at both /favicon.png and
+// /apple-touch-icon.png (ledger row F21, ruling 108), and both stay at that
+// size: legacy is the spec, and the route splash (96) and the RSS channel
+// image read favicon.png, so a smaller PNG would blur them.
 import { writeFileSync } from "node:fs";
 
 import sharp from "sharp";
@@ -52,8 +50,8 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
 `;
 
 const OUTPUTS = [
-  { name: "favicon.png", size: 32 },
-  { name: "apple-touch-icon.png", size: 180 },
+  { name: "favicon.png", size: 512 },
+  { name: "apple-touch-icon.png", size: 512 },
 ];
 
 const rasters = [];

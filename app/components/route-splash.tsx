@@ -15,10 +15,6 @@
  *     rendered size, and the token is used because conventions prefer it over a
  *     minted arbitrary value.
  *
- *  The image is /favicon.svg, not /favicon.png: the PNG favicon is 32 square
- *  since the hound mark (job_afa3591dac7e), and 32 drawn at 96 would blur. The
- *  SVG is the same icon at any size.
- *
  *  RAISED, NOT BUILT (190), AND STILL PENDING AFTER 306: legacy announces
  *  nothing to assistive technology here, no role="status" and no aria-live, so a
  *  screen reader user gets silence during the pause. 306 put the question to
@@ -30,7 +26,7 @@
 export function RouteSplash() {
   return (
     <div className="min-h-screen bg-bg flex flex-col items-center justify-center">
-      <img src="/favicon.svg" alt="Foxhound" width={96} height={96} className="mb-6" />
+      <img src="/favicon.png" alt="Foxhound" width={96} height={96} className="mb-6" />
       <div className="text-text-subtle font-mono text-label tracking-wider">Loading...</div>
     </div>
   );

@@ -48,9 +48,9 @@ describe("the mark has one source", () => {
 });
 
 describe("the favicon set", () => {
-  it("the PNG favicon is 32 and the apple touch icon 180", () => {
-    expect(pngSize("public/favicon.png")).toEqual({ width: 32, height: 32 });
-    expect(pngSize("public/apple-touch-icon.png")).toEqual({ width: 180, height: 180 });
+  it("the PNG favicon and the apple touch icon stay at legacy's 512", () => {
+    expect(pngSize("public/favicon.png")).toEqual({ width: 512, height: 512 });
+    expect(pngSize("public/apple-touch-icon.png")).toEqual({ width: 512, height: 512 });
   });
 
   it("the build script asserts teal, not amber", () => {
@@ -68,11 +68,4 @@ describe("every use points at the mark", () => {
     expect(admin).toContain("apps={STRIP_APPS}");
   });
 
-  it("the route splash draws the SVG, which stays sharp at 96", () => {
-    expect(read("app/components/route-splash.tsx")).toContain('src="/favicon.svg"');
-  });
-
-  it("the RSS channel image is the 180 icon, not the 32 favicon", () => {
-    expect(read("app/routes/files/feed.ts")).toContain("<url>${url}/apple-touch-icon.png</url>");
-  });
 });

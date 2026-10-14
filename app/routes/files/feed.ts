@@ -60,8 +60,6 @@ export async function loader({ context }: Route.LoaderArgs) {
     })
     .join("");
 
-  // The channel image is the 180 apple touch icon: the PNG favicon is 32 since
-  // the hound mark (job_afa3591dac7e), too small for a reader's channel badge.
   const rss = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
@@ -71,7 +69,7 @@ export async function loader({ context }: Route.LoaderArgs) {
     <language>en-us</language>${lastBuildDate}
     <atom:link href="${url}/feed.rss" rel="self" type="application/rss+xml"/>
     <image>
-      <url>${url}/apple-touch-icon.png</url>
+      <url>${url}/favicon.png</url>
       <title>Foxhound Blog</title>
       <link>${url}/blog</link>
     </image>
