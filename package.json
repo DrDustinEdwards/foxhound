@@ -10,6 +10,7 @@
     "test": "vitest run",
     "lint": "eslint .",
     "check-tokens": "node scripts/check-tokens.mjs",
+    "gen:headers": "node scripts/gen-headers.mjs",
     "deploy": "npm run build && wrangler deploy",
     "cf-typegen": "wrangler types",
     "auth:generate": "better-auth generate --config app/lib/auth/generate.config.ts --output app/db/auth-schema.ts --yes",
@@ -29,6 +30,7 @@
     "@cloudflare/workers-oauth-provider": "1.1.0",
     "@dustinedwards/d1-dump": "github:DrDustinEdwards/d1-dump#v0.4.1",
     "@dustinedwards/site-api": "github:DrDustinEdwards/site-api#v0.5.0",
+    "@dustinedwards/site-runtime": "github:DrDustinEdwards/site-runtime#v0.3.0",
     "@modelcontextprotocol/server": "2.0.0",
     "@sentry/cloudflare": "10.66.0",
     "better-auth": "1.6.23",
@@ -73,6 +75,7 @@
     "typescript-eslint": "8.63.0",
     "vite": "8.1.4",
     "vitest": "3.2.7",
-    "wrangler": "4.125.0"
+    "wrangler": "4.125.0",
+    "yaml": "2.9.1"
   }
 }

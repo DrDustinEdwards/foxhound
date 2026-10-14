@@ -1,3 +1,4 @@
+import { generateNonce } from "@dustinedwards/site-runtime/csp";
 import { withSentry } from "@sentry/cloudflare";
 import { createRequestHandler, RouterContextProvider } from "react-router";
 
@@ -5,7 +6,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import { EMAIL_DLQ_QUEUE_NAME } from "~/lib/constants";
 import { runCronJob } from "~/lib/cron/run";
 import { applyCachePolicy } from "~/lib/http/cache-policy";
-import { applySecurityHeaders, generateNonce } from "~/lib/http/security-headers";
+import { applySecurityHeaders } from "~/lib/http/content-security-policy";
 import { enforceRateLimit } from "~/lib/http/rate-limit";
 import { handleMcpRequest } from "~/lib/mcp/handler.server";
 import { handleQueueBatch } from "~/lib/queue/consumer";
@@ -24,8 +25,9 @@ export default withSentry<Env>(
   (env) => (env.SENTRY_DSN ? { dsn: env.SENTRY_DSN, tracesSampleRate: 1 } : undefined),
   {
     async fetch(request, env, ctx) {
-      // Generated before the route handler runs, so both the HTML
-      // (root.tsx's <Scripts>/<ScrollRestoration>, via cloudflareContext) and
+      // site-runtime's generateNonce (the 16-byte base64 algorithm Foxhound had,
+      // moved there in J22). Generated before the route handler runs, so both
+      // the HTML (root.tsx's <Scripts>/<ScrollRestoration>, via cloudflareContext) and
       // the response header (applySecurityHeaders) below carry the exact
       // same value (TASK-foxhound-csp-nonce-hydration.md).
       const nonce = generateNonce();

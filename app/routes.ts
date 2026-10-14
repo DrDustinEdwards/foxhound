@@ -208,6 +208,10 @@ export default [
   // switchAccountUrl. The switcher itself is phase (e).
   route("api/account/switch", "./routes/api/account-switch.ts"),
 
+  // Content-Security-Policy report sink (J22, F16): the policy's report-uri and
+  // report-to name it. Action-only resource route at Recova's own path.
+  route("api/csp-report", "./routes/api/csp-report.ts"),
+
   // Logout (action-only resource route; clears the session, redirects to /login)
   route("logout", "./routes/auth/logout.ts"),
 ] satisfies RouteConfig;
