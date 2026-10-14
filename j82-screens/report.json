@@ -1,0 +1,183 @@
+{
+  "fixture": {
+    "to": "jane@example.com",
+    "url": "https://foxhoundapp.com/reset-password/EXAMPLE-NOT-A-TOKEN?callbackURL=%2Freset-password"
+  },
+  "renders": {
+    "after-light-640": {
+      "lang": "en",
+      "title": "Reset your password",
+      "h1Count": 1,
+      "headingCount": 1,
+      "anchorCount": 1,
+      "button": {
+        "tag": "a",
+        "text": "Reset password",
+        "hrefMatches": true,
+        "visible": true,
+        "heightPx": 48
+      },
+      "colours": {
+        "card": "rgb(251, 254, 254)",
+        "ground": "rgb(241, 253, 253)",
+        "para": "rgb(7, 31, 32)",
+        "fine": "rgb(89, 105, 106)",
+        "footer": "rgb(89, 105, 106)",
+        "btnText": "rgb(251, 254, 254)",
+        "btnBg": "rgb(7, 116, 120)"
+      },
+      "bodyFontSize": "16px",
+      "fineFontSize": "16px",
+      "footerFontSize": "14px",
+      "scrollWidth": 640,
+      "clientWidth": 640,
+      "contrast": {
+        "bodyTextOnCard": 16.89,
+        "buttonTextOnButton": 5.48,
+        "finePrintOnCard": 5.67,
+        "footerOnGround": 5.53
+      },
+      "horizontalScroll": false
+    },
+    "after-light-320": {
+      "lang": "en",
+      "title": "Reset your password",
+      "h1Count": 1,
+      "headingCount": 1,
+      "anchorCount": 1,
+      "button": {
+        "tag": "a",
+        "text": "Reset password",
+        "hrefMatches": true,
+        "visible": true,
+        "heightPx": 48
+      },
+      "colours": {
+        "card": "rgb(251, 254, 254)",
+        "ground": "rgb(241, 253, 253)",
+        "para": "rgb(7, 31, 32)",
+        "fine": "rgb(89, 105, 106)",
+        "footer": "rgb(89, 105, 106)",
+        "btnText": "rgb(251, 254, 254)",
+        "btnBg": "rgb(7, 116, 120)"
+      },
+      "bodyFontSize": "16px",
+      "fineFontSize": "16px",
+      "footerFontSize": "14px",
+      "scrollWidth": 320,
+      "clientWidth": 320,
+      "contrast": {
+        "bodyTextOnCard": 16.89,
+        "buttonTextOnButton": 5.48,
+        "finePrintOnCard": 5.67,
+        "footerOnGround": 5.53
+      },
+      "horizontalScroll": false
+    },
+    "after-dark-640": {
+      "lang": "en",
+      "title": "Reset your password",
+      "h1Count": 1,
+      "headingCount": 1,
+      "anchorCount": 1,
+      "button": {
+        "tag": "a",
+        "text": "Reset password",
+        "hrefMatches": true,
+        "visible": true,
+        "heightPx": 48
+      },
+      "colours": {
+        "card": "rgb(17, 25, 25)",
+        "ground": "rgb(7, 15, 15)",
+        "para": "rgb(233, 240, 240)",
+        "fine": "rgb(139, 153, 153)",
+        "footer": "rgb(139, 153, 153)",
+        "btnText": "rgb(7, 15, 15)",
+        "btnBg": "rgb(36, 147, 152)"
+      },
+      "bodyFontSize": "16px",
+      "fineFontSize": "16px",
+      "footerFontSize": "14px",
+      "scrollWidth": 640,
+      "clientWidth": 640,
+      "contrast": {
+        "bodyTextOnCard": 15.45,
+        "buttonTextOnButton": 5.26,
+        "finePrintOnCard": 6.04,
+        "footerOnGround": 6.56
+      },
+      "horizontalScroll": false
+    },
+    "after-dark-320": {
+      "lang": "en",
+      "title": "Reset your password",
+      "h1Count": 1,
+      "headingCount": 1,
+      "anchorCount": 1,
+      "button": {
+        "tag": "a",
+        "text": "Reset password",
+        "hrefMatches": true,
+        "visible": true,
+        "heightPx": 48
+      },
+      "colours": {
+        "card": "rgb(17, 25, 25)",
+        "ground": "rgb(7, 15, 15)",
+        "para": "rgb(233, 240, 240)",
+        "fine": "rgb(139, 153, 153)",
+        "footer": "rgb(139, 153, 153)",
+        "btnText": "rgb(7, 15, 15)",
+        "btnBg": "rgb(36, 147, 152)"
+      },
+      "bodyFontSize": "16px",
+      "fineFontSize": "16px",
+      "footerFontSize": "14px",
+      "scrollWidth": 320,
+      "clientWidth": 320,
+      "contrast": {
+        "bodyTextOnCard": 15.45,
+        "buttonTextOnButton": 5.26,
+        "finePrintOnCard": 6.04,
+        "footerOnGround": 6.56
+      },
+      "horizontalScroll": false
+    },
+    "before-light-640": {
+      "lang": "en",
+      "title": "Reset your password",
+      "h1Count": 1,
+      "headingCount": 1,
+      "anchorCount": 1,
+      "button": {
+        "tag": "a",
+        "text": "Reset password",
+        "hrefMatches": true,
+        "visible": true,
+        "heightPx": 48
+      },
+      "colours": {
+        "card": "rgb(251, 254, 254)",
+        "ground": "rgb(241, 253, 253)",
+        "para": "rgb(7, 31, 32)",
+        "fine": "rgb(89, 105, 106)",
+        "footer": "rgb(89, 105, 106)",
+        "btnText": "rgb(251, 254, 254)",
+        "btnBg": "rgb(7, 116, 120)"
+      },
+      "bodyFontSize": "16px",
+      "fineFontSize": "16px",
+      "footerFontSize": "14px",
+      "scrollWidth": 640,
+      "clientWidth": 640,
+      "contrast": {
+        "bodyTextOnCard": 16.89,
+        "buttonTextOnButton": 5.48,
+        "finePrintOnCard": 5.67,
+        "footerOnGround": 5.53
+      },
+      "horizontalScroll": false
+    }
+  }
+}

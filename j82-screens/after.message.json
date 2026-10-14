@@ -1,0 +1,16 @@
+{
+  "outcome": {
+    "status": "sent",
+    "providerMessageId": "msg_example"
+  },
+  "from": "Foxhound <noreply@auth.foxhoundapp.com>",
+  "to": "jane@example.com",
+  "subject": "Reset your password",
+  "keys": [
+    "from",
+    "to",
+    "subject",
+    "html",
+    "text"
+  ]
+}
