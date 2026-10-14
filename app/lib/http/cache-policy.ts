@@ -1,3 +1,5 @@
+import { INDEXNOW_KEY_PATH } from "~/lib/seo/indexnow-key";
+
 // THE RESPONSE CACHE POLICY (345 binding 4).
 //
 // This decides one header, `Cache-Control`, from two inputs: the route class and
@@ -112,6 +114,9 @@ const FILES_EXACT = new Set([
   // RFC 9116 (377 item 11). A static text file whose only variable is the
   // request clock, so it caches exactly like the other files routes.
   "/.well-known/security.txt",
+  // The IndexNow key file (job_b0b24df12155). Its body is a constant that only
+  // a deploy changes, so it caches like the other files routes.
+  INDEXNOW_KEY_PATH,
 ]);
 
 /**
