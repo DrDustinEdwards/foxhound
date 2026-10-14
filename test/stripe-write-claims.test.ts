@@ -109,7 +109,18 @@ describe("the code fact the disclosure rests on", () => {
         const rel = `${dir}${name}`;
         if (statSync(fileURLToPath(new URL(rel, ROOT))).isDirectory()) walk(`${rel}/`);
         else if (/\.tsx?$/.test(name)) {
-          for (const m of read(rel).matchAll(WRITE)) found.push(`${rel} ${m[1]}`);
+          // Raw source with only whole-line comments dropped: the block-comment
+          // strip in read() would eat code after a "/*" inside a string literal
+          // (for example "api/auth/*" in app/routes.ts).
+          const code = readFileSync(fileURLToPath(new URL(rel, ROOT)), "utf8")
+            .split("\n")
+            .filter((line) => !/^\s*(?:\/\/|\/\*|\*)/.test(line))
+            .join("\n");
+          for (const m of code.matchAll(WRITE)) found.push(`${rel} ${m[1]}`);
+          // A raw request is a write unless its method is a literal GET.
+          for (const m of code.matchAll(/rawRequest\(\s*(?!["'`]GET["'`])([^,]+),\s*["'`]([^"'`]+)/g)) {
+            found.push(`${rel} rawRequest ${m[1].replace(/["'`]/g, "")} ${m[2]}`);
+          }
         }
       }
     };
@@ -135,6 +146,10 @@ describe("the code fact the disclosure rests on", () => {
         "app/lib/billing/platform-customer.ts customers.update",
         "app/lib/stripe/connect.ts oauth.token",
         "app/lib/stripe/connect.ts oauth.deauthorize",
+        // Platform account too: getStripe(env) with Foxhound's own key and no
+        // stripeAccount, an FX quote for the dispute fee cap. Nothing changes
+        // on a merchant's account.
+        "app/lib/billing/dispute-cap.ts rawRequest POST /v1/fx_quotes",
       ].sort(),
     );
   });
