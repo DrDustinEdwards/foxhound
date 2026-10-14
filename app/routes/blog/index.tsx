@@ -13,6 +13,7 @@ import {
   type BlogPostSummary,
 } from "~/lib/blog/queries.server";
 import { SECTIONS, type BlogSectionConfig } from "~/lib/blog/sections";
+import { BLOG_COVER_FALLBACK_CSS } from "~/lib/http/inline-styles";
 import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
@@ -192,10 +193,7 @@ function BlogHero({ post }: { post: BlogPostSummary }) {
               aria-hidden="true"
               preserveAspectRatio="xMidYMid slice"
             >
-              <style>{`
-                .dz-base { fill: var(--bg); }
-                .dz-band { fill: var(--brand-text); }
-              `}</style>
+              <style>{BLOG_COVER_FALLBACK_CSS}</style>
               <rect width="560" height="315" className="dz-base" />
               <polygon points="0,0    90,0   0,160" className="dz-band" />
               <polygon points="100,0  130,0  80,315   0,315  0,190" className="dz-band" />

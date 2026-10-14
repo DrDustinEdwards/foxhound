@@ -5,6 +5,7 @@ import { HealthScoreBadge } from "~/components/docs/health-score-badge";
 import { SequenceTimeline } from "~/components/docs/sequence-timeline";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { FEATURE_FILTER_CSS } from "~/lib/http/inline-styles";
 import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
@@ -54,17 +55,8 @@ const PRODUCT_TAG_CLASS: Record<Tag, string> = {
 };
 
 // CSS-only filter, ported from legacy's mechanism rather than just its rules.
-// FeatureFilterShell sets data-feature-filter on the wrapper and these
-// selectors hide any card whose data-product does not match. No per-card
-// state, no re-render, and every card stays server-rendered and crawlable.
-// Foxhound's CSP allows this: style-src is 'self' 'unsafe-inline'.
-const FILTER_CSS = `
-[data-feature-filter="Recovery"] [data-product]:not([data-product="Recovery"]) { display: none; }
-[data-feature-filter="Disputes"] [data-product]:not([data-product="Disputes"]) { display: none; }
-[data-feature-filter="Intelligence"] [data-product]:not([data-product="Intelligence"]) { display: none; }
-[data-feature-filter="Audit"] [data-product]:not([data-product="Audit"]) { display: none; }
-[data-feature-filter="Platform"] [data-product]:not([data-product="Platform"]) { display: none; }
-`.trim();
+// The CSS lives in lib/http/inline-styles.ts, which the CSP trusts by hash
+// (style-src has no 'unsafe-inline' for elements since J22).
 
 function ProductTag({ tag }: { tag: Tag }) {
   return (
@@ -389,7 +381,7 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
 
   return (
     <div>
-      <style>{FILTER_CSS}</style>
+      <style>{FEATURE_FILTER_CSS}</style>
       <MarketingPageHeader
         eyebrow="Platform"
         title="Features"

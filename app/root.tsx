@@ -28,7 +28,7 @@ export function meta() {
 // default on a new device and then correcting, which is the exact flash this
 // loader exists to prevent (ruling 59). Anonymous requests still touch no DB.
 // nonce comes
-// from workers/app.ts's per-request generateNonce() (TASK-foxhound-csp-
+// from workers/app.ts's per-request generateNonce() (site-runtime; TASK-foxhound-csp-
 // nonce-hydration.md), threaded via cloudflareContext so <Scripts>/
 // <ScrollRestoration> below can carry the SAME value applySecurityHeaders
 // puts in the Content-Security-Policy header - a mismatch would make the
@@ -51,6 +51,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        {/* DEV ONLY. Since J22 style-src has no 'unsafe-inline' for elements,
+            and Vite's dev client injects every stylesheet as an inline style
+            element, which the policy then blocks (measured: an unstyled page
+            under `npm run dev`). Vite's client copies the nonce from this meta
+            onto each style element it injects. Production serves CSS as <link>
+            files and never renders this element. */}
+        {import.meta.env.DEV ? <meta property="csp-nonce" nonce={nonce} /> : null}
         {/* Legacy declares icon=/favicon.png and apple=/apple-touch-icon.png from
             its root layout, both resolving to one 512x512 PNG. Foxhound shipped
             only the SVG, so both raster paths 404'd and no apple-touch

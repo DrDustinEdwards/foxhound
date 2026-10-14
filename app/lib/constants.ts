@@ -847,3 +847,18 @@ export const STRIPE_STATEMENT_DESCRIPTOR = "FOXHOUND";
  * is configured on the Stripe dashboard, a separate Phase 9 dashboard action.
  */
 export const STRIPE_CONNECT_PLATFORM_NAME = "Foxhound";
+
+/**
+ * The CSP report sink's per-IP bucket (/api/csp-report, J22), keyed on
+ * cf-connecting-ip and spent through the EXISTING limiter (311) with no change
+ * to it, as the audit pair does. Recova capped the same endpoint per IP
+ * (RATE_LIMIT_CSP_REPORT in its lib/constants.ts) to protect its Sentry quota;
+ * here it bounds Workers Logs lines from one misbehaving browser or a flood.
+ *
+ * 20 PER MINUTE, the existing `public` bucket's number rather than an invented
+ * one (as RATE_LIMIT_MCP_ANON reasons). Recova's own value was not readable
+ * when this was written (Capsid's GitHub reads were rate limited); compare it
+ * and take Recova's if it differs. With at most CSP_REPORT_MAX_LOGGED lines a
+ * request, one address can write at most 100 lines a minute.
+ */
+export const RATE_LIMIT_CSP_REPORT = { max: 20, windowMs: 60 * 1000 } as const;

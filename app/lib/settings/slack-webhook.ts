@@ -11,7 +11,7 @@
 //   `accountUpdates.slack_webhook_url = formData.get('slack_webhook_url')?.toString() || null`
 // with no parse, no host check and no message. Foxhound then `fetch()`es that
 // stored value from the Worker on every dunning email, and nothing in this
-// repo constrains outbound egress: `connect-src 'self'` in security-headers.ts
+// repo constrains outbound egress: `connect-src 'self'` in content-security-policy.ts
 // is a CSP RESPONSE header governing the browser, not the Worker. So an
 // unvalidated field is a server-side request primitive pointed at any host a
 // merchant types, including internal ones.
