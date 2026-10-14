@@ -28,7 +28,7 @@ vi.mock("react-router", async (importOriginal) => ({
   ServerRouter: () => createElement("p", null, "page"),
 }));
 
-const { default: handleRequest } = await import("~/entry.server");
+const { default: handleRequest, handleDataRequest, pageUrlForData } = await import("~/entry.server");
 
 let db: ReturnType<typeof createInMemoryDb>["db"];
 let scheduled: Promise<unknown>[];
@@ -95,5 +95,39 @@ describe("handleRequest counts document 404s", () => {
     expect(ctx.waitUntil).toHaveBeenCalledTimes(1);
     expect(logged).toHaveBeenCalledWith(expect.stringContaining("page_404_daily"), expect.any(Error));
     logged.mockRestore();
+  });
+});
+
+// Review finding on J21: a client-side navigation whose loader throws a 404 is
+// a single-fetch .data request. It never reaches handleRequest, so without
+// handleDataRequest an in-app link to a deleted post was never counted.
+describe("handleDataRequest counts client-navigation 404s", () => {
+  async function serveData(method: string, status: number, url: string) {
+    const { ctx, provider } = loadContext();
+    const response = handleDataRequest(new Response("x", { status }), {
+      request: new Request(url, { method }),
+      context: provider,
+    });
+    await Promise.all(scheduled);
+    return { ctx, response };
+  }
+
+  it("counts a GET .data 404 against the page it loads", async () => {
+    const { ctx, response } = await serveData("GET", 404, "https://example.com/blog/gone.data?_routes=x");
+    expect(response.status).toBe(404);
+    expect(ctx.waitUntil).toHaveBeenCalledTimes(1);
+    const stored = await db.select({ path: page404Daily.path, hits: page404Daily.hitCount }).from(page404Daily);
+    expect(stored).toEqual([{ path: "/blog/gone", hits: 1 }]);
+  });
+
+  it("does not count a .data 200", async () => {
+    const { ctx } = await serveData("GET", 200, "https://example.com/blog/here.data");
+    expect(ctx.waitUntil).not.toHaveBeenCalled();
+  });
+
+  it("maps .data URLs the way React Router does", () => {
+    expect(pageUrlForData(new URL("https://example.com/_.data")).pathname).toBe("/");
+    expect(pageUrlForData(new URL("https://example.com/docs/_.data")).pathname).toBe("/docs/");
+    expect(pageUrlForData(new URL("https://example.com/blog/x.data")).pathname).toBe("/blog/x");
   });
 });

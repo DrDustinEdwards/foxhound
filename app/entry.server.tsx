@@ -32,6 +32,52 @@ export const streamTimeout = 5_000;
 // useFrameworkContext(), as a fallback when no explicit nonce prop is given)
 // AND <StreamTransfer nonce={nonce}>. Passing it there is what actually
 // fixed it - reverified after, same method, all script tags now match.
+// THE 404 COUNT (ruling 37, job J21): page_404_daily, read by the admin API's
+// /health top_404s_7d. Two doors reach it. handleRequest below sees every
+// document 404, an unmatched URL and a route that throws a 404 alike.
+// handleDataRequest sees a client-side navigation whose loader throws a 404 (an
+// in-app link to a deleted blog post), which arrives as a single-fetch .data
+// request and never reaches handleRequest. Recova's not-found.tsx counted both,
+// because Next renders not-found on the server for a client navigation too.
+// What neither door sees is a client navigation to a URL no route matches: the
+// browser renders that boundary itself, so counting it would need a beacon.
+// GET only: a POST that 404s is a form aimed at a missing route, not a page
+// someone went looking for.
+//
+// waitUntil, so the write never holds or fails the response; the catch logs
+// rather than swallowing (capsid conventions-web rule 5), since a count that
+// silently stops is how this table sat empty. getDb runs inside the promise so
+// a missing binding is logged the same way instead of throwing here.
+function countPage404(url: URL, loadContext: RouterContextProvider) {
+  const { env, ctx } = loadContext.get(cloudflareContext);
+  ctx.waitUntil(
+    Promise.resolve()
+      .then(() => recordPage404(getDb(env), url, new Date()))
+      .catch((error: unknown) => console.error("page_404_daily write failed", error)),
+  );
+}
+
+/** A .data URL back to the page it loads, the way React Router reads it
+ *  (getNormalizedPath): "/_.data" is the home page, "/blog/x.data" is
+ *  "/blog/x". */
+export function pageUrlForData(url: URL): URL {
+  const page = new URL(url);
+  page.pathname = page.pathname.endsWith("/_.data")
+    ? page.pathname.replace(/_\.data$/, "")
+    : page.pathname.replace(/\.data$/, "");
+  return page;
+}
+
+export function handleDataRequest(
+  response: Response,
+  { request, context }: { request: Request; context: RouterContextProvider },
+) {
+  if (response.status === 404 && request.method === "GET") {
+    countPage404(pageUrlForData(new URL(request.url)), context);
+  }
+  return response;
+}
+
 export default async function handleRequest(
   request: Request,
   responseStatusCode: number,
@@ -47,27 +93,7 @@ export default async function handleRequest(
     });
   }
 
-  const { env, ctx, nonce } = loadContext.get(cloudflareContext);
-
-  // THE 404 COUNT (ruling 37, job J21): page_404_daily, read by the admin API's
-  // /health top_404s_7d. Every document 404 passes through here with this
-  // status, an unmatched URL and a route that throws a 404 alike, which is the
-  // same pair Recova's not-found.tsx counted. GET only: HEAD returned above, and
-  // a POST that 404s is a form aimed at a missing route, not a page someone
-  // went looking for.
-  //
-  // waitUntil, so the write never holds or fails the page; the catch logs
-  // rather than swallowing (capsid conventions-web rule 5), since a count that
-  // silently stops is how this table sat empty. getDb runs inside the promise
-  // so a missing binding is logged the same way instead of throwing here.
-  if (responseStatusCode === 404 && request.method.toUpperCase() === "GET") {
-    const url = new URL(request.url);
-    ctx.waitUntil(
-      Promise.resolve()
-        .then(() => recordPage404(getDb(env), url, new Date()))
-        .catch((error: unknown) => console.error("page_404_daily write failed", error)),
-    );
-  }
+  const { nonce } = loadContext.get(cloudflareContext);
 
   let shellRendered = false;
   const userAgent = request.headers.get("user-agent");
@@ -88,6 +114,12 @@ export default async function handleRequest(
     },
   );
   shellRendered = true;
+
+  // Counted once the shell has rendered: a shell that throws makes React
+  // Router call this again with 500, and that visitor saw a 500, not a 404.
+  if (responseStatusCode === 404 && request.method === "GET") {
+    countPage404(new URL(request.url), loadContext);
+  }
 
   // Ensure requests from bots and SPA Mode renders wait for all content to load before responding
   // https://react.dev/reference/react-dom/server/renderToPipeableStream#waiting-for-all-content-to-load-for-crawlers-and-static-generation
