@@ -1,100 +1,91 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router";
 
 import { HealthScoreBadge } from "~/components/docs/health-score-badge";
 import { SequenceTimeline } from "~/components/docs/sequence-timeline";
+import { FeatureFilter } from "~/components/feature-filter";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { FEATURE_FILTER_CSS } from "~/lib/http/inline-styles";
+import {
+  FEATURES_META_DESCRIPTION,
+  FEATURES_SUBTEXT,
+  featureSections,
+  healthBandSentence,
+  type Feature,
+  type FeatureFilterValue,
+} from "~/lib/marketing/features-content";
+import { readFeatureFacts } from "~/lib/marketing/features-facts.server";
 import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
+import "capsomer/panel.css";
+import "capsomer/chips.css";
+import "capsomer/status.css";
+import "capsomer/button.css";
+// Capsomer's tokens and the teal family (capbase layer), which the panel, the
+// chips, the badges, the button and the focus ring read. The site header loads
+// the same file; importing it here keeps the page whole under any layout.
+import "~/site-header.css";
+
 import type { Route } from "./+types/features";
-import {
-  DECLINE_CATEGORY_COUNT_WORD,
-  DECLINE_CATEGORY_COUNT_WORD_LOWER,
-  DECLINE_CATEGORY_PHRASE,
-} from "~/lib/marketing/decline-categories";
 
-// Ported from legacy /features (recova-eta.vercel.app/features), restored as
-// a public route per the 2026-07-22 parity-over-consolidation amendment
-// (ROUTES.md; this overrides the Phase 6 call to fold it into /products).
-// Legacy's 129 entries span its own Supabase/Resend/Upstash/Vercel/MCP stack
-// and several claims Foxhound's rebuild does not make (a numeric dispute
-// fight/accept score, per-account alert-threshold configuration, an
-// auto-run audit toggle). Every entry below is grounded in this repo's real
-// code (app/lib/cron/registry.ts, app/db/schema.ts, app/lib/stripe/
-// encryption.ts, the four /products/* pages) rather than carried over
-// verbatim; legacy-only infrastructure claims are dropped, not renamed.
+// /features (J60, row M10). Recova's spec is app/(marketing)/features/page.tsx
+// (blob 04aa91d8) with components/features/FeatureCard.tsx (dd6c9a87),
+// FeatureFilter.tsx (4e2ef1fa) and FeatureFilterShell.tsx (707d79df), all read
+// whole. The content is lib/marketing/features-content.ts: Recova's sections
+// and entries, each one a capability Foxhound ships, every number read from
+// the engine.
+//
+// Layout is Recova's: the shared page header, one 1100px column, the filter
+// row, the 220px sticky section nav beside the sections at lg, each section's
+// h2 and intro, the per-section inline example, the two-column card grid, and
+// the closing line and audit link. Look is Capsomer's (Q12): the page sits in
+// the teal family with Foxhound's neutrals (.fh-cap, as the site header, the
+// legal pages and the /products hub), the filter is Capsomer's chips, each
+// card is Capsomer's panel, each product tag a Capsomer badge, and the closing
+// link Capsomer's primary button.
+//
+// Text is on the five sizes (RULES.md 5.2): the h2 (1.25rem) is title; the
+// intro (0.875rem), card description (0.8125rem), nav links and the band line
+// (0.8125rem) are label; the closing line (0.9375rem) is body. The card name
+// (0.875rem) is body rather than the nearer label, so it stays a step above its
+// description as in Recova.
+//
+// Recova renders a third inline example in Visibility, two stat tiles reading
+// its own 26.6% and $6,884. Those are Recova's figures, so the tiles are not
+// drawn (RULES.md 2.1, 2.3); which numbers, if any, Foxhound shows there is
+// left open for a ruling.
 
-type Tag = "platform" | "audit" | "recovery" | "disputes" | "intelligence";
+/** Recova's product-tag colours, mapped onto Capsomer's badge variants: Recova
+ *  tints the three products and draws Audit and Platform on the neutral
+ *  surface. A per-product colour waits for Capsomer's per-site layer. */
+function tagVariant(product: Feature["product"]): "outline" | "secondary" {
+  return product === "Audit" || product === "Platform" ? "secondary" : "outline";
+}
 
-const TAG_LABEL: Record<Tag, string> = {
-  platform: "Platform",
-  audit: "Audit",
-  recovery: "Recovery",
-  disputes: "Disputes",
-  intelligence: "Intelligence",
-};
-
-const FILTERS = ["All", "Platform", "Audit", "Recovery", "Disputes", "Intelligence"] as const;
-
-type FilterValue = (typeof FILTERS)[number];
-
-// Legacy colour-codes the product tag per product (components/features/
-// FeatureCard.tsx's local ProductTag). Deliberately NOT the shared Badge:
-// legacy hand-rolls this pill local to the card, Badge is the app-surface
-// status pill on 20+ other carriers, and routing this onto it rendered every
-// tag neutral grey and uppercased, which legacy never does.
-const PRODUCT_TAG_CLASS: Record<Tag, string> = {
-  recovery: "border-brand bg-brand-bg text-brand-text",
-  disputes: "border-blue bg-blue-bg text-cobalt-text",
-  intelligence: "border-green bg-green-bg text-green",
-  audit: "border-border bg-surface2 text-text-tertiary",
-  platform: "border-border bg-surface2 text-text-tertiary",
-};
-
-// CSS-only filter, ported from legacy's mechanism rather than just its rules.
-// The CSS lives in lib/http/inline-styles.ts, which the CSP trusts by hash
-// (style-src has no 'unsafe-inline' for elements since J22).
-
-function ProductTag({ tag }: { tag: Tag }) {
+function FeatureCard({ feature }: { feature: Feature }) {
   return (
-    <span
-      className={`inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 font-mono text-tag font-medium ${PRODUCT_TAG_CLASS[tag]}`}
-    >
-      {TAG_LABEL[tag]}
-    </span>
+    // data-product is what FEATURE_FILTER_CSS reads to hide a card.
+    <div className="cap-panel" data-product={feature.product}>
+      <div className="cap-panel-body">
+        <div>
+          <div className="mb-2 flex items-start justify-between gap-3">
+            <span className="text-body font-medium text-text">{feature.name}</span>
+            <span className="cap-pill" data-variant={tagVariant(feature.product)}>
+              {feature.product}
+            </span>
+          </div>
+          <p className="m-0 text-label leading-relaxed text-text-secondary">{feature.description}</p>
+        </div>
+      </div>
+    </div>
   );
 }
 
-interface Feature {
-  title: string;
-  tag: Tag;
-  body: string;
-}
-
-interface Category {
-  heading: string;
-  features: Feature[];
-}
-
-// Section anchors are slugified from Foxhound's OWN headings below, never
-// carried over from legacy's features-data.ts (ruling 38).
-function sectionId(heading: string): string {
-  return heading.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-}
-
-// Legacy renders an inline example inside three sections, keyed by section id
-// (features/page.tsx's SectionInlineExample). Two are restored here now that
-// their components exist (rulings 78/79), which discharges the matching part of
-// M10's remainder. The THIRD, legacy's visibility stat grid, stays unbuilt: its
-// 26.6% and $6,884 are legacy's figures, so whether Foxhound shows its own
-// numbers or none is the copy pass's call under ruling 20d (ruling 77).
-//
-// The threshold sentence states FOXHOUND's bands, not legacy's. Legacy's reads
-// "red below 34, [accent] 34-66, green at or above 67", which is false here; this
-// is the sanctioned truthfulness class, not a copy rewrite.
+// Recova's inline examples, keyed by section id. The automation timeline reads
+// RECOVERY_SCHEDULES and the badges read healthScoreBand (rulings 78, 79); the
+// sentence states the same bands, from the same constants.
 function SectionInlineExample({ id }: { id: string }) {
   if (id === "automation") {
     return <SequenceTimeline category="soft" />;
@@ -105,348 +96,81 @@ function SectionInlineExample({ id }: { id: string }) {
         <HealthScoreBadge score={20} />
         <HealthScoreBadge score={50} />
         <HealthScoreBadge score={82} />
-        <span>red below 40, orange 40-69, green at or above 70.</span>
+        <span>{healthBandSentence()}</span>
       </div>
     );
   }
   return null;
 }
 
-const CATEGORIES: Category[] = [
-  {
-    heading: "Automation",
-    features: [
-      {
-        title: "Recovery tick, every 5 minutes",
-        tag: "recovery",
-        body: "Sweeps due recovery steps and runs each through its executor. No delay beyond the tick interval from any scheduled step.",
-      },
-      {
-        title: "Silent retry before any email",
-        tag: "recovery",
-        body: "The decline is classified first. A quiet retry runs before a customer ever sees a dunning email.",
-      },
-      {
-        title: "Fraud declines are never retried",
-        tag: "recovery",
-        body: "A fraud-category decline gets a single email and no retry step at all.",
-      },
-      {
-        title: "Monthly recovery billing run",
-        tag: "platform",
-        body: "Invoices the prior month's matured (30+ day) recoveries at 20%. Baseline recoveries Stripe would have gotten anyway are never billed.",
-      },
-      {
-        title: "Nightly Intelligence scoring and narrative",
-        tag: "intelligence",
-        body: "Health scores, predictions, alerts, and a structurally grounded AI narrative are computed nightly for every customer.",
-      },
-      {
-        title: "Monthly MRR and movement snapshots",
-        tag: "intelligence",
-        body: "MRR and the movement waterfall (new, expansion, reactivation, contraction, churn) are computed from Stripe subscription data.",
-      },
-      {
-        title: "Evidence drafted the moment a dispute opens",
-        tag: "disputes",
-        body: "Prior charges, recovery history, and Stripe signals are assembled into a draft automatically, before you open the dispute.",
-      },
-      {
-        title: "Daily retention sweeps",
-        tag: "platform",
-        body: "Engagement events, email sends, webhook events, health-score history, cron history, and AI call logs are pruned on a schedule so operational tables stay bounded.",
-      },
-      {
-        title: "Nightly demo reset",
-        tag: "platform",
-        body: "Demo accounts are reseeded nightly and never touch live Stripe data.",
-      },
-      {
-        title: "Per-cron overlap prevention",
-        tag: "platform",
-        body: "Each cron takes a Durable Object lock before it runs. Overlapping runs are blocked, not queued, and every run is logged.",
-      },
-    ],
-  },
-  {
-    heading: "Intelligence",
-    features: [
-      {
-        title: "Free MRR analytics for every Recovery merchant",
-        tag: "intelligence",
-        body: "MRR and movements come free the moment Recovery connects. Not a trial, no separate signup.",
-      },
-      {
-        title: "Predictive risk scoring, $199/mo",
-        tag: "intelligence",
-        body: "A paid layer on top of the free analytics that scores customers by churn risk before it happens.",
-      },
-      {
-        title: `${DECLINE_CATEGORY_COUNT_WORD} decline categories, ${DECLINE_CATEGORY_COUNT_WORD_LOWER} sequences`,
-        tag: "recovery",
-        body: `Every Stripe decline code maps to ${DECLINE_CATEGORY_PHRASE}. Timing and retry strategy differ by category.`,
-      },
-      {
-        title: "Fail-closed on unrecognized declines",
-        tag: "recovery",
-        body: "An unknown decline code defaults to a dedicated non-retryable category instead of silently auto-retrying.",
-      },
-      {
-        title: "Evidence never fabricated",
-        tag: "disputes",
-        body: "Every drafted claim is grounded in real charge, email, and Stripe-signal data. Nothing is invented to strengthen a case.",
-      },
-    ],
-  },
-  {
-    heading: "Email and communication",
-    features: [
-      {
-        title: "AI-drafted sequences in your voice",
-        tag: "recovery",
-        body: "Recovery emails read as your brand voice, not Foxhound's. Every generated email is read in full before a template ships.",
-      },
-      {
-        title: "Cloudflare Email Service delivery",
-        tag: "platform",
-        body: "Outbound email goes through Cloudflare's Email Service behind one thin send module business logic never bypasses.",
-      },
-      {
-        title: "First-party open and click tracking",
-        tag: "platform",
-        body: "Engagement comes from Foxhound's own tracking routes, not a vendor webhook.",
-      },
-      {
-        title: "Bounce and suppression handling",
-        tag: "platform",
-        body: "Email Service events flow through a queue consumer that updates the suppression list automatically.",
-      },
-      {
-        title: "Signed one-click unsubscribe",
-        tag: "platform",
-        body: "CAN-SPAM-compliant, token-based, no login required.",
-      },
-      {
-        title: "Hosted card-update page",
-        tag: "recovery",
-        body: "A no-login page a customer reaches from a recovery email to update an expiring or failed card.",
-      },
-    ],
-  },
-  {
-    heading: "Visibility",
-    features: [
-      {
-        title: "Billing evidence ledger",
-        tag: "platform",
-        body: "Every fee renders its chain: the Foxhound action, the recovered payment, the 20%. Baseline recoveries appear in the same ledger marked free.",
-      },
-      {
-        title: "Dispute review-and-sign screen",
-        tag: "disputes",
-        body: "The full evidence draft, an edit affordance, and an explicit approve-and-submit action with the fee, capped at $500, stated on the button.",
-      },
-      {
-        title: "Audit report",
-        tag: "audit",
-        body: "One headline lift number, three bands beneath it: Stripe recovered, still dying, Foxhound adds.",
-      },
-      {
-        title: "Intelligence risk view",
-        tag: "intelligence",
-        body: "Every customer scored, sorted by MRR at risk, each score expandable to its evidence.",
-      },
-      {
-        title: "Hand-rolled SVG charts",
-        tag: "platform",
-        body: "Sparkline, line and area, bar and waterfall, meter, and cohort grid. Server-rendered, no client-only measurement container, no hydration flash.",
-      },
-      {
-        title: "Admin operations and cron health",
-        tag: "platform",
-        body: "D1 cap telemetry, deploy state, and a live cron-status table.",
-      },
-    ],
-  },
-  {
-    heading: "Control",
-    features: [
-      {
-        title: "Pause, resume, or cancel a sequence",
-        tag: "recovery",
-        body: "From the payment detail page, along with triggering an immediate retry at any time.",
-      },
-      {
-        title: "Edit drafted dispute evidence",
-        tag: "disputes",
-        body: "Any drafted field can be edited before approval. The draft is a starting point, not a constraint.",
-      },
-      {
-        title: "Durable Object rate limiting",
-        tag: "platform",
-        body: "Rate limits are enforced through a dedicated Durable Object, not a third-party rate-limit service.",
-      },
-      {
-        title: "Theme toggle",
-        tag: "platform",
-        body: "Dark by default, light as a first-class mode, cookie-persisted with no flash.",
-      },
-    ],
-  },
-  {
-    heading: "Integration",
-    features: [
-      {
-        title: "Stripe Connect OAuth",
-        tag: "platform",
-        body: "Connects in under a minute, and never touches your billing configuration.",
-      },
-      {
-        title: "Direct platform invoicing",
-        tag: "platform",
-        body: "Foxhound bills merchants directly as its own Stripe customer. This is not a Connect application fee.",
-      },
-      {
-        title: "Cloudflare D1 and Drizzle",
-        tag: "platform",
-        body: "The database layer, reached through native Workers bindings, never over HTTP.",
-      },
-      {
-        title: "Sentry error tracking",
-        tag: "platform",
-        body: "Error tracking with source maps across the Worker and its cron jobs.",
-      },
-    ],
-  },
-  {
-    heading: "Security and compliance",
-    features: [
-      {
-        title: "Narrow Stripe scope",
-        tag: "platform",
-        body: "Foxhound requests read and write Stripe Connect access, because retrying a failed invoice is a write. It writes in three places: retrying an invoice that already failed, setting a customer default payment method after a card update, and submitting dispute evidence you approved. It never changes your prices, products, or subscription plans, and never reaches your payouts.",
-      },
-      {
-        title: "AES-256-GCM token encryption",
-        tag: "platform",
-        body: "Stripe access tokens are encrypted at rest with Web Crypto, decrypted only in memory during execution.",
-      },
-      {
-        title: "Stripe webhook verification",
-        tag: "platform",
-        body: "Every webhook is verified with constructEvent signature checking, with a Durable-Object-serialized claim so an event can't double-process.",
-      },
-      {
-        title: "Enforced security headers and CSP",
-        tag: "platform",
-        body: "Response headers and a content-security policy are enforced on every request.",
-      },
-      {
-        title: "Role-gated admin",
-        tag: "platform",
-        body: "A real middleware guard, not a UI-only check, controls whether /admin is reachable at all.",
-      },
-      {
-        title: "CAN-SPAM compliance",
-        tag: "platform",
-        body: "Signed unsubscribe tokens, a suppression list, and one-click unsubscribe on every commercial email.",
-      },
-      {
-        title: "WCAG 2.2 AA target",
-        tag: "platform",
-        body: "Reduced-motion, increased-contrast, and forced-colors modes are implemented, not just targeted.",
-      },
-    ],
-  },
-];
-
 export function meta({ loaderData }: Route.MetaArgs) {
   return marketingMeta({
     title: "Features - Foxhound",
-    description:
-      "Everything Foxhound does, organized by capability and tagged by product: Audit, Recovery, Disputes, and Intelligence.",
+    description: FEATURES_META_DESCRIPTION,
     path: "/features",
     siteUrl: loaderData?.siteUrl ?? "",
   });
 }
 
-export function loader({ context }: Route.LoaderArgs) {
+export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
-  return { siteUrl: siteUrl(env) };
+  return { siteUrl: siteUrl(env), facts: await readFeatureFacts() };
 }
 
 export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
-  const { siteUrl: url } = loaderData;
-  const [filter, setFilter] = useState<FilterValue>("All");
+  const { siteUrl: url, facts } = loaderData;
+  const sections = useMemo(() => featureSections(facts), [facts]);
+  const [filter, setFilter] = useState<FeatureFilterValue>("All");
+  const all = sections.flatMap((s) => s.features);
+  const shown = filter === "All" ? all.length : all.filter((f) => f.product === filter).length;
 
   return (
-    <div>
+    // Capsomer's teal family with Foxhound's neutrals. Foxhound's global focus
+    // ring reads --border-focus (app.css); inside this page it reads the
+    // family's --ring, so a keyboard user sees teal as in Capsomer's own parts.
+    <div className="fh-cap [--border-focus:var(--ring)]" data-family="teal">
       <style>{FEATURE_FILTER_CSS}</style>
-      <MarketingPageHeader
-        eyebrow="Platform"
-        title="Features"
-        subtext="Everything Foxhound does. Organized by capability, tagged by product."
-      />
+      <MarketingPageHeader eyebrow="Platform" title="Features" subtext={FEATURES_SUBTEXT} />
 
       <div className="mx-auto max-w-[1100px] px-5 pb-16 sm:px-8">
+        {/* Recova's FeatureFilterShell: the active value on the wrapper, which
+            FEATURE_FILTER_CSS reads; no card re-renders on a press. */}
         <div data-feature-filter={filter}>
-          <div role="tablist" aria-label="Filter features by product" className="mb-10 flex flex-wrap gap-2">
-            {FILTERS.map((f) => (
-              <button
-                key={f}
-                type="button"
-                role="tab"
-                aria-selected={filter === f}
-                onClick={() => setFilter(f)}
-                className={`rounded-full border px-3 py-1.5 font-mono text-caption font-medium transition-colors ${
-                  filter === f
-                    ? "border-brand bg-brand text-on-brand"
-                    : "border-border bg-surface text-text-secondary hover:border-brand-text hover:text-text"
-                }`}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
+          <FeatureFilter active={filter} onChange={setFilter} shownCount={shown} totalCount={all.length} />
 
           <div className="grid grid-cols-1 gap-12 lg:grid-cols-[220px_1fr]">
+            {/* Recova's sticky section nav. Capsomer's anchor bar is a
+                horizontal bar with an "On this page" label, so this stays
+                Recova's vertical list in Foxhound utilities with the teal
+                accent on hover; a vertical anchor bar is a Capsomer gap. */}
             <aside className="hidden lg:block">
               <nav aria-label="Sections" className="sticky top-20 space-y-1">
-                {CATEGORIES.map((category) => (
+                {sections.map((s) => (
                   <a
-                    key={category.heading}
-                    href={`#${sectionId(category.heading)}`}
-                    className="block border-l border-border py-1 pl-3 text-label text-text-secondary transition-colors hover:border-brand-text hover:text-text"
+                    key={s.id}
+                    href={`#${s.id}`}
+                    className="block border-l border-border py-1 pl-3 text-label text-text-secondary transition-colors hover:border-accent-text hover:text-text"
                   >
-                    {category.heading}
+                    {s.label}
                   </a>
                 ))}
               </nav>
             </aside>
 
-            {/* Legacy wraps this column in <main>; Foxhound renders one main
-                landmark per document from the layout (ratified), so this is a
-                plain div. */}
+            {/* Recova wraps this column in <main>; Foxhound renders one main
+                landmark per document from the layout (approved 2026-07-29), so
+                this is a plain div. */}
             <div className="space-y-16">
-              {CATEGORIES.map((category) => (
-                <section key={category.heading} id={sectionId(category.heading)} className="scroll-mt-20">
+              {sections.map((s) => (
+                <section key={s.id} id={s.id} className="scroll-mt-20">
                   <div className="mb-6">
-                    <h2 className="mb-1 text-title font-medium text-text">{category.heading}</h2>
+                    <h2 className="mb-1 text-title font-medium text-text">{s.title}</h2>
+                    <p className="m-0 text-label leading-relaxed text-text-secondary">{s.intro}</p>
                   </div>
-                  <SectionInlineExample id={sectionId(category.heading)} />
+                  <SectionInlineExample id={s.id} />
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    {category.features.map((feature) => (
-                      <div
-                        key={feature.title}
-                        data-product={TAG_LABEL[feature.tag]}
-                        className="rounded-lg border border-border bg-surface p-4"
-                      >
-                        <div className="mb-2 flex items-start justify-between gap-3">
-                          <span className="text-copy font-medium text-text">{feature.title}</span>
-                          <ProductTag tag={feature.tag} />
-                        </div>
-                        <p className="m-0 text-label leading-relaxed text-text-secondary">{feature.body}</p>
-                      </div>
+                    {s.features.map((f) => (
+                      <FeatureCard key={f.name} feature={f} />
                     ))}
                   </div>
                 </section>
@@ -456,15 +180,16 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
         </div>
 
         <div className="mt-24 border-t border-border pt-12 text-center">
-          <p className="mx-auto mb-6 max-w-[400px] text-item-title text-text-secondary">
+          <p className="mx-auto mb-6 max-w-[400px] text-body text-text-secondary">
             See what your Stripe account is leaking. Free diagnostic, no account required.
           </p>
-          <Link
-            to="/audit"
-            className="btn-primary inline-flex items-center gap-2 rounded-lg px-6 py-3 text-item-title font-medium text-on-brand"
-          >
-            Run your free audit
-          </Link>
+          {/* Comfortable density for Capsomer's lg button, as /pricing: 40px
+              tall with a pointer, 44px on a touch screen. */}
+          <div data-density="comfortable">
+            <Link to="/audit" className="cap-btn" data-variant="primary" data-size="lg">
+              Run your free audit
+            </Link>
+          </div>
         </div>
       </div>
 
