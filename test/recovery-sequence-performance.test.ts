@@ -7,7 +7,6 @@ import {
   buildCategorySections,
   buildStepCard,
   formatStepTiming,
-  stepTimingLabel,
   summarizeStepPerformance,
   type StepPerformanceInput,
 } from "~/lib/recovery/sequence-performance";
@@ -26,31 +25,6 @@ describe("formatStepTiming", () => {
     expect(formatStepTiming(24)).toBe("1 day after failure");
     expect(formatStepTiming(72)).toBe("3 days after failure");
     expect(formatStepTiming(720)).toBe("30 days after failure");
-  });
-});
-
-describe("stepTimingLabel", () => {
-  it("resolves every real schedule step type to a non-null label", () => {
-    // Every stepType that actually appears in RECOVERY_SCHEDULES must resolve -
-    // this is what makes the timing chip "never invented numbers".
-    for (const stepType of [
-      "retry_early",
-      "email_day1",
-      "retry_day2",
-      "email_day3",
-      "email_day7",
-      "email_day14",
-      "retry_day21",
-      "email_day30",
-      "retry_4hr",
-      "email_revoked",
-    ]) {
-      expect(stepTimingLabel(stepType), stepType).not.toBeNull();
-    }
-  });
-
-  it("returns null for an unscheduled step type, never a fabricated timing", () => {
-    expect(stepTimingLabel("email_made_up")).toBeNull();
   });
 });
 
@@ -136,7 +110,7 @@ describe("buildStepCard", () => {
     const card = buildStepCard("retry_early", [
       { executedAt: new Date(), result: "retry_succeeded", openedAt: null, clickedAt: null, aiSubject: null, aiBodyHtml: null },
       { executedAt: new Date(), result: "retry_failed", openedAt: null, clickedAt: null, aiSubject: null, aiBodyHtml: null },
-    ]);
+    ], 4);
     expect(card.kind).toBe("retry");
     if (card.kind !== "retry") throw new Error("expected retry card");
     expect(card.attempted).toBe(2);
@@ -146,7 +120,7 @@ describe("buildStepCard", () => {
   });
 
   it("builds a retry card with a null rate and zero counts when never attempted", () => {
-    const card = buildStepCard("retry_day2", []);
+    const card = buildStepCard("retry_day2", [], 48);
     if (card.kind !== "retry") throw new Error("expected retry card");
     expect(card.attempted).toBe(0);
     expect(card.successRatePct).toBeNull();
@@ -155,7 +129,7 @@ describe("buildStepCard", () => {
   it("builds an email card with sent/opened/clicked and the latest subject", () => {
     const older = { executedAt: new Date("2026-01-01"), result: "email_sent", openedAt: null, clickedAt: null, aiSubject: "Old subject", aiBodyHtml: "<p>old</p>" };
     const newer = { executedAt: new Date("2026-02-01"), result: "email_sent", openedAt: new Date(), clickedAt: null, aiSubject: "New subject", aiBodyHtml: "<p>new</p>" };
-    const card = buildStepCard("email_day1", [older, newer]);
+    const card = buildStepCard("email_day1", [older, newer], 1);
     if (card.kind !== "email") throw new Error("expected email card");
     expect(card.sent).toBe(2);
     expect(card.openRatePct).toBe(50);
@@ -165,7 +139,7 @@ describe("buildStepCard", () => {
   });
 
   it("builds an empty email card with null rates when never sent", () => {
-    const card = buildStepCard("email_day7", []);
+    const card = buildStepCard("email_day7", [], 168);
     if (card.kind !== "email") throw new Error("expected email card");
     expect(card.sent).toBe(0);
     expect(card.openRatePct).toBeNull();
@@ -217,6 +191,11 @@ describe("buildCategorySections", () => {
 // unknown day 1 chip said "1 day" for a 1 hour send, network's retry_day2 and
 // day 3 said 2 and 3 days for 1 and 2, and fraud's day 1 said "1 day" for 2 hours.
 describe("each category's timing chips are that category's own offsets", () => {
+  it("shows no timing for a step no schedule defines, never a fabricated one", () => {
+    expect(buildStepCard("email_made_up", [], null).timingLabel).toBeNull();
+  });
+
+
   it("every card's chip is formatStepTiming of its own schedule offset", () => {
     const sections = buildCategorySections(DECLINE_CATEGORIES, []);
     for (const section of sections) {
