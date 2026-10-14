@@ -1,13 +1,11 @@
-import { useEffect, useRef, useState } from "react";
-import { Link, Outlet, useLocation, useMatches, useNavigation, useRouteLoaderData } from "react-router";
+import { useEffect, useState } from "react";
+import { Outlet, useLocation, useMatches, useNavigate, useRouteLoaderData } from "react-router";
 import {
   Activity,
-  CircleUser,
   Clock,
   FileText,
   LayoutDashboard,
   ListChecks,
-  Menu as MenuIcon,
   OctagonPause,
   ScrollText,
   Share2,
@@ -15,16 +13,16 @@ import {
   Users,
   Webhook,
 } from "lucide-react";
-import { openSheet } from "capsomer/behaviour/admin-shell";
 import { AdminShell, type AdminEntry } from "capsomer/react/admin-shell";
-import { ThemeSwitch } from "capsomer/react/theme-switch";
-import { Time } from "capsomer/react/time";
 
 import "~/admin.css";
+import { headerLogo, personInitials, renderHeaderLink, THEME_PREF_KEY } from "~/components/site-header";
 import { adminContext } from "~/lib/admin/context";
 import { adminPageName } from "~/lib/admin/page";
 import { getAdminSession } from "~/lib/auth/access.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { useCollapseKey } from "~/lib/use-collapse-key";
+import { useReadAt } from "~/lib/use-read-at";
 import { DEFAULT_THEME, THEME_COOKIE, type Theme } from "~/lib/theme";
 
 import type { Route } from "./+types/admin-shell";
@@ -54,8 +52,8 @@ export function loader({ context }: Route.LoaderArgs) {
 const icon = (Icon: typeof LayoutDashboard) => <Icon className="cap-admin-icon" aria-hidden />;
 
 // The admin's pages, grouped as the menu shows them. `match` decides which
-// entry is current. The phone's tab bar takes the first four; the rest sit
-// under More.
+// entry is current. The phone's tab bar takes the first five (Capsomer 0.9.0:
+// no More tab, because the header's menu button opens the full list).
 const ENTRIES: Array<AdminEntry & { match: (path: string) => boolean }> = [
   { id: "overview", label: "Overview", href: "/admin", icon: icon(LayoutDashboard), match: (p) => p === "/admin" },
   { id: "merchants", label: "Merchants", href: "/admin/merchants", group: "Customers", icon: icon(Store), match: (p) => p.startsWith("/admin/merchants") },
@@ -72,12 +70,23 @@ const ENTRIES: Array<AdminEntry & { match: (path: string) => boolean }> = [
 
 // Capsomer's tokens are keyed on data-cap-theme. It follows the site's own
 // theme, which the root loader already resolved for <html data-theme>, so the
-// server render has the right palette and nothing flashes. Capsomer's Light
-// and Dark switch sets <html data-theme> and announces a "cap-theme" event;
-// this keeps the admin's palette and Foxhound's fh_theme cookie in step with it.
+// server render has the right palette and nothing flashes. The header's theme
+// button sets <html data-theme> and announces a "cap-theme" event; this keeps
+// the admin's palette and Foxhound's fh_theme cookie in step with it. The
+// button's own memory is set to the same answer before it reads it.
 function useAdminTheme(): Theme {
   const rootData = useRouteLoaderData<typeof rootLoader>("root");
-  const [theme, setTheme] = useState<Theme>(rootData?.theme ?? DEFAULT_THEME);
+  const initial = rootData?.theme ?? DEFAULT_THEME;
+  useState(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      localStorage.setItem(THEME_PREF_KEY, initial);
+    } catch {
+      // Storage blocked: the button falls back to <html data-theme>.
+    }
+    return null;
+  });
+  const [theme, setTheme] = useState<Theme>(initial);
   useEffect(() => {
     const onTheme = (e: Event) => {
       const choice = (e as CustomEvent<{ choice?: string }>).detail?.choice;
@@ -91,95 +100,50 @@ function useAdminTheme(): Theme {
   return theme;
 }
 
-// When the page's data was last read: the server's time on the first load,
-// then each time a navigation, a form or a revalidation finishes (every one
-// re-runs the page's loader). The top bar says it in words, so nobody reads
-// minutes-old numbers as live.
-function useReadAt(serverReadAt: number): number {
-  const [readAt, setReadAt] = useState(serverReadAt);
-  const navigation = useNavigation();
-  const { key } = useLocation();
-  const wasBusy = useRef(false);
-  useEffect(() => {
-    if (navigation.state !== "idle") {
-      wasBusy.current = true;
-    } else if (wasBusy.current) {
-      wasBusy.current = false;
-      setReadAt(Date.now());
-    }
-  }, [navigation.state, key]);
-  return readAt;
-}
-
-// Phone only: the strip and the menu live in the shell's sheet, so the top bar
-// gets the two ways into it, the menu and the account (the sheet's account rows:
-// View site, Sign out).
-function PhoneControls() {
-  const open = (focusAccount: boolean) => (e: React.MouseEvent<HTMLButtonElement>) => {
-    const shell = e.currentTarget.closest<HTMLElement>("[data-cap='admin-shell']");
-    if (!shell) return;
-    openSheet(shell);
-    if (focusAccount) {
-      shell.querySelector<HTMLElement>(".cap-admin-sheet-account a, .cap-admin-sheet-account button")?.focus();
-    }
-  };
-  return (
-    <span className="fh-admin-phone-controls">
-      <button type="button" className="fh-admin-icon-btn" aria-label="Menu" onClick={open(false)}>
-        <MenuIcon className="cap-admin-icon" aria-hidden />
-      </button>
-      <button type="button" className="fh-admin-icon-btn" aria-label="Account" onClick={open(true)}>
-        <CircleUser className="cap-admin-icon" aria-hidden />
-      </button>
-    </span>
-  );
-}
-
 export default function AdminShellLayout({ loaderData }: Route.ComponentProps) {
   const { pathname } = useLocation();
   const matches = useMatches();
+  const navigate = useNavigate();
   const theme = useAdminTheme();
   const readAt = useReadAt(loaderData.readAt);
+  useCollapseKey();
   const nav = ENTRIES.map(({ match, ...entry }) => ({ ...entry, current: match(pathname) }));
   const page = adminPageName(matches) ?? "Foxhound admin";
   const { email } = loaderData;
 
+  // Your admin (Capsomer's owner variant): the strip of the family's apps,
+  // Foxhound marked (its mark is still the x until Dustin picks one), then the
+  // grouped menu. The header is the site's own: the wordmark, the theme button
+  // and the avatar menu last. Search and Inbox are left out: the Foxhound admin
+  // has no search and no inbox for them to open, and a control that does
+  // nothing is worse than none.
   return (
-    <div data-cap-theme={theme} className="fh-admin">
+    <div data-cap-theme={theme} data-family="teal" className="fh-admin">
       <AdminShell
+        variant="owner"
+        app="foxhound"
         title="Foxhound admin"
-        apps={[{ id: "foxhound", label: "Foxhound admin", href: "/admin", mono: "F", current: true }]}
+        page={page}
         nav={nav}
         prefKey="foxhound-admin"
-        renderLink={({ href, children, ...rest }) => (
-          <Link to={href} {...rest}>
-            {children}
-          </Link>
-        )}
-        status={
-          <span className="fh-admin-bar-page">
-            <h1 className="fh-admin-page-name">{page}</h1>
-            <span>
-              Updated <Time at={readAt} />
-            </span>
-          </span>
-        }
-        actions={
-          <>
-            <ThemeSwitch prefKey="foxhound-admin-theme" initial={theme} />
-            <PhoneControls />
-          </>
-        }
+        logo={headerLogo("/admin")}
+        band="dark"
+        themePrefKey={THEME_PREF_KEY}
+        renderLink={renderHeaderLink}
+        updated={{ at: readAt }}
+        status={<h1 className="fh-admin-page-name">{page}</h1>}
+        viewSite="/"
+        onHelp={() => void navigate("/help")}
         account={{
           name: email,
-          initials: (email[0] ?? "A").toUpperCase(),
+          initials: personInitials(null, email),
+          // Who you are: the email is the name, so the line under it is the
+          // role alone.
           role: "Administrator",
-          email,
-          appLinks: [{ label: "View site", href: "/" }],
           // Access owns sign-out: it ends the Access session, then shows its
           // own login.
           onSignOut: () => {
-            window.location.href = "/cdn-cgi/access/logout";
+            window.location.assign("/cdn-cgi/access/logout");
           },
         }}
       >

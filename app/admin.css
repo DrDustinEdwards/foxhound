@@ -2,10 +2,14 @@
    app/layouts/admin-shell.tsx), so no customer or marketing page downloads it.
    Capsomer: layers, tokens, both themes, the base rules, and the pieces
    AdminShell and its time and tooltip use. The layer order is declared at the top
-   of app.css, so Capsomer sits above Tailwind's base and below its utilities. */
+   of app.css, so Capsomer sits above Tailwind's base and below its utilities.
+   Foxhound's family is teal (Dustin's answer 1 of 2026-10-13): its tokens come
+   after the themes, so the accents are teal in both. */
 @import "capsomer/tokens.css";
 @import "capsomer/themes.css" layer(cap.tokens);
+@import "capsomer/family-teal.css" layer(cap.tokens);
 @import "capsomer/base.css";
+@import "capsomer/site-header.css";
 @import "capsomer/admin-shell.css";
 @import "capsomer/dialog.css";
 @import "capsomer/popover.css";
@@ -96,50 +100,18 @@
   font-family: var(--ui);
 }
 
-/* The top bar's left side: the page's one heading, then how fresh its data is.
-   AdminShell 0.8.0 draws this itself (`page`, `status`); on 0.7.1 it is the
-   bar's status slot. */
-.fh-admin-bar-page {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-1) var(--space-4);
+/* The page bar's left side: the page's one heading, then how fresh its data is
+   ("Updated 6 minutes ago", AdminShell's own line). AdminShell 0.9.0 names the
+   page in its trail only below the top level, so the heading rides in the
+   bar's status slot and is put first. */
+.fh-admin .cap-admin-bar-status {
+  order: -1;
 }
 .fh-admin-page-name {
   margin: 0;
   color: var(--text);
   font-size: var(--fs-lead);
   font-weight: 600;
-}
-
-/* Phone only: the menu and the account, which live in the shell's sheet. */
-.fh-admin-phone-controls {
-  display: none;
-  gap: var(--space-2);
-}
-.fh-admin-icon-btn {
-  display: inline-grid;
-  place-items: center;
-  width: max(var(--control), var(--target));
-  height: max(var(--control), var(--target));
-  border: 1px solid var(--line);
-  border-radius: var(--radius-m);
-  background: var(--surface);
-  color: var(--text);
-}
-.fh-admin-icon-btn:hover {
-  background: var(--sunken);
-}
-
-@media (max-width: 820px) {
-  .fh-admin-phone-controls {
-    display: inline-flex;
-  }
-  /* The tab bar is sticky at the bottom of the screen: the page keeps a bar's
-     height of room under its last line, so nothing ever sits behind it. */
-  .fh-admin .cap-admin-page {
-    padding-bottom: calc(var(--space-6) + 4.5rem + env(safe-area-inset-bottom, 0rem));
-  }
 }
 
 /* A run linked to from the Overview (/admin/crons#run-...) is marked when it
