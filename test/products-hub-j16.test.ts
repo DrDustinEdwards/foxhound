@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+
+import postcss, { type Rule } from "postcss";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, RouterProvider } from "react-router";
@@ -120,5 +123,46 @@ describe("/products hub (J16, row M5)", () => {
     for (const c of cards(html)) {
       expect((c.match(/text-accent-text/g) ?? []).length).toBe(3);
     }
+  });
+});
+
+describe("/products hub card focus (J16)", () => {
+  // Foxhound's own unlayered *:focus-visible rule (app/app.css) sets
+  // border-radius: 2px on every focused element, which squares Capsomer's
+  // rounded panel the moment a keyboard user lands on a card. The fix is to
+  // Foxhound's global rule, as the site header's is: a later unlayered rule
+  // hands the radius back to the layered cascade (revert-layer).
+  const root = postcss.parse(readFileSync(new URL("../app/app.css", import.meta.url), "utf8"));
+  const unlayered: Rule[] = [];
+  root.walkRules((r) => {
+    let parent = r.parent;
+    while (parent && parent.type !== "root") {
+      if (parent.type === "atrule" && (parent as { name?: string }).name === "layer") return;
+      parent = parent.parent;
+    }
+    unlayered.push(r);
+  });
+  const radius = (r: Rule) => {
+    let v: string | undefined;
+    r.walkDecls("border-radius", (d) => {
+      v = d.value;
+    });
+    return v;
+  };
+
+  it("finds the global rule that squares focused corners (the matcher's control)", () => {
+    expect(unlayered.some((r) => r.selectors.includes("*:focus-visible") && radius(r) === "2px")).toBe(true);
+  });
+
+  it("gives a focused hub card its panel radius back", () => {
+    const html = render();
+    const tag = cards(html)[0].slice(0, cards(html)[0].indexOf(">") + 1);
+    expect(tag).toContain("cap-panel");
+    expect(hub(html).slice(0, hub(html).indexOf(">") + 1)).toContain("fh-cap");
+    const globalIdx = unlayered.findIndex((r) => r.selectors.includes("*:focus-visible"));
+    const fixIdx = unlayered.findIndex(
+      (r) => r.selectors.includes(".fh-cap .cap-panel:focus-visible") && radius(r) === "revert-layer",
+    );
+    expect(fixIdx, "an unlayered revert-layer rule for .fh-cap .cap-panel:focus-visible").toBeGreaterThan(globalIdx);
   });
 });
