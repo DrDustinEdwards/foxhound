@@ -34,6 +34,8 @@ const { runWinbackSends, resolveWinbackCopy } = await import("~/lib/cron/winback
 const { buildWinbackPrompt, WINBACK_VOICE_FALLBACK } = await import(
   "~/lib/recovery/winback-generation"
 );
+const { buildWinbackEmail } = await import("~/lib/recovery/winback-email");
+const { signCardUpdateToken } = await import("~/lib/card-update/token");
 
 const ACCOUNT = "acct_1";
 const NOW = new Date("2026-11-02T12:00:00Z");
@@ -54,7 +56,10 @@ beforeEach(() => {
   harness.db = db;
   harness.emailJobs = [];
   harness.requests = [];
-  harness.reply = { subject: "We miss you", bodyHtml: "<p>Come back when you like.</p>" };
+  harness.reply = {
+    subject: "We miss you",
+    bodyHtml: '<p>Come back when you like.</p><p><a href="{{LINK}}">Reactivate</a></p>',
+  };
   harness.fail = false;
   realFetch = globalThis.fetch;
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -69,7 +74,7 @@ beforeEach(() => {
         type: "message",
         role: "assistant",
         model: "claude-sonnet-5",
-        content: [{ type: "text", text: JSON.stringify(harness.reply) }],
+        content: [{ type: "text", text: JSON.stringify(withMintedLink(harness.reply)) }],
         stop_reason: "end_turn",
         usage: { input_tokens: 1, output_tokens: 1 },
       }),
@@ -81,7 +86,20 @@ beforeEach(() => {
 
 afterEach(() => {
   globalThis.fetch = realFetch;
+  vi.restoreAllMocks();
 });
+
+/** The stub model writes `{{LINK}}` where a real model would write the link it
+ *  was given, so a reply can carry the minted link, drop it, or rewrite it. The
+ *  link is read off the prompt that actually left. */
+function withMintedLink(reply: { subject: string; bodyHtml: string } | null) {
+  if (!reply) return reply;
+  const prompt =
+    (harness.requests.at(-1)?.body as { messages?: { content: string }[] } | undefined)
+      ?.messages?.[0]?.content ?? "";
+  const link = /linking to: (\S+)/.exec(prompt)?.[1] ?? "";
+  return { ...reply, bodyHtml: reply.bodyHtml.replaceAll("{{LINK}}", link) };
+}
 
 function seed(opts: { brandVoice?: string | null; cancelReason?: string | null } = {}): void {
   sqlite
@@ -115,6 +133,34 @@ function stepRow() {
       "SELECT result, ai_subject AS aiSubject, ai_body_html AS aiBody FROM win_back_steps WHERE id = 'st_1'",
     )
     .get() as { result: string | null; aiSubject: string | null; aiBody: string | null };
+}
+
+/** A resubscribe link minted at an EARLIER moment than the tick, as an earlier
+ *  tick would have minted it. */
+async function resubscribeLink(opts: {
+  sequenceId: string;
+  stepNumber: number;
+  accountId?: string;
+  at?: number;
+}): Promise<string> {
+  const clock = vi.spyOn(Date, "now").mockReturnValue(opts.at ?? Date.UTC(2026, 9, 30));
+  const token = await signCardUpdateToken(env, {
+    winBackSequenceId: opts.sequenceId,
+    winBackStepNumber: opts.stepNumber,
+    accountId: opts.accountId ?? ACCOUNT,
+  });
+  clock.mockRestore();
+  return `https://foxhoundapp.test/p/${token}`;
+}
+
+/** The href values of a body. */
+function hrefs(html: string): string[] {
+  return [...html.matchAll(/href="([^"]*)"/g)].map((m) => m[1]);
+}
+
+/** The link the tick minted, read off the prompt that left. */
+function mintedLink(): string {
+  return /linking to: (\S+)/.exec(sentPrompt())?.[1] ?? "";
 }
 
 /** The prompt as it actually left, read off the stubbed request. */
@@ -236,11 +282,14 @@ describe("PLANT 2: a live generation sends the model's copy", () => {
 
   it("A CACHED STEP DOES NOT CALL THE MODEL AGAIN", async () => {
     seedStep();
+    // The cached body carries the link an earlier tick minted for this step,
+    // which is what a cached body written by resolveWinbackCopy carries.
+    const link = await resubscribeLink({ sequenceId: "wb_1", stepNumber: 1 });
     sqlite
       .prepare(
-        "UPDATE win_back_steps SET ai_subject = 'Cached subject', ai_body_html = '<p>Cached body.</p>' WHERE id = 'st_1'",
+        "UPDATE win_back_steps SET ai_subject = 'Cached subject', ai_body_html = ? WHERE id = 'st_1'",
       )
-      .run();
+      .run(`<p>Cached body. <a href="${link}">Reactivate</a></p>`);
 
     await runWinbackSends(env, NOW);
 
@@ -295,7 +344,7 @@ describe("PLANT 3: every failure falls back to the template", () => {
     // the hook exists to remove (332 binding 2).
     harness.reply = {
       subject: "We miss you",
-      bodyHtml: "<p>Come back \u2014 please.</p>",
+      bodyHtml: '<p>Come back \u2014 please. <a href="{{LINK}}">Reactivate</a></p>',
     };
 
     await runWinbackSends(env, NOW);
@@ -365,5 +414,138 @@ describe("PLANT 4: the docs describe the copy", () => {
     expect(body).toContain(
       "Each is written in your brand voice for the step it is, warmer at the first and lighter at the last",
     );
+  });
+});
+
+describe("PLANT 5: no win-back email leaves without its resubscribe link", () => {
+  const LOSERS: { name: string; bodyHtml: string }[] = [
+    { name: "drops the link", bodyHtml: "<p>Come back when you like.</p>" },
+    {
+      name: "invents a link",
+      bodyHtml: '<p><a href="https://foxhoundapp.test/pricing">Reactivate</a></p>',
+    },
+    {
+      name: "rewrites the host",
+      bodyHtml: '<p><a href="{{LINK}}">Reactivate</a></p>'.replace(
+        "{{LINK}}",
+        "https://example.com/p/abc.def",
+      ),
+    },
+    { name: "prints the link without linking it", bodyHtml: "<p>Come back: {{LINK}}</p>" },
+  ];
+
+  for (const loser of LOSERS) {
+    it(`AI COPY THAT ${loser.name.toUpperCase()} sends the template with the minted link`, async () => {
+      seedStep();
+      harness.reply = { subject: "We miss you", bodyHtml: loser.bodyHtml };
+
+      const result = await runWinbackSends(env, NOW);
+
+      expect(result.sent).toBe(1);
+      expect(harness.emailJobs[0].subject).toBe(
+        "We're sorry to see you go. Here's what you're missing.",
+      );
+      const minted = mintedLink();
+      expect(minted).toMatch(/^https:\/\/foxhoundapp\.test\/p\//);
+      expect(hrefs(String(harness.emailJobs[0].bodyHtml))).toContain(minted);
+      expect(stepRow().result).toBe("email_sent_fallback");
+      // The linkless copy is not cached for the next tick to reuse.
+      expect(stepRow().aiSubject).toBeNull();
+    });
+  }
+
+  it("AI copy carrying the minted link is sent as written", async () => {
+    seedStep();
+
+    await runWinbackSends(env, NOW);
+
+    expect(stepRow().result).toBe("email_sent_ai");
+    expect(hrefs(String(harness.emailJobs[0].bodyHtml))).toContain(mintedLink());
+  });
+
+  it("A CACHED BODY WITHOUT THE LINK is replaced by the template", async () => {
+    seedStep();
+    sqlite
+      .prepare(
+        "UPDATE win_back_steps SET ai_subject = 'Cached subject', ai_body_html = '<p>Cached body.</p>' WHERE id = 'st_1'",
+      )
+      .run();
+
+    await runWinbackSends(env, NOW);
+
+    expect(harness.emailJobs[0].subject).toBe(
+      "We're sorry to see you go. Here's what you're missing.",
+    );
+    expect(String(harness.emailJobs[0].bodyHtml)).toMatch(/href="https:\/\/foxhoundapp\.test\/p\//);
+    expect(stepRow().result).toBe("email_sent_fallback");
+  });
+
+  it("A CACHED BODY LINKING ANOTHER STEP'S RESUBSCRIBE is replaced by the template", async () => {
+    seedStep(1);
+    const wrong = await resubscribeLink({ sequenceId: "wb_1", stepNumber: 2 });
+    sqlite
+      .prepare("UPDATE win_back_steps SET ai_subject = 'Cached subject', ai_body_html = ? WHERE id = 'st_1'")
+      .run(`<p><a href="${wrong}">Reactivate</a></p>`);
+
+    await runWinbackSends(env, NOW);
+
+    expect(harness.emailJobs[0].subject).not.toBe("Cached subject");
+    expect(hrefs(String(harness.emailJobs[0].bodyHtml))).not.toContain(wrong);
+  });
+
+  it("A CACHED BODY LINKING ANOTHER SEQUENCE is replaced by the template", async () => {
+    seedStep(1);
+    const wrong = await resubscribeLink({ sequenceId: "wb_other", stepNumber: 1 });
+    sqlite
+      .prepare("UPDATE win_back_steps SET ai_subject = 'Cached subject', ai_body_html = ? WHERE id = 'st_1'")
+      .run(`<p><a href="${wrong}">Reactivate</a></p>`);
+
+    await runWinbackSends(env, NOW);
+
+    expect(harness.emailJobs[0].subject).not.toBe("Cached subject");
+  });
+
+  it("THE TEMPLATE CARRIES THE LINK on every step, and on an unknown step", () => {
+    const url = "https://foxhoundapp.test/p/token.sig";
+    for (const stepNumber of [1, 2, 3, 99]) {
+      const body = buildWinbackEmail({
+        stepNumber,
+        customerName: null,
+        planName: null,
+        senderName: null,
+        resubscribeUrl: url,
+      });
+      expect(hrefs(body), `step ${stepNumber}`).toContain(url);
+    }
+  });
+
+  it("THE CHECK IS REACHED ALONE, through resolveWinbackCopy", async () => {
+    seedStep();
+    harness.reply = { subject: "We miss you", bodyHtml: "<p>Come back when you like.</p>" };
+
+    const copy = await resolveWinbackCopy(
+      env,
+      db,
+      {
+        stepId: "st_1",
+        sequenceId: "wb_1",
+        accountId: ACCOUNT,
+        stepNumber: 1,
+        customerEmail: "b@a.test",
+        customerName: "Jane",
+        planName: "Pro",
+        amountCents: 4900,
+        notificationsEnabled: null,
+        senderName: "Teamflow",
+        cancelReason: "too expensive",
+        brandVoice: "Dry",
+        cachedSubject: null,
+        cachedBodyHtml: null,
+      },
+      "https://foxhoundapp.test/p/tok",
+    );
+
+    expect(copy.result).toBe("email_sent_fallback");
+    expect(hrefs(copy.bodyHtml)).toContain("https://foxhoundapp.test/p/tok");
   });
 });
