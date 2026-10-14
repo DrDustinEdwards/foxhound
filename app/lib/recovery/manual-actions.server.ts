@@ -2,7 +2,7 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 
 import type { MoneyWriteBatch, MoneyWriteBuilder } from "~/db/money-write";
 import type { Db } from "~/db";
-import { failedPayments, recoverySteps } from "~/db";
+import { failedPayments, getDb, recoverySteps, stripeConnections } from "~/db";
 import {
   queryStepForManualTrigger,
   toEmailContext,
@@ -520,6 +520,23 @@ export interface ResendDeps {
  * physical address, so the pipeline refuses to send a non-compliant message at
  * all. 262 decision three ports the intent, not the defect.
  */
+/**
+ * The Reply-To for a resend (J03): the `reply_to_email` of the connection the
+ * step's payment came through, the same connection the engine's own send reads
+ * (recovery-tick.ts joins `failed_payments.stripe_connection_id`). Scoped to the
+ * account, so a step id can never read another merchant's address.
+ */
+async function resendReplyTo(env: Env, accountId: string, stepId: string): Promise<string | null> {
+  const rows = await getDb(env)
+    .select({ replyTo: stripeConnections.replyToEmail })
+    .from(recoverySteps)
+    .innerJoin(failedPayments, eq(failedPayments.id, recoverySteps.failedPaymentId))
+    .innerJoin(stripeConnections, eq(stripeConnections.id, failedPayments.stripeConnectionId))
+    .where(and(eq(recoverySteps.id, stepId), eq(recoverySteps.accountId, accountId)))
+    .limit(1);
+  return rows[0]?.replyTo ?? null;
+}
+
 export function resendDepsFor(env: Env): ResendDeps {
   return {
     send: async (input) => {
@@ -531,6 +548,7 @@ export function resendDepsFor(env: Env): ResendDeps {
         accountId: input.accountId,
         recoveryStepId: input.recoveryStepId,
         to: input.to,
+        replyTo: await resendReplyTo(env, input.accountId, input.recoveryStepId),
         subject: input.subject,
         bodyHtml: input.bodyHtml,
         template: TEMPLATE_LABEL_RESEND,

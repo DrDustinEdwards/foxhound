@@ -2,6 +2,7 @@ import { EMAIL_AUTH_SENDER_ADDRESS, EMAIL_FROM_ADDRESS, UNSUBSCRIBE_PATH } from 
 
 import { renderFoxhoundEmail } from "./templates";
 import type { EmailAudience, EmailJob } from "./types";
+import { isValidReplyToEmail } from "~/lib/settings/reply-to";
 
 // THE ONE send module (ARCHITECTURE.md non-negotiable #3: only this file touches
 // the EMAIL binding). Everything else enqueues a job; the queue consumer calls
@@ -72,6 +73,16 @@ export function buildEmailMessage(job: EmailJob, baseUrl: string): EmailSendMess
     html: rendered.html,
     text: rendered.text,
   };
+  // REPLY-TO (J03), Recova's `replyTo: replyTo ?? fromAddress`
+  // (lib/recovery-execution.ts:200 and :402): a customer who replies reaches the
+  // merchant's own inbox, or the From when the merchant has set none. Customer
+  // mail only, as in Recova, whose merchant notices carry none. A stored value
+  // that is not exactly one address (a line break would be a header injection)
+  // falls back to the From rather than reaching the binding.
+  if (audience === "customer") {
+    const replyTo = job.replyTo?.trim() ?? "";
+    message.replyTo = replyTo && isValidReplyToEmail(replyTo) ? replyTo : message.from;
+  }
   if (unsubUrl) {
     message.headers = {
       "List-Unsubscribe": `<${unsubUrl}>`,

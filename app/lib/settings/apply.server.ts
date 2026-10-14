@@ -20,6 +20,7 @@ import {
   buildNotificationSettingsUpdate,
   buildSenderSettingsUpdate,
 } from "./persist.server";
+import { isValidReplyToEmail, REPLY_TO_EMAIL_MAX_LENGTH } from "./reply-to";
 import { SENDER_NAME_MAX_LENGTH } from "./sender-name";
 import { normalizeSlackWebhookUrl } from "./slack-webhook";
 
@@ -213,6 +214,8 @@ export async function applyNotificationSettings(
 export interface SenderNameState {
   connectionId: string;
   senderName: string | null;
+  /** Present only when the caller sent the field (J03). */
+  replyToEmail?: string | null;
 }
 
 /**
@@ -230,7 +233,7 @@ export interface SenderNameState {
 export async function applySenderName(
   db: Db,
   accountId: string,
-  input: { connectionId: unknown; senderName: unknown },
+  input: { connectionId: unknown; senderName: unknown; replyToEmail?: unknown },
   trace?: WriteTrace,
 ): Promise<ApplyResult<SenderNameState>> {
   const connectionId = typeof input.connectionId === "string" ? input.connectionId.trim() : "";
@@ -246,6 +249,24 @@ export async function applySenderName(
     };
   }
 
+  // THE REPLY-TO (J03), legacy's "Reply-to email" field on the same form.
+  // Written only when the caller sent it, which is legacy's own
+  // `if (formData.has('reply_to_email'))`: the MCP sender tool sends no such
+  // field, so it leaves the column alone. Empty is NULL, as legacy's `|| null`.
+  // The format check and the bound are input hygiene legacy does not have
+  // (./reply-to.ts says why).
+  const writesReplyTo = input.replyToEmail !== undefined;
+  const replyToEmail = writesReplyTo ? asOptionalText(input.replyToEmail) : undefined;
+  if (replyToEmail && replyToEmail.length > REPLY_TO_EMAIL_MAX_LENGTH) {
+    return {
+      ok: false,
+      error: `Reply-to email must be ${REPLY_TO_EMAIL_MAX_LENGTH} characters or fewer.`,
+    };
+  }
+  if (replyToEmail && !isValidReplyToEmail(replyToEmail)) {
+    return { ok: false, error: "Enter a valid reply-to email address." };
+  }
+
   const owned = await db
     .select({ id: stripeConnections.id })
     .from(stripeConnections)
@@ -255,15 +276,17 @@ export async function applySenderName(
     return { ok: false, error: "Connect Stripe before setting a sender name." };
   }
 
-  const fields = ["sender_name"];
+  const fields = writesReplyTo ? ["sender_name", "reply_to_email"] : ["sender_name"];
   await commit(
     db,
     accountId,
     fields,
-    buildSenderSettingsUpdate(db, accountId, connectionId, { senderName }),
+    buildSenderSettingsUpdate(db, accountId, connectionId, { senderName, replyToEmail }),
     trace,
   );
-  return { ok: true, fields, state: { connectionId, senderName } };
+  const state: SenderNameState = { connectionId, senderName };
+  if (writesReplyTo) state.replyToEmail = replyToEmail ?? null;
+  return { ok: true, fields, state };
 }
 
 export interface BrandVoiceState {

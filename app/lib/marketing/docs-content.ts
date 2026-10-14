@@ -152,9 +152,10 @@ export const DOC_GUIDES: DocGuide[] = [
           { kind: "h3", text: "Email" },
           { kind: "table", columns: ["Setting", "What it does"], rows: [
             ["Sender name", "The name your customers see in the From line of every recovery email. Recovery mail goes out from \"Support\" until you set it."],
+            ["Reply-to email", "Where your customers' replies to recovery, win-back and expiring-card emails go. Use your support inbox. Until you set one, replies go to the address in the From line."],
             ["Send test email", "Delivers a real recovery email to your own address through the sending path your customers get, so you can read the From line and the copy before a real failure."],
           ] },
-          { kind: "note", body: "The sending domain is Foxhound's verified address on every account and is not a setting. A reply-to address is not read by the send path yet, so the field is not offered rather than shown and ignored." },
+          { kind: "note", body: "The sending domain is Foxhound's verified address on every account and is not a setting." },
           { kind: "h3", text: "Brand voice" },
           "The voice for a given email is the one set for that decline category, or the main voice when the category has none, or Foxhound's own default when neither is set. The most specific voice available wins.",
           { kind: "tip", body: "A fraud-flagged decline often reads better in a softer voice than the one you would use for an expired card. That is what the per-category fields are for." },

@@ -311,6 +311,10 @@ export interface EmailStepContext {
    *  `merchant.sender_name || 'Support'` (lib/recovery-execution.ts:197) while
    *  its prompt takes the sender name on its own. */
   senderName: string | null;
+  /** The connection's `reply_to_email`, raw and nullable, for the Reply-To
+   *  header only (J03). send.ts falls back to the From when it is unset, as
+   *  Recova's `replyTo ?? fromAddress` does. */
+  replyTo?: string | null;
   /** Optional merchant-configured brand voice. */
   voiceDescription?: string | null;
   /** S27's merchant-context three, carried to the generation prompt. */
@@ -397,6 +401,7 @@ export function buildRecoveryEmailJob(
     recoveryStepId: ctx.stepId,
     to: ctx.customerEmail,
     fromName: ctx.senderName,
+    replyTo: ctx.replyTo ?? null,
     subject: copy.subject,
     bodyHtml: copy.bodyHtml,
     // The pixel and the trap travel beside the body, and the one templates
