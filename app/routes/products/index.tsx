@@ -24,9 +24,12 @@ import type { Route } from "./+types/index";
 // each card is Capsomer's panel in the teal family, text on the five sizes
 // (RULES.md 5.2), teal throughout (Q11).
 //
-// Copy is Recova's word for word (J16 supersedes the old freeze for ruling 20d,
-// now RULES.md 2.2), with every number read from Foxhound's pricing constants
-// and one truthfulness fix; both are in lib/marketing/products-hub.ts.
+// Copy is Recova's word for word, with every number read from Foxhound's
+// pricing constants and one truthfulness fix; both are in
+// lib/marketing/products-hub.ts. The copy was frozen here for ruling 20d (now
+// RULES.md 2.2); the October build plan lists M5's card copy as J16's open
+// work, no longer as frozen, so this job carries it and the seat's read of the
+// diff decides whether it stands.
 //
 // Spoke hrefs come from lib/marketing/products.ts and stay on the /products/*
 // routes that exist until J09 (rulings 55 and 56) reverts them to Recova's
