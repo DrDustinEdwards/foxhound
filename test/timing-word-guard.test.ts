@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // JOB J01: no recovery or win-back email says WHEN the customer is reading it.
 //
@@ -91,6 +91,10 @@ function queue(...replies: Reply[]): void {
   harness.replies.push(...replies);
 }
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 beforeEach(() => {
   harness.calls = [];
   harness.replies = [];
@@ -132,6 +136,14 @@ describe("LAYER 2: the detector catches each of legacy's nine phrases", () => {
     };
     expect(hasTimingWord(copy.bodyHtml)).toBe(false);
     expect(findBrandVoiceViolations(copy)).toEqual([]);
+  });
+
+  it("a phrase SPLIT BY A TAG is still a leak to the gate, which sends the template", () => {
+    const copy = {
+      subject: "Your Acme payment needs a quick fix",
+      bodyHtml: '<p>We tried this <b>morning</b>. <a href="https://foxhoundapp.test/u/1">Update</a></p>',
+    };
+    expect(findBrandVoiceViolations(copy)).toContain("timing_leak");
   });
 
   it("clean copy passes", () => {
@@ -295,7 +307,6 @@ describe.each(SEAMS)("LAYERS 3 and 4 on the $name seam", (seam) => {
     expect(harness.calls).toHaveLength(2);
     expect(copy.subject).toBe("Fix it now");
     expect(hasTimingWord(copy.bodyHtml)).toBe(false);
-    vi.restoreAllMocks();
   });
 
   it("the retry returns NOTHING USABLE: the first copy is kept, hard-stripped", async () => {

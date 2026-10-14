@@ -226,8 +226,15 @@ export function findBrandVoiceViolations(copy: EmailCopy): BrandVoiceViolation[]
   }
   // Job J01, defense in depth: the seams strip legacy's nine timing words, so
   // copy reaching here with one means a path skipped that layer. Read outside
-  // tags only, so an href token is never a leak.
-  if (hasTimingWord(copy.subject) || hasTimingWord(copy.bodyHtml)) {
+  // tags only, so an href token is never a leak. The body is also read with
+  // its tags removed, so a phrase split by a tag ("this <b>morning</b>"),
+  // which the per-part detector and the strip cannot see, still sends the
+  // template.
+  if (
+    hasTimingWord(copy.subject) ||
+    hasTimingWord(copy.bodyHtml) ||
+    TIMING_WORD_PATTERN.test(copy.bodyHtml.replace(/<[^>]*>/g, ""))
+  ) {
     violations.add("timing_leak");
   }
   return [...violations];
