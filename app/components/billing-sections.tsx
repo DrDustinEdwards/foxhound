@@ -35,7 +35,7 @@ import {
   RECOVERY_MATURITY_DAYS,
 } from "~/lib/constants";
 import { PRODUCTS } from "~/lib/marketing/products";
-import { formatMoneyShort } from "~/lib/money-format";
+import { formatMoney, formatMoneyShort } from "~/lib/money-format";
 
 // /billing's five sections (J65, row S3), in Recova's order and with Recova's
 // content (app/(app)/billing/page.tsx at blob 34e56833, components/
@@ -53,19 +53,31 @@ import { formatMoneyShort } from "~/lib/money-format";
 
 const INVOICE_DAY = ordinal(BILLING_RUN_DAY_OF_MONTH);
 
-/** Recova's amounts are whole currency units (formatAmountShort). Foxhound bills
- *  per currency, so a total is one line per currency; with none, Recova's $0. */
-function Amounts({ rows, className }: { rows: CurrencyAmount[]; className: string }) {
-  if (rows.length === 0) return <span className={className}>{formatMoneyShort(0, "usd")}</span>;
+/** Recova's amounts are whole currency units (formatAmountShort), and recovered
+ *  amounts stay so. FEES show cents (review F2, a truthfulness fix): rounded to
+ *  whole units, a fee under 50 cents read $0 while Stripe charges it. Foxhound
+ *  bills per currency, so a total is one line per currency; with none, $0. */
+function fmt(cents: number, currency: string, fee: boolean): string {
+  return fee ? formatMoney(cents, currency) : formatMoneyShort(cents, currency);
+}
+
+function Amounts({ rows, className, fee }: { rows: CurrencyAmount[]; className: string; fee: boolean }) {
+  if (rows.length === 0) return <span className={className}>{fmt(0, "usd", fee)}</span>;
   return (
     <span className="flex flex-col items-end">
       {rows.map((r) => (
         <span key={r.currency} className={className}>
-          {formatMoneyShort(r.cents, r.currency)}
+          {fmt(r.cents, r.currency, fee)}
         </span>
       ))}
     </span>
   );
+}
+
+/** A credit note issued since against the fee (PRICING.md rev 5), shown on the
+ *  row so a credited fee never reads as simply charged (review F1). */
+function creditSuffix(creditedCents: number, currency: string): string {
+  return creditedCents > 0 ? ` · Credited: ${formatMoney(creditedCents, currency)}` : "";
 }
 
 /** Recova's inset summary box (bg-bg, bordered, rounded) inside a section.
@@ -75,12 +87,23 @@ function SummaryBox({ children }: { children: ReactNode }) {
   return <div className="mb-5 rounded-lg border border-border bg-bg px-4 py-4">{children}</div>;
 }
 
-function SummaryRow({ label, value, muted = false }: { label: string; value: CurrencyAmount[]; muted?: boolean }) {
+function SummaryRow({
+  label,
+  value,
+  muted = false,
+  fee = false,
+}: {
+  label: string;
+  value: CurrencyAmount[];
+  muted?: boolean;
+  fee?: boolean;
+}) {
   return (
     <div className="flex items-baseline justify-between gap-4">
       <span className={`text-label ${muted ? "text-text-tertiary" : "text-text-secondary"}`}>{label}</span>
       <Amounts
         rows={value}
+        fee={fee}
         className={`font-mono text-body tabular-nums ${muted ? "text-text-tertiary" : "text-text"}`}
       />
     </div>
@@ -145,12 +168,17 @@ export function RecoverySection({
   return (
     <Panel
       title="Recovery"
-      description={`${RECOVERY_FEE_PERCENT}% of attributed recoveries · Invoiced on the ${INVOICE_DAY}`}
+      description={
+        // An exempt account is never invoiced (review F4), so it is not told the day.
+        accountBillingState.billingExempt
+          ? `${RECOVERY_FEE_PERCENT}% of attributed recoveries`
+          : `${RECOVERY_FEE_PERCENT}% of attributed recoveries · Invoiced on the ${INVOICE_DAY}`
+      }
     >
       <SummaryBox>
         <div className="flex flex-col gap-2">
           <SummaryRow label="Recovered this month" value={attributedThisMonth} />
-          <SummaryRow label={`Estimated fee (${RECOVERY_FEE_PERCENT}%)`} value={estimatedRecoveryFees} muted />
+          <SummaryRow label={`Estimated fee (${RECOVERY_FEE_PERCENT}%)`} value={estimatedRecoveryFees} muted fee />
         </div>
         <p className="mt-3 text-micro text-text-subtle">{stateNote ?? `Next invoice: ${formatLongDate(nextRunAtMs)}`}</p>
         {accountBillingState.cancelledAt && !stateNote ? (
@@ -184,7 +212,7 @@ export function RecoverySection({
               title={r.periodLabel}
               href={`/billing/invoices/${r.invoiceId}`}
               renderLink={routerLink}
-              detail={`Recovered: ${formatMoneyShort(r.recoveredCents, r.currency)} · Fee: ${formatMoneyShort(r.feeCents, r.currency)}`}
+              detail={`Recovered: ${formatMoneyShort(r.recoveredCents, r.currency)} · Fee: ${formatMoney(r.feeCents, r.currency)}${creditSuffix(r.creditedCents, r.currency)}`}
               actions={
                 <span className="flex flex-wrap items-center gap-3">
                   <StatusPill label={r.statusLabel} tone={r.statusTone} />
@@ -225,7 +253,7 @@ export function DisputeFeesSection({
       }
     >
       <SummaryBox>
-        <SummaryRow label="Pending fees this month" value={estimatedDisputeFees} />
+        <SummaryRow label="Pending fees this month" value={estimatedDisputeFees} fee />
         <p className="mt-1 text-micro text-text-subtle">
           {stateNote ?? `Added to your next monthly invoice on ${formatLongDate(nextRunAtMs)}.`}
         </p>
@@ -242,7 +270,7 @@ export function DisputeFeesSection({
               title={`Dispute won: ${formatMoneyShort(r.disputeAmountCents, r.currency)}`}
               href={`/disputes/${r.disputeId}`}
               renderLink={routerLink}
-              detail={`Fee (${r.feeCapped ? "capped" : `${DISPUTE_FEE_PERCENT}%`}): ${formatMoneyShort(r.feeCents, r.currency)}`}
+              detail={`Fee (${r.feeCapped ? "capped" : `${DISPUTE_FEE_PERCENT}%`}): ${formatMoney(r.feeCents, r.currency)}${creditSuffix(r.creditedCents, r.currency)}`}
               actions={
                 <span className="flex flex-wrap items-center gap-3">
                   <StatusPill label={r.statusLabel} tone={r.statusTone} />
@@ -273,7 +301,17 @@ export function IntelligenceSection() {
   );
 }
 
-const PRODUCT_HREF: Record<string, string> = { intelligence: "/intelligence" };
+/** Each product's own page. A product with none gets a plain title, never a
+ *  link back to this section (review F5). */
+const PRODUCT_HREF: Record<string, string> = {
+  intelligence: "/intelligence",
+  disputes: "/disputes",
+  recovery: "/recovery",
+};
+
+/** The row list needs a link or a button title; with nowhere to go, the title is
+ *  plain text, which is neither (Capsomer gap 1 in the J65 pull request). */
+const plainTitle = ({ children }: RowLinkProps) => <span>{children}</span>;
 
 /** Recova's Subscriptions section; nothing at all when there are none. Recova's
  *  Cancel and Keep subscription buttons, and its past-due banner, are left out:
@@ -291,8 +329,8 @@ export function SubscriptionsSection({ subscriptions }: { subscriptions: Subscri
               key={s.id}
               variant="outline"
               title={productDisplayName(s.product)}
-              href={PRODUCT_HREF[s.product] ?? "#subscriptions"}
-              renderLink={routerLink}
+              href={PRODUCT_HREF[s.product] ?? ""}
+              renderLink={PRODUCT_HREF[s.product] ? routerLink : plainTitle}
               detail={
                 detail ? <span className={detail.warn ? "text-accent-text" : undefined}>{detail.text}</span> : undefined
               }

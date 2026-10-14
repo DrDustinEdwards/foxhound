@@ -107,6 +107,98 @@ function disputeLine(
   } as unknown as EnrichedLineItem;
 }
 
+function creditLine(id: string, fee: EnrichedLineItem, creditCents: number): EnrichedLineItem {
+  return {
+    ...fee,
+    lineItem: {
+      ...fee.lineItem,
+      id,
+      type: "credit",
+      amountCents: -Math.abs(creditCents),
+      feeCents: null,
+      stripeCreditNoteId: `cn_${id}`,
+      creditsLineItemId: fee.lineItem.id,
+      createdAt: T("2026-08-05T00:00:00.000Z"),
+    },
+  } as EnrichedLineItem;
+}
+
+describe("review fixes (PR #68 review F1 to F5)", () => {
+  it("F1: a recovery fee credited after billing shows its credit on the history row", () => {
+    const fee = recoveryLine("c1", "inv_c", 10_000, 2_000);
+    const rows = buildRecoveryHistory([invoice({ id: "inv_c" })], [fee, creditLine("cr1", fee, 2_000)]);
+    expect(rows[0]).toMatchObject({ feeCents: 2_000, creditedCents: 2_000 });
+  });
+
+  it("F1: a dispute fee credited after billing shows its credit on the dispute row", () => {
+    const fee = disputeLine("d9", "inv_c", 50_000, 10_000);
+    const rows = buildDisputeFeeRows([invoice({ id: "inv_c" })], [fee, creditLine("cr2", fee, 10_000)], []);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ feeCents: 10_000, creditedCents: 10_000 });
+  });
+
+  it("F1: the rendered rows say Credited, with cents", () => {
+    const rfee = recoveryLine("c1", "inv_c", 10_000, 2_000);
+    const dfee = disputeLine("d9", "inv_c", 50_000, 10_000);
+    const inv = [invoice({ id: "inv_c" })];
+    const html = text(
+      render(
+        loaderData({
+          recoveryHistory: buildRecoveryHistory(inv, [rfee, creditLine("cr1", rfee, 2_000)]),
+          disputeFees: buildDisputeFeeRows(inv, [dfee, creditLine("cr2", dfee, 10_000)], []),
+        }),
+      ),
+    );
+    expect(html).toContain("Fee: $20.00 · Credited: $20.00");
+    expect(html).toContain("Fee (20%): $100.00 · Credited: $100.00");
+  });
+
+  it("F2: a fee under 50 cents is never shown as $0", () => {
+    const html = text(
+      render(
+        loaderData({
+          preview: basePreview({
+            estimatedRecoveryFees: [{ currency: "usd", cents: 40 }],
+            estimatedDisputeFees: [{ currency: "usd", cents: 30 }],
+          }),
+          recoveryHistory: buildRecoveryHistory([invoice({ id: "inv_s" })], [recoveryLine("s1", "inv_s", 200, 40)]),
+        }),
+      ),
+    );
+    expect(html).toContain("$0.40");
+    expect(html).toContain("$0.30");
+    expect(html).toContain("Fee: $0.40");
+  });
+
+  it("F4: an exempt account is not told it is invoiced on the 1st", () => {
+    const html = text(
+      render(
+        loaderData({
+          preview: basePreview({
+            accountBillingState: { billingExempt: true, processingPaused: false, cancelledAt: null },
+          }),
+        }),
+      ),
+    );
+    expect(html).toContain("20% of attributed recoveries");
+    expect(html).not.toContain("Invoiced on the 1st");
+  });
+
+  it("F5: a subscription never links to its own section; a known product links to its page", () => {
+    const html = render(
+      loaderData({
+        subscriptions: [
+          { id: "s1", product: "disputes", status: "active", currentPeriodEndsAt: null, canceledAt: null },
+          { id: "s2", product: "legacy_addon", status: "canceled", currentPeriodEndsAt: null, canceledAt: null },
+        ],
+      }),
+    );
+    expect(html).not.toMatch(/href="[^"]*#subscriptions"/);
+    expect(html).toContain('href="/disputes"');
+    expect(html).toContain("Legacy addon");
+  });
+});
+
 describe("ordinal (Recova's 'Invoiced on the 1st', from the run's day of month)", () => {
   it("says 1st, 2nd, 3rd, 4th, 11th, 12th, 13th, 21st", () => {
     expect([1, 2, 3, 4, 11, 12, 13, 21].map(ordinal)).toEqual([
@@ -145,7 +237,7 @@ describe("buildRecoveryHistory (Recova's assessment rows, from Foxhound's invoic
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
       invoiceId: "inv_june",
-      periodLabel: "June 2026",
+      periodLabel: "Invoiced July 1, 2026",
       currency: "usd",
       recoveredCents: 15_000,
       feeCents: 3_000,
@@ -158,13 +250,17 @@ describe("buildRecoveryHistory (Recova's assessment rows, from Foxhound's invoic
 
   it("is newest period first and keeps Recova's twelve", () => {
     const many = Array.from({ length: BILLING_HISTORY_LIMIT + 2 }, (_, i) =>
-      invoice({ id: `inv_${i}`, periodStart: T(new Date(Date.UTC(2025, i, 1)).toISOString()) }),
+      invoice({
+        id: `inv_${i}`,
+        periodStart: T(new Date(Date.UTC(2025, i, 1)).toISOString()),
+        createdAt: T(new Date(Date.UTC(2025, i + 1, 1, 4)).toISOString()),
+      }),
     );
     const manyLines = many.map((inv, i) => recoveryLine(`m${i}`, inv.id, 1_000, 200));
     const rows = buildRecoveryHistory(many, manyLines);
     expect(rows).toHaveLength(12);
-    expect(rows[0]!.periodLabel).toBe("February 2026");
-    expect(rows[11]!.periodLabel).toBe("March 2025");
+    expect(rows[0]!.periodLabel).toBe("Invoiced March 1, 2026");
+    expect(rows[11]!.periodLabel).toBe("Invoiced April 1, 2025");
   });
 
   it("labels a status the merchant can read, never the raw value", () => {
@@ -334,7 +430,7 @@ describe("/billing renders Recova's page on Foxhound's engine", () => {
     expect(html).toContain("Recovered this month");
     expect(html).toContain("$290");
     expect(html).toContain("Estimated fee (20%)");
-    expect(html).toContain("$46");
+    expect(html).toContain("$46.00");
     // The whole invoice (recovery plus dispute fees) is NOT the recovery fee.
     expect(html).not.toContain("$296");
     expect(html).toContain("Next invoice: August 1, 2026");
@@ -348,8 +444,8 @@ describe("/billing renders Recova's page on Foxhound's engine", () => {
 
   it("renders a recovery history row with Recova's fields, linked to its invoice", () => {
     const html = text(render(loaderData()));
-    expect(html).toContain("June 2026");
-    expect(html).toContain("Recovered: $100 · Fee: $20");
+    expect(html).toContain("Invoiced July 1, 2026");
+    expect(html).toContain("Recovered: $100 · Fee: $20.00");
     expect(html).toContain('href="/billing/invoices/inv_june"');
     expect(html).toMatch(/<a[^>]*href="https:\/\/invoice\.stripe\.com\/i\/123"[^>]*>View invoice/);
     expect(html).toMatch(/href="https:\/\/invoice\.stripe\.com\/i\/123"[^>]*target="_blank"|target="_blank"[^>]*href="https:\/\/invoice\.stripe\.com\/i\/123"/);
@@ -368,7 +464,7 @@ describe("/billing renders Recova's page on Foxhound's engine", () => {
     );
     expect(html).toContain("Disputes won by Stripe Smart Disputes or submitted by you are not charged.");
     expect(html).toContain("Pending fees this month");
-    expect(html).toContain("$250");
+    expect(html).toContain("$250.00");
     expect(html).toContain("Added to your next monthly invoice on August 1, 2026.");
     expect(html).toContain("No dispute fees yet.");
   });
@@ -386,7 +482,7 @@ describe("/billing renders Recova's page on Foxhound's engine", () => {
       ),
     );
     expect(html).toContain("Dispute won: $10,000");
-    expect(html).toContain("Fee (capped): $500");
+    expect(html).toContain("Fee (capped): $500.00");
     expect(html).not.toContain("No dispute fees yet.");
   });
 

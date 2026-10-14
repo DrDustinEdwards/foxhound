@@ -33,13 +33,6 @@ export function ordinal(n: number): string {
   }
 }
 
-/** "June 2026", in UTC: Recova's assessment period label. A billing period
- *  starts at 00:00 UTC on the 1st, so a local zone west of London would name the
- *  month before. */
-export function formatMonthYear(date: Date): string {
-  return date.toLocaleString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
-}
-
 /** "August 1, 2026", in UTC: Recova's next invoice date. The run fires at 04:00
  *  UTC, and a local zone would show the previous day west of London. */
 export function formatLongDate(ms: number): string {
@@ -63,6 +56,9 @@ export interface RecoveryHistoryRow {
   currency: string;
   recoveredCents: number;
   feeCents: number;
+  /** Credit notes issued since against these fees (PRICING.md rev 5), as a
+   *  positive amount; 0 when none. */
+  creditedCents: number;
   statusLabel: string;
   statusTone: FeeStatusTone;
   invoiceUrl: string | null;
@@ -79,6 +75,8 @@ export interface DisputeFeeRow {
   feeCents: number;
   /** True when the $500 cap held the fee below the percentage. */
   feeCapped: boolean;
+  /** Credit notes issued since against this fee, as a positive amount; 0 when none. */
+  creditedCents: number;
   statusLabel: string;
   statusTone: FeeStatusTone;
   invoiceUrl: string | null;
