@@ -1,26 +1,50 @@
 import { eq } from "drizzle-orm";
 import { data, redirect, useActionData, useNavigation } from "react-router";
+import { Alert } from "capsomer/react/banner";
+import { PageHead } from "capsomer/react/page-head";
+import { Panel } from "capsomer/react/panel";
+import "capsomer/banner.css";
+import "capsomer/page-head.css";
+import "capsomer/panel.css";
 
-import { BillingEstimateCard } from "~/components/billing-estimate-card";
+import {
+  DisputeFeesSection,
+  IntelligenceSection,
+  PaymentMethodSection,
+  RecoverySection,
+  SubscriptionsSection,
+} from "~/components/billing-sections";
 import { LedgerFreeRow, LedgerLineItemRow } from "~/components/billing-ledger-row";
-import { Badge } from "~/components/badge";
-import { DemoGuardedForm } from "~/components/demo-guarded-form";
 import { accounts, getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
-import { BILLING_INVOICE_STATUS_LABELS, billingInvoiceStatusTone } from "~/lib/billing/labels";
+import { buildDisputeFeeRows, buildRecoveryHistory } from "~/lib/billing/page.server";
 import {
   buildPlatformCustomerUpdate,
   createBillingSetupSession,
   ensurePlatformCustomer,
   finalizeBillingSetupSession,
+  getDefaultCard,
 } from "~/lib/billing/platform-customer";
 import { getBillingPreview } from "~/lib/billing/preview.server";
-import { getBillingLedger, listBillingInvoices } from "~/lib/billing/queries.server";
-import { formatMoney } from "~/lib/money-format";
+import { getBillingLedger, listAccountSubscriptions, listBillingInvoices } from "~/lib/billing/queries.server";
+import { isIntelligenceEntitled } from "~/lib/intelligence/views.server";
 import { executeMoneyWrite } from "~/lib/money/execute";
 
 import type { Route } from "./+types/index";
+
+// /billing (J65, row S3): Recova's billing page on Foxhound's billing engine.
+// Recova is the spec (app/(app)/billing/page.tsx at blob 34e56833): the page
+// head, then Recovery, Dispute Fees, the Intelligence offer, Subscriptions and
+// Payment method, in a 720px column. The sections are in
+// app/components/billing-sections.tsx. The evidence ledger, which Recova does
+// not have and PRICING.md requires ("The billing page renders action ->
+// recovery -> fee for every charge"), follows them; whether it stays is an open
+// question for Dustin in the J65 pull request.
+//
+// The loader is read-only: billing preview, invoices and their line items,
+// subscriptions, the Intelligence entitlement and the card on file. The one
+// write is the existing billing-setup action below, unchanged.
 
 export function meta() {
   return [{ title: "Billing - Foxhound" }];
@@ -60,18 +84,28 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   }
 
   const db = getDb(env);
-  const [accountRow, ledger, invoices, preview] = await Promise.all([
+  const [accountRow, ledger, invoices, preview, subscriptions, intelligenceEntitled] = await Promise.all([
     loadAccountBillingRow(env, accountId),
     getBillingLedger(db, accountId),
     listBillingInvoices(db, accountId),
     getBillingPreview(db, accountId, Date.now()),
+    listAccountSubscriptions(db, accountId),
+    isIntelligenceEntitled(db, accountId),
   ]);
 
+  // The card on file is a Stripe read. The demo never calls Stripe (RULES.md
+  // 4.12), and an account that never started setup has no customer to read.
+  const customerId = accountRow?.platformStripeCustomerId ?? null;
+  const card = customerId && !auth.isDemo ? await getDefaultCard(env, customerId) : null;
+
   return {
-    billingSetUp: Boolean(accountRow?.platformStripeCustomerId),
-    ledger,
-    invoices,
+    card,
     preview,
+    recoveryHistory: buildRecoveryHistory(invoices, ledger.lineItems),
+    disputeFees: buildDisputeFeeRows(invoices, ledger.lineItems, preview.pendingDisputeFees),
+    intelligenceEntitled,
+    subscriptions,
+    ledger,
   };
 }
 
@@ -118,7 +152,7 @@ export async function action({ context, request }: Route.ActionArgs) {
 }
 
 export default function Billing({ loaderData }: Route.ComponentProps) {
-  const { billingSetUp, ledger, invoices, preview } = loaderData;
+  const { card, preview, recoveryHistory, disputeFees, intelligenceEntitled, subscriptions, ledger } = loaderData;
   const actionData = useActionData<typeof action>();
   const busy = useNavigation().state !== "idle";
 
@@ -138,79 +172,48 @@ export default function Billing({ loaderData }: Route.ComponentProps) {
       so Foxhound was 48px WIDER, not 512px narrower. Legacy also steps
       horizontal padding at sm, not md, and starts from px-5 not px-4. Same
       720/px-5 kit legacy uses on /help and the legal pages. */}
-      <h1 className="text-title font-medium text-text">Billing</h1>
-
-      {actionData && "error" in actionData ? (
-        <p className="mt-4 rounded-md border border-red bg-red-bg px-3 py-2 text-label text-error-text" role="alert">
-          {actionData.error}
-        </p>
-      ) : null}
-
-      <div className="mt-6 rounded-lg border border-border bg-surface p-4">
-        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Payment method</p>
-        <p className="mt-2 text-label text-text-tertiary">
-          {billingSetUp
-            ? "A payment method is on file with Foxhound. Fees are invoiced monthly."
-            : "No payment method on file yet. Set one up so Foxhound can invoice your monthly fees."}
-        </p>
-        <DemoGuardedForm method="post" className="mt-3">
-          <input type="hidden" name="intent" value="setup_billing" />
-          <button
-            type="submit"
-            disabled={busy}
-            className="rounded-md bg-purple px-4 py-2 text-body font-medium text-text disabled:opacity-60"
-          >
-            {busy ? "Redirecting..." : billingSetUp ? "Update payment method" : "Set up billing"}
-          </button>
-        </DemoGuardedForm>
+      <div className="mb-8">
+        <PageHead title="Billing" lead="Invoices, subscriptions, and payment method." />
       </div>
 
-      <BillingEstimateCard preview={preview} />
-
-      {invoices.length > 0 ? (
-        <div className="mt-6 rounded-lg border border-border bg-surface p-4">
-          <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Invoices</p>
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full text-left text-label">
-              <thead>
-                <tr className="border-b border-border text-micro uppercase tracking-wide text-text-tertiary">
-                  <th className="py-2 pr-4 font-normal">Period</th>
-                  <th className="py-2 pr-4 font-normal">Total</th>
-                  <th className="py-2 font-normal">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {invoices.map((invoice) => (
-                  <tr key={invoice.id} className="border-b border-border-sub last:border-0">
-                    <td className="py-2 pr-4">
-                      <a href={`/billing/invoices/${invoice.id}`} className="text-text hover:text-brand-text">
-                        {invoice.periodStart.toLocaleDateString()} - {invoice.periodEnd.toLocaleDateString()}
-                      </a>
-                    </td>
-                    <td className="py-2 pr-4 font-mono text-text">{formatMoney(invoice.totalCents, invoice.currency)}</td>
-                    <td className="py-2">
-                      <Badge tone={billingInvoiceStatusTone(invoice.status)}>
-                        {BILLING_INVOICE_STATUS_LABELS[invoice.status] ?? invoice.status}
-                      </Badge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+      {actionData && "error" in actionData ? (
+        <div className="mb-6">
+          <Alert tone="crit">{actionData.error}</Alert>
         </div>
       ) : null}
 
-      <div className="mt-6 rounded-lg border border-border bg-surface p-4">
-        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Evidence ledger</p>
-        {entries.length === 0 ? (
-          <p className="mt-2 text-label text-text-tertiary">
-            Nothing to show yet. Every fee Foxhound ever charges, and every free recovery, will
-            appear here with its full evidence.
-          </p>
-        ) : (
-          <ol className="mt-3 flex flex-col">{entries.map((e) => e.node)}</ol>
-        )}
+      <div className="flex flex-col gap-6">
+        <RecoverySection
+          attributedThisMonth={preview.attributedThisMonth}
+          estimatedRecoveryFees={preview.estimatedRecoveryFees}
+          nextRunAtMs={preview.nextRunAtMs}
+          accountBillingState={preview.accountBillingState}
+          rows={recoveryHistory}
+        />
+
+        <DisputeFeesSection
+          estimatedDisputeFees={preview.estimatedDisputeFees}
+          nextRunAtMs={preview.nextRunAtMs}
+          accountBillingState={preview.accountBillingState}
+          rows={disputeFees}
+        />
+
+        {intelligenceEntitled ? null : <IntelligenceSection />}
+
+        <SubscriptionsSection subscriptions={subscriptions} />
+
+        <PaymentMethodSection card={card} busy={busy} />
+
+        <Panel title="Evidence ledger">
+          {entries.length === 0 ? (
+            <p className="text-label text-text-tertiary">
+              Nothing to show yet. Every fee Foxhound ever charges, and every free recovery, will
+              appear here with its full evidence.
+            </p>
+          ) : (
+            <ol className="flex flex-col">{entries.map((e) => e.node)}</ol>
+          )}
+        </Panel>
       </div>
     </div>
   );

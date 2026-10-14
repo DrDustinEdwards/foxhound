@@ -4,7 +4,12 @@ import { getBillableDisputes, getBillableRecoveries } from "~/db/billable";
 import { byAccountActive } from "~/db/scope";
 import type { Db } from "~/db";
 import { accounts, recoveredPayments } from "~/db";
-import { DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
+import {
+  BILLABLE_ATTRIBUTION_KINDS,
+  BILLING_RUN_DAY_OF_MONTH,
+  BILLING_RUN_HOUR_UTC,
+  DISPUTE_FEE_CAP_CENTS,
+} from "~/lib/constants";
 import { disputeFeeCents, recoveryFeeCents } from "~/lib/billing/fees";
 
 // The /billing fee preview (ruling 33): what the next monthly run will invoice,
@@ -23,11 +28,6 @@ import { disputeFeeCents, recoveryFeeCents } from "~/lib/billing/fees";
 // Everything here is evaluated at the NEXT RUN INSTANT, not at now. See
 // nextBillingRunAtMs.
 
-/** The monthly billing Cron Trigger, "0 4 1 * *" in wrangler.jsonc. Kept as the
- *  two fields the derivation actually uses so a cron change is a one-line edit
- *  here rather than arithmetic buried in a function body. */
-const BILLING_RUN_DAY_OF_MONTH = 1;
-const BILLING_RUN_HOUR_UTC = 4;
 
 export interface CurrencyAmount {
   currency: string;
@@ -43,15 +43,35 @@ export interface AccountBillingState {
   cancelledAt: Date | null;
 }
 
+/** One won dispute the next run will bill, with the fee the run will charge. */
+export interface PendingDisputeFee {
+  disputeId: string;
+  amountCents: number;
+  currency: string;
+  feeCents: number;
+  resolvedAt: Date | null;
+}
+
 export interface BillingPreview {
   /** Recovered revenue for the current UTC calendar month, every attribution
    *  kind including the free baseline. What the merchant got back, not what
    *  they will be billed on. */
   recoveredThisMonth: CurrencyAmount[];
+  /** The same month's recoveries Foxhound is credited with
+   *  (BILLABLE_ATTRIBUTION_KINDS): Recova's "Recovered this month" on /billing,
+   *  which sums only its billable recovery methods. Refunded and disputed
+   *  recoveries still count, as in Recova; they were recovered. */
+  attributedThisMonth: CurrencyAmount[];
   /** The instant the next monthly run fires. */
   nextRunAtMs: number;
   /** Per-currency fee totals the next run is on course to invoice. */
   estimatedInvoice: CurrencyAmount[];
+  /** estimatedInvoice's recovery-fee part (Recova's Recovery section). */
+  estimatedRecoveryFees: CurrencyAmount[];
+  /** estimatedInvoice's dispute-fee part (Recova's Dispute Fees section). */
+  estimatedDisputeFees: CurrencyAmount[];
+  /** The disputes behind estimatedDisputeFees, one per dispute. */
+  pendingDisputeFees: PendingDisputeFee[];
   accountBillingState: AccountBillingState;
 }
 
@@ -92,7 +112,7 @@ function startOfUtcMonthMs(nowMs: number): number {
   return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
 }
 
-function groupSumByCurrency(rows: { currency: string; cents: number }[]): CurrencyAmount[] {
+export function groupSumByCurrency(rows: { currency: string; cents: number }[]): CurrencyAmount[] {
   const totals = new Map<string, number>();
   for (const row of rows) {
     totals.set(row.currency, (totals.get(row.currency) ?? 0) + row.cents);
@@ -130,7 +150,11 @@ export async function getBillingPreview(
       .where(eq(accounts.id, accountId))
       .limit(1),
     db
-      .select({ currency: recoveredPayments.currency, amountCents: recoveredPayments.amountCents })
+      .select({
+        currency: recoveredPayments.currency,
+        amountCents: recoveredPayments.amountCents,
+        attributionKind: recoveredPayments.attributionKind,
+      })
       .from(recoveredPayments)
       .where(
         and(
@@ -144,26 +168,37 @@ export async function getBillingPreview(
 
   const account = accountRows[0] ?? null;
 
-  const feeRows = [
-    ...billableRecoveries.map((r) => ({
-      currency: r.currency,
-      cents: recoveryFeeCents(r.amountCents),
-    })),
-    ...billableDisputes.map((d) => ({
-      currency: d.currency,
-      // Mirrors buildBillingInvoiceBatch exactly: the cap-applied snapshot taken
-      // at resolution wins, and the fee function is the fallback for a dispute
-      // resolved before that column was written.
-      cents: d.resolvedFeeCents ?? disputeFeeCents(d.amountCents, DISPUTE_FEE_CAP_CENTS),
-    })),
-  ];
+  const recoveryFeeRows = billableRecoveries.map((r) => ({
+    currency: r.currency,
+    cents: recoveryFeeCents(r.amountCents),
+  }));
+  const pendingDisputeFees: PendingDisputeFee[] = billableDisputes.map((d) => ({
+    disputeId: d.id,
+    amountCents: d.amountCents,
+    currency: d.currency,
+    // Mirrors buildBillingInvoiceBatch exactly: the cap-applied snapshot taken
+    // at resolution wins, and the fee function is the fallback for a dispute
+    // resolved before that column was written.
+    feeCents: d.resolvedFeeCents ?? disputeFeeCents(d.amountCents, DISPUTE_FEE_CAP_CENTS),
+    resolvedAt: d.resolvedAt ?? null,
+  }));
+  const disputeFeeRows = pendingDisputeFees.map((d) => ({ currency: d.currency, cents: d.feeCents }));
+  const attributed = new Set<string>(BILLABLE_ATTRIBUTION_KINDS);
 
   return {
     recoveredThisMonth: groupSumByCurrency(
       recoveredRows.map((r) => ({ currency: r.currency, cents: r.amountCents })),
     ),
+    attributedThisMonth: groupSumByCurrency(
+      recoveredRows
+        .filter((r) => attributed.has(r.attributionKind))
+        .map((r) => ({ currency: r.currency, cents: r.amountCents })),
+    ),
     nextRunAtMs,
-    estimatedInvoice: groupSumByCurrency(feeRows),
+    estimatedInvoice: groupSumByCurrency([...recoveryFeeRows, ...disputeFeeRows]),
+    estimatedRecoveryFees: groupSumByCurrency(recoveryFeeRows),
+    estimatedDisputeFees: groupSumByCurrency(disputeFeeRows),
+    pendingDisputeFees,
     accountBillingState: {
       billingExempt: account?.billingExempt ?? false,
       processingPaused: account?.processingPaused ?? false,

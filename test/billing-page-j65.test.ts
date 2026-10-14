@@ -115,6 +115,13 @@ describe("ordinal (Recova's 'Invoiced on the 1st', from the run's day of month)"
   });
 });
 
+describe("the invoice day the page states is the billing run's own day", () => {
+  it("BILLING_RUN_DAY_OF_MONTH and BILLING_RUN_HOUR_UTC are the fields of the monthly billing cron", async () => {
+    const c = await import("~/lib/constants");
+    expect(c.CRON_SCHEDULE_MONTHLY).toBe(`0 ${c.BILLING_RUN_HOUR_UTC} ${c.BILLING_RUN_DAY_OF_MONTH} * *`);
+  });
+});
+
 describe("buildRecoveryHistory (Recova's assessment rows, from Foxhound's invoices)", () => {
   const invoices = [
     invoice({
