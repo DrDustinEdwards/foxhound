@@ -807,6 +807,14 @@ export const AUDIT_TOKEN_TTL_SECONDS = 300;
 export const RATE_LIMIT_AUDIT = { max: 10, windowMs: 60 * 60 * 1000 } as const;
 
 /**
+ * The unsubscribe page's IP rate limit (row F7): Recova's
+ * app/api/unsubscribe/route.ts allows 10 requests per 60 seconds per IP and
+ * answers the rest 429 "Too many requests". Spent through the EXISTING limiter
+ * (311) on its own bucket, from the route's middleware, with no change to it.
+ */
+export const RATE_LIMIT_UNSUBSCRIBE = { max: 10, windowMs: 60 * 1000 } as const;
+
+/**
  * The merchant MCP endpoint's AUTHENTICATED bucket, keyed on the api_keys row id.
  *
  * 120 PER MINUTE, and the reasoning rather than a round number: an agent
