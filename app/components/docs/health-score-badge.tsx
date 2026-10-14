@@ -13,7 +13,7 @@ import { healthScoreBand } from "~/lib/intelligence/health-band";
 // at_risk, so the colour is driven from healthScoreBand rather than restated.
 const BAND_CLASS: Record<ReturnType<typeof healthScoreBand>, string> = {
   at_risk: "border-red bg-red-bg text-error-text",
-  watch: "border-brand bg-brand-bg text-brand-text",
+  watch: "border-caution bg-caution-bg text-caution",
   healthy: "border-green bg-green-bg text-green",
 };
 

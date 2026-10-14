@@ -64,7 +64,7 @@ import type { Route } from "./+types/og";
 // definitions", alongside email HTML, for the same reason: both render
 // surfaces are isolated from the CSS pipeline and cannot consume custom
 // properties. If app.css's dark-theme values below ever change, update
-// these five constants to match in the same commit.
+// these six constants to match in the same commit.
 const COLOR_BG = "#111210";
 const COLOR_WORDMARK = "#f5f5f3";
 const COLOR_BRAND = "#249398";

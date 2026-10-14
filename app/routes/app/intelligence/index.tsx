@@ -250,7 +250,7 @@ export default function IntelligenceOverviewPage({ loaderData }: Route.Component
                     },
                     {
                       name: "Medium risk",
-                      colorClassName: "text-brand",
+                      colorClassName: "text-caution",
                       values: healthDistribution.map((d) => d.watch),
                     },
                     {

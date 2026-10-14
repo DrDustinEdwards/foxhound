@@ -711,7 +711,7 @@ export function Meter({
 }: {
   value: number;
   max?: number;
-  tone?: "positive" | "negative" | "neutral" | "brand";
+  tone?: "positive" | "negative" | "neutral" | "caution";
   label?: string;
 }) {
   const pct = Math.max(0, Math.min(100, (value / max) * 100));
@@ -720,8 +720,8 @@ export function Meter({
       ? "bg-green"
       : tone === "negative"
         ? "bg-red"
-        : tone === "brand"
-          ? "bg-brand"
+        : tone === "caution"
+          ? "bg-caution"
           : "bg-text-tertiary";
 
   return (

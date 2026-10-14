@@ -42,7 +42,7 @@ const BAND_RANGE_LABEL: Record<HealthScoreBand, string> = {
 
 const BAND_BORDER_CLASS: Record<HealthScoreBand, string> = {
   at_risk: "border-error-border",
-  watch: "border-brand-border",
+  watch: "border-caution-border",
   healthy: "border-success-border",
 };
 

@@ -170,7 +170,7 @@ function formatOffset(hours: number): string {
 function HealthBands() {
   const bands: [string, string, string][] = [
     ["At risk", `Below ${HEALTH_SCORE_AT_RISK_THRESHOLD}`, "text-error-text"],
-    ["Watch", `${HEALTH_SCORE_AT_RISK_THRESHOLD} to ${WATCH_CEILING - 1}`, "text-brand-text"],
+    ["Watch", `${HEALTH_SCORE_AT_RISK_THRESHOLD} to ${WATCH_CEILING - 1}`, "text-caution"],
     ["Healthy", `${WATCH_CEILING} and above`, "text-green"],
   ];
   return (

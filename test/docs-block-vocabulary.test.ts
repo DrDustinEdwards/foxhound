@@ -142,7 +142,7 @@ describe("PLANT 3: the inline vocabulary", () => {
     // presence is what distinguishes this branch from the plain anchor below
     // rather than the class list, which the two share.
     expect(html).toContain(
-      '<a class="text-brand-text underline underline-offset-2" href="/docs/recovery" data-discover="true">the Recovery guide</a>',
+      '<a class="text-brand-text underline underline-offset-2 hover:text-brand-text-hover" href="/docs/recovery" data-discover="true">the Recovery guide</a>',
     );
   });
 
@@ -153,7 +153,7 @@ describe("PLANT 3: the inline vocabulary", () => {
       { kind: "p", body: [{ link: "support", to: "mailto:support@foxhoundapp.com" }] },
     ]);
     expect(html).toContain('href="mailto:support@foxhoundapp.com"');
-    expect(html).toContain('class="text-brand-text underline underline-offset-2"');
+    expect(html).toContain('class="text-brand-text underline underline-offset-2 hover:text-brand-text-hover"');
     expect(html).not.toContain("data-discover");
   });
 });

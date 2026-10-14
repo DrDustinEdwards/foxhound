@@ -32,7 +32,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 //   data     health_score_history over 90 days, bucketed per UTC day, then
 //            sampled every 7th day so the axis stays readable
 //   plot     recharts BarChart height={200}, three Bar marks on stackId "a"
-//   series   High risk var(--red), Medium risk var(--brand), Healthy var(--green)
+//   series   High risk var(--red), Medium risk var(--caution), Healthy var(--green)
 //   axes     XAxis interval="preserveStartEnd", YAxis, both axisLine={false}
 //            tickLine={false}, plus a Legend
 //

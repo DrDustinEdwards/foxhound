@@ -86,15 +86,24 @@
   --color-text-disabled: var(--text-disabled);
   --color-wordmark: var(--wordmark);
   --color-brand: var(--brand);
-  --color-brand-ui: var(--brand-ui);
-  --color-brand-light: var(--brand-light);
   --color-brand-dark: var(--brand-dark);
-  --color-brand-active: var(--brand-active);
   --color-brand-bg: var(--brand-bg);
   --color-brand-text: var(--brand-text);
+  --color-brand-text-hover: var(--brand-text-hover);
   --color-brand-border: var(--brand-border);
   --color-brand-border-interactive: var(--brand-border-interactive);
   --color-on-brand: var(--text-on-brand);
+  /* Caution, named by meaning: the middle band of a red / caution / green
+     scale (near target, watch, deadline soon, a stale cron, MRR at risk,
+     expiring cards). Recova drew it in its accent colour; Foxhound's accent is
+     teal, which reads as neutral beside green, so caution takes the warning
+     status tokens (job_3037f6d2a135 review). Changing the caution palette is
+     these three lines. Inline, so the admin's mapping of the warning tokens
+     applies. Text: #f97316 dark (6.70:1 on --bg, 5.59:1 on --surface2),
+     #7a5c00 light (5.78:1 on --bg, 5.86:1 on --caution-bg). */
+  --color-caution: var(--warning-text);
+  --color-caution-bg: var(--orange-bg);
+  --color-caution-border: var(--warning-border);
   --color-chrome: var(--chrome);
   --color-chrome-text: var(--chrome-text);
   --color-chrome-text-secondary: var(--chrome-text-secondary);
@@ -316,12 +325,11 @@
      --border-focus 5.10:1 on --bg. */
   --brand-ui: #249398;
   --brand: var(--brand-ui);
-  --brand-light: #97c8cb;
   --brand-dark: #55a8ab;
-  --brand-active: #97c8cb;
   --brand-bg: #1a2d2e;
-  --brand-bg2: #1f3839;
   --brand-text: #97c8cb;
+  /* A brand-text link on hover: Capsomer's accent-hover, 15.86:1 on --bg. */
+  --brand-text-hover: #e3eeee;
   --brand-border: #294547;
   --brand-border-interactive: #2d7c80;
   --text-on-brand: #070f0f;
@@ -418,7 +426,6 @@
   --shadow-lg: 0 12px 32px rgb(0 0 0 / 40%);
   --scrim-light: rgb(0 0 0 / 45%);
   --scrim-dark: rgb(0 0 0 / 72%);
-  --scrim-brand: rgb(36 147 152 / 15%);
   --scrim-violet: rgb(180 41 240 / 15%);
 
   --warning: var(--orange);
@@ -464,16 +471,15 @@
      --chrome-brand, not this. */
   --brand-ui: #077478;
   --brand: var(--brand-ui);
-  --brand-light: #249398;
   --brand-dark: #01585c;
-  --brand-active: #0c1e1f;
   --brand-text: #01585c;
+  /* A brand-text link on hover: Capsomer's accent-hover, 15.90:1 on --bg. */
+  --brand-text-hover: #0c1e1f;
   --brand-border: #badadb;
   --brand-border-interactive: #008489;
   --text-on-brand: #fbfefe;
   --border-focus: #008489;
   --brand-bg: #e8f5f5;
-  --brand-bg2: #daeeef;
 
   --cobalt-ui: #2965f0;
   --cobalt-hover: #104fe0;
@@ -538,7 +544,6 @@
   --shadow-lg: 0 12px 32px rgb(0 0 0 / 12%);
   --scrim-light: rgb(0 0 0 / 45%);
   --scrim-dark: rgb(0 0 0 / 72%);
-  --scrim-brand: rgb(36 147 152 / 15%);
   --scrim-violet: rgb(180 41 240 / 15%);
 
   --warning: var(--orange);

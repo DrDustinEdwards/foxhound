@@ -190,7 +190,7 @@ export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: n
             <TileValue
               value={formatMoneyShort(tiles.highRiskMrrCents, tiles.recoveredCurrency)}
               caption="MRR at risk"
-              className={tiles.highRiskMrrCents > 0 ? "text-brand-text" : "text-success-text"}
+              className={tiles.highRiskMrrCents > 0 ? "text-caution" : "text-success-text"}
             />
             <span className="text-micro text-text-subtle">
               {tiles.highRiskCustomerCount > 0

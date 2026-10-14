@@ -1,18 +1,18 @@
-// Recovery-rate color thresholds (DESIGN.md): 0-20 red, 21-35 teal (the brand accent), 36+ green.
+// Recovery-rate color thresholds (DESIGN.md): 0-20 red, 21-35 caution, 36+ green.
 // Pure so later slices (5b payment status taxonomy) can reuse the same bands
 // instead of re-deriving them.
 
-export type RecoveryRateTone = "red" | "brand" | "green";
+export type RecoveryRateTone = "red" | "caution" | "green";
 
 export function recoveryRateTone(pct: number): RecoveryRateTone {
   if (pct <= 20) return "red";
-  if (pct <= 35) return "brand";
+  if (pct <= 35) return "caution";
   return "green";
 }
 
 const TONE_CLASS_NAME: Record<RecoveryRateTone, string> = {
   red: "text-error-text",
-  brand: "text-brand-text",
+  caution: "text-caution",
   green: "text-success-text",
 };
 
@@ -32,7 +32,7 @@ export function recoveryRateBand(pct: number | null): string {
   if (pct === null) return "No failures yet";
   const tone = recoveryRateTone(pct);
   if (tone === "green") return "Above target";
-  if (tone === "brand") return "Near target";
+  if (tone === "caution") return "Near target";
   return "Below target";
 }
 

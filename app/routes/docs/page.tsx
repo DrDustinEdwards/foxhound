@@ -100,7 +100,7 @@ export default function DocGuidePage({ loaderData }: Route.ComponentProps) {
               <li key={section.heading} className="text-label">
                 <a
                   href={`#${sectionIds[i]}`}
-                  className="text-brand-text underline underline-offset-2"
+                  className="text-brand-text underline underline-offset-2 hover:text-brand-text-hover"
                 >
                   Part {i + 1}. {section.heading}
                 </a>

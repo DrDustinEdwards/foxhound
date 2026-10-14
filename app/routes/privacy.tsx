@@ -95,7 +95,7 @@ export default function PrivacyPage() {
           <ol className="m-0 grid grid-cols-1 gap-x-6 gap-y-1.5 p-0 sm:grid-cols-2">
             {SECTIONS.map((s) => (
               <li key={s.id} className="list-none text-label">
-                <a href={`#${s.id}`} className="text-brand-text underline underline-offset-2">
+                <a href={`#${s.id}`} className="text-brand-text underline underline-offset-2 hover:text-brand-text-hover">
                   {s.number}. {s.title}
                 </a>
               </li>
@@ -285,11 +285,11 @@ export default function PrivacyPage() {
         <Section id="contact" number={14} title="HOW CAN YOU CONTACT US ABOUT THIS NOTICE?">
           <P>
             Email{" "}
-            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-brand-text underline underline-offset-2">
+            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-brand-text underline underline-offset-2 hover:text-brand-text-hover">
               {SUPPORT_EMAIL}
             </a>
             . See also our{" "}
-            <Link to="/terms" className="text-brand-text underline underline-offset-2">
+            <Link to="/terms" className="text-brand-text underline underline-offset-2 hover:text-brand-text-hover">
               Terms of Service
             </Link>
             .

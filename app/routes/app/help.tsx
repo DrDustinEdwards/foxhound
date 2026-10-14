@@ -53,7 +53,7 @@ export function meta() {
  *   which app/routes/app/settings/brand-voice.tsx renders.
  *
  * The other four were verified rather than assumed: the recovery-rate bands are
- * DESIGN.md's 0-20 red / 21-35 teal / 36+ green; the payments list really does
+ * DESIGN.md's 0-20 red / 21-35 caution (orange) / 36+ green; the payments list really does
  * label a running sequence "Active" (app/lib/recovery/labels.ts); fraud
  * schedules really do carry no retry step; and the payment detail really does
  * render a sent step's subject and body with per-step open and click counts.
@@ -69,7 +69,7 @@ export const QUICK_ANSWERS = [
   },
   {
     q: "What does the recovery rate percentage mean?",
-    a: "Recovery rate is the percentage of failed payments that were successfully recovered during the selected period. Below 21% is low (shown in red), 21-35% is typical (teal), and above 36% is strong (green). Early accounts with few data points will see more variance.",
+    a: "Recovery rate is the percentage of failed payments that were successfully recovered during the selected period. Below 21% is low (shown in red), 21-35% is typical (orange), and above 36% is strong (green). Early accounts with few data points will see more variance.",
   },
   {
     q: "Why did a sequence stop before all steps ran?",
@@ -280,7 +280,7 @@ function StatusDot({ status }: { status: CronDisplayStatus }) {
   // than as a status, which is legacy's own reasoning for the same four colors.
   const colorClass: Record<CronDisplayStatus, string> = {
     ok: "bg-green",
-    stale: "bg-brand",
+    stale: "bg-caution",
     error: "bg-red",
     pending: "bg-text-tertiary",
   };

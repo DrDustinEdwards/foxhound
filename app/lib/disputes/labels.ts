@@ -93,7 +93,7 @@ export function deadlineUrgency(daysRemaining: number | null): DeadlineUrgency {
 const DEADLINE_CLASS_NAME: Record<DeadlineUrgency, string> = {
   overdue: "text-error-text",
   urgent: "text-error-text",
-  soon: "text-brand-text",
+  soon: "text-caution",
   normal: "text-text-tertiary",
 };
 

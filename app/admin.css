@@ -58,11 +58,10 @@
 
   --brand-ui: var(--primary);
   --brand: var(--primary);
-  --brand-light: var(--accent-soft);
   --brand-dark: var(--primary-hover);
-  --brand-active: var(--primary-hover);
   --brand-bg: var(--accent-soft);
   --brand-text: var(--accent-text);
+  --brand-text-hover: var(--accent-hover);
   --brand-border: var(--accent-line);
   --brand-border-interactive: var(--accent);
   --text-on-brand: var(--primary-fg);

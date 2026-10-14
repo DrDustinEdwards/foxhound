@@ -135,7 +135,7 @@ describe("S23 /help: Common questions", () => {
   });
 
   it("keeps the recovery-rate bands, which ARE true of Foxhound", () => {
-    // DESIGN.md: 0-20 red, 21-35 teal (brand), 36+ green. Ported unchanged, and pinned
+    // DESIGN.md: 0-20 red, 21-35 caution, 36+ green. Ported unchanged, and pinned
     // so a later reader can see it was checked rather than copied.
     expect(QUICK_ANSWERS[2].a).toContain("21-35% is typical");
   });
@@ -179,7 +179,7 @@ describe("S23 /help: Platform status", () => {
 
   it("gives each status its own dot colour", () => {
     const html = render();
-    for (const cls of ["bg-green", "bg-brand", "bg-red", "bg-text-tertiary"]) {
+    for (const cls of ["bg-green", "bg-caution", "bg-red", "bg-text-tertiary"]) {
       expect(html).toContain(cls);
     }
   });

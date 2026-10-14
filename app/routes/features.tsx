@@ -113,7 +113,7 @@ function SectionInlineExample({ id }: { id: string }) {
         <HealthScoreBadge score={20} />
         <HealthScoreBadge score={50} />
         <HealthScoreBadge score={82} />
-        <span>red below 40, teal 40-69, green at or above 70.</span>
+        <span>red below 40, orange 40-69, green at or above 70.</span>
       </div>
     );
   }

@@ -147,7 +147,7 @@ function StatCardsSecondary({ w }: { w: RecoveryDashboardWindow }) {
       <StatCard
         label="Cards expiring" icon={CreditCard}
         value={String(w.expiringCardsCount)}
-        valueClassName={w.expiringCardsCount > 0 ? "text-brand-text" : undefined}
+        valueClassName={w.expiringCardsCount > 0 ? "text-caution" : undefined}
       />
       <StatCard
         label="Avg. days to recover" icon={Clock}

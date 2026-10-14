@@ -111,7 +111,7 @@ export default function SecurityPage() {
               <li key={s.id} className="list-none text-label">
                 <a
                   href={`#${s.id}`}
-                  className="text-brand-text underline underline-offset-2"
+                  className="text-brand-text underline underline-offset-2 hover:text-brand-text-hover"
                 >
                   {s.number}. {s.title}
                 </a>
@@ -199,7 +199,7 @@ export default function SecurityPage() {
             Foxhound shares data with the infrastructure providers that run the service: Stripe
             (payments and Connect), Cloudflare (hosting, database and email delivery), and Anthropic
             (drafting recovery emails and dispute evidence). The same three are named in the{" "}
-            <Link to="/privacy" className="text-brand-text underline underline-offset-2">
+            <Link to="/privacy" className="text-brand-text underline underline-offset-2 hover:text-brand-text-hover">
               privacy policy
             </Link>
             , and that list is the authoritative one.

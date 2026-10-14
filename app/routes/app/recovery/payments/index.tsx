@@ -616,7 +616,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
           value={String(globalCounts.cancelled)}
           valueClassName="text-text-subtle"
         />
-        {/* Legacy's thresholds, read from source: >= 36 green, >= 21 accent (teal here),
+        {/* Legacy's thresholds, read from source: >= 36 green, >= 21 caution,
             else red, both boundaries inclusive.
             THE EMPTY-ACCOUNT CASE IS REPAIRED 2026-08-14 under 285. This card
             rendered a hyphen with no colour when an account had no failed
