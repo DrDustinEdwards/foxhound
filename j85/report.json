@@ -1,0 +1,236 @@
+[
+ {
+  "step": "email_day1",
+  "scheme": "light",
+  "lang": "en",
+  "title": "Your payment didn't go through",
+  "h1s": 0,
+  "bodyFg": [
+   7,
+   31,
+   32
+  ],
+  "bodyBg": [
+   251,
+   254,
+   254
+  ],
+  "bodySize": "16px",
+  "btnFg": [
+   251,
+   254,
+   254
+  ],
+  "btnBg": [
+   7,
+   116,
+   120
+  ],
+  "btnText": "Update Payment Method",
+  "btnHref": "https://foxhoundapp.com/e/c/EXAMPLE-NOT-A-TOKEN",
+  "hscroll": false,
+  "bodyRatio": "16.89",
+  "btnRatio": "5.48"
+ },
+ {
+  "step": "email_day1",
+  "scheme": "light",
+  "width": 320,
+  "hscroll320": false
+ },
+ {
+  "step": "email_day1",
+  "scheme": "dark",
+  "lang": "en",
+  "title": "Your payment didn't go through",
+  "h1s": 0,
+  "bodyFg": [
+   233,
+   240,
+   240
+  ],
+  "bodyBg": [
+   17,
+   25,
+   25
+  ],
+  "bodySize": "16px",
+  "btnFg": [
+   7,
+   15,
+   15
+  ],
+  "btnBg": [
+   36,
+   147,
+   152
+  ],
+  "btnText": "Update Payment Method",
+  "btnHref": "https://foxhoundapp.com/e/c/EXAMPLE-NOT-A-TOKEN",
+  "hscroll": false,
+  "bodyRatio": "15.45",
+  "btnRatio": "5.26"
+ },
+ {
+  "step": "email_day1",
+  "scheme": "dark",
+  "width": 320,
+  "hscroll320": false
+ },
+ {
+  "step": "email_day3",
+  "scheme": "light",
+  "lang": "en",
+  "title": "Still having trouble with your payment",
+  "h1s": 0,
+  "bodyFg": [
+   7,
+   31,
+   32
+  ],
+  "bodyBg": [
+   251,
+   254,
+   254
+  ],
+  "bodySize": "16px",
+  "btnFg": [
+   251,
+   254,
+   254
+  ],
+  "btnBg": [
+   7,
+   116,
+   120
+  ],
+  "btnText": "Update Payment Method",
+  "btnHref": "https://foxhoundapp.com/e/c/EXAMPLE-NOT-A-TOKEN",
+  "hscroll": false,
+  "bodyRatio": "16.89",
+  "btnRatio": "5.48"
+ },
+ {
+  "step": "email_day3",
+  "scheme": "light",
+  "width": 320,
+  "hscroll320": false
+ },
+ {
+  "step": "email_day3",
+  "scheme": "dark",
+  "lang": "en",
+  "title": "Still having trouble with your payment",
+  "h1s": 0,
+  "bodyFg": [
+   233,
+   240,
+   240
+  ],
+  "bodyBg": [
+   17,
+   25,
+   25
+  ],
+  "bodySize": "16px",
+  "btnFg": [
+   7,
+   15,
+   15
+  ],
+  "btnBg": [
+   36,
+   147,
+   152
+  ],
+  "btnText": "Update Payment Method",
+  "btnHref": "https://foxhoundapp.com/e/c/EXAMPLE-NOT-A-TOKEN",
+  "hscroll": false,
+  "bodyRatio": "15.45",
+  "btnRatio": "5.26"
+ },
+ {
+  "step": "email_day3",
+  "scheme": "dark",
+  "width": 320,
+  "hscroll320": false
+ },
+ {
+  "step": "email_day7",
+  "scheme": "light",
+  "lang": "en",
+  "title": "Account access at risk",
+  "h1s": 0,
+  "bodyFg": [
+   7,
+   31,
+   32
+  ],
+  "bodyBg": [
+   251,
+   254,
+   254
+  ],
+  "bodySize": "16px",
+  "btnFg": [
+   251,
+   254,
+   254
+  ],
+  "btnBg": [
+   7,
+   116,
+   120
+  ],
+  "btnText": "Update Payment Method",
+  "btnHref": "https://foxhoundapp.com/e/c/EXAMPLE-NOT-A-TOKEN",
+  "hscroll": false,
+  "bodyRatio": "16.89",
+  "btnRatio": "5.48"
+ },
+ {
+  "step": "email_day7",
+  "scheme": "light",
+  "width": 320,
+  "hscroll320": false
+ },
+ {
+  "step": "email_day7",
+  "scheme": "dark",
+  "lang": "en",
+  "title": "Account access at risk",
+  "h1s": 0,
+  "bodyFg": [
+   233,
+   240,
+   240
+  ],
+  "bodyBg": [
+   17,
+   25,
+   25
+  ],
+  "bodySize": "16px",
+  "btnFg": [
+   7,
+   15,
+   15
+  ],
+  "btnBg": [
+   36,
+   147,
+   152
+  ],
+  "btnText": "Update Payment Method",
+  "btnHref": "https://foxhoundapp.com/e/c/EXAMPLE-NOT-A-TOKEN",
+  "hscroll": false,
+  "bodyRatio": "15.45",
+  "btnRatio": "5.26"
+ },
+ {
+  "step": "email_day7",
+  "scheme": "dark",
+  "width": 320,
+  "hscroll320": false
+ }
+]
