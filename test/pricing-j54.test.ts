@@ -196,7 +196,7 @@ describe("/pricing structured data (J54)", () => {
     const page = (Array.isArray(data) ? data[1] : undefined) as
       | { name: string; url: string; speakable: { "@type": string; cssSelector: string[] } }
       | undefined;
-    expect(page?.name).toBe("Pricing | Foxhound");
+    expect(page?.name).toBe("Pricing - Foxhound");
     expect(page?.url).toBe(`${SITE}/pricing`);
     expect(page?.speakable["@type"]).toBe("SpeakableSpecification");
     const selectors = page?.speakable.cssSelector ?? [];

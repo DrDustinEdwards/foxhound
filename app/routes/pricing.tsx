@@ -213,9 +213,9 @@ export default function PricingPage({ loaderData }: Route.ComponentProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify([
-            faqPageJsonLd(PRICING_FAQS.map((f) => ({ question: f.question, answer: f.answer }))),
+            faqPageJsonLd(PRICING_FAQS),
             speakableWebPageJsonLd(url, {
-              name: "Pricing | Foxhound",
+              name: "Pricing - Foxhound",
               path: "/pricing",
               selectors: [".speakable-pricing-cards", ".speakable-pricing-faq"],
             }),

@@ -10,9 +10,9 @@ import {
   DECLINE_CATEGORY_COUNT,
   DECLINE_CATEGORY_COUNT_WORD,
   DECLINE_CATEGORY_COUNT_WORD_LOWER,
+  RECOVERY_SEQUENCE_DAYS,
 } from "~/lib/marketing/decline-categories";
 import { formatMoneyShort } from "~/lib/money-format";
-import { RECOVERY_SCHEDULES } from "~/lib/recovery/schedule";
 
 import type { ProductKey } from "./products";
 
@@ -36,16 +36,6 @@ import type { ProductKey } from "./products";
 
 const pct = (bps: number) => `${bps / 100}%`;
 const usd = (cents: number) => formatMoneyShort(cents, "usd");
-
-/**
- * How long a recovery sequence runs, in days: the last step of the longest
- * schedule the engine dispatches (email_day30 today, 720 hours). This is what
- * "N-day sequences" and "across N days" describe, so it is read from the
- * schedule rather than typed beside it.
- */
-export const RECOVERY_SEQUENCE_DAYS = Math.round(
-  Math.max(...Object.values(RECOVERY_SCHEDULES).flatMap((steps) => steps.map((s) => s.offsetHours))) / 24,
-);
 
 export interface PricingCard {
   id: ProductKey;
