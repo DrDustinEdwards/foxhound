@@ -268,9 +268,25 @@ describe("customer mail carries both parts and the CAN-SPAM footer", () => {
     expectCustomerFooter(m);
   });
 
-  it("a link the frame cannot carry fails the send visibly, never silently", async () => {
+  it("a link the frame cannot carry is dropped to its words, and the send still goes", async () => {
+    // Review fix 1. A cached AI body is reused on every retry, so a throw here
+    // would fail the step every time and never reach the template fallback.
+    await sendEmail(env, customerJob(`<p><a href="javascript:alert(1)">Pay</a> today.</p>`));
+    const m = only();
+    expectBothParts(m, ["Pay today."]);
+    for (const part of [m.html, m.text ?? ""]) {
+      expect(part).not.toContain("javascript:");
+      expect(part).not.toContain("alert(1)");
+    }
+    expectCustomerFooter(m);
+  });
+
+  it("a refused URL Foxhound itself supplies outside the body still throws", async () => {
     await expect(
-      sendEmail(env, customerJob(`<p><a href="javascript:alert(1)">Pay</a></p>`)),
+      sendEmail(env, { ...customerJob("<p>x</p>"), tracking: { openUrl: "http://x.test/e/o/t", honeypotUrl: `${BASE}/e/h/t` } }),
+    ).rejects.toThrow(/https/);
+    await expect(
+      sendEmail({ ...env, BETTER_AUTH_URL: "http://localhost:5173" } as unknown as Env, customerJob("<p>x</p>")),
     ).rejects.toThrow(/https/);
     expect(harness.sent).toHaveLength(0);
   });
@@ -436,8 +452,8 @@ describe("htmlToBlocks keeps the sender's words and order", async () => {
     ]);
   });
 
-  it("a line break starts a new paragraph, and an all-bold line is a heading", () => {
-    expect(htmlToBlocks(`<p><strong>Payment recovered.</strong></p><p>Thanks,<br />Acme</p>`)).toEqual([
+  it("a line break starts a new paragraph, and a real heading tag is a heading", () => {
+    expect(htmlToBlocks(`<h1>Payment recovered.</h1><p>Thanks,<br />Acme</p>`)).toEqual([
       { type: "heading", text: "Payment recovered." },
       { type: "paragraph", text: "Thanks," },
       { type: "paragraph", text: "Acme" },
@@ -481,6 +497,117 @@ describe("htmlToBlocks keeps the sender's words and order", async () => {
     expect(htmlToBlocks(`<p><small>If the button does not work:<br>https://x.test/a</small></p>`)).toEqual([
       { type: "fine", text: "If the button does not work:" },
       { type: "fine", text: "https://x.test/a" },
+    ]);
+  });
+});
+
+// ============================================================================
+// Review fixes (J02 code review)
+// ============================================================================
+
+describe("review fixes to the HTML reader", async () => {
+  const { htmlToBlocks } = await import("~/lib/email/templates");
+  const { buildEmailMessage } = await import("~/lib/email/send");
+
+  for (const href of [
+    "tel:+15125550100",
+    "http://x.test/p",
+    "#",
+    "/p/tok",
+    "{{resubscribe_url}}",
+    "javascript:alert(1)",
+    "data:text/html,x",
+  ]) {
+    it(`fix 1: a link to ${href} keeps its words and makes no button`, () => {
+      expect(
+        htmlToBlocks(`<p>You can <a href="${href}">update your card</a> now.</p><p><a href="${href}">Pay now</a></p>`),
+      ).toEqual([
+        { type: "paragraph", text: "You can update your card now." },
+        { type: "paragraph", text: "Pay now" },
+      ]);
+    });
+  }
+
+  it("fix 1: a cached body with an http link still sends, with no button for it", async () => {
+    const msg = buildEmailMessage(customerJob(`<p>Hi,</p><p><a href="http://x.test/p/t">Update</a></p>`), BASE);
+    expect(msg.html).not.toContain("http://x.test");
+    expect(msg.text).not.toContain("http://x.test");
+    expect(msg.text).toContain("Update");
+  });
+
+  it("fix 2: numeric and common named entities are decoded; unknown ones stay", () => {
+    expect(
+      htmlToBlocks(
+        "<p>it&rsquo;s &lsquo;a&rsquo; &ldquo;b&rdquo; &mdash; &ndash; &hellip; &euro;1 &pound;2 &yen;3 " +
+          "&copy; &reg; &trade; x&nbsp;y &bull; &middot; &laquo;q&raquo; 2&times;3 9&deg; 5&cent; &sect;4 &para; " +
+          "&#8217;&#x2019;&#X2014; &madeup; &amp;</p>",
+      ),
+    ).toEqual([
+      {
+        type: "paragraph",
+        text:
+          "it\u2019s \u2018a\u2019 \u201cb\u201d \u2014 \u2013 \u2026 \u20ac1 \u00a32 \u00a53 " +
+          "\u00a9 \u00ae \u2122 x y \u2022 \u00b7 \u00abq\u00bb 2\u00d73 9\u00b0 5\u00a2 \u00a74 \u00b6 " +
+          "\u2019\u2019\u2014 &madeup; &",
+      },
+    ]);
+  });
+
+  it("fix 3: a hidden p is closed by the next p", () => {
+    expect(htmlToBlocks(`<p hidden>x<p>Pay now</p>`)).toEqual([{ type: "paragraph", text: "Pay now" }]);
+  });
+
+  it("fix 3: a hidden li, td or p is closed by a sibling or a parent end tag", () => {
+    expect(htmlToBlocks(`<ul><li hidden>secret<li>Shown</ul>`)).toEqual([{ type: "paragraph", text: "Shown" }]);
+    expect(htmlToBlocks(`<ul><li hidden><ul><li>nested</li></ul>still hidden<li>Shown</ul>`)).toEqual([
+      { type: "paragraph", text: "Shown" },
+    ]);
+    expect(htmlToBlocks(`<table><tr><td hidden>s<td>Cell</tr></table>`)).toEqual([{ type: "paragraph", text: "Cell" }]);
+    expect(htmlToBlocks(`<div><p hidden>secret</div><p>After</p>`)).toEqual([{ type: "paragraph", text: "After" }]);
+    expect(htmlToBlocks(`<p hidden>secret<div>Block</div>`)).toEqual([{ type: "paragraph", text: "Block" }]);
+  });
+
+  it("fix 3: a void or self-closing hidden element never opens a skip", () => {
+    expect(htmlToBlocks(`<p><img hidden src="https://x.test/i.png" alt="">Still here</p>`)).toEqual([
+      { type: "paragraph", text: "Still here" },
+    ]);
+    expect(htmlToBlocks(`<p><span hidden />Still</p><p>Next</p>`)).toEqual([
+      { type: "paragraph", text: "Still" },
+      { type: "paragraph", text: "Next" },
+    ]);
+  });
+
+  it("fix 4: the word hidden inside a quoted value hides nothing", () => {
+    expect(htmlToBlocks(`<p><a href="https://x.test/a" title="no hidden fees">Pay</a></p>`)).toEqual([
+      { type: "button", label: "Pay", url: "https://x.test/a" },
+    ]);
+    expect(htmlToBlocks(`<p class=hidden data-x='display:none' title="aria-hidden=true">Seen</p>`)).toEqual([
+      { type: "paragraph", text: "Seen" },
+    ]);
+  });
+
+  it("fix 4: real hidden attributes still hide", () => {
+    expect(
+      htmlToBlocks(
+        `<p HIDDEN>a</p><p hidden=hidden>b</p><p aria-hidden=TRUE>c</p><p style="visibility : hidden">d</p><p style='DISPLAY:none'>e</p><p>Seen</p>`,
+      ),
+    ).toEqual([{ type: "paragraph", text: "Seen" }]);
+  });
+
+  it("fix 5: an all-bold paragraph stays a paragraph; only h1 to h6 are headings", () => {
+    expect(htmlToBlocks(`<p><strong>Important</strong></p><h2>Section</h2>`)).toEqual([
+      { type: "paragraph", text: "Important" },
+      { type: "heading", text: "Section" },
+    ]);
+  });
+
+  it("fix 6: a second link opening inside the first keeps the first link's words", () => {
+    expect(
+      htmlToBlocks(`<p><a href="https://x.test/a">First <a href="https://x.test/b">Second</a> end</p>`),
+    ).toEqual([
+      { type: "paragraph", text: "First Second end" },
+      { type: "button", label: "First", url: "https://x.test/a" },
+      { type: "button", label: "Second", url: "https://x.test/b" },
     ]);
   });
 });

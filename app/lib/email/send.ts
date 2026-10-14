@@ -11,9 +11,10 @@ import type { EmailAudience, EmailJob } from "./types";
 // THE FRAME (J02, RULES.md 3.16). Every message is rendered by templates.ts on
 // Capsomer's shared email component, which gives an HTML part and a plain-text
 // part from the same content. Both functions below go through it, so no mail
-// leaves without both parts. A link the frame refuses (anything but https: or
-// mailto:) throws from the render, before the binding is reached, and the throw
-// is left to propagate exactly like the CAN-SPAM guards below.
+// leaves without both parts. A body link the frame refuses is kept as words; a
+// refused URL Foxhound supplies itself (the unsubscribe base URL, tracking)
+// throws from the render, before the binding is reached, and the throw is left
+// to propagate exactly like the CAN-SPAM guards below.
 
 // Legacy's From fallback, verbatim: `merchant.sender_name || 'Support'` in
 // lib/recovery-execution.ts:197, and the same string again in its test-email
@@ -37,56 +38,47 @@ export function buildEmailMessage(job: EmailJob, baseUrl: string): EmailSendMess
   // that forgets the field gets the CAN-SPAM guard rather than skipping it.
   const audience: EmailAudience = job.audience ?? "customer";
 
-  if (audience === "merchant") {
-    // Platform-to-our-own-user mail: no postal footer, no unsubscribe, exactly
-    // as sendTransactionalEmail already does and exactly as legacy sends its
-    // merchant notification. See the EmailAudience doc for why an unsubscribe
-    // here would be actively harmful.
-    const rendered = renderFoxhoundEmail({
-      subject: job.subject,
-      bodyHtml: job.bodyHtml,
-      brandName: fromDisplayName(job.fromName),
-      to: job.to,
-      tracking: job.tracking,
-    });
-    return {
-      from: `${fromDisplayName(job.fromName)} <${EMAIL_FROM_ADDRESS}>`,
-      to: job.to,
-      subject: rendered.subject,
-      html: rendered.html,
-      text: rendered.text,
-    };
+  // Merchant mail is platform-to-our-own-user mail: no postal footer, no
+  // unsubscribe, exactly as sendTransactionalEmail already does and exactly as
+  // legacy sends its merchant notification. See the EmailAudience doc for why an
+  // unsubscribe there would be actively harmful.
+  let unsubUrl: string | null = null;
+  if (audience === "customer") {
+    if (!job.physicalAddress || !job.physicalAddress.trim()) {
+      throw new Error("email blocked: missing CAN-SPAM physical address");
+    }
+    if (!job.unsubscribeToken || !job.unsubscribeToken.trim()) {
+      throw new Error("email blocked: missing unsubscribe token");
+    }
+    unsubUrl = `${baseUrl}${UNSUBSCRIBE_PATH}/${encodeURIComponent(job.unsubscribeToken)}`;
   }
 
-  if (!job.physicalAddress || !job.physicalAddress.trim()) {
-    throw new Error("email blocked: missing CAN-SPAM physical address");
-  }
-  if (!job.unsubscribeToken || !job.unsubscribeToken.trim()) {
-    throw new Error("email blocked: missing unsubscribe token");
-  }
-  const unsubUrl = `${baseUrl}${UNSUBSCRIBE_PATH}/${encodeURIComponent(job.unsubscribeToken)}`;
-  // The CAN-SPAM lines go in Capsomer's footer slot, under its "This message
-  // was sent to" line: the one-click unsubscribe link, then the postal address.
-  // The text part carries both, the link on its own line.
+  const fromName = fromDisplayName(job.fromName);
+  // On customer mail the CAN-SPAM lines go in Capsomer's footer slot, under its
+  // "This message was sent to" line: the one-click unsubscribe link, then the
+  // postal address. The text part carries both, the link on its own line.
   const rendered = renderFoxhoundEmail({
     subject: job.subject,
     bodyHtml: job.bodyHtml,
-    brandName: fromDisplayName(job.fromName),
+    brandName: fromName,
     to: job.to,
-    footer: [{ text: "Unsubscribe", url: unsubUrl }, job.physicalAddress],
+    footer: unsubUrl ? [{ text: "Unsubscribe", url: unsubUrl }, job.physicalAddress] : undefined,
     tracking: job.tracking,
   });
-  return {
-    from: `${fromDisplayName(job.fromName)} <${EMAIL_FROM_ADDRESS}>`,
+  const message: EmailSendMessage = {
+    from: `${fromName} <${EMAIL_FROM_ADDRESS}>`,
     to: job.to,
     subject: rendered.subject,
     html: rendered.html,
     text: rendered.text,
-    headers: {
+  };
+  if (unsubUrl) {
+    message.headers = {
       "List-Unsubscribe": `<${unsubUrl}>`,
       "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-    },
-  };
+    };
+  }
+  return message;
 }
 
 /**

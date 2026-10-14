@@ -27,11 +27,14 @@ import {
 // conversion reads text and links only: no markup the model wrote reaches the
 // mail, because Capsomer escapes the text it is given.
 //
-// THE LINK RULE IS CAPSOMER'S. A link must be https: or mailto:; anything else
-// throws inside renderEmail, and that throw is NOT caught here. It propagates
-// through sendEmail into processEmailJob, which records it on the email_sends
-// claim like any other send failure, so a link the frame cannot carry is a
-// visible failed send and never a silent drop.
+// THE LINK RULE IS CAPSOMER'S. A link must be https: or mailto:. Inside a body,
+// a link Capsomer would refuse is kept as its words with no button (see the
+// reader below), because a generated body is cached and re-sent, and a throw
+// would fail that step on every retry. A refused URL Foxhound itself supplies
+// outside the body (the unsubscribe link, the tracking URLs) still throws inside
+// the render, and that throw is NOT caught here: it propagates through sendEmail
+// into processEmailJob, which records it on the email_sends claim like any other
+// send failure.
 
 /** Foxhound's family in Capsomer: teal throughout (RULES.md 1.1). */
 export const FOXHOUND_EMAIL_FAMILY = "teal" as const;
@@ -138,19 +141,25 @@ export function appendHoneypotLink(html: string, honeypotUrl: string): string {
 //   - p, div, li, td, th, blockquote: one paragraph each. A <br> starts a new
 //     paragraph, because Capsomer's paragraph has no line break inside it (so
 //     "Thanks,<br>Acme" becomes two short paragraphs, same words).
-//   - h1 to h6: a heading. A paragraph whose only text is bold (the merchant
-//     notices' "Payment recovered.") is a heading too, since Capsomer has no
-//     bold run inside a paragraph.
+//   - h1 to h6: a heading. Nothing else becomes a heading; bold text is kept as
+//     plain text in its paragraph, since Capsomer has no bold run.
 //   - a link that is a block of its own: a button, label and address untouched.
 //   - a link inside a sentence: the sentence keeps the link's words as plain
 //     text, and a button with the same words and address follows the paragraph,
 //     because Capsomer has no link inside a paragraph.
+//   - a link Capsomer would refuse (anything but https: or mailto:, so tel:,
+//     http:, "#", a relative path, an unfilled {{placeholder}}, javascript:,
+//     data:): its words stay as text and no button is made. A generated body is
+//     cached and reused on every retry, so a throw here would fail the step on
+//     every attempt and never reach the template fallback (RULES.md 3.15).
+//     Links Foxhound supplies outside the body (the unsubscribe link, the
+//     tracking URLs) still throw when refused.
 //   - <small> around a whole block: fine print.
 //   - two pieces of a table cell split by <span> (the digest's label and value)
 //     are kept apart by a space.
 // What it drops: script, style, head and title with their content, comments,
-// anything hidden (display:none, aria-hidden, the hidden attribute), and images
-// (their alt text is kept as text).
+// anything hidden (a hidden attribute, aria-hidden="true", or a style of
+// display:none or visibility:hidden), and images (their alt text is kept).
 
 type BlockKind = "paragraph" | "heading" | "fine";
 
@@ -158,8 +167,6 @@ interface Pending {
   kind: BlockKind;
   /** Text outside any link, and link labels, in order. */
   text: string;
-  /** Text written outside <strong>/<b>, to tell an all-bold line. */
-  plainText: string;
   links: { label: string; url: string }[];
   /** True while every piece so far sat inside <small>. */
   allSmall: boolean;
@@ -171,17 +178,24 @@ const BLOCK_TAGS = new Set([
   "li",
   "ul",
   "ol",
+  "dl",
+  "dt",
+  "dd",
   "td",
   "th",
   "tr",
   "table",
   "tbody",
   "thead",
+  "tfoot",
   "blockquote",
   "section",
   "article",
+  "aside",
   "header",
   "footer",
+  "nav",
+  "pre",
   "hr",
   "br",
   "h1",
@@ -192,40 +206,167 @@ const BLOCK_TAGS = new Set([
   "h6",
 ]);
 const DROPPED_WITH_CONTENT = /<(script|style|head|title|template|noscript)\b[\s\S]*?<\/\1\s*>/gi;
-const VOID_TAGS = new Set(["br", "hr", "img", "meta", "link", "input", "wbr", "col", "source"]);
+const VOID_TAGS = new Set(["br", "hr", "img", "meta", "link", "input", "wbr", "col", "source", "area", "base", "embed", "param", "track"]);
 const TAG = /<(\/?)([a-zA-Z][a-zA-Z0-9-]*)((?:[^>"']|"[^"]*"|'[^']*')*?)(\/?)>/g;
+const ATTR = /([^\s"'=<>/`]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g;
+
+// ---- entities --------------------------------------------------------------------
+
+const LATIN1_A0 =
+  "nbsp iexcl cent pound curren yen brvbar sect uml copy ordf laquo not shy reg macr " +
+  "deg plusmn sup2 sup3 acute micro para middot cedil sup1 ordm raquo frac14 frac12 frac34 iquest " +
+  "Agrave Aacute Acirc Atilde Auml Aring AElig Ccedil Egrave Eacute Ecirc Euml Igrave Iacute Icirc Iuml " +
+  "ETH Ntilde Ograve Oacute Ocirc Otilde Ouml times Oslash Ugrave Uacute Ucirc Uuml Yacute THORN szlig " +
+  "agrave aacute acirc atilde auml aring aelig ccedil egrave eacute ecirc euml igrave iacute icirc iuml " +
+  "eth ntilde ograve oacute ocirc otilde ouml divide oslash ugrave uacute ucirc uuml yacute thorn yuml";
 
 const NAMED: Record<string, string> = {
   amp: "&",
+  AMP: "&",
   lt: "<",
+  LT: "<",
   gt: ">",
+  GT: ">",
   quot: '"',
+  QUOT: '"',
   apos: "'",
-  nbsp: " ",
-  copy: "©",
+  COPY: "\u00a9",
+  REG: "\u00ae",
+  trade: "\u2122",
+  lsquo: "\u2018",
+  rsquo: "\u2019",
+  sbquo: "\u201a",
+  ldquo: "\u201c",
+  rdquo: "\u201d",
+  bdquo: "\u201e",
+  lsaquo: "\u2039",
+  rsaquo: "\u203a",
+  ndash: "\u2013",
+  mdash: "\u2014",
+  minus: "\u2212",
+  hellip: "\u2026",
+  bull: "\u2022",
+  dagger: "\u2020",
+  Dagger: "\u2021",
+  permil: "\u2030",
+  prime: "\u2032",
+  Prime: "\u2033",
+  euro: "\u20ac",
+  ensp: "\u2002",
+  emsp: "\u2003",
+  thinsp: "\u2009",
+  zwnj: "\u200c",
+  zwj: "\u200d",
+  larr: "\u2190",
+  rarr: "\u2192",
+  uarr: "\u2191",
+  darr: "\u2193",
+  check: "\u2713",
+  OElig: "\u0152",
+  oelig: "\u0153",
+  Scaron: "\u0160",
+  scaron: "\u0161",
+  Yuml: "\u0178",
+  fnof: "\u0192",
+  circ: "\u02c6",
+  tilde: "\u02dc",
 };
+LATIN1_A0.split(" ").forEach((name, i) => {
+  NAMED[name] = String.fromCodePoint(0xa0 + i);
+});
 
+/** Decode numeric references (decimal and hex) and the named set above. An
+ *  unknown or invalid reference is left exactly as written. */
 function decodeEntities(s: string): string {
-  return s.replace(/&(#x[0-9a-fA-F]+|#\d+|[a-zA-Z]+);/g, (whole, ref: string) => {
+  return s.replace(/&(#[xX][0-9a-fA-F]+|#\d+|[a-zA-Z][a-zA-Z0-9]*);/g, (whole, ref: string) => {
     if (ref[0] === "#") {
-      const code = ref[1] === "x" || ref[1] === "X" ? parseInt(ref.slice(2), 16) : parseInt(ref.slice(1), 10);
-      return Number.isFinite(code) && code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : whole;
+      const hex = ref[1] === "x" || ref[1] === "X";
+      const code = parseInt(ref.slice(hex ? 2 : 1), hex ? 16 : 10);
+      const valid = code > 0 && code <= 0x10ffff && !(code >= 0xd800 && code <= 0xdfff);
+      return valid ? String.fromCodePoint(code) : whole;
     }
-    return NAMED[ref.toLowerCase()] ?? whole;
+    return Object.hasOwn(NAMED, ref) ? NAMED[ref] : whole;
   });
 }
 
-function attr(attrs: string, name: string): string | null {
-  const m = new RegExp(`(?:^|\\s)${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s"'>]+))`, "i").exec(attrs);
-  if (!m) return new RegExp(`(?:^|\\s)${name}(?:\\s|$)`, "i").test(attrs) ? "" : null;
-  return decodeEntities(m[1] ?? m[2] ?? m[3] ?? "");
+// ---- attributes and hiding -------------------------------------------------------
+
+/** Attribute names (lower case) to decoded values, quoted or unquoted. A bare
+ *  name has the value "". The first of a repeated name wins, as in HTML. */
+function parseAttrs(raw: string): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const m of raw.matchAll(ATTR)) {
+    const name = m[1].toLowerCase();
+    if (!out.has(name)) out.set(name, decodeEntities(m[2] ?? m[3] ?? m[4] ?? ""));
+  }
+  return out;
 }
 
-function isHidden(attrs: string): boolean {
-  const style = (attr(attrs, "style") ?? "").replace(/\s+/g, "").toLowerCase();
-  if (style.includes("display:none") || style.includes("visibility:hidden")) return true;
-  if ((attr(attrs, "aria-hidden") ?? "").toLowerCase() === "true") return true;
-  return attr(attrs, "hidden") !== null;
+function isHidden(attrs: Map<string, string>): boolean {
+  if (attrs.has("hidden")) return true;
+  if ((attrs.get("aria-hidden") ?? "").trim().toLowerCase() === "true") return true;
+  const style = (attrs.get("style") ?? "").replace(/\s+/g, "").toLowerCase();
+  return style.includes("display:none") || style.includes("visibility:hidden");
+}
+
+/** The URL if Capsomer would carry it as a button, else null. */
+function acceptedUrl(href: string): string | null {
+  try {
+    return checkUrl(href);
+  } catch {
+    return null;
+  }
+}
+
+// Elements whose end tag may be left out, and what ends them implicitly: the
+// start tags that close one as a sibling, and the elements that, open inside
+// it, make such a start tag a nested child instead of a sibling.
+const P_CLOSERS = [
+  "address", "article", "aside", "blockquote", "dd", "div", "dl", "dt", "fieldset", "footer", "form",
+  "h1", "h2", "h3", "h4", "h5", "h6", "header", "hr", "li", "menu", "nav", "ol", "p", "pre", "section",
+  "table", "ul",
+];
+const OPTIONAL_END: Record<string, { closers: Set<string>; scopes: Set<string> }> = {
+  p: { closers: new Set(P_CLOSERS), scopes: new Set() },
+  li: { closers: new Set(["li"]), scopes: new Set(["ul", "ol"]) },
+  dt: { closers: new Set(["dt", "dd"]), scopes: new Set(["dl"]) },
+  dd: { closers: new Set(["dt", "dd"]), scopes: new Set(["dl"]) },
+  td: { closers: new Set(["td", "th", "tr", "tbody", "thead", "tfoot"]), scopes: new Set(["table"]) },
+  th: { closers: new Set(["td", "th", "tr", "tbody", "thead", "tfoot"]), scopes: new Set(["table"]) },
+  tr: { closers: new Set(["tr", "tbody", "thead", "tfoot"]), scopes: new Set(["table"]) },
+  option: { closers: new Set(["option", "optgroup"]), scopes: new Set(["select"]) },
+};
+
+interface HiddenSkip {
+  tag: string;
+  /** Elements opened inside the hidden one and not yet closed. */
+  stack: string[];
+}
+
+/**
+ * Feed one tag to a hidden skip. Returns "skip" while the tag is inside the
+ * hidden element, "end" when the tag ends it and is itself consumed (its own
+ * end tag), and "end-reprocess" when the tag ends it implicitly and must then be
+ * read as an ordinary tag (a sibling start tag or a parent's end tag).
+ */
+function feedHidden(h: HiddenSkip, name: string, closing: boolean, selfClose: boolean): "skip" | "end" | "end-reprocess" {
+  const optional = OPTIONAL_END[h.tag];
+  if (closing) {
+    const at = h.stack.lastIndexOf(name);
+    if (at !== -1) {
+      h.stack.length = at;
+      return "skip";
+    }
+    if (name === h.tag) return "end";
+    // An end tag for something not opened inside: a parent closing, which
+    // implicitly ends an optional-end element. Anything else is a stray tag.
+    return optional ? "end-reprocess" : "skip";
+  }
+  if (optional && optional.closers.has(name) && !h.stack.some((t) => optional.scopes.has(t) || t === h.tag)) {
+    return "end-reprocess";
+  }
+  if (!VOID_TAGS.has(name) && !selfClose) h.stack.push(name);
+  return "skip";
 }
 
 const squash = (s: string): string => s.replace(/\s+/g, " ").trim();
@@ -237,18 +378,15 @@ export function htmlToBlocks(html: string): Block[] {
 
   let pending: Pending | null = null;
   let headingDepth = 0;
-  let strongDepth = 0;
   let smallDepth = 0;
   let cellDepth = 0;
-  let hiddenTag: string | null = null;
-  let hiddenDepth = 0;
+  let hidden: HiddenSkip | null = null;
   let link: { url: string; label: string } | null = null;
 
   const open = (): Pending => {
     pending ??= {
       kind: headingDepth > 0 ? "heading" : "paragraph",
       text: "",
-      plainText: "",
       links: [],
       allSmall: true,
     };
@@ -264,8 +402,18 @@ export function htmlToBlocks(html: string): Block[] {
     if (!text.trim() && !pending) return;
     const p = open();
     p.text += text;
-    if (strongDepth === 0) p.plainText += text;
     if (text.trim() && smallDepth === 0) p.allSmall = false;
+  };
+
+  /** Close the open link, keeping its words in the block and its button. */
+  const closeLink = (): void => {
+    if (!link) return;
+    const done: { url: string; label: string } = link;
+    link = null;
+    const p = open();
+    p.text += done.label;
+    if (done.label.trim() && smallDepth === 0) p.allSmall = false;
+    p.links.push(done);
   };
 
   const flush = (): void => {
@@ -273,75 +421,67 @@ export function htmlToBlocks(html: string): Block[] {
     pending = null;
     if (!p) return;
     const text = squash(p.text);
-    const links = p.links
-      .map((l) => ({ label: squash(l.label), url: l.url }))
-      .filter((l) => l.label || l.url);
+    const links = p.links.map((l) => ({ label: squash(l.label), url: l.url })).filter((l) => l.label);
     // A block that is nothing but one link is a button.
-    if (links.length === 1 && text === links[0].label && text) {
+    if (links.length === 1 && text === links[0].label) {
       blocks.push({ type: "button", label: links[0].label, url: links[0].url });
       return;
     }
-    if (text) {
-      let kind: BlockKind = p.kind;
-      if (kind === "paragraph" && p.allSmall) kind = "fine";
-      else if (kind === "paragraph" && !squash(p.plainText) && links.length === 0) kind = "heading";
-      blocks.push({ type: kind, text });
-    }
+    if (text) blocks.push({ type: p.kind === "paragraph" && p.allSmall ? "fine" : p.kind, text });
     const seen = new Set<string>();
     for (const l of links) {
-      const label = l.label || l.url;
-      const key = `${label}\n${l.url}`;
+      const key = `${l.label}\n${l.url}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      blocks.push({ type: "button", label, url: l.url });
+      blocks.push({ type: "button", label: l.label, url: l.url });
     }
   };
 
   let last = 0;
   for (const m of source.matchAll(TAG)) {
-    const [whole, slash, rawName, attrs, selfClose] = m;
+    const [whole, slash, rawName, rawAttrs, selfClose] = m;
     const name = rawName.toLowerCase();
     const closing = slash === "/";
     const between = source.slice(last, m.index);
     last = m.index + whole.length;
 
-    if (hiddenTag) {
-      if (name === hiddenTag && !VOID_TAGS.has(name)) hiddenDepth += closing ? -1 : selfClose ? 0 : 1;
-      if (hiddenDepth === 0) hiddenTag = null;
-      continue;
-    }
-    addText(between);
-
-    if (!closing && isHidden(attrs)) {
-      if (!VOID_TAGS.has(name) && !selfClose) {
-        hiddenTag = name;
-        hiddenDepth = 1;
+    if (hidden) {
+      const step = feedHidden(hidden, name, closing, selfClose === "/");
+      if (step !== "end-reprocess") {
+        if (step === "end") hidden = null;
+        continue;
       }
+      // Ended implicitly: the text before this tag was still hidden, and the
+      // tag itself is read below as an ordinary tag.
+      hidden = null;
+    } else {
+      addText(between);
+    }
+
+    const attrs = parseAttrs(rawAttrs);
+    if (!closing && isHidden(attrs)) {
+      // A hidden block element still ends the block before it.
+      if (BLOCK_TAGS.has(name)) {
+        closeLink();
+        flush();
+      }
+      // A void or self-closing element has no content to skip.
+      if (!VOID_TAGS.has(name) && selfClose !== "/") hidden = { tag: name, stack: [] };
       continue;
     }
 
     if (name === "a") {
+      // A second <a> before the first one closed ends the first, words kept.
+      closeLink();
       if (!closing) {
-        const href = attr(attrs, "href");
-        if (href !== null && href.trim()) link = { url: href.trim(), label: "" };
-      } else if (link) {
-        const done: { url: string; label: string } = link;
-        link = null;
-        const p = open();
-        p.text += done.label;
-        if (strongDepth === 0) p.plainText += done.label;
-        if (done.label.trim() && smallDepth === 0) p.allSmall = false;
-        p.links.push(done);
+        const url = acceptedUrl((attrs.get("href") ?? "").trim());
+        if (url) link = { url, label: "" };
       }
       continue;
     }
     if (name === "img") {
-      const alt = attr(attrs, "alt");
+      const alt = attrs.get("alt");
       if (alt && alt.trim()) addText(` ${alt} `);
-      continue;
-    }
-    if (name === "strong" || name === "b") {
-      strongDepth = Math.max(0, strongDepth + (closing ? -1 : 1));
       continue;
     }
     if (name === "small") {
@@ -353,23 +493,14 @@ export function htmlToBlocks(html: string): Block[] {
       continue;
     }
     if (BLOCK_TAGS.has(name)) {
-      // A link left open across a block boundary is closed as plain text.
-      if (link) {
-        const dangling: { url: string; label: string } = link;
-        link = null;
-        addText(dangling.label);
-      }
+      closeLink();
       flush();
       if (/^h[1-6]$/.test(name)) headingDepth = Math.max(0, headingDepth + (closing ? -1 : 1));
       if (name === "td" || name === "th") cellDepth = Math.max(0, cellDepth + (closing ? -1 : 1));
     }
   }
-  if (!hiddenTag) addText(source.slice(last));
-  if (link) {
-    const dangling: { url: string; label: string } = link;
-    link = null;
-    addText(dangling.label);
-  }
+  if (!hidden) addText(source.slice(last));
+  closeLink();
   flush();
   return blocks;
 }
