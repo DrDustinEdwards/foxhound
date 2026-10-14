@@ -83,7 +83,6 @@ export const middleware: Route.MiddlewareFunction[] = [
 ];
 
 type LoaderState =
-  | { state: "missing" }
   | { state: "invalid" }
   | { state: "done" }
   | { state: "already"; email: string };
@@ -94,11 +93,10 @@ type LoaderState =
 export async function loader({ params, context }: Route.LoaderArgs): Promise<LoaderState> {
   const { env } = context.get(cloudflareContext);
   const token = params.token;
-  // The route requires :token, so an empty one cannot arrive through the router;
-  // the guard keeps Recova's state for it all the same.
-  if (!token) return { state: "missing" };
-  const payload = await verifyUnsubscribeToken(env, token);
-  if (!payload) return { state: "invalid" };
+  // The route requires :token, so Recova's no-token state ("Invalid unsubscribe
+  // link.") cannot arise here; an absent token folds into the invalid state.
+  const payload = token ? await verifyUnsubscribeToken(env, token) : null;
+  if (!payload || !token) return { state: "invalid" };
   const outcome = await recordUnsubscribe(env, payload, token);
   return outcome === "already" ? { state: "already", email: payload.email } : { state: "done" };
 }
@@ -121,8 +119,6 @@ export async function action({ params, context }: Route.ActionArgs): Promise<Res
 
 function message(data: LoaderState): string {
   switch (data.state) {
-    case "missing":
-      return "Invalid unsubscribe link.";
     case "invalid":
       return "This unsubscribe link is invalid or has expired.";
     case "already":
@@ -162,6 +158,9 @@ export default function Unsubscribe({ loaderData }: Route.ComponentProps) {
           className="fh-cap w-full max-w-[480px] px-6 py-10 text-center [--border-focus:var(--ring)]"
           data-family="teal"
         >
+          {/* The page's heading, for screen readers only: Recova's page has none
+              visible, and the wordmark is not one. */}
+          <h1 className="sr-only">Unsubscribe</h1>
           <div className="mb-8">
             <Wordmark size="title" />
           </div>
@@ -174,7 +173,9 @@ export default function Unsubscribe({ loaderData }: Route.ComponentProps) {
               >
                 <Icon className="size-5" strokeWidth={2.5} />
               </div>
-              <p className="m-0 mb-6 text-body leading-relaxed text-text">{message(loaderData)}</p>
+              <p role="status" className="m-0 mb-6 text-body leading-relaxed text-text">
+                {message(loaderData)}
+              </p>
               {/* Recova's small underlined link in the secondary text colour. Its
                   box is Capsomer's minimum target height (--target), so the 13px
                   line is still a 24px target (WCAG 2.2, 2.5.8). */}

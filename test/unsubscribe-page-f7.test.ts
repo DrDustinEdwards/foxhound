@@ -19,7 +19,9 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 //   unknown token   "This unsubscribe link is invalid or has expired."             (X)
 //   suppressed      "{email} is already unsubscribed."                             (check)
 //   newly done      "You've been unsubscribed. You won't receive any more recovery emails." (check)
-// and 10 requests per 60 seconds per IP, else 429 "Too many requests".
+// and 10 requests per 60 seconds per IP, else 429 "Too many requests". The
+// route is u/:token, so Recova's no-token state cannot arise and an absent
+// token reads as the invalid state.
 
 const harness = vi.hoisted(() => ({ db: null as unknown }));
 vi.mock("~/db", async (importOriginal) => ({
@@ -123,28 +125,6 @@ describe("F7 loader: Recova's four states on Foxhound's engine", () => {
     expect(rows[0]?.reason).toBe("bounce");
   });
 
-  it("a row for the address with no suppressed_at is suppressed now, never read as already done", async () => {
-    // Recova's own update branch: a row that exists but is not suppressed gets
-    // suppressed_at and reason=unsubscribe. A plain onConflictDoNothing would
-    // leave this address mailable while the page said it was done.
-    const db = await seed();
-    const env = makeEnv();
-    await db.insert(emailSuppressions).values({
-      email: EMAIL,
-      token: "tok_registered",
-      reason: null,
-      accountId: ACCOUNT,
-      suppressedAt: null,
-    });
-    const token = await signUnsubscribeToken(env, { email: EMAIL, accountId: ACCOUNT });
-
-    expect(await callLoader(env, token)).toEqual({ state: "done" });
-    const rows = await suppressionRows(db);
-    expect(rows).toHaveLength(1);
-    expect(rows[0]?.suppressedAt).not.toBeNull();
-    expect(rows[0]?.reason).toBe("unsubscribe");
-  });
-
   it("a tampered or unknown token is the invalid state and writes nothing", async () => {
     const db = await seed();
     const env = makeEnv();
@@ -153,9 +133,9 @@ describe("F7 loader: Recova's four states on Foxhound's engine", () => {
     expect(await suppressionRows(db)).toHaveLength(0);
   });
 
-  it("no token at all is Recova's 'Invalid unsubscribe link.' state", async () => {
+  it("no token at all folds into the invalid state (the route cannot deliver one)", async () => {
     await seed();
-    expect(await callLoader(makeEnv(), undefined)).toEqual({ state: "missing" });
+    expect(await callLoader(makeEnv(), undefined)).toEqual({ state: "invalid" });
   });
 });
 
@@ -236,7 +216,6 @@ describe("F7 page: Recova's copy and layout on Capsomer's parts", () => {
   }
 
   const STATES = [
-    { data: { state: "missing" }, copy: "Invalid unsubscribe link.", ok: false },
     { data: { state: "invalid" }, copy: "This unsubscribe link is invalid or has expired.", ok: false },
     { data: { state: "already", email: EMAIL }, copy: `${EMAIL} is already unsubscribed.`, ok: true },
     {
@@ -257,6 +236,16 @@ describe("F7 page: Recova's copy and layout on Capsomer's parts", () => {
     expect(mark?.[1]).toBe(ok ? "ok" : "crit");
     expect(mark?.[0]).toContain("rounded-full");
     expect(mark?.[0]).toContain("size-12");
+  });
+
+  it("has a visually hidden h1 so the page keeps a heading without changing Recova's look", () => {
+    const body = main(render({ state: "done" } as LoaderData));
+    expect(body).toMatch(/<h1 class="sr-only">Unsubscribe<\/h1>/);
+  });
+
+  it.each(STATES)("$data.state announces the result through a status paragraph", ({ data, copy }) => {
+    const body = main(render(data as LoaderData));
+    expect(body).toMatch(new RegExp(`<p role="status"[^>]*>${copy.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}</p>`));
   });
 
   it("keeps the site header and puts Recova's wordmark above a Capsomer panel", () => {

@@ -1,4 +1,4 @@
-import { and, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, eq, isNotNull } from "drizzle-orm";
 
 import { getDb, emailSuppressions } from "~/db";
 
@@ -34,16 +34,13 @@ export type UnsubscribeOutcome = "unsubscribed" | "already";
  * The raw token is stored as the traceability marker, mirroring how a bounce
  * stores its provider event id.
  *
- * Suppression is one row per address (the email unique index), so:
- *  - no row yet: buildSuppressionInsert lands one and this visit unsubscribed;
- *  - a row with no suppressed_at: it is suppressed now, with reason=unsubscribe,
- *    which is Recova's own update branch. Without this second statement the
- *    insert's onConflictDoNothing would leave the address mailable while the
- *    page told the recipient it was done;
- *  - a suppressed row (an earlier unsubscribe, a bounce, a complaint): nothing is
- *    written and the address is "already" unsubscribed, as Recova reads any
- *    suppressed_at. A second click, or a List-Unsubscribe POST after a GET, is a
- *    no-op, never an error.
+ * Suppression is one row per address (the email unique index), and every
+ * Foxhound writer of that table sets suppressed_at (buildSuppressionInsert), so
+ * a row for the address means it is suppressed. The insert's RETURNING says
+ * which visit this is: a row back means this visit suppressed the address; none
+ * means an earlier unsubscribe, a bounce or a complaint already had, which is
+ * "already" unsubscribed, as Recova reads any suppressed_at. A second click, or
+ * a List-Unsubscribe POST after a GET, is a no-op, never an error.
  */
 export async function recordUnsubscribe(
   env: Env,
@@ -51,20 +48,12 @@ export async function recordUnsubscribe(
   token: string,
 ): Promise<UnsubscribeOutcome> {
   const db = getDb(env);
-  const now = new Date();
   const inserted = await buildSuppressionInsert(db, {
     email: payload.email,
     token,
     reason: UNSUBSCRIBE_REASON,
     accountId: payload.accountId,
-    now,
+    now: new Date(),
   }).returning({ id: emailSuppressions.id });
-  if (inserted.length > 0) return "unsubscribed";
-
-  const suppressedNow = await db
-    .update(emailSuppressions)
-    .set({ suppressedAt: now, reason: UNSUBSCRIBE_REASON })
-    .where(and(eq(emailSuppressions.email, payload.email), isNull(emailSuppressions.suppressedAt)))
-    .returning({ id: emailSuppressions.id });
-  return suppressedNow.length > 0 ? "unsubscribed" : "already";
+  return inserted.length > 0 ? "unsubscribed" : "already";
 }

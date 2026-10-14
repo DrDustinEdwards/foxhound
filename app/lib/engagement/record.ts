@@ -76,12 +76,17 @@ export function buildEngagementInsert(
  * opened_at: on a first open that is NULL and the time is now, as Recova
  * computes it; on a step first opened before this stamp kept a time, it is that
  * real first open rather than this later one. Timestamps are epoch milliseconds
- * (schema.ts `ts`), so the minutes are a whole-number division of the gap,
- * truncated, which is Recova's Math.floor for any open after the send.
+ * (schema.ts `ts`), so the minutes are the gap divided by 60000 and floored,
+ * Recova's Math.floor, negative gaps included.
  */
 export function buildOpenStamp(db: Db, stepId: string, now: Date) {
   const nowMs = now.getTime();
   const firstOpenMs = sql`coalesce(${recoverySteps.openedAt}, ${nowMs})`;
+  // Whole minutes as a true floor. SQLite's integer division truncates toward
+  // zero, so a negative gap that is not a whole number of minutes (an open
+  // stamped before executed_at, clock skew) takes one more off, as Math.floor.
+  const gapMs = sql`(${firstOpenMs} - ${recoverySteps.executedAt})`;
+  const floorMinutes = sql`(cast(${gapMs} / 60000 as integer) - (case when ${gapMs} < 0 and ${gapMs} % 60000 != 0 then 1 else 0 end))`;
   return db
     .update(recoverySteps)
     .set({
@@ -90,7 +95,7 @@ export function buildOpenStamp(db: Db, stepId: string, now: Date) {
       openedAt: firstOpenMs,
       timeToOpenMinutes: sql`case
         when ${recoverySteps.timeToOpenMinutes} is null and ${recoverySteps.executedAt} is not null
-          then cast((${firstOpenMs} - ${recoverySteps.executedAt}) / 60000 as integer)
+          then ${floorMinutes}
         else ${recoverySteps.timeToOpenMinutes}
       end`,
     })

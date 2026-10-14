@@ -120,6 +120,13 @@ describe("F9: every human open counts, as Recova's email.opened did", () => {
     expect(row.timeToOpenMinutes).toBeNull();
   });
 
+  it("an open before executed_at floors the negative gap as Recova's Math.floor does", async () => {
+    vi.useFakeTimers();
+    const db = await seed();
+    await openAt(new Date(SENT.getTime() - 30_000)); // 30 s before the send was stamped
+    expect((await step(db)).timeToOpenMinutes).toBe(-1);
+  });
+
   it("an automated open writes nothing: no count, no stamp, no event", async () => {
     vi.useFakeTimers();
     const db = await seed();
