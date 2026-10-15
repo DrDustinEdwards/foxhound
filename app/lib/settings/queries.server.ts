@@ -83,6 +83,8 @@ export async function listAccountConnections(
 export interface SenderSettingsConnection {
   id: string;
   senderName: string | null;
+  /** `reply_to_email`, the Reply-To on customer mail (J03). */
+  replyToEmail: string | null;
 }
 
 /**
@@ -104,7 +106,11 @@ export async function getPrimarySenderConnection(
   accountId: string,
 ): Promise<SenderSettingsConnection | null> {
   const rows = await db
-    .select({ id: stripeConnections.id, senderName: stripeConnections.senderName })
+    .select({
+      id: stripeConnections.id,
+      senderName: stripeConnections.senderName,
+      replyToEmail: stripeConnections.replyToEmail,
+    })
     .from(stripeConnections)
     .where(
       and(

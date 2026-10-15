@@ -341,32 +341,30 @@ describe("PLANT 4: the test email is a real send", () => {
   });
 });
 
-describe("PLANT 5: fields with no reader do not render", () => {
+describe("PLANT 5: a field with no reader does not render", () => {
   const SOURCE = readFileSync(
     fileURLToPath(new URL("../app/routes/app/settings/email.tsx", import.meta.url)),
     "utf8",
   );
   const code = SOURCE.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
-  it("renders sender name and NOT sender domain or reply-to", () => {
+  it("renders sender name and reply-to, and NOT sender domain", () => {
     expect(code).toContain('name="senderName"');
-    // Both write columns nothing reads. A field that writes a column nothing
-    // reads is a false promise, so they wait for their readers.
+    // Reply-to was BUILT at J03, with its reader in send.ts, which is what this
+    // plant asked for (test/reply-to-j03.test.ts proves the reader). Sender
+    // domain still writes a column nothing reads, and is not built (RULES 5.6).
+    expect(code).toContain('name="replyToEmail"');
     expect(code).not.toContain('name="senderDomain"');
     expect(code).not.toContain('name="sender_domain"');
-    expect(code).not.toContain('name="replyTo"');
-    expect(code).not.toContain('name="reply_to_email"');
   });
 
-  it("the readers genuinely do not exist, which is what licenses their absence", () => {
+  it("the sender domain's reader genuinely does not exist, which is what licenses its absence", () => {
     // If this ever goes red, the field should be BUILT, not this assertion
     // relaxed. That is the whole shape of the plant.
     const send = readFileSync(
       fileURLToPath(new URL("../app/lib/email/send.ts", import.meta.url)),
       "utf8",
     );
-    expect(send).not.toContain("Reply-To");
-    expect(send).not.toContain("replyTo");
     expect(send).not.toContain("senderDomain");
   });
 
@@ -395,7 +393,8 @@ describe("PLANT 6: the docs describe the fields that were built", () => {
     const platform = DOCS.slice(0, DOCS.indexOf('slug: "audit"'));
     expect(platform).not.toContain("sender domain");
     expect(platform).not.toContain("Sender domain");
-    expect(platform).not.toContain("Reply-to");
+    // Reply-to is rendered since J03, so the docs name it.
+    expect(platform).toContain("Reply-to email");
   });
 });
 

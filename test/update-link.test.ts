@@ -117,6 +117,7 @@ describe("if even the template lost the link, nothing is sent", () => {
           brandVoice: null,
           cachedSubject: null,
           cachedBodyHtml: null,
+          replyToEmail: null,
         },
         "https://foxhoundapp.com/p/tok",
       ),

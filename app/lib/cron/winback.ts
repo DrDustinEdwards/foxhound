@@ -53,6 +53,9 @@ export interface DueWinbackStep {
   amountCents: number | null;
   notificationsEnabled: boolean | null;
   senderName: string | null;
+  /** The primary connection's `reply_to_email`, for the Reply-To (J03). Recova's
+   *  win-back reads it from the same primary row as the sender name. */
+  replyToEmail: string | null;
   /** Legacy feeds the cancellation reason into the prompt. */
   cancelReason: string | null;
   /** The GENERAL brand voice. Legacy's win-back select names no per-category
@@ -105,6 +108,13 @@ export async function queryDueWinbackSteps(
       )`,
       senderName: sql<string | null>`(
         select ${stripeConnections.senderName} from ${stripeConnections}
+        where ${stripeConnections.accountId} = ${winBackSequences.accountId}
+          and ${stripeConnections.isPrimary} = 1
+          and ${stripeConnections.disconnectedAt} is null
+        limit 1
+      )`,
+      replyToEmail: sql<string | null>`(
+        select ${stripeConnections.replyToEmail} from ${stripeConnections}
         where ${stripeConnections.accountId} = ${winBackSequences.accountId}
           and ${stripeConnections.isPrimary} = 1
           and ${stripeConnections.disconnectedAt} is null
@@ -336,6 +346,7 @@ export async function runWinbackSends(env: Env, now: Date): Promise<WinbackSendR
           accountId: step.accountId,
           to: step.customerEmail,
           fromName: step.senderName,
+          replyTo: step.replyToEmail,
           subject: copy.subject,
           bodyHtml: copy.bodyHtml,
           template: WINBACK_TEMPLATE,

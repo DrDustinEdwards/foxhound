@@ -2,7 +2,7 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 
 import type { MoneyWriteBatch, MoneyWriteBuilder } from "~/db/money-write";
 import type { Db } from "~/db";
-import { failedPayments, recoverySteps } from "~/db";
+import { failedPayments, getDb, recoverySteps, stripeConnections } from "~/db";
 import {
   queryStepForManualTrigger,
   toEmailContext,
@@ -506,6 +506,20 @@ export interface ResendDeps {
   send: (input: ResendSendInput) => Promise<EmailJobResult>;
 }
 
+/** The Reply-To for a resend (J03): `reply_to_email` on the connection the
+ *  step's payment came through, as the engine's send reads it. Scoped to the
+ *  account, so a step id never reads another merchant's address. */
+async function resendReplyTo(env: Env, accountId: string, stepId: string): Promise<string | null> {
+  const rows = await getDb(env)
+    .select({ replyTo: stripeConnections.replyToEmail })
+    .from(recoverySteps)
+    .innerJoin(failedPayments, eq(failedPayments.id, recoverySteps.failedPaymentId))
+    .innerJoin(stripeConnections, eq(stripeConnections.id, failedPayments.stripeConnectionId))
+    .where(and(eq(recoverySteps.id, stepId), eq(recoverySteps.accountId, accountId)))
+    .limit(1);
+  return rows[0]?.replyTo ?? null;
+}
+
 /**
  * Bind the real send path to `env`: processEmailJob, which is suppression gate,
  * live-send flag, send, and email_sends log, in that order. `queueMessageId` is
@@ -531,6 +545,7 @@ export function resendDepsFor(env: Env): ResendDeps {
         accountId: input.accountId,
         recoveryStepId: input.recoveryStepId,
         to: input.to,
+        replyTo: await resendReplyTo(env, input.accountId, input.recoveryStepId),
         subject: input.subject,
         bodyHtml: input.bodyHtml,
         template: TEMPLATE_LABEL_RESEND,

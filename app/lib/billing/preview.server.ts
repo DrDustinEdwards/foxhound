@@ -106,8 +106,9 @@ export function nextBillingRunAtMs(nowMs: number): number {
   );
 }
 
-/** First instant of the UTC calendar month containing `nowMs`. */
-function startOfUtcMonthMs(nowMs: number): number {
+/** First instant of the UTC calendar month containing `nowMs`. The admin
+ *  Overview's "Recovered this month" starts from the same instant. */
+export function startOfUtcMonthMs(nowMs: number): number {
   const now = new Date(nowMs);
   return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
 }

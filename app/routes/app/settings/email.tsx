@@ -5,6 +5,7 @@ import { DemoGuardedForm } from "~/components/demo-guarded-form";
 import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { REPLY_TO_EMAIL_MAX_LENGTH } from "~/lib/settings/reply-to";
 import { SENDER_NAME_MAX_LENGTH } from "~/lib/settings/sender-name";
 import { applySenderName } from "~/lib/settings/apply.server";
 import { getPrimarySenderConnection } from "~/lib/settings/queries.server";
@@ -24,14 +25,17 @@ import type { Route } from "./+types/email";
 //
 // DIVERGENCES, each classed rather than glossed:
 //
-// 1. TWO OF LEGACY'S THREE FIELDS ARE NOT RENDERED, and this is the sharp one.
-//    `sender_domain` and `reply_to_email` have NO READER in Foxhound: the send
-//    path emits from/to/subject/html plus two List-Unsubscribe headers and
-//    nothing else, and `sender_domain`'s legacy job ("Used in billing portal
-//    links", its own help string) is a different subsystem. A field that writes
-//    a column nothing reads is a false promise, so both are PORTABLE AFTER
-//    their readers rather than ported now. Recorded in
-//    parity/SETTINGS-SPEC-FROM-DOCS.md, not silently dropped.
+// 1. ONE OF LEGACY'S THREE FIELDS IS NOT RENDERED. `sender_domain` has no
+//    reader and is deliberately not built (RULES.md 5.6); its legacy job ("Used
+//    in billing portal links", its own help string) is a different subsystem.
+//    `reply_to_email` IS rendered since J03, with its reader: send.ts sets
+//    Reply-To on merchant-customer email only when a valid address is saved,
+//    and sets none otherwise, so a reply goes to the From. The writer landed
+//    with the reader (RULES.md 3.18). Two differences from legacy, both flagged
+//    for Dustin: a server-side format check and a 254-character bound
+//    (app/lib/settings/reply-to.ts), input hygiene like the sender name's bound;
+//    and no Reply-To fallback to the From when the box is empty, which legacy's
+//    engine has and which changes nothing for the recipient.
 // 2. `sender_name` IS OPTIONAL, matching legacy, and BOUNDED AT 80, which
 //    legacy is not. The requirement shipped for one session and 335 reverted it:
 //    legacy writes `|| null` on an empty box and its empty case delivers through
@@ -63,6 +67,7 @@ export async function loader({ context }: Route.LoaderArgs) {
   return {
     connectionId: connection?.id ?? null,
     senderName: connection?.senderName ?? "",
+    replyToEmail: connection?.replyToEmail ?? "",
     recipientEmail: auth.email,
   };
 }
@@ -95,6 +100,9 @@ export async function action({ request, context }: Route.ActionArgs) {
     const result = await applySenderName(db, accountId, {
       connectionId: form.get("connectionId"),
       senderName: form.get("senderName"),
+      // Sent only when the form carries the field, as legacy's
+      // `formData.has('reply_to_email')` (J03).
+      replyToEmail: form.has("replyToEmail") ? form.get("replyToEmail") : undefined,
     });
     if (!result.ok) {
       return data<ActionResult>({ action: intent, ok: false, error: result.error }, { status: 400 });
@@ -127,7 +135,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 }
 
 export default function EmailSettings({ loaderData, actionData }: Route.ComponentProps) {
-  const { connectionId, senderName, recipientEmail } = loaderData;
+  const { connectionId, senderName, replyToEmail, recipientEmail } = loaderData;
   const result = actionData as ActionResult | undefined;
   const busy = useNavigation().state !== "idle";
   const saveResult = result?.action === "sender" ? result : undefined;
@@ -165,6 +173,22 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
             />
             <span className="text-micro text-text-subtle">
               Name that appears in the From field of recovery emails
+            </span>
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
+              Reply-to email
+            </span>
+            <input
+              name="replyToEmail"
+              type="email"
+              defaultValue={replyToEmail}
+              placeholder="support@yourapp.com"
+              maxLength={REPLY_TO_EMAIL_MAX_LENGTH}
+              className="rounded-md border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-text-subtle focus-visible:border-brand"
+            />
+            <span className="text-micro text-text-subtle">
+              Customer replies go here. Use your support inbox.
             </span>
           </label>
           <div>

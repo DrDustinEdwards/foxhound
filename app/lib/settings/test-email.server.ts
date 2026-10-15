@@ -27,8 +27,8 @@ import { getPrimarySenderConnection } from "~/lib/settings/queries.server";
 // 2. THE ROUTE'S OWN ACTION, not a separate POST route. Same class (a)
 //    divergence S30 took and for the same reason: it avoids building ledger row
 //    S39 as a side effect of this row.
-// 3. NO `replyTo`. Legacy passes one; Foxhound's send path has no Reply-To
-//    reader at all, which is why `reply_to_email` is not rendered either.
+// 3. `replyTo` IS PASSED, as legacy's is (`profile?.reply_to_email ||
+//    undefined`), so the preview carries the Reply-To customers will get (J03).
 //
 // The sample customer is legacy's: a soft decline on a $99 plan.
 
@@ -93,6 +93,8 @@ export async function sendTestEmail(
       // The whole reason this control exists: the merchant sees the From header
       // their customers will see, produced by the same field they just saved.
       fromName: connection?.senderName ?? null,
+      // And the Reply-To they will see, as legacy's test route passes one (J03).
+      replyTo: connection?.replyToEmail ?? null,
       subject: `${TEST_EMAIL_SUBJECT_PREFIX}${copy.subject}`,
       bodyHtml: `${previewBanner()}${copy.bodyHtml}`,
       template: TEST_EMAIL_TEMPLATE,
