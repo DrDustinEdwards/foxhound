@@ -360,7 +360,8 @@ describe("the Errors page", () => {
     expect(t).toContain("Failed actions");
     expect(t).toContain("Showing the last 1 failed action, newest first.");
     const headers = [...html.matchAll(/<th scope="col"[^>]*>(.*?)<\/th>/g)].map((m) => text(m[1]).trim());
-    expect(headers).toEqual(["Time", "Actor", "Action", "Target", "Detail"]);
+    // Recova's errors page orders them Time, Action, Actor (not the audit log's order).
+    expect(headers).toEqual(["Time", "Action", "Actor", "Target", "Detail"]);
     expect(t).toContain("No such account");
     expect(html).toMatch(/role="tooltip"/);
 
