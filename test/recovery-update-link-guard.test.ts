@@ -10,7 +10,7 @@ import {
 import type { EmailJob } from "~/lib/email/types";
 import type { EmailJobResult } from "~/lib/email/dispatch";
 import type { EmailCopy } from "~/lib/recovery/email-generation";
-import { buildTemplateEmail } from "~/lib/recovery/email-template";
+import { buildTemplateEmail, hasStepTemplate } from "~/lib/recovery/email-template";
 import type { StepStatePatch } from "~/lib/recovery/step-state";
 
 // No recovery email leaves without its update link (RULES.md 3.15: if the
@@ -211,6 +211,18 @@ describe("the template always carries the link", () => {
       const { result, jobs, minted } = await run({ context: { declineCategory } });
       expect(result.templateReason, declineCategory).toBe("generation_failed");
       expect(hrefs(jobs[0].bodyHtml), declineCategory).toContain(minted);
+    }
+  });
+
+  // Rows E4 to E8 (J85, J86): every recovery email step with Recova's own
+  // template still carries the minted link when generation throws.
+  it("through the executor, for every step with Recova's own template", async () => {
+    for (const stepType of ["email_day1", "email_day3", "email_day7", "email_day14", "email_day30"]) {
+      expect(hasStepTemplate(stepType), stepType).toBe(true);
+      const { result, jobs, minted } = await run({ context: { stepType } });
+      expect(result.templateReason, stepType).toBe("generation_failed");
+      expect(hrefs(jobs[0].bodyHtml), stepType).toContain(minted);
+      expect(jobs[0].bodyHtml, stepType).toContain(">Update Payment Method</a>");
     }
   });
 
