@@ -311,3 +311,60 @@ describe("the page source", () => {
     expect(source).toMatch(/"capsomer\/table\.css"/);
   });
 });
+
+// Review of #90: admin_audit_log is CARRY (docs/schema/legacy-map.md), so
+// Recova's own rows arrive on this page. Its seven codes read as Foxhound's
+// sentences, and its two detail cases (app/admin/platform/audit-log/page.tsx,
+// blob 5003157c, metaDetail) carry over in plain words.
+describe("rows carried from Recova", () => {
+  it("says each of Recova's seven codes as a sentence", () => {
+    const expected: Record<string, string> = {
+      trigger_cron: "Triggered a cron",
+      view_user_list: "Viewed the user list",
+      view_cron_health: "Viewed cron health",
+      impersonation_start: "Started impersonating a user",
+      impersonation_stop: "Stopped impersonating a user",
+      billing_exempt_toggle: "Toggled a merchant's billing exemption",
+      processing_paused_toggle: "Toggled a merchant's processing pause",
+    };
+    for (const [code, sentence] of Object.entries(expected)) expect(describeAction(code), code).toBe(sentence);
+  });
+
+  it("keeps Recova's two detail cases", () => {
+    expect(detail(entry("trigger_cron", { cron_path: "/api/cron/recovery", extra: 1 }))).toBe("/api/cron/recovery");
+    expect(detail(entry("view_user_list", { user_count: 12 }))).toBe("12 users");
+    expect(detail(entry("view_user_list", { user_count: 1 }))).toBe("1 user");
+  });
+
+  it("shows a carried toggle's first plain key and value, as Recova did", () => {
+    expect(detail(entry("billing_exempt_toggle", { billing_exempt: true }, "m@example.com"))).toBe("billing_exempt: true");
+    expect(detail(entry("processing_paused_toggle", { processing_paused: false }))).toBe("processing_paused: false");
+    expect(detail(entry("view_cron_health", null))).toBeNull();
+  });
+});
+
+describe("the fallback never shows a secret or a long value", () => {
+  it("skips keys that may hold a credential, an address or a Stripe user", () => {
+    expect(
+      detail(
+        entry("something.new", {
+          api_token: "t",
+          client_secret: "s",
+          keyId: "k",
+          password: "p",
+          stripe_user_id: "acct_1",
+          email: "a@example.com",
+          recipient: "self",
+          stage: "two",
+        }),
+      ),
+    ).toBe("stage: two");
+    expect(detail(entry("impersonation_start", { target_email: "a@example.com" }))).toBeNull();
+  });
+
+  it("cuts a long value at 80 characters with an ellipsis", () => {
+    const long = "x".repeat(200);
+    expect(detail(entry("something.new", { note: long }))).toBe(`note: ${"x".repeat(80)}…`);
+    expect(detail(entry("something.new", { note: "x".repeat(80) }))).toBe(`note: ${"x".repeat(80)}`);
+  });
+});

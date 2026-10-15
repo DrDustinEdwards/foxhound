@@ -39,10 +39,23 @@ const ACTIONS: Record<string, string> = {
   "email.test_send": "Sent a test email",
 };
 
+// Recova's own codes (app/admin/platform/audit-log/page.tsx, blob 5003157c,
+// ACTION_LABELS). admin_audit_log is carried from Recova
+// (docs/schema/legacy-map.md), so its rows appear here; Foxhound writes none.
+const CARRIED: Record<string, string> = {
+  trigger_cron: "Triggered a cron",
+  view_user_list: "Viewed the user list",
+  view_cron_health: "Viewed cron health",
+  impersonation_start: "Started impersonating a user",
+  impersonation_stop: "Stopped impersonating a user",
+  billing_exempt_toggle: "Toggled a merchant's billing exemption",
+  processing_paused_toggle: "Toggled a merchant's processing pause",
+};
+
 /** The action as a sentence. An action this list does not know yet is shown
  *  as written, so a new one is never hidden. */
 export function describeAuditAction(action: string): string {
-  return ACTIONS[action] ?? action;
+  return ACTIONS[action] ?? CARRIED[action] ?? action;
 }
 
 export interface AuditTarget {
@@ -201,6 +214,13 @@ export function auditDetail(entry: AuditEntryLike): string | null {
       if (!type) return null;
       return entry.targetEmail ? `${type}, sent to ${entry.targetEmail}` : type;
     }
+    // Recova's two detail cases (metaDetail); its other codes take the fallback below.
+    case "trigger_cron":
+      return str(m.cron_path) ?? fallbackDetail(m);
+    case "view_user_list": {
+      const users = count(m.user_count);
+      return users === null ? fallbackDetail(m) : plural(users, "user", "users");
+    }
     case "user_self_deleted_account": {
       const parts: string[] = [];
       if (Array.isArray(m.account_ids)) {
@@ -217,9 +237,21 @@ export function auditDetail(entry: AuditEntryLike): string | null {
   }
 
   if (ACTIONS[entry.action]) return null;
+  return fallbackDetail(m);
+}
+
+// Keys whose values are never shown: a credential, an address or a Stripe user.
+const UNSHOWN_KEY = /token|secret|key|password|stripe_user_id|email|recipient/i;
+const FALLBACK_MAX = 80;
+
+/** Recova's fallback (first key and value) for a code with no case of its own,
+ *  limited to plain values under keys that cannot hold a secret, and cut short. */
+function fallbackDetail(m: Record<string, unknown>): string | null {
   for (const [key, value] of Object.entries(m)) {
+    if (UNSHOWN_KEY.test(key)) continue;
     if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-      return `${key}: ${String(value)}`;
+      const text = String(value);
+      return `${key}: ${text.length > FALLBACK_MAX ? `${text.slice(0, FALLBACK_MAX)}…` : text}`;
     }
   }
   return null;
