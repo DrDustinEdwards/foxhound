@@ -37,7 +37,7 @@ const MARKETING_CATEGORY_WORDS: Record<DeclineCategory, string> = {
 
 /** Number words, so copy reads "Six decline categories" rather than "6". Only
  *  the range the engine could plausibly occupy is spelled; anything outside it
- *  falls back to the digits rather than inventing a word. */
+ *  falls back to the digits rather than inventing a word (countWord). */
 const COUNT_WORDS: Record<number, string> = {
   1: "One",
   2: "Two",
@@ -48,6 +48,11 @@ const COUNT_WORDS: Record<number, string> = {
   7: "Seven",
   8: "Eight",
 };
+
+/** A count as its capitalised word ("Six"), or its digits outside COUNT_WORDS. */
+export function countWord(n: number): string {
+  return COUNT_WORDS[n] ?? String(n);
+}
 
 /** How many categories the engine actually schedules. THE number, everywhere. */
 export const DECLINE_CATEGORY_COUNT = Object.keys(RECOVERY_SCHEDULES).length;
@@ -63,9 +68,17 @@ export const RECOVERY_SEQUENCE_DAYS = Math.round(
   Math.max(...Object.values(RECOVERY_SCHEDULES).flatMap((steps) => steps.map((s) => s.offsetHours))) / 24,
 );
 
+/**
+ * How many different step sequences the engine runs. Two categories can share
+ * one schedule (expired and unknown do today), so this is read from the
+ * schedules, never assumed to equal DECLINE_CATEGORY_COUNT.
+ */
+export const DISTINCT_SEQUENCE_COUNT = new Set(
+  Object.values(RECOVERY_SCHEDULES).map((steps) => JSON.stringify(steps)),
+).size;
+
 /** Capitalised, for the head of a sentence. */
-export const DECLINE_CATEGORY_COUNT_WORD =
-  COUNT_WORDS[DECLINE_CATEGORY_COUNT] ?? String(DECLINE_CATEGORY_COUNT);
+export const DECLINE_CATEGORY_COUNT_WORD = countWord(DECLINE_CATEGORY_COUNT);
 
 /** Lower case, for mid-sentence use. */
 export const DECLINE_CATEGORY_COUNT_WORD_LOWER = DECLINE_CATEGORY_COUNT_WORD.toLowerCase();

@@ -19,7 +19,9 @@ import type { DeclineCategory } from "~/lib/constants";
 // schedule.ts:24 as "a deliberate change from legacy" with no ratification line.
 // That conflict is logged against the recovery rows (ruling 80); this component
 // renders whatever the engine actually does, either way.
-function timingLabel(offsetHours: number): string {
+/** Recova's step timing words: "4 hr" under a day, "Day N" from a day on.
+ *  Shared with the Recovery spoke's sequence preview. */
+export function timingLabel(offsetHours: number): string {
   if (offsetHours < 24) return `${offsetHours} hr`;
   return `Day ${Math.round(offsetHours / 24)}`;
 }
