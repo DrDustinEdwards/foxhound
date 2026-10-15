@@ -483,9 +483,11 @@ export const ENGAGEMENT_HONEYPOT_PATH = "/e/h";
  *
  * The walk that produced 377(4) found the click guard reads four things and
  * none of them separates a scanner from a person: IP is persisted nowhere,
- * `email_clicked_count` and `time_to_open_minutes` have zero writers, and an
- * enterprise link scanner (SafeLinks, Proofpoint, Mimecast) presents a full
- * browser user agent, so 369's named-bot list cannot see it. The only live
+ * `email_clicked_count` and `time_to_open_minutes` had zero writers (the open
+ * stamp writes time to open since row F9, J26; it says when a person opened,
+ * not whether a click was one), and an enterprise link scanner (SafeLinks,
+ * Proofpoint, Mimecast) presents a full browser user agent, so 369's named-bot
+ * list cannot see it. The only live
  * discriminator already stored is `clicked_at - executed_at`, and nothing read
  * it.
  *
@@ -826,6 +828,14 @@ export const AUDIT_TOKEN_TTL_SECONDS = 300;
  * Spent through the EXISTING limiter (311) with no change to it.
  */
 export const RATE_LIMIT_AUDIT = { max: 10, windowMs: 60 * 60 * 1000 } as const;
+
+/**
+ * The unsubscribe page's IP rate limit (row F7): Recova's
+ * app/api/unsubscribe/route.ts allows 10 requests per 60 seconds per IP and
+ * answers the rest 429 "Too many requests". Spent through the EXISTING limiter
+ * (311) on its own bucket, from the route's middleware, with no change to it.
+ */
+export const RATE_LIMIT_UNSUBSCRIBE = { max: 10, windowMs: 60 * 1000 } as const;
 
 /**
  * The merchant MCP endpoint's AUTHENTICATED bucket, keyed on the api_keys row id.
