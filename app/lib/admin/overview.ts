@@ -130,7 +130,8 @@ export function overviewAttentionGroups(overview: AdminOverview): Record<string,
 
 /** The Overview's lists are pending while its own data is read again (a
  *  revalidation, or a navigation back to /admin), never while the admin is
- *  leaving for another page. The last good data stays on screen meanwhile. */
+ *  leaving for another page. The last good data stays on screen meanwhile.
+ *  A thin wrapper over the admin's one pagePending. */
 export function overviewPending(
   navigation: { state: string; location?: { pathname: string } },
   revalidatorState: string,
