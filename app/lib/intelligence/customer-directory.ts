@@ -60,7 +60,10 @@ export type PlanPillTone = "info" | "nodata";
  *  blue, and no tone at all, which is the strongest text colour. An unknown
  *  tier is capitalised, where Recova showed the raw value (RULES 1.5). */
 export function planTierPill(tier: string | null): { label: string; tone?: PlanPillTone } {
-  switch (tier) {
+  // current_plan_tier is free text (SCHEMA.md), so "Growth" and " pro " are
+  // Recova's tiers too.
+  const key = tier?.trim().toLowerCase() ?? null;
+  switch (key) {
     case "growth":
       return { label: "Growth", tone: "info" };
     case "scale":
@@ -68,6 +71,6 @@ export function planTierPill(tier: string | null): { label: string; tone?: PlanP
     case "pro":
       return { label: "Pro" };
     default:
-      return { label: capitalizeTier(tier), tone: "nodata" };
+      return { label: capitalizeTier(key), tone: "nodata" };
   }
 }

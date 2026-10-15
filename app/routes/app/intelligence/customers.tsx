@@ -49,7 +49,9 @@ import type { Route } from "./+types/customers";
 // 1280px column.
 //
 // Built from Capsomer 0.9.0's parts (Q10), teal throughout, with no warm accent (Q11).
-// No Foxhound CSS sits over a Capsomer component: Recova's mono uppercase
+// No Foxhound class sits on a Capsomer element: where the page needs Recova's
+// mono figures, its label size or its spacing, the class goes on an element of
+// the page's own inside or around the Capsomer part. Recova's mono uppercase
 // column heads, its plan colours on the pill's edge and its 12px radius wait
 // for Capsomer's per-site layer (capsomer job_ec5ec0754626), listed in the J30
 // notes.
@@ -98,7 +100,22 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 
   return {
     entitled: true as const,
-    result,
+    // The page shows no email, so none is sent to the browser. The shared
+    // query keeps it for its other caller (the MCP tool, which masks it).
+    result: {
+      ...result,
+      customers: result.customers.map((c) => ({
+        stripeCustomerId: c.stripeCustomerId,
+        customerName: c.customerName,
+        currentPlanTier: c.currentPlanTier,
+        mrrContributionCents: c.mrrContributionCents,
+        currency: c.currency,
+        healthScore: c.healthScore,
+        lastSeenAt: c.lastSeenAt,
+        recoverySignals: c.recoverySignals,
+        disputeSignals: c.disputeSignals,
+      })),
+    },
     tiers,
     filters: { search: search ?? "", tier: tier ?? "", healthBand: healthBand ?? "", sort },
     // Already resolved on every authenticated request, so the H1 costs no
@@ -165,18 +182,17 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
               ? "Sorted by MRR, highest first."
               : "Sorted by health score, lowest first. Customers worth attention surface at the top."
           }
-          actions={
-            // Recova's count line, beside the H1 and only when there are
-            // customers. "1 customer" is singular; Recova's "1 customers" is
-            // not copied.
-            result.totalCount > 0 ? (
-              <p className="m-0 font-mono text-label text-text-tertiary">
-                {result.totalCount} {result.totalCount === 1 ? "customer" : "customers"} ·{" "}
-                {formatMoney(result.totalMrrCents, "usd")}/mo total MRR
-              </p>
-            ) : undefined
-          }
         />
+        {/* Recova's count line, only when there are customers. /intelligence/
+            churn has no equivalent, so it sits just below the head rather than
+            in PageHead's actions slot, which is for controls. "1 customer" is
+            singular; Recova's "1 customers" is not copied. */}
+        {result.totalCount > 0 ? (
+          <p className="mt-2 mb-0 font-mono text-label text-text-tertiary">
+            {result.totalCount} {result.totalCount === 1 ? "customer" : "customers"} ·{" "}
+            {formatMoney(result.totalMrrCents, "usd")}/mo total MRR
+          </p>
+        ) : null}
       </div>
 
       {noData ? (
@@ -226,7 +242,14 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
                         return (
                           <tr key={c.stripeCustomerId}>
                             <th scope="row">
-                              <Link className="cap-table-open" to={`/intelligence/customers/${c.stripeCustomerId}`}>
+                              {/* A plain link on the name, as Recova's is: not
+                                  Capsomer's stretched row link, which would lie
+                                  over the Signals tooltips and the Stripe id.
+                                  min-h-6 keeps a 24px target. */}
+                              <Link
+                                className="inline-flex min-h-6 items-center font-semibold text-text no-underline hover:text-accent-hover"
+                                to={`/intelligence/customers/${c.stripeCustomerId}`}
+                              >
                                 {c.customerName ?? "(unnamed)"}
                               </Link>
                               {/* Recova's second line under the name: the Stripe
@@ -241,8 +264,10 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
                                 {pill.label}
                               </span>
                             </td>
-                            <td data-num="" className="font-mono">
-                              {c.mrrContributionCents > 0 ? formatMoney(c.mrrContributionCents, c.currency) : "-"}
+                            <td data-num="">
+                              <span className="font-mono">
+                                {c.mrrContributionCents > 0 ? formatMoney(c.mrrContributionCents, c.currency) : "-"}
+                              </span>
                             </td>
                             <td data-num="">
                               {c.healthScore == null ? (
@@ -253,7 +278,11 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
                                 </span>
                               )}
                             </td>
-                            <td className="font-mono text-text-tertiary">{formatRelativeLastSeen(c.lastSeenAt, now)}</td>
+                            <td>
+                              <span className="font-mono text-text-tertiary">
+                                {formatRelativeLastSeen(c.lastSeenAt, now)}
+                              </span>
+                            </td>
                             <td>
                               {/* Recova's two signals under Recova's names. An
                                   empty cell is blank, as Recova's is. */}
@@ -303,66 +332,69 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
 function FilterBar({ filters, tiers }: { filters: Filters; tiers: string[] }) {
   return (
     <Form method="get" className="cap-panel">
-      {/* The bar's text at the label size (RULES 5.2): Capsomer's field label
-          has no size of its own, and its base.css is not loaded in the app. */}
-      <div className="cap-panel-body flex flex-wrap items-end gap-3 text-label">
-        <div className="cap-field">
-          <label className="cap-field-label" htmlFor="customers-q">
-            Name or email
-          </label>
-          <input
-            className="cap-input"
-            id="customers-q"
-            type="text"
-            name="q"
-            defaultValue={filters.search}
-            placeholder="Search"
-          />
-        </div>
-        <div className="cap-field">
-          <label className="cap-field-label" htmlFor="customers-tier">
-            Plan
-          </label>
-          <div className="cap-select-wrap">
-            <select className="cap-select" id="customers-tier" name="tier" defaultValue={filters.tier}>
-              <option value="">All plans</option>
-              {tiers.map((t) => (
-                <option key={t} value={t}>
-                  {capitalizeTier(t)}
-                </option>
-              ))}
-            </select>
+      <div className="cap-panel-body">
+        {/* The bar's layout and its text at the label size (RULES 5.2) on a
+            wrapper of the page's own: Capsomer's field label has no size of its
+            own, and its base.css is not loaded in the app. */}
+        <div className="flex flex-wrap items-end gap-3 text-label">
+          <div className="cap-field">
+            <label className="cap-field-label" htmlFor="customers-q">
+              Name or email
+            </label>
+            <input
+              className="cap-input"
+              id="customers-q"
+              type="text"
+              name="q"
+              defaultValue={filters.search}
+              placeholder="Search"
+            />
           </div>
-        </div>
-        <div className="cap-field">
-          <label className="cap-field-label" htmlFor="customers-band">
-            Health
-          </label>
-          <div className="cap-select-wrap">
-            <select className="cap-select" id="customers-band" name="band" defaultValue={filters.healthBand}>
-              <option value="">All health bands</option>
-              {HEALTH_BANDS.map((b) => (
-                <option key={b} value={b}>
-                  {HEALTH_BAND_LABEL[b]}
-                </option>
-              ))}
-            </select>
+          <div className="cap-field">
+            <label className="cap-field-label" htmlFor="customers-tier">
+              Plan
+            </label>
+            <div className="cap-select-wrap">
+              <select className="cap-select" id="customers-tier" name="tier" defaultValue={filters.tier}>
+                <option value="">All plans</option>
+                {tiers.map((t) => (
+                  <option key={t} value={t}>
+                    {capitalizeTier(t)}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-        </div>
-        <div className="cap-field">
-          <label className="cap-field-label" htmlFor="customers-sort">
-            Sort
-          </label>
-          <div className="cap-select-wrap">
-            <select className="cap-select" id="customers-sort" name="sort" defaultValue={filters.sort}>
-              <option value="health_asc">Health, lowest first</option>
-              <option value="mrr_desc">MRR, highest first</option>
-            </select>
+          <div className="cap-field">
+            <label className="cap-field-label" htmlFor="customers-band">
+              Health
+            </label>
+            <div className="cap-select-wrap">
+              <select className="cap-select" id="customers-band" name="band" defaultValue={filters.healthBand}>
+                <option value="">All health bands</option>
+                {HEALTH_BANDS.map((b) => (
+                  <option key={b} value={b}>
+                    {HEALTH_BAND_LABEL[b]}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
+          <div className="cap-field">
+            <label className="cap-field-label" htmlFor="customers-sort">
+              Sort
+            </label>
+            <div className="cap-select-wrap">
+              <select className="cap-select" id="customers-sort" name="sort" defaultValue={filters.sort}>
+                <option value="health_asc">Health, lowest first</option>
+                <option value="mrr_desc">MRR, highest first</option>
+              </select>
+            </div>
+          </div>
+          <Button type="submit" variant="primary">
+            Filter
+          </Button>
         </div>
-        <Button type="submit" variant="primary">
-          Filter
-        </Button>
       </div>
     </Form>
   );
