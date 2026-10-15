@@ -1,11 +1,11 @@
-import { and, count, eq, gte, isNotNull } from "drizzle-orm";
+import { and, eq, isNotNull } from "drizzle-orm";
 
-import { accounts, aiCalls, customerContext, type Db } from "~/db";
+import { accounts, customerContext, type Db } from "~/db";
 import { getMrrAnalytics } from "~/lib/dashboard/stats.server";
 import { INTELLIGENCE_REPORT_HOURLY_LIMIT } from "~/lib/constants";
+import { isWithinRateLimit } from "~/lib/http/rate-limit";
 
 import {
-  NARRATIVE_AI_SOURCE,
   narrativeFactsFor,
   writeNarrativeReport,
   type NarrativeCustomer,
@@ -30,14 +30,18 @@ import type { HealthFactor } from "./risk";
 //     would describe this month under that month's name.
 //   * Regenerate regenerates. Recova returned an existing report unchanged
 //     under a button labelled "Regenerate".
-//   * The limit counts the engine's own ai_calls rows for the narrative,
-//     because Foxhound has no KV for a counter (CLAUDE.md, single
-//     environment) and every model call already writes one.
+//   * The limit is the RATE_LIMITER Durable Object (app/lib/http/rate-limit.ts),
+//     keyed per account and checked before the model call. The object
+//     serializes every check for one key, so parallel clicks cannot all pass,
+//     a call that was billed but whose reply would not parse still counts, and
+//     the nightly run's own narrative does not use up the merchant's five.
+//     Like every caller of that limiter, it fails open if the object errors.
 //   * A missing key and an unfunded key are their own errors (launch blocker
 //     2), so the page says why nothing was written instead of failing quietly.
 
 const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 const HOUR_MS = 60 * 60 * 1000;
+const RATE_LIMIT_BUCKET = "intelligence-report";
 
 export type GenerateReportResult =
   | { ok: true; month: string; narrative: string }
@@ -65,17 +69,9 @@ export async function generateMonthlyReport(
   const now = new Date(nowMs);
   if (month !== monthKeyOf(now)) return { ok: false, error: "not_current_month" };
 
-  const [{ n: recentCalls }] = await db
-    .select({ n: count() })
-    .from(aiCalls)
-    .where(
-      and(
-        eq(aiCalls.accountId, accountId),
-        eq(aiCalls.source, NARRATIVE_AI_SOURCE),
-        gte(aiCalls.createdAt, new Date(nowMs - HOUR_MS)),
-      ),
-    );
-  if (recentCalls >= INTELLIGENCE_REPORT_HOURLY_LIMIT) return { ok: false, error: "rate_limited" };
+  if (!(await isWithinRateLimit(env, RATE_LIMIT_BUCKET, accountId, INTELLIGENCE_REPORT_HOURLY_LIMIT, HOUR_MS))) {
+    return { ok: false, error: "rate_limited" };
+  }
 
   const [account, rows, mrr] = await Promise.all([
     db.select({ name: accounts.name, currency: accounts.currency }).from(accounts).where(eq(accounts.id, accountId)).limit(1),
@@ -113,8 +109,9 @@ export async function generateMonthlyReport(
     result = await generateIntelligenceNarrative(env, facts);
   } catch (err) {
     const error = classifyNarrativeError(err);
-    // The merchant sees the sentence; the operator sees the cause in the log.
-    console.error(`intelligence report generation failed for account ${accountId} (${error}):`, err instanceof Error ? err.message : err);
+    // The merchant sees the sentence; the operator sees the whole error (stack,
+    // the SDK's status and request id) in the log.
+    console.error(`intelligence report generation failed for account ${accountId} (${error}):`, err);
     return { ok: false, error };
   }
 

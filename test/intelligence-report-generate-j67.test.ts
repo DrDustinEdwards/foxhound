@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { accounts, aiCalls, customerContext, intelligenceReports, mrrSnapshots } from "~/db";
 import { INTELLIGENCE_REPORT_HOURLY_LIMIT } from "~/lib/constants";
+import { checkRateLimitWindow, type RateLimitWindow } from "~/lib/http/rate-limit-window";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -33,7 +34,39 @@ const { generateMonthlyReport, classifyNarrativeError } = await import(
 );
 
 const NOW = Date.UTC(2026, 9, 15, 12, 0, 0);
-const ENV = { ANTHROPIC_API_KEY: "sk-test" } as unknown as Env;
+
+// The hourly limit lives on the RATE_LIMITER Durable Object, which serializes
+// every check for one key, so parallel clicks cannot all slip past a count.
+// This fake namespace runs the real window algorithm (as test/rate-limit.test.ts
+// does) on an in-memory store, with a clock the test moves.
+let clock = NOW;
+function fakeRateLimiter() {
+  const storage = new Map<string, RateLimitWindow | undefined>();
+  const keys: string[] = [];
+  return {
+    keys,
+    idFromName: (name: string) => {
+      keys.push(name);
+      return name;
+    },
+    get: (id: string) => ({
+      check: (limit: number, periodMs: number) =>
+        checkRateLimitWindow(
+          {
+            getWindow: async () => storage.get(id),
+            putWindow: async (w) => {
+              storage.set(id, w);
+            },
+          },
+          clock,
+          limit,
+          periodMs,
+        ),
+    }),
+  };
+}
+let limiter = fakeRateLimiter();
+let ENV = { ANTHROPIC_API_KEY: "sk-test", RATE_LIMITER: limiter } as unknown as Env;
 
 async function seed() {
   const { db } = createInMemoryDb();
@@ -89,6 +122,9 @@ function modelReply(narrative: string) {
 
 beforeEach(() => {
   createMock.mockReset();
+  clock = NOW;
+  limiter = fakeRateLimiter();
+  ENV = { ANTHROPIC_API_KEY: "sk-test", RATE_LIMITER: limiter } as unknown as Env;
 });
 
 describe("generateMonthlyReport: Recova's button on Foxhound's engine", () => {
@@ -142,9 +178,36 @@ describe("generateMonthlyReport: Recova's button on Foxhound's engine", () => {
     expect(reports.map((r) => r.narrative)).toEqual(["Second."]);
   });
 
-  it("holds each account to Recova's hourly limit, counted from the engine's own AI log", async () => {
+  it("allows Recova's five generations an hour per account and refuses the sixth", async () => {
     const db = await seed();
     expect(INTELLIGENCE_REPORT_HOURLY_LIMIT).toBe(5);
+    createMock.mockResolvedValue(modelReply("Fine."));
+    for (let i = 0; i < INTELLIGENCE_REPORT_HOURLY_LIMIT; i++) {
+      expect(await generateMonthlyReport(ENV, db, "acc_1", "2026-10", NOW)).toMatchObject({ ok: true });
+    }
+    expect(await generateMonthlyReport(ENV, db, "acc_1", "2026-10", NOW)).toEqual({ ok: false, error: "rate_limited" });
+    expect(createMock).toHaveBeenCalledTimes(INTELLIGENCE_REPORT_HOURLY_LIMIT);
+    expect(limiter.keys.every((k) => k === "intelligence-report:acc_1")).toBe(true);
+  });
+
+  it("starts a fresh hour once the hour has passed", async () => {
+    const db = await seed();
+    createMock.mockResolvedValue(modelReply("Fine."));
+    for (let i = 0; i <= INTELLIGENCE_REPORT_HOURLY_LIMIT; i++) await generateMonthlyReport(ENV, db, "acc_1", "2026-10", NOW);
+    clock = NOW + 60 * 60 * 1000;
+    expect(await generateMonthlyReport(ENV, db, "acc_1", "2026-10", NOW)).toMatchObject({ ok: true });
+  });
+
+  it("keeps each account's hour to itself", async () => {
+    const db = await seed();
+    await db.insert(accounts).values({ id: "acc_2", name: "Beta", currency: "usd", createdAt: new Date(NOW) });
+    createMock.mockResolvedValue(modelReply("Fine."));
+    for (let i = 0; i <= INTELLIGENCE_REPORT_HOURLY_LIMIT; i++) await generateMonthlyReport(ENV, db, "acc_1", "2026-10", NOW);
+    expect(await generateMonthlyReport(ENV, db, "acc_2", "2026-10", NOW)).toMatchObject({ ok: true });
+  });
+
+  it("does not spend the merchant's five on the nightly run's own narrative", async () => {
+    const db = await seed();
     for (let i = 0; i < INTELLIGENCE_REPORT_HOURLY_LIMIT; i++) {
       await db.insert(aiCalls).values({
         id: `ai_${i}`,
@@ -157,13 +220,35 @@ describe("generateMonthlyReport: Recova's button on Foxhound's engine", () => {
         createdAt: new Date(NOW - 10 * 60 * 1000),
       });
     }
+    createMock.mockResolvedValue(modelReply("Fine."));
+    expect(await generateMonthlyReport(ENV, db, "acc_1", "2026-10", NOW)).toMatchObject({ ok: true });
+  });
+
+  it("counts a call the model was paid for even when its reply would not parse", async () => {
+    const db = await seed();
+    createMock.mockResolvedValue({ content: [{ type: "text", text: "not json" }], usage: { input_tokens: 1, output_tokens: 1 } });
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    for (let i = 0; i < INTELLIGENCE_REPORT_HOURLY_LIMIT; i++) {
+      expect(await generateMonthlyReport(ENV, db, "acc_1", "2026-10", NOW)).toEqual({ ok: false, error: "generation_failed" });
+    }
     expect(await generateMonthlyReport(ENV, db, "acc_1", "2026-10", NOW)).toEqual({ ok: false, error: "rate_limited" });
-    expect(createMock).not.toHaveBeenCalled();
+    expect(createMock).toHaveBeenCalledTimes(INTELLIGENCE_REPORT_HOURLY_LIMIT);
+    log.mockRestore();
+  });
+
+  it("logs a model failure whole, stack and status included", async () => {
+    const db = await seed();
+    const err = Object.assign(new Error("529 overloaded"), { status: 529 });
+    createMock.mockRejectedValue(err);
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    await generateMonthlyReport(ENV, db, "acc_1", "2026-10", NOW);
+    expect(log.mock.calls.some((call) => call.includes(err))).toBe(true);
+    log.mockRestore();
   });
 
   it("fails visibly with no AI key, and writes nothing", async () => {
     const db = await seed();
-    const result = await generateMonthlyReport({} as Env, db, "acc_1", "2026-10", NOW);
+    const result = await generateMonthlyReport({ RATE_LIMITER: limiter } as unknown as Env, db, "acc_1", "2026-10", NOW);
     expect(result).toEqual({ ok: false, error: "ai_not_configured" });
     expect(await db.select().from(intelligenceReports)).toHaveLength(0);
   });

@@ -756,7 +756,8 @@ export const PREDICTION_HORIZON_DAYS = 30;
 export const INTELLIGENCE_NARRATIVE_TOP_N = 10;
 /** Reports a merchant may generate per account per hour from the Intelligence
  *  dashboard, Recova's limit (app/api/intelligence/generate-report/route.ts,
- *  RATE_LIMIT_MAX). Counted from ai_calls (report-generate.server.ts). */
+ *  RATE_LIMIT_MAX). Held by the RATE_LIMITER Durable Object, keyed per
+ *  account (report-generate.server.ts). */
 export const INTELLIGENCE_REPORT_HOURLY_LIMIT = 5;
 /** Canonical alert metric keys the nightly evaluator understands (alerts.metric
  *  is unconstrained text in the schema; this is the app-level enum until a

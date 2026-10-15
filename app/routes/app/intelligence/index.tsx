@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Link, useFetcher } from "react-router";
+import { data, Link, useFetcher } from "react-router";
 import { Button } from "capsomer/react/button";
 import { PageHead } from "capsomer/react/page-head";
 import { Panel } from "capsomer/react/panel";
@@ -16,12 +16,14 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
 import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/session";
 import {
+  GENERATE_REPORT_ERROR_STATUS,
   firstSnapshotSentence,
   monthKeyOf,
   monthLabel,
   narrativeErrorMessage,
   planBreakdownRows,
   shiftMonth,
+  type GenerateReportError,
 } from "~/lib/intelligence/dashboard";
 import {
   drawHealth,
@@ -103,16 +105,37 @@ export async function loader({ context }: Route.LoaderArgs) {
 
 /** Recova's Generate report button. The account is the session's, never the
  *  form's (RULES.md 4.6); the demo never reaches here (RULES.md 4.12). */
+type ActionResult = { ok: true; month: string; narrative: string } | { ok: false; error: GenerateReportError };
+
+/** A refusal, with the status that says what it is. */
+function refused(error: GenerateReportError) {
+  return data<ActionResult>({ ok: false, error }, { status: GENERATE_REPORT_ERROR_STATUS[error] });
+}
+
 export async function action({ context, request }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
-  const db = getDb(env);
   const accountId = auth.membership.accountId;
+  // The demo firewall already refuses every non-GET; this keeps the action
+  // safe on its own.
+  if (auth.isDemo) return refused("demo_read_only");
 
-  const form = await request.formData();
-  if (form.get("intent") !== "generate") return { ok: false as const, error: "invalid_intent" as const };
-  if (!(await isIntelligenceEntitled(db, accountId))) return { ok: false as const, error: "not_entitled" as const };
-  return generateMonthlyReport(env, db, accountId, String(form.get("month") ?? ""), Date.now());
+  // Everything below, reads and the report write included, is caught: a
+  // thrown error would reach the route's error boundary and replace the whole
+  // dashboard, where Recova showed "Network error. Please try again." in the
+  // card.
+  try {
+    const db = getDb(env);
+    const form = await request.formData();
+    if (form.get("intent") !== "generate") return refused("invalid_intent");
+    if (!(await isIntelligenceEntitled(db, accountId))) return refused("not_entitled");
+    const result = await generateMonthlyReport(env, db, accountId, String(form.get("month") ?? ""), Date.now());
+    if (!result.ok) return refused(result.error);
+    return data<ActionResult>(result, { status: 200 });
+  } catch (err) {
+    console.error(`intelligence report action failed for account ${accountId}:`, err);
+    return refused("network");
+  }
 }
 
 export default function IntelligenceDashboardPage({ loaderData }: Route.ComponentProps) {
@@ -161,48 +184,48 @@ export default function IntelligenceDashboardPage({ loaderData }: Route.Componen
         </div>
       )}
 
-          {overview.topAtRisk.length > 0 ? (
-            <section className="mt-8">
-              <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
-                Most at-risk customers
-              </p>
-              <div className="mt-3 overflow-x-auto rounded-lg border border-border">
-                <table className="w-full text-left text-label">
-                  <thead>
-                    <tr className="border-b border-border text-micro uppercase tracking-wide text-text-tertiary">
-                      <th className="px-4 py-3 font-normal">Customer</th>
-                      <th className="px-4 py-3 font-normal">Health</th>
-                      <th className="px-4 py-3 font-normal">MRR</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {overview.topAtRisk.map((c) => (
-                      <tr key={c.stripeCustomerId} className="border-b border-border-sub last:border-0">
-                        <td className="px-4 py-3">
-                          <Link
-                            to={`/intelligence/customers/${c.stripeCustomerId}`}
-                            className="text-text hover:text-brand-text"
-                          >
-                            {c.customerName ?? c.stripeCustomerId}
-                          </Link>
-                        </td>
-                        <td className="w-40 px-4 py-3">
-                          <Meter
-                            value={c.healthScore}
-                            tone={healthScoreMeterTone(c.healthScore)}
-                            label={`Health score ${c.healthScore} of 100`}
-                          />
-                        </td>
-                        <td className="px-4 py-3 font-mono text-text">
-                          {formatMoney(c.mrrContributionCents, overview.currency)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          ) : null}
+      {overview.topAtRisk.length > 0 ? (
+        <section className="mt-8">
+          <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
+            Most at-risk customers
+          </p>
+          <div className="mt-3 overflow-x-auto rounded-lg border border-border">
+            <table className="w-full text-left text-label">
+              <thead>
+                <tr className="border-b border-border text-micro uppercase tracking-wide text-text-tertiary">
+                  <th className="px-4 py-3 font-normal">Customer</th>
+                  <th className="px-4 py-3 font-normal">Health</th>
+                  <th className="px-4 py-3 font-normal">MRR</th>
+                </tr>
+              </thead>
+              <tbody>
+                {overview.topAtRisk.map((c) => (
+                  <tr key={c.stripeCustomerId} className="border-b border-border-sub last:border-0">
+                    <td className="px-4 py-3">
+                      <Link
+                        to={`/intelligence/customers/${c.stripeCustomerId}`}
+                        className="text-text hover:text-brand-text"
+                      >
+                        {c.customerName ?? c.stripeCustomerId}
+                      </Link>
+                    </td>
+                    <td className="w-40 px-4 py-3">
+                      <Meter
+                        value={c.healthScore}
+                        tone={healthScoreMeterTone(c.healthScore)}
+                        label={`Health score ${c.healthScore} of 100`}
+                      />
+                    </td>
+                    <td className="px-4 py-3 font-mono text-text">
+                      {formatMoney(c.mrrContributionCents, overview.currency)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }
@@ -350,11 +373,12 @@ function MonthlySummary({
   const loading = fetcher.state !== "idle";
   const result = !loading && submittedMonth === month ? fetcher.data : undefined;
   const narrative = (result?.ok ? result.narrative : null) ?? cache.get(month) ?? null;
-  const error = demoRefused
-    ? DEMO_READ_ONLY_MESSAGE
-    : result && !result.ok
-      ? narrativeErrorMessage(result.error)
-      : null;
+  const error =
+    demoRefused || (result && !result.ok && result.error === "demo_read_only")
+      ? DEMO_READ_ONLY_MESSAGE
+      : result && !result.ok
+        ? narrativeErrorMessage(result.error)
+        : null;
   const canGenerate = month === currentMonth;
 
   function go(delta: number) {

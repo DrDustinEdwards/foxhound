@@ -344,6 +344,8 @@ describe("S16 monthly summary: Recova's pager and Generate/Regenerate button", (
     expect(narrativeErrorMessage("rate_limited")).toBe("You hit the hourly generation limit. Try again later.");
     expect(narrativeErrorMessage("invalid_month")).toBe("Invalid month.");
     expect(narrativeErrorMessage("generation_failed")).toBe("Generation failed. Please try again.");
+    // Recova's sentence for a request that failed outright.
+    expect(narrativeErrorMessage("network")).toBe("Network error. Please try again.");
     expect(narrativeErrorMessage("ai_not_configured")).toMatch(/AI analyst is not set up/);
     expect(narrativeErrorMessage("ai_no_credit")).toMatch(/out of credit/);
     expect(narrativeErrorMessage(undefined)).toBe("Could not generate the report. Try again or contact support.");
