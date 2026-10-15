@@ -1,4 +1,4 @@
-import { Alert } from "capsomer/react/banner";
+import { Alert, Banner } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
 import { Field } from "capsomer/react/field";
 import { useId } from "react";
@@ -191,9 +191,11 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
 
       {/* Recova's clamp(28px,5vw,44px) h1 goes to the display size (1.75rem),
           the five-sizes approval of 2026-09-19 as /products' spokes did (J56).
-          A larger hero size is a per-site layer place. */}
+          A larger hero size is a per-site layer place. The words are Recova's,
+          drift fixed on sight (RULES.md 2.2): they describe the audit, not the
+          estimator, so they hold in every state of the form below. */}
       <h1 className="m-0 mb-5 text-display font-semibold leading-[1.15] tracking-[-1px] text-text">
-        See what your Stripe account is leaking
+        See everything leaking from your Stripe account
       </h1>
 
       <p className="m-0 mb-10 text-body leading-[1.6] text-text-subtle">
@@ -211,11 +213,13 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
                 Free leakage estimator
               </h2>
 
+              {/* A standing notice, not a failure the visitor caused: an info
+                  banner (role="status"), never a critical alert. */}
               {!turnstileAvailable ? (
-                <Alert>
+                <Banner tone="info">
                   The estimator is temporarily unavailable while verification is being configured.
                   Please check back soon, or run the full audit by connecting Stripe directly.
-                </Alert>
+                </Banner>
               ) : (
                 <>
                   {actionData && !actionData.ok ? <Alert>{actionData.error}</Alert> : null}
