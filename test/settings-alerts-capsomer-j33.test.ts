@@ -36,6 +36,8 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 const route = await import("~/routes/app/settings/alerts");
+const { ALERT_THRESHOLD_ERROR } = await import("~/lib/settings/apply.server");
+const { alertConditionLabel } = await import("~/lib/settings/alert-metrics");
 const Page = route.default as unknown as (props: {
   loaderData: Record<string, unknown>;
   actionData?: Record<string, unknown>;
@@ -160,6 +162,29 @@ describe("J33 alerts: the page head and width", () => {
   });
 });
 
+describe("J33 review: copy that promises nothing Foxhound does not do", () => {
+  // Nothing delivers an alert (notificationSent is written false), and the
+  // evaluator records a firing when a threshold is first crossed, not every
+  // night it stays crossed (shouldFireAlert).
+  it("says the alerts are checked nightly and each crossing is recorded", () => {
+    const html = render();
+    expect(html).toContain(
+      '<p class="cap-page-head-lead">Foxhound checks these every night and records each time one crosses its threshold.</p>',
+    );
+  });
+
+  it("offers the empty state without a delivery verb", () => {
+    const html = render({ alerts: [] });
+    expect(html).toContain("No alerts yet. Create one to see when metrics need attention.");
+    expect(html).not.toMatch(/get told|get notified|notify/i);
+  });
+
+  it("names an unknown stored direction plainly rather than dropping it", () => {
+    expect(alertConditionLabel("mrr_at_risk_cents", "sideways", 500_000)).toBe("MRR at risk crosses $5,000");
+    expect(alertConditionLabel("mrr_at_risk_cents", "below", 500_000)).toBe("MRR at risk below $5,000");
+  });
+});
+
 describe("J33 alerts: the configured alerts card", () => {
   it("leads with Recova's count line and a Capsomer primary Create alert button", () => {
     const html = render({ alerts: [alertRow({ id: "a1" }), alertRow({ id: "a2" })] });
@@ -281,11 +306,11 @@ describe("J33 alerts: the create form", () => {
   it("shows a refused create inside the form, below the fields, as Recova does", () => {
     const html = render({
       url: "/settings/alerts?new=1",
-      actionData: { action: "create", ok: false, error: "Enter a valid threshold value." },
+      actionData: { action: "create", ok: false, error: ALERT_THRESHOLD_ERROR },
     });
     const form = html.match(/<form[^>]*method="post"[\s\S]*?<\/form>/g)?.find((f) => f.includes('value="create"')) ?? "";
-    expect(form).toContain("Enter a valid threshold value.");
-    expect(form.indexOf("Enter a valid threshold value.")).toBeGreaterThan(form.indexOf('name="label"'));
+    expect(form).toContain(ALERT_THRESHOLD_ERROR);
+    expect(form.indexOf(ALERT_THRESHOLD_ERROR)).toBeGreaterThan(form.indexOf('name="label"'));
   });
 
   it("submits on Capsomer's primary button and cancels on Capsomer's quiet one", () => {
@@ -377,6 +402,17 @@ describe("J33 alerts: the loader reads as Recova's page does", () => {
     expect((await load()).alerts.map((a) => a.id)).toEqual(["a_new", "a_mid", "a_old"]);
   });
 
+  it("breaks a tie on the same creation time by id, newest id first", async () => {
+    for (const id of ["a_b", "a_c", "a_a"]) {
+      sqlite
+        .prepare(
+          "INSERT INTO alerts (id, account_id, metric, threshold_value, direction, channel, enabled, created_at) VALUES (?, ?, 'mrr_at_risk_cents', 100, 'above', 'email', 1, 5000)",
+        )
+        .run(id, ACCOUNT);
+    }
+    expect((await load()).alerts.map((a) => a.id)).toEqual(["a_c", "a_b", "a_a"]);
+  });
+
   it("shows Recova's twenty most recent triggers", async () => {
     sqlite
       .prepare(
@@ -393,5 +429,38 @@ describe("J33 alerts: the loader reads as Recova's page does", () => {
     const { history } = await load();
     expect(history).toHaveLength(20);
     expect(history[0].id).toBe("h24");
+  });
+});
+
+describe("J33 review: a successful create closes the form, as Recova's dismissPanel does", () => {
+  async function post(fields: Record<string, string>, url = "https://x/settings/alerts?new=1"): Promise<unknown> {
+    const form = new FormData();
+    for (const [k, v] of Object.entries(fields)) form.append(k, v);
+    return route.action({
+      context: ctx,
+      request: new Request(url, { method: "POST", body: form }),
+      params: {},
+    } as never);
+  }
+
+  it("redirects to the page without ?new=1, and the new alert is listed", async () => {
+    const res = await post({ _action: "create", metric: "mrr_at_risk_cents", direction: "below", threshold: "50", label: "Watch" });
+    expect(res).toBeInstanceOf(Response);
+    const response = res as Response;
+    expect(response.status).toBe(302);
+    expect(response.headers.get("Location")).toBe("/settings/alerts");
+    const { alerts } = await load();
+    expect(alerts).toHaveLength(1);
+  });
+
+  it("keeps the form open with the refusal when the create is refused", async () => {
+    const res = (await post({ _action: "create", metric: "mrr_at_risk_cents", direction: "below", threshold: "-1" })) as {
+      data: { ok: boolean; error: string };
+      init?: { status?: number };
+    };
+    expect(res).not.toBeInstanceOf(Response);
+    expect(res.init?.status).toBe(400);
+    expect(res.data.error).toBe(ALERT_THRESHOLD_ERROR);
+    expect((await load()).alerts).toHaveLength(0);
   });
 });
