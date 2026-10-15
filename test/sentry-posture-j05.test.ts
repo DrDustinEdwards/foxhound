@@ -160,6 +160,26 @@ describe("J05: personal data is scrubbed from what the call sites send", () => {
     expect(span?.data?.["url.query"]).toBeUndefined();
   });
 
+  it("a URL inside an error message loses its query string (review LOW 4)", () => {
+    const out = runBeforeSend({
+      exception: { values: [{ type: "Error", value: "fetch failed: https://api.test/v1/x?email=QSTRING done" }] },
+    });
+    expect(out?.exception?.values?.[0]?.value).toBe("fetch failed: https://api.test/v1/x done");
+  });
+
+  it("a scrubber that throws drops the event instead of sending it raw (review LOW 5)", () => {
+    const hostile = {
+      get message(): string {
+        throw new Error("getter boom");
+      },
+    } as unknown as Event;
+    let out: Event | null | undefined;
+    expect(() => {
+      out = runBeforeSend(hostile);
+    }).not.toThrow();
+    expect(out).toBeNull();
+  });
+
   it("ids in extra context are kept, because they are what makes an event useful", () => {
     const out = runBeforeSend({
       extra: { scope: "stripe-webhook-process", eventType: "invoice.paid", eventId: "evt_1" },

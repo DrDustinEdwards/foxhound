@@ -13,8 +13,9 @@ import type { CloudflareOptions, Event } from "@sentry/cloudflare";
 // - beforeSend and beforeSendTransaction scrub what Foxhound itself would send:
 //   bound Drizzle query params (a failed webhook claim binds the whole Stripe
 //   event, customer email and name included), email addresses in messages and
-//   breadcrumbs, emailed-link tokens in paths, query strings, and request
-//   headers, cookies and bodies.
+//   breadcrumbs, emailed-link tokens in paths, query strings, request
+//   headers, cookies and bodies, the trace context's url and header data, and
+//   raw console arguments. A scrubber that throws drops the event.
 //
 // @sentry/cloudflare stays pinned exactly (RULES.md 3.14).
 
@@ -23,23 +24,41 @@ const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
 const DRIZZLE_PARAMS = /\nparams: [\s\S]*$/;
 // Routes whose last segment is one person's token (app/routes.ts).
 const TOKEN_PATH = /\/(u|p|e\/[och]|invite)\/[^/?#\s'"]+/g;
-// A query string or fragment on a URL inside free text.
+// The query string or fragment of a full URL inside free text.
+const TEXT_URL_QUERY = /(https?:\/\/[^\s?#'"]*)[?#][^\s'"]*/g;
+// The query string or fragment of a field that holds only a URL or path.
 const URL_QUERY = /[?#]\S*/g;
+// Data keys that hold a query string, request headers, cookies, or raw console
+// arguments (the Console integration keeps them unformatted beside the message).
+const DROP_KEY = /query|header|cookie|arguments/i;
 
 function scrubText(text: string): string {
-  return text.replace(DRIZZLE_PARAMS, "\nparams: [redacted]").replace(EMAIL, "[email]").replace(TOKEN_PATH, "/$1/[token]");
+  return text
+    .replace(DRIZZLE_PARAMS, "\nparams: [redacted]")
+    .replace(TEXT_URL_QUERY, "$1")
+    .replace(EMAIL, "[email]")
+    .replace(TOKEN_PATH, "/$1/[token]");
 }
 
 function scrubUrl(url: string): string {
   return scrubText(url.replace(URL_QUERY, ""));
 }
 
+function scrubValue(key: string, value: unknown): unknown {
+  if (typeof value === "string") return /url|path/i.test(key) ? scrubUrl(value) : scrubText(value);
+  if (Array.isArray(value)) return value.map((v) => scrubValue(key, v));
+  if (value && typeof value === "object") {
+    scrubData(value as Record<string, unknown>);
+    return value;
+  }
+  return value;
+}
+
 function scrubData(data: Record<string, unknown> | undefined): void {
   if (!data) return;
   for (const key of Object.keys(data)) {
-    const value = data[key];
-    if (/query/i.test(key)) delete data[key];
-    else if (typeof value === "string") data[key] = /url/i.test(key) ? scrubUrl(value) : scrubText(value);
+    if (DROP_KEY.test(key)) delete data[key];
+    else data[key] = scrubValue(key, data[key]);
   }
 }
 
@@ -60,12 +79,24 @@ function scrubEvent<T extends Event>(event: T): T {
     delete event.request.headers;
     delete event.request.data;
   }
+  // The http.server span writes url.full, url.path, url.query and every
+  // request header into the trace context, on errors and transactions alike.
+  scrubData(event.contexts?.trace?.data as Record<string, unknown> | undefined);
   for (const span of event.spans ?? []) {
     if (span.description) span.description = scrubUrl(span.description);
-    scrubData(span.data);
+    scrubData(span.data as Record<string, unknown> | undefined);
   }
   delete event.user;
   return event;
+}
+
+// A scrubber that throws must not let the unscrubbed event through: drop it.
+function scrubOrDrop<T extends Event>(event: T): T | null {
+  try {
+    return scrubEvent(event);
+  } catch {
+    return null;
+  }
 }
 
 export function sentryOptions(env: { SENTRY_DSN?: string }): CloudflareOptions | undefined {
@@ -74,7 +105,7 @@ export function sentryOptions(env: { SENTRY_DSN?: string }): CloudflareOptions |
     dsn: env.SENTRY_DSN,
     sendDefaultPii: false,
     tracesSampleRate: 0.1,
-    beforeSend: (event) => scrubEvent(event),
-    beforeSendTransaction: (event) => scrubEvent(event),
+    beforeSend: (event) => scrubOrDrop(event),
+    beforeSendTransaction: (event) => scrubOrDrop(event),
   };
 }
