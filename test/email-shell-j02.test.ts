@@ -40,7 +40,7 @@ const { sendSequenceCompleteNotification } = await import(
 );
 const { resendDepsFor } = await import("~/lib/recovery/manual-actions.server");
 const { sendTestEmail } = await import("~/lib/settings/test-email.server");
-const { sendAuthEmail } = await import("~/lib/auth/send-auth-email");
+const { sendAuthEmail, sendPasswordResetEmail } = await import("~/lib/auth/send-auth-email");
 const { buildFailureAlertEmail, buildStaleAlertEmail } = await import("~/lib/cron/alerts.server");
 const { buildMonthlyAuditEmail } = await import("~/lib/audit/monthly.server");
 
@@ -375,7 +375,11 @@ describe("transactional mail carries both parts and never the footer", () => {
   });
 
   it("password reset", async () => {
-    await sendAuthEmail(env, "password-reset", "owner@acme.test", `${BASE}/reset?token=EXAMPLE-NOT-A-TOKEN`);
+    await sendPasswordResetEmail(env, {
+      to: "owner@acme.test",
+      url: `${BASE}/api/auth/reset-password/EXAMPLE-NOT-A-TOKEN?callbackURL=%2Freset-password`,
+      token: "EXAMPLE-NOT-A-TOKEN",
+    });
     const m = only();
     expectBothParts(m, ["Reset your password", "If this was not you, you can ignore this email."]);
     expectNoCustomerFooter(m);
