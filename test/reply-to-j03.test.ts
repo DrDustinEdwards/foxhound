@@ -12,6 +12,10 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // primary connection's `reply_to_email` and sends with
 // `replyTo: merchant.reply_to_email || fromAddress`, so every recovery email
 // carries a Reply-To, the merchant's address when set and the From otherwise.
+// Foxhound sets it only when the merchant saved an address: a Reply-To equal to
+// the From delivers a reply to the same place as none, and leaving it off keeps
+// a "Name <addr>" string the binding has not been proven to accept off every
+// customer email (review of PR #69, finding 4).
 // Its win-back and expiring-card crons and its settings test email do the same
 // (parity/ROWS-E.md). Its writer is the Email settings page's "Reply-to email"
 // field (settings/update/route.ts:108, `|| null` on an empty box).
@@ -143,18 +147,25 @@ describe("buildEmailMessage sets Reply-To on customer mail", () => {
     expect(m.replyTo).toBe(REPLY);
   });
 
-  it("falls back to the From address when none is set, as Recova does", () => {
-    const m = buildEmailMessage(customerJob({ replyTo: null }) as never, BASE);
-    expect(m.replyTo).toBe(m.from);
-    expect(m.replyTo).toBe(`Acme <${m.from.slice(m.from.indexOf("<") + 1, -1)}>`);
+  it("sets none when no address is saved, so replies go to the From as before", () => {
+    for (const replyTo of [null, undefined, "", "   "]) {
+      const m = buildEmailMessage(customerJob({ replyTo }) as never, BASE);
+      expect(m.replyTo, String(replyTo)).toBeUndefined();
+      expect("replyTo" in m, String(replyTo)).toBe(false);
+    }
   });
 
-  it("drops a stored value that is not a single address back to the From, so it can never inject a header", () => {
-    const m = buildEmailMessage(
-      customerJob({ replyTo: "help@acme.test\r\nBcc: victim@example.com" }) as never,
-      BASE,
-    );
-    expect(m.replyTo).toBe(m.from);
+  it("drops a stored value that is not a single address, so it can never reach the binding", () => {
+    for (const bad of [
+      "help@acme.test\r\nBcc: victim@example.com",
+      "he\u0000lp@acme.test",
+      "he\u007flp@acme.test",
+      "he\u001blp@acme.test",
+      "he\u0085lp@acme.test",
+    ]) {
+      const m = buildEmailMessage(customerJob({ replyTo: bad }) as never, BASE);
+      expect(m.replyTo, JSON.stringify(bad)).toBeUndefined();
+    }
   });
 
   it("sets none on merchant mail", () => {
@@ -205,7 +216,7 @@ describe("Reply-To is the merchant's address on every merchant-customer send", (
     expect(toEmailContext(rows.find((r) => r.stepId === "step_1")!).replyTo).toBe(REPLY);
   });
 
-  it("recovery: with none set, Reply-To is the From", async () => {
+  it("recovery: with none set, there is no Reply-To", async () => {
     seed(null);
     const row = await queryStepForManualTrigger(db as never, ACCOUNT, "step_1");
     const job = buildRecoveryEmailJob(
@@ -214,8 +225,7 @@ describe("Reply-To is the merchant's address on every merchant-customer send", (
       { unsubscribeToken: "u", physicalAddress: ADDRESS, openUrl: `${BASE}/e/o/o`, honeypotUrl: `${BASE}/e/h/h` },
     );
     await sendEmail(env, job);
-    const m = only();
-    expect(m.replyTo).toBe(m.from);
+    expect(only().replyTo).toBeUndefined();
   });
 
   it("win-back", async () => {
@@ -331,10 +341,23 @@ describe("the settings writer", () => {
 
   it("refuses something that is not an email address, and writes nothing", async () => {
     seed(REPLY);
-    for (const bad of ["not an email", "help@", "@acme.test", "help@acme", "a@b.test\r\nBcc: x@y.test", "a@b@c.test"]) {
+    for (const bad of [
+      "not an email",
+      "help@",
+      "@acme.test",
+      "help@acme",
+      "a@b.test\r\nBcc: x@y.test",
+      "a@b@c.test",
+      // Control characters, which the validator's comment promises to refuse
+      // (review of PR #69, finding 2): NUL, DEL, ESC and NEL, in each part.
+      "a\u0000b@acme.test",
+      "help@ac\u007fme.test",
+      "help@acme.te\u001bst",
+      "he\u0085lp@acme.test",
+    ]) {
       const res = await applySenderName(db as never, ACCOUNT, { connectionId: "c1", senderName: "Acme", replyToEmail: bad });
-      expect(res.ok, bad).toBe(false);
-      if (!res.ok) expect(res.error).toBe("Enter a valid reply-to email address.");
+      expect(res.ok, JSON.stringify(bad)).toBe(false);
+      if (!res.ok) expect(res.error, JSON.stringify(bad)).toBe("Enter a valid reply-to email address.");
     }
     expect(replyToRow()).toBe(REPLY);
   });

@@ -312,8 +312,8 @@ export interface EmailStepContext {
    *  its prompt takes the sender name on its own. */
   senderName: string | null;
   /** The connection's `reply_to_email`, raw and nullable, for the Reply-To
-   *  header only (J03). send.ts falls back to the From when it is unset, as
-   *  Recova's `replyTo ?? fromAddress` does. */
+   *  header only (J03). When it is unset send.ts sets no Reply-To, so a reply
+   *  goes to the From, where Recova's `replyTo ?? fromAddress` also sends it. */
   replyTo?: string | null;
   /** Optional merchant-configured brand voice. */
   voiceDescription?: string | null;

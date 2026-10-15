@@ -34,9 +34,9 @@ export interface EmailJob {
   fromName?: string | null;
   /**
    * The merchant's reply-to address (`stripe_connections.reply_to_email`, J03).
-   * Customer mail only: buildEmailMessage sets Reply-To to it, or to the From
-   * address when it is unset or not one address, which is Recova's
-   * `replyTo ?? fromAddress`. Ignored on merchant mail.
+   * Customer mail only: buildEmailMessage sets Reply-To to it when it is one
+   * address, and sets none otherwise, so a reply goes to the From. Ignored on
+   * merchant mail.
    */
   replyTo?: string | null;
   subject: string;

@@ -16,9 +16,11 @@
  */
 export const REPLY_TO_EMAIL_MAX_LENGTH = 254;
 
-/** One address, no whitespace or control characters, a dot in the domain.
+/** One address, no whitespace or control characters (C0, DEL and C1), a dot
+ *  in the domain.
  *  The browser's `type="email"` rule, roughly, checked again on the server. */
-const SHAPE = /^[^\s@<>()",;:\\[\]]+@[^\s@<>()",;:\\[\]]+\.[^\s@<>()",;:\\[\]]+$/;
+// eslint-disable-next-line no-control-regex -- refusing control characters is the point
+const SHAPE = /^[^\s\x00-\x1f\x7f-\x9f@<>()",;:\\[\]]+@[^\s\x00-\x1f\x7f-\x9f@<>()",;:\\[\]]+\.[^\s\x00-\x1f\x7f-\x9f@<>()",;:\\[\]]+$/;
 
 export function isValidReplyToEmail(value: string): boolean {
   return value.length <= REPLY_TO_EMAIL_MAX_LENGTH && SHAPE.test(value);

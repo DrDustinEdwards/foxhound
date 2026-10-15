@@ -506,6 +506,20 @@ export interface ResendDeps {
   send: (input: ResendSendInput) => Promise<EmailJobResult>;
 }
 
+/** The Reply-To for a resend (J03): `reply_to_email` on the connection the
+ *  step's payment came through, as the engine's send reads it. Scoped to the
+ *  account, so a step id never reads another merchant's address. */
+async function resendReplyTo(env: Env, accountId: string, stepId: string): Promise<string | null> {
+  const rows = await getDb(env)
+    .select({ replyTo: stripeConnections.replyToEmail })
+    .from(recoverySteps)
+    .innerJoin(failedPayments, eq(failedPayments.id, recoverySteps.failedPaymentId))
+    .innerJoin(stripeConnections, eq(stripeConnections.id, failedPayments.stripeConnectionId))
+    .where(and(eq(recoverySteps.id, stepId), eq(recoverySteps.accountId, accountId)))
+    .limit(1);
+  return rows[0]?.replyTo ?? null;
+}
+
 /**
  * Bind the real send path to `env`: processEmailJob, which is suppression gate,
  * live-send flag, send, and email_sends log, in that order. `queueMessageId` is
@@ -520,23 +534,6 @@ export interface ResendDeps {
  * physical address, so the pipeline refuses to send a non-compliant message at
  * all. 262 decision three ports the intent, not the defect.
  */
-/**
- * The Reply-To for a resend (J03): the `reply_to_email` of the connection the
- * step's payment came through, the same connection the engine's own send reads
- * (recovery-tick.ts joins `failed_payments.stripe_connection_id`). Scoped to the
- * account, so a step id can never read another merchant's address.
- */
-async function resendReplyTo(env: Env, accountId: string, stepId: string): Promise<string | null> {
-  const rows = await getDb(env)
-    .select({ replyTo: stripeConnections.replyToEmail })
-    .from(recoverySteps)
-    .innerJoin(failedPayments, eq(failedPayments.id, recoverySteps.failedPaymentId))
-    .innerJoin(stripeConnections, eq(stripeConnections.id, failedPayments.stripeConnectionId))
-    .where(and(eq(recoverySteps.id, stepId), eq(recoverySteps.accountId, accountId)))
-    .limit(1);
-  return rows[0]?.replyTo ?? null;
-}
-
 export function resendDepsFor(env: Env): ResendDeps {
   return {
     send: async (input) => {
