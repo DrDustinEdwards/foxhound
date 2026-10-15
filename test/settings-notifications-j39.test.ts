@@ -43,7 +43,6 @@ const Page = route.default as unknown as (props: {
 }) => ReactElement;
 
 const LOADED = {
-  accountEmail: "owner@acme.test",
   notificationEmail: "ops@acme.test",
   slackWebhookUrl: "",
   slackNotificationsEnabled: false,
@@ -79,6 +78,9 @@ function input(html: string, name: string): string {
 function attr(tag: string, name: string): string | undefined {
   return tag.match(new RegExp(`\\s${name}="([^"]*)"`))?.[1];
 }
+
+/** What the senders do with a NULL notification_email, said on the page. */
+const BLANK_SENDS_NOTHING = "Leave it blank and no notification emails are sent.";
 
 const TOGGLES = [
   ["slackNotificationsEnabled", "Slack notifications", "Notify when a payment is recovered or an email is sent"],
@@ -131,20 +133,33 @@ describe("J39 notifications: the card", () => {
     }
   });
 
-  it("labels the notification email as a Capsomer field, with the account email as Recova's placeholder", () => {
+  it("labels the notification email as a Capsomer field with help that says what a blank box does", () => {
     const html = render();
     const tag = input(html, "notificationEmail");
     expect(attr(tag, "type")).toBe("email");
     expect(attr(tag, "class")).toBe("cap-input");
     expect(attr(tag, "value")).toBe("ops@acme.test");
-    expect(attr(tag, "placeholder")).toBe("owner@acme.test");
     expect(html).toMatch(new RegExp(`<label class="cap-field-label" for="${attr(tag, "id")}">Notification email</label>`));
     const help = attr(tag, "aria-describedby") ?? "";
     expect(html).toMatch(
       new RegExp(
-        `<p class="cap-field-help" id="${help}">Where all notifications are sent: recovery alerts, sequence updates, and weekly digest. Defaults to your account email if blank.</p>`,
+        `<p class="cap-field-help" id="${help}">Where all notifications are sent: recovery alerts, sequence updates, and weekly digest. ${BLANK_SENDS_NOTHING}</p>`,
       ),
     );
+  });
+
+  it("never promises a fallback to the account email, which no sender has", () => {
+    // Recova's "Defaults to your account email if blank." was untrue there and
+    // is untrue here: a blank box saves NULL and every sender skips it.
+    expect(CODE).not.toMatch(/Defaults to your account email/i);
+  });
+
+  it("shows an empty box and no address in it when nothing is stored, so no address that gets nothing is shown", () => {
+    const html = render({ loaderData: { notificationEmail: "" } });
+    const tag = input(html, "notificationEmail");
+    expect(attr(tag, "value")).toBe("");
+    expect(attr(tag, "placeholder")).toBeUndefined();
+    expect(html).not.toContain("owner@acme.test");
   });
 
   it("labels the Slack webhook as a Capsomer field with Recova's placeholder and help", () => {
@@ -236,6 +251,11 @@ describe("J39 notifications: the look comes from Capsomer and the tokens", () =>
     }
   });
 
+  it("uses the shared settings back link, not a local copy", () => {
+    expect(SOURCE).toContain('import { SettingsBackLink } from "~/components/settings-back-link";');
+    expect(CODE).not.toMatch(/function SettingsBackLink/);
+  });
+
   it("no longer uses the auth screens' Alert and Submit", () => {
     expect(CODE).not.toContain("~/components/auth-ui");
   });
@@ -244,6 +264,32 @@ describe("J39 notifications: the look comes from Capsomer and the tokens", () =>
     for (const css of ["page-head", "panel", "field", "switch", "button", "status"]) {
       expect(SOURCE).toContain(`import "capsomer/${css}.css";`);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The help sentence is true only while every sender skips a NULL address. If a
+// sender gains a fallback, this fails, and the page's sentence must change too.
+// ---------------------------------------------------------------------------
+
+describe("J39 notifications: the blank-box sentence matches the senders", () => {
+  const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
+
+  it("the payment recovered and sequence complete notices skip a NULL address", () => {
+    for (const p of [
+      "app/lib/recovery/merchant-notification.server.ts",
+      "app/lib/recovery/sequence-complete-notification.server.ts",
+    ]) {
+      expect(read(p), p).toContain('if (!account.notificationEmail) return { skipped: "no_recipient" };');
+    }
+  });
+
+  it("the weekly digest drops accounts with a NULL address", () => {
+    expect(read("app/lib/cron/digest.ts")).toContain("a.notificationEmail !== null");
+  });
+
+  it("the page says so", () => {
+    expect(SOURCE).toContain(BLANK_SENDS_NOTHING);
   });
 });
 
@@ -298,13 +344,21 @@ describe("J39 notifications: the loader and the action", () => {
     vi.restoreAllMocks();
   });
 
-  it("gives the page the signed-in email for Recova's placeholder", async () => {
+  it("shows a NULL notification email as an empty box, never the account email", async () => {
+    const loaded = (await route.loader({ context: ctx(), request: new Request("https://x/"), params: {} } as never)) as Record<
+      string,
+      unknown
+    >;
+    expect(loaded.notificationEmail).toBe("");
+    expect(JSON.stringify(loaded)).not.toContain("owner@acme.test");
+  });
+
+  it("shows a stored notification email as it is", async () => {
+    sqlite.prepare("UPDATE accounts SET notification_email = 'ops@acme.test' WHERE id = ?").run(ACCOUNT);
     const loaded = (await route.loader({ context: ctx(), request: new Request("https://x/"), params: {} } as never)) as {
-      accountEmail: string;
       notificationEmail: string;
     };
-    expect(loaded.accountEmail).toBe("owner@acme.test");
-    expect(loaded.notificationEmail).toBe("owner@acme.test");
+    expect(loaded.notificationEmail).toBe("ops@acme.test");
   });
 
   it("names the webhook field on a refused webhook, so the page can put the error beside it", async () => {
@@ -322,9 +376,13 @@ describe("J39 notifications: the loader and the action", () => {
         },
       },
     );
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     const res = await post({ notificationEmail: "ops@acme.test", digestEnabled: "on" });
     expect(res.init?.status).toBe(500);
     expect(res.data).toEqual({ ok: false, failed: true });
+    // The whole error, stack included, so a D1 failure can be traced in tail.
+    const err = logged.mock.calls[0]?.[1];
+    expect(err).toBeInstanceOf(Error);
+    expect((err as Error).message).toBe("D1 unavailable");
   });
 });
