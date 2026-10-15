@@ -18,10 +18,21 @@ import type { EmailTracking } from "./templates";
  * operational notice would silence that address for everything. Legacy sends
  * this notification with no unsubscribe link either.
  *
+ * "preview" is a SAMPLE of customer mail sent to our own signed-in user at
+ * their own request: the Send test email control on /settings/email (E3), whose
+ * recipient is always the session user's address (RULES.md 4.7). It carries
+ * what the customer mail it samples carries from the merchant, the From name
+ * and the Reply-To, and its own footer note, but no unsubscribe and no postal
+ * address, as Recova's preview carries none (app/(app)/settings/test-email/
+ * route.ts, blob dcc3a06f): its reader is our user, not the merchant's
+ * customer, and an unsubscribe there would silence that user's address for
+ * everything (RULES.md 3.16). It is not held by the live-send gate either; see
+ * processEmailJob.
+ *
  * The field is OPTIONAL and defaults to "customer" deliberately: an omitted
  * audience must never be the one that skips the CAN-SPAM guard.
  */
-export type EmailAudience = "customer" | "merchant";
+export type EmailAudience = "customer" | "merchant" | "preview";
 
 export interface EmailJob {
   accountId: string | null;
@@ -34,9 +45,9 @@ export interface EmailJob {
   fromName?: string | null;
   /**
    * The merchant's reply-to address (`stripe_connections.reply_to_email`, J03).
-   * Customer mail only: buildEmailMessage sets Reply-To to it when it is one
-   * address, and sets none otherwise, so a reply goes to the From. Ignored on
-   * merchant mail.
+   * Customer and preview mail: buildEmailMessage sets Reply-To to it when it
+   * is one address, and sets none otherwise, so a reply goes to the From.
+   * Ignored on merchant mail.
    */
   replyTo?: string | null;
   subject: string;
@@ -50,7 +61,8 @@ export interface EmailJob {
   /**
    * A sentence for the top of the customer footer, before the unsubscribe link
    * and the postal address: Recova's "You're receiving this from ..." on
-   * recovery mail (J85). Customer mail only; ignored on merchant mail.
+   * recovery mail (J85). On preview mail it is the whole footer slot (E3).
+   * Ignored on merchant mail.
    */
   footerNote?: string | null;
   /**

@@ -62,14 +62,20 @@ export function buildEmailMessage(job: EmailJob, baseUrl: string): EmailSendMess
   // postal address. The text part carries both, the link on its own line. A
   // job's footer note (Recova's "You're receiving this from" sentence on
   // recovery mail, J85) goes first in the slot.
+  //
+  // Preview mail (E3) puts only its note in the slot: Recova's preview footer
+  // sentence, with no unsubscribe and no postal address, as Recova's has none.
+  const note = job.footerNote ? [job.footerNote] : [];
   const rendered = renderFoxhoundEmail({
     subject: job.subject,
     bodyHtml: job.bodyHtml,
     brandName: fromName,
     to: job.to,
     footer: unsubUrl
-      ? [...(job.footerNote ? [job.footerNote] : []), { text: "Unsubscribe", url: unsubUrl }, job.physicalAddress]
-      : undefined,
+      ? [...note, { text: "Unsubscribe", url: unsubUrl }, job.physicalAddress]
+      : audience === "preview" && note.length > 0
+        ? note
+        : undefined,
     tracking: job.tracking,
   });
   const message: EmailSendMessage = {
@@ -81,7 +87,8 @@ export function buildEmailMessage(job: EmailJob, baseUrl: string): EmailSendMess
   };
   // REPLY-TO (J03): a customer who replies reaches the merchant's own inbox,
   // from Recova's `replyTo: replyTo ?? fromAddress` (lib/recovery-execution.ts).
-  // Customer mail only, as in Recova, whose merchant notices carry none.
+  // Customer mail, and the preview of it (E3), as in Recova, whose test-email
+  // route passes the same reply_to_email; its merchant notices carry none.
   //
   // SET ONLY WHEN THE MERCHANT SAVED AN ADDRESS, a bare one. Recova's fallback
   // to the From changes nothing for the recipient (a reply goes to the From
@@ -89,7 +96,7 @@ export function buildEmailMessage(job: EmailJob, baseUrl: string): EmailSendMess
   // email that the binding has not been shown live to accept. A stored value
   // that is not exactly one address (a line break would be a header
   // injection) is dropped the same way rather than reaching the binding.
-  if (audience === "customer") {
+  if (audience === "customer" || audience === "preview") {
     const replyTo = job.replyTo?.trim() ?? "";
     if (replyTo && isValidReplyToEmail(replyTo)) message.replyTo = replyTo;
   }

@@ -12,7 +12,7 @@ import {
   sendTransactionalEmail,
 } from "~/lib/email/send";
 import { isSuppressed } from "~/lib/email/suppression";
-import type { EmailJob } from "~/lib/email/types";
+import type { EmailAudience, EmailJob } from "~/lib/email/types";
 import { signUnsubscribeToken } from "~/lib/email/unsubscribe-token";
 import { recoveryFooterNote } from "~/lib/engine/execute-step";
 import { DIGEST_SENDER_FALLBACK, buildDigestEmail, digestSubject } from "~/lib/recovery/digest-email";
@@ -26,7 +26,7 @@ import {
 import { sequenceCompleteBody, sequenceCompleteSubject } from "~/lib/recovery/sequence-complete-notification.server";
 import { buildWinbackEmail, winbackSubject } from "~/lib/recovery/winback-email";
 import { isValidReplyToEmail } from "~/lib/settings/reply-to";
-import { buildTestEmailCopy } from "~/lib/settings/test-email.server";
+import { buildTestEmailJob } from "~/lib/settings/test-email.server";
 
 import type { Rendered } from "capsomer/email";
 
@@ -116,7 +116,7 @@ export const ADMIN_EMAIL_TYPES: readonly AdminEmailType[] = [
   {
     type: "settings_test",
     audience: "customer",
-    description: "What the merchant's own Send test email button sends: a sample recovery email marked PREVIEW.",
+    description: "What the merchant's own Send test email button sends: a sample recovery email marked PREVIEW, with the merchant's sender name and Reply-To and no unsubscribe.",
   },
   {
     type: "weekly_digest",
@@ -252,7 +252,7 @@ export async function loadMerchantEmailSettings(db: Db, accountId: string): Prom
 
 /** One email ready for the send module, in the shape its sender takes. */
 export type PreparedEmail =
-  | { channel: "job"; audience: "customer" | "merchant"; job: EmailJob }
+  | { channel: "job"; audience: EmailAudience; job: EmailJob }
   | { channel: "transactional"; message: { to: string; subject: string; bodyHtml: string } }
   | { channel: "rendered"; to: string; rendered: Rendered };
 
@@ -336,7 +336,23 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
         }),
       });
     }
-    if (type.type === "settings_test") return job(buildTestEmailCopy(senderName, baseUrl));
+    if (type.type === "settings_test") {
+      // The merchant's own preview, built by the function its control uses: a
+      // "preview" job, with Recova's preview footer and no unsubscribe (E3).
+      return {
+        channel: "job",
+        audience: "preview",
+        job: buildTestEmailJob({
+          accountId: merchant.accountId,
+          to,
+          senderName,
+          replyTo: merchant.replyTo,
+          baseUrl,
+          template: base.template,
+          idempotencyKey: base.idempotencyKey,
+        }),
+      };
+    }
   }
 
   if (type.audience === "merchant") {
