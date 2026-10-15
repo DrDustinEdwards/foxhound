@@ -170,7 +170,7 @@ function amounts(rows: CurrencyAmount[]): string {
 
 /** The status tones on Capsomer's pill: won is ok, lost is critical, every
  *  other status has no tone (Capsomer has no blue for Recova's in-progress
- *  states, and amber is not used, Q11). */
+ *  states, and the brand accent is teal, Q11). */
 const PILL_TONE: Record<Tone, PillTone | undefined> = {
   success: "ok",
   failure: "crit",
