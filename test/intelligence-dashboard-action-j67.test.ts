@@ -107,6 +107,7 @@ describe("/intelligence/dashboard action", () => {
     ["ai_not_configured", 503],
     ["ai_no_credit", 503],
     ["generation_failed", 502],
+    ["limiter_unavailable", 503],
   ] as const)("answers %s with %i", async (error, expected) => {
     isIntelligenceEntitled.mockResolvedValue(true);
     generateMonthlyReport.mockResolvedValue({ ok: false, error });
@@ -115,8 +116,9 @@ describe("/intelligence/dashboard action", () => {
     expect(status).toBe(expected);
   });
 
-  // Recova caught a failed request and said "Network error. Please try
-  // again." in the card. A database error thrown out of the action would
+  // Recova's server answered a 500 with "Could not generate the report. Try
+  // again or contact support.", which its card showed; "Network error." was
+  // only for a request that never got an answer. A database error thrown out of the action would
   // instead reach the route's error boundary and replace the whole dashboard.
   it("keeps a thrown generation error in the card as a 500, and logs it whole", async () => {
     isIntelligenceEntitled.mockResolvedValue(true);
@@ -124,7 +126,7 @@ describe("/intelligence/dashboard action", () => {
     generateMonthlyReport.mockRejectedValue(boom);
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     const { status, body } = await answer({ intent: "generate", month: "2026-10" });
-    expect(body).toEqual({ ok: false, error: "network" });
+    expect(body).toEqual({ ok: false, error: "server_error" });
     expect(status).toBe(500);
     expect(log.mock.calls.some((call) => call.includes(boom))).toBe(true);
     log.mockRestore();
@@ -136,7 +138,7 @@ describe("/intelligence/dashboard action", () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     const { status, body } = await answer({ intent: "generate", month: "2026-10" });
     expect(generateMonthlyReport).not.toHaveBeenCalled();
-    expect(body).toEqual({ ok: false, error: "network" });
+    expect(body).toEqual({ ok: false, error: "server_error" });
     expect(status).toBe(500);
     log.mockRestore();
   });

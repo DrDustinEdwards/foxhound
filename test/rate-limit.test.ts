@@ -4,6 +4,7 @@ import { checkRateLimitWindow, type RateLimitWindow } from "~/lib/http/rate-limi
 import {
   enforceRateLimit,
   isWithinRateLimit,
+  RateLimiterUnavailableError,
   rateLimitedResponse,
   resolveRateLimitBinding,
 } from "~/lib/http/rate-limit";
@@ -322,5 +323,32 @@ describe("isWithinRateLimit", () => {
     };
     const env = makeEnv(namespace);
     await expect(isWithinRateLimit(env, "marketing_email_sample", "1.1.1.1", 10, 60_000)).resolves.toBe(true);
+  });
+
+  // J67 review: a caller whose request costs money (the Intelligence report
+  // button's paid model call) opts in to failing closed. The error is logged
+  // whole and thrown as RateLimiterUnavailableError, so the caller can refuse
+  // and say why instead of calling it a rate limit.
+  it("fails closed, logging the whole error, when the caller opts in", async () => {
+    const cause = new Error("DO unavailable");
+    const namespace = {
+      idFromName: vi.fn((name: string) => name),
+      get: vi.fn(() => ({ check: vi.fn().mockRejectedValue(cause) })),
+    };
+    const env = makeEnv(namespace);
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    await expect(
+      isWithinRateLimit(env, "intelligence-report", "acc_1", 5, 3_600_000, { failClosed: true }),
+    ).rejects.toBeInstanceOf(RateLimiterUnavailableError);
+    expect(log.mock.calls.some((call) => call.includes(cause))).toBe(true);
+    log.mockRestore();
+  });
+
+  it("is unchanged by the fail-closed option when the Durable Object answers", async () => {
+    const env = makeEnv();
+    for (let i = 0; i < 2; i++) {
+      expect(await isWithinRateLimit(env, "intelligence-report", "acc_1", 2, 60_000, { failClosed: true })).toBe(true);
+    }
+    expect(await isWithinRateLimit(env, "intelligence-report", "acc_1", 2, 60_000, { failClosed: true })).toBe(false);
   });
 });

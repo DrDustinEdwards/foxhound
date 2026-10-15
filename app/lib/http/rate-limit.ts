@@ -158,14 +158,26 @@ export function rateLimitedResponse(retryAfterSeconds: number): Response {
  * raw 429 Response enforceRateLimit returns (TASK-foxhound-demo-entry-parity.md
  * item 3: the home email generator falls back to a static sample rather than
  * surfacing an error, so it checks its own budget inside the action). Fails
- * open exactly like enforceRateLimit, for the same reason.
+ * open exactly like enforceRateLimit, for the same reason, unless the caller
+ * passes { failClosed: true }: then a failed check is logged whole and thrown
+ * as RateLimiterUnavailableError, so a caller whose request costs money (the
+ * Intelligence report button's paid model call, J67) refuses and can say why
+ * rather than calling it a rate limit. No other caller passes it.
  */
+export class RateLimiterUnavailableError extends Error {
+  constructor(cause: unknown) {
+    super("RateLimiterDurableObject check failed", { cause });
+    this.name = "RateLimiterUnavailableError";
+  }
+}
+
 export async function isWithinRateLimit(
   env: Env,
   bucket: string,
   key: string,
   limit: number,
   periodMs: number,
+  options: { failClosed?: boolean } = {},
 ): Promise<boolean> {
   try {
     const ns = env.RATE_LIMITER;
@@ -173,6 +185,10 @@ export async function isWithinRateLimit(
     const { allowed } = await stub.check(limit, periodMs);
     return allowed;
   } catch (err) {
+    if (options.failClosed) {
+      console.error(`RateLimiterDurableObject check failed; refusing request (${bucket})`, err);
+      throw new RateLimiterUnavailableError(err);
+    }
     console.error("RateLimiterDurableObject check failed; allowing request", err);
     return true;
   }

@@ -3,7 +3,7 @@ import { and, eq, isNotNull } from "drizzle-orm";
 import { accounts, customerContext, type Db } from "~/db";
 import { getMrrAnalytics } from "~/lib/dashboard/stats.server";
 import { INTELLIGENCE_REPORT_HOURLY_LIMIT } from "~/lib/constants";
-import { isWithinRateLimit } from "~/lib/http/rate-limit";
+import { isWithinRateLimit, RateLimiterUnavailableError } from "~/lib/http/rate-limit";
 
 import {
   narrativeFactsFor,
@@ -35,7 +35,9 @@ import type { HealthFactor } from "./risk";
 //     serializes every check for one key, so parallel clicks cannot all pass,
 //     a call that was billed but whose reply would not parse still counts, and
 //     the nightly run's own narrative does not use up the merchant's five.
-//     Like every caller of that limiter, it fails open if the object errors.
+//     Unlike the limiter's other callers it fails closed: every generation is
+//     a paid model call, so if the object errors the button refuses with
+//     limiter_unavailable (logged whole) and no model call is made.
 //   * A missing key and an unfunded key are their own errors (launch blocker
 //     2), so the page says why nothing was written instead of failing quietly.
 
@@ -69,9 +71,17 @@ export async function generateMonthlyReport(
   const now = new Date(nowMs);
   if (month !== monthKeyOf(now)) return { ok: false, error: "not_current_month" };
 
-  if (!(await isWithinRateLimit(env, RATE_LIMIT_BUCKET, accountId, INTELLIGENCE_REPORT_HOURLY_LIMIT, HOUR_MS))) {
-    return { ok: false, error: "rate_limited" };
+  let withinLimit: boolean;
+  try {
+    withinLimit = await isWithinRateLimit(env, RATE_LIMIT_BUCKET, accountId, INTELLIGENCE_REPORT_HOURLY_LIMIT, HOUR_MS, {
+      failClosed: true,
+    });
+  } catch (err) {
+    // isWithinRateLimit has already logged the cause whole.
+    if (err instanceof RateLimiterUnavailableError) return { ok: false, error: "limiter_unavailable" };
+    throw err;
   }
+  if (!withinLimit) return { ok: false, error: "rate_limited" };
 
   const [account, rows, mrr] = await Promise.all([
     db.select({ name: accounts.name, currency: accounts.currency }).from(accounts).where(eq(accounts.id, accountId)).limit(1),

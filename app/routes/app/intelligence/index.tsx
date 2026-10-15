@@ -103,8 +103,6 @@ export async function loader({ context }: Route.LoaderArgs) {
   };
 }
 
-/** Recova's Generate report button. The account is the session's, never the
- *  form's (RULES.md 4.6); the demo never reaches here (RULES.md 4.12). */
 type ActionResult = { ok: true; month: string; narrative: string } | { ok: false; error: GenerateReportError };
 
 /** A refusal, with the status that says what it is. */
@@ -112,6 +110,8 @@ function refused(error: GenerateReportError) {
   return data<ActionResult>({ ok: false, error }, { status: GENERATE_REPORT_ERROR_STATUS[error] });
 }
 
+/** Recova's Generate report button. The account is the session's, never the
+ *  form's (RULES.md 4.6); the demo never reaches here (RULES.md 4.12). */
 export async function action({ context, request }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
@@ -122,8 +122,8 @@ export async function action({ context, request }: Route.ActionArgs) {
 
   // Everything below, reads and the report write included, is caught: a
   // thrown error would reach the route's error boundary and replace the whole
-  // dashboard, where Recova showed "Network error. Please try again." in the
-  // card.
+  // dashboard, where Recova's card showed its server-500 sentence, "Could not
+  // generate the report. Try again or contact support."
   try {
     const db = getDb(env);
     const form = await request.formData();
@@ -134,7 +134,7 @@ export async function action({ context, request }: Route.ActionArgs) {
     return data<ActionResult>(result, { status: 200 });
   } catch (err) {
     console.error(`intelligence report action failed for account ${accountId}:`, err);
-    return refused("network");
+    return refused("server_error");
   }
 }
 

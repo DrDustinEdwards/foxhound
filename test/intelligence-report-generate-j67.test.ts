@@ -236,6 +236,27 @@ describe("generateMonthlyReport: Recova's button on Foxhound's engine", () => {
     log.mockRestore();
   });
 
+  // A paid call is never made unmetered: if the limiter itself errors, the
+  // button refuses with its own sentence rather than calling the model.
+  it("fails closed when the limiter errors: no model call, and its own error", async () => {
+    const db = await seed();
+    const cause = new Error("Durable Object reset");
+    const broken = { idFromName: (n: string) => n, get: () => ({ check: () => Promise.reject(cause) }) };
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const result = await generateMonthlyReport(
+      { ANTHROPIC_API_KEY: "sk-test", RATE_LIMITER: broken } as unknown as Env,
+      db,
+      "acc_1",
+      "2026-10",
+      NOW,
+    );
+    expect(result).toEqual({ ok: false, error: "limiter_unavailable" });
+    expect(createMock).not.toHaveBeenCalled();
+    expect(log.mock.calls.some((call) => call.includes(cause))).toBe(true);
+    expect(await db.select().from(intelligenceReports)).toHaveLength(0);
+    log.mockRestore();
+  });
+
   it("logs a model failure whole, stack and status included", async () => {
     const db = await seed();
     const err = Object.assign(new Error("529 overloaded"), { status: 529 });
