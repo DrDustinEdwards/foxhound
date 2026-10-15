@@ -351,8 +351,11 @@ describe("PLANT 6: a Slack failure is recorded and never thrown", () => {
 describe("PLANT 7: the docs say what is built", () => {
   it("Slack is no longer called unbuilt and the digest names the page", async () => {
     const { DOC_GUIDES } = await import("~/lib/marketing/docs-content");
+    // J73: the notification list is rich blocks now, so every block is read,
+    // not only the plain-string paragraphs.
     const body = DOC_GUIDES.flatMap((g) => g.sections)
       .flatMap((s) => s.body)
+      .map((b) => (typeof b === "string" ? b : JSON.stringify(b)))
       .join(" ");
 
     expect(body).not.toContain("Slack delivery is not built yet");

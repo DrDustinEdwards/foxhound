@@ -262,6 +262,8 @@ describe("PLANT 5: the docs describe the control that now exists", () => {
     // could remove a member.
     expect(DOCS).toContain("Invite teammates from Settings and Team");
     expect(DOCS).toContain("can remove any member other than themselves");
-    expect(DOCS).toContain("access ends immediately");
+    // J73: the sentence now opens with it ("Access ends immediately, and the
+    // owner cannot be removed at all."), so the case is not the claim.
+    expect(DOCS.toLowerCase()).toContain("access ends immediately");
   });
 });

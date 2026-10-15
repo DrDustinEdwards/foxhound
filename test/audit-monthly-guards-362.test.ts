@@ -188,7 +188,9 @@ describe("PLANT 4: the docs say ONE email, and every earlier state is gone", () 
             ? n.strong
             : "mono" in n
               ? n.mono
-              : n.link;
+              : "badge" in n
+                ? String(n.badge)
+                : n.link;
     const rich = (r: string | DocInline[]): string =>
       typeof r === "string" ? r : r.map(inline).join("");
     switch (b.kind) {

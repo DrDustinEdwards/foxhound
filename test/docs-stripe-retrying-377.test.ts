@@ -35,7 +35,9 @@ function flatten(blocks: DocBlock[]): string {
           ? node.strong
           : "mono" in node
             ? node.mono
-            : node.link;
+            : "badge" in node
+              ? String(node.badge)
+              : node.link;
   const rich = (r: string | DocInline[]) => (typeof r === "string" ? r : r.map(inline).join(""));
   return blocks
     .map((b) => {

@@ -35,6 +35,7 @@ function inlineText(node: DocInline): string {
   if ("code" in node) return node.code;
   if ("strong" in node) return node.strong;
   if ("mono" in node) return node.mono;
+  if ("badge" in node) return String(node.badge);
   return node.link;
 }
 const rich = (r: string | DocInline[]): string => (typeof r === "string" ? r : r.map(inlineText).join(""));
