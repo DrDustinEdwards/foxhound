@@ -19,6 +19,7 @@ import {
   isDisputeResolved,
 } from "~/lib/disputes/labels";
 import { importDisputeFromStripe } from "~/lib/disputes/manual-import.server";
+import { sortDisputesForList } from "~/lib/disputes/order";
 import { listDisputes } from "~/lib/disputes/queries.server";
 import { computeDisputeStats } from "~/lib/disputes/stats";
 import { formatMoney } from "~/lib/money-format";
@@ -36,15 +37,7 @@ export async function loader({ context }: Route.LoaderArgs) {
   const disputes = await listDisputes(db, auth.membership.accountId);
 
   // Needs-action disputes surface first (nearest deadline), resolved ones last.
-  const sorted = [...disputes].sort((a, b) => {
-    const aResolved = isDisputeResolved(a.state);
-    const bResolved = isDisputeResolved(b.state);
-    if (aResolved !== bResolved) return aResolved ? 1 : -1;
-    if (aResolved) return (b.resolvedAt?.getTime() ?? 0) - (a.resolvedAt?.getTime() ?? 0);
-    const aDeadline = a.evidenceDeadline?.getTime() ?? Infinity;
-    const bDeadline = b.evidenceDeadline?.getTime() ?? Infinity;
-    return aDeadline - bDeadline;
-  });
+  const sorted = sortDisputesForList(disputes);
 
   const stats = computeDisputeStats(
     disputes.map((d) => ({
