@@ -90,12 +90,22 @@ export async function action({ request, context }: Route.ActionArgs) {
   // MCP `set_audit_settings` tool validate and write through one implementation.
   // Clamping is still SERVER-SIDE inside it: legacy clamps on render and posts
   // the clamped value, which is a client-side guarantee only.
-  const result = await applyAuditSettings(db, membership.accountId, {
-    lookbackDays: form.get("audit_lookback_days"),
-    autoRun: form.get("audit_auto_run"),
-  });
-  if (!result.ok) return data({ ok: false, error: result.error }, { status: 400 });
-  return data({ ok: true, ...result.state });
+  //
+  // A FAILED WRITE THROWS rather than returning ok: false (the D1 batch either
+  // lands or throws), so it is caught here. The whole error is logged, and the
+  // page shows Recova's failure line, which Recova shows for exactly this case
+  // (its `error=update_failed` after the shared update handler's write fails).
+  try {
+    const result = await applyAuditSettings(db, membership.accountId, {
+      lookbackDays: form.get("audit_lookback_days"),
+      autoRun: form.get("audit_auto_run"),
+    });
+    if (!result.ok) return data({ ok: false as const }, { status: 400 });
+    return data({ ok: true as const, ...result.state });
+  } catch (err) {
+    console.error("audit settings write failed:", err);
+    return data({ ok: false as const }, { status: 500 });
+  }
 }
 
 export default function AuditSettings({ loaderData, actionData }: Route.ComponentProps) {
