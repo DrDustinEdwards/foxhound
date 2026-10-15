@@ -256,7 +256,7 @@ describe("/features entries are Recova's, each a capability Foxhound ships", () 
     "Audit results page": [["app/components/audit/sections.tsx", "export function AuditSummary"]],
     "Audit history": [["app/routes.ts", '"./routes/app/audit/history.tsx"']],
     "Platform status in Help": [["app/routes/app/help.tsx", "getVisibleCronStatus"]],
-    "Admin webhook log": [["app/routes/admin/webhooks.tsx", "Recent deliveries"]],
+    "Admin webhook log": [["app/routes/admin/webhooks.tsx", "listWebhookEvents(db, filters)"]],
     "Admin audit log": [["app/lib/admin/audit-log.server.ts", "export async function listAuditLog"]],
     "Cron health table": [["app/routes/admin/crons.tsx", "listCronRows"]],
     "Stop recovery": [["app/lib/recovery/manual-actions.server.ts", 'if (intent === "cancel") return stopRecovery(req);']],

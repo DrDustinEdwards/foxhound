@@ -25,7 +25,6 @@ export function plural(n: number, one: string, many: string): string {
   return `${n} ${n === 1 ? one : many}`;
 }
 
-
 /** A row's time in words, by UTC's calendar ("yesterday" means the UTC day
  *  before). The words are worked out from the loader's clock in the server
  *  render and again in the browser, so they must not depend on the browser's
