@@ -1,0 +1,458 @@
+import { readFileSync } from "node:fs";
+import { createElement, type ReactElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { createRoutesStub } from "react-router";
+import { describe, expect, it } from "vitest";
+
+import {
+  accounts,
+  disputes,
+  engagementEvents,
+  failedPayments,
+  recoveredPayments,
+  recoverySteps,
+} from "~/db/schema";
+import CustomerPage from "~/routes/app/intelligence/customer";
+import {
+  disputeSignalFields,
+  engagementSignalFields,
+  recoverySignalFields,
+  tenureFromSince,
+  type CustomerActivity,
+} from "~/lib/intelligence/customer-detail";
+import { getCustomerActivity } from "~/lib/intelligence/views.server";
+
+import { createInMemoryDb } from "./helpers/inmemory-db";
+
+// J68, row S18: the Intelligence customer detail page toward Recova's real
+// page, app/(app)/intelligence/customers/[id]/page.tsx at blob 8d31766d, with
+// HealthSparkline (f4a163f5), RawDataToggle (640505cd), IntegrityLayerBanner
+// (1614dfaf) and lib/intelligence/customer-context-ssr.ts (a499c285), all read
+// whole.
+//
+// Recova's order in a 1080px column: the breadcrumb, the back link and the
+// recovery payments link, the header card (name, email and Stripe id, plan
+// pill, MRR, then Tenure, LTV, Last seen, Customer since), three signal cards,
+// the health score card with its chart, the AI assessment when there is one,
+// and the footer naming where else the customer's data lives.
+//
+// The signal cards read Foxhound's own tables for this customer, never the
+// signal JSON (live sync writes a different shape from the demo's, and has no
+// amounts, dates or 30-day windows at all).
+
+const DAY = 86_400_000;
+const NOW = Date.UTC(2026, 9, 15, 12, 0, 0); // 2026-10-15
+
+describe("tenureFromSince: Recova's words", () => {
+  const since = (days: number) => new Date(NOW - days * DAY);
+  it("reads unknown, under a month, months, and years", () => {
+    expect(tenureFromSince(null, NOW)).toBe("unknown");
+    expect(tenureFromSince(since(10), NOW)).toBe("< 1 month");
+    expect(tenureFromSince(since(30), NOW)).toBe("1 month");
+    expect(tenureFromSince(since(150), NOW)).toBe("5 months");
+    expect(tenureFromSince(since(360), NOW)).toBe("1 year");
+    expect(tenureFromSince(since(720), NOW)).toBe("2 years");
+    expect(tenureFromSince(since(450), NOW)).toBe("1y 3mo");
+  });
+});
+
+const EMPTY: CustomerActivity = {
+  recovery: {
+    failedPaymentCount: 0,
+    recoveredCount: 0,
+    recoveredAmounts: [],
+    lastFailedAt: null,
+    lastRecoveredAt: null,
+    activeRecovery: false,
+  },
+  disputes: {
+    count: 0,
+    openCount: 0,
+    wonCount: 0,
+    lostCount: 0,
+    totalDisputed: [],
+    lastDisputeAt: null,
+    lastOutcome: null,
+  },
+  engagement: { everEngaged: false, opens30d: 0, clicks30d: 0, lastOpenAt: null },
+};
+
+const BUSY: CustomerActivity = {
+  recovery: {
+    failedPaymentCount: 3,
+    recoveredCount: 2,
+    recoveredAmounts: [
+      { currency: "usd", cents: 9_800 },
+      { currency: "eur", cents: 1_500 },
+    ],
+    lastFailedAt: new Date(Date.UTC(2026, 9, 1)),
+    lastRecoveredAt: new Date(Date.UTC(2026, 8, 20)),
+    activeRecovery: true,
+  },
+  disputes: {
+    count: 2,
+    openCount: 1,
+    wonCount: 0,
+    lostCount: 1,
+    totalDisputed: [{ currency: "usd", cents: 12_000 }],
+    lastDisputeAt: new Date(Date.UTC(2026, 9, 3)),
+    lastOutcome: "resolved_lost",
+  },
+  engagement: { everEngaged: true, opens30d: 4, clicks30d: 1, lastOpenAt: new Date(Date.UTC(2026, 9, 10)) },
+};
+
+describe("the three signal cards: Recova's labels, Foxhound's numbers", () => {
+  it("is empty (Recova's empty sentence) when there is nothing on record", () => {
+    expect(recoverySignalFields(EMPTY.recovery)).toBeNull();
+    expect(disputeSignalFields(EMPTY.disputes)).toBeNull();
+    expect(engagementSignalFields(EMPTY.engagement)).toBeNull();
+  });
+
+  it("lists Recova's six recovery fields in its order, with no raw id", () => {
+    expect(recoverySignalFields(BUSY.recovery)).toEqual([
+      { label: "Failed payments", value: "3" },
+      { label: "Recovered", value: "2" },
+      { label: "Recovered amount", value: "$98.00 · €15.00" },
+      { label: "Last failed", value: "Oct 1, 2026" },
+      { label: "Last recovered", value: "Sep 20, 2026" },
+      { label: "Active recovery", value: "In progress" },
+    ]);
+    const quiet = recoverySignalFields({ ...BUSY.recovery, activeRecovery: false, lastRecoveredAt: null });
+    expect(quiet?.find((f) => f.label === "Active recovery")?.value).toBe("-");
+    expect(quiet?.find((f) => f.label === "Last recovered")?.value).toBe("-");
+  });
+
+  it("lists Recova's six dispute fields, the outcome as a word", () => {
+    expect(disputeSignalFields(BUSY.disputes)).toEqual([
+      { label: "Open", value: "1" },
+      { label: "Won", value: "0" },
+      { label: "Lost", value: "1" },
+      { label: "Total disputed", value: "$120.00" },
+      { label: "Last dispute", value: "Oct 3, 2026" },
+      { label: "Last outcome", value: "Lost" },
+    ]);
+    const open = disputeSignalFields({ ...BUSY.disputes, lastOutcome: null });
+    expect(open?.find((f) => f.label === "Last outcome")?.value).toBe("-");
+  });
+
+  it("lists Recova's three engagement fields", () => {
+    expect(engagementSignalFields(BUSY.engagement)).toEqual([
+      { label: "Opens (30d)", value: "4" },
+      { label: "Clicks (30d)", value: "1" },
+      { label: "Last open", value: "Oct 10, 2026" },
+    ]);
+  });
+});
+
+describe("getCustomerActivity: one customer's rows, this account only", () => {
+  async function seeded() {
+    const { db } = createInMemoryDb();
+    await db.insert(accounts).values([
+      { id: "acct_a", name: "Alpha" },
+      { id: "acct_b", name: "Beta" },
+    ]);
+    let n = 0;
+    const fp = async (accountId: string, customer: string, status: string, daysAgo: number, deleted = false) => {
+      n += 1;
+      const id = `fp_${n}`;
+      await db.insert(failedPayments).values({
+        id,
+        accountId,
+        stripeEventId: `evt_${n}`,
+        stripeInvoiceId: `in_${n}`,
+        stripeCustomerId: customer,
+        customerEmail: "customer@example.com",
+        amountCents: 5_000,
+        currency: "usd",
+        declineCategory: "soft",
+        status,
+        detectedAt: new Date(NOW - daysAgo * DAY),
+        deletedAt: deleted ? new Date(NOW) : null,
+      });
+      return id;
+    };
+    const rp = async (accountId: string, failedPaymentId: string, cents: number, currency: string, daysAgo: number) => {
+      await db.insert(recoveredPayments).values({
+        id: `rp_${failedPaymentId}`,
+        accountId,
+        failedPaymentId,
+        recoveredAt: new Date(NOW - daysAgo * DAY),
+        amountCents: cents,
+        currency,
+        recoveryMethod: "email",
+      });
+    };
+    const event = async (accountId: string, failedPaymentId: string, eventType: string, daysAgo: number) => {
+      n += 1;
+      const stepId = `step_${n}`;
+      await db.insert(recoverySteps).values({
+        id: stepId,
+        accountId,
+        failedPaymentId,
+        stepType: "email",
+        scheduledAt: new Date(NOW - daysAgo * DAY),
+      });
+      await db.insert(engagementEvents).values({
+        id: `ee_${n}`,
+        accountId,
+        recoveryStepId: stepId,
+        eventType,
+        idempotencyKey: `idem_${n}`,
+        occurredAt: new Date(NOW - daysAgo * DAY),
+        createdAt: new Date(NOW - daysAgo * DAY),
+      });
+    };
+    const dispute = async (accountId: string, customer: string, state: string, cents: number, daysAgo: number) => {
+      n += 1;
+      await db.insert(disputes).values({
+        id: `dp_${n}`,
+        accountId,
+        stripeDisputeId: `dp_stripe_${n}`,
+        stripeChargeId: `ch_${n}`,
+        stripeCustomerId: customer,
+        amountCents: cents,
+        currency: "usd",
+        reason: "fraudulent",
+        status: "needs_response",
+        state,
+        createdAt: new Date(NOW - daysAgo * DAY),
+        resolvedAt: state.startsWith("resolved") ? new Date(NOW - (daysAgo - 1) * DAY) : null,
+      });
+    };
+
+    // Alpha's customer: three live failures (one recovered in USD, one in EUR,
+    // one active), one deleted failure, two disputes, engagement inside and
+    // outside the 30-day window.
+    const usd = await fp("acct_a", "cus_x", "recovered", 40);
+    const eur = await fp("acct_a", "cus_x", "recovered", 20);
+    const active = await fp("acct_a", "cus_x", "active", 2);
+    const deleted = await fp("acct_a", "cus_x", "recovered", 1, true);
+    await rp("acct_a", usd, 4_900, "usd", 35);
+    await rp("acct_a", eur, 1_500, "eur", 18);
+    await rp("acct_a", deleted, 99_900, "usd", 1);
+    await event("acct_a", usd, "open", 45);
+    await event("acct_a", eur, "open", 10);
+    await event("acct_a", eur, "click", 9);
+    await event("acct_a", active, "open", 1);
+    await dispute("acct_a", "cus_x", "resolved_won", 3_000, 60);
+    await dispute("acct_a", "cus_x", "submitted", 7_000, 5);
+
+    // The same Stripe customer id on another account, larger and newer, so a
+    // leak moves every number.
+    const foreign = await fp("acct_b", "cus_x", "recovered", 0);
+    await rp("acct_b", foreign, 77_700, "usd", 0);
+    await event("acct_b", foreign, "open", 0);
+    await dispute("acct_b", "cus_x", "resolved_lost", 50_000, 0);
+    // Another customer on Alpha.
+    const other = await fp("acct_a", "cus_y", "active", 0);
+    await event("acct_a", other, "click", 0);
+    return db;
+  }
+
+  it("counts, totals and dates this customer's own rows", async () => {
+    const db = await seeded();
+    const a = await getCustomerActivity(db, "acct_a", "cus_x", NOW);
+    expect(a.recovery).toEqual({
+      failedPaymentCount: 3,
+      recoveredCount: 2,
+      recoveredAmounts: [
+        { currency: "eur", cents: 1_500 },
+        { currency: "usd", cents: 4_900 },
+      ],
+      lastFailedAt: new Date(NOW - 2 * DAY),
+      lastRecoveredAt: new Date(NOW - 18 * DAY),
+      activeRecovery: true,
+    });
+    expect(a.disputes).toEqual({
+      count: 2,
+      openCount: 1,
+      wonCount: 1,
+      lostCount: 0,
+      totalDisputed: [{ currency: "usd", cents: 10_000 }],
+      lastDisputeAt: new Date(NOW - 5 * DAY),
+      lastOutcome: "resolved_won",
+    });
+    expect(a.engagement).toEqual({
+      everEngaged: true,
+      opens30d: 2,
+      clicks30d: 1,
+      lastOpenAt: new Date(NOW - 1 * DAY),
+    });
+  });
+
+  it("is all empty for a customer with nothing on record", async () => {
+    const db = await seeded();
+    expect(await getCustomerActivity(db, "acct_a", "cus_nobody", NOW)).toEqual(EMPTY);
+  });
+});
+
+// ---- The page ----
+
+const Page = CustomerPage as unknown as (props: { loaderData: unknown }) => ReactElement;
+
+// Newest first, as getCustomerHealthDetail returns it; the page reverses it.
+const history = [
+  { recordedAt: new Date(NOW - 1 * DAY), healthScore: 41 },
+  { recordedAt: new Date(NOW - 10 * DAY), healthScore: 52 },
+  { recordedAt: new Date(NOW - 20 * DAY), healthScore: 64 },
+];
+
+function loaderData(over: Record<string, unknown> = {}) {
+  return {
+    entitled: true,
+    nowMs: NOW,
+    accountName: "Acme",
+    customer: {
+      stripeCustomerId: "cus_sample_1",
+      customerName: "Sample Bakery",
+      customerEmail: "owner@example.com",
+      currentPlanName: "Growth Monthly",
+      currentPlanTier: null,
+      mrrContributionCents: 4_900,
+      currency: "usd",
+      ltvCents: null,
+      lastSeenAt: new Date(NOW - 2 * DAY),
+      customerSince: new Date(NOW - 450 * DAY),
+      healthScore: 41,
+      healthFactors: [{ signal: "refunds_disputes", deltaPoints: -16, detail: "1 refund(s) and 1 dispute(s) on record" }],
+      aiAssessment: "Two failed payments in a month and a lost dispute.",
+      aiAssessmentGeneratedAt: new Date(Date.UTC(2026, 9, 14)),
+      history,
+      predictions: [],
+    },
+    activity: BUSY,
+    ...over,
+  };
+}
+
+function render(data: unknown = loaderData()): string {
+  const Stub = createRoutesStub([
+    { path: "/intelligence/customers/:id", Component: () => createElement(Page, { loaderData: data }) },
+  ]);
+  return renderToStaticMarkup(createElement(Stub, { initialEntries: ["/intelligence/customers/cus_sample_1"] }));
+}
+
+function text(html: string): string {
+  return html
+    .replace(/<[^>]+>/g, " ")
+    .replaceAll("&#x27;", "'")
+    .replaceAll("&amp;", "&")
+    .replaceAll("&quot;", '"')
+    .replaceAll("&lt;", "<")
+    .replace(/\s+/g, " ")
+    .replace(/ ([.,])/g, "$1")
+    .trim();
+}
+
+const headings = (html: string, level: 1 | 2) =>
+  [...html.matchAll(new RegExp(`<h${level}[^>]*>([\\s\\S]*?)</h${level}>`, "g"))].map((m) => text(m[1]!));
+
+const SRC = readFileSync("app/routes/app/intelligence/customer.tsx", "utf8");
+
+describe("S18 /intelligence/customers/:id: Recova's width, head and order", () => {
+  it("sits in Recova's 1080px column with its padding", () => {
+    // Recova: max-w-[1080px] mx-auto px-4 md:px-8 py-8.
+    expect(render()).toContain('class="mx-auto max-w-[1080px] px-4 py-8 md:px-8"');
+  });
+
+  it("carries Recova's breadcrumb, back link and recovery payments link", () => {
+    const html = render();
+    expect(html).toContain('class="cap-breadcrumb"');
+    expect(html).toMatch(/href="\/intelligence\/customers"[^>]*>Customers</);
+    expect(html).toContain('aria-current="page">Sample Bakery<');
+    expect(text(html)).toContain("All Acme customers");
+    expect(html).toMatch(/href="\/recovery\/payments"[^>]*>3 recovery payments/);
+  });
+
+  it("names the customer in the h1 with email and Stripe id beneath", () => {
+    const html = render();
+    expect(headings(html, 1)).toEqual(["Sample Bakery"]);
+    expect(text(html)).toContain("owner@example.com · cus_sample_1");
+    expect(text(html)).toContain("Growth Monthly");
+    expect(text(html)).toContain("$49.00/mo");
+  });
+
+  it("shows Recova's four header stats, with LTV saying Foxhound does not compute it", () => {
+    const t = text(render());
+    expect(t).toContain("Tenure 1y 3mo");
+    expect(t).toContain("LTV Not computed");
+    expect(t).toContain("Last seen Oct 13, 2026");
+    expect(t).toContain("Customer since Jul 22, 2025");
+  });
+
+  it("lays the sections out in Recova's order, Foxhound's held sections last", () => {
+    const html = render();
+    expect(headings(html, 2)).toEqual([
+      "Recovery signals",
+      "Dispute signals",
+      "Engagement signals",
+      "Health score",
+      "Why this customer needs attention",
+    ]);
+    // The held factors list keeps its old eyebrow, after the footer.
+    const footer = html.indexOf("This customer&#x27;s data is shared");
+    expect(footer).toBeGreaterThan(0);
+    expect(html.indexOf(">Factors</p>")).toBeGreaterThan(footer);
+  });
+
+  it("leaves the AI assessment out when there is none, as Recova does", () => {
+    const data = loaderData();
+    const html = render({ ...data, customer: { ...data.customer, aiAssessment: null, aiAssessmentGeneratedAt: null } });
+    expect(headings(html, 2)).not.toContain("Why this customer needs attention");
+    expect(text(html)).not.toContain("No AI assessment");
+  });
+
+  it("dates the assessment 'Updated', as Recova does", () => {
+    expect(text(render())).toContain("Updated Oct 14, 2026");
+  });
+
+  it("draws the health history with Enarratio, with a text equivalent and a data table", () => {
+    const html = render();
+    expect(html).toContain('data-enarratio="area"');
+    expect(html).toContain("Data table");
+    expect(text(html)).toContain("Health score over 3 readings, from 64 on Sep 25 to 41 on Oct 14");
+    expect(SRC).not.toContain("~/components/charts");
+  });
+
+  it("draws no chart with fewer than two readings, as Recova does", () => {
+    const data = loaderData();
+    const html = render({ ...data, customer: { ...data.customer, history: history.slice(0, 1) } });
+    expect(html).not.toContain("data-enarratio");
+  });
+
+  it("shows the score out of 100 in its band's colour", () => {
+    const html = render();
+    expect(html).toMatch(/class="[^"]*text-display[^"]*text-caution[^"]*"[^>]*>41</);
+    expect(text(html)).toContain("41 / 100");
+  });
+
+  it("shows the signal cards' empty sentences when nothing is on record", () => {
+    const t = text(render(loaderData({ activity: EMPTY })));
+    expect(t).toContain("No recovery events");
+    expect(t).toContain("No dispute history");
+    expect(t).toContain("No engagement data yet");
+  });
+
+  it("ends with Recova's footer, naming only the products with history", () => {
+    const t = text(render());
+    expect(t).toContain(
+      "This customer's data is shared across Recovery, Disputes, and Intelligence. View their recovery history in Recovery. View their disputes in Disputes.",
+    );
+    const quiet = text(render(loaderData({ activity: EMPTY })));
+    expect(quiet).not.toContain("This customer's data is shared");
+    expect(quiet).not.toContain("recovery payment");
+  });
+
+  it("shows no raw database value and no amber", () => {
+    const html = render();
+    expect(html).not.toMatch(/resolved_(won|lost)|refunds_disputes|failed_unrecovered/);
+    expect(html).not.toMatch(/amber/);
+    expect(SRC).not.toMatch(/amber/);
+  });
+
+  it("has no Recova banner or raw-data toggle, which Foxhound has no producer or admin role for", () => {
+    const html = render();
+    expect(html).not.toContain("integrity-layer-banner");
+    expect(text(html)).not.toMatch(/Show raw data/);
+  });
+});

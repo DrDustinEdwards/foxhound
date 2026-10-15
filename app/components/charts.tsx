@@ -8,41 +8,6 @@
 // optional client-side enhancement per DESIGN.md; none are built here, numbers
 // already render in DM Mono beside every chart.
 
-/** A short trendline with no axes or labels (e.g. a stat-card accent). */
-export function Sparkline({
-  values,
-  width = 120,
-  height = 32,
-  className,
-}: {
-  values: number[];
-  width?: number;
-  height?: number;
-  className?: string;
-}) {
-  if (values.length < 2) return null;
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = max - min || 1;
-  const step = width / (values.length - 1);
-  const points = values
-    .map((v, i) => `${i * step},${height - ((v - min) / range) * height}`)
-    .join(" ");
-
-  return (
-    <svg
-      viewBox={`0 0 ${width} ${height}`}
-      width={width}
-      height={height}
-      className={className}
-      role="img"
-      aria-hidden="true"
-    >
-      <polyline points={points} fill="none" stroke="currentColor" strokeWidth={1.5} />
-    </svg>
-  );
-}
-
 export interface LineAreaPoint {
   label: string;
   value: number;
