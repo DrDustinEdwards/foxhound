@@ -1,46 +1,81 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { data, Form, redirect, useNavigation } from "react-router";
-import { Alert as CapAlert } from "capsomer/react/banner";
+import { applyTheme } from "capsomer/behaviour/theme-switch";
+import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
+import { InputGroup, InputGroupAddon } from "capsomer/react/field";
+import { PageHead } from "capsomer/react/page-head";
+import { Segmented } from "capsomer/react/segmented";
+import { Select } from "capsomer/react/select";
+import { Status } from "capsomer/react/status";
 import "capsomer/banner.css";
 import "capsomer/button.css";
+import "capsomer/field.css";
+import "capsomer/page-head.css";
+import "capsomer/panel.css";
+import "capsomer/segmented.css";
+import "capsomer/select.css";
+import "capsomer/status.css";
+// Capsomer's tokens and the teal family, which the components above read. The
+// shell loads the same file through its header; importing it here keeps the
+// page whole under any layout, as /settings/features does.
+import "~/site-header.css";
 
-import { Alert, Field } from "~/components/auth-ui";
 import { DemoGuardedForm } from "~/components/demo-guarded-form";
-import { SettingsCard, type ActionResult } from "~/components/settings-card";
+import { SettingsBackLink } from "~/components/settings-back-link";
+import { THEME_PREF_KEY } from "~/components/site-header";
 import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { applyIntelligenceContext } from "~/lib/settings/apply.server";
+import { applyIntelligenceContext, MRR_ERROR } from "~/lib/settings/apply.server";
 import { buildAccountProfileUpdate } from "~/lib/settings/persist.server";
-import { formatCentsAsDollars } from "~/lib/settings/dollars";
 import { getAccount } from "~/lib/settings/queries.server";
 import { cancelMerchant } from "~/lib/admin/merchants.server";
 import { getAuth, getSession, listMemberships, setSessionActiveAccount } from "~/lib/auth";
 import { deleteUserAccount } from "~/lib/auth/delete-account.server";
 import { deletionConsequence, ownedAccountNames } from "~/lib/auth/deletion-copy";
+import { MEMBER_ROLE } from "~/lib/auth/roles";
+import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/session";
+import { chooseTheme } from "~/lib/settings/theme-choice";
+import { DEFAULT_THEME, isTheme, THEMES, type Theme } from "~/lib/theme";
 
 import type { Route } from "./+types/account";
 
-// Legacy's hub entry 12, "My account", "Profile, appearance, sign out".
-// Relocated from the /settings index when session 59 built the hub (336
-// binding 2), carrying three surfaces unchanged: the account name, the
-// Intelligence context fields, and the danger zone.
+// S27, /settings/account, legacy's hub entry 12, "My account".
 //
-// THE INTELLIGENCE CONTEXT FIELDS BELONG HERE, and legacy's own docs say so:
-// DOCS-HEADING-MAP records them as "industry, customer type, MRR, in Settings,
-// Account". Legacy's hub has no separate entry for them, and its
-// /settings/intelligence is "Notification preferences" (S35), a different page.
+// LEGACY IS THE SPEC, read whole at HEAD (J32, job_54cb0e7420dc):
+//   settings/account/page.tsx                     blob b42f9159  1,661 bytes
+//   settings/account/AccountProfileForm.tsx       blob 85bd1a33    863 bytes
+//   settings/components/AccountNameSection.tsx    blob bb58b169    875 bytes
+//   settings/components/AccountProfileSection.tsx blob 13a68d29  3,318 bytes
+//   settings/components/AppearanceSection.tsx     blob a687d482    503 bytes
+//   settings/components/AccountSection.tsx        blob a154ac8f  3,839 bytes
+//   settings/SaveBar.tsx                          blob f1d6eb23    830 bytes
+//   components/ThemeToggle.tsx                    blob 8f32b6c7  2,123 bytes
+//   settings/update/route.ts                      blob 878c0637 10,356 bytes
 //
-// THE DANGER ZONE IS HERE for the same reason: legacy puts its account
-// destructive control on its account page. It carries two controls: Cancel
-// account (333 binding 2, built under S37) and, since S40, legacy's own Delete
-// account, which deletes the person and their personal data and keeps the fee
-// evidence (Q14, Q16; app/lib/auth/delete-account.server.ts).
+// RECOVA'S ORDER, top to bottom: the phone-only back link; "My account" and its
+// line; ONE form holding the account name card and the profile card (industry,
+// customer type, MRR) with one SaveBar under them; the Appearance card; then
+// the account card, the signed-in address with Sign out, and the Danger zone
+// below a rule in the same card.
 //
-// J32 rebuilds this page on Capsomer (job_54cb0e7420dc) and has not merged, so
-// S40 adds its control to the page as it stands, built from Capsomer's Button
-// and Alert, and leaves the rest of the page to J32.
+// J32 rebuilt it from Capsomer 0.9.0's parts under Dustin's Q10 and Q11 answers
+// of 2026-10-14: PageHead, panels, field, Select, Segmented, Button, Status and
+// Alert, teal throughout.
+//
+// THE ENGINE IS FOXHOUND'S. The three context fields feed the recovery email
+// prompt ("Merchant context: ..." in recovery/email-generation.ts, the S27
+// reader of parity/SETTINGS-READERS.md), so Recova's "Used to personalize
+// recovery emails." is true here. They are written through
+// applyIntelligenceContext, the one writer the merchant's agent tool shares
+// (372, 374), and the name through buildAccountProfileUpdate.
+//
+// THE APPROVED DIFFERENCES ON THIS PAGE. "Cancel account" keeps billing
+// records where Recova's "Delete account" erased them (APPROVED-DIFFERENCES,
+// "yes", 2026-09-19); Delete account is Recova's control, and it keeps the
+// record of recovered payments the fees are billed on (Q14, row S40, "yes",
+// 2026-10-14); Sign out is a button that posts ("yes", 2026-09-19).
 
 export function meta() {
   return [{ title: "My account - Foxhound" }];
@@ -51,77 +86,129 @@ export async function loader({ context }: Route.LoaderArgs) {
   const auth = context.get(authContext);
   const account = await getAccount(getDb(env), auth.membership.accountId);
   if (!account) throw new Response("Not Found", { status: 404 });
-  // The signed-in address, which legacy's AccountSection displays above its
-  // sign-out control (blob a154ac8f, 3,839 bytes).
   return {
     account,
     cancelledAt: account.cancelledAt,
+    // The signed-in address, which legacy's AccountSection displays beside its
+    // sign-out control.
     userEmail: auth.email,
     // Every account this person owns, which a deletion clears, so the
-    // confirmation can say which (review fix F2). From the session's
+    // confirmation can say which (S40 review fix F2). From the session's
     // memberships, so this loader reads no other account's rows (ruling 326).
     ownedAccountNames: ownedAccountNames(auth.memberships),
+    // The theme this account stores, which is the one the root drew the page
+    // in: accounts.theme is NOT NULL, so for a signed-in merchant
+    // resolveThemePreference always takes it (lib/theme.ts).
+    theme: isTheme(account.theme) ? account.theme : DEFAULT_THEME,
+    // Only the owner may cancel the account; the action enforces it, this
+    // only decides whether to draw the control (team.tsx does the same).
+    isOwner: auth.membership.role === MEMBER_ROLE.OWNER,
+    // The demo saves nothing, the theme included (lib/settings/theme-choice.ts).
+    isDemo: auth.isDemo,
   };
+}
+
+type ProfileField = "name" | "merchantMrrSelfReported";
+
+interface ActionResult {
+  action: string;
+  ok: boolean;
+  /** A refusal's words, shown beside `field` when there is one. */
+  error?: string;
+  field?: ProfileField;
+  warning?: string;
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
   const accountId = auth.membership.accountId;
-  const db = getDb(env);
   const form = await request.formData();
   const intent = String(form.get("_action") ?? "");
-  const str = (name: string) => {
-    const v = form.get(name);
-    const trimmed = typeof v === "string" ? v.trim() : "";
-    return trimmed.length > 0 ? trimmed : null;
-  };
 
   switch (intent) {
     case "profile": {
-      const name = str("name");
+      // Recova's one save for the name and the three context fields. Each
+      // context field is passed only when the form carries it, which is
+      // Recova's `formData.has(...)`: a Customer Type with no radio chosen
+      // posts nothing and leaves the stored value alone, where reading it as
+      // blank would clear it.
+      const name = String(form.get("name") ?? "").trim();
       if (!name) {
+        // Foxhound's rule, not Recova's: Recova stores an empty name as NULL.
+        // The name is the business's name in the header and in every recovery
+        // email's prompt, so an empty one is refused before anything is written.
         return data<ActionResult>(
-          { action: intent, ok: false, error: "Account name is required." },
+          {
+            action: intent,
+            ok: false,
+            error: "Account name is required.",
+            field: "name",
+          },
           { status: 400 },
         );
       }
-      await buildAccountProfileUpdate(db, accountId, { name });
-      return data<ActionResult>({ action: intent, ok: true });
-    }
-    case "intelligence-context": {
-      // THE ONLY BRANCH OF THIS ACTION THAT MOVED. The profile above and the
-      // danger zone below are untouched and reach no tool: cancelling an
-      // account is on the HUMAN-FOREVER denylist, and the registry refuses the
-      // name outright.
-      //
-      // Every key is posted on every submit, so the form still writes all three
-      // columns. It passes the raw strings, because trimming and parsing are
-      // the apply layer's job now and doing either here would be the second
-      // implementation the layer exists to prevent.
-      const result = await applyIntelligenceContext(db, accountId, {
-        merchantIndustry: String(form.get("merchantIndustry") ?? ""),
-        primaryCustomerType: String(form.get("primaryCustomerType") ?? ""),
-        merchantMrrSelfReported: String(form.get("merchantMrrSelfReported") ?? ""),
-      });
-      if (!result.ok) {
-        return data<ActionResult>(
-          { action: intent, ok: false, error: result.error },
-          { status: 400 },
+      const posted = (key: string) => (form.has(key) ? String(form.get(key)) : undefined);
+      try {
+        // ONE BATCH, all or nothing: the name's update rides in the context's
+        // batch. The context's MRR check refuses before anything is
+        // committed, so a refused save writes nothing, the name included.
+        const db = getDb(env);
+        const result = await applyIntelligenceContext(
+          db,
+          accountId,
+          {
+            merchantIndustry: posted("merchantIndustry"),
+            primaryCustomerType: posted("primaryCustomerType"),
+            merchantMrrSelfReported: posted("merchantMrrSelfReported"),
+          },
+          undefined,
+          [buildAccountProfileUpdate(db, accountId, { name })],
         );
+        if (!result.ok) {
+          return data<ActionResult>(
+            result.error === MRR_ERROR
+              ? {
+                  action: intent,
+                  ok: false,
+                  error: result.error,
+                  field: "merchantMrrSelfReported",
+                }
+              : { action: intent, ok: false, error: result.error },
+            { status: 400 },
+          );
+        }
+      } catch (err) {
+        // Recova answers a failed update with its SaveBar line, not an error
+        // page. The whole error is logged, stack included; it carries no form
+        // values.
+        console.error("account settings write failed:", err);
+        return data<ActionResult>({ action: intent, ok: false }, { status: 500 });
       }
       return data<ActionResult>({ action: intent, ok: true });
     }
     case "cancel-account": {
+      // OWNER ONLY, refused before any read or write. Cancelling disconnects
+      // every Stripe connection and stops all recovery on the account, and
+      // Recova never let a member do that: it had no Cancel, and its delete
+      // cascade cleared only the accounts the caller owned (api/auth/
+      // delete-account/route.ts, blob 2136362a). Same shape as team.tsx's gate.
+      if (auth.membership.role !== MEMBER_ROLE.OWNER) {
+        return data<ActionResult>(
+          { action: intent, ok: false, error: "Only the account owner can cancel the account." },
+          { status: 403 },
+        );
+      }
+      // Otherwise S37's cancel, reaching no agent tool (cancelling an account
+      // is on the HUMAN-FOREVER denylist).
+      const db = getDb(env);
       const outcome = await cancelMerchant(env, accountId);
       // Move this session to another account the caller holds, if any. With none
       // left, the marker is cleared and the app shell lands them on the
       // signed-in empty state at /connect the way an accountless session does.
       const session = await getSession(env, request);
       if (session) {
-        const remaining = (await listMemberships(db, auth.userId)).filter(
-          (m) => m.accountId !== accountId,
-        );
+        const remaining = (await listMemberships(db, auth.userId)).filter((m) => m.accountId !== accountId);
         if (remaining.length > 0) {
           await setSessionActiveAccount(db, session.session.id, remaining[0].accountId);
         }
@@ -145,13 +232,20 @@ export async function action({ request, context }: Route.ActionArgs) {
         console.error("account deletion failed:", err);
         // Recova's own words for this failure (AccountSection.tsx, blob a154ac8f).
         return data<ActionResult>(
-          { action: intent, ok: false, error: "Failed to delete account. Please contact support." },
+          {
+            action: intent,
+            ok: false,
+            error: "Failed to delete account. Please contact support.",
+          },
           { status: 500 },
         );
       }
       // The user and their sessions are gone; this clears the cookie the
       // browser still holds, and Recova then sends the person to "/".
-      const signedOut = await getAuth(env).api.signOut({ headers: request.headers, asResponse: true });
+      const signedOut = await getAuth(env).api.signOut({
+        headers: request.headers,
+        asResponse: true,
+      });
       const headers = new Headers();
       for (const cookie of signedOut.headers.getSetCookie()) headers.append("Set-Cookie", cookie);
       return redirect("/", { headers });
@@ -164,201 +258,441 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 }
 
-/**
- * The Danger zone, at legacy's AccountSection.tsx geometry (blob a154ac8f): the
- * label, a red-bordered button, and a red-tinted callout carrying the
- * consequence above the confirm row.
- *
- * TWO CONTROLS. "Cancel account" (333) stops processing and keeps the account;
- * its label says what it does. "Delete account" is legacy's control (S40),
- * below it, and deletes the person.
- */
-function DangerZone({
-  cancelledAt,
-  ownedAccountNames,
+/** Recova's ten industries, in its order (AccountProfileSection, blob 13a68d29). */
+const INDUSTRIES = [
+  "SaaS",
+  "E-commerce",
+  "Marketing & Agencies",
+  "Healthcare",
+  "Education",
+  "Professional Services",
+  "Finance",
+  "Real Estate",
+  "Media & Publishing",
+  "Other",
+];
+
+const CUSTOMER_TYPES = ["B2B", "B2C"] as const;
+
+/** The select's options. A stored industry outside Recova's list (the
+ *  merchant's agent tool takes free text through the same writer) is kept as
+ *  an option of its own, so saving the page does not silently erase it. */
+function industryOptions(stored: string | null) {
+  const options = [
+    { value: "", label: "Select an industry" },
+    ...INDUSTRIES.map((i) => ({ value: i, label: i })),
+  ];
+  if (stored && !INDUSTRIES.includes(stored)) options.push({ value: stored, label: stored });
+  return options;
+}
+
+/** Recova's page.tsx: `String(cents / 100)`, so 500000 shows as 5000. */
+function mrrDollars(cents: number | null): string {
+  return cents === null ? "" : String(cents / 100);
+}
+
+/** One field's label, control, help under it and error, from Capsomer's field
+ *  parts, in Recova's arrangement (help under the control), as /settings/email
+ *  draws its fields. `control` receives the id and description to carry. */
+function RecovaField({
+  label,
+  help,
+  error,
+  control,
+}: {
+  label: string;
+  help?: string;
+  error?: string;
+  control: (props: { id: string; "aria-describedby"?: string; "aria-invalid"?: true }) => ReactNode;
+}) {
+  const base = useId();
+  const id = `${base}-control`;
+  const helpId = `${base}-help`;
+  const errorId = `${base}-error`;
+  const describedBy = [error ? errorId : null, help ? helpId : null].filter(Boolean).join(" ") || undefined;
+  return (
+    <div className="cap-field" data-invalid={error ? "true" : undefined}>
+      <label className="cap-field-label" htmlFor={id}>
+        {label}
+      </label>
+      {control({
+        id,
+        "aria-describedby": describedBy,
+        "aria-invalid": error ? true : undefined,
+      })}
+      {help ? (
+        <p className="cap-field-help" id={helpId}>
+          {help}
+        </p>
+      ) : null}
+      <p className="cap-field-error" id={errorId} role={error ? "alert" : undefined} hidden={!error}>
+        {error ?? null}
+      </p>
+    </div>
+  );
+}
+
+/** AccountProfileForm: the name card, the profile card and one SaveBar. */
+function ProfileForm({
+  account,
   result,
 }: {
-  cancelledAt: Date | null;
-  ownedAccountNames: Array<string | null>;
+  account: {
+    name: string | null;
+    merchantIndustry: string | null;
+    primaryCustomerType: string | null;
+    merchantMrrSelfReported: number | null;
+  };
   result?: ActionResult;
 }) {
-  const busy = useNavigation().state !== "idle";
+  const navigation = useNavigation();
+  const saving = navigation.state === "submitting" && navigation.formData?.get("_action") === "profile";
+  const fieldError = (field: ProfileField) => (result?.field === field ? result.error : undefined);
+  const barFailed = result && !result.ok && !result.field;
+
   return (
-    <section className="rounded-lg border border-border bg-surface p-5">
-      <h2 className="text-label font-semibold text-text">Danger zone</h2>
-      {cancelledAt ? (
-        <p className="mt-1 text-label text-text-tertiary">
-          This account is cancelled. Recovery processing is stopped. Fees already earned on
-          recoveries Foxhound attributed remain owed.
+    <DemoGuardedForm method="post">
+      <input type="hidden" name="_action" value="profile" />
+
+      {/* AccountNameSection */}
+      <section className="cap-panel">
+        <div className="cap-panel-body">
+          <RecovaField
+            label="Account name"
+            help="Your business or product name"
+            error={fieldError("name")}
+            control={(p) => (
+              <input
+                {...p}
+                type="text"
+                name="name"
+                className="cap-input"
+                defaultValue={account.name ?? ""}
+                placeholder="e.g. Acme Inc"
+              />
+            )}
+          />
+        </div>
+      </section>
+
+      {/* AccountProfileSection, 16px under the name card as Recova's mb-4. */}
+      <div className="mt-4">
+        <section className="cap-panel">
+          <div className="cap-panel-body">
+            <div className="mb-5">
+              <RecovaField
+                label="Industry"
+                control={(p) => (
+                  <Select
+                    {...p}
+                    name="merchantIndustry"
+                    defaultValue={account.merchantIndustry ?? ""}
+                    options={industryOptions(account.merchantIndustry)}
+                  />
+                )}
+              />
+            </div>
+
+            <div className="mb-5">
+              <fieldset className="cap-field">
+                <legend className="cap-field-label">Customer Type</legend>
+                {/* Recova's two radios side by side, 16px apart. */}
+                <div className="flex gap-4">
+                  {CUSTOMER_TYPES.map((option) => (
+                    <label key={option} className="cap-check">
+                      <input
+                        type="radio"
+                        name="primaryCustomerType"
+                        value={option}
+                        defaultChecked={account.primaryCustomerType === option}
+                      />
+                      {option}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            </div>
+
+            <RecovaField
+              label="Monthly Recurring Revenue"
+              help="Used to personalize recovery emails."
+              error={fieldError("merchantMrrSelfReported")}
+              control={(p) => (
+                <InputGroup>
+                  <InputGroupAddon align="inline-start">
+                    <span className="cap-input-group-text">$</span>
+                  </InputGroupAddon>
+                  <input
+                    {...p}
+                    type="number"
+                    name="merchantMrrSelfReported"
+                    className="cap-input"
+                    defaultValue={mrrDollars(account.merchantMrrSelfReported)}
+                    placeholder="0"
+                    min="0"
+                    step="any"
+                  />
+                </InputGroup>
+              )}
+            />
+          </div>
+        </section>
+      </div>
+
+      {/* Recova's SaveBar: right-aligned, the result beside the button. */}
+      <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
+        <p role="status" className="text-label">
+          {result?.ok === true ? <Status tone="ok">Saved</Status> : null}
+          {barFailed ? <Status tone="crit">Failed to save. Please try again.</Status> : null}
         </p>
-      ) : (
-        <>
-          {result?.action === "cancel-account" && result.warning ? (
-            <Alert tone="error">{result.warning}</Alert>
-          ) : null}
-          <DemoGuardedForm method="post" className="mt-4 flex flex-col gap-3">
-            <input type="hidden" name="_action" value="cancel-account" />
-            <div className="rounded-lg border border-red-dark bg-red-bg px-4 py-3.5">
-              <div className="mb-1 text-label text-text">Are you sure?</div>
-              <div className="text-micro text-text-subtle">
-                This stops all recovery processing and disconnects every Stripe account here. Fees on
-                recoveries Foxhound has already attributed remain owed and are still invoiced.
-              </div>
-            </div>
-            <div className="flex gap-2.5">
-              <button
-                type="submit"
-                disabled={busy}
-                className="rounded-md border border-border bg-transparent px-4 py-2 text-label text-red transition-colors duration-150 hover:border-red disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {busy ? "Cancelling..." : "Cancel account"}
-              </button>
-            </div>
-          </DemoGuardedForm>
-        </>
-      )}
-      <DeleteAccount ownedAccountNames={ownedAccountNames} result={result} />
+        <Button type="submit" variant="primary" pending={saving}>
+          Save changes
+        </Button>
+      </div>
+    </DemoGuardedForm>
+  );
+}
+
+const THEME_FAILED = "Failed to save theme. Please try again.";
+const THEME_LABEL: Record<Theme, string> = { dark: "Dark", light: "Light" };
+
+/**
+ * AppearanceSection with Recova's ThemeToggle (blob 8f32b6c7): the two themes,
+ * dark first, as Capsomer's segmented control. A choice applies at once, saves
+ * to the account through /api/theme (Recova's /api/account/theme), and on a
+ * failed save goes back and says Recova's line.
+ *
+ * Once the save lands, Capsomer's applyTheme remembers the choice in this
+ * browser and tells the header's theme button, so the two never disagree.
+ * The header's listener (useThemeMemory) then saves the same value once more;
+ * the write is idempotent, and leaving it in place keeps the header unchanged.
+ */
+function Appearance({ initial, isDemo }: { initial: Theme; isDemo: boolean }) {
+  const [theme, setTheme] = useState<Theme>(initial);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [refused, setRefused] = useState(false);
+
+  async function select(next: Theme) {
+    if (next === theme || pending) return;
+    setError(null);
+    if (isDemo) {
+      // The demo's read-only refusal, as DemoGuardedForm gives every other
+      // write: nothing changes and nothing is sent.
+      setRefused(true);
+      return;
+    }
+    const prev = theme;
+    setTheme(next);
+    document.documentElement.setAttribute("data-theme", next);
+    setPending(true);
+    const outcome = await chooseTheme(next, { isDemo });
+    setPending(false);
+    if (outcome !== "saved") {
+      setTheme(prev);
+      document.documentElement.setAttribute("data-theme", prev);
+      setError(THEME_FAILED);
+      return;
+    }
+    applyTheme(next, { key: THEME_PREF_KEY });
+  }
+
+  return (
+    <section className="cap-panel">
+      <div className="cap-panel-body">
+        <p className="mb-4 text-label text-text-tertiary">
+          Choose how Foxhound looks. Saved to your account and synced across devices.
+        </p>
+        <Segmented
+          // Recova's group is named "Theme" (aria-label) with no visible
+          // label. The name is visually hidden inside the legend, not with
+          // Capsomer's hideLegend: that sets .cap-sr-only, which lives in
+          // capsomer/base.css, and the merchant app does not load base.css
+          // (app/site-header.css), as /settings/audit records.
+          legend={<span className="sr-only">Theme</span>}
+          options={THEMES.map((t) => ({ value: t, label: THEME_LABEL[t] }))}
+          value={theme}
+          onChange={(next) => void select(next)}
+        />
+        {error ? (
+          <p role="alert" className="mt-2 text-label">
+            <Status tone="crit">{error}</Status>
+          </p>
+        ) : null}
+        {refused ? (
+          <div className="mt-3">
+            <Alert tone="neutral">{DEMO_READ_ONLY_MESSAGE}</Alert>
+          </div>
+        ) : null}
+      </div>
     </section>
   );
 }
 
-const DELETE_BUTTON_ID = "delete-account-open";
-const KEEP_BUTTON_ID = "delete-account-keep";
+/** AccountSection's top row: the signed-in address, and Sign out beside it. */
+function SignedIn({ userEmail }: { userEmail: string }) {
+  return (
+    <div className="flex flex-col items-start gap-3 md:flex-row md:items-center md:justify-between">
+      <div className="text-label text-text">{userEmail}</div>
+      <Form method="post" action="/logout">
+        <Button type="submit">Sign out</Button>
+      </Form>
+    </div>
+  );
+}
+
+const CANCEL_CONSEQUENCE =
+  "This stops all recovery processing and disconnects every Stripe account here. Fees on recoveries Foxhound has already attributed remain owed and are still invoiced.";
+
+type Confirming = "cancel-account" | "delete-account" | null;
 
 /**
- * Legacy's Delete account control (AccountSection.tsx, blob a154ac8f), the same
- * three states in the same order: the button at the right; on press, the
- * "Are you sure?" callout with "Yes, delete my account" and "Keep my account";
- * while it runs, "Deleting..." with Keep withdrawn. Built from Capsomer's
- * Button (danger for the destructive pair) and Alert (the critical callout),
- * per Q10, with no Foxhound CSS over either.
+ * AccountSection's Danger zone (blob a154ac8f), below a rule in the account
+ * card: the label, the controls at the right, and on a press Recova's
+ * "Are you sure?" callout with the confirm and "Keep my account" under it;
+ * while it runs, the confirm says so and Keep is withdrawn.
  *
- * Two departures, both recorded in the PR. The confirm text is rewritten
- * because Recova's, which says the payment data is deleted too, would be
- * false here: Foxhound keeps the record of recovered payments (Q14),
- * a truthfulness fix (RULES.md 1.2). It also names what goes for this person
- * (deletionConsequence): nothing but the login for a member who owns no
- * account, and every owned account by name for an owner of several. And focus moves to "Keep my account" when
- * the confirmation opens, and back to "Delete account" when it closes, where
- * Recova drops focus on a removed button; that is accessibility, not a change
- * of behaviour (RULES.md 1.5), and starting on the safe choice is Capsomer's
- * confirm rule.
+ * TWO CONTROLS. "Cancel account" (S37, 333) stops processing and keeps the
+ * account and its billing records; "Delete account" (S40) is Recova's, and
+ * deletes the person while keeping the fee evidence. Both take Recova's
+ * two-step confirmation. Focus moves to "Keep my account" when a confirmation
+ * opens and back to the control that opened it when it closes.
  */
-function DeleteAccount({
+function DangerZone({
+  cancelledAt,
+  isOwner,
   ownedAccountNames,
   result,
 }: {
+  cancelledAt: Date | null;
+  isOwner: boolean;
   ownedAccountNames: Array<string | null>;
   result?: ActionResult;
 }) {
   const navigation = useNavigation();
-  const deleting = navigation.state !== "idle" && navigation.formData?.get("_action") === "delete-account";
-  const [confirming, setConfirming] = useState(false);
+  const running = navigation.state !== "idle" ? String(navigation.formData?.get("_action") ?? "") : "";
+  const [confirming, setConfirming] = useState<Confirming>(null);
+  const opener = useRef<Confirming>(null);
   const moved = useRef(false);
+  const ids = useId();
+  const keepId = `${ids}-keep`;
+  const openerId = (which: Exclude<Confirming, null>) => `${ids}-${which}`;
 
   useEffect(() => {
     if (!moved.current) return;
-    document.getElementById(confirming ? KEEP_BUTTON_ID : DELETE_BUTTON_ID)?.focus();
-  }, [confirming]);
+    const target = confirming ? `${ids}-keep` : opener.current ? `${ids}-${opener.current}` : null;
+    if (target) document.getElementById(target)?.focus();
+  }, [confirming, ids]);
 
-  const open = (next: boolean) => {
+  const open = (which: Confirming) => {
     moved.current = true;
-    setConfirming(next);
+    if (which) opener.current = which;
+    setConfirming(which);
   };
-  const failed = result?.action === "delete-account" && !result.ok ? result.error : undefined;
+
+  const keep = (
+    <Button id={keepId} onClick={() => open(null)}>
+      Keep my account
+    </Button>
+  );
+  const deleteFailed = result?.action === "delete-account" && !result.ok ? result.error : undefined;
+  const cancelWarning = result?.action === "cancel-account" ? result.warning : undefined;
+  const cancelRefused = result?.action === "cancel-account" && !result.ok ? result.error : undefined;
 
   return (
-    <div className="mt-5 flex flex-col gap-3 border-t border-border pt-5">
-      {failed ? <CapAlert tone="crit">{failed}</CapAlert> : null}
-      {confirming ? (
-        <DemoGuardedForm method="post" className="flex flex-col gap-3">
-          <input type="hidden" name="_action" value="delete-account" />
-          <CapAlert tone="crit" title="Are you sure?">
-            {deletionConsequence(ownedAccountNames)}
-          </CapAlert>
-          <div className="flex gap-2.5">
-            <Button type="submit" variant="danger" pending={deleting}>
-              {deleting ? "Deleting..." : "Yes, delete my account"}
-            </Button>
-            {deleting ? null : (
-              <Button id={KEEP_BUTTON_ID} onClick={() => open(false)}>
-                Keep my account
+    <div className="mt-5 border-t border-border pt-5">
+      <h2 className="mb-3 text-label font-normal text-text-subtle">Danger zone</h2>
+
+      <div className="flex flex-col gap-3">
+        {cancelledAt ? (
+          <p className="text-label text-text-tertiary">
+            This account is cancelled. Recovery processing is stopped. Fees already earned on recoveries
+            Foxhound attributed remain owed.
+          </p>
+        ) : null}
+        {cancelWarning ? <Alert tone="warn">{cancelWarning}</Alert> : null}
+        {deleteFailed ? <Alert tone="crit">{deleteFailed}</Alert> : null}
+        {cancelRefused ? <Alert tone="crit">{cancelRefused}</Alert> : null}
+
+        {confirming === "cancel-account" ? (
+          <DemoGuardedForm method="post" className="flex flex-col gap-3">
+            <input type="hidden" name="_action" value="cancel-account" />
+            <Alert tone="crit" title="Are you sure?">
+              {CANCEL_CONSEQUENCE}
+            </Alert>
+            <div className="flex flex-wrap gap-2.5">
+              <Button type="submit" variant="danger" pending={running === "cancel-account"}>
+                {running === "cancel-account" ? "Cancelling..." : "Yes, cancel my account"}
+              </Button>
+              {running === "cancel-account" ? null : keep}
+            </div>
+          </DemoGuardedForm>
+        ) : confirming === "delete-account" ? (
+          <DemoGuardedForm method="post" className="flex flex-col gap-3">
+            <input type="hidden" name="_action" value="delete-account" />
+            <Alert tone="crit" title="Are you sure?">
+              {deletionConsequence(ownedAccountNames)}
+            </Alert>
+            <div className="flex flex-wrap gap-2.5">
+              <Button type="submit" variant="danger" pending={running === "delete-account"}>
+                {running === "delete-account" ? "Deleting..." : "Yes, delete my account"}
+              </Button>
+              {running === "delete-account" ? null : keep}
+            </div>
+          </DemoGuardedForm>
+        ) : (
+          <div className="flex flex-wrap items-center justify-end gap-2.5">
+            {/* The owner's control only: a member cannot cancel (the action
+                refuses with a 403), so a member is not offered it. */}
+            {cancelledAt || !isOwner ? null : (
+              <Button id={openerId("cancel-account")} variant="danger" onClick={() => open("cancel-account")}>
+                Cancel account
               </Button>
             )}
+            <Button id={openerId("delete-account")} variant="danger" onClick={() => open("delete-account")}>
+              Delete account
+            </Button>
           </div>
-        </DemoGuardedForm>
-      ) : (
-        <div className="flex items-center justify-end">
-          <Button id={DELETE_BUTTON_ID} variant="danger" onClick={() => open(true)}>
-            Delete account
-          </Button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
 
 export default function AccountSettings({ loaderData, actionData }: Route.ComponentProps) {
-  const { account, cancelledAt, userEmail, ownedAccountNames } = loaderData;
+  const { account, cancelledAt, userEmail, ownedAccountNames, theme, isOwner, isDemo } = loaderData;
   const result = actionData as ActionResult | undefined;
 
   return (
-    <div className="flex flex-col gap-6">
-      <header>
-        <h1 className="text-h2 text-text">My account</h1>
-        <p className="mt-1 text-label text-text-tertiary">
-          Profile, appearance, and account lifecycle.
-        </p>
-      </header>
+    <>
+      <SettingsBackLink />
+      {/* Legacy's PageHeader leaves 32px under the head (mb-8); the wrapper
+          keeps that space without styling Capsomer's head. */}
+      <div className="mb-8">
+        <PageHead title="My account" lead="Profile, appearance, and account controls." />
+      </div>
 
-      {/* Legacy's AccountSection opens with the signed-in address and a sign-out
-          control beside it (blob a154ac8f). Both were absent from Foxhound's
-          account surface until session 60; the address is a display, and the
-          sign-out is a POST to the existing /logout resource route rather than
-          legacy's GET link, because signing out is a state change. */}
-      <section className="flex flex-col items-start gap-3 rounded-lg border border-border bg-surface p-5 md:flex-row md:items-center md:justify-between">
-        <div className="text-label text-text">{userEmail}</div>
-        <Form method="post" action="/logout">
-          <button
-            type="submit"
-            className="whitespace-nowrap rounded-md border border-border bg-transparent px-4 py-2 text-label text-text-tertiary transition-colors duration-150 hover:border-text-tertiary"
-          >
-            Sign out
-          </button>
-        </Form>
-      </section>
+      {/* Recova's mb-10 under the form. */}
+      <div className="mb-10">
+        <ProfileForm account={account} result={result?.action === "profile" ? result : undefined} />
+      </div>
 
-      <SettingsCard title="Account" action="profile" result={result}>
-        <Field label="Account name" name="name" required defaultValue={account.name ?? ""} />
-      </SettingsCard>
+      <Appearance initial={theme ?? DEFAULT_THEME} isDemo={Boolean(isDemo)} />
 
-      <SettingsCard
-        title="Intelligence context"
-        description="Optional. Foxhound gives these to the AI that writes your recovery emails, so the copy knows what kind of business it is writing for. They will also feed risk scoring once Intelligence scoring is available."
-        action="intelligence-context"
-        result={result}
-      >
-        <Field
-          label="Industry"
-          name="merchantIndustry"
-          required={false}
-          defaultValue={account.merchantIndustry ?? ""}
-        />
-        <Field
-          label="Primary customer type"
-          name="primaryCustomerType"
-          required={false}
-          defaultValue={account.primaryCustomerType ?? ""}
-        />
-        <Field
-          label="Self-reported monthly recurring revenue (USD)"
-          name="merchantMrrSelfReported"
-          required={false}
-          defaultValue={formatCentsAsDollars(account.merchantMrrSelfReported)}
-        />
-      </SettingsCard>
-
-      <DangerZone cancelledAt={cancelledAt} ownedAccountNames={ownedAccountNames} result={result} />
-    </div>
+      {/* Recova's mt-6 over the account card, after the appearance card's mb-4. */}
+      <div className="mt-10">
+        <section className="cap-panel">
+          <div className="cap-panel-body">
+            <SignedIn userEmail={userEmail} />
+            <DangerZone
+              cancelledAt={cancelledAt}
+              isOwner={Boolean(isOwner)}
+              ownedAccountNames={ownedAccountNames}
+              result={result}
+            />
+          </div>
+        </section>
+      </div>
+    </>
   );
 }
