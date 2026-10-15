@@ -22,8 +22,9 @@
   ],
   "vars": {
     "ADMIN_MCP_ORIGIN": "https://admin-mcp.foxhoundapp.com",
-    // The Cloudflare Access team domain, e.g. <team>.cloudflareaccess.com.
-    "ACCESS_TEAM_DOMAIN": ""
+    // The Cloudflare Access team domain: Dustin's, the same team Capsid and
+    // dustinedwards.info sign in through. Not a secret.
+    "ACCESS_TEAM_DOMAIN": "dustinedwards.cloudflareaccess.com"
   }
   // Secrets, set with `npx wrangler secret put <NAME> --config mcp/wrangler.jsonc`:
   //   FOXHOUND_ADMIN_API_KEY     from scripts/issue-admin-api-key.mjs

@@ -134,6 +134,11 @@ export function daysUntilDeadline(deadline: Date | null, nowMs: number): number 
 
 export type DeadlineUrgency = "overdue" | "urgent" | "soon" | "normal";
 
+/** The two deadline bands, named so the /products/disputes copy states the
+ *  numbers the dashboard colours by rather than retyping them (RULES.md 2.1). */
+export const DEADLINE_URGENT_DAYS = 3;
+export const DEADLINE_SOON_DAYS = 7;
+
 /** Urgency band for an evidence deadline. Legacy toned at 3 and 7 days; those
  *  boundaries are kept because they track how banks actually work (a Stripe
  *  evidence window is typically 7 to 21 days, so inside 3 days is genuinely
@@ -141,8 +146,8 @@ export type DeadlineUrgency = "overdue" | "urgent" | "soon" | "normal";
 export function deadlineUrgency(daysRemaining: number | null): DeadlineUrgency {
   if (daysRemaining === null) return "normal";
   if (daysRemaining <= 0) return "overdue";
-  if (daysRemaining <= 3) return "urgent";
-  if (daysRemaining <= 7) return "soon";
+  if (daysRemaining <= DEADLINE_URGENT_DAYS) return "urgent";
+  if (daysRemaining <= DEADLINE_SOON_DAYS) return "soon";
   return "normal";
 }
 

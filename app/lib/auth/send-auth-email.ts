@@ -63,14 +63,18 @@ function renderAuthEmail(kind: AuthEmailKind, url: string): string {
   );
 }
 
+/** The subject and body sendAuthEmail sends. Pure; the admin preview reads it. */
+export function buildAuthEmail(kind: AuthEmailKind, url: string): { subject: string; bodyHtml: string } {
+  return { subject: COPY[kind].subject, bodyHtml: renderAuthEmail(kind, url) };
+}
+
 export async function sendAuthEmail(
   env: Env,
   kind: AuthEmailKind,
   to: string,
   url: string,
 ): Promise<void> {
-  const { subject } = COPY[kind];
-  await sendTransactionalEmail(env, { to, subject, bodyHtml: renderAuthEmail(kind, url) });
+  await sendTransactionalEmail(env, { to, ...buildAuthEmail(kind, url) });
 }
 
 // ---- the password reset (J82, parity row E1) ------------------------------------
@@ -99,6 +103,17 @@ function durationInWords(seconds: number): string {
   return `${n} ${unit}${n === 1 ? "" : "s"}`;
 }
 
+/** The password reset as sendPasswordResetEmail sends it. Pure; throws on a
+ *  link Capsomer refuses. The admin preview reads it. */
+export function renderPasswordResetEmail(to: string, url: string): Rendered {
+  return renderFoxhoundResetEmail({
+    to,
+    url,
+    expiresIn: durationInWords(PASSWORD_RESET_EXPIRES_IN_SECONDS),
+    copy: PASSWORD_RESET_COPY,
+  });
+}
+
 export type PasswordResetOutcome =
   | TransactionalSendOutcome
   | { status: "failed"; reason: "link_refused" | "render_failed"; error: null };
@@ -122,12 +137,7 @@ export async function sendPasswordResetEmail(
   const { to, url, token } = reset;
   let rendered: Rendered;
   try {
-    rendered = renderFoxhoundResetEmail({
-      to,
-      url,
-      expiresIn: durationInWords(PASSWORD_RESET_EXPIRES_IN_SECONDS),
-      copy: PASSWORD_RESET_COPY,
-    });
+    rendered = renderPasswordResetEmail(to, url);
   } catch {
     return { status: "failed", reason: isHttps(url) ? "render_failed" : "link_refused", error: null };
   }

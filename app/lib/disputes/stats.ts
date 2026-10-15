@@ -83,3 +83,17 @@ export function computeDisputeStats(rows: DisputeStatsInput[]): DisputeStats {
     winRatePct: resolvedCount > 0 ? Math.round((wonCount / resolvedCount) * 100) : null,
   };
 }
+
+/** The Win rate card's figure and line, as /disputes shows them (and the
+ *  /products/disputes preview of that page): a dash and "No disputes resolved
+ *  yet" until something resolves, never a 0%. */
+export function winRateCard(stats: Pick<DisputeStats, "wonCount" | "lostCount" | "winRatePct">): {
+  value: string;
+  subtext: string;
+} {
+  if (stats.winRatePct === null) return { value: "-", subtext: "No disputes resolved yet" };
+  return {
+    value: `${stats.winRatePct}%`,
+    subtext: `${stats.wonCount} won of ${stats.wonCount + stats.lostCount} resolved`,
+  };
+}

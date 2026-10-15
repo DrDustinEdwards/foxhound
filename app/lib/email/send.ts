@@ -132,6 +132,20 @@ export async function sendTransactionalEmail(
   env: Env,
   message: { to: string; subject: string; bodyHtml: string; fromName?: string | null },
 ): Promise<{ providerMessageId: string | null }> {
+  const { fromName, rendered } = renderTransactional(message);
+  const sent = await sendThroughAuthSender(env, { to: message.to, rendered, fromName });
+  // Same behaviour as before the shared seam: a missing binding and a provider
+  // throw both reach the caller as throws, the provider's own error unchanged.
+  if (sent.status === "sent") return { providerMessageId: sent.providerMessageId };
+  if (sent.reason === "email_binding_missing") throw new Error("EMAIL binding is not configured");
+  throw sent.cause;
+}
+
+/** The From name and the rendered parts of a transactional mail. Pure. */
+function renderTransactional(message: { to: string; subject: string; bodyHtml: string; fromName?: string | null }): {
+  fromName: string;
+  rendered: Rendered;
+} {
   const fromName = fromDisplayName(message.fromName ?? "Foxhound");
   const rendered = renderFoxhoundEmail({
     subject: message.subject,
@@ -139,12 +153,39 @@ export async function sendTransactionalEmail(
     brandName: fromName,
     to: message.to,
   });
-  const sent = await sendThroughAuthSender(env, { to: message.to, rendered, fromName });
-  // Same behaviour as before the shared seam: a missing binding and a provider
-  // throw both reach the caller as throws, the provider's own error unchanged.
-  if (sent.status === "sent") return { providerMessageId: sent.providerMessageId };
-  if (sent.reason === "email_binding_missing") throw new Error("EMAIL binding is not configured");
-  throw sent.cause;
+  return { fromName, rendered };
+}
+
+/** The auth sender's message for already-rendered mail, exactly as
+ *  sendThroughAuthSender hands it to the binding. Pure. */
+function authSenderMessage(to: string, rendered: Rendered, fromName: string): EmailSendMessage {
+  return {
+    from: `${fromName} <${EMAIL_AUTH_SENDER_ADDRESS}>`,
+    to,
+    subject: rendered.subject,
+    html: rendered.html,
+    text: rendered.text,
+  };
+}
+
+/**
+ * The message sendTransactionalEmail would hand the binding, built without
+ * sending. Pure. For the admin preview (app/lib/admin/email-send.server.ts), so
+ * a preview is the same function's output and not a copy of it.
+ */
+export function buildTransactionalMessage(message: {
+  to: string;
+  subject: string;
+  bodyHtml: string;
+  fromName?: string | null;
+}): EmailSendMessage {
+  const { fromName, rendered } = renderTransactional(message);
+  return authSenderMessage(message.to, rendered, fromName);
+}
+
+/** The message sendRenderedTransactionalEmail would hand the binding. Pure. */
+export function buildRenderedTransactionalMessage(message: { to: string; rendered: Rendered }): EmailSendMessage {
+  return authSenderMessage(message.to, message.rendered, "Foxhound");
 }
 
 type BindingSendResult =
@@ -160,13 +201,7 @@ async function sendThroughAuthSender(
 ): Promise<BindingSendResult> {
   if (!env.EMAIL) return { status: "failed", reason: "email_binding_missing" };
   try {
-    const result = await env.EMAIL.send({
-      from: `${message.fromName} <${EMAIL_AUTH_SENDER_ADDRESS}>`,
-      to: message.to,
-      subject: message.rendered.subject,
-      html: message.rendered.html,
-      text: message.rendered.text,
-    });
+    const result = await env.EMAIL.send(authSenderMessage(message.to, message.rendered, message.fromName));
     return { status: "sent", providerMessageId: (result && "id" in result ? result.id : null) ?? null };
   } catch (cause) {
     return { status: "failed", reason: "provider_error", cause };
