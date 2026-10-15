@@ -13,7 +13,7 @@ import { SETTINGS_HUB_ENTRIES } from "~/routes/app/settings/hub";
 // under 336 binding 2.
 //
 // THE ASSERTION THAT MATTERS IS "NO DEAD LINK". Legacy has twelve entries and
-// Foxhound has ten targets; an entry to a route that 404s is a false promise,
+// Foxhound has eleven targets (J69 added /settings/intelligence); an entry to a route that 404s is a false promise,
 // so the hub and the sub-nav are both checked against the ROUTE TABLE rather
 // than against a list in this file.
 
@@ -51,19 +51,18 @@ describe("PLANT 1: the hub has no dead link", () => {
     }
   });
 
-  it("the two absent targets are omitted rather than rendered dead", () => {
-    // S32 and S35. When either ships it is one line in each list.
+  it("the one absent target is omitted rather than rendered dead", () => {
+    // S32. When it ships it is one line in each list, as S35 was (J69).
     const all = [
       ...SETTINGS_HUB_ENTRIES.map((e) => e.to),
       ...SETTINGS_NAV_GROUPS.flatMap((g) => g.items.map((i) => i.to)),
     ];
     expect(all).not.toContain("/settings/disputes");
-    expect(all).not.toContain("/settings/intelligence");
   });
 });
 
 describe("PLANT 2: the hub is legacy's list, in legacy's order", () => {
-  it("ten entries with legacy's labels and descriptions", () => {
+  it("eleven entries with legacy's labels and descriptions", () => {
     expect(
       SETTINGS_HUB_ENTRIES.map((e) => [e.to, e.label, e.description]),
     ).toEqual([
@@ -71,6 +70,7 @@ describe("PLANT 2: the hub is legacy's list, in legacy's order", () => {
       ["/settings/email", "Email", "Sender name, reply-to"],
       ["/settings/brand-voice", "Brand voice", "Per-category AI tone"],
       ["/settings/features", "Features", "Win-back, expiring cards"],
+      ["/settings/intelligence", "Intelligence", "Notification preferences, not built yet"],
       ["/settings/audit", "Audit", "Lookback period, auto-run"],
       ["/settings/notifications", "Notifications", "Email, Slack, digest"],
       ["/settings/alerts", "Alerts", "Metric thresholds"],
@@ -145,19 +145,16 @@ describe("PLANT 4: every settings path the docs name resolves", () => {
     // mutation add "Disputes" to the list and stay green.
     const listClause = body.slice(
       body.indexOf("Settings is a hub:"),
-      body.indexOf("Disputes and Intelligence settings are not built yet"),
+      body.indexOf("Disputes settings are not built yet"),
     );
     for (const entry of SETTINGS_HUB_ENTRIES) {
       expect(listClause, `${entry.label} is named in the guide`).toContain(entry.label);
     }
     expect(listClause, "the list names a page the hub does not render").not.toContain("Disputes");
-    expect(listClause, "the list names a page the hub does not render").not.toContain(
-      "Intelligence",
-    );
 
-    // And the two that are absent are named as absent rather than omitted in
-    // silence, which is what stops the sentence going stale when they ship.
-    expect(body).toContain("Disputes and Intelligence settings are not built yet");
+    // And the one that is absent is named as absent rather than omitted in
+    // silence, which is what stops the sentence going stale when it ships.
+    expect(body).toContain("Disputes settings are not built yet");
   });
 
   it("the relocated destinations are named at their NEW home", async () => {
