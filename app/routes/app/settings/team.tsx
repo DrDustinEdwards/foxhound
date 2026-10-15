@@ -1,12 +1,10 @@
 import { data, useNavigation, useSearchParams } from "react-router";
 import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
-import { PageHead } from "capsomer/react/page-head";
 import { Pill } from "capsomer/react/status";
 import "capsomer/banner.css";
 import "capsomer/button.css";
 import "capsomer/field.css";
-import "capsomer/page-head.css";
 import "capsomer/panel.css";
 import "capsomer/status.css";
 
@@ -142,6 +140,11 @@ function displayName(m: { userId: string | null; userName: string | null; userEm
 // one row and the result line under them. No column of its own: the settings
 // layout gives Recova's 800px column and padding (app/layouts/settings.tsx).
 //
+// The heading is composed on the five sizes (Capsomer's page head computes
+// 22px, off them). The row buttons are Capsomer's sm size (13px, text-label),
+// because xs computes 12px, also off them; Capsomer's pills compute 12px with
+// no size to choose, which is for Capsomer's per-site layer to map.
+//
 // The card is Capsomer's panel through its HTML contract, body only, because
 // the React Panel always draws a header band and Recova's card has none (the
 // gap J53 and J62 named). The member list is composed inside it: Capsomer's
@@ -160,8 +163,12 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
   return (
     <>
       <SettingsBackLink />
+      {/* Recova's PageHeader: h1 text-title medium, the line in text-label.
+          Composed on the five sizes, because Capsomer's page head computes
+          22px at weight 800, off them (RULES.md 5.2). */}
       <div className="mb-8">
-        <PageHead title="Team" lead="Members and pending invites for this account." />
+        <h1 className="mb-1 text-title font-medium text-text">Team</h1>
+        <p className="text-label text-text-subtle">Members and pending invites for this account.</p>
       </div>
 
       <section className="cap-panel">
@@ -185,15 +192,15 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
                             <input type="hidden" name="_action" value="remove" />
                             <input type="hidden" name="memberId" value={m.id} />
                             <span className="text-micro text-text-subtle">Remove {name}?</span>
-                            <Button type="submit" variant="danger" size="xs" pending={busy}>
+                            <Button type="submit" variant="danger" size="sm" pending={busy}>
                               {busy ? "Removing..." : "Yes, remove member"}
                             </Button>
-                            <a href="?" className="cap-btn" data-variant="quiet" data-size="xs">
+                            <a href="?" className="cap-btn" data-variant="quiet" data-size="sm">
                               Cancel
                             </a>
                           </DemoGuardedForm>
                         ) : (
-                          <a href={"?confirm=" + m.id} className="cap-btn" data-variant="quiet" data-size="xs">
+                          <a href={"?confirm=" + m.id} className="cap-btn" data-variant="quiet" data-size="sm">
                             Remove member
                             <span className="sr-only">{" " + name}</span>
                           </a>

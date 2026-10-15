@@ -137,10 +137,13 @@ describe("J31: Recova's page frame, inside the settings column", () => {
     expect(html.indexOf('href="/settings"')).toBeLessThan(html.indexOf("<h1"));
   });
 
-  it("Recova's heading and the line under it, from Capsomer's page head", () => {
+  it("Recova's heading and the line under it, on the five sizes", () => {
+    // Recova's PageHeader: h1 text-title font-medium, the line text-[0.8125rem]
+    // (text-label). Capsomer's page head computes 22px, off the five.
     const html = render(AS_OWNER);
-    expect(html).toMatch(/<h1 class="cap-page-head-title">Team<\/h1>/);
-    expect(html).toContain('<p class="cap-page-head-lead">Members and pending invites for this account.</p>');
+    expect(html).toMatch(/<h1 class="[^"]*\btext-title\b[^"]*\bfont-medium\b[^"]*">Team<\/h1>/);
+    expect(html).toMatch(/<p class="[^"]*\btext-label\b[^"]*">Members and pending invites for this account.<\/p>/);
+    expect(html).not.toContain("cap-page-head");
   });
 
   it("one Capsomer card holding the list and then the form, with no headings inside", () => {
@@ -182,7 +185,8 @@ describe("J31: the member rows", () => {
     for (const m of links) {
       expect(m[0]).toMatch(/class="cap-btn"/);
       expect(m[0]).toContain('data-variant="quiet"');
-      expect(m[0]).toContain('data-size="xs"');
+      // sm is 13px (text-label); xs computes 12px, off the five sizes.
+      expect(m[0]).toContain('data-size="sm"');
       expect(text(m[2])).toBe("Remove member");
     }
     expect(links[0][2]).toContain('<span class="sr-only"> Sam Member</span>');
@@ -192,7 +196,7 @@ describe("J31: the member rows", () => {
     const html = render(AS_OWNER, undefined, "/settings/team?confirm=m_sam");
     const t = text(html);
     inOrder(t, ["Sam Member", "Remove Sam Member?", "Yes, remove member", "Cancel", "Member"]);
-    expect(html).toMatch(/<button[^>]*class="cap-btn"[^>]*data-variant="danger"[^>]*data-size="xs"[^>]*>Yes, remove member<\/button>/);
+    expect(html).toMatch(/<button[^>]*class="cap-btn"[^>]*data-variant="danger"[^>]*data-size="sm"[^>]*>Yes, remove member<\/button>/);
     expect(html).toMatch(/<a[^>]*class="cap-btn"[^>]*data-variant="quiet"[^>]*href="\?"[^>]*>Cancel<\/a>|<a[^>]*href="\?"[^>]*class="cap-btn"[^>]*data-variant="quiet"[^>]*>Cancel<\/a>/);
     expect(html).toContain('name="memberId" value="m_sam"');
   });
