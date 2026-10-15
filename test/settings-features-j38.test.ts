@@ -223,16 +223,17 @@ describe("J38 features: a failed save", () => {
     vi.restoreAllMocks();
   });
 
-  it("returns Recova's failure state rather than throwing", async () => {
+  it("returns Recova's failure state rather than throwing, and logs the thrown error whole", async () => {
+    const thrown = new Error("D1 unavailable");
     harness.db = new Proxy(
       {},
       {
         get() {
-          throw new Error("D1 unavailable");
+          throw thrown;
         },
       },
     );
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     const form = new FormData();
     form.set("winbackNotificationsEnabled", "on");
     const res = (await route.action({
@@ -242,5 +243,7 @@ describe("J38 features: a failed save", () => {
     } as never)) as unknown as { data: { ok: boolean }; init?: { status?: number } };
     expect(res.data.ok).toBe(false);
     expect(res.init?.status).toBe(500);
+    // The error object itself, so its stack reaches the log, not only its message.
+    expect(logged).toHaveBeenCalledWith("feature settings write failed:", thrown);
   });
 });
