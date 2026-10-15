@@ -1,7 +1,8 @@
 /* The admin's design system, loaded only with the admin routes (imported by
    app/layouts/admin-shell.tsx), so no customer or marketing page downloads it.
-   Capsomer: layers, tokens, both themes, the base rules, and the pieces
-   AdminShell and its time and tooltip use. The layer order is declared at the top
+   Capsomer: layers, tokens, both themes, the base rules, the pieces
+   AdminShell and its time and tooltip use, and the Overview's parts (panels,
+   the attention list and the row list under it, empty states, the spinner). The layer order is declared at the top
    of app.css, so Capsomer sits above Tailwind's base and below its utilities.
    Foxhound's family is teal (Dustin's answer 1 of 2026-10-13): its tokens come
    after the themes, so the accents are teal in both. */
@@ -17,6 +18,11 @@
 @import "capsomer/theme-switch.css";
 @import "capsomer/stat-tile.css";
 @import "capsomer/status.css";
+@import "capsomer/panel.css";
+@import "capsomer/row-list.css";
+@import "capsomer/attention-list.css";
+@import "capsomer/empty.css";
+@import "capsomer/skeleton.css";
 
 /* Capsomer's faces, self-hosted from @fontsource (latin and latin-ext) and
    bundled with this stylesheet: Schibsted Grotesk for the UI, Martian Mono for
@@ -124,4 +130,20 @@
 .fh-admin [id^="run-"],
 .fh-admin [id^="cron-"] {
   scroll-margin-block-start: 30vh;
+}
+
+/* A time in a row is AdminTime, a focusable tooltip trigger, because Dustin's
+   review (2026-10-11) asks for the exact time on hover. Row-list raises the
+   links and buttons in a row's time above the row's stretched link; the
+   trigger is neither, so it is raised the same way or a pointer could never
+   reach it. Capsomer's time keeps the exact time out of rows for the sake of
+   the row's single tab stop; the review's hover wins here, at the cost of one
+   more stop per row. */
+.fh-admin .cap-row .cap-row-meta [tabindex] {
+  position: relative;
+  z-index: 1;
+  /* A 24 px target (WCAG 2.2, 2.5.8) without growing the row. */
+  display: inline-block;
+  min-block-size: 24px;
+  line-height: 24px;
 }

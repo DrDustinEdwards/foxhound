@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 // Sample data for looking at /admin locally (screenshots, review): a few
-// merchants, cron runs including one FAILED run on a registered cron, webhook
-// events, a blog post and audit entries with real targets. Times are relative to
+// merchants (one paused), cron runs including one FAILED run on a registered
+// cron, webhook events, a blog post, audit entries with real targets, and what
+// the Overview's figures and Needs attention read: a new Stripe connection, a
+// dispute a week old with no response, a fee invoice whose charge failed,
+// recoveries this month in two currencies and an MRR snapshot. Times are relative to
 // now, so "5 hours ago" stays true whenever this runs.
 //
 // LOCAL ONLY. It runs `wrangler d1 execute foxhound --local` and nothing else:
@@ -20,6 +23,7 @@ const now = Date.now();
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
 const ago = (ms) => now - ms;
+const monthStart = Date.UTC(new Date(now).getUTCFullYear(), new Date(now).getUTCMonth(), 1);
 const q = (v) => (v === null ? "NULL" : typeof v === "number" ? String(v) : `'${String(v).replaceAll("'", "''")}'`);
 const row = (table, values) =>
   `INSERT OR REPLACE INTO ${table} (${Object.keys(values).join(", ")}) VALUES (${Object.values(values).map(q).join(", ")});`;
@@ -27,7 +31,7 @@ const row = (table, values) =>
 const sql = [
   // Merchants.
   row("accounts", { id: "sample_acct_northwind", name: "Northwind Coffee", created_at: ago(20 * DAY), billing_exempt: 0 }),
-  row("accounts", { id: "sample_acct_lumen", name: "Lumen Studio", created_at: ago(3 * DAY), billing_exempt: 0 }),
+  row("accounts", { id: "sample_acct_lumen", name: "Lumen Studio", created_at: ago(3 * DAY), billing_exempt: 0, processing_paused: 1 }),
   row("accounts", { id: "sample_acct_harbor", name: "Harbor Yoga", created_at: ago(90 * DAY), billing_exempt: 1 }),
 
   // Cron runs on registered crons. weekly-digest failed 5 hours ago: the run
@@ -81,6 +85,94 @@ const sql = [
     account_id: "sample_acct_lumen",
     processed: 1,
     payload: "{}",
+  }),
+
+  // What the Overview reads besides the crons and the audit log.
+  row("stripe_connections", {
+    id: "sample_conn_lumen",
+    account_id: "sample_acct_lumen",
+    stripe_user_id: "acct_sample_lumen",
+    connected_at: ago(2 * DAY),
+    created_at: ago(2 * DAY),
+    is_primary: 1,
+  }),
+  row("disputes", {
+    id: "sample_dispute_northwind",
+    account_id: "sample_acct_northwind",
+    stripe_dispute_id: "dp_sample_northwind",
+    stripe_charge_id: "ch_sample_northwind",
+    amount_cents: 12900,
+    currency: "usd",
+    reason: "product_not_received",
+    status: "needs_response",
+    state: "draft",
+    evidence_deadline: ago(-4 * DAY),
+    created_at: ago(9 * DAY),
+  }),
+  row("billing_invoices", {
+    id: "sample_invoice_northwind",
+    account_id: "sample_acct_northwind",
+    currency: "usd",
+    period_start: ago(45 * DAY),
+    period_end: ago(14 * DAY),
+    status: "payment_failed",
+    total_cents: 2580,
+    idempotency_key: "sample_invoice_northwind",
+    created_at: ago(14 * DAY),
+    charge_attempt_count: 2,
+    last_charge_attempt_at: ago(1 * DAY),
+  }),
+  // Recoveries Foxhound made (attributed, so the Overview counts them, as
+  // /billing does), placed a quarter, a half and three quarters of the way
+  // from the start of this UTC month to now, so they are this month's
+  // whenever the seed runs, the 1st included.
+  ...[
+    ["sample_fp_1", "sample_acct_northwind", 4900, "usd", 0.75, "foxhound_retry"],
+    ["sample_fp_2", "sample_acct_northwind", 12900, "usd", 0.25, "email_engaged"],
+    ["sample_fp_3", "sample_acct_harbor", 3500, "eur", 0.5, "card_update"],
+  ].flatMap(([id, account, cents, currency, share, attribution]) => [
+    row("failed_payments", {
+      id,
+      stripe_event_id: `evt_${id}`,
+      stripe_invoice_id: `in_${id}`,
+      stripe_customer_id: `cus_${id}`,
+      customer_email: "customer@example.com",
+      amount_cents: cents,
+      currency,
+      decline_category: "soft",
+      status: "recovered",
+      detected_at: Math.round(monthStart + (now - monthStart) * share - 3 * DAY),
+      account_id: account,
+    }),
+    row("recovered_payments", {
+      id: `rp_${id}`,
+      failed_payment_id: id,
+      recovered_at: Math.round(monthStart + (now - monthStart) * share),
+      amount_cents: cents,
+      currency,
+      recovery_method: "retry",
+      attribution_kind: attribution,
+      account_id: account,
+    }),
+  ]),
+  row("mrr_snapshots", {
+    id: "sample_mrr_northwind",
+    account_id: "sample_acct_northwind",
+    snapshot_date: ago(1 * DAY),
+    total_mrr_cents: 1840000,
+    new_mrr_cents: 0,
+    expansion_mrr_cents: 0,
+    contraction_mrr_cents: 0,
+    churn_mrr_cents: 0,
+    reactivation_mrr_cents: 0,
+    active_customers_count: 212,
+    new_customers_count: 0,
+    churned_customers_count: 0,
+    per_plan_breakdown: "{}",
+    per_cohort_breakdown: "{}",
+    per_channel_breakdown: "{}",
+    currency: "usd",
+    created_at: ago(1 * DAY),
   }),
 
   // Audit entries, each with the metadata the real action writes.
