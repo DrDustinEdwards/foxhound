@@ -139,6 +139,86 @@ describe("the words", () => {
   });
 });
 
+// Review of PR #96 (CHANGES): the error text an agent was given can echo its
+// own input, so the page masks credentials and encoded addresses in it as well
+// as the plain addresses the log already masked.
+const HOSTILE = [
+  "Bad key fox_mcp_AbCdEf0123456789xyzSECRET in header",
+  "Stripe said sk_live_51HabcDEF123SECRET and sk_test_4eC39HqLyjWDarjtT1zdp7dcSECRET",
+  "restricted rk_live_9xYzSECRET1234 / rk_test_AbcSECRET5678",
+  "post to https://hooks.slack.com/services/T0000/B0000/XXXXSECRETXXXX failed",
+  "and https://discord.com/api/webhooks/1234567890/abcDEF-SECRET_token too",
+  "or https://discordapp.com/api/webhooks/42/oldSECRETtoken",
+  "No customer alice%40example.com or BOB%40Example.COM",
+  "No customer carol@example.com",
+];
+
+describe("the error text is masked for display", () => {
+  it("masks tokens, Stripe keys, webhook URLs and plain or encoded addresses", () => {
+    expect(typeof pageLib.maskSecretsInText).toBe("function");
+    const mask = pageLib.maskSecretsInText as (t: string) => string;
+    for (const hostile of HOSTILE) {
+      const out = mask(hostile);
+      expect(out, hostile).not.toMatch(/SECRET/);
+      expect(out, hostile).not.toMatch(/alice|BOB%40|carol@/i);
+    }
+    expect(mask("Bad key fox_mcp_AbCdEf0123456789xyzSECRET in header")).toBe("Bad key fox_mcp_[redacted] in header");
+    expect(mask("Stripe said sk_live_51HabcDEF123SECRET")).toBe("Stripe said sk_live_[redacted]");
+    expect(mask("No customer alice%40example.com")).toBe("No customer a***%40example.com");
+    expect(mask("Nothing to hide here: limit must be 1 to 50")).toBe("Nothing to hide here: limit must be 1 to 50");
+  });
+
+  it("masks in the data layer, so the raw text never reaches the browser", async () => {
+    const db = await seed();
+    await db.insert(mcpCalls).values({
+      id: "call_9",
+      accountId: "acct_north",
+      apiKeyId: "key_a",
+      tool: "foxhound_update_settings",
+      arguments: {},
+      outcome: "tool_error",
+      error: HOSTILE.join(" | "),
+      createdAt: new Date(NOW),
+    });
+    const calls = await (serverLib.listRecentMcpCalls as (db: unknown) => Promise<Array<{ id: string; error: string | null }>>)(db);
+    const err = calls.find((c) => c.id === "call_9")?.error ?? "";
+    expect(err).toContain("[redacted]");
+    expect(err).not.toMatch(/SECRET|alice|carol@/);
+  });
+
+  it("masks on the page too", () => {
+    const html = render({ calls: [call(1, { outcome: "tool_error", error: HOSTILE.join(" | ") })] });
+    expect(html).not.toMatch(/SECRET|alice|carol@/);
+  });
+});
+
+describe("the review's other fixes", () => {
+  it("keeps the shown-call count in the client-safe module", () => {
+    expect(pageLib.MCP_CALLS_SHOWN).toBe(50);
+    // The page imports nothing but its loader's functions and types from the
+    // .server module, or the client build fails ("Server-only module
+    // referenced by client").
+    const src = readFileSync("app/routes/admin/mcps.tsx", "utf8");
+    const serverImport = /import \{([^}]*)\} from "~\/lib\/admin\/mcps\.server";/.exec(src)?.[1] ?? "";
+    expect(serverImport).not.toMatch(/MCP_CALLS_SHOWN|maskSecretsInText/);
+    expect(src).toMatch(/import \{[^}]*MCP_CALLS_SHOWN[^}]*\} from "~\/lib\/admin\/mcps";/);
+  });
+
+  it("says up to the newest 50 calls", () => {
+    expect(text(render())).toContain("Up to the newest 50 merchant MCP calls");
+  });
+
+  it("indexes mcp_calls by time and outcome, with its migration", () => {
+    expect(readFileSync("app/db/schema.ts", "utf8")).toMatch(/index\("mcp_calls_created_idx"\)\.on\(t\.createdAt, t\.outcome\)/);
+    const journal = JSON.parse(readFileSync("drizzle/migrations/meta/_journal.json", "utf8")) as { entries: Array<{ tag: string }> };
+    const tag = journal.entries.find((e) => e.tag.startsWith("0030_"))?.tag;
+    expect(tag).toBe("0030_mcp_calls_created_index");
+    expect(readFileSync(`drizzle/migrations/${tag}.sql`, "utf8")).toMatch(
+      /CREATE INDEX `mcp_calls_created_idx` ON `mcp_calls` \(`created_at`,`outcome`\)/,
+    );
+  });
+});
+
 describe("the loader", () => {
   beforeEach(async () => {
     harness.db = await seed();

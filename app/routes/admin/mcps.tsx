@@ -8,12 +8,11 @@ import "capsomer/table.css";
 
 import { AdminTime } from "~/components/admin-time";
 import { getDb } from "~/db";
-import { MCPS_PATH, outcomeWords, scopeWords } from "~/lib/admin/mcps";
+import { MCP_CALLS_SHOWN, MCPS_PATH, maskSecretsInText, outcomeWords, scopeWords } from "~/lib/admin/mcps";
 import {
   getMcpSummary,
   listAdminApiKeys,
   listRecentMcpCalls,
-  MCP_CALLS_SHOWN,
   merchantToolCoverage,
   type AdminApiKeyRow,
   type AdminMcpCallRow,
@@ -151,7 +150,7 @@ export default function AdminMcps({ loaderData }: Route.ComponentProps) {
           title="Recent calls"
           headingId={CALLS_HEADING_ID}
           src={spinner}
-          description={`The newest ${MCP_CALLS_SHOWN} merchant MCP calls, every account. Arguments are not shown.`}
+          description={`Up to the newest ${MCP_CALLS_SHOWN} merchant MCP calls, every account. Arguments are not shown.`}
           flush
         >
           {calls.length === 0 ? (
@@ -236,7 +235,7 @@ function CallRow({ call: c }: { call: AdminMcpCallRow }) {
         <AdminTime at={c.createdAt} />
       </td>
       <td data-wrap="" className={c.error ? "text-error-text" : "text-text-tertiary"}>
-        {c.error ?? "None"}
+        {c.error === null ? "None" : maskSecretsInText(c.error)}
       </td>
     </tr>
   );

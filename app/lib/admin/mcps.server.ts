@@ -13,6 +13,7 @@ import { and, count, desc, eq, gte, isNull, ne } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import { accounts, apiKeys, mcpCalls } from "~/db";
+import { MCP_CALLS_SHOWN, maskSecretsInText } from "~/lib/admin/mcps";
 import { MERCHANT_TOOLS } from "~/lib/mcp/tools.server";
 
 export interface AdminApiKeyRow {
@@ -45,8 +46,6 @@ export async function listAdminApiKeys(db: Db): Promise<AdminApiKeyRow[]> {
     .orderBy(desc(apiKeys.createdAt), desc(apiKeys.id));
 }
 
-export const MCP_CALLS_SHOWN = 50;
-
 export interface AdminMcpCallRow {
   id: string;
   tool: string;
@@ -62,7 +61,8 @@ export interface AdminMcpCallRow {
   createdAt: Date;
 }
 
-/** The newest merchant MCP calls, every account. */
+/** The newest merchant MCP calls, every account, with the error text masked
+ *  for display (maskSecretsInText) so the raw text never reaches the page. */
 export async function listRecentMcpCalls(db: Db, limit = MCP_CALLS_SHOWN): Promise<AdminMcpCallRow[]> {
   return db
     .select({
@@ -82,7 +82,11 @@ export async function listRecentMcpCalls(db: Db, limit = MCP_CALLS_SHOWN): Promi
     .leftJoin(apiKeys, eq(apiKeys.id, mcpCalls.apiKeyId))
     .orderBy(desc(mcpCalls.createdAt), desc(mcpCalls.id))
     .limit(limit)
-    .then((rows) => rows.map(({ foundKeyId, ...row }) => ({ ...row, keyFound: foundKeyId !== null })));
+    .then((rows) => rows.map(({ foundKeyId, ...row }) => ({
+      ...row,
+      error: row.error === null ? null : maskSecretsInText(row.error),
+      keyFound: foundKeyId !== null,
+    })));
 }
 
 export interface McpSummary {

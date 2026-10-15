@@ -1,0 +1,1 @@
+CREATE INDEX `mcp_calls_created_idx` ON `mcp_calls` (`created_at`,`outcome`);
