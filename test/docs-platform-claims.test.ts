@@ -31,6 +31,7 @@ function flatten(blocks: DocBlock[]): string {
     if ("code" in node) return node.code;
     if ("strong" in node) return node.strong;
     if ("mono" in node) return node.mono;
+    if ("badge" in node) return String(node.badge);
     return node.link;
   };
   const rich = (r: string | DocInline[]): string =>
@@ -78,7 +79,12 @@ describe("PLANT 1: the guide's shape", () => {
     // API-keys section when the MCP endpoint went live and the S29 hold
     // released. The count moving is the guard working, not noise, and it is
     // updated with the reason rather than relaxed to a floor.
-    expect(h3s).toHaveLength(24);
+    //
+    // 24 TO 27 AT J73: Recova's own 24 now sit in Recova's order (Reply-to
+    // email, Merchant context, Roles, Account deletion and Disconnecting Stripe
+    // among them), and Foxhound's Alerts, API keys and Connecting an agent
+    // stay beside them as Foxhound additions.
+    expect(h3s).toHaveLength(27);
     expect(h3s.map((h) => h.text)).toContain("Connecting an agent");
     expect(h3s.map((h) => h.text)).toContain("Expiring card alerts");
     expect(h3s.map((h) => h.text)).toContain("Win-back sequences");
@@ -205,7 +211,9 @@ describe("PLANT 2: every capability sentence, tied to its code", () => {
   });
 
   it("TEAM: the invite link lasts seven days", () => {
-    expect(TEXT).toContain("They get a link that stays valid for seven days.");
+    // J73: Foxhound shows the link to the owner and sends no invite email, so
+    // the sentence says that rather than "They get a link".
+    expect(TEXT).toContain("Send it to them yourself: Foxhound does not email it. It stays valid for seven days.");
     expect(INVITE_TTL_MS).toBe(7 * 24 * 60 * 60 * 1000);
   });
 
@@ -248,11 +256,14 @@ describe("PLANT 2: every capability sentence, tied to its code", () => {
 });
 
 describe("PLANT 3: what the guide must NOT say", () => {
-  it("promises nothing about a sending domain or account deletion", () => {
+  it("promises nothing about a sending domain, and describes the deletion S40 built", () => {
     // Each of these is a legacy heading with no Foxhound build. A guide sentence
     // about one would be the class of claim the session 33 audit found three of.
     // Reply-to left this list at J03, when its reader and writer were built.
-    expect(TEXT).not.toContain("Delete account");
+    // J73: Delete account is built (S40, lib/auth/deletion-copy.ts), so the
+    // guide describes it in the deletion copy's terms.
+    expect(TEXT).toContain("Delete account");
+    expect(TEXT).toContain("Deletion cannot be undone.");
     expect(TEXT).not.toContain("sender domain");
     expect(TEXT).not.toContain("Sender domain");
   });

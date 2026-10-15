@@ -1,26 +1,36 @@
+import { Glyph } from "capsomer/react/status";
 import { Link } from "react-router";
 
 import type { DocBlock, DocInline, DocRich } from "~/lib/marketing/docs-content";
 
 import { DocWidget } from "./doc-widgets";
+import { HealthScoreBadge } from "./health-score-badge";
 
-// Legacy's docs block vocabulary, at legacy's treatment on Foxhound's tokens.
+// Recova's docs block vocabulary, on Capsomer's parts (J73, Q12).
 //
-// WHERE IT CAME FROM, and it is not where ruling 325 said. The sixteen files in
-// legacy `components/docs/` are PREVIEW widgets (pills, table previews, sequence
-// timelines) that the guides embed as illustrations. The prose vocabulary is
-// defined INLINE at the bottom of each guide page: `app/(marketing)/docs/
-// platform/page.tsx` (blob `2b69517b`, 20,507 bytes) and `.../recovery/page.tsx`
-// (blob `6166a6be`, 23,209 bytes) each declare their own Part, H3, P, Note, Tip,
-// Steps, Step, List, Item, Code, Strong and RelLink, byte-identical between the
-// two files. So this is one shared module rather than a copy per guide, which is
-// the one structural divergence and costs no treatment.
+// WHERE IT CAME FROM. Recova defines its prose vocabulary INLINE at the bottom
+// of each guide page (`app/(marketing)/docs/platform/page.tsx`, blob `2b69517b`,
+// and the other four): Part, H3, P, Note, Tip, Steps, Step, List, Item, Code,
+// Strong and RelLink, the same in every file. This is one shared module rather
+// than a copy per guide.
 //
-// THE TYPE SCALE IS SUBSTITUTED, NOT CHANGED (session 37's precedent). Legacy
-// writes `text-[0.9375rem]` and `text-[0.8125rem]`; those are exactly
-// `--text-item-title` and `--text-label` in app.css, and check-tokens forbids
-// raw sizes anyway. `flex-shrink-0` becomes `shrink-0`, the Tailwind v4 spelling
-// of the identical rule.
+// LOOK IS CAPSOMER'S, CONTENT AND ORDER RECOVA'S. The reference table is
+// Capsomer's table (a labelled scroll region, so a wide table is a keyboard
+// stop). Note and Tip are Capsomer's alert in its neutral and info tones, with
+// the tone's shape. Capsomer's Alert wrapper always sets role="alert", which
+// would announce a static paragraph of a guide as an interruption, so the
+// markup contract from banner.md is used without the role: a gap named in the
+// PR, a static callout variant for the per-site layer (capsomer
+// job_ec5ec0754626) or a shared part.
+//
+// TEXT IS ON THE FIVE SIZES (RULES.md 5.2, APPROVED-DIFFERENCES 2026-09-19).
+// Recova writes 0.9375rem for body and H3 and 0.8125rem for callouts and
+// tables; those become body (1rem) and label (0.8125rem), finishing the
+// migration Recova's globals.css began rather than copying its arbitrary values.
+
+/** Teal, underlined: Recova's RelLink, in the accent text the 2026-10-13 tokens
+ *  set (Q11). */
+const LINK = "text-accent-text underline underline-offset-2 hover:opacity-80";
 
 function InlineRun({ inline }: { inline: DocInline }) {
   if (typeof inline === "string") return <>{inline}</>;
@@ -37,23 +47,25 @@ function InlineRun({ inline }: { inline: DocInline }) {
   if ("mono" in inline) {
     return <span className="font-mono">{inline.mono}</span>;
   }
-  // RelLink. An in-app path routes through Link so the marketing shell is not
-  // torn down; anything else (a mailto, an external doc) is a plain anchor,
-  // which is what legacy does for its support address.
-  const className = "text-brand-text underline underline-offset-2 hover:text-brand-text-hover";
+  // Recova's HealthScoreBadge inside the thresholds paragraph, banded by the
+  // engine's healthScoreBand.
+  if ("badge" in inline) {
+    return <HealthScoreBadge score={inline.badge} />;
+  }
+  // An in-app path routes through Link so the marketing shell is not torn down;
+  // anything else is a plain anchor.
   return inline.to.startsWith("/") ? (
-    <Link to={inline.to} className={className}>
+    <Link to={inline.to} className={LINK}>
       {inline.link}
     </Link>
   ) : (
-    <a href={inline.to} className={className}>
+    <a href={inline.to} className={LINK}>
       {inline.link}
     </a>
   );
 }
 
-/** A run of inline nodes, or a plain string. The string form is what every
- *  pre-existing section uses, and it renders through the same path. */
+/** A run of inline nodes, or a plain string. */
 function Rich({ content }: { content: DocRich }) {
   if (typeof content === "string") return <>{content}</>;
   return (
@@ -65,51 +77,50 @@ function Rich({ content }: { content: DocRich }) {
   );
 }
 
+const P = "mb-4 text-body leading-relaxed text-text-secondary";
+
+/** Capsomer's alert markup, static: no role, so it is read in the flow. */
+function Callout({ tone, word, body }: { tone: "neutral" | "info"; word: string; body: DocRich }) {
+  return (
+    <div className="cap-alert my-4" data-tone={tone}>
+      <Glyph name="info" />
+      <span className="cap-alert-text text-label leading-relaxed">
+        <span className="font-medium text-text">{word}</span> <Rich content={body} />
+      </span>
+    </div>
+  );
+}
+
 function Block({ block }: { block: DocBlock }) {
   if (typeof block === "string") {
-    return <p className="mb-4 text-item-title leading-relaxed text-text-secondary">{block}</p>;
+    return <p className={P}>{block}</p>;
   }
 
   switch (block.kind) {
     case "p":
       return (
-        <p className="mb-4 text-item-title leading-relaxed text-text-secondary">
+        <p className={P}>
           <Rich content={block.body} />
         </p>
       );
 
     case "h3":
-      return <h3 className="mb-3 mt-8 text-item-title font-medium text-text">{block.text}</h3>;
+      return <h3 className="mb-3 mt-8 text-body font-medium text-text">{block.text}</h3>;
 
     case "note":
-      return (
-        <div className="my-4 border-l-2 border-border pl-4 text-label leading-relaxed text-text-secondary">
-          <span className="font-medium text-text">Note.</span> <Rich content={block.body} />
-        </div>
-      );
+      return <Callout tone="neutral" word="Note." body={block.body} />;
 
     case "tip":
-      return (
-        <div className="my-4 border-l-2 border-brand pl-4 text-label leading-relaxed text-text-secondary">
-          <span className="font-medium text-text">Tip.</span> <Rich content={block.body} />
-        </div>
-      );
+      return <Callout tone="info" word="Tip." body={block.body} />;
 
     case "steps":
       return (
         <ol className="my-4 space-y-3">
           {block.items.map((item, i) => (
-            <li
-              key={i}
-              className="flex gap-3 text-item-title leading-relaxed text-text-secondary"
-            >
-              {/* Legacy passes the number in as a literal zero-padded string on
-                  every Step. Deriving it from the index means a step cannot be
-                  inserted without renumbering the ones after it, which legacy's
-                  hand-written form allows and nobody wants. */}
-              <span className="shrink-0 font-mono text-brand-text">
-                {String(i + 1).padStart(2, "0")}
-              </span>
+            <li key={i} className="flex gap-3 text-body leading-relaxed text-text-secondary">
+              {/* Recova hand-writes "01", "02"; derived here so a step cannot
+                  be inserted without its number following. */}
+              <span className="shrink-0 font-mono text-accent-text">{String(i + 1).padStart(2, "0")}</span>
               <span>
                 <Rich content={item} />
               </span>
@@ -120,7 +131,7 @@ function Block({ block }: { block: DocBlock }) {
 
     case "list":
       return (
-        <ul className="my-4 list-inside list-disc space-y-2 text-item-title leading-relaxed text-text-secondary">
+        <ul className="my-4 list-inside list-disc space-y-2 text-body leading-relaxed text-text-secondary">
           {block.items.map((item, i) => (
             <li key={i}>
               <Rich content={item} />
@@ -129,33 +140,44 @@ function Block({ block }: { block: DocBlock }) {
         </ul>
       );
 
-    // A PREVIEW WIDGET, ruled by the session 65 walk. It takes no data and no
-    // loader: every one either draws a fixed picture or derives its content from
-    // a compile-time constant the engine already owns.
+    // A preview widget: no data and no loader; each one draws a fixed picture
+    // or derives its content from a constant the engine owns.
     case "widget":
       return <DocWidget name={block.name} />;
 
     case "table":
       return (
-        <div className="my-6 overflow-x-auto">
-          <table className="w-full text-label">
+        <div
+          className="cap-table-wrap my-6"
+          data-cap="table"
+          role="region"
+          aria-label={block.label}
+          tabIndex={0}
+        >
+          <table className="cap-table">
             <thead>
-              <tr className="border-b border-border">
+              <tr>
                 {block.columns.map((column) => (
-                  <th key={column} className="py-2 pr-4 text-left font-medium text-text">
+                  <th key={column} scope="col">
                     {column}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="text-text-secondary">
+            <tbody>
               {block.rows.map((row, i) => (
-                <tr key={i} className="border-b border-border">
-                  {row.map((cell, j) => (
-                    <td key={j} className="py-2 pr-4">
-                      <Rich content={cell} />
-                    </td>
-                  ))}
+                <tr key={i}>
+                  {row.map((cell, j) =>
+                    j === 0 ? (
+                      <th key={j} scope="row">
+                        <Rich content={cell} />
+                      </th>
+                    ) : (
+                      <td key={j}>
+                        <Rich content={cell} />
+                      </td>
+                    ),
+                  )}
                 </tr>
               ))}
             </tbody>

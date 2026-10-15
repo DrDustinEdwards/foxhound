@@ -43,29 +43,31 @@ describe("PLANT 1: every guide's JSON-LD, built from the real builders", () => {
     // the value AND that the route reads it from the same place.
     for (const guide of DOC_GUIDES) {
       const block = techArticleJsonLd(URL_BASE, {
-        headline: guide.title,
+        headline: guide.heading,
         description: guide.description,
         path: `/docs/${guide.slug}`,
         datePublished: guide.datePublished,
       });
       expect(block["@type"]).toBe("TechArticle");
-      expect(block.headline, `${guide.slug} headline`).toBe(guide.title);
+      expect(block.headline, `${guide.slug} headline`).toBe(guide.heading);
       expect(block.description).toBe(guide.description);
       expect(block.url).toBe(`${URL_BASE}/docs/${guide.slug}`);
       expect(block.datePublished).toBe(DOCS_FIRST_PUBLISHED);
       expect(block.publisher).toEqual({ "@id": `${URL_BASE}/#organization` });
     }
     // And the route really does feed the h1 and the headline from one value.
-    expect(GUIDE_ROUTE).toContain("headline: guide.title");
+    // J73: the h1 is Recova's page heading ("Platform setup"), so the
+    // headline follows it rather than the card title.
+    expect(GUIDE_ROUTE).toContain("headline: guide.heading");
     expect(GUIDE_ROUTE).toContain("<h1");
-    expect(GUIDE_ROUTE).toContain(">{guide.title}</h1>");
+    expect(GUIDE_ROUTE).toContain(">{guide.heading}</h1>");
   });
 
   it("EVERY BLOCK PARSES, which a hand-built string would not guarantee", () => {
     for (const guide of DOC_GUIDES) {
       const payload = JSON.stringify([
         techArticleJsonLd(URL_BASE, {
-          headline: guide.title,
+          headline: guide.heading,
           description: guide.description,
           path: `/docs/${guide.slug}`,
           datePublished: guide.datePublished,
@@ -90,8 +92,10 @@ describe("PLANT 1: every guide's JSON-LD, built from the real builders", () => {
     expect(crumbs.itemListElement[0].item).toBe(`${URL_BASE}/docs`);
     // The visible breadcrumb the route draws, so the two cannot say different
     // things to a person and to a crawler.
-    expect(GUIDE_ROUTE).toContain('aria-label="Breadcrumb"');
-    expect(GUIDE_ROUTE).toContain('to="/docs"');
+    // J73: Capsomer's Breadcrumb draws the nav (aria-label="Breadcrumb", its
+    // own contract in breadcrumb.md); the route hands it Docs then the title.
+    expect(GUIDE_ROUTE).toContain('from "capsomer/react/breadcrumb"');
+    expect(GUIDE_ROUTE).toContain('{ label: "Docs", href: "/docs" }, { label: guide.title }');
   });
 
   it("EXACTLY ONE JSON-LD SCRIPT PER ROUTE, matching how marketing emits", () => {

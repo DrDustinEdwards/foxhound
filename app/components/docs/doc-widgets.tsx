@@ -1,153 +1,63 @@
-import { Badge } from "~/components/badge";
-import { WATCH_CEILING, healthScoreBand } from "~/lib/intelligence/health-band";
-import { HEALTH_SCORE_AT_RISK_THRESHOLD } from "~/lib/constants";
+import { AlertTriangle, CreditCard, Scale, Activity } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { Pill, type Tone } from "capsomer/react/status";
+import { StatTile, StatTiles } from "capsomer/react/stat-tile";
+
+import { SequenceSteps } from "~/components/recovery-previews";
+import { timingLabel } from "~/components/docs/sequence-timeline";
+import { HEALTH_SCORE_AT_RISK_THRESHOLD, type DeclineCategory } from "~/lib/constants";
 import { DISPUTE_STATE_LABELS } from "~/lib/disputes/labels";
-import { DECLINE_CATEGORY_LABELS, FAILED_PAYMENT_STATUS_LABELS } from "~/lib/recovery/labels";
+import { WATCH_CEILING, healthScoreBand } from "~/lib/intelligence/health-band";
+import { CATEGORY_PILL_WORDS } from "~/lib/marketing/recovery-copy";
+import { DECLINE_CATEGORY_LABELS, FAILED_PAYMENT_STATUS_LABELS, formatStepResult, formatStepType } from "~/lib/recovery/labels";
 import { RECOVERY_SCHEDULES, isRetryStep } from "~/lib/recovery/schedule";
 
-// The docs preview widgets, ruled by the session 65 walk.
+import { HealthScoreBadge } from "./health-score-badge";
+
+import "capsomer/panel.css";
+import "capsomer/status.css";
+import "capsomer/stat-tile.css";
+import "capsomer/table.css";
+
+// The docs preview widgets: Recova's components/docs/* illustrations (J73), on
+// Capsomer's parts (Q12).
 //
 // STATIC MARKUP, NO LOADER, NO DB. Where a widget shows a set Foxhound already
 // defines (the decline categories, the payment statuses, the dispute states, the
-// recovery schedules), it DERIVES that set from the constant rather than
-// transcribing it. A compile-time constant is not live data, and deriving means
-// a seventh decline category or a new dispute state changes the docs picture the
-// day it lands instead of leaving a mock that quietly disagrees with the product.
+// recovery schedules, the health bands), it DERIVES that set from the constant
+// rather than transcribing it, so a seventh decline category changes the
+// picture the day it lands.
 //
-// WHAT IS NOT HERE, and why, from the walk:
-//   TriagePill and DisputesTablePreview's triage column: `triage_recommendation`
-//     has no producer outside the demo seeder, so a pill for it would document a
-//     feature that does not exist.
-//   DashboardStatCards: its entire content is invented money plus legacy's
-//     "21-35%: at or near average" threshold band, which the heading map already
-//     records as NOT PORTABLE. The recovery guide's nine-row table says the same
-//     thing truthfully.
-//   PaymentsTablePreview and PaymentTimelinePreview: both are fabricated-row
-//     mocks whose real informational content is the step-type set, and
-//     SequenceTimeline below carries that derived from the engine.
+// RECOVA'S WIDGETS NOT DRAWN, each for a reason in the PR:
+//   PaymentsTablePreview, DashboardStatCards and ChurnRiskSummary print the
+//     Teamflow demo's customers and money; Foxhound's figures for these come
+//     from its own demo seed through a loader, which a guide page does not have.
+//   DisputesTablePreview and TriagePill: `triage_recommendation` has no producer
+//     outside the demo seeder, so a Triage column would document a feature that
+//     does not exist.
 
-const CARD = "rounded-lg border border-border bg-surface p-4";
-const CARD_LABEL = "mb-1 text-micro uppercase tracking-widest text-text-tertiary";
-
-/** Legacy's four audit scope cards (blob `dc1d18dd`), at its two-column grid.
- *  REDRAWN IN SESSION 66 with /audit's restated copy under ruling 360. Session
- *  65 built it as a BUILD, taking /audit's four scope names on the grounds that
- *  the page and the docs should agree. They still agree; the page moved. Legacy
- *  computes all four scopes in runAudit and Foxhound computes none, so both
- *  surfaces now name what exists rather than what an audit would cover.
- *
- *  BUSINESS HEALTH IS THE ONE TOPIC THAT DID NOT SURVIVE: Foxhound has MRR and
- *  its movement, and no ARR, no active-subscription count and no churn in basis
- *  points. */
+/** Recova's four audit scope cards (AuditScopeCard, blob `dc1d18dd`), at its
+ *  two-column grid, saying what Foxhound's engine computes for each
+ *  (app/lib/audit/engine.ts). Recova's text glyphs become drawn icons, as on
+ *  the app's step icons (APPROVED-DIFFERENCES, 2026-08-15). */
 function AuditScopes() {
-  const scopes: [string, string][] = [
-    [
-      "Failed payments",
-      "Every failed payment Foxhound has detected, what came back, and what is still unrecovered.",
-    ],
-    [
-      "Expiring cards",
-      "Cards inside thirty days of expiring, and the customers Foxhound has already emailed about them.",
-    ],
-    ["Open disputes", "Chargebacks still waiting on evidence, with the deadline on each one."],
-    [
-      "MRR and movement",
-      "Monthly recurring revenue, what is at risk, and the new, expansion and churn behind the total.",
-    ],
+  const scopes: [LucideIcon, string, string][] = [
+    [AlertTriangle, "Failed invoices", "Unrecovered failed invoices, their total, and the decline category behind each"],
+    [CreditCard, "Expiring cards", "Cards that have expired or expire this month or next, and the MRR at risk"],
+    [Scale, "Open disputes", "Open disputes, disputes lost with no evidence, and your won and lost record"],
+    [Activity, "Business health", "MRR, ARR, active subscriptions, and churn rate"],
   ];
   return (
     <div className="my-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-      {scopes.map(([title, description]) => (
-        <div key={title} className={CARD}>
-          <div className="mb-1 text-label font-medium text-text">{title}</div>
-          <div className="text-caption leading-relaxed text-text-secondary">{description}</div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/** The four payment statuses, from `FAILED_PAYMENT_STATUS_LABELS`. Legacy's
- *  showcase hardcodes them and calls the last one "Failed unrecovered"; the tab
- *  word on both sides is "Failed", which is what the label map carries. */
-function PaymentStatuses() {
-  const meaning: Record<string, string> = {
-    active: "Sequence running",
-    recovered: "Invoice paid",
-    cancelled: "Stopped by you, or the subscription ended",
-    failed_unrecovered: "Every step ran, no recovery",
-  };
-  const tone: Record<string, "neutral" | "success" | "failure"> = {
-    active: "neutral",
-    recovered: "success",
-    cancelled: "neutral",
-    failed_unrecovered: "failure",
-  };
-  return (
-    <div className={`my-4 flex flex-wrap gap-4 ${CARD}`}>
-      {Object.entries(FAILED_PAYMENT_STATUS_LABELS).map(([key, label]) => (
-        <div key={key} className="flex flex-col items-center gap-1.5">
-          <Badge tone={tone[key] ?? "neutral"}>{label}</Badge>
-          <span className="text-caption text-text-tertiary">{meaning[key] ?? ""}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/** The decline categories, from `DECLINE_CATEGORY_LABELS`. SIX, not legacy's
- *  four: the redraw is the point, since a four-pill picture beside a six-key
- *  engine is the same defect the recovery guide's own sentence carried. */
-function DeclineCategories() {
-  return (
-    <div className={`my-4 flex flex-wrap gap-3 ${CARD}`}>
-      {Object.entries(DECLINE_CATEGORY_LABELS).map(([key, label]) => (
-        <div key={key} className="flex flex-col gap-1">
-          <Badge tone="neutral">{label}</Badge>
-          <span className="text-center font-mono text-caption text-text-tertiary">{key}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/** One row per decline category, each step in schedule order, derived from
- *  `RECOVERY_SCHEDULES`. Legacy's SequenceTimeline (blob `aa6a85fc`) hardcodes
- *  four categories and puts an email first on every one; Foxhound is
- *  silent-retry-first where the category allows a retry at all. */
-function SequenceTimelines() {
-  return (
-    <div className="my-6 flex flex-col gap-3">
-      {Object.entries(RECOVERY_SCHEDULES).map(([category, steps]) => (
-        <div key={category} className={CARD}>
-          <div className={CARD_LABEL}>
-            {DECLINE_CATEGORY_LABELS[category as keyof typeof DECLINE_CATEGORY_LABELS]}
-            {": "}
-            {steps.length === 1 ? "1 step" : `${steps.length} steps`}
-          </div>
-          <div className="overflow-x-auto pb-2">
-            <div className="flex min-w-max items-center gap-1">
-              {steps.map((step, i) => (
-                <div key={step.stepType} className="flex items-center gap-1">
-                  <div
-                    className={`inline-flex flex-col items-center rounded-lg border px-3 py-1.5 text-micro ${
-                      isRetryStep(step.stepType)
-                        ? "border-brand bg-brand-bg text-brand-text"
-                        : "border-border bg-bg text-text-secondary"
-                    }`}
-                  >
-                    <span className="font-medium">
-                      {isRetryStep(step.stepType) ? "Retry" : "Email"}
-                    </span>
-                    <span className="font-mono text-caption opacity-70">
-                      {formatOffset(step.offsetHours)}
-                    </span>
-                  </div>
-                  {i < steps.length - 1 ? (
-                    <div className="h-px w-4 shrink-0 bg-border" aria-hidden />
-                  ) : null}
-                </div>
-              ))}
+      {scopes.map(([Icon, title, description]) => (
+        <div key={title} className="cap-panel">
+          <div className="cap-panel-body">
+            <div className="flex items-start gap-3">
+              <Icon className="mt-0.5 shrink-0 text-accent-text" size={18} strokeWidth={1.75} aria-hidden />
+              <div>
+                <div className="mb-1 text-label font-medium text-text">{title}</div>
+                <div className="text-label leading-relaxed text-text-secondary">{description}</div>
+              </div>
             </div>
           </div>
         </div>
@@ -156,62 +66,182 @@ function SequenceTimelines() {
   );
 }
 
-/** Hours to the shortest human form legacy uses: "1 hr" under a day, "Day N"
- *  above it. Derived so a schedule change moves the picture. */
-function formatOffset(hours: number): string {
-  if (hours < 24) return hours === 1 ? "1 hr" : `${hours} hr`;
-  return `Day ${Math.round(hours / 24)}`;
+/** Recova's StatusPillShowcase (blob `37614382`), from
+ *  `FAILED_PAYMENT_STATUS_LABELS`, so Foxhound's fifth status (Stripe
+ *  retrying, 377) is drawn and the last one reads "Failed", the tab word. */
+const STATUS_PILL: Record<string, { tone?: Tone; variant?: "outline" | "secondary"; caption: string }> = {
+  stripe_retrying: { variant: "outline", caption: "Stripe is still retrying" },
+  active: { tone: "info", caption: "Sequence running" },
+  recovered: { tone: "ok", caption: "Invoice paid" },
+  cancelled: { variant: "secondary", caption: "Stopped by you, or the subscription ended" },
+  failed_unrecovered: { tone: "crit", caption: "All steps ran, no recovery" },
+};
+
+function PaymentStatuses() {
+  return (
+    <div className="cap-panel my-4">
+      <div className="cap-panel-body">
+        <ul className="m-0 flex list-none flex-wrap gap-4 p-0">
+          {Object.entries(FAILED_PAYMENT_STATUS_LABELS).map(([key, label]) => {
+            const pill = STATUS_PILL[key] ?? { variant: "outline" as const, caption: "" };
+            return (
+              <li key={key} className="flex flex-col items-center gap-1.5">
+                <Pill tone={pill.tone} variant={pill.variant}>
+                  {label}
+                </Pill>
+                <span className="text-micro text-text-tertiary">{pill.caption}</span>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </div>
+  );
 }
 
-/** The three health bands with Foxhound's OWN cutoffs, replacing both legacy's
- *  HealthScoreBadge (0-33 / 34-66 / 67-100) and its ChurnRiskSummary, whose
- *  content is entirely the Teamflow demo's money. Legacy's cutoffs would call a
- *  38 in the middle band where Foxhound calls it at risk. */
-function HealthBands() {
-  const bands: [string, string, string][] = [
-    ["At risk", `Below ${HEALTH_SCORE_AT_RISK_THRESHOLD}`, "text-error-text"],
-    ["Watch", `${HEALTH_SCORE_AT_RISK_THRESHOLD} to ${WATCH_CEILING - 1}`, "text-caution"],
-    ["Healthy", `${WATCH_CEILING} and above`, "text-green"],
-  ];
+/** Recova's CategoryPillShowcase (blob `62a8a9e1`): one card per category with
+ *  the decline codes that land in it. SIX, not Recova's four. Every code named
+ *  here is checked against classifyDecline by test/docs-guides-j73.test.ts. */
+const CATEGORY_CODES: Record<DeclineCategory, { codes: string[]; note: string }> = {
+  soft: { codes: ["insufficient_funds", "do_not_honor", "generic_decline"], note: "The card is good, the charge was refused for now" },
+  network: { codes: ["processing_error", "issuer_not_available", "try_again_later"], note: "A processor or bank problem, usually passing" },
+  expired: { codes: ["expired_card"], note: "The card has passed its expiry date" },
+  fraud: { codes: ["stolen_card", "lost_card", "fraudulent"], note: "The issuer blocked the card" },
+  revoked: { codes: ["revocation_of_authorization"], note: "The customer withdrew the mandate" },
+  unknown: { codes: [], note: "A decline code none of the five above lists, or none at all" },
+};
+
+function DeclineCategories() {
   return (
-    <div className="my-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-      {bands.map(([name, range, className]) => (
-        <div key={name} className={CARD}>
-          <div className={CARD_LABEL}>{name}</div>
-          <div className={`font-mono text-title font-medium ${className}`}>{range}</div>
-        </div>
+    <ul className="my-4 grid list-none grid-cols-1 gap-3 p-0 sm:grid-cols-2">
+      {(Object.keys(CATEGORY_CODES) as DeclineCategory[]).map((category) => {
+        const { codes, note } = CATEGORY_CODES[category];
+        return (
+          <li key={category} data-category={category} className="cap-panel">
+            <div className="cap-panel-body">
+              <div className="flex items-start gap-3">
+                <Pill variant="outline">{CATEGORY_PILL_WORDS[category]}</Pill>
+                <span className="text-label leading-relaxed text-text-secondary">
+                  <span className="font-medium text-text">{DECLINE_CATEGORY_LABELS[category]}.</span>{" "}
+                  {note}
+                  {codes.length > 0 ? ": " : null}
+                  {codes.map((code, i) => (
+                    <span key={code}>
+                      {i > 0 ? ", " : null}
+                      <code className="font-mono">{code}</code>
+                    </span>
+                  ))}
+                </span>
+              </div>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/** Recova's four SequenceTimelines (blob `aa6a85fc`), one per category, from
+ *  RECOVERY_SCHEDULES through the same part /product/recovery draws, so the
+ *  guide and the product page cannot disagree. Six categories, silent retry
+ *  first where the category allows a retry at all. */
+function SequenceTimelines() {
+  return (
+    <div className="my-6 flex flex-col gap-3">
+      {(Object.keys(RECOVERY_SCHEDULES) as DeclineCategory[]).map((category) => (
+        <SequenceSteps key={category} category={category} />
       ))}
     </div>
   );
 }
 
-/** Foxhound's customer directory columns. Legacy's table (blob `6ae7c73f`) has
- *  an Action column; `ai_recommended_actions` has no writer here, so that column
- *  is dropped rather than mocked, and Foxhound's Last seen and Signals are shown
- *  instead. Column names, not fabricated customers. */
+/** Recova's PaymentTimelinePreview (blob `be6fb312`): one payment's steps with
+ *  their result. Recova's rows name a demo customer and raw step types
+ *  ("retry_4hr"); this one is labelled an example, takes its steps from the
+ *  soft schedule, and words them as the payment page does (formatStepType). */
+function PaymentTimeline() {
+  const steps = RECOVERY_SCHEDULES.soft;
+  return (
+    <div className="cap-panel my-6">
+      <div className="cap-panel-body" data-flush>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+          <span className="text-label font-medium text-text">Example: a soft decline</span>
+          <Pill variant="outline">{CATEGORY_PILL_WORDS.soft}</Pill>
+        </div>
+        <ol className="m-0 list-none divide-y divide-border p-0">
+          {steps.map((step, i) => (
+            <li key={step.stepType} className="flex items-center gap-4 px-4 py-3">
+              <span className="w-6 font-mono text-micro text-text-tertiary">{i + 1}</span>
+              <span className="flex-1 truncate text-label text-text-secondary">{formatStepType(step.stepType)}</span>
+              <span className="whitespace-nowrap font-mono text-micro text-text-tertiary">
+                {timingLabel(step.offsetHours)}
+              </span>
+              {i === 0 && isRetryStep(step.stepType) ? (
+                <Pill tone="crit">{formatStepResult("retry_failed")}</Pill>
+              ) : (
+                <Pill variant="secondary">Pending</Pill>
+              )}
+            </li>
+          ))}
+        </ol>
+      </div>
+    </div>
+  );
+}
+
+/** The three health bands at Foxhound's cutoffs, in place of Recova's
+ *  ChurnRiskSummary (blob `ba1fbb51`), whose figures are the Teamflow demo's.
+ *  Drawn from the constants the scorer uses. */
+function HealthBands() {
+  const last = WATCH_CEILING - 1;
+  return (
+    <div className="my-6">
+      <StatTiles label="Health bands">
+        <StatTile label="Health score" tone="crit" word="At risk" figure={`Below ${HEALTH_SCORE_AT_RISK_THRESHOLD}`} />
+        <StatTile label="Health score" tone="warn" word="Watch" figure={`${HEALTH_SCORE_AT_RISK_THRESHOLD} to ${last}`} />
+        <StatTile label="Health score" tone="ok" word="Healthy" figure={`${WATCH_CEILING} and above`} />
+      </StatTiles>
+    </div>
+  );
+}
+
+/** Recova's IntelligenceCustomerTable (blob `6ae7c73f`) shows five demo
+ *  customers with an Action column. Foxhound's customers page has no Action
+ *  column (`ai_recommended_actions` has no writer) and carries Last seen and
+ *  Signals, so this draws the page's columns in its order, with a badge in each
+ *  band in the Health row, rather than invented customers. */
 function CustomerColumns() {
-  const columns: [string, string][] = [
+  const examples = [HEALTH_SCORE_AT_RISK_THRESHOLD - 15, HEALTH_SCORE_AT_RISK_THRESHOLD + 10, WATCH_CEILING + 12];
+  const columns: [string, React.ReactNode][] = [
     ["Customer", "Name and email, from Stripe."],
-    ["Plan", "The current plan tier."],
+    ["Plan", "The current plan."],
     ["MRR", "What that customer contributes each month."],
-    ["Health", "The 0 to 100 score, in its band's colour."],
+    [
+      "Health",
+      <span key="h" className="inline-flex flex-wrap items-center gap-2">
+        The 0 to 100 score, in its band:
+        {examples.map((s) => (
+          <HealthScoreBadge key={s} score={s} />
+        ))}
+      </span>,
+    ],
     ["Last seen", "When the customer was last active."],
-    ["Signals", "What moved the score: recovery history, disputes, engagement."],
+    ["Signals", "Marks for an active recovery and a dispute history."],
   ];
   return (
-    <div className="my-6 overflow-x-auto">
-      <table className="w-full text-label">
+    <div className="cap-table-wrap my-6" data-cap="table" role="region" aria-label="Customers page columns" tabIndex={0}>
+      <table className="cap-table">
         <thead>
-          <tr className="border-b border-border">
-            <th className="py-2 pr-4 text-left font-medium text-text">Column</th>
-            <th className="py-2 pr-4 text-left font-medium text-text">What it shows</th>
+          <tr>
+            <th scope="col">Column</th>
+            <th scope="col">What it shows</th>
           </tr>
         </thead>
-        <tbody className="text-text-secondary">
+        <tbody>
           {columns.map(([name, description]) => (
-            <tr key={name} className="border-b border-border">
-              <td className="py-2 pr-4">{name}</td>
-              <td className="py-2 pr-4">{description}</td>
+            <tr key={name}>
+              <th scope="row">{name}</th>
+              <td>{description}</td>
             </tr>
           ))}
         </tbody>
@@ -220,41 +250,41 @@ function CustomerColumns() {
   );
 }
 
-/** The dispute state machine, in order, from `DISPUTE_STATE_LABELS`. Legacy's
- *  DisputesTablePreview mocks a list with a Triage column; Foxhound's list has
- *  no such column and its STATES are the thing worth teaching, because PRICING
- *  rev 3 makes the approval gate schema-enforced with no override. */
+/** The dispute states in order, from `DISPUTE_STATE_LABELS`. Recova's
+ *  DisputesTablePreview mocks a list with a Triage column Foxhound does not
+ *  have; the states are what Foxhound's approval gate turns on. */
 function DisputeStates() {
   const meaning: Record<string, string> = {
     draft: "Evidence is being assembled. Nothing has been submitted.",
     pending_review: "Evidence is ready and waiting for a person on your team.",
-    approved: "Somebody approved it. It can now be submitted.",
+    approved: "Somebody approved it, and it is being sent to Stripe.",
     submitted: "Sent to Stripe. Waiting on the issuer.",
     resolved_won: "The issuer found for you.",
     resolved_lost: "The issuer found for the cardholder.",
   };
   return (
-    <div className="my-6 flex flex-col gap-2">
+    <ol className="my-6 flex list-none flex-col gap-2 p-0">
       {Object.entries(DISPUTE_STATE_LABELS).map(([key, label], i) => (
-        <div key={key} className={`flex items-start gap-3 ${CARD}`}>
-          <span className="shrink-0 font-mono text-micro text-brand-text">
-            {String(i + 1).padStart(2, "0")}
-          </span>
-          <div>
-            <div className="text-label font-medium text-text">{label}</div>
-            <div className="text-caption leading-relaxed text-text-secondary">
-              {meaning[key] ?? ""}
+        <li key={key} className="cap-panel">
+          <div className="cap-panel-body">
+            <div className="flex items-start gap-3">
+              <span className="shrink-0 font-mono text-micro text-accent-text">{String(i + 1).padStart(2, "0")}</span>
+              <div className="flex flex-col items-start gap-1">
+                <Pill variant="outline">{label}</Pill>
+                <span className="text-label leading-relaxed text-text-secondary">{meaning[key] ?? ""}</span>
+              </div>
             </div>
           </div>
-        </div>
+        </li>
       ))}
-    </div>
+    </ol>
   );
 }
 
 const WIDGETS = {
   "audit-scopes": AuditScopes,
   "payment-statuses": PaymentStatuses,
+  "payment-timeline": PaymentTimeline,
   "decline-categories": DeclineCategories,
   "sequence-timelines": SequenceTimelines,
   "health-bands": HealthBands,
