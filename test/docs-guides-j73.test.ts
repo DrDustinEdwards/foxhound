@@ -232,12 +232,21 @@ describe("J73 PLANT 2: every claim is Foxhound's engine, not Recova's", () => {
   it("RECOVERY: the range moves exactly the panels the dashboard feeds from it, and the timing chart stays at 30 days", () => {
     // app/routes/app/recovery/index.tsx: RecoveryQueuePanel and PaymentsPreview
     // take w={data}; RecoveryTimingChart and the stat cards take w={data30d}.
+    // Behaviour, not prop names (re-review of c8d9134): the payments preview
+    // reads failures since the range cutoff, while the queue reads the steps
+    // due in a fixed window from now and never sees the range at all.
     const text = textOf("recovery");
     const route = read("app/routes/app/recovery/index.tsx");
-    expect(route).toContain("<RecoveryQueuePanel w={data}");
-    expect(route).toContain("<PaymentsPreview w={data}");
+    const windowSrc = read("app/lib/dashboard/recovery-window.server.ts");
+    expect(windowSrc).toContain("listRecentFailedPayments(db, accountId, cutoffMs)");
+    expect(windowSrc).toContain("listUpcomingSteps(db, accountId, nowMs, UPCOMING_STEPS_WINDOW_MS)");
+    const hours = Number(/UPCOMING_STEPS_WINDOW_MS = (\d+) \* 60 \* 60 \* 1000/.exec(windowSrc)?.[1]);
+    expect(hours).toBeGreaterThan(0);
     expect(route).toContain("<RecoveryTimingChart w={data30d}");
-    expect(text).toContain("the recovery queue and the payments preview");
+    const rangeSentence = text.split("\n").find((l) => l.includes("buttons in the dashboard header")) ?? "";
+    expect(rangeSentence).toContain("the payments preview");
+    expect(rangeSentence).not.toContain("recovery queue");
+    expect(text).toContain(`The recovery queue always shows the steps due in the next ${hours} hours, whatever the range`);
     expect(text).toContain("The recovery timing chart stays on the last 30 days");
   });
 
