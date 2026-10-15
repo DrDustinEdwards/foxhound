@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import { apiKeys } from "~/db";
@@ -17,7 +17,9 @@ import {
 // platform by id. That was safe while nothing but a Phase 7 admin path called
 // it; the moment a merchant-facing form posts a key id, an unscoped revoke lets
 // one merchant kill another merchant's integration. `revokeAccountApiKey` pins
-// `account_id` in the WHERE, so a foreign id matches zero rows.
+// `account_id` in the WHERE, so a foreign id matches zero rows, as legacy's
+// DELETE handler refuses one (app/api/settings/api-keys/[id]/route.ts, blob
+// d0d306ba, 403 when the row's account_id is not the caller's).
 //
 // Plain account-state writes, not money writes.
 
@@ -29,7 +31,8 @@ export interface ApiKeyRow {
 }
 
 /**
- * The account's LIVE merchant keys, newest first.
+ * The account's LIVE merchant keys, newest first, as legacy's GET orders them
+ * (`order('created_at', { ascending: false })`, blob 81e694f5).
  *
  * Revoked keys are excluded, matching legacy, whose client drops a key from the
  * list the moment the revoke succeeds and never fetches it again. Admin-scoped
@@ -52,17 +55,17 @@ export async function listAccountApiKeys(db: Db, accountId: string): Promise<Api
         isNull(apiKeys.revokedAt),
       ),
     )
-    .orderBy(apiKeys.createdAt);
+    .orderBy(desc(apiKeys.createdAt));
 }
 
 /**
  * Issue one key for this account.
  *
- * The SCOPE is decided by the caller's admin flag, never by the form: legacy
- * renders its scope picker only for an admin, but its handler takes
- * `body.scope` from the request, so a non-admin who posts `scope: 'admin'`
- * gets a platform-wide key. That is the S8 class again, a client-side-only
- * guard, and it is not ported. `isAdmin` here comes from the session.
+ * The SCOPE is decided by the caller's admin flag, never by the form alone.
+ * Legacy's handler (app/api/settings/api-keys/route.ts, blob 81e694f5) checks
+ * isAdminEmail too, and answers a non-admin's `scope: 'admin'` with 403; here
+ * the same request gets a merchant key, which hands out nothing wider than the
+ * caller already holds. `isAdmin` comes from the session.
  */
 export async function createAccountApiKey(
   db: Db,
