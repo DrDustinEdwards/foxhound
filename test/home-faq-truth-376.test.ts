@@ -48,7 +48,6 @@ describe("PLANT 1: the two false clauses are gone", () => {
     // may offer it.
     for (const file of [
       "app/routes/home.tsx",
-      "app/routes/features.tsx",
       "app/routes/pricing.tsx",
       "app/lib/marketing/pricing-copy.ts",
       "app/lib/marketing/docs-content.ts",
@@ -56,6 +55,19 @@ describe("PLANT 1: the two false clauses are gone", () => {
       const src = read(file);
       expect(src.length, `${file} read empty`).toBeGreaterThan(500);
       expect(src.toLowerCase(), `${file} offers a custom subject`).not.toContain("subject lines");
+    }
+  });
+
+  it("/features names AI-written subject lines and offers no custom one", () => {
+    // /features moved its copy to lib/marketing/features-content.ts (J60) and
+    // carries Recova's entry "AI-written subject lines", which is true: the
+    // generator writes every subject. So this checks the claim itself, a
+    // subject line the merchant writes, rather than the bare phrase.
+    const src = read("app/lib/marketing/features-content.ts").toLowerCase();
+    expect(src.length).toBeGreaterThan(500);
+    expect(src).toContain("ai-written subject lines");
+    for (const claim of ["own subject line", "custom subject", "write your own", "edit the subject"]) {
+      expect(src, `/features offers "${claim}"`).not.toContain(claim);
     }
   });
 });
