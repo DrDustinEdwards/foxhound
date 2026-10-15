@@ -20,6 +20,16 @@ export const DISPUTE_FEE_CAP_CENTS = 50_000;
 /** Intelligence predictive risk layer: $199/month. */
 export const INTELLIGENCE_PRICE_CENTS = 19_900;
 
+// ---- The monthly billing run ----
+/** The monthly billing Cron Trigger, "0 4 1 * *" in wrangler.jsonc. Kept as the
+ *  two fields the derivation actually uses so a cron change is a one-line edit
+ *  here rather than arithmetic buried in a function body. The day is also what
+ *  /billing says ("Invoiced on the 1st"), so the page cannot drift from the run.
+ *  Moved here from app/lib/billing/preview.server.ts (J65) so the page, which
+ *  is client code, can read it without importing a .server module. */
+export const BILLING_RUN_DAY_OF_MONTH = 1;
+export const BILLING_RUN_HOUR_UTC = 4;
+
 // ---- Fee-invoice collection retry (app/lib/billing/fee-retry.ts) ----
 /** Ceiling on charge attempts per platform fee invoice. Legacy's value, carried
  *  over unchanged, but read the age cap below before assuming it is what stops a
