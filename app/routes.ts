@@ -164,13 +164,14 @@ export default [
       route("users", "./routes/admin/users.tsx"),
       route("operations", "./routes/admin/operations.tsx"),
       route("brake", "./routes/admin/brake.tsx"),
-      // Recova's Platform group (app/admin/admin-nav.ts): crons, webhooks and
-      // the audit log live under /admin/platform (J09). The old Foxhound
+      // Recova's Platform group (app/admin/admin-nav.ts): crons, errors (J48),
+      // webhooks and the audit log live under /admin/platform (J09). The old Foxhound
       // paths sat behind Access and are not redirected, and Recova's own
       // orphaned /admin/webhooks and /admin/audit-log were declined with "no
       // redirect" (ruling 407).
       ...prefix("platform", [
         route("crons", "./routes/admin/crons.tsx"),
+        route("errors", "./routes/admin/errors.tsx"),
         route("webhooks", "./routes/admin/webhooks.tsx"),
         route("audit-log", "./routes/admin/audit-log.tsx"),
       ]),
