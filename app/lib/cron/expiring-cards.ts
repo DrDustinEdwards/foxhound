@@ -258,6 +258,14 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
           and ${stripeConnections.disconnectedAt} is null
         limit 1
       )`,
+      // The Reply-To (J03), from the same primary row as the sender name.
+      replyToEmail: sql<string | null>`(
+        select ${stripeConnections.replyToEmail} from ${stripeConnections}
+        where ${stripeConnections.accountId} = ${expiringCardAlerts.accountId}
+          and ${stripeConnections.isPrimary} = 1
+          and ${stripeConnections.disconnectedAt} is null
+        limit 1
+      )`,
     })
     .from(expiringCardAlerts)
     .innerJoin(accounts, eq(accounts.id, expiringCardAlerts.accountId))
@@ -294,6 +302,7 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
           accountId: alert.accountId,
           to: alert.customerEmail,
           fromName: alert.senderName,
+          replyTo: alert.replyToEmail,
           subject: expiringCardSubject({
             cardBrand: alert.cardBrand,
             cardLast4: alert.cardLast4,

@@ -160,10 +160,14 @@ export interface SenderSettingsInput {
    *  `formData.get('sender_name')?.toString() || null`. Null is a real state,
    *  not a gap: the From header falls back to "Support" and delivers. */
   senderName: string | null;
+  /** `reply_to_email` (J03). UNDEFINED leaves the column alone, which is
+   *  legacy's `if (formData.has('reply_to_email'))`; NULL clears it. */
+  replyToEmail?: string | null;
 }
 
 /**
- * Writes `sender_name` and NOTHING ELSE.
+ * Writes `sender_name`, and `reply_to_email` when the input carries it, and
+ * NOTHING ELSE.
  *
  * THE ALLOWLIST IS THE POINT, and it is legacy's own design rather than a
  * correction of it: `settings/update/route.ts` is nineteen
@@ -186,7 +190,11 @@ export function buildSenderSettingsUpdate(
 ) {
   return db
     .update(stripeConnections)
-    .set({ senderName: input.senderName })
+    .set(
+      input.replyToEmail === undefined
+        ? { senderName: input.senderName }
+        : { senderName: input.senderName, replyToEmail: input.replyToEmail },
+    )
     .where(and(eq(stripeConnections.id, connectionId), eq(stripeConnections.accountId, accountId)));
 }
 

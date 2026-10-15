@@ -102,6 +102,9 @@ interface EmailSendMessage {
   subject: string;
   html: string;
   text: string;
+  /** Reply-To (J03). The Email Service builder's own field: `replyTo?: string |
+   *  EmailAddress` (developers.cloudflare.com/email-service/api/send-emails/workers-api/). */
+  replyTo?: string;
   headers?: Record<string, string>;
 }
 interface EmailSendBinding {

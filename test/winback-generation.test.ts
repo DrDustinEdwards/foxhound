@@ -404,6 +404,7 @@ describe("PLANT 3: every failure falls back to the template", () => {
         brandVoice: "Dry",
         cachedSubject: null,
         cachedBodyHtml: null,
+        replyToEmail: null,
       },
       "https://foxhoundapp.test/p/tok",
     );
@@ -551,6 +552,7 @@ describe("PLANT 5: no win-back email leaves without its resubscribe link", () =>
         brandVoice: "Dry",
         cachedSubject: null,
         cachedBodyHtml: null,
+        replyToEmail: null,
       },
       "https://foxhoundapp.test/p/tok",
     );
