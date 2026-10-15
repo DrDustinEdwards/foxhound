@@ -249,17 +249,14 @@ describe("E4 to E6 fallback copy is Recova's FALLBACK_TEMPLATES, step by step", 
     });
   }
 
-  it("a step outside E4 to E6 keeps the per-category template (E7 and E8 are J86's)", () => {
+  it("the revoked notice, the one step outside E4 to E8, keeps the per-category template", () => {
     const input = {
-      declineCategory: "expired",
+      declineCategory: "revoked",
       merchantName: "Teamflow",
       amountFormatted: "$49.00",
       updateUrl: URL,
     };
-    const perCategory = buildTemplateEmail(input);
-    for (const stepType of ["email_day14", "email_day30", "email_revoked"]) {
-      expect(buildTemplateEmail({ ...input, stepType })).toEqual(perCategory);
-    }
+    expect(buildTemplateEmail({ ...input, stepType: "email_revoked" })).toEqual(buildTemplateEmail(input));
   });
 });
 

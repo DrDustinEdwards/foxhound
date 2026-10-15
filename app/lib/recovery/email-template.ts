@@ -27,8 +27,9 @@ import type { EmailCopy } from "./email-generation";
 //   - NO timing references in the per-category copy. The generator is merely
 //     told not to leak the schedule; a fixed template has no excuse to reference
 //     time, so it does not mention days, hours, or "recently" in any form. The
-//     per-step copy below is Recova's own words instead (J85), which say
-//     "recent" and "a week" exactly as Recova's do and still pass the gate.
+//     per-step copy below is Recova's own words instead (J85, J86), which say
+//     "recent", "a week" and "two weeks" exactly as Recova's do and still pass
+//     the gate.
 //   - the merchant's voice, never Foxhound's. Foxhound is not named.
 
 export interface TemplateEmailInput {
@@ -48,10 +49,10 @@ export interface TemplateEmailInput {
   senderName?: string | null;
 }
 
-// ---- Recova's per-step fallback (J85, rows E4 to E6) -------------------------
+// ---- Recova's per-step fallback (J85 rows E4 to E6, J86 rows E7 and E8) -----
 //
-// Recova's FALLBACK_TEMPLATES (lib/recovery-execution.ts lines 79 to 100, blob
-// 3a8f8768), word for word, for the three steps this job owns. Recova is the
+// Recova's FALLBACK_TEMPLATES (lib/recovery-execution.ts lines 79 to 114, blob
+// 3a8f8768), word for word, for all five of its email steps. Recova is the
 // spec for what these emails say (RULES.md 1.1), so for these steps its words
 // replace the per-category copy above in every decline category, as Recova's
 // one template per step does. Its variables are applied as Recova's
@@ -64,13 +65,13 @@ export interface TemplateEmailInput {
 // paragraph holding nothing but one link is the button (Q3), so the style goes
 // and the label stays. Names are escaped, so a customer called "<b>" is text.
 //
-// The other two of Recova's five (email_day14, email_day30) belong to rows E7
-// and E8 (job J86) and are added here by that job. Until then those steps keep
-// the per-category copy.
+// Every step Recova emails now has its template here. The one Foxhound step
+// left on the per-category copy is email_revoked, which Recova does not have.
 //
 // Each of these passes the quality gate (RULES.md 3.15): no dash, no AI tell, no
-// schedule leak. "It has been a week since" is Recova's own sentence and names
-// no day number or hour count, which is what the timing detector looks for.
+// schedule leak. "It has been a week since" and "It has been two weeks since"
+// are Recova's own sentences and name no day number or hour count, which is what
+// the timing detector looks for.
 
 interface StepTemplateVars {
   customerName: string;
@@ -109,6 +110,30 @@ const STEP_TEMPLATES: Record<string, { subject: string; body: (v: StepTemplateVa
       [
         `<p>Hi ${v.customerName},</p>`,
         `<p>It has been a week since your payment of ${v.amount} failed. Update your payment method now to keep your access.</p>`,
+        button(v.updateUrl),
+        `<p>${v.senderName}</p>`,
+      ].join("\n"),
+  },
+  email_day14: {
+    subject: "Two weeks since your payment failed",
+    body: (v) =>
+      [
+        `<p>Hi ${v.customerName},</p>`,
+        `<p>It has been two weeks since your payment of ${v.amount} did not go through. Updating your payment method takes a minute and restores your account.</p>`,
+        button(v.updateUrl),
+        `<p>${v.senderName}</p>`,
+      ].join("\n"),
+  },
+  // "Your account will be cancelled" is Recova's sentence, kept word for word.
+  // Foxhound cancels nothing itself; whether the merchant does is theirs. It is
+  // an open question for Dustin in the J86 pull request, as day 3's
+  // "suspended" line is in J85's.
+  email_day30: {
+    subject: "Final notice on your account",
+    body: (v) =>
+      [
+        `<p>Hi ${v.customerName},</p>`,
+        `<p>This is the final automated notice on your unpaid balance of ${v.amount}. Without an updated payment method, your account will be cancelled.</p>`,
         button(v.updateUrl),
         `<p>${v.senderName}</p>`,
       ].join("\n"),

@@ -343,3 +343,32 @@ describe.each(SEAMS)("LAYERS 3 and 4 on the $name seam", (seam) => {
     expect(harness.calls).toHaveLength(1);
   });
 });
+
+// The template is where the gate falls back TO, so it must never itself say
+// when it is being read. Every recovery step with Recova's own words (J85 for
+// day 1 to day 7, J86 for day 14 and day 30) is checked, in every category
+// that schedules it: none of the nine phrases, and no schedule leak either.
+describe("Recova's per-step templates carry no timing word (J85, J86)", () => {
+  const STEP_TYPES = ["email_day1", "email_day3", "email_day7", "email_day14", "email_day30"];
+  const CATEGORIES = ["soft", "network", "expired", "fraud", "unknown"];
+
+  it.each(STEP_TYPES)("%s has its own template, and it passes the timing checks", async (stepType) => {
+    const { buildTemplateEmail, hasStepTemplate } = await import("~/lib/recovery/email-template");
+    expect(hasStepTemplate(stepType)).toBe(true);
+    for (const declineCategory of CATEGORIES) {
+      const copy = buildTemplateEmail({
+        stepType,
+        declineCategory,
+        merchantName: "Acme",
+        senderName: "Acme",
+        customerName: "Jane",
+        amountFormatted: "$49.00",
+        updateUrl: "https://foxhoundapp.test/e/c/EXAMPLE",
+      });
+      expect(hasTimingWord(copy.subject), `${stepType} ${declineCategory}`).toBe(false);
+      expect(hasTimingWord(copy.bodyHtml), `${stepType} ${declineCategory}`).toBe(false);
+      expect(findBrandVoiceViolations(copy), `${stepType} ${declineCategory}`).toEqual([]);
+      expect(passesQualityGate(copy)).toBe(true);
+    }
+  });
+});

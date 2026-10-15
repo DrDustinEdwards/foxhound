@@ -144,13 +144,13 @@ describe("a generation failure sends the template instead of nothing", () => {
     expect(captured.jobs[0].bodyHtml).toContain("Merchant wrote this.");
   });
 
-  // A step outside rows E4 to E6 (J85), whose own step template is Recova's
-  // words in every category; email_day14 keeps the per-category copy until its
-  // row's job (J86) ports Recova's.
+  // Every dunning step now has Recova's own words in every category (J85, J86);
+  // the revoked notice is the one step Recova has no template for, so it keeps
+  // the category's framing.
   it("uses the category's template framing, not a generic one", async () => {
-    const { captured } = await run({ context: { declineCategory: "expired", stepType: "email_day14" } });
-    expect(captured.jobs[0].subject).toBe("Your card has expired");
-    expect(captured.jobs[0].bodyHtml).toContain("Retrying will not help");
+    const { captured } = await run({ context: { declineCategory: "revoked", stepType: "email_revoked" } });
+    expect(captured.jobs[0].subject).toBe("Your subscription payment was cancelled");
+    expect(captured.jobs[0].bodyHtml).toContain("authorization for this payment has been withdrawn");
   });
 });
 
