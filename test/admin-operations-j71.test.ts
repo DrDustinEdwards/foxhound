@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createRoutesStub, RouterContextProvider } from "react-router";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { CRON_JOBS } from "~/lib/cron/registry";
@@ -130,6 +130,59 @@ describe("readCronLocks", () => {
       heldUntil: null,
     });
     expect(locks.filter((l) => l.state === "unreadable")).toHaveLength(1);
+  });
+});
+
+// Review of #97: one hung Durable Object must not stall the whole loader.
+describe("readCronLocks with a lock that never answers", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("gives up on it after CRON_LOCK_PEEK_TIMEOUT_MS, shows the rest, and leaves no timer running", async () => {
+    const constants: Record<string, unknown> = await import("~/lib/constants");
+    const timeout = constants.CRON_LOCK_PEEK_TIMEOUT_MS as number;
+    expect(typeof timeout).toBe("number");
+    expect(timeout).toBeGreaterThan(0);
+    expect(timeout).toBeLessThanOrEqual(5000);
+
+    vi.useFakeTimers();
+    const read = lib.readCronLocks as (env: unknown, now: number) => Promise<Array<Record<string, unknown>>>;
+    const ns = {
+      idFromName: (name: string) => ({ name }),
+      get: (id: { name: string }) => ({
+        peek: () =>
+          id.name === "d1-backup"
+            ? new Promise(() => {})
+            : Promise.resolve(
+                id.name === "recovery-tick"
+                  ? { heldUntil: NOW + MIN, legacyHeldUntil: null }
+                  : { heldUntil: null, legacyHeldUntil: null },
+              ),
+      }),
+    };
+    let settled = false;
+    const pending = read({ CRON_LOCK: ns }, NOW).then((locks) => {
+      settled = true;
+      return locks;
+    });
+    await vi.advanceTimersByTimeAsync(timeout - 1);
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    const locks = await pending;
+    expect(locks.find((l) => l.name === "d1-backup")).toEqual({ name: "d1-backup", state: "unreadable", heldUntil: null });
+    expect(locks.find((l) => l.name === "recovery-tick")?.state).toBe("running");
+    expect(locks.filter((l) => l.state === "unreadable")).toHaveLength(1);
+    // Every timer is cleared once its read is settled, the answered ones included.
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("clears each timer when its lock answers in time", async () => {
+    vi.useFakeTimers();
+    const read = lib.readCronLocks as (env: unknown, now: number) => Promise<Array<Record<string, unknown>>>;
+    const { ns } = lockNamespace({});
+    await read({ CRON_LOCK: ns }, NOW);
+    expect(vi.getTimerCount()).toBe(0);
   });
 });
 
@@ -301,6 +354,7 @@ describe("the Operations page", () => {
     expect(t).toContain("12");
     expect(t).toContain("Steps due now");
     expect(t).toMatch(/Oldest due 4 minutes ago/);
+    expect(t).toContain("Steps on paused or cancelled accounts are not counted.");
   });
 
   it("says the queue is empty in words", () => {
