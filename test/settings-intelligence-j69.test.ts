@@ -237,8 +237,11 @@ describe("J69: an account with Intelligence sees Recova's deliveries, each marke
   it("says alert breaches are recorded, not sent, which is what the evaluator does", async () => {
     const t = text(await render({ intelligenceActive: true }));
     expect(t).toContain("records each breach on that page and does not email or post to Slack");
-    const evaluator = readFileSync(new URL("../app/lib/intelligence/alerts.ts", import.meta.url), "utf8");
-    expect(evaluator).not.toMatch(/from "~\/lib\/(email|notify)\//);
+    // The evaluator's code, comments removed, names no send path of any kind:
+    // no send function, no notify or email module (by alias or relative path),
+    // no EMAIL binding, no Slack, no fetch.
+    const evaluator = code(readFileSync(new URL("../app/lib/intelligence/alerts.ts", import.meta.url), "utf8"));
+    expect(evaluator).not.toMatch(/send|notify|email|slack|fetch\(/i);
   });
 });
 
@@ -250,6 +253,10 @@ describe("J69: an account with Intelligence sees Recova's deliveries, each marke
 // ---------------------------------------------------------------------------
 
 const APP_DIR = fileURLToPath(new URL("../app", import.meta.url));
+// workers/ holds the Worker entry and its Durable Objects, where a cron
+// handler could read the table. mcp/ cannot: it has no D1 binding.
+const WORKERS_DIR = fileURLToPath(new URL("../workers", import.meta.url));
+const ROOT_DIR = fileURLToPath(new URL("..", import.meta.url));
 
 function walk(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -271,16 +278,20 @@ describe("J69: the reader guard", () => {
     expect(hits.some((f) => f.endsWith(join("db", "schema.ts")))).toBe(true);
   });
 
-  it("nothing in app/ reads Recova's Intelligence preferences except the schema and account deletion", () => {
+  it("the walk reaches workers/ too", () => {
+    expect(walk(WORKERS_DIR).some((f) => f.endsWith(join("workers", "app.ts")))).toBe(true);
+  });
+
+  it("nothing in app/ or workers/ reads Recova's Intelligence preferences except the schema and account deletion", () => {
     const allowed = [join("db", "schema.ts"), join("auth", "delete-account.server.ts")];
-    const readers = walk(APP_DIR)
+    const readers = [...walk(APP_DIR), ...walk(WORKERS_DIR)]
       .filter((f) => !allowed.some((a) => f.endsWith(a)))
       .filter((f) =>
         /intelligenceNotificationPreferences|intelligence_notification_preferences|weekly_?[nN]arrative_?(email|slack|Email|Slack)|health_?[aA]lert_?(email|slack|threshold|Email|Slack|Threshold)/.test(
           code(readFileSync(f, "utf8")),
         ),
       )
-      .map((f) => f.slice(APP_DIR.length + 1));
+      .map((f) => f.slice(ROOT_DIR.length));
     expect(
       readers,
       "a reader now exists: add its control to /settings/intelligence and update this guard",
@@ -309,7 +320,7 @@ describe("J69: the docs describe the page that now exists", () => {
       .map((b) => (typeof b === "string" ? b : JSON.stringify(b)))
       .join(" ");
     expect(body).not.toContain("Intelligence has no settings page of its own yet");
-    expect(body).toContain("Settings and Intelligence");
+    expect(body).toContain("With Intelligence active, Settings and Intelligence lists");
     expect(body).toContain("there is no weekly narrative email");
   });
 });

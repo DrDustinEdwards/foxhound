@@ -27,6 +27,20 @@ import type { Route } from "./+types/intelligence";
 //   app/(app)/settings/components/IntelligenceSection.tsx  blob ec9ed981  5,000 bytes
 //   app/api/settings/intelligence-preferences/route.ts     blob 7527dd4d  2,884 bytes
 //
+// RECOVA HAD NO READER EITHER (J69 review, 2026-10-15). Across the whole
+// recova repo and recova-mcp, intelligence_notification_preferences appears
+// only in the page's select and the PATCH route's upsert (plus docs); no
+// supabase migration names it, so no trigger reads it. The cron that once read
+// it, /api/cron/weekly-intelligence-pulse, is gone: vercel.json at HEAD has no
+// such cron, app/api/cron/ has no such directory, docs/context.md:207 says it
+// was "removed from vercel.json", and docs/features-complete.md:518 marks it
+// "DEPRECATED no-op" (docs/features.md:202 still lists it, stale). Recova's
+// alerts did send, but through lib/alert-evaluation.ts:285-306, 419, from each
+// alert's own channel and the account's notification_email and
+// slack_webhook_url (the /settings/alerts surface, S28), never from these
+// preferences. So Recova's five toggles were controls with no reader too, and
+// there is no Recova source to port for them.
+//
 // RECOVA'S FIVE CONTROLS ARE NOT BUILT, because nothing in Foxhound reads them
 // (RULES.md 3.18, 2.7). They are the weekly MRR and health summary by email
 // and by Slack, the per-customer health score threshold, and health alerts by
