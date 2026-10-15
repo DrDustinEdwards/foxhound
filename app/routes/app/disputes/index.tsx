@@ -15,7 +15,7 @@ import "~/site-header.css";
 import { SyncDisputeLink, type SyncDisputeResult } from "~/components/sync-dispute-link";
 import { StatCard } from "~/components/stat-card";
 import { getDb } from "~/db";
-import { groupSumByCurrency, type CurrencyAmount } from "~/lib/billing/preview.server";
+import { groupSumByCurrency } from "~/lib/billing/preview.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
 import {
@@ -30,11 +30,11 @@ import {
 import { getDisputeFeesOwed } from "~/lib/disputes/fees-owed.server";
 import { importDisputeFromStripe } from "~/lib/disputes/manual-import.server";
 import { getCustomerHealthScores, getDisputesWithEvidence, listDisputes } from "~/lib/disputes/queries.server";
-import { computeDisputeStats } from "~/lib/disputes/stats";
+import { computeDisputeStats, winRateCard } from "~/lib/disputes/stats";
 import { healthScoreClassName } from "~/lib/intelligence/health-band";
 import { isIntelligenceEntitled } from "~/lib/intelligence/views.server";
 import type { Tone } from "~/lib/recovery/labels";
-import { formatMoney } from "~/lib/money-format";
+import { formatAmounts, formatMoney } from "~/lib/money-format";
 
 import type { Route } from "./+types/index";
 
@@ -162,12 +162,6 @@ export async function action({ request, context }: Route.ActionArgs) {
   return { sync: RESULT_MESSAGE[result.status] };
 }
 
-/** Each currency's total on its own; none at all reads as zero. */
-function amounts(rows: CurrencyAmount[]): string {
-  if (rows.length === 0) return formatMoney(0, "usd");
-  return rows.map((r) => formatMoney(r.cents, r.currency)).join(" · ");
-}
-
 /** The status tones on Capsomer's pill: won is ok, lost is critical, every
  *  other status has no tone (Capsomer has no blue for Recova's in-progress
  *  states, and the brand accent is teal, Q11). */
@@ -192,18 +186,10 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
           (Dustin, PR #75 questions 2 and 4; see stats.ts). */}
       <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-5">
         <StatCard label="Open disputes" value={String(stats.openCount)} />
-        <StatCard label="At stake" value={amounts(stats.atStake)} />
+        <StatCard label="At stake" value={formatAmounts(stats.atStake)} />
         <StatCard label="Submitted by Foxhound" value={String(stats.submittedByFoxhoundCount)} />
-        <StatCard label="Fees owed" value={amounts(stats.feesOwed)} />
-        <StatCard
-          label="Win rate"
-          value={stats.winRatePct === null ? "-" : `${stats.winRatePct}%`}
-          subtext={
-            stats.winRatePct === null
-              ? "No disputes resolved yet"
-              : `${stats.wonCount} won of ${stats.wonCount + stats.lostCount} resolved`
-          }
-        />
+        <StatCard label="Fees owed" value={formatAmounts(stats.feesOwed)} />
+        <StatCard label="Win rate" {...winRateCard(stats)} />
       </div>
 
       {disputes.length === 0 ? (
