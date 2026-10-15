@@ -3,16 +3,29 @@ import { Link } from "react-router";
 
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { DOC_GUIDES } from "~/lib/marketing/docs-content";
+import { DOC_GUIDES, type DocGuide } from "~/lib/marketing/docs-content";
 import { breadcrumbListJsonLd, docsItemListJsonLd, siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
+import "capsomer/panel.css";
+// Capsomer's tokens and the teal family (capbase layer), which the panel, the
+// accent text and the focus ring read. The site header loads the same file;
+// importing it here keeps the page whole under any layout.
+import "~/site-header.css";
+
 import type { Route } from "./+types/index";
 
-// Ported from legacy app/(marketing)/docs/page.tsx (Phase 6 Pass 1). Platform
-// renders as a full-width card above the product guide grid, same as
-// legacy. Content itself is a deliberately modest, hand-written set (see
-// app/lib/marketing/docs-content.ts), not the full 5-guide legacy library.
+// The /docs index (J17, row M17). Recova's spec is app/(marketing)/docs/page.tsx
+// (blob 4562a1ed) and components/MarketingPageHeader.tsx (blob 118a5104), read
+// whole.
+//
+// Layout is Recova's: the shared page header, the 720px column with px-6 and
+// pb-16, Platform as a full-width card above a two-column grid at sm, the four
+// product guides in Recova's order (Audit, Recovery, Disputes, Intelligence),
+// then the two cross-links. Look is Capsomer's (Q12): each card is Capsomer's
+// panel in the teal family, text on the five sizes (RULES.md 5.2), teal
+// throughout (Q11). Guide titles and descriptions come from
+// app/lib/marketing/docs-content.ts and stay 20d-frozen.
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return marketingMeta({
@@ -37,73 +50,30 @@ export default function DocsIndexPage({ loaderData }: Route.ComponentProps) {
     <>
       <MarketingPageHeader eyebrow="User guides" title="Documentation" subtext="Documentation for the Foxhound platform." />
 
-      {/* div, not main: marketing.tsx already renders this page's one main landmark. */}
-      <div className="mx-auto max-w-[720px] px-6 pb-16">
+      {/* div, not main: marketing.tsx already renders this page's one main landmark.
+          Recova's 720px column, in Capsomer's teal family with Foxhound's own
+          neutrals (.fh-cap, as the site header and the /products hub); the focus
+          ring reads the family's teal ring here, as in Capsomer's own parts. */}
+      <div className="fh-cap mx-auto max-w-[720px] px-6 pb-16 [--border-focus:var(--ring)]" data-family="teal">
         <div className="flex flex-col gap-4">
-          <Link
-            to={`/docs/${platform.slug}`}
-            className="group block rounded-lg border border-border bg-surface p-5 transition-colors hover:border-brand"
-          >
-            <div className="mb-2 text-item-title font-medium text-text">{platform.title}</div>
-            <div className="mb-4 text-label leading-relaxed text-text-secondary">{platform.description}</div>
-            <div className="text-label text-brand-text">
-              Read guide{" "}
-              <ArrowRight
-                className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
-                size={13}
-                strokeWidth={1.5}
-                aria-hidden
-              />
-            </div>
-          </Link>
+          {/* Platform: full width, the same card as the product guides below. */}
+          <GuideCard guide={platform} />
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {productGuides.map((g) => (
-              <Link
-                key={g.slug}
-                to={`/docs/${g.slug}`}
-                className="group block rounded-lg border border-border bg-surface p-5 transition-colors hover:border-brand"
-              >
-                <div className="mb-2 text-item-title font-medium text-text">{g.title}</div>
-                <div className="mb-4 text-label leading-relaxed text-text-secondary">{g.description}</div>
-                <div className="text-label text-brand-text">
-                  Read guide{" "}
-                  <ArrowRight
-                    className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
-                    size={13}
-                    strokeWidth={1.5}
-                    aria-hidden
-                  />
-                </div>
-              </Link>
+              <GuideCard key={g.slug} guide={g} />
             ))}
           </div>
         </div>
 
+        {/* Recova's cross-links. leading-6 makes each link a 24px target, as
+            the /pricing Learn more links (J54). */}
         <div className="mt-12 flex flex-wrap items-center gap-6 text-label">
-          <Link
-            to="/features"
-            className="group text-brand-text transition-opacity duration-150 hover:opacity-80"
-          >
-            See all features{" "}
-            <ArrowRight
-              className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
-              size={13}
-              strokeWidth={1.5}
-              aria-hidden
-            />
+          <Link to="/features" className={CROSS_LINK}>
+            See all features <Arrow />
           </Link>
-          <Link
-            to="/pricing"
-            className="group text-brand-text transition-opacity duration-150 hover:opacity-80"
-          >
-            View pricing{" "}
-            <ArrowRight
-              className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
-              size={13}
-              strokeWidth={1.5}
-              aria-hidden
-            />
+          <Link to="/pricing" className={CROSS_LINK}>
+            View pricing <Arrow />
           </Link>
         </div>
       </div>
@@ -121,5 +91,43 @@ export default function DocsIndexPage({ loaderData }: Route.ComponentProps) {
         }}
       />
     </>
+  );
+}
+
+const CROSS_LINK = "group leading-6 text-accent-text no-underline transition-opacity duration-150 hover:opacity-80";
+
+/** Recova's 13px arrow, nudged on the link's hover. Decorative. */
+function Arrow() {
+  return (
+    <ArrowRight
+      className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
+      size={13}
+      strokeWidth={1.5}
+      aria-hidden
+    />
+  );
+}
+
+/**
+ * One guide card: Capsomer's panel, body only, as the whole-card link Recova
+ * draws. Capsomer has no link card yet, so Recova's hover border is not drawn
+ * (see the PR notes, a Capsomer job to post). "group" carries no style; it
+ * drives the arrow's nudge. The title moves from Recova's 0.9375rem to body,
+ * the nearest of the five sizes.
+ */
+function GuideCard({ guide }: { guide: DocGuide }) {
+  return (
+    <Link to={`/docs/${guide.slug}`} className="cap-panel group">
+      <div className="cap-panel-body">
+        {/* One block, so the body's grid gap leaves Recova's own spacing alone. */}
+        <div>
+          <div className="mb-2 text-body font-medium text-text">{guide.title}</div>
+          <div className="mb-4 text-label leading-relaxed text-text-secondary">{guide.description}</div>
+          <div className="text-label text-accent-text">
+            Read guide <Arrow />
+          </div>
+        </div>
+      </div>
+    </Link>
   );
 }
