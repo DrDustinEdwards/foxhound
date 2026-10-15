@@ -71,7 +71,8 @@ describe("PLANT 2: every marketing carrier derives the number", () => {
     // /pricing's card copy lives in lib/marketing/pricing-copy.ts since J54.
     { file: "app/lib/marketing/pricing-copy.ts", mustUse: ["DECLINE_CATEGORY_COUNT_WORD"] },
     {
-      file: "app/routes/features.tsx",
+      // /features' copy moved here with J60.
+      file: "app/lib/marketing/features-content.ts",
       mustUse: ["DECLINE_CATEGORY_COUNT_WORD", "DECLINE_CATEGORY_PHRASE"],
     },
     { file: "app/lib/compare/competitors.ts", mustUse: ["DECLINE_CATEGORY_COUNT_WORD_LOWER"] },
