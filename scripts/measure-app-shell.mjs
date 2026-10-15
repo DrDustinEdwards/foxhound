@@ -20,7 +20,7 @@ const ENTRY = `${BASE}/demos/dashboard`;
 const PAGES = [
   ["S2 /dashboard", "/console", 1280, 32],
   ["S3 /billing", "/billing", 720, 32],
-  ["S5 /recovery", "/recovery", 1280, 32],
+  ["S5 /recovery/dashboard", "/recovery/dashboard", 1280, 32],
   ["S6 /recovery/payments", "/recovery/payments", 1280, 32],
   ["S9 /recovery/sequences", "/recovery/sequence", 1280, 32],
 ];
