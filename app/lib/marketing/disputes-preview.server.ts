@@ -1,4 +1,5 @@
-import type { DisputeState } from "~/lib/constants";
+import { disputeFeeCents } from "~/lib/billing/fees";
+import { DISPUTE_FEE_CAP_CENTS, type DisputeState } from "~/lib/constants";
 import { formatDateMonthDay } from "~/lib/date-format";
 import { DEMO_ACCOUNT_ID, DEMO_MEMBER_EMAIL } from "~/lib/demo/constants";
 import { buildDisputesSeed } from "~/lib/demo/disputes-seed";
@@ -60,12 +61,18 @@ export function buildDisputesPreview(now: Date): DisputesPreview {
   const ordered = sortDisputesForList(seeded);
 
   const stats = computeDisputeStats(ordered);
-  // One currency for the cards, as the dashboard takes it: the first row's.
-  const currency = ordered[0]?.currency ?? "usd";
+  // One currency for the cards, as the dashboard takes it: the newest
+  // dispute's (listDisputes' first row), not the first row after the sort.
+  const newest = seeded.reduce<(typeof seeded)[number] | undefined>(
+    (a, b) => (a === undefined || b.createdAt.getTime() > a.createdAt.getTime() ? b : a),
+    undefined,
+  );
+  const currency = newest?.currency ?? "usd";
 
   const rows = ordered.map((d): PreviewDisputeRow => {
     const resolved = isDisputeResolved(d.state);
     const foxhoundSubmitted = d.submittedAt !== null;
+    const owed = d.state === "resolved_won" && foxhoundSubmitted;
     const days = resolved ? null : daysUntilDeadline(d.evidenceDeadline, nowMs);
     return {
       id: d.id,
@@ -76,7 +83,12 @@ export function buildDisputesPreview(now: Date): DisputesPreview {
       stateLabel: DISPUTE_STATE_LABELS[d.state] ?? d.state,
       stateTone: disputeStateTone(d.state),
       foxhoundSubmitted,
-      fee: d.state === "resolved_won" && foxhoundSubmitted ? "owed" : resolved ? "none" : null,
+      fee: owed ? "owed" : resolved ? "none" : null,
+      // The same amount computeDisputeStats sums: the stamped fee, else the
+      // capped projection.
+      feeAmount: owed
+        ? formatMoney(d.resolvedFeeCents ?? disputeFeeCents(d.amountCents, DISPUTE_FEE_CAP_CENTS), d.currency)
+        : null,
       resolved,
       deadlineDays: days,
       deadlineUrgency: deadlineUrgency(days),

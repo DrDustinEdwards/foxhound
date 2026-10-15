@@ -1,7 +1,7 @@
 import { Pill, Status } from "capsomer/react/status";
 
 import { deadlineClassName } from "~/lib/disputes/labels";
-import { DISPUTE_FEE_OWED_WORDS } from "~/lib/marketing/disputes-copy";
+import { disputeFeeOwedWords } from "~/lib/marketing/disputes-copy";
 import type { DisputesPreview, PreviewDisputeRow } from "~/lib/marketing/disputes-preview";
 
 // The previews on /products/disputes (J57), Recova's three feature-block UIs:
@@ -91,7 +91,12 @@ export function NumbersPreview({ preview }: { preview: DisputesPreview }) {
 function DeadlineDays({ row }: { row: PreviewDisputeRow }) {
   // Recova leaves the cell empty once a dispute has closed.
   if (row.resolved || row.deadlineDays === null) return null;
-  return <span className={`font-mono text-label ${deadlineClassName(row.deadlineUrgency)}`}>{row.deadlineDays}d</span>;
+  // A passed deadline reads 0d in the overdue colour, never a negative count.
+  return (
+    <span className={`font-mono text-label ${deadlineClassName(row.deadlineUrgency)}`}>
+      {Math.max(0, row.deadlineDays)}d
+    </span>
+  );
 }
 
 const DASHBOARD_CAPTION = "preview-disputes-dashboard";
@@ -145,9 +150,9 @@ export function DashboardPreview({ preview }: { preview: DisputesPreview }) {
                       ) : null}
                     </td>
                     <td>
-                      {row.fee === "owed" ? (
+                      {row.fee === "owed" && row.feeAmount ? (
                         <span className="whitespace-nowrap text-micro font-medium text-accent-text">
-                          {DISPUTE_FEE_OWED_WORDS}
+                          {disputeFeeOwedWords(row.feeAmount)}
                         </span>
                       ) : row.fee === "none" ? (
                         <span className="whitespace-nowrap text-micro text-text-subtle">No charge</span>

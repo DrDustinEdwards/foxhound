@@ -212,6 +212,13 @@ describe("the copy says only what Foxhound does (J57)", async () => {
     expect(body).toContain("A triage score with a fight or accept recommendation is not built yet.");
   });
 
+  it("names only the evidence evidence.ts drafts: no transaction data, no cancellation evidence", () => {
+    expect(body).toContain("Foxhound builds evidence from your recovery history, then submits it to Stripe");
+    expect(body).not.toMatch(/transaction data/i);
+    expect(body).not.toMatch(/cancellation evidence/i);
+    expect(body).toContain("Subscription_canceled disputes depend on the recovery email history.");
+  });
+
   it("states the cap on the fee wherever the price is stated", () => {
     expect(body).toContain(`of disputes Foxhound wins, capped at ${CAP} per dispute`);
   });
@@ -283,7 +290,12 @@ describe("the dashboard preview is the demo seed through Foxhound's own math (J5
       const foxhound = r.submittedAt !== null;
       if (foxhound) expect(cells).toMatch(/\bActive\b/);
       else expect(cells).not.toMatch(/\bActive\b/);
-      if (r.state === "resolved_won" && foxhound) expect(cells).toContain(`${PCT} fee owed`);
+      if (r.state === "resolved_won" && foxhound) {
+        // The fee is min(rate, cap): the cell names the engine's amount, never the bare rate.
+        const fee = (r.resolvedFeeCents as number | null) ?? disputeFeeCents(r.amountCents as number, DISPUTE_FEE_CAP_CENTS);
+        expect(cells).toContain(`${formatMoney(fee, "usd")} fee owed`);
+        expect(cells).not.toContain(`${PCT} fee owed`);
+      }
       else if (RESOLVED.has(r.state)) expect(cells).toContain("No charge");
       else expect(cells).not.toMatch(/fee owed|No charge/);
       if (!RESOLVED.has(r.state)) {

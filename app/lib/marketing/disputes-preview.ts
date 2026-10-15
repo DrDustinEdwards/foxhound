@@ -22,6 +22,8 @@ export interface PreviewDisputeRow {
   foxhoundSubmitted: boolean;
   /** Recova's Fee cell: owed on a Foxhound win, no charge on any other close. */
   fee: "owed" | "none" | null;
+  /** The fee Foxhound bills on a win it submitted (capped), formatted; else null. */
+  feeAmount: string | null;
   resolved: boolean;
   /** Whole days to the evidence deadline, for an open dispute. */
   deadlineDays: number | null;

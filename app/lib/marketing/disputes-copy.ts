@@ -29,8 +29,13 @@ import { formatMoneyShort } from "~/lib/money-format";
 const pct = `${DISPUTE_FEE_BPS / 100}%`;
 const cap = formatMoneyShort(DISPUTE_FEE_CAP_CENTS, "usd");
 
-/** The fee words on a won dispute Foxhound submitted, as Recova's Fee cell has them. */
-export const DISPUTE_FEE_OWED_WORDS = `${pct} fee owed`;
+/** The Fee cell on a won dispute Foxhound submitted. Truthfulness: Recova
+ *  reads "20% fee owed", but Foxhound's fee is the rate capped at
+ *  DISPUTE_FEE_CAP_CENTS, so the cell names the engine's amount
+ *  (resolved_fee_cents, else disputeFeeCents) rather than the bare rate. */
+export function disputeFeeOwedWords(feeAmount: string): string {
+  return `${feeAmount} fee owed`;
+}
 
 // Truthfulness: Recova reads "Automated dispute evidence building and Stripe
 // submission." Submission waits for an approval, and the fee is capped.
@@ -38,10 +43,12 @@ export const DISPUTES_META_DESCRIPTION = `Automated dispute evidence building an
 
 export const DISPUTES_HERO = {
   headline: `Evidence built automatically.\n${pct} only when you win.`,
-  // Truthfulness: Recova builds from "Stripe signals" and "then submits it to
-  // Stripe before the deadline". Foxhound gathers no Stripe signals and
-  // submits only what a person approved.
-  sub: "When a dispute opens, Foxhound builds evidence from your recovery history and transaction data, then submits it to Stripe once someone on your team approves it. You pay nothing on disputes you lose or accept.",
+  // Truthfulness: Recova builds from "your recovery history, Stripe signals,
+  // and transaction data" and "then submits it to Stripe before the
+  // deadline". Foxhound's evidence is the plan, service date and recovery
+  // emails of the recovery behind the charge (evidence.ts), all of it recovery
+  // history, and it submits only what a person approved.
+  sub: "When a dispute opens, Foxhound builds evidence from your recovery history, then submits it to Stripe once someone on your team approves it. You pay nothing on disputes you lose or accept.",
   // Truthfulness: the cap.
   pricing: `${pct} of won disputes, capped at ${cap} · Nothing on losses or accepted disputes · Invoiced monthly`,
 };
@@ -136,8 +143,10 @@ export const DISPUTES_FAQS = [
     // subscription_canceled, and unrecognized dispute reasons. Fraudulent
     // disputes have the highest win rate when authentication signals exist."
     // Foxhound takes in every reason Stripe sends, gathers no authentication
-    // signals, and states no win rate without a source (RULES.md 2.3).
-    a: "Foxhound drafts evidence for every dispute reason Stripe sends, fraudulent, subscription_canceled and unrecognized among them. The draft is built from the recovery behind the disputed charge, so a dispute on a charge Foxhound recovered has the most to work with. Subscription_canceled disputes depend on cancellation evidence and email history.",
+    // signals, and states no win rate without a source (RULES.md 2.3). Recova's
+    // "cancellation evidence and email history": Foxhound drafts no
+    // cancellation evidence, only the recovery email log (evidence.ts).
+    a: "Foxhound drafts evidence for every dispute reason Stripe sends, fraudulent, subscription_canceled and unrecognized among them. The draft is built from the recovery behind the disputed charge, so a dispute on a charge Foxhound recovered has the most to work with. Subscription_canceled disputes depend on the recovery email history.",
   },
   {
     q: "What if I want to submit evidence myself?",
