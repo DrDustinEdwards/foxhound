@@ -2,10 +2,16 @@ import { callAdminApi, segment, type ApiResult } from "./api-client";
 import type { AdminMcpEnv } from "./env";
 import { SCOPE_WRITE } from "./scopes";
 
-// THE NINE FOXHOUND ADMIN TOOLS (capsid/research/design-mcp-servers.md section
-// 5; MCP ruling 2026-10-10, DECIDE answer 4).
+// THE FOXHOUND ADMIN TOOLS: the nine of capsid/research/design-mcp-servers.md
+// section 5 (MCP ruling 2026-10-10, DECIDE answer 4), and the owner's test mail,
+// preview and send, which Dustin approved on 2026-10-15
+// (cmsg_01Nd8kh3hkgYNYpWXrNkvBQLJoLik1xYvr9pCLcgZ3SSMJ, "ok" to "one owner-only
+// 'send or preview any email' tool behind your admin key"). It is two tools so
+// each carries honest hints (rule 6) and a read-only grant can still preview
+// (rule 12.3).
 //
-// Seven read and two write. Pause is the one direct write, because pausing stops
+// Eight read and three write. Test mail goes only to the signed-in admin's own
+// inbox or one on the API's allow list, and moves no money. Pause is the one direct write, because pausing stops
 // money moving. Everything that starts or changes money (resuming a merchant,
 // releasing the brake, enabling a cron, billing exemption, a plan grant) can
 // only be STAGED: the API records it, and an admin confirms it, signed in, in
@@ -208,6 +214,57 @@ export const ADMIN_TOOLS: AdminTool[] = [
     annotations: READ,
     run: (session, args) => get(session, "/staged", { status: text(args, "status"), cursor: text(args, "cursor") }),
   },
+  {
+    name: "foxhound_admin_preview_email",
+    title: "Preview an email",
+    description:
+      "See any email Foxhound sends exactly as it would arrive (From, Reply-To, subject, HTML and text), without sending it. Call with no type for the list of types. Customer emails (recovery, win-back, expiring card, the merchant's test email) need account_id: they render with that merchant's sender name and Reply-To, on sample customer data. Read only.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        type: { type: "string", description: "An email type, e.g. recovery_day1. Omit to list the types." },
+        account_id: { type: "string", description: "The merchant whose settings to render with. From foxhound_admin_find_merchant." },
+        to: { type: "string", description: "Whose inbox to render for. Omit for your own." },
+      },
+      required: [],
+    },
+    annotations: READ,
+    run: (session, args) => {
+      const type = text(args, "type");
+      if (!type) return get(session, "/emails");
+      return callAdminApi(session.env, session.actor, {
+        method: "POST",
+        path: "/emails/preview",
+        body: { type, account_id: text(args, "account_id"), to: text(args, "to") },
+      });
+    },
+  },
+  {
+    name: "foxhound_admin_send_test_email",
+    title: "Send test emails",
+    description:
+      "Send one, several or all email types to your own inbox (or a test inbox on Foxhound's allow list) to check delivery, links, unsubscribe and Reply-To, for example after a deploy. types is a list of types or \"all\"; customer emails need account_id and use that merchant's sender name and Reply-To on sample customer data. Buttons go to a stand-in page and record no clicks; nothing is billed and no recovery changes. Each send is in the admin audit log.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        types: {
+          description: 'A list of email types, or "all". foxhound_admin_preview_email with no type lists them.',
+          anyOf: [{ type: "array", items: { type: "string" } }, { type: "string", enum: ["all"] }],
+        },
+        account_id: { type: "string", description: "The merchant whose settings to send with." },
+        to: { type: "string", description: "Omit to send to yourself. Any other address must be on the allow list." },
+      },
+      required: ["types"],
+    },
+    // Not destructive: it only mails the caller. Not idempotent: each call sends again.
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    run: (session, args) =>
+      callAdminApi(session.env, session.actor, {
+        method: "POST",
+        path: "/emails/send",
+        body: { types: args.types, account_id: text(args, "account_id"), to: text(args, "to") },
+      }),
+  },
 ];
 
 export const ADMIN_TOOL_NAMES = ADMIN_TOOLS.map((tool) => tool.name);
@@ -220,7 +277,7 @@ export async function runAdminTool(
 ): Promise<ApiResult> {
   if (!tool.annotations.readOnlyHint && !session.scopes.includes(SCOPE_WRITE)) {
     return refuse(
-      `This grant is read-only, so ${tool.name} is not available. Reconnect and allow pausing and staging on the consent page to use it.`,
+      `This grant is read-only, so ${tool.name} is not available. Reconnect and allow more than reading on the consent page to use it.`,
     );
   }
   return tool.run(session, args);

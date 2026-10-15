@@ -117,8 +117,11 @@ describe("PLANT 1: the Worker holds no Stripe key, no money binding and no D1", 
   });
 });
 
-describe("PLANT 2: the nine tools", () => {
-  it("are exactly the ruling's nine, foxhound_admin_ named, with all four hints", () => {
+describe("PLANT 2: the tools", () => {
+  // The ruling's nine, plus the owner's test mail (preview and send), which
+  // Dustin approved on 2026-10-15 (cmsg_01Nd8kh3hkgYNYpWXrNkvBQLJoLik1xYvr9pCLcgZ3SSMJ).
+  // test/admin-email-send-preview.test.ts holds those two to their own rules.
+  it("are exactly the ruling's nine and the two test-mail tools, foxhound_admin_ named, with all four hints", () => {
     expect([...ADMIN_TOOL_NAMES].sort()).toEqual(
       [
         "foxhound_admin_whats_next",
@@ -130,6 +133,8 @@ describe("PLANT 2: the nine tools", () => {
         "foxhound_admin_pause",
         "foxhound_admin_stage_change",
         "foxhound_admin_list_staged",
+        "foxhound_admin_preview_email",
+        "foxhound_admin_send_test_email",
       ].sort(),
     );
     for (const tool of ADMIN_TOOLS) {
@@ -142,9 +147,9 @@ describe("PLANT 2: the nine tools", () => {
     }
   });
 
-  it("only pause and stage_change write; every other tool is read-only", () => {
+  it("only pause, stage_change and the test-mail send write; every other tool is read-only", () => {
     const writes = ADMIN_TOOLS.filter((t) => !t.annotations.readOnlyHint).map((t) => t.name).sort();
-    expect(writes).toEqual(["foxhound_admin_pause", "foxhound_admin_stage_change"]);
+    expect(writes).toEqual(["foxhound_admin_pause", "foxhound_admin_send_test_email", "foxhound_admin_stage_change"]);
   });
 
   it("every call carries the admin key and the signed-in admin's email", async () => {
