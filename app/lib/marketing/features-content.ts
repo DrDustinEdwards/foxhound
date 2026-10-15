@@ -523,7 +523,7 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "Cron health table",
-          description: `All ${facts.cronJobCount} crons with last-run status in /admin/crons.`,
+          description: `All ${facts.cronJobCount} crons with last-run status in /admin/platform/crons.`,
           product: "Platform",
         },
       ],

@@ -1,5 +1,5 @@
 // Pure progress summary for a failed payment's recovery_steps sequence, used by
-// the /recovery/sequences queue view. No DB access; takes whatever rows the
+// the /recovery/sequence queue view. No DB access; takes whatever rows the
 // caller already fetched.
 
 export interface SequenceStepInput {

@@ -321,23 +321,24 @@ describe("PLANT 4: the test email is a real send", () => {
     expect(harness.sent[0].to).toBe(USER_EMAIL);
   });
 
-  it("an account without live sends is REFUSED, and the refusal is logged not silent", async () => {
-    // The demo account and every un-switched-on account read false here. This
-    // is the real refusal at this layer; the demo firewall's own 405 is
-    // appShellMiddleware's and is untouched by this session.
+  it("an account without live sends still gets its preview, as Recova's control has no such switch", async () => {
+    // E3. The live-send gate keeps a merchant's CUSTOMERS from being mailed
+    // before the account is switched on. The preview goes only to the session
+    // user's own address, and Recova's test-email route sends on every click,
+    // so the preview is not held by it. The send is still logged.
     sqlite.prepare("UPDATE accounts SET live_sends_enabled = 0 WHERE id = ?").run(ACCOUNT);
     seedConnection({ id: "c1", senderName: "Alex" });
 
     const res = await post({ _action: "test-email" });
 
-    expect(res.body.ok).toBe(false);
-    expect(harness.sent).toHaveLength(0);
+    expect(res.body.ok).toBe(true);
+    expect(harness.sent).toHaveLength(1);
+    expect(harness.sent[0].to).toBe(USER_EMAIL);
     const rows = sqlite
       .prepare("SELECT status, error FROM email_sends WHERE account_id = ?")
       .all(ACCOUNT) as { status: string; error: string | null }[];
-    expect(rows).toHaveLength(1);
-    expect(rows[0].status).toBe("blocked");
-    expect(rows[0].error).toBe(LIVE_SENDS_DISABLED_ERROR);
+    expect(rows).toEqual([{ status: "sent", error: null }]);
+    expect(rows[0].error).not.toBe(LIVE_SENDS_DISABLED_ERROR);
   });
 });
 

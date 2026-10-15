@@ -1,74 +1,120 @@
 import { getDb } from "~/db";
 import { processEmailJob } from "~/lib/email/dispatch";
 import type { EmailJobResult } from "~/lib/email/dispatch";
-import { signUnsubscribeToken } from "~/lib/email/unsubscribe-token";
+import type { EmailJob } from "~/lib/email/types";
 import { buildTemplateEmail } from "~/lib/recovery/email-template";
 import { getPrimarySenderConnection } from "~/lib/settings/queries.server";
 
-// S39, the "Send test email" control, ported from legacy's
-// app/(app)/settings/test-email/route.ts (blob dcc3a06f).
+// S39 and E3, the "Send test email" control, ported from Recova's
+// app/(app)/settings/test-email/route.ts (blob dcc3a06f, 11006 bytes, read
+// whole with lib/email-colors.ts 8c23bd6f and lib/constants.ts a21b32b8).
 //
-// THE POINT OF THIS CONTROL IS THAT IT IS NOT A SIMULATION. It goes through
-// processEmailJob, the same function the recovery cron's defaultSend calls, so
-// it passes the suppression gate, the per-account live-send gate, and
-// buildEmailMessage's CAN-SPAM guard, and it writes an email_sends row for
-// whatever happens. A merchant who clicks it and gets "blocked" has learned a
-// true thing about their account.
+// WHAT RECOVA SENDS, on every POST, with no toggle, to the signed-in user:
+//   From      `${sender_name || 'Support'} <recovery@...>`
+//   Reply-To  the primary connection's reply_to_email, when set
+//   Subject   `[PREVIEW] ${subject}`
+//   Body      a preview banner, the sample, then the footer "This is a preview
+//             email sent from Recova. Your real recovery emails will look like
+//             this."
+//   No unsubscribe, no postal address, no tracking, no retry.
+// Foxhound sends the same, with Foxhound's name in the footer, on Capsomer's
+// email component in Foxhound's teal (Q3) with a text part beside the HTML.
 //
-// THREE DIVERGENCES FROM LEGACY, each classed:
+// IT IS A REAL SEND. It goes through processEmailJob, as the recovery cron's
+// sends do, so it passes the suppression gate and writes an email_sends row for
+// whatever happens. Its audience is "preview" (app/lib/email/types.ts), which is
+// what gives it Recova's footer in place of the CAN-SPAM one and lets it past
+// the live-send gate, since it reaches no customer.
 //
-// 1. NO AI GENERATION. Legacy calls Anthropic and falls back to a fixed string
-//    on error. Foxhound previews `buildTemplateEmail`, its own deterministic
-//    dunning template. Class (c) truthfulness: ANTHROPIC_API_KEY has no credit
-//    (core.md blocker 2), so the AI path would fail on every click and the
-//    merchant would be shown the fallback while being told it was a sample of
-//    their AI copy. Previewing the template shows them what would actually send
-//    today.
-// 2. THE ROUTE'S OWN ACTION, not a separate POST route. Same class (a)
-//    divergence S30 took and for the same reason: it avoids building ledger row
-//    S39 as a side effect of this row.
-// 3. `replyTo` IS PASSED, as legacy's is (`profile?.reply_to_email ||
-//    undefined`), so the preview carries the Reply-To customers will get (J03).
+// DIFFERENCES FROM RECOVA, each named in the E3 pull request for Dustin:
 //
-// The sample customer is legacy's: a soft decline on a $99 plan.
+// 1. NO AI SAMPLE. Recova asks Anthropic for a sample in the merchant's brand
+//    voice and falls back to a fixed string. Foxhound previews the email it
+//    would really send first today: email_day1 on Recova's own per-step words
+//    (FALLBACK_TEMPLATES, app/lib/recovery/email-template.ts), with Recova's
+//    sample customer, Alex. Kept only while the generation path cannot run
+//    (no Anthropic credit, core.md launch blockers).
+// 2. THE BANNER DOES NOT NAME THE BRAND VOICE. Recova's says "This is a sample
+//    recovery email using your brand voice: ..."; a template sample does not use
+//    the brand voice, so that clause would be false. Truthfulness, RULES.md 1.2.
+//    Recova's em dash after PREVIEW is a colon (core.md: no em dashes).
+// 3. THE BUTTON GOES TO /settings/email. Recova's fallback links to a
+//    placeholder, https://billing.stripe.com/p/session/[LINK], which opens
+//    nothing. A preview must not mint a card-update token or a tracked click.
+// 4. THE ROUTE'S OWN ACTION, not a separate POST route, as S30 did.
 
 const SAMPLE_AMOUNT_FORMATTED = "$99.00";
 const SAMPLE_DECLINE_CATEGORY = "soft";
+/** Recova's sample customer, "Name: Alex" in its prompt and "Hi Alex," in its fallback. */
+const SAMPLE_CUSTOMER_NAME = "Alex";
+/** The step the sample is: the first recovery email a customer gets. */
+const SAMPLE_STEP = "email_day1";
 export const TEST_EMAIL_TEMPLATE = "settings_test";
 export const TEST_EMAIL_SUBJECT_PREFIX = "[PREVIEW] ";
-
-/** Legacy's preview banner, which is what stops a merchant mistaking the sample
- *  for a real customer send sitting in their own inbox.
- *
- *  PLAIN SEMANTIC HTML, no inline colours. Legacy's is a tinted bar built from
- *  its EMAIL_COLORS module; Foxhound has no such module (the same wall
- *  buildDigestEmail hit, app/lib/audit/digest.server.ts:107) and minting one is
- *  not this row. check-tokens enforces that structurally: raw hex outside the
- *  token file and px font sizes both fail the build, and this banner failed it
- *  once already. The words carry the warning instead of the colour. */
-function previewBanner(): string {
-  return (
-    `<p><strong>PREVIEW.</strong> This is a sample recovery email. ` +
-    `Your real recovery emails look like this.</p>`
-  );
-}
+/** Recova's preview banner, less the brand-voice clause (difference 2 above). */
+export const TEST_EMAIL_BANNER = "PREVIEW: This is a sample recovery email.";
+/** Recova's preview footer, Foxhound-branded. */
+export const TEST_EMAIL_FOOTER = "This is a preview email sent from Foxhound. Your real recovery emails will look like this.";
 
 /**
- * The subject and body this control sends: the banner, the "[PREVIEW] "
- * prefix and the sample soft decline, with the button on /settings/email.
- * Pure. The admin email preview sends the same copy (app/lib/admin/email-send.server.ts).
+ * The subject, body and footer this control sends: the banner and the
+ * "[PREVIEW] " prefix around the first recovery email, with its button on
+ * /settings/email. Pure. The admin email preview sends the same mail through
+ * buildTestEmailJob (app/lib/admin/email-send.server.ts).
  */
-export function buildTestEmailCopy(senderName: string | null, baseUrl: string): { subject: string; bodyHtml: string } {
+export function buildTestEmailCopy(
+  senderName: string | null,
+  baseUrl: string,
+): { subject: string; bodyHtml: string; footerNote: string } {
   const copy = buildTemplateEmail({
     merchantName: senderName ?? "your subscription",
     declineCategory: SAMPLE_DECLINE_CATEGORY,
     amountFormatted: SAMPLE_AMOUNT_FORMATTED,
     updateUrl: `${baseUrl}/settings/email`,
+    stepType: SAMPLE_STEP,
+    customerName: SAMPLE_CUSTOMER_NAME,
+    senderName,
   });
-  return { subject: `${TEST_EMAIL_SUBJECT_PREFIX}${copy.subject}`, bodyHtml: `${previewBanner()}${copy.bodyHtml}` };
+  return {
+    subject: `${TEST_EMAIL_SUBJECT_PREFIX}${copy.subject}`,
+    // The banner is the mail's one heading: it is the first thing a reader
+    // meets and it says what the mail is. Capsomer's info `note` block would
+    // be nearer Recova's tinted bar, but the shell's reader makes no notes.
+    bodyHtml: `<h1>${TEST_EMAIL_BANNER}</h1>\n${copy.bodyHtml}`,
+    footerNote: TEST_EMAIL_FOOTER,
+  };
+}
+
+/** The preview as a job for the send module. Pure. */
+export function buildTestEmailJob(input: {
+  accountId: string;
+  to: string;
+  senderName: string | null;
+  replyTo: string | null;
+  baseUrl: string;
+  template: string;
+  idempotencyKey: string;
+}): EmailJob {
+  return {
+    accountId: input.accountId,
+    to: input.to,
+    // The point of the control: the merchant sees the From and Reply-To their
+    // customers will see, from the fields they just saved.
+    fromName: input.senderName,
+    replyTo: input.replyTo,
+    ...buildTestEmailCopy(input.senderName, input.baseUrl),
+    template: input.template,
+    audience: "preview",
+    // Preview mail carries neither (EmailAudience "preview").
+    unsubscribeToken: "",
+    physicalAddress: "",
+    idempotencyKey: input.idempotencyKey,
+    cronRunId: null,
+  };
 }
 
 export interface SendTestEmailResult {
+  /** A named outcome, never null (RULES.md 3.16): sent, suppressed or failed. */
   result: EmailJobResult;
   sentTo: string;
 }
@@ -77,8 +123,9 @@ export interface SendTestEmailResult {
  * Send one preview recovery email to the signed-in merchant's own address.
  *
  * `to` is the SESSION user's email and is never taken from the form, so this
- * control cannot be pointed at a third party. The idempotency key carries the
- * account and the address so a double-click is recognizable in email_sends.
+ * control cannot be pointed at a third party (RULES.md 4.7). The idempotency
+ * key is new on every click, because Recova sends on every click; it still
+ * names the account so the row is recognizable in email_sends.
  */
 export async function sendTestEmail(
   env: Env,
@@ -88,33 +135,16 @@ export async function sendTestEmail(
   const db = getDb(env);
   const connection = await getPrimarySenderConnection(db, accountId);
 
-  const copy = buildTestEmailCopy(connection?.senderName ?? null, env.BETTER_AUTH_URL ?? "");
-
-  const unsubscribeToken = await signUnsubscribeToken(env, {
-    email: recipientEmail,
+  const job = buildTestEmailJob({
     accountId,
+    to: recipientEmail,
+    senderName: connection?.senderName ?? null,
+    replyTo: connection?.replyToEmail ?? null,
+    baseUrl: env.BETTER_AUTH_URL ?? "",
+    template: TEST_EMAIL_TEMPLATE,
+    idempotencyKey: `settings-test:${accountId}:${crypto.randomUUID()}`,
   });
 
-  const result = await processEmailJob(
-    env,
-    {
-      accountId,
-      to: recipientEmail,
-      // The whole reason this control exists: the merchant sees the From header
-      // their customers will see, produced by the same field they just saved.
-      fromName: connection?.senderName ?? null,
-      // And the Reply-To they will see, as legacy's test route passes one (J03).
-      replyTo: connection?.replyToEmail ?? null,
-      subject: copy.subject,
-      bodyHtml: copy.bodyHtml,
-      template: TEST_EMAIL_TEMPLATE,
-      unsubscribeToken,
-      physicalAddress: env.PHYSICAL_ADDRESS ?? "",
-      idempotencyKey: `settings-test:${accountId}:${recipientEmail}`,
-      cronRunId: null,
-    },
-    null,
-  );
-
+  const result = await processEmailJob(env, job, null);
   return { result, sentTo: recipientEmail };
 }

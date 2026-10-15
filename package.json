@@ -11,6 +11,7 @@
     "lint": "eslint .",
     "check-tokens": "node scripts/check-tokens.mjs",
     "gen:headers": "node scripts/gen-headers.mjs",
+    "gen:recova-map": "vitest run test/redirect-map.test.ts --update",
     "deploy": "npm run build && wrangler deploy",
     "cf-typegen": "wrangler types",
     "auth:generate": "better-auth generate --config app/lib/auth/generate.config.ts --output app/db/auth-schema.ts --yes",

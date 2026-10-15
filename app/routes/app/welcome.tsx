@@ -51,7 +51,7 @@ export async function action({ context }: Route.ActionArgs) {
     .update(accounts)
     .set({ onboardingCompleted: true })
     .where(eq(accounts.id, auth.membership.accountId));
-  return redirect("/dashboard");
+  return redirect("/console");
 }
 
 export default function WelcomePage({ loaderData }: Route.ComponentProps) {

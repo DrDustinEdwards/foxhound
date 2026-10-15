@@ -40,7 +40,7 @@ const CODE = SOURCE.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, ""
 
 describe("295 item 1: the back link", () => {
   it("carries legacy's two targets, mapped to the routes that exist", () => {
-    expect(BACK_LINK_REAL).toEqual({ href: "/recovery", label: "Back to dashboard" });
+    expect(BACK_LINK_REAL).toEqual({ href: "/recovery/dashboard", label: "Back to dashboard" });
     expect(BACK_LINK_DEMO).toEqual({ href: "/recovery/payments", label: "Back to payments" });
   });
 

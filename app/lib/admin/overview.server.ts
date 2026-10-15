@@ -82,7 +82,7 @@ export interface PlatformOverview {
   cronHealth: {
     failedLast24h: number;
     /** The failed runs themselves (newest first), so the Overview can link to
-     *  each one on /admin/crons. */
+     *  each one on /admin/platform/crons. */
     failedRuns: Array<{ id: string; cronName: string; finishedAt: Date; message: string | null }>;
     lastRunAt: Date | null;
     disabledCount: number;
@@ -126,7 +126,10 @@ async function countMerchants(db: Db): Promise<number> {
   return rows[0]?.n ?? 0;
 }
 
-async function countActiveRecoveries(db: Db): Promise<number> {
+/** Failed payments in an active recovery sequence, demo accounts not counted.
+ *  The Overview's "Active recoveries" and the Operations page's queue depth
+ *  (Recova's "Payments in active recovery queue") read this one count. */
+export async function countActiveRecoveries(db: Db): Promise<number> {
   const rows = await db
     .select({ n: count() })
     .from(failedPayments)
@@ -377,12 +380,12 @@ export interface RecentAdminAction {
   id: string;
   createdAt: Date;
   actorEmail: string;
-  /** The action as a sentence (audit-describe.ts), the same words /admin/audit-log uses. */
+  /** The action as a sentence (audit-describe.ts), the same words /admin/platform/audit-log uses. */
   action: string;
   target: AuditTarget | null;
 }
 
-/** The newest audit rows, described as /admin/audit-log describes them. */
+/** The newest audit rows, described as /admin/platform/audit-log describes them. */
 export async function listRecentAdminActions(db: Db): Promise<RecentAdminAction[]> {
   const rows = await listAuditLog(db, RECENT_ACTIONS_LIMIT);
   const lookups = await loadAuditLookups(db, rows);

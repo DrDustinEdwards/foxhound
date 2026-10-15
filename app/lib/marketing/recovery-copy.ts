@@ -16,7 +16,7 @@ import {
   RECOVERY_SEQUENCE_DAYS,
 } from "./decline-categories";
 
-// The /products/recovery copy (J56). Recova's spec is
+// The /product/recovery copy (J56). Recova's spec is
 // app/(marketing)/product/recovery/page.tsx (blob ec4aded8), read whole, and
 // this is its copy word for word, with three kinds of change only:
 //

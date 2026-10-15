@@ -128,7 +128,7 @@ export function ErrorView({ error, isDev = false }: { error: unknown; isDev?: bo
             </a>
           ) : isNotFound ? (
             <>
-              <a href="/recovery" {...PRIMARY}>
+              <a href="/recovery/dashboard" {...PRIMARY}>
                 Go to dashboard
               </a>
               <a href="/demos/recovery" {...SECONDARY}>
@@ -146,7 +146,7 @@ export function ErrorView({ error, isDev = false }: { error: unknown; isDev?: bo
               <button type="button" onClick={() => location.reload()} {...PRIMARY}>
                 Try again
               </button>
-              <a href="/recovery" {...SECONDARY}>
+              <a href="/recovery/dashboard" {...SECONDARY}>
                 Go to dashboard
               </a>
               {/* Legacy's third is "Go to recovamrr.com", a cross-host link from

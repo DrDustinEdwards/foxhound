@@ -1,7 +1,7 @@
 import type { DeclineCategory } from "~/lib/constants";
 import type { RecoveryRateTone } from "~/lib/dashboard/recovery-rate";
 
-// The shape of the /products/recovery preview data (J56), shared by the server
+// The shape of the /product/recovery preview data (J56), shared by the server
 // module that builds it (recovery-preview.server.ts) and the components that
 // draw it (app/components/recovery-previews.tsx), so no client module imports
 // from a .server file (RULES.md 4.5). Every value is a plain string or number:

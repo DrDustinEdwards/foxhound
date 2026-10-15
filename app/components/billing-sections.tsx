@@ -304,9 +304,9 @@ export function IntelligenceSection() {
 /** Each product's own page. A product with none gets a plain title, never a
  *  link back to this section (review F5). */
 const PRODUCT_HREF: Record<string, string> = {
-  intelligence: "/intelligence",
-  disputes: "/disputes",
-  recovery: "/recovery",
+  intelligence: "/intelligence/dashboard",
+  disputes: "/disputes/dashboard",
+  recovery: "/recovery/dashboard",
 };
 
 /** The row list needs a link or a button title; with nowhere to go, the title is

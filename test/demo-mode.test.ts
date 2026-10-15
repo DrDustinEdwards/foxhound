@@ -107,7 +107,7 @@ describe("resolvesToDemo (demo-over-session precedence)", () => {
 
 describe("demoFallbackPath (shared by the not-yet-seeded fallback and /demo/exit)", () => {
   it("sends a signed-in caller to their own dashboard, an anonymous one to /demos", () => {
-    expect(demoFallbackPath(true)).toBe("/dashboard");
+    expect(demoFallbackPath(true)).toBe("/console");
     expect(demoFallbackPath(false)).toBe("/demos");
   });
 });

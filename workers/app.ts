@@ -5,6 +5,7 @@ import { createRequestHandler, RouterContextProvider } from "react-router";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { EMAIL_DLQ_QUEUE_NAME } from "~/lib/constants";
 import { runCronJob } from "~/lib/cron/run";
+import { sentryOptions } from "~/lib/errors/sentry-options";
 import { applyCachePolicy } from "~/lib/http/cache-policy";
 import { applySecurityHeaders } from "~/lib/http/content-security-policy";
 import { enforceRateLimit } from "~/lib/http/rate-limit";
@@ -22,7 +23,7 @@ const requestHandler = createRequestHandler(
 );
 
 export default withSentry<Env>(
-  (env) => (env.SENTRY_DSN ? { dsn: env.SENTRY_DSN, tracesSampleRate: 1 } : undefined),
+  sentryOptions,
   {
     async fetch(request, env, ctx) {
       // site-runtime's generateNonce (the 16-byte base64 algorithm Foxhound had,

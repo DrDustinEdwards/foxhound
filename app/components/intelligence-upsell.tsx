@@ -5,7 +5,7 @@ import { Link } from "react-router";
 // narrative for a non-entitled account. An honest upsell, never fabricated data
 // (TASK-foxhound-intelligence-ai.md: "a free merchant sees an honest upsell
 // state, not fabricated scores"). Free Recovery merchants keep the free MRR
-// analytics tier already on /dashboard; this is the paid layer's own surface.
+// analytics tier already on /console; this is the paid layer's own surface.
 export function IntelligenceUpsell() {
   return (
     <div className="mt-6 rounded-lg border border-dashed border-border p-8 text-center">
@@ -14,7 +14,7 @@ export function IntelligenceUpsell() {
         customer, MRR-at-risk exposure, alerts, and a nightly AI analyst narrative.
       </p>
       <Link
-        to="/products/intelligence"
+        to="/product/intelligence"
         className="mt-4 inline-block rounded-md bg-brand px-4 py-2 text-label font-medium text-on-brand hover:bg-brand-dark"
       >
         Learn about Intelligence

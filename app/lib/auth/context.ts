@@ -51,7 +51,7 @@ export interface AuthContext {
    *  (they are signed in but currently viewing the demo instead of their own
    *  account). Always false when isDemo is false. Lets the app-shell banner
    *  and /demo/exit tell "exit to /demos" (anonymous) apart from "exit back
-   *  to your own /dashboard" (signed in), without either of them re-deriving
+   *  to your own /console" (signed in), without either of them re-deriving
    *  session state themselves. */
   demoSignedIn: boolean;
 }

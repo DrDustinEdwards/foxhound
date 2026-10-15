@@ -107,11 +107,11 @@ describe("the filters come from the address", () => {
   it("builds the link to a page with the filters kept and the defaults left out", () => {
     expect(typeof pageLib.webhookListHref).toBe("function");
     const href = pageLib.webhookListHref as (f: Filters, page: number) => string;
-    expect(href({ type: "", errorsOnly: false, pendingOnly: false, page: 4 }, 1)).toBe("/admin/webhooks");
+    expect(href({ type: "", errorsOnly: false, pendingOnly: false, page: 4 }, 1)).toBe("/admin/platform/webhooks");
     expect(href({ type: "invoice paid", errorsOnly: true, pendingOnly: false, page: 1 }, 2)).toBe(
-      "/admin/webhooks?type=invoice+paid&errors=1&page=2",
+      "/admin/platform/webhooks?type=invoice+paid&errors=1&page=2",
     );
-    expect(href({ type: "", errorsOnly: false, pendingOnly: true, page: 1 }, 1)).toBe("/admin/webhooks?pending=1");
+    expect(href({ type: "", errorsOnly: false, pendingOnly: true, page: 1 }, 1)).toBe("/admin/platform/webhooks?pending=1");
   });
 });
 
@@ -229,11 +229,11 @@ function render(over: { events?: EventRow[]; total?: number; page?: number; page
   };
   const Stub = createRoutesStub([
     {
-      path: "/admin/webhooks",
+      path: "/admin/platform/webhooks",
       Component: () => createElement(WebhooksPage as never, { loaderData: data } as never),
     },
   ]);
-  return renderToStaticMarkup(createElement(Stub, { initialEntries: ["/admin/webhooks"] }));
+  return renderToStaticMarkup(createElement(Stub, { initialEntries: ["/admin/platform/webhooks"] }));
 }
 
 const text = (html: string) =>
@@ -251,8 +251,8 @@ describe("the Webhooks page", () => {
     expect(t).toMatch(/12 Received/);
     expect(t).toMatch(/2 Errors/);
     expect(t).toMatch(/1 Unprocessed/);
-    expect(html).toMatch(/href="\/admin\/webhooks\?errors=1"/);
-    expect(html).toMatch(/href="\/admin\/webhooks\?pending=1"/);
+    expect(html).toMatch(/href="\/admin\/platform\/webhooks\?errors=1"/);
+    expect(html).toMatch(/href="\/admin\/platform\/webhooks\?pending=1"/);
   });
 
   it("is a captioned table with sentence-case column names and the account column", () => {
@@ -324,14 +324,14 @@ describe("the Webhooks page", () => {
 
     const noMatch = render({ events: [], total: 0, filters: { type: "nothing" } });
     expect(text(noMatch)).toContain("No events match this filter.");
-    expect(noMatch).toMatch(/href="\/admin\/webhooks"[^>]*>[^<]*Clear/);
+    expect(noMatch).toMatch(/href="\/admin\/platform\/webhooks"[^>]*>[^<]*Clear/);
   });
 
   it("pages with links that keep the filters", () => {
     const html = render({ total: 120, page: 2, pageCount: 3, events: [event(1)], filters: { type: "invoice", page: 2 } });
     expect(html).toMatch(/<nav[^>]*aria-label="Webhook event pages"/);
-    expect(html).toContain('href="/admin/webhooks?type=invoice"');
-    expect(html).toContain('href="/admin/webhooks?type=invoice&amp;page=3"');
+    expect(html).toContain('href="/admin/platform/webhooks?type=invoice"');
+    expect(html).toContain('href="/admin/platform/webhooks?type=invoice&amp;page=3"');
     expect(text(html)).toContain("Page 2 of 3");
   });
 

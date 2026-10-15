@@ -1,4 +1,4 @@
-// /admin/audit-log data layer: the operator audit trail (admin_audit_log,
+// /admin/platform/audit-log data layer: the operator audit trail (admin_audit_log,
 // global, permanent retention). READ only.
 
 import { desc, inArray } from "drizzle-orm";

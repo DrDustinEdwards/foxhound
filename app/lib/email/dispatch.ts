@@ -187,7 +187,13 @@ export async function processEmailJob(
   // THE LIVE-SEND GATE (268). After suppression, before the send: an account that
   // has not been switched on never reaches env.EMAIL. Logged like any other
   // outcome so the block is visible in email_sends rather than silent.
-  if (!(await liveSendsEnabled(db, job.accountId))) {
+  //
+  // PREVIEW MAIL IS NOT HELD (E3). The gate keeps a merchant's CUSTOMERS from
+  // being mailed before the merchant is switched on. A preview goes only to the
+  // signed-in user's own address (RULES.md 4.7) and reaches no customer, and
+  // Recova's test-email route sends on every click with no such switch. The
+  // admin email tool skips the gate for the same reason (#82).
+  if (job.audience !== "preview" && !(await liveSendsEnabled(db, job.accountId))) {
     await logSend(db, {
       job,
       status: "blocked",

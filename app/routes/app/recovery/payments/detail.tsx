@@ -251,11 +251,10 @@ export const ACTIONS_VISIBLE_STATUS = "active";
 export const COPIED_RESET_MS = 2000;
 
 /** Legacy's back link, PaymentDetailClient.tsx 130-132. Legacy's real target is
- *  `/recovery/dashboard`; Foxhound's recovery dashboard is the `/recovery` index
- *  (app/routes.ts), and S5 carries the URL revert as its own open item, so this
- *  points at the URL that exists today. In demo legacy returns to the payments
- *  list, which Foxhound serves at the same path for demo and real alike. */
-export const BACK_LINK_REAL = { href: "/recovery", label: "Back to dashboard" };
+ *  `/recovery/dashboard`, which Foxhound serves at the same path since J09's
+ *  URL revert. In demo legacy returns to the payments list, which Foxhound
+ *  serves at the same path for demo and real alike. */
+export const BACK_LINK_REAL = { href: "/recovery/dashboard", label: "Back to dashboard" };
 export const BACK_LINK_DEMO = { href: "/recovery/payments", label: "Back to payments" };
 
 export default function PaymentDetail({ loaderData, actionData }: Route.ComponentProps) {

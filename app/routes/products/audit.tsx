@@ -25,7 +25,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
     title: "Audit - Foxhound",
     description:
       "Free Stripe diagnostic. See failed invoices, expiring cards, open disputes, and business health in 30 seconds. No account required.",
-    path: "/products/audit",
+    path: "/product/audit",
     siteUrl: loaderData?.siteUrl ?? "",
   });
 }
@@ -180,7 +180,7 @@ export default function AuditProductPage({ loaderData }: Route.ComponentProps) {
           __html: JSON.stringify(
             speakableWebPageJsonLd(url, {
               name: "Audit - Foxhound",
-              path: "/products/audit",
+              path: "/product/audit",
               selectors: [".speakable-hero", ".speakable-description", ".speakable-features"],
             }),
           ),

@@ -41,7 +41,7 @@ app-shell layout and a pathless admin-guard layout.
 | `/connect` | session only (self-guarded in its loader) | -> `/login` | shows setup form | n/a |
 | `/invite/:token` | session only to accept | view open; accept -> `/login` | can accept (this is how they get an account) | n/a |
 | Public utility (`/u/:token`, `/p/:token`, `/e/o/:token`, `/e/c/:token`) | nothing | open | open | open |
-| App shell (`/dashboard`, `/recovery/*`, `/disputes/*`, `/intelligence/*`, `/billing/*`, `/settings/*`, `/help`, `/welcome`) | session + account | -> `/login` | -> `/connect` | open |
+| App shell (`/console`, `/recovery/*`, `/disputes/*`, `/intelligence/*`, `/billing/*`, `/settings/*`, `/help`, `/welcome`) | session + account | -> `/login` | -> `/connect` | open |
 | Admin (`/admin/*`) | session + account + admin role | -> `/login` | -> `/connect` | **404** (not 403; existence hiding) |
 
 The app-shell middleware publishes the caller's identity, membership, and admin

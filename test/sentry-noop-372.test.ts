@@ -3,6 +3,8 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it, vi } from "vitest";
 
+import { sentryOptions } from "~/lib/errors/sentry-options";
+
 // SESSION 78, RULING 371 BINDING 6: the latent peer conflict is fixed, and this
 // suite is the half that proves the FIX CHANGED NOTHING AT RUNTIME.
 //
@@ -69,27 +71,30 @@ describe("PLANT 1: the pin, and the reason for its exact version", () => {
 
 describe("PLANT 2: the SDK is still inert without a DSN", () => {
   it("the options callback returns undefined when SENTRY_DSN is unset", async () => {
-    // The exact expression the worker entry passes to withSentry, extracted so
-    // the rule is checked rather than described. An env with no DSN must yield
-    // undefined, which is what tells the SDK not to initialise.
-    const optionsFor = (env: { SENTRY_DSN?: string }) =>
-      env.SENTRY_DSN ? { dsn: env.SENTRY_DSN, tracesSampleRate: 1 } : undefined;
-
-    expect(optionsFor({})).toBeUndefined();
-    expect(optionsFor({ SENTRY_DSN: "" })).toBeUndefined();
+    // UPDATED DELIBERATELY IN J05 (job_f1f5ebd7fe50). This plant used to copy
+    // the inline expression `{ dsn, tracesSampleRate: 1 }` from the worker
+    // entry. J05 moved the options into sentryOptions() with sendDefaultPii
+    // false, a 0.1 trace rate and a scrubber, so the plant now calls the real
+    // function instead of a copy. The property it guards is unchanged: an env
+    // with no DSN yields undefined, which tells the SDK not to initialise.
+    // test/sentry-posture-j05.test.ts pins the posture itself.
+    expect(sentryOptions({})).toBeUndefined();
+    expect(sentryOptions({ SENTRY_DSN: "" })).toBeUndefined();
     // And the positive control, so the assertion above is the DSN check and not
     // a function that returns undefined for everything.
-    expect(optionsFor({ SENTRY_DSN: "https://k@o.ingest.test/1" })).toEqual({
+    expect(sentryOptions({ SENTRY_DSN: "https://k@o.ingest.test/1" })).toMatchObject({
       dsn: "https://k@o.ingest.test/1",
-      tracesSampleRate: 1,
+      sendDefaultPii: false,
+      tracesSampleRate: 0.1,
     });
   });
 
   it("THE WORKER ENTRY REALLY USES THAT EXPRESSION, not a different one", () => {
-    // Without this, the plant above tests a copy of the rule that could drift
-    // from the shipped one. 372 binding 4: assert on the value under test.
+    // Without this, the plant above tests a function the entry might not use.
+    // 372 binding 4: assert on the value under test. (J05: was the inline
+    // expression, now the imported sentryOptions.)
     const entry = read("workers/app.ts");
-    expect(entry).toContain("env.SENTRY_DSN ? { dsn: env.SENTRY_DSN, tracesSampleRate: 1 } : undefined");
+    expect(entry).toMatch(/withSentry<Env>\(\s*sentryOptions,/);
   });
 
   it("withSentry RETURNS THE HANDLER OBJECT and does not touch the network at wrap time", async () => {
@@ -107,7 +112,7 @@ describe("PLANT 2: the SDK is still inert without a DSN", () => {
 
     const handler = { async fetch() { return new Response("ok"); } };
     const wrapped = withSentry<{ SENTRY_DSN?: string }>(
-      (env) => (env.SENTRY_DSN ? { dsn: env.SENTRY_DSN, tracesSampleRate: 1 } : undefined),
+      sentryOptions,
       handler,
     );
 
@@ -150,6 +155,7 @@ describe("PLANT 3: the Sentry surface Foxhound uses is unchanged", () => {
     const used = new Set<string>();
     for (const path of [
       "workers/app.ts",
+      "app/lib/errors/sentry-options.ts",
       "app/lib/engine/outcomes.ts",
       "app/routes/app/disputes/detail.tsx",
       "app/routes/webhooks/stripe-platform.ts",

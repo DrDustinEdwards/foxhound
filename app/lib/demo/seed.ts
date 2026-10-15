@@ -50,7 +50,7 @@ import { buildRecoverySeed } from "./recovery-seed";
 // convincing portfolio (TASK-foxhound-demo-data-engine.md, porting the legacy
 // six-module demo engine: customer-base, recovery-seed, disputes-seed,
 // intelligence-seed, narratives-seed, composed here). This is NOT a set of mock
-// pages: /dashboard, /recovery/*, /disputes/*, /intelligence/* all read these
+// pages: /console, /recovery/*, /disputes/*, /intelligence/* all read these
 // rows through their normal loaders.
 //
 // Two hard invariants:

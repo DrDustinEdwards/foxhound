@@ -341,7 +341,7 @@ export async function runWeeklyDigest(env: Env, now: Date): Promise<DigestRunRes
             disputesActive,
             highRiskCustomers: numbers.highRisk,
             now,
-            dashboardUrl: `${env.BETTER_AUTH_URL ?? ""}/dashboard`,
+            dashboardUrl: `${env.BETTER_AUTH_URL ?? ""}/console`,
           }),
           template: DIGEST_TEMPLATE,
           // Empty, as session 48's merchant notice does: the merchant audience

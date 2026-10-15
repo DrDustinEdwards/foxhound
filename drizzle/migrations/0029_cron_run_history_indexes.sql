@@ -1,0 +1,2 @@
+CREATE INDEX `cron_run_history_cron_status_finished_idx` ON `cron_run_history` (`cron_name`,`status`,`finished_at`);--> statement-breakpoint
+CREATE INDEX `cron_run_history_status_finished_idx` ON `cron_run_history` (`status`,`finished_at`);

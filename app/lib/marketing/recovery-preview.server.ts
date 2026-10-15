@@ -14,7 +14,7 @@ import { summarizeSequence } from "~/lib/recovery/sequence-summary";
 
 import type { PreviewPaymentRow, RecoveryPreview, RoiColumn } from "./recovery-preview";
 
-// The data behind the /products/recovery previews (J56): the demo account's
+// The data behind the /product/recovery previews (J56): the demo account's
 // seed, never a merchant's rows. Recova draws these from hardcoded Teamflow
 // numbers (RecoveryDashboardPreview.tsx, blob 565b772c) and a hand-written
 // eight-payment array (RecoveryPaymentsPreview.tsx, blob da19edf0). Foxhound

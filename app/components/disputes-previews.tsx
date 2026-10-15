@@ -3,7 +3,7 @@ import { Pill } from "capsomer/react/status";
 import { deadlineClassName } from "~/lib/disputes/labels";
 import type { DisputesPreview, PreviewDisputeRow } from "~/lib/marketing/disputes-preview";
 
-// The previews on /products/disputes (J57), Recova's three feature-block UIs:
+// The previews on /product/disputes (J57), Recova's three feature-block UIs:
 // the disputes dashboard (DisputesDashboardPreview.tsx, blob dcde195e, which
 // renders the real DisputesDashboardView, blob 3c1b7a98: five stat cards and
 // the disputes table), the stat cards on their own (page.tsx's

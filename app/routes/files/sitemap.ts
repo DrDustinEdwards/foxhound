@@ -51,18 +51,17 @@ interface SitemapEntry {
 // this request, which is false and degrades crawl scheduling. Ruling 39
 // class, do not restore a legacy defect.
 //
-// The /products/* spoke paths stay as-is: legacy serves /product/* (singular)
-// and ruling 55 reverts these, but until that rename ships, emitting
-// /product/* here would publish sitemap entries pointing at routes that do
-// not exist. 55-dependent, resolves with the rename.
+// The product pages are Recova's /product/* (singular), served at the same
+// path since J09 (ruling 55). The old /products/<name> addresses this file
+// used to list answer a 301 to them.
 export const STATIC_PAGES: SitemapEntry[] = [
   { path: "/", changeFrequency: "weekly", priority: 1.0 },
   { path: "/pricing", changeFrequency: "monthly", priority: 0.8 },
   { path: "/products", changeFrequency: "monthly", priority: 0.9 },
-  { path: "/products/audit", changeFrequency: "monthly", priority: 0.9 },
-  { path: "/products/recovery", changeFrequency: "monthly", priority: 0.9 },
-  { path: "/products/disputes", changeFrequency: "monthly", priority: 0.9 },
-  { path: "/products/intelligence", changeFrequency: "monthly", priority: 0.9 },
+  { path: "/product/audit", changeFrequency: "monthly", priority: 0.9 },
+  { path: "/product/recovery", changeFrequency: "monthly", priority: 0.9 },
+  { path: "/product/disputes", changeFrequency: "monthly", priority: 0.9 },
+  { path: "/product/intelligence", changeFrequency: "monthly", priority: 0.9 },
   { path: "/features", changeFrequency: "monthly", priority: 0.8 },
   // NET-NEW (no legacy pair): /about, /decline-codes, /compare and their
   // children. Ruling 56 permits a NET-NEW surface listing ITSELF; none of
