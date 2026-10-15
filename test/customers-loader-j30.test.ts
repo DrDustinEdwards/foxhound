@@ -30,8 +30,20 @@ vi.mock("~/lib/intelligence/views.server", async (importOriginal) => ({
         recoverySignals: {},
         disputeSignals: {},
       },
+      {
+        stripeCustomerId: "cus_sample_2",
+        customerName: "Example Logistics",
+        customerEmail: "ops@example.com",
+        currentPlanTier: null,
+        mrrContributionCents: 0,
+        currency: "usd",
+        healthScore: 20,
+        lastSeenAt: null,
+        recoverySignals: { activeRecoveryId: "fp_sample_secret" },
+        disputeSignals: { wonCount: 2, lostCount: 1 },
+      },
     ],
-    totalCount: 1,
+    totalCount: 2,
     totalMrrCents: 4_900,
     page: 1,
     totalPages: 1,
@@ -57,9 +69,25 @@ describe("J30 customers loader", () => {
       request: new Request("https://x.test/intelligence/customers"),
       params: {},
     } as never)) as { entitled: true; result: { customers: Record<string, unknown>[] } };
-    expect(data.result.customers).toHaveLength(1);
+    expect(data.result.customers).toHaveLength(2);
     expect(data.result.customers[0].stripeCustomerId).toBe("cus_sample_1");
     expect(data.result.customers[0]).not.toHaveProperty("customerEmail");
     expect(JSON.stringify(data)).not.toContain("owner@example.com");
+  });
+
+  it("sends the two signals as booleans, never the raw signal JSON", async () => {
+    const data = (await route.loader({
+      context: context(),
+      request: new Request("https://x.test/intelligence/customers"),
+      params: {},
+    } as never)) as { entitled: true; result: { customers: Record<string, unknown>[] } };
+    const [quiet, busy] = data.result.customers;
+    expect(quiet).toMatchObject({ hasActiveRecovery: false, hasDisputeHistory: false });
+    expect(busy).toMatchObject({ hasActiveRecovery: true, hasDisputeHistory: true });
+    for (const c of data.result.customers) {
+      expect(c).not.toHaveProperty("recoverySignals");
+      expect(c).not.toHaveProperty("disputeSignals");
+    }
+    expect(JSON.stringify(data)).not.toContain("fp_sample_secret");
   });
 });
