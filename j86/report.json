@@ -1,0 +1,274 @@
+[
+ {
+  "step": "email_day14",
+  "scheme": "light",
+  "width": 640,
+  "lang": "en",
+  "title": "Two weeks since your payment failed",
+  "h1s": 0,
+  "bodyFg": [
+   7,
+   31,
+   32
+  ],
+  "bodyBg": [
+   251,
+   254,
+   254
+  ],
+  "bodySize": "16px",
+  "btnFg": [
+   251,
+   254,
+   254
+  ],
+  "btnBg": [
+   7,
+   116,
+   120
+  ],
+  "btnText": "Update Payment Method",
+  "btnHref": "https://foxhoundapp.com/e/c/EXAMPLE-NOT-A-TOKEN",
+  "hscroll": false,
+  "bodyRatio": "16.89",
+  "btnRatio": "5.48"
+ },
+ {
+  "step": "email_day14",
+  "scheme": "light",
+  "width": 320,
+  "lang": "en",
+  "title": "Two weeks since your payment failed",
+  "h1s": 0,
+  "bodyFg": [
+   7,
+   31,
+   32
+  ],
+  "bodyBg": [
+   251,
+   254,
+   254
+  ],
+  "bodySize": "16px",
+  "btnFg": [
+   251,
+   254,
+   254
+  ],
+  "btnBg": [
+   7,
+   116,
+   120
+  ],
+  "btnText": "Update Payment Method",
+  "btnHref": "https://foxhoundapp.com/e/c/EXAMPLE-NOT-A-TOKEN",
+  "hscroll": false,
+  "bodyRatio": "16.89",
+  "btnRatio": "5.48"
+ },
+ {
+  "step": "email_day14",
+  "scheme": "dark",
+  "width": 640,
+  "lang": "en",
+  "title": "Two weeks since your payment failed",
+  "h1s": 0,
+  "bodyFg": [
+   233,
+   240,
+   240
+  ],
+  "bodyBg": [
+   17,
+   25,
+   25
+  ],
+  "bodySize": "16px",
+  "btnFg": [
+   7,
+   15,
+   15
+  ],
+  "btnBg": [
+   36,
+   147,
+   152
+  ],
+  "btnText": "Update Payment Method",
+  "btnHref": "https://foxhoundapp.com/e/c/EXAMPLE-NOT-A-TOKEN",
+  "hscroll": false,
+  "bodyRatio": "15.45",
+  "btnRatio": "5.26"
+ },
+ {
+  "step": "email_day14",
+  "scheme": "dark",
+  "width": 320,
+  "lang": "en",
+  "title": "Two weeks since your payment failed",
+  "h1s": 0,
+  "bodyFg": [
+   233,
+   240,
+   240
+  ],
+  "bodyBg": [
+   17,
+   25,
+   25
+  ],
+  "bodySize": "16px",
+  "btnFg": [
+   7,
+   15,
+   15
+  ],
+  "btnBg": [
+   36,
+   147,
+   152
+  ],
+  "btnText": "Update Payment Method",
+  "btnHref": "https://foxhoundapp.com/e/c/EXAMPLE-NOT-A-TOKEN",
+  "hscroll": false,
+  "bodyRatio": "15.45",
+  "btnRatio": "5.26"
+ },
+ {
+  "step": "email_day30",
+  "scheme": "light",
+  "width": 640,
+  "lang": "en",
+  "title": "Final notice on your account",
+  "h1s": 0,
+  "bodyFg": [
+   7,
+   31,
+   32
+  ],
+  "bodyBg": [
+   251,
+   254,
+   254
+  ],
+  "bodySize": "16px",
+  "btnFg": [
+   251,
+   254,
+   254
+  ],
+  "btnBg": [
+   7,
+   116,
+   120
+  ],
+  "btnText": "Update Payment Method",
+  "btnHref": "https://foxhoundapp.com/e/c/EXAMPLE-NOT-A-TOKEN",
+  "hscroll": false,
+  "bodyRatio": "16.89",
+  "btnRatio": "5.48"
+ },
+ {
+  "step": "email_day30",
+  "scheme": "light",
+  "width": 320,
+  "lang": "en",
+  "title": "Final notice on your account",
+  "h1s": 0,
+  "bodyFg": [
+   7,
+   31,
+   32
+  ],
+  "bodyBg": [
+   251,
+   254,
+   254
+  ],
+  "bodySize": "16px",
+  "btnFg": [
+   251,
+   254,
+   254
+  ],
+  "btnBg": [
+   7,
+   116,
+   120
+  ],
+  "btnText": "Update Payment Method",
+  "btnHref": "https://foxhoundapp.com/e/c/EXAMPLE-NOT-A-TOKEN",
+  "hscroll": false,
+  "bodyRatio": "16.89",
+  "btnRatio": "5.48"
+ },
+ {
+  "step": "email_day30",
+  "scheme": "dark",
+  "width": 640,
+  "lang": "en",
+  "title": "Final notice on your account",
+  "h1s": 0,
+  "bodyFg": [
+   233,
+   240,
+   240
+  ],
+  "bodyBg": [
+   17,
+   25,
+   25
+  ],
+  "bodySize": "16px",
+  "btnFg": [
+   7,
+   15,
+   15
+  ],
+  "btnBg": [
+   36,
+   147,
+   152
+  ],
+  "btnText": "Update Payment Method",
+  "btnHref": "https://foxhoundapp.com/e/c/EXAMPLE-NOT-A-TOKEN",
+  "hscroll": false,
+  "bodyRatio": "15.45",
+  "btnRatio": "5.26"
+ },
+ {
+  "step": "email_day30",
+  "scheme": "dark",
+  "width": 320,
+  "lang": "en",
+  "title": "Final notice on your account",
+  "h1s": 0,
+  "bodyFg": [
+   233,
+   240,
+   240
+  ],
+  "bodyBg": [
+   17,
+   25,
+   25
+  ],
+  "bodySize": "16px",
+  "btnFg": [
+   7,
+   15,
+   15
+  ],
+  "btnBg": [
+   36,
+   147,
+   152
+  ],
+  "btnText": "Update Payment Method",
+  "btnHref": "https://foxhoundapp.com/e/c/EXAMPLE-NOT-A-TOKEN",
+  "hscroll": false,
+  "bodyRatio": "15.45",
+  "btnRatio": "5.26"
+ }
+]

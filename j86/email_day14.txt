@@ -1,0 +1,20 @@
+From: Teamflow <recovery@send.foxhoundapp.com>
+To: jane@example.com
+Subject: Two weeks since your payment failed
+
+Teamflow
+
+Hi Jane Buyer,
+
+It has been two weeks since your payment of $49.00 did not go through. Updating your payment method takes a minute and restores your account.
+
+Update Payment Method:
+https://foxhoundapp.com/e/c/EXAMPLE-NOT-A-TOKEN
+
+Teamflow
+
+--
+This message was sent to jane@example.com.
+You're receiving this from Teamflow about a recent payment. © 2026
+Unsubscribe: https://foxhoundapp.com/u/EXAMPLE-NOT-A-TOKEN
+1 Example Way, Austin TX 78701
