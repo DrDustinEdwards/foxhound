@@ -272,7 +272,7 @@ describe("/features entries are Recova's, each a capability Foxhound ships", () 
     "Email settings": [["app/routes/app/settings/email.tsx", 'name="senderName"']],
     "Brand voice": [["app/routes.ts", '"./routes/app/settings/brand-voice.tsx"']],
     "Theme toggle": [["app/routes/api/theme.ts", "await setAccountTheme(db, membership.accountId, theme);"]],
-    "Team seats": [["app/routes/app/settings/team.tsx", "Invite a teammate"]],
+    "Team seats": [["app/routes/app/settings/team.tsx", "Invite a team member"]],
     "Stripe Connect OAuth": [["app/routes.ts", '"./routes/auth/connect.tsx"']],
     "Multi-account support": [["app/components/nav/account-switcher.tsx", "export"]],
     "AES-256-GCM token encryption": [["app/lib/stripe/encryption.ts", "AES-256-GCM"]],
