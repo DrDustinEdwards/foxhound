@@ -64,6 +64,140 @@ const TIMING_TELL_PATTERNS: readonly RegExp[] = [
   /\b(?:since|after)\s+\d+\s+(?:hours?|days?)\b/i,
 ];
 
+// ---- Timing words (job J01) ----
+//
+// The customer may read the email hours or days after it was sent, so no
+// recovery or win-back email may say WHEN it is being read ("today", "tonight").
+// Legacy guards this in four layers and Foxhound ports all four:
+//   1. the prompt rule (legacy lib/email-generation.ts blob `e28d780e` line 139;
+//      here in buildSystemPrompt and buildWinbackPrompt),
+//   2. the detector, legacy's exact nine-phrase regex (same blob, line 83),
+//   3. one retry when the SUBJECT leaks (legacy recovery-execution.ts blob
+//      `3a8f8768` lines 313 to 344; here in applyTimingWordGuard),
+//   4. the hard strip of whatever still leaks (blob `e28d780e` lines 85 to 101;
+//      blob `3a8f8768` lines 345 to 351; process-winback blob `18f20de9` lines
+//      393 to 404).
+// The quality gate below also reads the detector as `timing_leak`, so anything
+// that somehow reaches it with a timing word sends the template instead.
+//
+// ONE ADAPTATION: legacy's bodies were plain text, Foxhound's are HTML. The
+// detector and the strip read only TEXT OUTSIDE TAGS, so an href token or an
+// attribute that happens to contain "today" is never read and never altered,
+// and the update-link check downstream is never tripped by the strip.
+
+/** Legacy's pattern, byte for byte (blob `e28d780e` line 83). Not global, so
+ *  `.test` carries no lastIndex between calls. */
+export const TIMING_WORD_PATTERN =
+  /\b(today|tonight|yesterday|this morning|this afternoon|this evening|right now|immediately|by end of day)\b/i;
+
+/** Legacy's retry instruction, verbatim (blob `3a8f8768` line 321), appended to
+ *  the same user message for the one retry. */
+export const TIMING_RETRY_INSTRUCTION =
+  "\n\nADDITIONAL INSTRUCTION:\nThe previous subject contained a timing word like 'today' or 'tonight'. Rewrite it without any timing-specific words. The customer may read this hours or days after it was sent.";
+
+/** Splits HTML so that odd indexes are tags (`<...>`) and even indexes are the
+ *  text between them. A subject has no tags and comes back as one text part. */
+const TAG_SPLIT = /(<[^>]*>)/;
+
+function textParts(text: string): string[] {
+  return text.split(TAG_SPLIT).filter((_, i) => i % 2 === 0);
+}
+
+/** True when the text outside any tag carries one of legacy's nine phrases.
+ *  Safe for a plain subject and for an HTML body. */
+export function hasTimingWord(text: string): boolean {
+  return textParts(text).some((part) => TIMING_WORD_PATTERN.test(part));
+}
+
+/** Legacy's replacements, in legacy's order (blob `e28d780e` lines 89 to 97). */
+const TIMING_WORD_REPLACEMENTS: readonly [RegExp, string][] = [
+  [/\bcloses tonight\b/gi, "will close soon"],
+  [/\bends today\b/gi, "is ending"],
+  [/\bby end of day\b/gi, "soon"],
+  [/\btonight\b/gi, ""],
+  [/\btoday\b/gi, "now"],
+  [/\byesterday\b/gi, ""],
+  [/\bthis (morning|afternoon|evening)\b/gi, ""],
+  [/\bright now\b/gi, "now"],
+  [/\bimmediately\b/gi, ""],
+];
+
+/**
+ * Remove the nine timing phrases with legacy's replacements, then tidy the
+ * spaces a removal leaves (a run of spaces, a space before punctuation).
+ *
+ * Legacy's tidy is `\s+` to one space across the whole string, which would
+ * flatten an HTML body's newlines. Here the tidy is spaces and tabs only, and
+ * only in a text part the strip actually changed; tags are never touched and
+ * untouched text stays byte for byte. The whole result is trimmed, as legacy's.
+ */
+export function hardStripTimingWords(text: string): string {
+  const parts = text.split(TAG_SPLIT);
+  for (let i = 0; i < parts.length; i += 2) {
+    const original = parts[i];
+    let part = original;
+    for (const [pattern, replacement] of TIMING_WORD_REPLACEMENTS) {
+      part = part.replace(pattern, replacement);
+    }
+    if (part !== original) {
+      parts[i] = part.replace(/[ \t]{2,}/g, " ").replace(/[ \t]+([.,!?])/g, "$1");
+    }
+  }
+  return parts.join("").trim();
+}
+
+/**
+ * Layers 3 and 4 for one generated email, shared by both model seams.
+ *
+ * `retry` is the seam's own model call with TIMING_RETRY_INSTRUCTION appended
+ * to the same user message. It runs AT MOST ONCE, and only when the SUBJECT
+ * leaks, which is legacy's trigger: a second call to fix a body phrase is left
+ * to the strip (blob `3a8f8768` lines 313 to 318). Retry copy replaces the
+ * first only when it has both a subject and a body; a retry that throws or
+ * returns nothing usable keeps the first copy, as legacy's catch does. Then
+ * whatever still leaks is hard-stripped, subject and body separately.
+ *
+ * A first-call failure is not handled here: it throws out of the seam, and the
+ * caller sends the template (RULES.md 3.15).
+ */
+export async function applyTimingWordGuard(
+  first: EmailCopy,
+  retry: (instruction: string) => Promise<EmailCopy>,
+): Promise<EmailCopy> {
+  let copy = first;
+  if (hasTimingWord(copy.subject)) {
+    try {
+      const retried = await retry(TIMING_RETRY_INSTRUCTION);
+      if (retried.subject.trim() && retried.bodyHtml.trim()) copy = retried;
+    } catch (err) {
+      console.error("timing-word retry failed; keeping the first copy:", err);
+    }
+  }
+  return {
+    subject: hasTimingWord(copy.subject) ? hardStripTimingWords(copy.subject) : copy.subject,
+    bodyHtml: hasTimingWord(copy.bodyHtml) ? hardStripTimingWords(copy.bodyHtml) : copy.bodyHtml,
+  };
+}
+
+/**
+ * Read one structured-output reply into sanitized copy. Shared by the dunning
+ * and win-back seams, which parse the same `{subject, bodyHtml}` schema.
+ */
+export function readGeneratedCopy(
+  response: { content: { type: string; text?: string }[] },
+  label: string,
+): EmailCopy {
+  const textBlock = response.content.find((b) => b.type === "text");
+  if (!textBlock || typeof textBlock.text !== "string") {
+    throw new Error(`${label} generation returned no text block`);
+  }
+  const parsed = JSON.parse(textBlock.text) as { subject: string; bodyHtml: string };
+  return {
+    subject: sanitizeCopy(parsed.subject),
+    bodyHtml: sanitizeCopy(parsed.bodyHtml),
+  };
+}
+
 export interface EmailCopy {
   subject: string;
   bodyHtml: string;
@@ -89,6 +223,19 @@ export function findBrandVoiceViolations(copy: EmailCopy): BrandVoiceViolation[]
   }
   for (const pat of TIMING_TELL_PATTERNS) {
     if (pat.test(both)) violations.add("timing_leak");
+  }
+  // Job J01, defense in depth: the seams strip legacy's nine timing words, so
+  // copy reaching here with one means a path skipped that layer. Read outside
+  // tags only, so an href token is never a leak. The body is also read with
+  // its tags removed, so a phrase split by a tag ("this <b>morning</b>"),
+  // which the per-part detector and the strip cannot see, still sends the
+  // template.
+  if (
+    hasTimingWord(copy.subject) ||
+    hasTimingWord(copy.bodyHtml) ||
+    TIMING_WORD_PATTERN.test(copy.bodyHtml.replace(/<[^>]*>/g, ""))
+  ) {
+    violations.add("timing_leak");
   }
   return [...violations];
 }
@@ -280,6 +427,11 @@ function buildSystemPrompt(brandVoice: string): string {
     "- Never use em dashes or en dashes. Use commas or short sentences.",
     "- Never mention how many days or hours it has been, or reference an internal",
     "  schedule ('day 3', '72 hours ago'). Speak only to the present.",
+    // Job J01, layer 1: legacy's rule (blob `e28d780e` line 139), widened to
+    // the body and to all nine phrases its detector and quality check name.
+    "- Never use timing words like 'today', 'tonight', 'yesterday', 'this morning',",
+    "  'this afternoon', 'this evening', 'right now', 'immediately' or 'by end of day'",
+    "  in the subject or the body. You do not know when the customer will read this.",
     "- No corporate filler, no AI-sounding phrases, no 'I hope this finds you well'.",
     "- Sound like a real person from the business, not a template.",
     "- Keep it short. One clear call to action: the update link provided.",
@@ -362,25 +514,24 @@ export async function generateDunningEmail(
   const client = createAnthropicClient(env);
   const prompts = buildPrompts(input);
 
-  const response = await client.messages.create({
-    model: MODEL_RECOVERY_EMAIL,
-    max_tokens: 2000,
-    thinking: { type: "disabled" },
-    output_config: {
-      effort: "low",
-      format: { type: "json_schema", schema: OUTPUT_SCHEMA },
-    },
-    system: prompts.system,
-    messages: [{ role: "user", content: prompts.user }],
-  });
-
-  const textBlock = response.content.find((b) => b.type === "text");
-  if (!textBlock || textBlock.type !== "text") {
-    throw new Error("recovery email generation returned no text block");
-  }
-  const parsed = JSON.parse(textBlock.text) as { subject: string; bodyHtml: string };
-  return {
-    subject: sanitizeCopy(parsed.subject),
-    bodyHtml: sanitizeCopy(parsed.bodyHtml),
+  // One call shape for the first call and the timing-word retry: the retry is
+  // the same system and user prompt with legacy's instruction appended.
+  const call = async (instruction = ""): Promise<EmailCopy> => {
+    const response = await client.messages.create({
+      model: MODEL_RECOVERY_EMAIL,
+      max_tokens: 2000,
+      thinking: { type: "disabled" },
+      output_config: {
+        effort: "low",
+        format: { type: "json_schema", schema: OUTPUT_SCHEMA },
+      },
+      system: prompts.system,
+      messages: [{ role: "user", content: prompts.user + instruction }],
+    });
+    return readGeneratedCopy(response, "recovery email");
   };
+
+  // Job J01, layers 3 and 4 (legacy recovery-execution.ts blob `3a8f8768`
+  // lines 313 to 351).
+  return applyTimingWordGuard(await call(), call);
 }

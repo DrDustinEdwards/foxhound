@@ -43,7 +43,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 
 > Foxhound is a failed-payment recovery, disputes, and subscription-intelligence platform for Stripe merchants. Outcome-based pricing: it earns only when it creates money the merchant can verify, above what Stripe's own tools would have recovered anyway.
 
-Foxhound is built on Stripe Connect for subscription businesses. It sits on top of Stripe and acts after a payment fails, a dispute opens, or a subscription's billing signals change. Foxhound asks Stripe for two different OAuth scopes, and which one it asks for depends on what it is doing. The free audit requests READ-ONLY access: it computes a diagnostic and can change nothing. Connecting a merchant account at /connect requests read and write, because retrying a failed invoice is a write. The write half is used for three things: retrying payment on an invoice that has already failed, setting a customer default payment method after that customer updates their card, and submitting dispute evidence after someone on the merchant team approves it. Foxhound never changes prices, products, or subscription plans, never creates a charge outside an invoice the merchant already issued, and never reaches payouts or bank accounts.
+Foxhound is built on Stripe Connect for subscription businesses. It sits on top of Stripe and acts after a payment fails, a dispute opens, or a subscription's billing signals change. Foxhound asks Stripe for two different OAuth scopes, and which one it asks for depends on what it is doing. The free audit requests READ-ONLY access: it computes a diagnostic and can change nothing. Connecting a merchant account at /connect requests read and write, because retrying a failed invoice is a write. The write half is used for these things and no others: retrying payment on an invoice that has already failed, setting a customer default payment method after that customer updates their card, opening a Stripe checkout when a former customer chooses to resubscribe, and submitting dispute evidence after someone on the merchant team approves it. Foxhound never changes prices, products, or subscription plans, never charges a customer except by retrying a failed invoice or through a checkout the customer completes, and never reaches payouts or bank accounts.
 
 ## Products
 
@@ -95,7 +95,7 @@ Customer names are never sent through the endpoint and email addresses are maske
 
 ## Technical
 
-- Built on Stripe Connect. The free audit requests a read-only OAuth scope; merchant onboarding requests read and write, and the writes are invoice retries, default payment method updates, and approved dispute evidence
+- Built on Stripe Connect. The free audit requests a read-only OAuth scope; merchant onboarding requests read and write, and the writes are invoice retries, default payment method updates, win-back resubscribe checkouts, and approved dispute evidence
 - Hosted on Cloudflare Workers, database on Cloudflare D1
 - No card data stored; all payment processing goes through Stripe
 - Disconnect any time from the Stripe dashboard

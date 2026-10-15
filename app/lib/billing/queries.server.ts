@@ -1,7 +1,8 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import {
+  accountSubscriptions,
   adminAuditLog,
   billingInvoices,
   billingLineItems,
@@ -151,4 +152,20 @@ export async function getBillingInvoiceDetail(
     invoice,
     lineItems: [...enriched].sort((a, b) => a.lineItem.createdAt.getTime() - b.lineItem.createdAt.getTime()),
   };
+}
+
+/** The account's subscriptions, oldest first, as Recova's Subscriptions section
+ *  lists them (J65, row S3). Read-only. */
+export async function listAccountSubscriptions(db: Db, accountId: string) {
+  return db
+    .select({
+      id: accountSubscriptions.id,
+      product: accountSubscriptions.product,
+      status: accountSubscriptions.status,
+      currentPeriodEndsAt: accountSubscriptions.currentPeriodEndsAt,
+      canceledAt: accountSubscriptions.canceledAt,
+    })
+    .from(accountSubscriptions)
+    .where(eq(accountSubscriptions.accountId, accountId))
+    .orderBy(asc(accountSubscriptions.createdAt));
 }

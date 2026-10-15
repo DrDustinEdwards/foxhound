@@ -13,7 +13,8 @@ import { describe, expect, it } from "vitest";
 //   S23 /help. The walk measured legacy at rounded-[12px] p-24px, from
 //   app/recovery/demo/help/page.tsx. Row S23's legacy source is
 //   app/(app)/help/page.tsx, which uses rounded-lg, so Foxhound's rounded-lg
-//   ALREADY matches and there is no C2 divergence on that row.
+//   ALREADY matched and there was no C2 divergence on that row. Since J13 the
+//   page's shells are Capsomer's (Q10), and the radius is a per-site layer item.
 //
 //   The StatCard shells on S13, S16 and S19. That component has eleven
 //   consumers, nine unwalked, and ruling 199 holds its treatment until they
@@ -97,11 +98,19 @@ describe("C2: each surface carries its own legacy shell geometry", () => {
     expect(s).toContain('className="overflow-hidden rounded-[12px] border border-border bg-surface"');
   });
 
-  it("S23 help keeps rounded-lg, because legacy's own help page does", () => {
-    // legacy app/(app)/help/page.tsx:172,189,268 all use rounded-lg. The walk's
-    // 12px figure came from the demo twin, which is a different file.
+  it("S23 help takes its shells from Capsomer, not from a hand-rolled radius", () => {
+    // legacy app/(app)/help/page.tsx:172,189,268 all use rounded-lg, and the
+    // walk's 12px figure came from the demo twin, a different file. Since J13
+    // (Q10, 2026-10-14) the help page's cards are all Capsomer Panels (guides
+    // included), whose radius is Capsomer's own; legacy's 8px waits for the per-site
+    // style layer rather than a Foxhound class over a Capsomer component. So
+    // neither legacy's class string nor the walk's 12px is hand-written here.
     const s = src("routes/app/help.tsx");
-    expect(s).toContain('className="rounded-lg border border-border bg-surface p-5"');
+    expect(s).toContain('from "capsomer/react/panel"');
+    // The guide cards are Panels too, not row-list rows, whose one-line
+    // detail cut legacy's descriptions short.
+    expect(s).not.toContain('from "capsomer/react/row-list"');
+    expect(s).not.toContain("rounded-lg");
     expect(s).not.toContain("rounded-[12px]");
   });
 

@@ -1044,6 +1044,12 @@ body {
 .cap-site-header-panel :focus-visible {
   border-radius: revert-layer;
 }
+/* The same for a Capsomer panel that is itself a link (the /products hub
+   cards, J16): it keeps its own rounded corners when a keyboard user lands on
+   it, so the teal ring follows the card's shape. */
+.fh-cap .cap-panel:focus-visible {
+  border-radius: revert-layer;
+}
 
 /* The wordmark in the header: DM Mono, the x in teal. */
 .fh-wordmark {
@@ -1126,4 +1132,16 @@ body {
     outline-offset: revert-layer;
     border-radius: revert-layer;
   }
+}
+
+/* A Capsomer button inside a .fh-cap page (the /pricing closing link, J54).
+   Foxhound's global focus rule above is unlayered, so it beats Capsomer's
+   layered ring: a 2px --border-focus outline and corners squared to 2px.
+   Reverting the three properties to the layer below hands the button back its
+   own ring (3px, the family's --ring), as app/error-page.css does for the
+   error page; it adds nothing to the component. */
+.fh-cap .cap-btn:focus-visible {
+  outline: revert-layer;
+  outline-offset: revert-layer;
+  border-radius: revert-layer;
 }

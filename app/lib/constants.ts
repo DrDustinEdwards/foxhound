@@ -20,6 +20,16 @@ export const DISPUTE_FEE_CAP_CENTS = 50_000;
 /** Intelligence predictive risk layer: $199/month. */
 export const INTELLIGENCE_PRICE_CENTS = 19_900;
 
+// ---- The monthly billing run ----
+/** The monthly billing Cron Trigger, "0 4 1 * *" in wrangler.jsonc. Kept as the
+ *  two fields the derivation actually uses so a cron change is a one-line edit
+ *  here rather than arithmetic buried in a function body. The day is also what
+ *  /billing says ("Invoiced on the 1st"), so the page cannot drift from the run.
+ *  Moved here from app/lib/billing/preview.server.ts (J65) so the page, which
+ *  is client code, can read it without importing a .server module. */
+export const BILLING_RUN_DAY_OF_MONTH = 1;
+export const BILLING_RUN_HOUR_UTC = 4;
+
 // ---- Fee-invoice collection retry (app/lib/billing/fee-retry.ts) ----
 /** Ceiling on charge attempts per platform fee invoice. Legacy's value, carried
  *  over unchanged, but read the age cap below before assuming it is what stops a
@@ -319,9 +329,22 @@ export const AI_MODEL_IDS = [
 // passive channel on every email rather than a separate step.
 export const STEP_TIMING_RETRY_EARLY_HOURS = 4;
 export const STEP_TIMING_RETRY_4HR_HOURS = 4;
-export const STEP_TIMING_EMAIL_DAY1_HOURS = 24;
+// Recova's offsets for the day 1 and day 3 emails (J85, rows E4 and E5):
+// lib/constants.ts (blob a21b32b8) sets email_day1 at 1 hour, and
+// lib/recovery-schedules.ts (blob 88f4e97a) writes network's retry_day2 at 24
+// and email_day3 at 48 as literals in its network row. Foxhound had 24 for day 1
+// and 48 and 72 for network, with no ruling recorded for any of them.
+export const STEP_TIMING_EMAIL_DAY1_HOURS = 1;
+// SOFT IS HELD at Foxhound's 24 hours, the one place day 1 cannot follow Recova:
+// the silent retry comes before the first email (APPROVED-DIFFERENCES,
+// 2026-08-01) and runs at 4 hours, so a 1 hour email would come first. How long
+// after the retry the email goes is Dustin's to say; the question is in J85's
+// pull request. Until then the value is unchanged.
+export const STEP_TIMING_SOFT_EMAIL_DAY1_HOURS = 24;
 export const STEP_TIMING_RETRY_DAY2_HOURS = 48;
+export const STEP_TIMING_NETWORK_RETRY_DAY2_HOURS = 24;
 export const STEP_TIMING_EMAIL_DAY3_HOURS = 72;
+export const STEP_TIMING_NETWORK_EMAIL_DAY3_HOURS = 48;
 export const STEP_TIMING_EMAIL_DAY7_HOURS = 168;
 export const STEP_TIMING_EMAIL_DAY14_HOURS = 336;
 export const STEP_TIMING_RETRY_DAY21_HOURS = 504;
@@ -460,9 +483,11 @@ export const ENGAGEMENT_HONEYPOT_PATH = "/e/h";
  *
  * The walk that produced 377(4) found the click guard reads four things and
  * none of them separates a scanner from a person: IP is persisted nowhere,
- * `email_clicked_count` and `time_to_open_minutes` have zero writers, and an
- * enterprise link scanner (SafeLinks, Proofpoint, Mimecast) presents a full
- * browser user agent, so 369's named-bot list cannot see it. The only live
+ * `email_clicked_count` and `time_to_open_minutes` had zero writers (the open
+ * stamp writes time to open since row F9, J26; it says when a person opened,
+ * not whether a click was one), and an enterprise link scanner (SafeLinks,
+ * Proofpoint, Mimecast) presents a full browser user agent, so 369's named-bot
+ * list cannot see it. The only live
  * discriminator already stored is `clicked_at - executed_at`, and nothing read
  * it.
  *
@@ -803,6 +828,14 @@ export const AUDIT_TOKEN_TTL_SECONDS = 300;
  * Spent through the EXISTING limiter (311) with no change to it.
  */
 export const RATE_LIMIT_AUDIT = { max: 10, windowMs: 60 * 60 * 1000 } as const;
+
+/**
+ * The unsubscribe page's IP rate limit (row F7): Recova's
+ * app/api/unsubscribe/route.ts allows 10 requests per 60 seconds per IP and
+ * answers the rest 429 "Too many requests". Spent through the EXISTING limiter
+ * (311) on its own bucket, from the route's middleware, with no change to it.
+ */
+export const RATE_LIMIT_UNSUBSCRIBE = { max: 10, windowMs: 60 * 1000 } as const;
 
 /**
  * The merchant MCP endpoint's AUTHENTICATED bucket, keyed on the api_keys row id.

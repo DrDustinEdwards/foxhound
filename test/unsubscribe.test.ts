@@ -10,10 +10,11 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 
 // CAN-SPAM one-click unsubscribe (/u/:token). Two halves: the HMAC token that
 // carries the account-scoped recipient, and the idempotent suppression write the
-// route commits. buildSuppressionInsert is the exact statement recordUnsubscribe
-// emits (reason=UNSUBSCRIBE_REASON, the raw token as the traceability marker), so
-// exercising it against the real migrated schema proves the row lands and the
-// unique index collapses a repeat click.
+// route commits. buildSuppressionInsert is the shared suppression insert (the
+// bounce consumer's); exercising it against the real migrated schema proves the
+// row lands and the unique index collapses a repeat. recordUnsubscribe's own
+// upsert, and its unsubscribed/already outcome, are pinned through the route in
+// test/unsubscribe-page-f7.test.ts.
 
 // 64 hex chars = 32-byte HMAC key.
 const env = { ENCRYPTION_KEY: "a".repeat(64) } as unknown as Env;

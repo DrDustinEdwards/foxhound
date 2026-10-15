@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import { getDb, engagementEvents, recoverySteps } from "~/db";
@@ -59,12 +59,47 @@ export function buildEngagementInsert(
     .onConflictDoNothing({ target: engagementEvents.idempotencyKey });
 }
 
-/** First-open stamp: sets opened_at once. Open feeds Intelligence only, no attribution. */
+/**
+ * The open stamp, written on EVERY human open (row F9). Open feeds Intelligence
+ * only, no attribution. Recova's email.opened handler (webhooks/resend/route.ts)
+ * is the spec for what one open does to the step:
+ *
+ *   email_opened_count   + 1, a NULL read as 0             every open
+ *   last_opened_at       now                                every open
+ *   opened_at            now                                first open only
+ *   time_to_open_minutes whole minutes from executed_at     once, and only when
+ *                        to the first open                  executed_at is set
+ *
+ * One UPDATE, so the counter is read and written by the database rather than in
+ * the Worker: two opens racing each other both count. SQLite evaluates every
+ * SET expression against the row as it was, so time to open reads the OLD
+ * opened_at: on a first open that is NULL and the time is now, as Recova
+ * computes it; on a step first opened before this stamp kept a time, it is that
+ * real first open rather than this later one. Timestamps are epoch milliseconds
+ * (schema.ts `ts`), so the minutes are the gap divided by 60000 and floored,
+ * Recova's Math.floor, negative gaps included.
+ */
 export function buildOpenStamp(db: Db, stepId: string, now: Date) {
+  const nowMs = now.getTime();
+  const firstOpenMs = sql`coalesce(${recoverySteps.openedAt}, ${nowMs})`;
+  // Whole minutes as a true floor. SQLite's integer division truncates toward
+  // zero, so a negative gap that is not a whole number of minutes (an open
+  // stamped before executed_at, clock skew) takes one more off, as Math.floor.
+  const gapMs = sql`(${firstOpenMs} - ${recoverySteps.executedAt})`;
+  const floorMinutes = sql`(cast(${gapMs} / 60000 as integer) - (case when ${gapMs} < 0 and ${gapMs} % 60000 != 0 then 1 else 0 end))`;
   return db
     .update(recoverySteps)
-    .set({ openedAt: now, lastOpenedAt: now })
-    .where(and(eq(recoverySteps.id, stepId), isNull(recoverySteps.openedAt)));
+    .set({
+      emailOpenedCount: sql`coalesce(${recoverySteps.emailOpenedCount}, 0) + 1`,
+      lastOpenedAt: now,
+      openedAt: firstOpenMs,
+      timeToOpenMinutes: sql`case
+        when ${recoverySteps.timeToOpenMinutes} is null and ${recoverySteps.executedAt} is not null
+          then ${floorMinutes}
+        else ${recoverySteps.timeToOpenMinutes}
+      end`,
+    })
+    .where(eq(recoverySteps.id, stepId));
 }
 
 /** First-click stamp: sets clicked_at once. This is the email_engaged attribution signal.

@@ -1,7 +1,7 @@
 import { createAnthropicClient } from "~/lib/ai/client";
 import { MODEL_RECOVERY_EMAIL } from "~/lib/constants";
 
-import { sanitizeCopy, type EmailCopy } from "./email-generation";
+import { applyTimingWordGuard, readGeneratedCopy, type EmailCopy } from "./email-generation";
 
 // THE WIN-BACK AI HALF. Ported from legacy's inline generation in
 // app/api/cron/process-winback/route.ts (blob `18f20de9`, 24,184 bytes,
@@ -53,13 +53,19 @@ export interface WinbackPromptInput {
 }
 
 /**
- * Legacy's prompt, verbatim in wording and order.
+ * Legacy's prompt, verbatim in wording and order, with one omission and one
+ * addition.
  *
- * ONE OMISSION, forced: legacy's "Button style:" line inlines hex from its
+ * THE OMISSION, forced: legacy's "Button style:" line inlines hex from its
  * EMAIL_COLORS module, and check-tokens fails the build on raw hex. The line is
  * dropped rather than recoloured, because a style instruction naming colours
- * Foxhound does not have would ask the model for the wrong thing. Every other
- * line is legacy's.
+ * Foxhound does not have would ask the model for the wrong thing.
+ *
+ * THE ADDITION, job J01: the timing-word requirement line. Legacy's win-back
+ * gets that rule from its Haiku quality-check prompt (lib/email-generation.ts
+ * blob `e28d780e` line 344), a second pass Foxhound does not have, so this
+ * prompt is the only place the rule can live. It names the same nine phrases
+ * as the detector. Every other line is legacy's.
  *
  * Pure, so a plant reads the real prompt bytes rather than a rebuilt copy
  * (337 binding 4).
@@ -82,6 +88,7 @@ export function buildWinbackPrompt(input: WinbackPromptInput): string {
     `- Include a reactivation button linking to: ${input.resubscribeUrl}`,
     `- Sender name: ${input.senderName}`,
     "- Do NOT be desperate or salesy, be genuine",
+    "- Never use timing words like 'today', 'tonight', 'yesterday', 'this morning', 'this afternoon', 'this evening', 'right now', 'immediately' or 'by end of day' in the subject or the body, you do not know when the customer will read this",
     "",
     "Respond ONLY in this exact JSON format with no preamble or markdown:",
     '{"subject":"<email subject line>","body":"<full HTML email body>"}',
@@ -117,24 +124,28 @@ export async function generateWinbackEmail(
   input: WinbackPromptInput,
 ): Promise<EmailCopy> {
   const client = createAnthropicClient(env);
-  const response = await client.messages.create({
-    model: MODEL_RECOVERY_EMAIL,
-    max_tokens: 1000,
-    thinking: { type: "disabled" },
-    output_config: {
-      effort: "low",
-      format: { type: "json_schema", schema: OUTPUT_SCHEMA },
-    },
-    messages: [{ role: "user", content: buildWinbackPrompt(input) }],
-  });
+  const prompt = buildWinbackPrompt(input);
 
-  const textBlock = response.content.find((b) => b.type === "text");
-  if (!textBlock || textBlock.type !== "text") {
-    throw new Error("win-back email generation returned no text block");
-  }
-  const parsed = JSON.parse(textBlock.text) as { subject: string; bodyHtml: string };
-  return {
-    subject: sanitizeCopy(parsed.subject),
-    bodyHtml: sanitizeCopy(parsed.bodyHtml),
+  // One call shape for the first call and the timing-word retry: the retry is
+  // the same prompt with legacy's instruction appended.
+  const call = async (instruction = ""): Promise<EmailCopy> => {
+    const response = await client.messages.create({
+      model: MODEL_RECOVERY_EMAIL,
+      max_tokens: 1000,
+      thinking: { type: "disabled" },
+      output_config: {
+        effort: "low",
+        format: { type: "json_schema", schema: OUTPUT_SCHEMA },
+      },
+      messages: [{ role: "user", content: prompt + instruction }],
+    });
+    return readGeneratedCopy(response, "win-back email");
   };
+
+  // Job J01, layers 3 and 4. Legacy's win-back hard-strips subject and body
+  // (process-winback blob `18f20de9` lines 393 to 404) but SKIPS the retry the
+  // recovery path makes. The job asks for all four layers on both paths, so
+  // the win-back seam retries once too: a difference in spend, not in what a
+  // customer reads, and never more than one extra call.
+  return applyTimingWordGuard(await call(), call);
 }

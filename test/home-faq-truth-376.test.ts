@@ -49,6 +49,7 @@ describe("PLANT 1: the two false clauses are gone", () => {
     for (const file of [
       "app/routes/home.tsx",
       "app/routes/pricing.tsx",
+      "app/lib/marketing/pricing-copy.ts",
       "app/lib/marketing/docs-content.ts",
     ]) {
       const src = read(file);
