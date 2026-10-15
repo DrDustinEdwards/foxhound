@@ -79,18 +79,19 @@ describe("C2: each surface carries its own legacy shell geometry", () => {
     expect(s).not.toContain('<div className="mt-3 rounded-lg border border-border bg-surface p-4">');
   });
 
-  it("S17 customers: the table shell is legacy's 12px on a surface fill", () => {
-    // legacy app/(app)/intelligence/customers/page.tsx:90
-    //   bg-surface border border-border rounded-[12px] overflow-hidden
+  it("S17 customers takes its shells from Capsomer, not from a hand-rolled radius", () => {
+    // legacy app/(app)/intelligence/customers/page.tsx:83 and :90 use
+    // rounded-[12px] for the empty card and the table shell. Since J30 (Q10,
+    // 2026-10-14) both are Capsomer panels, and so is the ratified filter bar
+    // (a Foxhound addition, APPROVED-DIFFERENCES 2026-08-28); legacy's 12px
+    // waits for the per-site style layer rather than a Foxhound class over a
+    // Capsomer component, as on S19 and S23.
     const s = src("routes/app/intelligence/customers.tsx");
-    expect(s).toContain('className="mt-6 overflow-x-auto rounded-[12px] border border-border bg-surface"');
-  });
-
-  it("S17: the ratified filter bar keeps its own geometry", () => {
-    // A Foxhound addition ratified by 396 with no legacy counterpart, so there
-    // is no legacy value to port and nothing here to resolve against.
-    const s = src("routes/app/intelligence/customers.tsx");
-    expect(s).toContain("rounded-lg border border-border bg-surface p-4");
+    expect(s).toContain('from "capsomer/react/panel"');
+    expect(s).toContain('<div className="cap-panel">');
+    expect(s).toContain('<Form method="get" className="cap-panel">');
+    expect(s).not.toContain("rounded-[12px]");
+    expect(s).not.toContain("rounded-lg border border-border bg-surface p-4");
   });
 
   it("S19 churn takes its shells from Capsomer, not from a hand-rolled radius", () => {

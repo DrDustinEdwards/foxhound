@@ -23,8 +23,8 @@ describe("formatRelativeLastSeen", () => {
   it("labels today, yesterday, days, and months correctly", () => {
     const day = 24 * 60 * 60 * 1000;
     expect(formatRelativeLastSeen(null, now)).toBe("-");
-    expect(formatRelativeLastSeen(now, now)).toBe("Today");
-    expect(formatRelativeLastSeen(new Date(now.getTime() - day), now)).toBe("Yesterday");
+    expect(formatRelativeLastSeen(now, now)).toBe("today");
+    expect(formatRelativeLastSeen(new Date(now.getTime() - day), now)).toBe("yesterday");
     expect(formatRelativeLastSeen(new Date(now.getTime() - 5 * day), now)).toBe("5d ago");
     expect(formatRelativeLastSeen(new Date(now.getTime() - 30 * day), now)).toBe("1mo ago");
     expect(formatRelativeLastSeen(new Date(now.getTime() - 65 * day), now)).toBe("2mo ago");

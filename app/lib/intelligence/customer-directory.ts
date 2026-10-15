@@ -5,12 +5,14 @@
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** "Today" / "Yesterday" / "Nd ago" (under 30 days) / "1mo ago" / "Nmo ago". */
+/** Recova's lastSeenLabel (lib/intelligence-display.ts, blob 379635a7) word
+ *  for word: "today" / "yesterday" / "Nd ago" (under 30 days) / "1mo ago"
+ *  (30 to 59 days) / "Nmo ago". Lowercase, as Recova's are. */
 export function formatRelativeLastSeen(date: Date | null, now: Date): string {
   if (!date) return "-";
   const days = Math.floor((now.getTime() - date.getTime()) / DAY_MS);
-  if (days <= 0) return "Today";
-  if (days === 1) return "Yesterday";
+  if (days <= 0) return "today";
+  if (days === 1) return "yesterday";
   if (days < 30) return `${days}d ago`;
   const months = Math.floor(days / 30);
   return months === 1 ? "1mo ago" : `${months}mo ago`;
@@ -46,7 +48,26 @@ export function hasDisputeHistorySignal(disputeSignals: unknown): boolean {
   return (s.openDisputesCount ?? 0) > 0 || (s.wonCount ?? 0) > 0 || (s.lostCount ?? 0) > 0;
 }
 
-/** Stub for the J30 red run; built in the next commit. */
-export function planTierPill(tier: string | null): { label: string; tone?: "info" | "nodata" } {
-  return { label: tier === null ? "" : "" };
+/** Capsomer status tones a plan pill may carry. */
+export type PlanPillTone = "info" | "nodata";
+
+/** Recova's planTierBadge (app/(app)/intelligence/customers/page.tsx, blob
+ *  0413f035): starter, growth, scale, pro and hobby in sentence case, each in
+ *  a rounded outline pill with one of three colours. Recova's colours were
+ *  subtle (starter, hobby, anything else), blue (growth) and the old warm
+ *  accent (scale, pro). With teal throughout (Q11), the ranks map onto
+ *  Capsomer's outline pill: the no-data tone's muted text, the info tone's
+ *  blue, and no tone at all, which is the strongest text colour. An unknown
+ *  tier is capitalised, where Recova showed the raw value (RULES 1.5). */
+export function planTierPill(tier: string | null): { label: string; tone?: PlanPillTone } {
+  switch (tier) {
+    case "growth":
+      return { label: "Growth", tone: "info" };
+    case "scale":
+      return { label: "Scale" };
+    case "pro":
+      return { label: "Pro" };
+    default:
+      return { label: capitalizeTier(tier), tone: "nodata" };
+  }
 }
