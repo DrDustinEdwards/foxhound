@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Outlet, useLocation, useMatches, useNavigate, useRouteLoaderData } from "react-router";
 import {
   Activity,
+  Bug,
   Clock,
   FileText,
   LayoutDashboard,
@@ -61,6 +62,7 @@ const ENTRIES: Array<AdminEntry & { match: (path: string) => boolean }> = [
   { id: "users", label: "Users", href: "/admin/users", group: "Customers", icon: icon(Users), match: (p) => p.startsWith("/admin/users") },
   { id: "operations", label: "Operations", href: "/admin/operations", group: "Platform", icon: icon(Activity), match: (p) => p.startsWith("/admin/operations") },
   { id: "crons", label: "Crons", href: "/admin/platform/crons", group: "Platform", icon: icon(Clock), match: (p) => p.startsWith("/admin/platform/crons") },
+  { id: "errors", label: "Errors", href: "/admin/platform/errors", group: "Platform", icon: icon(Bug), match: (p) => p.startsWith("/admin/platform/errors") },
   { id: "webhooks", label: "Webhooks", href: "/admin/platform/webhooks", group: "Platform", icon: icon(Webhook), match: (p) => p.startsWith("/admin/platform/webhooks") },
   { id: "brake", label: "Emergency brake", href: "/admin/brake", group: "Controls", icon: icon(OctagonPause), match: (p) => p.startsWith("/admin/brake") },
   { id: "staged", label: "Staged changes", href: "/admin/staged", group: "Controls", icon: icon(ListChecks), match: (p) => p.startsWith("/admin/staged") },
