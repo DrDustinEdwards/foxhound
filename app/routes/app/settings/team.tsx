@@ -1,5 +1,6 @@
+import { useEffect, useRef } from "react";
 import { data, useNavigation, useSearchParams } from "react-router";
-import { Alert } from "capsomer/react/banner";
+import { Alert, Banner } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
 import { Pill } from "capsomer/react/status";
 import "capsomer/banner.css";
@@ -13,6 +14,7 @@ import { SettingsBackLink } from "~/components/settings-back-link";
 import { getDb } from "~/db";
 import { authContext, createInvite, listMembers, removeMember, MEMBER_ROLE } from "~/lib/auth";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { pendingState, shouldClearInvite, type TeamActionData } from "~/lib/settings/team-page";
 
 import type { Route } from "./+types/team";
 
@@ -74,55 +76,47 @@ export async function action({ request, context }: Route.ActionArgs) {
   const { membership } = context.get(authContext);
   const db = getDb(env);
 
-  if (membership.role !== MEMBER_ROLE.OWNER) {
-    return data(
-      { error: "Only the account owner can invite teammates.", invited: null, inviteUrl: null },
-      { status: 403 },
-    );
-  }
-
   const form = await request.formData();
-  const intent = String(form.get("_action") ?? "invite");
+  // No `_action` is an invite, so a plain post keeps working.
+  const intent = String(form.get("_action") ?? "invite") === "remove" ? "remove" : "invite";
 
+  // Every result says which form it answers (`action`), and a remove result
+  // names its row (`memberId`), so the page shows it where it belongs.
   if (intent === "remove") {
-    const memberId = String(form.get("memberId") ?? "").trim();
-    if (!memberId) {
-      return data(
-        { error: "Select a member to remove.", invited: null, inviteUrl: null },
-        { status: 400 },
-      );
+    const memberId = String(form.get("memberId") ?? "").trim() || null;
+    const refuse = (error: string, status: number) =>
+      data<TeamActionData>({ action: "remove", error, invited: null, inviteUrl: null, memberId }, { status });
+
+    // The actor's role, checked on the server before anything else.
+    if (membership.role !== MEMBER_ROLE.OWNER) {
+      return refuse("Only the account owner can remove members.", 403);
     }
+    if (!memberId) return refuse("Select a member to remove.", 400);
     // Scoped to the ACTIVE account inside removeMember, so a member id from
     // another account is refused exactly like one that does not exist.
     const result = await removeMember(db, membership.accountId, memberId);
     if (!result.ok) {
-      return data(
-        {
-          error:
-            result.reason === "is_owner"
-              ? "The account owner cannot be removed."
-              : "That member is not on this account.",
-          invited: null,
-          inviteUrl: null,
-        },
-        { status: 403 },
+      return refuse(
+        result.reason === "is_owner" ? "The account owner cannot be removed." : "That member is not on this account.",
+        403,
       );
     }
-    return data({ error: null, invited: null, inviteUrl: null });
+    return data<TeamActionData>({ action: "remove", error: null, invited: null, inviteUrl: null, memberId });
   }
 
-  const email = String(form.get("email") ?? "").trim();
-  if (!email) {
-    return data(
-      { error: "Enter an email address to invite.", invited: null, inviteUrl: null },
-      { status: 400 },
-    );
+  const refuse = (error: string, status: number) =>
+    data<TeamActionData>({ action: "invite", error, invited: null, inviteUrl: null, memberId: null }, { status });
+
+  if (membership.role !== MEMBER_ROLE.OWNER) {
+    return refuse("Only the account owner can invite teammates.", 403);
   }
+  const email = String(form.get("email") ?? "").trim();
+  if (!email) return refuse("Enter an email address to invite.", 400);
 
   const { token } = await createInvite(db, membership.accountId, email);
   const url = new URL(request.url);
   const inviteUrl = `${url.origin}/invite/${token}`;
-  return data({ error: null, invited: email, inviteUrl });
+  return data<TeamActionData>({ action: "invite", error: null, invited: email, inviteUrl, memberId: null });
 }
 
 /** The row's name, Recova's order: full name, else email, else the invited
@@ -157,8 +151,24 @@ function displayName(m: { userId: string | null; userName: string | null; userEm
 // Foxhound's share link, because Foxhound sends no invite email yet (J83, E2),
 // so Recova's "Invite sent to" would be untrue (RULES.md 1.2).
 export default function Team({ loaderData, actionData }: Route.ComponentProps) {
-  const busy = useNavigation().state !== "idle";
+  const navigation = useNavigation();
+  // Pending belongs to the form that was sent: a remove marks its row, an
+  // invite the invite button.
+  const pending = pendingState(navigation.state === "idle" ? undefined : navigation.formData);
   const confirmingId = useSearchParams()[0].get("confirm");
+
+  // Results belong to the form they answer.
+  const removeResult = actionData?.action === "remove" ? actionData : null;
+  const inviteResult = actionData?.action === "invite" ? actionData : null;
+  const removeErrorRowShown =
+    removeResult?.error != null && loaderData.members.some((m) => m.id === removeResult.memberId);
+
+  // Clear the field only after an invite that worked; a remove result or a
+  // refused invite leaves a half-typed address alone.
+  const inviteInput = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (shouldClearInvite(actionData) && inviteInput.current) inviteInput.current.value = "";
+  }, [actionData]);
 
   return (
     <>
@@ -173,63 +183,78 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
 
       <section className="cap-panel">
         <div className="cap-panel-body">
-          <div>
-            <ul className="flex flex-col" aria-label="Members">
-              {loaderData.members.map((m) => {
-                const name = displayName(m);
-                return (
-                  <li
-                    key={m.id}
-                    className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-border py-3 last:border-b-0"
-                  >
-                    <span className="min-w-0 break-words text-label text-text">{name}</span>
-                    <span className="flex flex-wrap items-center justify-end gap-2">
-                      {/* `removable` is legacy's three refusals, resolved in the
-                          loader. The server enforces them again. */}
-                      {m.removable ? (
-                        confirmingId === m.id ? (
-                          <DemoGuardedForm method="post" className="flex flex-wrap items-center gap-1.5">
-                            <input type="hidden" name="_action" value="remove" />
-                            <input type="hidden" name="memberId" value={m.id} />
-                            <span className="text-micro text-text-subtle">Remove {name}?</span>
-                            <Button type="submit" variant="danger" size="sm" pending={busy}>
-                              {busy ? "Removing..." : "Yes, remove member"}
-                            </Button>
-                            <a href="?" className="cap-btn" data-variant="quiet" data-size="sm">
-                              Cancel
-                            </a>
-                          </DemoGuardedForm>
-                        ) : (
-                          <a href={"?confirm=" + m.id} className="cap-btn" data-variant="quiet" data-size="sm">
-                            Remove member
-                            <span className="sr-only">{" " + name}</span>
+          {/* A remove refused for a row no longer on the page. */}
+          {removeResult?.error && !removeErrorRowShown ? <Alert tone="crit">{removeResult.error}</Alert> : null}
+          {removeResult && !removeResult.error ? (
+            <p role="status" className="sr-only">
+              Member removed.
+            </p>
+          ) : null}
+          <ul className="flex flex-col" aria-label="Members">
+            {loaderData.members.map((m) => {
+              const name = displayName(m);
+              return (
+                <li
+                  key={m.id}
+                  className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-border py-3 last:border-b-0"
+                >
+                  <span className="min-w-0 break-words text-label text-text">{name}</span>
+                  <span className="flex flex-wrap items-center justify-end gap-2">
+                    {/* `removable` is legacy's three refusals, resolved in the
+                        loader. The server enforces them again. */}
+                    {m.removable ? (
+                      confirmingId === m.id ? (
+                        <DemoGuardedForm method="post" className="flex flex-wrap items-center gap-1.5">
+                          <input type="hidden" name="_action" value="remove" />
+                          <input type="hidden" name="memberId" value={m.id} />
+                          <span className="text-micro text-text-subtle">Remove {name}?</span>
+                          <Button type="submit" variant="danger" size="sm" pending={pending.removing === m.id}>
+                            {pending.removing === m.id ? "Removing..." : "Yes, remove member"}
+                          </Button>
+                          <a href="?" className="cap-btn" data-variant="quiet" data-size="sm">
+                            Cancel
                           </a>
-                        )
-                      ) : null}
-                      <Pill variant={m.isOwnerRole ? "default" : "secondary"}>
-                        {m.isOwnerRole ? "Owner" : "Member"}
-                      </Pill>
-                      {/* Legacy shows a status pill ONLY when pending, never an
-                          "active" pill beside every member. */}
-                      {m.status === "active" ? null : <Pill variant="secondary">Pending</Pill>}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
+                        </DemoGuardedForm>
+                      ) : (
+                        <a href={"?confirm=" + m.id} className="cap-btn" data-variant="quiet" data-size="sm">
+                          Remove member
+                          <span className="sr-only">{" " + name}</span>
+                        </a>
+                      )
+                    ) : null}
+                    <Pill variant={m.isOwnerRole ? "default" : "secondary"}>
+                      {m.isOwnerRole ? "Owner" : "Member"}
+                    </Pill>
+                    {/* Legacy shows a status pill ONLY when pending, never an
+                        "active" pill beside every member. */}
+                    {m.status === "active" ? null : <Pill variant="secondary">Pending</Pill>}
+                  </span>
+                  {removeResult?.error && removeResult.memberId === m.id ? (
+                    <div className="w-full">
+                      <Alert tone="crit">{removeResult.error}</Alert>
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
 
             {loaderData.isOwner ? (
-              <DemoGuardedForm method="post" className="mt-5 border-t border-border pt-5">
-                <div className="cap-field">
+              <DemoGuardedForm method="post" className="border-t border-border pt-5">
+                <input type="hidden" name="_action" value="invite" />
+                {/* Capsomer's field through its HTML contract, with the aria
+                    wiring its React Field would add. The React Field takes one
+                    control, so the button cannot share the input's row as
+                    Recova has it, and its required prop prints a "Required"
+                    marker Recova never had: a Capsomer gap. */}
+                <div className="cap-field" data-invalid={inviteResult?.error ? "true" : undefined}>
                   <label className="cap-field-label" htmlFor="invite_email">
                     Invite a team member
                   </label>
                   <div className="flex gap-2">
                     <div className="min-w-0 flex-1">
-                      {/* Keyed on the last invite link, so a sent invite clears
-                          the field as Recova's does. */}
                       <input
-                        key={actionData?.inviteUrl ?? "invite"}
+                        ref={inviteInput}
                         id="invite_email"
                         className="cap-input"
                         type="email"
@@ -237,28 +262,27 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
                         autoComplete="email"
                         placeholder="colleague@company.com"
                         required
+                        aria-invalid={inviteResult?.error ? true : undefined}
+                        aria-describedby={inviteResult?.error ? "invite_email-error" : undefined}
                       />
                     </div>
-                    <Button type="submit" variant="primary" pending={busy}>
-                      {busy ? "Sending\u2026" : "Send invite"}
+                    <Button type="submit" variant="primary" pending={pending.invite}>
+                      {pending.invite ? "Sending\u2026" : "Send invite"}
                     </Button>
                   </div>
+                  <p className="cap-field-error" id="invite_email-error" hidden={!inviteResult?.error}>
+                    {inviteResult?.error ?? null}
+                  </p>
                 </div>
-                {actionData?.inviteUrl ? (
+                {inviteResult?.inviteUrl ? (
                   <div className="mt-2">
-                    <Alert tone="ok">
-                      Invited {actionData.invited}. Share this link: {actionData.inviteUrl}
-                    </Alert>
-                  </div>
-                ) : null}
-                {actionData?.error ? (
-                  <div className="mt-2">
-                    <Alert tone="crit">{actionData.error}</Alert>
+                    <Banner tone="ok">
+                      Invited {inviteResult.invited}. Share this link: {inviteResult.inviteUrl}
+                    </Banner>
                   </div>
                 ) : null}
               </DemoGuardedForm>
             ) : null}
-          </div>
         </div>
       </section>
     </>

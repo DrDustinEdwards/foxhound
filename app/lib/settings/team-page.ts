@@ -15,14 +15,21 @@ export interface TeamPending {
   removing: string | null;
 }
 
-// STUB, J31 review: carries the page's behaviour before the fix (one busy
-// flag for both forms) so the tests fail on their assertions.
+/**
+ * Pending state per form, read from the submission in flight
+ * (useNavigation().formData). A remove marks only its own row and an invite
+ * only the invite button, so one form never shows the other's "Sending".
+ * A post with no `_action` is an invite, as the action reads it.
+ */
 export function pendingState(formData: FormData | undefined): TeamPending {
-  return { invite: formData != null, removing: null };
+  if (!formData) return { invite: false, removing: null };
+  const intent = String(formData.get("_action") ?? "invite");
+  if (intent === "remove") return { invite: false, removing: String(formData.get("memberId") ?? "") || null };
+  return { invite: intent === "invite", removing: null };
 }
 
-// STUB, J31 review: the field used to reset on any change of the invite link,
-// a remove result included.
+/** Clear the invite field only after an invite that worked, as Recova does. A
+ *  remove result, or a refused invite, leaves what was typed. */
 export function shouldClearInvite(actionData: TeamActionData | undefined): boolean {
-  return actionData != null;
+  return actionData?.action === "invite" && actionData.error === null;
 }
