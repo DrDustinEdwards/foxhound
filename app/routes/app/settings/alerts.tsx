@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { data, Form, Link, useNavigation, useSearchParams } from "react-router";
+import { data, Form, Link, redirect, useNavigation, useSearchParams } from "react-router";
 import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
 import { Field, InputGroup, InputGroupAddon } from "capsomer/react/field";
@@ -75,7 +75,9 @@ import type { Route } from "./+types/alerts";
 //    when Recovery metrics cross a threshold.") and its "email goes to" note are
 //    therefore not ported, and neither is a Channel column naming a delivery
 //    that never happens. The page says breaches are recorded and shown below,
-//    which is what happens.
+//    which is what happens. The lead says "each time one crosses its
+//    threshold" because shouldFireAlert records the first crossing, not every
+//    night a metric stays past it, and the empty line has no delivery verb.
 //
 // Legacy's transport is REST at /api/settings/alerts with optimistic updates
 // and silent reverts on failure. This is the route's own action, class (a),
@@ -133,7 +135,11 @@ export async function action({ request, context }: Route.ActionArgs) {
         { status: 400 },
       );
     }
-    return data<ActionResult>({ action: intent, ok: true });
+    // Recova's dismissPanel: a created alert closes the form, clears its
+    // fields and re-enables Create alert. Redirecting drops ?new=1, so the
+    // form cannot be sent twice with the same values. A refusal above keeps
+    // the form open with its message.
+    return redirect("/settings/alerts");
   }
 
   if (intent === "toggle" || intent === "delete") {
@@ -190,7 +196,7 @@ export default function AlertSettings({ loaderData, actionData }: Route.Componen
       <SettingsBackLink />
       {/* Recova's PageHeader sits mb-8 above the first card. */}
       <div className="mb-8">
-        <PageHead title="Alerts" lead="Foxhound checks these every night and records every breach below." />
+        <PageHead title="Alerts" lead="Foxhound checks these every night and records each time one crosses its threshold." />
       </div>
 
       {/* Recova's first card has no heading: a count line and a button lead
@@ -233,7 +239,7 @@ export default function AlertSettings({ loaderData, actionData }: Route.Componen
 
             {alerts.length === 0 && !creating ? (
               <p className="m-0 min-w-0 py-8 text-center text-label text-text-subtle">
-                No alerts yet. Create one to get told when metrics need attention.
+                No alerts yet. Create one to see when metrics need attention.
               </p>
             ) : null}
 

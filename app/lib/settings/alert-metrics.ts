@@ -71,8 +71,14 @@ const CONDITION_WORD: Record<AlertDirection, string> = { above: "above", below: 
 
 /** "above $5,000", Recova's Recent triggers condition, beside a Metric column. */
 export function alertShortCondition(direction: string, metric: string, value: number): string {
-  const word = isAlertDirection(direction) ? CONDITION_WORD[direction] : "";
-  return `${word} ${formatThresholdValue(metric, value)}`.trim();
+  return `${conditionWord(direction)} ${formatThresholdValue(metric, value)}`;
+}
+
+/** The word for a stored direction. The action only stores "above" or
+ *  "below", so anything else is a corrupt row: it reads "crosses", which is
+ *  true of both, rather than echoing the stored value or dropping the word. */
+function conditionWord(direction: string): string {
+  return isAlertDirection(direction) ? CONDITION_WORD[direction] : "crosses";
 }
 
 /** "MRR at risk above $5,000", Recova's alerts-table condition. */

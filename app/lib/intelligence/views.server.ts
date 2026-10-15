@@ -266,7 +266,8 @@ export async function getAlertsView(
       .where(eq(alerts.accountId, accountId))
       // Newest first, as Recova's alerts page orders them (J33). Unordered,
       // SQLite returned insertion order, so a new alert sank to the bottom.
-      .orderBy(desc(alerts.createdAt)),
+      // The id breaks a tie on the same millisecond (seeds, batch inserts).
+      .orderBy(desc(alerts.createdAt), desc(alerts.id)),
     db
       .select({
         id: alertHistory.id,
