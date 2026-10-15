@@ -53,6 +53,21 @@ function previewBanner(): string {
   );
 }
 
+/**
+ * The subject and body this control sends: the banner, the "[PREVIEW] "
+ * prefix and the sample soft decline, with the button on /settings/email.
+ * Pure. The admin email preview sends the same copy (app/lib/admin/email-send.server.ts).
+ */
+export function buildTestEmailCopy(senderName: string | null, baseUrl: string): { subject: string; bodyHtml: string } {
+  const copy = buildTemplateEmail({
+    merchantName: senderName ?? "your subscription",
+    declineCategory: SAMPLE_DECLINE_CATEGORY,
+    amountFormatted: SAMPLE_AMOUNT_FORMATTED,
+    updateUrl: `${baseUrl}/settings/email`,
+  });
+  return { subject: `${TEST_EMAIL_SUBJECT_PREFIX}${copy.subject}`, bodyHtml: `${previewBanner()}${copy.bodyHtml}` };
+}
+
 export interface SendTestEmailResult {
   result: EmailJobResult;
   sentTo: string;
@@ -73,12 +88,7 @@ export async function sendTestEmail(
   const db = getDb(env);
   const connection = await getPrimarySenderConnection(db, accountId);
 
-  const copy = buildTemplateEmail({
-    merchantName: connection?.senderName ?? "your subscription",
-    declineCategory: SAMPLE_DECLINE_CATEGORY,
-    amountFormatted: SAMPLE_AMOUNT_FORMATTED,
-    updateUrl: `${env.BETTER_AUTH_URL ?? ""}/settings/email`,
-  });
+  const copy = buildTestEmailCopy(connection?.senderName ?? null, env.BETTER_AUTH_URL ?? "");
 
   const unsubscribeToken = await signUnsubscribeToken(env, {
     email: recipientEmail,
@@ -95,8 +105,8 @@ export async function sendTestEmail(
       fromName: connection?.senderName ?? null,
       // And the Reply-To they will see, as legacy's test route passes one (J03).
       replyTo: connection?.replyToEmail ?? null,
-      subject: `${TEST_EMAIL_SUBJECT_PREFIX}${copy.subject}`,
-      bodyHtml: `${previewBanner()}${copy.bodyHtml}`,
+      subject: copy.subject,
+      bodyHtml: copy.bodyHtml,
       template: TEST_EMAIL_TEMPLATE,
       unsubscribeToken,
       physicalAddress: env.PHYSICAL_ADDRESS ?? "",
