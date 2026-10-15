@@ -1,7 +1,6 @@
 import { useId } from "react";
-import { data, Link, useNavigation } from "react-router";
+import { data, useNavigation } from "react-router";
 import { eq } from "drizzle-orm";
-import { ArrowLeft } from "lucide-react";
 import { Button } from "capsomer/react/button";
 import { PageHead } from "capsomer/react/page-head";
 import { Status } from "capsomer/react/status";
@@ -17,6 +16,7 @@ import "capsomer/switch.css";
 import "~/site-header.css";
 
 import { DemoGuardedForm } from "~/components/demo-guarded-form";
+import { SettingsBackLink } from "~/components/settings-back-link";
 import { accounts, getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -112,29 +112,10 @@ export async function action({ request, context }: Route.ActionArgs) {
       expiringCardNotificationsEnabled: checked(form, "expiringCardNotificationsEnabled"),
     });
   } catch (err) {
-    console.error(
-      "feature settings write failed:",
-      err instanceof Error ? err.message : "unknown error",
-    );
+    console.error("feature settings write failed:", err);
     return data<ActionResult>({ ok: false }, { status: 500 });
   }
   return data<ActionResult>({ ok: true });
-}
-
-/** Legacy's SettingsBackLink (components/SettingsBackLink.tsx, blob 64d4a153):
- *  on a phone, where the settings menu is hidden, a link back to the hub. The
- *  same element as /settings/api-keys; it moves to the shared
- *  app/components/settings-back-link.tsx once that lands (pull request 101). */
-function SettingsBackLink() {
-  return (
-    <Link
-      to="/settings"
-      className="mb-6 inline-flex min-h-6 items-center gap-1.5 text-label text-text-secondary no-underline hover:text-text md:hidden"
-    >
-      <ArrowLeft className="h-4 w-4" strokeWidth={2} aria-hidden />
-      Settings
-    </Link>
-  );
 }
 
 /** One of FeaturesSection's two rows: the label and its help on the left, the
