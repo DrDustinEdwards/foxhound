@@ -140,7 +140,8 @@ function SettingsBackLink() {
 /** One of FeaturesSection's two rows: the label and its help on the left, the
  *  toggle on the right, a rule between rows. The toggle is Capsomer's Switch, a
  *  real checkbox that posts "on" with the form, named by the visible label and
- *  described by the help line. Clicking the label flips it, as in Recova. */
+ *  described by the help line. The label is text, not a second click target,
+ *  as in Recova; Recova's toggle has no accessible name, which is not copied. */
 function ToggleRow({
   name,
   label,
@@ -162,9 +163,9 @@ function ToggleRow({
       className={`flex items-center justify-between gap-4 py-4${first ? "" : " border-t border-border"}`}
     >
       <div>
-        <label id={labelId} htmlFor={id} className="mb-0.5 block text-label text-text">
+        <div id={labelId} className="mb-0.5 text-label text-text">
           {label}
-        </label>
+        </div>
         <p id={helpId} className="text-micro text-text-subtle">
           {help}
         </p>
