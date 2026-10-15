@@ -106,6 +106,11 @@ const EXCLUDED_PREFIXES = [
   "/llms-full.txt",
   "/feed.rss",
   "/og/",
+  // Recova's next.config.ts redirects (J23): /user-guides and
+  // /sitemap_index.xml answer a 308 and are not pages. Recova's own sitemap
+  // lists neither. (/recovery/audit is already covered by "/recovery".)
+  "/user-guides",
+  "/sitemap_index.xml",
   // JSON health for monitors (job_f7f35d4b7ac7), not a page.
   "/health",
   // RFC 9116's well-known file (377 item 11). Not HTML, and not a page a reader
