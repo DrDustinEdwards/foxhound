@@ -1,14 +1,19 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import { lineChart } from "enarratio/lite/line";
 import { PageHead } from "capsomer/react/page-head";
 import { Panel } from "capsomer/react/panel";
 import { Pill } from "capsomer/react/status";
 import "enarratio/base.css";
+// Capsomer's --enarratio-* mapping onto its tokens, loaded here rather than
+// relied on through the shell's capsomer/tokens.css import, so the chart's
+// colours do not depend on another file's imports.
+import "capsomer/enarratio.css";
 import "capsomer/page-head.css";
 import "capsomer/panel.css";
 import "capsomer/status.css";
 import "capsomer/table.css";
+import "./churn.css";
 
 import { IntelligenceUpsell } from "~/components/intelligence-upsell";
 import { getDb } from "~/db";
@@ -16,7 +21,13 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
 import { HEALTH_SCORE_AT_RISK_THRESHOLD } from "~/lib/constants";
 import { healthScoreClassName, WATCH_CEILING, type HealthScoreBand } from "~/lib/intelligence/health-band";
-import { churnBandSharePct, churnRateAlt, type ChurnRatePointLike } from "~/lib/intelligence/churn";
+import {
+  churnBandSharePct,
+  churnRateAlt,
+  formatChurnMonth,
+  formatChurnPct,
+  type ChurnRatePointLike,
+} from "~/lib/intelligence/churn";
 import { getChurnView, isIntelligenceEntitled } from "~/lib/intelligence/views.server";
 import { formatMoney } from "~/lib/money-format";
 
@@ -135,7 +146,6 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
           {view.topHighRisk.length > 0 ? (
             <Panel
               title="High-risk customers by MRR"
-              headingId="churn-high-risk"
               description={`Top ${view.topHighRisk.length} customers in the high-risk band, sorted by monthly contribution.`}
               flush
             >
@@ -143,7 +153,10 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
                 className="cap-table-wrap"
                 data-cap="table"
                 role="region"
-                aria-labelledby="churn-high-risk"
+                // The one landmark here: the panel is a plain section (no
+                // headingId), so the scroll region is not nested in a second
+                // region of the same name.
+                aria-label="High-risk customers by MRR"
                 tabIndex={0}
               >
                 <table className="cap-table">
@@ -205,13 +218,20 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
 // is redrawn at its panel's measured width, so its text keeps its set size at
 // every width instead of shrinking with a phone screen (Recova's chart is a
 // ResponsiveContainer at 100% width).
-const CHART_WIDTH = 1180;
+const CHART_WIDTH = 1160;
 const CHART_MIN_WIDTH = 280;
+// The redraw happens in steps of this many pixels, so dragging a window
+// redraws the SVG a few times rather than on every pixel.
+const CHART_WIDTH_STEP = 40;
 // Recova's ResponsiveContainer is 180px tall with its axes inside; Enarratio
 // draws its legend outside the SVG and keeps 64px of the height for its axes.
 const CHART_HEIGHT = 220;
 
-const MONTH_LABEL = new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
+/** The width to draw at for a measured panel width: rounded down to the step,
+ *  never under the minimum. */
+export function chartWidthFor(measured: number): number {
+  return Math.max(CHART_MIN_WIDTH, Math.floor(measured / CHART_WIDTH_STEP) * CHART_WIDTH_STEP);
+}
 
 interface ChurnRow {
   // Capitalised because Enarratio names the data table's first column after it.
@@ -235,31 +255,53 @@ function drawChurnRate(points: readonly ChurnRatePointLike[], width: number): st
     series: "series",
     // Recova's legend order: Involuntary, then Voluntary.
     seriesDomain: ["Involuntary", "Voluntary"],
+    // Recova's colours, through Enarratio's own option: Involuntary on the
+    // error colour (Recova's var(--red)), Voluntary on tertiary text (Recova's
+    // var(--text-tertiary)). Recova also dashes Voluntary; Enarratio 0.3.1 has
+    // no per-series dash (enarratio gap, J29 notes).
+    colors: { Involuntary: "var(--error-text)", Voluntary: "var(--text-tertiary)" },
     xLabel: null,
     // Enarratio 0.3.1 has no tick format, so Recova's "2%" ticks read as "2"
     // under this axis label until it does (enarratio gap, J29 notes).
     yLabel: "Churn rate (%)",
-    formatValue: (v) => `${Math.round(v * 100) / 100}%`,
-    formatX: (v) => MONTH_LABEL.format(v),
+    formatValue: formatChurnPct,
+    formatX: formatChurnMonth,
     alt: churnRateAlt(points),
     width,
     height: CHART_HEIGHT,
   });
 }
 
-function ChurnRateChart({ points }: { points: readonly ChurnRatePointLike[] }) {
+export function ChurnRateChart({ points }: { points: readonly ChurnRatePointLike[] }) {
   const ref = useRef<HTMLDivElement>(null);
+  const dataOpen = useRef(false);
   const [width, setWidth] = useState(CHART_WIDTH);
 
+  // The wrapper is rendered in every branch, so the observer always attaches.
+  // Measurements are coalesced to one per frame, and React skips the redraw
+  // when the stepped width has not changed.
   useEffect(() => {
     const el = ref.current;
     if (!el || typeof ResizeObserver === "undefined") return;
+    let frame = 0;
     const observer = new ResizeObserver((entries) => {
       const measured = Math.floor(entries[0]?.contentRect.width ?? 0);
-      if (measured > 0) setWidth(Math.max(CHART_MIN_WIDTH, measured));
+      if (measured <= 0) return;
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => setWidth(chartWidthFor(measured)));
     });
     observer.observe(el);
-    return () => observer.disconnect();
+    // Remember whether the reader opened Enarratio's "Data table", because a
+    // redraw replaces its <details>. toggle does not bubble, hence capture.
+    const onToggle = (event: Event) => {
+      if (event.target instanceof HTMLDetailsElement) dataOpen.current = event.target.open;
+    };
+    el.addEventListener("toggle", onToggle, true);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      el.removeEventListener("toggle", onToggle, true);
+    };
   }, []);
 
   const drawn = useMemo(() => {
@@ -272,11 +314,27 @@ function ChurnRateChart({ points }: { points: readonly ChurnRatePointLike[] }) {
     }
   }, [points, width]);
 
-  if ("error" in drawn) {
-    return <p className="m-0 text-label text-text-tertiary">This chart could not be drawn: {drawn.error}</p>;
-  }
+  // After a redraw, reopen the data table if the reader had it open.
+  const html: string | null = drawn.html ?? null;
+  useLayoutEffect(() => {
+    if (!html || !dataOpen.current) return;
+    const details = ref.current?.querySelector("details");
+    if (details) details.open = true;
+  }, [html]);
+
+  // fh-churn-chart scopes Enarratio's documented gridline rule (churn.css).
   // min-w-0: Capsomer's panel body is a grid, whose items default to their
   // content's width, so without it the measured width could never drop below
   // the drawing's and a phone would get a sideways-scrolling chart.
-  return <div ref={ref} className="min-w-0" dangerouslySetInnerHTML={{ __html: drawn.html }} />;
+  return (
+    <div ref={ref} className="fh-churn-chart min-w-0">
+      {html === null ? (
+        <p className="m-0 text-label text-text-tertiary">
+          This chart could not be drawn: {"error" in drawn ? drawn.error : ""}
+        </p>
+      ) : (
+        <div dangerouslySetInnerHTML={{ __html: html }} />
+      )}
+    </div>
+  );
 }

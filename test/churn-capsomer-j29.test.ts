@@ -5,9 +5,13 @@ import { MemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
 
 import { HEALTH_SCORE_AT_RISK_THRESHOLD } from "~/lib/constants";
-import { churnRateAlt } from "~/lib/intelligence/churn";
+import { churnRateAlt, formatChurnMonth, formatChurnPct } from "~/lib/intelligence/churn";
 import { WATCH_CEILING } from "~/lib/intelligence/health-band";
-import IntelligenceChurn, { meta as churnMeta } from "~/routes/app/intelligence/churn";
+import IntelligenceChurn, {
+  ChurnRateChart,
+  chartWidthFor,
+  meta as churnMeta,
+} from "~/routes/app/intelligence/churn";
 
 import type { ChurnView } from "~/lib/intelligence/views.server";
 
@@ -171,24 +175,74 @@ describe("J29 churn: the chart is Enarratio's line chart", () => {
 });
 
 describe("churnRateAlt", () => {
-  it("states each series' first and last value over the window, skipping gaps", () => {
+  it("names the month of each series' first and last value, skipping gaps", () => {
     const at = (d: string) => new Date(`${d}T00:00:00Z`);
     expect(
       churnRateAlt([
         { at: at("2025-09-01"), involuntaryPct: 2, voluntaryPct: null },
         { at: at("2025-10-01"), involuntaryPct: 2.5, voluntaryPct: 1 },
         { at: at("2025-11-01"), involuntaryPct: 3.25, voluntaryPct: 1.5 },
+        { at: at("2025-12-01"), involuntaryPct: null, voluntaryPct: 1.25 },
       ]),
     ).toBe(
-      "Monthly churn rate, Sep 2025 to Nov 2025. Involuntary churn went from 2% to 3.25%; voluntary churn went from 1% to 1.5%.",
+      "Monthly churn rate, Sep 2025 to Dec 2025. Involuntary churn went from 2% in Sep 2025 to 3.25% in Nov 2025; voluntary churn went from 1% in Oct 2025 to 1.25% in Dec 2025.",
     );
   });
 
   it("says a series has no rate rather than inventing one", () => {
     const at = (d: string) => new Date(`${d}T00:00:00Z`);
     expect(churnRateAlt([{ at: at("2026-01-01"), involuntaryPct: 4, voluntaryPct: null }])).toBe(
-      "Monthly churn rate, Jan 2026. Involuntary churn was 4%; voluntary churn has no rate yet.",
+      "Monthly churn rate, Jan 2026. Involuntary churn was 4% in Jan 2026; voluntary churn has no rate yet.",
     );
+  });
+});
+
+describe("J29 churn: one month and percent format for the alt and the chart", () => {
+  it("formats the chart's table with the same helpers churnRateAlt uses", () => {
+    expect(formatChurnMonth(new Date("2025-09-01T00:00:00Z"))).toBe("Sep 2025");
+    expect(formatChurnPct(2.756)).toBe("2.76%");
+    expect(SOURCE).not.toMatch(/new Intl\.DateTimeFormat/);
+    expect(SOURCE).toMatch(/formatChurnMonth/);
+    expect(SOURCE).toMatch(/formatChurnPct/);
+  });
+});
+
+describe("J29 churn: the chart's look comes from Capsomer's mapping and Recova's series", () => {
+  it("loads Capsomer's Enarratio mapping itself, so the colours never rest on another file's import", () => {
+    expect(SOURCE).toMatch(/import "capsomer\/enarratio\.css";/);
+    const mapping = readFileSync(new URL("../node_modules/capsomer/css/enarratio.css", import.meta.url), "utf8");
+    for (const prop of ["--enarratio-series-1", "--enarratio-text", "--enarratio-grid"]) expect(mapping).toContain(`${prop}:`);
+  });
+
+  it("draws Involuntary on the error token and Voluntary on tertiary text, as Recova's red and grey", () => {
+    const panel = panelTitled(render(), "Churn rate over time");
+    expect(panel).toMatch(/--enarratio-series-1: var\(--error-text\)/);
+    expect(panel).toMatch(/--enarratio-series-2: var\(--text-tertiary\)/);
+  });
+
+  it("hides the y gridlines with Enarratio's documented rule (Recova draws no CartesianGrid)", () => {
+    const css = readFileSync(new URL("../app/routes/app/intelligence/churn.css", import.meta.url), "utf8");
+    expect(css).toMatch(/\.fh-churn-chart \[data-enarratio-mark="y-grid"\]\s*\{\s*display:\s*none;?\s*\}/);
+    expect(SOURCE).toContain('import "./churn.css";');
+    expect(panelTitled(render(), "Churn rate over time")).toContain('class="fh-churn-chart min-w-0"');
+  });
+});
+
+describe("J29 churn: the chart's redraw", () => {
+  it("draws in 40px steps, never under the minimum, so a resize does not redraw on every pixel", () => {
+    expect(chartWidthFor(1054)).toBe(1040);
+    expect(chartWidthFor(1079)).toBe(1040);
+    expect(chartWidthFor(1080)).toBe(1080);
+    expect(chartWidthFor(100)).toBe(280);
+  });
+
+  it("keeps its measured wrapper when Enarratio refuses to draw, so the observer still attaches", () => {
+    const html = renderToStaticMarkup(
+      createElement(ChurnRateChart, {
+        points: [{ at: new Date(Number.NaN), involuntaryPct: 1, voluntaryPct: 1 }],
+      }),
+    );
+    expect(html).toMatch(/^<div class="fh-churn-chart min-w-0"><p[^>]*>This chart could not be drawn/);
   });
 });
 
@@ -226,9 +280,19 @@ describe("J29 churn: the high-risk table", () => {
     );
   });
 
-  it("is Capsomer's table in a named, focusable region, with Recova's four columns in order", () => {
+  it("is one named landmark: the table's scroll region, not a second region around it", () => {
+    const html = render();
+    const panel = panelTitled(html, "High-risk customers by MRR");
+    expect(panel).toMatch(/^<section class="cap-panel">/);
+    expect(panel).toContain(
+      '<div class="cap-table-wrap" data-cap="table" role="region" aria-label="High-risk customers by MRR" tabindex="0">',
+    );
+    expect(html.match(/aria-label(ledby)?="(High-risk customers by MRR|churn-high-risk)"/g)).toHaveLength(1);
+  });
+
+  it("is Capsomer's table in a focusable region, with Recova's four columns in order", () => {
     const panel = panelTitled(render(), "High-risk customers by MRR");
-    expect(panel).toMatch(/<div class="cap-table-wrap" data-cap="table" role="region" aria-labelledby="[^"]+" tabindex="0">/);
+    expect(panel).toMatch(/<div class="cap-table-wrap" data-cap="table" role="region" aria-label="[^"]+" tabindex="0">/);
     expect(panel).toContain('<table class="cap-table">');
     const head = panel.match(/<thead>[\s\S]*?<\/thead>/)?.[0] ?? "";
     expect([...head.matchAll(/<th[^>]*>([^<]*)<\/th>/g)].map((m) => m[1])).toEqual([

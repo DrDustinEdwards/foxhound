@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
@@ -130,15 +131,23 @@ describe("S19 churn-rate chart, repaired toward legacy (398)", () => {
 
   // BREAKAGE 2, measured: "the legend sits inside the plot overlapping the top
   // gridline". Enarratio's legend is its own list outside the SVG, so it can no
-  // longer overlap a gridline; it sits above the plot, where legacy's sits
-  // below (enarratio gap, J29 notes).
-  it("breakage 2: the legend is its own row outside the plot, naming both series", () => {
+  // longer overlap the plot; it sits above the plot, where legacy's sits below
+  // (enarratio gap, J29 notes). Legacy draws no CartesianGrid at all, so the
+  // gridlines Enarratio draws are hidden with its documented rule on the
+  // y-grid mark, and there are no x gridlines to hide.
+  it("breakage 2: the legend is its own row outside the plot, and no gridline shows", () => {
     const card = chartCard(renderPage());
     const svg = plot(card);
     const legend = card.match(/<ul class="enarratio-legend">[\s\S]*?<\/ul>/)?.[0] ?? "";
     expect(legend).toContain("Involuntary");
     expect(legend).toContain("Voluntary");
     expect(svg).not.toContain("enarratio-legend");
+    // The gridline group is in the markup and hidden by the page's rule.
+    expect(svg).toContain('data-enarratio-mark="y-grid"');
+    expect(svg).not.toContain('data-enarratio-mark="x-grid"');
+    expect(card).toContain('class="fh-churn-chart min-w-0"');
+    const css = readFileSync(new URL("../app/routes/app/intelligence/churn.css", import.meta.url), "utf8");
+    expect(css).toMatch(/\.fh-churn-chart \[data-enarratio-mark="y-grid"\]\s*\{\s*display:\s*none;?\s*\}/);
   });
 
   // BREAKAGE 3, measured: "only the two endpoint x labels render". Twelve
