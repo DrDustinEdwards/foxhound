@@ -260,14 +260,6 @@ describe("customer mail carries both parts and the CAN-SPAM footer", () => {
     expectCustomerFooter(m);
   });
 
-  it("the settings test email", async () => {
-    const { result } = await sendTestEmail(env, ACCOUNT, "owner@acme.test");
-    expect(result.status).toBe("sent");
-    const m = only();
-    expectBothParts(m, ["PREVIEW.", "This is a sample recovery email."]);
-    expectCustomerFooter(m);
-  });
-
   it("a link the frame cannot carry is dropped to its words, and the send still goes", async () => {
     // Review fix 1. A cached AI body is reused on every retry, so a throw here
     // would fail the step every time and never reach the template fallback.
@@ -362,6 +354,22 @@ describe("merchant notices carry both parts and never the footer", () => {
 // ============================================================================
 // Transactional platform mail: auth, operational alerts, the monthly audit
 // ============================================================================
+
+describe("the settings test email carries both parts and Recova's preview footer, never the CAN-SPAM one", () => {
+  // E3: it goes to the signed-in user, not a customer, and Recova's preview
+  // carries no unsubscribe and no postal address
+  // (app/(app)/settings/test-email/route.ts, blob dcc3a06f).
+  it("the settings test email", async () => {
+    const { result } = await sendTestEmail(env, ACCOUNT, "owner@acme.test");
+    expect(result.status).toBe("sent");
+    const m = only();
+    expectBothParts(m, [
+      "PREVIEW: This is a sample recovery email.",
+      "This is a preview email sent from Foxhound. Your real recovery emails will look like this.",
+    ]);
+    expectNoCustomerFooter(m);
+  });
+});
 
 describe("transactional mail carries both parts and never the footer", () => {
   it("email verification", async () => {
