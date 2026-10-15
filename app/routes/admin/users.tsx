@@ -6,9 +6,9 @@ import { Spinner } from "capsomer/react/skeleton";
 import { AdminTime } from "~/components/admin-time";
 import { getDb } from "~/db";
 import { listPlatformUsers } from "~/lib/admin/users.server";
-import { membershipWord, merchantHref, usersCountSentence, usersPending } from "~/lib/admin/users";
+import { membershipWord, usersCountSentence } from "~/lib/admin/users";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import type { AdminHandle } from "~/lib/admin/page";
+import { merchantHref, pagePending, type AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/users";
 
@@ -37,7 +37,7 @@ const LINK = "inline-block min-h-6 leading-6 text-text underline underline-offse
 // Read only: the page has no actions.
 export default function AdminUsers({ loaderData }: Route.ComponentProps) {
   const { users } = loaderData;
-  const pending = usersPending(useNavigation(), useRevalidator().state);
+  const pending = pagePending(useNavigation(), useRevalidator().state, "/admin/users");
 
   return (
     <div aria-busy={pending || undefined}>
@@ -83,7 +83,7 @@ export default function AdminUsers({ loaderData }: Route.ComponentProps) {
                       ) : (
                         <ul className="m-0 grid list-none gap-1 p-0">
                           {u.memberships.map((m) => (
-                            <li key={`${m.accountId}-${m.status}`}>
+                            <li key={m.accountId}>
                               <Link to={merchantHref(m.accountId)} className={LINK}>
                                 {m.accountName ?? m.accountId}
                               </Link>{" "}
