@@ -46,7 +46,7 @@ const SURFACES = [
   "app/routes/files/llms-full.ts",
   "app/routes/privacy.tsx",
   "app/routes/security.tsx",
-  "app/routes/features.tsx",
+  "app/lib/marketing/features-content.ts",
   "app/routes/home.tsx",
   "app/lib/compare/competitors.ts",
 ] as const;

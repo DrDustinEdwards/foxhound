@@ -433,7 +433,9 @@ describe("/features focus rule (J60 review)", () => {
       }
       if (/\.cap-(chip|btn)\b/.test(r.selector) && r.selector.includes(":focus-visible")) hits.push({ selector: r.selector, media });
     });
-    expect(hits).toEqual([
+    // The /pricing rule (.fh-cap .cap-btn, J54) also matches a button here; the
+    // chips' ring is this page's own rule, scoped to .fh-features.
+    expect(hits.filter((h) => h.selector.includes("cap-chip"))).toEqual([
       { selector: ".fh-features :is(.cap-chip, .cap-btn):focus-visible", media: "not (forced-colors: active)" },
     ]);
     expect(render()).toMatch(/<div class="fh-cap fh-features[^"]*" data-family="teal"/);
