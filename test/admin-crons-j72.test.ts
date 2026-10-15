@@ -6,6 +6,7 @@ import { createRoutesStub, RouterContextProvider } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { cronEnableConfirmPhrase } from "~/lib/admin/brake";
+import { adminContext } from "~/lib/admin/context";
 import { listCronRows } from "~/lib/admin/crons.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { RECOVERY_TICK_CRON_NAME } from "~/lib/constants";
@@ -314,10 +315,34 @@ describe("the confirm page", () => {
     expect(html).toMatch(/<a class="cap-btn" href="\/admin\/platform\/crons#cron-weekly-digest">Cancel<\/a>/);
   });
 
-  it("shows the server's refusal inside it", () => {
-    const html = render({ confirmEnable: "weekly-digest", actionData: { error: `Type ${phrase} exactly to enable this cron.` } });
-    expect(text(html)).toContain("Not done. Nothing was changed.");
-    expect(text(html)).toContain(`Type ${phrase} exactly`);
+  it("shows the action's own refusal inside it, saying Nothing was changed once", async () => {
+    // The real action, refusing a wrong phrase, as test/admin-cron-enable-confirm
+    // does; then the page rendered with what it returned. Capsomer's confirm page
+    // prints "Not done. Nothing was changed." itself, so the action's message
+    // must not say it again.
+    const { db } = createInMemoryDb();
+    harness.db = db;
+    const body = new FormData();
+    body.append("cronName", "weekly-digest");
+    body.append("nextEnabled", "true");
+    body.append("confirm", "enable weekly digest");
+    const action = route.action as (args: unknown) => Promise<{ data: unknown }>;
+    const context = {
+      get(key: unknown) {
+        if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+        if (key === adminContext) return { email: "admin@foxhoundapp.com" };
+        throw new Error("unexpected context key");
+      },
+    };
+    const result = await action({
+      context,
+      request: new Request("http://localhost/admin/platform/crons?enable=weekly-digest", { method: "POST", body }),
+      params: {},
+    });
+
+    const t = text(render({ confirmEnable: "weekly-digest", actionData: result.data }));
+    expect(t).toContain(`Type ${phrase} exactly`);
+    expect(t.split("Nothing was changed.").length - 1).toBe(1);
   });
 
   it("replaces the table while it is open", () => {
