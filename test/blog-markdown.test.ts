@@ -3,9 +3,10 @@ import { drizzle } from "drizzle-orm/sqlite-proxy";
 
 import type { Db } from "~/db";
 import * as schema from "~/db/schema";
-import { extractFaqPairs, renderMarkdown } from "~/lib/blog/markdown.server";
+import { extractFaqPairs } from "~/lib/blog/faq";
+import { renderPostBody } from "~/lib/blog/render.server";
 
-// Same empty-D1 stand-in as test/blog-queries.test.ts; renderMarkdown only
+// Same empty-D1 stand-in as test/blog-queries.test.ts; renderPostBody only
 // touches the db when a body contains ::postlink[...], so most cases below
 // never exercise it.
 function emptyDb(): Db {
@@ -54,15 +55,17 @@ describe("extractFaqPairs", () => {
   });
 });
 
-describe("renderMarkdown", () => {
+// These cases held the old marked renderer; since J19 they hold the Prelum
+// renderer that replaced it to the same behaviour.
+describe("renderPostBody", () => {
   it("renders plain markdown to HTML", async () => {
-    const { html } = await renderMarkdown(emptyDb(), "# Title\n\nSome **bold** text.");
+    const { html } = await renderPostBody(emptyDb(), "# Title\n\nSome **bold** text.");
     expect(html).toContain("<h1");
     expect(html).toContain("<strong>bold</strong>");
   });
 
   it("assigns ids to h2/h3 headings and returns a matching TOC", async () => {
-    const { html, toc } = await renderMarkdown(emptyDb(), "## First Section\n\nBody.\n\n### A Subsection\n\nMore.");
+    const { html, toc } = await renderPostBody(emptyDb(), "## First Section\n\nBody.\n\n### A Subsection\n\nMore.");
     expect(toc).toEqual([
       { level: 2, text: "First Section", id: "first-section" },
       { level: 3, text: "A Subsection", id: "a-subsection" },
@@ -72,32 +75,32 @@ describe("renderMarkdown", () => {
   });
 
   it("renders a :::tip callout", async () => {
-    const { html } = await renderMarkdown(emptyDb(), ":::tip\nDo this instead.\n:::");
+    const { html } = await renderPostBody(emptyDb(), ":::tip\nDo this instead.\n:::");
     expect(html).toContain("blog-callout-tip");
     expect(html).toContain("Do this instead.");
   });
 
   it("drops :::diagram[slug] entirely rather than reading from disk", async () => {
-    const { html } = await renderMarkdown(emptyDb(), "Before.\n\n:::diagram[funnel]\n\nAfter.");
+    const { html } = await renderPostBody(emptyDb(), "Before.\n\n:::diagram[funnel]\n\nAfter.");
     expect(html).not.toContain("diagram");
     expect(html).toContain("Before.");
     expect(html).toContain("After.");
   });
 
   it("renders ::bookmark[url] as a plain link with no live OG fetch", async () => {
-    const { html } = await renderMarkdown(emptyDb(), "::bookmark[https://example.com/pricing]");
+    const { html } = await renderPostBody(emptyDb(), "::bookmark[https://example.com/pricing]");
     expect(html).toContain('href="https://example.com/pricing"');
     expect(html).toContain("example.com");
     expect(html).toContain('target="_blank"');
   });
 
   it("renders ::youtube[id] as an embed iframe", async () => {
-    const { html } = await renderMarkdown(emptyDb(), "::youtube[dQw4w9WgXcQ]");
+    const { html } = await renderPostBody(emptyDb(), "::youtube[dQw4w9WgXcQ]");
     expect(html).toContain("youtube-nocookie.com/embed/dQw4w9WgXcQ");
   });
 
   it("falls back to a visible <code> for an unresolved ::postlink", async () => {
-    const { html } = await renderMarkdown(emptyDb(), "See ::postlink[some-other-post] for more.");
+    const { html } = await renderPostBody(emptyDb(), "See ::postlink[some-other-post] for more.");
     expect(html).toContain("<code>::postlink[some-other-post]</code>");
   });
 });

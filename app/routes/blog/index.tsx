@@ -13,6 +13,7 @@ import {
   listPublishedPosts,
   type BlogPostSummary,
 } from "~/lib/blog/queries.server";
+import { withRenderedExcerpts } from "~/lib/blog/render.server";
 import { SECTIONS, type BlogSectionConfig } from "~/lib/blog/sections";
 import { BLOG_COVER_FALLBACK_CSS } from "~/lib/http/inline-styles";
 import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
@@ -72,12 +73,17 @@ export async function loader({ context }: Route.LoaderArgs) {
   const db = getDb(env);
   const allSectionSlugs = SECTIONS.flatMap((s) => s.slugs);
 
-  const [featured, latest8, sectionPosts, tagSet] = await Promise.all([
+  const [featuredRow, latestRows, sectionRows, tagSet] = await Promise.all([
     getFeaturedPost(db),
     listPublishedPosts(db, 8),
     getPostsBySlug(db, allSectionSlugs),
     getPublishedTagSet(db),
   ]);
+  // Every excerpt on the page through Prelum (J19), one ::postlink read for all.
+  const rendered = await withRenderedExcerpts(db, [...(featuredRow ? [featuredRow] : []), ...latestRows, ...sectionRows]);
+  const featured = featuredRow ? rendered[0] : null;
+  const latest8 = rendered.slice(featuredRow ? 1 : 0, (featuredRow ? 1 : 0) + latestRows.length);
+  const sectionPosts = rendered.slice((featuredRow ? 1 : 0) + latestRows.length);
 
   const bySlug = new Map(sectionPosts.map((p) => [p.slug, p]));
   const publishedTags = new Set(tagSet);

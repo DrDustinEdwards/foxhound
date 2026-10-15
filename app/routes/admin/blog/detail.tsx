@@ -14,7 +14,7 @@ import {
   setPublished,
   updatePostWithVersion,
 } from "~/lib/blog/admin-queries.server";
-import { renderMarkdown } from "~/lib/blog/markdown.server";
+import { renderPostBody } from "~/lib/blog/render.server";
 import { CANONICAL_TAGS } from "~/lib/blog/tags";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { blogPostUrl, scheduleIndexNow } from "~/lib/seo/indexnow.server";
@@ -40,7 +40,7 @@ export async function loader({ context, params }: Route.LoaderArgs) {
     getPostVersions(db, post.id),
     getPostLinksForAdmin(db, post.id),
     listAllPostsForAdmin(db),
-    post.body.trim() ? renderMarkdown(db, post.body) : Promise.resolve({ html: "", toc: [] }),
+    post.body.trim() ? renderPostBody(db, post.body) : Promise.resolve({ html: "", toc: [] }),
   ]);
 
   const linkCandidates = allPosts.filter((p) => p.id !== post.id && p.published);

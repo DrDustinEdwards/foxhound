@@ -16,7 +16,7 @@ import {
   uniqueSlugFromTitle,
   updatePostWithVersion,
 } from "~/lib/blog/admin-queries.server";
-import { renderMarkdown } from "~/lib/blog/markdown.server";
+import { renderPostBody } from "~/lib/blog/render.server";
 
 import { parsePostSource, serializePostSource, SourceError, type PostSource } from "./source";
 
@@ -266,7 +266,7 @@ export function carrelAdapter(db: Db, hooks: CarrelAdapterHooks = {}): SiteAdapt
     preview: {
       async render(input) {
         const post = parse(input.source);
-        const { html } = await renderMarkdown(db, post.body);
+        const { html } = await renderPostBody(db, post.body);
         const esc = (s: string) => s.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
         return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${esc(post.title)}</title></head><body><article><h1>${esc(post.title)}</h1>${html}</article></body></html>`;
       },

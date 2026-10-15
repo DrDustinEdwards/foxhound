@@ -6,6 +6,7 @@ import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { labelForTag } from "~/lib/blog/tags";
 import { getPublishedPostsByTag, getPublishedTagSet } from "~/lib/blog/queries.server";
+import { withRenderedExcerpts } from "~/lib/blog/render.server";
 import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
@@ -51,7 +52,8 @@ export async function loader({ params, context }: Route.LoaderArgs) {
   if (!tagSet.includes(tag)) {
     throw new Response("Not found", { status: 404 });
   }
-  const posts = await getPublishedPostsByTag(db, tag);
+  // Each card's excerpt through Prelum (J19).
+  const posts = await withRenderedExcerpts(db, await getPublishedPostsByTag(db, tag));
   return { siteUrl: siteUrl(env), tag, posts };
 }
 

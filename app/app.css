@@ -865,7 +865,40 @@ body {
   color: var(--text-secondary);
 }
 
-/* Shortcode-derived blocks (markdown.server.ts). */
+/* The classes Prelum's renderer emits (J19). Its README leaves their look to
+   the site. The table scrolls inside its own wrapper and keeps Recova's
+   spacing below it. The heading anchor ("#", a keyboard-reachable link named
+   "Link to section: ...") shows only while its heading is hovered or the
+   anchor has focus, so at rest the page reads as Recova's, which has none. */
+.blog-prose .table-scroll {
+  overflow-x: auto;
+  margin-bottom: 1.5rem;
+}
+.blog-prose .table-scroll > table {
+  margin-bottom: 0;
+}
+.blog-prose .heading-anchor {
+  margin-left: 0.375rem;
+  color: var(--text-tertiary);
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity 150ms;
+}
+.blog-prose :is(h2, h3):hover .heading-anchor,
+.blog-prose .heading-anchor:focus-visible {
+  opacity: 1;
+}
+.blog-prose .image-link {
+  text-decoration: none;
+}
+.blog-prose .image-link:hover {
+  opacity: 1;
+}
+.blog-prose .blog-diagram {
+  margin: 1.5rem 0;
+}
+
+/* Shortcode-derived blocks (Foxhound's render pack, lib/blog/render-pack.ts). */
 .blog-callout {
   display: flex;
   gap: 0.75rem;

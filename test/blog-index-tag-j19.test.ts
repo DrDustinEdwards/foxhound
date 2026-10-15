@@ -247,6 +247,27 @@ describe("/blog/tag/:tag loader (J19, row M14)", () => {
   });
 });
 
+describe("excerpts on the index and tag pages go through Prelum (J19, DO step 3)", () => {
+  it("renders each card's excerpt markdown to its words on the tag page", async () => {
+    const { db } = createInMemoryDb();
+    harness.db = db;
+    await seed(db, "a", { tags: ["disputes"] });
+    await db.update(blogPosts).set({ excerpt: "Win **more** disputes, $49 at a time." });
+    const res = await tagLoader("disputes");
+    expect((res.data as { posts: BlogPostSummary[] }).posts[0].excerpt).toBe("Win more disputes, $49 at a time.");
+  });
+
+  it("renders the featured excerpt on /blog", async () => {
+    const { db } = createInMemoryDb();
+    harness.db = db;
+    await seed(db, "stripe-disputes-guide", { tags: ["disputes"], featured: true });
+    await db.update(blogPosts).set({ excerpt: "Read *this* first." });
+    const data = (await index.loader({ context } as never)) as Awaited<ReturnType<typeof index.loader>>;
+    expect(data.featured?.excerpt).toBe("Read this first.");
+    expect(data.sections[0].posts[0].excerpt).toBe("Read this first.");
+  });
+});
+
 describe("/blog/tag/:tag page (J19, row M14)", () => {
   const data = { siteUrl: "https://example.com", tag: "decline-codes", posts: [summary("a", ["decline-codes"]), summary("b", ["decline-codes"])] };
   const html = renderPage(tag.default as never, data, "/blog/tag/decline-codes");

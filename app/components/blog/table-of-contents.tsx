@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 
-import type { TocItem } from "~/lib/blog/markdown.server";
+import type { TocItem } from "~/lib/blog/render.server";
 
 // Ported from legacy app/(marketing)/blog/[slug]/TableOfContents.tsx (Phase
 // 6 Pass 2). "inline" is a <details> that collapses on small screens;

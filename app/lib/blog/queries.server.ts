@@ -270,6 +270,22 @@ export async function getPostLinks(db: Db, postId: string): Promise<BlogPostSumm
   return rows.map(toSummary);
 }
 
+/** Every published post among `slugs`, as the slug and current title a
+ *  ::postlink renders, in one read. A draft or unknown slug is absent, so the
+ *  renderer shows it as inline code. The batch form of resolvePostLink. */
+export async function resolvePostLinks(
+  db: Db,
+  slugs: string[],
+): Promise<Map<string, { slug: string; title: string }>> {
+  const unique = [...new Set(slugs)];
+  if (unique.length === 0) return new Map();
+  const rows = await db
+    .select({ slug: blogPosts.slug, title: blogPosts.title })
+    .from(blogPosts)
+    .where(and(eq(blogPosts.published, true), inArray(blogPosts.slug, unique)));
+  return new Map(rows.map((r) => [r.slug, r]));
+}
+
 /** Resolve `::postlink[slug]` markdown references to a current title+slug.
  *  Only resolves to published posts; unresolved slugs are the renderer's
  *  problem (falls back to inline <code>). Mirrors legacy resolvePostLink. */

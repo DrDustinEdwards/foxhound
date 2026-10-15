@@ -8,6 +8,7 @@ import {
   getPublishedPostsByTag,
   getPublishedTagSet,
 } from "~/lib/blog/queries.server";
+import { withRenderedExcerpts } from "~/lib/blog/render.server";
 import { CANONICAL_TAGS, labelForTag } from "~/lib/blog/tags";
 import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
@@ -57,7 +58,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   ]);
   const withPosts = new Set(tagsWithPosts);
   const visibleTags = CANONICAL_TAGS.filter((t) => withPosts.has(t));
-  return { siteUrl: siteUrl(env), posts, activeTag, visibleTags };
+  // Each row's excerpt through Prelum (J19), as on /blog and the tag pages.
+  return { siteUrl: siteUrl(env), posts: await withRenderedExcerpts(db, posts), activeTag, visibleTags };
 }
 
 function pillClassName(active: boolean): string {

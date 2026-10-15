@@ -1,3 +1,10 @@
+// FROZEN COPY of app/lib/blog/markdown.server.ts as it stood at main 8837aba,
+// the renderer Foxhound used before J19 moved post bodies onto Prelum. Test-only:
+// test/blog-render-corpus-j19.test.ts renders the corpus through this and
+// through Prelum and compares the two, as Prelum's CHANGELOG asks of a site
+// switching over. Changed from the original in one way only: the ::postlink
+// lookup takes a resolver function instead of a D1 handle, so a corpus export
+// can be compared without a database. Do not edit it to make a diff go away.
 // Markdown -> HTML renderer for blog posts. Ported from legacy lib/markdown.ts
 // (Phase 6 Pass 2), rewritten for Workers:
 //
@@ -31,10 +38,9 @@ import { marked, type Tokens, type Token } from "marked";
 import hljs from "highlight.js";
 import sanitizeHtml from "sanitize-html";
 
-import type { Db } from "~/db";
+import { generateSlug } from "~/lib/blog/format";
 
-import { generateSlug } from "./format";
-import { resolvePostLink } from "./queries.server";
+export type ResolvePostLink = (slug: string) => Promise<{ slug: string; title: string } | null>;
 
 type LinkRendererThis = {
   parser: { parseInline: (tokens: Token[]) => string };
@@ -298,7 +304,7 @@ function stripTags(s: string): string {
   return s.replace(/<[^>]+>/g, "");
 }
 
-export async function renderMarkdown(db: Db, body: string): Promise<{ html: string; toc: TocItem[] }> {
+export async function renderMarkdownBefore(resolvePostLink: ResolvePostLink, body: string): Promise<{ html: string; toc: TocItem[] }> {
   configureMarked();
 
   const replacements: Replacement[] = [];
@@ -364,7 +370,7 @@ export async function renderMarkdown(db: Db, body: string): Promise<{ html: stri
 
   const resolvedInline = await Promise.all(
     inlineSlots.map(async (s) => {
-      const target = await resolvePostLink(db, s.slug);
+      const target = await resolvePostLink(s.slug);
       if (target) {
         const text = s.display ?? target.title;
         return `<a href="/blog/${escapeAttr(target.slug)}">${escapeText(text)}</a>`;

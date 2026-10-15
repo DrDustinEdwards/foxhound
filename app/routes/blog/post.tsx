@@ -1,5 +1,3 @@
-import "highlight.js/styles/github-dark.css";
-
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Link, redirect } from "react-router";
 
@@ -10,7 +8,9 @@ import { ShareRow } from "~/components/blog/share-row";
 import { TableOfContents } from "~/components/blog/table-of-contents";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { extractFaqPairs, renderMarkdown } from "~/lib/blog/markdown.server";
+import { extractFaqPairs } from "~/lib/blog/faq";
+import { excerptText, postLinkSlugs, renderPostBody } from "~/lib/blog/render.server";
+import { resolvePostLinks } from "~/lib/blog/queries.server";
 import { getNextPost, getPostBySlug, getPostLinks, getPreviousPost } from "~/lib/blog/queries.server";
 import {
   articleJsonLd,
@@ -68,8 +68,11 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     throw new Response("Not found", { status: 404 });
   }
 
-  const [{ html, toc }, previous, next, related] = await Promise.all([
-    renderMarkdown(db, post.body),
+  // Body and excerpt through Prelum (J19); the excerpt's ::postlinks resolve
+  // against the same published rows the body's do.
+  const [{ html, toc }, excerpt, previous, next, related] = await Promise.all([
+    renderPostBody(db, post.body),
+    resolvePostLinks(db, postLinkSlugs(post.excerpt)).then((postLinks) => excerptText(post.excerpt, { postLinks })),
     post.publishedAt ? getPreviousPost(db, post.publishedAt, post.id) : Promise.resolve(null),
     post.publishedAt ? getNextPost(db, post.publishedAt, post.id) : Promise.resolve(null),
     getPostLinks(db, post.id),
@@ -77,7 +80,7 @@ export async function loader({ params, context }: Route.LoaderArgs) {
 
   const faqPairs = extractFaqPairs(post.body);
 
-  return { siteUrl: siteUrl(env), post, html, toc, previous, next, related, faqPairs };
+  return { siteUrl: siteUrl(env), post, excerpt, html, toc, previous, next, related, faqPairs };
 }
 
 // Legacy passes the post EXCERPT as `description` and renders it on the card
@@ -116,7 +119,7 @@ function formatDate(d: Date | null): string {
 }
 
 export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
-  const { siteUrl: url, post, html, toc, previous, next, related, faqPairs } = loaderData;
+  const { siteUrl: url, post, excerpt, html, toc, previous, next, related, faqPairs } = loaderData;
 
   const canonical = post.canonicalUrl ?? `${url}/blog/${post.slug}`;
   const image = post.coverImageUrl ?? ogImageUrl(url, post.ogTitle ?? post.title, post.ogDescription ?? post.excerpt);
@@ -193,7 +196,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
 
           <h1 className="mb-4 text-page-title font-medium leading-tight tracking-tight text-text">{post.title}</h1>
           <p className="mb-8 border-b border-border pb-8 text-product-sub leading-relaxed text-text-secondary">
-            {post.excerpt}
+            {excerpt}
           </p>
 
           <ShareRow url={canonical} title={post.title} />
