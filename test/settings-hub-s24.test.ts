@@ -191,14 +191,14 @@ describe("PLANT 5: the split left no surface without a writer", () => {
   );
 
   it("the account page carries the profile, the context fields and the danger zone", () => {
-    // The first two go through SettingsCard, which renders the hidden
-    // `_action` input from its `action` prop; the danger zone writes its own.
-    expect(account).toContain('action="profile"');
-    expect(account).toContain('action="intelligence-context"');
+    // J32: Recova saves the name and the context fields as ONE form, so one
+    // intent carries both, written through applyIntelligenceContext.
+    expect(account).toContain('name="_action" value="profile"');
+    expect(account).toContain('name="merchantIndustry"');
+    expect(account).toContain("applyIntelligenceContext(");
     expect(account).toContain('value="cancel-account"');
     // And each intent is handled, not just rendered.
     expect(account).toContain('case "profile"');
-    expect(account).toContain('case "intelligence-context"');
     expect(account).toContain('case "cancel-account"');
   });
 

@@ -169,7 +169,7 @@ describe("J32 account: the profile form", () => {
     expect(profile).toMatch(/<input type="hidden" name="_action" value="profile"\/>/);
     const submits = profile.match(/<button[^>]*type="submit"[^>]*>[\s\S]*?<\/button>/g) ?? [];
     expect(submits).toHaveLength(1);
-    expect(text(submits[0])).toBe("Save changes");
+    expect(text(submits[0] ?? "")).toBe("Save changes");
     expect(submits[0]).toContain('data-variant="primary"');
   });
 
