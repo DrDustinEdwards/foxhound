@@ -138,6 +138,12 @@ describe("/audit (J18, row M22)", () => {
     expect((body.match(/<h1[\s>]/g) ?? []).length).toBe(1);
   });
 
+  it("carries Recova's h1 word for word, the same in every state of the estimator", () => {
+    for (const state of Object.values(STATES)) {
+      expect(column(state)).toMatch(/<h1 [^>]*>See everything leaking from your Stripe account<\/h1>/);
+    }
+  });
+
   it("makes each section label a real h2 under the h1 (RULES.md 1.5: a heading is never demoted)", () => {
     expect(body).toMatch(/<h2 [^>]*>What the audit covers<\/h2>/);
     expect(body).toMatch(/<h2 [^>]*>Free leakage estimator<\/h2>/);
@@ -175,6 +181,9 @@ describe("/audit (J18, row M22)", () => {
     }
   });
 
+  // The full pin of the published sentence against the request, in both
+  // directions, is test/audit-oauth-phase-f.test.ts ("THE PUBLISHED SENTENCE IS
+  // PINNED AGAINST THE REQUEST"); this checks only that the note renders here.
   it("keeps the read-only note true: the audit's Stripe request is read_only", () => {
     expect(body).toContain("Read-only Stripe access. 30 seconds. No account required.");
     expect(STRIPE_AUDIT_SCOPE).toBe("read_only");
@@ -198,9 +207,14 @@ describe("/audit (J18, row M22)", () => {
     expect(submit).toContain('data-variant="primary"');
   });
 
-  it("says the estimator is unavailable in Capsomer's alert, and draws no form", () => {
+  it("says the estimator is unavailable in Capsomer's info banner, a standing notice that is not an alert", () => {
     const off = column(STATES.unavailable);
-    expect(tagsWithClass(off, "cap-alert")).toHaveLength(1);
+    const banners = tagsWithClass(off, "cap-banner");
+    expect(banners).toHaveLength(1);
+    expect(banners[0]).toContain('data-tone="info"');
+    expect(banners[0]).toContain('role="status"');
+    expect(tagsWithClass(off, "cap-alert")).toHaveLength(0);
+    expect(off).not.toContain('role="alert"');
     expect(off).toContain("The estimator is temporarily unavailable");
     expect(off).not.toContain("<form");
   });
