@@ -68,7 +68,7 @@ describe("PLANT 2: the hub is legacy's list, in legacy's order", () => {
       SETTINGS_HUB_ENTRIES.map((e) => [e.to, e.label, e.description]),
     ).toEqual([
       ["/settings/stripe", "Stripe connections", "Connected accounts"],
-      ["/settings/email", "Email", "Sender name, reply-to, domain"],
+      ["/settings/email", "Email", "Sender name, reply-to"],
       ["/settings/brand-voice", "Brand voice", "Per-category AI tone"],
       ["/settings/features", "Features", "Win-back, expiring cards"],
       ["/settings/audit", "Audit", "Lookback period, auto-run"],
@@ -76,7 +76,7 @@ describe("PLANT 2: the hub is legacy's list, in legacy's order", () => {
       ["/settings/alerts", "Alerts", "Metric thresholds"],
       ["/settings/team", "Team", "Members, invite, roles"],
       ["/settings/api-keys", "API keys", "MCP server credentials"],
-      ["/settings/account", "My account", "Profile, appearance, sign out"],
+      ["/settings/account", "My account", "Profile, sign out"],
     ]);
   });
 
