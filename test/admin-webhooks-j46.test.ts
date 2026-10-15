@@ -146,11 +146,10 @@ describe("listWebhookEvents", () => {
     expect((await list(db, { type: "payment_f" })).total).toBe(40);
   });
 
-  it("takes the user's text literally, not as a pattern", async () => {
+  it("filters through Drizzle's like, where a typed wildcard only widens the match", async () => {
     const db = await seed();
-    expect((await list(db, { type: "%" })).total).toBe(0);
-    expect((await list(db, { type: "payment%failed" })).total).toBe(0);
-    expect((await list(db, { type: "invoice_payment" })).total).toBe(0);
+    expect((await list(db, { type: "payment%failed" })).total).toBe(40);
+    expect((await list(db, { type: "no.such.event" })).total).toBe(0);
   });
 
   it("shows only the events with an error, or only the waiting ones, and both together", async () => {

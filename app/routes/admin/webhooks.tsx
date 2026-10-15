@@ -258,7 +258,9 @@ function EventRows({ event }: { event: WebhookEventRow }) {
         <td>
           <AdminTime at={event.receivedAt} />
         </td>
-        <td className={event.errorMessage ? "text-error-text" : "text-text-tertiary"}>{event.errorMessage ?? "None"}</td>
+        <td data-wrap="" className={event.errorMessage ? "text-error-text" : "text-text-tertiary"}>
+          {event.errorMessage ?? "None"}
+        </td>
       </tr>
       <tr id={payloadId} hidden={!open}>
         <td colSpan={COLUMNS}>

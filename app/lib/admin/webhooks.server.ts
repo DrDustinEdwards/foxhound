@@ -1,7 +1,7 @@
 // /admin/webhooks data layer: delivery/health view off webhook_events. READ
 // only (Pass 1); there is no retry/replay action here.
 
-import { and, count, desc, eq, isNotNull, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, isNotNull, like, sql, type SQL } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import { webhookEvents } from "~/db";
@@ -42,12 +42,6 @@ export interface WebhookEventPage {
   pageCount: number;
 }
 
-/** The person's text is matched literally: LIKE's own wildcards in it are
- *  escaped, so "payment_failed" does not also match "payment.failed". */
-function likeLiteral(text: string): string {
-  return `%${text.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
-}
-
 /**
  * One page of the webhook log, newest first, filtered the way Recova's log
  * filtered in the browser (event type as a case-insensitive substring, errors
@@ -57,7 +51,11 @@ function likeLiteral(text: string): string {
 export async function listWebhookEvents(db: Db, filters: WebhookFilters, perPage = WEBHOOK_PAGE_SIZE): Promise<WebhookEventPage> {
   const conditions: SQL[] = [];
   if (filters.type) {
-    conditions.push(sql`lower(${webhookEvents.eventType}) like ${likeLiteral(filters.type.toLowerCase())} escape '\\'`);
+    // Drizzle's like, never a hand-written clause (CLAUDE.md, "Drizzle only").
+    // SQLite's LIKE ignores ASCII case, which covers Stripe's event types. A
+    // "%" or "_" typed into the field acts as LIKE's wildcard and only widens
+    // the match, which is harmless on a read-only admin list.
+    conditions.push(like(webhookEvents.eventType, `%${filters.type}%`));
   }
   if (filters.errorsOnly) conditions.push(isNotNull(webhookEvents.errorMessage));
   if (filters.pendingOnly) conditions.push(eq(webhookEvents.processed, false));
