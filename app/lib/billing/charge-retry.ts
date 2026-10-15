@@ -54,8 +54,9 @@ export interface StrandedInvoice {
   platformCustomerId: string | null;
 }
 
-/** Statuses that are already settled: nothing left to collect, ever. */
-const SETTLED_STATUSES = ["paid", "void", "uncollectible", "gave_up"];
+/** Statuses that are already settled: nothing left to collect, ever. Also read
+ *  by the disputes list's "Fees owed" (app/lib/disputes/fees-owed.server.ts). */
+export const SETTLED_STATUSES = ["paid", "void", "uncollectible", "gave_up"];
 
 /**
  * Unsettled fee invoices on billing-eligible accounts. Deliberately reuses

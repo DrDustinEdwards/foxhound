@@ -463,7 +463,7 @@ describe("computeDisputeStats", () => {
 
   it("computes no fee: Fees owed is read from the billing records by the loader", () => {
     const stats = computeDisputeStats([
-      { ...base, state: "resolved_won", resolvedFeeCents: 1_234, submittedAt: new Date(NOW), submittedBy: "owner@example.com" },
+      { ...base, state: "resolved_won", submittedAt: new Date(NOW), submittedBy: "owner@example.com" },
     ]);
     expect(stats).not.toHaveProperty("feesOwedParts");
   });

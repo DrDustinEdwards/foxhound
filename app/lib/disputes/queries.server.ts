@@ -208,8 +208,8 @@ export async function approveAndSubmitDispute(
   });
 }
 
-/** D1 caps bound parameters per statement (RULES.md 3.11), so the id list is
- *  read in chunks well under the cap. */
+/** D1 caps bound parameters per statement (RULES.md 3.11), so an id list is
+ *  read in chunks well under the cap (health scores and evidence alike). */
 const HEALTH_LOOKUP_CHUNK = 90;
 
 /**
@@ -236,4 +236,26 @@ export async function getCustomerHealthScores(
     }
   }
   return scores;
+}
+
+/**
+ * Which of the given disputes hold at least one non-blank evidence field in
+ * Foxhound's draft. The list says Recova's "Evidence ready" only of these
+ * (disputeListStatus, labels.ts). Account-scoped on the evidence rows
+ * themselves, and chunked under the D1 parameter cap like the health lookup.
+ */
+export async function getDisputesWithEvidence(db: Db, accountId: string, disputeIds: string[]): Promise<Set<string>> {
+  const ids = [...new Set(disputeIds)];
+  const found = new Set<string>();
+  for (let i = 0; i < ids.length; i += HEALTH_LOOKUP_CHUNK) {
+    const chunk = ids.slice(i, i + HEALTH_LOOKUP_CHUNK);
+    const rows = await db
+      .select({ disputeId: disputeEvidence.disputeId, fieldValue: disputeEvidence.fieldValue })
+      .from(disputeEvidence)
+      .where(and(eq(disputeEvidence.accountId, accountId), inArray(disputeEvidence.disputeId, chunk)));
+    for (const row of rows) {
+      if (row.fieldValue.trim() !== "") found.add(row.disputeId);
+    }
+  }
+  return found;
 }
