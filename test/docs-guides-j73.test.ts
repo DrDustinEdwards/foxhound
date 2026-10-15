@@ -8,7 +8,11 @@ import { describe, expect, it } from "vitest";
 
 import { DocWidget, DOC_WIDGET_NAMES } from "~/components/docs/doc-widgets";
 import { HealthScoreBadge } from "~/components/docs/health-score-badge";
-import { AUDIT_LOOKBACK_DAYS, HEALTH_SCORE_AT_RISK_THRESHOLD } from "~/lib/constants";
+import {
+  AUDIT_LOOKBACK_DAYS,
+  HEALTH_SCORE_AT_RISK_THRESHOLD,
+  INTELLIGENCE_REPORT_HOURLY_LIMIT,
+} from "~/lib/constants";
 import { RECOVERY_RANGES } from "~/lib/dashboard/recovery-window";
 import { DEADLINE_SOON_DAYS, DEADLINE_URGENT_DAYS } from "~/lib/disputes/labels";
 import { WATCH_CEILING } from "~/lib/intelligence/health-band";
@@ -326,6 +330,24 @@ describe("J73 PLANT 2: every claim is Foxhound's engine, not Recova's", () => {
     const text = textOf("intelligence");
     expect(text).not.toContain("a 38 included");
     expect(text).toContain(`${HEALTH_SCORE_AT_RISK_THRESHOLD - 1} reads as at risk and ${HEALTH_SCORE_AT_RISK_THRESHOLD} as watch`);
+  });
+
+  it("INTELLIGENCE: the dashboard's report button is described as the code has it (J67)", () => {
+    const text = textOf("intelligence");
+    const page = read("app/routes/app/intelligence/index.tsx");
+    // The button exists, for this month only, and its limit is the constant.
+    expect(page).toContain('"Generate report"');
+    expect(page).toContain("const canGenerate = month === currentMonth;");
+    expect(text).toContain(
+      `generate this month's report from the dashboard yourself, up to ${INTELLIGENCE_REPORT_HOURLY_LIMIT} times an hour`,
+    );
+    // It says so when the AI analyst cannot run, rather than failing quietly.
+    expect(text).toContain("the dashboard says so and no report is written");
+    // And the dashboard's charts are the ones it draws.
+    for (const title of ["MRR trend (12 months)", "MRR by plan", "Net Revenue Retention", "MRR movement"]) {
+      expect(page).toContain(`title="${title}"`);
+    }
+    expect(text).toContain("total MRR and MRR by plan");
   });
 
   it("INTELLIGENCE: no claim that the analytics are free, because every Intelligence page is entitlement-gated", () => {

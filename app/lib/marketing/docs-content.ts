@@ -24,6 +24,7 @@ import {
   EMAIL_ENGAGEMENT_WINDOW_DAYS,
   HEALTH_SCORE_AT_RISK_THRESHOLD,
   INTELLIGENCE_PRICE_CENTS,
+  INTELLIGENCE_REPORT_HOURLY_LIMIT,
   MIN_EXPIRED_DECLINES_FOR_CAU_ADVISORY,
   RECOVERY_FEE_BPS,
   RECOVERY_MATURITY_DAYS,
@@ -573,7 +574,7 @@ export const DOC_GUIDES: DocGuide[] = [
       {
         heading: "MRR trends",
         body: [
-          "The Intelligence dashboard charts net revenue retention over the last 12 months, where above 100% means expansion outran churn, and the MRR movement behind it by month: new, expansion, reactivation, contraction and churn.",
+          "The Intelligence dashboard charts total MRR and MRR by plan, net revenue retention over the last 12 months, where above 100% means expansion outran churn, and the MRR movement behind it by month: new, expansion, reactivation, contraction and churn.",
           "A month whose total barely moves can still be hiding a lot of both, which is what the movement chart is for. Customer data is synced from Stripe monthly, so each bar is a month.",
         ],
       },
@@ -582,6 +583,7 @@ export const DOC_GUIDES: DocGuide[] = [
         body: [
           "Each night, after scoring, the AI analyst writes a short narrative for the account: the MRR at risk and the at-risk customers that matter most. It works only from the scores and signals Foxhound computed, which it puts into words and never invents.",
           "The current month's narrative is on the Intelligence dashboard and is rewritten each night, and every month keeps its own under Reports.",
+          `You can also generate this month's report from the dashboard yourself, up to ${INTELLIGENCE_REPORT_HOURLY_LIMIT} times an hour. When the AI model cannot run, the dashboard says so and no report is written.`,
           { kind: "tip", body: "When the AI model is not available, no narrative is written that night. The scores, the bands and the alerts still update." },
         ],
       },

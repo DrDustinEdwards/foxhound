@@ -49,11 +49,18 @@ describe("C2: each surface carries its own legacy shell geometry", () => {
     expect(s).not.toContain("rounded-lg border border-border bg-surface p-4");
   });
 
-  it("S16 intelligence: the narrative card is legacy's 12px / px-6 py-5", () => {
-    // legacy app/(app)/intelligence/dashboard/components/MonthlyNarrative.tsx:79
-    //   bg-surface border border-border rounded-[12px] px-6 py-5 mt-5
+  it("S16 intelligence takes its shells from Capsomer, not from a hand-rolled radius", () => {
+    // legacy app/(app)/intelligence/dashboard/components/*.tsx use
+    // bg-surface border border-border rounded-[12px] px-6 py-5 for every card.
+    // Since J67 (Q10, 2026-10-14) the stat cards, chart cards and the monthly
+    // summary are Capsomer Panels, whose radius is Capsomer's own; legacy's
+    // 12px waits for the per-site style layer rather than a Foxhound class over
+    // a Capsomer component, as on S17, S19 and S23. The held at-risk table
+    // below is the one shell this does not touch.
     const s = src("routes/app/intelligence/index.tsx");
-    expect(s).toContain('className="mt-3 rounded-[12px] border border-border bg-surface px-6 py-5"');
+    expect(s).toContain('from "capsomer/react/panel"');
+    expect(s).toContain('<Panel\n      title="Monthly summary"');
+    expect(s).not.toContain("rounded-[12px]");
   });
 
   it("S16: the ONE still-HELD shell is not touched (396 as narrowed by 399)", () => {
@@ -71,11 +78,13 @@ describe("C2: each surface carries its own legacy shell geometry", () => {
     expect(s).toContain('className="mt-3 overflow-x-auto rounded-lg border border-border"');
   });
 
-  it("S16 health distribution: the ported chart carries legacy's own 12px shell", () => {
+  it("S16 health distribution: the ported chart sits in a Capsomer panel", () => {
     // legacy app/(app)/intelligence/dashboard/components/HealthDistributionChart.tsx:39
     //   bg-surface border border-border rounded-[12px] px-6 py-5 mb-5
+    // Since J67 a Capsomer Panel (see the S16 case above), never the pre-port
+    // rounded-lg p-4 card.
     const s = src("routes/app/intelligence/index.tsx");
-    expect(s).toContain('className="mt-8 rounded-[12px] border border-border bg-surface px-6 py-5"');
+    expect(s).toContain('<Panel title="Customer health distribution"');
     expect(s).not.toContain('<div className="mt-3 rounded-lg border border-border bg-surface p-4">');
   });
 
