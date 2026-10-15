@@ -158,6 +158,9 @@ interface Row {
   recentFailures: Array<{ id: string; finishedAt: Date; message: string | null }>;
 }
 
+// The page says times relative to the real clock, so its rows are too.
+const T = Date.now();
+
 function row(name: string, over: Partial<Row> = {}): Row {
   return {
     name,
@@ -165,8 +168,8 @@ function row(name: string, over: Partial<Row> = {}): Row {
     enabled: true,
     configured: true,
     minIntervalMinutes: null,
-    lastRun: { id: `${name}-last`, status: "success", finishedAt: new Date(NOW - HOUR), rowsProcessed: 4, message: "4 sent" },
-    lastSucceededAt: new Date(NOW - HOUR),
+    lastRun: { id: `${name}-last`, status: "success", finishedAt: new Date(T - HOUR), rowsProcessed: 4, message: "4 sent" },
+    lastSucceededAt: new Date(T - HOUR),
     recentFailures: [],
     ...over,
   };
@@ -177,9 +180,9 @@ const ROWS: Row[] = [
   row("weekly-digest", {
     schedule: "0 8 * * 1",
     enabled: false,
-    lastRun: { id: "f1", status: "failed", finishedAt: new Date(NOW - 2 * HOUR), rowsProcessed: 0, message: "Email binding unavailable" },
-    lastSucceededAt: new Date(NOW - 7 * DAY),
-    recentFailures: [{ id: "f1", finishedAt: new Date(NOW - 2 * HOUR), message: "Email binding unavailable" }],
+    lastRun: { id: "f1", status: "failed", finishedAt: new Date(T - 2 * HOUR), rowsProcessed: 0, message: "Email binding unavailable" },
+    lastSucceededAt: new Date(T - 7 * DAY),
+    recentFailures: [{ id: "f1", finishedAt: new Date(T - 2 * HOUR), message: "Email binding unavailable" }],
   }),
   row("d1-backup", { configured: false, lastRun: null, lastSucceededAt: null }),
 ];
@@ -230,7 +233,7 @@ describe("the Crons page", () => {
   it("shows when a cron last succeeded, apart from its last run, and never when it has not", () => {
     const html = render();
     const digestRow = /<tr[^>]*id="cron-weekly-digest"[\s\S]*?<\/tr>/.exec(html)?.[0] ?? "";
-    expect(digestRow).toMatch(/7 days ago/);
+    expect(digestRow).toContain(`dateTime="${new Date(T - 7 * DAY).toISOString()}"`);
     const backupRow = /<tr[^>]*id="cron-d1-backup"[\s\S]*?<\/tr>/.exec(html)?.[0] ?? "";
     expect(text(backupRow)).toMatch(/\bNever\b/);
   });
@@ -303,7 +306,8 @@ describe("the confirm page", () => {
     expect(html).toMatch(/action="\/admin\/platform\/crons\?enable=weekly-digest"/);
     expect(html).toMatch(/<input type="hidden" name="cronName" value="weekly-digest"/);
     expect(html).toMatch(/<input type="hidden" name="nextEnabled" value="true"/);
-    expect(html).toMatch(/<input[^>]*name="confirm"[^>]*required/);
+    const typed = /<input[^>]*name="confirm"[^>]*>/.exec(html)?.[0] ?? "";
+    expect(typed).toMatch(/\brequired\b/);
     expect(text(html)).toContain(`Type ${phrase} to confirm`);
     expect(text(html)).toContain("Enable weekly-digest?");
     expect(html).toMatch(/<h2[^>]*class="cap-dialog-title"/);

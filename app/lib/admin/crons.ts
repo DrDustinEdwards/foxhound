@@ -74,3 +74,23 @@ export function describeCronSchedule(expression: string): string | null {
   if (isInt(dayOfMonth, 1, 31) && dayOfWeek === "*") return `Monthly on the ${ordinal(Number(dayOfMonth))} at ${at}`;
   return null;
 }
+
+/** The Crons page. */
+export const CRONS_PATH = "/admin/platform/crons";
+
+/** The confirm page that enables one switched-off cron (it needs the cron's
+ *  typed phrase; APPROVED-DIFFERENCES, 2026-09-19). */
+export function cronEnableHref(cronName: string): string {
+  return `${CRONS_PATH}?enable=${encodeURIComponent(cronName)}`;
+}
+
+/** "19 scheduled jobs, 1 switched off.", "1 scheduled job, none switched off." */
+export function cronsSummaryWords(total: number, switchedOff: number): string {
+  const jobs = total === 1 ? "1 scheduled job" : `${total} scheduled jobs`;
+  return `${jobs}, ${switchedOff === 0 ? "none" : switchedOff} switched off.`;
+}
+
+/** "1 failed run in the last 24 hours", "3 failed runs in the last 24 hours". */
+export function failedRunsWords(count: number): string {
+  return count === 1 ? "1 failed run in the last 24 hours" : `${count} failed runs in the last 24 hours`;
+}
