@@ -52,6 +52,17 @@ const COUNT_WORDS: Record<number, string> = {
 /** How many categories the engine actually schedules. THE number, everywhere. */
 export const DECLINE_CATEGORY_COUNT = Object.keys(RECOVERY_SCHEDULES).length;
 
+/**
+ * How long a recovery sequence runs, in days: the last step of the longest
+ * schedule the engine dispatches (email_day30 today, 720 hours). This is what
+ * "N-day sequences" and "across N days" describe, so it is read from the
+ * schedule rather than typed beside it. It sits beside the category count so
+ * every marketing carrier can take both from one place.
+ */
+export const RECOVERY_SEQUENCE_DAYS = Math.round(
+  Math.max(...Object.values(RECOVERY_SCHEDULES).flatMap((steps) => steps.map((s) => s.offsetHours))) / 24,
+);
+
 /** Capitalised, for the head of a sentence. */
 export const DECLINE_CATEGORY_COUNT_WORD =
   COUNT_WORDS[DECLINE_CATEGORY_COUNT] ?? String(DECLINE_CATEGORY_COUNT);
