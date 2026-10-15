@@ -1,22 +1,73 @@
-import { Link } from "react-router";
+import { useCallback, useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Link, useFetcher } from "react-router";
+import { Button } from "capsomer/react/button";
+import { PageHead } from "capsomer/react/page-head";
+import { Panel } from "capsomer/react/panel";
+import "capsomer/button.css";
+import "capsomer/page-head.css";
+import "capsomer/panel.css";
 
-import { Meter, MultiLine, StackedBars } from "~/components/charts";
+import { Meter } from "~/components/charts";
+import { IntelligenceFigure } from "~/components/intelligence-figure";
 import { IntelligenceUpsell } from "~/components/intelligence-upsell";
-import { StatCard } from "~/components/stat-card";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
-import { formatDateMonthDay } from "~/lib/date-format";
+import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/session";
+import {
+  firstSnapshotSentence,
+  monthKeyOf,
+  monthLabel,
+  narrativeErrorMessage,
+  planBreakdownRows,
+  shiftMonth,
+} from "~/lib/intelligence/dashboard";
+import {
+  drawHealth,
+  drawMovement,
+  drawMrrTrend,
+  drawNrr,
+  drawPlans,
+} from "~/lib/intelligence/dashboard-charts";
 import { healthScoreMeterTone } from "~/lib/intelligence/health-band";
+import { generateMonthlyReport } from "~/lib/intelligence/report-generate.server";
 import {
   getHealthDistribution,
   getIntelligenceOverview,
   getMrrSnapshotSeries,
+  getReportsArchive,
   isIntelligenceEntitled,
 } from "~/lib/intelligence/views.server";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney, formatMoneyShort } from "~/lib/money-format";
 
 import type { Route } from "./+types/index";
+
+// /intelligence/dashboard (row S16, job J67). Recova is the spec: its real
+// page, app/(app)/intelligence/dashboard/page.tsx at blob cbe7e8fe, and the
+// seven components it mounts, each read whole (MRRStatCards 2920fa3b,
+// MRRTrendChart c7a0da3f, NRRChart b07e9de3, MRRMovementChart 3c94525e,
+// PlanBreakdown 65b5674f, HealthDistributionChart cd7dd675, MonthlyNarrative
+// 791e2f5f). In Recova's order and width: the head, four stat cards, the MRR
+// trend, NRR, MRR movement, MRR by plan, customer health distribution, then
+// the monthly summary with its month pager and Generate/Regenerate button. With
+// no snapshot yet, Recova's syncing card stands in for all of it.
+//
+// Built from Capsomer 0.9.0's parts (Q10), charts by Enarratio (Q1), teal
+// throughout (Q11). No Foxhound CSS sits over a Capsomer component: Recova's
+// 12px card radius, its uppercase eyebrow labels and its stat figure colours
+// wait for Capsomer's per-site layer (capsomer job_ec5ec0754626), listed in
+// the J67 pull request.
+//
+// Foxhound's engine, never Recova's (78/79): snapshots come from
+// intelligence-sync, which runs MONTHLY, so the series is twelve months where
+// Recova's was ninety days of daily rows, and the two stats that need a daily
+// or month-to-date snapshot say they are not computed (RULES.md 2.1). The
+// narrative is Foxhound's (narrative.ts), generated through
+// report-generate.server.ts, and it says so when it cannot run.
+//
+// The "Most at-risk customers" table is Foxhound's own and HELD for Dustin
+// (TASK-seven-walked-pages.md): it is kept exactly as it was, after the summary.
 
 export function meta() {
   return [{ title: "Intelligence - Foxhound" }];
@@ -32,260 +83,83 @@ export async function loader({ context }: Route.LoaderArgs) {
   if (!entitled) return { entitled: false as const };
 
   const nowMs = Date.now();
-  const [overview, healthDistribution, mrrSeries] = await Promise.all([
+  const [overview, healthDistribution, mrrSeries, archive] = await Promise.all([
     getIntelligenceOverview(db, accountId),
     getHealthDistribution(db, accountId, nowMs),
     getMrrSnapshotSeries(db, accountId, nowMs),
+    getReportsArchive(db, accountId),
   ]);
-  return { entitled: true as const, overview, healthDistribution, mrrSeries };
+  return {
+    entitled: true as const,
+    overview,
+    healthDistribution,
+    mrrSeries,
+    reports: archive.map((r) => ({ month: monthKeyOf(r.reportMonth), narrative: r.narrative })),
+    currentMonth: monthKeyOf(new Date(nowMs)),
+    nowMs,
+    isDemo: auth.isDemo,
+  };
 }
 
-export default function IntelligenceOverviewPage({ loaderData }: Route.ComponentProps) {
+/** Recova's Generate report button. The account is the session's, never the
+ *  form's (RULES.md 4.6); the demo never reaches here (RULES.md 4.12). */
+export async function action({ context, request }: Route.ActionArgs) {
+  const { env } = context.get(cloudflareContext);
+  const auth = context.get(authContext);
+  const db = getDb(env);
+  const accountId = auth.membership.accountId;
+
+  const form = await request.formData();
+  if (form.get("intent") !== "generate") return { ok: false as const, error: "invalid_intent" as const };
+  if (!(await isIntelligenceEntitled(db, accountId))) return { ok: false as const, error: "not_entitled" as const };
+  return generateMonthlyReport(env, db, accountId, String(form.get("month") ?? ""), Date.now());
+}
+
+export default function IntelligenceDashboardPage({ loaderData }: Route.ComponentProps) {
   if (!loaderData.entitled) {
     return (
-      <div className="mx-auto max-w-6xl px-4 py-8">
-        <h1 className="text-title font-medium text-text">Intelligence</h1>
+      <div className="mx-auto max-w-[1280px] px-4 py-8 md:px-8 md:py-10">
+        <PageHead title="Dashboard" lead="MRR trends and customer health" />
         <IntelligenceUpsell />
       </div>
     );
   }
 
-  const { overview, healthDistribution, mrrSeries } = loaderData;
-  const { scoreDistribution } = overview;
+  const { overview, healthDistribution, mrrSeries, reports, currentMonth, nowMs, isDemo } = loaderData;
+  const latest = mrrSeries[mrrSeries.length - 1];
 
-  // Legacy gates the NRR card on any snapshot carrying a positive retention
-  // figure, so an account that has never had a prior period to retain against
-  // gets no empty frame (NRRChart.tsx:15).
-  const hasNrr = mrrSeries.some((p) => (p.nrrPct ?? 0) > 0);
-  const mrrLabels = mrrSeries.map((p) => formatDateMonthDay(p.at));
-
-  // Legacy's MRRMovementChart works in whole dollars and renders contraction
-  // and churn below the baseline (MRRMovementChart.tsx:32-38).
-  const movement = mrrSeries.map((p) => ({
-    newMrr: Math.round(p.newMrrCents / 100),
-    expansion: Math.round(p.expansionMrrCents / 100),
-    reactivation: Math.round(p.reactivationMrrCents / 100),
-    contraction: -Math.round(p.contractionMrrCents / 100),
-    churn: -Math.round(p.churnMrrCents / 100),
-  }));
-  const hasMovement = movement.some(
-    (m) =>
-      m.newMrr !== 0 ||
-      m.expansion !== 0 ||
-      m.reactivation !== 0 ||
-      m.contraction !== 0 ||
-      m.churn !== 0,
-  );
-
+  // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-8 md:py-10. The
+  // shell owns the page's one <main> (ruling 146), so this is a plain wrapper.
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
-      <h1 className="text-title font-medium text-text">Intelligence</h1>
+    <div className="mx-auto max-w-[1280px] px-4 py-8 md:px-8 md:py-10">
+      <div className="mb-6">
+        <PageHead title="Dashboard" lead="MRR trends and customer health" />
+      </div>
 
-      {overview.scoredCustomerCount === 0 ? (
-        <p className="mt-6 rounded-lg border border-dashed border-border p-6 text-body text-text-tertiary">
-          No customers scored yet. Once Stripe has synced and the nightly Intelligence run
-          completes, risk scores and MRR-at-risk exposure will appear here.
-        </p>
-      ) : (
-        <>
-          <section className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <StatCard
-              label="MRR at risk"
-              value={formatMoney(overview.mrrAtRiskCents, overview.currency)}
-              subtext={`${overview.atRiskCustomerCount} customer(s)`}
-            />
-            <StatCard label="Customers scored" value={String(overview.scoredCustomerCount)} />
-            <StatCard
-              label="Score distribution"
-              value={`${scoreDistribution.healthy} / ${scoreDistribution.watch} / ${scoreDistribution.atRisk}`}
-              subtext="Healthy / Watch / At risk"
-            />
-          </section>
-
-          {/* Legacy's NRRChart, built (ruling 399: an element the 394 walk never
-              saw, because legacy's demo twin does not render it; the real page
-              mounts it at app/(app)/intelligence/dashboard/page.tsx:11, between
-              the MRR trend and the MRR movement charts). Source read whole at
-              app/(app)/intelligence/dashboard/components/NRRChart.tsx.
-
-              Legacy's own copy, with its window replaced by Foxhound's real one
-              under 78/79: legacy says "(90 days)" against a daily snapshot job,
-              and intelligence-sync is monthly here, so ninety days would be
-              three points and the sentence would misdescribe our own data. Same
-              correction the churn chart shipped at 384c0db.
-
-              Single series, so no legend: legacy renders no Legend on this
-              chart. The dashed rule at 100 is legacy's ReferenceLine. */}
-          {hasNrr && mrrLabels.length > 1 ? (
-            <section className="mt-8 rounded-[12px] border border-border bg-surface px-6 py-5">
-              <h2 className="m-0 font-mono text-micro uppercase tracking-wide text-text-tertiary">
-                Net Revenue Retention
-              </h2>
-              <p className="m-0 mt-1 text-label text-text-tertiary">
-                Above 100% means expansion exceeds churn, last 12 months
-              </p>
-              <div className="mt-4">
-                <MultiLine
-                  height={140}
-                  showLegend={false}
-                  referenceValue={100}
-                  labels={mrrLabels}
-                  yTickFormat={(v) => `${Math.round(v * 10) / 10}%`}
-                  series={[
-                    {
-                      name: "NRR",
-                      colorClassName: "text-blue",
-                      values: mrrSeries.map((p) => p.nrrPct),
-                    },
-                  ]}
-                />
-              </div>
-            </section>
-          ) : null}
-
-          {/* Legacy's MRRMovementChart, built (ruling 399: the second of the two
-              dashboard charts the 394 walk never saw; legacy mounts it at
-              app/(app)/intelligence/dashboard/page.tsx:13, directly under
-              NRRChart). Source read whole at
-              app/(app)/intelligence/dashboard/components/MRRMovementChart.tsx.
-
-              Legacy's five series, its stacking (New, expansion and
-              reactivation up from the baseline, contraction and churn down),
-              its dollar y ticks and its gate on any non-zero movement.
-
-              "by week" becomes "by month", 78/79 again: legacy samples a daily
-              snapshot job every 7 rows, so its buckets really are weeks.
-              intelligence-sync is monthly here, so a week is not a bucket we
-              have and the sentence would name a cadence we do not run.
-
-              PURPLE ON REACTIVATION IS LEGACY'S AND IT IS FLAGGED, not slipped
-              in. DESIGN.md reserves purple for Stripe Connect UI and "win-back
-              attribution", nothing else ever. Reactivation MRR IS win-back
-              attribution measured in money: it is revenue from customers who
-              had churned and came back, which is what win_back_sequences
-              exists to produce. So legacy's colour and Foxhound's reservation
-              agree here rather than collide. If that reading is wrong it is one
-              class name to change. */}
-          {hasMovement && mrrLabels.length > 0 ? (
-            <section className="mt-8 rounded-[12px] border border-border bg-surface px-6 py-5">
-              <h2 className="m-0 font-mono text-micro uppercase tracking-wide text-text-tertiary">
-                MRR movement
-              </h2>
-              <p className="m-0 mt-1 text-label text-text-tertiary">
-                New, expansion, contraction, and churn by month
-              </p>
-              <div className="mt-4">
-                <StackedBars
-                  height={200}
-                  labels={mrrLabels}
-                  yTickFormat={(v) => `$${Math.abs(Math.round(v))}`}
-                  series={[
-                    {
-                      name: "New",
-                      colorClassName: "text-green",
-                      values: movement.map((m) => m.newMrr),
-                    },
-                    {
-                      name: "Expansion",
-                      colorClassName: "text-blue",
-                      values: movement.map((m) => m.expansion),
-                    },
-                    {
-                      name: "Reactivation",
-                      colorClassName: "text-purple",
-                      values: movement.map((m) => m.reactivation),
-                    },
-                    {
-                      name: "Contraction",
-                      colorClassName: "text-orange",
-                      values: movement.map((m) => m.contraction),
-                    },
-                    {
-                      name: "Churn",
-                      colorClassName: "text-red",
-                      values: movement.map((m) => m.churn),
-                    },
-                  ]}
-                />
-              </div>
-            </section>
-          ) : null}
-
-          {/* Legacy's HealthDistributionChart, ported (ruling 399: the 394 walk
-              called this an addition against the demo twin, and legacy's REAL
-              dashboard renders it, so the owed work is ALIGNMENT toward
-              app/(app)/intelligence/dashboard/components/HealthDistributionChart.tsx).
-
-              What changed: the card used to plot a single snapshot of today's
-              three band counts as three bars. Legacy plots the counts as a
-              STACKED TIME SERIES, one stack per sampled day across the window,
-              which is a different chart answering a different question (how the
-              book of customers is moving, not where it stands tonight).
-
-              Shell, eyebrow and sub are legacy's, with its raw type values
-              mapped onto Foxhound's tokens rather than ported literally,
-              because 179/187 freeze the type scale in BOTH directions. Same
-              treatment the churn chart shipped with at 384c0db.
-
-              Bands are Foxhound's (78/79), see getHealthDistribution. */}
-          {healthDistribution.length > 0 ? (
-            <section className="mt-8 rounded-[12px] border border-border bg-surface px-6 py-5">
-              <h2 className="m-0 font-mono text-micro uppercase tracking-wide text-text-tertiary">
-                Customer health distribution
-              </h2>
-              <p className="m-0 mt-1 text-label text-text-tertiary">
-                Customer count per health band over 90 days
-              </p>
-              <div className="mt-4">
-                <StackedBars
-                  height={200}
-                  labels={healthDistribution.map((d) =>
-                    formatDateMonthDay(new Date(`${d.date}T00:00:00Z`)),
-                  )}
-                  series={[
-                    {
-                      name: "High risk",
-                      colorClassName: "text-red",
-                      values: healthDistribution.map((d) => d.atRisk),
-                    },
-                    {
-                      name: "Medium risk",
-                      colorClassName: "text-caution",
-                      values: healthDistribution.map((d) => d.watch),
-                    },
-                    {
-                      name: "Healthy",
-                      colorClassName: "text-green",
-                      values: healthDistribution.map((d) => d.healthy),
-                    },
-                  ]}
-                />
-              </div>
-            </section>
-          ) : null}
-
-          <section className="mt-8">
-            <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
-              This month's narrative
+      {!latest ? (
+        // Recova's card is a line and two sentences, not a heading, so it is
+        // a plain Capsomer panel body rather than Empty (whose title would be
+        // a heading Recova does not have).
+        <div className="cap-panel">
+          <div className="cap-panel-body text-center">
+            <p className="m-0 text-body font-medium text-text">Syncing your MRR data</p>
+            <p className="m-0 text-label text-text-tertiary">{firstSnapshotSentence(nowMs)}</p>
+            <p className="m-0 text-label text-text-tertiary">
+              While you wait, walk through your recovery sequences or review any open disputes.
             </p>
-            <div className="mt-3 rounded-[12px] border border-border bg-surface px-6 py-5">
-              {overview.narrative ? (
-                <>
-                  <p className="text-body text-text">{overview.narrative}</p>
-                  {overview.narrativeGeneratedAt ? (
-                    <p className="mt-2 text-micro text-text-subtle">
-                      Generated {overview.narrativeGeneratedAt.toLocaleDateString()}
-                    </p>
-                  ) : null}
-                </>
-              ) : (
-                <p className="text-body text-text-tertiary">
-                  No narrative yet. The nightly Intelligence run generates one once there is
-                  enough data.
-                </p>
-              )}
-            </div>
-          </section>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-5">
+          <StatCards latest={latest} />
+          <MrrTrend series={mrrSeries} currency={latest.currency} />
+          <NrrCard series={mrrSeries} />
+          <MovementCard series={mrrSeries} currency={latest.currency} />
+          <PlanCard perPlan={latest.perPlanBreakdown} currency={latest.currency} />
+          <HealthCard days={healthDistribution} />
+          <MonthlySummary reports={reports} currentMonth={currentMonth} isDemo={isDemo} />
+        </div>
+      )}
 
           {overview.topAtRisk.length > 0 ? (
             <section className="mt-8">
@@ -329,8 +203,213 @@ export default function IntelligenceOverviewPage({ loaderData }: Route.Component
               </div>
             </section>
           ) : null}
-        </>
-      )}
     </div>
+  );
+}
+
+type Series = Extract<Route.ComponentProps["loaderData"], { entitled: true }>["mrrSeries"];
+type Latest = Series[number];
+
+/**
+ * Recova's MRRStatCards: MRR, Day-over-day, Active customers, New MRR (MTD),
+ * two across on a phone and four from md. MRR and Active customers are the
+ * latest snapshot's, formatted as Recova formats them. Day-over-day and New
+ * MRR (MTD) are numbers Foxhound's engine does not compute: intelligence-sync
+ * snapshots once a month (CRON_SCHEDULE_MONTHLY), so there is no daily change
+ * and no month-to-date new MRR, and each card says so rather than showing the
+ * month's figure under a day's label (RULES.md 2.1). A figure that leads
+ * nowhere is plain text in a panel, not a Capsomer stat tile (which is always
+ * a link or a button), the same choice as the churn page's band cards.
+ */
+function StatCards({ latest }: { latest: Latest }) {
+  return (
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <Panel title="MRR" size="sm">
+        <p className="m-0 font-mono text-title font-bold tabular-nums text-brand-text">
+          {formatMoneyShort(latest.totalMrrCents, latest.currency)}
+        </p>
+      </Panel>
+      <Panel title="Day-over-day" size="sm">
+        <p className="m-0 text-label font-medium text-text">Not computed</p>
+        <p className="m-0 text-micro text-text-tertiary">MRR is snapshotted monthly, not daily.</p>
+      </Panel>
+      <Panel title="Active customers" size="sm">
+        <p className="m-0 font-mono text-title font-bold tabular-nums text-text">
+          {latest.activeCustomersCount.toLocaleString("en-US")}
+        </p>
+      </Panel>
+      <Panel title="New MRR (MTD)" size="sm">
+        <p className="m-0 text-label font-medium text-text">Not computed</p>
+        <p className="m-0 text-micro text-text-tertiary">MRR is snapshotted monthly, not month to date.</p>
+      </Panel>
+    </div>
+  );
+}
+
+/** Recova's MRRTrendChart: total MRR over the window. Twelve months, because
+ *  the snapshot is monthly; Recova's "(90 days)" would be three points. */
+function MrrTrend({ series, currency }: { series: Series; currency: string }) {
+  const draw = useCallback((w: number) => drawMrrTrend(series, currency, w), [series, currency]);
+  return (
+    <Panel title="MRR trend (12 months)">
+      <IntelligenceFigure draw={draw} />
+    </Panel>
+  );
+}
+
+/** Recova's NRRChart, withheld (as Recova withholds it) until some snapshot
+ *  carries a positive retention figure. Single series, so no legend. */
+function NrrCard({ series }: { series: Series }) {
+  const draw = useCallback((w: number) => drawNrr(series, w), [series]);
+  if (!series.some((p) => (p.nrrPct ?? 0) > 0)) return null;
+  return (
+    <Panel title="Net Revenue Retention" description="Above 100% means expansion exceeds churn, last 12 months">
+      <IntelligenceFigure draw={draw} />
+    </Panel>
+  );
+}
+
+/** Recova's MRRMovementChart: its five series, its stacking and its gate on any
+ *  non-zero movement. "By week" is "by month": Foxhound's buckets are months. */
+function MovementCard({ series, currency }: { series: Series; currency: string }) {
+  const draw = useCallback((w: number) => drawMovement(series, currency, w), [series, currency]);
+  const moved = series.some(
+    (p) =>
+      Math.round(p.newMrrCents / 100) !== 0 ||
+      Math.round(p.expansionMrrCents / 100) !== 0 ||
+      Math.round(p.reactivationMrrCents / 100) !== 0 ||
+      Math.round(p.contractionMrrCents / 100) !== 0 ||
+      Math.round(p.churnMrrCents / 100) !== 0,
+  );
+  if (!moved) return null;
+  return (
+    <Panel title="MRR movement" description="New, expansion, contraction, and churn by month">
+      <IntelligenceFigure draw={draw} />
+    </Panel>
+  );
+}
+
+/**
+ * Recova's PlanBreakdown: the latest snapshot's MRR per plan, largest first,
+ * drawn as Enarratio bars. Recova also printed each plan's customer count;
+ * Foxhound's snapshot keeps MRR per plan and no count (buildPlanBreakdown), so
+ * no count is shown rather than one computed some other way.
+ */
+function PlanCard({ perPlan, currency }: { perPlan: unknown; currency: string }) {
+  const rows = useMemo(() => planBreakdownRows(perPlan), [perPlan]);
+  const draw = useCallback((w: number) => drawPlans(rows, currency, w), [rows, currency]);
+  if (rows.length === 0) return null;
+  return (
+    <Panel title="MRR by plan">
+      <IntelligenceFigure draw={draw} />
+    </Panel>
+  );
+}
+
+/** Recova's HealthDistributionChart: customers per band per sampled day over
+ *  90 days (intelligence-ai is daily, so the window is true here), in
+ *  Foxhound's bands (healthScoreBand, 78/79). */
+function HealthCard({ days }: { days: Extract<Route.ComponentProps["loaderData"], { entitled: true }>["healthDistribution"] }) {
+  const draw = useCallback((w: number) => drawHealth(days, w), [days]);
+  if (days.length === 0) return null;
+  return (
+    <Panel title="Customer health distribution" description="Customer count per health band over 90 days">
+      <IntelligenceFigure draw={draw} />
+    </Panel>
+  );
+}
+
+/**
+ * Recova's MonthlyNarrative: a month pager, a Generate or Regenerate button,
+ * and the month's report, or a line saying there is none. Reports come from
+ * the loader (Recova's local cache of twelve months) and the button posts to
+ * this route's action. Every failure is said in the card, Recova's words where
+ * Recova had them; a missing or unfunded AI key is said as such (launch
+ * blocker 2).
+ *
+ * The button shows for the current month only. Foxhound's narrative is written
+ * from today's facts, so a past month's report cannot be generated honestly,
+ * and a control that cannot do its job is left out (RULES.md 2.7). In the demo
+ * the button answers with the demo's read-only sentence instead of posting.
+ */
+function MonthlySummary({
+  reports,
+  currentMonth,
+  isDemo,
+}: {
+  reports: { month: string; narrative: string }[];
+  currentMonth: string;
+  isDemo: boolean;
+}) {
+  const fetcher = useFetcher<typeof action>();
+  const [month, setMonth] = useState(currentMonth);
+  const [submittedMonth, setSubmittedMonth] = useState<string | null>(null);
+  const [demoRefused, setDemoRefused] = useState(false);
+  const cache = useMemo(() => new Map(reports.map((r) => [r.month, r.narrative])), [reports]);
+
+  const loading = fetcher.state !== "idle";
+  const result = !loading && submittedMonth === month ? fetcher.data : undefined;
+  const narrative = (result?.ok ? result.narrative : null) ?? cache.get(month) ?? null;
+  const error = demoRefused
+    ? DEMO_READ_ONLY_MESSAGE
+    : result && !result.ok
+      ? narrativeErrorMessage(result.error)
+      : null;
+  const canGenerate = month === currentMonth;
+
+  function go(delta: number) {
+    setMonth(shiftMonth(month, delta));
+    setSubmittedMonth(null);
+    setDemoRefused(false);
+  }
+
+  function generate() {
+    if (isDemo) {
+      setDemoRefused(true);
+      return;
+    }
+    setSubmittedMonth(month);
+    void fetcher.submit({ intent: "generate", month }, { method: "post" });
+  }
+
+  const label = monthLabel(month);
+  return (
+    <Panel
+      title="Monthly summary"
+      actions={
+        <span className="flex flex-wrap items-center gap-3">
+          <span className="flex items-center gap-1">
+            <Button variant="quiet" size="sm" iconOnly label="Previous month" onClick={() => go(-1)}>
+              <ChevronLeft aria-hidden="true" size={16} />
+            </Button>
+            <span className="min-w-[120px] text-center font-mono text-label text-text">{label}</span>
+            <Button variant="quiet" size="sm" iconOnly label="Next month" onClick={() => go(1)}>
+              <ChevronRight aria-hidden="true" size={16} />
+            </Button>
+          </span>
+          {canGenerate ? (
+            <Button variant="primary" size="sm" pending={loading} onClick={generate}>
+              {loading ? "Generating..." : narrative ? "Regenerate report" : "Generate report"}
+            </Button>
+          ) : null}
+        </span>
+      }
+    >
+      <div aria-live="polite">
+        {loading ? (
+          <p className="m-0 text-label text-text-tertiary">Generating your monthly summary...</p>
+        ) : error ? (
+          <p className="m-0 text-label text-error-text">{error}</p>
+        ) : narrative ? (
+          <p className="m-0 whitespace-pre-wrap text-label leading-relaxed text-text">{narrative}</p>
+        ) : canGenerate ? (
+          <p className="m-0 text-label text-text-tertiary">
+            No report yet for {label}. Click Generate report to create one.
+          </p>
+        ) : (
+          <p className="m-0 text-label text-text-tertiary">No report for {label}.</p>
+        )}
+      </div>
+    </Panel>
   );
 }
