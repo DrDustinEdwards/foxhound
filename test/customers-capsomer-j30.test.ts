@@ -347,3 +347,42 @@ describe("J30 customers: source", () => {
     expect(SOURCE).not.toMatch(/text-\[/);
   });
 });
+
+// Review fixes (second commit set): each was seen failing before its fix.
+describe("J30 review: the name link is Recova's, in the name cell only", () => {
+  it("is a plain link around the name, not a stretched row link over the Signals cell", () => {
+    const html = render({ customers: [row({ stripeCustomerId: "cus_sample_1" })] });
+    expect(html).not.toContain("cap-table-open");
+    const link = html.match(/<a [^>]*href="\/intelligence\/customers\/cus_sample_1"[^>]*>([\s\S]*?)<\/a>/);
+    expect(link?.[1]).toBe("Sample Bakery");
+    // A 24px target (WCAG 2.5.8): min-h-6 is 1.5rem.
+    expect(link?.[0]).toMatch(/class="[^"]*\bmin-h-6\b/);
+  });
+});
+
+describe("J30 review: plan tiers are free text", () => {
+  it("matches a tier whatever its case or surrounding space", () => {
+    expect(planTierPill("Growth")).toEqual({ label: "Growth", tone: "info" });
+    expect(planTierPill("SCALE")).toEqual({ label: "Scale" });
+    expect(planTierPill(" pro ")).toEqual({ label: "Pro" });
+    expect(planTierPill("Starter").label).toBe("Starter");
+  });
+});
+
+describe("J30 review: no Foxhound class on a Capsomer part", () => {
+  it("leaves table cells and the filter panel's body with Capsomer's classes only", () => {
+    const html = render();
+    expect(html).not.toMatch(/<td[^>]* class="/);
+    expect(html).not.toMatch(/class="cap-panel-body [^"]*"/);
+    expect(html).not.toMatch(/class="cap-panel [^"]*"/);
+  });
+});
+
+describe("J30 review: the count line", () => {
+  it("sits just below the page head, not in its actions slot", () => {
+    const html = render({ totalCount: 12, totalMrrCents: 123_450 });
+    expect(html).not.toContain("cap-page-head-actions");
+    expect(html).toMatch(/<\/header>\s*<p[^>]*>12 customers · \$1,234\.50\/mo total MRR<\/p>/);
+  });
+});
+
