@@ -223,7 +223,22 @@ describe("J73 PLANT 1: Recova's Part structure, heading for heading", () => {
 describe("J73 PLANT 2: every claim is Foxhound's engine, not Recova's", () => {
   it("RECOVERY: the date range buttons are the dashboard's own", () => {
     const text = textOf("recovery");
-    for (const r of RECOVERY_RANGES) expect(text).toContain(r === "all" ? "All" : r);
+    // The button prints the raw key (RangeSelector renders {r}), so "all" is
+    // lower case here too (review of 6835e6c).
+    expect(text).toContain(`${RECOVERY_RANGES.slice(0, -1).join(", ")} and ${RECOVERY_RANGES.at(-1)} buttons`);
+    expect(text).not.toContain("and All buttons");
+  });
+
+  it("RECOVERY: the range moves exactly the panels the dashboard feeds from it, and the timing chart stays at 30 days", () => {
+    // app/routes/app/recovery/index.tsx: RecoveryQueuePanel and PaymentsPreview
+    // take w={data}; RecoveryTimingChart and the stat cards take w={data30d}.
+    const text = textOf("recovery");
+    const route = read("app/routes/app/recovery/index.tsx");
+    expect(route).toContain("<RecoveryQueuePanel w={data}");
+    expect(route).toContain("<PaymentsPreview w={data}");
+    expect(route).toContain("<RecoveryTimingChart w={data30d}");
+    expect(text).toContain("the recovery queue and the payments preview");
+    expect(text).toContain("The recovery timing chart stays on the last 30 days");
   });
 
   it("RECOVERY: the network early retry is read from the schedule", () => {
@@ -264,6 +279,17 @@ describe("J73 PLANT 2: every claim is Foxhound's engine, not Recova's", () => {
     expect(text).toMatch(/recovery email/i);
   });
 
+  it("DISPUTES: customer communication is the linked payment's executed steps, not every email to the customer", () => {
+    // resolveDisputedRecovery (app/lib/webhooks/process.ts) reads the steps of
+    // the ONE failed payment on the disputed charge's invoice, and
+    // formatCommunicationLog lists every executed step, retries included.
+    const text = textOf("disputes");
+    expect(read("app/lib/disputes/evidence.ts")).toContain("${c.stepType} sent ");
+    expect(text).not.toMatch(/every recovery email sent to that customer/i);
+    expect(text).not.toContain("the recovery emails that customer was sent");
+    expect(text).toContain("each step that ran, retries included, with when an email was opened and clicked");
+  });
+
   it("DISPUTES: there is no Accept control, so the guide does not describe clicking one", () => {
     expect(textOf("disputes")).not.toMatch(/Click Accept dispute/i);
     expect(textOf("disputes")).toContain("There is no auto-submit toggle. There never has been.");
@@ -278,6 +304,19 @@ describe("J73 PLANT 2: every claim is Foxhound's engine, not Recova's", () => {
     expect(pill(HEALTH_SCORE_AT_RISK_THRESHOLD - 2)).toContain('data-tone="crit"');
     expect(pill(HEALTH_SCORE_AT_RISK_THRESHOLD)).toContain('data-tone="warn"');
     expect(pill(WATCH_CEILING)).toContain('data-tone="ok"');
+  });
+
+  it("INTELLIGENCE: the factors behind a score are on the customer's own page, not the customers list", () => {
+    const text = textOf("intelligence");
+    expect(read("app/routes/app/intelligence/customer.tsx")).toContain(">Factors</p>");
+    expect(text).not.toContain("shows the signals that moved each score");
+    expect(text).toContain("Each customer's own page lists the factors that moved their score");
+  });
+
+  it("INTELLIGENCE: the band edge example is an edge", () => {
+    const text = textOf("intelligence");
+    expect(text).not.toContain("a 38 included");
+    expect(text).toContain(`${HEALTH_SCORE_AT_RISK_THRESHOLD - 1} reads as at risk and ${HEALTH_SCORE_AT_RISK_THRESHOLD} as watch`);
   });
 
   it("INTELLIGENCE: no claim that the analytics are free, because every Intelligence page is entitlement-gated", () => {
