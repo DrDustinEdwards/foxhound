@@ -92,6 +92,10 @@ export interface RecoveryDashboardWindow {
   totalEmailsSent: number;
   openRatePct: number;
   clickRatePct: number;
+  /** The same engagement, counted over email steps executed inside this
+   *  call's range: the "Emails sent" stat card reads it from the 30-day
+   *  window, as every stat card does (J74 review). */
+  emailsSentInRange: { sent: number; openRatePct: number; clickRatePct: number };
 
   // Win-back reactivation, scoped to this call's range.
   reactivatedCount: number;
@@ -224,6 +228,14 @@ export async function getRecoveryDashboardWindow(
   const totalClicked = emailSteps.filter((s) => s.clickedAt).length;
   const openRatePct = totalEmailsSent > 0 ? Math.round((totalOpened / totalEmailsSent) * 100) : 0;
   const clickRatePct = totalEmailsSent > 0 ? Math.round((totalClicked / totalEmailsSent) * 100) : 0;
+  const stepsInRange =
+    cutoffMs === null ? emailSteps : emailSteps.filter((s) => s.executedAt !== null && s.executedAt.getTime() >= cutoffMs);
+  const sentInRange = stepsInRange.length;
+  const emailsSentInRange = {
+    sent: sentInRange,
+    openRatePct: sentInRange > 0 ? Math.round((stepsInRange.filter((s) => s.openedAt).length / sentInRange) * 100) : 0,
+    clickRatePct: sentInRange > 0 ? Math.round((stepsInRange.filter((s) => s.clickedAt).length / sentInRange) * 100) : 0,
+  };
 
   // ---- Current-state facts (range-invariant) ----
   const activePaymentsCount = activePayments.length;
@@ -262,6 +274,7 @@ export async function getRecoveryDashboardWindow(
     totalEmailsSent,
     openRatePct,
     clickRatePct,
+    emailsSentInRange,
     reactivatedCount: reactivated.length,
     reactivatedRevenue: groupSumByCurrency(
       reactivated

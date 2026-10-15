@@ -181,6 +181,29 @@ describe("PLANT 2: every capability sentence, tied to its code", () => {
     expect(dashboard).toContain('label="Avg days to recovery"');
   });
 
+  it("EMAILS SENT is a 30-day card, as the stat-card sentence says", () => {
+    expect(TEXT).toContain("They read the last 30 days whatever range is selected.");
+    expect(TEXT).toContain("Recovery emails sent in the last 30 days, with their open and click rates.");
+    const dashboard = readFileSync(
+      fileURLToPath(new URL("../app/routes/app/recovery/index.tsx", import.meta.url)),
+      "utf8",
+    );
+    expect(dashboard).toContain("value={String(w.emailsSentInRange.sent)}");
+  });
+
+  it("ROI THIS MONTH is every attributed recovery since the 1st, billed only after maturity", () => {
+    expect(TEXT).toContain(
+      "This month counts every such recovery since the 1st, with the fee it will carry once it has held for 30 days; all time counts the ones that have held for 30 days, which are the ones Foxhound bills.",
+    );
+  });
+
+  it("DELIVERABILITY shows bounces and spam reports, and no delivered rate", () => {
+    expect(TEXT).toContain(
+      "The email deliverability panel, under the stat cards, follows the range: the share of the emails Foxhound sent that bounced or were reported as spam.",
+    );
+    expect(TEXT).toContain("It shows no delivered rate, because Foxhound does not record delivery.");
+  });
+
   it("BILLABLE: the sentence that shipped, carried through unchanged", () => {
     expect(TEXT).toContain(
       "A recovery is billable only when a Foxhound action provably preceded payment",

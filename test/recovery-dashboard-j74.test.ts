@@ -4,10 +4,11 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
 
-import { RECOVERY_FEE_BPS } from "~/lib/constants";
+import { RECOVERY_FEE_BPS, RECOVERY_MATURITY_DAYS } from "~/lib/constants";
 import {
   atRiskPctOfMrr,
   dailyRecoveredRows,
+  deliverabilityFigures,
   declineRows,
   declineRowText,
   emailCategoryRows,
@@ -96,6 +97,7 @@ function makeWindow(over: Partial<RecoveryDashboardWindow> = {}): RecoveryDashbo
       { category: "expired", openRatePct: 40, clickRatePct: 8, emailCount: 10 },
     ],
     totalEmailsSent: 30,
+    emailsSentInRange: { sent: 30, openRatePct: 50, clickRatePct: 11 },
     openRatePct: 50,
     clickRatePct: 11,
     reactivatedCount: 0,
@@ -134,6 +136,7 @@ interface LoaderData {
   nowMs: number;
   queueHours: number;
   paymentSteps: Record<string, { completed: number; total: number; next: string | null }>;
+  deliverability: { sent: number; bounced: number; complaints: number };
 }
 
 function makeRoi() {
@@ -158,6 +161,7 @@ function makeLoaderData(over: Partial<LoaderData> = {}): LoaderData {
     nowMs: NOW,
     queueHours: 48,
     paymentSteps: { fp_a: { completed: 1, total: 3, next: "Email (day 3)" } },
+    deliverability: { sent: 0, bounced: 0, complaints: 0 },
     ...over,
   };
 }
@@ -273,8 +277,8 @@ describe("J74: the ROI widget is Recova's layout on Foxhound's billable figures"
     const text = textOf(render());
     expect(text).toContain("This month");
     expect(text).toContain("All time");
-    expect(text).toContain(`Foxhound fee (${RECOVERY_FEE_BPS / 100}%)`);
-    expect(text).toContain("You kept $80.00");
+    expect(text).toContain(`Foxhound fee (${RECOVERY_FEE_BPS / 100}%`);
+    expect(text).toContain("You keep $80.00");
     expect(text).toContain("Total recovered $500.00");
     expect(text).toContain("Net to you $400.00");
   });
@@ -496,5 +500,75 @@ describe("J74: display arithmetic", () => {
     expect(withoutHoverTitles('<svg aria-label="x"><rect><title>x a: 1</title></rect></svg>')).toBe(
       '<svg aria-label="x"><rect></rect></svg>',
     );
+  });
+});
+
+// ---- J74 review (PR #109, CHANGES at be5bbf7) ----
+
+describe("J74 review: ROI This month shows this month's attributed recoveries", () => {
+  it("labels this month's fee as billed after the maturity, from the engine's constants", () => {
+    const text = textOf(render());
+    expect(text).toContain(`Foxhound fee (${RECOVERY_FEE_BPS / 100}%, billed after ${RECOVERY_MATURITY_DAYS} days) $20.00`);
+    expect(text).toContain("You keep $80.00");
+    expect(text).toContain(
+      `This month counts every attributed recovery since the 1st; all time counts those that have held for ${RECOVERY_MATURITY_DAYS} days, which are the ones Foxhound bills.`,
+    );
+  });
+
+  it("reads this month with no maturity filter, and all time from the billable read", () => {
+    expect(SOURCE).toContain("listAttributedRecoveredSince(db, accountId, firstOfMonthUtc)");
+    expect(SOURCE).toContain("listBillableRecoveredForRoi(db, accountId, nowMs, null)");
+    expect(SOURCE).not.toContain("listBillableRecoveredForRoi(db, accountId, nowMs, firstOfMonthUtc)");
+  });
+});
+
+describe("J74 review: the Emails sent card reads the same 30 days as the other cards", () => {
+  it("shows the window's sends and rates, while the side panel stays all time", () => {
+    const w = makeWindow({ emailsSentInRange: { sent: 7, openRatePct: 43, clickRatePct: 14 } });
+    const text = textOf(render(makeLoaderData({ data: w, data30d: w })));
+    expect(text).toMatch(/Emails sent 7 43% open · 14% click/);
+    expect(text).toContain("Emails sent (all time) 30");
+  });
+});
+
+describe("J74 review: Recova's deliverability panel, on what Foxhound records", () => {
+  it("sits after the secondary stats and before the payments table, with a truthful empty state", () => {
+    const html = render(makeLoaderData({ deliverability: { sent: 12, bounced: 0, complaints: 0 } }));
+    const h = headings(html);
+    const at = h.indexOf("Email deliverability · 30d");
+    expect(at, JSON.stringify(h)).toBeGreaterThan(h.indexOf("Emails sent"));
+    expect(at).toBeLessThan(h.indexOf("Failed payments"));
+    const text = textOf(html);
+    expect(text).toContain(
+      "No bounce or spam report recorded yet. They appear here when Email Service reports one for an email Foxhound sent.",
+    );
+    expect(text).not.toContain("Resend");
+    expect(text).not.toMatch(/delivered/i);
+  });
+
+  it("shows bounce and spam rates over the range's sends, and never a delivered rate", () => {
+    const text = textOf(render(makeLoaderData({ deliverability: { sent: 200, bounced: 4, complaints: 2 } })));
+    expect(text).toContain("2% bounced");
+    expect(text).toContain("1% spam");
+    expect(text).toContain("200 sent");
+    expect(text).not.toMatch(/delivered/i);
+  });
+
+  it("figures: none until an event arrives, and no rate without a send", () => {
+    expect(deliverabilityFigures({ sent: 50, bounced: 0, complaints: 0 })).toBeNull();
+    expect(deliverabilityFigures({ sent: 200, bounced: 4, complaints: 2 })).toEqual({
+      sent: 200,
+      bounced: 4,
+      complaints: 2,
+      bounceRatePct: 2,
+      spamRatePct: 1,
+    });
+    expect(deliverabilityFigures({ sent: 0, bounced: 1, complaints: 0 })).toEqual({
+      sent: 0,
+      bounced: 1,
+      complaints: 0,
+      bounceRatePct: null,
+      spamRatePct: null,
+    });
   });
 });

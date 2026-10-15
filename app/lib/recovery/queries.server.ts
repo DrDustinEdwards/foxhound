@@ -1,6 +1,7 @@
 import {
   and,
   asc,
+  count,
   desc,
   eq,
   gte,
@@ -21,6 +22,8 @@ import type { Db } from "~/db";
 import {
   accounts,
   disputes,
+  emailSends,
+  emailSuppressions,
   expiringCardAlerts,
   failedPayments,
   recoveredPayments,
@@ -29,6 +32,7 @@ import {
   winBackSequences,
 } from "~/db";
 import {
+  BILLABLE_ATTRIBUTION_KINDS,
   FAILED_PAYMENT_STATUS_ACTIVE,
   FAILED_PAYMENT_STATUS_CANCELLED,
   FAILED_PAYMENT_STATUS_UNRECOVERED,
@@ -684,10 +688,11 @@ function notCancelledResult(): SQL {
 export async function listExecutedEmailSteps(
   db: Db,
   accountId: string,
-): Promise<{ declineCategory: DeclineCategory; openedAt: Date | null; clickedAt: Date | null }[]> {
+): Promise<{ declineCategory: DeclineCategory; executedAt: Date | null; openedAt: Date | null; clickedAt: Date | null }[]> {
   const rows = await db
     .select({
       declineCategory: failedPayments.declineCategory,
+      executedAt: recoverySteps.executedAt,
       openedAt: recoverySteps.openedAt,
       clickedAt: recoverySteps.clickedAt,
       clickSuspectReason: recoverySteps.clickSuspectReason,
@@ -833,6 +838,81 @@ export async function listBillableRecoveredForRoi(
     .select({ amountCents: recoveredPayments.amountCents, currency: recoveredPayments.currency })
     .from(recoveredPayments)
     .where(and(...conditions));
+}
+
+/** Attributed recoveries since `sinceMs`, for the ROI panel's "This month":
+ *  the attribution kinds Foxhound bills, not refunded, disputed or deleted,
+ *  and NO maturity filter, so a recovery made this month shows this month.
+ *  Display only: billing reads getBillableRecoveries (app/db/billable.ts),
+ *  which this does not touch. */
+export async function listAttributedRecoveredSince(
+  db: Db,
+  accountId: string,
+  sinceMs: number,
+): Promise<{ amountCents: number; currency: string }[]> {
+  return db
+    .select({ amountCents: recoveredPayments.amountCents, currency: recoveredPayments.currency })
+    .from(recoveredPayments)
+    .where(
+      and(
+        eq(recoveredPayments.accountId, accountId),
+        inArray(recoveredPayments.attributionKind, BILLABLE_ATTRIBUTION_KINDS),
+        gte(recoveredPayments.recoveredAt, new Date(sinceMs)),
+        isNull(recoveredPayments.refundedAt),
+        isNull(recoveredPayments.disputedAt),
+        isNull(recoveredPayments.deletedAt),
+      ),
+    );
+}
+
+/** Suppression reasons the Email Service events consumer writes for a bounce
+ *  and for a spam complaint (app/lib/email/events.ts, SUPPRESSING_TYPES). */
+const BOUNCE_REASONS = ["bounce", "hard_bounce"];
+const COMPLAINT_REASONS = ["complaint", "spam"];
+
+export interface DeliverabilityCounts {
+  sent: number;
+  bounced: number;
+  complaints: number;
+}
+
+/** The deliverability panel's figures since `cutoffMs` (all time when null):
+ *  emails this account sent (email_sends, status sent) and the bounce and
+ *  complaint suppressions recorded against it. Suppression is one row per
+ *  address, so a second bounce from an already-suppressed address adds
+ *  nothing; and no delivered event is stored, so there is no delivered count. */
+export async function getDeliverabilityCounts(
+  db: Db,
+  accountId: string,
+  cutoffMs: number | null,
+): Promise<DeliverabilityCounts> {
+  const since = cutoffMs === null ? null : new Date(cutoffMs);
+  const suppressed = (reasons: string[]) =>
+    db
+      .select({ n: count() })
+      .from(emailSuppressions)
+      .where(
+        and(
+          eq(emailSuppressions.accountId, accountId),
+          inArray(emailSuppressions.reason, reasons),
+          since ? gte(emailSuppressions.suppressedAt, since) : undefined,
+        ),
+      );
+  const [[sent], [bounced], [complaints]] = await Promise.all([
+    db
+      .select({ n: count() })
+      .from(emailSends)
+      .where(
+        and(
+          eq(emailSends.accountId, accountId),
+          eq(emailSends.status, "sent"),
+          since ? gte(emailSends.sentAt, since) : undefined,
+        ),
+      ),
+    suppressed(BOUNCE_REASONS),
+    suppressed(COMPLAINT_REASONS),
+  ]);
+  return { sent: sent?.n ?? 0, bounced: bounced?.n ?? 0, complaints: complaints?.n ?? 0 };
 }
 
 /** Most recent recovered_at across the account (renewal noise excluded),

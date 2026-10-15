@@ -36,9 +36,12 @@ export interface RoiColumn {
 }
 
 /**
- * One column of Recova's ROI widget (This month, or All time), from the
- * billable rows Foxhound's billing run would invoice: attributed, matured,
- * renewal noise excluded (app/db/billable.ts). The fee is computed per
+ * One column of Recova's ROI widget. All time takes the rows Foxhound's
+ * billing run would invoice (billableRecoveryRowConditions in
+ * app/db/billable.ts: a billable attribution kind, held for the maturity, not
+ * refunded, disputed or deleted); This month takes the same attributed rows
+ * recovered since the 1st without the maturity, whose fee is billed once they
+ * have held (listAttributedRecoveredSince). The fee is computed per
  * recovery with the billing run's own function and then summed, the way
  * getRecoveryStats sums feeOwed, so the panel and the invoice cannot round
  * differently. Recova's ROIWidget took 20% of every retry, email click and
@@ -321,4 +324,26 @@ export function onboardingChecklistState(
     senderNameSet: !!profile.senderName,
     alertAddressSet: !!profile.notificationEmail,
   };
+}
+
+export interface DeliverabilityFigures {
+  sent: number;
+  bounced: number;
+  complaints: number;
+  /** Share of the range's sent emails, whole percent; null with no send. */
+  bounceRatePct: number | null;
+  spamRatePct: number | null;
+}
+
+/**
+ * Recova's deliverability panel on what Foxhound records: null (the empty
+ * state) until a bounce or a spam complaint has been recorded in the range,
+ * then bounce and spam rates over the range's sent emails, rounded as Recova
+ * rounded them. There is no delivered rate: Foxhound stores no delivered
+ * event (app/lib/email/events.ts ignores it).
+ */
+export function deliverabilityFigures(c: { sent: number; bounced: number; complaints: number }): DeliverabilityFigures | null {
+  if (c.bounced + c.complaints === 0) return null;
+  const pct = (n: number) => (c.sent > 0 ? Math.round((n / c.sent) * 100) : null);
+  return { sent: c.sent, bounced: c.bounced, complaints: c.complaints, bounceRatePct: pct(c.bounced), spamRatePct: pct(c.complaints) };
 }

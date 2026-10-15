@@ -34,13 +34,20 @@ import {
   UPCOMING_STEPS_WINDOW_MS,
   type RecoveryDashboardWindow,
 } from "~/lib/dashboard/recovery-window.server";
-import { formatRelativeTime, RECOVERY_RANGES, type RecoveryRange, type WebhookHealthTone } from "~/lib/dashboard/recovery-window";
+import {
+  formatRelativeTime,
+  RECOVERY_RANGES,
+  resolveRangeCutoff,
+  type RecoveryRange,
+  type WebhookHealthTone,
+} from "~/lib/dashboard/recovery-window";
 import {
   atRiskPctOfMrr,
   dailyRecoveredRows,
   declineLabel,
   declineRows,
   declineRowText,
+  deliverabilityFigures,
   emailCategoryAlt,
   emailCategoryRows,
   formatCurrencyTotals,
@@ -65,6 +72,8 @@ import { formatMoney } from "~/lib/money-format";
 import { priorFailureCount } from "~/lib/recovery/prior-failures";
 import {
   getDashboardOnboardingProfile,
+  getDeliverabilityCounts,
+  listAttributedRecoveredSince,
   listBillableRecoveredForRoi,
   listStepsForFailedPayments,
 } from "~/lib/recovery/queries.server";
@@ -98,14 +107,23 @@ import type { Route } from "./+types/index";
 // panels, and its 12px radius wait for Capsomer's per-site layer (capsomer
 // job_ec5ec0754626), listed in the J74 pull request.
 //
-// Three Recova panels are not here, each for a reason in the source:
-// BenchmarkCard renders only when a benchmark_data row exists, and Foxhound has
-// no such table or writer (the docs say the dashboard shows no outside
-// benchmark); DeliverabilityPanel reads email_events, which Foxhound does not
-// record (the Email Service consumer writes suppressions only), so it waits on
-// a ruling for that table; and the open-disputes card shows only when the
-// Disputes product is inactive, which cannot happen here, because Disputes has
-// no product gate in Foxhound (app/lib/nav/manifest.ts).
+// Two Recova panels are not here, each for a reason in the source:
+// BenchmarkCard renders only from a benchmark_data row with metric_name
+// recovery_rate_bps in the industry or all_merchants cohort; Foxhound's
+// benchmark_data holds only the seeded leakage estimator rows, and nothing
+// writes a recovery-rate row, so the card could never render (the docs say the
+// dashboard shows no outside benchmark); and the open-disputes card shows only
+// when the Disputes product is inactive, which cannot happen here, because
+// Disputes has no product gate in Foxhound (app/lib/nav/manifest.ts).
+//
+// The deliverability panel is Recova's on what Foxhound records: sends from
+// email_sends, bounces and spam complaints from the suppressions the Email
+// Service events consumer writes. Foxhound stores no delivered event, so
+// Recova's delivered rate and the alert built on it are not shown.
+//
+// Recova's page also set accounts.onboarding_completed once all three
+// checklist steps were done, so the checklist stayed gone afterwards; Foxhound
+// recomputes it on every load, so clearing the sender name brings it back.
 
 export function meta() {
   return [{ title: "Recovery - Foxhound" }];
@@ -138,12 +156,16 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   if (data.connection) {
     const now = new Date(nowMs);
     const firstOfMonthUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
+    // This month is every attributed recovery since the 1st, matured or not,
+    // as Recova's column was; all time is what Foxhound bills (matured).
     const [thisMonth, allTime] = await Promise.all([
-      listBillableRecoveredForRoi(db, accountId, nowMs, firstOfMonthUtc),
+      listAttributedRecoveredSince(db, accountId, firstOfMonthUtc),
       listBillableRecoveredForRoi(db, accountId, nowMs, null),
     ]);
     roi = { thisMonth: roiColumn(thisMonth), allTime: roiColumn(allTime) };
   }
+
+  const deliverability = await getDeliverabilityCounts(db, accountId, resolveRangeCutoff(range, nowMs).cutoffMs);
 
   const stepRows = await listStepsForFailedPayments(
     db,
@@ -173,6 +195,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     nowMs,
     queueHours: hoursFromMs(UPCOMING_STEPS_WINDOW_MS),
     paymentSteps,
+    deliverability,
   };
 }
 
@@ -373,8 +396,8 @@ function StatCardsSecondary({ w }: { w: RecoveryDashboardWindow }) {
       <StatCard
         icon={Send}
         label="Emails sent"
-        value={String(w.totalEmailsSent)}
-        sub={`${w.openRatePct}% open · ${w.clickRatePct}% click`}
+        value={String(w.emailsSentInRange.sent)}
+        sub={`${w.emailsSentInRange.openRatePct}% open · ${w.emailsSentInRange.clickRatePct}% click`}
       />
     </div>
   );
@@ -407,7 +430,7 @@ function RoiWidget({ roi }: { roi: { thisMonth: RoiColumn; allTime: RoiColumn } 
       description={
         empty
           ? undefined
-          : `Recoveries where a Foxhound action preceded payment, once they have held for ${RECOVERY_MATURITY_DAYS} days. Stripe's own recoveries are never billed.`
+          : `Recoveries where a Foxhound action preceded payment. This month counts every attributed recovery since the 1st; all time counts those that have held for ${RECOVERY_MATURITY_DAYS} days, which are the ones Foxhound bills. Stripe's own recoveries are never billed.`
       }
     >
       {empty ? (
@@ -420,8 +443,11 @@ function RoiWidget({ roi }: { roi: { thisMonth: RoiColumn; allTime: RoiColumn } 
             <h3 className="m-0 mb-3 text-micro font-medium uppercase tracking-wide text-text-tertiary">This month</h3>
             <dl className="m-0 flex flex-col gap-2">
               <RoiLine label="Recovered" value={formatCurrencyTotals(roi.thisMonth.recovered)} />
-              <RoiLine label={`Foxhound fee (${RECOVERY_FEE_LABEL})`} value={formatCurrencyTotals(roi.thisMonth.fee)} />
-              <RoiLine label="You kept" value={formatCurrencyTotals(roi.thisMonth.kept)} strong />
+              <RoiLine
+                label={`Foxhound fee (${RECOVERY_FEE_LABEL}, billed after ${RECOVERY_MATURITY_DAYS} days)`}
+                value={formatCurrencyTotals(roi.thisMonth.fee)}
+              />
+              <RoiLine label="You keep" value={formatCurrencyTotals(roi.thisMonth.kept)} strong />
             </dl>
           </div>
           <div>
@@ -764,6 +790,56 @@ const PILL_TONE: Record<"success" | "failure" | "neutral", StatusTone | undefine
   neutral: undefined,
 };
 
+function DeliverabilityFigure({ value, label, small }: { value: string; label: string; small?: boolean }) {
+  return (
+    <p className="m-0">
+      <span
+        className={
+          small
+            ? "font-mono text-label tabular-nums text-text-subtle"
+            : "font-mono text-title font-semibold tabular-nums text-text"
+        }
+      >
+        {value}
+      </span>{" "}
+      <span className="text-micro text-text-tertiary">{label}</span>
+    </p>
+  );
+}
+
+/** Recova's DeliverabilityPanel (blob 87a88d88) on what Foxhound records.
+ *  Recova's "delivered" figure and its alert are not shown: Foxhound stores no
+ *  delivered event. Its empty state named Recova's old email provider; this
+ *  one names Email Service. */
+function DeliverabilityPanel({
+  counts,
+  rangeLabel,
+}: {
+  counts: { sent: number; bounced: number; complaints: number };
+  rangeLabel: string;
+}) {
+  const f = deliverabilityFigures(counts);
+  const rate = (pct: number | null) => (pct === null ? "-" : `${pct}%`);
+  return (
+    <div className="mb-5">
+      <Panel title={`Email deliverability · ${rangeLabel}`}>
+        {f === null ? (
+          <p className="m-0 text-label text-text-subtle">
+            No bounce or spam report recorded yet. They appear here when Email Service reports one for an email
+            Foxhound sent.
+          </p>
+        ) : (
+          <div className="flex flex-wrap items-baseline gap-6">
+            <DeliverabilityFigure value={rate(f.bounceRatePct)} label="bounced" />
+            <DeliverabilityFigure value={rate(f.spamRatePct)} label="spam" />
+            <DeliverabilityFigure value={String(f.sent)} label="sent" small />
+          </div>
+        )}
+      </Panel>
+    </div>
+  );
+}
+
 function PaymentsTable({
   w,
   steps,
@@ -906,7 +982,8 @@ function PaymentsTable({
 // ---- Page ----
 
 export default function RecoveryDashboard({ loaderData }: Route.ComponentProps) {
-  const { data, data30d, roi, onboarding, watchingForFailures, range, nowMs, queueHours, paymentSteps } = loaderData;
+  const { data, data30d, roi, onboarding, watchingForFailures, range, nowMs, queueHours, paymentSteps, deliverability } =
+    loaderData;
   const hasBanners = onboarding.needed || watchingForFailures;
 
   // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-8 md:py-10, with
@@ -1001,8 +1078,10 @@ export default function RecoveryDashboard({ loaderData }: Route.ComponentProps) 
         <StatCardsSecondary w={data30d} />
       </div>
 
-      {/* ROW 9: failed payments (ROW 8, deliverability, is not built; see the
-          header comment). */}
+      {/* ROW 8: email deliverability (range-controlled). */}
+      <DeliverabilityPanel counts={deliverability} rangeLabel={data.rangeLabel} />
+
+      {/* ROW 9: failed payments. */}
       <PaymentsTable w={data} steps={paymentSteps} nowMs={nowMs} />
       <div className="mt-3 text-right">
         <Link to="/recovery/payments" aria-label="View all failed payments" className="text-label text-brand-text">
