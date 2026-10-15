@@ -69,7 +69,9 @@ export function meta({ loaderData }: Route.MetaArgs) {
 // J19 (row M14). Recova's layout, read from tag/[tag]/page.tsx: one
 // left-aligned column at 1100px (px-5, sm:px-8, py-16), the "All posts" back
 // link (mb-8), the tag's label as the h1 (mb-2), the "N articles" count line
-// (mb-10), then the card grid (1, 2, 3 columns, gap-6), or Recova's empty line.
+// (mb-10), then the card grid (1, 2, 3 columns, gap-6). Recova's empty line is
+// kept only for a post unpublished between the loader's two reads; the gate
+// above otherwise 404s a tag no published post carries.
 // Recova's text-[1.75rem] h1 is display, its text-[0.8125rem] back link and
 // count line label (RULES.md 5.2). Cards are Capsomer's panel (BlogPostCard),
 // the colour teal (Q11), and the back link a 24px target.

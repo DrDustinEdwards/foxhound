@@ -1064,15 +1064,26 @@ body {
 }
 
 /* Capsomer's controls on a .fh-cap marketing page (the Recovery spoke, J56):
-   a button, a table's scroll region, and a link pill (the blog's tag, J19). Foxhound's global focus rule is
+   a button and a table's scroll region. Foxhound's global focus rule is
    unlayered, so it beats Capsomer's layered rings and squares their corners.
    Reverting the three properties to the layer below hands each its own ring
    back; it adds nothing to the components. A disclosure's summary has no ring
    of its own in Capsomer, so it keeps Foxhound's teal one. */
-.fh-cap :is(.cap-btn, .cap-table-wrap, .cap-pill):focus-visible {
+.fh-cap :is(.cap-btn, .cap-table-wrap):focus-visible {
   outline: revert-layer;
   outline-offset: revert-layer;
   border-radius: revert-layer;
+}
+
+/* A link pill on a .fh-cap page (the blog's tag, J19) gets its own ring back
+   the same way. Not under forced colours, where the global 3px Highlight ring
+   must stay (as on /features). */
+@media not (forced-colors: active) {
+  .fh-cap .cap-pill:focus-visible {
+    outline: revert-layer;
+    outline-offset: revert-layer;
+    border-radius: revert-layer;
+  }
 }
 
 /* The business tile in the switcher's panel and the phone's sheet: a square
