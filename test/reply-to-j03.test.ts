@@ -64,7 +64,7 @@ const { runWinbackSends } = await import("~/lib/cron/winback");
 const { sendExpiringCardAlerts } = await import("~/lib/cron/expiring-cards");
 const { resendDepsFor } = await import("~/lib/recovery/manual-actions.server");
 const { sendTestEmail } = await import("~/lib/settings/test-email.server");
-const { sendAuthEmail } = await import("~/lib/auth/send-auth-email");
+const { sendAuthEmail, sendPasswordResetEmail } = await import("~/lib/auth/send-auth-email");
 const { sendRecoveryNotification } = await import("~/lib/recovery/merchant-notification.server");
 const { applySenderName } = await import("~/lib/settings/apply.server");
 const { REPLY_TO_EMAIL_MAX_LENGTH, isValidReplyToEmail } = await import("~/lib/settings/reply-to");
@@ -288,7 +288,8 @@ describe("no Reply-To on sign-in mail or merchant notices", () => {
 
   it("password reset", async () => {
     seed(REPLY);
-    await sendAuthEmail(env, "password-reset", "owner@acme.test", `${BASE}/reset?token=EXAMPLE`);
+    // The reset has its own sender since J82 (sendAuthEmail is verification only).
+    await sendPasswordResetEmail(env, { to: "owner@acme.test", url: `${BASE}/reset?token=EXAMPLE`, token: "EXAMPLE" });
     expect(only().replyTo).toBeUndefined();
   });
 
