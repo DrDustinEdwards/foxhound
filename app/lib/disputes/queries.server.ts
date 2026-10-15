@@ -2,6 +2,7 @@ import { and, eq, inArray } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import { customerContext, disputeApprovals, disputeEvidence, disputes, stripeConnections } from "~/db";
+import { sortDisputesNewestFirst } from "~/lib/disputes/order";
 import { approveAndSubmit, hashEvidence, type ApproveAndSubmitResult } from "~/lib/disputes/approval";
 import {
   buildPendingApprovalBatch,
@@ -39,7 +40,7 @@ export type DisputeApprovalRow = typeof disputeApprovals.$inferSelect;
 /** Every dispute for the account, newest first. */
 export async function listDisputes(db: Db, accountId: string): Promise<DisputeRow[]> {
   const rows = await db.select().from(disputes).where(eq(disputes.accountId, accountId));
-  return [...rows].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  return sortDisputesNewestFirst(rows);
 }
 
 export interface DisputeDetail {
