@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    # ready_for_review is listed so a draft gets its full run the moment it
+    # leaves draft.
+    types: [opened, synchronize, reopened, ready_for_review]
 
 # Actions minutes are shared and capped (Dustin's account, 2026-10-15: 90% of
 # the month's 2,000 used). On a pull request a newer push makes the older run
@@ -17,7 +20,16 @@ concurrency:
 jobs:
   verify:
     name: verify
+    # Dustin, 2026-10-15: "Yes, change Foxhound's CI to skip draft PRs and skip
+    # main's repeat run when the code already passed on the PR." A draft is
+    # still being written and cannot be merged, so it runs nothing; it gets the
+    # full run when it is marked ready, and on every push after that.
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: read
     # Pinned by commit sha and time-limited (capsid residual 6, 2026-09-08).
     # A tag is a moving pointer its owner can repoint at any time, and a job with
     # no timeout-minutes inherits GitHub's 360-minute default.
@@ -25,18 +37,49 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
+      # The second half of the 2026-10-15 ruling above. A merge to main whose
+      # tree is byte for byte the tree its pull request already passed verify
+      # on has nothing new to test: same files, same commands. That is the
+      # normal case, because a pull request is brought up to date with main
+      # before it merges. Then the steps below are skipped and the deploy goes
+      # ahead on that pull request's passing run. Any difference at all (a
+      # behind branch merged, a direct push, a failed lookup) runs everything.
+      - name: Was this exact tree already verified?
+        id: tested
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          TREE=$(git rev-parse "HEAD^{tree}")
+          for HEAD_SHA in $(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/pulls" --jq '.[].head.sha' 2>/dev/null); do
+            HEAD_TREE=$(gh api "repos/${GITHUB_REPOSITORY}/git/commits/${HEAD_SHA}" --jq .tree.sha 2>/dev/null || true)
+            PASSED=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/check-runs?check_name=verify" --jq '[.check_runs[] | select(.conclusion == "success")] | length' 2>/dev/null || echo 0)
+            if [ "$HEAD_TREE" = "$TREE" ] && [ "${PASSED:-0}" -gt 0 ]; then
+              echo "tree ${TREE} already passed verify on pull request head ${HEAD_SHA}; not repeating it"
+              echo "same=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+          echo "no passing pull request run on this exact tree; running every step"
+          echo "same=false" >> "$GITHUB_OUTPUT"
+
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        if: steps.tested.outputs.same != 'true'
         with:
           node-version-file: .nvmrc
           cache: npm
 
       - name: Install dependencies
+        if: steps.tested.outputs.same != 'true'
         run: npm ci
 
       - name: Check design tokens
+        if: steps.tested.outputs.same != 'true'
         run: npm run check-tokens
 
       - name: Typecheck
+        if: steps.tested.outputs.same != 'true'
         run: npm run typecheck
 
       # Lint is one of the four gates check-gates reports as wired, and until
@@ -46,9 +89,11 @@ jobs:
       # not run is not a gate (153, 318). test/ci-gate-parity.test.ts now fails
       # if this step and the check:all chain ever disagree again.
       - name: Lint
+        if: steps.tested.outputs.same != 'true'
         run: npm run lint
 
       - name: Build
+        if: steps.tested.outputs.same != 'true'
         run: npm run build
 
       # Warn only, never a gate (job_30ab4e0e8702, no-bloat plan): Knip (unused
@@ -58,10 +103,12 @@ jobs:
       # reports and never blocks. Measured at about 10 seconds locally. It is
       # declared as a non-gate step in test/ci-gate-parity.test.ts.
       - name: Bloat report (warn only)
+        if: steps.tested.outputs.same != 'true'
         continue-on-error: true
         run: npm run report:bloat
 
       - name: Test
+        if: steps.tested.outputs.same != 'true'
         run: npm test
 
   deploy:
