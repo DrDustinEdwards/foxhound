@@ -25,9 +25,9 @@ import IntelligenceCustomersPage from "~/routes/app/intelligence/customers";
 // field are demo seed rows, whose vocabulary does not even match legacy's map,
 // so a chip would be blank for every real customer and wrong for the demo ones.
 //
-// TYPE IS UNTOUCHED. Legacy is 24px/600 and Foxhound is 20px/500; the walk
-// recorded that pair as FROZEN under 179/187, which freezes in both directions.
-// Only the words change.
+// TYPE: since J30 the H1 is Capsomer's PageHead (Q10), so its size is
+// Capsomer's; the 179/187 freeze on Foxhound's own 20px/500 H1 no longer has
+// a Foxhound H1 to hold.
 
 const SOURCE = readFileSync(
   new URL("../app/routes/app/intelligence/customers.tsx", import.meta.url),
@@ -80,11 +80,13 @@ describe("S17 customers heading", () => {
     expect(html).toContain("Customers");
   });
 
-  it("keeps Foxhound's frozen heading type", () => {
-    // 179/187 freeze the type scale in both directions, so the port changes the
-    // words and not the size. A later reader "restoring" legacy's 24px/600 here
-    // would be unfreezing by accident.
-    expect(SOURCE).toContain('<h1 className="text-title font-medium text-text">{heading}</h1>');
+  it("is Capsomer's page head, whose type is Capsomer's", () => {
+    // Before J30 this pinned Foxhound's frozen 20px/500 H1 (179/187). Q10
+    // (Dustin "yes", 2026-10-14) puts the page on Capsomer's parts, so the H1
+    // is PageHead's title and its size comes from Capsomer's tokens, as on
+    // /intelligence/churn (J29). Only the words are Recova's.
+    expect(SOURCE).toContain('from "capsomer/react/page-head"');
+    expect(render("Acme")).toContain('<h1 class="cap-page-head-title">Acme customers</h1>');
   });
 });
 
