@@ -170,13 +170,42 @@ describe("PLANT 2: every capability sentence, tied to its code", () => {
   });
 
   it("NINE STAT CARDS, not legacy's six", () => {
-    expect(TEXT).toContain("Nine cards sit across the top of the recovery dashboard.");
+    expect(TEXT).toContain("Nine stat cards sit on the recovery dashboard: three across the top and six further down");
     const dashboard = readFileSync(
       fileURLToPath(new URL("../app/routes/app/recovery/index.tsx", import.meta.url)),
       "utf8",
     );
     expect(dashboard).toContain('label="Win-backs active"');
-    expect(dashboard).toContain('label="Best decline category"');
+    // Recova's own label (StatCards.tsx, blob b1923468), restored by J74.
+    expect(dashboard).toContain('label="Best category"');
+    expect(dashboard).toContain('label="Avg days to recovery"');
+  });
+
+  it("EMAILS SENT is a 30-day card, as the stat-card sentence says", () => {
+    expect(TEXT).toContain("They read the last 30 days whatever range is selected.");
+    expect(TEXT).toContain("Recovery emails sent in the last 30 days, with their open and click rates.");
+    const dashboard = readFileSync(
+      fileURLToPath(new URL("../app/routes/app/recovery/index.tsx", import.meta.url)),
+      "utf8",
+    );
+    expect(dashboard).toContain("value={String(w.emailsSentInRange.sent)}");
+  });
+
+  it("ROI THIS MONTH is every attributed recovery since the 1st, billed only after maturity", () => {
+    expect(TEXT).toContain(
+      "This month counts every such recovery since the 1st, with the fee it will carry once it has held for 30 days; all time counts the ones that have held for 30 days, which are the ones Foxhound bills.",
+    );
+  });
+
+  it("DELIVERABILITY shows bounces and spam reports, and no delivered rate", () => {
+    expect(TEXT).toContain(
+      "The email deliverability panel, under the stat cards, follows the range: the share of the emails Foxhound sent that bounced or were reported as spam.",
+    );
+    expect(TEXT).toContain("It shows no delivered rate, because Foxhound does not record delivery.");
+    expect(TEXT).toContain(
+      "Foxhound does not yet record bounces and spam reports against the account that sent the email, so for now the panel says there is nothing to show.",
+    );
+    expect(TEXT).not.toContain("Until Email Service reports a bounce or a complaint");
   });
 
   it("BILLABLE: the sentence that shipped, carried through unchanged", () => {
