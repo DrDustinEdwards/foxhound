@@ -598,7 +598,7 @@ describe("J32 review: only the owner can cancel the account", () => {
 
   it("the help docs say only the owner can cancel", () => {
     const docs = readFileSync(new URL("../app/lib/marketing/docs-content.ts", import.meta.url), "utf8");
-    expect(docs).not.toContain("settings, billing and the Stripe connections are open to every member.");
+    expect(docs).not.toContain("Foxhound does not limit what a member can do anywhere else yet");
     expect(docs).toContain("Only the owner can cancel the account.");
   });
 });

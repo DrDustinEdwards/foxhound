@@ -440,6 +440,12 @@ export const MRR_ERROR = "Enter a monthly recurring revenue of zero or more, or 
  * their entry was kept when it had been discarded. That is 374 binding 3's
  * lesson one table over, and registering a tool is the widening it warns about.
  * BLANK IS STILL NULL, because clearing the field is a real thing to want.
+ *
+ * `alongside` is statements the CALLER builds and wants committed in the same
+ * batch, after this write: the account page saves the name with these three
+ * as one form (Recova's AccountProfileForm), so a failed name write must not
+ * leave the context saved. It is not validated or traced here; the caller owns
+ * it. Nothing is committed when the input is refused.
  */
 export async function applyIntelligenceContext(
   db: Db,
@@ -450,6 +456,7 @@ export async function applyIntelligenceContext(
     merchantMrrSelfReported?: unknown;
   },
   trace?: WriteTrace,
+  alongside: unknown[] = [],
 ): Promise<ApplyResult<IntelligenceContextState>> {
   const found = await db
     .select({
@@ -495,7 +502,7 @@ export async function applyIntelligenceContext(
     db,
     accountId,
     fields,
-    buildIntelligenceContextUpdate(db, accountId, state),
+    [buildIntelligenceContextUpdate(db, accountId, state), ...alongside],
     trace,
   );
   return { ok: true, fields, state };

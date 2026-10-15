@@ -34,6 +34,9 @@ import { cancelMerchant } from "~/lib/admin/merchants.server";
 import { getAuth, getSession, listMemberships, setSessionActiveAccount } from "~/lib/auth";
 import { deleteUserAccount } from "~/lib/auth/delete-account.server";
 import { deletionConsequence, ownedAccountNames } from "~/lib/auth/deletion-copy";
+import { MEMBER_ROLE } from "~/lib/auth/roles";
+import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/session";
+import { chooseTheme } from "~/lib/settings/theme-choice";
 import { DEFAULT_THEME, isTheme, THEMES, type Theme } from "~/lib/theme";
 
 import type { Route } from "./+types/account";
@@ -97,6 +100,11 @@ export async function loader({ context }: Route.LoaderArgs) {
     // in: accounts.theme is NOT NULL, so for a signed-in merchant
     // resolveThemePreference always takes it (lib/theme.ts).
     theme: isTheme(account.theme) ? account.theme : DEFAULT_THEME,
+    // Only the owner may cancel the account; the action enforces it, this
+    // only decides whether to draw the control (team.tsx does the same).
+    isOwner: auth.membership.role === MEMBER_ROLE.OWNER,
+    // The demo saves nothing, the theme included (lib/settings/theme-choice.ts).
+    isDemo: auth.isDemo,
   };
 }
 
@@ -142,13 +150,21 @@ export async function action({ request, context }: Route.ActionArgs) {
       }
       const posted = (key: string) => (form.has(key) ? String(form.get(key)) : undefined);
       try {
-        // The context first, because its MRR check refuses before it writes:
-        // a refused save writes nothing, the name included.
-        const result = await applyIntelligenceContext(getDb(env), accountId, {
-          merchantIndustry: posted("merchantIndustry"),
-          primaryCustomerType: posted("primaryCustomerType"),
-          merchantMrrSelfReported: posted("merchantMrrSelfReported"),
-        });
+        // ONE BATCH, all or nothing: the name's update rides in the context's
+        // batch. The context's MRR check refuses before anything is
+        // committed, so a refused save writes nothing, the name included.
+        const db = getDb(env);
+        const result = await applyIntelligenceContext(
+          db,
+          accountId,
+          {
+            merchantIndustry: posted("merchantIndustry"),
+            primaryCustomerType: posted("primaryCustomerType"),
+            merchantMrrSelfReported: posted("merchantMrrSelfReported"),
+          },
+          undefined,
+          [buildAccountProfileUpdate(db, accountId, { name })],
+        );
         if (!result.ok) {
           return data<ActionResult>(
             result.error === MRR_ERROR
@@ -162,7 +178,6 @@ export async function action({ request, context }: Route.ActionArgs) {
             { status: 400 },
           );
         }
-        await buildAccountProfileUpdate(getDb(env), accountId, { name });
       } catch (err) {
         // Recova answers a failed update with its SaveBar line, not an error
         // page. The whole error is logged, stack included; it carries no form
@@ -173,8 +188,19 @@ export async function action({ request, context }: Route.ActionArgs) {
       return data<ActionResult>({ action: intent, ok: true });
     }
     case "cancel-account": {
-      // Unchanged by J32: S37's cancel, reaching no agent tool (cancelling an
-      // account is on the HUMAN-FOREVER denylist).
+      // OWNER ONLY, refused before any read or write. Cancelling disconnects
+      // every Stripe connection and stops all recovery on the account, and
+      // Recova never let a member do that: it had no Cancel, and its delete
+      // cascade cleared only the accounts the caller owned (api/auth/
+      // delete-account/route.ts, blob 2136362a). Same shape as team.tsx's gate.
+      if (auth.membership.role !== MEMBER_ROLE.OWNER) {
+        return data<ActionResult>(
+          { action: intent, ok: false, error: "Only the account owner can cancel the account." },
+          { status: 403 },
+        );
+      }
+      // Otherwise S37's cancel, reaching no agent tool (cancelling an account
+      // is on the HUMAN-FOREVER denylist).
       const db = getDb(env);
       const outcome = await cancelMerchant(env, accountId);
       // Move this session to another account the caller holds, if any. With none
@@ -441,31 +467,28 @@ const THEME_LABEL: Record<Theme, string> = { dark: "Dark", light: "Light" };
  * The header's listener (useThemeMemory) then saves the same value once more;
  * the write is idempotent, and leaving it in place keeps the header unchanged.
  */
-function Appearance({ initial }: { initial: Theme }) {
+function Appearance({ initial, isDemo }: { initial: Theme; isDemo: boolean }) {
   const [theme, setTheme] = useState<Theme>(initial);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [refused, setRefused] = useState(false);
 
   async function select(next: Theme) {
     if (next === theme || pending) return;
     setError(null);
+    if (isDemo) {
+      // The demo's read-only refusal, as DemoGuardedForm gives every other
+      // write: nothing changes and nothing is sent.
+      setRefused(true);
+      return;
+    }
     const prev = theme;
     setTheme(next);
     document.documentElement.setAttribute("data-theme", next);
     setPending(true);
-    let saved = false;
-    try {
-      const res = await fetch("/api/theme", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ theme: next }),
-      });
-      saved = res.ok;
-    } catch {
-      saved = false;
-    }
+    const outcome = await chooseTheme(next, { isDemo });
     setPending(false);
-    if (!saved) {
+    if (outcome !== "saved") {
       setTheme(prev);
       document.documentElement.setAttribute("data-theme", prev);
       setError(THEME_FAILED);
@@ -495,6 +518,11 @@ function Appearance({ initial }: { initial: Theme }) {
           <p role="alert" className="mt-2 text-label">
             <Status tone="crit">{error}</Status>
           </p>
+        ) : null}
+        {refused ? (
+          <div className="mt-3">
+            <Alert tone="neutral">{DEMO_READ_ONLY_MESSAGE}</Alert>
+          </div>
         ) : null}
       </div>
     </section>
@@ -532,10 +560,12 @@ type Confirming = "cancel-account" | "delete-account" | null;
  */
 function DangerZone({
   cancelledAt,
+  isOwner,
   ownedAccountNames,
   result,
 }: {
   cancelledAt: Date | null;
+  isOwner: boolean;
   ownedAccountNames: Array<string | null>;
   result?: ActionResult;
 }) {
@@ -567,6 +597,7 @@ function DangerZone({
   );
   const deleteFailed = result?.action === "delete-account" && !result.ok ? result.error : undefined;
   const cancelWarning = result?.action === "cancel-account" ? result.warning : undefined;
+  const cancelRefused = result?.action === "cancel-account" && !result.ok ? result.error : undefined;
 
   return (
     <div className="mt-5 border-t border-border pt-5">
@@ -581,6 +612,7 @@ function DangerZone({
         ) : null}
         {cancelWarning ? <Alert tone="warn">{cancelWarning}</Alert> : null}
         {deleteFailed ? <Alert tone="crit">{deleteFailed}</Alert> : null}
+        {cancelRefused ? <Alert tone="crit">{cancelRefused}</Alert> : null}
 
         {confirming === "cancel-account" ? (
           <DemoGuardedForm method="post" className="flex flex-col gap-3">
@@ -610,7 +642,9 @@ function DangerZone({
           </DemoGuardedForm>
         ) : (
           <div className="flex flex-wrap items-center justify-end gap-2.5">
-            {cancelledAt ? null : (
+            {/* The owner's control only: a member cannot cancel (the action
+                refuses with a 403), so a member is not offered it. */}
+            {cancelledAt || !isOwner ? null : (
               <Button id={openerId("cancel-account")} variant="danger" onClick={() => open("cancel-account")}>
                 Cancel account
               </Button>
@@ -626,7 +660,7 @@ function DangerZone({
 }
 
 export default function AccountSettings({ loaderData, actionData }: Route.ComponentProps) {
-  const { account, cancelledAt, userEmail, ownedAccountNames, theme } = loaderData;
+  const { account, cancelledAt, userEmail, ownedAccountNames, theme, isOwner, isDemo } = loaderData;
   const result = actionData as ActionResult | undefined;
 
   return (
@@ -643,14 +677,19 @@ export default function AccountSettings({ loaderData, actionData }: Route.Compon
         <ProfileForm account={account} result={result?.action === "profile" ? result : undefined} />
       </div>
 
-      <Appearance initial={theme ?? DEFAULT_THEME} />
+      <Appearance initial={theme ?? DEFAULT_THEME} isDemo={Boolean(isDemo)} />
 
       {/* Recova's mt-6 over the account card, after the appearance card's mb-4. */}
       <div className="mt-10">
         <section className="cap-panel">
           <div className="cap-panel-body">
             <SignedIn userEmail={userEmail} />
-            <DangerZone cancelledAt={cancelledAt} ownedAccountNames={ownedAccountNames} result={result} />
+            <DangerZone
+              cancelledAt={cancelledAt}
+              isOwner={Boolean(isOwner)}
+              ownedAccountNames={ownedAccountNames}
+              result={result}
+            />
           </div>
         </section>
       </div>
