@@ -386,7 +386,7 @@ export const DOC_GUIDES: DocGuide[] = [
         heading: "Understanding your dashboard",
         body: [
           { kind: "h3", text: "Stat cards" },
-          "Nine cards sit across the top of the recovery dashboard. They read the last 30 days whatever range is selected.",
+          "Nine stat cards sit on the recovery dashboard: three across the top and six further down, under the recovery queue. They read the last 30 days whatever range is selected.",
           { kind: "table", label: "Dashboard stat cards", columns: ["Card", "What it shows"], rows: [
             ["Recovered (30d)", "What came back in the last 30 days."],
             ["Currently at risk", "The total across every payment still in an active sequence, with its share of your MRR when Foxhound has an MRR figure."],
@@ -394,8 +394,8 @@ export const DOC_GUIDES: DocGuide[] = [
             ["Active sequences", "How many payments are being worked right now."],
             ["Win-backs active", "How many cancelled customers are in a win-back sequence."],
             ["Cards expiring", "Cards inside the alert window."],
-            ["Avg. days to recover", "How long a recovery takes, on average."],
-            ["Best decline category", "Which category is recovering best for you."],
+            ["Avg days to recovery", "How long a recovery takes, on average."],
+            ["Best category", "Which decline category is recovering best for you."],
             ["Emails sent", "Recovery emails sent, with their open and click rates."],
           ] },
           { kind: "h3", text: "Date range filter" },

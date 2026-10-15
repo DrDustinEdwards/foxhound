@@ -741,6 +741,42 @@ export interface ConnectionSummary {
   mrrEstimateCents: number | null;
 }
 
+export interface DashboardOnboardingProfile {
+  notificationEmail: string | null;
+  onboardingCompleted: boolean;
+  /** The sender name on the primary, still-connected Stripe connection. */
+  senderName: string | null;
+}
+
+/** What Recova's dashboard reads for its getting-started checklist
+ *  (app/(app)/recovery/dashboard/page.tsx: accounts.notification_email and
+ *  onboarding_completed, and the primary connection's sender_name). */
+export async function getDashboardOnboardingProfile(db: Db, accountId: string): Promise<DashboardOnboardingProfile> {
+  const [[account], [connection]] = await Promise.all([
+    db
+      .select({ notificationEmail: accounts.notificationEmail, onboardingCompleted: accounts.onboardingCompleted })
+      .from(accounts)
+      .where(eq(accounts.id, accountId))
+      .limit(1),
+    db
+      .select({ senderName: stripeConnections.senderName })
+      .from(stripeConnections)
+      .where(
+        and(
+          eq(stripeConnections.accountId, accountId),
+          eq(stripeConnections.isPrimary, true),
+          isNull(stripeConnections.disconnectedAt),
+        ),
+      )
+      .limit(1),
+  ]);
+  return {
+    notificationEmail: account?.notificationEmail ?? null,
+    onboardingCompleted: account?.onboardingCompleted ?? false,
+    senderName: connection?.senderName ?? null,
+  };
+}
+
 export async function getConnectionSummary(db: Db, accountId: string): Promise<ConnectionSummary | null> {
   const [account] = await db
     .select({ name: accounts.name, mrrEstimateCents: accounts.mrrEstimateCents })

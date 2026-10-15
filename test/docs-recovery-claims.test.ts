@@ -170,13 +170,15 @@ describe("PLANT 2: every capability sentence, tied to its code", () => {
   });
 
   it("NINE STAT CARDS, not legacy's six", () => {
-    expect(TEXT).toContain("Nine cards sit across the top of the recovery dashboard.");
+    expect(TEXT).toContain("Nine stat cards sit on the recovery dashboard: three across the top and six further down");
     const dashboard = readFileSync(
       fileURLToPath(new URL("../app/routes/app/recovery/index.tsx", import.meta.url)),
       "utf8",
     );
     expect(dashboard).toContain('label="Win-backs active"');
-    expect(dashboard).toContain('label="Best decline category"');
+    // Recova's own label (StatCards.tsx, blob b1923468), restored by J74.
+    expect(dashboard).toContain('label="Best category"');
+    expect(dashboard).toContain('label="Avg days to recovery"');
   });
 
   it("BILLABLE: the sentence that shipped, carried through unchanged", () => {

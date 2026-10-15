@@ -53,7 +53,7 @@ import {
 // not a branch on which call this is.
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const UPCOMING_STEPS_WINDOW_MS = 48 * 60 * 60 * 1000;
+export const UPCOMING_STEPS_WINDOW_MS = 48 * 60 * 60 * 1000;
 
 export interface RecoveryDashboardWindow {
   rangeLabel: string;
