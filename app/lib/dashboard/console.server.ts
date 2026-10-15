@@ -32,8 +32,8 @@ import {
 // and the needs-attention feed. Legacy's parity source is app/(app)/console/
 // page.tsx plus lib/console-data.tsx (11 exported symbols).
 //
-// This lands on /dashboard, not a new /console route. DESIGN.md killed the
-// console/dashboard split deliberately: one dashboard, and login lands there.
+// This is one page, served at Recova's /console since J09 (rulings 55 and 56;
+// it was /dashboard before). There is one console and login lands there.
 // Consolidating two routes into one was the decision; dropping the content was
 // not, and the content had been dropped.
 //

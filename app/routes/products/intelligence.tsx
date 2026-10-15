@@ -26,7 +26,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
     title: "Intelligence - Foxhound",
     description:
       "Free MRR, movements, churn, and cohort analytics for every Recovery merchant. Predictive risk scoring is the paid $199/mo layer.",
-    path: "/products/intelligence",
+    path: "/product/intelligence",
     siteUrl: loaderData?.siteUrl ?? "",
   });
 }
@@ -187,7 +187,7 @@ export default function IntelligenceProductPage({ loaderData }: Route.ComponentP
           __html: JSON.stringify(
             speakableWebPageJsonLd(url, {
               name: "Intelligence - Foxhound",
-              path: "/products/intelligence",
+              path: "/product/intelligence",
               selectors: [".speakable-hero", ".speakable-description", ".speakable-features"],
             }),
           ),

@@ -133,7 +133,7 @@ describe("a failed run is linked from the Overview and shown on its cron", () =>
     expect(overview.cronHealth.failedRuns.map((r) => [r.id, r.cronName, r.message])).toEqual([
       ["r-fail", "weekly-digest", "Email binding unavailable"],
     ]);
-    expect(cronRunHref("r-fail")).toBe(`/admin/crons#${cronRunAnchor("r-fail")}`);
+    expect(cronRunHref("r-fail")).toBe(`/admin/platform/crons#${cronRunAnchor("r-fail")}`);
     expect(cronAnchor("weekly-digest")).toBe("cron-weekly-digest");
   });
 
@@ -187,7 +187,7 @@ describe("the audit log in plain English", () => {
   it("names real targets, never raw JSON", () => {
     expect(auditTarget(entry("cron.disable", { cronName: "recovery-tick" }), lookups)).toEqual({
       label: "recovery-tick",
-      href: "/admin/crons#cron-recovery-tick",
+      href: "/admin/platform/crons#cron-recovery-tick",
     });
     expect(auditTarget(entry("merchant.cancel", { accountId: "acct_b", deauthorizeErrors: [] }), lookups)).toEqual({
       label: "Northwind Coffee",

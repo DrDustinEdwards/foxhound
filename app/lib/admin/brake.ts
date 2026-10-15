@@ -28,7 +28,7 @@ export const KNOWN_PAUSE_REASONS = [PAUSE_REASON_BRAKE, PAUSE_REASON_MANUAL] as 
  *  phrase. No single-click path exists for any of them.
  *
  *  That claim used to be true of the panel and false of the platform: the same
- *  recovery tick could be re-enabled in ONE click from /admin/crons, which is a
+ *  recovery tick could be re-enabled in ONE click from /admin/platform/crons, which is a
  *  different page with none of this friction (review MEDIUM-4). The cron page's
  *  enable direction now goes through cronEnableConfirmPhrase below, so the
  *  sentence above holds everywhere the tick can be started, not just here. */
@@ -58,7 +58,7 @@ export function isConfirmPhraseValid(intent: BrakeIntent, typed: string): boolea
 }
 
 /**
- * The phrase /admin/crons requires before ENABLING a cron.
+ * The phrase /admin/platform/crons requires before ENABLING a cron.
  *
  * Per-cron rather than one shared word, so a confirmation typed for one job can
  * never start another: enabling billing-monthly is at least as consequential as

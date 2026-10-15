@@ -34,24 +34,24 @@
  *  eight segments collapse to FIVE Foxhound paths, and the collapse is the
  *  interesting part:
  *
- *    legacy recovery/dashboard        -> /recovery            (URL revert pending)
+ *    legacy recovery/dashboard        -> /recovery/dashboard  (reverted by J09)
  *    legacy recovery/payments         -> /recovery/payments
  *    legacy recovery/payments/[id]    -> /recovery/payments/:id
- *    legacy recovery/sequence         -> /recovery/sequences  (URL revert pending)
+ *    legacy recovery/sequence         -> /recovery/sequence   (reverted by J09)
  *    legacy settings                  -> /settings
- *    legacy recovery/demo             -> /recovery            (same path)
+ *    legacy recovery/demo             -> /recovery/dashboard  (same path)
  *    legacy recovery/demo/payments    -> /recovery/payments   (same path)
- *    legacy recovery/demo/sequence    -> /recovery/sequences  (same path)
+ *    legacy recovery/demo/sequence    -> /recovery/sequence   (same path)
  *
  *  THREE of legacy's eight are DEMO duplicates, and Foxhound serves demo at the
  *  SAME paths as the real app rather than under a /demo prefix, so they need no
- *  entry of their own. Two of the remaining five sit at URLs Foxhound has not
- *  reverted yet (S5's /recovery for legacy's /recovery/dashboard, S9's
- *  /recovery/sequences for legacy's /recovery/sequence); if either revert lands,
- *  this set moves with it.
+ *  entry of their own. Two of the remaining five sat at URLs Foxhound had not
+ *  reverted (S5's /recovery for legacy's /recovery/dashboard, S9's
+ *  /recovery/sequences for legacy's /recovery/sequence); J09 reverted both and
+ *  the set moved with them.
  *
  *  WHAT IS DELIBERATELY EXCLUDED, because legacy has NO loading.tsx for it:
- *  /dashboard (the console), /disputes, /intelligence, /billing, /help, and the
+ *  /console, /disputes/dashboard, /intelligence/dashboard, /billing, /help, and the
  *  two NET-NEW recovery routes /recovery/winback and /recovery/expiring-cards.
  *  Legacy is the spec, and a splash where legacy shows none would be an invention.
  *
@@ -80,9 +80,9 @@ const PAYMENT_DETAIL_PATH = /^\/recovery\/payments\/(?!export\.csv$)[^/]+$/;
  *  prefixes: a prefix on /recovery would swallow winback and expiring-cards,
  *  which are NET-NEW and have no legacy loading.tsx to port. */
 const SPLASH_PATHS: ReadonlySet<string> = new Set([
-  "/recovery",
+  "/recovery/dashboard",
   "/recovery/payments",
-  "/recovery/sequences",
+  "/recovery/sequence",
   "/settings",
 ]);
 
@@ -92,7 +92,7 @@ export function isPaymentDetailPath(pathname: string): boolean {
 
 /** Every path legacy splashes, mapped onto Foxhound's routes. */
 export function isSplashPath(pathname: string): boolean {
-  // A trailing slash is the same page; without this a stray "/recovery/" would
+  // A trailing slash is the same page; without this a stray "/settings/" would
   // silently stall instead of splashing.
   const path = pathname.length > 1 && pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
   return SPLASH_PATHS.has(path) || isPaymentDetailPath(path);

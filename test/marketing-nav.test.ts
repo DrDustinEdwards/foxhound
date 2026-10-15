@@ -36,7 +36,7 @@ function collectPaths(entries: RouteConfigEntry[], parentPath: string, out: Set<
 // auth-state-dependent CTAs (Sign in / Free audit / Dashboard render
 // conditionally, but all four hrefs are real regardless of which branch is
 // active for a given visitor).
-const HEADER_STATIC_LINKS = ["/", "/login", "/audit", "/dashboard"];
+const HEADER_STATIC_LINKS = ["/", "/login", "/audit", "/console"];
 
 describe("marketing header + footer links match routes.ts", () => {
   const realPaths = new Set<string>();

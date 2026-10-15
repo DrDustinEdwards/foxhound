@@ -42,7 +42,7 @@ export function clearDemoCookieHeader(): string {
  * /demo/exit, so the two can never drift on this decision.
  */
 export function demoFallbackPath(hasSession: boolean): string {
-  return hasSession ? "/dashboard" : "/demos";
+  return hasSession ? "/console" : "/demos";
 }
 
 /**

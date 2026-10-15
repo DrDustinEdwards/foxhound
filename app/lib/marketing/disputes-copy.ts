@@ -2,7 +2,7 @@ import { DISPUTE_FEE_BPS, DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
 import { DEADLINE_SOON_DAYS, DEADLINE_URGENT_DAYS } from "~/lib/disputes/labels";
 import { formatMoneyShort } from "~/lib/money-format";
 
-// The /products/disputes copy (J57). Recova's spec is
+// The /product/disputes copy (J57). Recova's spec is
 // app/(marketing)/product/disputes/page.tsx (blob c412d54f), read whole, and
 // this is its copy word for word, with three kinds of change only:
 //

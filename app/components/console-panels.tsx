@@ -147,7 +147,7 @@ export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: n
       <Tile
         icon={RefreshCw}
         name="Recovery"
-        href={tiles.stripeConnected ? "/recovery" : "/connect"}
+        href={tiles.stripeConnected ? "/recovery/dashboard" : "/connect"}
         dimmed={!tiles.stripeConnected}
       >
         {tiles.stripeConnected ? (
@@ -168,7 +168,7 @@ export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: n
 
       {/* No inactive state: dispute intake is webhook-driven, so there is nothing
           for a merchant to switch on. */}
-      <Tile icon={Shield} name="Disputes" href="/disputes">
+      <Tile icon={Shield} name="Disputes" href="/disputes/dashboard">
         <TileValue value={String(tiles.openDisputeCount)} caption="open" />
         {tiles.disputesDueSoonCount > 0 ? (
           <span className="text-micro font-medium text-error-text">
@@ -182,7 +182,7 @@ export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: n
       <Tile
         icon={TrendingUp}
         name="Intelligence"
-        href={tiles.intelligenceEntitled ? "/intelligence" : "/billing"}
+        href={tiles.intelligenceEntitled ? "/intelligence/dashboard" : "/billing"}
         dimmed={!tiles.intelligenceEntitled}
       >
         {tiles.intelligenceEntitled ? (

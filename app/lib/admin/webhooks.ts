@@ -10,7 +10,7 @@
 import { plural } from "~/lib/admin/overview";
 
 export const WEBHOOK_PAGE_SIZE = 50;
-export const WEBHOOKS_PATH = "/admin/webhooks";
+export const WEBHOOKS_PATH = "/admin/platform/webhooks";
 
 // Longer than any Stripe event type; a longer query is cut, never refused.
 const TYPE_MAX = 100;

@@ -25,7 +25,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   // visitor hitting /signup otherwise saw the create-account form while the
   // header already showed them authenticated.
   const session = await getSession(env, request);
-  if (session) throw redirect("/dashboard");
+  if (session) throw redirect("/console");
   return { googleEnabled: Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) };
 }
 

@@ -121,7 +121,7 @@
   font-weight: 600;
 }
 
-/* A run linked to from the Overview (/admin/crons#run-...) is marked when it
+/* A run linked to from the Overview (/admin/platform/crons#run-...) is marked when it
    is the target. */
 .fh-admin :target {
   outline: 2px solid var(--ring);

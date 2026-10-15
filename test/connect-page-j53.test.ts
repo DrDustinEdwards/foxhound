@@ -298,7 +298,7 @@ describe("J53: Foxhound's two other states sit in the same frame, words unchange
     expect(html).toMatch(/<h1[^>]*>Stripe connected<\/h1>/);
     expect(tagWith(html, /cap-banner/)).toContain('data-tone="ok"');
     expect(text(html)).toContain("Your Stripe account is connected. Foxhound can now recover failed payments for you.");
-    expect(html).toMatch(/<a[^>]*href="\/dashboard"[^>]*>Go to dashboard<\/a>/);
+    expect(html).toMatch(/<a[^>]*href="\/console"[^>]*>Go to dashboard<\/a>/);
   });
 });
 

@@ -33,33 +33,42 @@ export interface ProductNavLink {
 export interface ProductManifestEntry {
   key: ProductKey;
   label: string;
+  /** Where the product switcher goes: the product's dashboard, at Recova's
+   *  path (lib/products.ts `href`). */
   href: string;
+  /** Every page of the product sits under this prefix, written with its
+   *  trailing slash (Recova's `routePrefix`). Kept apart from href since J09:
+   *  the dashboard is /recovery/dashboard, but /recovery/payments is Recovery
+   *  too. */
+  prefix: string;
   links: ProductNavLink[];
 }
 
 export const PRODUCT_ORDER: ProductKey[] = ["dashboard", "recovery", "disputes", "intelligence"];
 
 export const PRODUCT_MANIFEST: Record<ProductKey, ProductManifestEntry> = {
-  dashboard: { key: "dashboard", label: "Dashboard", href: "/dashboard", links: [] },
+  dashboard: { key: "dashboard", label: "Dashboard", href: "/console", prefix: "/console/", links: [] },
   recovery: {
     key: "recovery",
     label: "Recovery",
-    href: "/recovery",
+    href: "/recovery/dashboard",
+    prefix: "/recovery/",
     links: [
-      { label: "Overview", to: "/recovery", end: true },
+      { label: "Overview", to: "/recovery/dashboard", end: true },
       { label: "Payments", to: "/recovery/payments" },
-      { label: "Sequences", to: "/recovery/sequences" },
+      { label: "Sequences", to: "/recovery/sequence" },
       { label: "Win-back", to: "/recovery/winback" },
       { label: "Expiring cards", to: "/recovery/expiring-cards" },
     ],
   },
-  disputes: { key: "disputes", label: "Disputes", href: "/disputes", links: [] },
+  disputes: { key: "disputes", label: "Disputes", href: "/disputes/dashboard", prefix: "/disputes/", links: [] },
   intelligence: {
     key: "intelligence",
     label: "Intelligence",
-    href: "/intelligence",
+    href: "/intelligence/dashboard",
+    prefix: "/intelligence/",
     links: [
-      { label: "Overview", to: "/intelligence", end: true },
+      { label: "Overview", to: "/intelligence/dashboard", end: true },
       { label: "Customers", to: "/intelligence/customers" },
       { label: "Churn", to: "/intelligence/churn" },
       { label: "Alerts", to: "/intelligence/alerts" },
@@ -162,8 +171,8 @@ export function isProductKey(value: string | null | undefined): value is Product
 /** Which product a URL belongs to, or null for a platform/admin page. */
 export function resolveProductFromPath(pathname: string): ProductKey | null {
   for (const key of PRODUCT_ORDER) {
-    const href = PRODUCT_MANIFEST[key].href;
-    if (pathname === href || pathname.startsWith(`${href}/`)) return key;
+    const { href, prefix } = PRODUCT_MANIFEST[key];
+    if (pathname === href || pathname.startsWith(prefix)) return key;
   }
   return null;
 }

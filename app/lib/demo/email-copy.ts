@@ -2,7 +2,7 @@
 //
 // Why this file exists: the demo seeds executed email steps with open and click
 // rates, but left recovery_steps.ai_subject / ai_body_html null. The
-// /recovery/sequences "Preview latest email" disclosure only renders when a
+// /recovery/sequence "Preview latest email" disclosure only renders when a
 // body exists, so it never appeared anywhere in the demo: a visitor saw
 // engagement percentages for an email product and could not read a single
 // email. Legacy avoided that by baking copy into its step templates and then

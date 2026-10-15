@@ -213,7 +213,7 @@ export default function SettingsHub({ loaderData }: Route.ComponentProps) {
             label="Open disputes"
             value={openDisputes.toLocaleString()}
             sub={openDisputes > 0 ? `${openDisputes} need response` : "None open"}
-            to="/disputes"
+            to="/disputes/dashboard"
           />
         </div>
 

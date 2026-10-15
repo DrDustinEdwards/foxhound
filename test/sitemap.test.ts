@@ -42,7 +42,7 @@ function collectPaths(entries: RouteConfigEntry[], parentPath: string, out: Set<
 const EXCLUDED_PREFIXES = [
   // Authenticated app shell + admin: never public, never crawlable, and
   // already Disallow'd in robots.txt.
-  "/dashboard",
+  "/console",
   // The audit's authenticated surfaces, plus the anonymous OAuth pair and the
   // live results page (phase (f)). A bare "/audit" would also exclude the
   // PUBLIC estimator, which is the one page here that should be indexed.

@@ -37,7 +37,7 @@ function when(at: Date, nowMs: number): AttentionItem["when"] {
  * One row per thing that needs a person, each linked to the page where it is
  * dealt with: a paused merchant to its page (Resume is there), a dispute and a
  * failed fee charge to their merchant's page (the admin has no dispute or
- * invoice page of its own), a failed cron run to that run on /admin/crons.
+ * invoice page of its own), a failed cron run to that run on /admin/platform/crons.
  * Every row is a warning: none is an outage of the platform, and Capsomer
  * folds warnings of one kind into one row while it never folds a critical one.
  */
@@ -106,7 +106,7 @@ export function overviewAttention(overview: AdminOverview, nowMs: number): Atten
 /** How a group of like rows is named and where it links on to. The counts are
  *  the engine's own, not the number of rows read, so a group past the read's
  *  ceiling still says how many there are. A group links on only to a page that
- *  lists its rows: /admin/merchants shows a Paused badge and /admin/crons
+ *  lists its rows: /admin/merchants shows a Paused badge and /admin/platform/crons
  *  every failed run; no admin page lists disputes or fee invoices, so those
  *  groups have no link, and each row still links to its merchant. */
 export function overviewAttentionGroups(overview: AdminOverview): Record<string, AttentionGroupInfo> {
@@ -123,7 +123,7 @@ export function overviewAttentionGroups(overview: AdminOverview): Record<string,
     },
     crons: {
       title: (n) => `${plural(n, "cron run", "cron runs")} failed in the last 24 hours`,
-      view: { href: "/admin/crons", label: "Crons" },
+      view: { href: "/admin/platform/crons", label: "Crons" },
     },
   };
 }

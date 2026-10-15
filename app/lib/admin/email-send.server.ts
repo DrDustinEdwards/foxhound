@@ -377,7 +377,7 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
           currency: SAMPLE_CURRENCY,
           senderName,
           highRiskCustomers: [],
-          dashboardUrl: `${baseUrl}/dashboard`,
+          dashboardUrl: `${baseUrl}/console`,
         }),
       });
     }

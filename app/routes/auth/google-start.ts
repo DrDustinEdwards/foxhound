@@ -18,7 +18,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 
   const res = await getAuth(env).api.signInSocial({
-    body: { provider: "google", callbackURL: "/dashboard" },
+    body: { provider: "google", callbackURL: "/console" },
     headers: request.headers,
     asResponse: true,
   });

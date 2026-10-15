@@ -1,6 +1,6 @@
 // Operator audit trail (SCHEMA.md admin_audit_log: global, permanent retention).
 // Every admin action that changes runtime behavior writes one row here so
-// /admin/audit-log has something real to show. Not a money write (no DO): this
+// /admin/platform/audit-log has something real to show. Not a money write (no DO): this
 // table is operational, mirroring the recovery_steps / cron_run_history
 // precedent (app/lib/cron/run.ts) of plain inserts for non-money operator/system
 // actions.

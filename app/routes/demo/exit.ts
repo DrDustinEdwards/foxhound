@@ -6,7 +6,7 @@ import { clearDemoCookieHeader, demoFallbackPath } from "~/lib/demo/session";
 
 import type { Route } from "./+types/exit";
 
-// Leave the read-only demo: clear the demo cookie and return to /dashboard if
+// Leave the read-only demo: clear the demo cookie and return to /console if
 // the caller also has a real session (TASK-foxhound-demo-access-parity.md's
 // demo-over-session precedence means a signed-in user can be viewing the
 // demo instead of their own account), or to /demos for an anonymous visitor.

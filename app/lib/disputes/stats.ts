@@ -85,7 +85,7 @@ export function computeDisputeStats(rows: DisputeStatsInput[]): DisputeStats {
 }
 
 /** The Win rate card's figure and line, as /disputes shows them (and the
- *  /products/disputes preview of that page): a dash and "No disputes resolved
+ *  /product/disputes preview of that page): a dash and "No disputes resolved
  *  yet" until something resolves, never a 0%. */
 export function winRateCard(stats: Pick<DisputeStats, "wonCount" | "lostCount" | "winRatePct">): {
   value: string;

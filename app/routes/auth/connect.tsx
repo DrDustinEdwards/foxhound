@@ -349,7 +349,7 @@ export default function Connect({ loaderData, actionData }: Route.ComponentProps
           Your Stripe account is connected. Foxhound can now recover failed payments for you.
         </Banner>
         <p className="mt-4 text-center text-label">
-          <CardLink to="/dashboard">Go to dashboard</CardLink>
+          <CardLink to="/console">Go to dashboard</CardLink>
         </p>
       </ConnectFrame>
     );

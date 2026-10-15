@@ -1,18 +1,18 @@
-// Pure display helpers for /admin/crons and the Overview's cron health, shared
+// Pure display helpers for /admin/platform/crons and the Overview's cron health, shared
 // by both pages (not a .server module: the components render them).
 
-/** The element id of one run on /admin/crons. */
+/** The element id of one run on /admin/platform/crons. */
 export function cronRunAnchor(runId: string): string {
   return `run-${runId}`;
 }
 
-/** Where a run is shown: on its cron, on /admin/crons. The Overview links every
+/** Where a run is shown: on its cron, on /admin/platform/crons. The Overview links every
  *  failed run here. */
 export function cronRunHref(runId: string): string {
-  return `/admin/crons#${cronRunAnchor(runId)}`;
+  return `/admin/platform/crons#${cronRunAnchor(runId)}`;
 }
 
-/** The element id of one cron's card on /admin/crons. */
+/** The element id of one cron's card on /admin/platform/crons. */
 export function cronAnchor(cronName: string): string {
   return `cron-${cronName}`;
 }

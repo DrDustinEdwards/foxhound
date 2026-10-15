@@ -14,7 +14,7 @@ export function formatMoney(cents: number, currency: string): string {
 /** Per-currency totals side by side, each in its own currency; none at all
  *  reads as zero. A total across currencies is meaningless (RULES.md 3.20), so
  *  the parts are never added together. The /disputes cards use it, and so does
- *  the /products/disputes preview of them. */
+ *  the /product/disputes preview of them. */
 export function formatAmounts(rows: readonly { currency: string; cents: number }[]): string {
   if (rows.length === 0) return formatMoney(0, "usd");
   return rows.map((r) => formatMoney(r.cents, r.currency)).join(" · ");

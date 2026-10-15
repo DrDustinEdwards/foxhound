@@ -1,7 +1,7 @@
 import type { DeadlineUrgency } from "~/lib/disputes/labels";
 import type { Tone } from "~/lib/recovery/labels";
 
-// The shape of the /products/disputes preview data (J57), shared by the server
+// The shape of the /product/disputes preview data (J57), shared by the server
 // module that builds it (disputes-preview.server.ts) and the components that
 // draw it (app/components/disputes-previews.tsx), so no client module imports
 // from a .server file (RULES.md 4.5). Every value is a plain string, number or

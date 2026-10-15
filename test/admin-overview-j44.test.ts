@@ -397,7 +397,7 @@ describe("the Overview page", () => {
     expect(t).toContain("Northwind Coffee has a dispute with no response after 12 days");
     expect(t).toContain("Northwind Coffee's fee invoice payment failed");
     expect(t).toContain("weekly-digest failed");
-    expect(html).toContain('href="/admin/crons#run-run_1"');
+    expect(html).toContain('href="/admin/platform/crons#run-run_1"');
     expect(t).toContain("4 problems");
   });
 
@@ -416,9 +416,9 @@ describe("the Overview page", () => {
     // to, or to the audit log when it has no page of its own.
     expect(html).toMatch(/<a [^>]*href="\/admin\/merchants\/acct_lumen"[^>]*>Paused a merchant&#x27;s processing<\/a>/);
     expect(t).toContain("Lumen Studio, by admin@example.com");
-    expect(html).toMatch(/<a [^>]*href="\/admin\/audit-log"[^>]*>Engaged the emergency brake<\/a>/);
+    expect(html).toMatch(/<a [^>]*href="\/admin\/platform\/audit-log"[^>]*>Engaged the emergency brake<\/a>/);
     expect(t).toContain("Engaged the emergency brake");
-    expect(html).toContain('href="/admin/audit-log"');
+    expect(html).toContain('href="/admin/platform/audit-log"');
   });
 
   it("says so when no admin action has been recorded", () => {
@@ -449,7 +449,7 @@ describe("Needs attention, as Capsomer's attention list wants it", () => {
       ["paused", "/admin/merchants/acct_lumen"],
       ["disputes", "/admin/merchants/acct_north"],
       ["billing", "/admin/merchants/acct_north"],
-      ["crons", "/admin/crons#run-run_1"],
+      ["crons", "/admin/platform/crons#run-run_1"],
     ]);
     expect(items.every((i) => i.tone === "warn")).toBe(true);
   });
@@ -483,7 +483,7 @@ describe("Needs attention, as Capsomer's attention list wants it", () => {
     const groups = overviewLib.overviewAttentionGroups!(overviewData(busyAttention));
     // /admin/merchants shows a Paused badge; no admin page lists disputes or fee invoices.
     expect(groups.paused.view).toEqual({ href: "/admin/merchants", label: "Merchants" });
-    expect(groups.crons.view).toEqual({ href: "/admin/crons", label: "Crons" });
+    expect(groups.crons.view).toEqual({ href: "/admin/platform/crons", label: "Crons" });
     expect(groups.disputes.view).toBeUndefined();
     expect(groups.billing.view).toBeUndefined();
   });
@@ -516,7 +516,7 @@ describe("every list on the Overview has a pending state", () => {
     expect(overviewPending({ state: "idle" }, "idle")).toBe(false);
     expect(overviewPending({ state: "idle" }, "loading")).toBe(true);
     expect(overviewPending({ state: "loading", location: { pathname: "/admin" } }, "idle")).toBe(true);
-    expect(overviewPending({ state: "loading", location: { pathname: "/admin/crons" } }, "idle")).toBe(false);
+    expect(overviewPending({ state: "loading", location: { pathname: "/admin/platform/crons" } }, "idle")).toBe(false);
   });
 });
 
@@ -540,7 +540,7 @@ describe("the recent admin actions read", () => {
     expect(rows.map((r) => r.id)).toEqual(Array.from({ length: 10 }, (_, i) => `log_${i}`));
     expect(rows[0]).toMatchObject({
       action: "Disabled a cron",
-      target: { label: "weekly-digest", href: "/admin/crons#cron-weekly-digest" },
+      target: { label: "weekly-digest", href: "/admin/platform/crons#cron-weekly-digest" },
     });
   });
 });

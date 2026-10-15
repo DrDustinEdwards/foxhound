@@ -29,19 +29,19 @@ const SPLASH_CODE = strip(SPLASH);
 
 /** Legacy's set, as Foxhound serves it. */
 const LEGACY_SET = [
-  "/recovery",
+  "/recovery/dashboard",
   "/recovery/payments",
   "/recovery/payments/dfp_46",
-  "/recovery/sequences",
+  "/recovery/sequence",
   "/settings",
 ];
 
 /** Routes legacy ships NO loading.tsx for. A splash here would be an invention. */
 const NOT_LEGACY_SET = [
-  "/dashboard",
-  "/disputes",
+  "/console",
+  "/disputes/dashboard",
   "/disputes/d_1",
-  "/intelligence",
+  "/intelligence/dashboard",
   "/intelligence/churn",
   "/billing",
   "/help",
@@ -65,7 +65,7 @@ describe("306: the splash covers legacy's whole set", () => {
   it("THE EXTENSION: the four segments 305 left out now splash", () => {
     // The load-bearing assertion of this ruling. Before 306 only the detail path
     // splashed and each of these returned false.
-    for (const pathname of ["/recovery", "/recovery/payments", "/recovery/sequences", "/settings"]) {
+    for (const pathname of ["/recovery/dashboard", "/recovery/payments", "/recovery/sequence", "/settings"]) {
       expect(isSplashPath(pathname), `${pathname} did not gain the splash`).toBe(true);
     }
   });
@@ -105,9 +105,9 @@ describe("306: the splash covers legacy's whole set", () => {
   });
 
   it("a trailing slash is the same page", () => {
-    // Without normalisation a stray "/recovery/" would silently stall rather
-    // than splash, which is the failure mode that looks like nothing happened.
-    expect(isSplashPath("/recovery/")).toBe(true);
+    // Without normalisation a stray "/recovery/dashboard/" would silently stall
+    // rather than splash, which is the failure mode that looks like nothing happened.
+    expect(isSplashPath("/recovery/dashboard/")).toBe(true);
     expect(isSplashPath("/settings/")).toBe(true);
     // and it must not turn a non-splash path into one
     expect(isSplashPath("/billing/")).toBe(false);
