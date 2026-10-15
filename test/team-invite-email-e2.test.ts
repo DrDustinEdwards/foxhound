@@ -384,3 +384,150 @@ describe("the live-send gate still holds every other send", () => {
     expect(heldByLiveSendGate({ audience: "merchant", template: TEAM_INVITE_TEMPLATE })).toBe(false);
   });
 });
+
+// ---- review of #91 (CHANGES): Recova's refusals before the invite is written ----
+
+interface LimiterCall {
+  name: string;
+  limit: number;
+  periodMs: number;
+}
+
+function limiterEnv(allowed: boolean, calls: LimiterCall[]): Env {
+  return makeEnv({
+    RATE_LIMITER: {
+      idFromName: (name: string) => name,
+      get: (name: string) => ({
+        check: async (limit: number, periodMs: number) => {
+          calls.push({ name, limit, periodMs });
+          return { allowed, retryAfterSec: 60 };
+        },
+      }),
+    },
+  });
+}
+
+function pendingCount(): number {
+  return (sqlite.prepare("SELECT COUNT(*) AS n FROM account_members WHERE status = 'pending'").get() as { n: number }).n;
+}
+
+describe("Recova's rate limit: 5 invites an hour per IP, then 429", () => {
+  it("checks the invite bucket by IP at Recova's RATE_LIMIT_SIGNUP numbers", async () => {
+    const calls: LimiterCall[] = [];
+    env = limiterEnv(true, calls);
+    const form = new FormData();
+    form.append("email", INVITEE);
+    await action({
+      context: ctxFor(),
+      request: new Request(`${BASE}/settings/team`, {
+        method: "POST",
+        body: form,
+        headers: { "cf-connecting-ip": "203.0.113.9" },
+      }),
+      params: {},
+    } as never);
+    expect(calls).toEqual([{ name: "invite:203.0.113.9", limit: 5, periodMs: 60 * 60 * 1000 }]);
+    expect(harness.sent).toHaveLength(1);
+  });
+
+  it("over the limit: 429 with a named error, no invite written, nothing sent", async () => {
+    env = limiterEnv(false, []);
+    const res = await invite();
+    expect(res.status).toBe(429);
+    expect(res.body.error).toBe("Too many requests. Try again later.");
+    expect(pendingCount()).toBe(0);
+    expect(harness.sent).toHaveLength(0);
+  });
+});
+
+describe("Recova's address check: 400 'Invalid email address' before the invite is written", () => {
+  for (const bad of [
+    "not-an-email",
+    "a@b",
+    "a@example.com\nBcc: x@example.com",
+    "a@example.com\r\nb@example.com",
+    "a@example.com,b@example.com",
+    "a@example.com, b@example.com",
+    "a@example.com;b@example.com",
+    "a@example.com b@example.com",
+    "Name <a@example.com>",
+  ]) {
+    it(`refuses ${JSON.stringify(bad)}`, async () => {
+      const res = await invite(bad);
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe("Invalid email address");
+      expect(pendingCount()).toBe(0);
+      expect(harness.sent).toHaveLength(0);
+    });
+  }
+});
+
+describe("Recova's repeat-invite refusal: 409 for a pending or active membership", () => {
+  const DUP = "This email already has a pending or active membership";
+
+  it("a second invite to the same address is refused and sends nothing", async () => {
+    await invite();
+    const res = await invite();
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe(DUP);
+    expect(pendingCount()).toBe(1);
+    expect(harness.sent).toHaveLength(1);
+  });
+
+  it("matches the address in its stored form, whatever its case or spacing", async () => {
+    await invite();
+    const res = await invite("  New.Person@Example.COM ");
+    expect(res.status).toBe(409);
+    expect(harness.sent).toHaveLength(1);
+  });
+
+  it("an active membership with that invited address is refused too", async () => {
+    sqlite
+      .prepare(
+        "INSERT INTO account_members (id, account_id, user_id, role, status, invited_email, created_at) VALUES ('m_act', ?, NULL, 'member', 'active', ?, 1000)",
+      )
+      .run(ACCOUNT, INVITEE);
+    const res = await invite();
+    expect(res.status).toBe(409);
+    expect(harness.sent).toHaveLength(0);
+  });
+
+  it("the same address on ANOTHER account does not block this one", async () => {
+    sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES ('acct_other', 'Other', 1000)").run();
+    sqlite
+      .prepare(
+        "INSERT INTO account_members (id, account_id, user_id, role, status, invited_email, created_at) VALUES ('m_x', 'acct_other', NULL, 'member', 'pending', ?, 1000)",
+      )
+      .run(INVITEE);
+    const res = await invite();
+    expect(res.status).toBe(200);
+    expect(harness.sent).toHaveLength(1);
+  });
+});
+
+describe("the body as written for the frame", () => {
+  it("carries no <strong>: Capsomer has no bold run, so the name is plain text", async () => {
+    const { buildTeamInviteCopy } = await import("~/lib/settings/team-invite-email.server");
+    expect(buildTeamInviteCopy("Acme", `${BASE}/invite/t`).bodyHtml).not.toMatch(/<\/?strong>/);
+  });
+});
+
+describe("the invite link never reaches email_sends.error", () => {
+  it("a provider error quoting the link is stored with the link and token cut out", async () => {
+    env = makeEnv({
+      EMAIL: {
+        send: async (m: SentMessage) => {
+          const href = /href="([^"]*invite[^"]*)"/.exec(m.html)?.[1] ?? "";
+          throw new Error(`rejected message linking ${href}`);
+        },
+      },
+    });
+    const res = await invite();
+    const token = inviteToken();
+    expect(res.body.emailStatus).toBe("failed");
+    const row = sqlite.prepare("SELECT error FROM email_sends").get() as { error: string };
+    expect(row.error).toContain("rejected message linking");
+    expect(row.error).not.toContain(token);
+    expect(row.error).toContain("[redacted]");
+  });
+});
