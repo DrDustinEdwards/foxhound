@@ -1,6 +1,21 @@
-import { data, useNavigation } from "react-router";
+import { useId } from "react";
+import { data, Link, useNavigation } from "react-router";
+import { ArrowLeft } from "lucide-react";
+import { Button } from "capsomer/react/button";
+import { PageHead } from "capsomer/react/page-head";
+import { Status } from "capsomer/react/status";
+import { Switch } from "capsomer/react/switch";
+import "capsomer/button.css";
+import "capsomer/field.css";
+import "capsomer/page-head.css";
+import "capsomer/panel.css";
+import "capsomer/status.css";
+import "capsomer/switch.css";
+// Capsomer's tokens and the teal family, which the components above read. The
+// shell loads the same file through its header; importing it here keeps the
+// page whole under any layout, as /settings/api-keys does.
+import "~/site-header.css";
 
-import { Alert, Submit } from "~/components/auth-ui";
 import { DemoGuardedForm } from "~/components/demo-guarded-form";
 import { accounts, getDb } from "~/db";
 import { eq } from "drizzle-orm";
@@ -8,6 +23,7 @@ import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { applyNotificationSettings } from "~/lib/settings/apply.server";
 import {
+  SLACK_WEBHOOK_ERROR,
   SLACK_WEBHOOK_PLACEHOLDER,
 } from "~/lib/settings/slack-webhook";
 
@@ -18,30 +34,43 @@ import type { Route } from "./+types/notifications";
 // Sessions 47, 48, 49, 52 and 55 each built a subsystem gated on a column with
 // no writer. 350 binding 2 recorded the sharpest case: the weekly digest cron
 // is correct, proven, and mails NOBODY, because `digest_enabled` is NULL-is-OFF
-// and nothing could set it. This page is what ends that, and it is ruling 315's
-// order finally satisfied rather than inverted.
+// and nothing could set it. This page is what ends that.
 //
-// LEGACY IS THE SPEC, read whole:
-//   components/NotificationsSection.tsx  blob 494c6dfa  4,573 bytes
-//   settings/notifications/page.tsx      blob 93126fd2  1,669 bytes
-//   settings/update/route.ts             lines 53 to 63
+// LEGACY IS THE SPEC, read whole at HEAD:
+//   settings/notifications/page.tsx               blob 93126fd2  1,669 bytes
+//   settings/notifications/NotificationsForm.tsx  blob 316c15cf  1,734 bytes
+//   settings/components/NotificationsSection.tsx  blob 494c6dfa  4,573 bytes
+//   settings/SaveBar.tsx                          blob f1d6eb23
+//   components/Toggle.tsx                         blob 0ebdd395
+//   components/SettingsBackLink.tsx               blob 64d4a153
+//   settings/update/route.ts                      blob 878c0637
 //
-// ONE PAGE, FOUR TOGGLES, TWO FIELDS, in legacy's order. The win-back and
-// expiring-card toggles are NOT here: legacy renders them on its features page,
-// which is 336's reversal against the docs' "six toggles" and is S34's work.
+// J39 (job_4b5f4ca4e9ae) rebuilt it from Capsomer 0.9.0's parts under Dustin's
+// Q10 and Q11 answers of 2026-10-14: PageHead, the panel, the field parts,
+// Switch, Status and Button, teal throughout. Recova stays the spec for what
+// is here and in what order: the phone-only back link, the title and its line,
+// one card holding the notification email, the Slack webhook URL, then four
+// toggles (Slack notifications, Weekly digest, Payment recovered notification,
+// Sequence complete notification), and under the card, right-aligned, Saved or
+// the failure sentence beside Save changes. Each field's help sits under its
+// input, as Recova's does, so the field is composed from Capsomer's field
+// classes rather than its <Field>, which puts help above the control.
 //
-// THE NULL MAP IS LEGACY'S OWN, read off its page defaults rather than assumed:
+// The win-back and expiring-card toggles are NOT here: legacy renders them on
+// its features page (S34).
+//
+// THE NULL MAP IS LEGACY'S OWN, read off its page defaults (RULES.md 3.17):
 //   slack_notifications_enabled ?? false            NULL renders OFF
 //   digest_enabled ?? false                         NULL renders OFF
 //   recovery_notifications_enabled ?? true          NULL renders ON
 //   sequence_complete_notifications_enabled ?? true NULL renders ON
-// 337 binding 3 says "only digest_enabled" is NULL-is-OFF; there are TWO, and
-// the SENDER agrees, gating Slack on a truthy `slack_notifications_enabled &&`.
+// The engine agrees: the digest cron selects `digest_enabled = true` and the
+// Slack sender gates on a truthy `slack_notifications_enabled`.
 //
-// ONE DIVERGENCE, ratified by Dustin this session: the Slack webhook URL is
-// validated to `https://hooks.slack.com`. Legacy stores any string verbatim,
-// and Foxhound would then fetch it from the Worker on every dunning email with
-// nothing in the tree constraining egress. See lib/settings/slack-webhook.ts.
+// ONE DIVERGENCE, approved (APPROVED-DIFFERENCES, "Slack webhook addresses must
+// be on hooks.slack.com", 2026-09-19; RULES.md 4.16): the webhook URL is
+// validated to `https://hooks.slack.com`, and its refusal is said beside the
+// field. Legacy stores any string verbatim.
 
 export function meta() {
   return [{ title: "Notification settings - Foxhound" }];
@@ -50,9 +79,11 @@ export function meta() {
 /** Legacy's `?? true` pair. A column nobody has touched means the merchant is
  *  notified, which is what every engine's reader already assumes. */
 const NULL_IS_ON = true;
-/** Legacy's `?? false` pair. Explicit opt-in, and 315's rejected alternative
- *  was defaulting these on. */
+/** Legacy's `?? false` pair. Explicit opt-in. */
 const NULL_IS_OFF = false;
+
+/** Legacy's SaveBar failure sentence, for `?error=update_failed`. */
+const SAVE_FAILED = "Failed to save. Please try again.";
 
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
@@ -72,8 +103,11 @@ export async function loader({ context }: Route.LoaderArgs) {
     .limit(1);
 
   return {
-    // Legacy places the account email in the FIELD, not the placeholder, so a
-    // save with an untouched box keeps writing it. Ported as found.
+    // Legacy's placeholder: the signed-in user's email, seen when the box is
+    // cleared.
+    accountEmail: auth.email,
+    // Legacy places the account email in the FIELD as well, so a save with an
+    // untouched box keeps writing it. Ported as found.
     notificationEmail: row?.notificationEmail ?? auth.email,
     slackWebhookUrl: row?.slackWebhookUrl ?? "",
     slackNotificationsEnabled: row?.slackNotificationsEnabled ?? NULL_IS_OFF,
@@ -86,7 +120,11 @@ export async function loader({ context }: Route.LoaderArgs) {
 
 interface ActionResult {
   ok: boolean;
+  /** A refusal with a field of its own, said beside that field. */
   error?: string;
+  field?: "slackWebhookUrl";
+  /** The write itself failed: legacy's SaveBar sentence. */
+  failed?: boolean;
 }
 
 /** A checkbox posts its name only when checked, so an absent key is OFF. */
@@ -97,27 +135,107 @@ function checked(form: FormData, name: string): boolean {
 export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
-  const db = getDb(env);
   const form = await request.formData();
 
-  // THE WEBHOOK RULE AND THE SIX COLUMNS moved to apply.server.ts in session 79.
-  // Its refusal string is this form's refusal string, which is what lets the MCP
-  // `set_notification_settings` tool show an agent the same sentence a person
-  // sees rather than a second wording of the same rule.
-  const result = await applyNotificationSettings(db, auth.membership.accountId, {
-    notificationEmail: form.get("notificationEmail"),
-    slackWebhookUrl: String(form.get("slackWebhookUrl") ?? ""),
-    slackNotificationsEnabled: checked(form, "slackNotificationsEnabled"),
-    digestEnabled: checked(form, "digestEnabled"),
-    recoveryNotificationsEnabled: checked(form, "recoveryNotificationsEnabled"),
-    sequenceCompleteNotificationsEnabled: checked(form, "sequenceCompleteNotificationsEnabled"),
-  });
+  // THE WEBHOOK RULE AND THE SIX COLUMNS live in apply.server.ts, shared with
+  // the MCP `set_notification_settings` tool, so an agent sees the same
+  // refusal sentence a person does.
+  let result: Awaited<ReturnType<typeof applyNotificationSettings>>;
+  try {
+    result = await applyNotificationSettings(getDb(env), auth.membership.accountId, {
+      notificationEmail: form.get("notificationEmail"),
+      slackWebhookUrl: String(form.get("slackWebhookUrl") ?? ""),
+      slackNotificationsEnabled: checked(form, "slackNotificationsEnabled"),
+      digestEnabled: checked(form, "digestEnabled"),
+      recoveryNotificationsEnabled: checked(form, "recoveryNotificationsEnabled"),
+      sequenceCompleteNotificationsEnabled: checked(form, "sequenceCompleteNotificationsEnabled"),
+    });
+  } catch (err) {
+    // Legacy answers a failed update with its SaveBar sentence, not an error
+    // page. The log names the failure only.
+    console.error(
+      "notification settings write failed:",
+      err instanceof Error ? err.message : "unknown error",
+    );
+    return data<ActionResult>({ ok: false, failed: true }, { status: 500 });
+  }
   if (!result.ok) {
-    return data<ActionResult>({ ok: false, error: result.error }, { status: 400 });
+    return data<ActionResult>(
+      result.error === SLACK_WEBHOOK_ERROR
+        ? { ok: false, error: result.error, field: "slackWebhookUrl" }
+        : { ok: false, error: result.error },
+      { status: 400 },
+    );
   }
   return data<ActionResult>({ ok: true });
 }
 
+/** Legacy's SettingsBackLink (components/SettingsBackLink.tsx, blob 64d4a153):
+ *  on a phone, where the settings menu is hidden, a link back to the hub. The
+ *  same markup as /settings/api-keys until a shared component lands. */
+function SettingsBackLink() {
+  return (
+    <Link
+      to="/settings"
+      className="mb-6 inline-flex min-h-6 items-center gap-1.5 text-label text-text-secondary no-underline hover:text-text md:hidden"
+    >
+      <ArrowLeft className="h-4 w-4" strokeWidth={2} aria-hidden />
+      Settings
+    </Link>
+  );
+}
+
+/** One of Recova's text fields: label, input, then help under it, as
+ *  NotificationsSection draws them, from Capsomer's field parts. */
+function TextField({
+  name,
+  type,
+  label,
+  help,
+  defaultValue,
+  placeholder,
+  error,
+}: {
+  name: string;
+  type: "email" | "text";
+  label: string;
+  help: string;
+  defaultValue: string;
+  placeholder: string;
+  error?: string;
+}) {
+  const base = useId();
+  const id = `${base}-control`;
+  const helpId = `${base}-help`;
+  const errorId = `${base}-error`;
+  return (
+    <div className="cap-field" data-invalid={error ? "true" : undefined}>
+      <label className="cap-field-label" htmlFor={id}>
+        {label}
+      </label>
+      <input
+        id={id}
+        type={type}
+        name={name}
+        className="cap-input"
+        defaultValue={defaultValue}
+        placeholder={placeholder}
+        aria-describedby={error ? `${errorId} ${helpId}` : helpId}
+        aria-invalid={error ? true : undefined}
+      />
+      <p className="cap-field-help" id={helpId}>
+        {help}
+      </p>
+      <p className="cap-field-error" id={errorId} role={error ? "alert" : undefined} hidden={!error}>
+        {error ?? null}
+      </p>
+    </div>
+  );
+}
+
+/** One of Recova's toggle rows: the label and its line on the left, the
+ *  switch on the right, a rule above. The switch is named by the row's label
+ *  and described by its line. */
 function ToggleRow({
   name,
   label,
@@ -129,15 +247,28 @@ function ToggleRow({
   help: string;
   defaultChecked: boolean;
 }) {
+  const base = useId();
+  const labelId = `${base}-label`;
+  const helpId = `${base}-help`;
   return (
-    <div className="flex items-center justify-between gap-4 border-t border-border py-4">
-      <div>
-        <label htmlFor={name} className="text-label text-text">
-          {label}
-        </label>
-        <p className="mt-0.5 text-caption text-text-subtle">{help}</p>
+    <div className="border-t border-border py-4">
+      <div className="cap-field" data-orientation="horizontal">
+        <div className="cap-field-content">
+          <span className="cap-field-title" id={labelId}>
+            {label}
+          </span>
+          <p className="cap-field-description" id={helpId}>
+            {help}
+          </p>
+        </div>
+        <Switch
+          name={name}
+          label={null}
+          defaultChecked={defaultChecked}
+          aria-labelledby={labelId}
+          aria-describedby={helpId}
+        />
       </div>
-      <input id={name} type="checkbox" name={name} defaultChecked={defaultChecked} />
     </div>
   );
 }
@@ -145,85 +276,84 @@ function ToggleRow({
 export default function NotificationSettings({ loaderData, actionData }: Route.ComponentProps) {
   const busy = useNavigation().state !== "idle";
   const result = actionData as ActionResult | undefined;
+  const webhookError = result?.field === "slackWebhookUrl" ? result.error : undefined;
+  const otherError = result && !result.ok && !result.field ? (result.error ?? SAVE_FAILED) : undefined;
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-8">
-      <header>
-        <h1 className="text-h2 text-text">Notifications</h1>
-        <p className="mt-1 text-label text-text-tertiary">
-          Email, Slack, and digest delivery preferences.
-        </p>
-      </header>
+    <>
+      <SettingsBackLink />
+      {/* Legacy's PageHeader leaves 32px under the head (mb-8); the wrapper
+          keeps that space without styling Capsomer's head. */}
+      <div className="mb-8">
+        <PageHead title="Notifications" lead="Email, Slack, and digest delivery preferences." />
+      </div>
 
-      <section className="rounded-lg border border-border bg-surface p-5">
-        {result?.ok ? <Alert tone="success">Saved.</Alert> : null}
-        {result && !result.ok && result.error ? <Alert tone="error">{result.error}</Alert> : null}
+      <DemoGuardedForm method="post">
+        <section className="cap-panel">
+          <div className="cap-panel-body">
+            <div className="mb-5">
+              <TextField
+                name="notificationEmail"
+                type="email"
+                label="Notification email"
+                help="Where all notifications are sent: recovery alerts, sequence updates, and weekly digest. Defaults to your account email if blank."
+                defaultValue={loaderData.notificationEmail}
+                placeholder={loaderData.accountEmail}
+              />
+            </div>
 
-        <DemoGuardedForm method="post">
-          <div className="mb-5">
-            <label htmlFor="notificationEmail" className="text-label text-text-tertiary">
-              Notification email
-            </label>
-            <input
-              id="notificationEmail"
-              type="email"
-              name="notificationEmail"
-              defaultValue={loaderData.notificationEmail}
-              className="mt-2 w-full rounded-md border border-border-i bg-surface px-3 py-2 text-body text-text"
+            <div className="mb-5 border-t border-border pt-4">
+              <TextField
+                name="slackWebhookUrl"
+                type="text"
+                label="Slack webhook URL"
+                help="Get notified in Slack when payments are recovered"
+                defaultValue={loaderData.slackWebhookUrl}
+                placeholder={SLACK_WEBHOOK_PLACEHOLDER}
+                error={webhookError}
+              />
+            </div>
+
+            <ToggleRow
+              name="slackNotificationsEnabled"
+              label="Slack notifications"
+              help="Notify when a payment is recovered or an email is sent"
+              defaultChecked={loaderData.slackNotificationsEnabled}
             />
-            <p className="mt-1.5 text-caption text-text-subtle">
-              Where all notifications are sent: recovery alerts, sequence updates, and weekly
-              digest. Defaults to your account email if blank.
-            </p>
-          </div>
-
-          <div className="mb-5 border-t border-border pt-4">
-            <label htmlFor="slackWebhookUrl" className="text-label text-text-tertiary">
-              Slack webhook URL
-            </label>
-            <input
-              id="slackWebhookUrl"
-              type="text"
-              name="slackWebhookUrl"
-              defaultValue={loaderData.slackWebhookUrl}
-              placeholder={SLACK_WEBHOOK_PLACEHOLDER}
-              className="mt-2 w-full rounded-md border border-border-i bg-surface px-3 py-2 text-body text-text"
+            <ToggleRow
+              name="digestEnabled"
+              label="Weekly digest"
+              help="Monday summary of recovered revenue and active sequences"
+              defaultChecked={loaderData.digestEnabled}
             />
-            <p className="mt-1.5 text-caption text-text-subtle">
-              Get notified in Slack when payments are recovered
-            </p>
+            <ToggleRow
+              name="recoveryNotificationsEnabled"
+              label="Payment recovered notification"
+              help="Email me when a payment is successfully recovered"
+              defaultChecked={loaderData.recoveryNotificationsEnabled}
+            />
+            <ToggleRow
+              name="sequenceCompleteNotificationsEnabled"
+              label="Sequence complete notification"
+              help="Email me when a recovery sequence ends without recovering the payment"
+              defaultChecked={loaderData.sequenceCompleteNotificationsEnabled}
+            />
           </div>
+        </section>
 
-          <ToggleRow
-            name="slackNotificationsEnabled"
-            label="Slack notifications"
-            help="Notify when a payment is recovered or an email is sent"
-            defaultChecked={loaderData.slackNotificationsEnabled}
-          />
-          <ToggleRow
-            name="digestEnabled"
-            label="Weekly digest"
-            help="Monday summary of recovered revenue and active sequences"
-            defaultChecked={loaderData.digestEnabled}
-          />
-          <ToggleRow
-            name="recoveryNotificationsEnabled"
-            label="Payment recovered notification"
-            help="Email me when a payment is successfully recovered"
-            defaultChecked={loaderData.recoveryNotificationsEnabled}
-          />
-          <ToggleRow
-            name="sequenceCompleteNotificationsEnabled"
-            label="Sequence complete notification"
-            help="Email me when a recovery sequence ends without recovering the payment"
-            defaultChecked={loaderData.sequenceCompleteNotificationsEnabled}
-          />
-
-          <div className="mt-5">
-            <Submit disabled={busy}>{busy ? "Saving..." : "Save"}</Submit>
-          </div>
-        </DemoGuardedForm>
-      </section>
-    </div>
+        {/* Legacy's SaveBar: right-aligned under the card, the result beside
+            the button. The live region is on the page from the start, so the
+            result is announced when it arrives. */}
+        <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
+          <span role="status">
+            {result?.ok ? <Status tone="ok">Saved</Status> : null}
+            {otherError ? <Status tone="crit">{otherError}</Status> : null}
+          </span>
+          <Button type="submit" variant="primary" pending={busy}>
+            Save changes
+          </Button>
+        </div>
+      </DemoGuardedForm>
+    </>
   );
 }
