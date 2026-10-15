@@ -43,14 +43,17 @@ export interface StepPerformanceSummary {
  *  threshold, so 1-2 lucky sends can't win the headline. */
 const MIN_SENT_FOR_BEST_STEP = 3;
 
-// Canonical stepType -> scheduled offset, derived from the real schedules
-// (never a second, hand-maintained table): first schedule that defines a
-// step type wins, and every schedule that reuses a step type (e.g. every
-// category's "email_day3") gives it the same offset, so first-wins is safe.
-const STEP_OFFSET_HOURS: Record<string, number> = {};
+// Where a step type sits in the pooled chart's order: its EARLIEST offset in
+// any schedule. Ordering only, never shown as a timing. A step type alone does
+// not name one offset, because categories schedule the same step at different
+// hours (day 1 at 1 hour for expired, 2 for fraud, 24 for soft; network's
+// retry_day2 and day 3 earlier than soft's), so every timing the page SHOWS is
+// read from the section's own schedule (buildCategorySections).
+const STEP_ORDER_HOURS: Record<string, number> = {};
 for (const schedule of Object.values(RECOVERY_SCHEDULES)) {
   for (const step of schedule) {
-    if (!(step.stepType in STEP_OFFSET_HOURS)) STEP_OFFSET_HOURS[step.stepType] = step.offsetHours;
+    const seen = STEP_ORDER_HOURS[step.stepType];
+    if (seen === undefined || step.offsetHours < seen) STEP_ORDER_HOURS[step.stepType] = step.offsetHours;
   }
 }
 
@@ -61,14 +64,6 @@ export function formatStepTiming(hours: number): string {
   if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} after failure`;
   const days = Math.round(hours / 24);
   return `${days} day${days === 1 ? "" : "s"} after failure`;
-}
-
-/** The timing chip text for a scheduled step type, straight from
- *  schedule.ts's real offsets. Null for a stepType no schedule defines
- *  (never invented). */
-export function stepTimingLabel(stepType: string): string | null {
-  const hours = STEP_OFFSET_HOURS[stepType];
-  return hours === undefined ? null : formatStepTiming(hours);
 }
 
 /**
@@ -105,7 +100,7 @@ export function summarizeStepPerformance(steps: StepPerformanceInput[]): StepPer
       clickRatePct: Math.round((b.clicked / b.sent) * 100),
       recoveryRatePct: Math.round((b.recovered / b.sent) * 100),
     }))
-    .sort((a, b) => (STEP_OFFSET_HOURS[a.stepType] ?? Infinity) - (STEP_OFFSET_HOURS[b.stepType] ?? Infinity));
+    .sort((a, b) => (STEP_ORDER_HOURS[a.stepType] ?? Infinity) - (STEP_ORDER_HOURS[b.stepType] ?? Infinity));
 
   let bestStep: BestPerformingStep | null = null;
   for (const point of chart) {
@@ -160,10 +155,12 @@ export interface StepCardRow {
  * stats, a recovered-of-attempted ratio) when the step is a retry, otherwise
  * an email card (sent/opened/clicked, latest subject, sanitized body for the
  * preview expander). `rows` must already be filtered to this exact stepType.
+ * `offsetHours` is this step's offset in THIS category's schedule, or null for
+ * a step no schedule defines (no timing is invented).
  */
-export function buildStepCard(stepType: string, rows: StepCardRow[]): StepCard {
+export function buildStepCard(stepType: string, rows: StepCardRow[], offsetHours: number | null): StepCard {
   const label = formatStepType(stepType);
-  const timingLabel = stepTimingLabel(stepType);
+  const timingLabel = offsetHours === null ? null : formatStepTiming(offsetHours);
 
   if (isRetryStep(stepType)) {
     const attempted = rows.length;
@@ -214,6 +211,7 @@ export function buildCategorySections(
       buildStepCard(
         scheduledStep.stepType,
         categorySteps.filter((s) => s.stepType === scheduledStep.stepType),
+        scheduledStep.offsetHours,
       ),
     );
     return { category, stepCards };

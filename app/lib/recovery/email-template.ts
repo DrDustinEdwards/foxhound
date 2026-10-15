@@ -1,3 +1,5 @@
+import { escapeHtml } from "capsomer/email";
+
 import type { DeclineCategory } from "~/lib/constants";
 import type { EmailCopy } from "./email-generation";
 
@@ -22,9 +24,11 @@ import type { EmailCopy } from "./email-generation";
 // Constraints the copy obeys, all enforced by that test:
 //   - no em or en dashes (the strongest AI tell, and a repo-wide rule)
 //   - none of the AI_TELL_PHRASES the sanitizer strips from generated copy
-//   - NO timing references at all. The generator is merely told not to leak the
-//     schedule; a fixed template has no excuse to reference time, so it does not
-//     mention days, hours, or "recently" in any form.
+//   - NO timing references in the per-category copy. The generator is merely
+//     told not to leak the schedule; a fixed template has no excuse to reference
+//     time, so it does not mention days, hours, or "recently" in any form. The
+//     per-step copy below is Recova's own words instead (J85), which say
+//     "recent" and "a week" exactly as Recova's do and still pass the gate.
 //   - the merchant's voice, never Foxhound's. Foxhound is not named.
 
 export interface TemplateEmailInput {
@@ -34,6 +38,92 @@ export interface TemplateEmailInput {
   amountFormatted: string;
   /** The click-tracked card-update URL, used as the single call to action. */
   updateUrl: string;
+  /** The recovery step being sent. A step with its own Recova template
+   *  (STEP_TEMPLATES below) uses it; any other step, or none, keeps the
+   *  per-category copy. */
+  stepType?: string;
+  /** failed_payments.customer_name, raw. Recova greets `|| 'there'`. */
+  customerName?: string | null;
+  /** The merchant's sender_name, raw. Recova signs `|| 'Support'`. */
+  senderName?: string | null;
+}
+
+// ---- Recova's per-step fallback (J85, rows E4 to E6) -------------------------
+//
+// Recova's FALLBACK_TEMPLATES (lib/recovery-execution.ts lines 79 to 100, blob
+// 3a8f8768), word for word, for the three steps this job owns. Recova is the
+// spec for what these emails say (RULES.md 1.1), so for these steps its words
+// replace the per-category copy above in every decline category, as Recova's
+// one template per step does. Its variables are applied as Recova's
+// applyTemplate fills them in executeEmailStep:
+//   customer_name  fp.customer_name || 'there'
+//   amount         the formatted amount
+//   sender_name    merchant.sender_name || 'Support' (the From name too)
+//   update_url     the button
+// Recova styled the button inline in its own colour; on Capsomer's component a
+// paragraph holding nothing but one link is the button (Q3), so the style goes
+// and the label stays. Names are escaped, so a customer called "<b>" is text.
+//
+// The other two of Recova's five (email_day14, email_day30) belong to rows E7
+// and E8 (job J86) and are added here by that job. Until then those steps keep
+// the per-category copy.
+//
+// Each of these passes the quality gate (RULES.md 3.15): no dash, no AI tell, no
+// schedule leak. "It has been a week since" is Recova's own sentence and names
+// no day number or hour count, which is what the timing detector looks for.
+
+interface StepTemplateVars {
+  customerName: string;
+  amount: string;
+  senderName: string;
+  updateUrl: string;
+}
+
+const button = (url: string): string => `<p><a href="${url}">Update Payment Method</a></p>`;
+
+const STEP_TEMPLATES: Record<string, { subject: string; body: (v: StepTemplateVars) => string }> = {
+  email_day1: {
+    subject: "Your payment didn't go through",
+    body: (v) =>
+      [
+        `<p>Hi ${v.customerName},</p>`,
+        `<p>Your recent payment of ${v.amount} didn't process. This usually happens with an expired card or a temporary bank issue.</p>`,
+        `<p>You can update your payment method here:</p>`,
+        button(v.updateUrl),
+        `<p>${v.senderName}</p>`,
+      ].join("\n"),
+  },
+  email_day3: {
+    subject: "Still having trouble with your payment",
+    body: (v) =>
+      [
+        `<p>Hi ${v.customerName},</p>`,
+        `<p>We still haven't been able to process your payment of ${v.amount}. Your account will be suspended soon if this isn't resolved.</p>`,
+        button(v.updateUrl),
+        `<p>${v.senderName}</p>`,
+      ].join("\n"),
+  },
+  email_day7: {
+    subject: "Account access at risk",
+    body: (v) =>
+      [
+        `<p>Hi ${v.customerName},</p>`,
+        `<p>It has been a week since your payment of ${v.amount} failed. Update your payment method now to keep your access.</p>`,
+        button(v.updateUrl),
+        `<p>${v.senderName}</p>`,
+      ].join("\n"),
+  },
+};
+
+/** Recova's `x || fallback`: an empty or blank value falls through too. */
+function orFallback(value: string | null | undefined, fallback: string): string {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : fallback;
+}
+
+/** True when the step has Recova's own fallback template here. */
+export function hasStepTemplate(stepType: string | null | undefined): boolean {
+  return stepType != null && Object.hasOwn(STEP_TEMPLATES, stepType);
 }
 
 function link(url: string, label: string): string {
@@ -123,6 +213,18 @@ function subjectFor(input: TemplateEmailInput): string {
  * thing it is backing up fails.
  */
 export function buildTemplateEmail(input: TemplateEmailInput): EmailCopy {
+  if (hasStepTemplate(input.stepType)) {
+    const template = STEP_TEMPLATES[input.stepType as string];
+    return {
+      subject: template.subject,
+      bodyHtml: template.body({
+        customerName: escapeHtml(orFallback(input.customerName, "there")),
+        amount: escapeHtml(input.amountFormatted),
+        senderName: escapeHtml(orFallback(input.senderName, "Support")),
+        updateUrl: input.updateUrl,
+      }),
+    };
+  }
   return {
     subject: subjectFor(input),
     bodyHtml: bodyFor(input),

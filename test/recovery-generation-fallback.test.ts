@@ -144,8 +144,11 @@ describe("a generation failure sends the template instead of nothing", () => {
     expect(captured.jobs[0].bodyHtml).toContain("Merchant wrote this.");
   });
 
+  // A step outside rows E4 to E6 (J85), whose own step template is Recova's
+  // words in every category; email_day14 keeps the per-category copy until its
+  // row's job (J86) ports Recova's.
   it("uses the category's template framing, not a generic one", async () => {
-    const { captured } = await run({ context: { declineCategory: "expired" } });
+    const { captured } = await run({ context: { declineCategory: "expired", stepType: "email_day14" } });
     expect(captured.jobs[0].subject).toBe("Your card has expired");
     expect(captured.jobs[0].bodyHtml).toContain("Retrying will not help");
   });
@@ -218,6 +221,7 @@ describe("cached copy is untouched by the fallback", () => {
       send: async () => ({ status: "failed", error: "transient" }) as EmailJobResult,
     });
     expect(captured.patches[0].cache?.subject).toBeTruthy();
-    expect(captured.patches[0].cache?.bodyHtml).toContain("temporary hold");
+    // email_day1's fallback is Recova's day 1 template (J85).
+    expect(captured.patches[0].cache?.bodyHtml).toContain("temporary bank issue");
   });
 });

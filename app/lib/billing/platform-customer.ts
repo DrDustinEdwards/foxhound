@@ -163,3 +163,67 @@ export async function finalizeBillingSetupSession(
   await setDefaultPaymentMethod(owned.customerId, paymentMethodId);
   return { ok: true };
 }
+
+/** The platform customer's default card, as Recova's Payment method section
+ *  shows it (J65, row S3): brand, last four, expiry. */
+export interface CardSummary {
+  brand: string;
+  last4: string;
+  expMonth: number;
+  expYear: number;
+}
+
+/** The slice of a retrieved customer this read uses. Structural, so a test can
+ *  inject a plain object without building a whole Stripe.Customer. */
+interface CustomerWithDefaultCard {
+  deleted?: boolean;
+  invoice_settings?: {
+    default_payment_method?:
+      | string
+      | { card?: { brand: string; last4: string; exp_month: number; exp_year: number } | null }
+      | null;
+  } | null;
+}
+
+export interface DefaultCardDeps {
+  retrieveCustomer: (customerId: string) => Promise<CustomerWithDefaultCard>;
+}
+
+/**
+ * The card on file for /billing, or null. READ ONLY: it retrieves the platform
+ * customer with its default payment method expanded and writes nothing.
+ *
+ * Null covers every case the page renders as "No payment method on file": a
+ * customer the setup action created but whose card was never collected (the
+ * action stores the customer id before redirecting to Stripe), a deleted
+ * customer, a default that is not a card, and a read that fails. A failed read
+ * is logged and shown as no card rather than breaking the billing page, as
+ * Recova's fetchPaymentMethod does.
+ */
+export async function getDefaultCard(
+  env: Env,
+  customerId: string,
+  deps?: Partial<DefaultCardDeps>,
+): Promise<CardSummary | null> {
+  const retrieveCustomer =
+    deps?.retrieveCustomer ??
+    ((id: string) =>
+      getStripe(env).customers.retrieve(id, {
+        expand: ["invoice_settings.default_payment_method"],
+      }) as Promise<CustomerWithDefaultCard>);
+  try {
+    const customer = await retrieveCustomer(customerId);
+    if (customer.deleted) return null;
+    const pm = customer.invoice_settings?.default_payment_method;
+    if (!pm || typeof pm === "string" || !pm.card) return null;
+    return {
+      brand: pm.card.brand,
+      last4: pm.card.last4,
+      expMonth: pm.card.exp_month,
+      expYear: pm.card.exp_year,
+    };
+  } catch (err) {
+    console.error("billing card read failed:", err instanceof Error ? err.message : err);
+    return null;
+  }
+}

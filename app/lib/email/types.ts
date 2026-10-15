@@ -41,6 +41,12 @@ export interface EmailJob {
   /** CAN-SPAM sender postal address (required for merchant-customer sends). */
   physicalAddress: string;
   /**
+   * A sentence for the top of the customer footer, before the unsubscribe link
+   * and the postal address: Recova's "You're receiving this from ..." on
+   * recovery mail (J85). Customer mail only; ignored on merchant mail.
+   */
+  footerNote?: string | null;
+  /**
    * THE SEND CLAIM'S KEY. Stable per logical send, and REQUIRED: an empty one is
    * refused rather than sent unclaimed.
    *

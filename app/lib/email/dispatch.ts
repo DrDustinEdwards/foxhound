@@ -369,8 +369,9 @@ async function recordClaimError(db: Db, idempotencyKey: string, error: string): 
  * so it can never become a bypass.
  *
  * SCOPE, stated rather than assumed: this gates processEmailJob, which is the
- * dunning path. `sendTransactionalEmail` reaches `env.EMAIL` DIRECTLY and is not
- * gated, so verification and password-reset mail is unaffected. 9766ff5 placed
+ * dunning path. `sendTransactionalEmail` and `sendRenderedTransactionalEmail`
+ * reach `env.EMAIL` DIRECTLY and are not gated, so verification and
+ * password-reset mail is unaffected. 9766ff5 placed
  * the flag in this function specifically, and gating auth mail behind a
  * per-account send switch would lock merchants out of their own accounts.
  */

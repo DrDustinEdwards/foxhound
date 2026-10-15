@@ -324,7 +324,7 @@ const CATEGORIES: Category[] = [
       {
         title: "Narrow Stripe scope",
         tag: "platform",
-        body: "Foxhound requests read and write Stripe Connect access, because retrying a failed invoice is a write. It writes in three places: retrying an invoice that already failed, setting a customer default payment method after a card update, and submitting dispute evidence you approved. It never changes your prices, products, or subscription plans, and never reaches your payouts.",
+        body: "Foxhound requests read and write Stripe Connect access, because retrying a failed invoice is a write. It writes for these things and no others: retrying an invoice that already failed, setting a customer default payment method after a card update, opening a Stripe checkout when a former customer chooses to resubscribe, and submitting dispute evidence you approved. It never changes your prices, products, or subscription plans, and never reaches your payouts.",
       },
       {
         title: "AES-256-GCM token encryption",

@@ -89,11 +89,14 @@ describe("PLANT 2: every factual claim is pinned to what makes it true", () => {
     expect(page).toContain("{STRIPE_CONNECT_SCOPE} scope");
   });
 
-  it("the three writes are named, and only three", () => {
+  it("every write is named, and no others", () => {
+    // No count: the list is the claim (job_c6d167f29506; test/stripe-write-claims.test.ts
+    // holds the call-site inventory it is checked against).
     expect(page).toContain("retrying payment on an invoice that has already failed");
     expect(page).toContain("setting a customer default payment method");
+    expect(page).toContain("opening a Stripe checkout when a former customer chooses to resubscribe");
     expect(page).toContain("submitting dispute evidence");
-    expect(page).toContain("exactly three places");
+    expect(page).toContain("for these things and no others");
   });
 
   it("THE RETENTION WINDOWS COME FROM THE CONSTANTS THE SWEEPERS DELETE ON", () => {

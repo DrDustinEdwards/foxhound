@@ -219,11 +219,13 @@ export default function PrivacyPage() {
         <Section id="safe" number={8} title="HOW DO WE KEEP YOUR INFORMATION SAFE?">
           <P>
             The Stripe OAuth connection carries read and write scope, because retrying a failed invoice
-            is a write. Foxhound uses the write half for three things and no others: retrying payment on
+            is a write. Foxhound uses the write half for these things and no others: retrying payment on
             an invoice that has already failed, setting a customer default payment method after that
-            customer updates their card, and submitting dispute evidence once someone on your team has
-            approved it. It never changes prices, products, or subscription plans, never creates a charge
-            outside an invoice you already issued, and never reaches your payouts or bank account.
+            customer updates their card, opening a Stripe checkout when a former customer chooses to
+            resubscribe, and submitting dispute evidence once someone on your team has approved it. It
+            never changes prices, products, or subscription plans, never charges a customer except by
+            retrying a failed invoice or through a checkout they complete, and never reaches your
+            payouts or bank account.
             Foxhound never stores card numbers. Sensitive tokens are encrypted at rest with AES-256.
             Access to production data is limited to what the Services need to run.
           </P>

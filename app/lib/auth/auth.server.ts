@@ -5,7 +5,7 @@ import { getDb } from "~/db/client";
 import * as authSchema from "~/db/auth-schema";
 
 import { authOptions } from "./options";
-import { sendAuthEmail } from "./send-auth-email";
+import { sendAuthEmail, sendPasswordResetEmail } from "./send-auth-email";
 
 // Runtime Better Auth factory. Built per-request from the Cloudflare `env` so it
 // binds the D1-backed Drizzle adapter (binding `DB`) and only enables social
@@ -54,8 +54,19 @@ function buildAuth(env: Env) {
     // route through the one EMAIL-binding send module (never logged).
     emailAndPassword: {
       ...authOptions.emailAndPassword,
-      sendResetPassword: async ({ user, url }) => {
-        await sendAuthEmail(env, "password-reset", user.email, url);
+      sendResetPassword: async ({ user, url, token }) => {
+        const sent = await sendPasswordResetEmail(env, { to: user.email, url, token });
+        // A refused send is thrown by name so it is not silent (J82). Better
+        // Auth runs this hook through runInBackgroundOrAwait, which catches the
+        // throw and logs it, and answers the form the same way whether or not a
+        // mail went out (it never says whether an address exists). The message
+        // carries the reason and the provider's words with the link cut out,
+        // never the link.
+        if (sent.status !== "sent") {
+          throw new Error(
+            `password reset email not sent: ${sent.reason}${sent.error ? ` (${sent.error})` : ""}`,
+          );
+        }
       },
     },
     emailVerification: {

@@ -68,7 +68,8 @@ describe("PLANT 2: every marketing carrier derives the number", () => {
   // somebody typed "Six" would satisfy any output check and drift on the day a
   // seventh category ships, which is exactly how "four" survived 359.
   const CARRIERS: { file: string; mustUse: string[] }[] = [
-    { file: "app/routes/pricing.tsx", mustUse: ["DECLINE_CATEGORY_COUNT_WORD"] },
+    // /pricing's card copy lives in lib/marketing/pricing-copy.ts since J54.
+    { file: "app/lib/marketing/pricing-copy.ts", mustUse: ["DECLINE_CATEGORY_COUNT_WORD"] },
     {
       file: "app/routes/features.tsx",
       mustUse: ["DECLINE_CATEGORY_COUNT_WORD", "DECLINE_CATEGORY_PHRASE"],

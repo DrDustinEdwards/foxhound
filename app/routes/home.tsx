@@ -81,7 +81,7 @@ const FAQS: { question: string; answer: string; node?: React.ReactNode }[] = [
   {
     question: "Does Foxhound touch my Stripe billing configuration?",
     answer:
-      "No. The connection carries read and write scope, because retrying a failed invoice is a write, but Foxhound writes in only three places: retrying an invoice that has already failed, setting a customer default payment method after that customer updates their card, and submitting dispute evidence you approved. It never changes your prices, products, subscription plans, or any other Stripe setting, and never reaches your payouts.",
+      "No. The connection carries read and write scope, because retrying a failed invoice is a write, but Foxhound writes for these things and no others: retrying an invoice that has already failed, setting a customer default payment method after that customer updates their card, opening a Stripe checkout when a former customer chooses to resubscribe, and submitting dispute evidence you approved. It never changes your prices, products, subscription plans, or any other Stripe setting, and never reaches your payouts.",
   },
   {
     question: "What counts as a recovery Foxhound can bill for?",

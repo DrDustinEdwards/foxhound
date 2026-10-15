@@ -95,7 +95,7 @@ No setup fees. No minimum commitments. No per-seat charges. Current rates: ${url
 
 ## Technical architecture
 
-- Stripe Connect: two scopes. The free audit requests read-only and can write nothing at all. Merchant onboarding requests read and write. Foxhound reads invoices, subscriptions, disputes, and customer data. It writes in exactly three places: retrying payment on an invoice that has already failed, setting a customer default payment method after that customer updates their card, and submitting dispute evidence after someone on the merchant team approves it. It never changes prices, products, or subscription plans, never creates a charge outside an invoice the merchant already issued, and never reaches payouts or bank accounts.
+- Stripe Connect: two scopes. The free audit requests read-only and can write nothing at all. Merchant onboarding requests read and write. Foxhound reads invoices, subscriptions, disputes, and customer data. It writes for these things and no others: retrying payment on an invoice that has already failed, setting a customer default payment method after that customer updates their card, opening a Stripe checkout when a former customer chooses to resubscribe, and submitting dispute evidence after someone on the merchant team approves it. It never changes prices, products, or subscription plans, never charges a customer except by retrying a failed invoice or through a checkout the customer completes, and never reaches payouts or bank accounts.
 - Deployment: Cloudflare Workers, React Router in framework mode
 - Database: Cloudflare D1
 - Email delivery: Cloudflare Email Service, sent from the merchant's own domain

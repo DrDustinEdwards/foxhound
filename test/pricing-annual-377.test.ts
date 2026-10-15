@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { INTELLIGENCE_PRICE_CENTS } from "~/lib/constants";
+import { PRICING_CARDS } from "~/lib/marketing/pricing-copy";
 
 const ROOT = new URL("../", import.meta.url);
 /** Source with block comments stripped and whitespace collapsed. The comment
@@ -32,7 +33,8 @@ const read = (path: string) =>
 // absent, never that the term is dead.
 
 describe("PLANT 1: the annual offer is off the page", () => {
-  const pricing = read("app/routes/pricing.tsx");
+  // The page and, since J54, its card copy in lib/marketing/pricing-copy.ts.
+  const pricing = `${read("app/routes/pricing.tsx")} ${read("app/lib/marketing/pricing-copy.ts")}`;
 
   it("no advertised annual term remains", () => {
     expect(pricing.length).toBeGreaterThan(1000);
@@ -50,9 +52,12 @@ describe("PLANT 1: the annual offer is off the page", () => {
     // 377(8) changed what the card offers, not what it costs. Derived from the
     // pricing constant so this cannot pass against a page that quietly moved the
     // number while removing the term.
+    // Since J54 the card reads the figure from the constant rather than typing
+    // it, so the check is on the card's built copy, not the source text.
     const dollars = INTELLIGENCE_PRICE_CENTS / 100;
     expect(dollars).toBe(199);
-    expect(pricing).toContain(`$${dollars}`);
-    expect(pricing).toContain(`$${dollars}/mo`);
+    const card = PRICING_CARDS.find((c) => c.id === "intelligence");
+    expect(card?.price).toBe(`$${dollars}`);
+    expect(card?.features.some((f) => f.includes(`$${dollars}/mo`))).toBe(true);
   });
 });

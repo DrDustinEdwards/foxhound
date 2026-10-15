@@ -1,5 +1,7 @@
-// Shared product metadata reused across the home page, /pricing, /products
-// index, and /demos (Phase 6 Pass 1). Mirrors legacy lib/products.ts, but
+// Shared product metadata (Phase 6 Pass 1). Two readers: the home page's
+// product cards take every field here, and the /products hub
+// (app/routes/products/index.tsx) takes only key, name and href, with its card
+// copy from products-hub.ts (J16). Mirrors legacy lib/products.ts, but
 // collapsed onto the ROUTES.md /products/* pattern: legacy split this
 // across three duplicate trees (/product/*, /products, /features).
 

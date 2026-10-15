@@ -20,6 +20,14 @@ export const SESSION_UPDATE_AGE_SECONDS = 60 * 60 * 24;
 /** Minimum password length at signup (legacy parity: strong-by-default). */
 export const MIN_PASSWORD_LENGTH = 12;
 
+/**
+ * How long a password reset link works: one hour. This is Better Auth's own
+ * default (3600 seconds in better-auth's api/routes/password.mjs), set here
+ * explicitly so the reset email's "expires in 1 hour" is read from the same
+ * number Better Auth uses, rather than from a comment that could drift (J82).
+ */
+export const PASSWORD_RESET_EXPIRES_IN_SECONDS = 60 * 60;
+
 export const authOptions = {
   appName: "Foxhound",
   emailAndPassword: {
@@ -27,6 +35,7 @@ export const authOptions = {
     requireEmailVerification: true,
     minPasswordLength: MIN_PASSWORD_LENGTH,
     autoSignIn: false,
+    resetPasswordTokenExpiresIn: PASSWORD_RESET_EXPIRES_IN_SECONDS,
     // sendResetPassword is injected by the runtime factory (auth.server.ts), which
     // has `env` and routes through the one EMAIL-binding send module. Absent here
     // because this static config is shared with the CLI schema generator (no env).

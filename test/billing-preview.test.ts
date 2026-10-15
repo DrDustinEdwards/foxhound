@@ -383,3 +383,36 @@ describe("getBillingPreview", () => {
     expect(preview.nextRunAtMs).toBe(NEXT_RUN_MS);
   });
 });
+
+// J65 (row S3): Recova's /billing splits the next invoice into its Recovery
+// section (recovered this month and the recovery fee) and its Dispute Fees
+// section (the pending dispute fees), and counts only attributed recoveries in
+// "Recovered this month". These are the same reads as above, split, so the
+// equality gate above still pins the total.
+describe("getBillingPreview, split for Recova's sections (J65)", () => {
+  it("counts only attributed recoveries as recovered this month, never the free baseline", async () => {
+    const db = await seed();
+    const preview = await getBillingPreview(db, ACCOUNT_ID, NOW_MS);
+    // 35_000 less the 6_000 baseline. Refunded and disputed still count: they
+    // were recovered, as Recova counts them.
+    expect(byCurrency(preview.attributedThisMonth)).toEqual({ usd: 29_000, eur: 20_000 });
+  });
+
+  it("splits the estimate into recovery fees and dispute fees that sum to the invoice", async () => {
+    const db = await seed();
+    const preview = await getBillingPreview(db, ACCOUNT_ID, NOW_MS);
+    expect(byCurrency(preview.estimatedRecoveryFees)).toEqual({ usd: 4_600, eur: 4_000 });
+    expect(byCurrency(preview.estimatedDisputeFees)).toEqual({ usd: 25_000 });
+    expect(byCurrency(preview.estimatedRecoveryFees).usd! + byCurrency(preview.estimatedDisputeFees).usd!).toBe(
+      byCurrency(preview.estimatedInvoice).usd,
+    );
+  });
+
+  it("lists each dispute fee the next run will bill, with the run's own fee", async () => {
+    const db = await seed();
+    const preview = await getBillingPreview(db, ACCOUNT_ID, NOW_MS);
+    const byId = Object.fromEntries(preview.pendingDisputeFees.map((d) => [d.disputeId, d]));
+    expect(byId.dsp_snapshot).toMatchObject({ amountCents: 200_000, feeCents: 15_000, currency: "usd" });
+    expect(byId.dsp_computed).toMatchObject({ amountCents: 50_000, feeCents: 10_000, currency: "usd" });
+  });
+});
