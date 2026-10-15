@@ -1331,7 +1331,11 @@ export const mcpCalls = sqliteTable(
     error: text("error"),
     createdAt: ts("created_at").notNull(),
   },
-  (t) => [index("mcp_calls_account_idx").on(t.accountId, t.createdAt)],
+  (t) => [
+    index("mcp_calls_account_idx").on(t.accountId, t.createdAt),
+    // /admin/mcps: the newest calls, and the last day's calls and failures.
+    index("mcp_calls_created_idx").on(t.createdAt, t.outcome),
+  ],
 );
 
 /**

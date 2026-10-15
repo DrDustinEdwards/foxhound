@@ -181,6 +181,7 @@ export default [
       ]),
       route("social", "./routes/admin/social.tsx"),
       route("staged", "./routes/admin/staged.tsx"),
+      route("mcps", "./routes/admin/mcps.tsx"),
     ]),
   ]),
 
