@@ -45,3 +45,8 @@ export function hasDisputeHistorySignal(disputeSignals: unknown): boolean {
   const s = disputeSignals as DisputeSignalsShape;
   return (s.openDisputesCount ?? 0) > 0 || (s.wonCount ?? 0) > 0 || (s.lostCount ?? 0) > 0;
 }
+
+/** Stub for the J30 red run; built in the next commit. */
+export function planTierPill(tier: string | null): { label: string; tone?: "info" | "nodata" } {
+  return { label: tier === null ? "" : "" };
+}
