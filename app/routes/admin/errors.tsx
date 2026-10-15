@@ -69,7 +69,7 @@ const figure = (n: number) => n.toLocaleString("en-US");
 // exact time on hover, a pending state and an empty state on every list.
 // Recova's errors page (app/admin/platform/errors/page.tsx, blob 9cca8956) is
 // the inventory: the last 50 audit entries naming an error or a failure, with
-// Time, Action, Actor, Target and Detail, and Sentry wired in once it exists.
+// Time, Action, Actor, Target and Detail in that order, and Sentry wired in once it exists.
 // Sentry is listed only when Foxhound sends to it and can read it back
 // (RULES.md 3.18); until then the page says so plainly. Read only.
 export default function AdminErrors({ loaderData }: Route.ComponentProps) {
@@ -128,8 +128,8 @@ export default function AdminErrors({ loaderData }: Route.ComponentProps) {
               <thead>
                 <tr>
                   <th scope="col">Time</th>
-                  <th scope="col">Actor</th>
                   <th scope="col">Action</th>
+                  <th scope="col">Actor</th>
                   <th scope="col">Target</th>
                   <th scope="col">Detail</th>
                 </tr>
@@ -140,8 +140,8 @@ export default function AdminErrors({ loaderData }: Route.ComponentProps) {
                     <td>
                       <AdminTime at={e.createdAt} />
                     </td>
-                    <td className="break-all">{e.actor}</td>
                     <td>{e.action}</td>
+                    <td className="break-all">{e.actor}</td>
                     <td data-wrap="">
                       {e.target === null ? (
                         <span className="text-text-tertiary">None</span>
