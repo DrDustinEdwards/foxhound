@@ -81,7 +81,11 @@ export function SyncDisputeLink({ result }: { result?: SyncDisputeResult }) {
   return (
     <div className="mt-8 text-center">
       <Form method="post" className="cap-panel mx-auto max-w-md text-left">
-        <div className="cap-panel-body">
+        {/* The card's text at the label size, Recova's small type in this card
+            (RULES 5.2). The field label has no size of its own and would
+            otherwise inherit the body size, since Capsomer's base.css is not
+            loaded in the app. */}
+        <div className="cap-panel-body text-label">
           <input type="hidden" name="intent" value="sync_dispute" />
           <label htmlFor="sync_dispute_id" className="cap-field-label">
             Stripe dispute ID
