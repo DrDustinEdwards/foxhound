@@ -100,8 +100,10 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 
   return {
     entitled: true as const,
-    // The page shows no email, so none is sent to the browser. The shared
-    // query keeps it for its other caller (the MCP tool, which masks it).
+    // Only what the page shows reaches the browser: no email, and the two
+    // signals as booleans rather than their JSON (recovery ids, dispute
+    // counts). The shared query keeps both for its other caller (the MCP
+    // tool, which masks them).
     result: {
       ...result,
       customers: result.customers.map((c) => ({
@@ -112,8 +114,8 @@ export async function loader({ context, request }: Route.LoaderArgs) {
         currency: c.currency,
         healthScore: c.healthScore,
         lastSeenAt: c.lastSeenAt,
-        recoverySignals: c.recoverySignals,
-        disputeSignals: c.disputeSignals,
+        hasActiveRecovery: hasActiveRecoverySignal(c.recoverySignals),
+        hasDisputeHistory: hasDisputeHistorySignal(c.disputeSignals),
       })),
     },
     tiers,
@@ -237,8 +239,6 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
                     <tbody>
                       {result.customers.map((c) => {
                         const pill = planTierPill(c.currentPlanTier);
-                        const activeRecovery = hasActiveRecoverySignal(c.recoverySignals);
-                        const disputeHistory = hasDisputeHistorySignal(c.disputeSignals);
                         return (
                           <tr key={c.stripeCustomerId}>
                             <th scope="row">
@@ -287,7 +287,7 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
                               {/* Recova's two signals under Recova's names. An
                                   empty cell is blank, as Recova's is. */}
                               <div className="flex items-center gap-2">
-                                {activeRecovery ? (
+                                {c.hasActiveRecovery ? (
                                   <span
                                     role="img"
                                     className="h-2 w-2 shrink-0 rounded-full bg-red"
@@ -295,7 +295,7 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
                                     aria-label="Active recovery"
                                   />
                                 ) : null}
-                                {disputeHistory ? (
+                                {c.hasDisputeHistory ? (
                                   <Scale
                                     width={14}
                                     height={14}

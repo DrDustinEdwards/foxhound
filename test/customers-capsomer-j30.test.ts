@@ -38,8 +38,8 @@ interface Row {
   currency: string;
   healthScore: number | null;
   lastSeenAt: Date | null;
-  recoverySignals: unknown;
-  disputeSignals: unknown;
+  hasActiveRecovery: boolean;
+  hasDisputeHistory: boolean;
 }
 
 function row(over: Partial<Row> & { stripeCustomerId: string }): Row {
@@ -51,8 +51,8 @@ function row(over: Partial<Row> & { stripeCustomerId: string }): Row {
     currency: "usd",
     healthScore: 55,
     lastSeenAt: new Date(NOW),
-    recoverySignals: {},
-    disputeSignals: {},
+    hasActiveRecovery: false,
+    hasDisputeHistory: false,
     ...over,
   };
 }
@@ -220,8 +220,8 @@ describe("J30 customers: the table", () => {
       customers: [
         row({
           stripeCustomerId: "cus_a",
-          recoverySignals: { activeRecoveryId: "fp_1" },
-          disputeSignals: { wonCount: 1 },
+          hasActiveRecovery: true,
+          hasDisputeHistory: true,
         }),
       ],
     });
