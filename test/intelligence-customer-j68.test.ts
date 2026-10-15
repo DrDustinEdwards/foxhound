@@ -2,10 +2,12 @@ import { readFileSync } from "node:fs";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createRoutesStub } from "react-router";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
+  accountSubscriptions,
   accounts,
+  customerContext,
   disputes,
   engagementEvents,
   failedPayments,
@@ -20,9 +22,19 @@ import {
   tenureFromSince,
   type CustomerActivity,
 } from "~/lib/intelligence/customer-detail";
-import { getCustomerActivity } from "~/lib/intelligence/views.server";
+import { cloudflareContext } from "~/lib/cloudflare-context";
+import { authContext } from "~/lib/auth/context";
+import { getCustomerActivity, getCustomerHealthDetail } from "~/lib/intelligence/views.server";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
+
+// The route loader runs against an in-memory database in the sync-shaped test
+// below; every other test passes its database explicitly.
+const harness = vi.hoisted(() => ({ db: null as unknown }));
+vi.mock("~/db", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("~/db")>()),
+  getDb: () => harness.db,
+}));
 
 // J68, row S18: the Intelligence customer detail page toward Recova's real
 // page, app/(app)/intelligence/customers/[id]/page.tsx at blob 8d31766d, with
@@ -75,6 +87,7 @@ const EMPTY: CustomerActivity = {
     lastOutcome: null,
   },
   engagement: { everEngaged: false, opens30d: 0, clicks30d: 0, lastOpenAt: null },
+  lastActivityAt: null,
 };
 
 const BUSY: CustomerActivity = {
@@ -99,6 +112,7 @@ const BUSY: CustomerActivity = {
     lastOutcome: "resolved_lost",
   },
   engagement: { everEngaged: true, opens30d: 4, clicks30d: 1, lastOpenAt: new Date(Date.UTC(2026, 9, 10)) },
+  lastActivityAt: new Date(NOW - 2 * DAY),
 };
 
 describe("the three signal cards: Recova's labels, Foxhound's numbers", () => {
@@ -278,6 +292,9 @@ describe("getCustomerActivity: one customer's rows, this account only", () => {
       clicks30d: 1,
       lastOpenAt: new Date(NOW - 1 * DAY),
     });
+    // The latest of every dated row above: the open on the active payment, a
+    // day ago. The deleted payment (also a day ago) is not counted.
+    expect(a.lastActivityAt).toEqual(new Date(NOW - 1 * DAY));
   });
 
   it("is all empty for a customer with nothing on record", async () => {
@@ -311,7 +328,6 @@ function loaderData(over: Record<string, unknown> = {}) {
       mrrContributionCents: 4_900,
       currency: "usd",
       ltvCents: null,
-      lastSeenAt: new Date(NOW - 2 * DAY),
       customerSince: new Date(NOW - 450 * DAY),
       healthScore: 41,
       healthFactors: [{ signal: "refunds_disputes", deltaPoints: -16, detail: "1 refund(s) and 1 dispute(s) on record" }],
@@ -454,5 +470,110 @@ describe("S18 /intelligence/customers/:id: Recova's width, head and order", () =
     const html = render();
     expect(html).not.toContain("integrity-layer-banner");
     expect(text(html)).not.toMatch(/Show raw data/);
+  });
+});
+
+// J68 review, must-fix 1: the nightly sync writes customer_context.last_seen_at
+// as the sync's own time for every customer (sync.server.ts
+// buildCustomerContextUpsert, `lastSeenAt: input.now`), so the column is not
+// when the customer was last seen. These rows are shaped the way the sync
+// writes them: every last_seen_at is the sync time, no tier, no LTV, and zero
+// MRR for a customer with no active subscription.
+describe("J68 review: 'Last seen' on rows shaped the way the sync writes them", () => {
+  const SYNC = new Date(NOW - 3 * 3_600_000); // tonight's run, 03:00 earlier today
+
+  async function syncShaped() {
+    const { db } = createInMemoryDb();
+    await db.insert(accounts).values({ id: "acct_live", name: "Live Co" });
+    await db.insert(accountSubscriptions).values({
+      id: "sub_intel",
+      accountId: "acct_live",
+      product: "intelligence",
+      status: "active",
+      createdAt: new Date(NOW - 90 * DAY),
+    });
+    for (const [id, mrr] of [
+      ["cus_busy", 0],
+      ["cus_quiet", 2_900],
+    ] as const) {
+      await db.insert(customerContext).values({
+        id: `ctx_${id}`,
+        accountId: "acct_live",
+        stripeCustomerId: id,
+        customerEmail: `${id}@example.com`,
+        customerName: id === "cus_busy" ? "Busy Ltd" : "Quiet Ltd",
+        customerSince: new Date(NOW - 200 * DAY),
+        lastSeenAt: SYNC,
+        mrrContributionCents: mrr,
+        activeSubscriptionsCount: mrr > 0 ? 1 : 0,
+        currentPlanName: mrr > 0 ? "Basic" : null,
+        recoverySignals: { failedPaymentCount: 1, recoveredCount: 0, avgDaysToRecover: null },
+        disputeSignals: { disputeCount: 0, wonCount: 0, lostCount: 0 },
+        engagementSignals: { openCount: 0, clickCount: 0, lastEngagedAtMs: null },
+        createdAt: SYNC,
+        updatedAt: SYNC,
+      });
+    }
+    // Busy Ltd's one real event: a payment that failed nine days ago.
+    await db.insert(failedPayments).values({
+      id: "fp_busy",
+      accountId: "acct_live",
+      stripeEventId: "evt_busy",
+      stripeInvoiceId: "in_busy",
+      stripeCustomerId: "cus_busy",
+      customerEmail: "cus_busy@example.com",
+      amountCents: 2_900,
+      currency: "usd",
+      declineCategory: "soft",
+      status: "failed_unrecovered",
+      detectedAt: new Date(NOW - 9 * DAY),
+    });
+    return db;
+  }
+
+  function contextFor() {
+    return {
+      get(key: unknown) {
+        if (key === cloudflareContext) return { env: {}, ctx: {}, nonce: "n" };
+        if (key === authContext) return { membership: { accountId: "acct_live", accountName: "Live Co" }, isDemo: false };
+        throw new Error("unexpected context key");
+      },
+    } as never;
+  }
+
+  async function renderThroughLoader(id: string): Promise<string> {
+    harness.db = await syncShaped();
+    const { loader } = await import("~/routes/app/intelligence/customer");
+    const data = await loader({ context: contextFor(), params: { id }, request: new Request("https://x.test/") } as never);
+    // The loader's data goes through the page exactly as React Router hands it over.
+    return render(JSON.parse(JSON.stringify(data), (k, v) =>
+      typeof v === "string" && /^\d{4}-\d\d-\d\dT/.test(v) ? new Date(v) : v,
+    ));
+  }
+
+  it("shows the customer's latest event, never the sync time", async () => {
+    const t = text(await renderThroughLoader("cus_busy"));
+    expect(t).toContain("Last seen Oct 6, 2026");
+    expect(t).not.toContain("Last seen Oct 15, 2026");
+  });
+
+  it("says 'Not tracked' when Foxhound has no event for the customer", async () => {
+    const t = text(await renderThroughLoader("cus_quiet"));
+    expect(t).toContain("Last seen Not tracked");
+    expect(t).not.toContain("Oct 15, 2026");
+  });
+
+  it("does not send the sync-written last_seen_at out of the shared helper (the MCP tool reads it)", async () => {
+    const db = await syncShaped();
+    const detail = await getCustomerHealthDetail(db, "acct_live", "cus_busy");
+    expect(detail).not.toBeNull();
+    expect(detail).not.toHaveProperty("lastSeenAt");
+  });
+
+  it("shows a zero MRR as $0.00/mo, as Recova does, and keeps a missing one as -", async () => {
+    expect(text(await renderThroughLoader("cus_busy"))).toContain("$0.00/mo");
+    const data = loaderData();
+    const t = text(render({ ...data, customer: { ...data.customer, mrrContributionCents: null } }));
+    expect(t).not.toContain("/mo");
   });
 });

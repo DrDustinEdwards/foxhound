@@ -105,7 +105,6 @@ export async function loader({ context, params }: Route.LoaderArgs) {
       mrrContributionCents: detail.mrrContributionCents,
       currency: detail.currency,
       ltvCents: detail.ltvCents,
-      lastSeenAt: detail.lastSeenAt,
       customerSince: detail.customerSince,
       healthScore: detail.healthScore,
       healthFactors: detail.healthFactors,
@@ -138,7 +137,7 @@ export default function CustomerHealthPage({ loaderData }: Route.ComponentProps)
   // the page's one <main> (ruling 146), so this is a plain wrapper.
   return (
     <div className="mx-auto max-w-[1080px] px-4 py-8 md:px-8">
-      <div className="mb-4 text-micro">
+      <div className="mb-4">
         <Breadcrumb
           items={[
             { label: "Customers", href: "/intelligence/customers" },
@@ -180,7 +179,7 @@ export default function CustomerHealthPage({ loaderData }: Route.ComponentProps)
       </div>
 
       <div className="flex flex-col gap-5">
-        <HeaderCard customer={customer} nowMs={nowMs} />
+        <HeaderCard customer={customer} lastSeenAt={activity.lastActivityAt} nowMs={nowMs} />
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <SignalCard
@@ -253,7 +252,15 @@ export default function CustomerHealthPage({ loaderData }: Route.ComponentProps)
  *  beneath, the plan pill and MRR on the right, then Tenure, LTV, Last seen
  *  and Customer since, two across on a phone and four from md. A body-only
  *  Capsomer panel, since Recova's card has no title of its own. */
-function HeaderCard({ customer, nowMs }: { customer: Loaded["customer"]; nowMs: number }) {
+function HeaderCard({
+  customer,
+  lastSeenAt,
+  nowMs,
+}: {
+  customer: Loaded["customer"];
+  lastSeenAt: Date | null;
+  nowMs: number;
+}) {
   const pill = planTierPill(customer.currentPlanTier);
   const stats: SignalField[] = [
     { label: "Tenure", value: tenureFromSince(customer.customerSince, nowMs) },
@@ -263,7 +270,13 @@ function HeaderCard({ customer, nowMs }: { customer: Loaded["customer"]; nowMs: 
       // so rather than showing a dash that reads as zero (RULES.md 2.1).
       value: customer.ltvCents != null ? formatMoney(customer.ltvCents, customer.currency) : "Not computed",
     },
-    { label: "Last seen", value: customer.lastSeenAt ? formatDateShort(customer.lastSeenAt) : "-" },
+    {
+      label: "Last seen",
+      // The latest event Foxhound has for this customer (getCustomerActivity),
+      // never customer_context.last_seen_at, which the nightly sync sets to its
+      // own run time. With no event, Foxhound has not seen them, and says so.
+      value: lastSeenAt ? formatDateShort(lastSeenAt) : "Not tracked",
+    },
     { label: "Customer since", value: customer.customerSince ? formatDateShort(customer.customerSince) : "-" },
   ];
   return (
@@ -285,7 +298,9 @@ function HeaderCard({ customer, nowMs }: { customer: Loaded["customer"]; nowMs: 
               {customer.currentPlanName ?? pill.label}
             </span>
             <span className="font-mono text-body text-text">
-              {customer.mrrContributionCents > 0
+              {/* Recova: any value, zero included, as "$X/mo"; "-" only when
+                  there is none. */}
+              {customer.mrrContributionCents != null
                 ? `${formatMoney(customer.mrrContributionCents, customer.currency)}/mo`
                 : "-"}
             </span>

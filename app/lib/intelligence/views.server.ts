@@ -151,10 +151,11 @@ export interface CustomerHealthDetail {
   customerName: string | null;
   customerEmail: string | null;
   customerSince: Date | null;
-  lastSeenAt: Date | null;
   currentPlanName: string | null;
   currentPlanTier: string | null;
-  mrrContributionCents: number;
+  /** Null when the row has none, kept apart from an honest zero (a customer
+   *  with no active subscription), as Recova keeps them apart. */
+  mrrContributionCents: number | null;
   /** Null until something computes lifetime value; nothing does yet
    *  (signals.ts buildCustomerContextFields). */
   ltvCents: number | null;
@@ -186,7 +187,6 @@ export async function getCustomerHealthDetail(
       customerName: customerContext.customerName,
       customerEmail: customerContext.customerEmail,
       customerSince: customerContext.customerSince,
-      lastSeenAt: customerContext.lastSeenAt,
       currentPlanName: customerContext.currentPlanName,
       currentPlanTier: customerContext.currentPlanTier,
       mrrContributionCents: customerContext.mrrContributionCents,
@@ -234,10 +234,9 @@ export async function getCustomerHealthDetail(
     customerName: row.customerName,
     customerEmail: row.customerEmail,
     customerSince: row.customerSince,
-    lastSeenAt: row.lastSeenAt,
     currentPlanName: row.currentPlanName,
     currentPlanTier: row.currentPlanTier,
-    mrrContributionCents: row.mrrContributionCents ?? 0,
+    mrrContributionCents: row.mrrContributionCents,
     ltvCents: row.ltvCents,
     currency: row.currency ?? "usd",
     healthScore: row.healthScore,
@@ -270,6 +269,12 @@ const byCurrency = (rows: readonly { currency: string; cents: number }[]) =>
  * Failed payments and recoveries skip soft-deleted rows, as the payments list
  * does. Engagement follows the nightly sync's join (an event on a recovery step
  * of one of the customer's payments).
+ *
+ * lastActivityAt is the page's "Last seen": the latest dated row above. It is
+ * not customer_context.last_seen_at, which the nightly sync sets to its own run
+ * time for every customer (sync.server.ts buildCustomerContextUpsert), so on a
+ * live account it says when Foxhound last synced, not when the customer was
+ * last seen (J68 review, must-fix 1).
  */
 export async function getCustomerActivity(
   db: Db,
@@ -362,6 +367,12 @@ export async function getCustomerActivity(
       clicks30d: recent.filter((e) => e.eventType === "click").length,
       lastOpenAt: latest(opens.map((e) => e.occurredAt)),
     },
+    lastActivityAt: latest([
+      ...failedRows.map((f) => f.detectedAt),
+      ...recoveredRows.map((r) => r.recoveredAt),
+      ...disputeRows.map((d) => d.createdAt),
+      ...engagementRows.map((e) => e.occurredAt),
+    ]),
   };
 }
 

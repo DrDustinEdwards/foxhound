@@ -59,6 +59,9 @@ export interface CustomerActivity {
     clicks30d: number;
     lastOpenAt: Date | null;
   };
+  /** The latest failed payment, recovery, dispute or engagement event on
+   *  record: the page's "Last seen". Null when there is none. */
+  lastActivityAt: Date | null;
 }
 
 export interface SignalField {
