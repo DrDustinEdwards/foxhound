@@ -3,33 +3,31 @@
 //
 // Recova's view (app/(app)/disputes/dashboard/DisputesDashboardView.tsx, blob
 // 3c1b7a98) has five cards: Open disputes, At stake, Submitted by Recova, Fees
-// owed and Saved vs Smart Disputes. Two are held for Dustin and not computed
-// here (TASK-seven-walked-pages.md item 6 (b)): "Submitted by" and "Saved vs
-// Smart Disputes", the second a claim about Stripe's price with no source.
-// Recova's saving was round(amount * 0.10) from a hardcoded literal; under
-// Foxhound's pricing the real fee is min(20%, $500 cap), so that formula is
-// structurally wrong, and nothing here re-inlines a percentage.
+// owed and Saved vs Smart Disputes. Dustin answered PR #75's questions "yes ro
+// all" (2026-10-15, cmsg_01Nd8kh3hkgYNYpWXrNkvBQL2LnH5XBcKc3DcWHoEsDbT6):
 //
-// Win rate is not one of Recova's cards. It stays because Foxhound's /features
-// page (J60, from Recova's features-data.ts, which claims a "historical win
-// rate" here) names this card as its evidence; whether the card goes and
-// /features changes with it is a question for Dustin in the J66 pull request.
+// - "Submitted by Foxhound" is built, from Foxhound's own data (below).
+// - "Saved vs Smart Disputes" is not. Recova's saving was round(amount * 0.10)
+//   from a hardcoded literal and an unsourced claim about Stripe's price; under
+//   Foxhound's pricing the real fee is min(20%, the $500 cap), so the formula is
+//   structurally wrong, and nothing here re-inlines a percentage.
+// - "Fees owed" is read from the billing records, not computed here
+//   (fees-owed.server.ts), so it counts only fees still owed, as Recova's does.
+// - Win rate is not one of Recova's cards. It stays as Dustin's approved
+//   difference (question 4), because /features (J60) cites it.
 //
 // Money is returned as per-currency parts, never summed here: a total across
 // currencies is meaningless, and every money total goes through
 // groupSumByCurrency (RULES.md 3.20), which the loader applies.
 
-import { DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
-import { disputeFeeCents } from "~/lib/billing/fees";
-import { isDisputeResolved } from "./labels";
+import { SUBMITTED_EXTERNALLY, isDisputeResolved } from "./labels";
 
 export interface DisputeStatsInput {
   state: string;
   amountCents: number;
   currency: string;
-  resolvedFeeCents: number | null;
-  resolvedFeeCurrency: string | null;
   submittedAt: Date | null;
+  submittedBy: string | null;
 }
 
 export interface MoneyPart {
@@ -43,11 +41,12 @@ export interface DisputeStats {
   /** The disputed amount of each open dispute, in its own currency. */
   atStakeParts: MoneyPart[];
   /**
-   * The fee on each won dispute Foxhound submitted: the stored
-   * resolved_fee_cents in its stored currency where resolution has written it,
-   * else the capped projection from disputeFeeCents in the dispute's currency.
+   * Every dispute whose evidence Foxhound submitted, in any state, lifetime
+   * (Recova's card is a lifetime count too). submitted_at is written only once
+   * Stripe has accepted a Foxhound submission (approval.server.ts), and a
+   * stored submitted_by of merchant_or_stripe says someone else sent it.
    */
-  feesOwedParts: MoneyPart[];
+  submittedByFoxhoundCount: number;
   wonCount: number;
   lostCount: number;
   /** Won as a share of resolved disputes, or null when nothing has resolved:
@@ -58,29 +57,19 @@ export interface DisputeStats {
 export function computeDisputeStats(rows: DisputeStatsInput[]): DisputeStats {
   let openCount = 0;
   const atStakeParts: MoneyPart[] = [];
-  const feesOwedParts: MoneyPart[] = [];
+  let submittedByFoxhoundCount = 0;
   let wonCount = 0;
   let lostCount = 0;
 
   for (const row of rows) {
+    if (row.submittedAt && row.submittedBy !== SUBMITTED_EXTERNALLY) submittedByFoxhoundCount++;
     if (!isDisputeResolved(row.state)) {
       openCount++;
       atStakeParts.push({ currency: row.currency, cents: row.amountCents });
-      continue;
-    }
-    if (row.state === "resolved_lost") {
+    } else if (row.state === "resolved_won") {
+      wonCount++;
+    } else if (row.state === "resolved_lost") {
       lostCount++;
-      continue;
-    }
-    if (row.state !== "resolved_won") continue;
-    wonCount++;
-    // PRICING.md rev 3: billable only when Foxhound drafted AND submitted the
-    // evidence. A merchant-fought or auto-resolved win carries no fee.
-    if (!row.submittedAt) continue;
-    if (row.resolvedFeeCents !== null) {
-      feesOwedParts.push({ currency: row.resolvedFeeCurrency ?? row.currency, cents: row.resolvedFeeCents });
-    } else {
-      feesOwedParts.push({ currency: row.currency, cents: disputeFeeCents(row.amountCents, DISPUTE_FEE_CAP_CENTS) });
     }
   }
 
@@ -88,7 +77,7 @@ export function computeDisputeStats(rows: DisputeStatsInput[]): DisputeStats {
   return {
     openCount,
     atStakeParts,
-    feesOwedParts,
+    submittedByFoxhoundCount,
     wonCount,
     lostCount,
     winRatePct: resolvedCount > 0 ? Math.round((wonCount / resolvedCount) * 100) : null,

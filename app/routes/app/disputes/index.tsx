@@ -18,19 +18,18 @@ import { getDb } from "~/db";
 import { groupSumByCurrency, type CurrencyAmount } from "~/lib/billing/preview.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
-import type { DisputeState } from "~/lib/constants";
 import {
-  DISPUTE_STATE_LABELS,
   daysUntilDeadline,
   deadlineClassName,
   deadlineShort,
   deadlineUrgency,
-  disputeStateTone,
+  disputeListStatus,
   humanizeDisputeReason,
   isDisputeResolved,
 } from "~/lib/disputes/labels";
+import { getDisputeFeesOwed } from "~/lib/disputes/fees-owed.server";
 import { importDisputeFromStripe } from "~/lib/disputes/manual-import.server";
-import { getCustomerHealthScores, listDisputes } from "~/lib/disputes/queries.server";
+import { getCustomerHealthScores, getDisputesWithEvidence, listDisputes } from "~/lib/disputes/queries.server";
 import { computeDisputeStats } from "~/lib/disputes/stats";
 import { healthScoreClassName } from "~/lib/intelligence/health-band";
 import { isIntelligenceEntitled } from "~/lib/intelligence/views.server";
@@ -46,14 +45,16 @@ import type { Route } from "./+types/index";
 // state too), then the empty card or the table, then the sync control, in a
 // 1280px column. Look is Capsomer's (Q10), teal (Q11).
 //
-// Held for Dustin and NOT built (TASK-seven-walked-pages.md item 6): Recova's
-// nine status labels (a; the column shows Foxhound's six states), the
-// "Submitted by" and "Saved vs Smart Disputes" cards (b), and the Mode and Fee
-// columns (c; Mode reflects an auto-submit Foxhound does not have). The
-// Recovery cross-sell card is approved as not built (APPROVED-DIFFERENCES,
-// 2026-09-19).
+// Dustin answered PR #75's five questions "yes ro all" (2026-10-15,
+// cmsg_01Nd8kh3hkgYNYpWXrNkvBQL2LnH5XBcKc3DcWHoEsDbT6): the status column uses
+// Recova's words where one is true (disputeListStatus); the cards are Recova's
+// with "Submitted by Foxhound" and without "Saved vs Smart Disputes"; Mode
+// stays out for good; Win rate stays; "Fees owed" counts only fees still owed.
+// The Fee column is not built. The Recovery cross-sell card is approved as not
+// built (APPROVED-DIFFERENCES, 2026-09-19).
 //
-// The loader is read-only. The one write is the existing manual import action.
+// The loader is read-only, billing records included. The one write is the
+// existing manual import action.
 
 export function meta() {
   return [{ title: "Disputes - Foxhound" }];
@@ -66,9 +67,11 @@ export async function loader({ context }: Route.LoaderArgs) {
   const db = getDb(env);
 
   // Newest first, as Recova orders the list (created_at descending).
-  const [disputes, intelligenceOn] = await Promise.all([
+  const nowMs = Date.now();
+  const [disputes, intelligenceOn, feesOwed] = await Promise.all([
     listDisputes(db, accountId),
     isIntelligenceEntitled(db, accountId),
+    getDisputeFeesOwed(db, accountId, nowMs),
   ]);
 
   const parts = computeDisputeStats(
@@ -76,15 +79,15 @@ export async function loader({ context }: Route.LoaderArgs) {
       state: d.state,
       amountCents: d.amountCents,
       currency: d.currency,
-      resolvedFeeCents: d.resolvedFeeCents,
-      resolvedFeeCurrency: d.resolvedFeeCurrency,
       submittedAt: d.submittedAt,
+      submittedBy: d.submittedBy,
     })),
   );
   const stats = {
     openCount: parts.openCount,
     atStake: groupSumByCurrency(parts.atStakeParts),
-    feesOwed: groupSumByCurrency(parts.feesOwedParts),
+    submittedByFoxhoundCount: parts.submittedByFoxhoundCount,
+    feesOwed: groupSumByCurrency(feesOwed),
     wonCount: parts.wonCount,
     lostCount: parts.lostCount,
     winRatePct: parts.winRatePct,
@@ -101,11 +104,21 @@ export async function loader({ context }: Route.LoaderArgs) {
       )
     : null;
 
+  // "Evidence ready" is said only of a dispute whose draft holds evidence, so
+  // only the states that label depends on are looked up.
+  const withEvidence = [
+    ...(await getDisputesWithEvidence(
+      db,
+      accountId,
+      disputes.filter((d) => d.state === "pending_review" || d.state === "approved").map((d) => d.id),
+    )),
+  ];
+
   // Withheld from the demo exactly as legacy withholds it: legacy's demo twin
   // renders DisputesDashboardView alone, and importing a real Stripe dispute
   // into the shared demo account is meaningless. The middleware's method gate
   // is still the boundary for a hand-crafted POST.
-  return { disputes, stats, health, nowMs: Date.now(), isDemo: auth.isDemo };
+  return { disputes, stats, health, withEvidence, nowMs, isDemo: auth.isDemo };
 }
 
 // Manual dispute import (ruling 400 halt ruling 1). The endpoint is this
@@ -155,8 +168,9 @@ function amounts(rows: CurrencyAmount[]): string {
   return rows.map((r) => formatMoney(r.cents, r.currency)).join(" · ");
 }
 
-/** Foxhound's three state tones on Capsomer's pill: won is ok, lost is
- *  critical, every state before resolution has no tone. */
+/** The status tones on Capsomer's pill: won is ok, lost is critical, every
+ *  other status has no tone (Capsomer has no blue for Recova's in-progress
+ *  states, and the brand accent is teal, Q11). */
 const PILL_TONE: Record<Tone, PillTone | undefined> = {
   success: "ok",
   failure: "crit",
@@ -164,7 +178,8 @@ const PILL_TONE: Record<Tone, PillTone | undefined> = {
 };
 
 export default function Disputes({ loaderData, actionData }: Route.ComponentProps) {
-  const { disputes, stats, health, nowMs, isDemo } = loaderData;
+  const { disputes, stats, health, withEvidence, nowMs, isDemo } = loaderData;
+  const hasEvidence = new Set(withEvidence);
 
   return (
     <div className="mx-auto max-w-[1280px] px-4 md:px-8 py-8 md:py-10">
@@ -172,13 +187,13 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
         <PageHead title="Dashboard" />
       </div>
 
-      {/* Recova's grid, five across from md, kept so each card is Recova's
-          width. Two of Recova's five cards are held for Dustin (TASK item 6
-          (b)). Win rate is not Recova's: it follows Recova's cards because
-          /features names it as evidence (see stats.ts), a question for Dustin. */}
+      {/* Recova's grid, five across from md, in Recova's order. Win rate takes
+          the place of Recova's "Saved vs Smart Disputes", which is not built
+          (Dustin, PR #75 questions 2 and 4; see stats.ts). */}
       <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-5">
         <StatCard label="Open disputes" value={String(stats.openCount)} />
         <StatCard label="At stake" value={amounts(stats.atStake)} />
+        <StatCard label="Submitted by Foxhound" value={String(stats.submittedByFoxhoundCount)} />
         <StatCard label="Fees owed" value={amounts(stats.feesOwed)} />
         <StatCard
           label="Win rate"
@@ -218,7 +233,11 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
                   {disputes.map((d) => {
                     const resolved = isDisputeResolved(d.state);
                     const days = daysUntilDeadline(d.evidenceDeadline, nowMs);
-                    const state = d.state as DisputeState;
+                    const status = disputeListStatus({
+                      state: d.state,
+                      submittedBy: d.submittedBy,
+                      hasEvidence: hasEvidence.has(d.id),
+                    });
                     const name = d.customerName || "Unknown";
                     const score = health && d.stripeCustomerId ? health[d.stripeCustomerId] : undefined;
                     return (
@@ -238,9 +257,7 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
                         <td data-num="">{formatMoney(d.amountCents, d.currency)}</td>
                         <td className="text-label text-text-secondary">{humanizeDisputeReason(d.reason)}</td>
                         <td>
-                          <Pill tone={PILL_TONE[disputeStateTone(state)]}>
-                            {DISPUTE_STATE_LABELS[state] ?? d.state}
-                          </Pill>
+                          <Pill tone={PILL_TONE[status.tone]}>{status.label}</Pill>
                         </td>
                         <td
                           className={`font-mono text-label ${resolved ? "" : deadlineClassName(deadlineUrgency(days))}`}
