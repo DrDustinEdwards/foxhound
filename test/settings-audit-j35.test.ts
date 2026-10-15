@@ -58,6 +58,15 @@ function text(html: string): string {
     .trim();
 }
 
+/** The lookback radios in document order, read whatever order React writes
+ *  their attributes in. */
+function lookbackRadios(html: string): Array<{ value: string; checked: boolean }> {
+  return [...html.matchAll(/<input[^>]*type="radio"[^>]*>/g)]
+    .map((m) => m[0])
+    .filter((tag) => tag.includes('name="audit_lookback_days"'))
+    .map((tag) => ({ value: tag.match(/value="([^"]*)"/)?.[1] ?? "", checked: /\schecked/.test(tag) }));
+}
+
 describe("J35 audit settings: the page head", () => {
   it("is Capsomer's PageHead with Recova's title and subtitle", () => {
     const html = render();
@@ -101,9 +110,7 @@ describe("J35 audit settings: the lookback period", () => {
   it("is Capsomer's segmented control posting audit_lookback_days, in Recova's four options", () => {
     const html = render();
     expect(html).toMatch(/<fieldset class="cap-seg"/);
-    const radios = [...html.matchAll(/<input type="radio" name="audit_lookback_days" value="(\d+)"/g)].map(
-      (m) => m[1],
-    );
+    const radios = lookbackRadios(html).map((r) => r.value);
     expect(radios).toEqual(["30", "60", "90", "180"]);
     const labels = [...html.matchAll(/<label><input[^>]*\/?>\s*([^<]+)<\/label>/g)].map((m) => m[1].trim());
     expect(labels).toEqual(["30 days", "60 days", "90 days", "180 days"]);
@@ -111,9 +118,7 @@ describe("J35 audit settings: the lookback period", () => {
 
   it("checks the stored choice and no other", () => {
     const html = render({ lookbackDays: 180 });
-    const checked = [...html.matchAll(/<input type="radio" name="audit_lookback_days" value="(\d+)"[^>]*checked/g)].map(
-      (m) => m[1],
-    );
+    const checked = lookbackRadios(html).filter((r) => r.checked).map((r) => r.value);
     expect(checked).toEqual(["180"]);
   });
 
@@ -127,7 +132,9 @@ describe("J35 audit settings: the lookback period", () => {
     expect(helperId).toBeTruthy();
     expect(html).toContain(`<fieldset class="cap-seg" aria-describedby="${helperId}">`);
     // The group keeps its name for a screen reader through Capsomer's legend.
-    expect(html).toMatch(/<legend class="cap-sr-only">Lookback period<\/legend>/);
+    // The legend is visually hidden by a class the merchant app has (Tailwind's
+    // sr-only), not by Capsomer's .cap-sr-only, which needs capsomer/base.css.
+    expect(html).toMatch(/<legend><span class="sr-only">Lookback period<\/span><\/legend>/);
   });
 });
 
