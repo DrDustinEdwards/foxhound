@@ -142,12 +142,13 @@ export default function SecurityPage() {
           </P>
           <P>
             <strong className="text-text">Merchant onboarding requests {STRIPE_CONNECT_SCOPE} scope</strong>, because
-            recovery involves writes. Foxhound writes in exactly three places: retrying payment on an
-            invoice that has already failed, setting a customer default payment method after that
-            customer updates their card, and submitting dispute evidence once someone on your team
-            has approved it. It never changes prices, products or subscription plans, never creates a
-            charge outside an invoice you already issued, and never reaches your payouts or bank
-            account.
+            recovery involves writes. Foxhound writes for these things and no others: retrying payment
+            on an invoice that has already failed, setting a customer default payment method after
+            that customer updates their card, opening a Stripe checkout when a former customer chooses
+            to resubscribe, and submitting dispute evidence once someone on your team has approved it.
+            It never changes prices, products or subscription plans, never charges a customer except by
+            retrying a failed invoice or through a checkout they complete, and never reaches your
+            payouts or bank account.
           </P>
           <P>
             An audit prospect who becomes a merchant re-authorizes at that point. The audit
