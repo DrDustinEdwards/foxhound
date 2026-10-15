@@ -14,6 +14,7 @@ import migrationJournal from "../../../drizzle/migrations/meta/_journal.json";
 import type { Db } from "~/db";
 import { countActiveRecoveries } from "~/lib/admin/overview.server";
 import { accountProcessingEligibleCondition, stepDueCondition } from "~/lib/cron/recovery-tick";
+import { CRON_LOCK_PEEK_TIMEOUT_MS } from "~/lib/constants";
 import { CRON_JOBS } from "~/lib/cron/registry";
 import { cronLockHealth, type CronLockView } from "~/lib/cron/lock-state";
 import {
@@ -282,12 +283,14 @@ export interface CronLockRow {
 /** Every registered cron's lock, in the registry's order (Recova's cron-lock
  *  table, read from Foxhound's CronLock Durable Objects). Each read is the
  *  object's `peek`, which writes nothing and never hands out the holder's token.
- *  The reads are independent: one that fails marks that row unreadable and the
- *  rest still show. */
+ *  The reads are independent: one that fails, or does not answer within
+ *  CRON_LOCK_PEEK_TIMEOUT_MS, marks that row unreadable and the rest still show. */
 export async function readCronLocks(env: Env, now: number = Date.now()): Promise<CronLockRow[]> {
   const ns = env.CRON_LOCK;
   const reads = await Promise.allSettled(
-    CRON_JOBS.map((job) => ns.get(ns.idFromName(job.name)).peek() as Promise<CronLockView>),
+    CRON_JOBS.map((job) =>
+      withTimeout(ns.get(ns.idFromName(job.name)).peek() as Promise<CronLockView>, CRON_LOCK_PEEK_TIMEOUT_MS),
+    ),
   );
   return CRON_JOBS.map((job, i) => {
     const read = reads[i];
@@ -299,4 +302,14 @@ export async function readCronLocks(env: Env, now: number = Date.now()): Promise
       heldUntil: health.heldUntil === null ? null : new Date(health.heldUntil),
     };
   });
+}
+
+/** The read, or a rejection once `ms` has passed without an answer. The timer
+ *  is cleared as soon as the read settles either way, so none outlives it. */
+function withTimeout<T>(read: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`no answer in ${ms} ms`)), ms);
+  });
+  return Promise.race([read, late]).finally(() => clearTimeout(timer));
 }

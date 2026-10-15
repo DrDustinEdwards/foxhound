@@ -106,7 +106,7 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
             <dd className="m-0 text-label text-text-secondary">
               {queue.oldestDueAt ? (
                 <>
-                  Oldest due <AdminTime at={queue.oldestDueAt} />. Paused and cancelled accounts wait apart.
+                  Oldest due <AdminTime at={queue.oldestDueAt} />. Steps on paused or cancelled accounts are not counted.
                 </>
               ) : (
                 "No step is waiting for the recovery tick."
