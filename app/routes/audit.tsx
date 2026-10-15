@@ -1,6 +1,21 @@
+import { Alert, Banner } from "capsomer/react/banner";
+import { Button } from "capsomer/react/button";
+import { Field } from "capsomer/react/field";
+import { useId } from "react";
 import { data, Form, Link, useNavigation } from "react-router";
 
-import { Alert, Field, Submit } from "~/components/auth-ui";
+import "capsomer/banner.css";
+import "capsomer/button.css";
+import "capsomer/field.css";
+import "capsomer/panel.css";
+import "capsomer/select.css";
+import "capsomer/status.css";
+// Capsomer's tokens and the teal family (capbase layer), which the panel, the
+// badge, the field, the select, the alert, the button and the focus ring read.
+// The site header loads the same file; importing it here keeps the page whole
+// under any layout.
+import "~/site-header.css";
+
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { AUDIT_LOOKBACK_DAYS } from "~/lib/constants";
@@ -21,17 +36,17 @@ import type { Route } from "./+types/audit";
 // with our own seeded, source-cited benchmark_data range rather than an
 // unsourced number.
 //
-// JUDGMENT CALL (flagged per the task): ROUTES.md documents ONE flow, "/audit,
-// no-auth estimator (Turnstile) -> Stripe connect -> full audit report", with
-// no separately listed authenticated audit route, and this repo's /connect
-// (app/routes/auth/connect.tsx) already requires an existing session (it
-// redirects to /login otherwise). Building a parallel no-login Stripe OAuth
-// start would be new authenticated-adjacent surface ROUTES.md does not
-// document, so the "connect Stripe" step after the estimator points at the
-// existing /signup entry point instead, which is the real path into
-// /connect today. The full-audit lift-band computation itself is built as a
-// data/query layer only (app/lib/audit/full-audit.server.ts), not wired to
-// any new route or UI.
+// J18 (row M22), the visual walk: Recova's app/audit/page.tsx (blob 054edf70)
+// and app/audit/layout.tsx (blob 0544e53b), read whole, stay the spec for the
+// content, order and width. The look is Capsomer's (RULES.md 1.1, Q12): the
+// pill is its badge, every card its panel, the form its field, select and
+// button, the unavailable notice its alert, each call to action its primary
+// button. Teal throughout (Q11), and text on the five sizes (RULES.md 5.2),
+// which finishes the migration Recova left as a foothold. Where Foxhound needs
+// a treatment of its own that Capsomer's shared parts do not carry (Recova's
+// hero h1 clamp, its tinted mono pill, the covers card's 40px padding), the
+// shared part stands with no Foxhound CSS over it until Capsomer's per-site
+// layer (capsomer job_ec5ec0754626) ships.
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return marketingMeta({
@@ -119,198 +134,216 @@ export async function action({ request, context }: Route.ActionArgs) {
   return data<ActionResult>({ ok: true, result, mrrCents, currency });
 }
 
+
+// The four lines of Recova's covers card.
+//
+// Two clauses of Recova's own copy are NOT restored, because they name renders
+// Foxhound does not have: Recova's "estimated recoverable amount" comes from
+// AUDIT_RECOVERY_ESTIMATE_PCT and its dispute "historical win rate" is a
+// platform figure, both NOT PORTED at 365 binding 31. The expiring-cards line
+// says what the engine's predicate actually does, which includes
+// already-expired cards; Recova says "next 30 days" and counts them too.
+//
+// FOUR LINES, NOT SIX, and that is Recova's editorial call matched rather than
+// an omission. Both engines compute six scopes; Recova's card lists four and
+// folds past-due subscriptions and the Card Updater advisory into the run
+// itself. Both render on the results page.
+const COVERS: ReadonlyArray<readonly [string, string]> = [
+  [
+    "Failed invoices",
+    `Payments Stripe marked uncollectible in the last ${AUDIT_LOOKBACK_DAYS} days, and the decline reason behind each one.`,
+  ],
+  [
+    "Expiring cards",
+    "Customers whose card has expired or expires within the next month, and the MRR at risk before those payments fail.",
+  ],
+  [
+    "Open disputes",
+    "Unmanaged chargebacks, your won and lost record, and revenue accepted without evidence submission.",
+  ],
+  ["Business health", "MRR, ARR, active subscriptions, voluntary versus involuntary churn rate."],
+];
+
 export default function AuditPage({ loaderData, actionData }: Route.ComponentProps) {
   const { siteUrl: url, turnstileAvailable, turnstileSiteKey } = loaderData;
   const busy = useNavigation().state !== "idle";
 
   return (
-    <div className="mx-auto max-w-[680px] px-4 py-10 text-center md:px-8 md:py-20">
-      {/* Bespoke hero, restored per ruling 64: legacy's /audit sits OUTSIDE
-          (marketing) and never used MarketingPageHeader. Foxhound had flattened
-          it onto the shared header, ruling 63's pattern. The h1 clamp is
-          legacy's, converted px to rem (Dustin, ruling 85): identical at a 16px
-          root, and unlike px it responds to a user's font-size setting. */}
-      <div className="mb-6 inline-block rounded-full border border-[rgb(from_var(--brand)_r_g_b_/_0.27)] bg-[rgb(from_var(--brand)_r_g_b_/_0.13)] px-3 py-1 font-mono text-xs tracking-[0.06em] text-brand-text">
-        FREE LOST REVENUE AUDIT
+    // Recova's column: 680px, centred, px-4 md:px-8, py-10 md:py-20. In
+    // Capsomer's teal family with Foxhound's own neutrals (.fh-cap, as /demos
+    // and /pricing), comfortable density so each panel takes Capsomer's roomier
+    // padding.
+    <div
+      className="fh-cap mx-auto max-w-[680px] px-4 py-10 text-center md:px-8 md:py-20"
+      data-family="teal"
+      data-density="comfortable"
+    >
+      {/* Bespoke hero, restored per ruling 64: Recova's /audit sits OUTSIDE
+          (marketing) and never used MarketingPageHeader. The pill is
+          Capsomer's badge in its default (teal) variant; Recova's translucent
+          tint, mono face and 0.06em tracking are a hero treatment for the
+          per-site layer. */}
+      <div className="mb-6">
+        <span className="cap-pill" data-variant="default">
+          FREE LOST REVENUE AUDIT
+        </span>
       </div>
 
-      <h1 className="m-0 mb-5 text-[clamp(1.75rem,5vw,2.75rem)] font-semibold leading-[1.15] tracking-[-1px]">
-        See what your Stripe account is leaking
+      {/* Recova's clamp(28px,5vw,44px) h1 goes to the display size (1.75rem),
+          the five-sizes approval of 2026-09-19 as /products' spokes did (J56).
+          A larger hero size is a per-site layer place. The words are Recova's,
+          drift fixed on sight (RULES.md 2.2): they describe the audit, not the
+          estimator, so they hold in every state of the form below. */}
+      <h1 className="m-0 mb-5 text-display font-semibold leading-[1.15] tracking-[-1px] text-text">
+        See everything leaking from your Stripe account
       </h1>
 
-      <p className="m-0 mb-10 text-product-sub leading-[1.6] text-text-subtle">
+      <p className="m-0 mb-10 text-body leading-[1.6] text-text-subtle">
         Enter your MRR and customer count for a directional estimate. No signup, no credit card, 30
         seconds.
       </p>
 
-      <div>
-        <div className="mb-10 rounded-lg border border-border bg-surface p-6 text-left">
-          <p className="mb-4 font-mono text-micro uppercase tracking-wide text-text-tertiary">
-            Free leakage estimator
-          </p>
+      {/* The estimator: Foxhound's own working surface, which Recova has no
+          counterpart for (ruling 86). */}
+      <div className="mb-10 grid">
+        <section className="cap-panel">
+          <div className="cap-panel-body">
+            <div className="flex flex-col gap-4 text-left">
+              <h2 className="m-0 font-mono text-micro font-normal uppercase tracking-wide text-text-tertiary">
+                Free leakage estimator
+              </h2>
 
-          {!turnstileAvailable ? (
-            <Alert tone="error">
-              The estimator is temporarily unavailable while verification is being configured. Please
-              check back soon, or run the full audit by connecting Stripe directly.
-            </Alert>
-          ) : (
-            <>
-              {actionData && !actionData.ok ? <Alert tone="error">{actionData.error}</Alert> : null}
-
-              {actionData?.ok ? (
-                <EstimatorResultCard result={actionData.result} currency={actionData.currency} />
+              {/* A standing notice, not a failure the visitor caused: an info
+                  banner (role="status"), never a critical alert. */}
+              {!turnstileAvailable ? (
+                <Banner tone="info">
+                  The estimator is temporarily unavailable while verification is being configured.
+                  Please check back soon, or run the full audit by connecting Stripe directly.
+                </Banner>
               ) : (
-                <Form method="post" className="flex flex-col gap-4">
-                  <Field label="Monthly recurring revenue (MRR)" name="mrr" type="number" autoComplete="off" />
-                  <Field label="Active customer count" name="customerCount" type="number" autoComplete="off" />
-                  <label className="flex flex-col gap-1.5">
-                    <span className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Currency</span>
-                    <select
-                      name="currency"
-                      defaultValue="usd"
-                      className="rounded-md border border-border bg-surface px-3 py-2 text-body text-text focus-visible:border-brand"
-                    >
-                      <option value="usd">USD</option>
-                      <option value="eur">EUR</option>
-                      <option value="gbp">GBP</option>
-                      <option value="cad">CAD</option>
-                      <option value="aud">AUD</option>
-                    </select>
-                  </label>
+                <>
+                  {actionData && !actionData.ok ? <Alert>{actionData.error}</Alert> : null}
 
-                  <div className="cf-turnstile" data-sitekey={turnstileSiteKey} />
-
-                  <Submit disabled={busy}>{busy ? "Estimating..." : "Estimate my leakage"}</Submit>
-                </Form>
+                  {actionData?.ok ? (
+                    <EstimatorResultCard result={actionData.result} currency={actionData.currency} />
+                  ) : (
+                    <EstimatorForm busy={busy} siteKey={turnstileSiteKey} />
+                  )}
+                </>
               )}
-            </>
-          )}
-        </div>
-
-        <div className="mb-10 rounded-lg border border-border-sub bg-surface2 px-4 py-3 text-left text-label leading-relaxed text-text-tertiary">
-          Industry commentary on subscription businesses puts monthly failed-payment revenue leakage
-          somewhere in the low single-digit percent of MRR for most accounts, typically higher for
-          smaller, lower-touch accounts and lower for larger ones with more mature dunning already in
-          place. This estimator uses that same directional range (see the confidence caveat on your
-          result), not a claim about your specific account until you connect Stripe.
-        </div>
-
-        {/* Legacy's single covers CARD with a dot list, replacing a 2-up grid of
-            bordered sub-cards Foxhound had.
-
-            UN-RESTATED IN SESSION 71, PHASE (f), which is what session 66's
-            restatement was waiting for. 66 rewrote this section because
-            NOTHING IN FOXHOUND RAN AN AUDIT: no engine, no trigger, no row.
-            Phases (a) to (e) built the engine, the summary, the persistence and
-            the two authenticated surfaces, and (f) built the door. A visitor can
-            now click the button below, authorize read-only, and get all four of
-            these computed from their own live Stripe account.
-
-            So the CLAIM goes back to describing the audit, and the heading with
-            it. Two clauses of legacy's own copy are still NOT restored, because
-            they name renders Foxhound does not have: legacy's "estimated
-            recoverable amount" comes from AUDIT_RECOVERY_ESTIMATE_PCT and its
-            dispute "historical win rate" is a platform figure, both NOT PORTED
-            at 365 binding 31. The expiring-cards line says what the engine's
-            predicate actually does, which includes already-expired cards; legacy
-            says "next 30 days" and counts them too.
-
-            FOUR LINES, NOT SIX, and that is legacy's editorial call matched
-            rather than an omission. Both engines compute six scopes; legacy's
-            card lists four and folds past-due subscriptions and the Card Updater
-            advisory into the run itself. Both render on the results page. */}
-        <div className="mb-6 rounded-2xl border border-border bg-surface p-6 md:p-10">
-          <div className="mb-5 text-xs font-medium uppercase tracking-[0.06em] text-text-tertiary">
-            What the audit covers
+            </div>
           </div>
-          <div>
-            {[
-              [
-                "Failed invoices",
-                `Payments Stripe marked uncollectible in the last ${AUDIT_LOOKBACK_DAYS} days, and the decline reason behind each one.`,
-              ],
-              [
-                "Expiring cards",
-                "Customers whose card has expired or expires within the next month, and the MRR at risk before those payments fail.",
-              ],
-              [
-                "Open disputes",
-                "Unmanaged chargebacks, your won and lost record, and revenue accepted without evidence submission.",
-              ],
-              [
-                "Business health",
-                "MRR, ARR, active subscriptions, voluntary versus involuntary churn rate.",
-              ],
-            ].map(([title, desc]) => (
-              <div key={title} className="mb-3 flex items-start gap-3 text-left">
-                <div className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
-                <div>
-                  <div className="mb-0.5 text-sm font-medium text-text">{title}</div>
-                  <div className="text-label text-text-subtle">{desc}</div>
-                </div>
+        </section>
+      </div>
+
+      <div className="mb-10 grid">
+        <div className="cap-panel">
+          <div className="cap-panel-body">
+            <p className="m-0 text-left text-label leading-relaxed text-text-tertiary">
+              Industry commentary on subscription businesses puts monthly failed-payment revenue leakage
+              somewhere in the low single-digit percent of MRR for most accounts, typically higher for
+              smaller, lower-touch accounts and lower for larger ones with more mature dunning already
+              in place. This estimator uses that same directional range (see the confidence caveat on
+              your result), not a claim about your specific account until you connect Stripe.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Recova's covers card: its heading, the four dot lines, "See my
+          numbers" full width, and the note under it. The note is TRUE here,
+          which it was not in Recova: Foxhound's audit asks Stripe for
+          read_only (STRIPE_AUDIT_SCOPE), where Recova asked read_write beside
+          the same sentence. */}
+      <div className="mb-6 grid">
+        <section className="cap-panel">
+          <div className="cap-panel-body">
+            <div>
+              <h2 className="m-0 mb-5 text-micro font-medium uppercase tracking-[0.06em] text-text-tertiary">
+                What the audit covers
+              </h2>
+              <ul className="m-0 mb-8 list-none p-0">
+                {COVERS.map(([title, desc]) => (
+                  <li key={title} className="mb-3 flex items-start gap-3 text-left">
+                    <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--accent)]" aria-hidden="true" />
+                    <span>
+                      <span className="mb-0.5 block text-label font-medium text-text">{title}</span>
+                      <span className="block text-label text-text-subtle">{desc}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+
+              {/* Capsomer's large primary button as the link Recova draws full
+                  width: the one-column grid stretches it, so the button
+                  carries no Foxhound class. */}
+              <div className="grid">
+                <Link to="/audit/connect" className="cap-btn" data-variant="primary" data-size="lg">
+                  See my numbers
+                </Link>
               </div>
-            ))}
+              <p className="m-0 mt-2 text-label text-text-subtle">
+                Read-only Stripe access. 30 seconds. No account required.
+              </p>
+            </div>
           </div>
+        </section>
+      </div>
 
-          {/* Legacy's in-card CTA, restored with its route. Session 66 recorded
-              it as NOT ported because /audit/connect did not exist; it does. */}
-          <Link
-            to="/audit/connect"
-            className="mb-2 mt-8 block rounded-[10px] bg-brand px-8 py-4 text-base font-bold text-on-brand no-underline hover:bg-brand-dark"
-          >
-            See my numbers
-          </Link>
-          <div className="mt-2 text-label text-text-subtle">
-            Read-only Stripe access. 30 seconds. No account required.
-          </div>
-        </div>
-
-        {/* Legacy's two stat cards, restored as treatment (ruling 87). The
-            figures carry Foxhound's already-live claims, not legacy's "2 to 3%"
-            industry benchmark, which legacy's own comment calls marketing copy;
-            the short-form wording is recorded for ruling 20d's pass. */}
-        <div className="my-10 grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="rounded-[12px] border border-border bg-surface p-5">
-            <div className="mb-1 font-mono text-[1.75rem] font-bold text-green">Low single digits</div>
-            <div className="text-xs text-text-subtle">percent of MRR fails every month for most accounts</div>
-          </div>
-          <div className="rounded-[12px] border border-border bg-surface p-5">
-            <div className="mb-1 font-mono text-[1.75rem] font-bold text-blue">$0</div>
-            <div className="text-xs text-text-subtle">cost to run this estimate today</div>
+      {/* Recova's two figure cards, restored as treatment (ruling 87). The
+          figures carry Foxhound's already-live claims, not Recova's "2 to 3%"
+          industry benchmark, which Recova's own comment calls marketing copy.
+          Plain panels, not Capsomer's stat tile: a tile is always a link, and
+          these lead nowhere. */}
+      <div className="my-10 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="cap-panel">
+          <div className="cap-panel-body">
+            <div>
+              <p className="m-0 mb-1 font-mono text-display font-bold text-green">Low single digits</p>
+              <p className="m-0 text-label text-text-subtle">percent of MRR fails every month for most accounts</p>
+            </div>
           </div>
         </div>
+        <div className="cap-panel">
+          <div className="cap-panel-body">
+            <div>
+              <p className="m-0 mb-1 font-mono text-display font-bold text-blue">$0</p>
+              <p className="m-0 text-label text-text-subtle">cost to run this estimate today</p>
+            </div>
+          </div>
+        </div>
+      </div>
 
-        <div className="mb-4 text-label text-text-subtle">Want to see the app before connecting?</div>
-        <a
-          href="/demos/recovery"
-          className="text-sm text-brand-text no-underline transition-opacity duration-500 hover:opacity-80"
-        >
-          View live demo &rarr;
-        </a>
+      <p className="m-0 mb-4 text-label text-text-subtle">Want to see the app before connecting?</p>
+      {/* A 24px target (min-h-6) for a link that stands alone. */}
+      <a
+        href="/demos/recovery"
+        className="inline-flex min-h-6 items-center text-label text-accent-text no-underline hover:text-accent-hover"
+      >
+        View live demo &rarr;
+      </a>
 
-        <div className="mt-10 rounded-lg border border-border bg-surface p-6 text-center">
-          {/* SESSION 71, PHASE (f): the second half of session 66's restatement
-              coming back. 66 pointed this at /signup because the audit could not
-              be run, so the honest offer was the product rather than the
-              diagnostic. The diagnostic exists now, needs no account, and is the
-              top of PRICING rev 3's funnel, so the CTA is the audit again and
-              signup is what the RESULTS page offers afterwards, which is where
-              legacy puts it too. */}
-          <p className="mb-2 text-body font-medium text-text">Want your real numbers instead of an estimate?</p>
-          <p className="mb-5 text-label leading-relaxed text-text-secondary">
-            Connect Stripe read-only and Foxhound runs the full audit on the spot: what failed and
-            why, what is expiring, where your disputes stand, and your recurring revenue. No account
-            needed, and nothing is written back to Stripe.
-          </p>
-          <Link
-            to="/audit/connect"
-            className="inline-flex items-center gap-2 rounded-md bg-brand px-5 py-2.5 text-label font-medium text-on-brand hover:bg-brand-dark"
-          >
-            Run the free audit
-          </Link>
-          <div className="mt-4 font-mono text-micro text-text-subtle">
-            No account required &middot; The audit only reads &middot; Nothing is stored
+      <div className="mt-10 grid">
+        <div className="cap-panel">
+          <div className="cap-panel-body">
+            {/* SESSION 71, PHASE (f): the CTA is the audit, which needs no
+                account and is the top of PRICING rev 3's funnel; signup is
+                what the RESULTS page offers afterwards, which is where Recova
+                puts it too. */}
+            <div>
+              <p className="m-0 mb-2 text-body font-medium text-text">Want your real numbers instead of an estimate?</p>
+              <p className="m-0 mb-5 text-label leading-relaxed text-text-secondary">
+                Connect Stripe read-only and Foxhound runs the full audit on the spot: what failed and
+                why, what is expiring, where your disputes stand, and your recurring revenue. No account
+                needed, and nothing is written back to Stripe.
+              </p>
+              <Link to="/audit/connect" className="cap-btn" data-variant="primary">
+                Run the free audit
+              </Link>
+              <p className="m-0 mt-4 font-mono text-micro text-text-subtle">
+                No account required &middot; The audit only reads &middot; Nothing is stored
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -334,27 +367,61 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
   );
 }
 
+/** The estimator's form: Capsomer's field, select and primary button. */
+function EstimatorForm({ busy, siteKey }: { busy: boolean; siteKey: string }) {
+  const currencyId = useId();
+  return (
+    <Form method="post" className="flex flex-col gap-4">
+      <Field label="Monthly recurring revenue (MRR)">
+        <input className="cap-input" name="mrr" type="number" autoComplete="off" required />
+      </Field>
+      <Field label="Active customer count">
+        <input className="cap-input" name="customerCount" type="number" autoComplete="off" required />
+      </Field>
+      <div className="cap-field">
+        <label className="cap-field-label" htmlFor={currencyId}>
+          Currency
+        </label>
+        <div className="cap-select-wrap">
+          <select className="cap-select" id={currencyId} name="currency" defaultValue="usd">
+            <option value="usd">USD</option>
+            <option value="eur">EUR</option>
+            <option value="gbp">GBP</option>
+            <option value="cad">CAD</option>
+            <option value="aud">AUD</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="cf-turnstile" data-sitekey={siteKey} />
+
+      {/* Full width, as the form's own submit was: the grid stretches it. */}
+      <div className="grid">
+        <Button type="submit" variant="primary" pending={busy}>
+          Estimate my leakage
+        </Button>
+      </div>
+    </Form>
+  );
+}
+
 function EstimatorResultCard({ result, currency }: { result: EstimatorResult; currency: string }) {
   return (
     <div>
-      <p className="mb-1 font-mono text-micro text-text-subtle">Estimated monthly leakage</p>
-      <p className="mb-3 font-mono text-display font-semibold text-text">
+      <p className="m-0 mb-1 font-mono text-micro text-text-subtle">Estimated monthly leakage</p>
+      <p className="m-0 mb-3 font-mono text-display font-semibold text-text">
         {formatMoney(result.estimatedLeakageCents, currency)}
       </p>
-      <p className="mb-4 text-label leading-relaxed text-text-secondary">
+      <p className="m-0 mb-4 text-label leading-relaxed text-text-secondary">
         Directional estimate, not a precise number: comparable accounts in your MRR band typically show
         {" "}
         {formatMoney(result.low, currency)} to {formatMoney(result.high, currency)} in monthly
         failed-payment leakage. Connect Stripe for your account's actual numbers.
       </p>
-      {/* The estimator's own next step, repointed in phase (f). An estimate
-          built from an MRR band is a directional guess; the audit reads the
-          merchant's actual account, takes no account to run, and is what this
-          card has been promising as "your real numbers" all along. */}
-      <Link
-        to="/audit/connect"
-        className="inline-flex items-center gap-2 rounded-md bg-brand px-5 py-2.5 text-label font-medium text-on-brand hover:bg-brand-dark"
-      >
+      {/* The estimator's own next step: the audit reads the merchant's actual
+          account, takes no account to run, and is what this card has been
+          promising as "your real numbers" all along. */}
+      <Link to="/audit/connect" className="cap-btn" data-variant="primary">
         Run the free audit on your real numbers
       </Link>
     </div>
