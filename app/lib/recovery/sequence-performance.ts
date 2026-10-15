@@ -2,7 +2,7 @@ import type { DeclineCategory } from "~/lib/constants";
 import { formatStepType } from "./labels";
 import { isEmailStep, isRetryStep, RECOVERY_SCHEDULES } from "./schedule";
 
-// Pure account-wide step-performance aggregation for /recovery/sequences
+// Pure account-wide step-performance aggregation for /recovery/sequence
 // (Foxhound's equivalent of legacy's sequence-utils.ts + SequenceView.tsx),
 // rebuilt against Foxhound's REAL 6-category schedule (schedule.ts), not
 // legacy's 4-category hardcoded step list. No DB access; takes whatever rows

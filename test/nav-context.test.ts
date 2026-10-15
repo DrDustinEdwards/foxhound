@@ -43,7 +43,7 @@ describe("resolveNavContext", () => {
     const updateSpy = vi.spyOn(db, "update");
     const { waitUntil, flush } = collectWaitUntil();
 
-    const nav = await resolveNavContext(db, "acc_1", "/recovery", false, waitUntil);
+    const nav = await resolveNavContext(db, "acc_1", "/recovery/dashboard", false, waitUntil);
 
     expect(nav.activeProductKey).toBe("recovery");
     expect(nav.isPlatformPage).toBe(false);
@@ -59,7 +59,7 @@ describe("resolveNavContext", () => {
     const updateSpy = vi.spyOn(db, "update");
     const { waitUntil, flush } = collectWaitUntil();
 
-    const nav = await resolveNavContext(db, "acc_1", "/recovery", false, waitUntil);
+    const nav = await resolveNavContext(db, "acc_1", "/recovery/dashboard", false, waitUntil);
     await flush();
 
     expect(nav.activeProductKey).toBe("recovery");
@@ -73,7 +73,7 @@ describe("resolveNavContext", () => {
     const updateSpy = vi.spyOn(db, "update");
     const { waitUntil, flush } = collectWaitUntil();
 
-    const nav = await resolveNavContext(db, "demo_teamflow", "/recovery", true, waitUntil);
+    const nav = await resolveNavContext(db, "demo_teamflow", "/recovery/dashboard", true, waitUntil);
     await flush();
 
     // The URL still drives the active key for this render...

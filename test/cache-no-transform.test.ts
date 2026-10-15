@@ -22,7 +22,10 @@ function cacheControl(response: Response): string {
 
 describe("no-transform on signed-in and token HTML", () => {
   it.each([
-    "/dashboard",
+    "/console",
+    "/recovery/dashboard",
+    "/disputes/dashboard",
+    "/intelligence/dashboard",
     "/recovery/payments/pay_1",
     "/disputes/dp_1",
     "/intelligence/churn",
@@ -52,7 +55,7 @@ describe("no-transform on signed-in and token HTML", () => {
   });
 
   it("is idempotent", () => {
-    const once = html("/dashboard", { "Cache-Control": "private, no-store, no-transform" });
+    const once = html("/console", { "Cache-Control": "private, no-store, no-transform" });
     expect(cacheControl(once)).toBe("private, no-store, no-transform");
   });
 

@@ -31,9 +31,9 @@ import type { Route } from "./+types/index";
 // work, no longer as frozen, so this job carries it and the seat's read of the
 // diff decides whether it stands.
 //
-// Spoke hrefs come from lib/marketing/products.ts and stay on the /products/*
-// routes that exist until J09 (rulings 55 and 56) reverts them to Recova's
-// /product/*; test/products-hub-j16.test.ts checks every href is a route.
+// Spoke hrefs come from lib/marketing/products.ts and are Recova's /product/*
+// since J09 (rulings 55 and 56); test/products-hub-j16.test.ts checks every
+// href is a route.
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return marketingMeta({

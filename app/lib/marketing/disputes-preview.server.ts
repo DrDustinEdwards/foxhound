@@ -16,7 +16,7 @@ import { formatAmounts, formatMoney } from "~/lib/money-format";
 
 import type { DisputesPreview, PreviewDisputeRow } from "./disputes-preview";
 
-// The data behind the /products/disputes previews (J57): the demo account's
+// The data behind the /product/disputes previews (J57): the demo account's
 // seed, never a merchant's rows. Recova draws these from a hand-written
 // eight-dispute array (DisputesDashboardPreview.tsx, blob dcde195e), a second
 // hand-written six-row array (DisputesTablePreview.tsx, blob ed33fa95) and

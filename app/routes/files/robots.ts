@@ -29,7 +29,7 @@ import type { Route } from "./+types/robots";
 // Bytespider is the ONE ratified deny: an undifferentiated training scraper
 // with no citation or answer surface, so no upside to the strategy above.
 export const DISALLOW_PATHS = [
-  "/dashboard",
+  "/console",
   // The audit's NON-MARKETING surfaces only. `/audit` itself is the public
   // estimator and stays crawlable, so this cannot be a bare "/audit" prefix.
   // Legacy disallows `/audit/dashboard` and `/audit/results/` and leaves
@@ -45,9 +45,13 @@ export const DISALLOW_PATHS = [
   "/audit/connect",
   "/audit/callback",
   "/audit/results",
-  "/recovery",
-  "/disputes",
-  "/intelligence",
+  // Every product page sits below its prefix since J09's URL reverts
+  // (/recovery/dashboard, /disputes/dashboard, /intelligence/dashboard), so
+  // the prefix carries its slash, as legacy writes '/disputes/' and
+  // '/intelligence/'.
+  "/recovery/",
+  "/disputes/",
+  "/intelligence/",
   "/billing",
   "/settings",
   "/help",

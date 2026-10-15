@@ -64,7 +64,7 @@ const COMPARISON_ROWS: ComparisonRow[] = [
     foxhoundTitle: "Silent retries, then intelligent sequences",
     foxhoundBody:
       `A quiet retry runs before any customer ever sees an email, so we never dun someone for a payment we could have recovered without bothering them. Declines are classified ${DECLINE_CATEGORY_PHRASE}, each handled differently across 30 days.`,
-    foxhoundHref: "/products/recovery",
+    foxhoundHref: "/product/recovery",
   },
   {
     stripeTitle: "Dispute notifications",
@@ -73,7 +73,7 @@ const COMPARISON_ROWS: ComparisonRow[] = [
     foxhoundTitle: "Evidence drafted, you review and sign",
     foxhoundBody:
       "Evidence is drafted from your recovery history, Stripe signals, and transaction data. You review it and sign every submission yourself, there is no auto-submit toggle. 20% only when you win, capped at $500.",
-    foxhoundHref: "/products/disputes",
+    foxhoundHref: "/product/disputes",
   },
 ];
 
@@ -97,28 +97,28 @@ const FAQS: { question: string; answer: string; node?: React.ReactNode }[] = [
         Each monthly run bills the prior month&apos;s matured recoveries, meaning recoveries you&apos;ve
         held for 30 or more days, at{" "}
         <Link
-          to="/products/recovery"
+          to="/product/recovery"
           className="text-brand-text underline underline-offset-2 transition-opacity duration-150 hover:opacity-80"
         >
           20%
         </Link>
         .{" "}
         <Link
-          to="/products/disputes"
+          to="/product/disputes"
           className="text-brand-text underline underline-offset-2 transition-opacity duration-150 hover:opacity-80"
         >
           Disputes
         </Link>{" "}
         are 20% of wins only, capped at $500 per dispute.{" "}
         <Link
-          to="/products/intelligence"
+          to="/product/intelligence"
           className="text-brand-text underline underline-offset-2 transition-opacity duration-150 hover:opacity-80"
         >
           Intelligence
         </Link>
         &apos;s predictive layer is $199 per month flat.{" "}
         <Link
-          to="/products/audit"
+          to="/product/audit"
           className="text-brand-text underline underline-offset-2 transition-opacity duration-150 hover:opacity-80"
         >
           Audit

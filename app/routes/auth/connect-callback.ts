@@ -119,7 +119,7 @@ async function destinationFor(db: Db, accountId: string): Promise<string> {
     .from(accounts)
     .where(eq(accounts.id, accountId))
     .limit(1);
-  return row?.onboardingCompleted ? "/dashboard" : "/welcome";
+  return row?.onboardingCompleted ? "/console" : "/welcome";
 }
 
 /** Land on `accountId` with this session pointed at it. */

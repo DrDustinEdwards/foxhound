@@ -2,7 +2,7 @@ import { ArrowRight } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Link } from "react-router";
 
-// Shared building blocks for the four /products/* pages, ported from legacy
+// Shared building blocks for the four /product/* pages, ported from legacy
 // components/product/ProductSections.tsx. All four spokes delegate every pixel
 // of chrome to this file, exactly as legacy's own header comment says they do,
 // so a change here reaches M6 to M9 at once.

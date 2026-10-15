@@ -38,6 +38,7 @@ const PUBLIC_ROUTES = [
   ["/terms", "marketing"],
   ["/audit", "marketing"],
   ["/products", "marketing"],
+  ["/product/recovery", "marketing"],
   ["/products/recovery", "marketing"],
   ["/compare", "marketing"],
   ["/compare/chargeflow", "marketing"],
@@ -60,15 +61,16 @@ const PUBLIC_ROUTES = [
 
 /** Every PRIVATE-class route, including the ones added after 345 was written. */
 const PRIVATE_ROUTES = [
-  "/dashboard",
-  "/recovery",
+  "/console",
+  "/recovery/dashboard",
+  "/recovery/sequence",
   "/recovery/payments",
   "/recovery/payments/abc",
   "/recovery/winback",
   "/recovery/expiring-cards",
-  "/disputes",
+  "/disputes/dashboard",
   "/disputes/abc",
-  "/intelligence",
+  "/intelligence/dashboard",
   "/intelligence/customers",
   "/billing",
   "/billing/invoices/abc",
@@ -133,7 +135,7 @@ describe("PLANT 1: an anonymous request gets the public directive", () => {
     // the word that forbids storage outright; `private, max-age=0` still
     // permits a store-and-revalidate, which is not what this policy promises.
     expect(PRIVATE_DIRECTIVE).toBe("private, no-store");
-    expect(resolveCacheControl(request("/dashboard"))).toBe("private, no-store");
+    expect(resolveCacheControl(request("/console"))).toBe("private, no-store");
     expect(resolveCacheControl(request("/", PROD_COOKIE))).toBe("private, no-store");
   });
 

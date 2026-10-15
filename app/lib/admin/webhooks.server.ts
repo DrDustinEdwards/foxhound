@@ -1,4 +1,4 @@
-// /admin/webhooks data layer: delivery/health view off webhook_events. READ
+// /admin/platform/webhooks data layer: delivery/health view off webhook_events. READ
 // only (Pass 1); there is no retry/replay action here.
 
 import { and, count, desc, eq, isNotNull, like, sql, type SQL } from "drizzle-orm";

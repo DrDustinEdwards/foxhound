@@ -101,7 +101,9 @@ const MARKETING_EXACT = new Set([
 ]);
 
 /** Prefixes that are PUBLIC marketing, with their own index covered above. */
-const MARKETING_PREFIXES = ["/products/", "/compare/", "/decline-codes/"];
+// "/product/" is Recova's product pages (J09); "/products/" stays for the four
+// old spoke addresses, which now answer a 301 to them.
+const MARKETING_PREFIXES = ["/product/", "/products/", "/compare/", "/decline-codes/"];
 
 /** Files routes. `/og/` is included: it sets no Cache-Control of its own today
  *  and its output is a pure function of the path params. */
@@ -205,11 +207,13 @@ function appendVary(headers: Headers, value: string): void {
  * test/cache-policy.test.ts fails if a top-level app-shell route is missing.
  */
 export const NO_TRANSFORM_PREFIXES = [
-  "/dashboard",
+  "/console",
   "/billing",
-  "/recovery",
-  "/disputes",
-  "/intelligence",
+  // Every product page sits below its prefix since J09 (Recova's
+  // /recovery/dashboard and the like); there is no page at the bare prefix.
+  "/recovery/",
+  "/disputes/",
+  "/intelligence/",
   "/settings",
   "/audit/history",
   "/audit/runs/",

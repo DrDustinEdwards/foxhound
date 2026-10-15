@@ -324,7 +324,7 @@ export const DOC_GUIDES: DocGuide[] = [
           "Each category's steps in order, from the engine's own schedule table. A retry is teal and an email is not, so the shape of a category is readable at a glance: soft and network open with a quiet retry, and the other four never retry at all.",
           { kind: "widget", name: "sequence-timelines" },
           { kind: "h3", text: "Reading the sequences page" },
-          { kind: "p", body: [ "The page at ", { link: "/recovery/sequences", to: "/recovery/sequences" }, " reads across your whole recovery history by category. For each step it shows how many went out, the open rate, the click rate and the most recent subject line used. A retry step shows how often the retry worked instead." ] },
+          { kind: "p", body: [ "The page at ", { link: "/recovery/sequence", to: "/recovery/sequence" }, " reads across your whole recovery history by category. For each step it shows how many went out, the open rate, the click rate and the most recent subject line used. A retry step shows how often the retry worked instead." ] },
           { kind: "h3", text: "How recovery emails are written" },
           "Every email is written at send time. The AI is given the customer's first name, the plan, the amount, how long they have been a customer, the decline category, where the message sits in the sequence, your brand voice, and your merchant context when you have set it.",
           "What comes back is checked before it goes anywhere: an email carrying hollow phrasing, hedging, or anything that reads like a billing system wrote it is rejected and the template goes instead. Delivery is never held up by the AI layer.",

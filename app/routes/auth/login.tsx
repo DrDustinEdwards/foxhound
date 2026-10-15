@@ -25,7 +25,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   // visitor hitting /login otherwise saw the sign-in form while the header
   // already showed them authenticated.
   const session = await getSession(env, request);
-  if (session) throw redirect("/dashboard");
+  if (session) throw redirect("/console");
   const verified = new URL(request.url).searchParams.get("verified") === "1";
   return { googleEnabled: Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET), verified };
 }
@@ -43,7 +43,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   });
 
   if (res.ok) {
-    return redirect("/dashboard", { headers: forwardSetCookie(res) });
+    return redirect("/console", { headers: forwardSetCookie(res) });
   }
   return data(
     { error: await authErrorMessage(res, "Invalid email or password.") },

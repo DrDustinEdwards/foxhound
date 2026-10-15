@@ -575,7 +575,7 @@ export async function deleteUserAccount(
       deauthorizeErrors.push(failure);
       console.error(`stripe deauthorize failed after account deletion, connection ${c.id}:`, result.error);
       // Nobody is signed in to see this once the account is gone, so the
-      // failure is written where an operator finds it (/admin/audit-log). A
+      // failure is written where an operator finds it (/admin/platform/audit-log). A
       // failed write is logged and never reports the deletion as failed.
       try {
         await recordFailure(env, userId, failure);

@@ -88,7 +88,7 @@ function RangeSelector({ range }: { range: RecoveryRange }) {
       {RECOVERY_RANGES.map((r) => (
         <Link
           key={r}
-          to={`/recovery?range=${r}`}
+          to={`/recovery/dashboard?range=${r}`}
           aria-current={range === r ? "page" : undefined}
           className={`rounded-md border px-2.5 py-1 font-mono text-micro ${
             range === r
@@ -590,7 +590,7 @@ export default function RecoveryDashboard({ loaderData }: Route.ComponentProps) 
 
           <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Link
-              to="/recovery/sequences"
+              to="/recovery/sequence"
               className="rounded-[12px] border border-border bg-surface px-6 py-5 hover:border-border-i"
             >
               <p className="text-body font-medium text-text">Sequences</p>

@@ -50,7 +50,7 @@ Contact: ${SUPPORT_EMAIL}
 
 A Stripe diagnostic that starts without creating an account. The free estimate connects to Stripe not at all: it runs on figures the merchant enters. The full report against a real Stripe account needs no Foxhound account either: it connects with its own READ-ONLY OAuth grant, which is a different and narrower scope than the read-and-write one a merchant grants at onboarding, and which is held in a short-lived cookie rather than stored. It produces a structured report: failed invoices, expiring cards, open disputes, and business health signals, split into what Stripe's own tools already recovered, what is still failing, and what Foxhound would add.
 
-URL: ${url}/products/audit
+URL: ${url}/product/audit
 Docs: ${url}/docs/audit
 Pricing: Free.
 
@@ -58,7 +58,7 @@ Pricing: Free.
 
 When a Stripe payment fails, Foxhound classifies the decline into a category and runs a silent retry before any customer-facing email, so a payment that recovers on its own is never billed. If the silent retry doesn't clear it, an AI-drafted dunning sequence runs across 30 days, with a hosted card-update link on every email. Recoveries Stripe's own tools (like Smart Retries) would have produced anyway are recorded and shown to the merchant for free; only recoveries attributable to a Foxhound action are billable, and only once that recovery has matured for 30 days (absorbing the refund window).
 
-URL: ${url}/products/recovery
+URL: ${url}/product/recovery
 Docs: ${url}/docs/recovery
 Pricing: a percentage of Foxhound-attributed recoveries. No flat fee. Nothing billed until a recovery has matured 30 days. Current rate: ${url}/pricing.
 
@@ -66,7 +66,7 @@ Pricing: a percentage of Foxhound-attributed recoveries. No flat fee. Nothing bi
 
 When a Stripe dispute arrives, Foxhound drafts evidence from the merchant's Stripe data and recovery history. A human always reviews and signs before anything is submitted to Stripe; there is no auto-submit toggle, and there never has been one. Charges a percentage of disputes won, capped per dispute, nothing on losses or accepted disputes.
 
-URL: ${url}/products/disputes
+URL: ${url}/product/disputes
 Docs: ${url}/docs/disputes
 Pricing: a percentage of won disputes, capped per dispute. Nothing on losses. Current rate and cap: ${url}/pricing.
 
@@ -74,7 +74,7 @@ Pricing: a percentage of won disputes, capped per dispute. Nothing on losses. Cu
 
 Pulls Stripe billing data into MRR movement (new, expansion, contraction, churn), cohort analytics, and customer health signals. The MRR/movement/cohort analytics tier is free for every Recovery merchant. A predictive risk-scoring layer, which feeds Recovery timing and Disputes triage, is a paid add-on billed as a flat monthly subscription.
 
-URL: ${url}/products/intelligence
+URL: ${url}/product/intelligence
 Docs: ${url}/docs/intelligence
 Pricing: Basic analytics free for Recovery merchants. Predictive risk scoring: flat monthly subscription, current rate at ${url}/pricing.
 

@@ -414,7 +414,7 @@ export function estimateCustomerLtvCents(amounts: number[]): number | null {
   return (sum / amounts.length) * 12;
 }
 
-/** Every recovery_steps row across a set of failed payments (the /recovery/sequences
+/** Every recovery_steps row across a set of failed payments (the /recovery/sequence
  *  queue view fetches steps for all active sequences in one query). */
 export async function listStepsForFailedPayments(
   db: Db,
@@ -448,7 +448,7 @@ export interface ExecutedRecoveryStepRow {
 
 /** Every executed (non-cancelled) recovery_steps row for the account, across
  *  every failed payment, joined to its decline category - the account-wide
- *  step-performance read model for /recovery/sequences. */
+ *  step-performance read model for /recovery/sequence. */
 export async function listExecutedRecoverySteps(db: Db, accountId: string): Promise<ExecutedRecoveryStepRow[]> {
   const rows = await db
     .select({

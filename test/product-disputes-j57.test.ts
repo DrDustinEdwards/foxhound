@@ -39,7 +39,7 @@ type LoaderData = Awaited<ReturnType<typeof loader>>;
 async function load(): Promise<LoaderData> {
   return loader({
     context: fakeContext,
-    request: new Request("https://foxhoundapp.com/products/disputes"),
+    request: new Request("https://foxhoundapp.com/product/disputes"),
     params: {},
   } as unknown as Parameters<typeof loader>[0]);
 }
@@ -47,7 +47,7 @@ async function load(): Promise<LoaderData> {
 function render(loaderData: LoaderData): string {
   const Page = DisputesProductPage as unknown as (props: { loaderData: LoaderData }) => React.ReactElement;
   const router = createMemoryRouter([{ path: "*", element: createElement(Page, { loaderData }) }], {
-    initialEntries: ["/products/disputes"],
+    initialEntries: ["/product/disputes"],
   });
   return renderToStaticMarkup(createElement(RouterProvider, { router }));
 }
@@ -153,7 +153,7 @@ function bodyRows(table: string): string[] {
   return [...tbody.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)].map((m) => m[1]);
 }
 
-describe("/products/disputes follows Recova's sections, in Recova's order (J57)", async () => {
+describe("/product/disputes follows Recova's sections, in Recova's order (J57)", async () => {
   const html = render(await load());
   const body = text(html);
 

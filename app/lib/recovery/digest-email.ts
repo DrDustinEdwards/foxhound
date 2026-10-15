@@ -40,7 +40,7 @@ export interface DigestInput extends DigestNumbers {
   /** The digest's own clock, so the header line and subject agree. */
   now: Date;
   /** Legacy links to `${APP_URL}/recovery/dashboard`; Foxhound's equivalent
-   *  route is /dashboard. Passed in so this module stays free of env. */
+   *  route is /console. Passed in so this module stays free of env. */
   dashboardUrl: string;
 }
 

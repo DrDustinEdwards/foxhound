@@ -69,7 +69,7 @@ export const middleware: Route.MiddlewareFunction[] = [appShellMiddleware];
 // route changes - even though the loader's own result (nav.activeProductKey)
 // depends on the pathname. Without this, the switcher and primary links
 // go stale on every client-side nav between products (caught visually:
-// /dashboard -> /recovery via the switcher left the header reading
+// /console -> /recovery via the switcher left the header reading
 // "Dashboard" until a hard reload).
 export function shouldRevalidate({
   currentUrl,
@@ -153,14 +153,14 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 // page keeps its own column.
 
 const ICONS: Record<string, LucideIcon> = {
-  "/dashboard": LayoutDashboard,
-  "/recovery": RotateCcw,
+  "/console": LayoutDashboard,
+  "/recovery/dashboard": RotateCcw,
   "/recovery/payments": CreditCard,
-  "/recovery/sequences": ListOrdered,
+  "/recovery/sequence": ListOrdered,
   "/recovery/winback": Undo2,
   "/recovery/expiring-cards": CalendarClock,
-  "/disputes": Scale,
-  "/intelligence": BarChart3,
+  "/disputes/dashboard": Scale,
+  "/intelligence/dashboard": BarChart3,
   "/intelligence/customers": Users,
   "/intelligence/churn": TrendingDown,
   "/intelligence/alerts": Bell,
@@ -205,7 +205,12 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
   // a platform page (settings, billing, help) the product is the last one you
   // visited, as the switcher already says.
   const pages = productPages(nav.activeProductKey);
-  const currentPage = nav.isPlatformPage ? undefined : currentRow(pathname, pages);
+  // A one-page product (Disputes) marks its one row on every page under it, as
+  // it did when that row's href was the product's prefix (before J09 moved it
+  // to /disputes/dashboard).
+  const currentPage = nav.isPlatformPage
+    ? undefined
+    : (currentRow(pathname, pages) ?? (pages.length === 1 ? pages[0] : undefined));
   const currentAccountPage = currentRow(pathname, ACCOUNT_PAGES);
   const menu: AdminEntry[] = [
     ...pages.map((l) => ({
@@ -240,14 +245,20 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
   // Billing and Settings, up to Capsomer's five (no More: the menu button opens
   // the full list). With Intelligence that is the four products and Settings;
   // Billing is in the avatar menu and the sheet.
-  const tabLinks: ProductNavLink[] = [
+  const tabLinks: Array<ProductNavLink & { product?: ProductKey }> = [
     ...PRODUCT_ORDER.filter((key) => key !== "intelligence" || nav.intelligenceEntitled).map((key) => ({
       label: PRODUCT_MANIFEST[key].label,
       to: PRODUCT_MANIFEST[key].href,
+      product: key,
     })),
     ...["Billing", "Settings"].flatMap((label) => PLATFORM_LINKS.filter((l) => l.label === label)),
   ];
-  const currentTab = currentRow(pathname, tabLinks);
+  // A product's tab goes to its dashboard (/recovery/dashboard, Recova's path,
+  // J09) but stands for every page of the product, so it is matched on the
+  // product the page belongs to, not on its own href.
+  const currentTab = nav.isPlatformPage
+    ? currentRow(pathname, tabLinks.filter((l) => !l.product))
+    : tabLinks.find((l) => l.product === nav.activeProductKey);
   const tabs: AdminEntry[] = (
     tabLinks.length > 5 ? tabLinks.filter((l) => l.label !== "Billing") : tabLinks
   ).map((l) => ({
@@ -392,7 +403,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
       <main className="flex flex-col items-center justify-center gap-4 px-4 py-16 text-center">
         <h1 className="text-title font-medium text-text">{message}</h1>
         <p className="max-w-md text-body text-text-secondary">{details}</p>
-        <Link to="/dashboard" className="text-label text-brand-text hover:underline">
+        <Link to="/console" className="text-label text-brand-text hover:underline">
           Back to Foxhound
         </Link>
       </main>

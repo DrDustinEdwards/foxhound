@@ -12,13 +12,18 @@ export default [
   layout("./layouts/marketing.tsx", [
     index("./routes/home.tsx"),
     route("pricing", "./routes/pricing.tsx"),
-    ...prefix("products", [
-      index("./routes/products/index.tsx"),
+    // Recova's paths (J09, rulings 55 and 56): the hub is /products and each
+    // product's page is /product/<name>, singular, as in Recova's
+    // app/(marketing)/product/*. The old /products/<name> spokes were in the
+    // sitemap, so each answers one 301 to its new path; any other name is a 404.
+    route("products", "./routes/products/index.tsx"),
+    ...prefix("product", [
       route("audit", "./routes/products/audit.tsx"),
       route("recovery", "./routes/products/recovery.tsx"),
       route("disputes", "./routes/products/disputes.tsx"),
       route("intelligence", "./routes/products/intelligence.tsx"),
     ]),
+    route("products/:spoke", "./routes/products/spoke-redirect.ts"),
     ...prefix("decline-codes", [
       index("./routes/decline-codes/index.tsx"),
       route(":code", "./routes/decline-codes/code.tsx"),
@@ -81,25 +86,29 @@ export default [
     route("auth/google", "./routes/auth/google-start.ts"),
   ]),
 
+  // Recova's paths (J09, rulings 55 and 56): the console is /console and each
+  // product's overview is /<product>/dashboard. Foxhound's former paths
+  // (/dashboard, the bare /recovery, /disputes and /intelligence) were never
+  // public and are not redirected; Recova has no page at them either.
   layout("./layouts/app-shell.tsx", { id: "app-shell" }, [
-    route("dashboard", "./routes/app/dashboard.tsx"),
+    route("console", "./routes/app/dashboard.tsx"),
     ...prefix("recovery", [
-      index("./routes/app/recovery/index.tsx"),
+      route("dashboard", "./routes/app/recovery/index.tsx"),
       ...prefix("payments", [
         index("./routes/app/recovery/payments/index.tsx"),
         route("export.csv", "./routes/app/recovery/payments/export.ts"),
         route(":id", "./routes/app/recovery/payments/detail.tsx"),
       ]),
-      route("sequences", "./routes/app/recovery/sequences.tsx"),
+      route("sequence", "./routes/app/recovery/sequences.tsx"),
       route("winback", "./routes/app/recovery/winback.tsx"),
       route("expiring-cards", "./routes/app/recovery/expiring-cards.tsx"),
     ]),
     ...prefix("disputes", [
-      index("./routes/app/disputes/index.tsx"),
+      route("dashboard", "./routes/app/disputes/index.tsx"),
       route(":id", "./routes/app/disputes/detail.tsx"),
     ]),
     ...prefix("intelligence", [
-      index("./routes/app/intelligence/index.tsx"),
+      route("dashboard", "./routes/app/intelligence/index.tsx"),
       route("customers", "./routes/app/intelligence/customers.tsx"),
       route("customers/:id", "./routes/app/intelligence/customer.tsx"),
       route("churn", "./routes/app/intelligence/churn.tsx"),
@@ -155,14 +164,21 @@ export default [
       route("users", "./routes/admin/users.tsx"),
       route("operations", "./routes/admin/operations.tsx"),
       route("brake", "./routes/admin/brake.tsx"),
-      route("crons", "./routes/admin/crons.tsx"),
-      route("webhooks", "./routes/admin/webhooks.tsx"),
+      // Recova's Platform group (app/admin/admin-nav.ts): crons, webhooks and
+      // the audit log live under /admin/platform (J09). The old Foxhound
+      // paths sat behind Access and are not redirected, and Recova's own
+      // orphaned /admin/webhooks and /admin/audit-log were declined with "no
+      // redirect" (ruling 407).
+      ...prefix("platform", [
+        route("crons", "./routes/admin/crons.tsx"),
+        route("webhooks", "./routes/admin/webhooks.tsx"),
+        route("audit-log", "./routes/admin/audit-log.tsx"),
+      ]),
       ...prefix("blog", [
         index("./routes/admin/blog/index.tsx"),
         route(":id", "./routes/admin/blog/detail.tsx"),
       ]),
       route("social", "./routes/admin/social.tsx"),
-      route("audit-log", "./routes/admin/audit-log.tsx"),
       route("staged", "./routes/admin/staged.tsx"),
     ]),
   ]),

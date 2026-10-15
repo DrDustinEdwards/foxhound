@@ -1,4 +1,4 @@
-// /admin/crons data layer: cron_config enable/disable + cron_run_history.
+// /admin/platform/crons data layer: cron_config enable/disable + cron_run_history.
 // Not money-adjacent (this toggles operational scheduling, not billing), so
 // this is Pass 1 scope; still audit-logged since it's a real operator action
 // that changes production behavior.

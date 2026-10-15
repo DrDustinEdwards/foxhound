@@ -32,9 +32,9 @@ async function barAt(width, mq) {
     // bar" at EVERY width with total confidence, which is ruling 129's exact
     // failure. Assert the condition actually applied (ruling 132).
     const landed = await page.evaluate(() => location.pathname);
-    if (landed !== "/dashboard") {
+    if (landed !== "/console") {
       throw new Error(
-        `LANDED ON ${landed}, NOT /dashboard. The demo session did not hold, so the app shell ` +
+        `LANDED ON ${landed}, NOT /console. The demo session did not hold, so the app shell ` +
           `was never rendered and any "bar absent" reading here would be about the wrong page.`,
       );
     }

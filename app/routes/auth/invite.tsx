@@ -51,7 +51,7 @@ export async function action({ request, params, context }: Route.ActionArgs) {
     // because following an invite link to an account you already hold is a clear
     // statement of which account you want to be looking at.
     await setSessionActiveAccount(db, session.session.id, result.accountId);
-    return redirect("/dashboard");
+    return redirect("/console");
   }
 
   // `already_member` is gone as a rejection (ruling 327): holding the invited

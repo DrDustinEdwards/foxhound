@@ -174,7 +174,7 @@ export default function AdminOverview({ loaderData }: Route.ComponentProps) {
         <Panel
           title="Recent admin actions"
           src={reading}
-          more={<Link to="/admin/audit-log">View audit log</Link>}
+          more={<Link to="/admin/platform/audit-log">View audit log</Link>}
           flush
         >
           {recentActions.length === 0 ? (
@@ -189,7 +189,7 @@ export default function AdminOverview({ loaderData }: Route.ComponentProps) {
                   // The row's one link opens what the action was done to, or the
                   // audit log when the action has no page of its own to open.
                   title={a.action}
-                  href={a.target?.href ?? "/admin/audit-log"}
+                  href={a.target?.href ?? "/admin/platform/audit-log"}
                   renderLink={rowLink}
                   detail={a.target ? `${a.target.label}, by ${a.actorEmail}` : `by ${a.actorEmail}`}
                   meta={<AdminTime at={a.createdAt} />}
@@ -201,7 +201,7 @@ export default function AdminOverview({ loaderData }: Route.ComponentProps) {
       </div>
 
       <div aria-busy={pending || undefined}>
-        <Panel title="Cron health" src={reading} more={<Link to="/admin/crons">View crons</Link>}>
+        <Panel title="Cron health" src={reading} more={<Link to="/admin/platform/crons">View crons</Link>}>
           <div className="grid gap-2">
             <p className={`m-0 text-label ${failed > 0 ? "text-error-text" : "text-success-text"}`}>
               {failed === 1 ? (

@@ -82,7 +82,7 @@ export interface PlatformOverview {
   cronHealth: {
     failedLast24h: number;
     /** The failed runs themselves (newest first), so the Overview can link to
-     *  each one on /admin/crons. */
+     *  each one on /admin/platform/crons. */
     failedRuns: Array<{ id: string; cronName: string; finishedAt: Date; message: string | null }>;
     lastRunAt: Date | null;
     disabledCount: number;
@@ -377,12 +377,12 @@ export interface RecentAdminAction {
   id: string;
   createdAt: Date;
   actorEmail: string;
-  /** The action as a sentence (audit-describe.ts), the same words /admin/audit-log uses. */
+  /** The action as a sentence (audit-describe.ts), the same words /admin/platform/audit-log uses. */
   action: string;
   target: AuditTarget | null;
 }
 
-/** The newest audit rows, described as /admin/audit-log describes them. */
+/** The newest audit rows, described as /admin/platform/audit-log describes them. */
 export async function listRecentAdminActions(db: Db): Promise<RecentAdminAction[]> {
   const rows = await listAuditLog(db, RECENT_ACTIONS_LIMIT);
   const lookups = await loadAuditLookups(db, rows);

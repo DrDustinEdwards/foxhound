@@ -47,10 +47,10 @@ Foxhound is built on Stripe Connect for subscription businesses. It sits on top 
 
 ## Products
 
-- [Audit](${url}/products/audit): Free Stripe diagnostic. Identifies failed invoices, expiring cards, open disputes, and business health metrics. No account required.
-- [Recovery](${url}/products/recovery): Silent retries first, then AI-drafted dunning email sequences across 30 days, calibrated by decline category. Recoveries Stripe's own tools would have gotten anyway are recorded and shown for free. Priced as a percentage of Foxhound-attributed recoveries only, and only once a recovery has matured 30 days. See ${url}/pricing for the current rate.
-- [Disputes](${url}/products/disputes): Evidence drafted automatically from Stripe data and recovery history. A human always reviews and signs before anything reaches Stripe; there is no auto-submit toggle. Priced as a percentage of won disputes only, capped per dispute, nothing on losses. See ${url}/pricing for the current rate and cap.
-- [Intelligence](${url}/products/intelligence): MRR, movement (new/expansion/contraction/churn), and cohort analytics are free for every Recovery merchant. The predictive risk-scoring layer is a flat monthly subscription. See ${url}/pricing for the current rate.
+- [Audit](${url}/product/audit): Free Stripe diagnostic. Identifies failed invoices, expiring cards, open disputes, and business health metrics. No account required.
+- [Recovery](${url}/product/recovery): Silent retries first, then AI-drafted dunning email sequences across 30 days, calibrated by decline category. Recoveries Stripe's own tools would have gotten anyway are recorded and shown for free. Priced as a percentage of Foxhound-attributed recoveries only, and only once a recovery has matured 30 days. See ${url}/pricing for the current rate.
+- [Disputes](${url}/product/disputes): Evidence drafted automatically from Stripe data and recovery history. A human always reviews and signs before anything reaches Stripe; there is no auto-submit toggle. Priced as a percentage of won disputes only, capped per dispute, nothing on losses. See ${url}/pricing for the current rate and cap.
+- [Intelligence](${url}/product/intelligence): MRR, movement (new/expansion/contraction/churn), and cohort analytics are free for every Recovery merchant. The predictive risk-scoring layer is a flat monthly subscription. See ${url}/pricing for the current rate.
 
 ## Pricing
 

@@ -60,13 +60,13 @@ const ENTRIES: Array<AdminEntry & { match: (path: string) => boolean }> = [
   { id: "merchants", label: "Merchants", href: "/admin/merchants", group: "Customers", icon: icon(Store), match: (p) => p.startsWith("/admin/merchants") },
   { id: "users", label: "Users", href: "/admin/users", group: "Customers", icon: icon(Users), match: (p) => p.startsWith("/admin/users") },
   { id: "operations", label: "Operations", href: "/admin/operations", group: "Platform", icon: icon(Activity), match: (p) => p.startsWith("/admin/operations") },
-  { id: "crons", label: "Crons", href: "/admin/crons", group: "Platform", icon: icon(Clock), match: (p) => p.startsWith("/admin/crons") },
-  { id: "webhooks", label: "Webhooks", href: "/admin/webhooks", group: "Platform", icon: icon(Webhook), match: (p) => p.startsWith("/admin/webhooks") },
+  { id: "crons", label: "Crons", href: "/admin/platform/crons", group: "Platform", icon: icon(Clock), match: (p) => p.startsWith("/admin/platform/crons") },
+  { id: "webhooks", label: "Webhooks", href: "/admin/platform/webhooks", group: "Platform", icon: icon(Webhook), match: (p) => p.startsWith("/admin/platform/webhooks") },
   { id: "brake", label: "Emergency brake", href: "/admin/brake", group: "Controls", icon: icon(OctagonPause), match: (p) => p.startsWith("/admin/brake") },
   { id: "staged", label: "Staged changes", href: "/admin/staged", group: "Controls", icon: icon(ListChecks), match: (p) => p.startsWith("/admin/staged") },
   { id: "blog", label: "Blog", href: "/admin/blog", group: "Content", icon: icon(FileText), match: (p) => p.startsWith("/admin/blog") },
   { id: "social", label: "Social", href: "/admin/social", group: "Content", icon: icon(Share2), match: (p) => p.startsWith("/admin/social") },
-  { id: "audit-log", label: "Audit log", href: "/admin/audit-log", group: "Records", icon: icon(ScrollText), match: (p) => p.startsWith("/admin/audit-log") },
+  { id: "audit-log", label: "Audit log", href: "/admin/platform/audit-log", group: "Records", icon: icon(ScrollText), match: (p) => p.startsWith("/admin/platform/audit-log") },
 ];
 
 // The family strip as Capsomer draws it, with Foxhound's own mark in its place.

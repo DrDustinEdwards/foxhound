@@ -48,7 +48,7 @@ type LoaderData = Awaited<ReturnType<typeof loader>>;
 async function load(): Promise<LoaderData> {
   return loader({
     context: fakeContext,
-    request: new Request("https://foxhoundapp.com/products/recovery"),
+    request: new Request("https://foxhoundapp.com/product/recovery"),
     params: {},
   } as unknown as Parameters<typeof loader>[0]);
 }
@@ -56,7 +56,7 @@ async function load(): Promise<LoaderData> {
 function render(loaderData: LoaderData): string {
   const Page = RecoveryProductPage as unknown as (props: { loaderData: LoaderData }) => React.ReactElement;
   const router = createMemoryRouter([{ path: "*", element: createElement(Page, { loaderData }) }], {
-    initialEntries: ["/products/recovery"],
+    initialEntries: ["/product/recovery"],
   });
   return renderToStaticMarkup(createElement(RouterProvider, { router }));
 }
@@ -108,7 +108,7 @@ function routePaths(entries: RouteEntry[], parent = "", out = new Set<string>())
   return out;
 }
 
-describe("/products/recovery follows Recova's sections, in Recova's order (J56)", async () => {
+describe("/product/recovery follows Recova's sections, in Recova's order (J56)", async () => {
   const data = await load();
   const html = render(data);
   const body = text(html);

@@ -18,11 +18,11 @@ const ENTRY = `${BASE}/demos/dashboard`;
 
 // row -> [path, expected max-width px at >=768, expected h-padding px at >=768]
 const PAGES = [
-  ["S2 /dashboard", "/dashboard", 1280, 32],
+  ["S2 /dashboard", "/console", 1280, 32],
   ["S3 /billing", "/billing", 720, 32],
-  ["S5 /recovery", "/recovery", 1280, 32],
+  ["S5 /recovery/dashboard", "/recovery/dashboard", 1280, 32],
   ["S6 /recovery/payments", "/recovery/payments", 1280, 32],
-  ["S9 /recovery/sequences", "/recovery/sequences", 1280, 32],
+  ["S9 /recovery/sequences", "/recovery/sequence", 1280, 32],
 ];
 
 const rows = [];

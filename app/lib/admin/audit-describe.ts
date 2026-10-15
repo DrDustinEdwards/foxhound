@@ -92,7 +92,7 @@ export function auditTarget(entry: AuditEntryLike, lookups: AuditLookups): Audit
   }
 
   const cronName = str(m.cronName);
-  if (cronName) return { label: cronName, href: `/admin/crons#cron-${cronName}` };
+  if (cronName) return { label: cronName, href: `/admin/platform/crons#cron-${cronName}` };
 
   const postId = str(m.postId);
   if (postId) {

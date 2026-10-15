@@ -40,10 +40,9 @@ import type { Route } from "./+types/recovery";
 // The previews draw the demo account's seed, never a merchant's rows
 // (lib/marketing/recovery-preview.server.ts).
 //
-// The path stays /products/recovery: the move to Recova's /product/recovery is
-// J09's (rulings 55 and 56).
+// The path is Recova's own /product/recovery since J09 (rulings 55 and 56).
 
-const PATH = "/products/recovery";
+const PATH = "/product/recovery";
 const TITLE = "Recovery - Foxhound";
 const AUDIT = { href: "/audit", label: "Run your free audit" };
 

@@ -9,10 +9,10 @@ import { setDemoCookieHeader } from "~/lib/demo/session";
 // ensureDemoSeeded and setDemoCookieHeader still live in app/lib/demo/, the
 // seeded account's AI firewall, and this file only calls them.
 export const DEMO_ENTRY_TARGETS = {
-  dashboard: "/dashboard",
-  recovery: "/recovery",
-  disputes: "/disputes",
-  intelligence: "/intelligence",
+  dashboard: "/console",
+  recovery: "/recovery/dashboard",
+  disputes: "/disputes/dashboard",
+  intelligence: "/intelligence/dashboard",
 } as const;
 
 export type DemoEntryProduct = keyof typeof DEMO_ENTRY_TARGETS;

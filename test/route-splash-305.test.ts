@@ -71,9 +71,9 @@ describe("305 THE MONEY GUARD: a POST's revalidation is not a navigation", () =>
   // where a sibling test would simply not cover it.
   const EVERY_SPLASH_PATH = [
     DETAIL,
-    "/recovery",
+    "/recovery/dashboard",
     "/recovery/payments",
-    "/recovery/sequences",
+    "/recovery/sequence",
     "/settings",
   ];
 
@@ -131,7 +131,7 @@ describe("305: the path predicate is the detail route and nothing else", () => {
   it("does not match unrelated or deeper paths", () => {
     expect(isPaymentDetailPath("/recovery/payments/dfp_1/edit")).toBe(false);
     expect(isPaymentDetailPath("/disputes/d_1")).toBe(false);
-    expect(isPaymentDetailPath("/dashboard")).toBe(false);
+    expect(isPaymentDetailPath("/console")).toBe(false);
   });
 });
 

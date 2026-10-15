@@ -194,7 +194,7 @@ describe("review fixes (PR #68 review F1 to F5)", () => {
       }),
     );
     expect(html).not.toMatch(/href="[^"]*#subscriptions"/);
-    expect(html).toContain('href="/disputes"');
+    expect(html).toContain('href="/disputes/dashboard"');
     expect(html).toContain("Legacy addon");
   });
 });

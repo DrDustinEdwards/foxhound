@@ -38,10 +38,10 @@ export const COLUMNS: { heading: string; links: { to: string; label: string }[] 
       // Legacy points Audit at the marketing product page, not at the
       // estimator; this used to link /audit, which is a different page.
       // All four become /product/* when ruling 55's rename lands.
-      { to: "/products/audit", label: "Audit" },
-      { to: "/products/recovery", label: "Recovery" },
-      { to: "/products/disputes", label: "Disputes" },
-      { to: "/products/intelligence", label: "Intelligence" },
+      { to: "/product/audit", label: "Audit" },
+      { to: "/product/recovery", label: "Recovery" },
+      { to: "/product/disputes", label: "Disputes" },
+      { to: "/product/intelligence", label: "Intelligence" },
     ],
   },
   {

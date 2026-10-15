@@ -93,7 +93,7 @@ function sampleDeclineCodeForCategory(seed: string, category: DeclineCategory): 
 // The category mix for a day-walk failure. Legacy rolled only four categories
 // (50 soft / 20 expired / 20 network / 10 fraud) because those were the only
 // four it had. Foxhound's engine classifies six, and RECOVERY_SCHEDULES,
-// DECLINE_CATEGORY_LABELS, and /recovery/sequences all ship a section for each,
+// DECLINE_CATEGORY_LABELS, and /recovery/sequence all ship a section for each,
 // so leaving revoked and unknown at zero left two panels reading "No data yet"
 // on every demo visit: the fail-closed classifier and the revoked hard-stop, two
 // deliberate engine behaviors, had no visible evidence anywhere.
@@ -797,7 +797,7 @@ export function buildRecoverySeed(accountId: string, customers: DemoCustomer[], 
   // Coverage top-up. The weighted roll leaves a rare category (revoked and
   // unknown sit at 4% each) with zero rows on a meaningful fraction of dates: a
   // 30-day sweep found `revoked` absent on 11 of 30. A category with zero rows
-  // renders its whole /recovery/sequences section as "No data yet", so on those
+  // renders its whole /recovery/sequence section as "No data yet", so on those
   // days the fail-closed classifier and the revoked hard-stop have no visible
   // evidence anywhere in the demo. Demo coverage of a shipped panel should not
   // be left to a dice roll, so place one failure for any category the walk

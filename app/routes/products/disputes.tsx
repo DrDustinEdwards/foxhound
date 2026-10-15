@@ -42,10 +42,9 @@ import type { Route } from "./+types/disputes";
 // account's seed, never a merchant's rows
 // (lib/marketing/disputes-preview.server.ts).
 //
-// The path stays /products/disputes: the move to Recova's /product/disputes is
-// J09's (rulings 55 and 56).
+// The path is Recova's own /product/disputes since J09 (rulings 55 and 56).
 
-const PATH = "/products/disputes";
+const PATH = "/product/disputes";
 const TITLE = "Disputes - Foxhound";
 const CONNECT = { href: "/connect", label: "Connect Stripe" };
 
