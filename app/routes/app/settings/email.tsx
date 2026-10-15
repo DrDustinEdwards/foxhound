@@ -29,11 +29,13 @@ import type { Route } from "./+types/email";
 //    reader and is deliberately not built (RULES.md 5.6); its legacy job ("Used
 //    in billing portal links", its own help string) is a different subsystem.
 //    `reply_to_email` IS rendered since J03, with its reader: send.ts sets
-//    Reply-To on every merchant-customer email from it, or from the From when
-//    it is empty, as legacy does. The writer landed with the reader (RULES.md
-//    3.18). Its one addition over legacy is a server-side format check and a
-//    254-character bound (app/lib/settings/reply-to.ts), input hygiene flagged
-//    for Dustin, as the sender name's bound is.
+//    Reply-To on merchant-customer email only when a valid address is saved,
+//    and sets none otherwise, so a reply goes to the From. The writer landed
+//    with the reader (RULES.md 3.18). Two differences from legacy, both flagged
+//    for Dustin: a server-side format check and a 254-character bound
+//    (app/lib/settings/reply-to.ts), input hygiene like the sender name's bound;
+//    and no Reply-To fallback to the From when the box is empty, which legacy's
+//    engine has and which changes nothing for the recipient.
 // 2. `sender_name` IS OPTIONAL, matching legacy, and BOUNDED AT 80, which
 //    legacy is not. The requirement shipped for one session and 335 reverted it:
 //    legacy writes `|| null` on an empty box and its empty case delivers through
