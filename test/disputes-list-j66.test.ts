@@ -130,10 +130,12 @@ describe("/disputes renders Recova's disputes dashboard", () => {
     expect(render(loaderData())).toContain('class="mx-auto max-w-[1280px] px-4 md:px-8 py-8 md:py-10"');
   });
 
-  it("shows Recova's stat cards that have a source, in Recova's order, and no Win rate", () => {
+  it("shows Recova's stat cards that have a source, in Recova's order, then Win rate", () => {
+    // Win rate is not Recova's card. It stays, last, because /features (J60)
+    // claims a historical win rate here, as Recova's features-data.ts does; a
+    // question for Dustin in the J66 pull request.
     const html = render(loaderData());
-    expect(statLabels(html)).toEqual(["Open disputes", "At stake", "Fees owed"]);
-    expect(html).not.toContain("Win rate");
+    expect(statLabels(html)).toEqual(["Open disputes", "At stake", "Fees owed", "Win rate"]);
     expect(html).not.toContain("Needs action");
   });
 
@@ -145,14 +147,18 @@ describe("/disputes renders Recova's disputes dashboard", () => {
 
   it("shows the stat cards on the empty state too, as Recova's view does", () => {
     const html = render(
-      loaderData({ disputes: [], stats: { openCount: 0, atStake: [], feesOwed: [] } }),
+      loaderData({ disputes: [], stats: { openCount: 0, atStake: [], feesOwed: [], winRatePct: null, wonCount: 0, lostCount: 0 } }),
     );
-    expect(statLabels(html)).toEqual(["Open disputes", "At stake", "Fees owed"]);
+    expect(statLabels(html)).toEqual(["Open disputes", "At stake", "Fees owed", "Win rate"]);
     expect(html).toContain("$0.00");
   });
 
   it("says Recova's empty sentences, in Capsomer's empty component", () => {
-    const html = text(render(loaderData({ disputes: [], stats: { openCount: 0, atStake: [], feesOwed: [] } })));
+    const html = text(
+      render(
+        loaderData({ disputes: [], stats: { openCount: 0, atStake: [], feesOwed: [], winRatePct: null, wonCount: 0, lostCount: 0 } }),
+      ),
+    );
     expect(html).toContain('class="cap-empty"');
     expect(html).toContain("No disputes yet.");
     expect(html).toContain("When a customer disputes a charge, Foxhound automatically builds your response.");
@@ -168,6 +174,9 @@ describe("/disputes renders Recova's disputes dashboard", () => {
             { currency: "eur", cents: 2_500 },
           ],
           feesOwed: [],
+          winRatePct: null,
+          wonCount: 0,
+          lostCount: 0,
         },
       }),
     );
@@ -327,6 +336,17 @@ describe("computeDisputeStats", () => {
       { ...base, state: "resolved_lost", submittedAt: new Date(NOW) },
     ]);
     expect(stats.feesOwedParts).toEqual([{ currency: "eur", cents: 1_234 }]);
+  });
+
+  it("keeps the win rate over resolved disputes only, null until one resolves", () => {
+    expect(computeDisputeStats([{ ...base, state: "draft" }]).winRatePct).toBeNull();
+    const stats = computeDisputeStats([
+      { ...base, state: "resolved_won", submittedAt: new Date(NOW) },
+      { ...base, state: "resolved_lost" },
+      { ...base, state: "resolved_lost" },
+      { ...base, state: "draft" },
+    ]);
+    expect(stats).toMatchObject({ winRatePct: 33, wonCount: 1, lostCount: 2 });
   });
 
   it("projects the capped fee when none is stamped yet", () => {

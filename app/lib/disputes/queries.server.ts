@@ -1,7 +1,7 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import type { Db } from "~/db";
-import { disputeApprovals, disputeEvidence, disputes, stripeConnections } from "~/db";
+import { customerContext, disputeApprovals, disputeEvidence, disputes, stripeConnections } from "~/db";
 import { approveAndSubmit, hashEvidence, type ApproveAndSubmitResult } from "~/lib/disputes/approval";
 import {
   buildPendingApprovalBatch,
@@ -206,4 +206,34 @@ export async function approveAndSubmitDispute(
       );
     },
   });
+}
+
+/** D1 caps bound parameters per statement (RULES.md 3.11), so the id list is
+ *  read in chunks well under the cap. */
+const HEALTH_LOOKUP_CHUNK = 90;
+
+/**
+ * Intelligence health scores for the given Stripe customers, keyed by Stripe
+ * customer id (J66: the disputes list shows one beside each customer, as
+ * Recova's does when Intelligence is on). Account-scoped; customers with no
+ * score yet are left out rather than reported as zero.
+ */
+export async function getCustomerHealthScores(
+  db: Db,
+  accountId: string,
+  stripeCustomerIds: string[],
+): Promise<Record<string, number>> {
+  const ids = [...new Set(stripeCustomerIds)];
+  const scores: Record<string, number> = {};
+  for (let i = 0; i < ids.length; i += HEALTH_LOOKUP_CHUNK) {
+    const chunk = ids.slice(i, i + HEALTH_LOOKUP_CHUNK);
+    const rows = await db
+      .select({ stripeCustomerId: customerContext.stripeCustomerId, healthScore: customerContext.healthScore })
+      .from(customerContext)
+      .where(and(eq(customerContext.accountId, accountId), inArray(customerContext.stripeCustomerId, chunk)));
+    for (const row of rows) {
+      if (row.healthScore !== null) scores[row.stripeCustomerId] = row.healthScore;
+    }
+  }
+  return scores;
 }

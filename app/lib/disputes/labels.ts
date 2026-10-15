@@ -110,7 +110,11 @@ export function deadlineLabel(daysRemaining: number | null): string | null {
   return `${daysRemaining} days left`;
 }
 
-/** J66 red-phase stub; the real body lands with the page. */
-export function deadlineShort(_daysRemaining: number | null, _resolved: boolean): string {
-  return "";
+/** The deadline as Recova's disputes list shows it (DisputesDashboardView,
+ *  blob 3c1b7a98): whole days left as "18d", and blank once the dispute is
+ *  resolved or when there is no deadline. A passed deadline reads "-2d", as
+ *  Recova's does; the detail page keeps the longer deadlineLabel. */
+export function deadlineShort(daysRemaining: number | null, resolved: boolean): string {
+  if (resolved || daysRemaining === null) return "";
+  return `${daysRemaining}d`;
 }
