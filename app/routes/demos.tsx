@@ -7,6 +7,13 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import { siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
+import "capsomer/panel.css";
+import "capsomer/button.css";
+// Capsomer's tokens and the teal family (capbase layer), which the panel, the
+// button and the focus ring read. The site header loads the same file;
+// importing it here keeps the page whole under any layout.
+import "~/site-header.css";
+
 import type { Route } from "./+types/demos";
 
 // The demo ENTRY point (audit priority #2). Not mock cards: each card is a
@@ -78,29 +85,49 @@ export default function DemosPage() {
         subtext="This is not a screenshot tour. You'll be inside the actual Foxhound app, exploring a seeded account of 200 customers. No signup, nothing to connect, and nothing you do can change it."
       />
 
-      <div className="mx-auto max-w-[1200px] px-4 pb-16 md:px-8">
+      {/* Recova's 1200px column (px-4, md:px-8, pb-16), in Capsomer's teal
+          family with Foxhound's own neutrals (.fh-cap, as /pricing and the
+          /products hub). The buttons are the only focusable parts here; their
+          teal ring is Capsomer's own, handed back by app.css
+          (.fh-cap .cap-btn:focus-visible). */}
+      <div className="fh-cap mx-auto max-w-[1200px] px-4 pb-16 md:px-8" data-family="teal">
         {/* Four cards against legacy's three: legacy filters to products with a
             demoHref, Foxhound also entry-points the console demo. Ratified
-            (Dustin, 2026-07-31) on the five-nav-entries precedent, that a
-            working page is never orphaned to win an item-set parity point, so
-            the grid stays 4-up where legacy runs md:grid-cols-3. Card
-            treatment is legacy's. */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            (Dustin, 2026-07-31, "Four demo cards, in Recova's treatment") on
+            the five-nav-entries precedent, that a working page is never
+            orphaned to win an item-set parity point, so the grid stays 4-up
+            where legacy runs md:grid-cols-3.
+
+            Each card is Capsomer's panel, body only, in its comfortable
+            density: 24px sides as Recova's p-6, 16px top and bottom where
+            Recova has 24px, 10px corners where Recova has 12px. Those are
+            Capsomer's panel as it ships; a Foxhound variant waits for
+            Capsomer's per-site layer (capsomer job_ec5ec0754626). FadeUp,
+            Recova's reveal, is a one-cell grid so the panel fills the row.
+            The panel's body does not fill the panel, so a button sits under
+            its own blurb rather than at the foot of a taller neighbour, as
+            on the blog's cards (J19); that is the layer's too. */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" data-density="comfortable">
           {PRODUCT_ENTRIES.map((entry, index) => (
-            <FadeUp
-              key={entry.href}
-              delay={index * 100}
-              className="flex flex-col rounded-[12px] border border-border bg-surface p-6"
-            >
-              <p className="text-base font-medium text-text">{entry.name}</p>
-              <p className="mb-6 mt-2 flex-1 text-sm text-text-secondary">{entry.blurb}</p>
-              <Link
-                to={entry.href}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-brand py-2.5 text-sm font-medium text-on-brand transition-opacity transition-transform hover:opacity-90 active:scale-[0.97]"
-              >
-                <entry.Icon className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
-                View {entry.name} demo
-              </Link>
+            <FadeUp key={entry.href} delay={index * 100} className="grid">
+              <div className="cap-panel">
+                <div className="cap-panel-body">
+                  {/* One block, so the body's grid gap leaves Recova's own spacing alone. */}
+                  <div>
+                    <p className="text-body font-medium text-text">{entry.name}</p>
+                    <p className="mb-6 mt-2 text-label text-text-secondary">{entry.blurb}</p>
+                    {/* Capsomer's primary button as the link Recova draws full
+                        width: the one-column grid stretches it, so the button
+                        carries no Foxhound class. */}
+                    <div className="grid">
+                      <Link to={entry.href} className="cap-btn" data-variant="primary">
+                        <entry.Icon data-icon="start" strokeWidth={2} aria-hidden />
+                        View {entry.name} demo
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </FadeUp>
           ))}
         </div>
