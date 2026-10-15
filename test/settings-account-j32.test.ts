@@ -288,7 +288,9 @@ describe("J32 account: appearance", () => {
 
   it("offers Recova's two themes, dark first, as a Capsomer segmented control named Theme", () => {
     const html = render({ theme: "light" });
-    expect(html).toMatch(/<fieldset class="cap-seg"><legend class="cap-sr-only">Theme<\/legend>/);
+    // Visually hidden inside the legend: .cap-sr-only (hideLegend) is in
+    // capsomer/base.css, which the merchant app does not load.
+    expect(html).toMatch(/<fieldset class="cap-seg"><legend><span class="sr-only">Theme<\/span><\/legend>/);
     const seg = html.match(/<fieldset class="cap-seg">[\s\S]*?<\/fieldset>/)?.[0] ?? "";
     const radios = [...seg.matchAll(/<input[^>]*type="radio"[^>]*>/g)].map((m) => m[0]);
     expect(radios.map((r) => attr(r, "value"))).toEqual(["dark", "light"]);

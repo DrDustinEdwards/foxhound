@@ -481,8 +481,12 @@ function Appearance({ initial }: { initial: Theme }) {
           Choose how Foxhound looks. Saved to your account and synced across devices.
         </p>
         <Segmented
-          legend="Theme"
-          hideLegend
+          // Recova's group is named "Theme" (aria-label) with no visible
+          // label. The name is visually hidden inside the legend, not with
+          // Capsomer's hideLegend: that sets .cap-sr-only, which lives in
+          // capsomer/base.css, and the merchant app does not load base.css
+          // (app/site-header.css), as /settings/audit records.
+          legend={<span className="sr-only">Theme</span>}
           options={THEMES.map((t) => ({ value: t, label: THEME_LABEL[t] }))}
           value={theme}
           onChange={(next) => void select(next)}
