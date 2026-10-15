@@ -92,6 +92,8 @@ function member(over: Partial<Member>): Member {
     status: "active",
     removable: false,
     ...over,
+    // Resolved in the loader, as the page reads it.
+    isOwnerRole: (over.role ?? "member") === "owner",
   } as Member;
 }
 
@@ -213,7 +215,8 @@ describe("J31: the invite form", () => {
       expect(input![0]).toContain(attr);
     }
     const row = html.slice(html.indexOf('id="invite_email"'));
-    expect(row).toMatch(/^[^<]*>\s*<button[^>]*class="cap-btn"[^>]*data-variant="primary"[^>]*>Send invite<\/button>/);
+    // The input, then (past its own sizing wrapper) the button, nothing between.
+    expect(row).toMatch(/^[^<]*>(\s*<\/div>)?\s*<button[^>]*class="cap-btn"[^>]*data-variant="primary"[^>]*>Send invite<\/button>/);
     expect(html).not.toContain("Invite email");
   });
 
@@ -227,7 +230,8 @@ describe("J31: the invite form", () => {
 
     const bad = render(AS_OWNER, { error: "Enter an email address to invite.", invited: null, inviteUrl: null } as ActionData);
     inOrder(text(bad), ["Send invite", "Enter an email address to invite."]);
-    expect(bad).toContain('class="cap-banner"');
+    expect(bad).toMatch(/<div class="cap-alert" data-tone="crit" role="alert">/);
+    expect(ok).toMatch(/<div class="cap-alert" data-tone="ok" role="alert">/);
   });
 });
 

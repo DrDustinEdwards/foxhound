@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import { executeMoneyWrite } from "~/lib/money/execute";
@@ -518,7 +518,11 @@ function isUniqueConstraintError(err: unknown): boolean {
   return /unique constraint/i.test(message);
 }
 
-/** Pending + active members of an account, for the team settings view. */
+/**
+ * Pending + active members of an account, for the team settings view, in the
+ * order they were added (id breaks a tie), so the page's owner-first sort
+ * (S26, Recova's TeamSection) leaves everyone else in a stable order.
+ */
 export async function listMembers(db: Db, accountId: string) {
   return db
     .select({
@@ -532,7 +536,8 @@ export async function listMembers(db: Db, accountId: string) {
     })
     .from(accountMembers)
     .leftJoin(user, eq(accountMembers.userId, user.id))
-    .where(eq(accountMembers.accountId, accountId));
+    .where(eq(accountMembers.accountId, accountId))
+    .orderBy(asc(accountMembers.createdAt), asc(accountMembers.id));
 }
 
 /**
