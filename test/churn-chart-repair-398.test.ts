@@ -15,6 +15,13 @@ import type { ChurnView } from "~/lib/intelligence/views.server";
 // app/(app)/intelligence/churn/components/ChurnRateChart.tsx. So the chart is a
 // PORT and the owed work is REPAIR toward legacy, which needs no ratification.
 //
+// Since J29 (Q1, 2026-10-14) the chart is drawn by Enarratio's line chart
+// inside a Capsomer panel, and these assertions are restated for that drawing.
+// What 398 repaired still holds; the three breakages are re-asserted on the
+// Enarratio output. Two of legacy's treatments Enarratio 0.3.1 cannot draw yet
+// (percent tick labels, and the legend below the plot); both are named as
+// enarratio jobs in the J29 notes rather than hand-built here.
+//
 // Legacy's chart, read whole at that component:
 //   shell    bg-surface border border-border rounded-[12px] px-6 py-5 mb-6
 //   eyebrow  "Churn rate over time"
@@ -78,39 +85,29 @@ function renderPage(): string {
   );
 }
 
-/**
- * The chart card's contents, from its eyebrow to the band grid that follows it.
- *
- * Anchored on the eyebrow COPY rather than on the shell's class string on
- * purpose: with the shell as the anchor, a wrong shell would take every
- * breakage assertion below down with it and each would then be red for a reason
- * that is not its own. The shell has its own assertion, once.
- */
+/** The chart's panel: from its heading to the end of its section. */
 function chartCard(html: string): string {
   const start = html.indexOf("Churn rate over time");
   expect(start).toBeGreaterThan(-1);
-  const end = html.indexOf('<div class="mb-6 grid', start);
+  const end = html.indexOf("</section>", start);
   expect(end).toBeGreaterThan(start);
   return html.slice(start, end);
 }
 
-/** The stretched plot, which is the only 0-100 viewBox on the page. */
+/** Enarratio's drawing: the chart's one role="img" SVG. */
 function plot(card: string): string {
-  const start = card.indexOf('<svg viewBox="0 0 100 100"');
+  const start = card.indexOf("<svg");
   expect(start).toBeGreaterThan(-1);
   return card.slice(start, card.indexOf("</svg>", start) + "</svg>".length);
 }
 
 describe("S19 churn-rate chart, repaired toward legacy (398)", () => {
-  it("still renders, above the band cards, in legacy's own shell", () => {
+  it("still renders, above the band cards", () => {
     // 396 ordered this card removed. 398 reversed that: removing a ported legacy
     // element would have manufactured the defect it claimed to fix.
     const html = renderPage();
     expect(html.indexOf("Churn rate over time")).toBeGreaterThan(-1);
     expect(html.indexOf("Churn rate over time")).toBeLessThan(html.indexOf("High risk"));
-    expect(html).toContain(
-      '<section class="mb-6 rounded-[12px] border border-border bg-surface px-6 py-5">',
-    );
   });
 
   it("carries legacy's sentence with Foxhound's real window", () => {
@@ -121,73 +118,41 @@ describe("S19 churn-rate chart, repaired toward legacy (398)", () => {
   });
 
   // BREAKAGE 1, measured: "the plot is pushed into the right half of a
-  // full-width card, leaving roughly half the card empty". Cause: a fixed
-  // 480x180 viewBox scaled uniformly under a pixel height, so it could never
-  // widen past 480px however wide the card got.
-  it("breakage 1: the plot stretches to the card instead of sitting at 480px", () => {
-    const card = chartCard(renderPage());
-    const svg = plot(card);
-    expect(svg).toContain('preserveAspectRatio="none"');
-    expect(svg).toContain('class="h-full w-full"');
-    // The old fixed drawing surface, in either of the forms it took.
-    expect(card).not.toContain('viewBox="0 0 480 180"');
-    expect(card).not.toContain('width="100%" height="180"');
+  // full-width card". The old fixed 480x180 surface is gone; Enarratio draws at
+  // the panel's width (measured in the browser, the 1280px column's on the
+  // server), so the drawing is never narrower than the card.
+  it("breakage 1: the plot is drawn at the card's width, not at 480px", () => {
+    const svg = plot(chartCard(renderPage()));
+    const width = Number(svg.match(/<svg[^>]* width="(\d+)"/)?.[1] ?? 0);
+    expect(width).toBeGreaterThan(1000);
+    expect(svg).not.toContain('viewBox="0 0 480 180"');
   });
 
   // BREAKAGE 2, measured: "the legend sits inside the plot overlapping the top
-  // gridline". Legacy's <Legend /> defaults to verticalAlign "bottom" and legacy
-  // draws no CartesianGrid at all, so both halves of that sentence go away.
-  it("breakage 2: the legend is below the plot, and there is no gridline under it", () => {
+  // gridline". Enarratio's legend is its own list outside the SVG, so it can no
+  // longer overlap a gridline; it sits above the plot, where legacy's sits
+  // below (enarratio gap, J29 notes).
+  it("breakage 2: the legend is its own row outside the plot, naming both series", () => {
     const card = chartCard(renderPage());
-    // First, because it is the half of the breakage that can be asserted
-    // without the repair's own structure: the gridline the legend sat on.
-    expect(card).not.toContain("stroke-border");
     const svg = plot(card);
-    const plotEnd = card.indexOf(svg) + svg.length;
-    // The legend is its own row after the plot, not marks inside it. Searching
-    // for the series names would find the card's own subtitle sentence, which
-    // says "Involuntary churn ... vs voluntary churn" before the chart starts.
-    const legend = card.indexOf('<div class="flex items-center justify-center gap-4"');
-    expect(legend).toBeGreaterThan(plotEnd);
-    expect(card.slice(legend)).toContain("Involuntary");
-    expect(card.slice(legend)).toContain("Voluntary");
-    expect(svg).not.toContain("<line");
-    expect(svg).not.toContain("stroke-border");
+    const legend = card.match(/<ul class="enarratio-legend">[\s\S]*?<\/ul>/)?.[0] ?? "";
+    expect(legend).toContain("Involuntary");
+    expect(legend).toContain("Voluntary");
+    expect(svg).not.toContain("enarratio-legend");
   });
 
   // BREAKAGE 3, measured: "only the two endpoint x labels render". Twelve
-  // monthly points and two labels is an unlabelled axis, not overprint
-  // protection; legacy's XAxis interval="preserveStartEnd" keeps the ends and
-  // every interior tick that fits.
-  it("breakage 3: interior x labels render, with the first and last kept", () => {
-    const card = chartCard(renderPage());
-    const shown = MONTHS.map((d) =>
-      new Date(`${d}T00:00:00Z`).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        timeZone: "UTC",
-      }),
-    ).filter((label) => card.includes(label));
-    expect(shown.length).toBeGreaterThan(2);
-    expect(shown[0]).toBe("Sep 1, 2025");
-    expect(shown[shown.length - 1]).toBe("Aug 1, 2026");
+  // monthly points and two labels is an unlabelled axis.
+  it("breakage 3: interior x labels render, with the first and last months kept", () => {
+    const svg = plot(chartCard(renderPage()));
+    const labels = svg.match(/data-enarratio-mark="x-axis tick label"[\s\S]*?<\/g>/)?.[0] ?? "";
+    const text = labels.replace(/<[^>]+>/g, " ");
+    for (const month of ["Sep", "Oct", "Mar", "Aug"]) expect(text).toContain(month);
   });
 
-  it("keeps the y ticks as percent text beside the plot", () => {
+  it("keeps the rate in percent: the axis names its unit and the table prints it", () => {
     const card = chartCard(renderPage());
-    // Closed text nodes, not bare substrings: the positioned labels carry
-    // percentage `style` values, so a loose "3%" search matches "top:13%" and
-    // passes while reading nothing. Five ticks over a 0 to 2.75 range.
-    expect(card).toContain(">0%</span>");
-    expect(card).toContain(">2.8%</span>");
-    expect(card.match(/>[\d.]+%<\/span>/g)).toHaveLength(5);
-  });
-
-  // Untouched by this repair and asserted so: 5cdd4d0 put these on legacy's own
-  // geometry and nothing here is a licence to move them again.
-  it("leaves the band cards and the high-risk table shell where 5cdd4d0 put them", () => {
-    const html = renderPage();
-    expect(html).toContain('class="rounded-[12px] border bg-surface px-5 py-4 border-error-border"');
+    expect(plot(card)).toContain(">Churn rate (%)</text>");
+    expect(card).toContain("<td>2.75%</td>");
   });
 });

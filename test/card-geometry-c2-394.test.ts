@@ -90,12 +90,15 @@ describe("C2: each surface carries its own legacy shell geometry", () => {
     expect(s).toContain("rounded-lg border border-border bg-surface p-4");
   });
 
-  it("S19 churn: empty state, band cards and table all carry legacy's 12px", () => {
-    // legacy app/(app)/intelligence/churn/page.tsx:71, :181, :108
+  it("S19 churn takes its shells from Capsomer, not from a hand-rolled radius", () => {
+    // legacy app/(app)/intelligence/churn/page.tsx:71, :181, :108 use
+    // rounded-[12px]. Since J29 (Q10, 2026-10-14) the empty state, band cards
+    // and table are Capsomer Panels, whose radius is Capsomer's own; legacy's
+    // 12px waits for the per-site style layer rather than a Foxhound class over
+    // a Capsomer component, as on S23.
     const s = src("routes/app/intelligence/churn.tsx");
-    expect(s).toContain('className="rounded-[12px] border border-border bg-surface p-10 text-center"');
-    expect(s).toContain("className={`rounded-[12px] border bg-surface px-5 py-4 ${BAND_BORDER_CLASS[band]}`}");
-    expect(s).toContain('className="overflow-hidden rounded-[12px] border border-border bg-surface"');
+    expect(s).toContain('from "capsomer/react/panel"');
+    expect(s).not.toContain("rounded-[12px]");
   });
 
   it("S23 help takes its shells from Capsomer, not from a hand-rolled radius", () => {
