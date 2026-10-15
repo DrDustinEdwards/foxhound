@@ -4,10 +4,17 @@ import { Link } from "react-router";
 import { BlogPostCard } from "~/components/blog/blog-post-card";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { CANONICAL_TAGS, labelForTag } from "~/lib/blog/tags";
-import { getPublishedPostsByTag } from "~/lib/blog/queries.server";
+import { labelForTag } from "~/lib/blog/tags";
+import { getPublishedPostsByTag, getPublishedTagSet } from "~/lib/blog/queries.server";
 import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
+
+import "capsomer/panel.css";
+import "capsomer/status.css";
+// Capsomer's tokens and the teal family (capbase layer), which the cards, the
+// pills and the focus ring read. The site header loads the same file;
+// importing it here keeps the page whole under any layout.
+import "~/site-header.css";
 
 import type { Route } from "./+types/tag";
 
@@ -28,14 +35,20 @@ import type { Route } from "./+types/tag";
 // 88's recorded harm, that an empty archive was indistinguishable from a
 // garbage URL to a crawler following llms.txt.
 //
-// The gate is CANONICAL_TAGS membership, not post count. A canonical tag
-// carrying zero posts is a real empty state and still renders its 200; only a
-// tag outside the set is not-found.
+// The gate is the published tag set (J19, DO step 4): getPublishedTagSet, the
+// one derivation llms.txt, llms-full.txt and the archive pills read, so a tag
+// page exists exactly when a published post carries the tag. It was
+// CANONICAL_TAGS membership, which served a 200 empty page for a canonical tag
+// no post carries and a 404 for a tag a published post does carry. Recova
+// builds its tag pages from its published posts' tags too (generateStaticParams
+// in tag/[tag]/page.tsx, blob 3f6aa696); the 404 for any other tag is the
+// approved difference above.
 export async function loader({ params, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const db = getDb(env);
   const tag = params.tag;
-  if (!(CANONICAL_TAGS as readonly string[]).includes(tag)) {
+  const tagSet = await getPublishedTagSet(db);
+  if (!tagSet.includes(tag)) {
     throw new Response("Not found", { status: 404 });
   }
   const posts = await getPublishedPostsByTag(db, tag);
@@ -53,16 +66,26 @@ export function meta({ loaderData }: Route.MetaArgs) {
   });
 }
 
+// J19 (row M14). Recova's layout, read from tag/[tag]/page.tsx: one
+// left-aligned column at 1100px (px-5, sm:px-8, py-16), the "All posts" back
+// link (mb-8), the tag's label as the h1 (mb-2), the "N articles" count line
+// (mb-10), then the card grid (1, 2, 3 columns, gap-6), or Recova's empty line.
+// Recova's text-[1.75rem] h1 is display, its text-[0.8125rem] back link and
+// count line label (RULES.md 5.2). Cards are Capsomer's panel (BlogPostCard),
+// the colour teal (Q11), and the back link a 24px target.
 export default function BlogTagPage({ loaderData }: Route.ComponentProps) {
   const { siteUrl: url, tag, posts } = loaderData;
   const label = labelForTag(tag);
 
   return (
-    <div>
-      <div className="border-b border-border-sub px-4 py-16 text-center sm:px-8">
+    // div, not main: marketing.tsx already renders this page's one main landmark.
+    // Capsomer's teal family with Foxhound's own neutrals (.fh-cap), the focus
+    // ring reading the family's ring, as on /blog.
+    <div className="fh-cap [--border-focus:var(--ring)]" data-family="teal">
+      <div className="mx-auto max-w-[1100px] px-5 py-16 sm:px-8">
         <Link
           to="/blog"
-          className="group inline-flex items-center gap-1.5 text-label text-text-tertiary hover:text-text"
+          className="group mb-8 inline-flex items-center gap-1.5 text-label leading-6 text-text-tertiary transition-colors hover:text-text"
         >
           <ArrowLeft
             className="transition-transform group-hover:-translate-x-0.5"
@@ -72,20 +95,16 @@ export default function BlogTagPage({ loaderData }: Route.ComponentProps) {
           />
           All posts
         </Link>
-        <h1 className="mt-4 text-display font-medium text-text">{label}</h1>
-        <p className="mt-2 font-mono text-micro text-text-tertiary">
+        <h1 className="mb-2 text-display font-medium tracking-tight text-text">{label}</h1>
+        <p className="mb-10 font-mono text-label text-text-tertiary">
           {posts.length} {posts.length === 1 ? "article" : "articles"}
         </p>
-      </div>
-
-      {/* div, not main: marketing.tsx already renders this page's one main landmark. */}
-      <div className="mx-auto max-w-[1100px] px-5 py-16 sm:px-8">
         {posts.length === 0 ? (
-          <p className="text-center text-body text-text-secondary">No articles tagged {label} yet.</p>
+          <p className="text-body text-text-secondary">No articles tagged {label} yet.</p>
         ) : (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {posts.map((post) => (
-              <BlogPostCard key={post.slug} post={post} />
+              <BlogPostCard key={post.id} post={post} />
             ))}
           </div>
         )}

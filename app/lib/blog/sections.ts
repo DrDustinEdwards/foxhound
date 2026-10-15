@@ -3,9 +3,10 @@
 // render order; slugs inside control card order within a section. These are
 // the REAL slugs the manual STOP A import will land (verbatim, do not
 // invent new ones here). Missing slugs are silently skipped by the loader,
-// so an unpublished pick degrades cleanly; the loader also gates each
-// section on its tag cluster having 8+ published posts (see blog/index.tsx),
-// so pre-import (zero rows) every section renders nothing, which is correct.
+// so an unpublished pick degrades cleanly. The loader shows a section only
+// when at least one curated post resolves AND a published post carries the
+// section's tag, so "See all" never leads to an empty or missing tag page
+// (J19; see blog/index.tsx). Identical to Recova's SECTIONS (diffed at J19).
 export interface BlogSectionConfig {
   id: string;
   label: string;

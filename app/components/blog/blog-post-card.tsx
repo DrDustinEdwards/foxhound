@@ -3,34 +3,46 @@ import { Link } from "react-router";
 import { formatTagChip } from "~/lib/blog/format";
 import type { BlogPostSummary } from "~/lib/blog/queries.server";
 
-// Ported from legacy app/(marketing)/blog/BlogPostCard.tsx, onto react-router's
-// Link. Consumer set verified from CALL SITES, not comments: legacy consumes
-// this on /blog (both the topic sections and the latest strip) and on
-// /blog/tag/:tag, and NOWHERE else. The home page is deliberately NOT a
-// consumer on either side; legacy hand-rolls a different card inline there and
-// Foxhound now does the same (ruling 63, M3 divergence 35).
+// Ported from legacy app/(marketing)/blog/BlogPostCard.tsx (blob 48ba6d39).
+// Consumer set verified from CALL SITES, not comments: legacy consumes this on
+// /blog (both the topic sections and the latest strip) and on /blog/tag/:tag,
+// and NOWHERE else. The home page is deliberately NOT a consumer on either
+// side; legacy hand-rolls a different card inline there and Foxhound now does
+// the same (ruling 63, M3 divergence 35).
 //
-// text-sm and text-xs are stock Tailwind here on purpose (Dustin, 2026-07-29):
-// legacy wrote framework defaults on this card rather than explicit rem values,
-// so mirroring them is the faithful port. The marketing token scale stays at 20
-// and keeps meaning "values legacy named explicitly".
+// Look is Capsomer's (J19, Q12): the card is Capsomer's panel, body only, as
+// the whole-card link (the /products and /docs cards, J16 and J17), and the
+// tag is Capsomer's outline pill. Recova's content and order stay: the first
+// tag, the title (two lines), the excerpt (three lines), the reading time.
+// Text is on the five sizes (RULES.md 5.2), each Recova size taken to the
+// nearest and a tie to the larger: the 0.875rem title and the 0.75rem excerpt
+// both to label, the 0.6875rem reading time to micro.
+//
+// Waits on Capsomer (named in the J19 PR): Capsomer has no link card, so
+// Recova's teal hover border is not drawn, and the panel's body does not fill
+// the card, so the reading time sits under the excerpt rather than at the foot
+// of a taller neighbour. Both are the per-site layer's (capsomer
+// job_ec5ec0754626) or a Capsomer link-card job's; no Foxhound CSS is laid over
+// the panel meanwhile.
 export function BlogPostCard({ post }: { post: BlogPostSummary }) {
   const tag = post.tags[0] ? formatTagChip(post.tags[0]) : null;
   return (
-    <Link
-      to={`/blog/${post.slug}`}
-      className="flex flex-col gap-3 rounded-xl border border-border-sub bg-surface p-5 no-underline transition-colors hover:border-brand"
-    >
-      {tag ? (
-        <span className="w-fit rounded-full border border-border bg-surface2 px-2 py-0.5 font-mono text-micro uppercase tracking-wide text-text-secondary">
-          {tag}
-        </span>
-      ) : null}
-      <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-text">{post.title}</h3>
-      <p className="line-clamp-3 flex-1 text-xs leading-relaxed text-text-secondary">{post.excerpt}</p>
-      <span className="mt-auto font-mono text-micro text-text-tertiary">
-        {post.readingTimeMinutes} min read
-      </span>
+    <Link to={`/blog/${post.slug}`} className="cap-panel">
+      <div className="cap-panel-body">
+        {/* One block, so the body's grid gap leaves Recova's own spacing alone. */}
+        <div className="flex flex-col gap-3">
+          {tag ? (
+            <span className="w-fit">
+              <span className="cap-pill" data-variant="outline">
+                {tag}
+              </span>
+            </span>
+          ) : null}
+          <h3 className="line-clamp-2 text-label font-semibold leading-snug text-text">{post.title}</h3>
+          <p className="line-clamp-3 text-label leading-relaxed text-text-secondary">{post.excerpt}</p>
+          <span className="font-mono text-micro text-text-tertiary">{post.readingTimeMinutes} min read</span>
+        </div>
+      </div>
     </Link>
   );
 }
