@@ -291,6 +291,14 @@ describe("the sync control, on Capsomer's parts", () => {
     expect(html).toMatch(/role="status"/);
     expect(html).toMatch(/<span class="cap-status" data-tone="ok">.*Dispute imported\.<\/span>/);
   });
+
+  it("sets the card's text at the label size, so the field label is not left at the body size (RULES 5.2)", () => {
+    // Capsomer's field label takes its size from its parent, and Capsomer's
+    // base.css (whose body size is 13px) is not loaded in the app, so without a
+    // size here the label rendered at 16px. The label size is Capsomer's 13px.
+    const html = render(loaderData(), { sync: { ok: false, message: 'Stripe dispute IDs start with "dp_".' } });
+    expect(html).toMatch(/<div class="cap-panel-body text-label"><input type="hidden" name="intent" value="sync_dispute"\/><label for="sync_dispute_id" class="cap-field-label">/);
+  });
 });
 
 describe("deadlineShort", () => {
