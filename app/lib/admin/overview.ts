@@ -14,7 +14,7 @@ import { relative } from "capsomer/behaviour/time";
 
 import { PAUSE_REASON_BRAKE } from "~/lib/admin/brake";
 import { cronRunHref } from "~/lib/admin/crons";
-import type { PlatformOverview } from "~/lib/admin/overview.server";
+import type { AdminOverview } from "~/lib/admin/overview.server";
 import { daysUntilDeadline, deadlineLabel, humanizeDisputeReason } from "~/lib/disputes/labels";
 import { formatMoney } from "~/lib/money-format";
 
@@ -44,7 +44,7 @@ function when(at: Date, nowMs: number): AttentionItem["when"] {
  * Every row is a warning: none is an outage of the platform, and Capsomer
  * folds warnings of one kind into one row while it never folds a critical one.
  */
-export function overviewAttention(overview: PlatformOverview, nowMs: number): AttentionItem[] {
+export function overviewAttention(overview: AdminOverview, nowMs: number): AttentionItem[] {
   const { pausedMerchants, staleDisputes, failedFeeInvoices } = overview.attention;
   const items: AttentionItem[] = [];
 
@@ -81,7 +81,10 @@ export function overviewAttention(overview: PlatformOverview, nowMs: number): At
       id: `billing-${i.id}`,
       tone: "warn",
       group: "billing",
-      title: `${i.merchantName ?? i.accountId}'s fee invoice payment failed`,
+      title:
+        i.status === "payment_failed"
+          ? `${i.merchantName ?? i.accountId}'s fee invoice payment failed`
+          : `${i.merchantName ?? i.accountId}'s fee invoice was not collected`,
       detail: `${formatMoney(i.totalCents, i.currency)} · ${plural(i.chargeAttemptCount, "charge attempt", "charge attempts")}`,
       when: when(i.failedAt, nowMs),
       href: merchantHref(i.accountId),
@@ -103,23 +106,23 @@ export function overviewAttention(overview: PlatformOverview, nowMs: number): At
   return items;
 }
 
-/** How a group of like rows is named. The counts are the engine's own, not
- *  the number of rows read, so a group past the read's ceiling still says how
- *  many there are. */
-export function overviewAttentionGroups(overview: PlatformOverview): Record<string, AttentionGroupInfo> {
-  const merchants = { href: "/admin/merchants", label: "Merchants" };
+/** How a group of like rows is named and where it links on to. The counts are
+ *  the engine's own, not the number of rows read, so a group past the read's
+ *  ceiling still says how many there are. A group links on only to a page that
+ *  lists its rows: /admin/merchants shows a Paused badge and /admin/crons
+ *  every failed run; no admin page lists disputes or fee invoices, so those
+ *  groups have no link, and each row still links to its merchant. */
+export function overviewAttentionGroups(overview: AdminOverview): Record<string, AttentionGroupInfo> {
   return {
     paused: {
       title: () => `${plural(overview.pausedCount, "merchant is", "merchants are")} paused`,
-      view: merchants,
+      view: { href: "/admin/merchants", label: "Merchants" },
     },
     disputes: {
       title: () => `${plural(overview.staleDisputesCount, "dispute has", "disputes have")} had no response for a week`,
-      view: merchants,
     },
     billing: {
-      title: () => `${plural(overview.failedFeeInvoicesCount, "fee invoice payment", "fee invoice payments")} failed`,
-      view: merchants,
+      title: () => `${plural(overview.failedFeeInvoicesCount, "fee invoice", "fee invoices")} not paid`,
     },
     crons: {
       title: (n) => `${plural(n, "cron run", "cron runs")} failed in the last 24 hours`,

@@ -12,7 +12,7 @@ import {
   recoveredPayments,
   stripeConnections,
 } from "~/db";
-import { getPlatformOverview, type PlatformOverview } from "~/lib/admin/overview.server";
+import { getPlatformOverview, type AdminOverview } from "~/lib/admin/overview.server";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -26,6 +26,15 @@ const Overview = (await import("~/routes/admin/index")).default;
 // Imported so that a missing helper fails the assertion that names it, not the
 // whole file (RULES.md 6.5).
 const overviewLib: Partial<typeof import("~/lib/admin/overview")> = await import("~/lib/admin/overview").catch(() => ({}));
+
+// The page's read is getAdminOverview; getPlatformOverview stays the admin
+// API's (GET /platform) four fields. Looked up so a missing export fails the
+// assertion that names it.
+const serverLib: Record<string, unknown> = await import("~/lib/admin/overview.server");
+async function adminOverview(db: unknown, nowMs: number): Promise<AdminOverview> {
+  expect(typeof serverLib.getAdminOverview).toBe("function");
+  return (serverLib.getAdminOverview as (db: unknown, nowMs: number) => Promise<AdminOverview>)(db, nowMs);
+}
 
 const NOW = Date.UTC(2026, 9, 15, 12, 0, 0);
 const DAY = 24 * 60 * 60 * 1000;
@@ -71,8 +80,11 @@ async function seed() {
     ...over,
   });
   await db.insert(disputes).values([
-    dispute("d_stale_old", "acct_north", 12),
-    dispute("d_stale", "acct_lumen", 9, { currency: "eur", amountCents: 4500 }),
+    dispute("d_stale_old", "acct_north", 12, { evidenceDeadline: at(-10 * DAY) }),
+    dispute("d_stale", "acct_lumen", 9, { currency: "eur", amountCents: 4500, evidenceDeadline: at(-2 * DAY) }),
+    // Its deadline has passed: nothing can be sent, so it goes after the ones
+    // that can still be answered.
+    dispute("d_stale_past", "acct_north", 15, { evidenceDeadline: at(1 * DAY) }),
     dispute("d_fresh", "acct_north", 2),
     dispute("d_submitted", "acct_north", 10, { submittedAt: at(8 * DAY), state: "submitted" }),
     dispute("d_won", "acct_north", 20, { state: "resolved_won", status: "won" }),
@@ -94,6 +106,13 @@ async function seed() {
   await db.insert(billingInvoices).values([
     invoice("inv_failed", "acct_north", "payment_failed", { chargeAttemptCount: 2, lastChargeAttemptAt: at(1 * DAY) }),
     invoice("inv_paid", "acct_lumen", "paid"),
+    // The retry sweep stopped chasing it: the fee is owed and nobody will
+    // collect it unless a person does something.
+    invoice("inv_gave_up", "acct_lumen", "gave_up", { chargeAttemptCount: 4, lastChargeAttemptAt: at(3 * DAY) }),
+    invoice("inv_uncollectible", "acct_north", "uncollectible", { createdAt: at(5 * DAY) }),
+    // Voided on purpose, and an old write-off outside the 30-day window.
+    invoice("inv_void", "acct_north", "void"),
+    invoice("inv_old", "acct_north", "uncollectible", { createdAt: at(40 * DAY) }),
     invoice("inv_demo", "demo_acct", "payment_failed"),
   ]);
 
@@ -117,6 +136,7 @@ async function seed() {
     failed("fp_4", "acct_north"),
     failed("fp_5", "demo_acct"),
     failed("fp_6", "acct_north"),
+    failed("fp_7", "acct_north"),
   ]);
   const recovered = (id: string, fp: string, accountId: string, cents: number, currency: string, recoveredAt: Date, over = {}) => ({
     id,
@@ -130,9 +150,11 @@ async function seed() {
   });
   // The month began on 1 October 2026 (UTC).
   await db.insert(recoveredPayments).values([
-    recovered("rp_usd", "fp_1", "acct_north", 5000, "usd", at(2 * DAY)),
-    recovered("rp_eur", "fp_2", "acct_lumen", 3000, "eur", at(3 * DAY)),
-    recovered("rp_usd2", "fp_6", "acct_north", 2500, "usd", at(4 * DAY)),
+    recovered("rp_usd", "fp_1", "acct_north", 5000, "usd", at(2 * DAY), { attributionKind: "foxhound_retry" }),
+    recovered("rp_eur", "fp_2", "acct_lumen", 3000, "eur", at(3 * DAY), { attributionKind: "email_engaged" }),
+    recovered("rp_usd2", "fp_6", "acct_north", 2500, "usd", at(4 * DAY), { attributionKind: "card_update" }),
+    // Stripe recovered it on its own: not Foxhound's, so not counted, as on /billing.
+    recovered("rp_baseline", "fp_7", "acct_north", 6666, "usd", at(1 * DAY)),
     recovered("rp_last_month", "fp_3", "acct_north", 9999, "usd", at(20 * DAY)),
     recovered("rp_deleted", "fp_4", "acct_north", 7777, "usd", at(1 * DAY), { deletedAt: at(1 * DAY / 2) }),
     recovered("rp_demo", "fp_5", "demo_acct", 8888, "usd", at(1 * DAY)),
@@ -143,7 +165,7 @@ async function seed() {
 
 describe("the Overview's figures come from Foxhound's engine", () => {
   it("counts paused merchants (not cancelled, deleted or demo) and lists them to resume", async () => {
-    const overview = await getPlatformOverview(await seed(), NOW);
+    const overview = await adminOverview(await seed(), NOW);
     expect(overview.pausedCount).toBe(2);
     expect(overview).toHaveProperty("attention.pausedMerchants");
     expect(overview.attention.pausedMerchants.map((m) => [m.id, m.name, m.pauseReason])).toEqual([
@@ -153,39 +175,46 @@ describe("the Overview's figures come from Foxhound's engine", () => {
   });
 
   it("counts billing exempt merchants without the demo", async () => {
-    const overview = await getPlatformOverview(await seed(), NOW);
+    const overview = await adminOverview(await seed(), NOW);
     expect(overview.billingExemptCount).toBe(1);
   });
 
   it("counts Stripe connections made in the last seven days that are still connected", async () => {
-    const overview = await getPlatformOverview(await seed(), NOW);
+    const overview = await adminOverview(await seed(), NOW);
     expect(overview.newConnectionsCount).toBe(1);
   });
 
-  it("counts open disputes by Foxhound's state, and lists those a week old with no response, oldest first", async () => {
-    const overview = await getPlatformOverview(await seed(), NOW);
-    // d_stale_old, d_stale, d_fresh, d_submitted are open; d_won is resolved.
-    expect(overview.openDisputesCount).toBe(4);
+  it("counts open disputes by Foxhound's state, and lists those a week old with no response, soonest deadline first", async () => {
+    const overview = await adminOverview(await seed(), NOW);
+    // d_stale_old, d_stale, d_stale_past, d_fresh, d_submitted are open; d_won is resolved.
+    expect(overview.openDisputesCount).toBe(5);
     // Counted, not the length of the capped list, so a group past the cap still
     // says how many there are.
-    expect(overview).toHaveProperty("staleDisputesCount", 2);
+    expect(overview).toHaveProperty("staleDisputesCount", 3);
+    // Soonest evidence deadline first among those still answerable, then the
+    // ones whose deadline has passed (or that have none), oldest first.
     expect(overview.attention.staleDisputes.map((d) => [d.id, d.merchantName, d.amountCents, d.currency])).toEqual([
-      ["d_stale_old", "Northwind Coffee", 12000, "usd"],
       ["d_stale", "Lumen Studio", 4500, "eur"],
+      ["d_stale_old", "Northwind Coffee", 12000, "usd"],
+      ["d_stale_past", "Northwind Coffee", 12000, "usd"],
     ]);
   });
 
-  it("lists fee invoices whose charge failed and are still unpaid", async () => {
-    const overview = await getPlatformOverview(await seed(), NOW);
+  it("lists fee invoices from the last 30 days that failed or will not be collected", async () => {
+    const overview = await adminOverview(await seed(), NOW);
     expect(overview).toHaveProperty("attention.failedFeeInvoices");
     expect(
-      overview.attention.failedFeeInvoices.map((i) => [i.id, i.merchantName, i.totalCents, i.chargeAttemptCount, i.failedAt.getTime()]),
-    ).toEqual([["inv_failed", "Northwind Coffee", 2400, 2, NOW - DAY]]);
-    expect(overview).toHaveProperty("failedFeeInvoicesCount", 1);
+      overview.attention.failedFeeInvoices.map((i) => [i.id, i.merchantName, i.status, i.chargeAttemptCount, i.failedAt.getTime()]),
+    ).toEqual([
+      ["inv_failed", "Northwind Coffee", "payment_failed", 2, NOW - DAY],
+      ["inv_gave_up", "Lumen Studio", "gave_up", 4, NOW - 3 * DAY],
+      ["inv_uncollectible", "Northwind Coffee", "uncollectible", 0, NOW - 5 * DAY],
+    ]);
+    expect(overview).toHaveProperty("failedFeeInvoicesCount", 3);
   });
 
-  it("sums what was recovered since the first of the month per currency, never one sum across them", async () => {
-    const overview = await getPlatformOverview(await seed(), NOW);
+  it("sums what Foxhound recovered since the first of the month (attributed, as /billing) per currency", async () => {
+    const overview = await adminOverview(await seed(), NOW);
     expect(overview).toHaveProperty("recoveredThisMonth.paymentCount");
     expect(overview.recoveredThisMonth.paymentCount).toBe(3);
     expect([...overview.recoveredThisMonth.byCurrency].sort((a, b) => a.currency.localeCompare(b.currency))).toEqual([
@@ -195,10 +224,38 @@ describe("the Overview's figures come from Foxhound's engine", () => {
   });
 });
 
+describe("the admin API's platform read is unchanged", () => {
+  it("GET /platform (getPlatformOverview) returns the four fields it always had, and nothing of the page's", async () => {
+    const overview = await getPlatformOverview(await seed(), NOW);
+    expect(Object.keys(overview).sort()).toEqual(["activeRecoveriesCount", "cronHealth", "merchantCount", "mrrByCurrency"]);
+  });
+
+  it("reads the cron window from the caller's clock, not the wall clock", async () => {
+    const { db, sqlite } = createInMemoryDb();
+    const past = Date.UTC(2026, 0, 10, 12, 0, 0);
+    sqlite
+      .prepare(
+        "insert into cron_run_history (id, cron_name, started_at, finished_at, status, rows_processed, message, created_at) values (?, ?, ?, ?, ?, 0, ?, ?)",
+      )
+      .run("r1", "weekly-digest", past - 5 * 3600_000 - 1000, past - 5 * 3600_000, "failed", "boom", past - 5 * 3600_000);
+    const overview = await getPlatformOverview(db, past);
+    expect(overview.cronHealth.failedRuns.map((r) => r.id)).toEqual(["r1"]);
+  });
+
+  it("reads every paused merchant, so the group's link count is the real one", async () => {
+    const { db } = createInMemoryDb();
+    await db.insert(accounts).values(
+      Array.from({ length: 60 }, (_, i) => ({ id: `acct_${i}`, name: `M ${i}`, createdAt: at(DAY), processingPaused: true })),
+    );
+    const overview = await adminOverview(db, NOW);
+    expect(overview.attention.pausedMerchants).toHaveLength(60);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // The page
 
-function overviewData(over: Partial<PlatformOverview> = {}): PlatformOverview {
+function overviewData(over: Partial<AdminOverview> = {}): AdminOverview {
   return {
     merchantCount: 3,
     activeRecoveriesCount: 4,
@@ -225,7 +282,7 @@ function overviewData(over: Partial<PlatformOverview> = {}): PlatformOverview {
   };
 }
 
-const busyAttention: Partial<PlatformOverview> = {
+const busyAttention: Partial<AdminOverview> = {
   pausedCount: 1,
   staleDisputesCount: 1,
   failedFeeInvoicesCount: 1,
@@ -250,6 +307,7 @@ const busyAttention: Partial<PlatformOverview> = {
         merchantName: "Northwind Coffee",
         totalCents: 2400,
         currency: "usd",
+        status: "payment_failed",
         chargeAttemptCount: 2,
         failedAt: at(DAY),
       },
@@ -274,7 +332,7 @@ const actions = [
   { id: "a2", createdAt: at(2 * DAY), actorEmail: "admin@example.com", action: "Engaged the emergency brake", target: null },
 ];
 
-type PageData = { overview: PlatformOverview; d1SizeBytes: number; recentActions: typeof actions; now: number };
+type PageData = { overview: AdminOverview; d1SizeBytes: number; recentActions: typeof actions; now: number };
 
 function render(data: PageData): string {
   const Stub = createRoutesStub([
@@ -294,7 +352,7 @@ const text = (html: string) =>
     .replaceAll("&amp;", "&")
     .replace(/\s+/g, " ");
 
-const page = (over: Partial<PlatformOverview> = {}, recentActions = actions) =>
+const page = (over: Partial<AdminOverview> = {}, recentActions = actions) =>
   render({ overview: overviewData(over), d1SizeBytes: 50 * 1024 * 1024, recentActions, now: NOW });
 
 describe("the Overview page", () => {
@@ -319,7 +377,7 @@ describe("the Overview page", () => {
     const t = text(page());
     expect(t).toContain("$12,500.00 + €3,000.00");
     expect(t).toContain("$75.00 + €30.00");
-    expect(t).toContain("3 payments since the 1st (UTC)");
+    expect(t).toContain("3 attributed payments since the 1st (UTC)");
   });
 
   it("says the counts in plain sentences", () => {
@@ -420,12 +478,34 @@ describe("Needs attention, as Capsomer's attention list wants it", () => {
     }
   });
 
+  it("links a group only to a page that lists its rows", () => {
+    expect(typeof overviewLib.overviewAttentionGroups).toBe("function");
+    const groups = overviewLib.overviewAttentionGroups!(overviewData(busyAttention));
+    // /admin/merchants shows a Paused badge; no admin page lists disputes or fee invoices.
+    expect(groups.paused.view).toEqual({ href: "/admin/merchants", label: "Merchants" });
+    expect(groups.crons.view).toEqual({ href: "/admin/crons", label: "Crons" });
+    expect(groups.disputes.view).toBeUndefined();
+    expect(groups.billing.view).toBeUndefined();
+  });
+
+  it("says a fee nobody will collect as not collected", () => {
+    const data = overviewData({
+      ...busyAttention,
+      attention: {
+        ...busyAttention.attention!,
+        failedFeeInvoices: [{ ...busyAttention.attention!.failedFeeInvoices[0], status: "gave_up" }],
+      },
+    });
+    const row = overviewLib.overviewAttention!(data, NOW).find((i) => i.group === "billing");
+    expect(row?.title).toBe("Northwind Coffee's fee invoice was not collected");
+  });
+
   it("names a group by the engine's count, not by the rows read", () => {
     const groups = overviewLib.overviewAttentionGroups!(
       overviewData({ ...busyAttention, staleDisputesCount: 60, failedFeeInvoicesCount: 70 }),
     );
     expect(groups.disputes.title?.(50)).toBe("60 disputes have had no response for a week");
-    expect(groups.billing.title?.(50)).toBe("70 fee invoice payments failed");
+    expect(groups.billing.title?.(50)).toBe("70 fee invoices not paid");
   });
 });
 

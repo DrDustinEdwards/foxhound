@@ -11,7 +11,7 @@ import { getDb } from "~/db";
 import { cronRunHref } from "~/lib/admin/crons";
 import { D1_ALERT_THRESHOLD, D1_CAP_BYTES, formatBytes } from "~/lib/admin/format";
 import { overviewAttention, overviewAttentionGroups, overviewPending, plural } from "~/lib/admin/overview";
-import { getPlatformOverview, listRecentAdminActions } from "~/lib/admin/overview.server";
+import { getAdminOverview, listRecentAdminActions } from "~/lib/admin/overview.server";
 import { getD1SizeBytes } from "~/lib/admin/operations.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import type { AdminHandle } from "~/lib/admin/page";
@@ -34,7 +34,7 @@ export async function loader({ context }: Route.LoaderArgs) {
   const now = Date.now();
 
   const [overview, d1SizeBytes, recentActions] = await Promise.all([
-    getPlatformOverview(db, now),
+    getAdminOverview(db, now),
     getD1SizeBytes(env),
     listRecentAdminActions(db),
   ]);
@@ -116,7 +116,7 @@ export default function AdminOverview({ loaderData }: Route.ComponentProps) {
           renderLink={tileLink}
           label="Recovered this month"
           figure={moneyFigure(overview.recoveredThisMonth.byCurrency)}
-          detail={`${plural(overview.recoveredThisMonth.paymentCount, "payment", "payments")} since the 1st (UTC)`}
+          detail={`${plural(overview.recoveredThisMonth.paymentCount, "attributed payment", "attributed payments")} since the 1st (UTC)`}
         />
         <StatTile
           href="/admin/merchants"

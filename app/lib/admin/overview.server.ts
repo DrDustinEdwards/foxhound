@@ -3,7 +3,7 @@
 // surface) and excludes demo accounts (DEMO_ACCOUNT_ID_PREFIX), matching the
 // accountBillingEligibleCondition demo-exclusion convention in app/db/billable.ts.
 
-import { and, asc, count, desc, eq, gte, isNull, lt, notInArray, notLike, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, isNull, lt, notInArray, notLike, sql } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import {
@@ -20,7 +20,7 @@ import {
 import { auditTarget, describeAuditAction, type AuditTarget } from "~/lib/admin/audit-describe";
 import { listAuditLog, loadAuditLookups } from "~/lib/admin/audit-log.server";
 import { groupSumByCurrency, startOfUtcMonthMs, type CurrencyAmount } from "~/lib/billing/preview.server";
-import { DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
+import { BILLABLE_ATTRIBUTION_KINDS, DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
 import { RESOLVED_DISPUTE_STATES } from "~/lib/disputes/labels";
 
 const NOT_DEMO = notLike(accounts.id, `${DEMO_ACCOUNT_ID_PREFIX}%`);
@@ -33,9 +33,9 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export const STALE_DISPUTE_DAYS = 7;
 export const NEW_CONNECTION_DAYS = 7;
 
-/** A ceiling on each kind of attention row, so a bad day (the brake pausing
- *  every merchant) cannot make the Overview read thousands of rows. The list
- *  shows its own first few of each kind and links on to the full view. */
+/** A ceiling on the dispute and fee attention rows. The list shows five of a
+ *  group; their groups have no page to link on to, so the titles carry the
+ *  real counts and nothing says "All N". */
 const ATTENTION_LIMIT = 50;
 
 /** Recova's Recent admin actions showed the newest ten audit rows. */
@@ -66,15 +66,32 @@ export interface FailedFeeInvoice {
   merchantName: string | null;
   totalCents: number;
   currency: string;
+  /** payment_failed, gave_up or uncollectible. */
+  status: string;
   chargeAttemptCount: number;
   /** The last charge attempt, or when the invoice was made if none is stamped. */
   failedAt: Date;
 }
 
+/** What GET /platform (the admin API, foxhound_admin_get_platform) returns:
+ *  the four fields it always had. The /admin page reads AdminOverview. */
 export interface PlatformOverview {
   merchantCount: number;
   activeRecoveriesCount: number;
   mrrByCurrency: Array<{ currency: string; totalCents: number; accountCount: number }>;
+  cronHealth: {
+    failedLast24h: number;
+    /** The failed runs themselves (newest first), so the Overview can link to
+     *  each one on /admin/crons. */
+    failedRuns: Array<{ id: string; cronName: string; finishedAt: Date; message: string | null }>;
+    lastRunAt: Date | null;
+    disabledCount: number;
+  };
+}
+
+/** The /admin Overview's read: the platform overview plus Recova's overview
+ *  inventory (app/admin/page.tsx), each computed by Foxhound's engine. */
+export interface AdminOverview extends PlatformOverview {
   /** Merchants whose processing is paused and who could be resumed (not
    *  cancelled or deleted, where processing is gated anyway). */
   pausedCount: number;
@@ -86,25 +103,21 @@ export interface PlatformOverview {
   /** How many of those are older than STALE_DISPUTE_DAYS with no response
    *  submitted, counted rather than read, so it holds past ATTENTION_LIMIT. */
   staleDisputesCount: number;
-  /** Fee invoices whose charge failed and that are still unpaid, counted. */
+  /** Fee invoices that need a person (FEE_ATTENTION_STATUSES, last
+   *  FEE_ATTENTION_DAYS), counted. */
   failedFeeInvoicesCount: number;
-  /** recovered_payments since the first of this UTC month, per currency, the
-   *  same read /billing's "recovered this month" makes for one merchant. */
+  /** Attributed recoveries (BILLABLE_ATTRIBUTION_KINDS) since the first of this
+   *  UTC month, per currency: what /billing's "Recovered this month" shows one
+   *  merchant (attributedThisMonth), across all of them. */
   recoveredThisMonth: { byCurrency: CurrencyAmount[]; paymentCount: number };
   attention: {
+    /** Every one, not capped, so a group's "All N" link count is true. */
     pausedMerchants: PausedMerchant[];
-    /** Open, no response submitted, older than STALE_DISPUTE_DAYS; oldest first. */
+    /** Open, no response submitted, older than STALE_DISPUTE_DAYS; those still
+     *  answerable first, soonest evidence deadline first. */
     staleDisputes: StaleDispute[];
-    /** Fee invoices whose charge failed and that are still unpaid; newest first. */
+    /** Newest first. */
     failedFeeInvoices: FailedFeeInvoice[];
-  };
-  cronHealth: {
-    failedLast24h: number;
-    /** The failed runs themselves (newest first), so the Overview can link to
-     *  each one on /admin/crons. */
-    failedRuns: Array<{ id: string; cronName: string; finishedAt: Date; message: string | null }>;
-    lastRunAt: Date | null;
-    disabledCount: number;
   };
 }
 
@@ -155,8 +168,8 @@ async function mrrUnderManagement(db: Db): Promise<PlatformOverview["mrrByCurren
   return [...byCurrency.entries()].map(([currency, v]) => ({ currency, ...v }));
 }
 
-async function cronHealth(db: Db): Promise<PlatformOverview["cronHealth"]> {
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+async function cronHealth(db: Db, nowMs: number): Promise<PlatformOverview["cronHealth"]> {
+  const since = new Date(nowMs - DAY_MS);
   const [failedRuns, lastRunRows, disabledRows] = await Promise.all([
     db
       .select({
@@ -181,17 +194,15 @@ async function cronHealth(db: Db): Promise<PlatformOverview["cronHealth"]> {
 
 const RESUMABLE = and(eq(accounts.processingPaused, true), isNull(accounts.cancelledAt), isNull(accounts.deletedAt));
 
-async function pausedMerchants(db: Db): Promise<{ count: number; rows: PausedMerchant[] }> {
-  const [countRows, rows] = await Promise.all([
-    db.select({ n: count() }).from(accounts).where(and(RESUMABLE, NOT_DEMO)),
-    db
-      .select({ id: accounts.id, name: accounts.name, pauseReason: accounts.pauseReason })
-      .from(accounts)
-      .where(and(RESUMABLE, NOT_DEMO))
-      .orderBy(asc(accounts.name), asc(accounts.id))
-      .limit(ATTENTION_LIMIT),
-  ]);
-  return { count: countRows[0]?.n ?? 0, rows };
+/** Every paused merchant, uncapped: the group links on to /admin/merchants
+ *  with Capsomer's "All N", which counts the rows given, so they must all be
+ *  given. Bounded by the merchant count (SCHEMA.md target ~300). */
+async function pausedMerchants(db: Db): Promise<PausedMerchant[]> {
+  return db
+    .select({ id: accounts.id, name: accounts.name, pauseReason: accounts.pauseReason })
+    .from(accounts)
+    .where(and(RESUMABLE, NOT_DEMO))
+    .orderBy(asc(accounts.name), asc(accounts.id));
 }
 
 async function countBillingExempt(db: Db): Promise<number> {
@@ -238,18 +249,35 @@ async function openDisputes(
       .from(disputes)
       .innerJoin(accounts, eq(accounts.id, disputes.accountId))
       .where(STALE)
-      .orderBy(asc(disputes.createdAt))
+      // Those that can still be answered first, soonest deadline first; then
+      // those past their deadline or with none, oldest first.
+      .orderBy(
+        sql`case when ${disputes.evidenceDeadline} >= ${nowMs} then 0 else 1 end`,
+        asc(disputes.evidenceDeadline),
+        asc(disputes.createdAt),
+      )
       .limit(ATTENTION_LIMIT),
   ]);
   return { count: countRows[0]?.n ?? 0, staleCount: staleCountRows[0]?.n ?? 0, stale };
 }
 
-/** billing_invoices.status 'payment_failed' is the charge that failed and has
- *  not since been paid, voided or given up on (app/lib/billing/charge-retry.ts
- *  moves a settled invoice off it), so the row needs a person while it holds. */
-async function failedFeeInvoices(db: Db): Promise<{ count: number; rows: FailedFeeInvoice[] }> {
+/** Fee invoices that need a person: a charge that failed and is still being
+ *  chased (payment_failed), and fees owed that nobody will collect without one
+ *  (gave_up, written by the retry sweep when it stops; uncollectible, from
+ *  Stripe). void is left out: a voided invoice was cancelled on purpose.
+ *  billing/labels.ts counts all four as failed. */
+export const FEE_ATTENTION_STATUSES = ["payment_failed", "gave_up", "uncollectible"] as const;
+/** Recova's window for failed billing charges; an older write-off has had
+ *  its month on the Overview. */
+export const FEE_ATTENTION_DAYS = 30;
+
+async function failedFeeInvoices(db: Db, nowMs: number): Promise<{ count: number; rows: FailedFeeInvoice[] }> {
   const failedAt = sql<number>`coalesce(${billingInvoices.lastChargeAttemptAt}, ${billingInvoices.createdAt})`;
-  const FAILED = and(eq(billingInvoices.status, "payment_failed"), NOT_DEMO);
+  const FAILED = and(
+    inArray(billingInvoices.status, [...FEE_ATTENTION_STATUSES]),
+    sql`${failedAt} >= ${nowMs - FEE_ATTENTION_DAYS * DAY_MS}`,
+    NOT_DEMO,
+  );
   const [countRows, rows] = await Promise.all([
     db
       .select({ n: count() })
@@ -263,6 +291,7 @@ async function failedFeeInvoices(db: Db): Promise<{ count: number; rows: FailedF
         merchantName: accounts.name,
         totalCents: billingInvoices.totalCents,
         currency: billingInvoices.currency,
+        status: billingInvoices.status,
         chargeAttemptCount: billingInvoices.chargeAttemptCount,
         failedAtMs: failedAt,
       })
@@ -278,51 +307,58 @@ async function failedFeeInvoices(db: Db): Promise<{ count: number; rows: FailedF
   };
 }
 
-async function recoveredThisMonth(db: Db, nowMs: number): Promise<PlatformOverview["recoveredThisMonth"]> {
+async function recoveredThisMonth(db: Db, nowMs: number): Promise<AdminOverview["recoveredThisMonth"]> {
+  // Summed and counted per currency in SQL; the per-currency rows still pass
+  // through groupSumByCurrency, the one money-total path (RULES.md 3.20).
   const rows = await db
-    .select({ currency: recoveredPayments.currency, cents: recoveredPayments.amountCents })
+    .select({
+      currency: recoveredPayments.currency,
+      cents: sql<number>`coalesce(sum(${recoveredPayments.amountCents}), 0)`,
+      n: count(),
+    })
     .from(recoveredPayments)
     .innerJoin(accounts, eq(accounts.id, recoveredPayments.accountId))
     .where(
       and(
         isNull(recoveredPayments.deletedAt),
         gte(recoveredPayments.recoveredAt, new Date(startOfUtcMonthMs(nowMs))),
+        inArray(recoveredPayments.attributionKind, [...BILLABLE_ATTRIBUTION_KINDS]),
         NOT_DEMO,
       ),
-    );
-  return { byCurrency: groupSumByCurrency(rows), paymentCount: rows.length };
+    )
+    .groupBy(recoveredPayments.currency);
+  return {
+    byCurrency: groupSumByCurrency(rows.map((r) => ({ currency: r.currency, cents: Number(r.cents) }))),
+    paymentCount: rows.reduce((n, r) => n + r.n, 0),
+  };
 }
 
+/** GET /platform's read (the admin API): unchanged in shape, four fields. */
 export async function getPlatformOverview(db: Db, nowMs: number = Date.now()): Promise<PlatformOverview> {
-  const [
-    merchantCount,
-    activeRecoveriesCount,
-    mrrByCurrency,
-    cronHealthSummary,
-    paused,
-    billingExemptCount,
-    newConnectionsCount,
-    disputeSummary,
-    feeInvoices,
-    recovered,
-  ] = await Promise.all([
+  const [merchantCount, activeRecoveriesCount, mrrByCurrency, cronHealthSummary] = await Promise.all([
     countMerchants(db),
     countActiveRecoveries(db),
     mrrUnderManagement(db),
-    cronHealth(db),
-    pausedMerchants(db),
-    countBillingExempt(db),
-    countNewConnections(db, nowMs),
-    openDisputes(db, nowMs),
-    failedFeeInvoices(db),
-    recoveredThisMonth(db, nowMs),
+    cronHealth(db, nowMs),
   ]);
+  return { merchantCount, activeRecoveriesCount, mrrByCurrency, cronHealth: cronHealthSummary };
+}
+
+/** The /admin Overview's read, all of it from one clock. */
+export async function getAdminOverview(db: Db, nowMs: number): Promise<AdminOverview> {
+  const [platform, paused, billingExemptCount, newConnectionsCount, disputeSummary, feeInvoices, recovered] =
+    await Promise.all([
+      getPlatformOverview(db, nowMs),
+      pausedMerchants(db),
+      countBillingExempt(db),
+      countNewConnections(db, nowMs),
+      openDisputes(db, nowMs),
+      failedFeeInvoices(db, nowMs),
+      recoveredThisMonth(db, nowMs),
+    ]);
   return {
-    merchantCount,
-    activeRecoveriesCount,
-    mrrByCurrency,
-    cronHealth: cronHealthSummary,
-    pausedCount: paused.count,
+    ...platform,
+    pausedCount: paused.length,
     billingExemptCount,
     newConnectionsCount,
     openDisputesCount: disputeSummary.count,
@@ -330,7 +366,7 @@ export async function getPlatformOverview(db: Db, nowMs: number = Date.now()): P
     failedFeeInvoicesCount: feeInvoices.count,
     recoveredThisMonth: recovered,
     attention: {
-      pausedMerchants: paused.rows,
+      pausedMerchants: paused,
       staleDisputes: disputeSummary.stale,
       failedFeeInvoices: feeInvoices.rows,
     },
