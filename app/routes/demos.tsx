@@ -87,13 +87,10 @@ export default function DemosPage() {
 
       {/* Recova's 1200px column (px-4, md:px-8, pb-16), in Capsomer's teal
           family with Foxhound's own neutrals (.fh-cap, as /pricing and the
-          /products hub). Foxhound's global focus ring reads --border-focus;
-          here it reads the family's --ring, so a keyboard user sees teal as in
-          Capsomer's own parts. */}
-      <div
-        className="fh-cap mx-auto max-w-[1200px] px-4 pb-16 md:px-8 [--border-focus:var(--ring)]"
-        data-family="teal"
-      >
+          /products hub). The buttons are the only focusable parts here; their
+          teal ring is Capsomer's own, handed back by app.css
+          (.fh-cap .cap-btn:focus-visible). */}
+      <div className="fh-cap mx-auto max-w-[1200px] px-4 pb-16 md:px-8" data-family="teal">
         {/* Four cards against legacy's three: legacy filters to products with a
             demoHref, Foxhound also entry-points the console demo. Ratified
             (Dustin, 2026-07-31, "Four demo cards, in Recova's treatment") on

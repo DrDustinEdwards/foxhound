@@ -85,11 +85,10 @@ describe("/demos (J15, row M19)", () => {
     }
   });
 
-  it("sits in Capsomer's teal family with Foxhound's neutrals, the focus ring in the family's teal", () => {
+  it("sits in Capsomer's teal family with Foxhound's neutrals", () => {
     const open = column(html).slice(0, column(html).indexOf(">") + 1);
     expect(open).toContain("fh-cap");
     expect(open).toContain('data-family="teal"');
-    expect(open).toContain("[--border-focus:var(--ring)]");
   });
 
   it("builds each card from Capsomer's panel, body only, with no Foxhound class on the panel", () => {
