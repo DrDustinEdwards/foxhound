@@ -288,7 +288,6 @@ describe("no Reply-To on sign-in mail or merchant notices", () => {
 
   it("password reset", async () => {
     seed(REPLY);
-    // The reset has its own sender since J82 (sendAuthEmail is verification only).
     await sendPasswordResetEmail(env, { to: "owner@acme.test", url: `${BASE}/reset?token=EXAMPLE`, token: "EXAMPLE" });
     expect(only().replyTo).toBeUndefined();
   });
