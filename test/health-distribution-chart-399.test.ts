@@ -1,6 +1,6 @@
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { MemoryRouter } from "react-router";
+import { createRoutesStub } from "react-router";
 import { describe, expect, it } from "vitest";
 
 import IntelligenceOverviewPage from "~/routes/app/intelligence/index";
@@ -53,14 +53,29 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // cron, so ninety days means ninety rows. That is the opposite of the churn
 // chart, whose monthly cron forced 12 months under the same rule.
 
-const Page = IntelligenceOverviewPage as unknown as (props: {
-  loaderData: {
-    entitled: true;
-    overview: IntelligenceOverview;
-    healthDistribution: HealthDistributionDay[];
-    mrrSeries: MrrSnapshotPoint[];
-  };
-}) => ReactElement;
+// J67 (Q1, Dustin "yes", 2026-10-14) moved this chart from the hand-built SVG
+// to Enarratio, so the assertions below read Enarratio's figure: its legend,
+// its labelled rule, its data table. What each one guards is unchanged. The
+// J67 suite (test/intelligence-dashboard-j67.test.ts) pins the page around it.
+
+const Page = IntelligenceOverviewPage as unknown as (props: { loaderData: unknown }) => ReactElement;
+
+// The page shows its sections once there is an MRR snapshot (legacy's gate),
+// so one flat snapshot carries this render; it draws no movement, NRR or plan
+// chart of its own.
+const SNAPSHOT: MrrSnapshotPoint = {
+  at: new Date(Date.UTC(2026, 5, 1)),
+  nrrPct: null,
+  totalMrrCents: 100_000,
+  activeCustomersCount: 10,
+  newMrrCents: 0,
+  expansionMrrCents: 0,
+  reactivationMrrCents: 0,
+  contractionMrrCents: 0,
+  churnMrrCents: 0,
+  perPlanBreakdown: {},
+  currency: "usd",
+};
 
 const overview: IntelligenceOverview = {
   currency: "usd",
@@ -82,18 +97,25 @@ const healthDistribution: HealthDistributionDay[] = [
 ];
 
 function render(days: HealthDistributionDay[] = healthDistribution): string {
-  return renderToStaticMarkup(
-    createElement(
-      MemoryRouter,
-      null,
-      createElement(Page, {
-        // The sibling MRR charts are this page's other two 399 jobs and carry
-        // their own suites; an empty series keeps them off this render so a
-        // count assertion here measures one chart.
-        loaderData: { entitled: true, overview, healthDistribution: days, mrrSeries: [] },
-      }),
-    ),
-  );
+  const loaderData = {
+    entitled: true,
+    overview,
+    healthDistribution: days,
+    mrrSeries: [SNAPSHOT],
+    reports: [],
+    currentMonth: "2026-10",
+    nowMs: Date.UTC(2026, 9, 15),
+    isDemo: false,
+  };
+  const Stub = createRoutesStub([
+    { path: "/intelligence/dashboard", Component: () => createElement(Page, { loaderData }) },
+  ]);
+  return renderToStaticMarkup(createElement(Stub, { initialEntries: ["/intelligence/dashboard"] }));
+}
+
+function card(html: string): string {
+  const start = html.indexOf("Customer health distribution");
+  return html.slice(start, html.indexOf("</section>", start));
 }
 
 describe("S16 health distribution chart, ported toward legacy (399)", () => {
@@ -104,38 +126,32 @@ describe("S16 health distribution chart, ported toward legacy (399)", () => {
   });
 
   it("carries legacy's three band series names as a legend", () => {
-    const html = render();
-    for (const name of ["High risk", "Medium risk", "Healthy"]) {
-      expect(html).toContain(name);
-    }
+    const legend = [...card(render()).matchAll(/<li data-enarratio-series="([^"]+)"/g)].map((m) => m[1]);
+    expect(legend).toEqual(["High risk", "Medium risk", "Healthy"]);
   });
 
   it("plots a stack per sampled day, not one bar per band", () => {
-    const html = render();
-    // Three series over five days, every value non-zero: fifteen rects, plus
-    // the three 8x8 legend swatches. The pre-fix card drew three bars total, so
-    // this count is what discriminates the two charts.
-    const rects = html.match(/<rect/g) ?? [];
-    expect(rects.length).toBe(15 + 3);
+    // Three series over five days, every value non-zero: fifteen bars. The
+    // pre-fix card drew three bars total, so this count is what discriminates
+    // the two charts.
+    const rects = card(render()).match(/<rect/g) ?? [];
+    expect(rects.length).toBe(15);
   });
 
   it("labels the x axis with dates and no year", () => {
-    const html = render();
+    const html = card(render());
     expect(html).toContain("Jun 1");
     expect(html).toContain("Jun 29");
     expect(html).not.toContain("Jun 1, 2026");
   });
 
-  it("keeps every glyph OUTSIDE the stretched plot box (384c0db's lesson)", () => {
-    const html = render();
-    // The plot is preserveAspectRatio="none", so a text node inside it would be
-    // stretched horizontally with the card. That is the S9 colliding-label
-    // defect and the exact thing ruling 399 repaired in MultiLine.
-    const start = html.indexOf('viewBox="0 0 100 100"');
-    expect(start).toBeGreaterThan(-1);
-    const plot = html.slice(start, html.indexOf("</svg>", start));
-    expect(plot.length).toBeGreaterThan(0);
-    expect(plot).not.toContain("<text");
+  it("draws at a real size, never a stretched box (384c0db's lesson)", () => {
+    // The hand-built chart stretched a 100x100 viewBox with
+    // preserveAspectRatio="none", which smeared any text inside it. Enarratio
+    // draws at the panel's measured width with a viewBox of the same size.
+    const c = card(render());
+    expect(c).not.toContain('preserveAspectRatio="none"');
+    expect(c).toMatch(/<svg[^>]*width="([0-9]+)"[^>]*viewBox="0 0 \1 /);
   });
 
   it("renders nothing when there is no history rather than an empty frame", () => {
