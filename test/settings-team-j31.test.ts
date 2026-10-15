@@ -303,31 +303,29 @@ describe("J31: sizes and colour", () => {
   });
 });
 
-describe("J31: the remove result is shown at its row", () => {
-  it("a remove error sits in the row it is about, not under the invite field", () => {
-    const html = render(AS_OWNER, {
-      action: "remove",
-      error: "The account owner cannot be removed.",
-      invited: null,
-      inviteUrl: null,
-      memberId: "m_sam",
+describe("J31: the remove result, where Recova shows it", () => {
+  // Recova's TeamSection has ONE error line, under the invite row, and a
+  // refused remove lands there (setError). Showing it at the row would be a
+  // visible difference with no approval (RULES.md 1.3); that placement is a
+  // question for Dustin in the J31 notes.
+  for (const memberId of ["m_sam", "m_gone"]) {
+    it(`a refused remove (row ${memberId}) shows under the invite row, as an alert, never in the list`, () => {
+      const html = render(AS_OWNER, {
+        action: "remove",
+        error: "The account owner cannot be removed.",
+        invited: null,
+        inviteUrl: null,
+        memberId,
+      });
+      inOrder(text(html), ["Dana Owner", "Sam Member", "new@example.com", "Send invite", "The account owner cannot be removed."]);
+      const list = html.slice(html.indexOf("<ul"), html.indexOf("</ul>"));
+      expect(list).not.toContain("The account owner cannot be removed.");
+      const form = html.slice(html.lastIndexOf("<form"));
+      expect(form).toMatch(/<div class="cap-alert" data-tone="crit" role="alert">[\s\S]*The account owner cannot be removed\./);
+      // It is not the field's error: the address is not what was wrong.
+      expect(html.match(/<input[^>]*id="invite_email"[^>]*>/)![0]).not.toContain("aria-invalid");
     });
-    const t = text(html);
-    inOrder(t, ["Sam Member", "The account owner cannot be removed.", "new@example.com", "Invite a team member"]);
-    expect(html).toMatch(/<div class="cap-alert" data-tone="crit" role="alert">/);
-    expect(html).not.toMatch(/<p class="cap-field-error" id="invite_email-error"[^>]*>The account owner/);
-  });
-
-  it("a remove error for a row no longer on the page sits above the list", () => {
-    const html = render(AS_OWNER, {
-      action: "remove",
-      error: "That member is not on this account.",
-      invited: null,
-      inviteUrl: null,
-      memberId: "m_gone",
-    });
-    inOrder(text(html), ["That member is not on this account.", "Dana Owner", "Invite a team member"]);
-  });
+  }
 
   it("a removal that worked is announced politely, with nothing new drawn", () => {
     // Recova draws nothing when a member is removed; the row just goes. A

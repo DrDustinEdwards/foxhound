@@ -81,7 +81,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   const intent = String(form.get("_action") ?? "invite") === "remove" ? "remove" : "invite";
 
   // Every result says which form it answers (`action`), and a remove result
-  // names its row (`memberId`), so the page shows it where it belongs.
+  // names its row (`memberId`), so each form reads only its own result.
   if (intent === "remove") {
     const memberId = String(form.get("memberId") ?? "").trim() || null;
     const refuse = (error: string, status: number) =>
@@ -160,8 +160,6 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
   // Results belong to the form they answer.
   const removeResult = actionData?.action === "remove" ? actionData : null;
   const inviteResult = actionData?.action === "invite" ? actionData : null;
-  const removeErrorRowShown =
-    removeResult?.error != null && loaderData.members.some((m) => m.id === removeResult.memberId);
 
   // Clear the field only after an invite that worked; a remove result or a
   // refused invite leaves a half-typed address alone.
@@ -183,8 +181,6 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
 
       <section className="cap-panel">
         <div className="cap-panel-body">
-          {/* A remove refused for a row no longer on the page. */}
-          {removeResult?.error && !removeErrorRowShown ? <Alert tone="crit">{removeResult.error}</Alert> : null}
           {removeResult && !removeResult.error ? (
             <p role="status" className="sr-only">
               Member removed.
@@ -229,11 +225,6 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
                         "active" pill beside every member. */}
                     {m.status === "active" ? null : <Pill variant="secondary">Pending</Pill>}
                   </span>
-                  {removeResult?.error && removeResult.memberId === m.id ? (
-                    <div className="w-full">
-                      <Alert tone="crit">{removeResult.error}</Alert>
-                    </div>
-                  ) : null}
                 </li>
               );
             })}
@@ -274,6 +265,16 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
                     {inviteResult?.error ?? null}
                   </p>
                 </div>
+                {/* A refused remove, where Recova's TeamSection shows it: its
+                    one error line under the invite row. An alert, and not
+                    the field's error, since the address is not what was
+                    wrong. Showing it at the row instead is a question for
+                    Dustin (J31 notes). */}
+                {removeResult?.error ? (
+                  <div className="mt-2">
+                    <Alert tone="crit">{removeResult.error}</Alert>
+                  </div>
+                ) : null}
                 {inviteResult?.inviteUrl ? (
                   <div className="mt-2">
                     <Banner tone="ok">
