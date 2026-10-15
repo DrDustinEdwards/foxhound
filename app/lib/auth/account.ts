@@ -345,6 +345,27 @@ export function normalizeInviteEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
+/**
+ * Whether the account already has a PENDING or ACTIVE membership invited at
+ * this address: legacy's repeat-invite check (app/api/invite/route.ts, blob
+ * 960aefc6), which matches `invited_email` alone, on the address in its stored
+ * normal form, an expired pending invite included.
+ */
+export async function hasOpenInviteForEmail(db: Db, accountId: string, email: string): Promise<boolean> {
+  const rows = await db
+    .select({ id: accountMembers.id })
+    .from(accountMembers)
+    .where(
+      and(
+        eq(accountMembers.accountId, accountId),
+        eq(accountMembers.invitedEmail, normalizeInviteEmail(email)),
+        inArray(accountMembers.status, [MEMBER_STATUS.ACTIVE, MEMBER_STATUS.PENDING]),
+      ),
+    )
+    .limit(1);
+  return rows.length > 0;
+}
+
 /** Create a pending team-member invite. Returns the token for the invite link. */
 export async function createInvite(
   db: Db,

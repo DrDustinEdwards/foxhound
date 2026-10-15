@@ -1,6 +1,6 @@
 import { escapeHtml } from "capsomer/email";
 
-import { processEmailJob, TEAM_INVITE_TEMPLATE } from "~/lib/email/dispatch";
+import { processEmailJob, redactSecrets, TEAM_INVITE_TEMPLATE } from "~/lib/email/dispatch";
 import type { EmailJobResult } from "~/lib/email/dispatch";
 import type { EmailJob } from "~/lib/email/types";
 
@@ -51,9 +51,9 @@ export function buildTeamInviteCopy(
     bodyHtml: [
       // The invitation is the mail's one heading (WCAG 2.2 AA, the job's
       // check): Recova's mail has none, and this is its first sentence in its
-      // own words. Capsomer has no bold run, so the team name is plain text in
-      // it; the heading's weight carries what Recova's <strong> did.
-      `<h1>You've been invited to join <strong>${team}</strong> on Foxhound.</h1>`,
+      // own words. Recova bolds the team name; Capsomer has no bold run, so
+      // the name is plain text here and the heading's weight carries it.
+      `<h1>You've been invited to join ${team} on Foxhound.</h1>`,
       `<p><a href="${escapeHtml(inviteUrl)}">Accept Invite</a></p>`,
       `<p><small>This invite expires in 7 days.</small></p>`,
     ].join("\n"),
@@ -68,6 +68,8 @@ export function buildTeamInviteJob(input: {
   inviteUrl: string;
   /** The pending membership's id: one invite, one email. */
   memberId: string;
+  /** The invite's token, cut out of any stored provider error with the link. */
+  token: string;
 }): EmailJob {
   return {
     accountId: input.accountId,
@@ -81,6 +83,9 @@ export function buildTeamInviteJob(input: {
     physicalAddress: "",
     idempotencyKey: `team-invite:${input.memberId}`,
     cronRunId: null,
+    // The link signs nobody in, but it is a working invite to this account
+    // until it is accepted or expires, so it never reaches email_sends.error.
+    redact: [input.inviteUrl, input.token],
   };
 }
 
@@ -93,13 +98,14 @@ export async function sendTeamInviteEmail(
   env: Env,
   input: Parameters<typeof buildTeamInviteJob>[0],
 ): Promise<EmailJobResult> {
+  const job = buildTeamInviteJob(input);
   try {
-    return await processEmailJob(env, buildTeamInviteJob(input), null);
+    return await processEmailJob(env, job, null);
   } catch (err) {
     return {
       status: "failed",
       providerMessageId: null,
-      error: err instanceof Error ? err.message : String(err),
+      error: redactSecrets(err instanceof Error ? err.message : String(err), job.redact),
       retryable: false,
     };
   }

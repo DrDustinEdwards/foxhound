@@ -99,4 +99,12 @@ export interface EmailJob {
    * only and the text part never shows them. Absent on every other send.
    */
   tracking?: EmailTracking | null;
+  /**
+   * Strings cut out of a provider's error before it is stored on the
+   * email_sends claim or returned (the team invite's link and token, E2), as
+   * sendRenderedTransactionalEmail does for the reset link. A provider that
+   * echoes the message must not put a working link into a log. Absent on
+   * every other send, whose errors are stored unchanged.
+   */
+  redact?: string[];
 }

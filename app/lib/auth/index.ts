@@ -26,6 +26,7 @@ export {
   createAccountForUser,
   getInviteByToken,
   createInvite,
+  hasOpenInviteForEmail,
   acceptInvite,
   evaluateAcceptInvite,
   normalizeInviteEmail,

@@ -264,7 +264,7 @@ export async function processEmailJob(
     await flipClaimToSent(db, job.idempotencyKey, providerMessageId, now);
     return { status: "sent", providerMessageId, error: null, retryable: false };
   } catch (err) {
-    const error = err instanceof Error ? err.message : "send failed";
+    const error = redactSecrets(err instanceof Error ? err.message : "send failed", job.redact);
     // THE ROW STAYS `pending`, WITH THE ERROR ON IT. Not flipped to `failed`,
     // and the difference is the whole point: `failed` would assert that no mail
     // left, and this code cannot know that. A provider that throws after
@@ -360,6 +360,16 @@ async function retakeRefusedClaim(db: Db, idempotencyKey: string, now: Date): Pr
     .where(and(eq(emailSends.idempotencyKey, idempotencyKey), isNotNull(emailSends.error)))
     .returning({ id: emailSends.id });
   return retaken.length === 1;
+}
+
+/** Cut each secret out of an error string. Pure. An empty or absent list
+ *  returns the error unchanged. */
+export function redactSecrets(error: string, secrets: readonly string[] | undefined): string {
+  let out = error;
+  for (const secret of secrets ?? []) {
+    if (secret) out = out.split(secret).join("[redacted]");
+  }
+  return out;
 }
 
 /** Flip a standing claim to `sent` once the provider has accepted it. */
