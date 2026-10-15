@@ -319,9 +319,22 @@ export const AI_MODEL_IDS = [
 // passive channel on every email rather than a separate step.
 export const STEP_TIMING_RETRY_EARLY_HOURS = 4;
 export const STEP_TIMING_RETRY_4HR_HOURS = 4;
-export const STEP_TIMING_EMAIL_DAY1_HOURS = 24;
+// Recova's offsets for the day 1 and day 3 emails (J85, rows E4 and E5):
+// lib/constants.ts (blob a21b32b8) sets email_day1 at 1 hour, and
+// lib/recovery-schedules.ts (blob 88f4e97a) writes network's retry_day2 at 24
+// and email_day3 at 48 as literals in its network row. Foxhound had 24 for day 1
+// and 48 and 72 for network, with no ruling recorded for any of them.
+export const STEP_TIMING_EMAIL_DAY1_HOURS = 1;
+// SOFT IS HELD at Foxhound's 24 hours, the one place day 1 cannot follow Recova:
+// the silent retry comes before the first email (APPROVED-DIFFERENCES,
+// 2026-08-01) and runs at 4 hours, so a 1 hour email would come first. How long
+// after the retry the email goes is Dustin's to say; the question is in J85's
+// pull request. Until then the value is unchanged.
+export const STEP_TIMING_SOFT_EMAIL_DAY1_HOURS = 24;
 export const STEP_TIMING_RETRY_DAY2_HOURS = 48;
+export const STEP_TIMING_NETWORK_RETRY_DAY2_HOURS = 24;
 export const STEP_TIMING_EMAIL_DAY3_HOURS = 72;
+export const STEP_TIMING_NETWORK_EMAIL_DAY3_HOURS = 48;
 export const STEP_TIMING_EMAIL_DAY7_HOURS = 168;
 export const STEP_TIMING_EMAIL_DAY14_HOURS = 336;
 export const STEP_TIMING_RETRY_DAY21_HOURS = 504;

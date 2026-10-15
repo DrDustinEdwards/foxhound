@@ -5,11 +5,14 @@ import {
   STEP_TIMING_EMAIL_DAY14_HOURS,
   STEP_TIMING_EMAIL_DAY30_HOURS,
   STEP_TIMING_FRAUD_EMAIL_DAY1_HOURS,
+  STEP_TIMING_NETWORK_EMAIL_DAY3_HOURS,
+  STEP_TIMING_NETWORK_RETRY_DAY2_HOURS,
   STEP_TIMING_REVOKED_EMAIL_HOURS,
   STEP_TIMING_RETRY_4HR_HOURS,
   STEP_TIMING_RETRY_DAY2_HOURS,
   STEP_TIMING_RETRY_DAY21_HOURS,
   STEP_TIMING_RETRY_EARLY_HOURS,
+  STEP_TIMING_SOFT_EMAIL_DAY1_HOURS,
   WINBACK_STEP1_HOURS,
   WINBACK_STEP2_HOURS,
   WINBACK_STEP3_HOURS,
@@ -51,7 +54,7 @@ export function isEmailStep(stepType: string): boolean {
 export const RECOVERY_SCHEDULES: Record<DeclineCategory, ScheduledStep[]> = {
   soft: [
     { stepType: "retry_early", offsetHours: STEP_TIMING_RETRY_EARLY_HOURS },
-    { stepType: "email_day1", offsetHours: STEP_TIMING_EMAIL_DAY1_HOURS },
+    { stepType: "email_day1", offsetHours: STEP_TIMING_SOFT_EMAIL_DAY1_HOURS },
     { stepType: "retry_day2", offsetHours: STEP_TIMING_RETRY_DAY2_HOURS },
     { stepType: "email_day3", offsetHours: STEP_TIMING_EMAIL_DAY3_HOURS },
     { stepType: "email_day7", offsetHours: STEP_TIMING_EMAIL_DAY7_HOURS },
@@ -61,8 +64,10 @@ export const RECOVERY_SCHEDULES: Record<DeclineCategory, ScheduledStep[]> = {
   ],
   network: [
     { stepType: "retry_4hr", offsetHours: STEP_TIMING_RETRY_4HR_HOURS },
-    { stepType: "retry_day2", offsetHours: STEP_TIMING_RETRY_DAY2_HOURS },
-    { stepType: "email_day3", offsetHours: STEP_TIMING_EMAIL_DAY3_HOURS },
+    // Recova's network row: retry_day2 at 24 and email_day3 at 48, so the retry
+    // still lands a day before the email it might make unnecessary.
+    { stepType: "retry_day2", offsetHours: STEP_TIMING_NETWORK_RETRY_DAY2_HOURS },
+    { stepType: "email_day3", offsetHours: STEP_TIMING_NETWORK_EMAIL_DAY3_HOURS },
     { stepType: "email_day7", offsetHours: STEP_TIMING_EMAIL_DAY7_HOURS },
     { stepType: "email_day14", offsetHours: STEP_TIMING_EMAIL_DAY14_HOURS },
     { stepType: "retry_day21", offsetHours: STEP_TIMING_RETRY_DAY21_HOURS },

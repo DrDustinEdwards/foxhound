@@ -56,13 +56,17 @@ export function buildEmailMessage(job: EmailJob, baseUrl: string): EmailSendMess
   const fromName = fromDisplayName(job.fromName);
   // On customer mail the CAN-SPAM lines go in Capsomer's footer slot, under its
   // "This message was sent to" line: the one-click unsubscribe link, then the
-  // postal address. The text part carries both, the link on its own line.
+  // postal address. The text part carries both, the link on its own line. A
+  // job's footer note (Recova's "You're receiving this from" sentence on
+  // recovery mail, J85) goes first in the slot.
   const rendered = renderFoxhoundEmail({
     subject: job.subject,
     bodyHtml: job.bodyHtml,
     brandName: fromName,
     to: job.to,
-    footer: unsubUrl ? [{ text: "Unsubscribe", url: unsubUrl }, job.physicalAddress] : undefined,
+    footer: unsubUrl
+      ? [...(job.footerNote ? [job.footerNote] : []), { text: "Unsubscribe", url: unsubUrl }, job.physicalAddress]
+      : undefined,
     tracking: job.tracking,
   });
   const message: EmailSendMessage = {
