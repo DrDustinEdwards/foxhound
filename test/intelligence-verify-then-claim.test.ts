@@ -18,7 +18,15 @@ import { buildPredictionFields } from "~/lib/intelligence/predictions";
 // that the fact which refuted it still holds, so re-adding the copy without
 // building the feature fails here.
 
-const PAGE = readFileSync("app/routes/products/intelligence.tsx", "utf8");
+// J58 moved the page's words into a copy module and its previews into their
+// own files, so "the page" is all of them: a claim in any one is on the page.
+const PAGE = [
+  "app/routes/products/intelligence.tsx",
+  "app/lib/marketing/intelligence-copy.ts",
+  "app/components/intelligence-previews.tsx",
+]
+  .map((f) => readFileSync(f, "utf8"))
+  .join("\n");
 
 describe("281c: claims the evidence REFUTED are gone, and stay gone", () => {
   it("the Recovery-timing and Disputes-triage feed-back claim is removed", () => {
@@ -92,8 +100,9 @@ describe("281c: claims the evidence REFUTED are gone, and stay gone", () => {
 
 describe("281c: the stale artifact the ruling named", () => {
   it("the RouteStub comment is corrected, and the routes really are not stubs", () => {
+    // J58 rewrote the page to Recova's spec, and the corrected comment went
+    // with the old page; the stale sentence must still never come back.
     expect(PAGE).not.toContain("are still RouteStub placeholders");
-    expect(PAGE).toContain("none of the six Intelligence routes uses");
     for (const f of [
       "app/routes/app/intelligence/index.tsx",
       "app/routes/app/intelligence/customers.tsx",
@@ -108,7 +117,7 @@ describe("281c: the stale artifact the ruling named", () => {
 });
 
 describe("281c: claims the evidence SUPPORTS, with the source named", () => {
-  it("the free-tier list is exactly what the engine computes", () => {
+  it("the MRR movements the page names are exactly what the engine computes", () => {
     // MrrMovements carries new/expansion/contraction/churn/reactivation plus the
     // two churn rates, and buildCohortBreakdown produces the cohort rows.
     const mrr = readFileSync("app/lib/intelligence/mrr.ts", "utf8");
@@ -124,7 +133,9 @@ describe("281c: claims the evidence SUPPORTS, with the source named", () => {
       expect(mrr).toContain(field);
     }
     expect(mrr).toContain("buildCohortBreakdown");
-    expect(PAGE).toContain("MRR, movements, churn, and cohorts");
+    // J58: Recova's page has no free-tier block, so the movements are named in
+    // Recova's own How it works step, at Foxhound's monthly cadence.
+    expect(PAGE).toContain("New, expansion, reactivation, contraction, and churn MRR tracked month by month");
   });
 
   it("the named scoring signals are the ones risk.ts actually scores", () => {
@@ -140,8 +151,10 @@ describe("281c: claims the evidence SUPPORTS, with the source named", () => {
     ]) {
       expect(risk).toContain(signal);
     }
-    expect(PAGE).toContain("payment-timing drift, billing volatility, refunds and disputes");
-    expect(PAGE).toContain("recovery engagement, and tenure");
+    // J58: the copy lists them from risk.ts's own HEALTH_SIGNAL_LABELS, keyed
+    // by the same signal names, rather than typing them.
+    expect(risk).toContain("export const HEALTH_SIGNAL_LABELS");
+    expect(PAGE).toContain("Object.values(HEALTH_SIGNAL_LABELS)");
   });
 
   it("the daily refresh claim matches the cron that computes the score", () => {
@@ -149,7 +162,7 @@ describe("281c: claims the evidence SUPPORTS, with the source named", () => {
     expect(registry).toContain('{ name: "intelligence-ai", schedule: CRON_SCHEDULE_DAILY');
     const aiRun = readFileSync("app/lib/intelligence/ai-run.server.ts", "utf8");
     expect(aiRun).toContain("computeHealthScore");
-    expect(PAGE).toContain("refreshed daily");
+    expect(PAGE).toContain("updated nightly");
   });
 
   it("the not-a-black-box claim matches a surface that really lists factors", () => {
@@ -159,11 +172,12 @@ describe("281c: claims the evidence SUPPORTS, with the source named", () => {
     expect(PAGE).toContain("The score is not a black box");
   });
 
-  it("the honest-accuracy FAQ says what PRICING requires it to say", () => {
+  it("the page states no accuracy figure, as PRICING requires", () => {
     // PRICING.md: "Accuracy claims in marketing only after backtests support
-    // them." The page now states the absence rather than implying the presence.
-    expect(PAGE).toContain("Is the risk score a validated prediction?");
-    expect(PAGE).toContain("no accuracy figure exists and none is advertised");
+    // them." J58 returned the page to Recova's three questions, so the fourth
+    // (an accuracy FAQ Recova never had) is gone; no accuracy figure appears.
+    expect(PAGE).not.toMatch(/accura/i);
+    expect(PAGE).not.toMatch(/\d+% of (churn|cancellations)/i);
   });
 });
 
