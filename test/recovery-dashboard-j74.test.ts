@@ -523,11 +523,14 @@ describe("J74 review: ROI This month shows this month's attributed recoveries", 
 });
 
 describe("J74 review: the Emails sent card reads the same 30 days as the other cards", () => {
-  it("shows the window's sends and rates, while the side panel stays all time", () => {
-    const w = makeWindow({ emailsSentInRange: { sent: 7, openRatePct: 43, clickRatePct: 14 } });
-    const text = textOf(render(makeLoaderData({ data: w, data30d: w })));
+  it("shows the window's sends and rates, and the side panel the range's, labelled as Recova's was", () => {
+    const w30 = makeWindow({ emailsSentInRange: { sent: 7, openRatePct: 43, clickRatePct: 14 } });
+    const w7 = makeWindow({ rangeLabel: "7d", emailsSentInRange: { sent: 3, openRatePct: 67, clickRatePct: 33 } });
+    const text = textOf(render(makeLoaderData({ data: w7, data30d: w30, range: "7d" })));
     expect(text).toMatch(/Emails sent 7 43% open · 14% click/);
-    expect(text).toContain("Emails sent (all time) 30");
+    expect(text).toContain("Emails sent (7d) 3");
+    expect(text).toContain("Emails sent (7d) 3 Open rate 67% Click rate 33%");
+    expect(text).not.toContain("(all time)");
   });
 });
 
@@ -540,8 +543,9 @@ describe("J74 review: Recova's deliverability panel, on what Foxhound records", 
     expect(at).toBeLessThan(h.indexOf("Failed payments"));
     const text = textOf(html);
     expect(text).toContain(
-      "No bounce or spam report recorded yet. They appear here when Email Service reports one for an email Foxhound sent.",
+      "No bounces or spam reports to show. Foxhound does not yet record them against the account that sent the email.",
     );
+    expect(text).not.toContain("appear here when");
     expect(text).not.toContain("Resend");
     expect(text).not.toMatch(/delivered/i);
   });

@@ -119,7 +119,10 @@ import type { Route } from "./+types/index";
 // The deliverability panel is Recova's on what Foxhound records: sends from
 // email_sends, bounces and spam complaints from the suppressions the Email
 // Service events consumer writes. Foxhound stores no delivered event, so
-// Recova's delivered rate and the alert built on it are not shown.
+// Recova's delivered rate and the alert built on it are not shown. The
+// consumer does not yet know which account an event belongs to (it writes
+// account_id null), so until it maps an event back through email_sends the
+// panel shows its empty state, worded to promise nothing.
 //
 // Recova's page also set accounts.onboarding_completed once all three
 // checklist steps were done, so the checklist stayed gone afterwards; Foxhound
@@ -561,30 +564,30 @@ function RevenueChart({ w, nowMs }: { w: RecoveryDashboardWindow; nowMs: number 
         </div>
       </Panel>
 
-      {/* Recova's email side panel. Its "Emails sent (30d)" counted every
-          email ever sent, with no date filter on the query (lib/dashboard-
-          data.ts); Foxhound's read is the same, so the label says all time. */}
+      {/* Recova's email side panel, labelled with the range as Recova's was.
+          Recova's query had no date filter (lib/dashboard-data.ts), so its
+          label was untrue; here the figures are the range's, so it is true. */}
       <Panel title="Email performance">
         <div className="flex flex-col gap-4">
           <div>
-            <p className="m-0 text-micro text-text-tertiary">Emails sent (all time)</p>
-            <p className="m-0 font-mono text-title font-semibold tabular-nums text-text">{w.totalEmailsSent}</p>
+            <p className="m-0 text-micro text-text-tertiary">Emails sent ({w.rangeLabel})</p>
+            <p className="m-0 font-mono text-title font-semibold tabular-nums text-text">{w.emailsSentInRange.sent}</p>
           </div>
           <Meter
             label="Open rate"
             size="sm"
-            value={w.openRatePct}
+            value={w.emailsSentInRange.openRatePct}
             max={100}
-            display={`${w.openRatePct}%`}
-            valueText={`${w.openRatePct}% of recovery emails opened.`}
+            display={`${w.emailsSentInRange.openRatePct}%`}
+            valueText={`${w.emailsSentInRange.openRatePct}% of recovery emails opened.`}
           />
           <Meter
             label="Click rate"
             size="sm"
-            value={w.clickRatePct}
+            value={w.emailsSentInRange.clickRatePct}
             max={100}
-            display={`${w.clickRatePct}%`}
-            valueText={`${w.clickRatePct}% of recovery emails clicked.`}
+            display={`${w.emailsSentInRange.clickRatePct}%`}
+            valueText={`${w.emailsSentInRange.clickRatePct}% of recovery emails clicked.`}
           />
         </div>
       </Panel>
@@ -825,8 +828,8 @@ function DeliverabilityPanel({
       <Panel title={`Email deliverability · ${rangeLabel}`}>
         {f === null ? (
           <p className="m-0 text-label text-text-subtle">
-            No bounce or spam report recorded yet. They appear here when Email Service reports one for an email
-            Foxhound sent.
+            No bounces or spam reports to show. Foxhound does not yet record them against the account that sent
+            the email.
           </p>
         ) : (
           <div className="flex flex-wrap items-baseline gap-6">

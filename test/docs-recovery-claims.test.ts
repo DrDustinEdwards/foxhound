@@ -202,6 +202,10 @@ describe("PLANT 2: every capability sentence, tied to its code", () => {
       "The email deliverability panel, under the stat cards, follows the range: the share of the emails Foxhound sent that bounced or were reported as spam.",
     );
     expect(TEXT).toContain("It shows no delivered rate, because Foxhound does not record delivery.");
+    expect(TEXT).toContain(
+      "Foxhound does not yet record bounces and spam reports against the account that sent the email, so for now the panel says there is nothing to show.",
+    );
+    expect(TEXT).not.toContain("Until Email Service reports a bounce or a complaint");
   });
 
   it("BILLABLE: the sentence that shipped, carried through unchanged", () => {
