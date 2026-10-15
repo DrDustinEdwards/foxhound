@@ -217,13 +217,17 @@ export default function BrandVoiceSettings({ loaderData, actionData }: Route.Com
         <input type="hidden" name="connectionId" value={connectionId ?? ""} />
         <section className="cap-panel">
           <div className="cap-panel-body">
-            <p className="mb-5 text-micro text-text-subtle">
-              Set a different tone for each failure category. The AI will use the matching voice when
-              writing recovery emails.
-            </p>
-            {CATEGORY_VOICE_ROWS.map((row, i) => (
-              <CategoryVoice key={row.key} row={row} stored={stored[row.key]} first={i === 0} />
-            ))}
+            {/* One child, so the body's grid gap does not add to Recova's
+                20px rhythm between the line and the rows. */}
+            <div>
+              <p className="mb-5 text-micro text-text-subtle">
+                Set a different tone for each failure category. The AI will use the matching voice
+                when writing recovery emails.
+              </p>
+              {CATEGORY_VOICE_ROWS.map((row, i) => (
+                <CategoryVoice key={row.key} row={row} stored={stored[row.key]} first={i === 0} />
+              ))}
+            </div>
           </div>
         </section>
 
