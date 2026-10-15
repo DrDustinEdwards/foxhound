@@ -154,7 +154,7 @@ describe("J39 notifications: the card", () => {
     expect(CODE).not.toMatch(/Defaults to your account email/i);
   });
 
-  it("shows an empty box and no address in it when nothing is stored, so no address that gets nothing is shown", () => {
+  it("puts no address in the placeholder, so a cleared box shows no address that would get nothing", () => {
     const html = render({ loaderData: { notificationEmail: "" } });
     const tag = input(html, "notificationEmail");
     expect(attr(tag, "value")).toBe("");
@@ -344,13 +344,13 @@ describe("J39 notifications: the loader and the action", () => {
     vi.restoreAllMocks();
   });
 
-  it("shows a NULL notification email as an empty box, never the account email", async () => {
-    const loaded = (await route.loader({ context: ctx(), request: new Request("https://x/"), params: {} } as never)) as Record<
-      string,
-      unknown
-    >;
-    expect(loaded.notificationEmail).toBe("");
-    expect(JSON.stringify(loaded)).not.toContain("owner@acme.test");
+  it("fills a NULL notification email with the signed-in email, as Recova does, so the first Save stores it", async () => {
+    // Recova's `notification_email ?? user.email`. The box is truthful because
+    // Save writes what it shows.
+    const loaded = (await route.loader({ context: ctx(), request: new Request("https://x/"), params: {} } as never)) as {
+      notificationEmail: string;
+    };
+    expect(loaded.notificationEmail).toBe("owner@acme.test");
   });
 
   it("shows a stored notification email as it is", async () => {

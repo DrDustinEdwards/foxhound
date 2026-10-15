@@ -71,10 +71,10 @@ import type { Route } from "./+types/notifications";
 // your account email if blank." That was untrue there and is untrue here: a
 // blank box saves NULL (legacy's `|| null`), the payment recovered and sequence
 // complete notices skip a NULL address as `no_recipient`, and the digest cron
-// drops it. So the line says what a blank box does, the box shows only what is
-// stored, and the account email is never shown as if it received mail. Recova's
-// `?? user.email` in the field and its placeholder are not ported, for the same
-// reason. A real fallback in the senders would be a behaviour change and is
+// drops it. So the line says what a blank box does. Recova's prefill of the
+// signed-in email into the box is kept (Save stores it), but its placeholder
+// is not, because a cleared box showing that address greyed in would imply it
+// gets mail. A real fallback in the senders would be a behaviour change and is
 // Dustin's ruling, not this page's.
 //
 // ONE DIVERGENCE, approved (APPROVED-DIFFERENCES, "Slack webhook addresses must
@@ -114,9 +114,10 @@ export async function loader({ context }: Route.LoaderArgs) {
     .limit(1);
 
   return {
-    // Only what is stored. NULL is an empty box, because nothing is sent to a
-    // NULL address (see the truthfulness fix above).
-    notificationEmail: row?.notificationEmail ?? "",
+    // Recova's `notification_email ?? user.email`: a NULL address shows the
+    // signed-in email IN the box, so the first Save stores it. The box is
+    // truthful because Save writes what it shows.
+    notificationEmail: row?.notificationEmail ?? auth.email,
     slackWebhookUrl: row?.slackWebhookUrl ?? "",
     slackNotificationsEnabled: row?.slackNotificationsEnabled ?? NULL_IS_OFF,
     digestEnabled: row?.digestEnabled ?? NULL_IS_OFF,
