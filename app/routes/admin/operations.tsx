@@ -1,14 +1,32 @@
-import { Badge } from "~/components/badge";
+import { useNavigation, useRevalidator } from "react-router";
+import { Empty } from "capsomer/react/empty";
+import { Meter } from "capsomer/react/meter";
+import { Panel } from "capsomer/react/panel";
+import { Spinner } from "capsomer/react/skeleton";
+import { Status } from "capsomer/react/status";
+import "capsomer/meter.css";
+
 import { AdminTime } from "~/components/admin-time";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { D1_ALERT_THRESHOLD, D1_CAP_BYTES, formatBytes } from "~/lib/admin/format";
-import type { AdminHandle } from "~/lib/admin/page";
+import {
+  LOCK_STATUS,
+  lockSummaryWords,
+  migrationsSummaryWords,
+  OPERATIONS_PATH,
+  settingKindWord,
+} from "~/lib/admin/operations";
+import { plural } from "~/lib/admin/overview";
+import { pagePending, type AdminHandle } from "~/lib/admin/page";
 import {
   getD1SizeBytes,
   getEnvSanity,
   getGrowthTableCounts,
   getMigrationStatus,
+  getRecoveryQueueDepth,
+  readCronLocks,
+  type CronLockRow,
 } from "~/lib/admin/operations.server";
 
 import type { Route } from "./+types/operations";
@@ -22,14 +40,20 @@ export function meta() {
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const db = getDb(env);
+  // One clock for the queue's due steps and the locks' leases.
+  const now = Date.now();
 
-  const [sizeBytes, migrations, growthTables] = await Promise.all([
+  const [queue, locks, sizeBytes, migrations, growthTables] = await Promise.all([
+    getRecoveryQueueDepth(db, now),
+    readCronLocks(env, now),
     getD1SizeBytes(env),
     getMigrationStatus(env),
     getGrowthTableCounts(db),
   ]);
 
   return {
+    queue,
+    locks,
     sizeBytes,
     migrations,
     growthTables,
@@ -37,113 +61,266 @@ export async function loader({ context }: Route.LoaderArgs) {
   };
 }
 
+const LOCKS_HEADING_ID = "admin-operations-locks-heading";
+const GROWTH_HEADING_ID = "admin-operations-growth-heading";
+const MIGRATIONS_HEADING_ID = "admin-operations-migrations-heading";
+const SETTINGS_HEADING_ID = "admin-operations-settings-heading";
+
+const figure = (n: number) => n.toLocaleString("en-US");
+
+// The family admin pattern (Capsomer patterns.md, Dustin's Q9 of 2026-10-14)
+// and his review of 2026-10-11: one page name (the shell's "Operations"),
+// Capsomer panels and tables with plain sentence-case words, relative times
+// with the exact time on hover, a pending state and an empty state on every
+// list. Recova's Operations page (app/admin/operations/OperationsClient.tsx,
+// blob 419a51ac) is the inventory: its queue depth and its cron-lock health are
+// here, read from Foxhound's own recovery queue and CronLock Durable Objects.
+// Its global pause is the Brake page and is not repeated (ruling 406 binding 3);
+// its run-now panel stays out (ruling 406 binding 5); its Vercel redeploy hook
+// has no Cloudflare counterpart. Foxhound's own four panels follow: database
+// size, table growth, migrations and settings. Read only.
 export default function AdminOperations({ loaderData }: Route.ComponentProps) {
-  const { sizeBytes, migrations, growthTables, envSanity } = loaderData;
-  const capPct = sizeBytes / D1_CAP_BYTES;
-  const overAlertThreshold = capPct >= D1_ALERT_THRESHOLD;
+  const { queue, locks, sizeBytes, migrations, growthTables, envSanity } = loaderData;
+  const pending = pagePending(useNavigation(), useRevalidator().state, OPERATIONS_PATH);
+  const spinner = pending ? <Spinner size="sm" label="Reading again" /> : undefined;
+  const share = sizeBytes / D1_CAP_BYTES;
+  const overHalf = share >= D1_ALERT_THRESHOLD;
+  const appliedCount = migrations.rows.filter((m) => m.applied).length;
 
   return (
-    <div>
+    <div className="grid grid-cols-1 gap-6" aria-busy={pending || undefined}>
+      <Panel
+        title="Recovery queue"
+        src={spinner}
+        description="Recovery work waiting on the recovery tick. Demo accounts are not counted."
+      >
+        <dl className="m-0 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <dt className="text-label text-text-secondary">Payments in recovery</dt>
+            <dd className="m-0 font-mono text-title tabular-nums text-text">{figure(queue.activePayments)}</dd>
+            <dd className="m-0 text-label text-text-secondary">Failed payments in an active sequence.</dd>
+          </div>
+          <div>
+            <dt className="text-label text-text-secondary">Steps due now</dt>
+            <dd className="m-0 font-mono text-title tabular-nums text-text">{figure(queue.dueSteps)}</dd>
+            <dd className="m-0 text-label text-text-secondary">
+              {queue.oldestDueAt ? (
+                <>
+                  Oldest due <AdminTime at={queue.oldestDueAt} />. Paused and cancelled accounts wait apart.
+                </>
+              ) : (
+                "No step is waiting for the recovery tick."
+              )}
+            </dd>
+          </div>
+        </dl>
+      </Panel>
 
-      <section className="rounded-lg border border-border bg-surface p-4">
-        <div className="flex items-center justify-between">
-          <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">D1 database size</p>
-          {overAlertThreshold ? <Badge tone="failure">Over 50% of cap</Badge> : <Badge tone="success">Healthy</Badge>}
-        </div>
-        <p className="mt-2 font-mono text-title text-text">
-          {formatBytes(sizeBytes)} <span className="text-text-tertiary">/ {formatBytes(D1_CAP_BYTES)}</span>
-        </p>
-        <p className="mt-1 text-label text-text-tertiary">{(capPct * 100).toFixed(3)}% of the 10 GB cap.</p>
-      </section>
-
-      <section className="mt-6 rounded-lg border border-border bg-surface p-4">
-        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
-          Growth-table row counts
-        </p>
-        <p className="mt-1 text-label text-text-tertiary">
-          Per-table byte size isn't queryable from the Worker's D1 binding (only whole-database
-          size is); row counts against each table's retention policy are the available signal.
-        </p>
-        <div className="mt-3 overflow-x-auto">
-          <table className="w-full text-left text-label">
-            <thead>
-              <tr className="border-b border-border text-micro uppercase tracking-wide text-text-tertiary">
-                <th className="py-2 pr-4 font-normal">Table</th>
-                <th className="py-2 pr-4 font-normal">Retention</th>
-                <th className="py-2 font-normal">Rows</th>
-              </tr>
-            </thead>
-            <tbody>
-              {growthTables.map((t) => (
-                <tr key={t.label} className="border-b border-border-sub last:border-0">
-                  <td className="py-2 pr-4 text-text">{t.label}</td>
-                  <td className="py-2 pr-4 text-text-tertiary">{t.retentionPolicy}</td>
-                  <td className="py-2 font-mono text-text">{t.rowCount.toLocaleString()}</td>
+      <Panel
+        title="Cron locks"
+        headingId={LOCKS_HEADING_ID}
+        src={spinner}
+        description={locks.length > 0 ? lockSummaryWords(locks) : undefined}
+        flush
+      >
+        {locks.length === 0 ? (
+          <Empty kind="nothing-yet" title="No crons are registered, so there are no locks to read.">
+            Each cron in Foxhound&apos;s registry takes its own lock while it runs.
+          </Empty>
+        ) : (
+          <div className="cap-table-wrap" data-cap="table" role="region" aria-labelledby={LOCKS_HEADING_ID} tabIndex={0}>
+            <table className="cap-table">
+              <caption className="cap-sr-only">
+                Cron locks, one per cron in the registry&apos;s order. A lock not released ran out while still stored:
+                its run stopped without releasing it, or is running past its lease. The next run takes it anyway.
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Cron</th>
+                  <th scope="col">Lock</th>
+                  <th scope="col">Lease</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+              </thead>
+              <tbody>
+                {locks.map((lock) => (
+                  <LockRow key={lock.name} lock={lock} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
 
-      <section className="mt-6 rounded-lg border border-border bg-surface p-4">
-        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
-          Migration status
-        </p>
-        <p className="mt-1 text-label text-text-tertiary">
-          Deploy state: this Worker has no version-metadata binding wired yet, so CI/deploy status
-          isn't queryable in-app; migration status against this database is the available proxy for
-          whether code and data are in sync.
-        </p>
-        <div className="mt-3 overflow-x-auto">
-          <table className="w-full text-left text-label">
-            <thead>
-              <tr className="border-b border-border text-micro uppercase tracking-wide text-text-tertiary">
-                <th className="py-2 pr-4 font-normal">Migration</th>
-                <th className="py-2 pr-4 font-normal">Status</th>
-                <th className="py-2 font-normal">Applied</th>
-              </tr>
-            </thead>
-            <tbody>
-              {migrations.rows.map((m) => (
-                <tr key={m.name} className="border-b border-border-sub last:border-0">
-                  <td className="py-2 pr-4 font-mono text-micro text-text">{m.name}</td>
-                  <td className="py-2 pr-4">
-                    <Badge tone={m.applied ? "success" : "failure"}>{m.applied ? "Applied" : "Not applied"}</Badge>
-                  </td>
-                  <td className="py-2 text-text-tertiary">
-                    <AdminTime at={m.appliedAt} empty="-" />
-                  </td>
+      <Panel title="Database size" src={spinner}>
+        <Meter
+          label="D1 database"
+          value={sizeBytes}
+          max={D1_CAP_BYTES}
+          display={`${formatBytes(sizeBytes)} of ${formatBytes(D1_CAP_BYTES)}`}
+          valueText={`${formatBytes(sizeBytes)} of ${formatBytes(D1_CAP_BYTES)} used.${overHalf ? " Over half full." : ""}`}
+          tone={overHalf ? "crit" : undefined}
+          words={{ warn: "Over half full", crit: "Over half full" }}
+          threshold={D1_CAP_BYTES * D1_ALERT_THRESHOLD}
+          note="The line marks half of the 10 GB a D1 database can hold, where Foxhound alerts."
+        />
+      </Panel>
+
+      <Panel
+        title="Table growth"
+        headingId={GROWTH_HEADING_ID}
+        src={spinner}
+        description="Rows in each table with a retention rule. The database reports only its whole size, so row counts are the signal per table."
+        flush
+      >
+        {growthTables.length === 0 ? (
+          <Empty kind="nothing-yet" title="No tables with a retention rule." />
+        ) : (
+          <div className="cap-table-wrap" data-cap="table" role="region" aria-labelledby={GROWTH_HEADING_ID} tabIndex={0}>
+            <table className="cap-table">
+              <caption className="cap-sr-only">Row counts for each table with a retention rule.</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Table</th>
+                  <th scope="col">Kept for</th>
+                  <th scope="col" data-num="">
+                    Rows
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {growthTables.map((t) => (
+                  <tr key={t.label}>
+                    <th scope="row" className="font-normal text-text">
+                      {t.label}
+                    </th>
+                    <td className="text-text-secondary">{t.retentionPolicy}</td>
+                    <td data-num="">
+                      {figure(t.rowCount)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+
+      <Panel
+        title="Migrations"
+        headingId={MIGRATIONS_HEADING_ID}
+        src={spinner}
+        description={
+          migrations.rows.length > 0
+            ? `${migrationsSummaryWords(appliedCount, migrations.rows.length)} The deploy itself is not readable in the Worker, so this is the sign that code and data agree.`
+            : undefined
+        }
+        flush
+      >
         {migrations.unexpectedApplied.length > 0 ? (
-          <p className="mt-3 text-label text-error-text">
-            Unexpected migrations applied but not in the known list:{" "}
-            {migrations.unexpectedApplied.join(", ")}
+          <p className="m-0 border-b border-border px-4 py-3 text-label text-error-text">
+            {plural(migrations.unexpectedApplied.length, "migration is", "migrations are")} applied but not in this
+            build: {migrations.unexpectedApplied.join(", ")}.
           </p>
         ) : null}
-      </section>
+        {migrations.rows.length === 0 ? (
+          <Empty kind="nothing-yet" title="No migrations are recorded in this build." />
+        ) : (
+          <div
+            className="cap-table-wrap"
+            data-cap="table"
+            role="region"
+            aria-labelledby={MIGRATIONS_HEADING_ID}
+            tabIndex={0}
+          >
+            <table className="cap-table">
+              <caption className="cap-sr-only">Each migration in this build, in order, and when it was applied.</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Migration</th>
+                  <th scope="col">State</th>
+                  <th scope="col">Applied</th>
+                </tr>
+              </thead>
+              <tbody>
+                {migrations.rows.map((m) => (
+                  <tr key={m.name}>
+                    <th scope="row" className="font-normal font-mono text-text">
+                      {m.name}
+                    </th>
+                    <td>
+                      <Status tone={m.applied ? "ok" : "crit"}>{m.applied ? "Applied" : "Not applied"}</Status>
+                    </td>
+                    <td>
+                      <AdminTime at={m.appliedAt} empty="Not yet" />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
 
-      <section className="mt-6 rounded-lg border border-border bg-surface p-4">
-        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Env sanity</p>
-        <p className="mt-1 text-label text-text-tertiary">
-          Names only. Values are never read or rendered here.
-        </p>
-        <div className="mt-3 grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
-          {envSanity.map((row) => (
-            <div key={row.name} className="flex items-center justify-between border-b border-border-sub py-1.5">
-              <span className="font-mono text-label text-text">{row.name}</span>
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-micro uppercase tracking-wide text-text-subtle">{row.kind}</span>
-                <Badge tone={row.set ? "success" : "neutral"}>{row.set ? "Set" : "Not set"}</Badge>
-              </div>
-            </div>
-          ))}
+      <Panel
+        title="Settings"
+        headingId={SETTINGS_HEADING_ID}
+        src={spinner}
+        description="Whether each binding, variable and secret the Worker uses is set. Names only: values are never read or shown here."
+        flush
+      >
+        <div className="cap-table-wrap" data-cap="table" role="region" aria-labelledby={SETTINGS_HEADING_ID} tabIndex={0}>
+          <table className="cap-table">
+            <caption className="cap-sr-only">Each setting the Worker uses, its kind, and whether it is set.</caption>
+            <thead>
+              <tr>
+                <th scope="col">Name</th>
+                <th scope="col">Kind</th>
+                <th scope="col">State</th>
+              </tr>
+            </thead>
+            <tbody>
+              {envSanity.map((row) => (
+                <tr key={row.name}>
+                  <th scope="row" className="font-normal font-mono text-text">
+                    {row.name}
+                  </th>
+                  <td className="text-text-secondary">{settingKindWord(row.kind)}</td>
+                  <td>
+                    <Status tone={row.set ? "ok" : "nodata"}>{row.set ? "Set" : "Not set"}</Status>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      </section>
+      </Panel>
     </div>
+  );
+}
+
+function LockRow({ lock }: { lock: CronLockRow }) {
+  const status = LOCK_STATUS[lock.state];
+  return (
+    <tr>
+      <th scope="row" className="font-normal font-mono text-text">
+        {lock.name}
+      </th>
+      <td>
+        <Status tone={status.tone}>{status.word}</Status>
+      </td>
+      <td>
+        {lock.state === "running" && lock.heldUntil ? (
+          <>
+            Ends <AdminTime at={lock.heldUntil} />
+          </>
+        ) : lock.state === "not-released" && lock.heldUntil ? (
+          <>
+            Ran out <AdminTime at={lock.heldUntil} />
+          </>
+        ) : (
+          <span className="text-text-tertiary">{lock.state === "unreadable" ? "Not known" : "None"}</span>
+        )}
+      </td>
+    </tr>
   );
 }

@@ -126,7 +126,10 @@ async function countMerchants(db: Db): Promise<number> {
   return rows[0]?.n ?? 0;
 }
 
-async function countActiveRecoveries(db: Db): Promise<number> {
+/** Failed payments in an active recovery sequence, demo accounts not counted.
+ *  The Overview's "Active recoveries" and the Operations page's queue depth
+ *  (Recova's "Payments in active recovery queue") read this one count. */
+export async function countActiveRecoveries(db: Db): Promise<number> {
   const rows = await db
     .select({ n: count() })
     .from(failedPayments)

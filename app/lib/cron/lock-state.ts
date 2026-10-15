@@ -79,3 +79,44 @@ export function decideAcquire(
 export function decideRelease(state: CronLockState, token: string): boolean {
   return state.lock !== null && state.lock.token === token;
 }
+
+/**
+ * What a reader outside the lock may see: when the lease ends, and nothing else.
+ * The token is left out on purpose, since the token is the fence; a reader that
+ * held it could release a lease it never took. /admin/operations reads this.
+ */
+export interface CronLockView {
+  heldUntil: number | null;
+  legacyHeldUntil: number | null;
+}
+
+/** The stored state, less the holder's token. */
+export function cronLockView(state: CronLockState): CronLockView {
+  return { heldUntil: state.lock?.heldUntil ?? null, legacyHeldUntil: state.legacyHeldUntil };
+}
+
+/**
+ * The lock's health, for /admin/operations (Recova's cron-lock table: Idle,
+ * Running, Stale).
+ *
+ * - idle: no lease is stored. Every run that ends releases its own lease, so
+ *   this is the normal state between runs.
+ * - running: a lease is stored and has not run out, so a run holds the lock.
+ * - not-released: a lease is stored and has run out. The run that took it
+ *   stopped without its release (the Worker was cut off), or is still going past
+ *   its lease. The next run takes the lock anyway, which is why it is a lease,
+ *   but an operator should know. This is Foxhound's counterpart of Recova's
+ *   Stale.
+ *
+ * The later of the fenced and pre-fence expiries counts, as in decideAcquire,
+ * and an expiry of exactly now has run out, the boundary decideAcquire uses.
+ */
+export function cronLockHealth(
+  view: CronLockView,
+  now: number,
+): { state: "idle" | "running" | "not-released"; heldUntil: number | null } {
+  const ends = [view.heldUntil, view.legacyHeldUntil].filter((t): t is number => t !== null);
+  if (ends.length === 0) return { state: "idle", heldUntil: null };
+  const heldUntil = Math.max(...ends);
+  return { state: heldUntil > now ? "running" : "not-released", heldUntil };
+}
