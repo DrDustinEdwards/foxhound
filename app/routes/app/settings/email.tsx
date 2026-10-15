@@ -259,11 +259,11 @@ function useShownTestResult(result: ActionResult | undefined): ActionResult | un
   return result && result !== dismissed ? result : undefined;
 }
 
-function testOutcome(result: ActionResult | undefined): { tone: "ok" | "crit"; words: string } | null {
+function testOutcome(result: ActionResult | undefined): string | null {
   if (!result) return null;
-  if (result.ok) return { tone: "ok", words: TEST_SENT };
-  if (result.status === "suppressed") return { tone: "crit", words: TEST_SUPPRESSED };
-  return { tone: "crit", words: TEST_FAILED };
+  if (result.ok) return TEST_SENT;
+  if (result.status === "suppressed") return TEST_SUPPRESSED;
+  return TEST_FAILED;
 }
 
 export default function EmailSettings({ loaderData, actionData }: Route.ComponentProps) {
@@ -319,21 +319,20 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
               />
             </div>
 
-            {/* Legacy's test button, last in the card, saying each outcome on
-                itself. It belongs to the test form below. The live region
-                repeats the outcome so it is announced when it arrives. */}
-            <Button type="submit" form={TEST_FORM_ID} pending={pendingAction === "test-email"}>
-              {pendingAction === "test-email" ? (
-                TEST_SENDING
-              ) : outcome ? (
-                <Status tone={outcome.tone}>{outcome.words}</Status>
-              ) : (
-                TEST_IDLE
-              )}
-            </Button>
-            <span role="status" className="sr-only">
-              {outcome?.words ?? ""}
-            </span>
+            {/* Legacy's test button, last in the card, at its own width,
+                saying each outcome on itself. It belongs to the test form
+                below. The words are the button's own colour: Recova tints them
+                green or red, and a Capsomer status inside a button measured
+                4.18:1 in dark, so the tint waits for the per-site layer. The
+                live region repeats the outcome so it is announced. */}
+            <div>
+              <Button type="submit" form={TEST_FORM_ID} pending={pendingAction === "test-email"}>
+                {pendingAction === "test-email" ? TEST_SENDING : (outcome ?? TEST_IDLE)}
+              </Button>
+              <span role="status" className="sr-only">
+                {outcome ?? ""}
+              </span>
+            </div>
           </div>
         </section>
 

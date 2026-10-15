@@ -194,14 +194,17 @@ describe("J37 email: the card", () => {
     expect(main).toContain('name="_action" value="sender"');
   });
 
-  it("says each outcome ON the button, as Recova does, in a Capsomer status of the right tone", () => {
+  it("says each outcome ON the button, as Recova does, in the button's own words", () => {
     const sent = testButton(render({ actionData: { action: "test-email", ok: true, status: "sent" } }));
-    expect(sent).toMatch(/class="cap-status" data-tone="ok"/);
     expect(text(sent)).toBe(TEST_SENT);
 
     const failed = testButton(render({ actionData: { action: "test-email", ok: false, status: "failed" } }));
-    expect(failed).toMatch(/class="cap-status" data-tone="crit"/);
     expect(text(failed)).toBe(TEST_FAILED);
+  });
+
+  it("puts no 12px status inside the button, which measured 4.18:1 in dark", () => {
+    const sent = testButton(render({ actionData: { action: "test-email", ok: true, status: "sent" } }));
+    expect(sent).not.toContain("cap-status");
   });
 
   it("says a suppressed address truly, not Recova's 'Try again', which would not help", () => {
