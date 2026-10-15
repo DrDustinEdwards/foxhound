@@ -101,6 +101,12 @@ export const accounts = sqliteTable("accounts", {
   // app/db/billable.ts's accountBillingEligibleCondition deliberately does not
   // reference this column.
   cancelledAt: ts("cancelled_at"),
+  // When the owner deleted their account (row S40, Q14 and Q16). The row itself
+  // survives, emptied of personal data, because billing joins it and its fee
+  // evidence (recovered_payments, billing rows) hangs from its id; this stamp
+  // says why it is empty. Written only by app/lib/auth/delete-account.server.ts.
+  // Like cancelledAt it is NOT a billing gate: fees already earned stay owed.
+  deletedAt: ts("deleted_at"),
   // Foxhound's OWN Stripe account customer id for this merchant (PRICING.md rev 3:
   // direct platform invoicing, not Connect application fees). Null until
   // billing-setup runs; createPlatformInvoice refuses to charge without it.
