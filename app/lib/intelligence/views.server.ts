@@ -468,6 +468,10 @@ const MRR_CHART_MONTHS = 12;
 
 export interface MrrSnapshotPoint {
   at: Date;
+  /** The snapshot's MRR and active customers (Recova's MRRStatCards and
+   *  MRRTrendChart read the same two columns). */
+  totalMrrCents: number;
+  activeCustomersCount: number;
   /** Net revenue retention as a percentage. null where the snapshot recorded
    *  none: an account's first sync has no prior period to retain against, and
    *  legacy's `?? 0` would draw that as total churn. */
@@ -477,6 +481,10 @@ export interface MrrSnapshotPoint {
   reactivationMrrCents: number;
   contractionMrrCents: number;
   churnMrrCents: number;
+  /** Plan name to MRR cents, as buildPlanBreakdown wrote it (Recova's
+   *  PlanBreakdown reads the latest snapshot's). */
+  perPlanBreakdown: unknown;
+  currency: string;
 }
 
 /** The dashboard's MRR snapshot series. Caller must have already checked
@@ -492,6 +500,10 @@ export async function getMrrSnapshotSeries(
   const rows = await db
     .select({
       snapshotDate: mrrSnapshots.snapshotDate,
+      totalMrrCents: mrrSnapshots.totalMrrCents,
+      activeCustomersCount: mrrSnapshots.activeCustomersCount,
+      perPlanBreakdown: mrrSnapshots.perPlanBreakdown,
+      currency: mrrSnapshots.currency,
       netRevenueRetentionBps: mrrSnapshots.netRevenueRetentionBps,
       newMrrCents: mrrSnapshots.newMrrCents,
       expansionMrrCents: mrrSnapshots.expansionMrrCents,
@@ -505,12 +517,16 @@ export async function getMrrSnapshotSeries(
 
   return rows.map((r) => ({
     at: r.snapshotDate,
+    totalMrrCents: r.totalMrrCents,
+    activeCustomersCount: r.activeCustomersCount,
     nrrPct: r.netRevenueRetentionBps === null ? null : r.netRevenueRetentionBps / 100,
     newMrrCents: r.newMrrCents,
     expansionMrrCents: r.expansionMrrCents,
     reactivationMrrCents: r.reactivationMrrCents,
     contractionMrrCents: r.contractionMrrCents,
     churnMrrCents: r.churnMrrCents,
+    perPlanBreakdown: r.perPlanBreakdown,
+    currency: r.currency,
   }));
 }
 

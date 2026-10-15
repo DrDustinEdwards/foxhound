@@ -26,7 +26,12 @@ import {
   evaluateAlerts,
   type AlertConfig,
 } from "./alerts";
-import { generateIntelligenceNarrative, type AtRiskCustomerFact } from "./narrative";
+import {
+  generateIntelligenceNarrative,
+  type AtRiskCustomerFact,
+  type NarrativeFacts,
+  type NarrativeResult,
+} from "./narrative";
 import { buildPredictionFields, buildPredictionInsert } from "./predictions";
 import { computeHealthScore, type HealthFactor } from "./risk";
 import type { EngagementSignals, RecoverySignals } from "./signals";
@@ -191,65 +196,14 @@ export async function runIntelligenceAiForAccount(
 
   const alertsFired = await evaluateAndRecordAlerts(db, accountId, metrics, now);
 
-  const topAtRiskCustomers: AtRiskCustomerFact[] = atRisk.slice(0, INTELLIGENCE_NARRATIVE_TOP_N).map((c) => ({
-    stripeCustomerId: c.stripeCustomerId,
-    customerName: c.customerName,
-    healthScore: c.score,
-    mrrContributionCents: c.mrrContributionCents,
-    currency,
-    factorDetails: c.factors.map((f) => f.detail),
-  }));
-
   let narrativeGenerated = false;
   let narrativeSkippedReason: string | null = null;
   try {
-    const result = await generateIntelligenceNarrative(env, {
-      accountName,
-      currency,
-      totalMrrCents: mrr.latest?.totalMrrCents ?? 0,
-      newMrrCents: mrr.latest?.newMrrCents ?? 0,
-      expansionMrrCents: mrr.latest?.expansionMrrCents ?? 0,
-      contractionMrrCents: mrr.latest?.contractionMrrCents ?? 0,
-      churnMrrCents: mrr.latest?.churnMrrCents ?? 0,
-      reactivationMrrCents: mrr.latest?.reactivationMrrCents ?? 0,
-      mrrAtRiskCents,
-      atRiskCustomerCount: atRisk.length,
-      topAtRiskCustomers,
-    });
-
-    const reportMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-    const idByCustomer = new Map(scored.map((c) => [c.stripeCustomerId, c.customerContextId]));
-    const narrativeBatch: BatchItem<"sqlite">[] = [
-      db.insert(intelligenceReports)
-        .values({ accountId, reportMonth, narrative: result.narrative, generatedAt: now })
-        .onConflictDoUpdate({
-          target: [intelligenceReports.accountId, intelligenceReports.reportMonth],
-          set: { narrative: result.narrative, generatedAt: now },
-        }),
-    ];
-    for (const a of result.customerAssessments) {
-      const customerContextId = idByCustomer.get(a.stripeCustomerId);
-      if (!customerContextId) continue; // structural guard: never write an id we did not send
-      narrativeBatch.push(
-        db.update(customerContext)
-          .set({ aiAssessment: a.assessment, aiAssessmentGeneratedAt: now })
-          .where(eq(customerContext.id, customerContextId)),
-      );
-    }
-    if (result.usage) {
-      narrativeBatch.push(
-        buildAiCallRow(db, {
-          accountId,
-          source: "intelligence_narrative",
-          model: MODEL_INTELLIGENCE_NARRATIVE,
-          promptTokens: result.usage.promptTokens,
-          completionTokens: result.usage.completionTokens,
-          relatedId: null,
-          createdAt: now,
-        }),
-      );
-    }
-    await db.batch([narrativeBatch[0], ...narrativeBatch.slice(1)]);
+    const result = await generateIntelligenceNarrative(
+      env,
+      narrativeFactsFor({ accountName, currency, mrrLatest: mrr.latest, scored }),
+    );
+    await writeNarrativeReport(db, { accountId, now, result, scored });
     narrativeGenerated = result.usage !== null;
   } catch (err) {
     narrativeSkippedReason = err instanceof Error ? err.message : "narrative generation failed";
@@ -262,6 +216,107 @@ export async function runIntelligenceAiForAccount(
     narrativeGenerated,
     narrativeSkippedReason,
   };
+}
+
+/** The ai_calls source the narrative logs under, nightly or on request. */
+export const NARRATIVE_AI_SOURCE = "intelligence_narrative";
+
+/** A scored customer as the narrative needs it: from tonight's scoring run,
+ *  or from the scores customer_context holds when a merchant asks for a
+ *  report during the day (report-generate.server.ts). */
+export interface NarrativeCustomer {
+  customerContextId: string;
+  stripeCustomerId: string;
+  customerName: string | null;
+  mrrContributionCents: number;
+  score: number;
+  factors: readonly { detail: string }[];
+}
+
+/** The narrative's facts: the latest MRR snapshot's movements and the at-risk
+ *  customers, lowest score first, capped at INTELLIGENCE_NARRATIVE_TOP_N. One
+ *  computation for both the nightly run and the dashboard's button. */
+export function narrativeFactsFor(input: {
+  accountName: string;
+  currency: string;
+  mrrLatest: {
+    totalMrrCents: number;
+    newMrrCents: number;
+    expansionMrrCents: number;
+    contractionMrrCents: number;
+    churnMrrCents: number;
+    reactivationMrrCents: number;
+  } | null;
+  scored: readonly NarrativeCustomer[];
+}): NarrativeFacts {
+  const { accountName, currency, mrrLatest, scored } = input;
+  const atRisk = scored
+    .filter((c) => c.score < HEALTH_SCORE_AT_RISK_THRESHOLD)
+    .sort((a, b) => a.score - b.score);
+  const topAtRiskCustomers: AtRiskCustomerFact[] = atRisk.slice(0, INTELLIGENCE_NARRATIVE_TOP_N).map((c) => ({
+    stripeCustomerId: c.stripeCustomerId,
+    customerName: c.customerName,
+    healthScore: c.score,
+    mrrContributionCents: c.mrrContributionCents,
+    currency,
+    factorDetails: c.factors.map((f) => f.detail),
+  }));
+  return {
+    accountName,
+    currency,
+    totalMrrCents: mrrLatest?.totalMrrCents ?? 0,
+    newMrrCents: mrrLatest?.newMrrCents ?? 0,
+    expansionMrrCents: mrrLatest?.expansionMrrCents ?? 0,
+    contractionMrrCents: mrrLatest?.contractionMrrCents ?? 0,
+    churnMrrCents: mrrLatest?.churnMrrCents ?? 0,
+    reactivationMrrCents: mrrLatest?.reactivationMrrCents ?? 0,
+    mrrAtRiskCents: atRisk.reduce((sum, c) => sum + c.mrrContributionCents, 0),
+    atRiskCustomerCount: atRisk.length,
+    topAtRiskCustomers,
+  };
+}
+
+/** The one writer of intelligence_reports: this month's report (upserted, so
+ *  a regenerate replaces it), each assessment on its own customer, and the AI
+ *  call's cost row, in one batch. */
+export async function writeNarrativeReport(
+  db: Db,
+  input: { accountId: string; now: Date; result: NarrativeResult; scored: readonly NarrativeCustomer[] },
+): Promise<void> {
+  const { accountId, now, result, scored } = input;
+  const reportMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const idByCustomer = new Map(scored.map((c) => [c.stripeCustomerId, c.customerContextId]));
+  const narrativeBatch: BatchItem<"sqlite">[] = [
+    db.insert(intelligenceReports)
+      .values({ accountId, reportMonth, narrative: result.narrative, generatedAt: now })
+      .onConflictDoUpdate({
+        target: [intelligenceReports.accountId, intelligenceReports.reportMonth],
+        set: { narrative: result.narrative, generatedAt: now },
+      }),
+  ];
+  for (const a of result.customerAssessments) {
+    const customerContextId = idByCustomer.get(a.stripeCustomerId);
+    if (!customerContextId) continue; // structural guard: never write an id we did not send
+    narrativeBatch.push(
+      db.update(customerContext)
+        .set({ aiAssessment: a.assessment, aiAssessmentGeneratedAt: now })
+        .where(eq(customerContext.id, customerContextId)),
+    );
+  }
+  if (result.usage) {
+    narrativeBatch.push(
+      buildAiCallRow(db, {
+        accountId,
+        source: NARRATIVE_AI_SOURCE,
+        model: MODEL_INTELLIGENCE_NARRATIVE,
+        promptTokens: result.usage.promptTokens,
+        completionTokens: result.usage.completionTokens,
+        relatedId: null,
+        createdAt: now,
+      }),
+    );
+  }
+  await db.batch([narrativeBatch[0], ...narrativeBatch.slice(1)]);
 }
 
 async function evaluateAndRecordAlerts(
