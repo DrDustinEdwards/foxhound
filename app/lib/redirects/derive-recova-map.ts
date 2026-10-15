@@ -1,11 +1,17 @@
 // How the Recova -> Foxhound redirect map is made (CUTOVER-PLAN.md step 2,
 // RULES.md 7.3: "The redirect map is regenerated, never hand-edited").
 //
-// app/lib/redirects/recova-map.ts is GENERATED from two inputs:
+// app/lib/redirects/recova-map.ts is GENERATED from three inputs:
 //   1. Recova's public routes, the snapshot in
 //      test/fixtures/legacy-marketing-routes.ts (walked from Recova's own app/
 //      tree; see that file's header for what was walked and its scope).
 //   2. The paths Foxhound serves, read from app/routes.ts by the test.
+//   3. Recova's seven config-level redirects from its next.config.ts, in
+//      app/lib/redirects/recova-config-redirects.ts (J23, ledger row F17).
+//      Each path rule maps straight to Recova's own destination, so a visitor
+//      makes one hop and never lands on Foxhound's copy of the same redirect.
+//      The host rule (app.recovamrr.com to the apex, path kept) becomes a
+//      second host the whole map answers on.
 //
 // The rule is "same path, new domain" (ruling 408 binding 3): a Recova path
 // Foxhound serves maps to itself. Only a Recova path Foxhound does NOT serve
@@ -19,13 +25,17 @@
 
 export interface RedirectMapEntry {
   /** Recova (recovamrr.com) path. A leading-colon segment (":slug", ":tag")
-   *  is a dynamic route, mapped verbatim by segment, not a literal path. */
+   *  is a dynamic route, mapped verbatim by segment, not a literal path. A
+   *  trailing "/:path*" (Recova's next.config.ts form) matches the bare prefix
+   *  and everything under it, carried over to the target's "/:path*". */
   from: string;
   /** Foxhound (foxhoundapp.com) path. */
   to: string;
   /** Present only when the mapping is not "same path". */
   note?: string;
 }
+
+import type { RecovaConfigRedirect } from "./recova-config-redirects";
 
 export interface LegacyRoute {
   url: string;
@@ -56,7 +66,18 @@ export function routeShape(path: string): string {
     .join("/");
 }
 
-export function deriveRecovaMap(legacy: readonly LegacyRoute[], foxhoundPaths: Iterable<string>): RedirectMapEntry[] {
+const CONFIG_NOTE = "One of Recova's own next.config.ts redirects, mapped straight to Recova's destination so it is one hop.";
+
+const PATH_SPLAT = "/:path*";
+
+/** Recova's apex. A host rule must send its host here with the path kept. */
+export const RECOVA_APEX = "recovamrr.com";
+
+export function deriveRecovaMap(
+  legacy: readonly LegacyRoute[],
+  foxhoundPaths: Iterable<string>,
+  config: readonly RecovaConfigRedirect[],
+): RedirectMapEntry[] {
   const served = new Set([...foxhoundPaths].map(routeShape));
   const entries: RedirectMapEntry[] = [];
   for (const route of legacy) {
@@ -77,10 +98,42 @@ export function deriveRecovaMap(legacy: readonly LegacyRoute[], foxhoundPaths: I
     entries.push({ from: route.url, to: override.to, note: override.note });
   }
   const legacyUrls = new Set(legacy.map((r) => r.url));
+  const configSources = new Set(config.filter((r) => !r.host).map((r) => r.source));
+  for (const rule of config) {
+    if (rule.host) continue;
+    const where = `Recova's next.config.ts redirect ${rule.source} -> ${rule.destination}`;
+    if (!rule.destination.startsWith("/") || rule.destination.startsWith("//")) {
+      throw new Error(`${where} does not target a fixed path on the site.`);
+    }
+    // Ruling 408 binding 4: no many-to-one dumps onto the home page. Not
+    // decided here; a rule like this is for Dustin.
+    if (rule.destination === "/") throw new Error(`${where} redirects onto the home page (ruling 408 binding 4).`);
+    if (rule.source.endsWith(PATH_SPLAT) !== rule.destination.endsWith(PATH_SPLAT)) {
+      throw new Error(`${where} keeps the path on one side only.`);
+    }
+    if (!served.has(routeShape(rule.destination))) throw new Error(`${where}: Foxhound does not serve the target.`);
+    if (configSources.has(rule.destination)) throw new Error(`${where} lands on another redirect, a chain.`);
+    if (legacyUrls.has(rule.source)) throw new Error(`${where} shadows a Recova page of the same path.`);
+    entries.push({ from: rule.source, to: rule.destination, note: CONFIG_NOTE });
+  }
   for (const url of Object.keys(NOT_SERVED_AT_SAME_PATH)) {
     if (!legacyUrls.has(url)) throw new Error(`${url} is in NOT_SERVED_AT_SAME_PATH but not a Recova route.`);
   }
   return entries;
+}
+
+/** Every Recova host the map answers on: the apex, plus each host Recova's
+ *  config sends to the apex with the path kept. */
+export function deriveRecovaMapHosts(config: readonly RecovaConfigRedirect[]): string[] {
+  const hosts = [RECOVA_APEX];
+  for (const rule of config) {
+    if (!rule.host) continue;
+    if (rule.source !== PATH_SPLAT || rule.destination !== `https://${RECOVA_APEX}${PATH_SPLAT}`) {
+      throw new Error(`Recova's host rule for ${rule.host} is not a path-preserving move to ${RECOVA_APEX}.`);
+    }
+    hosts.push(rule.host);
+  }
+  return hosts;
 }
 
 function entrySource(e: RedirectMapEntry): string {
@@ -90,7 +143,7 @@ function entrySource(e: RedirectMapEntry): string {
 }
 
 /** The committed file, exactly. */
-export function renderRecovaMapSource(entries: readonly RedirectMapEntry[]): string {
+export function renderRecovaMapSource(entries: readonly RedirectMapEntry[], hosts: readonly string[]): string {
   return [
     "// GENERATED by `npm run gen:recova-map`. Do not edit by hand (RULES.md 7.3).",
     "//",
@@ -105,6 +158,10 @@ export function renderRecovaMapSource(entries: readonly RedirectMapEntry[]): str
     "export const RECOVA_REDIRECT_MAP: RedirectMapEntry[] = [",
     ...entries.map(entrySource),
     "];",
+    "",
+    "// The Recova hosts that answer with this map, path kept: the apex, and each",
+    "// host Recova's next.config.ts already moved to the apex.",
+    `export const RECOVA_MAP_HOSTS: string[] = [${hosts.map((h) => JSON.stringify(h)).join(", ")}];`,
     "",
   ].join("\n");
 }

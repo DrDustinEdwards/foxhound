@@ -214,6 +214,17 @@ export default [
   route(INDEXNOW_KEY_PATH.slice(1), "./routes/files/indexnow-key.ts"),
   route("og/:params", "./routes/files/og.ts"),
 
+  // Recova's config-level redirects (J23, ledger row F17), at Recova's own
+  // paths. One resource module answers all of them from Recova's table in
+  // app/lib/redirects/recova-config-redirects.ts; each path needs its own id
+  // because the module is shared.
+  route("recovery/audit", "./routes/redirects/recova-config.ts", { id: "recova-redirect-audit" }),
+  route("recovery/audit/connect", "./routes/redirects/recova-config.ts", { id: "recova-redirect-audit-connect" }),
+  route("recovery/audit/results", "./routes/redirects/recova-config.ts", { id: "recova-redirect-audit-results" }),
+  route("user-guides", "./routes/redirects/recova-config.ts", { id: "recova-redirect-user-guides" }),
+  route("user-guides/*", "./routes/redirects/recova-config.ts", { id: "recova-redirect-user-guides-splat" }),
+  route("sitemap_index.xml", "./routes/redirects/recova-config.ts", { id: "recova-redirect-sitemap-index" }),
+
   // Auth callback (resource route, no shell)
   route("auth/google/callback", "./routes/auth/google-callback.ts"),
 
