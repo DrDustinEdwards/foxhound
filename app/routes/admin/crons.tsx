@@ -78,7 +78,7 @@ export async function action({ context, request }: Route.ActionArgs) {
   if (nextEnabled && !isCronEnableConfirmValid(cronName, String(form.get("confirm") ?? ""))) {
     return data(
       {
-        error: `Type ${cronEnableConfirmPhrase(cronName)} exactly to enable this cron. Nothing was changed.`,
+        error: `Type ${cronEnableConfirmPhrase(cronName)} exactly to enable this cron.`,
       },
       { status: 400 },
     );
