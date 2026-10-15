@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { DOC_GUIDES } from "~/lib/marketing/docs-content";
-import { deriveRecovaMap, renderRecovaMapSource } from "~/lib/redirects/derive-recova-map";
+import { deriveRecovaMap, deriveRecovaMapHosts, renderRecovaMapSource } from "~/lib/redirects/derive-recova-map";
+import { RECOVA_CONFIG_REDIRECTS } from "~/lib/redirects/recova-config-redirects";
 import { RECOVA_REDIRECT_MAP } from "~/lib/redirects/recova-map";
 import routes from "~/routes";
 
@@ -51,7 +52,10 @@ describe("RECOVA_REDIRECT_MAP", () => {
   // Foxhound's routes.ts; `npm run gen:recova-map` rewrites it.
   it("is exactly the generated file (regenerate with `npm run gen:recova-map`)", async () => {
     expect(SERVED.has("/pricing")).toBe(true);
-    await expect(renderRecovaMapSource(deriveRecovaMap(LEGACY_MARKETING_ROUTES, SERVED))).toMatchFileSnapshot(
+    await expect(renderRecovaMapSource(
+        deriveRecovaMap(LEGACY_MARKETING_ROUTES, SERVED, RECOVA_CONFIG_REDIRECTS),
+        deriveRecovaMapHosts(RECOVA_CONFIG_REDIRECTS),
+      )).toMatchFileSnapshot(
       "../app/lib/redirects/recova-map.ts",
     );
   });
@@ -66,7 +70,20 @@ describe("RECOVA_REDIRECT_MAP", () => {
   it("is same path, new domain for every Recova path Foxhound serves (ruling 408 binding 3)", () => {
     const named = RECOVA_REDIRECT_MAP.filter((e) => e.to !== e.from).map((e) => e.from);
     expect(named.sort()).toEqual(
-      ["/blog/rss.xml", "/blog/sitemap.xml", "/disputes/demo", "/intelligence/demo", "/recovery/demo"].sort(),
+      [
+        "/blog/rss.xml",
+        "/blog/sitemap.xml",
+        "/disputes/demo",
+        "/intelligence/demo",
+        "/recovery/demo",
+        // Recova's own next.config.ts redirects (J23), one hop to its destination.
+        "/recovery/audit",
+        "/recovery/audit/connect",
+        "/recovery/audit/results",
+        "/sitemap_index.xml",
+        "/user-guides",
+        "/user-guides/:path*",
+      ].sort(),
     );
   });
 
@@ -79,8 +96,11 @@ describe("RECOVA_REDIRECT_MAP", () => {
     }
   });
 
-  it("has no entries beyond the fixture's routes (map and fixture stay in sync)", () => {
-    const fixtureUrls = new Set(LEGACY_MARKETING_ROUTES.map((r) => r.url));
+  it("has no entries beyond the fixture's routes and Recova's config redirects (map and inputs stay in sync)", () => {
+    const fixtureUrls = new Set([
+      ...LEGACY_MARKETING_ROUTES.map((r) => r.url),
+      ...RECOVA_CONFIG_REDIRECTS.filter((r) => !r.host).map((r) => r.source),
+    ]);
     for (const entry of RECOVA_REDIRECT_MAP) {
       expect(fixtureUrls.has(entry.from), `${entry.from} is mapped but not in the legacy-routes fixture`).toBe(true);
     }

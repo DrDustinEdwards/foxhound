@@ -42,4 +42,14 @@ export const RECOVA_REDIRECT_MAP: RedirectMapEntry[] = [
   { from: "/llms.txt", to: "/llms.txt" },
   { from: "/llms-full.txt", to: "/llms-full.txt" },
   { from: "/console", to: "/console" },
+  { from: "/recovery/audit", to: "/audit", note: "One of Recova's own next.config.ts redirects, mapped straight to Recova's destination so it is one hop." },
+  { from: "/recovery/audit/connect", to: "/audit/connect", note: "One of Recova's own next.config.ts redirects, mapped straight to Recova's destination so it is one hop." },
+  { from: "/recovery/audit/results", to: "/audit/results", note: "One of Recova's own next.config.ts redirects, mapped straight to Recova's destination so it is one hop." },
+  { from: "/user-guides/:path*", to: "/docs/:path*", note: "One of Recova's own next.config.ts redirects, mapped straight to Recova's destination so it is one hop." },
+  { from: "/user-guides", to: "/docs", note: "One of Recova's own next.config.ts redirects, mapped straight to Recova's destination so it is one hop." },
+  { from: "/sitemap_index.xml", to: "/sitemap.xml", note: "One of Recova's own next.config.ts redirects, mapped straight to Recova's destination so it is one hop." },
 ];
+
+// The Recova hosts that answer with this map, path kept: the apex, and each
+// host Recova's next.config.ts already moved to the apex.
+export const RECOVA_MAP_HOSTS: string[] = ["recovamrr.com", "app.recovamrr.com"];
