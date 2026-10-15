@@ -73,7 +73,7 @@ export default function AdminWebhooks({ loaderData }: Route.ComponentProps) {
   const typeId = useId();
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       <StatTiles label="Webhook health">
         <StatTile
           href={WEBHOOKS_PATH}
@@ -119,7 +119,7 @@ export default function AdminWebhooks({ loaderData }: Route.ComponentProps) {
             action={WEBHOOKS_PATH}
             className="flex flex-wrap items-end gap-x-4 gap-y-3 border-b border-border px-4 py-3"
           >
-            <div className="cap-field min-w-56 grow sm:grow-0">
+            <div className="cap-field min-w-56 grow sm:w-80 sm:grow-0">
               <label className="cap-field-label" htmlFor={typeId}>
                 Event type
               </label>
