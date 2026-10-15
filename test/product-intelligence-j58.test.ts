@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, RouterProvider } from "react-router";
@@ -19,6 +20,7 @@ import { buildNarrativeSeed } from "~/lib/demo/narratives-seed";
 import { buildRecoverySeed } from "~/lib/demo/recovery-seed";
 import { WATCH_CEILING } from "~/lib/intelligence/health-band";
 import * as risk from "~/lib/intelligence/risk";
+import { PRICING_CARDS } from "~/lib/marketing/pricing-copy";
 import { formatMoney, formatMoneyShort } from "~/lib/money-format";
 import { RECOVERY_SCHEDULES } from "~/lib/recovery/schedule";
 import routes from "~/routes";
@@ -73,12 +75,6 @@ function text(html: string): string {
     .replace(/&quot;/g, '"')
     .replace(/\s+/g, " ")
     .trim();
-}
-
-/** The page's words, previews included: a claim in a preview's caption is
- *  still a claim. */
-function copyOf(html: string): string {
-  return text(html);
 }
 
 /** The asOf instant the loader built its preview at, so this file rebuilds the same seed. */
@@ -240,16 +236,53 @@ describe("/product/intelligence follows Recova's sections, in Recova's order (J5
   });
 
   it("carries no section Recova's page does not have: no free-tier block, no fourth question", () => {
-    expect(body).not.toMatch(/free for every Recovery merchant/i);
     expect(body).not.toMatch(/Is the risk score a validated prediction/);
     expect(body).not.toMatch(/Is any of Intelligence free/);
+    expect([...html.matchAll(/data-block="/g)]).toHaveLength(3);
+  });
+});
+
+// The free tier (PRICING.md, Intelligence: basic MRR analytics are FREE for
+// every Recovery merchant; the $199 is the risk layer). The merchant dashboard
+// draws MRR, movements, churn and cohorts under a "Free" label with no
+// Intelligence entitlement check, so the $199 must not be sold as covering them.
+const FREE_TIER = "MRR, movements, churn, and cohort analytics are free for every Recovery merchant.";
+
+describe("the $199 covers only the paid layer; MRR analytics are free (J58 review)", async () => {
+  const html = render(await load());
+  const body = text(html);
+
+  it("the free part really is free: the merchant dashboard draws it with no entitlement check", () => {
+    const dashboard = readFileSync("app/routes/app/dashboard.tsx", "utf8");
+    expect(dashboard).toContain("MRR analytics");
+    expect(dashboard).toMatch(/>\s*Free\s*</);
+    expect(dashboard).not.toContain("isIntelligenceEntitled");
+  });
+
+  it("says so in the hero, beside the MRR it names, and on the pricing card", () => {
+    expect(body).toContain(
+      `Monthly MRR tracking with NRR and churn rate trends. ${FREE_TIER} ${PRICE}/mo flat adds predictive risk scoring.`,
+    );
+    expect(body).toContain(`${PRICE} per month, account-wide, for predictive risk scoring. ${FREE_TIER}`);
+    expect(body).not.toMatch(/trends\. \$199\/mo flat\./);
+  });
+
+  it("says it in the same words as /pricing, so the site says one thing", () => {
+    const intelligence = PRICING_CARDS.find((p) => p.id === "intelligence");
+    expect(intelligence?.description.startsWith(FREE_TIER)).toBe(true);
+  });
+
+  it("lists no free analytics among the $199 card's ticked points", () => {
+    const points = [...html.matchAll(/<li class="flex items-start gap-3[^"]*"><span aria-hidden="true"[^>]*>[^<]*<\/span><span>([^<]+)<\/span><\/li>/g)].map((m) => m[1]);
+    expect(points.length).toBeGreaterThan(0);
+    for (const p of points) expect(p).not.toMatch(/MRR snapshots|movement waterfall|cohort|churn rate/i);
   });
 });
 
 describe("the copy says only what Foxhound computes (J58)", async () => {
   const html = render(await load());
   const body = text(html);
-  const copy = copyOf(html);
+  const copy = text(html);
 
   it("names the score's signals from the engine, every one the engine can emit and no other", () => {
     const labels = signalLabels();
@@ -266,6 +299,13 @@ describe("the copy says only what Foxhound computes (J58)", async () => {
     expect(copy).not.toMatch(/customer value/i);
     expect(copy).not.toMatch(/MRR percentile/i);
     expect(copy).not.toMatch(/three (independent )?bands/i);
+  });
+
+  it("names every engine signal in the score FAQ, with the count", () => {
+    const labels = signalLabels();
+    const answer = /How is the health score calculated\?<\/summary><div class="cap-disclosure-body"><p[^>]*>([^<]+)</.exec(html)?.[1] ?? "";
+    expect(answer.startsWith(`${COUNT_WORD[labels.length]} signals move the 0-100 score`)).toBe(true);
+    for (const l of labels) expect(answer, `the FAQ names ${l}`).toContain(l);
   });
 
   it("states the baseline the score moves from, read from the engine", () => {
@@ -317,7 +357,6 @@ describe("the copy says only what Foxhound computes (J58)", async () => {
     expect(copy).not.toMatch(/Daily MRR/);
     expect(copy).toContain("Monthly from Stripe");
     expect(copy).toContain("tracked month by month");
-    expect(copy).toContain("Monthly MRR snapshots with NRR, GRR, and movement waterfall");
   });
 
   it("says the narrative is on the dashboard, not in the weekly digest, and the day-over-day change is not computed", () => {
@@ -344,8 +383,7 @@ describe("the copy says only what Foxhound computes (J58)", async () => {
     expect(points).toEqual([
       `Health scores for every Stripe customer, up to ${INTELLIGENCE_MAX_CUSTOMERS_SCANNED.toLocaleString("en-US")} per account, updated nightly`,
       `Nightly AI analyst plain-English assessment for the ${INTELLIGENCE_NARRATIVE_TOP_N} most at-risk customers`,
-      "Monthly MRR snapshots with NRR, GRR, and movement waterfall",
-      "Per-plan breakdown from Stripe subscription data",
+      "Monthly NRR trend and per-plan MRR breakdown on the Intelligence dashboard",
       "Churn risk page with MRR by health band",
       "Monthly AI narrative report on the dashboard",
     ]);
@@ -384,8 +422,9 @@ describe("the dashboard preview is the demo seed through the dashboard's own rea
       .filter(([, c]) => c > 0)
       .sort((a, b) => b[1] - a[1]);
     expect(plans.length, "the demo has plans").toBeGreaterThan(0);
-    // Recova's sentence names Starter, Growth and Scale; every plan is one.
-    for (const [name] of plans) expect(name).toMatch(/^(Starter|Growth|Scale)\b/);
+    // A merchant's plans are their own, so the copy names no plan.
+    expect(text(html)).toContain("Per-plan breakdown with bar proportions.");
+    expect(text(html)).not.toMatch(/Starter, Growth, and Scale/);
     const first = block(html, 0);
     expect(first).toContain('data-enarratio="bar"');
     expect(text(first)).toContain("MRR by plan");

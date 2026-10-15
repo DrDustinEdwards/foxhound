@@ -3,8 +3,9 @@ import {
   INTELLIGENCE_NARRATIVE_TOP_N,
   INTELLIGENCE_PRICE_CENTS,
 } from "~/lib/constants";
-import { HEALTH_SCORE_BASELINE, HEALTH_SIGNAL_LABELS } from "~/lib/intelligence/risk";
+import { HEALTH_SCORE_BASELINE, HEALTH_SIGNAL_LABELS, type HealthSignal } from "~/lib/intelligence/risk";
 import { countWord, DECLINE_CATEGORY_COUNT } from "~/lib/marketing/decline-categories";
+import { INTELLIGENCE_FREE_TIER_SENTENCE } from "~/lib/marketing/pricing-copy";
 import { formatMoneyShort } from "~/lib/money-format";
 
 // The /product/intelligence copy (J58). Recova's spec is
@@ -33,6 +34,12 @@ import { formatMoneyShort } from "~/lib/money-format";
 //   * Recovery timing and triage on disputes. Intelligence changes neither
 //     (APPROVED-DIFFERENCES, the Intelligence entry; RECOVERY_SCHEDULES is
 //     keyed on decline category alone).
+//   * The free tier. Recova sold all of Intelligence for $199. Foxhound's MRR,
+//     movements, churn and cohorts are free for every Recovery merchant
+//     (PRICING.md; the merchant dashboard draws them with no entitlement
+//     check), so the hero and the pricing card say so in /pricing's words
+//     (INTELLIGENCE_FREE_TIER_SENTENCE), and the $199 card ticks only the
+//     paid layer.
 //   * The narrative. It is on the dashboard (ai-run.server.ts writes the
 //     month's report); the weekly digest lists top at-risk customers, not the
 //     narrative (digest-email.ts).
@@ -43,8 +50,26 @@ const price = formatMoneyShort(INTELLIGENCE_PRICE_CENTS, "usd");
 const customerCap = INTELLIGENCE_MAX_CUSTOMERS_SCANNED.toLocaleString("en-US");
 const labels: string[] = Object.values(HEALTH_SIGNAL_LABELS);
 const signalCount = countWord(labels.length);
+/** "a, b, and c". */
+function series(words: string[]): string {
+  return `${words.slice(0, -1).join(", ")}, and ${words[words.length - 1]}`;
+}
 /** "payment timing, billing changes, refunds and disputes, recovery engagement, and tenure". */
-const signalList = `${labels.slice(0, -1).join(", ")}, and ${labels[labels.length - 1]}`;
+const signalList = series(labels);
+
+/** Each signal as the score FAQ explains it, built on the engine's own label.
+ *  Keyed by the engine's signals, so a new signal does not compile until its
+ *  words are written here. */
+const SIGNAL_EXPLAINED: Record<HealthSignal, (label: string) => string> = {
+  payment_latency: (l) => `${l} (payments drifting later or earlier against their due date)`,
+  billing_volatility: (l) => `${l} (plan, interval, and seat changes on record)`,
+  refunds_disputes: (l) => `${l} on record`,
+  recovery_engagement: (l) => `${l} (whether the customer engaged with recovery emails)`,
+  tenure: (l) => l,
+};
+const signalsExplained = series(
+  (Object.keys(HEALTH_SIGNAL_LABELS) as HealthSignal[]).map((k) => SIGNAL_EXPLAINED[k](HEALTH_SIGNAL_LABELS[k])),
+);
 
 export const INTELLIGENCE_META_DESCRIPTION = `Customer health scoring, churn prediction, and MRR trend analysis for Stripe merchants. ${price}/mo.`;
 
@@ -54,7 +79,9 @@ export const INTELLIGENCE_HERO = {
   // history, and customer value. Seven recommended actions. Daily MRR
   // tracking". The signals are risk.ts's, no recommended action is written,
   // and MRR is snapshotted monthly.
-  sub: `0-100 health scores per customer, derived from ${signalList}. Monthly MRR tracking with NRR and churn rate trends. ${price}/mo flat.`,
+  // Truthfulness: Recova's "$199/mo flat" closed a sentence about MRR
+  // tracking. Foxhound's basic MRR analytics are free (see the note above).
+  sub: `0-100 health scores per customer, derived from ${signalList}. Monthly MRR tracking with NRR and churn rate trends. ${INTELLIGENCE_FREE_TIER_SENTENCE} ${price}/mo flat adds predictive risk scoring.`,
   pricing: `${price}/mo · Flat subscription · Account-wide`,
 };
 
@@ -100,7 +127,9 @@ export function intelligenceBlocks(activeCustomers: string) {
       // and its "Day-over-day MRR delta shown on every load". Foxhound's
       // narrative is on the dashboard, and the dashboard says the day-over-day
       // change is not computed (app/routes/app/intelligence/index.tsx).
-      body: `MRR tracked across ${activeCustomers} active customers. Starter, Growth, and Scale plan breakdown with bar proportions. Monthly AI narrative summarizing what happened and what to watch, on the dashboard. A day-over-day MRR change is not computed, because MRR is snapshotted monthly.`,
+      // Recova names its demo's plans ("Starter, Growth, and Scale"); a
+      // merchant's plans are their own, so no plan is named.
+      body: `MRR tracked across ${activeCustomers} active customers. Per-plan breakdown with bar proportions. Monthly AI narrative summarizing what happened and what to watch, on the dashboard. A day-over-day MRR change is not computed, because MRR is snapshotted monthly.`,
     },
     score: {
       eyebrow: "0-100 per customer",
@@ -121,7 +150,8 @@ export function intelligenceBlocks(activeCustomers: string) {
 
 export const INTELLIGENCE_PRICING = {
   price,
-  priceLabel: "per month, account-wide",
+  // Truthfulness: the $199 is the risk layer; the basic analytics are free.
+  priceLabel: `per month, account-wide, for predictive risk scoring. ${INTELLIGENCE_FREE_TIER_SENTENCE}`,
   points: [
     // Truthfulness: the sync's customer cap.
     `Health scores for every Stripe customer, up to ${customerCap} per account, updated nightly`,
@@ -129,9 +159,13 @@ export const INTELLIGENCE_PRICING = {
     // left out: nothing writes a recommendation, and a ticked line would claim it.
     // Truthfulness: Recova reads "per at-risk customer".
     `Nightly AI analyst plain-English assessment for the ${INTELLIGENCE_NARRATIVE_TOP_N} most at-risk customers`,
-    // Truthfulness: Recova reads "Daily MRR snapshots".
-    "Monthly MRR snapshots with NRR, GRR, and movement waterfall",
-    "Per-plan breakdown from Stripe subscription data",
+    // Recova's "Daily MRR snapshots with NRR, GRR, and movement waterfall" and
+    // "Per-plan breakdown from Stripe subscription data", reduced to what the
+    // $199 adds: MRR and its movements are free (the merchant dashboard), while
+    // the NRR chart and MRR by plan are on the gated Intelligence dashboard
+    // (app/routes/app/intelligence/index.tsx). GRR is computed but drawn
+    // nowhere, so it is not ticked.
+    "Monthly NRR trend and per-plan MRR breakdown on the Intelligence dashboard",
     "Churn risk page with MRR by health band",
     // Recova's "Customer timeline: recovery, dispute, and Intelligence events
     // in one view" is left out: the customer page has no timeline (customer.tsx).
@@ -148,7 +182,7 @@ export const INTELLIGENCE_FAQS = [
     // Truthfulness: Recova's three bands and "MRR percentile" are not the
     // score; risk.ts's signals and baseline are. Each factor that moved the
     // score is listed on the customer page with its points.
-    a: `${signalCount} signals move the 0-100 score up or down from a baseline of ${HEALTH_SCORE_BASELINE}: payment timing (payments drifting later or earlier against their due date), billing changes (plan, interval, and seat changes on record), refunds and disputes on record, recovery engagement (whether the customer engaged with recovery emails), and tenure. Each signal that moved the score is shown separately, with its points, on the customer detail page.`,
+    a: `${signalCount} signals move the 0-100 score up or down from a baseline of ${HEALTH_SCORE_BASELINE}: ${signalsExplained}. Each signal that moved the score is shown separately, with its points, on the customer detail page.`,
   },
   {
     q: "Does Intelligence affect my Recovery sequences?",

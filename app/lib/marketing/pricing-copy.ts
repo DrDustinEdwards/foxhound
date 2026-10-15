@@ -47,6 +47,11 @@ export interface PricingCard {
 }
 
 // Audit first: the free, no-signup entry point, as Recova orders them.
+/** PRICING.md (Intelligence): the free tier, in the words every page uses
+ *  (here and /product/intelligence, J58), so the site says one thing. */
+export const INTELLIGENCE_FREE_TIER_SENTENCE =
+  "MRR, movements, churn, and cohort analytics are free for every Recovery merchant.";
+
 export const PRICING_CARDS: PricingCard[] = [
   {
     id: "audit",
@@ -98,8 +103,7 @@ export const PRICING_CARDS: PricingCard[] = [
     name: "Intelligence",
     price: usd(INTELLIGENCE_PRICE_CENTS),
     priceLabel: "per month for predictive risk scoring",
-    description:
-      "MRR, movements, churn, and cohort analytics are free for every Recovery merchant. Predictive risk scoring is the paid layer.",
+    description: `${INTELLIGENCE_FREE_TIER_SENTENCE} Predictive risk scoring is the paid layer.`,
     features: [
       "MRR, movements, churn, cohorts: free for Recovery merchants",
       `Predictive risk scoring: the paid ${usd(INTELLIGENCE_PRICE_CENTS)}/mo layer`,

@@ -1,6 +1,12 @@
 import { readFileSync } from "node:fs";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { createMemoryRouter, RouterProvider } from "react-router";
 
 import { describe, expect, it } from "vitest";
+
+import { cloudflareContext } from "~/lib/cloudflare-context";
+import IntelligenceProductPage, { loader } from "~/routes/products/intelligence";
 
 import { computeHealthScore } from "~/lib/intelligence/risk";
 import { buildPredictionFields } from "~/lib/intelligence/predictions";
@@ -138,6 +144,20 @@ describe("281c: claims the evidence SUPPORTS, with the source named", () => {
     expect(PAGE).toContain("New, expansion, reactivation, contraction, and churn MRR tracked month by month");
   });
 
+  it("the free tier is stated on the rendered page, and the engine really leaves it ungated", async () => {
+    // PRICING.md (Intelligence): basic MRR analytics are FREE for every
+    // Recovery merchant; the $199 is the risk layer. The evidence: the merchant
+    // dashboard draws them under "Free" with no entitlement check. J58 removed
+    // the old free-tier BLOCK to match Recova's sections; the free statement
+    // stays, read here on the RENDERED page, not in source.
+    const dashboard = readFileSync("app/routes/app/dashboard.tsx", "utf8");
+    expect(dashboard).not.toContain("isIntelligenceEntitled");
+    for (const f of ["newMrrCents", "churnMrrCents", "CohortGrid"]) expect(dashboard).toContain(f);
+    const body = await renderedText();
+    expect(body).toContain("MRR, movements, churn, and cohort analytics are free for every Recovery merchant.");
+    expect(body).toContain("adds predictive risk scoring");
+  });
+
   it("the named scoring signals are the ones risk.ts actually scores", () => {
     // The copy now lists the signals by name, so the copy and the engine cannot
     // drift without this failing.
@@ -152,7 +172,10 @@ describe("281c: claims the evidence SUPPORTS, with the source named", () => {
       expect(risk).toContain(signal);
     }
     // J58: the copy lists them from risk.ts's own HEALTH_SIGNAL_LABELS, keyed
-    // by the same signal names, rather than typing them.
+    // by the same signal names, rather than typing them. This is a source
+    // check on purpose; the RENDERED list, and that the labels are exactly
+    // the signals computeHealthScore emits, are checked in
+    // test/product-intelligence-j58.test.ts. Keep both.
     expect(risk).toContain("export const HEALTH_SIGNAL_LABELS");
     expect(PAGE).toContain("Object.values(HEALTH_SIGNAL_LABELS)");
   });
@@ -243,3 +266,28 @@ describe("281c: risk and predictions EXERCISED, not just read", () => {
     expect(Object.keys(fields)).not.toContain("gradedAt");
   });
 });
+
+/** The /product/intelligence page as a visitor gets it, from the route's own
+ *  loader, as text. */
+async function renderedText(): Promise<string> {
+  const context = {
+    get(key: unknown) {
+      if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+      throw new Error("unexpected context key");
+    },
+  };
+  const loaderData = await loader({
+    context,
+    request: new Request("https://foxhoundapp.com/product/intelligence"),
+    params: {},
+  } as unknown as Parameters<typeof loader>[0]);
+  const Page = IntelligenceProductPage as unknown as (props: { loaderData: typeof loaderData }) => React.ReactElement;
+  const router = createMemoryRouter([{ path: "*", element: createElement(Page, { loaderData }) }], {
+    initialEntries: ["/product/intelligence"],
+  });
+  return renderToStaticMarkup(createElement(RouterProvider, { router }))
+    .replace(/<script[\s\S]*?<\/script>/g, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&#x27;/g, "'")
+    .replace(/\s+/g, " ");
+}
