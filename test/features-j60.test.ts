@@ -250,7 +250,7 @@ describe("/features entries are Recova's, each a capability Foxhound ships", () 
     "Dispute evidence staging": [["app/routes/app/disputes/detail.tsx", "Evidence draft"]],
     "Intelligence dashboard": [["app/routes/app/intelligence/index.tsx", 'title="Monthly summary"']],
     "Customer health index": [["app/routes/app/intelligence/customers.tsx", "Sorted by health score, lowest first."]],
-    "Customer detail page": [["app/routes/app/intelligence/customer.tsx", "<Sparkline"]],
+    "Customer detail page": [["app/routes/app/intelligence/customer.tsx", "drawHealthHistory(readings, w)"]],
     "Churn risk page": [["app/routes/app/intelligence/churn.tsx", "High-risk customers by MRR"]],
     "MRR movement waterfall": [["app/routes/app/intelligence/index.tsx", "<MovementCard"]],
     "Audit results page": [["app/components/audit/sections.tsx", "export function AuditSummary"]],
