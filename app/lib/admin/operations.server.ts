@@ -1,21 +1,32 @@
-// /admin/operations data layer: D1 cap telemetry, deploy state, env sanity,
-// migration status. ARCHITECTURE.md requires D1 size + per-table growth
-// surfaced here, alert at 50% of the 10GB cap, from day one.
+// /admin/operations data layer: the recovery queue's depth, cron-lock health,
+// D1 cap telemetry, env sanity and migration status. ARCHITECTURE.md requires
+// D1 size + per-table growth surfaced here, alert at 50% of the 10GB cap, from
+// day one. The queue depth and the lock health are what Recova's Operations
+// page showed (OperationsClient.tsx, blob 419a51ac), read from Foxhound's own
+// engine (J71).
 
-import { count } from "drizzle-orm";
+import { and, count, eq, isNotNull, isNull, min } from "drizzle-orm";
 
 // drizzle-kit writes this on every `generate`, so it cannot fall behind the
 // migrations it records. Bundled at build time; the Worker has no filesystem.
 import migrationJournal from "../../../drizzle/migrations/meta/_journal.json";
 
 import type { Db } from "~/db";
+import { countActiveRecoveries } from "~/lib/admin/overview.server";
+import { accountProcessingEligibleCondition, stepDueCondition } from "~/lib/cron/recovery-tick";
+import { CRON_LOCK_PEEK_TIMEOUT_MS } from "~/lib/constants";
+import { CRON_JOBS } from "~/lib/cron/registry";
+import { cronLockHealth, type CronLockView } from "~/lib/cron/lock-state";
 import {
+  accounts,
   aiCalls,
   cronRunHistory,
   emailSends,
   engagementEvents,
+  failedPayments,
   healthScoreHistory,
   page404Daily,
+  recoverySteps,
   socialLeads,
   webhookEvents,
 } from "~/db";
@@ -200,4 +211,105 @@ export function getEnvSanity(env: Env): EnvSanityRow[] {
     kind,
     set: Boolean((env as unknown as Record<string, unknown>)[name]),
   }));
+}
+
+export interface RecoveryQueueDepth {
+  /** Failed payments in an active sequence, demo accounts not counted: Recova's
+   *  "Payments in active recovery queue", the same count as the Overview's. */
+  activePayments: number;
+  /** Steps the recovery tick would run if it ran now: due, on an active payment,
+   *  on an account it may process (not paused, cancelled or demo). */
+  dueSteps: number;
+  /** When the longest-waiting of those steps fell due; null when none waits. */
+  oldestDueAt: Date | null;
+}
+
+/** The recovery queue's depth, by the tick's own conditions (stepDueCondition
+ *  and accountProcessingEligibleCondition), so this page and the tick never
+ *  disagree about what is waiting. A step's due time is its next_retry_at when a
+ *  send backoff set one, else its scheduled_at; the two are read apart and the
+ *  earlier taken, so no SQL expression is written by hand. Read only. */
+export async function getRecoveryQueueDepth(db: Db, now: number = Date.now()): Promise<RecoveryQueueDepth> {
+  const at = new Date(now);
+  const due = and(
+    stepDueCondition(at),
+    eq(failedPayments.status, "active"),
+    accountProcessingEligibleCondition(),
+  );
+  // The tick's own joins: a step, its payment and its account.
+  const onPayment = eq(failedPayments.id, recoverySteps.failedPaymentId);
+  const onAccount = eq(accounts.id, recoverySteps.accountId);
+
+  const [activePayments, counted, retried, scheduled] = await Promise.all([
+    countActiveRecoveries(db),
+    db
+      .select({ n: count() })
+      .from(recoverySteps)
+      .innerJoin(failedPayments, onPayment)
+      .innerJoin(accounts, onAccount)
+      .where(due),
+    db
+      .select({ at: min(recoverySteps.nextRetryAt) })
+      .from(recoverySteps)
+      .innerJoin(failedPayments, onPayment)
+      .innerJoin(accounts, onAccount)
+      .where(and(due, isNotNull(recoverySteps.nextRetryAt))),
+    db
+      .select({ at: min(recoverySteps.scheduledAt) })
+      .from(recoverySteps)
+      .innerJoin(failedPayments, onPayment)
+      .innerJoin(accounts, onAccount)
+      .where(and(due, isNull(recoverySteps.nextRetryAt))),
+  ]);
+
+  const times = [retried[0]?.at, scheduled[0]?.at]
+    .filter((t): t is Date => t instanceof Date)
+    .map((t) => t.getTime());
+  return {
+    activePayments,
+    dueSteps: counted[0]?.n ?? 0,
+    oldestDueAt: times.length > 0 ? new Date(Math.min(...times)) : null,
+  };
+}
+
+export interface CronLockRow {
+  name: string;
+  /** idle, running and not-released are cronLockHealth's; unreadable means the
+   *  lock's Durable Object did not answer, which the page says rather than fail. */
+  state: "idle" | "running" | "not-released" | "unreadable";
+  heldUntil: Date | null;
+}
+
+/** Every registered cron's lock, in the registry's order (Recova's cron-lock
+ *  table, read from Foxhound's CronLock Durable Objects). Each read is the
+ *  object's `peek`, which writes nothing and never hands out the holder's token.
+ *  The reads are independent: one that fails, or does not answer within
+ *  CRON_LOCK_PEEK_TIMEOUT_MS, marks that row unreadable and the rest still show. */
+export async function readCronLocks(env: Env, now: number = Date.now()): Promise<CronLockRow[]> {
+  const ns = env.CRON_LOCK;
+  const reads = await Promise.allSettled(
+    CRON_JOBS.map((job) =>
+      withTimeout(ns.get(ns.idFromName(job.name)).peek() as Promise<CronLockView>, CRON_LOCK_PEEK_TIMEOUT_MS),
+    ),
+  );
+  return CRON_JOBS.map((job, i) => {
+    const read = reads[i];
+    if (read.status === "rejected") return { name: job.name, state: "unreadable", heldUntil: null };
+    const health = cronLockHealth(read.value, now);
+    return {
+      name: job.name,
+      state: health.state,
+      heldUntil: health.heldUntil === null ? null : new Date(health.heldUntil),
+    };
+  });
+}
+
+/** The read, or a rejection once `ms` has passed without an answer. The timer
+ *  is cleared as soon as the read settles either way, so none outlives it. */
+function withTimeout<T>(read: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`no answer in ${ms} ms`)), ms);
+  });
+  return Promise.race([read, late]).finally(() => clearTimeout(timer));
 }

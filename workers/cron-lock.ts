@@ -1,10 +1,12 @@
 import { DurableObject } from "cloudflare:workers";
 
 import {
+  cronLockView,
   decideAcquire,
   decideRelease,
   type CronLockRecord,
   type CronLockState,
+  type CronLockView,
 } from "~/lib/cron/lock-state";
 
 // Per-cron mutex Durable Object (ARCHITECTURE.md: "DO replaces the hand-rolled
@@ -62,5 +64,12 @@ export class CronLockDurableObject extends DurableObject<Env> {
   async release(token: string): Promise<void> {
     if (!decideRelease(await this.readState(), token)) return;
     await this.ctx.storage.delete(LOCK_KEY);
+  }
+
+  /** When the lease ends, for /admin/operations' cron-lock health. A read only:
+   *  it writes nothing, and leaves the holder's token out (cronLockView), since
+   *  the token is the fence. */
+  async peek(): Promise<CronLockView> {
+    return cronLockView(await this.readState());
   }
 }

@@ -550,6 +550,10 @@ export const CARD_UPDATE_TOKEN_MAX_AGE_MS = 30 * DAY_MS;
  * two missed periods, so that outage announces itself rather than being silent.
  */
 export const CRON_LOCK_LEASE_MS = 16 * 60 * 1000;
+/** How long /admin/operations waits for one cron lock's read-only peek before it
+ *  shows that lock as "Could not read". One hung Durable Object must not stall
+ *  the page's whole loader (review of #97). */
+export const CRON_LOCK_PEEK_TIMEOUT_MS = 2000;
 /** Cron schedules (UTC). MUST match wrangler.jsonc triggers.crons exactly. */
 /** How far ahead the expiring-card alert looks, in days. Legacy's
  *  `EXPIRING_CARD_DAYS_AHEAD = 30` (lib/constants.ts:39), ported as the number
