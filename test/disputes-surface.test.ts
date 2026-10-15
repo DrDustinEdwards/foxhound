@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import { DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
 import {
   daysUntilDeadline,
   deadlineClassName,
@@ -8,7 +7,6 @@ import {
   deadlineUrgency,
   humanizeDisputeReason,
 } from "~/lib/disputes/labels";
-import { computeDisputeStats, type DisputeStatsInput } from "~/lib/disputes/stats";
 import { buildDisputeTimeline } from "~/lib/disputes/timeline";
 
 const NOW = Date.parse("2026-07-25T00:00:00.000Z");
@@ -75,82 +73,8 @@ describe("deadline urgency", () => {
   });
 });
 
-describe("computeDisputeStats", () => {
-  const row = (o: Partial<DisputeStatsInput> = {}): DisputeStatsInput => ({
-    state: "pending_review",
-    amountCents: 10_000,
-    resolvedFeeCents: null,
-    submittedAt: null,
-    ...o,
-  });
-
-  it("counts unresolved disputes and the money in play", () => {
-    const stats = computeDisputeStats([
-      row({ state: "draft", amountCents: 5_000 }),
-      row({ state: "pending_review", amountCents: 7_000 }),
-      row({ state: "resolved_won", amountCents: 100_000 }),
-    ]);
-    expect(stats.needsActionCount).toBe(2);
-    expect(stats.atStakeCents).toBe(12_000);
-  });
-
-  // 0% won and "nothing has resolved" are different claims.
-  it("reports a null win rate until something resolves", () => {
-    const stats = computeDisputeStats([row({ state: "draft" })]);
-    expect(stats.winRatePct).toBeNull();
-  });
-
-  it("computes the win rate over resolved disputes only", () => {
-    const stats = computeDisputeStats([
-      row({ state: "resolved_won", submittedAt: new Date(NOW) }),
-      row({ state: "resolved_lost" }),
-      row({ state: "resolved_lost" }),
-      row({ state: "draft" }),
-    ]);
-    expect(stats.winRatePct).toBe(33);
-    expect(stats.wonCount).toBe(1);
-    expect(stats.lostCount).toBe(2);
-  });
-
-  // PRICING.md rev 3: billable only when Foxhound drafted AND submitted. A
-  // merchant-fought win is a win with no fee.
-  it("bills no fee on a win Foxhound did not submit", () => {
-    const stats = computeDisputeStats([
-      row({ state: "resolved_won", amountCents: 10_000, submittedAt: null }),
-    ]);
-    expect(stats.wonCount).toBe(1);
-    expect(stats.feesOwedCents).toBe(0);
-  });
-
-  it("prefers the stored resolved fee over a projection", () => {
-    const stats = computeDisputeStats([
-      row({ state: "resolved_won", amountCents: 10_000, resolvedFeeCents: 1_234, submittedAt: new Date(NOW) }),
-    ]);
-    expect(stats.feesOwedCents).toBe(1_234);
-  });
-
-  it("projects 20% when no fee has been stamped yet", () => {
-    const stats = computeDisputeStats([
-      row({ state: "resolved_won", amountCents: 10_000, submittedAt: new Date(NOW) }),
-    ]);
-    expect(stats.feesOwedCents).toBe(2_000);
-  });
-
-  // Legacy's replaced card used a hardcoded 10% with no cap, so a won $10,000
-  // dispute reported $1,000 where the real capped fee is $500.
-  it("honors the $500 cap on a large win", () => {
-    const stats = computeDisputeStats([
-      row({ state: "resolved_won", amountCents: 1_000_000, submittedAt: new Date(NOW) }),
-    ]);
-    expect(stats.feesOwedCents).toBe(DISPUTE_FEE_CAP_CENTS);
-    expect(stats.feesOwedCents).toBeLessThan(200_000);
-  });
-
-  it("reports zeros for an empty set", () => {
-    const stats = computeDisputeStats([]);
-    expect(stats).toMatchObject({ needsActionCount: 0, atStakeCents: 0, feesOwedCents: 0, winRatePct: null });
-  });
-});
+// computeDisputeStats is pinned in test/disputes-list-j66.test.ts (J66): its
+// totals are per currency now, and the Win rate card it fed is gone (not Recova).
 
 describe("buildDisputeTimeline", () => {
   const base = {

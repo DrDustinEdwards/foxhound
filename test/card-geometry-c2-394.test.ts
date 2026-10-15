@@ -29,12 +29,15 @@ function src(path: string): string {
 }
 
 describe("C2: each surface carries its own legacy shell geometry", () => {
-  it("S13 disputes list: the table shell is legacy's 12px on a surface fill", () => {
+  it("S13 disputes list: the table shell is Capsomer's panel since J66 (Q10)", () => {
     // legacy app/(app)/disputes/dashboard/DisputesDashboardView.tsx:224
     //   bg-surface border border-border rounded-[12px] overflow-hidden
+    // Since J66 the shell is Capsomer's panel (surface fill, border, its own
+    // radius, clipped), as J13 made /help's. The radius is a per-site layer item
+    // (capsomer job_ec5ec0754626), so no Foxhound radius is laid over it here.
     const s = src("routes/app/disputes/index.tsx");
-    expect(s).toContain('className="mt-6 overflow-x-auto rounded-[12px] border border-border bg-surface"');
-    expect(s).not.toContain('className="mt-6 overflow-x-auto rounded-lg border border-border"');
+    expect(s).toContain('<div className="cap-panel">');
+    expect(s).not.toContain("rounded-[12px] border border-border bg-surface");
   });
 
   it("S14 dispute detail: all five section shells are legacy's 12px / px-5 py-4", () => {

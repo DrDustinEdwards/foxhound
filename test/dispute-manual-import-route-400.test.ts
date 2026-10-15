@@ -172,15 +172,8 @@ describe("the Sync dispute control on /disputes", () => {
           createElement(Page, {
             loaderData: {
               disputes: [],
-              stats: {
-                needsActionCount: 0,
-                atStakeCents: 0,
-                winRatePct: null,
-                wonCount: 0,
-                lostCount: 0,
-                feesOwedCents: 0,
-              },
-              currency: "usd",
+              stats: { openCount: 0, atStake: [], feesOwed: [] },
+              health: null,
               nowMs: NOW.getTime(),
               isDemo,
             },

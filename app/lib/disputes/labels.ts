@@ -109,3 +109,8 @@ export function deadlineLabel(daysRemaining: number | null): string | null {
   if (daysRemaining === 1) return "1 day left";
   return `${daysRemaining} days left`;
 }
+
+/** J66 red-phase stub; the real body lands with the page. */
+export function deadlineShort(_daysRemaining: number | null, _resolved: boolean): string {
+  return "";
+}
