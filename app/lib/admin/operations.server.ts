@@ -189,6 +189,10 @@ export function getEnvSanity(env: Env): EnvSanityRow[] {
     ["TURNSTILE_SECRET_KEY", "secret"],
     ["PHYSICAL_ADDRESS", "secret"],
     ["SENTRY_DSN", "secret"],
+    // Read back by /admin/platform/errors (J48): optional, unset means the
+    // page says it cannot read Sentry and names what is missing.
+    ["SENTRY_AUTH_TOKEN", "secret"],
+    ["SENTRY_ORG", "secret"],
     ["EMAIL", "binding"],
   ];
   return rows.map(([name, kind]) => ({

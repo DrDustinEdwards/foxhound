@@ -139,9 +139,16 @@ export async function readSentry(env: Env): Promise<SentryState> {
     response = await fetch(url.toString(), {
       headers: { Authorization: `Bearer ${env.SENTRY_AUTH_TOKEN}`, Accept: "application/json" },
       signal: AbortSignal.timeout(SENTRY_TIMEOUT_MS),
+      // Never followed: a redirect would carry the Authorization header to
+      // wherever Sentry's answer pointed (review of #94).
+      redirect: "manual",
     });
   } catch {
     return { state: "failed", message: "Sentry did not answer. Read again in a minute." };
+  }
+  if (response.type === "opaqueredirect" || (response.status >= 300 && response.status < 400)) {
+    const status = response.status >= 300 ? ` (${response.status})` : "";
+    return { state: "failed", message: `Sentry answered with a redirect${status}, which this page does not follow.` };
   }
   if (!response.ok) return { state: "failed", message: failureMessage(response.status, org) };
 

@@ -184,8 +184,12 @@ export function auditDetail(entry: AuditEntryLike): string | null {
       return by ? `Requested by ${by}` : null;
     }
     case "staged.failed":
-    case "user_self_deleted_account_deauthorize_failed":
-      return str(m.error);
+    case "user_self_deleted_account_deauthorize_failed": {
+      // Cut like the fallback, so a long stack or provider message never
+      // floods the table (review of #94).
+      const error = str(m.error);
+      return error === null ? null : cut(error);
+    }
     case "merchant.cancel": {
       const disconnected = count(m.connectionsDisconnected);
       const failed = Array.isArray(m.deauthorizeErrors) ? m.deauthorizeErrors.length : 0;
@@ -244,14 +248,18 @@ export function auditDetail(entry: AuditEntryLike): string | null {
 const UNSHOWN_KEY = /token|secret|key|password|stripe_user_id|email|recipient/i;
 const FALLBACK_MAX = 80;
 
+/** A shown value cut at FALLBACK_MAX characters with an ellipsis. */
+function cut(text: string): string {
+  return text.length > FALLBACK_MAX ? `${text.slice(0, FALLBACK_MAX)}…` : text;
+}
+
 /** Recova's fallback (first key and value) for a code with no case of its own,
  *  limited to plain values under keys that cannot hold a secret, and cut short. */
 function fallbackDetail(m: Record<string, unknown>): string | null {
   for (const [key, value] of Object.entries(m)) {
     if (UNSHOWN_KEY.test(key)) continue;
     if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-      const text = String(value);
-      return `${key}: ${text.length > FALLBACK_MAX ? `${text.slice(0, FALLBACK_MAX)}…` : text}`;
+      return `${key}: ${cut(String(value))}`;
     }
   }
   return null;
