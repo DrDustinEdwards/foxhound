@@ -1075,6 +1075,17 @@ body {
   border-radius: revert-layer;
 }
 
+/* A link pill on a .fh-cap page (the blog's tag, J19) gets its own ring back
+   the same way. Not under forced colours, where the global 3px Highlight ring
+   must stay (as on /features). */
+@media not (forced-colors: active) {
+  .fh-cap .cap-pill:focus-visible {
+    outline: revert-layer;
+    outline-offset: revert-layer;
+    border-radius: revert-layer;
+  }
+}
+
 /* The business tile in the switcher's panel and the phone's sheet: a square
    with the business's initial, like the one on its button. */
 .fh-account-tile {
