@@ -1,19 +1,45 @@
-import { data, useNavigation, useSearchParams } from "react-router";
+import { useRef, useState } from "react";
+import { data, Form, Link, useNavigation, useSearchParams } from "react-router";
+import { Alert } from "capsomer/react/banner";
+import { Button } from "capsomer/react/button";
+import { Field, InputGroup, InputGroupAddon } from "capsomer/react/field";
+import { PageHead } from "capsomer/react/page-head";
+import { Panel } from "capsomer/react/panel";
+import { Segmented } from "capsomer/react/segmented";
+import { Select } from "capsomer/react/select";
+import { Switch } from "capsomer/react/switch";
+import "capsomer/banner.css";
+import "capsomer/button.css";
+import "capsomer/empty.css";
+import "capsomer/field.css";
+import "capsomer/page-head.css";
+import "capsomer/panel.css";
+import "capsomer/segmented.css";
+import "capsomer/select.css";
+import "capsomer/status.css";
+import "capsomer/switch.css";
+import "capsomer/table.css";
+// Capsomer's tokens and the teal family, which the components above read, as
+// /intelligence/customers and /disputes load them.
+import "~/site-header.css";
 
-import { Alert } from "~/components/auth-ui";
 import { DemoGuardedForm } from "~/components/demo-guarded-form";
+import { SettingsBackLink } from "~/components/settings-back-link";
 import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { getAlertsView } from "~/lib/intelligence/views.server";
 import {
   ALERT_DIRECTION_LABELS,
-  ALERT_DIRECTIONS,
   ALERT_METRICS,
   ALERT_METRIC_LABELS,
   alertConditionLabel,
+  alertFormMetric,
   alertMetricLabel,
+  alertShortCondition,
+  alertThresholdPrefix,
   formatThresholdValue,
+  type AlertDirection,
 } from "~/lib/settings/alert-metrics";
 import { applyAlertConfig, applyAlertCreate } from "~/lib/settings/apply.server";
 
@@ -22,23 +48,34 @@ import type { Route } from "./+types/alerts";
 // S28, /settings/alerts. Legacy: alerts/page.tsx (blob 3c1d6bb0, 1,794 bytes)
 // and alerts/AlertsClient.tsx (blob ee8dac99, 20,909 bytes).
 //
+// J33 (job_947a0b8bbe06) rebuilt the page on Capsomer 0.9.0's parts (Q10),
+// teal throughout with no warm accent (Q11). Recova is the spec for what is on it and
+// in what order: the phone-only Settings link, the head, a card with the count
+// line, Create alert, the alerts table and the create form, then a Recent
+// triggers card. The settings layout gives the page Recova's 800px column and
+// padding, so the page adds no width of its own. No Foxhound class sits on a
+// Capsomer element; what Recova's look still needs is listed for Capsomer's
+// per-site layer (capsomer job_ec5ec0754626) in the J33 pull request.
+//
 // THE READER CAME FIRST HERE, which is the inverse of 315's usual failure. The
 // nightly evaluator (`evaluateAlerts`) has been reading `alerts` and writing
 // `alert_history` since Intelligence shipped, against a table nothing could put
 // a row in. ALERT_METRICS' own comment says it stands "until a settings UI for
 // creating alerts exists": this is that UI.
 //
-// TWO TRUTHFULNESS CONSTRAINTS, both class (c), both recorded in
-// parity/SETTINGS-SPEC-FROM-DOCS.md before this was built:
+// TWO TRUTHFULNESS CONSTRAINTS, both RULES.md 1.2 and 2.7, kept by J33:
 //
 // 1. THE METRIC LIST IS FOXHOUND'S FOUR, NOT LEGACY'S ELEVEN. `evaluateAlerts`
 //    silently skips an alert whose metric it does not compute, so offering
 //    `recovery_rate_pct` or `open_disputes_count` would let a merchant build a
-//    rule that can never fire. Foxhound computes one of legacy's eleven.
-// 2. NO CHANNEL PICKER, AND NO NOTIFICATION PROMISE. Legacy's subtitle is "Get
-//    notified when Recovery metrics cross a threshold." Nothing here delivers:
-//    `buildAlertFiringRow` writes `notificationSent: false` and says so. The
-//    page says breaches are recorded and shown below, which is what happens.
+//    rule that can never fire.
+// 2. NO CHANNEL PICKER, NO CHANNEL COLUMNS, AND NO NOTIFICATION PROMISE.
+//    Nothing here delivers: `buildAlertHistoryInsert` writes
+//    `notificationSent: false` and says so. Recova's subtitle ("Get notified
+//    when Recovery metrics cross a threshold.") and its "email goes to" note are
+//    therefore not ported, and neither is a Channel column naming a delivery
+//    that never happens. The page says breaches are recorded and shown below,
+//    which is what happens.
 //
 // Legacy's transport is REST at /api/settings/alerts with optimistic updates
 // and silent reverts on failure. This is the route's own action, class (a),
@@ -48,11 +85,15 @@ export function meta() {
   return [{ title: "Alerts - Foxhound" }];
 }
 
+/** Recova's page reads the twenty most recent firings. The shared view reads
+ *  more for /intelligence/alerts, so this page takes its own twenty. */
+const RECENT_TRIGGERS = 20;
+
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
   const view = await getAlertsView(getDb(env), auth.membership.accountId);
-  return view;
+  return { alerts: view.alerts, history: view.history.slice(0, RECENT_TRIGGERS) };
 }
 
 interface ActionResult {
@@ -119,6 +160,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   );
 }
 
+
 function formatDate(at: Date | null): string {
   if (!at) return "Never";
   return new Date(at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -134,226 +176,290 @@ function formatDateTime(at: Date): string {
   });
 }
 
-const TH = "px-2 py-3 text-left font-mono text-micro uppercase tracking-wide text-text-tertiary";
-const TD = "px-2 py-3 text-label";
-
 export default function AlertSettings({ loaderData, actionData }: Route.ComponentProps) {
   const { alerts, history } = loaderData;
   const result = actionData as ActionResult | undefined;
   const busy = useNavigation().state !== "idle";
   const [params] = useSearchParams();
   const creating = params.get("new") === "1";
-  const metric = params.get("metric") ?? ALERT_METRICS[0];
+  const createError = result && !result.ok && result.action === "create" ? result.error : undefined;
+  const rowError = result && !result.ok && result.action !== "create" ? result.error : undefined;
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-8">
-      <header>
-        <h1 className="text-h2 text-text">Alerts</h1>
-        <p className="mt-1 text-label text-text-tertiary">
-          Foxhound checks these every night and records every breach below.
-        </p>
-      </header>
+    <>
+      <SettingsBackLink />
+      {/* Recova's PageHeader sits mb-8 above the first card. */}
+      <div className="mb-8">
+        <PageHead title="Alerts" lead="Foxhound checks these every night and records every breach below." />
+      </div>
 
-      <section className="rounded-lg border border-border bg-surface p-5">
-        {result && !result.ok && result.error ? <Alert tone="error">{result.error}</Alert> : null}
-
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="text-label text-text-secondary">
-            {alerts.length} {alerts.length === 1 ? "alert" : "alerts"} configured
-          </div>
-          {creating ? null : (
-            <a
-              href="?new=1"
-              className="rounded-md bg-brand px-4 py-2 text-label font-semibold text-on-brand no-underline transition-opacity duration-500 hover:opacity-80"
-            >
-              Create alert
-            </a>
-          )}
-        </div>
-
-        {alerts.length === 0 && !creating ? (
-          <p className="py-8 text-center text-label text-text-subtle">
-            No alerts yet. Create one to get told when a metric needs attention.
-          </p>
-        ) : null}
-
-        {alerts.length > 0 ? (
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className={TH}>Label</th>
-                  <th className={TH}>Condition</th>
-                  <th className={TH}>Last triggered</th>
-                  <th className={TH}>Status</th>
-                  <th className={`${TH} text-right`}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {alerts.map((a) => (
-                  <tr key={a.id} className="border-t border-border">
-                    <td className={`${TD} text-text`}>{a.label ?? "-"}</td>
-                    <td className={`${TD} text-text`}>
-                      {alertConditionLabel(a.metric, a.direction, a.thresholdValue)}
-                    </td>
-                    <td className={`${TD} font-mono text-text-subtle`}>{formatDate(a.lastTriggeredAt)}</td>
-                    <td className={TD}>
-                      <DemoGuardedForm method="post">
-                        <input type="hidden" name="_action" value="toggle" />
-                        <input type="hidden" name="alertId" value={a.id} />
-                        <input type="hidden" name="enabled" value={a.enabled ? "false" : "true"} />
-                        <button
-                          type="submit"
-                          disabled={busy}
-                          className={
-                            a.enabled
-                              ? "rounded-full border border-green px-2 py-0.5 text-micro font-medium uppercase tracking-wide text-green disabled:opacity-60"
-                              : "rounded-full border border-border px-2 py-0.5 text-micro font-medium uppercase tracking-wide text-text-subtle disabled:opacity-60"
-                          }
-                        >
-                          {a.enabled ? "On" : "Off"}
-                        </button>
-                      </DemoGuardedForm>
-                    </td>
-                    <td className={`${TD} text-right`}>
-                      <DemoGuardedForm method="post">
-                        <input type="hidden" name="_action" value="delete" />
-                        <input type="hidden" name="alertId" value={a.id} />
-                        <button
-                          type="submit"
-                          disabled={busy}
-                          className="rounded-full border border-border px-3 py-0.5 font-mono text-micro text-text-subtle transition-colors duration-150 hover:border-text-tertiary disabled:opacity-60"
-                        >
-                          Delete alert
-                        </button>
-                      </DemoGuardedForm>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : null}
-
-        {creating ? (
-          <DemoGuardedForm
-            method="post"
-            className="mt-6 flex flex-col gap-4 rounded-lg border border-border p-5"
-          >
-            <input type="hidden" name="_action" value="create" />
-            <p className="text-label font-medium text-text">Create a new alert</p>
-
-            <label className="flex flex-col gap-1.5">
-              <span className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Metric</span>
-              {/* Only what the nightly evaluator computes. */}
-              <select
-                name="metric"
-                defaultValue={metric}
-                className="rounded-md border border-border bg-surface px-3 py-2 text-label text-text focus-visible:border-brand"
-              >
-                {ALERT_METRICS.map((m) => (
-                  <option key={m} value={m}>
-                    {ALERT_METRIC_LABELS[m]}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <fieldset className="flex flex-col gap-1.5 border-0 p-0">
-              <legend className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
-                Direction
-              </legend>
-              <div className="mt-1.5 flex gap-4">
-                {ALERT_DIRECTIONS.map((d, i) => (
-                  <label key={d} className="flex items-center gap-2 text-label text-text">
-                    <input type="radio" name="direction" value={d} defaultChecked={i === 0} />
-                    {ALERT_DIRECTION_LABELS[d]}
-                  </label>
-                ))}
+      {/* Recova's first card has no heading: a count line and a button lead
+          it. Capsomer's Panel needs a title, so this is Capsomer's panel
+          markup with its body only, as /intelligence/customers does. */}
+      <div className="mb-6">
+        <div className="cap-panel">
+          <div className="cap-panel-body">
+            {rowError ? (
+              <div className="mb-4 min-w-0">
+                <Alert tone="crit">{rowError}</Alert>
               </div>
-            </fieldset>
+            ) : null}
 
-            <label className="flex flex-col gap-1.5">
-              <span className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
-                Threshold
-              </span>
-              <input
-                name="threshold"
-                type="number"
-                min={0}
-                step={1}
-                required
-                placeholder="5000"
-                className="rounded-md border border-border bg-surface px-3 py-2 font-mono text-label text-text placeholder:text-text-subtle focus-visible:border-brand"
-              />
-              <span className="text-micro text-text-subtle">
-                Money metrics are in dollars. Average health score is a number from 0 to 100.
-              </span>
-            </label>
-
-            <label className="flex flex-col gap-1.5">
-              <span className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
-                Label (optional)
-              </span>
-              <input
-                name="label"
-                type="text"
-                placeholder="e.g. Churn running hot"
-                className="rounded-md border border-border bg-surface px-3 py-2 text-label text-text placeholder:text-text-subtle focus-visible:border-brand"
-              />
-            </label>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                type="submit"
-                disabled={busy}
-                className="rounded-md bg-brand px-4 py-2 text-label font-semibold text-on-brand transition-opacity duration-500 hover:opacity-80 disabled:opacity-60"
-              >
-                {busy ? "Creating..." : "Create alert"}
-              </button>
-              <a href="?" className="text-label text-text-subtle no-underline hover:opacity-80">
-                Cancel
-              </a>
+            {/* min-w-0 on each of the page's own blocks in Capsomer's panel
+                body, which is a grid: without it a wide table pushes the
+                card past the 800px column instead of scrolling inside it. */}
+            <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 text-label">
+              <p className="m-0 text-text-secondary">
+                {alerts.length} {alerts.length === 1 ? "alert" : "alerts"} configured
+              </p>
+              {creating ? (
+                // Recova keeps the button on screen and disabled while the
+                // form is open. Capsomer's Button says why it is disabled.
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button variant="primary" disabledReason="The form is open below.">
+                    Create alert
+                  </Button>
+                </div>
+              ) : (
+                // A GET form, so the form opens with no script as well.
+                <Form method="get">
+                  <input type="hidden" name="new" value="1" />
+                  <Button type="submit" variant="primary">
+                    Create alert
+                  </Button>
+                </Form>
+              )}
             </div>
-          </DemoGuardedForm>
-        ) : null}
-      </section>
 
-      <section className="rounded-lg border border-border bg-surface p-5">
-        <h2 className="text-label font-semibold text-text">Recent triggers</h2>
-        {history.length === 0 ? (
-          <p className="mt-2 text-label text-text-subtle">
-            No alerts have fired yet. Triggers appear here when a threshold crosses.
-          </p>
-        ) : (
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className={TH}>Metric</th>
-                  <th className={TH}>Condition</th>
-                  <th className={TH}>Actual value</th>
-                  <th className={TH}>Fired at</th>
-                </tr>
-              </thead>
-              <tbody>
-                {history.map((h) => (
-                  <tr key={h.id} className="border-t border-border">
-                    <td className={`${TD} text-text`}>{alertMetricLabel(h.metric)}</td>
-                    <td className={`${TD} text-text-subtle`}>
-                      {alertConditionLabel(h.metric, h.direction, h.thresholdValue)}
-                    </td>
-                    <td className={`${TD} font-mono text-text`}>
-                      {formatThresholdValue(h.metric, h.actualValue)}
-                    </td>
-                    <td className={`${TD} font-mono text-text-subtle`}>{formatDateTime(h.firedAt)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {alerts.length === 0 && !creating ? (
+              <p className="m-0 min-w-0 py-8 text-center text-label text-text-subtle">
+                No alerts yet. Create one to get told when metrics need attention.
+              </p>
+            ) : null}
+
+            {alerts.length > 0 ? (
+              <div className="mt-5 min-w-0">
+                <div className="cap-table-wrap" data-cap="table" role="region" aria-label="Alerts" tabIndex={0}>
+                  <table className="cap-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">Label</th>
+                        <th scope="col">Metric</th>
+                        <th scope="col">Condition</th>
+                        <th scope="col">Last triggered</th>
+                        <th scope="col">Status</th>
+                        <th scope="col" data-num="">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {alerts.map((a) => {
+                        const condition = alertConditionLabel(a.metric, a.direction, a.thresholdValue);
+                        return (
+                          <tr key={a.id}>
+                            <td>{a.label ?? "-"}</td>
+                            <td>
+                              <span className="text-text-subtle">{alertMetricLabel(a.metric)}</span>
+                            </td>
+                            <td>{condition}</td>
+                            <td>
+                              <span className="font-mono text-text-subtle">{formatDate(a.lastTriggeredAt)}</span>
+                            </td>
+                            <td>
+                              <AlertSwitch id={a.id} enabled={a.enabled} name={a.label ?? condition} busy={busy} />
+                            </td>
+                            <td data-num="">
+                              <DemoGuardedForm method="post">
+                                <input type="hidden" name="_action" value="delete" />
+                                <input type="hidden" name="alertId" value={a.id} />
+                                <Button type="submit" size="sm" pending={busy}>
+                                  Delete alert
+                                </Button>
+                              </DemoGuardedForm>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : null}
+
+            {creating ? <CreateAlertForm busy={busy} error={createError} initialMetric={params.get("metric")} /> : null}
           </div>
-        )}
-      </section>
+        </div>
+      </div>
+
+      <div className="mb-6">
+        <Panel title="Recent triggers">
+          {history.length === 0 ? (
+            <p className="m-0 text-label text-text-subtle">
+              No alerts have fired yet. Triggers will appear here when a threshold crosses.
+            </p>
+          ) : (
+            <div className="cap-table-wrap" data-cap="table" role="region" aria-label="Recent triggers" tabIndex={0}>
+              <table className="cap-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Metric</th>
+                    <th scope="col">Condition</th>
+                    <th scope="col">Actual value</th>
+                    <th scope="col">Fired at</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {history.map((h) => (
+                    <tr key={h.id}>
+                      <td>{alertMetricLabel(h.metric)}</td>
+                      <td>
+                        <span className="text-text-subtle">
+                          {alertShortCondition(h.direction, h.metric, h.thresholdValue)}
+                        </span>
+                      </td>
+                      <td>
+                        <span className="font-mono">{formatThresholdValue(h.metric, h.actualValue)}</span>
+                      </td>
+                      <td>
+                        <span className="font-mono text-text-subtle">{formatDateTime(h.firedAt)}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Panel>
+      </div>
+    </>
+  );
+}
+
+/**
+ * Recova's On and Off status control, on Capsomer's Switch: a real switch with
+ * its On or Off word beside it, named for its alert so a screen reader hears
+ * which one it moves. Changing it posts the toggle at once, as Recova's pill
+ * does. The switch follows the stored value, so a refused change (the demo, a
+ * failed write) springs back rather than showing a state nothing saved.
+ */
+function AlertSwitch({ id, enabled, name, busy }: { id: string; enabled: boolean; name: string; busy: boolean }) {
+  const form = useRef<HTMLFormElement>(null);
+  return (
+    <DemoGuardedForm method="post" ref={form}>
+      <input type="hidden" name="_action" value="toggle" />
+      <input type="hidden" name="alertId" value={id} />
+      <input type="hidden" name="enabled" value={enabled ? "false" : "true"} />
+      <Switch
+        label={<span className="sr-only">{name} alert</span>}
+        checked={enabled}
+        busy={busy}
+        onCheckedChange={() => form.current?.requestSubmit()}
+      />
+    </DemoGuardedForm>
+  );
+}
+
+/** Recova's order and default: "Drops below" first and chosen. The evaluator's
+ *  enum lists "above" first, so the page orders its own copy. */
+const DIRECTION_ORDER: readonly AlertDirection[] = ["below", "above"];
+
+/**
+ * Recova's "Create a new alert" form, nested in the first card, with its fields
+ * in Recova's order: Metric, Direction, Threshold, Label. The metric is held in
+ * state so the threshold shows Recova's $ for a money metric and its
+ * placeholder follows the metric, as Recova's does.
+ */
+function CreateAlertForm({
+  busy,
+  error,
+  initialMetric,
+}: {
+  busy: boolean;
+  error?: string;
+  initialMetric: string | null;
+}) {
+  const [metric, setMetric] = useState<string>(alertFormMetric(initialMetric));
+  const [direction, setDirection] = useState<AlertDirection>(DIRECTION_ORDER[0]);
+  const prefix = alertThresholdPrefix(metric);
+
+  return (
+    <div className="mt-6 min-w-0">
+      <Panel title="Create a new alert" level={3}>
+        <DemoGuardedForm method="post" className="min-w-0">
+          <input type="hidden" name="_action" value="create" />
+          <div className="flex flex-col gap-4 text-label">
+            <Field label="Metric">
+              {/* Only what the nightly evaluator computes. */}
+              <Select
+                native
+                name="metric"
+                value={metric}
+                onChange={(e) => setMetric(e.target.value)}
+                options={ALERT_METRICS.map((m) => ({ value: m, label: ALERT_METRIC_LABELS[m] }))}
+              />
+            </Field>
+
+            <Segmented
+              legend="Direction"
+              name="direction"
+              fill
+              value={direction}
+              onChange={setDirection}
+              options={DIRECTION_ORDER.map((d) => ({ value: d, label: ALERT_DIRECTION_LABELS[d] }))}
+            />
+
+            {/* Field clones its one child, and here the child is a group, so
+                the threshold is composed from Field's own parts around
+                Capsomer's InputGroup. */}
+            <div className="cap-field">
+              <label className="cap-field-label" htmlFor="alert-threshold">
+                Threshold
+              </label>
+              <InputGroup>
+                {prefix ? <InputGroupAddon align="inline-start">{prefix}</InputGroupAddon> : null}
+                <input
+                  className="cap-input"
+                  id="alert-threshold"
+                  name="threshold"
+                  type="number"
+                  min={0}
+                  step={1}
+                  required
+                  placeholder={prefix ? "5000" : "10"}
+                />
+              </InputGroup>
+            </div>
+
+            <Field
+              label={
+                <>
+                  Label <span className="text-text-subtle">(optional)</span>
+                </>
+              }
+            >
+              <input className="cap-input" name="label" type="text" placeholder="e.g. Low health score warning" />
+            </Field>
+          </div>
+
+          {error ? (
+            <div className="mt-4">
+              <Alert tone="crit">{error}</Alert>
+            </div>
+          ) : null}
+
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            <Button type="submit" variant="primary" pending={busy}>
+              {busy ? "Creating..." : "Create alert"}
+            </Button>
+            {/* Recova's Cancel closes the form. A link back to the page, in
+                Capsomer's quiet button markup, closes it with no script. */}
+            <Link className="cap-btn" data-variant="quiet" to="/settings/alerts">
+              Cancel
+            </Link>
+          </div>
+        </DemoGuardedForm>
+      </Panel>
     </div>
   );
 }
