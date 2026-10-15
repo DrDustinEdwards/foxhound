@@ -171,7 +171,7 @@ describe("PLANT 4: every settings path the docs name resolves", () => {
       "The industry, customer type and monthly revenue you enter under Settings and My account",
     );
     expect(body).toContain(
-      "Settings and Brand voice holds the main brand voice and, below it, a different tone for each failure category",
+      "Settings and Brand voice sets a different tone for each failure category",
     );
   });
 });
@@ -202,16 +202,21 @@ describe("PLANT 5: the split left no surface without a writer", () => {
     expect(account).toContain('case "cancel-account"');
   });
 
-  it("THE GENERAL BRAND VOICE KEPT ITS WRITER, which the split would otherwise have removed", () => {
-    // It lived on the index card. Legacy writes it from the brand-voice form,
-    // so that is where it went; without this the column would have had no
-    // writer at all after the split.
-    expect(brandVoice).toContain('name="brandVoice"');
-    // The writer moved BEHIND `applyBrandVoice` in session 80, so the name this
-    // pinned is no longer in the route. The property is unchanged and so is the
-    // reason for asserting it: the column still has a writer reached from this
-    // page. Both halves are named, because "the route calls applyBrandVoice" is
-    // only worth anything while applyBrandVoice is what writes the column.
+  it("THE GENERAL BRAND VOICE KEEPS A WRITER, though not on the brand-voice page", () => {
+    // CHANGED BY J36. Session 59 moved the general voice onto the brand-voice
+    // page on the reading that Recova writes it from that form. It does not:
+    // Recova's BrandVoiceSection (blob 9f4de70c) posts only the four category
+    // fields, and no Recova page posts brand_voice_preset. RULES.md 1.2 makes a
+    // control Recova never had an addition, so the page no longer carries it.
+    expect(brandVoice).not.toContain('name="brandVoice"');
+    // The column still has a writer: the merchant's agent tool, through the
+    // same `applyBrandVoice` the page saves through, which writes the column
+    // with `buildBrandVoiceUpdate`.
+    const tools = readFileSync(
+      fileURLToPath(new URL("../app/lib/mcp/tools.server.ts", import.meta.url)),
+      "utf8",
+    );
+    expect(tools).toMatch(/applyBrandVoice\([\s\S]*?general:/);
     expect(brandVoice).toContain("applyBrandVoice");
     expect(
       readFileSync(
