@@ -177,10 +177,13 @@ describe("S23 /help: Platform status", () => {
     expect(html).toContain("never");
   });
 
-  it("gives each status its own dot colour", () => {
+  it("gives each status its own Capsomer tone (J13, Q10)", () => {
+    // Legacy's four dot colours became Capsomer Status tones: ok, warn (the
+    // caution state, never amber), crit and the neutral no data tone for a
+    // cron that has never run. help-capsomer-j13.test.ts pins the words.
     const html = render();
-    for (const cls of ["bg-green", "bg-caution", "bg-red", "bg-text-tertiary"]) {
-      expect(html).toContain(cls);
+    for (const tone of ["ok", "warn", "crit", "nodata"]) {
+      expect(html).toContain(`<span class="cap-status" data-tone="${tone}">`);
     }
   });
 
