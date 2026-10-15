@@ -23,6 +23,7 @@ const now = Date.now();
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
 const ago = (ms) => now - ms;
+const monthStart = Date.UTC(new Date(now).getUTCFullYear(), new Date(now).getUTCMonth(), 1);
 const q = (v) => (v === null ? "NULL" : typeof v === "number" ? String(v) : `'${String(v).replaceAll("'", "''")}'`);
 const row = (table, values) =>
   `INSERT OR REPLACE INTO ${table} (${Object.keys(values).join(", ")}) VALUES (${Object.values(values).map(q).join(", ")});`;
@@ -121,11 +122,15 @@ const sql = [
     charge_attempt_count: 2,
     last_charge_attempt_at: ago(1 * DAY),
   }),
+  // Recoveries Foxhound made (attributed, so the Overview counts them, as
+  // /billing does), placed a quarter, a half and three quarters of the way
+  // from the start of this UTC month to now, so they are this month's
+  // whenever the seed runs, the 1st included.
   ...[
-    ["sample_fp_1", "sample_acct_northwind", 4900, "usd", 2],
-    ["sample_fp_2", "sample_acct_northwind", 12900, "usd", 6],
-    ["sample_fp_3", "sample_acct_harbor", 3500, "eur", 4],
-  ].flatMap(([id, account, cents, currency, days]) => [
+    ["sample_fp_1", "sample_acct_northwind", 4900, "usd", 0.75, "foxhound_retry"],
+    ["sample_fp_2", "sample_acct_northwind", 12900, "usd", 0.25, "email_engaged"],
+    ["sample_fp_3", "sample_acct_harbor", 3500, "eur", 0.5, "card_update"],
+  ].flatMap(([id, account, cents, currency, share, attribution]) => [
     row("failed_payments", {
       id,
       stripe_event_id: `evt_${id}`,
@@ -136,16 +141,17 @@ const sql = [
       currency,
       decline_category: "soft",
       status: "recovered",
-      detected_at: ago((days + 3) * DAY),
+      detected_at: Math.round(monthStart + (now - monthStart) * share - 3 * DAY),
       account_id: account,
     }),
     row("recovered_payments", {
       id: `rp_${id}`,
       failed_payment_id: id,
-      recovered_at: ago(days * HOUR),
+      recovered_at: Math.round(monthStart + (now - monthStart) * share),
       amount_cents: cents,
       currency,
       recovery_method: "retry",
+      attribution_kind: attribution,
       account_id: account,
     }),
   ]),
