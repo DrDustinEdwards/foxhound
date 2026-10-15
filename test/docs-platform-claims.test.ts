@@ -248,23 +248,19 @@ describe("PLANT 2: every capability sentence, tied to its code", () => {
 });
 
 describe("PLANT 3: what the guide must NOT say", () => {
-  it("promises nothing about reply-to, a sending domain, or account deletion", () => {
-    // Each of these is a legacy heading with no Foxhound reader or no Foxhound
-    // build. A guide sentence about one would be the class of claim the session
-    // 33 audit found three of.
-    expect(TEXT).not.toContain("Reply-to email");
-    expect(TEXT).not.toContain("reply-to address for");
+  it("promises nothing about a sending domain or account deletion", () => {
+    // Each of these is a legacy heading with no Foxhound build. A guide sentence
+    // about one would be the class of claim the session 33 audit found three of.
+    // Reply-to left this list at J03, when its reader and writer were built.
     expect(TEXT).not.toContain("Delete account");
     expect(TEXT).not.toContain("sender domain");
     expect(TEXT).not.toContain("Sender domain");
   });
 
-  it("says explicitly that reply-to is not read, rather than staying silent", () => {
-    // The truthful form: a merchant who looks for the field is told why it is
-    // absent instead of finding nothing.
-    expect(TEXT).toContain(
-      "A reply-to address is not read by the send path yet, so the field is not offered rather than shown and ignored.",
-    );
+  it("describes the reply-to field that J03 built, and no longer says it is unread", () => {
+    expect(TEXT).toContain("Reply-to email");
+    expect(TEXT).toContain("Until you set one, replies go to the address in the From line.");
+    expect(TEXT).not.toContain("A reply-to address is not read by the send path yet");
   });
 
   it("carries no wide dash anywhere in the guide", () => {

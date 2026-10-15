@@ -99,7 +99,7 @@ const STEP_TEMPLATES: Record<string, { subject: string; body: (v: StepTemplateVa
     body: (v) =>
       [
         `<p>Hi ${v.customerName},</p>`,
-        `<p>We still haven't been able to process your payment of ${v.amount}. Your account will be suspended soon if this isn't resolved.</p>`,
+        `<p>We still haven't been able to process your payment of ${v.amount}. Your account may be suspended if this isn't resolved.</p>`,
         button(v.updateUrl),
         `<p>${v.senderName}</p>`,
       ].join("\n"),
@@ -119,21 +119,25 @@ const STEP_TEMPLATES: Record<string, { subject: string; body: (v: StepTemplateVa
     body: (v) =>
       [
         `<p>Hi ${v.customerName},</p>`,
-        `<p>It has been two weeks since your payment of ${v.amount} did not go through. Updating your payment method takes a minute and restores your account.</p>`,
+        `<p>It has been two weeks since your payment of ${v.amount} did not go through. Updating your payment method only takes a minute.</p>`,
         button(v.updateUrl),
         `<p>${v.senderName}</p>`,
       ].join("\n"),
   },
-  // "Your account will be cancelled" is Recova's sentence, kept word for word.
-  // Foxhound cancels nothing itself; whether the merchant does is theirs. It is
-  // an open question for Dustin in the J86 pull request, as day 3's
-  // "suspended" line is in J85's.
+  // Truthfulness fixes (Dustin, 2026-10-15, cmsg_01Nd8kh3hkgYNYpWXrNkvBQL2LnH5XBcKc3DcWHoEsDbT6):
+  // Recova's day 3 and day 30 sentences stated a suspension and a cancellation
+  // as certain, and Foxhound does neither; the merchant and its Stripe settings
+  // decide. So "will" became "may", and day 3 lost "soon". Day 14 said the card
+  // update restored the account, but finalizeCardUpdateSession only saves the
+  // new card as the default and charges nothing, so it now says the update
+  // "only takes a minute". Every other word is Recova's.
+  // Pinned by test/recovery-emails-truthful-lines.test.ts.
   email_day30: {
     subject: "Final notice on your account",
     body: (v) =>
       [
         `<p>Hi ${v.customerName},</p>`,
-        `<p>This is the final automated notice on your unpaid balance of ${v.amount}. Without an updated payment method, your account will be cancelled.</p>`,
+        `<p>This is the final automated notice on your unpaid balance of ${v.amount}. Without an updated payment method, your account may be cancelled.</p>`,
         button(v.updateUrl),
         `<p>${v.senderName}</p>`,
       ].join("\n"),

@@ -1,91 +1,85 @@
-// Summary stats for the /disputes header cards. Pure: the route hands it the
-// rows it already loaded, so no extra query.
+// Summary stats for the /disputes stat cards (J66, row S13). Pure: the route
+// hands it the rows it already loaded, so no extra query.
 //
-// Legacy had five cards here and one of them was wrong in four separate ways.
-// Its "saved vs Stripe" card computed `round(amount * 0.10)` from a hardcoded
-// literal, on the claim that Foxhound charges 20% where Stripe's alternative
-// costs 30%. Under Foxhound pricing that formula is not just stale, it is
-// structurally wrong: the real fee is min(20%, $500 cap), so on a won $10,000
-// dispute the card understated the merchant's saving by $1,500. It also filtered
-// on `outcome` while every neighbouring stat filtered on `status`, and it
-// re-derived Foxhound's own fee instead of reading the fee already stored on the
-// record.
+// Recova's view (app/(app)/disputes/dashboard/DisputesDashboardView.tsx, blob
+// 3c1b7a98) has five cards: Open disputes, At stake, Submitted by Recova, Fees
+// owed and Saved vs Smart Disputes. Dustin answered PR #75's questions "yes ro
+// all" (2026-10-15, cmsg_01Nd8kh3hkgYNYpWXrNkvBQL2LnH5XBcKc3DcWHoEsDbT6):
 //
-// So that card is deliberately not ported. What replaces it is the number the
-// billing engine will actually invoice, taken from disputeFeeCents (the single
-// source of truth for fee math, cap included) or from resolved_fee_cents once
-// resolution has stamped it. Nothing here re-inlines a percentage.
+// - "Submitted by Foxhound" is built, from Foxhound's own data (below).
+// - "Saved vs Smart Disputes" is not. Recova's saving was round(amount * 0.10)
+//   from a hardcoded literal and an unsourced claim about Stripe's price; under
+//   Foxhound's pricing the real fee is min(20%, the $500 cap), so the formula is
+//   structurally wrong, and nothing here re-inlines a percentage.
+// - "Fees owed" is read from the billing records, not computed here
+//   (fees-owed.server.ts), so it counts only fees still owed, as Recova's does.
+// - Win rate is not one of Recova's cards. It stays as Dustin's approved
+//   difference (question 4), because /features (J60) cites it.
+//
+// Money is returned as per-currency parts, never summed here: a total across
+// currencies is meaningless, and every money total goes through
+// groupSumByCurrency (RULES.md 3.20), which the loader applies.
 
-import { DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
-import { disputeFeeCents } from "~/lib/billing/fees";
-import { isDisputeResolved } from "./labels";
+import { SUBMITTED_EXTERNALLY, isDisputeResolved } from "./labels";
 
 export interface DisputeStatsInput {
   state: string;
   amountCents: number;
-  resolvedFeeCents: number | null;
+  currency: string;
   submittedAt: Date | null;
+  submittedBy: string | null;
+}
+
+export interface MoneyPart {
+  currency: string;
+  cents: number;
 }
 
 export interface DisputeStats {
-  /** Disputes still awaiting a Foxhound or merchant action. */
-  needsActionCount: number;
-  /** Total disputed amount across those, the money actually in play. */
-  atStakeCents: number;
+  /** Disputes not yet resolved either way. */
+  openCount: number;
+  /** The disputed amount of each open dispute, in its own currency. */
+  atStakeParts: MoneyPart[];
+  /**
+   * Every dispute whose evidence Foxhound submitted, in any state, lifetime
+   * (Recova's card is a lifetime count too). submitted_at is written only once
+   * Stripe has accepted a Foxhound submission (approval.server.ts), and a
+   * stored submitted_by of merchant_or_stripe says someone else sent it.
+   */
+  submittedByFoxhoundCount: number;
   wonCount: number;
   lostCount: number;
-  /**
-   * Won as a share of RESOLVED disputes, or null when nothing has resolved yet.
-   * Null rather than 0 because a 0% win rate and "no dispute has resolved" are
-   * different claims and the second must not read as the first.
-   */
+  /** Won as a share of resolved disputes, or null when nothing has resolved:
+   *  a 0% win rate and "nothing resolved yet" are different claims. */
   winRatePct: number | null;
-  /**
-   * Fees owed on won disputes Foxhound actually submitted. Uses the stored
-   * resolved_fee_cents where resolution has written it, else the capped
-   * projection from disputeFeeCents.
-   */
-  feesOwedCents: number;
-}
-
-/** True when the dispute is still in play: not resolved either way. */
-function isNeedsAction(state: string): boolean {
-  return !isDisputeResolved(state);
 }
 
 export function computeDisputeStats(rows: DisputeStatsInput[]): DisputeStats {
-  let needsActionCount = 0;
-  let atStakeCents = 0;
+  let openCount = 0;
+  const atStakeParts: MoneyPart[] = [];
+  let submittedByFoxhoundCount = 0;
   let wonCount = 0;
   let lostCount = 0;
-  let feesOwedCents = 0;
 
   for (const row of rows) {
-    if (isNeedsAction(row.state)) {
-      needsActionCount++;
-      atStakeCents += row.amountCents;
-      continue;
-    }
-    if (row.state === "resolved_lost") {
+    if (row.submittedAt && row.submittedBy !== SUBMITTED_EXTERNALLY) submittedByFoxhoundCount++;
+    if (!isDisputeResolved(row.state)) {
+      openCount++;
+      atStakeParts.push({ currency: row.currency, cents: row.amountCents });
+    } else if (row.state === "resolved_won") {
+      wonCount++;
+    } else if (row.state === "resolved_lost") {
       lostCount++;
-      continue;
     }
-    if (row.state !== "resolved_won") continue;
-    wonCount++;
-    // PRICING.md rev 3: billable only when Foxhound drafted AND submitted the
-    // evidence. A merchant-fought or auto-resolved win is a win with no fee, so
-    // it must not land in this total.
-    if (!row.submittedAt) continue;
-    feesOwedCents += row.resolvedFeeCents ?? disputeFeeCents(row.amountCents, DISPUTE_FEE_CAP_CENTS);
   }
 
   const resolvedCount = wonCount + lostCount;
   return {
-    needsActionCount,
-    atStakeCents,
+    openCount,
+    atStakeParts,
+    submittedByFoxhoundCount,
     wonCount,
     lostCount,
     winRatePct: resolvedCount > 0 ? Math.round((wonCount / resolvedCount) * 100) : null,
-    feesOwedCents,
   };
 }

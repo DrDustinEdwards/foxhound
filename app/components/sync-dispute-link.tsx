@@ -1,5 +1,11 @@
 import { useState } from "react";
 import { Form, useNavigation } from "react-router";
+import { Button } from "capsomer/react/button";
+import { Status } from "capsomer/react/status";
+import "capsomer/button.css";
+import "capsomer/field.css";
+import "capsomer/panel.css";
+import "capsomer/status.css";
 
 // Legacy's SyncDisputeLink (app/(app)/disputes/dashboard/SyncDisputeLink.tsx),
 // ported. It renders directly below DisputesDashboardView on legacy's
@@ -8,10 +14,13 @@ import { Form, useNavigation } from "react-router";
 // merchant importing a pre-connection dispute is most likely to be looking at.
 //
 // Legacy's shape kept: a quiet text link that swaps itself for a bordered card
-// with one mono input, a teal (brand) submit and a Cancel, plus the explanatory line
-// underneath. Legacy's raw type values are mapped onto Foxhound's app scale
-// rather than ported literally (179/187 freeze the type scale in both
-// directions); every other class string is legacy's.
+// with the "Stripe dispute ID" label, one input, the submit and a Cancel in a
+// row, the result, and the explanatory line underneath. Since J66 the parts are
+// Capsomer's (Q10): a link button, the card as a body-only panel, Capsomer's
+// field label and input, a primary button (teal, Q11) and a quiet Cancel, and
+// the result as a Capsomer status in a live region, so it is announced and is
+// never colour alone. Like legacy, Cancel clears the result and a successful
+// import clears the input.
 //
 // THE TRANSPORT IS FOXHOUND'S, class (a) internals. Legacy is a client
 // component that fetches JSON at /api/disputes/sync and then calls
@@ -42,68 +51,78 @@ export function SyncDisputeLink({ result }: { result?: SyncDisputeResult }) {
   // Reopened when the last submit came back with something to say, so an error
   // is never reported behind a collapsed link.
   const [open, setOpen] = useState(Boolean(result));
+  // The result being shown; Cancel clears it, as legacy's Cancel resets its
+  // status, and the next submit's result replaces it.
+  const [shown, setShown] = useState<SyncDisputeResult | undefined>(result);
+  const [disputeId, setDisputeId] = useState("");
   const navigation = useNavigation();
   const syncing = navigation.state === "submitting";
+
+  // A new result from the action: show it, keep the card open, and clear the
+  // input after a successful import. Adjusted during render, not in an effect.
+  const [lastResult, setLastResult] = useState(result);
+  if (result !== lastResult) {
+    setLastResult(result);
+    setShown(result);
+    if (result) setOpen(true);
+    if (result?.ok) setDisputeId("");
+  }
 
   if (!open) {
     return (
       <div className="mt-8 text-center">
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="cursor-pointer border-none bg-transparent text-micro text-text-tertiary underline-offset-2 hover:text-text hover:underline"
-        >
+        <Button variant="link" size="xs" onClick={() => setOpen(true)}>
           Sync dispute from Stripe
-        </button>
+        </Button>
       </div>
     );
   }
 
   return (
     <div className="mt-8 text-center">
-      <Form
-        method="post"
-        className="mx-auto max-w-md rounded-[12px] border border-border bg-surface px-5 py-4 text-left"
-      >
-        <input type="hidden" name="intent" value="sync_dispute" />
-        <label
-          htmlFor="sync_dispute_id"
-          className="mb-2 block text-micro font-medium uppercase tracking-[0.06em] text-text-tertiary"
-        >
-          Stripe dispute ID
-        </label>
-        <div className="flex items-center gap-2">
-          <input
-            id="sync_dispute_id"
-            name="stripe_dispute_id"
-            type="text"
-            placeholder="dp_..."
-            disabled={syncing}
-            required
-            className="flex-1 rounded-[8px] border border-border-i bg-bg px-3 py-2 font-mono text-label text-text"
-          />
-          <button
-            type="submit"
-            disabled={syncing}
-            className="rounded-md bg-brand px-4 py-2 text-label font-semibold text-on-brand hover:bg-brand-dark disabled:opacity-60"
-          >
-            {syncing ? "Syncing..." : "Import dispute"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            className="cursor-pointer border-none bg-transparent text-micro text-text-tertiary hover:text-text"
-          >
-            Cancel
-          </button>
-        </div>
-        {result ? (
-          <div className={`mt-2 text-micro ${result.ok ? "text-green" : "text-red"}`}>
-            {result.message}
+      <Form method="post" className="cap-panel mx-auto max-w-md text-left">
+        {/* The card's text at the label size, Recova's small type in this card
+            (RULES 5.2). The field label has no size of its own and would
+            otherwise inherit the body size, since Capsomer's base.css is not
+            loaded in the app. */}
+        <div className="cap-panel-body text-label">
+          <input type="hidden" name="intent" value="sync_dispute" />
+          <label htmlFor="sync_dispute_id" className="cap-field-label">
+            Stripe dispute ID
+          </label>
+          <div className="mt-2 flex items-center gap-2">
+            <div className="min-w-0 flex-1">
+              <input
+                className="cap-input"
+                id="sync_dispute_id"
+                name="stripe_dispute_id"
+                type="text"
+                placeholder="dp_..."
+                value={disputeId}
+                onChange={(e) => setDisputeId(e.target.value)}
+                disabled={syncing}
+                required
+              />
+            </div>
+            <Button type="submit" variant="primary" pending={syncing}>
+              {syncing ? "Syncing..." : "Import dispute"}
+            </Button>
+            <Button
+              variant="quiet"
+              onClick={() => {
+                setOpen(false);
+                setShown(undefined);
+              }}
+            >
+              Cancel
+            </Button>
           </div>
-        ) : null}
-        <div className="mt-2 text-micro text-text-subtle">
-          Use this for disputes that came in before you connected to Foxhound.
+          <div role="status" className="mt-2 text-micro">
+            {shown ? <Status tone={shown.ok ? "ok" : "crit"}>{shown.message}</Status> : null}
+          </div>
+          <div className="mt-2 text-micro text-text-subtle">
+            Use this for disputes that came in before you connected to Foxhound.
+          </div>
         </div>
       </Form>
     </div>

@@ -209,6 +209,8 @@ export interface DueStepRow {
   brandVoiceExpired: string | null;
   brandVoiceNetwork: string | null;
   brandVoiceFraud: string | null;
+  /** The payment's connection's `reply_to_email` (J03), for the Reply-To. */
+  replyToEmail?: string | null;
 }
 
 /** Fetch due steps for active failed payments on processing-eligible accounts,
@@ -244,6 +246,7 @@ export async function queryDueRecoverySteps(env: Env, now: Date): Promise<DueSte
       brandVoiceExpired: stripeConnections.brandVoiceExpired,
       brandVoiceNetwork: stripeConnections.brandVoiceNetwork,
       brandVoiceFraud: stripeConnections.brandVoiceFraud,
+      replyToEmail: stripeConnections.replyToEmail,
     })
     .from(recoverySteps)
     .innerJoin(failedPayments, eq(failedPayments.id, recoverySteps.failedPaymentId))
@@ -446,6 +449,7 @@ export async function queryStepForManualTrigger(
       brandVoiceExpired: stripeConnections.brandVoiceExpired,
       brandVoiceNetwork: stripeConnections.brandVoiceNetwork,
       brandVoiceFraud: stripeConnections.brandVoiceFraud,
+      replyToEmail: stripeConnections.replyToEmail,
     })
     .from(recoverySteps)
     .innerJoin(failedPayments, eq(failedPayments.id, recoverySteps.failedPaymentId))
@@ -500,6 +504,7 @@ export function toEmailContext(row: DueStepRow): EmailStepContext {
     brandVoiceExpired: row.brandVoiceExpired,
     brandVoiceNetwork: row.brandVoiceNetwork,
     brandVoiceFraud: row.brandVoiceFraud,
+    replyTo: row.replyToEmail ?? null,
     cached: {
       customBody: row.customBody,
       cachedSubject: row.aiSubject,

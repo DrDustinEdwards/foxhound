@@ -32,6 +32,13 @@ export interface EmailJob {
   to: string;
   /** Display name for the From header (merchant sender name), optional. */
   fromName?: string | null;
+  /**
+   * The merchant's reply-to address (`stripe_connections.reply_to_email`, J03).
+   * Customer mail only: buildEmailMessage sets Reply-To to it when it is one
+   * address, and sets none otherwise, so a reply goes to the From. Ignored on
+   * merchant mail.
+   */
+  replyTo?: string | null;
   subject: string;
   bodyHtml: string;
   /** email_sends.template label (e.g. recovery_dunning, winback, merchant_notify). */

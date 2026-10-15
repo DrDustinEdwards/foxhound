@@ -76,7 +76,11 @@ const env = {
 // variables: customer_name is `fp.customer_name || 'there'`, sender_name is
 // `merchant.sender_name || 'Support'`, amount is the formatted amount, and
 // update_url is the button. The inline CTA style is Recova's amber layout and
-// gives way to Capsomer's button (Q3); the words are kept exactly.
+// gives way to Capsomer's button (Q3); the words are kept exactly, except day
+// 3's "will be suspended soon", which became "may be suspended" as a
+// truthfulness fix Dustin approved on 2026-10-15
+// (cmsg_01Nd8kh3hkgYNYpWXrNkvBQL2LnH5XBcKc3DcWHoEsDbT6). See
+// test/recovery-emails-truthful-lines.test.ts.
 
 type Block = ReturnType<typeof htmlToBlocks>[number];
 
@@ -105,7 +109,7 @@ const RECOVA: Record<"email_day1" | "email_day3" | "email_day7", RecovaStep> = {
       { type: "paragraph", text: `Hi ${name},` },
       {
         type: "paragraph",
-        text: `We still haven't been able to process your payment of ${amount}. Your account will be suspended soon if this isn't resolved.`,
+        text: `We still haven't been able to process your payment of ${amount}. Your account may be suspended if this isn't resolved.`,
       },
       { type: "button", label: "Update Payment Method", url },
       { type: "paragraph", text: sender },

@@ -25,6 +25,62 @@ export function disputeStateTone(state: DisputeState): Tone {
 
 export const RESOLVED_DISPUTE_STATES: readonly DisputeState[] = ["resolved_won", "resolved_lost"];
 
+/** Who Recova's and Foxhound's stored submitted_by names when the merchant or
+ *  Stripe, not Foxhound, sent the evidence (the timeline reads it the same way). */
+export const SUBMITTED_EXTERNALLY = "merchant_or_stripe";
+
+export interface DisputeListStatusInput {
+  state: string;
+  submittedBy: string | null;
+  /** Whether Foxhound's draft holds at least one non-blank evidence field. */
+  hasEvidence: boolean;
+}
+
+/**
+ * The disputes list's status, in Recova's words where one is true of the row
+ * (Dustin, PR #75 question 1: "yes ro all", 2026-10-15,
+ * cmsg_01Nd8kh3hkgYNYpWXrNkvBQL2LnH5XBcKc3DcWHoEsDbT6). Recova's nine, from
+ * DisputesDashboardView.tsx (blob 3c1b7a98) deriveRecovaStatus:
+ *
+ * - Won, Lost: resolved_won, resolved_lost.
+ * - We submitted / Submitted externally: submitted, split on the stored
+ *   submitted_by exactly as Recova split it.
+ * - Evidence ready: pending_review or approved, once the draft holds evidence.
+ *   Foxhound drafts at intake, so the draft is finished and waiting on the
+ *   merchant, which is what Recova's staged_at meant.
+ *
+ * No Recova word is true of these, so they keep Foxhound's own label:
+ * - pending_review or approved with a blank draft: nothing is ready, and nothing in
+ *   Foxhound is still building it, so neither "Evidence ready" nor
+ *   "Building evidence" holds.
+ * - draft: no Foxhound code writes it and nothing builds its evidence.
+ *
+ * Never shown, because Foxhound records neither: "Stripe handling" (Smart
+ * Disputes availability is not tracked) and "Accepted" (a dispute closed as
+ * charge_refunded does not resolve Foxhound's state machine). "Unknown" is the
+ * fallback for a state outside the six, as Recova's is.
+ */
+export function disputeListStatus(input: DisputeListStatusInput): { label: string; tone: Tone } {
+  switch (input.state) {
+    case "resolved_won":
+      return { label: "Won", tone: "success" };
+    case "resolved_lost":
+      return { label: "Lost", tone: "failure" };
+    case "submitted":
+      return {
+        label: input.submittedBy === SUBMITTED_EXTERNALLY ? "Submitted externally" : "We submitted",
+        tone: "neutral",
+      };
+    case "pending_review":
+    case "approved":
+      return { label: input.hasEvidence ? "Evidence ready" : DISPUTE_STATE_LABELS[input.state], tone: "neutral" };
+    case "draft":
+      return { label: DISPUTE_STATE_LABELS.draft, tone: "neutral" };
+    default:
+      return { label: "Unknown", tone: "neutral" };
+  }
+}
+
 /** Accepts a plain string (a raw DB read is not statically narrowed to
  *  DisputeState even though the CHECK constraint guarantees membership). */
 export function isDisputeResolved(state: string): boolean {
@@ -113,4 +169,13 @@ export function deadlineLabel(daysRemaining: number | null): string | null {
   if (daysRemaining <= 0) return "Deadline passed";
   if (daysRemaining === 1) return "1 day left";
   return `${daysRemaining} days left`;
+}
+
+/** The deadline as Recova's disputes list shows it (DisputesDashboardView,
+ *  blob 3c1b7a98): whole days left as "18d", and blank once the dispute is
+ *  resolved or when there is no deadline. A passed deadline reads "-2d", as
+ *  Recova's does; the detail page keeps the longer deadlineLabel. */
+export function deadlineShort(daysRemaining: number | null, resolved: boolean): string {
+  if (resolved || daysRemaining === null) return "";
+  return `${daysRemaining}d`;
 }
