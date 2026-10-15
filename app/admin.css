@@ -147,3 +147,11 @@
   min-block-size: 24px;
   line-height: 24px;
 }
+
+/* Capsomer's table writes its column names in upper case with wide spacing
+   (the Portal's look). The admin writes them in sentence case (Dustin's
+   review, 2026-10-11; J45), so its tables set the header back to normal case. */
+.fh-admin .cap-table thead th {
+  letter-spacing: normal;
+  text-transform: none;
+}
