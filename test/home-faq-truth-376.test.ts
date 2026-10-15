@@ -85,7 +85,9 @@ describe("PLANT 2: the replacement agrees with the docs", () => {
             ? node.strong
             : "mono" in node
               ? node.mono
-              : node.link;
+              : "badge" in node
+                ? String(node.badge)
+                : node.link;
     const rich = (r: string | DocInline[]) => (typeof r === "string" ? r : r.map(flattenInline).join(""));
     const flatten = (blocks: DocBlock[]): string =>
       blocks

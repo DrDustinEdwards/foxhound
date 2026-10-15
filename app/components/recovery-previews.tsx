@@ -24,7 +24,7 @@ import { isRetryStep, RECOVERY_SCHEDULES } from "~/lib/recovery/schedule";
 
 const CATEGORIES = Object.keys(RECOVERY_SCHEDULES) as DeclineCategory[];
 
-function SequenceSteps({ category }: { category: DeclineCategory }) {
+export function SequenceSteps({ category }: { category: DeclineCategory }) {
   const steps = RECOVERY_SCHEDULES[category];
   const label = DECLINE_CATEGORY_LABELS[category];
   const count = `${steps.length} ${steps.length === 1 ? "step" : "steps"}`;

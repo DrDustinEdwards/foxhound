@@ -34,6 +34,7 @@ function flatten(blocks: DocBlock[]): string {
     if ("code" in node) return node.code;
     if ("strong" in node) return node.strong;
     if ("mono" in node) return node.mono;
+    if ("badge" in node) return String(node.badge);
     return node.link;
   };
   const rich = (r: string | DocInline[]): string =>
@@ -111,7 +112,8 @@ describe("PLANT 1: no guide names the previous product", () => {
     // Removing a word must not remove the claim. Each of these is the surviving
     // half of a note that used to open with the previous product's name.
     const recovery = renderedText("recovery");
-    expect(recovery).toContain("Foxhound classifies six categories");
+    // J73 restored the sentence docs-recovery-claims pins; the claim is the same.
+    expect(recovery).toContain("Declines are sorted into six categories");
     expect(recovery).toContain("no rewrite-the-pending-email control");
 
     const audit = renderedText("audit");
