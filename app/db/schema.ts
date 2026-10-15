@@ -1234,7 +1234,15 @@ export const cronRunHistory = sqliteTable(
     message: text("message"),
     createdAt: ts("created_at").notNull(),
   },
-  (t) => [index("cron_run_history_cron_idx").on(t.cronName)],
+  (t) => [
+    index("cron_run_history_cron_idx").on(t.cronName),
+    // The admin Crons page (J72) reads each cron's newest run and newest
+    // success (max finished_at grouped by cron and status, then those rows) and
+    // the last day's failures. Without these it scans the whole history, which
+    // the five-minute ticks fill at 576 rows a day.
+    index("cron_run_history_cron_status_finished_idx").on(t.cronName, t.status, t.finishedAt),
+    index("cron_run_history_status_finished_idx").on(t.status, t.finishedAt),
+  ],
 );
 
 // global
