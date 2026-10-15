@@ -18,3 +18,26 @@ export function adminPageName(
   }
   return null;
 }
+
+/** A page's own lists are pending while its data is read again (the
+ *  revalidator, or a navigation that lands on this page), not while the admin
+ *  is leaving for another page. "/admin/users/" is the same page as
+ *  "/admin/users" (the patterns.md "Loading" rule). */
+export function pagePending(
+  navigation: { state: string; location?: { pathname: string } },
+  revalidatorState: string,
+  pathname: string,
+): boolean {
+  if (revalidatorState === "loading") return true;
+  if (navigation.state !== "loading" || !navigation.location) return false;
+  return trimSlash(navigation.location.pathname) === trimSlash(pathname);
+}
+
+function trimSlash(path: string): string {
+  return path.length > 1 ? path.replace(/\/+$/, "") || "/" : path;
+}
+
+/** A merchant's admin page. */
+export function merchantHref(accountId: string): string {
+  return `/admin/merchants/${encodeURIComponent(accountId)}`;
+}

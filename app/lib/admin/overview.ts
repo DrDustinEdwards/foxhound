@@ -14,6 +14,7 @@ import { relative } from "capsomer/behaviour/time";
 
 import { PAUSE_REASON_BRAKE } from "~/lib/admin/brake";
 import { cronRunHref } from "~/lib/admin/crons";
+import { merchantHref, pagePending } from "~/lib/admin/page";
 import type { AdminOverview } from "~/lib/admin/overview.server";
 import { daysUntilDeadline, deadlineLabel, humanizeDisputeReason } from "~/lib/disputes/labels";
 import { formatMoney } from "~/lib/money-format";
@@ -24,9 +25,6 @@ export function plural(n: number, one: string, many: string): string {
   return `${n} ${n === 1 ? one : many}`;
 }
 
-function merchantHref(accountId: string): string {
-  return `/admin/merchants/${encodeURIComponent(accountId)}`;
-}
 
 /** A row's time in words, by UTC's calendar ("yesterday" means the UTC day
  *  before). The words are worked out from the loader's clock in the server
@@ -133,11 +131,11 @@ export function overviewAttentionGroups(overview: AdminOverview): Record<string,
 
 /** The Overview's lists are pending while its own data is read again (a
  *  revalidation, or a navigation back to /admin), never while the admin is
- *  leaving for another page. The last good data stays on screen meanwhile. */
+ *  leaving for another page. The last good data stays on screen meanwhile.
+ *  A thin wrapper over the admin's one pagePending. */
 export function overviewPending(
   navigation: { state: string; location?: { pathname: string } },
   revalidatorState: string,
 ): boolean {
-  if (revalidatorState === "loading") return true;
-  return navigation.state === "loading" && navigation.location?.pathname === "/admin";
+  return pagePending(navigation, revalidatorState, "/admin");
 }

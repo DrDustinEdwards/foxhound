@@ -4,6 +4,8 @@
 // wording is tested without a database; the page's loader supplies the names it
 // looks up (merchant names, post titles).
 
+import { merchantHref } from "~/lib/admin/page";
+
 const ACTIONS: Record<string, string> = {
   "cron.enable": "Turned on a cron",
   "cron.disable": "Disabled a cron",
@@ -86,7 +88,7 @@ export function auditTarget(entry: AuditEntryLike, lookups: AuditLookups): Audit
   const accountId = str(m.accountId);
   if (accountId) {
     const name = lookups.merchantNames.get(accountId);
-    return { label: name ?? accountId, href: `/admin/merchants/${encodeURIComponent(accountId)}` };
+    return { label: name ?? accountId, href: merchantHref(accountId) };
   }
 
   const cronName = str(m.cronName);
