@@ -63,10 +63,39 @@ export function formatThresholdValue(metric: string, value: number): string {
   return String(value);
 }
 
-/** "MRR at risk rises above $5,000", the Condition column. */
+/** Recova's condition words, "above" and "below", as its tables print the
+ *  direction (AlertsClient.tsx, blob ee8dac99). Mapped rather than echoed, so no
+ *  stored value reaches the page. The form's choices keep "Drops below" and
+ *  "Rises above" (ALERT_DIRECTION_LABELS), as Recova's buttons do. */
+const CONDITION_WORD: Record<AlertDirection, string> = { above: "above", below: "below" };
+
+/** "above $5,000", Recova's Recent triggers condition, beside a Metric column. */
+export function alertShortCondition(direction: string, metric: string, value: number): string {
+  return `${conditionWord(direction)} ${formatThresholdValue(metric, value)}`;
+}
+
+/** The word for a stored direction. The action only stores "above" or
+ *  "below", so anything else is a corrupt row: it reads "crosses", which is
+ *  true of both, rather than echoing the stored value or dropping the word. */
+function conditionWord(direction: string): string {
+  return isAlertDirection(direction) ? CONDITION_WORD[direction] : "crosses";
+}
+
+/** "MRR at risk above $5,000", Recova's alerts-table condition. */
 export function alertConditionLabel(metric: string, direction: string, value: number): string {
-  const dir = isAlertDirection(direction) ? ALERT_DIRECTION_LABELS[direction].toLowerCase() : direction;
-  return `${alertMetricLabel(metric)} ${dir} ${formatThresholdValue(metric, value)}`;
+  return `${alertMetricLabel(metric)} ${alertShortCondition(direction, metric, value)}`;
+}
+
+/** What sits before the threshold box: Recova's "$" for a money metric, nothing
+ *  for the score. */
+export function alertThresholdPrefix(metric: string): string | null {
+  return isCentsMetric(metric) ? "$" : null;
+}
+
+/** The metric the create form opens on: the one asked for, if the evaluator
+ *  computes it, else the first. Display only; the action validates. */
+export function alertFormMetric(requested: string | null): AlertMetric {
+  return requested != null && isAlertMetric(requested) ? requested : ALERT_METRICS[0];
 }
 
 export { ALERT_METRICS, ALERT_DIRECTIONS };

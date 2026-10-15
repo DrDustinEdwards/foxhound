@@ -114,7 +114,10 @@ async function post(fields: Record<string, string>): Promise<{ status: number; b
     context: ctx,
     request: new Request("https://foxhoundapp.test/settings/alerts", { method: "POST", body: form }),
     params: {},
-  } as never)) as unknown as { data: Record<string, unknown>; init?: { status?: number } };
+  } as never)) as unknown as Response | { data: Record<string, unknown>; init?: { status?: number } };
+  // A successful create redirects back to the page, as Recova's dismissPanel
+  // closes the form (J33); every other answer is data with a status.
+  if (res instanceof Response) return { status: res.status, body: {} };
   return { status: res.init?.status ?? 200, body: res.data };
 }
 
@@ -128,7 +131,7 @@ describe("PLANT 1: create writes only the columns this surface owns", () => {
       label: "Churn watch",
     });
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(302);
     const rows = alertRows(ACCOUNT);
     expect(rows).toHaveLength(1);
     // Dollars in the form, CENTS in the column the evaluator compares against.
@@ -189,7 +192,7 @@ describe("PLANT 2: every bound the evaluator implies is enforced", () => {
     // The real invariant, asserted against the evaluator rather than the list.
     for (const metric of ALERT_METRICS) {
       const res = await post({ _action: "create", metric, direction: "above", threshold: "1" });
-      expect(res.status).toBe(200);
+      expect(res.status).toBe(302);
     }
     expect(alertRows(ACCOUNT)).toHaveLength(ALERT_METRICS.length);
 
