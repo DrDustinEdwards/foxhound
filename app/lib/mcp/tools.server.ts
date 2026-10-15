@@ -391,7 +391,7 @@ const READ_TOOLS: McpTool[] = [
     name: "foxhound_get_customer",
     title: "Get one customer",
     description:
-      "Read one of this account's customers: health score, its factors, its history and the churn predictions. The name is never returned and the email is masked. Customer ids come from foxhound_list_customers.",
+      "Read one of this account's customers: health score, its factors, its history and the churn predictions, with when they became a customer, their current plan name and tier, monthly MRR contribution and lifetime value (null until Foxhound computes it). The name is never returned and the email is masked. Customer ids come from foxhound_list_customers.",
     inputSchema: {
       type: "object",
       properties: {

@@ -180,7 +180,7 @@ export const DOC_GUIDES: DocGuide[] = [
       {
         heading: "Settings reference",
         body: [
-          "Settings is a hub: Stripe connections, Email, Brand voice, Features, Audit, Notifications, Alerts, Team, API keys, and My account, each on its own page with a sub-nav down the side. Disputes and Intelligence settings are not built yet, so the hub does not list them.",
+          "Settings is a hub: Stripe connections, Email, Brand voice, Features, Intelligence, Audit, Notifications, Alerts, Team, API keys, and My account, each on its own page with a sub-nav down the side. Disputes settings are not built yet, so the hub does not list them.",
           { kind: "h3", text: "Email settings" },
           "Found in Settings and Email.",
           { kind: "table", label: "Email settings", columns: ["Setting", "What it does"], rows: [
@@ -590,7 +590,7 @@ export const DOC_GUIDES: DocGuide[] = [
       {
         heading: "Settings",
         body: [
-          "Intelligence has no settings page of its own yet, and there is no weekly narrative email.",
+          "With Intelligence active, Settings and Intelligence lists what Intelligence would deliver to you and marks it not built: there is no weekly narrative email or Slack post yet, so there is nothing to set there.",
           { kind: "h3", text: "Health alert" },
           "Settings and Alerts lets you set a threshold on average health score, and also on MRR at risk, churned MRR or contracted MRR, firing when the metric drops below or rises above your number. Foxhound checks every night and records each breach under Recent triggers on that page. It does not email or post to Slack when an alert fires yet, and it does not alert on one customer's score.",
         ],

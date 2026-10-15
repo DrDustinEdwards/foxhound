@@ -129,6 +129,7 @@ export default [
         route("email", "./routes/app/settings/email.tsx"),
         route("brand-voice", "./routes/app/settings/brand-voice.tsx"),
         route("features", "./routes/app/settings/features.tsx"),
+        route("intelligence", "./routes/app/settings/intelligence.tsx"),
         route("audit", "./routes/app/settings/audit.tsx"),
         route("notifications", "./routes/app/settings/notifications.tsx"),
         route("alerts", "./routes/app/settings/alerts.tsx"),

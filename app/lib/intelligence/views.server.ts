@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, like, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNull, like, lt, or, sql } from "drizzle-orm";
 
 import {
   accountSubscriptions,
@@ -6,17 +6,26 @@ import {
   alertHistory,
   alerts,
   customerContext,
+  disputes,
+  engagementEvents,
+  failedPayments,
   healthScoreHistory,
   intelligenceReports,
   mrrSnapshots,
   predictions,
+  recoveredPayments,
+  recoverySteps,
   type Db,
 } from "~/db";
+import { groupSumByCurrency } from "~/lib/billing/preview.server";
 import {
+  DAY_MS,
+  FAILED_PAYMENT_STATUS_ACTIVE,
   HEALTH_SCORE_AT_RISK_THRESHOLD,
   INTELLIGENCE_PRODUCT,
   SUBSCRIPTION_STATUS_ACTIVE,
 } from "~/lib/constants";
+import type { CustomerActivity } from "./customer-detail";
 import { healthScoreBand, WATCH_CEILING, type HealthScoreBand } from "./health-band";
 import type { HealthFactor } from "./risk";
 
@@ -132,14 +141,24 @@ export async function getIntelligenceOverview(db: Db, accountId: string): Promis
   };
 }
 
-const HEALTH_SCORE_HISTORY_LIMIT = 24;
+/** Recova's customer page reads the last 30 readings
+ *  (fetchHealthScoreHistory(accountId, ctx.id, 30), page.tsx at blob 8d31766d). */
+const HEALTH_SCORE_HISTORY_LIMIT = 30;
 const PREDICTION_HISTORY_LIMIT = 12;
 
 export interface CustomerHealthDetail {
   stripeCustomerId: string;
   customerName: string | null;
   customerEmail: string | null;
-  mrrContributionCents: number;
+  customerSince: Date | null;
+  currentPlanName: string | null;
+  currentPlanTier: string | null;
+  /** Null when the row has none, kept apart from an honest zero (a customer
+   *  with no active subscription), as Recova keeps them apart. */
+  mrrContributionCents: number | null;
+  /** Null until something computes lifetime value; nothing does yet
+   *  (signals.ts buildCustomerContextFields). */
+  ltvCents: number | null;
   currency: string;
   healthScore: number | null;
   healthFactors: HealthFactor[];
@@ -167,7 +186,11 @@ export async function getCustomerHealthDetail(
       stripeCustomerId: customerContext.stripeCustomerId,
       customerName: customerContext.customerName,
       customerEmail: customerContext.customerEmail,
+      customerSince: customerContext.customerSince,
+      currentPlanName: customerContext.currentPlanName,
+      currentPlanTier: customerContext.currentPlanTier,
       mrrContributionCents: customerContext.mrrContributionCents,
+      ltvCents: customerContext.ltvCents,
       currency: accounts.currency,
       healthScore: customerContext.healthScore,
       healthFactors: customerContext.healthFactors,
@@ -210,7 +233,11 @@ export async function getCustomerHealthDetail(
     stripeCustomerId: row.stripeCustomerId,
     customerName: row.customerName,
     customerEmail: row.customerEmail,
-    mrrContributionCents: row.mrrContributionCents ?? 0,
+    customerSince: row.customerSince,
+    currentPlanName: row.currentPlanName,
+    currentPlanTier: row.currentPlanTier,
+    mrrContributionCents: row.mrrContributionCents,
+    ltvCents: row.ltvCents,
     currency: row.currency ?? "usd",
     healthScore: row.healthScore,
     healthFactors: (row.healthFactors as HealthFactor[] | null) ?? [],
@@ -219,6 +246,133 @@ export async function getCustomerHealthDetail(
     aiAssessmentGeneratedAt: row.aiAssessmentGeneratedAt,
     history,
     predictions: predictionRows,
+  };
+}
+
+const ENGAGEMENT_WINDOW_DAYS = 30;
+
+const latest = (dates: readonly (Date | null)[]): Date | null =>
+  dates.reduce<Date | null>((max, d) => (d && (!max || d > max) ? d : max), null);
+
+const byCurrency = (rows: readonly { currency: string; cents: number }[]) =>
+  groupSumByCurrency([...rows]).sort((a, b) => a.currency.localeCompare(b.currency));
+
+/**
+ * What Foxhound has on record for one customer of one account: the customer
+ * detail page's three signal cards (row S18, job J68). Read from Foxhound's own
+ * tables rather than customer_context's signal JSON, because the nightly sync
+ * writes only counts there (signals.ts), with no amounts, dates or 30-day
+ * window, and the demo seeds a different shape. Every query carries both the
+ * account and the Stripe customer id, so another account's rows under the same
+ * Stripe id are never read.
+ *
+ * Failed payments and recoveries skip soft-deleted rows, as the payments list
+ * does. Engagement follows the nightly sync's join (an event on a recovery step
+ * of one of the customer's payments).
+ *
+ * lastActivityAt is the page's "Last seen": the latest dated row above. It is
+ * not customer_context.last_seen_at, which the nightly sync sets to its own run
+ * time for every customer (sync.server.ts buildCustomerContextUpsert), so on a
+ * live account it says when Foxhound last synced, not when the customer was
+ * last seen (J68 review, must-fix 1).
+ */
+export async function getCustomerActivity(
+  db: Db,
+  accountId: string,
+  stripeCustomerId: string,
+  nowMs: number,
+): Promise<CustomerActivity> {
+  const [failedRows, recoveredRows, disputeRows, engagementRows] = await Promise.all([
+    db
+      .select({ status: failedPayments.status, detectedAt: failedPayments.detectedAt })
+      .from(failedPayments)
+      .where(
+        and(
+          eq(failedPayments.accountId, accountId),
+          eq(failedPayments.stripeCustomerId, stripeCustomerId),
+          isNull(failedPayments.deletedAt),
+        ),
+      ),
+    db
+      .select({
+        cents: recoveredPayments.amountCents,
+        currency: recoveredPayments.currency,
+        recoveredAt: recoveredPayments.recoveredAt,
+      })
+      .from(recoveredPayments)
+      .innerJoin(failedPayments, eq(failedPayments.id, recoveredPayments.failedPaymentId))
+      .where(
+        and(
+          eq(recoveredPayments.accountId, accountId),
+          eq(failedPayments.accountId, accountId),
+          eq(failedPayments.stripeCustomerId, stripeCustomerId),
+          isNull(failedPayments.deletedAt),
+          isNull(recoveredPayments.deletedAt),
+        ),
+      ),
+    db
+      .select({
+        state: disputes.state,
+        cents: disputes.amountCents,
+        currency: disputes.currency,
+        createdAt: disputes.createdAt,
+        resolvedAt: disputes.resolvedAt,
+      })
+      .from(disputes)
+      .where(and(eq(disputes.accountId, accountId), eq(disputes.stripeCustomerId, stripeCustomerId))),
+    db
+      .select({ eventType: engagementEvents.eventType, occurredAt: engagementEvents.occurredAt })
+      .from(engagementEvents)
+      .innerJoin(recoverySteps, eq(recoverySteps.id, engagementEvents.recoveryStepId))
+      .innerJoin(failedPayments, eq(failedPayments.id, recoverySteps.failedPaymentId))
+      .where(
+        and(
+          eq(engagementEvents.accountId, accountId),
+          eq(failedPayments.accountId, accountId),
+          eq(failedPayments.stripeCustomerId, stripeCustomerId),
+        ),
+      ),
+  ]);
+
+  const resolved = disputeRows
+    .filter((d) => d.state === "resolved_won" || d.state === "resolved_lost")
+    .sort((a, b) => (b.resolvedAt ?? b.createdAt).getTime() - (a.resolvedAt ?? a.createdAt).getTime());
+  const lastOutcome = resolved[0]?.state ?? null;
+
+  const windowStart = nowMs - ENGAGEMENT_WINDOW_DAYS * DAY_MS;
+  const recent = engagementRows.filter((e) => e.occurredAt.getTime() >= windowStart);
+  const opens = engagementRows.filter((e) => e.eventType === "open");
+
+  return {
+    recovery: {
+      failedPaymentCount: failedRows.length,
+      recoveredCount: recoveredRows.length,
+      recoveredAmounts: byCurrency(recoveredRows),
+      lastFailedAt: latest(failedRows.map((f) => f.detectedAt)),
+      lastRecoveredAt: latest(recoveredRows.map((r) => r.recoveredAt)),
+      activeRecovery: failedRows.some((f) => f.status === FAILED_PAYMENT_STATUS_ACTIVE),
+    },
+    disputes: {
+      count: disputeRows.length,
+      openCount: disputeRows.length - resolved.length,
+      wonCount: resolved.filter((d) => d.state === "resolved_won").length,
+      lostCount: resolved.filter((d) => d.state === "resolved_lost").length,
+      totalDisputed: byCurrency(disputeRows),
+      lastDisputeAt: latest(disputeRows.map((d) => d.createdAt)),
+      lastOutcome: lastOutcome as CustomerActivity["disputes"]["lastOutcome"],
+    },
+    engagement: {
+      everEngaged: engagementRows.length > 0,
+      opens30d: recent.filter((e) => e.eventType === "open").length,
+      clicks30d: recent.filter((e) => e.eventType === "click").length,
+      lastOpenAt: latest(opens.map((e) => e.occurredAt)),
+    },
+    lastActivityAt: latest([
+      ...failedRows.map((f) => f.detectedAt),
+      ...recoveredRows.map((r) => r.recoveredAt),
+      ...disputeRows.map((d) => d.createdAt),
+      ...engagementRows.map((e) => e.occurredAt),
+    ]),
   };
 }
 
@@ -735,3 +889,4 @@ export async function getChurnView(db: Db, accountId: string, nowMs: number): Pr
     })),
   };
 }
+
