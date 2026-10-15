@@ -9,6 +9,7 @@ import {
   Plug,
   ScanSearch,
   Sliders,
+  TrendingUp,
   Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -19,11 +20,11 @@ import { Link, useLocation } from "react-router";
 // the spec and Foxhound's inline cards the rule to remove, superseding ruling
 // 57's deferral of the split.
 //
-// TWO OF LEGACY'S TWELVE ITEMS ARE NOT RENDERED, and neither is a treatment
-// choice: `/settings/disputes` (S32) and `/settings/intelligence` (S35) do not
-// exist in Foxhound, and a sub-nav entry to a route that 404s is a false
-// promise. Both are recorded PORTABLE AFTER their row. When either ships, it is
-// one line here, in the group legacy puts it in, which is why the groups keep
+// ONE OF LEGACY'S TWELVE ITEMS IS NOT RENDERED, and it is not a treatment
+// choice: `/settings/disputes` (S32) does not exist in Foxhound, and a sub-nav
+// entry to a route that 404s is a false promise. It is recorded PORTABLE AFTER
+// its row. `/settings/intelligence` (S35) shipped with J69. When Disputes
+// ships, it is one line here, in the group legacy puts it in, which is why the groups keep
 // their legacy shape even where a group has one item today.
 
 export interface SettingsNavItem {
@@ -38,8 +39,8 @@ export interface SettingsNavGroup {
 }
 
 /**
- * Legacy's five groups in legacy's order. `Products` currently holds only Audit,
- * because Disputes and Intelligence are the two absent targets.
+ * Legacy's five groups in legacy's order. `Products` holds Intelligence and
+ * Audit; Disputes is the absent target.
  */
 export const SETTINGS_NAV_GROUPS: SettingsNavGroup[] = [
   {
@@ -53,7 +54,10 @@ export const SETTINGS_NAV_GROUPS: SettingsNavGroup[] = [
   },
   {
     label: "Products",
-    items: [{ to: "/settings/audit", label: "Audit", icon: ScanSearch }],
+    items: [
+      { to: "/settings/intelligence", label: "Intelligence", icon: TrendingUp },
+      { to: "/settings/audit", label: "Audit", icon: ScanSearch },
+    ],
   },
   {
     label: "Notifications",

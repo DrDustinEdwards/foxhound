@@ -27,10 +27,12 @@ import type { Route } from "./+types/hub";
 // directive makes that the spec. Ruling 57's deferral of the split is
 // superseded.
 //
-// TEN ENTRIES, NOT TWELVE. `/settings/disputes` (S32) and
-// `/settings/intelligence` (S35) do not exist here, and a hub entry to a 404 is
-// a false promise (RULES.md 2.7), so both are omitted and recorded PORTABLE
-// AFTER their row. The other ten all resolve.
+// ELEVEN ENTRIES, NOT TWELVE. `/settings/disputes` (S32) does not exist here,
+// and a hub entry to a 404 is a false promise (RULES.md 2.7), so it is omitted
+// and recorded PORTABLE AFTER its row. The other eleven all resolve.
+// `/settings/intelligence` (S35) arrived with J69; its description adds "not
+// built yet" to Recova's "Notification preferences", because none of Recova's
+// five preferences has a reader in Foxhound and the page builds none of them.
 //
 // TWO DESCRIPTIONS ARE NOT RECOVA'S, because Recova's were untrue (RULES.md
 // 1.2). Email's "Sender name, reply-to, domain" promises a sender domain, which
@@ -63,13 +65,14 @@ export interface SettingsHubEntry {
   description: string;
 }
 
-/** Recova's twelve, minus the two whose targets do not exist. Order is
+/** Recova's twelve, minus the one whose target does not exist. Order is
  *  Recova's. */
 export const SETTINGS_HUB_ENTRIES: SettingsHubEntry[] = [
   { to: "/settings/stripe", label: "Stripe connections", description: "Connected accounts" },
   { to: "/settings/email", label: "Email", description: "Sender name, reply-to" },
   { to: "/settings/brand-voice", label: "Brand voice", description: "Per-category AI tone" },
   { to: "/settings/features", label: "Features", description: "Win-back, expiring cards" },
+  { to: "/settings/intelligence", label: "Intelligence", description: "Notification preferences, not built yet" },
   { to: "/settings/audit", label: "Audit", description: "Lookback period, auto-run" },
   { to: "/settings/notifications", label: "Notifications", description: "Email, Slack, digest" },
   { to: "/settings/alerts", label: "Alerts", description: "Metric thresholds" },
