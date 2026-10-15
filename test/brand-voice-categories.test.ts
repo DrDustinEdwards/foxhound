@@ -251,6 +251,10 @@ describe("PLANT 5: the settings surface renders exactly the four legacy fields",
     expect(docs).not.toContain("one brand voice field");
     expect(docs).toContain("a different tone for each failure category");
     expect(docs).toContain("falls back to the main one");
+    // J36: Recova's page has no main-voice field, so neither does this one,
+    // and the docs must not send a merchant to look for it there.
+    expect(docs).not.toContain("holds the main brand voice");
+    expect(docs).not.toContain("The page holds the main voice");
   });
 });
 
@@ -300,19 +304,18 @@ describe("PLANT 6: the save writes exactly the four columns", () => {
       .get() as Record<string, string | null>;
   }
 
-  it("saves the four AND the general voice, which legacy writes from this form too", async () => {
-    // CHANGED BY SESSION 59, with legacy as the authority. This plant asserted
-    // the page left `brand_voice` alone, which was true while the /settings
-    // index carried that field. Legacy's own BrandVoiceSection posts a preset
-    // picker alongside the four category hidden inputs and its update route
-    // resolves it into `brand_voice` (settings/update/route.ts:115-118), so ONE
-    // form writes all five. Splitting the index left the general voice with no
-    // writer at all, which is the regression this closes.
+  it("saves the four and leaves the general voice as it is", async () => {
+    // CHANGED BY J36, with legacy as the authority, read whole at its blob:
+    // BrandVoiceSection.tsx (blob 9f4de70c) posts ONLY the four category hidden
+    // inputs (lines 63 to 66) and BrandVoiceForm.tsx (blob 8dd126bf) adds only
+    // connection_id. Nothing on Recova's page posts brand_voice_preset, so its
+    // update route's `has(...)` guard (settings/update/route.ts:115) leaves
+    // brand_voice untouched on this save. Session 59 read the preset constant's
+    // name in BrandVoiceSection as a general picker; there is none.
     seed("soft", { general: "house voice" });
 
     const status = await post({
       connectionId: "c1",
-      brandVoice: "plain and direct",
       voice_soft: "gentle",
       voice_expired: "practical",
       voice_network: "reassuring",
@@ -325,15 +328,24 @@ describe("PLANT 6: the save writes exactly the four columns", () => {
     expect(row.expired).toBe("practical");
     expect(row.network).toBe("reassuring");
     expect(row.fraud).toBe("calm");
-    expect(row.general).toBe("plain and direct");
+    expect(row.general).toBe("house voice");
   });
 
-  it("AN OMITTED general voice CLEARS it, which is legacy's `|| null`", async () => {
+  it("A POSTED GENERAL VOICE WRITES NOTHING: the page has no such field", async () => {
     seed("soft", { general: "house voice" });
 
-    await post({ connectionId: "c1", voice_soft: "gentle" });
+    await post({
+      connectionId: "c1",
+      voice_soft: "gentle",
+      brandVoice: "hijacked",
+      brand_voice: "hijacked",
+      brand_voice_preset: "custom",
+      brand_voice_custom: "hijacked",
+    });
 
-    expect(connectionRow().general).toBeNull();
+    const row = connectionRow();
+    expect(row.soft).toBe("gentle");
+    expect(row.general).toBe("house voice");
   });
 
   it("A POSTED FIFTH VOICE NAME WRITES NOTHING", async () => {
@@ -344,16 +356,12 @@ describe("PLANT 6: the save writes exactly the four columns", () => {
       voice_soft: "gentle",
       voice_revoked: "sneaky",
       voice_unknown: "sneaky",
-      brand_voice: "hijacked",
       senderName: "hijacked",
     });
 
     const row = connectionRow();
     expect(row.soft).toBe("gentle");
-    // `brand_voice` is NOT the field name this form reads: the general voice
-    // arrives as `brandVoice` and nothing else, so the snake_case post writes
-    // nothing and the omitted camelCase one clears the column.
-    expect(row.general).toBeNull();
+    expect(row.general).toBe("house voice");
     const sender = sqlite
       .prepare("SELECT sender_name AS s FROM stripe_connections WHERE id = 'c1'")
       .get() as { s: string | null };
