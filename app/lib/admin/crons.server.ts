@@ -33,7 +33,7 @@ export interface CronRow {
 }
 
 const FAILURE_WINDOW_MS = 24 * 60 * 60 * 1000;
-const PAIRS_PER_READ = 40;
+const PAIRS_PER_READ = 30;
 
 /** One row per registered job (app/lib/cron/registry.ts is the source of
  *  truth for what jobs exist; cron_config only overrides enabled/interval - a
@@ -72,19 +72,21 @@ export async function listCronRows(db: Db, now: number = Date.now()): Promise<Cr
   const configByName = new Map(configRows.map((c) => [c.cronName, c]));
 
   // The newest finish of any status, and of a success, per cron.
-  const lastFinishByName = new Map<string, Date>();
+  const lastFinishByName = new Map<string, { status: string; at: Date }>();
   const lastSuccessByName = new Map<string, Date>();
   for (const n of newest) {
     if (!n.finishedAt) continue;
     const at = n.finishedAt;
     const seen = lastFinishByName.get(n.cronName);
-    if (!seen || at.getTime() > seen.getTime()) lastFinishByName.set(n.cronName, at);
+    if (!seen || at.getTime() > seen.at.getTime()) lastFinishByName.set(n.cronName, { status: n.status, at });
     if (n.status === "success") lastSuccessByName.set(n.cronName, at);
   }
 
   // The rows behind those newest finishes, for their status and message. Only
   // registered crons (a retired name's history is not shown), and in chunks:
-  // each pair binds two parameters and D1 takes at most 100 in one statement.
+  // each one binds three parameters and D1 takes at most 100 in one statement.
+  // Naming the status lets each read seek the (cron_name, status, finished_at)
+  // index on all three columns.
   const registered = new Set(CRON_JOBS.map((j) => j.name));
   const pairs = [...lastFinishByName].filter(([name]) => registered.has(name));
   const lastRunByName = new Map<string, typeof cronRunHistory.$inferSelect>();
@@ -96,7 +98,13 @@ export async function listCronRows(db: Db, now: number = Date.now()): Promise<Cr
         db
           .select()
           .from(cronRunHistory)
-          .where(or(...chunk.map(([name, at]) => and(eq(cronRunHistory.cronName, name), eq(cronRunHistory.finishedAt, at))))),
+          .where(
+            or(
+              ...chunk.map(([name, { status, at }]) =>
+                and(eq(cronRunHistory.cronName, name), eq(cronRunHistory.status, status), eq(cronRunHistory.finishedAt, at)),
+              ),
+            ),
+          ),
       ),
     )
   ).flat();
