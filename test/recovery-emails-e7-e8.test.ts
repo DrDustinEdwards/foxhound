@@ -81,7 +81,11 @@ const env = {
 // 'there'`, sender_name is `merchant.sender_name || 'Support'`, amount is the
 // formatted amount, and update_url is the button. The inline CTA style is
 // Recova's amber layout and gives way to Capsomer's button (Q3); the words are
-// kept exactly.
+// kept exactly, except two truthfulness fixes Dustin approved on 2026-10-15
+// (cmsg_01Nd8kh3hkgYNYpWXrNkvBQL2LnH5XBcKc3DcWHoEsDbT6): day 14's "and
+// restores your account" became "only takes a minute", and day 30's "will be
+// cancelled" became "may be cancelled". See
+// test/recovery-emails-truthful-lines.test.ts.
 
 type Block = ReturnType<typeof htmlToBlocks>[number];
 
@@ -97,7 +101,7 @@ const RECOVA: Record<"email_day14" | "email_day30", RecovaStep> = {
       { type: "paragraph", text: `Hi ${name},` },
       {
         type: "paragraph",
-        text: `It has been two weeks since your payment of ${amount} did not go through. Updating your payment method takes a minute and restores your account.`,
+        text: `It has been two weeks since your payment of ${amount} did not go through. Updating your payment method only takes a minute.`,
       },
       { type: "button", label: "Update Payment Method", url },
       { type: "paragraph", text: sender },
@@ -109,7 +113,7 @@ const RECOVA: Record<"email_day14" | "email_day30", RecovaStep> = {
       { type: "paragraph", text: `Hi ${name},` },
       {
         type: "paragraph",
-        text: `This is the final automated notice on your unpaid balance of ${amount}. Without an updated payment method, your account will be cancelled.`,
+        text: `This is the final automated notice on your unpaid balance of ${amount}. Without an updated payment method, your account may be cancelled.`,
       },
       { type: "button", label: "Update Payment Method", url },
       { type: "paragraph", text: sender },
@@ -117,12 +121,12 @@ const RECOVA: Record<"email_day14" | "email_day30", RecovaStep> = {
   },
 };
 
-/** The one body sentence of each step, as Recova wrote it. */
+/** The one body sentence of each step: Recova's, with the truthfulness fix. */
 const SENTENCE: Record<keyof typeof RECOVA, (amount: string) => string> = {
   email_day14: (amount) =>
-    `It has been two weeks since your payment of ${amount} did not go through. Updating your payment method takes a minute and restores your account.`,
+    `It has been two weeks since your payment of ${amount} did not go through. Updating your payment method only takes a minute.`,
   email_day30: (amount) =>
-    `This is the final automated notice on your unpaid balance of ${amount}. Without an updated payment method, your account will be cancelled.`,
+    `This is the final automated notice on your unpaid balance of ${amount}. Without an updated payment method, your account may be cancelled.`,
 };
 
 const STEPS = Object.keys(RECOVA) as (keyof typeof RECOVA)[];
