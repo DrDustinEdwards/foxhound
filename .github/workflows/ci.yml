@@ -6,6 +6,14 @@ on:
   pull_request:
     branches: [main]
 
+# Actions minutes are shared and capped (Dustin's account, 2026-10-15: 90% of
+# the month's 2,000 used). On a pull request a newer push makes the older run
+# worthless, so it is cancelled and the newest push still gets the full run.
+# On main nothing is cancelled mid-run, so a deploy is never cut off.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   verify:
     name: verify

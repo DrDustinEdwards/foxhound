@@ -9,6 +9,7 @@ import { formatTagChip } from "~/lib/blog/format";
 import {
   getFeaturedPost,
   getPostsBySlug,
+  getPublishedTagSet,
   listPublishedPosts,
   type BlogPostSummary,
 } from "~/lib/blog/queries.server";
@@ -16,6 +17,14 @@ import { SECTIONS, type BlogSectionConfig } from "~/lib/blog/sections";
 import { BLOG_COVER_FALLBACK_CSS } from "~/lib/http/inline-styles";
 import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
+
+import "capsomer/panel.css";
+import "capsomer/button.css";
+import "capsomer/status.css";
+// Capsomer's tokens and the teal family (capbase layer), which the panel, the
+// button, the pill and the accent text read. The site header loads the same
+// file; importing it here keeps the page whole under any layout.
+import "~/site-header.css";
 
 import type { Route } from "./+types/index";
 
@@ -30,6 +39,25 @@ import type { Route } from "./+types/index";
 // spec" with no ratification; legacy renders a section whenever any of its
 // curated slugs resolve. Reverted to legacy's condition, keeping only the
 // posts.length > 0 floor so a zero-card section still cannot render.
+//
+// J19 (job_deffd581af37, row M11). Recova's spec, read whole: page.tsx (blob
+// d2d4dbfd), BlogHeaderIntro.tsx (a8ba9e72), BlogPostCard.tsx (48ba6d39),
+// lib/blog.ts (55a92d1a). Recova stays the spec for content, layout and
+// features: the header row, the featured hero, the four SECTIONS in order with
+// label, description and See all, the Latest strip, at Recova's widths (1080px
+// header, 1280px bands). The parts are Capsomer's (Q12): post cards are the
+// panel, the tag is the outline pill, Read the guide the primary button. Accents
+// are teal (Q11), text on the five sizes (RULES.md 5.2: each Recova size to the
+// nearest, a tie to the larger), and every text link a 24px target.
+//
+// One Recova defect is not copied (parity/M11-M13-BLOG-CLUSTER.md, F3): a
+// section shows only when a published post carries its tag, from
+// getPublishedTagSet, the one derivation llms.txt and the archive read, so See
+// all never leads to an empty or missing tag page.
+//
+// Where Recova's look needs more than Capsomer's shared parts carry, the page
+// waits on the per-site layer (capsomer job_ec5ec0754626) and adds no Foxhound
+// CSS over a Capsomer part; the J19 PR lists each place.
 export function meta({ loaderData }: Route.MetaArgs) {
   return marketingMeta({
     title: "Blog - Foxhound",
@@ -44,24 +72,31 @@ export async function loader({ context }: Route.LoaderArgs) {
   const db = getDb(env);
   const allSectionSlugs = SECTIONS.flatMap((s) => s.slugs);
 
-  const [featured, latest8, sectionPosts] = await Promise.all([
+  const [featured, latest8, sectionPosts, tagSet] = await Promise.all([
     getFeaturedPost(db),
     listPublishedPosts(db, 8),
     getPostsBySlug(db, allSectionSlugs),
+    getPublishedTagSet(db),
   ]);
 
   const bySlug = new Map(sectionPosts.map((p) => [p.slug, p]));
+  const publishedTags = new Set(tagSet);
   const sections = SECTIONS.map((section) => {
     const posts = section.slugs.flatMap((slug) => {
       const p = bySlug.get(slug);
       return p ? [p] : [];
     });
     return { section, posts };
-  }).filter((s) => s.posts.length > 0);
+  }).filter((s) => s.posts.length > 0 && publishedTags.has(sectionTag(s.section)));
 
   const latest = latest8.filter((p) => p.slug !== featured?.slug).slice(0, 4);
 
   return { siteUrl: siteUrl(env), featured, sections, latest };
+}
+
+/** The tag a section's See all opens: the last segment of Recova's tagHref. */
+function sectionTag(section: BlogSectionConfig): string {
+  return section.tagHref.slice(section.tagHref.lastIndexOf("/") + 1);
 }
 
 export default function BlogIndexPage({ loaderData }: Route.ComponentProps) {
@@ -69,13 +104,15 @@ export default function BlogIndexPage({ loaderData }: Route.ComponentProps) {
   const hasAnyContent = Boolean(featured) || sections.length > 0 || latest.length > 0;
 
   return (
-    <div>
+    // Capsomer's teal family with Foxhound's own neutrals (.fh-cap, as the site
+    // header, /products and /docs); the focus ring reads the family's ring.
+    <div className="fh-cap [--border-focus:var(--ring)]" data-family="teal">
       <div className="mx-auto max-w-[1080px] px-5 pb-10 pt-16 sm:px-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <BlogHeaderIntro />
           <Link
             to="/blog/archive"
-            className="group shrink-0 font-mono text-sm text-text-tertiary transition-colors hover:text-text"
+            className="group shrink-0 font-mono text-label leading-6 text-text-tertiary transition-colors hover:text-text"
           >
             All articles{" "}
             <ArrowRight
@@ -101,7 +138,7 @@ export default function BlogIndexPage({ loaderData }: Route.ComponentProps) {
           <p className="text-body text-text-secondary">
             Nothing published yet. Check back soon, or read the product docs in the meantime.
           </p>
-          <Link to="/docs" className="mt-4 inline-block text-label text-brand-text hover:opacity-80">
+          <Link to="/docs" className="mt-4 inline-block text-label leading-6 text-accent-text hover:opacity-80">
             Read the docs
           </Link>
         </div>
@@ -127,41 +164,43 @@ function BlogHero({ post }: { post: BlogPostSummary }) {
     <section className="border-b border-border-sub bg-surface">
       <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-8 px-4 py-12 sm:px-6 lg:grid-cols-2 lg:px-8 lg:py-16">
         <div>
-          <p className="text-caption font-mono uppercase tracking-widest text-brand-text">Featured</p>
-          <h2 className="mt-3 text-3xl font-bold leading-tight text-text lg:text-4xl">
-            <Link to={`/blog/${post.slug}`} className="text-text transition-colors hover:text-brand-text">
+          <p className="font-mono text-label uppercase tracking-widest text-accent-text">Featured</p>
+          <h2 className="mt-3 text-display font-bold leading-tight text-text">
+            <Link to={`/blog/${post.slug}`} className="text-text transition-colors hover:text-accent-text">
               {post.title}
             </Link>
           </h2>
-          <p className="mt-3 line-clamp-3 text-base leading-relaxed text-text-secondary">{post.excerpt}</p>
-          <div className="mt-4 flex flex-wrap items-center gap-2 font-mono text-sm text-text-tertiary">
+          <p className="mt-3 line-clamp-3 text-body leading-relaxed text-text-secondary">{post.excerpt}</p>
+          <div className="mt-4 flex flex-wrap items-center gap-2 font-mono text-label text-text-tertiary">
             <span>{post.readingTimeMinutes} min read</span>
             {post.tags[0] ? (
               <>
                 <span aria-hidden="true" className="opacity-40">
                   &middot;
                 </span>
-                <Link
-                  to={`/blog/tag/${encodeURIComponent(post.tags[0])}`}
-                  className="rounded-full border border-border bg-surface2 px-2 py-0.5 text-micro uppercase tracking-wide text-text-secondary transition-colors hover:border-brand hover:text-text"
-                >
+                {/* Capsomer's outline pill as a link: its own focus ring, and a
+                    hit area grown to the 24px target. Recova's uppercase mono
+                    chip is the per-site layer's (see the PR). */}
+                <Link to={`/blog/tag/${encodeURIComponent(post.tags[0])}`} className="cap-pill" data-variant="outline">
                   {formatTagChip(post.tags[0])}
                 </Link>
               </>
             ) : null}
           </div>
-          <Link
-            to={`/blog/${post.slug}`}
-            className="group mt-6 inline-flex items-center gap-2 rounded-lg bg-brand px-5 py-2.5 font-medium text-on-brand transition-colors hover:bg-brand-dark"
-          >
-            Read the guide
-            <ArrowRight
-              className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
-              size={13}
-              strokeWidth={1.5}
-              aria-hidden
-            />
-          </Link>
+          {/* Wrapped so the spacing above is the page's, not a class on the button. */}
+          <div className="mt-6">
+            {/* "group" carries no style; it drives Recova's arrow nudge on hover. */}
+            <Link to={`/blog/${post.slug}`} className="cap-btn group" data-variant="primary" data-size="lg">
+              Read the guide
+              <ArrowRight
+                data-icon="end"
+                className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
+                size={13}
+                strokeWidth={1.5}
+                aria-hidden
+              />
+            </Link>
+          </div>
         </div>
         {post.coverImageUrl ? (
           <Link
@@ -226,12 +265,12 @@ function BlogSection({ section, posts }: { section: BlogSectionConfig; posts: Bl
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="font-mono text-sm uppercase tracking-widest text-brand-text">{section.label}</p>
-            <p className="mt-1 max-w-2xl text-sm text-text-secondary">{section.description}</p>
+            <p className="font-mono text-label uppercase tracking-widest text-accent-text">{section.label}</p>
+            <p className="mt-1 max-w-2xl text-label text-text-secondary">{section.description}</p>
           </div>
           <Link
             to={section.tagHref}
-            className="group whitespace-nowrap text-sm font-medium text-brand-text hover:underline"
+            className="group whitespace-nowrap text-label font-medium leading-6 text-accent-text hover:underline"
           >
             See all{" "}
             <ArrowRight
@@ -256,7 +295,7 @@ function BlogLatestStrip({ posts }: { posts: BlogPostSummary[] }) {
   return (
     <section className="bg-bg">
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <p className="font-mono text-sm uppercase tracking-widest text-text-tertiary">Latest</p>
+        <p className="font-mono text-label uppercase tracking-widest text-text-tertiary">Latest</p>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {posts.map((post) => (
             <BlogPostCard key={post.slug} post={post} />
