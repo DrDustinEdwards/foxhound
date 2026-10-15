@@ -12,11 +12,20 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => ({}),
 }));
 
+// J30 review, blocking finding 1: the mocks are vi.fn so a test can pin that
+// the loader passes the signed-in account, and only that account, to every
+// query (see "scopes every query to the signed-in account" below).
+const mocks = vi.hoisted(() => ({
+  isIntelligenceEntitled: vi.fn(),
+  listCustomerTiers: vi.fn(),
+  listCustomerDirectory: vi.fn(),
+}));
+
 vi.mock("~/lib/intelligence/views.server", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/lib/intelligence/views.server")>()),
-  isIntelligenceEntitled: async () => true,
-  listCustomerTiers: async () => ["growth"],
-  listCustomerDirectory: async () => ({
+  isIntelligenceEntitled: mocks.isIntelligenceEntitled.mockImplementation(async () => true),
+  listCustomerTiers: mocks.listCustomerTiers.mockImplementation(async () => ["growth"]),
+  listCustomerDirectory: mocks.listCustomerDirectory.mockImplementation(async () => ({
     customers: [
       {
         stripeCustomerId: "cus_sample_1",
@@ -47,7 +56,7 @@ vi.mock("~/lib/intelligence/views.server", async (importOriginal) => ({
     totalMrrCents: 4_900,
     page: 1,
     totalPages: 1,
-  }),
+  })),
 }));
 
 const route = await import("~/routes/app/intelligence/customers");
@@ -63,6 +72,23 @@ function context() {
 }
 
 describe("J30 customers loader", () => {
+  it("scopes every query to the signed-in account", async () => {
+    mocks.isIntelligenceEntitled.mockClear();
+    mocks.listCustomerDirectory.mockClear();
+    mocks.listCustomerTiers.mockClear();
+    await route.loader({
+      context: context(),
+      request: new Request("https://x.test/intelligence/customers?q=Sample&tier=growth"),
+      params: {},
+    } as never);
+    expect(mocks.isIntelligenceEntitled).toHaveBeenCalledTimes(1);
+    expect(mocks.isIntelligenceEntitled.mock.calls[0][1]).toBe("acct_sample");
+    expect(mocks.listCustomerDirectory).toHaveBeenCalledTimes(1);
+    expect(mocks.listCustomerDirectory.mock.calls[0][1]).toBe("acct_sample");
+    expect(mocks.listCustomerTiers).toHaveBeenCalledTimes(1);
+    expect(mocks.listCustomerTiers.mock.calls[0][1]).toBe("acct_sample");
+  });
+
   it("sends the page's columns and no customer email", async () => {
     const data = (await route.loader({
       context: context(),

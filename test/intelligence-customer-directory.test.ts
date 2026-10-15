@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { accounts, customerContext } from "~/db/schema";
 import { DEMO_ACCOUNT_ID } from "~/lib/demo/constants";
 import { seedDemoAccount } from "~/lib/demo/seed";
 import {
@@ -198,5 +199,48 @@ describe("listCustomerDirectory against the seeded demo account", () => {
       expect(c.healthScore).not.toBeNull();
       expect(c.healthScore!).toBeLessThan(40);
     }
+  });
+
+  // J30 review, blocking finding 1: a second account's customers never reach
+  // the demo account's directory, its totals or its tier options.
+  it("another account's customers stay out of the directory, its totals and its tiers", async () => {
+    const db = await seededDb();
+    const unfiltered = { search: null, tier: null, healthBand: null, sort: "health_asc" as const, page: 1 };
+    const before = await listCustomerDirectory(db, DEMO_ACCOUNT_ID, unfiltered);
+
+    await db.insert(accounts).values({ id: "acct_other", name: "Other merchant", createdAt: now });
+    await db.insert(customerContext).values({
+      id: "cc_other_1",
+      accountId: "acct_other",
+      stripeCustomerId: "cus_other_1",
+      customerName: "Zanzibar Otherco Holdings",
+      customerEmail: "billing@otherco.example.com",
+      currentPlanTier: "zzother",
+      mrrContributionCents: 987_654_321,
+      currency: "usd",
+      healthScore: 1,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const searched = await listCustomerDirectory(db, DEMO_ACCOUNT_ID, { ...unfiltered, search: "Zanzibar Otherco" });
+    expect(searched.totalCount).toBe(0);
+    expect(searched.customers).toHaveLength(0);
+
+    const after = await listCustomerDirectory(db, DEMO_ACCOUNT_ID, unfiltered);
+    expect(after.totalCount).toBe(before.totalCount);
+    expect(after.totalCount).toBe(207);
+    expect(after.totalMrrCents).toBe(before.totalMrrCents);
+
+    const tiers = await listCustomerTiers(db, DEMO_ACCOUNT_ID);
+    expect(tiers).not.toContain("zzother");
+
+    const byTier = await listCustomerDirectory(db, DEMO_ACCOUNT_ID, { ...unfiltered, tier: "zzother" });
+    expect(byTier.totalCount).toBe(0);
+    expect(byTier.customers).toHaveLength(0);
+
+    // The row is really there: the other account sees exactly it.
+    const other = await listCustomerDirectory(db, "acct_other", unfiltered);
+    expect(other.totalCount).toBe(1);
   });
 });
