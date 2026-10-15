@@ -201,7 +201,7 @@ describe("/features entries are Recova's, each a capability Foxhound ships", () 
     "Monthly recovery billing": [["app/lib/cron/registry.ts", '"billing-monthly", schedule: CRON_SCHEDULE_MONTHLY']],
     "Monthly audit auto-run": [
       ["app/lib/cron/registry.ts", '"monthly-audit", schedule: CRON_SCHEDULE_MONTHLY_AUDIT'],
-      ["app/routes/app/settings/audit.tsx", 'label="Monthly audit digest"'],
+      ["app/routes/app/settings/audit.tsx", 'Monthly audit digest</span>'],
     ],
     "{weekday} unified digest": [["app/lib/cron/registry.ts", '"weekly-digest", schedule: CRON_SCHEDULE_WEEKLY']],
     "Nightly demo reset": [["app/lib/cron/registry.ts", "schedule: CRON_SCHEDULE_DAILY, handler: demoReset"]],
@@ -266,7 +266,7 @@ describe("/features entries are Recova's, each a capability Foxhound ships", () 
     "Payment notes": [["app/routes/app/recovery/payments/detail.tsx", "Internal notes for this payment"]],
     "Submit dispute evidence": [["app/routes/app/disputes/detail.tsx", "Approve and submit (fee"]],
     "Audit lookback days": [["app/lib/settings/audit-settings.ts", "export const LOOKBACK_OPTIONS"]],
-    "Audit auto-run toggle": [["app/routes/app/settings/audit.tsx", 'label="Monthly audit digest"']],
+    "Audit auto-run toggle": [["app/routes/app/settings/audit.tsx", 'Monthly audit digest</span>']],
     "Processing pause": [["app/lib/recovery/manual-actions.server.ts", '"processing_paused"']],
     "Alert thresholds": [["app/routes/app/settings/alerts.tsx", "Create a new alert"]],
     "Email settings": [["app/routes/app/settings/email.tsx", 'name="senderName"']],
