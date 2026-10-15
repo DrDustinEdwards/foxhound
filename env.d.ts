@@ -20,6 +20,10 @@ interface Env {
   // Admin allowlist (C4). Comma-separated emails granted the admin role.
   // Access-control sensitive -> secret, not a committed var. Unset => no admins.
   ADMIN_EMAIL?: string;
+  // Extra inboxes the owner-only admin email send (app/lib/admin/email-send.server.ts)
+  // may mail, comma separated. Unset => only the acting admin's own address.
+  // A plain list of the owner's own test inboxes; never a customer's address.
+  ADMIN_EMAIL_TEST_RECIPIENTS?: string;
   // Cloudflare Access in front of /admin (app/lib/auth/access.server.ts). The
   // team domain (https://<team>.cloudflareaccess.com) and the Access
   // application's AUD tag. Either unset => nobody is admin (fails closed).

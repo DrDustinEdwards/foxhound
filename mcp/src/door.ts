@@ -104,7 +104,7 @@ function consentPage(client: ClientInfo | null, request: AuthRequest, handle: st
 <p>${publisher} Its access will be sent to <strong>${escape(redirectHost)}</strong>.</p>
 <p>${
     writes
-      ? "It asks to read Foxhound and to pause merchants and stage changes. You can allow reading only."
+      ? "It asks to read Foxhound, to pause merchants and stage changes, and to send test emails to your own inbox. You can allow reading only."
       : "It asks to read Foxhound only."
   }</p>
 <p>It can never refund, adjust, cancel or disconnect anything. Resuming, releasing the brake, enabling a cron, billing exemption and plan grants are only staged, for you to confirm in /admin/staged.</p>
