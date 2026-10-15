@@ -244,3 +244,43 @@ describe("J35 audit settings: the switch off posts nothing, and nothing is off",
     expect(rows[0].auditLookbackDays).toBe(60);
   });
 });
+
+describe("J35 review: a write that throws reaches the merchant and the log", () => {
+  it("the real action catches it, logs the Error, answers 500 and the page says Recova's failure line", async () => {
+    const { db } = createInMemoryDb();
+    const boom = new Error("D1_ERROR: database is locked");
+    harness.db = new Proxy(db, {
+      get(target, prop, receiver) {
+        if (prop === "batch") return async () => { throw boom; };
+        return Reflect.get(target, prop, receiver);
+      },
+    });
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const body = new FormData();
+      body.append("audit_lookback_days", "60");
+      body.append("audit_auto_run", "true");
+      const ctx = {
+        get: (key: unknown) => {
+          const name = String((key as { name?: string })?.name ?? "");
+          if (name.includes("cloudflare")) return { env: {} as Env };
+          return { membership: { accountId: "acct_j35" } };
+        },
+      } as never;
+      const result = (await route.action({
+        request: new Request("http://x/settings/audit", { method: "POST", body }),
+        context: ctx,
+      } as never)) as unknown as { data: Record<string, unknown>; init: { status?: number } };
+
+      expect(logged).toHaveBeenCalledWith("audit settings write failed:", boom);
+      expect(result.init?.status).toBe(500);
+      expect(result.data.ok).toBe(false);
+
+      const html = render({ actionData: result.data });
+      expect(text(html)).toContain("Failed to save. Please try again.");
+      expect(html).toMatch(/<span role="alert"[^>]*>Failed to save\. Please try again\.<\/span>/);
+    } finally {
+      logged.mockRestore();
+    }
+  });
+});
