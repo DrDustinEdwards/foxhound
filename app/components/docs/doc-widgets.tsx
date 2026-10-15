@@ -197,9 +197,9 @@ function HealthBands() {
   return (
     <div className="my-6">
       <StatTiles label="Health bands">
-        <StatTile label="At risk" tone="crit" word="At risk" figure={`Below ${HEALTH_SCORE_AT_RISK_THRESHOLD}`} />
-        <StatTile label="Watch" tone="warn" word="Watch" figure={`${HEALTH_SCORE_AT_RISK_THRESHOLD} to ${last}`} />
-        <StatTile label="Healthy" tone="ok" word="Healthy" figure={`${WATCH_CEILING} and above`} />
+        <StatTile label="Health score" tone="crit" word="At risk" figure={`Below ${HEALTH_SCORE_AT_RISK_THRESHOLD}`} />
+        <StatTile label="Health score" tone="warn" word="Watch" figure={`${HEALTH_SCORE_AT_RISK_THRESHOLD} to ${last}`} />
+        <StatTile label="Health score" tone="ok" word="Healthy" figure={`${WATCH_CEILING} and above`} />
       </StatTiles>
     </div>
   );
