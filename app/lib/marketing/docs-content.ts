@@ -92,7 +92,6 @@ const pct = (bps: number) => `${bps / 100}%`;
 const dollars = (cents: number) => `$${(cents / 100).toLocaleString("en-US")}`;
 const RECOVERY_FEE = pct(RECOVERY_FEE_BPS);
 const DISPUTE_FEE = pct(DISPUTE_FEE_BPS);
-const RANGE_WORDS = RECOVERY_RANGES.map((r) => (r === "all" ? "All" : r));
 const NETWORK_FIRST = RECOVERY_SCHEDULES.network[0]!;
 
 export const DOC_GUIDES: DocGuide[] = [
@@ -400,7 +399,7 @@ export const DOC_GUIDES: DocGuide[] = [
             ["Emails sent", "Recovery emails sent, with their open and click rates."],
           ] },
           { kind: "h3", text: "Date range filter" },
-          `The ${RANGE_WORDS.slice(0, -1).join(", ")} and ${RANGE_WORDS.at(-1)} buttons in the dashboard header change the window the charts, the decline breakdown and the win-back panel read from. The range starts at 30 days.`,
+          `The ${RECOVERY_RANGES.slice(0, -1).join(", ")} and ${RECOVERY_RANGES.at(-1)} buttons in the dashboard header change the window the trend charts, the decline breakdown, the win-back panel, the recovery queue and the payments preview read from. The recovery timing chart stays on the last 30 days, as the stat cards do. The range starts at 30 days.`,
           { kind: "h3", text: "ROI widget" },
           `The Foxhound-attributed revenue panel shows what Foxhound recovered this month and over all time, counting only recoveries where a Foxhound action provably preceded payment and that have held for ${RECOVERY_MATURITY_DAYS} days, with the ${RECOVERY_FEE} fee on each and what you kept.`,
           "A recovery is billable only when a Foxhound action provably preceded payment: a scheduled retry succeeded, a dunning email was clicked or otherwise engaged (not just opened), or a card was updated through a Foxhound page. Everything else is Stripe's own baseline recovery, recorded and shown to you, never billed.",
@@ -458,7 +457,7 @@ export const DOC_GUIDES: DocGuide[] = [
         heading: "How Disputes works",
         body: [
           { kind: "h3", text: "How Foxhound handles disputes" },
-          "When a dispute opens on your connected Stripe account, Foxhound receives the webhook within seconds and stages evidence for it. When the disputed charge is a payment Foxhound recovered, it pulls the plan, when the subscription started, and the recovery emails that customer was sent, with when each was opened and clicked.",
+          "When a dispute opens on your connected Stripe account, Foxhound receives the webhook within seconds and stages evidence for it. When the disputed charge is a payment Foxhound recovered, it pulls the plan, when the subscription started, and the recovery sequence that payment went through: each step that ran, retries included, with when an email was opened and clicked.",
           "The dispute then waits in Pending review for a person on your team. You review the evidence, add what only you know, and approve it, and Foxhound submits it to Stripe.",
           { kind: "widget", name: "dispute-states" },
           { kind: "note", body: "Foxhound hears about disputes by webhook. If a dispute opened before you connected Foxhound, use Sync dispute from Stripe on your disputes dashboard to bring it in." },
@@ -479,7 +478,7 @@ export const DOC_GUIDES: DocGuide[] = [
           { kind: "steps", items: [
             [{ strong: "Product description." }, " The plan the customer was on."],
             [{ strong: "Service date." }, " When the subscription started, or when the failed payment was detected if the start is not known."],
-            [{ strong: "Customer communication." }, " Every recovery email sent to that customer, with when it was opened and clicked."],
+            [{ strong: "Customer communication." }, " The recovery sequence that payment went through: each step that ran, retries included, with when an email was opened and clicked."],
             [{ strong: "Additional notes." }, " A short summary of the three above, written by the AI model and limited to those facts. When the model is not available, the field is left for you."],
           ] },
           "A dispute on a charge Foxhound did not recover starts with nothing staged. The Additional notes field at the bottom of the evidence form is for everything else: shipping details, support tickets, correspondence. Add it before anyone approves.",
@@ -553,13 +552,13 @@ export const DOC_GUIDES: DocGuide[] = [
           { kind: "widget", name: "customer-columns" },
           { kind: "h3", text: "Score thresholds and colors" },
           { kind: "p", body: [ { badge: 20 }, ` Below ${HEALTH_SCORE_AT_RISK_THRESHOLD}, at risk. `, { badge: 50 }, ` ${HEALTH_SCORE_AT_RISK_THRESHOLD} to ${WATCH_CEILING - 1}, watch. `, { badge: 82 }, ` ${WATCH_CEILING} and above, healthy.` ] },
-          { kind: "note", body: `The bands are strict at the edges: any score below ${HEALTH_SCORE_AT_RISK_THRESHOLD}, a ${HEALTH_SCORE_AT_RISK_THRESHOLD - 2} included, reads as at risk. Each badge and band above is drawn from the same constant the engine scores with, so they cannot drift.` },
+          { kind: "note", body: `The bands are strict at the edges: anything below ${HEALTH_SCORE_AT_RISK_THRESHOLD} is at risk, so a ${HEALTH_SCORE_AT_RISK_THRESHOLD - 1} reads as at risk and ${HEALTH_SCORE_AT_RISK_THRESHOLD} as watch. Each badge and band above is drawn from the same constant the engine scores with, so they cannot drift.` },
         ],
       },
       {
         heading: "Recommendations",
         body: [
-          "Intelligence does not recommend an action for each customer yet, and the customers page has no Recommended action column. It shows the signals that moved each score instead, which is the part a person can act on.",
+          "Intelligence does not recommend an action for each customer yet, and the customers page has no Recommended action column. Each customer's own page lists the factors that moved their score instead, which is the part a person can act on.",
         ],
       },
       {

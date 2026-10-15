@@ -276,7 +276,7 @@ describe("J73 PLANT 2: every claim is Foxhound's engine, not Recova's", () => {
       expect(text).not.toMatch(absent);
     }
     expect(text).toMatch(/plan/i);
-    expect(text).toMatch(/recovery email/i);
+    expect(text).toMatch(/recovery sequence that payment went through/i);
   });
 
   it("DISPUTES: customer communication is the linked payment's executed steps, not every email to the customer", () => {
