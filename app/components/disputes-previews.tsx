@@ -1,4 +1,4 @@
-import { Pill, Status } from "capsomer/react/status";
+import { Pill } from "capsomer/react/status";
 
 import { deadlineClassName } from "~/lib/disputes/labels";
 import { disputeFeeOwedWords } from "~/lib/marketing/disputes-copy";
@@ -20,12 +20,17 @@ import type { DisputesPreview, PreviewDisputeRow } from "~/lib/marketing/dispute
 // per-row View link (Recova's points at /audit/<id>, a page Recova does not
 // have), and the dispute table's Triage column (triage_recommendation has no
 // producer outside the demo seed, the finding doc-widgets.tsx records for the
-// docs). The fifth card, Saved vs Smart Disputes, stays and says it is not
-// built (RULES.md 2.1: where Foxhound computes nothing, say so).
+// docs).
+//
+// The cards are the merchant /disputes dashboard's five, the set Dustin
+// approved on PR #75 ("yes ro all", 2026-10-15,
+// cmsg_01Nd8kh3hkgYNYpWXrNkvBQL2LnH5XBcKc3DcWHoEsDbT6): Open disputes, At
+// stake, Submitted by Foxhound, Fees owed and Win rate. Recova's Saved vs
+// Smart Disputes is not built, so neither page draws it.
 
-/** A dispute's state as Capsomer's badge: the engine's word, its tone's glyph
- *  and colour. A state mid-review is neither a success nor a failure
- *  (disputeStateTone), so it is a plain label with no tone. */
+/** A dispute's status as Capsomer's badge: the dashboard's word
+ *  (disputeListStatus), its tone's glyph and colour. A status mid-review is
+ *  neither a success nor a failure, so it is a plain label with no tone. */
 function StatePill({ row }: { row: PreviewDisputeRow }) {
   if (row.stateTone === "success") return <Pill tone="ok">{row.stateLabel}</Pill>;
   if (row.stateTone === "failure") return <Pill tone="crit">{row.stateLabel}</Pill>;
@@ -51,7 +56,7 @@ function Figure({ value }: { value: string | number }) {
   return <p className="m-0 font-mono text-title font-bold tabular-nums text-text">{value}</p>;
 }
 
-/** Recova's five cards. `columns` is Recova's grid: five across on the
+/** The dashboard's five cards. `columns` is Recova's grid: five across on the
  *  dashboard, three across in the numbers block. */
 export function DisputeStatCards({ preview, columns }: { preview: DisputesPreview; columns: 3 | 5 }) {
   const { stats } = preview;
@@ -70,10 +75,9 @@ export function DisputeStatCards({ preview, columns }: { preview: DisputesPrevie
       <StatCard label="Fees owed">
         <Figure value={stats.feesOwed} />
       </StatCard>
-      <StatCard label="Saved vs Smart Disputes">
-        <p className="m-0 text-label">
-          <Status tone="nodata">Not built</Status>
-        </p>
+      <StatCard label="Win rate">
+        <Figure value={stats.winRate} />
+        <p className="m-0 mt-1 text-label text-text-tertiary">{stats.winRateSubtext}</p>
       </StatCard>
     </ul>
   );

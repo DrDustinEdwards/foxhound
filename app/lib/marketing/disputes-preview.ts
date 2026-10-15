@@ -7,7 +7,7 @@ import type { Tone } from "~/lib/recovery/labels";
 // from a .server file (RULES.md 4.5). Every value is a plain string, number or
 // boolean: it crosses the loader as JSON.
 
-/** How a dispute's state reads: Foxhound's disputeStateTone. */
+/** How a dispute's status reads: disputeListStatus's tone, as /disputes. */
 export type PreviewStateTone = Tone;
 
 export interface PreviewDisputeRow {
@@ -40,8 +40,11 @@ export interface DisputesPreview {
     atStake: string;
     submittedByFoxhound: number;
     feesOwed: string;
+    /** Win rate's figure ("-" until something resolves) and its line. */
+    winRate: string;
+    winRateSubtext: string;
   };
-  /** Every demo dispute, in the dashboard's order (block 1). */
+  /** Every demo dispute, in the dashboard's order, newest first (block 1). */
   dashboard: PreviewDisputeRow[];
   /** The first rows of the same list (block 3), as many as Recova's table shows. */
   table: PreviewDisputeRow[];

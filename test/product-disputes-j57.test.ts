@@ -104,25 +104,36 @@ function routePaths(entries: RouteEntry[], parent = "", out = new Set<string>())
 }
 
 /** The demo seed's disputes in the order the merchant dashboard lists them:
- *  newest first, then open ones by nearest deadline ahead of resolved ones by
- *  most recently resolved (app/routes/app/disputes/index.tsx). */
+ *  newest first, as Recova orders the list (listDisputes, read by
+ *  app/routes/app/disputes/index.tsx). */
 function seedInDashboardOrder(now: Date) {
-  const rows = buildDisputesSeed(DEMO_ACCOUNT_ID, now, DEMO_MEMBER_EMAIL).disputes.map((d) => ({
+  const seed = buildDisputesSeed(DEMO_ACCOUNT_ID, now, DEMO_MEMBER_EMAIL);
+  const withEvidence = new Set(
+    seed.disputeEvidence.filter((e) => (e.fieldValue as string).trim() !== "").map((e) => e.disputeId as string),
+  );
+  const rows = seed.disputes.map((d) => ({
     ...d,
     state: d.state as string,
     createdAt: d.createdAt as Date,
     resolvedAt: (d.resolvedAt as Date | null) ?? null,
     evidenceDeadline: (d.evidenceDeadline as Date | null) ?? null,
     submittedAt: (d.submittedAt as Date | null) ?? null,
+    submittedBy: (d.submittedBy as string | null) ?? null,
+    hasEvidence: withEvidence.has(d.id as string),
   }));
-  rows.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-  return rows.sort((a, b) => {
-    const ar = RESOLVED.has(a.state);
-    const br = RESOLVED.has(b.state);
-    if (ar !== br) return ar ? 1 : -1;
-    if (ar) return (b.resolvedAt?.getTime() ?? 0) - (a.resolvedAt?.getTime() ?? 0);
-    return (a.evidenceDeadline?.getTime() ?? Infinity) - (b.evidenceDeadline?.getTime() ?? Infinity);
-  });
+  return rows.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+}
+
+/** The status word the dashboard shows, worked out from Recova's rules
+ *  (DisputesDashboardView.tsx, blob 3c1b7a98, deriveRecovaStatus) as Dustin
+ *  approved them on PR #75: Won, Lost, We submitted or Submitted externally,
+ *  Evidence ready once the draft holds evidence, else Foxhound's own label. */
+function expectedStatus(r: ReturnType<typeof seedInDashboardOrder>[number]): string {
+  if (r.state === "resolved_won") return "Won";
+  if (r.state === "resolved_lost") return "Lost";
+  if (r.state === "submitted") return r.submittedBy === "merchant_or_stripe" ? "Submitted externally" : "We submitted";
+  if ((r.state === "pending_review" || r.state === "approved") && r.hasEvidence) return "Evidence ready";
+  return DISPUTE_STATE_LABELS[r.state as DisputeState];
 }
 
 function tableAfter(html: string, marker: string): string {
@@ -253,19 +264,27 @@ describe("the dashboard preview is the demo seed through Foxhound's own math (J5
     return { now, rows: seedInDashboardOrder(now) };
   });
 
-  it("shows Recova's five cards with the demo's figures, twice (block 1 and block 2)", () => {
+  it("shows the dashboard's five cards with the demo's figures, twice (block 1 and block 2)", () => {
     const { rows } = demo();
     const open = rows.filter((r) => !RESOLVED.has(r.state));
     const atStake = open.reduce((s, r) => s + (r.amountCents as number), 0);
-    const submitted = rows.filter((r) => r.submittedAt !== null).length;
-    const fees = rows
+    const submitted = rows.filter((r) => r.submittedAt !== null && r.submittedBy !== "merchant_or_stripe").length;
+    const won = rows.filter((r) => r.state === "resolved_won").length;
+    const lost = rows.filter((r) => r.state === "resolved_lost").length;
+    const feesCharged = rows
       .filter((r) => r.state === "resolved_won" && r.submittedAt !== null)
       .reduce((s, r) => s + ((r.resolvedFeeCents as number | null) ?? disputeFeeCents(r.amountCents as number, DISPUTE_FEE_CAP_CENTS)), 0);
     expect(open.length, "the demo has open disputes").toBeGreaterThan(0);
-    expect(fees, "the demo has fees owed").toBeGreaterThan(0);
+    expect(won + lost, "the demo has resolved disputes").toBeGreaterThan(0);
+    // The demo has won fees, but the dashboard's Fees owed counts only fees
+    // still owed: the demo's one invoice is paid and a demo account is never
+    // billable, so the demo dashboard reads $0.00 (PR #79), and so must this.
+    expect(feesCharged, "the demo has fees, all of them paid").toBeGreaterThan(0);
 
-    const cards = `Open disputes ${open.length} At stake ${formatMoney(atStake, "usd")} Submitted by Foxhound ${submitted} Fees owed ${formatMoney(fees, "usd")} Saved vs Smart Disputes Not built`;
+    const winRate = `${Math.round((won / (won + lost)) * 100)}%`;
+    const cards = `Open disputes ${open.length} At stake ${formatMoney(atStake, "usd")} Submitted by Foxhound ${submitted} Fees owed ${formatMoney(0, "usd")} Win rate ${winRate} ${won} won of ${won + lost} resolved`;
     expect(text(html).split(cards).length - 1, "both blocks carry the five cards").toBe(2);
+    expect(text(html)).not.toContain("Saved vs Smart Disputes");
   });
 
   it("never shows Recova's saving figure or Stripe's unsourced 30%", () => {
@@ -286,7 +305,7 @@ describe("the dashboard preview is the demo seed through Foxhound's own math (J5
       expect(cells).toContain(r.customerEmail as string);
       expect(cells).toContain(formatMoney(r.amountCents as number, "usd"));
       expect(cells).toContain(humanizeDisputeReason(r.reason as string));
-      expect(cells).toContain(DISPUTE_STATE_LABELS[r.state as DisputeState]);
+      expect(cells).toContain(expectedStatus(r));
       const foxhound = r.submittedAt !== null;
       if (foxhound) expect(cells).toMatch(/\bActive\b/);
       else expect(cells).not.toMatch(/\bActive\b/);
@@ -332,7 +351,7 @@ describe("the dispute table preview is the demo seed, with no triage Foxhound do
       // A raw Stripe code is a database value shown to a person (RULES.md 1.5).
       expect(cells).toContain(humanizeDisputeReason(r.reason as string));
       expect(cells).not.toContain(r.reason as string);
-      expect(cells).toContain(DISPUTE_STATE_LABELS[r.state as DisputeState]);
+      expect(cells).toContain(expectedStatus(r));
       expect(cells.endsWith(formatDateMonthDay(r.evidenceDeadline))).toBe(true);
     });
   });
