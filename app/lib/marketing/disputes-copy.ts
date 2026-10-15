@@ -29,14 +29,6 @@ import { formatMoneyShort } from "~/lib/money-format";
 const pct = `${DISPUTE_FEE_BPS / 100}%`;
 const cap = formatMoneyShort(DISPUTE_FEE_CAP_CENTS, "usd");
 
-/** The Fee cell on a won dispute Foxhound submitted. Truthfulness: Recova
- *  reads "20% fee owed", but Foxhound's fee is the rate capped at
- *  DISPUTE_FEE_CAP_CENTS, so the cell names the engine's amount
- *  (resolved_fee_cents, else disputeFeeCents) rather than the bare rate. */
-export function disputeFeeOwedWords(feeAmount: string): string {
-  return `${feeAmount} fee owed`;
-}
-
 // Truthfulness: Recova reads "Automated dispute evidence building and Stripe
 // submission." Submission waits for an approval, and the fee is capped.
 export const DISPUTES_META_DESCRIPTION = `Automated dispute evidence building and Stripe submission once you approve. ${pct} only when you win, capped at ${cap}.`;
@@ -86,7 +78,11 @@ export const DISPUTES_BLOCKS = {
     // Recova names its own accent colour here. Foxhound is teal throughout
     // (Q11) and draws a deadline inside the soon band in its
     // warning color, as the dashboard does (deadlineClassName).
-    body: `The disputes dashboard shows every open and closed dispute with customer, amount, reason, Foxhound's status, whether it is an active fee relationship, and deadline proximity. Deadlines inside ${DEADLINE_SOON_DAYS} days appear in the warning color. Inside ${DEADLINE_URGENT_DAYS} days, red.`,
+    // Truthfulness: Recova's "whether it is an active fee relationship" is its
+    // Mode column, which the dashboard and this preview do not draw (Mode is
+    // out for good, Dustin, 2026-10-15,
+    // cmsg_01Nd8kh3hkgYNYpWXrNkvBQL2LnH5XBcKc3DcWHoEsDbT6).
+    body: `The disputes dashboard shows every open and closed dispute with customer, amount, reason, Foxhound's status, and deadline proximity. Deadlines inside ${DEADLINE_SOON_DAYS} days appear in the warning color. Inside ${DEADLINE_URGENT_DAYS} days, red.`,
   },
   numbers: {
     eyebrow: "The numbers",

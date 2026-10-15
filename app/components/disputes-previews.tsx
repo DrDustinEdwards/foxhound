@@ -1,7 +1,6 @@
 import { Pill } from "capsomer/react/status";
 
 import { deadlineClassName } from "~/lib/disputes/labels";
-import { disputeFeeOwedWords } from "~/lib/marketing/disputes-copy";
 import type { DisputesPreview, PreviewDisputeRow } from "~/lib/marketing/disputes-preview";
 
 // The previews on /products/disputes (J57), Recova's three feature-block UIs:
@@ -15,6 +14,12 @@ import type { DisputesPreview, PreviewDisputeRow } from "~/lib/marketing/dispute
 // figure and row is the demo seed read through Foxhound's own dispute code
 // (app/lib/marketing/disputes-preview.server.ts), never a merchant's rows.
 // Recova draws no chart in any of the three, so neither does this page.
+//
+// The dashboard preview has the merchant /disputes dashboard's columns, not
+// Recova's Mode and Fee: Mode is out for good (Dustin, 2026-10-15,
+// cmsg_01Nd8kh3hkgYNYpWXrNkvBQL2LnH5XBcKc3DcWHoEsDbT6), and a Fee cell saying
+// "fee owed" would be untrue beside a Fees owed card that reads $0.00 (the
+// demo's fees are paid), as well as a column the dashboard does not have.
 //
 // Left out, each a QUESTION FOR THE SEAT in the J57 notes: the dashboard's
 // per-row View link (Recova's points at /audit/<id>, a page Recova does not
@@ -127,8 +132,6 @@ export function DashboardPreview({ preview }: { preview: DisputesPreview }) {
                   </th>
                   <th scope="col">Reason</th>
                   <th scope="col">Foxhound status</th>
-                  <th scope="col">Mode</th>
-                  <th scope="col">Fee</th>
                   <th scope="col">Deadline</th>
                 </tr>
               </thead>
@@ -147,20 +150,6 @@ export function DashboardPreview({ preview }: { preview: DisputesPreview }) {
                     </td>
                     <td>
                       <StatePill row={row} />
-                    </td>
-                    <td>
-                      {row.foxhoundSubmitted ? (
-                        <span className="text-micro font-medium text-accent-text">Active</span>
-                      ) : null}
-                    </td>
-                    <td>
-                      {row.fee === "owed" && row.feeAmount ? (
-                        <span className="whitespace-nowrap text-micro font-medium text-accent-text">
-                          {disputeFeeOwedWords(row.feeAmount)}
-                        </span>
-                      ) : row.fee === "none" ? (
-                        <span className="whitespace-nowrap text-micro text-text-subtle">No charge</span>
-                      ) : null}
                     </td>
                     <td>
                       <DeadlineDays row={row} />

@@ -292,10 +292,18 @@ describe("the dashboard preview is the demo seed through Foxhound's own math (J5
     expect(text(html)).not.toMatch(/\$84\.80|\$64\.70/);
   });
 
-  it("lists every demo dispute in the dashboard's order, with Recova's seven named columns", () => {
+  it("lists every demo dispute in the dashboard's order, with the dashboard's columns and no Mode or Fee", () => {
     const { now, rows } = demo();
     const table = tableAfter(html, 'data-block="tall"');
-    expect(heads(table)).toEqual(["Customer", "Amount", "Reason", "Foxhound status", "Mode", "Fee", "Deadline"]);
+    // The merchant dashboard's columns (app/routes/app/disputes/index.tsx).
+    // Mode is out for good (Dustin, 2026-10-15,
+    // cmsg_01Nd8kh3hkgYNYpWXrNkvBQL2LnH5XBcKc3DcWHoEsDbT6) and the Fee column
+    // is not built there, so neither header appears here.
+    expect(heads(table)).not.toContain("Mode");
+    expect(heads(table)).not.toContain("Fee");
+    expect(heads(table)).toEqual(["Customer", "Amount", "Reason", "Foxhound status", "Deadline"]);
+    // Nor does the block's text describe the Mode column it no longer draws.
+    expect(text(html)).not.toContain("active fee relationship");
     const trs = bodyRows(table);
     expect(trs).toHaveLength(rows.length);
     trs.forEach((tr, i) => {
@@ -306,17 +314,10 @@ describe("the dashboard preview is the demo seed through Foxhound's own math (J5
       expect(cells).toContain(formatMoney(r.amountCents as number, "usd"));
       expect(cells).toContain(humanizeDisputeReason(r.reason as string));
       expect(cells).toContain(expectedStatus(r));
-      const foxhound = r.submittedAt !== null;
-      if (foxhound) expect(cells).toMatch(/\bActive\b/);
-      else expect(cells).not.toMatch(/\bActive\b/);
-      if (r.state === "resolved_won" && foxhound) {
-        // The fee is min(rate, cap): the cell names the engine's amount, never the bare rate.
-        const fee = (r.resolvedFeeCents as number | null) ?? disputeFeeCents(r.amountCents as number, DISPUTE_FEE_CAP_CENTS);
-        expect(cells).toContain(`${formatMoney(fee, "usd")} fee owed`);
-        expect(cells).not.toContain(`${PCT} fee owed`);
-      }
-      else if (RESOLVED.has(r.state)) expect(cells).toContain("No charge");
-      else expect(cells).not.toMatch(/fee owed|No charge/);
+      // No Fee cell: the dashboard has none, and "fee owed" would be untrue
+      // beside a Fees owed card that reads $0.00 (the demo's fees are paid).
+      expect(cells).not.toMatch(/fee owed|No charge/);
+      expect(cells).not.toMatch(/\bActive\b/);
       if (!RESOLVED.has(r.state)) {
         const days = Math.ceil(((r.evidenceDeadline as Date).getTime() - now.getTime()) / DAY_MS);
         expect(cells).toMatch(new RegExp(`\\b${days}d$`));

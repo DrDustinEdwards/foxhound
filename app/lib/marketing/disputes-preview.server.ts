@@ -1,6 +1,5 @@
 import { groupSumByCurrency } from "~/lib/billing/preview.server";
-import { disputeFeeCents } from "~/lib/billing/fees";
-import { DISPUTE_FEE_CAP_CENTS, type DisputeState } from "~/lib/constants";
+import type { DisputeState } from "~/lib/constants";
 import { formatDateMonthDay } from "~/lib/date-format";
 import { DEMO_ACCOUNT_ID, DEMO_MEMBER_EMAIL } from "~/lib/demo/constants";
 import { buildDisputesSeed } from "~/lib/demo/disputes-seed";
@@ -81,8 +80,6 @@ export function buildDisputesPreview(now: Date): DisputesPreview {
 
   const rows = ordered.map((d): PreviewDisputeRow => {
     const resolved = isDisputeResolved(d.state);
-    const foxhoundSubmitted = d.submittedAt !== null;
-    const owed = d.state === "resolved_won" && foxhoundSubmitted;
     const days = resolved ? null : daysUntilDeadline(d.evidenceDeadline, nowMs);
     const status = disputeListStatus({
       state: d.state,
@@ -97,12 +94,6 @@ export function buildDisputesPreview(now: Date): DisputesPreview {
       reason: humanizeDisputeReason(d.reason),
       stateLabel: status.label,
       stateTone: status.tone,
-      foxhoundSubmitted,
-      fee: owed ? "owed" : resolved ? "none" : null,
-      // The stamped fee, else the capped projection.
-      feeAmount: owed
-        ? formatMoney(d.resolvedFeeCents ?? disputeFeeCents(d.amountCents, DISPUTE_FEE_CAP_CENTS), d.currency)
-        : null,
       resolved,
       deadlineDays: days,
       deadlineUrgency: deadlineUrgency(days),
