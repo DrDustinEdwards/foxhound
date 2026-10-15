@@ -34,8 +34,15 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
+// Cancel account's Stripe revoke and session move, neither of which this file
+// is about: the revoke always succeeds and there is no session to move.
+vi.mock("~/lib/stripe/connect", () => ({ deauthorizeConnectedAccount: async () => ({ ok: true }) }));
+vi.mock("~/lib/auth/session", () => ({ getSession: async () => null }));
+
 const route = await import("~/routes/app/settings/account");
 const { MRR_ERROR } = await import("~/lib/settings/apply.server");
+/** Loaded per test, so a missing module fails these tests and not the file. */
+const loadChooseTheme = async () => (await import("~/lib/settings/theme-choice")).chooseTheme;
 
 const SOURCE = readFileSync(new URL("../app/routes/app/settings/account.tsx", import.meta.url), "utf8");
 const CODE = SOURCE.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "").replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
@@ -52,6 +59,7 @@ interface RenderOpts {
   mrrCents?: number | null;
   cancelledAt?: Date | null;
   theme?: "dark" | "light";
+  isOwner?: boolean;
   actionData?: Record<string, unknown>;
 }
 
@@ -67,6 +75,8 @@ function render(opts: RenderOpts = {}): string {
     userEmail: "owner@acme.test",
     ownedAccountNames: ["Acme Inc"],
     theme: opts.theme ?? "dark",
+    isOwner: opts.isOwner ?? true,
+    isDemo: false,
   };
   const Stub = createRoutesStub([
     {
@@ -300,7 +310,6 @@ describe("J32 account: appearance", () => {
   });
 
   it("saves through the account's theme route and says Recova's line when that fails", () => {
-    expect(CODE).toContain('fetch("/api/theme"');
     expect(CODE).toContain("Failed to save theme. Please try again.");
   });
 });
@@ -363,7 +372,7 @@ describe("J32 account: the look comes from Capsomer and the tokens", () => {
 // The action: Recova's one profile save, through Foxhound's engine.
 // ---------------------------------------------------------------------------
 
-function ctx() {
+function ctx(role: "owner" | "member" = "owner") {
   return {
     get(key: unknown) {
       if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
@@ -371,8 +380,8 @@ function ctx() {
         return {
           userId: "user_1",
           email: "owner@acme.test",
-          membership: { memberId: "m1", accountId: "acct_1", accountName: "Acme Inc", role: "owner" },
-          memberships: [{ memberId: "m1", accountId: "acct_1", accountName: "Acme Inc", role: "owner" }],
+          membership: { memberId: "m1", accountId: "acct_1", accountName: "Acme Inc", role },
+          memberships: [{ memberId: "m1", accountId: "acct_1", accountName: "Acme Inc", role }],
         };
       }
       throw new Error("unexpected context key");
@@ -382,11 +391,11 @@ function ctx() {
 
 type Result = { data: Record<string, unknown>; init?: { status?: number } };
 
-async function post(fields: Record<string, string>): Promise<Result> {
+async function post(fields: Record<string, string>, role: "owner" | "member" = "owner"): Promise<Result> {
   const form = new FormData();
   for (const [k, v] of Object.entries(fields)) form.append(k, v);
   return (await route.action({
-    context: ctx(),
+    context: ctx(role),
     request: new Request("https://foxhoundapp.test/settings/account", { method: "POST", body: form }),
     params: {},
   } as never)) as unknown as Result;
@@ -494,5 +503,133 @@ describe("J32 account: a failed save", () => {
     expect(text(render({ actionData: { action: "profile", ok: false } }))).toContain(
       "Failed to save. Please try again.",
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Review round 1 (CHANGES at ba8853e).
+// ---------------------------------------------------------------------------
+
+describe("J32 review: one save is one batch", () => {
+  it("commits the context and the name together, so the save is all or nothing", async () => {
+    const made = createInMemoryDb();
+    made.sqlite
+      .prepare("INSERT INTO accounts (id, name, created_at, billing_exempt) VALUES (?, ?, 0, 0)")
+      .run("acct_1", "Old Name");
+    const db = made.db as unknown as { batch: (s: unknown[]) => Promise<unknown> };
+    const real = db.batch.bind(db);
+    const batches: number[] = [];
+    db.batch = async (statements: unknown[]) => {
+      batches.push(statements.length);
+      return real(statements);
+    };
+    const update = vi.spyOn(made.db, "update");
+    harness.db = made.db;
+    const res = await post({ _action: "profile", name: "Acme Inc", merchantIndustry: "SaaS", merchantMrrSelfReported: "1" });
+    expect(res.data).toEqual({ action: "profile", ok: true });
+    // One batch carrying both statements, and no update run on its own.
+    expect(batches).toEqual([2]);
+    expect(update).toHaveBeenCalledTimes(2);
+    expect(made.sqlite.prepare("SELECT name FROM accounts WHERE id = 'acct_1'").get()).toEqual({ name: "Acme Inc" });
+  });
+});
+
+describe("J32 review: only the owner can cancel the account", () => {
+  let sqlite: Database.Database;
+
+  beforeEach(() => {
+    const made = createInMemoryDb();
+    sqlite = made.sqlite;
+    harness.db = made.db;
+    sqlite
+      .prepare("INSERT INTO accounts (id, name, created_at, billing_exempt) VALUES (?, ?, 0, 0)")
+      .run("acct_1", "Acme Inc");
+    sqlite
+      .prepare(
+        "INSERT INTO stripe_connections (id, account_id, stripe_user_id, is_primary, connected_at, disconnected_at, created_at) VALUES (?, ?, ?, 1, 1000, NULL, 1000)",
+      )
+      .run("conn_1", "acct_1", "acct_stripe_1");
+  });
+
+  const state = () => ({
+    cancelledAt: (sqlite.prepare("SELECT cancelled_at AS c FROM accounts WHERE id = 'acct_1'").get() as { c: unknown }).c,
+    disconnectedAt: (
+      sqlite.prepare("SELECT disconnected_at AS d FROM stripe_connections WHERE id = 'conn_1'").get() as { d: unknown }
+    ).d,
+  });
+
+  it("refuses a member with a 403 and writes nothing", async () => {
+    const res = await post({ _action: "cancel-account" }, "member");
+    expect(res.init?.status).toBe(403);
+    expect(res.data).toEqual({
+      action: "cancel-account",
+      ok: false,
+      error: "Only the account owner can cancel the account.",
+    });
+    expect(state()).toEqual({ cancelledAt: null, disconnectedAt: null });
+  });
+
+  it("still lets the owner cancel", async () => {
+    const res = await post({ _action: "cancel-account" }, "owner");
+    expect(res.data).toMatchObject({ action: "cancel-account", ok: true });
+    const after = state();
+    expect(after.cancelledAt).not.toBeNull();
+    expect(after.disconnectedAt).not.toBeNull();
+  });
+
+  it("offers Cancel account to the owner only; a member still sees Delete account", () => {
+    expect(render({ isOwner: true })).toMatch(/<button[^>]*>Cancel account<\/button>/);
+    const member = render({ isOwner: false });
+    expect(member).not.toContain("Cancel account");
+    expect(member).toMatch(/<button[^>]*>Delete account<\/button>/);
+  });
+
+  it("shows a refusal the action can return", () => {
+    const html = render({
+      isOwner: false,
+      actionData: { action: "cancel-account", ok: false, error: "Only the account owner can cancel the account." },
+    });
+    expect(text(html)).toContain("Only the account owner can cancel the account.");
+  });
+
+  it("the loader tells the page whether the viewer owns the account", () => {
+    expect(CODE).toMatch(/isOwner: auth\.membership\.role === MEMBER_ROLE\.OWNER/);
+  });
+
+  it("the help docs say only the owner can cancel", () => {
+    const docs = readFileSync(new URL("../app/lib/marketing/docs-content.ts", import.meta.url), "utf8");
+    expect(docs).not.toContain("settings, billing and the Stripe connections are open to every member.");
+    expect(docs).toContain("Only the owner can cancel the account.");
+  });
+});
+
+describe("J32 review: the theme choice in the demo", () => {
+  it("refuses in the demo without saving anything, as DemoGuardedForm refuses other writes", async () => {
+    const chooseTheme = await loadChooseTheme();
+    const fetcher = vi.fn();
+    expect(await chooseTheme("light", { isDemo: true, fetcher })).toBe("demo");
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("saves through /api/theme otherwise, and reports a refused or lost save as failed", async () => {
+    const chooseTheme = await loadChooseTheme();
+    const ok = vi.fn(async () => new Response("{}", { status: 200 }));
+    expect(await chooseTheme("light", { isDemo: false, fetcher: ok })).toBe("saved");
+    expect(ok).toHaveBeenCalledWith("/api/theme", expect.objectContaining({ method: "POST", body: JSON.stringify({ theme: "light" }) }));
+    expect(await chooseTheme("dark", { isDemo: false, fetcher: async () => new Response("", { status: 500 }) })).toBe("failed");
+    expect(
+      await chooseTheme("dark", {
+        isDemo: false,
+        fetcher: async () => {
+          throw new Error("offline");
+        },
+      }),
+    ).toBe("failed");
+  });
+
+  it("the page uses it and shows the demo's own line", () => {
+    expect(CODE).toContain("chooseTheme(");
+    expect(CODE).toContain("DEMO_READ_ONLY_MESSAGE");
+    expect(CODE).toMatch(/isDemo: auth\.isDemo/);
   });
 });
