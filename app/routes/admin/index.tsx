@@ -81,7 +81,7 @@ export default function AdminOverview({ loaderData }: Route.ComponentProps) {
   const { failedRuns, disabledCount, lastRunAt } = overview.cronHealth;
   const failed = failedRuns.length;
   const accountCount = overview.mrrByCurrency.reduce((n, m) => n + m.accountCount, 0);
-  const staleDisputes = overview.attention.staleDisputes.length;
+  const staleDisputes = overview.staleDisputesCount;
   const failedSentence =
     failed === 0
       ? "No cron runs failed in the last 24 hours."

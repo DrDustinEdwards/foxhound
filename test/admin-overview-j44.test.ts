@@ -166,6 +166,9 @@ describe("the Overview's figures come from Foxhound's engine", () => {
     const overview = await getPlatformOverview(await seed(), NOW);
     // d_stale_old, d_stale, d_fresh, d_submitted are open; d_won is resolved.
     expect(overview.openDisputesCount).toBe(4);
+    // Counted, not the length of the capped list, so a group past the cap still
+    // says how many there are.
+    expect(overview).toHaveProperty("staleDisputesCount", 2);
     expect(overview.attention.staleDisputes.map((d) => [d.id, d.merchantName, d.amountCents, d.currency])).toEqual([
       ["d_stale_old", "Northwind Coffee", 12000, "usd"],
       ["d_stale", "Lumen Studio", 4500, "eur"],
@@ -178,6 +181,7 @@ describe("the Overview's figures come from Foxhound's engine", () => {
     expect(
       overview.attention.failedFeeInvoices.map((i) => [i.id, i.merchantName, i.totalCents, i.chargeAttemptCount, i.failedAt.getTime()]),
     ).toEqual([["inv_failed", "Northwind Coffee", 2400, 2, NOW - DAY]]);
+    expect(overview).toHaveProperty("failedFeeInvoicesCount", 1);
   });
 
   it("sums what was recovered since the first of the month per currency, never one sum across them", async () => {
@@ -214,6 +218,8 @@ function overviewData(over: Partial<PlatformOverview> = {}): PlatformOverview {
         { currency: "eur", cents: 3000 },
       ],
     },
+    staleDisputesCount: 0,
+    failedFeeInvoicesCount: 0,
     attention: { pausedMerchants: [], staleDisputes: [], failedFeeInvoices: [] },
     ...over,
   };
@@ -221,6 +227,8 @@ function overviewData(over: Partial<PlatformOverview> = {}): PlatformOverview {
 
 const busyAttention: Partial<PlatformOverview> = {
   pausedCount: 1,
+  staleDisputesCount: 1,
+  failedFeeInvoicesCount: 1,
   attention: {
     pausedMerchants: [{ id: "acct_lumen", name: "Lumen Studio", pauseReason: null }],
     staleDisputes: [
@@ -386,6 +394,38 @@ describe("Needs attention, as Capsomer's attention list wants it", () => {
       ["crons", "/admin/crons#run-run_1"],
     ]);
     expect(items.every((i) => i.tone === "warn")).toBe(true);
+  });
+
+  it("says each time the same on the server and in any browser (UTC calendar days)", () => {
+    // 00:30 UTC on 15 October, a run 26 hours before. By UTC's calendar that
+    // is two days ago; in Honolulu (UTC-10) it is yesterday. The server renders
+    // in UTC, so a browser left to its own zone would hydrate different words.
+    const lateNow = Date.UTC(2026, 9, 15, 0, 30);
+    const data = overviewData({
+      cronHealth: {
+        failedLast24h: 1,
+        failedRuns: [{ id: "r", cronName: "weekly-digest", finishedAt: new Date(lateNow - 26 * 60 * 60 * 1000), message: null }],
+        lastRunAt: null,
+        disabledCount: 0,
+      },
+    });
+    const saved = process.env.TZ;
+    process.env.TZ = "Pacific/Honolulu";
+    try {
+      const run = overviewLib.overviewAttention!(data, lateNow).find((i) => i.group === "crons");
+      expect(run?.when).toEqual({ text: "2 days ago", datetime: "2026-10-13T22:30:00.000Z" });
+    } finally {
+      if (saved === undefined) delete process.env.TZ;
+      else process.env.TZ = saved;
+    }
+  });
+
+  it("names a group by the engine's count, not by the rows read", () => {
+    const groups = overviewLib.overviewAttentionGroups!(
+      overviewData({ ...busyAttention, staleDisputesCount: 60, failedFeeInvoicesCount: 70 }),
+    );
+    expect(groups.disputes.title?.(50)).toBe("60 disputes have had no response for a week");
+    expect(groups.billing.title?.(50)).toBe("70 fee invoice payments failed");
   });
 });
 

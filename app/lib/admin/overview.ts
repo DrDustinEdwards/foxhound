@@ -12,6 +12,7 @@
 import type { AttentionGroupInfo, AttentionItem } from "capsomer/react/attention-list";
 import { relative } from "capsomer/behaviour/time";
 
+import { PAUSE_REASON_BRAKE } from "~/lib/admin/brake";
 import { cronRunHref } from "~/lib/admin/crons";
 import type { PlatformOverview } from "~/lib/admin/overview.server";
 import { daysUntilDeadline, deadlineLabel, humanizeDisputeReason } from "~/lib/disputes/labels";
@@ -27,8 +28,12 @@ function merchantHref(accountId: string): string {
   return `/admin/merchants/${encodeURIComponent(accountId)}`;
 }
 
+/** A row's time in words, by UTC's calendar ("yesterday" means the UTC day
+ *  before). The words are worked out from the loader's clock in the server
+ *  render and again in the browser, so they must not depend on the browser's
+ *  zone, or the hydrated text would differ from the delivered HTML. */
 function when(at: Date, nowMs: number): AttentionItem["when"] {
-  return { text: relative(at.getTime(), nowMs), datetime: at.toISOString() };
+  return { text: relative(at.getTime(), nowMs, "UTC"), datetime: at.toISOString() };
 }
 
 /**
@@ -50,7 +55,7 @@ export function overviewAttention(overview: PlatformOverview, nowMs: number): At
       group: "paused",
       title: `${m.name ?? m.id} is paused`,
       detail:
-        m.pauseReason === "brake"
+        m.pauseReason === PAUSE_REASON_BRAKE
           ? "Paused by the emergency brake; releasing the brake resumes it"
           : "Processing paused by an operator; resume it on its page",
       href: merchantHref(m.id),
@@ -98,8 +103,9 @@ export function overviewAttention(overview: PlatformOverview, nowMs: number): At
   return items;
 }
 
-/** How a group of like rows is named. The counts are the engine's own, so a
- *  group past the read's ceiling still says how many there are. */
+/** How a group of like rows is named. The counts are the engine's own, not
+ *  the number of rows read, so a group past the read's ceiling still says how
+ *  many there are. */
 export function overviewAttentionGroups(overview: PlatformOverview): Record<string, AttentionGroupInfo> {
   const merchants = { href: "/admin/merchants", label: "Merchants" };
   return {
@@ -108,11 +114,11 @@ export function overviewAttentionGroups(overview: PlatformOverview): Record<stri
       view: merchants,
     },
     disputes: {
-      title: (n) => `${plural(n, "dispute has", "disputes have")} had no response for a week`,
+      title: () => `${plural(overview.staleDisputesCount, "dispute has", "disputes have")} had no response for a week`,
       view: merchants,
     },
     billing: {
-      title: (n) => `${plural(n, "fee invoice payment", "fee invoice payments")} failed`,
+      title: () => `${plural(overview.failedFeeInvoicesCount, "fee invoice payment", "fee invoice payments")} failed`,
       view: merchants,
     },
     crons: {

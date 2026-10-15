@@ -44,7 +44,8 @@ export const RECENT_ACTIONS_LIMIT = 10;
 export interface PausedMerchant {
   id: string;
   name: string | null;
-  /** 'brake' when the emergency brake paused it; null when an operator did. */
+  /** PAUSE_REASON_BRAKE when the emergency brake paused it, PAUSE_REASON_MANUAL
+   *  (or null on an older row) when an operator did (app/lib/admin/brake.ts). */
   pauseReason: string | null;
 }
 
@@ -82,6 +83,11 @@ export interface PlatformOverview {
   newConnectionsCount: number;
   /** Disputes not yet resolved, by Foxhound's dispute state machine. */
   openDisputesCount: number;
+  /** How many of those are older than STALE_DISPUTE_DAYS with no response
+   *  submitted, counted rather than read, so it holds past ATTENTION_LIMIT. */
+  staleDisputesCount: number;
+  /** Fee invoices whose charge failed and that are still unpaid, counted. */
+  failedFeeInvoicesCount: number;
   /** recovered_payments since the first of this UTC month, per currency, the
    *  same read /billing's "recovered this month" makes for one merchant. */
   recoveredThisMonth: { byCurrency: CurrencyAmount[]; paymentCount: number };
@@ -205,14 +211,19 @@ async function countNewConnections(db: Db, nowMs: number): Promise<number> {
 
 const OPEN_DISPUTE = notInArray(disputes.state, [...RESOLVED_DISPUTE_STATES]);
 
-async function openDisputes(db: Db, nowMs: number): Promise<{ count: number; stale: StaleDispute[] }> {
+async function openDisputes(
+  db: Db,
+  nowMs: number,
+): Promise<{ count: number; staleCount: number; stale: StaleDispute[] }> {
   const staleBefore = new Date(nowMs - STALE_DISPUTE_DAYS * DAY_MS);
-  const [countRows, stale] = await Promise.all([
+  const STALE = and(OPEN_DISPUTE, isNull(disputes.submittedAt), lt(disputes.createdAt, staleBefore), NOT_DEMO);
+  const [countRows, staleCountRows, stale] = await Promise.all([
     db
       .select({ n: count() })
       .from(disputes)
       .innerJoin(accounts, eq(accounts.id, disputes.accountId))
       .where(and(OPEN_DISPUTE, NOT_DEMO)),
+    db.select({ n: count() }).from(disputes).innerJoin(accounts, eq(accounts.id, disputes.accountId)).where(STALE),
     db
       .select({
         id: disputes.id,
@@ -226,34 +237,45 @@ async function openDisputes(db: Db, nowMs: number): Promise<{ count: number; sta
       })
       .from(disputes)
       .innerJoin(accounts, eq(accounts.id, disputes.accountId))
-      .where(and(OPEN_DISPUTE, isNull(disputes.submittedAt), lt(disputes.createdAt, staleBefore), NOT_DEMO))
+      .where(STALE)
       .orderBy(asc(disputes.createdAt))
       .limit(ATTENTION_LIMIT),
   ]);
-  return { count: countRows[0]?.n ?? 0, stale };
+  return { count: countRows[0]?.n ?? 0, staleCount: staleCountRows[0]?.n ?? 0, stale };
 }
 
 /** billing_invoices.status 'payment_failed' is the charge that failed and has
  *  not since been paid, voided or given up on (app/lib/billing/charge-retry.ts
  *  moves a settled invoice off it), so the row needs a person while it holds. */
-async function failedFeeInvoices(db: Db): Promise<FailedFeeInvoice[]> {
+async function failedFeeInvoices(db: Db): Promise<{ count: number; rows: FailedFeeInvoice[] }> {
   const failedAt = sql<number>`coalesce(${billingInvoices.lastChargeAttemptAt}, ${billingInvoices.createdAt})`;
-  const rows = await db
-    .select({
-      id: billingInvoices.id,
-      accountId: billingInvoices.accountId,
-      merchantName: accounts.name,
-      totalCents: billingInvoices.totalCents,
-      currency: billingInvoices.currency,
-      chargeAttemptCount: billingInvoices.chargeAttemptCount,
-      failedAtMs: failedAt,
-    })
-    .from(billingInvoices)
-    .innerJoin(accounts, eq(accounts.id, billingInvoices.accountId))
-    .where(and(eq(billingInvoices.status, "payment_failed"), NOT_DEMO))
-    .orderBy(desc(failedAt))
-    .limit(ATTENTION_LIMIT);
-  return rows.map(({ failedAtMs, ...row }) => ({ ...row, failedAt: new Date(Number(failedAtMs)) }));
+  const FAILED = and(eq(billingInvoices.status, "payment_failed"), NOT_DEMO);
+  const [countRows, rows] = await Promise.all([
+    db
+      .select({ n: count() })
+      .from(billingInvoices)
+      .innerJoin(accounts, eq(accounts.id, billingInvoices.accountId))
+      .where(FAILED),
+    db
+      .select({
+        id: billingInvoices.id,
+        accountId: billingInvoices.accountId,
+        merchantName: accounts.name,
+        totalCents: billingInvoices.totalCents,
+        currency: billingInvoices.currency,
+        chargeAttemptCount: billingInvoices.chargeAttemptCount,
+        failedAtMs: failedAt,
+      })
+      .from(billingInvoices)
+      .innerJoin(accounts, eq(accounts.id, billingInvoices.accountId))
+      .where(FAILED)
+      .orderBy(desc(failedAt))
+      .limit(ATTENTION_LIMIT),
+  ]);
+  return {
+    count: countRows[0]?.n ?? 0,
+    rows: rows.map(({ failedAtMs, ...row }) => ({ ...row, failedAt: new Date(Number(failedAtMs)) })),
+  };
 }
 
 async function recoveredThisMonth(db: Db, nowMs: number): Promise<PlatformOverview["recoveredThisMonth"]> {
@@ -304,11 +326,13 @@ export async function getPlatformOverview(db: Db, nowMs: number = Date.now()): P
     billingExemptCount,
     newConnectionsCount,
     openDisputesCount: disputeSummary.count,
+    staleDisputesCount: disputeSummary.staleCount,
+    failedFeeInvoicesCount: feeInvoices.count,
     recoveredThisMonth: recovered,
     attention: {
       pausedMerchants: paused.rows,
       staleDisputes: disputeSummary.stale,
-      failedFeeInvoices: feeInvoices,
+      failedFeeInvoices: feeInvoices.rows,
     },
   };
 }
