@@ -1,6 +1,5 @@
 import { useId } from "react";
-import { data, Link, useNavigation } from "react-router";
-import { ArrowLeft } from "lucide-react";
+import { data, useNavigation } from "react-router";
 import { Button } from "capsomer/react/button";
 import { PageHead } from "capsomer/react/page-head";
 import { Status } from "capsomer/react/status";
@@ -17,6 +16,7 @@ import "capsomer/switch.css";
 import "~/site-header.css";
 
 import { DemoGuardedForm } from "~/components/demo-guarded-form";
+import { SettingsBackLink } from "~/components/settings-back-link";
 import { accounts, getDb } from "~/db";
 import { eq } from "drizzle-orm";
 import { authContext } from "~/lib/auth/context";
@@ -67,6 +67,16 @@ import type { Route } from "./+types/notifications";
 // The engine agrees: the digest cron selects `digest_enabled = true` and the
 // Slack sender gates on a truthy `slack_notifications_enabled`.
 //
+// ONE TRUTHFULNESS FIX (RULES.md 1.2): Recova's help line ends "Defaults to
+// your account email if blank." That was untrue there and is untrue here: a
+// blank box saves NULL (legacy's `|| null`), the payment recovered and sequence
+// complete notices skip a NULL address as `no_recipient`, and the digest cron
+// drops it. So the line says what a blank box does, the box shows only what is
+// stored, and the account email is never shown as if it received mail. Recova's
+// `?? user.email` in the field and its placeholder are not ported, for the same
+// reason. A real fallback in the senders would be a behaviour change and is
+// Dustin's ruling, not this page's.
+//
 // ONE DIVERGENCE, approved (APPROVED-DIFFERENCES, "Slack webhook addresses must
 // be on hooks.slack.com", 2026-09-19; RULES.md 4.16): the webhook URL is
 // validated to `https://hooks.slack.com`, and its refusal is said beside the
@@ -82,7 +92,8 @@ const NULL_IS_ON = true;
 /** Legacy's `?? false` pair. Explicit opt-in. */
 const NULL_IS_OFF = false;
 
-/** Legacy's SaveBar failure sentence, for `?error=update_failed`. */
+/** Legacy's SaveBar failure sentence, said when the action returns
+ *  `failed: true` because the write itself threw. */
 const SAVE_FAILED = "Failed to save. Please try again.";
 
 export async function loader({ context }: Route.LoaderArgs) {
@@ -103,12 +114,9 @@ export async function loader({ context }: Route.LoaderArgs) {
     .limit(1);
 
   return {
-    // Legacy's placeholder: the signed-in user's email, seen when the box is
-    // cleared.
-    accountEmail: auth.email,
-    // Legacy places the account email in the FIELD as well, so a save with an
-    // untouched box keeps writing it. Ported as found.
-    notificationEmail: row?.notificationEmail ?? auth.email,
+    // Only what is stored. NULL is an empty box, because nothing is sent to a
+    // NULL address (see the truthfulness fix above).
+    notificationEmail: row?.notificationEmail ?? "",
     slackWebhookUrl: row?.slackWebhookUrl ?? "",
     slackNotificationsEnabled: row?.slackNotificationsEnabled ?? NULL_IS_OFF,
     digestEnabled: row?.digestEnabled ?? NULL_IS_OFF,
@@ -152,11 +160,9 @@ export async function action({ request, context }: Route.ActionArgs) {
     });
   } catch (err) {
     // Legacy answers a failed update with its SaveBar sentence, not an error
-    // page. The log names the failure only.
-    console.error(
-      "notification settings write failed:",
-      err instanceof Error ? err.message : "unknown error",
-    );
+    // page. The whole error is logged, stack included, so a D1 failure can be
+    // traced; it carries no form values.
+    console.error("notification settings write failed:", err);
     return data<ActionResult>({ ok: false, failed: true }, { status: 500 });
   }
   if (!result.ok) {
@@ -168,21 +174,6 @@ export async function action({ request, context }: Route.ActionArgs) {
     );
   }
   return data<ActionResult>({ ok: true });
-}
-
-/** Legacy's SettingsBackLink (components/SettingsBackLink.tsx, blob 64d4a153):
- *  on a phone, where the settings menu is hidden, a link back to the hub. The
- *  same markup as /settings/api-keys until a shared component lands. */
-function SettingsBackLink() {
-  return (
-    <Link
-      to="/settings"
-      className="mb-6 inline-flex min-h-6 items-center gap-1.5 text-label text-text-secondary no-underline hover:text-text md:hidden"
-    >
-      <ArrowLeft className="h-4 w-4" strokeWidth={2} aria-hidden />
-      Settings
-    </Link>
-  );
 }
 
 /** One of Recova's text fields: label, input, then help under it, as
@@ -201,7 +192,7 @@ function TextField({
   label: string;
   help: string;
   defaultValue: string;
-  placeholder: string;
+  placeholder?: string;
   error?: string;
 }) {
   const base = useId();
@@ -296,9 +287,8 @@ export default function NotificationSettings({ loaderData, actionData }: Route.C
                 name="notificationEmail"
                 type="email"
                 label="Notification email"
-                help="Where all notifications are sent: recovery alerts, sequence updates, and weekly digest. Defaults to your account email if blank."
+                help="Where all notifications are sent: recovery alerts, sequence updates, and weekly digest. Leave it blank and no notification emails are sent."
                 defaultValue={loaderData.notificationEmail}
-                placeholder={loaderData.accountEmail}
               />
             </div>
 
