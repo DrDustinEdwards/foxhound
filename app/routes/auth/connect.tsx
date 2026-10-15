@@ -1,8 +1,20 @@
+import { Alert, Banner } from "capsomer/react/banner";
+import { Button } from "capsomer/react/button";
 import { and, eq, isNull } from "drizzle-orm";
 import { Check, X } from "lucide-react";
-import { data, Form, redirect, useNavigation } from "react-router";
+import type { ReactNode } from "react";
+import { data, Form, Link, redirect, useNavigation } from "react-router";
 
-import { AuthShell, Field, Submit, Alert, AuthLink } from "~/components/auth-ui";
+import "capsomer/banner.css";
+import "capsomer/button.css";
+import "capsomer/field.css";
+import "capsomer/panel.css";
+// Capsomer's tokens and the teal family (capbase layer), which the panel, the
+// button, the field, the banner and alert, and the focus ring read. The site
+// header loads the same file; importing it here keeps the page whole under any
+// layout.
+import "~/site-header.css";
+
 import { getDb, stripeConnections } from "~/db";
 import {
   createAccountForUser,
@@ -123,140 +135,256 @@ export async function action({ request, context }: Route.ActionArgs) {
   });
 }
 
-// The access disclosure panel, restored from legacy app/connect/page.tsx
-// (ruling 20d). Legacy told a merchant what the connection could and could not
-// do, in plain terms, on the screen where they grant it; the rebuild shipped the
-// button without it.
+// The access-disclosure panel (ruling 20(d)): Recova's own panel from
+// app/connect/page.tsx (blob a79ee373, lines 21 to 31 and 59 to 77), restored
+// on the screen where a merchant grants the connection (J53, row A6).
 //
-// NOT a verbatim port, because legacy's list is wrong for Foxhound in three
-// places (ruling 39: do not restore legacy defects). Every line below was
-// checked against the code that actually calls Stripe:
+// RECOVA'S LINES ARE KEPT WORD FOR WORD WHERE THEY ARE TRUE OF FOXHOUND AND SAY
+// AS MUCH AS THE GRANT DOES. The rest are fixed as copy, never by narrowing the
+// scope (RULES.md 2.2):
 //
-//   - Legacy claimed "Register a webhook to receive payment events". Foxhound
-//     never calls webhookEndpoints.create on a connected account; Connect events
-//     arrive at one platform-level endpoint. Dropped rather than ported.
-//   - Foxhound sets a default payment method (card-update/service.ts calls
-//     customers.update and subscriptions.update) and submits dispute evidence
-//     (disputes/submission.ts calls disputes.update with submit:true). Legacy
-//     disclosed neither. Both are writes a merchant should be told about.
-//   - "Create new charges or move money" needs the qualifier legacy left off:
-//     retrying an invoice DOES move money. What is true is that nothing here
-//     creates a charge outside an invoice the merchant already issued.
+//   - The read line stays the wider one main carried until Dustin rules (PR #65,
+//     open question 1). Recova's "View failed invoices and payment history" says
+//     less than Foxhound reads: every customer, subscription, invoice and charge
+//     (intelligence/sync.server.ts), disputes and payment methods.
+//   - "Register a webhook to receive payment events" is dropped. Foxhound never
+//     calls webhookEndpoints.create on a connected account; Connect events reach
+//     one platform-level endpoint.
+//   - Recova's "can do" list names one write, retrying an invoice. Foxhound's
+//     grant is used for three more, so each is listed: setting a customer's
+//     default payment method (card-update/service.ts, customers.update and
+//     subscriptions.update), opening a subscription-mode Stripe checkout for a
+//     win-back customer who chooses to resubscribe (createResubscribeSession),
+//     and submitting dispute evidence a person approved (disputes/submission.ts).
+//   - "Create new charges or move money" is false: a retried invoice moves money,
+//     and a completed win-back checkout makes a new subscription, invoice and
+//     charge. What is true is that Foxhound charges a customer only those two
+//     ways.
 const CONNECTION_CAN = [
   "Read your invoices, subscriptions, disputes, and customer records",
-  "Retry payment on an invoice that has already failed",
+  "Retry failed invoice payments",
   "Set a customer default payment method after that customer updates their card",
+  "Open a Stripe checkout when a former customer chooses to resubscribe",
   "Submit dispute evidence, only after someone on your team approves it",
 ];
 
 const CONNECTION_CANNOT = [
-  "Create a charge outside an invoice you already issued",
-  "Reach your payouts or your bank account",
-  "Store raw card numbers",
-  "Change your prices, products, or subscription plans",
+  "Charge a customer except by retrying a failed invoice or through a checkout they complete",
+  "Access your payouts or bank account",
+  "Store raw card data",
 ];
 
+function AccessList({
+  id,
+  heading,
+  items,
+  allowed,
+}: {
+  id: string;
+  heading: string;
+  items: string[];
+  allowed: boolean;
+}) {
+  const Icon = allowed ? Check : X;
+  return (
+    <>
+      <p
+        id={id}
+        className={`mb-3 text-micro font-medium uppercase tracking-wide text-text-subtle ${allowed ? "" : "mt-4"}`}
+      >
+        {heading}
+      </p>
+      <ul aria-labelledby={id} className="m-0 flex list-none flex-col gap-2 p-0">
+        {items.map((item) => (
+          <li key={item} className="flex items-start gap-2 text-label text-text">
+            <Icon
+              className={`mt-0.5 size-4 shrink-0 ${allowed ? "text-success-text" : "text-error-text"}`}
+              strokeWidth={1.5}
+              aria-hidden
+            />
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+/** Recova's inner box: the two lists on the page ground, inside the card.
+ *  Capsomer has no can and cannot list, so this is composed from Foxhound's
+ *  own tokens and named in the PR as a Capsomer gap. */
 function AccessDisclosure() {
   return (
     <div className="mb-6 rounded-lg border border-border bg-bg p-4">
-      <p className="mb-3 font-mono text-micro uppercase tracking-wide text-text-tertiary">
-        What Foxhound can do
-      </p>
-      <ul className="m-0 flex list-none flex-col gap-2 p-0">
-        {CONNECTION_CAN.map((item) => (
-          <li key={item} className="flex items-start gap-2 text-label text-text-secondary">
-            <Check className="mt-0.5 size-4 shrink-0 text-success-text" strokeWidth={1.5} aria-hidden />
-            <span>{item}</span>
-          </li>
-        ))}
-      </ul>
-      <p className="mb-3 mt-4 font-mono text-micro uppercase tracking-wide text-text-tertiary">
-        What Foxhound can never do
-      </p>
-      <ul className="m-0 flex list-none flex-col gap-2 p-0">
-        {CONNECTION_CANNOT.map((item) => (
-          <li key={item} className="flex items-start gap-2 text-label text-text-secondary">
-            <X className="mt-0.5 size-4 shrink-0 text-error-text" strokeWidth={1.5} aria-hidden />
-            <span>{item}</span>
-          </li>
-        ))}
-      </ul>
-      <p className="mt-4 text-label text-text-tertiary">
-        You can disconnect at any time from Settings, which stops every active sequence.
-      </p>
+      <AccessList id="connect-can" heading="What Foxhound can do" items={CONNECTION_CAN} allowed />
+      <AccessList
+        id="connect-cannot"
+        heading="What Foxhound can never do"
+        items={CONNECTION_CANNOT}
+        allowed={false}
+      />
     </div>
   );
 }
 
+// Recova's error words (app/connect/page.tsx lines 11 to 19) for every code
+// Foxhound's callback sends here. Recova's three setup codes (oauth_failed,
+// billing_setup_failed, account_products_setup_failed) are not carried:
+// nothing in Foxhound sends them. stripe_account_already_connected is
+// Foxhound's own refusal (one live Foxhound account per Stripe account, RULES.md
+// 4.6); Recova moved the connection instead, so it has no words for it. "Please
+// try again" would be untrue there, since trying again is refused again, and the
+// sentence names no account, so it tells nobody whose ledger holds it.
 const OAUTH_ERROR_MESSAGES: Record<string, string> = {
-  denied: "Stripe connection was cancelled.",
+  denied: "You cancelled the Stripe connection. Try again when ready.",
+  invalid_state: "Security check failed. Please try again.",
   no_code: "Stripe did not return an authorization code. Please try again.",
-  invalid_state: "The connection request expired. Please try again.",
-  token_exchange_failed: "Could not complete the Stripe connection. Please try again.",
+  token_exchange_failed: "Stripe could not complete the connection. Please try again.",
+  stripe_account_already_connected: "This Stripe account is already connected to a Foxhound account.",
 };
+const OAUTH_ERROR_FALLBACK = "Something went wrong. Please try again.";
+
+/** A small text link on the card, teal, underlined so it is not told apart by
+ *  colour alone, and 24px tall as a target. */
+function CardLink({ to, children }: { to: string; children: ReactNode }) {
+  return (
+    <Link
+      to={to}
+      className="inline-flex min-h-6 items-center text-brand-text underline underline-offset-2 hover:opacity-80"
+    >
+      {children}
+    </Link>
+  );
+}
+
+/**
+ * The page's frame: Recova's one card, centred, 480px wide (app/connect/page.tsx
+ * line 43), under the site header (J10). Not AuthShell: Recova's /connect has no
+ * brand panel, and AuthShell's own main landmark would sit inside the marketing
+ * layout's.
+ *
+ * The card is Capsomer's panel through its HTML contract, body only, because
+ * the React Panel always draws an h2 header band and this page's one heading is
+ * its h1 (the Capsomer gap J62 named). The wrapper puts the parts in Capsomer's
+ * teal family with Foxhound's neutrals (.fh-cap, the pairing the site header
+ * uses), so the button and its focus ring are teal (Q11). One inner div holds
+ * Recova's spacing, so the panel body's own grid gap does not replace it.
+ */
+function ConnectFrame({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex justify-center px-4 py-[60px]">
+      <div
+        className="fh-cap w-full max-w-[480px] [--border-focus:var(--ring)]"
+        data-family="teal"
+        data-connect=""
+      >
+        <section className="cap-panel">
+          <div className="cap-panel-body">
+            <div>{children}</div>
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function ConnectHeading({ title, subtitle }: { title: string; subtitle: string }) {
+  return (
+    <>
+      <h1 className="mb-2 text-center text-title font-semibold text-text">{title}</h1>
+      <p className="mb-8 text-center text-label leading-relaxed text-text-subtle">{subtitle}</p>
+    </>
+  );
+}
 
 export default function Connect({ loaderData, actionData }: Route.ComponentProps) {
   const busy = useNavigation().state !== "idle";
   const oauthError = loaderData.error
-    ? (OAUTH_ERROR_MESSAGES[loaderData.error] ?? "Could not connect Stripe. Please try again.")
+    ? (OAUTH_ERROR_MESSAGES[loaderData.error] ?? OAUTH_ERROR_FALLBACK)
     : null;
 
-  // No account yet: name it.
+  // No account yet: name it. Foxhound's own step (its account exists before
+  // the connection does); Recova made the account inside its callback.
   if (!loaderData.hasAccount) {
     return (
-      <AuthShell
-        title="Name your account"
-        subtitle="One more step before you connect Stripe."
-      >
-        <Form method="post" className="flex flex-col gap-4">
-          {actionData?.error ? <Alert tone="error">{actionData.error}</Alert> : null}
-          <Field
-            label="Account name"
-            name="name"
-            autoComplete="organization"
-            defaultValue={loaderData.userName ?? undefined}
-          />
-          <Submit disabled={busy}>{busy ? "Creating..." : "Create account"}</Submit>
+      <ConnectFrame>
+        <ConnectHeading title="Name your account" subtitle="One more step before you connect Stripe." />
+        <Form method="post" className="grid gap-4">
+          {actionData?.error ? <Alert tone="crit">{actionData.error}</Alert> : null}
+          {/* Capsomer's field through its HTML contract. The React Field
+              sets the input's required from its own prop, so keeping the
+              browser's required check would also print a "Required" marker
+              (12px, off the five sizes) this step never had. */}
+          <div className="cap-field">
+            <label className="cap-field-label" htmlFor="connect-account-name">
+              Account name
+            </label>
+            <input
+              id="connect-account-name"
+              className="cap-input"
+              name="name"
+              type="text"
+              autoComplete="organization"
+              required
+              defaultValue={loaderData.userName ?? undefined}
+            />
+          </div>
+          <Button type="submit" variant="primary" pending={busy}>
+            {busy ? "Creating..." : "Create account"}
+          </Button>
         </Form>
-      </AuthShell>
+      </ConnectFrame>
     );
   }
 
   // Account exists and Stripe is connected.
   if (loaderData.hasConnection) {
     return (
-      <AuthShell
-        title="Stripe connected"
-        subtitle={`${loaderData.accountName ?? "Your account"} is ready.`}
-        footer={<AuthLink to="/dashboard">Go to dashboard</AuthLink>}
-      >
-        <Alert tone="success">
-          Your Stripe account is connected. Foxhound can now recover failed
-          payments for you.
-        </Alert>
-      </AuthShell>
+      <ConnectFrame>
+        <ConnectHeading
+          title="Stripe connected"
+          subtitle={`${loaderData.accountName ?? "Your account"} is ready.`}
+        />
+        <Banner tone="ok">
+          Your Stripe account is connected. Foxhound can now recover failed payments for you.
+        </Banner>
+        <p className="mt-4 text-center text-label">
+          <CardLink to="/dashboard">Go to dashboard</CardLink>
+        </p>
+      </ConnectFrame>
     );
   }
 
-  // Account exists, Stripe not yet connected: offer the Connect step.
+  // Account exists, Stripe not yet connected: Recova's page.
   return (
-    <AuthShell
-      title="Connect Stripe"
-      subtitle="Foxhound needs read and write access to your Stripe account so it can retry invoices that have failed. Here is exactly what that covers."
-      footer={<AuthLink to="/dashboard">Skip for now</AuthLink>}
-    >
-      {oauthError ? <Alert tone="error">{oauthError}</Alert> : null}
-      {actionData?.error ? <Alert tone="error">{actionData.error}</Alert> : null}
+    <ConnectFrame>
+      <ConnectHeading
+        title="Connect your Stripe account"
+        subtitle="Foxhound needs read/write access to retry failed invoices on your behalf. You can disconnect at any time."
+      />
+      {oauthError || actionData?.error ? (
+        <div className="mb-6">
+          <Alert tone="crit">{oauthError ?? actionData?.error}</Alert>
+        </div>
+      ) : null}
       <AccessDisclosure />
       {loaderData.stripeEnabled ? (
-        <Form method="post">
-          <Submit disabled={busy}>{busy ? "Redirecting..." : "Connect Stripe"}</Submit>
+        <Form method="post" className="grid">
+          <Button type="submit" variant="primary" pending={busy}>
+            {busy ? "Redirecting..." : "Connect Stripe"}
+          </Button>
         </Form>
       ) : (
-        <p className="text-label text-text-tertiary">
+        <p className="text-center text-label text-text-tertiary">
           Stripe Connect is not configured in this environment yet.
         </p>
       )}
-    </AuthShell>
+      <p className="mt-4 text-center text-micro text-text-subtle">
+        Not ready? <CardLink to="/demos/recovery">See a demo first</CardLink>
+      </p>
+      <p className="mt-2 text-center text-micro text-text-subtle">
+        <CardLink to="/settings">Manage account</CardLink>
+      </p>
+    </ConnectFrame>
   );
 }
