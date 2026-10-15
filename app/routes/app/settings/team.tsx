@@ -6,6 +6,7 @@ import { DemoGuardedForm } from "~/components/demo-guarded-form";
 import { getDb } from "~/db";
 import { authContext, createInvite, listMembers, removeMember, MEMBER_ROLE } from "~/lib/auth";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { sendTeamInviteEmail, teamInviteEmailNotice } from "~/lib/settings/team-invite-email.server";
 
 import type { Route } from "./+types/team";
 
@@ -105,10 +106,27 @@ export async function action({ request, context }: Route.ActionArgs) {
     );
   }
 
-  const { token } = await createInvite(db, membership.accountId, email);
+  const { token, memberId } = await createInvite(db, membership.accountId, email);
   const url = new URL(request.url);
   const inviteUrl = `${url.origin}/invite/${token}`;
-  return data({ error: null, invited: email, inviteUrl });
+  // E2: Recova emails the invitee here, after the pending row is written
+  // (app/api/invite/route.ts, blob 960aefc6). The link stays on the page as
+  // well, and when the email did not go the page says so rather than
+  // reporting success as Recova does (RULES.md 3.16).
+  const sent = await sendTeamInviteEmail(env, {
+    accountId: membership.accountId,
+    to: email,
+    accountName: membership.accountName,
+    inviteUrl,
+    memberId,
+  });
+  return data({
+    error: null,
+    invited: email,
+    inviteUrl,
+    emailStatus: sent.status,
+    emailError: teamInviteEmailNotice(sent.status),
+  });
 }
 
 export default function Team({ loaderData, actionData }: Route.ComponentProps) {
@@ -183,6 +201,9 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
               <Alert tone="success">
                 Invited {actionData.invited}. Share this link: {actionData.inviteUrl}
               </Alert>
+            ) : null}
+            {actionData && "emailError" in actionData && actionData.emailError ? (
+              <Alert tone="error">{actionData.emailError}</Alert>
             ) : null}
             <Field label="Invite email" name="email" type="email" />
             <div>

@@ -316,6 +316,9 @@ describe("accessibility of the rendered mail", () => {
     expect(html).toContain(`<title>${SUBJECT.replace("'", "&#39;")}</title>`);
     for (const [, href] of html.matchAll(/<a\b[^>]*href="([^"]*)"/g)) expect(href).toMatch(/^https:\/\//);
     for (const [, label] of html.matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/g)) expect(label.trim().length).toBeGreaterThan(0);
+    // One heading, and it is the invitation in Recova's words.
+    expect(html.match(/<h[1-6]\b/g)).toHaveLength(1);
+    expect(htmlWords(html)).toMatch(/<h1\b[^>]*>You've been invited to join Acme on Foxhound\.<\/h1>/);
     expect(html).toMatch(/font-size:\s*16px/);
   });
 });
@@ -368,5 +371,16 @@ describe("a refused send returns its named outcome, and the invite still stands"
     const res = await invite();
     expect(typeof res.body.emailError).toBe("string");
     expect(String(res.body.emailError)).not.toMatch(wide);
+  });
+});
+
+describe("the live-send gate still holds every other send", () => {
+  it("customer mail and other merchant mail are held; only the preview and the invite are not", async () => {
+    const { heldByLiveSendGate, TEAM_INVITE_TEMPLATE } = await import("~/lib/email/dispatch");
+    expect(heldByLiveSendGate({ audience: undefined, template: "recovery_dunning" })).toBe(true);
+    expect(heldByLiveSendGate({ audience: "customer", template: TEAM_INVITE_TEMPLATE })).toBe(true);
+    expect(heldByLiveSendGate({ audience: "merchant", template: "weekly_digest" })).toBe(true);
+    expect(heldByLiveSendGate({ audience: "preview", template: "settings_test" })).toBe(false);
+    expect(heldByLiveSendGate({ audience: "merchant", template: TEAM_INVITE_TEMPLATE })).toBe(false);
   });
 });

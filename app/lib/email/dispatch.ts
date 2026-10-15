@@ -46,6 +46,23 @@ export const SEND_CLAIM_MISSING_KEY_ERROR = "email job has no idempotency key";
  *  "how many sends did the flag stop" is one WHERE clause, not a guess. */
 export const LIVE_SENDS_DISABLED_ERROR = "live sends are disabled for this account";
 
+/** email_sends.template of the team invite (E2), the one merchant-audience
+ *  send the live-send gate does not hold. */
+export const TEAM_INVITE_TEMPLATE = "team_invite";
+
+/**
+ * Whether the per-account live-send gate (268) holds this job. It exists to
+ * keep a merchant's CUSTOMERS from being mailed before the merchant is switched
+ * on, so it holds every job except the two that reach no customer and that
+ * Recova sends with no switch: the preview the signed-in user sends themselves
+ * (E3) and the team invite (E2). Pure.
+ */
+export function heldByLiveSendGate(job: Pick<EmailJob, "audience" | "template">): boolean {
+  if (job.audience === "preview") return false;
+  if (job.audience === "merchant" && job.template === TEAM_INVITE_TEMPLATE) return false;
+  return true;
+}
+
 export interface EmailJobResult {
   status: EmailSendStatus;
   providerMessageId: string | null;
@@ -193,7 +210,11 @@ export async function processEmailJob(
   // signed-in user's own address (RULES.md 4.7) and reaches no customer, and
   // Recova's test-email route sends on every click with no such switch. The
   // admin email tool skips the gate for the same reason (#82).
-  if (job.audience !== "preview" && !(await liveSendsEnabled(db, job.accountId))) {
+  //
+  // NOR IS THE TEAM INVITE (E2). It goes to the address the account's owner
+  // typed to add a teammate, reaches no customer, and Recova's invite route
+  // sends it on every invite with no such switch.
+  if (heldByLiveSendGate(job) && !(await liveSendsEnabled(db, job.accountId))) {
     await logSend(db, {
       job,
       status: "blocked",
