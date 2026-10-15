@@ -161,6 +161,10 @@ describe("whether Sentry can be read", () => {
     expect(u.searchParams.get("statsPeriod")).toBe("14d");
     expect(url).not.toContain(FAKE_TOKEN);
     expect(new Headers(init.headers).get("authorization")).toBe(`Bearer ${FAKE_TOKEN}`);
+    // Review of #94: the read has a timeout, and a redirect is never followed
+    // (a followed redirect would carry the token to another host).
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+    expect(init.redirect).toBe("manual");
 
     expect(data.sentry.state).toBe("ready");
     const issues = data.sentry.issues as Array<Record<string, unknown>>;
@@ -191,6 +195,25 @@ describe("whether Sentry can be read", () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status: 404 })));
     const missing = await runLoader({ SENTRY_DSN: DSN, SENTRY_AUTH_TOKEN: FAKE_TOKEN, SENTRY_ORG: "example-org" });
     expect(String(missing.sentry.message)).toMatch(/example-org/);
+
+    // Review of #94: a 3xx is a failed read with its status, never followed.
+    for (const status of [301, 302, 307, 308]) {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => new Response(null, { status, headers: { location: "https://elsewhere.example/" } })),
+      );
+      const moved = await runLoader({ SENTRY_DSN: DSN, SENTRY_AUTH_TOKEN: FAKE_TOKEN, SENTRY_ORG: "example-org" });
+      expect(moved.sentry.state, String(status)).toBe("failed");
+      expect(String(moved.sentry.message), String(status)).toContain(`(${status})`);
+      expect(String(moved.sentry.message)).not.toContain("elsewhere.example");
+    }
+    // An opaque redirect (what workerd and browsers return for redirect:
+    // "manual") has status 0 and type opaqueredirect; it is a failed read too.
+    const opaque = { ok: false, status: 0, type: "opaqueredirect", json: async () => [] } as unknown as Response;
+    vi.stubGlobal("fetch", vi.fn(async () => opaque));
+    const hidden = await runLoader({ SENTRY_DSN: DSN, SENTRY_AUTH_TOKEN: FAKE_TOKEN, SENTRY_ORG: "example-org" });
+    expect(hidden.sentry.state).toBe("failed");
+    expect(String(hidden.sentry.message)).toMatch(/redirect/i);
 
     vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("network down"); }));
     const down = await runLoader({ SENTRY_DSN: DSN, SENTRY_AUTH_TOKEN: FAKE_TOKEN, SENTRY_ORG: "example-org" });
@@ -373,6 +396,35 @@ describe("the Errors page", () => {
     const html = render({ sentry: { state: "ready", issues: readyIssues }, failed: [failedEntry] });
     const regions = html.match(/<div class="cap-table-wrap"[^>]*role="region"[^>]*aria-labelledby="[^"]+"[^>]*tabindex="0"/gi) ?? [];
     expect(regions).toHaveLength(2);
+  });
+});
+
+// Review of #94: the operations page's settings list names the read settings.
+describe("the settings list on /admin/operations", () => {
+  it("lists SENTRY_AUTH_TOKEN and SENTRY_ORG as secrets beside SENTRY_DSN, by presence only", async () => {
+    const { getEnvSanity } = await import("~/lib/admin/operations.server");
+    const rows = getEnvSanity({ SENTRY_ORG: "example-org" } as unknown as Env);
+    const sentry = rows.filter((r) => r.name.startsWith("SENTRY_"));
+    expect(sentry).toEqual([
+      { name: "SENTRY_DSN", kind: "secret", set: false },
+      { name: "SENTRY_AUTH_TOKEN", kind: "secret", set: false },
+      { name: "SENTRY_ORG", kind: "secret", set: true },
+    ]);
+    expect(JSON.stringify(rows)).not.toContain("example-org");
+  });
+});
+
+// Review of #94: a failure's error text is cut like the fallback detail.
+describe("a long error in the detail column", () => {
+  it("is cut at 80 characters with an ellipsis, for both failure actions", async () => {
+    const { auditDetail } = await import("~/lib/admin/audit-describe");
+    const long = "e".repeat(300);
+    for (const action of ["staged.failed", "user_self_deleted_account_deauthorize_failed"]) {
+      const entry = { action, metadata: { error: long }, targetEmail: null, targetUserId: null };
+      expect(auditDetail(entry as never), action).toBe(`${"e".repeat(80)}…`);
+      const short = { ...entry, metadata: { error: "e".repeat(80) } };
+      expect(auditDetail(short as never), action).toBe("e".repeat(80));
+    }
   });
 });
 
