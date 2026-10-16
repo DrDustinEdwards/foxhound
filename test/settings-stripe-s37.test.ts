@@ -175,7 +175,10 @@ async function post(fields: Record<string, string>): Promise<{ status: number; b
     context: ctx,
     request: new Request("https://foxhoundapp.test/settings", { method: "POST", body: form }),
     params: {},
-  } as never)) as unknown as { data: Record<string, unknown>; init?: { status?: number } };
+  } as never)) as unknown as Response | { data: Record<string, unknown>; init?: { status?: number } };
+  // J41: a clean disconnect answers with Recova's trip back to /settings, a
+  // real redirect Response, so its status is read off the Response itself.
+  if (res instanceof Response) return { status: res.status, body: { location: res.headers.get("Location") } };
   return { status: res.init?.status ?? 200, body: res.data };
 }
 
@@ -253,7 +256,9 @@ describe("PLANT 3: disconnect stamps the timestamp, leaves is_primary, and the r
 
     const res = await post({ _action: "disconnect-stripe", connectionId: "c_primary" });
 
-    expect(res.status).toBe(200);
+    // J41: success goes back to /settings, as Recova's window.location does.
+    expect(res.status).toBe(302);
+    expect(res.body.location).toBe("/settings");
     const row = connectionRow("c_primary");
     expect(row.disconnectedAt).not.toBeNull();
     // 333 ruled AGAINST promotion and against clearing the flag: legacy does
