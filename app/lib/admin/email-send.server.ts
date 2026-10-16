@@ -291,7 +291,12 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
       cronRunId: null,
       audience: "customer" as const,
     };
-    const job = (content: { subject: string; bodyHtml: string; footerNote?: string }): PreparedEmail => ({
+    const job = (
+      content: { subject: string; footerNote?: string } & (
+        | { bodyHtml: string }
+        | { blocks: ReturnType<typeof buildExpiringCardEmail> }
+      ),
+    ): PreparedEmail => ({
       channel: "job",
       audience: "customer",
       job: { ...base, ...content },
@@ -323,7 +328,7 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
       const card = { cardBrand: "Visa", cardLast4: "4242" };
       return job({
         subject: expiringCardSubject(card),
-        bodyHtml: buildExpiringCardEmail({
+        blocks: buildExpiringCardEmail({
           ...card,
           customerName: null,
           expiresMonth: next.getUTCMonth() + 1,
@@ -331,6 +336,7 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
           senderName,
           updateUrl: standIn,
         }),
+        footerNote: recoveryFooterNote(senderName, now.getUTCFullYear()),
       });
     }
     if (type.type === "settings_test") {

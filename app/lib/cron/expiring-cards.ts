@@ -5,6 +5,7 @@ import { accounts, expiringCardAlerts, getDb, stripeConnections } from "~/db";
 import { EXPIRING_CARD_DAYS_AHEAD } from "~/lib/constants";
 import { signCardUpdateToken } from "~/lib/card-update/token";
 import { processEmailJob } from "~/lib/email/dispatch";
+import { recoveryFooterNote } from "~/lib/email/templates";
 import { recordOutcome } from "~/lib/engine/outcomes";
 import { accountProcessingEligibleCondition } from "~/lib/cron/recovery-tick";
 import { getConnectedStripe } from "~/lib/stripe/client";
@@ -274,6 +275,17 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
         isNull(expiringCardAlerts.alertSentAt),
         isNull(expiringCardAlerts.deletedAt),
         accountProcessingEligibleCondition(),
+        // Recova skips an alert whose account has no primary live Stripe
+        // connection and leaves it unstamped, so the customer is still warned
+        // if the merchant reconnects inside the window (E12). Filtered here,
+        // not in the loop, so unsendable rows never fill the 100-row page and
+        // starve other merchants' alerts (RULES.md 1.5).
+        sql`exists (
+          select 1 from ${stripeConnections}
+          where ${stripeConnections.accountId} = ${expiringCardAlerts.accountId}
+            and ${stripeConnections.isPrimary} = 1
+            and ${stripeConnections.disconnectedAt} is null
+        )`,
       ),
     )
     .limit(EXPIRING_CARD_SEND_LIMIT);
@@ -307,7 +319,7 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
             cardBrand: alert.cardBrand,
             cardLast4: alert.cardLast4,
           }),
-          bodyHtml: buildExpiringCardEmail({
+          blocks: buildExpiringCardEmail({
             customerName: alert.customerName,
             cardBrand: alert.cardBrand,
             cardLast4: alert.cardLast4,
@@ -316,6 +328,10 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
             senderName: alert.senderName,
             updateUrl: `${env.BETTER_AUTH_URL ?? ""}/p/${token}`,
           }),
+          // Recova's footer sentence (lib/email.ts wrapEmailHtml), with the
+          // sender name as its From has it, before the unsubscribe link and
+          // the postal address (E12).
+          footerNote: recoveryFooterNote(alert.senderName, now.getUTCFullYear()),
           template: EXPIRING_CARD_TEMPLATE,
           // CUSTOMER audience: the CAN-SPAM footer, the unsubscribe headers and
           // the suppression gate all apply, because this is commercial mail sent

@@ -79,7 +79,11 @@ export function buildEmailMessage(job: OutboundEmailJob, baseUrl: string): Email
         : undefined;
   const frame = { subject: job.subject, brandName: fromName, to: job.to, footer, tracking: job.tracking };
   const rendered = renderFoxhoundEmail(
-    job.notice ? { ...frame, notice: job.notice } : { ...frame, bodyHtml: job.bodyHtml },
+    job.notice
+      ? { ...frame, notice: job.notice }
+      : job.blocks
+        ? { ...frame, blocks: job.blocks }
+        : { ...frame, bodyHtml: job.bodyHtml },
   );
   const message: EmailSendMessage = {
     from: `${fromName} <${EMAIL_FROM_ADDRESS}>`,
