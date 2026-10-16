@@ -1,4 +1,4 @@
-// /admin/merchants data layer: list + detail (Pass 1, read-only) and the
+// /admin/merchants data layer: list + figures + detail (read-only) and the
 // money-adjacent write actions (Pass 2): billing_exempt / processing_paused
 // toggles and merchant cancel/disconnect. Adjustment creation lives in
 // app/lib/billing/adjustment.ts (it flows through the billing ledger, not
@@ -7,22 +7,29 @@
 // billing, and webhook claims; a flag toggle or a connection-disconnect stamp
 // is operational, matching the brand-voice-update / cron-toggle precedent).
 
-import { and, count, desc, eq, isNull, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, isNull, ne, notLike, sql, type SQL } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import type { Db } from "~/db";
 import {
+  accountMembers,
   accountSubscriptions,
   accounts,
   billingInvoices,
+  billingLineItems,
   disputes,
   failedPayments,
   getDb,
   recoveredPayments,
   stripeConnections,
+  user,
 } from "~/db";
 import { PAUSE_REASON_MANUAL } from "~/lib/admin/brake";
+import { countActiveRecoveries, mrrUnderManagement } from "~/lib/admin/overview.server";
+import { MEMBER_ROLE, MEMBER_STATUS } from "~/lib/auth/roles";
+import { groupSumByCurrency, startOfUtcMonthMs, type CurrencyAmount } from "~/lib/billing/preview.server";
 import {
+  DEMO_ACCOUNT_ID_PREFIX,
   INTELLIGENCE_PRODUCT,
   SUBSCRIPTION_STATUS_ACTIVE,
   SUBSCRIPTION_STATUS_CANCELED,
@@ -40,48 +47,203 @@ export interface MerchantListRow {
   activeRecoveriesCount: number;
 }
 
-/** One row per (non-demo) account. Connection status and activity counts are
- *  per-account subqueries; platform scale (~hundreds of accounts pre-launch)
- *  keeps N+1-shaped small queries acceptable, matching the posture the rest
- *  of the admin surface takes (see overview.server.ts). */
-export async function listMerchants(db: Db): Promise<MerchantListRow[]> {
-  const rows = await db
-    .select({
-      id: accounts.id,
-      name: accounts.name,
-      createdAt: accounts.createdAt,
-      billingExempt: accounts.billingExempt,
-      processingPaused: accounts.processingPaused,
-      cancelledAt: accounts.cancelledAt,
-    })
-    .from(accounts)
-    .orderBy(desc(accounts.createdAt));
+/** The /admin/merchants row: the admin API's MerchantListRow plus Recova's
+ *  inventory (app/admin/AdminClient.tsx, blob df4b3713, and the
+ *  /api/admin/users route that fed it), each read from Foxhound's engine. */
+export interface AdminMerchantRow extends MerchantListRow {
+  /** PAUSE_REASON_BRAKE or PAUSE_REASON_MANUAL while paused (brake.ts). */
+  pauseReason: string | null;
+  /** The active owner's sign-in email (Recova: the owner member's auth email). */
+  ownerEmail: string | null;
+  /** The live connection's Stripe account: the live primary, else the oldest
+   *  live one. A disconnected primary stops counting as the primary one
+   *  (APPROVED-DIFFERENCES, 2026-09-19). Null with no live connection. */
+  stripeUserId: string | null;
+  /** That connection's last webhook. */
+  lastWebhookAt: Date | null;
+  /** Recova's rate: recoveries over failures, both with deleted rows left
+   *  out, rounded to a whole percent. Null when nothing has failed. */
+  recoveryRatePct: number | null;
+  /** Everything recovered for this merchant, per currency (RULES.md 3.20). */
+  recovered: CurrencyAmount[];
+}
 
-  const results: MerchantListRow[] = [];
-  for (const row of rows) {
-    const [activeConnection, anyConnection, activeRecoveries] = await Promise.all([
-      db
-        .select({ id: stripeConnections.id })
-        .from(stripeConnections)
-        .where(and(eq(stripeConnections.accountId, row.id), isNull(stripeConnections.disconnectedAt)))
-        .limit(1),
-      db.select({ id: stripeConnections.id }).from(stripeConnections).where(eq(stripeConnections.accountId, row.id)).limit(1),
-      db
-        .select({ n: count() })
-        .from(failedPayments)
-        .where(and(eq(failedPayments.accountId, row.id), eq(failedPayments.status, "active"))),
-    ]);
+/** One row per account, newest first, demo accounts included as Recova's list
+ *  included them. Each column is one grouped read over every account (six
+ *  reads in all, whatever the merchant count), joined here. */
+export async function listAdminMerchants(db: Db): Promise<AdminMerchantRow[]> {
+  const [rows, owners, connections, activeCounts, failedCounts, recoveredRows] = await Promise.all([
+    db
+      .select({
+        id: accounts.id,
+        name: accounts.name,
+        createdAt: accounts.createdAt,
+        billingExempt: accounts.billingExempt,
+        processingPaused: accounts.processingPaused,
+        pauseReason: accounts.pauseReason,
+        cancelledAt: accounts.cancelledAt,
+      })
+      .from(accounts)
+      .orderBy(desc(accounts.createdAt)),
+    db
+      .select({ accountId: accountMembers.accountId, email: user.email })
+      .from(accountMembers)
+      .innerJoin(user, eq(user.id, accountMembers.userId))
+      .where(and(eq(accountMembers.role, MEMBER_ROLE.OWNER), eq(accountMembers.status, MEMBER_STATUS.ACTIVE)))
+      .orderBy(asc(accountMembers.createdAt)),
+    db
+      .select({
+        accountId: stripeConnections.accountId,
+        stripeUserId: stripeConnections.stripeUserId,
+        isPrimary: stripeConnections.isPrimary,
+        disconnectedAt: stripeConnections.disconnectedAt,
+        lastWebhookAt: stripeConnections.lastWebhookAt,
+      })
+      .from(stripeConnections)
+      .orderBy(asc(stripeConnections.connectedAt), asc(stripeConnections.createdAt)),
+    db
+      .select({ accountId: failedPayments.accountId, n: count() })
+      .from(failedPayments)
+      .where(eq(failedPayments.status, "active"))
+      .groupBy(failedPayments.accountId),
+    db
+      .select({ accountId: failedPayments.accountId, n: count() })
+      .from(failedPayments)
+      .where(isNull(failedPayments.deletedAt))
+      .groupBy(failedPayments.accountId),
+    db
+      .select({
+        accountId: recoveredPayments.accountId,
+        currency: recoveredPayments.currency,
+        cents: sql<number>`coalesce(sum(${recoveredPayments.amountCents}), 0)`,
+        n: count(),
+      })
+      .from(recoveredPayments)
+      .where(isNull(recoveredPayments.deletedAt))
+      .groupBy(recoveredPayments.accountId, recoveredPayments.currency),
+  ]);
 
-    const connectionStatus: MerchantListRow["connectionStatus"] =
-      activeConnection.length > 0 ? "connected" : anyConnection.length > 0 ? "disconnected" : "never_connected";
+  const ownerByAccount = new Map<string, string>();
+  for (const o of owners) if (!ownerByAccount.has(o.accountId)) ownerByAccount.set(o.accountId, o.email);
 
-    results.push({
-      ...row,
-      connectionStatus,
-      activeRecoveriesCount: activeRecoveries[0]?.n ?? 0,
-    });
+  const connectionsByAccount = new Map<string, typeof connections>();
+  for (const c of connections) {
+    const list = connectionsByAccount.get(c.accountId) ?? [];
+    list.push(c);
+    connectionsByAccount.set(c.accountId, list);
   }
-  return results;
+
+  const activeByAccount = new Map(activeCounts.map((r) => [r.accountId, r.n]));
+  const failedByAccount = new Map(failedCounts.map((r) => [r.accountId, r.n]));
+  const recoveredByAccount = new Map<string, { n: number; amounts: Array<{ currency: string; cents: number }> }>();
+  for (const r of recoveredRows) {
+    const entry = recoveredByAccount.get(r.accountId) ?? { n: 0, amounts: [] };
+    entry.n += r.n;
+    entry.amounts.push({ currency: r.currency, cents: Number(r.cents) });
+    recoveredByAccount.set(r.accountId, entry);
+  }
+
+  return rows.map((row) => {
+    const own = connectionsByAccount.get(row.id) ?? [];
+    const live = own.filter((c) => c.disconnectedAt === null);
+    const shown = live.find((c) => c.isPrimary) ?? live[0] ?? null;
+    const failedCount = failedByAccount.get(row.id) ?? 0;
+    const recovered = recoveredByAccount.get(row.id);
+    return {
+      ...row,
+      connectionStatus: live.length > 0 ? "connected" : own.length > 0 ? "disconnected" : "never_connected",
+      activeRecoveriesCount: activeByAccount.get(row.id) ?? 0,
+      ownerEmail: ownerByAccount.get(row.id) ?? null,
+      stripeUserId: shown?.stripeUserId ?? null,
+      lastWebhookAt: shown?.lastWebhookAt ?? null,
+      recoveryRatePct: failedCount > 0 ? Math.round(((recovered?.n ?? 0) / failedCount) * 100) : null,
+      recovered: groupSumByCurrency(recovered?.amounts ?? []),
+    };
+  });
+}
+
+/** The admin API's merchants list (GET /merchants): the same rows, with the
+ *  fields it has always returned and no more. */
+export async function listMerchants(db: Db): Promise<MerchantListRow[]> {
+  const rows = await listAdminMerchants(db);
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    createdAt: r.createdAt,
+    billingExempt: r.billingExempt,
+    processingPaused: r.processingPaused,
+    cancelledAt: r.cancelledAt,
+    connectionStatus: r.connectionStatus,
+    activeRecoveriesCount: r.activeRecoveriesCount,
+  }));
+}
+
+/** Recova's five stat cards on its merchants page, from Foxhound's engine.
+ *  Demo accounts are not counted, as Recova's platform figures left them out. */
+export interface MerchantFigures {
+  /** Accounts, demo ones not counted: the denominator for connectedCount. */
+  merchantCount: number;
+  /** Recova's "Est. MRR": each merchant's latest MRR snapshot, per currency
+   *  (the Overview's "MRR under management"). */
+  mrrByCurrency: Array<{ currency: string; totalCents: number; accountCount: number }>;
+  /** Recova's "Stripe Connected": merchants with a live connection. */
+  connectedCount: number;
+  /** Recova's "Total Recovered": all time, every currency, deleted rows out. */
+  totalRecovered: CurrencyAmount[];
+  /** Recova's "Revenue (MTD)": recovery fees on invoices made since the first
+   *  of this UTC month, a voided invoice left out. */
+  recoveryFeesThisMonth: CurrencyAmount[];
+  /** Recova's "Payments in Queue": failed payments in an active sequence. */
+  paymentsInQueue: number;
+}
+
+const NOT_DEMO = notLike(accounts.id, `${DEMO_ACCOUNT_ID_PREFIX}%`);
+
+export async function getMerchantFigures(db: Db, nowMs: number): Promise<MerchantFigures> {
+  const monthStart = new Date(startOfUtcMonthMs(nowMs));
+  const [merchantRows, mrrByCurrency, connectedRows, recoveredRows, feeRows, paymentsInQueue] = await Promise.all([
+    db.select({ n: count() }).from(accounts).where(NOT_DEMO),
+    mrrUnderManagement(db),
+    db
+      .select({ n: sql<number>`count(distinct ${stripeConnections.accountId})` })
+      .from(stripeConnections)
+      .innerJoin(accounts, eq(accounts.id, stripeConnections.accountId))
+      .where(and(isNull(stripeConnections.disconnectedAt), NOT_DEMO)),
+    db
+      .select({ currency: recoveredPayments.currency, cents: sql<number>`coalesce(sum(${recoveredPayments.amountCents}), 0)` })
+      .from(recoveredPayments)
+      .innerJoin(accounts, eq(accounts.id, recoveredPayments.accountId))
+      .where(and(isNull(recoveredPayments.deletedAt), NOT_DEMO))
+      .groupBy(recoveredPayments.currency),
+    db
+      .select({
+        currency: billingLineItems.currency,
+        cents: sql<number>`coalesce(sum(coalesce(${billingLineItems.feeCents}, ${billingLineItems.amountCents})), 0)`,
+      })
+      .from(billingLineItems)
+      .innerJoin(billingInvoices, eq(billingInvoices.id, billingLineItems.invoiceId))
+      .innerJoin(accounts, eq(accounts.id, billingLineItems.accountId))
+      .where(
+        and(
+          eq(billingLineItems.type, "recovery_fee"),
+          gte(billingInvoices.createdAt, monthStart),
+          ne(billingInvoices.status, "void"),
+          NOT_DEMO,
+        ),
+      )
+      .groupBy(billingLineItems.currency),
+    countActiveRecoveries(db),
+  ]);
+  const money = (rows: Array<{ currency: string; cents: number }>) =>
+    groupSumByCurrency(rows.map((r) => ({ currency: r.currency, cents: Number(r.cents) }))).filter((m) => m.cents !== 0);
+  return {
+    merchantCount: merchantRows[0]?.n ?? 0,
+    mrrByCurrency,
+    connectedCount: Number(connectedRows[0]?.n ?? 0),
+    totalRecovered: money(recoveredRows),
+    recoveryFeesThisMonth: money(feeRows),
+    paymentsInQueue,
+  };
 }
 
 export interface MerchantDetail {
@@ -145,6 +307,27 @@ export async function getMerchantDetail(db: Db, accountId: string): Promise<Merc
     disputeActivity,
     recentInvoices,
   };
+}
+
+/** What the Merchants page's action needs to know before it writes: that the
+ *  account exists, its name for the result, and whether the brake owns its
+ *  pause (a resume of that has no Undo). Null when there is no such account. */
+export async function getMerchantActionTarget(
+  db: Db,
+  accountId: string,
+): Promise<{ id: string; name: string | null; processingPaused: boolean; pauseReason: string | null; cancelledAt: Date | null } | null> {
+  const rows = await db
+    .select({
+      id: accounts.id,
+      name: accounts.name,
+      processingPaused: accounts.processingPaused,
+      pauseReason: accounts.pauseReason,
+      cancelledAt: accounts.cancelledAt,
+    })
+    .from(accounts)
+    .where(eq(accounts.id, accountId))
+    .limit(1);
+  return rows[0] ?? null;
 }
 
 // ============================================================================

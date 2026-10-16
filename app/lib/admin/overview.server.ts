@@ -142,8 +142,9 @@ export async function countActiveRecoveries(db: Db): Promise<number> {
  *  per-account "latest snapshot date" read; platform scale (~hundreds of
  *  accounts pre-launch) makes an in-app group-by-max fine without a window
  *  function, matching the "small volume" posture the rest of the admin
- *  surface takes (SCHEMA.md target scale ~300 merchants). */
-async function mrrUnderManagement(db: Db): Promise<PlatformOverview["mrrByCurrency"]> {
+ *  surface takes (SCHEMA.md target scale ~300 merchants). The Merchants
+ *  page's "Estimated MRR" reads the same figure. */
+export async function mrrUnderManagement(db: Db): Promise<PlatformOverview["mrrByCurrency"]> {
   const rows = await db
     .select({
       accountId: mrrSnapshots.accountId,
