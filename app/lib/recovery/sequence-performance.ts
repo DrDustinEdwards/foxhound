@@ -236,4 +236,3 @@ export function buildCategorySections(
     return { category, stepCards };
   });
 }
-

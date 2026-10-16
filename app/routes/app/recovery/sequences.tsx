@@ -24,7 +24,12 @@ import {
   SEQUENCE_CATEGORY_ORDER,
   sequenceRateClassName,
 } from "~/lib/recovery/sequence-categories";
-import { stepPerformanceAlt, stepPerformanceRows, STEP_PERFORMANCE_SERIES } from "~/lib/recovery/sequence-chart";
+import {
+  STEP_PERFORMANCE_NOTE,
+  stepPerformanceAlt,
+  stepPerformanceRows,
+  STEP_PERFORMANCE_SERIES,
+} from "~/lib/recovery/sequence-chart";
 import {
   buildCategorySections,
   summarizeStepPerformance,
@@ -130,7 +135,7 @@ function StepPerformanceChart({ chart }: { chart: StepPerformanceSummary["chart"
   return (
     <Panel
       title="Step performance"
-      description="Recovery includes customers who updated payment after reading the email, even without clicking the tracked link."
+      description={STEP_PERFORMANCE_NOTE}
     >
       <EnarratioFigure
         className="fh-recovery-chart"

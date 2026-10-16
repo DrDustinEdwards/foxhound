@@ -6,7 +6,9 @@ import { describe, expect, it } from "vitest";
 
 import * as constants from "~/lib/constants";
 import { DECLINE_CATEGORIES } from "~/lib/constants";
+import { findAttributionSignals } from "~/lib/recovery/attribution";
 import { isRetryStep, RECOVERY_SCHEDULES } from "~/lib/recovery/schedule";
+import { STEP_PERFORMANCE_NOTE } from "~/lib/recovery/sequence-chart";
 import {
   SEQUENCE_CATEGORY_DESCRIPTIONS,
   SEQUENCE_CATEGORY_NAMES,
@@ -265,7 +267,7 @@ describe("J12: the empty state is Recova's", () => {
   it("draws the chart card without its caveat when there is nothing to plot", () => {
     const text = textOf(render(makeLoaderData(false)));
     expect(text).toContain("No step performance to show yet.");
-    expect(text).not.toContain("even without clicking the tracked link");
+    expect(text).not.toContain(STEP_PERFORMANCE_NOTE);
   });
 });
 
@@ -300,6 +302,51 @@ describe("J12: Capsomer parts and an Enarratio chart", () => {
 
   it("draws Recova's recovery-rate series in teal, not its amber", () => {
     expect(SOURCE).toMatch(/"Recovery rate": "var\(--brand-ui\)"/);
+  });
+});
+
+// Recova's caveat ("Recovery includes customers who updated payment after
+// reading the email, even without clicking the tracked link") was true of
+// Recova, which counted any recovered result on an email step. Foxhound
+// credits an email step only through findAttributionSignals' click: a
+// non-suspect click inside the engagement window, before the payment
+// (webhooks/process.ts resolveRecoveryAttribution). The chart's note says so.
+describe("J12: the step performance note states Foxhound's attribution rule", () => {
+  const recoveredAt = new Date("2026-10-20T12:00:00Z");
+  const DAY = 24 * 60 * 60 * 1000;
+  const email = (over: Partial<Parameters<typeof findAttributionSignals>[0][number]>) => ({
+    id: "step_email",
+    stepType: "email_day3",
+    result: "email_sent",
+    clickedAt: null as Date | null,
+    clickSuspectReason: null as string | null,
+    ...over,
+  });
+
+  it("an opened but unclicked email is never credited, so the note never says it is", () => {
+    expect(findAttributionSignals([email({})], recoveredAt).clickedEngagementId).toBeNull();
+    expect(STEP_PERFORMANCE_NOTE).not.toMatch(/without clicking|after reading/);
+    expect(STEP_PERFORMANCE_NOTE).toMatch(/clicked the email's link/);
+  });
+
+  it("states the engagement window the engine applies, read from the constant", () => {
+    const inside = new Date(recoveredAt.getTime() - constants.EMAIL_ENGAGEMENT_WINDOW_DAYS * DAY + 60_000);
+    const outside = new Date(recoveredAt.getTime() - (constants.EMAIL_ENGAGEMENT_WINDOW_DAYS + 1) * DAY);
+    expect(findAttributionSignals([email({ clickedAt: inside })], recoveredAt).clickedEngagementId).toBe("step_email");
+    expect(findAttributionSignals([email({ clickedAt: outside })], recoveredAt).clickedEngagementId).toBeNull();
+    expect(STEP_PERFORMANCE_NOTE).toContain(`within ${constants.EMAIL_ENGAGEMENT_WINDOW_DAYS} days before paying`);
+  });
+
+  it("says a flagged click does not count, as the engine refuses it", () => {
+    const clickedAt = new Date(recoveredAt.getTime() - DAY);
+    expect(findAttributionSignals([email({ clickedAt, clickSuspectReason: "too_fast" })], recoveredAt).clickedEngagementId).toBeNull();
+    expect(STEP_PERFORMANCE_NOTE).toMatch(/flagged as automated/);
+  });
+
+  it("is the sentence the chart card shows", () => {
+    const text = textOf(render(makeLoaderData(true)));
+    expect(text).toContain(STEP_PERFORMANCE_NOTE);
+    expect(text).not.toContain("even without clicking the tracked link");
   });
 });
 
