@@ -1,0 +1,20 @@
+From: Foxhound <recovery@send.foxhoundapp.com>
+Subject: URGENT: Dispute response due in 3 days
+
+Foxhound
+
+Dispute response due in 3 days.
+
+Jane Buyer disputed $50.00 for reason: Fraudulent.
+
+Current status: needs response.
+
+Auto-submit is off. You need to review and submit, or choose to accept.
+
+Review dispute:
+https://foxhoundapp.com/disputes/d1
+
+--
+This message was sent to ops@example.com.
+You're receiving this from Acme Billing about a recent payment. © 2026
+Manage email settings: https://foxhoundapp.com/settings
