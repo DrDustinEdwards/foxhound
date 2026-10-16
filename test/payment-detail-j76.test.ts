@@ -604,3 +604,20 @@ describe("J76: the dispatcher logs the whole error on every failure line", () =>
     expect(spy).toHaveBeenCalledWith(expect.any(String), err);
   });
 });
+
+// ---- Measured on the rendered page (local demo account, both themes) ----
+
+describe("J76: what the browser measurement found", () => {
+  it("keeps the Outcome card's text off the tertiary grey, which measured 4.38:1 on its teal tint in dark", async () => {
+    seedPayment();
+    const html = render(await load());
+    const outcome = html.slice(html.indexOf(">Outcome</h2>") - 200, html.indexOf("Recovery timeline"));
+    expect(outcome).toContain("Still in recovery, no outcome yet.");
+    expect(outcome).not.toContain("text-text-tertiary");
+  });
+
+  it("gives the back link a 24px target", async () => {
+    seedPayment();
+    expect(render(await load())).toMatch(/<a [^>]*class="[^"]*min-h-6[^"]*"[^>]*>← Back to dashboard<\/a>/);
+  });
+});
