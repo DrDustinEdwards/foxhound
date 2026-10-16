@@ -42,6 +42,8 @@ const { resendDepsFor } = await import("~/lib/recovery/manual-actions.server");
 const { sendTestEmail } = await import("~/lib/settings/test-email.server");
 const { sendAuthEmail, sendPasswordResetEmail } = await import("~/lib/auth/send-auth-email");
 const { buildFailureAlertEmail, buildStaleAlertEmail } = await import("~/lib/cron/alerts.server");
+const { renderFoxhoundAlertEmail } = await import("~/lib/email/templates");
+const { sendRenderedTransactionalEmail } = await import("~/lib/email/send");
 const { buildMonthlyAuditEmail } = await import("~/lib/audit/monthly.server");
 
 const BASE = "https://foxhoundapp.test";
@@ -404,15 +406,16 @@ describe("transactional mail carries both parts and never the footer", () => {
       { cronName: "recovery", runId: "run_1", error: "boom: timed out", lastSuccessAt: null },
       now,
     );
-    await sendTransactionalEmail(env, { to: "support@foxhoundapp.test", ...failure });
+    const to = "support@foxhoundapp.test";
+    await sendRenderedTransactionalEmail(env, { to, rendered: renderFoxhoundAlertEmail({ to, ...failure }) });
     const stale = buildStaleAlertEmail(
-      { cronName: "digest", reason: "never_run", lastRunAt: null } as Parameters<typeof buildStaleAlertEmail>[0],
+      { cronName: "digest", reason: "never_run", lastRunAt: null, schedule: "0 8 * * 1" },
       now,
     );
-    await sendTransactionalEmail(env, { to: "support@foxhoundapp.test", ...stale });
+    await sendRenderedTransactionalEmail(env, { to, rendered: renderFoxhoundAlertEmail({ to, ...stale }) });
     expect(harness.sent).toHaveLength(2);
     expectBothParts(harness.sent[0], ["recovery", "Run id: run_1", "boom: timed out"]);
-    expectBothParts(harness.sent[1], ["digest", "It has NEVER run."]);
+    expectBothParts(harness.sent[1], ["digest", "Last succeeded: (never)"]);
     harness.sent.forEach(expectNoCustomerFooter);
   });
 

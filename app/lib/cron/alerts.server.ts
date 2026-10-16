@@ -1,4 +1,3 @@
-import { escapeHtml } from "capsomer/email";
 import { and, desc, eq } from "drizzle-orm";
 
 import type { Db } from "~/db/client";
@@ -10,7 +9,13 @@ import {
   CRON_SCHEDULE_RECOVERY_TICK,
   CRON_SCHEDULE_WEEKLY,
 } from "~/lib/constants";
-import { sendTransactionalEmail } from "~/lib/email/send";
+import { sendRenderedTransactionalEmail, sendTransactionalEmail } from "~/lib/email/send";
+import {
+  manageEmailSettingsLine,
+  recoveryFooterNote,
+  renderFoxhoundAlertEmail,
+  type EmailAlert,
+} from "~/lib/email/templates";
 import { SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 
 /** Cron-failure alerting (313). Ruling 311 measured that a failing cron records
@@ -86,6 +91,30 @@ export const SCHEDULE_PERIOD_MS: Record<string, number> = {
  *  and alerting on it would train the reader to ignore the alert. */
 export const STALE_PERIOD_MULTIPLIER = 2;
 
+/** Each schedule's cadence in words, for the stale alert's subject and body
+ *  (E27). Recova's check-cron-health keeps a hand label per cron in the same
+ *  style ("hourly", "daily 02:00 UTC", "weekly (Mon 08:00 UTC)", "monthly (1st
+ *  10:00 UTC)") so an operator can triage without cross-referencing
+ *  schedules; Foxhound's are keyed by its own schedules, and a test holds every
+ *  schedule the registry uses to a label. */
+export const CADENCE_LABEL: Record<string, string> = {
+  [CRON_SCHEDULE_RECOVERY_TICK]: "every 5 min",
+  [CRON_SCHEDULE_DAILY]: "daily 03:00 UTC",
+  [CRON_SCHEDULE_WEEKLY]: "weekly (Mon 08:00 UTC)",
+  [CRON_SCHEDULE_MONTHLY]: "monthly (1st 04:00 UTC)",
+  [CRON_SCHEDULE_MONTHLY_AUDIT]: "monthly (1st 09:00 UTC)",
+};
+
+/** Recova's describeAge (check-cron-health/route.ts), its units and its floor
+ *  as written, "1 hours ago" included. Pure. */
+export function describeAge(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
+  if (seconds < 60) return `${seconds} seconds ago`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
+  return `${Math.floor(seconds / 86400)} days ago`;
+}
+
 export interface JobSchedule {
   name: string;
   schedule: string;
@@ -93,7 +122,9 @@ export interface JobSchedule {
 
 export interface StaleFinding {
   cronName: string;
-  /** null when the job has NEVER run, which is the billing-monthly case. */
+  /** The last SUCCESSFUL run as runCronHealthCheck passes it (Recova's
+   *  last_succeeded_at); null when the job has never succeeded, which is the
+   *  billing-monthly case. */
   lastRunAt: Date | null;
   reason: "never_run" | "overdue" | "unknown_schedule";
 }
@@ -156,72 +187,138 @@ export interface FailureAlertInput {
   cronName: string;
   runId: string | null;
   error: string | null;
+  /** The error's stack, when the failure was a thrown Error. */
+  stack?: string | null;
   lastSuccessAt: Date | null;
 }
 
-/** The email body. Named separately so its content is assertable without
- *  sending anything. Carries what a human needs to act: which cron, which run,
- *  what the error said, and when it last worked. */
-export function buildFailureAlertEmail(input: FailureAlertInput, now: Date): {
+/** An alert's content before it is rendered: its subject and Capsomer alert. */
+export interface CronAlertMessage {
   subject: string;
-  bodyHtml: string;
-} {
+  alert: EmailAlert;
+}
+
+/** Recova's subject tag: "[Recova Ops]", Foxhound's name (E26, E27). */
+const OPS_TAG = "[Foxhound Ops]";
+/** The sender wrapEmailHtml names in the footer: Recova's 'Recova Ops'. */
+export const OPS_SENDER_NAME = "Foxhound Ops";
+/** Recova's stack excerpt length: `error.stack.slice(0, 500)`. */
+const STACK_EXCERPT_CHARS = 500;
+
+/**
+ * The cron failure alert (E26): Recova's notifyCronFailure subject and body,
+ * Foxhound's name, then Foxhound's run id and last success, which say which
+ * run is on the record and when the cron last worked. Recova's bold labels
+ * ("Message:") are plain text (Capsomer job_2adddfaab5dc, bold runs), and its
+ * stack <pre> is one paragraph per line (Capsomer gap named in the PR). Pure.
+ */
+export function buildFailureAlertEmail(input: FailureAlertInput, now: Date): CronAlertMessage {
+  const subject = `${OPS_TAG} Cron failure: ${input.cronName}`;
+  const stackLines = input.stack
+    ? input.stack
+        .slice(0, STACK_EXCERPT_CHARS)
+        .split("\n")
+        .map((line) => line.trimEnd())
+        .filter((line) => line.trim().length > 0)
+    : [];
   const lastSuccess = input.lastSuccessAt
     ? input.lastSuccessAt.toISOString()
     : "never (no successful run on record)";
-  // EVERY interpolated value is escaped (job_17249e7da871): the error can carry
-  // Stripe or model text, and the cron name and run id are data as well. The
-  // subject is a header, not HTML, so it is not escaped; Capsomer's renderer
-  // folds it to one line.
-  const cronName = escapeHtml(input.cronName);
-  const runId = escapeHtml(input.runId ?? "unrecorded");
-  const error = escapeHtml(input.error ?? "no message recorded");
   return {
-    subject: `Foxhound cron FAILED: ${input.cronName}`,
-    bodyHtml: [
-      `<p><strong>${cronName}</strong> failed at ${now.toISOString()}.</p>`,
-      `<p>Run id: ${runId}</p>`,
-      `<p>Error: ${error}</p>`,
-      `<p>Last success: ${escapeHtml(lastSuccess)}</p>`,
-      `<p>One alert per cron per day. Check /admin/operations for the run history.</p>`,
-    ].join("\n"),
+    subject,
+    alert: {
+      level: "crit",
+      title: subject,
+      intro: `The ${input.cronName} cron failed.`,
+      when: now.toISOString(),
+      details: [
+        `Message: ${input.error ?? "no message recorded"}`,
+        ...(stackLines.length > 0 ? ["Stack (first 500 chars):", ...stackLines] : []),
+        `Failed at ${now.toISOString()} UTC.`,
+        `Run id: ${input.runId ?? "unrecorded"}`,
+        `Last success: ${lastSuccess}`,
+      ],
+    },
   };
 }
 
-export function buildStaleAlertEmail(finding: StaleFinding, now: Date): {
-  subject: string;
-  bodyHtml: string;
-} {
-  const last = finding.lastRunAt ? finding.lastRunAt.toISOString() : "never";
-  const why =
-    finding.reason === "never_run"
-      ? "It has NEVER run."
-      : finding.reason === "unknown_schedule"
-        ? "Its schedule is not mapped to a period, so staleness cannot be judged."
-        : "It is overdue against its schedule.";
+/**
+ * The cron stale alert (E27): Recova's notifyCronStale subject, with the age
+ * and the cadence, and its body, Foxhound's name. Recova's "Check Vercel cron
+ * logs and the cron_runs table." names Recova's host and table; Foxhound's
+ * pointer names its own page and table. Pure.
+ */
+export function buildStaleAlertEmail(
+  finding: StaleFinding & { schedule: string },
+  now: Date,
+): CronAlertMessage {
+  const agePhrase = finding.lastRunAt
+    ? `last succeeded ${describeAge(now.getTime() - finding.lastRunAt.getTime())}`
+    : "never succeeded";
+  const cadence = CADENCE_LABEL[finding.schedule];
+  const cadenceSuffix = cadence ? `, expected ${cadence}` : "";
+  const subject = `${OPS_TAG} Cron stale: ${finding.cronName} (${agePhrase}${cadenceSuffix})`;
   return {
-    subject: `Foxhound cron STALE: ${finding.cronName}`,
-    bodyHtml: [
-      `<p><strong>${escapeHtml(finding.cronName)}</strong> looks stale at ${now.toISOString()}.</p>`,
-      `<p>${escapeHtml(why)}</p>`,
-      `<p>Last run: ${escapeHtml(last)}</p>`,
-    ].join("\n"),
+    subject,
+    alert: {
+      level: "warn",
+      title: subject,
+      intro: `The ${finding.cronName} cron has not reported a successful run within its expected interval.`,
+      when: now.toISOString(),
+      details: [
+        `Last succeeded: ${finding.lastRunAt ? finding.lastRunAt.toISOString() : "(never)"}`,
+        `Age: ${agePhrase}`,
+        ...(cadence ? [`Expected cadence: ${cadence}`] : []),
+        "Check /admin/operations and the cron_run_history table.",
+      ],
+    },
   };
 }
 
-/** Send one alert, deduped, never throwing. */
+/**
+ * The per-account billing failure (E26's second trigger): Recova's
+ * process-recovery-billing alerts when any account fails to invoice, naming the
+ * count, the month and the accounts. Its second sentence names Recova's
+ * billing_assessments table and promises a rerun; it is left out here and
+ * asked about in the PR. Null when no account failed. Pure.
+ */
+export function billingFailureError(failedAccountIds: string[], periodStart: Date): string | null {
+  if (failedAccountIds.length === 0) return null;
+  const monthLabel = periodStart.toLocaleString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+  return `${failedAccountIds.length} account(s) failed to invoice for ${monthLabel}: ${failedAccountIds.join(", ")}.`;
+}
+
+/** Send one alert, deduped, never throwing. A cron alert (E26, E27) goes on
+ *  Capsomer's alert template with Recova's footer; the dead-letter alert,
+ *  Foxhound's own, keeps its HTML body. */
 export async function sendAlert(
   env: Env,
   db: Db,
   cronName: string,
   kind: AlertKind,
-  message: { subject: string; bodyHtml: string },
+  message: { subject: string; bodyHtml: string } | CronAlertMessage,
   now: Date,
 ): Promise<AlertOutcome> {
   const claimed = await claimAlertSlot(db, cronName, kind, now, message.subject);
   if (!claimed) return { sent: false, reason: "deduped" };
 
   try {
+    if ("alert" in message) {
+      // Recova's footer as wrapEmailHtml(body, 'Recova Ops') writes it with no
+      // unsubscribe token: its sentence, then Manage email settings.
+      const rendered = renderFoxhoundAlertEmail({
+        subject: message.subject,
+        to: SUPPORT_EMAIL,
+        alert: message.alert,
+        footer: [
+          recoveryFooterNote(OPS_SENDER_NAME, now.getUTCFullYear()),
+          manageEmailSettingsLine(env.BETTER_AUTH_URL ?? ""),
+        ],
+      });
+      const outcome = await sendRenderedTransactionalEmail(env, { to: SUPPORT_EMAIL, rendered });
+      if (outcome.status === "sent") return { sent: true };
+      return { sent: false, reason: "send_failed", error: outcome.error ?? outcome.reason };
+    }
     await sendTransactionalEmail(env, {
       to: SUPPORT_EMAIL,
       subject: message.subject,
@@ -311,33 +408,31 @@ export async function runCronHealthCheck(
   jobs: JobSchedule[],
   now: Date,
 ): Promise<{ rowsProcessed: number; message: string }> {
-  // Last run per cron, whatever its status: a job that ran and FAILED is not
-  // stale, it is failing, and the failure alert already covers that. Staleness
-  // is about absence.
+  // Last SUCCESSFUL run per cron (E27): Recova's watcher reads
+  // last_succeeded_at, so a cron that keeps running and failing is stale as
+  // well as failing, and both alerts go.
   const lastRuns = new Map<string, Date | null>();
   for (const job of jobs) {
-    const row = (
-      await db
-        .select({ finishedAt: cronRunHistory.finishedAt })
-        .from(cronRunHistory)
-        .where(eq(cronRunHistory.cronName, job.name))
-        .orderBy(desc(cronRunHistory.finishedAt))
-        .limit(1)
-    )[0];
-    lastRuns.set(job.name, row?.finishedAt ?? null);
+    lastRuns.set(job.name, await lastSuccessAt(db, job.name));
   }
 
   const stale = findStaleCrons(jobs, lastRuns, now);
+  const scheduleOf = new Map(jobs.map((j) => [j.name, j.schedule]));
   let alerted = 0;
   const deduped: string[] = [];
 
   for (const finding of stale) {
+    // An unmapped schedule is reported in the run's message and not emailed:
+    // Recova alerts only on the crons in its schedule list, and a test holds
+    // every registry schedule to a period, so this is a blind spot the build
+    // catches rather than a stale cron.
+    if (finding.reason === "unknown_schedule") continue;
     const outcome = await sendAlert(
       env,
       db,
       finding.cronName,
       "stale",
-      buildStaleAlertEmail(finding, now),
+      buildStaleAlertEmail({ ...finding, schedule: scheduleOf.get(finding.cronName) ?? "" }, now),
       now,
     );
     if (outcome.sent) alerted += 1;
@@ -357,7 +452,7 @@ export async function runCronHealthCheck(
 export async function alertCronFailure(
   env: Env,
   db: Db,
-  input: { cronName: string; runId: string | null; error: string | null },
+  input: { cronName: string; runId: string | null; error: string | null; stack?: string | null },
   now: Date,
 ): Promise<AlertOutcome> {
   try {
