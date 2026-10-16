@@ -115,7 +115,6 @@ const SPEC = [
     features: [
       "MRR, movements, churn, cohorts: free for Recovery merchants",
       `Predictive risk scoring: the paid ${usd(INTELLIGENCE_PRICE_CENTS)}/mo layer`,
-      "Health signals feed Recovery timing and Disputes triage",
       "Account-wide, not per-customer",
       "Granted during early access; ask us",
     ],
@@ -139,7 +138,7 @@ const FAQ_SPEC = [
   {
     question: "Can I use multiple products together?",
     answer:
-      "Yes. Each product works standalone and its pricing is independent. Used together, Recovery data improves Disputes evidence, and Intelligence signals improve Recovery timing.",
+      "Yes. Each product works standalone and its pricing is independent. Used together, Recovery data improves Disputes evidence.",
   },
 ] as const;
 

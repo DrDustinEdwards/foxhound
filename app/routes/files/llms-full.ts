@@ -72,7 +72,7 @@ Pricing: a percentage of won disputes, capped per dispute. Nothing on losses. Cu
 
 ### Intelligence (free analytics tier, paid predictive layer)
 
-Pulls Stripe billing data into MRR movement (new, expansion, contraction, churn), cohort analytics, and customer health signals. The MRR/movement/cohort analytics tier is free for every Recovery merchant. A predictive risk-scoring layer, which feeds Recovery timing and Disputes triage, is a paid add-on billed as a flat monthly subscription.
+Pulls Stripe billing data into MRR movement (new, expansion, contraction, churn), cohort analytics, and customer health signals. The MRR/movement/cohort analytics tier is free for every Recovery merchant. A predictive risk-scoring layer is a paid add-on billed as a flat monthly subscription.
 
 URL: ${url}/product/intelligence
 Docs: ${url}/docs/intelligence
