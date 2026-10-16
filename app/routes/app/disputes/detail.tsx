@@ -1,5 +1,6 @@
 import { DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
 import * as Sentry from "@sentry/cloudflare";
+import { useEffect, useReducer } from "react";
 import { Form, Link, data, useFetcher, useNavigation } from "react-router";
 import { Banner } from "capsomer/react/banner";
 import { Panel } from "capsomer/react/panel";
@@ -25,8 +26,11 @@ import {
   BACK_LINK_REAL,
   CUSTOMER_IP_FIELD,
   NARRATIVE_FIELD,
+  UNSAVED_APPROVE_LINE,
   deadlineRemaining,
   disputeFeeTerms,
+  draftAfter,
+  draftDirty,
   evidenceFieldLabel,
   outcomeWord,
   splitEvidence,
@@ -110,6 +114,16 @@ export async function action({ context, params, request }: Route.ActionArgs) {
     if (!canApprove(detail.dispute.state as DisputeState)) {
       return data(
         { error: "This dispute has already been submitted; evidence is locked.", intent: "save" as const },
+        { status: 409 },
+      );
+    }
+    // Once a merchant has approved, the evidence that approval attests is never
+    // rewritten here, even while the state is still approvable (a submission in
+    // flight, rejected by Stripe, or unconfirmed). saveDisputeDraft carries the
+    // same guard inside each write, so a race past this read writes nothing.
+    if (detail.approval) {
+      return data(
+        { error: "This dispute has been approved, so its evidence is locked.", intent: "save" as const },
         { status: 409 },
       );
     }
@@ -231,12 +245,21 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
   // Recova's gate: editable while the dispute awaits a response and nobody has
   // submitted, and never in the demo.
   const editable = !isDemo && canApprove(state);
+  // The draft locks once an approval row exists (J77 review): the approval's
+  // hash attests the saved evidence, so it is not edited after.
+  const draftEditable = editable && !approval;
+  const [draft, dispatchDraft] = useReducer(draftAfter, { edits: 0, submitted: 0, saved: 0 });
+  const savedOk = saveFetcher.state === "idle" && saveFetcher.data !== undefined && "ok" in saveFetcher.data;
+  useEffect(() => {
+    if (savedOk) dispatchDraft({ type: "saved" });
+  }, [savedOk, saveFetcher.data]);
+  const dirty = draftDirty(draft);
   const resolved = isDisputeResolved(state);
   const outcome = outcomeWord(state);
   const fee = disputeFeeCents(dispute.amountCents, DISPUTE_FEE_CAP_CENTS);
   const days = daysUntilDeadline(dispute.evidenceDeadline, nowMs);
   const backLink = isDemo ? BACK_LINK_DEMO : BACK_LINK_REAL;
-  const { structured, narrative, customerIp } = splitEvidence(evidence, editable);
+  const { structured, narrative, customerIp } = splitEvidence(evidence, draftEditable);
   const timeline = buildDisputeTimeline({
     createdAt: dispute.createdAt,
     amountCents: dispute.amountCents,
@@ -388,7 +411,11 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
 
       {/* 5 and 7. Staged evidence and Additional evidence share Recova's one
           draft: Save draft saves the narrative and the Customer IP together. */}
-      <saveFetcher.Form method="post">
+      <saveFetcher.Form
+        method="post"
+        onChange={() => dispatchDraft({ type: "edit" })}
+        onSubmit={() => dispatchDraft({ type: "submit" })}
+      >
         <input type="hidden" name="intent" value="save" />
         <div className="mb-6">
           <Panel title="Staged evidence">
@@ -417,13 +444,13 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
                       </label>
                       <textarea
                         id="dispute_evidence_narrative"
-                        name={editable ? "narrative" : undefined}
+                        name={draftEditable ? "narrative" : undefined}
                         className="cap-input"
                         defaultValue={narrative}
-                        readOnly={!editable}
+                        readOnly={!draftEditable}
                         rows={10}
                       />
-                      {editable ? saveControls : null}
+                      {draftEditable ? saveControls : null}
                     </div>
                   ) : null}
                 </>
@@ -432,7 +459,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
           </Panel>
         </div>
 
-        {editable ? (
+        {draftEditable ? (
           <div className="mb-6">
             <Panel title="Additional evidence (optional)">
               <div className="text-label">
@@ -485,17 +512,11 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
               ) : null}
               <Form method="post" className="mt-4">
                 <input type="hidden" name="intent" value="approve" />
-                <button
-                  type="submit"
-                  className="cap-btn"
-                  data-variant="primary"
-                  aria-disabled={approving ? true : undefined}
-                  onClick={(e) => {
-                    if (approving) e.preventDefault();
-                  }}
-                >
-                  {approving ? "Submitting…" : `Approve and submit (fee ${formatMoney(fee, dispute.currency)})`}
-                </button>
+                <ApproveButton
+                  label={`Approve and submit (fee ${formatMoney(fee, dispute.currency)})`}
+                  approving={approving}
+                  dirty={dirty}
+                />
               </Form>
             </div>
           </Panel>
@@ -521,6 +542,36 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
             </div>
           </Panel>
         </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * The Approve button (J77 review). Approve submits the SAVED draft, so while
+ * the page holds unsaved edits it is held back, focusable, with the reason in
+ * visible text beside it, never a silent drop of the merchant's edits.
+ */
+export function ApproveButton({ label, approving, dirty }: { label: string; approving: boolean; dirty: boolean }) {
+  const held = approving || dirty;
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <button
+        type="submit"
+        className="cap-btn"
+        data-variant="primary"
+        aria-disabled={held ? true : undefined}
+        aria-describedby={dirty ? "dispute_approve_unsaved" : undefined}
+        onClick={(e) => {
+          if (held) e.preventDefault();
+        }}
+      >
+        {approving ? "Submitting…" : label}
+      </button>
+      {dirty ? (
+        <span id="dispute_approve_unsaved" className="text-label text-text-secondary">
+          {UNSAVED_APPROVE_LINE}
+        </span>
       ) : null}
     </div>
   );

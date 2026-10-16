@@ -700,3 +700,123 @@ describe("J77: the timeline in Recova's words", () => {
     expect(html).toMatch(/<span class="text-label text-text">Dispute received\. \$120\.00 for Product not received\.<\/span>/);
   });
 });
+
+// ---- Review of 8d09fe5 (CHANGES): the draft is locked once approved ----
+
+describe("J77 review: the draft cannot change after an approval exists", () => {
+  function seedApproval(): void {
+    runStatement(
+      sqlite,
+      db.insert(disputeApprovals).values({
+        id: "ap_1",
+        disputeId: "dsp_1",
+        accountId: A,
+        approvedByUserId: "u",
+        approvedByEmail: "owner@alpha.test",
+        evidenceVersionHash: "h",
+        approvedAt: new Date(NOW - HOUR),
+      }),
+    );
+  }
+  const evidenceRows = () =>
+    sqlite.prepare("select field_name, field_value from dispute_evidence order by field_name").all();
+
+  it("refuses a save on a submitted dispute with 409 and changes nothing", async () => {
+    seedDispute({ state: "submitted", submittedAt: new Date(NOW - HOUR), submittedBy: "owner@alpha.test" });
+    seedEvidence("uncategorized_text", "Approved text.");
+    const res = await act({ intent: "save", narrative: "Edited.", customer_ip: "198.51.100.14" });
+    expect(res.status).toBe(409);
+    expect(evidenceRows()).toEqual([{ field_name: "uncategorized_text", field_value: "Approved text." }]);
+  });
+
+  it("refuses a save with 409 once a pending approval row exists, though the state is still approvable", async () => {
+    seedDispute();
+    seedEvidence("uncategorized_text", "Approved text.");
+    seedApproval();
+    const res = await act({ intent: "save", narrative: "Edited.", customer_ip: "198.51.100.14" });
+    expect(res.status).toBe(409);
+    expect(res.body).toMatchObject({ intent: "save", error: "This dispute has been approved, so its evidence is locked." });
+    expect(evidenceRows()).toEqual([{ field_name: "uncategorized_text", field_value: "Approved text." }]);
+  });
+
+  it("writes nothing when the approval lands between the read and the write (the guard is joined to the write)", async () => {
+    seedDispute();
+    seedEvidence("uncategorized_text", "Approved text.");
+    const { saveDisputeDraft } = await import("~/lib/disputes/queries.server");
+    const existing = [{ id: "ev_uncategorized_text_acct_alpha", fieldName: "uncategorized_text" }];
+    seedApproval(); // after the caller's read, before its write
+    await saveDisputeDraft(db, A, "dsp_1", existing, [
+      { fieldName: "uncategorized_text", fieldValue: "Edited." },
+      { fieldName: "customer_purchase_ip", fieldValue: "198.51.100.14" },
+    ], new Date(NOW));
+    expect(evidenceRows()).toEqual([{ field_name: "uncategorized_text", field_value: "Approved text." }]);
+  });
+
+  it("does not insert a second row for a field another save already added", async () => {
+    seedDispute();
+    const { saveDisputeDraft } = await import("~/lib/disputes/queries.server");
+    // Two first-time saves that both read "no IP row yet".
+    await saveDisputeDraft(db, A, "dsp_1", [], [{ fieldName: "customer_purchase_ip", fieldValue: "198.51.100.1" }], new Date(NOW));
+    await saveDisputeDraft(db, A, "dsp_1", [], [{ fieldName: "customer_purchase_ip", fieldValue: "198.51.100.2" }], new Date(NOW));
+    expect(evidenceRows()).toEqual([{ field_name: "customer_purchase_ip", field_value: "198.51.100.1" }]);
+  });
+
+  it("shows the draft read-only with no Save draft once approved", async () => {
+    seedDispute();
+    seedEvidence("uncategorized_text", "Approved text.");
+    seedApproval();
+    const html = render(await load());
+    expect(html).toMatch(/<textarea[^>]*readOnly=""|<textarea[^>]*readonly=""/);
+    expect(text(html)).not.toContain("Save draft");
+    expect(html).not.toContain("Additional evidence");
+  });
+});
+
+describe("J77 review: Approve never sends a draft with unsaved edits", () => {
+  it("blocks Approve and says why while the draft has unsaved edits", () => {
+    const html = renderToStaticMarkup(createElement(route.ApproveButton, { label: "Approve and submit (fee $24.00)", approving: false, dirty: true }));
+    expect(html).toMatch(/<button[^>]*aria-disabled="true"[^>]*aria-describedby="dispute_approve_unsaved"/);
+    expect(text(html)).toContain("You have unsaved changes. Save your draft first: Approve submits the saved draft.");
+  });
+
+  it("lets Approve through once the draft is saved", () => {
+    const html = renderToStaticMarkup(createElement(route.ApproveButton, { label: "Approve and submit (fee $24.00)", approving: false, dirty: false }));
+    expect(html).not.toContain("aria-disabled");
+    expect(html).not.toContain("unsaved changes");
+  });
+
+  it("counts an edit made during a save as still unsaved", async () => {
+    const { draftAfter } = await import("~/lib/disputes/detail");
+    let s = { edits: 0, submitted: 0, saved: 0 };
+    s = draftAfter(s, { type: "edit" });
+    expect(s.edits !== s.saved).toBe(true);
+    s = draftAfter(s, { type: "submit" });
+    s = draftAfter(s, { type: "edit" }); // typed while the save was in flight
+    s = draftAfter(s, { type: "saved" });
+    expect(s.edits !== s.saved).toBe(true);
+    s = draftAfter(s, { type: "submit" });
+    s = draftAfter(s, { type: "saved" });
+    expect(s.edits !== s.saved).toBe(false);
+  });
+});
+
+describe("J77 review: one row per field, the same one everywhere", () => {
+  it("sends Stripe the first row of a duplicated field, the one the page shows and the save edits", async () => {
+    const { buildStripeEvidencePayload } = await import("~/lib/disputes/submission");
+    const { splitEvidence } = await import("~/lib/disputes/detail");
+    const rows = [
+      { id: "a", fieldName: "uncategorized_text", fieldValue: "First." },
+      { id: "b", fieldName: "uncategorized_text", fieldValue: "Second." },
+    ];
+    expect(splitEvidence(rows, true).narrative).toBe("First.");
+    expect(buildStripeEvidencePayload(rows).uncategorized_text).toBe("First.");
+  });
+
+  it("reads evidence in a fixed order, oldest first", async () => {
+    seedDispute();
+    seedEvidence("uncategorized_text", "Later.", { id: "ev_z", createdAt: new Date(NOW - DAY) });
+    seedEvidence("uncategorized_text", "Earlier.", { id: "ev_y", createdAt: new Date(NOW - 2 * DAY) });
+    const data = await load();
+    expect(data.evidence.map((e) => e.id)).toEqual(["ev_y", "ev_z"]);
+  });
+});

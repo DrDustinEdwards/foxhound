@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, notExists, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import type { Db } from "~/db";
@@ -66,10 +66,13 @@ export async function getDisputeDetail(
   if (!dispute) return null;
 
   const [evidence, approvals] = await Promise.all([
+    // Oldest first, then by id: a fixed order, so the page, the draft save and
+    // the Stripe payload all take the same row if a field ever has two.
     db
       .select()
       .from(disputeEvidence)
-      .where(and(eq(disputeEvidence.disputeId, disputeId), eq(disputeEvidence.accountId, accountId))),
+      .where(and(eq(disputeEvidence.disputeId, disputeId), eq(disputeEvidence.accountId, accountId)))
+      .orderBy(asc(disputeEvidence.createdAt), asc(disputeEvidence.id)),
     db
       .select()
       .from(disputeApprovals)
@@ -117,9 +120,17 @@ export async function saveDisputeEvidence(
  * Stripe evidence name, so the approved package and its hash carry exactly what
  * the merchant saved. An existing row is updated; a missing one is inserted only
  * when there is something to say, so a blank field never adds a row. The same
- * plain batch as saveDisputeEvidence: editing a draft is not a money write, and
- * approval reads the rows fresh at the moment it is pressed. Account-scoped on
- * every statement.
+ * plain batch as saveDisputeEvidence: editing a draft is not a money write.
+ *
+ * Every statement carries its own guards, joined to the write (RULES.md 3.9),
+ * so a check the caller made on an earlier read cannot be raced past:
+ * - no dispute_approvals row for this dispute: once a merchant has approved,
+ *   the evidence that approval's hash attests is never rewritten, even while
+ *   the state is still approvable (Phase A writes the row before Stripe is
+ *   called, and a rejected or unconfirmed submission leaves it there);
+ * - the INSERT also needs the dispute to be this account's, and no row for the
+ *   same field already, so two first-time saves cannot leave two rows.
+ * A statement whose guard fails matches nothing and writes nothing.
  */
 export async function saveDisputeDraft(
   db: Db,
@@ -129,6 +140,12 @@ export async function saveDisputeDraft(
   fields: { fieldName: string; fieldValue: string }[],
   now: Date,
 ): Promise<void> {
+  const noApproval = notExists(
+    db
+      .select({ one: sql`1` })
+      .from(disputeApprovals)
+      .where(and(eq(disputeApprovals.disputeId, disputeId), eq(disputeApprovals.accountId, accountId))),
+  );
   const statements: BatchItem<"sqlite">[] = [];
   for (const field of fields) {
     const row = existing.find((e) => e.fieldName === field.fieldName);
@@ -142,19 +159,37 @@ export async function saveDisputeDraft(
               eq(disputeEvidence.id, row.id),
               eq(disputeEvidence.disputeId, disputeId),
               eq(disputeEvidence.accountId, accountId),
+              noApproval,
             ),
           ),
       );
     } else if (field.fieldValue.trim()) {
+      const noSameField = notExists(
+        db
+          .select({ one: sql`1` })
+          .from(disputeEvidence)
+          .where(
+            and(
+              eq(disputeEvidence.disputeId, disputeId),
+              eq(disputeEvidence.accountId, accountId),
+              eq(disputeEvidence.fieldName, field.fieldName),
+            ),
+          ),
+      );
       statements.push(
-        db.insert(disputeEvidence).values({
-          id: crypto.randomUUID(),
-          disputeId,
-          accountId,
-          fieldName: field.fieldName,
-          fieldValue: field.fieldValue,
-          createdAt: now,
-        }),
+        db.insert(disputeEvidence).select(
+          db
+            .select({
+              id: sql<string>`${crypto.randomUUID()}`.as("id"),
+              disputeId: disputes.id,
+              accountId: disputes.accountId,
+              fieldName: sql<string>`${field.fieldName}`.as("field_name"),
+              fieldValue: sql<string>`${field.fieldValue}`.as("field_value"),
+              createdAt: sql<Date>`${now.getTime()}`.as("created_at"),
+            })
+            .from(disputes)
+            .where(and(eq(disputes.id, disputeId), eq(disputes.accountId, accountId), noApproval, noSameField)),
+        ),
       );
     }
   }

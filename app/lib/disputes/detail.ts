@@ -94,3 +94,33 @@ export function disputeFeeTerms(): string {
   const pct = DISPUTE_FEE_BPS / 100;
   return `${Number.isInteger(pct) ? pct : pct.toFixed(1)}% of the disputed amount, capped at ${formatMoneyShort(DISPUTE_FEE_CAP_CENTS, "usd")}`;
 }
+
+/**
+ * Unsaved-edit tracking for the draft (J77 review). Approve submits the SAVED
+ * draft, so while the page holds edits the save has not taken, Approve is
+ * held back. Counters rather than a flag: an edit typed while a save is in
+ * flight is not covered by that save, so it stays unsaved.
+ */
+export interface DraftState {
+  /** Edits made on the page. */
+  edits: number;
+  /** The edit count when the last save was sent. */
+  submitted: number;
+  /** The edit count the last successful save covered. */
+  saved: number;
+}
+
+export type DraftEvent = { type: "edit" } | { type: "submit" } | { type: "saved" };
+
+export function draftAfter(state: DraftState, event: DraftEvent): DraftState {
+  if (event.type === "edit") return { ...state, edits: state.edits + 1 };
+  if (event.type === "submit") return { ...state, submitted: state.edits };
+  return { ...state, saved: state.submitted };
+}
+
+export function draftDirty(state: DraftState): boolean {
+  return state.edits !== state.saved;
+}
+
+/** The line beside a held-back Approve. */
+export const UNSAVED_APPROVE_LINE = "You have unsaved changes. Save your draft first: Approve submits the saved draft.";
