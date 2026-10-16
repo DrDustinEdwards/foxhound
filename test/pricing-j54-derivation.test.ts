@@ -25,6 +25,7 @@ vi.mock("~/lib/marketing/decline-categories", async (importOriginal) => ({
   DECLINE_CATEGORY_COUNT: 7,
   DECLINE_CATEGORY_COUNT_WORD: "Seven",
   DECLINE_CATEGORY_COUNT_WORD_LOWER: "seven",
+  DISTINCT_SEQUENCE_COUNT: 4,
 }));
 
 const { default: PricingPage, meta } = await import("~/routes/pricing");
@@ -61,7 +62,7 @@ describe("/pricing follows the engine constants (J54)", () => {
   });
 
   it("the sequence length comes from the recovery schedule, and the category count from the engine", () => {
-    expect(html).toContain("AI-drafted email sequences across 35 days. Seven decline categories, seven different sequences.");
+    expect(html).toContain("AI-drafted email sequences and silent retries across 35 days. Seven decline categories, four different sequences.");
     expect(html).toContain(">35-day sequences across 7 decline categories<");
   });
 

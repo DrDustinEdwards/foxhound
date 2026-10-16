@@ -13,6 +13,7 @@ import {
 } from "~/components/legal-page";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { RECOVERY_SEQUENCE_DAYS } from "~/lib/marketing/decline-categories";
 import { GOVERNING_LAW_JURISDICTION, siteUrl, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
@@ -98,9 +99,10 @@ export default function TermsPage() {
           <P>
             Foxhound is a SaaS application that recovers failed subscription payments for businesses using
             Stripe. When a subscriber&apos;s payment fails, Foxhound detects the failure via Stripe
-            webhook, classifies the decline, and attempts a silent retry before any customer ever sees an
-            email. If the silent retry does not work, Foxhound generates a personalized recovery email and
-            continues the sequence over 30 days. Foxhound also drafts dispute evidence automatically, but
+            webhook, classifies the decline, and, wherever the decline can be retried, attempts a silent
+            retry before any customer ever sees an email. If there is no silent retry or it does not work,
+            Foxhound generates a personalized recovery email and continues the sequence over{" "}
+            {RECOVERY_SEQUENCE_DAYS} days. Foxhound also drafts dispute evidence automatically, but
             every submission requires a merchant to review and approve it first, there is no automatic
             submission. Merchants connect their Stripe account once via OAuth, and Foxhound runs
             automatically in the background. Foxhound does not store card numbers or access payout or bank

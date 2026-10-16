@@ -1,6 +1,7 @@
 import { getDb } from "~/db";
 import { getPublishedTagSet } from "~/lib/blog/queries.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { RECOVERY_SEQUENCE_DAYS } from "~/lib/marketing/decline-categories";
 import { siteUrl, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 
 import type { Route } from "./+types/llms-full";
@@ -56,7 +57,7 @@ Pricing: Free.
 
 ### Recovery (a percentage of Foxhound-attributed recoveries)
 
-When a Stripe payment fails, Foxhound classifies the decline into a category and runs a silent retry before any customer-facing email, so a payment that recovers on its own is never billed. If the silent retry doesn't clear it, an AI-drafted dunning sequence runs across 30 days, with a hosted card-update link on every email. Recoveries Stripe's own tools (like Smart Retries) would have produced anyway are recorded and shown to the merchant for free; only recoveries attributable to a Foxhound action are billable, and only once that recovery has matured for 30 days (absorbing the refund window).
+When a Stripe payment fails, Foxhound classifies the decline into a category and, wherever the decline can be retried, runs a silent retry before any customer-facing email, so a payment that recovers on its own is never billed. If there is no silent retry or it doesn't clear the payment, an AI-drafted dunning sequence runs across ${RECOVERY_SEQUENCE_DAYS} days, with a hosted card-update link on every email. Recoveries Stripe's own tools (like Smart Retries) would have produced anyway are recorded and shown to the merchant for free; only recoveries attributable to a Foxhound action are billable, and only once that recovery has matured for 30 days (absorbing the refund window).
 
 URL: ${url}/product/recovery
 Docs: ${url}/docs/recovery
