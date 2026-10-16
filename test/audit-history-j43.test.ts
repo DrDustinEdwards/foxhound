@@ -385,3 +385,89 @@ describe("J43: the loader and the action, scoped to the caller's account", () =>
     expect(code).not.toContain(".update(accounts)");
   });
 });
+
+describe("J43 review: the controls keep focus while a save is in flight", () => {
+  const SettingsForm = (page as unknown as {
+    AuditSettingsForm: (props: {
+      defaultLookbackDays: number;
+      defaultAutoRun: boolean;
+      result: undefined;
+      saving: boolean;
+    }) => ReactElement;
+  }).AuditSettingsForm;
+
+  function renderForm(saving: boolean) {
+    const Stub = createRoutesStub([
+      {
+        path: "/audit/dashboard",
+        Component: () =>
+          createElement(SettingsForm, { defaultLookbackDays: 90, defaultAutoRun: true, result: undefined, saving }),
+      },
+    ]);
+    return renderToStaticMarkup(createElement(Stub, { initialEntries: ["/audit/dashboard"] }));
+  }
+
+  it("never disables a radio or the switch during a save, so the focused control keeps focus", () => {
+    const html = renderForm(true);
+    const inputs = [...html.matchAll(/<input[^>]*>/g)].map((m) => m[0]);
+    expect(inputs.length).toBe(5);
+    for (const input of inputs) expect(input).not.toMatch(/\sdisabled/);
+  });
+
+  it("says the save is in progress with aria-busy instead", () => {
+    const html = renderForm(true);
+    expect(html).toMatch(/<input[^>]*role="switch"[^>]*aria-busy="true"/);
+    expect(html).toMatch(/aria-busy="true"[^>]*>[\s\S]*<fieldset class="cap-seg"/);
+    expect(renderForm(false)).not.toContain('aria-busy="true"');
+  });
+
+  it("names the switch from the visible label, with no hidden copy of it", () => {
+    const html = renderForm(false);
+    const id = html.match(/<div id="([^"]+)"[^>]*>Monthly audit digest<\/div>/)?.[1];
+    expect(id).toBeTruthy();
+    const sw = html.match(/<input[^>]*role="switch"[^>]*>/)?.[0] ?? "";
+    expect(sw).toContain(`aria-labelledby="${id}"`);
+    expect(html).not.toMatch(/<span class="sr-only">Monthly audit digest<\/span>/);
+  });
+});
+
+describe("J43 review: a change made during a save is queued, and the last value wins", async () => {
+  const { createSaveQueue } = await import("~/lib/audit/save-queue");
+
+  it("submits at once when nothing is in flight", () => {
+    const submit = vi.fn();
+    createSaveQueue(submit).change();
+    expect(submit).toHaveBeenCalledTimes(1);
+  });
+
+  it("holds every change made mid-save and sends one more save, after the first settles", () => {
+    const submit = vi.fn();
+    const q = createSaveQueue(submit);
+    q.change();
+    q.change();
+    q.change();
+    expect(submit).toHaveBeenCalledTimes(1);
+    q.settled();
+    expect(submit).toHaveBeenCalledTimes(2);
+    q.settled();
+    expect(submit).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("J43 review: a run with no stored currency is unknown, never USD", () => {
+  it("compareRuns refuses a null currency", async () => {
+    const { compareRuns } = await import("~/lib/audit/trend");
+    expect(compareRuns(12_000, 10_000, true, null, "usd")).toEqual({ kind: "none" });
+  });
+
+  it("the loader passes a NULL currency through", () => {
+    const code = stripComments(read("app/routes/app/audit/dashboard.tsx"));
+    expect(code).not.toContain('run.currency ?? "usd"');
+  });
+
+  it("the action has no unreachable 400 branch, and Not read carries no title-only explanation", () => {
+    const code = stripComments(read("app/routes/app/audit/dashboard.tsx"));
+    expect(code).not.toContain("status: 400");
+    expect(code).not.toContain('title="Could not be read on this run"');
+  });
+});

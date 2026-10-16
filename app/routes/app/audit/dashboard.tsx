@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { data, Link, useNavigation } from "react-router";
+import { data, Link, useNavigation, useRouteLoaderData } from "react-router";
 import { eq } from "drizzle-orm";
 import { PageHead } from "capsomer/react/page-head";
 import { Panel } from "capsomer/react/panel";
@@ -19,8 +19,10 @@ import "~/site-header.css";
 import { AuditSummary } from "~/components/audit/sections";
 import { DemoGuardedForm } from "~/components/demo-guarded-form";
 import { accounts, getDb } from "~/db";
+import type { loader as appShellLoader } from "~/layouts/app-shell";
 import { listAuditRuns } from "~/lib/audit/persist.server";
 import { formatCents } from "~/lib/audit/render";
+import { createSaveQueue, type SaveQueue } from "~/lib/audit/save-queue";
 import { compareRuns } from "~/lib/audit/trend";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -54,7 +56,9 @@ import type { Route } from "./+types/dashboard";
 // set_audit_settings tool already share, so there is one write path with two
 // forms on it, as in Recova. Like Recova's form it saves as each control
 // changes, with no save button, and says Saving, Saved. or Save failed. beside
-// it. Recova appends its raw error code to the failure line ("save_failed");
+// it. The controls stay enabled during a save, with aria-busy on the group
+// and Capsomer's busy state on the switch, and a change made mid-save is
+// queued (J43 review). Recova appends its raw error code to the failure line ("save_failed");
 // that is a raw value shown to a merchant (RULES.md 1.5), so it is left off.
 //
 // TWO TRUTHFULNESS FIXES, both class (c). The digest description drops
@@ -77,7 +81,10 @@ export async function loader({ context }: Route.LoaderArgs) {
   const [runs, settingsRows] = await Promise.all([
     listAuditRuns(db, membership.accountId, 10),
     db
-      .select({ auditLookbackDays: accounts.auditLookbackDays, auditAutoRun: accounts.auditAutoRun })
+      .select({
+        auditLookbackDays: accounts.auditLookbackDays,
+        auditAutoRun: accounts.auditAutoRun,
+      })
       .from(accounts)
       .where(eq(accounts.id, membership.accountId))
       .limit(1),
@@ -87,7 +94,10 @@ export async function loader({ context }: Route.LoaderArgs) {
     runs: runs.map((run) => ({
       id: run.id,
       runAt: run.runAt,
-      currency: run.currency ?? "usd",
+      // NULL when the run stored none. Since last run treats that as unknown
+      // (trend.ts); the figures display as the stored-run page does
+      // (render.ts toStoredAuditRun).
+      currency: run.currency,
       failedInvoicesCents: run.failedInvoicesCents,
       openDisputesCents: run.openDisputesCents,
       mrrCents: run.mrrCents,
@@ -108,7 +118,10 @@ export async function action({ request, context }: Route.ActionArgs) {
       lookbackDays: form.get("audit_lookback_days"),
       autoRun: form.get("audit_auto_run"),
     });
-    if (!result.ok) return data({ ok: false as const }, { status: 400 });
+    // applyAuditSettings clamps both inputs and either writes or throws, so it
+    // has no refusal to report. Were one ever to come back, it is a failed
+    // save like any other: thrown, logged whole and answered 500 below.
+    if (!result.ok) throw new Error(`audit settings refused: ${result.error}`);
     return data({ ok: true as const, ...result.state });
   } catch (err) {
     console.error("audit dashboard settings write failed:", err);
@@ -119,21 +132,19 @@ export async function action({ request, context }: Route.ActionArgs) {
 type RunView = Route.ComponentProps["loaderData"]["runs"][number];
 
 function formatDate(value: Date): string {
-  return value.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return value.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 /** A stored figure, or "Not read" when the scope was not read on that run.
  *  Recova prints a zero here; a zero that means unknown is what 362 ruling 2
  *  forbids. */
-function Amount({ cents, currency }: { cents: number | null; currency: string }) {
-  if (cents === null) {
-    return (
-      <span className="text-text-tertiary" title="Could not be read on this run">
-        Not read
-      </span>
-    );
-  }
-  return <>{formatCents(cents, currency)}</>;
+function Amount({ cents, currency }: { cents: number | null; currency: string | null }) {
+  if (cents === null) return <span className="text-text-tertiary">Not read</span>;
+  return <>{formatCents(cents, currency ?? "usd")}</>;
 }
 
 /** One of Recova's TrendRows: the label, then this run against the last, then
@@ -146,8 +157,8 @@ function TrendRow({
   higherIsBetter,
 }: {
   label: string;
-  current: { cents: number | null; currency: string };
-  previous: { cents: number | null; currency: string };
+  current: { cents: number | null; currency: string | null };
+  previous: { cents: number | null; currency: string | null };
   higherIsBetter: boolean;
 }) {
   const cmp = compareRuns(current.cents, previous.cents, higherIsBetter, current.currency, previous.currency);
@@ -177,20 +188,22 @@ type SaveResult = { ok: true; lookbackDays: number; autoRun: boolean } | { ok: f
 
 /** Recova's AuditSettingsForm: the lookback period, then the monthly digest,
  *  each saving as it changes, and the status line under them. */
-function AuditSettingsForm({
+export function AuditSettingsForm({
   defaultLookbackDays,
   defaultAutoRun,
   result,
+  saving,
 }: {
   defaultLookbackDays: number;
   defaultAutoRun: boolean;
   result: SaveResult;
+  saving: boolean;
 }) {
   const [lookbackDays, setLookbackDays] = useState(String(defaultLookbackDays));
   const [autoRun, setAutoRun] = useState(defaultAutoRun);
   const formRef = useRef<HTMLFormElement>(null);
-  const navigation = useNavigation();
-  const saving = navigation.state === "submitting" && navigation.formMethod?.toUpperCase() === "POST";
+  const isDemo = Boolean(useRouteLoaderData<typeof appShellLoader>("app-shell")?.isDemo);
+  const digestLabel = useId();
   const lookbackHelp = useId();
   const digestHelp = useId();
 
@@ -206,56 +219,78 @@ function AuditSettingsForm({
 
   // The control has already changed in the page when its handler runs, so the
   // form posts the new value.
-  const save = () => formRef.current?.requestSubmit();
+  // The controls are never disabled during a save, because disabling the
+  // radio or switch that has focus throws focus to the page body. A change
+  // made while a save is in flight is held and sent once that save settles
+  // (app/lib/audit/save-queue.ts), so saves cannot land out of order and the
+  // last value wins. In the demo DemoGuardedForm refuses the submit in place,
+  // so no save ever starts and nothing is queued.
+  const queue = useRef<SaveQueue | null>(null);
+  queue.current ??= createSaveQueue(() => formRef.current?.requestSubmit());
+  const wasSaving = useRef(saving);
+  useEffect(() => {
+    if (wasSaving.current && !saving) queue.current?.settled();
+    wasSaving.current = saving;
+  }, [saving]);
+  const save = () => {
+    if (isDemo) formRef.current?.requestSubmit();
+    else queue.current?.change();
+  };
 
   return (
     <DemoGuardedForm method="post" ref={formRef} preventScrollReset>
-      <div className="mb-5 min-w-0">
-        {/* The visible label repeats the legend's words, which name the group
+      <div aria-busy={saving || undefined}>
+        <div className="mb-5 min-w-0">
+          {/* The visible label repeats the legend's words, which name the group
             for a screen reader, so it is hidden from one to be read once. */}
-        <div className="mb-1 text-label font-medium text-text" aria-hidden="true">
-          Lookback period
-        </div>
-        <p id={lookbackHelp} className="m-0 mb-1 text-micro text-text-subtle">
-          How far back we look when calculating your audit.
-        </p>
-        <Segmented
-          legend={<span className="sr-only">Lookback period</span>}
-          name="audit_lookback_days"
-          describedBy={lookbackHelp}
-          value={lookbackDays}
-          onChange={(next) => {
-            if (next === lookbackDays) return;
-            setLookbackDays(next);
-            save();
-          }}
-          options={LOOKBACK_OPTIONS.map((n) => ({ value: String(n), label: `${n} days`, disabled: saving }))}
-        />
-      </div>
-
-      <div className="flex min-w-0 items-start justify-between gap-4 border-t border-border py-3">
-        <div className="pr-4">
-          <div className="mb-0.5 text-label text-text" aria-hidden="true">
-            Monthly audit digest
+          <div className="mb-1 text-label font-medium text-text" aria-hidden="true">
+            Lookback period
           </div>
-          <p id={digestHelp} className="m-0 text-micro text-text-subtle">
-            On the 1st of each month, we run a fresh audit and email you a comparison versus the
-            prior month. No extra charge.
+          <p id={lookbackHelp} className="m-0 mb-1 text-micro text-text-subtle">
+            How far back we look when calculating your audit.
           </p>
+          <Segmented
+            legend={<span className="sr-only">Lookback period</span>}
+            name="audit_lookback_days"
+            describedBy={lookbackHelp}
+            value={lookbackDays}
+            onChange={(next) => {
+              if (next === lookbackDays) return;
+              setLookbackDays(next);
+              save();
+            }}
+            options={LOOKBACK_OPTIONS.map((n) => ({
+              value: String(n),
+              label: `${n} days`,
+            }))}
+          />
         </div>
-        {/* Unchecked posts nothing, which the action reads as off. */}
-        <Switch
-          label={<span className="sr-only">Monthly audit digest</span>}
-          name="audit_auto_run"
-          value="true"
-          checked={autoRun}
-          disabled={saving}
-          onCheckedChange={(next) => {
-            setAutoRun(next);
-            save();
-          }}
-          aria-describedby={digestHelp}
-        />
+
+        <div className="flex min-w-0 items-start justify-between gap-4 border-t border-border py-3">
+          <div className="pr-4">
+            <div id={digestLabel} className="mb-0.5 text-label text-text">
+              Monthly audit digest
+            </div>
+            <p id={digestHelp} className="m-0 text-micro text-text-subtle">
+              On the 1st of each month, we run a fresh audit and email you a comparison versus the prior
+              month. No extra charge.
+            </p>
+          </div>
+          {/* Unchecked posts nothing, which the action reads as off. */}
+          <Switch
+            label={null}
+            aria-labelledby={digestLabel}
+            name="audit_auto_run"
+            value="true"
+            checked={autoRun}
+            busy={saving}
+            onCheckedChange={(next) => {
+              setAutoRun(next);
+              save();
+            }}
+            aria-describedby={digestHelp}
+          />
+        </div>
       </div>
 
       <div role="status" className="mt-3 min-h-4 text-micro">
@@ -274,6 +309,8 @@ function SettingsPanel({
   settings: { lookbackDays: number; autoRun: boolean };
   result: SaveResult;
 }) {
+  const navigation = useNavigation();
+  const saving = navigation.state === "submitting" && navigation.formMethod?.toUpperCase() === "POST";
   return (
     <div className="mb-5">
       <Panel title="Settings">
@@ -281,6 +318,7 @@ function SettingsPanel({
           defaultLookbackDays={settings.lookbackDays}
           defaultAutoRun={settings.autoRun}
           result={result}
+          saving={saving}
         />
       </Panel>
     </div>
@@ -325,7 +363,10 @@ export default function AuditDashboard({ loaderData, actionData }: Route.Compone
 
   const last: RunView = runs[0];
   const previous: RunView | undefined = runs[1];
-  const at = (run: RunView, cents: number | null) => ({ cents, currency: run.currency });
+  const at = (run: RunView, cents: number | null) => ({
+    cents,
+    currency: run.currency,
+  });
 
   return (
     <div className="mx-auto w-full min-w-0 max-w-[1280px] px-4 py-10 md:px-8">
@@ -400,7 +441,8 @@ export default function AuditDashboard({ loaderData, actionData }: Route.Compone
                     </td>
                     <td data-num="">
                       <Link to={`/audit/runs/${run.id}`} className="cap-btn" data-variant="link">
-                        View<span className="sr-only"> the run of {formatDate(run.runAt)}</span>
+                        View
+                        <span className="sr-only"> the run of {formatDate(run.runAt)}</span>
                       </Link>
                     </td>
                   </tr>
