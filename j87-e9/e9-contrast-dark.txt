@@ -1,0 +1,12 @@
+lang: en
+title: Still having trouble with your payment
+headings: 0
+TD:Acme | 18px | rgb(233, 240, 240) on rgb(7, 15, 15) | 16.77:1
+TD:Hi Jane Buyer, | 16px | rgb(233, 240, 240) on rgb(17, 25, 25) | 15.45:1
+TD:We still haven't been able to process yo | 16px | rgb(233, 240, 240) on rgb(17, 25, 25) | 15.45:1
+A:Update Payment Method | 16px | rgb(7, 15, 15) on rgb(36, 147, 152) | 5.26:1
+TD:Acme | 16px | rgb(233, 240, 240) on rgb(17, 25, 25) | 15.45:1
+TD:This message was sent to buyer@example.c | 14px | rgb(139, 153, 153) on rgb(7, 15, 15) | 6.56:1
+TD:© 2026 Acme | 14px | rgb(139, 153, 153) on rgb(7, 15, 15) | 6.56:1
+A:Unsubscribe | 14px | rgb(151, 200, 203) on rgb(7, 15, 15) | 10.55:1
+TD:1 Example Street, Example City, EX 00000 | 14px | rgb(139, 153, 153) on rgb(7, 15, 15) | 6.56:1

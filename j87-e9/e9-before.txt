@@ -1,0 +1,20 @@
+From: Support <recovery@send.foxhoundapp.com>
+Reply-To: help@example.com
+Subject: Still having trouble with your payment
+{"List-Unsubscribe":"<https://foxhound.example.com/u/example-unsub-token>","List-Unsubscribe-Post":"List-Unsubscribe=One-Click"}
+
+Support
+
+Hi Jane Buyer,
+
+We still haven't been able to process your payment of $99.00. Your account may be suspended if this isn't resolved.
+
+Update Payment Method:
+https://foxhound.example.com/e/c/example-click-token
+
+Acme
+
+--
+This message was sent to buyer@example.com.
+Unsubscribe: https://foxhound.example.com/u/example-unsub-token
+1 Example Street, Example City, EX 00000
