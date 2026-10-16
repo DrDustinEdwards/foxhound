@@ -1,4 +1,4 @@
-import { escapeHtml } from "capsomer/email";
+import type { Block } from "capsomer/email";
 import { and, desc, eq, isNull, lt } from "drizzle-orm";
 
 import type { Db } from "~/db";
@@ -14,7 +14,8 @@ import {
 } from "~/lib/constants";
 import { alertCronFailure } from "~/lib/cron/alerts.server";
 import { accountProcessingEligibleCondition } from "~/lib/cron/recovery-tick";
-import { sendTransactionalEmail } from "~/lib/email/send";
+import { processEmailJob } from "~/lib/email/dispatch";
+import { recoveryFooterNote } from "~/lib/email/templates";
 import { isDigestEnabled, readAuditSettings } from "~/lib/settings/audit-settings";
 import { decryptToken } from "~/lib/stripe/encryption";
 
@@ -102,8 +103,16 @@ export function compareTotals(
   });
 }
 
-/** Legacy's subject, with the one brand substitution. */
+/** Legacy's subject, with the one brand substitution and nothing appended
+ *  (E24: Recova's subject carries no month). */
 export const MONTHLY_AUDIT_SUBJECT = "Your monthly Foxhound report";
+
+/** Recova sends this from FROM_HELLO, "Recova <hello@...>", and its footer
+ *  names "Recova": the platform speaks, never the merchant's sender (E24). */
+export const MONTHLY_AUDIT_FROM_NAME = "Foxhound";
+
+/** The email_sends template label for this mail. */
+export const MONTHLY_AUDIT_TEMPLATE = "monthly_audit";
 
 /**
  * A figure, or the one sentence every audit surface uses for a scope that could
@@ -120,10 +129,11 @@ function figure<T>(scope: ScopeOutcome<T>, render: (data: T) => string): string 
   return scope.ok ? render(scope.data) : SCOPE_UNREAD;
 }
 
-/** One labelled line. Both halves are plain text and are escaped HERE, once, so
- *  a caller passes raw strings and nothing is escaped twice. */
-function row(label: string, value: string): string {
-  return `<p><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</p>`;
+/** One labelled line, as Recova's label and value spans read: "MRR: $1,000".
+ *  Plain strings; Capsomer escapes them once, in both parts. Label and value
+ *  rows of its own are capsomer job_d7f02cec277c. */
+function row(label: string, value: string): Block {
+  return { type: "paragraph", text: `${label}: ${value}` };
 }
 
 export interface MonthlyAuditEmailInput {
@@ -137,40 +147,39 @@ export interface MonthlyAuditEmailInput {
   runId: string;
   baseUrl: string;
   comparisons: CurrencyComparison[];
-  periodMonth: string;
 }
 
 /**
- * The merged email. Pure, so its content is assertable without sending
+ * The merged email (E24). Pure, so its content is assertable without sending
  * anything, mirroring `buildFailureAlertEmail` and the digest it replaces.
  *
- * LEGACY'S STRINGS, FOXHOUND'S TREATMENT. Every section heading and row label
- * below is legacy's verbatim (`buildAuditEmailBody`), with "Recova" becoming
- * "Foxhound" in the one heading that names the product. What is NOT ported is
- * its presentation: legacy builds inline-styled tiles out of an `EMAIL_COLORS`
- * module Foxhound does not have, and 316 already ruled plain semantic HTML for
- * this send, matching every other body this repo builds. Legacy's `&mdash;`
- * row separators are an em dash in the merchant's inbox and are not ported.
+ * RECOVA'S WORDS, IN RECOVA'S ORDER, ON CAPSOMER'S BLOCKS (Q3). Every label
+ * below is Recova's `buildAuditEmailBody` verbatim (blob be1ed2ca, lines 169 to
+ * 310), with "Recova" becoming "Foxhound" in the one label that names the
+ * product. Its two section labels are muted lines, as Recova's are, not
+ * headings (a heading below the mail's one h1 is capsomer job_19bf5c96e33d).
+ * Recova's colours on the churn, rate and advisory values are look, which is
+ * Capsomer's; the words are unchanged. Recova's `&mdash;` row separators are a
+ * comma, as no em dash is ported (ENGINE-AUDIT reversal 54, and E22).
  *
- * THREE OF LEGACY'S TILES ARE ABSENT, each because its producer is. Legacy's
- * "What Recova did this month" block reads four tables through
- * `fetchActivityStats` for a recovery rate, card-alert count and win-back count.
- * 362 ruling 3 names ONE absorbed line, `computeFoxhoundAddsCents`, which is
- * Foxhound's answer to the same question and the number the superseded digest
- * carried. The rest of that block is not built rather than half-built.
+ * Recova shows Open disputes and Disputes accepted without response only when
+ * their count is above zero, the win rate only when a dispute was decided, and
+ * the Card Updater line only with an advisory. A scope whose Stripe read failed
+ * still prints its rows as the unread sentence (362 ruling 2), because hiding
+ * them would read as a zero.
+ *
+ * THE ACTIVITY SECTION IS NOT RECOVA'S. Recova's "What Recova did this month"
+ * has four tiles from `fetchActivityStats` (Recovered, Recovery rate, Card
+ * alerts sent, Win-backs); this carries the absorbed attributed-recovery line
+ * of 362 ruling 3 instead. That has no line in parity/APPROVED-DIFFERENCES.md,
+ * so the E24 pull request asks Dustin rather than deciding it here.
  */
 export function buildMonthlyAuditEmail(input: MonthlyAuditEmailInput): {
   subject: string;
-  bodyHtml: string;
+  blocks: Block[];
 } {
-  const { result, summary, runId, baseUrl, comparisons, periodMonth } = input;
+  const { result, summary, runId, baseUrl, comparisons } = input;
   const cur = result.meta.currency;
-  // EVERY interpolated value is escaped exactly once (review of PR 146): the
-  // summary is model-written and the advisory is built from Stripe data. `row`
-  // escapes its own label and value; everything else is escaped where it is
-  // placed. The subject needs none: it is a header, and Capsomer's renderer
-  // folds it to one line.
-  const link = escapeHtml(`${baseUrl}/audit/results/${runId}`);
 
   // The absorbed digest line, with the month-over-month delta the claim table's
   // stored snapshot already makes available.
@@ -183,82 +192,71 @@ export function buildMonthlyAuditEmail(input: MonthlyAuditEmailInput): {
   // merchant may well tie it to an invoice, and rounding $12.40 to $12 in a
   // number they can be billed against is the wrong kind of tidy. The digest this
   // absorbed used `formatMoney` for exactly this figure and keeps it.
-  const addsLines = comparisons.length
+  const addsLines: Block[] = comparisons.length
     ? comparisons.map((c) => {
-        const total = `<strong>${escapeHtml(formatMoney(c.cents, c.currency))}</strong>`;
-        const code = escapeHtml(c.currency.toUpperCase());
+        const total = formatMoney(c.cents, c.currency);
+        const code = c.currency.toUpperCase();
         if (c.changeCents === null) {
-          return `<p>${total} recovered to date (${code}).</p>`;
+          return { type: "paragraph", text: `${total} recovered to date (${code}).` };
         }
         const dir = c.changeCents >= 0 ? "up" : "down";
-        const change = escapeHtml(formatMoney(Math.abs(c.changeCents), c.currency));
-        return `<p>${total} recovered to date (${code}), ${dir} ${change} since last month.</p>`;
+        const change = formatMoney(Math.abs(c.changeCents), c.currency);
+        return { type: "paragraph", text: `${total} recovered to date (${code}), ${dir} ${change} since last month.` };
       })
-    : [`<p>No recovered payments are attributed to Foxhound yet.</p>`];
+    : [{ type: "paragraph", text: "No recovered payments are attributed to Foxhound yet." }];
 
-  const disputeWinRate = result.disputes.ok
+  const disputes = result.disputes;
+  const disputeWinRate = disputes.ok
     ? (() => {
-        const { won, lost } = result.disputes.data.historical;
-        return won + lost > 0
-          ? `${Math.round((won / (won + lost)) * 100)}% (${won}W / ${lost}L)`
-          : null;
+        const { won, lost } = disputes.data.historical;
+        return won + lost > 0 ? `${Math.round((won / (won + lost)) * 100)}% (${won}W / ${lost}L)` : null;
       })()
     : SCOPE_UNREAD;
 
   const advisory = result.cardUpdater.ok ? result.cardUpdater.data.advisory : null;
+  // Recova's two conditional dispute rows: shown when the count is above zero,
+  // and always when the read failed, which says so.
+  const openDisputes = !disputes.ok || disputes.data.open.count > 0;
+  const acceptedDisputes = !disputes.ok || disputes.data.acceptedWithoutFighting.count > 0;
 
-  const bodyHtml = [
-    summary ? `<p>${escapeHtml(summary)}</p>` : "",
+  const blocks: Block[] = [
+    ...(summary ? [{ type: "paragraph", text: summary } as Block] : []),
 
-    `<h2>What Foxhound did this month</h2>`,
+    { type: "fine", text: "What Foxhound did this month" },
     ...addsLines,
 
-    `<h2>Your Stripe health</h2>`,
+    { type: "fine", text: "Your Stripe health" },
     row("MRR", figure(result.health, (h) => formatCents(h.mrrCents, cur))),
     row("ARR", figure(result.health, (h) => formatCents(h.arrCents, cur))),
     row("Active subs", figure(result.health, (h) => String(h.activeSubscriptionsCount))),
 
     row(
       "Failed payments detected",
-      figure(
-        result.failedInvoices,
-        (f) => `${f.count}, ${formatCents(f.totalCents, cur)}`,
-      ),
+      figure(result.failedInvoices, (f) => `${f.count}, ${formatCents(f.totalCents, cur)}`),
     ),
     row(
       "Expiring cards",
-      figure(
-        result.expiringCards,
-        (e) => `${e.count}, ${formatCents(e.mrrAtRiskCents, cur)} MRR at risk`,
-      ),
+      figure(result.expiringCards, (e) => `${e.count}, ${formatCents(e.mrrAtRiskCents, cur)} MRR at risk`),
     ),
     row(
       "Past-due subscriptions",
-      figure(
-        result.pastDueSubscriptions,
-        (p) => `${p.count}, ${formatCents(p.totalCents, cur)}`,
-      ),
+      figure(result.pastDueSubscriptions, (p) => `${p.count}, ${formatCents(p.totalCents, cur)}`),
     ),
     row("Voluntary churn", figure(result.health, (h) => formatBps(h.voluntaryChurnRateBps))),
     row("Involuntary churn", figure(result.health, (h) => formatBps(h.involuntaryChurnRateBps))),
-    row(
-      "Open disputes",
-      figure(result.disputes, (d) => `${d.open.count}, ${formatCents(d.open.totalCents, cur)}`),
-    ),
-    row(
-      "Disputes accepted without response",
-      figure(result.disputes, (d) => String(d.acceptedWithoutFighting.count)),
-    ),
-    disputeWinRate === null ? "" : row("Dispute win rate", disputeWinRate),
-    advisory ? row("Card Updater", advisory) : "",
+    ...(openDisputes
+      ? [row("Open disputes", figure(disputes, (d) => `${d.open.count}, ${formatCents(d.open.totalCents, cur)}`))]
+      : []),
+    ...(acceptedDisputes
+      ? [row("Disputes accepted without response", figure(disputes, (d) => String(d.acceptedWithoutFighting.count)))]
+      : []),
+    ...(disputeWinRate === null ? [] : [row("Dispute win rate", disputeWinRate)]),
+    ...(advisory ? [row("Card Updater", advisory)] : []),
 
-    `<p><a href="${link}">View full audit</a></p>`,
-    `<p>You are receiving this because the monthly audit is switched on in your Foxhound audit settings. Switch it off there at any time.</p>`,
-  ]
-    .filter(Boolean)
-    .join("\n");
+    { type: "button", label: "View full audit", url: `${baseUrl}/audit/results/${runId}` },
+  ];
 
-  return { subject: `${MONTHLY_AUDIT_SUBJECT}: ${periodMonth}`, bodyHtml };
+  return { subject: MONTHLY_AUDIT_SUBJECT, blocks };
 }
 
 export interface MonthlyAuditAccountRow {
@@ -527,6 +525,12 @@ export type MonthlyAuditAccountStatus =
   | "not_eligible"
   | "no_connection"
   | "no_recipient"
+  /** The address is on the suppression list; nothing was sent (E24). */
+  | "suppressed"
+  /** The account's live sends are off; nothing was sent (E24). */
+  | "blocked"
+  /** The email_sends claim for this month already stood (E24). */
+  | "already_sent"
   | "failed";
 
 export interface MonthlyAuditAccountOutcome {
@@ -541,8 +545,17 @@ export interface MonthlyAuditAccountOutcome {
 
 /**
  * The consumer half: one account, one month. Claimed by the database, audited
- * against live Stripe, persisted through phase (d), and mailed once through the
- * existing sender.
+ * against live Stripe, persisted through phase (d), and mailed once on the
+ * merchant notice path (E24).
+ *
+ * THE MERCHANT NOTICE PATH, NOT THE AUTH SENDER (E24). Recova sends this from
+ * FROM_HELLO, and the auth sender's domain is kept for sign-in mail
+ * (constants.ts, EMAIL_AUTH_DOMAIN; RULES.md 4.13). So it goes through
+ * processEmailJob on the merchant audience, as E10 and E21 do: From "Foxhound"
+ * at Foxhound's merchant-facing address, Recova's footer sentence and its
+ * "Manage email settings" link, no unsubscribe, no Reply-To, the email_sends
+ * claim, suppression and the live-send switch. Each of its outcomes settles the
+ * month under its own name; only a provider failure is retried.
  *
  * NO OUTCOME AND NO BILLING ROW. `saveAuditRun` is a plain insert, not a money
  * write, because the audit is free under PRICING rev 3 and recording one creates
@@ -623,20 +636,43 @@ export async function auditAccountForMonth(
       runId,
       baseUrl: env.BETTER_AUTH_URL ?? "",
       comparisons,
-      periodMonth,
     });
-    await sendTransactionalEmail(env, {
-      to: account.notificationEmail,
-      subject: email.subject,
-      bodyHtml: email.bodyHtml,
-    });
-    mailed = true;
+    const sent = await processEmailJob(
+      env,
+      {
+        accountId,
+        to: account.notificationEmail,
+        fromName: MONTHLY_AUDIT_FROM_NAME,
+        subject: email.subject,
+        blocks: email.blocks,
+        footerNote: recoveryFooterNote(MONTHLY_AUDIT_FROM_NAME, now.getUTCFullYear()),
+        template: MONTHLY_AUDIT_TEMPLATE,
+        // Platform-to-merchant mail. See EmailAudience.
+        audience: "merchant",
+        unsubscribeToken: "",
+        physicalAddress: "",
+        // One logical send per account per month, as the month claim is.
+        idempotencyKey: `monthly-audit:${accountId}:${periodMonth}`,
+        cronRunId,
+      },
+      null,
+    );
+    // A provider failure is a failure: the claim is marked failed below and the
+    // queue retries, and processEmailJob lets that retry retake its own claim.
+    if (sent.status === "failed" || sent.status === "pending") {
+      throw new Error(sent.error ?? "monthly audit email failed");
+    }
+    // "duplicate" means this month's email_sends claim already stood, so the
+    // mail may have left; it is never sent again.
+    mailed = sent.status === "sent" || sent.status === "duplicate";
+    const status: MonthlyAuditAccountStatus =
+      sent.status === "sent" ? "sent" : sent.status === "duplicate" ? "already_sent" : sent.status;
 
     await db
       .update(auditDigestRuns)
-      .set({ totals, status: "sent", sentAt: now })
+      .set({ totals, status, sentAt: sent.status === "sent" ? now : null })
       .where(eq(auditDigestRuns.id, claimId));
-    return { status: "sent", ran };
+    return { status, ran };
   } catch (err) {
     if (mailed) {
       // The merchant has the email. The claim row may still read "pending",

@@ -64,8 +64,10 @@ describe("PLANT 1: EXACTLY ONE monthly merchant email hangs off the audit toggle
     // definition a monthly merchant email off this toggle, whatever it is called.
     const gatesOnToggle = (b: string) =>
       b.includes("isDigestEnabled") || b.includes("auditAutoRun") || b.includes("audit_auto_run");
+    // processEmailJob is the merchant notice path the monthly audit has sent
+    // on since E24; any module calling it reaches the sender too.
     const sends = (b: string) =>
-      b.includes("sendTransactionalEmail") || /\bsendEmail\s*\(/.test(b);
+      b.includes("sendTransactionalEmail") || /\bsendEmail\s*\(/.test(b) || /\bprocessEmailJob\s*\(/.test(b);
 
     const senders = appModules()
       .filter((m) => gatesOnToggle(m.body) && sends(m.body))
@@ -94,7 +96,8 @@ describe("PLANT 1: EXACTLY ONE monthly merchant email hangs off the audit toggle
     // env argument. 363 binding 17's shape, one subsystem over, and the reason
     // both arms of a derived plant get mutated rather than one.
     const monthly = code(read("app/lib/audit/monthly.server.ts"));
-    expect(monthly).toMatch(/await sendTransactionalEmail\(\s*env,/);
+    // Since E24 the call is processEmailJob, the merchant notice path.
+    expect(monthly).toMatch(/await processEmailJob\(\s*env,/);
     expect(monthly).toMatch(/isDigestEnabled\(/);
     expect(monthly).toContain("notificationEmail");
   });
@@ -313,6 +316,8 @@ describe("PLANT 5: a real run leaves no money row behind", () => {
       name: "acct_on",
       notificationEmail: "owner@merchant.test",
       auditAutoRun: true,
+      // E24: the merchant notice path is held by the live-send switch.
+      liveSendsEnabled: true,
       createdAt: NOW,
     });
     await db.insert(stripeConnections).values({

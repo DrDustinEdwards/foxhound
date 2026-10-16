@@ -21,6 +21,10 @@ export interface DrivenMonthlyAudit {
   skippedNotEligible: number;
   skippedNoConnection: number;
   skippedNoRecipient: number;
+  /** E24's refused sends: a suppressed address, live sends off, a standing claim. */
+  suppressed: number;
+  blocked: number;
+  alreadySent: number;
   failed: number;
   /** The thrown values of failed accounts, whole. */
   errors: unknown[];
@@ -54,6 +58,9 @@ export async function driveMonthlyAudit(
     skippedNotEligible: 0,
     skippedNoConnection: 0,
     skippedNoRecipient: 0,
+    suppressed: 0,
+    blocked: 0,
+    alreadySent: 0,
     failed: 0,
     errors: [],
   };
@@ -78,6 +85,15 @@ export async function driveMonthlyAudit(
         break;
       case "no_recipient":
         result.skippedNoRecipient += 1;
+        break;
+      case "suppressed":
+        result.suppressed += 1;
+        break;
+      case "blocked":
+        result.blocked += 1;
+        break;
+      case "already_sent":
+        result.alreadySent += 1;
         break;
       case "failed":
         result.failed += 1;
