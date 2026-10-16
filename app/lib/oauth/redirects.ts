@@ -34,9 +34,22 @@ export function redirectUriMatchesCode(provided: string, stored: string): boolea
   return provided === stored || normalizeForMatch(provided) === normalizeForMatch(stored);
 }
 
-/** Schemes a redirect may never use: each one runs or renders content in the
- *  browser instead of handing the code to a client. */
-const REFUSED_SCHEMES = new Set(["javascript:", "data:", "vbscript:", "file:", "blob:", "about:"]);
+/**
+ * Schemes a redirect may never use. Each one runs or renders content in the
+ * browser, or hands the URL to an operating-system handler (some of which have
+ * run code from a crafted URL, ms-msdt's Follina among them), instead of
+ * handing the code to a client. The person still has to approve first, but a
+ * consent page is no place to launch a system tool.
+ */
+const REFUSED_SCHEMES = new Set([
+  "javascript:", "data:", "vbscript:", "file:", "blob:", "about:", "filesystem:", "view-source:", "jar:",
+  "search-ms:", "search:", "shell:", "mk:", "its:", "hcp:", "intent:",
+  "ftp:", "ws:", "wss:", "ldap:", "smb:", "mailto:", "tel:", "sms:",
+]);
+
+/** Every Windows protocol handler shares this prefix (ms-msdt, ms-settings,
+ *  ms-officecmd, ms-word and the rest); no agent client uses it. */
+const REFUSED_SCHEME_PREFIX = "ms-";
 
 /**
  * May a client register this redirect URI? Recova stored any non-empty string.
@@ -55,10 +68,13 @@ export function isAcceptableRedirectUri(uri: string): boolean {
     return false;
   }
   if (u.hash || uri.includes("#")) return false;
-  if (REFUSED_SCHEMES.has(u.protocol)) return false;
+  if (REFUSED_SCHEMES.has(u.protocol) || u.protocol.startsWith(REFUSED_SCHEME_PREFIX)) return false;
   if (u.protocol === "https:") return u.hostname.length > 0;
   if (u.protocol === "http:") return LOOPBACK_HOSTS.has(u.hostname);
   // A private-use scheme (RFC 8252 section 7.1): a letter, then letters,
-  // digits, plus, dot or hyphen.
+  // digits, plus, dot or hyphen. RFC 8252 asks for a reverse-domain name
+  // ("com.example.app"), but it is a SHOULD and real desktop clients register
+  // bare ones (cursor://, vscode://), so a dotless scheme is still accepted;
+  // the refused list above is what keeps system handlers out.
   return /^[a-z][a-z0-9+.-]*:$/.test(u.protocol);
 }

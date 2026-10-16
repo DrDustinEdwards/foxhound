@@ -1,6 +1,7 @@
 import { and, eq, isNull } from "drizzle-orm";
 
 import type { Db } from "~/db";
+import { findActiveMembership } from "~/lib/auth/account";
 import { apiKeys, oauthAuthorizationCodes, oauthClients, oauthGrants } from "~/db";
 import {
   generateSecret,
@@ -350,6 +351,19 @@ async function exchangeCode(db: Db, params: URLSearchParams, now: Date): Promise
   if (redirectUri && !redirectUriMatchesCode(redirectUri, row.redirectUri)) return oauthError(400, "invalid_grant");
   if (!(await verifyPkceS256(verifier, row.codeChallenge))) return oauthError(400, "invalid_grant");
 
+  // The person who approved must still be an active member of the account.
+  // Removed in the minutes since consent: the code is burnt and nothing is
+  // issued.
+  const stillMember = await findActiveMembership(db, row.userId, row.accountId);
+  if (!stillMember) {
+    await db
+      .update(oauthAuthorizationCodes)
+      .set({ usedAt: now })
+      .where(and(eq(oauthAuthorizationCodes.id, row.id), isNull(oauthAuthorizationCodes.usedAt)))
+      .returning({ id: oauthAuthorizationCodes.id });
+    return oauthError(400, "invalid_grant");
+  }
+
   // Claim the code before issuing anything. A concurrent redemption that loses
   // this UPDATE matches no row and is refused.
   const claimed = await db
@@ -385,6 +399,7 @@ async function exchangeCode(db: Db, params: URLSearchParams, now: Date): Promise
       clientId: row.clientId,
       accountId: row.accountId,
       apiKeyId: keyId,
+      userId: row.userId,
       codeId: row.id,
       refreshHash: await hashMcpToken(refresh),
       refreshExpiresAt: plusMs(now, OAUTH_REFRESH_TOKEN_TTL_MS),
@@ -405,6 +420,8 @@ async function exchangeRefresh(db: Db, params: URLSearchParams, now: Date): Prom
   if (!grant) {
     // A refresh token that has already been rotated away. Only a replay
     // presents one, so the grant it belonged to ends (OAuth 2.1 section 4.3.1).
+    // Detection reaches one rotation back (previous_refresh_hash); a token
+    // older than that is simply unknown and refused.
     const [replayed] = await db
       .select({ id: oauthGrants.id, apiKeyId: oauthGrants.apiKeyId })
       .from(oauthGrants)
@@ -425,6 +442,13 @@ async function exchangeRefresh(db: Db, params: URLSearchParams, now: Date): Prom
   // Revoked in Settings: the connection is over, and a refresh must not bring
   // it back.
   if (!key || key.revokedAt) {
+    await revokeGrant(db, grant, now);
+    return oauthError(400, "invalid_grant");
+  }
+  // A grant is the approving person's delegation. Once they are no longer an
+  // active member of the account, by whatever path, it ends here, so a removed
+  // member's agent cannot keep refreshing its way into the account.
+  if (!(await findActiveMembership(db, grant.userId, grant.accountId))) {
     await revokeGrant(db, grant, now);
     return oauthError(400, "invalid_grant");
   }

@@ -55,7 +55,8 @@ import type { Route } from "./+types/authorize";
 //     choice at all; Recova's admin-only selector is not built (see the PR).
 //
 // The account is the session's active one, resolved again in the action from
-// the session; no form field names it (RULES.md 4.6).
+// the session (RULES.md 4.6). The form posts back the id the card showed only
+// so that a switch in another tab is refused rather than silently approved.
 
 export function meta() {
   return [{ title: "Authorize access - Foxhound" }];
@@ -69,6 +70,8 @@ type Consent = {
   redirectUri: string;
   state: string | null;
   codeChallenge: string;
+  /** Posted back as a consistency check only, never as the authority. */
+  accountId: string;
   accountName: string;
   email: string;
 };
@@ -108,6 +111,7 @@ export async function loader({ request, context }: Route.LoaderArgs): Promise<Co
     redirectUri: check.redirectUri,
     state: check.state,
     codeChallenge: check.codeChallenge,
+    accountId: membership.accountId,
     accountName: membership.accountName ?? session.user.email ?? "your Foxhound account",
     email: session.user.email,
   };
@@ -119,6 +123,7 @@ export async function loader({ request, context }: Route.LoaderArgs): Promise<Co
 const EXPIRED_REQUEST = "This request is no longer valid. Start again from the app you are connecting.";
 const TOO_MANY = "Too many attempts. Wait a minute and try again.";
 const DEMO_REFUSED = "The demo account cannot be connected.";
+const ACCOUNT_CHANGED = "Your active account changed in another tab. Check the account above and approve again.";
 
 export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
@@ -167,6 +172,15 @@ export async function action({ request, context }: Route.ActionArgs) {
     session.session.activeAccountId ?? null,
   );
   if (!membership) throw redirect("/connect");
+
+  // THE ACCOUNT THE CARD SHOWED MUST BE THE ONE APPROVED. The session's active
+  // account is still the only authority (RULES.md 4.6); the posted id can only
+  // refuse, never choose. A merchant who switched account in another tab after
+  // the card rendered is stopped here, and the revalidated card shows the
+  // account they would now be approving for.
+  if (params.get("account_id") !== membership.accountId) {
+    return data({ error: ACCOUNT_CHANGED }, { status: 409 });
+  }
 
   const target = await issueAuthorizationCode(db, {
     clientId: check.clientId,
@@ -275,6 +289,7 @@ export default function Authorize({ loaderData, actionData }: Route.ComponentPro
         <input type="hidden" name="response_type" value="code" />
         <input type="hidden" name="code_challenge" value={consent.codeChallenge} />
         <input type="hidden" name="code_challenge_method" value="S256" />
+        <input type="hidden" name="account_id" value={consent.accountId} />
         {consent.state ? <input type="hidden" name="state" value={consent.state} /> : null}
         <div className="grid grid-cols-2 gap-3">
           <Button

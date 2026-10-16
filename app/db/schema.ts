@@ -321,6 +321,11 @@ export const oauthGrants = sqliteTable(
     apiKeyId: text("api_key_id")
       .notNull()
       .references(() => apiKeys.id),
+    /** Who approved, copied from the code. A grant is this person's
+     *  delegation: it ends when they stop being an active member of the
+     *  account (removeMember, account deletion, or a refresh that finds no
+     *  membership). Soft reference to Better Auth's user, as on the code. */
+    userId: text("user_id").notNull(),
     /** The code this grant was made from, so a replayed code can revoke it. */
     codeId: text("code_id").notNull(),
     refreshHash: text("refresh_hash").notNull(),
@@ -337,6 +342,7 @@ export const oauthGrants = sqliteTable(
     index("oauth_grants_code_idx").on(t.codeId),
     index("oauth_grants_api_key_idx").on(t.apiKeyId),
     index("oauth_grants_account_idx").on(t.accountId),
+    index("oauth_grants_user_account_idx").on(t.userId, t.accountId),
   ],
 );
 

@@ -27,6 +27,7 @@ const OK: LoaderData = {
   redirectUri: "https://claude.ai/api/mcp/auth_callback",
   state: "st",
   codeChallenge: "x".repeat(43),
+  accountId: "acct_b",
   accountName: "Acme Supply Co.",
   email: "dana@acme.test",
 };
@@ -99,7 +100,7 @@ describe("A9: Recova's card, in Recova's order", () => {
     expect(allow).toMatch(/type="submit"/);
     expect(deny).toMatch(/type="submit"/);
     expect(html).toMatch(/<form[^>]*method="post"/);
-    for (const field of ["client_id", "redirect_uri", "state", "code_challenge", "code_challenge_method", "response_type"]) {
+    for (const field of ["client_id", "redirect_uri", "state", "code_challenge", "code_challenge_method", "response_type", "account_id"]) {
       expect(html, field).toMatch(new RegExp(`<input type="hidden" name="${field}"`));
     }
   });

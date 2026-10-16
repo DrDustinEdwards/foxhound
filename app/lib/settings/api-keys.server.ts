@@ -1,7 +1,7 @@
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, exists, gt, isNull, or } from "drizzle-orm";
 
 import type { Db } from "~/db";
-import { apiKeys } from "~/db";
+import { apiKeys, oauthGrants } from "~/db";
 import {
   MCP_TOKEN_SCOPE,
   issueMcpToken,
@@ -39,7 +39,7 @@ export interface ApiKeyRow {
  * keys carry `account_id = null` by construction in `issueMcpToken`, so they
  * cannot appear in an account-scoped list on either side.
  */
-export async function listAccountApiKeys(db: Db, accountId: string): Promise<ApiKeyRow[]> {
+export async function listAccountApiKeys(db: Db, accountId: string, now: Date = new Date()): Promise<ApiKeyRow[]> {
   return db
     .select({
       id: apiKeys.id,
@@ -53,6 +53,26 @@ export async function listAccountApiKeys(db: Db, accountId: string): Promise<Api
         eq(apiKeys.accountId, accountId),
         eq(apiKeys.scope, MCP_TOKEN_SCOPE.MERCHANT),
         isNull(apiKeys.revokedAt),
+        // An OAuth connection's key expires every hour and is renewed by a
+        // refresh, so a lapsed hour alone does not end it. It is listed while
+        // its access hour or its grant is live, and not once both are gone. A
+        // Settings key has no expiry and is always listed.
+        or(
+          isNull(apiKeys.expiresAt),
+          gt(apiKeys.expiresAt, now),
+          exists(
+            db
+              .select({ id: oauthGrants.id })
+              .from(oauthGrants)
+              .where(
+                and(
+                  eq(oauthGrants.apiKeyId, apiKeys.id),
+                  isNull(oauthGrants.revokedAt),
+                  gt(oauthGrants.refreshExpiresAt, now),
+                ),
+              ),
+          ),
+        ),
       ),
     )
     .orderBy(desc(apiKeys.createdAt));

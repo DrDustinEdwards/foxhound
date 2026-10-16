@@ -27,6 +27,7 @@ CREATE TABLE `oauth_grants` (
 	`client_id` text NOT NULL,
 	`account_id` text NOT NULL,
 	`api_key_id` text NOT NULL,
+	`user_id` text NOT NULL,
 	`code_id` text NOT NULL,
 	`refresh_hash` text NOT NULL,
 	`previous_refresh_hash` text,
@@ -43,4 +44,5 @@ CREATE INDEX `oauth_grants_previous_refresh_hash_idx` ON `oauth_grants` (`previo
 CREATE INDEX `oauth_grants_code_idx` ON `oauth_grants` (`code_id`);--> statement-breakpoint
 CREATE INDEX `oauth_grants_api_key_idx` ON `oauth_grants` (`api_key_id`);--> statement-breakpoint
 CREATE INDEX `oauth_grants_account_idx` ON `oauth_grants` (`account_id`);--> statement-breakpoint
+CREATE INDEX `oauth_grants_user_account_idx` ON `oauth_grants` (`user_id`,`account_id`);--> statement-breakpoint
 ALTER TABLE `api_keys` ADD `expires_at` integer;

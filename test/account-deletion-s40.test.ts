@@ -254,6 +254,7 @@ async function seedMerchant(opts: {
     clientId: `${p}-client`,
     accountId,
     apiKeyId: `${p}-key`,
+    userId,
     codeId: `${p}-code`,
     refreshHash: `${p}-refresh-hash`,
     refreshExpiresAt: NOW,

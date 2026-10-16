@@ -468,7 +468,11 @@ export function buildAccountScrubStatements(db: Db, accountId: string, now: Date
  * Better Auth rows and the user. Recova's cascade ends the same way, with the
  * residual memberships and the user.
  */
-export function buildUserDeletionStatements(db: Db, plan: Pick<DeletionPlan, "userId" | "email">): BatchItem<"sqlite">[] {
+export function buildUserDeletionStatements(
+  db: Db,
+  plan: Pick<DeletionPlan, "userId" | "email">,
+  now: Date,
+): BatchItem<"sqlite">[] {
   const { userId, email } = plan;
   return [
     db.delete(accountMembers).where(eq(accountMembers.userId, userId)),
@@ -477,7 +481,22 @@ export function buildUserDeletionStatements(db: Db, plan: Pick<DeletionPlan, "us
       .update(disputeApprovals)
       .set({ approvedByEmail: null, approvedByUserId: null })
       .where(eq(disputeApprovals.approvedByUserId, userId)),
-    // Codes this person approved on an account they do not own (J79).
+    // The agents this person connected to accounts they do not own (J79). A
+    // grant is their delegation and ends with them. The access key goes first,
+    // revoked through the grant that names it (a grant points at its key, so
+    // the key cannot be deleted while the grant stands, and once the grant is
+    // gone nothing finds the key); then the grants and the codes go. The
+    // revoked key keeps no personal value and Settings never lists it.
+    db
+      .update(apiKeys)
+      .set({ revokedAt: now })
+      .where(
+        and(
+          inArray(apiKeys.id, db.select({ id: oauthGrants.apiKeyId }).from(oauthGrants).where(eq(oauthGrants.userId, userId))),
+          isNull(apiKeys.revokedAt),
+        ),
+      ),
+    db.delete(oauthGrants).where(eq(oauthGrants.userId, userId)),
     db.delete(oauthAuthorizationCodes).where(eq(oauthAuthorizationCodes.userId, userId)),
     db.delete(session).where(eq(session.userId, userId)),
     db.delete(authAccount).where(eq(authAccount.userId, userId)),
@@ -503,7 +522,7 @@ export function buildAccountDeletionBatch(db: Db, plan: DeletionPlan, now: Date)
       createdAt: now,
     }),
     ...plan.ownedAccountIds.flatMap((accountId) => buildAccountScrubStatements(db, accountId, now)),
-    ...buildUserDeletionStatements(db, plan),
+    ...buildUserDeletionStatements(db, plan, now),
   ];
 }
 

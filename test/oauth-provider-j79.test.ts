@@ -8,7 +8,11 @@ import { apiKeys, oauthAuthorizationCodes, oauthClients, oauthGrants } from "~/d
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE, verifyMcpToken } from "~/lib/auth/mcp-tokens";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { OAUTH_ACCESS_TOKEN_TTL_SECONDS, OAUTH_CODE_TTL_MS } from "~/lib/constants";
-import { classifyPath, NO_TRANSFORM_PREFIXES } from "~/lib/http/cache-policy";
+import { removeMember } from "~/lib/auth/account";
+import { deleteUserAccountLocal } from "~/lib/auth/delete-account.server";
+import { safeNextPath } from "~/lib/auth/next-path";
+import { applyCachePolicy, classifyPath, NO_TRANSFORM_PREFIXES, PRIVATE_DIRECTIVE } from "~/lib/http/cache-policy";
+import { listAccountApiKeys } from "~/lib/settings/api-keys.server";
 import { MERCHANT_TOOL_NAMES } from "~/lib/mcp/tools.server";
 import { authorizationServerMetadata, protectedResourceMetadata } from "~/lib/oauth/metadata";
 import { CONSENT_CAPABILITIES } from "~/lib/oauth/consent-copy";
@@ -138,6 +142,8 @@ function authorizeParams(clientId: string, challenge: string, extra: Record<stri
 async function consent(clientId: string, challenge: string, intent = "allow"): Promise<URL> {
   const form = authorizeParams(clientId, challenge);
   form.set("intent", intent);
+  // The account the card showed, posted back as a consistency check only.
+  form.set("account_id", ACCOUNT_B);
   const request = new Request(`${ORIGIN}/oauth/authorize`, {
     method: "POST",
     headers: { Origin: ORIGIN, "Content-Type": "application/x-www-form-urlencoded" },
@@ -437,16 +443,32 @@ describe("A9: consent", () => {
     expect(await db.select().from(oauthAuthorizationCodes)).toHaveLength(0);
   });
 
-  it("an account id in the form changes nothing: the session's active account is used", async () => {
+  it("the card's account is posted back and checked, never used: a mismatch is refused and binds nothing", async () => {
     const clientId = await registered();
     const { challenge } = await pkcePair();
-    const form = authorizeParams(clientId, challenge, { intent: "allow", account_id: ACCOUNT_A });
-    const res = (await authorizeRoute.action({
-      request: new Request(`${ORIGIN}/oauth/authorize`, { method: "POST", headers: { Origin: ORIGIN }, body: form }),
+    const loaded = (await authorizeRoute.loader({
+      request: new Request(`${ORIGIN}/oauth/authorize?${authorizeParams(clientId, challenge)}`),
       context: context(),
       params: {},
-    } as never)) as Response;
-    expect(res.status).toBe(302);
+    } as never)) as { accountId: string };
+    expect(loaded.accountId).toBe(ACCOUNT_B);
+    // The merchant switched to another account in a second tab after the card
+    // rendered (or the field was tampered with, or is missing): refused.
+    for (const shown of [ACCOUNT_A, null]) {
+      const form = authorizeParams(clientId, challenge, { intent: "allow" });
+      if (shown) form.set("account_id", shown);
+      const res = (await authorizeRoute.action({
+        request: new Request(`${ORIGIN}/oauth/authorize`, { method: "POST", headers: { Origin: ORIGIN }, body: form }),
+        context: context(),
+        params: {},
+      } as never)) as { data?: { error?: string }; init?: { status?: number } } | Response;
+      expect(res instanceof Response, `shown=${shown}`).toBe(false);
+      expect((res as { init: { status: number } }).init.status, `shown=${shown}`).toBe(409);
+    }
+    expect(await db.select().from(oauthAuthorizationCodes)).toHaveLength(0);
+    // The matching account goes through, and is the session's.
+    const back = await consent(clientId, challenge);
+    expect(back.searchParams.get("code")).toBeTruthy();
     const [row] = await db.select().from(oauthAuthorizationCodes);
     expect(row.accountId).toBe(ACCOUNT_B);
   });
@@ -668,10 +690,176 @@ describe("the consent copy says what the token can actually do", () => {
   });
 });
 
+describe("the shared cache policy owns the private responses (test/cache-policy.test.ts PLANT 7)", () => {
+  it("the protected-resource document and revocation get the policy's private, no-store", async () => {
+    const prmReq = new Request(`${ORIGIN}/.well-known/oauth-protected-resource`);
+    const prm = applyCachePolicy(prmReq, (await resourceRoute.loader({ request: prmReq } as never)) as Response);
+    expect(prm.headers.get("Cache-Control")).toBe(PRIVATE_DIRECTIVE);
+    expect(prm.headers.get("Access-Control-Allow-Origin")).toBe("*");
+
+    const revReq = new Request(`${ORIGIN}/api/oauth/revoke`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ token: "fox_rt_unknown" }),
+    });
+    const rev = applyCachePolicy(revReq, (await revokeRoute.action({ request: revReq, context: context(), params: {} } as never)) as Response);
+    expect(rev.status).toBe(200);
+    expect(rev.headers.get("Cache-Control")).toBe(PRIVATE_DIRECTIVE);
+  });
+});
+
 describe("the authorize page stays out of caches, analytics and crawls", () => {
   it("is private, carries no analytics, and Recova's robots line returns", () => {
     expect(classifyPath("/oauth/authorize")).toBe("private");
     expect(NO_TRANSFORM_PREFIXES).toContain("/oauth/");
     expect(DISALLOW_PATHS).toContain("/oauth/");
+  });
+});
+
+// ============================================================================
+// A grant is one person's delegation: it lasts only while that person is still
+// an active member of the account (fresh review of PR #141, B2).
+
+async function makeMember(): Promise<void> {
+  // USER owns ACCOUNT_B in the fixture; removeMember refuses an owner, so the
+  // consenting person is made an ordinary member here.
+  sqlite.prepare("UPDATE account_members SET role = 'member' WHERE id = ?").run(`m_${ACCOUNT_B}`);
+}
+
+describe("a grant ends when the person who approved it leaves the account", () => {
+  it("the grant records who approved it", async () => {
+    await fullFlow();
+    const [grant] = await db.select().from(oauthGrants);
+    expect(grant.userId).toBe(USER);
+  });
+
+  it("removed between consent and exchange: the code is refused and mints nothing", async () => {
+    await makeMember();
+    const clientId = await registered();
+    const { verifier, challenge } = await pkcePair();
+    const code = (await consent(clientId, challenge)).searchParams.get("code")!;
+    expect((await removeMember(db, ACCOUNT_B, `m_${ACCOUNT_B}`)).ok).toBe(true);
+    const res = await tokenCall({ grant_type: "authorization_code", code, code_verifier: verifier, client_id: clientId });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("invalid_grant");
+    expect(await db.select().from(apiKeys)).toHaveLength(0);
+    expect(await db.select().from(oauthGrants)).toHaveLength(0);
+  });
+
+  it("removeMember ends their grant and its key at once, and refresh cannot revive it", async () => {
+    await makeMember();
+    const { clientId, access, refresh } = await fullFlow();
+    expect((await removeMember(db, ACCOUNT_B, `m_${ACCOUNT_B}`)).ok).toBe(true);
+    expect(await verifyMcpToken(db, access)).toBeNull();
+    const [grant] = await db.select().from(oauthGrants);
+    expect(grant.revokedAt).not.toBeNull();
+    const res = await tokenCall({ grant_type: "refresh_token", refresh_token: refresh, client_id: clientId });
+    expect(res.body.error).toBe("invalid_grant");
+  });
+
+  it("a membership gone by any other path: the next refresh refuses and revokes", async () => {
+    const { clientId, access, refresh } = await fullFlow();
+    sqlite.prepare("DELETE FROM account_members WHERE id = ?").run(`m_${ACCOUNT_B}`);
+    const res = await tokenCall({ grant_type: "refresh_token", refresh_token: refresh, client_id: clientId });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("invalid_grant");
+    expect(await verifyMcpToken(db, access)).toBeNull();
+    const [grant] = await db.select().from(oauthGrants);
+    expect(grant.revokedAt).not.toBeNull();
+  });
+
+  it("removing one person leaves another person's grant on the same account alone", async () => {
+    sqlite
+      .prepare("INSERT INTO user (id, name, email, email_verified, updated_at) VALUES ('user_2', 'Eli', 'eli@acme.test', 0, 0)")
+      .run();
+    sqlite
+      .prepare("INSERT INTO account_members (id, account_id, user_id, role, status, created_at) VALUES ('m_eli', ?, 'user_2', 'member', 'active', 3000)")
+      .run(ACCOUNT_B);
+    const mine = await fullFlow();
+    harness.session = { user: { id: "user_2", name: "Eli", email: "eli@acme.test" }, session: { id: "s2", activeAccountId: ACCOUNT_B } };
+    const elis = await fullFlow();
+    expect((await removeMember(db, ACCOUNT_B, "m_eli")).ok).toBe(true);
+    expect(await verifyMcpToken(db, elis.access)).toBeNull();
+    expect(await verifyMcpToken(db, mine.access)).toMatchObject({ accountId: ACCOUNT_B });
+  });
+
+  it("deleting the person ends their grant on an account they do not own, under foreign keys", async () => {
+    sqlite.pragma("foreign_keys = ON");
+    sqlite
+      .prepare("INSERT INTO user (id, name, email, email_verified, updated_at) VALUES ('user_2', 'Eli', 'eli@acme.test', 0, 0)")
+      .run();
+    sqlite
+      .prepare("INSERT INTO account_members (id, account_id, user_id, role, status, created_at) VALUES ('m_eli', ?, 'user_2', 'member', 'active', 3000)")
+      .run(ACCOUNT_B);
+    harness.session = { user: { id: "user_2", name: "Eli", email: "eli@acme.test" }, session: { id: "s2", activeAccountId: ACCOUNT_B } };
+    const elis = await fullFlow();
+    const result = await deleteUserAccountLocal(db, "user_2", new Date());
+    expect(result.status).toBe("deleted");
+    expect(await verifyMcpToken(db, elis.access)).toBeNull();
+    expect(await db.select().from(oauthGrants)).toHaveLength(0);
+    expect((await tokenCall({ grant_type: "refresh_token", refresh_token: elis.refresh, client_id: elis.clientId })).body.error).toBe("invalid_grant");
+    expect(sqlite.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
+  });
+});
+
+describe("Settings lists a connection while it can still work, and not after", () => {
+  it("hides an OAuth key whose access hour and grant have both lapsed, keeps a live one and a Settings key", async () => {
+    const live = await fullFlow();
+    const dead = await fullFlow();
+    const later = new Date(Date.now() + 2 * 60 * 60 * 1000);
+    // The dead connection's grant has lapsed; the live one's has not.
+    const deadKey = (await verifyMcpToken(db, dead.access))!;
+    sqlite.prepare("UPDATE oauth_grants SET refresh_expires_at = 0 WHERE api_key_id = ?").run(deadKey.keyId);
+    sqlite.prepare("INSERT INTO api_keys (id, account_id, key_hash, label, scope, created_at) VALUES ('k_settings', ?, 'h', 'Zapier', 'mcp_merchant', 0)").run(ACCOUNT_B);
+    const ids = (await listAccountApiKeys(db, ACCOUNT_B, later)).map((k) => k.id);
+    const liveKey = (await verifyMcpToken(db, live.access))!;
+    expect(ids).toContain(liveKey.keyId);
+    expect(ids).toContain("k_settings");
+    expect(ids).not.toContain(deadKey.keyId);
+  });
+});
+
+describe("redirect schemes: an operating-system handler is never a client", () => {
+  it("refuses Windows and other OS protocol handlers, keeps real clients' schemes", () => {
+    for (const uri of [
+      "ms-msdt:/id PCWDiagnostic",
+      "search-ms:query=x",
+      "ms-settings:privacy",
+      "ms-officecmd:x",
+      "ms-word:ofe|u|https://evil.example/a.docx",
+      "shell:startup",
+      "mk:@MSITStore:x",
+      "its:x",
+      "hcp://x",
+      "jar:https://evil.example/a.jar!/",
+      "view-source:https://evil.example",
+      "filesystem:https://evil.example/x",
+      "ftp://evil.example/cb",
+      "mailto:a@example.com",
+      "tel:123",
+      "sms:123",
+      "intent://x#Intent;end",
+    ]) {
+      expect(isAcceptableRedirectUri(uri), uri).toBe(false);
+    }
+    for (const uri of [
+      "https://claude.ai/api/mcp/auth_callback",
+      "http://localhost:43123/callback",
+      "http://127.0.0.1/callback",
+      "cursor://anysphere.cursor-retrieval/oauth/callback",
+      "vscode://vscode.github-authentication/did-authenticate",
+      "com.example.agent:/oauth/callback",
+    ]) {
+      expect(isAcceptableRedirectUri(uri), uri).toBe(true);
+    }
+  });
+});
+
+describe("safeNextPath never hands a Location header a value it cannot carry", () => {
+  it("refuses any character outside printable ASCII", () => {
+    for (const raw of ["/\u3000/x", "/\u00a0/x", "/caf\u00e9", "/\u2028x", "%2F%E3%80%80%2Fx"]) {
+      expect(safeNextPath(JSON.parse(`"${raw}"`)), raw).toBe("/console");
+    }
+    expect(safeNextPath("/oauth/authorize?a=%E3%80%80")).toBe("/oauth/authorize?a=%E3%80%80");
   });
 });

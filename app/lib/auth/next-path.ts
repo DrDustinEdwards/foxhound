@@ -37,12 +37,14 @@ function tryDecode(value: string): string {
 export function safeNextPath(raw: string | null | undefined): string {
   if (!raw) return DEFAULT_NEXT_PATH;
   const url = raw.startsWith("/") ? raw : tryDecode(raw);
-  // A browser strips tabs and newlines while parsing a URL, so "/\t/host"
-  // becomes "//host". Recova's validator let that through; no real path
-  // carries a control character or a space, so any is refused.
-  for (const ch of url) {
-    const code = ch.charCodeAt(0);
-    if (code <= 0x20 || code === 0x7f) return DEFAULT_NEXT_PATH;
+  // PRINTABLE ASCII ONLY. A browser strips tabs and newlines while parsing a
+  // URL, so "/\t/host" becomes "//host"; Recova's validator let that through.
+  // And anything above 0x7e cannot go into a Location header at all (header
+  // values are ByteStrings), so it would turn a successful sign-in into a 500.
+  // A real path carries neither: its non-ASCII is percent-encoded.
+  for (let i = 0; i < url.length; i++) {
+    const code = url.charCodeAt(i);
+    if (code <= 0x20 || code >= 0x7f) return DEFAULT_NEXT_PATH;
   }
   if (url.startsWith("/") && !url.startsWith("//") && !url.startsWith("/\\")) return url;
   return DEFAULT_NEXT_PATH;
