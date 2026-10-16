@@ -365,8 +365,11 @@ describe("PLANT 6: the docs describe what was built, including what it does not 
     }
   });
 
-  it("says plainly that nothing is delivered yet", () => {
-    expect(DOCS).toContain("does not email or Slack you when an alert fires yet");
+  it("says a breach is emailed, once a day at most, and not posted to Slack (J94, E21)", () => {
+    expect(DOCS).toContain(
+      "and emailed to your notification address, no more than once a day for each alert. Alerts are not posted to Slack.",
+    );
+    expect(DOCS).not.toContain("does not email or Slack you when an alert fires yet");
     expect(DOCS).toContain("Recent triggers");
   });
 });

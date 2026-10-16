@@ -213,7 +213,7 @@ export const DOC_GUIDES: DocGuide[] = [
           { kind: "note", body: "Win-back and expiring-card alerts are switches on the features page rather than the notifications page, because they turn the engine off rather than changing who hears about it." },
           { kind: "h3", text: "Alerts" },
           "Settings and Alerts lets you set a threshold on a metric Foxhound tracks: average health score, MRR at risk, churned MRR, and contracted MRR. Choose whether the metric dropping below or rising above your number counts, and Foxhound checks every night.",
-          "Every breach is recorded and shown under Recent triggers on that page. Foxhound does not email or Slack you when an alert fires yet, so the page is where you read them.",
+          "Every breach is recorded and shown under Recent triggers on that page, and emailed to your notification address, no more than once a day for each alert. Alerts are not posted to Slack.",
           { kind: "h3", text: "API keys" },
           "Settings and API keys issues credentials for external AI agents. A key is shown once, when you generate it, and only its hash is stored, so Foxhound cannot show it to you again. Name each key so you can tell them apart, and revoke any key from the same page. A revoked key stops working immediately.",
           { kind: "h3", text: "Connecting an agent" },
