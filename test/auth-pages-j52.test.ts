@@ -112,6 +112,8 @@ function sizeClasses(html: string): string[] {
   return out;
 }
 
+const SIGNUP_LINE = `We start recovering where Stripe's own retries stop. You pay ${RECOVERY_FEE_PERCENT}% of what we recover. Nothing until then.`;
+
 const LOGIN = { googleEnabled: true, verified: false, error: null };
 const SIGNUP = { googleEnabled: true };
 const RESET = { token: "tok_123" };
@@ -314,11 +316,21 @@ describe("A2 /login: Recova's page", () => {
 });
 
 describe("A3 /signup: Recova's page", () => {
+  it("the line under the heading is true against the engine: no 'immediately' (RULES.md 3.3)", () => {
+    // Review round 1. The first soft failure is parked as stripe_retrying and
+    // Foxhound's sequence starts when Stripe's own retries stop; hard declines
+    // start at once. "We start recovering immediately" promised neither.
+    const html = text(render(signup.default as AnyComponent, SIGNUP));
+    expect(html).toContain(SIGNUP_LINE);
+    expect(html).not.toMatch(/immediately/i);
+    expect(code("app/routes/auth/signup.tsx")).not.toMatch(/immediately/i);
+  });
+
   it("Recova's heading and line, the fee read from Foxhound's own constant", () => {
     expect(RECOVERY_FEE_PERCENT).toBe(20);
     inOrder(text(render(signup.default as AnyComponent, SIGNUP)), [
       "Connect Stripe once",
-      `We start recovering immediately. You pay ${RECOVERY_FEE_PERCENT}% of what we recover. Nothing until then.`,
+      SIGNUP_LINE,
       "Continue with Google",
       "or",
       "Email",
@@ -416,6 +428,13 @@ describe("A5 /reset-password: Recova's page", () => {
       return out;
     }
 
+    it("checks the token before the two passwords (review round 1)", async () => {
+      const out = await act({ token: "", password: "short", confirm: "different" });
+      expect(out.data?.error).toBe("This reset link is invalid or expired.");
+      expect(out.init?.status).toBe(400);
+      expect(harness.resetCalls).toBe(0);
+    });
+
     it("refuses two passwords that differ, in Recova's words", async () => {
       const out = await act({ token: "t", password: "a-long-password-1", confirm: "a-long-password-2" });
       expect(out.data?.error).toBe("Passwords do not match");
@@ -435,6 +454,49 @@ describe("A5 /reset-password: Recova's page", () => {
       expect(harness.resetCalls).toBe(1);
     });
   });
+});
+
+describe("review round 1: each input is tied to the error it caused", () => {
+  const ERRORED: [string, AnyComponent, unknown, unknown, string[]][] = [
+    ["login", login.default as AnyComponent, LOGIN, { error: "Invalid email or password" }, ["login-email", "login-password"]],
+    [
+      "signup",
+      signup.default as AnyComponent,
+      SIGNUP,
+      { ok: false, email: null, error: "Too many requests. Please try again later." },
+      ["signup-email", "signup-password"],
+    ],
+    [
+      "forgot",
+      forgot.default as AnyComponent,
+      undefined,
+      { ok: false, email: null, error: "Too many attempts. Please try again in a minute." },
+      ["forgot-email"],
+    ],
+    ["reset", reset.default as AnyComponent, RESET, { ok: false, error: "Passwords do not match" }, ["reset-password", "reset-confirm"]],
+  ];
+
+  for (const [name, Page, loaderData, actionData, inputs] of ERRORED) {
+    it(`${name}: with an error, each input is aria-invalid and described by the alert that holds it`, () => {
+      const html = render(Page, loaderData, actionData);
+      const err = (actionData as { error: string }).error;
+      for (const id of inputs) {
+        const tag = html.match(new RegExp(`<input[^>]*id="${id}"[^>]*>`))?.[0];
+        expect(tag, `input #${id}`).toBeDefined();
+        expect(tag).toContain('aria-invalid="true"');
+        const describedBy = tag!.match(/aria-describedby="([^"]+)"/)?.[1];
+        expect(describedBy, `#${id} aria-describedby`).toBeDefined();
+        const target = html.match(new RegExp(`id="${describedBy}"[^>]*>([\\s\\S]*?)</div>`))?.[1] ?? "";
+        expect(text(target)).toContain(err);
+      }
+    });
+
+    it(`${name}: with no error, no input claims to be invalid`, () => {
+      const html = render(Page, loaderData);
+      expect(html).not.toContain("aria-invalid");
+      expect(html).not.toContain("aria-describedby");
+    });
+  }
 });
 
 describe("Foxhound's engine is kept, Recova's is not copied", () => {
