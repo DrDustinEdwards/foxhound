@@ -207,8 +207,13 @@ export async function recordClick(
     .from(recoverySteps)
     .where(eq(recoverySteps.id, payload.stepId))
     .limit(1);
+  // A ZERO-ROW STAMP IS NOT A RECORDED CLICK (RULES.md 3.9). With no step the
+  // stamp would match nothing (and the event row's foreign key would refuse
+  // the insert), so the outcome is named here, before the batch, rather than
+  // reported as recorded or left to surface as a thrown constraint error.
+  if (!step) return { recorded: false, reason: "unknown_step" };
   const tooFast =
-    step?.executedAt != null && now.getTime() - step.executedAt.getTime() < CLICK_SUSPECT_MIN_MS;
+    step.executedAt != null && now.getTime() - step.executedAt.getTime() < CLICK_SUSPECT_MIN_MS;
 
   await db.batch([
     buildEngagementInsert(db, {

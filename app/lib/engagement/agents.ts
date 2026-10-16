@@ -161,4 +161,4 @@ export function isAutomatedUserAgent(userAgent: string): boolean {
  *  still happens and the caller logs the reason at debug. */
 export type EngagementRecordResult =
   | { recorded: true }
-  | { recorded: false; reason: AutomatedReason };
+  | { recorded: false; reason: AutomatedReason | "unknown_step" };

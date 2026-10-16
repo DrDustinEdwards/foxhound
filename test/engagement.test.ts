@@ -83,6 +83,14 @@ describe("engagement record builders (compile against schema)", () => {
     expect(sql.sql).not.toMatch(/click_suspect_reason/i);
   });
 
+  it("with a suspect reason, the click stamp writes it on the first click only and never clears a mark", () => {
+    const sql = sqlOf(buildClickStamp(db, "step_1", now, "too_fast"));
+    expect(sql.sql).toMatch(
+      /"click_suspect_reason" = case when "recovery_steps"\."clicked_at" is null then \? else "recovery_steps"\."click_suspect_reason" end/i,
+    );
+    expect(sql.params).toContain("too_fast");
+  });
+
   it("open stamp targets opened_at", () => {
     expect(sqlOf(buildOpenStamp(db, "step_1", now)).sql).toMatch(/opened_at/i);
   });

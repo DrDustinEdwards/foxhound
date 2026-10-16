@@ -24,7 +24,8 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const { recordClick, recordHoneypot } = await import("~/lib/engagement/record");
+const record = await import("~/lib/engagement/record");
+const { buildClickStamp, buildEngagementInsert, recordClick, recordHoneypot } = record;
 
 const ENV = {} as Env;
 const ACCOUNT = "acct_sample";
@@ -91,6 +92,23 @@ async function attribution(db: TestDb) {
     .from(recoverySteps)
     .where(eq(recoverySteps.failedPaymentId, PAYMENT));
   return resolveAttribution(findAttributionSignals(steps, RECOVERED_AT));
+}
+
+/** The recorder's own batch, insert then stamp, with the suspect reason chosen
+ *  directly. A later click only reaches the stamp with a reason when the first
+ *  click landed before executed_at was written (send first, claim second,
+ *  RULES.md 3.8), so the reason is driven here rather than through the clock. */
+async function stampWithReason(db: TestDb, when: Date, reason: string | null) {
+  await db.batch([
+    buildEngagementInsert(db, {
+      accountId: ACCOUNT,
+      recoveryStepId: STEP,
+      eventType: "click",
+      idempotencyKey: `click:${STEP}`,
+      occurredAt: when,
+    }),
+    buildClickStamp(db, STEP, when, reason),
+  ]);
 }
 
 afterEach(() => {
@@ -185,5 +203,42 @@ describe("F10: a repeat click never changes what bills (RULES.md 3.4)", () => {
     await recordHoneypot(ENV, { stepId: STEP, accountId: ACCOUNT, kind: "honeypot" });
     await clickAt(new Date(SENT.getTime() + 5_000));
     expect((await step(db)).clickSuspectReason).toBe(CLICK_SUSPECT_TOO_FAST);
+  });
+});
+
+describe("F10: a later SUSPECT click never changes the first click's billing input", () => {
+  it("a clean first click stays clean and billable after later suspect clicks", async () => {
+    const db = await seed();
+    await stampWithReason(db, at(10), null);
+    const before = await attribution(db);
+    await stampWithReason(db, at(20), CLICK_SUSPECT_TOO_FAST);
+    await stampWithReason(db, at(30), CLICK_SUSPECT_HONEYPOT);
+    const row = await step(db);
+    expect(row.clickSuspectReason).toBeNull();
+    expect(row.clickedAt?.getTime()).toBe(at(10).getTime());
+    expect(row.emailClickedCount).toBe(3);
+    expect(before.kind).toBe("email_engaged");
+    expect(await attribution(db)).toEqual(before);
+  });
+
+  it("a honeypot mark stays after a later suspect click, so it never bills", async () => {
+    const db = await seed();
+    await stampWithReason(db, at(10), null);
+    await recordHoneypot(ENV, { stepId: STEP, accountId: ACCOUNT, kind: "honeypot" });
+    await stampWithReason(db, at(20), CLICK_SUSPECT_TOO_FAST);
+    expect((await step(db)).clickSuspectReason).toBe(CLICK_SUSPECT_HONEYPOT);
+    expect((await attribution(db)).kind).not.toBe("email_engaged");
+  });
+});
+
+describe("F10: a click on a step that does not exist is not reported recorded (RULES.md 3.9)", () => {
+  it("returns unknown_step and writes nothing", async () => {
+    const db = await seed();
+    vi.useFakeTimers();
+    vi.setSystemTime(at(10));
+    const result = await recordClick(ENV, { ...CLICK, stepId: "step_missing" }, HUMAN);
+    expect(result).toEqual({ recorded: false, reason: "unknown_step" });
+    expect(await db.select().from(engagementEvents)).toHaveLength(0);
+    expect((await step(db)).emailClickedCount).toBeNull();
   });
 });
