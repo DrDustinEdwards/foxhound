@@ -44,8 +44,10 @@ import type { Route } from "./+types/intelligence";
 // The previews draw the demo account's seed, never a merchant's rows
 // (lib/marketing/intelligence-preview.server.ts).
 //
-// This page does not claim Intelligence changes Recovery timing or Disputes
-// triage (APPROVED-DIFFERENCES, the Intelligence entry); the FAQ says so.
+// This page does not claim Intelligence changes failed-payment Recovery timing
+// or computes dispute triage (APPROVED-DIFFERENCES, the Intelligence entry).
+// The FAQ says the one timing it does change: the first win-back email waits
+// longer on an account with Intelligence (winback-copy.ts, process.ts).
 //
 // The path is Recova's own /product/intelligence since J09 (rulings 55 and 56).
 

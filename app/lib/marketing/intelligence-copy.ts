@@ -6,6 +6,7 @@ import {
 import { HEALTH_SCORE_BASELINE, HEALTH_SIGNAL_LABELS, type HealthSignal } from "~/lib/intelligence/risk";
 import { countWord, DECLINE_CATEGORY_COUNT } from "~/lib/marketing/decline-categories";
 import { INTELLIGENCE_FREE_TIER_SENTENCE } from "~/lib/marketing/pricing-copy";
+import { INTELLIGENCE_WINBACK_SENTENCE } from "~/lib/marketing/winback-copy";
 import { formatMoneyShort } from "~/lib/money-format";
 
 // The /product/intelligence copy (J58). Recova's spec is
@@ -31,9 +32,11 @@ import { formatMoneyShort } from "~/lib/money-format";
 //   * Cadence. MRR snapshots are monthly (intelligence-sync on
 //     CRON_SCHEDULE_MONTHLY); scores are nightly (intelligence-ai on
 //     CRON_SCHEDULE_DAILY). Recova's MRR was daily and its movements weekly.
-//   * Recovery timing and triage on disputes. Intelligence changes neither
-//     (APPROVED-DIFFERENCES, the Intelligence entry; RECOVERY_SCHEDULES is
-//     keyed on decline category alone).
+//   * Recovery timing and triage on disputes. Intelligence changes no
+//     failed-payment retry or email (RECOVERY_SCHEDULES is keyed on decline
+//     category alone) and computes no dispute triage (APPROVED-DIFFERENCES,
+//     the Intelligence entry). It does delay the first win-back email, legacy's
+//     gate in process.ts, and the FAQ says so (winback-copy.ts).
 //   * The free tier. Recova sold all of Intelligence for $199. Foxhound's MRR,
 //     movements, churn and cohorts are free for every Recovery merchant
 //     (PRICING.md; the merchant dashboard draws them with no entitlement
@@ -191,10 +194,13 @@ export const INTELLIGENCE_FAQS = [
     // recommendation sends the first win-back email at 1 hour instead of 4
     // hours. Intelligence signals also feed into [the disputes product's]
     // triage scoring."
-    // Foxhound has no such mechanism (APPROVED-DIFFERENCES, the Intelligence
-    // entry): RECOVERY_SCHEDULES is keyed on decline category alone, and no
-    // dispute triage is computed.
-    a: `No. Recovery's timing comes from the decline category alone, one schedule for each of the ${countWord(DECLINE_CATEGORY_COUNT).toLowerCase()} decline categories, the same for every customer. Intelligence reads your recovery history but never changes a sequence, and it scores no dispute.`,
+    // Foxhound has no deprioritize delay and computes no dispute triage
+    // (APPROVED-DIFFERENCES, the Intelligence entry): failed-payment
+    // RECOVERY_SCHEDULES are keyed on decline category alone. It DOES keep
+    // legacy's win-back gate (process.ts resolveWinbackStep1Offset), which
+    // delays win-back step 1 for every customer not flagged winback_priority,
+    // so the answer says so (winback-copy.ts).
+    a: `Not for failed payments. Retries and recovery emails follow the decline category alone, one schedule for each of the ${countWord(DECLINE_CATEGORY_COUNT).toLowerCase()} decline categories, the same for every customer, and Intelligence scores no dispute. One timing does change. ${INTELLIGENCE_WINBACK_SENTENCE}`,
   },
   {
     q: "What is the difference between Intelligence and the free Audit?",

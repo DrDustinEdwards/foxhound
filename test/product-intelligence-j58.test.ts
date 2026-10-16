@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { INTELLIGENCE_WINBACK_SENTENCE } from "~/lib/marketing/winback-copy";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, RouterProvider } from "react-router";
@@ -327,7 +328,7 @@ describe("the copy says only what Foxhound computes (J58)", async () => {
     expect(body).toContain(`from a baseline of ${baseline}`);
   });
 
-  it("never claims Intelligence changes Recovery timing or feeds Disputes triage (APPROVED-DIFFERENCES, Intelligence entry)", () => {
+  it("claims no failed-payment Recovery timing change and no Disputes triage, and states the win-back delay (APPROVED-DIFFERENCES, Intelligence entry)", () => {
     expect(copy).not.toMatch(/delays email steps/i);
     expect(copy).not.toMatch(/win-back email at 1 hour/i);
     expect(copy).not.toMatch(/feed(s)? into (Recovery|Disputes)/i);
@@ -335,7 +336,8 @@ describe("the copy says only what Foxhound computes (J58)", async () => {
     const answer = /Does Intelligence affect my Recovery sequences\?<\/summary><div class="cap-disclosure-body"><p[^>]*>([^<]+)</.exec(html)?.[1];
     expect(answer, "the question is asked").toBeTypeOf("string");
     const categories = Object.keys(RECOVERY_SCHEDULES).length;
-    expect(answer).toMatch(/^No\. /);
+    expect(answer).toMatch(/^Not for failed payments\. /);
+    expect(answer).toContain(INTELLIGENCE_WINBACK_SENTENCE);
     expect(answer).toContain(`one schedule for each of the ${COUNT_WORD[categories].toLowerCase()} decline categories`);
   });
 
