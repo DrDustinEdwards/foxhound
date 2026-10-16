@@ -225,6 +225,13 @@
       "when": 1792156071980,
       "tag": "0031_oauth_provider",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1792175720402,
+      "tag": "0032_alert_history_nullable_alert",
+      "breakpoints": true
     }
   ]
 }

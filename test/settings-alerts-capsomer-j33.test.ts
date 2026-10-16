@@ -163,13 +163,13 @@ describe("J33 alerts: the page head and width", () => {
 });
 
 describe("J33 review: copy that promises nothing Foxhound does not do", () => {
-  // Nothing delivers an alert (notificationSent is written false), and the
-  // evaluator records a firing when a threshold is first crossed, not every
-  // night it stays crossed (shouldFireAlert).
-  it("says the alerts are checked nightly and each crossing is recorded", () => {
+  // J94 (review round 1): the evaluator now fires on Recova's 24 hour cooldown,
+  // so an alert past its threshold is recorded each night it stays past it,
+  // not once per crossing; the lead says so (RULES.md 1.2).
+  it("says the alerts are checked nightly and each night past the threshold is recorded", () => {
     const html = render();
     expect(html).toContain(
-      '<p class="cap-page-head-lead">Foxhound checks these every night and records each time one crosses its threshold.</p>',
+      '<p class="cap-page-head-lead">Foxhound checks these every night and records each night one is past its threshold.</p>',
     );
   });
 

@@ -204,10 +204,11 @@ describe("PLANT 2: every bound the evaluator implies is enforced", () => {
       direction: r.direction as "above" | "below",
       channel: "email",
       enabled: true,
+      lastTriggeredAt: null,
     }));
     const metrics = Object.fromEntries(ALERT_METRICS.map((m) => [m, 1_000_000]));
     // Every one of them fires, so none was stored as a key the evaluator skips.
-    expect(evaluateAlerts(configs, metrics, new Map())).toHaveLength(ALERT_METRICS.length);
+    expect(evaluateAlerts(configs, metrics, Date.now())).toHaveLength(ALERT_METRICS.length);
   });
 
   it("400 and NO write for a bad direction, a negative threshold, or no threshold", async () => {
@@ -364,8 +365,11 @@ describe("PLANT 6: the docs describe what was built, including what it does not 
     }
   });
 
-  it("says plainly that nothing is delivered yet", () => {
-    expect(DOCS).toContain("does not email or Slack you when an alert fires yet");
+  it("says a breach is emailed, once a day at most, and not posted to Slack (J94, E21)", () => {
+    expect(DOCS).toContain(
+      "and emailed to your notification address, no more than once a day for each alert. Alerts are not posted to Slack.",
+    );
+    expect(DOCS).not.toContain("does not email or Slack you when an alert fires yet");
     expect(DOCS).toContain("Recent triggers");
   });
 });

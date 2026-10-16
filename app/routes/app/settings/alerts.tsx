@@ -70,14 +70,13 @@ import type { Route } from "./+types/alerts";
 //    `recovery_rate_pct` or `open_disputes_count` would let a merchant build a
 //    rule that can never fire.
 // 2. NO CHANNEL PICKER, NO CHANNEL COLUMNS, AND NO NOTIFICATION PROMISE.
-//    Nothing here delivers: `buildAlertHistoryInsert` writes
-//    `notificationSent: false` and says so. Recova's subtitle ("Get notified
-//    when Recovery metrics cross a threshold.") and its "email goes to" note are
-//    therefore not ported, and neither is a Channel column naming a delivery
-//    that never happens. The page says breaches are recorded and shown below,
-//    which is what happens. The lead says "each time one crosses its
-//    threshold" because shouldFireAlert records the first crossing, not every
-//    night a metric stays past it, and the empty line has no delivery verb.
+//    When J33 shipped nothing delivered an alert, so Recova's subtitle ("Get
+//    notified when Recovery metrics cross a threshold.") and its "email goes
+//    to" note were not ported, nor a Channel column. J94 (rows E21, E22) now
+//    emails a firing to the notification address, on Recova's 24 hour
+//    cooldown rather than once per crossing. Its review round 1 made the lead
+//    true of that ("records each night one is past its threshold"); restoring
+//    Recova's subtitle and email note is left to Dustin (PR 156).
 //
 // Legacy's transport is REST at /api/settings/alerts with optimistic updates
 // and silent reverts on failure. This is the route's own action, class (a),
@@ -196,7 +195,7 @@ export default function AlertSettings({ loaderData, actionData }: Route.Componen
       <SettingsBackLink />
       {/* Recova's PageHeader sits mb-8 above the first card. */}
       <div className="mb-8">
-        <PageHead title="Alerts" lead="Foxhound checks these every night and records each time one crosses its threshold." />
+        <PageHead title="Alerts" lead="Foxhound checks these every night and records each night one is past its threshold." />
       </div>
 
       {/* Recova's first card has no heading: a count line and a button lead
