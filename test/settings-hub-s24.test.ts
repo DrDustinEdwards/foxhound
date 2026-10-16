@@ -51,18 +51,19 @@ describe("PLANT 1: the hub has no dead link", () => {
     }
   });
 
-  it("the one absent target is omitted rather than rendered dead", () => {
-    // S32. When it ships it is one line in each list, as S35 was (J69).
-    const all = [
-      ...SETTINGS_HUB_ENTRIES.map((e) => e.to),
-      ...SETTINGS_NAV_GROUPS.flatMap((g) => g.items.map((i) => i.to)),
-    ];
-    expect(all).not.toContain("/settings/disputes");
+  it("S32 arrived with J06 as one line in each list, as S35 did (J69)", () => {
+    expect(SETTINGS_HUB_ENTRIES.map((e) => e.to)).toContain("/settings/disputes");
+    const products = SETTINGS_NAV_GROUPS.find((g) => g.label === "Products");
+    expect(products?.items.map((i) => i.to)).toEqual([
+      "/settings/disputes",
+      "/settings/intelligence",
+      "/settings/audit",
+    ]);
   });
 });
 
 describe("PLANT 2: the hub is legacy's list, in legacy's order", () => {
-  it("eleven entries with legacy's labels and descriptions", () => {
+  it("twelve entries with legacy's labels and descriptions", () => {
     expect(
       SETTINGS_HUB_ENTRIES.map((e) => [e.to, e.label, e.description]),
     ).toEqual([
@@ -70,6 +71,9 @@ describe("PLANT 2: the hub is legacy's list, in legacy's order", () => {
       ["/settings/email", "Email", "Sender name, reply-to"],
       ["/settings/brand-voice", "Brand voice", "Per-category AI tone"],
       ["/settings/features", "Features", "Win-back, expiring cards"],
+      // Recova's "Auto-submit, product description": auto-submit is not built
+      // (RULES.md 5.6), so the description names what the page holds.
+      ["/settings/disputes", "Disputes", "Product description, shipping"],
       ["/settings/intelligence", "Intelligence", "Notification preferences, not built yet"],
       ["/settings/audit", "Audit", "Lookback period, auto-run"],
       ["/settings/notifications", "Notifications", "Email, Slack, digest"],
@@ -132,7 +136,7 @@ describe("PLANT 4: every settings path the docs name resolves", () => {
     }
   });
 
-  it("THE GUIDE DESCRIBES THE HUB, and names what is NOT on it", async () => {
+  it("THE GUIDE DESCRIBES THE HUB, every entry and nothing else", async () => {
     const { DOC_GUIDES } = await import("~/lib/marketing/docs-content");
     const body = DOC_GUIDES.flatMap((g) => g.sections)
       .flatMap((s) => s.body)
@@ -140,21 +144,18 @@ describe("PLANT 4: every settings path the docs name resolves", () => {
 
     expect(body).toContain("Settings is a hub:");
 
-    // BOTH DIRECTIONS. The LIST clause is the part before the caveat, and it
-    // must name every rendered entry AND nothing else: a one-way check let a
-    // mutation add "Disputes" to the list and stay green.
-    const listClause = body.slice(
-      body.indexOf("Settings is a hub:"),
-      body.indexOf("Disputes settings are not built yet"),
-    );
-    for (const entry of SETTINGS_HUB_ENTRIES) {
-      expect(listClause, `${entry.label} is named in the guide`).toContain(entry.label);
-    }
-    expect(listClause, "the list names a page the hub does not render").not.toContain("Disputes");
-
-    // And the one that is absent is named as absent rather than omitted in
-    // silence, which is what stops the sentence going stale when it ships.
-    expect(body).toContain("Disputes settings are not built yet");
+    // BOTH DIRECTIONS. The LIST clause runs to the end of its sentence, and it
+    // must name every rendered entry AND nothing else.
+    const start = body.indexOf("Settings is a hub:");
+    const listClause = body.slice(start, body.indexOf(", each on its own page", start));
+    const named = listClause
+      .replace("Settings is a hub:", "")
+      .split(/,\s*(?:and\s+)?/)
+      .map((n) => n.trim())
+      .filter(Boolean);
+    expect(named).toEqual(SETTINGS_HUB_ENTRIES.map((e) => e.label));
+    // The caveat went with the page it described.
+    expect(body).not.toContain("Disputes settings are not built yet");
   });
 
   it("the relocated destinations are named at their NEW home", async () => {

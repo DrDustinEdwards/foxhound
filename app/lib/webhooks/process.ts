@@ -23,6 +23,8 @@ import {
 import type { DeclineCategory } from "~/lib/constants";
 import { buildEvidenceFacts, draftDisputeEvidence } from "~/lib/disputes/evidence";
 import { isDisputeResolved } from "~/lib/disputes/labels";
+import { sendDisputeCreatedNotice, sendDisputeOutcomeNotice } from "~/lib/disputes/notices.server";
+import { readDisputeProductDescription } from "~/lib/disputes/queries.server";
 import { recordOutcome } from "~/lib/engine/outcomes";
 import { readWinbackSequenceId } from "~/lib/recovery/winback-metadata";
 import {
@@ -628,6 +630,35 @@ export async function tryWinbackReactivationFromInvoice(
   });
 }
 
+/**
+ * Send the won or lost notice for a resolved dispute and, when it went out,
+ * stamp disputes.outcome_notified_at, the timeline's "Outcome notification
+ * sent." Recova stamped it after its send too. The stamp is its own small batch
+ * through the money-write Durable Object, keyed on the dispute and guarded on
+ * the column still being empty, so it is written once and never moves; the
+ * notice module itself writes nothing (RULES.md 3.2). Never throws.
+ */
+async function notifyDisputeOutcome(env: Env, accountId: string, disputeId: string): Promise<void> {
+  const notice = await sendDisputeOutcomeNotice(env, { accountId, disputeId });
+  if (notice.kind !== "sent" || notice.result.status !== "sent") return;
+  try {
+    await executeMoneyWrite(env, {
+      accountId,
+      idempotencyKey: `dispute-outcome-notified:${disputeId}`,
+      build: (db) => [
+        db
+          .update(disputes)
+          .set({ outcomeNotifiedAt: new Date() })
+          .where(
+            and(eq(disputes.id, disputeId), eq(disputes.accountId, accountId), isNull(disputes.outcomeNotifiedAt)),
+          ),
+      ],
+    });
+  } catch (err) {
+    console.error(`dispute ${disputeId}: outcome_notified_at stamp failed after the notice was sent`, err);
+  }
+}
+
 export async function processConnectedWebhook(
   env: Env,
   event: Stripe.Event,
@@ -914,15 +945,20 @@ export async function processConnectedWebhook(
       // recovery_steps actually show, and create the dispute row, "awaiting
       // merchant review" (state pending_review), never auto-submitted.
       const linked = await resolveDisputedRecovery(env, accountId, connectionId, intent.paymentIntentId);
-      const facts = buildEvidenceFacts(linked?.failedPayment ?? null, linked?.steps ?? []);
+      const facts = buildEvidenceFacts(
+        linked?.failedPayment ?? null,
+        linked?.steps ?? [],
+        await readDisputeProductDescription(getDb(env), accountId),
+      );
       const evidence = await draftDisputeEvidence(env, facts);
+      const disputeId = crypto.randomUUID();
       const { applied } = await executeMoneyWrite(env, {
         accountId,
         idempotencyKey,
         build: (db) =>
           buildDisputeIntakeBatch(db, {
             claim,
-            disputeId: crypto.randomUUID(),
+            disputeId,
             accountId,
             stripeConnectionId: connectionId,
             stripeDisputeId: intent.stripeDisputeId,
@@ -940,6 +976,14 @@ export async function processConnectedWebhook(
             evidence,
           }),
       });
+      // THE NEW-DISPUTE NOTICE (J06), after the intake has committed and
+      // changing nothing about it, as the recovery notification above. Recova
+      // sends it at the end of handleDisputeCreated. `applied` is false on a
+      // replay, and the notice's own send claim is keyed on the dispute, so a
+      // redelivered event sends nothing more. It never throws.
+      if (applied) {
+        await sendDisputeCreatedNotice(env, { accountId, disputeId });
+      }
       return applied ? { status: "applied" } : { status: "duplicate" };
     }
 
@@ -962,6 +1006,11 @@ export async function processConnectedWebhook(
           idempotencyKey,
           build: (db) => buildClaimOnlyBatch(db, claim),
         });
+        // A dispute the merchant ACCEPTED is resolved before Stripe's closing
+        // event arrives. Recova still sent its lost notice on that event
+        // (handleDisputeClosed, gated on outcome_notified_at), so this does
+        // too; the notice's send claim keeps it to one per dispute.
+        if (applied) await notifyDisputeOutcome(env, accountId, dispute.id);
         return applied ? { status: "ignored", reason: "already_resolved" } : { status: "duplicate" };
       }
       // THE CAP IS CONVERTED HERE, BEFORE THE BATCH (ruling 377(7)). It needs a
@@ -1012,6 +1061,8 @@ export async function processConnectedWebhook(
           { now: receivedAt, description: "Dispute lost after billing: fee credited" },
         );
       }
+      // THE WON OR LOST NOTICE (J06), after the resolution has committed.
+      if (applied) await notifyDisputeOutcome(env, accountId, dispute.id);
       return applied ? { status: "applied" } : { status: "duplicate" };
     }
 

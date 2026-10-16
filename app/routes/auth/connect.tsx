@@ -151,11 +151,13 @@ export async function action({ request, context }: Route.ActionArgs) {
 //     calls webhookEndpoints.create on a connected account; Connect events reach
 //     one platform-level endpoint.
 //   - Recova's "can do" list names one write, retrying an invoice. Foxhound's
-//     grant is used for three more, so each is listed: setting a customer's
+//     grant is used for four more, so each is listed: setting a customer's
 //     default payment method (card-update/service.ts, customers.update and
 //     subscriptions.update), opening a subscription-mode Stripe checkout for a
 //     win-back customer who chooses to resubscribe (createResubscribeSession),
-//     and submitting dispute evidence a person approved (disputes/submission.ts).
+//     submitting dispute evidence a person approved (disputes/submission.ts),
+//     and closing a dispute the merchant chose to accept (disputes/accept.server.ts,
+//     J06).
 //   - "Create new charges or move money" is false: a retried invoice moves money,
 //     and a completed win-back checkout makes a new subscription, invoice and
 //     charge. What is true is that Foxhound charges a customer only those two
@@ -166,6 +168,7 @@ const CONNECTION_CAN = [
   "Set a customer default payment method after that customer updates their card",
   "Open a Stripe checkout when a former customer chooses to resubscribe",
   "Submit dispute evidence, only after someone on your team approves it",
+  "Close a dispute at Stripe, only when you choose to accept it",
 ];
 
 const CONNECTION_CANNOT = [

@@ -85,11 +85,12 @@ describe("J69: the route exists where Recova's does", () => {
     expect(route.meta()).toEqual([{ title: "Intelligence settings - Foxhound" }]);
   });
 
-  it("is on the hub in Recova's place, after Features and before Audit", () => {
+  it("is on the hub in Recova's place, after Disputes and before Audit", () => {
     const tos = SETTINGS_HUB_ENTRIES.map((e) => e.to);
     const i = tos.indexOf("/settings/intelligence");
     expect(i).toBeGreaterThan(-1);
-    expect(tos[i - 1]).toBe("/settings/features");
+    // Recova's order is Features, Disputes, Intelligence; Disputes (S32) came with J06.
+    expect(tos[i - 1]).toBe("/settings/disputes");
     expect(tos[i + 1]).toBe("/settings/audit");
     expect(SETTINGS_HUB_ENTRIES[i]!.label).toBe("Intelligence");
   });
@@ -97,6 +98,7 @@ describe("J69: the route exists where Recova's does", () => {
   it("is in the sub-menu's Products group before Audit, as in Recova's SettingsSidebar", () => {
     const products = SETTINGS_NAV_GROUPS.find((g) => g.label === "Products");
     expect(products?.items.map((item) => [item.to, item.label])).toEqual([
+      ["/settings/disputes", "Disputes"],
       ["/settings/intelligence", "Intelligence"],
       ["/settings/audit", "Audit"],
     ]);

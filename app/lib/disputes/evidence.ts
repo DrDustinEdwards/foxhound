@@ -21,6 +21,9 @@ export interface CommunicationRecord {
 
 export interface EvidenceFacts {
   productName: string | null;
+  /** The merchant's own description of what they sell, from /settings/disputes
+   *  (S32). A fact the merchant stated, not one Foxhound inferred. */
+  merchantProductDescription?: string | null;
   serviceDate: Date | null;
   communications: CommunicationRecord[];
 }
@@ -45,8 +48,10 @@ export interface RecoveryStepFacts {
 export function buildEvidenceFacts(
   failedPayment: FailedPaymentFacts | null,
   steps: RecoveryStepFacts[],
+  merchantProductDescription: string | null = null,
 ): EvidenceFacts {
   return {
+    ...(merchantProductDescription ? { merchantProductDescription } : {}),
     productName: failedPayment?.planName ?? null,
     serviceDate: failedPayment?.subscriptionStart ?? failedPayment?.detectedAt ?? null,
     communications: steps
@@ -61,7 +66,12 @@ export function buildEvidenceFacts(
 }
 
 export function hasGroundingFacts(facts: EvidenceFacts): boolean {
-  return facts.productName != null || facts.serviceDate != null || facts.communications.length > 0;
+  return (
+    facts.productName != null ||
+    facts.merchantProductDescription != null ||
+    facts.serviceDate != null ||
+    facts.communications.length > 0
+  );
 }
 
 /** Deterministic (non-AI) evidence text built directly from real records. This
@@ -103,6 +113,9 @@ function buildSystemPrompt(): string {
 
 function buildUserPrompt(facts: EvidenceFacts): string {
   const lines = ["Known facts about this transaction and customer contact:"];
+  if (facts.merchantProductDescription) {
+    lines.push(`Product description (stated by the merchant): ${facts.merchantProductDescription}`);
+  }
   if (facts.productName) lines.push(`Product/plan: ${facts.productName}`);
   if (facts.serviceDate) {
     lines.push(`Service/subscription start: ${facts.serviceDate.toISOString().slice(0, 10)}`);
@@ -129,8 +142,12 @@ export async function draftDisputeEvidence(env: Env, facts: EvidenceFacts): Prom
   if (!hasGroundingFacts(facts)) return [];
 
   const fields: EvidenceField[] = [];
-  if (facts.productName) {
-    fields.push({ fieldName: "product_description", fieldValue: facts.productName });
+  // Recova's buildEvidenceFields (lib/disputes-evidence.ts): the merchant's own
+  // description, when set, is the product_description of every response. The
+  // plan name stands in only when the merchant has not written one.
+  const productDescription = facts.merchantProductDescription ?? facts.productName;
+  if (productDescription) {
+    fields.push({ fieldName: "product_description", fieldValue: productDescription });
   }
   if (facts.serviceDate) {
     fields.push({ fieldName: "service_date", fieldValue: facts.serviceDate.toISOString().slice(0, 10) });

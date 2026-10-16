@@ -162,6 +162,47 @@ export async function applyFeatureSettings(
   return { ok: true, fields, state };
 }
 
+export interface DisputeSettingsState {
+  productDescription: string | null;
+  shipsPhysical: boolean;
+}
+
+/** Stripe's limit on an evidence text field, which the description becomes. */
+export const DISPUTE_PRODUCT_DESCRIPTION_MAX_LENGTH = 20_000;
+export const DISPUTE_PRODUCT_DESCRIPTION_ERROR = `Keep the product description under ${DISPUTE_PRODUCT_DESCRIPTION_MAX_LENGTH.toLocaleString("en-US")} characters.`;
+
+/**
+ * S32's two columns (J06), and nothing else: the product description, which
+ * dispute intake reads into every response's evidence, and ships-physical,
+ * which puts the shipping inputs on the dispute page. Recova's third column,
+ * dispute_auto_submit, is never written (RULES.md 5.6). A blank description is
+ * stored as null, so the reader's "not set" is one value.
+ */
+export async function applyDisputeSettings(
+  db: Db,
+  accountId: string,
+  input: { productDescription: unknown; shipsPhysical: unknown },
+  trace?: WriteTrace,
+): Promise<ApplyResult<DisputeSettingsState>> {
+  const productDescription = asOptionalText(input.productDescription);
+  if (productDescription && productDescription.length > DISPUTE_PRODUCT_DESCRIPTION_MAX_LENGTH) {
+    return { ok: false, error: DISPUTE_PRODUCT_DESCRIPTION_ERROR };
+  }
+  const state: DisputeSettingsState = { productDescription, shipsPhysical: asBoolean(input.shipsPhysical) };
+  const fields = ["dispute_product_description", "dispute_ships_physical"];
+  await commit(
+    db,
+    accountId,
+    fields,
+    db
+      .update(accounts)
+      .set({ disputeProductDescription: state.productDescription, disputeShipsPhysical: state.shipsPhysical })
+      .where(eq(accounts.id, accountId)),
+    trace,
+  );
+  return { ok: true, fields, state };
+}
+
 export interface NotificationSettingsState {
   notificationEmail: string | null;
   slackWebhookUrl: string | null;

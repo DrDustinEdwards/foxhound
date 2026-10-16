@@ -1,7 +1,7 @@
 import { DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
 import * as Sentry from "@sentry/cloudflare";
-import { useEffect, useReducer } from "react";
-import { Form, Link, data, useFetcher, useNavigation } from "react-router";
+import { useEffect, useReducer, useState } from "react";
+import { Form, Link, data, redirect, useFetcher, useNavigation } from "react-router";
 import { Banner } from "capsomer/react/banner";
 import { Panel } from "capsomer/react/panel";
 import { Pill, Status } from "capsomer/react/status";
@@ -9,6 +9,7 @@ import "capsomer/banner.css";
 import "capsomer/button.css";
 import "capsomer/field.css";
 import "capsomer/panel.css";
+import "capsomer/select.css";
 import "capsomer/status.css";
 // Capsomer's tokens and the teal family, which the components above read, as
 // the disputes list and the payment pages load them.
@@ -20,12 +21,18 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
 import { disputeFeeCents } from "~/lib/billing/fees";
 import type { DisputeState } from "~/lib/constants";
+import { acceptDispute } from "~/lib/disputes/accept.server";
 import { canApprove } from "~/lib/disputes/approval";
 import {
+  ACCEPT_CONFIRM_LINE,
   BACK_LINK_DEMO,
   BACK_LINK_REAL,
   CUSTOMER_IP_FIELD,
   NARRATIVE_FIELD,
+  SHIPPING_CARRIERS,
+  SHIPPING_CARRIER_FIELD,
+  SHIPPING_DATE_FIELD,
+  SHIPPING_TRACKING_FIELD,
   UNSAVED_APPROVE_LINE,
   deadlineRemaining,
   disputeFeeTerms,
@@ -48,6 +55,7 @@ import {
   approveAndSubmitDispute,
   getConnectionAccessToken,
   getDisputeDetail,
+  readDisputeSettings,
   saveDisputeDraft,
 } from "~/lib/disputes/queries.server";
 import { buildDisputeTimeline } from "~/lib/disputes/timeline";
@@ -75,9 +83,14 @@ import type { Route } from "./+types/detail";
 //   history and subscription: no Foxhound code writes those dispute columns.
 // - Evidence files: waits on J07's R2 storage (job_7a7c09269012); a section
 //   with no working upload is left out (RULES.md 2.7).
-// - Shipping fields: Recova shows them only when dispute_ships_physical is on,
-//   and no Foxhound setting writes it, so they never showed.
-// - Accept dispute: Foxhound has no accept endpoint and no state for it.
+// Built by J06 (job_4f4c9c2f5383):
+// - Shipping fields: Recova shows them in Additional evidence when the account
+//   ships physical goods, which /settings/disputes (S32) now writes. They save
+//   with the draft as Stripe's shipping evidence fields.
+// - Accept dispute: Recova's two-step "Accept dispute", "Yes, accept", "Cancel"
+//   beside the submit control, closing the dispute at Stripe and resolving it
+//   lost with no fee (app/lib/disputes/accept.server.ts), then back to the list
+//   as Recova's router.push('/disputes/dashboard').
 // - Auto-submit: never built (RULES.md 5.6).
 // - Recova's sticky action bar: Foxhound's approve-and-submit card stands in
 //   its place ("The dispute page has an approve-and-submit card", approved
@@ -94,8 +107,11 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   const accountId = auth.membership.accountId;
   const detail = await getDisputeDetail(db, accountId, params.id);
   if (!detail) throw new Response("Not Found", { status: 404 });
-  const findings = await getDisputeFindings(db, accountId, detail.dispute.stripeCustomerId);
-  return { ...detail, findings, isDemo: auth.isDemo, nowMs: Date.now() };
+  const [findings, settings] = await Promise.all([
+    getDisputeFindings(db, accountId, detail.dispute.stripeCustomerId),
+    readDisputeSettings(db, accountId),
+  ]);
+  return { ...detail, findings, shipsPhysical: settings.shipsPhysical, isDemo: auth.isDemo, nowMs: Date.now() };
 }
 
 export async function action({ context, params, request }: Route.ActionArgs) {
@@ -130,6 +146,10 @@ export async function action({ context, params, request }: Route.ActionArgs) {
     const fields = [
       { fieldName: NARRATIVE_FIELD, fieldValue: form.get("narrative") },
       { fieldName: CUSTOMER_IP_FIELD, fieldValue: form.get("customer_ip") },
+      // Present only when the shipping inputs are on the page (S32's setting).
+      { fieldName: SHIPPING_TRACKING_FIELD, fieldValue: trimmed(form.get(SHIPPING_TRACKING_FIELD)) },
+      { fieldName: SHIPPING_CARRIER_FIELD, fieldValue: carrier(form.get(SHIPPING_CARRIER_FIELD)) },
+      { fieldName: SHIPPING_DATE_FIELD, fieldValue: trimmed(form.get(SHIPPING_DATE_FIELD)) },
     ]
       // A field the form did not carry is left as it is.
       .filter((f): f is { fieldName: string; fieldValue: string } => typeof f.fieldValue === "string")
@@ -170,6 +190,50 @@ export async function action({ context, params, request }: Route.ActionArgs) {
       console.error("dispute sync failed", err);
       return data({ sync: { ok: false, message: "Could not import the dispute. Please try again." } }, { status: 500 });
     }
+  }
+
+  if (intent === "accept_confirm") {
+    // Accept's first step without script: the page shows the confirmation.
+    // With script the button opens it in place and never posts this.
+    return data({ acceptConfirm: true as const, intent: "accept_confirm" as const });
+  }
+
+  if (intent === "accept") {
+    // Recova's /api/disputes/accept: refuse a dispute that is no longer open,
+    // close it at Stripe, then write the accepted state and its outcome.
+    if (!canApprove(detail.dispute.state as DisputeState)) {
+      return data({ error: "This dispute is already closed or submitted.", intent: "accept" as const }, { status: 409 });
+    }
+    const token = detail.dispute.stripeConnectionId
+      ? await getConnectionAccessToken(db, detail.dispute.stripeConnectionId)
+      : null;
+    if (!token) {
+      return data({ error: "No connected Stripe account for this dispute.", intent: "accept" as const }, { status: 409 });
+    }
+    try {
+      const result = await acceptDispute(env, {
+        accountId,
+        disputeId: detail.dispute.id,
+        stripeDisputeId: detail.dispute.stripeDisputeId,
+        state: detail.dispute.state,
+        amountCents: detail.dispute.amountCents,
+        currency: detail.dispute.currency,
+        connectionAccessToken: token,
+        acceptedAt: new Date(),
+      });
+      if (result.status === "error") {
+        return data({ error: result.message, intent: "accept" as const }, { status: 400 });
+      }
+    } catch (err) {
+      console.error("dispute accept failed", err);
+      Sentry.captureException(err, { extra: { scope: "dispute-accept", disputeId: detail.dispute.id } });
+      return data(
+        { error: "Accept failed. Check this dispute in Stripe before trying again.", intent: "accept" as const },
+        { status: 500 },
+      );
+    }
+    // Recova: router.push('/disputes/dashboard').
+    return redirect(BACK_LINK_REAL.href);
   }
 
   if (intent === "approve") {
@@ -240,11 +304,34 @@ export async function action({ context, params, request }: Route.ActionArgs) {
   return data({ error: "Unknown action.", intent: null }, { status: 400 });
 }
 
+/** A posted text value, trimmed, or null when the form did not carry it. */
+function trimmed(value: FormDataEntryValue | null): string | null {
+  return typeof value === "string" ? value.trim() : null;
+}
+
+/** The carrier select's value, held to Recova's list (blank is "Select"). */
+function carrier(value: FormDataEntryValue | null): string | null {
+  if (typeof value !== "string") return null;
+  return (SHIPPING_CARRIERS as readonly string[]).includes(value) ? value : "";
+}
+
 export default function DisputeDetail({ loaderData, actionData }: Route.ComponentProps) {
-  const { dispute, evidence, approval, findings, isDemo, nowMs } = loaderData;
+  const { dispute, evidence, approval, findings, shipsPhysical, isDemo, nowMs } = loaderData;
   const navigation = useNavigation();
   const pressedIntent = navigation.formData?.get("intent") ?? null;
   const approving = navigation.state !== "idle" && pressedIntent === "approve";
+  const accepting = navigation.state !== "idle" && pressedIntent === "accept";
+  // Recova's acceptState: hidden until "Accept dispute", then the confirmation,
+  // which stays open over a failed accept so its error sits beside it.
+  const acceptFromAction =
+    actionData !== undefined &&
+    "intent" in actionData &&
+    (actionData.intent === "accept_confirm" || actionData.intent === "accept");
+  const [acceptOpen, setAcceptOpen] = useState(acceptFromAction);
+  const [acceptCancelled, setAcceptCancelled] = useState(false);
+  useEffect(() => {
+    if (acceptFromAction) setAcceptOpen(true);
+  }, [acceptFromAction, actionData]);
   const saveFetcher = useFetcher<typeof action>();
   const saving = saveFetcher.state !== "idle";
   // The save result: the fetcher's in a browser, or the action's after a
@@ -273,7 +360,8 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
   const fee = disputeFeeCents(dispute.amountCents, DISPUTE_FEE_CAP_CENTS);
   const days = daysUntilDeadline(dispute.evidenceDeadline, nowMs);
   const backLink = isDemo ? BACK_LINK_DEMO : BACK_LINK_REAL;
-  const { structured, narrative, customerIp } = splitEvidence(evidence, draftEditable);
+  const shippingEditable = draftEditable && shipsPhysical;
+  const { structured, narrative, customerIp, shipping } = splitEvidence(evidence, draftEditable, shippingEditable);
   const timeline = buildDisputeTimeline({
     createdAt: dispute.createdAt,
     amountCents: dispute.amountCents,
@@ -495,6 +583,63 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
                   Only add if you have the actual IP from your own logs. Do not guess. Saved with your draft and
                   included when you submit.
                 </p>
+                {shippingEditable ? (
+                  <div className="mt-4">
+                    {/* Recova's three shipping inputs, one row of three on desktop. */}
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                      <div className="cap-field">
+                        <label htmlFor="dispute_tracking_number" className="cap-field-label">
+                          Tracking number
+                        </label>
+                        <input
+                          id="dispute_tracking_number"
+                          name={SHIPPING_TRACKING_FIELD}
+                          type="text"
+                          className="cap-input font-mono"
+                          defaultValue={shipping[SHIPPING_TRACKING_FIELD]}
+                          aria-describedby="dispute_shipping_help"
+                        />
+                      </div>
+                      <div className="cap-field">
+                        <label htmlFor="dispute_carrier" className="cap-field-label">
+                          Carrier
+                        </label>
+                        <div className="cap-select-wrap">
+                          <select
+                            id="dispute_carrier"
+                            name={SHIPPING_CARRIER_FIELD}
+                            className="cap-select"
+                            defaultValue={shipping[SHIPPING_CARRIER_FIELD]}
+                            aria-describedby="dispute_shipping_help"
+                          >
+                            <option value="">Select</option>
+                            {SHIPPING_CARRIERS.map((c) => (
+                              <option key={c} value={c}>
+                                {c}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                      <div className="cap-field">
+                        <label htmlFor="dispute_ship_date" className="cap-field-label">
+                          Ship date
+                        </label>
+                        <input
+                          id="dispute_ship_date"
+                          name={SHIPPING_DATE_FIELD}
+                          type="date"
+                          className="cap-input"
+                          defaultValue={shipping[SHIPPING_DATE_FIELD]}
+                          aria-describedby="dispute_shipping_help"
+                        />
+                      </div>
+                    </div>
+                    <p id="dispute_shipping_help" className="m-0 mt-2 text-micro text-text-subtle">
+                      Saved with your draft and included when you submit.
+                    </p>
+                  </div>
+                ) : null}
                 {/* With no staged evidence Recova had no Save draft at all; the
                     IP still needs one to be kept. */}
                 {evidence.length === 0 ? saveControls : null}
@@ -524,14 +669,29 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
                   <Banner tone="crit">{approveError}</Banner>
                 </div>
               ) : null}
-              <Form method="post" className="mt-4">
-                <input type="hidden" name="intent" value="approve" />
-                <ApproveButton
-                  label={`Approve and submit (fee ${formatMoney(fee, dispute.currency)})`}
-                  approving={approving}
-                  dirty={dirty}
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <Form method="post">
+                  <input type="hidden" name="intent" value="approve" />
+                  <ApproveButton
+                    label={`Approve and submit (fee ${formatMoney(fee, dispute.currency)})`}
+                    approving={approving}
+                    dirty={dirty}
+                  />
+                </Form>
+                <AcceptControl
+                  open={acceptOpen}
+                  accepting={accepting}
+                  returnFocus={acceptCancelled}
+                  onOpen={() => {
+                    setAcceptCancelled(false);
+                    setAcceptOpen(true);
+                  }}
+                  onCancel={() => {
+                    setAcceptCancelled(true);
+                    setAcceptOpen(false);
+                  }}
                 />
-              </Form>
+              </div>
             </div>
           </Panel>
         </div>
@@ -588,6 +748,68 @@ export function ApproveButton({ label, approving, dirty }: { label: string; appr
         </span>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Recova's Accept (DisputeActionBar.tsx): "Accept dispute", then in its place
+ * the line, "Yes, accept" and "Cancel". The first button posts a harmless
+ * intent so the confirmation also works without script; with script it opens
+ * in place. Focus follows the swap so a keyboard user is never left on a button
+ * that has gone: opening lands on Cancel (never on "Yes, accept", so a second
+ * Enter cannot concede the dispute), and Cancel returns to "Accept dispute".
+ */
+function AcceptControl({
+  open,
+  accepting,
+  returnFocus,
+  onOpen,
+  onCancel,
+}: {
+  open: boolean;
+  accepting: boolean;
+  returnFocus: boolean;
+  onOpen: () => void;
+  onCancel: () => void;
+}) {
+  if (!open) {
+    return (
+      <Form method="post">
+        <input type="hidden" name="intent" value="accept_confirm" />
+        <button
+          type="submit"
+          className="cap-btn"
+          autoFocus={returnFocus}
+          onClick={(e) => {
+            e.preventDefault();
+            onOpen();
+          }}
+        >
+          Accept dispute
+        </button>
+      </Form>
+    );
+  }
+  return (
+    <Form method="post" className="flex flex-wrap items-center gap-2" aria-label="Accept this dispute">
+      <input type="hidden" name="intent" value="accept" />
+      <span className="text-label text-text-secondary">{ACCEPT_CONFIRM_LINE}</span>
+      <button
+        type="submit"
+        className="cap-btn"
+        data-variant="danger"
+        data-size="sm"
+        aria-disabled={accepting ? true : undefined}
+        onClick={(e) => {
+          if (accepting) e.preventDefault();
+        }}
+      >
+        {accepting ? "Accepting…" : "Yes, accept"}
+      </button>
+      <button type="button" className="cap-btn" data-variant="quiet" data-size="sm" autoFocus onClick={onCancel}>
+        Cancel
+      </button>
+    </Form>
   );
 }
 
