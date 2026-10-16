@@ -6,7 +6,6 @@ import {
   accounts,
   auditDigestRuns,
   auditRuns,
-  cronAlerts,
   cronRunHistory,
   failedPayments,
   recoveredPayments,
@@ -30,7 +29,9 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // is the whole shape of the merge. What was correct about the digest was its
 // MACHINERY: the month claim, the per-currency comparison, the shared opt-in
 // predicate, the account-state gates, the failure posture, the cron-health
-// mapping. All of it is here, driving `runMonthlyAudit`. What died was the
+// mapping. All of it is here, driving the monthly audit (since job_97878f0d1fde
+// the cron enqueues and the consumer audits one account per message;
+// driveMonthlyAudit runs both halves). What died was the
 // second SEND, so the email-body plants are rewritten against the merged email
 // and the schedule plant moved to the merged job's own hour.
 //
@@ -85,8 +86,9 @@ const {
   compareTotals,
   describeMonthlyAuditRun,
   MONTHLY_AUDIT_SUBJECT,
-  runMonthlyAudit,
 } = await import("~/lib/audit/monthly.server");
+const { driveMonthlyAudit } = await import("./helpers/monthly-audit-queue");
+const { handleQueueBatch } = await import("~/lib/queue/consumer");
 const { runCronJob } = await import("~/lib/cron/run");
 const { CRON_JOBS, jobsForSchedule } = await import("~/lib/cron/registry");
 
@@ -97,14 +99,38 @@ const BASE_URL = "https://foxhoundapp.test";
 
 type TestDb = ReturnType<typeof createInMemoryDb>["db"];
 
-function env(send: (m: unknown) => Promise<{ id: string }> = async () => ({ id: "m" })): Env {
+function env(
+  send: (m: unknown) => Promise<{ id: string }> = async () => ({ id: "m" }),
+  queued: unknown[] = [],
+): Env {
   const stub = { acquire: async () => true, release: async () => {} };
   return {
     DB: {},
     EMAIL: { send },
     BETTER_AUTH_URL: BASE_URL,
     CRON_LOCK: { get: () => stub, idFromName: (n: string) => n },
+    AUDIT_QUEUE: {
+      sendBatch: async (messages: { body: unknown }[]) => {
+        for (const m of messages) queued.push(m.body);
+      },
+    },
   } as unknown as Env;
+}
+
+/** Hand queued bodies to the REAL consumer entry, one batch each, as the
+ *  foxhound-audit consumer's max_batch_size of 1 does. */
+async function consume(e: Env, bodies: unknown[]) {
+  for (const body of bodies) {
+    await handleQueueBatch(
+      {
+        queue: "foxhound-audit",
+        messages: [{ id: "m", timestamp: NOW, body, attempts: 1, ack: () => {}, retry: () => {} }],
+        ackAll: () => {},
+        retryAll: () => {},
+      } as unknown as MessageBatch<unknown>,
+      e,
+    );
+  }
 }
 
 function fakeList<T>(items: T[]): AsyncIterable<T> {
@@ -479,17 +505,25 @@ describe("(1): the cron is REGISTERED and the real runner executes it", () => {
   it("THE REGISTERED HANDLER RUNS through runCronJob and records history", async () => {
     // Not "the array contains a name": the registry's own handler is pulled out
     // and driven through the real gate/lock/history path.
+    // Since job_97878f0d1fde the handler enqueues and the consumer audits, so
+    // the queued message is handed to the real consumer before the claim row is
+    // read. rowsProcessed is the number queued.
     const db = fresh();
     await seedAccount(db, "acct_on", { auditAutoRun: true });
 
+    const queued: unknown[] = [];
+    const e = env(undefined, queued);
     const job = CRON_JOBS.find((j) => j.name === CRON_NAME)!;
-    const outcome = await runCronJob(env(), job.name, job.handler);
+    const outcome = await runCronJob(e, job.name, job.handler);
 
     expect(outcome.status).toBe("success");
     const runs = await db.select().from(cronRunHistory);
     expect(runs).toHaveLength(1);
     expect(runs[0].cronName).toBe(CRON_NAME);
     expect(runs[0].rowsProcessed).toBe(1);
+    expect(queued).toHaveLength(1);
+
+    await consume(e, queued);
 
     // The claim row names the run that produced it.
     const claims = await db.select().from(auditDigestRuns);
@@ -508,7 +542,7 @@ describe("(1): the cron is REGISTERED and the real runner executes it", () => {
     await seedAccount(db, "acct_on", { auditAutoRun: true });
 
     const { bodies, env: e } = collector();
-    await runMonthlyAudit(e, NOW, null);
+    await driveMonthlyAudit(e, NOW, null);
 
     expect(bodies[0]).toContain(`Open disputes: ${SCOPE_UNREAD}`);
     expect(bodies[0]).not.toContain("Open disputes: 0");
@@ -527,7 +561,7 @@ describe("(1): the cron is REGISTERED and the real runner executes it", () => {
     const db = fresh();
     await seedAccount(db, "acct_on", { auditAutoRun: true });
 
-    await runMonthlyAudit(env(), NOW, null);
+    await driveMonthlyAudit(env(), NOW, null);
 
     const stored = await db.select().from(auditRuns);
     expect(stored).toHaveLength(1);
@@ -546,7 +580,7 @@ describe("(2): the toggle is read through the SHARED predicate", () => {
     const db = fresh();
     await seedAccount(db, "acct_null", { auditAutoRun: null });
 
-    const result = await runMonthlyAudit(env(), NOW, null);
+    const result = await driveMonthlyAudit(env(), NOW, null);
 
     expect(result.eligible).toBe(1); // it WAS enumerated
     expect(result.optedIn).toBe(0); // and the predicate refused it
@@ -559,7 +593,7 @@ describe("(2): the toggle is read through the SHARED predicate", () => {
     const db = fresh();
     await seedAccount(db, "acct_off", { auditAutoRun: false });
 
-    const result = await runMonthlyAudit(env(), NOW, null);
+    const result = await driveMonthlyAudit(env(), NOW, null);
 
     expect(result.eligible).toBe(1);
     expect(result.optedIn).toBe(0);
@@ -571,7 +605,7 @@ describe("(2): the toggle is read through the SHARED predicate", () => {
     await seedAccount(db, "acct_on", { auditAutoRun: true });
 
     const { to, env: e } = collector();
-    const result = await runMonthlyAudit(e, NOW, null);
+    const result = await driveMonthlyAudit(e, NOW, null);
 
     expect(result.optedIn).toBe(1);
     expect(result.ran).toBe(1);
@@ -590,7 +624,7 @@ describe("(2): the toggle is read through the SHARED predicate", () => {
     await seedAccount(db, "a_null", { auditAutoRun: null });
     await seedAccount(db, "a_off", { auditAutoRun: false });
 
-    const result = await runMonthlyAudit(env(), NOW, null);
+    const result = await driveMonthlyAudit(env(), NOW, null);
 
     expect(result.eligible).toBe(3);
     expect(result.optedIn).toBe(1);
@@ -606,7 +640,7 @@ describe("(3): the account states every other per-account cron respects", () => 
     const db = fresh();
     await seedAccount(db, "acct_paused", { auditAutoRun: true, processingPaused: true });
 
-    const result = await runMonthlyAudit(env(), NOW, null);
+    const result = await driveMonthlyAudit(env(), NOW, null);
 
     expect(result.eligible).toBe(0);
     expect(result.sent).toBe(0);
@@ -616,7 +650,7 @@ describe("(3): the account states every other per-account cron respects", () => 
     const db = fresh();
     await seedAccount(db, "acct_cancelled", { auditAutoRun: true, cancelledAt: NOW });
 
-    expect((await runMonthlyAudit(env(), NOW, null)).eligible).toBe(0);
+    expect((await driveMonthlyAudit(env(), NOW, null)).eligible).toBe(0);
   });
 
   it("A DEMO ACCOUNT IS REFUSED, toggle on, connection live, everything else right", async () => {
@@ -628,7 +662,7 @@ describe("(3): the account states every other per-account cron respects", () => 
     await seedAccount(db, "demo_teamflow", { auditAutoRun: true }, { stripeUserId: "acct_demo_teamflow" });
 
     const { to, env: e } = collector();
-    const result = await runMonthlyAudit(e, NOW, null);
+    const result = await driveMonthlyAudit(e, NOW, null);
 
     expect(result.eligible).toBe(0);
     expect(to).toEqual([]);
@@ -639,7 +673,7 @@ describe("(3): the account states every other per-account cron respects", () => 
     const db = fresh();
     await seedAccount(db, "acct_exempt", { auditAutoRun: true, billingExempt: true });
 
-    expect((await runMonthlyAudit(env(), NOW, null)).sent).toBe(1);
+    expect((await driveMonthlyAudit(env(), NOW, null)).sent).toBe(1);
   });
 
   it("an account with NO notification email is audited but not mailed", async () => {
@@ -650,7 +684,7 @@ describe("(3): the account states every other per-account cron respects", () => 
     await seedAccount(db, "acct_noemail", { auditAutoRun: true, notificationEmail: null });
 
     const { to, env: e } = collector();
-    const result = await runMonthlyAudit(e, NOW, null);
+    const result = await driveMonthlyAudit(e, NOW, null);
 
     expect(result.skippedNoRecipient).toBe(1);
     expect(to).toEqual([]);
@@ -666,7 +700,7 @@ describe("(3): the account states every other per-account cron respects", () => 
     await seedAccount(db, "acct_noconn", { auditAutoRun: true }, { connect: false });
 
     const { to, env: e } = collector();
-    const result = await runMonthlyAudit(e, NOW, null);
+    const result = await driveMonthlyAudit(e, NOW, null);
 
     expect(result.skippedNoConnection).toBe(1);
     expect(result.ran).toBe(0);
@@ -682,7 +716,7 @@ describe("(3): the account states every other per-account cron respects", () => 
       .set({ disconnectedAt: NOW })
       .where(eq(stripeConnections.id, "sc_acct_gone"));
 
-    expect((await runMonthlyAudit(env(), NOW, null)).skippedNoConnection).toBe(1);
+    expect((await driveMonthlyAudit(env(), NOW, null)).skippedNoConnection).toBe(1);
   });
 });
 
@@ -696,8 +730,8 @@ describe("(4): idempotent per account per month, refused by the database", () =>
     await seedAccount(db, "acct_on", { auditAutoRun: true });
 
     const { bodies, env: e } = collector();
-    const first = await runMonthlyAudit(e, NOW, null);
-    const second = await runMonthlyAudit(e, NOW, null);
+    const first = await driveMonthlyAudit(e, NOW, null);
+    const second = await driveMonthlyAudit(e, NOW, null);
 
     expect(first.sent).toBe(1);
     expect(second.sent).toBe(0);
@@ -712,7 +746,7 @@ describe("(4): idempotent per account per month, refused by the database", () =>
 
   it("A PLANTED DUPLICATE ROW is refused by the INDEX, not by application logic", async () => {
     // The plant: the month's row is inserted by hand BEFORE the cron runs, as a
-    // concurrent run would have. Nothing in runMonthlyAudit has seen it.
+    // concurrent run would have. Nothing in the run has seen it.
     const db = fresh();
     await seedAccount(db, "acct_on", { auditAutoRun: true });
 
@@ -729,7 +763,7 @@ describe("(4): idempotent per account per month, refused by the database", () =>
     });
 
     const { bodies, env: e } = collector();
-    const result = await runMonthlyAudit(e, NOW, null);
+    const result = await driveMonthlyAudit(e, NOW, null);
 
     expect(result.optedIn).toBe(1); // it got as far as the claim
     expect(result.skippedDuplicate).toBe(1); // and the index refused it
@@ -741,8 +775,8 @@ describe("(4): idempotent per account per month, refused by the database", () =>
     const db = fresh();
     await seedAccount(db, "acct_on", { auditAutoRun: true });
 
-    await runMonthlyAudit(env(), NOW, null);
-    const october = await runMonthlyAudit(env(), new Date("2026-10-01T09:00:00.000Z"), null);
+    await driveMonthlyAudit(env(), NOW, null);
+    const october = await driveMonthlyAudit(env(), new Date("2026-10-01T09:00:00.000Z"), null);
 
     expect(october.sent).toBe(1);
     const rows = await db.select().from(auditDigestRuns);
@@ -754,7 +788,7 @@ describe("(4): idempotent per account per month, refused by the database", () =>
     await seedAccount(db, "a_one", { auditAutoRun: true });
     await seedAccount(db, "a_two", { auditAutoRun: true });
 
-    expect((await runMonthlyAudit(env(), NOW, null)).sent).toBe(2);
+    expect((await driveMonthlyAudit(env(), NOW, null)).sent).toBe(2);
   });
 });
 
@@ -770,10 +804,10 @@ describe("the absorbed line runs off the prior month's stored snapshot", () => {
 
     const { bodies, env: e } = collector();
 
-    await runMonthlyAudit(e, NOW, null);
+    await driveMonthlyAudit(e, NOW, null);
     // A further recovery lands, then October's run fires.
     await seedRecovery(db, "acct_on", 3_00);
-    await runMonthlyAudit(e, new Date("2026-10-01T09:00:00.000Z"), null);
+    await driveMonthlyAudit(e, new Date("2026-10-01T09:00:00.000Z"), null);
 
     expect(bodies).toHaveLength(2);
     expect(bodies[0]).toContain("$5.00");
@@ -809,7 +843,7 @@ describe("the absorbed line runs off the prior month's stored snapshot", () => {
     });
 
     const { bodies, env: e } = collector();
-    await runMonthlyAudit(e, NOW, null);
+    await driveMonthlyAudit(e, NOW, null);
 
     expect(bodies[0]).toContain("No recovered payments are attributed to Foxhound yet");
     expect(bodies[0]).not.toContain("$9.00");
@@ -820,28 +854,12 @@ describe("the absorbed line runs off the prior month's stored snapshot", () => {
 // 5. Failure rides Session 24's alert machinery
 // ============================================================================
 
-describe("(5): a failing run alerts through Session 24's path", () => {
-  it("A BROKEN SEND fails the run and writes a cron_alerts row", async () => {
-    const db = fresh();
-    await seedAccount(db, "acct_on", { auditAutoRun: true });
-
-    const job = CRON_JOBS.find((j) => j.name === CRON_NAME)!;
-    const outcome = await runCronJob(
-      env(async () => {
-        throw new Error("email down");
-      }),
-      job.name,
-      job.handler,
-    );
-
-    expect(outcome.status).toBe("failed");
-    // The alert is the machinery from 313/314, not a new one built here.
-    expect(outcome.alert).toEqual({ sent: false, reason: "send_failed", error: "email down" });
-    const alerts = await db.select().from(cronAlerts);
-    expect(alerts).toHaveLength(1);
-    expect(alerts[0].cronName).toBe(CRON_NAME);
-    expect(alerts[0].kind).toBe("failure");
-  });
+describe("(5): a failing account is retried, and never stops another", () => {
+  // Since job_97878f0d1fde each account is its own queue message, so a failure
+  // asks the queue to retry that message and the last attempt raises Session
+  // 24's alert. The retry, the logging and the alert are proven through the
+  // real consumer in test/audit-monthly-queue-apa.test.ts; this section keeps
+  // the per-account half.
 
   it("ONE MERCHANT'S FAILURE does not stop another merchant's report", async () => {
     const db = fresh();
@@ -849,19 +867,19 @@ describe("(5): a failing run alerts through Session 24's path", () => {
     await seedAccount(db, "a_good", { auditAutoRun: true, notificationEmail: "good@merchant.test" });
 
     const delivered: string[] = [];
-    await expect(
-      runMonthlyAudit(
-        env(async (m) => {
-          const to = (m as { to: string }).to;
-          if (to === "bad@merchant.test") throw new Error("mailbox full");
-          delivered.push(to);
-          return { id: "m" };
-        }),
-        NOW,
-        null,
-      ),
-    ).rejects.toThrow("mailbox full");
+    const result = await driveMonthlyAudit(
+      env(async (m) => {
+        const to = (m as { to: string }).to;
+        if (to === "bad@merchant.test") throw new Error("mailbox full");
+        delivered.push(to);
+        return { id: "m" };
+      }),
+      NOW,
+      null,
+    );
 
+    expect(result.failed).toBe(1);
+    expect((result.errors[0] as Error).message).toBe("mailbox full");
     // The good merchant was still served, and the bad one left a trace.
     expect(delivered).toEqual(["good@merchant.test"]);
     const rows = await db.select().from(auditDigestRuns);
@@ -870,25 +888,44 @@ describe("(5): a failing run alerts through Session 24's path", () => {
     expect(rows.find((r) => r.accountId === "a_good")!.status).toBe("sent");
   });
 
-  it("A FAILED MONTH IS NOT RETRIED next run: the claim stands", async () => {
-    // Retry-from-DLQ is out of scope. The row is the trace, and the month is
-    // burned rather than silently re-sent.
+  it("A FAILED MONTH IS RETAKEN by the next delivery, once, and a sent one never is", async () => {
     const db = fresh();
     await seedAccount(db, "acct_on", { auditAutoRun: true });
 
-    await expect(
-      runMonthlyAudit(
-        env(async () => {
-          throw new Error("email down");
-        }),
-        NOW,
-        null,
-      ),
-    ).rejects.toThrow();
+    const failed = await driveMonthlyAudit(
+      env(async () => {
+        throw new Error("email down");
+      }),
+      NOW,
+      null,
+    );
+    expect(failed.failed).toBe(1);
 
-    const retry = await runMonthlyAudit(env(), NOW, null);
-    expect(retry.sent).toBe(0);
-    expect(retry.skippedDuplicate).toBe(1);
+    const { bodies, env: e } = collector();
+    const retry = await driveMonthlyAudit(e, NOW, null);
+    expect(retry.sent).toBe(1);
+    expect(retry.skippedDuplicate).toBe(0);
+
+    const again = await driveMonthlyAudit(e, NOW, null);
+    expect(again.sent).toBe(0);
+    expect(again.skippedDuplicate).toBe(1);
+    expect(bodies).toHaveLength(1);
+    expect(await db.select().from(auditDigestRuns)).toHaveLength(1);
+  });
+
+  it("an account switched off after it was queued is not audited", async () => {
+    const db = fresh();
+    await seedAccount(db, "acct_on", { auditAutoRun: true });
+    const queued: unknown[] = [];
+    const e = env(undefined, queued);
+    const job = CRON_JOBS.find((j) => j.name === CRON_NAME)!;
+    await runCronJob(e, job.name, job.handler);
+    await db.update(accounts).set({ auditAutoRun: false }).where(eq(accounts.id, "acct_on"));
+
+    await consume(e, queued);
+
+    expect(await db.select().from(auditDigestRuns)).toHaveLength(0);
+    expect(await db.select().from(auditRuns)).toHaveLength(0);
   });
 });
 
@@ -926,34 +963,18 @@ describe("(6): cron-health sees the NEW schedule as MAPPABLE", () => {
 // The run message an operator reads
 // ============================================================================
 
-describe("the run message distinguishes the outcomes", () => {
-  const base = {
-    eligible: 3,
-    optedIn: 0,
-    ran: 0,
-    sent: 0,
-    skippedDuplicate: 0,
-    skippedNoConnection: 0,
-    skippedNoRecipient: 0,
-    failed: 0,
-    firstError: null,
-  };
-
-  it("a zero-send run says WHY it sent nothing", () => {
-    // "0 sent" alone cannot distinguish nobody-opted-in from cron-is-broken.
-    const message = describeMonthlyAuditRun(base);
+describe("the run message says what the cron queued", () => {
+  it("a zero-queue run says WHY it queued nothing", () => {
+    // "0 queued" alone cannot distinguish nobody-opted-in from cron-is-broken.
+    const message = describeMonthlyAuditRun({ eligible: 3, optedIn: 0, enqueued: 0 });
     expect(message).toContain("3 eligible");
     expect(message).toContain("0 opted in");
+    expect(message).toContain("0 queued for audit");
   });
 
-  it("a deduped run is visibly different from an empty one", () => {
-    const message = describeMonthlyAuditRun({ ...base, eligible: 1, optedIn: 1, skippedDuplicate: 1 });
-    expect(message).toContain("1 already sent this month");
-  });
-
-  it("and a connection-less run is visibly different from both", () => {
-    const message = describeMonthlyAuditRun({ ...base, eligible: 1, optedIn: 1, skippedNoConnection: 1 });
-    expect(message).toContain("1 without a live connection");
+  it("names the number queued, which is the run's rowsProcessed", () => {
+    expect(describeMonthlyAuditRun({ eligible: 5, optedIn: 2, enqueued: 2 })).toBe(
+      "5 eligible, 2 opted in, 2 queued for audit",
+    );
   });
 });
-

@@ -188,7 +188,29 @@
   // live `wrangler queues list`, which also showed the events queue did not
   // exist on the account at all.
   "queues": {
+    // THE MONTHLY AUDIT QUEUE (job_97878f0d1fde). The monthly-audit cron sends
+    // one message per opted-in account through AUDIT_QUEUE and this Worker's own
+    // queue() handler audits one account per invocation, so a large account
+    // spends its Stripe pages in its own subrequest budget and cannot starve the
+    // accounts after it. max_batch_size 1 is what makes it one account per
+    // invocation; max_retries mirrors AUDIT_QUEUE_MAX_RETRIES; max_concurrency
+    // keeps the Stripe and model calls from fanning out across every account at
+    // once. No dead-letter queue: the audit_digest_runs row keeps the error and
+    // the last attempt raises the monthly-audit failure alert.
+    "producers": [
+      {
+        "queue": "foxhound-audit",
+        "binding": "AUDIT_QUEUE"
+      }
+    ],
     "consumers": [
+      {
+        "queue": "foxhound-audit",
+        "max_batch_size": 1,
+        "max_batch_timeout": 5,
+        "max_retries": 3,
+        "max_concurrency": 5
+      },
       {
         "queue": "foxhound-email",
         "max_batch_size": 10,

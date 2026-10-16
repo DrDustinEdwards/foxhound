@@ -513,6 +513,16 @@ export const EMAIL_QUEUE_NAME = "foxhound-email";
  *  exhausted its retries was discarded with no trace. */
 export const EMAIL_DLQ_QUEUE_NAME = "foxhound-email-dlq";
 export const EMAIL_EVENTS_QUEUE_NAME = "foxhound-email-events";
+/** The monthly audit queue (job_97878f0d1fde). The monthly-audit cron sends one
+ *  message per opted-in account and the consumer audits the one account a
+ *  message names, so each account's Stripe pages are spent inside its own
+ *  invocation's subrequest budget instead of one shared one. */
+export const AUDIT_QUEUE_NAME = "foxhound-audit";
+/** Mirrors max_retries on the foxhound-audit consumer in wrangler.jsonc. The
+ *  delivery whose attempts exceed this is the last one, and raises the alert. */
+export const AUDIT_QUEUE_MAX_RETRIES = 3;
+/** Cloudflare Queues accepts at most 100 messages per sendBatch call. */
+export const AUDIT_QUEUE_SEND_BATCH_MAX = 100;
 
 // ---- Cron Triggers + retention (ARCHITECTURE.md: all scheduled jobs are Cron
 // Triggers; retention crons live before any table they govern takes writes) ----

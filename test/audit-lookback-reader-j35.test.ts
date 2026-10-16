@@ -13,7 +13,8 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // every run in audit-monthly-362.test.ts seeds a NULL lookback, so a cron that
 // always used 90 would pass the whole suite.
 //
-// This drives the REAL runMonthlyAudit with getConnectedStripe as the only seam
+// This drives the REAL monthly audit (cron half, then the consumer's per-account
+// half, through driveMonthlyAudit) with getConnectedStripe as the only seam
 // and reads what the merchant's setting did: the window the failed-invoice read
 // asked Stripe for, and the lookback stored on the run the email links to.
 
@@ -34,7 +35,7 @@ vi.mock("~/lib/stripe/encryption", async (importOriginal) => ({
   decryptToken: async () => "sk_test_token",
 }));
 
-const { runMonthlyAudit } = await import("~/lib/audit/monthly.server");
+const { driveMonthlyAudit } = await import("./helpers/monthly-audit-queue");
 
 const NOW = new Date("2026-09-01T09:00:00.000Z");
 const DAY_SECONDS = 86_400;
@@ -103,7 +104,7 @@ async function runWith(lookback: number | null) {
   harness.stripe = stripe;
   await seed(db, "acct_j35", { auditLookbackDays: lookback });
 
-  const result = await runMonthlyAudit(env(), NOW, null);
+  const result = await driveMonthlyAudit(env(), NOW, null);
   const runs = await db.select().from(auditRuns);
   const uncollectible = invoiceParams.find((p) => p.status === "uncollectible");
   const gte = (uncollectible?.created as { gte?: number } | undefined)?.gte;
