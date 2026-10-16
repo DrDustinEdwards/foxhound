@@ -187,8 +187,24 @@ describe("the copy states the audit Foxhound runs (J55, RULES.md 2.1 and 2.2)", 
     expect(body).not.toMatch(/read and write|read_write|write scope/i);
   });
 
-  it("reads the lookback from the engine", () => {
-    expect(body).toContain(`Four scopes pull ${LOOKBACK} days of data`);
+  it("reads the lookback from the engine, and claims it only for failed invoices", () => {
+    // Only the uncollectible-invoice read is bounded by the lookback; open
+    // invoices, subscriptions and disputes are read whole (reads.ts).
+    const reads = readFileSync("app/lib/stripe/reads.ts", "utf8");
+    expect(reads.match(/created: \{ gte: lookbackStartSeconds \}/g)).toHaveLength(1);
+    expect(body).toContain(
+      `Four scopes read your account, going back ${LOOKBACK} days for failed invoices: failed invoices, expiring cards, open disputes, and business health.`,
+    );
+    expect(body).not.toMatch(new RegExp(`pull ${LOOKBACK} days of data`));
+  });
+
+  it("claims no work on invoices that failed before the account connected", () => {
+    // A sequence starts only from invoice.payment_failed after connect
+    // (process.ts, no_failed_payment for an earlier invoice).
+    expect(body).not.toMatch(/works each of these/i);
+    expect(body).toContain(
+      "Foxhound recovers payments like these as they fail, with a sequence matched to the decline, and bills only on what it recovers.",
+    );
   });
 
   it("names the day the monthly audit runs from its cron", () => {
@@ -197,7 +213,8 @@ describe("the copy states the audit Foxhound runs (J55, RULES.md 2.1 and 2.2)", 
 
   it("does not claim results live at a URL for 30 days: an anonymous run is not saved", () => {
     expect(body).not.toMatch(/30 days/);
-    expect(body).toContain(`${TOKEN_MINUTES}-minute`);
+    expect(body).toContain(`${TOKEN_MINUTES}-minute read-only session`);
+    expect(body).not.toMatch(/minute read-only connection/);
   });
 
   it("describes the summary the prompt asks for", () => {

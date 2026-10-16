@@ -29,9 +29,16 @@ import { countWord } from "~/lib/marketing/decline-categories";
 //     currency and submission count (narrowDispute in app/lib/stripe/reads.ts).
 //   * The expiring-card window is this month and next, already-expired cards
 //     included (computeExpiringCards in app/lib/audit/engine.ts), not 30 days.
+//   * No work on past failures. A sequence starts only from an
+//     invoice.payment_failed that arrives after the account connects; an
+//     invoice already uncollectible is ignored (app/lib/webhooks/process.ts,
+//     no_failed_payment). So the summary example says what Foxhound does as
+//     payments fail, not that it works the invoices the audit found.
 //   * An anonymous run is not saved. Its results live on a five-minute cookie
 //     (AUDIT_TOKEN_COOKIE) and no row is written (app/routes/audit/results.tsx).
-//     Recova said 30 days at the URL; its own run was the same cookie.
+//     Recova said 30 days at the URL; its own run was the same cookie. The
+//     page says "session", not "connection": the five minutes are the cookie's,
+//     and the OAuth grant itself is not revoked (FAQ 2 says how to disconnect).
 //
 // The read-only claims are Recova's own words and they are TRUE here: the
 // audit requests STRIPE_AUDIT_SCOPE, which the callback checks before a run
@@ -82,7 +89,12 @@ export const AUDIT_STEPS = [
   },
   {
     title: "Foxhound runs the diagnostic",
-    body: `Four scopes pull ${AUDIT_LOOKBACK_DAYS} days of data: failed invoices, expiring cards, open disputes, and business health. AI generates a plain-English summary.`,
+    // Truthfulness: Recova reads "Four scopes pull 90 days of data". Only the
+    // uncollectible-invoice read is bounded by the lookback
+    // (readUncollectibleInvoices); open invoices, subscriptions and disputes
+    // are read whole (app/lib/stripe/reads.ts), the dispute win rate is all
+    // time, and expiring cards and business health are the account today.
+    body: `Four scopes read your account, going back ${AUDIT_LOOKBACK_DAYS} days for failed invoices: failed invoices, expiring cards, open disputes, and business health. AI generates a plain-English summary.`,
   },
   {
     title: "See your results",
@@ -132,7 +144,7 @@ export const AUDIT_BLOCKS = {
     // at the URL for 30 days." and "every audit run saves permanently". An
     // anonymous run is not saved, and a signed-in run is saved only when the
     // audited Stripe account is connected to the account (RULES.md 4.14).
-    body: `Without an account, results are not saved: they show while the ${tokenMinutes}-minute ${scopeWords} connection lasts. With a Foxhound account, every audit of your connected Stripe account saves permanently at /audit/dashboard. Enable monthly auto-run and Foxhound re-runs the diagnostic on the ${autoRunDay} of each month and emails you results.`,
+    body: `Without an account, results are not saved: they show while the ${tokenMinutes}-minute ${scopeWords} session lasts. With a Foxhound account, every audit of your connected Stripe account saves permanently at /audit/dashboard. Enable monthly auto-run and Foxhound re-runs the diagnostic on the ${autoRunDay} of each month and emails you results.`,
   },
 };
 
@@ -185,7 +197,7 @@ export const AUDIT_SUMMARY_EXAMPLE: Array<string | { figure: string }> = [
   { figure: "6" },
   " invoices in the last ",
   { figure: String(AUDIT_LOOKBACK_DAYS) },
-  " days. Foxhound works each of these with a recovery sequence matched to its decline, and you pay only on what it recovers. Three cards expire by the end of next month, representing ",
+  " days. Foxhound recovers payments like these as they fail, with a sequence matched to the decline, and bills only on what it recovers. Three cards expire by the end of next month, representing ",
   { figure: "$297/mo" },
   " in MRR at risk.",
 ];
