@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 
-import { accounts, disputeApprovals, disputes, getDb } from "~/db";
+import { accounts, disputeApprovals, disputes, getDb, stripeConnections } from "~/db";
 import { processEmailJob } from "~/lib/email/dispatch";
 import type { EmailJobResult } from "~/lib/email/dispatch";
 
@@ -10,7 +10,9 @@ import {
   DISPUTE_NOTICE_FROM_NAME,
   DISPUTE_OUTCOME_TEMPLATE,
   DISPUTE_REMINDER_TEMPLATE,
+  disputeNoticeFooterNote,
   nextDisputeBillingRun,
+  type NoticeMail,
   noticeCustomerLabel,
   outcomeNotice,
   reminderKey,
@@ -66,6 +68,8 @@ interface NoticeRow {
   notificationEmail: string | null;
   processingPaused: boolean;
   billingExempt: boolean;
+  /** The dispute's own connection's sender name, for Recova's footer line. */
+  senderName: string | null;
 }
 
 /** The dispute and its account's notice settings, pinned to the account. */
@@ -87,9 +91,14 @@ async function loadNoticeRow(env: Env, accountId: string, disputeId: string): Pr
       notificationEmail: accounts.notificationEmail,
       processingPaused: accounts.processingPaused,
       billingExempt: accounts.billingExempt,
+      senderName: stripeConnections.senderName,
     })
     .from(disputes)
     .innerJoin(accounts, eq(accounts.id, disputes.accountId))
+    // Recova reads sender_name from the account's primary connection, its only
+    // one; Foxhound has several per account (RULES.md 1.6), so the connection
+    // the dispute arrived on speaks, as E9 pins the payment's own connection.
+    .leftJoin(stripeConnections, eq(stripeConnections.id, disputes.stripeConnectionId))
     .where(and(eq(disputes.id, disputeId), eq(disputes.accountId, accountId)))
     .limit(1);
   return rows[0] ?? null;
@@ -103,28 +112,32 @@ async function send(
   env: Env,
   accountId: string,
   to: string,
-  notice: RenderedNotice,
+  content: RenderedNotice | (NoticeMail & { footerNote: string }),
   template: string,
   idempotencyKey: string,
   cronRunId: string | null,
 ): Promise<DisputeNoticeOutcome> {
+  const common = {
+    accountId,
+    to,
+    fromName: DISPUTE_NOTICE_FROM_NAME,
+    subject: content.subject,
+    template,
+    // Platform-to-merchant mail: no unsubscribe, no postal footer
+    // (RULES.md 3.16; see EmailAudience).
+    audience: "merchant" as const,
+    unsubscribeToken: "",
+    physicalAddress: "",
+    idempotencyKey,
+    cronRunId,
+  };
   const result = await processEmailJob(
     env,
-    {
-      accountId,
-      to,
-      fromName: DISPUTE_NOTICE_FROM_NAME,
-      subject: notice.subject,
-      bodyHtml: notice.bodyHtml,
-      template,
-      // Platform-to-merchant mail: no unsubscribe, no postal footer
-      // (RULES.md 3.16; see EmailAudience).
-      audience: "merchant",
-      unsubscribeToken: "",
-      physicalAddress: "",
-      idempotencyKey,
-      cronRunId,
-    },
+    "notice" in content
+      ? // E16 and E17: Capsomer's notice template, and Recova's footer line,
+        // under which send.ts puts "Manage email settings" on merchant mail.
+        { ...common, notice: content.notice, footerNote: content.footerNote }
+      : { ...common, bodyHtml: content.bodyHtml },
     null,
   );
   return { kind: "sent", result };
@@ -149,14 +162,17 @@ export async function sendDisputeCreatedNotice(
     if (!row) return { kind: "skipped", reason: "not_found" };
     if (row.processingPaused) return { kind: "skipped", reason: "paused" };
     if (!row.notificationEmail) return { kind: "skipped", reason: "no_recipient" };
-    const notice = createdNotice({
-      amountCents: row.amountCents,
-      currency: row.currency,
-      customerLabel: noticeCustomerLabel(row.customerName, row.customerEmail),
-      reason: row.reason,
-      evidenceDeadline: row.evidenceDeadline,
-      disputeUrl: appUrl(env, `/disputes/${row.id}`),
-    });
+    const notice = {
+      ...createdNotice({
+        amountCents: row.amountCents,
+        currency: row.currency,
+        customerLabel: noticeCustomerLabel(row.customerName, row.customerEmail),
+        reason: row.reason,
+        evidenceDeadline: row.evidenceDeadline,
+        disputeUrl: appUrl(env, `/disputes/${row.id}`),
+      }),
+      footerNote: disputeNoticeFooterNote(row.senderName, new Date().getUTCFullYear()),
+    };
     return await send(
       env,
       ctx.accountId,
@@ -237,15 +253,18 @@ export async function sendDisputeReminderNotice(
     const row = await loadNoticeRow(env, ctx.accountId, ctx.disputeId);
     if (!row) return { kind: "skipped", reason: "not_found" };
     if (!row.notificationEmail) return { kind: "skipped", reason: "no_recipient" };
-    const notice = reminderNotice({
-      approved: await hasStandingApproval(env, ctx.accountId, row.id),
-      amountCents: row.amountCents,
-      currency: row.currency,
-      customerLabel: noticeCustomerLabel(row.customerName, row.customerEmail),
-      reason: row.reason,
-      daysLeft: ctx.bucket.daysLeft,
-      disputeUrl: appUrl(env, `/disputes/${row.id}`),
-    });
+    const notice = {
+      ...reminderNotice({
+        approved: await hasStandingApproval(env, ctx.accountId, row.id),
+        amountCents: row.amountCents,
+        currency: row.currency,
+        customerLabel: noticeCustomerLabel(row.customerName, row.customerEmail),
+        reason: row.reason,
+        daysLeft: ctx.bucket.daysLeft,
+        disputeUrl: appUrl(env, `/disputes/${row.id}`),
+      }),
+      footerNote: disputeNoticeFooterNote(row.senderName, new Date().getUTCFullYear()),
+    };
     return await send(
       env,
       ctx.accountId,

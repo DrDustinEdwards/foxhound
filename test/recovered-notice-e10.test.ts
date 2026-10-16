@@ -249,7 +249,7 @@ describe("E10 carries Recova's footer line and Manage email settings link, and n
     expect(m.html).toContain("font-size:16px");
   });
 
-  it("a merchant mail with no footer note still has no footer line of its own (digest, dispute notices)", () => {
+  it("a merchant mail with no footer note still has no footer line of its own (the digest, the dispute outcome notices)", () => {
     // The settings link belongs to the mails that carried Recova's footer
     // sentence; the others are unchanged by this job.
     const m = buildEmailMessage(
