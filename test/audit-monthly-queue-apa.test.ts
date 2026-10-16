@@ -126,11 +126,13 @@ function setup() {
   harness.stripe = stripe;
   const queue = fakeQueue();
   const delivered: string[] = [];
+  const messages: { to: string; text?: string }[] = [];
   const failFor = new Set<string>();
   const e = {
     DB: {},
     EMAIL: {
-      send: async (m: { to: string }) => {
+      send: async (m: { to: string; text?: string }) => {
+        messages.push(m);
         if (failFor.has(m.to)) throw new Error(`mailbox full: ${m.to}`);
         delivered.push(m.to);
         return { id: "m" };
@@ -143,7 +145,7 @@ function setup() {
     },
     AUDIT_QUEUE: queue.binding,
   } as unknown as Env;
-  return { db, env: e, queue, stripeCalls: calls, delivered, failFor };
+  return { db, env: e, queue, stripeCalls: calls, delivered, messages, failFor };
 }
 
 async function seedAccount(db: TestDb, id: string, row: Record<string, unknown> = {}) {
@@ -394,5 +396,123 @@ describe("a failure logs the whole err and lets the queue retry", () => {
     expect(alerts).toHaveLength(1);
     expect(alerts[0].cronName).toBe(CRON_NAME);
     expect(alerts[0].kind).toBe("failure");
+  });
+});
+
+// ============================================================================
+// Review follow-ups on PR 143
+// ============================================================================
+
+const loggedText = (spy: { mock: { calls: unknown[][] } }) =>
+  spy.mock.calls.map((args) => args.map((a) => (a instanceof Error ? a.message : String(a))).join(" "));
+
+describe("a claim that cannot be read as taken is not acked as a duplicate", () => {
+  it("AN INSERT ERROR WITH NO ROW BEHIND IT is retried, not swallowed", async () => {
+    // A transient D1 failure on the claim insert used to fall through to the
+    // retake, find nothing to retake, and ack the message as a duplicate: that
+    // merchant got no audit, no log, no retry and no alert.
+    const { db, env, queue, delivered } = setup();
+    await seedAccount(db, "a_on");
+    await runCron(env);
+    const body = bodyFor(queue.bodies, "a_on");
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const blip = new Error("D1_ERROR: network connection lost");
+    const realInsert = db.insert.bind(db);
+    const insert = vi.spyOn(db, "insert").mockImplementationOnce(() => {
+      throw blip;
+    });
+
+    expect(await deliver(env, [{ body }])).toEqual(["retry"]);
+    expect(logged.mock.calls.flat()).toContain(blip);
+    expect(await db.select().from(auditDigestRuns)).toHaveLength(0);
+
+    insert.mockImplementation(realInsert);
+    expect(await deliver(env, [{ body, attempts: 2 }])).toEqual(["ack"]);
+    expect(delivered).toEqual(["a_on@merchant.test"]);
+  });
+});
+
+describe("a refused claim on a redelivery is seen, and a stuck one alerts", () => {
+  async function plant(db: TestDb, status: string) {
+    await db.insert(auditDigestRuns).values({
+      id: "planted",
+      accountId: "a_on",
+      periodMonth: PERIOD,
+      totals: null,
+      status,
+      error: null,
+      sentAt: null,
+      cronRunId: null,
+      createdAt: NOW,
+    });
+  }
+
+  it("a first delivery refused by a finished month stays quiet", async () => {
+    const { db, env, queue } = setup();
+    await seedAccount(db, "a_on");
+    await runCron(env);
+    await plant(db, "sent");
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    expect(await deliver(env, [{ body: bodyFor(queue.bodies, "a_on") }])).toEqual(["ack"]);
+    expect(logged).not.toHaveBeenCalled();
+  });
+
+  it("a REDELIVERY refused by a finished month is logged, and acked", async () => {
+    const { db, env, queue } = setup();
+    await seedAccount(db, "a_on");
+    await runCron(env);
+    await plant(db, "sent");
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    expect(await deliver(env, [{ body: bodyFor(queue.bodies, "a_on"), attempts: 2 }])).toEqual(["ack"]);
+    const text = loggedText(logged).join("\n");
+    expect(text).toContain("a_on");
+    expect(text).toContain("sent");
+  });
+
+  it("a claim STUCK PENDING is retried, never re-sent, and the last attempt alerts", async () => {
+    const { db, env, queue, delivered, messages } = setup();
+    await seedAccount(db, "a_on");
+    await runCron(env);
+    await plant(db, "pending");
+    const body = bodyFor(queue.bodies, "a_on");
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    // A redelivery after a killed run: look again later, do not send.
+    expect(await deliver(env, [{ body, attempts: 2 }])).toEqual(["retry"]);
+    expect(loggedText(logged).join("\n")).toContain("pending");
+    expect(await db.select().from(cronAlerts)).toHaveLength(0);
+
+    // The last attempt: still pending, so it alerts and lets the message go.
+    expect(await deliver(env, [{ body, attempts: 4 }])).toEqual(["ack"]);
+    const alerts = await db.select().from(cronAlerts);
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0].cronName).toBe(CRON_NAME);
+
+    // Nothing was ever mailed to the merchant, and the row was never retaken.
+    expect(delivered.filter((to) => to === "a_on@merchant.test")).toEqual([]);
+    const alert = messages.find((m) => m.to !== "a_on@merchant.test");
+    expect(alert?.text).toContain("a_on");
+    expect(alert?.text).toContain(PERIOD);
+    expect((await db.select().from(auditDigestRuns))[0].status).toBe("pending");
+  });
+});
+
+describe("the failure alert names the account", () => {
+  it("the last failed attempt's alert carries the account id and month", async () => {
+    const { db, env, queue, failFor, messages } = setup();
+    await seedAccount(db, "a_on");
+    await runCron(env);
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    failFor.add("a_on@merchant.test");
+
+    await deliver(env, [{ body: bodyFor(queue.bodies, "a_on"), attempts: 4 }]);
+
+    const alert = messages.find((m) => m.to !== "a_on@merchant.test");
+    expect(alert?.text).toContain("account a_on");
+    expect(alert?.text).toContain(PERIOD);
+    expect(alert?.text).toContain("mailbox full: a_on@merchant.test");
   });
 });

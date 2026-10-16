@@ -48,6 +48,7 @@ const WRANGLER = parseJsonc(read("wrangler.jsonc")) as {
       queue: string;
       max_retries?: number;
       max_batch_size?: number;
+      retry_delay?: number;
       dead_letter_queue?: string;
     }[];
     producers?: { queue: string; binding: string }[];
@@ -157,6 +158,12 @@ describe("the monthly audit queue (job_97878f0d1fde)", () => {
     // Each account must spend its Stripe pages in its own subrequest budget. A
     // batch of ten would put ten accounts back under one limit.
     expect(audit?.max_batch_size).toBe(1);
+  });
+
+  it("spreads its retries out, so a short outage cannot use every attempt", () => {
+    // Without a delay the four deliveries land within seconds of each other and
+    // a one-minute Stripe or model outage exhausts them all.
+    expect(audit?.retry_delay).toBeGreaterThanOrEqual(60);
   });
 
   it("max_retries matches AUDIT_QUEUE_MAX_RETRIES, which decides the last attempt's alert", () => {

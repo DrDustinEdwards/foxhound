@@ -350,9 +350,13 @@ export async function priorTotals(
   return row?.totals ?? null;
 }
 
+/** The claim: the row this caller now holds, or the status of the row that
+ *  refused it. */
+export type MonthClaim = { claimed: true; id: string } | { claimed: false; heldStatus: string };
+
 /**
- * Claim this account's slot for this month. A non-null id means this caller may
- * run and send.
+ * Claim this account's slot for this month. A claimed result means this caller
+ * may run and send.
  *
  * THE REFUSAL IS THE DATABASE'S. The unique index on
  * (account_id, period_month) rejects the second insert, so two deliveries of one
@@ -368,6 +372,11 @@ export async function priorTotals(
  * in flight (or one that died mid-run) and is never retaken, so a crash costs
  * that merchant one month's email rather than risking a second one; every other
  * status is a finished month.
+ *
+ * AN INSERT ERROR IS A REFUSAL ONLY WHEN A ROW STANDS BEHIND IT (PR 143 review).
+ * The insert can fail for a transient D1 reason as well as for the index. When
+ * there is nothing to retake and no row exists, the insert's own error is
+ * rethrown, so the message retries instead of being acked as a duplicate.
  */
 export async function claimMonthSlot(
   db: Db,
@@ -375,7 +384,7 @@ export async function claimMonthSlot(
   periodMonth: string,
   now: Date,
   cronRunId: string | null,
-): Promise<string | null> {
+): Promise<MonthClaim> {
   const id = crypto.randomUUID();
   try {
     await db.insert(auditDigestRuns).values({
@@ -389,21 +398,26 @@ export async function claimMonthSlot(
       cronRunId,
       createdAt: now,
     });
-    return id;
-  } catch {
-    // The unique index rejected it: this account already has this month's row.
+    return { claimed: true, id };
+  } catch (insertError) {
+    const slot = and(
+      eq(auditDigestRuns.accountId, accountId),
+      eq(auditDigestRuns.periodMonth, periodMonth),
+    );
     const [retaken] = await db
       .update(auditDigestRuns)
       .set({ status: "pending", error: null })
-      .where(
-        and(
-          eq(auditDigestRuns.accountId, accountId),
-          eq(auditDigestRuns.periodMonth, periodMonth),
-          eq(auditDigestRuns.status, "failed"),
-        ),
-      )
+      .where(and(slot, eq(auditDigestRuns.status, "failed")))
       .returning({ id: auditDigestRuns.id });
-    return retaken?.id ?? null;
+    if (retaken) return { claimed: true, id: retaken.id };
+
+    const [held] = await db
+      .select({ status: auditDigestRuns.status })
+      .from(auditDigestRuns)
+      .where(slot)
+      .limit(1);
+    if (!held) throw insertError;
+    return { claimed: false, heldStatus: held.status };
   }
 }
 
@@ -511,6 +525,8 @@ export interface MonthlyAuditAccountOutcome {
   ran: boolean;
   /** The thrown value, whole, on a failed outcome. */
   error?: unknown;
+  /** On a duplicate: the status of the claim row that refused this delivery. */
+  heldStatus?: string;
 }
 
 /**
@@ -537,8 +553,9 @@ export async function auditAccountForMonth(
   const account = await eligibleAccount(db, accountId);
   if (!account) return { status: "not_eligible", ran: false };
 
-  const claimId = await claimMonthSlot(db, accountId, periodMonth, now, cronRunId);
-  if (claimId === null) return { status: "duplicate", ran: false };
+  const claim = await claimMonthSlot(db, accountId, periodMonth, now, cronRunId);
+  if (!claim.claimed) return { status: "duplicate", ran: false, heldStatus: claim.heldStatus };
+  const claimId = claim.id;
 
   let ran = false;
   let mailed = false;
@@ -659,21 +676,43 @@ export async function processMonthlyAuditMessage(
     // there is no row to mark. The retry is the record.
     outcome = { status: "failed", ran: false, error: err };
   }
-  if (outcome.status !== "failed") return "ack";
-
-  console.error(
-    `monthly audit: account ${message.accountId} (${message.periodMonth}) failed on attempt ${attempts}:`,
-    outcome.error,
-  );
-  if (attempts > AUDIT_QUEUE_MAX_RETRIES) {
-    const error =
-      outcome.error instanceof Error ? outcome.error.message : "monthly audit failed";
-    await alertCronFailure(
+  const where = `account ${message.accountId} (${message.periodMonth})`;
+  const lastAttempt = attempts > AUDIT_QUEUE_MAX_RETRIES;
+  const alert = (error: string) =>
+    alertCronFailure(
       env,
       getDb(env),
-      { cronName: MONTHLY_AUDIT_CRON_NAME, runId: message.cronRunId, error },
+      // The account is named in the alert itself (PR 143 review): alerts are
+      // deduped per cron per day, so the one email that goes out has to say
+      // which merchant it is about.
+      { cronName: MONTHLY_AUDIT_CRON_NAME, runId: message.cronRunId, error: `${where}: ${error}` },
       now,
     );
+
+  if (outcome.status === "duplicate") {
+    // A first delivery refused by its claim is the ordinary case (a second cron
+    // tick, an at-least-once duplicate) and stays quiet. A REDELIVERY refused is
+    // worth a line: the earlier attempt either finished or died mid-run.
+    if (attempts > 1) {
+      console.error(
+        `monthly audit: ${where} claim refused on attempt ${attempts}, row is ${outcome.heldStatus}`,
+      );
+    }
+    // STUCK PENDING (PR 143 review). A run killed mid-flight leaves its claim
+    // pending, and pending is never retaken, so nothing is sent twice. The
+    // message is retried so a run still in flight can finish, and the last
+    // attempt alerts, so a stuck month is seen rather than discovered.
+    if (attempts > 1 && outcome.heldStatus === "pending") {
+      if (!lastAttempt) return "retry";
+      await alert("claim still pending after the last attempt; no email was sent this month");
+    }
+    return "ack";
+  }
+  if (outcome.status !== "failed") return "ack";
+
+  console.error(`monthly audit: ${where} failed on attempt ${attempts}:`, outcome.error);
+  if (lastAttempt) {
+    await alert(outcome.error instanceof Error ? outcome.error.message : "monthly audit failed");
   }
   return "retry";
 }
