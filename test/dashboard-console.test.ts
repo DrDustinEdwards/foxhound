@@ -297,6 +297,7 @@ async function seedConsole(opts: {
       customerName: `AtRisk ${c}`,
       healthScore: row.score,
       mrrContributionCents: row.mrr,
+      currency: "usd",
       createdAt: now,
       updatedAt: now,
     });
@@ -339,14 +340,14 @@ describe("getConsoleView hero", () => {
   it("sums the real at-risk amount rather than reporting zero", async () => {
     const db = await seedConsole({ activeAmounts: [1200, 3400, 900] });
     const view = await getConsoleView(db, ACCOUNT_ID, NOW, 42);
-    expect(view.hero.atRiskCents).toBe(5500);
+    expect(view.hero.atRisk).toEqual([{ currency: "usd", cents: 5500 }]);
     expect(view.hero.activeSequenceCount).toBe(3);
   });
 
   it("counts only this month's recoveries as protected, but all time in the subtext", async () => {
     const db = await seedConsole({ recoveredThisMonth: [1000, 2000], recoveredEarlier: [9999] });
     const view = await getConsoleView(db, ACCOUNT_ID, NOW, 50);
-    expect(view.hero.protectedThisMonthCents).toBe(3000);
+    expect(view.hero.protectedThisMonth).toEqual([{ currency: "usd", cents: 3000 }]);
     expect(view.hero.recoveredAllTimeCount).toBe(3);
   });
 
@@ -428,6 +429,7 @@ describe("getConsoleView attention feed", () => {
         { score: 10, mrr: 50_000 },
         { score: 35, mrr: 20_000 },
       ],
+      entitled: true,
     });
     const view = await getConsoleView(db, ACCOUNT_ID, NOW, null);
     const rows = view.attention.filter((r) => r.key.startsWith("at-risk-"));
@@ -435,7 +437,7 @@ describe("getConsoleView attention feed", () => {
   });
 
   it("excludes healthy customers from the at-risk rows", async () => {
-    const db = await seedConsole({ atRisk: [{ score: 85, mrr: 99_000 }] });
+    const db = await seedConsole({ atRisk: [{ score: 85, mrr: 99_000 }], entitled: true });
     const view = await getConsoleView(db, ACCOUNT_ID, NOW, null);
     expect(view.attention.filter((r) => r.key.startsWith("at-risk-"))).toEqual([]);
   });

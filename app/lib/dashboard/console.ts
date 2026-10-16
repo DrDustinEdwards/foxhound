@@ -8,6 +8,8 @@
 // passes typecheck and fails the client build, so anything a component calls has
 // to live here.
 
+import { formatMoneyShort } from "~/lib/money-format";
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** How far ahead a dispute deadline counts as urgent, matching legacy's
@@ -102,4 +104,41 @@ export function protectedSubtext(recoveredAllTimeCount: number): string {
 export function isCardInAttentionWindow(expiresAt: Date, nowMs: number): boolean {
   const end = nowMs + EXPIRING_CARD_WINDOW_DAYS * DAY_MS;
   return expiresAt.getTime() <= end && expiresAt.getTime() >= nowMs - DAY_MS;
+}
+
+/**
+ * Each currency's total in Recova's short format (formatAmountShort: whole
+ * units), joined with " · ". A total is never summed across currencies
+ * (RULES.md 3.20), so an account paid in two currencies sees both. Nothing at
+ * all reads as Recova's zero, "$0".
+ */
+export function formatCurrencyTotalsShort(rows: readonly { currency: string; cents: number }[]): string {
+  if (rows.length === 0) return formatMoneyShort(0, "usd");
+  return rows.map((r) => formatMoneyShort(r.cents, r.currency)).join(" · ");
+}
+
+/** The latest month's five MRR movements, in the console chart's order. */
+export interface MovementTotals {
+  newMrrCents: number;
+  expansionMrrCents: number;
+  contractionMrrCents: number;
+  churnMrrCents: number;
+  reactivationMrrCents: number;
+}
+
+/** The movement bars as rows: contraction and churn drawn below zero. */
+export function mrrMovementBars(m: MovementTotals): { label: string; cents: number }[] {
+  return [
+    { label: "New", cents: m.newMrrCents },
+    { label: "Expand", cents: m.expansionMrrCents },
+    { label: "Contract", cents: -m.contractionMrrCents },
+    { label: "Churn", cents: -m.churnMrrCents },
+    { label: "Reactivate", cents: m.reactivationMrrCents },
+  ];
+}
+
+/** The movement chart's text equivalent, with every number in it. */
+export function mrrMovementAlt(m: MovementTotals, currency: string): string {
+  const parts = mrrMovementBars(m).map((b) => `${b.label} ${formatMoneyShort(b.cents, currency)}`);
+  return `MRR movements in the latest month: ${parts.join(", ")}.`;
 }
