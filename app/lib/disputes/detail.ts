@@ -1,4 +1,5 @@
 import { DISPUTE_FEE_BPS, DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
+import { EVIDENCE_FILE_FIELD } from "~/lib/disputes/evidence-files";
 import { formatMoneyShort } from "~/lib/money-format";
 
 // Pure pieces of /disputes/:id (J77, row S14), client-safe: no database, no
@@ -114,6 +115,8 @@ export function splitEvidence(
   } as Record<(typeof SHIPPING_FIELDS)[number], string>;
   const structured = evidence
     .filter((e) => e.fieldName !== NARRATIVE_FIELD)
+    // A merchant's uploaded file has its own section, Evidence files (J07).
+    .filter((e) => e.fieldName !== EVIDENCE_FILE_FIELD)
     .filter((e) => !(ipEditable && e.fieldName === CUSTOMER_IP_FIELD))
     .filter((e) => !(shippingEditable && (SHIPPING_FIELDS as readonly string[]).includes(e.fieldName)))
     .filter((e) => e.fieldValue.trim() !== "");
