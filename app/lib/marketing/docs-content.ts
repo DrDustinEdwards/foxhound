@@ -33,6 +33,7 @@ import { RECOVERY_RANGES } from "~/lib/dashboard/recovery-window";
 import { DEADLINE_SOON_DAYS, DEADLINE_URGENT_DAYS } from "~/lib/disputes/labels";
 import { WATCH_CEILING } from "~/lib/intelligence/health-band";
 import { RECOVERY_SCHEDULES } from "~/lib/recovery/schedule";
+import { INTELLIGENCE_WINBACK_SENTENCE } from "~/lib/marketing/winback-copy";
 
 // THE BLOCK VOCABULARY, Recova's own.
 //
@@ -156,7 +157,7 @@ export const DOC_GUIDES: DocGuide[] = [
           "Nothing about this alert is billable. It prevents a failure rather than recovering one, so there is no recovered payment and no fee.",
           "Expiring card alerts are on unless you turn them off on the features page.",
           { kind: "h3", text: "Win-back sequences" },
-          "When a subscription is cancelled voluntarily, Foxhound starts a win-back sequence: three emails, the first an hour after the cancellation, then one at four days and a last one at fourteen. Each is written in your brand voice for the step it is, warmer at the first and lighter at the last, and each links to a page where that customer can restart the same plan through Stripe.",
+          `When a subscription is cancelled voluntarily, Foxhound starts a win-back sequence: three emails, the first an hour after the cancellation, then one at four days and a last one at fourteen. ${INTELLIGENCE_WINBACK_SENTENCE} Each is written in your brand voice for the step it is, warmer at the first and lighter at the last, and each links to a page where that customer can restart the same plan through Stripe.`,
           "It does not start for a subscription that ended because payments were failing, because that is a recovery and the recovery sequence already has it, and it does not start for a customer you chased in the last seven days. The sequence stops as soon as they come back.",
           { kind: "note", body: "A customer who comes back is matched to their sequence by the identifier Foxhound put on the checkout, never by guessing from the customer. Matching on the customer alone would credit an ordinary renewal as a win-back." },
           "A reactivation is not billed. Win-back brings back a customer who chose to leave, which is not the recovery of a failed payment, so there is no recovered payment and no fee.",
