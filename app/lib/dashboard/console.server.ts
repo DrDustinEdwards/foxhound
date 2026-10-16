@@ -1,6 +1,7 @@
 import { and, count, eq, gte, lte, notInArray, sql } from "drizzle-orm";
 
 import {
+  accounts,
   auditRuns,
   customerContext,
   disputes,
@@ -10,12 +11,13 @@ import {
 import { HEALTH_SCORE_AT_RISK_THRESHOLD } from "~/lib/constants";
 import { RESOLVED_DISPUTE_STATES } from "~/lib/disputes/labels";
 import { isIntelligenceEntitled } from "~/lib/intelligence/views.server";
-import { groupSumByCurrency } from "./stats.server";
+import { groupSumByCurrency, type CurrencyAmount } from "./stats.server";
 import {
   ATTENTION_ROWS_PER_CATEGORY,
   DISPUTE_ATTENTION_LIMIT,
   DISPUTE_URGENT_HOURS,
   cardExpiryDate,
+  type MrrSyncState,
   deadlinePhrase,
   expiryPhrase,
   isCardInAttentionWindow,
@@ -57,12 +59,15 @@ import {
 //    nothing for Disputes (intake is webhook-driven, there is no toggle) and
 //    nothing for Audit (legacy had no inactive state there either).
 
+// Money is a CurrencyAmount[] everywhere on this view, one entry per currency,
+// built by groupSumByCurrency (RULES.md 3.20). The console used to keep one
+// figure and one currency per card, which summed EUR into USD on two cards and
+// dropped every currency but the first on the third.
+
 export interface ConsoleHero {
-  protectedThisMonthCents: number;
-  protectedCurrency: string;
+  protectedThisMonth: CurrencyAmount[];
   recoveredAllTimeCount: number;
-  atRiskCents: number;
-  atRiskCurrency: string;
+  atRisk: CurrencyAmount[];
   activeSequenceCount: number;
   openDisputeCount: number;
   /** null when there is no failure history yet: a zero state, not a 0%. */
@@ -72,15 +77,18 @@ export interface ConsoleHero {
 export interface ConsoleTiles {
   stripeConnected: boolean;
   intelligenceEntitled: boolean;
-  recoveredThisMonthCents: number;
-  recoveredCurrency: string;
+  recoveredThisMonth: CurrencyAmount[];
   recoveryRatePct: number | null;
   openDisputeCount: number;
   disputesDueSoonCount: number;
-  highRiskMrrCents: number;
+  /** Every high-risk customer's MRR, per currency. Empty without Intelligence. */
+  highRiskMrr: CurrencyAmount[];
+  /** Every high-risk customer, uncapped, as Recova counts them. */
   highRiskCustomerCount: number;
   lastAuditAt: Date | null;
   auditLeakingCents: number;
+  /** The audit run's own currency, so its leak figure is not printed in another's. */
+  auditCurrency: string;
 }
 
 export type AttentionTone = "urgent" | "warning" | "subtle";
@@ -97,6 +105,8 @@ export interface AttentionRow {
   /** Monetary emphasis in cents, formatted by the component so money
    *  formatting stays in one place. Optional. */
   mrrCents: number | null;
+  /** The currency mrrCents is in: the customer's own. */
+  mrrCurrency: string | null;
   href: string | null;
   ariaLabel: string;
   product: string;
@@ -105,6 +115,9 @@ export interface AttentionRow {
 export interface ConsoleView {
   hero: ConsoleHero;
   tiles: ConsoleTiles;
+  /** Whether the monthly sync will write this account an MRR snapshot, so the
+   *  empty MRR state promises one only when it will come. */
+  mrrSync: MrrSyncState;
   attention: AttentionRow[];
 }
 
@@ -131,11 +144,12 @@ export async function getConsoleView(
     activeFailed,
     openDisputeRows,
     dueSoonDisputes,
-    atRiskCustomers,
+    highRiskCustomers,
     expiringCards,
     lastAudit,
     connection,
     intelligenceEntitled,
+    accountRow,
   ] = await Promise.all([
     db
       .select({ cents: recoveredPayments.amountCents, currency: recoveredPayments.currency })
@@ -176,7 +190,11 @@ export async function getConsoleView(
       )
       .orderBy(disputes.evidenceDeadline)
       .limit(DISPUTE_ATTENTION_LIMIT),
-    // Legacy's equivalent row filtered on health_factors->>recommended_action =
+    // Every high-risk customer, uncapped: the Intelligence tile counts and sums
+    // them all, as Recova's intelligenceHighRiskResult did, and the feed shows
+    // the first ATTENTION_ROWS_PER_CATEGORY by MRR.
+    //
+    // Legacy's feed row filtered on health_factors->>recommended_action =
     // 'personal_outreach'. Nothing in Foxhound writes recommended_action: it
     // exists only as demo seed data and as the unwritten ai_recommended_actions
     // column, the same blocker that holds /intelligence/recommendations. So this
@@ -189,6 +207,7 @@ export async function getConsoleView(
         customerName: customerContext.customerName,
         customerEmail: customerContext.customerEmail,
         mrrContributionCents: customerContext.mrrContributionCents,
+        currency: customerContext.currency,
         healthScore: customerContext.healthScore,
       })
       .from(customerContext)
@@ -199,14 +218,14 @@ export async function getConsoleView(
           sql`${customerContext.healthScore} < ${HEALTH_SCORE_AT_RISK_THRESHOLD}`,
         ),
       )
-      .orderBy(sql`${customerContext.mrrContributionCents} desc`)
-      .limit(ATTENTION_ROWS_PER_CATEGORY),
+      .orderBy(sql`${customerContext.mrrContributionCents} desc`),
     listExpiringCardAlerts(db, accountId),
     db
       .select({
         runAt: auditRuns.runAt,
         failedInvoicesCents: auditRuns.failedInvoicesCents,
         openDisputesCents: auditRuns.openDisputesCents,
+        currency: auditRuns.currency,
       })
       .from(auditRuns)
       .where(eq(auditRuns.accountId, accountId))
@@ -214,17 +233,30 @@ export async function getConsoleView(
       .limit(1),
     getConnectionSummary(db, accountId),
     isIntelligenceEntitled(db, accountId),
+    db
+      .select({ processingPaused: accounts.processingPaused, cancelledAt: accounts.cancelledAt })
+      .from(accounts)
+      .where(eq(accounts.id, accountId))
+      .limit(1),
   ]);
 
-  const protectedThisMonthCents = monthRecovered.reduce((s, r) => s + r.cents, 0);
-  const protectedCurrency = monthRecovered[0]?.currency ?? "usd";
   // Grouped per currency, never a flat reduce: summing amountCents across
   // currencies produced a total that was the arithmetic sum of USD and EUR
-  // labelled with whichever row sorted first. `[0]` is the same convention
-  // dashboard.tsx already uses for every other CurrencyAmount[] it renders.
-  const atRisk = groupSumByCurrency(activeFailed)[0] ?? null;
-  const atRiskCents = atRisk?.cents ?? 0;
-  const atRiskCurrency = atRisk?.currency ?? "usd";
+  // labelled with whichever row sorted first.
+  const protectedThisMonth = groupSumByCurrency(
+    monthRecovered.map((r) => ({ currency: r.currency, amountCents: r.cents })),
+  );
+  const atRisk = groupSumByCurrency(activeFailed);
+  // Recova reads high-risk customers only when Intelligence is active, and
+  // every row links to /intelligence/customers/:id, which only an entitled
+  // account can open. A customer with no MRR currency recorded has no figure to
+  // add, so it is counted but not summed.
+  const highRisk = intelligenceEntitled ? highRiskCustomers : [];
+  const highRiskMrr = groupSumByCurrency(
+    highRisk.flatMap((c) =>
+      c.currency && c.mrrContributionCents ? [{ currency: c.currency, amountCents: c.mrrContributionCents }] : [],
+    ),
+  );
   const openDisputeCount = Number(openDisputeRows[0]?.n ?? 0);
 
   // Exhausted sequences need each active payment's steps. One batched read for
@@ -256,6 +288,7 @@ export async function getConsoleView(
       detail: "dispute due",
       emphasis: deadlinePhrase(d.evidenceDeadline, nowMs),
       mrrCents: null,
+      mrrCurrency: null,
       href: `/disputes/${d.id}`,
       ariaLabel: `Open dispute for ${label}`,
       product: "Disputes",
@@ -272,6 +305,7 @@ export async function getConsoleView(
       detail: "recovery sequence ended",
       emphasis: null,
       mrrCents: null,
+      mrrCurrency: null,
       href: `/recovery/payments/${p.id}`,
       ariaLabel: `Open recovery payment for ${label}`,
       product: "Recovery",
@@ -286,13 +320,14 @@ export async function getConsoleView(
       detail: exhaustedExtra === 1 ? "recovery sequence ended" : "recovery sequences ended",
       emphasis: null,
       mrrCents: null,
+      mrrCurrency: null,
       href: "/recovery/payments?status=active",
       ariaLabel: `View ${exhaustedExtra} more ended recovery sequences`,
       product: "Recovery",
     });
   }
 
-  for (const c of atRiskCustomers) {
+  for (const c of highRisk.slice(0, ATTENTION_ROWS_PER_CATEGORY)) {
     const label = subjectLabel(c.customerName, c.customerEmail);
     attention.push({
       key: `at-risk-${c.stripeCustomerId}`,
@@ -300,7 +335,8 @@ export async function getConsoleView(
       subject: label,
       detail: "at risk, worth a personal reach out",
       emphasis: null,
-      mrrCents: c.mrrContributionCents ?? null,
+      mrrCents: c.currency ? (c.mrrContributionCents ?? null) : null,
+      mrrCurrency: c.currency ?? null,
       href: `/intelligence/customers/${c.stripeCustomerId}`,
       ariaLabel: `Open customer ${label}`,
       product: "Intelligence",
@@ -320,6 +356,7 @@ export async function getConsoleView(
       detail: "card",
       emphasis: expiryPhrase(c.expiresAt, nowMs),
       mrrCents: null,
+      mrrCurrency: null,
       href: intelligenceEntitled && c.stripeCustomerId ? `/intelligence/customers/${c.stripeCustomerId}` : null,
       ariaLabel: `View expiring card customer ${label}`,
       product: "Recovery",
@@ -328,13 +365,22 @@ export async function getConsoleView(
 
   const audit = lastAudit[0] ?? null;
 
+  // The same three conditions the monthly sync applies before it writes a
+  // snapshot (sync.server.ts: accountProcessingEligible, then a connection).
+  const account = accountRow[0] ?? null;
+  const mrrSync: MrrSyncState = account?.cancelledAt
+    ? "cancelled"
+    : account?.processingPaused
+      ? "paused"
+      : connection === null
+        ? "unconnected"
+        : "eligible";
+
   return {
     hero: {
-      protectedThisMonthCents,
-      protectedCurrency,
+      protectedThisMonth,
       recoveredAllTimeCount: Number(allTimeRecoveredCount[0]?.n ?? 0),
-      atRiskCents,
-      atRiskCurrency,
+      atRisk,
       activeSequenceCount: activeFailed.length,
       openDisputeCount,
       recoveryRatePct,
@@ -342,17 +388,21 @@ export async function getConsoleView(
     tiles: {
       stripeConnected: connection !== null,
       intelligenceEntitled,
-      recoveredThisMonthCents: protectedThisMonthCents,
-      recoveredCurrency: protectedCurrency,
+      recoveredThisMonth: protectedThisMonth,
       recoveryRatePct,
       openDisputeCount,
       disputesDueSoonCount: dueSoonDisputes.length,
-      highRiskMrrCents: atRiskCustomers.reduce((s, c) => s + (c.mrrContributionCents ?? 0), 0),
-      highRiskCustomerCount: atRiskCustomers.length,
+      highRiskMrr,
+      highRiskCustomerCount: highRisk.length,
       lastAuditAt: audit?.runAt ?? null,
+      // Both parts of one run are in that run's currency (the audit engine
+      // resolves one currency per run). A run that recorded none reads as USD,
+      // the engine's own fallback.
       auditLeakingCents: audit ? (audit.failedInvoicesCents ?? 0) + (audit.openDisputesCents ?? 0) : 0,
+      auditCurrency: audit?.currency ?? "usd",
     },
     attention,
+    mrrSync,
   };
 }
 
