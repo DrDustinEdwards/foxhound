@@ -1,6 +1,7 @@
 import { ArrowRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Form, Link, data, useNavigate, useNavigation, useRouteLoaderData, useSubmit } from "react-router";
+import { dismissBanner } from "capsomer/behaviour/banner";
 import { Banner } from "capsomer/react/banner";
 import { ConfirmDialog } from "capsomer/react/confirm-dialog";
 import { Empty } from "capsomer/react/empty";
@@ -603,35 +604,50 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
           ) : (
             <div
               className="cap-banner"
+              data-cap="banner"
               data-tone={failedIds(bulk.results).length === 0 ? "ok" : "crit"}
               role={failedIds(bulk.results).length === 0 ? "status" : "alert"}
             >
               <Glyph name={failedIds(bulk.results).length === 0 ? "ok" : "crit"} />
               <div className="cap-banner-body">
                 <p className="cap-banner-title">{bulkResultLine(bulk.intent, bulk.results)}</p>
-                <ul className="cap-banner-text m-0 flex list-none flex-col gap-1 p-0 text-label">
-                  {orderForDisplay(bulk.results).map((r) => (
-                    <li key={r.id}>
-                      <span className={r.ok ? "text-success-text" : "text-error-text"}>
-                        {r.ok
-                          ? (bulkCopy(bulk.intent)?.didLabel ?? "Applied")
-                          : (bulkCopy(bulk.intent)?.didNotLabel ?? "Not applied")}
-                      </span>
-                      <span className="ml-2 text-text">{rowLabel(r.id)}</span>
-                      {r.reason ? <span className="ml-2 text-text-subtle">{BULK_REASON_LABELS[r.reason]}</span> : null}
-                      {/* The dispatcher's own detail, carried rather than folded. */}
-                      {r.detail ? <span className="ml-2 font-mono text-text-subtle">{r.detail}</span> : null}
-                    </li>
-                  ))}
-                </ul>
+                <div className="cap-banner-text">
+                  <ul className="m-0 flex list-none flex-col gap-1 p-0 text-label">
+                    {orderForDisplay(bulk.results).map((r) => (
+                      <li key={r.id}>
+                        <span className="font-bold">
+                          {r.ok
+                            ? (bulkCopy(bulk.intent)?.didLabel ?? "Applied")
+                            : (bulkCopy(bulk.intent)?.didNotLabel ?? "Not applied")}
+                        </span>
+                        <span className="ml-2">{rowLabel(r.id)}</span>
+                        {r.reason ? <span className="ml-2">{BULK_REASON_LABELS[r.reason]}</span> : null}
+                        {/* The dispatcher's own detail, carried rather than folded. */}
+                        {r.detail ? <span className="ml-2 font-mono">{r.detail}</span> : null}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
                 {failedIds(bulk.results).length > 0 ? (
-                  <p className="cap-banner-text m-0 text-label text-text-subtle">
+                  <p className="cap-banner-text">
                     The payments that did not take it are still selected, so the next attempt is exactly those.
                   </p>
                 ) : null}
               </div>
               <div className="cap-banner-actions">
-                <button type="button" className="cap-btn" data-variant="quiet" onClick={() => setDismissedFor(bulk)}>
+                <button
+                  type="button"
+                  className="cap-btn"
+                  data-variant="quiet"
+                  data-cap-part="dismiss"
+                  onClick={(e) => {
+                    // Capsomer's Dismiss: focus goes to the page's main region
+                    // when it was inside, never to <body>.
+                    const banner = e.currentTarget.closest<HTMLElement>("[data-cap='banner']");
+                    if (banner) dismissBanner(banner);
+                    setDismissedFor(bulk);
+                  }}
+                >
                   Dismiss
                 </button>
               </div>
