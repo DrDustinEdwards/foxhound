@@ -333,7 +333,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
       <header className="mb-7">
         <Link
           to={backLink.href}
-          className="mb-4 inline-block text-label text-text-subtle no-underline transition-opacity hover:opacity-80"
+          className="mb-4 inline-flex min-h-6 items-center text-label text-text-subtle no-underline transition-opacity hover:opacity-80"
         >
           &larr; {backLink.label}
         </Link>
@@ -628,19 +628,19 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
             </div>
             {attributionKind ? (
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Attribution</span>
+                <span className="font-mono text-micro uppercase tracking-wide text-text-secondary">Attribution</span>
                 <Pill variant="outline">
                   {ATTRIBUTION_KIND_LABELS[attributionKind]}
                   {attributionKind === "stripe_baseline" ? " - FREE" : ""}
                 </Pill>
                 {creditedStep ? (
-                  <span className="text-label text-text-tertiary">Credited to {creditedStep.label}</span>
+                  <span className="text-label text-text-secondary">Credited to {creditedStep.label}</span>
                 ) : null}
               </div>
             ) : null}
           </div>
         ) : (
-          <p className="m-0 mt-2 text-label text-text-tertiary">Still in recovery, no outcome yet.</p>
+          <p className="m-0 mt-2 text-label text-text-secondary">Still in recovery, no outcome yet.</p>
         )}
       </div>
 
