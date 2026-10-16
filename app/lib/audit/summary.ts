@@ -25,6 +25,17 @@ function line<T>(scope: ScopeOutcome<T>, render: (data: T) => string): string {
 }
 
 /**
+ * The summary's sentence plan, in the prompt's order. Exported so the
+ * /product/audit page describes the summary the model is asked for, read here
+ * rather than retyped (RULES.md 2.1). The prompt text is unchanged by it.
+ */
+export const AUDIT_SUMMARY_STRUCTURE = [
+  "The biggest revenue leak with its dollar amount.",
+  "What Foxhound fixes automatically today.",
+  "One forward-looking risk or opportunity.",
+] as const;
+
+/**
  * Legacy's prompt, with legacy's DATA block and legacy's three-sentence
  * structure. Pure: same result, same string.
  */
@@ -79,10 +90,8 @@ ${health}
 ${churn}
 Card Updater (last 30 days): ${cardUpdater}
 
-STRUCTURE, exactly 3 sentences:
-1. The biggest revenue leak with its dollar amount.
-2. What Foxhound fixes automatically today.
-3. One forward-looking risk or opportunity.
+STRUCTURE, exactly ${AUDIT_SUMMARY_STRUCTURE.length} sentences:
+${AUDIT_SUMMARY_STRUCTURE.map((s, i) => `${i + 1}. ${s}`).join("\n")}
 
 Return only the three sentences. No preamble. No list. No quotes.`;
 }
