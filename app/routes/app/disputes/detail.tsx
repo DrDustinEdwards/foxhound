@@ -609,7 +609,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
         onChange={(e) => {
           // The evidence file input sits in this markup but belongs to the
           // upload form; choosing a file is not a draft edit.
-          if ((e.target as HTMLInputElement).form === e.currentTarget) dispatchDraft({ type: "edit" });
+          if ((e.target as unknown as HTMLInputElement).form === e.currentTarget) dispatchDraft({ type: "edit" });
         }}
         onSubmit={() => dispatchDraft({ type: "submit" })}
       >

@@ -82,7 +82,7 @@ function fakeBucket(opts: { failPut?: boolean } = {}) {
         key,
         size: o.bytes.byteLength,
         httpMetadata: { contentType: o.contentType },
-        body: new Response(o.bytes).body,
+        body: new Response(o.bytes as unknown as BodyInit).body,
         arrayBuffer: async () => o.bytes.slice().buffer,
       };
     },

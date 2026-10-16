@@ -185,7 +185,8 @@ export async function deleteEvidenceFile(
 
 export type EvidenceFileRead =
   | { outcome: "ok"; body: ReadableStream | null; contentType: string; name: string }
-  | { outcome: "uploads_unavailable" | "not_found" };
+  | { outcome: "uploads_unavailable" }
+  | { outcome: "not_found" };
 
 /**
  * Recova's evidence-url, without the signed URL: the row must belong to the
