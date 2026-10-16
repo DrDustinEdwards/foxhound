@@ -236,14 +236,17 @@ describe("J69: an account with Intelligence sees Recova's deliveries, each marke
     expect(t).toContain(ALERT_METRIC_LABELS.health_score_avg);
   });
 
-  it("says alert breaches are recorded, not sent, which is what the evaluator does", async () => {
+  it("says alert breaches are recorded and emailed, which is what the nightly run does (J94, E21)", async () => {
     const t = text(await render({ intelligenceActive: true }));
-    expect(t).toContain("records each breach on that page and does not email or post to Slack");
-    // The evaluator's code, comments removed, names no send path of any kind:
-    // no send function, no notify or email module (by alias or relative path),
-    // no EMAIL binding, no Slack, no fetch.
-    const evaluator = code(readFileSync(new URL("../app/lib/intelligence/alerts.ts", import.meta.url), "utf8"));
-    expect(evaluator).not.toMatch(/send|notify|email|slack|fetch\(/i);
+    expect(t).toContain(
+      "records each breach on that page and emails it to your notification address; it does not post alerts to Slack",
+    );
+    expect(t).not.toMatch(/does not email/);
+    // The nightly run's code, comments removed, notifies each firing before it
+    // records it; every alert is created with the email channel (J33).
+    const run = code(readFileSync(new URL("../app/lib/intelligence/ai-run.server.ts", import.meta.url), "utf8"));
+    expect(run).toContain("const outcome = await notifyThresholdAlert(env, target, f, now);");
+    expect(run).toContain("buildAlertHistoryInsert(db, f, now, outcome.sent)");
   });
 });
 

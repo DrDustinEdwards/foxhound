@@ -593,7 +593,7 @@ export const DOC_GUIDES: DocGuide[] = [
         body: [
           "With Intelligence active, Settings and Intelligence lists what Intelligence would deliver to you and marks it not built: there is no weekly narrative email or Slack post yet, so there is nothing to set there.",
           { kind: "h3", text: "Health alert" },
-          "Settings and Alerts lets you set a threshold on average health score, and also on MRR at risk, churned MRR or contracted MRR, firing when the metric drops below or rises above your number. Foxhound checks every night and records each breach under Recent triggers on that page. It does not email or post to Slack when an alert fires yet, and it does not alert on one customer's score.",
+          "Settings and Alerts lets you set a threshold on average health score, and also on MRR at risk, churned MRR or contracted MRR, firing when the metric drops below or rises above your number. Foxhound checks every night, records each breach under Recent triggers on that page, and emails it to your notification address, no more than once a day for each alert. It does not post alerts to Slack, and it does not alert on one customer's score.",
         ],
       },
     ],
