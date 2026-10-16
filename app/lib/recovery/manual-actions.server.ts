@@ -506,18 +506,36 @@ export interface ResendDeps {
   send: (input: ResendSendInput) => Promise<EmailJobResult>;
 }
 
-/** The Reply-To for a resend (J03): `reply_to_email` on the connection the
- *  step's payment came through, as the engine's send reads it. Scoped to the
- *  account, so a step id never reads another merchant's address. */
-async function resendReplyTo(env: Env, accountId: string, stepId: string): Promise<string | null> {
+/** The merchant's sender for a resend: `sender_name` for the From name (E9)
+ *  and `reply_to_email` for the Reply-To (J03), both raw and nullable, on the
+ *  connection the step's payment came through, as the engine's send reads
+ *  them. Scoped to the account, so a step id never reads another merchant's
+ *  connection. */
+async function resendSender(
+  env: Env,
+  accountId: string,
+  stepId: string,
+): Promise<{ senderName: string | null; replyTo: string | null }> {
   const rows = await getDb(env)
-    .select({ replyTo: stripeConnections.replyToEmail })
+    .select({ senderName: stripeConnections.senderName, replyTo: stripeConnections.replyToEmail })
     .from(recoverySteps)
     .innerJoin(failedPayments, eq(failedPayments.id, recoverySteps.failedPaymentId))
     .innerJoin(stripeConnections, eq(stripeConnections.id, failedPayments.stripeConnectionId))
     .where(and(eq(recoverySteps.id, stepId), eq(recoverySteps.accountId, accountId)))
     .limit(1);
-  return rows[0]?.replyTo ?? null;
+  return { senderName: rows[0]?.senderName ?? null, replyTo: rows[0]?.replyTo ?? null };
+}
+
+/**
+ * Recova's resend footer line (app/api/payments/[id]/resend/route.ts, blob
+ * 35132cb6, line 61): `&copy; ${year} ${senderName}`, with the sender name as
+ * its From has it (`sender_name || 'Support'`). It is the resend's own line,
+ * not the engine's "You're receiving this from" sentence, because Recova's
+ * resend wraps the stored body in its route's own shell. Pure.
+ */
+export function resendFooterNote(senderName: string | null | undefined, year: number): string {
+  const name = senderName?.trim() ? senderName.trim() : "Support";
+  return `\u00a9 ${year} ${name}`;
 }
 
 /**
@@ -541,16 +559,23 @@ export function resendDepsFor(env: Env): ResendDeps {
         email: input.to,
         accountId: input.accountId,
       });
+      const sender = await resendSender(env, input.accountId, input.recoveryStepId);
       const job: EmailJob = {
         accountId: input.accountId,
         recoveryStepId: input.recoveryStepId,
         to: input.to,
-        replyTo: await resendReplyTo(env, input.accountId, input.recoveryStepId),
+        // E9: Recova's From name, `sender_name || 'Support'` (send.ts applies
+        // the Support fallback to a null name).
+        fromName: sender.senderName,
+        replyTo: sender.replyTo,
         subject: input.subject,
         bodyHtml: input.bodyHtml,
         template: TEMPLATE_LABEL_RESEND,
         unsubscribeToken,
         physicalAddress: env.PHYSICAL_ADDRESS ?? "",
+        // E9: Recova's resend footer line, first in the footer slot, before
+        // the approved unsubscribe link and postal address.
+        footerNote: resendFooterNote(sender.senderName, input.now.getUTCFullYear()),
         idempotencyKey: `resend:${input.recoveryStepId}:${input.now.getTime()}`,
       };
       return processEmailJob(env, job, null);
