@@ -127,7 +127,7 @@ describe("PLANT 2: what the disallow set must and must not contain", () => {
       }
     }
     // `/audit` bare must not appear, but its authenticated children must.
-    expect(GROUPS.get("*")).toContain("Disallow: /audit/history");
+    expect(GROUPS.get("*")).toContain("Disallow: /audit/dashboard");
     expect(GROUPS.get("*")).not.toContain("Disallow: /audit");
   });
 

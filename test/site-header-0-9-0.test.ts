@@ -136,7 +136,7 @@ describe("the avatar menu's rows", () => {
       ["Billing", "/billing"],
       ["Team", "/settings/team"],
       ["Audit settings", "/settings/audit"],
-      ["Audit history", "/audit/history"],
+      ["Audit history", "/audit/dashboard"],
       ["Email settings", "/settings/email"],
       ["Alerts", "/settings/alerts"],
       ["API keys", "/settings/api-keys"],

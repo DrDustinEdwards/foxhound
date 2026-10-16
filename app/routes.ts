@@ -39,11 +39,14 @@ export default [
     // /audit/connect is the consent screen, /audit/callback is the OAuth
     // return, and /audit/results renders a run held together by a five-minute
     // cookie. Legacy mounts all three under its own marketing chrome for the
-    // same reason. The two AUTHENTICATED audit surfaces (/audit/history and
+    // same reason. The two AUTHENTICATED audit surfaces (/audit/dashboard and
     // /audit/runs/:id) stay under the app shell where they were built.
     route("audit/connect", "./routes/audit/connect.tsx"),
     route("audit/callback", "./routes/audit/callback.ts"),
     route("audit/results", "./routes/audit/results.tsx"),
+    // J43: the signed-in history moved to Recova's /audit/dashboard (below, in
+    // the app shell). The old path answers one 301 to it.
+    route("audit/history", "./routes/audit/history-redirect.ts"),
     route("marketing/generate-email-sample", "./routes/marketing/generate-email-sample.ts"),
     ...prefix("blog", [
       index("./routes/blog/index.tsx"),
@@ -142,9 +145,11 @@ export default [
     // /audit/dashboard and /audit/results/[id] inside its own marketing-chrome
     // layout; Foxhound's /audit is the anonymous estimator under the marketing
     // shell, so these two live under the APP shell where a signed-in merchant's
-    // own data belongs, and take names that cannot collide with it.
+    // own data belongs. J43 (row U2) put the history back on Recova's own path,
+    // /audit/dashboard, which cannot collide with /audit; the stored run keeps
+    // /audit/runs/:id until its own row moves it.
     ...prefix("audit", [
-      route("history", "./routes/app/audit/history.tsx"),
+      route("dashboard", "./routes/app/audit/dashboard.tsx"),
       route("runs/:id", "./routes/app/audit/run.tsx"),
     ]),
     route("help", "./routes/app/help.tsx"),
