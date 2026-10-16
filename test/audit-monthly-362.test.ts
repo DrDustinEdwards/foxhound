@@ -978,3 +978,44 @@ describe("the run message says what the cron queued", () => {
     );
   });
 });
+
+describe("the monthly audit email escapes what it interpolates (review of PR 146)", () => {
+  // The summary is model-written and the advisory is built from Stripe data, so
+  // neither may land in the merchant's inbox as markup.
+  const hostile = `<img src=x onerror="alert(1)">&'`;
+  const escaped = "&lt;img src=x onerror=&quot;alert(1)&quot;&gt;&amp;&#39;";
+  const withAdvisory = (advisory: string) =>
+    resultWith({
+      cardUpdater: ok({
+        eventsInWindow: 0,
+        expiredCardDeclinesInWindow: 3,
+        advisory,
+        windowDays: 30,
+      }),
+    });
+
+  it("the model-written summary is escaped", () => {
+    const { bodyHtml } = emailFor({ summary: hostile });
+    expect(bodyHtml).not.toContain("<img");
+    expect(bodyHtml).toContain(`<p>${escaped}</p>`);
+  });
+
+  it("the Card Updater advisory is escaped", () => {
+    const { bodyHtml } = emailFor({ result: withAdvisory(hostile) });
+    expect(bodyHtml).not.toContain("<img");
+    expect(bodyHtml).toContain(`<p><strong>Card Updater:</strong> ${escaped}</p>`);
+  });
+
+  it("the audit link is escaped as an attribute", () => {
+    const { bodyHtml } = emailFor({ runId: `r"><script>x</script>` });
+    expect(bodyHtml).not.toContain("<script>");
+    expect(bodyHtml).toContain(`/audit/results/r&quot;&gt;&lt;script&gt;x&lt;/script&gt;"`);
+  });
+
+  it("escapes once, never twice", () => {
+    const { bodyHtml } = emailFor({ summary: "Fees & refunds", result: withAdvisory("A & B") });
+    expect(bodyHtml).toContain("<p>Fees &amp; refunds</p>");
+    expect(bodyHtml).toContain("<strong>Card Updater:</strong> A &amp; B</p>");
+    expect(bodyHtml).not.toContain("&amp;amp;");
+  });
+});

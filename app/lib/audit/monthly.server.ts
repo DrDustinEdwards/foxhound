@@ -1,3 +1,4 @@
+import { escapeHtml } from "capsomer/email";
 import { and, desc, eq, isNull, lt } from "drizzle-orm";
 
 import type { Db } from "~/db";
@@ -119,8 +120,10 @@ function figure<T>(scope: ScopeOutcome<T>, render: (data: T) => string): string 
   return scope.ok ? render(scope.data) : SCOPE_UNREAD;
 }
 
+/** One labelled line. Both halves are plain text and are escaped HERE, once, so
+ *  a caller passes raw strings and nothing is escaped twice. */
 function row(label: string, value: string): string {
-  return `<p><strong>${label}:</strong> ${value}</p>`;
+  return `<p><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</p>`;
 }
 
 export interface MonthlyAuditEmailInput {
@@ -162,7 +165,12 @@ export function buildMonthlyAuditEmail(input: MonthlyAuditEmailInput): {
 } {
   const { result, summary, runId, baseUrl, comparisons, periodMonth } = input;
   const cur = result.meta.currency;
-  const link = `${baseUrl}/audit/results/${runId}`;
+  // EVERY interpolated value is escaped exactly once (review of PR 146): the
+  // summary is model-written and the advisory is built from Stripe data. `row`
+  // escapes its own label and value; everything else is escaped where it is
+  // placed. The subject needs none: it is a header, and Capsomer's renderer
+  // folds it to one line.
+  const link = escapeHtml(`${baseUrl}/audit/results/${runId}`);
 
   // The absorbed digest line, with the month-over-month delta the claim table's
   // stored snapshot already makes available.
@@ -177,12 +185,14 @@ export function buildMonthlyAuditEmail(input: MonthlyAuditEmailInput): {
   // absorbed used `formatMoney` for exactly this figure and keeps it.
   const addsLines = comparisons.length
     ? comparisons.map((c) => {
-        const total = `<strong>${formatMoney(c.cents, c.currency)}</strong>`;
+        const total = `<strong>${escapeHtml(formatMoney(c.cents, c.currency))}</strong>`;
+        const code = escapeHtml(c.currency.toUpperCase());
         if (c.changeCents === null) {
-          return `<p>${total} recovered to date (${c.currency.toUpperCase()}).</p>`;
+          return `<p>${total} recovered to date (${code}).</p>`;
         }
         const dir = c.changeCents >= 0 ? "up" : "down";
-        return `<p>${total} recovered to date (${c.currency.toUpperCase()}), ${dir} ${formatMoney(Math.abs(c.changeCents), c.currency)} since last month.</p>`;
+        const change = escapeHtml(formatMoney(Math.abs(c.changeCents), c.currency));
+        return `<p>${total} recovered to date (${code}), ${dir} ${change} since last month.</p>`;
       })
     : [`<p>No recovered payments are attributed to Foxhound yet.</p>`];
 
@@ -198,7 +208,7 @@ export function buildMonthlyAuditEmail(input: MonthlyAuditEmailInput): {
   const advisory = result.cardUpdater.ok ? result.cardUpdater.data.advisory : null;
 
   const bodyHtml = [
-    summary ? `<p>${summary}</p>` : "",
+    summary ? `<p>${escapeHtml(summary)}</p>` : "",
 
     `<h2>What Foxhound did this month</h2>`,
     ...addsLines,
