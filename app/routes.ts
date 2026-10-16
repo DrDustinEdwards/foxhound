@@ -232,6 +232,9 @@ export default [
   // after Foxhound's own key so the path and the body cannot drift apart.
   route(INDEXNOW_KEY_PATH.slice(1), "./routes/files/indexnow-key.ts"),
   route("og/:params", "./routes/files/og.ts"),
+  // Recova's card URL, /og?type=blog&title=...&description=... (ruling 41,
+  // row F6). Same module as the path form, so it needs its own id.
+  route("og", "./routes/files/og.ts", { id: "og-recova" }),
 
   // Recova's config-level redirects (J23, ledger row F17), at Recova's own
   // paths. One resource module answers all of them from Recova's table in

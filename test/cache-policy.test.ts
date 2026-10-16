@@ -57,6 +57,8 @@ const PUBLIC_ROUTES = [
   ["/llms-full.txt", "files"],
   ["/feed.rss", "files"],
   ["/og/anything", "files"],
+  // Recova's card URL shape (ruling 41, J20): the type rides in the query.
+  ["/og", "files"],
 ] as const;
 
 /** Every PRIVATE-class route, including the ones added after 345 was written. */

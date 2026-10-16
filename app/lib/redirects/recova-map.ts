@@ -41,6 +41,7 @@ export const RECOVA_REDIRECT_MAP: RedirectMapEntry[] = [
   { from: "/robots.txt", to: "/robots.txt" },
   { from: "/llms.txt", to: "/llms.txt" },
   { from: "/llms-full.txt", to: "/llms-full.txt" },
+  { from: "/og", to: "/og" },
   { from: "/console", to: "/console" },
   { from: "/recovery/audit", to: "/audit", note: "One of Recova's own next.config.ts redirects, mapped straight to Recova's destination so it is one hop." },
   { from: "/recovery/audit/connect", to: "/audit/connect", note: "One of Recova's own next.config.ts redirects, mapped straight to Recova's destination so it is one hop." },

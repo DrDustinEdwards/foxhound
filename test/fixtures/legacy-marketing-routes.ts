@@ -32,7 +32,8 @@
 //      marketing routes, out of scope), and /feed.rss.
 //   3. Top-level public SEO/utility file routes with a direct Foxhound
 //      equivalent at the identical path (sitemap.ts -> /sitemap.xml,
-//      robots.ts -> /robots.txt, llms.txt, llms-full.txt): included so a
+//      robots.ts -> /robots.txt, llms.txt, llms-full.txt, and since ruling
+//      41's entry app/og/route.tsx -> /og): included so a
 //      crawler hitting any of these on the old domain also gets a 301
 //      rather than a 404.
 //   4. /console (app/(app)/console), named explicitly by
@@ -97,6 +98,10 @@ export const LEGACY_MARKETING_ROUTES: LegacyRouteFixtureEntry[] = [
   { url: "/robots.txt", sourceFile: "app/robots.ts" },
   { url: "/llms.txt", sourceFile: "app/llms.txt/route.ts" },
   { url: "/llms-full.txt", sourceFile: "app/llms-full.txt/route.ts" },
+  // Recova's social card image (ruling 41, row F6): /og and /og?type=blog
+  // are already embedded in shared links and third-party caches, so the old
+  // URL has to keep answering after the move.
+  { url: "/og", sourceFile: "app/og/route.tsx" },
 
   // The one named authenticated-surface exception (TASK-foxhound-phase6.md)
   { url: "/console", sourceFile: "app/(app)/console/page.tsx" },
