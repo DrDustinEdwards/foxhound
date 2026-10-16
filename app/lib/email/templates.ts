@@ -1,6 +1,7 @@
 import {
   checkUrl,
   escapeHtml,
+  notice,
   renderEmail,
   reset,
   type Block,
@@ -67,26 +68,44 @@ export const foxhoundMail: Template<FoxhoundMailData> = {
   blocks: (d) => htmlToBlocks(d.bodyHtml),
 };
 
-export interface RenderInput {
+/**
+ * A merchant notice as Capsomer's `notice` template takes it: a title (the
+ * mail's one heading), its paragraphs, and an optional button. Plain strings,
+ * never markup: Capsomer escapes each one, so a customer name from Stripe is
+ * shown exactly as written.
+ */
+export interface EmailNotice {
+  title: string;
+  body: string[];
+  action?: { label: string; url: string };
+}
+
+/** The content of one mail: a body the sender wrote as HTML, or a notice. */
+export type RenderContent = { bodyHtml: string; notice?: never } | { notice: EmailNotice; bodyHtml?: never };
+
+export type RenderInput = RenderContent & {
   subject: string;
-  bodyHtml: string;
   /** The name set in type at the top of the mail: the From display name. */
   brandName: string;
   to: string;
-  /** Customer mail only: the unsubscribe link and the postal address. */
+  /** The footer slot, under Capsomer's "This message was sent to" line. */
   footer?: FooterLine[];
   tracking?: EmailTracking | null;
-}
+};
 
 /** Render one Foxhound mail to a subject, an HTML part and a text part. */
 export function renderFoxhoundEmail(input: RenderInput): Rendered {
-  const rendered = renderEmail(foxhoundMail, {
-    subjectLine: input.subject,
-    bodyHtml: input.bodyHtml,
+  const common = {
     brand: { name: input.brandName, family: FOXHOUND_EMAIL_FAMILY },
     to: input.to,
     footer: input.footer,
-  });
+  };
+  // A notice goes on Capsomer's own `notice` template, its subject passed as
+  // copy because the subject and the title differ (E10: "Payment recovered:
+  // $99.00 from Jane Buyer" over the title "Payment recovered.").
+  const rendered = input.notice
+    ? renderEmail(notice, { ...common, ...input.notice, copy: { subject: input.subject } })
+    : renderEmail(foxhoundMail, { ...common, subjectLine: input.subject, bodyHtml: input.bodyHtml });
   if (!input.tracking) return rendered;
   // The pixel and the trap go into the HTML part only. In the text part a
   // reader would see them, and a text part cannot load an image anyway.
@@ -95,6 +114,32 @@ export function renderFoxhoundEmail(input: RenderInput): Rendered {
     input.tracking.honeypotUrl,
   );
   return { ...rendered, html };
+}
+
+// ---- Recova's footer line ---------------------------------------------------------
+//
+// Recova's shell (lib/email.ts wrapEmailHtml, blob 3f882729) puts one sentence
+// in every footer: "You're receiving this from {senderName} about a recent
+// payment. &copy; {year}". Under it, a mail with an unsubscribe token gets the
+// Unsubscribe link and the postal address; a mail without one gets "Manage
+// email settings" linking to APP_URL/settings. Recovery mail carries the first
+// (J85); the merchant notices that went through wrapEmailHtml carry the second
+// (E10, with 'Recova' as the sender name). Capsomer's footer slot holds both.
+
+/**
+ * Recova's footer sentence, with the sender name as Recova's From has it
+ * (`sender_name || 'Support'`). Rows E4 to E6 carry it (J85), E10 with
+ * "Foxhound". Pure.
+ */
+export function recoveryFooterNote(senderName: string | null | undefined, year: number): string {
+  const name = senderName?.trim() ? senderName.trim() : "Support";
+  return `You're receiving this from ${name} about a recent payment. \u00a9 ${year}`;
+}
+
+/** Recova's footer link on mail with no unsubscribe: "Manage email settings",
+ *  to the settings hub (Recova's APP_URL/settings; Foxhound's /settings). */
+export function manageEmailSettingsLine(baseUrl: string): FooterLine {
+  return { text: "Manage email settings", url: `${baseUrl}/settings` };
 }
 
 // ---- the password reset (J82, parity row E1) -----------------------------------

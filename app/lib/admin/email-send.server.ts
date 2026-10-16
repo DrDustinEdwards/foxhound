@@ -12,17 +12,14 @@ import {
   sendTransactionalEmail,
 } from "~/lib/email/send";
 import { isSuppressed } from "~/lib/email/suppression";
-import type { EmailAudience, EmailJob } from "~/lib/email/types";
+import type { EmailNotice } from "~/lib/email/templates";
+import type { EmailAudience, OutboundEmailJob } from "~/lib/email/types";
 import { signUnsubscribeToken } from "~/lib/email/unsubscribe-token";
 import { recoveryFooterNote } from "~/lib/engine/execute-step";
 import { DIGEST_SENDER_FALLBACK, buildDigestEmail, digestSubject } from "~/lib/recovery/digest-email";
 import { buildTemplateEmail } from "~/lib/recovery/email-template";
 import { buildExpiringCardEmail, expiringCardSubject } from "~/lib/recovery/expiring-card-email";
-import {
-  RECOVERY_NOTIFY_FROM_NAME,
-  recoveryNotifyBody,
-  recoveryNotifySubject,
-} from "~/lib/recovery/merchant-notification.server";
+import { RECOVERY_NOTIFY_FROM_NAME, recoveryNotifyContent } from "~/lib/recovery/merchant-notification.server";
 import { sequenceCompleteBody, sequenceCompleteSubject } from "~/lib/recovery/sequence-complete-notification.server";
 import { buildWinbackEmail, winbackSubject } from "~/lib/recovery/winback-email";
 import { isValidReplyToEmail } from "~/lib/settings/reply-to";
@@ -252,7 +249,7 @@ export async function loadMerchantEmailSettings(db: Db, accountId: string): Prom
 
 /** One email ready for the send module, in the shape its sender takes. */
 export type PreparedEmail =
-  | { channel: "job"; audience: EmailAudience; job: EmailJob }
+  | { channel: "job"; audience: EmailAudience; job: OutboundEmailJob }
   | { channel: "transactional"; message: { to: string; subject: string; bodyHtml: string } }
   | { channel: "rendered"; to: string; rendered: Rendered };
 
@@ -356,7 +353,9 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
   }
 
   if (type.audience === "merchant") {
-    const merchantJob = (content: { subject: string; bodyHtml: string; fromName: string }): PreparedEmail => ({
+    const merchantJob = (
+      content: { subject: string; fromName: string; footerNote?: string } & ({ bodyHtml: string } | { notice: EmailNotice }),
+    ): PreparedEmail => ({
       channel: "job",
       audience: "merchant",
       job: {
@@ -398,11 +397,8 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
       });
     }
     if (type.type === "recovery_notification") {
-      return merchantJob({
-        fromName: RECOVERY_NOTIFY_FROM_NAME,
-        subject: recoveryNotifySubject(sample),
-        bodyHtml: recoveryNotifyBody({ ...sample, declineCategory: "soft", paymentUrl }),
-      });
+      // The notifier's own content function (E10): the notice and its footer.
+      return merchantJob(recoveryNotifyContent({ ...sample, declineCategory: "soft" }, paymentUrl, now));
     }
     if (type.type === "sequence_complete") {
       return merchantJob({

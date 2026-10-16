@@ -6,7 +6,7 @@ import { isUniqueConstraintError } from "~/lib/money/serializer";
 
 import { sendEmail } from "./send";
 import { isSuppressed } from "./suppression";
-import type { EmailJob } from "./types";
+import type { OutboundEmailJob } from "./types";
 
 // Email dispatch: suppression gate -> send -> email_sends log.
 //
@@ -65,7 +65,7 @@ export async function hashRecipient(email: string): Promise<string> {
 export function buildEmailSendRow(
   db: Db,
   input: {
-    job: EmailJob;
+    job: OutboundEmailJob;
     status: EmailSendStatus;
     providerMessageId: string | null;
     error: string | null;
@@ -164,7 +164,7 @@ export function buildEmailSendRow(
  */
 export async function processEmailJob(
   env: Env,
-  job: EmailJob,
+  job: OutboundEmailJob,
   queueMessageId: string | null,
 ): Promise<EmailJobResult> {
   const db = getDb(env);
@@ -266,7 +266,7 @@ export async function processEmailJob(
 async function claimSend(
   db: Db,
   input: {
-    job: EmailJob;
+    job: OutboundEmailJob;
     recipientHash: string;
     queueMessageId: string | null;
     now: Date;

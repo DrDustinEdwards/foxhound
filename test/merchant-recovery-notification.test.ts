@@ -290,13 +290,15 @@ describe("PLANT 6: the hook is gated on the money write applying", () => {
     const wide = new RegExp("[" + String.fromCharCode(0x2014, 0x2013) + "]");
     expect(recoveryNotifySubject({ amountCents: 9900, currency: "usd", customerLabel: "X" })).not.toMatch(wide);
     expect(
-      recoveryNotifyBody({
-        amountCents: 9900,
-        currency: "usd",
-        customerLabel: "X",
-        declineCategory: "soft",
-        paymentUrl: "https://x/1",
-      }),
+      JSON.stringify(
+        recoveryNotifyBody({
+          amountCents: 9900,
+          currency: "usd",
+          customerLabel: "X",
+          declineCategory: "soft",
+          paymentUrl: "https://x/1",
+        }),
+      ),
     ).not.toMatch(wide);
   });
 });

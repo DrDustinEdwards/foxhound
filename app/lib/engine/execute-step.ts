@@ -11,6 +11,7 @@ import {
 } from "~/lib/constants";
 import { signCardUpdateToken } from "~/lib/card-update/token";
 import { processEmailJob, type EmailJobResult } from "~/lib/email/dispatch";
+import { recoveryFooterNote } from "~/lib/email/templates";
 import type { EmailJob } from "~/lib/email/types";
 import { signUnsubscribeToken } from "~/lib/email/unsubscribe-token";
 import { signEngagementToken } from "~/lib/engagement/token";
@@ -388,17 +389,10 @@ export const TEMPLATE_LABEL_GENERATED = "recovery_dunning";
  *  it with a send failure, which is the only place the fallback is recorded. */
 export const TEMPLATE_LABEL_FALLBACK = "recovery_dunning_template";
 
-/**
- * Recova's footer sentence on every recovery email (lib/email.ts wrapEmailHtml,
- * blob 3f882729): "You're receiving this from {senderName} about a recent
- * payment. (c) {year}", with the sender name as Recova's From has it
- * (`sender_name || 'Support'`). J02 left it out as a copy change for the email
- * rows to settle; rows E4 to E6 carry it (J85). Pure.
- */
-export function recoveryFooterNote(senderName: string | null | undefined, year: number): string {
-  const name = senderName?.trim() ? senderName.trim() : "Support";
-  return `You're receiving this from ${name} about a recent payment. \u00a9 ${year}`;
-}
+// Recova's footer sentence (lib/email.ts wrapEmailHtml, blob 3f882729) lives in
+// the templates module now, beside the frame, because the merchant notices
+// carry it too (E10). Re-exported so its callers keep one import.
+export { recoveryFooterNote };
 
 /** Build the queued EmailJob for a recovery send. Pure. */
 export function buildRecoveryEmailJob(

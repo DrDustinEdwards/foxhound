@@ -4,6 +4,7 @@ import { accounts, failedPayments, getDb } from "~/db";
 import type { Db } from "~/db";
 import { processEmailJob } from "~/lib/email/dispatch";
 import type { EmailJobResult } from "~/lib/email/dispatch";
+import { recoveryFooterNote, type EmailNotice } from "~/lib/email/templates";
 
 // THE MERCHANT RECOVERY NOTIFICATION. Ported from legacy's
 // app/api/webhooks/stripe/route.ts (blob `deb585e4`, 47,093 bytes), the
@@ -25,7 +26,12 @@ import type { EmailJobResult } from "~/lib/email/dispatch";
 // NO UNSUBSCRIBE AND NO POSTAL FOOTER, because this is platform-to-merchant
 // mail about the merchant's own account. Legacy sends it with neither. The job
 // declares `audience: "merchant"`, which is what scopes CAN-SPAM off; the guard
-// still fires for anything that omits the field.
+// still fires for anything that omits the field. Its footer is legacy's other
+// one (lib/email.ts wrapEmailHtml with no unsubscribe token): the "You're
+// receiving this from" sentence and a "Manage email settings" link (E10).
+//
+// THE SHELL IS CAPSOMER'S `notice` TEMPLATE (E10, job J88; RULES.md 3.16):
+// title, sentence, View payment button, in Foxhound's teal family.
 
 export const RECOVERY_NOTIFY_TEMPLATE = "merchant_recovery_notify";
 
@@ -84,18 +90,19 @@ export function recoveryNotifySubject(data: {
 }
 
 /**
- * Legacy's body, verbatim in wording and order. The only change is the link
- * target: legacy points at `${APP_URL}/payments/${id}`, Foxhound's route for the
- * same page is `/recovery/payments/:id`.
+ * Legacy's body, verbatim in wording and order (route.ts:759-761), as the
+ * content of Capsomer's `notice` template (E10, J88): legacy's bold first line
+ * is the title and the mail's one heading, its sentence is the one paragraph,
+ * and its "View payment" button is the action. Foxhound's name where legacy
+ * says Recova. The one other change is the link target: legacy points at
+ * `${APP_URL}/payments/${id}`, Foxhound's route for the same page is
+ * `/recovery/payments/:id` until the URL reverts (J09) land.
  *
- * PLAIN SEMANTIC HTML, no inline colours: legacy styles the button from its
- * EMAIL_COLORS module, which Foxhound does not have (the wall buildDigestEmail
- * and the S33 preview banner both hit), and check-tokens fails the build on raw
- * hex. The anchor stays an anchor.
- *
- * The title line is a real heading (J02 review): the email frame no longer
- * promotes an all-bold paragraph to a heading, so the same words that were
- * `<p><strong>` are now `<h1>`, and render as the mail's title.
+ * PLAIN STRINGS, NOT MARKUP. Capsomer escapes each value, so a customer name
+ * from Stripe is shown exactly as written; before this it was put into HTML
+ * unescaped and read back, and "<Co>" in a name vanished as a tag. Legacy's
+ * bold run on the amount has no place in a Capsomer paragraph (a Capsomer gap,
+ * named in the PR); the words are unchanged.
  */
 export function recoveryNotifyBody(data: {
   amountCents: number;
@@ -103,14 +110,36 @@ export function recoveryNotifyBody(data: {
   customerLabel: string;
   declineCategory: string;
   paymentUrl: string;
-}): string {
+}): EmailNotice {
   const amount = formatNotifyAmount(data.amountCents, data.currency);
-  return (
-    `<h1>Payment recovered.</h1>` +
-    `<p>${data.customerLabel} just paid <strong>${amount}</strong>. ` +
-    `Foxhound recovered it automatically after a ${data.declineCategory} decline.</p>` +
-    `<p><a href="${data.paymentUrl}">View payment</a></p>`
-  );
+  return {
+    title: "Payment recovered.",
+    body: [
+      `${data.customerLabel} just paid ${amount}. ` +
+        `Foxhound recovered it automatically after a ${data.declineCategory} decline.`,
+    ],
+    action: { label: "View payment", url: data.paymentUrl },
+  };
+}
+
+/**
+ * Everything the notice job says and carries, from the loaded data. Pure, and
+ * shared with the admin preview so a preview is this function's output: the
+ * platform's From name, legacy's subject, the notice, and legacy's footer
+ * sentence with "Foxhound" as `wrapEmailHtml(notifyBody, 'Recova')` has it
+ * (send.ts puts "Manage email settings" under it on merchant mail).
+ */
+export function recoveryNotifyContent(
+  data: { amountCents: number; currency: string; customerLabel: string; declineCategory: string },
+  paymentUrl: string,
+  now: Date,
+): { fromName: string; subject: string; notice: EmailNotice; footerNote: string } {
+  return {
+    fromName: RECOVERY_NOTIFY_FROM_NAME,
+    subject: recoveryNotifySubject(data),
+    notice: recoveryNotifyBody({ ...data, paymentUrl }),
+    footerNote: recoveryFooterNote(RECOVERY_NOTIFY_FROM_NAME, now.getUTCFullYear()),
+  };
 }
 
 /**
@@ -185,7 +214,7 @@ export async function loadNotificationData(
  * NEVER THROWS. Legacy wraps this whole block in a try/catch that logs to
  * Sentry and continues, because the recovery and its fee are already committed
  * and a mail failure must not unwind them or fail the webhook. Returns the
- * result for the caller to log, or null when nothing was owed.
+ * a named outcome for the caller to log, never null (RULES.md 3.16).
  */
 export async function sendRecoveryNotification(
   env: Env,
@@ -197,22 +226,14 @@ export async function sendRecoveryNotification(
     if ("skipped" in data) return { kind: "skipped", reason: data.skipped };
 
     const baseUrl = env.BETTER_AUTH_URL ?? "";
-    const bodyHtml = recoveryNotifyBody({
-      amountCents: data.amountCents,
-      currency: data.currency,
-      customerLabel: data.customerLabel,
-      declineCategory: data.declineCategory,
-      paymentUrl: `${baseUrl}/recovery/payments/${ctx.failedPaymentId}`,
-    });
+    const content = recoveryNotifyContent(data, `${baseUrl}/recovery/payments/${ctx.failedPaymentId}`, new Date());
 
     const result = await processEmailJob(
       env,
       {
         accountId: ctx.accountId,
         to: data.notificationEmail,
-        fromName: RECOVERY_NOTIFY_FROM_NAME,
-        subject: recoveryNotifySubject(data),
-        bodyHtml,
+        ...content,
         template: RECOVERY_NOTIFY_TEMPLATE,
         // Platform-to-merchant mail. See EmailAudience.
         audience: "merchant",
