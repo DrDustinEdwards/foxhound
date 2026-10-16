@@ -112,7 +112,7 @@ function sizeClasses(html: string): string[] {
   return out;
 }
 
-const SIGNUP_LINE = `We start recovering where Stripe's own retries stop. You pay ${RECOVERY_FEE_PERCENT}% of what we recover. Nothing until then.`;
+const SIGNUP_LINE = `You pay ${RECOVERY_FEE_PERCENT}% of what we recover. Nothing until then.`;
 
 const LOGIN = { googleEnabled: true, verified: false, error: null };
 const SIGNUP = { googleEnabled: true };
@@ -316,14 +316,18 @@ describe("A2 /login: Recova's page", () => {
 });
 
 describe("A3 /signup: Recova's page", () => {
-  it("the line under the heading is true against the engine: no 'immediately' (RULES.md 3.3)", () => {
-    // Review round 1. The first soft failure is parked as stripe_retrying and
-    // Foxhound's sequence starts when Stripe's own retries stop; hard declines
-    // start at once. "We start recovering immediately" promised neither.
-    const html = text(render(signup.default as AnyComponent, SIGNUP));
-    expect(html).toContain(SIGNUP_LINE);
-    expect(html).not.toMatch(/immediately/i);
-    expect(code("app/routes/auth/signup.tsx")).not.toMatch(/immediately/i);
+  it("the line under the heading is exactly the sentence that ships, with no timing claim (review rounds 1 and 2)", () => {
+    // Recova's "We start recovering immediately." is false here, and so is any
+    // single timing clause: a soft failure waits for Stripe's own retries
+    // (RULES.md 3.3), a hard decline starts at once, and a merchant with Smart
+    // Retries off starts at once too. So the timing clause is dropped and
+    // Recova's remaining sentence ships, with the fee from the engine.
+    expect(RECOVERY_FEE_PERCENT).toBe(20);
+    const html = render(signup.default as AnyComponent, SIGNUP);
+    const line = html.match(/<\/h1>\s*<p[^>]*>([\s\S]*?)<\/p>/)?.[1];
+    expect(line, "the line under the h1").toBeDefined();
+    expect(text(line!)).toBe("You pay 20% of what we recover. Nothing until then.");
+    expect(text(html)).not.toMatch(/immediately|we start recovering|retries stop/i);
   });
 
   it("Recova's heading and line, the fee read from Foxhound's own constant", () => {
