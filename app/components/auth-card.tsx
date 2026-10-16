@@ -70,6 +70,7 @@ export function AuthField({
   type,
   autoComplete,
   placeholder,
+  errorId,
 }: {
   id: string;
   label: string;
@@ -79,6 +80,9 @@ export function AuthField({
   type: "email" | "password";
   autoComplete: string;
   placeholder?: string;
+  /** The id of the alert showing the form's error, when there is one: the
+   *  input is then marked invalid and described by it (review round 1). */
+  errorId?: string;
 }) {
   const labelEl = (
     <label className="cap-field-label" htmlFor={id}>
@@ -106,6 +110,8 @@ export function AuthField({
         autoComplete={autoComplete}
         placeholder={placeholder}
         required
+        aria-invalid={errorId ? true : undefined}
+        aria-describedby={errorId}
       />
     </div>
   );

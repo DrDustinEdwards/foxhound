@@ -101,11 +101,19 @@ export default function Login({ loaderData, actionData }: Route.ComponentProps) 
           </div>
         ) : null}
         <div className="mb-4">
-          <AuthField id="login-email" label="Email" name="email" type="email" autoComplete="email" />
+          <AuthField
+            id="login-email"
+            errorId={error ? "login-error" : undefined}
+            label="Email"
+            name="email"
+            type="email"
+            autoComplete="email"
+          />
         </div>
         <div className="mb-6">
           <AuthField
             id="login-password"
+            errorId={error ? "login-error" : undefined}
             label="Password"
             name="password"
             type="password"
@@ -121,7 +129,7 @@ export default function Login({ loaderData, actionData }: Route.ComponentProps) 
           />
         </div>
         {error ? (
-          <div className="mb-4">
+          <div id="login-error" className="mb-4">
             <Alert tone="crit">{error}</Alert>
           </div>
         ) : null}

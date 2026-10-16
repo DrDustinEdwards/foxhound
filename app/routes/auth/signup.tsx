@@ -106,18 +106,26 @@ export default function Signup({ loaderData, actionData }: Route.ComponentProps)
     <AuthCard>
       <AuthHeading
         title="Connect Stripe once"
-        subtitle={`We start recovering immediately. You pay ${RECOVERY_FEE_PERCENT}% of what we recover. Nothing until then.`}
+        subtitle={`We start recovering where Stripe's own retries stop. You pay ${RECOVERY_FEE_PERCENT}% of what we recover. Nothing until then.`}
       />
 
       {loaderData.googleEnabled ? <GoogleContinue /> : null}
 
       <Form method="post">
         <div className="mb-4">
-          <AuthField id="signup-email" label="Email" name="email" type="email" autoComplete="email" />
+          <AuthField
+            id="signup-email"
+            errorId={actionData?.error ? "signup-error" : undefined}
+            label="Email"
+            name="email"
+            type="email"
+            autoComplete="email"
+          />
         </div>
         <div className="mb-6">
           <AuthField
             id="signup-password"
+            errorId={actionData?.error ? "signup-error" : undefined}
             label="Password"
             hint={`(min ${MIN_PASSWORD_LENGTH} characters)`}
             name="password"
@@ -126,7 +134,7 @@ export default function Signup({ loaderData, actionData }: Route.ComponentProps)
           />
         </div>
         {actionData?.error ? (
-          <div className="mb-4">
+          <div id="signup-error" className="mb-4">
             <Alert tone="crit">{actionData.error}</Alert>
           </div>
         ) : null}

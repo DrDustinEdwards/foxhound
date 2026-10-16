@@ -77,6 +77,7 @@ export default function ForgotPassword({ actionData }: Route.ComponentProps) {
         <div className="mb-6">
           <AuthField
             id="forgot-email"
+            errorId={actionData?.error ? "forgot-error" : undefined}
             label="Email"
             name="email"
             type="email"
@@ -85,7 +86,7 @@ export default function ForgotPassword({ actionData }: Route.ComponentProps) {
           />
         </div>
         {actionData?.error ? (
-          <div className="mb-4">
+          <div id="forgot-error" className="mb-4">
             <Alert tone="crit">{actionData.error}</Alert>
           </div>
         ) : null}

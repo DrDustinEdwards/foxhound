@@ -47,12 +47,15 @@ export async function action({ request, context }: Route.ActionArgs) {
   const password = String(form.get("password") ?? "");
   const confirm = String(form.get("confirm") ?? "");
 
-  // Recova's two checks, in Recova's order and words.
+  // The token first (review round 1): Recova's page has no token check of its
+  // own (its Supabase session carries the link), so a missing link is said
+  // before anything is asked of the passwords. Then Recova's two checks, in
+  // Recova's order and words.
+  if (!token) return refuse("This reset link is invalid or expired.");
   if (password !== confirm) return refuse("Passwords do not match");
   if (password.length < MIN_PASSWORD_LENGTH) {
     return refuse(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
   }
-  if (!token) return refuse("This reset link is invalid or expired.");
 
   const res = await getAuth(env).api.resetPassword({
     body: { newPassword: password, token },
@@ -90,6 +93,7 @@ export default function ResetPassword({ loaderData, actionData }: Route.Componen
         <div className="mb-4">
           <AuthField
             id="reset-password"
+            errorId={actionData?.error ? "reset-error" : undefined}
             label="New password"
             name="password"
             type="password"
@@ -100,6 +104,7 @@ export default function ResetPassword({ loaderData, actionData }: Route.Componen
         <div className="mb-6">
           <AuthField
             id="reset-confirm"
+            errorId={actionData?.error ? "reset-error" : undefined}
             label="Confirm password"
             name="confirm"
             type="password"
@@ -108,7 +113,7 @@ export default function ResetPassword({ loaderData, actionData }: Route.Componen
           />
         </div>
         {actionData?.error ? (
-          <div className="mb-4">
+          <div id="reset-error" className="mb-4">
             <Alert tone="crit">{actionData.error}</Alert>
           </div>
         ) : null}
