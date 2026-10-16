@@ -3,6 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { accounts, failedPayments, getDb } from "~/db";
 import type { Db } from "~/db";
 import { processEmailJob } from "~/lib/email/dispatch";
+import { recoveryFooterNote, type EmailNotice } from "~/lib/email/templates";
 
 import {
   RECOVERY_NOTIFY_FROM_NAME,
@@ -28,6 +29,12 @@ import {
 // TRIGGER: `flipExhaustedSequences`, the tick sweep that runs after the step
 // loop. Its flip is conditional on `status='active'`, so it lands exactly once,
 // and it now reports WHICH sequences it claimed. This fires once per claim.
+//
+// THE SHELL IS CAPSOMER'S `notice` TEMPLATE (E11, job J89; RULES.md 3.16), as
+// E10 put the recovery notice on it: title, sentence, View payment button, in
+// Foxhound's teal family. Its footer is legacy's: wrapEmailHtml(notifyBody,
+// 'Recova', undefined) writes the "You're receiving this from" sentence and a
+// "Manage email settings" link, with no unsubscribe and no postal address.
 
 export const SEQUENCE_COMPLETE_TEMPLATE = "merchant_sequence_complete";
 
@@ -53,7 +60,10 @@ export function sequenceCompleteSubject(data: {
 }
 
 /**
- * Legacy's body, with ONE deliberate change.
+ * Legacy's body (route.ts:397-399), with ONE deliberate change, as the content
+ * of Capsomer's `notice` template (E11, J89): legacy's bold first line is the
+ * title and the mail's one heading, its sentence is the one paragraph, and its
+ * "View payment" button is the action.
  *
  * LEGACY SAYS "The 7-day recovery sequence" AND ITS OWN SCHEDULES DO NOT RUN
  * SEVEN DAYS. Both sides plan steps out to `email_day30`, and Foxhound's
@@ -61,29 +71,47 @@ export function sequenceCompleteSubject(data: {
  * `email_day14` and `email_day30`, so the sentence was already false where it
  * was written. Dropping the number is a class (c) truthfulness fix, which the
  * PRIME DIRECTIVE exempts from per-item ratification. Every other word is
- * legacy's.
+ * legacy's. The link target is Foxhound's `/recovery/payments/:id` where
+ * legacy's is `/payments/:id`, until the URL reverts (J09) land.
  *
- * PLAIN SEMANTIC HTML, no inline colours: legacy styles its button from
- * EMAIL_COLORS, which Foxhound does not have, and check-tokens fails the build
- * on raw hex.
- *
- * The title line is a real heading (J02 review): the email frame no longer
- * promotes an all-bold paragraph to a heading, so the same words that were
- * `<p><strong>` are now `<h1>`, and render as the mail's title.
+ * PLAIN STRINGS, NOT MARKUP. Capsomer escapes each value, so a customer name
+ * from Stripe is shown exactly as written; legacy put it into HTML unescaped.
  */
 export function sequenceCompleteBody(data: {
   amountCents: number;
   currency: string;
   customerLabel: string;
   paymentUrl: string;
-}): string {
+}): EmailNotice {
   const amount = formatNotifyAmount(data.amountCents, data.currency);
-  return (
-    `<h1>Recovery sequence complete.</h1>` +
-    `<p>The recovery sequence for ${data.customerLabel} (${amount}) has ended without a ` +
-    `successful payment. You may want to manually reach out or write off this balance.</p>` +
-    `<p><a href="${data.paymentUrl}">View payment</a></p>`
-  );
+  return {
+    title: "Recovery sequence complete.",
+    body: [
+      `The recovery sequence for ${data.customerLabel} (${amount}) has ended without a ` +
+        `successful payment. You may want to manually reach out or write off this balance.`,
+    ],
+    action: { label: "View payment", url: data.paymentUrl },
+  };
+}
+
+/**
+ * Everything the notice job says and carries, from the loaded data. Pure, and
+ * shared with the admin preview so a preview is this function's output: the
+ * platform's From name, legacy's subject, the notice, and legacy's footer
+ * sentence with "Foxhound" as `wrapEmailHtml(notifyBody, 'Recova', undefined)`
+ * has it (send.ts puts "Manage email settings" under it on merchant mail).
+ */
+export function sequenceCompleteContent(
+  data: { amountCents: number; currency: string; customerLabel: string },
+  paymentUrl: string,
+  now: Date,
+): { fromName: string; subject: string; notice: EmailNotice; footerNote: string } {
+  return {
+    fromName: RECOVERY_NOTIFY_FROM_NAME,
+    subject: sequenceCompleteSubject(data),
+    notice: sequenceCompleteBody({ ...data, paymentUrl }),
+    footerNote: recoveryFooterNote(RECOVERY_NOTIFY_FROM_NAME, now.getUTCFullYear()),
+  };
 }
 
 /**
@@ -157,14 +185,7 @@ export async function sendSequenceCompleteNotification(
       {
         accountId: ctx.accountId,
         to: data.notificationEmail,
-        fromName: RECOVERY_NOTIFY_FROM_NAME,
-        subject: sequenceCompleteSubject(data),
-        bodyHtml: sequenceCompleteBody({
-          amountCents: data.amountCents,
-          currency: data.currency,
-          customerLabel: data.customerLabel,
-          paymentUrl: `${baseUrl}/recovery/payments/${ctx.failedPaymentId}`,
-        }),
+        ...sequenceCompleteContent(data, `${baseUrl}/recovery/payments/${ctx.failedPaymentId}`, new Date()),
         template: SEQUENCE_COMPLETE_TEMPLATE,
         audience: "merchant",
         unsubscribeToken: "",

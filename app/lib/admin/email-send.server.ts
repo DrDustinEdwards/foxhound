@@ -19,8 +19,8 @@ import { recoveryFooterNote } from "~/lib/engine/execute-step";
 import { DIGEST_SENDER_FALLBACK, buildDigestEmail, digestSubject } from "~/lib/recovery/digest-email";
 import { buildTemplateEmail } from "~/lib/recovery/email-template";
 import { buildExpiringCardEmail, expiringCardSubject } from "~/lib/recovery/expiring-card-email";
-import { RECOVERY_NOTIFY_FROM_NAME, recoveryNotifyContent } from "~/lib/recovery/merchant-notification.server";
-import { sequenceCompleteBody, sequenceCompleteSubject } from "~/lib/recovery/sequence-complete-notification.server";
+import { recoveryNotifyContent } from "~/lib/recovery/merchant-notification.server";
+import { sequenceCompleteContent } from "~/lib/recovery/sequence-complete-notification.server";
 import { buildWinbackEmail, winbackSubject } from "~/lib/recovery/winback-email";
 import { isValidReplyToEmail } from "~/lib/settings/reply-to";
 import { buildTestEmailJob } from "~/lib/settings/test-email.server";
@@ -401,11 +401,8 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
       return merchantJob(recoveryNotifyContent({ ...sample, declineCategory: "soft" }, paymentUrl, now));
     }
     if (type.type === "sequence_complete") {
-      return merchantJob({
-        fromName: RECOVERY_NOTIFY_FROM_NAME,
-        subject: sequenceCompleteSubject(sample),
-        bodyHtml: sequenceCompleteBody({ ...sample, paymentUrl }),
-      });
+      // The notifier's own content function (E11): the notice and its footer.
+      return merchantJob(sequenceCompleteContent(sample, paymentUrl, now));
     }
   }
 
