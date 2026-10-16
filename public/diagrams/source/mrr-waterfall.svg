@@ -4,18 +4,18 @@
   <style>
     .bar-positive { fill: #e1f5ee; stroke: #1d9e75; }
     .bar-negative { fill: #fcebeb; stroke: #a32d2d; }
-    .bar-net      { fill: #faeeda; stroke: #d4941a; }
+    .bar-net      { fill: #e8f5f5; stroke: #01585c; }
     .label-primary   { fill: #1a1c18; font-family: system-ui, sans-serif; font-size: 13px; font-weight: 500; }
     .label-secondary { fill: #595c56; font-family: system-ui, sans-serif; font-size: 11px; font-family: system-ui, sans-serif; }
-    .label-accent    { fill: #8a5c06; font-family: system-ui, sans-serif; font-size: 13px; font-weight: 600; }
+    .label-accent    { fill: #01585c; font-family: system-ui, sans-serif; font-size: 13px; font-weight: 600; }
     .baseline { stroke: #595c56; stroke-width: 1; stroke-dasharray: 3 3; fill: none; }
     .axis { stroke: #8a8a7e; stroke-width: 1; }
     :root[data-theme="dark"] .bar-positive { fill: #091e14; stroke: #1f7a5f; }
     :root[data-theme="dark"] .bar-negative { fill: #200a0a; stroke: #b92727; }
-    :root[data-theme="dark"] .bar-net      { fill: #1e1a0a; stroke: #826217; }
+    :root[data-theme="dark"] .bar-net      { fill: #1a2d2e; stroke: #2d7c80; }
     :root[data-theme="dark"] .label-primary   { fill: #f0ede8; }
     :root[data-theme="dark"] .label-secondary { fill: #a8a49e; }
-    :root[data-theme="dark"] .label-accent    { fill: #f0b429; }
+    :root[data-theme="dark"] .label-accent    { fill: #97c8cb; }
     :root[data-theme="dark"] .baseline { stroke: #a8a49e; }
     :root[data-theme="dark"] .axis { stroke: #4a4c44; }
   </style>

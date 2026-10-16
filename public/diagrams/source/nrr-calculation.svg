@@ -8,24 +8,24 @@
   </defs>
   <style>
     .node-neutral { fill: #e8e6e0; stroke: #b0ada6; }
-    .node-accent  { fill: #faeeda; stroke: #d4941a; }
+    .node-accent  { fill: #e8f5f5; stroke: #01585c; }
     .node-success { fill: #e1f5ee; stroke: #1d9e75; }
     .node-warning { fill: #fcebeb; stroke: #a32d2d; }
     .node-info    { fill: #e6f1fb; stroke: #185fa5; }
     .label-primary   { fill: #1a1c18; font-family: system-ui, sans-serif; font-size: 13px; font-weight: 500; }
     .label-secondary { fill: #595c56; font-family: system-ui, sans-serif; font-size: 11px; font-family: system-ui, sans-serif; }
-    .label-accent    { fill: #8a5c06; font-family: system-ui, sans-serif; font-size: 13px; font-weight: 600; }
+    .label-accent    { fill: #01585c; font-family: system-ui, sans-serif; font-size: 13px; font-weight: 600; }
     .op { fill: #595c56; font-family: system-ui, sans-serif; font-size: 16px; font-weight: 500; }
     .connector { stroke: #8a8a7e; stroke-width: 1; fill: none; }
     .arrow-head { fill: #8a8a7e; }
     :root[data-theme="dark"] .node-neutral { fill: #222420; stroke: #4a4c44; }
-    :root[data-theme="dark"] .node-accent  { fill: #1e1a0a; stroke: #826217; }
+    :root[data-theme="dark"] .node-accent  { fill: #1a2d2e; stroke: #2d7c80; }
     :root[data-theme="dark"] .node-success { fill: #091e14; stroke: #1f7a5f; }
     :root[data-theme="dark"] .node-warning { fill: #200a0a; stroke: #b92727; }
     :root[data-theme="dark"] .node-info    { fill: #0a1428; stroke: #315dc4; }
     :root[data-theme="dark"] .label-primary   { fill: #f0ede8; }
     :root[data-theme="dark"] .label-secondary { fill: #a8a49e; }
-    :root[data-theme="dark"] .label-accent    { fill: #f0b429; }
+    :root[data-theme="dark"] .label-accent    { fill: #97c8cb; }
     :root[data-theme="dark"] .op { fill: #a8a49e; }
     :root[data-theme="dark"] .connector { stroke: #4a4c44; }
     :root[data-theme="dark"] .arrow-head { fill: #4a4c44; }

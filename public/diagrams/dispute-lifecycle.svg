@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 220"><title>Stripe dispute lifecycle</title><desc>Five-stage horizontal timeline of a Stripe dispute, from the cardholder contacting their bank through funds being frozen, notification, the evidence window, and the issuer&apos;s final decision.</desc><defs><marker id="arrow-dl" markerHeight="6" markerWidth="6" orient="auto-start-reverse" refX="9" refY="5" viewBox="0 0 10 10"><path d="m0 0 10 5-10 5z" class="arrow-head"/></marker></defs><style>.node-neutral { fill: #e8e6e0; stroke: #b0ada6; }
-    .node-accent  { fill: #faeeda; stroke: #d4941a; }
+    .node-accent  { fill: #e8f5f5; stroke: #01585c; }
     .node-warning { fill: #fcebeb; stroke: #a32d2d; }
     .node-info    { fill: #e6f1fb; stroke: #185fa5; }
     .label-primary   { fill: #1a1c18; font-family: system-ui, sans-serif; font-size: 13px; font-weight: 500; }
@@ -8,7 +8,7 @@
     .connector { stroke: #8a8a7e; stroke-width: 1; fill: none; }
     .arrow-head { fill: #8a8a7e; }
     :root[data-theme=&quot;dark&quot;] .node-neutral { fill: #222420; stroke: #4a4c44; }
-    :root[data-theme=&quot;dark&quot;] .node-accent  { fill: #1e1a0a; stroke: #826217; }
+    :root[data-theme=&quot;dark&quot;] .node-accent  { fill: #1a2d2e; stroke: #2d7c80; }
     :root[data-theme=&quot;dark&quot;] .node-warning { fill: #200a0a; stroke: #b92727; }
     :root[data-theme=&quot;dark&quot;] .node-info    { fill: #0a1428; stroke: #315dc4; }
     :root[data-theme=&quot;dark&quot;] .label-primary   { fill: #f0ede8; }

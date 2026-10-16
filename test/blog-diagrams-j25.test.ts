@@ -26,34 +26,61 @@ function readDiagram(rel: string): string {
   return readFileSync(resolve(DIAGRAMS_DIR, rel), "utf8");
 }
 
-// Git's blob id for a file's bytes: proves each file is byte-identical to the
-// legacy blob at the sha Capsid's repo read reported for public/diagrams/.
-function gitBlobSha(rel: string): string {
-  const bytes = readFileSync(resolve(DIAGRAMS_DIR, rel));
-  return createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex");
-}
-
 // Recova public/diagrams/ at HEAD (DrDustinEdwards/recova, main), as listed
 // by Capsid's repo tree on 2026-10-16: eight served diagrams and their eight
-// readable sources, sixteen files.
-const LEGACY_BLOBS: Record<string, string> = {
-  "decline-code-taxonomy.svg": "4ced835a0cc4f6ddc3a67300495827a0fad63524",
-  "dispute-lifecycle.svg": "4809dc04c305383f1fa86fe4187111cba59b40fa",
-  "dunning-sequence-timeline.svg": "b02843b9211699b94cd88754b51185f450cbd627",
-  "involuntary-vs-voluntary.svg": "5c875b40706e2637919f3bb1e05d6c76cb802ff6",
-  "mrr-waterfall.svg": "ebb347c880a68cfc088ec4f433c03dd35ed418ca",
-  "nrr-calculation.svg": "fc47fa7ed19280b41e8cd9cdc7c1f20e27160774",
-  "recovery-sequence.svg": "c6d98a94c2dd945c67a06b14cb5d4f2a00731abb",
-  "recovery-vs-smart-retries.svg": "7677ba704518b4f4af9b887abfe749b357418e9c",
-  "source/decline-code-taxonomy.svg": "bc9f30b0a87e6e6fb7dd1171851706e99648c882",
-  "source/dispute-lifecycle.svg": "3668e6c865bf66083c1bdc8288ee4bf7811268b5",
-  "source/dunning-sequence-timeline.svg": "d9481cad17da06cb42c56ac545e7c8fe272c6db4",
-  "source/involuntary-vs-voluntary.svg": "4134ff5be28bd165bc23d01c3a40bb41b2933c91",
-  "source/mrr-waterfall.svg": "c91669d484cac716b5ed050497d52b29e60cfd4e",
-  "source/nrr-calculation.svg": "982a71e429d03aaae8d91c1fb57e8d4b0cfb13da",
-  "source/recovery-sequence.svg": "e05af1e0f62887afe6252834be6117d9ece1c00d",
-  "source/recovery-vs-smart-retries.svg": "0bcd6d83fddd9b345c110494af6985cd584d1567",
+// readable sources, sixteen files. Commit 54efd0d ported them byte for byte
+// (each file's git blob sha equal to legacy's, e.g. recovery-sequence.svg
+// c6d98a94). Q11 then moved their amber accents to teal, so what is pinned
+// here is each legacy file's SHA-256 with every six-digit colour masked:
+// apart from colour literals, every byte is still Recova's.
+const LEGACY_SHAPE: Record<string, string> = {
+  "decline-code-taxonomy.svg": "486fa35106d9390a14710c3f4de57c384caf13ca10ac5db39833e740d0714cfe",
+  "dispute-lifecycle.svg": "c09b79eb7662dba755714d12fc35800431b1a78685c716b6fa64fa03c36ae490",
+  "dunning-sequence-timeline.svg": "d133515243f0aedc89b2db449d588c246d222b7ee23ee669472db7db0569b92c",
+  "involuntary-vs-voluntary.svg": "d60bcfc475ba01f58257baff6f4d134d65f9ac65f3edc446e717af4c6ef6f67c",
+  "mrr-waterfall.svg": "943d9877eaf8ab429b2d15dd392e68eafb4d35a0562d85ab8526fc9a5978eb0f",
+  "nrr-calculation.svg": "1c6b345ef5d060d8154149522a247410c09d7c9f82689bd3cf74cec599fcc6bb",
+  "recovery-sequence.svg": "46b9e2354ad6ebddb5b5d0fd7d62021a59d1b73f5df15d586a2a4038f252f540",
+  "recovery-vs-smart-retries.svg": "1d71475f4640c03a14c2db4839ebba77b5e03cdf4ff4bc6c4d0fffc4e9bfadae",
+  "source/decline-code-taxonomy.svg": "3c656da2969fface844a9857cecb29bf61342eeacae47737c5c569240753928f",
+  "source/dispute-lifecycle.svg": "e56796acec25fcc40d5dd4779d2fff19748b6233d6267acb4d25806f7a5c5793",
+  "source/dunning-sequence-timeline.svg": "cf74809d04f5ee37c7239b2d43a9a7f1be4e235165cf5de6ec8a48938fd308fa",
+  "source/involuntary-vs-voluntary.svg": "68dbc0f698a78cc559f4e666cd81c787bf153dfdff7e21ceff526bda0926b5c7",
+  "source/mrr-waterfall.svg": "578b581068c81bb30bdf775332c3d85c351d15ca7ad9ece15cb3d48cce513aa7",
+  "source/nrr-calculation.svg": "d95390efbd76359bb6d17d9677cca0eea60085c30cffeea2ba035c3f9ac8d7a1",
+  "source/recovery-sequence.svg": "1cb82e87463bd09d81ddc223a11a558753ccfc5348f59c29a26d8b3aea5d2a6c",
+  "source/recovery-vs-smart-retries.svg": "48790768e234db6513c25e4865cc3ec57f1ad762f47a5017ce5d16b61ddbdbe1",
 };
+
+function maskedSha(rel: string): string {
+  const text = readDiagram(rel).replace(/#[0-9a-fA-F]{6}/g, "#xxxxxx");
+  return createHash("sha256").update(text).digest("hex");
+}
+
+// Q11 (APPROVED-DIFFERENCES.md, Dustin "yes", 2026-10-14): no page carries
+// an amber accent. Each amber literal takes the teal of the token that held
+// it in the Q11 change (PR #51): --amber-bg to --brand-bg, --amber-dark to
+// --brand-dark, --amber-text to --brand-text, --amber-border-interactive to
+// --brand-border-interactive, and the dark --amber-ui to --brand-ui for lines
+// and arrowheads. Recova's light accent tint #faeeda held no token; it is the
+// accent background, so it takes --brand-bg.
+const TEAL_RULES: Record<string, { light: string; dark: string }> = {
+  "node-accent": { light: "{ fill: #e8f5f5; stroke: #01585c; }", dark: "{ fill: #1a2d2e; stroke: #2d7c80; }" },
+  "event-retry": { light: "{ fill: #e8f5f5; stroke: #01585c; }", dark: "{ fill: #1a2d2e; stroke: #2d7c80; }" },
+  "bar-net": { light: "{ fill: #e8f5f5; stroke: #01585c; }", dark: "{ fill: #1a2d2e; stroke: #2d7c80; }" },
+  "label-accent": {
+    light: "{ fill: #01585c; font-family: system-ui, sans-serif; font-size: 13px; font-weight: 600; }",
+    dark: "{ fill: #97c8cb; }",
+  },
+  "rate-num": {
+    light: "{ fill: #01585c; font-family: system-ui, sans-serif; font-size: 22px; font-weight: 700; }",
+    dark: "{ fill: #97c8cb; }",
+  },
+  "connector-accent": { light: "{ stroke: #01585c; stroke-width: 1.5; fill: none; }", dark: "{ stroke: #249398; }" },
+  "arrow-head-accent": { light: "{ fill: #01585c; }", dark: "{ fill: #249398; }" },
+};
+
+const AMBER = /#(?:f0b429|ffd166|d4941a|b87c10|9e6a0a|8a5c06|f5d98a|b2861f|826217|3d3010|1e1a0a|1f1a0a|fff5d6|faecbf|b5820d|fdf3d8|faeeda)\b/i;
 
 // The slugs the eight live posts use, read from production D1 on 2026-10-16
 // (SELECT slug ... FROM blog_posts WHERE body LIKE '%:::diagram[%'), one each.
@@ -72,15 +99,29 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-describe("public/diagrams is Recova's set, byte for byte", () => {
+describe("public/diagrams is Recova's set, recoloured teal by Q11 only", () => {
   it("holds exactly the sixteen legacy files", () => {
     const served = readdirSync(DIAGRAMS_DIR).filter((f) => f.endsWith(".svg"));
     const sources = readdirSync(resolve(DIAGRAMS_DIR, "source")).map((f) => `source/${f}`);
-    expect([...served, ...sources].sort()).toEqual(Object.keys(LEGACY_BLOBS).sort());
+    expect([...served, ...sources].sort()).toEqual(Object.keys(LEGACY_SHAPE).sort());
   });
 
-  it.each(Object.entries(LEGACY_BLOBS))("%s has the legacy blob sha", (rel, sha) => {
-    expect(gitBlobSha(rel)).toBe(sha);
+  it.each(Object.entries(LEGACY_SHAPE))("%s is Recova's file in every byte but its colours", (rel, sha) => {
+    expect(maskedSha(rel)).toBe(sha);
+  });
+
+  it.each(Object.keys(LEGACY_SHAPE))("%s carries no amber, and each accent rule has Q11's teal", (rel) => {
+    const svg = readDiagram(rel).replace(/&quot;/g, '"');
+    expect(svg).not.toMatch(AMBER);
+    let accents = 0;
+    for (const line of svg.split("\n")) {
+      const m = line.match(/\.([a-z-]+)\s+(\{[^}]*\})/);
+      if (!m || !(m[1] in TEAL_RULES)) continue;
+      accents++;
+      const theme = line.includes('[data-theme="dark"]') ? "dark" : "light";
+      expect(`${m[1]} ${m[2]}`).toBe(`${m[1]} ${TEAL_RULES[m[1]][theme]}`);
+    }
+    if (!/involuntary-vs-voluntary/.test(rel)) expect(accents).toBeGreaterThan(0);
   });
 });
 
