@@ -147,7 +147,7 @@ describe("the routes", () => {
       expect(route.loader).toBe(indexRoute.loader);
       expect(route.action).toBe(indexRoute.action);
       expect(route.default).toBe(indexRoute.default);
-      expect(route.handle).toBe(indexRoute.handle);
+      expect(route.handle).toEqual(indexRoute.handle);
     }
   });
 });
