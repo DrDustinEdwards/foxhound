@@ -437,7 +437,7 @@ export interface MonthlyAuditEnqueueResult {
 /**
  * The cron half: one queue message per opted-in, processing-eligible account.
  *
- * WHY A QUEUE (job_97878f0d1fde). Since #123 the audit's Stripe reads page to
+ * WHY A QUEUE (job_97878f0d1fde). Since PR 123 the audit's Stripe reads page to
  * the end (RULES.md 3.19), so one account costs a fixed handful of subrequests
  * plus one per page of its own data, with no upper bound. Auditing every account
  * in this one invocation put all of them under one subrequest limit, and one
