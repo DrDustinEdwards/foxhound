@@ -588,7 +588,7 @@ describe("J07: Recova's Evidence files section", () => {
     expect(t).toContain("Upload file");
     expect(t).toContain("No files uploaded.");
     expect(html).toMatch(/<input[^>]*type="file"[^>]*accept="image\/jpeg,image\/png,application\/pdf"/);
-    expect(html).toContain('enctype="multipart/form-data"');
+    expect(html).toMatch(/<form id="dispute-evidence-upload"[^>]*enctype="multipart\/form-data"/i);
   });
 
   it("lists each file by name and date with Remove file, linking to the account-scoped view", async () => {

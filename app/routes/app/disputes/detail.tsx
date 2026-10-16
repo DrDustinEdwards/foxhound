@@ -1,6 +1,6 @@
-import { DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
+import { DISPUTE_EVIDENCE_ALLOWED_TYPES, DISPUTE_EVIDENCE_MAX_FILES, DISPUTE_EVIDENCE_MAX_SIZE_BYTES, DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
 import * as Sentry from "@sentry/cloudflare";
-import { useEffect, useId, useReducer, useState } from "react";
+import { useEffect, useId, useReducer, useRef, useState } from "react";
 import { Form, Link, data, redirect, useFetcher, useNavigation } from "react-router";
 import { Banner } from "capsomer/react/banner";
 import { Panel } from "capsomer/react/panel";
@@ -43,6 +43,21 @@ import {
   outcomeWord,
   splitEvidence,
 } from "~/lib/disputes/detail";
+import {
+  EVIDENCE_DELETE_FORM_ID,
+  EVIDENCE_FILE_FIELD,
+  EVIDENCE_FILE_MESSAGES,
+  EVIDENCE_FILE_REMOVE_CONFIRM,
+  EVIDENCE_FILE_STATUS,
+  EVIDENCE_FILES_LIMITS_LINE,
+  EVIDENCE_FILES_UNAVAILABLE_LINE,
+  EVIDENCE_UPLOAD_FORM_ID,
+  evidenceFileHref,
+  fileNameFromPath,
+  precheckEvidenceFile,
+  type EvidenceFileOutcome,
+} from "~/lib/disputes/evidence-files";
+import { deleteEvidenceFile, uploadEvidenceFile } from "~/lib/disputes/evidence-files.server";
 import { getDisputeFindings } from "~/lib/disputes/findings.server";
 import {
   daysUntilDeadline,
@@ -82,8 +97,12 @@ import type { Route } from "./+types/detail";
 //   writes triage_* or a banded prediction (RULES.md 3.18).
 // - Radar, AVS, CVV, 3D Secure, Smart Disputes, billing address, prior charge
 //   history and subscription: no Foxhound code writes those dispute columns.
-// - Evidence files: waits on J07's R2 storage (job_7a7c09269012); a section
-//   with no working upload is left out (RULES.md 2.7).
+// Built by J07 (job_7a7c09269012):
+// - Evidence files: Recova's DisputeFileUploads section between Staged evidence
+//   and Additional evidence, over the EVIDENCE R2 bucket
+//   (app/lib/disputes/evidence-files.server.ts) and the account-scoped view at
+//   /disputes/:id/files/:fileId. Until Dustin binds the bucket the section says
+//   uploads are not available yet, in the upload control's place.
 // Built by J06 (job_4f4c9c2f5383):
 // - Shipping fields: Recova shows them in Additional evidence when the account
 //   ships physical goods, which /settings/disputes (S32) now writes. They save
@@ -112,7 +131,14 @@ export async function loader({ context, params }: Route.LoaderArgs) {
     getDisputeFindings(db, accountId, detail.dispute.stripeCustomerId),
     readDisputeSettings(db, accountId),
   ]);
-  return { ...detail, findings, shipsPhysical: settings.shipsPhysical, isDemo: auth.isDemo, nowMs: Date.now() };
+  return {
+    ...detail,
+    findings,
+    shipsPhysical: settings.shipsPhysical,
+    filesAvailable: Boolean(env.EVIDENCE),
+    isDemo: auth.isDemo,
+    nowMs: Date.now(),
+  };
 }
 
 export async function action({ context, params, request }: Route.ActionArgs) {
@@ -123,6 +149,13 @@ export async function action({ context, params, request }: Route.ActionArgs) {
 
   const detail = await getDisputeDetail(db, accountId, params.id);
   if (!detail) throw new Response("Not Found", { status: 404 });
+
+  // No post to this page is near one evidence file's size except an upload, so
+  // a body far past it is refused before it is read into memory (J07).
+  const declaredLength = Number(request.headers.get("content-length") ?? "0");
+  if (declaredLength > DISPUTE_EVIDENCE_MAX_SIZE_BYTES + UPLOAD_BODY_SLACK_BYTES) {
+    return fileResult("upload_file", "file_too_large", 413);
+  }
 
   const form = await request.formData();
   const intent = String(form.get("intent") ?? "");
@@ -178,6 +211,30 @@ export async function action({ context, params, request }: Route.ActionArgs) {
       );
     }
     return data({ ok: true, intent: "save" as const });
+  }
+
+  if (intent === "upload_file" || intent === "delete_file") {
+    // Recova's upload-evidence and delete-evidence (J07). The dispute was read
+    // under the signed-in account above, so another account's dispute is
+    // already a 404. With no bucket bound, the answer says so first.
+    if (!env.EVIDENCE) return fileResult(intent, "uploads_unavailable");
+    if (!canApprove(detail.dispute.state as DisputeState) || detail.approval) {
+      return fileResult(intent, "evidence_locked");
+    }
+    const outcome =
+      intent === "upload_file"
+        ? await uploadEvidenceFile(db, env.EVIDENCE, {
+            accountId,
+            disputeId: detail.dispute.id,
+            file: form.get("file"),
+            now: new Date(),
+          })
+        : await deleteEvidenceFile(db, env.EVIDENCE, {
+            accountId,
+            disputeId: detail.dispute.id,
+            evidenceId: String(form.get("evidence_id") ?? ""),
+          });
+    return fileResult(intent, outcome);
   }
 
   if (intent === "sync_dispute") {
@@ -311,6 +368,19 @@ export async function action({ context, params, request }: Route.ActionArgs) {
   return data({ error: "Unknown action.", intent: null }, { status: 400 });
 }
 
+/** Room for the multipart framing around one evidence file. */
+const UPLOAD_BODY_SLACK_BYTES = 64 * 1024;
+
+/** A file path's answer: its named outcome, the merchant's line, and the
+ *  outcome's status (J07). */
+function fileResult(intent: "upload_file" | "delete_file", outcome: EvidenceFileOutcome, status?: number) {
+  const message = EVIDENCE_FILE_MESSAGES[outcome];
+  return data(
+    message ? { intent, fileOutcome: outcome, error: message } : { intent, fileOutcome: outcome },
+    { status: status ?? EVIDENCE_FILE_STATUS[outcome] },
+  );
+}
+
 /** A posted text value, trimmed, or null when the form did not carry it. */
 function trimmed(value: FormDataEntryValue | null): string | null {
   return typeof value === "string" ? value.trim() : null;
@@ -323,7 +393,7 @@ function carrier(value: FormDataEntryValue | null): string | null {
 }
 
 export default function DisputeDetail({ loaderData, actionData }: Route.ComponentProps) {
-  const { dispute, evidence, approval, findings, shipsPhysical, isDemo, nowMs } = loaderData;
+  const { dispute, evidence, approval, findings, shipsPhysical, filesAvailable, isDemo, nowMs } = loaderData;
   const navigation = useNavigation();
   const pressedIntent = navigation.formData?.get("intent") ?? null;
   const approving = navigation.state !== "idle" && pressedIntent === "approve";
@@ -350,7 +420,13 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
   const saveResult =
     saveFetcher.data ?? (actionData && "intent" in actionData && actionData.intent === "save" ? actionData : undefined);
   const approveError =
-    actionData && "error" in actionData && actionData.intent !== "save" ? actionData.error : null;
+    actionData &&
+    "error" in actionData &&
+    actionData.intent !== "save" &&
+    actionData.intent !== "upload_file" &&
+    actionData.intent !== "delete_file"
+      ? actionData.error
+      : null;
   const syncResult = actionData && "sync" in actionData ? actionData.sync : undefined;
 
   const state = dispute.state as DisputeState;
@@ -373,6 +449,10 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
   const backLink = isDemo ? BACK_LINK_DEMO : BACK_LINK_REAL;
   const shippingEditable = draftEditable && shipsPhysical;
   const { structured, narrative, customerIp, shipping } = splitEvidence(evidence, draftEditable, shippingEditable);
+  // The merchant's uploaded files have their own section (J07); "drafted" is
+  // everything else, which is what Staged evidence speaks of.
+  const files = evidence.filter((e) => e.fieldName === EVIDENCE_FILE_FIELD);
+  const drafted = evidence.filter((e) => e.fieldName !== EVIDENCE_FILE_FIELD);
   const timeline = buildDisputeTimeline({
     createdAt: dispute.createdAt,
     amountCents: dispute.amountCents,
@@ -526,14 +606,18 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
           draft: Save draft saves the narrative and the Customer IP together. */}
       <saveFetcher.Form
         method="post"
-        onChange={() => dispatchDraft({ type: "edit" })}
+        onChange={(e) => {
+          // The evidence file input sits in this markup but belongs to the
+          // upload form; choosing a file is not a draft edit.
+          if ((e.target as HTMLInputElement).form === e.currentTarget) dispatchDraft({ type: "edit" });
+        }}
         onSubmit={() => dispatchDraft({ type: "submit" })}
       >
         <input type="hidden" name="intent" value="save" />
         <div className="mb-6">
           <Panel title="Staged evidence">
             <div className="text-label">
-              {evidence.length === 0 ? (
+              {drafted.length === 0 ? (
                 // Recova said "Evidence is being prepared". Foxhound drafts at
                 // intake and drafts nothing when no record grounds it
                 // (draftDisputeEvidence), so nothing is on the way.
@@ -570,6 +654,17 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
               )}
             </div>
           </Panel>
+        </div>
+
+        {/* 6. Recova's Evidence files (J07). Its controls belong to the upload
+            and remove forms below, through the form attribute. */}
+        <div className="mb-6">
+          <EvidenceFiles
+            disputeId={dispute.id}
+            files={files}
+            editable={draftEditable}
+            available={filesAvailable}
+          />
         </div>
 
         {draftEditable ? (
@@ -653,12 +748,13 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
                 ) : null}
                 {/* With no staged evidence Recova had no Save draft at all; the
                     IP still needs one to be kept. */}
-                {evidence.length === 0 ? saveControls : null}
+                {drafted.length === 0 ? saveControls : null}
               </div>
             </Panel>
           </div>
         ) : null}
       </saveFetcher.Form>
+      {draftEditable && filesAvailable ? <EvidenceFileForms /> : null}
 
       {/* Recova's DisputeSyncForm, withheld from the demo as Recova's is. */}
       {!isDemo ? <SyncDisputeLink result={syncResult} copy={SYNC_DETAIL_COPY} /> : null}
@@ -848,5 +944,166 @@ function FieldRow({ label, value }: { label: string; value: string }) {
       <dt className="w-[140px] shrink-0 text-text-tertiary">{label}</dt>
       <dd className="m-0 flex-1 whitespace-pre-line text-text">{value}</dd>
     </div>
+  );
+}
+
+/** The fetcher keys the evidence file section and its forms share (J07). */
+const UPLOAD_FETCHER_KEY = "dispute-evidence-upload";
+const DELETE_FETCHER_KEY = "dispute-evidence-delete";
+
+/**
+ * The upload and remove forms (J07), rendered after the draft form because
+ * forms cannot nest. The section's file input and Remove file buttons belong
+ * to them through the form attribute, so they sit where Recova shows them.
+ */
+function EvidenceFileForms() {
+  const upload = useFetcher<typeof action>({ key: UPLOAD_FETCHER_KEY });
+  const remove = useFetcher<typeof action>({ key: DELETE_FETCHER_KEY });
+  return (
+    <>
+      <upload.Form id={EVIDENCE_UPLOAD_FORM_ID} method="post" encType="multipart/form-data" hidden>
+        <input type="hidden" name="intent" value="upload_file" />
+      </upload.Form>
+      <remove.Form id={EVIDENCE_DELETE_FORM_ID} method="post" hidden>
+        <input type="hidden" name="intent" value="delete_file" />
+      </remove.Form>
+    </>
+  );
+}
+
+/**
+ * Recova's DisputeFileUploads (1286eb21): the title with the limits line, an
+ * "Upload file" control while fewer than five files are on the dispute, the
+ * files by name and date with "Remove file", or "No files uploaded.". Choosing
+ * a file uploads it at once, as Recova's onChange did, after Recova's own
+ * checks; without script the Upload button beside it posts the same form.
+ * Read-only once approved or submitted, and in the demo. With no bucket bound,
+ * the upload control's place says so.
+ */
+function EvidenceFiles({
+  disputeId,
+  files,
+  editable,
+  available,
+}: {
+  disputeId: string;
+  files: { id: string; fieldValue: string; createdAt: Date }[];
+  editable: boolean;
+  available: boolean;
+}) {
+  const upload = useFetcher<typeof action>({ key: UPLOAD_FETCHER_KEY });
+  const remove = useFetcher<typeof action>({ key: DELETE_FETCHER_KEY });
+  const inputRef = useRef<HTMLInputElement>(null);
+  const inputId = useId();
+  const [precheck, setPrecheck] = useState<EvidenceFileOutcome | null>(null);
+  const uploading = upload.state !== "idle";
+  const canChange = editable && available;
+
+  // A finished upload clears the chosen file, as Recova's did.
+  const uploadDone = upload.state === "idle" && upload.data !== undefined;
+  useEffect(() => {
+    if (uploadDone && inputRef.current) inputRef.current.value = "";
+  }, [uploadDone, upload.data]);
+
+  const resultError = (d: unknown) =>
+    d && typeof d === "object" && "fileOutcome" in d && "error" in d ? String((d as { error: unknown }).error) : null;
+  const error = precheck ? EVIDENCE_FILE_MESSAGES[precheck] : (resultError(upload.data) ?? resultError(remove.data));
+
+  let control: React.ReactNode = null;
+  if (editable && !available) {
+    control = <span className="text-micro text-text-subtle">{EVIDENCE_FILES_UNAVAILABLE_LINE}</span>;
+  } else if (canChange && files.length < DISPUTE_EVIDENCE_MAX_FILES) {
+    control = (
+      <span className="inline-flex items-center gap-2">
+        <span className="inline-flex rounded-md has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-1 has-[:focus-visible]:outline-(--ring) has-[:focus-visible]:outline-solid">
+          <label htmlFor={inputId} className="cap-btn" data-size="sm" aria-disabled={uploading ? true : undefined}>
+            {uploading ? "Uploading…" : "Upload file"}
+          </label>
+        </span>
+        <input
+          ref={inputRef}
+          id={inputId}
+          type="file"
+          name="file"
+          accept={DISPUTE_EVIDENCE_ALLOWED_TYPES.join(",")}
+          form={EVIDENCE_UPLOAD_FORM_ID}
+          className="sr-only"
+          disabled={uploading}
+          onChange={(e) => {
+            const input = e.currentTarget;
+            const file = input.files?.[0];
+            if (!file) return;
+            const refused = precheckEvidenceFile(file, files.length);
+            setPrecheck(refused);
+            if (refused) return;
+            if (input.form) void upload.submit(input.form, { method: "post", encType: "multipart/form-data" });
+          }}
+        />
+        <noscript>
+          <button type="submit" form={EVIDENCE_UPLOAD_FORM_ID} className="cap-btn" data-size="sm">
+            Upload
+          </button>
+        </noscript>
+      </span>
+    );
+  }
+
+  return (
+    <Panel title="Evidence files" description={EVIDENCE_FILES_LIMITS_LINE} actions={control}>
+      <div className="text-label">
+        <div role="status" className="text-micro">
+          {error ? <Status tone="crit">{error}</Status> : null}
+        </div>
+        {files.length === 0 ? (
+          <p className="m-0 text-micro text-text-subtle">No files uploaded.</p>
+        ) : (
+          <ul className="m-0 list-none space-y-1 p-0">
+            {files.map((f) => {
+              const name = fileNameFromPath(f.fieldValue);
+              return (
+                <li
+                  key={f.id}
+                  className="flex items-center justify-between gap-3 border-b border-border-sub py-1.5 last:border-b-0"
+                >
+                  {available ? (
+                    <a
+                      href={evidenceFileHref(disputeId, f.id)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-label text-brand-text hover:opacity-80"
+                    >
+                      {name}
+                    </a>
+                  ) : (
+                    <span className="text-label text-text">{name}</span>
+                  )}
+                  <span className="flex items-center gap-3">
+                    <span className="text-micro text-text-subtle">{formatDateShort(f.createdAt)}</span>
+                    {canChange ? (
+                      <button
+                        type="submit"
+                        form={EVIDENCE_DELETE_FORM_ID}
+                        name="evidence_id"
+                        value={f.id}
+                        className="cap-btn"
+                        data-variant="quiet"
+                        data-size="sm"
+                        aria-label={`Remove file ${name}`}
+                        onClick={(e) => {
+                          setPrecheck(null);
+                          if (!window.confirm(EVIDENCE_FILE_REMOVE_CONFIRM)) e.preventDefault();
+                        }}
+                      >
+                        Remove file
+                      </button>
+                    ) : null}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </Panel>
   );
 }

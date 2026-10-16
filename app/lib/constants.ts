@@ -275,6 +275,18 @@ export const DISPUTE_STATES = [
 ] as const;
 export type DisputeState = (typeof DISPUTE_STATES)[number];
 
+// ---- Dispute evidence files (J07) ----
+// Recova's lib/constants.ts DISPUTE_EVIDENCE_* limits, as its upload route,
+// its client hook and its "Evidence files" section read them. The page's
+// limits line is built from these, never typed.
+/** Files per dispute. Recova: DISPUTE_EVIDENCE_MAX_FILES = 5. */
+export const DISPUTE_EVIDENCE_MAX_FILES = 5;
+/** Bytes per file. Recova: DISPUTE_EVIDENCE_MAX_SIZE_BYTES = 5 MB. */
+export const DISPUTE_EVIDENCE_MAX_SIZE_BYTES = 5 * 1024 * 1024;
+/** Recova: DISPUTE_EVIDENCE_ALLOWED_TYPES, in its order. */
+export const DISPUTE_EVIDENCE_ALLOWED_TYPES = ["image/jpeg", "image/png", "application/pdf"] as const;
+export type DisputeEvidenceFileType = (typeof DISPUTE_EVIDENCE_ALLOWED_TYPES)[number];
+
 export const BILLING_LINE_ITEM_TYPES = [
   "recovery_fee",
   "dispute_fee",

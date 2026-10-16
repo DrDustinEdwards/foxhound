@@ -1,5 +1,6 @@
 import type Stripe from "stripe";
 
+import { STRIPE_FILE_SLOTS, type EvidenceFileUpload } from "~/lib/disputes/evidence-files";
 import { getConnectedStripe } from "~/lib/stripe/client";
 import { decryptToken } from "~/lib/stripe/encryption";
 
@@ -64,16 +65,46 @@ export function buildStripeEvidencePayload(
 
 export type DisputeSubmissionResult = { ok: true } | { ok: false; error: string };
 
+/**
+ * Upload the merchant's evidence files to Stripe (purpose dispute_evidence) and
+ * return the file ids by evidence slot, in Recova's slot order (submit/route.ts
+ * FILE_SLOTS). As Recova's, a file Stripe refuses is logged and left out, and
+ * the submission goes on without it.
+ */
+async function uploadEvidenceFilesToStripe(
+  stripe: Stripe,
+  files: EvidenceFileUpload[],
+): Promise<Record<string, string>> {
+  const slots: Record<string, string> = {};
+  for (let i = 0; i < files.length && i < STRIPE_FILE_SLOTS.length; i++) {
+    const file = files[i]!;
+    try {
+      const created = await stripe.files.create({
+        purpose: "dispute_evidence",
+        file: { data: file.bytes, name: file.name, type: file.contentType },
+      });
+      slots[STRIPE_FILE_SLOTS[i]!] = created.id;
+    } catch (error) {
+      console.error("dispute evidence file upload to Stripe failed", { name: file.name }, error);
+    }
+  }
+  return slots;
+}
+
 /** Submit the merchant-approved evidence to Stripe and request immediate
  *  submission to the bank (`submit: true`; never staged-only). Isolated so a
  *  fake Stripe client can drive it in tests without a live call, mirroring
- *  app/lib/engine/execute-step.ts's payInvoiceWithClient. */
+ *  app/lib/engine/execute-step.ts's payInvoiceWithClient. The merchant's files
+ *  (J07) go up first and take their slots; as in Recova's submit route, a file
+ *  outranks a text field of the same name. */
 export async function submitDisputeEvidenceWithClient(
   stripe: Stripe,
-  ctx: { stripeDisputeId: string; evidence: Stripe.DisputeUpdateParams.Evidence },
+  ctx: { stripeDisputeId: string; evidence: Stripe.DisputeUpdateParams.Evidence; files?: EvidenceFileUpload[] },
 ): Promise<DisputeSubmissionResult> {
   try {
-    await stripe.disputes.update(ctx.stripeDisputeId, { evidence: ctx.evidence, submit: true });
+    const fileSlots = ctx.files && ctx.files.length > 0 ? await uploadEvidenceFilesToStripe(stripe, ctx.files) : {};
+    const evidence = { ...ctx.evidence, ...fileSlots } as Stripe.DisputeUpdateParams.Evidence;
+    await stripe.disputes.update(ctx.stripeDisputeId, { evidence, submit: true });
     return { ok: true };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "Stripe dispute submission failed" };
@@ -85,6 +116,8 @@ export interface DisputeSubmissionContext {
   /** Encrypted stripe_connections.stripe_access_token for the connected account. */
   connectionAccessToken: string;
   evidence: Stripe.DisputeUpdateParams.Evidence;
+  /** The merchant's evidence files, read from the EVIDENCE bucket (J07). */
+  files?: EvidenceFileUpload[];
 }
 
 /** Default IO: decrypt the connection token, build the connected client,

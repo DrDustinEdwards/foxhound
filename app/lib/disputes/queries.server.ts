@@ -9,6 +9,8 @@ import {
   buildPendingApprovalBatch,
   buildSubmissionConfirmationBatch,
 } from "~/lib/disputes/approval.server";
+import { EVIDENCE_FILE_FIELD } from "~/lib/disputes/evidence-files";
+import { readEvidenceFilesForSubmission } from "~/lib/disputes/evidence-files.server";
 import { buildStripeEvidencePayload, submitDisputeEvidence } from "~/lib/disputes/submission";
 import { isUniqueConstraintError } from "~/lib/money/serializer";
 
@@ -291,11 +293,16 @@ export async function approveAndSubmitDispute(
         return submittedAt != null ? "already_submitted" : "resume";
       }
     },
-    submit: () =>
+    // Phase B. The merchant's evidence files (J07) are read from the bucket
+    // here, inside the submit step, so Phase A and Phase C are untouched; a
+    // file that cannot be read is left out and the submission goes on, as
+    // Recova's submit route does, and with no EVIDENCE binding none are sent.
+    submit: async () =>
       submitDisputeEvidence(env, {
         stripeDisputeId: input.stripeDisputeId,
         connectionAccessToken: input.connectionAccessToken,
         evidence: evidencePayload,
+        files: await readEvidenceFilesForSubmission(env.EVIDENCE, evidence),
       }),
     confirmSubmission: async () => {
       await db.batch(
@@ -352,11 +359,17 @@ export async function getDisputesWithEvidence(db: Db, accountId: string, dispute
   for (let i = 0; i < ids.length; i += HEALTH_LOOKUP_CHUNK) {
     const chunk = ids.slice(i, i + HEALTH_LOOKUP_CHUNK);
     const rows = await db
-      .select({ disputeId: disputeEvidence.disputeId, fieldValue: disputeEvidence.fieldValue })
+      .select({
+        disputeId: disputeEvidence.disputeId,
+        fieldName: disputeEvidence.fieldName,
+        fieldValue: disputeEvidence.fieldValue,
+      })
       .from(disputeEvidence)
       .where(and(eq(disputeEvidence.accountId, accountId), inArray(disputeEvidence.disputeId, chunk)));
     for (const row of rows) {
-      if (row.fieldValue.trim() !== "") found.add(row.disputeId);
+      // An uploaded file is not drafted evidence: Recova's "Evidence ready"
+      // read staged_at, which a file never set (J07).
+      if (row.fieldName !== EVIDENCE_FILE_FIELD && row.fieldValue.trim() !== "") found.add(row.disputeId);
     }
   }
   return found;
