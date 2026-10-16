@@ -1,9 +1,5 @@
 import { getDb } from "~/db";
-import {
-  describeMonthlyAuditRun,
-  enqueueMonthlyAudits,
-  MONTHLY_AUDIT_CRON_NAME,
-} from "~/lib/audit/monthly.server";
+import { describeMonthlyAuditRun, enqueueMonthlyAudits } from "~/lib/audit/monthly.server";
 import { describeSweepRun, runMonthlyBilling } from "~/lib/billing/run";
 import {
   CRON_SCHEDULE_DAILY,
@@ -217,7 +213,7 @@ export const CRON_JOBS: CronJob[] = [
   { name: DEMO_RESET_CRON_NAME, schedule: CRON_SCHEDULE_DAILY, handler: demoReset },
   { name: "billing-monthly", schedule: CRON_SCHEDULE_MONTHLY, handler: billingMonthly },
   { name: "intelligence-sync", schedule: CRON_SCHEDULE_MONTHLY, handler: intelligenceSync },
-  { name: MONTHLY_AUDIT_CRON_NAME, schedule: CRON_SCHEDULE_MONTHLY_AUDIT, handler: monthlyAudit },
+  { name: "monthly-audit", schedule: CRON_SCHEDULE_MONTHLY_AUDIT, handler: monthlyAudit },
   { name: "intelligence-ai", schedule: CRON_SCHEDULE_DAILY, handler: intelligenceAi },
   { name: "retention-engagement-events", schedule: CRON_SCHEDULE_DAILY, handler: sweepEngagementEvents },
   { name: "retention-email-sends", schedule: CRON_SCHEDULE_DAILY, handler: sweepEmailSends },

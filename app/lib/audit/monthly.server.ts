@@ -407,7 +407,8 @@ export async function claimMonthSlot(
   }
 }
 
-/** The registered cron's name, shared with the alert the consumer raises. */
+/** The registered cron's name (app/lib/cron/registry.ts), which the consumer's
+ *  last-attempt alert is filed under. */
 export const MONTHLY_AUDIT_CRON_NAME = "monthly-audit";
 
 /** One queue message: one account, one month, and the cron run that queued it. */
