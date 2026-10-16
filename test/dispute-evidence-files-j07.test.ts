@@ -54,7 +54,9 @@ const { approveAndSubmitDispute, getDisputeDetail, getDisputesWithEvidence } = a
   "~/lib/disputes/queries.server"
 );
 const { submitDisputeEvidenceWithClient } = await import("~/lib/disputes/submission");
-const { uploadEvidenceFile } = await import("~/lib/disputes/evidence-files.server");
+const { deleteEvidenceFile, readEvidenceFilesForSubmission, uploadEvidenceFile } = await import(
+  "~/lib/disputes/evidence-files.server"
+);
 const Page = detail.default as unknown as (props: Record<string, unknown>) => ReturnType<typeof createElement>;
 
 const NOW = Date.parse("2026-10-16T12:00:00.000Z");
@@ -68,12 +70,14 @@ interface Stored {
   bytes: Uint8Array;
   contentType: string | undefined;
 }
-function fakeBucket(opts: { failPut?: boolean } = {}) {
+function fakeBucket(opts: { failPut?: boolean; onPut?: () => void } = {}) {
   const objects = new Map<string, Stored>();
   const bucket = {
     objects,
     async put(key: string, value: ArrayBuffer | Uint8Array, o?: { httpMetadata?: { contentType?: string } }) {
       if (opts.failPut) throw new Error("r2 down");
+      // Lets a test act between the checks before the write and the write.
+      opts.onPut?.();
       const bytes = value instanceof Uint8Array ? value : new Uint8Array(value);
       objects.set(key, { bytes, contentType: o?.httpMetadata?.contentType });
       return { key };
@@ -791,5 +795,87 @@ describe("J07: files go with the evidence submission (Recova's submit route)", (
     });
     expect(result).toEqual({ ok: true });
     expect(updates[0]!.evidence).toEqual({ product_description: "Widget", service_documentation: "file_2" });
+  });
+});
+
+// ---- The guards joined to the writes (RULES.md 3.9), past the route's reads ----
+
+describe("J07 review: each write carries its own guard", () => {
+  const upload = (bucket: FakeBucket) =>
+    uploadEvidenceFile(db, bucket as unknown as R2Bucket, {
+      accountId: A,
+      disputeId: "dsp_1",
+      file: fileOf(PNG, "r.png", "image/png"),
+      now: new Date(NOW),
+    });
+
+  it("an upload writes nothing when an approval lands between its checks and its insert", async () => {
+    seedDispute();
+    const bucket = fakeBucket({ onPut: () => seedApproval() });
+    expect(await upload(bucket)).toBe("not_saved");
+    expect(fileRows()).toHaveLength(0);
+    expect(bucket.objects.size).toBe(0);
+  });
+
+  it("an upload writes nothing when another takes the fifth place between its count and its insert", async () => {
+    seedDispute();
+    for (let i = 0; i < 4; i++) seedEvidence(`ev_${i}`, "file_upload", `acct_alpha/dsp_1/${i}.png`);
+    const bucket = fakeBucket({ onPut: () => seedEvidence("ev_4", "file_upload", "acct_alpha/dsp_1/4.png") });
+    expect(await upload(bucket)).toBe("not_saved");
+    expect(fileRows()).toHaveLength(5);
+    expect(bucket.objects.size).toBe(0);
+  });
+
+  it("a delete removes nothing once an approval exists", async () => {
+    seedDispute();
+    const bucket = fakeBucket();
+    const key = "acct_alpha/dsp_1/kept.png";
+    await bucket.put(key, new Uint8Array(PNG), { httpMetadata: { contentType: "image/png" } });
+    seedEvidence("ev_kept", "file_upload", key);
+    seedApproval();
+    const outcome = await deleteEvidenceFile(db, bucket as unknown as R2Bucket, {
+      accountId: A,
+      disputeId: "dsp_1",
+      evidenceId: "ev_kept",
+    });
+    expect(outcome).toBe("not_saved");
+    expect(fileRows()).toHaveLength(1);
+    expect(bucket.objects.has(key)).toBe(true);
+  });
+});
+
+describe("J07 review: a file keeps its own Stripe slot when an earlier one is missing (Recova's slot i)", () => {
+  it("reads the slots by the files' places in the list", async () => {
+    const bucket = fakeBucket();
+    await bucket.put("k/a.png", new Uint8Array(PNG), { httpMetadata: { contentType: "image/png" } });
+    await bucket.put("k/c.pdf", new Uint8Array(PDF), { httpMetadata: { contentType: "application/pdf" } });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const files = await readEvidenceFilesForSubmission(bucket as unknown as R2Bucket, [
+      { fieldName: "file_upload", fieldValue: "k/a.png" },
+      { fieldName: "file_upload", fieldValue: "k/missing.png" },
+      { fieldName: "file_upload", fieldValue: "k/c.pdf" },
+    ]);
+    expect(files.map((f) => [f.name, f.slot])).toEqual([
+      ["a.png", 0],
+      ["c.pdf", 2],
+    ]);
+  });
+
+  it("submits a file in its own slot, leaving the missing one's slot empty", async () => {
+    const updates: { evidence: Record<string, string> }[] = [];
+    let n = 0;
+    const stripe = {
+      files: { create: async () => ({ id: `file_${++n}` }) },
+      disputes: { update: async (_id: string, params: { evidence: Record<string, string> }) => (updates.push(params), {}) },
+    } as unknown as Stripe;
+    await submitDisputeEvidenceWithClient(stripe, {
+      stripeDisputeId: "dp_1",
+      evidence: {},
+      files: [
+        { name: "a.png", contentType: "image/png", bytes: new Uint8Array([1]), slot: 0 },
+        { name: "c.pdf", contentType: "application/pdf", bytes: new Uint8Array([2]), slot: 2 },
+      ],
+    });
+    expect(updates[0]!.evidence).toEqual({ receipt: "file_1", shipping_documentation: "file_2" });
   });
 });

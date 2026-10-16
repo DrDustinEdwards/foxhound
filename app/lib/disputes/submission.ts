@@ -83,7 +83,8 @@ async function uploadEvidenceFilesToStripe(
         purpose: "dispute_evidence",
         file: { data: file.bytes, name: file.name, type: file.contentType },
       });
-      slots[STRIPE_FILE_SLOTS[i]!] = created.id;
+      const slot = STRIPE_FILE_SLOTS[file.slot ?? i];
+      if (slot) slots[slot] = created.id;
     } catch (error) {
       console.error("dispute evidence file upload to Stripe failed", { name: file.name }, error);
     }

@@ -170,4 +170,8 @@ export interface EvidenceFileUpload {
   name: string;
   contentType: string;
   bytes: Uint8Array;
+  /** Its index in STRIPE_FILE_SLOTS: the file's place in the page's list, kept
+   *  when an earlier file could not be read, as Recova's slot i stayed file i's.
+   *  Absent, the file's place in the array is used. */
+  slot?: number;
 }

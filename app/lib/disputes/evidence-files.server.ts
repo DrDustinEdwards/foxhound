@@ -217,7 +217,8 @@ export async function readEvidenceFile(
 
 /**
  * The files for a submission, read from the bucket in the order the page
- * lists them (the rows' own order), up to Stripe's five slots. As Recova's
+ * lists them (the rows' own order), up to Stripe's five slots, each keeping
+ * its own slot when an earlier one is missing. As Recova's
  * submit route, a file that cannot be read is logged and left out and the
  * submission goes on; with no bucket bound, none are sent.
  */
@@ -232,7 +233,7 @@ export async function readEvidenceFilesForSubmission(
     return [];
   }
   const files: EvidenceFileUpload[] = [];
-  for (const key of keys.slice(0, STRIPE_FILE_SLOTS.length)) {
+  for (const [slot, key] of keys.slice(0, STRIPE_FILE_SLOTS.length).entries()) {
     try {
       const object = await bucket.get(key);
       if (!object) {
@@ -244,6 +245,7 @@ export async function readEvidenceFilesForSubmission(
         name: fileNameFromPath(key),
         contentType: isEvidenceFileType(declared) ? declared : "application/octet-stream",
         bytes: new Uint8Array(await object.arrayBuffer()),
+        slot,
       });
     } catch (err) {
       console.error("dispute evidence file read failed", { key }, err);
