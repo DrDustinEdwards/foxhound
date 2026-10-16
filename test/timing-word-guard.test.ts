@@ -77,6 +77,7 @@ const DUNNING_INPUT = {
 
 const WINBACK_INPUT = {
   stepNumber: 1,
+  offsetHours: 1,
   customerName: "Jane",
   planName: "Pro",
   cancelReason: "too expensive",

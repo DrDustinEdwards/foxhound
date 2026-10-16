@@ -154,6 +154,12 @@ function outcomeRows() {
 }
 
 describe("PLANT 1: the copy is legacy's, per step", () => {
+  /** The template's words, in order, as one string per block (J91: the
+   *  template is Capsomer's blocks, so a sentence is a block's text and the
+   *  button is its label). */
+  const words = (blocks: { type: string; text?: string; label?: string; url?: string }[]) =>
+    blocks.map((b) => (b.type === "button" ? `[${b.label}](${b.url})` : (b.text ?? "")));
+
   it("carries legacy's three subjects", () => {
     expect(winbackSubject({ stepNumber: 1, planName: "Pro" })).toBe(
       "We're sorry to see you go. Here's what you're missing.",
@@ -165,7 +171,7 @@ describe("PLANT 1: the copy is legacy's, per step", () => {
   });
 
   it("substitutes every placeholder, including the resubscribe url", () => {
-    const html = buildWinbackEmail({
+    const blocks = buildWinbackEmail({
       stepNumber: 1,
       customerName: "Jane",
       planName: "Pro",
@@ -173,53 +179,73 @@ describe("PLANT 1: the copy is legacy's, per step", () => {
       resubscribeUrl: "https://foxhoundapp.test/p/tok",
     });
 
-    expect(html).toContain("<p>Hi Jane,</p>");
-    expect(html).toContain("your Pro subscription");
-    expect(html).toContain('<a href="https://foxhoundapp.test/p/tok">Reactivate My Account</a>');
-    expect(html).toContain("Thanks for being a customer,<br>Teamflow");
+    expect(words(blocks)).toEqual([
+      "Hi Jane,",
+      "We noticed you recently cancelled your Pro subscription. We're sorry to see you go.",
+      "If there's anything we could have done better, we'd love to hear from you. And if you ever want to come back, we'll be here.",
+      "[Reactivate My Account](https://foxhoundapp.test/p/tok)",
+      "Thanks for being a customer,",
+      "Teamflow",
+    ]);
     // NOTHING is left unsubstituted.
-    expect(html).not.toContain("{{");
+    expect(JSON.stringify(blocks)).not.toContain("{{");
   });
 
   it("uses legacy's fallbacks when the sequence has no name, plan or sender", () => {
-    const html = buildWinbackEmail({
+    const blocks = buildWinbackEmail({
       stepNumber: 2,
       customerName: null,
       planName: null,
       senderName: null,
-      resubscribeUrl: "u",
+      resubscribeUrl: "https://foxhoundapp.test/p/u",
     });
 
-    expect(html).toContain("<p>Hi there,</p>");
-    expect(html).toContain("Thanks,<br>Support");
-    expect(html).toContain("Come Back");
+    expect(words(blocks)).toEqual([
+      "Hi there,",
+      "It's been a few days since you cancelled, and we wanted to share what's new.",
+      "We've been working hard on improvements and would love to have you back. Your account can be reactivated instantly.",
+      "[Come Back](https://foxhoundapp.test/p/u)",
+      "Thanks,",
+      "Support",
+    ]);
   });
 
   it("THE PLAN FALLBACK IS ASSERTED ON STEP ONE, the only body that names a plan", () => {
     // Steps 2 and 3 carry no {{plan_name}}, so a mutation to the plan fallback
     // was invisible until this reached the step that actually uses it.
-    const html = buildWinbackEmail({
+    const blocks = buildWinbackEmail({
       stepNumber: 1,
       customerName: null,
       planName: null,
       senderName: null,
-      resubscribeUrl: "u",
+      resubscribeUrl: "https://foxhoundapp.test/p/u",
     });
 
     // Legacy's own output, awkwardness included: the template already says
     // "your {{plan_name}} subscription", so the fallback reads back doubled.
     // Ported verbatim rather than smoothed, because legacy is the spec.
-    expect(html).toContain("cancelled your your subscription subscription");
+    expect(words(blocks).join("\n")).toContain("cancelled your your subscription subscription");
   });
 
   it("step 3 carries legacy's last-chance label", () => {
-    expect(buildWinbackEmail({
-      stepNumber: 3,
-      customerName: "Jane",
-      planName: "Pro",
-      senderName: "T",
-      resubscribeUrl: "u",
-    })).toContain(">Reactivate Now</a>");
+    expect(
+      words(
+        buildWinbackEmail({
+          stepNumber: 3,
+          customerName: "Jane",
+          planName: "Pro",
+          senderName: "T",
+          resubscribeUrl: "https://foxhoundapp.test/p/u",
+        }),
+      ),
+    ).toEqual([
+      "Hi Jane,",
+      "This is our last check-in. If you've decided to move on, we completely understand and wish you the best.",
+      "But if you've been on the fence, now's a great time to come back. Your data is still here waiting for you.",
+      "[Reactivate Now](https://foxhoundapp.test/p/u)",
+      "Thanks for giving us a shot,",
+      "T",
+    ]);
   });
 });
 
@@ -307,7 +333,9 @@ describe("PLANT 3: a send claims the step and records one outcome", () => {
     expect(job.physicalAddress).toBe("1 Test Way");
 
     // THE BUTTON RESOLVES TO A RESUBSCRIBE TOKEN naming this sequence and step.
-    const url = String(job.bodyHtml).match(/href="([^"]+)"/)?.[1] ?? "";
+    // J91: the template is Capsomer's blocks; its one button is the link.
+    const url =
+      (job.blocks as { type: string; url?: string }[]).find((b) => b.type === "button")?.url ?? "";
     expect(url.startsWith("https://foxhoundapp.test/p/")).toBe(true);
     const payload = await verifyCardUpdateToken(env, url.split("/p/")[1]);
     expect(payload?.winBackSequenceId).toBe("wb_1");

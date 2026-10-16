@@ -25,13 +25,39 @@ import { applyTimingWordGuard, readGeneratedCopy, type EmailCopy } from "./email
 // industry, customer type and MRR that 337's reader feeds the DUNNING prompt
 // appear nowhere in legacy's win-back prompt or its select.
 
-/** Legacy's per-step descriptions, verbatim, including the tone each carries.
- *  Step 3 is the "last chance, no pressure" line the brief asks about. */
-const STEP_DESCRIPTIONS: Record<number, string> = {
-  1: "first win-back email sent 1 hour after cancellation, warm, empathetic, not pushy",
-  2: "second win-back email sent 4 days after cancellation, share value, mention improvements",
-  3: "final win-back email sent 14 days after cancellation, last chance, no pressure",
+/** Legacy's per-step descriptions, in its words and with the tone each carries.
+ *  Step 3 is the "last chance, no pressure" line the brief asks about.
+ *
+ *  THE DELAY IS THE STEP'S OWN, not a typed literal (J91, a truthfulness fix).
+ *  Legacy writes "1 hour", "4 days" and "14 days" into the prompt, which are its
+ *  WIN_BACK_SCHEDULE offsets; but on an account with Intelligence step 1 goes
+ *  at WINBACK_UNFLAGGED_STEP1_HOURS (4) unless the customer is flagged, and
+ *  nothing flags one yet, so "1 hour" told the model something untrue there.
+ *  The cron passes the delay it read off the step (scheduled_at less the
+ *  sequence's created_at, which is the cancellation); legacy's three offsets
+ *  still read exactly as legacy words them. */
+const STEP_DESCRIPTIONS: Record<number, { which: string; tone: string }> = {
+  1: { which: "first", tone: "warm, empathetic, not pushy" },
+  2: { which: "second", tone: "share value, mention improvements" },
+  3: { which: "final", tone: "last chance, no pressure" },
 };
+
+/** A delay in legacy's words: whole days when it is a whole number of days,
+ *  else hours ("1 hour", "4 hours", "4 days", "14 days"). Pure. */
+export function describeWinbackDelay(offsetHours: number): string {
+  const hours = Math.max(0, Math.round(offsetHours));
+  if (hours >= 24 && hours % 24 === 0) {
+    const days = hours / 24;
+    return `${days} ${days === 1 ? "day" : "days"}`;
+  }
+  return `${hours} ${hours === 1 ? "hour" : "hours"}`;
+}
+
+function describeStep(stepNumber: number, offsetHours: number): string {
+  const step = STEP_DESCRIPTIONS[stepNumber];
+  if (!step) return "win-back email";
+  return `${step.which} win-back email sent ${describeWinbackDelay(offsetHours)} after cancellation, ${step.tone}`;
+}
 
 /** Legacy's `${merchant.brand_voice || 'friendly and conversational'}`.
  *
@@ -43,6 +69,9 @@ export const WINBACK_VOICE_FALLBACK = "friendly and conversational";
 
 export interface WinbackPromptInput {
   stepNumber: number;
+  /** Hours from the cancellation to this step's send, as scheduled. Required,
+   *  so every caller states the real delay rather than a default (J91). */
+  offsetHours: number;
   customerName: string;
   planName: string;
   cancelReason: string | null;
@@ -65,13 +94,14 @@ export interface WinbackPromptInput {
  * gets that rule from its Haiku quality-check prompt (lib/email-generation.ts
  * blob `e28d780e` line 344), a second pass Foxhound does not have, so this
  * prompt is the only place the rule can live. It names the same nine phrases
- * as the detector. Every other line is legacy's.
+ * as the detector. The step's delay is the real one (STEP_DESCRIPTIONS, J91).
+ * Every other line is legacy's.
  *
  * Pure, so a plant reads the real prompt bytes rather than a rebuilt copy
  * (337 binding 4).
  */
 export function buildWinbackPrompt(input: WinbackPromptInput): string {
-  const description = STEP_DESCRIPTIONS[input.stepNumber] ?? "win-back email";
+  const description = describeStep(input.stepNumber, input.offsetHours);
   return [
     "You are writing a win-back email for a SaaS business trying to re-engage a cancelled customer.",
     "",

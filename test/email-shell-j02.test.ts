@@ -210,14 +210,18 @@ describe("customer mail carries both parts and the CAN-SPAM footer", () => {
   for (const step of [1, 2, 3]) {
     it(`win-back step ${step}`, async () => {
       const resubscribe = `${BASE}/p/resub_tok`;
-      const body = buildWinbackEmail({
+      // J91: the win-back template is written as Capsomer's blocks.
+      const blocks = buildWinbackEmail({
         stepNumber: step,
         customerName: "Jane",
         planName: "Pro",
         senderName: "Acme",
         resubscribeUrl: resubscribe,
       });
-      await sendEmail(env, customerJob(body, { subject: winbackSubject({ stepNumber: step, planName: "Pro" }) }));
+      await sendEmail(
+        env,
+        customerJob("", { bodyHtml: undefined, blocks, subject: winbackSubject({ stepNumber: step, planName: "Pro" }) }),
+      );
       const m = only();
       expectBothParts(m, ["Hi Jane,", "Acme"]);
       expect(m.html).toContain(`href="${resubscribe}"`);

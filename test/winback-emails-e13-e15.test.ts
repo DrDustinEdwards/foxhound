@@ -51,6 +51,8 @@ const { runWinbackSends } = await import("~/lib/cron/winback");
 const { buildWinbackEmail } = await import("~/lib/recovery/winback-email");
 const { buildWinbackPrompt } = await import("~/lib/recovery/winback-generation");
 const { signCardUpdateToken } = await import("~/lib/card-update/token");
+const { WIN_BACK_SCHEDULE } = await import("~/lib/recovery/schedule");
+const { WINBACK_UNFLAGGED_STEP1_HOURS } = await import("~/lib/constants");
 
 const BASE = "https://foxhoundapp.test";
 const ADDRESS = "1 Test Way, Austin TX";
@@ -199,6 +201,16 @@ const ROWS = [
 ] as const;
 
 describe("J91: each win-back email says and carries what Recova's does", () => {
+  it("the webhook schedules Recova's offsets: 1, 96 and 336 hours, and 4 for an unflagged step 1 under Intelligence", () => {
+    // Recova's WIN_BACK_SCHEDULE (lib/recovery-schedules.ts, blob 88f4e97a) and
+    // its handleSubscriptionDeleted's `step1OffsetHours = 4`. The sends below
+    // seed each step at the offset this schedule gives it.
+    expect(WIN_BACK_SCHEDULE.map((s) => [s.stepNumber, s.offsetHours])).toEqual(
+      ROWS.map((r) => [r.stepNumber, r.offsetHours]),
+    );
+    expect(WINBACK_UNFLAGGED_STEP1_HOURS).toBe(4);
+  });
+
   for (const r of ROWS) {
     describe(`${r.row}, win-back step ${r.stepNumber}`, () => {
       it("sends at Recova's offset to the sequence's customer, and not before", async () => {
