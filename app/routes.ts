@@ -71,11 +71,8 @@ export default [
     route("terms", "./routes/terms.tsx"),
     route("security", "./routes/security.tsx"),
 
-    // Auth (marketing shell per DESIGN.md: "no visual seam at login")
-    route("login", "./routes/auth/login.tsx"),
-    route("signup", "./routes/auth/signup.tsx"),
-    route("forgot-password", "./routes/auth/forgot-password.tsx"),
-    route("reset-password", "./routes/auth/reset-password.tsx"),
+    // Stripe connect and invites stay under the site header: Recova mounts
+    // them outside its (auth) group (ruling 403 binding 4).
     route("connect", "./routes/auth/connect.tsx"),
     route("connect/callback", "./routes/auth/connect-callback.ts"),
     // The switcher's "+ Add account" (ruling 326 phase (e), first half of (d)).
@@ -87,6 +84,15 @@ export default [
     // Google OAuth start (POST): builds the provider URL + CSRF state cookie.
     // The callback is the resource route auth/google/callback below.
     route("auth/google", "./routes/auth/google-start.ts"),
+  ]),
+
+  // The four sign-in pages: Recova's bare auth layout, no site navigation and
+  // the footer's auth variant (row A1, ruling 403; J52).
+  layout("./layouts/auth.tsx", [
+    route("login", "./routes/auth/login.tsx"),
+    route("signup", "./routes/auth/signup.tsx"),
+    route("forgot-password", "./routes/auth/forgot-password.tsx"),
+    route("reset-password", "./routes/auth/reset-password.tsx"),
   ]),
 
   // Recova's paths (J09, rulings 55 and 56): the console is /console and each

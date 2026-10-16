@@ -16,6 +16,9 @@ import { handleQueueBatch } from "~/lib/queue/consumer";
 export { MoneyWriteDurableObject } from "./money-writer";
 export { CronLockDurableObject } from "./cron-lock";
 export { RateLimiterDurableObject } from "./rate-limiter";
+// site-runtime's limiter class, bound as AUTH_RATE_LIMITER: the sign-in and
+// signup limiter (Q5; app/lib/auth/rate-limit.server.ts).
+export { RateLimiter } from "@dustinedwards/site-runtime/rate-limit/durable-object";
 
 const requestHandler = createRequestHandler(
   () => import("virtual:react-router/server-build"),
@@ -33,9 +36,10 @@ export default withSentry<Env>(
       // same value (TASK-foxhound-csp-nonce-hydration.md).
       const nonce = generateNonce();
 
-      // Checked before the route handler runs (not after): a throttled
-      // request must never reach a sign-in DB lookup or dispatch a
-      // password-reset/verification email (audit M-1).
+      // Checked before the route handler runs (not after). The public bucket
+      // only: sign-in, signup, reset and Better Auth's own endpoints are
+      // limited inside their actions by site-runtime's limiter (J52), where a
+      // ".data" spelling of the path cannot slip past it.
       const limited = await enforceRateLimit(request, env);
       if (limited) return applyCachePolicy(request, applySecurityHeaders(limited, nonce));
 

@@ -1,9 +1,10 @@
-import { Form, Link } from "react-router";
+import { Link } from "react-router";
 
 import { Wordmark } from "./wordmark";
 
-// Shared building blocks for the auth screens (login, signup, forgot/reset
-// password). Two-panel redesign (task Part 3: brand/value left panel, form
+// Shared building blocks for /invite and the settings pages that still use
+// them. The four sign-in pages left these in J52 for Recova's one card from
+// Capsomer's parts (app/components/auth-card.tsx). Two-panel redesign (task Part 3: brand/value left panel, form
 // right, "matches the old system's polish"), still inside the marketing
 // layout's shared header/footer (DESIGN.md: "no visual seam at login").
 // Styling uses DESIGN.md token utilities only; no inline styles, including
@@ -134,29 +135,6 @@ export function Alert({
     >
       {children}
     </p>
-  );
-}
-
-// "Continue with Google" -> posts to the /auth/google start route. Rendered only
-// when the server reports the provider is configured (googleEnabled loader flag),
-// so the Google path is invisible rather than broken when no client is set.
-export function GoogleButton({ label }: { label: string }) {
-  return (
-    <>
-      <div className="flex items-center gap-3 text-micro text-text-subtle">
-        <span className="h-px flex-1 bg-border" />
-        or
-        <span className="h-px flex-1 bg-border" />
-      </div>
-      <Form method="post" action="/auth/google">
-        <button
-          type="submit"
-          className="w-full rounded-md border border-border bg-surface px-4 py-2 text-body text-text hover:border-border-i"
-        >
-          {label}
-        </button>
-      </Form>
-    </>
   );
 }
 

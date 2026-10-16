@@ -296,7 +296,8 @@ describe("/features entries are Recova's, each a capability Foxhound ships", () 
     "Scheduler-only crons": [["workers/app.ts", "for (const job of jobsForSchedule(controller.cron))"]],
     "PKCE S256 enforced": [["mcp/src/door.ts", "OAuthProvider"]],
     "Admin double-gate": [["mcp/src/door.ts", "on every"]],
-    "Rate limiting": [["app/lib/http/rate-limit.ts", '"/login", // login.tsx']],
+    // Sign-in moved to site-runtime's Durable Object limiter in J52.
+    "Rate limiting": [["app/lib/auth/rate-limit.server.ts", "export async function checkAuthLimit"]],
     "CAN-SPAM compliance": [["app/lib/email/send.ts", "email blocked: missing CAN-SPAM physical address"]],
     "WCAG 2.2 compliance": [["app/app.css", "prefers-contrast: more"]],
     "CVD accessibility": [["app/components/badge.tsx", "{children}"]],

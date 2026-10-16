@@ -2,6 +2,7 @@ import { redirect } from "react-router";
 
 import { getAuth } from "~/lib/auth";
 import { forwardSetCookie } from "~/lib/auth/http";
+import { checkAuthLimit, RATE_LIMITED_ERROR } from "~/lib/auth/rate-limit.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import type { Route } from "./+types/google-start";
@@ -13,6 +14,11 @@ import type { Route } from "./+types/google-start";
 // guard anyway).
 export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
+  // The shared auth bucket (J52, site-runtime's limiter): a signed-out caller
+  // can start sign-ins here. A form post, so a refusal goes back to the page.
+  if (await checkAuthLimit(env, request, "credential")) {
+    return redirect(`/login?error=${RATE_LIMITED_ERROR}`, { status: 303 });
+  }
   if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
     return redirect("/login");
   }

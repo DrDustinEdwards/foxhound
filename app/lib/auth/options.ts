@@ -2,6 +2,9 @@ import type { BetterAuthOptions } from "better-auth";
 import { APIError } from "better-auth/api";
 
 import { isDisposableEmail } from "./disposable-emails";
+import { MIN_PASSWORD_LENGTH } from "./password-policy";
+
+export { MIN_PASSWORD_LENGTH };
 
 // Database-agnostic Better Auth options shared by the runtime factory
 // (auth.server.ts, which injects the D1-backed Drizzle adapter and env-gated
@@ -16,9 +19,6 @@ import { isDisposableEmail } from "./disposable-emails";
 /** Session lifetime: 30 days, refreshed at most once per day. */
 export const SESSION_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 30;
 export const SESSION_UPDATE_AGE_SECONDS = 60 * 60 * 24;
-
-/** Minimum password length at signup (legacy parity: strong-by-default). */
-export const MIN_PASSWORD_LENGTH = 12;
 
 /**
  * How long a password reset link works: one hour. This is Better Auth's own
