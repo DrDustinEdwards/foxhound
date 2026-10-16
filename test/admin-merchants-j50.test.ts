@@ -332,11 +332,30 @@ describe("the lists on the page", () => {
   it("says how many are on the list and what the flag does in Foxhound's engine", () => {
     const paused = text(render("paused"));
     expect(paused).toMatch(/2 merchants are paused/);
-    expect(paused).toMatch(/neither processed nor billed/);
+    expect(paused).toMatch(/neither processed nor billed while paused/);
+    // billable.ts reads the flag at run time with no lower bound on the
+    // recovery date: a pause defers fees, it never forgives them (PR 144 review).
+    expect(paused).toMatch(/fees already earned are billed at the first billing run after it is resumed/);
     expect(paused).toMatch(/1 of them is held by the emergency brake/);
+    // A brake pause's Resume has no Undo (toggleMessage), so the list must not
+    // promise one for every row (PR 144 review, LOW 2).
+    expect(paused).toMatch(/can be undone, except for a merchant the emergency brake paused/);
     const exempt = text(render("billing-exempt"));
     expect(exempt).toMatch(/1 merchant is billing exempt/);
-    expect(exempt).toMatch(/processed as usual and never billed/);
+    // Not "never billed": an exemption defers fees (PR 144 review, MEDIUM 1).
+    expect(exempt).not.toMatch(/never billed/);
+    expect(exempt).toMatch(/processed as usual and is not billed while exempt/);
+    expect(exempt).toMatch(/Fees that come due while exempt wait, and are billed at the first billing run after the exemption ends/);
+  });
+
+  it("gives each list its own browser title, as Recova's headings named them (PR 144 review, LOW 3)", () => {
+    const title = (route: Record<string, unknown>) => {
+      expect(typeof route.meta).toBe("function");
+      return (route.meta as () => Array<{ title: string }>)()[0]?.title;
+    };
+    expect(title(indexRoute)).toBe("Merchants - Foxhound admin");
+    expect(title(pausedRoute)).toBe("Paused merchants - Foxhound admin");
+    expect(title(exemptRoute)).toBe("Billing exempt merchants - Foxhound admin");
   });
 
   it("links the brake's share to the brake, in the sentence, not as a button", () => {

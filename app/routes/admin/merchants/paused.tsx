@@ -7,7 +7,14 @@ import type { AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/paused";
 
-export { action, default, meta } from "./index";
+export { action, default } from "./index";
+
+// Its own browser title, as Recova's heading named the list. AdminShell sets
+// document.title itself today (job_490a6bc5b957, blocked); this is right for
+// when that lands.
+export function meta() {
+  return [{ title: "Paused merchants - Foxhound admin" }];
+}
 
 // One page name: the menu's Merchants, as the list's tab says which list.
 export const handle: AdminHandle = { page: "Merchants" };

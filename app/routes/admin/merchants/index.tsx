@@ -270,7 +270,10 @@ type Figures = NonNullable<Route.ComponentProps["loaderData"]["figures"]>;
  *  what the flag does in Foxhound's engine: billing_exempt and
  *  processing_paused both leave a merchant out of the billing run
  *  (app/db/billable.ts, accountBillingEligibleCondition), and only a pause
- *  stops processing. */
+ *  stops processing. Both defer fees and never forgive them: the gate is read
+ *  at each run and the billable queries have no lower bound on the recovery
+ *  date, so the first run after the flag clears bills what matured meanwhile
+ *  (PR 144 review). Whether an exemption should forgive is Dustin's ruling. */
 const VIEW_WORDS: Record<
   MerchantView,
   { caption: string; empty: string; emptyBody: string; describe: (n: number) => string }
@@ -287,14 +290,14 @@ const VIEW_WORDS: Record<
     empty: "No merchants are paused.",
     emptyBody: "A merchant paused here, or by the emergency brake, appears on this list.",
     describe: (n) =>
-      `${plural(n, "merchant is", "merchants are")} paused, newest first. A paused merchant is neither processed nor billed until it is resumed. Resume takes effect at once and can be undone.`,
+      `${plural(n, "merchant is", "merchants are")} paused, newest first. A paused merchant is neither processed nor billed while paused; fees already earned are billed at the first billing run after it is resumed. Resume takes effect at once and can be undone, except for a merchant the emergency brake paused.`,
   },
   "billing-exempt": {
     caption: "Every billing exempt merchant, newest first, with its actions",
     empty: "No merchants are billing exempt.",
     emptyBody: "A merchant set exempt here appears on this list.",
     describe: (n) =>
-      `${plural(n, "merchant is", "merchants are")} billing exempt, newest first. A billing exempt merchant is processed as usual and never billed. Ending an exemption takes effect at once and can be undone.`,
+      `${plural(n, "merchant is", "merchants are")} billing exempt, newest first. A billing exempt merchant is processed as usual and is not billed while exempt. Fees that come due while exempt wait, and are billed at the first billing run after the exemption ends. Ending an exemption takes effect at once and can be undone.`,
   },
 };
 
