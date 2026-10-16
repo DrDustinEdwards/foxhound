@@ -1,34 +1,52 @@
-import { Badge } from "~/components/badge";
-import { GroupedBars } from "~/components/charts";
-import { StatCard } from "~/components/stat-card";
+import { useId } from "react";
+import { barChart } from "enarratio/lite/bar";
+import { Disclosure } from "capsomer/react/disclosure";
+import { Empty } from "capsomer/react/empty";
+import { PageHead } from "capsomer/react/page-head";
+import { Panel } from "capsomer/react/panel";
+import { Pill } from "capsomer/react/status";
+import "capsomer/disclosure.css";
+import "capsomer/empty.css";
+import "capsomer/page-head.css";
+import "capsomer/panel.css";
+import "capsomer/status.css";
+import "./dashboard.css";
+
+import { EnarratioFigure } from "~/components/enarratio-figure";
 import { getDb } from "~/db";
-import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
-import { DECLINE_CATEGORIES, type DeclineCategory } from "~/lib/constants";
+import { cloudflareContext } from "~/lib/cloudflare-context";
 import { sanitizeEmailPreviewHtml } from "~/lib/recovery/email-preview.server";
-import { DECLINE_CATEGORY_LABELS } from "~/lib/recovery/labels";
 import { listExecutedRecoverySteps } from "~/lib/recovery/queries.server";
-import { buildCategorySections, summarizeStepPerformance, type StepCard } from "~/lib/recovery/sequence-performance";
+import {
+  SEQUENCE_CATEGORY_DESCRIPTIONS,
+  SEQUENCE_CATEGORY_NAMES,
+  SEQUENCE_CATEGORY_ORDER,
+  sequenceRateClassName,
+} from "~/lib/recovery/sequence-categories";
+import { stepPerformanceAlt, stepPerformanceRows, STEP_PERFORMANCE_SERIES } from "~/lib/recovery/sequence-chart";
+import {
+  buildCategorySections,
+  summarizeStepPerformance,
+  type CategorySection,
+  type StepCard,
+  type StepPerformanceSummary,
+} from "~/lib/recovery/sequence-performance";
 
 import type { Route } from "./+types/sequences";
+
+// /recovery/sequence (row S9, job J12). Recova is the spec: its page,
+// app/(app)/recovery/sequence/page.tsx at blob 953c3f57, with
+// components/SequenceView.tsx 5507b89f, StepPerformanceChart.tsx edf8f83c and
+// lib/sequence-utils.ts 061aba7a, each read whole. Every section, label and
+// their order are Recova's; the parts are Capsomer 0.9.0's (Q10), the chart is
+// Enarratio's (Q1), teal throughout (Q11), and the numbers and categories are
+// Foxhound's engine (RECOVERY_SCHEDULES, six categories, silent retry first,
+// ruling 80).
 
 export function meta() {
   return [{ title: "Sequences - Foxhound" }];
 }
-
-// Per-category framing, matching Foxhound's REAL schedules (schedule.ts), not
-// legacy's 4-category hardcoded set: soft/network lead with a silent retry
-// (PRICING.md's silent-first rebuild), expired/fraud/unknown are email-only
-// because a retry can never clear them, and revoked is a single hold email,
-// never a dunning cadence.
-const CATEGORY_DESCRIPTIONS: Record<DeclineCategory, string> = {
-  soft: "Insufficient funds and generic declines. Foxhound retries silently first, then follows up by email if the retry does not clear.",
-  network: "Processing errors and issuer timeouts. Foxhound retries quickly, then follows up by email if retries keep failing.",
-  expired: "Expired card declines. A retry never succeeds against an expired card, so every step is an email carrying the card update link.",
-  fraud: "Fraud flags and security holds. Foxhound never retries a fraud decline. Every step is a gentle reassurance email.",
-  revoked: "The customer explicitly revoked payment authorization. One email offers a clean choice, cancel or add a new payment method, then the sequence ends.",
-  unknown: "An unrecognized decline code. Foxhound fails closed: no silent retry, email only, the same cadence as an expired card.",
-};
 
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
@@ -45,96 +63,187 @@ export async function loader({ context }: Route.LoaderArgs) {
   }));
 
   const performance = summarizeStepPerformance(steps);
-  const sections = buildCategorySections(DECLINE_CATEGORIES, steps);
+  const sections = buildCategorySections(SEQUENCE_CATEGORY_ORDER, steps);
 
   return { performance, sections };
 }
 
-function StepPerformanceChart({ chart }: { chart: ReturnType<typeof summarizeStepPerformance>["chart"] }) {
+// The chart draws at the page's content width on the server, then at its
+// measured width in the browser (EnarratioFigure).
+const CHART_WIDTH = 1120;
+// Recova's plot is 220px high (StepPerformanceChart.tsx, h-[220px]).
+const CHART_HEIGHT = 220;
+
+/** Recova's StatCard: a label, a figure, and an optional line under it. */
+function StatCard({
+  label,
+  value,
+  sub,
+  valueClassName,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  valueClassName?: string;
+}) {
+  return (
+    <Panel size="sm" title={label}>
+      <p className={`m-0 font-mono text-title font-semibold tabular-nums ${valueClassName ?? "text-text"}`}>{value}</p>
+      {sub ? <p className="m-0 text-micro text-text-subtle">{sub}</p> : null}
+    </Panel>
+  );
+}
+
+function StatRow({ performance }: { performance: StepPerformanceSummary }) {
+  return (
+    <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+      <StatCard label="Emails sent" value={performance.totalSent.toLocaleString("en-US")} />
+      <StatCard
+        label="Avg open rate"
+        value={`${performance.avgOpenRatePct}%`}
+        valueClassName={sequenceRateClassName(performance.avgOpenRatePct, "open")}
+      />
+      <StatCard
+        label="Avg click rate"
+        value={`${performance.avgClickRatePct}%`}
+        valueClassName={sequenceRateClassName(performance.avgClickRatePct, "click")}
+      />
+      <StatCard
+        label="Best step"
+        value={performance.bestStep ? performance.bestStep.label : "-"}
+        sub={performance.bestStep ? `${performance.bestStep.clickRatePct}% click rate` : "min 3 sends"}
+      />
+    </div>
+  );
+}
+
+function StepPerformanceChart({ chart }: { chart: StepPerformanceSummary["chart"] }) {
   if (chart.length === 0) {
-    return <p className="text-label text-text-tertiary">No step performance to show yet.</p>;
+    return (
+      <Panel title="Step performance">
+        <p className="m-0 text-label text-text-subtle">No step performance to show yet.</p>
+      </Panel>
+    );
   }
   return (
-    <GroupedBars
-      labels={chart.map((c) => c.label)}
-      series={[
-        { name: "Open rate", colorClassName: "text-green", values: chart.map((c) => c.openRatePct) },
-        { name: "Click rate", colorClassName: "text-blue", values: chart.map((c) => c.clickRatePct) },
-        { name: "Recovery rate", colorClassName: "text-brand-text", values: chart.map((c) => c.recoveryRatePct) },
-      ]}
-    />
+    <Panel
+      title="Step performance"
+      description="Recovery includes customers who updated payment after reading the email, even without clicking the tracked link."
+    >
+      <EnarratioFigure
+        className="fh-recovery-chart"
+        initialWidth={CHART_WIDTH}
+        draw={(width) =>
+          barChart({
+            data: stepPerformanceRows(chart),
+            x: "Step",
+            xDomain: chart.map((c) => c.label),
+            y: "rate",
+            series: "series",
+            layout: "grouped",
+            // Recova's funnel order, Open then Click then Recovery, in its
+            // colours, except that Recovery rate takes Foxhound's teal (Q11).
+            seriesDomain: STEP_PERFORMANCE_SERIES,
+            colors: { "Open rate": "var(--green)", "Click rate": "var(--blue)", "Recovery rate": "var(--brand-ui)" },
+            xLabel: null,
+            yLabel: "Rate (%)",
+            formatValue: (v) => `${v}%`,
+            alt: stepPerformanceAlt(chart),
+            width,
+            height: CHART_HEIGHT,
+          })
+        }
+      />
+    </Panel>
+  );
+}
+
+function Figure({ value, label, className }: { value: string | number; label: string; className?: string }) {
+  return (
+    <div className="text-right">
+      <p className={`m-0 font-mono text-body font-semibold tabular-nums ${className ?? "text-text"}`}>{value}</p>
+      <p className="m-0 text-micro uppercase tracking-wide text-text-tertiary">{label}</p>
+    </div>
+  );
+}
+
+function StepFigures({ card }: { card: StepCard }) {
+  if (card.kind === "retry") {
+    if (card.attempted === 0 || card.successRatePct === null) {
+      return <span className="text-micro text-text-subtle">No data yet</span>;
+    }
+    return (
+      <div className="text-right">
+        <p className={`m-0 font-mono text-body font-semibold tabular-nums ${sequenceRateClassName(card.successRatePct, "click")}`}>
+          {card.successRatePct}%
+        </p>
+        <p className="m-0 text-micro text-text-subtle">
+          {card.recovered} of {card.attempted} recovered
+        </p>
+      </div>
+    );
+  }
+  if (card.sent === 0 || card.openRatePct === null || card.clickRatePct === null) {
+    return <span className="text-micro text-text-subtle">No data yet</span>;
+  }
+  return (
+    <div className="flex gap-5">
+      <Figure value={card.sent} label="sent" />
+      <Figure value={`${card.openRatePct}%`} label="opened" className={sequenceRateClassName(card.openRatePct, "open")} />
+      <Figure value={`${card.clickRatePct}%`} label="clicked" className={sequenceRateClassName(card.clickRatePct, "click")} />
+    </div>
   );
 }
 
 function StepCardView({ card }: { card: StepCard }) {
+  const preview = card.kind === "email" && card.sent > 0 && card.latestBodyHtml ? card.latestBodyHtml : null;
+  const description =
+    card.kind === "retry" ? (
+      "Automatic retry. No email sent."
+    ) : card.sent > 0 && card.latestSubject ? (
+      <span className="block truncate">Latest subject: {card.latestSubject}</span>
+    ) : undefined;
   return (
-    <div className="rounded-lg border border-border bg-surface px-5 py-4">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2.5">
-            <h3 className="text-label font-medium text-text">{card.label}</h3>
-            {card.timingLabel ? (
-              <span className="rounded bg-border px-2 py-0.5 font-mono text-micro text-text-tertiary">
-                {card.timingLabel}
-              </span>
-            ) : null}
-          </div>
-          {card.kind === "retry" ? (
-            <p className="mt-1 text-micro text-text-subtle">Automatic retry. No email sent.</p>
-          ) : card.sent > 0 && card.latestSubject ? (
-            <p className="mt-1 truncate text-micro text-text-subtle">
-              <span>Latest subject: </span>
-              {card.latestSubject}
-            </p>
-          ) : null}
-        </div>
-
-        {card.kind === "retry" ? (
-          card.attempted > 0 ? (
-            <div className="shrink-0 text-right">
-              <p className="font-mono text-body font-medium text-text">{card.successRatePct}%</p>
-              <p className="text-micro text-text-subtle">
-                {card.recovered} of {card.attempted} recovered
-              </p>
-            </div>
-          ) : (
-            <p className="shrink-0 text-micro text-text-subtle">No data yet</p>
-          )
-        ) : card.sent > 0 ? (
-          <div className="flex shrink-0 gap-5">
-            <div className="text-right">
-              <p className="font-mono text-label font-medium text-text">{card.sent}</p>
-              <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">sent</p>
-            </div>
-            <div className="text-right">
-              <p className="font-mono text-label font-medium text-text">{card.openRatePct}%</p>
-              <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">opened</p>
-            </div>
-            <div className="text-right">
-              <p className="font-mono text-label font-medium text-text">{card.clickRatePct}%</p>
-              <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">clicked</p>
-            </div>
-          </div>
-        ) : (
-          <p className="shrink-0 text-micro text-text-subtle">No data yet</p>
-        )}
-      </div>
-
-      {card.kind === "email" && card.sent > 0 && card.latestBodyHtml ? (
-        <details className="group mt-3">
-          <summary className="flex cursor-pointer list-none items-center gap-1.5 text-micro text-text-subtle hover:text-text">
-            <span className="inline-block transition-transform group-open:rotate-90">{"▸"}</span>
-            Preview latest email
-          </summary>
+    <Panel
+      level={3}
+      title={
+        <span className="inline-flex flex-wrap items-center gap-2.5">
+          {card.label}
+          {card.timingLabel ? <Pill variant="secondary">{card.timingLabel}</Pill> : null}
+        </span>
+      }
+      actions={<StepFigures card={card} />}
+      description={description}
+      flush={preview === null}
+    >
+      {preview !== null ? (
+        <Disclosure summary="Preview latest email">
           {/* latestBodyHtml is sanitized server-side in the loader before it
               ever reaches this component (email-preview.server.ts). */}
           <div
-            className="mt-3 overflow-x-auto rounded-lg border border-border bg-bg px-4 py-3 text-label leading-relaxed text-text-subtle"
-            dangerouslySetInnerHTML={{ __html: card.latestBodyHtml }}
+            className="overflow-x-auto text-label leading-relaxed text-text-subtle"
+            dangerouslySetInnerHTML={{ __html: preview }}
           />
-        </details>
+        </Disclosure>
       ) : null}
-    </div>
+    </Panel>
+  );
+}
+
+function CategorySectionView({ section }: { section: CategorySection }) {
+  const headingId = useId();
+  return (
+    <section aria-labelledby={headingId}>
+      <h2 id={headingId} className="m-0 mb-1.5">
+        <Pill variant="outline">{SEQUENCE_CATEGORY_NAMES[section.category]}</Pill>
+      </h2>
+      <p className="m-0 mb-3 text-label text-text-subtle">{SEQUENCE_CATEGORY_DESCRIPTIONS[section.category]}</p>
+      <div className="flex flex-col gap-3">
+        {section.stepCards.map((card) => (
+          <StepCardView key={card.stepType} card={card} />
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -142,51 +251,27 @@ export default function RecoverySequences({ loaderData }: Route.ComponentProps) 
   const { performance, sections } = loaderData;
 
   return (
-    <div className="mx-auto max-w-[1280px] px-4 md:px-8 py-10">
-      {/* Ruling 147 f1-f3, legacy app/(app)/recovery/sequence/page.tsx:
-      max-w-[1280px] mx-auto px-4 md:px-8 py-10. Flat py-10, like payments. */}
-      <h1 className="text-title font-medium text-text">Sequences</h1>
-      <p className="mt-2 text-label text-text-tertiary">Live performance data from your recovery emails</p>
+    // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-10.
+    <div className="mx-auto max-w-[1280px] px-4 py-10 md:px-8">
+      <div className="mb-6">
+        <PageHead title="Recovery sequence" lead="Live performance data from your recovery emails" />
+      </div>
 
       {performance.totalSent === 0 ? (
-        <p className="mt-6 rounded-lg border border-dashed border-border p-6 text-body text-text-tertiary">
-          No emails sent yet. Recovery sequences start automatically when a payment fails.
-        </p>
+        <Empty kind="nothing-yet" title="No emails sent yet">
+          Recovery sequences start automatically when a payment fails.
+        </Empty>
       ) : (
-        <section className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatCard label="Emails sent" value={String(performance.totalSent)} />
-          <StatCard label="Avg open rate" value={`${performance.avgOpenRatePct}%`} />
-          <StatCard label="Avg click rate" value={`${performance.avgClickRatePct}%`} />
-          <StatCard
-            label="Best step"
-            value={performance.bestStep ? performance.bestStep.label : "-"}
-            subtext={performance.bestStep ? `${performance.bestStep.clickRatePct}% click rate` : "min 3 sends"}
-          />
-        </section>
+        <StatRow performance={performance} />
       )}
 
-      <div className="mt-6 rounded-lg border border-border bg-surface p-4">
-        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Step performance</p>
-        <p className="mt-1 text-micro text-text-subtle">
-          Recovery includes customers who updated payment after reading the email, even without clicking the tracked
-          link.
-        </p>
-        <div className="mt-3 text-text-tertiary">
-          <StepPerformanceChart chart={performance.chart} />
-        </div>
+      <div className="mt-6">
+        <StepPerformanceChart chart={performance.chart} />
       </div>
 
       <div className="mt-10 flex flex-col gap-8">
-        {sections.map(({ category, stepCards }) => (
-          <section key={category}>
-            <Badge tone="neutral">{DECLINE_CATEGORY_LABELS[category]}</Badge>
-            <p className="mt-2 text-label text-text-tertiary">{CATEGORY_DESCRIPTIONS[category]}</p>
-            <div className="mt-3 flex flex-col gap-3">
-              {stepCards.map((card) => (
-                <StepCardView key={card.stepType} card={card} />
-              ))}
-            </div>
-          </section>
+        {sections.map((section) => (
+          <CategorySectionView key={section.category} section={section} />
         ))}
       </div>
     </div>
