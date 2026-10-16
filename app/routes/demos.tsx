@@ -60,7 +60,7 @@ const PRODUCT_ENTRIES = [
     href: "/demos/recovery",
     Icon: RefreshCw,
     name: "Recovery",
-    blurb: "Silent retries first, then AI-drafted email sequences for a seeded account of 200 customers.",
+    blurb: "AI-drafted email sequences and silent retries for a seeded account of 200 customers.",
   },
   {
     href: "/demos/disputes",

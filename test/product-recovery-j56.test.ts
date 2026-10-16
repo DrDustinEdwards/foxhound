@@ -153,7 +153,7 @@ describe("/product/recovery follows Recova's sections, in Recova's order (J56)",
 
   it("names no Recova and states every number from the engine", () => {
     expect(html).not.toMatch(/recova/i);
-    expect(body).toContain(`${SEQUENCE_DAYS}-day sequences across ${CATEGORIES.length} decline categories`);
+    expect(body).toContain(`Up to ${SEQUENCE_DAYS}-day sequences across ${CATEGORIES.length} decline categories`);
     expect(body).toContain(`${RECOVERY_FEE_BPS / 100}% of Foxhound-attributed recoveries`);
     const winbackDays = Math.round(WIN_BACK_SCHEDULE[WIN_BACK_SCHEDULE.length - 1].offsetHours / 24);
     expect(body).toContain(`Win-back sequences on cancellation (${WIN_BACK_SCHEDULE.length} steps over ${winbackDays} days)`);

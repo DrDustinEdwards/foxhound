@@ -27,7 +27,7 @@ const STEPS = [
   },
   {
     title: "Recovery is running",
-    body: "A failed payment gets a silent retry first, then a dunning email in your brand voice if the retry does not clear it. Track every attempt under Recovery.",
+    body: "A failed payment gets a silent retry first wherever the decline can be retried, then a dunning email in your brand voice if the payment has not cleared. Track every attempt under Recovery.",
   },
   {
     title: "Billing is transparent",

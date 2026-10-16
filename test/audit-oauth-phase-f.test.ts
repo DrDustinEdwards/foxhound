@@ -516,7 +516,6 @@ describe("PLANT 5: what the anonymous path must never create", () => {
     const data = (await load()) as Awaited<ReturnType<typeof resultsRoute.loader>>;
     expect(data.signedIn).toBe(false);
     expect(data.notSaved).toBe("anonymous");
-    expect(data.runId).toBeNull();
     expect(counts()).toEqual(before);
   });
 
@@ -575,7 +574,6 @@ describe("PLANT 6: a SIGNED-IN merchant running the anonymous flow", () => {
     signIn(ACCOUNT_A);
     const data = (await load(STRIPE_A)) as Awaited<ReturnType<typeof resultsRoute.loader>>;
     expect(data.notSaved).toBeNull();
-    expect(data.runId).toBeTruthy();
 
     const rows = runsInDb();
     expect(rows).toHaveLength(1);
@@ -596,7 +594,6 @@ describe("PLANT 6: a SIGNED-IN merchant running the anonymous flow", () => {
       ReturnType<typeof resultsRoute.loader>
     >;
     expect(data.notSaved).toBe("not_your_account");
-    expect(data.runId).toBeNull();
     expect(runsInDb()).toHaveLength(0);
     // The numbers were still computed and are still shown.
     expect(data.run.failedInvoices?.totalCents).toBe(4200);

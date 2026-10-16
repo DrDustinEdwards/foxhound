@@ -1,5 +1,5 @@
 // Competitor comparison data for /compare (Phase 6 Pass 3, net-new).
-import { DECLINE_CATEGORY_COUNT_WORD_LOWER } from "~/lib/marketing/decline-categories";
+import { DECLINE_CATEGORY_COUNT_WORD_LOWER, RECOVERY_SEQUENCE_DAYS } from "~/lib/marketing/decline-categories";
 //
 // SOURCING DISCIPLINE (TASK-foxhound-phase6.md): every Foxhound-side row is
 // stated plainly from PRICING.md/DESIGN.md canon. Every competitor-side
@@ -78,7 +78,7 @@ export const COMPETITORS: Record<string, CompetitorDef> = {
     ],
     foxhoundCons: [
       "Foxhound is a newer, less proven product than Stripe itself, which is the platform processing the payment in the first place.",
-      "Using Foxhound alongside Smart Retries means retry logic exists in two places; Foxhound's silent-retry step is designed to run first so it never duplicates a retry Stripe was already about to attempt, but that coordination is Foxhound's responsibility to get right, not something Stripe guarantees on its side.",
+      "Using Foxhound alongside Smart Retries means retry logic exists in two places; wherever the decline can be retried, Foxhound's silent-retry step is designed to run first so it never duplicates a retry Stripe was already about to attempt, but that coordination is Foxhound's responsibility to get right, not something Stripe guarantees on its side.",
     ],
   },
 
@@ -127,7 +127,7 @@ export const COMPETITORS: Record<string, CompetitorDef> = {
       },
       {
         dimension: "What it does",
-        foxhound: `Silent retries first, then AI-drafted dunning email sequences across 30 days, tuned to ${DECLINE_CATEGORY_COUNT_WORD_LOWER} decline categories.`,
+        foxhound: `AI-drafted dunning email sequences and silent retries across ${RECOVERY_SEQUENCE_DAYS} days, tuned to ${DECLINE_CATEGORY_COUNT_WORD_LOWER} decline categories.`,
         competitor: "Dunning email sequences for failed payments, plus account-management support from a human team on top of the software.",
       },
       {
@@ -223,12 +223,12 @@ export const COMPETITORS: Record<string, CompetitorDef> = {
       },
       {
         dimension: "What it does",
-        foxhound: "Silent retries first, then AI-drafted dunning emails across 30 days, then disputes and intelligence in the same product.",
+        foxhound: `AI-drafted dunning emails and silent retries across ${RECOVERY_SEQUENCE_DAYS} days, then disputes and intelligence in the same product.`,
         competitor: "Automated dunning-email sequences for failed Stripe payments. Scoped narrowly to email-based recovery.",
       },
       {
-        dimension: "Silent retries before email",
-        foxhound: "Yes, a scheduled retry runs before any customer-facing email so a quietly recoverable payment is never dunned unnecessarily.",
+        dimension: "Silent retries before email, where retryable",
+        foxhound: "Yes, wherever the decline can be retried: a scheduled retry runs before any customer-facing email so a quietly recoverable payment is never dunned unnecessarily.",
         competitor: "Not a stated feature; the product's public positioning centers on the email sequence itself.",
       },
       {
