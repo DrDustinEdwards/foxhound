@@ -227,6 +227,12 @@ export default [
   route("llms.txt", "./routes/files/llms.ts"),
   route("llms-full.txt", "./routes/files/llms-full.ts"),
   route("feed.rss", "./routes/files/feed.ts"),
+  // Recova's second pair (J61, rows M15 and M16): the blog feed and the blog
+  // sitemap, at Recova's paths. Each shares its module with /feed.rss or
+  // /sitemap.xml so all of them read one published set; a shared module needs
+  // its own id per path.
+  route("blog/rss.xml", "./routes/files/feed.ts", { id: "files-blog-rss" }),
+  route("blog/sitemap.xml", "./routes/files/sitemap.ts", { id: "files-blog-sitemap" }),
   route(".well-known/security.txt", "./routes/files/security-txt.ts"),
   // The IndexNow key file (job_b0b24df12155): /<key>.txt at the root, named
   // after Foxhound's own key so the path and the body cannot drift apart.

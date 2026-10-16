@@ -65,8 +65,9 @@ const EXCLUDED_PREFIXES = [
   "/help",
   "/welcome",
   "/admin",
-  // Auth flow (login/signup/password reset/OAuth/team invite/logout): no SEO
-  // value, and robots.txt Disallows every one of these.
+  // Auth flow (login/signup/password reset/OAuth/team invite/logout): not
+  // listed, as Recova's sitemap lists none of them. robots.txt leaves the
+  // sign-in pages crawlable, as Recova's does (J61), and disallows the rest.
   "/login",
   "/signup",
   "/forgot-password",
@@ -108,6 +109,9 @@ const EXCLUDED_PREFIXES = [
   "/llms.txt",
   "/llms-full.txt",
   "/feed.rss",
+  // Recova's blog feed and blog sitemap (J61): files, not pages.
+  "/blog/rss.xml",
+  "/blog/sitemap.xml",
   "/og/",
   // Recova's next.config.ts redirects (J23): /user-guides and
   // /sitemap_index.xml answer a 308 and are not pages. Recova's own sitemap

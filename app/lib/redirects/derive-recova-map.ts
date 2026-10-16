@@ -47,11 +47,6 @@ const DEMO_NOTE =
 
 /** Recova paths with no page at the same Foxhound path, and where each goes. */
 export const NOT_SERVED_AT_SAME_PATH: Readonly<Record<string, { to: string; note: string }>> = {
-  "/blog/rss.xml": { to: "/feed.rss", note: "Foxhound has one RSS route, /feed.rss, not a separate per-section feed." },
-  "/blog/sitemap.xml": {
-    to: "/sitemap.xml",
-    note: "Foxhound has one sitemap that already includes every blog post, not a separate per-section sitemap.",
-  },
   "/recovery/demo": { to: "/demos", note: DEMO_NOTE },
   "/disputes/demo": { to: "/demos", note: DEMO_NOTE },
   "/intelligence/demo": { to: "/demos", note: DEMO_NOTE },

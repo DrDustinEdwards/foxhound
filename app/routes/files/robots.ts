@@ -4,10 +4,12 @@ import { siteUrl } from "~/lib/seo/jsonld";
 import type { Route } from "./+types/robots";
 
 // Ported from legacy app/robots.ts (Phase 6 Pass 2), rebuilt against
-// Foxhound's OWN route structure (ROUTES.md), not legacy's. The disallow
-// list covers every authenticated/sensitive Foxhound path (App, Auth,
-// Public-utility, Webhooks, Admin sections of ROUTES.md); everything else
-// (marketing, blog, docs, pricing, /audit) is crawlable.
+// Foxhound's OWN route structure (ROUTES.md), not legacy's. Recova is the spec
+// (RULES.md 2.6, row F2): the disallow list is Recova's, mapped onto
+// Foxhound's paths, plus the per-recipient token routes, the webhooks and the
+// MCP endpoint, which Recova kept under its own disallowed /api/ and /oauth/
+// and Foxhound serves at the root. Everything else (marketing, blog, docs,
+// pricing, /audit, the sign-in pages) is crawlable, as on Recova.
 //
 // The per-bot allow rules are GEO signals for AI crawlers and LLM-powered
 // search: each gets its own rule, not grouped.
@@ -32,18 +34,17 @@ export const DISALLOW_PATHS = [
   "/console",
   // The audit's NON-MARKETING surfaces only. `/audit` itself is the public
   // estimator and stays crawlable, so this cannot be a bare "/audit" prefix.
-  // Legacy disallows `/audit/dashboard` and `/audit/results/` and leaves
-  // `/audit/connect` and the bare `/audit/results` crawlable; the second of
-  // those is a legacy near-miss, since `/audit/results/` with the slash does
-  // not match `/audit/results` without one, and the page it leaves open is a
-  // token-gated render of somebody's live financials that only ever redirects
-  // for a crawler. Foxhound disallows the exact path. `/audit/connect` and
-  // `/audit/callback` join it: one is a step inside a flow, the other is an
-  // OAuth return, and neither is a destination.
+  // Recova disallows `/audit/dashboard` and `/audit/results/` and leaves
+  // `/audit/connect`, `/audit/callback` and the bare `/audit/results`
+  // crawlable. The first two stay crawlable here too, as on Recova (J61): an
+  // agent-recorded "deliberate improvement" without Dustin's word is a parity
+  // defect (CLAUDE.md, prime directive). The bare `/audit/results` is Recova's
+  // own near-miss, since `/audit/results/` with the slash does not match it,
+  // so the exact path is what Recova's rule meant. `/audit/runs/` is the old
+  // results address, now a 301 to `/audit/results/:id` (J43), kept under the
+  // same rule.
   "/audit/dashboard",
   "/audit/runs/",
-  "/audit/connect",
-  "/audit/callback",
   "/audit/results",
   // Every product page sits below its prefix since J09's URL reverts
   // (/recovery/dashboard, /disputes/dashboard, /intelligence/dashboard), so
@@ -56,10 +57,10 @@ export const DISALLOW_PATHS = [
   "/settings",
   "/help",
   "/welcome",
-  "/login",
-  "/signup",
-  "/forgot-password",
-  "/reset-password",
+  // Recova's sign-in pages (/login, /signup, /forgot-password, /reset-password)
+  // are crawlable on Recova and are here too (J61). They were disallowed on an
+  // agent's call with no ruling behind it, which RULES.md 1.3 sends back to
+  // Recova.
   "/connect",
   "/invite",
   "/u/",

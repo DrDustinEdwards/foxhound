@@ -71,8 +71,6 @@ describe("RECOVA_REDIRECT_MAP", () => {
     const named = RECOVA_REDIRECT_MAP.filter((e) => e.to !== e.from).map((e) => e.from);
     expect(named.sort()).toEqual(
       [
-        "/blog/rss.xml",
-        "/blog/sitemap.xml",
         "/disputes/demo",
         "/intelligence/demo",
         "/recovery/demo",
@@ -150,8 +148,8 @@ describe("RECOVA_REDIRECT_MAP", () => {
     }
   });
 
-  it("consolidates the per-section blog RSS/sitemap routes onto Foxhound's single equivalents", () => {
-    expect(RECOVA_REDIRECT_MAP.find((e) => e.from === "/blog/rss.xml")?.to).toBe("/feed.rss");
-    expect(RECOVA_REDIRECT_MAP.find((e) => e.from === "/blog/sitemap.xml")?.to).toBe("/sitemap.xml");
+  it("maps Recova's blog feed and blog sitemap to themselves, now Foxhound serves both (J61, rows M15 and M16)", () => {
+    expect(RECOVA_REDIRECT_MAP.find((e) => e.from === "/blog/rss.xml")?.to).toBe("/blog/rss.xml");
+    expect(RECOVA_REDIRECT_MAP.find((e) => e.from === "/blog/sitemap.xml")?.to).toBe("/blog/sitemap.xml");
   });
 });

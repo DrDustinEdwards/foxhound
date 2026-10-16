@@ -1,81 +1,117 @@
+import { escapeXml } from "@drdustinedwards/site-helpers/xml";
+import { rssItem } from "@drdustinedwards/site-helpers/feeds";
+
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { getAllPublishedPosts } from "~/lib/blog/queries.server";
+import type { PublishedSet } from "~/lib/blog/published-set";
+import { loadPublishedSet } from "~/lib/blog/published-set.server";
 import { siteUrl, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 
 import type { Route } from "./+types/feed";
 
-// Ported from legacy app/feed.rss/route.ts's structure (Phase 6 Pass 2),
-// queried against D1 instead of Supabase, every URL built from siteUrl(env)
-// instead of a hardcoded recovamrr.com. legacy's
-// app/(marketing)/blog/rss.xml/route.ts is NOT the reference here: this
-// repo's canonical feed path is /feed.rss (ROUTES.md), which is what legacy's
-// root-level route already was.
+// /feed.rss and /blog/rss.xml (rows F5 and M15, J61). Recova serves both:
+// app/feed.rss/route.ts and app/(marketing)/blog/rss.xml/route.ts, read
+// whole. One module answers both paths (registered twice in app/routes.ts),
+// so both feeds are built from the one published set the sitemaps and the
+// llms pair read (ruling 90's SET rule). Recova's two read through two
+// different clients and could disagree; these cannot.
+//
+// Each item is Prelum's rssItem (Q2): title and summary escaped, a category
+// escaped, pubDate omitted when the post has none, and no content:encoded,
+// because neither Recova feed carries the post body and an empty one would
+// tell a reader the post is empty. The channel is written here, because
+// Prelum's rssDocument has no lastBuildDate, no <image> and no per-item
+// <author>, all three of which Recova's /feed.rss carries.
 
-function xmlEscapeAttr(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+interface FeedChannel {
+  /** The path this feed is served at, for its atom:link self reference. */
+  selfPath: string;
+  /** Recova's /feed.rss carries an <image>; its /blog/rss.xml does not. */
+  image: boolean;
+  /** Recova's /feed.rss names an author per item; its /blog/rss.xml does not. */
+  itemAuthor: boolean;
 }
 
-export async function loader({ context }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  const url = siteUrl(env);
-  const db = getDb(env);
+const CHANNELS: Record<string, FeedChannel> = {
+  "/feed.rss": { selfPath: "/feed.rss", image: true, itemAuthor: true },
+  "/blog/rss.xml": { selfPath: "/blog/rss.xml", image: false, itemAuthor: false },
+};
 
-  const posts = await getAllPublishedPosts(db);
+const TITLE = "Foxhound Blog";
+// One description on both feeds. Recova's two differ ("Guides, benchmarks,
+// and insights for Stripe subscription businesses." and "Payment recovery,
+// dispute automation, and subscription intelligence from Recova."); /feed.rss
+// keeps this 20d-frozen line (ROWS-F F5), and /blog/rss.xml takes the same
+// line rather than a new claim about dispute automation, pending a ruling.
+const DESCRIPTION = "Guides on Stripe payment recovery, dispute handling, and subscription intelligence.";
 
-  // lastBuildDate is "the last time the content of the channel changed"
-  // (RSS 2.0): when a post last published, NOT when this request happened.
-  // Legacy stamps `new Date()` on every request. That is the same always-now
-  // defect ruling 89 refused to import into the sitemap, where legacy sets
-  // lastModified to now on every static entry, and it was caught here by
-  // ruling 90's cross-surface check: the sitemap and this feed serve the same
-  // crawler audience and were asserting opposite things about the same 45
-  // posts. Ruling 89 is EXTENDED to this file (Dustin, 2026-08-02).
-  // getAllPublishedPosts orders by publishedAt DESC, so the first post with a
-  // date is the newest.
-  const newestPublishedAt = posts.find((post) => post.publishedAt)?.publishedAt;
-  const lastBuildDate = newestPublishedAt
-    ? `\n    <lastBuildDate>${newestPublishedAt.toUTCString()}</lastBuildDate>`
+function buildRss(origin: string, set: PublishedSet, channel: FeedChannel): string {
+  // lastBuildDate is when the channel's content last changed: the newest
+  // post's publish date, never this request's clock. Recova stamps
+  // `new Date()` on every request in both feeds; ruling 89, extended to the
+  // feed by Dustin on 2026-08-02. Posts arrive newest first.
+  const newest = set.posts.find((post) => post.publishedAt)?.publishedAt;
+  const lastBuildDate = newest ? `\n    <lastBuildDate>${newest.toUTCString()}</lastBuildDate>` : "";
+
+  const items = set.posts
+    .map((post) => {
+      const item = rssItem(
+        {
+          slug: post.slug,
+          title: post.title,
+          html: null,
+          description: post.excerpt,
+          publishAt: post.publishedAt,
+          tags: post.tags,
+        },
+        origin,
+        "/blog",
+      );
+      if (!channel.itemAuthor) return item;
+      const author = `      <author>${escapeXml(SUPPORT_EMAIL)} (${escapeXml(post.author)})</author>`;
+      return item.replace(/\n {4}<\/item>$/, `\n${author}\n    </item>`);
+    })
+    .join("\n");
+
+  const image = channel.image
+    ? `
+    <image>
+      <url>${origin}/favicon.png</url>
+      <title>${TITLE}</title>
+      <link>${origin}/blog</link>
+    </image>`
     : "";
 
-  const items = posts
-    .map((post) => {
-      const postUrl = `${url}/blog/${post.slug}`;
-      // OMITTED rather than defaulted to now, same ruling: an item whose
-      // pubDate reads "now" on every fetch re-surfaces forever in any reader
-      // that sorts by date. pubDate is optional in RSS 2.0; a wrong one is not.
-      const pubDate = post.publishedAt
-        ? `\n      <pubDate>${post.publishedAt.toUTCString()}</pubDate>`
-        : "";
-      const categories = post.tags.map((tag) => `<category>${xmlEscapeAttr(tag)}</category>`).join("");
-      return `
-    <item>
-      <title><![CDATA[${post.title}]]></title>
-      <link>${postUrl}</link>
-      <guid isPermaLink="true">${postUrl}</guid>
-      <description><![CDATA[${post.excerpt}]]></description>${pubDate}
-      <author>${xmlEscapeAttr(SUPPORT_EMAIL)} (${xmlEscapeAttr(post.author)})</author>
-      ${categories}
-    </item>`;
-    })
-    .join("");
-
-  const rss = `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
-    <title>Foxhound Blog</title>
-    <link>${url}/blog</link>
-    <description>Guides on Stripe payment recovery, dispute handling, and subscription intelligence.</description>
+    <title>${TITLE}</title>
+    <link>${origin}/blog</link>
+    <description>${DESCRIPTION}</description>
     <language>en-us</language>${lastBuildDate}
-    <atom:link href="${url}/feed.rss" rel="self" type="application/rss+xml"/>
-    <image>
-      <url>${url}/favicon.png</url>
-      <title>Foxhound Blog</title>
-      <link>${url}/blog</link>
-    </image>
-    ${items}
+    <atom:link href="${origin}${channel.selfPath}" rel="self" type="application/rss+xml" />${image}
+${items}
   </channel>
-</rss>`;
+</rss>
+`;
+}
+
+/** /feed.rss, Recova's root feed. */
+export function buildFeedRss(origin: string, set: PublishedSet): string {
+  return buildRss(origin, set, CHANNELS["/feed.rss"]!);
+}
+
+/** /blog/rss.xml, Recova's blog feed. */
+export function buildBlogRss(origin: string, set: PublishedSet): string {
+  return buildRss(origin, set, CHANNELS["/blog/rss.xml"]!);
+}
+
+export async function loader({ request, context }: Route.LoaderArgs) {
+  const { env } = context.get(cloudflareContext);
+  const origin = siteUrl(env);
+  const set = await loadPublishedSet(getDb(env));
+  const isBlog = new URL(request.url).pathname === "/blog/rss.xml";
+  const rss = isBlog ? buildBlogRss(origin, set) : buildFeedRss(origin, set);
 
   return new Response(rss, {
     headers: {

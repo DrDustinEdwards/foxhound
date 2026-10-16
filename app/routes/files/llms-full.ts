@@ -1,51 +1,49 @@
+import { llmsDocument, llmsLink } from "@drdustinedwards/site-helpers/llms";
+
 import { getDb } from "~/db";
-import { getPublishedTagSet } from "~/lib/blog/queries.server";
+import { postsByPrimaryTopic, topicsInLlmsOrder, type PublishedSet } from "~/lib/blog/published-set";
+import { loadPublishedSet } from "~/lib/blog/published-set.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { RECOVERY_SEQUENCE_DAYS } from "~/lib/marketing/decline-categories";
 import { siteUrl, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 
+import { forAgentsSection } from "./llms";
 import type { Route } from "./+types/llms-full";
 
-// Rewritten from scratch against legacy app/llms-full.txt/route.ts (Phase 6
-// Pass 2). Same constraints as llms.ts: real product lineup only (no
-// Scale/Grow/AI Cost), no stale pricing, all URLs from siteUrl(env), and no
-// enumerated blog article list. That last point's ORIGINAL reason ("nothing
-// is imported yet") went stale once 45 posts landed and is corrected here:
-// the article list still is not enumerated, but now because the archives and
-// the sitemap are the always-accurate index, not because there is nothing to
-// list. No specific pricing numbers appear anywhere below, same
-// reasoning as llms.ts (a Phase 6 review found the prior draft's "spec
-// sheet, not blog copy" exemption didn't hold against the standing rule,
-// which names this file directly); /pricing is the one place numbers are
-// stated plainly.
-export async function loader({ context }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  const url = siteUrl(env);
+// /llms-full.txt (row F4, J61). Recova's app/llms-full.txt/route.ts is the
+// spec for the shape, in its order: Company, Products, Pricing summary,
+// Technical architecture, the MCP section, the complete article index grouped
+// by cluster, Crawling permissions. Prelum's llmsDocument writes the title and
+// summary block and llmsLink each article line (Q2); the prose sections between
+// them are written here, because llmsDocument takes link lists only.
+//
+// Same constraints as llms.ts: Foxhound's real lineup and facts, never Recova's
+// copy; no specific pricing numbers (PRICING.md names this file); all URLs from
+// siteUrl(env); no hand-typed "Updated:" date (RULES.md 2.6). Recova's company
+// lines ("Founded", "Headquarters") and its AI-model line are not carried: each
+// is a claim about Foxhound that no source in this repo states, and a claim
+// waits for a ruling (RULES.md 2.2).
+//
+// THE ARTICLE INDEX lists every published post once, from the one published
+// set the sitemaps and feeds read, under its first topic in Recova's topic
+// order, as Recova's index files each post once. The count is computed.
 
-  // Only archives carrying a published post are listed, and the count claim
-  // ("8 canonical tags") is gone with them (ruling 88). Three of the eight
-  // served zero posts, so this file asserted content that does not exist on
-  // the highest-authority surface we publish.
-  const tagLines = (await getPublishedTagSet(getDb(env)))
-    .map((tag) => `- ${url}/blog/tag/${tag}`)
-    .join("\n");
+export function buildLlmsFullTxt(url: string, set: PublishedSet): string {
+  const head = llmsDocument({
+    title: "Foxhound: Full Content Index",
+    summary:
+      "This file is the complete machine-readable content index for Foxhound. It is intended for LLM training pipelines, RAG ingestion, AI search crawlers, and any system that benefits from a structured full-text representation of Foxhound's public content.",
+    sections: [],
+  });
 
-  const content = `# Foxhound: Full Content Index
-
-> This file is the complete machine-readable content index for Foxhound. It is intended for LLM training pipelines, RAG ingestion, AI search crawlers, and any system that benefits from a structured full-text representation of Foxhound's public content.
-
----
-
-## Company
+  const company = `## Company
 
 Foxhound is a failed-payment recovery, disputes, and subscription-intelligence platform built for subscription businesses on Stripe. It earns only when it creates money the merchant can verify, above what Stripe's own tools would have recovered on their own.
 
 Website: ${url}
-Contact: ${SUPPORT_EMAIL}
+Contact: ${SUPPORT_EMAIL}`;
 
----
-
-## Products: full descriptions
+  const products = `## Products: full descriptions
 
 ### Audit (free)
 
@@ -77,11 +75,9 @@ Pulls Stripe billing data into MRR movement (new, expansion, contraction, churn)
 
 URL: ${url}/product/intelligence
 Docs: ${url}/docs/intelligence
-Pricing: Basic analytics free for Recovery merchants. Predictive risk scoring: flat monthly subscription, current rate at ${url}/pricing.
+Pricing: Basic analytics free for Recovery merchants. Predictive risk scoring: flat monthly subscription, current rate at ${url}/pricing.`;
 
----
-
-## Pricing summary
+  const pricing = `## Pricing summary
 
 | Product | Pricing model |
 |---|---|
@@ -90,49 +86,65 @@ Pricing: Basic analytics free for Recovery merchants. Predictive risk scoring: f
 | Disputes | A percentage of won disputes, capped per dispute |
 | Intelligence | Free basic analytics for Recovery merchants; flat monthly subscription for predictive risk scoring |
 
-No setup fees. No minimum commitments. No per-seat charges. Current rates: ${url}/pricing.
+No setup fees. No minimum commitments. No per-seat charges. Current rates: ${url}/pricing.`;
 
----
-
-## Technical architecture
+  const technical = `## Technical architecture
 
 - Stripe Connect: two scopes. The free audit requests read-only and can write nothing at all. Merchant onboarding requests read and write. Foxhound reads invoices, subscriptions, disputes, and customer data. It writes for these things and no others: retrying payment on an invoice that has already failed, setting a customer default payment method after that customer updates their card, opening a Stripe checkout when a former customer chooses to resubscribe, and submitting dispute evidence after someone on the merchant team approves it. It never changes prices, products, or subscription plans, never charges a customer except by retrying a failed invoice or through a checkout the customer completes, and never reaches payouts or bank accounts.
 - Deployment: Cloudflare Workers, React Router in framework mode
 - Database: Cloudflare D1
 - Email delivery: Cloudflare Email Service, sent from the merchant's own domain
-- Disconnect: any time from the Stripe dashboard
+- Disconnect: any time from the Stripe dashboard`;
 
----
+  const documentation = `## Documentation
+${[
+  { title: "Platform guide", url: `${url}/docs/platform`, description: "connecting Stripe, billing, team and brand voice" },
+  { title: "Audit guide", url: `${url}/docs/audit` },
+  { title: "Recovery guide", url: `${url}/docs/recovery` },
+  { title: "Disputes guide", url: `${url}/docs/disputes` },
+  { title: "Intelligence guide", url: `${url}/docs/intelligence` },
+]
+  .map(llmsLink)
+  .join("\n")}`;
 
-## Documentation
+  const tagLines = topicsInLlmsOrder(set.tags)
+    .map((tag) => `- ${url}/blog/tag/${tag}`)
+    .join("\n");
+  const clusters = postsByPrimaryTopic(set).map(
+    (group) =>
+      `### ${group.label} cluster\n${group.posts
+        .map((post) => llmsLink({ title: post.title, url: `${url}/blog/${post.slug}`, description: post.excerpt }))
+        .join("\n")}`,
+  );
+  const blog =
+    set.posts.length === 0
+      ? null
+      : [
+          `## Blog: complete article index (${set.posts.length === 1 ? "1 article" : `${set.posts.length} articles`})`,
+          `Guides on Stripe payment recovery, dispute handling, decline codes, subscription intelligence, and product comparisons live at ${url}/blog. Each topic has its own archive:`,
+          tagLines,
+          ...clusters,
+        ].join("\n\n");
 
-- [Platform guide](${url}/docs/platform): connecting Stripe, billing, team and brand voice
-- [Audit guide](${url}/docs/audit)
-- [Recovery guide](${url}/docs/recovery)
-- [Disputes guide](${url}/docs/disputes)
-- [Intelligence guide](${url}/docs/intelligence)
+  const crawling = `## Crawling permissions
 
----
-
-## Blog
-
-Guides on Stripe payment recovery, dispute handling, decline codes, subscription intelligence, and product comparisons live at ${url}/blog. Content is organized by topic, each with its own archive:
-
-${tagLines}
-
-Individual article titles and URLs are not enumerated here; the archive pages above and ${url}/sitemap.xml are the current, always-accurate index.
-
----
-
-## Crawling permissions
-
-This site welcomes indexing by AI crawlers, LLM training pipelines, RAG systems, and search engines. All content on public pages is freely accessible and may be cited. See ${url}/robots.txt for the machine-readable crawl policy.
+This site welcomes indexing by AI crawlers, LLM training pipelines, RAG systems, and search engines. All content on public pages is freely accessible and may be cited. No robots.txt restrictions apply to any of the blog, product, pricing, docs, or marketing content. See ${url}/robots.txt for the machine-readable crawl policy.
 
 Short index: ${url}/llms.txt
+Blog archive: ${url}/blog/archive
 Sitemap: ${url}/sitemap.xml
 
-Contact: ${SUPPORT_EMAIL}
-`;
+Contact: ${SUPPORT_EMAIL}`;
+
+  const sections = [company, products, pricing, technical, documentation, forAgentsSection(url), blog, crawling].filter(
+    (block): block is string => block !== null,
+  );
+  return `${head}\n---\n\n${sections.join("\n\n---\n\n")}\n`;
+}
+
+export async function loader({ context }: Route.LoaderArgs) {
+  const { env } = context.get(cloudflareContext);
+  const content = buildLlmsFullTxt(siteUrl(env), await loadPublishedSet(getDb(env)));
 
   return new Response(content, {
     headers: {

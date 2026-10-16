@@ -11,6 +11,7 @@ import { and, asc, desc, eq, gt, inArray, lt, or, sql } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import { blogPostLinks, blogPosts } from "~/db";
+import { publishedTags } from "~/lib/blog/published-set";
 
 export interface BlogPostSummary {
   id: string;
@@ -104,25 +105,22 @@ export async function listPublishedPosts(db: Db, limit?: number): Promise<BlogPo
 /** The set of tags carried by at least one published post. The archive
  *  renders a filter pill only for these, so a canonical tag with no content
  *  never offers a chip that leads to an empty page (Dustin, ruling 72
- *  session). CANONICAL_TAGS stays the full list, because the sitemap and
- *  llms.txt still enumerate it. Selects the one column it needs rather than
- *  reusing getAllPublishedPosts, and unions in JS rather than reaching for a
- *  json_each FROM clause, which Drizzle's builder cannot express and which
- *  CLAUDE.md's raw-dialect rule would bar anyway. */
+ *  session). Selects the one column it needs rather than reusing
+ *  getAllPublishedPosts, and unions through publishedTags, the same
+ *  derivation the sitemaps, feeds and llms pair use (J61), rather than
+ *  reaching for a json_each FROM clause, which Drizzle's builder cannot
+ *  express and which CLAUDE.md's raw-dialect rule would bar anyway. */
 export async function getPublishedTagSet(db: Db): Promise<string[]> {
   const rows = await db
     .select({ tags: blogPosts.tags })
     .from(blogPosts)
     .where(eq(blogPosts.published, true));
-  const seen = new Set<string>();
-  for (const row of rows) {
-    for (const tag of row.tags ?? []) seen.add(tag);
-  }
-  return [...seen];
+  return publishedTags(rows.map((row) => ({ tags: row.tags ?? [] })));
 }
 
 /** Every published post, newest first. Mirrors legacy getAllPublishedPosts;
- *  used by the sitemap and the feed. The tag archive uses
+ *  the machine-readable files read it once through loadPublishedSet
+ *  (published-set.server.ts), and /blog/archive reads it. The tag archive uses
  *  getPublishedPostsByTag instead (SQL-filtered, perf-audit fix M-2), not
  *  this. Content volume here is small (dozens of posts, not thousands), so a
  *  full scan is the simplest correct query; there is no pagination need yet. */
