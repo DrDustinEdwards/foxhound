@@ -1,0 +1,17 @@
+Subject: Dispute won: $3,000.00 recovered
+
+Foxhound
+
+You won the dispute.
+
+$3,000.00 stays in your account. Reason: Product Not Received.
+
+Foxhound fee: $500.00 (20% of the saved amount, capped at $500). This will be invoiced on 2026-12-01.
+
+View dispute:
+https://app.example.com/disputes/dashboard
+
+--
+This message was sent to ops@example.com.
+You're receiving this from Acme Billing about a recent payment. © 2026
+Manage email settings: https://app.example.com/settings

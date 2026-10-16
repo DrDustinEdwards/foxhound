@@ -1,0 +1,17 @@
+Subject: Dispute lost: $50.00
+
+Foxhound
+
+Dispute closed as lost.
+
+$50.00 was deducted from your account by the cardholder bank. Reason: Product Not Received.
+
+No Foxhound fee. We only charge when we win.
+
+View dispute:
+https://app.example.com/disputes/dashboard
+
+--
+This message was sent to ops@example.com.
+You're receiving this from Acme Billing about a recent payment. © 2026
+Manage email settings: https://app.example.com/settings
