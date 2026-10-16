@@ -125,7 +125,7 @@ describe("bulk selection: the demo renders NO checkbox, and non-demo renders the
   it("gates BOTH the select-all header and the per-row box on !isDemo", () => {
     expect(LIST_ROUTE).toContain("{!isDemo ? (");
     // J75: Capsomer's row checkbox, named by its hidden label text.
-    expect(LIST_ROUTE).toContain('<span className="cap-sr-only">Select all payments</span>');
+    expect(LIST_ROUTE).toContain('<span className="sr-only">Select all payments</span>');
     // Two checkboxes, header and row, and both inside a !isDemo branch.
     expect(LIST_ROUTE.match(/type="checkbox"/g)).toHaveLength(2);
     expect(LIST_ROUTE.match(/\{!isDemo \? \(/g)?.length).toBeGreaterThanOrEqual(2);

@@ -6,7 +6,6 @@ import { ConfirmDialog } from "capsomer/react/confirm-dialog";
 import { Empty } from "capsomer/react/empty";
 import { PageHead } from "capsomer/react/page-head";
 import { Panel } from "capsomer/react/panel";
-import { Segmented } from "capsomer/react/segmented";
 import { Pill, type Tone as StatusTone } from "capsomer/react/status";
 import "capsomer/banner.css";
 import "capsomer/bulk-bar.css";
@@ -643,22 +642,27 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                 />
               </div>
               <div className="max-w-full overflow-x-auto">
-                <Segmented
-                  legend="Filter by status"
-                  hideLegend
-                  size="sm"
-                  name="status"
-                  value={filters.status}
-                  onChange={(value) => go({ status: value })}
-                  options={STATUS_PILLS.map((pill) => ({
-                    value: pill.value,
-                    label: (
-                      <>
+                {/* Capsomer's segmented control, as its markup: its React
+                    wrapper hides the legend with cap-sr-only, which lives in
+                    Capsomer's base.css, which the app does not load, so the
+                    legend would show where Recova shows none. */}
+                <fieldset className="cap-seg">
+                  <legend className="sr-only">Filter by status</legend>
+                  <div className="cap-seg-options">
+                    {STATUS_PILLS.map((pill) => (
+                      <label key={pill.value}>
+                        <input
+                          type="radio"
+                          name="status"
+                          value={pill.value}
+                          checked={filters.status === pill.value}
+                          onChange={() => go({ status: pill.value })}
+                        />{" "}
                         {pill.label} <span className="font-mono">{countFor(pillCounts, pill.value)}</span>
-                      </>
-                    ),
-                  }))}
-                />
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
               </div>
             </div>
 
@@ -787,7 +791,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                             checked={headerChecked}
                             onChange={() => setSelected(toggleAllVisible(selected, rows))}
                           />
-                          <span className="cap-sr-only">Select all payments</span>
+                          <span className="sr-only">Select all payments</span>
                         </label>
                       </th>
                     ) : null}
@@ -813,7 +817,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                                 checked={isSelected}
                                 onChange={() => setSelected(toggleOne(selected, p.id))}
                               />
-                              <span className="cap-sr-only">Select payment from {name}</span>
+                              <span className="sr-only">Select payment from {name}</span>
                             </label>
                           </td>
                         ) : null}

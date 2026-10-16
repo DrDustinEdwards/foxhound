@@ -12,6 +12,9 @@ import { sliderDollars } from "~/lib/recovery/payments-list";
 // track (styling in app.css's .dual-range-input rules), so the keyboard works
 // with no script, and both carry names, so the filter form still submits them
 // when script has not run.
+//
+// Recova's fixed 240px basis applies on the wide layout only: in its phone
+// column the same basis became a 240px tall gap under the slider.
 
 const COMMIT_DELAY_MS = 250;
 
@@ -65,14 +68,14 @@ export function DualRangeSlider({
   const rightPct = ((hi - min) / range) * 100;
 
   return (
-    <div className="min-w-[220px] flex-[0_0_240px]">
+    <div className="md:min-w-[220px] md:flex-[0_0_240px]">
       <div className="mb-1.5 flex items-center justify-between text-micro">
         <span className="text-text-subtle">Amount</span>
         <span className="font-mono text-brand-text">
           {sliderDollars(lo)} – {sliderDollars(hi, true, max)}
         </span>
       </div>
-      <div className="relative h-5 w-full">
+      <div className="relative h-6 w-full">
         <div className="pointer-events-none absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-border" />
         <div
           className="pointer-events-none absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-brand"
@@ -92,7 +95,7 @@ export function DualRangeSlider({
           }}
           aria-label="Minimum amount"
           aria-valuetext={sliderDollars(lo)}
-          className="dual-range-input absolute inset-x-0 top-1/2 w-full -translate-y-1/2"
+          className="dual-range-input absolute inset-x-0 top-1/2 h-6 w-full -translate-y-1/2"
         />
         <input
           type="range"
@@ -108,7 +111,7 @@ export function DualRangeSlider({
           }}
           aria-label="Maximum amount"
           aria-valuetext={sliderDollars(hi, true, max)}
-          className="dual-range-input absolute inset-x-0 top-1/2 w-full -translate-y-1/2"
+          className="dual-range-input absolute inset-x-0 top-1/2 h-6 w-full -translate-y-1/2"
         />
       </div>
       <div className="mt-1 flex items-center justify-between text-micro text-text-subtle">

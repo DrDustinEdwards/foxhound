@@ -293,7 +293,7 @@ describe("J75: Recova's table on Capsomer's", () => {
     expect(text(named)).toContain("Jordan Lee jordan@example.com");
     const unnamed = render(data({ result: { ...data().result, payments: [row({ customerName: null })] } }));
     // The box's hidden name says the email too; what is seen says it once.
-    const seen = unnamed.replace(/<span class="cap-sr-only">[^<]*<\/span>/g, "");
+    const seen = unnamed.replace(/<span class="sr-only">[^<]*<\/span>/g, "");
     expect(text(seen).match(/jordan@example\.com/g)).toHaveLength(1);
   });
 
