@@ -313,11 +313,42 @@ describe("E12 sends on Recova's trigger, to Recova's recipient, and not otherwis
     const result = await sendExpiringCardAlerts(env, NOW);
 
     expect(harness.sent).toHaveLength(0);
-    expect(result.skipped).toBe(1);
+    // Filtered out by the query, so it is not even counted as skipped.
+    expect(result.skipped).toBe(0);
     // Recova's `if (!merchantConnection) { results.skipped++; continue }`
     // stamps nothing, so a reconnected merchant's customer is still warned.
     expect(alertSentAt()).toBeNull();
     expect(sendRows()).toEqual([]);
+  });
+
+  it("alerts held back by a disconnected merchant never fill the page and starve another merchant's customer", async () => {
+    // 100 unsent alerts on an account whose only connection is disconnected,
+    // seeded first so they come first in the scan, then one on a connected
+    // account. The send page is 100 rows with no
+    // order, so a gate applied in the loop would leave the held-back rows
+    // in the page every night and the connected customer would never be
+    // mailed. Over two runs that customer is sent.
+    sqlite
+      .prepare(
+        "INSERT INTO accounts (id, name, created_at, expiring_card_notifications_enabled, live_sends_enabled) VALUES ('acct_0gone', 'Gone', 1000, NULL, 1)",
+      )
+      .run();
+    sqlite
+      .prepare(
+        "INSERT INTO stripe_connections (id, account_id, stripe_user_id, is_primary, stripe_access_token, sender_name, connected_at, created_at, disconnected_at) VALUES ('c_gone', 'acct_0gone', 'acct_s2', 1, 'cipher', 'Gone Co', 1000, 1000, 2000)",
+      )
+      .run();
+    const insert = sqlite.prepare(
+      "INSERT INTO expiring_card_alerts (id, account_id, stripe_connection_id, stripe_customer_id, customer_email, card_brand, card_last4, expires_month, expires_year, created_at) VALUES (?, 'acct_0gone', 'c_gone', ?, ?, 'visa', '4242', 11, 2026, 1000)",
+    );
+    for (let i = 0; i < 100; i += 1) insert.run(`al_0held_${i}`, `cus_gone_${i}`, `held${i}@gone.example`);
+    seedMerchant();
+    seedAlert();
+
+    await sendExpiringCardAlerts(env, NOW);
+    await sendExpiringCardAlerts(env, new Date(NOW.getTime() + 86_400_000));
+
+    expect(harness.sent.map((m) => m.to)).toEqual(["buyer@acme.test"]);
   });
 
   it("a refused send returns its named outcome: a suppressed address is logged as suppressed, not sent", async () => {

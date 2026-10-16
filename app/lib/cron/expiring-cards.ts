@@ -259,14 +259,6 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
           and ${stripeConnections.disconnectedAt} is null
         limit 1
       )`,
-      // Recova sends only through the account's primary live Stripe
-      // connection and skips the alert when there is none (E12).
-      hasLiveConnection: sql<number>`exists (
-        select 1 from ${stripeConnections}
-        where ${stripeConnections.accountId} = ${expiringCardAlerts.accountId}
-          and ${stripeConnections.isPrimary} = 1
-          and ${stripeConnections.disconnectedAt} is null
-      )`,
       // The Reply-To (J03), from the same primary row as the sender name.
       replyToEmail: sql<string | null>`(
         select ${stripeConnections.replyToEmail} from ${stripeConnections}
@@ -283,6 +275,17 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
         isNull(expiringCardAlerts.alertSentAt),
         isNull(expiringCardAlerts.deletedAt),
         accountProcessingEligibleCondition(),
+        // Recova skips an alert whose account has no primary live Stripe
+        // connection and leaves it unstamped, so the customer is still warned
+        // if the merchant reconnects inside the window (E12). Filtered here,
+        // not in the loop, so unsendable rows never fill the 100-row page and
+        // starve other merchants' alerts (RULES.md 1.5).
+        sql`exists (
+          select 1 from ${stripeConnections}
+          where ${stripeConnections.accountId} = ${expiringCardAlerts.accountId}
+            and ${stripeConnections.isPrimary} = 1
+            and ${stripeConnections.disconnectedAt} is null
+        )`,
       ),
     )
     .limit(EXPIRING_CARD_SEND_LIMIT);
@@ -296,14 +299,6 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
     // reconsidered, which is legacy's behaviour and not a Foxhound choice.
     if (alert.notificationsEnabled === false) {
       await stampSent(db, alert.id, now);
-      result.skipped += 1;
-      continue;
-    }
-
-    // No primary live connection: skipped and NOT stamped, as Recova's
-    // `if (!merchantConnection) { results.skipped++; continue }`, so the
-    // customer is still warned if the merchant reconnects inside the window.
-    if (!alert.hasLiveConnection) {
       result.skipped += 1;
       continue;
     }
