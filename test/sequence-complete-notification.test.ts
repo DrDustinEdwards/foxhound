@@ -144,12 +144,16 @@ describe("PLANT 1: an exhausted sequence sends one email with legacy's strings",
   it("does NOT claim seven days, because no schedule runs seven days", () => {
     // Legacy says "The 7-day recovery sequence" while its own schedules plan
     // out to email_day30. Class (c) truthfulness.
-    const body = sequenceCompleteBody({
-      amountCents: 9900,
-      currency: "usd",
-      customerLabel: "X",
-      paymentUrl: "https://x/1",
-    });
+    // E11 (J89): the body is the notice template's content now, so its words
+    // are read from every string it holds.
+    const body = JSON.stringify(
+      sequenceCompleteBody({
+        amountCents: 9900,
+        currency: "usd",
+        customerLabel: "X",
+        paymentUrl: "https://x/1",
+      }),
+    );
     expect(body).not.toContain("7-day");
     expect(body).not.toContain("7 day");
   });
@@ -329,7 +333,9 @@ describe("PLANT 5: the tick hooks the notification on the claim", () => {
       sequenceCompleteSubject({ amountCents: 9900, currency: "usd", customerLabel: "X" }),
     ).not.toMatch(wide);
     expect(
-      sequenceCompleteBody({ amountCents: 9900, currency: "usd", customerLabel: "X", paymentUrl: "https://x/1" }),
+      JSON.stringify(
+        sequenceCompleteBody({ amountCents: 9900, currency: "usd", customerLabel: "X", paymentUrl: "https://x/1" }),
+      ),
     ).not.toMatch(wide);
   });
 });
