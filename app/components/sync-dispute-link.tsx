@@ -47,7 +47,36 @@ export interface SyncDisputeResult {
   message: string;
 }
 
-export function SyncDisputeLink({ result }: { result?: SyncDisputeResult }) {
+/** The import's outcomes in words, shared by the two routes that host the
+ *  control (/disputes and /disputes/:id). Recova's own success line is
+ *  "Dispute imported." on both. */
+export const SYNC_RESULT_MESSAGES: Record<string, SyncDisputeResult> = {
+  imported: { ok: true, message: "Dispute imported." },
+  // Not an error. Either this import already ran or the webhook got there
+  // first; both mean the dispute is on the books exactly once.
+  already_imported: { ok: true, message: "That dispute is already imported." },
+  invalid_id: { ok: false, message: 'Stripe dispute IDs start with "dp_".' },
+  not_connected: { ok: false, message: "Connect Stripe before importing a dispute." },
+  not_found: { ok: false, message: "No dispute with that ID on your Stripe account." },
+};
+
+/** Recova has two of these: SyncDisputeLink under the disputes list, and
+ *  DisputeSyncForm (blob f0f1ee7d) on the dispute page, which reads "Sync a
+ *  different dispute from Stripe" and has no explanatory line. The words are
+ *  props; the control is one. */
+export const SYNC_LIST_COPY = {
+  linkLabel: "Sync dispute from Stripe",
+  note: "Use this for disputes that came in before you connected to Foxhound.",
+};
+export const SYNC_DETAIL_COPY = { linkLabel: "Sync a different dispute from Stripe", note: null };
+
+export function SyncDisputeLink({
+  result,
+  copy = SYNC_LIST_COPY,
+}: {
+  result?: SyncDisputeResult;
+  copy?: { linkLabel: string; note: string | null };
+}) {
   // Reopened when the last submit came back with something to say, so an error
   // is never reported behind a collapsed link.
   const [open, setOpen] = useState(Boolean(result));
@@ -72,7 +101,7 @@ export function SyncDisputeLink({ result }: { result?: SyncDisputeResult }) {
     return (
       <div className="mt-8 text-center">
         <Button variant="link" size="xs" onClick={() => setOpen(true)}>
-          Sync dispute from Stripe
+          {copy.linkLabel}
         </Button>
       </div>
     );
@@ -120,9 +149,7 @@ export function SyncDisputeLink({ result }: { result?: SyncDisputeResult }) {
           <div role="status" className="mt-2 text-micro">
             {shown ? <Status tone={shown.ok ? "ok" : "crit"}>{shown.message}</Status> : null}
           </div>
-          <div className="mt-2 text-micro text-text-subtle">
-            Use this for disputes that came in before you connected to Foxhound.
-          </div>
+          {copy.note ? <div className="mt-2 text-micro text-text-subtle">{copy.note}</div> : null}
         </div>
       </Form>
     </div>

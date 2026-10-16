@@ -23,7 +23,6 @@ export interface DisputeTimelineInput {
   outcomeNotifiedAt: Date | null;
   resolvedAt: Date | null;
   state: string;
-  resolvedFeeCents: number | null;
 }
 
 export interface DisputeTimelineItem {
@@ -32,9 +31,11 @@ export interface DisputeTimelineItem {
   label: string;
 }
 
-/** Who submitted the evidence, in words. */
+/** Who submitted the evidence, in Recova's words (components/disputes/
+ *  timeline.ts, blob 04fbe976). Foxhound stores the approver's email for its
+ *  own submissions, so anything but the external marker is Foxhound. */
 function submitterPhrase(submittedBy: string | null): string {
-  if (submittedBy === "merchant_or_stripe") return "the merchant or Stripe";
+  if (submittedBy === "merchant_or_stripe") return "externally (merchant or Stripe)";
   return "Foxhound";
 }
 
@@ -60,7 +61,7 @@ export function buildDisputeTimeline(d: DisputeTimelineInput): DisputeTimelineIt
   if (d.submittedAt) {
     items.push({
       at: d.submittedAt,
-      label: `Evidence submitted to the bank by ${submitterPhrase(d.submittedBy)}.`,
+      label: `Evidence submitted to bank by ${submitterPhrase(d.submittedBy)}.`,
     });
   }
   if (d.outcomeNotifiedAt) {
@@ -68,15 +69,12 @@ export function buildDisputeTimeline(d: DisputeTimelineInput): DisputeTimelineIt
   }
 
   // The ruling is anchored to resolved_at, not to the notification timestamp, so
-  // the two events do not print the same time.
+  // the two events do not print the same time. The words are Recova's; the fee
+  // a win carries is stated on the page's approval card, not here.
   if (d.state === "resolved_won") {
-    const feeNote =
-      d.resolvedFeeCents === null
-        ? " No fee: this dispute was not submitted through Foxhound."
-        : ` Fee of ${formatMoney(d.resolvedFeeCents, d.currency)} at the next monthly run.`;
-    items.push({ at: d.resolvedAt, label: `Bank ruled in your favor. Funds retained.${feeNote}` });
+    items.push({ at: d.resolvedAt, label: "Bank ruled: WON. Funds retained." });
   } else if (d.state === "resolved_lost") {
-    items.push({ at: d.resolvedAt, label: "Bank ruled against you. Funds deducted. Not billed." });
+    items.push({ at: d.resolvedAt, label: "Bank ruled: LOST. Funds deducted." });
   }
 
   // Stable sort on the timestamp, leaving null-timestamped events where they
