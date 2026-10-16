@@ -58,7 +58,7 @@ export function expiringCardSubject(input: {
  *
  * TWO DIFFERENCES FROM RECOVA'S MARKUP, both recorded:
  *
- * - THE BUTTON is Capsomer's, in Foxhound's teal (Q3, Q11), not Recova's amber
+ * - THE BUTTON is Capsomer's, in Foxhound's teal (Q3, Q11), not Recova's own
  *   inline style. The label "Update Payment Method" is Recova's.
  * - THE LINK TARGET is Foxhound's own /p/:token card-update page rather than a
  *   Stripe billing portal session (APPROVED-DIFFERENCES, "yes", 2026-09-19).
