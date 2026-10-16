@@ -44,10 +44,6 @@ const SCOPED_BY_CONTEXT: Array<[string, string, string]> = [
   ["lib/decline-codes/presentation.ts", "silent retry runs first", "retryable branch"],
   // The answer to "Why does network get an early retry?" in the docs.
   ["lib/marketing/docs-content.ts", "the early retry catches those before any email", "network answer"],
-  // PR #120 owns these files and removes their claims; drop once it lands.
-  ["routes/home.tsx", "", "PR #120"],
-  ["lib/marketing/home-copy.ts", "", "PR #120"],
-  ["lib/marketing/products.ts", "", "PR #120"],
 ];
 
 function walk(dir: string): string[] {
