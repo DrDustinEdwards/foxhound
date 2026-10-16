@@ -1,3 +1,6 @@
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
 import type Stripe from "stripe";
 import { describe, expect, it, vi } from "vitest";
 
@@ -418,5 +421,47 @@ describe("a refused send returns its named outcome (RULES.md 3.16)", () => {
     const action = await processMonthlyAuditMessage(ok2, { accountId: "acct_on", periodMonth: PERIOD, cronRunId: null }, 2, NOW);
     expect(action).toBe("ack");
     expect(sent).toHaveLength(1);
+  });
+});
+
+// ============================================================================
+
+describe("the demo firewall on the consumer side (PR 160 re-review)", () => {
+  // With liveSendGate "skip", the live-send switch no longer stands between a
+  // demo account and a send. The consumer's own eligibility read
+  // (accountProcessingEligibleCondition, which refuses ids starting demo_) is
+  // the only demo refusal left on this path, so it is tested directly.
+  it("a demo account delivered straight to the consumer is not_eligible: no audit, no mail", async () => {
+    const db = fresh();
+    await seed(db, "demo_teamflow");
+    const { sent, env } = collector();
+
+    const outcome = await monthly.auditAccountForMonth(
+      env,
+      { accountId: "demo_teamflow", periodMonth: PERIOD, cronRunId: null },
+      NOW,
+    );
+
+    expect(outcome).toEqual({ status: "not_eligible", ran: false });
+    expect(sent).toHaveLength(0);
+    expect(await db.select().from(auditRuns)).toHaveLength(0);
+    expect(await db.select().from(auditDigestRuns)).toHaveLength(0);
+    expect(await db.select().from(emailSends)).toHaveLength(0);
+  });
+
+  it('only the monthly audit skips the live-send gate: liveSendGate: "skip" appears nowhere else under app/', () => {
+    const root = fileURLToPath(new URL("../app", import.meta.url));
+    const hits: string[] = [];
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir)) {
+        const full = `${dir}/${entry}`;
+        if (statSync(full).isDirectory()) walk(full);
+        else if (/\.tsx?$/.test(entry) && /liveSendGate:\s*"skip"/.test(readFileSync(full, "utf8"))) {
+          hits.push(full.slice(full.indexOf("app/")));
+        }
+      }
+    };
+    walk(root);
+    expect(hits).toEqual(["app/lib/audit/monthly.server.ts"]);
   });
 });
