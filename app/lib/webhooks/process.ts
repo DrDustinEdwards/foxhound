@@ -212,7 +212,7 @@ async function listActiveFailedPaymentIds(
  * own default in place. Fails OPEN on any error, exactly as legacy does with its
  * try/catch around the same two lookups (entitlement, then customer context).
  */
-async function resolveWinbackStep1Offset(
+export async function resolveWinbackStep1Offset(
   env: Env,
   accountId: string,
   stripeCustomerId: string,

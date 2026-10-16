@@ -47,7 +47,8 @@ const SURFACES = [
   "app/routes/privacy.tsx",
   "app/routes/security.tsx",
   "app/lib/marketing/features-content.ts",
-  "app/routes/home.tsx",
+  // Home's FAQ moved here with J59.
+  "app/lib/marketing/home-copy.ts",
   "app/lib/compare/competitors.ts",
 ] as const;
 

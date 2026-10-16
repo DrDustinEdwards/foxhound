@@ -388,7 +388,7 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "Win-back email sequences",
-          description: `Three-step post-cancellation sequence (step 1 at ${hoursText(winStep1)} or ${hoursText(WINBACK_UNFLAGGED_STEP1_HOURS)}, step 2 at ${hoursText(winStep2)}, step 3 at ${hoursText(winStep3)}).`,
+          description: `Three-step post-cancellation sequence (step 1 at ${hoursText(winStep1)}, or ${hoursText(WINBACK_UNFLAGGED_STEP1_HOURS)} on an account with Intelligence unless the customer is flagged as a win-back priority; step 2 at ${hoursText(winStep2)}, step 3 at ${hoursText(winStep3)}).`,
           product: "Recovery",
         },
         {

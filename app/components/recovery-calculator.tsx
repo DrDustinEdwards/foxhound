@@ -1,19 +1,25 @@
 import { useState } from "react";
+import { Link } from "react-router";
 
+import { RECOVERY_FEE_BPS, RECOVERY_MATURITY_DAYS } from "~/lib/constants";
 import { STAT_AS_OF, STRIPE_RECOVERY_RATE_PERCENT } from "~/lib/marketing/statistics";
+
+import "capsomer/panel.css";
+import "capsomer/button.css";
 
 /** The slider's starting position. An ASSUMPTION the visitor may change, never a
  *  Foxhound result: 52 is where the page has always started and is kept so the
  *  first render is unchanged. */
 const DEFAULT_ASSUMED_RECOVERY_SHARE = 52;
-import { Link } from "react-router";
 
-// Ported AS-IS from legacy components/marketing/RecoveryCalculator.tsx
-// (Phase 6 Pass 1): pure client math, unchanged multipliers. Only the
-// imports (next/link -> react-router Link), the custom slider CSS (replaced
-// with a native range input using the brand accent token, teal), and the label
-// copy (baseline-free / 30-day maturity framing, corrections #1 and #8)
-// changed.
+// Recova's components/marketing/RecoveryCalculator.tsx (blob 1a4374f5), read
+// whole: pure client math, unchanged multipliers, Recova's rows in Recova's
+// order. The changes: the second slider (approved 2026-08-26 and 2026-09-19),
+// the attribution and maturity labels (sanctioned, M3 divergences 31 and 32),
+// and the look (J59), which is Capsomer's: the card is a panel and the call to
+// action its primary button, with text on the five sizes. Recova's slider has
+// a filled track; Capsomer ships no slider, so the native range input
+// takes the family's accent and the filled track is named as a Capsomer gap.
 export function RecoveryCalculator() {
   const [mrr, setMrr] = useState(25000);
   // THE RECOVERY SHARE IS THE VISITOR'S ASSUMPTION, NOT FOXHOUND'S CLAIM
@@ -29,7 +35,7 @@ export function RecoveryCalculator() {
   const stripeRecovers = Math.round(failedRevenue * (STRIPE_RECOVERY_RATE_PERCENT / 100));
   const remaining = failedRevenue - stripeRecovers; // what Stripe could not get
   const foxhoundRecovers = Math.round(remaining * (recoveryShare / 100));
-  const foxhoundFee = Math.round(foxhoundRecovers * 0.2); // 20% outcome fee
+  const foxhoundFee = Math.round((foxhoundRecovers * RECOVERY_FEE_BPS) / 10_000); // the outcome fee
   const netGain = foxhoundRecovers - foxhoundFee; // net to merchant
   const netGainAnnual = netGain * 12;
 
@@ -38,7 +44,9 @@ export function RecoveryCalculator() {
   }
 
   return (
-    <div className="rounded-lg border border-border bg-surface p-6 sm:p-8">
+    <div className="cap-panel" data-density="comfortable">
+      <div className="cap-panel-body">
+      <div>
       <div className="mb-6">
         <div className="mb-2 flex items-center justify-between">
           <label
@@ -57,7 +65,7 @@ export function RecoveryCalculator() {
           step={1000}
           value={mrr}
           onChange={(e) => setMrr(Number(e.target.value))}
-          className="w-full accent-brand"
+          className="h-6 w-full accent-brand"
           aria-valuemin={1000}
           aria-valuemax={500000}
           aria-valuenow={mrr}
@@ -93,7 +101,7 @@ export function RecoveryCalculator() {
           step={1}
           value={recoveryShare}
           onChange={(e) => setRecoveryShare(Number(e.target.value))}
-          className="w-full accent-brand"
+          className="h-6 w-full accent-brand"
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={recoveryShare}
@@ -132,7 +140,7 @@ export function RecoveryCalculator() {
         />
         <Row
           label="Foxhound fee"
-          sub="20% of what Foxhound recovers, nothing else, ever"
+          sub={`${RECOVERY_FEE_BPS / 100}% of what Foxhound recovers, nothing else, ever`}
           value={`-${fmt(foxhoundFee)}`}
           valueClassName="text-text-secondary"
         />
@@ -140,7 +148,7 @@ export function RecoveryCalculator() {
           <div>
             <p className="text-body font-medium text-text">Net revenue retained</p>
             <p className="mt-0.5 font-mono text-micro text-text-tertiary">
-              Nothing is billed until the recovery has matured for 30 days.
+              Nothing is billed until the recovery has matured for {RECOVERY_MATURITY_DAYS} days.
             </p>
           </div>
           <div className="text-right">
@@ -148,7 +156,10 @@ export function RecoveryCalculator() {
               +{fmt(netGainAnnual)}
               <span className="text-label font-normal text-text-tertiary">/yr</span>
             </p>
-            <p className="mt-0.5 font-mono text-body font-medium text-success-text opacity-70">
+            {/* Recova dims this line to 70%, which takes it and its "/mo" under
+                4.5:1 in both themes (measured 3.02 and 3.29). Full strength here
+                (RULES.md 1.5). */}
+            <p className="mt-0.5 font-mono text-body font-medium text-success-text">
               +{fmt(netGain)}
               <span className="text-micro font-normal text-text-tertiary">/mo</span>
             </p>
@@ -162,17 +173,19 @@ export function RecoveryCalculator() {
         recovery rate.
       </p>
 
-      <div className="flex justify-center">
-        <Link
-          to="/audit"
-          className="w-full rounded-lg bg-brand px-6 py-3 text-center text-body font-semibold text-on-brand hover:bg-brand-dark sm:w-auto sm:min-w-[280px]"
-        >
+      <div className="flex justify-center" data-density="comfortable">
+        <Link to="/audit" className="cap-btn" data-variant="primary" data-size="lg">
           Get your actual numbers free
         </Link>
       </div>
+      {/* Recova's line, word for word. The full audit is a read-only Stripe
+          connection (362 ruling 1, RULES.md 2.2), so "Read-only Stripe access"
+          is true of where this button goes. */}
       <p className="mt-3 text-center font-mono text-micro text-text-subtle">
-        Free audit. No account required. No Stripe connection needed.
+        Free audit &middot; No account required &middot; Read-only Stripe access
       </p>
+      </div>
+      </div>
     </div>
   );
 }
@@ -191,7 +204,7 @@ function Row({
   return (
     <div className="flex items-center justify-between border-b border-border-sub py-3">
       <div>
-        <p className="text-body text-text">{label}</p>
+        <p className="text-label text-text">{label}</p>
         <p className="mt-0.5 font-mono text-micro text-text-tertiary">{sub}</p>
       </div>
       <div className={`font-mono text-body font-medium ${valueClassName}`}>{value}</div>

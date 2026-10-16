@@ -1,4 +1,9 @@
-import { Badge } from "~/components/badge";
+import { Pill } from "capsomer/react/status";
+
+import { DISPUTE_FEE_BPS, RECOVERY_FEE_BPS } from "~/lib/constants";
+import { formatMoney } from "~/lib/money-format";
+
+import "capsomer/status.css";
 
 // The home page hero visual (Phase 6 Pass 1, copy correction #2). Replaces
 // legacy components/hero/RecoveryDemo.tsx (an animated recovery-queue demo)
@@ -28,11 +33,15 @@ interface MockRow {
   detail: string;
 }
 
+/** A fee on a sample amount, at the engine's rate, so the mock can never show a
+ *  fee the billing run would not charge (RULES.md 2.1). */
+const fee = (cents: number, bps: number) => formatMoney(Math.round((cents * bps) / 10_000), "usd");
+
 const ROWS: MockRow[] = [
   {
     free: false,
     label: "Recovery fee",
-    amount: "$69.80",
+    amount: fee(34_900, RECOVERY_FEE_BPS),
     date: "Jun 14",
     detail: "Foxhound retry on Jun 11 recovered $349.00 from Acme Analytics.",
   },
@@ -46,7 +55,7 @@ const ROWS: MockRow[] = [
   {
     free: false,
     label: "Dispute fee",
-    amount: "$84.00",
+    amount: fee(42_000, DISPUTE_FEE_BPS),
     date: "Jun 2",
     detail: "Bolt Analytics won a $420.00 dispute, evidence signed by the merchant.",
   },
@@ -81,7 +90,7 @@ export function LedgerMock() {
           >
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-2">
-                <Badge tone={row.free ? "free" : "neutral"}>{row.label}</Badge>
+                <Pill variant={row.free ? "secondary" : "outline"}>{row.label}</Pill>
                 <span className="font-mono text-micro text-text-subtle">{row.date}</span>
               </div>
               <p
