@@ -414,10 +414,33 @@ describe("J75: the bulk result, where Recova shows it", () => {
     expect(BULK_ACTION_MAX_PER_SUBMISSION).toBe(100);
   });
 
-  it("clears after Recova's 3 seconds (PaymentsClient.tsx doBulkAction, setTimeout 3000)", async () => {
-    const list = await import("~/lib/recovery/payments-list");
-    expect((list as Record<string, unknown>).BULK_RESULT_DISMISS_MS).toBe(3000);
+  it("clears after Recova's 3 seconds only when every payment took it (PaymentsClient.tsx doBulkAction, setTimeout 3000)", async () => {
+    const list = (await import("~/lib/recovery/payments-list")) as Record<string, unknown>;
+    expect(list.BULK_RESULT_DISMISS_MS).toBe(3000);
     expect(ROUTE_SOURCE).toMatch(/setTimeout\(\s*\(\) => setDismissedFor\(bulk\),\s*BULK_RESULT_DISMISS_MS\s*\)/);
+    // WCAG 2.2.1: a report with a failure or a refusal waits for the merchant.
+    const clears = list.bulkResultClearsItself as (bulk: unknown) => boolean;
+    expect(typeof clears).toBe("function");
+    expect(clears({ intent: "cancel", results: [{ id: "a", ok: true, reason: null, detail: null }] })).toBe(true);
+    expect(clears(applied)).toBe(false);
+    expect(clears({ refused: "over_ceiling", submitted: 101, ceiling: 100 })).toBe(false);
+    expect(clears({ refused: "empty" })).toBe(false);
+    expect(clears(undefined)).toBe(false);
+    expect(ROUTE_SOURCE).toContain("if (!bulkResultClearsItself(bulk)) return;");
+  });
+
+  it("puts no block element inside a paragraph, so the result survives the HTML parser", () => {
+    const html = render(
+      data({ result: { ...data().result, payments: [row(), row({ id: "fp_2", customerName: "Sam Rivera" })] } }),
+      { bulk: applied },
+    );
+    const banner = html.slice(html.indexOf('class="cap-banner"'), html.indexOf('method="get"'));
+    expect(banner).toContain("Sam Rivera");
+    for (const m of banner.matchAll(/<p\b[^>]*>/g)) {
+      const start = m.index! + m[0].length;
+      const inner = banner.slice(start, banner.indexOf("</p>", start));
+      expect(inner, `block content inside <p>: ${inner.slice(0, 80)}`).not.toMatch(/<(ul|ol|li|div|p|table|section|header)\b/);
+    }
   });
 
   it("says Working... on the pressed button, as Recova's does", () => {
