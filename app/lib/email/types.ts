@@ -31,10 +31,18 @@ import type { EmailNotice, EmailTracking } from "./templates";
  * everything (RULES.md 3.16). It is not held by the live-send gate either; see
  * processEmailJob.
  *
+ * "digest" is the WEEKLY DIGEST and nothing else (E23): merchant mail that
+ * carries Recova's unsubscribe, because Recova's digest does. Recova
+ * suppression-checks it and wraps it with an unsubscribe token
+ * (app/api/cron/weekly-digest/route.ts, blob b6ff2a8c), so its footer has the
+ * Unsubscribe link and the postal address, and the send module holds it to the
+ * same two guards as customer mail. No other merchant notice uses it (RULES.md
+ * 3.16); a test holds the digest's two senders as its only users.
+ *
  * The field is OPTIONAL and defaults to "customer" deliberately: an omitted
  * audience must never be the one that skips the CAN-SPAM guard.
  */
-export type EmailAudience = "customer" | "merchant" | "preview";
+export type EmailAudience = "customer" | "merchant" | "preview" | "digest";
 
 interface EmailJobFields {
   accountId: string | null;
@@ -55,9 +63,9 @@ interface EmailJobFields {
   subject: string;
   /** email_sends.template label (e.g. recovery_dunning, winback, merchant_notify). */
   template: string;
-  /** CAN-SPAM one-click unsubscribe token (required for merchant-customer sends). */
+  /** CAN-SPAM one-click unsubscribe token (required for merchant-customer sends and the digest). */
   unsubscribeToken: string;
-  /** CAN-SPAM sender postal address (required for merchant-customer sends). */
+  /** CAN-SPAM sender postal address (required for merchant-customer sends and the digest). */
   physicalAddress: string;
   /**
    * Recova's footer sentence ("You're receiving this from ..."), first in the
@@ -105,8 +113,8 @@ interface EmailJobFields {
 }
 
 /**
- * A mail whose body the sender wrote as HTML (dunning, win-back, the digest,
- * the dispute notices), read by the frame for text and links.
+ * A mail whose body the sender wrote as HTML (dunning, win-back, the dispute
+ * notices), read by the frame for text and links.
  */
 export interface EmailJob extends EmailJobFields {
   bodyHtml: string;
@@ -125,9 +133,9 @@ export interface NoticeEmailJob extends EmailJobFields {
 }
 
 /**
- * A mail written directly as Capsomer's blocks, with no heading of its own
- * (E12, the expiring card alert): Recova's paragraphs and button, each a plain
- * string Capsomer escapes. No HTML body.
+ * A mail written directly as Capsomer's blocks (E12, the expiring card alert,
+ * which has no heading of its own; E23, the weekly digest): Recova's lines and
+ * buttons, each a plain string Capsomer escapes. No HTML body.
  */
 export interface BlocksEmailJob extends EmailJobFields {
   blocks: Block[];

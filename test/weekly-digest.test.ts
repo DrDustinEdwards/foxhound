@@ -45,8 +45,14 @@ const {
   DIGEST_WINDOW_MS,
   DIGEST_CLAIM_WINDOW_MS,
 } = await import("~/lib/cron/digest");
-const { buildDigestEmail, digestSubject, recoveryRate, resolveDigestCurrency, escapeDigestHtml } =
-  await import("~/lib/recovery/digest-email");
+const { buildDigestBlocks, digestSubject, recoveryRate, resolveDigestCurrency } = await import(
+  "~/lib/recovery/digest-email"
+);
+
+/** The words of a digest's blocks, one line each, for a containment check. */
+function words(blocks: { text?: string; label?: string; url?: string }[]): string {
+  return blocks.map((b) => [b.text, b.label, b.url].filter(Boolean).join(" ")).join("\n");
+}
 
 const ACCOUNT = "acct_1";
 // A Monday, so the fixture reads the way the cron actually fires.
@@ -54,6 +60,7 @@ const NOW = new Date("2026-11-02T08:00:00Z");
 const INSIDE = new Date(NOW.getTime() - 3 * 24 * 60 * 60 * 1000);
 const OUTSIDE = new Date(NOW.getTime() - DIGEST_WINDOW_MS - 60_000);
 const env = {
+  ENCRYPTION_KEY: "ab".repeat(32),
   BETTER_AUTH_URL: "https://foxhoundapp.test",
   PHYSICAL_ADDRESS: "1 Test Way",
 } as unknown as Env;
@@ -166,12 +173,9 @@ describe("PLANT 1: the pure copy is legacy's", () => {
     );
   });
 
-  it("a customer name carrying markup is escaped", () => {
-    expect(escapeDigestHtml(`<b>"A"&'s</b>`)).toBe("&lt;b&gt;&quot;A&quot;&amp;&#39;s&lt;/b&gt;");
-  });
-
   it("the body carries legacy's labels and the computed figures", () => {
-    const html = buildDigestEmail({
+    const text = words(
+      buildDigestBlocks({
       totalFailed: 4,
       totalRecovered: 1,
       recoveredRevenueCents: 5000,
@@ -188,27 +192,29 @@ describe("PLANT 1: the pure copy is legacy's", () => {
       intelligenceActive: false,
       highRiskCustomers: [],
       now: NOW,
-      dashboardUrl: "https://foxhoundapp.test/dashboard",
-    });
+      baseUrl: "https://foxhoundapp.test",
+      }),
+    );
 
-    expect(html).toContain("Week ending Monday, November 2");
-    expect(html).toContain("Your recovery summary");
-    expect(html).toContain("$50.00");
-    expect(html).toContain("25%");
-    expect(html).toContain("Failed payments detected");
-    expect(html).toContain("Revenue at risk");
-    expect(html).toContain("$200.00");
-    expect(html).toContain("Active recovery sequences");
-    expect(html).toContain("Recovery emails sent");
-    expect(html).toContain("Active win-back sequences");
+    expect(text).toContain("Week ending Monday, November 2");
+    expect(text).toContain("Your recovery summary");
+    expect(text).toContain("$50.00");
+    expect(text).toContain("25%");
+    expect(text).toContain("Failed payments detected");
+    expect(text).toContain("Revenue at risk");
+    expect(text).toContain("$200.00");
+    expect(text).toContain("Active recovery sequences");
+    expect(text).toContain("Recovery emails sent");
+    expect(text).toContain("Active win-back sequences");
     // Conditional rows absent at zero, as legacy has them.
-    expect(html).not.toContain("Cards expiring soon");
-    expect(html).not.toContain("Open disputes");
-    expect(html).toContain("https://foxhoundapp.test/dashboard");
+    expect(text).not.toContain("Cards expiring soon");
+    expect(text).not.toContain("Open disputes");
+    expect(text).toContain("https://foxhoundapp.test/recovery/dashboard");
   });
 
   it("the conditional rows appear once their counts are above zero", () => {
-    const html = buildDigestEmail({
+    const text = words(
+      buildDigestBlocks({
       totalFailed: 1,
       totalRecovered: 0,
       recoveredRevenueCents: 0,
@@ -225,16 +231,18 @@ describe("PLANT 1: the pure copy is legacy's", () => {
       intelligenceActive: false,
       highRiskCustomers: [],
       now: NOW,
-      dashboardUrl: "u",
-    });
+      baseUrl: "https://u.test",
+      }),
+    );
 
-    expect(html).toContain("Cards expiring soon");
-    expect(html).toContain("Open disputes");
-    expect(html).toContain("1 open dispute totaling $99.00 need a response");
+    expect(text).toContain("Cards expiring soon");
+    expect(text).toContain("Open disputes");
+    expect(text).toContain("1 open dispute totaling $99.00 need a response");
   });
 
   it("THE INTELLIGENCE SECTION CARRIES NO PERSONAL-OUTREACH LINE, which has no producer", () => {
-    const html = buildDigestEmail({
+    const text = words(
+      buildDigestBlocks({
       totalFailed: 0,
       totalRecovered: 0,
       recoveredRevenueCents: 0,
@@ -251,13 +259,14 @@ describe("PLANT 1: the pure copy is legacy's", () => {
       intelligenceActive: true,
       highRiskCustomers: [{ name: "Acme Co", mrrCents: 19900 }],
       now: NOW,
-      dashboardUrl: "u",
-    });
+      baseUrl: "https://u.test",
+      }),
+    );
 
-    expect(html).toContain("Top at-risk customers");
-    expect(html).toContain("Acme Co");
-    expect(html).not.toContain("personal outreach");
-    expect(html).not.toContain("flagged for");
+    expect(text).toContain("Top at-risk customers");
+    expect(text).toContain("Acme Co");
+    expect(text).not.toContain("personal outreach");
+    expect(text).not.toContain("flagged for");
   });
 });
 
@@ -351,26 +360,29 @@ describe("PLANT 4: one digest per account per week", () => {
 
     const result = await runWeeklyDigest(env, NOW);
 
-    expect(result).toEqual({ sent: 1, skipped: 0 });
+    expect(result).toMatchObject({ sent: 1, skipped: 0 });
     expect(harness.jobs).toHaveLength(1);
     const job = harness.jobs[0];
     expect(job.to).toBe("owner@acme.test");
     expect(job.template).toBe("weekly_digest");
-    expect(job.audience).toBe("merchant");
+    // The DIGEST audience (E23): Recova's unsubscribe and postal address.
+    expect(job.audience).toBe("digest");
     expect(job.subject).toBe("Your weekly recovery report: November 2");
-    // MERCHANT audience: no unsubscribe token is minted.
-    expect(job.unsubscribeToken).toBe("");
+    expect(String(job.unsubscribeToken)).not.toBe("");
+    expect(job.physicalAddress).toBe("1 Test Way");
     // Two failed rows (f1 and seedRecovered's), one recovered: 50%.
-    expect(String(job.bodyHtml)).toContain("50%");
-    expect(String(job.bodyHtml)).toContain("$50.00");
+    const body = words(job.blocks as { text?: string }[]);
+    expect(body).toContain("Recovery rate: 50%");
+    expect(body).toContain("Revenue recovered: $50.00");
   });
 
   it("AN EMPTY WEEK STILL SENDS, which is legacy's behaviour", async () => {
     const result = await runWeeklyDigest(env, NOW);
 
-    expect(result).toEqual({ sent: 1, skipped: 0 });
-    expect(String(harness.jobs[0].bodyHtml)).toContain("0%");
-    expect(String(harness.jobs[0].bodyHtml)).toContain("$0.00");
+    expect(result).toMatchObject({ sent: 1, skipped: 0 });
+    const body = words(harness.jobs[0].blocks as { text?: string }[]);
+    expect(body).toContain("Recovery rate: 0%");
+    expect(body).toContain("Revenue recovered: $0.00");
   });
 
   it("A SECOND TICK THE SAME WEEK SENDS NOTHING", async () => {
@@ -378,7 +390,7 @@ describe("PLANT 4: one digest per account per week", () => {
 
     const result = await runWeeklyDigest(env, NOW);
 
-    expect(result).toEqual({ sent: 0, skipped: 1 });
+    expect(result).toMatchObject({ sent: 0, skipped: 1 });
     expect(harness.jobs).toEqual([]);
   });
 
@@ -410,7 +422,7 @@ describe("PLANT 4: one digest per account per week", () => {
 
     const result = await runWeeklyDigest(env, NOW);
 
-    expect(result).toEqual({ sent: 0, skipped: 1 });
+    expect(result).toMatchObject({ sent: 0, skipped: 1 });
   });
 });
 
@@ -437,7 +449,7 @@ describe("PLANT 6: the digest does not skip itself (376 item 13)", () => {
 
     // Against the pre-fix claim this reads {sent: 0, skipped: 1}: `now - 7d` on
     // Monday 2 is 08:00:00 on Monday 1, and the row at 08:01:30 is newer.
-    expect(second).toEqual({ sent: 1, skipped: 0 });
+    expect(second).toMatchObject({ sent: 1, skipped: 0 });
     expect(harness.jobs).toHaveLength(1);
   });
 
@@ -456,7 +468,7 @@ describe("PLANT 6: the digest does not skip itself (376 item 13)", () => {
 
     const rerun = await runWeeklyDigest(env, new Date("2026-11-02T08:10:00Z"));
 
-    expect(rerun).toEqual({ sent: 0, skipped: 1 });
+    expect(rerun).toMatchObject({ sent: 0, skipped: 1 });
     expect(harness.jobs).toEqual([]);
   });
 

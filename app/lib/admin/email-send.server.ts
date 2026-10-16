@@ -16,7 +16,7 @@ import type { EmailNotice } from "~/lib/email/templates";
 import type { EmailAudience, OutboundEmailJob } from "~/lib/email/types";
 import { signUnsubscribeToken } from "~/lib/email/unsubscribe-token";
 import { recoveryFooterNote } from "~/lib/engine/execute-step";
-import { DIGEST_SENDER_FALLBACK, buildDigestEmail, digestSubject } from "~/lib/recovery/digest-email";
+import { digestContent } from "~/lib/recovery/digest-email";
 import { buildTemplateEmail } from "~/lib/recovery/email-template";
 import { buildExpiringCardEmail, expiringCardSubject } from "~/lib/recovery/expiring-card-email";
 import { recoveryNotifyContent } from "~/lib/recovery/merchant-notification.server";
@@ -118,7 +118,7 @@ export const ADMIN_EMAIL_TYPES: readonly AdminEmailType[] = [
   {
     type: "weekly_digest",
     audience: "merchant",
-    description: "The weekly recovery summary a merchant gets at their notification address, with sample numbers.",
+    description: "The weekly recovery summary a merchant gets at their notification address, with sample numbers and a working unsubscribe. Needs account_id.",
   },
   {
     type: "recovery_notification",
@@ -379,28 +379,45 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
     const sample = { amountCents: SAMPLE_AMOUNT_CENTS, currency: SAMPLE_CURRENCY, customerLabel: SAMPLE_CUSTOMER_LABEL };
     const paymentUrl = `${baseUrl}/recovery/payments`;
     if (type.type === "weekly_digest") {
+      // The digest's own content function and its own audience (E23): the
+      // platform's From, Recova's footer sentence, and a real signed
+      // unsubscribe for the test inbox with the postal address, as the cron
+      // sends it.
+      // Its unsubscribe is signed for an account, so it needs a merchant, as
+      // customer mail does.
+      if (!merchant) throw new Error("the weekly digest needs a merchant");
       const flags = { now, intelligenceActive: false, disputesActive: true };
-      return merchantJob({
-        fromName: senderName ?? DIGEST_SENDER_FALLBACK,
-        subject: digestSubject(flags),
-        bodyHtml: buildDigestEmail({
-          ...flags,
-          totalFailed: 12,
-          totalRecovered: 7,
-          recoveredRevenueCents: 69300,
-          atRiskRevenueCents: 118800,
-          activeCount: 5,
-          emailsSent: 31,
-          winBackCount: 2,
-          expiringCardCount: 3,
-          openDisputeCount: 1,
-          openDisputeCents: 4900,
-          currency: SAMPLE_CURRENCY,
-          senderName,
-          highRiskCustomers: [],
-          dashboardUrl: `${baseUrl}/console`,
-        }),
-      });
+      return {
+        channel: "job",
+        audience: "digest",
+        job: {
+          accountId: merchant.accountId,
+          to,
+          ...digestContent({
+            ...flags,
+            totalFailed: 12,
+            totalRecovered: 7,
+            recoveredRevenueCents: 69300,
+            atRiskRevenueCents: 118800,
+            activeCount: 5,
+            emailsSent: 31,
+            winBackCount: 2,
+            expiringCardCount: 3,
+            openDisputeCount: 1,
+            openDisputeCents: 4900,
+            currency: SAMPLE_CURRENCY,
+            senderName,
+            highRiskCustomers: [],
+            baseUrl,
+          }),
+          template: `admin_test:${type.type}`,
+          unsubscribeToken: await signUnsubscribeToken(env, { email: to, accountId: merchant.accountId }),
+          physicalAddress: env.PHYSICAL_ADDRESS ?? "",
+          idempotencyKey: `admin-test:${crypto.randomUUID()}`,
+          cronRunId: null,
+          audience: "digest",
+        },
+      };
     }
     if (type.type === "recovery_notification") {
       // The notifier's own content function (E10): the notice and its footer.
