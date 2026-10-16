@@ -496,6 +496,10 @@ describe("a refused claim on a redelivery is seen, and a stuck one alerts", () =
     const alert = messages.find((m) => m.to !== "a_on@merchant.test");
     expect(alert?.text).toContain("a_on");
     expect(alert?.text).toContain(PERIOD);
+    // The run may have died after the send and before the row was marked sent,
+    // so the alert must not claim nothing went out (job_17249e7da871).
+    expect(alert?.text).toContain("may not have been sent");
+    expect(alert?.text).not.toContain("no email was sent");
     expect((await db.select().from(auditDigestRuns))[0].status).toBe("pending");
   });
 });

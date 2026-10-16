@@ -704,7 +704,11 @@ export async function processMonthlyAuditMessage(
     // attempt alerts, so a stuck month is seen rather than discovered.
     if (attempts > 1 && outcome.heldStatus === "pending") {
       if (!lastAttempt) return "retry";
-      await alert("claim still pending after the last attempt; no email was sent this month");
+      // "May not", never "was not": the run may have died after the send and
+      // before the row was marked sent (job_17249e7da871).
+      await alert(
+        "claim still pending after the last attempt; this month's email may not have been sent",
+      );
     }
     return "ack";
   }
