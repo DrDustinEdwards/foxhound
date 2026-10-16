@@ -12,6 +12,7 @@ import {
   STRIPE_AUDIT_SCOPE,
 } from "~/lib/constants";
 import { AUDIT_ACTION, buildConnectState } from "~/lib/stripe/connect-state";
+import { readAuditGrantCookie } from "~/lib/stripe/state-cookie";
 
 // J42 (job_c6e2110edde1), rows U1 and U5: /audit/connect, the free audit's
 // consent page, and /audit/callback, its OAuth return.
@@ -55,6 +56,8 @@ function envWith(allowed = true): Env {
   return {
     STRIPE_CLIENT_ID: "ca_test_client",
     BETTER_AUTH_URL: ORIGIN,
+    // PR #127 seals the audit grant cookie with this key.
+    ENCRYPTION_KEY: "0123456789abcdef".repeat(4),
     RATE_LIMITER: {
       idFromName: () => "id",
       get: () => ({ check: async () => ({ allowed, retryAfterSec: 60 }) }),
@@ -487,7 +490,7 @@ describe("J42 U5: the callback refuses before it exchanges, and every exit clear
     for (const args of errorSpy.mock.calls) expect(JSON.stringify(args.map(String))).not.toContain(TOKEN);
   });
 
-  it("success: a same-site relative redirect, the token only in a five-minute /audit cookie", async () => {
+  it("success: a same-site relative redirect, the token only in a sealed five-minute /audit cookie", async () => {
     const state = buildConnectState(AUDIT_ACTION);
     const response = await call({ code: "ac_1", state }, state);
     const location = response.headers.get("Location")!;
@@ -496,7 +499,18 @@ describe("J42 U5: the callback refuses before it exchanges, and every exit clear
     expect(location).not.toContain(TOKEN);
     const cookies = setCookies(response);
     const token = cookies.find((c) => c.startsWith(`${AUDIT_TOKEN_COOKIE}=`))!;
-    expect(token).toBe(`${AUDIT_TOKEN_COOKIE}=${TOKEN}; HttpOnly; Secure; SameSite=Lax; Path=/audit; Max-Age=300`);
+    expect(token).toMatch(/; HttpOnly; Secure; SameSite=Lax; Path=\/audit; Max-Age=300$/);
+    // Sealed (PR #127): the value never carries the token in plain text, and
+    // it opens to exactly the grant this callback was given.
+    const value = token.split(";")[0].slice(AUDIT_TOKEN_COOKIE.length + 1);
+    expect(value).not.toBe("");
+    expect(value).not.toContain(TOKEN);
+    expect(decodeURIComponent(value)).not.toContain(TOKEN);
+    const grant = await readAuditGrantCookie(
+      envWith(),
+      new Request(`${ORIGIN}/audit/results`, { headers: { Cookie: `${AUDIT_TOKEN_COOKIE}=${value}` } }),
+    );
+    expect(grant).toEqual({ accessToken: TOKEN, stripeAccountId: STRIPE_ACCOUNT });
     expect(cookies.some((c) => c.startsWith(`${AUDIT_OAUTH_STATE_COOKIE}=;`))).toBe(true);
     for (const args of errorSpy.mock.calls) expect(JSON.stringify(args.map(String))).not.toContain(TOKEN);
   });
