@@ -18,6 +18,7 @@ import {
   type RetryStepResult,
 } from "~/lib/engine/execute-step";
 import { processEmailJob, type EmailJobResult } from "~/lib/email/dispatch";
+import { footerSenderName } from "~/lib/email/templates";
 import type { EmailJob } from "~/lib/email/types";
 import { signUnsubscribeToken } from "~/lib/email/unsubscribe-token";
 import { stepAction } from "~/lib/engine/step-runner";
@@ -534,8 +535,7 @@ async function resendSender(
  * resend wraps the stored body in its route's own shell. Pure.
  */
 export function resendFooterNote(senderName: string | null | undefined, year: number): string {
-  const name = senderName?.trim() ? senderName.trim() : "Support";
-  return `\u00a9 ${year} ${name}`;
+  return `\u00a9 ${year} ${footerSenderName(senderName)}`;
 }
 
 /**

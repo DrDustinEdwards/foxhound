@@ -148,8 +148,14 @@ export function renderFoxhoundEmail(input: RenderInput): Rendered {
  * "Foxhound". Pure.
  */
 export function recoveryFooterNote(senderName: string | null | undefined, year: number): string {
-  const name = senderName?.trim() ? senderName.trim() : "Support";
-  return `You're receiving this from ${name} about a recent payment. \u00a9 ${year}`;
+  return `You're receiving this from ${footerSenderName(senderName)} about a recent payment. \u00a9 ${year}`;
+}
+
+/** The sender name a footer line shows: Recova's `sender_name || 'Support'`,
+ *  trimmed. The one authority for that fallback in footer lines (E4 to E6,
+ *  E9). Pure. */
+export function footerSenderName(senderName: string | null | undefined): string {
+  return senderName?.trim() ? senderName.trim() : "Support";
 }
 
 /** Recova's footer link on mail with no unsubscribe: "Manage email settings",
