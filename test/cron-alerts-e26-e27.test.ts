@@ -185,7 +185,7 @@ describe("E26: the cron failure alert says what Recova's notifyCronFailure says"
     const hostile = `<img src=x onerror="alert(1)">&'`;
     const db = createInMemoryDb().db;
     harness.db = db;
-    await alertCronFailure(env(), db, { cronName: hostile, runId: hostile, error: hostile, stack: hostile, lastSuccessAt: null }, NOW);
+    await alertCronFailure(env(), db, { cronName: hostile, runId: hostile, error: hostile, stack: hostile }, NOW);
     const m = only();
     expect(m.html).not.toContain("<img");
     expect(m.html).toContain("&lt;img src=x onerror=&quot;alert(1)&quot;&gt;&amp;&#39;");
