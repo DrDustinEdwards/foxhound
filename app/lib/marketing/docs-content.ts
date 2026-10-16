@@ -335,7 +335,7 @@ export const DOC_GUIDES: DocGuide[] = [
           ] },
           "Every filter is a URL parameter, so a filtered view can be bookmarked or sent to somebody else and it opens the same way for them.",
           { kind: "h3", text: "Rows per page" },
-          "The selector above the table shows 10, 25, 50, 100, or all of them. It starts at 50.",
+          "The selector above the table shows 10, 25, 50, 100, or all of them. It starts at 25.",
           { kind: "h3", text: "Understanding payment statuses" },
           "A payment is in one of five states: Stripe retrying, active, recovered, cancelled, or failed unrecovered, which every page labels Failed.",
           { kind: "list", items: [

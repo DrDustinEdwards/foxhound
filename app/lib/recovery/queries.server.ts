@@ -95,7 +95,7 @@ export interface FailedPaymentListResult {
   pageSize: FailedPaymentPageSize;
 }
 
-export const DEFAULT_PAYMENT_PAGE_SIZE: FailedPaymentPageSize = 50;
+export const DEFAULT_PAYMENT_PAGE_SIZE: FailedPaymentPageSize = 25;
 
 function baseFailedPaymentConditions(accountId: string) {
   return [

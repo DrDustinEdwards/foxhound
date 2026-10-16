@@ -164,7 +164,7 @@ describe("J75: Recova's five cards, on Capsomer panels", () => {
   it("shows Showing, Active, Recovered, Cancelled and Recovery rate in order", () => {
     const html = render(data());
     const cards = html.slice(html.indexOf('aria-label="Payment counts"'));
-    const labels = [...cards.matchAll(/class="cap-panel-title"[^>]*>([^<]+)</g)].map((m) => m[1]).slice(0, 5);
+    const labels = [...cards.matchAll(/<header class="cap-panel-head"><h2>([^<]+)<\/h2>/g)].map((m) => m[1]).slice(0, 5);
     expect(labels).toEqual(["Showing", "Active", "Recovered", "Cancelled", "Recovery rate"]);
   });
 
@@ -264,6 +264,9 @@ describe("J75: Recova's rows-per-page links, defaulting to 25", () => {
   });
 
   it("defaults to 25 in the loader", async () => {
+    const { sqlite, db } = createInMemoryDb();
+    harness.db = db;
+    runStatement(sqlite, db.insert(accounts).values({ id: A, name: "Alpha" }));
     const out = await load("/recovery/payments");
     expect(out.filters.pageSize).toBe(25);
   });
@@ -289,7 +292,9 @@ describe("J75: Recova's table on Capsomer's", () => {
     const named = render(data());
     expect(text(named)).toContain("Jordan Lee jordan@example.com");
     const unnamed = render(data({ result: { ...data().result, payments: [row({ customerName: null })] } }));
-    expect(text(unnamed).match(/jordan@example\.com/g)).toHaveLength(1);
+    // The box's hidden name says the email too; what is seen says it once.
+    const seen = unnamed.replace(/<span class="cap-sr-only">[^<]*<\/span>/g, "");
+    expect(text(seen).match(/jordan@example\.com/g)).toHaveLength(1);
   });
 
   it("shows the decline as a pill with its code under it", () => {

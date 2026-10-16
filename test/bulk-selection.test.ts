@@ -124,7 +124,8 @@ describe("bulk selection: the demo renders NO checkbox, and non-demo renders the
   // working gate apart from a column that does not exist at all.
   it("gates BOTH the select-all header and the per-row box on !isDemo", () => {
     expect(LIST_ROUTE).toContain("{!isDemo ? (");
-    expect(LIST_ROUTE).toContain('aria-label="Select all payments"');
+    // J75: Capsomer's row checkbox, named by its hidden label text.
+    expect(LIST_ROUTE).toContain('<span className="cap-sr-only">Select all payments</span>');
     // Two checkboxes, header and row, and both inside a !isDemo branch.
     expect(LIST_ROUTE.match(/type="checkbox"/g)).toHaveLength(2);
     expect(LIST_ROUTE.match(/\{!isDemo \? \(/g)?.length).toBeGreaterThanOrEqual(2);
@@ -140,8 +141,10 @@ describe("bulk selection: the demo renders NO checkbox, and non-demo renders the
     expect(LIST_ROUTE).toContain("{!isDemo && selectionCount > 0 ? (");
   });
 
-  it("grows the empty-state colspan with the column, or the row would misalign", () => {
-    expect(LIST_ROUTE).toContain("colSpan={isDemo ? 6 : 7}");
+  it("shows Recova's empty state in place of the table, so no row can misalign", () => {
+    // J75: the colspan row this used to pin is gone with the table it sat in.
+    expect(LIST_ROUTE).toContain('<Empty kind="no-match" title="No payments match your filters">');
+    expect(LIST_ROUTE).not.toContain("colSpan");
   });
 });
 
@@ -153,7 +156,7 @@ describe("bulk selection: the bar is still the selection layer it was", () => {
   // selection layer itself, which Session 2 did not change.
   it("Clear is still selection-only, mutating nothing on the server", () => {
     const bar = LIST_ROUTE.slice(LIST_ROUTE.indexOf('aria-label="Bulk actions"'));
-    const start = bar.indexOf("{actionable.length > 0 ? (");
+    const start = bar.indexOf("{actionable.length > 0");
     expect(start).toBeGreaterThan(-1);
     // Clear sits AFTER the actionable block and carries no intent, so it can
     // never submit: an empty-intent POST is not something it can produce.
@@ -174,14 +177,11 @@ describe("bulk selection: the bar is still the selection layer it was", () => {
     // "Clear" and swept in the Clear button's own onClick, and a later one read
     // button order off text the confirmation panel also contains: the matcher
     // was wrong both times, not the code (239).
-    const whole = LIST_ROUTE.slice(LIST_ROUTE.indexOf('aria-label="Bulk actions"'));
-    const bar = whole.slice(whole.indexOf("{actionable.length > 0 ? ("));
-    const trigger = bar.indexOf('intent="trigger"');
-    const recovered = bar.indexOf('intent="mark_recovered"');
-    const stop = bar.indexOf('intent="cancel"');
-    expect(trigger).toBeGreaterThan(-1);
-    expect(recovered).toBeGreaterThan(trigger);
-    expect(stop).toBeGreaterThan(recovered);
+    // J75: the controls are one map over BULK_INTENTS, so their order is the
+    // map's key order.
+    const keys = LIST_ROUTE.slice(LIST_ROUTE.indexOf("const BULK_INTENTS = {"), LIST_ROUTE.indexOf("} as const satisfies"));
+    expect([...keys.matchAll(/^ {2}(\w+): \{/gm)].map((m) => m[1])).toEqual(["trigger", "mark_recovered", "cancel"]);
+    expect(LIST_ROUTE).toContain("(Object.keys(BULK_INTENTS) as BulkActionIntent[]).map((intent) => {");
 
     // And the labels those intents render, legacy's own strings.
     expect(LIST_ROUTE).toContain('label: "Trigger next step"');
