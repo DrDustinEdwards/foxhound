@@ -228,6 +228,37 @@ async function seedMerchant(opts: {
     scope: "read",
     createdAt: OLDER,
   });
+  // An external agent connected over OAuth (J79): its client, the code the
+  // owner approved and the grant whose access token is the key above. The
+  // grant points at the key, so the key cannot go first.
+  await db.insert(schema.oauthClients).values({
+    id: `${p}-client`,
+    clientName: "Agent",
+    redirectUris: ["https://agent.example.com/callback"],
+    createdAt: OLDER,
+  });
+  await db.insert(schema.oauthAuthorizationCodes).values({
+    id: `${p}-code`,
+    codeHash: `${p}-code-hash`,
+    clientId: `${p}-client`,
+    accountId,
+    userId,
+    redirectUri: "https://agent.example.com/callback",
+    codeChallenge: "x".repeat(43),
+    expiresAt: OLDER,
+    usedAt: OLDER,
+    createdAt: OLDER,
+  });
+  await db.insert(schema.oauthGrants).values({
+    id: `${p}-grant`,
+    clientId: `${p}-client`,
+    accountId,
+    apiKeyId: `${p}-key`,
+    codeId: `${p}-code`,
+    refreshHash: `${p}-refresh-hash`,
+    refreshExpiresAt: NOW,
+    createdAt: OLDER,
+  });
 
   // ---- Recovery: three failed payments ----
   // fp-billed: recovered 80 days ago, ALREADY billed (line item exists).
@@ -740,6 +771,8 @@ describe("S40 account deletion: the personal data is gone", () => {
     await deleteUserAccountLocal(db, me.userId, NOW);
     const emptyTables = [
       schema.apiKeys,
+      schema.oauthGrants,
+      schema.oauthAuthorizationCodes,
       schema.winBackSequences,
       schema.winBackSteps,
       schema.expiringCardAlerts,

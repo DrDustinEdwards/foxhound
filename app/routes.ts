@@ -202,6 +202,11 @@ export default [
     ]),
   ]),
 
+  // The OAuth consent page (J79, row A9; ruling 8). No layout: Recova's
+  // app/oauth/authorize/page.tsx sits under its bare root layout, one card on
+  // the page with no site navigation.
+  route("oauth/authorize", "./routes/oauth/authorize.tsx"),
+
   // Demo exit (clears the demo cookie; unauthenticated, no shell)
   route("demo/exit", "./routes/demo/exit.ts"),
 
@@ -228,6 +233,15 @@ export default [
   route("llms-full.txt", "./routes/files/llms-full.ts"),
   route("feed.rss", "./routes/files/feed.ts"),
   route(".well-known/security.txt", "./routes/files/security-txt.ts"),
+  // OAuth discovery (J79, rows F18 and F19). Recova's next.config.ts rewrote
+  // both paths to one handler because Claude.ai probes both; one module here,
+  // so each path needs its own id.
+  route(".well-known/oauth-authorization-server", "./routes/files/oauth-metadata.ts", { id: "oauth-metadata" }),
+  route(".well-known/openid-configuration", "./routes/files/oauth-metadata.ts", { id: "oauth-metadata-openid" }),
+  // RFC 9728 metadata for /mcp, which every /mcp 401 points at (J79), at the
+  // bare path and at the /mcp suffix a client may try first.
+  route(".well-known/oauth-protected-resource", "./routes/files/oauth-protected-resource.ts", { id: "oauth-protected-resource" }),
+  route(".well-known/oauth-protected-resource/mcp", "./routes/files/oauth-protected-resource.ts", { id: "oauth-protected-resource-mcp" }),
   // The IndexNow key file (job_b0b24df12155): /<key>.txt at the root, named
   // after Foxhound's own key so the path and the body cannot drift apart.
   route(INDEXNOW_KEY_PATH.slice(1), "./routes/files/indexnow-key.ts"),
@@ -261,6 +275,12 @@ export default [
   // legacy's own path, which components/SiteNav.tsx passes to the switcher as
   // switchAccountUrl. The switcher itself is phase (e).
   route("api/account/switch", "./routes/api/account-switch.ts"),
+
+  // The OAuth provider's three endpoints (J79), at Recova's paths. Action-only
+  // resource routes; the work is in app/lib/oauth/provider.server.ts.
+  route("api/oauth/token", "./routes/api/oauth-token.ts"),
+  route("api/oauth/register", "./routes/api/oauth-register.ts"),
+  route("api/oauth/revoke", "./routes/api/oauth-revoke.ts"),
 
   // Content-Security-Policy report sink (J22, F16): the policy's report-uri and
   // report-to name it. Action-only resource route at Recova's own path.

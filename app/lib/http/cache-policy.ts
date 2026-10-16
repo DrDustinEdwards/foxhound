@@ -226,6 +226,8 @@ export const NO_TRANSFORM_PREFIXES = [
   "/u/",
   "/invite/",
   "/reset-password",
+  // The OAuth consent page (J79): its query carries a client's id and state.
+  "/oauth/",
 ];
 
 function needsNoTransform(pathname: string, response: Response): boolean {

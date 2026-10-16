@@ -262,7 +262,11 @@ describe("PLANT 3: the 401 is byte-stable across every failure", () => {
     for (const token of cases) {
       const { status, res } = await call({ token });
       expect(status, `token ${token} did not 401`).toBe(401);
-      expect(res.headers.get("WWW-Authenticate")).toBe("Bearer");
+      // J79: the 401 now names the protected-resource document an MCP client
+      // follows to the OAuth provider. Still one value for every failure.
+      expect(res.headers.get("WWW-Authenticate")).toBe(
+        `Bearer resource_metadata="${ORIGIN}/.well-known/oauth-protected-resource", scope="merchant"`,
+      );
       seen.add(await res.clone().text());
     }
     // ONE distinct body across all six.

@@ -2,6 +2,7 @@ import { redirect } from "react-router";
 
 import { getAuth } from "~/lib/auth";
 import { forwardSetCookie } from "~/lib/auth/http";
+import { safeNextPath } from "~/lib/auth/next-path";
 import { checkAuthLimit, RATE_LIMITED_ERROR } from "~/lib/auth/rate-limit.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
@@ -23,8 +24,19 @@ export async function action({ request, context }: Route.ActionArgs) {
     return redirect("/login");
   }
 
+  // Where to land after Google (J79; ruling 8). Recova's login set a
+  // pending_redirect cookie and its callback validated it and burned it even
+  // when refused. Better Auth carries callbackURL inside its own one-time OAuth
+  // state, which is spent on the callback, so the validated path goes there
+  // and there is no cookie to burn. It is made absolute on Foxhound's own
+  // origin because Better Auth's relative-path pattern refuses a query that
+  // carries an encoded URL, which an OAuth authorize URL always does.
+  const form = await request.formData().catch(() => null);
+  const next = safeNextPath(form ? String(form.get("next") ?? "") : null);
+  const callbackURL = new URL(next, env.BETTER_AUTH_URL).toString();
+
   const res = await getAuth(env).api.signInSocial({
-    body: { provider: "google", callbackURL: "/console" },
+    body: { provider: "google", callbackURL },
     headers: request.headers,
     asResponse: true,
   });

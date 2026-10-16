@@ -32,6 +32,8 @@ import {
   intelligenceNotificationPreferences,
   intelligenceReports,
   mrrSnapshots,
+  oauthAuthorizationCodes,
+  oauthGrants,
   predictions,
   recoveredPayments,
   recoverySteps,
@@ -443,6 +445,10 @@ export function buildAccountScrubStatements(db: Db, accountId: string, now: Date
     db.delete(aiCalls).where(eq(aiCalls.accountId, accountId)),
 
     // ---- credentials, subscriptions, webhook payloads, members.
+    // An OAuth grant points at the api_keys row that is its access token, so
+    // the grants go first, then the codes, then the keys (J79).
+    db.delete(oauthGrants).where(eq(oauthGrants.accountId, accountId)),
+    db.delete(oauthAuthorizationCodes).where(eq(oauthAuthorizationCodes.accountId, accountId)),
     db.delete(apiKeys).where(eq(apiKeys.accountId, accountId)),
     db
       .update(accountSubscriptions)
@@ -471,6 +477,8 @@ export function buildUserDeletionStatements(db: Db, plan: Pick<DeletionPlan, "us
       .update(disputeApprovals)
       .set({ approvedByEmail: null, approvedByUserId: null })
       .where(eq(disputeApprovals.approvedByUserId, userId)),
+    // Codes this person approved on an account they do not own (J79).
+    db.delete(oauthAuthorizationCodes).where(eq(oauthAuthorizationCodes.userId, userId)),
     db.delete(session).where(eq(session.userId, userId)),
     db.delete(authAccount).where(eq(authAccount.userId, userId)),
     db.delete(verification).where(or(eq(verification.identifier, email), eq(verification.value, userId))),

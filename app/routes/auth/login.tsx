@@ -18,6 +18,7 @@ import {
   RATE_LIMITED_ERROR,
   SIGN_IN_LIMITED,
 } from "~/lib/auth/rate-limit.server";
+import { DEFAULT_NEXT_PATH, safeNextPath } from "~/lib/auth/next-path";
 import { getSession } from "~/lib/auth/session";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
@@ -44,13 +45,20 @@ const ERROR_MESSAGES: Record<string, string> = {
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
+  const params = new URL(request.url).searchParams;
+  // Where to land after signing in (J79; ruling 8): Recova's login read next=
+  // through validateRedirect, which /oauth/authorize relies on to bring a
+  // signed-out merchant back to the consent page with every parameter. The
+  // checks are anchored (app/lib/auth/next-path.ts); anything else lands on
+  // /console, as before.
+  const next = safeNextPath(params.get("next"));
   // Same session read appShellMiddleware uses (guards.ts): a signed-in
   // visitor hitting /login otherwise saw the sign-in form while the header
   // already showed them authenticated.
   const session = await getSession(env, request);
-  if (session) throw redirect("/console");
-  const params = new URL(request.url).searchParams;
+  if (session) throw redirect(next);
   return {
+    next,
     googleEnabled: Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET),
     verified: params.get("verified") === "1",
     error: ERROR_MESSAGES[params.get("error") ?? ""] ?? null,
@@ -64,6 +72,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   if (refusal) return limitedData({ error: SIGN_IN_LIMITED }, refusal);
 
   const form = await request.formData();
+  const next = safeNextPath(String(form.get("next") ?? ""));
   const email = String(form.get("email") ?? "");
   const password = String(form.get("password") ?? "");
 
@@ -74,7 +83,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   });
 
   if (res.ok) {
-    return redirect("/console", { headers: forwardSetCookie(res) });
+    return redirect(next, { headers: forwardSetCookie(res) });
   }
   return data(
     { error: await authErrorMessage(res, "Invalid email or password") },
@@ -85,14 +94,18 @@ export async function action({ request, context }: Route.ActionArgs) {
 export default function Login({ loaderData, actionData }: Route.ComponentProps) {
   const busy = useNavigation().state !== "idle";
   const error = actionData?.error ?? loaderData.error;
+  // Carried only when it says somewhere other than the default, so the plain
+  // page is unchanged.
+  const carriedNext = loaderData.next !== DEFAULT_NEXT_PATH ? loaderData.next : undefined;
 
   return (
     <AuthCard>
       <AuthHeading title="Welcome back" subtitle="Log in to your Foxhound account" />
 
-      {loaderData.googleEnabled ? <GoogleContinue /> : null}
+      {loaderData.googleEnabled ? <GoogleContinue next={carriedNext} /> : null}
 
       <Form method="post">
+        {carriedNext ? <input type="hidden" name="next" value={carriedNext} /> : null}
         {/* Foxhound's own notice: its engine verifies an email before the
             first sign-in, and the verification link lands here. */}
         {loaderData.verified && !error ? (

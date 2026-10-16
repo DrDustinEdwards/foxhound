@@ -117,6 +117,9 @@ const EXCLUDED_PREFIXES = [
   "/sitemap_index.xml",
   // JSON health for monitors (job_f7f35d4b7ac7), not a page.
   "/health",
+  // The OAuth consent page (J79): a step inside an agent's connect flow,
+  // disallowed in robots.txt as Recova's is. Recova's sitemap leaves it out.
+  "/oauth/",
   // RFC 9116's well-known file (377 item 11). Not HTML, and not a page a reader
   // navigates to: a client looks for it at a fixed path by the spec, so listing
   // it in the sitemap would advertise a file that is found by convention.

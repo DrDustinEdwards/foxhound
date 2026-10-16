@@ -69,6 +69,9 @@ export const DISALLOW_PATHS = [
   "/admin",
   "/api/",
   "/auth/",
+  // The OAuth consent page (J79), a step inside an agent's connect flow and
+  // never a destination. Recova's app/robots.ts disallows '/oauth/' too.
+  "/oauth/",
   // The merchant MCP endpoint (370). An agent connects with a bearer key and a
   // crawler has no business there: it is POST-only, so a crawl can only ever
   // collect a 405. Every named group inherits this by the parity rule below.
