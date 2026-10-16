@@ -290,7 +290,7 @@ export const DOC_GUIDES: DocGuide[] = [
       {
         heading: "Saving results",
         body: [
-          { kind: "p", body: [ "Sign in to Foxhound before you run the audit and the run is saved to ", { link: "Audit history", to: "/audit/history" }, ", each run on its own page, so you can follow your numbers over time. It is saved only when the Stripe account you audited is the one connected to the Foxhound account you are in: audit somebody else's account and you still see the results, and they are not filed into your history." ] },
+          { kind: "p", body: [ "Sign in to Foxhound before you run the audit and the run is saved to ", { link: "Audit history", to: "/audit/dashboard" }, ", each run on its own page, so you can follow your numbers over time. It is saved only when the Stripe account you audited is the one connected to the Foxhound account you are in: audit somebody else's account and you still see the results, and they are not filed into your history." ] },
           `Without an account nothing is stored. The results page reads your Stripe account for as long as the ${AUDIT_TOKEN_TTL_SECONDS / 60}-minute authorization lasts, and after that you run the audit again.`,
         ],
       },
