@@ -305,6 +305,21 @@ describe("E12 sends on Recova's trigger, to Recova's recipient, and not otherwis
     expect(alertSentAt()).not.toBeNull();
   });
 
+  it("with no primary live Stripe connection it sends nothing and leaves the candidate for a later night, as Recova skips", async () => {
+    seedMerchant();
+    seedAlert();
+    sqlite.prepare("UPDATE stripe_connections SET disconnected_at = 2000 WHERE id = 'c1'").run();
+
+    const result = await sendExpiringCardAlerts(env, NOW);
+
+    expect(harness.sent).toHaveLength(0);
+    expect(result.skipped).toBe(1);
+    // Recova's `if (!merchantConnection) { results.skipped++; continue }`
+    // stamps nothing, so a reconnected merchant's customer is still warned.
+    expect(alertSentAt()).toBeNull();
+    expect(sendRows()).toEqual([]);
+  });
+
   it("a refused send returns its named outcome: a suppressed address is logged as suppressed, not sent", async () => {
     seedMerchant();
     seedAlert();

@@ -80,8 +80,22 @@ export interface EmailNotice {
   action?: { label: string; url: string };
 }
 
-/** The content of one mail: a body the sender wrote as HTML, or a notice. */
-export type RenderContent = { bodyHtml: string; notice?: never } | { notice: EmailNotice; bodyHtml?: never };
+/**
+ * A mail the sender wrote as Capsomer's blocks, in the sender's order and
+ * wording, with no heading added (E12: Recova's expiring card alert has none).
+ */
+export const foxhoundBlocks: Template<{ subjectLine: string; content: Block[] }> = {
+  name: "foxhound-blocks",
+  subject: (d) => d.subjectLine,
+  blocks: (d) => d.content,
+};
+
+/** The content of one mail: a body the sender wrote as HTML, a notice, or
+ *  Capsomer's blocks. */
+export type RenderContent =
+  | { bodyHtml: string; notice?: never; blocks?: never }
+  | { notice: EmailNotice; bodyHtml?: never; blocks?: never }
+  | { blocks: Block[]; bodyHtml?: never; notice?: never };
 
 export type RenderInput = RenderContent & {
   subject: string;
@@ -105,7 +119,9 @@ export function renderFoxhoundEmail(input: RenderInput): Rendered {
   // $99.00 from Jane Buyer" over the title "Payment recovered.").
   const rendered = input.notice
     ? renderEmail(notice, { ...common, ...input.notice, copy: { subject: input.subject } })
-    : renderEmail(foxhoundMail, { ...common, subjectLine: input.subject, bodyHtml: input.bodyHtml });
+    : input.blocks
+      ? renderEmail(foxhoundBlocks, { ...common, subjectLine: input.subject, content: input.blocks })
+      : renderEmail(foxhoundMail, { ...common, subjectLine: input.subject, bodyHtml: input.bodyHtml });
   if (!input.tracking) return rendered;
   // The pixel and the trap go into the HTML part only. In the text part a
   // reader would see them, and a text part cannot load an image anyway.

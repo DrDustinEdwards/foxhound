@@ -5,6 +5,7 @@ import { accounts, expiringCardAlerts, getDb, stripeConnections } from "~/db";
 import { EXPIRING_CARD_DAYS_AHEAD } from "~/lib/constants";
 import { signCardUpdateToken } from "~/lib/card-update/token";
 import { processEmailJob } from "~/lib/email/dispatch";
+import { recoveryFooterNote } from "~/lib/email/templates";
 import { recordOutcome } from "~/lib/engine/outcomes";
 import { accountProcessingEligibleCondition } from "~/lib/cron/recovery-tick";
 import { getConnectedStripe } from "~/lib/stripe/client";
@@ -258,6 +259,14 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
           and ${stripeConnections.disconnectedAt} is null
         limit 1
       )`,
+      // Recova sends only through the account's primary live Stripe
+      // connection and skips the alert when there is none (E12).
+      hasLiveConnection: sql<number>`exists (
+        select 1 from ${stripeConnections}
+        where ${stripeConnections.accountId} = ${expiringCardAlerts.accountId}
+          and ${stripeConnections.isPrimary} = 1
+          and ${stripeConnections.disconnectedAt} is null
+      )`,
       // The Reply-To (J03), from the same primary row as the sender name.
       replyToEmail: sql<string | null>`(
         select ${stripeConnections.replyToEmail} from ${stripeConnections}
@@ -291,6 +300,14 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
       continue;
     }
 
+    // No primary live connection: skipped and NOT stamped, as Recova's
+    // `if (!merchantConnection) { results.skipped++; continue }`, so the
+    // customer is still warned if the merchant reconnects inside the window.
+    if (!alert.hasLiveConnection) {
+      result.skipped += 1;
+      continue;
+    }
+
     try {
       const token = await signCardUpdateToken(env, {
         expiringCardAlertId: alert.id,
@@ -307,7 +324,7 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
             cardBrand: alert.cardBrand,
             cardLast4: alert.cardLast4,
           }),
-          bodyHtml: buildExpiringCardEmail({
+          blocks: buildExpiringCardEmail({
             customerName: alert.customerName,
             cardBrand: alert.cardBrand,
             cardLast4: alert.cardLast4,
@@ -316,6 +333,10 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
             senderName: alert.senderName,
             updateUrl: `${env.BETTER_AUTH_URL ?? ""}/p/${token}`,
           }),
+          // Recova's footer sentence (lib/email.ts wrapEmailHtml), with the
+          // sender name as its From has it, before the unsubscribe link and
+          // the postal address (E12).
+          footerNote: recoveryFooterNote(alert.senderName, now.getUTCFullYear()),
           template: EXPIRING_CARD_TEMPLATE,
           // CUSTOMER audience: the CAN-SPAM footer, the unsubscribe headers and
           // the suppression gate all apply, because this is commercial mail sent
