@@ -40,13 +40,14 @@ describe("C2: each surface carries its own legacy shell geometry", () => {
     expect(s).not.toContain("rounded-[12px] border border-border bg-surface");
   });
 
-  it("S14 dispute detail: all five section shells are legacy's 12px / px-5 py-4", () => {
-    // legacy app/(app)/disputes/[id]/DisputeDetailClient.tsx:147,188,198,258
-    //   mb-6 bg-surface border border-border rounded-[12px] px-5 py-4
+  it("S14 dispute detail takes its section shells from Capsomer's panel", () => {
+    // Since J77 each of legacy's section cards (DisputeDetailClient.tsx,
+    // 3d56b55d) is Capsomer's Panel, as J66 made the list's and J76 the payment
+    // page's. The radius is a per-site layer item (capsomer job_ec5ec0754626),
+    // so no Foxhound radius is laid over it.
     const s = src("routes/app/disputes/detail.tsx");
-    const shells = s.split("rounded-[12px] border border-border bg-surface px-5 py-4").length - 1;
-    expect(shells).toBe(5);
-    expect(s).not.toContain("rounded-lg border border-border bg-surface p-4");
+    expect(s.split("<Panel ").length - 1).toBeGreaterThanOrEqual(5);
+    expect(s).not.toContain("rounded-[12px] border border-border bg-surface");
   });
 
   it("S16 intelligence takes its shells from Capsomer, not from a hand-rolled radius", () => {

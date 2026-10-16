@@ -90,7 +90,6 @@ describe("buildDisputeTimeline", () => {
     outcomeNotifiedAt: null,
     resolvedAt: null,
     state: "pending_review",
-    resolvedFeeCents: null,
   };
 
   it("always opens with the dispute being received, humanizing the reason", () => {
@@ -121,27 +120,15 @@ describe("buildDisputeTimeline", () => {
       outcomeNotifiedAt: new Date(NOW + 3 * day),
       resolvedAt: new Date(NOW + 4 * day),
       state: "resolved_won",
-      resolvedFeeCents: 1_980,
     });
     const ruling = items.at(-1)!;
     expect(ruling.at?.getTime()).toBe(NOW + 4 * day);
-    expect(ruling.label).toContain("in your favor");
-    expect(ruling.label).toContain("$19.80");
+    expect(ruling.label).toBe("Bank ruled: WON. Funds retained.");
   });
 
-  it("states plainly that an unsubmitted win carries no fee", () => {
-    const items = buildDisputeTimeline({
-      ...base,
-      resolvedAt: new Date(NOW + day),
-      state: "resolved_won",
-      resolvedFeeCents: null,
-    });
-    expect(items.at(-1)!.label).toContain("No fee");
-  });
-
-  it("says a loss is not billed", () => {
+  it("says a loss in Recova's words", () => {
     const items = buildDisputeTimeline({ ...base, resolvedAt: new Date(NOW + day), state: "resolved_lost" });
-    expect(items.at(-1)!.label).toContain("Not billed");
+    expect(items.at(-1)!.label).toBe("Bank ruled: LOST. Funds deducted.");
   });
 
   it("credits an external submitter correctly", () => {
@@ -151,6 +138,6 @@ describe("buildDisputeTimeline", () => {
       submittedBy: "merchant_or_stripe",
       state: "submitted",
     });
-    expect(items.at(-1)!.label).toContain("the merchant or Stripe");
+    expect(items.at(-1)!.label).toContain("externally (merchant or Stripe)");
   });
 });

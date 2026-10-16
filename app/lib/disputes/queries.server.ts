@@ -1,4 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm";
+import type { BatchItem } from "drizzle-orm/batch";
 
 import type { Db } from "~/db";
 import { customerContext, disputeApprovals, disputeEvidence, disputes, stripeConnections } from "~/db";
@@ -107,6 +108,58 @@ export async function saveDisputeEvidence(
   // db.batch() requires a non-empty tuple type; the leading fixed element (the
   // length check above guarantees it exists) narrows the array literal to one.
   const [first, ...rest] = statements;
+  await db.batch([first, ...rest]);
+}
+
+/**
+ * Save Recova's draft fields (J77): the evidence narrative and the customer IP
+ * from "Additional evidence", each held as one dispute_evidence row under its
+ * Stripe evidence name, so the approved package and its hash carry exactly what
+ * the merchant saved. An existing row is updated; a missing one is inserted only
+ * when there is something to say, so a blank field never adds a row. The same
+ * plain batch as saveDisputeEvidence: editing a draft is not a money write, and
+ * approval reads the rows fresh at the moment it is pressed. Account-scoped on
+ * every statement.
+ */
+export async function saveDisputeDraft(
+  db: Db,
+  accountId: string,
+  disputeId: string,
+  existing: { id: string; fieldName: string }[],
+  fields: { fieldName: string; fieldValue: string }[],
+  now: Date,
+): Promise<void> {
+  const statements: BatchItem<"sqlite">[] = [];
+  for (const field of fields) {
+    const row = existing.find((e) => e.fieldName === field.fieldName);
+    if (row) {
+      statements.push(
+        db
+          .update(disputeEvidence)
+          .set({ fieldValue: field.fieldValue })
+          .where(
+            and(
+              eq(disputeEvidence.id, row.id),
+              eq(disputeEvidence.disputeId, disputeId),
+              eq(disputeEvidence.accountId, accountId),
+            ),
+          ),
+      );
+    } else if (field.fieldValue.trim()) {
+      statements.push(
+        db.insert(disputeEvidence).values({
+          id: crypto.randomUUID(),
+          disputeId,
+          accountId,
+          fieldName: field.fieldName,
+          fieldValue: field.fieldValue,
+          createdAt: now,
+        }),
+      );
+    }
+  }
+  const [first, ...rest] = statements;
+  if (!first) return;
   await db.batch([first, ...rest]);
 }
 
