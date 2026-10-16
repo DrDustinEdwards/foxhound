@@ -25,13 +25,18 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 vi.mock("~/lib/money/execute", () => ({
-  executeMoneyWrite: async (_env: Env, write: { idempotencyKey: string; build: (db: unknown) => unknown[] }) => {
+  executeMoneyWrite: async (
+    _env: Env,
+    write: { idempotencyKey: string; build: (db: unknown) => unknown[] },
+  ) => {
     harness.writes++;
     if (harness.seen.has(write.idempotencyKey)) return { applied: false };
     const sqlite = harness.sqlite as Database.Database;
     sqlite.exec("BEGIN");
     try {
-      await (harness.db as { batch: (s: unknown[]) => Promise<unknown> }).batch(write.build(harness.db));
+      await (harness.db as { batch: (s: unknown[]) => Promise<unknown> }).batch(
+        write.build(harness.db),
+      );
       sqlite.exec("COMMIT");
     } catch (err) {
       sqlite.exec("ROLLBACK");
@@ -57,8 +62,16 @@ beforeEach(() => {
   harness.sqlite = made.sqlite;
   harness.seen = new Set();
   harness.writes = 0;
-  sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, 'Acme', 1000)").run(ACCOUNT);
-  sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES ('acct_other', 'Other', 1000)").run();
+  sqlite
+    .prepare(
+      "INSERT INTO accounts (id, name, created_at) VALUES (?, 'Acme', 1000)",
+    )
+    .run(ACCOUNT);
+  sqlite
+    .prepare(
+      "INSERT INTO accounts (id, name, created_at) VALUES ('acct_other', 'Other', 1000)",
+    )
+    .run();
   sqlite
     .prepare(
       "INSERT INTO disputes (id, account_id, stripe_dispute_id, stripe_charge_id, amount_cents, currency, reason, status, state, created_at) VALUES ('d1', ?, 'dp_1', 'ch_1', 5000, 'usd', 'fraudulent', 'needs_response', 'pending_review', 1000)",
@@ -73,13 +86,33 @@ type StripeBehaviour = "ok" | "fail" | "outage" | "network" | "conflict";
  *  leave the result unknown. */
 function stripeError(behaviour: Exclude<StripeBehaviour, "ok">): Error {
   const shapes = {
-    fail: { type: "StripeInvalidRequestError", statusCode: 400, message: "This dispute is already closed" },
-    outage: { type: "StripeAPIError", statusCode: 500, message: "An unknown error occurred" },
-    network: { type: "StripeConnectionError", statusCode: undefined, message: "Request was retried 2 times." },
-    conflict: { type: "StripeIdempotencyError", statusCode: 409, message: "There is currently another in-progress request using this Idempotent Key" },
+    fail: {
+      type: "StripeInvalidRequestError",
+      statusCode: 400,
+      message: "This dispute is already closed",
+    },
+    outage: {
+      type: "StripeAPIError",
+      statusCode: 500,
+      message: "An unknown error occurred",
+    },
+    network: {
+      type: "StripeConnectionError",
+      statusCode: undefined,
+      message: "Request was retried 2 times.",
+    },
+    conflict: {
+      type: "StripeIdempotencyError",
+      statusCode: 409,
+      message:
+        "There is currently another in-progress request using this Idempotent Key",
+    },
   } as const;
   const shape = shapes[behaviour];
-  return Object.assign(new Error(shape.message), { type: shape.type, statusCode: shape.statusCode });
+  return Object.assign(new Error(shape.message), {
+    type: shape.type,
+    statusCode: shape.statusCode,
+  });
 }
 
 function fakeStripe(behaviour: StripeBehaviour) {
@@ -87,7 +120,11 @@ function fakeStripe(behaviour: StripeBehaviour) {
   const keys: (string | undefined)[] = [];
   const stripe = {
     disputes: {
-      close: async (id: string, _params?: unknown, options?: { idempotencyKey?: string }) => {
+      close: async (
+        id: string,
+        _params?: unknown,
+        options?: { idempotencyKey?: string },
+      ) => {
         keys.push(options?.idempotencyKey);
         if (behaviour !== "ok") throw stripeError(behaviour);
         closed.push(id);
@@ -115,14 +152,29 @@ function input(overrides: Partial<Parameters<typeof acceptDispute>[1]> = {}) {
 
 function dispute() {
   return sqlite
-    .prepare("SELECT state, resolved_at AS resolvedAt, resolved_fee_cents AS fee, submitted_at AS submittedAt FROM disputes WHERE id = 'd1'")
-    .get() as { state: string; resolvedAt: number | null; fee: number | null; submittedAt: number | null };
+    .prepare(
+      "SELECT state, resolved_at AS resolvedAt, resolved_fee_cents AS fee, submitted_at AS submittedAt FROM disputes WHERE id = 'd1'",
+    )
+    .get() as {
+    state: string;
+    resolvedAt: number | null;
+    fee: number | null;
+    submittedAt: number | null;
+  };
 }
 
 function outcomes() {
   return sqlite
-    .prepare("SELECT account_id AS accountId, product, event_type AS type, outcome, event_data AS data FROM outcomes")
-    .all() as { accountId: string; product: string; type: string; outcome: string; data: string }[];
+    .prepare(
+      "SELECT account_id AS accountId, product, event_type AS type, outcome, event_data AS data FROM outcomes",
+    )
+    .all() as {
+    accountId: string;
+    product: string;
+    type: string;
+    outcome: string;
+    data: string;
+  }[];
 }
 
 describe("ACCEPT: Stripe first, then the accepted state and its outcome together", () => {
@@ -140,7 +192,12 @@ describe("ACCEPT: Stripe first, then the accepted state and its outcome together
     expect(row.submittedAt).toBeNull();
     const rows = outcomes();
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ accountId: ACCOUNT, product: "disputes", type: "dispute_accepted", outcome: "accepted" });
+    expect(rows[0]).toMatchObject({
+      accountId: ACCOUNT,
+      product: "disputes",
+      type: "dispute_accepted",
+      outcome: "accepted",
+    });
     expect(JSON.parse(rows[0].data)).toEqual({ dispute_id: "dp_1" });
   });
 
@@ -149,7 +206,9 @@ describe("ACCEPT: Stripe first, then the accepted state and its outcome together
     const result = await acceptDispute(env, input(), { stripe });
 
     expect(result.status).toBe("error");
-    expect(result.status === "error" && result.message).toContain("This dispute is already closed");
+    expect(result.status === "error" && result.message).toContain(
+      "This dispute is already closed",
+    );
     expect(dispute().state).toBe("pending_review");
     expect(outcomes()).toHaveLength(0);
     expect(harness.writes).toBe(0);
@@ -181,23 +240,35 @@ describe("ACCEPT: Stripe first, then the accepted state and its outcome together
 
 describe("PR 149 review: an unknown Stripe result is never reported as a refusal", () => {
   it("a 4xx is Stripe's answer: the merchant is told Stripe did not accept it", async () => {
-    const result = await acceptDispute(env, input(), { stripe: fakeStripe("fail").stripe });
-    expect(result).toEqual({ status: "error", message: "Stripe did not accept the dispute: This dispute is already closed" });
+    const result = await acceptDispute(env, input(), {
+      stripe: fakeStripe("fail").stripe,
+    });
+    expect(result).toEqual({
+      status: "error",
+      message:
+        "Stripe did not accept the dispute: This dispute is already closed",
+    });
   });
 
   it.each(["outage", "network", "conflict"] as const)(
     "%s: Stripe may have closed it, so the merchant is told to check Stripe, and nothing is written",
     async (behaviour) => {
-      const result = await acceptDispute(env, input(), { stripe: fakeStripe(behaviour).stripe });
+      const result = await acceptDispute(env, input(), {
+        stripe: fakeStripe(behaviour).stripe,
+      });
       expect(result.status).toBe("error");
       const message = result.status === "error" ? result.message : "";
       expect(message).not.toContain("Stripe did not accept");
-      expect(message).toContain("Stripe may or may not have closed this dispute");
+      expect(message).toContain(
+        "Stripe may or may not have closed this dispute",
+      );
       expect(message).toContain("check it in Stripe before trying again");
       // job_2663d92094ab: Stripe replays a stored result, a 500 included, for 24
       // hours under the same idempotency key, and the key is kept stable (one
       // close per dispute), so the message says a retry may repeat the answer.
-      expect(message).toContain("trying again here within 24 hours gets the same answer");
+      expect(message).toContain(
+        "If Stripe returned a server error, trying again here within 24 hours gets the same answer.",
+      );
       expect(dispute().state).toBe("pending_review");
       expect(harness.writes).toBe(0);
     },
@@ -216,10 +287,13 @@ describe("PR 149 review: an unknown Stripe result is never reported as a refusal
 describe("PR 149 review: Accept is refused while an approval stands", () => {
   it("an approved dispute (its submission in flight, rejected or unconfirmed) is not accepted, and Stripe is not called", async () => {
     const { stripe, closed } = fakeStripe("ok");
-    const result = await acceptDispute(env, input({ hasApproval: true }), { stripe });
+    const result = await acceptDispute(env, input({ hasApproval: true }), {
+      stripe,
+    });
     expect(result).toEqual({
       status: "error",
-      message: "This dispute's evidence has been approved for submission, so it cannot be accepted here.",
+      message:
+        "This dispute's evidence has been approved for submission, so it cannot be accepted here.",
     });
     expect(closed).toEqual([]);
     expect(harness.writes).toBe(0);

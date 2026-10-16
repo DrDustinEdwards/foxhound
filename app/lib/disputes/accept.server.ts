@@ -57,7 +57,8 @@ import { canApprove } from "./approval";
 // recordOutcome's rows (idempotency_key, unique). Named for the seat in the
 // J06 pull request: it is a third insert site for outcomes.
 
-export type AcceptDisputeResult = { status: "accepted" } | { status: "error"; message: string };
+export type AcceptDisputeResult =
+  { status: "accepted" } | { status: "error"; message: string };
 
 export interface AcceptDisputeInput {
   accountId: string;
@@ -74,16 +75,18 @@ export interface AcceptDisputeInput {
   hasApproval: boolean;
 }
 
-export const ACCEPT_CLOSED_MESSAGE = "This dispute is already closed or submitted, so it cannot be accepted.";
+export const ACCEPT_CLOSED_MESSAGE =
+  "This dispute is already closed or submitted, so it cannot be accepted.";
 export const ACCEPT_APPROVED_MESSAGE =
   "This dispute's evidence has been approved for submission, so it cannot be accepted here.";
 // STRIPE REPLAYS ITS ANSWER (job_2663d92094ab). The close carries a stable key
 // (stripeCloseIdempotencyKey), and Stripe returns the stored result of a keyed
-// request for 24 hours, a 500 included. The key stays stable on purpose: it is
+// request for 24 hours, a 500 included (no result is stored for a 409, a 429,
+// a validation failure or a request that never arrived). The key stays stable on purpose: it is
 // what keeps two tabs or two clicks to one close. So the message says a retry
 // may repeat the answer, rather than varying the key on a retry.
 export const ACCEPT_UNKNOWN_MESSAGE =
-  "Something went wrong while accepting. Stripe may or may not have closed this dispute, so check it in Stripe before trying again. If Stripe reported an error, trying again here within 24 hours gets the same answer.";
+  "Something went wrong while accepting. Stripe may or may not have closed this dispute, so check it in Stripe before trying again. If Stripe returned a server error, trying again here within 24 hours gets the same answer.";
 
 /** The Stripe idempotency key for closing one dispute. */
 export function stripeCloseIdempotencyKey(disputeId: string): string {
@@ -101,7 +104,15 @@ export function acceptIdempotencyKey(disputeId: string): string {
 /** The accepted state and its outcome, as one batch. */
 export function buildDisputeAcceptBatch(
   db: Db,
-  input: Pick<AcceptDisputeInput, "accountId" | "disputeId" | "stripeDisputeId" | "amountCents" | "currency" | "acceptedAt">,
+  input: Pick<
+    AcceptDisputeInput,
+    | "accountId"
+    | "disputeId"
+    | "stripeDisputeId"
+    | "amountCents"
+    | "currency"
+    | "acceptedAt"
+  >,
 ): MoneyWriteBatch {
   const key = acceptIdempotencyKey(input.disputeId);
   return [
@@ -123,16 +134,28 @@ export function buildDisputeAcceptBatch(
           accountId: disputes.accountId,
           product: sql<string>`'disputes'`.as("product"),
           eventType: sql<string>`${DISPUTE_ACCEPTED_EVENT}`.as("event_type"),
-          eventData: sql<string>`${JSON.stringify({ dispute_id: input.stripeDisputeId })}`.as("event_data"),
+          eventData:
+            sql<string>`${JSON.stringify({ dispute_id: input.stripeDisputeId })}`.as(
+              "event_data",
+            ),
           outcome: sql<string>`${DISPUTE_ACCEPTED_OUTCOME}`.as("outcome"),
-          outcomeAt: sql<number>`${input.acceptedAt.getTime()}`.as("outcome_at"),
-          createdAt: sql<number>`${input.acceptedAt.getTime()}`.as("created_at"),
+          outcomeAt: sql<number>`${input.acceptedAt.getTime()}`.as(
+            "outcome_at",
+          ),
+          createdAt: sql<number>`${input.acceptedAt.getTime()}`.as(
+            "created_at",
+          ),
           idempotencyKey: sql<string>`${key}`.as("idempotency_key"),
           attributionKind: sql<null>`null`.as("attribution_kind"),
           attributedRef: sql<null>`null`.as("attributed_ref"),
         })
         .from(disputes)
-        .where(and(eq(disputes.id, input.disputeId), eq(disputes.accountId, input.accountId))),
+        .where(
+          and(
+            eq(disputes.id, input.disputeId),
+            eq(disputes.accountId, input.accountId),
+          ),
+        ),
     ),
   ];
 }
@@ -141,10 +164,19 @@ export function buildDisputeAcceptBatch(
  *  request (409) or a rate limit (429), neither of which says what happened. */
 function isDefiniteRefusal(error: unknown): boolean {
   const status = (error as { statusCode?: unknown } | null)?.statusCode;
-  return typeof status === "number" && status >= 400 && status < 500 && status !== 409 && status !== 429;
+  return (
+    typeof status === "number" &&
+    status >= 400 &&
+    status < 500 &&
+    status !== 409 &&
+    status !== 429
+  );
 }
 
-export type CloseResult = { ok: true } | { ok: false; refused: true; error: string } | { ok: false; refused: false };
+export type CloseResult =
+  | { ok: true }
+  | { ok: false; refused: true; error: string }
+  | { ok: false; refused: false };
 
 /** Close the dispute at Stripe: Stripe's "accept", which concedes it. */
 export async function closeDisputeWithClient(
@@ -157,7 +189,12 @@ export async function closeDisputeWithClient(
     return { ok: true };
   } catch (error) {
     if (isDefiniteRefusal(error)) {
-      return { ok: false, refused: true, error: error instanceof Error ? error.message : "Stripe refused the request" };
+      return {
+        ok: false,
+        refused: true,
+        error:
+          error instanceof Error ? error.message : "Stripe refused the request",
+      };
     }
     console.error("dispute close at Stripe has an unknown result", error);
     return { ok: false, refused: false };
@@ -181,11 +218,20 @@ export async function acceptDispute(
     return { status: "error", message: ACCEPT_APPROVED_MESSAGE };
   }
 
-  const stripe = deps.stripe ?? getConnectedStripe(await decryptToken(env, input.connectionAccessToken));
-  const closed = await closeDisputeWithClient(stripe, input.stripeDisputeId, stripeCloseIdempotencyKey(input.disputeId));
+  const stripe =
+    deps.stripe ??
+    getConnectedStripe(await decryptToken(env, input.connectionAccessToken));
+  const closed = await closeDisputeWithClient(
+    stripe,
+    input.stripeDisputeId,
+    stripeCloseIdempotencyKey(input.disputeId),
+  );
   if (!closed.ok) {
     return closed.refused
-      ? { status: "error", message: `Stripe did not accept the dispute: ${closed.error}` }
+      ? {
+          status: "error",
+          message: `Stripe did not accept the dispute: ${closed.error}`,
+        }
       : { status: "error", message: ACCEPT_UNKNOWN_MESSAGE };
   }
 
