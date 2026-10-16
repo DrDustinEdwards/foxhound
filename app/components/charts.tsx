@@ -43,8 +43,7 @@ export function xLabelIndexes(count: number, maxLabels: number): number[] {
 /**
  * Two or more labeled lines on a shared scale, with a legend and a y axis.
  *
- * Distinct from LineArea, which is one series with no axis: this exists for
- * comparisons where the relationship between the series IS the content, such as
+ * This exists for comparisons where the relationship between the series IS the content, such as
  * involuntary against voluntary churn. A null in `values` leaves a gap instead
  * of dropping to zero, because "no snapshot that week" and "zero percent that
  * week" are different claims and drawing them the same way misreports the data.
@@ -263,9 +262,9 @@ export interface StackedBarSeries {
  * (recova app/(app)/intelligence/dashboard/components/), both of which are
  * recharts `<BarChart>` with `<Bar stackId>` inside a ResponsiveContainer.
  *
- * IT DOES NOT USE THE `BarChart` PRIMITIVE ABOVE, and that is the point rather
- * than duplication. BarChart carries exactly the defect ruling 399 measured and
- * repaired in MultiLine: a fixed pixel viewBox at `width="100%"` with its
+ * It does not use a fixed pixel viewBox, the defect ruling 399 measured and
+ * repaired in MultiLine (and which the single-series bar primitive this file
+ * once held, removed in J64, carried): a fixed pixel viewBox at `width="100%"` with its
  * `<text>` INSIDE the box. Its `preserveAspectRatio="none"` then stretches the
  * label glyphs horizontally with the plot, which is the S9 step-performance
  * chart's colliding-label defect. So the geometry here follows MultiLine's
@@ -427,8 +426,7 @@ export interface GroupedBarSeries {
 }
 
 /** Multiple series (e.g. open rate / click rate) grouped side by side per
- *  label, with a small legend. Used where a single BarChart series isn't
- *  enough to compare two rates per category. */
+ *  label, with a small legend, to compare two rates per category. */
 export function GroupedBars({
   labels,
   series,

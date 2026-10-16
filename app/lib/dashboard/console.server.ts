@@ -1,6 +1,7 @@
 import { and, count, eq, gte, lte, notInArray, sql } from "drizzle-orm";
 
 import {
+  accounts,
   auditRuns,
   customerContext,
   disputes,
@@ -16,6 +17,7 @@ import {
   DISPUTE_ATTENTION_LIMIT,
   DISPUTE_URGENT_HOURS,
   cardExpiryDate,
+  type MrrSyncState,
   deadlinePhrase,
   expiryPhrase,
   isCardInAttentionWindow,
@@ -113,6 +115,9 @@ export interface AttentionRow {
 export interface ConsoleView {
   hero: ConsoleHero;
   tiles: ConsoleTiles;
+  /** Whether the monthly sync will write this account an MRR snapshot, so the
+   *  empty MRR state promises one only when it will come. */
+  mrrSync: MrrSyncState;
   attention: AttentionRow[];
 }
 
@@ -144,6 +149,7 @@ export async function getConsoleView(
     lastAudit,
     connection,
     intelligenceEntitled,
+    accountRow,
   ] = await Promise.all([
     db
       .select({ cents: recoveredPayments.amountCents, currency: recoveredPayments.currency })
@@ -227,6 +233,11 @@ export async function getConsoleView(
       .limit(1),
     getConnectionSummary(db, accountId),
     isIntelligenceEntitled(db, accountId),
+    db
+      .select({ processingPaused: accounts.processingPaused, cancelledAt: accounts.cancelledAt })
+      .from(accounts)
+      .where(eq(accounts.id, accountId))
+      .limit(1),
   ]);
 
   // Grouped per currency, never a flat reduce: summing amountCents across
@@ -354,6 +365,17 @@ export async function getConsoleView(
 
   const audit = lastAudit[0] ?? null;
 
+  // The same three conditions the monthly sync applies before it writes a
+  // snapshot (sync.server.ts: accountProcessingEligible, then a connection).
+  const account = accountRow[0] ?? null;
+  const mrrSync: MrrSyncState = account?.cancelledAt
+    ? "cancelled"
+    : account?.processingPaused
+      ? "paused"
+      : connection === null
+        ? "unconnected"
+        : "eligible";
+
   return {
     hero: {
       protectedThisMonth,
@@ -380,6 +402,7 @@ export async function getConsoleView(
       auditCurrency: audit?.currency ?? "usd",
     },
     attention,
+    mrrSync,
   };
 }
 

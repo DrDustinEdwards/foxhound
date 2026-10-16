@@ -24,7 +24,7 @@ const MOVEMENT_COLORS: Record<string, string> = {
 export function drawLatestMovement(m: MovementTotals, currency: string, width: number): string {
   const bars = mrrMovementBars(m);
   return barChart({
-    data: bars.map((b) => ({ Movement: b.label, kind: b.label, amount: Math.round(b.cents / 100) })),
+    data: bars.map((b) => ({ Movement: b.label, kind: b.label, amount: b.units })),
     x: "Movement",
     xDomain: bars.map((b) => b.label),
     y: "amount",

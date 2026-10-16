@@ -50,7 +50,9 @@ function HeroCard({
   );
 }
 
-const sumCents = (rows: readonly { cents: number }[]) => rows.reduce((s, r) => s + r.cents, 0);
+/** Whether any currency's total is above zero. A tone needs only the sign, so
+ *  no figure is ever added across currencies (RULES.md 3.20). */
+const anyAboveZero = (rows: readonly { cents: number }[]) => rows.some((r) => r.cents > 0);
 
 export function ConsoleHeroRow({ hero }: { hero: ConsoleHero }) {
   return (
@@ -58,7 +60,7 @@ export function ConsoleHeroRow({ hero }: { hero: ConsoleHero }) {
       <HeroCard
         label="Protected this month"
         value={formatCurrencyTotalsShort(hero.protectedThisMonth)}
-        valueClassName={sumCents(hero.protectedThisMonth) > 0 ? "text-success-text" : null}
+        valueClassName={anyAboveZero(hero.protectedThisMonth) ? "text-success-text" : null}
         sub={protectedSubtext(hero.recoveredAllTimeCount)}
       />
       {/* The real total of what is in recovery now, per currency. Recova shipped
@@ -88,8 +90,8 @@ const routerLink = ({ href, children, ...rest }: StatTileLinkProps) => (
 );
 
 export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: number }) {
-  const recovered = sumCents(tiles.recoveredThisMonth);
-  const highRisk = sumCents(tiles.highRiskMrr);
+  const recovered = anyAboveZero(tiles.recoveredThisMonth);
+  const highRisk = anyAboveZero(tiles.highRiskMrr);
   return (
     <ul className="m-0 mb-8 grid list-none grid-cols-2 gap-3 p-0 lg:grid-cols-4" aria-label="Products">
       <li className="grid">
@@ -98,7 +100,7 @@ export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: n
             label="Recovery"
             figure={formatCurrencyTotalsShort(tiles.recoveredThisMonth)}
             unit="this month"
-            tone={recovered > 0 ? "ok" : undefined}
+            tone={recovered ? "ok" : undefined}
             detail={tiles.recoveryRatePct === null ? "No failures yet" : `${tiles.recoveryRatePct}% rate`}
             href="/recovery/dashboard"
             renderLink={routerLink}
@@ -117,8 +119,14 @@ export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: n
           label="Disputes"
           figure={String(tiles.openDisputeCount)}
           unit="open"
-          tone={tiles.disputesDueSoonCount > 0 ? "crit" : undefined}
-          word={tiles.disputesDueSoonCount > 0 ? `${tiles.disputesDueSoonCount} due in 48h` : undefined}
+          // Recova keeps the open count neutral and makes only the due line red.
+          // A tile tone would colour the figure too, so the line carries the
+          // colour and the tile takes none.
+          detail={
+            tiles.disputesDueSoonCount > 0 ? (
+              <span className="font-medium text-error-text">{tiles.disputesDueSoonCount} due in 48h</span>
+            ) : undefined
+          }
           href="/disputes/dashboard"
           renderLink={routerLink}
         />
@@ -133,7 +141,7 @@ export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: n
             // Recova's yellow-orange figure for MRR at risk has no place on a teal page
             // (Q11); the figure stays neutral and turns ok when nothing is at
             // risk, as Recova's turned green.
-            tone={highRisk > 0 ? undefined : "ok"}
+            tone={highRisk ? undefined : "ok"}
             detail={tiles.highRiskCustomerCount > 0 ? `${tiles.highRiskCustomerCount} high-risk` : "All healthy"}
             href="/intelligence/dashboard"
             renderLink={routerLink}

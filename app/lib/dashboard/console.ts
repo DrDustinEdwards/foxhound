@@ -126,19 +126,45 @@ export interface MovementTotals {
   reactivationMrrCents: number;
 }
 
-/** The movement bars as rows: contraction and churn drawn below zero. */
-export function mrrMovementBars(m: MovementTotals): { label: string; cents: number }[] {
+/** The movement bars as rows in whole currency units, the values the chart
+ *  draws: contraction and churn below zero. */
+export function mrrMovementBars(m: MovementTotals): { label: string; units: number }[] {
+  const units = (cents: number) => Math.round(cents / 100);
   return [
-    { label: "New", cents: m.newMrrCents },
-    { label: "Expand", cents: m.expansionMrrCents },
-    { label: "Contract", cents: -m.contractionMrrCents },
-    { label: "Churn", cents: -m.churnMrrCents },
-    { label: "Reactivate", cents: m.reactivationMrrCents },
+    { label: "New", units: units(m.newMrrCents) },
+    { label: "Expand", units: units(m.expansionMrrCents) },
+    { label: "Contract", units: units(-m.contractionMrrCents) },
+    { label: "Churn", units: units(-m.churnMrrCents) },
+    { label: "Reactivate", units: units(m.reactivationMrrCents) },
   ];
 }
 
-/** The movement chart's text equivalent, with every number in it. */
+/** The movement chart's text equivalent, built from the same whole units the
+ *  bars and the data table show, so the three never disagree. */
 export function mrrMovementAlt(m: MovementTotals, currency: string): string {
-  const parts = mrrMovementBars(m).map((b) => `${b.label} ${formatMoneyShort(b.cents, currency)}`);
+  const parts = mrrMovementBars(m).map((b) => `${b.label} ${formatMoneyShort(b.units * 100, currency)}`);
   return `MRR movements in the latest month: ${parts.join(", ")}.`;
+}
+
+/**
+ * Whether the monthly intelligence-sync will write this account an MRR
+ * snapshot: it writes nothing without a Stripe connection
+ * (runIntelligenceSyncForAccount) and skips paused and cancelled accounts
+ * (accountProcessingEligible).
+ */
+export type MrrSyncState = "eligible" | "unconnected" | "paused" | "cancelled";
+
+/** The empty MRR state's sentence, true for each sync state. Only an eligible
+ *  account is promised a snapshot date. */
+export function mrrEmptySentence(state: MrrSyncState, firstSnapshot: string): string {
+  switch (state) {
+    case "eligible":
+      return firstSnapshot;
+    case "unconnected":
+      return "MRR analytics start once Stripe is connected. Foxhound takes the first snapshot on its monthly run after that.";
+    case "paused":
+      return "Processing is paused for this account, so Foxhound is not taking MRR snapshots.";
+    case "cancelled":
+      return "This account is cancelled, so Foxhound takes no MRR snapshots.";
+  }
 }

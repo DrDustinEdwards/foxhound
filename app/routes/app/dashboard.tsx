@@ -13,6 +13,7 @@ import { EnarratioFigure } from "~/components/enarratio-figure";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
+import { mrrEmptySentence } from "~/lib/dashboard/console";
 import { drawCohorts, drawLatestMovement } from "~/lib/dashboard/console-charts";
 import { getConsoleView } from "~/lib/dashboard/console.server";
 import { formatCurrencyTotals, RECOVERY_FEE_LABEL } from "~/lib/dashboard/recovery-dashboard";
@@ -186,11 +187,12 @@ export default function Console({ loaderData }: Route.ComponentProps) {
           </div>
         ) : (
           <div className="mt-4">
-            {/* Foxhound's intelligence-sync writes the first MRR snapshot on
-                its monthly run, for every account, so the sentence names that
-                run rather than a billing cycle. */}
+            {/* Foxhound's intelligence-sync writes the first MRR snapshot on its
+                monthly run, but only for an account with Stripe connected that
+                is neither paused nor cancelled. Only that account is promised
+                a date; the others are told why none is coming. */}
             <Empty kind="nothing-yet" title="No MRR data yet">
-              {firstSnapshotSentence(nowMs)}
+              {mrrEmptySentence(consoleView.mrrSync, firstSnapshotSentence(nowMs))}
             </Empty>
           </div>
         )}

@@ -236,6 +236,15 @@ describe("console formatting helpers", () => {
         "usd",
       ),
     ).toBe("MRR movements in the latest month: New $100, Expand $20, Contract -$5, Churn -$15, Reactivate $0.");
+    // The alt is built from the same whole units the bars draw, so it cannot
+    // disagree with the chart or its data table: a $1.50 contraction draws as
+    // Math.round(-1.5) = -1, so the alt must read -$1, not Intl's -$2.
+    expect(
+      mrrMovementAlt(
+        { newMrrCents: 0, expansionMrrCents: 0, contractionMrrCents: 150, churnMrrCents: 0, reactivationMrrCents: 0 },
+        "usd",
+      ),
+    ).toContain("Contract -$1,");
   });
 });
 
@@ -275,6 +284,7 @@ function makeData(over: { view?: Partial<ConsoleView>; tiles?: Partial<ConsoleVi
       auditCurrency: "usd",
       ...over.tiles,
     },
+    mrrSync: "eligible",
     attention: [
       {
         key: "dispute-d1",
@@ -377,6 +387,55 @@ describe("the console page, toward Recova", () => {
     const t = text(render(makeData()));
     expect(t).toContain("The first snapshot runs on");
     expect(t).not.toContain("full billing cycle");
+  });
+
+  // The monthly sync writes nothing for an account with no Stripe connection
+  // (sync.server.ts runIntelligenceSyncForAccount) and skips paused and
+  // cancelled accounts (accountProcessingEligible), so promising those a
+  // snapshot on a date would be false.
+  it("promises no snapshot date to an account without Stripe connected", () => {
+    const t = text(render(makeData({ tiles: { stripeConnected: false }, view: { mrrSync: "unconnected" } })));
+    expect(t).toContain("No MRR data yet");
+    expect(t).not.toContain("The first snapshot runs on");
+    expect(t).toContain("once Stripe is connected");
+  });
+
+  it("promises no snapshot date to a paused or cancelled account", () => {
+    for (const state of ["paused", "cancelled"] as const) {
+      const t = text(render(makeData({ view: { mrrSync: state } })));
+      expect(t).toContain("No MRR data yet");
+      expect(t).not.toContain("The first snapshot runs on");
+    }
+  });
+
+  it("keeps the Disputes count neutral and marks only the due line, as Recova does", () => {
+    const html = render(makeData({ tiles: { disputesDueSoonCount: 2 } }));
+    expect(text(html)).toContain("2 due in 48h");
+    // The tile carrying the open count takes no critical tone of its own.
+    const tile = html.match(/<a[^>]*href="\/disputes\/dashboard"[^>]*>/)?.[0] ?? "";
+    expect(tile).not.toBe("");
+    expect(tile).not.toContain('data-tone="crit"');
+  });
+});
+
+describe("console read model: whether the monthly sync will write a snapshot", () => {
+  it("says unconnected without a Stripe connection, eligible with one", async () => {
+    const on = await seed({});
+    expect((await getConsoleView(on, ACCOUNT_ID, NOW, null)).mrrSync).toBe("eligible");
+  });
+
+  it("says paused for a paused account and cancelled for a cancelled one", async () => {
+    const db = await seed({});
+    await db.update(accounts).set({ processingPaused: true });
+    expect((await getConsoleView(db, ACCOUNT_ID, NOW, null)).mrrSync).toBe("paused");
+    await db.update(accounts).set({ processingPaused: false, cancelledAt: new Date(NOW) });
+    expect((await getConsoleView(db, ACCOUNT_ID, NOW, null)).mrrSync).toBe("cancelled");
+  });
+
+  it("says unconnected when the account has no Stripe connection", async () => {
+    const db = await seed({});
+    await db.delete(stripeConnections);
+    expect((await getConsoleView(db, ACCOUNT_ID, NOW, null)).mrrSync).toBe("unconnected");
   });
 });
 
