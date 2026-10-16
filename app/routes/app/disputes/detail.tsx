@@ -329,9 +329,13 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
     (actionData.intent === "accept_confirm" || actionData.intent === "accept");
   const [acceptOpen, setAcceptOpen] = useState(acceptFromAction);
   const [acceptCancelled, setAcceptCancelled] = useState(false);
-  useEffect(() => {
+  // A new accept result reopens the confirmation, adjusted during render (React's
+  // "storing information from previous renders") rather than in an effect.
+  const [seenActionData, setSeenActionData] = useState(actionData);
+  if (seenActionData !== actionData) {
+    setSeenActionData(actionData);
     if (acceptFromAction) setAcceptOpen(true);
-  }, [acceptFromAction, actionData]);
+  }
   const saveFetcher = useFetcher<typeof action>();
   const saving = saveFetcher.state !== "idle";
   // The save result: the fetcher's in a browser, or the action's after a
