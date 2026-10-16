@@ -153,7 +153,22 @@ export interface ReminderNoticeInput {
   reason: string;
   daysLeft: number;
   disputeUrl: string;
+  /** A dispute_approvals row stands while the dispute is still unsubmitted:
+   *  the submission was refused, is in flight, or was never confirmed. */
+  approved: boolean;
 }
+
+/** Recova's line, for a dispute nobody has approved yet. */
+export const REMINDER_ACTION_LINE = "Auto-submit is off. You need to review and submit, or choose to accept.";
+
+/** The line for an approved dispute Stripe has not confirmed as submitted
+ *  (job_2663d92094ab). Accept is refused while an approval stands (PR 149
+ *  review), so Recova's "or choose to accept" would offer what the page
+ *  refuses; the page's Approve and submit resumes the standing approval, and
+ *  Stripe is where the merchant can see whether the evidence arrived. Recova
+ *  had no such state: its approval and submission were one step. */
+export const REMINDER_APPROVED_LINE =
+  "Your evidence is approved, but Stripe has not confirmed the submission. Check this dispute in Stripe, or open it in Foxhound to submit it again.";
 
 /** Recova's sendDisputeDeadlineReminderEmail, auto-submit off. */
 export function reminderNotice(input: ReminderNoticeInput): RenderedNotice {
@@ -165,7 +180,7 @@ export function reminderNotice(input: ReminderNoticeInput): RenderedNotice {
       `<h1>Dispute response due in ${input.daysLeft} ${plural}.</h1>` +
       `<p>${escapeNoticeHtml(input.customerLabel)} disputed ${amount} for reason: <strong>${escapeNoticeHtml(titleCaseReason(input.reason))}</strong>.</p>` +
       `<p>Current status: <strong>needs response</strong>.</p>` +
-      `<p>Auto-submit is off. You need to review and submit, or choose to accept.</p>` +
+      `<p>${input.approved ? REMINDER_APPROVED_LINE : REMINDER_ACTION_LINE}</p>` +
       `<p><a href="${input.disputeUrl}">Review dispute</a></p>`,
   };
 }

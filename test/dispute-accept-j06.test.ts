@@ -194,6 +194,10 @@ describe("PR 149 review: an unknown Stripe result is never reported as a refusal
       expect(message).not.toContain("Stripe did not accept");
       expect(message).toContain("Stripe may or may not have closed this dispute");
       expect(message).toContain("check it in Stripe before trying again");
+      // job_2663d92094ab: Stripe replays a stored result, a 500 included, for 24
+      // hours under the same idempotency key, and the key is kept stable (one
+      // close per dispute), so the message says a retry may repeat the answer.
+      expect(message).toContain("trying again here within 24 hours gets the same answer");
       expect(dispute().state).toBe("pending_review");
       expect(harness.writes).toBe(0);
     },
