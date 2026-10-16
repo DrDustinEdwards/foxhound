@@ -1,31 +1,48 @@
-import { useState } from "react";
+import { useEffect, useId, useState } from "react";
 
 import { ArrowRight, ArrowUpRight, Check, ChevronDown, Circle, Mail, RotateCcw, Shield } from "lucide-react";
 
-import { Link, data, useNavigation, useRouteLoaderData } from "react-router";
+import { Form, Link, data, useFetcher, useNavigation, useRouteLoaderData } from "react-router";
+import { Banner } from "capsomer/react/banner";
+import { Panel } from "capsomer/react/panel";
+import { Pill } from "capsomer/react/status";
+import "capsomer/banner.css";
+import "capsomer/button.css";
+import "capsomer/field.css";
+import "capsomer/panel.css";
+import "capsomer/status.css";
+// Capsomer's tokens and the teal family, which the components above read, as
+// the payments list and /disputes load them.
+import "~/site-header.css";
 
-import { Badge } from "~/components/badge";
-import { DemoGuardedForm } from "~/components/demo-guarded-form";
-import { StatCard } from "~/components/stat-card";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
-import { formatRelativeTime } from "~/lib/dashboard/recovery-window";
+import { formatDateMonthDay, formatDateShort, formatRelativeFuture, formatTimeAgo } from "~/lib/date-format";
 import { formatMoney } from "~/lib/money-format";
 import {
   ATTRIBUTION_KIND_LABELS,
-  DECLINE_CATEGORY_LABELS,
   FAILED_PAYMENT_STATUS_LABELS,
   RECOVERY_LIFECYCLE_LABELS,
   clickSuspectLabel,
   failedPaymentStatusTone,
-  formatStepResult,
-  formatStepType,
   recoveryLifecycleStatus,
   recoveryLifecycleTone,
   stepResultTone,
   type Tone,
 } from "~/lib/recovery/labels";
+import {
+  ACTION_LABELS,
+  PILL_TONE,
+  actionSuccessNotice,
+  declineValueClass,
+  isDetailActionIntent,
+  recoveredViaWords,
+  statusValueClass,
+  stepResultWords,
+} from "~/lib/recovery/payment-detail";
+import { declineWord } from "~/lib/recovery/payments-list";
+import { paymentStepLabel } from "~/lib/recovery/payments-list.server";
 import { isEmailStep } from "~/lib/recovery/schedule";
 import { lastResendableEmailStep, nextPendingStep } from "~/lib/recovery/step-state";
 import { getFailedPaymentDetail } from "~/lib/recovery/queries.server";
@@ -51,81 +68,97 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   const db = getDb(env);
   const detail = await getFailedPaymentDetail(db, auth.membership.accountId, params.id);
   if (!detail) throw new Response("Not Found", { status: 404 });
-  // Ruling 256: sanitize SERVER-SIDE, before aiBodyHtml is ever part of a
-  // response, through the helper the sequences preview already uses. Legacy
-  // sanitized client-side with DOMPurify on the same allowlist and shipped the
-  // raw string in its SSR payload; doing it here means no unsanitized body ever
-  // reaches the browser, which is class (a) under ruling 93 and honors Dustin's
-  // ratified intent more strictly than mirroring legacy's mechanism would.
-  const steps = detail.steps.map((step) => ({
-    ...step,
-    previewHtml: step.aiBodyHtml ? sanitizeEmailPreviewHtml(step.aiBodyHtml) : null,
-  }));
-  return { ...detail, steps, nowMs: Date.now() };
+  const category = detail.failedPayment.declineCategory;
+  // The two action gates, computed HERE from the same selectors the server
+  // dispatcher gates on (step-state.ts), over the same step order it reads, so
+  // the buttons offered and the POSTs accepted cannot drift. The trigger button
+  // names the step it will fire, as Recova's does ("Trigger Day 3 email now"),
+  // in the engine's own words for the payment's schedule (J75's
+  // paymentStepLabel).
+  const next = nextPendingStep(detail.steps);
+  const nextStepLabel = next ? paymentStepLabel(category, next.stepType) : null;
+  const canResend = lastResendableEmailStep(detail.steps) !== null;
+  // Ruling 256: sanitize SERVER-SIDE, through the helper the sequences preview
+  // already uses, and send ONLY the sanitized body, so no unsanitized HTML is
+  // part of the response at all. Recova orders its timeline by scheduled time
+  // (page.tsx 6034a8ba, `.order('scheduled_at', { ascending: true })`), so a
+  // resend, which has no step number, sits last rather than first.
+  const steps = [...detail.steps]
+    .sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime() || (a.stepNumber ?? 0) - (b.stepNumber ?? 0))
+    .map(({ aiBodyHtml, ...step }) => ({
+      ...step,
+      label: paymentStepLabel(category, step.stepType),
+      previewHtml: aiBodyHtml ? sanitizeEmailPreviewHtml(aiBodyHtml) : null,
+    }));
+  return { ...detail, steps, nextStepLabel, canResend, nowMs: Date.now() };
 }
 
-// Manual per-payment actions: ALL FIVE ARE WIRED (272), each committing through
-// the per-account money-write DO per 262 decision four. The notes save and Stop
-// recovery landed at `2c8cf51` (265), Trigger next step now at `7047a8f` (267),
-// Resend last email at `3d47a28` (269), and Mark as recovered at `74ad6df` (271),
-// the last entering through the spine's own buildRecoveryBatch and never a second
-// writer of recovered_payments. This block used to say none of them was built for
-// anyone, which was true until 265 and stale for every session after it, and the
-// MANUAL_ACTIONS_NOT_AVAILABLE_MESSAGE it introduced is gone with it: nothing
-// could reach that string once the switch below grew a case for every reason.
+// Manual per-payment actions: all five are wired (272), each committing through
+// the per-account money-write DO (262 decision four). Mark as recovered enters
+// through the spine's own buildRecoveryBatch and is never a second writer of
+// recovered_payments. This route only reports what the dispatcher decided.
 
-/** Legacy's client never reads a success body, so it says only "Step triggered
- *  successful" for every outcome. Foxhound's banner is the visible surface, and
- *  a retry that DECLINED is not the same news as one that paid, so the stored
- *  result is reported rather than flattened into one word. */
-function triggerNotice(action: "retry" | "email", result: string): string {
-  if (action === "email") return "Next step triggered: the email was sent.";
-  if (result === "retry_succeeded") return "Next step triggered: the retry succeeded.";
-  if (result === "retry_card_declined") return "Next step triggered: the card was declined.";
-  return `Next step triggered: the retry did not succeed (${result}).`;
-}
+/** Recova's 2000ms hold on a success message (PaymentDetailClient.tsx 167,
+ *  `setTimeout(() => { setActionResult(null); router.refresh() }, 2000)`). An
+ *  error stays until the next action, as Recova's does. */
+export const ACTION_SUCCESS_CLEAR_MS = 2000;
+
+/** Recova's 2000ms hold on "Saved" beside Save note (PaymentDetailClient.tsx 189). */
+export const NOTE_SAVED_CLEAR_MS = 2000;
 
 export async function action({ context, params, request }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
   const db = getDb(env);
   const form = await request.formData();
+  const intent = form.get("intent");
+
   // The shared dispatcher owns account scoping, ownership and the per-intent
   // preconditions (app/lib/recovery/manual-actions.server.ts). accountId comes
-  // from the session, never from the form. Every mutation it performs rides the
-  // per-account money-write DO through this commit binding (262 decision four).
-  const outcome = await dispatchManualAction({
-    db,
-    accountId: auth.membership.accountId,
-    failedPaymentId: params.id,
-    intent: form.get("intent"),
-    note: form.get("note"),
-    commit: moneyWriteCommit(env),
-    trigger: triggerDepsFor(env, db),
-    resend: resendDepsFor(env),
-  });
+  // from the session, never from the form.
+  let outcome: Awaited<ReturnType<typeof dispatchManualAction>>;
+  try {
+    outcome = await dispatchManualAction({
+      db,
+      accountId: auth.membership.accountId,
+      failedPaymentId: params.id,
+      intent,
+      note: form.get("note"),
+      commit: moneyWriteCommit(env),
+      trigger: triggerDepsFor(env, db),
+      resend: resendDepsFor(env),
+    });
+  } catch (err) {
+    // Recova's client answers a failed request with "<label> failed"
+    // (PaymentDetailClient.tsx 169). The whole error goes to the log, never to
+    // the page.
+    console.error("payment detail action failed", err);
+    const error = isDetailActionIntent(intent)
+      ? `${ACTION_LABELS[intent]} failed`
+      : intent === "note"
+        ? "Failed to save note"
+        : "Action failed";
+    return data({ error, intent: typeof intent === "string" ? intent : null }, { status: 500 });
+  }
 
   if (outcome.ok) {
-    if (outcome.intent === "trigger") {
-      return data({ notice: triggerNotice(outcome.action, outcome.result) }, { status: 200 });
-    }
-    if (outcome.intent === "resend") {
-      return data({ notice: `Email resent: "${outcome.subject}"` }, { status: 200 });
-    }
-    if (outcome.intent === "mark_recovered") {
-      return data({ notice: "Marked as recovered." }, { status: 200 });
-    }
+    if (outcome.intent === "note") return data({ notice: "Note saved", intent: "note" }, { status: 200 });
     return data(
-      { notice: outcome.intent === "note" ? "Note saved." : "Recovery stopped." },
+      {
+        notice: actionSuccessNotice(
+          outcome.intent,
+          outcome.intent === "trigger" ? { action: outcome.action, result: outcome.result } : undefined,
+        ),
+        intent: outcome.intent,
+      },
       { status: 200 },
     );
   }
 
   // Legacy's own status codes and strings, per intent, from
   // parity/S7-PHASE2-SCOPE.md section 1.7. Every reason the dispatcher can
-  // return has a case below, and the default is a typed exhaustiveness check
-  // rather than a message, so a NEW reason is a compile error here instead of a
-  // string a merchant reads.
+  // return has a case below, and the default is a typed exhaustiveness check,
+  // so a NEW reason is a compile error here instead of a string a merchant reads.
   switch (outcome.reason) {
     case "not_found":
       throw new Response("Not Found", { status: 404 });
@@ -140,41 +173,25 @@ export async function action({ context, params, request }: Route.ActionArgs) {
     case "processing_paused":
       // No legacy counterpart: legacy has no emergency brake. Executing a step
       // is processing, so a paused or braked account refuses here exactly as the
-      // cron would skip it, rather than charging a card the brake was engaged to
-      // protect.
-      return data(
-        { error: "Recovery processing is paused for this account." },
-        { status: 409 },
-      );
+      // cron would skip it (approved 2026-08-14).
+      return data({ error: "Recovery processing is paused for this account." }, { status: 409 });
     case "customer_unsubscribed":
       return data({ error: "Customer has unsubscribed from emails" }, { status: 409 });
     case "live_sends_disabled":
       // No legacy counterpart: legacy has no send switch. Honest rather than a
       // silent success, because nothing was mailed (268).
-      return data(
-        { error: "Live email sending is switched off for this account." },
-        { status: 409 },
-      );
+      return data({ error: "Live email sending is switched off for this account." }, { status: 409 });
     case "resend_failed":
-      return data(
-        { error: `Failed to resend${outcome.detail ? `: ${outcome.detail}` : ""}` },
-        { status: 500 },
-      );
+      return data({ error: `Failed to resend${outcome.detail ? `: ${outcome.detail}` : ""}` }, { status: 500 });
     case "resend_logged_failed":
       // The mail IS gone; only the timeline row failed. Reporting a plain failure
       // would contradict the customer's inbox and invite a second send.
       return data(
-        {
-          error:
-            "The email was resent, but recording it on the timeline failed. Do not resend again.",
-        },
+        { error: "The email was resent, but recording it on the timeline failed. Do not resend again." },
         { status: 500 },
       );
     case "send_retrying":
-      return data(
-        { error: "Email send failed temporarily; it will retry automatically" },
-        { status: 503 },
-      );
+      return data({ error: "Email send failed temporarily; it will retry automatically" }, { status: 503 });
     case "step_failed":
       return data({ error: `Step failed${outcome.result ? `: ${outcome.result}` : ""}` }, { status: 502 });
     case "already_resolved":
@@ -187,51 +204,35 @@ export async function action({ context, params, request }: Route.ActionArgs) {
             outcome.intent === "cancel"
               ? "This payment was already resolved, so nothing was stopped."
               : "This payment was already recorded as recovered.",
+          intent: outcome.intent,
         },
         { status: 200 },
       );
     case "write_failed":
       return data(
         {
-          error:
-            outcome.intent === "note"
-              ? "Failed to save note"
-              : "Could not stop recovery. Please try again.",
+          error: outcome.intent === "note" ? "Failed to save note" : "Could not stop recovery. Please try again.",
+          intent: outcome.intent,
         },
         { status: 500 },
       );
     case "unknown_intent":
-      // REACHABLE, and the only reason the old default ever really served: the
-      // rendered forms all submit one of the five intents, so this answers a
-      // hand-crafted POST. The message it used to give, "This action isn't
-      // available yet", promised a feature to someone asking for one that does
-      // not exist, which is the opposite of honest.
+      // Reachable only by a hand-crafted POST: the rendered forms all submit one
+      // of the five intents.
       return data({ error: "Unrecognized action." }, { status: 400 });
     default: {
-      // Statically UNREACHABLE: every reason ManualActionOutcome can carry has a
-      // case above, so `outcome` narrows to never here and this assignment is
-      // what enforces it. Adding a reason without a case becomes a COMPILE
-      // error rather than a string a merchant reads. 288's no-dead-conditional
-      // rule, moved from a runtime branch into the type system.
       const exhaustive: never = outcome;
       return exhaustive;
     }
   }
 }
 
-// Legacy's action set, in legacy's order, read from
-// app/(app)/recovery/payments/[id]/PaymentDetailClient.tsx at 7f54aa45: trigger
-// the next step, mark recovered, stop the sequence, resend the last email. Four,
-// not the six this route used to render.
-//
-// "Stop recovery" is the ONE ratified substitution (ruling 251, PRIME DIRECTIVE
-// item 3, 2026-08-10). It replaces BOTH legacy's "Cancel recovery" and this
-// file's own "Cancel subscription". The old label was a defect: it promised to
-// end the customer's subscription when the action only ends the dunning
-// sequence. Do not "restore" legacy's wording here.
-//
-// `conditional` marks the two legacy renders only when its precondition holds:
-// trigger needs a pending step, resend needs a sent email to resend.
+// Legacy's action set, in legacy's order, read from PaymentDetailClient.tsx at
+// 7f54aa45: trigger the next step, mark recovered, stop the sequence, resend the
+// last email. "Stop recovery" is the ratified substitution for "Cancel
+// recovery" (approved 2026-08-10); do not restore legacy's wording. The trigger
+// button names its step when it renders ("Trigger Day 3 email now"); this label
+// is its fallback only.
 export const MANUAL_ACTIONS = [
   { intent: "trigger", label: "Trigger next step now", variant: "primary", needs: "nextStep" },
   { intent: "mark_recovered", label: "Mark as recovered", variant: "default", needs: null },
@@ -239,273 +240,225 @@ export const MANUAL_ACTIONS = [
   { intent: "resend", label: "Resend last email", variant: "default", needs: "lastEmail" },
 ] as const;
 
-// Ruling 250, from Dustin's capture of legacy at status Failed_unrecovered: NO
-// action buttons render in a terminal state. Legacy's own gate is
-// `payment.status === 'active'` (PaymentDetailClient.tsx), and Foxhound shares
-// that vocabulary exactly (labels.ts: active / recovered / failed_unrecovered),
-// so the condition ports one to one rather than being inferred from the capture.
+// Ruling 250: NO action buttons render in a terminal state. Legacy's own gate is
+// `payment.status === 'active'`.
 export const ACTIONS_VISIBLE_STATUS = "active";
 
 /** Legacy's own 2000ms hold on the "Copied" confirmation (PaymentDetailClient.tsx
- *  221 at blob 7f54aa45). Named rather than inlined so the value is greppable. */
+ *  221 at blob 7f54aa45). */
 export const COPIED_RESET_MS = 2000;
 
-/** Legacy's back link, PaymentDetailClient.tsx 130-132. Legacy's real target is
- *  `/recovery/dashboard`, which Foxhound serves at the same path since J09's
- *  URL revert. In demo legacy returns to the payments list, which Foxhound
- *  serves at the same path for demo and real alike. */
+/** Legacy's back link, PaymentDetailClient.tsx 130-132. */
 export const BACK_LINK_REAL = { href: "/recovery/dashboard", label: "Back to dashboard" };
 export const BACK_LINK_DEMO = { href: "/recovery/payments", label: "Back to payments" };
 
+/** Recova's demo title on every control that needs a Stripe account. */
+const DEMO_DISABLED_REASON = "Connect Stripe to use this";
+
 export default function PaymentDetail({ loaderData, actionData }: Route.ComponentProps) {
-  const { failedPayment, steps, recovery, previousFailures, estimatedLtvCents, openDisputes, nowMs } =
-    loaderData;
+  const {
+    failedPayment,
+    steps,
+    recovery,
+    previousFailures,
+    estimatedLtvCents,
+    openDisputes,
+    nextStepLabel,
+    canResend,
+    nowMs,
+  } = loaderData;
   const [expandedStepId, setExpandedStepId] = useState<string | null>(null);
-  // Read off the app-shell loader, the way DemoGuardedForm and the payments
-  // list already do, so the demo variants below cost no query. Legacy gates its
-  // own Stripe links and back link on the same flag.
   const shell = useRouteLoaderData<typeof appShellLoader>("app-shell");
   const isDemo = Boolean(shell?.isDemo);
   const backLink = isDemo ? BACK_LINK_DEMO : BACK_LINK_REAL;
   const [copied, setCopied] = useState(false);
+  const demoReasonId = useId();
+  const navigation = useNavigation();
+  const busy = navigation.state !== "idle";
+  const pressedIntent = navigation.formData?.get("intent") ?? null;
 
-  // Legacy's copyEmail, PaymentDetailClient.tsx 218-222 at blob 7f54aa45:
-  // clipboard write, flip to a green confirmation, revert after 2000ms.
+  // Recova's action result: a success clears after 2000ms, an error stays.
+  const notice = actionData && "notice" in actionData ? actionData.notice : null;
+  const error = actionData && "error" in actionData ? actionData.error : null;
+  const [clearedNoticeFor, setClearedNoticeFor] = useState<unknown>(null);
+  const shownNotice = notice && clearedNoticeFor !== actionData ? notice : null;
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setClearedNoticeFor(actionData), ACTION_SUCCESS_CLEAR_MS);
+    return () => clearTimeout(timer);
+  }, [actionData, notice]);
+
+  // Recova saves a note in place (PaymentDetailClient.tsx saveNote): "Saving..."
+  // on the button, then "Saved" beside it for 2000ms, or its error line.
+  const noteFetcher = useFetcher<typeof action>();
+  const noteSaving = noteFetcher.state !== "idle";
+  const noteResult = noteFetcher.data;
+  const [savedClearedFor, setSavedClearedFor] = useState<unknown>(null);
+  const noteSaved = Boolean(noteResult && "notice" in noteResult && savedClearedFor !== noteResult);
+  useEffect(() => {
+    if (!noteResult || !("notice" in noteResult)) return;
+    const timer = setTimeout(() => setSavedClearedFor(noteResult), NOTE_SAVED_CLEAR_MS);
+    return () => clearTimeout(timer);
+  }, [noteResult]);
+  const noteError = noteResult && "error" in noteResult;
+
   function copyEmail() {
     void navigator.clipboard?.writeText(failedPayment.customerEmail);
     setCopied(true);
     setTimeout(() => setCopied(false), COPIED_RESET_MS);
   }
+
   const attributionKind = recovery?.attributionKind as AttributionKind | undefined;
   const creditedStep =
-    recovery?.recoveredByStepId != null
-      ? steps.find((s) => s.id === recovery.recoveredByStepId)
-      : undefined;
-  const busy = useNavigation().state !== "idle";
+    recovery?.recoveredByStepId != null ? steps.find((s) => s.id === recovery.recoveredByStepId) : undefined;
 
   const executedSteps = steps.filter((s) => s.executedAt !== null);
   const emailSteps = executedSteps.filter((s) => isEmailStep(s.stepType));
   const openedEmails = emailSteps.filter((s) => s.openedAt);
   const clickedEmails = emailSteps.filter((s) => s.clickedAt);
 
-  // Legacy's two preconditions, read from PaymentDetailClient.tsx at 7f54aa45.
-  // These are the SAME selectors the server dispatcher gates on, imported from
-  // one place so the buttons that render and the POSTs the server accepts cannot
-  // drift apart.
-  const nextStep = nextPendingStep(steps);
-  const lastEmailStep = lastResendableEmailStep(steps);
   const actionsVisible = failedPayment.status === ACTIONS_VISIBLE_STATUS;
   const visibleActions = MANUAL_ACTIONS.filter(
-    (a) => a.needs === null || (a.needs === "nextStep" ? nextStep !== null : lastEmailStep !== null),
-  );
+    (a) => a.needs === null || (a.needs === "nextStep" ? nextStepLabel !== null : canResend),
+  ).map((a) => ({ ...a, label: a.intent === "trigger" ? `Trigger ${nextStepLabel} now` : a.label }));
 
   return (
     <div className="mx-auto max-w-[1000px] px-8 py-10">
-      {/* Ruling 147 f1-f3, legacy
-      app/(app)/recovery/payments/[id]/PaymentDetailClient.tsx:
-      max-w-[1000px] mx-auto px-8 py-10. NOTE 147 recorded this as "half
-      legacy's width" too; also WRONG. Legacy is 1000px against max-w-3xl's
-      768px, so 232px narrower, not 512. And legacy's px-8 here is FLAT, with
-      no responsive step at all, unlike every 1280px page. */}
+      {/* Recova's width and padding, PaymentDetailClient.tsx 227:
+          max-w-[1000px] mx-auto px-8 py-10, flat at every width. */}
 
-      {/* Legacy's back link, PaymentDetailClient.tsx 231-233 at blob 7f54aa45:
-          above the header, its own line, subtle and small, with a leading arrow.
-          Legacy uses a bare <a>; this uses RR8's Link so an in-app navigation
-          stays client-side, which is the stack-native mechanism and invisible to
-          the user (class (a) under 93). */}
-      <Link
-        to={backLink.href}
-        className="mb-4 inline-block text-label text-text-subtle no-underline transition-opacity hover:opacity-80"
-      >
-        &larr; {backLink.label}
-      </Link>
-
-      <div className="rounded-lg border border-border bg-surface p-4">
+      {/* Recova's back link and bare header, PaymentDetailClient.tsx 230-271:
+          no box, the name with the open-dispute badge, the email line, and the
+          status pill top right. */}
+      <header className="mb-7">
+        <Link
+          to={backLink.href}
+          className="mb-4 inline-flex min-h-6 items-center text-label text-text-subtle no-underline transition-opacity hover:opacity-80"
+        >
+          &larr; {backLink.label}
+        </Link>
         <div className="flex items-start justify-between gap-4">
-          <div>
-            {/* Legacy pairs the title and the open-dispute badge in one wrapping
-                flex row (PaymentDetailClient.tsx 236-252 at blob 7f54aa45). */}
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-title font-medium text-text">
+          <div className="min-w-0">
+            <div className="mb-1 flex flex-wrap items-center gap-2">
+              <h1 className="m-0 text-title font-medium text-text">
                 {failedPayment.customerName ?? failedPayment.customerEmail}
               </h1>
-              {/* Legacy's open-dispute badge, 243-251. Legacy gated it on
-                  `disputesActive && openDisputes.length > 0`; the entitlement
-                  half read account_products, which 298 dropped as vestigial, so
-                  304 rules the badge renders on the DISPUTE PREDICATE ALONE.
-                  That predicate is real: the loader derives "open" from
-                  RESOLVED_DISPUTE_STATES, the constant isDisputeResolved reads.
-                  Purple is legacy's own choice here and fits DESIGN's reservation
-                  rather than bending it: a dispute IS a Stripe object, which is
-                  what purple is reserved for. Foxhound has a real
-                  `purple-border` token, so legacy's `border-purple/40` opacity
-                  hack is not reproduced.
-                  DEMO: this needs no demo branch. Legacy hid it in demo only
-                  because its entitlement gate was false there; the demo seeds
-                  real disputes, so rendering the truth IS legacy's behaviour. */}
+              {/* The open-dispute badge, gated on the live dispute predicate
+                  alone (ruling 304). */}
               {openDisputes.length > 0 ? (
-                <Link
-                  to={`/disputes/${openDisputes[0].id}`}
-                  className="group inline-flex items-center gap-1 rounded border border-purple-border bg-purple-bg px-2 py-0.5 text-micro text-purple no-underline hover:opacity-80"
-                >
+                <Pill variant="outline" href={`/disputes/${openDisputes[0].id}`}>
                   <Shield className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
-                  {openDisputes.length === 1 ? "1 open dispute" : `${openDisputes.length} open disputes`}{" "}
-                  <ArrowRight
-                    className="inline-block transition-transform group-hover:translate-x-0.5"
-                    size={13}
-                    strokeWidth={1.5}
-                    aria-hidden="true"
-                  />
-                </Link>
+                  {openDisputes.length === 1 ? "1 open dispute" : `${openDisputes.length} open disputes`}
+                  <ArrowRight className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
+                </Pill>
               ) : null}
             </div>
-            {/* Legacy's email line carries the Copy email control beside it
-                (PaymentDetailClient.tsx 253-262 at blob 7f54aa45): a borderless
-                text button that flips to a green confirmation for 2000ms.
-                Legacy's confirmation glyph is a literal U+2713; this uses
-                lucide's Check for the reason stated on the timeline glyph
-                below. */}
-            <div className="mt-1 flex flex-wrap items-center gap-3">
-              {/* Legacy shows this sub-line ONLY when a customer name exists
-                  (PaymentDetailClient.tsx 254-256 at blob 7f54aa45), because the
-                  h1 above already falls back to the email: rendering it
-                  unconditionally printed the same address twice on every
-                  nameless payment. Straight parity repair. */}
-              {failedPayment.customerName ? (
-                <p className="text-label text-text-tertiary">{failedPayment.customerEmail}</p>
-              ) : null}
-              <button
-                type="button"
-                onClick={copyEmail}
-                className={`inline-flex items-center gap-1 text-micro ${
-                  copied ? "text-green" : "text-text-subtle hover:text-text"
-                }`}
-              >
-                {copied ? (
-                  <>
-                    <Check className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" /> Copied
-                  </>
-                ) : (
-                  "Copy email"
-                )}
-              </button>
-              {/* Legacy's plan name, PaymentDetailClient.tsx 263 at blob
-                  7f54aa45: a middot then the plan, only when present, and AFTER
-                  the Copy email control in legacy's own order. The column has
-                  been on failed_payments all along (schema.ts:244) and
-                  getFailedPaymentDetail selects whole rows, so this needed no
-                  loader field at all, one fewer than the scope doc estimated. */}
-              {failedPayment.planName ? (
-                <p className="text-label text-text-tertiary">
-                  &middot; {failedPayment.planName}
-                </p>
-              ) : null}
+            <div className="flex flex-wrap items-center gap-3 text-label text-text-subtle">
+              {/* The email shows here only when a name took the heading. */}
+              {failedPayment.customerName ? <span>{failedPayment.customerEmail}</span> : null}
+              <span className="text-micro">
+                <button type="button" className="cap-link-btn" onClick={copyEmail}>
+                  {copied ? (
+                    <>
+                      <Check className="mr-1 h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
+                      Copied
+                    </>
+                  ) : (
+                    "Copy email"
+                  )}
+                </button>
+              </span>
+              <span className="sr-only" role="status">
+                {copied ? "Email copied" : ""}
+              </span>
+              {failedPayment.planName ? <span>&middot; {failedPayment.planName}</span> : null}
             </div>
           </div>
-          <p className="font-mono text-title text-text">
-            {formatMoney(failedPayment.amountCents, failedPayment.currency)}
-          </p>
-        </div>
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <Badge tone={failedPaymentStatusTone(failedPayment.status)}>
+          <Pill tone={PILL_TONE[failedPaymentStatusTone(failedPayment.status)]}>
             {FAILED_PAYMENT_STATUS_LABELS[failedPayment.status] ?? failedPayment.status}
-          </Badge>
-          <Badge tone="neutral">
-            {DECLINE_CATEGORY_LABELS[failedPayment.declineCategory as keyof typeof DECLINE_CATEGORY_LABELS] ??
-              failedPayment.declineCategory}
-          </Badge>
-          {failedPayment.declineCode ? (
-            <span className="font-mono text-micro text-text-subtle">{failedPayment.declineCode}</span>
-          ) : null}
+          </Pill>
         </div>
-      </div>
+      </header>
 
-      {/* SECTION ORDER IS LEGACY'S (304, closing 295 Q1). Read from blob
-          7f54aa45: back and header, then the action RESULT banner, then the
-          action BUTTONS, then the Stripe links, info cards, details and
-          engagement, timeline, internal notes, and the success banner last.
-          Both blocks below used to sit at the bottom of this page. The Outcome
-          card keeps its slot because legacy has no counterpart to move it to,
-          and the success banner was already last. */}
-      {/* Action feedback sits OUTSIDE the actions card on purpose. It used to
-          live inside it, which was fine while every intent was refused: the
-          status could not change, so the card was always still there to render
-          the message. Now a successful Stop recovery moves the payment to a
-          terminal status, the card correctly stops rendering, and a message
-          nested inside it would vanish on the very submit it exists to report.
-          One block, ungated, serving the notes form and the action row alike. */}
-      {actionData && "error" in actionData ? (
-        <p
-          className="mt-6 rounded-md border border-red bg-red-bg px-3 py-2 text-label text-error-text"
-          role="alert"
-        >
-          {actionData.error}
-        </p>
-      ) : null}
-      {actionData && "notice" in actionData ? (
-        <p
-          className="mt-6 rounded-md border border-green bg-green-bg px-3 py-2 text-label text-green"
-          role="status"
-        >
-          {actionData.notice}
-        </p>
+      {/* Recova's IntegrityLayerBanner sits here. Nothing in Foxhound writes the
+          banded prediction it reads, so it is not built (RULES.md 3.18). */}
+
+      {/* Recova's action result banner, PaymentDetailClient.tsx 277-287. */}
+      {error ? (
+        <div className="mb-5">
+          <Banner tone="crit">{error}</Banner>
+        </div>
+      ) : shownNotice ? (
+        <div className="mb-5">
+          <Banner tone="ok">{shownNotice}</Banner>
+        </div>
       ) : null}
 
-      {/* Ruling 250: the action row is STATE-CONDITIONAL. Dustin's capture of
-          legacy at Failed_unrecovered shows NO action buttons at all, and
-          legacy's own gate is `payment.status === 'active'`, so a terminal
-          payment renders nothing here rather than a row of dead controls.
-          Every intent behind these buttons is WIRED (272); the gate is legacy's
-          own, not a stand-in for an unbuilt engine. */}
-      {actionsVisible ? (
-        <div className="mt-6 rounded-lg border border-border bg-surface p-4">
-          <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Manual actions</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {visibleActions.map((a) => (
-              <DemoGuardedForm key={a.intent} method="post">
+      {/* Recova's action buttons, PaymentDetailClient.tsx 289-327: only while
+          the payment is active (ruling 250); in the demo the same buttons,
+          disabled and titled as Recova's are. */}
+      {actionsVisible && !isDemo ? (
+        <div className="mb-6 flex flex-wrap gap-2.5">
+          {visibleActions.map((a) => {
+            const pressed = pressedIntent === a.intent;
+            return (
+              <Form key={a.intent} method="post">
                 <input type="hidden" name="intent" value={a.intent} />
                 <button
                   type="submit"
-                  disabled={busy}
-                  className={`rounded-md border px-3 py-1.5 text-label disabled:opacity-60 ${
-                    a.variant === "primary"
-                      ? "border-brand bg-brand font-semibold text-on-brand hover:bg-brand-dark"
-                      : a.variant === "danger"
-                        ? "border-border text-error-text hover:border-red"
-                        : "border-border text-text-secondary hover:border-border-i"
-                  }`}
+                  className="cap-btn"
+                  data-variant={a.variant === "default" ? undefined : a.variant}
+                  aria-disabled={busy ? true : undefined}
+                  onClick={(e) => {
+                    if (busy) e.preventDefault();
+                  }}
                 >
-                  {a.label}
+                  {pressed ? "Working..." : a.label}
                 </button>
-              </DemoGuardedForm>
-            ))}
-          </div>
+              </Form>
+            );
+          })}
+        </div>
+      ) : null}
+      {actionsVisible && isDemo ? (
+        <div className="mb-6 flex flex-wrap gap-2.5">
+          {visibleActions.map((a) => (
+            <button
+              key={a.intent}
+              type="button"
+              className="cap-btn"
+              data-variant={a.variant === "default" ? undefined : a.variant}
+              aria-disabled="true"
+              aria-describedby={demoReasonId}
+              title={DEMO_DISABLED_REASON}
+            >
+              {a.label}
+            </button>
+          ))}
         </div>
       ) : null}
 
-      {/* Legacy's two Stripe deep links, PaymentDetailClient.tsx 329-360 at blob
-          7f54aa45, in legacy's own slot: after the header block and immediately
-          BEFORE the info cards. Legacy renders these links AND the invoice and
-          customer ids as rows inside Decline details (378-379), so the rows below
-          are legacy's too and stay. In demo legacy swaps both for disabled
-          buttons titled "Connect Stripe to use this", because a demo account has
-          no Stripe objects to open. */}
-      <div className="mt-6 flex flex-wrap gap-2.5">
+      {/* Recova's two Stripe links, PaymentDetailClient.tsx 329-360. */}
+      <div className="mb-6 flex flex-wrap gap-2.5">
         {isDemo ? (
           <>
             <button
               type="button"
-              disabled
-              title="Connect Stripe to use this"
-              className="cursor-not-allowed rounded-md border border-border-sub px-3 py-1.5 text-micro text-text-subtle opacity-50"
+              className="cap-btn"
+              data-size="sm"
+              aria-disabled="true"
+              aria-describedby={demoReasonId}
+              title={DEMO_DISABLED_REASON}
             >
               View invoice in Stripe
             </button>
             <button
               type="button"
-              disabled
-              title="Connect Stripe to use this"
-              className="cursor-not-allowed rounded-md border border-border-sub px-3 py-1.5 text-micro text-text-subtle opacity-50"
+              className="cap-btn"
+              data-size="sm"
+              aria-disabled="true"
+              aria-describedby={demoReasonId}
+              title={DEMO_DISABLED_REASON}
             >
               View customer in Stripe
             </button>
@@ -513,130 +466,142 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
         ) : (
           <>
             <a
+              className="cap-btn"
+              data-size="sm"
               href={`https://dashboard.stripe.com/invoices/${failedPayment.stripeInvoiceId}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="group rounded-md border border-border px-3 py-1.5 text-micro text-text-subtle no-underline transition-colors hover:border-text-tertiary"
             >
-              View invoice in Stripe{" "}
-              <ArrowUpRight
-                className="inline-block transition-transform group-hover:-translate-y-px group-hover:translate-x-px"
-                size={12}
-                strokeWidth={1.5}
-                aria-hidden="true"
-              />
+              View invoice in Stripe
+              <ArrowUpRight data-icon="end" size={12} strokeWidth={1.5} aria-hidden="true" />
             </a>
             <a
+              className="cap-btn"
+              data-size="sm"
               href={`https://dashboard.stripe.com/customers/${failedPayment.stripeCustomerId}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="group rounded-md border border-border px-3 py-1.5 text-micro text-text-subtle no-underline transition-colors hover:border-text-tertiary"
             >
-              View customer in Stripe{" "}
-              <ArrowUpRight
-                className="inline-block transition-transform group-hover:-translate-y-px group-hover:translate-x-px"
-                size={12}
-                strokeWidth={1.5}
-                aria-hidden="true"
-              />
+              View customer in Stripe
+              <ArrowUpRight data-icon="end" size={12} strokeWidth={1.5} aria-hidden="true" />
             </a>
           </>
         )}
       </div>
+      {isDemo ? (
+        // Capsomer's disabled buttons keep focus and say why in visible text
+        // (button.md); Recova's say it only in a title.
+        <p className="-mt-4 mb-6">
+          <span className="cap-btn-reason" id={demoReasonId}>
+            {DEMO_DISABLED_REASON}
+          </span>
+        </p>
+      ) : null}
 
-      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label="Amount" value={formatMoney(failedPayment.amountCents, failedPayment.currency)} />
-        <StatCard
-          label="Decline"
-          value={
-            DECLINE_CATEGORY_LABELS[failedPayment.declineCategory as keyof typeof DECLINE_CATEGORY_LABELS] ??
-            failedPayment.declineCategory
-          }
-        />
-        <StatCard
-          label="Detected"
-          value={formatRelativeTime(failedPayment.detectedAt, nowMs) ?? "-"}
-          subtext={failedPayment.detectedAt.toLocaleDateString()}
-        />
-        <StatCard
-          label="Customer age"
-          value={failedPayment.customerAgeDays != null ? `${failedPayment.customerAgeDays}d` : "-"}
-          // Legacy renders NO subtext below two recovered payments, so an absent
-          // subtext here is legacy's own behaviour rather than a missing element.
-          subtext={
-            estimatedLtvCents != null
-              ? `~${formatMoney(Math.round(estimatedLtvCents), failedPayment.currency)} est. LTV`
-              : undefined
-          }
-        />
+      {/* Recova's four info cards, PaymentDetailClient.tsx 362-368. Capsomer has
+          no plain stat card (its tile is always a link), so each is a small
+          Panel, as on the payments list. */}
+      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Panel size="sm" title="Amount">
+          <p className="m-0 font-mono text-title font-bold tabular-nums text-brand-text">
+            {formatMoney(failedPayment.amountCents, failedPayment.currency)}
+          </p>
+        </Panel>
+        <Panel size="sm" title="Decline">
+          <p className={`m-0 text-title font-bold ${declineValueClass(failedPayment.declineCategory)}`}>
+            {declineWord(failedPayment.declineCategory)}
+          </p>
+        </Panel>
+        <Panel size="sm" title="Detected">
+          <p className="m-0 text-title font-bold text-text">{formatTimeAgo(failedPayment.detectedAt, nowMs)}</p>
+          <p className="m-0 mt-1 text-micro text-text-subtle">{formatDateMonthDay(failedPayment.detectedAt)}</p>
+        </Panel>
+        <Panel size="sm" title="Customer age">
+          <p className="m-0 font-mono text-title font-bold tabular-nums text-text">
+            {failedPayment.customerAgeDays != null ? `${failedPayment.customerAgeDays}d` : "-"}
+          </p>
+          {/* Recova shows no subtext below two recovered payments. */}
+          {estimatedLtvCents != null ? (
+            <p className="m-0 mt-1 text-micro text-text-subtle">
+              ~{formatMoney(Math.round(estimatedLtvCents), failedPayment.currency)} est. LTV
+            </p>
+          ) : null}
+        </Panel>
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-2">
-        <div className="rounded-lg border border-border bg-surface p-4">
-          <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Decline details</p>
-          <dl className="mt-3 flex flex-col gap-2">
+      {/* Recova's Decline details and Email engagement cards, 371-421. */}
+      <div className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-2">
+        <Panel title="Decline details">
+          <dl className="m-0">
             <DetailRow
               label="Category"
-              value={
-                DECLINE_CATEGORY_LABELS[failedPayment.declineCategory as keyof typeof DECLINE_CATEGORY_LABELS] ??
-                failedPayment.declineCategory
-              }
+              value={declineWord(failedPayment.declineCategory)}
+              valueClass={declineValueClass(failedPayment.declineCategory)}
             />
             {failedPayment.declineCode ? <DetailRow label="Code" value={failedPayment.declineCode} mono /> : null}
-            <DetailRow label="Invoice ID" value={failedPayment.stripeInvoiceId} mono />
-            <DetailRow label="Customer ID" value={failedPayment.stripeCustomerId} mono />
+            <DetailRow label="Invoice ID" value={failedPayment.stripeInvoiceId} mono small />
+            <DetailRow label="Customer ID" value={failedPayment.stripeCustomerId} mono small />
             {failedPayment.customerSince ? (
               <DetailRow
                 label="Customer since"
-                value={failedPayment.customerSince.toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+                value={failedPayment.customerSince.toLocaleDateString("en-US", {
+                  month: "short",
+                  year: "numeric",
+                  timeZone: "UTC",
+                })}
               />
             ) : null}
             {failedPayment.resolvedAt ? (
               <DetailRow
                 label={failedPayment.status === "recovered" ? "Recovered" : "Resolved"}
-                value={failedPayment.resolvedAt.toLocaleDateString()}
+                value={formatDateShort(failedPayment.resolvedAt)}
               />
             ) : null}
           </dl>
-        </div>
+        </Panel>
 
-        <div className="rounded-lg border border-border bg-surface p-4">
-          <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Email engagement</p>
+        <Panel title="Email engagement">
           {emailSteps.length === 0 ? (
-            <p className="mt-3 text-label text-text-tertiary">No emails sent yet.</p>
+            <p className="m-0 text-label text-text-subtle">No emails sent yet</p>
           ) : (
-            <dl className="mt-3 flex flex-col gap-2">
+            <dl className="m-0">
               <DetailRow label="Emails sent" value={String(emailSteps.length)} />
-              <DetailRow label="Opened" value={`${openedEmails.length} of ${emailSteps.length}`} />
-              <DetailRow label="Clicked" value={`${clickedEmails.length} of ${emailSteps.length}`} />
-              {recovery ? <DetailRow label="Recovery method" value={ATTRIBUTION_KIND_LABELS[attributionKind ?? "stripe_baseline"]} /> : null}
+              <DetailRow
+                label="Opened"
+                value={`${openedEmails.length} of ${emailSteps.length}`}
+                valueClass={openedEmails.length > 0 ? "text-green" : "text-text-subtle"}
+              />
+              <DetailRow
+                label="Clicked"
+                value={`${clickedEmails.length} of ${emailSteps.length}`}
+                valueClass={clickedEmails.length > 0 ? "text-green" : "text-text-subtle"}
+              />
+              {recovery ? (
+                <DetailRow
+                  label="Recovery method"
+                  value={ATTRIBUTION_KIND_LABELS[attributionKind ?? "stripe_baseline"]}
+                  valueClass="text-green"
+                />
+              ) : null}
             </dl>
           )}
 
-          {/* Legacy's "Previous failures (N)" block sits inside this same card,
-              under a top rule, one row per prior failure linking to its detail
-              page (PaymentDetailClient.tsx at 7f54aa45). */}
           {previousFailures.length > 0 ? (
             <>
-              <p className="mt-4 border-t border-border pt-4 text-micro font-medium text-text-subtle">
+              <p className="m-0 mt-4 mb-3 border-t border-border pt-4 text-micro font-medium text-text-subtle">
                 Previous failures ({previousFailures.length})
               </p>
-              <ul className="mt-1 flex flex-col">
+              <ul className="m-0 list-none p-0">
                 {previousFailures.map((p) => (
                   <li key={p.id}>
                     <a
                       href={`/recovery/payments/${p.id}`}
                       className="flex items-center justify-between border-b border-border-sub py-1.5 no-underline"
                     >
-                      <span className="text-micro text-text-subtle">
-                        {formatRelativeTime(p.detectedAt, nowMs) ?? "-"}
-                      </span>
+                      <span className="text-micro text-text-subtle">{formatTimeAgo(p.detectedAt, nowMs)}</span>
                       <span className="flex items-center gap-2">
-                        <Badge tone="neutral">
-                          {DECLINE_CATEGORY_LABELS[p.declineCategory as keyof typeof DECLINE_CATEGORY_LABELS] ??
-                            p.declineCategory}
-                        </Badge>
-                        <span className="font-mono text-micro text-text">
+                        <Pill variant="outline">{declineWord(p.declineCategory)}</Pill>
+                        <span className={`font-mono text-micro ${statusValueClass(p.status)}`}>
                           {formatMoney(p.amountCents, p.currency)}
                         </span>
                       </span>
@@ -646,294 +611,227 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
               </ul>
             </>
           ) : null}
-        </div>
+        </Panel>
       </div>
 
-      {/* Ruling 251, Dustin's distinction requirement in his words: "it needs to
-          be more distinguished from everything else". This card is the receipt
-          for the 20 percent attribution fee, so it must not share the standard
-          card treatment. Distinction is carried by the teal brand accent border and
-          the tinted brand surface, the two tokens DESIGN.md already reserves for
-          the brand accent, rather than by a new token or a size change: every
-          other card on this page is `border-border bg-surface`, so the accent
-          alone separates it at a glance without inventing anything. Flagged for
-          Dustin's review on the demo. */}
-      <div className="mt-6 rounded-lg border border-brand bg-brand-bg p-4">
-        <p className="font-mono text-micro uppercase tracking-wide text-brand-text">Outcome</p>
+      {/* The Outcome card has no Recova counterpart and stays beside Recova's
+          success banner, distinct from every other card (approved 2026-08-10).
+          It is the receipt for the attribution fee. */}
+      <div className="mb-5 rounded-lg border border-brand bg-brand-bg p-4">
+        <h2 className="m-0 font-mono text-micro uppercase tracking-wide text-brand-text">Outcome</h2>
         {recovery ? (
           <div className="mt-2 flex flex-col gap-2">
-            {/* The real lifecycle state, read from refunded_at/disputed_at, never
-                from attribution_kind: a refunded or disputed recovery must never
-                read as a clean win regardless of how it was attributed. Billability
-                itself is not asserted here at all, that is the 5d ledger's job off
-                app/db/billable.ts. */}
             <div className="flex flex-wrap items-center gap-2">
-              <Badge tone={recoveryLifecycleTone(recovery)}>
+              <Pill tone={PILL_TONE[recoveryLifecycleTone(recovery)]}>
                 {RECOVERY_LIFECYCLE_LABELS[recoveryLifecycleStatus(recovery)]}
-              </Badge>
+              </Pill>
             </div>
             {attributionKind ? (
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
-                  Attribution
-                </span>
-                <Badge tone="neutral">
+                <span className="font-mono text-micro uppercase tracking-wide text-text-secondary">Attribution</span>
+                <Pill variant="outline">
                   {ATTRIBUTION_KIND_LABELS[attributionKind]}
                   {attributionKind === "stripe_baseline" ? " - FREE" : ""}
-                </Badge>
+                </Pill>
                 {creditedStep ? (
-                  <span className="text-label text-text-tertiary">
-                    Credited to {formatStepType(creditedStep.stepType)}
-                  </span>
+                  <span className="text-label text-text-secondary">Credited to {creditedStep.label}</span>
                 ) : null}
               </div>
             ) : null}
           </div>
         ) : (
-          <p className="mt-2 text-label text-text-tertiary">Still in recovery, no outcome yet.</p>
+          <p className="m-0 mt-2 text-label text-text-secondary">Still in recovery, no outcome yet.</p>
         )}
       </div>
 
-      <div className="mt-6 rounded-lg border border-border bg-surface p-4">
-        <div className="flex items-center justify-between gap-4">
-          <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Recovery timeline</p>
-          {steps.length > 0 ? (
-            <p className="text-label text-text-tertiary">
-              {executedSteps.length} of {steps.length} steps executed
-            </p>
-          ) : null}
-        </div>
-        {steps.length === 0 ? (
-          <p className="mt-2 text-label text-text-tertiary">No steps scheduled.</p>
-        ) : (
-          <ol className="mt-3 flex flex-col gap-3">
-            {steps.map((step) => {
-              // Legacy's own gate for the per-step engagement indicators
-              // (PaymentDetailClient.tsx 540 at blob 7f54aa45): an executed EMAIL
-              // step whose result is not email_failed, because a mail that never
-              // sent cannot have been opened or clicked.
-              const showEngagement =
-                step.executedAt !== null &&
-                isEmailStep(step.stepType) &&
-                step.result !== "email_failed";
-              const showExpander = step.executedAt !== null && step.previewHtml !== null;
-              // Ruling 251: the per-step channel label is REMOVED. Legacy carries
-              // no such tag; its glyph and chip treatment is the spec, and removal
-              // is the zero-ratification path.
-              return (
-                <li
-                  key={step.id}
-                  className="border-b border-border-sub pb-3 last:border-0 last:pb-0"
-                >
-                  <div className="flex gap-4">
-                    <StepGlyph
-                      executed={step.executedAt !== null}
-                      isEmail={isEmailStep(step.stepType)}
-                      tone={stepResultTone(step.result)}
-                    />
-                    <div className="flex min-w-0 flex-1 items-center justify-between gap-4">
-                    <div>
-                      <p className="text-body text-text">
-                        {step.stepNumber ?? "-"}. {formatStepType(step.stepType)}
-                      </p>
-                      {step.aiSubject ? (
-                        <p className="text-micro text-text-subtle">&quot;{step.aiSubject}&quot;</p>
+      {/* Recova's recovery timeline, PaymentDetailClient.tsx 423-571. */}
+      <div className="mb-5">
+        <Panel title="Recovery timeline" src={`${executedSteps.length} of ${steps.length} steps executed`} flush>
+          {steps.length === 0 ? (
+            <div className="px-6 py-10 text-center">
+              <p className="m-0 text-label text-text-subtle">No recovery steps scheduled</p>
+            </div>
+          ) : (
+            <ol className="m-0 list-none p-0 py-2">
+              {steps.map((step) => {
+                const executed = step.executedAt !== null;
+                const pending = !executed && step.result === null;
+                const email = isEmailStep(step.stepType);
+                // Recova's gate for the per-step engagement row (540): an
+                // executed email step that did not fail to send.
+                const showEngagement = executed && email && step.result !== "email_failed";
+                const showExpander = executed && step.previewHtml !== null;
+                const expanded = expandedStepId === step.id;
+                return (
+                  <li key={step.id} className="flex gap-4 border-b border-border px-6 py-4 last:border-0">
+                    <StepGlyph executed={executed} isEmail={email} tone={stepResultTone(step.result)} />
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-1 flex items-center justify-between gap-3">
+                        <div className="flex flex-wrap items-center gap-2.5">
+                          <span className="text-label font-medium text-text">{step.label}</span>
+                          <Pill tone={PILL_TONE[stepResultTone(step.result)]}>
+                            {stepResultWords(step.result, executed)}
+                          </Pill>
+                        </div>
+                        <span className="whitespace-nowrap font-mono text-micro text-text-subtle">
+                          {executed
+                            ? formatTimeAgo(step.executedAt, nowMs)
+                            : pending
+                              ? formatRelativeFuture(step.scheduledAt, nowMs)
+                              : ""}
+                        </span>
+                      </div>
+                      {email && step.aiSubject ? (
+                        <p className="m-0 mb-1 text-micro text-text-subtle">&quot;{step.aiSubject}&quot;</p>
                       ) : null}
-                      <p className="text-label text-text-tertiary">
-                        {step.executedAt
-                          ? `Ran ${step.executedAt.toLocaleString()}`
-                          : `Scheduled for ${step.scheduledAt.toLocaleString()}`}
+                      <p className="m-0 text-micro text-text-subtle">
+                        {executed
+                          ? `Executed ${formatDateShort(step.executedAt)}`
+                          : `Scheduled ${formatDateShort(step.scheduledAt)}`}
                       </p>
-                    </div>
-                    <Badge tone={stepResultTone(step.result)}>
-                      {step.result ? formatStepResult(step.result) : "Pending"}
-                    </Badge>
-                    </div>
-                  </div>
 
-                  {/* Legacy's engagement row, PaymentDetailClient.tsx 540-557 at
-                      blob 7f54aa45: the per-step opened and clicked indicators
-                      and the View email control share ONE row, which is why the
-                      expander moves inside it rather than keeping its own div.
-                      Its gate and its ruling 250 treatment are unchanged, and its
-                      body is still the loader-sanitized previewHtml (ruling 256).
-                      Glyphs are lucide Check and Circle for the reason StepGlyph
-                      states; legacy uses the literal U+2713 and U+25CB.
-                      NOT this item and deliberately untouched: the AGGREGATE
-                      Opened and Clicked rows in the Email engagement card above. */}
-                  {showEngagement || showExpander ? (
-                    <div className="mt-2 flex flex-wrap items-center gap-4">
-                      {showEngagement ? (
-                        <>
-                          <span
-                            className={`inline-flex items-center gap-1 text-micro ${
-                              step.openedAt ? "text-green" : "text-text-subtle"
-                            }`}
-                          >
-                            {step.openedAt ? (
-                              <Check className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
-                            ) : (
-                              <Circle className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
-                            )}
-                            {step.openedAt
-                              ? `Opened ${formatRelativeTime(step.openedAt, nowMs) ?? ""}`.trim()
-                              : "Not opened"}
-                          </span>
-                          {/* A SUSPECT CLICK IS SHOWN AS WHAT IT IS (377(4)).
-                              It is not hidden and not dressed as engagement:
-                              the merchant is owed the fact that something
-                              fetched the link, and the fact that we are not
-                              billing them for it. */}
-                          <span
-                            className={`inline-flex items-center gap-1 text-micro ${
-                              step.clickedAt && !step.clickSuspectReason
-                                ? "text-green"
-                                : "text-text-subtle"
-                            }`}
-                          >
-                            {step.clickedAt && !step.clickSuspectReason ? (
-                              <Check className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
-                            ) : (
-                              <Circle className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
-                            )}
-                            {step.clickedAt
-                              ? step.clickSuspectReason
-                                ? `Clicked ${formatRelativeTime(step.clickedAt, nowMs) ?? ""}, not counted (${clickSuspectLabel(step.clickSuspectReason)})`.trim()
-                                : `Clicked ${formatRelativeTime(step.clickedAt, nowMs) ?? ""}`.trim()
-                              : "Not clicked"}
-                          </span>
-                        </>
+                      {showEngagement || showExpander ? (
+                        <div className="mt-2 flex flex-wrap items-center gap-4">
+                          {showEngagement ? (
+                            <>
+                              <span
+                                className={`inline-flex items-center gap-1 text-micro ${
+                                  step.openedAt ? "text-green" : "text-text-subtle"
+                                }`}
+                              >
+                                {step.openedAt ? (
+                                  <Check className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
+                                ) : (
+                                  <Circle className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
+                                )}
+                                {step.openedAt ? `Opened ${formatTimeAgo(step.openedAt, nowMs)}` : "Not opened"}
+                              </span>
+                              {/* A suspect click is shown as what it is (377(4)):
+                                  something fetched the link, and it is not billed. */}
+                              <span
+                                className={`inline-flex items-center gap-1 text-micro ${
+                                  step.clickedAt && !step.clickSuspectReason ? "text-green" : "text-text-subtle"
+                                }`}
+                              >
+                                {step.clickedAt && !step.clickSuspectReason ? (
+                                  <Check className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
+                                ) : (
+                                  <Circle className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
+                                )}
+                                {step.clickedAt
+                                  ? step.clickSuspectReason
+                                    ? `Clicked ${formatTimeAgo(step.clickedAt, nowMs)}, not counted (${clickSuspectLabel(step.clickSuspectReason)})`
+                                    : `Clicked ${formatTimeAgo(step.clickedAt, nowMs)}`
+                                  : "Not clicked"}
+                              </span>
+                            </>
+                          ) : null}
+                          {showExpander ? (
+                            <span className="text-micro">
+                              <button
+                                type="button"
+                                className="cap-link-btn"
+                                aria-expanded={expanded}
+                                onClick={() => setExpandedStepId(expanded ? null : step.id)}
+                              >
+                                {expanded ? "Hide email" : "View email"}
+                                <ChevronDown
+                                  className={`ml-1 h-3 w-3 ${expanded ? "rotate-180" : ""}`}
+                                  strokeWidth={1.5}
+                                  aria-hidden="true"
+                                />
+                              </button>
+                            </span>
+                          ) : null}
+                        </div>
                       ) : null}
-                      {showExpander ? (
-                        <button
-                        type="button"
-                        onClick={() => setExpandedStepId(expandedStepId === step.id ? null : step.id)}
-                        aria-expanded={expandedStepId === step.id}
-                        className="text-micro text-text-subtle hover:text-text"
-                      >
-                        {expandedStepId === step.id ? "Hide email" : "View email"}{" "}
-                        <ChevronDown
-                          className={`inline-block h-3 w-3 transition-transform ${
-                            expandedStepId === step.id ? "rotate-180" : ""
-                          }`}
-                          strokeWidth={1.5}
-                          aria-hidden="true"
+                      {step.previewHtml && expanded ? (
+                        <div
+                          className="mt-3 rounded-lg border border-border bg-bg p-4 text-label text-text"
+                          // Sanitized in the loader by sanitizeEmailPreviewHtml;
+                          // the raw body is never sent to the browser.
+                          dangerouslySetInnerHTML={{ __html: step.previewHtml }}
                         />
-                        </button>
                       ) : null}
                     </div>
-                  ) : null}
-                  {/* The expanded body sits BELOW legacy's row, as it does in
-                      legacy (559-563), not inside it. */}
-                  {step.previewHtml && expandedStepId === step.id ? (
-                    <div
-                      className="mt-2 rounded-lg border border-border bg-bg p-4 text-label text-text"
-                      // Sanitized in the loader by sanitizeEmailPreviewHtml, the
-                      // same helper and allowlist the sequences preview uses.
-                      // Never render step.aiBodyHtml directly here.
-                      dangerouslySetInnerHTML={{ __html: step.previewHtml }}
-                    />
-                  ) : null}
-                </li>
-              );
-            })}
-          </ol>
-        )}
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+        </Panel>
       </div>
 
-
-      {/* Legacy's INTERNAL NOTES card, treatment per 250's capture: a textarea
-          with placeholder copy and a teal (brand) Save note button. The column
-          (failed_payments.notes) already exists. SAVING is WIRED as of Session B
-          (262 decision four): the form posts the `note` intent, the dispatcher
-          scopes it to this account, and the update commits through the
-          per-account money-write DO. */}
-      <div className="mt-6 rounded-lg border border-border bg-surface p-4">
-        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Internal notes</p>
-        <DemoGuardedForm method="post">
-          <input type="hidden" name="intent" value="note" />
-          <textarea
-            name="note"
-            aria-label="Internal notes for this payment"
-            defaultValue={failedPayment.notes ?? ""}
-            placeholder="Add a note about this payment or customer..."
-            rows={3}
-            className="mt-3 w-full resize-y rounded-lg border border-border-i bg-bg px-3.5 py-2.5 text-label text-text"
-          />
-          <button
-            type="submit"
-            disabled={busy}
-            className="mt-3 rounded-md border border-brand bg-brand px-4 py-2 text-label font-semibold text-on-brand hover:bg-brand-dark disabled:opacity-60"
-          >
-            Save note
-          </button>
-        </DemoGuardedForm>
-      </div>
-
-
-      {/* Legacy's recovery success banner, PaymentDetailClient.tsx 599-612 at
-          blob 7f54aa45. Legacy's gate is BOTH halves, a recovered status AND a
-          recovered_payments row, so a status flip without a row renders nothing,
-          and the amount appears twice, once in the sentence and once large and
-          mono on the right.
-          PLACEMENT: legacy's banner is the LAST element on the page and this
-          is the last element here. That open ordering question is now CLOSED by
-          304: the action row moved up to legacy's slot and this banner stayed
-          exactly where it was, which is why last was the stable placement to
-          take before the ruling landed.
-          The method reads through ATTRIBUTION_KIND_LABELS, the same table the
-          Email engagement card above already uses for "Recovery method", rather
-          than legacy's recovery_method vocabulary, which Foxhound does not carry.
-          Type scale is FROZEN in both directions under 187, so this uses the
-          page's existing steps rather than legacy's rem values. */}
-      {failedPayment.status === "recovered" && recovery ? (
-        <div className="mt-6 flex items-center justify-between gap-4 rounded-lg border border-green bg-green-bg p-4">
-          <div>
-            <p className="text-body font-medium text-green">Payment recovered</p>
-            <p className="mt-1 text-label text-text-subtle">
-              {formatMoney(recovery.amountCents, recovery.currency)} recovered via{" "}
-              {ATTRIBUTION_KIND_LABELS[(recovery.attributionKind as AttributionKind) ?? "stripe_baseline"]}
-              {formatRelativeTime(recovery.recoveredAt, nowMs)
-                ? ` - ${formatRelativeTime(recovery.recoveredAt, nowMs)}`
-                : ""}
-            </p>
-          </div>
-          <p className="font-mono text-title font-bold text-green">
-            {formatMoney(recovery.amountCents, recovery.currency)}
-          </p>
+      {/* Recova's internal notes, 573-597, hidden in the demo as Recova hides
+          it. Saved in place through a fetcher, so the page does not move. */}
+      {!isDemo ? (
+        <div className="mb-5">
+          <Panel title="Internal notes">
+            <noteFetcher.Form method="post">
+              <input type="hidden" name="intent" value="note" />
+              <textarea
+                name="note"
+                className="cap-input"
+                aria-label="Internal notes for this payment"
+                defaultValue={failedPayment.notes ?? ""}
+                placeholder="Add a note about this payment or customer..."
+                rows={3}
+              />
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <button
+                  type="submit"
+                  className="cap-btn"
+                  data-variant="primary"
+                  aria-disabled={noteSaving ? true : undefined}
+                  onClick={(e) => {
+                    if (noteSaving) e.preventDefault();
+                  }}
+                >
+                  {noteSaving ? "Saving..." : "Save note"}
+                </button>
+                <span role="status" className="text-micro">
+                  {noteSaved ? (
+                    <span className="inline-flex items-center gap-1 text-green">
+                      Saved <Check className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
+                    </span>
+                  ) : noteError ? (
+                    <span className="text-error-text">Could not save note. Please try again.</span>
+                  ) : null}
+                </span>
+              </div>
+            </noteFetcher.Form>
+          </Panel>
         </div>
+      ) : null}
+
+      {/* Recova's recovery success banner, 599-612, last on the page: only when
+          the status is recovered AND a recovery row exists. */}
+      {failedPayment.status === "recovered" && recovery ? (
+        <Banner
+          tone="ok"
+          title="Payment recovered"
+          actions={
+            <span className="font-mono text-title font-bold">
+              {formatMoney(recovery.amountCents, recovery.currency)}
+            </span>
+          }
+        >
+          {formatMoney(recovery.amountCents, recovery.currency)} recovered via{" "}
+          {recoveredViaWords((recovery.attributionKind as AttributionKind) ?? "stripe_baseline")} &middot;{" "}
+          {formatTimeAgo(recovery.recoveredAt, nowMs)}
+        </Banner>
       ) : null}
     </div>
   );
 }
 
 /**
- * Legacy's timeline node, PaymentDetailClient.tsx 452-463 at blob 7f54aa45: a
- * 32px round node holding an envelope on an email step and a repeat glyph on a
- * retry, tinted by the step's result once executed and grey while pending.
- *
- * TWO MECHANISM DIVERGENCES, both stated rather than silent.
- *
- * ONE, THE COLOUR SOURCE. Legacy derives this node AND the result chip beside it
- * from ONE value, `getStepResultColor(step.result)`, so the two always agree.
- * That map keys on `email_sent_ai` and `email_sent_fallback`, which Foxhound has
- * NEVER written: a grep over app/ and test/ returns zero for both, while Foxhound
- * writes `email_sent`. Porting the map verbatim would leave every real email
- * step's node grey beside a green chip, breaking the very agreement legacy's
- * shape exists to hold. So the node reads `stepResultTone`, the SAME source the
- * chip reads. That is 292's semantic-port rule: the port targets the capability,
- * node and chip agree, not the storage, legacy's string literals.
- *
- * TWO, THE GLYPH. Legacy renders the literal characters U+2709 and U+21BA.
- * capsid/conventions.md bans emoji in UI and makes lucide-react the icon default,
- * and U+2709 carries an emoji presentation variant on common platforms, so these
- * are lucide's Mail and RotateCcw in the same node at the same size. Raised for
- * ratification; the rendered result is the same two symbols.
- *
- * Legacy's executed background is its result colour at 13 percent alpha, and
- * green-bg and red-bg ARE those tinted tokens, so success and failure are exact.
- * Neutral-executed has no tinted counterpart and uses surface2, the one
- * approximation here, named rather than passed off as a match.
+ * Recova's timeline node, PaymentDetailClient.tsx 452-463: a 32px round node with
+ * an envelope on an email step and a repeat glyph on a retry, tinted by the
+ * result once executed and grey while pending. The glyphs are drawn icons, not
+ * Recova's text symbols (approved 2026-08-15). The node reads the same tone as
+ * the result chip beside it, so the two always agree. Capsomer has no timeline
+ * node; this is the page's own until it does.
  */
 function StepGlyph({ executed, isEmail, tone }: { executed: boolean; isEmail: boolean; tone: Tone }) {
   const skin = !executed
@@ -945,19 +843,37 @@ function StepGlyph({ executed, isEmail, tone }: { executed: boolean; isEmail: bo
         : "border-border-sub bg-surface2 text-text-subtle";
   const Glyph = isEmail ? Mail : RotateCcw;
   return (
-    <span
-      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${skin}`}
-    >
+    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${skin}`}>
       <Glyph className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
     </span>
   );
 }
 
-function DetailRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+/** Recova's Row, PaymentDetailClient.tsx 676-693: the label left, the value right
+ *  and cut to 200px, ids small and mono. */
+function DetailRow({
+  label,
+  value,
+  mono,
+  small,
+  valueClass,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+  small?: boolean;
+  valueClass?: string;
+}) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-border-sub pb-2 last:border-0 last:pb-0">
-      <dt className="shrink-0 text-micro text-text-tertiary">{label}</dt>
-      <dd className={`truncate text-label text-text ${mono ? "font-mono" : ""}`}>{value}</dd>
+    <div className="flex items-center justify-between border-b border-border-sub py-2 last:border-0">
+      <dt className="shrink-0 text-micro text-text-subtle">{label}</dt>
+      <dd
+        className={`m-0 ml-3 max-w-[200px] truncate text-right ${small ? "text-micro" : "text-label"} ${
+          mono ? "font-mono" : ""
+        } ${valueClass ?? "text-text"}`}
+      >
+        {value}
+      </dd>
     </div>
   );
 }

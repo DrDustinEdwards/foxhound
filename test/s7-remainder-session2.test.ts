@@ -32,7 +32,7 @@ describe("296 item 1: plan_name", () => {
   });
 
   it("renders only when present, as legacy does", () => {
-    expect(ROUTE_CODE).toContain("failedPayment.planName ? (");
+    expect(ROUTE_CODE).toContain("{failedPayment.planName ? <span>&middot; {failedPayment.planName}</span> : null}");
   });
 
   it("carries legacy's middot separator", () => {
@@ -49,7 +49,7 @@ describe("296 item 1: plan_name", () => {
 
 describe("296 item 4: the email sub-line", () => {
   it("renders only when a customer name exists", () => {
-    expect(ROUTE_CODE).toContain("failedPayment.customerName ? (");
+    expect(ROUTE_CODE).toContain("{failedPayment.customerName ? <span>{failedPayment.customerEmail}</span> : null}");
   });
 
   it("REGRESSION GUARD: the title still falls back to the email", () => {

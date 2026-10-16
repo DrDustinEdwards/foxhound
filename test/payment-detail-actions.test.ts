@@ -79,7 +79,8 @@ describe("S7 action row: state-gated per ruling 250", () => {
 
   it("the component gates the row on that status rather than always rendering it", () => {
     // The capture's whole point: a terminal payment shows no action row at all.
-    expect(SOURCE).toContain("actionsVisible ? (");
+    expect(SOURCE).toContain("actionsVisible && !isDemo ? (");
+    expect(SOURCE).toContain("actionsVisible && isDemo ? (");
     expect(SOURCE).toContain("failedPayment.status === ACTIONS_VISIBLE_STATUS");
   });
 });

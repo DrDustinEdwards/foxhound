@@ -676,7 +676,8 @@ async function markRecovered(
         }),
     );
     applied = result.applied;
-  } catch {
+  } catch (err) {
+    console.error("manual action mark_recovered: commit failed", err);
     // The outcomes unique index rejecting a replay surfaces here as a thrown
     // constraint error only if it escapes the committer; the committer itself
     // maps it to applied=false. Either way the honest answer is the same: this
@@ -729,7 +730,8 @@ async function resendLastEmail(
       bodyHtml,
       now,
     });
-  } catch {
+  } catch (err) {
+    console.error("manual action resend: send failed", err);
     return { ok: false, reason: "resend_failed", detail: null };
   }
 
@@ -767,7 +769,8 @@ async function resendLastEmail(
           now,
         }),
     );
-  } catch {
+  } catch (err) {
+    console.error("manual action resend: timeline row failed after the send", err);
     // The mail is already gone; only the timeline row failed. Say so rather than
     // reporting a failure the customer's inbox contradicts.
     return { ok: false, reason: "resend_logged_failed" };
@@ -820,7 +823,8 @@ async function triggerNextStep(
       const result = await req.trigger.runEmail(toEmailContext(row));
       suppressed = result.suppressed;
     }
-  } catch {
+  } catch (err) {
+    console.error("manual action trigger: executor failed", err);
     return { ok: false, reason: "step_failed", result: null };
   }
 
@@ -885,7 +889,8 @@ async function saveNote(req: ManualActionRequest): Promise<ManualActionOutcome> 
         note,
       }),
     );
-  } catch {
+  } catch (err) {
+    console.error("manual action note: commit failed", err);
     // Legacy answers 500 "Failed to save note" here. The error itself is not
     // surfaced: it would carry query shape to the browser and tells a merchant
     // nothing they can act on.
@@ -904,7 +909,8 @@ async function stopRecovery(req: ManualActionRequest): Promise<ManualActionOutco
         now,
       }),
     );
-  } catch {
+  } catch (err) {
+    console.error("manual action cancel: commit failed", err);
     return { ok: false, reason: "write_failed", intent: "cancel" };
   }
 
