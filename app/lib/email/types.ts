@@ -2,7 +2,7 @@
 // message and log it. Produced by the recovery/win-back engine (Phase 4b/4e),
 // consumed by the queue handler. Kept transport-agnostic; only send.ts touches
 // the binding.
-import type { EmailTracking } from "./templates";
+import type { EmailNotice, EmailTracking } from "./templates";
 
 /**
  * Who the message is addressed to, which decides whether CAN-SPAM applies.
@@ -34,7 +34,7 @@ import type { EmailTracking } from "./templates";
  */
 export type EmailAudience = "customer" | "merchant" | "preview";
 
-export interface EmailJob {
+interface EmailJobFields {
   accountId: string | null;
   /** Links the send to its recovery step (one of recovery/winBack set, or neither for merchant notices). */
   recoveryStepId?: string | null;
@@ -51,7 +51,6 @@ export interface EmailJob {
    */
   replyTo?: string | null;
   subject: string;
-  bodyHtml: string;
   /** email_sends.template label (e.g. recovery_dunning, winback, merchant_notify). */
   template: string;
   /** CAN-SPAM one-click unsubscribe token (required for merchant-customer sends). */
@@ -59,10 +58,12 @@ export interface EmailJob {
   /** CAN-SPAM sender postal address (required for merchant-customer sends). */
   physicalAddress: string;
   /**
-   * A sentence for the top of the customer footer, before the unsubscribe link
-   * and the postal address: Recova's "You're receiving this from ..." on
-   * recovery mail (J85). On preview mail it is the whole footer slot (E3).
-   * Ignored on merchant mail.
+   * Recova's footer sentence ("You're receiving this from ..."), first in the
+   * footer slot. Customer mail: before the unsubscribe link and the postal
+   * address (J85). Preview mail: the whole footer slot (E3). Merchant mail:
+   * before Recova's "Manage email settings" link to /settings, as Recova's
+   * wrapEmailHtml writes it for a mail with no unsubscribe (E10); a merchant
+   * mail without a note has no footer line of its own.
    */
   footerNote?: string | null;
   /**
@@ -100,3 +101,24 @@ export interface EmailJob {
    */
   tracking?: EmailTracking | null;
 }
+
+/**
+ * A mail whose body the sender wrote as HTML (dunning, win-back, the digest,
+ * the dispute notices), read by the frame for text and links.
+ */
+export interface EmailJob extends EmailJobFields {
+  bodyHtml: string;
+  notice?: never;
+}
+
+/**
+ * A merchant notice on Capsomer's `notice` template (E10): a title, paragraphs
+ * and a button, each a plain string Capsomer escapes. No HTML body.
+ */
+export interface NoticeEmailJob extends EmailJobFields {
+  notice: EmailNotice;
+  bodyHtml?: never;
+}
+
+/** Either kind of mail, as the send seam (processEmailJob, sendEmail) takes it. */
+export type OutboundEmailJob = EmailJob | NoticeEmailJob;

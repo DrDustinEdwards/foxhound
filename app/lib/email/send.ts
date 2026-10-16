@@ -2,8 +2,8 @@ import { EMAIL_AUTH_SENDER_ADDRESS, EMAIL_FROM_ADDRESS, UNSUBSCRIBE_PATH } from 
 
 import type { Rendered } from "capsomer/email";
 
-import { renderFoxhoundEmail } from "./templates";
-import type { EmailAudience, EmailJob } from "./types";
+import { manageEmailSettingsLine, renderFoxhoundEmail } from "./templates";
+import type { EmailAudience, OutboundEmailJob } from "./types";
 import { isValidReplyToEmail } from "~/lib/settings/reply-to";
 
 // THE ONE send module (ARCHITECTURE.md non-negotiable #3: only this file touches
@@ -36,7 +36,7 @@ function fromDisplayName(name: string | null | undefined): string {
  * physical postal address and a one-click unsubscribe. Missing either throws, so
  * a non-compliant send can never reach the binding.
  */
-export function buildEmailMessage(job: EmailJob, baseUrl: string): EmailSendMessage {
+export function buildEmailMessage(job: OutboundEmailJob, baseUrl: string): EmailSendMessage {
   // FAIL CLOSED: an absent audience is treated as the customer case, so a job
   // that forgets the field gets the CAN-SPAM guard rather than skipping it.
   const audience: EmailAudience = job.audience ?? "customer";
@@ -65,19 +65,22 @@ export function buildEmailMessage(job: EmailJob, baseUrl: string): EmailSendMess
   //
   // Preview mail (E3) puts only its note in the slot: Recova's preview footer
   // sentence, with no unsubscribe and no postal address, as Recova's has none.
+  //
+  // Merchant mail with a note (E10) carries Recova's footer as wrapEmailHtml
+  // writes it with no unsubscribe token: the sentence, then "Manage email
+  // settings" to /settings. A merchant mail with no note has no footer line.
   const note = job.footerNote ? [job.footerNote] : [];
-  const rendered = renderFoxhoundEmail({
-    subject: job.subject,
-    bodyHtml: job.bodyHtml,
-    brandName: fromName,
-    to: job.to,
-    footer: unsubUrl
-      ? [...note, { text: "Unsubscribe", url: unsubUrl }, job.physicalAddress]
-      : audience === "preview" && note.length > 0
-        ? note
-        : undefined,
-    tracking: job.tracking,
-  });
+  const footer = unsubUrl
+    ? [...note, { text: "Unsubscribe", url: unsubUrl }, job.physicalAddress]
+    : note.length > 0 && audience === "preview"
+      ? note
+      : note.length > 0 && audience === "merchant"
+        ? [...note, manageEmailSettingsLine(baseUrl)]
+        : undefined;
+  const frame = { subject: job.subject, brandName: fromName, to: job.to, footer, tracking: job.tracking };
+  const rendered = renderFoxhoundEmail(
+    job.notice ? { ...frame, notice: job.notice } : { ...frame, bodyHtml: job.bodyHtml },
+  );
   const message: EmailSendMessage = {
     from: `${fromName} <${EMAIL_FROM_ADDRESS}>`,
     to: job.to,
@@ -116,7 +119,7 @@ export function buildEmailMessage(job: EmailJob, baseUrl: string): EmailSendMess
  */
 export async function sendEmail(
   env: Env,
-  job: EmailJob,
+  job: OutboundEmailJob,
 ): Promise<{ providerMessageId: string | null }> {
   if (!env.EMAIL) {
     throw new Error("EMAIL binding is not configured");

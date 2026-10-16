@@ -403,20 +403,32 @@ describe("E4 to E6 carry Recova's From, recipient, parts, footer and links", () 
     expect(buildEmailMessage(jobs[0], BASE).from).toBe(`Support <${constants.EMAIL_FROM_ADDRESS}>`);
   });
 
-  it("merchant notices never carry the footer sentence (RULES.md 3.16)", () => {
-    const job = {
-      ...buildRecoveryEmailJob(ctx(), { subject: "S", bodyHtml: "<p>B</p>" }, {
-        unsubscribeToken: "u",
-        physicalAddress: ADDRESS,
-        openUrl: `${BASE}/e/o/x`,
-        honeypotUrl: `${BASE}/e/h/x`,
-      }),
-      audience: "merchant" as const,
-      tracking: null,
-    };
-    const m = buildEmailMessage(job, BASE);
-    expect(m.text).not.toContain("You're receiving this from");
-    expect(m.html).not.toContain("You're receiving this from");
+  it("merchant notices never carry the CAN-SPAM lines, and the sentence only when they set it (RULES.md 3.16)", () => {
+    // REPOINTED BY E10 (J88). This said a merchant notice never carries the
+    // footer sentence. Recova's Payment recovered notice does carry it
+    // (wrapEmailHtml(notifyBody, 'Recova'), lib/email.ts blob 3f882729, with a
+    // "Manage email settings" link under it), so row E10 sets it on that one
+    // notice. What RULES.md 3.16 forbids on merchant mail is the unsubscribe and
+    // the postal address, and that stays asserted here; a merchant mail that
+    // sets no note still has no sentence.
+    const { footerNote, ...dunning } = buildRecoveryEmailJob(ctx(), { subject: "S", bodyHtml: "<p>B</p>" }, {
+      unsubscribeToken: "u",
+      physicalAddress: ADDRESS,
+      openUrl: `${BASE}/e/o/x`,
+      honeypotUrl: `${BASE}/e/h/x`,
+    });
+    expect(footerNote).toContain("You're receiving this from");
+    const bare = buildEmailMessage({ ...dunning, audience: "merchant" as const, tracking: null }, BASE);
+    expect(bare.text).not.toContain("You're receiving this from");
+    expect(bare.html).not.toContain("You&#39;re receiving this from");
+    const noted = buildEmailMessage({ ...dunning, footerNote, audience: "merchant" as const, tracking: null }, BASE);
+    for (const m of [bare, noted]) {
+      for (const part of [m.html, m.text]) {
+        expect(part).not.toContain("Unsubscribe");
+        expect(part).not.toContain(ADDRESS);
+      }
+      expect(m.headers).toBeUndefined();
+    }
   });
 });
 
