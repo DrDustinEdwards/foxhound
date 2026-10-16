@@ -49,7 +49,27 @@ export interface HealthScoreInput {
   engagementSignals: EngagementSignals | null;
 }
 
-const BASELINE_SCORE = 70;
+/** The score a customer with no signal away from baseline gets. Exported so
+ *  copy that names it (the /product/intelligence FAQ) reads it, never types it. */
+export const HEALTH_SCORE_BASELINE = 70;
+const BASELINE_SCORE = HEALTH_SCORE_BASELINE;
+
+/**
+ * The signals the score weighs, keyed by the factor's `signal`, each with the
+ * words a person reads for it. Every scoring function below names its signal
+ * through this map (`satisfies HealthSignal`), marketing copy lists the signals
+ * from here (J58, RULES.md 2.1), and test/product-intelligence-j58.test.ts
+ * drives computeHealthScore to check the two sets are the same.
+ */
+export const HEALTH_SIGNAL_LABELS = {
+  payment_latency: "payment timing",
+  billing_volatility: "billing changes",
+  refunds_disputes: "refunds and disputes",
+  recovery_engagement: "recovery engagement",
+  tenure: "tenure",
+} as const;
+
+export type HealthSignal = keyof typeof HEALTH_SIGNAL_LABELS;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -61,7 +81,7 @@ function scoreLatencyDrift(driftDays: number | null): HealthFactor | null {
   if (deltaPoints === 0) return null;
   const direction = driftDays > 0 ? "later" : "earlier";
   return {
-    signal: "payment_latency",
+    signal: "payment_latency" satisfies HealthSignal,
     deltaPoints,
     detail: `payments trending ${Math.abs(driftDays)} day(s) ${direction} against the due date`,
   };
@@ -76,7 +96,7 @@ function scoreBillingVolatility(
   const deltaPoints = -clamp(changeCount * 4 + seatChangeCount * 2, 0, 25);
   if (deltaPoints === 0) return null;
   return {
-    signal: "billing_volatility",
+    signal: "billing_volatility" satisfies HealthSignal,
     deltaPoints,
     detail: `${changeCount} plan/interval change(s) and ${seatChangeCount} seat change(s) on record`,
   };
@@ -86,7 +106,7 @@ function scoreRefundsDisputes(refundCount: number, disputeCount: number): Health
   const deltaPoints = -clamp((refundCount + disputeCount) * 8, 0, 30);
   if (deltaPoints === 0) return null;
   return {
-    signal: "refunds_disputes",
+    signal: "refunds_disputes" satisfies HealthSignal,
     deltaPoints,
     detail: `${refundCount} refund(s) and ${disputeCount} dispute(s) on record`,
   };
@@ -102,7 +122,7 @@ function scoreEngagement(
   const lastEngagedAtMs = engagement?.lastEngagedAtMs ?? null;
   if (lastEngagedAtMs === null) {
     return {
-      signal: "recovery_engagement",
+      signal: "recovery_engagement" satisfies HealthSignal,
       deltaPoints: -10,
       detail: `no engagement with ${failedPaymentCount} recovery communication(s) sent`,
     };
@@ -110,7 +130,7 @@ function scoreEngagement(
   const daysSinceEngaged = Math.floor((nowMs - lastEngagedAtMs) / DAY_MS);
   if (daysSinceEngaged > 180) {
     return {
-      signal: "recovery_engagement",
+      signal: "recovery_engagement" satisfies HealthSignal,
       deltaPoints: -5,
       detail: `last engaged with a recovery communication ${daysSinceEngaged} days ago`,
     };
@@ -123,7 +143,7 @@ function scoreTenure(subscriptionAgeDays: number | null): HealthFactor | null {
   const deltaPoints = clamp(Math.floor(subscriptionAgeDays / 90) * 2, 0, 15);
   if (deltaPoints === 0) return null;
   return {
-    signal: "tenure",
+    signal: "tenure" satisfies HealthSignal,
     deltaPoints,
     detail: `subscribed ${subscriptionAgeDays} days`,
   };
