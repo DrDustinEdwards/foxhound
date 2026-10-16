@@ -25,7 +25,7 @@ import {
   user,
 } from "~/db";
 import { PAUSE_REASON_MANUAL } from "~/lib/admin/brake";
-import { mrrUnderManagement } from "~/lib/admin/overview.server";
+import { countActiveRecoveries, mrrUnderManagement } from "~/lib/admin/overview.server";
 import { MEMBER_ROLE, MEMBER_STATUS } from "~/lib/auth/roles";
 import { groupSumByCurrency, startOfUtcMonthMs, type CurrencyAmount } from "~/lib/billing/preview.server";
 import {
@@ -234,14 +234,9 @@ export async function getMerchantFigures(db: Db, nowMs: number): Promise<Merchan
         ),
       )
       .groupBy(billingLineItems.currency),
-    // Not countActiveRecoveries: that one (the Overview's and Operations')
-    // counts soft-deleted rows too, and is left as it is for those pages.
-    db
-      .select({ n: count() })
-      .from(failedPayments)
-      .innerJoin(accounts, eq(accounts.id, failedPayments.accountId))
-      .where(and(eq(failedPayments.status, "active"), isNull(failedPayments.deletedAt), NOT_DEMO))
-      .then((r) => r[0]?.n ?? 0),
+    // The Overview's own count, so "Payments in queue" and "Active
+    // recoveries" can never disagree (PR 140 review).
+    countActiveRecoveries(db),
   ]);
   const money = (rows: Array<{ currency: string; cents: number }>) =>
     groupSumByCurrency(rows.map((r) => ({ currency: r.currency, cents: Number(r.cents) }))).filter((m) => m.cents !== 0);
@@ -324,11 +319,19 @@ export async function getMerchantDetail(db: Db, accountId: string): Promise<Merc
 export async function getMerchantActionTarget(
   db: Db,
   accountId: string,
-): Promise<{ id: string; name: string | null; processingPaused: boolean; pauseReason: string | null; cancelledAt: Date | null } | null> {
+): Promise<{
+  id: string;
+  name: string | null;
+  billingExempt: boolean;
+  processingPaused: boolean;
+  pauseReason: string | null;
+  cancelledAt: Date | null;
+} | null> {
   const rows = await db
     .select({
       id: accounts.id,
       name: accounts.name,
+      billingExempt: accounts.billingExempt,
       processingPaused: accounts.processingPaused,
       pauseReason: accounts.pauseReason,
       cancelledAt: accounts.cancelledAt,

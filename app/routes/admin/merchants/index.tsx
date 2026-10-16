@@ -16,7 +16,7 @@ import "capsomer/message.css";
 import { AdminTime } from "~/components/admin-time";
 import { getDb } from "~/db";
 import { logAdminAction } from "~/lib/admin/audit.server";
-import { PAUSE_REASON_BRAKE } from "~/lib/admin/brake";
+import { PAUSE_REASON_BRAKE, PAUSE_REASON_MANUAL } from "~/lib/admin/brake";
 import { adminContext } from "~/lib/admin/context";
 import {
   CANCEL_CONFIRM_WORD,
@@ -147,6 +147,13 @@ export async function action({ context, request }: Route.ActionArgs) {
   // The row records the attempt; a guarded write that matched nothing changes
   // nothing and the answer says so.
   const wasBrakePause = !value && target.processingPaused && target.pauseReason === PAUSE_REASON_BRAKE;
+  // Whether the write will change anything, as read just before it, so a
+  // stale row's no-op says so in its audit row (PR 140 review). It is the
+  // guarded write's own condition: the flag holds the other value, and an Undo
+  // of a pause resumes only a manual pause.
+  const current = intent === "billing-exempt" ? target.billingExempt : target.processingPaused;
+  const willChange =
+    current !== value && !(intent === "processing-paused" && undo && !value && target.pauseReason !== PAUSE_REASON_MANUAL);
   await logAdminAction(db, {
     actorEmail: auth.email,
     action:
@@ -157,7 +164,7 @@ export async function action({ context, request }: Route.ActionArgs) {
         : value
           ? "merchant.processing.pause"
           : "merchant.processing.resume",
-    metadata: undo ? { accountId, undo: true } : { accountId },
+    metadata: undo ? { accountId, undo: true, changed: willChange } : { accountId, changed: willChange },
   });
   const changed =
     intent === "billing-exempt"
@@ -185,7 +192,9 @@ export async function action({ context, request }: Route.ActionArgs) {
 const HEADING_ID = "admin-merchants-heading";
 // Capsomer's cap-table-open stretches the merchant link over the row and lifts
 // only links, buttons and checkboxes above it. The times are tooltip triggers
-// (hover and focus show the exact time), so my own wrapper lifts them too.
+// (hover and focus show the exact time), so my own wrapper lifts them too,
+// until Capsomer lifts every focusable element (capsomer job_ea794ed5e851);
+// then this wrapper goes.
 const ABOVE_ROW_LINK = "relative z-[1]";
 
 // The family admin pattern (Capsomer patterns.md, Dustin's Q9 of 2026-10-14)
@@ -435,7 +444,9 @@ function MerchantRow({ merchant: m, undoPost }: { merchant: AdminMerchantRow; un
         {m.recoveryRatePct === null ? (
           <span className="text-text-tertiary">{recoveryRateBand(null)}</span>
         ) : (
-          <Status tone={RATE_TONE[recoveryRateTone(m.recoveryRatePct)]} reason={recoveryRateBand(m.recoveryRatePct)} brief>
+          // The band as words beside the rate: a hover title would sit under
+          // the row's stretched link and never reach a mouse (PR 140 review).
+          <Status tone={RATE_TONE[recoveryRateTone(m.recoveryRatePct)]} reason={recoveryRateBand(m.recoveryRatePct)}>
             {`${m.recoveryRatePct}%`}
           </Status>
         )}
