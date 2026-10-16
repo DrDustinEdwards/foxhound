@@ -149,6 +149,17 @@ function blogCardHtml(title: string, description: string, host: string): string 
   </div>`;
 }
 
+// workers-og parses the card from HTML, and the spaces and newlines between
+// two tags in the templates above would become text children of the flex box.
+// Recova's card is JSX, which has none. On the blog card those blank children
+// took part in justify-content:space-between, pulling the footer's host and
+// pill in from the edges and the footer up off Recova's 72px bottom padding
+// (J20). Only whitespace-only runs between tags go: card text is escaped, so a
+// raw `<` or `>` can never sit inside it.
+function compactHtml(html: string): string {
+  return html.replace(/>\s+</g, "><").trim();
+}
+
 // workers-og needs the raw font bytes passed in explicitly (it cannot read
 // a CSS @font-face), and there is no local-filesystem or ASSETS-binding
 // fetch available at this call site, so the font is imported with Vite's
@@ -182,7 +193,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
   // cutover (Phase 6 review finding).
   const host = new URL(siteUrl(env)).host;
 
-  const element = type === "blog" ? blogCardHtml(title, description, host) : defaultCardHtml();
+  const element = compactHtml(type === "blog" ? blogCardHtml(title, description, host) : defaultCardHtml());
 
   const image = new ImageResponse(element, {
     width: 1200,

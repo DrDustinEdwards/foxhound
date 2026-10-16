@@ -111,3 +111,19 @@ describe("Recova's blog card colours", () => {
     expect(styleOf(html, "Colour check")).toContain("color:#f0ede8;");
   });
 });
+
+// workers-og parses the card from HTML, and a run of spaces and newlines
+// between two tags becomes a text child of the flex box. Recova's card is JSX,
+// which has no such children. On the blog card those blank children took part
+// in justify-content:space-between: the footer's host sat at x=271 instead of
+// Recova's 80, the pill short of the right edge, and the footer about 36px
+// above Recova's 72px bottom padding (decoded from the rendered PNG, J20).
+describe("the card HTML has no blank text children", () => {
+  it("no tag is followed by whitespace-only text before the next tag", async () => {
+    for (const path of ["/og", "/og?type=blog&title=T&description=D", "/og?type=blog&title=T"]) {
+      const { html } = await render(path);
+      expect(html.trim()).toBe(html);
+      expect(html.match(/>\s+</g) ?? []).toEqual([]);
+    }
+  });
+});
