@@ -155,6 +155,19 @@ describe("J41 stripe: the card and its rows", () => {
     expect(CODE).toContain('variant={isConfirming ? "danger" : "default"}');
   });
 
+  it("the first press only asks: the button is never a submit button, so it cannot post on the press that opens the confirm", () => {
+    // Found on the rendered page: with `type={isConfirming ? "submit" : "button"}`
+    // React re-renders inside the click, before the browser runs the click's
+    // default action, so ONE press of "Disconnect Stripe" turned the button
+    // into a submit button and then submitted it, disconnecting with no
+    // confirm. The button stays type="button" and the second press submits
+    // its own form explicitly.
+    expect(CODE).not.toMatch(/type=\{isConfirming/);
+    expect(CODE).not.toMatch(/<Button[^>]*type="submit"/);
+    expect(CODE).toContain(".form?.requestSubmit()");
+    for (const b of controls(render(), "Disconnect Stripe")) expect(attr(b, "type")).toBe("button");
+  });
+
   it("ends with Add Stripe account, a link styled as a Capsomer button", () => {
     const html = render();
     const add = controls(html, "Add Stripe account");
