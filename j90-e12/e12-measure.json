@@ -1,0 +1,96 @@
+{
+  "light": {
+    "lang": "en",
+    "title": "Action required: Your visa card ending in 4242 is expiring",
+    "h1": 0,
+    "links": [
+      {
+        "text": "Update Payment Method",
+        "href": "https://foxhound.example.com/p/EXAMPLE-NOT-A-TOKEN"
+      },
+      {
+        "text": "Unsubscribe",
+        "href": "https://foxhound.example.com/u/EXAMPLE-NOT-A-TOKEN"
+      }
+    ],
+    "minBodyPx": 16,
+    "paragraph": {
+      "fg": "rgb(7, 31, 32)",
+      "bg": "rgb(251, 254, 254)",
+      "size": "16px",
+      "contrast": 16.89
+    },
+    "button": {
+      "fg": "rgb(251, 254, 254)",
+      "bg": "rgb(7, 116, 120)",
+      "size": "16px",
+      "contrast": 5.48
+    },
+    "footer": {
+      "fg": "rgb(89, 105, 106)",
+      "bg": "rgb(241, 253, 253)",
+      "size": "14px",
+      "contrast": 5.53
+    },
+    "footerLink": {
+      "fg": "rgb(1, 88, 92)",
+      "bg": "rgb(241, 253, 253)",
+      "size": "14px",
+      "contrast": 7.92
+    },
+    "brand": {
+      "fg": "rgb(7, 31, 32)",
+      "bg": "rgb(241, 253, 253)",
+      "size": "18px",
+      "contrast": 16.48
+    },
+    "scrollWidth": 640
+  },
+  "dark": {
+    "lang": "en",
+    "title": "Action required: Your visa card ending in 4242 is expiring",
+    "h1": 0,
+    "links": [
+      {
+        "text": "Update Payment Method",
+        "href": "https://foxhound.example.com/p/EXAMPLE-NOT-A-TOKEN"
+      },
+      {
+        "text": "Unsubscribe",
+        "href": "https://foxhound.example.com/u/EXAMPLE-NOT-A-TOKEN"
+      }
+    ],
+    "minBodyPx": 16,
+    "paragraph": {
+      "fg": "rgb(233, 240, 240)",
+      "bg": "rgb(17, 25, 25)",
+      "size": "16px",
+      "contrast": 15.45
+    },
+    "button": {
+      "fg": "rgb(7, 15, 15)",
+      "bg": "rgb(36, 147, 152)",
+      "size": "16px",
+      "contrast": 5.26
+    },
+    "footer": {
+      "fg": "rgb(139, 153, 153)",
+      "bg": "rgb(7, 15, 15)",
+      "size": "14px",
+      "contrast": 6.56
+    },
+    "footerLink": {
+      "fg": "rgb(151, 200, 203)",
+      "bg": "rgb(7, 15, 15)",
+      "size": "14px",
+      "contrast": 10.55
+    },
+    "brand": {
+      "fg": "rgb(233, 240, 240)",
+      "bg": "rgb(7, 15, 15)",
+      "size": "18px",
+      "contrast": 16.77
+    },
+    "scrollWidth": 640
+  }
+}

@@ -1,0 +1,21 @@
+Acme Billing
+
+Hi Jane Buyer,
+
+We wanted to give you a heads up that your visa card ending in 4242 is expiring on 11/2026.
+
+To avoid any interruption to your service, please update your payment method before it expires.
+
+Update Payment Method:
+https://foxhound.example.com/p/EXAMPLE-NOT-A-TOKEN
+
+If you've already updated your card, you can ignore this message.
+
+Thanks,
+
+Acme Billing
+
+--
+This message was sent to jane@example.com.
+Unsubscribe: https://foxhound.example.com/u/EXAMPLE-NOT-A-TOKEN
+1 Example Street, Example City, TX 00000
