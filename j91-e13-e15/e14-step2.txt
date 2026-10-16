@@ -1,0 +1,25 @@
+From: Teamflow <recovery@send.foxhoundapp.com>
+Reply-To: help@example.com
+Subject: A quick update since you left
+{"List-Unsubscribe":"<https://example.com/u/EXAMPLE-NOT-A-TOKEN>","List-Unsubscribe-Post":"List-Unsubscribe=One-Click"}
+
+Teamflow
+
+Hi Jane,
+
+It's been a few days since you cancelled, and we wanted to share what's new.
+
+We've been working hard on improvements and would love to have you back. Your account can be reactivated instantly.
+
+Come Back:
+https://example.com/p/EXAMPLE-NOT-A-TOKEN
+
+Thanks,
+
+Teamflow
+
+--
+This message was sent to jane@example.com.
+You're receiving this from Teamflow about a recent payment. © 2026
+Unsubscribe: https://example.com/u/EXAMPLE-NOT-A-TOKEN
+1 Example Street, Austin TX 78701

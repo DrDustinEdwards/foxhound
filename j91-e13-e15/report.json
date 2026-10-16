@@ -1,0 +1,482 @@
+[
+ {
+  "file": "e13-step1-before-light.png",
+  "lang": "en",
+  "title": "We're sorry to see you go. Here's what you're missing.",
+  "h1": 0,
+  "headings": 0,
+  "btnText": "Reactivate My Account",
+  "btnHref": "https://example.com/p/EXAMPLE-NOT-A-TOKEN",
+  "btnFg": [
+   251,
+   254,
+   254
+  ],
+  "btnBg": [
+   7,
+   116,
+   120
+  ],
+  "btnH": 48,
+  "bodyFg": [
+   7,
+   31,
+   32
+  ],
+  "bodyBg": [
+   251,
+   254,
+   254
+  ],
+  "bodySize": "16px",
+  "hasFooterSentence": false,
+  "bodyContrast": 16.89,
+  "buttonContrast": 5.48
+ },
+ {
+  "file": "e13-step1-before-dark.png",
+  "lang": "en",
+  "title": "We're sorry to see you go. Here's what you're missing.",
+  "h1": 0,
+  "headings": 0,
+  "btnText": "Reactivate My Account",
+  "btnHref": "https://example.com/p/EXAMPLE-NOT-A-TOKEN",
+  "btnFg": [
+   7,
+   15,
+   15
+  ],
+  "btnBg": [
+   36,
+   147,
+   152
+  ],
+  "btnH": 48,
+  "bodyFg": [
+   233,
+   240,
+   240
+  ],
+  "bodyBg": [
+   17,
+   25,
+   25
+  ],
+  "bodySize": "16px",
+  "hasFooterSentence": false,
+  "bodyContrast": 15.45,
+  "buttonContrast": 5.26
+ },
+ {
+  "file": "e13-step1-light.png",
+  "lang": "en",
+  "title": "We're sorry to see you go. Here's what you're missing.",
+  "h1": 0,
+  "headings": 0,
+  "btnText": "Reactivate My Account",
+  "btnHref": "https://example.com/p/EXAMPLE-NOT-A-TOKEN",
+  "btnFg": [
+   251,
+   254,
+   254
+  ],
+  "btnBg": [
+   7,
+   116,
+   120
+  ],
+  "btnH": 48,
+  "bodyFg": [
+   7,
+   31,
+   32
+  ],
+  "bodyBg": [
+   251,
+   254,
+   254
+  ],
+  "bodySize": "16px",
+  "footFg": [
+   89,
+   105,
+   106
+  ],
+  "footBg": [
+   241,
+   253,
+   253
+  ],
+  "footSize": "14px",
+  "hasFooterSentence": true,
+  "bodyContrast": 16.89,
+  "buttonContrast": 5.48,
+  "footerContrast": 5.53
+ },
+ {
+  "file": "e13-step1-dark.png",
+  "lang": "en",
+  "title": "We're sorry to see you go. Here's what you're missing.",
+  "h1": 0,
+  "headings": 0,
+  "btnText": "Reactivate My Account",
+  "btnHref": "https://example.com/p/EXAMPLE-NOT-A-TOKEN",
+  "btnFg": [
+   7,
+   15,
+   15
+  ],
+  "btnBg": [
+   36,
+   147,
+   152
+  ],
+  "btnH": 48,
+  "bodyFg": [
+   233,
+   240,
+   240
+  ],
+  "bodyBg": [
+   17,
+   25,
+   25
+  ],
+  "bodySize": "16px",
+  "footFg": [
+   139,
+   153,
+   153
+  ],
+  "footBg": [
+   7,
+   15,
+   15
+  ],
+  "footSize": "14px",
+  "hasFooterSentence": true,
+  "bodyContrast": 15.45,
+  "buttonContrast": 5.26,
+  "footerContrast": 6.56
+ },
+ {
+  "file": "e14-step2-before-light.png",
+  "lang": "en",
+  "title": "A quick update since you left",
+  "h1": 0,
+  "headings": 0,
+  "btnText": "Come Back",
+  "btnHref": "https://example.com/p/EXAMPLE-NOT-A-TOKEN",
+  "btnFg": [
+   251,
+   254,
+   254
+  ],
+  "btnBg": [
+   7,
+   116,
+   120
+  ],
+  "btnH": 48,
+  "bodyFg": [
+   7,
+   31,
+   32
+  ],
+  "bodyBg": [
+   251,
+   254,
+   254
+  ],
+  "bodySize": "16px",
+  "hasFooterSentence": false,
+  "bodyContrast": 16.89,
+  "buttonContrast": 5.48
+ },
+ {
+  "file": "e14-step2-before-dark.png",
+  "lang": "en",
+  "title": "A quick update since you left",
+  "h1": 0,
+  "headings": 0,
+  "btnText": "Come Back",
+  "btnHref": "https://example.com/p/EXAMPLE-NOT-A-TOKEN",
+  "btnFg": [
+   7,
+   15,
+   15
+  ],
+  "btnBg": [
+   36,
+   147,
+   152
+  ],
+  "btnH": 48,
+  "bodyFg": [
+   233,
+   240,
+   240
+  ],
+  "bodyBg": [
+   17,
+   25,
+   25
+  ],
+  "bodySize": "16px",
+  "hasFooterSentence": false,
+  "bodyContrast": 15.45,
+  "buttonContrast": 5.26
+ },
+ {
+  "file": "e14-step2-light.png",
+  "lang": "en",
+  "title": "A quick update since you left",
+  "h1": 0,
+  "headings": 0,
+  "btnText": "Come Back",
+  "btnHref": "https://example.com/p/EXAMPLE-NOT-A-TOKEN",
+  "btnFg": [
+   251,
+   254,
+   254
+  ],
+  "btnBg": [
+   7,
+   116,
+   120
+  ],
+  "btnH": 48,
+  "bodyFg": [
+   7,
+   31,
+   32
+  ],
+  "bodyBg": [
+   251,
+   254,
+   254
+  ],
+  "bodySize": "16px",
+  "footFg": [
+   89,
+   105,
+   106
+  ],
+  "footBg": [
+   241,
+   253,
+   253
+  ],
+  "footSize": "14px",
+  "hasFooterSentence": true,
+  "bodyContrast": 16.89,
+  "buttonContrast": 5.48,
+  "footerContrast": 5.53
+ },
+ {
+  "file": "e14-step2-dark.png",
+  "lang": "en",
+  "title": "A quick update since you left",
+  "h1": 0,
+  "headings": 0,
+  "btnText": "Come Back",
+  "btnHref": "https://example.com/p/EXAMPLE-NOT-A-TOKEN",
+  "btnFg": [
+   7,
+   15,
+   15
+  ],
+  "btnBg": [
+   36,
+   147,
+   152
+  ],
+  "btnH": 48,
+  "bodyFg": [
+   233,
+   240,
+   240
+  ],
+  "bodyBg": [
+   17,
+   25,
+   25
+  ],
+  "bodySize": "16px",
+  "footFg": [
+   139,
+   153,
+   153
+  ],
+  "footBg": [
+   7,
+   15,
+   15
+  ],
+  "footSize": "14px",
+  "hasFooterSentence": true,
+  "bodyContrast": 15.45,
+  "buttonContrast": 5.26,
+  "footerContrast": 6.56
+ },
+ {
+  "file": "e15-step3-before-light.png",
+  "lang": "en",
+  "title": "Last chance to reactivate your account",
+  "h1": 0,
+  "headings": 0,
+  "btnText": "Reactivate Now",
+  "btnHref": "https://example.com/p/EXAMPLE-NOT-A-TOKEN",
+  "btnFg": [
+   251,
+   254,
+   254
+  ],
+  "btnBg": [
+   7,
+   116,
+   120
+  ],
+  "btnH": 48,
+  "bodyFg": [
+   7,
+   31,
+   32
+  ],
+  "bodyBg": [
+   251,
+   254,
+   254
+  ],
+  "bodySize": "16px",
+  "hasFooterSentence": false,
+  "bodyContrast": 16.89,
+  "buttonContrast": 5.48
+ },
+ {
+  "file": "e15-step3-before-dark.png",
+  "lang": "en",
+  "title": "Last chance to reactivate your account",
+  "h1": 0,
+  "headings": 0,
+  "btnText": "Reactivate Now",
+  "btnHref": "https://example.com/p/EXAMPLE-NOT-A-TOKEN",
+  "btnFg": [
+   7,
+   15,
+   15
+  ],
+  "btnBg": [
+   36,
+   147,
+   152
+  ],
+  "btnH": 48,
+  "bodyFg": [
+   233,
+   240,
+   240
+  ],
+  "bodyBg": [
+   17,
+   25,
+   25
+  ],
+  "bodySize": "16px",
+  "hasFooterSentence": false,
+  "bodyContrast": 15.45,
+  "buttonContrast": 5.26
+ },
+ {
+  "file": "e15-step3-light.png",
+  "lang": "en",
+  "title": "Last chance to reactivate your account",
+  "h1": 0,
+  "headings": 0,
+  "btnText": "Reactivate Now",
+  "btnHref": "https://example.com/p/EXAMPLE-NOT-A-TOKEN",
+  "btnFg": [
+   251,
+   254,
+   254
+  ],
+  "btnBg": [
+   7,
+   116,
+   120
+  ],
+  "btnH": 48,
+  "bodyFg": [
+   7,
+   31,
+   32
+  ],
+  "bodyBg": [
+   251,
+   254,
+   254
+  ],
+  "bodySize": "16px",
+  "footFg": [
+   89,
+   105,
+   106
+  ],
+  "footBg": [
+   241,
+   253,
+   253
+  ],
+  "footSize": "14px",
+  "hasFooterSentence": true,
+  "bodyContrast": 16.89,
+  "buttonContrast": 5.48,
+  "footerContrast": 5.53
+ },
+ {
+  "file": "e15-step3-dark.png",
+  "lang": "en",
+  "title": "Last chance to reactivate your account",
+  "h1": 0,
+  "headings": 0,
+  "btnText": "Reactivate Now",
+  "btnHref": "https://example.com/p/EXAMPLE-NOT-A-TOKEN",
+  "btnFg": [
+   7,
+   15,
+   15
+  ],
+  "btnBg": [
+   36,
+   147,
+   152
+  ],
+  "btnH": 48,
+  "bodyFg": [
+   233,
+   240,
+   240
+  ],
+  "bodyBg": [
+   17,
+   25,
+   25
+  ],
+  "bodySize": "16px",
+  "footFg": [
+   139,
+   153,
+   153
+  ],
+  "footBg": [
+   7,
+   15,
+   15
+  ],
+  "footSize": "14px",
+  "hasFooterSentence": true,
+  "bodyContrast": 15.45,
+  "buttonContrast": 5.26,
+  "footerContrast": 6.56
+ }
+]

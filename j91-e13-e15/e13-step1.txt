@@ -1,0 +1,25 @@
+From: Teamflow <recovery@send.foxhoundapp.com>
+Reply-To: help@example.com
+Subject: We're sorry to see you go. Here's what you're missing.
+{"List-Unsubscribe":"<https://example.com/u/EXAMPLE-NOT-A-TOKEN>","List-Unsubscribe-Post":"List-Unsubscribe=One-Click"}
+
+Teamflow
+
+Hi Jane,
+
+We noticed you recently cancelled your Pro subscription. We're sorry to see you go.
+
+If there's anything we could have done better, we'd love to hear from you. And if you ever want to come back, we'll be here.
+
+Reactivate My Account:
+https://example.com/p/EXAMPLE-NOT-A-TOKEN
+
+Thanks for being a customer,
+
+Teamflow
+
+--
+This message was sent to jane@example.com.
+You're receiving this from Teamflow about a recent payment. © 2026
+Unsubscribe: https://example.com/u/EXAMPLE-NOT-A-TOKEN
+1 Example Street, Austin TX 78701
