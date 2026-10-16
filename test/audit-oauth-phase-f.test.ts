@@ -1,4 +1,5 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
+import { AUDIT_FAQS, AUDIT_HERO, AUDIT_STEPS } from "~/lib/marketing/audit-copy";
 import { fileURLToPath } from "node:url";
 
 import type Database from "better-sqlite3";
@@ -226,7 +227,6 @@ describe("PLANT 1: THE SCOPE PARAMETER, which is the whole of 362 ruling 1", () 
     expect(STRIPE_AUDIT_SCOPE).toBe("read_only");
     const carriers = [
       "app/routes/audit.tsx",
-      "app/routes/products/audit.tsx",
       "app/lib/marketing/docs-content.ts",
     ];
     for (const path of carriers) {
@@ -234,6 +234,12 @@ describe("PLANT 1: THE SCOPE PARAMETER, which is the whole of 362 ruling 1", () 
         "The audit only reads",
       );
     }
+    // The /product/audit spoke carries Recova's own words for the same fact
+    // (J55), built from the constant, so a scope flipped to read_write would
+    // print "Read-write" and fail here.
+    expect(AUDIT_STEPS[0].body).toContain("Read-only OAuth connection.");
+    expect(AUDIT_FAQS[1].a.startsWith("Read-only OAuth scope.")).toBe(true);
+    expect(AUDIT_HERO.pricing).toContain("Read-only Stripe access");
     // And the consent screen's own three "can never" lines, which legacy printed
     // beside a read_write request. Under read-only all three are true.
     const consent = read("app/routes/audit/connect.tsx");

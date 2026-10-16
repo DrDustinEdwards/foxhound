@@ -20,9 +20,10 @@ import "~/site-header.css";
 // 760 how it works, 1100 feature blocks, 480 pricing and closing) and its
 // 620px FAQ (RULES.md 5.1).
 //
-// A second file, not a change to product-sections.tsx: the audit, disputes and
-// intelligence spokes still render from that file and each has its own job.
-// Each moves here when its job lands, and the old file goes with the last.
+// All four spokes render from this file. It began as a second file beside the
+// pre-Capsomer product-sections.tsx while each spoke's job moved it here; the
+// audit spoke (J55) was the last, and the old file and its product-faq.tsx went
+// with it.
 //
 // Look is Capsomer's: buttons, panels, badges, the FAQ's disclosure. Text is on
 // the five sizes (RULES.md 5.2), each Recova size taken to the nearest, a tie
