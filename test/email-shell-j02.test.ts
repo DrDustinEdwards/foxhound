@@ -28,7 +28,7 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const { sendEmail, sendTransactionalEmail } = await import("~/lib/email/send");
+const { sendEmail } = await import("~/lib/email/send");
 const { buildRecoveryEmailJob } = await import("~/lib/engine/execute-step");
 const { buildTemplateEmail } = await import("~/lib/recovery/email-template");
 const { buildWinbackEmail, winbackSubject } = await import("~/lib/recovery/winback-email");
