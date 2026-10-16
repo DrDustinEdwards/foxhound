@@ -429,6 +429,27 @@ describe("J75: the bulk result, where Recova shows it", () => {
     expect(ROUTE_SOURCE).toContain("if (!bulkResultClearsItself(bulk)) return;");
   });
 
+  it("is Capsomer's documented banner markup, with no Foxhound class on a Capsomer element", () => {
+    const html = render(
+      data({ result: { ...data().result, payments: [row(), row({ id: "fp_2", customerName: "Sam Rivera" })] } }),
+      { bulk: applied },
+    );
+    const banner = html.slice(html.indexOf('class="cap-banner"'), html.indexOf('method="get"'));
+    expect(html).toMatch(/<div[^>]*class="cap-banner"[^>]*data-cap="banner"|<div[^>]*data-cap="banner"[^>]*class="cap-banner"/);
+    expect(banner).toMatch(/<button[^>]*data-cap-part="dismiss"[^>]*>Dismiss<\/button>/);
+    const capClasses = [...banner.matchAll(/class="([^"]*\bcap-[^"]*)"/g)].map((m) => m[1]!);
+    expect(capClasses.length).toBeGreaterThan(3);
+    for (const cls of capClasses) {
+      // A Capsomer element carries Capsomer classes only (job J75 DEPENDS ON).
+      expect(cls.split(/\s+/).every((c) => c.startsWith("cap-")), cls).toBe(true);
+    }
+  });
+
+  it("moves focus to the page's main region on Dismiss, through Capsomer's dismissBanner", () => {
+    expect(ROUTE_SOURCE).toContain('import { dismissBanner } from "capsomer/behaviour/banner";');
+    expect(ROUTE_SOURCE).toMatch(/dismissBanner\(\s*e\.currentTarget\.closest<HTMLElement>\("\[data-cap='banner'\]"\)/);
+  });
+
   it("puts no block element inside a paragraph, so the result survives the HTML parser", () => {
     const html = render(
       data({ result: { ...data().result, payments: [row(), row({ id: "fp_2", customerName: "Sam Rivera" })] } }),

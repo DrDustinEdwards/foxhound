@@ -748,7 +748,11 @@ describe("bulk actions: the list route wires all three intents", () => {
     expect(ROUTE).toContain("bulkCopy(bulk.intent)?.didLabel");
     expect(ROUTE).toContain("bulkCopy(bulk.intent)?.didNotLabel");
     expect(ROUTE).toContain("{r.detail ? <span");
-    expect(ROUTE).toContain("onClick={() => setDismissedFor(bulk)}");
+    // Both dismiss paths: the itemised result's own button, and the refusal
+    // Banner's onDismiss.
+    expect(ROUTE).toContain("setDismissedFor(bulk);");
+    expect(ROUTE).toContain('data-cap-part="dismiss"');
+    expect(ROUTE).toContain("onDismiss={() => setDismissedFor(bulk)}");
     // Recova clears its bulk result after 3 seconds (PaymentsClient.tsx
     // doBulkAction). Here only an all-succeeded result does; one with a
     // failure or a refusal waits to be dismissed (WCAG 2.2.1), pending
