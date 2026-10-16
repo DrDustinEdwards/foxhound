@@ -1,288 +1,235 @@
-import { ArrowRight, RefreshCw, ScanSearch, Shield, TrendingUp } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Link } from "react-router";
+import { Panel } from "capsomer/react/panel";
+import { Pill } from "capsomer/react/status";
+import { StatTile, type StatTileLinkProps } from "capsomer/react/stat-tile";
+import "capsomer/button.css";
+import "capsomer/panel.css";
+import "capsomer/row-list.css";
+import "capsomer/stat-tile.css";
+import "capsomer/status.css";
 
 import { INTELLIGENCE_PRICE_CENTS } from "~/lib/constants";
-import { lastRunPhrase } from "~/lib/dashboard/console";
+import { atRiskSubtext, formatCurrencyTotalsShort, lastRunPhrase, protectedSubtext } from "~/lib/dashboard/console";
 import { recoveryRateBand, recoveryRateClassNameOrNull } from "~/lib/dashboard/recovery-rate";
-import { formatMoney, formatMoneyShort } from "~/lib/money-format";
-import type { AttentionRow, AttentionTone, ConsoleHero, ConsoleTiles } from "~/lib/dashboard/console.server";
+import { formatMoneyShort } from "~/lib/money-format";
+import type { AttentionRow, ConsoleHero, ConsoleTiles } from "~/lib/dashboard/console.server";
 
-// The console cluster's presentation: hero row, product tiles, needs-attention
-// feed. Pure components; every number arrives already computed from
-// app/lib/dashboard/console.server.ts.
+// The console's three parts in Recova's order (app/(app)/console/page.tsx at
+// blob 3b8a736e, with lib/console-data.tsx at 234791c4): the hero row of three
+// platform figures, the four product tiles, then the needs-attention rows.
+// Built from Capsomer 0.9.0's parts (Q10): the hero cards are Panels, the
+// product tiles are StatTiles, the attention rows are row-list rows with a
+// Pill for the product. No Foxhound CSS sits over a Capsomer component; what
+// Recova's look needs beyond Capsomer's defaults (the tile icons and arrows,
+// the dimmed inactive tile, the row's coloured dot) waits for Capsomer's
+// per-site layer (capsomer job_ec5ec0754626) and is listed in the J64 pull
+// request.
 //
-// Type-only imports from the .server module are safe (erased at build). No value
-// import from it appears here, which is what would fail the client build.
+// Pure components: every number arrives already computed from
+// app/lib/dashboard/console.server.ts. Type-only imports from that module are
+// erased at build, so no server code reaches the client bundle.
 
-/** Dot color per attention tone. The brand accent is not used: a dot is decoration, and the
- *  one-accent-per-card budget belongs to something a merchant can act on. */
-const TONE_DOT_CLASS: Record<AttentionTone, string> = {
-  urgent: "bg-red",
-  warning: "bg-warning-text",
-  subtle: "bg-text-subtle",
-};
+/** Recova's hero card: a label, one large figure and a line beneath. */
+function HeroCard({
+  label,
+  value,
+  valueClassName,
+  sub,
+}: {
+  label: string;
+  value: string;
+  valueClassName?: string | null;
+  sub: string;
+}) {
+  return (
+    <Panel size="sm" title={label}>
+      <p className={`m-0 font-mono text-display font-medium tabular-nums ${valueClassName ?? "text-text"}`}>{value}</p>
+      <p className="m-0 mt-1 text-label text-text-subtle">{sub}</p>
+    </Panel>
+  );
+}
+
+/** Whether any currency's total is above zero. A tone needs only the sign, so
+ *  no figure is ever added across currencies (RULES.md 3.20). */
+const anyAboveZero = (rows: readonly { cents: number }[]) => rows.some((r) => r.cents > 0);
 
 export function ConsoleHeroRow({ hero }: { hero: ConsoleHero }) {
   return (
-    <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-      <div className="rounded-lg border border-border bg-surface p-4">
-        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
-          Protected this month
-        </p>
-        <p
-          className={`m-0 mt-2 font-mono text-display font-medium tabular-nums ${
-            hero.protectedThisMonthCents > 0 ? "text-success-text" : "text-text"
-          }`}
-        >
-          {formatMoneyShort(hero.protectedThisMonthCents, hero.protectedCurrency)}
-        </p>
-        <p className="m-0 mt-1 text-label text-text-tertiary">
-          {hero.recoveredAllTimeCount === 0
-            ? "No recoveries yet"
-            : `${hero.recoveredAllTimeCount} ${hero.recoveredAllTimeCount === 1 ? "payment" : "payments"} recovered all time`}
-        </p>
-      </div>
-
-      {/* The real sum of what is currently in recovery. Legacy shipped a literal
-          $0 here with the actual signal demoted to the subtext. */}
-      <div className="rounded-lg border border-border bg-surface p-4">
-        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
-          At risk right now
-        </p>
-        <p className="m-0 mt-2 font-mono text-display font-medium tabular-nums text-text">
-          {formatMoneyShort(hero.atRiskCents, hero.atRiskCurrency)}
-        </p>
-        <p className="m-0 mt-1 text-label text-text-tertiary">
-          {atRiskParts(hero.activeSequenceCount, hero.openDisputeCount)}
-        </p>
-      </div>
-
-      <div className="rounded-lg border border-border bg-surface p-4">
-        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
-          Platform health
-        </p>
-        <p
-          className={`m-0 mt-2 font-mono text-display font-medium tabular-nums ${recoveryRateClassNameOrNull(hero.recoveryRatePct)}`}
-        >
-          {hero.recoveryRatePct === null ? "-" : `${hero.recoveryRatePct}%`}
-        </p>
-        <p className="m-0 mt-1 text-label text-text-tertiary">
-          {recoveryRateBand(hero.recoveryRatePct)}
-        </p>
-      </div>
-    </section>
+    <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <HeroCard
+        label="Protected this month"
+        value={formatCurrencyTotalsShort(hero.protectedThisMonth)}
+        valueClassName={anyAboveZero(hero.protectedThisMonth) ? "text-success-text" : null}
+        sub={protectedSubtext(hero.recoveredAllTimeCount)}
+      />
+      {/* The real total of what is in recovery now, per currency. Recova shipped
+          a literal $0 here (const atRiskCents = 0) while its subtext carried
+          the signal: a figure that was never true (RULES.md 1.2, copy where
+          Recova lied). */}
+      <HeroCard
+        label="At risk right now"
+        value={formatCurrencyTotalsShort(hero.atRisk)}
+        sub={atRiskSubtext(hero.activeSequenceCount, hero.openDisputeCount)}
+      />
+      <HeroCard
+        label="Platform health"
+        value={hero.recoveryRatePct === null ? "-" : `${hero.recoveryRatePct}%`}
+        valueClassName={recoveryRateClassNameOrNull(hero.recoveryRatePct)}
+        sub={recoveryRateBand(hero.recoveryRatePct)}
+      />
+    </div>
   );
 }
 
-function atRiskParts(activeSequenceCount: number, openDisputeCount: number): string {
-  const parts: string[] = [];
-  if (activeSequenceCount > 0) {
-    parts.push(`${activeSequenceCount} active ${activeSequenceCount === 1 ? "sequence" : "sequences"}`);
-  }
-  if (openDisputeCount > 0) {
-    parts.push(`${openDisputeCount} open ${openDisputeCount === 1 ? "dispute" : "disputes"}`);
-  }
-  return parts.length > 0 ? parts.join(" · ") : "All clear";
-}
-
-function Tile({
-  icon: Icon,
-  name,
-  href,
-  dimmed,
-  children,
-}: {
-  icon: LucideIcon;
-  name: string;
-  href: string;
-  dimmed?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <Link
-      to={href}
-      className={`flex flex-col gap-2 rounded-lg border border-border bg-surface p-4 no-underline transition-opacity hover:opacity-80 ${
-        dimmed ? "opacity-60" : ""
-      }`}
-    >
-      <div className="flex items-center justify-between">
-        <span className="flex items-center gap-2">
-          <Icon className="h-4 w-4 text-text-tertiary" strokeWidth={1.5} aria-hidden="true" />
-          <span className="text-label font-medium text-text">{name}</span>
-        </span>
-        <ArrowRight className="h-3.5 w-3.5 text-text-tertiary" strokeWidth={1.5} aria-hidden="true" />
-      </div>
-      {children}
-    </Link>
-  );
-}
-
-/**
- * A tile's headline number with its unit caption.
- *
- * flex-wrap is load-bearing, not decoration. The tile grid is two columns at
- * 375px, which leaves about 131px of content per tile after the outer padding,
- * the column gap, and the tile's own p-4. A value like "$5,381" beside a caption
- * like "MRR at risk" does not fit on one line in that space, so without wrapping
- * the caption would push past the tile edge. Wrapped, it drops under the number.
- */
-function TileValue({ value, caption, className }: { value: string; caption: string; className?: string }) {
-  return (
-    <span className="flex flex-wrap items-baseline gap-x-2">
-      <span className={`font-mono text-title font-medium tabular-nums ${className ?? "text-text"}`}>{value}</span>
-      <span className="font-mono text-micro text-text-tertiary">{caption}</span>
-    </span>
-  );
-}
-
-/** The call-to-action an inactive tile shows instead of a number. */
-function TileCta({ label }: { label: string }) {
-  return <span className="text-micro font-medium text-brand-text">{label}</span>;
-}
+/** A tile's link through the router, so it navigates without a reload. */
+const routerLink = ({ href, children, ...rest }: StatTileLinkProps) => (
+  <Link to={href} {...rest}>
+    {children}
+  </Link>
+);
 
 export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: number }) {
+  const recovered = anyAboveZero(tiles.recoveredThisMonth);
+  const highRisk = anyAboveZero(tiles.highRiskMrr);
   return (
-    <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-      <Tile
-        icon={RefreshCw}
-        name="Recovery"
-        href={tiles.stripeConnected ? "/recovery/dashboard" : "/connect"}
-        dimmed={!tiles.stripeConnected}
-      >
+    <ul className="m-0 mb-8 grid list-none grid-cols-2 gap-3 p-0 lg:grid-cols-4" aria-label="Products">
+      <li className="grid">
         {tiles.stripeConnected ? (
-          <>
-            <TileValue
-              value={formatMoneyShort(tiles.recoveredThisMonthCents, tiles.recoveredCurrency)}
-              caption="this month"
-              className={tiles.recoveredThisMonthCents > 0 ? "text-success-text" : undefined}
-            />
-            <span className="text-micro text-text-subtle">
-              {tiles.recoveryRatePct === null ? "No failures yet" : `${tiles.recoveryRatePct}% rate`}
-            </span>
-          </>
+          <StatTile
+            label="Recovery"
+            figure={formatCurrencyTotalsShort(tiles.recoveredThisMonth)}
+            unit="this month"
+            tone={recovered ? "ok" : undefined}
+            detail={tiles.recoveryRatePct === null ? "No failures yet" : `${tiles.recoveryRatePct}% rate`}
+            href="/recovery/dashboard"
+            renderLink={routerLink}
+          />
         ) : (
-          <TileCta label="Connect Stripe" />
+          <StatTile label="Recovery" figure="Connect Stripe" href="/connect" renderLink={routerLink} />
         )}
-      </Tile>
+      </li>
 
-      {/* No inactive state: dispute intake is webhook-driven, so there is nothing
-          for a merchant to switch on. */}
-      <Tile icon={Shield} name="Disputes" href="/disputes/dashboard">
-        <TileValue value={String(tiles.openDisputeCount)} caption="open" />
-        {tiles.disputesDueSoonCount > 0 ? (
-          <span className="text-micro font-medium text-error-text">
-            {tiles.disputesDueSoonCount} due in 48h
-          </span>
-        ) : (
-          <span className="text-micro text-text-subtle">Nothing due soon</span>
-        )}
-      </Tile>
+      {/* Always active. Recova gated this tile on account_products, which
+          nothing in Foxhound writes, and dispute intake is webhook-driven with
+          no switch to turn on (RULES.md 3.18), so the "Enable in Settings"
+          state could never be true. */}
+      <li className="grid">
+        <StatTile
+          label="Disputes"
+          figure={String(tiles.openDisputeCount)}
+          unit="open"
+          // Recova keeps the open count neutral and makes only the due line red.
+          // A tile tone would colour the figure too, so the line carries the
+          // colour and the tile takes none.
+          detail={
+            tiles.disputesDueSoonCount > 0 ? (
+              <span className="font-medium text-error-text">{tiles.disputesDueSoonCount} due in 48h</span>
+            ) : undefined
+          }
+          href="/disputes/dashboard"
+          renderLink={routerLink}
+        />
+      </li>
 
-      <Tile
-        icon={TrendingUp}
-        name="Intelligence"
-        href={tiles.intelligenceEntitled ? "/intelligence/dashboard" : "/billing"}
-        dimmed={!tiles.intelligenceEntitled}
-      >
+      <li className="grid">
         {tiles.intelligenceEntitled ? (
-          <>
-            <TileValue
-              value={formatMoneyShort(tiles.highRiskMrrCents, tiles.recoveredCurrency)}
-              caption="MRR at risk"
-              className={tiles.highRiskMrrCents > 0 ? "text-caution" : "text-success-text"}
-            />
-            <span className="text-micro text-text-subtle">
-              {tiles.highRiskCustomerCount > 0
-                ? `${tiles.highRiskCustomerCount} at risk`
-                : "All healthy"}
-            </span>
-          </>
+          <StatTile
+            label="Intelligence"
+            figure={formatCurrencyTotalsShort(tiles.highRiskMrr)}
+            unit="MRR at risk"
+            // Recova's yellow-orange figure for MRR at risk has no place on a teal page
+            // (Q11); the figure stays neutral and turns ok when nothing is at
+            // risk, as Recova's turned green.
+            tone={highRisk ? undefined : "ok"}
+            detail={tiles.highRiskCustomerCount > 0 ? `${tiles.highRiskCustomerCount} high-risk` : "All healthy"}
+            href="/intelligence/dashboard"
+            renderLink={routerLink}
+          />
         ) : (
-          <span className="text-micro text-text-subtle">
-            <span className="font-mono">{formatMoneyShort(INTELLIGENCE_PRICE_CENTS, "usd")}/mo</span>
-            {" · "}
-            <span className="font-medium text-brand-text">Subscribe</span>
-          </span>
+          <StatTile
+            label="Intelligence"
+            figure="Subscribe"
+            detail={`${formatMoneyShort(INTELLIGENCE_PRICE_CENTS, "usd")}/mo`}
+            href="/billing"
+            renderLink={routerLink}
+          />
         )}
-      </Tile>
+      </li>
 
-      <Tile icon={ScanSearch} name="Audit" href="/audit">
+      {/* Always available, as in Recova. Recova's /audit/dashboard is Foxhound's
+          /audit/history, the signed-in list of the account's runs. */}
+      <li className="grid">
         {tiles.lastAuditAt ? (
-          <>
-            <TileValue
-              value={formatMoneyShort(tiles.auditLeakingCents, tiles.recoveredCurrency)}
-              caption="leaking"
-              className={tiles.auditLeakingCents > 0 ? "text-error-text" : "text-success-text"}
-            />
-            <span className="text-micro text-text-subtle">{lastRunPhrase(tiles.lastAuditAt, nowMs)}</span>
-          </>
+          <StatTile
+            label="Audit"
+            figure={formatMoneyShort(tiles.auditLeakingCents, tiles.auditCurrency)}
+            unit="leaking"
+            tone={tiles.auditLeakingCents > 0 ? "crit" : "ok"}
+            detail={lastRunPhrase(tiles.lastAuditAt, nowMs)}
+            href="/audit/history"
+            renderLink={routerLink}
+          />
         ) : (
-          <TileCta label="Run free audit" />
+          <StatTile label="Audit" figure="Run free audit" href="/audit/connect" renderLink={routerLink} />
         )}
-      </Tile>
-    </section>
+      </li>
+    </ul>
   );
 }
 
-export function ConsoleAttentionFeed({
-  rows,
-  currency,
-}: {
-  rows: AttentionRow[];
-  currency: string;
-}) {
+/** Recova's urgent rows have a red dot. Capsomer marks a critical row with its
+ *  red edge; the other two tones are told apart by their words. */
+const ROW_TONE: Record<AttentionRow["tone"], "crit" | undefined> = {
+  urgent: "crit",
+  warning: undefined,
+  subtle: undefined,
+};
+
+export function ConsoleAttentionFeed({ rows }: { rows: AttentionRow[] }) {
+  // Recova's list has no heading of its own; the list's name gives a screen
+  // reader one without adding a visible heading Recova never had.
+  if (rows.length === 0) {
+    return <p className="m-0 text-label text-text-subtle">All clear. The platform is running.</p>;
+  }
   return (
-    <section className="mt-8">
-      <h2 className="m-0 font-mono text-micro uppercase tracking-wide text-text-tertiary">
-        Needs attention
-      </h2>
-      {rows.length === 0 ? (
-        <p className="m-0 mt-3 text-label text-text-tertiary">
-          All clear. The platform is running.
-        </p>
-      ) : (
-        <ul className="m-0 mt-2 list-none p-0">
-          {rows.map((row, i) => (
-            <li
-              key={row.key}
-              className={`flex flex-wrap items-center gap-x-3 gap-y-1 py-3 ${i > 0 ? "border-t border-border-sub" : ""}`}
-            >
-              <span
-                className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${TONE_DOT_CLASS[row.tone]}`}
-                aria-hidden="true"
-              />
-              <span className="min-w-0 flex-1 text-label">
-                <span className="text-text">{row.subject}</span>{" "}
-                <span className="text-text-secondary">{row.detail}</span>
-                {row.emphasis ? (
-                  <>
-                    {" "}
-                    <span className={row.tone === "urgent" ? "font-medium text-error-text" : "text-text-tertiary"}>
-                      {row.emphasis}
-                    </span>
-                  </>
-                ) : null}
-                {row.mrrCents ? (
-                  <span className="text-text-subtle"> ({formatMoney(row.mrrCents, currency)}/mo)</span>
-                ) : null}
-              </span>
-              <span className="shrink-0 rounded bg-surface2 px-1.5 py-0.5 font-mono text-micro text-text-tertiary">
-                {row.product}
-              </span>
-              {row.href ? (
-                <Link
-                  to={row.href}
-                  aria-label={row.ariaLabel}
-                  className="shrink-0 text-text-tertiary no-underline hover:text-text"
-                >
-                  <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
-                </Link>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
+    <ul className="cap-rows" role="list" aria-label="Needs attention">
+      {rows.map((row) => (
+        <li key={row.key} className="cap-row" data-tone={ROW_TONE[row.tone]}>
+          <div className="cap-row-title">
+            <span className="text-text">{row.subject}</span>{" "}
+            <span className="text-text-secondary">{row.detail}</span>
+            {row.emphasis ? (
+              <>
+                {" "}
+                <span className={row.tone === "urgent" ? "font-medium text-error-text" : "text-text-subtle"}>
+                  {row.emphasis}
+                </span>
+              </>
+            ) : null}
+            {row.mrrCents && row.mrrCurrency ? (
+              <span className="text-text-subtle"> ({formatMoneyShort(row.mrrCents, row.mrrCurrency)}/mo)</span>
+            ) : null}
+          </div>
+          <span className="cap-row-meta">
+            <Pill variant="secondary">{row.product}</Pill>
+          </span>
+          {row.href ? (
+            <div className="cap-row-actions">
+              <Link
+                to={row.href}
+                aria-label={row.ariaLabel}
+                className="cap-btn"
+                data-variant="quiet"
+                data-size="xs"
+                data-icon-only=""
+              >
+                <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+              </Link>
+            </div>
+          ) : null}
+        </li>
+      ))}
+    </ul>
   );
 }

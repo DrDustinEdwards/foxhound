@@ -7,7 +7,28 @@
 // movements are all zero: a fresh baseline, not fabricated churn/expansion
 // against nothing (the caller passes `null` for priorByCustomer in that case).
 
-import type { CohortRow } from "~/components/charts";
+/** One signup cohort's figures: values[i] is a 0-100 share, one per column
+ *  (months since the cohort started). Stored as JSON on mrr_snapshots. */
+export interface CohortRow {
+  label: string;
+  values: number[];
+}
+
+/** True when `value` structurally matches CohortRow[] (defensive: nothing in
+ *  the schema fixes the shape of a JSON column). */
+export function isCohortRows(value: unknown): value is CohortRow[] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (r) =>
+        typeof r === "object" &&
+        r !== null &&
+        typeof (r as CohortRow).label === "string" &&
+        Array.isArray((r as CohortRow).values) &&
+        (r as CohortRow).values.every((v) => typeof v === "number"),
+    )
+  );
+}
 
 export type ChurnReason = "voluntary" | "involuntary" | null;
 
@@ -162,7 +183,8 @@ export function buildPlanBreakdown(current: CustomerMrrPoint[]): Record<string, 
 }
 
 /**
- * One CohortGrid row (app/components/charts.tsx) per signup cohort, with a
+ * One CohortRow per signup cohort (drawn on the console by
+ * app/lib/dashboard/console-charts.ts), with a
  * single "retention now" column: the percentage of that cohort's customers
  * (everyone this run's enumeration saw with that cohort key, active or
  * churned-but-still-a-Stripe-customer) who still contribute MRR today.
