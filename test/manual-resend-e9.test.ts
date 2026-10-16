@@ -265,18 +265,37 @@ describe("E9: what it carries", () => {
     expect(m.text?.length ?? 0).toBeGreaterThan(0);
   });
 
-  it("reads the sender name of the payment's own connection, scoped to the account", async () => {
+  it("reads the payment's own connection, not another connection on the same account", async () => {
     seed({ senderName: "Acme" });
-    // A second account's connection with a different name must never be read.
+    sqlite.prepare("UPDATE stripe_connections SET is_primary = 0 WHERE id = 'c_e9'").run();
+    sqlite
+      .prepare(
+        "INSERT INTO stripe_connections (id, account_id, stripe_user_id, is_primary, stripe_access_token, sender_name, reply_to_email, connected_at, created_at) VALUES ('c_e9_primary', ?, 'acct_s_e9b', 1, 'cipher', 'Primary Co', 'primary@example.com', 1000, 1000)",
+      )
+      .run(ACCOUNT);
+    await resend();
+    expect(only().from).toMatch(/^Acme </);
+    expect(only().replyTo).toBeUndefined();
+  });
+
+  it("a step id from another account never reads that account's sender", async () => {
+    seed({ senderName: "Acme", replyTo: "help@example.com" });
     sqlite
       .prepare("INSERT INTO accounts (id, name, created_at, live_sends_enabled) VALUES ('acct_other', 'Other', 1000, 1)")
       .run();
-    sqlite
-      .prepare(
-        "INSERT INTO stripe_connections (id, account_id, stripe_user_id, is_primary, stripe_access_token, sender_name, connected_at, created_at) VALUES ('c_other', 'acct_other', 'acct_s_other', 1, 'cipher', 'Other Co', 1000, 1000)",
-      )
-      .run();
-    await resend();
-    expect(only().from).toMatch(/^Acme </);
+    await resendDepsFor(env).send({
+      accountId: "acct_other",
+      recoveryStepId: "step_d3",
+      to: CUSTOMER,
+      subject: SUBJECT,
+      bodyHtml: BODY,
+      now: NOW,
+    });
+    // A loop over no sends proves nothing (RULES.md 6.2).
+    expect(harness.sent).toHaveLength(1);
+    for (const m of harness.sent) {
+      expect(m.from).toMatch(/^Support </);
+      expect(m.replyTo).toBeUndefined();
+    }
   });
 });
