@@ -73,6 +73,8 @@ export async function loader({ context }: Route.LoaderArgs) {
 const CHART_WIDTH = 1120;
 // Recova's plot is 220px high (StepPerformanceChart.tsx, h-[220px]).
 const CHART_HEIGHT = 220;
+// About the width of the longest step name ("Revocation email") at the axis's text size.
+const X_LABEL_WIDTH = 110;
 
 /** Recova's StatCard: a label, a figure, and an optional line under it. */
 function StatCard({
@@ -148,6 +150,9 @@ function StepPerformanceChart({ chart }: { chart: StepPerformanceSummary["chart"
             xLabel: null,
             yLabel: "Rate (%)",
             formatValue: (v) => `${v}%`,
+            // Recharts, which drew Recova's chart, skips x labels that would
+            // overlap; this prints every nth label once the steps no longer fit.
+            maxXTicks: Math.max(2, Math.floor(width / X_LABEL_WIDTH)),
             alt: stepPerformanceAlt(chart),
             width,
             height: CHART_HEIGHT,
@@ -197,12 +202,15 @@ function StepFigures({ card }: { card: StepCard }) {
 
 function StepCardView({ card }: { card: StepCard }) {
   const preview = card.kind === "email" && card.sent > 0 && card.latestBodyHtml ? card.latestBodyHtml : null;
-  const description =
+  const line =
     card.kind === "retry" ? (
       "Automatic retry. No email sent."
     ) : card.sent > 0 && card.latestSubject ? (
-      <span className="block truncate">Latest subject: {card.latestSubject}</span>
-    ) : undefined;
+      <>Latest subject: {card.latestSubject}</>
+    ) : null;
+  // The figures sit in the body, on the panel's surface, not in its raised
+  // header: the rate colours and the subtle text reach 4.5:1 on the surface in
+  // both themes and fall short on the dark raised tone.
   return (
     <Panel
       level={3}
@@ -212,10 +220,13 @@ function StepCardView({ card }: { card: StepCard }) {
           {card.timingLabel ? <Pill variant="secondary">{card.timingLabel}</Pill> : null}
         </span>
       }
-      actions={<StepFigures card={card} />}
-      description={description}
-      flush={preview === null}
     >
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <p className="m-0 min-w-0 flex-1 truncate text-micro text-text-subtle">{line}</p>
+        <div className="shrink-0">
+          <StepFigures card={card} />
+        </div>
+      </div>
       {preview !== null ? (
         <Disclosure summary="Preview latest email">
           {/* latestBodyHtml is sanitized server-side in the loader before it

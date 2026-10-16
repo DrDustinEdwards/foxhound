@@ -303,6 +303,18 @@ describe("J12: Capsomer parts and an Enarratio chart", () => {
   });
 });
 
+describe("J12: contrast on the dark raised header", () => {
+  it("keeps each step's figures and subtle text out of the panel's raised header", () => {
+    const html = render(makeLoaderData(true));
+    const heads = [...html.matchAll(/<header class="cap-panel-head">([\s\S]*?)<\/header>/g)].map((m) => m[1]!);
+    expect(heads.length).toBeGreaterThan(0);
+    for (const head of heads) {
+      expect(head).not.toMatch(/text-(error-text|caution|success-text|text-subtle)/);
+      expect(head).not.toContain("recovered");
+    }
+  });
+});
+
 describe("J12: the stat row is Recova's", () => {
   it("colours the averages by Recova's bands", () => {
     const html = render(makeLoaderData(true));
