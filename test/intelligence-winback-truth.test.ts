@@ -6,9 +6,8 @@
 // Nothing writes that flag today, so every cancelled customer on such an
 // account waits the longer time. The copy must say so, with the hours taken
 // from the constants, and must not say Intelligence never changes a sequence.
-import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { WINBACK_PRIORITY_ACTION, WINBACK_STEP1_HOURS, WINBACK_UNFLAGGED_STEP1_HOURS } from "~/lib/constants";
+import { WINBACK_STEP1_HOURS, WINBACK_UNFLAGGED_STEP1_HOURS } from "~/lib/constants";
 import { getDocGuide } from "~/lib/marketing/docs-content";
 import { INTELLIGENCE_FAQS } from "~/lib/marketing/intelligence-copy";
 import { WIN_BACK_SCHEDULE } from "~/lib/recovery/schedule";
@@ -37,13 +36,9 @@ describe("the engine fact the copy describes", () => {
     expect(first.scheduledAt.getTime() - canceledAt.getTime()).toBe(WINBACK_UNFLAGGED_STEP1_HOURS * 3_600_000);
   });
 
-  it("process.ts gates on the Intelligence entitlement and returns the unflagged offset unless winback_priority", () => {
-    const src = readFileSync("app/lib/webhooks/process.ts", "utf8");
-    const fn = src.slice(src.indexOf("async function resolveWinbackStep1Offset"));
-    expect(fn).toContain("isIntelligenceEntitled(db, accountId)");
-    expect(fn).toContain("recommendation === WINBACK_PRIORITY_ACTION ? undefined : WINBACK_UNFLAGGED_STEP1_HOURS");
-    expect(WINBACK_PRIORITY_ACTION).toBe("winback_priority");
-  });
+  // The gate itself (process.ts resolveWinbackStep1Offset) is called, not
+  // read as source, in test/winback-gate-behaviour.test.ts, and
+  // test/winback-priority-no-writer.test.ts keeps "nothing flags a customer" true.
 });
 
 describe("the Intelligence FAQ tells the truth about win-back timing", () => {
@@ -67,5 +62,15 @@ describe("the Platform guide's win-back timing (Additional features)", () => {
   it("states the Intelligence delay beside the 1-hour first email, from the same constants", () => {
     const text = docText("platform");
     expect(text).toContain(`waits ${hours(WINBACK_UNFLAGGED_STEP1_HOURS)} instead of ${hours(WINBACK_STEP1_HOURS)}`);
+  });
+});
+
+describe("the /features win-back line says Intelligence is what picks the longer step 1", () => {
+  it("names both step-1 times from the constants and ties the longer one to Intelligence", async () => {
+    const { featureSections } = await import("~/lib/marketing/features-content");
+    const text = JSON.stringify(featureSections({ cronJobCount: 1, merchantMcpToolCount: 1 }));
+    expect(text).toContain(
+      `step 1 at ${hours(WINBACK_STEP1_HOURS)}, or ${hours(WINBACK_UNFLAGGED_STEP1_HOURS)} on an account with Intelligence unless the customer is flagged as a win-back priority`,
+    );
   });
 });
