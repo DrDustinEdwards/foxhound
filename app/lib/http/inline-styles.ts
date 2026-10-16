@@ -10,7 +10,8 @@
 // document's policy never named, and the browser would drop it silently. A
 // hash names the content, so it holds on every render path.
 //
-// test/security-headers.test.ts recomputes each hash from these strings and
+// test/security-headers.test.ts recomputes each hash from these strings (and
+// test/blog-diagrams-j25.test.ts the diagram hashes from their files) and
 // fails if one drifts, and fails if any <style> element in app/ renders
 // anything other than one of these constants.
 
@@ -31,7 +32,26 @@ export const BLOG_COVER_FALLBACK_CSS = `
 .dz-band { fill: var(--brand-text); }
 `.trim();
 
+// /blog/<slug>: the <style> inside each of Recova's eight diagram SVGs (J25,
+// F23), inlined by `:::diagram[slug]` (app/lib/blog/diagrams.server.ts). The
+// CSS lives in public/diagrams/*.svg (Recova's files, gold accents moved to
+// teal by Q11), so it is hashed rather than copied here. Each hash is of the
+// element's text as the browser parses it, so the files' &quot; references
+// are hashed as ". test/blog-diagrams-j25.test.ts recomputes them from the
+// files and fails if a file changes without its hash.
+export const DIAGRAM_STYLE_HASHES: readonly string[] = [
+  "sha256-S8DC8uM6ZxYlxRdXl7iuuB25dyh5r8VQ/ze0eei8o7k=", // decline-code-taxonomy.svg
+  "sha256-cp6vuobfH3Ri6nZOppBIggCx0ywA1i7e065cj+1+Zg4=", // dispute-lifecycle.svg
+  "sha256-junjTYH/cRcR9UfRF42fx6fxVFxkxWj5QaNwtA9wgF0=", // dunning-sequence-timeline.svg
+  "sha256-BvbyQGxw8HpFscigsfruagxZTc7Cnocw89EpvQ90giw=", // involuntary-vs-voluntary.svg
+  "sha256-FOBwh4wNMykoxNWTw8Gf0tEr+zyCsSmaf52U66N9qVQ=", // mrr-waterfall.svg
+  "sha256-DuPlXVt0JgHPi+xc37VQUQ779Lbv1J8VHUiaWufoJkM=", // nrr-calculation.svg
+  "sha256-SVj5J4k+pPWm3smDJURDzwK95RSGp4h29tap/aMUaPw=", // recovery-sequence.svg
+  "sha256-O/6V339GZIqB+FUUTTCkg/qhFGV+t2ckaGjsxqHRGjQ=", // recovery-vs-smart-retries.svg
+];
+
 export const INLINE_STYLE_HASHES: readonly string[] = [
   "sha256-kauF8mYaRsSeQ+zliDpLHTpyel4lJpD4YfS8YtTBTp4=", // FEATURE_FILTER_CSS
   "sha256-jhMI5icJZb23S3t6rnr6WoUj4k7g5rjXoiGq1e8iGvA=", // BLOG_COVER_FALLBACK_CSS
+  ...DIAGRAM_STYLE_HASHES,
 ];
