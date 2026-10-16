@@ -2,16 +2,17 @@ import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { buildPaymentsCsv } from "~/lib/recovery/payments-csv";
+import { parsePaymentsPage, parsePaymentsPageSize } from "~/lib/recovery/payments-list";
 import { getAmountBounds, listFilteredFailedPayments, type FailedPaymentSort } from "~/lib/recovery/queries.server";
 import { isPaymentTimeRange, resolvePaymentTimeRangeCutoff, type PaymentTimeRange } from "~/lib/recovery/time-range";
 
 import type { Route } from "./+types/export";
 
-// /recovery/payments/export.csv (TASK-foxhound-recovery-surface-parity.md
-// Phase 3): re-runs the SAME filters the payments list itself uses, server-
-// side, over every matching row (pageSize "all"), never the page currently
-// on screen - so the export always matches what "Export CSV" was clicked
-// from, not whatever happened to be paginated in.
+// /recovery/payments/export.csv: Recova's Export CSV writes the rows on
+// screen (PaymentsClient.tsx handleExport, exportToCSV(filtered)), so this
+// re-runs the list's own filters, sort, page and page size, server side and
+// scoped to the signed-in account. "All" as the page size exports every
+// matching row, as it shows every row.
 
 function parseSort(value: string | null): FailedPaymentSort {
   return value === "oldest" || value === "amount_desc" || value === "amount_asc" ? value : "newest";
@@ -41,6 +42,8 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   const declineCategory = params.get("category") || null;
   const sort = parseSort(params.get("sort"));
   const time = parseTimeRange(params.get("time"));
+  const page = parsePaymentsPage(params.get("page"));
+  const pageSize = parsePaymentsPageSize(params.get("perPage"));
 
   const bounds = await getAmountBounds(db, accountId);
   const amountMinParsed = parseAmountParam(params.get("amountMin"), bounds.minCents, bounds.maxCents);
@@ -57,8 +60,8 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     amountMinCents,
     amountMaxCents,
     sort,
-    page: 1,
-    pageSize: "all",
+    page,
+    pageSize,
   });
 
   const csv = buildPaymentsCsv(result.payments);

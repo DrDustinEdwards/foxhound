@@ -749,10 +749,13 @@ describe("bulk actions: the list route wires all three intents", () => {
     expect(ROUTE).toContain("bulkCopy(bulk.intent)?.didNotLabel");
     expect(ROUTE).toContain("{r.detail ? <span");
     expect(ROUTE).toContain("onDismiss={() => setDismissedFor(bulk)}");
-    // No auto-dismiss: 274 decision one is explicit that the itemisation waits
-    // for the merchant. The route's only timer is the search's typing delay.
-    expect(ROUTE.match(/setTimeout\(/g)).toHaveLength(1);
+    // Recova clears its bulk result after 3 seconds (PaymentsClient.tsx
+    // doBulkAction); APPROVED-DIFFERENCES approves the per-payment report and
+    // the failures kept selected, not a result kept until dismissed. The
+    // route's two timers are that and the search's typing delay.
+    expect(ROUTE.match(/setTimeout\(/g)).toHaveLength(2);
     expect(ROUTE).toContain("searchTimer.current = setTimeout(");
+    expect(ROUTE).toContain("setTimeout(() => setDismissedFor(bulk), BULK_RESULT_DISMISS_MS)");
   });
 
   it("every failure reason the dispatcher can produce has copy on this surface", () => {

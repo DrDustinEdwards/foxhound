@@ -10,6 +10,22 @@ export const PAYMENTS_PAGE_SIZE_OPTIONS = [10, 25, 50, 100, "all"] as const;
 export type PaymentsPageSize = (typeof PAYMENTS_PAGE_SIZE_OPTIONS)[number];
 export const PAYMENTS_DEFAULT_PAGE_SIZE: PaymentsPageSize = 25;
 
+/** The page size in the URL ("perPage"), or Recova's default when it is not
+ *  one of Recova's choices. Shared by the list and its CSV export. */
+export function parsePaymentsPageSize(value: string | null): PaymentsPageSize {
+  if (value === "all") return "all";
+  const n = Number(value);
+  return (PAYMENTS_PAGE_SIZE_OPTIONS as readonly (number | "all")[]).includes(n)
+    ? (n as PaymentsPageSize)
+    : PAYMENTS_DEFAULT_PAGE_SIZE;
+}
+
+/** The page number in the URL ("page"), 1 when absent or not a whole page. */
+export function parsePaymentsPage(value: string | null): number {
+  const n = Number(value ?? "1");
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 1;
+}
+
 /** Recova's amount slider moves in $10 steps (AmountRangeSlider.tsx STEP). */
 export const AMOUNT_SLIDER_STEP_CENTS = 1000;
 
@@ -59,6 +75,10 @@ export function paymentsShowingText(page: number, pageSize: number | "all", tota
   const to = Math.min(page * size, total);
   return `Showing ${from}–${to} of ${total} payments`;
 }
+
+/** Recova clears the bulk result 3 seconds after it lands (PaymentsClient.tsx
+ *  doBulkAction: setTimeout(..., 3000)). */
+export const BULK_RESULT_DISMISS_MS = 3000;
 
 /** Recova's bulk result line, PaymentsClient.tsx doBulkAction: the action's
  *  past tense, how many succeeded, and how many failed when any did. */

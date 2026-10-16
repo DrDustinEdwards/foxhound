@@ -50,7 +50,10 @@ import {
   DECLINE_CATEGORY_WORDS,
   PAYMENTS_DEFAULT_PAGE_SIZE,
   PAYMENTS_PAGE_SIZE_OPTIONS,
+  BULK_RESULT_DISMISS_MS,
   bulkResultLine,
+  parsePaymentsPage,
+  parsePaymentsPageSize,
   declineWord,
   paymentsHeaderLine,
   paymentsShowingText,
@@ -132,14 +135,6 @@ function parseTimeRange(value: string | null): PaymentTimeRange {
   return value && isPaymentTimeRange(value) ? value : "all";
 }
 
-function parsePageSize(value: string | null): FailedPaymentPageSize {
-  if (value === "all") return "all";
-  const n = Number(value);
-  return (PAYMENTS_PAGE_SIZE_OPTIONS as readonly (number | "all")[]).includes(n)
-    ? (n as FailedPaymentPageSize)
-    : PAYMENTS_DEFAULT_PAGE_SIZE;
-}
-
 function parseAmountParam(value: string | null, floorCents: number, ceilingCents: number): number | null {
   if (!value) return null;
   const n = Math.round(Number(value));
@@ -160,9 +155,8 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   const declineCategory = params.get("category") || null;
   const sort = parseSort(params.get("sort"));
   const time = parseTimeRange(params.get("time"));
-  const pageParam = Number(params.get("page") ?? "1");
-  const page = Number.isFinite(pageParam) && pageParam > 0 ? Math.floor(pageParam) : 1;
-  const pageSize = parsePageSize(params.get("perPage"));
+  const page = parsePaymentsPage(params.get("page"));
+  const pageSize = parsePaymentsPageSize(params.get("perPage"));
 
   const bounds = await getAmountBounds(db, accountId);
   const amountMinParsed = parseAmountParam(params.get("amountMin"), bounds.minCents, bounds.maxCents);
@@ -293,10 +287,17 @@ function pageHref(filters: Filters, bounds: AmountBounds, page: number): string 
   return hrefWith(filters, bounds, { page: page > 1 ? String(page) : "" });
 }
 
-function exportHref(filters: Filters, bounds: AmountBounds): string {
+/** Recova's Export CSV writes the rows on screen (PaymentsClient.tsx
+ *  handleExport, exportToCSV(filtered)), so the link carries this page and
+ *  this page size as well as the filters. */
+function exportHref(filters: Filters, bounds: AmountBounds, page: number): string {
   return withParams(
     `${BASE}/export.csv`,
-    buildPaymentParams(filters, { bounds, defaultPageSize: PAYMENTS_DEFAULT_PAGE_SIZE }),
+    buildPaymentParams(filters, {
+      bounds,
+      defaultPageSize: PAYMENTS_DEFAULT_PAGE_SIZE,
+      overrides: { page: String(page), perPage: String(filters.pageSize) },
+    }),
   );
 }
 
@@ -464,6 +465,12 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
 
   const [dismissedFor, setDismissedFor] = useState<unknown>(null);
   const dismissed = dismissedFor === bulk;
+  // Recova clears the result after 3 seconds; the failures stay selected.
+  useEffect(() => {
+    if (!bulk) return;
+    const t = setTimeout(() => setDismissedFor(bulk), BULK_RESULT_DISMISS_MS);
+    return () => clearTimeout(t);
+  }, [bulk]);
   const [confirmFor, setConfirmFor] = useState<{ from: unknown; intent: BulkActionIntent } | null>(null);
   const confirming = confirmFor !== null && confirmFor.from === bulk ? confirmFor.intent : null;
   const [lastConfirm, setLastConfirm] = useState<BulkActionIntent>("trigger");
@@ -553,7 +560,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
           title="Payments"
           lead={paymentsHeaderLine(header)}
           actions={
-            <Link to={exportHref(filters, bounds)} className="cap-btn" reloadDocument>
+            <Link to={exportHref(filters, bounds, result.page)} className="cap-btn" reloadDocument>
               Export CSV
             </Link>
           }
@@ -576,8 +583,8 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
       </div>
 
       {/* Recova's bulk result sits here, between the cards and the filters.
-          Per payment, failures first, and kept until dismissed (approved
-          2026-09-19), so a merchant can read which payments did not take it. */}
+          Per payment, failures first (approved 2026-09-19), cleared after
+          Recova's 3 seconds or on dismiss; the failures stay selected. */}
       {bulk && !dismissed ? (
         <div className="mb-4">
           {isBulkRefusal(bulk) ? (

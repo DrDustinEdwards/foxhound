@@ -164,7 +164,7 @@ describe("J75: Recova's head", () => {
 
   it("puts Export CSV in the head as a Capsomer button", () => {
     const html = render(data());
-    expect(html).toMatch(/<a[^>]*class="cap-btn"[^>]*href="\/recovery\/payments\/export\.csv"[^>]*>Export CSV<\/a>|<a[^>]*href="\/recovery\/payments\/export\.csv"[^>]*class="cap-btn"[^>]*>Export CSV<\/a>/);
+    expect(html).toMatch(/<a[^>]*class="cap-btn"[^>]*href="\/recovery\/payments\/export\.csv[^"]*"[^>]*>Export CSV<\/a>|<a[^>]*href="\/recovery\/payments\/export\.csv[^"]*"[^>]*class="cap-btn"[^>]*>Export CSV<\/a>/);
     expect(html).toMatch(/<h1[^>]*>Payments<\/h1>/);
   });
 });

@@ -126,11 +126,30 @@ describe("PLANT 2: every capability sentence, tied to its code", () => {
     // J75: the page's own numbers, read from the module it renders them from.
     expect(PAYMENTS_PAGE_SIZE_OPTIONS).toEqual([10, 25, 50, 100, "all"]);
     expect(PAYMENTS_DEFAULT_PAGE_SIZE).toBe(25);
+    // The list and its export read the URL through the same parser.
+    const lib = readFileSync(
+      fileURLToPath(new URL("../app/lib/recovery/payments-list.ts", import.meta.url)),
+      "utf8",
+    );
+    expect(lib).toContain(": PAYMENTS_DEFAULT_PAGE_SIZE;");
     const source = readFileSync(
       fileURLToPath(new URL("../app/routes/app/recovery/payments/index.tsx", import.meta.url)),
       "utf8",
     );
-    expect(source).toContain(": PAYMENTS_DEFAULT_PAGE_SIZE;");
+    expect(source).toContain('parsePaymentsPageSize(params.get("perPage"))');
+  });
+
+  it("EXPORT CSV: the rows on screen, as legacy's export, with All for every match", () => {
+    expect(TEXT).toContain(
+      "Export CSV in the list header downloads the payments on screen: this page, with the filters, sort and rows per page you have on. Choose All in rows per page to export every payment that matches your filters.",
+    );
+    const exportSource = readFileSync(
+      fileURLToPath(new URL("../app/routes/app/recovery/payments/export.ts", import.meta.url)),
+      "utf8",
+    );
+    expect(exportSource).toContain('parsePaymentsPage(params.get("page"))');
+    expect(exportSource).toContain('parsePaymentsPageSize(params.get("perPage"))');
+    expect(exportSource).not.toContain('pageSize: "all"');
   });
 
   it("MANUAL ACTIONS: the five that exist, and no sixth", () => {
