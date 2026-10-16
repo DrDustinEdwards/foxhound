@@ -352,7 +352,7 @@ describe("the console page, toward Recova", () => {
   });
 
   it("links the Audit tile to the run history once a run exists, else to connect", () => {
-    expect(render(makeData())).toContain('href="/audit/history"');
+    expect(render(makeData())).toContain('href="/audit/dashboard"');
     const none = render(makeData({ tiles: { lastAuditAt: null, auditLeakingCents: 0 } }));
     expect(none).toContain('href="/audit/connect"');
     expect(text(none)).toContain("Run free audit");
