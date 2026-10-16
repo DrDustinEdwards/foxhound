@@ -246,6 +246,57 @@ describe("J42 U1: the one action is Capsomer's primary Button, full width as Rec
     expect(html).toMatch(/<[a-z]+[^>]*role="status"[^>]*aria-live="polite"[^>]*>/);
   });
 
+  describe("pending is shown only while THIS form posts (review round 1, must-fix 1)", () => {
+    // The real component in a real memory router, with a loader on the demo
+    // route and an action on this route that never settle, so the router
+    // holds the navigation in flight while the page is rendered.
+    const never = () => new Promise<never>(() => {});
+    function liveRouter() {
+      const props = { loaderData: PAGE, params: {}, matches: [] } as unknown as Props;
+      return createMemoryRouter(
+        [
+          { path: "/audit/connect", element: createElement(AuditConnect, props), action: never },
+          { path: "/demos/recovery", element: null, loader: never },
+          { path: "/pricing", element: null, loader: never },
+        ],
+        { initialEntries: ["/audit/connect"] },
+      );
+    }
+    const renderRouter = (router: ReturnType<typeof liveRouter>) =>
+      renderToStaticMarkup(createElement(RouterProvider, { router }));
+    const statusText = (html: string) =>
+      html.match(/<span role="status"[^>]*>([^<]*)<\/span>/)?.[1] ?? null;
+
+    it("idle: no busy button and an empty status region", () => {
+      const html = renderRouter(liveRouter());
+      expect(html).not.toContain('aria-busy="true"');
+      expect(statusText(html)).toBe("");
+    });
+
+    for (const to of ["/demos/recovery", "/pricing"]) {
+      it(`following a link to ${to} shows no pending state and announces nothing`, async () => {
+        const router = liveRouter();
+        void router.navigate(to);
+        await Promise.resolve();
+        expect(router.state.navigation.state).toBe("loading");
+        const html = renderRouter(router);
+        expect(html).not.toContain('aria-busy="true"');
+        expect(statusText(html)).toBe("");
+        expect(html).not.toContain("Connecting to Stripe...");
+      });
+    }
+
+    it("posting this form shows the busy button and announces Connecting to Stripe...", async () => {
+      const router = liveRouter();
+      void router.navigate("/audit/connect", { formMethod: "post", formData: new FormData() });
+      await Promise.resolve();
+      expect(router.state.navigation.state).toBe("submitting");
+      const html = renderRouter(router);
+      expect(html).toContain('aria-busy="true"');
+      expect(statusText(html)).toBe("Connecting to Stripe...");
+    });
+  });
+
   it("See a demo first goes to the read-only recovery demo, underlined and 24px tall", () => {
     const html = render(PAGE);
     const a = html.match(/<a[^>]*href="\/demos\/recovery"[^>]*>/);
@@ -275,6 +326,14 @@ describe("J42 U1: refusals in a Capsomer alert, never naming an account, never e
       expect(t).not.toMatch(/acct_|connected to|belongs to|held by/i);
     });
   }
+
+  it("scope_refused is true for every grant the callback refuses, a null scope included", () => {
+    // The callback refuses any scope that is not read_only, null included, so
+    // "granted more access" was untrue for a grant with no scope (review round 1).
+    const t = text(render({ ...PAGE, error: "scope_refused" }));
+    expect(t).toContain("Stripe did not grant read-only access, so the run was refused. Nothing was read.");
+    expect(t).not.toContain("more access");
+  });
 
   it("an unknown code shows the fallback and never reflects the query string", () => {
     const hostile = '<img src=x onerror=alert(1)>acct_stranger owned by Dana';

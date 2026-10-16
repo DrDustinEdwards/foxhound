@@ -2,7 +2,7 @@ import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
 import { Check, X } from "lucide-react";
 import type { ReactNode } from "react";
-import { Form, Link, redirect, useNavigation } from "react-router";
+import { Form, Link, redirect, useFormAction, useNavigation } from "react-router";
 
 import "capsomer/banner.css";
 import "capsomer/button.css";
@@ -81,7 +81,7 @@ const OAUTH_ERROR_MESSAGES: Record<string, string> = {
   cancelled: "Stripe connection was cancelled. Nothing was read.",
   invalid_state: "That audit link expired. Please start again.",
   scope_refused:
-    "Stripe granted more access than this audit asks for, so the run was refused. Nothing was read.",
+    "Stripe did not grant read-only access, so the run was refused. Nothing was read.",
   failed: "Could not complete the Stripe connection. Please try again.",
   session_expired: "That audit session expired. Connect again to see current numbers.",
 };
@@ -196,7 +196,16 @@ function AuditConnectFrame({ children }: { children: ReactNode }) {
 const PENDING_LABEL = "Connecting to Stripe...";
 
 export default function AuditConnect({ loaderData }: Route.ComponentProps) {
-  const busy = useNavigation().state !== "idle";
+  // Pending only while THIS form's POST is in flight. Any navigation sets the
+  // router's state, so following "See a demo first" or a header link would
+  // otherwise announce "Connecting to Stripe..." while going somewhere else
+  // (review round 1, must-fix 1).
+  const navigation = useNavigation();
+  const formAction = useFormAction();
+  const busy =
+    navigation.state !== "idle" &&
+    navigation.formMethod?.toUpperCase() === "POST" &&
+    navigation.formAction === formAction;
   const message = loaderData.error
     ? (OAUTH_ERROR_MESSAGES[loaderData.error] ?? "Could not connect Stripe. Please try again.")
     : null;
@@ -228,19 +237,17 @@ export default function AuditConnect({ loaderData }: Route.ComponentProps) {
       {loaderData.stripeEnabled ? (
         <Form method="post" className="grid">
           <Button type="submit" variant="primary" size="lg" pending={busy}>
-            {/* The one Foxhound class inside a Capsomer part, and it is on this
+            {/* The label stays the same while pending: Capsomer 0.9.0 does not
+                paint it then (only the spinner shows), and the status region
+                below says "Connecting to Stripe...", so the name does not
+                change under a screen reader as well (review round 1).
+                The one Foxhound class inside a Capsomer part, and it is on this
                 page's own label, not the button: Capsomer's button never wraps,
                 so Recova's 33-character label is clipped below about 400px,
                 where Recova's own button wraps to two lines. Named in the PR
                 for the per-site layer (capsomer job_ec5ec0754626). */}
             <span className="whitespace-normal">
-              {busy ? (
-                PENDING_LABEL
-              ) : (
-                <>
-                  Connect Stripe and see my numbers<span aria-hidden="true"> →</span>
-                </>
-              )}
+              Connect Stripe and see my numbers<span aria-hidden="true"> →</span>
             </span>
           </Button>
           <span role="status" aria-live="polite" className="sr-only">
