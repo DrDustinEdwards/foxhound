@@ -1,0 +1,704 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
+import type Database from "better-sqlite3";
+import { escapeHtml } from "capsomer/email";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { createInMemoryDb } from "./helpers/inmemory-db";
+
+// E21 and E22 (job J94, job_e43cf9b524ea): the threshold alert and the critical
+// customers alert, emailed to the merchant on Capsomer's `notice` template.
+//
+// Recova is the spec, read whole at the blobs parity/ROWS-E.md names:
+//   lib/alert-evaluation.ts  blob 0e28ecbf, 18,968 bytes (fireEmail 232 to 248,
+//                            fireSlack 250 to 264, the loop 290 to 325, the
+//                            critical check 337 to 440)
+//   lib/email.ts             blob 3f882729,  2,035 bytes (wrapEmailHtml)
+//   lib/constants.ts         blob a21b32b8, 14,977 bytes (FROM_HELLO, APP_URL,
+//                            OPEN_DISPUTE_STATUSES)
+//
+// Every assertion on a mail reads it as it reaches env.EMAIL.send, and every
+// assertion on a firing reads the alert_history row, never a helper's return.
+
+interface SentMessage {
+  from: string;
+  to: string;
+  subject: string;
+  html: string;
+  text?: string;
+  replyTo?: string;
+  headers?: Record<string, string>;
+}
+
+const harness = vi.hoisted(() => ({
+  db: null as unknown,
+  sent: [] as SentMessage[],
+}));
+
+vi.mock("~/db", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("~/db")>()),
+  getDb: () => harness.db,
+}));
+
+const notify = await import("~/lib/intelligence/alert-notify.server");
+const {
+  CRITICAL_ALERT_TEMPLATE,
+  CRITICAL_CUSTOMERS_ALERT_LIVE,
+  THRESHOLD_ALERT_TEMPLATE,
+  criticalCustomersContent,
+  thresholdAlertContent,
+} = notify;
+const { evaluateAndRecordAlerts, runCriticalCustomersCheck, runIntelligenceAiForAccount } = await import(
+  "~/lib/intelligence/ai-run.server"
+);
+const { ALERT_COOLDOWN_MARGIN_MS, ALERT_COOLDOWN_MS, evaluateAlerts } = await import("~/lib/intelligence/alerts");
+
+const BASE = "https://foxhound.example.com";
+const ACCOUNT = "acct_1";
+const ALERT = "alert_1";
+const WEBHOOK = "https://hooks.slack.com/services/T000/B000/EXAMPLE";
+const NOW = new Date("2026-10-16T03:00:00.000Z");
+const YEAR = NOW.getUTCFullYear();
+const HOUR = 60 * 60 * 1000;
+const DAY = 24 * HOUR;
+const FOOTER_NOTE = `You're receiving this from Foxhound about a recent payment. © ${YEAR}`;
+
+const env = {
+  ENCRYPTION_KEY: "ab".repeat(32),
+  BETTER_AUTH_URL: BASE,
+  PHYSICAL_ADDRESS: "1 Example Way",
+  EMAIL: {
+    send: async (m: SentMessage) => {
+      harness.sent.push(m);
+      return { id: "msg_1" };
+    },
+  },
+} as unknown as Env;
+
+const noBinding = { ...env, EMAIL: undefined } as unknown as Env;
+const failingBinding = {
+  ...env,
+  EMAIL: {
+    send: async () => {
+      throw new Error("provider exploded");
+    },
+  },
+} as unknown as Env;
+
+let sqlite: Database.Database;
+let slackPosts: { url: string; body: string }[];
+
+beforeEach(() => {
+  let db: ReturnType<typeof createInMemoryDb>["db"];
+  ({ sqlite, db } = createInMemoryDb());
+  harness.db = db;
+  harness.sent = [];
+  slackPosts = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init: { body: string }) => {
+      slackPosts.push({ url, body: init.body });
+      return new Response("ok", { status: 200 });
+    }),
+  );
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+function db() {
+  return harness.db as Parameters<typeof evaluateAndRecordAlerts>[1];
+}
+
+function seedAccount(
+  opts: { email?: string | null; slack?: string | null; live?: number } = {},
+): void {
+  sqlite
+    .prepare(
+      "INSERT INTO accounts (id, name, created_at, notification_email, slack_webhook_url, live_sends_enabled) VALUES (?, 'Acme', 1000, ?, ?, ?)",
+    )
+    .run(
+      ACCOUNT,
+      opts.email === undefined ? "ops@acme.example.com" : opts.email,
+      opts.slack === undefined ? null : opts.slack,
+      opts.live ?? 1,
+    );
+}
+
+function seedAlert(
+  opts: {
+    metric?: string;
+    direction?: string;
+    threshold?: number;
+    channel?: string;
+    lastTriggeredAt?: number | null;
+    enabled?: number;
+  } = {},
+): void {
+  sqlite
+    .prepare(
+      "INSERT INTO alerts (id, account_id, metric, threshold_value, direction, channel, enabled, last_triggered_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1000)",
+    )
+    .run(
+      ALERT,
+      ACCOUNT,
+      opts.metric ?? "mrr_at_risk_cents",
+      opts.threshold ?? 500_000,
+      opts.direction ?? "above",
+      opts.channel ?? "email",
+      opts.enabled ?? 1,
+      opts.lastTriggeredAt === undefined ? null : opts.lastTriggeredAt,
+    );
+}
+
+function historyRows() {
+  return sqlite
+    .prepare(
+      "SELECT alert_id, metric, threshold_value, direction, actual_value, channel, fired_at, notification_sent FROM alert_history WHERE account_id = ? ORDER BY fired_at",
+    )
+    .all(ACCOUNT) as {
+    alert_id: string | null;
+    metric: string;
+    threshold_value: number;
+    direction: string;
+    actual_value: number;
+    channel: string;
+    fired_at: number;
+    notification_sent: number;
+  }[];
+}
+
+function lastTriggeredAt(): number | null {
+  const row = sqlite.prepare("SELECT last_triggered_at FROM alerts WHERE id = ?").get(ALERT) as {
+    last_triggered_at: number | null;
+  };
+  return row.last_triggered_at;
+}
+
+function sendRows() {
+  return sqlite
+    .prepare("SELECT status, template FROM email_sends WHERE account_id = ?")
+    .all(ACCOUNT) as { status: string; template: string }[];
+}
+
+// ============================================================================
+// E21: what it says
+// ============================================================================
+
+describe("E21 says Recova's words: subject, sentence, View dashboard", () => {
+  const firing = {
+    alertId: ALERT,
+    accountId: ACCOUNT,
+    metric: "mrr_at_risk_cents",
+    thresholdValue: 500_000,
+    direction: "above",
+    actualValue: 712_345,
+    channel: "email",
+  };
+
+  it("thresholdAlertContent is Recova's subject, sentence and button, Foxhound-branded", () => {
+    const content = thresholdAlertContent(firing, BASE, NOW);
+    expect(content.subject).toBe("Foxhound alert: MRR at risk above threshold");
+    expect(content.notice).toEqual({
+      title: "Foxhound alert: MRR at risk above threshold",
+      body: ["MRR at risk is currently $7,123.45, which is above your threshold of $5,000.00."],
+      action: { label: "View dashboard", url: `${BASE}/recovery/dashboard` },
+    });
+    expect(content.fromName).toBe("Foxhound");
+    expect(content.footerNote).toBe(FOOTER_NOTE);
+  });
+
+  it("formats a score metric as Recova's formatThreshold does a count: the bare number", () => {
+    const content = thresholdAlertContent(
+      { ...firing, metric: "health_score_avg", direction: "below", thresholdValue: 40, actualValue: 35 },
+      BASE,
+      NOW,
+    );
+    expect(content.subject).toBe("Foxhound alert: Average health score below threshold");
+    expect(content.notice.body).toEqual([
+      "Average health score is currently 35, which is below your threshold of 40.",
+    ]);
+  });
+
+  it("the sent mail: one heading, the sentence, the button, Recova's footer and settings link", async () => {
+    seedAccount();
+    seedAlert();
+    const fired = await evaluateAndRecordAlerts(env, db(), ACCOUNT, { mrr_at_risk_cents: 712_345 }, NOW);
+    expect(fired).toBe(1);
+    expect(harness.sent).toHaveLength(1);
+    const m = harness.sent[0];
+    expect(m.subject).toBe("Foxhound alert: MRR at risk above threshold");
+    expect(m.html.match(/<h1\b/g)).toHaveLength(1);
+    expect(m.html).toMatch(/<h1[^>]*>Foxhound alert: MRR at risk above threshold<\/h1>/);
+    expect(m.html).toContain(
+      ">MRR at risk is currently $7,123.45, which is above your threshold of $5,000.00.</td>",
+    );
+    expect(m.html).toMatch(
+      new RegExp(`<a class="e-btn" href="${BASE}/recovery/dashboard"[^>]*>View dashboard</a>`),
+    );
+    expect(m.html).toContain(escapeHtml(FOOTER_NOTE));
+    expect(m.html).toMatch(
+      new RegExp(`<a class="e-link" href="${BASE}/settings"[^>]*>Manage email settings</a>`),
+    );
+    expect(m.text).toContain("MRR at risk is currently $7,123.45, which is above your threshold of $5,000.00.");
+    expect(m.text).toContain(`View dashboard:\n${BASE}/recovery/dashboard`);
+    expect(m.text).toContain(`${FOOTER_NOTE}\nManage email settings: ${BASE}/settings`);
+  });
+});
+
+// ============================================================================
+// E21: what it carries
+// ============================================================================
+
+describe("E21 carries From Foxhound, no Reply-To, no unsubscribe, to the notification address", () => {
+  it("is merchant mail: From Foxhound, to notification_email, no Reply-To, no List-Unsubscribe", async () => {
+    seedAccount();
+    seedAlert();
+    await evaluateAndRecordAlerts(env, db(), ACCOUNT, { mrr_at_risk_cents: 712_345 }, NOW);
+    const m = harness.sent[0];
+    expect(m.from).toBe("Foxhound <recovery@send.foxhoundapp.com>");
+    expect(m.to).toBe("ops@acme.example.com");
+    expect(m.replyTo).toBeUndefined();
+    expect(m.headers).toBeUndefined();
+    for (const part of [m.html, m.text ?? ""]) {
+      expect(part).not.toContain("Unsubscribe");
+      expect(part).not.toContain("1 Example Way");
+    }
+    expect(sendRows()).toEqual([{ status: "sent", template: THRESHOLD_ALERT_TEMPLATE }]);
+  });
+
+  it("is accessible as rendered: a language, a title, one heading, a real link button, 16px body", async () => {
+    seedAccount();
+    seedAlert();
+    await evaluateAndRecordAlerts(env, db(), ACCOUNT, { mrr_at_risk_cents: 712_345 }, NOW);
+    const m = harness.sent[0];
+    expect(m.html).toMatch(/<html lang="en">/);
+    expect(m.html).toContain("<title>Foxhound alert: MRR at risk above threshold</title>");
+    expect(m.html).toMatch(/<a [^>]*href="https:[^"]+"[^>]*>View dashboard<\/a>/);
+    expect(m.html).toContain("font-size:16px");
+  });
+});
+
+// ============================================================================
+// E21: when it sends
+// ============================================================================
+
+describe("E21 sends on Recova's trigger and cooldown, and records notification_sent truly", () => {
+  it("a breach outside the cooldown sends, writes alert_history with notification_sent 1, stamps last_triggered_at", async () => {
+    seedAccount();
+    seedAlert();
+    await evaluateAndRecordAlerts(env, db(), ACCOUNT, { mrr_at_risk_cents: 712_345 }, NOW);
+    expect(historyRows()).toEqual([
+      {
+        alert_id: ALERT,
+        metric: "mrr_at_risk_cents",
+        threshold_value: 500_000,
+        direction: "above",
+        actual_value: 712_345,
+        channel: "email",
+        fired_at: NOW.getTime(),
+        notification_sent: 1,
+      },
+    ]);
+    expect(lastTriggeredAt()).toBe(NOW.getTime());
+  });
+
+  it("no breach: no mail and no row", async () => {
+    seedAccount();
+    seedAlert();
+    await evaluateAndRecordAlerts(env, db(), ACCOUNT, { mrr_at_risk_cents: 400_000 }, NOW);
+    expect(harness.sent).toHaveLength(0);
+    expect(historyRows()).toHaveLength(0);
+  });
+
+  it("inside the 24h cooldown: no mail and no row (Recova's COOLDOWN_MS on last_triggered_at)", async () => {
+    seedAccount();
+    seedAlert({ lastTriggeredAt: NOW.getTime() - 12 * HOUR });
+    await evaluateAndRecordAlerts(env, db(), ACCOUNT, { mrr_at_risk_cents: 712_345 }, NOW);
+    expect(harness.sent).toHaveLength(0);
+    expect(historyRows()).toHaveLength(0);
+  });
+
+  it("a nightly run that starts a few seconds earlier than last night's still fires (review round 1)", async () => {
+    // The intelligence-ai run takes Date.now() at its start, which drifts by
+    // the daily jobs before it. Without a margin a steady breach is mailed
+    // every other night; Recova, ticking every few minutes, mailed it daily.
+    seedAccount();
+    seedAlert({ lastTriggeredAt: NOW.getTime() - DAY + 5_000 });
+    await evaluateAndRecordAlerts(env, db(), ACCOUNT, { mrr_at_risk_cents: 712_345 }, NOW);
+    expect(harness.sent).toHaveLength(1);
+    expect(historyRows()).toHaveLength(1);
+  });
+
+  it("still breaching once the cooldown has passed: fires again, as Recova's does (not once per crossing)", async () => {
+    seedAccount();
+    seedAlert({ lastTriggeredAt: NOW.getTime() - DAY });
+    await evaluateAndRecordAlerts(env, db(), ACCOUNT, { mrr_at_risk_cents: 712_345 }, NOW);
+    expect(harness.sent).toHaveLength(1);
+    expect(historyRows()).toHaveLength(1);
+  });
+
+  it("the pure evaluator applies the same rule: breach and outside the cooldown", () => {
+    expect(ALERT_COOLDOWN_MS).toBe(DAY);
+    expect(ALERT_COOLDOWN_MARGIN_MS).toBe(HOUR);
+    const config = {
+      id: ALERT,
+      accountId: ACCOUNT,
+      metric: "mrr_at_risk_cents",
+      thresholdValue: 100,
+      direction: "above",
+      channel: "email",
+    };
+    const metrics = { mrr_at_risk_cents: 200 };
+    expect(evaluateAlerts([{ ...config, lastTriggeredAt: null }], metrics, NOW.getTime())).toHaveLength(1);
+    expect(
+      evaluateAlerts([{ ...config, lastTriggeredAt: new Date(NOW.getTime() - 22 * HOUR) }], metrics, NOW.getTime()),
+    ).toHaveLength(0);
+    expect(
+      evaluateAlerts([{ ...config, lastTriggeredAt: new Date(NOW.getTime() - DAY + 5_000) }], metrics, NOW.getTime()),
+    ).toHaveLength(1);
+    expect(
+      evaluateAlerts([{ ...config, lastTriggeredAt: new Date(NOW.getTime() - DAY) }], metrics, NOW.getTime()),
+    ).toHaveLength(1);
+  });
+
+  it("no notification address: no mail, the row is still written with notification_sent 0", async () => {
+    seedAccount({ email: null });
+    seedAlert();
+    await evaluateAndRecordAlerts(env, db(), ACCOUNT, { mrr_at_risk_cents: 712_345 }, NOW);
+    expect(harness.sent).toHaveLength(0);
+    expect(historyRows().map((r) => r.notification_sent)).toEqual([0]);
+    expect(lastTriggeredAt()).toBe(NOW.getTime());
+  });
+
+  it("a provider refusal records notification_sent 0, never throws", async () => {
+    seedAccount();
+    seedAlert();
+    await evaluateAndRecordAlerts(failingBinding, db(), ACCOUNT, { mrr_at_risk_cents: 712_345 }, NOW);
+    expect(historyRows().map((r) => r.notification_sent)).toEqual([0]);
+  });
+
+  it("an account whose live sends are off is held at the send gate: notification_sent 0", async () => {
+    seedAccount({ live: 0 });
+    seedAlert();
+    await evaluateAndRecordAlerts(env, db(), ACCOUNT, { mrr_at_risk_cents: 712_345 }, NOW);
+    expect(harness.sent).toHaveLength(0);
+    expect(historyRows().map((r) => r.notification_sent)).toEqual([0]);
+    expect(sendRows()).toEqual([{ status: "blocked", template: THRESHOLD_ALERT_TEMPLATE }]);
+  });
+
+  it("a disabled alert never fires", async () => {
+    seedAccount();
+    seedAlert({ enabled: 0 });
+    await evaluateAndRecordAlerts(env, db(), ACCOUNT, { mrr_at_risk_cents: 712_345 }, NOW);
+    expect(harness.sent).toHaveLength(0);
+    expect(historyRows()).toHaveLength(0);
+  });
+
+  it("a slack-channel alert posts Recova's Slack line and sends no mail", async () => {
+    seedAccount({ slack: WEBHOOK });
+    seedAlert({ channel: "slack" });
+    await evaluateAndRecordAlerts(env, db(), ACCOUNT, { mrr_at_risk_cents: 712_345 }, NOW);
+    expect(harness.sent).toHaveLength(0);
+    expect(slackPosts).toEqual([
+      {
+        url: WEBHOOK,
+        body: JSON.stringify({
+          text: "Foxhound alert: MRR at risk is $7,123.45, which is above your threshold of $5,000.00.",
+        }),
+      },
+    ]);
+    expect(historyRows().map((r) => [r.channel, r.notification_sent])).toEqual([["slack", 1]]);
+  });
+
+  it("a stored webhook on any host but hooks.slack.com is never fetched (RULES.md 4.16)", async () => {
+    seedAccount({ slack: "https://internal.example.com/hook" });
+    seedAlert({ channel: "slack" });
+    await evaluateAndRecordAlerts(env, db(), ACCOUNT, { mrr_at_risk_cents: 712_345 }, NOW);
+    expect(slackPosts).toHaveLength(0);
+    expect(historyRows().map((r) => r.notification_sent)).toEqual([0]);
+  });
+
+  it("the nightly run sends it: runIntelligenceAiForAccount reaches the alert mail", async () => {
+    seedAccount();
+    // health_score_avg below 101 fires for any scored customer.
+    sqlite
+      .prepare(
+        "INSERT INTO alerts (id, account_id, metric, threshold_value, direction, channel, enabled, created_at) VALUES (?, ?, 'health_score_avg', 101, 'below', 'email', 1, 1000)",
+      )
+      .run(ALERT, ACCOUNT);
+    sqlite
+      .prepare(
+        "INSERT INTO customer_context (id, account_id, stripe_customer_id, customer_name, currency, created_at, updated_at) VALUES ('cc_1', ?, 'cus_1', 'Jane', 'usd', 1000, 1000)",
+      )
+      .run(ACCOUNT);
+    const result = await runIntelligenceAiForAccount(env, ACCOUNT, NOW.getTime());
+    expect(result.alertsFired).toBe(1);
+    expect(harness.sent).toHaveLength(1);
+    expect(harness.sent[0].subject).toBe("Foxhound alert: Average health score below threshold");
+    expect(historyRows().map((r) => r.notification_sent)).toEqual([1]);
+  });
+});
+
+// ============================================================================
+// E22: the critical customers check
+// ============================================================================
+
+function seedCritical(
+  opts: { customers?: string[]; health?: number; disputeState?: string; paymentStatus?: string; account?: string } = {},
+): void {
+  const customers = opts.customers ?? ["cus_1"];
+  const account = opts.account ?? ACCOUNT;
+  const tag = account === ACCOUNT ? "" : `_${account}`;
+  customers.forEach((cus, i) => {
+    sqlite
+      .prepare(
+        "INSERT INTO failed_payments (id, account_id, stripe_event_id, stripe_invoice_id, stripe_customer_id, customer_email, amount_cents, currency, decline_category, status, detected_at) VALUES (?, ?, ?, ?, ?, 'buyer@example.com', 9900, 'usd', 'soft', ?, 1000)",
+      )
+      .run(`fp_${i}${tag}`, account, `evt_${i}${tag}`, `in_${i}${tag}`, cus, opts.paymentStatus ?? "active");
+    sqlite
+      .prepare(
+        "INSERT INTO customer_context (id, account_id, stripe_customer_id, health_score, currency, created_at, updated_at) VALUES (?, ?, ?, ?, 'usd', 1000, 1000)",
+      )
+      .run(`cc_${i}${tag}`, account, cus, opts.health ?? 33);
+    sqlite
+      .prepare(
+        "INSERT INTO disputes (id, account_id, stripe_dispute_id, stripe_charge_id, stripe_customer_id, amount_cents, currency, reason, status, state, created_at) VALUES (?, ?, ?, ?, ?, 4900, 'usd', 'fraudulent', 'needs_response', ?, 1000)",
+      )
+      .run(`dp_${i}${tag}`, account, `dp_s_${i}${tag}`, `ch_${i}${tag}`, cus, opts.disputeState ?? "pending_review");
+  });
+}
+
+describe("E22 says Recova's words: subject, title, sentence, View recommendations", () => {
+  it("criticalCustomersContent for one customer and for several", () => {
+    const one = criticalCustomersContent(1, BASE, NOW);
+    expect(one.subject).toBe("Foxhound: 1 critical customer need attention");
+    expect(one.notice).toEqual({
+      title: "1 critical customer need immediate attention.",
+      body: [
+        "These customers have an active recovery sequence, a health score of 33 or below (high churn risk), and an open dispute, all simultaneously.",
+      ],
+      action: { label: "View recommendations", url: `${BASE}/intelligence/recommendations` },
+    });
+    expect(one.fromName).toBe("Foxhound");
+    expect(one.footerNote).toBe(FOOTER_NOTE);
+    expect(criticalCustomersContent(3, BASE, NOW).subject).toBe("Foxhound: 3 critical customers need attention");
+    expect(criticalCustomersContent(3, BASE, NOW).notice.title).toBe(
+      "3 critical customers need immediate attention.",
+    );
+  });
+
+  it("the sent mail: one heading, the sentence, the button, Recova's footer, no unsubscribe", async () => {
+    seedAccount();
+    seedCritical({ customers: ["cus_1", "cus_2"] });
+    const out = await runCriticalCustomersCheck(env, db(), ACCOUNT, NOW);
+    expect(out).toMatchObject({ kind: "fired", count: 2, channel: "email", notificationSent: true });
+    expect(harness.sent).toHaveLength(1);
+    const m = harness.sent[0];
+    expect(m.subject).toBe("Foxhound: 2 critical customers need attention");
+    expect(m.from).toBe("Foxhound <recovery@send.foxhoundapp.com>");
+    expect(m.to).toBe("ops@acme.example.com");
+    expect(m.replyTo).toBeUndefined();
+    expect(m.headers).toBeUndefined();
+    expect(m.html).toMatch(/<html lang="en">/);
+    expect(m.html.match(/<h1\b/g)).toHaveLength(1);
+    expect(m.html).toMatch(/<h1[^>]*>2 critical customers need immediate attention\.<\/h1>/);
+    expect(m.html).toMatch(
+      new RegExp(
+        `<a class="e-btn" href="${BASE}/intelligence/recommendations"[^>]*>View recommendations</a>`,
+      ),
+    );
+    expect(m.html).toContain(escapeHtml(FOOTER_NOTE));
+    expect(m.text).toContain(`${FOOTER_NOTE}\nManage email settings: ${BASE}/settings`);
+    expect(m.html).not.toContain("Unsubscribe");
+    expect(m.html).toContain("font-size:16px");
+    expect(sendRows()).toEqual([{ status: "sent", template: CRITICAL_ALERT_TEMPLATE }]);
+  });
+});
+
+describe("E22 fires on Recova's three conditions at once, with a 24h cooldown", () => {
+  it("records alert_history cross_product_critical with no alert row behind it", async () => {
+    seedAccount();
+    seedCritical();
+    await runCriticalCustomersCheck(env, db(), ACCOUNT, NOW);
+    expect(historyRows()).toEqual([
+      {
+        alert_id: null,
+        metric: "cross_product_critical",
+        threshold_value: 0,
+        direction: "above",
+        actual_value: 1,
+        channel: "email",
+        fired_at: NOW.getTime(),
+        notification_sent: 1,
+      },
+    ]);
+  });
+
+  it("a health score of 34 is not critical; 33 is", async () => {
+    seedAccount();
+    seedCritical({ health: 34 });
+    expect(await runCriticalCustomersCheck(env, db(), ACCOUNT, NOW)).toEqual({
+      kind: "skipped",
+      reason: "none_critical",
+    });
+    expect(harness.sent).toHaveLength(0);
+    expect(historyRows()).toHaveLength(0);
+  });
+
+  it("a resolved dispute is not open", async () => {
+    seedAccount();
+    seedCritical({ disputeState: "resolved_lost" });
+    expect((await runCriticalCustomersCheck(env, db(), ACCOUNT, NOW)).kind).toBe("skipped");
+  });
+
+  it("a payment no longer in an active sequence is not critical", async () => {
+    seedAccount();
+    seedCritical({ paymentStatus: "recovered" });
+    expect((await runCriticalCustomersCheck(env, db(), ACCOUNT, NOW)).kind).toBe("skipped");
+  });
+
+  it("inside 24h of the last critical firing: nothing", async () => {
+    seedAccount();
+    seedCritical();
+    await runCriticalCustomersCheck(env, db(), ACCOUNT, new Date(NOW.getTime() - 12 * HOUR));
+    harness.sent = [];
+    expect(await runCriticalCustomersCheck(env, db(), ACCOUNT, NOW)).toEqual({
+      kind: "skipped",
+      reason: "cooldown",
+    });
+    expect(harness.sent).toHaveLength(0);
+    expect(historyRows()).toHaveLength(1);
+  });
+
+  it("a run a few seconds short of 24h after the last firing still fires (review round 1)", async () => {
+    seedAccount();
+    seedCritical();
+    await runCriticalCustomersCheck(env, db(), ACCOUNT, new Date(NOW.getTime() - DAY + 5_000));
+    await runCriticalCustomersCheck(env, db(), ACCOUNT, NOW);
+    expect(historyRows()).toHaveLength(2);
+  });
+
+  it("only this account's customers count (review round 1)", async () => {
+    seedAccount();
+    sqlite
+      .prepare(
+        "INSERT INTO accounts (id, name, created_at, notification_email, live_sends_enabled) VALUES ('acct_2', 'Other', 1000, 'ops@other.example.com', 1)",
+      )
+      .run();
+    seedCritical({ account: "acct_2" });
+    expect(await runCriticalCustomersCheck(env, db(), ACCOUNT, NOW)).toEqual({
+      kind: "skipped",
+      reason: "none_critical",
+    });
+    expect(harness.sent).toHaveLength(0);
+  });
+
+  it("another account's recent firing is not this account's cooldown (review round 1)", async () => {
+    seedAccount();
+    sqlite
+      .prepare("INSERT INTO accounts (id, name, created_at, live_sends_enabled) VALUES ('acct_2', 'Other', 1000, 1)")
+      .run();
+    sqlite
+      .prepare(
+        "INSERT INTO alert_history (id, alert_id, account_id, metric, threshold_value, direction, actual_value, channel, fired_at, notification_sent) VALUES ('h_2', NULL, 'acct_2', 'cross_product_critical', 0, 'above', 1, 'email', ?, 1)",
+      )
+      .run(NOW.getTime() - HOUR);
+    seedCritical();
+    const out = await runCriticalCustomersCheck(env, db(), ACCOUNT, NOW);
+    expect(out).toMatchObject({ kind: "fired", count: 1 });
+    expect(harness.sent).toHaveLength(1);
+    expect(historyRows()).toHaveLength(1);
+  });
+
+  it("24h after the last firing it fires again", async () => {
+    seedAccount();
+    seedCritical();
+    await runCriticalCustomersCheck(env, db(), ACCOUNT, new Date(NOW.getTime() - DAY - 1));
+    await runCriticalCustomersCheck(env, db(), ACCOUNT, NOW);
+    expect(historyRows()).toHaveLength(2);
+  });
+
+  it("email first: with an address and a webhook, the mail goes and Slack does not", async () => {
+    seedAccount({ slack: WEBHOOK });
+    seedCritical();
+    await runCriticalCustomersCheck(env, db(), ACCOUNT, NOW);
+    expect(harness.sent).toHaveLength(1);
+    expect(slackPosts).toHaveLength(0);
+  });
+
+  it("Slack only when there is no address: Recova's line, channel slack", async () => {
+    seedAccount({ email: null, slack: WEBHOOK });
+    seedCritical();
+    const out = await runCriticalCustomersCheck(env, db(), ACCOUNT, NOW);
+    expect(out).toMatchObject({ kind: "fired", channel: "slack", notificationSent: true });
+    expect(harness.sent).toHaveLength(0);
+    expect(slackPosts).toEqual([
+      {
+        url: WEBHOOK,
+        body: JSON.stringify({
+          text: `\u{1F6A8} Foxhound: 1 critical customer flagged (active recovery + health ≤ 33 + open dispute). View recommendations: ${BASE}/intelligence/recommendations`,
+        }),
+      },
+    ]);
+    expect(historyRows().map((r) => [r.channel, r.notification_sent])).toEqual([["slack", 1]]);
+  });
+
+  it("Slack too when the mail binding is missing, as Recova falls through when Resend is unset", async () => {
+    seedAccount({ slack: WEBHOOK });
+    seedCritical();
+    const out = await runCriticalCustomersCheck(noBinding, db(), ACCOUNT, NOW);
+    expect(out).toMatchObject({ channel: "slack", notificationSent: true });
+  });
+
+  it("neither channel: the row is still recorded, channel email, notification_sent 0", async () => {
+    seedAccount({ email: null });
+    seedCritical();
+    const out = await runCriticalCustomersCheck(env, db(), ACCOUNT, NOW);
+    expect(out).toMatchObject({ kind: "fired", channel: "none", notificationSent: false });
+    expect(historyRows().map((r) => [r.channel, r.notification_sent])).toEqual([["email", 0]]);
+  });
+
+  it("a provider refusal is notification_sent 0 and a named outcome, never a throw", async () => {
+    seedAccount();
+    seedCritical();
+    const out = await runCriticalCustomersCheck(failingBinding, db(), ACCOUNT, NOW);
+    expect(out).toMatchObject({ kind: "fired", channel: "email", notificationSent: false });
+    expect(historyRows().map((r) => r.notification_sent)).toEqual([0]);
+  });
+});
+
+describe("E22 stays off until its button has somewhere to go (RULES.md 2.7)", () => {
+  const read = (p: string) => readFileSync(fileURLToPath(new URL(`../${p}`, import.meta.url)), "utf8");
+
+  it("is live only when /intelligence/recommendations is a route", () => {
+    // Recova's button opens /intelligence/recommendations (row S20, job J78),
+    // which Foxhound does not serve yet. The check is built and tested above;
+    // the nightly run calls it once that page exists, and not before.
+    const hasPage = /route\("recommendations"/.test(read("app/routes.ts"));
+    expect(CRITICAL_CUSTOMERS_ALERT_LIVE).toBe(hasPage);
+  });
+
+  it("the notification module writes nothing; the run records each firing (RULES.md 3.2, review round 1)", () => {
+    const notifier = read("app/lib/intelligence/alert-notify.server.ts")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^\s*\/\/.*$/gm, "");
+    expect(notifier).not.toMatch(/\.insert\(|\.update\(|\.delete\(|build\w*Insert|build\w*Update/);
+    const run = read("app/lib/intelligence/ai-run.server.ts");
+    expect(run).toContain("await buildCriticalAlertHistoryInsert(db, {");
+  });
+
+  it("the nightly run calls the check behind that switch, after the threshold alerts", () => {
+    const code = read("app/lib/intelligence/ai-run.server.ts")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^\s*\/\/.*$/gm, "");
+    const alertsAt = code.indexOf("await evaluateAndRecordAlerts(env, db, accountId, metrics, now)");
+    const criticalAt = code.indexOf(
+      "if (CRITICAL_CUSTOMERS_ALERT_LIVE) await runCriticalCustomersCheck(env, db, accountId, now);",
+    );
+    expect(alertsAt).toBeGreaterThan(-1);
+    expect(criticalAt).toBeGreaterThan(alertsAt);
+  });
+});

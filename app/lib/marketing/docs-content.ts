@@ -213,7 +213,7 @@ export const DOC_GUIDES: DocGuide[] = [
           { kind: "note", body: "Win-back and expiring-card alerts are switches on the features page rather than the notifications page, because they turn the engine off rather than changing who hears about it." },
           { kind: "h3", text: "Alerts" },
           "Settings and Alerts lets you set a threshold on a metric Foxhound tracks: average health score, MRR at risk, churned MRR, and contracted MRR. Choose whether the metric dropping below or rising above your number counts, and Foxhound checks every night.",
-          "Every breach is recorded and shown under Recent triggers on that page. Foxhound does not email or Slack you when an alert fires yet, so the page is where you read them.",
+          "Every breach is recorded and shown under Recent triggers on that page, and emailed to your notification address, no more than once a day for each alert. Alerts are not posted to Slack.",
           { kind: "h3", text: "API keys" },
           "Settings and API keys issues credentials for external AI agents. A key is shown once, when you generate it, and only its hash is stored, so Foxhound cannot show it to you again. Name each key so you can tell them apart, and revoke any key from the same page. A revoked key stops working immediately.",
           { kind: "h3", text: "Connecting an agent" },
@@ -593,7 +593,7 @@ export const DOC_GUIDES: DocGuide[] = [
         body: [
           "With Intelligence active, Settings and Intelligence lists what Intelligence would deliver to you and marks it not built: there is no weekly narrative email or Slack post yet, so there is nothing to set there.",
           { kind: "h3", text: "Health alert" },
-          "Settings and Alerts lets you set a threshold on average health score, and also on MRR at risk, churned MRR or contracted MRR, firing when the metric drops below or rises above your number. Foxhound checks every night and records each breach under Recent triggers on that page. It does not email or post to Slack when an alert fires yet, and it does not alert on one customer's score.",
+          "Settings and Alerts lets you set a threshold on average health score, and also on MRR at risk, churned MRR or contracted MRR, firing when the metric drops below or rises above your number. Foxhound checks every night, records each breach under Recent triggers on that page, and emails it to your notification address, no more than once a day for each alert. It does not post alerts to Slack, and it does not alert on one customer's score.",
         ],
       },
     ],
