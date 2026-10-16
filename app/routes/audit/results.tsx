@@ -23,7 +23,7 @@ import { RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 import { AUDIT_LOOKBACK_DAYS } from "~/lib/constants";
 import { readAccountAuditSettings } from "~/lib/settings/audit-settings.server";
 import { findLiveAttachment } from "~/lib/stripe/connections.server";
-import { readAuditTokenCookie } from "~/lib/stripe/state-cookie";
+import { readAuditGrantCookie } from "~/lib/stripe/state-cookie";
 
 import type { Route } from "./+types/results";
 
@@ -69,13 +69,23 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const url = new URL(request.url);
 
-  const accessToken = readAuditTokenCookie(request);
-  const stripeAccountId = url.searchParams.get("account");
+  const grant = await readAuditGrantCookie(env, request);
+  const queryAccountId = url.searchParams.get("account");
   // Legacy's guard, verbatim in effect: no cookie or no account id means the
   // five-minute grant is gone, and the only way back is a fresh authorization.
-  if (!accessToken || !stripeAccountId) {
+  if (!grant || !queryAccountId) {
     throw redirect("/audit/connect?error=session_expired");
   }
+  // THE ACCOUNT IS THE ONE STRIPE NAMED, NEVER THE QUERY'S. Legacy trusts
+  // `?account=`, which the visitor can edit, while the token reads whichever
+  // account granted it; editing the id would file one account's numbers under
+  // another's id in the caller's history (RULES.md 4.14). The query is kept for
+  // legacy's URL and checked against the sealed id. A mismatch is refused like
+  // a stale link, naming no account and no holder.
+  if (queryAccountId !== grant.stripeAccountId) {
+    throw redirect("/audit/connect?error=invalid_state");
+  }
+  const { accessToken, stripeAccountId } = grant;
 
   const db = getDb(env);
   const session = await getSession(env, request);

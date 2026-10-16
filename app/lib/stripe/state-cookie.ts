@@ -5,6 +5,7 @@ import {
   STRIPE_OAUTH_STATE_COOKIE,
   STRIPE_OAUTH_STATE_TTL_SECONDS,
 } from "~/lib/constants";
+import { decryptToken, encryptToken } from "~/lib/stripe/encryption";
 
 // CSRF state cookie for the Stripe Connect OAuth flow (legacy rule: a state
 // cookie set on start and matched on callback). HttpOnly + Secure + SameSite=Lax.
@@ -59,22 +60,67 @@ export function readAuditStateCookie(request: Request): string | null {
 }
 
 /**
- * The anonymous audit's access-token cookie, at legacy's semantics exactly
- * (app/audit/callback/route.ts:51-56).
+ * What the audit callback learned from Stripe: the read-only token and the
+ * Stripe account that granted it. The two travel together and only together.
+ */
+export interface AuditGrant {
+  accessToken: string;
+  stripeAccountId: string;
+}
+
+/**
+ * The anonymous audit's grant cookie, at legacy's lifetime and scope
+ * (app/audit/callback/route.ts:51-56): five minutes, HttpOnly, Path=/audit.
+ *
+ * THE ACCOUNT ID IS SEALED IN WITH THE TOKEN, and that is the whole point of
+ * this cookie's shape. Legacy keeps the bare token here and reads the account id
+ * from `?account=` on the results page. The visitor can edit the query but not
+ * the token, so a merchant who authorized somebody else's Stripe account could
+ * put their own id in the URL and have the other account's numbers filed into
+ * their own history under their own id (RULES.md 4.14). The results page now
+ * takes the account id from here, never from the URL.
+ *
+ * SEALED WITH AES-GCM under ENCRYPTION_KEY (the same keyring as stored
+ * connection tokens), which is authenticated encryption: an edited value fails
+ * to open and reads as no grant at all, and the token is not in the cookie in
+ * the clear. Nothing is stored server side; the cookie is still the whole grant.
  *
  * PATH=/audit IS NOT DECORATION. It is what keeps a live Stripe access token off
  * every other request this browser makes to this origin, including the ones that
  * reach the money paths. Legacy scopes it the same way and the comment above its
  * redirect says why the token is not in the URL either: history, logs, referrer.
  */
-export function setAuditTokenCookie(token: string): string {
-  return `${AUDIT_TOKEN_COOKIE}=${token}; HttpOnly; Secure; SameSite=Lax; Path=/audit; Max-Age=${AUDIT_TOKEN_TTL_SECONDS}`;
+export async function setAuditGrantCookie(env: Env, grant: AuditGrant): Promise<string> {
+  const sealed = await encryptToken(
+    env,
+    JSON.stringify({ t: grant.accessToken, a: grant.stripeAccountId }),
+  );
+  return `${AUDIT_TOKEN_COOKIE}=${sealed}; HttpOnly; Secure; SameSite=Lax; Path=/audit; Max-Age=${AUDIT_TOKEN_TTL_SECONDS}`;
 }
 
 export function clearAuditTokenCookie(): string {
   return `${AUDIT_TOKEN_COOKIE}=; HttpOnly; Secure; SameSite=Lax; Path=/audit; Max-Age=0`;
 }
 
-export function readAuditTokenCookie(request: Request): string | null {
-  return readCookie(request, AUDIT_TOKEN_COOKIE);
+/**
+ * The grant the callback sealed, or null when there is none: no cookie, a
+ * cookie that does not open under this environment's keys (edited, forged, or
+ * the bare token an older deploy set), or a sealed value of the wrong shape.
+ * Every one of those means the same thing to the caller, which is that the
+ * five-minute grant is gone. The decrypt error is never logged: it carries
+ * nothing useful and the value it failed on is a credential.
+ */
+export async function readAuditGrantCookie(env: Env, request: Request): Promise<AuditGrant | null> {
+  const raw = readCookie(request, AUDIT_TOKEN_COOKIE);
+  if (!raw) return null;
+  let opened: unknown;
+  try {
+    opened = JSON.parse(await decryptToken(env, raw));
+  } catch {
+    return null;
+  }
+  if (!opened || typeof opened !== "object") return null;
+  const { t, a } = opened as { t?: unknown; a?: unknown };
+  if (typeof t !== "string" || !t || typeof a !== "string" || !a) return null;
+  return { accessToken: t, stripeAccountId: a };
 }
