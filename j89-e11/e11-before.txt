@@ -1,0 +1,11 @@
+Foxhound
+
+Recovery sequence complete.
+
+The recovery sequence for Jane Buyer ($99.00) has ended without a successful payment. You may want to manually reach out or write off this balance.
+
+View payment:
+https://foxhoundapp.com/recovery/payments/fp_1
+
+--
+This message was sent to ops@acme.example.com.
