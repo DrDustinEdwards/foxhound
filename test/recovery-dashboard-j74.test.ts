@@ -576,3 +576,18 @@ describe("J74 review: Recova's deliverability panel, on what Foxhound records", 
     });
   });
 });
+
+// job_69b3fb23214b: the merchant app does not load capsomer/base.css, which
+// defines .cap-sr-only, so text carrying that class showed on screen (the
+// "Actions" column header). Until Capsomer ships its utilities on their own,
+// the page hides that text with Tailwind's sr-only, as /help and /settings do.
+describe("job_69b3fb23214b: screen-reader-only text stays off screen", () => {
+  it("names the actions column for screen readers with Tailwind's sr-only", () => {
+    const html = render();
+    expect(html).toMatch(/<th scope="col"><span class="sr-only">Actions<\/span><\/th>/);
+  });
+
+  it("uses no class from capsomer/base.css, which the merchant app does not load", () => {
+    expect(render()).not.toContain("cap-sr-only");
+  });
+});
