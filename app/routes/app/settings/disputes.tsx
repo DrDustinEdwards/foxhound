@@ -20,7 +20,8 @@ import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { readDisputeSettings } from "~/lib/disputes/queries.server";
-import { applyDisputeSettings, DISPUTE_PRODUCT_DESCRIPTION_MAX_LENGTH } from "~/lib/settings/apply.server";
+import { applyDisputeSettings } from "~/lib/settings/apply.server";
+import { DISPUTE_PRODUCT_DESCRIPTION_MAX_LENGTH } from "~/lib/settings/dispute-description";
 
 import type { Route } from "./+types/disputes";
 

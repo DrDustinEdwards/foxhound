@@ -20,6 +20,7 @@ import {
   buildNotificationSettingsUpdate,
   buildSenderSettingsUpdate,
 } from "./persist.server";
+import { DISPUTE_PRODUCT_DESCRIPTION_MAX_LENGTH } from "./dispute-description";
 import { isValidReplyToEmail, REPLY_TO_EMAIL_MAX_LENGTH } from "./reply-to";
 import { SENDER_NAME_MAX_LENGTH } from "./sender-name";
 import { normalizeSlackWebhookUrl } from "./slack-webhook";
@@ -168,7 +169,7 @@ export interface DisputeSettingsState {
 }
 
 /** Stripe's limit on an evidence text field, which the description becomes. */
-export const DISPUTE_PRODUCT_DESCRIPTION_MAX_LENGTH = 20_000;
+export { DISPUTE_PRODUCT_DESCRIPTION_MAX_LENGTH };
 export const DISPUTE_PRODUCT_DESCRIPTION_ERROR = `Keep the product description under ${DISPUTE_PRODUCT_DESCRIPTION_MAX_LENGTH.toLocaleString("en-US")} characters.`;
 
 /**
