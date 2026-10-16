@@ -2,6 +2,8 @@
 // message and log it. Produced by the recovery/win-back engine (Phase 4b/4e),
 // consumed by the queue handler. Kept transport-agnostic; only send.ts touches
 // the binding.
+import type { Block } from "capsomer/email";
+
 import type { EmailNotice, EmailTracking } from "./templates";
 
 /**
@@ -109,6 +111,7 @@ interface EmailJobFields {
 export interface EmailJob extends EmailJobFields {
   bodyHtml: string;
   notice?: never;
+  blocks?: never;
 }
 
 /**
@@ -118,7 +121,19 @@ export interface EmailJob extends EmailJobFields {
 export interface NoticeEmailJob extends EmailJobFields {
   notice: EmailNotice;
   bodyHtml?: never;
+  blocks?: never;
 }
 
-/** Either kind of mail, as the send seam (processEmailJob, sendEmail) takes it. */
-export type OutboundEmailJob = EmailJob | NoticeEmailJob;
+/**
+ * A mail written directly as Capsomer's blocks, with no heading of its own
+ * (E12, the expiring card alert): Recova's paragraphs and button, each a plain
+ * string Capsomer escapes. No HTML body.
+ */
+export interface BlocksEmailJob extends EmailJobFields {
+  blocks: Block[];
+  bodyHtml?: never;
+  notice?: never;
+}
+
+/** Any kind of mail, as the send seam (processEmailJob, sendEmail) takes it. */
+export type OutboundEmailJob = EmailJob | NoticeEmailJob | BlocksEmailJob;
