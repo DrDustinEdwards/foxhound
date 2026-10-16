@@ -88,6 +88,7 @@ const {
   MONTHLY_AUDIT_SUBJECT,
 } = await import("~/lib/audit/monthly.server");
 const { driveMonthlyAudit } = await import("./helpers/monthly-audit-queue");
+const { renderFoxhoundEmail } = await import("~/lib/email/templates");
 const { handleQueueBatch } = await import("~/lib/queue/consumer");
 const { runCronJob } = await import("~/lib/cron/run");
 const { CRON_JOBS, jobsForSchedule } = await import("~/lib/cron/registry");
@@ -286,16 +287,22 @@ const resultWith = (over: Partial<EmailResult> = {}): EmailResult =>
     ...over,
   }) as EmailResult;
 
-const emailFor = (over: Partial<EmailInput> = {}) =>
-  buildMonthlyAuditEmail({
+/** The mail as its blocks' words, one block a line, a button as its label and
+ *  address. Since E24 the builder returns Capsomer blocks rather than HTML. */
+const asText = (blocks: ReturnType<typeof buildMonthlyAuditEmail>["blocks"]) =>
+  blocks.map((b) => (b.type === "button" ? `${b.label} ${b.url}` : b.text)).join("\n");
+
+const emailFor = (over: Partial<EmailInput> = {}) => {
+  const built = buildMonthlyAuditEmail({
     result: resultWith(),
     summary: "One. Two. Three.",
     runId: "run_123",
     baseUrl: BASE_URL,
     comparisons: [{ currency: "usd", cents: 12_40, changeCents: 3_10 }],
-    periodMonth: PERIOD,
     ...over,
   });
+  return { ...built, body: asText(built.blocks) };
+};
 
 // ============================================================================
 // Pure decisions
@@ -362,11 +369,12 @@ describe("362 ruling 3: the ONE email carries BOTH halves", () => {
     // Legacy: `const subject = 'Your monthly Recova report'`.
     expect(MONTHLY_AUDIT_SUBJECT).toBe("Your monthly Foxhound report");
     expect(MONTHLY_AUDIT_SUBJECT).not.toContain("Recova");
-    expect(emailFor().subject).toBe(`Your monthly Foxhound report: ${PERIOD}`);
+    // E24: Recova's subject carries no month, so neither does this one.
+    expect(emailFor().subject).toBe(MONTHLY_AUDIT_SUBJECT);
   });
 
   it("carries the AUDIT half, at legacy's row labels", () => {
-    const { bodyHtml } = emailFor();
+    const { body: bodyHtml } = emailFor();
     for (const label of [
       "Your Stripe health",
       "MRR",
@@ -378,12 +386,14 @@ describe("362 ruling 3: the ONE email carries BOTH halves", () => {
       "Voluntary churn",
       "Involuntary churn",
       "Open disputes",
-      "Disputes accepted without response",
       "Dispute win rate",
       "View full audit",
     ]) {
       expect(bodyHtml, `${label} missing`).toContain(label);
     }
+    // E24: Recova shows this row only when the count is above zero, and the
+    // fixture has none accepted.
+    expect(bodyHtml).not.toContain("Disputes accepted without response");
     expect(bodyHtml).toContain("$1,000"); // MRR
     expect(bodyHtml).toContain("42"); // active subs
     expect(bodyHtml).toContain("2.1%"); // voluntary churn, legacy's one decimal
@@ -393,20 +403,20 @@ describe("362 ruling 3: the ONE email carries BOTH halves", () => {
   it("AND THE ABSORBED DIGEST LINE, which is what the merge is", () => {
     // 362 ruling 3: the ported audit email absorbs computeFoxhoundAddsCents.
     // Its heading is legacy's, with the brand substitution.
-    const { bodyHtml } = emailFor();
+    const { body: bodyHtml } = emailFor();
     expect(bodyHtml).toContain("What Foxhound did this month");
     expect(bodyHtml).toContain("$12.40");
     expect(bodyHtml).toContain("up $3.10");
   });
 
   it("a FALL reads as down, not as a negative amount", () => {
-    const { bodyHtml } = emailFor({ comparisons: [{ currency: "usd", cents: 100, changeCents: -500 }] });
+    const { body: bodyHtml } = emailFor({ comparisons: [{ currency: "usd", cents: 100, changeCents: -500 }] });
     expect(bodyHtml).toContain("down $5.00");
     expect(bodyHtml).not.toContain("-$5.00");
   });
 
   it("no attributed recovery yet says so, rather than printing a zero", () => {
-    const { bodyHtml } = emailFor({ comparisons: [] });
+    const { body: bodyHtml } = emailFor({ comparisons: [] });
     expect(bodyHtml).toContain("No recovered payments are attributed to Foxhound yet");
   });
 
@@ -414,7 +424,7 @@ describe("362 ruling 3: the ONE email carries BOTH halves", () => {
     // 365 binding 1: no stored run was ever publicly readable, on either side.
     // The email carries a per-run URL and the page pins the account in its
     // predicate, so a forwarded link refuses rather than leaking.
-    expect(emailFor().bodyHtml).toContain(`${BASE_URL}/audit/results/run_123`);
+    expect(emailFor().body).toContain(`${BASE_URL}/audit/results/run_123`);
   });
 
   it("A FAILED SCOPE READS AS COULD-NOT-BE-READ, never as a zero", () => {
@@ -425,22 +435,22 @@ describe("362 ruling 3: the ONE email carries BOTH halves", () => {
     // call that failed. Legacy cannot make this mistake in its own email only
     // because its engine already zeroed the scope one step earlier, which is the
     // same lie with better manners.
-    const { bodyHtml } = emailFor({
+    const { body: bodyHtml } = emailFor({
       result: resultWith({ disputes: unread("Could not read disputes from Stripe: 500") }),
     });
 
-    expect(bodyHtml).toContain(`<strong>Open disputes:</strong> ${SCOPE_UNREAD}`);
+    expect(bodyHtml).toContain(`Open disputes: ${SCOPE_UNREAD}`);
     expect(bodyHtml).toContain(
-      `<strong>Disputes accepted without response:</strong> ${SCOPE_UNREAD}`,
+      `Disputes accepted without response: ${SCOPE_UNREAD}`,
     );
     // A zero would be indistinguishable from a merchant with no open disputes.
-    expect(bodyHtml).not.toContain("<strong>Open disputes:</strong> 0");
+    expect(bodyHtml).not.toContain("Open disputes: 0");
     // The win rate has no honest value without the scope, so its row is the
     // sentence too rather than being silently dropped.
-    expect(bodyHtml).toContain(`<strong>Dispute win rate:</strong> ${SCOPE_UNREAD}`);
+    expect(bodyHtml).toContain(`Dispute win rate: ${SCOPE_UNREAD}`);
     // The scopes that DID read are unaffected, so this is per scope and not a
     // whole-email bail-out.
-    expect(bodyHtml).toContain("<strong>MRR:</strong> $1,000");
+    expect(bodyHtml).toContain("MRR: $1,000");
     // And the internal reason never reaches the merchant.
     expect(bodyHtml).not.toContain("500");
   });
@@ -455,21 +465,23 @@ describe("362 ruling 3: the ONE email carries BOTH halves", () => {
       [{ pastDueSubscriptions: unread("p") }, ["Past-due subscriptions"]],
     ];
     for (const [over, labels] of cases) {
-      const { bodyHtml } = emailFor({ result: resultWith(over) });
+      const { body: bodyHtml } = emailFor({ result: resultWith(over) });
       for (const label of labels) {
         expect(bodyHtml, `${label} did not say it was unread`).toContain(
-          `<strong>${label}:</strong> ${SCOPE_UNREAD}`,
+          `${label}: ${SCOPE_UNREAD}`,
         );
       }
     }
   });
 
-  it("names the setting that turns it off, since the merchant opted in", () => {
-    expect(emailFor().bodyHtml).toContain("audit settings");
+  it("carries no opt-out sentence of its own: Recova's footer links to settings (E24)", () => {
+    // The sentence that named the audit settings was Foxhound's, not Recova's.
+    // Recova's footer ("Manage email settings") is added by the merchant path.
+    expect(emailFor().body).not.toContain("audit settings");
   });
 
   it("NEVER names the AI vendor", () => {
-    const { bodyHtml } = emailFor();
+    const { body: bodyHtml } = emailFor();
     for (const banned of ["Claude", "Anthropic", "GPT", "LLM", "written by AI"]) {
       expect(bodyHtml).not.toContain(banned);
     }
@@ -478,7 +490,7 @@ describe("362 ruling 3: the ONE email carries BOTH halves", () => {
   it("AND CARRIES NO EM DASH, which legacy's own row separators are", () => {
     // Legacy writes `${count} &mdash; ${amount}` on five rows, which renders as
     // an em dash in the merchant's inbox. Not ported.
-    const { bodyHtml } = emailFor();
+    const { body: bodyHtml } = emailFor();
     expect(bodyHtml).not.toContain("&mdash;");
     expect(bodyHtml).not.toContain(String.fromCharCode(0x2014));
     expect(bodyHtml).not.toContain(String.fromCharCode(0x2013));
@@ -981,7 +993,9 @@ describe("the run message says what the cron queued", () => {
 
 describe("the monthly audit email escapes what it interpolates (review of PR 146)", () => {
   // The summary is model-written and the advisory is built from Stripe data, so
-  // neither may land in the merchant's inbox as markup.
+  // neither may land in the merchant's inbox as markup. Since E24 the builder
+  // hands Capsomer plain strings and Capsomer escapes them, once, as it renders;
+  // so the assertion reads the rendered HTML part.
   const hostile = `<img src=x onerror="alert(1)">&'`;
   const escaped = "&lt;img src=x onerror=&quot;alert(1)&quot;&gt;&amp;&#39;";
   const withAdvisory = (advisory: string) =>
@@ -993,29 +1007,34 @@ describe("the monthly audit email escapes what it interpolates (review of PR 146
         windowDays: 30,
       }),
     });
+  const html = (over: Partial<EmailInput>) => {
+    const { subject, blocks } = emailFor(over);
+    return renderFoxhoundEmail({ subject, blocks, brandName: "Foxhound", to: "owner@merchant.test" }).html;
+  };
 
   it("the model-written summary is escaped", () => {
-    const { bodyHtml } = emailFor({ summary: hostile });
-    expect(bodyHtml).not.toContain("<img");
-    expect(bodyHtml).toContain(`<p>${escaped}</p>`);
+    const out = html({ summary: hostile });
+    expect(out).not.toContain("<img");
+    expect(out).toContain(`>${escaped}</td>`);
   });
 
   it("the Card Updater advisory is escaped", () => {
-    const { bodyHtml } = emailFor({ result: withAdvisory(hostile) });
-    expect(bodyHtml).not.toContain("<img");
-    expect(bodyHtml).toContain(`<p><strong>Card Updater:</strong> ${escaped}</p>`);
+    const out = html({ result: withAdvisory(hostile) });
+    expect(out).not.toContain("<img");
+    expect(out).toContain(`>Card Updater: ${escaped}</td>`);
   });
 
-  it("the audit link is escaped as an attribute", () => {
-    const { bodyHtml } = emailFor({ runId: `r"><script>x</script>` });
-    expect(bodyHtml).not.toContain("<script>");
-    expect(bodyHtml).toContain(`/audit/results/r&quot;&gt;&lt;script&gt;x&lt;/script&gt;"`);
+  it("a hostile run id never reaches the link: Capsomer's link check refuses it", () => {
+    // The run id is a UUID from saveAuditRun. A value carrying a quote or an
+    // angle bracket is refused by checkUrl before any markup is written, and the
+    // throw becomes processEmailJob's failed outcome.
+    expect(() => html({ runId: `r"><script>x</script>` })).toThrow(/link/);
   });
 
   it("escapes once, never twice", () => {
-    const { bodyHtml } = emailFor({ summary: "Fees & refunds", result: withAdvisory("A & B") });
-    expect(bodyHtml).toContain("<p>Fees &amp; refunds</p>");
-    expect(bodyHtml).toContain("<strong>Card Updater:</strong> A &amp; B</p>");
-    expect(bodyHtml).not.toContain("&amp;amp;");
+    const out = html({ summary: "Fees & refunds", result: withAdvisory("A & B") });
+    expect(out).toContain(">Fees &amp; refunds</td>");
+    expect(out).toContain(">Card Updater: A &amp; B</td>");
+    expect(out).not.toContain("&amp;amp;");
   });
 });

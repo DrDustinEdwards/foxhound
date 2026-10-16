@@ -142,7 +142,7 @@ export async function sendEmail(
 }
 
 /**
- * Send a TRANSACTIONAL platform email (auth verification, alerts, the audit) through
+ * Send a TRANSACTIONAL platform email (auth verification, the cron alerts) through
  * the same single binding seam. Transactional platform mail to our own users is
  * NOT commercial mail, so it deliberately carries no CAN-SPAM unsubscribe/postal
  * footer (you cannot unsubscribe from a password reset). Still the only path to
