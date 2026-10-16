@@ -142,9 +142,8 @@ describe("the routes", () => {
     expect(exempt).toBeLessThan(detail);
   });
 
-  it("are the Merchants page's own module, so one action, one set of writers and one Undo serve all three", () => {
+  it("share the Merchants page's action and page, so one set of writers and one Undo serve all three", () => {
     for (const route of [pausedRoute, exemptRoute]) {
-      expect(route.loader).toBe(indexRoute.loader);
       expect(route.action).toBe(indexRoute.action);
       expect(route.default).toBe(indexRoute.default);
       expect(route.handle).toEqual(indexRoute.handle);
@@ -169,6 +168,15 @@ describe("the loader, by address", () => {
     const data = await load(exemptRoute, "/admin/merchants/billing-exempt");
     expect(data.view).toBe("billing-exempt");
     expect(ids(data)).toEqual(["acct_both", "acct_lumen"]);
+  });
+
+  it("knows its list from its route, not its address: a revalidation reads /paused.data (seen in the browser)", async () => {
+    const paused = await load(pausedRoute, "/admin/merchants/paused.data");
+    expect(paused.view).toBe("paused");
+    expect(ids(paused)).toEqual(["acct_both", "acct_brake", "acct_pets"]);
+    const exempt = await load(exemptRoute, "/admin/merchants/billing-exempt.data?_routes=routes%2Fadmin%2Fmerchants%2Fbilling-exempt");
+    expect(exempt.view).toBe("billing-exempt");
+    expect((await load(indexRoute, "/admin/merchants/_.data")).view).toBe("all");
   });
 
   it("counts every list for its tab, whichever list is shown", async () => {

@@ -20,6 +20,7 @@ import { getDb } from "~/db";
 import { logAdminAction } from "~/lib/admin/audit.server";
 import { PAUSE_REASON_BRAKE, PAUSE_REASON_MANUAL } from "~/lib/admin/brake";
 import { adminContext } from "~/lib/admin/context";
+import { loadMerchantsPage } from "~/lib/admin/merchants-page.server";
 import {
   CANCEL_CONFIRM_WORD,
   CONNECTION_WORDS,
@@ -29,10 +30,8 @@ import {
   merchantStatus,
   MERCHANT_VIEWS,
   merchantsActionFor,
-  merchantsInView,
   MERCHANTS_PATH,
   merchantLabel,
-  merchantViewOf,
   merchantViewPath,
   moneyWords,
   toggleMessage,
@@ -43,8 +42,6 @@ import {
 import {
   cancelMerchant,
   getMerchantActionTarget,
-  getMerchantFigures,
-  listAdminMerchants,
   setBillingExemptIfChanged,
   setProcessingPausedIfChanged,
   type AdminMerchantRow,
@@ -63,33 +60,11 @@ export function meta() {
 }
 
 // This module serves three addresses (routes.ts): every merchant here, and
-// Recova's Paused and Billing exempt lists (J50), whose route modules re-export
-// it. The address says which list; the rows, action and writers are the same.
+// Recova's Paused and Billing exempt lists (J50), whose route modules pass
+// their own list to the same loader and re-export this action and page.
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
-  const db = getDb(env);
-  const url = new URL(request.url);
-  const view = merchantViewOf(url.pathname);
-  // The figures are the Merchants page's own; Recova's two lists had none.
-  const [all, figures] = await Promise.all([
-    listAdminMerchants(db),
-    view === "all" ? getMerchantFigures(db, Date.now()) : Promise.resolve(null),
-  ]);
-  const merchants = merchantsInView(all, view);
-  const counts: Record<MerchantView, number> = {
-    all: all.length,
-    paused: merchantsInView(all, "paused").length,
-    "billing-exempt": merchantsInView(all, "billing-exempt").length,
-  };
-  // The Paused list's share the brake holds: exactly what its Release resumes
-  // (brakePausedCondition: paused and carrying the brake's marker).
-  const brakePaused = merchantsInView(all, "paused").filter((m) => m.pauseReason === PAUSE_REASON_BRAKE).length;
-  // ?cancel=<id> opens the confirm page for a merchant that can still be
-  // cancelled. An unknown or already cancelled one opens nothing, so a stale
-  // link lands on the table rather than on a confirmation of nothing.
-  const asked = url.searchParams.get("cancel");
-  const live = all.find((m) => m.id === asked && !m.cancelledAt);
-  return { view, merchants, counts, brakePaused, figures, confirmCancel: live ? { id: live.id, name: live.name } : null };
+  return loadMerchantsPage(env, request, "all");
 }
 
 interface Refused {

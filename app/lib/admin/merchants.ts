@@ -28,12 +28,6 @@ export function merchantViewPath(view: MerchantView): string {
   return MERCHANT_VIEWS.find((v) => v.view === view)?.path ?? MERCHANTS_PATH;
 }
 
-/** The list an address shows; anything else under /admin/merchants is all. */
-export function merchantViewOf(pathname: string): MerchantView {
-  const trimmed = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
-  return MERCHANT_VIEWS.find((v) => v.path === trimmed)?.view ?? "all";
-}
-
 /** The rows a list shows: exactly those whose flag is set, as Recova's
  *  .eq("processing_paused", true) and .eq("billing_exempt", true) reads did,
  *  so a cancelled merchant still holding the flag stays on the list. */
