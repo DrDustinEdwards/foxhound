@@ -212,10 +212,19 @@ function StripeSection({ connections, result }: { connections: Connection[]; res
                           <input type="hidden" name="connectionId" value={conn.id} />
                           <Button
                             id={buttonId(conn.id)}
-                            type={isConfirming ? "submit" : "button"}
                             variant={isConfirming ? "danger" : "default"}
                             pending={isDisconnecting}
-                            onClick={isConfirming ? undefined : () => setAsked({ id: conn.id, under: result })}
+                            onClick={(e) =>
+                              // ALWAYS type="button". React re-renders inside the
+                              // click, before the browser's default action, so a
+                              // type that flipped to "submit" would post on the
+                              // very press that opens the confirm. The handler
+                              // bound to this press decides, and only a press
+                              // made while confirming submits this row's form.
+                              isConfirming
+                                ? e.currentTarget.form?.requestSubmit()
+                                : setAsked({ id: conn.id, under: result })
+                            }
                           >
                             {isDisconnecting
                               ? "Disconnecting..."
