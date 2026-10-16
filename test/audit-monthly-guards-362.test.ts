@@ -139,7 +139,7 @@ describe("PLANT 2: legacy's alerts re-evaluation is ABSENT, and the reason is as
 
   it("Foxhound's evaluator is a DIFFERENT FUNCTION from legacy's, not the same one skipped", () => {
     // Legacy: evaluateAlerts(supabase, accountId), which does its own reads.
-    // Foxhound: evaluateAlerts(configs, metrics, previousActuals), pure. Calling
+    // Foxhound: evaluateAlerts(configs, metrics, nowMs), pure. Calling
     // it here would need metrics computed first, which is the intelligence cron's
     // whole job. Pinned so "we skipped an idempotent call" is not read back later
     // as the finding; the finding is that it is not that call at all.

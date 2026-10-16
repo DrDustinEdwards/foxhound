@@ -204,10 +204,11 @@ describe("PLANT 2: every bound the evaluator implies is enforced", () => {
       direction: r.direction as "above" | "below",
       channel: "email",
       enabled: true,
+      lastTriggeredAt: null,
     }));
     const metrics = Object.fromEntries(ALERT_METRICS.map((m) => [m, 1_000_000]));
     // Every one of them fires, so none was stored as a key the evaluator skips.
-    expect(evaluateAlerts(configs, metrics, new Map())).toHaveLength(ALERT_METRICS.length);
+    expect(evaluateAlerts(configs, metrics, Date.now())).toHaveLength(ALERT_METRICS.length);
   });
 
   it("400 and NO write for a bad direction, a negative threshold, or no threshold", async () => {

@@ -165,7 +165,7 @@ describe("J33 alerts: the page head and width", () => {
 describe("J33 review: copy that promises nothing Foxhound does not do", () => {
   // Nothing delivers an alert (notificationSent is written false), and the
   // evaluator records a firing when a threshold is first crossed, not every
-  // night it stays crossed (shouldFireAlert).
+  // night it stays crossed (the edge trigger J94 replaced with Recova's cooldown).
   it("says the alerts are checked nightly and each crossing is recorded", () => {
     const html = render();
     expect(html).toContain(

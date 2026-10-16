@@ -1,9 +1,8 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import {
   accounts,
-  alertHistory,
   alerts,
   customerContext,
   getDb,
@@ -20,6 +19,12 @@ import {
 } from "~/lib/constants";
 import { getMrrAnalytics } from "~/lib/dashboard/stats.server";
 
+import {
+  CRITICAL_CUSTOMERS_ALERT_LIVE,
+  loadAlertTarget,
+  notifyThresholdAlert,
+  runCriticalCustomersCheck,
+} from "./alert-notify.server";
 import {
   buildAlertHistoryInsert,
   buildAlertLastTriggeredUpdate,
@@ -194,7 +199,10 @@ export async function runIntelligenceAiForAccount(
     metrics.mrr_contraction_cents = mrr.latest.contractionMrrCents;
   }
 
-  const alertsFired = await evaluateAndRecordAlerts(db, accountId, metrics, now);
+  const alertsFired = await evaluateAndRecordAlerts(env, db, accountId, metrics, now);
+  // E22, Recova's always-on critical customers check, after the configured
+  // alerts as Recova runs it. Off until its button's page exists (RULES.md 2.7).
+  if (CRITICAL_CUSTOMERS_ALERT_LIVE) await runCriticalCustomersCheck(env, db, accountId, now);
 
   let narrativeGenerated = false;
   let narrativeSkippedReason: string | null = null;
@@ -319,7 +327,16 @@ export async function writeNarrativeReport(
   await db.batch([narrativeBatch[0], ...narrativeBatch.slice(1)]);
 }
 
-async function evaluateAndRecordAlerts(
+/**
+ * Evaluate the account's enabled alerts and, for each that fires, notify and
+ * then record, in Recova's order (lib/alert-evaluation.ts, blob 0e28ecbf):
+ * the email or Slack post first, then the alert_history row with whether it
+ * went, then last_triggered_at, which starts the 24 hour cooldown. Returns the
+ * number of alerts that fired. A notification never throws (alert-notify), so
+ * one failed send never stops the next alert or the run.
+ */
+export async function evaluateAndRecordAlerts(
+  env: Env,
   db: Db,
   accountId: string,
   metrics: Record<string, number>,
@@ -333,29 +350,23 @@ async function evaluateAndRecordAlerts(
       thresholdValue: alerts.thresholdValue,
       direction: alerts.direction,
       channel: alerts.channel,
+      lastTriggeredAt: alerts.lastTriggeredAt,
     })
     .from(alerts)
     .where(and(eq(alerts.accountId, accountId), eq(alerts.enabled, true)));
   if (configs.length === 0) return 0;
 
-  const history = await db
-    .select({ alertId: alertHistory.alertId, actualValue: alertHistory.actualValue })
-    .from(alertHistory)
-    .where(inArray(alertHistory.alertId, configs.map((c) => c.id)))
-    .orderBy(desc(alertHistory.firedAt));
-  const previousActuals = new Map<string, number | null>();
-  for (const row of history) {
-    if (!previousActuals.has(row.alertId)) previousActuals.set(row.alertId, row.actualValue);
-  }
-
-  const firings = evaluateAlerts(configs, metrics, previousActuals);
+  const firings = evaluateAlerts(configs, metrics, now.getTime());
   if (firings.length === 0) return 0;
 
-  const batch: BatchItem<"sqlite">[] = firings.flatMap((f) => [
-    buildAlertHistoryInsert(db, f, now),
-    buildAlertLastTriggeredUpdate(db, f.alertId, now),
-  ]);
-  await db.batch([batch[0], ...batch.slice(1)]);
+  const target = await loadAlertTarget(db, accountId);
+  for (const f of firings) {
+    const outcome = await notifyThresholdAlert(env, target, f, now);
+    await db.batch([
+      buildAlertHistoryInsert(db, f, now, outcome.sent),
+      buildAlertLastTriggeredUpdate(db, f.alertId, now),
+    ]);
+  }
   return firings.length;
 }
 

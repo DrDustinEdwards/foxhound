@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   breachesThreshold,
   evaluateAlerts,
-  shouldFireAlert,
   type AlertConfig,
 } from "~/lib/intelligence/alerts";
 
@@ -21,27 +20,8 @@ describe("breachesThreshold", () => {
   });
 });
 
-describe("shouldFireAlert (edge-triggered)", () => {
-  const alert = { direction: "below", thresholdValue: 40 };
-
-  it("fires on a first-ever breach (no prior evaluation)", () => {
-    expect(shouldFireAlert(alert, null, 30)).toBe(true);
-  });
-
-  it("does not fire when not breaching", () => {
-    expect(shouldFireAlert(alert, null, 50)).toBe(false);
-  });
-
-  it("does not re-fire while continuously breaching", () => {
-    expect(shouldFireAlert(alert, 35, 30)).toBe(false);
-  });
-
-  it("fires again after clearing and re-breaching", () => {
-    expect(shouldFireAlert(alert, 50, 30)).toBe(true);
-  });
-});
-
 describe("evaluateAlerts", () => {
+  const NOW = Date.UTC(2026, 9, 16, 3);
   const configs: AlertConfig[] = [
     {
       id: "alert_1",
@@ -50,6 +30,7 @@ describe("evaluateAlerts", () => {
       thresholdValue: 40,
       direction: "below",
       channel: "email",
+      lastTriggeredAt: null,
     },
     {
       id: "alert_2",
@@ -58,37 +39,28 @@ describe("evaluateAlerts", () => {
       thresholdValue: 100_000,
       direction: "above",
       channel: "email",
+      lastTriggeredAt: null,
     },
   ];
 
-  it("fires only the alerts whose metric breaches and were not already breaching", () => {
-    const firings = evaluateAlerts(
-      configs,
-      { health_score_avg: 35, mrr_at_risk_cents: 50_000 },
-      new Map([
-        ["alert_1", null],
-        ["alert_2", null],
-      ]),
-    );
+  it("fires only the alerts whose metric breaches", () => {
+    const firings = evaluateAlerts(configs, { health_score_avg: 35, mrr_at_risk_cents: 50_000 }, NOW);
     expect(firings).toHaveLength(1);
     expect(firings[0]).toMatchObject({ alertId: "alert_1", actualValue: 35 });
   });
 
   it("skips an alert whose metric has no computed value this run", () => {
-    const firings = evaluateAlerts(
-      [configs[0]],
-      {},
-      new Map([["alert_1", null]]),
-    );
-    expect(firings).toEqual([]);
+    expect(evaluateAlerts([configs[0]], {}, NOW)).toEqual([]);
   });
 
-  it("does not re-fire an alert that was already breaching last run", () => {
-    const firings = evaluateAlerts(
-      [configs[0]],
-      { health_score_avg: 20 },
-      new Map([["alert_1", 25]]),
-    );
-    expect(firings).toEqual([]);
+  it("does not re-fire inside the 24h cooldown, and does once it has passed (Recova's rule)", () => {
+    const fired = (hoursAgo: number) =>
+      evaluateAlerts(
+        [{ ...configs[0], lastTriggeredAt: new Date(NOW - hoursAgo * 3_600_000) }],
+        { health_score_avg: 20 },
+        NOW,
+      );
+    expect(fired(23)).toEqual([]);
+    expect(fired(24)).toHaveLength(1);
   });
 });
