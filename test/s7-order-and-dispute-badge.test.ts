@@ -37,8 +37,9 @@ function at(needle: string): number {
 const SECTIONS = {
   header: () => at("{failedPayment.customerName ?? failedPayment.customerEmail}"),
   // J76 rebuilt the page on Capsomer's parts (Q10); the anchors follow the
-  // new markup and the order they assert is unchanged.
-  resultBanner: () => at("{error ? ("),
+  // new markup and the order they assert is unchanged. job_3176bb519f89 folded
+  // the error and success banners into one actionResult.
+  resultBanner: () => at("{actionResult ? ("),
   actionRow: () => at("{actionsVisible && !isDemo ? ("),
   stripeLinks: () => at("Recova's two Stripe links"),
   statCards: () => at('<Panel size="sm" title="Amount">'),

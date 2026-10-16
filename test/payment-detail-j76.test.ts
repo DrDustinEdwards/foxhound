@@ -412,9 +412,9 @@ describe("J76: Recova's recovery timeline", () => {
     const t = text(render(await load()));
     expect(t).toContain("Day 1 email Email sent 3d ago");
     expect(t).toContain('"Your card" Executed Oct 13, 2026');
-    // The engine names a retry by its real offset for the payment's schedule
-    // (J75's paymentStepLabel): the soft retry_day2 runs at 48 hours.
-    expect(t).toContain("48hr retry Card declined 1d ago");
+    // Recova's "Day 2 retry" (getStepLabel), true here because the soft
+    // retry_day2 runs at 48 hours (job_3176bb519f89).
+    expect(t).toContain("Day 2 retry Card declined 1d ago");
     expect(t).toContain("Day 3 email Pending in 1d Scheduled Oct 17, 2026");
     expect(t).not.toMatch(/\b1\. /);
   });

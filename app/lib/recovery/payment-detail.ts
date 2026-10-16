@@ -120,3 +120,30 @@ export function actionSuccessNotice(
   }
   return `${ACTION_LABELS[intent]} successful`;
 }
+
+export interface ActionResult {
+  tone: "ok" | "crit";
+  message: string;
+}
+
+/**
+ * The action result banner, as Recova shows it (PaymentDetailClient.tsx
+ * doAction): pressing any of the four actions clears the previous result at
+ * once (`setActionResult(null)` before the request), an error then stays until
+ * the next press, and a success clears after its hold. pendingIntent is the
+ * intent of the submission in flight; a note save is a fetcher, never here.
+ */
+export function visibleActionResult(input: {
+  actionData: unknown;
+  clearedFor: unknown;
+  pendingIntent: unknown;
+}): ActionResult | null {
+  const { actionData, clearedFor, pendingIntent } = input;
+  if (isDetailActionIntent(pendingIntent)) return null;
+  if (!actionData || typeof actionData !== "object") return null;
+  if ("error" in actionData && typeof actionData.error === "string") return { tone: "crit", message: actionData.error };
+  if ("notice" in actionData && typeof actionData.notice === "string" && clearedFor !== actionData) {
+    return { tone: "ok", message: actionData.notice };
+  }
+  return null;
+}
