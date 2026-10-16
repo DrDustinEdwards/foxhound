@@ -176,6 +176,10 @@ export default [
       index("./routes/admin/index.tsx"),
       ...prefix("merchants", [
         index("./routes/admin/merchants/index.tsx"),
+        // Recova's Paused and Billing exempt lists, at Recova's addresses:
+        // filters of the Merchants page, which these modules re-export (J50).
+        route("paused", "./routes/admin/merchants/paused.tsx"),
+        route("billing-exempt", "./routes/admin/merchants/billing-exempt.tsx"),
         route(":id", "./routes/admin/merchants/detail.tsx"),
       ]),
       route("users", "./routes/admin/users.tsx"),

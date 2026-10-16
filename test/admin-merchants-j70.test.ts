@@ -641,7 +641,9 @@ const FIGURES: Figures = {
 };
 
 function render(over: { merchants?: Row[]; confirmCancel?: { id: string; name: string | null } | null; actionData?: unknown } = {}) {
-  const data = { merchants: over.merchants ?? ROWS, figures: FIGURES, confirmCancel: over.confirmCancel ?? null };
+  const merchants = over.merchants ?? ROWS;
+  const counts = { all: merchants.length, paused: 0, "billing-exempt": 0 };
+  const data = { view: "all", merchants, counts, brakePaused: 0, figures: FIGURES, confirmCancel: over.confirmCancel ?? null };
   const Stub = createRoutesStub([
     {
       path: "/admin/merchants",
