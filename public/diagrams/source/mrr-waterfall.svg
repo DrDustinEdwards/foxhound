@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 380" role="img">
+  <title>MRR waterfall comparison — Company A vs Company B</title>
+  <desc>Two side-by-side MRR waterfall charts showing how Company A and Company B can post the same $10k net new MRR while having radically different gross movements, illustrating why net MRR alone hides the health signal.</desc>
+  <style>
+    .bar-positive { fill: #e1f5ee; stroke: #1d9e75; }
+    .bar-negative { fill: #fcebeb; stroke: #a32d2d; }
+    .bar-net      { fill: #faeeda; stroke: #d4941a; }
+    .label-primary   { fill: #1a1c18; font-family: system-ui, sans-serif; font-size: 13px; font-weight: 500; }
+    .label-secondary { fill: #595c56; font-family: system-ui, sans-serif; font-size: 11px; font-family: system-ui, sans-serif; }
+    .label-accent    { fill: #8a5c06; font-family: system-ui, sans-serif; font-size: 13px; font-weight: 600; }
+    .baseline { stroke: #595c56; stroke-width: 1; stroke-dasharray: 3 3; fill: none; }
+    .axis { stroke: #8a8a7e; stroke-width: 1; }
+    :root[data-theme="dark"] .bar-positive { fill: #091e14; stroke: #1f7a5f; }
+    :root[data-theme="dark"] .bar-negative { fill: #200a0a; stroke: #b92727; }
+    :root[data-theme="dark"] .bar-net      { fill: #1e1a0a; stroke: #826217; }
+    :root[data-theme="dark"] .label-primary   { fill: #f0ede8; }
+    :root[data-theme="dark"] .label-secondary { fill: #a8a49e; }
+    :root[data-theme="dark"] .label-accent    { fill: #f0b429; }
+    :root[data-theme="dark"] .baseline { stroke: #a8a49e; }
+    :root[data-theme="dark"] .axis { stroke: #4a4c44; }
+  </style>
+
+  <!-- Title -->
+  <text class="label-primary" x="40" y="24">Same net MRR. Different gross. Different health.</text>
+
+  <!-- Company A header -->
+  <text class="label-primary" x="180" y="60" text-anchor="middle">COMPANY A</text>
+  <text class="label-secondary" x="180" y="76" text-anchor="middle">high churn, replaced by new sales</text>
+
+  <!-- Company A chart (baseline at y=210, x=40-320) -->
+  <line class="baseline" x1="40" y1="210" x2="320" y2="210"/>
+  <line class="axis" x1="40" y1="100" x2="40" y2="310"/>
+
+  <!-- Bars: New +50, Exp +5, Contraction -20, Churn -25, Net +10 -->
+  <!-- Scale: 1k = 2px. Bar width: 40, gap: 12 -->
+  <rect class="bar-positive" x="55" y="110" width="40" height="100"/>
+  <text class="label-secondary" x="75" y="100" text-anchor="middle">+$50k</text>
+  <text class="label-secondary" x="75" y="324" text-anchor="middle">New</text>
+
+  <rect class="bar-positive" x="107" y="200" width="40" height="10"/>
+  <text class="label-secondary" x="127" y="194" text-anchor="middle">+$5k</text>
+  <text class="label-secondary" x="127" y="324" text-anchor="middle">Exp</text>
+
+  <rect class="bar-negative" x="159" y="210" width="40" height="40"/>
+  <text class="label-secondary" x="179" y="262" text-anchor="middle">-$20k</text>
+  <text class="label-secondary" x="179" y="324" text-anchor="middle">Contr</text>
+
+  <rect class="bar-negative" x="211" y="210" width="40" height="50"/>
+  <text class="label-secondary" x="231" y="272" text-anchor="middle">-$25k</text>
+  <text class="label-secondary" x="231" y="324" text-anchor="middle">Churn</text>
+
+  <rect class="bar-net" x="263" y="190" width="40" height="20"/>
+  <text class="label-accent" x="283" y="184" text-anchor="middle">+$10k</text>
+  <text class="label-secondary" x="283" y="324" text-anchor="middle">Net</text>
+
+  <!-- Company A annotation -->
+  <text class="label-secondary" x="40" y="346">Churn = 50% of new. Hidden churn problem.</text>
+
+  <!-- Company B header -->
+  <text class="label-primary" x="500" y="60" text-anchor="middle">COMPANY B</text>
+  <text class="label-secondary" x="500" y="76" text-anchor="middle">low churn, mostly expansion</text>
+
+  <!-- Company B chart (baseline at y=210, x=360-640) -->
+  <line class="baseline" x1="360" y1="210" x2="640" y2="210"/>
+  <line class="axis" x1="360" y1="100" x2="360" y2="310"/>
+
+  <!-- Bars: New +15, Exp +8, Contraction -5, Churn -8, Net +10 -->
+  <rect class="bar-positive" x="375" y="180" width="40" height="30"/>
+  <text class="label-secondary" x="395" y="174" text-anchor="middle">+$15k</text>
+  <text class="label-secondary" x="395" y="324" text-anchor="middle">New</text>
+
+  <rect class="bar-positive" x="427" y="194" width="40" height="16"/>
+  <text class="label-secondary" x="447" y="188" text-anchor="middle">+$8k</text>
+  <text class="label-secondary" x="447" y="324" text-anchor="middle">Exp</text>
+
+  <rect class="bar-negative" x="479" y="210" width="40" height="10"/>
+  <text class="label-secondary" x="499" y="232" text-anchor="middle">-$5k</text>
+  <text class="label-secondary" x="499" y="324" text-anchor="middle">Contr</text>
+
+  <rect class="bar-negative" x="531" y="210" width="40" height="16"/>
+  <text class="label-secondary" x="551" y="238" text-anchor="middle">-$8k</text>
+  <text class="label-secondary" x="551" y="324" text-anchor="middle">Churn</text>
+
+  <rect class="bar-net" x="583" y="190" width="40" height="20"/>
+  <text class="label-accent" x="603" y="184" text-anchor="middle">+$10k</text>
+  <text class="label-secondary" x="603" y="324" text-anchor="middle">Net</text>
+
+  <!-- Company B annotation -->
+  <text class="label-secondary" x="360" y="346">Churn = 53% of new but on a small base. Healthy.</text>
+</svg>

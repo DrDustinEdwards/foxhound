@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 320" role="img">
+  <title>Stripe Smart Retries vs dedicated dunning</title>
+  <desc>Gap analysis comparing what Stripe Smart Retries does (retry timing only, no decline classification) with what a dedicated dunning system adds, showing the 38% versus 70% recovery rate differential.</desc>
+  <defs>
+    <marker id="arrow-rvs" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" class="arrow-head-accent"/>
+    </marker>
+  </defs>
+  <style>
+    .node-neutral { fill: #e8e6e0; stroke: #b0ada6; }
+    .node-accent  { fill: #faeeda; stroke: #d4941a; }
+    .node-success { fill: #e1f5ee; stroke: #1d9e75; }
+    .node-info    { fill: #e6f1fb; stroke: #185fa5; }
+    .label-primary   { fill: #1a1c18; font-family: system-ui, sans-serif; font-size: 13px; font-weight: 500; }
+    .label-secondary { fill: #595c56; font-family: system-ui, sans-serif; font-size: 11px; font-family: system-ui, sans-serif; }
+    .label-accent    { fill: #8a5c06; font-family: system-ui, sans-serif; font-size: 13px; font-weight: 600; }
+    .header          { fill: #1a1c18; font-family: system-ui, sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; }
+    .rate-num        { fill: #8a5c06; font-family: system-ui, sans-serif; font-size: 22px; font-weight: 700; }
+    .connector-accent { stroke: #d4941a; stroke-width: 1.5; fill: none; }
+    .arrow-head-accent { fill: #d4941a; }
+    :root[data-theme="dark"] .node-neutral { fill: #222420; stroke: #4a4c44; }
+    :root[data-theme="dark"] .node-accent  { fill: #1e1a0a; stroke: #826217; }
+    :root[data-theme="dark"] .node-success { fill: #091e14; stroke: #1f7a5f; }
+    :root[data-theme="dark"] .node-info    { fill: #0a1428; stroke: #315dc4; }
+    :root[data-theme="dark"] .label-primary   { fill: #f0ede8; }
+    :root[data-theme="dark"] .label-secondary { fill: #a8a49e; }
+    :root[data-theme="dark"] .label-accent    { fill: #f0b429; }
+    :root[data-theme="dark"] .header          { fill: #f0ede8; }
+    :root[data-theme="dark"] .rate-num        { fill: #f0b429; }
+    :root[data-theme="dark"] .connector-accent { stroke: #f0b429; }
+    :root[data-theme="dark"] .arrow-head-accent { fill: #f0b429; }
+  </style>
+
+  <!-- Left box: Smart Retries -->
+  <rect class="node-neutral" x="40" y="40" width="240" height="200" rx="10"/>
+  <text class="header" x="160" y="66" text-anchor="middle">SMART RETRIES</text>
+  <text class="label-secondary" x="160" y="84" text-anchor="middle">built into Stripe</text>
+  <text class="label-secondary" x="60" y="118">What it does:</text>
+  <text class="label-primary" x="60" y="138">• Retry timing windows</text>
+  <text class="label-primary" x="60" y="160">• Skip retries on hard declines</text>
+  <text class="label-secondary" x="60" y="200" font-style="italic">No emails. No classification.</text>
+  <text class="label-secondary" x="60" y="216" font-style="italic">No expiring card alerts.</text>
+
+  <!-- Right box: Dedicated dunning -->
+  <rect class="node-success" x="400" y="40" width="240" height="200" rx="10"/>
+  <text class="header" x="520" y="66" text-anchor="middle">DEDICATED DUNNING</text>
+  <text class="label-secondary" x="520" y="84" text-anchor="middle">what Recovery adds</text>
+  <text class="label-secondary" x="420" y="118">What it adds:</text>
+  <text class="label-primary" x="420" y="138">• Decline-code classification</text>
+  <text class="label-primary" x="420" y="160">• Coordinated email by category</text>
+  <text class="label-primary" x="420" y="182">• Brand voice, merchant domain</text>
+  <text class="label-primary" x="420" y="204">• Proactive expiry alerts</text>
+
+  <!-- Gap arrow + recovery rates -->
+  <line class="connector-accent" x1="290" y1="140" x2="390" y2="140" marker-end="url(#arrow-rvs)"/>
+  <text class="label-accent" x="340" y="128" text-anchor="middle">the gap</text>
+
+  <text class="rate-num" x="160" y="280" text-anchor="middle">38%</text>
+  <text class="label-secondary" x="160" y="298" text-anchor="middle">Smart Retries alone</text>
+
+  <text class="rate-num" x="520" y="280" text-anchor="middle">70%</text>
+  <text class="label-secondary" x="520" y="298" text-anchor="middle">dedicated recovery</text>
+</svg>

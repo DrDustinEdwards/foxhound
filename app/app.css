@@ -915,6 +915,25 @@ body {
   margin: 0.25rem 0 0;
   color: var(--text-secondary);
 }
+/* Inline blog diagrams (:::diagram[slug], J25), legacy's rules. Each SVG
+   carries its own colours for both themes in its own <style>, so the figure
+   is layout only. The missing-file variant renders only in development. */
+.blog-diagram {
+  margin: 2rem 0;
+  overflow: visible;
+}
+.blog-diagram svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.blog-diagram--missing {
+  padding: 1rem;
+  border: 1px dashed var(--border);
+  border-radius: 0.5rem;
+  color: var(--text-tertiary);
+  font-size: 0.875rem;
+}
 .blog-embed-youtube {
   position: relative;
   aspect-ratio: 16 / 9;
