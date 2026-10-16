@@ -19,6 +19,7 @@ import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { listAccountConnections } from "~/lib/settings/queries.server";
 import { disconnectConnection, findLiveConnection } from "~/lib/admin/merchants.server";
+import { deauthorizeConnectedAccount } from "~/lib/stripe/connect";
 import { disconnectFeedback, type DisconnectResult } from "~/lib/settings/stripe-disconnect-feedback";
 
 import type { Route } from "./+types/stripe";
@@ -58,8 +59,9 @@ export async function loader({ context }: Route.LoaderArgs) {
   return {
     // Live connections drive the list; a disconnected one is history, and no
     // longer counts as the primary (APPROVED-DIFFERENCES, "yes", 2026-09-19).
+    // Recova has one empty state, so nothing needs to know whether the
+    // account was ever connected.
     connections: connections.filter((c) => !c.disconnectedAt),
-    everConnected: connections.length > 0,
   };
 }
 
@@ -97,7 +99,21 @@ export async function action({ request, context }: Route.ActionArgs) {
         { status: 403 },
       );
     }
-    const result = await disconnectConnection(env, live);
+    // The revoke runs AFTER the batch has committed. The default revoke can
+    // THROW (it builds its Stripe client outside its own try), and a throw
+    // there must not read as "could not disconnect": the connection IS
+    // disconnected. So the revoke handed in turns a throw into the failed
+    // revoke it is. Same writer, same batch, same order; only the reporting.
+    const result = await disconnectConnection(env, live, {
+      deauthorize: async (e, stripeUserId) => {
+        try {
+          return await deauthorizeConnectedAccount(e, stripeUserId);
+        } catch (err) {
+          console.error("stripe deauthorize threw after the disconnect committed:", err);
+          return { ok: false, error: err instanceof Error ? err.message : String(err) };
+        }
+      },
+    });
     if (result.deauthorizeError) {
       warning = "Disconnected. Revoking access at Stripe did not complete, so check your Stripe dashboard.";
     }
