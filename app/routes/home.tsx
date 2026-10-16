@@ -3,146 +3,91 @@ import { Link } from "react-router";
 
 import { EmailSamples } from "~/components/email-samples";
 import { FadeUp } from "~/components/fade-up";
-import { FaqAccordion } from "~/components/faq-accordion";
 import { LedgerMock } from "~/components/ledger-mock";
 import { RecoveryQueueDemo } from "~/components/recovery-queue-demo";
 import { RecoveryCalculator } from "~/components/recovery-calculator";
 import { getDb } from "~/db";
+import { getFeaturedPost, listPublishedPosts } from "~/lib/blog/queries.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { listPublishedPosts } from "~/lib/blog/queries.server";
-import { PRODUCTS } from "~/lib/marketing/products";
+import { blogStripCards } from "~/lib/marketing/blog-strip";
+import {
+  BILLING_FAQ_PARTS,
+  citation,
+  COMPARISON_ROWS,
+  COMPAT_TAGS,
+  FAQS,
+  HERO_LEAD,
+  HOME_META_DESCRIPTION,
+  HOME_TITLE,
+  HOME_WEBPAGE_NAME,
+  MATURITY_DAYS,
+  PRODUCT_CARDS,
+  RECOVERY_FEE,
+  SECURITY_CHIPS,
+  SEQUENCE_DAYS,
+  STATEMENT_BODY,
+  STATS,
+  STRIPE_GAP,
+  TRUST_ITEMS,
+} from "~/lib/marketing/home-copy";
+import { PRODUCT_ORDER, PRODUCTS } from "~/lib/marketing/products";
+import { STAT_AS_OF, STAT_SOURCES } from "~/lib/marketing/statistics";
 import { faqPageJsonLd, organizationJsonLd, siteUrl, softwareApplicationJsonLd, speakableWebPageJsonLd, websiteJsonLd } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
-import type { Route } from "./+types/home";
-import { DECLINE_CATEGORY_PHRASE } from "~/lib/marketing/decline-categories";
-import { STAT_AS_OF, STRIPE_UNRECOVERED_RATE_PERCENT } from "~/lib/marketing/statistics";
+import "capsomer/panel.css";
+import "capsomer/button.css";
+import "capsomer/disclosure.css";
+// Capsomer's tokens and the teal family (capbase layer), which every part on
+// this page reads. The site header loads the same file; importing it here
+// keeps the page whole under any layout.
+import "~/site-header.css";
 
-// Marketing home page (Phase 6 Pass 1). Ported from legacy
-// app/(marketing)/page.tsx: structure kept (hero, stats, Stripe+Foxhound
-// comparison, full-bleed statement, how it works, calculator, products
-// grid, email samples, FAQ, trust bar, from the blog, closing CTA, JSON-LD),
-// copy rewritten per the 10 corrections in TASK-foxhound-phase6.md. The
-// "from the blog" strip (TASK-foxhound-parity-cluster-b.md fix 1) restores
-// legacy's exact position, between the trust bar and the closing CTA
-// (confirmed live on recova-eta.vercel.app: section index 10 of 12, right
-// after the trust-badge row, right before the final CTA).
+import type { Route } from "./+types/home";
+
+// The marketing home page (J59, row M3). Recova's spec, read whole at HEAD:
+// app/(marketing)/page.tsx (blob c10db7d5), components/hero/RecoveryDemo.tsx
+// (453261b6), components/marketing/EmailGenerator.tsx (c4592a56),
+// components/marketing/RecoveryCalculator.tsx (1a4374f5),
+// components/FaqAccordion.tsx (b5f1e487) and components/FadeUp.tsx (cdcfc8cb).
+//
+// Recova's sections, in Recova's order, at Recova's widths and padding (1100px
+// sections, 760px FAQ and closing block, 600px calculator and generator,
+// px-5 sm:px-8, py-24 on the stats, calculator and closing block). The one
+// section Recova lacks is the evidence ledger, relocated from the hero when the
+// recovery-queue demo took that slot (ruling 6, ratified).
+//
+// Look is Capsomer's (RULES.md 1.1, Q12): cards are Capsomer panels, calls to
+// action Capsomer buttons, the FAQ Capsomer's disclosure, the decline picker
+// its segmented control, teal throughout (Q11). Text is on the five sizes
+// (RULES.md 5.2), each Recova size taken to the nearest of the five, a tie to
+// the larger. No Foxhound class sits on a Capsomer part; where Recova's look
+// needs more than Capsomer ships (the hover lift and teal edge on a linked
+// card, Recova's 12px radius and padding, the tinted decline buttons, the
+// slider's filled track) the PR names the per-site layer it waits for (capsomer
+// job_ec5ec0754626).
+//
+// Copy, and every number in it read from the engine, is in
+// lib/marketing/home-copy.ts.
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return marketingMeta({
-    title: "Foxhound: recover failed Stripe payments, pay only when it works",
-    description:
-      "Silent retries first, then AI-drafted recovery sequences. 20% of what Foxhound recovers. Anything Stripe would have gotten anyway is free. Nothing billed until you've held the money 30 days.",
+    title: HOME_TITLE,
+    description: HOME_META_DESCRIPTION,
     path: "/",
     siteUrl: loaderData?.siteUrl ?? "",
   });
 }
 
-// Env access only (no session read), same pattern as the auth loaders, so
-// the JSON-LD block below can derive every absolute URL from siteUrl(env)
-// per the SITE_URL discipline instead of a hardcoded domain.
+// Recova's blog strip: the featured post first, then the two most recent that
+// are not it, or the three most recent when nothing is featured (M3 divergence
+// 34). Trimmed-column queries, never the full-body select.
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const db = getDb(env);
-  const latestPosts = await listPublishedPosts(db, 3);
-  return { siteUrl: siteUrl(env), latestPosts };
+  const [featured, latest] = await Promise.all([getFeaturedPost(db), listPublishedPosts(db, 5)]);
+  return { siteUrl: siteUrl(env), blogPosts: blogStripCards(featured, latest) };
 }
-
-interface ComparisonRow {
-  stripeTitle: string;
-  stripeBody: string;
-  foxhoundTitle: string;
-  foxhoundBody: string;
-  foxhoundHref: string;
-}
-
-const COMPARISON_ROWS: ComparisonRow[] = [
-  {
-    stripeTitle: "Automatic Smart Retries",
-    stripeBody:
-      "Fixed retry schedule. No customer communication. No logic for why the payment failed, soft decline, expired card, and fraud all treated the same.",
-    foxhoundTitle: "Silent retries, then intelligent sequences",
-    foxhoundBody:
-      `A quiet retry runs before any customer ever sees an email, so we never dun someone for a payment we could have recovered without bothering them. Declines are classified ${DECLINE_CATEGORY_PHRASE}, each handled differently across 30 days.`,
-    foxhoundHref: "/product/recovery",
-  },
-  {
-    stripeTitle: "Dispute notifications",
-    stripeBody:
-      "Stripe emails you when a dispute opens and shows a deadline. Evidence, response writing, and submission are all manual.",
-    foxhoundTitle: "Evidence drafted, you review and sign",
-    foxhoundBody:
-      "Evidence is drafted from your recovery history, Stripe signals, and transaction data. You review it and sign every submission yourself, there is no auto-submit toggle. 20% only when you win, capped at $500.",
-    foxhoundHref: "/product/disputes",
-  },
-];
-
-const FAQS: { question: string; answer: string; node?: React.ReactNode }[] = [
-  {
-    question: "Does Foxhound touch my Stripe billing configuration?",
-    answer:
-      "No. The connection carries read and write scope, because retrying a failed invoice is a write, but Foxhound writes for these things and no others: retrying an invoice that has already failed, setting a customer default payment method after that customer updates their card, opening a Stripe checkout when a former customer chooses to resubscribe, and submitting dispute evidence you approved. It never changes your prices, products, subscription plans, or any other Stripe setting, and never reaches your payouts.",
-  },
-  {
-    question: "What counts as a recovery Foxhound can bill for?",
-    answer:
-      "Only recoveries where a Foxhound action provably preceded payment: a scheduled retry succeeded, a dunning email was clicked or otherwise engaged (not just opened), or a card was updated through a Foxhound page. Anything Stripe recovers on its own is recorded and shown to you as free, never billed.",
-  },
-  {
-    question: "How does billing timing work?",
-    answer:
-      "Each monthly run bills the prior month's matured recoveries, meaning recoveries you've held for 30 or more days, at 20%. Disputes are 20% of wins only, capped at $500 per dispute. Intelligence's predictive layer is $199 per month flat. Audit is always free.",
-    node: (
-      <>
-        Each monthly run bills the prior month&apos;s matured recoveries, meaning recoveries you&apos;ve
-        held for 30 or more days, at{" "}
-        <Link
-          to="/product/recovery"
-          className="text-brand-text underline underline-offset-2 transition-opacity duration-150 hover:opacity-80"
-        >
-          20%
-        </Link>
-        .{" "}
-        <Link
-          to="/product/disputes"
-          className="text-brand-text underline underline-offset-2 transition-opacity duration-150 hover:opacity-80"
-        >
-          Disputes
-        </Link>{" "}
-        are 20% of wins only, capped at $500 per dispute.{" "}
-        <Link
-          to="/product/intelligence"
-          className="text-brand-text underline underline-offset-2 transition-opacity duration-150 hover:opacity-80"
-        >
-          Intelligence
-        </Link>
-        &apos;s predictive layer is $199 per month flat.{" "}
-        <Link
-          to="/product/audit"
-          className="text-brand-text underline underline-offset-2 transition-opacity duration-150 hover:opacity-80"
-        >
-          Audit
-        </Link>{" "}
-        is always free.
-      </>
-    ),
-  },
-  {
-    question: "Can I see what the emails look like before they send?",
-    answer:
-      "Each email is written at send time from the customer, the decline and your brand voice, so there is no draft sitting there to preview. Every email that goes out is visible in your dashboard afterwards, with click tracking. You set the brand voice that shapes all of them, in one place or per decline category.",
-  },
-  {
-    question: "Can I cancel or pause anytime?",
-    answer:
-      "Yes. Disconnect Stripe from your settings page and every active sequence stops immediately. No contracts, no minimum commitments. You're billed only for recoveries that already happened and have matured.",
-  },
-];
-
-// One Stripe account per Foxhound account: there is no account switcher and no
-// membership UI (app/lib/auth/account.ts, layouts/app-shell.tsx). "Multi-account"
-// sat in this list as a compatibility claim for something that does not exist.
-const COMPAT_TAGS = ["Stripe Billing", "Stripe Checkout", "Custom invoices", "Stripe Subscriptions"];
 
 const PRODUCT_ICONS = {
   audit: ScanSearch,
@@ -151,43 +96,129 @@ const PRODUCT_ICONS = {
   intelligence: TrendingUp,
 } as const;
 
+/** Recova's inline link inside a sentence, in the family's accent. */
+const INLINE_LINK = "text-accent-text underline underline-offset-2 transition-opacity duration-150 hover:opacity-80";
+
+function Arrow() {
+  return (
+    <ArrowRight
+      className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
+      size={13}
+      strokeWidth={1.5}
+      aria-hidden
+    />
+  );
+}
+
+function SourceArrow() {
+  return (
+    <ArrowUpRight
+      className="inline-block transition-transform duration-150 group-hover:-translate-y-px group-hover:translate-x-px"
+      size={12}
+      strokeWidth={1.5}
+      aria-hidden
+    />
+  );
+}
+
+const HOW_IT_WORKS: { title: string; body: React.ReactNode }[] = [
+  {
+    title: "Connect Stripe",
+    // Recova: "Read-only OAuth." The connection is read and write (ruling 20d),
+    // so "Read-only" goes and Recova's OAuth link stays.
+    body: (
+      <>
+        <a
+          href="https://stripe.com/docs/connect/oauth-standard-accounts"
+          target="_blank"
+          rel="noopener noreferrer"
+          className={INLINE_LINK}
+        >
+          OAuth
+        </a>
+        . 60 seconds. Foxhound never touches your billing configuration or existing Stripe setup.
+      </>
+    ),
+  },
+  {
+    title: "Foxhound runs sequences",
+    // Recova's sentence, with the engine's silent retry named where it runs
+    // (ratified 2026-08-01). Recova's "timed to card network retry windows" is
+    // left out: the engine times its steps by category, not by network window.
+    body: (
+      <>
+        When a payment fails, Foxhound classifies the decline and starts a{" "}
+        <Link to="/product/recovery" className={INLINE_LINK}>
+          {SEQUENCE_DAYS}-day AI-written email sequence
+        </Link>
+        , with a silent retry ahead of the first email wherever the decline can be retried.
+      </>
+    ),
+  },
+  {
+    title: `Pay ${RECOVERY_FEE} of matured recoveries`,
+    body: (
+      <>
+        Monthly invoice for{" "}
+        <Link to="/pricing" className={INLINE_LINK}>
+          {RECOVERY_FEE} of the prior month&apos;s recoveries
+        </Link>{" "}
+        that have matured for {MATURITY_DAYS}+ days. Nothing owed on failed recoveries or Stripe&apos;s own
+        baseline recoveries. No minimums, no setup fees.
+      </>
+    ),
+  },
+];
+
+const BILLING_ANSWER = (
+  <>
+    {BILLING_FAQ_PARTS.map((part) =>
+      typeof part === "string" ? (
+        part
+      ) : (
+        <Link key={part.to} to={part.to} className={INLINE_LINK}>
+          {part.label}
+        </Link>
+      ),
+    )}
+  </>
+);
+
 export default function Home({ loaderData }: Route.ComponentProps) {
-  const { siteUrl: url, latestPosts } = loaderData;
+  const { siteUrl: url, blogPosts } = loaderData;
 
   return (
-    <div>
+    // Capsomer's teal family with Foxhound's neutrals. Foxhound's global focus
+    // ring reads --border-focus (app.css); inside this page it reads the
+    // family's --ring, so a keyboard user sees teal as in Capsomer's own parts.
+    <div className="fh-cap [--border-focus:var(--ring)]" data-family="teal">
       {/* 1. Hero */}
-      <section className="speakable-hero border-b border-border-sub px-4 pb-16 pt-10 sm:px-8 sm:pb-20 sm:pt-14">
+      <section className="speakable-hero border-b border-border-sub px-5 pb-16 pt-8 sm:px-8 sm:pb-20 sm:pt-10">
         <div className="mx-auto max-w-[1100px]">
           <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2 lg:gap-16">
             <div className="flex flex-col">
-              <h1 className="animate-fade-up delay-80 m-0 mb-5 text-hero font-semibold leading-[1.02] tracking-[-0.03em] text-text sm:text-hero-lg sm:tracking-[-0.04em]">
+              <h1 className="animate-fade-up delay-80 m-0 mb-5 text-display font-semibold leading-[1.02] tracking-[-0.03em] text-text">
                 You pay when
                 <br />
-                Foxhound recovers.
+                you recover.
                 <br />
-                <span className="text-brand-text">Not before.</span>
+                <span className="text-accent-text">Not before.</span>
               </h1>
 
-              <p className="animate-fade-up delay-160 m-0 mb-8 text-body leading-relaxed text-text-secondary">
-                Recovery is <span className="font-mono text-text">20%</span> of what Foxhound recovers.
-                Anything Stripe would have recovered on its own is free, always. And nothing is billed
-                until you have held the money for <span className="font-mono text-text">30</span> days.
+              <p className="animate-fade-up delay-160 m-0 mb-8 text-body leading-[1.6] text-text-secondary">
+                {HERO_LEAD} <span className="font-mono text-text">{RECOVERY_FEE}</span> of what Foxhound
+                recovers. Anything Stripe would have recovered on its own is free. Nothing until you have held
+                the money for <span className="font-mono text-text">{MATURITY_DAYS}</span> days.
               </p>
 
-              <div className="animate-fade-up delay-240 flex flex-wrap items-center gap-4">
-                <Link
-                  to="/audit"
-                  className="inline-flex items-center gap-1.5 rounded-md bg-brand px-5 py-2.5 text-subhead font-semibold text-on-brand hover:bg-brand-dark"
-                >
+              <div className="animate-fade-up delay-240 flex flex-wrap items-center gap-4" data-density="comfortable">
+                <Link to="/audit" className="cap-btn" data-variant="primary" data-size="lg">
                   Run your free audit
                 </Link>
-                <Link
-                  to="/demos"
-                  className="group inline-flex items-center gap-1.5 rounded-md border border-border-i px-5 py-2.5 text-subhead font-medium text-text-secondary hover:text-text"
-                >
+                <Link to="/demos/recovery" className="cap-btn group" data-size="lg">
                   See it live
                   <ArrowRight
+                    data-icon="end"
                     className="transition-transform duration-150 group-hover:translate-x-0.5"
                     size={13}
                     strokeWidth={1.5}
@@ -197,102 +228,77 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               </div>
             </div>
 
-            {/* min-h, not h: the visual sizes to its own content. A fixed
-                height clipped the previous hero mock, because its lines wrap
-                at narrow widths and the card hides its own overflow. */}
-            <div className="animate-fade-in delay-320 min-h-[360px] w-full">
+            <div className="animate-fade-in delay-320 flex items-center justify-center">
               <RecoveryQueueDemo />
             </div>
           </div>
 
-          {/* Trust row */}
-          <div className="mt-8 border-t border-border-sub pt-4">
+          {/* Trust row: full width, below both columns. */}
+          <div className="mt-5 border-t border-border-sub pt-4">
             <ul className="m-0 flex list-none flex-wrap items-center justify-center gap-x-5 gap-y-2 p-0">
               <li className="flex items-center gap-3">
+                {/* leading-6 keeps the link a 24px target. */}
                 <a
                   href="https://stripe.com/connect"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-mono text-caption text-cobalt-text no-underline hover:opacity-80"
+                  className="font-mono text-label leading-6 text-cobalt-text no-underline transition-opacity duration-150 hover:opacity-80"
                 >
                   Built on Stripe Connect
                 </a>
-                <span aria-hidden="true" className="text-border-sub">&middot;</span>
+                <span aria-hidden="true" className="text-border-sub">
+                  &middot;
+                </span>
               </li>
-              {["Baseline recoveries are free", "No fee until 30-day maturity", "Disconnect anytime"].map(
-                (label, i, arr) => (
-                  <li key={label} className="flex items-center gap-3">
-                    <span className="font-mono text-caption text-text-subtle">{label}</span>
-                    {i < arr.length - 1 ? (
-                      <span aria-hidden="true" className="text-border-sub">&middot;</span>
-                    ) : null}
-                  </li>
-                ),
-              )}
+              {TRUST_ITEMS.map((label, i, arr) => (
+                <li key={label} className="flex items-center gap-3">
+                  <span className="font-mono text-label text-text-subtle">{label}</span>
+                  {i < arr.length - 1 ? (
+                    <span aria-hidden="true" className="text-border-sub">
+                      &middot;
+                    </span>
+                  ) : null}
+                </li>
+              ))}
             </ul>
           </div>
         </div>
       </section>
 
       {/* Stats: the problem */}
-      <section className="border-t border-border-sub bg-surface px-4 py-20 sm:px-8">
+      <section className="border-t border-border-sub bg-surface px-5 py-24 sm:px-8">
         <div className="mx-auto max-w-[1100px]">
           <FadeUp>
             <div className="mb-12 text-center">
-              <h2 className="m-0 mb-3 text-section font-semibold tracking-[-0.02em] text-text sm:text-section-lg">
+              <h2 className="m-0 mb-3 text-display font-semibold tracking-[-0.02em] text-text">
                 The revenue you&apos;re losing isn&apos;t showing up as churn.
               </h2>
-              <p className="m-0 text-subhead text-text-secondary">
+              <p className="m-0 text-body text-text-secondary">
                 Stripe&apos;s own data on failed payments and what happens next.
               </p>
             </div>
           </FadeUp>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            {[
-              {
-                stat: "55%",
-                body: "of failed payments are recovered by Stripe's own tools on average. The other 45% does not come back without additional sequences.",
-                source: "stripe.com/billing",
-                href: "https://stripe.com/billing",
-                asOf: STAT_AS_OF,
-              },
-              {
-                stat: "1 in 4",
-                body: "subscription cancellations are purely due to payment failures. These customers never chose to leave, their payment just failed.",
-                source: "stripe.com/blog/how-we-built-it-smart-retries",
-                href: "https://stripe.com/blog/how-we-built-it-smart-retries",
-                asOf: STAT_AS_OF,
-              },
-              {
-                stat: "7 months",
-                body: "is how long recovered subscriptions continue on average. One recovered payment is not one month of revenue, it is most of a year.",
-                source: "stripe.com/blog/how-we-built-it-smart-retries",
-                href: "https://stripe.com/blog/how-we-built-it-smart-retries",
-                asOf: STAT_AS_OF,
-              },
-            ].map((item, i) => (
-              <FadeUp key={item.stat} delay={i * 100}>
-                <div className="card-elevated flex h-full flex-col rounded-[12px] border border-border bg-surface p-6">
-                  <div className="mb-4 font-mono text-[2.75rem] font-semibold leading-none text-brand-text">
-                    {item.stat}
+            {STATS.map((item, i) => (
+              <FadeUp key={item.stat} delay={i * 100} className="grid">
+                <div className="cap-panel">
+                  <div className="cap-panel-body">
+                    <div className="flex h-full flex-col">
+                      <div className="mb-4 font-mono text-display font-semibold leading-none text-accent-text">
+                        {item.stat}
+                      </div>
+                      <p className="m-0 mb-4 flex-1 text-label leading-[1.6] text-text-secondary">{item.body}</p>
+                      {/* RULES.md 2.3: the exact page and the day it was read. */}
+                      <a
+                        href={item.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group font-mono text-micro leading-6 text-text-subtle no-underline transition-colors duration-150 hover:text-text-tertiary"
+                      >
+                        Source: {citation(item.href)}, read {STAT_AS_OF} <SourceArrow />
+                      </a>
+                    </div>
                   </div>
-                  <p className="m-0 mb-4 flex-1 text-copy leading-[1.6] text-text-secondary">
-                    {item.body}
-                  </p>
-                  <a
-                    href={item.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="group font-mono text-source text-text-subtle no-underline hover:text-text-tertiary"
-                  >
-                    Source: {item.source}, read {item.asOf}{" "}
-                    <ArrowUpRight
-                      className="inline-block transition-transform duration-150 group-hover:translate-x-px group-hover:-translate-y-px"
-                      size={12}
-                      strokeWidth={1.5}
-                      aria-hidden
-                    />
-                  </a>
                 </div>
               </FadeUp>
             ))}
@@ -301,39 +307,36 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       </section>
 
       {/* Stripe plus Foxhound */}
-      <section className="border-t border-border-sub px-4 py-20 sm:px-8">
+      <section className="border-t border-border-sub px-5 py-20 sm:px-8">
         <div className="mx-auto max-w-[1100px]">
           <FadeUp>
             <div className="mb-12 text-center">
-              <h2 className="m-0 mb-3 text-section font-semibold tracking-[-0.02em] text-text sm:text-section-lg">
-                Stripe plus Foxhound
-              </h2>
-              <p className="m-0 text-subhead text-text-secondary">What Stripe does, and what Foxhound adds on top.</p>
+              <h2 className="m-0 mb-3 text-display font-semibold tracking-[-0.02em] text-text">Stripe plus Foxhound</h2>
+              <p className="m-0 text-body text-text-secondary">What Stripe does, and what Foxhound adds on top.</p>
             </div>
           </FadeUp>
-          <div className="flex flex-col gap-4">
+          <div className="space-y-4">
             {COMPARISON_ROWS.map((row, i) => (
               <FadeUp key={row.stripeTitle} delay={i * 100} className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="card-elevated rounded-[12px] border border-border bg-surface p-6">
-                  <div className="mb-3 text-caption text-text-tertiary">Stripe does this</div>
-                  <div className="mb-2 text-body font-medium text-text">{row.stripeTitle}</div>
-                  <p className="m-0 text-copy leading-[1.55] text-text-secondary">{row.stripeBody}</p>
+                <div className="cap-panel">
+                  <div className="cap-panel-body">
+                    <div>
+                      <div className="mb-3 text-label text-text-tertiary">Stripe does this</div>
+                      <div className="mb-2 text-body font-medium text-text">{row.stripeTitle}</div>
+                      <p className="m-0 text-label leading-[1.55] text-text-secondary">{row.stripeBody}</p>
+                    </div>
+                  </div>
                 </div>
-                <Link
-                  to={row.foxhoundHref}
-                  className="card-elevated hover-spring group block rounded-[12px] border border-border bg-surface p-6 hover:-translate-y-1 hover:border-brand"
-                >
-                  <div className="mb-3 text-[0.75rem] font-medium text-brand-text">Foxhound adds this</div>
-                  <div className="mb-2 text-body font-semibold text-text">{row.foxhoundTitle}</div>
-                  <p className="m-0 text-copy leading-[1.55] text-text-secondary">{row.foxhoundBody}</p>
-                  <div className="mt-4 font-mono text-caption text-brand-text">
-                    Learn more{" "}
-                    <ArrowRight
-                      className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
-                      size={13}
-                      strokeWidth={1.5}
-                      aria-hidden
-                    />
+                <Link to={row.foxhoundHref} className="cap-panel group">
+                  <div className="cap-panel-body">
+                    <div>
+                      <div className="mb-3 text-label font-medium text-accent-text">Foxhound adds this</div>
+                      <div className="mb-2 text-body font-semibold text-text">{row.foxhoundTitle}</div>
+                      <p className="m-0 text-label leading-[1.55] text-text-secondary">{row.foxhoundBody}</p>
+                      <div className="mt-4 font-mono text-label text-accent-text">
+                        Learn more <Arrow />
+                      </div>
+                    </div>
                   </div>
                 </Link>
               </FadeUp>
@@ -343,36 +346,28 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       </section>
 
       {/* Full-bleed statement */}
-      <section className="border-t border-border-sub px-4 py-20 sm:px-8 sm:py-28">
+      <section className="overflow-hidden border-t border-border-sub px-5 py-20 sm:px-8 sm:py-28">
         <div className="mx-auto max-w-[1100px]">
           <FadeUp>
             <p className="mb-6 text-center font-mono text-micro uppercase tracking-widest text-text-subtle">
               The gap Stripe leaves open
             </p>
-            <h2 className="m-0 text-center text-statement font-semibold leading-[1.0] tracking-[-0.04em] text-text sm:text-statement-md lg:text-statement-lg">
-              <span className="font-mono">{STRIPE_UNRECOVERED_RATE_PERCENT}%</span> of failed payments
+            <h2 className="m-0 text-center text-display font-semibold leading-[1.0] tracking-[-0.04em] text-text">
+              {STRIPE_GAP} of failed payments
               <br />
-              <span className="text-brand-text">never come back.</span>
+              <span className="text-accent-text">never come back.</span>
             </h2>
-            <p className="mx-auto mt-8 max-w-[560px] text-center text-body text-text-secondary sm:text-lg">
-              Stripe&apos;s Smart Retries recover 55% on average. The other 45% needs something Stripe
-              doesn&apos;t do: silent retries first, personalized email sequences, decline classification,
-              and 30 days of follow-through.
+            <p className="mx-auto mt-8 max-w-[560px] text-center text-body leading-[1.6] text-text-secondary">
+              {STATEMENT_BODY}
             </p>
             <div className="mt-8 flex justify-center">
               <a
-                href="https://stripe.com/billing"
+                href={STAT_SOURCES.stripeBilling}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group font-mono text-source text-text-subtle no-underline hover:text-text-tertiary"
+                className="group font-mono text-micro leading-6 text-text-subtle no-underline transition-colors duration-150 hover:text-text-tertiary"
               >
-                Source: stripe.com/billing{" "}
-                <ArrowUpRight
-                  className="inline-block transition-transform duration-150 group-hover:translate-x-px group-hover:-translate-y-px"
-                  size={12}
-                  strokeWidth={1.5}
-                  aria-hidden
-                />
+                Source: {citation(STAT_SOURCES.stripeBilling)}, read {STAT_AS_OF} <SourceArrow />
               </a>
             </div>
           </FadeUp>
@@ -380,58 +375,45 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       </section>
 
       {/* How it works */}
-      <section className="speakable-how-it-works border-t border-border-sub px-4 py-16 sm:px-8">
+      <section className="speakable-how-it-works border-t border-border-sub px-5 py-16 sm:px-8">
         <div className="mx-auto max-w-[1100px]">
           <FadeUp>
             <div className="mb-12 text-center">
-              <h2 className="m-0 mb-3 text-section font-semibold tracking-[-0.02em] text-text sm:text-section-lg">
-                How it works
-              </h2>
-              <p className="m-0 text-subhead text-text-secondary">Live in an afternoon. No code, no setup fees.</p>
+              <h2 className="m-0 mb-3 text-display font-semibold tracking-[-0.02em] text-text">How it works</h2>
+              <p className="m-0 text-body text-text-secondary">Live in an afternoon. No code, no setup fees.</p>
             </div>
           </FadeUp>
-          <div className="grid grid-cols-1 overflow-hidden rounded-[12px] border border-border bg-surface md:grid-cols-3">
-            {[
-              {
-                title: "Connect Stripe",
-                body: "60 seconds. Foxhound never touches your billing configuration or existing Stripe setup.",
-              },
-              {
-                title: "Foxhound retries quietly, then sends",
-                body: "When a payment fails, Foxhound classifies the decline and tries a silent retry first. Only if that doesn't work does a 30-day AI-drafted email sequence begin.",
-              },
-              {
-                title: "Pay 20% of matured recoveries",
-                body: "Monthly invoice for 20% of the prior month's recoveries that have matured for 30+ days. Nothing owed on failed recoveries or Stripe's own baseline recoveries.",
-              },
-            ].map((s, i) => (
-              <FadeUp
-                key={s.title}
-                delay={i * 100}
-                className={`p-7 ${i < 2 ? "border-b border-border md:border-b-0 md:border-r" : ""}`}
-              >
-                <div className="mb-2 text-body font-medium text-text">{s.title}</div>
-                <p className="m-0 text-copy leading-[1.55] text-text-secondary">{s.body}</p>
-              </FadeUp>
-            ))}
+          {/* Recova's one bordered strip of three. Capsomer's panel, flush, holds it. */}
+          <div className="cap-panel">
+            <div className="cap-panel-body" data-flush>
+              <div className="grid grid-cols-1 md:grid-cols-3">
+                {HOW_IT_WORKS.map((s, i) => (
+                  <FadeUp
+                    key={s.title}
+                    delay={i * 100}
+                    className={`p-7 ${i < 2 ? "border-b border-border md:border-b-0 md:border-r" : ""}`}
+                  >
+                    <div className="mb-2 text-body font-medium text-text">{s.title}</div>
+                    <p className="m-0 text-label leading-[1.55] text-text-secondary">{s.body}</p>
+                  </FadeUp>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Evidence ledger. Relocated out of the hero when the animated recovery
-          queue took that slot (ruling 6). It sits here rather than up top
-          because it is the receipt for the step above it: "pay 20% of matured
-          recoveries" is the claim, and this is what that invoice looks like. */}
-      <section className="border-t border-border-sub px-4 py-20 sm:px-8">
+          queue took that slot (ruling 6). It sits here because it is the
+          receipt for the step above it. */}
+      <section className="border-t border-border-sub px-5 py-20 sm:px-8">
         <div className="mx-auto max-w-[1100px]">
           <FadeUp>
             <div className="mb-12 text-center">
-              <h2 className="m-0 mb-3 text-section font-semibold tracking-[-0.02em] text-text sm:text-section-lg">
-                Every fee shows its work
-              </h2>
-              <p className="m-0 text-subhead text-text-secondary">
-                Each charge links back to the action that earned it. Recoveries Stripe would have made
-                on its own appear in the same ledger, marked free.
+              <h2 className="m-0 mb-3 text-display font-semibold tracking-[-0.02em] text-text">Every fee shows its work</h2>
+              <p className="m-0 text-body text-text-secondary">
+                Each charge links back to the action that earned it. Recoveries Stripe would have made on its own
+                appear in the same ledger, marked free.
               </p>
             </div>
           </FadeUp>
@@ -444,16 +426,17 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       </section>
 
       {/* Calculator */}
-      <section className="border-t border-border-sub bg-surface px-4 py-20 sm:px-8">
+      <section className="border-t border-border-sub bg-surface px-5 py-24 sm:px-8">
         <div className="mx-auto max-w-[1100px]">
           <FadeUp>
             <div className="mb-10 text-center">
-              <h2 className="m-0 mb-3 text-section font-semibold tracking-[-0.02em] text-text sm:text-section-lg">
+              <h2 className="m-0 mb-3 text-display font-semibold tracking-[-0.02em] text-text">
                 How much are you leaving on the table?
               </h2>
-              <p className="mx-auto m-0 max-w-[480px] text-subhead text-text-secondary">
-                Adjust your MRR and see the estimate. Foxhound takes{" "}
-                <span className="font-mono">20%</span> of what it recovers. Nothing if it recovers nothing.
+              <p className="m-0 mx-auto max-w-[480px] text-body text-text-secondary">
+                Adjust your MRR and see the estimated recovery. Foxhound takes{" "}
+                <span className="font-mono">{RECOVERY_FEE}</span> of what it recovers. Nothing if it recovers
+                nothing.
               </p>
             </div>
           </FadeUp>
@@ -463,32 +446,34 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         </div>
       </section>
 
-      {/* Products */}
-      <section id="products" className="scroll-mt-16 border-t border-border-sub px-4 py-20 sm:px-8">
+      {/* Products. The id and Recova's 60px scroll margin sit on the section. */}
+      <section id="products" className="scroll-mt-[60px] border-t border-border-sub px-5 py-20 sm:px-8">
         <div className="mx-auto max-w-[1100px]">
           <FadeUp>
             <div className="mb-12 text-center">
-              <h2 className="m-0 mb-3 text-section font-semibold tracking-[-0.02em] text-text sm:text-section-lg">
-                Start with recovery.
-              </h2>
-              <p className="m-0 text-subhead text-text-secondary">Add the rest when you need it.</p>
+              <h2 className="m-0 mb-3 text-display font-semibold tracking-[-0.02em] text-text">Start with recovery.</h2>
+              <p className="m-0 text-body text-text-secondary">Add the rest when you need it.</p>
             </div>
           </FadeUp>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {Object.values(PRODUCTS).map((p, i) => {
-              const Icon = PRODUCT_ICONS[p.key];
+            {PRODUCT_ORDER.map((key, i) => {
+              const Icon = PRODUCT_ICONS[key];
+              const card = PRODUCT_CARDS[key];
               return (
-                <FadeUp key={p.key} delay={i * 80}>
-                  <Link
-                    to={p.href}
-                    className="card-elevated hover-spring block h-full rounded-[12px] border border-border bg-surface p-6 hover:-translate-y-1 hover:border-brand"
-                  >
-                    <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-surface2">
-                      <Icon className="h-[18px] w-[18px] text-brand-text" strokeWidth={1.8} aria-hidden />
+                <FadeUp key={key} delay={i * 80} className="grid">
+                  <Link to={PRODUCTS[key].href} className="cap-panel">
+                    <div className="cap-panel-body">
+                      <div>
+                        <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-surface2">
+                          <Icon className="h-[18px] w-[18px] text-accent-text" strokeWidth={1.8} aria-hidden />
+                        </div>
+                        <div className="mb-1.5 text-body font-medium text-text">{PRODUCTS[key].name}</div>
+                        <p className="m-0 mb-4 min-h-[60px] text-label leading-[1.55] text-text-secondary">
+                          {card.description}
+                        </p>
+                        <div className="font-mono text-label text-accent-text">{card.price}</div>
+                      </div>
                     </div>
-                    <div className="mb-1.5 text-body font-medium text-text">{p.name}</div>
-                    <p className="m-0 mb-4 text-copy leading-[1.55] text-text-secondary">{p.description}</p>
-                    <div className="font-mono text-label text-brand-text">{p.price}</div>
                   </Link>
                 </FadeUp>
               );
@@ -497,16 +482,21 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         </div>
       </section>
 
-      {/* Email samples */}
-      <section className="border-t border-border-sub px-4 py-20 sm:px-8">
+      {/* Email generator */}
+      <section className="border-t border-border-sub px-5 py-20 sm:px-8">
         <div className="mx-auto max-w-[1100px]">
           <FadeUp>
             <div className="mb-10 text-center">
-              <h2 className="m-0 mb-3 text-section font-semibold tracking-[-0.02em] text-text sm:text-section-lg">
+              {/* Recova: "The actual email Recova would send" and "Same AI, same
+                  prompts, same output as the product." The sample runs its own
+                  prompt on its own model (MODEL_MARKETING_EMAIL_SAMPLE) for a
+                  fictional customer, so neither claim holds here. */}
+              <h2 className="m-0 mb-3 text-display font-semibold tracking-[-0.02em] text-text">
                 What a Foxhound recovery email looks like
               </h2>
-              <p className="mx-auto m-0 max-w-[480px] text-subhead text-text-secondary">
-                Pick a decline type and generate a real one. Every account customizes its own brand voice.
+              <p className="m-0 mx-auto max-w-[480px] text-body text-text-secondary">
+                Pick a decline type and generate a real recovery email. Every account customizes its own brand
+                voice.
               </p>
             </div>
           </FadeUp>
@@ -516,44 +506,45 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         </div>
       </section>
 
-      {/* FAQ */}
-      <section className="speakable-faq border-t border-border-sub px-4 py-16 sm:px-8">
+      {/* FAQ: Capsomer's disclosure, one open at a time as Recova's accordion
+          is, each revealed in Recova's 60ms stagger (M3 divergence 15). */}
+      <section className="speakable-faq border-t border-border-sub px-5 py-16 sm:px-8">
         <div className="mx-auto max-w-[760px]">
           <FadeUp>
             <div className="mb-12 text-center">
-              <h2 className="m-0 mb-3 text-section font-semibold tracking-[-0.02em] text-text sm:text-section-lg">
-                Common questions
-              </h2>
+              <h2 className="m-0 mb-3 text-display font-semibold tracking-[-0.02em] text-text">Common questions</h2>
             </div>
           </FadeUp>
-          <FaqAccordion faqs={FAQS.map((f) => ({ question: f.question, answer: f.node ?? f.answer }))} />
+          <ul className="m-0 flex list-none flex-col gap-3 p-0">
+            {FAQS.map((faq, i) => (
+              <li key={faq.question}>
+                <FadeUp delay={i * 60}>
+                  <details className="cap-disclosure" name="home-faq">
+                    <summary>{faq.question}</summary>
+                    <div className="cap-disclosure-body">
+                      <p className="m-0 text-label leading-[1.6] text-text-secondary">
+                        {i === 2 ? BILLING_ANSWER : faq.answer}
+                      </p>
+                    </div>
+                  </details>
+                </FadeUp>
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
 
       {/* Security trust bar */}
-      <section className="border-t border-border-sub px-4 py-10 sm:px-8">
+      <section className="border-t border-border-sub px-5 py-10 sm:px-8">
         <div className="mx-auto max-w-[1100px]">
           <FadeUp>
-            <div className="flex flex-wrap items-center justify-center gap-3">
-              {[
-                "Never touches your billing configuration",
-                "No card data stored",
-                "AES-256 encryption",
-                "CAN-SPAM compliant",
-                "US company, US jurisdiction",
-              ].map((label) => (
-                <div
+            <ul className="m-0 flex list-none flex-wrap items-center justify-center gap-3 p-0">
+              {SECURITY_CHIPS.map((label) => (
+                <li
                   key={label}
                   className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1 font-mono text-micro text-text-tertiary"
                 >
-                  <svg
-                    width="10"
-                    height="10"
-                    viewBox="0 0 12 12"
-                    fill="none"
-                    aria-hidden="true"
-                    className="text-green"
-                  >
+                  <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true" className="text-green">
                     <path
                       d="M2 6l2.5 2.5L10 3.5"
                       stroke="currentColor"
@@ -563,66 +554,43 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     />
                   </svg>
                   {label}
-                </div>
+                </li>
               ))}
-            </div>
+            </ul>
           </FadeUp>
         </div>
       </section>
 
-      {/* From the blog (legacy home section 10 of 12: right after the trust
-          bar, right before the closing CTA - confirmed live on
-          recova-eta.vercel.app before building this). Trimmed-column query
-          (listPublishedPosts, same as the perf remediation and the blog
-          index's own sections), never the full-body select. */}
-      {latestPosts.length > 0 ? (
+      {/* From the blog: featured first, then the two latest (legacy section 10
+          of 12, between the trust bar and the closing block). Recova hand-rolls
+          this card here rather than using its BlogPostCard (M3b): a tag, the
+          title and the reading time, no excerpt. Each is a Capsomer panel. */}
+      {blogPosts.length > 0 ? (
         <section className="border-t border-border-sub bg-surface px-5 py-16 sm:px-8">
           <div className="mx-auto max-w-[1100px]">
             <FadeUp>
               <div className="mb-8 flex items-center justify-between">
-                {/* Legacy renders this as plain 0.875rem secondary text, not a
-                    mono uppercase eyebrow: text-[0.875rem] text-text-secondary,
-                    with no font-mono, no uppercase and no tracking (M3
-                    divergence 36). */}
-                <p className="m-0 text-copy text-text-secondary">From the blog</p>
-                <Link to="/blog" className="group text-caption text-text-tertiary hover:text-text">
-                  All articles{" "}
-                  <ArrowRight
-                    className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
-                    size={13}
-                    strokeWidth={1.5}
-                    aria-hidden
-                  />
+                <h2 className="m-0 text-label font-normal text-text-secondary">From the blog</h2>
+                <Link to="/blog" className="group text-label leading-6 text-text-tertiary transition-colors hover:text-text">
+                  All articles <Arrow />
                 </Link>
               </div>
             </FadeUp>
-            {/* Home's blog card is NOT the shared BlogPostCard (M3 divergence
-                35, resolved with M3b). Legacy hand-rolls a different card here:
-                bg-bg on a bg-surface section, a 10px radius, a hover lift, a
-                plain mono de-hyphenated tag rather than a capitalised pill, an
-                item-title h3, and NO excerpt. Legacy's own BlogPostCard.tsx is
-                consumed only by /blog and /blog/tag, verified from call sites.
-                Ruling 63: a faithful component does not license applying it
-                where legacy did not. Legacy also reveals each card separately,
-                staggered 80ms, rather than revealing the whole grid at once. */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              {latestPosts.map((post, i) => (
-                <FadeUp key={post.slug} delay={i * 80}>
-                  <Link
-                    to={`/blog/${post.slug}`}
-                    className="hover-spring flex h-full flex-col gap-3 rounded-[10px] border border-border bg-bg p-5 no-underline hover:-translate-y-1 hover:border-brand"
-                  >
-                    {post.tags[0] ? (
-                      <div className="font-mono text-micro text-text-tertiary">
-                        {post.tags[0].replace(/-/g, " ")}
+              {blogPosts.map((post, i) => (
+                <FadeUp key={post.slug} delay={i * 80} className="grid">
+                  <Link to={`/blog/${post.slug}`} className="cap-panel">
+                    <div className="cap-panel-body">
+                      <div className="flex h-full flex-col gap-3">
+                        {post.tags[0] ? (
+                          <div className="font-mono text-micro text-text-tertiary">{post.tags[0].replace(/-/g, " ")}</div>
+                        ) : null}
+                        <h3 className="m-0 line-clamp-2 text-body font-medium leading-snug text-text">{post.title}</h3>
+                        <span className="mt-auto font-mono text-micro text-text-tertiary">
+                          {post.readingTimeMinutes} min read
+                        </span>
                       </div>
-                    ) : null}
-                    <h3 className="m-0 line-clamp-2 text-item-title font-medium leading-snug text-text">
-                      {post.title}
-                    </h3>
-                    <span className="mt-auto font-mono text-micro text-text-tertiary">
-                      {post.readingTimeMinutes} min read
-                    </span>
+                    </div>
                   </Link>
                 </FadeUp>
               ))}
@@ -631,77 +599,46 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         </section>
       ) : null}
 
-      {/* Closing CTA */}
-      <section className="border-t border-border-sub px-4 py-20 sm:px-8">
-        <div className="mx-auto max-w-[760px] text-center">
-          <h2 className="m-0 mb-4 text-section font-semibold tracking-[-0.02em] text-text sm:text-section-lg">
+      {/* Closing CTA, with Recova's two demo links (M3 divergence 39). */}
+      <section className="border-t border-border-sub px-5 py-24 sm:px-8">
+        <div className="mx-auto max-w-[760px] text-center" data-density="comfortable">
+          <h2 className="m-0 mb-4 text-display font-semibold tracking-[-0.02em] text-text">
             See what your Stripe account is leaking
           </h2>
-          <p className="mx-auto m-0 mb-7 max-w-[560px] text-body leading-relaxed text-text-secondary">
-            Connect Stripe for a free diagnostic. Results in <span className="font-mono">30</span> seconds.
-            No setup, no card.
+          <p className="m-0 mx-auto mb-7 max-w-[560px] text-body leading-[1.55] text-text-secondary">
+            Connect Stripe for a free diagnostic. Results in <span className="font-mono">30</span> seconds. No
+            setup, no card.
           </p>
-          <Link
-            to="/audit"
-            className="inline-flex items-center gap-2 rounded-md bg-brand px-6 py-3 text-body font-semibold text-on-brand hover:bg-brand-dark"
-          >
+          <Link to="/audit" className="cap-btn" data-variant="primary" data-size="lg">
             Connect Stripe, it is free
           </Link>
-          <div className="mt-5 font-mono text-caption text-text-subtle">
+          <div className="mt-5 font-mono text-label text-text-subtle">
             No account required &middot; Results in 30 seconds &middot; Disconnect anytime
           </div>
-          <div className="mt-2 font-mono text-caption text-text-subtle">{COMPAT_TAGS.join(" · ")}</div>
+          <div className="mt-2 font-mono text-label text-text-subtle">{COMPAT_TAGS.join(" · ")}</div>
           <div className="mt-8 flex flex-wrap justify-center gap-4 border-t border-border-sub pt-6">
-            <Link to="/demos/recovery" className="group text-label text-text-secondary hover:text-text">
-              View Recovery demo{" "}
-              <ArrowRight
-                className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
-                size={13}
-                strokeWidth={1.5}
-                aria-hidden
-              />
+            <Link to="/demos/recovery" className="group text-label leading-6 text-text-secondary transition-colors hover:text-text">
+              View Recovery demo <Arrow />
             </Link>
-            <Link to="/demos/disputes" className="group text-label text-text-secondary hover:text-text">
-              View Disputes demo{" "}
-              <ArrowRight
-                className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
-                size={13}
-                strokeWidth={1.5}
-                aria-hidden
-              />
-            </Link>
-            <Link to="/demos" className="group text-label text-text-secondary hover:text-text">
-              View live demos{" "}
-              <ArrowRight
-                className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
-                size={13}
-                strokeWidth={1.5}
-                aria-hidden
-              />
-            </Link>
-            <Link to="/products" className="group text-label text-text-secondary hover:text-text">
-              See all products{" "}
-              <ArrowRight
-                className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
-                size={13}
-                strokeWidth={1.5}
-                aria-hidden
-              />
+            <Link to="/demos/disputes" className="group text-label leading-6 text-text-secondary transition-colors hover:text-text">
+              View Disputes demo <Arrow />
             </Link>
           </div>
         </div>
       </section>
 
-      {/* JSON-LD, derived entirely from app/lib/seo/jsonld.ts + the loader's siteUrl */}
+      {/* JSON-LD, as Recova emits it: Organization, SoftwareApplication, the
+          FAQPage from the plain answers above, the Speakable WebPage and the
+          WebSite. Every URL comes from the loader's siteUrl. */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify([
             organizationJsonLd(url),
             softwareApplicationJsonLd(url),
-            faqPageJsonLd(FAQS.map((f) => ({ question: f.question, answer: f.answer }))),
+            faqPageJsonLd(FAQS),
             speakableWebPageJsonLd(url, {
-              name: "Foxhound: recover failed Stripe payments, pay only when it works",
+              name: HOME_WEBPAGE_NAME,
               path: "/",
               selectors: [".speakable-hero", ".speakable-how-it-works", ".speakable-faq"],
             }),

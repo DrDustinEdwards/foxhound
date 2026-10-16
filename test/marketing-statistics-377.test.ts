@@ -41,10 +41,13 @@ describe("PLANT 1: the rate is 55 and it is derived", () => {
   });
 
   it("home carries the derived pair and no longer says 56", () => {
-    const home = read("app/routes/home.tsx");
+    // Home's copy moved to lib/marketing/home-copy.ts with J59, which reads the
+    // pair from the constants instead of typing "55%"; the rendered numbers are
+    // checked in test/home-j59.test.ts.
+    const home = read("app/routes/home.tsx") + read("app/lib/marketing/home-copy.ts");
     expect(home.length).toBeGreaterThan(2000);
-    expect(home).toContain(`${STRIPE_RECOVERY_RATE_PERCENT}%`);
-    expect(home).toContain(`${STRIPE_UNRECOVERED_RATE_PERCENT}%`);
+    expect(home).toContain("${STRIPE_RECOVERY_RATE_PERCENT}%");
+    expect(home).toContain("${STRIPE_UNRECOVERED_RATE_PERCENT}%");
     // THE SUBSTRING IS THE CLAIM: 56% and 44% are the two false numbers.
     expect(home).not.toContain("56%");
     expect(home).not.toContain("44%");
@@ -59,11 +62,11 @@ describe("PLANT 1: the rate is 55 and it is derived", () => {
 });
 
 describe("PLANT 2: every statistic is dated and exactly sourced", () => {
-  const home = read("app/routes/home.tsx");
+  const home = read("app/routes/home.tsx") + read("app/lib/marketing/home-copy.ts");
 
   it("the as-of date is rendered beside the source", () => {
     expect(STAT_AS_OF).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(home).toContain("read {item.asOf}");
+    expect(home).toContain("read {STAT_AS_OF}");
     expect(home).toContain("STAT_AS_OF");
   });
 
@@ -72,7 +75,7 @@ describe("PLANT 2: every statistic is dated and exactly sourced", () => {
     // which is a publication and not a page. A reader cannot check it and
     // neither can the next session.
     expect(home).not.toContain('source: "stripe.com/blog"');
-    expect(home).toContain(STAT_SOURCES.stripeSmartRetries.replace("https://", ""));
+    expect(home).toContain("STAT_SOURCES.stripeSmartRetries");
   });
 
   it("both cited URLs are exact pages, not domains", () => {

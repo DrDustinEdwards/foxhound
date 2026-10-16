@@ -2,7 +2,7 @@ import { createAnthropicClient } from "~/lib/ai/client";
 import { MODEL_MARKETING_EMAIL_SAMPLE } from "~/lib/constants";
 import { sanitizeCopy } from "~/lib/recovery/email-generation";
 
-import type { MarketingEmailCategory, MarketingEmailCopy } from "./email-sample-fallbacks";
+import type { MarketingEmailCategory, MarketingEmailCopy } from "./email-sample";
 
 // Live generation seam for the home page's public email generator
 // (TASK-foxhound-demo-entry-parity.md item 3, reversing the earlier call to

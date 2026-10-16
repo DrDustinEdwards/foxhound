@@ -2,23 +2,22 @@ import { data, redirect } from "react-router";
 
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
-import {
-  MARKETING_EMAIL_CATEGORIES,
-  MARKETING_EMAIL_FALLBACKS,
-  type MarketingEmailCategory,
-} from "~/lib/marketing/email-sample-fallbacks";
+import { MARKETING_EMAIL_CATEGORIES, type MarketingEmailCategory } from "~/lib/marketing/email-sample";
 import { generateMarketingEmailSample } from "~/lib/marketing/home-email-sample.server";
 
 import type { Route } from "./+types/generate-email-sample";
 
-// Restores live generation on the home page's email sample widget
-// (TASK-foxhound-demo-entry-parity.md item 3): unauthenticated, so abuse
-// protection is mandatory. Rate limit is a dedicated bucket checked here in
-// the action (not the shared top-level enforceRateLimit path), because the
-// required behavior on "over limit" is the same static fallback used on a
-// generation failure, never an error surface. Both paths return the exact
-// same {subject, body} shape either way, so the client cannot tell, and does
-// not need to.
+// Live generation for the home page's email generator: unauthenticated, so
+// abuse protection is mandatory. The rate limit is a dedicated bucket checked
+// here in the action (not the shared top-level enforceRateLimit path).
+//
+// Over the limit (429) or when generation fails (503), the action answers
+// { error: true } and the generator shows Recova's "Generation failed. Try again."
+// (components/marketing/EmailGenerator.tsx, blob c4592a56; M3 divergence 28).
+// It used to answer with a stored sample in the same shape, which the page
+// then labelled as generated in real time.
+const UNAVAILABLE = { error: true } as const;
+
 function isValidCategory(value: string): value is MarketingEmailCategory {
   return (MARKETING_EMAIL_CATEGORIES as string[]).includes(value);
 }
@@ -39,14 +38,14 @@ export async function action({ request, context }: Route.ActionArgs) {
   const key = request.headers.get("cf-connecting-ip") ?? "unknown";
   const withinLimit = await isWithinRateLimit(env, "marketing_email_sample", key, 10, 60_000);
   if (!withinLimit) {
-    return data(MARKETING_EMAIL_FALLBACKS[category]);
+    return data(UNAVAILABLE, { status: 429 });
   }
 
   try {
     const copy = await generateMarketingEmailSample(env, category);
     return data(copy);
   } catch (err) {
-    console.error("marketing email sample generation failed; using fallback", err);
-    return data(MARKETING_EMAIL_FALLBACKS[category]);
+    console.error("marketing email sample generation failed", err);
+    return data(UNAVAILABLE, { status: 503 });
   }
 }

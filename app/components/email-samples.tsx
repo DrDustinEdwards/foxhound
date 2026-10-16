@@ -1,55 +1,57 @@
+import { ArrowRight } from "lucide-react";
 import { useState } from "react";
 import { useFetcher } from "react-router";
+import { Segmented } from "capsomer/react/segmented";
 
-import type { MarketingEmailCategory, MarketingEmailCopy } from "~/lib/marketing/email-sample-fallbacks";
+import type { MarketingEmailCategory, MarketingEmailResult } from "~/lib/marketing/email-sample";
 
-// Live email generator (TASK-foxhound-demo-entry-parity.md item 3, reversing
-// the earlier call at app/components/email-samples.tsx: Phase 6 replaced
-// legacy's real Anthropic call with a static rotator over hardcoded samples,
-// reasoning that the demo-account AI firewall meant "zero Anthropic calls in
-// the demo path." That firewall is for the SEEDED DEMO ACCOUNT (a nightly
-// cron reseed calling AI would be genuinely wrong there); it never applied to
-// this unauthenticated marketing page, where a human clicks a button once.
-// Legacy called real AI from here. Generation posts to
-// /marketing/generate-email-sample (app/routes/marketing/), which is rate
-// limited and falls back to a static sample on any failure, in the same
-// shape, so a visitor never sees an error.
+import "capsomer/panel.css";
+import "capsomer/button.css";
+import "capsomer/segmented.css";
+
+// The home page's live email generator (J59, row M3). Recova's spec is
+// components/marketing/EmailGenerator.tsx (blob c4592a56), read whole.
+//
+// Recova's parts in Recova's order: the header with its live dot, the decline
+// type picker, the generate button with its trailing arrow, the line under it,
+// and the output (subject, body, footer) or Recova's failure line. The picker
+// labels are Recova's: the decline name in bold, the plain cause beneath, and
+// no raw Stripe code (M3 divergence 27).
+//
+// Look is Capsomer's: the card is a panel, the picker its segmented control
+// (one of a few, so radios, not four buttons), the button its primary. Recova
+// tints the chosen decline type in its own colour; Capsomer's segmented
+// control has one selected look, so the tint waits for the per-site layer
+// (capsomer job_ec5ec0754626).
+//
+// Generation posts to /marketing/generate-email-sample, which calls the model
+// for a fictional customer. When that fails or the visitor is over the rate
+// limit, the route says so and this shows Recova's failure line (M3 divergence
+// 28), rather than passing a stored sample off as one generated just now.
+
 interface CategoryMeta {
   id: MarketingEmailCategory;
   label: string;
   desc: string;
-  tone: "blue" | "orange" | "brand" | "red";
 }
 
 const CATEGORIES: CategoryMeta[] = [
-  { id: "soft", label: "Insufficient funds", desc: "Soft decline", tone: "blue" },
-  { id: "network", label: "Processing failure", desc: "Network decline", tone: "orange" },
-  { id: "expired", label: "Expired card", desc: "Card needs updating", tone: "brand" },
-  { id: "fraud", label: "Suspected fraud", desc: "do_not_honor", tone: "red" },
+  { id: "soft", label: "Soft decline", desc: "Insufficient funds" },
+  { id: "network", label: "Network error", desc: "Processing failure" },
+  { id: "expired", label: "Expired card", desc: "Card needs updating" },
+  { id: "fraud", label: "Fraud flag", desc: "Bank flagged the charge" },
 ];
 
-const TONE_CLASSES: Record<CategoryMeta["tone"], string> = {
-  blue: "bg-blue-bg border-blue text-blue",
-  orange: "bg-orange-bg border-orange text-warning-text",
-  brand: "bg-brand-bg border-brand-border-interactive text-brand-text",
-  red: "bg-red-bg border-red text-error-text",
-};
-
 export function EmailSamples() {
-  const [activeId, setActiveId] = useState<MarketingEmailCategory>(CATEGORIES[0].id);
-  const [result, setResult] = useState<MarketingEmailCopy | null>(null);
-  const fetcher = useFetcher<MarketingEmailCopy>();
+  const [category, setCategory] = useState<MarketingEmailCategory>("soft");
+  const [result, setResult] = useState<MarketingEmailResult | null>(null);
+  const fetcher = useFetcher<MarketingEmailResult>();
   const busy = fetcher.state !== "idle";
 
   // `result` is fetcher.data, EXCEPT that switching category clears it and it
   // stays cleared until the next generate lands, so it cannot be derived from
-  // fetcher.data alone: the response carries no category to compare against.
-  //
-  // Copying it across in an effect cost a render every time (react-hooks/
-  // set-state-in-effect). This is React's documented replacement: adjust state
-  // during render, guarded on the value having actually changed. React
-  // re-renders immediately without committing the first pass, so there is no
-  // cascading render and no flash of the stale sample.
+  // fetcher.data alone. React's documented pattern: adjust state during
+  // render, guarded on the value having changed.
   const [seenData, setSeenData] = useState(fetcher.data);
   if (fetcher.data !== seenData) {
     setSeenData(fetcher.data);
@@ -57,78 +59,90 @@ export function EmailSamples() {
   }
 
   function selectCategory(id: MarketingEmailCategory) {
-    setActiveId(id);
+    setCategory(id);
     setResult(null);
   }
 
   function generate() {
-    void fetcher.submit({ category: activeId }, { method: "post", action: "/marketing/generate-email-sample" });
+    void fetcher.submit({ category }, { method: "post", action: "/marketing/generate-email-sample" });
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-surface">
-      <div className="flex items-center justify-between border-b border-border-sub px-5 py-4">
-        <span className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
-          Live email generator
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green" aria-hidden />
-          <span className="font-mono text-micro text-green">Calls real AI</span>
-        </span>
-      </div>
-
-      <div className="p-5">
-        <p className="mb-2 font-mono text-micro uppercase tracking-wide text-text-tertiary">
-          Decline type
-        </p>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {CATEGORIES.map((category) => (
-            <button
-              key={category.id}
-              type="button"
-              onClick={() => selectCategory(category.id)}
-              className={`rounded-lg border px-3 py-2.5 text-left text-label transition-colors ${
-                activeId === category.id
-                  ? TONE_CLASSES[category.tone]
-                  : "border-border bg-bg text-text-secondary hover:border-border-i"
-              }`}
-            >
-              <div className="font-medium">{category.label}</div>
-              <div className="mt-0.5 font-mono text-micro opacity-80">{category.desc}</div>
-            </button>
-          ))}
-        </div>
-
-        <div className="mt-4 flex justify-center">
-          <button
-            type="button"
-            onClick={generate}
-            disabled={busy}
-            className="w-full rounded-md bg-brand px-5 py-2.5 text-label font-semibold text-on-brand hover:bg-brand-dark disabled:opacity-60 sm:w-auto sm:min-w-[280px]"
-          >
-            {busy ? "Generating..." : "Generate recovery email"}
-          </button>
-        </div>
-        <p className="mt-2 text-center font-mono text-micro text-text-subtle">
-          The same AI that writes your recovery emails. Try it on a real failed payment.
-        </p>
-      </div>
-
-      {result ? (
-        <div className="border-t border-border-sub p-5">
-          <p className="mb-2 font-mono text-micro uppercase tracking-wide text-text-subtle">Subject</p>
-          <div className="mb-4 rounded-lg border border-border-sub bg-bg px-3 py-2 text-body font-medium text-text">
-            {result.subject}
+    <div className="cap-panel">
+      <div className="cap-panel-body" data-flush>
+        <div>
+          <div className="flex items-center justify-between border-b border-border-sub px-5 py-4">
+            <span className="font-mono text-micro uppercase tracking-widest text-text-tertiary">
+              Live email generator
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green" aria-hidden />
+              <span className="font-mono text-micro text-green">Calls real AI</span>
+            </span>
           </div>
-          <p className="mb-2 font-mono text-micro uppercase tracking-wide text-text-subtle">Body</p>
-          <div className="whitespace-pre-wrap rounded-lg border border-border-sub bg-bg px-3 py-3 font-mono text-label leading-relaxed text-text-secondary">
-            {result.body.replace("{{update_url}}", "https://billing.yoursaas.com/update")}
+
+          <div className="p-5">
+            <div className="mb-4">
+              <Segmented
+                legend="Decline type"
+                name="decline-type"
+                value={category}
+                onChange={selectCategory}
+                options={CATEGORIES.map((c) => ({
+                  value: c.id,
+                  label: (
+                    <span className="block py-1.5 text-left">
+                      <span className="block font-medium">{c.label}</span>
+                      <span className="mt-0.5 block font-mono text-micro opacity-80">{c.desc}</span>
+                    </span>
+                  ),
+                }))}
+              />
+            </div>
+
+            <div className="flex justify-center" data-density="comfortable">
+              <button
+                type="button"
+                onClick={generate}
+                aria-busy={busy ? "true" : undefined}
+                className="cap-btn"
+                data-variant="primary"
+              >
+                <span className="cap-btn-label">Generate recovery email</span>
+                <ArrowRight data-icon="end" size={13} strokeWidth={1.5} aria-hidden />
+              </button>
+            </div>
+
+            {/* Recova: "The same AI that writes your recovery emails. Try it on
+                a real failed payment." The sample uses its own model
+                (MODEL_MARKETING_EMAIL_SAMPLE, not MODEL_RECOVERY_EMAIL) on a
+                fictional customer, so the line says what it is. */}
+            <p className="mt-2 text-center font-mono text-micro text-text-subtle">
+              A live AI call on a sample failed payment, for a fictional customer.
+            </p>
           </div>
-          <p className="mt-3 font-mono text-micro text-text-subtle">
-            Generated in real time by the same AI that writes your recovery emails.
-          </p>
+
+          <div aria-live="polite">
+            {result && "error" in result ? (
+              <div className="border-t border-border-sub p-5 text-label text-error-text">Generation failed. Try again.</div>
+            ) : result ? (
+              <div className="border-t border-border-sub p-5">
+                <p className="mb-3 font-mono text-micro uppercase tracking-widest text-text-subtle">Subject</p>
+                <div className="mb-4 rounded-lg border border-border-sub bg-bg px-3 py-2 text-label font-medium text-text">
+                  {result.subject}
+                </div>
+                <p className="mb-2 font-mono text-micro uppercase tracking-widest text-text-subtle">Body</p>
+                <div className="whitespace-pre-wrap rounded-lg border border-border-sub bg-bg px-3 py-3 font-mono text-label leading-[1.7] text-text-secondary">
+                  {result.body.replace("{{update_url}}", "https://billing.yoursaas.com/update")}
+                </div>
+                <p className="mt-3 font-mono text-micro text-text-subtle">
+                  Generated in real time by AI, for a fictional customer.
+                </p>
+              </div>
+            ) : null}
+          </div>
         </div>
-      ) : null}
+      </div>
     </div>
   );
 }
