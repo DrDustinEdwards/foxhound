@@ -31,7 +31,13 @@ export function loader() {
 
 export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
-  const form = await request.formData();
+  let form: FormData;
+  try {
+    form = await request.formData();
+  } catch (err) {
+    console.error("marketing email sample: unreadable form body", err);
+    return data(UNAVAILABLE, { status: 400 });
+  }
   const categoryInput = String(form.get("category") ?? "");
   const category: MarketingEmailCategory = isValidCategory(categoryInput) ? categoryInput : "soft";
 

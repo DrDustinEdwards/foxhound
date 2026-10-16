@@ -63,10 +63,39 @@ export function EmailSamples() {
     setResult(null);
   }
 
+  // Recova's generate() calls setResult(null) and setError(false) before the
+  // request, so a new call never shows the last call's email or failure line.
   function generate() {
+    setResult(null);
     void fetcher.submit({ category }, { method: "post", action: "/marketing/generate-email-sample" });
   }
 
+  return (
+    <EmailGeneratorView
+      category={category}
+      busy={busy}
+      result={result}
+      onSelect={selectCategory}
+      onGenerate={generate}
+    />
+  );
+}
+
+/** What the generator draws for a given state, apart from the fetcher, so each
+ *  state (idle, busy, a result, a failure) can be rendered on its own. */
+export function EmailGeneratorView({
+  category,
+  busy,
+  result,
+  onSelect,
+  onGenerate,
+}: {
+  category: MarketingEmailCategory;
+  busy: boolean;
+  result: MarketingEmailResult | null;
+  onSelect: (id: MarketingEmailCategory) => void;
+  onGenerate: () => void;
+}) {
   return (
     <div className="cap-panel">
       <div className="cap-panel-body" data-flush>
@@ -87,7 +116,7 @@ export function EmailSamples() {
                 legend="Decline type"
                 name="decline-type"
                 value={category}
-                onChange={selectCategory}
+                onChange={onSelect}
                 options={CATEGORIES.map((c) => ({
                   value: c.id,
                   label: (
@@ -103,13 +132,22 @@ export function EmailSamples() {
             <div className="flex justify-center" data-density="comfortable">
               <button
                 type="button"
-                onClick={generate}
+                onClick={onGenerate}
+                disabled={busy}
                 aria-busy={busy ? "true" : undefined}
                 className="cap-btn"
                 data-variant="primary"
               >
-                <span className="cap-btn-label">Generate recovery email</span>
-                <ArrowRight data-icon="end" size={13} strokeWidth={1.5} aria-hidden />
+                {/* Recova (EmailGenerator.tsx): "Generating..." with no arrow
+                    while the call runs, the label and the arrow otherwise. */}
+                {busy ? (
+                  <span className="cap-btn-label">Generating...</span>
+                ) : (
+                  <>
+                    <span className="cap-btn-label">Generate recovery email</span>
+                    <ArrowRight data-icon="end" size={13} strokeWidth={1.5} aria-hidden />
+                  </>
+                )}
               </button>
             </div>
 
@@ -123,7 +161,7 @@ export function EmailSamples() {
           </div>
 
           <div aria-live="polite">
-            {result && "error" in result ? (
+            {busy ? null : result && "error" in result ? (
               <div className="border-t border-border-sub p-5 text-label text-error-text">Generation failed. Try again.</div>
             ) : result ? (
               <div className="border-t border-border-sub p-5">

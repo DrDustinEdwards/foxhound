@@ -77,7 +77,7 @@ describe("PLANT 2: every marketing carrier derives the number", () => {
     },
     { file: "app/lib/compare/competitors.ts", mustUse: ["DECLINE_CATEGORY_COUNT_WORD_LOWER"] },
     // Home's copy moved to lib/marketing/home-copy.ts with J59.
-    { file: "app/lib/marketing/home-copy.ts", mustUse: ["DECLINE_CATEGORY_PHRASE", "DECLINE_CATEGORY_COUNT_WORD"] },
+    { file: "app/lib/marketing/home-copy.ts", mustUse: ["DECLINE_CATEGORY_LIST_AND", "DECLINE_CATEGORY_COUNT_WORD"] },
   ];
 
   it("all four carriers interpolate the derived value", () => {

@@ -84,9 +84,17 @@ export function meta({ loaderData }: Route.MetaArgs) {
 // 34). Trimmed-column queries, never the full-body select.
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
-  const db = getDb(env);
-  const [featured, latest] = await Promise.all([getFeaturedPost(db), listPublishedPosts(db, 5)]);
-  return { siteUrl: siteUrl(env), blogPosts: blogStripCards(featured, latest) };
+  // The blog strip is the page's only database read. A D1 error drops the
+  // strip (it renders nothing when empty), never the whole home page.
+  let blogPosts: Awaited<ReturnType<typeof listPublishedPosts>> = [];
+  try {
+    const db = getDb(env);
+    const [featured, latest] = await Promise.all([getFeaturedPost(db), listPublishedPosts(db, 5)]);
+    blogPosts = blogStripCards(featured, latest);
+  } catch (err) {
+    console.error("home blog strip read failed", err);
+  }
+  return { siteUrl: siteUrl(env), blogPosts };
 }
 
 const PRODUCT_ICONS = {

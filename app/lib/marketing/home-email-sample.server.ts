@@ -11,9 +11,10 @@ import type { MarketingEmailCategory, MarketingEmailCopy } from "./email-sample"
 // merchant's brand voice, unlike generateDunningEmail in
 // app/lib/recovery/email-generation.ts (which this reuses sanitizeCopy from,
 // the same em-dash/AI-tell stripping every generated customer-facing email
-// gets). Isolated seam: constructs its own Anthropic client per call, throws
-// if ANTHROPIC_API_KEY is unset so the caller can fall back to a static
-// sample instead of surfacing an error to the visitor.
+// gets). Isolated seam: constructs its own Anthropic client per call and
+// throws if ANTHROPIC_API_KEY is unset or the call fails. There is no static
+// fallback: the route answers { error: true } and the page shows Recova's
+// "Generation failed. Try again." line.
 
 interface CategoryScenario {
   reason: string;

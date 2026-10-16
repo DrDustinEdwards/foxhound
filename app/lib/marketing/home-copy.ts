@@ -7,7 +7,7 @@ import {
 } from "~/lib/constants";
 import {
   DECLINE_CATEGORY_COUNT_WORD,
-  DECLINE_CATEGORY_PHRASE,
+  DECLINE_CATEGORY_LIST_AND,
   DISTINCT_SEQUENCE_COUNT,
   RECOVERY_SEQUENCE_DAYS,
   countWord,
@@ -120,7 +120,7 @@ export const COMPARISON_ROWS: ComparisonRow[] = [
     // different sequence." The engine classifies into the categories
     // RECOVERY_SCHEDULES names, two of them share one schedule, and only the
     // retryable ones get a silent retry, ahead of the first email.
-    foxhoundBody: `AI-written emails, with a silent retry ahead of the first email wherever the decline can be retried. Decline classification by ${DECLINE_CATEGORY_PHRASE}, each handled by its category's own schedule.`,
+    foxhoundBody: `AI-written emails, with a silent retry ahead of the first email wherever the decline can be retried. Decline classification by ${DECLINE_CATEGORY_LIST_AND}, each handled by its category's own schedule.`,
     foxhoundHref: "/product/recovery",
   },
   {

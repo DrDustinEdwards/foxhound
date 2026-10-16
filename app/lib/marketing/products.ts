@@ -36,7 +36,7 @@ export const PRODUCTS: Record<ProductKey, ProductDef> = {
     name: "Recovery",
     description:
       // Read from the engine: it schedules more categories than sequences.
-      `Silent retries first, then AI-drafted email sequences, across ${RECOVERY_SEQUENCE_DAYS} days. ${DECLINE_CATEGORY_COUNT_WORD} decline categories, ${countWord(DISTINCT_SEQUENCE_COUNT).toLowerCase()} different sequences.`,
+      `AI email sequences and silent retries across ${RECOVERY_SEQUENCE_DAYS} days. ${DECLINE_CATEGORY_COUNT_WORD} decline categories, ${countWord(DISTINCT_SEQUENCE_COUNT).toLowerCase()} different sequences.`,
     price: "20%",
     priceLabel: "of Foxhound-attributed recoveries",
     href: "/product/recovery",

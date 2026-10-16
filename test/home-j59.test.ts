@@ -16,8 +16,9 @@ import {
 } from "~/lib/constants";
 import { RECOVERY_SCHEDULES, isRetryStep } from "~/lib/recovery/schedule";
 import { STRIPE_RECOVERY_RATE_PERCENT } from "~/lib/marketing/statistics";
+import { EmailGeneratorView } from "~/components/email-samples";
 import routes from "~/routes";
-import Home, { meta } from "~/routes/home";
+import Home, { loader, meta } from "~/routes/home";
 import { action as generateEmailSample } from "~/routes/marketing/generate-email-sample";
 
 // J59 (job_0a1ab5766050), row M3: the home page's frozen copy, the closing
@@ -339,6 +340,30 @@ describe("the blog strip puts the featured post first (M3 divergence 34)", () =>
     expect(src).toContain("getFeaturedPost(db)");
     expect(src).toContain("listPublishedPosts(db, 5)");
   });
+
+  it("a database error drops the strip, never the page (review round 1)", async () => {
+    const failing = {
+      prepare() {
+        throw new Error("D1 unavailable");
+      },
+      batch() {
+        throw new Error("D1 unavailable");
+      },
+    };
+    const ctx = {
+      get(key: unknown) {
+        if (key === cloudflareContext) return { env: { DB: failing } as unknown as Env, ctx: {} as ExecutionContext, nonce: "n" };
+        throw new Error("unexpected context key");
+      },
+    };
+    const data = await loader({
+      context: ctx,
+      request: new Request("https://foxhoundapp.com/"),
+      params: {},
+    } as unknown as Parameters<typeof loader>[0]);
+    expect(data.blogPosts).toEqual([]);
+    expect(render([])).not.toContain("From the blog");
+  });
 });
 
 describe("the email generator shows Recova's error when generation fails (M3 divergence 28)", () => {
@@ -360,9 +385,9 @@ describe("the email generator shows Recova's error when generation fails (M3 div
     expect(result.init?.status).toBe(503);
   });
 
-  it("the generator carries Recova's failure line", () => {
-    const src = readSource("app/components/email-samples.tsx");
-    expect(src).toContain("Generation failed. Try again.");
+  it("the generator draws Recova's failure line for a failed call", () => {
+    const html = renderGenerator({ busy: false, result: { error: true } });
+    expect(text(html)).toContain("Generation failed. Try again.");
   });
 });
 
@@ -451,5 +476,99 @@ describe("the billing answer's links and its JSON-LD text say the same sentence"
   it("joins to the plain answer the FAQPage carries", () => {
     const joined = BILLING_FAQ_PARTS.map((part) => (typeof part === "string" ? part : part.label)).join("");
     expect(joined).toBe(FAQS[2].answer);
+  });
+});
+
+/** The generator alone, in one state, inside a router (it renders links). */
+function renderGenerator(state: { busy: boolean; result: { subject: string; body: string } | { error: true } | null }): string {
+  const router = createMemoryRouter(
+    [
+      {
+        path: "*",
+        element: createElement(EmailGeneratorView, {
+          category: "soft",
+          busy: state.busy,
+          result: state.result,
+          onSelect: () => {},
+          onGenerate: () => {},
+        }),
+      },
+    ],
+    { initialEntries: ["/"] },
+  );
+  return renderToStaticMarkup(createElement(RouterProvider, { router }));
+}
+
+function actionContext(env: Env) {
+  return {
+    get(key: unknown) {
+      if (key === cloudflareContext) return { env, ctx: {} as ExecutionContext, nonce: "n" };
+      throw new Error("unexpected context key");
+    },
+  };
+}
+
+describe("the generator's loading state is Recova's (review round 1)", () => {
+  it("while a call runs the button is disabled and reads Generating...", () => {
+    const html = renderGenerator({ busy: true, result: null });
+    const button = /<button [^>]*class="cap-btn"[^>]*>[\s\S]*?<\/button>/.exec(html)?.[0] ?? "";
+    expect(button, "the generate button is drawn").toContain('data-variant="primary"');
+    expect(button).toMatch(/\sdisabled=""/);
+    expect(text(button)).toBe("Generating...");
+  });
+
+  it("when idle the button is enabled and reads Generate recovery email", () => {
+    const html = renderGenerator({ busy: false, result: null });
+    const button = /<button [^>]*class="cap-btn"[^>]*>[\s\S]*?<\/button>/.exec(html)?.[0] ?? "";
+    expect(button).not.toMatch(/\sdisabled=""/);
+    expect(text(button)).toBe("Generate recovery email");
+  });
+
+  it("a new call clears the last failure line, as Recova's setError(false) does", () => {
+    const html = renderGenerator({ busy: true, result: { error: true } });
+    expect(text(html)).not.toContain("Generation failed. Try again.");
+  });
+});
+
+describe("the generation route's edges (review round 1)", () => {
+  const post = (body: BodyInit) =>
+    new Request("https://foxhoundapp.com/marketing/generate-email-sample", {
+      method: "POST",
+      body,
+      headers: { "content-type": "multipart/form-data; boundary=broken" },
+    });
+
+  it("over the rate limit, the real action answers { error: true } with 429", async () => {
+    const limiter = {
+      idFromName: (name: string) => name,
+      get: () => ({ check: async () => ({ allowed: false }) }),
+    };
+    const form = new FormData();
+    form.set("category", "soft");
+    const result = (await generateEmailSample({
+      request: new Request("https://foxhoundapp.com/marketing/generate-email-sample", { method: "POST", body: form }),
+      context: actionContext({ RATE_LIMITER: limiter } as unknown as Env),
+      params: {},
+    } as unknown as Parameters<typeof generateEmailSample>[0])) as { data: unknown; init?: { status?: number } };
+    expect(result.data).toEqual({ error: true });
+    expect(result.init?.status).toBe(429);
+  });
+
+  it("a body that is not a form answers 400, not an unhandled 500", async () => {
+    const result = (await generateEmailSample({
+      request: post("not a multipart body"),
+      context: actionContext({} as Env),
+      params: {},
+    } as unknown as Parameters<typeof generateEmailSample>[0])) as { data: unknown; init?: { status?: number } };
+    expect(result.data).toEqual({ error: true });
+    expect(result.init?.status).toBe(400);
+  });
+});
+
+describe("the category list reads as Recova's does, with and (review round 1)", () => {
+  it("joins the engine's categories with and, not or", () => {
+    const page = text(render());
+    expect(page).not.toMatch(/Decline classification by [^.]*, or /);
+    expect(page).toMatch(/Decline classification by [^.]*, and [^.]*, each handled/);
   });
 });
