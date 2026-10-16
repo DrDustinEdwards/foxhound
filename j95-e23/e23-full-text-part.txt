@@ -1,0 +1,53 @@
+From: Foxhound <recovery@send.foxhoundapp.com>
+Subject: Your weekly platform report: November 2
+Headers: {"List-Unsubscribe":"<https://foxhound.example.com/u/EXAMPLE-NOT-A-TOKEN>","List-Unsubscribe-Post":"List-Unsubscribe=One-Click"}
+
+Foxhound
+
+Week ending Monday, November 2
+
+Your recovery summary
+
+Revenue recovered: $693.00
+
+Recovery rate: 58%
+
+Failed payments detected: 12
+
+Payments recovered: 7
+
+Revenue at risk: $1,188.00
+
+Active recovery sequences: 5
+
+Recovery emails sent: 31
+
+Active win-back sequences: 2
+
+Cards expiring soon: 3
+
+Open disputes: 1, $49.00
+
+Disputes
+
+1 open dispute totaling $49.00 need a response. Foxhound has staged evidence for each.
+
+View disputes →:
+https://foxhound.example.com/disputes/dashboard
+
+Intelligence
+
+Top at-risk customers
+
+Northwind Co: $199.00/mo
+
+Globex: $99.00/mo
+
+View Dashboard:
+https://foxhound.example.com/recovery/dashboard
+
+--
+This message was sent to owner@example.com.
+You're receiving this from Teamflow about a recent payment. © 2026
+Unsubscribe: https://foxhound.example.com/u/EXAMPLE-NOT-A-TOKEN
+1 Example Street, Austin TX 78701

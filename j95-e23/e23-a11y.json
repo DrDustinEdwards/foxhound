@@ -1,0 +1,325 @@
+[
+ {
+  "name": "full",
+  "scheme": "light",
+  "lang": "en",
+  "title": "Your weekly platform report: November 2",
+  "h1": [
+   "Your recovery summary"
+  ],
+  "links": [
+   {
+    "text": "View disputes →",
+    "href": "https://foxhound.example.com/disputes/dashboard"
+   },
+   {
+    "text": "View Dashboard",
+    "href": "https://foxhound.example.com/recovery/dashboard"
+   },
+   {
+    "text": "Unsubscribe",
+    "href": "https://foxhound.example.com/u/EXAMPLE-NOT-A-TOKEN"
+   }
+  ],
+  "minRatio": 5.48,
+  "sizes": [
+   "TD:18px",
+   "TD:16px",
+   "H1:22px",
+   "A:16px",
+   "TD:14px",
+   "A:14px"
+  ],
+  "lowest": [
+   {
+    "t": "View disputes →",
+    "fg": [
+     251,
+     254,
+     254
+    ],
+    "bg": [
+     7,
+     116,
+     120
+    ],
+    "size": "16px",
+    "tag": "A",
+    "ratio": 5.48
+   },
+   {
+    "t": "View Dashboard",
+    "fg": [
+     251,
+     254,
+     254
+    ],
+    "bg": [
+     7,
+     116,
+     120
+    ],
+    "size": "16px",
+    "tag": "A",
+    "ratio": 5.48
+   },
+   {
+    "t": "This message was sent to owner@example.c",
+    "fg": [
+     89,
+     105,
+     106
+    ],
+    "bg": [
+     241,
+     253,
+     253
+    ],
+    "size": "14px",
+    "tag": "TD",
+    "ratio": 5.53
+   }
+  ]
+ },
+ {
+  "name": "full",
+  "scheme": "dark",
+  "lang": "en",
+  "title": "Your weekly platform report: November 2",
+  "h1": [
+   "Your recovery summary"
+  ],
+  "links": [
+   {
+    "text": "View disputes →",
+    "href": "https://foxhound.example.com/disputes/dashboard"
+   },
+   {
+    "text": "View Dashboard",
+    "href": "https://foxhound.example.com/recovery/dashboard"
+   },
+   {
+    "text": "Unsubscribe",
+    "href": "https://foxhound.example.com/u/EXAMPLE-NOT-A-TOKEN"
+   }
+  ],
+  "minRatio": 5.26,
+  "sizes": [
+   "TD:18px",
+   "TD:16px",
+   "H1:22px",
+   "A:16px",
+   "TD:14px",
+   "A:14px"
+  ],
+  "lowest": [
+   {
+    "t": "View disputes →",
+    "fg": [
+     7,
+     15,
+     15
+    ],
+    "bg": [
+     36,
+     147,
+     152
+    ],
+    "size": "16px",
+    "tag": "A",
+    "ratio": 5.26
+   },
+   {
+    "t": "View Dashboard",
+    "fg": [
+     7,
+     15,
+     15
+    ],
+    "bg": [
+     36,
+     147,
+     152
+    ],
+    "size": "16px",
+    "tag": "A",
+    "ratio": 5.26
+   },
+   {
+    "t": "Week ending Monday, November 2",
+    "fg": [
+     139,
+     153,
+     153
+    ],
+    "bg": [
+     17,
+     25,
+     25
+    ],
+    "size": "16px",
+    "tag": "TD",
+    "ratio": 6.04
+   }
+  ]
+ },
+ {
+  "name": "empty",
+  "scheme": "light",
+  "lang": "en",
+  "title": "Your weekly recovery report: November 2",
+  "h1": [
+   "Your recovery summary"
+  ],
+  "links": [
+   {
+    "text": "View Dashboard",
+    "href": "https://foxhound.example.com/recovery/dashboard"
+   },
+   {
+    "text": "Unsubscribe",
+    "href": "https://foxhound.example.com/u/EXAMPLE-NOT-A-TOKEN"
+   }
+  ],
+  "minRatio": 5.48,
+  "sizes": [
+   "TD:18px",
+   "TD:16px",
+   "H1:22px",
+   "A:16px",
+   "TD:14px",
+   "A:14px"
+  ],
+  "lowest": [
+   {
+    "t": "View Dashboard",
+    "fg": [
+     251,
+     254,
+     254
+    ],
+    "bg": [
+     7,
+     116,
+     120
+    ],
+    "size": "16px",
+    "tag": "A",
+    "ratio": 5.48
+   },
+   {
+    "t": "This message was sent to owner@example.c",
+    "fg": [
+     89,
+     105,
+     106
+    ],
+    "bg": [
+     241,
+     253,
+     253
+    ],
+    "size": "14px",
+    "tag": "TD",
+    "ratio": 5.53
+   },
+   {
+    "t": "You're receiving this from Foxhound abou",
+    "fg": [
+     89,
+     105,
+     106
+    ],
+    "bg": [
+     241,
+     253,
+     253
+    ],
+    "size": "14px",
+    "tag": "TD",
+    "ratio": 5.53
+   }
+  ]
+ },
+ {
+  "name": "empty",
+  "scheme": "dark",
+  "lang": "en",
+  "title": "Your weekly recovery report: November 2",
+  "h1": [
+   "Your recovery summary"
+  ],
+  "links": [
+   {
+    "text": "View Dashboard",
+    "href": "https://foxhound.example.com/recovery/dashboard"
+   },
+   {
+    "text": "Unsubscribe",
+    "href": "https://foxhound.example.com/u/EXAMPLE-NOT-A-TOKEN"
+   }
+  ],
+  "minRatio": 5.26,
+  "sizes": [
+   "TD:18px",
+   "TD:16px",
+   "H1:22px",
+   "A:16px",
+   "TD:14px",
+   "A:14px"
+  ],
+  "lowest": [
+   {
+    "t": "View Dashboard",
+    "fg": [
+     7,
+     15,
+     15
+    ],
+    "bg": [
+     36,
+     147,
+     152
+    ],
+    "size": "16px",
+    "tag": "A",
+    "ratio": 5.26
+   },
+   {
+    "t": "Week ending Monday, November 2",
+    "fg": [
+     139,
+     153,
+     153
+    ],
+    "bg": [
+     17,
+     25,
+     25
+    ],
+    "size": "16px",
+    "tag": "TD",
+    "ratio": 6.04
+   },
+   {
+    "t": "This message was sent to owner@example.c",
+    "fg": [
+     139,
+     153,
+     153
+    ],
+    "bg": [
+     7,
+     15,
+     15
+    ],
+    "size": "14px",
+    "tag": "TD",
+    "ratio": 6.56
+   }
+  ]
+ },
+ {
+  "hscroll320": false
+ }
+]
