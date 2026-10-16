@@ -1,0 +1,140 @@
+[
+ {
+  "name": "e10-before",
+  "scheme": "light",
+  "heading": {
+   "fg": "rgb(7, 31, 32)",
+   "bg": "rgb(251, 254, 254)",
+   "ratio": 16.89,
+   "size": "22px"
+  },
+  "body": {
+   "fg": "rgb(7, 31, 32)",
+   "bg": "rgb(251, 254, 254)",
+   "ratio": 16.89,
+   "size": "16px"
+  },
+  "button": {
+   "fg": "rgb(251, 254, 254)",
+   "bg": "rgb(7, 116, 120)",
+   "ratio": 5.48,
+   "size": "16px"
+  },
+  "footerText": {
+   "fg": "rgb(89, 105, 106)",
+   "bg": "rgb(241, 253, 253)",
+   "ratio": 5.53,
+   "size": "14px"
+  },
+  "footerLink": null,
+  "lang": "en",
+  "title": "Payment recovered: $99.00 from Jane Buyer",
+  "h1s": 1
+ },
+ {
+  "name": "e10-before",
+  "scheme": "dark",
+  "heading": {
+   "fg": "rgb(233, 240, 240)",
+   "bg": "rgb(17, 25, 25)",
+   "ratio": 15.45,
+   "size": "22px"
+  },
+  "body": {
+   "fg": "rgb(233, 240, 240)",
+   "bg": "rgb(17, 25, 25)",
+   "ratio": 15.45,
+   "size": "16px"
+  },
+  "button": {
+   "fg": "rgb(7, 15, 15)",
+   "bg": "rgb(36, 147, 152)",
+   "ratio": 5.26,
+   "size": "16px"
+  },
+  "footerText": {
+   "fg": "rgb(139, 153, 153)",
+   "bg": "rgb(7, 15, 15)",
+   "ratio": 6.56,
+   "size": "14px"
+  },
+  "footerLink": null,
+  "lang": "en",
+  "title": "Payment recovered: $99.00 from Jane Buyer",
+  "h1s": 1
+ },
+ {
+  "name": "e10-after",
+  "scheme": "light",
+  "heading": {
+   "fg": "rgb(7, 31, 32)",
+   "bg": "rgb(251, 254, 254)",
+   "ratio": 16.89,
+   "size": "22px"
+  },
+  "body": {
+   "fg": "rgb(7, 31, 32)",
+   "bg": "rgb(251, 254, 254)",
+   "ratio": 16.89,
+   "size": "16px"
+  },
+  "button": {
+   "fg": "rgb(251, 254, 254)",
+   "bg": "rgb(7, 116, 120)",
+   "ratio": 5.48,
+   "size": "16px"
+  },
+  "footerText": {
+   "fg": "rgb(89, 105, 106)",
+   "bg": "rgb(241, 253, 253)",
+   "ratio": 5.53,
+   "size": "14px"
+  },
+  "footerLink": {
+   "fg": "rgb(1, 88, 92)",
+   "bg": "rgb(241, 253, 253)",
+   "ratio": 7.92,
+   "size": "14px"
+  },
+  "lang": "en",
+  "title": "Payment recovered: $99.00 from Jane Buyer",
+  "h1s": 1
+ },
+ {
+  "name": "e10-after",
+  "scheme": "dark",
+  "heading": {
+   "fg": "rgb(233, 240, 240)",
+   "bg": "rgb(17, 25, 25)",
+   "ratio": 15.45,
+   "size": "22px"
+  },
+  "body": {
+   "fg": "rgb(233, 240, 240)",
+   "bg": "rgb(17, 25, 25)",
+   "ratio": 15.45,
+   "size": "16px"
+  },
+  "button": {
+   "fg": "rgb(7, 15, 15)",
+   "bg": "rgb(36, 147, 152)",
+   "ratio": 5.26,
+   "size": "16px"
+  },
+  "footerText": {
+   "fg": "rgb(139, 153, 153)",
+   "bg": "rgb(7, 15, 15)",
+   "ratio": 6.56,
+   "size": "14px"
+  },
+  "footerLink": {
+   "fg": "rgb(151, 200, 203)",
+   "bg": "rgb(7, 15, 15)",
+   "ratio": 10.55,
+   "size": "14px"
+  },
+  "lang": "en",
+  "title": "Payment recovered: $99.00 from Jane Buyer",
+  "h1s": 1
+ }
+]

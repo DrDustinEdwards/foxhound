@@ -1,0 +1,19 @@
+From: Foxhound <recovery@send.foxhoundapp.com>
+To: ops@example.com
+Subject: Payment recovered: $99.00 from Jane Buyer
+Reply-To: (none)
+Headers: {}
+
+Foxhound
+
+Payment recovered.
+
+Jane Buyer just paid $99.00. Foxhound recovered it automatically after a soft decline.
+
+View payment:
+https://foxhound.example.com/recovery/payments/fp_example
+
+--
+This message was sent to ops@example.com.
+You're receiving this from Foxhound about a recent payment. © 2026
+Manage email settings: https://foxhound.example.com/settings
