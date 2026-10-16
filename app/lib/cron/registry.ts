@@ -1,5 +1,5 @@
 import { getDb } from "~/db";
-import { describeMonthlyAuditRun, runMonthlyAudit } from "~/lib/audit/monthly.server";
+import { describeMonthlyAuditRun, enqueueMonthlyAudits } from "~/lib/audit/monthly.server";
 import { describeSweepRun, runMonthlyBilling } from "~/lib/billing/run";
 import {
   CRON_SCHEDULE_DAILY,
@@ -15,6 +15,11 @@ import { runIntelligenceAiForAllAccounts } from "~/lib/intelligence/ai-run.serve
 import { runIntelligenceSyncForAllAccounts } from "~/lib/intelligence/sync.server";
 
 import { runD1Backup } from "~/lib/backup/d1-backup";
+import {
+  describeDisputeReminderRun,
+  DISPUTE_REMINDERS_CRON_NAME,
+  runDisputeReminders,
+} from "~/lib/cron/dispute-reminders";
 import { describeExpiringCardRun, runExpiringCards } from "~/lib/cron/expiring-cards";
 import { describeWeeklyDigestRun, runWeeklyDigest } from "~/lib/cron/digest";
 import { describeWinbackRun, runWinbackSends } from "~/lib/cron/winback";
@@ -162,6 +167,16 @@ const winbackSend: CronHandler = async (env) => {
   return { rowsProcessed: result.sent, message: describeWinbackRun(result) };
 };
 
+/** The dispute deadline reminder (J06). Recova's process-disputes ran hourly
+ *  ("0 * * * *"); this rides the five-minute tick instead, as winback-send does,
+ *  because a new cron expression needs cron-health's period table too and the
+ *  bands are a day wide, so a finer tick only reminds sooner within the band.
+ *  The per-band send claim is what stops a second reminder. */
+const disputeReminders: CronHandler = async (env, ctx) => {
+  const result = await runDisputeReminders(env, new Date(), ctx?.runId ?? null);
+  return { rowsProcessed: result.sent, message: describeDisputeReminderRun(result) };
+};
+
 const expiringCards: CronHandler = async (env) => {
   const result = await runExpiringCards(env, new Date());
   return { rowsProcessed: result.send.sent, message: describeExpiringCardRun(result) };
@@ -191,15 +206,22 @@ const cronHealth: CronHandler = async (env) =>
  *  self-inflicted collision. See the constant for the three sites a new
  *  expression has to land in.
  *
+ *  IT ONLY ENQUEUES (job_97878f0d1fde): one AUDIT_QUEUE message per opted-in
+ *  account, audited one per invocation by the queue consumer, so one large
+ *  account's Stripe pages cannot exhaust the subrequests every other account
+ *  needs. rowsProcessed is the number queued; each account's own result is its
+ *  audit_digest_runs row.
+ *
  *  It passes the run id so a claim row can name the run that produced it. */
 const monthlyAudit: CronHandler = async (env, ctx) => {
-  const result = await runMonthlyAudit(env, new Date(), ctx?.runId ?? null);
-  return { rowsProcessed: result.sent, message: describeMonthlyAuditRun(result) };
+  const result = await enqueueMonthlyAudits(env, new Date(), ctx?.runId ?? null);
+  return { rowsProcessed: result.enqueued, message: describeMonthlyAuditRun(result) };
 };
 
 export const CRON_JOBS: CronJob[] = [
   { name: RECOVERY_TICK_CRON_NAME, schedule: CRON_SCHEDULE_RECOVERY_TICK, handler: recoveryTick },
   { name: "winback-send", schedule: CRON_SCHEDULE_RECOVERY_TICK, handler: winbackSend },
+  { name: DISPUTE_REMINDERS_CRON_NAME, schedule: CRON_SCHEDULE_RECOVERY_TICK, handler: disputeReminders },
   { name: "weekly-digest", schedule: CRON_SCHEDULE_WEEKLY, handler: weeklyDigest },
   { name: "cron-health", schedule: CRON_SCHEDULE_DAILY, handler: cronHealth },
   { name: "expiring-cards", schedule: CRON_SCHEDULE_DAILY, handler: expiringCards },

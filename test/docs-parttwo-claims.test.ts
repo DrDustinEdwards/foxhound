@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
@@ -25,6 +28,7 @@ function flatten(blocks: DocBlock[]): string {
     if ("code" in node) return node.code;
     if ("strong" in node) return node.strong;
     if ("mono" in node) return node.mono;
+    if ("badge" in node) return String(node.badge);
     return node.link;
   };
   const rich = (r: string | DocInline[]): string =>
@@ -63,6 +67,8 @@ function renderWidget(name: DocWidgetName): string {
   );
 }
 
+const read = (path: string) => readFileSync(fileURLToPath(new URL(`../${path}`, import.meta.url)), "utf8");
+
 const AUDIT = textOf("audit");
 const DISPUTES = textOf("disputes");
 const INTELLIGENCE = textOf("intelligence");
@@ -71,22 +77,33 @@ describe("PLANT 1: shape, so a dropped section cannot ship silently", () => {
   it("each guide carries its Parts", () => {
     const headings = (slug: string) =>
       DOC_GUIDES.find((g) => g.slug === slug)!.sections.map((s) => s.heading);
+    // J73: Recova's Parts, in Recova's order (test/docs-guides-j73.test.ts
+    // pins the same lists against the legacy blobs).
     expect(headings("audit")).toEqual([
-      "How the audit works",
+      "How the Audit works",
+      "The four scopes",
       "Reading your results",
-      "Running it every month",
+      "Saving results",
+      "Auto-run",
+      "Using the audit to evaluate Foxhound",
     ]);
     expect(headings("disputes")).toEqual([
-      "How disputes work",
+      "How Disputes works",
+      "Dispute triage",
       "Evidence building",
-      "Review and submit",
+      "Submitting a dispute",
+      "Accepting a dispute",
+      "Settings",
       "Billing",
     ]);
     expect(headings("intelligence")).toEqual([
       "How Intelligence works",
-      "Customers",
-      "Churn and MRR",
-      "What is free and what is paid",
+      "Health scores",
+      "Recommendations",
+      "Churn risk",
+      "MRR trends",
+      "AI analyst",
+      "Settings",
     ]);
   });
 
@@ -95,9 +112,12 @@ describe("PLANT 1: shape, so a dropped section cannot ship silently", () => {
       DOC_GUIDES.find((g) => g.slug === slug)!
         .sections.flatMap((s) => s.body)
         .filter((b) => typeof b !== "string" && b.kind === "h3");
-    expect(h3s("audit")).toHaveLength(3);
-    expect(h3s("disputes")).toHaveLength(3);
-    expect(h3s("intelligence")).toHaveLength(1);
+    // J73: Recova's H3s that are true of Foxhound. Disputes keeps File uploads
+    // and Intelligence keeps Health alert as headings that say what is not
+    // built, rather than dropping the place a merchant would look.
+    expect(h3s("audit")).toHaveLength(4);
+    expect(h3s("disputes")).toHaveLength(5);
+    expect(h3s("intelligence")).toHaveLength(3);
   });
 
   it("every built widget is used by a guide, and every used widget is built", () => {
@@ -184,10 +204,13 @@ describe("PLANT 2: the widgets draw what the engine computes", () => {
     // writes `audit_runs`, and this assertion went red rather than letting the
     // docs picture keep the old promise.
     const html = renderWidget("audit-scopes");
-    for (const scope of ["Failed payments", "Expiring cards", "Open disputes", "MRR and movement"]) {
+    // MOVED AGAIN AT J73: /audit (app/routes/audit.tsx) renders Recova's four
+    // names now, so the picture follows the page.
+    for (const scope of ["Failed invoices", "Expiring cards", "Open disputes", "Business health"]) {
       expect(html).toContain(scope);
+      expect(read("app/routes/audit.tsx")).toContain(`"${scope}"`);
     }
-    expect(html).not.toContain("Business health");
+    expect(html).not.toContain("MRR and movement");
   });
 
   it("CUSTOMER COLUMNS: Foxhound's six, with no Recommended action column", () => {
@@ -225,11 +248,11 @@ describe("PLANT 3: every capability sentence, tied to its code", () => {
     expect(DISPUTES).toContain("capped at $500 per dispute");
   });
 
-  it("INTELLIGENCE: the free tier and the paid layer, both stated", () => {
-    expect(INTELLIGENCE).toContain(
-      "Every Recovery merchant gets MRR, movements, churn, and cohort analytics at no charge.",
-    );
-    expect(INTELLIGENCE).toContain("The $199 per month layer adds predictive risk scoring");
+  it("INTELLIGENCE: the paid layer, and no free tier the gate contradicts", () => {
+    // J73: every Intelligence page is gated by isIntelligenceEntitled, so the
+    // "at no charge" sentence was false of the product and is cut.
+    expect(INTELLIGENCE).not.toContain("at no charge");
+    expect(INTELLIGENCE).toContain("Intelligence is the paid layer, at $199 per month");
     // And the truthful qualifier: it is granted, not buyable.
     expect(INTELLIGENCE).toContain("There is no self-serve checkout for it yet");
   });
@@ -278,9 +301,13 @@ describe("PLANT 4: what the three guides must NOT say", () => {
     // Four legacy headings with no Foxhound producer: the triage score, the
     // seven recommended actions, the Monday narrative email, and the
     // score-threshold alert. None is described.
-    for (const forbidden of ["triage score", "Seven action", "Weekly narrative", "Health alert"]) {
+    for (const forbidden of ["triage score", "Seven action", "Weekly narrative"]) {
       expect(`${DISPUTES}\n${INTELLIGENCE}`).not.toContain(forbidden);
     }
+    // J73: Recova's "Health alert" heading stays, and what sits under it is
+    // Settings and Alerts' metric thresholds, with the per-customer alert
+    // stated as absent.
+    expect(INTELLIGENCE).toContain("it does not alert on one customer's score");
   });
 
   it("no legacy platform win rates and no Teamflow demo figures", () => {

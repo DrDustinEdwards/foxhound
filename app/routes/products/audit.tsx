@@ -1,5 +1,6 @@
 import { ScanSearch } from "lucide-react";
 
+import { AISummaryPreview, AuditHistoryPreview, AuditScopeCard } from "~/components/audit-previews";
 import {
   BottomCTA,
   FeatureBlocks,
@@ -7,25 +8,47 @@ import {
   ProductFAQ,
   ProductHero,
   ProductPricing,
-} from "~/components/product-sections";
+} from "~/components/product-sections-cap";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import {
+  AUDIT_BLOCKS,
+  AUDIT_BOTTOM_CTA,
+  AUDIT_FAQS,
+  AUDIT_HERO,
+  AUDIT_META_DESCRIPTION,
+  AUDIT_PRICING,
+  AUDIT_SECTION_LABEL,
+  AUDIT_STEPS,
+} from "~/lib/marketing/audit-copy";
 import { siteUrl, speakableWebPageJsonLd } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/audit";
 
-// Ported from legacy app/(marketing)/product/audit/page.tsx (Phase 6 Pass
-// 1). Copy correction: no fabricated recovery-rate stat (legacy claimed a
-// "32.26% across all time" platform average that does not exist yet for
-// Foxhound). Framed around lift instead: what Stripe already recovered,
-// what is still dying, what Foxhound would add.
+// The Audit spoke (J55, row M6). Recova's spec, read whole at HEAD:
+// app/(marketing)/product/audit/page.tsx (blob 210ce79d) and the files it draws
+// from, ProductSections.tsx (ba3aed7c), ProductFAQ.tsx (7c08a5a2) and
+// components/docs/AuditScopeCard.tsx (dc1d18dd).
+//
+// Recova's sections, in Recova's order: the hero, How it works, three feature
+// blocks (the scope card, plain; the AI summary, lifted; the audit history,
+// plain), Pricing, Questions and the closing block. Parts are Capsomer's, teal,
+// on the five text sizes (product-sections-cap.tsx, audit-previews.tsx). Copy
+// is Recova's with every product fact read from the engine and its
+// truthfulness fixes named (lib/marketing/audit-copy.ts). Recova draws no chart
+// here, so neither does this page.
+//
+// The path is Recova's own /product/audit since J09 (rulings 55 and 56).
+
+const PATH = "/product/audit";
+const TITLE = "Audit - Foxhound";
+const AUDIT = { href: "/audit", label: "Run your free audit" };
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return marketingMeta({
-    title: "Audit - Foxhound",
-    description:
-      "Free Stripe diagnostic. See failed invoices, expiring cards, open disputes, and business health in 30 seconds. No account required.",
-    path: "/product/audit",
+    title: TITLE,
+    description: AUDIT_META_DESCRIPTION,
+    path: PATH,
     siteUrl: loaderData?.siteUrl ?? "",
   });
 }
@@ -35,157 +58,53 @@ export function loader({ context }: Route.LoaderArgs) {
   return { siteUrl: siteUrl(env) };
 }
 
-const STEPS = [
-  {
-    title: "Connect Stripe",
-    body: "The audit only reads and writes nothing back to Stripe. Foxhound never touches your billing configuration. Takes 30 seconds.",
-  },
-  {
-    title: "Foxhound runs the diagnostic",
-    body: "Four scopes pull the trailing period of data: failed invoices, expiring cards, open disputes, and business health.",
-  },
-  {
-    title: "See your results",
-    body: "Results are immediate and framed around lift: what Stripe already recovered, what is still dying, what Foxhound would add.",
-  },
-];
-
-const FAQS = [
-  {
-    q: "Does the audit require a Foxhound account?",
-    a: "No. Connect your Stripe account and results appear immediately. No email, no signup, no credit card. Create a free account afterward if you want to save results.",
-  },
-  {
-    q: "What Stripe access does the audit request?",
-    a: "The audit itself only reads: your invoices, subscriptions, disputes, and customer data. It writes nothing back to Stripe. The OAuth connection it uses is the same one every Foxhound product shares, and that carries read and write scope, because Recovery retries failed invoices on it later. Nothing Foxhound does changes your prices, products, or subscription plans. Disconnect from your Stripe dashboard at any time.",
-  },
-  {
-    q: "Will the audit tell me a recovery rate I should expect?",
-    a: "No. There is no long-running platform history to project one from yet. The audit reports what your account actually shows: what Stripe already recovered, and what is still unrecovered.",
-  },
-];
-
-// Both preview widgets below show illustrative sample data, explicitly
-// labeled as such, not a platform-wide statistic (copy correction: no
-// fabricated recovery-rate numbers).
-function AuditScopePreview() {
-  const SCOPES = [
-    { label: "Failed invoices", value: "6 open" },
-    { label: "Expiring cards", value: "3 within 30 days" },
-    { label: "Open disputes", value: "0" },
-    { label: "Business health", value: "MRR, churn" },
-  ];
-  return (
-    <div className="p-5">
-      <p className="mb-3 font-mono text-micro text-text-subtle">Sample account</p>
-      <div className="grid grid-cols-2 gap-3">
-        {SCOPES.map((s) => (
-          <div key={s.label} className="rounded-lg border border-border-sub bg-surface px-4 py-3">
-            <div className="font-mono text-micro uppercase tracking-wide text-text-tertiary">{s.label}</div>
-            <div className="mt-1 font-mono text-body text-text">{s.value}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// No authenticated /app/audit surface exists yet to mirror (a Phase 8
-// dependency); this instead builds a static mock of DESIGN.md's already-
-// canon flagship-surface spec for this page: one headline number (lift),
-// three bands beneath it (Stripe recovered / still dying / Foxhound adds),
-// detail collapsed below.
-function LiftPreview() {
-  return (
-    <div className="p-5">
-      <p className="mb-3 font-mono text-micro text-text-subtle">Sample account, lift summary</p>
-      <p className="font-mono text-display font-semibold text-text">+$4,820</p>
-      <p className="mb-4 text-micro text-text-tertiary">Estimated lift if Foxhound had been running</p>
-      <div className="flex flex-col gap-3">
-        {[
-          { label: "Stripe recovered", value: "$2,940", tone: "text-text-secondary" },
-          { label: "Still dying", value: "$4,820", tone: "text-text" },
-          { label: "Foxhound adds", value: "See after connecting", tone: "text-text-tertiary" },
-        ].map((row) => (
-          <div key={row.label} className="flex items-center justify-between border-b border-border-sub pb-3 last:border-0 last:pb-0">
-            <span className="text-label text-text-secondary">{row.label}</span>
-            <span className={`font-mono text-label font-medium ${row.tone}`}>{row.value}</span>
-          </div>
-        ))}
-      </div>
-      <p className="mt-4 text-micro text-text-tertiary">Detail collapsed below the summary until you open it.</p>
-    </div>
-  );
-}
-
-const BLOCKS = [
-  {
-    eyebrow: "What it checks",
-    title: "Four scopes. One diagnostic.",
-    body: "Failed invoices show what is unrecovered right now. Expiring cards show MRR at risk before the failure happens. Open disputes show deadlines. Business health shows MRR, ARR, and involuntary churn.",
-    ui: <AuditScopePreview />,
-  },
-  {
-    eyebrow: "Lift, not guesses",
-    title: "What Stripe got, what is still dying, what Foxhound adds.",
-    body: "The audit does not invent a recovery-rate projection. It shows what Stripe's own retries already recovered and what is still sitting unrecovered, plainly, with no platform-wide average standing in for your account's real numbers.",
-    ui: <LiftPreview />,
-  },
-];
-
 export default function AuditProductPage({ loaderData }: Route.ComponentProps) {
   const { siteUrl: url } = loaderData;
 
   return (
-    <>
+    // Capsomer's teal family with Foxhound's neutrals, and the family's focus
+    // ring inside the page, as on the other three spokes.
+    <div className="fh-cap [--border-focus:var(--ring)]" data-family="teal">
       <ProductHero
         productName="Audit"
         Icon={ScanSearch}
-        headline="See what your Stripe account is leaking. Free."
-        sub="A full diagnostic across failed invoices, expiring cards, open disputes, and business health. No signup, no credit card, and it writes nothing back to Stripe."
-        pricing="Always free · No account required · The audit only reads"
-        primaryCTA={{ href: "/audit", label: "Run your free audit" }}
+        headline={AUDIT_HERO.headline}
+        sub={AUDIT_HERO.sub}
+        pricing={AUDIT_HERO.pricing}
+        primaryCTA={AUDIT}
         secondaryCTA={{ href: "/docs/audit", label: "Read the guide" }}
       />
-      <HowItWorks steps={STEPS} />
-      <FeatureBlocks sectionLabel="What you get" blocks={BLOCKS} />
-      <ProductPricing
-        price="Free"
-        priceLabel="Always. No strings."
-        points={[
-          "Four diagnostic scopes: failed invoices, expiring cards, disputes, business health",
-          "No account required, no fabricated recovery-rate projections",
-          "Persistent history once you create a free account",
-          "The audit only reads, and your billing configuration is never touched",
+      <HowItWorks steps={AUDIT_STEPS} />
+      <FeatureBlocks
+        sectionLabel={AUDIT_SECTION_LABEL}
+        blocks={[
+          { ...AUDIT_BLOCKS.scopes, ui: <AuditScopeCard /> },
+          { ...AUDIT_BLOCKS.summary, ui: <AISummaryPreview />, lifted: true },
+          { ...AUDIT_BLOCKS.history, ui: <AuditHistoryPreview /> },
         ]}
-        ctaHref="/audit"
-        ctaLabel="Run your free audit"
       />
-      <ProductFAQ faqs={FAQS} />
-      <BottomCTA
-        title="Your Stripe account is telling you something."
-        sub="The audit shows you what. Free, and it writes nothing back to Stripe. 30 seconds."
-        ctaHref="/audit"
-        ctaLabel="Run your free audit"
-        note="No account required · Results in 30 seconds"
+      <ProductPricing
+        price={AUDIT_PRICING.price}
+        priceLabel={AUDIT_PRICING.priceLabel}
+        points={AUDIT_PRICING.points}
+        cta={AUDIT}
       />
-      {/* SpeakableSpecification. The selectors point at classes injected by
-          product-sections.tsx, which is why the classes and this script have to
-          land together. Legacy carries the same three on every spoke; M7 to M9
-          inherit the classes from the shared component but still need their own
-          script, and their pages are not read yet. */}
+      <ProductFAQ name="audit-faq" faqs={AUDIT_FAQS} />
+      <BottomCTA title={AUDIT_BOTTOM_CTA.title} sub={AUDIT_BOTTOM_CTA.sub} cta={AUDIT} note={AUDIT_BOTTOM_CTA.note} />
+      {/* SpeakableSpecification, as Recova emits it: the selectors point at
+          the classes product-sections-cap.tsx puts on the sections. */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify(
             speakableWebPageJsonLd(url, {
-              name: "Audit - Foxhound",
-              path: "/product/audit",
+              name: TITLE,
+              path: PATH,
               selectors: [".speakable-hero", ".speakable-description", ".speakable-features"],
             }),
           ),
         }}
       />
-    </>
+    </div>
   );
 }

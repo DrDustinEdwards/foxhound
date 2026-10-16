@@ -129,7 +129,7 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
               key={m.id}
               className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2 text-label text-text-secondary"
             >
-              <span className="min-w-0 truncate">{m.userId ? (m.userName ?? m.userEmail) : m.invitedEmail}</span>
+              <span className="min-w-0 truncate">{m.userId ? (m.userName || m.userEmail) : m.invitedEmail}</span>
               <span className="flex shrink-0 items-center gap-2">
                 {/* `removable` is legacy's three refusals, resolved in the
                     loader. The server enforces them again. */}
@@ -139,7 +139,7 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
                       <input type="hidden" name="_action" value="remove" />
                       <input type="hidden" name="memberId" value={m.id} />
                       <span className="text-micro text-text-subtle">
-                        Remove {m.userName ?? m.userEmail ?? m.invitedEmail}?
+                        Remove {m.userName || m.userEmail || m.invitedEmail}?
                       </span>
                       <button
                         type="submit"

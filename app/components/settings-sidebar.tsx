@@ -8,7 +8,9 @@ import {
   Mic,
   Plug,
   ScanSearch,
+  Shield,
   Sliders,
+  TrendingUp,
   Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -19,12 +21,9 @@ import { Link, useLocation } from "react-router";
 // the spec and Foxhound's inline cards the rule to remove, superseding ruling
 // 57's deferral of the split.
 //
-// TWO OF LEGACY'S TWELVE ITEMS ARE NOT RENDERED, and neither is a treatment
-// choice: `/settings/disputes` (S32) and `/settings/intelligence` (S35) do not
-// exist in Foxhound, and a sub-nav entry to a route that 404s is a false
-// promise. Both are recorded PORTABLE AFTER their row. When either ships, it is
-// one line here, in the group legacy puts it in, which is why the groups keep
-// their legacy shape even where a group has one item today.
+// ALL TWELVE OF LEGACY'S ITEMS. `/settings/intelligence` (S35) shipped with
+// J69 and `/settings/disputes` (S32) with J06, each one line here in the group
+// legacy puts it in, which is why the groups keep their legacy shape.
 
 export interface SettingsNavItem {
   to: string;
@@ -38,8 +37,8 @@ export interface SettingsNavGroup {
 }
 
 /**
- * Legacy's five groups in legacy's order. `Products` currently holds only Audit,
- * because Disputes and Intelligence are the two absent targets.
+ * Legacy's five groups in legacy's order. `Products` holds Disputes,
+ * Intelligence and Audit.
  */
 export const SETTINGS_NAV_GROUPS: SettingsNavGroup[] = [
   {
@@ -53,7 +52,11 @@ export const SETTINGS_NAV_GROUPS: SettingsNavGroup[] = [
   },
   {
     label: "Products",
-    items: [{ to: "/settings/audit", label: "Audit", icon: ScanSearch }],
+    items: [
+      { to: "/settings/disputes", label: "Disputes", icon: Shield },
+      { to: "/settings/intelligence", label: "Intelligence", icon: TrendingUp },
+      { to: "/settings/audit", label: "Audit", icon: ScanSearch },
+    ],
   },
   {
     label: "Notifications",
@@ -75,6 +78,17 @@ export const SETTINGS_NAV_GROUPS: SettingsNavGroup[] = [
   },
 ];
 
+// THE COLOURS FOLLOW THE THEME (J40). Recova draws this menu in its chrome
+// tokens, dark in both themes, because its aside continued its dark nav. Inside
+// the Capsomer frame the aside sits on the page's ground beside AdminShell's
+// menu (app/layouts/settings.tsx), so the text takes the page's text tokens and
+// the current item's edge and the hover take teal (Q11). Group labels are
+// Recova's medium-weight sans; the mono they had here was not Recova's.
+//
+// Capsomer 0.9.0 has no in-page section menu (its Shell and AdminShell menus
+// are whole frames), so this stays Foxhound's own element; the gap is named in
+// the J40 pull request as a Capsomer job.
+
 /**
  * Legacy's active rule, both halves.
  *
@@ -91,8 +105,8 @@ function itemClass(active: boolean): string {
   return [
     "flex items-center gap-2 px-3 py-2 text-label no-underline transition-colors duration-150",
     active
-      ? "border-l-2 border-chrome-brand font-medium text-chrome-text"
-      : "border-l-2 border-transparent text-chrome-text-secondary hover:text-chrome-brand",
+      ? "border-l-2 border-brand font-medium text-text"
+      : "border-l-2 border-transparent text-text-secondary hover:text-brand-text",
   ].join(" ");
 }
 
@@ -117,7 +131,7 @@ export function SettingsSidebar() {
 
       {SETTINGS_NAV_GROUPS.map((group) => (
         <div key={group.label}>
-          <p className="mb-1 px-3 font-mono text-micro uppercase tracking-widest text-chrome-text-tertiary">
+          <p className="mb-1 px-3 text-micro font-medium uppercase tracking-widest text-text-tertiary">
             {group.label}
           </p>
           <ul className="flex flex-col gap-0.5">

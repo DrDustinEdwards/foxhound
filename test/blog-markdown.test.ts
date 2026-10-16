@@ -77,13 +77,6 @@ describe("renderMarkdown", () => {
     expect(html).toContain("Do this instead.");
   });
 
-  it("drops :::diagram[slug] entirely rather than reading from disk", async () => {
-    const { html } = await renderMarkdown(emptyDb(), "Before.\n\n:::diagram[funnel]\n\nAfter.");
-    expect(html).not.toContain("diagram");
-    expect(html).toContain("Before.");
-    expect(html).toContain("After.");
-  });
-
   it("renders ::bookmark[url] as a plain link with no live OG fetch", async () => {
     const { html } = await renderMarkdown(emptyDb(), "::bookmark[https://example.com/pricing]");
     expect(html).toContain('href="https://example.com/pricing"');

@@ -1,7 +1,8 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, notExists, sql } from "drizzle-orm";
+import type { BatchItem } from "drizzle-orm/batch";
 
 import type { Db } from "~/db";
-import { customerContext, disputeApprovals, disputeEvidence, disputes, stripeConnections } from "~/db";
+import { accounts, customerContext, disputeApprovals, disputeEvidence, disputes, stripeConnections } from "~/db";
 import { sortDisputesNewestFirst } from "~/lib/disputes/order";
 import { approveAndSubmit, hashEvidence, type ApproveAndSubmitResult } from "~/lib/disputes/approval";
 import {
@@ -65,10 +66,13 @@ export async function getDisputeDetail(
   if (!dispute) return null;
 
   const [evidence, approvals] = await Promise.all([
+    // Oldest first, then by id: a fixed order, so the page, the draft save and
+    // the Stripe payload all take the same row if a field ever has two.
     db
       .select()
       .from(disputeEvidence)
-      .where(and(eq(disputeEvidence.disputeId, disputeId), eq(disputeEvidence.accountId, accountId))),
+      .where(and(eq(disputeEvidence.disputeId, disputeId), eq(disputeEvidence.accountId, accountId)))
+      .orderBy(asc(disputeEvidence.createdAt), asc(disputeEvidence.id)),
     db
       .select()
       .from(disputeApprovals)
@@ -108,6 +112,103 @@ export async function saveDisputeEvidence(
   // length check above guarantees it exists) narrows the array literal to one.
   const [first, ...rest] = statements;
   await db.batch([first, ...rest]);
+}
+
+/**
+ * Save Recova's draft fields (J77): the evidence narrative and the customer IP
+ * from "Additional evidence", each held as one dispute_evidence row under its
+ * Stripe evidence name, so the approved package and its hash carry exactly what
+ * the merchant saved. An existing row is updated; a missing one is inserted only
+ * when there is something to say, so a blank field never adds a row. The same
+ * plain batch as saveDisputeEvidence: editing a draft is not a money write.
+ *
+ * Every statement carries its own guards, joined to the write (RULES.md 3.9),
+ * so a check the caller made on an earlier read cannot be raced past:
+ * - no dispute_approvals row for this dispute: once a merchant has approved,
+ *   the evidence that approval's hash attests is never rewritten, even while
+ *   the state is still approvable (Phase A writes the row before Stripe is
+ *   called, and a rejected or unconfirmed submission leaves it there);
+ * - the INSERT also needs the dispute to be this account's, and no row for the
+ *   same field already, so two first-time saves cannot leave two rows.
+ * A statement whose guard fails matches nothing and writes nothing, and that
+ * is a failure to report, never a success (RULES.md 3.9): the result is true
+ * only when every statement changed a row. SQLite counts a matched UPDATE even
+ * when the value is unchanged, so saving an unchanged draft is still true.
+ */
+export async function saveDisputeDraft(
+  db: Db,
+  accountId: string,
+  disputeId: string,
+  existing: { id: string; fieldName: string }[],
+  fields: { fieldName: string; fieldValue: string }[],
+  now: Date,
+): Promise<boolean> {
+  const noApproval = notExists(
+    db
+      .select({ one: sql`1` })
+      .from(disputeApprovals)
+      .where(and(eq(disputeApprovals.disputeId, disputeId), eq(disputeApprovals.accountId, accountId))),
+  );
+  const statements: BatchItem<"sqlite">[] = [];
+  for (const field of fields) {
+    const row = existing.find((e) => e.fieldName === field.fieldName);
+    if (row) {
+      statements.push(
+        db
+          .update(disputeEvidence)
+          .set({ fieldValue: field.fieldValue })
+          .where(
+            and(
+              eq(disputeEvidence.id, row.id),
+              eq(disputeEvidence.disputeId, disputeId),
+              eq(disputeEvidence.accountId, accountId),
+              noApproval,
+            ),
+          ),
+      );
+    } else if (field.fieldValue.trim()) {
+      const noSameField = notExists(
+        db
+          .select({ one: sql`1` })
+          .from(disputeEvidence)
+          .where(
+            and(
+              eq(disputeEvidence.disputeId, disputeId),
+              eq(disputeEvidence.accountId, accountId),
+              eq(disputeEvidence.fieldName, field.fieldName),
+            ),
+          ),
+      );
+      statements.push(
+        db.insert(disputeEvidence).select(
+          db
+            .select({
+              id: sql<string>`${crypto.randomUUID()}`.as("id"),
+              disputeId: disputes.id,
+              accountId: disputes.accountId,
+              fieldName: sql<string>`${field.fieldName}`.as("field_name"),
+              fieldValue: sql<string>`${field.fieldValue}`.as("field_value"),
+              createdAt: sql<Date>`${now.getTime()}`.as("created_at"),
+            })
+            .from(disputes)
+            .where(and(eq(disputes.id, disputeId), eq(disputes.accountId, accountId), noApproval, noSameField)),
+        ),
+      );
+    }
+  }
+  const [first, ...rest] = statements;
+  if (!first) return true;
+  const results = await db.batch([first, ...rest]);
+  return results.every((r) => changedRows(r) > 0);
+}
+
+/** Rows a run statement changed: D1 reports meta.changes; the test suite's
+ *  better-sqlite3 driver reports changes. Anything else reads as none, so an
+ *  unreadable result is never taken for a write. */
+function changedRows(result: unknown): number {
+  const r = result as { meta?: { changes?: unknown }; changes?: unknown } | null;
+  const n = r?.meta?.changes ?? r?.changes;
+  return typeof n === "number" ? n : 0;
 }
 
 /** The connected Stripe account's access token for a dispute's connection, or
@@ -259,4 +360,33 @@ export async function getDisputesWithEvidence(db: Db, accountId: string, dispute
     }
   }
   return found;
+}
+
+/** S32's two dispute settings (/settings/disputes) as their readers need them.
+ *  NULL reads as off and empty, as Recova's `?? false` and `?? ''`. */
+export async function readDisputeSettings(
+  db: Db,
+  accountId: string,
+): Promise<{ productDescription: string; shipsPhysical: boolean }> {
+  const [row] = await db
+    .select({
+      productDescription: accounts.disputeProductDescription,
+      shipsPhysical: accounts.disputeShipsPhysical,
+    })
+    .from(accounts)
+    .where(eq(accounts.id, accountId))
+    .limit(1);
+  return { productDescription: row?.productDescription ?? "", shipsPhysical: row?.shipsPhysical ?? false };
+}
+
+/** The merchant's own product description for dispute evidence (S32). Recova's
+ *  buildEvidenceFields made it the product_description of every response. A
+ *  read failure leaves it out rather than failing a dispute intake. */
+export async function readDisputeProductDescription(db: Db, accountId: string): Promise<string | null> {
+  try {
+    const text = (await readDisputeSettings(db, accountId)).productDescription.trim();
+    return text ? text : null;
+  } catch {
+    return null;
+  }
 }

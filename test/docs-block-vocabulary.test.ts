@@ -13,7 +13,12 @@ import { DOC_GUIDES, type DocBlock } from "~/lib/marketing/docs-content";
 // bottom of `app/(marketing)/docs/platform/page.tsx` (blob `2b69517b`) and
 // `.../recovery/page.tsx` (blob `6166a6be`), which declare them identically.
 //
-// TWO SUBSTITUTIONS, both named rather than silent: `text-[0.9375rem]` and
+// J73 MOVED THE LOOK TO CAPSOMER (Q12): body text on text-body, callouts on
+// Capsomer's alert markup (static, no role), tables on Capsomer's table, links
+// and step numbers in the teal accent text. Recova's order and vocabulary are
+// unchanged; the class lists below are the Capsomer ones.
+//
+// TWO SUBSTITUTIONS (pre-J73), both named rather than silent: `text-[0.9375rem]` and
 // `text-[0.8125rem]` become `text-item-title` and `text-label`, which are those
 // exact values in app.css and are what check-tokens requires; and
 // `flex-shrink-0` becomes `shrink-0`, the Tailwind v4 spelling of one rule.
@@ -30,7 +35,7 @@ describe("PLANT 1: a plain string is still a paragraph, unchanged", () => {
     // moved it would have silently restyled every sentence sessions 42 to 60
     // shipped.
     expect(render(["Hello."])).toBe(
-      '<p class="mb-4 text-item-title leading-relaxed text-text-secondary">Hello.</p>',
+      '<p class="mb-4 text-body leading-relaxed text-text-secondary">Hello.</p>',
     );
   });
 
@@ -57,41 +62,39 @@ describe("PLANT 1: a plain string is still a paragraph, unchanged", () => {
 describe("PLANT 2: each block type renders at legacy's geometry", () => {
   it("H3", () => {
     expect(render([{ kind: "h3", text: "Sender name" }])).toBe(
-      '<h3 class="mb-3 mt-8 text-item-title font-medium text-text">Sender name</h3>',
+      '<h3 class="mb-3 mt-8 text-body font-medium text-text">Sender name</h3>',
     );
   });
 
-  it("NOTE, with its own border-border rail and its Note. label", () => {
+  it("NOTE, Capsomer's alert in the neutral tone, static, with its Note. label", () => {
     const html = render([{ kind: "note", body: "Careful." }]);
-    expect(html).toContain(
-      'class="my-4 border-l-2 border-border pl-4 text-label leading-relaxed text-text-secondary"',
-    );
+    expect(html).toContain('<div class="cap-alert my-4" data-tone="neutral">');
     expect(html).toContain('<span class="font-medium text-text">Note.</span> Careful.');
+    // A guide paragraph is not an interruption: no live-region role.
+    expect(html).not.toContain('role="alert"');
   });
 
-  it("TIP, which differs from Note ONLY in its rail colour and its label", () => {
+  it("TIP, which differs from Note ONLY in its tone and its label", () => {
     const html = render([{ kind: "tip", body: "Try this." }]);
-    expect(html).toContain(
-      'class="my-4 border-l-2 border-brand pl-4 text-label leading-relaxed text-text-secondary"',
-    );
+    expect(html).toContain('<div class="cap-alert my-4" data-tone="info">');
     expect(html).toContain('<span class="font-medium text-text">Tip.</span> Try this.');
-    // BOTH DIRECTIONS: a Tip that rendered the Note rail would pass the colour
-    // assertion above only by accident of ordering, so the wrong one is excluded.
-    expect(html).not.toContain("border-border");
+    // BOTH DIRECTIONS: the Note tone is excluded.
+    expect(html).not.toContain('data-tone="neutral"');
+    expect(html).not.toContain('role="alert"');
   });
 
   it("STEPS, numbered zero-padded from the index", () => {
     const html = render([{ kind: "steps", items: ["First.", "Second."] }]);
     expect(html).toContain('<ol class="my-4 space-y-3">');
-    expect(html).toContain('class="flex gap-3 text-item-title leading-relaxed text-text-secondary"');
-    expect(html).toContain('<span class="shrink-0 font-mono text-brand-text">01</span>');
-    expect(html).toContain('<span class="shrink-0 font-mono text-brand-text">02</span>');
+    expect(html).toContain('class="flex gap-3 text-body leading-relaxed text-text-secondary"');
+    expect(html).toContain('<span class="shrink-0 font-mono text-accent-text">01</span>');
+    expect(html).toContain('<span class="shrink-0 font-mono text-accent-text">02</span>');
   });
 
   it("LIST", () => {
     const html = render([{ kind: "list", items: ["One.", "Two."] }]);
     expect(html).toContain(
-      '<ul class="my-4 list-inside list-disc space-y-2 text-item-title leading-relaxed text-text-secondary">',
+      '<ul class="my-4 list-inside list-disc space-y-2 text-body leading-relaxed text-text-secondary">',
     );
     expect(html).toContain("<li>One.</li>");
   });
@@ -100,15 +103,20 @@ describe("PLANT 2: each block type renders at legacy's geometry", () => {
     const html = render([
       {
         kind: "table",
+        label: "Metrics",
         columns: ["Metric", "What it measures", "Where"],
         rows: [["Open rate", "Emails opened at least once", "Sequences"]],
       },
     ]);
-    expect(html).toContain('<div class="my-6 overflow-x-auto"><table class="w-full text-label">');
-    expect(html).toContain('<tr class="border-b border-border">');
-    expect(html).toContain('<th class="py-2 pr-4 text-left font-medium text-text">Metric</th>');
-    expect(html).toContain('<tbody class="text-text-secondary">');
-    expect(html).toContain('<td class="py-2 pr-4">Open rate</td>');
+    // Capsomer's table in a labelled, focusable scroll region, the first cell
+    // of each row its row header.
+    expect(html).toContain(
+      '<div class="cap-table-wrap my-6" data-cap="table" role="region" aria-label="Metrics" tabindex="0"><table class="cap-table">',
+    );
+    expect(html).toContain('<th scope="col">Metric</th>');
+    expect(html).toContain('<th scope="col">Where</th>');
+    expect(html).toContain('<th scope="row">Open rate</th>');
+    expect(html).toContain("<td>Sequences</td>");
   });
 });
 
@@ -142,7 +150,7 @@ describe("PLANT 3: the inline vocabulary", () => {
     // presence is what distinguishes this branch from the plain anchor below
     // rather than the class list, which the two share.
     expect(html).toContain(
-      '<a class="text-brand-text underline underline-offset-2 hover:text-brand-text-hover" href="/docs/recovery" data-discover="true">the Recovery guide</a>',
+      '<a class="text-accent-text underline underline-offset-2 hover:opacity-80" href="/docs/recovery" data-discover="true">the Recovery guide</a>',
     );
   });
 
@@ -153,7 +161,7 @@ describe("PLANT 3: the inline vocabulary", () => {
       { kind: "p", body: [{ link: "support", to: "mailto:support@foxhoundapp.com" }] },
     ]);
     expect(html).toContain('href="mailto:support@foxhoundapp.com"');
-    expect(html).toContain('class="text-brand-text underline underline-offset-2 hover:text-brand-text-hover"');
+    expect(html).toContain('class="text-accent-text underline underline-offset-2 hover:opacity-80"');
     expect(html).not.toContain("data-discover");
   });
 });

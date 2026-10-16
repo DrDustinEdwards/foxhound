@@ -36,14 +36,17 @@ function at(needle: string): number {
 
 const SECTIONS = {
   header: () => at("{failedPayment.customerName ?? failedPayment.customerEmail}"),
-  resultBanner: () => at('{actionData && "error" in actionData ? ('),
-  actionRow: () => at(">Manual actions</p>"),
-  stripeLinks: () => at("Legacy's two Stripe deep links"),
-  statCards: () => at('<StatCard label="Amount"'),
-  engagement: () => at(">Email engagement</p>"),
-  outcome: () => at(">Outcome</p>"),
-  timeline: () => at(">Recovery timeline</p>"),
-  notes: () => at(">Internal notes</p>"),
+  // J76 rebuilt the page on Capsomer's parts (Q10); the anchors follow the
+  // new markup and the order they assert is unchanged. job_3176bb519f89 folded
+  // the error and success banners into one actionResult.
+  resultBanner: () => at("{actionResult ? ("),
+  actionRow: () => at("{actionsVisible && !isDemo ? ("),
+  stripeLinks: () => at("Recova's two Stripe links"),
+  statCards: () => at('<Panel size="sm" title="Amount">'),
+  engagement: () => at('<Panel title="Email engagement">'),
+  outcome: () => at(">Outcome</h2>"),
+  timeline: () => at('<Panel title="Recovery timeline"'),
+  notes: () => at('<Panel title="Internal notes">'),
   successBanner: () => at('failedPayment.status === "recovered" && recovery ?'),
 };
 
@@ -126,7 +129,7 @@ describe("304 build 2: the open-dispute badge", () => {
   it("carries legacy's singular and plural copy and links to the dispute", () => {
     expect(ROUTE).toContain('openDisputes.length === 1 ? "1 open dispute"');
     expect(ROUTE).toContain("open disputes");
-    expect(ROUTE).toContain("to={`/disputes/${openDisputes[0].id}`}");
+    expect(ROUTE).toContain("href={`/disputes/${openDisputes[0].id}`}");
   });
 
   it("sits in the header beside the title, which is legacy's placement", () => {

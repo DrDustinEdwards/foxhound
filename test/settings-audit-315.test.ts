@@ -178,18 +178,19 @@ describe("315: legacy's treatment and placement", () => {
     expect(ROUTE_CODE).toContain("versus the prior month. No extra charge.");
   });
 
-  it("carries legacy's card and toggle geometry", () => {
-    // AuditSection's card and Toggle's track/thumb, at legacy's own values.
-    expect(ROUTE_CODE).toContain("rounded-[12px] border border-border bg-surface p-6");
-    expect(ROUTE_CODE).toContain('role="switch"');
-    expect(ROUTE_CODE).toContain("h-6 w-10");
-    expect(ROUTE_CODE).toContain("h-5 w-5");
-    expect(ROUTE_CODE).toContain("translateX(16px)");
-    // legacy's active pill
-    expect(ROUTE_CODE).toContain("border-brand bg-brand font-semibold text-on-brand");
+  it("draws the card, the choices and the toggle from Capsomer (J35, Q10)", () => {
+    // Legacy's hand-rolled card, pills and Toggle geometry gave way to
+    // Capsomer's panel, segmented control and switch under J35. The rendered
+    // checks live in settings-audit-j35.test.ts; this keeps the hand-built
+    // versions from coming back.
+    expect(ROUTE_CODE).toContain('from "capsomer/react/segmented"');
+    expect(ROUTE_CODE).toContain('from "capsomer/react/switch"');
+    expect(ROUTE_CODE).toContain('className="cap-panel"');
+    expect(ROUTE_CODE).not.toContain("rounded-[12px]");
+    expect(ROUTE_CODE).not.toContain("translateX(16px)");
   });
 
-  it("posts BOTH values as hidden inputs, which is legacy's form shape", () => {
+  it("posts BOTH values under legacy's field names", () => {
     expect(ROUTE_CODE).toContain('name="audit_lookback_days"');
     expect(ROUTE_CODE).toContain('name="audit_auto_run"');
   });

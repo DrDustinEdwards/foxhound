@@ -388,7 +388,7 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "Win-back email sequences",
-          description: `Three-step post-cancellation sequence (step 1 at ${hoursText(winStep1)} or ${hoursText(WINBACK_UNFLAGGED_STEP1_HOURS)}, step 2 at ${hoursText(winStep2)}, step 3 at ${hoursText(winStep3)}).`,
+          description: `Three-step post-cancellation sequence (step 1 at ${hoursText(winStep1)}, or ${hoursText(WINBACK_UNFLAGGED_STEP1_HOURS)} on an account with Intelligence unless the customer is flagged as a win-back priority; step 2 at ${hoursText(winStep2)}, step 3 at ${hoursText(winStep3)}).`,
           product: "Recovery",
         },
         {
@@ -503,7 +503,7 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "Audit history",
-          description: "Signed-in accounts see every past audit run at /audit/history.",
+          description: "Signed-in accounts see every past audit run at /audit/dashboard.",
           product: "Audit",
         },
         {
@@ -702,7 +702,7 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         {
           name: "Narrow Stripe scope",
           description:
-            "Foxhound requests read and write Stripe Connect access, because retrying a failed invoice is a write. It writes for these things and no others: retrying an invoice that already failed, setting a customer default payment method after a card update, opening a Stripe checkout when a former customer chooses to resubscribe, and submitting dispute evidence you approved. It never changes your prices, products, or plans. The free audit is read-only.",
+            "Foxhound requests read and write Stripe Connect access, because retrying a failed invoice is a write. It writes for these things and no others: retrying an invoice that already failed, setting a customer default payment method after a card update, opening a Stripe checkout when a former customer chooses to resubscribe, submitting dispute evidence you approved, and closing a dispute at Stripe when you choose to accept it. It never changes your prices, products, or plans. The free audit is read-only.",
           product: "Platform",
         },
         {

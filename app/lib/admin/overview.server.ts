@@ -126,15 +126,16 @@ async function countMerchants(db: Db): Promise<number> {
   return rows[0]?.n ?? 0;
 }
 
-/** Failed payments in an active recovery sequence, demo accounts not counted.
- *  The Overview's "Active recoveries" and the Operations page's queue depth
- *  (Recova's "Payments in active recovery queue") read this one count. */
+/** Failed payments in an active recovery sequence, demo accounts and
+ *  soft-deleted rows not counted (Recova's queue read: deleted_at is null).
+ *  The Overview's "Active recoveries", the Operations page's queue depth and
+ *  /admin/merchants' "Payments in queue" read this one count, so they agree. */
 export async function countActiveRecoveries(db: Db): Promise<number> {
   const rows = await db
     .select({ n: count() })
     .from(failedPayments)
     .innerJoin(accounts, eq(accounts.id, failedPayments.accountId))
-    .where(and(eq(failedPayments.status, "active"), NOT_DEMO));
+    .where(and(eq(failedPayments.status, "active"), isNull(failedPayments.deletedAt), NOT_DEMO));
   return rows[0]?.n ?? 0;
 }
 
@@ -142,8 +143,9 @@ export async function countActiveRecoveries(db: Db): Promise<number> {
  *  per-account "latest snapshot date" read; platform scale (~hundreds of
  *  accounts pre-launch) makes an in-app group-by-max fine without a window
  *  function, matching the "small volume" posture the rest of the admin
- *  surface takes (SCHEMA.md target scale ~300 merchants). */
-async function mrrUnderManagement(db: Db): Promise<PlatformOverview["mrrByCurrency"]> {
+ *  surface takes (SCHEMA.md target scale ~300 merchants). The Merchants
+ *  page's "Estimated MRR" reads the same figure. */
+export async function mrrUnderManagement(db: Db): Promise<PlatformOverview["mrrByCurrency"]> {
   const rows = await db
     .select({
       accountId: mrrSnapshots.accountId,

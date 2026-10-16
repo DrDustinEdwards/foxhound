@@ -111,11 +111,11 @@ describe("S6 status labels: every surface the label table feeds", () => {
     );
   });
 
-  it("the CSV export carries legacy's word too, though it has NO legacy counterpart", () => {
-    // S12 is NET-NEW: legacy ships no CSV export, so there is no legacy string
-    // to match here. It is listed because it consumes the same table and this
-    // fold changed what it emits, which is a reported consequence rather than a
-    // parity claim.
+  it("the CSV export's Status column writes the stored value, as Recova's export did", () => {
+    // Legacy does ship this export (PaymentsClient.tsx exportToCSV, columns in
+    // lib/csv.ts), and it writes the raw status column value. The label table
+    // feeds the badges only: APPROVED-DIFFERENCES 2026-08-14 covers the status
+    // badges, not the export, so the export keeps Recova's form.
     const csv = buildPaymentsCsv(
       [
         {
@@ -131,15 +131,17 @@ describe("S6 status labels: every surface the label table feeds", () => {
         },
       ] as Parameters<typeof buildPaymentsCsv>[0],
     );
-    expect(csv).toContain(",Active,");
+    expect(csv).toContain(",active,");
+    expect(csv).not.toContain(",Active,");
     expect(csv).not.toContain("In recovery");
   });
 });
 
 describe("S6 stat cards: legacy's five, with Cancelled restored (266)", () => {
   function cardBlock() {
-    const start = LIST_ROUTE.indexOf("<section className=\"mt-4 grid");
-    return LIST_ROUTE.slice(start, LIST_ROUTE.indexOf("</section>", start));
+    // J75: the five cards are one array the page maps onto Capsomer panels.
+    const start = LIST_ROUTE.indexOf("const cards: { label: string;");
+    return LIST_ROUTE.slice(start, LIST_ROUTE.indexOf("];", start));
   }
 
   it("renders legacy's card set, in legacy's order", () => {
@@ -147,7 +149,7 @@ describe("S6 stat cards: legacy's five, with Cancelled restored (266)", () => {
     // Recovered / Cancelled / Recovery rate. Foxhound's first card keeps its own
     // label, which is a separately recorded and still-open divergence (188) that
     // this fold does not touch.
-    const labels = [...cardBlock().matchAll(/label="([^"]+)"/g)].map((m) => m[1]);
+    const labels = [...cardBlock().matchAll(/label: "([^"]+)"/g)].map((m) => m[1]);
     // UPDATED 2026-08-14 under 284's Session 1: this expected "Total payments"
     // in position one and the comment above called the label "a separately
     // recorded and still-open divergence (188) that this fold does not touch".
@@ -172,8 +174,8 @@ describe("S6 stat cards: legacy's five, with Cancelled restored (266)", () => {
     // The element is multi-line, so the assertion reads the two attributes
     // rather than one flattened line: a single-line matcher failed here against
     // correct code, which is the same class as the one above (239).
-    expect(cardBlock()).toContain('label="Cancelled"');
-    expect(cardBlock()).toContain("value={String(globalCounts.cancelled)}");
+    expect(cardBlock()).toContain('label: "Cancelled"');
+    expect(cardBlock()).toContain("value: String(globalCounts.cancelled)");
     // The card that stood here is gone, not merely relabelled.
     expect(cardBlock()).not.toContain("failedUnrecovered");
   });
@@ -182,7 +184,7 @@ describe("S6 stat cards: legacy's five, with Cancelled restored (266)", () => {
     // PaymentsStats gives Cancelled `text-text-subtle`. The remaining value
     // colours were reported by that fold and are CLOSED 2026-08-14 under 284;
     // they are asserted in test/s6-stat-card-treatment.test.ts.
-    expect(cardBlock()).toContain('valueClassName="text-text-subtle"');
+    expect(cardBlock()).toContain('className: "text-text-subtle"');
   });
 
   it("adds NO query shape: the count already existed on globalCounts", () => {

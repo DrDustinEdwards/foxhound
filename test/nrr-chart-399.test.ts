@@ -1,6 +1,6 @@
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { MemoryRouter } from "react-router";
+import { createRoutesStub } from "react-router";
 import { describe, expect, it } from "vitest";
 
 import IntelligenceOverviewPage from "~/routes/app/intelligence/index";
@@ -40,14 +40,12 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // sampling has nothing to thin, and legacy's sentence would be a false claim
 // about our own data. The card says twelve months and means it.
 
-const Page = IntelligenceOverviewPage as unknown as (props: {
-  loaderData: {
-    entitled: true;
-    overview: IntelligenceOverview;
-    healthDistribution: HealthDistributionDay[];
-    mrrSeries: MrrSnapshotPoint[];
-  };
-}) => ReactElement;
+// J67 (Q1, Dustin "yes", 2026-10-14) moved this chart from the hand-built SVG
+// to Enarratio, so the assertions below read Enarratio's figure: its legend,
+// its labelled rule, its data table. What each one guards is unchanged. The
+// J67 suite (test/intelligence-dashboard-j67.test.ts) pins the page around it.
+
+const Page = IntelligenceOverviewPage as unknown as (props: { loaderData: unknown }) => ReactElement;
 
 const overview: IntelligenceOverview = {
   currency: "usd",
@@ -63,6 +61,10 @@ const overview: IntelligenceOverview = {
 function point(month: number, nrrPct: number | null): MrrSnapshotPoint {
   return {
     at: new Date(Date.UTC(2026, month, 1)),
+    totalMrrCents: 100_000,
+    activeCustomersCount: 10,
+    perPlanBreakdown: {},
+    currency: "usd",
     nrrPct,
     newMrrCents: 0,
     expansionMrrCents: 0,
@@ -75,15 +77,25 @@ function point(month: number, nrrPct: number | null): MrrSnapshotPoint {
 const series = [point(0, 98.5), point(1, 101.2), point(2, 104), point(3, 103.4)];
 
 function render(mrrSeries: MrrSnapshotPoint[]): string {
-  return renderToStaticMarkup(
-    createElement(
-      MemoryRouter,
-      null,
-      createElement(Page, {
-        loaderData: { entitled: true, overview, healthDistribution: [], mrrSeries },
-      }),
-    ),
-  );
+  const loaderData = {
+    entitled: true,
+    overview,
+    healthDistribution: [] as HealthDistributionDay[],
+    mrrSeries,
+    reports: [],
+    currentMonth: "2026-10",
+    nowMs: Date.UTC(2026, 9, 15),
+    isDemo: false,
+  };
+  const Stub = createRoutesStub([
+    { path: "/intelligence/dashboard", Component: () => createElement(Page, { loaderData }) },
+  ]);
+  return renderToStaticMarkup(createElement(Stub, { initialEntries: ["/intelligence/dashboard"] }));
+}
+
+function card(html: string): string {
+  const start = html.indexOf("Net Revenue Retention");
+  return html.slice(start, html.indexOf("</section>", start));
 }
 
 describe("S16 NRR chart, built toward legacy (399)", () => {
@@ -97,22 +109,23 @@ describe("S16 NRR chart, built toward legacy (399)", () => {
   });
 
   it("draws the 100% reference line legacy marks the comparison with", () => {
-    const html = render(series);
-    expect(html).toContain('stroke-dasharray="3 3"');
-    expect(html).toContain("stroke-border-i");
+    // Enarratio's labelled rule at y=100, dashed as legacy's was.
+    const html = card(render(series));
+    expect(html).toMatch(/data-enarratio-mark="rule"[^>]*stroke-dasharray/);
+    expect(html).toMatch(/<text[^>]*>100%<\/text>/);
   });
 
   it("renders no legend, because legacy renders none on a single series", () => {
-    const html = render(series);
-    const start = html.indexOf("Net Revenue Retention");
-    const card = html.slice(start, html.indexOf("</section>", start));
-    // The legend swatch is a 14x4 line marker; on this card there must be none.
-    expect(card).not.toContain('viewBox="0 0 14 4"');
+    // Enarratio draws a legend only for a chart with a series field.
+    expect(card(render(series))).not.toContain("enarratio-legend");
   });
 
-  it("percent-formats the y ticks", () => {
-    const html = render(series);
-    expect(html).toMatch(/\d+(\.\d)?%/);
+  it("names the y axis in percent and percent-formats the data table", () => {
+    // Enarratio 0.3.1 has no tick formatter (an Enarratio gap named in the J67
+    // pull request), so the unit sits on the axis label until it does.
+    const c = card(render(series));
+    expect(c).toContain("NRR (%)");
+    expect(c).toContain("<td>101.2%</td>");
   });
 
   it("is withheld entirely when no snapshot carries a retention figure", () => {

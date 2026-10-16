@@ -8,7 +8,7 @@ import { AUDIT_ACTION, verifyConnectState } from "~/lib/stripe/connect-state";
 import {
   clearAuditStateCookie,
   readAuditStateCookie,
-  setAuditTokenCookie,
+  setAuditGrantCookie,
 } from "~/lib/stripe/state-cookie";
 
 import type { Route } from "./+types/callback";
@@ -85,15 +85,31 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     }
 
     // Legacy's own comment, and its reasoning is right: the token must not travel
-    // in the URL (history, logs, referrer leakage). The account id is not
-    // sensitive and stays in the query for the results page to read.
+    // in the URL (history, logs, referrer leakage). The account id stays in the
+    // query to keep legacy's URL, but it is NOT what the results page trusts:
+    // the id Stripe returned is sealed into the cookie with the token, and the
+    // page refuses a query that disagrees with it.
     const target = new URL("/audit/results", url.origin);
     target.searchParams.set("account", oauth.stripeUserId);
+
+    let grantCookie: string;
+    try {
+      grantCookie = await setAuditGrantCookie(env, {
+        accessToken: oauth.accessToken,
+        stripeAccountId: oauth.stripeUserId,
+      });
+    } catch {
+      // The only way sealing fails is a missing or malformed ENCRYPTION_KEY,
+      // which would end every audit here. One fixed line so it is visible; the
+      // error object is never logged, since the plaintext was a live token.
+      console.error("audit grant seal failed: check ENCRYPTION_KEY");
+      return bounce("failed");
+    }
 
     return redirect(target.pathname + target.search, {
       headers: [
         ["Set-Cookie", clearAuditStateCookie()],
-        ["Set-Cookie", setAuditTokenCookie(oauth.accessToken)],
+        ["Set-Cookie", grantCookie],
       ],
     });
   } catch {

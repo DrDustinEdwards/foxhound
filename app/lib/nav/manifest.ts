@@ -108,7 +108,7 @@ export const PLATFORM_LINKS: ProductNavLink[] = [
   // the settings sidebar Foxhound has no equivalent of, and without this row
   // the page has no navigation path at all. It leaves with the others when S25
   // ships legacy's sub-nav.
-  { label: "Audit history", to: "/audit/history" },
+  { label: "Audit history", to: "/audit/dashboard" },
   // Email settings (S33). Same mechanism and the same reason as Team and
   // Audit settings: legacy lists it in a settings SIDEBAR Foxhound does not
   // have, so PLATFORM_LINKS is otherwise the only navigation path to a live
@@ -126,6 +126,11 @@ export const PLATFORM_LINKS: ProductNavLink[] = [
   // Features (S34). The writer for the win-back and expiring-card toggles
   // sessions 52 and 49 built their crons against.
   { label: "Features", to: "/settings/features" },
+  // Intelligence settings (S35, J69). Same mechanism as its siblings: the
+  // sub-nav and hub list it; this row keeps the manifest whole.
+  // Dispute settings (S32, J06). Same mechanism as its siblings.
+  { label: "Dispute settings", to: "/settings/disputes" },
+  { label: "Intelligence settings", to: "/settings/intelligence" },
   // S24 and S25 (session 59): legacy's hub gained two sub-pages when the
   // inline cards were split off it.
   { label: "Stripe connections", to: "/settings/stripe" },

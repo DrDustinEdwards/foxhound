@@ -1,7 +1,20 @@
+import { useEffect, useId, useState } from "react";
 import { data, useNavigation } from "react-router";
+import { Button } from "capsomer/react/button";
+import { PageHead } from "capsomer/react/page-head";
+import { Status } from "capsomer/react/status";
+import "capsomer/button.css";
+import "capsomer/field.css";
+import "capsomer/page-head.css";
+import "capsomer/panel.css";
+import "capsomer/status.css";
+// Capsomer's tokens and the teal family, which the components above read. The
+// shell loads the same file through its header; importing it here keeps the
+// page whole under any layout, as /settings/notifications does.
+import "~/site-header.css";
 
-import { Alert } from "~/components/auth-ui";
 import { DemoGuardedForm } from "~/components/demo-guarded-form";
+import { SettingsBackLink } from "~/components/settings-back-link";
 import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -46,18 +59,48 @@ import type { Route } from "./+types/email";
 // 3. THE WRITE PATH is this route's own action rather than legacy's shared
 //    `/settings/update` (row S38, unbuilt). Class (a), exactly S30's divergence
 //    1, and it avoids building S38 as a side effect.
-// 4. NO SETTINGS SIDEBAR. Legacy lists this page in one; Foxhound has none, so
-//    it rides PLATFORM_LINKS beside Team and Audit settings, for the same
-//    reason and leaving when S25 ships.
+// 4. THE TEST EMAIL'S OUTCOMES. Recova's button says "Sent! Check your inbox"
+//    or "Failed. Try again." and goes back to "Send test email" after four
+//    seconds; so does this one. Foxhound's send path also refuses a suppressed
+//    address, which Recova's has no such gate for, and "Try again" would not
+//    help there, so that outcome says why nothing was sent (RULES.md 1.2).
 //
-// UNRESOLVED: legacy's inputs carry a global `settings-input` class defined
-// outside the render chain, so its box treatment (height, padding, radius) was
-// not read. `border-i` and `--brand` ARE Foxhound tokens; the inputs below use
-// this codebase's own settings-field treatment.
+// J37 (job_49a1f499ce53) rebuilt the page from Capsomer 0.9.0's parts under
+// Dustin's Q10 and Q11 answers of 2026-10-14: PageHead, the panel, the field
+// parts, Button and Status, teal throughout. Recova stays the spec for what is
+// here and in what order: the phone-only back link, the title and its line, one
+// card holding Sender name, Reply-to email and the Send test email button, and
+// under the card, right-aligned, Saved or the failure sentence beside Save
+// changes. Each field's help sits under its input, as Recova's does, so the
+// field is composed from Capsomer's field classes rather than its <Field>,
+// which puts help above the control (as /settings/notifications does).
+//
+// THE TEST BUTTON SITS IN THE CARD BUT POSTS ITS OWN FORM, through the HTML
+// `form` attribute. Recova's is a type="button" inside the save form that
+// fetches its own route; a submit button owned by the save form would be the
+// one an Enter key in the sender name presses, and would send mail. Owned by
+// its own DemoGuardedForm it keeps the demo refusal and works without script.
 
 export function meta() {
   return [{ title: "Email settings - Foxhound" }];
 }
+
+/** Legacy's SaveBar failure sentence, said when the write itself threw. */
+const SAVE_FAILED = "Failed to save. Please try again.";
+
+/** Legacy's button labels, one per state of its `testEmailStatus`. */
+const TEST_IDLE = "Send test email";
+const TEST_SENDING = "Sending...";
+const TEST_SENT = "Sent! Check your inbox";
+const TEST_FAILED = "Failed. Try again.";
+/** The suppressed outcome (divergence 4). The send path suppresses an address
+ *  on an unsubscribe (suppression.ts) or a bounce or complaint event
+ *  (events.ts), and on nothing else. */
+const TEST_SUPPRESSED = "Not sent. Your address is blocked after an unsubscribe, bounce or complaint.";
+/** Legacy's `setTimeout(() => setTestEmailStatus('idle'), 4000)`. */
+const TEST_RESULT_MS = 4000;
+
+const TEST_FORM_ID = "settings-test-email";
 
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
@@ -68,64 +111,83 @@ export async function loader({ context }: Route.LoaderArgs) {
     connectionId: connection?.id ?? null,
     senderName: connection?.senderName ?? "",
     replyToEmail: connection?.replyToEmail ?? "",
-    recipientEmail: auth.email,
   };
 }
+
+type SenderField = "senderName" | "replyToEmail";
 
 interface ActionResult {
   action: string;
   ok: boolean;
+  /** A refusal, said beside `field` when it names one, else in the save bar. */
   error?: string;
+  field?: SenderField;
+  /** The write itself failed: legacy's SaveBar sentence. */
+  failed?: boolean;
+  /** The test email's named outcome (EmailSendStatus). */
   status?: string;
+}
+
+/** Which field a refusal from applySenderName belongs to. Its sentences name
+ *  the field they are about; "Connect Stripe..." names none. */
+function fieldOf(error: string): SenderField | undefined {
+  if (/^Sender name\b/.test(error)) return "senderName";
+  if (/reply-to/i.test(error)) return "replyToEmail";
+  return undefined;
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
   const accountId = auth.membership.accountId;
-  const db = getDb(env);
   const form = await request.formData();
   const intent = String(form.get("_action") ?? "");
 
   if (intent === "sender") {
-    // THE SENDER BRANCH'S CORE moved to apply.server.ts in session 79; the
-    // test-email branch below is untouched. Both refusals and the 80-character
-    // bound live there now, so the MCP `set_sender_name` tool refuses with this
-    // form's own sentences.
-    //
-    // The name stays OPTIONAL, per ruling 335: it was required for one session
-    // and that was an unratified divergence, since legacy writes `|| null` on an
-    // empty box and its empty case delivers through the `|| 'Support'` fallback
-    // Foxhound matches.
-    const result = await applySenderName(db, accountId, {
-      connectionId: form.get("connectionId"),
-      senderName: form.get("senderName"),
-      // Sent only when the form carries the field, as legacy's
-      // `formData.has('reply_to_email')` (J03).
-      replyToEmail: form.has("replyToEmail") ? form.get("replyToEmail") : undefined,
-    });
+    // THE SENDER BRANCH'S CORE is in apply.server.ts, shared with the MCP
+    // `set_sender_name` tool, so an agent is refused with this form's own
+    // sentences. The name stays OPTIONAL, per ruling 335: legacy writes
+    // `|| null` on an empty box and its empty case delivers through the
+    // `|| 'Support'` fallback Foxhound matches.
+    let result: Awaited<ReturnType<typeof applySenderName>>;
+    try {
+      result = await applySenderName(getDb(env), accountId, {
+        connectionId: form.get("connectionId"),
+        senderName: form.get("senderName"),
+        // Sent only when the form carries the field, as legacy's
+        // `formData.has('reply_to_email')` (J03).
+        replyToEmail: form.has("replyToEmail") ? form.get("replyToEmail") : undefined,
+      });
+    } catch (err) {
+      // Legacy answers a failed update with its SaveBar sentence, not an error
+      // page. The whole error is logged, stack included, so a D1 failure can be
+      // traced; it carries no form values.
+      console.error("email settings write failed:", err);
+      return data<ActionResult>({ action: intent, ok: false, failed: true }, { status: 500 });
+    }
     if (!result.ok) {
-      return data<ActionResult>({ action: intent, ok: false, error: result.error }, { status: 400 });
+      const field = fieldOf(result.error);
+      return data<ActionResult>(
+        field ? { action: intent, ok: false, error: result.error, field } : { action: intent, ok: false, error: result.error },
+        { status: 400 },
+      );
     }
     return data<ActionResult>({ action: intent, ok: true });
   }
 
   if (intent === "test-email") {
     // The address is the SESSION user's, never the form's, so this cannot be
-    // pointed at a third party.
-    const { result } = await sendTestEmail(env, accountId, auth.email);
-    if (result.status === "sent") {
-      return data<ActionResult>({ action: intent, ok: true, status: result.status });
+    // pointed at a third party (RULES.md 4.7). It sends with the account's live
+    // sending off, as Recova's does, because its audience is "preview".
+    try {
+      const { result } = await sendTestEmail(env, accountId, auth.email);
+      return data<ActionResult>({ action: intent, ok: result.status === "sent", status: result.status });
+    } catch (err) {
+      // sendTestEmail returns a named outcome for every refused send; what
+      // throws is the read before it. Recova's button says it failed.
+      console.error("test email failed:", err);
+      return data<ActionResult>({ action: intent, ok: false, status: "failed" }, { status: 500 });
     }
-    return data<ActionResult>({
-      action: intent,
-      ok: false,
-      status: result.status,
-      error:
-        result.status === "suppressed"
-          ? "That address has unsubscribed, so no email was sent."
-          : "Could not send the test email. Try again or contact support.",
-    });
   }
 
   return data<ActionResult>(
@@ -134,96 +196,163 @@ export async function action({ request, context }: Route.ActionArgs) {
   );
 }
 
+/** One of Recova's text fields: label, input, then help under it, as
+ *  EmailSection draws them, from Capsomer's field parts. */
+function TextField({
+  name,
+  type,
+  label,
+  help,
+  defaultValue,
+  placeholder,
+  maxLength,
+  error,
+}: {
+  name: string;
+  type: "email" | "text";
+  label: string;
+  help: string;
+  defaultValue: string;
+  placeholder: string;
+  maxLength: number;
+  error?: string;
+}) {
+  const base = useId();
+  const id = `${base}-control`;
+  const helpId = `${base}-help`;
+  const errorId = `${base}-error`;
+  return (
+    <div className="cap-field" data-invalid={error ? "true" : undefined}>
+      <label className="cap-field-label" htmlFor={id}>
+        {label}
+      </label>
+      <input
+        id={id}
+        type={type}
+        name={name}
+        className="cap-input"
+        defaultValue={defaultValue}
+        placeholder={placeholder}
+        maxLength={maxLength}
+        aria-describedby={error ? `${errorId} ${helpId}` : helpId}
+        aria-invalid={error ? true : undefined}
+      />
+      <p className="cap-field-help" id={helpId}>
+        {help}
+      </p>
+      <p className="cap-field-error" id={errorId} role={error ? "alert" : undefined} hidden={!error}>
+        {error ?? null}
+      </p>
+    </div>
+  );
+}
+
+/** The test email's last outcome, held for legacy's four seconds and then
+ *  dropped, so the button goes back to "Send test email". */
+function useShownTestResult(result: ActionResult | undefined): ActionResult | undefined {
+  const [dismissed, setDismissed] = useState<ActionResult | undefined>(undefined);
+  useEffect(() => {
+    if (!result) return;
+    const timer = setTimeout(() => setDismissed(result), TEST_RESULT_MS);
+    return () => clearTimeout(timer);
+  }, [result]);
+  return result && result !== dismissed ? result : undefined;
+}
+
+function testOutcome(result: ActionResult | undefined): string | null {
+  if (!result) return null;
+  if (result.ok) return TEST_SENT;
+  if (result.status === "suppressed") return TEST_SUPPRESSED;
+  return TEST_FAILED;
+}
+
 export default function EmailSettings({ loaderData, actionData }: Route.ComponentProps) {
-  const { connectionId, senderName, replyToEmail, recipientEmail } = loaderData;
+  const { connectionId, senderName, replyToEmail } = loaderData;
   const result = actionData as ActionResult | undefined;
-  const busy = useNavigation().state !== "idle";
+  const navigation = useNavigation();
+  const pendingAction = navigation.state === "idle" ? null : String(navigation.formData?.get("_action") ?? "");
   const saveResult = result?.action === "sender" ? result : undefined;
-  const testResult = result?.action === "test-email" ? result : undefined;
+  const testResult = useShownTestResult(result?.action === "test-email" ? result : undefined);
+  const outcome = pendingAction === "test-email" ? null : testOutcome(testResult);
+
+  const fieldError = (field: SenderField) => (saveResult?.field === field ? saveResult.error : undefined);
+  const barError =
+    saveResult && !saveResult.ok && !saveResult.field ? (saveResult.error ?? SAVE_FAILED) : undefined;
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-8">
-      <header>
-        <h1 className="text-h2 text-text">Email</h1>
-        <p className="mt-1 text-label text-text-tertiary">
-          Configure how recovery emails appear to your customers.
-        </p>
-      </header>
+    <>
+      <SettingsBackLink />
+      {/* Legacy's PageHeader leaves 32px under the head (mb-8); the wrapper
+          keeps that space without styling Capsomer's head. */}
+      <div className="mb-8">
+        <PageHead title="Email" lead="Configure how recovery emails appear to your customers." />
+      </div>
 
-      <section className="rounded-lg border border-border bg-surface p-5">
-        {saveResult?.ok ? <Alert tone="success">Saved.</Alert> : null}
-        {saveResult && !saveResult.ok && saveResult.error ? (
-          <Alert tone="error">{saveResult.error}</Alert>
-        ) : null}
+      <DemoGuardedForm method="post">
+        <input type="hidden" name="_action" value="sender" />
+        <input type="hidden" name="connectionId" value={connectionId ?? ""} />
+        <section className="cap-panel">
+          <div className="cap-panel-body">
+            <div className="mb-5">
+              <TextField
+                name="senderName"
+                type="text"
+                label="Sender name"
+                help="Name that appears in the From field of recovery emails"
+                defaultValue={senderName}
+                placeholder="e.g. Alex from Acme"
+                maxLength={SENDER_NAME_MAX_LENGTH}
+                error={fieldError("senderName")}
+              />
+            </div>
 
-        <DemoGuardedForm method="post" className="flex flex-col gap-4">
-          <input type="hidden" name="_action" value="sender" />
-          <input type="hidden" name="connectionId" value={connectionId ?? ""} />
-          <label className="flex flex-col gap-1.5">
-            <span className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
-              Sender name
-            </span>
-            <input
-              name="senderName"
-              type="text"
-              defaultValue={senderName}
-              placeholder="e.g. Alex from Acme"
-              maxLength={SENDER_NAME_MAX_LENGTH}
-              className="rounded-md border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-text-subtle focus-visible:border-brand"
-            />
-            <span className="text-micro text-text-subtle">
-              Name that appears in the From field of recovery emails
-            </span>
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
-              Reply-to email
-            </span>
-            <input
-              name="replyToEmail"
-              type="email"
-              defaultValue={replyToEmail}
-              placeholder="support@yourapp.com"
-              maxLength={REPLY_TO_EMAIL_MAX_LENGTH}
-              className="rounded-md border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-text-subtle focus-visible:border-brand"
-            />
-            <span className="text-micro text-text-subtle">
-              Customer replies go here. Use your support inbox.
-            </span>
-          </label>
-          <div>
-            <button
-              type="submit"
-              disabled={busy}
-              className="rounded-md bg-brand px-4 py-2 text-label font-semibold text-on-brand transition-opacity duration-500 hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {busy ? "Saving..." : "Save"}
-            </button>
+            <div className="mb-6">
+              <TextField
+                name="replyToEmail"
+                type="email"
+                label="Reply-to email"
+                help="Customer replies go here. Use your support inbox."
+                defaultValue={replyToEmail}
+                placeholder="support@yourapp.com"
+                maxLength={REPLY_TO_EMAIL_MAX_LENGTH}
+                error={fieldError("replyToEmail")}
+              />
+            </div>
+
+            {/* Legacy's test button, last in the card, at its own width,
+                saying each outcome on itself. It belongs to the test form
+                below. The words are the button's own colour: Recova tints them
+                green or red, and a Capsomer status inside a button measured
+                4.18:1 in dark, so the tint waits for the per-site layer. The
+                live region repeats the outcome so it is announced. */}
+            <div>
+              <Button type="submit" form={TEST_FORM_ID} pending={pendingAction === "test-email"}>
+                {pendingAction === "test-email" ? TEST_SENDING : (outcome ?? TEST_IDLE)}
+              </Button>
+              <span role="status" className="sr-only">
+                {outcome ?? ""}
+              </span>
+            </div>
           </div>
-        </DemoGuardedForm>
-      </section>
+        </section>
 
-      <section className="rounded-lg border border-border bg-surface p-5">
-        <h2 className="text-label font-semibold text-text">Test email</h2>
-        <p className="mt-1 text-label text-text-tertiary">
-          Sends a sample recovery email to {recipientEmail} through the real sending path, so
-          the From line is the one your customers will see.
-        </p>
-        {testResult?.ok ? <Alert tone="success">Sent. Check your inbox.</Alert> : null}
-        {testResult && !testResult.ok && testResult.error ? (
-          <Alert tone="error">{testResult.error}</Alert>
-        ) : null}
-        <DemoGuardedForm method="post" className="mt-4">
-          <input type="hidden" name="_action" value="test-email" />
-          <button
-            type="submit"
-            disabled={busy}
-            className="rounded-md border border-border bg-transparent px-4 py-2 text-label text-text-subtle transition-colors duration-150 hover:border-text-tertiary disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {busy ? "Sending..." : "Send test email"}
-          </button>
-        </DemoGuardedForm>
-      </section>
-    </div>
+        {/* Legacy's SaveBar: right-aligned under the card, the result beside
+            the button. The live region is on the page from the start. */}
+        <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
+          <span role="status">
+            {saveResult?.ok ? <Status tone="ok">Saved</Status> : null}
+            {barError ? <Status tone="crit">{barError}</Status> : null}
+          </span>
+          <Button type="submit" variant="primary" pending={pendingAction === "sender"}>
+            Save changes
+          </Button>
+        </div>
+      </DemoGuardedForm>
+
+      {/* The test email's own form: nothing typed, only the intent. */}
+      <DemoGuardedForm method="post" id={TEST_FORM_ID}>
+        <input type="hidden" name="_action" value="test-email" />
+      </DemoGuardedForm>
+    </>
   );
 }

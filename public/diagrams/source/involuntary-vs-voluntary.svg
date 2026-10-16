@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 280" role="img">
+  <title>Involuntary vs voluntary churn comparison</title>
+  <desc>Side-by-side comparison of involuntary churn (caused by payment failure with intent to stay) and voluntary churn (caused by customer decision to leave), each showing cause, customer intent, intervention, and tool.</desc>
+  <style>
+    .node-warning { fill: #fcebeb; stroke: #a32d2d; }
+    .node-info    { fill: #e6f1fb; stroke: #185fa5; }
+    .node-neutral { fill: #e8e6e0; stroke: #b0ada6; }
+    .label-primary   { fill: #1a1c18; font-family: system-ui, sans-serif; font-size: 13px; font-weight: 500; }
+    .label-secondary { fill: #595c56; font-family: system-ui, sans-serif; font-size: 11px; font-family: system-ui, sans-serif; }
+    .header-warning  { fill: #a32d2d; font-family: system-ui, sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 0.06em; }
+    .header-info     { fill: #185fa5; font-family: system-ui, sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 0.06em; }
+    .divider { stroke: #cccbc3; stroke-width: 1; fill: none; }
+    :root[data-theme="dark"] .node-warning { fill: #200a0a; stroke: #b92727; }
+    :root[data-theme="dark"] .node-info    { fill: #0a1428; stroke: #315dc4; }
+    :root[data-theme="dark"] .node-neutral { fill: #222420; stroke: #4a4c44; }
+    :root[data-theme="dark"] .label-primary   { fill: #f0ede8; }
+    :root[data-theme="dark"] .label-secondary { fill: #a8a49e; }
+    :root[data-theme="dark"] .header-warning  { fill: #db5757; }
+    :root[data-theme="dark"] .header-info     { fill: #6c93ef; }
+    :root[data-theme="dark"] .divider { stroke: #2e3028; }
+  </style>
+
+  <!-- Left card: Involuntary -->
+  <rect class="node-warning" x="40" y="20" width="280" height="240" rx="10"/>
+  <text class="header-warning" x="180" y="50" text-anchor="middle">INVOLUNTARY</text>
+  <text class="label-secondary" x="180" y="68" text-anchor="middle">they want to stay but the bill won't go through</text>
+
+  <line class="divider" x1="60" y1="84" x2="300" y2="84"/>
+
+  <text class="label-secondary" x="60" y="110">Cause</text>
+  <text class="label-primary" x="60" y="128">Payment failure</text>
+
+  <text class="label-secondary" x="60" y="156">Customer intent</text>
+  <text class="label-primary" x="60" y="174">Stay subscribed</text>
+
+  <text class="label-secondary" x="60" y="202">Intervention</text>
+  <text class="label-primary" x="60" y="220">Recovery system</text>
+
+  <text class="label-secondary" x="60" y="246">Tool</text>
+  <text class="label-primary" x="60" y="264">Dunning sequence</text>
+
+  <!-- Right card: Voluntary -->
+  <rect class="node-info" x="360" y="20" width="280" height="240" rx="10"/>
+  <text class="header-info" x="500" y="50" text-anchor="middle">VOLUNTARY</text>
+  <text class="label-secondary" x="500" y="68" text-anchor="middle">they decided to leave and clicked cancel</text>
+
+  <line class="divider" x1="380" y1="84" x2="620" y2="84"/>
+
+  <text class="label-secondary" x="380" y="110">Cause</text>
+  <text class="label-primary" x="380" y="128">Customer decision</text>
+
+  <text class="label-secondary" x="380" y="156">Customer intent</text>
+  <text class="label-primary" x="380" y="174">Leave</text>
+
+  <text class="label-secondary" x="380" y="202">Intervention</text>
+  <text class="label-primary" x="380" y="220">Product, pricing, CS</text>
+
+  <text class="label-secondary" x="380" y="246">Tool</text>
+  <text class="label-primary" x="380" y="264">Cancel flow + customer success</text>
+</svg>

@@ -44,7 +44,10 @@ describe("expander sanitization: hostile aiBodyHtml is neutralized", () => {
 
   it("the ROUTE sanitizes in the loader, before the body is in the response", () => {
     // The whole point of 256: never render step.aiBodyHtml directly.
-    expect(ROUTE).toContain("sanitizeEmailPreviewHtml(step.aiBodyHtml)");
+    // J76: the raw body is taken off the step before it is returned, so only
+    // the sanitized preview is in the response.
+    expect(ROUTE).toContain(".map(({ aiBodyHtml, ...step }) => ({");
+    expect(ROUTE).toContain("previewHtml: aiBodyHtml ? sanitizeEmailPreviewHtml(aiBodyHtml) : null,");
     expect(ROUTE).toContain("__html: step.previewHtml");
     expect(ROUTE).not.toContain("__html: step.aiBodyHtml");
   });

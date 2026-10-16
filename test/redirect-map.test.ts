@@ -150,6 +150,13 @@ describe("RECOVA_REDIRECT_MAP", () => {
     }
   });
 
+  // Ruling 41 (row F6): Recova's card URL is /og, with the card type in the
+  // query (?type=blog&title=...&description=...). Foxhound answers that same
+  // path, so the entry is same path and the query string rides along.
+  it("maps Recova's /og card URL to the same path (ruling 41)", () => {
+    expect(RECOVA_REDIRECT_MAP.find((e) => e.from === "/og")).toEqual({ from: "/og", to: "/og" });
+  });
+
   it("consolidates the per-section blog RSS/sitemap routes onto Foxhound's single equivalents", () => {
     expect(RECOVA_REDIRECT_MAP.find((e) => e.from === "/blog/rss.xml")?.to).toBe("/feed.rss");
     expect(RECOVA_REDIRECT_MAP.find((e) => e.from === "/blog/sitemap.xml")?.to).toBe("/sitemap.xml");

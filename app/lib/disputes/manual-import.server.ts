@@ -2,6 +2,7 @@ import { and, eq, isNull } from "drizzle-orm";
 
 import { getDb, stripeConnections } from "~/db";
 import { buildEvidenceFacts, draftDisputeEvidence } from "~/lib/disputes/evidence";
+import { readDisputeProductDescription } from "~/lib/disputes/queries.server";
 import { disputeIntakeFields, isStripeDisputeId } from "~/lib/disputes/stripe-dispute";
 import { executeMoneyWrite } from "~/lib/money/execute";
 import { getConnectedStripe } from "~/lib/stripe/client";
@@ -135,7 +136,11 @@ export async function importDisputeFromStripe(
   // The same enrichment seam the webhook runs, so the imported row carries the
   // recovery link and the grounded evidence a webhook-imported one would.
   const linked = await resolveDisputedRecovery(env, accountId, connection.id, fields.paymentIntentId);
-  const facts = buildEvidenceFacts(linked?.failedPayment ?? null, linked?.steps ?? []);
+  const facts = buildEvidenceFacts(
+    linked?.failedPayment ?? null,
+    linked?.steps ?? [],
+    await readDisputeProductDescription(getDb(env), accountId),
+  );
   const evidence = await draftDisputeEvidence(env, facts);
 
   const disputeId = crypto.randomUUID();

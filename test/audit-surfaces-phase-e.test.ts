@@ -30,7 +30,7 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 const { saveAuditRun } = await import("~/lib/audit/persist.server");
-const history = await import("~/routes/app/audit/history");
+const history = await import("~/routes/app/audit/dashboard");
 const runPage = await import("~/routes/app/audit/run");
 
 const RAN_AT = new Date("2026-08-25T09:00:00.000Z");
@@ -102,7 +102,7 @@ const save = (accountId: string, result = auditWith(), summary = "One. Two. Thre
 const loadHistory = (accountId: string) =>
   history.loader({
     context: contextFor(accountId),
-    request: new Request("https://foxhoundapp.test/audit/history"),
+    request: new Request("https://foxhoundapp.test/audit/dashboard"),
     params: {},
   } as never) as Promise<{
     runs: {
@@ -224,7 +224,7 @@ describe("PLANT 4: what these surfaces must NOT carry", () => {
       .join("\n");
 
   const runSource = source("app/routes/app/audit/run.tsx");
-  const historySource = source("app/routes/app/audit/history.tsx");
+  const historySource = source("app/routes/app/audit/dashboard.tsx");
   // THE SECTIONS MOVED IN PHASE (f), and two assertions below moved with them.
   // Session 70 scoped them to run.tsx because it was the only renderer; the live
   // anonymous results page is the second, so the four sections were extracted to
@@ -249,13 +249,13 @@ describe("PLANT 4: what these surfaces must NOT carry", () => {
   });
 
   it("NO SECOND WRITER FOR S30'S TWO COLUMNS", () => {
-    // Legacy renders its AuditSettingsForm inline here. Foxhound writes both
-    // columns at /settings/audit, and a second form would be 336 binding 3's
-    // defect. The page links to the one that exists.
-    for (const column of ["auditLookbackDays", "auditAutoRun", "audit_lookback_days"]) {
-      expect(historySource, `${column} is written here`).not.toContain(column);
-    }
-    expect(historySource).toContain('to="/settings/audit"');
+    // J43 (row U2) restored Recova's inline AuditSettingsForm on this page, as
+    // Recova has it. It is a second FORM, not a second writer: the action
+    // writes through applyAuditSettings, the one core /settings/audit and the
+    // MCP tool share, and the page builds no update of its own.
+    expect(historySource).toContain("applyAuditSettings(");
+    expect(historySource).not.toContain(".update(accounts)");
+    expect(historySource).not.toContain(".set({ auditLookbackDays");
   });
 
   it("THE RUN-NEW-AUDIT BUTTON IS LIVE, because phase (f) built the flow it names", () => {
@@ -287,7 +287,7 @@ describe("PLANT 4: what these surfaces must NOT carry", () => {
     expect(runSource).not.toContain("clipboard");
   });
 
-  it("neither surface writes anything, and neither bills", () => {
+  it("neither surface writes money or builds a write of its own, and neither bills", () => {
     for (const [name, code] of [
       ["run", runSource],
       ["history", historySource],
@@ -304,8 +304,11 @@ describe("PLANT 4: what these surfaces must NOT carry", () => {
     }
   });
 
-  it("renders SIX decline categories, derived, not legacy's four", () => {
-    expect(sectionsSource).toContain("DECLINE_CATEGORY_LABELS");
+  it("renders SIX decline categories, not legacy's four", () => {
+    // J63: the rows carry Recova's own words ("Soft declines" and the rest),
+    // in a map typed on DeclineCategory, so the compiler refuses a category
+    // without a row. What this pins is that none is a hardcoded JSX row.
+    expect(sectionsSource).toContain("const BREAKDOWN_ROWS: Record<DeclineCategory, string>");
     expect(sectionsSource).not.toContain('label="Soft declines"');
   });
 

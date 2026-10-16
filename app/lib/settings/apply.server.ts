@@ -20,6 +20,7 @@ import {
   buildNotificationSettingsUpdate,
   buildSenderSettingsUpdate,
 } from "./persist.server";
+import { DISPUTE_PRODUCT_DESCRIPTION_MAX_LENGTH } from "./dispute-description";
 import { isValidReplyToEmail, REPLY_TO_EMAIL_MAX_LENGTH } from "./reply-to";
 import { SENDER_NAME_MAX_LENGTH } from "./sender-name";
 import { normalizeSlackWebhookUrl } from "./slack-webhook";
@@ -159,6 +160,47 @@ export async function applyFeatureSettings(
   };
   const fields = ["winback_notifications_enabled", "expiring_card_notifications_enabled"];
   await commit(db, accountId, fields, buildFeatureSettingsUpdate(db, accountId, state), trace);
+  return { ok: true, fields, state };
+}
+
+export interface DisputeSettingsState {
+  productDescription: string | null;
+  shipsPhysical: boolean;
+}
+
+/** Stripe's limit on an evidence text field, which the description becomes. */
+export { DISPUTE_PRODUCT_DESCRIPTION_MAX_LENGTH };
+export const DISPUTE_PRODUCT_DESCRIPTION_ERROR = `Keep the product description under ${DISPUTE_PRODUCT_DESCRIPTION_MAX_LENGTH.toLocaleString("en-US")} characters.`;
+
+/**
+ * S32's two columns (J06), and nothing else: the product description, which
+ * dispute intake reads into every response's evidence, and ships-physical,
+ * which puts the shipping inputs on the dispute page. Recova's third column,
+ * dispute_auto_submit, is never written (RULES.md 5.6). A blank description is
+ * stored as null, so the reader's "not set" is one value.
+ */
+export async function applyDisputeSettings(
+  db: Db,
+  accountId: string,
+  input: { productDescription: unknown; shipsPhysical: unknown },
+  trace?: WriteTrace,
+): Promise<ApplyResult<DisputeSettingsState>> {
+  const productDescription = asOptionalText(input.productDescription);
+  if (productDescription && productDescription.length > DISPUTE_PRODUCT_DESCRIPTION_MAX_LENGTH) {
+    return { ok: false, error: DISPUTE_PRODUCT_DESCRIPTION_ERROR };
+  }
+  const state: DisputeSettingsState = { productDescription, shipsPhysical: asBoolean(input.shipsPhysical) };
+  const fields = ["dispute_product_description", "dispute_ships_physical"];
+  await commit(
+    db,
+    accountId,
+    fields,
+    db
+      .update(accounts)
+      .set({ disputeProductDescription: state.productDescription, disputeShipsPhysical: state.shipsPhysical })
+      .where(eq(accounts.id, accountId)),
+    trace,
+  );
   return { ok: true, fields, state };
 }
 
@@ -440,6 +482,12 @@ export const MRR_ERROR = "Enter a monthly recurring revenue of zero or more, or 
  * their entry was kept when it had been discarded. That is 374 binding 3's
  * lesson one table over, and registering a tool is the widening it warns about.
  * BLANK IS STILL NULL, because clearing the field is a real thing to want.
+ *
+ * `alongside` is statements the CALLER builds and wants committed in the same
+ * batch, after this write: the account page saves the name with these three
+ * as one form (Recova's AccountProfileForm), so a failed name write must not
+ * leave the context saved. It is not validated or traced here; the caller owns
+ * it. Nothing is committed when the input is refused.
  */
 export async function applyIntelligenceContext(
   db: Db,
@@ -450,6 +498,7 @@ export async function applyIntelligenceContext(
     merchantMrrSelfReported?: unknown;
   },
   trace?: WriteTrace,
+  alongside: unknown[] = [],
 ): Promise<ApplyResult<IntelligenceContextState>> {
   const found = await db
     .select({
@@ -495,7 +544,7 @@ export async function applyIntelligenceContext(
     db,
     accountId,
     fields,
-    buildIntelligenceContextUpdate(db, accountId, state),
+    [buildIntelligenceContextUpdate(db, accountId, state), ...alongside],
     trace,
   );
   return { ok: true, fields, state };

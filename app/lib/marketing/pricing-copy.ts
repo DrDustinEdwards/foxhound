@@ -9,7 +9,8 @@ import {
 import {
   DECLINE_CATEGORY_COUNT,
   DECLINE_CATEGORY_COUNT_WORD,
-  DECLINE_CATEGORY_COUNT_WORD_LOWER,
+  countWord,
+  DISTINCT_SEQUENCE_COUNT,
   RECOVERY_SEQUENCE_DAYS,
 } from "~/lib/marketing/decline-categories";
 import { formatMoneyShort } from "~/lib/money-format";
@@ -47,6 +48,11 @@ export interface PricingCard {
 }
 
 // Audit first: the free, no-signup entry point, as Recova orders them.
+/** PRICING.md (Intelligence): the free tier, in the words every page uses
+ *  (here and /product/intelligence, J58), so the site says one thing. */
+export const INTELLIGENCE_FREE_TIER_SENTENCE =
+  "MRR, movements, churn, and cohort analytics are free for every Recovery merchant.";
+
 export const PRICING_CARDS: PricingCard[] = [
   {
     id: "audit",
@@ -67,10 +73,10 @@ export const PRICING_CARDS: PricingCard[] = [
     name: "Recovery",
     price: pct(RECOVERY_FEE_BPS),
     priceLabel: "of Foxhound-attributed recoveries",
-    description: `Silent retries first, then AI-drafted email sequences across ${RECOVERY_SEQUENCE_DAYS} days. ${DECLINE_CATEGORY_COUNT_WORD} decline categories, ${DECLINE_CATEGORY_COUNT_WORD_LOWER} different sequences.`,
+    description: `AI-drafted email sequences and silent retries across ${RECOVERY_SEQUENCE_DAYS} days. ${DECLINE_CATEGORY_COUNT_WORD} decline categories, ${countWord(DISTINCT_SEQUENCE_COUNT).toLowerCase()} different sequences.`,
     features: [
-      "Silent retry before any customer email",
-      `${RECOVERY_SEQUENCE_DAYS}-day sequences across ${DECLINE_CATEGORY_COUNT} decline categories`,
+      "Silent retry before any customer email, wherever the decline can be retried",
+      `Up to ${RECOVERY_SEQUENCE_DAYS}-day sequences across ${DECLINE_CATEGORY_COUNT} decline categories`,
       "Baseline recoveries Stripe would have gotten anyway are free",
       `No fee until the recovery has matured ${RECOVERY_MATURITY_DAYS} days`,
       "Card-update link on every email",
@@ -98,12 +104,15 @@ export const PRICING_CARDS: PricingCard[] = [
     name: "Intelligence",
     price: usd(INTELLIGENCE_PRICE_CENTS),
     priceLabel: "per month for predictive risk scoring",
-    description:
-      "MRR, movements, churn, and cohort analytics are free for every Recovery merchant. Predictive risk scoring is the paid layer.",
+    description: `${INTELLIGENCE_FREE_TIER_SENTENCE} Predictive risk scoring is the paid layer.`,
     features: [
       "MRR, movements, churn, cohorts: free for Recovery merchants",
       `Predictive risk scoring: the paid ${usd(INTELLIGENCE_PRICE_CENTS)}/mo layer`,
-      "Health signals feed Recovery timing and Disputes triage",
+      // Recova's "Health signals feed Recovery timing and Disputes triage" is
+      // removed: failed-payment retries and emails follow the decline category
+      // alone, Disputes computes no triage (APPROVED-DIFFERENCES, Intelligence
+      // entry), and the one timing Intelligence does change, win-back step 1,
+      // is a delay, not an improvement (winback-copy.ts).
       "Account-wide, not per-customer",
       // 377(8): the annual term comes off the page until a checkout exists. An
       // offer with no way to accept it fails the FTC's bona fide test whatever
@@ -140,7 +149,9 @@ export const PRICING_FAQS: PricingFaq[] = [
   {
     question: "Can I use multiple products together?",
     answer:
-      "Yes. Each product works standalone and its pricing is independent. Used together, Recovery data improves Disputes evidence, and Intelligence signals improve Recovery timing.",
+      "Yes. Each product works standalone and its pricing is independent. Used together, Recovery data improves Disputes evidence.",
+    // Recova's second clause, "Intelligence signals improve Recovery timing",
+    // is removed as untrue (APPROVED-DIFFERENCES, Intelligence entry).
   },
 ];
 

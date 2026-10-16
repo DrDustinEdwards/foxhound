@@ -8,7 +8,9 @@ import { checkRateLimitWindow, type RateLimitOutcome } from "~/lib/http/rate-lim
 // .limit() returned {success:true} unconditionally at 35+ requests past the
 // limit, same colo, spaced requests; an open-beta API with no observability
 // from our side, not debuggable). Addressed by idFromName(`${bucket}:${key}`)
-// (bucket in {"auth","public"}, key = client IP; app/lib/http/rate-limit.ts),
+// (the "public" bucket keyed on client IP, and the per-caller checks of
+// app/lib/http/rate-limit.ts; sign-in and signup use site-runtime's class,
+// bound as AUTH_RATE_LIMITER, since J52),
 // so every request sharing a bucket+IP hits the same instance and shares one
 // counter; storage is per-instance, so different buckets/IPs can never
 // cross-contaminate by construction, unlike a shared external binding.

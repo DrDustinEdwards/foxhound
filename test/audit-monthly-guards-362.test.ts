@@ -188,7 +188,9 @@ describe("PLANT 4: the docs say ONE email, and every earlier state is gone", () 
             ? n.strong
             : "mono" in n
               ? n.mono
-              : n.link;
+              : "badge" in n
+                ? String(n.badge)
+                : n.link;
     const rich = (r: string | DocInline[]): string =>
       typeof r === "string" ? r : r.map(inline).join("");
     switch (b.kind) {
@@ -282,7 +284,7 @@ vi.mock("~/lib/stripe/encryption", async (importOriginal) => ({
   decryptToken: async () => "sk_test_token",
 }));
 
-const { runMonthlyAudit } = await import("~/lib/audit/monthly.server");
+const { driveMonthlyAudit } = await import("./helpers/monthly-audit-queue");
 const { accounts, stripeConnections } = await import("~/db/schema");
 
 const NOW = new Date("2026-09-01T09:00:00.000Z");
@@ -335,7 +337,7 @@ describe("PLANT 5: a real run leaves no money row behind", () => {
       BETTER_AUTH_URL: "https://foxhoundapp.test",
     } as unknown as Env;
 
-    const result = await runMonthlyAudit(env, NOW, null);
+    const result = await driveMonthlyAudit(env, NOW, null);
     expect(result.sent).toBe(1);
     // AND THE MESSAGE ACTUALLY LEFT. `result.sent` is a counter the run
     // increments; asserting it alone would pass against a run that counted a

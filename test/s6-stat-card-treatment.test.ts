@@ -36,8 +36,9 @@ import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 const LIST_ROUTE = readFileSync("app/routes/app/recovery/payments/index.tsx", "utf8");
 
 function cardBlock() {
-  const start = LIST_ROUTE.indexOf('<section className="mt-4 grid');
-  return LIST_ROUTE.slice(start, LIST_ROUTE.indexOf("</section>", start));
+  // J75: the five cards are one array the page maps onto Capsomer panels.
+  const start = LIST_ROUTE.indexOf("const cards: { label: string;");
+  return LIST_ROUTE.slice(start, LIST_ROUTE.indexOf("];", start));
 }
 
 const now = new Date("2026-08-14T00:00:00.000Z");
@@ -145,7 +146,7 @@ describe("S6 Showing card: legacy's global count, responding only to the pill", 
 
 describe("S6 stat cards: the route renders legacy's treatment", () => {
   it("card one is Showing and its value tracks the selected pill", () => {
-    expect(cardBlock()).toContain('label="Showing"');
+    expect(cardBlock()).toContain('label: "Showing"');
     expect(cardBlock()).toContain("showingCountFor(globalCounts, filters.status)");
   });
 
@@ -156,8 +157,8 @@ describe("S6 stat cards: the route renders legacy's treatment", () => {
   });
 
   it("Active carries the brand accent (teal, Q11) and Recovered legacy's green", () => {
-    expect(cardBlock()).toContain('valueClassName="text-brand-text"');
-    expect(cardBlock()).toContain('valueClassName="text-green"');
+    expect(cardBlock()).toContain('className: "text-brand-text"');
+    expect(cardBlock()).toContain('className: "text-green"');
   });
 
   it("Recovery rate is thresholded through the shared helper", () => {
@@ -176,7 +177,7 @@ describe("S6 stat cards: the route renders legacy's treatment", () => {
     // The hyphen branch is gone from the card, both in the value and the class.
     expect(cardBlock()).not.toContain('"-"');
     expect(cardBlock()).not.toContain("=== null");
-    expect(cardBlock()).toContain("value={`${globalRecoveryRatePct}%`}");
+    expect(cardBlock()).toContain("value: `${globalRecoveryRatePct}%`");
     // And 0 lands in the red band, which is what makes the repair visible.
     expect(recoveryRateValueClass(0)).toBe("text-red");
   });

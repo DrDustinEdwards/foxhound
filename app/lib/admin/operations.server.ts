@@ -178,9 +178,13 @@ export function getEnvSanity(env: Env): EnvSanityRow[] {
     ["MONEY_WRITER", "binding"],
     ["CRON_LOCK", "binding"],
     ["RATE_LIMITER", "binding"],
+    ["AUTH_RATE_LIMITER", "binding"],
     // The nightly D1 dump bucket (job_f7f35d4b7ac7, bound under job_7bbec6ab48d1). Unset means the d1-backup
     // cron throws on every run and /health reports no backup.
     ["BACKUPS", "binding"],
+    // The monthly audit queue producer (job_97878f0d1fde). Unset means the
+    // monthly-audit cron fails on its first send and no account is audited.
+    ["AUDIT_QUEUE", "binding"],
     ["BETTER_AUTH_URL", "var"],
     ["TURNSTILE_SITE_KEY", "var"],
     ["BETTER_AUTH_SECRET", "secret"],

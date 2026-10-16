@@ -12,7 +12,7 @@ import "capsomer/table.css";
 // page whole under any layout, as /help does.
 import "~/site-header.css";
 
-import { SyncDisputeLink, type SyncDisputeResult } from "~/components/sync-dispute-link";
+import { SYNC_RESULT_MESSAGES, SyncDisputeLink } from "~/components/sync-dispute-link";
 import { StatCard } from "~/components/stat-card";
 import { getDb } from "~/db";
 import { groupSumByCurrency } from "~/lib/billing/preview.server";
@@ -134,16 +134,6 @@ export async function loader({ context }: Route.LoaderArgs) {
 // Account scoping is likewise not re-derived here: authContext is the one
 // chokepoint that turns a session into an account for the whole shell, and the
 // import acts on that account's own Stripe connection.
-const RESULT_MESSAGE: Record<string, SyncDisputeResult> = {
-  imported: { ok: true, message: "Dispute imported." },
-  // Not an error. Either this import already ran or the webhook got there
-  // first; both mean the dispute is on the books exactly once.
-  already_imported: { ok: true, message: "That dispute is already imported." },
-  invalid_id: { ok: false, message: 'Stripe dispute IDs start with "dp_".' },
-  not_connected: { ok: false, message: "Connect Stripe before importing a dispute." },
-  not_found: { ok: false, message: "No dispute with that ID on your Stripe account." },
-};
-
 export async function action({ request, context }: Route.ActionArgs) {
   if (request.method !== "POST") {
     return Response.json({ error: "method_not_allowed" }, { status: 405 });
@@ -159,7 +149,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     typeof posted === "string" ? posted : "",
     new Date(),
   );
-  return { sync: RESULT_MESSAGE[result.status] };
+  return { sync: SYNC_RESULT_MESSAGES[result.status] };
 }
 
 /** The status tones on Capsomer's pill: won is ok, lost is critical, every

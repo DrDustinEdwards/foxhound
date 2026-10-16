@@ -339,10 +339,9 @@ describe("J62 frame: one Capsomer card on its own, not the sign-in frame", () =>
     expect(open).toMatch(/\bmx-auto\b/);
   });
 
-  it("the sign-in pages keep AuthShell: only this page left it", () => {
-    for (const f of ["login", "signup", "forgot-password", "reset-password"]) {
-      expect(readFileSync(`app/routes/auth/${f}.tsx`, "utf8"), f).toMatch(/<AuthShell\b/);
-    }
+  // The sign-in pages left AuthShell too, for Recova's one card (J52); this
+  // page's own departure is what this row guards.
+  it("this page does not use AuthShell", () => {
     expect(readFileSync("app/routes/utility/card-update.tsx", "utf8")).not.toMatch(/<AuthShell\b|import \{[^}]*\bAuthShell\b/);
   });
 });

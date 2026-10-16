@@ -105,8 +105,9 @@ const MARKETING_EXACT = new Set([
 // old spoke addresses, which now answer a 301 to them.
 const MARKETING_PREFIXES = ["/product/", "/products/", "/compare/", "/decline-codes/"];
 
-/** Files routes. `/og/` is included: it sets no Cache-Control of its own today
- *  and its output is a pure function of the path params. */
+/** Files routes. `/og/` and `/og` are included: the card route sets no
+ *  Cache-Control of its own today and its output is a pure function of the
+ *  URL (path params, or Recova's query form on `/og`, ruling 41). */
 const FILES_EXACT = new Set([
   "/sitemap.xml",
   "/robots.txt",
@@ -136,7 +137,7 @@ export function classifyPath(pathname: string): CacheClass {
   if (MARKETING_PREFIXES.some((prefix) => path.startsWith(prefix))) return "marketing";
   if (path === "/docs" || path.startsWith("/docs/")) return "docs";
   if (path === "/blog" || path.startsWith("/blog/")) return "blog";
-  if (FILES_EXACT.has(path) || path.startsWith("/og/")) return "files";
+  if (FILES_EXACT.has(path) || path === "/og" || path.startsWith("/og/")) return "files";
   return "private";
 }
 
@@ -215,8 +216,9 @@ export const NO_TRANSFORM_PREFIXES = [
   "/disputes/",
   "/intelligence/",
   "/settings",
-  "/audit/history",
+  "/audit/dashboard",
   "/audit/runs/",
+  "/audit/results/",
   "/help",
   "/welcome",
   "/admin",
@@ -224,6 +226,8 @@ export const NO_TRANSFORM_PREFIXES = [
   "/u/",
   "/invite/",
   "/reset-password",
+  // The OAuth consent page (J79): its query carries a client's id and state.
+  "/oauth/",
 ];
 
 function needsNoTransform(pathname: string, response: Response): boolean {

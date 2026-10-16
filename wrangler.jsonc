@@ -188,7 +188,31 @@
   // live `wrangler queues list`, which also showed the events queue did not
   // exist on the account at all.
   "queues": {
+    // THE MONTHLY AUDIT QUEUE (job_97878f0d1fde). The monthly-audit cron sends
+    // one message per opted-in account through AUDIT_QUEUE and this Worker's own
+    // queue() handler audits one account per invocation, so a large account
+    // spends its Stripe pages in its own subrequest budget and cannot starve the
+    // accounts after it. max_batch_size 1 is what makes it one account per
+    // invocation; max_retries mirrors AUDIT_QUEUE_MAX_RETRIES; max_concurrency
+    // keeps the Stripe and model calls from fanning out across every account at
+    // once; retry_delay spreads the four deliveries over minutes, so a short
+    // Stripe or model outage cannot use every attempt. No dead-letter queue: the audit_digest_runs row keeps the error and
+    // the last attempt raises the monthly-audit failure alert.
+    "producers": [
+      {
+        "queue": "foxhound-audit",
+        "binding": "AUDIT_QUEUE"
+      }
+    ],
     "consumers": [
+      {
+        "queue": "foxhound-audit",
+        "max_batch_size": 1,
+        "max_batch_timeout": 5,
+        "max_retries": 3,
+        "retry_delay": 60,
+        "max_concurrency": 5
+      },
       {
         "queue": "foxhound-email",
         "max_batch_size": 10,
@@ -262,10 +286,19 @@
         // configured, invoked, and keyed, yet .limit() returned
         // {success:true} unconditionally live in production past every
         // configured limit - an open-beta API with no observability from our
-        // side). Addressed by idFromName(`${bucket}:${key}`), bucket in
-        // {"auth","public"}, key = client IP (app/lib/http/rate-limit.ts).
+        // side). Addressed by idFromName(`${bucket}:${key}`): the "public"
+        // bucket keyed on client IP and the per-caller checks of
+        // app/lib/http/rate-limit.ts. Sign-in and signup moved to
+        // AUTH_RATE_LIMITER below (J52).
         "name": "RATE_LIMITER",
         "class_name": "RateLimiterDurableObject"
+      },
+      {
+        // The sign-in and signup limiter: site-runtime's RateLimiter class
+        // (Q5, RULES.md 4.10), exported from workers/app.ts. One instance per
+        // "auth:<ip>" or "signup:<ip>" (app/lib/auth/rate-limit.server.ts).
+        "name": "AUTH_RATE_LIMITER",
+        "class_name": "RateLimiter"
       }
     ]
   },
@@ -284,7 +317,8 @@
   "exports": {
     "MoneyWriteDurableObject": { "type": "durable-object", "storage": "sqlite" },
     "CronLockDurableObject": { "type": "durable-object", "storage": "sqlite" },
-    "RateLimiterDurableObject": { "type": "durable-object", "storage": "sqlite" }
+    "RateLimiterDurableObject": { "type": "durable-object", "storage": "sqlite" },
+    "RateLimiter": { "type": "durable-object", "storage": "sqlite" }
   },
 
   // All scheduled jobs are Cron Triggers (ARCHITECTURE.md; no HTTP cron surface,

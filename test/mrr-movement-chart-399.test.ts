@@ -1,6 +1,6 @@
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { MemoryRouter } from "react-router";
+import { createRoutesStub } from "react-router";
 import { describe, expect, it } from "vitest";
 
 import IntelligenceOverviewPage from "~/routes/app/intelligence/index";
@@ -41,14 +41,12 @@ import type {
 // Asserted below so the reading is on the record and a later reader who
 // disagrees changes one class name and one test line together.
 
-const Page = IntelligenceOverviewPage as unknown as (props: {
-  loaderData: {
-    entitled: true;
-    overview: IntelligenceOverview;
-    healthDistribution: HealthDistributionDay[];
-    mrrSeries: MrrSnapshotPoint[];
-  };
-}) => ReactElement;
+// J67 (Q1, Dustin "yes", 2026-10-14) moved this chart from the hand-built SVG
+// to Enarratio, so the assertions below read Enarratio's figure: its legend,
+// its labelled rule, its data table. What each one guards is unchanged. The
+// J67 suite (test/intelligence-dashboard-j67.test.ts) pins the page around it.
+
+const Page = IntelligenceOverviewPage as unknown as (props: { loaderData: unknown }) => ReactElement;
 
 const overview: IntelligenceOverview = {
   currency: "usd",
@@ -65,6 +63,10 @@ function point(month: number, cents: Partial<MrrSnapshotPoint> = {}): MrrSnapsho
   return {
     at: new Date(Date.UTC(2026, month, 1)),
     nrrPct: null,
+    totalMrrCents: 100_000,
+    activeCustomersCount: 10,
+    perPlanBreakdown: {},
+    currency: "usd",
     newMrrCents: 0,
     expansionMrrCents: 0,
     reactivationMrrCents: 0,
@@ -86,15 +88,20 @@ const series = [
 ];
 
 function render(mrrSeries: MrrSnapshotPoint[]): string {
-  return renderToStaticMarkup(
-    createElement(
-      MemoryRouter,
-      null,
-      createElement(Page, {
-        loaderData: { entitled: true, overview, healthDistribution: [], mrrSeries },
-      }),
-    ),
-  );
+  const loaderData = {
+    entitled: true,
+    overview,
+    healthDistribution: [] as HealthDistributionDay[],
+    mrrSeries,
+    reports: [],
+    currentMonth: "2026-10",
+    nowMs: Date.UTC(2026, 9, 15),
+    isDemo: false,
+  };
+  const Stub = createRoutesStub([
+    { path: "/intelligence/dashboard", Component: () => createElement(Page, { loaderData }) },
+  ]);
+  return renderToStaticMarkup(createElement(Stub, { initialEntries: ["/intelligence/dashboard"] }));
 }
 
 function card(html: string): string {
@@ -112,34 +119,30 @@ describe("S16 MRR movement chart, built toward legacy (399)", () => {
 
   it("carries legacy's five series in legacy's order", () => {
     const c = card(render(series));
-    const order = ["New", "Expansion", "Reactivation", "Contraction", "Churn"].map((n) =>
-      c.indexOf(">" + n + "<"),
-    );
-    for (const i of order) expect(i).toBeGreaterThan(-1);
-    expect(order).toEqual([...order].sort((a, b) => a - b));
+    const legend = [...c.matchAll(/<li data-enarratio-series="([^"]+)"/g)].map((m) => m[1]);
+    expect(legend).toEqual(["New", "Expansion", "Reactivation", "Contraction", "Churn"]);
   });
 
   it("gives each series legacy's colour, purple on Reactivation only", () => {
     const c = card(render(series));
-    // Each legend entry is a swatch carrying the series colour class, followed
-    // by the series name. Pairing the two is what makes this an assertion about
-    // WHICH series is purple rather than about purple being present somewhere.
+    // Each legend entry names its palette slot, and the figure maps each slot
+    // to a colour. Pairing the two is what makes this an assertion about WHICH
+    // series is purple rather than about purple being present somewhere.
     const pairs: [string, string][] = [
-      ["New", "text-green"],
-      ["Expansion", "text-blue"],
-      ["Reactivation", "text-purple"],
-      ["Contraction", "text-orange"],
-      ["Churn", "text-red"],
+      ["New", "var(--green)"],
+      ["Expansion", "var(--blue)"],
+      ["Reactivation", "var(--purple)"],
+      ["Contraction", "var(--orange)"],
+      ["Churn", "var(--red)"],
     ];
-    for (const [name, cls] of pairs) {
-      const at = c.indexOf(">" + name + "<");
-      expect(at).toBeGreaterThan(-1);
-      expect(c.slice(Math.max(0, at - 200), at)).toContain('class="' + cls + '"');
+    for (const [name, colour] of pairs) {
+      const slot = new RegExp(`data-enarratio-series="${name}" data-slot="([0-9])"`).exec(c)?.[1];
+      expect(slot).toBeDefined();
+      expect(c).toContain(`--enarratio-series-${slot}: ${colour}`);
     }
     // The reservation is what makes purple mean something, so no other series
-    // may borrow it. One swatch plus one bar run for Reactivation, which is
-    // present in exactly one bucket of this fixture.
-    expect((c.match(/text-purple/g) ?? []).length).toBe(2);
+    // may borrow it.
+    expect((c.match(/var\(--purple\)/g) ?? []).length).toBe(1);
   });
 
   it("hangs contraction and churn below the baseline", () => {
@@ -148,15 +151,20 @@ describe("S16 MRR movement chart, built toward legacy (399)", () => {
     // puts there. StackedBars only draws it when the data actually goes
     // negative, which is the discriminating condition.
     const c = card(render(series));
-    expect(c).toContain("stroke-border");
+    // The value axis reaches below zero, and the table carries the negatives.
+    expect(c).toMatch(/>−\d/);
+    expect(c).toContain("<td>-$500</td>");
   });
 
-  it("formats the y ticks as whole dollars", () => {
+  it("works in whole dollars, named on the axis", () => {
+    // Legacy's ticks read "$500" on both sides of the baseline (it takes the
+    // absolute value). Enarratio 0.3.1 has no tick formatter, so the unit is
+    // the axis label and a tick below the baseline reads with its minus: an
+    // Enarratio gap named in the J67 pull request. The data table keeps
+    // legacy's whole-dollar values.
     const c = card(render(series));
-    expect(c).toMatch(/\$\d/);
-    // Legacy takes the absolute value, so the axis never renders a minus below
-    // the baseline.
-    expect(c).not.toContain("$-");
+    expect(c).toContain(">USD<");
+    expect(c).toContain("<td>$1,200</td>");
   });
 
   it("is withheld when every bucket is flat", () => {

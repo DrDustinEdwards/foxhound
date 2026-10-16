@@ -1,11 +1,13 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
+import { AUDIT_FAQS, AUDIT_HERO, AUDIT_STEPS } from "~/lib/marketing/audit-copy";
 import { fileURLToPath } from "node:url";
 
 import type Database from "better-sqlite3";
 import type Stripe from "stripe";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resolveRateLimitBinding } from "~/lib/http/rate-limit";
+import { encryptToken } from "~/lib/stripe/encryption";
 import {
   ADD_ACCOUNT_ACTION,
   AUDIT_ACTION,
@@ -99,6 +101,8 @@ const ORIGIN = "https://foxhoundapp.test";
 const ENV = {
   STRIPE_CLIENT_ID: "ca_test_client",
   BETTER_AUTH_URL: ORIGIN,
+  // The key the audit grant cookie is sealed under. Fake, test-only.
+  ENCRYPTION_KEY: "0123456789abcdef".repeat(4),
   // Deliberately no ANTHROPIC_API_KEY: the summary takes its fallback arm, which
   // makes every run in this file deterministic and proves the audit still
   // completes with the key core.md lists as a launch blocker still unfunded.
@@ -203,6 +207,48 @@ const setCookies = (response: Response): string[] =>
 const runsInDb = () =>
   sqlite.prepare("SELECT * FROM audit_runs").all() as Record<string, unknown>[];
 
+/** Where a loader that must refuse sent the visitor. Fails if it did not throw
+ *  a redirect, so a resolved page cannot pass as a refusal. */
+async function refusedTo(pending: Promise<unknown>): Promise<string | null> {
+  try {
+    await pending;
+  } catch (thrown) {
+    if (thrown instanceof Response) return thrown.headers.get("Location");
+    throw thrown;
+  }
+  return "resolved: no refusal";
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+/** The token cookie's value exactly as the REAL callback sets it after Stripe
+ *  answered with `stripeUserId`, so every results test holds a grant the
+ *  product actually minted rather than a hand-typed one. */
+async function mintGrant(stripeUserId: string = STRIPE_A): Promise<string> {
+  const previous = exchangeSpy.impl;
+  exchangeSpy.impl = async () => ({
+    stripeUserId,
+    accessToken: `sk_live_audit_token_${stripeUserId}`,
+    publishableKey: null,
+    scope: STRIPE_AUDIT_SCOPE,
+  });
+  const state = buildConnectState(AUDIT_ACTION);
+  const url = new URL(`${ORIGIN}/audit/callback`);
+  url.searchParams.set("code", "ac_mint");
+  url.searchParams.set("state", state);
+  const response = (await callbackRoute.loader({
+    request: new Request(url, { headers: { Cookie: cookieHeader({ [AUDIT_OAUTH_STATE_COOKIE]: state }) } }),
+    context: routeContext(),
+    params: {},
+  } as never)) as Response;
+  exchangeSpy.impl = previous;
+  const cookie = setCookies(response).find((c) => c.startsWith(`${AUDIT_TOKEN_COOKIE}=`));
+  if (!cookie) throw new Error(`the callback set no token cookie (${response.headers.get("Location")})`);
+  return cookie.split(";")[0].slice(AUDIT_TOKEN_COOKIE.length + 1);
+}
+
 // ---------------------------------------------------------------------------
 
 describe("PLANT 1: THE SCOPE PARAMETER, which is the whole of 362 ruling 1", () => {
@@ -226,7 +272,6 @@ describe("PLANT 1: THE SCOPE PARAMETER, which is the whole of 362 ruling 1", () 
     expect(STRIPE_AUDIT_SCOPE).toBe("read_only");
     const carriers = [
       "app/routes/audit.tsx",
-      "app/routes/products/audit.tsx",
       "app/lib/marketing/docs-content.ts",
     ];
     for (const path of carriers) {
@@ -234,6 +279,12 @@ describe("PLANT 1: THE SCOPE PARAMETER, which is the whole of 362 ruling 1", () 
         "The audit only reads",
       );
     }
+    // The /product/audit spoke carries Recova's own words for the same fact
+    // (J55), built from the constant, so a scope flipped to read_write would
+    // print "Read-write" and fail here.
+    expect(AUDIT_STEPS[0].body).toContain("Read-only OAuth connection.");
+    expect(AUDIT_FAQS[1].a.startsWith("Read-only OAuth scope.")).toBe(true);
+    expect(AUDIT_HERO.pricing).toContain("Read-only Stripe access");
     // And the consent screen's own three "can never" lines, which legacy printed
     // beside a read_write request. Under read-only all three are true.
     const consent = read("app/routes/audit/connect.tsx");
@@ -411,6 +462,36 @@ describe("PLANT 3: the callback, and what it refuses", () => {
     expect(setCookies(response).some((c) => c.startsWith(AUDIT_TOKEN_COOKIE))).toBe(false);
   });
 
+  it("A MISSING ENCRYPTION_KEY fails closed with one fixed log line and no secret", async () => {
+    const logged: unknown[][] = [];
+    vi.spyOn(console, "error").mockImplementation((...args: unknown[]) => {
+      logged.push(args);
+    });
+    // A limiter that answers, so its own fail-open line is not in the log.
+    const env = {
+      ...ENV,
+      ENCRYPTION_KEY: undefined,
+      RATE_LIMITER: {
+        idFromName: () => "id",
+        get: () => ({ check: async () => ({ allowed: true, retryAfterSec: 0 }) }),
+      },
+    } as unknown as Env;
+    const state = buildConnectState(AUDIT_ACTION);
+    const url = new URL(`${ORIGIN}/audit/callback`);
+    url.searchParams.set("code", "ac_1");
+    url.searchParams.set("state", state);
+    const response = (await callbackRoute.loader({
+      request: new Request(url, { headers: { Cookie: cookieHeader({ [AUDIT_OAUTH_STATE_COOKIE]: state }) } }),
+      context: routeContext(env),
+      params: {},
+    } as never)) as Response;
+
+    expect(response.headers.get("Location")).toBe("/audit/connect?error=failed");
+    expect(setCookies(response).some((c) => c.startsWith(`${AUDIT_TOKEN_COOKIE}=`))).toBe(false);
+    // Exactly one line, a fixed string, carrying neither the token nor the id.
+    expect(logged).toEqual([["audit grant seal failed: check ENCRYPTION_KEY"]]);
+  });
+
   it("a cancelled authorization comes back as cancelled, not as a failure", async () => {
     const response = await call({ error: "access_denied" }, {});
     expect(response.headers.get("Location")).toBe("/audit/connect?error=cancelled");
@@ -426,9 +507,9 @@ describe("PLANT 4: the live results page, end to end", () => {
     });
   };
 
-  const load = (account: string | null = STRIPE_A, token: string | null = "tok") =>
+  const load = async (account: string | null = STRIPE_A, token: string | null | undefined = undefined) =>
     resultsRoute.loader({
-      request: resultsRequest(account, token),
+      request: resultsRequest(account, token === undefined ? await mintGrant(STRIPE_A) : token),
       context: routeContext(),
       params: {},
     } as never);
@@ -478,17 +559,17 @@ describe("PLANT 4: the live results page, end to end", () => {
       headers: expect.anything(),
     });
     // And the mirror case: a cookie with no account id.
-    await expect(load(null, "tok")).rejects.toMatchObject({ status: 302 });
+    await expect(load(null, await mintGrant(STRIPE_A))).rejects.toMatchObject({ status: 302 });
     expect(called).toBe(false);
     expect(runsInDb()).toHaveLength(0);
   });
 });
 
 describe("PLANT 5: what the anonymous path must never create", () => {
-  const load = (account = STRIPE_A) =>
+  const load = async (account = STRIPE_A) =>
     resultsRoute.loader({
       request: new Request(`${ORIGIN}/audit/results?account=${account}`, {
-        headers: { Cookie: cookieHeader({ [AUDIT_TOKEN_COOKIE]: "tok" }) },
+        headers: { Cookie: cookieHeader({ [AUDIT_TOKEN_COOKIE]: await mintGrant(account) }) },
       }),
       context: routeContext(),
       params: {},
@@ -516,7 +597,6 @@ describe("PLANT 5: what the anonymous path must never create", () => {
     const data = (await load()) as Awaited<ReturnType<typeof resultsRoute.loader>>;
     expect(data.signedIn).toBe(false);
     expect(data.notSaved).toBe("anonymous");
-    expect(data.runId).toBeNull();
     expect(counts()).toEqual(before);
   });
 
@@ -549,23 +629,40 @@ describe("PLANT 5: what the anonymous path must never create", () => {
     expect(results).not.toContain("recordOutcome");
   });
 
-  it("AND THE GRANT IS NEVER STORED, which is where legacy's token lives too", () => {
+  it("AND THE GRANT IS NEVER STORED, which is where legacy's token lives too", async () => {
     // Legacy's `audit_access_token` occurs exactly twice in its tree: the
-    // callback sets it, the results page reads it. Nothing encrypts it, nothing
-    // writes it, and legacy never deauthorizes it either (`deauthorize` appears
-    // nowhere in its repo). The cookie is the whole grant on both sides.
-    const callbackSource = code(read("app/routes/audit/callback.ts"));
-    expect(callbackSource).not.toContain("encryptToken");
-    expect(callbackSource).not.toContain("stripeConnections");
-    expect(callbackSource).not.toContain("getDb");
+    // callback sets it, the results page reads it. Nothing writes it to a table,
+    // and legacy never deauthorizes it either (`deauthorize` appears nowhere in
+    // its repo). The cookie is the whole grant on both sides; Foxhound seals the
+    // account id into it with the token (PLANT 6b), and stores nothing.
+    //
+    // Measured, not grepped: every text cell of every table is searched after a
+    // real callback and a real results load, for the token and for the sealed
+    // cookie value.
+    const tables = (
+      sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as { name: string }[]
+    ).map((t) => t.name);
+    const cellsContaining = (needle: string) =>
+      tables.flatMap((table) =>
+        (sqlite.prepare(`SELECT * FROM "${table}"`).all() as Record<string, unknown>[]).flatMap((row) =>
+          Object.values(row).filter((v) => typeof v === "string" && v.includes(needle)),
+        ),
+      );
+    // The search can find something: STRIPE_A is in the fixture's connection row.
+    expect(cellsContaining(STRIPE_A).length).toBeGreaterThan(0);
+
+    const grant = await mintGrant(STRIPE_A);
+    await load(STRIPE_A);
+    expect(cellsContaining(`sk_live_audit_token_${STRIPE_A}`)).toEqual([]);
+    expect(cellsContaining(grant)).toEqual([]);
   });
 });
 
 describe("PLANT 6: a SIGNED-IN merchant running the anonymous flow", () => {
-  const load = (account: string) =>
+  const load = async (account: string) =>
     resultsRoute.loader({
       request: new Request(`${ORIGIN}/audit/results?account=${account}`, {
-        headers: { Cookie: cookieHeader({ [AUDIT_TOKEN_COOKIE]: "tok" }) },
+        headers: { Cookie: cookieHeader({ [AUDIT_TOKEN_COOKIE]: await mintGrant(account) }) },
       }),
       context: routeContext(),
       params: {},
@@ -575,7 +672,6 @@ describe("PLANT 6: a SIGNED-IN merchant running the anonymous flow", () => {
     signIn(ACCOUNT_A);
     const data = (await load(STRIPE_A)) as Awaited<ReturnType<typeof resultsRoute.loader>>;
     expect(data.notSaved).toBeNull();
-    expect(data.runId).toBeTruthy();
 
     const rows = runsInDb();
     expect(rows).toHaveLength(1);
@@ -596,7 +692,6 @@ describe("PLANT 6: a SIGNED-IN merchant running the anonymous flow", () => {
       ReturnType<typeof resultsRoute.loader>
     >;
     expect(data.notSaved).toBe("not_your_account");
-    expect(data.runId).toBeNull();
     expect(runsInDb()).toHaveLength(0);
     // The numbers were still computed and are still shown.
     expect(data.run.failedInvoices?.totalCents).toBe(4200);
@@ -627,6 +722,115 @@ describe("PLANT 6: a SIGNED-IN merchant running the anonymous flow", () => {
   });
 });
 
+describe("PLANT 6b: the audited account is the one STRIPE named, never the query's", () => {
+  // The callback learns the Stripe account id from Stripe's own token response.
+  // The results page used to take it from `?account=`, which the visitor can
+  // edit, while the token in the cookie still read the account that granted it.
+  // A merchant signed in on ACCOUNT_A who authorized a STRANGER's Stripe account
+  // could change the id to STRIPE_A, and the stranger's numbers were filed into
+  // ACCOUNT_A's history under STRIPE_A (RULES.md 4.14).
+  const load = (account: string, grant: string) =>
+    resultsRoute.loader({
+      request: new Request(`${ORIGIN}/audit/results?account=${account}`, {
+        headers: { Cookie: cookieHeader({ [AUDIT_TOKEN_COOKIE]: grant }) },
+      }),
+      context: routeContext(),
+      params: {},
+    } as never);
+
+  it("A GRANT FOR ONE ACCOUNT WITH ANOTHER ACCOUNT'S ID IN THE URL runs nothing and saves nothing", async () => {
+    signIn(ACCOUNT_A);
+    const strangersGrant = await mintGrant(STRIPE_STRANGER);
+    let called = false;
+    harness.stripe = stripeWith({
+      invoices: {
+        list: () => {
+          called = true;
+          return fakeList([INVOICE]);
+        },
+      },
+    });
+
+    let outcome: unknown;
+    try {
+      outcome = await load(STRIPE_A, strangersGrant);
+    } catch (thrown) {
+      outcome = thrown;
+    }
+
+    // No row under either id, and no Stripe read under the stranger's token.
+    expect(runsInDb().map((r) => [r.account_id, r.stripe_account_id, r.failed_invoices_cents])).toEqual([]);
+    expect(called).toBe(false);
+    // Refused the way an expired link is, naming nobody.
+    expect(outcome).toBeInstanceOf(Response);
+    expect((outcome as Response).headers.get("Location")).toBe("/audit/connect?error=invalid_state");
+  });
+
+  it("the account id the run is filed under comes from the grant", async () => {
+    signIn(ACCOUNT_A);
+    const data = (await load(STRIPE_A, await mintGrant(STRIPE_A))) as Awaited<
+      ReturnType<typeof resultsRoute.loader>
+    >;
+    expect(data.notSaved).toBeNull();
+    expect(runsInDb().map((r) => r.stripe_account_id)).toEqual([STRIPE_A]);
+  });
+
+  it("A COOKIE THE CALLBACK DID NOT SEAL is no grant, so a bare token or an edited value is refused", async () => {
+    signIn(ACCOUNT_A);
+    const sealed = await mintGrant(STRIPE_A);
+    // A bare access token, which is what the cookie held before the grant was
+    // sealed, and a sealed value with one byte of its ciphertext changed.
+    const flipped = sealed.slice(0, -1) + (sealed.endsWith("0") ? "1" : "0");
+    for (const grant of ["sk_live_audit_token_acct_stripe_alpha", flipped]) {
+      expect(await refusedTo(load(STRIPE_A, grant)), grant.slice(0, 12)).toBe(
+        "/audit/connect?error=session_expired",
+      );
+    }
+    expect(runsInDb()).toHaveLength(0);
+  });
+
+  it("SEALED JSON THAT IS NOT AN AUDIT GRANT is refused, even under the same key", async () => {
+    // Another sealer under ENCRYPTION_KEY producing the same {t, a} shape must
+    // never be accepted here: the grant carries a checked purpose.
+    signIn(ACCOUNT_A);
+    const now = Date.now();
+    for (const payload of [
+      { t: "sk_live_other", a: STRIPE_A, iat: now },
+      { p: "something-else", t: "sk_live_other", a: STRIPE_A, iat: now },
+    ]) {
+      const forged = await encryptToken(ENV, JSON.stringify(payload));
+      expect(await refusedTo(load(STRIPE_A, forged)), JSON.stringify(payload)).toBe(
+        "/audit/connect?error=session_expired",
+      );
+    }
+    expect(runsInDb()).toHaveLength(0);
+  });
+
+  it("A GRANT OLDER THAN THE COOKIE'S FIVE MINUTES is refused by the server too", async () => {
+    // Max-Age is the browser's promise; a cookie copied out of the browser keeps
+    // no such promise, so the seal carries its own issue time.
+    signIn(ACCOUNT_A);
+    const grant = await mintGrant(STRIPE_A);
+    const issued = Date.now();
+
+    const at = vi.spyOn(Date, "now");
+    at.mockReturnValue(issued + AUDIT_TOKEN_TTL_SECONDS * 1000 + 1000);
+    expect(await refusedTo(load(STRIPE_A, grant))).toBe("/audit/connect?error=session_expired");
+    expect(runsInDb()).toHaveLength(0);
+
+    // Inside the window it is still a grant, so the refusal above is the clock.
+    at.mockReturnValue(issued + (AUDIT_TOKEN_TTL_SECONDS - 10) * 1000);
+    const data = (await load(STRIPE_A, grant)) as Awaited<ReturnType<typeof resultsRoute.loader>>;
+    expect(data.notSaved).toBeNull();
+  });
+
+  it("the token never travels in the cookie in the clear", async () => {
+    const sealed = decodeURIComponent(await mintGrant(STRIPE_A));
+    expect(sealed).not.toContain("sk_live_audit_token");
+    expect(sealed).not.toContain(STRIPE_A);
+  });
+});
+
 describe("PLANT 7: 311's rate limiter is USED, and UNCHANGED", () => {
   it("the limiter's own rule table is exactly what it was", () => {
     // 362 ruling 6 and this session's bounds: the limiter is used unchanged. The
@@ -634,7 +838,9 @@ describe("PLANT 7: 311's rate limiter is USED, and UNCHANGED", () => {
     // gaining a rule in the matcher, and this pins that the matcher did not move.
     const post = (path: string) =>
       resolveRateLimitBinding(new Request(`${ORIGIN}${path}`, { method: "POST" }));
-    expect(post("/api/auth/x")).toEqual({ bucket: "auth", limit: 10, periodMs: 60_000 });
+    // The auth bucket left this matcher for site-runtime's limiter inside the
+    // auth actions (J52); the public bucket is what remains, unchanged.
+    expect(post("/api/auth/x")).toBeNull();
     expect(post("/audit")).toEqual({ bucket: "public", limit: 20, periodMs: 60_000 });
     expect(post("/demos")).toEqual({ bucket: "public", limit: 20, periodMs: 60_000 });
     // The audit pair gains NO entry here, and GET is still unmatched everywhere.

@@ -1,7 +1,7 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, exists, gt, isNull, or } from "drizzle-orm";
 
 import type { Db } from "~/db";
-import { apiKeys } from "~/db";
+import { apiKeys, oauthGrants } from "~/db";
 import {
   MCP_TOKEN_SCOPE,
   issueMcpToken,
@@ -17,7 +17,9 @@ import {
 // platform by id. That was safe while nothing but a Phase 7 admin path called
 // it; the moment a merchant-facing form posts a key id, an unscoped revoke lets
 // one merchant kill another merchant's integration. `revokeAccountApiKey` pins
-// `account_id` in the WHERE, so a foreign id matches zero rows.
+// `account_id` in the WHERE, so a foreign id matches zero rows, as legacy's
+// DELETE handler refuses one (app/api/settings/api-keys/[id]/route.ts, blob
+// d0d306ba, 403 when the row's account_id is not the caller's).
 //
 // Plain account-state writes, not money writes.
 
@@ -29,14 +31,15 @@ export interface ApiKeyRow {
 }
 
 /**
- * The account's LIVE merchant keys, newest first.
+ * The account's LIVE merchant keys, newest first, as legacy's GET orders them
+ * (`order('created_at', { ascending: false })`, blob 81e694f5).
  *
  * Revoked keys are excluded, matching legacy, whose client drops a key from the
  * list the moment the revoke succeeds and never fetches it again. Admin-scoped
  * keys carry `account_id = null` by construction in `issueMcpToken`, so they
  * cannot appear in an account-scoped list on either side.
  */
-export async function listAccountApiKeys(db: Db, accountId: string): Promise<ApiKeyRow[]> {
+export async function listAccountApiKeys(db: Db, accountId: string, now: Date = new Date()): Promise<ApiKeyRow[]> {
   return db
     .select({
       id: apiKeys.id,
@@ -50,19 +53,39 @@ export async function listAccountApiKeys(db: Db, accountId: string): Promise<Api
         eq(apiKeys.accountId, accountId),
         eq(apiKeys.scope, MCP_TOKEN_SCOPE.MERCHANT),
         isNull(apiKeys.revokedAt),
+        // An OAuth connection's key expires every hour and is renewed by a
+        // refresh, so a lapsed hour alone does not end it. It is listed while
+        // its access hour or its grant is live, and not once both are gone. A
+        // Settings key has no expiry and is always listed.
+        or(
+          isNull(apiKeys.expiresAt),
+          gt(apiKeys.expiresAt, now),
+          exists(
+            db
+              .select({ id: oauthGrants.id })
+              .from(oauthGrants)
+              .where(
+                and(
+                  eq(oauthGrants.apiKeyId, apiKeys.id),
+                  isNull(oauthGrants.revokedAt),
+                  gt(oauthGrants.refreshExpiresAt, now),
+                ),
+              ),
+          ),
+        ),
       ),
     )
-    .orderBy(apiKeys.createdAt);
+    .orderBy(desc(apiKeys.createdAt));
 }
 
 /**
  * Issue one key for this account.
  *
- * The SCOPE is decided by the caller's admin flag, never by the form: legacy
- * renders its scope picker only for an admin, but its handler takes
- * `body.scope` from the request, so a non-admin who posts `scope: 'admin'`
- * gets a platform-wide key. That is the S8 class again, a client-side-only
- * guard, and it is not ported. `isAdmin` here comes from the session.
+ * The SCOPE is decided by the caller's admin flag, never by the form alone.
+ * Legacy's handler (app/api/settings/api-keys/route.ts, blob 81e694f5) checks
+ * isAdminEmail too, and answers a non-admin's `scope: 'admin'` with 403; here
+ * the same request gets a merchant key, which hands out nothing wider than the
+ * caller already holds. `isAdmin` comes from the session.
  */
 export async function createAccountApiKey(
   db: Db,

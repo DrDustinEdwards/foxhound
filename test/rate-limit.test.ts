@@ -4,6 +4,7 @@ import { checkRateLimitWindow, type RateLimitWindow } from "~/lib/http/rate-limi
 import {
   enforceRateLimit,
   isWithinRateLimit,
+  RateLimiterUnavailableError,
   rateLimitedResponse,
   resolveRateLimitBinding,
 } from "~/lib/http/rate-limit";
@@ -47,13 +48,17 @@ function makeEnv(namespace = makeFakeRateLimiterNamespace()) {
   return { RATE_LIMITER: namespace } as unknown as Env;
 }
 
-const AUTH_RULE = { bucket: "auth", limit: 10, periodMs: 60_000 };
 const PUBLIC_RULE = { bucket: "public", limit: 20, periodMs: 60_000 };
 
 function post(path: string) {
   return new Request(`http://localhost${path}`, { method: "POST" });
 }
 
+// J52: these paths left this matcher for site-runtime's limiter inside their
+// actions (app/lib/auth/rate-limit.server.ts, test/auth-rate-limit-j52.test.ts).
+// They are kept here as the list that must now resolve to no rule, so the two
+// limiters can never both count one request.
+//
 // Ruling 376 item (1): the matcher covered POST /api/auth/ only, while every
 // sign-in, sign-up and reset POST goes to its OWN route and calls Better Auth
 // in-process, so the Durable Object never saw one. Each row below is a path
@@ -69,8 +74,8 @@ const IN_PROCESS_AUTH_POSTS = [
 ] as const;
 
 describe("resolveRateLimitBinding", () => {
-  it.each(IN_PROCESS_AUTH_POSTS)("puts POST %s (%s) on the auth bucket (10/60s)", (path) => {
-    expect(resolveRateLimitBinding(post(path))).toEqual(AUTH_RULE);
+  it.each(IN_PROCESS_AUTH_POSTS)("leaves POST %s (%s) to its action's limiter", (path) => {
+    expect(resolveRateLimitBinding(post(path))).toBeNull();
   });
 
   it.each(IN_PROCESS_AUTH_POSTS)("does not rate-limit GET %s (%s renders a form)", (path) => {
@@ -79,15 +84,9 @@ describe("resolveRateLimitBinding", () => {
     ).toBeNull();
   });
 
-  it("matches POST /api/auth/* to the auth bucket (10/60s)", () => {
-    expect(resolveRateLimitBinding(post("/api/auth/sign-in/email"))).toEqual(AUTH_RULE);
-  });
-
-  it("matches POST /api/auth with no trailing slash, which the splat route also serves", () => {
-    // Measured against react-router 8.2.0: matchRoutes("/api/auth") resolves to
-    // the "api/auth/*" route with an empty splat, so the old
-    // startsWith("/api/auth/") test was a live bypass of the shipped rule.
-    expect(resolveRateLimitBinding(post("/api/auth"))).toEqual(AUTH_RULE);
+  it("leaves POST /api/auth/* and /api/auth to the splat route's action", () => {
+    expect(resolveRateLimitBinding(post("/api/auth/sign-in/email"))).toBeNull();
+    expect(resolveRateLimitBinding(post("/api/auth"))).toBeNull();
   });
 
   it("matches POST /demos to the public bucket (20/60s)", () => {
@@ -158,52 +157,39 @@ describe("resolveRateLimitBinding", () => {
   // raw pathname lets all of them through unthrottled.
   describe("normalizes the way the router does, so a bypass by spelling cannot work", () => {
     it("folds case, because compilePath's regexp is case-insensitive by default", () => {
-      expect(resolveRateLimitBinding(post("/LOGIN"))).toEqual(AUTH_RULE);
-      expect(resolveRateLimitBinding(post("/Signup"))).toEqual(AUTH_RULE);
-      expect(resolveRateLimitBinding(post("/AUTH/GOOGLE"))).toEqual(AUTH_RULE);
-      expect(resolveRateLimitBinding(post("/API/AUTH/sign-in/email"))).toEqual(AUTH_RULE);
       expect(resolveRateLimitBinding(post("/DEMOS"))).toEqual(PUBLIC_RULE);
+      expect(resolveRateLimitBinding(post("/Audit"))).toEqual(PUBLIC_RULE);
     });
 
     it("folds trailing slashes, because compilePath terminates the pattern with a slash-star", () => {
-      expect(resolveRateLimitBinding(post("/login/"))).toEqual(AUTH_RULE);
-      expect(resolveRateLimitBinding(post("/login///"))).toEqual(AUTH_RULE);
+      expect(resolveRateLimitBinding(post("/demos///"))).toEqual(PUBLIC_RULE);
       expect(resolveRateLimitBinding(post("/audit/"))).toEqual(PUBLIC_RULE);
     });
 
     it("decodes percent-escapes, because matchRoutes matches on decodePath output", () => {
-      expect(resolveRateLimitBinding(post("/%6Cogin"))).toEqual(AUTH_RULE);
-      expect(resolveRateLimitBinding(post("/forgot%2Dpassword"))).toEqual(AUTH_RULE);
+      expect(resolveRateLimitBinding(post("/%64emos"))).toEqual(PUBLIC_RULE);
+      expect(resolveRateLimitBinding(post("/au%64it"))).toEqual(PUBLIC_RULE);
     });
 
     it("keeps an encoded separator encoded, exactly as decodePath re-escapes it", () => {
-      // matchRoutes("/auth%2Fgoogle") is NO MATCH: decodePath turns the decoded
-      // "/" back into %2F so a segment cannot smuggle a separator. The limiter
-      // agrees, which is what keeps it from being STRICTER than the router.
-      expect(resolveRateLimitBinding(post("/auth%2Fgoogle"))).toBeNull();
+      // decodePath turns a decoded "/" back into %2F so a segment cannot
+      // smuggle a separator. The limiter agrees, which is what keeps it from
+      // being STRICTER than the router.
+      expect(resolveRateLimitBinding(post("/%2Fdemos"))).toBeNull();
     });
 
     it("survives a malformed percent-escape instead of throwing", () => {
       // decodePath catches and falls back to the raw value; so does routedPath.
       expect(resolveRateLimitBinding(post("/%E0%A4%A"))).toBeNull();
-      expect(resolveRateLimitBinding(post("/login%"))).toBeNull();
+      expect(resolveRateLimitBinding(post("/demos%"))).toBeNull();
     });
 
     // THE FIXTURE THE PRODUCTION PATH CANNOT PRODUCE (ruling 371 binding 5).
-    // Every other auth-bucket assertion here can be satisfied by a NEIGHBOURING
-    // guard: "/login" passes through the normalizer untouched, so it proves set
-    // membership and says nothing about whether normalization runs at all, and
-    // each single-arm case above can be satisfied by that one arm alone.
-    // Foxhound's own login form posts the literal "/login", so nothing in
-    // production emits the string below. The router routes it to login.tsx's
-    // action (measured), and it resolves to the auth bucket only if decoding,
-    // case folding and slash folding ALL run.
-    it("throttles a spelling only an attacker would send: /%4COGIN///", () => {
-      expect(resolveRateLimitBinding(post("/%4COGIN///"))).toEqual(AUTH_RULE);
-    });
-
-    it("and the same composite against the splat surface: /%41PI/Auth/Sign-In/", () => {
-      expect(resolveRateLimitBinding(post("/%41PI/Auth/Sign-In/"))).toEqual(AUTH_RULE);
+    // It resolves to the public bucket only if decoding, case folding and
+    // slash folding ALL run. The auth spellings this used to carry (/%4COGIN///)
+    // are the actions' to refuse now (J52), which no spelling can avoid.
+    it("throttles a spelling only an attacker would send: /%44EMOS///", () => {
+      expect(resolveRateLimitBinding(post("/%44EMOS///"))).toEqual(PUBLIC_RULE);
     });
   });
 });
@@ -226,15 +212,15 @@ describe("enforceRateLimit", () => {
     expect(await enforceRateLimit(request, env)).toBeNull();
   });
 
-  it("allows the first 10 auth requests for a key and denies the 11th with 429", async () => {
+  it("allows the first 20 public requests for a key and denies the 21st with 429", async () => {
     const env = makeEnv();
     const ip = { "cf-connecting-ip": "1.2.3.4" };
-    for (let i = 1; i <= 10; i++) {
-      const req = new Request("http://localhost/api/auth/sign-in/email", { method: "POST", headers: ip });
+    for (let i = 1; i <= 20; i++) {
+      const req = new Request("http://localhost/demos", { method: "POST", headers: ip });
       expect(await enforceRateLimit(req, env)).toBeNull();
     }
-    const eleventh = new Request("http://localhost/api/auth/sign-in/email", { method: "POST", headers: ip });
-    const result = await enforceRateLimit(eleventh, env);
+    const over = new Request("http://localhost/demos", { method: "POST", headers: ip });
+    const result = await enforceRateLimit(over, env);
     expect(result).not.toBeNull();
     expect(result?.status).toBe(429);
     expect(result?.headers.get("Retry-After")).toMatch(/^\d+$/);
@@ -243,39 +229,30 @@ describe("enforceRateLimit", () => {
   it("keys the DO id on bucket + cf-connecting-ip", async () => {
     const namespace = makeFakeRateLimiterNamespace();
     const env = makeEnv(namespace);
-    const request = new Request("http://localhost/api/auth/sign-in/email", {
+    const request = new Request("http://localhost/audit", {
       method: "POST",
       headers: { "cf-connecting-ip": "9.8.7.6" },
     });
     await enforceRateLimit(request, env);
-    expect(namespace.idFromName).toHaveBeenCalledWith("auth:9.8.7.6");
+    expect(namespace.idFromName).toHaveBeenCalledWith("public:9.8.7.6");
   });
 
   it("falls back to a stable key when cf-connecting-ip is absent", async () => {
     const namespace = makeFakeRateLimiterNamespace();
     const env = makeEnv(namespace);
-    const request = new Request("http://localhost/api/auth/sign-in/email", { method: "POST" });
+    const request = new Request("http://localhost/audit", { method: "POST" });
     await enforceRateLimit(request, env);
-    expect(namespace.idFromName).toHaveBeenCalledWith("auth:unknown");
+    expect(namespace.idFromName).toHaveBeenCalledWith("public:unknown");
   });
 
-  it("bucket isolation: exhausting the auth bucket leaves the public bucket untouched for the same IP", async () => {
+  it("never touches the counter for an auth POST, which its action counts", async () => {
     const namespace = makeFakeRateLimiterNamespace();
     const env = makeEnv(namespace);
-    const ip = { "cf-connecting-ip": "5.5.5.5" };
-
-    for (let i = 1; i <= 11; i++) {
-      const req = new Request("http://localhost/api/auth/sign-in/email", { method: "POST", headers: ip });
-      await enforceRateLimit(req, env);
+    for (const path of ["/login", "/signup", "/api/auth/sign-in/email"]) {
+      const req = new Request(`http://localhost${path}`, { method: "POST", headers: { "cf-connecting-ip": "5.5.5.5" } });
+      expect(await enforceRateLimit(req, env)).toBeNull();
     }
-    const authRetry = await enforceRateLimit(
-      new Request("http://localhost/api/auth/sign-in/email", { method: "POST", headers: ip }),
-      env,
-    );
-    expect(authRetry?.status).toBe(429); // auth bucket is exhausted for this IP
-
-    const demosReq = new Request("http://localhost/demos", { method: "POST", headers: ip });
-    expect(await enforceRateLimit(demosReq, env)).toBeNull(); // public bucket, same IP, untouched
+    expect(namespace.idFromName).not.toHaveBeenCalled();
   });
 
   it("fails open when the Durable Object call throws", async () => {
@@ -286,7 +263,7 @@ describe("enforceRateLimit", () => {
       })),
     };
     const env = makeEnv(namespace);
-    const request = new Request("http://localhost/api/auth/sign-in/email", {
+    const request = new Request("http://localhost/demos", {
       method: "POST",
       headers: { "cf-connecting-ip": "1.1.1.1" },
     });
@@ -322,5 +299,32 @@ describe("isWithinRateLimit", () => {
     };
     const env = makeEnv(namespace);
     await expect(isWithinRateLimit(env, "marketing_email_sample", "1.1.1.1", 10, 60_000)).resolves.toBe(true);
+  });
+
+  // J67 review: a caller whose request costs money (the Intelligence report
+  // button's paid model call) opts in to failing closed. The error is logged
+  // whole and thrown as RateLimiterUnavailableError, so the caller can refuse
+  // and say why instead of calling it a rate limit.
+  it("fails closed, logging the whole error, when the caller opts in", async () => {
+    const cause = new Error("DO unavailable");
+    const namespace = {
+      idFromName: vi.fn((name: string) => name),
+      get: vi.fn(() => ({ check: vi.fn().mockRejectedValue(cause) })),
+    };
+    const env = makeEnv(namespace);
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    await expect(
+      isWithinRateLimit(env, "intelligence-report", "acc_1", 5, 3_600_000, { failClosed: true }),
+    ).rejects.toBeInstanceOf(RateLimiterUnavailableError);
+    expect(log.mock.calls.some((call) => call.includes(cause))).toBe(true);
+    log.mockRestore();
+  });
+
+  it("is unchanged by the fail-closed option when the Durable Object answers", async () => {
+    const env = makeEnv();
+    for (let i = 0; i < 2; i++) {
+      expect(await isWithinRateLimit(env, "intelligence-report", "acc_1", 2, 60_000, { failClosed: true })).toBe(true);
+    }
+    expect(await isWithinRateLimit(env, "intelligence-report", "acc_1", 2, 60_000, { failClosed: true })).toBe(false);
   });
 });

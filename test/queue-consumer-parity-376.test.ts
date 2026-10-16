@@ -43,7 +43,16 @@ function parseJsonc(raw: string): unknown {
 }
 
 const WRANGLER = parseJsonc(read("wrangler.jsonc")) as {
-  queues?: { consumers?: { queue: string; max_retries?: number; dead_letter_queue?: string }[] };
+  queues?: {
+    consumers?: {
+      queue: string;
+      max_retries?: number;
+      max_batch_size?: number;
+      retry_delay?: number;
+      dead_letter_queue?: string;
+    }[];
+    producers?: { queue: string; binding: string }[];
+  };
 };
 
 const WRANGLER_CONSUMERS = WRANGLER.queues?.consumers ?? [];
@@ -130,6 +139,35 @@ describe("every queue the worker routes on has a consumer, and the reverse", () 
     // two could drift silently in either direction.
     const email = WRANGLER_CONSUMERS.find((c) => c.queue === constants.EMAIL_QUEUE_NAME);
     expect(email?.max_retries).toBe(constants.EMAIL_QUEUE_MAX_RETRIES);
+  });
+});
+
+describe("the monthly audit queue (job_97878f0d1fde)", () => {
+  const audit = WRANGLER_CONSUMERS.find((c) => c.queue === constants.AUDIT_QUEUE_NAME);
+
+  it("is routed, consumed, and produced into through AUDIT_QUEUE", () => {
+    expect(ROUTED_QUEUE_NAMES).toContain(constants.AUDIT_QUEUE_NAME);
+    expect(audit).toBeDefined();
+    expect(WRANGLER.queues?.producers).toContainEqual({
+      queue: constants.AUDIT_QUEUE_NAME,
+      binding: "AUDIT_QUEUE",
+    });
+  });
+
+  it("delivers ONE message per invocation, which is the whole fix", () => {
+    // Each account must spend its Stripe pages in its own subrequest budget. A
+    // batch of ten would put ten accounts back under one limit.
+    expect(audit?.max_batch_size).toBe(1);
+  });
+
+  it("spreads its retries out, so a short outage cannot use every attempt", () => {
+    // Without a delay the four deliveries land within seconds of each other and
+    // a one-minute Stripe or model outage exhausts them all.
+    expect(audit?.retry_delay).toBeGreaterThanOrEqual(60);
+  });
+
+  it("max_retries matches AUDIT_QUEUE_MAX_RETRIES, which decides the last attempt's alert", () => {
+    expect(audit?.max_retries).toBe(constants.AUDIT_QUEUE_MAX_RETRIES);
   });
 });
 

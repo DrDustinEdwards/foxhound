@@ -49,6 +49,9 @@ const EXCLUDED_PREFIXES = [
   // Legacy's own sitemap lists /audit and none of these, which is the same
   // call: a consent screen, an OAuth return and a cookie-gated render are
   // steps inside a flow, not pages a crawler should land on.
+  "/audit/dashboard",
+  // J43: the old history path, now one 301 to /audit/dashboard. A redirect is
+  // not a page.
   "/audit/history",
   "/audit/runs/",
   "/audit/connect",
@@ -106,6 +109,7 @@ const EXCLUDED_PREFIXES = [
   "/llms-full.txt",
   "/feed.rss",
   "/og/",
+  "/og",
   // Recova's next.config.ts redirects (J23): /user-guides and
   // /sitemap_index.xml answer a 308 and are not pages. Recova's own sitemap
   // lists neither. (/recovery/audit is already covered by "/recovery".)
@@ -113,6 +117,9 @@ const EXCLUDED_PREFIXES = [
   "/sitemap_index.xml",
   // JSON health for monitors (job_f7f35d4b7ac7), not a page.
   "/health",
+  // The OAuth consent page (J79): a step inside an agent's connect flow,
+  // disallowed in robots.txt as Recova's is. Recova's sitemap leaves it out.
+  "/oauth/",
   // RFC 9116's well-known file (377 item 11). Not HTML, and not a page a reader
   // navigates to: a client looks for it at a fixed path by the spec, so listing
   // it in the sitemap would advertise a file that is found by convention.

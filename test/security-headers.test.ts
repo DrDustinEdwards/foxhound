@@ -7,7 +7,12 @@ import { runOshpSuite } from "@dustinedwards/site-runtime/oshp";
 import { parse as parseYaml } from "yaml";
 import { describe, expect, it } from "vitest";
 
-import { BLOG_COVER_FALLBACK_CSS, FEATURE_FILTER_CSS, INLINE_STYLE_HASHES } from "~/lib/http/inline-styles";
+import {
+  BLOG_COVER_FALLBACK_CSS,
+  DIAGRAM_STYLE_HASHES,
+  FEATURE_FILTER_CSS,
+  INLINE_STYLE_HASHES,
+} from "~/lib/http/inline-styles";
 import {
   applySecurityHeaders,
   CSP_REPORT_GROUP,
@@ -281,7 +286,11 @@ describe("applySecurityHeaders", () => {
 describe("inline <style> elements are trusted by hash, never by 'unsafe-inline'", () => {
   it("each hash is the SHA-256 of the exact CSS the page renders", async () => {
     const computed = await Promise.all([FEATURE_FILTER_CSS, BLOG_COVER_FALLBACK_CSS].map((css) => scriptHash(css)));
-    expect([...INLINE_STYLE_HASHES].sort()).toEqual(computed.sort());
+    // The diagram hashes are recomputed from public/diagrams/ by
+    // test/blog-diagrams-j25.test.ts; here they are only set apart.
+    const own = INLINE_STYLE_HASHES.filter((h) => !DIAGRAM_STYLE_HASHES.includes(h));
+    expect(own.length + DIAGRAM_STYLE_HASHES.length).toBe(INLINE_STYLE_HASHES.length);
+    expect([...own].sort()).toEqual(computed.sort());
   });
 
   it("every <style> element in app/ renders one of the hashed constants", async () => {

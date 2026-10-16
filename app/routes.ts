@@ -39,11 +39,18 @@ export default [
     // /audit/connect is the consent screen, /audit/callback is the OAuth
     // return, and /audit/results renders a run held together by a five-minute
     // cookie. Legacy mounts all three under its own marketing chrome for the
-    // same reason. The two AUTHENTICATED audit surfaces (/audit/history and
-    // /audit/runs/:id) stay under the app shell where they were built.
+    // same reason. The two AUTHENTICATED audit surfaces (/audit/dashboard and
+    // /audit/results/:id) stay under the app shell where they were built.
     route("audit/connect", "./routes/audit/connect.tsx"),
     route("audit/callback", "./routes/audit/callback.ts"),
     route("audit/results", "./routes/audit/results.tsx"),
+    // J43: the signed-in history moved to Recova's /audit/dashboard (below, in
+    // the app shell). The old path answers one 301 to it.
+    route("audit/history", "./routes/audit/history-redirect.ts"),
+    // J63: a saved run moved to Recova's /audit/results/:id (below, in the app
+    // shell). The old path, linked from monthly emails already sent, answers
+    // one 301 to it.
+    route("audit/runs/:id", "./routes/audit/runs-redirect.ts"),
     route("marketing/generate-email-sample", "./routes/marketing/generate-email-sample.ts"),
     ...prefix("blog", [
       index("./routes/blog/index.tsx"),
@@ -68,11 +75,8 @@ export default [
     route("terms", "./routes/terms.tsx"),
     route("security", "./routes/security.tsx"),
 
-    // Auth (marketing shell per DESIGN.md: "no visual seam at login")
-    route("login", "./routes/auth/login.tsx"),
-    route("signup", "./routes/auth/signup.tsx"),
-    route("forgot-password", "./routes/auth/forgot-password.tsx"),
-    route("reset-password", "./routes/auth/reset-password.tsx"),
+    // Stripe connect and invites stay under the site header: Recova mounts
+    // them outside its (auth) group (ruling 403 binding 4).
     route("connect", "./routes/auth/connect.tsx"),
     route("connect/callback", "./routes/auth/connect-callback.ts"),
     // The switcher's "+ Add account" (ruling 326 phase (e), first half of (d)).
@@ -84,6 +88,15 @@ export default [
     // Google OAuth start (POST): builds the provider URL + CSRF state cookie.
     // The callback is the resource route auth/google/callback below.
     route("auth/google", "./routes/auth/google-start.ts"),
+  ]),
+
+  // The four sign-in pages: Recova's bare auth layout, no site navigation and
+  // the footer's auth variant (row A1, ruling 403; J52).
+  layout("./layouts/auth.tsx", [
+    route("login", "./routes/auth/login.tsx"),
+    route("signup", "./routes/auth/signup.tsx"),
+    route("forgot-password", "./routes/auth/forgot-password.tsx"),
+    route("reset-password", "./routes/auth/reset-password.tsx"),
   ]),
 
   // Recova's paths (J09, rulings 55 and 56): the console is /console and each
@@ -129,6 +142,8 @@ export default [
         route("email", "./routes/app/settings/email.tsx"),
         route("brand-voice", "./routes/app/settings/brand-voice.tsx"),
         route("features", "./routes/app/settings/features.tsx"),
+        route("disputes", "./routes/app/settings/disputes.tsx"),
+        route("intelligence", "./routes/app/settings/intelligence.tsx"),
         route("audit", "./routes/app/settings/audit.tsx"),
         route("notifications", "./routes/app/settings/notifications.tsx"),
         route("alerts", "./routes/app/settings/alerts.tsx"),
@@ -141,10 +156,13 @@ export default [
     // /audit/dashboard and /audit/results/[id] inside its own marketing-chrome
     // layout; Foxhound's /audit is the anonymous estimator under the marketing
     // shell, so these two live under the APP shell where a signed-in merchant's
-    // own data belongs, and take names that cannot collide with it.
+    // own data belongs. J43 (row U2) put the history back on Recova's own path,
+    // /audit/dashboard, and J63 (row U4) the stored run on Recova's
+    // /audit/results/:id. That sits beside the live /audit/results above
+    // without colliding: the router ranks the id segment apart.
     ...prefix("audit", [
-      route("history", "./routes/app/audit/history.tsx"),
-      route("runs/:id", "./routes/app/audit/run.tsx"),
+      route("dashboard", "./routes/app/audit/dashboard.tsx"),
+      route("results/:id", "./routes/app/audit/run.tsx"),
     ]),
     route("help", "./routes/app/help.tsx"),
     route("welcome", "./routes/app/welcome.tsx"),
@@ -159,6 +177,10 @@ export default [
       index("./routes/admin/index.tsx"),
       ...prefix("merchants", [
         index("./routes/admin/merchants/index.tsx"),
+        // Recova's Paused and Billing exempt lists, at Recova's addresses:
+        // filters of the Merchants page, which these modules re-export (J50).
+        route("paused", "./routes/admin/merchants/paused.tsx"),
+        route("billing-exempt", "./routes/admin/merchants/billing-exempt.tsx"),
         route(":id", "./routes/admin/merchants/detail.tsx"),
       ]),
       route("users", "./routes/admin/users.tsx"),
@@ -184,6 +206,11 @@ export default [
       route("mcps", "./routes/admin/mcps.tsx"),
     ]),
   ]),
+
+  // The OAuth consent page (J79, row A9; ruling 8). No layout: Recova's
+  // app/oauth/authorize/page.tsx sits under its bare root layout, one card on
+  // the page with no site navigation.
+  route("oauth/authorize", "./routes/oauth/authorize.tsx"),
 
   // Demo exit (clears the demo cookie; unauthenticated, no shell)
   route("demo/exit", "./routes/demo/exit.ts"),
@@ -211,10 +238,22 @@ export default [
   route("llms-full.txt", "./routes/files/llms-full.ts"),
   route("feed.rss", "./routes/files/feed.ts"),
   route(".well-known/security.txt", "./routes/files/security-txt.ts"),
+  // OAuth discovery (J79, rows F18 and F19). Recova's next.config.ts rewrote
+  // both paths to one handler because Claude.ai probes both; one module here,
+  // so each path needs its own id.
+  route(".well-known/oauth-authorization-server", "./routes/files/oauth-metadata.ts", { id: "oauth-metadata" }),
+  route(".well-known/openid-configuration", "./routes/files/oauth-metadata.ts", { id: "oauth-metadata-openid" }),
+  // RFC 9728 metadata for /mcp, which every /mcp 401 points at (J79), at the
+  // bare path and at the /mcp suffix a client may try first.
+  route(".well-known/oauth-protected-resource", "./routes/files/oauth-protected-resource.ts", { id: "oauth-protected-resource" }),
+  route(".well-known/oauth-protected-resource/mcp", "./routes/files/oauth-protected-resource.ts", { id: "oauth-protected-resource-mcp" }),
   // The IndexNow key file (job_b0b24df12155): /<key>.txt at the root, named
   // after Foxhound's own key so the path and the body cannot drift apart.
   route(INDEXNOW_KEY_PATH.slice(1), "./routes/files/indexnow-key.ts"),
   route("og/:params", "./routes/files/og.ts"),
+  // Recova's card URL, /og?type=blog&title=...&description=... (ruling 41,
+  // row F6). Same module as the path form, so it needs its own id.
+  route("og", "./routes/files/og.ts", { id: "og-recova" }),
 
   // Recova's config-level redirects (J23, ledger row F17), at Recova's own
   // paths. One resource module answers all of them from Recova's table in
@@ -241,6 +280,12 @@ export default [
   // legacy's own path, which components/SiteNav.tsx passes to the switcher as
   // switchAccountUrl. The switcher itself is phase (e).
   route("api/account/switch", "./routes/api/account-switch.ts"),
+
+  // The OAuth provider's three endpoints (J79), at Recova's paths. Action-only
+  // resource routes; the work is in app/lib/oauth/provider.server.ts.
+  route("api/oauth/token", "./routes/api/oauth-token.ts"),
+  route("api/oauth/register", "./routes/api/oauth-register.ts"),
+  route("api/oauth/revoke", "./routes/api/oauth-revoke.ts"),
 
   // Content-Security-Policy report sink (J22, F16): the policy's report-uri and
   // report-to name it. Action-only resource route at Recova's own path.

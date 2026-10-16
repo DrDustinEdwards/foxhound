@@ -13,7 +13,7 @@ import { SETTINGS_HUB_ENTRIES } from "~/routes/app/settings/hub";
 // under 336 binding 2.
 //
 // THE ASSERTION THAT MATTERS IS "NO DEAD LINK". Legacy has twelve entries and
-// Foxhound has ten targets; an entry to a route that 404s is a false promise,
+// Foxhound has eleven targets (J69 added /settings/intelligence); an entry to a route that 404s is a false promise,
 // so the hub and the sub-nav are both checked against the ROUTE TABLE rather
 // than against a list in this file.
 
@@ -51,32 +51,36 @@ describe("PLANT 1: the hub has no dead link", () => {
     }
   });
 
-  it("the two absent targets are omitted rather than rendered dead", () => {
-    // S32 and S35. When either ships it is one line in each list.
-    const all = [
-      ...SETTINGS_HUB_ENTRIES.map((e) => e.to),
-      ...SETTINGS_NAV_GROUPS.flatMap((g) => g.items.map((i) => i.to)),
-    ];
-    expect(all).not.toContain("/settings/disputes");
-    expect(all).not.toContain("/settings/intelligence");
+  it("S32 arrived with J06 as one line in each list, as S35 did (J69)", () => {
+    expect(SETTINGS_HUB_ENTRIES.map((e) => e.to)).toContain("/settings/disputes");
+    const products = SETTINGS_NAV_GROUPS.find((g) => g.label === "Products");
+    expect(products?.items.map((i) => i.to)).toEqual([
+      "/settings/disputes",
+      "/settings/intelligence",
+      "/settings/audit",
+    ]);
   });
 });
 
 describe("PLANT 2: the hub is legacy's list, in legacy's order", () => {
-  it("ten entries with legacy's labels and descriptions", () => {
+  it("twelve entries with legacy's labels and descriptions", () => {
     expect(
       SETTINGS_HUB_ENTRIES.map((e) => [e.to, e.label, e.description]),
     ).toEqual([
       ["/settings/stripe", "Stripe connections", "Connected accounts"],
-      ["/settings/email", "Email", "Sender name, reply-to, domain"],
+      ["/settings/email", "Email", "Sender name, reply-to"],
       ["/settings/brand-voice", "Brand voice", "Per-category AI tone"],
       ["/settings/features", "Features", "Win-back, expiring cards"],
+      // Recova's "Auto-submit, product description": auto-submit is not built
+      // (RULES.md 5.6), so the description names what the page holds.
+      ["/settings/disputes", "Disputes", "Product description, shipping"],
+      ["/settings/intelligence", "Intelligence", "Notification preferences, not built yet"],
       ["/settings/audit", "Audit", "Lookback period, auto-run"],
       ["/settings/notifications", "Notifications", "Email, Slack, digest"],
       ["/settings/alerts", "Alerts", "Metric thresholds"],
       ["/settings/team", "Team", "Members, invite, roles"],
       ["/settings/api-keys", "API keys", "MCP server credentials"],
-      ["/settings/account", "My account", "Profile, appearance, sign out"],
+      ["/settings/account", "My account", "Profile, sign out"],
     ]);
   });
 
@@ -132,7 +136,7 @@ describe("PLANT 4: every settings path the docs name resolves", () => {
     }
   });
 
-  it("THE GUIDE DESCRIBES THE HUB, and names what is NOT on it", async () => {
+  it("THE GUIDE DESCRIBES THE HUB, every entry and nothing else", async () => {
     const { DOC_GUIDES } = await import("~/lib/marketing/docs-content");
     const body = DOC_GUIDES.flatMap((g) => g.sections)
       .flatMap((s) => s.body)
@@ -140,24 +144,18 @@ describe("PLANT 4: every settings path the docs name resolves", () => {
 
     expect(body).toContain("Settings is a hub:");
 
-    // BOTH DIRECTIONS. The LIST clause is the part before the caveat, and it
-    // must name every rendered entry AND nothing else: a one-way check let a
-    // mutation add "Disputes" to the list and stay green.
-    const listClause = body.slice(
-      body.indexOf("Settings is a hub:"),
-      body.indexOf("Disputes and Intelligence settings are not built yet"),
-    );
-    for (const entry of SETTINGS_HUB_ENTRIES) {
-      expect(listClause, `${entry.label} is named in the guide`).toContain(entry.label);
-    }
-    expect(listClause, "the list names a page the hub does not render").not.toContain("Disputes");
-    expect(listClause, "the list names a page the hub does not render").not.toContain(
-      "Intelligence",
-    );
-
-    // And the two that are absent are named as absent rather than omitted in
-    // silence, which is what stops the sentence going stale when they ship.
-    expect(body).toContain("Disputes and Intelligence settings are not built yet");
+    // BOTH DIRECTIONS. The LIST clause runs to the end of its sentence, and it
+    // must name every rendered entry AND nothing else.
+    const start = body.indexOf("Settings is a hub:");
+    const listClause = body.slice(start, body.indexOf(", each on its own page", start));
+    const named = listClause
+      .replace("Settings is a hub:", "")
+      .split(/,\s*(?:and\s+)?/)
+      .map((n) => n.trim())
+      .filter(Boolean);
+    expect(named).toEqual(SETTINGS_HUB_ENTRIES.map((e) => e.label));
+    // The caveat went with the page it described.
+    expect(body).not.toContain("Disputes settings are not built yet");
   });
 
   it("the relocated destinations are named at their NEW home", async () => {
@@ -171,7 +169,7 @@ describe("PLANT 4: every settings path the docs name resolves", () => {
       "The industry, customer type and monthly revenue you enter under Settings and My account",
     );
     expect(body).toContain(
-      "Settings and Brand voice holds the main brand voice and, below it, a different tone for each failure category",
+      "Settings and Brand voice sets a different tone for each failure category",
     );
   });
 });
@@ -191,27 +189,32 @@ describe("PLANT 5: the split left no surface without a writer", () => {
   );
 
   it("the account page carries the profile, the context fields and the danger zone", () => {
-    // The first two go through SettingsCard, which renders the hidden
-    // `_action` input from its `action` prop; the danger zone writes its own.
-    expect(account).toContain('action="profile"');
-    expect(account).toContain('action="intelligence-context"');
+    // J32: Recova saves the name and the context fields as ONE form, so one
+    // intent carries both, written through applyIntelligenceContext.
+    expect(account).toContain('name="_action" value="profile"');
+    expect(account).toContain('name="merchantIndustry"');
+    expect(account).toContain("applyIntelligenceContext(");
     expect(account).toContain('value="cancel-account"');
     // And each intent is handled, not just rendered.
     expect(account).toContain('case "profile"');
-    expect(account).toContain('case "intelligence-context"');
     expect(account).toContain('case "cancel-account"');
   });
 
-  it("THE GENERAL BRAND VOICE KEPT ITS WRITER, which the split would otherwise have removed", () => {
-    // It lived on the index card. Legacy writes it from the brand-voice form,
-    // so that is where it went; without this the column would have had no
-    // writer at all after the split.
-    expect(brandVoice).toContain('name="brandVoice"');
-    // The writer moved BEHIND `applyBrandVoice` in session 80, so the name this
-    // pinned is no longer in the route. The property is unchanged and so is the
-    // reason for asserting it: the column still has a writer reached from this
-    // page. Both halves are named, because "the route calls applyBrandVoice" is
-    // only worth anything while applyBrandVoice is what writes the column.
+  it("THE GENERAL BRAND VOICE KEEPS A WRITER, though not on the brand-voice page", () => {
+    // CHANGED BY J36. Session 59 moved the general voice onto the brand-voice
+    // page on the reading that Recova writes it from that form. It does not:
+    // Recova's BrandVoiceSection (blob 9f4de70c) posts only the four category
+    // fields, and no Recova page posts brand_voice_preset. RULES.md 1.2 makes a
+    // control Recova never had an addition, so the page no longer carries it.
+    expect(brandVoice).not.toContain('name="brandVoice"');
+    // The column still has a writer: the merchant's agent tool, through the
+    // same `applyBrandVoice` the page saves through, which writes the column
+    // with `buildBrandVoiceUpdate`.
+    const tools = readFileSync(
+      fileURLToPath(new URL("../app/lib/mcp/tools.server.ts", import.meta.url)),
+      "utf8",
+    );
+    expect(tools).toMatch(/applyBrandVoice\([\s\S]*?general:/);
     expect(brandVoice).toContain("applyBrandVoice");
     expect(
       readFileSync(

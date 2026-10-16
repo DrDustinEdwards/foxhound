@@ -1,6 +1,7 @@
 import { getDb } from "~/db";
 import { getPublishedTagSet } from "~/lib/blog/queries.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { RECOVERY_SEQUENCE_DAYS } from "~/lib/marketing/decline-categories";
 import { siteUrl, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 
 import type { Route } from "./+types/llms";
@@ -43,12 +44,12 @@ export async function loader({ context }: Route.LoaderArgs) {
 
 > Foxhound is a failed-payment recovery, disputes, and subscription-intelligence platform for Stripe merchants. Outcome-based pricing: it earns only when it creates money the merchant can verify, above what Stripe's own tools would have recovered anyway.
 
-Foxhound is built on Stripe Connect for subscription businesses. It sits on top of Stripe and acts after a payment fails, a dispute opens, or a subscription's billing signals change. Foxhound asks Stripe for two different OAuth scopes, and which one it asks for depends on what it is doing. The free audit requests READ-ONLY access: it computes a diagnostic and can change nothing. Connecting a merchant account at /connect requests read and write, because retrying a failed invoice is a write. The write half is used for these things and no others: retrying payment on an invoice that has already failed, setting a customer default payment method after that customer updates their card, opening a Stripe checkout when a former customer chooses to resubscribe, and submitting dispute evidence after someone on the merchant team approves it. Foxhound never changes prices, products, or subscription plans, never charges a customer except by retrying a failed invoice or through a checkout the customer completes, and never reaches payouts or bank accounts.
+Foxhound is built on Stripe Connect for subscription businesses. It sits on top of Stripe and acts after a payment fails, a dispute opens, or a subscription's billing signals change. Foxhound asks Stripe for two different OAuth scopes, and which one it asks for depends on what it is doing. The free audit requests READ-ONLY access: it computes a diagnostic and can change nothing. Connecting a merchant account at /connect requests read and write, because retrying a failed invoice is a write. The write half is used for these things and no others: retrying payment on an invoice that has already failed, setting a customer default payment method after that customer updates their card, opening a Stripe checkout when a former customer chooses to resubscribe, submitting dispute evidence after someone on the merchant team approves it, and closing a dispute at Stripe when the merchant chooses to accept it. Foxhound never changes prices, products, or subscription plans, never charges a customer except by retrying a failed invoice or through a checkout the customer completes, and never reaches payouts or bank accounts.
 
 ## Products
 
 - [Audit](${url}/product/audit): Free Stripe diagnostic. Identifies failed invoices, expiring cards, open disputes, and business health metrics. No account required.
-- [Recovery](${url}/product/recovery): Silent retries first, then AI-drafted dunning email sequences across 30 days, calibrated by decline category. Recoveries Stripe's own tools would have gotten anyway are recorded and shown for free. Priced as a percentage of Foxhound-attributed recoveries only, and only once a recovery has matured 30 days. See ${url}/pricing for the current rate.
+- [Recovery](${url}/product/recovery): AI-drafted dunning email sequences and silent retries across ${RECOVERY_SEQUENCE_DAYS} days, calibrated by decline category. Recoveries Stripe's own tools would have gotten anyway are recorded and shown for free. Priced as a percentage of Foxhound-attributed recoveries only, and only once a recovery has matured 30 days. See ${url}/pricing for the current rate.
 - [Disputes](${url}/product/disputes): Evidence drafted automatically from Stripe data and recovery history. A human always reviews and signs before anything reaches Stripe; there is no auto-submit toggle. Priced as a percentage of won disputes only, capped per dispute, nothing on losses. See ${url}/pricing for the current rate and cap.
 - [Intelligence](${url}/product/intelligence): MRR, movement (new/expansion/contraction/churn), and cohort analytics are free for every Recovery merchant. The predictive risk-scoring layer is a flat monthly subscription. See ${url}/pricing for the current rate.
 
@@ -95,7 +96,7 @@ Customer names are never sent through the endpoint and email addresses are maske
 
 ## Technical
 
-- Built on Stripe Connect. The free audit requests a read-only OAuth scope; merchant onboarding requests read and write, and the writes are invoice retries, default payment method updates, win-back resubscribe checkouts, and approved dispute evidence
+- Built on Stripe Connect. The free audit requests a read-only OAuth scope; merchant onboarding requests read and write, and the writes are invoice retries, default payment method updates, win-back resubscribe checkouts, approved dispute evidence, and disputes the merchant chooses to accept
 - Hosted on Cloudflare Workers, database on Cloudflare D1
 - No card data stored; all payment processing goes through Stripe
 - Disconnect any time from the Stripe dashboard

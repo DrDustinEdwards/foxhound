@@ -442,7 +442,7 @@ describe("transactional mail carries both parts and never the footer", () => {
     await sendTransactionalEmail(env, { to: "owner@acme.test", ...message });
     const m = only();
     expectBothParts(m, ["What Foxhound did this month", "MRR:", "View full audit"]);
-    expect(m.html).toContain(`href="${BASE}/audit/runs/run_123"`);
+    expect(m.html).toContain(`href="${BASE}/audit/results/run_123"`);
     expectNoCustomerFooter(m);
   });
 });

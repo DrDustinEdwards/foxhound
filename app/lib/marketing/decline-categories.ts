@@ -97,3 +97,16 @@ export const DECLINE_CATEGORY_PHRASE = (() => {
   if (words.length <= 1) return words.join("");
   return `${words.slice(0, -1).join(", ")}, or ${words[words.length - 1]}`;
 })();
+
+/**
+ * The same categories joined with "and", for a sentence that lists what the
+ * engine classifies (Recova's home comparison row: "soft decline, insufficient
+ * funds, and expired card") rather than which one a payment falls in.
+ */
+export const DECLINE_CATEGORY_LIST_AND = (() => {
+  const words = (Object.keys(RECOVERY_SCHEDULES) as DeclineCategory[]).map(
+    (key) => MARKETING_CATEGORY_WORDS[key],
+  );
+  if (words.length <= 1) return words.join("");
+  return `${words.slice(0, -1).join(", ")}, and ${words[words.length - 1]}`;
+})();

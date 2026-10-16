@@ -121,3 +121,32 @@ describe("draftDisputeEvidence (no fabrication)", () => {
     expect(fields.some((f) => f.fieldName === "uncategorized_text")).toBe(false);
   });
 });
+
+// S32 (J06): /settings/disputes' product description has a reader. Recova's
+// buildEvidenceFields (lib/disputes-evidence.ts) set product_description from
+// the merchant's dispute_product_description on every response.
+describe("the merchant's product description (S32)", () => {
+  it("is the product_description field, over the plan name", async () => {
+    const facts = buildEvidenceFacts(
+      { planName: "Pro Monthly", subscriptionStart: null, detectedAt: new Date("2026-07-01T00:00:00.000Z") },
+      [],
+      "Monthly SaaS subscription for project management software",
+    );
+    const fields = await draftDisputeEvidence({} as Env, facts);
+    expect(fields.find((f) => f.fieldName === "product_description")?.fieldValue).toBe(
+      "Monthly SaaS subscription for project management software",
+    );
+  });
+
+  it("grounds a dispute that matches no recovery, as Recova used it on every response", async () => {
+    const facts = buildEvidenceFacts(null, [], "Handmade candles, shipped in the US");
+    expect(hasGroundingFacts(facts)).toBe(true);
+    expect(await draftDisputeEvidence({} as Env, facts)).toEqual([
+      { fieldName: "product_description", fieldValue: "Handmade candles, shipped in the US" },
+    ]);
+  });
+
+  it("absent, nothing changes: the plan name stands in", () => {
+    expect(buildEvidenceFacts(null, [])).toEqual(EMPTY_FACTS);
+  });
+});

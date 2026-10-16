@@ -1,14 +1,15 @@
-import { Form, Link } from "react-router";
+import { Link } from "react-router";
 
 import { Wordmark } from "./wordmark";
 
-// Shared building blocks for the auth screens (login, signup, forgot/reset
-// password). Two-panel redesign (task Part 3: brand/value left panel, form
-// right, "matches the old system's polish"), still inside the marketing
-// layout's shared header/footer (DESIGN.md: "no visual seam at login").
-// Styling uses DESIGN.md token utilities only; no inline styles, including
-// for the brand panel's gradient (the [background-image:var(...)]
-// arbitrary-property syntax reads the token without an inline style attribute).
+// Shared building blocks for /invite and the settings pages that still use
+// them: the two-panel AuthShell (brand and value points on the left, the form
+// on the right), Field, Submit, Alert and AuthLink. The four sign-in pages no
+// longer use these: since J52 they are Recova's one card from Capsomer's parts
+// (app/components/auth-card.tsx) in the bare auth layout. Styling uses
+// DESIGN.md token utilities only, with no inline styles; the brand panel's
+// gradient reads its token through the [background-image:var(...)] arbitrary
+// property.
 
 const VALUE_POINTS = [
   "Pay only on the payments Foxhound actually recovers.",
@@ -134,29 +135,6 @@ export function Alert({
     >
       {children}
     </p>
-  );
-}
-
-// "Continue with Google" -> posts to the /auth/google start route. Rendered only
-// when the server reports the provider is configured (googleEnabled loader flag),
-// so the Google path is invisible rather than broken when no client is set.
-export function GoogleButton({ label }: { label: string }) {
-  return (
-    <>
-      <div className="flex items-center gap-3 text-micro text-text-subtle">
-        <span className="h-px flex-1 bg-border" />
-        or
-        <span className="h-px flex-1 bg-border" />
-      </div>
-      <Form method="post" action="/auth/google">
-        <button
-          type="submit"
-          className="w-full rounded-md border border-border bg-surface px-4 py-2 text-body text-text hover:border-border-i"
-        >
-          {label}
-        </button>
-      </Form>
-    </>
   );
 }
 

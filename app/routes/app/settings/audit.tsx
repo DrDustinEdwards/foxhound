@@ -1,60 +1,61 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { data, useNavigation } from "react-router";
 import { eq } from "drizzle-orm";
+import { Button } from "capsomer/react/button";
+import { PageHead } from "capsomer/react/page-head";
+import { Segmented } from "capsomer/react/segmented";
+import { Switch } from "capsomer/react/switch";
+import "capsomer/button.css";
+import "capsomer/page-head.css";
+import "capsomer/panel.css";
+import "capsomer/segmented.css";
+import "capsomer/switch.css";
+// Capsomer's tokens and the teal family, which the components above read, as
+// /settings/alerts and /settings/api-keys load them.
+import "~/site-header.css";
 
-import { Alert, Submit } from "~/components/auth-ui";
 import { DemoGuardedForm } from "~/components/demo-guarded-form";
+import { SettingsBackLink } from "~/components/settings-back-link";
 import { accounts, getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { applyAuditSettings } from "~/lib/settings/apply.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import {
-  LOOKBACK_OPTIONS,
-  readAuditSettings,
-} from "~/lib/settings/audit-settings";
+import { LOOKBACK_OPTIONS, readAuditSettings } from "~/lib/settings/audit-settings";
 
 import type { Route } from "./+types/audit";
 
-// S30, /settings/audit, BUILT under 315. It was DEFECT-OPEN with foxhound source
-// "none", and Session 25 halted the monthly digest cron precisely because this
-// page did not exist: nothing could set audit_auto_run, so a cron gated on it
-// would have iterated zero accounts forever. This is the surface that makes the
-// column settable, which is why it lands before the cron rather than after.
+// S30, /settings/audit. Legacy, read whole at HEAD: page.tsx (blob 18e6a384),
+// AuditForm.tsx (5bf81c10), settings/components/AuditSection.tsx (58c5abce),
+// components/Toggle.tsx (0ebdd395) and settings/SaveBar.tsx (f1d6eb23).
 //
-// LEGACY IS THE SPEC, read whole at blob shas per 260: page.tsx 18e6a384,
-// AuditForm.tsx 5bf81c10, AuditSection.tsx 58c5abce, Toggle.tsx 0ebdd395, and
-// SettingsSidebar.tsx e1a283ec for the navigation placement.
+// J35 (job_9ad6ef3e08f6) rebuilt the page on Capsomer 0.9.0's parts (Q10),
+// teal throughout with no warm accent (Q11). Recova is the spec for what is on
+// it and in what order: the phone-only Settings link, the head, one card with
+// the lookback period and then the monthly digest, and the save bar. The
+// settings layout gives the page Recova's 800px column and padding, so the
+// page adds no width of its own. No Foxhound class sits on a Capsomer element;
+// what Recova's look still needs is listed for Capsomer's per-site layer
+// (capsomer job_ec5ec0754626) in the J35 pull request.
 //
-// FOUR DIVERGENCES, each classed rather than glossed:
+// THE LOOKBACK HAS A READER (RULES.md 3.18): the monthly audit cron reads the
+// stored value through readAuditSettings and audits that window
+// (app/lib/audit/monthly.server.ts), and so does the signed-in results page.
+// test/audit-lookback-reader-j35.test.ts proves the window follows the setting.
 //
-// 1. THE WRITE PATH. Legacy's form POSTs to a shared `/settings/update` handler,
-//    which is ledger row S38 and is itself unbuilt here. This uses the route's
-//    own RR8 action instead. Class (a) internals required by the stack,
-//    invisible to the merchant, and it avoids building S38 as a side effect.
-// 2. THE PAGE-VERSUS-CARD SPLIT, reported rather than resolved. Legacy gives
-//    every setting its own sidebar page. Foxhound has already collapsed four of
-//    the analogous ones (brand voice, email, notifications, intelligence) into
-//    inline cards on /settings, which is the S25 divergence ruling 57 defers.
-//    315 directed a ROUTE, and a route is also forward-compatible: when S25 ships
-//    legacy's sidebar, the inline cards have to become pages anyway, and this one
-//    already is.
-// 3. NO SIDEBAR TO LIST IT IN. Legacy lists Audit in a "Products" group with a
-//    ScanSearch icon. Foxhound has no settings sidebar at all, so the equivalent
-//    listing is PLATFORM_LINKS, which is already the only navigation path to
-//    /settings/team for exactly the same reason.
-// 4. NO Toggle COMPONENT EXISTS HERE. Legacy's components/Toggle.tsx is ported
-//    inline below at its own geometry rather than a new shared component being
-//    minted for one consumer.
+// THE WRITE PATH. Legacy's form POSTs to a shared `/settings/update` handler
+// (row S38). This uses the route's own action instead, which writes through
+// applyAuditSettings, the same core the MCP `set_audit_settings` tool uses.
+// Class (a), invisible to the merchant.
 //
-// 5. THE "written by AI" CLAUSE IS DROPPED from the digest description, ruled by
-//    Dustin in 316's session. Class (c), a truthfulness fix: legacy's digest
-//    leads with an AI summary this codebase cannot produce, so porting the
-//    clause verbatim promised something no send could carry. The rest of the
-//    sentence is legacy's, unchanged. See app/lib/audit/digest.server.ts.
+// THE "written by AI" CLAUSE IS DROPPED from the digest description, ruled by
+// Dustin in 316's session. Class (c), a truthfulness fix: ANTHROPIC_API_KEY
+// still has no credit, so an unfunded key would serve the fallback paragraph
+// under a promise of AI, and naming the vendor in merchant copy is forbidden
+// regardless. The rest of the sentence is legacy's, unchanged.
 //
 // NULL IS OFF and legacy agrees: its own page reads `?? false` and `?? 90`, so
-// the defaulting lives in the READ and no column DEFAULT is added. See
-// app/lib/settings/audit-settings.ts.
+// the defaulting lives in the READ and no column DEFAULT is added (RULES.md
+// 3.17). See app/lib/settings/audit-settings.ts.
 
 export function meta() {
   return [{ title: "Audit settings - Foxhound" }];
@@ -89,121 +90,117 @@ export async function action({ request, context }: Route.ActionArgs) {
   // MCP `set_audit_settings` tool validate and write through one implementation.
   // Clamping is still SERVER-SIDE inside it: legacy clamps on render and posts
   // the clamped value, which is a client-side guarantee only.
-  const result = await applyAuditSettings(db, membership.accountId, {
-    lookbackDays: form.get("audit_lookback_days"),
-    autoRun: form.get("audit_auto_run"),
-  });
-  if (!result.ok) return data({ ok: false, error: result.error }, { status: 400 });
-  return data({ ok: true, ...result.state });
-}
-
-/** Legacy's components/Toggle.tsx at its own geometry (blob 0ebdd395): a
- *  role="switch" button, 24 by 40 track, 20px thumb translated 16px, teal (brand) when
- *  on and border when off. Inline rather than a shared component, because this is
- *  its only consumer in the tree today. */
-function Toggle({
-  enabled,
-  onChange,
-  label,
-}: {
-  enabled: boolean;
-  onChange: (value: boolean) => void;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={enabled}
-      aria-label={label}
-      onClick={() => onChange(!enabled)}
-      className={`no-spring relative inline-flex h-6 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${
-        enabled ? "bg-brand" : "bg-border"
-      }`}
-    >
-      <span
-        className="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200"
-        style={{ transform: enabled ? "translateX(16px)" : "translateX(0)" }}
-        aria-hidden="true"
-      />
-    </button>
-  );
+  //
+  // A FAILED WRITE THROWS rather than returning ok: false (the D1 batch either
+  // lands or throws), so it is caught here. The whole error is logged, and the
+  // page shows Recova's failure line, which Recova shows for exactly this case
+  // (its `error=update_failed` after the shared update handler's write fails).
+  try {
+    const result = await applyAuditSettings(db, membership.accountId, {
+      lookbackDays: form.get("audit_lookback_days"),
+      autoRun: form.get("audit_auto_run"),
+    });
+    if (!result.ok) return data({ ok: false as const }, { status: 400 });
+    return data({ ok: true as const, ...result.state });
+  } catch (err) {
+    console.error("audit settings write failed:", err);
+    return data({ ok: false as const }, { status: 500 });
+  }
 }
 
 export default function AuditSettings({ loaderData, actionData }: Route.ComponentProps) {
-  const [lookbackDays, setLookbackDays] = useState<number>(loaderData.lookbackDays);
+  const [lookbackDays, setLookbackDays] = useState<string>(String(loaderData.lookbackDays));
   const [autoRun, setAutoRun] = useState<boolean>(loaderData.autoRun);
   const busy = useNavigation().state !== "idle";
+  const lookbackHelp = useId();
+  const digestHelp = useId();
+  const saved = actionData?.ok === true;
+  const failed = actionData?.ok === false;
 
   return (
-    <div className="mx-auto max-w-[1000px] px-8 py-10">
-      <h1 className="text-title font-medium text-text">Audit</h1>
-      <p className="mt-1 text-label text-text-tertiary">
-        Lookback period and monthly digest options.
-      </p>
+    <>
+      <SettingsBackLink />
+      {/* Recova's PageHeader sits mb-8 above the first card. */}
+      <div className="mb-8">
+        <PageHead title="Audit" lead="Lookback period and monthly digest options." />
+      </div>
 
-      <DemoGuardedForm method="post" className="mt-6">
-        {/* Legacy carries both values as hidden inputs beside the controls
-            (AuditSection.tsx), so the form posts the current selection rather
-            than relying on the controls being form fields themselves. */}
-        <input type="hidden" name="audit_lookback_days" value={lookbackDays} />
-        <input type="hidden" name="audit_auto_run" value={autoRun ? "true" : "false"} />
+      <DemoGuardedForm method="post">
+        {/* Recova's AuditSection card has no heading, so this is Capsomer's
+            panel markup with its body only, as /settings/alerts does. */}
+        <div className="mb-4">
+          <div className="cap-panel">
+            <div className="cap-panel-body">
+              <div className="min-w-0">
+                {/* Recova shows the label, then the helper, then the four
+                    choices. The visible label is the same words as the
+                    fieldset's legend, which names the group for screen
+                    readers, so it is hidden from them here to be read once.
+                    The legend's words are visually hidden inside it, not with
+                    Capsomer's hideLegend: that sets .cap-sr-only, which lives
+                    in capsomer/base.css, and the merchant app does not load
+                    base.css (app/site-header.css). The legend keeps Capsomer's
+                    margin below it, so the helper's own margin is the rest of
+                    Recova's 12px. */}
+                <div className="mb-0.5 text-label text-text" aria-hidden="true">
+                  Lookback period
+                </div>
+                <p id={lookbackHelp} className="m-0 mb-1 text-micro text-text-subtle">
+                  How far back we look when calculating your audit.
+                </p>
+                <Segmented
+                  legend={<span className="sr-only">Lookback period</span>}
+                  name="audit_lookback_days"
+                  describedBy={lookbackHelp}
+                  value={lookbackDays}
+                  onChange={setLookbackDays}
+                  options={LOOKBACK_OPTIONS.map((n) => ({ value: String(n), label: `${n} days` }))}
+                />
+              </div>
 
-        <div className="mb-4 rounded-[12px] border border-border bg-surface p-6">
-          <div className="py-4">
-            <div className="mb-0.5 text-label text-text">Lookback period</div>
-            <div className="mb-3 text-micro text-text-subtle">
-              How far back we look when calculating your audit.
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {LOOKBACK_OPTIONS.map((n) => {
-                const active = n === lookbackDays;
-                return (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => setLookbackDays(n)}
-                    aria-pressed={active}
-                    className={`rounded-md border px-3 py-1.5 text-label transition-colors duration-150 ${
-                      active
-                        ? "border-brand bg-brand font-semibold text-on-brand"
-                        : "border-border bg-surface text-text-tertiary hover:bg-surface2 hover:text-text"
-                    }`}
-                  >
-                    {n} days
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between border-t border-border py-4">
-            <div className="pr-4">
-              <div className="mb-0.5 text-label text-text">Monthly audit digest</div>
-              {/* LEGACY'S COPY, RESTORED IN FULL AT PHASE (g). 316 cut "written
-                  by AI" because Foxhound's audit entry point produced no summary
-                  at the time, which was true then and is not now: the engine's
-                  summary ships from phase (c) and the merged email leads with it.
-                  The clause stays out anyway, on the OTHER half of 316's reason
-                  and on the portfolio rule: ANTHROPIC_API_KEY still has no credit
-                  (core.md blocker 2), so an unfunded key would serve the fallback
-                  paragraph under a promise of AI, and naming the vendor in
-                  merchant copy is forbidden regardless. Divergence 5 stands with
-                  its reason narrowed to the half that is still true. */}
-              <div className="text-micro text-text-subtle">
-                On the 1st of each month, we run a fresh audit and email you a comparison
-                versus the prior month. No extra charge.
+              <div className="flex min-w-0 items-center justify-between gap-4 border-t border-border pt-4">
+                <div className="pr-4">
+                  <div className="mb-0.5 text-label text-text" aria-hidden="true">
+                    Monthly audit digest
+                  </div>
+                  <p id={digestHelp} className="m-0 text-micro text-text-subtle">
+                    On the 1st of each month, we run a fresh audit and email you a comparison
+                    versus the prior month. No extra charge.
+                  </p>
+                </div>
+                {/* Unchecked posts nothing, which the action reads as off, so
+                    the form works with no script as well. */}
+                <Switch
+                  label={<span className="sr-only">Monthly audit digest</span>}
+                  name="audit_auto_run"
+                  value="true"
+                  checked={autoRun}
+                  onCheckedChange={setAutoRun}
+                  aria-describedby={digestHelp}
+                />
               </div>
             </div>
-            <Toggle enabled={autoRun} onChange={setAutoRun} label="Monthly audit digest" />
           </div>
         </div>
 
-        {actionData?.ok ? <Alert tone="success">Saved.</Alert> : null}
-        <div className="mt-4">
-          <Submit disabled={busy}>{busy ? "Saving..." : "Save"}</Submit>
+        {/* Recova's SaveBar (blob f1d6eb23): a right-aligned row, the result
+            in words, then Save changes. */}
+        <div className="mt-6 flex items-center justify-end gap-3 text-label">
+          {saved ? (
+            <span role="status" className="text-green">
+              Saved
+            </span>
+          ) : null}
+          {failed ? (
+            <span role="alert" className="text-red">
+              Failed to save. Please try again.
+            </span>
+          ) : null}
+          <Button type="submit" variant="primary" pending={busy}>
+            Save changes
+          </Button>
         </div>
       </DemoGuardedForm>
-    </div>
+    </>
   );
 }

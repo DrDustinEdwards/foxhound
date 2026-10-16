@@ -1,6 +1,7 @@
 import { getDb } from "~/db";
 import { getPublishedTagSet } from "~/lib/blog/queries.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { RECOVERY_SEQUENCE_DAYS } from "~/lib/marketing/decline-categories";
 import { siteUrl, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 
 import type { Route } from "./+types/llms-full";
@@ -56,7 +57,7 @@ Pricing: Free.
 
 ### Recovery (a percentage of Foxhound-attributed recoveries)
 
-When a Stripe payment fails, Foxhound classifies the decline into a category and runs a silent retry before any customer-facing email, so a payment that recovers on its own is never billed. If the silent retry doesn't clear it, an AI-drafted dunning sequence runs across 30 days, with a hosted card-update link on every email. Recoveries Stripe's own tools (like Smart Retries) would have produced anyway are recorded and shown to the merchant for free; only recoveries attributable to a Foxhound action are billable, and only once that recovery has matured for 30 days (absorbing the refund window).
+When a Stripe payment fails, Foxhound classifies the decline into a category and, wherever the decline can be retried, runs a silent retry before any customer-facing email, so a payment that recovers on its own is never billed. If there is no silent retry or it doesn't clear the payment, an AI-drafted dunning sequence runs across ${RECOVERY_SEQUENCE_DAYS} days, unless the customer has revoked authorization, with a hosted card-update link on every email. Recoveries Stripe's own tools (like Smart Retries) would have produced anyway are recorded and shown to the merchant for free; only recoveries attributable to a Foxhound action are billable, and only once that recovery has matured for 30 days (absorbing the refund window).
 
 URL: ${url}/product/recovery
 Docs: ${url}/docs/recovery
@@ -72,7 +73,7 @@ Pricing: a percentage of won disputes, capped per dispute. Nothing on losses. Cu
 
 ### Intelligence (free analytics tier, paid predictive layer)
 
-Pulls Stripe billing data into MRR movement (new, expansion, contraction, churn), cohort analytics, and customer health signals. The MRR/movement/cohort analytics tier is free for every Recovery merchant. A predictive risk-scoring layer, which feeds Recovery timing and Disputes triage, is a paid add-on billed as a flat monthly subscription.
+Pulls Stripe billing data into MRR movement (new, expansion, contraction, churn), cohort analytics, and customer health signals. The MRR/movement/cohort analytics tier is free for every Recovery merchant. A predictive risk-scoring layer is a paid add-on billed as a flat monthly subscription.
 
 URL: ${url}/product/intelligence
 Docs: ${url}/docs/intelligence
@@ -95,7 +96,7 @@ No setup fees. No minimum commitments. No per-seat charges. Current rates: ${url
 
 ## Technical architecture
 
-- Stripe Connect: two scopes. The free audit requests read-only and can write nothing at all. Merchant onboarding requests read and write. Foxhound reads invoices, subscriptions, disputes, and customer data. It writes for these things and no others: retrying payment on an invoice that has already failed, setting a customer default payment method after that customer updates their card, opening a Stripe checkout when a former customer chooses to resubscribe, and submitting dispute evidence after someone on the merchant team approves it. It never changes prices, products, or subscription plans, never charges a customer except by retrying a failed invoice or through a checkout the customer completes, and never reaches payouts or bank accounts.
+- Stripe Connect: two scopes. The free audit requests read-only and can write nothing at all. Merchant onboarding requests read and write. Foxhound reads invoices, subscriptions, disputes, and customer data. It writes for these things and no others: retrying payment on an invoice that has already failed, setting a customer default payment method after that customer updates their card, opening a Stripe checkout when a former customer chooses to resubscribe, submitting dispute evidence after someone on the merchant team approves it, and closing a dispute at Stripe when the merchant chooses to accept it. It never changes prices, products, or subscription plans, never charges a customer except by retrying a failed invoice or through a checkout the customer completes, and never reaches payouts or bank accounts.
 - Deployment: Cloudflare Workers, React Router in framework mode
 - Database: Cloudflare D1
 - Email delivery: Cloudflare Email Service, sent from the merchant's own domain

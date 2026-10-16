@@ -1,6 +1,12 @@
 import { readFileSync } from "node:fs";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { createMemoryRouter, RouterProvider } from "react-router";
 
 import { describe, expect, it } from "vitest";
+
+import { cloudflareContext } from "~/lib/cloudflare-context";
+import IntelligenceProductPage, { loader } from "~/routes/products/intelligence";
 
 import { computeHealthScore } from "~/lib/intelligence/risk";
 import { buildPredictionFields } from "~/lib/intelligence/predictions";
@@ -18,7 +24,15 @@ import { buildPredictionFields } from "~/lib/intelligence/predictions";
 // that the fact which refuted it still holds, so re-adding the copy without
 // building the feature fails here.
 
-const PAGE = readFileSync("app/routes/products/intelligence.tsx", "utf8");
+// J58 moved the page's words into a copy module and its previews into their
+// own files, so "the page" is all of them: a claim in any one is on the page.
+const PAGE = [
+  "app/routes/products/intelligence.tsx",
+  "app/lib/marketing/intelligence-copy.ts",
+  "app/components/intelligence-previews.tsx",
+]
+  .map((f) => readFileSync(f, "utf8"))
+  .join("\n");
 
 describe("281c: claims the evidence REFUTED are gone, and stay gone", () => {
   it("the Recovery-timing and Disputes-triage feed-back claim is removed", () => {
@@ -92,8 +106,9 @@ describe("281c: claims the evidence REFUTED are gone, and stay gone", () => {
 
 describe("281c: the stale artifact the ruling named", () => {
   it("the RouteStub comment is corrected, and the routes really are not stubs", () => {
+    // J58 rewrote the page to Recova's spec, and the corrected comment went
+    // with the old page; the stale sentence must still never come back.
     expect(PAGE).not.toContain("are still RouteStub placeholders");
-    expect(PAGE).toContain("none of the six Intelligence routes uses");
     for (const f of [
       "app/routes/app/intelligence/index.tsx",
       "app/routes/app/intelligence/customers.tsx",
@@ -108,7 +123,7 @@ describe("281c: the stale artifact the ruling named", () => {
 });
 
 describe("281c: claims the evidence SUPPORTS, with the source named", () => {
-  it("the free-tier list is exactly what the engine computes", () => {
+  it("the MRR movements the page names are exactly what the engine computes", () => {
     // MrrMovements carries new/expansion/contraction/churn/reactivation plus the
     // two churn rates, and buildCohortBreakdown produces the cohort rows.
     const mrr = readFileSync("app/lib/intelligence/mrr.ts", "utf8");
@@ -124,7 +139,30 @@ describe("281c: claims the evidence SUPPORTS, with the source named", () => {
       expect(mrr).toContain(field);
     }
     expect(mrr).toContain("buildCohortBreakdown");
-    expect(PAGE).toContain("MRR, movements, churn, and cohorts");
+    // J58: Recova's page has no free-tier block, so the movements are named in
+    // Recova's own How it works step, at Foxhound's monthly cadence.
+    expect(PAGE).toContain("New, expansion, reactivation, contraction, and churn MRR tracked month by month");
+  });
+
+  it("the free tier is stated on the rendered page, and the engine really leaves it ungated", async () => {
+    // PRICING.md (Intelligence): basic MRR analytics are FREE for every
+    // Recovery merchant; the $199 is the risk layer. The evidence: the merchant
+    // dashboard draws them under "Free" with no entitlement check. J58 removed
+    // the old free-tier BLOCK to match Recova's sections; the free statement
+    // stays, read here on the RENDERED page, not in source.
+    const dashboard = readFileSync("app/routes/app/dashboard.tsx", "utf8");
+    expect(dashboard).not.toContain("isIntelligenceEntitled");
+    // The console draws the movements and the cohorts with Enarratio (J64);
+    // the movement fields are read in console.ts, which the route draws from.
+    for (const f of ["drawLatestMovement", "drawCohorts", "perCohortBreakdown"]) expect(dashboard).toContain(f);
+    const consoleLib = readFileSync("app/lib/dashboard/console.ts", "utf8");
+    for (const f of ["newMrrCents", "churnMrrCents"]) expect(consoleLib).toContain(f);
+    const charts = readFileSync("app/lib/dashboard/console-charts.ts", "utf8");
+    expect(charts).not.toContain("isIntelligenceEntitled");
+    expect(charts).toContain("export function drawCohorts");
+    const body = await renderedText();
+    expect(body).toContain("MRR, movements, churn, and cohort analytics are free for every Recovery merchant.");
+    expect(body).toContain("adds predictive risk scoring");
   });
 
   it("the named scoring signals are the ones risk.ts actually scores", () => {
@@ -140,8 +178,13 @@ describe("281c: claims the evidence SUPPORTS, with the source named", () => {
     ]) {
       expect(risk).toContain(signal);
     }
-    expect(PAGE).toContain("payment-timing drift, billing volatility, refunds and disputes");
-    expect(PAGE).toContain("recovery engagement, and tenure");
+    // J58: the copy lists them from risk.ts's own HEALTH_SIGNAL_LABELS, keyed
+    // by the same signal names, rather than typing them. This is a source
+    // check on purpose; the RENDERED list, and that the labels are exactly
+    // the signals computeHealthScore emits, are checked in
+    // test/product-intelligence-j58.test.ts. Keep both.
+    expect(risk).toContain("export const HEALTH_SIGNAL_LABELS");
+    expect(PAGE).toContain("Object.values(HEALTH_SIGNAL_LABELS)");
   });
 
   it("the daily refresh claim matches the cron that computes the score", () => {
@@ -149,7 +192,7 @@ describe("281c: claims the evidence SUPPORTS, with the source named", () => {
     expect(registry).toContain('{ name: "intelligence-ai", schedule: CRON_SCHEDULE_DAILY');
     const aiRun = readFileSync("app/lib/intelligence/ai-run.server.ts", "utf8");
     expect(aiRun).toContain("computeHealthScore");
-    expect(PAGE).toContain("refreshed daily");
+    expect(PAGE).toContain("updated nightly");
   });
 
   it("the not-a-black-box claim matches a surface that really lists factors", () => {
@@ -159,11 +202,12 @@ describe("281c: claims the evidence SUPPORTS, with the source named", () => {
     expect(PAGE).toContain("The score is not a black box");
   });
 
-  it("the honest-accuracy FAQ says what PRICING requires it to say", () => {
+  it("the page states no accuracy figure, as PRICING requires", () => {
     // PRICING.md: "Accuracy claims in marketing only after backtests support
-    // them." The page now states the absence rather than implying the presence.
-    expect(PAGE).toContain("Is the risk score a validated prediction?");
-    expect(PAGE).toContain("no accuracy figure exists and none is advertised");
+    // them." J58 returned the page to Recova's three questions, so the fourth
+    // (an accuracy FAQ Recova never had) is gone; no accuracy figure appears.
+    expect(PAGE).not.toMatch(/accura/i);
+    expect(PAGE).not.toMatch(/\d+% of (churn|cancellations)/i);
   });
 });
 
@@ -229,3 +273,28 @@ describe("281c: risk and predictions EXERCISED, not just read", () => {
     expect(Object.keys(fields)).not.toContain("gradedAt");
   });
 });
+
+/** The /product/intelligence page as a visitor gets it, from the route's own
+ *  loader, as text. */
+async function renderedText(): Promise<string> {
+  const context = {
+    get(key: unknown) {
+      if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+      throw new Error("unexpected context key");
+    },
+  };
+  const loaderData = await loader({
+    context,
+    request: new Request("https://foxhoundapp.com/product/intelligence"),
+    params: {},
+  } as unknown as Parameters<typeof loader>[0]);
+  const Page = IntelligenceProductPage as unknown as (props: { loaderData: typeof loaderData }) => React.ReactElement;
+  const router = createMemoryRouter([{ path: "*", element: createElement(Page, { loaderData }) }], {
+    initialEntries: ["/product/intelligence"],
+  });
+  return renderToStaticMarkup(createElement(RouterProvider, { router }))
+    .replace(/<script[\s\S]*?<\/script>/g, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&#x27;/g, "'")
+    .replace(/\s+/g, " ");
+}

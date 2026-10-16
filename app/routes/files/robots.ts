@@ -40,7 +40,7 @@ export const DISALLOW_PATHS = [
   // for a crawler. Foxhound disallows the exact path. `/audit/connect` and
   // `/audit/callback` join it: one is a step inside a flow, the other is an
   // OAuth return, and neither is a destination.
-  "/audit/history",
+  "/audit/dashboard",
   "/audit/runs/",
   "/audit/connect",
   "/audit/callback",
@@ -69,6 +69,9 @@ export const DISALLOW_PATHS = [
   "/admin",
   "/api/",
   "/auth/",
+  // The OAuth consent page (J79), a step inside an agent's connect flow and
+  // never a destination. Recova's app/robots.ts disallows '/oauth/' too.
+  "/oauth/",
   // The merchant MCP endpoint (370). An agent connects with a bearer key and a
   // crawler has no business there: it is POST-only, so a crawl can only ever
   // collect a 405. Every named group inherits this by the parity rule below.

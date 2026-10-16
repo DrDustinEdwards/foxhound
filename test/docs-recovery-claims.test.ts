@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import { DOC_GUIDES, type DocBlock, type DocInline } from "~/lib/marketing/docs-content";
 import { RECOVERY_SCHEDULES } from "~/lib/recovery/schedule";
+import { PAYMENTS_DEFAULT_PAGE_SIZE, PAYMENTS_PAGE_SIZE_OPTIONS } from "~/lib/recovery/payments-list";
 
 // SESSION 64, JOB 3 AND JOB 4: the recovery guide's claim audit.
 //
@@ -28,6 +29,7 @@ function flatten(blocks: DocBlock[]): string {
     if ("code" in node) return node.code;
     if ("strong" in node) return node.strong;
     if ("mono" in node) return node.mono;
+    if ("badge" in node) return String(node.badge);
     return node.link;
   };
   const rich = (r: string | DocInline[]): string =>
@@ -70,7 +72,9 @@ describe("PLANT 1: the guide's shape", () => {
     const h3s = recovery.sections
       .flatMap((s) => s.body)
       .filter((b): b is { kind: "h3"; text: string } => typeof b !== "string" && b.kind === "h3");
-    expect(h3s).toHaveLength(21);
+    // J73: Recova's twenty, in its order. Recova's "Contact support" is cut,
+    // because Foxhound's support inbox is unverified (RULES 3.22, 7.6).
+    expect(h3s).toHaveLength(20);
   });
 });
 
@@ -115,21 +119,48 @@ describe("PLANT 2: every capability sentence, tied to its code", () => {
     expect(RECOVERY_SCHEDULES.unknown.every((s) => !s.stepType.startsWith("retry_"))).toBe(true);
   });
 
-  it("ROWS PER PAGE: the options, and a default that is not legacy's", () => {
+  it("ROWS PER PAGE: the options, and legacy's default of 25", () => {
     expect(TEXT).toContain(
-      "The selector above the table shows 10, 25, 50, 100, or all of them. It starts at 50.",
+      "The selector above the table shows 10, 25, 50, 100, or all of them. It starts at 25.",
     );
+    // J75: the page's own numbers, read from the module it renders them from.
+    expect(PAYMENTS_PAGE_SIZE_OPTIONS).toEqual([10, 25, 50, 100, "all"]);
+    expect(PAYMENTS_DEFAULT_PAGE_SIZE).toBe(25);
+    // The list and its export read the URL through the same parser.
+    const lib = readFileSync(
+      fileURLToPath(new URL("../app/lib/recovery/payments-list.ts", import.meta.url)),
+      "utf8",
+    );
+    expect(lib).toContain(": PAYMENTS_DEFAULT_PAGE_SIZE;");
     const source = readFileSync(
       fileURLToPath(new URL("../app/routes/app/recovery/payments/index.tsx", import.meta.url)),
       "utf8",
     );
-    expect(source).toContain("PAGE_SIZE_OPTIONS: FailedPaymentPageSize[] = [10, 25, 50, 100,");
-    // Legacy's default is 25. Foxhound's is 50, and the sentence says 50.
-    expect(source).toContain("DEFAULT_PAGE_SIZE: FailedPaymentPageSize = 50;");
+    expect(source).toContain('parsePaymentsPageSize(params.get("perPage"))');
+  });
+
+  it("EXPORT CSV: the rows on screen, as legacy's export, with All for every match", () => {
+    expect(TEXT).toContain(
+      "Export CSV in the list header downloads the payments on screen: this page, with the filters, sort and rows per page you have on. Choose All in rows per page to export every payment that matches your filters.",
+    );
+    const exportSource = readFileSync(
+      fileURLToPath(new URL("../app/routes/app/recovery/payments/export.ts", import.meta.url)),
+      "utf8",
+    );
+    expect(exportSource).toContain('parsePaymentsPage(params.get("page"))');
+    expect(exportSource).toContain('parsePaymentsPageSize(params.get("perPage"))');
+    expect(exportSource).not.toContain('pageSize: "all"');
   });
 
   it("MANUAL ACTIONS: the five that exist, and no sixth", () => {
-    for (const label of ["Trigger now.", "Mark recovered.", "Cancel sequence.", "Resend.", "Note."]) {
+    // J73: the labels the payment page renders, not shorthand for them.
+    for (const label of [
+      "Trigger next step now.",
+      "Mark as recovered.",
+      "Stop recovery.",
+      "Resend last email.",
+      "Note.",
+    ]) {
       expect(TEXT, `${label} missing`).toContain(label);
     }
     const actions = readFileSync(
@@ -160,13 +191,42 @@ describe("PLANT 2: every capability sentence, tied to its code", () => {
   });
 
   it("NINE STAT CARDS, not legacy's six", () => {
-    expect(TEXT).toContain("Nine cards sit across the top of the recovery dashboard.");
+    expect(TEXT).toContain("Nine stat cards sit on the recovery dashboard: three across the top and six further down");
     const dashboard = readFileSync(
       fileURLToPath(new URL("../app/routes/app/recovery/index.tsx", import.meta.url)),
       "utf8",
     );
     expect(dashboard).toContain('label="Win-backs active"');
-    expect(dashboard).toContain('label="Best decline category"');
+    // Recova's own label (StatCards.tsx, blob b1923468), restored by J74.
+    expect(dashboard).toContain('label="Best category"');
+    expect(dashboard).toContain('label="Avg days to recovery"');
+  });
+
+  it("EMAILS SENT is a 30-day card, as the stat-card sentence says", () => {
+    expect(TEXT).toContain("They read the last 30 days whatever range is selected.");
+    expect(TEXT).toContain("Recovery emails sent in the last 30 days, with their open and click rates.");
+    const dashboard = readFileSync(
+      fileURLToPath(new URL("../app/routes/app/recovery/index.tsx", import.meta.url)),
+      "utf8",
+    );
+    expect(dashboard).toContain("value={String(w.emailsSentInRange.sent)}");
+  });
+
+  it("ROI THIS MONTH is every attributed recovery since the 1st, billed only after maturity", () => {
+    expect(TEXT).toContain(
+      "This month counts every such recovery since the 1st, with the fee it will carry once it has held for 30 days; all time counts the ones that have held for 30 days, which are the ones Foxhound bills.",
+    );
+  });
+
+  it("DELIVERABILITY shows bounces and spam reports, and no delivered rate", () => {
+    expect(TEXT).toContain(
+      "The email deliverability panel, under the stat cards, follows the range: the share of the emails Foxhound sent that bounced or were reported as spam.",
+    );
+    expect(TEXT).toContain("It shows no delivered rate, because Foxhound does not record delivery.");
+    expect(TEXT).toContain(
+      "Foxhound does not yet record bounces and spam reports against the account that sent the email, so for now the panel says there is nothing to show.",
+    );
+    expect(TEXT).not.toContain("Until Email Service reports a bounce or a complaint");
   });
 
   it("BILLABLE: the sentence that shipped, carried through unchanged", () => {
@@ -193,8 +253,11 @@ describe("PLANT 3: what the guide must NOT say", () => {
     // figures Foxhound has no history to support. 181 froze the ROI widget's
     // pricing claims and core.md records the benchmark card as deliberately
     // omitted.
+    // J73: Recova's "ROI widget" heading is back, because Foxhound now draws
+    // the panel it describes (Foxhound-attributed revenue on the recovery
+    // dashboard). Recova's pricing figures inside it stay out.
     expect(TEXT).not.toContain("56%");
-    expect(TEXT).not.toContain("ROI");
+    expect(TEXT).toContain("Foxhound-attributed revenue panel");
     expect(TEXT).not.toContain("Typical range");
     expect(TEXT).not.toContain("30-55");
   });

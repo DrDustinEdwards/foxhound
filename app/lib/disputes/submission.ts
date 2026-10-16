@@ -43,12 +43,18 @@ function isStripeEvidenceField(name: string): name is StripeEvidenceField {
 
 /** Map dispute_evidence rows (fieldName/fieldValue, the merchant-approved
  *  package) to Stripe's evidence object. Pure. Blank values and any field name
- *  outside the known Stripe evidence vocabulary are dropped rather than sent. */
+ *  outside the known Stripe evidence vocabulary are dropped rather than sent.
+ *  If a field has two rows, the FIRST one in the given order decides (blank
+ *  included), the same row the dispute page shows and its draft save edits
+ *  (getDisputeDetail reads them oldest first). */
 export function buildStripeEvidencePayload(
   rows: { fieldName: string; fieldValue: string }[],
 ): Stripe.DisputeUpdateParams.Evidence {
   const evidence: Record<string, string> = {};
+  const seen = new Set<string>();
   for (const row of rows) {
+    if (seen.has(row.fieldName)) continue;
+    seen.add(row.fieldName);
     if (row.fieldValue.trim() && isStripeEvidenceField(row.fieldName)) {
       evidence[row.fieldName] = row.fieldValue;
     }

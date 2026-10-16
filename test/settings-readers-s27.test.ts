@@ -170,7 +170,10 @@ describe("PLANT 4: the claim the reader makes true is stated, and the false one 
       "utf8",
     );
     expect(route).not.toContain("they do not change anything today");
-    expect(route).toContain("gives these to the AI that writes your recovery emails");
+    // J32 restored Recova's own line under the fields, which the reader makes
+    // true, and dropped the old card's promise of risk scoring.
+    expect(route).toContain("Used to personalize recovery emails.");
+    expect(route).not.toMatch(/risk scoring/i);
   });
 
   it("the docs say what the fields do and what happens when they are blank", () => {

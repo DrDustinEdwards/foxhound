@@ -484,10 +484,10 @@ export const ENGAGEMENT_HONEYPOT_PATH = "/e/h";
  * The walk that produced 377(4) found the click guard reads four things and
  * none of them separates a scanner from a person: IP is persisted nowhere,
  * `email_clicked_count` and `time_to_open_minutes` had zero writers (the open
- * stamp writes time to open since row F9, J26; it says when a person opened,
- * not whether a click was one), and an enterprise link scanner (SafeLinks,
- * Proofpoint, Mimecast) presents a full browser user agent, so 369's named-bot
- * list cannot see it. The only live
+ * stamp writes time to open since row F9, J26, and the click stamp counts
+ * clicks since row F10, J27; neither says whether a click was a person), and
+ * an enterprise link scanner (SafeLinks, Proofpoint, Mimecast) presents a full
+ * browser user agent, so 369's named-bot list cannot see it. The only live
  * discriminator already stored is `clicked_at - executed_at`, and nothing read
  * it.
  *
@@ -513,6 +513,16 @@ export const EMAIL_QUEUE_NAME = "foxhound-email";
  *  exhausted its retries was discarded with no trace. */
 export const EMAIL_DLQ_QUEUE_NAME = "foxhound-email-dlq";
 export const EMAIL_EVENTS_QUEUE_NAME = "foxhound-email-events";
+/** The monthly audit queue (job_97878f0d1fde). The monthly-audit cron sends one
+ *  message per opted-in account and the consumer audits the one account a
+ *  message names, so each account's Stripe pages are spent inside its own
+ *  invocation's subrequest budget instead of one shared one. */
+export const AUDIT_QUEUE_NAME = "foxhound-audit";
+/** Mirrors max_retries on the foxhound-audit consumer in wrangler.jsonc. The
+ *  delivery whose attempts exceed this is the last one, and raises the alert. */
+export const AUDIT_QUEUE_MAX_RETRIES = 3;
+/** Cloudflare Queues accepts at most 100 messages per sendBatch call. */
+export const AUDIT_QUEUE_SEND_BATCH_MAX = 100;
 
 // ---- Cron Triggers + retention (ARCHITECTURE.md: all scheduled jobs are Cron
 // Triggers; retention crons live before any table they govern takes writes) ----
@@ -754,6 +764,11 @@ export const HEALTH_SCORE_AT_RISK_THRESHOLD = 40;
 export const PREDICTION_HORIZON_DAYS = 30;
 /** Max at-risk customers named individually in the nightly AI narrative. */
 export const INTELLIGENCE_NARRATIVE_TOP_N = 10;
+/** Reports a merchant may generate per account per hour from the Intelligence
+ *  dashboard, Recova's limit (app/api/intelligence/generate-report/route.ts,
+ *  RATE_LIMIT_MAX). Held by the RATE_LIMITER Durable Object, keyed per
+ *  account (report-generate.server.ts). */
+export const INTELLIGENCE_REPORT_HOURLY_LIMIT = 5;
 /** Canonical alert metric keys the nightly evaluator understands (alerts.metric
  *  is unconstrained text in the schema; this is the app-level enum until a
  *  settings UI for creating alerts exists). */
@@ -899,3 +914,27 @@ export const STRIPE_CONNECT_PLATFORM_NAME = "Foxhound";
  * request, one address can write at most 100 lines a minute.
  */
 export const RATE_LIMIT_CSP_REPORT = { max: 20, windowMs: 60 * 1000 } as const;
+
+// ============================================================================
+// OAuth provider for external agents (J79, rows A9, F18, F19; ruling 8)
+// ============================================================================
+
+/** An access token lives one hour, as Recova's token route said
+ *  (app/api/oauth/token/route.ts, ACCESS_TOKEN_TTL_SECONDS = 3600). */
+export const OAUTH_ACCESS_TOKEN_TTL_SECONDS = 3600;
+
+/** A refresh token lives 30 days from its last rotation, as Recova's comment
+ *  on its token route said ("rotates refresh tokens (30d) on every refresh"). */
+export const OAUTH_REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** An authorization code lives ten minutes, the ceiling RFC 6749 section 4.1.2
+ *  recommends. Recova's lifetime was a Supabase column default outside its
+ *  repo, so it could not be read; this is Foxhound's own. */
+export const OAUTH_CODE_TTL_MS = 10 * 60 * 1000;
+
+/** Recova's four OAuth limits (lib/constants.ts lines 116 to 119), unchanged:
+ *  approve is per signed-in user, the other three per IP. */
+export const RATE_LIMIT_OAUTH_APPROVE = { max: 20, windowMs: 60 * 1000 } as const;
+export const RATE_LIMIT_OAUTH_TOKEN = { max: 30, windowMs: 60 * 1000 } as const;
+export const RATE_LIMIT_OAUTH_REGISTER = { max: 10, windowMs: 60 * 60 * 1000 } as const;
+export const RATE_LIMIT_OAUTH_REVOKE = { max: 30, windowMs: 60 * 1000 } as const;

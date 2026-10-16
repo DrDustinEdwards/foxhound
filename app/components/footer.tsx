@@ -117,10 +117,18 @@ function LinkColumn({
 // component keeps the two surfaces from drifting, which is the whole reason
 // legacy built it this way.
 //
-// The "auth" variant is deliberately NOT implemented yet: Foxhound renders auth
-// pages inside the marketing shell, which is row A1 and BLOCKED pending Dustin.
-// Building an auth variant now would prejudge that call.
-export type FooterVariant = "marketing" | "app";
+// The "auth" variant is Recova's for the four sign-in pages (app/layouts/auth.tsx,
+// row A1, ruling 403): the bottom row alone, with Privacy and Terms after the
+// mark and the copyright, "so visitors can review the legal pages before
+// creating an account" (Recova's app/(auth)/layout.tsx). Recova's links are
+// mono at the copyright's size and secondary; teal on hover (Q11), and 24px
+// tall as targets.
+export type FooterVariant = "marketing" | "app" | "auth";
+
+const AUTH_LEGAL_LINKS = [
+  { to: "/privacy", label: "Privacy" },
+  { to: "/terms", label: "Terms" },
+];
 
 export function Footer({ variant = "marketing" }: { variant?: FooterVariant } = {}) {
   const { pathname } = useLocation();
@@ -164,11 +172,24 @@ export function Footer({ variant = "marketing" }: { variant?: FooterVariant } = 
             hasColumnsAbove ? "border-t border-border" : ""
           }`}
         >
-          <div className="flex items-center gap-2.5">
-            <img src="/favicon.svg" alt="" width={28} height={28} className="shrink-0" aria-hidden />
-            <span className="font-mono text-[0.6875rem] text-chrome-text-secondary">
-              © 2026 Foxhound. Operated by Dustin Edwards, sole proprietor, Texas.
-            </span>
+          <div className="flex min-w-0 items-center gap-4">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <img src="/favicon.svg" alt="" width={28} height={28} className="shrink-0" aria-hidden />
+              <span className="font-mono text-[0.6875rem] text-chrome-text-secondary">
+                © 2026 Foxhound. Operated by Dustin Edwards, sole proprietor, Texas.
+              </span>
+            </div>
+            {variant === "auth"
+              ? AUTH_LEGAL_LINKS.map((link) => (
+                  <Link
+                    key={link.to}
+                    to={link.to}
+                    className="inline-flex min-h-6 shrink-0 items-center font-mono text-micro text-chrome-text-secondary no-underline transition-colors hover:text-chrome-brand"
+                  >
+                    {link.label}
+                  </Link>
+                ))
+              : null}
           </div>
           {/* Legacy's bottom row carries three social links here on EVERY
               variant, including app. They stay out under ruling 10 until

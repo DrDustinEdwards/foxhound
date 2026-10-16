@@ -1,10 +1,17 @@
 import { Link, redirect } from "react-router";
+import { PageHead } from "capsomer/react/page-head";
+import { Panel } from "capsomer/react/panel";
+import "capsomer/button.css";
+import "capsomer/page-head.css";
+import "capsomer/panel.css";
 
 import {
   AuditDisputesSection,
   AuditHealthSection,
   AuditRecoverySection,
   AuditSummary,
+  showDisputesSection,
+  type CtaState,
 } from "~/components/audit/sections";
 import { getDb } from "~/db";
 import { saveAuditRun } from "~/lib/audit/persist.server";
@@ -12,10 +19,11 @@ import { toAuditRunView } from "~/lib/audit/render";
 import { runFullAudit } from "~/lib/audit/run.server";
 import { getSession, resolveActiveMembership } from "~/lib/auth";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 import { AUDIT_LOOKBACK_DAYS } from "~/lib/constants";
 import { readAccountAuditSettings } from "~/lib/settings/audit-settings.server";
 import { findLiveAttachment } from "~/lib/stripe/connections.server";
-import { readAuditTokenCookie } from "~/lib/stripe/state-cookie";
+import { readAuditGrantCookie } from "~/lib/stripe/state-cookie";
 
 import type { Route } from "./+types/results";
 
@@ -61,13 +69,23 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const url = new URL(request.url);
 
-  const accessToken = readAuditTokenCookie(request);
-  const stripeAccountId = url.searchParams.get("account");
+  const grant = await readAuditGrantCookie(env, request);
+  const queryAccountId = url.searchParams.get("account");
   // Legacy's guard, verbatim in effect: no cookie or no account id means the
   // five-minute grant is gone, and the only way back is a fresh authorization.
-  if (!accessToken || !stripeAccountId) {
+  if (!grant || !queryAccountId) {
     throw redirect("/audit/connect?error=session_expired");
   }
+  // THE ACCOUNT IS THE ONE STRIPE NAMED, NEVER THE QUERY'S. Legacy trusts
+  // `?account=`, which the visitor can edit, while the token reads whichever
+  // account granted it; editing the id would file one account's numbers under
+  // another's id in the caller's history (RULES.md 4.14). The query is kept for
+  // legacy's URL and checked against the sealed id. A mismatch is refused like
+  // a stale link, naming no account and no holder.
+  if (queryAccountId !== grant.stripeAccountId) {
+    throw redirect("/audit/connect?error=invalid_state");
+  }
+  const { accessToken, stripeAccountId } = grant;
 
   const db = getDb(env);
   const session = await getSession(env, request);
@@ -93,7 +111,6 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   );
 
   let notSaved: NotSavedReason | null = "anonymous";
-  let runId: string | null = null;
 
   if (membership) {
     // Is the audited Stripe account the one this account actually holds? Asked
@@ -102,7 +119,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     // here means "live on the account this run would be filed under".
     const attachment = await findLiveAttachment(db, stripeAccountId, [membership.accountId]);
     if (attachment.status === "held_by_caller") {
-      runId = await saveAuditRun(env, result, {
+      await saveAuditRun(env, result, {
         accountId: membership.accountId,
         isAuthenticated: true,
         summary: summary.summary,
@@ -116,8 +133,6 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   return {
     run: toAuditRunView(result, summary.summary),
-    stripeAccountId,
-    runId,
     notSaved,
     signedIn: Boolean(membership),
   };
@@ -136,103 +151,87 @@ function formatRanAt(value: Date): string {
 function WhatsNext({
   signedIn,
   notSaved,
-  runId,
 }: {
   signedIn: boolean;
   notSaved: NotSavedReason | null;
-  runId: string | null;
 }) {
   if (signedIn) {
     return (
-      <section className="mb-5 rounded-xl border border-border bg-surface p-6">
-        <h2 className="m-0 mb-2 text-body font-semibold text-text">What is next</h2>
+      <Panel title="What's next">
         {notSaved === null ? (
           <>
-            <p className="mb-4 text-label text-text-secondary">
+            <p className="m-0 mb-4 text-label text-text-secondary">
               This run is saved to your audit history. Trends show up after the second run.
             </p>
-            <div className="flex flex-wrap items-center gap-3">
-              {runId ? (
-                <Link
-                  to={`/audit/runs/${runId}`}
-                  className="inline-block rounded-md border border-border bg-surface px-5 py-2.5 text-label font-semibold text-text no-underline hover:border-brand"
-                >
-                  Open this run
-                </Link>
-              ) : null}
-              <Link
-                to="/audit/history"
-                className="inline-block rounded-md border border-border bg-surface px-5 py-2.5 text-label font-semibold text-text no-underline hover:border-brand"
-              >
-                View audit history
-              </Link>
-            </div>
+            <Link to="/audit/dashboard" className="cap-btn">
+              View audit history
+            </Link>
           </>
         ) : (
-          // The refusal, said out loud. A run that quietly did not save is the
-          // same shape of lie as a zero that means unknown.
+          // The refusal, said out loud (RULES.md 4.14). A run that quietly did
+          // not save is the same shape of lie as a zero that means unknown.
           <p className="m-0 text-label text-text-secondary">
             This run was not saved to your audit history, because the Stripe account you just
             authorized is not the one connected to your Foxhound account. The numbers above are
             correct for the account you authorized.
           </p>
         )}
-      </section>
+      </Panel>
     );
   }
 
-  // Legacy's unauthenticated branch, its copy and its treatment. The target is
-  // /signup rather than /connect because /connect redirects an anonymous visitor
-  // to /login: signup is the only anonymous entrance to the read-write
-  // onboarding grant, which is where 362 ruling 1 puts a converting prospect.
+  // Recova's unauthenticated branch, its copy and its order. The target is
+  // /signup, Recova's own, and the only anonymous entrance to the read-write
+  // onboarding grant (362 ruling 1). The fee is Foxhound's constant.
   return (
-    <section className="mb-5 rounded-xl border border-border bg-surface p-6">
-      <h2 className="m-0 mb-2 text-body font-semibold text-text">What is next</h2>
+    <Panel title="What's next">
       <div className="text-center">
-        <Link
-          to="/signup"
-          className="inline-block rounded-md bg-brand px-5 py-2.5 text-label font-semibold text-on-brand no-underline hover:bg-brand-dark"
-        >
+        <Link to="/signup" className="cap-btn" data-variant="primary">
           Start recovering this revenue. Free until we do.
         </Link>
         <p className="m-0 mt-2 text-label text-text-secondary">
-          Connect Stripe permanently. Foxhound runs automatically. You pay 20% of what we recover.
-          Nothing until then.
+          Connect Stripe permanently. Foxhound runs automatically. You pay {RECOVERY_FEE_PERCENT}% of
+          what we recover. Nothing until then.
         </p>
         <p className="m-0 mt-1 text-micro text-text-subtle">
           These results are from a read-only session. Create an account to save them.
         </p>
       </div>
-    </section>
+    </Panel>
   );
 }
 
 export default function AuditResults({ loaderData }: Route.ComponentProps) {
-  const { run, stripeAccountId, runId, notSaved, signedIn } = loaderData;
+  const { run, notSaved, signedIn } = loaderData;
+  const ctaState: CtaState = signedIn ? "active" : "unauthenticated";
 
+  // Recova's column: max-w-[1280px] mx-auto px-4 md:px-8 py-10. The page sits
+  // under the marketing shell, which is not a Capsomer family, so it names the
+  // teal family itself (Q11), as the legal pages do (J51).
   return (
-    <div className="mx-auto w-full min-w-0 max-w-[1280px] px-4 py-10 md:px-8">
+    <div className="fh-cap mx-auto w-full min-w-0 max-w-[1280px] px-4 py-10 md:px-8" data-family="teal">
       <div className="mb-6">
         <div className="mb-2 font-mono text-micro uppercase tracking-widest text-text-subtle">
           Stripe Account Diagnostic
         </div>
-        <h1 className="m-0 text-title font-semibold leading-tight text-text">
-          Analyzed last {run.lookbackDays} days of payment history
-        </h1>
-        <div className="mt-1 font-mono text-micro text-text-subtle">
-          Subscription health and disputes reflect current account state.
-        </div>
-        <div className="mt-1 font-mono text-micro text-text-subtle">
-          Run at {formatRanAt(run.runAt)} for {stripeAccountId}
-        </div>
+        <PageHead
+          title={`Analyzed last ${run.lookbackDays} days of payment history`}
+          lead={
+            <span className="font-mono text-micro text-text-subtle">
+              Subscription health and disputes reflect current account state.
+              <br />
+              Run at {formatRanAt(run.runAt)}
+            </span>
+          }
+        />
       </div>
 
       <AuditSummary summary={run.summary} />
-      <AuditRecoverySection run={run} />
-      <AuditDisputesSection run={run} />
-      <AuditHealthSection run={run} />
+      <AuditRecoverySection run={run} ctaState={ctaState} />
+      {showDisputesSection(run) ? <AuditDisputesSection run={run} ctaState={ctaState} /> : null}
+      <AuditHealthSection run={run} when="live" />
 
-      <WhatsNext signedIn={signedIn} notSaved={notSaved} runId={runId} />
+      <WhatsNext signedIn={signedIn} notSaved={notSaved} />
     </div>
   );
 }
