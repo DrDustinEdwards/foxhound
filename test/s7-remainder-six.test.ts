@@ -66,8 +66,12 @@ describe("295 item 2: Copy email", () => {
     expect(SOURCE).toContain("setTimeout(() => setCopied(false), COPIED_RESET_MS)");
   });
 
-  it("confirms in green, as legacy does", () => {
-    expect(SOURCE).toContain('copied ? "text-green"');
+  it("confirms with a tick and Copied on Capsomer's link button (J76, Q10)", () => {
+    // Recova's confirmation is green text; under Q10 the control is Capsomer's
+    // link button, which keeps its own colour, so the tick and the word carry it.
+    expect(SOURCE).toContain('className="cap-link-btn" onClick={copyEmail}');
+    expect(SOURCE.replace(/\s+/g, " ")).toContain("{copied ? ( <> <Check");
+    expect(SOURCE).toContain("Copied");
   });
 });
 
@@ -87,7 +91,9 @@ describe("295 item 3: the two Stripe deep links", () => {
   });
 
   it("demo swaps both for disabled buttons under legacy's exact title", () => {
-    expect(SOURCE.match(/title="Connect Stripe to use this"/g)?.length).toBe(2);
+    expect(SOURCE).toContain('const DEMO_DISABLED_REASON = "Connect Stripe to use this";');
+    const demoStripe = SOURCE.slice(SOURCE.indexOf("{isDemo ? (\n          <>"), SOURCE.indexOf("View customer in Stripe"));
+    expect(demoStripe.match(/title=\{DEMO_DISABLED_REASON\}/g)?.length).toBe(2);
     expect(SOURCE).toContain("View invoice in Stripe");
     expect(SOURCE).toContain("View customer in Stripe");
   });
@@ -101,8 +107,9 @@ describe("295 item 3: the two Stripe deep links", () => {
 describe("295 item 4: the timeline step glyph", () => {
   it("renders a glyph node per step, fed by the step's own state", () => {
     expect(SOURCE).toContain("<StepGlyph");
-    expect(SOURCE).toContain("executed={step.executedAt !== null}");
-    expect(SOURCE).toContain("isEmail={isEmailStep(step.stepType)}");
+    expect(SOURCE).toContain("const executed = step.executedAt !== null;");
+    expect(SOURCE).toContain("const email = isEmailStep(step.stepType);");
+    expect(SOURCE).toContain("<StepGlyph executed={executed} isEmail={email}");
   });
 
   it("takes its tone from the SAME source the result chip takes it from", () => {
@@ -115,7 +122,7 @@ describe("295 item 4: the timeline step glyph", () => {
     // That tautology was caught by the plant, not by review.
     const glyph = SOURCE.slice(SOURCE.indexOf("<StepGlyph"), SOURCE.indexOf("<StepGlyph") + 240);
     expect(glyph).toContain("tone={stepResultTone(step.result)}");
-    expect(SOURCE).toContain("<Badge tone={stepResultTone(step.result)}>");
+    expect(SOURCE).toContain("<Pill tone={PILL_TONE[stepResultTone(step.result)]}>");
   });
 
   it("does NOT port legacy's dead result keys, which would grey every email step", () => {
@@ -142,14 +149,15 @@ describe("295 item 4: the timeline step glyph", () => {
 
 describe("295 item 5: the per-step opened and clicked indicators", () => {
   it("ports legacy's gate exactly: executed email step, not a failed send", () => {
-    expect(SOURCE).toContain('isEmailStep(step.stepType) &&\n                step.result !== "email_failed"');
+    expect(SOURCE).toContain('const showEngagement = executed && email && step.result !== "email_failed";');
   });
 
   it("renders all four of legacy's states", () => {
     expect(SOURCE).toContain('"Not opened"');
     expect(SOURCE).toContain('"Not clicked"');
-    expect(SOURCE).toContain("`Opened ${formatRelativeTime(step.openedAt, nowMs) ?? \"\"}`");
-    expect(SOURCE).toContain("`Clicked ${formatRelativeTime(step.clickedAt, nowMs) ?? \"\"}`");
+    // Recova's timeAgo ("3d ago", "5h ago"), J76.
+    expect(SOURCE).toContain("`Opened ${formatTimeAgo(step.openedAt, nowMs)}`");
+    expect(SOURCE).toContain("`Clicked ${formatTimeAgo(step.clickedAt, nowMs)}`");
   });
 
   it("greens an engaged step and leaves an unengaged one subtle", () => {
@@ -169,8 +177,9 @@ describe("295 item 5: the per-step opened and clicked indicators", () => {
   it("REGRESSION GUARD: the AGGREGATE engagement rows are untouched", () => {
     // These pre-date this session and are explicitly NOT item 5. If a future
     // edit collapses the per-step indicators into them, this fails.
-    expect(SOURCE).toContain('<DetailRow label="Opened" value={`${openedEmails.length} of ${emailSteps.length}`} />');
-    expect(SOURCE).toContain('<DetailRow label="Clicked" value={`${clickedEmails.length} of ${emailSteps.length}`} />');
+    const collapsed = SOURCE.replace(/\s+/g, " ");
+    expect(collapsed).toContain('label="Opened" value={`${openedEmails.length} of ${emailSteps.length}`}');
+    expect(collapsed).toContain('label="Clicked" value={`${clickedEmails.length} of ${emailSteps.length}`}');
   });
 });
 
@@ -193,7 +202,8 @@ describe("295 item 6: the recovery success banner", () => {
     // placement that survives it either way, because legacy's banner is last in
     // legacy's order too.
     const banner = SOURCE.indexOf('failedPayment.status === "recovered" && recovery ?');
-    const actions = SOURCE.indexOf("{actionsVisible ? (");
+    const actions = SOURCE.indexOf("{actionsVisible && !isDemo ? (");
+    expect(actions).toBeGreaterThan(-1);
     const notes = SOURCE.indexOf("Internal notes");
     expect(banner).toBeGreaterThan(actions);
     expect(banner).toBeGreaterThan(notes);

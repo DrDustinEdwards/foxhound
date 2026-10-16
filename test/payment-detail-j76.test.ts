@@ -312,7 +312,8 @@ describe("J76: the action result, as Recova reports it", () => {
 
   it("clears a success after Recova's 2000ms and keeps an error", () => {
     expect(route.ACTION_SUCCESS_CLEAR_MS).toBe(2000);
-    expect(SOURCE).toContain("setTimeout(() => setShownNotice(null), ACTION_SUCCESS_CLEAR_MS)");
+    expect(SOURCE).toContain("setTimeout(() => setClearedNoticeFor(actionData), ACTION_SUCCESS_CLEAR_MS)");
+    expect(SOURCE).toContain("setTimeout(() => setSavedClearedFor(noteResult), NOTE_SAVED_CLEAR_MS)");
   });
 
   it("shows an error on a Capsomer crit banner", async () => {
@@ -411,7 +412,9 @@ describe("J76: Recova's recovery timeline", () => {
     const t = text(render(await load()));
     expect(t).toContain("Day 1 email Email sent 3d ago");
     expect(t).toContain('"Your card" Executed Oct 13, 2026');
-    expect(t).toMatch(/Day 2 retry Card declined 1d ago/);
+    // The engine names a retry by its real offset for the payment's schedule
+    // (J75's paymentStepLabel): the soft retry_day2 runs at 48 hours.
+    expect(t).toContain("48hr retry Card declined 1d ago");
     expect(t).toContain("Day 3 email Pending in 1d Scheduled Oct 17, 2026");
     expect(t).not.toMatch(/\b1\. /);
   });
