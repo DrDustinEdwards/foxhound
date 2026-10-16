@@ -245,7 +245,7 @@ describe("/features entries are Recova's, each a capability Foxhound ships", () 
     "Decline breakdown": [["app/routes/app/recovery/index.tsx", "Decline breakdown"]],
     "Payment detail timeline": [["app/routes/app/recovery/payments/detail.tsx", "step.executedAt"]],
     "Email preview in timeline": [["app/routes/app/recovery/payments/detail.tsx", "sanitizeEmailPreviewHtml"]],
-    "Sequence performance page": [["app/routes/app/recovery/sequences.tsx", 'name: "Recovery rate"']],
+    "Sequence performance page": [["app/routes/app/recovery/sequences.tsx", '"Recovery rate": "var(--brand-ui)"']],
     "Disputes dashboard": [["app/routes/app/disputes/index.tsx", 'label="Win rate"']],
     "Dispute evidence staging": [["app/routes/app/disputes/detail.tsx", "Evidence draft"]],
     "Intelligence dashboard": [["app/routes/app/intelligence/index.tsx", 'title="Monthly summary"']],
