@@ -171,7 +171,8 @@ export function buildFailureAlertEmail(input: FailureAlertInput, now: Date): {
     : "never (no successful run on record)";
   // EVERY interpolated value is escaped (job_17249e7da871): the error can carry
   // Stripe or model text, and the cron name and run id are data as well. The
-  // subject is a header, not HTML, so it stays as given.
+  // subject is a header, not HTML, so it is not escaped; Capsomer's renderer
+  // folds it to one line.
   const cronName = escapeHtml(input.cronName);
   const runId = escapeHtml(input.runId ?? "unrecorded");
   const error = escapeHtml(input.error ?? "no message recorded");
