@@ -440,7 +440,7 @@ export default function AuditDashboard({ loaderData, actionData }: Route.Compone
                       <Amount cents={run.mrrCents} currency={run.currency} />
                     </td>
                     <td data-num="">
-                      <Link to={`/audit/runs/${run.id}`} className="cap-btn" data-variant="link">
+                      <Link to={`/audit/results/${run.id}`} className="cap-btn" data-variant="link">
                         View
                         <span className="sr-only"> the run of {formatDate(run.runAt)}</span>
                       </Link>

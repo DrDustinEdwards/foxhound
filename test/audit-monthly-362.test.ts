@@ -388,7 +388,7 @@ describe("362 ruling 3: the ONE email carries BOTH halves", () => {
     // 365 binding 1: no stored run was ever publicly readable, on either side.
     // The email carries a per-run URL and the page pins the account in its
     // predicate, so a forwarded link refuses rather than leaking.
-    expect(emailFor().bodyHtml).toContain(`${BASE_URL}/audit/runs/run_123`);
+    expect(emailFor().bodyHtml).toContain(`${BASE_URL}/audit/results/run_123`);
   });
 
   it("A FAILED SCOPE READS AS COULD-NOT-BE-READ, never as a zero", () => {

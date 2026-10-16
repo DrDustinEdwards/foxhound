@@ -157,7 +157,7 @@ export function buildMonthlyAuditEmail(input: MonthlyAuditEmailInput): {
 } {
   const { result, summary, runId, baseUrl, comparisons, periodMonth } = input;
   const cur = result.meta.currency;
-  const link = `${baseUrl}/audit/runs/${runId}`;
+  const link = `${baseUrl}/audit/results/${runId}`;
 
   // The absorbed digest line, with the month-over-month delta the claim table's
   // stored snapshot already makes available.
