@@ -3,7 +3,12 @@ import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { buildPaymentsCsv } from "~/lib/recovery/payments-csv";
 import { parsePaymentsPage, parsePaymentsPageSize } from "~/lib/recovery/payments-list";
-import { getAmountBounds, listFilteredFailedPayments, type FailedPaymentSort } from "~/lib/recovery/queries.server";
+import {
+  countStepsForFailedPayments,
+  getAmountBounds,
+  listFilteredFailedPayments,
+  type FailedPaymentSort,
+} from "~/lib/recovery/queries.server";
 import { isPaymentTimeRange, resolvePaymentTimeRangeCutoff, type PaymentTimeRange } from "~/lib/recovery/time-range";
 
 import type { Route } from "./+types/export";
@@ -12,7 +17,8 @@ import type { Route } from "./+types/export";
 // screen (PaymentsClient.tsx handleExport, exportToCSV(filtered)), so this
 // re-runs the list's own filters, sort, page and page size, server side and
 // scoped to the signed-in account. "All" as the page size exports every
-// matching row, as it shows every row.
+// matching row, as it shows every row. The 13 columns are Recova's
+// (lib/csv.ts); see app/lib/recovery/payments-csv.ts.
 
 function parseSort(value: string | null): FailedPaymentSort {
   return value === "oldest" || value === "amount_desc" || value === "amount_asc" ? value : "newest";
@@ -64,7 +70,12 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     pageSize,
   });
 
-  const csv = buildPaymentsCsv(result.payments);
+  const stepCounts = await countStepsForFailedPayments(
+    db,
+    accountId,
+    result.payments.map((p) => p.id),
+  );
+  const csv = buildPaymentsCsv(result.payments, stepCounts);
   const filename = `foxhound-payments-${new Date(nowMs).toISOString().slice(0, 10)}.csv`;
   return new Response(csv, {
     headers: {

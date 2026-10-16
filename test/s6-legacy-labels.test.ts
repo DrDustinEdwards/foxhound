@@ -111,11 +111,11 @@ describe("S6 status labels: every surface the label table feeds", () => {
     );
   });
 
-  it("the CSV export carries legacy's word too, though it has NO legacy counterpart", () => {
-    // S12 is NET-NEW: legacy ships no CSV export, so there is no legacy string
-    // to match here. It is listed because it consumes the same table and this
-    // fold changed what it emits, which is a reported consequence rather than a
-    // parity claim.
+  it("the CSV export's Status column reads through the same label table", () => {
+    // Legacy does ship this export (PaymentsClient.tsx exportToCSV, columns in
+    // lib/csv.ts), so it is not net-new. Legacy's export wrote the raw status
+    // column value; the export reads through the label table like every other
+    // surface here, a difference reported for a ruling rather than decided.
     const csv = buildPaymentsCsv(
       [
         {
