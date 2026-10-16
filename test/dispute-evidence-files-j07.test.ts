@@ -26,7 +26,8 @@ import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 // (3997617f), hooks/useDisputeActions.ts (b650cd6d) and lib/constants.ts's
 // DISPUTE_EVIDENCE_* limits, read whole. The bucket binding is Dustin's
 // (capsid/conventions.md 1.4), so every path is also tested with it absent.
-// Every assertion here was seen failing first.
+// Every test here was seen failing: most against the bare stubs (PR body), and
+// the rest against a planted break of the code they guard, recorded there too.
 
 const harness = vi.hoisted(() => ({
   db: null as unknown,
@@ -53,6 +54,7 @@ const { approveAndSubmitDispute, getDisputeDetail, getDisputesWithEvidence } = a
   "~/lib/disputes/queries.server"
 );
 const { submitDisputeEvidenceWithClient } = await import("~/lib/disputes/submission");
+const { uploadEvidenceFile } = await import("~/lib/disputes/evidence-files.server");
 const Page = detail.default as unknown as (props: Record<string, unknown>) => ReturnType<typeof createElement>;
 
 const NOW = Date.parse("2026-10-16T12:00:00.000Z");
@@ -330,6 +332,21 @@ describe("J07: upload (Recova's upload-evidence route)", () => {
     const bucket = fakeBucket();
     const res = await post(uploadForm(fileOf(PNG, "r.png", "image/png")), { bucket, accountId: B });
     expect(res.status).toBe(404);
+    expect(fileRows()).toHaveLength(0);
+    expect(bucket.objects.size).toBe(0);
+  });
+
+  it("the insert itself refuses another account's dispute, and leaves no object behind", async () => {
+    // Below the route's account-scoped read: the guard joined to the write.
+    seedDispute();
+    const bucket = fakeBucket();
+    const outcome = await uploadEvidenceFile(db, bucket as unknown as R2Bucket, {
+      accountId: B,
+      disputeId: "dsp_1",
+      file: fileOf(PNG, "r.png", "image/png"),
+      now: new Date(NOW),
+    });
+    expect(outcome).toBe("not_saved");
     expect(fileRows()).toHaveLength(0);
     expect(bucket.objects.size).toBe(0);
   });
