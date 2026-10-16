@@ -1,5 +1,9 @@
 import { getDb } from "~/db";
-import { describeMonthlyAuditRun, runMonthlyAudit } from "~/lib/audit/monthly.server";
+import {
+  describeMonthlyAuditRun,
+  enqueueMonthlyAudits,
+  MONTHLY_AUDIT_CRON_NAME,
+} from "~/lib/audit/monthly.server";
 import { describeSweepRun, runMonthlyBilling } from "~/lib/billing/run";
 import {
   CRON_SCHEDULE_DAILY,
@@ -191,10 +195,16 @@ const cronHealth: CronHandler = async (env) =>
  *  self-inflicted collision. See the constant for the three sites a new
  *  expression has to land in.
  *
+ *  IT ONLY ENQUEUES (job_97878f0d1fde): one AUDIT_QUEUE message per opted-in
+ *  account, audited one per invocation by the queue consumer, so one large
+ *  account's Stripe pages cannot exhaust the subrequests every other account
+ *  needs. rowsProcessed is the number queued; each account's own result is its
+ *  audit_digest_runs row.
+ *
  *  It passes the run id so a claim row can name the run that produced it. */
 const monthlyAudit: CronHandler = async (env, ctx) => {
-  const result = await runMonthlyAudit(env, new Date(), ctx?.runId ?? null);
-  return { rowsProcessed: result.sent, message: describeMonthlyAuditRun(result) };
+  const result = await enqueueMonthlyAudits(env, new Date(), ctx?.runId ?? null);
+  return { rowsProcessed: result.enqueued, message: describeMonthlyAuditRun(result) };
 };
 
 export const CRON_JOBS: CronJob[] = [
@@ -207,7 +217,7 @@ export const CRON_JOBS: CronJob[] = [
   { name: DEMO_RESET_CRON_NAME, schedule: CRON_SCHEDULE_DAILY, handler: demoReset },
   { name: "billing-monthly", schedule: CRON_SCHEDULE_MONTHLY, handler: billingMonthly },
   { name: "intelligence-sync", schedule: CRON_SCHEDULE_MONTHLY, handler: intelligenceSync },
-  { name: "monthly-audit", schedule: CRON_SCHEDULE_MONTHLY_AUDIT, handler: monthlyAudit },
+  { name: MONTHLY_AUDIT_CRON_NAME, schedule: CRON_SCHEDULE_MONTHLY_AUDIT, handler: monthlyAudit },
   { name: "intelligence-ai", schedule: CRON_SCHEDULE_DAILY, handler: intelligenceAi },
   { name: "retention-engagement-events", schedule: CRON_SCHEDULE_DAILY, handler: sweepEngagementEvents },
   { name: "retention-email-sends", schedule: CRON_SCHEDULE_DAILY, handler: sweepEmailSends },

@@ -7,6 +7,11 @@ import { saveAuditRun } from "~/lib/audit/persist.server";
 import { formatBps, formatCents, SCOPE_UNREAD } from "~/lib/audit/render";
 import { formatMoney } from "~/lib/money-format";
 import { runFullAudit } from "~/lib/audit/run.server";
+import {
+  AUDIT_QUEUE_MAX_RETRIES,
+  AUDIT_QUEUE_SEND_BATCH_MAX,
+} from "~/lib/constants";
+import { alertCronFailure } from "~/lib/cron/alerts.server";
 import { accountProcessingEligibleCondition } from "~/lib/cron/recovery-tick";
 import { sendTransactionalEmail } from "~/lib/email/send";
 import { isDigestEnabled, readAuditSettings } from "~/lib/settings/audit-settings";
@@ -350,10 +355,19 @@ export async function priorTotals(
  * run and send.
  *
  * THE REFUSAL IS THE DATABASE'S. The unique index on
- * (account_id, period_month) rejects the second insert, so two concurrent
- * monthly runs cannot both mail one merchant, and a second tick inside the same
- * month does nothing. Application-side "select then insert" could interleave
- * between the two statements; an index cannot.
+ * (account_id, period_month) rejects the second insert, so two deliveries of one
+ * queue message cannot both mail one merchant, and a second cron tick inside the
+ * same month does nothing. Application-side "select then insert" could
+ * interleave between the two statements; an index cannot.
+ *
+ * A FAILED CLAIM IS RETAKEN, AND ONLY A FAILED ONE (job_97878f0d1fde). The audit
+ * now runs from a queue message and a failure asks the queue to retry, so the
+ * retry has to be able to run. The retake is one conditional UPDATE from
+ * "failed" to "pending": two deliveries racing for it cannot both win, because
+ * only one of them finds the row still failed. A row that is "pending" is a run
+ * in flight (or one that died mid-run) and is never retaken, so a crash costs
+ * that merchant one month's email rather than risking a second one; every other
+ * status is a finished month.
  */
 export async function claimMonthSlot(
   db: Db,
@@ -378,172 +392,296 @@ export async function claimMonthSlot(
     return id;
   } catch {
     // The unique index rejected it: this account already has this month's row.
-    return null;
+    const [retaken] = await db
+      .update(auditDigestRuns)
+      .set({ status: "pending", error: null })
+      .where(
+        and(
+          eq(auditDigestRuns.accountId, accountId),
+          eq(auditDigestRuns.periodMonth, periodMonth),
+          eq(auditDigestRuns.status, "failed"),
+        ),
+      )
+      .returning({ id: auditDigestRuns.id });
+    return retaken?.id ?? null;
   }
 }
 
-export interface MonthlyAuditRunResult {
+/** The registered cron's name, shared with the alert the consumer raises. */
+export const MONTHLY_AUDIT_CRON_NAME = "monthly-audit";
+
+/** One queue message: one account, one month, and the cron run that queued it. */
+export interface MonthlyAuditMessage {
+  accountId: string;
+  periodMonth: string;
+  cronRunId: string | null;
+}
+
+/** The message body, or null when it is not one this producer wrote. */
+export function parseMonthlyAuditMessage(body: unknown): MonthlyAuditMessage | null {
+  if (typeof body !== "object" || body === null) return null;
+  const { accountId, periodMonth, cronRunId } = body as Record<string, unknown>;
+  if (typeof accountId !== "string" || accountId === "") return null;
+  if (typeof periodMonth !== "string" || !/^\d{4}-\d{2}$/.test(periodMonth)) return null;
+  if (cronRunId !== null && typeof cronRunId !== "string") return null;
+  return { accountId, periodMonth, cronRunId };
+}
+
+export interface MonthlyAuditEnqueueResult {
   eligible: number;
   optedIn: number;
-  ran: number;
-  sent: number;
-  skippedDuplicate: number;
-  skippedNoConnection: number;
-  skippedNoRecipient: number;
-  failed: number;
-  firstError: string | null;
+  enqueued: number;
 }
 
 /**
- * The whole run: every processing-eligible account, opted in through the shared
- * predicate, claimed by the database, audited against live Stripe, persisted
- * through phase (d), and mailed once through the existing sender.
+ * The cron half: one queue message per opted-in, processing-eligible account.
+ *
+ * WHY A QUEUE (job_97878f0d1fde). Since #123 the audit's Stripe reads page to
+ * the end (RULES.md 3.19), so one account costs a fixed handful of subrequests
+ * plus one per page of its own data, with no upper bound. Auditing every account
+ * in this one invocation put all of them under one subrequest limit, and one
+ * large account could starve every account after it. Each message is consumed
+ * in its own invocation (max_batch_size 1), so each account gets its own budget.
+ *
+ * This invocation makes 1 D1 read plus ceil(opted-in / 100) sendBatch calls,
+ * besides runCronJob's own bookkeeping, and touches no Stripe account.
+ *
+ * A sendBatch that throws fails the cron run, so runCronJob records it and the
+ * failure alert fires. Messages already sent stay sent, and a re-run is safe:
+ * the month claim refuses any account that already finished.
+ */
+export async function enqueueMonthlyAudits(
+  env: Env,
+  now: Date,
+  cronRunId: string | null,
+): Promise<MonthlyAuditEnqueueResult> {
+  const db = getDb(env);
+  const periodMonth = auditPeriod(now);
+  const candidates = await monthlyAuditCandidates(db);
+  // THE SHARED PREDICATE. NULL and false are both off, exactly as the page
+  // renders them, and exactly as legacy's `= true` resolves them.
+  const optedIn = candidates.filter((account) => isDigestEnabled(account.auditAutoRun));
+
+  for (let i = 0; i < optedIn.length; i += AUDIT_QUEUE_SEND_BATCH_MAX) {
+    const chunk = optedIn.slice(i, i + AUDIT_QUEUE_SEND_BATCH_MAX);
+    await env.AUDIT_QUEUE.sendBatch(
+      chunk.map((account) => ({
+        body: { accountId: account.id, periodMonth, cronRunId } satisfies MonthlyAuditMessage,
+      })),
+    );
+  }
+
+  return { eligible: candidates.length, optedIn: optedIn.length, enqueued: optedIn.length };
+}
+
+/** The opted-in, processing-eligible account row, or null. Read again at
+ *  delivery: a merchant who switched the audit off, paused processing or
+ *  cancelled after the cron queued them is not audited, and the demo firewall
+ *  (`accountProcessingEligibleCondition`) sits on this path too. */
+async function eligibleAccount(
+  db: Db,
+  accountId: string,
+): Promise<MonthlyAuditAccountRow | null> {
+  const [row] = await db
+    .select({
+      id: accounts.id,
+      auditAutoRun: accounts.auditAutoRun,
+      auditLookbackDays: accounts.auditLookbackDays,
+      notificationEmail: accounts.notificationEmail,
+    })
+    .from(accounts)
+    .where(and(eq(accounts.id, accountId), accountProcessingEligibleCondition()))
+    .limit(1);
+  if (!row || !isDigestEnabled(row.auditAutoRun)) return null;
+  return row;
+}
+
+export type MonthlyAuditAccountStatus =
+  | "sent"
+  | "duplicate"
+  | "not_eligible"
+  | "no_connection"
+  | "no_recipient"
+  | "failed";
+
+export interface MonthlyAuditAccountOutcome {
+  status: MonthlyAuditAccountStatus;
+  /** Whether the Stripe reads ran on this delivery. */
+  ran: boolean;
+  /** The thrown value, whole, on a failed outcome. */
+  error?: unknown;
+}
+
+/**
+ * The consumer half: one account, one month. Claimed by the database, audited
+ * against live Stripe, persisted through phase (d), and mailed once through the
+ * existing sender.
  *
  * NO OUTCOME AND NO BILLING ROW. `saveAuditRun` is a plain insert, not a money
  * write, because the audit is free under PRICING rev 3 and recording one creates
  * no attributed recovery and gates no fee. Pinned by plant in three modules.
  *
- * FAILURE POSTURE, inherited from the digest unchanged and diverging from
- * billing-monthly deliberately. One merchant's failure never stops another's,
- * and the run RETHROWS at the end if any account failed so `runCronJob` records
- * the failure and Session 24's alert path fires. A monthly email that silently
- * stops reaching a merchant is the class 311 and 313 exist to kill.
- *
- * A CLAIMED MONTH IS NOT RETRIED. A failed run leaves the claim row carrying its
- * error, so next month's run does not re-attempt this month.
+ * ONCE THE EMAIL HAS LEFT, NOTHING AFTER IT CAN TURN THE MONTH INTO A RETRY. A
+ * failure after the send is logged and the outcome stays "sent", because a
+ * retried message would mail the merchant a second time.
  */
-export async function runMonthlyAudit(
+export async function auditAccountForMonth(
   env: Env,
+  message: MonthlyAuditMessage,
   now: Date,
-  cronRunId: string | null,
-): Promise<MonthlyAuditRunResult> {
+): Promise<MonthlyAuditAccountOutcome> {
   const db = getDb(env);
-  const periodMonth = auditPeriod(now);
-  const candidates = await monthlyAuditCandidates(db);
-  const baseUrl = env.BETTER_AUTH_URL ?? "";
+  const { accountId, periodMonth, cronRunId } = message;
 
-  const result: MonthlyAuditRunResult = {
-    eligible: candidates.length,
-    optedIn: 0,
-    ran: 0,
-    sent: 0,
-    skippedDuplicate: 0,
-    skippedNoConnection: 0,
-    skippedNoRecipient: 0,
-    failed: 0,
-    firstError: null,
-  };
+  const account = await eligibleAccount(db, accountId);
+  if (!account) return { status: "not_eligible", ran: false };
 
-  for (const account of candidates) {
-    // THE SHARED PREDICATE. NULL and false are both off, exactly as the page
-    // renders them, and exactly as legacy's `= true` resolves them.
-    if (!isDigestEnabled(account.auditAutoRun)) continue;
-    result.optedIn += 1;
+  const claimId = await claimMonthSlot(db, accountId, periodMonth, now, cronRunId);
+  if (claimId === null) return { status: "duplicate", ran: false };
 
-    const claimId = await claimMonthSlot(db, account.id, periodMonth, now, cronRunId);
-    if (claimId === null) {
-      result.skippedDuplicate += 1;
-      continue;
-    }
-
-    try {
-      const connection = await primaryConnection(db, account.id);
-      if (!connection) {
-        // Legacy `continue`s past an account with no primary connection. The
-        // claim is settled rather than left pending, so the row says why.
-        await db
-          .update(auditDigestRuns)
-          .set({ status: "no_connection" })
-          .where(eq(auditDigestRuns.id, claimId));
-        result.skippedNoConnection += 1;
-        continue;
-      }
-
-      const { lookbackDays } = readAuditSettings({
-        auditLookbackDays: account.auditLookbackDays,
-        auditAutoRun: account.auditAutoRun,
-      });
-
-      const accessToken = await decryptToken(env, connection.encryptedAccessToken);
-      const { result: audit, summary } = await runFullAudit(
-        env,
-        accessToken,
-        connection.stripeUserId,
-        lookbackDays,
-        now,
-      );
-      result.ran += 1;
-
-      // Phase (d), unchanged. The run is history whether or not the email sends.
-      const runId = await saveAuditRun(env, audit, {
-        accountId: account.id,
-        isAuthenticated: true,
-        summary: summary.summary,
-        now,
-      });
-
-      const totals = await computeFoxhoundAddsCents(db, account.id);
-
-      if (!account.notificationEmail) {
-        // Legacy sends only when notification_email is set, and 339 makes it the
-        // only recipient. The audit still ran and is still readable in history.
-        await db
-          .update(auditDigestRuns)
-          .set({ totals, status: "no_recipient" })
-          .where(eq(auditDigestRuns.id, claimId));
-        result.skippedNoRecipient += 1;
-        continue;
-      }
-
-      const comparisons = compareTotals(totals, await priorTotals(db, account.id, periodMonth));
-      const message = buildMonthlyAuditEmail({
-        result: audit,
-        summary: summary.summary,
-        runId,
-        baseUrl,
-        comparisons,
-        periodMonth,
-      });
-      await sendTransactionalEmail(env, {
-        to: account.notificationEmail,
-        subject: message.subject,
-        bodyHtml: message.bodyHtml,
-      });
-
+  let ran = false;
+  let mailed = false;
+  try {
+    const connection = await primaryConnection(db, accountId);
+    if (!connection) {
+      // Legacy `continue`s past an account with no primary connection. The
+      // claim is settled rather than left pending, so the row says why.
       await db
         .update(auditDigestRuns)
-        .set({ totals, status: "sent", sentAt: now })
+        .set({ status: "no_connection" })
         .where(eq(auditDigestRuns.id, claimId));
-      result.sent += 1;
-    } catch (err) {
-      const error = err instanceof Error ? err.message : "monthly audit failed";
-      result.failed += 1;
-      result.firstError ??= error;
+      return { status: "no_connection", ran };
+    }
+
+    const { lookbackDays } = readAuditSettings({
+      auditLookbackDays: account.auditLookbackDays,
+      auditAutoRun: account.auditAutoRun,
+    });
+
+    const accessToken = await decryptToken(env, connection.encryptedAccessToken);
+    const { result: audit, summary } = await runFullAudit(
+      env,
+      accessToken,
+      connection.stripeUserId,
+      lookbackDays,
+      now,
+    );
+    ran = true;
+
+    // Phase (d), unchanged. The run is history whether or not the email sends.
+    const runId = await saveAuditRun(env, audit, {
+      accountId,
+      isAuthenticated: true,
+      summary: summary.summary,
+      now,
+    });
+
+    const totals = await computeFoxhoundAddsCents(db, accountId);
+
+    if (!account.notificationEmail) {
+      // Legacy sends only when notification_email is set, and 339 makes it the
+      // only recipient. The audit still ran and is still readable in history.
       await db
         .update(auditDigestRuns)
-        .set({ status: "failed", error })
-        .where(eq(auditDigestRuns.id, claimId))
-        .catch(() => {
-          // Best effort. The throw below is what surfaces the failure.
-        });
+        .set({ totals, status: "no_recipient" })
+        .where(eq(auditDigestRuns.id, claimId));
+      return { status: "no_recipient", ran };
     }
-  }
 
-  if (result.failed > 0) {
-    throw new Error(
-      `${result.failed} of ${result.optedIn} monthly audit(s) failed: ${result.firstError ?? "unknown"}`,
-    );
-  }
+    const comparisons = compareTotals(totals, await priorTotals(db, accountId, periodMonth));
+    const email = buildMonthlyAuditEmail({
+      result: audit,
+      summary: summary.summary,
+      runId,
+      baseUrl: env.BETTER_AUTH_URL ?? "",
+      comparisons,
+      periodMonth,
+    });
+    await sendTransactionalEmail(env, {
+      to: account.notificationEmail,
+      subject: email.subject,
+      bodyHtml: email.bodyHtml,
+    });
+    mailed = true;
 
-  return result;
+    await db
+      .update(auditDigestRuns)
+      .set({ totals, status: "sent", sentAt: now })
+      .where(eq(auditDigestRuns.id, claimId));
+    return { status: "sent", ran };
+  } catch (err) {
+    if (mailed) {
+      // The merchant has the email. The claim row may still read "pending",
+      // which every later delivery treats as taken, so nothing is sent twice.
+      console.error(`monthly audit: account ${accountId} (${periodMonth}) mailed, then failed:`, err);
+      return { status: "sent", ran };
+    }
+    const error = err instanceof Error ? err.message : "monthly audit failed";
+    await db
+      .update(auditDigestRuns)
+      .set({ status: "failed", error })
+      .where(eq(auditDigestRuns.id, claimId))
+      .catch(() => {
+        // Best effort. The retry the caller asks for is what surfaces it.
+      });
+    return { status: "failed", ran, error: err };
+  }
 }
 
-/** How the run reads in cron_run_history and on /admin/operations. */
-export function describeMonthlyAuditRun(result: MonthlyAuditRunResult): string {
+/**
+ * One delivered message, start to finish, and what the queue should do with it.
+ *
+ * FAILURE POSTURE (job_97878f0d1fde). The whole err is logged and the message is
+ * retried; one account's failure never touches another's message. The delivery
+ * whose attempts exceed AUDIT_QUEUE_MAX_RETRIES is the last one Cloudflare will
+ * make, so that one also raises the monthly-audit failure alert, the same
+ * machinery a failed cron run uses (313). A body this producer did not write is
+ * acked, because retrying it cannot make it parse.
+ */
+export async function processMonthlyAuditMessage(
+  env: Env,
+  body: unknown,
+  attempts: number,
+  now: Date,
+): Promise<"ack" | "retry"> {
+  const message = parseMonthlyAuditMessage(body);
+  if (!message) {
+    console.error("monthly audit: dropped a malformed queue message:", body);
+    return "ack";
+  }
+
+  let outcome: MonthlyAuditAccountOutcome;
+  try {
+    outcome = await auditAccountForMonth(env, message, now);
+  } catch (err) {
+    // Before the claim existed (the account read or the claim itself threw), so
+    // there is no row to mark. The retry is the record.
+    outcome = { status: "failed", ran: false, error: err };
+  }
+  if (outcome.status !== "failed") return "ack";
+
+  console.error(
+    `monthly audit: account ${message.accountId} (${message.periodMonth}) failed on attempt ${attempts}:`,
+    outcome.error,
+  );
+  if (attempts > AUDIT_QUEUE_MAX_RETRIES) {
+    const error =
+      outcome.error instanceof Error ? outcome.error.message : "monthly audit failed";
+    await alertCronFailure(
+      env,
+      getDb(env),
+      { cronName: MONTHLY_AUDIT_CRON_NAME, runId: message.cronRunId, error },
+      now,
+    );
+  }
+  return "retry";
+}
+
+/** How the cron run reads in cron_run_history and on /admin/operations. Each
+ *  account's own result is its audit_digest_runs row. */
+export function describeMonthlyAuditRun(result: MonthlyAuditEnqueueResult): string {
   return (
-    `${result.eligible} eligible, ${result.optedIn} opted in, ${result.ran} audited, ` +
-    `${result.sent} emailed, ${result.skippedDuplicate} already sent this month, ` +
-    `${result.skippedNoConnection} without a live connection, ` +
-    `${result.skippedNoRecipient} without a notification email`
+    `${result.eligible} eligible, ${result.optedIn} opted in, ` +
+    `${result.enqueued} queued for audit`
   );
 }
