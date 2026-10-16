@@ -28,7 +28,7 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const { sendEmail, sendTransactionalEmail } = await import("~/lib/email/send");
+const { sendEmail } = await import("~/lib/email/send");
 const { buildRecoveryEmailJob } = await import("~/lib/engine/execute-step");
 const { buildTemplateEmail } = await import("~/lib/recovery/email-template");
 const { buildWinbackEmail, winbackSubject } = await import("~/lib/recovery/winback-email");
@@ -453,9 +453,20 @@ describe("transactional mail carries both parts and never the footer", () => {
       runId: "run_123",
       baseUrl: BASE,
       comparisons: [{ currency: "usd", cents: 1240, changeCents: 310 }],
-      periodMonth: "2026-09",
     });
-    await sendTransactionalEmail(env, { to: "owner@acme.test", ...message });
+    // E24: merchant notice mail, written as Capsomer blocks, as the sender sends it.
+    await sendEmail(env, {
+      accountId: ACCOUNT,
+      to: "owner@acme.test",
+      fromName: "Foxhound",
+      subject: message.subject,
+      blocks: message.blocks,
+      template: "monthly_audit",
+      audience: "merchant",
+      unsubscribeToken: "",
+      physicalAddress: "",
+      idempotencyKey: "monthly-audit:acct_1:2026-09",
+    });
     const m = only();
     expectBothParts(m, ["What Foxhound did this month", "MRR:", "View full audit"]);
     expect(m.html).toContain(`href="${BASE}/audit/results/run_123"`);

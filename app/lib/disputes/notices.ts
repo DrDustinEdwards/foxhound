@@ -1,4 +1,5 @@
 import { CRON_SCHEDULE_MONTHLY } from "~/lib/constants";
+import { recoveryFooterNote, type EmailNotice } from "~/lib/email/templates";
 import { formatMoney } from "~/lib/money-format";
 
 import { disputeFeeTerms } from "./detail";
@@ -23,10 +24,17 @@ import { disputeFeeTerms } from "./detail";
 //   snapshotted (resolved_fee_cents, which carries the $500 cap) and Foxhound's
 //   own terms read from the constants, not Recova's "20% of the saved amount",
 //   which was untrue above the cap (RULES.md 1.2, 2.1).
-// - Plain semantic HTML with the first line as the heading, as the recovery
-//   notification does: Capsomer's email frame is the shell (RULES.md 3.16), and
-//   Recova's button styles do not cross over.
-// J92 and J93 bring the words the rest of the way to Recova's.
+// - The won and lost notices are plain semantic HTML with the first line as the
+//   heading; J93 brings them the rest of the way to Recova's.
+//
+// THE NEW DISPUTE AND REMINDER NOTICES (J92, rows E16 and E17) are Capsomer's
+// `notice` template, as the recovery notification is (E10): Recova's bold first
+// line is the title and the mail's one heading, its sentences are the
+// paragraphs, and "Review dispute" is the button. Plain strings, never markup:
+// Capsomer escapes each one, so a customer name from Stripe is shown exactly as
+// written. Recova's bold runs are plain text here (capsomer job_2adddfaab5dc).
+// The footer is Recova's wrapEmailHtml line with the connection's sender name
+// (disputeNoticeFooterNote), and send.ts puts "Manage email settings" under it.
 
 export const DISPUTE_CREATED_TEMPLATE = "merchant_dispute_created";
 export const DISPUTE_REMINDER_TEMPLATE = "merchant_dispute_reminder";
@@ -119,6 +127,23 @@ export interface RenderedNotice {
   bodyHtml: string;
 }
 
+/** A notice on Capsomer's `notice` template: the subject and the notice. */
+export interface NoticeMail {
+  subject: string;
+  notice: EmailNotice;
+}
+
+/** The sender name Recova's dispute mail puts in its footer: the connection's
+ *  `sender_name ?? 'Recova'`, with Foxhound's name. A blank name falls back as
+ *  well, so the sentence never reads "from  about". */
+export const DISPUTE_FOOTER_FALLBACK_SENDER = "Foxhound";
+
+/** Recova's footer sentence on these notices (lib/email.ts wrapEmailHtml with
+ *  `params.senderName ?? 'Recova'`). Pure. */
+export function disputeNoticeFooterNote(senderName: string | null | undefined, year: number): string {
+  return recoveryFooterNote(senderName?.trim() ? senderName.trim() : DISPUTE_FOOTER_FALLBACK_SENDER, year);
+}
+
 export interface CreatedNoticeInput {
   amountCents: number;
   currency: string;
@@ -128,21 +153,24 @@ export interface CreatedNoticeInput {
   disputeUrl: string;
 }
 
-/** Recova's sendDisputeCreatedEmail, without the triage line. */
-export function createdNotice(input: CreatedNoticeInput): RenderedNotice {
+/** Recova's sendDisputeCreatedEmail, auto-submit off and without the triage
+ *  line (see the header). */
+export function createdNotice(input: CreatedNoticeInput): NoticeMail {
   const amount = formatMoney(input.amountCents, input.currency);
-  const who = escapeNoticeHtml(input.customerLabel);
   const deadlineLine = input.evidenceDeadline
-    ? `Evidence deadline: <strong>${isoDay(input.evidenceDeadline)}</strong>.`
+    ? `Evidence deadline: ${isoDay(input.evidenceDeadline)}.`
     : "No evidence deadline set by Stripe.";
   return {
     subject: `New dispute: ${amount} from ${input.customerLabel}`,
-    bodyHtml:
-      `<h1>New dispute.</h1>` +
-      `<p>${who} disputed ${amount} for reason: <strong>${escapeNoticeHtml(titleCaseReason(input.reason))}</strong>.</p>` +
-      `<p>${deadlineLine}</p>` +
-      `<p>Auto-submit is off. We will remind you 3 days before the deadline.</p>` +
-      `<p><a href="${input.disputeUrl}">Review dispute</a></p>`,
+    notice: {
+      title: "New dispute.",
+      body: [
+        `${input.customerLabel} disputed ${amount} for reason: ${titleCaseReason(input.reason)}.`,
+        deadlineLine,
+        "Auto-submit is off. We will remind you 3 days before the deadline.",
+      ],
+      action: { label: "Review dispute", url: input.disputeUrl },
+    },
   };
 }
 
@@ -171,17 +199,20 @@ export const REMINDER_APPROVED_LINE =
   "Your evidence is approved, but Stripe has not confirmed the submission. Check this dispute in Stripe, or open it in Foxhound to submit it again.";
 
 /** Recova's sendDisputeDeadlineReminderEmail, auto-submit off. */
-export function reminderNotice(input: ReminderNoticeInput): RenderedNotice {
+export function reminderNotice(input: ReminderNoticeInput): NoticeMail {
   const amount = formatMoney(input.amountCents, input.currency);
   const plural = input.daysLeft === 1 ? "day" : "days";
   return {
     subject: `URGENT: Dispute response due in ${input.daysLeft} ${plural}`,
-    bodyHtml:
-      `<h1>Dispute response due in ${input.daysLeft} ${plural}.</h1>` +
-      `<p>${escapeNoticeHtml(input.customerLabel)} disputed ${amount} for reason: <strong>${escapeNoticeHtml(titleCaseReason(input.reason))}</strong>.</p>` +
-      `<p>Current status: <strong>needs response</strong>.</p>` +
-      `<p>${input.approved ? REMINDER_APPROVED_LINE : REMINDER_ACTION_LINE}</p>` +
-      `<p><a href="${input.disputeUrl}">Review dispute</a></p>`,
+    notice: {
+      title: `Dispute response due in ${input.daysLeft} ${plural}.`,
+      body: [
+        `${input.customerLabel} disputed ${amount} for reason: ${titleCaseReason(input.reason)}.`,
+        "Current status: needs response.",
+        input.approved ? REMINDER_APPROVED_LINE : REMINDER_ACTION_LINE,
+      ],
+      action: { label: "Review dispute", url: input.disputeUrl },
+    },
   };
 }
 

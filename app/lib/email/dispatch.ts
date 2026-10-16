@@ -193,7 +193,16 @@ export async function processEmailJob(
   // signed-in user's own address (RULES.md 4.7) and reaches no customer, and
   // Recova's test-email route sends on every click with no such switch. The
   // admin email tool skips the gate for the same reason (#82).
-  if (job.audience !== "preview" && !(await liveSendsEnabled(db, job.accountId))) {
+  //
+  // A JOB MARKED liveSendGate "skip" IS NOT HELD EITHER (E24, review round 1 of
+  // PR 160): platform-to-merchant mail whose caller already refused demo and
+  // ineligible accounts. Recova has no such switch for that mail, and the
+  // switch is off for every real merchant today.
+  if (
+    job.audience !== "preview" &&
+    job.liveSendGate !== "skip" &&
+    !(await liveSendsEnabled(db, job.accountId))
+  ) {
     await logSend(db, {
       job,
       status: "blocked",
