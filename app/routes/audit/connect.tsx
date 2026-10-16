@@ -1,5 +1,15 @@
+import { Alert } from "capsomer/react/banner";
+import { Button } from "capsomer/react/button";
 import { Check, X } from "lucide-react";
-import { Form, Link, redirect, useNavigation } from "react-router";
+import type { ReactNode } from "react";
+import { Form, Link, redirect, useFormAction, useNavigation } from "react-router";
+
+import "capsomer/banner.css";
+import "capsomer/button.css";
+import "capsomer/panel.css";
+// Capsomer's tokens and the teal family (capbase layer), which the panel, the
+// button, the alert and the focus ring read, as on /connect.
+import "~/site-header.css";
 
 import { AUDIT_LOOKBACK_DAYS, RATE_LIMIT_AUDIT } from "~/lib/constants";
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -27,20 +37,23 @@ import type { Route } from "./+types/connect";
 // sentence "The audit only reads." provable rather than aspirational. Every line
 // of legacy's consent copy is ported verbatim; only the request changed.
 //
-// LEGACY'S PROGRESS TICKER IS NOT PORTED. Its button fakes a four-step sequence
-// ("Connecting to Stripe...", "Reading invoices...", "Analyzing decline
-// codes...", "Building summary...") on an 1800ms interval while navigating away
-// after 400ms, so every step after the first describes work that is not
-// happening and the last three are shown to a visitor who is already on Stripe's
-// consent screen. That is a fabricated progress indicator, ruling 39's class.
-// The real pending state from useNavigation replaces it.
+// LEGACY'S PROGRESS TICKER KEEPS ONLY ITS TRUE STEP (J42). Its button fakes a
+// four-step sequence ("Connecting to Stripe...", "Reading invoices...",
+// "Analyzing decline codes...", "Building summary...") on an 1800ms interval
+// while navigating away after 400ms, so every step after the first describes
+// work that is not happening and is shown to a visitor already on Stripe's
+// consent screen. Fixing copy where Recova lied needs no approval (RULES.md
+// 1.2), so the three untrue steps go and the first, which is true, stays,
+// announced through a polite status region as Recova's role="status" did.
 //
 // ERRORS LAND HERE, NOT ON /audit. Legacy redirects every failure to
 // `/audit?error=...` and its /audit page reads no error param at all, so a
 // visitor whose state check failed is returned to the marketing page with no
 // explanation and no idea the connection did not happen. Landing back on the
 // consent screen with the reason keeps the retry one click away, and is the
-// smallest correct version of a flow that currently fails silently.
+// smallest correct version of a flow that currently fails silently. This is a
+// visible difference with no line in parity/APPROVED-DIFFERENCES.md yet; J42
+// left it standing and put it to Dustin rather than choosing a direction.
 
 export function meta() {
   return [
@@ -68,7 +81,7 @@ const OAUTH_ERROR_MESSAGES: Record<string, string> = {
   cancelled: "Stripe connection was cancelled. Nothing was read.",
   invalid_state: "That audit link expired. Please start again.",
   scope_refused:
-    "Stripe granted more access than this audit asks for, so the run was refused. Nothing was read.",
+    "Stripe did not grant read-only access, so the run was refused. Nothing was read.",
   failed: "Could not complete the Stripe connection. Please try again.",
   session_expired: "That audit session expired. Connect again to see current numbers.",
 };
@@ -112,87 +125,150 @@ export async function action({ request, context }: Route.ActionArgs) {
   });
 }
 
-function AccessLine({ item, allowed }: { item: string; allowed: boolean }) {
+/** Recova's two labelled lists inside the inner box. Each is a real list
+ *  named by its heading. Recova's labels are `text-xs font-medium` with no
+ *  letter spacing, so none is added. Capsomer has no can and cannot list, so
+ *  this is composed from Foxhound's tokens, as on /connect (a Capsomer gap,
+ *  named in the PR). */
+function AccessList({
+  id,
+  heading,
+  items,
+  allowed,
+}: {
+  id: string;
+  heading: string;
+  items: string[];
+  allowed: boolean;
+}) {
   const Icon = allowed ? Check : X;
   return (
-    <div className="mb-2 flex items-center gap-2">
-      <Icon
-        className={`size-4 shrink-0 ${allowed ? "text-success-text" : "text-error-text"}`}
-        strokeWidth={1.5}
-        aria-hidden
-      />
-      <span className="text-label text-text">{item}</span>
+    <>
+      <p id={id} className={`mb-3 text-micro font-medium uppercase text-text-subtle ${allowed ? "" : "mt-4"}`}>
+        {heading}
+      </p>
+      <ul aria-labelledby={id} className="m-0 list-none p-0">
+        {items.map((item) => (
+          <li key={item} className="mb-2 flex items-center gap-2 text-label text-text">
+            <Icon
+              className={`size-4 shrink-0 ${allowed ? "text-success-text" : "text-error-text"}`}
+              strokeWidth={1.5}
+              aria-hidden
+            />
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+/**
+ * Recova's frame: `flex items-center justify-center px-4 py-[60px]` around one
+ * `w-full max-w-[480px]` card with `p-12`. The card is Capsomer's panel
+ * through its HTML contract, body only, because the React Panel always draws
+ * an h2 header band and this page's one heading is its h1 (the gap J62
+ * named). The wrapper puts the parts in Capsomer's teal family with
+ * Foxhound's neutrals (.fh-cap), so the button and its focus ring are teal
+ * (Q11). The inner div adds 36px by 32px to the panel body's 12px by 16px,
+ * which is Recova's 48px on every side at every width, as the sign-in card
+ * does (RULES.md 5.1).
+ */
+function AuditConnectFrame({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex items-center justify-center px-4 py-[60px]">
+      <div
+        className="fh-cap w-full max-w-[480px] [--border-focus:var(--ring)]"
+        data-family="teal"
+        data-audit-connect=""
+      >
+        <section className="cap-panel">
+          <div className="cap-panel-body">
+            <div className="px-8 py-9">{children}</div>
+          </div>
+        </section>
+      </div>
     </div>
   );
 }
 
+/** Recova's only true progress step, shown while the browser leaves for Stripe. */
+const PENDING_LABEL = "Connecting to Stripe...";
+
 export default function AuditConnect({ loaderData }: Route.ComponentProps) {
-  const busy = useNavigation().state !== "idle";
+  // Pending only while THIS form's POST is in flight. Any navigation sets the
+  // router's state, so following "See a demo first" or a header link would
+  // otherwise announce "Connecting to Stripe..." while going somewhere else
+  // (review round 1, must-fix 1).
+  const navigation = useNavigation();
+  const formAction = useFormAction();
+  const busy =
+    navigation.state !== "idle" &&
+    navigation.formMethod?.toUpperCase() === "POST" &&
+    navigation.formAction === formAction;
   const message = loaderData.error
     ? (OAUTH_ERROR_MESSAGES[loaderData.error] ?? "Could not connect Stripe. Please try again.")
     : null;
 
   return (
-    <div className="flex items-center justify-center px-4 py-[60px]">
-      <div className="w-full max-w-[480px] rounded-[12px] border border-border bg-surface p-8 md:p-12">
-        <h1 className="mb-2 text-center text-title font-semibold text-text">
-          Connect your Stripe account
-        </h1>
-        <p className="mb-8 text-center text-label leading-relaxed text-text-subtle">
-          We need read-only access to scan your failed payments from the last{" "}
-          {loaderData.lookbackDays} days. We never store your data permanently.
-        </p>
+    <AuditConnectFrame>
+      <h1 className="mb-2 text-center text-title font-semibold text-text">Connect your Stripe account</h1>
+      <p className="mb-8 text-center text-label leading-relaxed text-text-subtle">
+        We need read-only access to scan your failed payments from the last {loaderData.lookbackDays}{" "}
+        days. We never store your data permanently.
+      </p>
 
-        {message ? (
-          <div
-            role="alert"
-            className="mb-6 rounded-lg border border-error-border bg-error-bg px-4 py-3 text-label text-error-text"
-          >
-            {message}
-          </div>
-        ) : null}
-
-        <div className="mb-6 rounded-lg border border-border bg-bg p-4">
-          <p className="mb-3 text-micro font-medium uppercase tracking-wide text-text-subtle">
-            What we can do
-          </p>
-          {CAN_DO.map((item) => (
-            <AccessLine key={item} item={item} allowed />
-          ))}
-          <p className="mb-3 mt-4 text-micro font-medium uppercase tracking-wide text-text-subtle">
-            What we can never do
-          </p>
-          {CAN_NEVER_DO.map((item) => (
-            <AccessLine key={item} item={item} allowed={false} />
-          ))}
+      {message ? (
+        <div className="mb-6">
+          <Alert tone="crit">{message}</Alert>
         </div>
+      ) : null}
 
-        {loaderData.stripeEnabled ? (
-          <Form method="post">
-            <button
-              type="submit"
-              disabled={busy}
-              className="block w-full rounded-md bg-purple p-[14px] text-center text-body font-semibold text-purple-bg transition-opacity duration-150 hover:opacity-80 disabled:opacity-60"
-            >
-              {busy ? "Redirecting to Stripe..." : "Connect Stripe and see my numbers"}
-            </button>
-          </Form>
-        ) : (
-          <p className="text-center text-label text-text-tertiary">
-            Stripe Connect is not configured in this environment yet.
-          </p>
-        )}
-
-        <p className="mt-4 text-center text-micro text-text-subtle">
-          {"Read-only · Secure · Free · "}
-          <Link
-            to="/demos/recovery"
-            className="text-brand-text no-underline transition-opacity duration-500 hover:opacity-80"
-          >
-            See a demo first
-          </Link>
-        </p>
+      <div className="mb-6 rounded-lg border border-border bg-bg p-4">
+        <AccessList id="audit-connect-can" heading="What we can do" items={CAN_DO} allowed />
+        <AccessList
+          id="audit-connect-cannot"
+          heading="What we can never do"
+          items={CAN_NEVER_DO}
+          allowed={false}
+        />
       </div>
-    </div>
+
+      {loaderData.stripeEnabled ? (
+        <Form method="post" className="grid">
+          <Button type="submit" variant="primary" size="lg" pending={busy}>
+            {/* The label stays the same while pending: Capsomer 0.9.0 does not
+                paint it then (only the spinner shows), and the status region
+                below says "Connecting to Stripe...", so the name does not
+                change under a screen reader as well (review round 1).
+                The one Foxhound class inside a Capsomer part, and it is on this
+                page's own label, not the button: Capsomer's button never wraps,
+                so Recova's 33-character label is clipped below about 400px,
+                where Recova's own button wraps to two lines. Named in the PR
+                for the per-site layer (capsomer job_ec5ec0754626). */}
+            <span className="whitespace-normal">
+              Connect Stripe and see my numbers<span aria-hidden="true"> →</span>
+            </span>
+          </Button>
+          <span role="status" aria-live="polite" className="sr-only">
+            {busy ? PENDING_LABEL : ""}
+          </span>
+        </Form>
+      ) : (
+        <p className="text-center text-label text-text-tertiary">
+          Stripe Connect is not configured in this environment yet.
+        </p>
+      )}
+
+      <p className="mt-4 text-center text-micro text-text-subtle">
+        {"Read-only · Secure · Free · "}
+        <Link
+          to="/demos/recovery"
+          className="inline-flex min-h-6 items-center text-brand-text underline underline-offset-2 hover:opacity-80"
+        >
+          See a demo first
+        </Link>
+      </p>
+    </AuditConnectFrame>
   );
 }
