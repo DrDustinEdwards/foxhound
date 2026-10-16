@@ -25,8 +25,12 @@ import type { Route } from "./+types/signup";
 // Google, the "or" rule, Email, Password "(min N characters)", the error,
 // "Sign up", then "Already have an account? Log in".
 //
-// Three things are Foxhound's own and stay:
+// Four things are Foxhound's own and stay:
 // - the fee is read from RECOVERY_FEE_BPS (RULES.md 2.1), never retyped;
+// - Recova's line opened with "We start recovering immediately.", which is
+//   untrue here: a soft failure waits for Stripe's own retries (RULES.md 3.3),
+//   while a hard decline, or any failure for a merchant with Smart Retries
+//   off, starts at once. No single timing clause is true, so it is dropped;
 // - the minimum length is Foxhound's MIN_PASSWORD_LENGTH (12), not Recova's 8,
 //   because the label states the rule the engine enforces;
 // - Better Auth requires a verified email before the first sign-in, so a
@@ -106,7 +110,7 @@ export default function Signup({ loaderData, actionData }: Route.ComponentProps)
     <AuthCard>
       <AuthHeading
         title="Connect Stripe once"
-        subtitle={`We start recovering where Stripe's own retries stop. You pay ${RECOVERY_FEE_PERCENT}% of what we recover. Nothing until then.`}
+        subtitle={`You pay ${RECOVERY_FEE_PERCENT}% of what we recover. Nothing until then.`}
       />
 
       {loaderData.googleEnabled ? <GoogleContinue /> : null}
