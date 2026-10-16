@@ -114,7 +114,7 @@ export const DOC_GUIDES: DocGuide[] = [
           "Foxhound works every failed payment on its own, and you can step in on any payment from its page.",
           { kind: "note", body: "Foxhound starts after Stripe's own Smart Retries have run and failed. It does not interfere with Stripe's recovery logic, and a payment Stripe brings back on its own is recorded and never billed." },
           { kind: "h3", text: "Connecting your Stripe account" },
-          "Foxhound connects to your Stripe account through Stripe Connect with read and write OAuth scope, because retrying a failed invoice is a write. Foxhound reads invoices, subscriptions, disputes, and customer data. It writes for these things and no others: retrying payment on an invoice that has already failed, setting a customer default payment method after that customer updates their card, opening a Stripe checkout when a former customer chooses to resubscribe, and submitting dispute evidence once someone on your team has approved it. It never changes prices, products, or subscription plans, never charges a customer except by retrying a failed invoice or through a checkout they complete, and never reaches your payouts or bank account.",
+          "Foxhound connects to your Stripe account through Stripe Connect with read and write OAuth scope, because retrying a failed invoice is a write. Foxhound reads invoices, subscriptions, disputes, and customer data. It writes for these things and no others: retrying payment on an invoice that has already failed, setting a customer default payment method after that customer updates their card, opening a Stripe checkout when a former customer chooses to resubscribe, submitting dispute evidence once someone on your team has approved it, and closing a dispute at Stripe when you choose to accept it. It never changes prices, products, or subscription plans, never charges a customer except by retrying a failed invoice or through a checkout they complete, and never reaches your payouts or bank account.",
           { kind: "steps", items: [
             [{ link: "Open /connect", to: "/connect" }, " and give the account a name."],
             [{ strong: "Connect with Stripe" }, " sends you to Stripe's authorization page."],
@@ -181,7 +181,7 @@ export const DOC_GUIDES: DocGuide[] = [
       {
         heading: "Settings reference",
         body: [
-          "Settings is a hub: Stripe connections, Email, Brand voice, Features, Intelligence, Audit, Notifications, Alerts, Team, API keys, and My account, each on its own page with a sub-nav down the side. Disputes settings are not built yet, so the hub does not list them.",
+          "Settings is a hub: Stripe connections, Email, Brand voice, Features, Disputes, Intelligence, Audit, Notifications, Alerts, Team, API keys, and My account, each on its own page with a sub-nav down the side.",
           { kind: "h3", text: "Email settings" },
           "Found in Settings and Email.",
           { kind: "table", label: "Email settings", columns: ["Setting", "What it does"], rows: [

@@ -27,9 +27,10 @@ import type { Route } from "./+types/hub";
 // directive makes that the spec. Ruling 57's deferral of the split is
 // superseded.
 //
-// ELEVEN ENTRIES, NOT TWELVE. `/settings/disputes` (S32) does not exist here,
-// and a hub entry to a 404 is a false promise (RULES.md 2.7), so it is omitted
-// and recorded PORTABLE AFTER its row. The other eleven all resolve.
+// TWELVE ENTRIES, Recova's. `/settings/disputes` (S32) arrived with J06; its
+// description is "Product description, shipping" where Recova's read
+// "Auto-submit, product description", because auto-submit is deliberately not
+// built (RULES.md 5.6) and the page's second setting is shipping.
 // `/settings/intelligence` (S35) arrived with J69; its description adds "not
 // built yet" to Recova's "Notification preferences", because none of Recova's
 // five preferences has a reader in Foxhound and the page builds none of them.
@@ -65,13 +66,13 @@ export interface SettingsHubEntry {
   description: string;
 }
 
-/** Recova's twelve, minus the one whose target does not exist. Order is
- *  Recova's. */
+/** Recova's twelve, in Recova's order. */
 export const SETTINGS_HUB_ENTRIES: SettingsHubEntry[] = [
   { to: "/settings/stripe", label: "Stripe connections", description: "Connected accounts" },
   { to: "/settings/email", label: "Email", description: "Sender name, reply-to" },
   { to: "/settings/brand-voice", label: "Brand voice", description: "Per-category AI tone" },
   { to: "/settings/features", label: "Features", description: "Win-back, expiring cards" },
+  { to: "/settings/disputes", label: "Disputes", description: "Product description, shipping" },
   { to: "/settings/intelligence", label: "Intelligence", description: "Notification preferences, not built yet" },
   { to: "/settings/audit", label: "Audit", description: "Lookback period, auto-run" },
   { to: "/settings/notifications", label: "Notifications", description: "Email, Slack, digest" },

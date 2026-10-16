@@ -135,6 +135,8 @@ describe("the code fact the disclosure rests on", () => {
         "app/lib/card-update/service.ts customers.update",
         "app/lib/card-update/service.ts subscriptions.update",
         "app/lib/disputes/submission.ts disputes.update",
+        // J06: Accept, which concedes a dispute the merchant chose to accept.
+        "app/lib/disputes/accept.server.ts disputes.close",
         // Platform account.
         "app/lib/billing/stripe-invoice.ts invoices.create",
         "app/lib/billing/stripe-invoice.ts invoiceItems.create",

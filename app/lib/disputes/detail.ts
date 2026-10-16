@@ -16,6 +16,24 @@ export const NARRATIVE_FIELD = "uncategorized_text";
 /** The Stripe evidence field that holds Recova's "Customer IP". */
 export const CUSTOMER_IP_FIELD = "customer_purchase_ip";
 
+/** Recova's three shipping inputs (DisputeDetailClient.tsx, shown when the
+ *  account ships physical goods, S32), as the Stripe evidence fields they are
+ *  submitted in. Recova kept them in disputes.shipping_* and copied them into
+ *  the evidence at submit; Foxhound saves them as evidence with the draft. */
+export const SHIPPING_TRACKING_FIELD = "shipping_tracking_number";
+export const SHIPPING_CARRIER_FIELD = "shipping_carrier";
+export const SHIPPING_DATE_FIELD = "shipping_date";
+export const SHIPPING_FIELDS = [SHIPPING_TRACKING_FIELD, SHIPPING_CARRIER_FIELD, SHIPPING_DATE_FIELD] as const;
+
+/** Recova's carrier select, in its order. */
+export const SHIPPING_CARRIERS = ["UPS", "FedEx", "USPS", "DHL", "Other"] as const;
+
+/** Accept's confirmation line (DisputeActionBar.tsx), with Foxhound's name. */
+export const ACCEPT_CONFIRM_LINE = "Accept this dispute? You won't be charged a Foxhound fee.";
+/** Shown in Accept's place while an approval stands (PR 149 review). Not
+ *  Recova's: Recova offered Accept until submission. Listed for Dustin. */
+export const ACCEPT_UNAVAILABLE_APPROVED_LINE = "Accept is not available once the evidence has been approved for submission.";
+
 /**
  * The header's deadline line, in Recova's words: "No deadline set",
  * "Deadline passed", or "N days remaining". Recova printed "1 days remaining";
@@ -73,19 +91,33 @@ export interface EvidenceRowLike {
  * Recova's "Staged evidence" split: every structured field as a read-only row
  * except the narrative, which is the editable textarea. While the "Additional
  * evidence" Customer IP box is on screen, the IP row is left out of the list so
- * it is not shown twice.
+ * it is not shown twice, and the same holds for the shipping fields while their
+ * inputs are on screen.
  */
 export function splitEvidence(
   evidence: EvidenceRowLike[],
   ipEditable: boolean,
-): { structured: EvidenceRowLike[]; narrative: string; customerIp: string } {
-  const narrative = evidence.find((e) => e.fieldName === NARRATIVE_FIELD)?.fieldValue ?? "";
-  const customerIp = evidence.find((e) => e.fieldName === CUSTOMER_IP_FIELD)?.fieldValue ?? "";
+  shippingEditable = false,
+): {
+  structured: EvidenceRowLike[];
+  narrative: string;
+  customerIp: string;
+  shipping: Record<(typeof SHIPPING_FIELDS)[number], string>;
+} {
+  const value = (name: string) => evidence.find((e) => e.fieldName === name)?.fieldValue ?? "";
+  const narrative = value(NARRATIVE_FIELD);
+  const customerIp = value(CUSTOMER_IP_FIELD);
+  const shipping = {
+    [SHIPPING_TRACKING_FIELD]: value(SHIPPING_TRACKING_FIELD),
+    [SHIPPING_CARRIER_FIELD]: value(SHIPPING_CARRIER_FIELD),
+    [SHIPPING_DATE_FIELD]: value(SHIPPING_DATE_FIELD),
+  } as Record<(typeof SHIPPING_FIELDS)[number], string>;
   const structured = evidence
     .filter((e) => e.fieldName !== NARRATIVE_FIELD)
     .filter((e) => !(ipEditable && e.fieldName === CUSTOMER_IP_FIELD))
+    .filter((e) => !(shippingEditable && (SHIPPING_FIELDS as readonly string[]).includes(e.fieldName)))
     .filter((e) => e.fieldValue.trim() !== "");
-  return { structured, narrative, customerIp };
+  return { structured, narrative, customerIp, shipping };
 }
 
 /** The fee terms on the approve card, read from the billing constants rather

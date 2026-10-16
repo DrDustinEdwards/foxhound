@@ -88,12 +88,14 @@ describe("cron registry", () => {
     expect(daily.map((j) => j.name)).toContain("demo-reset");
   });
 
-  it("dispatches the recovery tick and the win-back send on the high-cadence schedule", () => {
-    // Kept STRICT rather than relaxed to toContain, so a third job arriving on
+  it("dispatches the recovery tick, the win-back send and the dispute reminder on the high-cadence schedule", () => {
+    // Kept STRICT rather than relaxed to toContain, so a fourth job arriving on
     // the highest-cadence schedule still trips this. win-back shares it because
-    // legacy's own cron piggybacks on the recovery schedule (343, 344).
+    // legacy's own cron piggybacks on the recovery schedule (343, 344); the
+    // dispute reminder (J06) because legacy's process-disputes ran hourly and a
+    // new expression would need its own cron-health period.
     const tick = jobsForSchedule(CRON_SCHEDULE_RECOVERY_TICK);
-    expect(tick.map((j) => j.name)).toEqual(["recovery-tick", "winback-send"]);
+    expect(tick.map((j) => j.name)).toEqual(["recovery-tick", "winback-send", "dispute-reminders"]);
   });
 
   it("an unregistered schedule dispatches nothing", () => {

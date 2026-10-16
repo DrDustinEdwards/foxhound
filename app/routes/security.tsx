@@ -145,7 +145,7 @@ export default function SecurityPage() {
             recovery involves writes. Foxhound writes for these things and no others: retrying payment
             on an invoice that has already failed, setting a customer default payment method after
             that customer updates their card, opening a Stripe checkout when a former customer chooses
-            to resubscribe, and submitting dispute evidence once someone on your team has approved it.
+            to resubscribe, submitting dispute evidence once someone on your team has approved it, and closing a dispute at Stripe when you choose to accept it.
             It never changes prices, products or subscription plans, never charges a customer except by
             retrying a failed invoice or through a checkout they complete, and never reaches your
             payouts or bank account.

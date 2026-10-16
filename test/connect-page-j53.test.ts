@@ -155,6 +155,8 @@ describe("J53: the access-disclosure panel (ruling 20(d)), true of Foxhound's sc
       // subscription-mode Checkout on the connected account.
       "Open a Stripe checkout when a former customer chooses to resubscribe",
       "Submit dispute evidence, only after someone on your team approves it",
+      // J06: Accept closes the dispute at Stripe (disputes/accept.server.ts).
+      "Close a dispute at Stripe, only when you choose to accept it",
       "What Foxhound can never do",
     ]);
     expect(t).not.toContain("View failed invoices and payment history");

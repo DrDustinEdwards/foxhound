@@ -128,6 +128,8 @@ export const PLATFORM_LINKS: ProductNavLink[] = [
   { label: "Features", to: "/settings/features" },
   // Intelligence settings (S35, J69). Same mechanism as its siblings: the
   // sub-nav and hub list it; this row keeps the manifest whole.
+  // Dispute settings (S32, J06). Same mechanism as its siblings.
+  { label: "Dispute settings", to: "/settings/disputes" },
   { label: "Intelligence settings", to: "/settings/intelligence" },
   // S24 and S25 (session 59): legacy's hub gained two sub-pages when the
   // inline cards were split off it.

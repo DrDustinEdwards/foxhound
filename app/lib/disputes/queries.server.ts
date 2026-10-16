@@ -2,7 +2,7 @@ import { and, asc, eq, inArray, notExists, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import type { Db } from "~/db";
-import { customerContext, disputeApprovals, disputeEvidence, disputes, stripeConnections } from "~/db";
+import { accounts, customerContext, disputeApprovals, disputeEvidence, disputes, stripeConnections } from "~/db";
 import { sortDisputesNewestFirst } from "~/lib/disputes/order";
 import { approveAndSubmit, hashEvidence, type ApproveAndSubmitResult } from "~/lib/disputes/approval";
 import {
@@ -360,4 +360,33 @@ export async function getDisputesWithEvidence(db: Db, accountId: string, dispute
     }
   }
   return found;
+}
+
+/** S32's two dispute settings (/settings/disputes) as their readers need them.
+ *  NULL reads as off and empty, as Recova's `?? false` and `?? ''`. */
+export async function readDisputeSettings(
+  db: Db,
+  accountId: string,
+): Promise<{ productDescription: string; shipsPhysical: boolean }> {
+  const [row] = await db
+    .select({
+      productDescription: accounts.disputeProductDescription,
+      shipsPhysical: accounts.disputeShipsPhysical,
+    })
+    .from(accounts)
+    .where(eq(accounts.id, accountId))
+    .limit(1);
+  return { productDescription: row?.productDescription ?? "", shipsPhysical: row?.shipsPhysical ?? false };
+}
+
+/** The merchant's own product description for dispute evidence (S32). Recova's
+ *  buildEvidenceFields made it the product_description of every response. A
+ *  read failure leaves it out rather than failing a dispute intake. */
+export async function readDisputeProductDescription(db: Db, accountId: string): Promise<string | null> {
+  try {
+    const text = (await readDisputeSettings(db, accountId)).productDescription.trim();
+    return text ? text : null;
+  } catch {
+    return null;
+  }
 }

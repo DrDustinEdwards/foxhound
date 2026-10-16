@@ -15,6 +15,11 @@ import { runIntelligenceAiForAllAccounts } from "~/lib/intelligence/ai-run.serve
 import { runIntelligenceSyncForAllAccounts } from "~/lib/intelligence/sync.server";
 
 import { runD1Backup } from "~/lib/backup/d1-backup";
+import {
+  describeDisputeReminderRun,
+  DISPUTE_REMINDERS_CRON_NAME,
+  runDisputeReminders,
+} from "~/lib/cron/dispute-reminders";
 import { describeExpiringCardRun, runExpiringCards } from "~/lib/cron/expiring-cards";
 import { describeWeeklyDigestRun, runWeeklyDigest } from "~/lib/cron/digest";
 import { describeWinbackRun, runWinbackSends } from "~/lib/cron/winback";
@@ -162,6 +167,16 @@ const winbackSend: CronHandler = async (env) => {
   return { rowsProcessed: result.sent, message: describeWinbackRun(result) };
 };
 
+/** The dispute deadline reminder (J06). Recova's process-disputes ran hourly
+ *  ("0 * * * *"); this rides the five-minute tick instead, as winback-send does,
+ *  because a new cron expression needs cron-health's period table too and the
+ *  bands are a day wide, so a finer tick only reminds sooner within the band.
+ *  The per-band send claim is what stops a second reminder. */
+const disputeReminders: CronHandler = async (env, ctx) => {
+  const result = await runDisputeReminders(env, new Date(), ctx?.runId ?? null);
+  return { rowsProcessed: result.sent, message: describeDisputeReminderRun(result) };
+};
+
 const expiringCards: CronHandler = async (env) => {
   const result = await runExpiringCards(env, new Date());
   return { rowsProcessed: result.send.sent, message: describeExpiringCardRun(result) };
@@ -206,6 +221,7 @@ const monthlyAudit: CronHandler = async (env, ctx) => {
 export const CRON_JOBS: CronJob[] = [
   { name: RECOVERY_TICK_CRON_NAME, schedule: CRON_SCHEDULE_RECOVERY_TICK, handler: recoveryTick },
   { name: "winback-send", schedule: CRON_SCHEDULE_RECOVERY_TICK, handler: winbackSend },
+  { name: DISPUTE_REMINDERS_CRON_NAME, schedule: CRON_SCHEDULE_RECOVERY_TICK, handler: disputeReminders },
   { name: "weekly-digest", schedule: CRON_SCHEDULE_WEEKLY, handler: weeklyDigest },
   { name: "cron-health", schedule: CRON_SCHEDULE_DAILY, handler: cronHealth },
   { name: "expiring-cards", schedule: CRON_SCHEDULE_DAILY, handler: expiringCards },

@@ -881,3 +881,57 @@ describe("J77 re-review: a save that wrote nothing is reported, never Saved (RUL
     expect(t).not.toContain("Saved.");
   });
 });
+
+describe("PR 149 review (J06): Accept beside an approval, and the confirmation's name", () => {
+  function seedApproval(): void {
+    runStatement(
+      sqlite,
+      db.insert(disputeApprovals).values({
+        id: "ap_1",
+        disputeId: "dsp_1",
+        accountId: A,
+        approvedByUserId: "u",
+        approvedByEmail: "owner@alpha.test",
+        evidenceVersionHash: "h",
+        approvedAt: new Date(NOW - HOUR),
+      }),
+    );
+  }
+
+  it("the confirmation line describes both of its buttons (WCAG 1.3.1, 4.1.2)", async () => {
+    seedDispute();
+    seedConnection();
+    const html = render(await load(), { actionData: { acceptConfirm: true, intent: "accept_confirm" } });
+    const line = html.match(/<span id="([^"]+)"[^>]*>Accept this dispute\? You won(?:&#x27;|')t be charged a Foxhound fee\.<\/span>/);
+    expect(line, "the confirm line carries an id").not.toBeNull();
+    const id = line![1];
+    const yes = html.match(/<button[^>]*>Yes, accept<\/button>/)![0];
+    const cancel = html.match(/<button[^>]*>Cancel<\/button>/)![0];
+    expect(yes).toContain(`aria-describedby="${id}"`);
+    expect(cancel).toContain(`aria-describedby="${id}"`);
+  });
+
+  it("an approved dispute offers no Accept, and says why", async () => {
+    seedDispute();
+    seedConnection();
+    seedApproval();
+    const t = text(render(await load()));
+    expect(t).not.toContain("Accept dispute");
+    expect(t).toContain("Accept is not available once the evidence has been approved for submission.");
+  });
+
+  it("the action refuses an Accept while an approval stands, with 409, before Stripe", async () => {
+    seedDispute();
+    seedConnection();
+    seedApproval();
+    const res = await act({ intent: "accept" });
+    expect(res.status).toBe(409);
+    expect(res.body).toMatchObject({
+      intent: "accept",
+      error: "This dispute's evidence has been approved for submission, so it cannot be accepted here.",
+    });
+    expect((sqlite.prepare("select state from disputes where id = 'dsp_1'").get() as { state: string }).state).not.toBe(
+      "resolved_lost",
+    );
+  });
+});

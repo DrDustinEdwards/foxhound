@@ -436,36 +436,44 @@ export interface DisputeResolutionInput {
  * merchant-fought win is never billed, PRICING.md rev 3).
  */
 export function buildDisputeResolutionBatch(db: Db, input: DisputeResolutionInput): MoneyWriteBatch {
+  return [buildWebhookClaim(db, input.claim), buildDisputeResolutionUpdate(db, input)];
+}
+
+/**
+ * The resolution UPDATE itself, the one writer of a dispute's resolved state
+ * and fee snapshot. buildDisputeResolutionBatch rides it behind the webhook
+ * claim, unchanged; the merchant's Accept (J06, app/lib/disputes/accept.server.ts)
+ * rides it as a loss Foxhound did not submit, so an accepted dispute is resolved
+ * by the same statement Stripe's closing event would have used, with no fee.
+ */
+export function buildDisputeResolutionUpdate(db: Db, input: Omit<DisputeResolutionInput, "claim">) {
   const billableWin = input.won && input.foxhoundSubmitted;
-  return [
-    buildWebhookClaim(db, input.claim),
-    db
-      .update(disputes)
-      .set({
-        state: input.won ? "resolved_won" : "resolved_lost",
-        resolvedAt: input.resolvedAt,
-        // THE CAP IS RESOLVED BEFORE THIS BATCH IS BUILT (ruling 377(7)). It
-        // needs a Stripe FX quote, and an external call cannot live inside the
-        // money batch, so process.ts fetches it and hands the result in. A
-        // quote that failed arrives as a null cap and the fee is NOT
-        // snapshotted: the dispute resolves, and it is simply not billable
-        // until a run that can price it. Never the flat 50,000.
-        resolvedFeeCents:
-          billableWin && input.cap ? disputeFeeCents(input.amountCents, input.cap.capMinorUnits) : null,
-        resolvedFeeCurrency: billableWin && input.cap ? input.currency : null,
-        resolvedFeeRate: input.cap?.rate ?? null,
-        resolvedFeeQuoteId: input.cap?.quoteId ?? null,
-        resolvedFeeRateAt: input.cap?.quotedAt ?? null,
-        resolvedFeeError: input.capError ?? null,
-      })
-      .where(
-        and(
-          eq(disputes.stripeDisputeId, input.stripeDisputeId),
-          eq(disputes.accountId, input.accountId),
-          notInArray(disputes.state, RESOLVED_DISPUTE_STATES),
-        ),
+  return db
+    .update(disputes)
+    .set({
+      state: input.won ? "resolved_won" : "resolved_lost",
+      resolvedAt: input.resolvedAt,
+      // THE CAP IS RESOLVED BEFORE THIS BATCH IS BUILT (ruling 377(7)). It
+      // needs a Stripe FX quote, and an external call cannot live inside the
+      // money batch, so process.ts fetches it and hands the result in. A
+      // quote that failed arrives as a null cap and the fee is NOT
+      // snapshotted: the dispute resolves, and it is simply not billable
+      // until a run that can price it. Never the flat 50,000.
+      resolvedFeeCents:
+        billableWin && input.cap ? disputeFeeCents(input.amountCents, input.cap.capMinorUnits) : null,
+      resolvedFeeCurrency: billableWin && input.cap ? input.currency : null,
+      resolvedFeeRate: input.cap?.rate ?? null,
+      resolvedFeeQuoteId: input.cap?.quoteId ?? null,
+      resolvedFeeRateAt: input.cap?.quotedAt ?? null,
+      resolvedFeeError: input.capError ?? null,
+    })
+    .where(
+      and(
+        eq(disputes.stripeDisputeId, input.stripeDisputeId),
+        eq(disputes.accountId, input.accountId),
+        notInArray(disputes.state, RESOLVED_DISPUTE_STATES),
       ),
-  ];
+    );
 }
 
 /** claim-only batch: a verified event we resolved to nothing actionable, still claimed so replays short-circuit. */
