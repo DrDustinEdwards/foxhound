@@ -51,6 +51,7 @@ const { runWinbackSends } = await import("~/lib/cron/winback");
 const { buildWinbackEmail } = await import("~/lib/recovery/winback-email");
 const { buildWinbackPrompt } = await import("~/lib/recovery/winback-generation");
 const { signCardUpdateToken } = await import("~/lib/card-update/token");
+const { verifyUnsubscribeToken } = await import("~/lib/email/unsubscribe-token");
 const { WIN_BACK_SCHEDULE } = await import("~/lib/recovery/schedule");
 const { WINBACK_UNFLAGGED_STEP1_HOURS } = await import("~/lib/constants");
 
@@ -143,13 +144,19 @@ function expectInOrder(part: string, sentences: string[]): void {
 }
 
 /** Recova's footer, as wrapEmailHtml writes it with an unsubscribe token: the
- *  sentence, then Unsubscribe, then the postal address. */
-function expectRecovaFooter(m: SentMessage, senderName: string): void {
+ *  sentence, then Unsubscribe, then the postal address. The token is the
+ *  recipient's own address-wide customer token, never a digest token (which
+ *  suppresses nothing) and never another address's, and the footer link carries
+ *  the same token as the List-Unsubscribe header. */
+async function expectRecovaFooter(m: SentMessage, senderName: string): Promise<void> {
   const sentence = `You're receiving this from ${senderName} about a recent payment. © ${YEAR}`;
   expectInOrder(m.text ?? "", [sentence, "Unsubscribe", ADDRESS]);
   expectInOrder(m.html, [`You&#39;re receiving this from ${senderName} about a recent payment.`, "Unsubscribe", ADDRESS]);
   expect(m.headers?.["List-Unsubscribe"]).toMatch(/^<https:\/\/foxhoundapp\.test\/u\//);
   expect(m.headers?.["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
+  const token = (m.headers?.["List-Unsubscribe"] ?? "").match(/\/u\/([^>]+)>/)?.[1] ?? "";
+  expect(await verifyUnsubscribeToken(env, token)).toEqual({ email: "buyer@acme.test", accountId: ACCOUNT });
+  expect(m.html).toContain(`/u/${token}"`);
 }
 
 const ROWS = [
@@ -256,7 +263,7 @@ describe("J91: each win-back email says and carries what Recova's does", () => {
         const m = only();
         expect(m.from).toMatch(/^Teamflow </);
         expect(m.replyTo).toBe(REPLY);
-        expectRecovaFooter(m, "Teamflow");
+        await expectRecovaFooter(m, "Teamflow");
       });
     });
   }
@@ -268,7 +275,7 @@ describe("J91: each win-back email says and carries what Recova's does", () => {
     expect(m.from).toMatch(/^Support </);
     expect(m.replyTo).toBeUndefined();
     expectInOrder(m.text ?? "", ["Hi there,", "Thanks,", "Support"]);
-    expectRecovaFooter(m, "Support");
+    await expectRecovaFooter(m, "Support");
   });
 
   it("a customer name is shown exactly as Stripe has it, never read as markup", async () => {
@@ -306,7 +313,7 @@ describe("J91: the AI copy path is on the same component and carries the same fo
     expectInOrder(m.text ?? "", ["Hi Jane,", "We made it better.", "Come Back", "Thanks,", "Teamflow"]);
     expect(m.from).toMatch(/^Teamflow </);
     expect(m.replyTo).toBe(REPLY);
-    expectRecovaFooter(m, "Teamflow");
+    await expectRecovaFooter(m, "Teamflow");
     const row = sqlite.prepare("SELECT result FROM win_back_steps WHERE id = 'st_1'").get() as { result: string };
     expect(row.result).toBe("email_sent_ai");
   });
@@ -320,7 +327,7 @@ describe("J91: the AI copy path is on the same component and carries the same fo
     await runWinbackSends(env, at(336));
     const m = only();
     expect(m.subject).toBe("One last note");
-    expectRecovaFooter(m, "Teamflow");
+    await expectRecovaFooter(m, "Teamflow");
   });
 });
 
