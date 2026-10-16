@@ -304,8 +304,11 @@ describe("PLANT 4: what these surfaces must NOT carry", () => {
     }
   });
 
-  it("renders SIX decline categories, derived, not legacy's four", () => {
-    expect(sectionsSource).toContain("DECLINE_CATEGORY_LABELS");
+  it("renders SIX decline categories, not legacy's four", () => {
+    // J63: the rows carry Recova's own words ("Soft declines" and the rest),
+    // in a map typed on DeclineCategory, so the compiler refuses a category
+    // without a row. What this pins is that none is a hardcoded JSX row.
+    expect(sectionsSource).toContain("const BREAKDOWN_ROWS: Record<DeclineCategory, string>");
     expect(sectionsSource).not.toContain('label="Soft declines"');
   });
 

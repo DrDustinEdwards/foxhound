@@ -252,8 +252,8 @@ describe("J43: the populated page, in Recova's order", () => {
     expect(html).toMatch(/<div class="cap-table-wrap"[^>]*role="region"[^>]*tabindex="0"/);
     const head = html.match(/<thead>[\s\S]*?<\/thead>/)?.[0] ?? "";
     expect(text(head)).toBe("Date Failed Disputes MRR View");
-    expect(html).toContain('href="/audit/runs/run_new"');
-    expect(html).toContain('href="/audit/runs/run_old"');
+    expect(html).toContain('href="/audit/results/run_new"');
+    expect(html).toContain('href="/audit/results/run_old"');
   });
 
   it("a figure that was not read says so, never a zero", () => {

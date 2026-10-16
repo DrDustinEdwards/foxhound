@@ -157,8 +157,8 @@ export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: n
         )}
       </li>
 
-      {/* Always available, as in Recova. Recova's /audit/dashboard is Foxhound's
-          /audit/history, the signed-in list of the account's runs. */}
+      {/* Always available, as in Recova, and to Recova's /audit/dashboard,
+          where J43 put the signed-in list of the account's runs. */}
       <li className="grid">
         {tiles.lastAuditAt ? (
           <StatTile
@@ -167,7 +167,7 @@ export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: n
             unit="leaking"
             tone={tiles.auditLeakingCents > 0 ? "crit" : "ok"}
             detail={lastRunPhrase(tiles.lastAuditAt, nowMs)}
-            href="/audit/history"
+            href="/audit/dashboard"
             renderLink={routerLink}
           />
         ) : (

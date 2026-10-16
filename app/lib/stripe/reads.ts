@@ -51,9 +51,19 @@ function reasonFor(what: string, err: unknown): string {
   return `Could not read ${what} from Stripe: ${detail}`;
 }
 
+/**
+ * One audit read, walked to the end and its count logged (RULES.md 3.19).
+ *
+ * NO CEILING HERE, which is J63's correction. The soft ceiling above stopped a
+ * read at AUDIT_READ_SOFT_LIMIT rows and this function then dropped the
+ * `overLimit` flag, so a merchant past the ceiling got an audit of the first
+ * 2,000 rows with nothing on the page saying so: Recova's limit-100 defect
+ * moved further out. Every page is read; the count goes to the log.
+ */
 async function read<T>(what: string, list: () => AsyncIterable<T>): Promise<ReadOutcome<T>> {
   try {
-    const { items } = await collectPaginated(list());
+    const { items } = await collectPaginated(list(), Number.POSITIVE_INFINITY);
+    console.info(`audit stripe read ${what}: ${items.length} rows`);
     return { ok: true, data: items };
   } catch (err) {
     return { ok: false, reason: reasonFor(what, err) };

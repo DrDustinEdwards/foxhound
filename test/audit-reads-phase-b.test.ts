@@ -203,7 +203,8 @@ describe("PLANT 4: NO STRIPE LIST ANYWHERE IS WALKED AS A BARE PAGE", () => {
     // carries a type parameter so it does not match this, which is what makes
     // the count a count of CALLERS rather than of mentions.
     expect(source.match(/collectPaginated\(/g) ?? []).toHaveLength(1);
-    expect(source).toContain("await collectPaginated(list())");
+    // J63: the audit reads walk to the end (RULES.md 3.19), no ceiling.
+    expect(source).toContain("await collectPaginated(list(), Number.POSITIVE_INFINITY)");
   });
 
   it("the sweep really found list calls, so an empty offender list means something", () => {
