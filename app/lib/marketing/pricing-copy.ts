@@ -9,7 +9,8 @@ import {
 import {
   DECLINE_CATEGORY_COUNT,
   DECLINE_CATEGORY_COUNT_WORD,
-  DECLINE_CATEGORY_COUNT_WORD_LOWER,
+  countWord,
+  DISTINCT_SEQUENCE_COUNT,
   RECOVERY_SEQUENCE_DAYS,
 } from "~/lib/marketing/decline-categories";
 import { formatMoneyShort } from "~/lib/money-format";
@@ -72,10 +73,10 @@ export const PRICING_CARDS: PricingCard[] = [
     name: "Recovery",
     price: pct(RECOVERY_FEE_BPS),
     priceLabel: "of Foxhound-attributed recoveries",
-    description: `Silent retries first, then AI-drafted email sequences across ${RECOVERY_SEQUENCE_DAYS} days. ${DECLINE_CATEGORY_COUNT_WORD} decline categories, ${DECLINE_CATEGORY_COUNT_WORD_LOWER} different sequences.`,
+    description: `AI-drafted email sequences and silent retries across ${RECOVERY_SEQUENCE_DAYS} days. ${DECLINE_CATEGORY_COUNT_WORD} decline categories, ${countWord(DISTINCT_SEQUENCE_COUNT).toLowerCase()} different sequences.`,
     features: [
-      "Silent retry before any customer email",
-      `${RECOVERY_SEQUENCE_DAYS}-day sequences across ${DECLINE_CATEGORY_COUNT} decline categories`,
+      "Silent retry before any customer email, wherever the decline can be retried",
+      `Up to ${RECOVERY_SEQUENCE_DAYS}-day sequences across ${DECLINE_CATEGORY_COUNT} decline categories`,
       "Baseline recoveries Stripe would have gotten anyway are free",
       `No fee until the recovery has matured ${RECOVERY_MATURITY_DAYS} days`,
       "Card-update link on every email",

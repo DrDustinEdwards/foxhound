@@ -17,7 +17,7 @@ import {
 import {
   DECLINE_CATEGORY_COUNT,
   DECLINE_CATEGORY_COUNT_WORD,
-  DECLINE_CATEGORY_COUNT_WORD_LOWER,
+  countWord,
 } from "~/lib/marketing/decline-categories";
 import { formatMoneyShort } from "~/lib/money-format";
 import { RECOVERY_SCHEDULES } from "~/lib/recovery/schedule";
@@ -35,6 +35,14 @@ import PricingPage, { meta as pricingMeta } from "~/routes/pricing";
 // six (DECLINE_CATEGORY_COUNT, the count 376 item 18 derived for the card
 // description but left typed in the bullet). The constant wins.
 //
+// A second correction is a truthfulness fix: the description said "silent
+// retries first" and "N decline categories, N different sequences", but the
+// engine leads with a retry only where the decline can be retried, and two
+// categories (expired and unknown) share one schedule. The description now
+// says what the engine does, and the bullet names where the retry runs.
+// The day-count bullet reads "Up to N-day" because a revoked decline gets
+// one email and stops, so not every sequence runs the full N days.
+//
 // pricing-j54-derivation.test.ts moves the constants and expects the page to
 // move with them, which is what proves the numbers are read and not typed.
 
@@ -44,6 +52,9 @@ const usd = (cents: number) => formatMoneyShort(cents, "usd");
 const SEQ_DAYS = Math.round(
   Math.max(...Object.values(RECOVERY_SCHEDULES).flatMap((steps) => steps.map((s) => s.offsetHours))) / 24,
 );
+
+/** How many different schedules the engine runs, read from the schedule. */
+const DISTINCT_SEQUENCES = new Set(Object.values(RECOVERY_SCHEDULES).map((s) => JSON.stringify(s))).size;
 
 /** React's text escaping, so a string compares with the markup it renders to. */
 const esc = (s: string) =>
@@ -81,10 +92,10 @@ const SPEC = [
     name: "Recovery",
     price: pct(RECOVERY_FEE_BPS),
     priceLabel: "of Foxhound-attributed recoveries",
-    description: `Silent retries first, then AI-drafted email sequences across ${SEQ_DAYS} days. ${DECLINE_CATEGORY_COUNT_WORD} decline categories, ${DECLINE_CATEGORY_COUNT_WORD_LOWER} different sequences.`,
+    description: `AI-drafted email sequences and silent retries across ${SEQ_DAYS} days. ${DECLINE_CATEGORY_COUNT_WORD} decline categories, ${countWord(DISTINCT_SEQUENCES).toLowerCase()} different sequences.`,
     features: [
-      "Silent retry before any customer email",
-      `${SEQ_DAYS}-day sequences across ${DECLINE_CATEGORY_COUNT} decline categories`,
+      "Silent retry before any customer email, wherever the decline can be retried",
+      `Up to ${SEQ_DAYS}-day sequences across ${DECLINE_CATEGORY_COUNT} decline categories`,
       "Baseline recoveries Stripe would have gotten anyway are free",
       `No fee until the recovery has matured ${RECOVERY_MATURITY_DAYS} days`,
       "Card-update link on every email",
