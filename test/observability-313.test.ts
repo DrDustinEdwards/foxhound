@@ -14,6 +14,7 @@ import {
 import { CRON_JOBS } from "~/lib/cron/registry";
 import { recordDeadLetters } from "~/lib/email/dead-letters.server";
 import { buildEmailSendRow } from "~/lib/email/dispatch";
+import { renderFoxhoundAlertEmail, type EmailAlert } from "~/lib/email/templates";
 import type { EmailJob } from "~/lib/email/types";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
@@ -33,6 +34,15 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // runs here is the real dedupe, the real fail-open, and the real row writes.
 
 const NOW = new Date("2026-08-16T12:00:00.000Z");
+
+/** An alert's words, before rendering: its first sentence and its detail lines. */
+function words(built: { alert: { intro: string; details: string[] } }): string {
+  return [built.alert.intro, ...built.alert.details].join("\n");
+}
+/** The HTML part Capsomer renders for an alert. */
+function html(built: { subject: string; alert: EmailAlert }): string {
+  return renderFoxhoundAlertEmail({ to: "support@example.com", ...built }).html;
+}
 
 function envWith(send: () => Promise<{ id: string }>) {
   return { EMAIL: { send } } as unknown as Env;
@@ -103,9 +113,9 @@ describe("313 A: the alert dedupes in the DATABASE, not in application logic", (
       NOW,
     );
     expect(built.subject).toContain("billing-monthly");
-    expect(built.bodyHtml).toContain("run_abc");
-    expect(built.bodyHtml).toContain("D1 timeout");
-    expect(built.bodyHtml).toContain("2026-07-01T04:00:00.000Z");
+    expect(words(built)).toContain("run_abc");
+    expect(words(built)).toContain("D1 timeout");
+    expect(words(built)).toContain("2026-07-01T04:00:00.000Z");
   });
 
   it("says 'never' rather than nothing when a cron has no successful run", () => {
@@ -113,7 +123,7 @@ describe("313 A: the alert dedupes in the DATABASE, not in application logic", (
       { cronName: "billing-monthly", runId: null, error: null, lastSuccessAt: null },
       NOW,
     );
-    expect(built.bodyHtml).toMatch(/never/i);
+    expect(words(built)).toMatch(/never/i);
   });
 
   it("utcDay is the day-granularity key", () => {
@@ -391,6 +401,7 @@ function lockEnv(send: () => Promise<{ id: string }>) {
   const stub = { acquire: async () => true, release: async () => {} };
   return {
     EMAIL: { send },
+    BETTER_AUTH_URL: "https://foxhound.example.com",
     CRON_LOCK: { get: () => stub, idFromName: (n: string) => n },
     DB: {},
   } as unknown as Env;
@@ -471,17 +482,21 @@ describe("alert HTML escapes what it interpolates (job_17249e7da871)", () => {
       { cronName: hostile, runId: hostile, error: hostile, lastSuccessAt: null },
       NOW,
     );
-    expect(built.bodyHtml).not.toContain("<img");
-    expect(built.bodyHtml.split(escaped)).toHaveLength(4);
+    const out = html(built);
+    expect(out).not.toContain("<img");
+    // The cron name in the title, the heading, the first sentence, then the
+    // message and the run id: Capsomer escapes each value it is given.
+    expect(out.split(escaped).length).toBeGreaterThanOrEqual(6);
   });
 
   it("the stale email escapes the cron name", () => {
     const built = buildStaleAlertEmail(
-      { cronName: hostile, lastRunAt: null, reason: "never_run" },
+      { cronName: hostile, lastRunAt: null, reason: "never_run", schedule: "0 3 * * *" },
       NOW,
     );
-    expect(built.bodyHtml).not.toContain("<img");
-    expect(built.bodyHtml).toContain(escaped);
+    const out = html(built);
+    expect(out).not.toContain("<img");
+    expect(out).toContain(escaped);
   });
 
   it("the escaped error still reads as the original text", () => {
@@ -489,6 +504,6 @@ describe("alert HTML escapes what it interpolates (job_17249e7da871)", () => {
       { cronName: "billing-monthly", runId: "run_1", error: "a < b && c > d", lastSuccessAt: null },
       NOW,
     );
-    expect(built.bodyHtml).toContain("a &lt; b &amp;&amp; c &gt; d");
+    expect(html(built)).toContain("a &lt; b &amp;&amp; c &gt; d");
   });
 });

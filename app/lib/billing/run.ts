@@ -264,6 +264,8 @@ export interface InvoiceRunResult {
 export interface AccountBillingResult {
   accountId: string;
   invoices: InvoiceRunResult[];
+  /** Set only when this account's billing threw; the cron alerts on it (E26). */
+  error?: string;
 }
 
 export type SweepRunStatus = "completed" | "aborted";
@@ -556,6 +558,7 @@ export async function runMonthlyBilling(
       results.push({
         accountId: id,
         invoices: [],
+        error: err instanceof Error ? err.message : String(err),
       });
       // Surface the failure without aborting the run; the cron logs the aggregate.
       console.error(`billing run failed for account ${id}:`, err instanceof Error ? err.message : err);
