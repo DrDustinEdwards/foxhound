@@ -349,6 +349,11 @@ describe("PLANT 7: the policy is applied at the one choke point", () => {
         "app/routes/files/feed.ts",
         "app/routes/files/llms-full.ts",
         "app/routes/files/llms.ts",
+        // RFC 8414 metadata (J79): five minutes public, as Recova sent it.
+        // It holds no per-person data and its path is not in a public class,
+        // so without its own header the policy would make it private, and
+        // every MCP client's discovery probe would miss the edge.
+        "app/routes/files/oauth-metadata.ts",
         "app/routes/files/robots.ts",
         "app/routes/files/sitemap.ts",
         // Names Cache-Control in a comment only: the policy pins this route

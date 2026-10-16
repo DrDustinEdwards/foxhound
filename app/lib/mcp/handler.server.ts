@@ -6,6 +6,7 @@ import {
 } from "~/lib/constants";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE, verifyMcpToken } from "~/lib/auth/mcp-tokens";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
+import { mcpWwwAuthenticate } from "~/lib/oauth/metadata";
 
 import { answersIn, recordToolCalls, toolCallsIn } from "./call-log.server";
 import { EMPTY_REGISTRY, type McpToolRegistry } from "./registry";
@@ -37,6 +38,13 @@ import { serveMcp } from "./server";
 // all produce the SAME body and the same status. A body that varied would tell
 // an attacker which of their guesses was a real key that had been revoked, which
 // is the classic user-enumeration leak wearing different clothes.
+//
+// THE 401 SAYS WHERE TO SIGN IN (J79). Its WWW-Authenticate carries RFC 9728's
+// resource_metadata, pointing at /.well-known/oauth-protected-resource, which
+// names this origin as the authorization server, as recova-mcp's 401 did
+// (src/auth.ts wwwAuthenticateHeader). That is how an MCP client such as
+// Claude finds /oauth/authorize. The value depends on the origin only, so it is
+// the same for every failure.
 
 /** JSON-RPC codes this file answers with itself, before the SDK is reached. */
 const MCP_ERROR = { INVALID_REQUEST: -32600 } as const;
@@ -77,11 +85,11 @@ function errorResponse(
 }
 
 /** The one 401. Identical for every authentication failure. */
-function unauthorized(): Response {
+function unauthorized(origin: string): Response {
   return jsonResponse(
     401,
     mcpErrorBody(null, MCP_ERROR.INVALID_REQUEST, UNAUTHORIZED_MESSAGE),
-    { "WWW-Authenticate": "Bearer" },
+    { "WWW-Authenticate": mcpWwwAuthenticate(origin) },
   );
 }
 
@@ -129,7 +137,7 @@ async function authenticate(
     if (!allowed) {
       return errorResponse(429, null, MCP_ERROR.INVALID_REQUEST, "Too many requests");
     }
-    return unauthorized();
+    return unauthorized(new URL(request.url).origin);
   };
 
   const token = bearerToken(request);

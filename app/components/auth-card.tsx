@@ -152,11 +152,16 @@ export function AuthFootnote({ children }: { children: ReactNode }) {
  * to Foxhound's own start route (/auth/google, Better Auth's signInSocial),
  * never a client-side provider call. Google's mark is a static file because
  * its four brand colours are Google's, not Foxhound tokens.
+ *
+ * `next` is the page to land on afterwards, when /login was given one (J79).
  */
-export function GoogleContinue() {
+export function GoogleContinue({ next }: { next?: string } = {}) {
   return (
     <>
       <Form method="post" action="/auth/google" className="mb-5 grid">
+        {/* Where to land after Google (J79), validated again by the start
+            route. Recova carried it in a pending_redirect cookie. */}
+        {next ? <input type="hidden" name="next" value={next} /> : null}
         <Button type="submit" size="lg">
           <img src="/google-g.svg" alt="" width={16} height={16} />
           Continue with Google

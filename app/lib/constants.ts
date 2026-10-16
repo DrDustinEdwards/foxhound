@@ -904,3 +904,27 @@ export const STRIPE_CONNECT_PLATFORM_NAME = "Foxhound";
  * request, one address can write at most 100 lines a minute.
  */
 export const RATE_LIMIT_CSP_REPORT = { max: 20, windowMs: 60 * 1000 } as const;
+
+// ============================================================================
+// OAuth provider for external agents (J79, rows A9, F18, F19; ruling 8)
+// ============================================================================
+
+/** An access token lives one hour, as Recova's token route said
+ *  (app/api/oauth/token/route.ts, ACCESS_TOKEN_TTL_SECONDS = 3600). */
+export const OAUTH_ACCESS_TOKEN_TTL_SECONDS = 3600;
+
+/** A refresh token lives 30 days from its last rotation, as Recova's comment
+ *  on its token route said ("rotates refresh tokens (30d) on every refresh"). */
+export const OAUTH_REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** An authorization code lives ten minutes, the ceiling RFC 6749 section 4.1.2
+ *  recommends. Recova's lifetime was a Supabase column default outside its
+ *  repo, so it could not be read; this is Foxhound's own. */
+export const OAUTH_CODE_TTL_MS = 10 * 60 * 1000;
+
+/** Recova's four OAuth limits (lib/constants.ts lines 116 to 119), unchanged:
+ *  approve is per signed-in user, the other three per IP. */
+export const RATE_LIMIT_OAUTH_APPROVE = { max: 20, windowMs: 60 * 1000 } as const;
+export const RATE_LIMIT_OAUTH_TOKEN = { max: 30, windowMs: 60 * 1000 } as const;
+export const RATE_LIMIT_OAUTH_REGISTER = { max: 10, windowMs: 60 * 60 * 1000 } as const;
+export const RATE_LIMIT_OAUTH_REVOKE = { max: 30, windowMs: 60 * 1000 } as const;

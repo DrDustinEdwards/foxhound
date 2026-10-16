@@ -218,6 +218,13 @@
       "when": 1792082715726,
       "tag": "0030_mcp_calls_created_index",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "6",
+      "when": 1792156071980,
+      "tag": "0031_oauth_provider",
+      "breakpoints": true
     }
   ]
 }

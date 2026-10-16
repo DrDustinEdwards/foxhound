@@ -1,8 +1,8 @@
-import { and, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import { executeMoneyWrite } from "~/lib/money/execute";
-import { accountMembers, accounts, user } from "~/db";
+import { accountMembers, accounts, apiKeys, oauthGrants, user } from "~/db";
 
 import { INVITE_TTL_MS, MEMBER_ROLE, MEMBER_STATUS } from "./roles";
 
@@ -566,7 +566,7 @@ export async function removeMember(
   memberId: string,
 ): Promise<RemoveMemberResult> {
   const rows = await db
-    .select({ id: accountMembers.id, role: accountMembers.role })
+    .select({ id: accountMembers.id, role: accountMembers.role, userId: accountMembers.userId })
     .from(accountMembers)
     .where(and(eq(accountMembers.id, memberId), eq(accountMembers.accountId, accountId)))
     .limit(1);
@@ -575,6 +575,33 @@ export async function removeMember(
   if (!target) return { ok: false, reason: "not_found" };
   if (target.role === MEMBER_ROLE.OWNER) return { ok: false, reason: "is_owner" };
 
-  await db.delete(accountMembers).where(eq(accountMembers.id, memberId));
+  // A pending invite has no person yet, so nothing of theirs to end.
+  if (!target.userId) {
+    await db.delete(accountMembers).where(eq(accountMembers.id, memberId));
+    return { ok: true };
+  }
+
+  // THE AGENTS THEY CONNECTED LEAVE WITH THEM (J79). Each OAuth grant is this
+  // person's delegation on this account, so in the same batch as the removal
+  // its access key and the grant are revoked: the key first, found through the
+  // grant, then the grant. Keys made in Settings belong to the account and stay.
+  const now = new Date();
+  const theirGrants = and(
+    eq(oauthGrants.userId, target.userId),
+    eq(oauthGrants.accountId, accountId),
+  );
+  await db.batch([
+    db
+      .update(apiKeys)
+      .set({ revokedAt: now })
+      .where(
+        and(
+          inArray(apiKeys.id, db.select({ id: oauthGrants.apiKeyId }).from(oauthGrants).where(theirGrants)),
+          isNull(apiKeys.revokedAt),
+        ),
+      ),
+    db.update(oauthGrants).set({ revokedAt: now }).where(and(theirGrants, isNull(oauthGrants.revokedAt))),
+    db.delete(accountMembers).where(eq(accountMembers.id, memberId)),
+  ]);
   return { ok: true };
 }
