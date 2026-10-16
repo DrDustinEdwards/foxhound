@@ -16,15 +16,14 @@ import {
 } from "~/db";
 import { DAY_MS } from "~/lib/constants";
 import { RESOLVED_DISPUTE_STATES } from "~/lib/disputes/labels";
-import { processEmailJob } from "~/lib/email/dispatch";
+import { processEmailJob, type EmailSendStatus } from "~/lib/email/dispatch";
+import { signUnsubscribeToken } from "~/lib/email/unsubscribe-token";
 import { isIntelligenceEntitled } from "~/lib/intelligence/views.server";
 import { accountProcessingEligibleCondition } from "~/lib/cron/recovery-tick";
 
 import {
-  buildDigestEmail,
-  DIGEST_SENDER_FALLBACK,
   DIGEST_TEMPLATE,
-  digestSubject,
+  digestContent,
   resolveDigestCurrency,
   type DigestNumbers,
 } from "~/lib/recovery/digest-email";
@@ -83,9 +82,19 @@ export const DIGEST_HIGH_RISK_LIMIT = 3;
 /** Legacy's at-risk band for the Intelligence section: `health_score <= 33`. */
 export const DIGEST_HIGH_RISK_MAX_SCORE = 33;
 
+/**
+ * What happened to one account's digest, by name (RULES.md 3.16: a send path
+ * returns a named outcome, never null). The send's own status from
+ * processEmailJob ("sent", "suppressed", "blocked", "failed", "duplicate"),
+ * "already_sent" when this week's digest is already out, and "error" when
+ * building the digest threw before a send was attempted.
+ */
+export type DigestOutcomeStatus = EmailSendStatus | "already_sent" | "error";
+
 export interface DigestRunResult {
   sent: number;
   skipped: number;
+  outcomes: { accountId: string; status: DigestOutcomeStatus }[];
 }
 
 export interface DigestAccount {
@@ -304,7 +313,12 @@ export async function collectDigestNumbers(
 /** One weekly run. */
 export async function runWeeklyDigest(env: Env, now: Date): Promise<DigestRunResult> {
   const db = getDb(env);
-  const result: DigestRunResult = { sent: 0, skipped: 0 };
+  const result: DigestRunResult = { sent: 0, skipped: 0, outcomes: [] };
+  const record = (accountId: string, status: DigestOutcomeStatus): void => {
+    result.outcomes.push({ accountId, status });
+    if (status === "sent") result.sent += 1;
+    else result.skipped += 1;
+  };
   const windowStart = new Date(now.getTime() - DIGEST_WINDOW_MS);
   // TWO WINDOWS, DELIBERATELY DIFFERENT, and the difference is the whole fix
   // (376 item 13). The DATA window stays legacy's seven days; the CLAIM window
@@ -312,11 +326,12 @@ export async function runWeeklyDigest(env: Env, now: Date): Promise<DigestRunRes
   // run started, falls OUTSIDE it and this week's digest is not skipped by its
   // own predecessor.
   const claimWindowStart = new Date(now.getTime() - DIGEST_CLAIM_WINDOW_MS);
+  const baseUrl = env.BETTER_AUTH_URL ?? "";
 
   for (const account of await queryDigestAccounts(db)) {
     try {
       if (await hasDigestThisWeek(db, account.accountId, claimWindowStart)) {
-        result.skipped += 1;
+        record(account.accountId, "already_sent");
         continue;
       }
 
@@ -332,48 +347,51 @@ export async function runWeeklyDigest(env: Env, now: Date): Promise<DigestRunRes
         {
           accountId: account.accountId,
           to: account.notificationEmail,
-          fromName: account.senderName ?? DIGEST_SENDER_FALLBACK,
-          subject: digestSubject({ now, intelligenceActive, disputesActive }),
-          bodyHtml: buildDigestEmail({
+          ...digestContent({
             ...numbers,
             senderName: account.senderName,
             intelligenceActive,
             disputesActive,
             highRiskCustomers: numbers.highRisk,
             now,
-            dashboardUrl: `${env.BETTER_AUTH_URL ?? ""}/console`,
+            baseUrl,
           }),
           template: DIGEST_TEMPLATE,
-          // Empty, as session 48's merchant notice does: the merchant audience
-          // renders no unsubscribe, so there is no token to mint.
-          unsubscribeToken: "",
+          // RECOVA'S UNSUBSCRIBE (E23). Recova runs checkAndRegisterUnsubscribe
+          // on the notification address and wraps the digest with its token.
+          // Foxhound's is the signed /u/ token for this address and account,
+          // marked `list: "digest"`: following it switches off THIS account's
+          // digest and suppresses nothing, so the merchant's notices and any
+          // other account on the address carry on, as a Recova merchant sees
+          // (PR 158 review round 1, RULES.md 3.16). processEmailJob's
+          // suppression gate still runs, so bounces, complaints and migrated
+          // opt-outs stop the digest as Recova's check does.
+          unsubscribeToken: await signUnsubscribeToken(env, {
+            email: account.notificationEmail,
+            accountId: account.accountId,
+            list: "digest",
+          }),
           // The claim's carrier is the email_sends row this produces, keyed on
           // (account, template, window). The key here identifies the WEEK the
           // digest is for, so a redelivery within one run cannot double-send.
           idempotencyKey: `weekly-digest:${account.accountId}:${windowStart.toISOString().slice(0, 10)}`,
-          // MERCHANT audience: no CAN-SPAM footer, no unsubscribe headers, no
-          // suppression gate (339 binding 4). Legacy DOES attach an unsubscribe
-          // here, and that is the recorded divergence: `email_suppressions` is
-          // keyed by address, so one click would silence this merchant's
-          // recovery and sequence-complete notices too.
-          audience: "merchant",
+          // The DIGEST audience: Recova's footer with Unsubscribe and the postal
+          // address, on this merchant mail only (RULES.md 3.16). A missing
+          // address refuses the send, as on customer mail.
+          audience: "digest",
           physicalAddress: env.PHYSICAL_ADDRESS ?? "",
           cronRunId: null,
         },
         null,
       );
 
-      if (outcome.status !== "sent") {
-        result.skipped += 1;
-        continue;
-      }
-      result.sent += 1;
+      record(account.accountId, outcome.status);
     } catch (err) {
       console.error(
         `weekly digest failed for account ${account.accountId}:`,
         err instanceof Error ? err.message : err,
       );
-      result.skipped += 1;
+      record(account.accountId, "error");
     }
   }
   return result;

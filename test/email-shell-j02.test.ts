@@ -33,7 +33,7 @@ const { buildRecoveryEmailJob } = await import("~/lib/engine/execute-step");
 const { buildTemplateEmail } = await import("~/lib/recovery/email-template");
 const { buildWinbackEmail, winbackSubject } = await import("~/lib/recovery/winback-email");
 const { buildExpiringCardEmail, expiringCardSubject } = await import("~/lib/recovery/expiring-card-email");
-const { buildDigestEmail, digestSubject } = await import("~/lib/recovery/digest-email");
+const { digestContent } = await import("~/lib/recovery/digest-email");
 const { sendRecoveryNotification } = await import("~/lib/recovery/merchant-notification.server");
 const { sendSequenceCompleteNotification } = await import(
   "~/lib/recovery/sequence-complete-notification.server"
@@ -305,7 +305,7 @@ describe("customer mail carries both parts and the CAN-SPAM footer", () => {
 // Merchant notices: never the footer
 // ============================================================================
 
-describe("merchant notices carry both parts and never the footer", () => {
+describe("merchant notices carry both parts and never the footer, except the digest", () => {
   it("the recovery notification", async () => {
     const out = await sendRecoveryNotification(env, { accountId: ACCOUNT, failedPaymentId: FP });
     expect(out.kind).toBe("sent");
@@ -323,38 +323,42 @@ describe("merchant notices carry both parts and never the footer", () => {
     expectNoCustomerFooter(m);
   });
 
-  it("the weekly digest", async () => {
+  it("the weekly digest is the one merchant mail with the footer (E23)", async () => {
+    // Recova wraps its digest with an unsubscribe token, so it carries
+    // Unsubscribe and the postal address; RULES.md 3.16 keeps every other
+    // merchant notice without them.
     const now = new Date("2026-10-12T09:00:00.000Z");
-    const body = buildDigestEmail({
-      totalFailed: 4,
-      totalRecovered: 2,
-      recoveredRevenueCents: 1200,
-      atRiskRevenueCents: 5000,
-      activeCount: 2,
-      emailsSent: 7,
-      winBackCount: 1,
-      expiringCardCount: 0,
-      openDisputeCount: 0,
-      openDisputeCents: 0,
-      currency: "usd",
-      senderName: "Acme",
-      disputesActive: false,
-      intelligenceActive: false,
-      highRiskCustomers: [],
-      now,
-      dashboardUrl: `${BASE}/dashboard`,
-    });
     await sendEmail(env, {
-      ...customerJob(body, {
-        subject: digestSubject({ now, intelligenceActive: false, disputesActive: false }),
-        unsubscribeToken: "",
-        physicalAddress: "",
+      accountId: ACCOUNT,
+      to: "ops@acme.test",
+      ...digestContent({
+        totalFailed: 4,
+        totalRecovered: 2,
+        recoveredRevenueCents: 1200,
+        atRiskRevenueCents: 5000,
+        activeCount: 2,
+        emailsSent: 7,
+        winBackCount: 1,
+        expiringCardCount: 0,
+        openDisputeCount: 0,
+        openDisputeCents: 0,
+        currency: "usd",
+        senderName: "Acme",
+        disputesActive: false,
+        intelligenceActive: false,
+        highRiskCustomers: [],
+        now,
+        baseUrl: BASE,
       }),
-      audience: "merchant",
+      template: "weekly_digest",
+      unsubscribeToken: "tok",
+      physicalAddress: ADDRESS,
+      idempotencyKey: "k",
+      audience: "digest",
     });
     const m = only();
     expectBothParts(m, ["Your recovery summary", "Failed payments detected", "Revenue recovered", "View Dashboard"]);
-    expectNoCustomerFooter(m);
+    expectCustomerFooter(m);
   });
 });
 

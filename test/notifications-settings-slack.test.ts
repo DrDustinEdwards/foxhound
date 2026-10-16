@@ -49,6 +49,7 @@ const { runWeeklyDigest, queryDigestAccounts } = await import("~/lib/cron/digest
 const ACCOUNT = "acct_1";
 const NOW = new Date("2026-11-02T08:00:00Z");
 const env = {
+  ENCRYPTION_KEY: "ab".repeat(32),
   BETTER_AUTH_URL: "https://foxhoundapp.test",
   PHYSICAL_ADDRESS: "1 Test Way",
 } as unknown as Env;
@@ -198,7 +199,7 @@ describe("PLANT 3: THE DIGEST CHAIN, END TO END", () => {
 
     const result = await runWeeklyDigest(env, NOW);
 
-    expect(result).toEqual({ sent: 1, skipped: 0 });
+    expect(result).toMatchObject({ sent: 1, skipped: 0 });
     expect(harness.emailJobs).toHaveLength(1);
     expect(harness.emailJobs[0].to).toBe("owner@acme.test");
     expect(harness.emailJobs[0].template).toBe("weekly_digest");

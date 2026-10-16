@@ -45,8 +45,11 @@ export function buildEmailMessage(job: OutboundEmailJob, baseUrl: string): Email
   // unsubscribe, exactly as sendTransactionalEmail already does and exactly as
   // legacy sends its merchant notification. See the EmailAudience doc for why an
   // unsubscribe there would be actively harmful.
+  //
+  // The weekly digest is the one merchant mail that carries both (E23): Recova
+  // wraps it with an unsubscribe token, so it takes the same two guards.
   let unsubUrl: string | null = null;
-  if (audience === "customer") {
+  if (audience === "customer" || audience === "digest") {
     if (!job.physicalAddress || !job.physicalAddress.trim()) {
       throw new Error("email blocked: missing CAN-SPAM physical address");
     }
@@ -65,6 +68,10 @@ export function buildEmailMessage(job: OutboundEmailJob, baseUrl: string): Email
   //
   // Preview mail (E3) puts only its note in the slot: Recova's preview footer
   // sentence, with no unsubscribe and no postal address, as Recova's has none.
+  //
+  // Digest mail (E23) carries the customer footer: Recova's sentence, then
+  // Unsubscribe, then the postal address, as wrapEmailHtml writes it with a
+  // token.
   //
   // Merchant mail with a note (E10) carries Recova's footer as wrapEmailHtml
   // writes it with no unsubscribe token: the sentence, then "Manage email
