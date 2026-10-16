@@ -30,7 +30,8 @@ const read = (path: string) => readFileSync(fileURLToPath(new URL(path, ROOT)), 
 // are the two false assertions themselves, so their absence is the fix.
 
 describe("PLANT 1: the two false clauses are gone", () => {
-  const home = read("app/routes/home.tsx");
+  // Home's FAQ moved to lib/marketing/home-copy.ts with J59.
+  const home = read("app/routes/home.tsx") + read("app/lib/marketing/home-copy.ts");
 
   it("the FAQ no longer promises a preview before sending", () => {
     expect(home.length).toBeGreaterThan(1000);
@@ -48,6 +49,7 @@ describe("PLANT 1: the two false clauses are gone", () => {
     // may offer it.
     for (const file of [
       "app/routes/home.tsx",
+      "app/lib/marketing/home-copy.ts",
       "app/routes/pricing.tsx",
       "app/lib/marketing/pricing-copy.ts",
       "app/lib/marketing/docs-content.ts",
@@ -124,7 +126,7 @@ describe("PLANT 2: the replacement agrees with the docs", () => {
   });
 
   it("and the FAQ answer says the same thing in its own words", () => {
-    const home = read("app/routes/home.tsx");
+    const home = read("app/lib/marketing/home-copy.ts");
     expect(home).toContain("written at send time");
     expect(home).toContain("no draft sitting there to preview");
     // The half that stays TRUE and must not be lost in the correction: a sent

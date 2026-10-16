@@ -157,8 +157,8 @@ export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: n
         )}
       </li>
 
-      {/* Always available, as in Recova, and to Recova's /audit/dashboard,
-          where J43 put the signed-in list of the account's runs. */}
+      {/* Always available, as in Recova. /audit/dashboard is the signed-in list
+          of the account's runs, at Recova's path. */}
       <li className="grid">
         {tiles.lastAuditAt ? (
           <StatTile

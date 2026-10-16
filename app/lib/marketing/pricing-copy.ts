@@ -108,8 +108,10 @@ export const PRICING_CARDS: PricingCard[] = [
       "MRR, movements, churn, cohorts: free for Recovery merchants",
       `Predictive risk scoring: the paid ${usd(INTELLIGENCE_PRICE_CENTS)}/mo layer`,
       // Recova's "Health signals feed Recovery timing and Disputes triage" is
-      // removed: Recovery's schedule comes from the decline category alone and
-      // Disputes computes no triage (APPROVED-DIFFERENCES, Intelligence entry).
+      // removed: failed-payment retries and emails follow the decline category
+      // alone, Disputes computes no triage (APPROVED-DIFFERENCES, Intelligence
+      // entry), and the one timing Intelligence does change, win-back step 1,
+      // is a delay, not an improvement (winback-copy.ts).
       "Account-wide, not per-customer",
       // 377(8): the annual term comes off the page until a checkout exists. An
       // offer with no way to accept it fails the FTC's bona fide test whatever
