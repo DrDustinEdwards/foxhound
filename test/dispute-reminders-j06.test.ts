@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import type Database from "better-sqlite3";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -35,7 +35,9 @@ vi.mock("~/lib/money/execute", () => ({
 }));
 
 const { resolveReminderBucket, DISPUTE_REMINDER_TEMPLATE } = await import("~/lib/disputes/notices");
-const { runDisputeReminders, DISPUTE_REMINDERS_CRON_NAME } = await import("~/lib/cron/dispute-reminders");
+const { runDisputeReminders, DISPUTE_REMINDERS_CRON_NAME, REFUSED_REMINDER_BACKOFF_MS } = await import(
+  "~/lib/cron/dispute-reminders"
+);
 const { CRON_JOBS } = await import("~/lib/cron/registry");
 
 const NOW = new Date("2026-11-10T12:00:00Z");
@@ -87,6 +89,14 @@ function seedDispute(
       hoursLeft === null ? null : NOW.getTime() + hoursLeft * HOUR,
       opts.submitted ? 2000 : null,
     );
+}
+
+function seedApproval(disputeId: string, accountId: string) {
+  sqlite
+    .prepare(
+      "INSERT INTO dispute_approvals (id, dispute_id, account_id, approved_by_email, evidence_version_hash, approved_at) VALUES (?, ?, ?, 'owner@a1.test', 'hash', 1500)",
+    )
+    .run(`ap_${disputeId}`, disputeId, accountId);
 }
 
 function outcomeRows() {
@@ -256,8 +266,97 @@ describe("PR 149 review: no dispute starves, and a tick repeats no work", () => 
     } finally {
       (env.EMAIL as { send: unknown }).send = send;
     }
-    expect(await runDisputeReminders(env, NOW)).toMatchObject({ considered: 1, sent: 1 });
+    // Tried again once the back-off (job_2663d92094ab) has passed.
+    expect(await runDisputeReminders(env, new Date(NOW.getTime() + REFUSED_REMINDER_BACKOFF_MS))).toMatchObject({
+      considered: 1,
+      sent: 1,
+    });
     expect(harness.sent).toHaveLength(1);
+  });
+});
+
+describe("job_2663d92094ab: the reminder says only what the merchant can do", () => {
+  it("an unapproved dispute keeps Recova's line: review and submit, or accept", async () => {
+    seedAccount("a1");
+    seedDispute("d3", "a1", 80);
+    await runDisputeReminders(env, NOW);
+    expect(harness.sent[0].html).toContain("You need to review and submit, or choose to accept.");
+  });
+
+  it("an approved dispute Stripe has not confirmed is still reminded, without offering Accept", async () => {
+    seedAccount("a1");
+    seedDispute("d3", "a1", 80, { state: "approved" });
+    seedApproval("d3", "a1");
+    const result = await runDisputeReminders(env, NOW);
+    expect(result.sent).toBe(1);
+    const html = harness.sent[0].html;
+    expect(html).not.toContain("choose to accept");
+    expect(html).not.toContain("review and submit");
+    expect(html).toContain(
+      "Your evidence is approved, but Stripe has not confirmed the submission. Check this dispute in Stripe, or open it in Foxhound to submit it again.",
+    );
+    expect(html).toContain("https://foxhoundapp.test/disputes/d3");
+  });
+});
+
+describe("job_2663d92094ab: a refused reminder backs off instead of retrying every tick", () => {
+  function attempts(): number {
+    return harness.sent.length + refusals;
+  }
+  let refusals = 0;
+
+  beforeEach(() => {
+    refusals = 0;
+    vi.useFakeTimers({ toFake: ["Date"] });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  async function tickAt(at: Date, refuse: boolean) {
+    vi.setSystemTime(at);
+    const send = (env.EMAIL as { send: unknown }).send;
+    if (refuse) {
+      (env.EMAIL as { send: unknown }).send = async () => {
+        refusals++;
+        throw new Error("provider refused");
+      };
+    }
+    try {
+      return await runDisputeReminders(env, at);
+    } finally {
+      (env.EMAIL as { send: unknown }).send = send;
+    }
+  }
+
+  it("a refused send is not tried again until the back-off has passed", async () => {
+    seedAccount("a1");
+    seedDispute("d3", "a1", 90);
+    expect(await tickAt(NOW, true)).toMatchObject({ considered: 1, failed: 1 });
+    // The next ticks inside the back-off select nothing and call nobody.
+    for (const minutes of [5, 10, 30, 55]) {
+      expect(await tickAt(new Date(NOW.getTime() + minutes * 60 * 1000), true)).toMatchObject({ considered: 0 });
+    }
+    expect(attempts()).toBe(1);
+    // Once it has passed, the reminder is tried again and goes out.
+    expect(await tickAt(new Date(NOW.getTime() + REFUSED_REMINDER_BACKOFF_MS), false)).toMatchObject({
+      considered: 1,
+      sent: 1,
+    });
+    expect(harness.sent).toHaveLength(1);
+  });
+
+  it("a provider that refuses all day is asked at most once per back-off, not every five minutes", async () => {
+    seedAccount("a1");
+    seedDispute("d1", "a1", 47);
+    // Every five-minute tick for the 23 hours the dispute stays in the 1-day band.
+    for (let m = 0; m < 23 * 60; m += 5) {
+      await tickAt(new Date(NOW.getTime() + m * 60 * 1000), true);
+    }
+    expect(refusals).toBeLessThanOrEqual(Math.ceil((23 * HOUR) / REFUSED_REMINDER_BACKOFF_MS));
+    expect(refusals).toBeGreaterThan(1);
+    expect(harness.sent).toHaveLength(0);
   });
 });
 

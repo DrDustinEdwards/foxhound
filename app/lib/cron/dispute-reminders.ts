@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, isNotNull, isNull, lt, notExists, notInArray, sql } from "drizzle-orm";
+import { and, asc, eq, gt, gte, isNotNull, isNull, lt, notExists, notInArray, or, sql } from "drizzle-orm";
 
 import { accounts, disputes, emailSends, emailSuppressions, getDb } from "~/db";
 import { SUBMITTED_OR_RESOLVED } from "~/lib/disputes/approval";
@@ -41,7 +41,8 @@ import { accountProcessingEligibleCondition } from "~/lib/cron/recovery-tick";
 // flight), so a reminded dispute is never selected again: no notice load, no
 // suppression check, no claim attempt and no log row on the ticks after. A
 // claim the provider refused carries its error and stays selectable, and the
-// send layer retakes it, so a failed send is tried again on the next tick.
+// send layer retakes it, so a failed send is tried again once its back-off
+// has passed (below).
 // Recova kept the same exclusion in memory (its sentReminders set).
 //
 // NO DISPUTE STARVES. Each band is its own query, its window in SQL (so the
@@ -49,6 +50,13 @@ import { accountProcessingEligibleCondition } from "~/lib/cron/recovery-tick";
 // under the batch limit. With reminded disputes excluded, a band holding more
 // than the limit drains over consecutive ticks instead of returning the same
 // rows forever.
+//
+// A REFUSED SEND BACKS OFF (job_2663d92094ab). The send layer keeps a refused
+// claim's row with its error, and its created_at is the time of the last
+// attempt (the claim and every retake write it). The selection skips a dispute
+// whose band claim was refused less than REFUSED_REMINDER_BACKOFF_MS ago, so a
+// provider that keeps refusing is asked about once an hour, at most 24 times in
+// a band, instead of on every five-minute tick (about 288).
 //
 // A SUPPRESSED ADDRESS IS NOT SELECTED. The send layer would log a
 // `suppressed` row for it and keep no key, so the query reads the same
@@ -63,6 +71,9 @@ export const DISPUTE_REMINDERS_CRON_NAME = "dispute-reminders";
 export const DISPUTE_REMINDER_BATCH_LIMIT = 100;
 
 const HOUR_MS = 60 * 60 * 1000;
+
+/** How long a refused reminder send waits before it is tried again. */
+export const REFUSED_REMINDER_BACKOFF_MS = HOUR_MS;
 
 export interface DisputeReminderRun {
   considered: number;
@@ -101,7 +112,11 @@ async function dueInBand(env: Env, now: Date, band: (typeof REMINDER_BANDS)[numb
               and(
                 // reminderKey(band.eventType, disputes.id), in SQL.
                 eq(emailSends.idempotencyKey, sql`${reminderKey(band.eventType, "")} || ${disputes.id}`),
-                isNull(emailSends.error),
+                // Sent or in flight, or refused inside the back-off.
+                or(
+                  isNull(emailSends.error),
+                  gt(emailSends.createdAt, new Date(now.getTime() - REFUSED_REMINDER_BACKOFF_MS)),
+                ),
               ),
             ),
         ),

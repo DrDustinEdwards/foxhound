@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 
-import { accounts, disputes, getDb } from "~/db";
+import { accounts, disputeApprovals, disputes, getDb } from "~/db";
 import { processEmailJob } from "~/lib/email/dispatch";
 import type { EmailJobResult } from "~/lib/email/dispatch";
 
@@ -216,6 +216,18 @@ export async function sendDisputeOutcomeNotice(
   }
 }
 
+/** A dispute_approvals row exists for the dispute, pinned to the account. The
+ *  cron selects only unsubmitted disputes, so a row here is an approval Stripe
+ *  has not confirmed (job_2663d92094ab). */
+async function hasStandingApproval(env: Env, accountId: string, disputeId: string): Promise<boolean> {
+  const rows = await getDb(env)
+    .select({ id: disputeApprovals.id })
+    .from(disputeApprovals)
+    .where(and(eq(disputeApprovals.disputeId, disputeId), eq(disputeApprovals.accountId, accountId)))
+    .limit(1);
+  return rows.length > 0;
+}
+
 /** One deadline reminder. The cron chose the dispute and the band. */
 export async function sendDisputeReminderNotice(
   env: Env,
@@ -226,6 +238,7 @@ export async function sendDisputeReminderNotice(
     if (!row) return { kind: "skipped", reason: "not_found" };
     if (!row.notificationEmail) return { kind: "skipped", reason: "no_recipient" };
     const notice = reminderNotice({
+      approved: await hasStandingApproval(env, ctx.accountId, row.id),
       amountCents: row.amountCents,
       currency: row.currency,
       customerLabel: noticeCustomerLabel(row.customerName, row.customerEmail),
