@@ -80,6 +80,18 @@ export function paymentsShowingText(page: number, pageSize: number | "all", tota
  *  doBulkAction: setTimeout(..., 3000)). */
 export const BULK_RESULT_DISMISS_MS = 3000;
 
+/** Whether the bulk result clears itself after BULK_RESULT_DISMISS_MS. Only
+ *  when every payment took the action: a report with a failure, or a refused
+ *  submission, stays until the merchant dismisses it, since a failure list
+ *  that vanishes on a timer fails WCAG 2.2.1 (Timing Adjustable). Pending
+ *  Dustin's ruling (J75 review). */
+export function bulkResultClearsItself(
+  bulk: { results?: readonly { ok: boolean }[]; refused?: unknown } | null | undefined,
+): boolean {
+  if (!bulk || bulk.refused !== undefined || !bulk.results) return false;
+  return bulk.results.every((r) => r.ok);
+}
+
 /** Recova's bulk result line, PaymentsClient.tsx doBulkAction: the action's
  *  past tense, how many succeeded, and how many failed when any did. */
 const BULK_RESULT_LABELS: Record<string, string> = {

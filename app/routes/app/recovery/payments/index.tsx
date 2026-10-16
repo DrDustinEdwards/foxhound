@@ -6,7 +6,7 @@ import { ConfirmDialog } from "capsomer/react/confirm-dialog";
 import { Empty } from "capsomer/react/empty";
 import { PageHead } from "capsomer/react/page-head";
 import { Panel } from "capsomer/react/panel";
-import { Pill, type Tone as StatusTone } from "capsomer/react/status";
+import { Glyph, Pill, type Tone as StatusTone } from "capsomer/react/status";
 import "capsomer/banner.css";
 import "capsomer/bulk-bar.css";
 import "capsomer/button.css";
@@ -51,6 +51,7 @@ import {
   PAYMENTS_DEFAULT_PAGE_SIZE,
   PAYMENTS_PAGE_SIZE_OPTIONS,
   BULK_RESULT_DISMISS_MS,
+  bulkResultClearsItself,
   bulkResultLine,
   parsePaymentsPage,
   parsePaymentsPageSize,
@@ -465,9 +466,11 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
 
   const [dismissedFor, setDismissedFor] = useState<unknown>(null);
   const dismissed = dismissedFor === bulk;
-  // Recova clears the result after 3 seconds; the failures stay selected.
+  // Recova clears the result after 3 seconds. Here only an all-succeeded
+  // result does; one with a failure or a refusal waits to be dismissed
+  // (WCAG 2.2.1), pending Dustin's ruling. The failures stay selected.
   useEffect(() => {
-    if (!bulk) return;
+    if (!bulkResultClearsItself(bulk)) return;
     const t = setTimeout(() => setDismissedFor(bulk), BULK_RESULT_DISMISS_MS);
     return () => clearTimeout(t);
   }, [bulk]);
@@ -583,8 +586,10 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
       </div>
 
       {/* Recova's bulk result sits here, between the cards and the filters.
-          Per payment, failures first (approved 2026-09-19), cleared after
-          Recova's 3 seconds or on dismiss; the failures stay selected. */}
+          Per payment, failures first (approved 2026-09-19). Capsomer's React
+          Banner puts its children inside a <p>, which cannot hold the list,
+          so the itemised result is Capsomer's banner markup with the title,
+          the list and the note as siblings in .cap-banner-body. */}
       {bulk && !dismissed ? (
         <div className="mb-4">
           {isBulkRefusal(bulk) ? (
@@ -596,32 +601,41 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                   : `${bulk.submitted} payments is more than the limit of ${bulk.ceiling} per submission. Nothing was changed and nothing was trimmed to fit. Narrow the selection and try again.`}
             </Banner>
           ) : (
-            <Banner
-              tone={failedIds(bulk.results).length === 0 ? "ok" : "crit"}
-              title={bulkResultLine(bulk.intent, bulk.results)}
-              onDismiss={() => setDismissedFor(bulk)}
+            <div
+              className="cap-banner"
+              data-tone={failedIds(bulk.results).length === 0 ? "ok" : "crit"}
+              role={failedIds(bulk.results).length === 0 ? "status" : "alert"}
             >
-              <ul className="m-0 flex list-none flex-col gap-1 p-0 text-label">
-                {orderForDisplay(bulk.results).map((r) => (
-                  <li key={r.id}>
-                    <span className={r.ok ? "text-success-text" : "text-error-text"}>
-                      {r.ok
-                        ? (bulkCopy(bulk.intent)?.didLabel ?? "Applied")
-                        : (bulkCopy(bulk.intent)?.didNotLabel ?? "Not applied")}
-                    </span>
-                    <span className="ml-2 text-text">{rowLabel(r.id)}</span>
-                    {r.reason ? <span className="ml-2 text-text-subtle">{BULK_REASON_LABELS[r.reason]}</span> : null}
-                    {/* The dispatcher's own detail, carried rather than folded. */}
-                    {r.detail ? <span className="ml-2 font-mono text-text-subtle">{r.detail}</span> : null}
-                  </li>
-                ))}
-              </ul>
-              {failedIds(bulk.results).length > 0 ? (
-                <p className="m-0 mt-2 text-label text-text-subtle">
-                  The payments that did not take it are still selected, so the next attempt is exactly those.
-                </p>
-              ) : null}
-            </Banner>
+              <Glyph name={failedIds(bulk.results).length === 0 ? "ok" : "crit"} />
+              <div className="cap-banner-body">
+                <p className="cap-banner-title">{bulkResultLine(bulk.intent, bulk.results)}</p>
+                <ul className="cap-banner-text m-0 flex list-none flex-col gap-1 p-0 text-label">
+                  {orderForDisplay(bulk.results).map((r) => (
+                    <li key={r.id}>
+                      <span className={r.ok ? "text-success-text" : "text-error-text"}>
+                        {r.ok
+                          ? (bulkCopy(bulk.intent)?.didLabel ?? "Applied")
+                          : (bulkCopy(bulk.intent)?.didNotLabel ?? "Not applied")}
+                      </span>
+                      <span className="ml-2 text-text">{rowLabel(r.id)}</span>
+                      {r.reason ? <span className="ml-2 text-text-subtle">{BULK_REASON_LABELS[r.reason]}</span> : null}
+                      {/* The dispatcher's own detail, carried rather than folded. */}
+                      {r.detail ? <span className="ml-2 font-mono text-text-subtle">{r.detail}</span> : null}
+                    </li>
+                  ))}
+                </ul>
+                {failedIds(bulk.results).length > 0 ? (
+                  <p className="cap-banner-text m-0 text-label text-text-subtle">
+                    The payments that did not take it are still selected, so the next attempt is exactly those.
+                  </p>
+                ) : null}
+              </div>
+              <div className="cap-banner-actions">
+                <button type="button" className="cap-btn" data-variant="quiet" onClick={() => setDismissedFor(bulk)}>
+                  Dismiss
+                </button>
+              </div>
+            </div>
           )}
         </div>
       ) : null}

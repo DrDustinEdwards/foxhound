@@ -744,15 +744,16 @@ describe("bulk actions: the list route wires all three intents", () => {
   });
 
   it("the result surface names the intent's own verb and carries the detail", () => {
-    expect(ROUTE).toContain("title={bulkResultLine(bulk.intent, bulk.results)}");
+    expect(ROUTE).toContain('<p className="cap-banner-title">{bulkResultLine(bulk.intent, bulk.results)}</p>');
     expect(ROUTE).toContain("bulkCopy(bulk.intent)?.didLabel");
     expect(ROUTE).toContain("bulkCopy(bulk.intent)?.didNotLabel");
     expect(ROUTE).toContain("{r.detail ? <span");
-    expect(ROUTE).toContain("onDismiss={() => setDismissedFor(bulk)}");
+    expect(ROUTE).toContain("onClick={() => setDismissedFor(bulk)}");
     // Recova clears its bulk result after 3 seconds (PaymentsClient.tsx
-    // doBulkAction); APPROVED-DIFFERENCES approves the per-payment report and
-    // the failures kept selected, not a result kept until dismissed. The
-    // route's two timers are that and the search's typing delay.
+    // doBulkAction). Here only an all-succeeded result does; one with a
+    // failure or a refusal waits to be dismissed (WCAG 2.2.1), pending
+    // Dustin's ruling. The route's two timers are that and the search's
+    // typing delay.
     expect(ROUTE.match(/setTimeout\(/g)).toHaveLength(2);
     expect(ROUTE).toContain("searchTimer.current = setTimeout(");
     expect(ROUTE).toContain("setTimeout(() => setDismissedFor(bulk), BULK_RESULT_DISMISS_MS)");
