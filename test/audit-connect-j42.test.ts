@@ -213,8 +213,15 @@ describe("J42 U1: the one action is Capsomer's primary Button, full width as Rec
   it("keeps Recova's arrow, hidden from screen readers so the name is the words", () => {
     const html = render(PAGE);
     expect(html).toMatch(
-      /<button[^>]*>Connect Stripe and see my numbers<span aria-hidden="true"> →<\/span><\/button>/,
+      /<button[^>]*><span class="whitespace-normal">Connect Stripe and see my numbers<span aria-hidden="true"> →<\/span><\/span><\/button>/,
     );
+  });
+
+  it("the label may wrap, as Recova's does on a phone, so it is never clipped at 320px", () => {
+    // Capsomer's button is white-space: nowrap; Recova's 33-character label
+    // needs two lines below about 400px. The wrap sits on the page's own label.
+    const html = render(PAGE);
+    expect(html).toMatch(/<button[^>]*data-size="lg"[^>]*><span class="whitespace-normal">/);
   });
 
   it("no hand-rolled button and no Recova class strings are left", () => {

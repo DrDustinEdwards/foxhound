@@ -228,13 +228,20 @@ export default function AuditConnect({ loaderData }: Route.ComponentProps) {
       {loaderData.stripeEnabled ? (
         <Form method="post" className="grid">
           <Button type="submit" variant="primary" size="lg" pending={busy}>
-            {busy ? (
-              PENDING_LABEL
-            ) : (
-              <>
-                Connect Stripe and see my numbers<span aria-hidden="true"> →</span>
-              </>
-            )}
+            {/* The one Foxhound class inside a Capsomer part, and it is on this
+                page's own label, not the button: Capsomer's button never wraps,
+                so Recova's 33-character label is clipped below about 400px,
+                where Recova's own button wraps to two lines. Named in the PR
+                for the per-site layer (capsomer job_ec5ec0754626). */}
+            <span className="whitespace-normal">
+              {busy ? (
+                PENDING_LABEL
+              ) : (
+                <>
+                  Connect Stripe and see my numbers<span aria-hidden="true"> →</span>
+                </>
+              )}
+            </span>
           </Button>
           <span role="status" aria-live="polite" className="sr-only">
             {busy ? PENDING_LABEL : ""}
