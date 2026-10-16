@@ -92,10 +92,19 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     const target = new URL("/audit/results", url.origin);
     target.searchParams.set("account", oauth.stripeUserId);
 
-    const grantCookie = await setAuditGrantCookie(env, {
-      accessToken: oauth.accessToken,
-      stripeAccountId: oauth.stripeUserId,
-    });
+    let grantCookie: string;
+    try {
+      grantCookie = await setAuditGrantCookie(env, {
+        accessToken: oauth.accessToken,
+        stripeAccountId: oauth.stripeUserId,
+      });
+    } catch {
+      // The only way sealing fails is a missing or malformed ENCRYPTION_KEY,
+      // which would end every audit here. One fixed line so it is visible; the
+      // error object is never logged, since the plaintext was a live token.
+      console.error("audit grant seal failed: check ENCRYPTION_KEY");
+      return bounce("failed");
+    }
 
     return redirect(target.pathname + target.search, {
       headers: [

@@ -4,9 +4,10 @@ import { fileURLToPath } from "node:url";
 
 import type Database from "better-sqlite3";
 import type Stripe from "stripe";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resolveRateLimitBinding } from "~/lib/http/rate-limit";
+import { encryptToken } from "~/lib/stripe/encryption";
 import {
   ADD_ACCOUNT_ACTION,
   AUDIT_ACTION,
@@ -205,6 +206,22 @@ const setCookies = (response: Response): string[] =>
 
 const runsInDb = () =>
   sqlite.prepare("SELECT * FROM audit_runs").all() as Record<string, unknown>[];
+
+/** Where a loader that must refuse sent the visitor. Fails if it did not throw
+ *  a redirect, so a resolved page cannot pass as a refusal. */
+async function refusedTo(pending: Promise<unknown>): Promise<string | null> {
+  try {
+    await pending;
+  } catch (thrown) {
+    if (thrown instanceof Response) return thrown.headers.get("Location");
+    throw thrown;
+  }
+  return "resolved: no refusal";
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 /** The token cookie's value exactly as the REAL callback sets it after Stripe
  *  answered with `stripeUserId`, so every results test holds a grant the
@@ -445,6 +462,36 @@ describe("PLANT 3: the callback, and what it refuses", () => {
     expect(setCookies(response).some((c) => c.startsWith(AUDIT_TOKEN_COOKIE))).toBe(false);
   });
 
+  it("A MISSING ENCRYPTION_KEY fails closed with one fixed log line and no secret", async () => {
+    const logged: unknown[][] = [];
+    vi.spyOn(console, "error").mockImplementation((...args: unknown[]) => {
+      logged.push(args);
+    });
+    // A limiter that answers, so its own fail-open line is not in the log.
+    const env = {
+      ...ENV,
+      ENCRYPTION_KEY: undefined,
+      RATE_LIMITER: {
+        idFromName: () => "id",
+        get: () => ({ check: async () => ({ allowed: true, retryAfterSec: 0 }) }),
+      },
+    } as unknown as Env;
+    const state = buildConnectState(AUDIT_ACTION);
+    const url = new URL(`${ORIGIN}/audit/callback`);
+    url.searchParams.set("code", "ac_1");
+    url.searchParams.set("state", state);
+    const response = (await callbackRoute.loader({
+      request: new Request(url, { headers: { Cookie: cookieHeader({ [AUDIT_OAUTH_STATE_COOKIE]: state }) } }),
+      context: routeContext(env),
+      params: {},
+    } as never)) as Response;
+
+    expect(response.headers.get("Location")).toBe("/audit/connect?error=failed");
+    expect(setCookies(response).some((c) => c.startsWith(`${AUDIT_TOKEN_COOKIE}=`))).toBe(false);
+    // Exactly one line, a fixed string, carrying neither the token nor the id.
+    expect(logged).toEqual([["audit grant seal failed: check ENCRYPTION_KEY"]]);
+  });
+
   it("a cancelled authorization comes back as cancelled, not as a failure", async () => {
     const response = await call({ error: "access_denied" }, {});
     expect(response.headers.get("Location")).toBe("/audit/connect?error=cancelled");
@@ -582,16 +629,32 @@ describe("PLANT 5: what the anonymous path must never create", () => {
     expect(results).not.toContain("recordOutcome");
   });
 
-  it("AND THE GRANT IS NEVER STORED, which is where legacy's token lives too", () => {
+  it("AND THE GRANT IS NEVER STORED, which is where legacy's token lives too", async () => {
     // Legacy's `audit_access_token` occurs exactly twice in its tree: the
     // callback sets it, the results page reads it. Nothing writes it to a table,
     // and legacy never deauthorizes it either (`deauthorize` appears nowhere in
     // its repo). The cookie is the whole grant on both sides; Foxhound seals the
     // account id into it with the token (PLANT 6b), and stores nothing.
-    const callbackSource = code(read("app/routes/audit/callback.ts"));
-    expect(callbackSource).not.toContain("encryptToken");
-    expect(callbackSource).not.toContain("stripeConnections");
-    expect(callbackSource).not.toContain("getDb");
+    //
+    // Measured, not grepped: every text cell of every table is searched after a
+    // real callback and a real results load, for the token and for the sealed
+    // cookie value.
+    const tables = (
+      sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as { name: string }[]
+    ).map((t) => t.name);
+    const cellsContaining = (needle: string) =>
+      tables.flatMap((table) =>
+        (sqlite.prepare(`SELECT * FROM "${table}"`).all() as Record<string, unknown>[]).flatMap((row) =>
+          Object.values(row).filter((v) => typeof v === "string" && v.includes(needle)),
+        ),
+      );
+    // The search can find something: STRIPE_A is in the fixture's connection row.
+    expect(cellsContaining(STRIPE_A).length).toBeGreaterThan(0);
+
+    const grant = await mintGrant(STRIPE_A);
+    await load(STRIPE_A);
+    expect(cellsContaining(`sk_live_audit_token_${STRIPE_A}`)).toEqual([]);
+    expect(cellsContaining(grant)).toEqual([]);
   });
 });
 
@@ -719,9 +782,46 @@ describe("PLANT 6b: the audited account is the one STRIPE named, never the query
     // sealed, and a sealed value with one byte of its ciphertext changed.
     const flipped = sealed.slice(0, -1) + (sealed.endsWith("0") ? "1" : "0");
     for (const grant of ["sk_live_audit_token_acct_stripe_alpha", flipped]) {
-      await expect(load(STRIPE_A, grant)).rejects.toMatchObject({ status: 302 });
+      expect(await refusedTo(load(STRIPE_A, grant)), grant.slice(0, 12)).toBe(
+        "/audit/connect?error=session_expired",
+      );
     }
     expect(runsInDb()).toHaveLength(0);
+  });
+
+  it("SEALED JSON THAT IS NOT AN AUDIT GRANT is refused, even under the same key", async () => {
+    // Another sealer under ENCRYPTION_KEY producing the same {t, a} shape must
+    // never be accepted here: the grant carries a checked purpose.
+    signIn(ACCOUNT_A);
+    const now = Date.now();
+    for (const payload of [
+      { t: "sk_live_other", a: STRIPE_A, iat: now },
+      { p: "something-else", t: "sk_live_other", a: STRIPE_A, iat: now },
+    ]) {
+      const forged = await encryptToken(ENV, JSON.stringify(payload));
+      expect(await refusedTo(load(STRIPE_A, forged)), JSON.stringify(payload)).toBe(
+        "/audit/connect?error=session_expired",
+      );
+    }
+    expect(runsInDb()).toHaveLength(0);
+  });
+
+  it("A GRANT OLDER THAN THE COOKIE'S FIVE MINUTES is refused by the server too", async () => {
+    // Max-Age is the browser's promise; a cookie copied out of the browser keeps
+    // no such promise, so the seal carries its own issue time.
+    signIn(ACCOUNT_A);
+    const grant = await mintGrant(STRIPE_A);
+    const issued = Date.now();
+
+    const at = vi.spyOn(Date, "now");
+    at.mockReturnValue(issued + AUDIT_TOKEN_TTL_SECONDS * 1000 + 1000);
+    expect(await refusedTo(load(STRIPE_A, grant))).toBe("/audit/connect?error=session_expired");
+    expect(runsInDb()).toHaveLength(0);
+
+    // Inside the window it is still a grant, so the refusal above is the clock.
+    at.mockReturnValue(issued + (AUDIT_TOKEN_TTL_SECONDS - 10) * 1000);
+    const data = (await load(STRIPE_A, grant)) as Awaited<ReturnType<typeof resultsRoute.loader>>;
+    expect(data.notSaved).toBeNull();
   });
 
   it("the token never travels in the cookie in the clear", async () => {
