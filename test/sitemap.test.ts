@@ -49,6 +49,9 @@ const EXCLUDED_PREFIXES = [
   // Legacy's own sitemap lists /audit and none of these, which is the same
   // call: a consent screen, an OAuth return and a cookie-gated render are
   // steps inside a flow, not pages a crawler should land on.
+  "/audit/dashboard",
+  // J43: the old history path, now one 301 to /audit/dashboard. A redirect is
+  // not a page.
   "/audit/history",
   "/audit/runs/",
   "/audit/connect",

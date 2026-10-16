@@ -503,7 +503,7 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "Audit history",
-          description: "Signed-in accounts see every past audit run at /audit/history.",
+          description: "Signed-in accounts see every past audit run at /audit/dashboard.",
           product: "Audit",
         },
         {

@@ -161,7 +161,7 @@ function WhatsNext({
                 </Link>
               ) : null}
               <Link
-                to="/audit/history"
+                to="/audit/dashboard"
                 className="inline-block rounded-md border border-border bg-surface px-5 py-2.5 text-label font-semibold text-text no-underline hover:border-brand"
               >
                 View audit history

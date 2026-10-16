@@ -254,7 +254,7 @@ describe("/features entries are Recova's, each a capability Foxhound ships", () 
     "Churn risk page": [["app/routes/app/intelligence/churn.tsx", "High-risk customers by MRR"]],
     "MRR movement waterfall": [["app/routes/app/intelligence/index.tsx", "<MovementCard"]],
     "Audit results page": [["app/components/audit/sections.tsx", "export function AuditSummary"]],
-    "Audit history": [["app/routes.ts", '"./routes/app/audit/history.tsx"']],
+    "Audit history": [["app/routes.ts", '"./routes/app/audit/dashboard.tsx"']],
     "Platform status in Help": [["app/routes/app/help.tsx", "getVisibleCronStatus"]],
     "Admin webhook log": [["app/routes/admin/webhooks.tsx", "listWebhookEvents(db, filters)"]],
     "Admin audit log": [["app/lib/admin/audit-log.server.ts", "export async function listAuditLog"]],
