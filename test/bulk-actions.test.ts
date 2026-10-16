@@ -710,22 +710,19 @@ describe("bulk actions: the list route wires all three intents", () => {
   });
 
   it("renders one control per bulk intent, each carrying its own value", () => {
+    // J75: the three controls are one map over BULK_INTENTS, in legacy's order,
+    // each a Capsomer button whose value is its intent.
     const bar = ROUTE.slice(ROUTE.indexOf('aria-label="Bulk actions"'));
-    const start = bar.indexOf("{actionable.length > 0 ? (");
-    const end = bar.indexOf("Clear", start);
-    const block = bar.slice(start, end);
-    for (const intent of BULK_ACTION_INTENTS) {
-      expect(block).toContain(`intent="${intent}"`);
-    }
-    expect(block.match(/<BulkIntentButton/g)).toHaveLength(BULK_ACTION_INTENTS.length);
-    // No button is disabled for being unwired any more; the only disable left is
-    // the in-flight one, which lives in the shared component.
-    expect(block).not.toContain("disabled\n");
+    expect(bar).toContain("(Object.keys(BULK_INTENTS) as BulkActionIntent[]).map((intent) => {");
+    expect(bar).toContain('name="intent"');
+    expect(bar).toContain("value={intent}");
+    const keys = ROUTE.slice(ROUTE.indexOf("const BULK_INTENTS = {"), ROUTE.indexOf("} as const satisfies"));
+    expect([...keys.matchAll(/^ {2}(\w+): \{/gm)].map((m) => m[1])).toEqual([...BULK_ACTION_INTENTS]);
   });
 
   it("the shared control submits directly below the threshold and confirms above it", () => {
-    expect(ROUTE).toContain('type={needsConfirm ? "button" : "submit"}');
-    expect(ROUTE).toContain("onClick={needsConfirm ? onConfirm : undefined}");
+    expect(ROUTE).toContain('type={needsConfirm || overCeiling ? "button" : "submit"}');
+    expect(ROUTE).toContain("setConfirmFor({ from: bulk, intent });");
   });
 
   it("names the exact count and the action for every intent, and states the ceiling", () => {
@@ -733,12 +730,13 @@ describe("bulk actions: the list route wires all three intents", () => {
     expect(BULK_ACTION_MAX_PER_SUBMISSION).toBe(100);
     expect(ROUTE).toContain("const needsConfirm = actionable.length > BULK_ACTION_CONFIRM_THRESHOLD;");
     expect(ROUTE).toContain("const overCeiling = actionable.length > BULK_ACTION_MAX_PER_SUBMISSION;");
-    // The dialog's action name and count both come from the intent it was opened
-    // for, so it can never name one action while its submit carries another.
-    expect(ROUTE).toContain("{BULK_INTENTS[confirming].question} {actionable.length} payments?");
-    expect(ROUTE).toContain("{BULK_INTENTS[confirming].label} for {actionable.length} payments");
-    expect(ROUTE).toContain("{BULK_ACTION_MAX_PER_SUBMISSION} at a time.");
-    expect(ROUTE).toContain("Nothing has been changed, and nothing will be trimmed to fit.");
+    // J75: Capsomer's confirm dialog. Its title, its action and the intent it
+    // submits all come from the one intent it was opened for.
+    expect(ROUTE).toContain("title={`${BULK_INTENTS[confirming ?? lastConfirm].question} ${actionable.length} payments?`}");
+    expect(ROUTE).toContain("action={`${BULK_INTENTS[confirming ?? lastConfirm].label} for ${actionable.length} payments`}");
+    expect(ROUTE).toContain("perform={() => performConfirmed(confirming ?? lastConfirm)}");
+    expect(ROUTE).toContain("Bulk actions take at most {BULK_ACTION_MAX_PER_SUBMISSION} at a");
+    expect(ROUTE).toContain("and nothing is trimmed to fit.");
     // Each intent supplies its own question and consequence: no shared verb.
     for (const intent of BULK_ACTION_INTENTS) {
       expect(ROUTE).toContain(`  ${intent}: {`);
@@ -746,14 +744,23 @@ describe("bulk actions: the list route wires all three intents", () => {
   });
 
   it("the result surface names the intent's own verb and carries the detail", () => {
-    expect(ROUTE).toContain('aria-label="Bulk action result"');
+    expect(ROUTE).toContain('<p className="cap-banner-title">{bulkResultLine(bulk.intent, bulk.results)}</p>');
     expect(ROUTE).toContain("bulkCopy(bulk.intent)?.didLabel");
     expect(ROUTE).toContain("bulkCopy(bulk.intent)?.didNotLabel");
-    expect(ROUTE).toContain("{r.detail ? (");
-    expect(ROUTE).toContain("onClick={() => setDismissedFor(bulk)}");
-    // No auto-dismiss anywhere on this route: 274 decision one is explicit that
-    // the itemisation waits for the merchant.
-    expect(ROUTE).not.toContain("setTimeout");
+    expect(ROUTE).toContain("{r.detail ? <span");
+    // Both dismiss paths: the itemised result's own button, and the refusal
+    // Banner's onDismiss.
+    expect(ROUTE).toContain("setDismissedFor(bulk);");
+    expect(ROUTE).toContain('data-cap-part="dismiss"');
+    expect(ROUTE).toContain("onDismiss={() => setDismissedFor(bulk)}");
+    // Recova clears its bulk result after 3 seconds (PaymentsClient.tsx
+    // doBulkAction). Here only an all-succeeded result does; one with a
+    // failure or a refusal waits to be dismissed (WCAG 2.2.1), pending
+    // Dustin's ruling. The route's two timers are that and the search's
+    // typing delay.
+    expect(ROUTE.match(/setTimeout\(/g)).toHaveLength(2);
+    expect(ROUTE).toContain("searchTimer.current = setTimeout(");
+    expect(ROUTE).toContain("setTimeout(() => setDismissedFor(bulk), BULK_RESULT_DISMISS_MS)");
   });
 
   it("every failure reason the dispatcher can produce has copy on this surface", () => {
@@ -783,6 +790,8 @@ describe("bulk actions: the list route wires all three intents", () => {
 
   it("the demo gate from Session 1 is untouched", () => {
     expect(ROUTE).toContain("{!isDemo && selectionCount > 0 ? (");
-    expect(ROUTE).toContain("colSpan={isDemo ? 6 : 7}");
+    // J75: Recova's empty state replaces the table, so no colspan is needed;
+    // the box column itself is gated on !isDemo in both head and body.
+    expect(ROUTE.match(/\{!isDemo \? \(/g)?.length).toBeGreaterThanOrEqual(2);
   });
 });

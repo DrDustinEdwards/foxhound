@@ -2,12 +2,12 @@ import type { FailedPaymentRow } from "./queries.server";
 import { DECLINE_CATEGORY_LABELS, FAILED_PAYMENT_STATUS_LABELS } from "./labels";
 import type { DeclineCategory } from "~/lib/constants";
 
-// The /recovery/payments CSV export (TASK-foxhound-recovery-surface-parity.md
-// Phase 3). Pure and unit-tested: given the SAME filtered, unpaginated rows
-// listFilteredFailedPayments(..., { pageSize: "all" }) would return, builds
-// the exact file contents. No client-side filtering: the export route re-runs
-// the current filters server-side rather than reusing whatever page happens
-// to already be on screen.
+// The /recovery/payments CSV export. Pure and unit-tested: given the rows
+// listFilteredFailedPayments returns for the list's own filters, sort, page
+// and page size, builds the exact file contents. That is the rows on screen,
+// as Recova's Export CSV writes them (PaymentsClient.tsx handleExport,
+// exportToCSV(filtered)); "All" as the page size is every matching row. The
+// export route re-runs that query server side, scoped to the account.
 
 const CSV_HEADER = ["Customer", "Email", "Plan", "Amount", "Currency", "Decline category", "Decline code", "Status", "Detected at"];
 

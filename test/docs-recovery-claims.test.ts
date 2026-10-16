@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import { DOC_GUIDES, type DocBlock, type DocInline } from "~/lib/marketing/docs-content";
 import { RECOVERY_SCHEDULES } from "~/lib/recovery/schedule";
+import { PAYMENTS_DEFAULT_PAGE_SIZE, PAYMENTS_PAGE_SIZE_OPTIONS } from "~/lib/recovery/payments-list";
 
 // SESSION 64, JOB 3 AND JOB 4: the recovery guide's claim audit.
 //
@@ -118,17 +119,37 @@ describe("PLANT 2: every capability sentence, tied to its code", () => {
     expect(RECOVERY_SCHEDULES.unknown.every((s) => !s.stepType.startsWith("retry_"))).toBe(true);
   });
 
-  it("ROWS PER PAGE: the options, and a default that is not legacy's", () => {
+  it("ROWS PER PAGE: the options, and legacy's default of 25", () => {
     expect(TEXT).toContain(
-      "The selector above the table shows 10, 25, 50, 100, or all of them. It starts at 50.",
+      "The selector above the table shows 10, 25, 50, 100, or all of them. It starts at 25.",
     );
+    // J75: the page's own numbers, read from the module it renders them from.
+    expect(PAYMENTS_PAGE_SIZE_OPTIONS).toEqual([10, 25, 50, 100, "all"]);
+    expect(PAYMENTS_DEFAULT_PAGE_SIZE).toBe(25);
+    // The list and its export read the URL through the same parser.
+    const lib = readFileSync(
+      fileURLToPath(new URL("../app/lib/recovery/payments-list.ts", import.meta.url)),
+      "utf8",
+    );
+    expect(lib).toContain(": PAYMENTS_DEFAULT_PAGE_SIZE;");
     const source = readFileSync(
       fileURLToPath(new URL("../app/routes/app/recovery/payments/index.tsx", import.meta.url)),
       "utf8",
     );
-    expect(source).toContain("PAGE_SIZE_OPTIONS: FailedPaymentPageSize[] = [10, 25, 50, 100,");
-    // Legacy's default is 25. Foxhound's is 50, and the sentence says 50.
-    expect(source).toContain("DEFAULT_PAGE_SIZE: FailedPaymentPageSize = 50;");
+    expect(source).toContain('parsePaymentsPageSize(params.get("perPage"))');
+  });
+
+  it("EXPORT CSV: the rows on screen, as legacy's export, with All for every match", () => {
+    expect(TEXT).toContain(
+      "Export CSV in the list header downloads the payments on screen: this page, with the filters, sort and rows per page you have on. Choose All in rows per page to export every payment that matches your filters.",
+    );
+    const exportSource = readFileSync(
+      fileURLToPath(new URL("../app/routes/app/recovery/payments/export.ts", import.meta.url)),
+      "utf8",
+    );
+    expect(exportSource).toContain('parsePaymentsPage(params.get("page"))');
+    expect(exportSource).toContain('parsePaymentsPageSize(params.get("perPage"))');
+    expect(exportSource).not.toContain('pageSize: "all"');
   });
 
   it("MANUAL ACTIONS: the five that exist, and no sixth", () => {

@@ -335,7 +335,7 @@ export const DOC_GUIDES: DocGuide[] = [
           ] },
           "Every filter is a URL parameter, so a filtered view can be bookmarked or sent to somebody else and it opens the same way for them.",
           { kind: "h3", text: "Rows per page" },
-          "The selector above the table shows 10, 25, 50, 100, or all of them. It starts at 50.",
+          "The selector above the table shows 10, 25, 50, 100, or all of them. It starts at 25.",
           { kind: "h3", text: "Understanding payment statuses" },
           "A payment is in one of five states: Stripe retrying, active, recovered, cancelled, or failed unrecovered, which every page labels Failed.",
           { kind: "list", items: [
@@ -363,7 +363,7 @@ export const DOC_GUIDES: DocGuide[] = [
           `Select rows with the checkboxes and a bar appears at the bottom of the screen. Trigger the next step, mark recovered, or stop recovery for every selected payment at once. Above ${BULK_ACTION_CONFIRM_THRESHOLD} payments Foxhound asks you to confirm, and one submission carries at most ${BULK_ACTION_MAX_PER_SUBMISSION}. Each payment is reported on its own, and any that did not go through stay selected.`,
           { kind: "note", body: "There is no undo. Stop recovery ends the remaining steps for every selected payment." },
           { kind: "h3", text: "Exporting to CSV" },
-          "Export CSV in the list header downloads the payments matching whatever filters you have on, so the export is the view you are looking at rather than the whole table.",
+          "Export CSV in the list header downloads the payments on screen: this page, with the filters, sort and rows per page you have on. Choose All in rows per page to export every payment that matches your filters.",
         ],
       },
       {
