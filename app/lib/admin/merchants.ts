@@ -10,9 +10,58 @@ export const MERCHANTS_PATH = "/admin/merchants";
 /** Where the page's forms post: the index route's own action. */
 export const MERCHANTS_ACTION = `${MERCHANTS_PATH}?index`;
 
-/** The confirm page for cancelling one merchant. */
-export function merchantCancelHref(accountId: string): string {
-  return `${MERCHANTS_PATH}?cancel=${encodeURIComponent(accountId)}`;
+/** The Merchants page's three lists, as Recova's Merchants menu had them
+ *  (app/admin/admin-nav.ts, blob c5df324c): every merchant, the paused ones and
+ *  the billing exempt ones, each at Recova's own address. On the family admin
+ *  pattern they are filters of one page, drawn as Capsomer's links form of
+ *  tabs ("the better default for admin filters", tabs.md), so Back, a bookmark
+ *  and a server render all work. */
+export type MerchantView = "all" | "paused" | "billing-exempt";
+
+export const MERCHANT_VIEWS: ReadonlyArray<{ view: MerchantView; label: string; path: string }> = [
+  { view: "all", label: "All merchants", path: MERCHANTS_PATH },
+  { view: "paused", label: "Paused", path: `${MERCHANTS_PATH}/paused` },
+  { view: "billing-exempt", label: "Billing exempt", path: `${MERCHANTS_PATH}/billing-exempt` },
+];
+
+export function merchantViewPath(view: MerchantView): string {
+  return MERCHANT_VIEWS.find((v) => v.view === view)?.path ?? MERCHANTS_PATH;
+}
+
+/** The list an address shows; anything else under /admin/merchants is all. */
+export function merchantViewOf(pathname: string): MerchantView {
+  const trimmed = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+  return MERCHANT_VIEWS.find((v) => v.path === trimmed)?.view ?? "all";
+}
+
+/** The rows a list shows: exactly those whose flag is set, as Recova's
+ *  .eq("processing_paused", true) and .eq("billing_exempt", true) reads did,
+ *  so a cancelled merchant still holding the flag stays on the list. */
+export function merchantsInView<T extends { processingPaused: boolean; billingExempt: boolean }>(
+  rows: readonly T[],
+  view: MerchantView,
+): T[] {
+  if (view === "paused") return rows.filter((r) => r.processingPaused);
+  if (view === "billing-exempt") return rows.filter((r) => r.billingExempt);
+  return [...rows];
+}
+
+/** Where a list's forms post: the list's own address, so a post made without
+ *  script lands back on the same list. The index route needs ?index. */
+export function merchantsActionFor(view: MerchantView): string {
+  return view === "all" ? MERCHANTS_ACTION : merchantViewPath(view);
+}
+
+/** The confirm page for cancelling one merchant, on the list it was asked from. */
+export function merchantCancelHref(accountId: string, view: MerchantView = "all"): string {
+  return `${merchantViewPath(view)}?cancel=${encodeURIComponent(accountId)}`;
+}
+
+/** Where that confirm page posts: the list's action, keeping ?cancel so a
+ *  mistyped word shows the confirm page again. */
+export function merchantCancelAction(accountId: string, view: MerchantView): string {
+  const action = merchantsActionFor(view);
+  return `${action}${action.includes("?") ? "&" : "?"}cancel=${encodeURIComponent(accountId)}`;
 }
 
 /** Cancel cannot be undone (it revokes the Stripe grant), so it is typed
