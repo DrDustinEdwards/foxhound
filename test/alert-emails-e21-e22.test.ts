@@ -47,10 +47,9 @@ const {
   CRITICAL_CUSTOMERS_ALERT_LIVE,
   THRESHOLD_ALERT_TEMPLATE,
   criticalCustomersContent,
-  runCriticalCustomersCheck,
   thresholdAlertContent,
 } = notify;
-const { evaluateAndRecordAlerts, runIntelligenceAiForAccount } = await import(
+const { evaluateAndRecordAlerts, runCriticalCustomersCheck, runIntelligenceAiForAccount } = await import(
   "~/lib/intelligence/ai-run.server"
 );
 const { ALERT_COOLDOWN_MARGIN_MS, ALERT_COOLDOWN_MS, evaluateAlerts } = await import("~/lib/intelligence/alerts");
@@ -680,6 +679,15 @@ describe("E22 stays off until its button has somewhere to go (RULES.md 2.7)", ()
     // the nightly run calls it once that page exists, and not before.
     const hasPage = /route\("recommendations"/.test(read("app/routes.ts"));
     expect(CRITICAL_CUSTOMERS_ALERT_LIVE).toBe(hasPage);
+  });
+
+  it("the notification module writes nothing; the run records each firing (RULES.md 3.2, review round 1)", () => {
+    const notifier = read("app/lib/intelligence/alert-notify.server.ts")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^\s*\/\/.*$/gm, "");
+    expect(notifier).not.toMatch(/\.insert\(|\.update\(|\.delete\(|build\w*Insert|build\w*Update/);
+    const run = read("app/lib/intelligence/ai-run.server.ts");
+    expect(run).toContain("await buildCriticalAlertHistoryInsert(db, {");
   });
 
   it("the nightly run calls the check behind that switch, after the threshold alerts", () => {

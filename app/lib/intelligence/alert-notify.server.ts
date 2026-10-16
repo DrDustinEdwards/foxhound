@@ -1,20 +1,13 @@
-import { and, eq, gte, isNull, ne, notInArray, lte } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
-import { accounts, alertHistory, customerContext, disputes, failedPayments, type Db } from "~/db";
-import { DEMO_ACCOUNT_ID_PREFIX, FAILED_PAYMENT_STATUS_ACTIVE } from "~/lib/constants";
-import { RESOLVED_DISPUTE_STATES } from "~/lib/disputes/labels";
+import { accounts, type Db } from "~/db";
+import { DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
 import { processEmailJob, type EmailJobResult } from "~/lib/email/dispatch";
 import { recoveryFooterNote, type EmailNotice } from "~/lib/email/templates";
 import { alertMetricLabel, isCentsMetric } from "~/lib/settings/alert-metrics";
 import { normalizeSlackWebhookUrl } from "~/lib/settings/slack-webhook";
 
-import {
-  ALERT_COOLDOWN_WINDOW_MS,
-  CRITICAL_CUSTOMERS_METRIC,
-  CRITICAL_HEALTH_SCORE_MAX,
-  buildCriticalAlertHistoryInsert,
-  type AlertFiring,
-} from "./alerts";
+import { CRITICAL_HEALTH_SCORE_MAX, type AlertFiring } from "./alerts";
 
 // THE ALERT EMAILS (J94, rows E21 and E22). Ported from Recova's
 // lib/alert-evaluation.ts (blob 0e28ecbf, 18,968 bytes): fireEmail and
@@ -34,9 +27,15 @@ import {
 // word is added that Recova does not send. Recova's bold runs are plain text
 // here (capsomer job_2adddfaab5dc, a bold run inside a paragraph).
 //
-// NEVER THROWS. Recova's evaluation is best-effort inside a try/catch so a
-// failure never breaks the cron that called it; here every send path returns a
-// named outcome instead (RULES.md 3.16).
+// WRITES NOTHING (RULES.md 3.2). The firing's alert_history row and the
+// cooldown reads belong to the caller, evaluateAndRecordAlerts and
+// runCriticalCustomersCheck in ai-run.server.ts, which record after the send in
+// Recova's order. Every send path returns a named outcome (RULES.md 3.16).
+//
+// SLACK HERE, NOT app/lib/notify/slack.server.ts. That sender gates on the
+// account's Slack notifications toggle, as Recova's recovery-event posts do;
+// Recova's alert path reads only slack_webhook_url and ignores the toggle, so
+// postAlertToSlack below keeps that, with the same host and demo refusals.
 
 export const THRESHOLD_ALERT_TEMPLATE = "alert_threshold";
 export const CRITICAL_ALERT_TEMPLATE = "alert_critical_customers";
@@ -259,122 +258,48 @@ export async function notifyThresholdAlert(
   }
 }
 
-// ---- the critical customers check (E22) -------------------------------------
+// ---- the critical customers notification (E22) ------------------------------
 
-export type CriticalCustomersOutcome =
-  | { kind: "skipped"; reason: "cooldown" | "none_critical" }
-  | {
-      kind: "fired";
-      count: number;
-      channel: "email" | "slack" | "none";
-      notificationSent: boolean;
-      detail: EmailJobResult | SlackPostOutcome | null;
-    }
-  | { kind: "error"; message: string };
-
-/**
- * The customers that are critical now: an active, undeleted failed payment, a
- * customer_context health score of 33 or less, and an open dispute, for the
- * same Stripe customer on the same account. One query with joins rather than
- * Recova's three reads with growing id lists, because D1 caps bound
- * parameters (RULES.md 3.11).
- *
- * "OPEN" IS FOXHOUND'S. Recova reads disputes.status in (needs_response,
- * under_review); Foxhound stores Stripe's status at intake and never updates
- * it, and keeps the dispute's life in `state`, so open is a state not yet
- * resolved, the same predicate the digest counts (RULES.md 3.20). The dispute's
- * customer is stripe_customer_id, which Foxhound writes at intake; Recova's
- * customer_id is a provenance column here.
- */
-export async function findCriticalCustomerIds(db: Db, accountId: string): Promise<string[]> {
-  const rows = await db
-    .selectDistinct({ stripeCustomerId: failedPayments.stripeCustomerId })
-    .from(failedPayments)
-    .innerJoin(
-      customerContext,
-      and(
-        eq(customerContext.accountId, failedPayments.accountId),
-        eq(customerContext.stripeCustomerId, failedPayments.stripeCustomerId),
-      ),
-    )
-    .innerJoin(
-      disputes,
-      and(eq(disputes.accountId, failedPayments.accountId), eq(disputes.stripeCustomerId, failedPayments.stripeCustomerId)),
-    )
-    .where(
-      and(
-        eq(failedPayments.accountId, accountId),
-        eq(failedPayments.status, FAILED_PAYMENT_STATUS_ACTIVE),
-        isNull(failedPayments.deletedAt),
-        // Recova drops the empty string its webhook writes for a missing customer.
-        ne(failedPayments.stripeCustomerId, ""),
-        lte(customerContext.healthScore, CRITICAL_HEALTH_SCORE_MAX),
-        notInArray(disputes.state, [...RESOLVED_DISPUTE_STATES]),
-      ),
-    );
-  return rows.map((r) => r.stripeCustomerId);
+/** What the critical customers notification came to: the channel tried (or
+ *  none), whether it went, and the send or post result. */
+export interface CriticalNotifyOutcome {
+  channel: "email" | "slack" | "none";
+  notificationSent: boolean;
+  detail: EmailJobResult | SlackPostOutcome | null;
 }
 
 /**
- * Recova's cross-product critical customer check, for one account. In order:
- * the 24 hour cooldown on the last cross_product_critical row, the customers,
- * then email when the account has a notification address and the mail binding
- * exists (Recova's `notification_email && resend`), else Slack when it has a
- * webhook, else neither; and in every case one alert_history row, written
- * after the attempt with whether it went. Never throws.
+ * Notify the merchant of `count` critical customers in Recova's order: email
+ * when the account has a notification address and the mail binding exists
+ * (Recova's `notification_email && resend`), else Slack when it has a webhook,
+ * else neither. Writes nothing (RULES.md 3.2): the caller records the firing
+ * (runCriticalCustomersCheck in ai-run.server.ts). A provider refusal or a
+ * refused Slack host comes back in the outcome; only a database failure
+ * throws, and the caller turns that into its own named outcome, writing no
+ * row, as Recova's try/catch does.
  */
-export async function runCriticalCustomersCheck(
+export async function notifyCriticalCustomers(
   env: Env,
   db: Db,
   accountId: string,
+  count: number,
   now: Date,
-): Promise<CriticalCustomersOutcome> {
-  try {
-    const [recent] = await db
-      .select({ id: alertHistory.id })
-      .from(alertHistory)
-      .where(
-        and(
-          eq(alertHistory.accountId, accountId),
-          eq(alertHistory.metric, CRITICAL_CUSTOMERS_METRIC),
-          gte(alertHistory.firedAt, new Date(now.getTime() - ALERT_COOLDOWN_WINDOW_MS)),
-        ),
-      )
-      .limit(1);
-    if (recent) return { kind: "skipped", reason: "cooldown" };
-
-    const critical = await findCriticalCustomerIds(db, accountId);
-    if (critical.length === 0) return { kind: "skipped", reason: "none_critical" };
-    const count = critical.length;
-
-    const target = await loadAlertTarget(db, accountId);
-    const baseUrl = env.BETTER_AUTH_URL ?? "";
-    let channel: "email" | "slack" | "none" = "none";
-    let notificationSent = false;
-    let detail: EmailJobResult | SlackPostOutcome | null = null;
-    if (target.notificationEmail && env.EMAIL) {
-      channel = "email";
-      const result = await sendAlertMail(env, {
-        accountId,
-        to: target.notificationEmail,
-        content: criticalCustomersContent(count, baseUrl, now),
-        template: CRITICAL_ALERT_TEMPLATE,
-        idempotencyKey: `critical-customers:${accountId}:${now.getTime()}`,
-      });
-      notificationSent = result.status === "sent";
-      detail = result;
-    } else if (target.slackWebhookUrl) {
-      channel = "slack";
-      const slack = await postAlertToSlack(accountId, target.slackWebhookUrl, criticalCustomersSlackText(count, baseUrl));
-      notificationSent = slack.status === "posted";
-      detail = slack;
-    }
-
-    await buildCriticalAlertHistoryInsert(db, { accountId, count, channel, notificationSent, firedAt: now });
-    return { kind: "fired", count, channel, notificationSent, detail };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error(`critical customers alert failed for account ${accountId}:`, message);
-    return { kind: "error", message };
+): Promise<CriticalNotifyOutcome> {
+  const target = await loadAlertTarget(db, accountId);
+  const baseUrl = env.BETTER_AUTH_URL ?? "";
+  if (target.notificationEmail && env.EMAIL) {
+    const result = await sendAlertMail(env, {
+      accountId,
+      to: target.notificationEmail,
+      content: criticalCustomersContent(count, baseUrl, now),
+      template: CRITICAL_ALERT_TEMPLATE,
+      idempotencyKey: `critical-customers:${accountId}:${now.getTime()}`,
+    });
+    return { channel: "email", notificationSent: result.status === "sent", detail: result };
   }
+  if (target.slackWebhookUrl) {
+    const slack = await postAlertToSlack(accountId, target.slackWebhookUrl, criticalCustomersSlackText(count, baseUrl));
+    return { channel: "slack", notificationSent: slack.status === "posted", detail: slack };
+  }
+  return { channel: "none", notificationSent: false, detail: null };
 }

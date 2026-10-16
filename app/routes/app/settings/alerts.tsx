@@ -74,8 +74,9 @@ import type { Route } from "./+types/alerts";
 //    notified when Recovery metrics cross a threshold.") and its "email goes
 //    to" note were not ported, nor a Channel column. J94 (rows E21, E22) now
 //    emails a firing to the notification address, on Recova's 24 hour
-//    cooldown rather than once per crossing; this page's copy is unchanged by
-//    that job and is listed in its pull request for Dustin.
+//    cooldown rather than once per crossing. Its review round 1 made the lead
+//    true of that ("records each night one is past its threshold"); restoring
+//    Recova's subtitle and email note is left to Dustin (PR 156).
 //
 // Legacy's transport is REST at /api/settings/alerts with optimistic updates
 // and silent reverts on failure. This is the route's own action, class (a),
@@ -194,7 +195,7 @@ export default function AlertSettings({ loaderData, actionData }: Route.Componen
       <SettingsBackLink />
       {/* Recova's PageHeader sits mb-8 above the first card. */}
       <div className="mb-8">
-        <PageHead title="Alerts" lead="Foxhound checks these every night and records each time one crosses its threshold." />
+        <PageHead title="Alerts" lead="Foxhound checks these every night and records each night one is past its threshold." />
       </div>
 
       {/* Recova's first card has no heading: a count line and a button lead
