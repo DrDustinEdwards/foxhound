@@ -55,6 +55,14 @@ vi.mock("~/lib/stripe/connect", async (importOriginal) => ({
 const serverLib: Record<string, unknown> = await import("~/lib/admin/merchants.server");
 const pageLib: Record<string, unknown> = await import("~/lib/admin/merchants").catch(() => ({}));
 const route: Record<string, unknown> = await import("~/routes/admin/merchants/index");
+
+/** What a toggle's answer says in the page, and the Undo it offers, if any:
+ *  the one decision both the in-page (script) path and the no-script banner
+ *  read. */
+function toggleMessage(answer: unknown): { said: string; undo: { intent: string; accountId: string; value: boolean } | null } {
+  expect(typeof pageLib.toggleMessage).toBe("function");
+  return (pageLib.toggleMessage as (a: unknown) => { said: string; undo: { intent: string; accountId: string; value: boolean } | null })(answer);
+}
 const MerchantsPage = route.default as (props: unknown) => React.ReactNode;
 
 const NOW = Date.UTC(2026, 9, 15, 12, 0, 0);
@@ -150,6 +158,9 @@ async function seed(): Promise<Seeded> {
     failed("fp_5", "acct_north", "failed"),
     // Deleted: not counted in the rate (Recova: deleted_at is null).
     failed("fp_6", "acct_north", "failed", { deletedAt: at(1 * DAY) }),
+    // Deleted while in a sequence: not in the queue, as Recova's queue read
+    // (deleted_at is null) left it out (review LOW-4).
+    failed("fp_11", "acct_north", "active", { deletedAt: at(1 * DAY) }),
     failed("fp_7", "acct_lumen", "recovered"),
     failed("fp_8", "acct_lumen", "active"),
     failed("fp_9", "demo_acct", "active"),
@@ -481,6 +492,49 @@ describe("the action: Foxhound's writers, each with its audit row", () => {
     expect(await auditActions(seeded.db)).toEqual(["merchant.cancel"]);
   });
 
+  it("offers no Undo for a stale Pause on a merchant the brake already paused, and Undo can never lift the brake", async () => {
+    await seeded.db.update(accounts).set({ processingPaused: true, pauseReason: PAUSE_REASON_BRAKE }).where(eq(accounts.id, "acct_north"));
+    // A row rendered before the brake engaged still says Pause.
+    const stale = await post({ intent: "processing-paused", accountId: "acct_north", value: "true" });
+    expect(stale.data).toMatchObject({ ok: true, value: true, changed: false });
+    expect(toggleMessage(stale.data).undo).toBeNull();
+    expect(await account(seeded.db, "acct_north")).toMatchObject({ processingPaused: true, pauseReason: PAUSE_REASON_BRAKE });
+    // Even an Undo posted by hand resumes only a person's pause.
+    const undo = await post({ intent: "processing-paused", accountId: "acct_north", value: "false", undo: "1" });
+    expect(undo.init?.status).toBe(409);
+    expect(undo.data.ok).toBe(false);
+    expect(await account(seeded.db, "acct_north")).toMatchObject({ processingPaused: true, pauseReason: PAUSE_REASON_BRAKE });
+  });
+
+  it("undoes a real Pause: the manual pause it made is resumed", async () => {
+    const paused = await post({ intent: "processing-paused", accountId: "acct_north", value: "true" });
+    expect(paused.data).toMatchObject({ ok: true, changed: true });
+    const message = toggleMessage(paused.data);
+    expect(message.undo).toEqual({ intent: "processing-paused", accountId: "acct_north", value: false });
+    const undone = await post({ intent: "processing-paused", accountId: "acct_north", value: "false", undo: "1" });
+    expect(undone.data).toMatchObject({ ok: true, changed: true });
+    expect(await account(seeded.db, "acct_north")).toMatchObject({ processingPaused: false, pauseReason: null });
+  });
+
+  it("offers no Undo for a stale Set exempt on a merchant already exempt, so Undo cannot bill it", async () => {
+    // Lumen is already exempt; a stale row still says Set exempt.
+    const stale = await post({ intent: "billing-exempt", accountId: "acct_lumen", value: "true" });
+    expect(stale.data).toMatchObject({ ok: true, value: true, changed: false });
+    expect(toggleMessage(stale.data).undo).toBeNull();
+    expect(toggleMessage(stale.data).said).toMatch(/already billing exempt\. Nothing was changed\./);
+    const undo = await post({ intent: "billing-exempt", accountId: "acct_lumen", value: "false", undo: "1" });
+    expect(undo.init?.status).toBe(409);
+    expect((await account(seeded.db, "acct_lumen")).billingExempt).toBe(true);
+  });
+
+  it("undoes a real Set exempt", async () => {
+    const set = await post({ intent: "billing-exempt", accountId: "acct_north", value: "true" });
+    expect(toggleMessage(set.data).undo).toEqual({ intent: "billing-exempt", accountId: "acct_north", value: false });
+    const undone = await post({ intent: "billing-exempt", accountId: "acct_north", value: "false", undo: "1" });
+    expect(undone.data).toMatchObject({ ok: true, changed: true });
+    expect((await account(seeded.db, "acct_north")).billingExempt).toBe(false);
+  });
+
   it("refuses to cancel a merchant already cancelled", async () => {
     const res = await post({ intent: "cancel", accountId: "acct_gone", confirm: "cancel" });
     expect(res.init?.status).toBe(400);
@@ -623,6 +677,19 @@ describe("the Merchants page", () => {
     expect(text(rowOf(html, "acct_new"))).toContain("No owner on record");
   });
 
+  it("names an account with no name by its owner's email, as Recova did, once", () => {
+    const html = render({ merchants: [row("acct_noname", { name: null, ownerEmail: "kai@example.com" })] });
+    expect(html).toMatch(/<a[^>]*class="cap-table-open"[^>]*href="\/admin\/merchants\/acct_noname"[^>]*>kai@example\.com<\/a>/);
+    expect(html.match(/kai@example\.com/g)).toHaveLength(1);
+  });
+
+  it("uses Capsomer's table parts for the row's link and its second line, with no Foxhound class on them", () => {
+    const north = rowOf(render(), "Northwind Coffee");
+    expect(north).toMatch(/<th scope="row"><a class="cap-table-open" href="\/admin\/merchants\/acct_north"/);
+    expect(north).toMatch(/<span class="cap-table-aside">rosa@example\.com<\/span>/);
+    expect(north).not.toMatch(/<(th|td)[^>]*class=/);
+  });
+
   it("says one status per row in Recova's order, with Capsomer's status shape", () => {
     const html = render();
     expect(text(rowOf(html, "Northwind Coffee"))).toContain("Active");
@@ -697,15 +764,22 @@ describe("the Merchants page", () => {
   });
 
   it("says a result posted without script, with Undo as a form posting the other value", () => {
-    const html = render({ actionData: { ok: true, intent: "billing-exempt", accountId: "acct_north", name: "Northwind Coffee", value: true, wasBrakePause: false } });
+    const html = render({ actionData: { ok: true, intent: "billing-exempt", accountId: "acct_north", name: "Northwind Coffee", value: true, changed: true, wasBrakePause: false } });
     expect(text(html)).toContain("Northwind Coffee is billing exempt.");
     const undo = /<form[^>]*>(?:(?!<\/form>)[\s\S])*Undo[\s\S]*?<\/form>/.exec(html)?.[0] ?? "";
     expect(undo).toMatch(/name="intent" value="billing-exempt"/);
     expect(undo).toMatch(/name="value" value="false"/);
+    expect(undo).toMatch(/name="undo" value="1"/);
+  });
+
+  it("gives no Undo for a change that changed nothing", () => {
+    const html = render({ actionData: { ok: true, intent: "processing-paused", accountId: "acct_paused", name: "Paused Pets", value: true, changed: false, wasBrakePause: false } });
+    expect(text(html)).toContain("Paused Pets was already paused. Nothing was changed.");
+    expect(html).not.toMatch(/<button[^>]*>Undo/);
   });
 
   it("gives no Undo for a resume that took a merchant off the brake, and says why", () => {
-    const html = render({ actionData: { ok: true, intent: "processing-paused", accountId: "acct_paused", name: "Paused Pets", value: false, wasBrakePause: true } });
+    const html = render({ actionData: { ok: true, intent: "processing-paused", accountId: "acct_paused", name: "Paused Pets", value: false, changed: true, wasBrakePause: true } });
     expect(text(html)).toMatch(/Resumed processing for Paused Pets\. The emergency brake had paused it/);
     expect(html).not.toMatch(/<button[^>]*>Undo/);
   });
@@ -734,6 +808,24 @@ describe("the cancel confirmation", () => {
 });
 
 describe("pure helpers", () => {
+  it("decides the in-page message and its Undo from the answer alone", () => {
+    const base = { ok: true, accountId: "acct_north", name: "Northwind Coffee", wasBrakePause: false };
+    expect(toggleMessage({ ...base, intent: "billing-exempt", value: true, changed: true })).toMatchObject({
+      said: "Northwind Coffee is billing exempt.",
+      undo: { intent: "billing-exempt", accountId: "acct_north", value: false },
+    });
+    expect(toggleMessage({ ...base, intent: "billing-exempt", value: false, changed: false })).toMatchObject({
+      said: "Northwind Coffee was already billed. Nothing was changed.",
+      undo: null,
+    });
+    expect(toggleMessage({ ...base, intent: "processing-paused", value: false, changed: true, wasBrakePause: true }).undo).toBeNull();
+    expect(toggleMessage({ ...base, intent: "processing-paused", value: false, changed: true }).undo).toEqual({
+      intent: "processing-paused",
+      accountId: "acct_north",
+      value: true,
+    });
+  });
+
   it("orders a row's status as Recova did, with cancel first", () => {
     expect(typeof pageLib.merchantStatus).toBe("function");
     const status = pageLib.merchantStatus as (r: Partial<Row>) => { tone: string; word: string };
