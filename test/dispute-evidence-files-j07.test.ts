@@ -9,6 +9,7 @@ import type { Db } from "~/db";
 import { accounts, disputeApprovals, disputeEvidence, disputes } from "~/db/schema";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { applyCachePolicy } from "~/lib/http/cache-policy";
 import {
   DISPUTE_EVIDENCE_ALLOWED_TYPES,
   DISPUTE_EVIDENCE_MAX_FILES,
@@ -494,7 +495,17 @@ describe("J07: delete (Recova's delete-evidence route)", () => {
 // ---- View ----
 
 describe("J07: view (Recova's evidence-url route, served by the Worker)", () => {
-  it("serves the account's own file privately, typed, never cached, sandboxed", async () => {
+  it("serves an image in a sandboxed document", async () => {
+    seedDispute();
+    const bucket = fakeBucket();
+    await post(uploadForm(fileOf(PNG, "r.png", "image/png")), { bucket });
+    const res = await view(fileRows()[0]!.id, { bucket });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("image/png");
+    expect(res.headers.get("content-security-policy")).toMatch(/^sandbox; default-src 'none'/);
+  });
+
+  it("serves the account's own file privately, typed, never cached, locked down", async () => {
     seedDispute();
     const bucket = fakeBucket();
     await post(uploadForm(fileOf(PDF, "c.pdf", "application/pdf")), { bucket });
@@ -502,9 +513,13 @@ describe("J07: view (Recova's evidence-url route, served by the Worker)", () => 
     const res = await view(row.id, { bucket });
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("application/pdf");
-    expect(res.headers.get("cache-control")).toBe("private, no-store");
+    // The one cache policy, applied on the way out, makes it private.
+    const sent = applyCachePolicy(new Request(`https://foxhoundapp.test/disputes/dsp_1/files/${row.id}`), res);
+    expect(sent.headers.get("cache-control")).toBe("private, no-store");
     expect(res.headers.get("x-content-type-options")).toBe("nosniff");
-    expect(res.headers.get("content-security-policy")).toContain("sandbox");
+    // A PDF needs the browser's viewer, so no sandbox, but nothing else may load.
+    expect(res.headers.get("content-security-policy")).toContain("default-src 'none'");
+    expect(res.headers.get("content-security-policy")).not.toContain("script-src");
     expect(res.headers.get("content-disposition")).toBe(`inline; filename="${row.field_value.split("/").pop()}"`);
     expect(new Uint8Array(await res.arrayBuffer()).slice(0, 5)).toEqual(new Uint8Array(PDF.slice(0, 5)));
   });

@@ -11,8 +11,17 @@ import type { Route } from "./+types/file";
 // S3 URL; Foxhound's bucket is a Worker binding with no signed URLs, so the
 // Worker checks the row under the signed-in account and this dispute and
 // streams the object itself. The file is someone's customer data: never
-// cached, never sniffed into another type, and sandboxed so a PDF or image
-// served from this origin can run nothing.
+// cached (the one cache policy, app/lib/http/cache-policy.ts, makes this path
+// private, no-store, so the route sets no header of its own), never sniffed
+// into another type, and sandboxed so a PDF or image served from this origin
+// can run nothing.
+
+/** An image opens in a sandboxed document that may show itself and nothing else. */
+const IMAGE_POLICY = "sandbox; default-src 'none'; img-src 'self'; style-src 'unsafe-inline'";
+/** A PDF needs the browser's own viewer, which a sandboxed document is refused
+ *  (Chrome will not run its viewer in one), so the PDF policy allows only that
+ *  viewer's embed of this same response and nothing else. */
+const PDF_POLICY = "default-src 'none'; object-src 'self'; style-src 'unsafe-inline'; frame-ancestors 'none'";
 
 export async function loader({ context, params }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
@@ -23,21 +32,17 @@ export async function loader({ context, params }: Route.LoaderArgs) {
     evidenceId: params.fileId,
   });
   if (result.outcome === "uploads_unavailable") {
-    return Response.json(
-      { error: "uploads_unavailable" },
-      { status: 503, headers: { "Cache-Control": "private, no-store" } },
-    );
+    return Response.json({ error: "uploads_unavailable" }, { status: 503 });
   }
   if (result.outcome === "not_found") {
-    return Response.json({ error: "not_found" }, { status: 404, headers: { "Cache-Control": "private, no-store" } });
+    return Response.json({ error: "not_found" }, { status: 404 });
   }
   return new Response(result.body, {
     headers: {
       "Content-Type": result.contentType,
       "Content-Disposition": `inline; filename="${result.name.replace(/[^A-Za-z0-9._-]/g, "")}"`,
-      "Cache-Control": "private, no-store",
       "X-Content-Type-Options": "nosniff",
-      "Content-Security-Policy": "sandbox; default-src 'none'; img-src 'self'; style-src 'unsafe-inline'",
+      "Content-Security-Policy": result.contentType === "application/pdf" ? PDF_POLICY : IMAGE_POLICY,
     },
   });
 }
