@@ -226,7 +226,8 @@ describe("customer mail carries both parts and the CAN-SPAM footer", () => {
 
   it("expiring card", async () => {
     const update = `${BASE}/p/card_tok`;
-    const body = buildExpiringCardEmail({
+    // E12: the alert is written as Capsomer's blocks, not as an HTML body.
+    const blocks = buildExpiringCardEmail({
       customerName: "Jane",
       cardBrand: "Visa",
       cardLast4: "4242",
@@ -237,7 +238,11 @@ describe("customer mail carries both parts and the CAN-SPAM footer", () => {
     });
     await sendEmail(
       env,
-      customerJob(body, { subject: expiringCardSubject({ cardBrand: "Visa", cardLast4: "4242" }) }),
+      customerJob("", {
+        bodyHtml: undefined,
+        blocks,
+        subject: expiringCardSubject({ cardBrand: "Visa", cardLast4: "4242" }),
+      }),
     );
     const m = only();
     expectBothParts(m, ["Hi Jane,", "Visa card ending in 4242", "03/2027", "Update Payment Method"]);
