@@ -445,9 +445,22 @@ describe("J75: the bulk result, where Recova shows it", () => {
     }
   });
 
+  it("sets no text colour of its own on the banner's tint, so Capsomer's 4.5:1 text holds", () => {
+    // Measured from the tokens: text-subtle on the crit tint is 4.23:1 light
+    // and 3.99:1 dark, and error-text 3.92:1 dark, all under 4.5:1 at 13px.
+    const html = render(
+      data({ result: { ...data().result, payments: [row(), row({ id: "fp_2", customerName: "Sam Rivera" })] } }),
+      { bulk: applied },
+    );
+    const banner = html.slice(html.indexOf('class="cap-banner"'), html.indexOf('method="get"'));
+    expect(banner).toContain("Sam Rivera");
+    expect(banner).not.toMatch(/\btext-(text|text-subtle|success-text|error-text|brand-text)\b/);
+  });
+
   it("moves focus to the page's main region on Dismiss, through Capsomer's dismissBanner", () => {
     expect(ROUTE_SOURCE).toContain('import { dismissBanner } from "capsomer/behaviour/banner";');
-    expect(ROUTE_SOURCE).toMatch(/dismissBanner\(\s*e\.currentTarget\.closest<HTMLElement>\("\[data-cap='banner'\]"\)/);
+    expect(ROUTE_SOURCE).toContain(`const banner = e.currentTarget.closest<HTMLElement>("[data-cap='banner']");`);
+    expect(ROUTE_SOURCE).toContain("if (banner) dismissBanner(banner);");
   });
 
   it("puts no block element inside a paragraph, so the result survives the HTML parser", () => {
