@@ -380,9 +380,10 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
     const paymentUrl = `${baseUrl}/recovery/payments`;
     if (type.type === "weekly_digest") {
       // The digest's own content function and its own audience (E23): the
-      // platform's From, Recova's footer sentence, and a real signed
-      // unsubscribe for the test inbox with the postal address, as the cron
-      // sends it.
+      // platform's From, Recova's footer sentence, and a real signed digest
+      // unsubscribe with the postal address, as the cron sends it. Signed for
+      // the test inbox, which is not the merchant's notification address, so
+      // following it reports the link as expired and switches nothing off.
       // Its unsubscribe is signed for an account, so it needs a merchant, as
       // customer mail does.
       if (!merchant) throw new Error("the weekly digest needs a merchant");
@@ -411,7 +412,11 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
             baseUrl,
           }),
           template: `admin_test:${type.type}`,
-          unsubscribeToken: await signUnsubscribeToken(env, { email: to, accountId: merchant.accountId }),
+          unsubscribeToken: await signUnsubscribeToken(env, {
+            email: to,
+            accountId: merchant.accountId,
+            list: "digest",
+          }),
           physicalAddress: env.PHYSICAL_ADDRESS ?? "",
           idempotencyKey: `admin-test:${crypto.randomUUID()}`,
           cronRunId: null,

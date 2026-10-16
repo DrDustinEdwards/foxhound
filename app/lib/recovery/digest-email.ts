@@ -19,7 +19,8 @@
 // and wraps it with an unsubscribe token, so its footer carries Unsubscribe and
 // the postal address. The cron sends it on the "digest" audience, which is that
 // footer on this one merchant mail; every other merchant notice keeps none
-// (RULES.md 3.16).
+// (RULES.md 3.16). Its link is a digest token: following it switches off this
+// account's digest and suppresses no address (PR 158 review round 1).
 
 import type { Block } from "capsomer/email";
 

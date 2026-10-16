@@ -359,12 +359,17 @@ export async function runWeeklyDigest(env: Env, now: Date): Promise<DigestRunRes
           template: DIGEST_TEMPLATE,
           // RECOVA'S UNSUBSCRIBE (E23). Recova runs checkAndRegisterUnsubscribe
           // on the notification address and wraps the digest with its token.
-          // Foxhound's token is the signed /u/ token every unsubscribe link
-          // carries, for this address and this account; processEmailJob's
-          // suppression gate is Recova's check, run before the send.
+          // Foxhound's is the signed /u/ token for this address and account,
+          // marked `list: "digest"`: following it switches off THIS account's
+          // digest and suppresses nothing, so the merchant's notices and any
+          // other account on the address carry on, as a Recova merchant sees
+          // (PR 158 review round 1, RULES.md 3.16). processEmailJob's
+          // suppression gate still runs, so bounces, complaints and migrated
+          // opt-outs stop the digest as Recova's check does.
           unsubscribeToken: await signUnsubscribeToken(env, {
             email: account.notificationEmail,
             accountId: account.accountId,
+            list: "digest",
           }),
           // The claim's carrier is the email_sends row this produces, keyed on
           // (account, template, window). The key here identifies the WEEK the

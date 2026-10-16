@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import type Database from "better-sqlite3";
@@ -268,7 +269,7 @@ describe("E23 carries Recova's From, footer, unsubscribe and postal address", ()
     const unsub = /href="(https:\/\/foxhoundapp\.test\/u\/[^"]+)"[^>]*>Unsubscribe</.exec(m.html);
     expect(unsub, m.html).not.toBeNull();
     const token = decodeURIComponent(unsub![1].slice(`${BASE}/u/`.length));
-    expect(await verifyUnsubscribeToken(env, token)).toEqual({ email: OWNER, accountId: ACCOUNT });
+    expect(await verifyUnsubscribeToken(env, token)).toEqual({ email: OWNER, accountId: ACCOUNT, list: "digest" });
     expect(m.headers?.["List-Unsubscribe"]).toBe(`<${unsub![1]}>`);
     expect(m.headers?.["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
 
@@ -408,17 +409,24 @@ describe("the unsubscribe is the digest's alone (RULES.md 3.16)", () => {
     );
   });
 
-  it("only the digest's two senders ask for the digest audience", () => {
-    const files = [
-      "app/lib/cron/digest.ts",
-      "app/lib/admin/email-send.server.ts",
-      "app/lib/recovery/merchant-notification.server.ts",
-      "app/lib/recovery/sequence-complete-notification.server.ts",
-      "app/lib/cron/expiring-cards.ts",
-      "app/lib/settings/test-email.server.ts",
-    ];
-    const users = files.filter((f) => /audience: "digest"/.test(read(f)));
-    expect(users).toEqual(["app/lib/cron/digest.ts", "app/lib/admin/email-send.server.ts"]);
+  it("only the digest's two senders ask for the digest audience, anywhere under app/", () => {
+    // Every .ts and .tsx file under app/, not a chosen list (RULES.md 6.5):
+    // a merchant notice switched to the digest audience would gain an
+    // unsubscribe, and a list that leaves its file out would never see it.
+    const root = fileURLToPath(new URL("../", import.meta.url));
+    const walk = (dir: string): string[] =>
+      readdirSync(join(root, dir), { withFileTypes: true }).flatMap((e) =>
+        e.isDirectory()
+          ? walk(`${dir}/${e.name}`)
+          : /\.tsx?$/.test(e.name)
+            ? [`${dir}/${e.name}`]
+            : [],
+      );
+    const files = walk("app");
+    expect(files.length).toBeGreaterThan(300);
+    expect(files).toContain("app/lib/disputes/notices.server.ts");
+    const users = files.filter((f) => /audience:\s*"digest"/.test(read(f))).sort();
+    expect(users).toEqual(["app/lib/admin/email-send.server.ts", "app/lib/cron/digest.ts"]);
   });
 });
 

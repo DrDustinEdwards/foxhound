@@ -10,8 +10,8 @@ import { Header } from "~/components/header";
 import { Wordmark } from "~/components/wordmark";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { RATE_LIMIT_UNSUBSCRIBE } from "~/lib/constants";
-import { recordUnsubscribe } from "~/lib/email/suppression";
-import { verifyUnsubscribeToken } from "~/lib/email/unsubscribe-token";
+import { recordDigestUnsubscribe, recordUnsubscribe } from "~/lib/email/suppression";
+import { verifyUnsubscribeToken, type UnsubscribeTokenPayload } from "~/lib/email/unsubscribe-token";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
 
 import type { Route } from "./+types/unsubscribe";
@@ -84,8 +84,23 @@ export const middleware: Route.MiddlewareFunction[] = [
 
 type LoaderState =
   | { state: "invalid" }
+  | { state: "changed" }
   | { state: "done" }
   | { state: "already"; email: string };
+
+/**
+ * Follow one valid link. A customer token suppresses the address, as Recova's
+ * route does. A digest token (E23) switches off that account's weekly digest
+ * and writes no suppression row, so the merchant's notices and every other
+ * account sharing the address carry on (RULES.md 3.16); "changed" when the
+ * account no longer mails the digest to that address.
+ */
+async function follow(env: Env, payload: UnsubscribeTokenPayload, token: string): Promise<LoaderState> {
+  const outcome =
+    payload.list === "digest" ? await recordDigestUnsubscribe(env, payload) : await recordUnsubscribe(env, payload, token);
+  if (outcome === "changed") return { state: "changed" };
+  return outcome === "already" ? { state: "already", email: payload.email } : { state: "done" };
+}
 
 // GET: render the confirmation page. A mail client's link preview or a human click
 // both land here; both suppress. The first visit reads "unsubscribed", any later
@@ -97,8 +112,7 @@ export async function loader({ params, context }: Route.LoaderArgs): Promise<Loa
   // link.") cannot arise here; an absent token folds into the invalid state.
   const payload = token ? await verifyUnsubscribeToken(env, token) : null;
   if (!payload || !token) return { state: "invalid" };
-  const outcome = await recordUnsubscribe(env, payload, token);
-  return outcome === "already" ? { state: "already", email: payload.email } : { state: "done" };
+  return follow(env, payload, token);
 }
 
 // POST: the RFC 8058 one-click List-Unsubscribe-Post request. Same suppression
@@ -110,7 +124,7 @@ export async function action({ params, context }: Route.ActionArgs): Promise<Res
   const token = params.token;
   const payload = token ? await verifyUnsubscribeToken(env, token) : null;
   if (payload && token) {
-    await recordUnsubscribe(env, payload, token);
+    await follow(env, payload, token);
   }
   // Always 200 for one-click: a bad token is not worth telling a mail client
   // about, and never leaks token validity.
@@ -119,7 +133,10 @@ export async function action({ params, context }: Route.ActionArgs): Promise<Res
 
 function message(data: LoaderState): string {
   switch (data.state) {
+    // A digest link for an address the account no longer uses has expired in
+    // the sense Recova's words mean, and nothing was switched off.
     case "invalid":
+    case "changed":
       return "This unsubscribe link is invalid or has expired.";
     case "already":
       return `${data.email} is already unsubscribed.`;
@@ -130,6 +147,7 @@ function message(data: LoaderState): string {
 
 const HEADING: Record<LoaderState["state"], string> = {
   invalid: "Unsubscribe link not valid",
+  changed: "Unsubscribe link not valid",
   already: "Already unsubscribed",
   done: "Unsubscribed",
 };

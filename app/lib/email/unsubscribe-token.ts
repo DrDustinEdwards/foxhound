@@ -10,6 +10,15 @@ export interface UnsubscribeTokenPayload {
   email: string;
   /** The account whose send this was (for scoping the suppression record). */
   accountId: string;
+  /**
+   * Which list the link leaves. Absent: the address-wide unsubscribe every
+   * customer mail carries. "digest": the weekly digest only (E23), which
+   * switches off that account's digest and suppresses nothing, because an
+   * address-wide row would also silence the merchant's notices and every other
+   * account sharing the address (RULES.md 3.16). Signed with the rest, so a
+   * customer token can never be read as a digest token or the reverse.
+   */
+  list?: "digest";
 }
 
 function hexToBytes(hex: string): Uint8Array<ArrayBuffer> {
@@ -69,7 +78,10 @@ export async function verifyUnsubscribeToken(
     if (!ok) return null;
     const parsed = JSON.parse(new TextDecoder().decode(payloadBytes)) as UnsubscribeTokenPayload;
     if (!parsed.email || !parsed.accountId) return null;
-    return parsed;
+    if (parsed.list !== undefined && parsed.list !== "digest") return null;
+    return parsed.list === "digest"
+      ? { email: parsed.email, accountId: parsed.accountId, list: "digest" }
+      : { email: parsed.email, accountId: parsed.accountId };
   } catch {
     return null;
   }

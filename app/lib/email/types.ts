@@ -36,8 +36,10 @@ import type { EmailNotice, EmailTracking } from "./templates";
  * suppression-checks it and wraps it with an unsubscribe token
  * (app/api/cron/weekly-digest/route.ts, blob b6ff2a8c), so its footer has the
  * Unsubscribe link and the postal address, and the send module holds it to the
- * same two guards as customer mail. No other merchant notice uses it (RULES.md
- * 3.16); a test holds the digest's two senders as its only users.
+ * same two guards as customer mail. Its token is a digest token
+ * (`list: "digest"`), which switches off that account's digest rather than
+ * suppressing the address. No other merchant notice uses it (RULES.md 3.16); a
+ * test walking app/ holds the digest's two senders as its only users.
  *
  * The field is OPTIONAL and defaults to "customer" deliberately: an omitted
  * audience must never be the one that skips the CAN-SPAM guard.
