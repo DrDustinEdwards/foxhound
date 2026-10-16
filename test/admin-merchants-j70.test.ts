@@ -388,6 +388,13 @@ describe("getMerchantFigures: Recova's five stat cards, demo accounts not counte
     const f = await figures((await seed()).db);
     expect(f.paymentsInQueue).toBe(3);
   });
+
+  it("agrees with the Overview's Active recoveries: one count, soft-deleted rows left out of both (PR 140 review)", async () => {
+    const { db } = await seed();
+    const { countActiveRecoveries } = await import("~/lib/admin/overview.server");
+    expect(await countActiveRecoveries(db)).toBe(3);
+    expect((await figures(db)).paymentsInQueue).toBe(await countActiveRecoveries(db));
+  });
 });
 
 // ---------------------------------------------------------------- the action
@@ -514,6 +521,24 @@ describe("the action: Foxhound's writers, each with its audit row", () => {
     const undone = await post({ intent: "processing-paused", accountId: "acct_north", value: "false", undo: "1" });
     expect(undone.data).toMatchObject({ ok: true, changed: true });
     expect(await account(seeded.db, "acct_north")).toMatchObject({ processingPaused: false, pauseReason: null });
+  });
+
+  it("records in the audit row whether the toggle changed anything (PR 140 review)", async () => {
+    // Lumen is already exempt: a stale Set exempt changes nothing, and its row says so.
+    await post({ intent: "billing-exempt", accountId: "acct_lumen", value: "true" });
+    // North is not: a real Set exempt.
+    await post({ intent: "billing-exempt", accountId: "acct_north", value: "true" });
+    // The brake paused North: an Undo of a pause cannot resume it.
+    await seeded.db.update(accounts).set({ processingPaused: true, pauseReason: PAUSE_REASON_BRAKE }).where(eq(accounts.id, "acct_north"));
+    await post({ intent: "processing-paused", accountId: "acct_north", value: "true" });
+    await post({ intent: "processing-paused", accountId: "acct_north", value: "false", undo: "1" });
+    const rows = await seeded.db.select({ action: adminAuditLog.action, metadata: adminAuditLog.metadata }).from(adminAuditLog);
+    expect(rows.map((r) => [r.action, r.metadata])).toEqual([
+      ["merchant.billing_exempt.enable", { accountId: "acct_lumen", changed: false }],
+      ["merchant.billing_exempt.enable", { accountId: "acct_north", changed: true }],
+      ["merchant.processing.pause", { accountId: "acct_north", changed: false }],
+      ["merchant.processing.resume", { accountId: "acct_north", undo: true, changed: false }],
+    ]);
   });
 
   it("offers no Undo for a stale Set exempt on a merchant already exempt, so Undo cannot bill it", async () => {
@@ -704,6 +729,12 @@ describe("the Merchants page", () => {
     expect(text(rowOf(html, "Gone Goods"))).toContain("Cancelled");
     expect(text(rowOf(html, "acct_new"))).toContain("Inactive");
     expect(rowOf(html, "Northwind Coffee")).toMatch(/class="cap-status"/);
+  });
+
+  it("shows the band as words beside the rate, not a hover title the row link covers (PR 140 review)", () => {
+    const row = rowOf(render(), "Paused Pets");
+    expect(row).not.toMatch(/title="Below target"/);
+    expect(row).toMatch(/class="cap-status-reason">Below target</);
   });
 
   it("says the recovery rate with its band, and No failures yet rather than a dash", () => {
