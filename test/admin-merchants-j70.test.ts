@@ -522,8 +522,11 @@ describe("the action: Foxhound's writers, each with its audit row", () => {
     expect(stale.data).toMatchObject({ ok: true, value: true, changed: false });
     expect(toggleMessage(stale.data).undo).toBeNull();
     expect(toggleMessage(stale.data).said).toMatch(/already billing exempt\. Nothing was changed\./);
-    const undo = await post({ intent: "billing-exempt", accountId: "acct_lumen", value: "false", undo: "1" });
-    expect(undo.init?.status).toBe(409);
+    // Neither path offers it: no in-page Undo (undo is null above) and no
+    // no-script Undo form. Exemption has no reason column like a pause's, so a
+    // hand-posted "End exemption" is an ordinary request the server cannot
+    // tell from an Undo; the guard is that no Undo is offered.
+    expect(render({ actionData: stale.data })).not.toMatch(/<button[^>]*>Undo/);
     expect((await account(seeded.db, "acct_lumen")).billingExempt).toBe(true);
   });
 
@@ -680,7 +683,10 @@ describe("the Merchants page", () => {
   it("names an account with no name by its owner's email, as Recova did, once", () => {
     const html = render({ merchants: [row("acct_noname", { name: null, ownerEmail: "kai@example.com" })] });
     expect(html).toMatch(/<a[^>]*class="cap-table-open"[^>]*href="\/admin\/merchants\/acct_noname"[^>]*>kai@example\.com<\/a>/);
-    expect(html.match(/kai@example\.com/g)).toHaveLength(1);
+    // Shown once in the row header: no aside repeats it (the buttons' hidden
+    // words name the row by the same label, which is what they are for).
+    const header = /<th scope="row">[\s\S]*?<\/th>/.exec(html)?.[0] ?? "";
+    expect(header.match(/kai@example\.com/g)).toHaveLength(1);
   });
 
   it("uses Capsomer's table parts for the row's link and its second line, with no Foxhound class on them", () => {

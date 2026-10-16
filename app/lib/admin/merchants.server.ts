@@ -25,7 +25,7 @@ import {
   user,
 } from "~/db";
 import { PAUSE_REASON_MANUAL } from "~/lib/admin/brake";
-import { countActiveRecoveries, mrrUnderManagement } from "~/lib/admin/overview.server";
+import { mrrUnderManagement } from "~/lib/admin/overview.server";
 import { MEMBER_ROLE, MEMBER_STATUS } from "~/lib/auth/roles";
 import { groupSumByCurrency, startOfUtcMonthMs, type CurrencyAmount } from "~/lib/billing/preview.server";
 import {
@@ -104,7 +104,8 @@ export async function listAdminMerchants(db: Db): Promise<AdminMerchantRow[]> {
     db
       .select({ accountId: failedPayments.accountId, n: count() })
       .from(failedPayments)
-      .where(eq(failedPayments.status, "active"))
+      // Soft-deleted rows are not in a sequence (Recova's queue read: deleted_at is null).
+      .where(and(eq(failedPayments.status, "active"), isNull(failedPayments.deletedAt)))
       .groupBy(failedPayments.accountId),
     db
       .select({ accountId: failedPayments.accountId, n: count() })
@@ -193,7 +194,8 @@ export interface MerchantFigures {
   /** Recova's "Revenue (MTD)": recovery fees on invoices made since the first
    *  of this UTC month, a voided invoice left out. */
   recoveryFeesThisMonth: CurrencyAmount[];
-  /** Recova's "Payments in Queue": failed payments in an active sequence. */
+  /** Recova's "Payments in Queue": failed payments in an active sequence,
+   *  soft-deleted ones left out as Recova's read left them out. */
   paymentsInQueue: number;
 }
 
@@ -232,7 +234,14 @@ export async function getMerchantFigures(db: Db, nowMs: number): Promise<Merchan
         ),
       )
       .groupBy(billingLineItems.currency),
-    countActiveRecoveries(db),
+    // Not countActiveRecoveries: that one (the Overview's and Operations')
+    // counts soft-deleted rows too, and is left as it is for those pages.
+    db
+      .select({ n: count() })
+      .from(failedPayments)
+      .innerJoin(accounts, eq(accounts.id, failedPayments.accountId))
+      .where(and(eq(failedPayments.status, "active"), isNull(failedPayments.deletedAt), NOT_DEMO))
+      .then((r) => r[0]?.n ?? 0),
   ]);
   const money = (rows: Array<{ currency: string; cents: number }>) =>
     groupSumByCurrency(rows.map((r) => ({ currency: r.currency, cents: Number(r.cents) }))).filter((m) => m.cents !== 0);
@@ -342,6 +351,20 @@ export async function setBillingExempt(db: Db, accountId: string, exempt: boolea
   await db.update(accounts).set({ billingExempt: exempt }).where(eq(accounts.id, accountId));
 }
 
+/** setBillingExempt, written only where the flag still holds the other value,
+ *  in the same statement. Returns whether it changed, so the Merchants page
+ *  offers Undo only for a real change: a stale row's "Set exempt" on a
+ *  merchant someone else exempted changes nothing, and its Undo must not
+ *  un-exempt them. */
+export async function setBillingExemptIfChanged(db: Db, accountId: string, exempt: boolean): Promise<boolean> {
+  const rows = await db
+    .update(accounts)
+    .set({ billingExempt: exempt })
+    .where(and(eq(accounts.id, accountId), eq(accounts.billingExempt, !exempt)))
+    .returning({ id: accounts.id });
+  return rows.length > 0;
+}
+
 /** Pause or resume recovery/dispute processing. Honored by
  *  app/lib/cron/recovery-tick.ts's accountProcessingEligibleCondition and
  *  app/lib/intelligence/sync.server.ts's accountProcessingEligible, and (per
@@ -429,6 +452,23 @@ export async function setProcessingPaused(
   guard?: SQL,
 ): Promise<void> {
   await buildSetProcessingPaused(db, accountId, paused, reason, guard);
+}
+
+/** Pauses or resumes one merchant only when the flag holds the other value,
+ *  and says whether it moved, so the merchants page offers Undo only for a
+ *  real change. With `undoOfPause`, a resume matches only a manual pause: an
+ *  Undo of a pause can never take a merchant off the emergency brake, whose
+ *  pause may have landed on the row since. */
+export async function setProcessingPausedIfChanged(
+  db: Db,
+  accountId: string,
+  paused: boolean,
+  { undoOfPause = false }: { undoOfPause?: boolean } = {},
+): Promise<boolean> {
+  const from = eq(accounts.processingPaused, !paused);
+  const guard = !paused && undoOfPause ? (and(from, eq(accounts.pauseReason, PAUSE_REASON_MANUAL)) as SQL) : from;
+  const rows = await buildSetProcessingPaused(db, accountId, paused, null, guard);
+  return rows.length > 0;
 }
 
 /** Whether an account currently holds an active Intelligence subscription row.

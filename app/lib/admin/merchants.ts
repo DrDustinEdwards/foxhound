@@ -60,33 +60,65 @@ export function moneyWords(amounts: ReadonlyArray<{ cents: number; currency: str
 
 export type ToggleIntent = "billing-exempt" | "processing-paused";
 
+/** What a row is called: its name, else its owner's email (Recova showed the
+ *  email when an account had no name), else its id. */
+export function merchantLabel(row: { id: string; name: string | null; ownerEmail: string | null }): string {
+  return row.name ?? row.ownerEmail ?? row.id;
+}
+
 export interface ToggleResult {
   ok: true;
   intent: ToggleIntent;
   accountId: string;
   name: string | null;
-  /** The value the flag was set to. */
+  /** The value the flag was asked to hold. */
   value: boolean;
+  /** Whether the write changed it. A stale row asking for the value the flag
+   *  already holds changes nothing, and has nothing to undo. */
+  changed: boolean;
   /** A resume that took a merchant off the emergency brake's books. */
   wasBrakePause: boolean;
 }
 
-/** What a toggle did, in a sentence, what its Undo says once it has run, and
- *  whether it has an Undo at all. A resume of a brake pause has none: pausing
- *  again from here is a person's pause, which the brake's Release leaves
- *  alone, so it would not put back what was there (setProcessingPaused). */
-export function toggleWords(r: Pick<ToggleResult, "intent" | "accountId" | "name" | "value" | "wasBrakePause">): {
+export interface ToggleMessage {
   said: string;
+  /** What the message says once Undo has run. */
   undone: string | null;
-} {
+  /** The post that undoes it, or null when there is no Undo. */
+  undo: { intent: ToggleIntent; accountId: string; value: boolean } | null;
+}
+
+/** What a toggle's answer says in the page and the Undo it offers, if any.
+ *  The in-page (script) path and the no-script banner both read this, so the
+ *  rule is in one place:
+ *  - nothing changed: no Undo, it says so;
+ *  - a resume of a brake pause: no Undo, because a pause from here is a
+ *    person's pause, which the brake's Release leaves alone, so it would not
+ *    put back what was there;
+ *  - otherwise Undo posts the other value, marked as an Undo, which the
+ *    action writes only where the flag still holds what this change set (and
+ *    a pause's Undo resumes only a person's pause, never the brake's). */
+export function toggleMessage(r: Pick<ToggleResult, "intent" | "accountId" | "name" | "value" | "changed" | "wasBrakePause">): ToggleMessage {
   const who = r.name ?? r.accountId;
+  const undo = { intent: r.intent, accountId: r.accountId, value: !r.value };
+  if (!r.changed) {
+    const already =
+      r.intent === "billing-exempt"
+        ? r.value
+          ? "already billing exempt"
+          : "already billed"
+        : r.value
+          ? "already paused"
+          : "already running";
+    return { said: `${who} was ${already}. Nothing was changed.`, undone: null, undo: null };
+  }
   if (r.intent === "billing-exempt") {
     return r.value
-      ? { said: `${who} is billing exempt.`, undone: `${who} is billed again.` }
-      : { said: `${who} is billed again.`, undone: `${who} is billing exempt again.` };
+      ? { said: `${who} is billing exempt.`, undone: `${who} is billed again.`, undo }
+      : { said: `${who} is billed again.`, undone: `${who} is billing exempt again.`, undo };
   }
   if (r.value) {
-    return { said: `Paused processing for ${who}.`, undone: `Processing for ${who} is running again.` };
+    return { said: `Paused processing for ${who}.`, undone: `Processing for ${who} is running again.`, undo };
   }
   if (r.wasBrakePause) {
     return {
@@ -94,7 +126,8 @@ export function toggleWords(r: Pick<ToggleResult, "intent" | "accountId" | "name
         `Resumed processing for ${who}. The emergency brake had paused it, so there is no Undo: ` +
         "a pause from here is a manual one, which the brake's Release leaves alone.",
       undone: null,
+      undo: null,
     };
   }
-  return { said: `Resumed processing for ${who}.`, undone: `Processing for ${who} is paused again.` };
+  return { said: `Resumed processing for ${who}.`, undone: `Processing for ${who} is paused again.`, undo };
 }

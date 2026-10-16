@@ -26,8 +26,9 @@ import {
   merchantStatus,
   MERCHANTS_ACTION,
   MERCHANTS_PATH,
+  merchantLabel,
   moneyWords,
-  toggleWords,
+  toggleMessage,
   type ToggleIntent,
   type ToggleResult,
 } from "~/lib/admin/merchants";
@@ -36,8 +37,8 @@ import {
   getMerchantActionTarget,
   getMerchantFigures,
   listAdminMerchants,
-  setBillingExempt,
-  setProcessingPaused,
+  setBillingExemptIfChanged,
+  setProcessingPausedIfChanged,
   type AdminMerchantRow,
 } from "~/lib/admin/merchants.server";
 import { plural } from "~/lib/admin/overview";
@@ -79,7 +80,8 @@ interface Cancelled {
 }
 type ActionData = ToggleResult | Cancelled | Refused;
 
-const refuse = (intent: string, error: string) => data<ActionData>({ ok: false, intent, error }, { status: 400 });
+const refuse = (intent: string, error: string, status = 400) =>
+  data<ActionData>({ ok: false, intent, error }, { status });
 
 // Every action goes through Foxhound's own writers (merchants.server.ts), as
 // the merchant page's do, and writes an admin_audit_log row. Access and the
@@ -134,31 +136,57 @@ export async function action({ context, request }: Route.ActionArgs) {
   if (raw !== "true" && raw !== "false") return refuse(intent, "Unknown value. Nothing was changed.");
   const value = raw === "true";
 
+  // An Undo is the same post marked undo=1. It writes only where the flag
+  // still holds what the change it undoes set, and an Undo of a pause resumes
+  // only a manual pause, never the brake's (the J70 review, HIGH).
+  const undo = form.get("undo") === "1";
+  const who = target.name ?? target.id;
+
   // Intent before state (review LOW-4, as the crons page and the brake do): a
   // failed audit insert leaves the flag as it was, never changed with no record.
-  if (intent === "billing-exempt") {
-    await logAdminAction(db, {
-      actorEmail: auth.email,
-      action: value ? "merchant.billing_exempt.enable" : "merchant.billing_exempt.disable",
-      metadata: { accountId },
-    });
-    await setBillingExempt(db, accountId, value);
-    return data<ActionData>({ ok: true, intent, accountId, name: target.name, value, wasBrakePause: false });
-  }
-
+  // The row records the attempt; a guarded write that matched nothing changes
+  // nothing and the answer says so.
   const wasBrakePause = !value && target.processingPaused && target.pauseReason === PAUSE_REASON_BRAKE;
   await logAdminAction(db, {
     actorEmail: auth.email,
-    action: value ? "merchant.processing.pause" : "merchant.processing.resume",
-    metadata: { accountId },
+    action:
+      intent === "billing-exempt"
+        ? value
+          ? "merchant.billing_exempt.enable"
+          : "merchant.billing_exempt.disable"
+        : value
+          ? "merchant.processing.pause"
+          : "merchant.processing.resume",
+    metadata: undo ? { accountId, undo: true } : { accountId },
   });
-  await setProcessingPaused(db, accountId, value);
-  return data<ActionData>({ ok: true, intent, accountId, name: target.name, value, wasBrakePause });
+  const changed =
+    intent === "billing-exempt"
+      ? await setBillingExemptIfChanged(db, accountId, value)
+      : await setProcessingPausedIfChanged(db, accountId, value, { undoOfPause: undo });
+
+  if (undo && !changed) {
+    return refuse(
+      intent,
+      `Not undone: ${who} has changed since, so the Undo would not put back what was there. Nothing was changed.`,
+      409,
+    );
+  }
+  return data<ActionData>({
+    ok: true,
+    intent,
+    accountId,
+    name: target.name,
+    value,
+    changed,
+    wasBrakePause: changed && wasBrakePause,
+  });
 }
 
 const HEADING_ID = "admin-merchants-heading";
-// A link in a table cell is given a 24 px target (WCAG 2.2, 2.5.8).
-const LINK = "inline-block min-h-6 leading-6 text-text underline underline-offset-2";
+// Capsomer's cap-table-open stretches the merchant link over the row and lifts
+// only links, buttons and checkboxes above it. The times are tooltip triggers
+// (hover and focus show the exact time), so my own wrapper lifts them too.
+const ABOVE_ROW_LINK = "relative z-[1]";
 
 // The family admin pattern (Capsomer patterns.md, Dustin's Q9 of 2026-10-14)
 // and his review of 2026-10-11: one page name (the shell's "Merchants"), plain
@@ -357,7 +385,7 @@ function useUndoPost(): UndoPost {
           return;
         }
         waiting.current = { resolve, reject };
-        void submit({ intent, accountId, value: String(value) }, { method: "post", action: MERCHANTS_ACTION });
+        void submit({ intent, accountId, value: String(value), undo: "1" }, { method: "post", action: MERCHANTS_ACTION });
       }),
     [submit],
   );
@@ -367,7 +395,7 @@ function MerchantRow({ merchant: m, undoPost }: { merchant: AdminMerchantRow; un
   const fetcher = useFetcher<ActionData>();
   const { say, fail } = useMessage();
   const busy = fetcher.state !== "idle";
-  const who = m.name ?? m.id;
+  const who = merchantLabel(m);
   const status = merchantStatus(m);
   const answer = fetcher.data;
 
@@ -378,21 +406,24 @@ function MerchantRow({ merchant: m, undoPost }: { merchant: AdminMerchantRow; un
       return;
     }
     if (answer.intent === "cancel") return;
-    const words = toggleWords(answer);
-    const { intent, accountId, value } = answer;
+    const message = toggleMessage(answer);
+    const { undo } = message;
     say(
-      words.said,
-      words.undone ? { undo: () => undoPost(intent, accountId, !value), undone: words.undone } : {},
+      message.said,
+      undo && message.undone
+        ? { undo: () => undoPost(undo.intent, undo.accountId, undo.value), undone: message.undone }
+        : {},
     );
   }, [answer, say, fail, undoPost]);
 
   return (
     <tr>
-      <th scope="row" className="font-normal">
-        <Link to={merchantHref(m.id)} className={LINK}>
+      <th scope="row">
+        <Link to={merchantHref(m.id)} className="cap-table-open">
           {who}
         </Link>
-        <span className="block text-text-tertiary">{m.ownerEmail ?? "No owner on record"}</span>
+        {m.name && m.ownerEmail ? <span className="cap-table-aside">{m.ownerEmail}</span> : null}
+        {m.ownerEmail ? null : <span className="cap-table-aside">No owner on record</span>}
       </th>
       <td>
         <Status tone={status.tone}>{status.word}</Status>
@@ -409,17 +440,19 @@ function MerchantRow({ merchant: m, undoPost }: { merchant: AdminMerchantRow; un
           </Status>
         )}
       </td>
-      <td data-num="" className={m.recovered.length === 0 ? "text-text-tertiary" : "font-mono text-text"}>
-        {moneyWords(m.recovered, "None yet")}
-      </td>
-      <td data-num="" data-drop="1" className="font-mono text-text">
+      <td data-num="">{moneyWords(m.recovered, "None yet")}</td>
+      <td data-num="" data-drop="1">
         {m.activeRecoveriesCount}
       </td>
       <td>
-        <AdminTime at={m.lastWebhookAt} empty="None received" />
+        <span className={ABOVE_ROW_LINK}>
+          <AdminTime at={m.lastWebhookAt} empty="None received" />
+        </span>
       </td>
       <td data-drop="1">
-        <AdminTime at={m.createdAt} empty="Not recorded" />
+        <span className={ABOVE_ROW_LINK}>
+          <AdminTime at={m.createdAt} empty="Not recorded" />
+        </span>
       </td>
       <td>
         <div className="flex flex-wrap items-center gap-2">
@@ -498,17 +531,18 @@ function PostedResult({ result }: { result: ActionData }) {
       </div>
     );
   }
-  const words = toggleWords(result);
+  const message = toggleMessage(result);
   return (
     <div className="cap-banner" data-tone="ok" role="status">
       <Glyph name="ok" />
-      <p className="cap-banner-text">{words.said}</p>
-      {words.undone ? (
+      <p className="cap-banner-text">{message.said}</p>
+      {message.undo ? (
         <div className="cap-banner-actions">
           <Form method="post" action={MERCHANTS_ACTION}>
-            <input type="hidden" name="intent" value={result.intent} />
-            <input type="hidden" name="accountId" value={result.accountId} />
-            <input type="hidden" name="value" value={String(!result.value)} />
+            <input type="hidden" name="intent" value={message.undo.intent} />
+            <input type="hidden" name="accountId" value={message.undo.accountId} />
+            <input type="hidden" name="value" value={String(message.undo.value)} />
+            <input type="hidden" name="undo" value="1" />
             <button type="submit" className="cap-btn">
               Undo
             </button>
