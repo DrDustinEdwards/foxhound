@@ -6,7 +6,6 @@ import {
   accounts,
   auditDigestRuns,
   auditRuns,
-  cronAlerts,
   cronRunHistory,
   failedPayments,
   recoveredPayments,
