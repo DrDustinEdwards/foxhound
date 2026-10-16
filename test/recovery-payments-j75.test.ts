@@ -29,6 +29,7 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 const route = await import("~/routes/app/recovery/payments/index");
+const exportRoute = await import("~/routes/app/recovery/payments/export");
 const Page = route.default as unknown as (props: Record<string, unknown>) => ReturnType<typeof createElement>;
 
 const ROUTE_SOURCE = readFileSync("app/routes/app/recovery/payments/index.tsx", "utf8");
@@ -149,6 +150,16 @@ describe("J75: Recova's head", () => {
       }),
     );
     expect(text(html)).toContain("$20 · €10 at risk");
+  });
+
+  it("points Export CSV at the rows on screen: this page and this page size, as Recova exports its filtered rows", () => {
+    const html = render(
+      data({ result: { payments: [row()], totalCount: 60, page: 2, totalPages: 3, pageSize: 25 } } as Partial<LoaderData>),
+    );
+    const href = /href="(\/recovery\/payments\/export\.csv[^"]*)"/.exec(html)?.[1]?.replace(/&amp;/g, "&") ?? "";
+    const qs = new URL(`https://x.test${href}`).searchParams;
+    expect(qs.get("page")).toBe("2");
+    expect(qs.get("perPage")).toBe("25");
   });
 
   it("puts Export CSV in the head as a Capsomer button", () => {
@@ -403,6 +414,12 @@ describe("J75: the bulk result, where Recova shows it", () => {
     expect(BULK_ACTION_MAX_PER_SUBMISSION).toBe(100);
   });
 
+  it("clears after Recova's 3 seconds (PaymentsClient.tsx doBulkAction, setTimeout 3000)", async () => {
+    const list = await import("~/lib/recovery/payments-list");
+    expect((list as Record<string, unknown>).BULK_RESULT_DISMISS_MS).toBe(3000);
+    expect(ROUTE_SOURCE).toMatch(/setTimeout\(\s*\(\) => setDismissedFor\(bulk\),\s*BULK_RESULT_DISMISS_MS\s*\)/);
+  });
+
   it("says Working... on the pressed button, as Recova's does", () => {
     expect(ROUTE_SOURCE).toContain('"Working..."');
   });
@@ -537,6 +554,32 @@ describe("J75: the loader", () => {
     expect(out.result.payments.some((p) => p.hasNote)).toBe(true);
     expect(JSON.stringify(first)).not.toContain("Called them");
     expect(first).not.toHaveProperty("stripeCustomerId");
+  });
+
+  async function exportRows(path: string, accountId = A): Promise<string[]> {
+    const res = (await exportRoute.loader({
+      context: contextFor(accountId),
+      request: new Request(`https://foxhoundapp.test${path}`),
+      params: {},
+    } as never)) as Response;
+    expect(res.status).toBe(200);
+    return (await res.text()).trim().split("\n").slice(1);
+  }
+
+  it("exports the rows on screen, as Recova's Export CSV does, never every filtered row", async () => {
+    for (let i = 0; i < 30; i++) seed(sqlite, db, { detectedAt: new Date(NOW - (i + 1) * 60_000) });
+    expect(await exportRows("/recovery/payments/export.csv")).toHaveLength(25);
+    expect(await exportRows("/recovery/payments/export.csv?perPage=10&page=3")).toHaveLength(10);
+    expect(await exportRows("/recovery/payments/export.csv?page=2")).toHaveLength(5);
+    expect(await exportRows("/recovery/payments/export.csv?perPage=all")).toHaveLength(30);
+  });
+
+  it("keeps the export to the signed-in account", async () => {
+    seed(sqlite, db, { accountId: B, customerEmail: "other@beta.test" });
+    seed(sqlite, db, {});
+    const rows = await exportRows("/recovery/payments/export.csv");
+    expect(rows).toHaveLength(1);
+    expect(rows.join("\n")).not.toContain("other@beta.test");
   });
 
   // ALREADY LANDED before J75 (queries.server.ts:100-105); kept as the proof.
