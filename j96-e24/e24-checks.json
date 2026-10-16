@@ -1,0 +1,330 @@
+{
+  "e24-after-light": {
+    "lang": "en",
+    "title": "Your monthly Foxhound report",
+    "headings": [],
+    "links": [
+      {
+        "text": "View full audit",
+        "href": "https://foxhoundapp.com/audit/results/3f6c2a1e-9b7d-4c1a-8e2f-5d4b3a2c1e0f"
+      },
+      {
+        "text": "Manage email settings",
+        "href": "https://foxhoundapp.com/settings"
+      }
+    ],
+    "body": {
+      "text": "Seven invoices failed in the last 90 day",
+      "fg": [
+        7,
+        31,
+        32
+      ],
+      "bg": [
+        251,
+        254,
+        254
+      ],
+      "size": "16px",
+      "contrast": 16.89
+    },
+    "muted": {
+      "text": "Your Stripe health",
+      "fg": [
+        89,
+        105,
+        106
+      ],
+      "bg": [
+        251,
+        254,
+        254
+      ],
+      "size": "16px",
+      "contrast": 5.67
+    },
+    "footer": {
+      "text": "You're receiving this from Foxhound abou",
+      "fg": [
+        89,
+        105,
+        106
+      ],
+      "bg": [
+        241,
+        253,
+        253
+      ],
+      "size": "14px",
+      "contrast": 5.53
+    },
+    "button": {
+      "text": "View full audit",
+      "fg": [
+        251,
+        254,
+        254
+      ],
+      "bg": [
+        7,
+        116,
+        120
+      ],
+      "size": "16px",
+      "contrast": 5.48
+    },
+    "footLink": {
+      "text": "Manage email settings",
+      "fg": [
+        1,
+        88,
+        92
+      ],
+      "bg": [
+        241,
+        253,
+        253
+      ],
+      "size": "14px",
+      "contrast": 7.92
+    }
+  },
+  "e24-after-dark": {
+    "lang": "en",
+    "title": "Your monthly Foxhound report",
+    "headings": [],
+    "links": [
+      {
+        "text": "View full audit",
+        "href": "https://foxhoundapp.com/audit/results/3f6c2a1e-9b7d-4c1a-8e2f-5d4b3a2c1e0f"
+      },
+      {
+        "text": "Manage email settings",
+        "href": "https://foxhoundapp.com/settings"
+      }
+    ],
+    "body": {
+      "text": "Seven invoices failed in the last 90 day",
+      "fg": [
+        233,
+        240,
+        240
+      ],
+      "bg": [
+        17,
+        25,
+        25
+      ],
+      "size": "16px",
+      "contrast": 15.45
+    },
+    "muted": {
+      "text": "Your Stripe health",
+      "fg": [
+        139,
+        153,
+        153
+      ],
+      "bg": [
+        17,
+        25,
+        25
+      ],
+      "size": "16px",
+      "contrast": 6.04
+    },
+    "footer": {
+      "text": "You're receiving this from Foxhound abou",
+      "fg": [
+        139,
+        153,
+        153
+      ],
+      "bg": [
+        7,
+        15,
+        15
+      ],
+      "size": "14px",
+      "contrast": 6.56
+    },
+    "button": {
+      "text": "View full audit",
+      "fg": [
+        7,
+        15,
+        15
+      ],
+      "bg": [
+        36,
+        147,
+        152
+      ],
+      "size": "16px",
+      "contrast": 5.26
+    },
+    "footLink": {
+      "text": "Manage email settings",
+      "fg": [
+        151,
+        200,
+        203
+      ],
+      "bg": [
+        7,
+        15,
+        15
+      ],
+      "size": "14px",
+      "contrast": 10.55
+    }
+  },
+  "e24-before-light": {
+    "lang": "en",
+    "title": "Your monthly Foxhound report: 2026-08",
+    "headings": [
+      "H1: What Foxhound did this month",
+      "H1: Your Stripe health"
+    ],
+    "links": [
+      {
+        "text": "View full audit",
+        "href": "https://foxhoundapp.com/audit/results/3f6c2a1e-9b7d-4c1a-8e2f-5d4b3a2c1e0f"
+      }
+    ],
+    "body": {
+      "text": "Seven invoices failed in the last 90 day",
+      "fg": [
+        7,
+        31,
+        32
+      ],
+      "bg": [
+        251,
+        254,
+        254
+      ],
+      "size": "16px",
+      "contrast": 16.89
+    },
+    "muted": {
+      "text": "This message was sent to owner@example.c",
+      "fg": [
+        89,
+        105,
+        106
+      ],
+      "bg": [
+        241,
+        253,
+        253
+      ],
+      "size": "14px",
+      "contrast": 5.53
+    },
+    "footer": {
+      "text": "You are receiving this because the month",
+      "fg": [
+        7,
+        31,
+        32
+      ],
+      "bg": [
+        251,
+        254,
+        254
+      ],
+      "size": "16px",
+      "contrast": 16.89
+    },
+    "button": {
+      "text": "View full audit",
+      "fg": [
+        251,
+        254,
+        254
+      ],
+      "bg": [
+        7,
+        116,
+        120
+      ],
+      "size": "16px",
+      "contrast": 5.48
+    }
+  },
+  "e24-before-dark": {
+    "lang": "en",
+    "title": "Your monthly Foxhound report: 2026-08",
+    "headings": [
+      "H1: What Foxhound did this month",
+      "H1: Your Stripe health"
+    ],
+    "links": [
+      {
+        "text": "View full audit",
+        "href": "https://foxhoundapp.com/audit/results/3f6c2a1e-9b7d-4c1a-8e2f-5d4b3a2c1e0f"
+      }
+    ],
+    "body": {
+      "text": "Seven invoices failed in the last 90 day",
+      "fg": [
+        233,
+        240,
+        240
+      ],
+      "bg": [
+        17,
+        25,
+        25
+      ],
+      "size": "16px",
+      "contrast": 15.45
+    },
+    "muted": {
+      "text": "This message was sent to owner@example.c",
+      "fg": [
+        139,
+        153,
+        153
+      ],
+      "bg": [
+        7,
+        15,
+        15
+      ],
+      "size": "14px",
+      "contrast": 6.56
+    },
+    "footer": {
+      "text": "You are receiving this because the month",
+      "fg": [
+        233,
+        240,
+        240
+      ],
+      "bg": [
+        17,
+        25,
+        25
+      ],
+      "size": "16px",
+      "contrast": 15.45
+    },
+    "button": {
+      "text": "View full audit",
+      "fg": [
+        7,
+        15,
+        15
+      ],
+      "bg": [
+        36,
+        147,
+        152
+      ],
+      "size": "16px",
+      "contrast": 5.26
+    }
+  }
+}
