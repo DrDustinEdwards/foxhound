@@ -109,6 +109,7 @@ const EXCLUDED_PREFIXES = [
   "/llms-full.txt",
   "/feed.rss",
   "/og/",
+  "/og",
   // Recova's next.config.ts redirects (J23): /user-guides and
   // /sitemap_index.xml answer a 308 and are not pages. Recova's own sitemap
   // lists neither. (/recovery/audit is already covered by "/recovery".)
