@@ -1,3 +1,4 @@
+import { escapeHtml } from "capsomer/email";
 import { and, desc, eq } from "drizzle-orm";
 
 import type { Db } from "~/db/client";
@@ -168,13 +169,19 @@ export function buildFailureAlertEmail(input: FailureAlertInput, now: Date): {
   const lastSuccess = input.lastSuccessAt
     ? input.lastSuccessAt.toISOString()
     : "never (no successful run on record)";
+  // EVERY interpolated value is escaped (job_17249e7da871): the error can carry
+  // Stripe or model text, and the cron name and run id are data as well. The
+  // subject is a header, not HTML, so it stays as given.
+  const cronName = escapeHtml(input.cronName);
+  const runId = escapeHtml(input.runId ?? "unrecorded");
+  const error = escapeHtml(input.error ?? "no message recorded");
   return {
     subject: `Foxhound cron FAILED: ${input.cronName}`,
     bodyHtml: [
-      `<p><strong>${input.cronName}</strong> failed at ${now.toISOString()}.</p>`,
-      `<p>Run id: ${input.runId ?? "unrecorded"}</p>`,
-      `<p>Error: ${input.error ?? "no message recorded"}</p>`,
-      `<p>Last success: ${lastSuccess}</p>`,
+      `<p><strong>${cronName}</strong> failed at ${now.toISOString()}.</p>`,
+      `<p>Run id: ${runId}</p>`,
+      `<p>Error: ${error}</p>`,
+      `<p>Last success: ${escapeHtml(lastSuccess)}</p>`,
       `<p>One alert per cron per day. Check /admin/operations for the run history.</p>`,
     ].join("\n"),
   };
@@ -194,9 +201,9 @@ export function buildStaleAlertEmail(finding: StaleFinding, now: Date): {
   return {
     subject: `Foxhound cron STALE: ${finding.cronName}`,
     bodyHtml: [
-      `<p><strong>${finding.cronName}</strong> looks stale at ${now.toISOString()}.</p>`,
-      `<p>${why}</p>`,
-      `<p>Last run: ${last}</p>`,
+      `<p><strong>${escapeHtml(finding.cronName)}</strong> looks stale at ${now.toISOString()}.</p>`,
+      `<p>${escapeHtml(why)}</p>`,
+      `<p>Last run: ${escapeHtml(last)}</p>`,
     ].join("\n"),
   };
 }

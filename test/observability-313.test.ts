@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { cronAlerts, cronRunHistory, emailDeadLetters } from "~/db/schema";
 import {
   buildFailureAlertEmail,
+  buildStaleAlertEmail,
   claimAlertSlot,
   findStaleCrons,
   runCronHealthCheck,
@@ -456,5 +457,38 @@ describe("313 A: runCronJob actually alerts", () => {
     expect(outcome.status).toBe("success");
     const db = harness.db as ReturnType<typeof createInMemoryDb>["db"];
     expect(await db.select().from(cronAlerts)).toHaveLength(0);
+  });
+});
+
+describe("alert HTML escapes what it interpolates (job_17249e7da871)", () => {
+  // An error can carry Stripe or model text, and a cron name or run id is data
+  // too. None of it may land in the alert email as markup.
+  const hostile = `<img src=x onerror="alert(1)">&'`;
+  const escaped = "&lt;img src=x onerror=&quot;alert(1)&quot;&gt;&amp;&#39;";
+
+  it("the failure email escapes the error, the cron name and the run id", () => {
+    const built = buildFailureAlertEmail(
+      { cronName: hostile, runId: hostile, error: hostile, lastSuccessAt: null },
+      NOW,
+    );
+    expect(built.bodyHtml).not.toContain("<img");
+    expect(built.bodyHtml.split(escaped)).toHaveLength(4);
+  });
+
+  it("the stale email escapes the cron name", () => {
+    const built = buildStaleAlertEmail(
+      { cronName: hostile, lastRunAt: null, reason: "never_run" },
+      NOW,
+    );
+    expect(built.bodyHtml).not.toContain("<img");
+    expect(built.bodyHtml).toContain(escaped);
+  });
+
+  it("the escaped error still reads as the original text", () => {
+    const built = buildFailureAlertEmail(
+      { cronName: "billing-monthly", runId: "run_1", error: "a < b && c > d", lastSuccessAt: null },
+      NOW,
+    );
+    expect(built.bodyHtml).toContain("a &lt; b &amp;&amp; c &gt; d");
   });
 });
