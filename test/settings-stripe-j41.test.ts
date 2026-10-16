@@ -23,7 +23,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 //
 // Every assertion here was seen failing against the page before the rebuild.
 
-const harness = vi.hoisted(() => ({ db: null as unknown, deauthorizeOk: true }));
+const harness = vi.hoisted(() => ({ db: null as unknown, deauthorizeOk: true, deauthorizeThrows: false }));
 
 vi.mock("~/db", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/db")>()),
@@ -31,8 +31,12 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 vi.mock("~/lib/stripe/connect", () => ({
-  deauthorizeConnectedAccount: async () =>
-    harness.deauthorizeOk ? { ok: true } : { ok: false, error: "grant already revoked" },
+  deauthorizeConnectedAccount: async () => {
+    // The real function builds its Stripe client outside its own try, so a
+    // bad key or config throws here rather than returning { ok: false }.
+    if (harness.deauthorizeThrows) throw new Error("STRIPE_SECRET_KEY is not set");
+    return harness.deauthorizeOk ? { ok: true } : { ok: false, error: "grant already revoked" };
+  },
 }));
 
 const route = await import("~/routes/app/settings/stripe");
@@ -58,7 +62,7 @@ const ONE: Conn = { id: "c_1", name: "Acme Payments", stripeUserId: "acct_1", co
 const TWO: Conn = { id: "c_2", name: null, stripeUserId: "acct_2", connectedAt: null };
 
 function render(connections: Conn[] = [ONE, TWO], actionData?: Record<string, unknown>): string {
-  const loaderData = { connections, everConnected: connections.length > 0 };
+  const loaderData = { connections };
   const Stub = createRoutesStub([
     {
       path: "/settings/stripe",
@@ -287,6 +291,7 @@ describe("J41 stripe: the action", () => {
     sqlite = made.sqlite;
     harness.db = made.db;
     harness.deauthorizeOk = true;
+    harness.deauthorizeThrows = false;
     sqlite.prepare("INSERT INTO accounts (id, name, created_at, billing_exempt) VALUES (?, ?, 1000, 0)").run(ACTIVE, "Active Co");
     sqlite.prepare("INSERT INTO accounts (id, name, created_at, billing_exempt) VALUES (?, ?, 1000, 0)").run("acct_other", "Other");
   });
@@ -313,6 +318,34 @@ describe("J41 stripe: the action", () => {
     };
     expect(res.data.ok).toBe(true);
     expect(res.data.warning).toContain("Stripe dashboard");
+  });
+
+  it("a revoke that THROWS after the committed batch says the true state: disconnected, with the revoke warning", async () => {
+    // Review finding on 8bbe191: the catch wrapped disconnectConnection whole,
+    // so a throw from the Stripe revoke, which runs AFTER the batch committed,
+    // answered "Could not disconnect Stripe" for a connection that WAS
+    // disconnected. The local write stands; only the revoke failed.
+    seedConnection("c_mine", ACTIVE);
+    harness.deauthorizeThrows = true;
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const res = (await post({ _action: "disconnect-stripe", connectionId: "c_mine" })) as {
+      data: { ok: boolean; warning?: string; error?: string };
+      init?: { status?: number };
+    };
+    expect(disconnectedAt("c_mine")).not.toBeNull();
+    expect(res.init?.status ?? 200).toBe(200);
+    expect(res.data.ok).toBe(true);
+    expect(res.data.warning).toBe(
+      "Disconnected. Revoking access at Stripe did not complete, so check your Stripe dashboard.",
+    );
+    // The thrown error is logged whole.
+    expect(logged).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ message: "STRIPE_SECRET_KEY is not set" }));
+  });
+
+  it("the loader returns only what the page reads: the live connections", async () => {
+    seedConnection("c_mine", ACTIVE);
+    const loaded = (await route.loader({ context: ctx, request: new Request("https://x/settings/stripe"), params: {} } as never)) as Record<string, unknown>;
+    expect(Object.keys(loaded)).toEqual(["connections"]);
   });
 
   it("refuses another account's connection with 403 and writes nothing", async () => {

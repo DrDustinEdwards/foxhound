@@ -305,11 +305,11 @@ describe("PLANT 3: disconnect stamps the timestamp, leaves is_primary, and the r
 
     const loaded = (await loader({ context: ctx, request: new Request("https://x/settings"), params: {} } as never)) as {
       connections: unknown[];
-      everConnected: boolean;
     };
+    // J41: Recova has ONE empty state ("No Stripe account connected") whether
+    // or not the account was ever connected, so the loader no longer returns
+    // the never-connected flag nothing read.
     expect(loaded.connections).toEqual([]);
-    // It knows the difference between never-connected and disconnected.
-    expect(loaded.everConnected).toBe(true);
   });
 });
 
