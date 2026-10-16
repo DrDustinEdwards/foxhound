@@ -218,10 +218,12 @@ async function executeCronJob(
     // record even if alerting is broken, and deliberately FAIL-OPEN: alertCronFailure
     // never throws, and its outcome is carried on the result rather than raised.
     // An observability tool that can fail a money job is worse than none.
+    // The stack goes with it: Recova's alert carries its first 500 characters (E26).
+    const stack = err instanceof Error ? (err.stack ?? null) : null;
     const alert = await alertCronFailure(
       env,
       getDb(env),
-      { cronName, runId, error: message },
+      { cronName, runId, error: message, stack },
       new Date(),
     );
     return { cronName, status: "failed", rowsProcessed: 0, message, runId, alert };

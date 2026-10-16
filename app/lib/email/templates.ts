@@ -1,9 +1,11 @@
 import {
+  alert,
   checkUrl,
   escapeHtml,
   notice,
   renderEmail,
   reset,
+  type AlertLevel,
   type Block,
   type Copy,
   type FooterLine,
@@ -148,8 +150,14 @@ export function renderFoxhoundEmail(input: RenderInput): Rendered {
  * "Foxhound". Pure.
  */
 export function recoveryFooterNote(senderName: string | null | undefined, year: number): string {
-  const name = senderName?.trim() ? senderName.trim() : "Support";
-  return `You're receiving this from ${name} about a recent payment. \u00a9 ${year}`;
+  return `You're receiving this from ${footerSenderName(senderName)} about a recent payment. \u00a9 ${year}`;
+}
+
+/** The sender name a footer line shows: Recova's `sender_name || 'Support'`,
+ *  trimmed. The one authority for that fallback in footer lines (E4 to E6,
+ *  E9). Pure. */
+export function footerSenderName(senderName: string | null | undefined): string {
+  return senderName?.trim() ? senderName.trim() : "Support";
 }
 
 /** Recova's footer link on mail with no unsubscribe: "Manage email settings",
@@ -187,6 +195,44 @@ export function renderFoxhoundResetEmail(input: ResetRenderInput): Rendered {
     url: input.url,
     expiresIn: input.expiresIn,
     copy: input.copy,
+  });
+}
+
+// ---- operator alerts (E26, E27) ------------------------------------------------
+//
+// The cron failure and stale alerts, on Capsomer's own `alert` template: the
+// title as the one heading, the first sentence in the level's note (Capsomer
+// puts the level in front of it as a word), then the detail lines. Plain
+// strings, never markup: Capsomer escapes each one. From "Foxhound", as
+// Recova's FROM_HELLO is "Recova".
+
+export interface EmailAlert {
+  level: AlertLevel;
+  title: string;
+  /** The first sentence, shown in the level's note after the level word. */
+  intro: string;
+  /** When it happened, in words; Capsomer's default intro uses it. */
+  when: string;
+  details: string[];
+}
+
+/** Render one operator alert on Capsomer's alert template. Pure. */
+export function renderFoxhoundAlertEmail(input: {
+  subject: string;
+  to: string;
+  alert: EmailAlert;
+  footer?: FooterLine[];
+}): Rendered {
+  const a = input.alert;
+  return renderEmail(alert, {
+    brand: { name: "Foxhound", family: FOXHOUND_EMAIL_FAMILY },
+    to: input.to,
+    footer: input.footer,
+    level: a.level,
+    what: a.title,
+    when: a.when,
+    details: a.details,
+    copy: { subject: input.subject, heading: a.title, intro: a.intro },
   });
 }
 

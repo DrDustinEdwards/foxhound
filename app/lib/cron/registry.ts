@@ -1,6 +1,6 @@
 import { getDb } from "~/db";
 import { describeMonthlyAuditRun, enqueueMonthlyAudits } from "~/lib/audit/monthly.server";
-import { describeSweepRun, runMonthlyBilling } from "~/lib/billing/run";
+import { computeBillingPeriod, describeSweepRun, runMonthlyBilling } from "~/lib/billing/run";
 import {
   CRON_SCHEDULE_DAILY,
   CRON_SCHEDULE_WEEKLY,
@@ -23,7 +23,7 @@ import {
 import { describeExpiringCardRun, runExpiringCards } from "~/lib/cron/expiring-cards";
 import { describeWeeklyDigestRun, runWeeklyDigest } from "~/lib/cron/digest";
 import { describeWinbackRun, runWinbackSends } from "~/lib/cron/winback";
-import { runCronHealthCheck } from "./alerts.server";
+import { alertCronFailure, billingFailureError, runCronHealthCheck } from "./alerts.server";
 import { runRecoveryTick } from "./recovery-tick";
 import type { CronHandler } from "./run";
 import {
@@ -58,8 +58,18 @@ export interface CronJob {
  *  with a count, and an operator could not tell a sweep that found nothing from
  *  a sweep that never looked. The run itself is still a success, because the
  *  new-period billing below the sweep really did complete. */
-const billingMonthly: CronHandler = async (env) => {
-  const { accounts, sweep } = await runMonthlyBilling(env, Date.now());
+const billingMonthly: CronHandler = async (env, ctx) => {
+  const nowMs = Date.now();
+  const { accounts, sweep } = await runMonthlyBilling(env, nowMs);
+  // A human hears about per-account failures (E26), as Recova's
+  // process-recovery-billing does; the run itself still succeeds.
+  const failure = billingFailureError(
+    accounts.filter((r) => r.error !== undefined).map((r) => r.accountId),
+    computeBillingPeriod(nowMs).periodStart,
+  );
+  if (failure) {
+    await alertCronFailure(env, getDb(env), { cronName: "billing-monthly", runId: ctx?.runId ?? null, error: failure }, new Date(nowMs));
+  }
   const applied = accounts.flatMap((r) => r.invoices).filter((i) => i.applied);
   return {
     rowsProcessed: applied.length,
