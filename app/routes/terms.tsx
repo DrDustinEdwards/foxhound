@@ -101,8 +101,9 @@ export default function TermsPage() {
             Stripe. When a subscriber&apos;s payment fails, Foxhound detects the failure via Stripe
             webhook, classifies the decline, and, wherever the decline can be retried, attempts a silent
             retry before any customer ever sees an email. If there is no silent retry or it does not work,
-            Foxhound generates a personalized recovery email and continues the sequence over{" "}
-            {RECOVERY_SEQUENCE_DAYS} days. Foxhound also drafts dispute evidence automatically, but
+            Foxhound generates a personalized recovery email and, unless the customer has revoked
+            authorization, continues the sequence over {RECOVERY_SEQUENCE_DAYS} days. Foxhound also drafts
+            dispute evidence automatically, but
             every submission requires a merchant to review and approve it first, there is no automatic
             submission. Merchants connect their Stripe account once via OAuth, and Foxhound runs
             automatically in the background. Foxhound does not store card numbers or access payout or bank

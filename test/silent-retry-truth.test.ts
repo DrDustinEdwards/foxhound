@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 
 import { DECLINE_CONTENT } from "~/lib/decline-codes/content";
 import { classifyDecline, isRetryable } from "~/lib/recovery/decline";
-import { isRetryStep, RECOVERY_SCHEDULES } from "~/lib/recovery/schedule";
+import { isEmailStep, isRetryStep, RECOVERY_SCHEDULES } from "~/lib/recovery/schedule";
 
 // Copy must not say every failed payment gets a silent retry before the first
 // email. The engine (app/lib/recovery/schedule.ts, RECOVERY_SCHEDULES) leads
@@ -31,9 +31,27 @@ const CLAIMS: RegExp[] = [
 /** A sentence saying a retry does NOT happen is not a claim that one does. */
 const NEGATION = /\b(rather than|instead of|no|not) a silent retry\b/;
 
-/** Words that scope a claim to the declines it is true for. */
-const QUALIFIER =
-  /\b(soft|network|where|wherever|retryable|can be retried|allows a retry|category allows|a retry can work)\b/;
+/**
+ * The scoping phrases copy actually uses to say which declines get the retry.
+ * A whole phrase, not a bare word: "soft", "network" or "where" alone can sit
+ * in a sentence that still claims every decline ("every decline, soft or
+ * hard, gets a silent retry first").
+ */
+const QUALIFIERS: RegExp[] = [
+  /\bwherever the decline can be retried\b/,
+  /\bwhere the decline allows a retry\b/,
+  /\bwhere the category allows one\b/,
+  /\bwhere a retry can work\b/,
+  /\bwhere retryable\b/,
+  /\bwhen a retryable payment fails\b/,
+  /\bfor a soft or network decline\b/,
+  /^a soft decline gets\b/,
+];
+
+/** Words that widen a claim back to every decline, whatever else it says. */
+const EVERY = /\b(every|all|any) (decline|declines|failed payment|failed payments|payment)\b|\bhard\b/;
+
+const isScoped = (s: string) => !EVERY.test(s) && QUALIFIERS.some((re) => re.test(s));
 
 // Sentences whose scope comes from where they sit, not from their own words.
 // Each entry is a file and a fragment of the sentence.
@@ -93,6 +111,14 @@ describe("silent retry copy matches the engine", () => {
     }
   });
 
+  it("a scoping word does not excuse a sentence that still claims every decline", () => {
+    const planted = "every decline, soft or hard, gets a silent retry first.";
+    expect(isClaim(planted)).toBe(true);
+    expect(isScoped(planted)).toBe(false);
+    expect(isScoped("a silent retry runs first where the network is up.")).toBe(false);
+    expect(isScoped("a silent retry runs first, wherever the decline can be retried.")).toBe(true);
+  });
+
   it("no copy under app/ says a silent retry comes first without naming which declines", () => {
     const offenders: string[] = [];
     for (const file of walk(APP)) {
@@ -100,7 +126,7 @@ describe("silent retry copy matches the engine", () => {
       if (rel === "lib/decline-codes/content.ts") continue; // per-code, checked below
       for (const text of literalTexts(file)) {
         for (const s of sentences(text)) {
-          if (!isClaim(s) || QUALIFIER.test(s)) continue;
+          if (!isClaim(s) || isScoped(s)) continue;
           if (SCOPED_BY_CONTEXT.some(([f, frag]) => f === rel && s.includes(frag))) continue;
           offenders.push(`${rel}: ${s}`);
         }
@@ -124,6 +150,21 @@ describe("silent retry copy matches the engine", () => {
       const texts = [entry.meaning, entry.whyItHappens, entry.howToFix, ...entry.faqs.flatMap((f) => [f.question, f.answer])];
       for (const s of texts.flatMap(sentences)) {
         if (!NEGATION.test(s) && RETRY_CLAIMS.some((re) => re.test(s))) offenders.push(`${code}: ${s}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it("a decline-code page never says Foxhound suppresses the emails its category's schedule sends", () => {
+    const SUPPRESSES = /\b(suppress\w*|skips?|stops?|pauses?)\b.*\b(email|emails|dunning)\b/;
+    const NAMES_FOXHOUND = /\b(foxhound|bucket)\b/;
+    const offenders: string[] = [];
+    for (const [code, entry] of Object.entries(DECLINE_CONTENT)) {
+      const steps = RECOVERY_SCHEDULES[classifyDecline(code)];
+      if (!steps.some((s) => isEmailStep(s.stepType))) continue;
+      const texts = [entry.meaning, entry.whyItHappens, entry.howToFix, ...entry.faqs.flatMap((f) => [f.question, f.answer])];
+      for (const s of texts.flatMap(sentences)) {
+        if (NAMES_FOXHOUND.test(s) && SUPPRESSES.test(s)) offenders.push(`${code}: ${s}`);
       }
     }
     expect(offenders).toEqual([]);

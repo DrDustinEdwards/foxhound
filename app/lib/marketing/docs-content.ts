@@ -110,7 +110,7 @@ export const DOC_GUIDES: DocGuide[] = [
         body: [
           { kind: "h3", text: "How Foxhound works" },
           "Foxhound watches your connected Stripe account for failed payments. Stripe sends a webhook within seconds of a failure, Foxhound reads the decline code, sorts the failure into a category, and opens a recovery sequence for it without you doing anything.",
-          "A sequence is a quiet retry first wherever the decline can be retried, then AI-written emails and any further retries spread across thirty days, with the timing chosen by what went wrong. If the payment comes back at any point, the steps still ahead of it are cancelled. If the sequence runs out without the payment coming back, the payment is marked failed unrecovered and you are told.",
+          "A sequence is a quiet retry first wherever the decline can be retried, then AI-written emails and any further retries spread across up to thirty days, with the timing chosen by what went wrong. If the payment comes back at any point, the steps still ahead of it are cancelled. If the sequence runs out without the payment coming back, the payment is marked failed unrecovered and you are told.",
           "Foxhound works every failed payment on its own, and you can step in on any payment from its page.",
           { kind: "note", body: "Foxhound starts after Stripe's own Smart Retries have run and failed. It does not interfere with Stripe's recovery logic, and a payment Stripe brings back on its own is recorded and never billed." },
           { kind: "h3", text: "Connecting your Stripe account" },
@@ -370,7 +370,7 @@ export const DOC_GUIDES: DocGuide[] = [
         heading: "Recovery sequences",
         body: [
           { kind: "h3", text: "How sequences are built by decline type" },
-          "Declines are sorted into six categories: soft, network, expired, fraud, revoked, and unknown. Each gets its own schedule, spread across thirty days, chosen by what is actually wrong with the payment. When a retryable payment fails, Foxhound attempts a quiet retry before any customer sees an email, and only after that does the first email go out, with a hosted card-update link.",
+          "Declines are sorted into six categories: soft, network, expired, fraud, revoked, and unknown. Each gets its own schedule, spread across up to thirty days, chosen by what is actually wrong with the payment. When a retryable payment fails, Foxhound attempts a quiet retry before any customer sees an email, and only after that does the first email go out, with a hosted card-update link.",
           { kind: "widget", name: "decline-categories" },
           "Each category's steps in order, from the engine's own schedule table:",
           { kind: "widget", name: "sequence-timelines" },

@@ -641,7 +641,7 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
       {
         question: "Why doesn't Foxhound send its normal dunning email for this code?",
         answer:
-          "Because `fraudulent` sits in Foxhound's fraud classification bucket, which suppresses the automated retry and email sequence in favor of flagging the case for careful handling.",
+          "Because `fraudulent` sits in Foxhound's fraud classification bucket, which never retries the charge and sends the fraud bucket's own email sequence instead of the normal one, asking the customer to approve the charge with their bank or use a different card.",
       },
       {
         question: "Is this the same as a chargeback?",
@@ -677,7 +677,7 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
       {
         question: "Does Foxhound treat `lost_card` the same as an obvious fraud code like `stolen_card`?",
         answer:
-          "For retry and automation purposes, yes, both sit in Foxhound's fraud bucket and both stop automated retries and the standard dunning sequence. The underlying customer story is usually very different, which is why careful handling rather than a form email matters here.",
+          "For retry and automation purposes, yes, both sit in Foxhound's fraud bucket: no automated retries, and the fraud bucket's own email sequence in place of the standard dunning sequence. The underlying customer story is usually very different, which is why careful handling rather than a form email matters here.",
       },
       {
         question: "Will the customer's subscription just cancel automatically?",
@@ -718,7 +718,7 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
       {
         question: "Does Foxhound send its usual payment-failed email for `stolen_card`?",
         answer:
-          "No. It falls in Foxhound's fraud bucket, which suppresses the automatic retry and dunning sequence in favor of flagging the case for careful handling.",
+          "No. It falls in Foxhound's fraud bucket, which never retries the charge and sends the fraud bucket's own email sequence instead, asking the customer to approve the charge with their bank or use a different card.",
       },
     ],
   },
@@ -754,7 +754,7 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
       {
         question: "Does Foxhound's dunning sequence run for this code?",
         answer:
-          "No. It's in the fraud bucket, so Foxhound stops automated retries and skips the standard automated email sequence in favor of flagging it for careful handling.",
+          "Not the standard one. It's in the fraud bucket, so Foxhound never retries the charge and runs the fraud bucket's own email sequence instead, asking the customer to approve the charge with their bank or use a different card.",
       },
     ],
   },
@@ -790,7 +790,7 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
       {
         question: "Does Foxhound run its usual recovery email for this code?",
         answer:
-          "No. `restricted_card` sits in the fraud bucket, so Foxhound suppresses the automated retry and dunning sequence and flags the case for careful handling instead.",
+          "No. `restricted_card` sits in the fraud bucket, so Foxhound never retries the charge and sends the fraud bucket's own email sequence instead of its usual recovery email.",
       },
     ],
   },
@@ -826,7 +826,7 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
       {
         question: "Why does Foxhound still classify this as fraud rather than a routine soft decline?",
         answer:
-          "Because the code reflects a bank-side security block rather than a simple temporary failure, and Foxhound treats that as reason enough to pause automated retries and emails in favor of a more deliberate handling path.",
+          "Because the code reflects a bank-side security block rather than a simple temporary failure, and Foxhound treats that as reason enough to never retry the charge and to send the fraud bucket's own email sequence instead of the standard one.",
       },
     ],
   },
@@ -905,7 +905,7 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
 
   card_velocity_exceeded: {
     meaning:
-      "`card_velocity_exceeded` is Stripe's decline code for a card that has hit a balance, credit limit, or transaction amount limit set by the issuer. Per Stripe's own definition, it covers all three: available balance, credit ceiling, and per-transaction amount caps. It is generally regarded as a soft, retryable decline.\n\nWorth stating plainly: Foxhound's decline classifier doesn't have a named rule specifically for `card_velocity_exceeded`. It isn't one of the codes the classifier singles out for particular handling. Any code the classifier doesn't recognize by name falls through to the unknown category, which fails closed: no automatic retry runs, and recovery goes straight to a card-update email. That's exactly what happens here. This isn't a case of Foxhound doing something bespoke for velocity-related declines specifically. It's the classifier's fallback behavior doing its job on a code it doesn't have special logic for.",
+      "`card_velocity_exceeded` is Stripe's decline code for a card that has hit a balance, credit limit, or transaction amount limit set by the issuer. Per Stripe's own definition, it covers all three: available balance, credit ceiling, and per-transaction amount caps. It is often handled as a soft decline elsewhere, since the limit behind it can reset.\n\nWorth stating plainly: Foxhound's decline classifier doesn't have a named rule specifically for `card_velocity_exceeded`. It isn't one of the codes the classifier singles out for particular handling. Any code the classifier doesn't recognize by name falls through to the unknown category, which fails closed: no automatic retry runs, and recovery goes straight to a card-update email. That's exactly what happens here. This isn't a case of Foxhound doing something bespoke for velocity-related declines specifically. It's the classifier's fallback behavior doing its job on a code it doesn't have special logic for.",
     whyItHappens:
       "The name suggests a count of transactions in a time window, and that reading isn't wrong: velocity limits are exactly the kind of check that catches a card getting charged repeatedly in a short span, whether from one merchant with retry logic or several merchants firing charges close together. Subscription businesses can trigger this in either direction: a merchant's own retry attempts stacking up too quickly, or a customer's card being charged by several different recurring services within the same billing window. A charge amount well beyond a card's typical transaction size can also trip a per-transaction limit even when the account's overall balance would otherwise cover it.",
     howToFix:

@@ -76,7 +76,7 @@ export const PRICING_CARDS: PricingCard[] = [
     description: `AI-drafted email sequences and silent retries across ${RECOVERY_SEQUENCE_DAYS} days. ${DECLINE_CATEGORY_COUNT_WORD} decline categories, ${countWord(DISTINCT_SEQUENCE_COUNT).toLowerCase()} different sequences.`,
     features: [
       "Silent retry before any customer email, wherever the decline can be retried",
-      `${RECOVERY_SEQUENCE_DAYS}-day sequences across ${DECLINE_CATEGORY_COUNT} decline categories`,
+      `Up to ${RECOVERY_SEQUENCE_DAYS}-day sequences across ${DECLINE_CATEGORY_COUNT} decline categories`,
       "Baseline recoveries Stripe would have gotten anyway are free",
       `No fee until the recovery has matured ${RECOVERY_MATURITY_DAYS} days`,
       "Card-update link on every email",

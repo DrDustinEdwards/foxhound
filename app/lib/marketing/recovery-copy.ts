@@ -48,7 +48,7 @@ export const CATEGORY_PILL_WORDS: Record<DeclineCategory, string> = {
   unknown: "Unclassified",
 };
 
-export const RECOVERY_META_DESCRIPTION = `${RECOVERY_SEQUENCE_DAYS}-day AI recovery sequences across ${DECLINE_CATEGORY_COUNT} decline categories. ${pct} of what Foxhound recovers, nothing before that.`;
+export const RECOVERY_META_DESCRIPTION = `Up to ${RECOVERY_SEQUENCE_DAYS}-day AI recovery sequences across ${DECLINE_CATEGORY_COUNT} decline categories. ${pct} of what Foxhound recovers, nothing before that.`;
 
 export const RECOVERY_HERO = {
   // Truthfulness: Recova reads "of what you recover". Foxhound bills only the
@@ -118,7 +118,7 @@ export const RECOVERY_PRICING = {
   priceLabel: "of Foxhound-attributed recoveries, invoiced monthly",
   points: [
     "No monthly fee, you pay nothing until Foxhound recovers a payment",
-    `${RECOVERY_SEQUENCE_DAYS}-day sequences across ${DECLINE_CATEGORY_COUNT} decline categories`,
+    `Up to ${RECOVERY_SEQUENCE_DAYS}-day sequences across ${DECLINE_CATEGORY_COUNT} decline categories`,
     // Truthfulness: Recova's "Haiku quality audit pass" names a model and an
     // AI audit. Foxhound's gate (passesQualityGate, app/lib/recovery/
     // email-generation.ts) is a deterministic brand-voice check.

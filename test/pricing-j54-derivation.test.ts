@@ -63,7 +63,7 @@ describe("/pricing follows the engine constants (J54)", () => {
 
   it("the sequence length comes from the recovery schedule, and the category count from the engine", () => {
     expect(html).toContain("AI-drafted email sequences and silent retries across 35 days. Seven decline categories, four different sequences.");
-    expect(html).toContain(">35-day sequences across 7 decline categories<");
+    expect(html).toContain(">Up to 35-day sequences across 7 decline categories<");
   });
 
   it("the maturity window comes from RECOVERY_MATURITY_DAYS, in the bullet, the FAQ and the meta description", () => {

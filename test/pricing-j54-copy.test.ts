@@ -40,6 +40,8 @@ import PricingPage, { meta as pricingMeta } from "~/routes/pricing";
 // engine leads with a retry only where the decline can be retried, and two
 // categories (expired and unknown) share one schedule. The description now
 // says what the engine does, and the bullet names where the retry runs.
+// The day-count bullet reads "Up to N-day" because a revoked decline gets
+// one email and stops, so not every sequence runs the full N days.
 //
 // pricing-j54-derivation.test.ts moves the constants and expects the page to
 // move with them, which is what proves the numbers are read and not typed.
@@ -93,7 +95,7 @@ const SPEC = [
     description: `AI-drafted email sequences and silent retries across ${SEQ_DAYS} days. ${DECLINE_CATEGORY_COUNT_WORD} decline categories, ${countWord(DISTINCT_SEQUENCES).toLowerCase()} different sequences.`,
     features: [
       "Silent retry before any customer email, wherever the decline can be retried",
-      `${SEQ_DAYS}-day sequences across ${DECLINE_CATEGORY_COUNT} decline categories`,
+      `Up to ${SEQ_DAYS}-day sequences across ${DECLINE_CATEGORY_COUNT} decline categories`,
       "Baseline recoveries Stripe would have gotten anyway are free",
       `No fee until the recovery has matured ${RECOVERY_MATURITY_DAYS} days`,
       "Card-update link on every email",
