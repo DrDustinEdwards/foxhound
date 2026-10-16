@@ -102,21 +102,46 @@ export function buildOpenStamp(db: Db, stepId: string, now: Date) {
     .where(eq(recoverySteps.id, stepId));
 }
 
-/** First-click stamp: sets clicked_at once. This is the email_engaged attribution signal.
+/**
+ * The click stamp, written on EVERY human click (row F10). Recova's
+ * email.clicked handler (webhooks/resend/route.ts) is the spec for what one
+ * click does to the step:
  *
- *  `suspectReason` is written ONLY when there is one. Passing null must not
- *  clear an existing mark: the honeypot can be fetched before the real click
- *  arrives, and a stamp that blanked the column would launder exactly the click
- *  the honeypot caught. */
+ *   email_clicked_count  + 1, a NULL read as 0   every click
+ *   last_clicked_at      now                      every click
+ *   clicked_at           now                      first click only
+ *
+ * clicked_at is the email_engaged attribution signal and click_suspect_reason
+ * decides whether it may bill (RULES.md 3.4), so BOTH STAY FIRST-CLICK ONLY:
+ * they change exactly as they did when this stamp matched only a step with no
+ * click yet. A repeat click moves the counter and the last-click time, which
+ * nothing in attribution or billing reads. One UPDATE, so SQLite evaluates
+ * every SET expression against the row as it was: `clicked_at is null` below
+ * means "this is the first click" for every column at once.
+ *
+ * `suspectReason` is written ONLY when there is one, and only on the first
+ * click. Passing null must not clear an existing mark: the honeypot can be
+ * fetched before the real click arrives, and a stamp that blanked the column
+ * would launder exactly the click the honeypot caught.
+ */
 export function buildClickStamp(db: Db, stepId: string, now: Date, suspectReason: string | null) {
+  const nowMs = now.getTime();
+  const counts = {
+    emailClickedCount: sql`coalesce(${recoverySteps.emailClickedCount}, 0) + 1`,
+    lastClickedAt: now,
+    clickedAt: sql`coalesce(${recoverySteps.clickedAt}, ${nowMs})`,
+  };
   return db
     .update(recoverySteps)
     .set(
       suspectReason
-        ? { clickedAt: now, lastClickedAt: now, clickSuspectReason: suspectReason }
-        : { clickedAt: now, lastClickedAt: now },
+        ? {
+            ...counts,
+            clickSuspectReason: sql`case when ${recoverySteps.clickedAt} is null then ${suspectReason} else ${recoverySteps.clickSuspectReason} end`,
+          }
+        : counts,
     )
-    .where(and(eq(recoverySteps.id, stepId), isNull(recoverySteps.clickedAt)));
+    .where(eq(recoverySteps.id, stepId));
 }
 
 /**

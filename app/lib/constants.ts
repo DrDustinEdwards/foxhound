@@ -484,8 +484,8 @@ export const ENGAGEMENT_HONEYPOT_PATH = "/e/h";
  * The walk that produced 377(4) found the click guard reads four things and
  * none of them separates a scanner from a person: IP is persisted nowhere,
  * `email_clicked_count` and `time_to_open_minutes` had zero writers (the open
- * stamp writes time to open since row F9, J26; it says when a person opened,
- * not whether a click was one), and an enterprise link scanner (SafeLinks,
+ * stamp writes time to open since row F9, J26, and the click stamp counts
+ * clicks since row F10, J27; neither says whether a click was a person), and an enterprise link scanner (SafeLinks,
  * Proofpoint, Mimecast) presents a full browser user agent, so 369's named-bot
  * list cannot see it. The only live
  * discriminator already stored is `clicked_at - executed_at`, and nothing read
