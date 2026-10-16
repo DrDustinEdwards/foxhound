@@ -637,7 +637,9 @@ describe("PLANT 7: 311's rate limiter is USED, and UNCHANGED", () => {
     // gaining a rule in the matcher, and this pins that the matcher did not move.
     const post = (path: string) =>
       resolveRateLimitBinding(new Request(`${ORIGIN}${path}`, { method: "POST" }));
-    expect(post("/api/auth/x")).toEqual({ bucket: "auth", limit: 10, periodMs: 60_000 });
+    // The auth bucket left this matcher for site-runtime's limiter inside the
+    // auth actions (J52); the public bucket is what remains, unchanged.
+    expect(post("/api/auth/x")).toBeNull();
     expect(post("/audit")).toEqual({ bucket: "public", limit: 20, periodMs: 60_000 });
     expect(post("/demos")).toEqual({ bucket: "public", limit: 20, periodMs: 60_000 });
     // The audit pair gains NO entry here, and GET is still unmatched everywhere.

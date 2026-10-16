@@ -262,10 +262,19 @@
         // configured, invoked, and keyed, yet .limit() returned
         // {success:true} unconditionally live in production past every
         // configured limit - an open-beta API with no observability from our
-        // side). Addressed by idFromName(`${bucket}:${key}`), bucket in
-        // {"auth","public"}, key = client IP (app/lib/http/rate-limit.ts).
+        // side). Addressed by idFromName(`${bucket}:${key}`): the "public"
+        // bucket keyed on client IP and the per-caller checks of
+        // app/lib/http/rate-limit.ts. Sign-in and signup moved to
+        // AUTH_RATE_LIMITER below (J52).
         "name": "RATE_LIMITER",
         "class_name": "RateLimiterDurableObject"
+      },
+      {
+        // The sign-in and signup limiter: site-runtime's RateLimiter class
+        // (Q5, RULES.md 4.10), exported from workers/app.ts. One instance per
+        // "auth:<ip>" or "signup:<ip>" (app/lib/auth/rate-limit.server.ts).
+        "name": "AUTH_RATE_LIMITER",
+        "class_name": "RateLimiter"
       }
     ]
   },
@@ -284,7 +293,8 @@
   "exports": {
     "MoneyWriteDurableObject": { "type": "durable-object", "storage": "sqlite" },
     "CronLockDurableObject": { "type": "durable-object", "storage": "sqlite" },
-    "RateLimiterDurableObject": { "type": "durable-object", "storage": "sqlite" }
+    "RateLimiterDurableObject": { "type": "durable-object", "storage": "sqlite" },
+    "RateLimiter": { "type": "durable-object", "storage": "sqlite" }
   },
 
   // All scheduled jobs are Cron Triggers (ARCHITECTURE.md; no HTTP cron surface,
