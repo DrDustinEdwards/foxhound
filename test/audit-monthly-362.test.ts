@@ -194,9 +194,6 @@ async function seedAccount(
     id,
     name: id,
     notificationEmail: `${id}@merchant.test`,
-    // Since E24 the mail goes on the merchant notice path, which the live-send
-    // switch holds; these accounts are switched on so the run is what is tested.
-    liveSendsEnabled: true,
     createdAt: NOW,
     ...row,
   });

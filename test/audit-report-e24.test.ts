@@ -350,16 +350,54 @@ describe("a refused send returns its named outcome (RULES.md 3.16)", () => {
     expect(await db.select().from(auditRuns)).toHaveLength(1);
   });
 
-  it("an account whose live sends are off is held, says blocked, and is not retried", async () => {
+  it("an account whose live sends are off still gets its report: Recova has no such switch", async () => {
+    // Review round 1 of PR 160. live_sends_enabled defaults false and is on
+    // only for the end-to-end test account (RULES.md 3.21), so holding this
+    // mail behind it would silence every real merchant's report.
     const db = fresh();
     await seed(db, "acct_on", { liveSendsEnabled: false });
     const { sent, env } = collector();
 
-    const action = await processMonthlyAuditMessage(env, { accountId: "acct_on", periodMonth: PERIOD, cronRunId: null }, 1, NOW);
+    const outcome = await monthly.auditAccountForMonth(env, { accountId: "acct_on", periodMonth: PERIOD, cronRunId: null }, NOW);
 
-    expect(action).toBe("ack");
+    expect(outcome.status).toBe("sent");
+    expect(sent).toHaveLength(1);
+    expect((await db.select().from(auditDigestRuns))[0].status).toBe("sent");
+  });
+
+  it("a standing send claim for the month is already_sent: nothing is mailed again", async () => {
+    // The month row failed after its email_sends claim was taken with no
+    // error (the outcome is unknown), so the retry must not mail a second time.
+    // The key is per account per MONTH, so a retry (new audit run id) finds it.
+    const db = fresh();
+    await seed(db, "acct_on");
+    await db.insert(emailSends).values({
+      id: "es_planted",
+      idempotencyKey: `monthly-audit:acct_on:${PERIOD}`,
+      accountId: "acct_on",
+      template: "monthly_audit",
+      status: "pending",
+      error: null,
+      createdAt: NOW,
+    });
+    await db.insert(auditDigestRuns).values({
+      id: "month_planted",
+      accountId: "acct_on",
+      periodMonth: PERIOD,
+      totals: null,
+      status: "failed",
+      error: "earlier",
+      sentAt: null,
+      cronRunId: null,
+      createdAt: NOW,
+    });
+    const { sent, env } = collector();
+
+    const outcome = await monthly.auditAccountForMonth(env, { accountId: "acct_on", periodMonth: PERIOD, cronRunId: null }, NOW);
+
+    expect(outcome.status).toBe("already_sent");
     expect(sent).toHaveLength(0);
-    expect((await db.select().from(auditDigestRuns))[0].status).toBe("blocked");
+    expect((await db.select().from(auditDigestRuns))[0].status).toBe("already_sent");
   });
 
   it("a provider failure is failed, with the provider's words, and is retried", async () => {

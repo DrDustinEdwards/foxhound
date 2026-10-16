@@ -316,8 +316,6 @@ describe("PLANT 5: a real run leaves no money row behind", () => {
       name: "acct_on",
       notificationEmail: "owner@merchant.test",
       auditAutoRun: true,
-      // E24: the merchant notice path is held by the live-send switch.
-      liveSendsEnabled: true,
       createdAt: NOW,
     });
     await db.insert(stripeConnections).values({

@@ -527,7 +527,8 @@ export type MonthlyAuditAccountStatus =
   | "no_recipient"
   /** The address is on the suppression list; nothing was sent (E24). */
   | "suppressed"
-  /** The account's live sends are off; nothing was sent (E24). */
+  /** The live-send gate held the mail. Unreachable while this sender passes
+   *  liveSendGate "skip"; kept so the mapping stays total (E24). */
   | "blocked"
   /** The email_sends claim for this month already stood (E24). */
   | "already_sent"
@@ -554,7 +555,9 @@ export interface MonthlyAuditAccountOutcome {
  * processEmailJob on the merchant audience, as E10 and E21 do: From "Foxhound"
  * at Foxhound's merchant-facing address, Recova's footer sentence and its
  * "Manage email settings" link, no unsubscribe, no Reply-To, the email_sends
- * claim, suppression and the live-send switch. Each of its outcomes settles the
+ * claim and suppression. It is NOT held by the per-account live-send switch
+ * (liveSendGate "skip"), which Recova does not have and which is off for every
+ * real merchant (review round 1 of PR 160). Each of its outcomes settles the
  * month under its own name; only a provider failure is retried.
  *
  * NO OUTCOME AND NO BILLING ROW. `saveAuditRun` is a plain insert, not a money
@@ -649,6 +652,10 @@ export async function auditAccountForMonth(
         template: MONTHLY_AUDIT_TEMPLATE,
         // Platform-to-merchant mail. See EmailAudience.
         audience: "merchant",
+        // Not held by the live-send switch, which Recova does not have and which
+        // is off for every real merchant (RULES.md 3.21). Demo and ineligible
+        // accounts were already refused by eligibleAccount above.
+        liveSendGate: "skip",
         unsubscribeToken: "",
         physicalAddress: "",
         // One logical send per account per month, as the month claim is.

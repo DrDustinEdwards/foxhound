@@ -97,6 +97,15 @@ interface EmailJobFields {
   /** Defaults to "customer", the CAN-SPAM-bearing case. */
   audience?: EmailAudience;
   /**
+   * "skip" lets this job past the per-account live-send gate in
+   * processEmailJob. ONLY for platform-to-merchant mail whose caller has already
+   * applied the demo and account-eligibility checks itself (the monthly audit,
+   * E24, through accountProcessingEligibleCondition). Never for customer mail:
+   * the gate is what keeps a merchant's customers unmailed until the merchant
+   * is switched on. Absent means the gate applies.
+   */
+  liveSendGate?: "skip";
+  /**
    * The open pixel and the scanner trap of a dunning send (J02). Carried beside
    * the body rather than inside it, so the frame places them in the HTML part
    * only and the text part never shows them. Absent on every other send.

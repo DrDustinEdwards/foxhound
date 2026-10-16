@@ -154,8 +154,6 @@ async function seedAccount(db: TestDb, id: string, row: Record<string, unknown> 
     name: id,
     notificationEmail: `${id}@merchant.test`,
     auditAutoRun: true,
-    // E24: the merchant notice path is held by the live-send switch.
-    liveSendsEnabled: true,
     createdAt: NOW,
     ...row,
   });
