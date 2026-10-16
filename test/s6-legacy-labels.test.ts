@@ -111,11 +111,11 @@ describe("S6 status labels: every surface the label table feeds", () => {
     );
   });
 
-  it("the CSV export's Status column reads through the same label table", () => {
+  it("the CSV export's Status column writes the stored value, as Recova's export did", () => {
     // Legacy does ship this export (PaymentsClient.tsx exportToCSV, columns in
-    // lib/csv.ts), so it is not net-new. Legacy's export wrote the raw status
-    // column value; the export reads through the label table like every other
-    // surface here, a difference reported for a ruling rather than decided.
+    // lib/csv.ts), and it writes the raw status column value. The label table
+    // feeds the badges only: APPROVED-DIFFERENCES 2026-08-14 covers the status
+    // badges, not the export, so the export keeps Recova's form.
     const csv = buildPaymentsCsv(
       [
         {
@@ -131,7 +131,8 @@ describe("S6 status labels: every surface the label table feeds", () => {
         },
       ] as Parameters<typeof buildPaymentsCsv>[0],
     );
-    expect(csv).toContain(",Active,");
+    expect(csv).toContain(",active,");
+    expect(csv).not.toContain(",Active,");
     expect(csv).not.toContain("In recovery");
   });
 });
