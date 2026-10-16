@@ -17,7 +17,6 @@ import {
   outcomeNotice,
   reminderKey,
   reminderNotice,
-  type RenderedNotice,
   type ReminderBucket,
 } from "./notices";
 
@@ -112,7 +111,7 @@ async function send(
   env: Env,
   accountId: string,
   to: string,
-  content: RenderedNotice | (NoticeMail & { footerNote: string }),
+  content: NoticeMail & { footerNote: string },
   template: string,
   idempotencyKey: string,
   cronRunId: string | null,
@@ -131,15 +130,9 @@ async function send(
     idempotencyKey,
     cronRunId,
   };
-  const result = await processEmailJob(
-    env,
-    "notice" in content
-      ? // E16 and E17: Capsomer's notice template, and Recova's footer line,
-        // under which send.ts puts "Manage email settings" on merchant mail.
-        { ...common, notice: content.notice, footerNote: content.footerNote }
-      : { ...common, bodyHtml: content.bodyHtml },
-    null,
-  );
+  // Capsomer's notice template, and Recova's footer line, under which send.ts
+  // puts "Manage email settings" on merchant mail (E16, E17, E19, E20).
+  const result = await processEmailJob(env, { ...common, notice: content.notice, footerNote: content.footerNote }, null);
   return { kind: "sent", result };
 }
 
@@ -204,20 +197,23 @@ export async function sendDisputeOutcomeNotice(
       return { kind: "skipped", reason: "not_resolved" };
     }
     if (!row.notificationEmail) return { kind: "skipped", reason: "no_recipient" };
-    const notice = outcomeNotice({
-      won: row.state === "resolved_won",
-      amountCents: row.amountCents,
-      currency: row.currency,
-      reason: row.reason,
-      foxhoundSubmitted: row.submittedAt != null,
-      // A billing-exempt account is never invoiced (accountBillingEligibleCondition).
-      feeCents: row.billingExempt ? null : row.resolvedFeeCents,
-      feeCurrency: row.resolvedFeeCurrency ?? row.currency,
-      // A paused account is skipped by the billing run until it resumes, so no
-      // date is promised (accountBillingEligibleCondition, PR 149 review).
-      invoiceDate: row.processingPaused ? null : nextDisputeBillingRun(row.resolvedAt ?? new Date()),
-      listUrl: appUrl(env, "/disputes/dashboard"),
-    });
+    const notice = {
+      ...outcomeNotice({
+        won: row.state === "resolved_won",
+        amountCents: row.amountCents,
+        currency: row.currency,
+        reason: row.reason,
+        foxhoundSubmitted: row.submittedAt != null,
+        // A billing-exempt account is never invoiced (accountBillingEligibleCondition).
+        feeCents: row.billingExempt ? null : row.resolvedFeeCents,
+        feeCurrency: row.resolvedFeeCurrency ?? row.currency,
+        // A paused account is skipped by the billing run until it resumes, so no
+        // date is promised (accountBillingEligibleCondition, PR 149 review).
+        invoiceDate: row.processingPaused ? null : nextDisputeBillingRun(row.resolvedAt ?? new Date()),
+        listUrl: appUrl(env, "/disputes/dashboard"),
+      }),
+      footerNote: disputeNoticeFooterNote(row.senderName, new Date().getUTCFullYear()),
+    };
     return await send(
       env,
       ctx.accountId,

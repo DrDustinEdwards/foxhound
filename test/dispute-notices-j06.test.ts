@@ -231,7 +231,7 @@ describe("NOTICE 2 and 3: a closed dispute tells the merchant it was won or lost
     };
     expect(fee.fee).toBe(1000);
     expect(mail.html).toContain("$10.00");
-    expect(mail.html).toContain("20% of the disputed amount, capped at $500");
+    expect(mail.html).toContain("Foxhound fee: $10.00 (20% of the saved amount). This will be invoiced on 2026-12-01.");
     // Billed at the next monthly run after resolution (PRICING.md).
     expect(mail.html).toContain("2026-12-01");
     expect(mail.html).toContain("https://foxhoundapp.test/disputes/dashboard");
