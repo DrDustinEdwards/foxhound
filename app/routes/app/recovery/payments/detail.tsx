@@ -5,7 +5,7 @@ import { ArrowRight, ArrowUpRight, Check, ChevronDown, Circle, Mail, RotateCcw, 
 import { Form, Link, data, useFetcher, useNavigation, useRouteLoaderData } from "react-router";
 import { Banner } from "capsomer/react/banner";
 import { Panel } from "capsomer/react/panel";
-import { Pill } from "capsomer/react/status";
+import { Pill, Status } from "capsomer/react/status";
 import "capsomer/banner.css";
 import "capsomer/button.css";
 import "capsomer/field.css";
@@ -40,6 +40,7 @@ import {
   recoveredViaWords,
   statusValueClass,
   stepResultWords,
+  visibleActionResult,
 } from "~/lib/recovery/payment-detail";
 import { declineWord } from "~/lib/recovery/payments-list";
 import { paymentStepLabel } from "~/lib/recovery/payments-list.server";
@@ -248,6 +249,14 @@ export const ACTIONS_VISIBLE_STATUS = "active";
  *  221 at blob 7f54aa45). */
 export const COPIED_RESET_MS = 2000;
 
+/** The Copy email button's words: "Copy email", then Recova's copied state
+ *  for COPIED_RESET_MS (PaymentDetailClient.tsx 248-253, green "Copied" with a
+ *  tick), as Capsomer's ok status: its tick glyph and word in the ok colour. */
+export function CopyEmailLabel({ copied }: { copied: boolean }) {
+  if (!copied) return <>Copy email</>;
+  return <Status tone="ok">Copied</Status>;
+}
+
 /** Legacy's back link, PaymentDetailClient.tsx 130-132. */
 export const BACK_LINK_REAL = { href: "/recovery/dashboard", label: "Back to dashboard" };
 export const BACK_LINK_DEMO = { href: "/recovery/payments", label: "Back to payments" };
@@ -277,11 +286,11 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
   const busy = navigation.state !== "idle";
   const pressedIntent = navigation.formData?.get("intent") ?? null;
 
-  // Recova's action result: a success clears after 2000ms, an error stays.
+  // Recova's action result: a success clears after 2000ms, an error stays until the next press.
   const notice = actionData && "notice" in actionData ? actionData.notice : null;
-  const error = actionData && "error" in actionData ? actionData.error : null;
   const [clearedNoticeFor, setClearedNoticeFor] = useState<unknown>(null);
-  const shownNotice = notice && clearedNoticeFor !== actionData ? notice : null;
+  // Pressing an action clears the last result at once, as Recova's does.
+  const actionResult = visibleActionResult({ actionData, clearedFor: clearedNoticeFor, pendingIntent: pressedIntent });
   useEffect(() => {
     if (!notice) return;
     const timer = setTimeout(() => setClearedNoticeFor(actionData), ACTION_SUCCESS_CLEAR_MS);
@@ -358,14 +367,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
               {failedPayment.customerName ? <span>{failedPayment.customerEmail}</span> : null}
               <span className="text-micro">
                 <button type="button" className="cap-link-btn" onClick={copyEmail}>
-                  {copied ? (
-                    <>
-                      <Check className="mr-1 h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
-                      Copied
-                    </>
-                  ) : (
-                    "Copy email"
-                  )}
+                  <CopyEmailLabel copied={copied} />
                 </button>
               </span>
               <span className="sr-only" role="status">
@@ -384,13 +386,9 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
           banded prediction it reads, so it is not built (RULES.md 3.18). */}
 
       {/* Recova's action result banner, PaymentDetailClient.tsx 277-287. */}
-      {error ? (
+      {actionResult ? (
         <div className="mb-5">
-          <Banner tone="crit">{error}</Banner>
-        </div>
-      ) : shownNotice ? (
-        <div className="mb-5">
-          <Banner tone="ok">{shownNotice}</Banner>
+          <Banner tone={actionResult.tone}>{actionResult.message}</Banner>
         </div>
       ) : null}
 

@@ -67,11 +67,12 @@ describe("295 item 2: Copy email", () => {
   });
 
   it("confirms with a tick and Copied on Capsomer's link button (J76, Q10)", () => {
-    // Recova's confirmation is green text; under Q10 the control is Capsomer's
-    // link button, which keeps its own colour, so the tick and the word carry it.
+    // Recova's confirmation is green text with a tick; on Capsomer's link button
+    // it is Capsomer's ok status, tick glyph and word in the ok colour
+    // (job_3176bb519f89; rendered in test/payments-parity-followups.test.ts).
     expect(SOURCE).toContain('className="cap-link-btn" onClick={copyEmail}');
-    expect(SOURCE.replace(/\s+/g, " ")).toContain("{copied ? ( <> <Check");
-    expect(SOURCE).toContain("Copied");
+    expect(SOURCE).toContain("<CopyEmailLabel copied={copied} />");
+    expect(SOURCE).toContain('<Status tone="ok">Copied</Status>');
   });
 });
 
