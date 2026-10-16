@@ -21,10 +21,12 @@ describe("formatStepTiming", () => {
     expect(formatStepTiming(1)).toBe("1 hour after failure");
   });
 
-  it("renders day-multiple offsets in days", () => {
-    expect(formatStepTiming(24)).toBe("1 day after failure");
-    expect(formatStepTiming(72)).toBe("3 days after failure");
-    expect(formatStepTiming(720)).toBe("30 days after failure");
+  // Recova's chips say hours at every offset ("72 hours after failure",
+  // "168 hours after failure", SequenceView.tsx 5507b89f); J12.
+  it("renders day-multiple offsets in hours too, as Recova does", () => {
+    expect(formatStepTiming(24)).toBe("24 hours after failure");
+    expect(formatStepTiming(72)).toBe("72 hours after failure");
+    expect(formatStepTiming(720)).toBe("720 hours after failure");
   });
 });
 

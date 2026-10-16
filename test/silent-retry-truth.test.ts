@@ -56,8 +56,9 @@ const isScoped = (s: string) => !EVERY.test(s) && QUALIFIERS.some((re) => re.tes
 // Sentences whose scope comes from where they sit, not from their own words.
 // Each entry is a file and a fragment of the sentence.
 const SCOPED_BY_CONTEXT: Array<[string, string, string]> = [
-  // The `soft` row of the sequences page's per-category descriptions.
-  ["routes/app/recovery/sequences.tsx", "foxhound retries silently first", "soft row"],
+  // The `soft` row of the sequences page's per-category descriptions (moved
+  // from the route to its own module by J12).
+  ["lib/recovery/sequence-categories.ts", "foxhound retries silently first", "soft row"],
   // The soft/network branch (retryable === true) of the per-code explainer.
   ["lib/decline-codes/presentation.ts", "silent retry runs first", "retryable branch"],
   // The answer to "Why does network get an early retry?" in the docs.

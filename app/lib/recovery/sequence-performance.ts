@@ -57,13 +57,29 @@ for (const schedule of Object.values(RECOVERY_SCHEDULES)) {
   }
 }
 
-/** "4" -> "4 hours after failure"; "24" -> "1 day after failure". Every real
- *  STEP_TIMING_* constant is either under 24 or an exact multiple of 24, so
- *  this never needs to round. */
+/** "1" -> "1 hour after failure"; "72" -> "72 hours after failure". Hours at
+ *  every offset, as Recova's chips say them (SequenceView.tsx 5507b89f:
+ *  "72 hours after failure", "168 hours after failure"). */
 export function formatStepTiming(hours: number): string {
-  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} after failure`;
-  const days = Math.round(hours / 24);
-  return `${days} day${days === 1 ? "" : "s"} after failure`;
+  return `${hours} hour${hours === 1 ? "" : "s"} after failure`;
+}
+
+/**
+ * A step's name on this page, in Recova's words (SequenceView.tsx STEP_META and
+ * lib/sequence-utils.ts stepLabelFor): "Day 3 email", "4hr retry", "48hr
+ * retry", "Day 21 retry". An email is named by its step type. A retry is named
+ * by its offset in the schedule it sits in, because Recova's "48hr retry" is a
+ * statement of time and network's retry_day2 runs at 24 hours. A step with no
+ * offset falls back to the shared label (formatStepType); none is invented.
+ */
+export function sequenceStepLabel(stepType: string, offsetHours: number | null): string {
+  if (stepType === "email_revoked") return "Revocation email";
+  const emailDay = /^email_day(\d+)$/.exec(stepType);
+  if (emailDay) return `Day ${emailDay[1]} email`;
+  if (isRetryStep(stepType) && offsetHours !== null) {
+    return offsetHours <= 48 ? `${offsetHours}hr retry` : `Day ${Math.round(offsetHours / 24)} retry`;
+  }
+  return formatStepType(stepType);
 }
 
 /**
@@ -94,7 +110,7 @@ export function summarizeStepPerformance(steps: StepPerformanceInput[]): StepPer
   const chart: StepPerformancePoint[] = [...byType.entries()]
     .map(([stepType, b]) => ({
       stepType,
-      label: formatStepType(stepType),
+      label: sequenceStepLabel(stepType, null),
       sent: b.sent,
       openRatePct: Math.round((b.opened / b.sent) * 100),
       clickRatePct: Math.round((b.clicked / b.sent) * 100),
@@ -159,7 +175,7 @@ export interface StepCardRow {
  * a step no schedule defines (no timing is invented).
  */
 export function buildStepCard(stepType: string, rows: StepCardRow[], offsetHours: number | null): StepCard {
-  const label = formatStepType(stepType);
+  const label = sequenceStepLabel(stepType, offsetHours);
   const timingLabel = offsetHours === null ? null : formatStepTiming(offsetHours);
 
   if (isRetryStep(stepType)) {
@@ -179,7 +195,10 @@ export function buildStepCard(stepType: string, rows: StepCardRow[], offsetHours
   const sent = rows.length;
   const opened = rows.filter((r) => r.openedAt).length;
   const clicked = rows.filter((r) => r.clickedAt).length;
-  const latest = [...rows].sort((a, b) => b.executedAt.getTime() - a.executedAt.getTime())[0] ?? null;
+  // Recova's pick: the newest send that has a subject, else the newest send,
+  // with that same send's body (SequenceView.tsx, `recent`).
+  const newestFirst = [...rows].sort((a, b) => b.executedAt.getTime() - a.executedAt.getTime());
+  const latest = newestFirst.find((r) => r.aiSubject) ?? newestFirst[0] ?? null;
   return {
     kind: "email",
     stepType,
