@@ -69,6 +69,12 @@ export const REMINDER_BANDS: readonly (ReminderBucket & { fromHours: number; toH
   { eventType: "dispute_reminder_1d", daysLeft: 1, fromHours: 24, toHours: 48 },
 ];
 
+/** A reminder's idempotency key, `<band>:<dispute id>`: the send claim's key,
+ *  the outcome's key, and what the reminder cron's selection excludes on. */
+export function reminderKey(eventType: ReminderBucket["eventType"], disputeId: string): string {
+  return `${eventType}:${disputeId}`;
+}
+
 /** Which reminder a dispute is due, from the hours left before its deadline:
  *  at least `fromHours` and under `toHours`, else none. */
 export function resolveReminderBucket(hoursLeft: number): ReminderBucket | null {
@@ -175,8 +181,11 @@ export interface OutcomeNoticeInput {
    *  (billing-exempt, or the cap could not be priced yet). */
   feeCents: number | null;
   feeCurrency: string;
-  /** When the fee is invoiced (nextDisputeBillingRun of the resolution). */
-  invoiceDate: Date;
+  /** When the fee is invoiced (nextDisputeBillingRun of the resolution), or
+   *  null while the account is paused: the billing run skips a paused account
+   *  (accountBillingEligibleCondition) and bills the fee at the first run after
+   *  processing resumes, so no date is promised (PR 149 review). */
+  invoiceDate: Date | null;
   listUrl: string;
 }
 
@@ -214,7 +223,9 @@ export function outcomeNotice(input: OutcomeNoticeInput): RenderedNotice {
   const feeLine =
     input.feeCents != null
       ? `<p>Foxhound fee: <strong>${formatMoney(input.feeCents, input.feeCurrency)}</strong> (${disputeFeeTerms()}). ` +
-        `This will be invoiced on <strong>${isoDay(input.invoiceDate)}</strong>.</p>`
+        (input.invoiceDate
+          ? `This will be invoiced on <strong>${isoDay(input.invoiceDate)}</strong>.</p>`
+          : `It will be invoiced at the first monthly billing run after processing resumes.</p>`)
       : "";
   return {
     subject: `Dispute won: ${amount} recovered`,

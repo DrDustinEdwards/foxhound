@@ -1,6 +1,6 @@
 import { DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
 import * as Sentry from "@sentry/cloudflare";
-import { useEffect, useReducer, useState } from "react";
+import { useEffect, useId, useReducer, useState } from "react";
 import { Form, Link, data, redirect, useFetcher, useNavigation } from "react-router";
 import { Banner } from "capsomer/react/banner";
 import { Panel } from "capsomer/react/panel";
@@ -21,10 +21,11 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
 import { disputeFeeCents } from "~/lib/billing/fees";
 import type { DisputeState } from "~/lib/constants";
-import { acceptDispute } from "~/lib/disputes/accept.server";
+import { ACCEPT_APPROVED_MESSAGE, acceptDispute } from "~/lib/disputes/accept.server";
 import { canApprove } from "~/lib/disputes/approval";
 import {
   ACCEPT_CONFIRM_LINE,
+  ACCEPT_UNAVAILABLE_APPROVED_LINE,
   BACK_LINK_DEMO,
   BACK_LINK_REAL,
   CUSTOMER_IP_FIELD,
@@ -204,6 +205,11 @@ export async function action({ context, params, request }: Route.ActionArgs) {
     if (!canApprove(detail.dispute.state as DisputeState)) {
       return data({ error: "This dispute is already closed or submitted.", intent: "accept" as const }, { status: 409 });
     }
+    // Not while an approval stands (PR 149 review): its submission is in
+    // flight, rejected or unconfirmed, and a concession would race it.
+    if (detail.approval) {
+      return data({ error: ACCEPT_APPROVED_MESSAGE, intent: "accept" as const }, { status: 409 });
+    }
     const token = detail.dispute.stripeConnectionId
       ? await getConnectionAccessToken(db, detail.dispute.stripeConnectionId)
       : null;
@@ -220,6 +226,7 @@ export async function action({ context, params, request }: Route.ActionArgs) {
         currency: detail.dispute.currency,
         connectionAccessToken: token,
         acceptedAt: new Date(),
+        hasApproval: Boolean(detail.approval),
       });
       if (result.status === "error") {
         return data({ error: result.message, intent: "accept" as const }, { status: 400 });
@@ -682,19 +689,23 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
                     dirty={dirty}
                   />
                 </Form>
-                <AcceptControl
-                  open={acceptOpen}
-                  accepting={accepting}
-                  returnFocus={acceptCancelled}
-                  onOpen={() => {
-                    setAcceptCancelled(false);
-                    setAcceptOpen(true);
-                  }}
-                  onCancel={() => {
-                    setAcceptCancelled(true);
-                    setAcceptOpen(false);
-                  }}
-                />
+                {approval ? (
+                  <p className="m-0 text-text-secondary">{ACCEPT_UNAVAILABLE_APPROVED_LINE}</p>
+                ) : (
+                  <AcceptControl
+                    open={acceptOpen}
+                    accepting={accepting}
+                    returnFocus={acceptCancelled}
+                    onOpen={() => {
+                      setAcceptCancelled(false);
+                      setAcceptOpen(true);
+                    }}
+                    onCancel={() => {
+                      setAcceptCancelled(true);
+                      setAcceptOpen(false);
+                    }}
+                  />
+                )}
               </div>
             </div>
           </Panel>
@@ -776,6 +787,7 @@ function AcceptControl({
   onOpen: () => void;
   onCancel: () => void;
 }) {
+  const lineId = useId();
   if (!open) {
     return (
       <Form method="post">
@@ -797,12 +809,15 @@ function AcceptControl({
   return (
     <Form method="post" className="flex flex-wrap items-center gap-2" aria-label="Accept this dispute">
       <input type="hidden" name="intent" value="accept" />
-      <span className="text-label text-text-secondary">{ACCEPT_CONFIRM_LINE}</span>
+      <span id={lineId} className="text-label text-text-secondary">
+        {ACCEPT_CONFIRM_LINE}
+      </span>
       <button
         type="submit"
         className="cap-btn"
         data-variant="danger"
         data-size="sm"
+        aria-describedby={lineId}
         aria-disabled={accepting ? true : undefined}
         onClick={(e) => {
           if (accepting) e.preventDefault();
@@ -810,7 +825,15 @@ function AcceptControl({
       >
         {accepting ? "Accepting…" : "Yes, accept"}
       </button>
-      <button type="button" className="cap-btn" data-variant="quiet" data-size="sm" autoFocus onClick={onCancel}>
+      <button
+        type="button"
+        className="cap-btn"
+        data-variant="quiet"
+        data-size="sm"
+        aria-describedby={lineId}
+        autoFocus
+        onClick={onCancel}
+      >
         Cancel
       </button>
     </Form>

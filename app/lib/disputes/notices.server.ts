@@ -13,6 +13,7 @@ import {
   nextDisputeBillingRun,
   noticeCustomerLabel,
   outcomeNotice,
+  reminderKey,
   reminderNotice,
   type RenderedNotice,
   type ReminderBucket,
@@ -196,7 +197,9 @@ export async function sendDisputeOutcomeNotice(
       // A billing-exempt account is never invoiced (accountBillingEligibleCondition).
       feeCents: row.billingExempt ? null : row.resolvedFeeCents,
       feeCurrency: row.resolvedFeeCurrency ?? row.currency,
-      invoiceDate: nextDisputeBillingRun(row.resolvedAt ?? new Date()),
+      // A paused account is skipped by the billing run until it resumes, so no
+      // date is promised (accountBillingEligibleCondition, PR 149 review).
+      invoiceDate: row.processingPaused ? null : nextDisputeBillingRun(row.resolvedAt ?? new Date()),
       listUrl: appUrl(env, "/disputes/dashboard"),
     });
     return await send(
@@ -236,7 +239,7 @@ export async function sendDisputeReminderNotice(
       row.notificationEmail,
       notice,
       DISPUTE_REMINDER_TEMPLATE,
-      `${ctx.bucket.eventType}:${row.id}`,
+      reminderKey(ctx.bucket.eventType, row.id),
       ctx.cronRunId,
     );
   } catch (err) {

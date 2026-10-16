@@ -1,8 +1,8 @@
-import { and, eq, gte, isNotNull, isNull, lt, notInArray } from "drizzle-orm";
+import { and, asc, eq, gte, isNotNull, isNull, lt, notExists, notInArray, sql } from "drizzle-orm";
 
-import { accounts, disputes, getDb } from "~/db";
+import { accounts, disputes, emailSends, emailSuppressions, getDb } from "~/db";
 import { SUBMITTED_OR_RESOLVED } from "~/lib/disputes/approval";
-import { REMINDER_BANDS, resolveReminderBucket } from "~/lib/disputes/notices";
+import { REMINDER_BANDS, reminderKey, type ReminderBucket } from "~/lib/disputes/notices";
 import { sendDisputeReminderNotice } from "~/lib/disputes/notices.server";
 import { recordOutcome } from "~/lib/engine/outcomes";
 import { accountProcessingEligibleCondition } from "~/lib/cron/recovery-tick";
@@ -34,11 +34,28 @@ import { accountProcessingEligibleCondition } from "~/lib/cron/recovery-tick";
 // would only fill the log. When the merchant is switched on, a dispute still
 // inside its band is reminded on the next tick.
 //
-// ONCE PER BAND, at the send layer: the reminder's idempotency key is the band
-// and the dispute, so a second tick finds the email_sends claim and sends
-// nothing. Recova's once-only marks were its dispute_reminder_3d and
-// dispute_reminder_1d outcome rows, and those are recorded here too, after a
-// real send, through recordOutcome (the money-write Durable Object).
+// ONCE PER BAND, IN THE SELECTION (PR 149 review, MEDIUM). The reminder's
+// idempotency key is `<band>:<dispute id>`, and the send claim stores it on
+// its email_sends row before the provider is called. The query excludes a
+// dispute whose claim for this band already stands with no error (sent, or in
+// flight), so a reminded dispute is never selected again: no notice load, no
+// suppression check, no claim attempt and no log row on the ticks after. A
+// claim the provider refused carries its error and stays selectable, and the
+// send layer retakes it, so a failed send is tried again on the next tick.
+// Recova kept the same exclusion in memory (its sentReminders set).
+//
+// NO DISPUTE STARVES. Each band is its own query, its window in SQL (so the
+// 48 to 72 hour gap is never selected), ordered by deadline, soonest first,
+// under the batch limit. With reminded disputes excluded, a band holding more
+// than the limit drains over consecutive ticks instead of returning the same
+// rows forever.
+//
+// A SUPPRESSED ADDRESS IS NOT SELECTED. The send layer would log a
+// `suppressed` row for it and keep no key, so the query reads the same
+// suppression list isSuppressed reads (an exact match on the address) and
+// skips it. Recova's outcome rows (dispute_reminder_3d and _1d) are still
+// recorded after a real send, through recordOutcome (the money-write Durable
+// Object).
 
 export const DISPUTE_REMINDERS_CRON_NAME = "dispute-reminders";
 
@@ -54,11 +71,10 @@ export interface DisputeReminderRun {
   failed: number;
 }
 
-/** The open disputes whose deadline falls inside either band at `now`. */
-async function dueDisputes(env: Env, now: Date) {
-  const earliest = Math.min(...REMINDER_BANDS.map((b) => b.fromHours));
-  const latest = Math.max(...REMINDER_BANDS.map((b) => b.toHours));
-  return getDb(env)
+/** One band's open, unreminded disputes at `now`, soonest deadline first. */
+async function dueInBand(env: Env, now: Date, band: (typeof REMINDER_BANDS)[number]) {
+  const db = getDb(env);
+  return db
     .select({
       id: disputes.id,
       accountId: disputes.accountId,
@@ -72,13 +88,32 @@ async function dueDisputes(env: Env, now: Date) {
         notInArray(disputes.state, SUBMITTED_OR_RESOLVED as string[]),
         isNull(disputes.submittedAt),
         isNotNull(disputes.evidenceDeadline),
-        gte(disputes.evidenceDeadline, new Date(now.getTime() + earliest * HOUR_MS)),
-        lt(disputes.evidenceDeadline, new Date(now.getTime() + latest * HOUR_MS)),
+        gte(disputes.evidenceDeadline, new Date(now.getTime() + band.fromHours * HOUR_MS)),
+        lt(disputes.evidenceDeadline, new Date(now.getTime() + band.toHours * HOUR_MS)),
         accountProcessingEligibleCondition(),
         isNotNull(accounts.notificationEmail),
         eq(accounts.liveSendsEnabled, true),
+        notExists(
+          db
+            .select({ one: sql`1` })
+            .from(emailSends)
+            .where(
+              and(
+                // reminderKey(band.eventType, disputes.id), in SQL.
+                eq(emailSends.idempotencyKey, sql`${reminderKey(band.eventType, "")} || ${disputes.id}`),
+                isNull(emailSends.error),
+              ),
+            ),
+        ),
+        notExists(
+          db
+            .select({ one: sql`1` })
+            .from(emailSuppressions)
+            .where(and(eq(emailSuppressions.email, accounts.notificationEmail), isNotNull(emailSuppressions.suppressedAt))),
+        ),
       ),
     )
+    .orderBy(asc(disputes.evidenceDeadline))
     .limit(DISPUTE_REMINDER_BATCH_LIMIT);
 }
 
@@ -88,44 +123,55 @@ export async function runDisputeReminders(
   cronRunId: string | null = null,
 ): Promise<DisputeReminderRun> {
   const result: DisputeReminderRun = { considered: 0, sent: 0, skipped: 0, failed: 0 };
-  for (const dispute of await dueDisputes(env, now)) {
-    if (!dispute.evidenceDeadline) continue;
-    const hoursLeft = (dispute.evidenceDeadline.getTime() - now.getTime()) / HOUR_MS;
-    const bucket = resolveReminderBucket(hoursLeft);
-    if (!bucket) continue;
-    result.considered++;
-
-    const outcome = await sendDisputeReminderNotice(env, {
-      accountId: dispute.accountId,
-      disputeId: dispute.id,
-      bucket,
-      cronRunId,
-    });
-    if (outcome.kind === "error" || (outcome.kind === "sent" && outcome.result.status === "failed")) {
-      result.failed++;
-      continue;
+  for (const band of REMINDER_BANDS) {
+    const bucket: ReminderBucket = { eventType: band.eventType, daysLeft: band.daysLeft };
+    for (const dispute of await dueInBand(env, now, band)) {
+      await remindOne(env, now, cronRunId, bucket, dispute, result);
     }
-    if (outcome.kind !== "sent" || outcome.result.status !== "sent") {
-      result.skipped++;
-      continue;
-    }
-    result.sent++;
-    // Recova's outcome, after the send and keyed so it is written once.
-    await recordOutcome(env, {
-      accountId: dispute.accountId,
-      product: "disputes",
-      eventType: bucket.eventType,
-      eventData: {
-        dispute_id: dispute.stripeDisputeId,
-        hours_left: Math.round(hoursLeft),
-        auto_submit: false,
-      },
-      outcome: "sent",
-      outcomeAt: now,
-      idempotencyKey: `${bucket.eventType}:${dispute.id}`,
-    });
   }
   return result;
+}
+
+async function remindOne(
+  env: Env,
+  now: Date,
+  cronRunId: string | null,
+  bucket: ReminderBucket,
+  dispute: { id: string; accountId: string; stripeDisputeId: string; evidenceDeadline: Date | null },
+  result: DisputeReminderRun,
+): Promise<void> {
+  const hoursLeft = ((dispute.evidenceDeadline?.getTime() ?? now.getTime()) - now.getTime()) / HOUR_MS;
+  result.considered++;
+
+  const outcome = await sendDisputeReminderNotice(env, {
+    accountId: dispute.accountId,
+    disputeId: dispute.id,
+    bucket,
+    cronRunId,
+  });
+  if (outcome.kind === "error" || (outcome.kind === "sent" && outcome.result.status === "failed")) {
+    result.failed++;
+    return;
+  }
+  if (outcome.kind !== "sent" || outcome.result.status !== "sent") {
+    result.skipped++;
+    return;
+  }
+  result.sent++;
+  // Recova's outcome, after the send and keyed so it is written once.
+  await recordOutcome(env, {
+    accountId: dispute.accountId,
+    product: "disputes",
+    eventType: bucket.eventType,
+    eventData: {
+      dispute_id: dispute.stripeDisputeId,
+      hours_left: Math.round(hoursLeft),
+      auto_submit: false,
+    },
+    outcome: "sent",
+    outcomeAt: now,
+    idempotencyKey: reminderKey(bucket.eventType, dispute.id),
+  });
 }
 
 export function describeDisputeReminderRun(r: DisputeReminderRun): string {

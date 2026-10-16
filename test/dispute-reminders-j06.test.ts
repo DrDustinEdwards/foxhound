@@ -192,6 +192,75 @@ describe("THE RUN: who is reminded", () => {
   });
 });
 
+describe("PR 149 review: no dispute starves, and a tick repeats no work", () => {
+  function emailSendCount(): number {
+    return (sqlite.prepare("SELECT count(*) AS n FROM email_sends").get() as { n: number }).n;
+  }
+
+  it("more than the batch limit in a band: every dispute is reminded over the next ticks, soonest deadline first", async () => {
+    seedAccount("a1");
+    // 150 disputes in the 3-day band, the soonest deadlines planted last so
+    // insertion order cannot pass for the deadline order.
+    for (let i = 0; i < 150; i++) seedDispute(`d${String(i).padStart(3, "0")}`, "a1", 95 - i * 0.1);
+
+    const first = await runDisputeReminders(env, NOW);
+    expect(first).toMatchObject({ considered: 100, sent: 100 });
+    // The 100 soonest went first: the 50 latest deadlines (d000 to d049) wait.
+    const firstTo = new Set(harness.sent.map((m) => m.html.match(/disputes\/(d\d{3})/)![1]));
+    expect([...firstTo].sort()[0]).toBe("d050");
+
+    const second = await runDisputeReminders(env, NOW);
+    expect(second).toMatchObject({ considered: 50, sent: 50 });
+    const third = await runDisputeReminders(env, NOW);
+    // Already reminded for its band: not selected at all, so no load, no
+    // suppression check, no claim attempt and no row.
+    expect(third).toEqual({ considered: 0, sent: 0, skipped: 0, failed: 0 });
+    expect(harness.sent).toHaveLength(150);
+    expect(emailSendCount()).toBe(150);
+  });
+
+  it("the gap between the bands is never selected, so it cannot crowd out a due dispute", async () => {
+    seedAccount("a1");
+    // 120 disputes 60 hours out (between the bands), planted first, and one due.
+    for (let i = 0; i < 120; i++) seedDispute(`g${String(i).padStart(3, "0")}`, "a1", 60);
+    seedDispute("due", "a1", 30);
+    const result = await runDisputeReminders(env, NOW);
+    expect(result).toMatchObject({ considered: 1, sent: 1 });
+    expect(harness.sent[0].html).toContain("https://foxhoundapp.test/disputes/due");
+  });
+
+  it("a suppressed notification address is not selected, so no suppressed row is written each tick", async () => {
+    seedAccount("a1");
+    sqlite
+      .prepare("INSERT INTO email_suppressions (id, email, token, suppressed_at, reason) VALUES ('s1', 'ops@a1.test', 't', 1000, 'bounce')")
+      .run();
+    seedDispute("d3", "a1", 80);
+    for (let tick = 0; tick < 3; tick++) {
+      expect(await runDisputeReminders(env, new Date(NOW.getTime() + tick * 5 * 60 * 1000))).toMatchObject({
+        considered: 0,
+      });
+    }
+    expect(harness.sent).toHaveLength(0);
+    expect(emailSendCount()).toBe(0);
+  });
+
+  it("a send the provider refused is tried again on the next tick", async () => {
+    seedAccount("a1");
+    seedDispute("d3", "a1", 80);
+    const send = (env.EMAIL as { send: unknown }).send;
+    (env.EMAIL as { send: unknown }).send = async () => {
+      throw new Error("provider down");
+    };
+    try {
+      expect(await runDisputeReminders(env, NOW)).toMatchObject({ considered: 1, failed: 1 });
+    } finally {
+      (env.EMAIL as { send: unknown }).send = send;
+    }
+    expect(await runDisputeReminders(env, NOW)).toMatchObject({ considered: 1, sent: 1 });
+    expect(harness.sent).toHaveLength(1);
+  });
+});
+
 describe("THE CRON: registered on a schedule that fires", () => {
   it("is in the registry, on a schedule wrangler.jsonc triggers", () => {
     const job = CRON_JOBS.find((j) => j.name === DISPUTE_REMINDERS_CRON_NAME);

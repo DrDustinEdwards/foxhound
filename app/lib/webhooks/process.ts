@@ -978,11 +978,24 @@ export async function processConnectedWebhook(
       });
       // THE NEW-DISPUTE NOTICE (J06), after the intake has committed and
       // changing nothing about it, as the recovery notification above. Recova
-      // sends it at the end of handleDisputeCreated. `applied` is false on a
-      // replay, and the notice's own send claim is keyed on the dispute, so a
-      // redelivered event sends nothing more. It never throws.
-      if (applied) {
-        await sendDisputeCreatedNotice(env, { accountId, disputeId });
+      // sends it at the end of handleDisputeCreated. It never throws.
+      //
+      // SENT ON A REDELIVERY TOO (PR 149 review). A Worker that dies between
+      // the intake commit and the send leaves the merchant untold, and Stripe's
+      // redelivery comes back `applied: false`. So a replay sends for the row
+      // that exists; the notice's send claim (`dispute-created:<row id>`) is
+      // what keeps it to one email, not `applied`.
+      const noticeFor = applied
+        ? disputeId
+        : await findDisputeByStripeId(env, intent.stripeDisputeId).then(
+            (row) => (row && row.accountId === accountId ? row.id : null),
+            (err) => {
+              console.error("dispute notice lookup on a redelivery failed", err);
+              return null;
+            },
+          );
+      if (noticeFor) {
+        await sendDisputeCreatedNotice(env, { accountId, disputeId: noticeFor });
       }
       return applied ? { status: "applied" } : { status: "duplicate" };
     }

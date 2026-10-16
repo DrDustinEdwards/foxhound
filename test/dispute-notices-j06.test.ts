@@ -301,3 +301,43 @@ describe("the invoice date is the next monthly billing run after resolution", ()
     expect(nextDisputeBillingRun(new Date("2026-12-01T05:00:00Z")).toISOString().slice(0, 10)).toBe("2027-01-01");
   });
 });
+
+describe("PR 149 review: the notices hold when a delivery is cut short or the account is paused", () => {
+  it("a redelivery sends the new-dispute notice the first delivery never sent", async () => {
+    // The first delivery commits the intake but no notice leaves (as if the
+    // Worker died after the commit): here the address is not set yet.
+    seedAccount({ notificationEmail: null });
+    await processConnectedWebhook(env, createdEvent(), RECEIVED);
+    expect(harness.sent).toHaveLength(0);
+    sqlite.prepare("UPDATE accounts SET notification_email = 'ops@acme.test' WHERE id = ?").run(ACCOUNT);
+
+    const replay = await processConnectedWebhook(env, createdEvent(), RECEIVED);
+    expect(replay).toEqual({ status: "duplicate" });
+    expect(harness.sent).toHaveLength(1);
+    expect(harness.sent[0].subject).toBe("New dispute: $50.00 from Unknown customer");
+    // And the send key still holds it to one: a third delivery sends nothing.
+    await processConnectedWebhook(env, createdEvent(), RECEIVED);
+    expect(harness.sent).toHaveLength(1);
+  });
+
+  it("won on a paused account: the fee is stated, but no invoice date the billing run will not keep", async () => {
+    seedAccount({ paused: true });
+    seedDispute({ submitted: true });
+    await processConnectedWebhook(env, closedEvent("won"), RECEIVED);
+    expect(harness.sent).toHaveLength(1);
+    const html = harness.sent[0].html;
+    expect(html).toContain("$10.00");
+    expect(html).not.toContain("2026-12-01");
+    expect(html).toContain("It will be invoiced at the first monthly billing run after processing resumes.");
+  });
+
+  it("won on a billing-exempt account: no fee sentence at all", async () => {
+    seedAccount();
+    sqlite.prepare("UPDATE accounts SET billing_exempt = 1 WHERE id = ?").run(ACCOUNT);
+    seedDispute({ submitted: true });
+    await processConnectedWebhook(env, closedEvent("won"), RECEIVED);
+    const html = harness.sent[0].html;
+    expect(html).not.toContain("Foxhound fee:");
+    expect(html).not.toContain("invoiced");
+  });
+});

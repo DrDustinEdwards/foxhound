@@ -33,8 +33,29 @@ import { canApprove } from "./approval";
 // account from the dispute row itself, so an id from another account writes
 // nothing (RULES.md 3.9, 4.6).
 //
-// A STRIPE FAILURE WRITES NOTHING. Recova returned stripe_close_failed with
-// Stripe's message; this returns the message for the page to show.
+// A STRIPE FAILURE WRITES NOTHING, AND ONLY STRIPE'S OWN "NO" IS CALLED ONE
+// (PR 149 review). Recova returned stripe_close_failed with Stripe's message
+// for every throw. Here only a 4xx answer (Stripe read the request and refused
+// it) says "Stripe did not accept the dispute". A 5xx, a dropped connection or
+// timeout, or a 409 from a concurrent request on the same idempotency key
+// leaves the result unknown: Stripe may already have conceded the dispute, so
+// the merchant is told to check it in Stripe, as the approve path does.
+//
+// ONE STRIPE CALL PER DISPUTE. The close carries the idempotency key
+// `dispute-accept:<dispute id>`, so two tabs that both pass the state check
+// make one close at Stripe; the second gets the first's result back.
+//
+// NOT WHILE AN APPROVAL STANDS (PR 149 review, LOW). Once the merchant has
+// approved the evidence, a submission is in flight, was rejected, or is
+// unconfirmed, and conceding the dispute under it would race the submission.
+// Accept is refused until that is settled. Whether a rejected submission may
+// be re-approved or accepted is the open question in the J06 pull request.
+//
+// THE OUTCOME ROW IS INSERTED HERE, NOT THROUGH recordOutcome. recordOutcome
+// runs its own money write; the accepted state and its outcome must commit in
+// one batch, so the insert is a statement in this batch, keyed like
+// recordOutcome's rows (idempotency_key, unique). Named for the seat in the
+// J06 pull request: it is a third insert site for outcomes.
 
 export type AcceptDisputeResult = { status: "accepted" } | { status: "error"; message: string };
 
@@ -49,9 +70,20 @@ export interface AcceptDisputeInput {
   /** Encrypted stripe_connections.stripe_access_token of the dispute's connection. */
   connectionAccessToken: string;
   acceptedAt: Date;
+  /** A dispute_approvals row exists for the dispute (read with the state). */
+  hasApproval: boolean;
 }
 
 export const ACCEPT_CLOSED_MESSAGE = "This dispute is already closed or submitted, so it cannot be accepted.";
+export const ACCEPT_APPROVED_MESSAGE =
+  "This dispute's evidence has been approved for submission, so it cannot be accepted here.";
+export const ACCEPT_UNKNOWN_MESSAGE =
+  "Something went wrong while accepting. Stripe may or may not have closed this dispute, so check it in Stripe before trying again.";
+
+/** The Stripe idempotency key for closing one dispute. */
+export function stripeCloseIdempotencyKey(disputeId: string): string {
+  return `dispute-accept:${disputeId}`;
+}
 
 /** The outcome Recova recorded, its event and its words. */
 export const DISPUTE_ACCEPTED_EVENT = "dispute_accepted";
@@ -100,16 +132,30 @@ export function buildDisputeAcceptBatch(
   ];
 }
 
+/** Stripe answered and refused: a 4xx other than a concurrent idempotent
+ *  request (409) or a rate limit (429), neither of which says what happened. */
+function isDefiniteRefusal(error: unknown): boolean {
+  const status = (error as { statusCode?: unknown } | null)?.statusCode;
+  return typeof status === "number" && status >= 400 && status < 500 && status !== 409 && status !== 429;
+}
+
+export type CloseResult = { ok: true } | { ok: false; refused: true; error: string } | { ok: false; refused: false };
+
 /** Close the dispute at Stripe: Stripe's "accept", which concedes it. */
 export async function closeDisputeWithClient(
   stripe: Stripe,
   stripeDisputeId: string,
-): Promise<{ ok: true } | { ok: false; error: string }> {
+  idempotencyKey: string,
+): Promise<CloseResult> {
   try {
-    await stripe.disputes.close(stripeDisputeId);
+    await stripe.disputes.close(stripeDisputeId, {}, { idempotencyKey });
     return { ok: true };
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : "Stripe could not close the dispute" };
+    if (isDefiniteRefusal(error)) {
+      return { ok: false, refused: true, error: error instanceof Error ? error.message : "Stripe refused the request" };
+    }
+    console.error("dispute close at Stripe has an unknown result", error);
+    return { ok: false, refused: false };
   }
 }
 
@@ -126,11 +172,16 @@ export async function acceptDispute(
   if (!canApprove(input.state as DisputeState)) {
     return { status: "error", message: ACCEPT_CLOSED_MESSAGE };
   }
+  if (input.hasApproval) {
+    return { status: "error", message: ACCEPT_APPROVED_MESSAGE };
+  }
 
   const stripe = deps.stripe ?? getConnectedStripe(await decryptToken(env, input.connectionAccessToken));
-  const closed = await closeDisputeWithClient(stripe, input.stripeDisputeId);
+  const closed = await closeDisputeWithClient(stripe, input.stripeDisputeId, stripeCloseIdempotencyKey(input.disputeId));
   if (!closed.ok) {
-    return { status: "error", message: `Stripe did not accept the dispute: ${closed.error}` };
+    return closed.refused
+      ? { status: "error", message: `Stripe did not accept the dispute: ${closed.error}` }
+      : { status: "error", message: ACCEPT_UNKNOWN_MESSAGE };
   }
 
   try {

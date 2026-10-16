@@ -66,18 +66,36 @@ beforeEach(() => {
     .run(ACCOUNT);
 });
 
-function fakeStripe(behaviour: "ok" | "fail") {
+type StripeBehaviour = "ok" | "fail" | "outage" | "network" | "conflict";
+
+/** Errors shaped as the Stripe SDK's: a definite 4xx refusal carries its status
+ *  code; a 5xx, a concurrent idempotent request (409) and a dropped connection
+ *  leave the result unknown. */
+function stripeError(behaviour: Exclude<StripeBehaviour, "ok">): Error {
+  const shapes = {
+    fail: { type: "StripeInvalidRequestError", statusCode: 400, message: "This dispute is already closed" },
+    outage: { type: "StripeAPIError", statusCode: 500, message: "An unknown error occurred" },
+    network: { type: "StripeConnectionError", statusCode: undefined, message: "Request was retried 2 times." },
+    conflict: { type: "StripeIdempotencyError", statusCode: 409, message: "There is currently another in-progress request using this Idempotent Key" },
+  } as const;
+  const shape = shapes[behaviour];
+  return Object.assign(new Error(shape.message), { type: shape.type, statusCode: shape.statusCode });
+}
+
+function fakeStripe(behaviour: StripeBehaviour) {
   const closed: string[] = [];
+  const keys: (string | undefined)[] = [];
   const stripe = {
     disputes: {
-      close: async (id: string) => {
-        if (behaviour === "fail") throw new Error("This dispute is already closed");
+      close: async (id: string, _params?: unknown, options?: { idempotencyKey?: string }) => {
+        keys.push(options?.idempotencyKey);
+        if (behaviour !== "ok") throw stripeError(behaviour);
         closed.push(id);
         return { id, status: "lost" };
       },
     },
   } as unknown as Stripe;
-  return { stripe, closed };
+  return { stripe, closed, keys };
 }
 
 function input(overrides: Partial<Parameters<typeof acceptDispute>[1]> = {}) {
@@ -90,6 +108,7 @@ function input(overrides: Partial<Parameters<typeof acceptDispute>[1]> = {}) {
     currency: "usd",
     connectionAccessToken: "cipher",
     acceptedAt: NOW,
+    hasApproval: false,
     ...overrides,
   };
 }
@@ -157,5 +176,48 @@ describe("ACCEPT: Stripe first, then the accepted state and its outcome together
     await acceptDispute(env, input({ accountId: "acct_other" }), { stripe });
     expect(dispute().state).toBe("pending_review");
     expect(outcomes()).toHaveLength(0);
+  });
+});
+
+describe("PR 149 review: an unknown Stripe result is never reported as a refusal", () => {
+  it("a 4xx is Stripe's answer: the merchant is told Stripe did not accept it", async () => {
+    const result = await acceptDispute(env, input(), { stripe: fakeStripe("fail").stripe });
+    expect(result).toEqual({ status: "error", message: "Stripe did not accept the dispute: This dispute is already closed" });
+  });
+
+  it.each(["outage", "network", "conflict"] as const)(
+    "%s: Stripe may have closed it, so the merchant is told to check Stripe, and nothing is written",
+    async (behaviour) => {
+      const result = await acceptDispute(env, input(), { stripe: fakeStripe(behaviour).stripe });
+      expect(result.status).toBe("error");
+      const message = result.status === "error" ? result.message : "";
+      expect(message).not.toContain("Stripe did not accept");
+      expect(message).toContain("Stripe may or may not have closed this dispute");
+      expect(message).toContain("check it in Stripe before trying again");
+      expect(dispute().state).toBe("pending_review");
+      expect(harness.writes).toBe(0);
+    },
+  );
+
+  it("the close carries an idempotency key from the dispute, so two tabs make one Stripe call", async () => {
+    const first = fakeStripe("ok");
+    const second = fakeStripe("ok");
+    await acceptDispute(env, input(), { stripe: first.stripe });
+    await acceptDispute(env, input(), { stripe: second.stripe });
+    expect(first.keys).toEqual(["dispute-accept:d1"]);
+    expect(second.keys).toEqual(["dispute-accept:d1"]);
+  });
+});
+
+describe("PR 149 review: Accept is refused while an approval stands", () => {
+  it("an approved dispute (its submission in flight, rejected or unconfirmed) is not accepted, and Stripe is not called", async () => {
+    const { stripe, closed } = fakeStripe("ok");
+    const result = await acceptDispute(env, input({ hasApproval: true }), { stripe });
+    expect(result).toEqual({
+      status: "error",
+      message: "This dispute's evidence has been approved for submission, so it cannot be accepted here.",
+    });
+    expect(closed).toEqual([]);
+    expect(harness.writes).toBe(0);
   });
 });
