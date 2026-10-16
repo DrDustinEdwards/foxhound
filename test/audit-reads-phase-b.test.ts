@@ -5,7 +5,6 @@ import type Stripe from "stripe";
 import { describe, expect, it } from "vitest";
 
 import {
-  AUDIT_READ_SOFT_LIMIT,
   collectPaginated,
   readCardUpdaterEvents,
   readDisputes,
@@ -44,41 +43,44 @@ function throwingList(message: string): AsyncIterable<never> {
 
 const stripeWith = (lists: Record<string, unknown>) => lists as unknown as Stripe;
 
-describe("PLANT 1: the walk is paginated and bounded", () => {
-  it("collects every page rather than the first one", async () => {
-    const items = Array.from({ length: 250 }, (_, i) => i);
-    const result = await collectPaginated(fakeList(items));
-    // 250 is past legacy's single page of 100 and inside the soft ceiling.
-    expect(result.items).toHaveLength(250);
-    expect(result.overLimit).toBe(false);
+describe("PLANT 1: the walk is paginated to the end and narrowed as it goes", () => {
+  it("collects every page rather than the first one, and past the old 2,000 ceiling", async () => {
+    const items = Array.from({ length: 2_250 }, (_, i) => i);
+    const rows = await collectPaginated(fakeList(items), (n) => n);
+    expect(rows).toHaveLength(2_250);
   });
 
-  it("stops at the soft ceiling and SAYS SO, rather than truncating silently", async () => {
-    const items = Array.from({ length: AUDIT_READ_SOFT_LIMIT + 10 }, (_, i) => i);
-    const result = await collectPaginated(items && fakeList(items));
-    expect(result.items).toHaveLength(AUDIT_READ_SOFT_LIMIT);
-    expect(result.overLimit).toBe(true);
+  it("keeps what the narrowing returns, not the row Stripe sent", async () => {
+    const rows = await collectPaginated(fakeList([{ id: "x", big: "y".repeat(1000) }]), (row) => ({ id: row.id }));
+    expect(rows).toEqual([{ id: "x" }]);
   });
 
-  it("an empty list is not over the limit, which an off-by-one would get wrong", async () => {
-    expect(await collectPaginated(fakeList([]))).toEqual({ items: [], overLimit: false });
+  it("an empty list is an empty answer", async () => {
+    expect(await collectPaginated(fakeList([]), (n) => n)).toEqual([]);
   });
 });
 
 describe("PLANT 2: every read answers, and a failure is data", () => {
   const stripe = stripeWith({
-    invoices: { list: () => fakeList([{ id: "in_1" }]) },
-    subscriptions: { list: () => fakeList([{ id: "sub_1" }]) },
-    disputes: { list: () => fakeList([{ id: "dp_1" }]) },
-    events: { list: () => fakeList([{ id: "evt_1" }]) },
+    invoices: { list: () => fakeList([{ id: "in_1", amount_due: 100 }, { id: "in_2", amount_due: 200 }]) },
+    subscriptions: { list: () => fakeList([{ id: "sub_1", status: "active" }]) },
+    disputes: { list: () => fakeList([{ id: "dp_1", status: "won" }]) },
+    events: { list: () => fakeList([{ id: "evt_1" }, { id: "evt_2" }]) },
   });
 
+  // Rows come back narrowed to what the engine reads (J63 review round 1), so
+  // these hold the count and one read field each, not the Stripe object.
   it("all five succeed and carry their rows", async () => {
-    expect(await readUncollectibleInvoices(stripe, 0)).toEqual({ ok: true, data: [{ id: "in_1" }] });
-    expect(await readOpenInvoices(stripe)).toEqual({ ok: true, data: [{ id: "in_1" }] });
-    expect(await readSubscriptions(stripe)).toEqual({ ok: true, data: [{ id: "sub_1" }] });
-    expect(await readDisputes(stripe)).toEqual({ ok: true, data: [{ id: "dp_1" }] });
-    expect(await readCardUpdaterEvents(stripe, 0)).toEqual({ ok: true, data: [{ id: "evt_1" }] });
+    const invoices = await readUncollectibleInvoices(stripe, 0);
+    expect(invoices.ok && invoices.data.map((i) => i.amount_due)).toEqual([100, 200]);
+    const open = await readOpenInvoices(stripe);
+    expect(open.ok && open.data).toHaveLength(2);
+    const subs = await readSubscriptions(stripe);
+    expect(subs.ok && subs.data.map((s) => s.status)).toEqual(["active"]);
+    const disputes = await readDisputes(stripe);
+    expect(disputes.ok && disputes.data.map((d) => d.status)).toEqual(["won"]);
+    const events = await readCardUpdaterEvents(stripe, 0);
+    expect(events.ok && events.data).toHaveLength(2);
   });
 
   it("A THROWN READ BECOMES ok:false WITH A REASON, never an exception", async () => {
@@ -203,8 +205,9 @@ describe("PLANT 4: NO STRIPE LIST ANYWHERE IS WALKED AS A BARE PAGE", () => {
     // carries a type parameter so it does not match this, which is what makes
     // the count a count of CALLERS rather than of mentions.
     expect(source.match(/collectPaginated\(/g) ?? []).toHaveLength(1);
-    // J63: the audit reads walk to the end (RULES.md 3.19), no ceiling.
-    expect(source).toContain("await collectPaginated(list(), Number.POSITIVE_INFINITY)");
+    // J63: the audit reads walk to the end (RULES.md 3.19), no ceiling, and
+    // narrow each row as it is read (review round 1).
+    expect(source).toContain("await collectPaginated(list(), narrow)");
   });
 
   it("the sweep really found list calls, so an empty offender list means something", () => {

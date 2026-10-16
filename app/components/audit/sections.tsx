@@ -70,9 +70,15 @@ export function showDisputesSection(run: AuditRunView): boolean {
   return run.disputes === null || hasDisputeSignal(run.disputes);
 }
 
-/** The one treatment for a scope that was not read. */
-function Unread() {
-  return <p className="m-0 py-2 text-label text-text-tertiary">{SCOPE_UNREAD}</p>;
+/** The one treatment for a scope that was not read, named so a merchant
+ *  knows which figure is missing (J63 review round 1). */
+function Unread({ label }: { label: string }) {
+  return (
+    <div className="py-2">
+      <div className="text-label text-text">{label}</div>
+      <p className="m-0 mt-0.5 text-micro text-text-tertiary">{SCOPE_UNREAD}</p>
+    </div>
+  );
 }
 
 function NoneDetected() {
@@ -232,7 +238,7 @@ export function AuditRecoverySection({
         ) : (
           <>
             {failed === null ? (
-              <Unread />
+              <Unread label="Failed invoices" />
             ) : (
               <StatRow
                 label="Failed invoices"
@@ -271,7 +277,7 @@ export function AuditRecoverySection({
             <CardUpdaterRow cardUpdater={run.cardUpdater} />
 
             {expiring === null ? (
-              <Unread />
+              <Unread label="Expiring cards (through next month)" />
             ) : (
               <>
                 {/* Truthfulness fix: Recova labels this "(next 30 days)", but the
@@ -287,7 +293,7 @@ export function AuditRecoverySection({
             )}
 
             {pastDue === null ? (
-              <Unread />
+              <Unread label="Past-due subscriptions" />
             ) : (
               <StatRow
                 label="Past-due subscriptions"
@@ -349,7 +355,7 @@ export function AuditDisputesSection({
         description="Where responses were skipped or evidence was thin."
         footer={<DisputesCta state={ctaState} />}
       >
-        {data === null ? <Unread /> : <DisputeFigures data={data} cur={cur} foxhoundWinRate={foxhoundWinRate} />}
+        {data === null ? <Unread label="Disputes" /> : <DisputeFigures data={data} cur={cur} foxhoundWinRate={foxhoundWinRate} />}
       </Panel>
     </div>
   );
@@ -392,14 +398,20 @@ function DisputeFigures({
 
       {/* Recova's "Recova win rate", from Foxhound's own records: disputes
           whose evidence Foxhound submitted, won over resolved. Recova's bands
-          are 70 and 50; the middle band keeps the plain text colour, as Q11
-          leaves no warm accent on the page. */}
+          are 70 and 50. The middle band takes the caution colour, the same
+          rule as the recovery rate's middle band (recoveryRateClassName):
+          status colours are not accents, so Q11's teal-only rule leaves them
+          alone. */}
       {foxhoundWinRate !== null ? (
         <div className="mt-2 text-label text-text-secondary">
           Foxhound win rate:{" "}
           <span
             className={`font-mono font-medium ${
-              foxhoundWinRate >= 70 ? "text-success-text" : foxhoundWinRate >= 50 ? "text-text" : "text-error-text"
+              foxhoundWinRate >= 70
+                ? "text-success-text"
+                : foxhoundWinRate >= 50
+                  ? "text-caution"
+                  : "text-error-text"
             }`}
           >
             {foxhoundWinRate}%
@@ -465,13 +477,16 @@ export function AuditHealthSection({
             : "Your recurring-revenue picture at the time of this run."
         }
         footer={
-          // Truthfulness fix: Recova adds "cohort analysis, and forecasting";
-          // Foxhound's Intelligence has neither.
-          <p className="m-0 text-micro text-text-subtle">Full trend history available in Intelligence.</p>
+          // Truthfulness fix: Recova's line adds "and forecasting", which
+          // Foxhound's Intelligence does not have. Cohort analysis it does
+          // (app/lib/intelligence/mrr.ts buildCohortBreakdown), so that stays.
+          <p className="m-0 text-micro text-text-subtle">
+            Full trend history and cohort analysis available in Intelligence.
+          </p>
         }
       >
         {health === null ? (
-          <Unread />
+          <Unread label="Subscriptions" />
         ) : !anyData ? (
           <NoneDetected />
         ) : (

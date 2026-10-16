@@ -59,7 +59,19 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   const accountId = auth.membership.accountId;
   const row = await getAuditRun(db, accountId, params.id);
   if (!row) throw new Response("Not Found", { status: 404 });
-  const live = await readSavedRunLiveFigures(db, accountId, Date.now());
+  // THE RUN IS THE PAGE; THE LIVE FIGURES ARE EXTRAS. A failed read of
+  // them is logged whole and the run renders without them, rather than a
+  // saved run the merchant cannot open (J63 review round 1).
+  let live: { activeSequences: number | null; recoveryRatePct: number | null; foxhoundWinRate: number | null } = {
+    activeSequences: null,
+    recoveryRatePct: null,
+    foxhoundWinRate: null,
+  };
+  try {
+    live = await readSavedRunLiveFigures(db, accountId, Date.now());
+  } catch (err) {
+    console.error(`audit run ${params.id}: live figures could not be read`, err);
+  }
   return { run: toStoredAuditRun(row), ...live };
 }
 

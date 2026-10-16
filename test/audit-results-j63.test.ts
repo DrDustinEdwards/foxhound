@@ -19,7 +19,7 @@ import { runAudit, type AuditInputs, type ScopeOutcome } from "~/lib/audit/engin
 import { toAuditRunView, type AuditRunView } from "~/lib/audit/render";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { AUDIT_READ_SOFT_LIMIT, readDisputes } from "~/lib/stripe/reads";
+import { readDisputes } from "~/lib/stripe/reads";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -261,7 +261,7 @@ describe("U3/U4: Business snapshot (AuditHealthSection, 17828ab5)", () => {
 
   it("closes with the Intelligence line, true to what Intelligence has", () => {
     const t = text(health(viewOf()));
-    expect(t).toContain("Full trend history available in Intelligence.");
+    expect(t).toContain("Full trend history and cohort analysis available in Intelligence.");
     expect(t).not.toContain("forecasting");
   });
 
@@ -284,19 +284,15 @@ const runsRedirect = await import("~/routes/audit/runs-redirect").catch(() => nu
 
 type ResultsData = {
   run: AuditRunView;
-  runId: string | null;
   notSaved: "anonymous" | "not_your_account" | null;
   signedIn: boolean;
-  stripeAccountId: string;
 };
 
 function renderResults(data: Partial<ResultsData>) {
   const loaderData: ResultsData = {
     run: viewOf(),
-    runId: null,
     notSaved: "anonymous",
     signedIn: false,
-    stripeAccountId: "acct_stripe_x",
     ...data,
   };
   const Page = resultsPage.default as unknown as (p: { loaderData: ResultsData }) => ReactElement;
@@ -315,7 +311,7 @@ describe("U3: the live results page (app/audit/results/page.tsx, 9aad7745)", () 
   });
 
   it("a saved run offers View audit history only, as Recova does", () => {
-    const html = renderResults({ signedIn: true, notSaved: null, runId: "run_1" });
+    const html = renderResults({ signedIn: true, notSaved: null });
     expect(html).toMatch(/<a[^>]*href="\/audit\/dashboard"[^>]*>View audit history<\/a>/);
     expect(text(html)).not.toContain("Open this run");
   });
@@ -486,7 +482,7 @@ describe("RULES.md 3.19: the audit's Stripe reads page to the end and log the co
   afterEach(() => info.mockRestore());
 
   it("reads every dispute past the old soft ceiling", async () => {
-    const items = Array.from({ length: AUDIT_READ_SOFT_LIMIT + 10 }, (_, i) => ({ id: `dp_${i}` }));
+    const items = Array.from({ length: 2_010 }, (_, i) => ({ id: `dp_${i}` }));
     const stripe = {
       disputes: {
         list: () => ({
@@ -497,7 +493,209 @@ describe("RULES.md 3.19: the audit's Stripe reads page to the end and log the co
       },
     } as unknown as Stripe;
     const outcome = await readDisputes(stripe);
-    expect(outcome.ok && outcome.data.length).toBe(AUDIT_READ_SOFT_LIMIT + 10);
-    expect(info).toHaveBeenCalledWith(expect.stringContaining(`disputes: ${AUDIT_READ_SOFT_LIMIT + 10} rows`));
+    expect(outcome.ok && outcome.data.length).toBe(2_010);
+    expect(info).toHaveBeenCalledWith(expect.stringContaining(`disputes: 2010 rows`));
+  });
+});
+
+// ---- Review round 1 (PR #123) -------------------------------------------------
+
+const reads = await import("~/lib/stripe/reads");
+
+/** A Stripe-shaped list of the given items, page by page as the SDK yields. */
+const listOf = (items: unknown[]) => () => ({
+  async *[Symbol.asyncIterator]() {
+    for (const item of items) yield item;
+  },
+});
+
+// A field the engine never reads, big enough that keeping it is the failure.
+const BULK = "x".repeat(10_000);
+
+const fullInvoice = (o: Record<string, unknown>) => ({
+  id: "in_1",
+  object: "invoice",
+  amount_due: 1_500,
+  currency: "eur",
+  due_date: 1,
+  created: Math.floor(RAN_AT.getTime() / 1000) - 86_400,
+  status: "open",
+  last_finalization_error: { decline_code: "expired_card", message: BULK },
+  last_payment_error: { code: "card_declined", message: BULK },
+  charge: { id: "ch_1", failure_code: "insufficient_funds", outcome: { reason: BULK } },
+  lines: { data: [{ description: BULK }] },
+  metadata: { note: BULK },
+  ...o,
+});
+
+const fullSubscription = (o: Record<string, unknown>) => ({
+  id: "sub_1",
+  object: "subscription",
+  status: "active",
+  currency: "eur",
+  customer: { id: "cus_9", email: "c@example.com", metadata: { note: BULK } },
+  default_payment_method: { id: "pm_1", card: { exp_month: 11, exp_year: 2026, brand: "visa" }, billing_details: { address: BULK } },
+  items: { data: [{ id: "si_1", price: { unit_amount: 7_000, recurring: { interval: "month", interval_count: 1 }, product: { description: BULK } } }] },
+  canceled_at: null,
+  cancellation_details: { reason: null, comment: BULK },
+  metadata: { note: BULK },
+  ...o,
+});
+
+const fullDispute = (o: Record<string, unknown>) => ({
+  id: "dp_1",
+  object: "dispute",
+  status: "lost",
+  amount: 4_000,
+  currency: "eur",
+  evidence_details: { submission_count: 0, due_by: 1 },
+  evidence: { uncategorized_text: BULK },
+  charge: { id: "ch_1", description: BULK },
+  ...o,
+});
+
+const fullEvent = () => ({ id: "evt_1", object: "event", type: "payment_method.automatically_updated", created: 1, data: { object: { note: BULK } } });
+
+const fakeStripe = (lists: { invoices: unknown[]; subscriptions: unknown[]; disputes: unknown[]; events: unknown[] }) =>
+  ({
+    invoices: { list: listOf(lists.invoices) },
+    subscriptions: { list: listOf(lists.subscriptions) },
+    disputes: { list: listOf(lists.disputes) },
+    events: { list: listOf(lists.events) },
+  }) as unknown as Stripe;
+
+describe("Review round 1, must-fix 1: the reads keep only what the engine reads", () => {
+  let info: ReturnType<typeof vi.spyOn>;
+  beforeEach(() => {
+    info = vi.spyOn(console, "info").mockImplementation(() => {});
+  });
+  afterEach(() => info.mockRestore());
+
+  const stripe = fakeStripe({
+    invoices: [fullInvoice({})],
+    subscriptions: [fullSubscription({})],
+    disputes: [fullDispute({})],
+    events: [fullEvent()],
+  });
+
+  it("no full Stripe object is retained by any of the five reads", async () => {
+    const outcomes = await Promise.all([
+      reads.readUncollectibleInvoices(stripe, 0),
+      reads.readOpenInvoices(stripe),
+      reads.readSubscriptions(stripe),
+      reads.readDisputes(stripe),
+      reads.readCardUpdaterEvents(stripe, 0),
+    ]);
+    for (const outcome of outcomes) {
+      expect(outcome.ok).toBe(true);
+      const kept = JSON.stringify(outcome.ok ? outcome.data : null);
+      expect(kept, "a field the engine never reads was kept").not.toContain(BULK.slice(0, 100));
+      expect(kept).not.toContain('"id":');
+      expect(kept).not.toContain('"object":');
+    }
+  });
+
+  it("the engine's answer from the narrowed rows is the answer from the full objects", async () => {
+    const full = {
+      uncollectibleInvoices: ok([fullInvoice({}) as unknown as Stripe.Invoice]),
+      openInvoices: ok([fullInvoice({ id: "in_2", last_finalization_error: null, last_payment_error: null }) as unknown as Stripe.Invoice]),
+      subscriptions: ok([
+        fullSubscription({}) as unknown as Stripe.Subscription,
+        fullSubscription({ status: "past_due", customer: "cus_8" }) as unknown as Stripe.Subscription,
+        fullSubscription({ status: "canceled", canceled_at: Math.floor(RAN_AT.getTime() / 1000) - 10, cancellation_details: { reason: "cancellation_requested" } }) as unknown as Stripe.Subscription,
+      ]),
+      disputes: ok([fullDispute({}) as unknown as Stripe.Dispute, fullDispute({ status: "needs_response", amount: 900 }) as unknown as Stripe.Dispute]),
+      cardUpdaterEvents: ok([fullEvent() as unknown as Stripe.Event]),
+    };
+    const narrowStripe = fakeStripe({
+      invoices: [fullInvoice({}), fullInvoice({ id: "in_2", last_finalization_error: null, last_payment_error: null })],
+      subscriptions: (full.subscriptions as { data: unknown[] }).data,
+      disputes: (full.disputes as { data: unknown[] }).data,
+      events: [fullEvent()],
+    });
+    // The fake invoices list ignores the status filter, so each invoice read
+    // returns both; build the full-object input the same way.
+    full.uncollectibleInvoices = ok([fullInvoice({}), fullInvoice({ id: "in_2", last_finalization_error: null, last_payment_error: null })] as unknown as Stripe.Invoice[]);
+    full.openInvoices = full.uncollectibleInvoices;
+    const { collectAuditInputs } = await import("~/lib/audit/run.server");
+    const narrowed = await collectAuditInputs(narrowStripe, 90, RAN_AT);
+    const a = runAudit({ stripeAccountId: "acct_x", lookbackDays: 90, ranAt: RAN_AT, reads: full });
+    const b = runAudit({ stripeAccountId: "acct_x", lookbackDays: 90, ranAt: RAN_AT, reads: narrowed });
+    expect(b).toEqual(a);
+    // And the fixture exercised the fields, so equality means something.
+    expect(a.failedInvoices.ok && a.failedInvoices.data.byCategory.expired).toBeGreaterThan(0);
+    expect(a.expiringCards.ok && a.expiringCards.data.count).toBe(1);
+    expect(a.health.ok && a.health.data.voluntaryChurnRateBps).toBeGreaterThan(0);
+    expect(a.meta.currency).toBe("eur");
+  });
+
+  it("the old ceiling and its flag are gone", () => {
+    expect("AUDIT_READ_SOFT_LIMIT" in reads).toBe(false);
+    const source = readFileSync(fileURLToPath(new URL("../app/lib/stripe/reads.ts", import.meta.url)), "utf8");
+    expect(source).not.toContain("overLimit");
+    expect(source).not.toContain("soft ceiling");
+  });
+});
+
+describe("Review round 1, must-fix 2 and nits", () => {
+  it("the Intelligence line keeps Recova's trend history and cohort analysis", () => {
+    expect(text(health(viewOf()))).toContain("Full trend history and cohort analysis available in Intelligence.");
+  });
+
+  it("an unread figure says which figure it is", () => {
+    const t = text(recovery(viewOf({ subscriptions: failedRead("subs unavailable") })));
+    expect(t).toContain("Expiring cards (through next month) Could not be read on this run.");
+    expect(t).toContain("Past-due subscriptions Could not be read on this run.");
+    expect(text(disputes(viewOf({ disputes: failedRead("x") })))).toContain("Disputes Could not be read on this run.");
+    expect(text(health(viewOf({ subscriptions: failedRead("x") })))).toContain("Subscriptions Could not be read on this run.");
+  });
+
+  it("one rule for the middle band: the win rate takes the recovery rate's caution colour", () => {
+    const run = viewOf({ disputes: ok([dispute({ status: "won" })]) });
+    expect(disputes(run, "active", 60)).toMatch(/<span class="[^"]*text-caution[^"]*">60%/);
+  });
+
+  it("the live loader returns only what the page renders", () => {
+    const source = readFileSync(fileURLToPath(new URL("../app/routes/audit/results.tsx", import.meta.url)), "utf8");
+    const returned = source.slice(source.indexOf("  return {\n    run: toAuditRunView"));
+    const block = returned.slice(0, returned.indexOf("};"));
+    expect(block).not.toContain("stripeAccountId");
+    expect(block).not.toContain("runId");
+  });
+});
+
+describe("Review round 1: a failed live-figure read still renders the saved run", () => {
+  beforeEach(() => {
+    const made = createInMemoryDb();
+    sqlite = made.sqlite;
+    harness.db = made.db;
+    sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, ?, 1000)").run(ACCOUNT_A, ACCOUNT_A);
+  });
+
+  it("logs the whole error and answers the run with no live figures", async () => {
+    const { saveAuditRun } = await import("~/lib/audit/persist.server");
+    const id = await saveAuditRun({} as Env, auditWith(), {
+      accountId: ACCOUNT_A,
+      isAuthenticated: true,
+      summary: "s",
+      now: RAN_AT,
+    });
+    // The disputes table is gone, so the live-figure read throws.
+    sqlite.exec("PRAGMA foreign_keys = OFF; DROP TABLE disputes;");
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const data = (await runPage.loader({
+        context: contextFor(ACCOUNT_A),
+        request: new Request(`https://foxhoundapp.test/audit/results/${id}`),
+        params: { id },
+      } as never)) as { run: { id: string }; activeSequences: number | null; recoveryRatePct: number | null; foxhoundWinRate: number | null };
+      expect(data.run.id).toBe(id);
+      expect(data.activeSequences).toBeNull();
+      expect(data.recoveryRatePct).toBeNull();
+      expect(data.foxhoundWinRate).toBeNull();
+      expect(error).toHaveBeenCalledWith(expect.any(String), expect.any(Error));
+    } finally {
+      error.mockRestore();
+    }
   });
 });

@@ -101,7 +101,6 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   );
 
   let notSaved: NotSavedReason | null = "anonymous";
-  let runId: string | null = null;
 
   if (membership) {
     // Is the audited Stripe account the one this account actually holds? Asked
@@ -110,7 +109,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     // here means "live on the account this run would be filed under".
     const attachment = await findLiveAttachment(db, stripeAccountId, [membership.accountId]);
     if (attachment.status === "held_by_caller") {
-      runId = await saveAuditRun(env, result, {
+      await saveAuditRun(env, result, {
         accountId: membership.accountId,
         isAuthenticated: true,
         summary: summary.summary,
@@ -124,8 +123,6 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   return {
     run: toAuditRunView(result, summary.summary),
-    stripeAccountId,
-    runId,
     notSaved,
     signedIn: Boolean(membership),
   };
