@@ -60,7 +60,9 @@ describe("evaluateAlerts", () => {
         { health_score_avg: 20 },
         NOW,
       );
-    expect(fired(23)).toEqual([]);
+    expect(fired(22)).toEqual([]);
+    // Within the hour's margin for a nightly run that starts a little early.
+    expect(fired(23.5)).toHaveLength(1);
     expect(fired(24)).toHaveLength(1);
   });
 });

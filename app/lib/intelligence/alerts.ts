@@ -24,6 +24,20 @@ export interface AlertConfig {
  *  hours, however many evaluations see it still past its threshold. */
 export const ALERT_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * The nightly run's start drifts by however long the daily jobs before it take
+ * (cron-health, expiring-cards, d1-backup and demo-reset all run on the same
+ * "0 3 * * *" trigger). Without a margin, a run that starts a second earlier
+ * than last night's finds the alert still in cooldown, so a steady breach is
+ * mailed every other night. Recova re-evaluated every few minutes, so its
+ * effective period was 24 hours plus one tick; one evaluation a night gets the
+ * same behaviour from this margin (review round 1, PR 156).
+ */
+export const ALERT_COOLDOWN_MARGIN_MS = 60 * 60 * 1000;
+
+/** How long after a firing the alert stays quiet: the cooldown less the margin. */
+export const ALERT_COOLDOWN_WINDOW_MS = ALERT_COOLDOWN_MS - ALERT_COOLDOWN_MARGIN_MS;
+
 /** True when `actualValue` breaches the alert's threshold in its configured direction. */
 export function breachesThreshold(direction: string, actualValue: number, thresholdValue: number): boolean {
   return direction === "above" ? actualValue > thresholdValue : actualValue < thresholdValue;
@@ -44,7 +58,7 @@ export function inAlertCooldown(lastTriggeredAt: Date | null, nowMs: number): bo
   if (!lastTriggeredAt) return false;
   const lastMs = lastTriggeredAt.getTime();
   if (!Number.isFinite(lastMs)) return false;
-  return nowMs - lastMs < ALERT_COOLDOWN_MS;
+  return nowMs - lastMs < ALERT_COOLDOWN_WINDOW_MS;
 }
 
 export interface AlertFiring {

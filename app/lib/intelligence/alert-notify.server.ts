@@ -9,7 +9,7 @@ import { alertMetricLabel, isCentsMetric } from "~/lib/settings/alert-metrics";
 import { normalizeSlackWebhookUrl } from "~/lib/settings/slack-webhook";
 
 import {
-  ALERT_COOLDOWN_MS,
+  ALERT_COOLDOWN_WINDOW_MS,
   CRITICAL_CUSTOMERS_METRIC,
   CRITICAL_HEALTH_SCORE_MAX,
   buildCriticalAlertHistoryInsert,
@@ -337,7 +337,7 @@ export async function runCriticalCustomersCheck(
         and(
           eq(alertHistory.accountId, accountId),
           eq(alertHistory.metric, CRITICAL_CUSTOMERS_METRIC),
-          gte(alertHistory.firedAt, new Date(now.getTime() - ALERT_COOLDOWN_MS)),
+          gte(alertHistory.firedAt, new Date(now.getTime() - ALERT_COOLDOWN_WINDOW_MS)),
         ),
       )
       .limit(1);

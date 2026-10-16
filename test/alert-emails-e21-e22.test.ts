@@ -53,7 +53,7 @@ const {
 const { evaluateAndRecordAlerts, runIntelligenceAiForAccount } = await import(
   "~/lib/intelligence/ai-run.server"
 );
-const { ALERT_COOLDOWN_MS, evaluateAlerts } = await import("~/lib/intelligence/alerts");
+const { ALERT_COOLDOWN_MARGIN_MS, ALERT_COOLDOWN_MS, evaluateAlerts } = await import("~/lib/intelligence/alerts");
 
 const BASE = "https://foxhound.example.com";
 const ACCOUNT = "acct_1";
@@ -61,7 +61,8 @@ const ALERT = "alert_1";
 const WEBHOOK = "https://hooks.slack.com/services/T000/B000/EXAMPLE";
 const NOW = new Date("2026-10-16T03:00:00.000Z");
 const YEAR = NOW.getUTCFullYear();
-const DAY = 24 * 60 * 60 * 1000;
+const HOUR = 60 * 60 * 1000;
+const DAY = 24 * HOUR;
 const FOOTER_NOTE = `You're receiving this from Foxhound about a recent payment. © ${YEAR}`;
 
 const env = {
@@ -315,10 +316,21 @@ describe("E21 sends on Recova's trigger and cooldown, and records notification_s
 
   it("inside the 24h cooldown: no mail and no row (Recova's COOLDOWN_MS on last_triggered_at)", async () => {
     seedAccount();
-    seedAlert({ lastTriggeredAt: NOW.getTime() - DAY + 60_000 });
+    seedAlert({ lastTriggeredAt: NOW.getTime() - 12 * HOUR });
     await evaluateAndRecordAlerts(env, db(), ACCOUNT, { mrr_at_risk_cents: 712_345 }, NOW);
     expect(harness.sent).toHaveLength(0);
     expect(historyRows()).toHaveLength(0);
+  });
+
+  it("a nightly run that starts a few seconds earlier than last night's still fires (review round 1)", async () => {
+    // The intelligence-ai run takes Date.now() at its start, which drifts by
+    // the daily jobs before it. Without a margin a steady breach is mailed
+    // every other night; Recova, ticking every few minutes, mailed it daily.
+    seedAccount();
+    seedAlert({ lastTriggeredAt: NOW.getTime() - DAY + 5_000 });
+    await evaluateAndRecordAlerts(env, db(), ACCOUNT, { mrr_at_risk_cents: 712_345 }, NOW);
+    expect(harness.sent).toHaveLength(1);
+    expect(historyRows()).toHaveLength(1);
   });
 
   it("still breaching once the cooldown has passed: fires again, as Recova's does (not once per crossing)", async () => {
@@ -331,6 +343,7 @@ describe("E21 sends on Recova's trigger and cooldown, and records notification_s
 
   it("the pure evaluator applies the same rule: breach and outside the cooldown", () => {
     expect(ALERT_COOLDOWN_MS).toBe(DAY);
+    expect(ALERT_COOLDOWN_MARGIN_MS).toBe(HOUR);
     const config = {
       id: ALERT,
       accountId: ACCOUNT,
@@ -342,8 +355,11 @@ describe("E21 sends on Recova's trigger and cooldown, and records notification_s
     const metrics = { mrr_at_risk_cents: 200 };
     expect(evaluateAlerts([{ ...config, lastTriggeredAt: null }], metrics, NOW.getTime())).toHaveLength(1);
     expect(
-      evaluateAlerts([{ ...config, lastTriggeredAt: new Date(NOW.getTime() - DAY + 1) }], metrics, NOW.getTime()),
+      evaluateAlerts([{ ...config, lastTriggeredAt: new Date(NOW.getTime() - 22 * HOUR) }], metrics, NOW.getTime()),
     ).toHaveLength(0);
+    expect(
+      evaluateAlerts([{ ...config, lastTriggeredAt: new Date(NOW.getTime() - DAY + 5_000) }], metrics, NOW.getTime()),
+    ).toHaveLength(1);
     expect(
       evaluateAlerts([{ ...config, lastTriggeredAt: new Date(NOW.getTime() - DAY) }], metrics, NOW.getTime()),
     ).toHaveLength(1);
@@ -432,25 +448,27 @@ describe("E21 sends on Recova's trigger and cooldown, and records notification_s
 // ============================================================================
 
 function seedCritical(
-  opts: { customers?: string[]; health?: number; disputeState?: string; paymentStatus?: string } = {},
+  opts: { customers?: string[]; health?: number; disputeState?: string; paymentStatus?: string; account?: string } = {},
 ): void {
   const customers = opts.customers ?? ["cus_1"];
+  const account = opts.account ?? ACCOUNT;
+  const tag = account === ACCOUNT ? "" : `_${account}`;
   customers.forEach((cus, i) => {
     sqlite
       .prepare(
         "INSERT INTO failed_payments (id, account_id, stripe_event_id, stripe_invoice_id, stripe_customer_id, customer_email, amount_cents, currency, decline_category, status, detected_at) VALUES (?, ?, ?, ?, ?, 'buyer@example.com', 9900, 'usd', 'soft', ?, 1000)",
       )
-      .run(`fp_${i}`, ACCOUNT, `evt_${i}`, `in_${i}`, cus, opts.paymentStatus ?? "active");
+      .run(`fp_${i}${tag}`, account, `evt_${i}${tag}`, `in_${i}${tag}`, cus, opts.paymentStatus ?? "active");
     sqlite
       .prepare(
         "INSERT INTO customer_context (id, account_id, stripe_customer_id, health_score, currency, created_at, updated_at) VALUES (?, ?, ?, ?, 'usd', 1000, 1000)",
       )
-      .run(`cc_${i}`, ACCOUNT, cus, opts.health ?? 33);
+      .run(`cc_${i}${tag}`, account, cus, opts.health ?? 33);
     sqlite
       .prepare(
         "INSERT INTO disputes (id, account_id, stripe_dispute_id, stripe_charge_id, stripe_customer_id, amount_cents, currency, reason, status, state, created_at) VALUES (?, ?, ?, ?, ?, 4900, 'usd', 'fraudulent', 'needs_response', ?, 1000)",
       )
-      .run(`dp_${i}`, ACCOUNT, `dp_s_${i}`, `ch_${i}`, cus, opts.disputeState ?? "pending_review");
+      .run(`dp_${i}${tag}`, account, `dp_s_${i}${tag}`, `ch_${i}${tag}`, cus, opts.disputeState ?? "pending_review");
   });
 }
 
@@ -546,13 +564,53 @@ describe("E22 fires on Recova's three conditions at once, with a 24h cooldown", 
   it("inside 24h of the last critical firing: nothing", async () => {
     seedAccount();
     seedCritical();
-    await runCriticalCustomersCheck(env, db(), ACCOUNT, new Date(NOW.getTime() - DAY + 60_000));
+    await runCriticalCustomersCheck(env, db(), ACCOUNT, new Date(NOW.getTime() - 12 * HOUR));
     harness.sent = [];
     expect(await runCriticalCustomersCheck(env, db(), ACCOUNT, NOW)).toEqual({
       kind: "skipped",
       reason: "cooldown",
     });
     expect(harness.sent).toHaveLength(0);
+    expect(historyRows()).toHaveLength(1);
+  });
+
+  it("a run a few seconds short of 24h after the last firing still fires (review round 1)", async () => {
+    seedAccount();
+    seedCritical();
+    await runCriticalCustomersCheck(env, db(), ACCOUNT, new Date(NOW.getTime() - DAY + 5_000));
+    await runCriticalCustomersCheck(env, db(), ACCOUNT, NOW);
+    expect(historyRows()).toHaveLength(2);
+  });
+
+  it("only this account's customers count (review round 1)", async () => {
+    seedAccount();
+    sqlite
+      .prepare(
+        "INSERT INTO accounts (id, name, created_at, notification_email, live_sends_enabled) VALUES ('acct_2', 'Other', 1000, 'ops@other.example.com', 1)",
+      )
+      .run();
+    seedCritical({ account: "acct_2" });
+    expect(await runCriticalCustomersCheck(env, db(), ACCOUNT, NOW)).toEqual({
+      kind: "skipped",
+      reason: "none_critical",
+    });
+    expect(harness.sent).toHaveLength(0);
+  });
+
+  it("another account's recent firing is not this account's cooldown (review round 1)", async () => {
+    seedAccount();
+    sqlite
+      .prepare("INSERT INTO accounts (id, name, created_at, live_sends_enabled) VALUES ('acct_2', 'Other', 1000, 1)")
+      .run();
+    sqlite
+      .prepare(
+        "INSERT INTO alert_history (id, alert_id, account_id, metric, threshold_value, direction, actual_value, channel, fired_at, notification_sent) VALUES ('h_2', NULL, 'acct_2', 'cross_product_critical', 0, 'above', 1, 'email', ?, 1)",
+      )
+      .run(NOW.getTime() - HOUR);
+    seedCritical();
+    const out = await runCriticalCustomersCheck(env, db(), ACCOUNT, NOW);
+    expect(out).toMatchObject({ kind: "fired", count: 1 });
+    expect(harness.sent).toHaveLength(1);
     expect(historyRows()).toHaveLength(1);
   });
 
