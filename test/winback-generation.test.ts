@@ -161,6 +161,19 @@ async function resubscribeLink(opts: {
 }
 
 /** The href values of a body. */
+/** The template's button targets (J91: the template is Capsomer's blocks). */
+function buttonUrls(blocks: { type: string; url?: string }[]): string[] {
+  return blocks.flatMap((b) => (b.type === "button" && b.url ? [b.url] : []));
+}
+
+/** Every link a sent job carries: the hrefs of an HTML body (generated or
+ *  cached copy), or the buttons of the template's blocks (J91). */
+function jobLinks(job: Record<string, unknown>): string[] {
+  return Array.isArray(job.blocks)
+    ? buttonUrls(job.blocks as { type: string; url?: string }[])
+    : hrefs(String(job.bodyHtml));
+}
+
 function hrefs(html: string): string[] {
   return [...html.matchAll(/href="([^"]*)"/g)].map((m) => m[1]);
 }
@@ -178,6 +191,7 @@ function sentPrompt(): string {
 
 describe("PLANT 1: the prompt is legacy's, per step", () => {
   const base = {
+    offsetHours: 1,
     customerName: "Jane",
     planName: "Pro",
     cancelReason: "too expensive",
@@ -196,7 +210,7 @@ describe("PLANT 1: the prompt is legacy's, per step", () => {
 
   it("STEP 3 DIFFERS, as legacy's step descriptions do", () => {
     const one = buildWinbackPrompt({ ...base, stepNumber: 1 });
-    const three = buildWinbackPrompt({ ...base, stepNumber: 3 });
+    const three = buildWinbackPrompt({ ...base, stepNumber: 3, offsetHours: 336 });
 
     expect(one).toContain("warm, empathetic, not pushy");
     expect(three).toContain("last chance, no pressure");
@@ -405,6 +419,8 @@ describe("PLANT 3: every failure falls back to the template", () => {
         cachedSubject: null,
         cachedBodyHtml: null,
         replyToEmail: null,
+        scheduledAt: new Date(3_601_000),
+        sequenceCreatedAt: new Date(1000),
       },
       "https://foxhoundapp.test/p/tok",
     );
@@ -456,7 +472,7 @@ describe("PLANT 5: no win-back email leaves without its resubscribe link", () =>
       );
       const minted = mintedLink();
       expect(minted).toMatch(/^https:\/\/foxhoundapp\.test\/p\//);
-      expect(hrefs(String(harness.emailJobs[0].bodyHtml))).toContain(minted);
+      expect(jobLinks(harness.emailJobs[0])).toContain(minted);
       expect(stepRow().result).toBe("email_sent_fallback");
       // The linkless copy is not cached for the next tick to reuse.
       expect(stepRow().aiSubject).toBeNull();
@@ -469,7 +485,7 @@ describe("PLANT 5: no win-back email leaves without its resubscribe link", () =>
     await runWinbackSends(env, NOW);
 
     expect(stepRow().result).toBe("email_sent_ai");
-    expect(hrefs(String(harness.emailJobs[0].bodyHtml))).toContain(mintedLink());
+    expect(jobLinks(harness.emailJobs[0])).toContain(mintedLink());
   });
 
   it("A CACHED BODY WITHOUT THE LINK is replaced by the template", async () => {
@@ -485,7 +501,7 @@ describe("PLANT 5: no win-back email leaves without its resubscribe link", () =>
     expect(harness.emailJobs[0].subject).toBe(
       "We're sorry to see you go. Here's what you're missing.",
     );
-    expect(String(harness.emailJobs[0].bodyHtml)).toMatch(/href="https:\/\/foxhoundapp\.test\/p\//);
+    expect(jobLinks(harness.emailJobs[0]).some((u) => u.startsWith("https://foxhoundapp.test/p/"))).toBe(true);
     expect(stepRow().result).toBe("email_sent_fallback");
   });
 
@@ -500,7 +516,7 @@ describe("PLANT 5: no win-back email leaves without its resubscribe link", () =>
     await runWinbackSends(env, NOW);
 
     expect(harness.emailJobs[0].subject).not.toBe("Cached subject");
-    expect(hrefs(String(harness.emailJobs[0].bodyHtml))).not.toContain(wrong);
+    expect(jobLinks(harness.emailJobs[0])).not.toContain(wrong);
   });
 
   it("A CACHED BODY LINKING ANOTHER SEQUENCE is replaced by the template", async () => {
@@ -526,7 +542,7 @@ describe("PLANT 5: no win-back email leaves without its resubscribe link", () =>
         senderName: null,
         resubscribeUrl: url,
       });
-      expect(hrefs(body), `step ${stepNumber}`).toContain(url);
+      expect(buttonUrls(body), `step ${stepNumber}`).toContain(url);
     }
   });
 
@@ -553,11 +569,13 @@ describe("PLANT 5: no win-back email leaves without its resubscribe link", () =>
         cachedSubject: null,
         cachedBodyHtml: null,
         replyToEmail: null,
+        scheduledAt: new Date(3_601_000),
+        sequenceCreatedAt: new Date(1000),
       },
       "https://foxhoundapp.test/p/tok",
     );
 
     expect(copy.result).toBe("email_sent_fallback");
-    expect(hrefs(copy.bodyHtml)).toContain("https://foxhoundapp.test/p/tok");
+    expect(buttonUrls(copy.blocks ?? [])).toContain("https://foxhoundapp.test/p/tok");
   });
 });

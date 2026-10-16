@@ -320,7 +320,8 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
       const stepNumber = Number(winback[1]);
       return job({
         subject: winbackSubject({ stepNumber, planName: null }),
-        bodyHtml: buildWinbackEmail({ stepNumber, customerName: null, planName: null, senderName, resubscribeUrl: standIn }),
+        blocks: buildWinbackEmail({ stepNumber, customerName: null, planName: null, senderName, resubscribeUrl: standIn }),
+        footerNote: recoveryFooterNote(senderName, now.getUTCFullYear()),
       });
     }
     if (type.type === "expiring_card") {

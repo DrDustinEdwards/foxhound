@@ -1,3 +1,5 @@
+import type { Block } from "capsomer/email";
+
 // The win-back email copy, ported from legacy's WIN_BACK_TEMPLATES in
 // app/api/cron/process-winback/route.ts (blob `18f20de9`, lines 71 to 97).
 // Pure: no env, no database, no clock.
@@ -7,14 +9,9 @@
 // headers and the suppression gate, exactly as the expiring-card alert does and
 // exactly opposite to the two merchant notices (sessions 47 and 48).
 //
-// WHAT IS NOT PORTED, and it is half of legacy's generator: legacy tries an AI
-// draft first (Sonnet, per-step description, brand voice, under 120 words),
-// runs it through a Haiku quality gate, strips dashes and timing words, caches
-// the result on the step row, and falls back to these templates only when that
-// fails. The template half is what session 52 was scoped to and what ships
-// here; `ai_subject` and `ai_body_html` stay unread, and a send is recorded as
-// legacy's `email_sent_fallback` rather than `email_sent_ai`, which is the
-// honest label for what actually went out.
+// THESE ARE THE FALLBACK HALF. Legacy tries an AI draft first and falls back to
+// these templates when it fails; the AI half is app/lib/recovery/
+// winback-generation.ts, and app/lib/cron/winback.ts resolves which goes out.
 
 export const WINBACK_TEMPLATE = "winback";
 
@@ -46,11 +43,8 @@ interface WinbackTemplate {
 
 /**
  * Legacy's three templates, keyed by step number, wording and order verbatim.
- *
- * ONE DIFFERENCE, forced and recorded: the button is a PLAIN ANCHOR. Legacy
- * styles it from `CTA_BUTTON_STYLE`, built out of its EMAIL_COLORS module,
- * which Foxhound does not have and which check-tokens fails the build on. The
- * labels are legacy's.
+ * The labels are legacy's; the button itself is Capsomer's, in Foxhound's teal
+ * (Q3, Q11), because legacy's `CTA_BUTTON_STYLE` is its own inline style.
  */
 const WINBACK_TEMPLATES: Record<number, WinbackTemplate> = {
   1: {
@@ -103,19 +97,34 @@ export function applyWinbackTemplate(source: string, vars: Record<string, string
   );
 }
 
-/** Legacy's body for this step, verbatim in wording and order. */
-export function buildWinbackEmail(input: WinbackCopyInput): string {
+/**
+ * Legacy's body for this step, verbatim in wording and order, as Capsomer's
+ * email blocks (J91, rows E13 to E15). The send seam renders them on Capsomer's
+ * email component, which writes the HTML part and the plain-text part from the
+ * same blocks and escapes every value, so a customer name from Stripe is shown
+ * exactly as written and never read as markup. (Written as HTML before J91, a
+ * name such as "Ann <Admin>" lost "<Admin>" on the way through the reader.)
+ *
+ * WHAT CAPSOMER'S BLOCKS CANNOT YET CARRY, kept as words: legacy's
+ * "{signOff}<br>{sender_name}" line break. A paragraph has no line break
+ * (capsomer job_0c6621539448), so the sign-off is two paragraphs, same words.
+ *
+ * THE BUTTON'S TARGET is Foxhound's /p/:token resubscribe page, which opens
+ * Stripe Checkout, rather than a billing portal session (APPROVED-DIFFERENCES,
+ * "yes", 2026-09-19). Pure.
+ */
+export function buildWinbackEmail(input: WinbackCopyInput): Block[] {
   const template = templateFor(input.stepNumber);
   const vars = {
     customer_name: input.customerName || WINBACK_FALLBACKS.customerName,
     plan_name: input.planName || WINBACK_FALLBACKS.planName,
     sender_name: input.senderName || WINBACK_FALLBACKS.senderName,
-    resubscribe_url: input.resubscribeUrl,
   };
-  const body =
-    `<p>Hi {{customer_name}},</p>` +
-    template.paragraphs.map((p) => `<p>${p}</p>`).join("") +
-    `<p><a href="{{resubscribe_url}}">${template.cta}</a></p>` +
-    `<p>${template.signOff}<br>{{sender_name}}</p>`;
-  return applyWinbackTemplate(body, vars);
+  return [
+    { type: "paragraph", text: `Hi ${vars.customer_name},` },
+    ...template.paragraphs.map((p): Block => ({ type: "paragraph", text: applyWinbackTemplate(p, vars) })),
+    { type: "button", label: template.cta, url: input.resubscribeUrl },
+    { type: "paragraph", text: template.signOff },
+    { type: "paragraph", text: vars.sender_name },
+  ];
 }

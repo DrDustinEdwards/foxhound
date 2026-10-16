@@ -4,6 +4,7 @@ import type { Db } from "~/db";
 import { accounts, getDb, stripeConnections, winBackSequences, winBackSteps } from "~/db";
 import { signCardUpdateToken } from "~/lib/card-update/token";
 import { processEmailJob } from "~/lib/email/dispatch";
+import { recoveryFooterNote } from "~/lib/email/templates";
 import { recordOutcome } from "~/lib/engine/outcomes";
 import { accountProcessingEligibleCondition } from "~/lib/cron/recovery-tick";
 
@@ -15,6 +16,7 @@ import {
   WINBACK_TEMPLATE,
 } from "~/lib/recovery/winback-email";
 import { generateWinbackEmail } from "~/lib/recovery/winback-generation";
+import type { Block } from "capsomer/email";
 import { linksTo, storedCopyCarriesResubscribeLink } from "~/lib/recovery/update-link";
 import { isLastWinbackStep, WINBACK_STATUS } from "~/lib/recovery/winback";
 
@@ -32,6 +34,8 @@ import { isLastWinbackStep, WINBACK_STATUS } from "~/lib/recovery/winback";
 //
 // NOT A RECOVERY STEP. A win-back step never enters `decideEmailStep`; it is its
 // own table with its own claim, exactly as legacy has it.
+
+const HOUR_MS = 60 * 60 * 1000;
 
 /** One tick's cap, matching the recovery tick's shape. Legacy uses
  *  `CRON_BATCH_LIMIT` on the same query. */
@@ -66,6 +70,10 @@ export interface DueWinbackStep {
    *  retry reuses it instead of re-spending model tokens. */
   cachedSubject: string | null;
   cachedBodyHtml: string | null;
+  /** When this step was scheduled, and when its sequence began (the
+   *  cancellation): the prompt states the delay between them (J91). */
+  scheduledAt: Date;
+  sequenceCreatedAt: Date;
 }
 
 /**
@@ -98,6 +106,8 @@ export async function queryDueWinbackSteps(
       cancelReason: winBackSequences.cancelReason,
       cachedSubject: winBackSteps.aiSubject,
       cachedBodyHtml: winBackSteps.aiBodyHtml,
+      scheduledAt: winBackSteps.scheduledAt,
+      sequenceCreatedAt: winBackSequences.createdAt,
       notificationsEnabled: accounts.winbackNotificationsEnabled,
       brandVoice: sql<string | null>`(
         select ${stripeConnections.brandVoice} from ${stripeConnections}
@@ -206,13 +216,14 @@ async function signUnsubscribeFor(env: Env, email: string, accountId: string): P
 }
 
 
-/** What went out, and which of legacy's two result strings records it. */
-export interface WinbackCopy {
+/** What went out, and which of legacy's two result strings records it. The
+ *  template is Capsomer's blocks; generated and cached copy is the model's HTML,
+ *  which the send seam reads onto the same component (J02, J91). */
+export type WinbackCopy = {
   subject: string;
-  bodyHtml: string;
   /** Legacy's `aiUsed ? 'email_sent_ai' : 'email_sent_fallback'`. */
   result: "email_sent_ai" | "email_sent_fallback";
-}
+} & ({ bodyHtml: string; blocks?: never } | { blocks: Block[]; bodyHtml?: never });
 
 /**
  * Legacy's copy resolution, in legacy's order: cached copy, else a generated
@@ -249,19 +260,19 @@ export async function resolveWinbackCopy(
   resubscribeUrl: string,
 ): Promise<WinbackCopy> {
   const template = (): WinbackCopy => {
-    const bodyHtml = buildWinbackEmail({
+    const blocks = buildWinbackEmail({
       stepNumber: step.stepNumber,
       customerName: step.customerName,
       planName: step.planName,
       senderName: step.senderName,
       resubscribeUrl,
     });
-    if (!linksTo(bodyHtml, resubscribeUrl)) {
+    if (!blocks.some((b) => b.type === "button" && b.url === resubscribeUrl)) {
       throw new Error("resubscribe link missing from the win-back template; not sending");
     }
     return {
       subject: winbackSubject({ stepNumber: step.stepNumber, planName: step.planName }),
-      bodyHtml,
+      blocks,
       result: "email_sent_fallback",
     };
   };
@@ -289,6 +300,7 @@ export async function resolveWinbackCopy(
   try {
     const generated = await generateWinbackEmail(env, {
       stepNumber: step.stepNumber,
+      offsetHours: (step.scheduledAt.getTime() - step.sequenceCreatedAt.getTime()) / HOUR_MS,
       customerName: step.customerName || WINBACK_FALLBACKS.customerName,
       planName: step.planName || WINBACK_FALLBACKS.planName,
       cancelReason: step.cancelReason,
@@ -348,7 +360,11 @@ export async function runWinbackSends(env: Env, now: Date): Promise<WinbackSendR
           fromName: step.senderName,
           replyTo: step.replyToEmail,
           subject: copy.subject,
-          bodyHtml: copy.bodyHtml,
+          ...(copy.blocks ? { blocks: copy.blocks } : { bodyHtml: copy.bodyHtml }),
+          // Recova's footer sentence (lib/email.ts wrapEmailHtml, which its
+          // win-back wraps with the merchant's sender name), before the
+          // unsubscribe link and the postal address (J91, as E12).
+          footerNote: recoveryFooterNote(step.senderName, now.getUTCFullYear()),
           template: WINBACK_TEMPLATE,
           // CUSTOMER audience: footer, unsubscribe headers and the suppression
           // gate all apply, because this is commercial mail sent on the
