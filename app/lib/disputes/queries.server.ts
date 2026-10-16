@@ -130,7 +130,10 @@ export async function saveDisputeEvidence(
  *   called, and a rejected or unconfirmed submission leaves it there);
  * - the INSERT also needs the dispute to be this account's, and no row for the
  *   same field already, so two first-time saves cannot leave two rows.
- * A statement whose guard fails matches nothing and writes nothing.
+ * A statement whose guard fails matches nothing and writes nothing, and that
+ * is a failure to report, never a success (RULES.md 3.9): the result is true
+ * only when every statement changed a row. SQLite counts a matched UPDATE even
+ * when the value is unchanged, so saving an unchanged draft is still true.
  */
 export async function saveDisputeDraft(
   db: Db,
@@ -139,7 +142,7 @@ export async function saveDisputeDraft(
   existing: { id: string; fieldName: string }[],
   fields: { fieldName: string; fieldValue: string }[],
   now: Date,
-): Promise<void> {
+): Promise<boolean> {
   const noApproval = notExists(
     db
       .select({ one: sql`1` })
@@ -194,8 +197,18 @@ export async function saveDisputeDraft(
     }
   }
   const [first, ...rest] = statements;
-  if (!first) return;
-  await db.batch([first, ...rest]);
+  if (!first) return true;
+  const results = await db.batch([first, ...rest]);
+  return results.every((r) => changedRows(r) > 0);
+}
+
+/** Rows a run statement changed: D1 reports meta.changes; the test suite's
+ *  better-sqlite3 driver reports changes. Anything else reads as none, so an
+ *  unreadable result is never taken for a write. */
+function changedRows(result: unknown): number {
+  const r = result as { meta?: { changes?: unknown }; changes?: unknown } | null;
+  const n = r?.meta?.changes ?? r?.changes;
+  return typeof n === "number" ? n : 0;
 }
 
 /** The connected Stripe account's access token for a dispute's connection, or

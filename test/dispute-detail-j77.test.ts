@@ -31,6 +31,7 @@ import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 const harness = vi.hoisted(() => ({
   db: null as unknown,
   approve: null as null | ((...args: unknown[]) => Promise<unknown>),
+  beforeSave: null as null | (() => void),
   importResult: { status: "imported" } as { status: string },
 }));
 vi.mock("~/db", async (importOriginal) => ({
@@ -43,6 +44,11 @@ vi.mock("~/lib/disputes/queries.server", async (importOriginal) => {
     ...real,
     approveAndSubmitDispute: (...args: Parameters<typeof real.approveAndSubmitDispute>) =>
       harness.approve ? harness.approve(...args) : real.approveAndSubmitDispute(...args),
+    // Lets a test act between the action's read and its write.
+    saveDisputeDraft: (...args: Parameters<typeof real.saveDisputeDraft>) => {
+      harness.beforeSave?.();
+      return real.saveDisputeDraft(...args);
+    },
   };
 });
 vi.mock("~/lib/disputes/manual-import.server", () => ({
@@ -242,6 +248,7 @@ beforeEach(() => {
   ({ sqlite, db } = createInMemoryDb());
   harness.db = db;
   harness.approve = null;
+  harness.beforeSave = null;
   harness.importResult = { status: "imported" };
   runStatement(sqlite, db.insert(accounts).values({ id: A, name: "Alpha" }));
   runStatement(sqlite, db.insert(accounts).values({ id: B, name: "Beta" }));
@@ -818,5 +825,59 @@ describe("J77 review: one row per field, the same one everywhere", () => {
     seedEvidence("uncategorized_text", "Earlier.", { id: "ev_y", createdAt: new Date(NOW - 2 * DAY) });
     const data = await load();
     expect(data.evidence.map((e) => e.id)).toEqual(["ev_y", "ev_z"]);
+  });
+});
+
+// ---- Re-review of a297ac1 (CHANGES): a guarded write that wrote nothing is not "Saved." ----
+
+describe("J77 re-review: a save that wrote nothing is reported, never Saved (RULES.md 3.9)", () => {
+  const NOT_SAVED = "Your draft was not saved: this dispute changed. Reload to see the current evidence.";
+
+  it("answers 409 when another session added the same field first", async () => {
+    seedDispute();
+    harness.beforeSave = () => seedEvidence("customer_purchase_ip", "198.51.100.1"); // the other tab's save
+    const res = await act({ intent: "save", customer_ip: "198.51.100.2" });
+    expect(res.status).toBe(409);
+    expect(res.body).toMatchObject({ intent: "save", error: NOT_SAVED });
+    expect(res.body).not.toHaveProperty("ok");
+  });
+
+  it("answers 409 when an approval lands between the read and the write", async () => {
+    seedDispute();
+    seedEvidence("uncategorized_text", "Approved text.");
+    harness.beforeSave = () =>
+      runStatement(
+        sqlite,
+        db.insert(disputeApprovals).values({
+          id: "ap_race",
+          disputeId: "dsp_1",
+          accountId: A,
+          approvedByUserId: "u",
+          approvedByEmail: "owner@alpha.test",
+          evidenceVersionHash: "h",
+          approvedAt: new Date(NOW),
+        }),
+      );
+    const res = await act({ intent: "save", narrative: "Edited." });
+    expect(res.status).toBe(409);
+    expect(res.body).toMatchObject({ intent: "save", error: NOT_SAVED });
+  });
+
+  it("reports whether every statement changed a row", async () => {
+    seedDispute();
+    seedEvidence("uncategorized_text", "Same.");
+    const { saveDisputeDraft } = await import("~/lib/disputes/queries.server");
+    const existing = [{ id: "ev_uncategorized_text_acct_alpha", fieldName: "uncategorized_text" }];
+    // An unchanged value still matches its row, so it counts as written.
+    expect(await saveDisputeDraft(db, A, "dsp_1", existing, [{ fieldName: "uncategorized_text", fieldValue: "Same." }], new Date(NOW))).toBe(true);
+    expect(await saveDisputeDraft(db, A, "dsp_1", [], [{ fieldName: "uncategorized_text", fieldValue: "Dup." }], new Date(NOW))).toBe(false);
+  });
+
+  it("shows the refusal beside Save draft, so the draft stays unsaved", async () => {
+    seedDispute();
+    seedEvidence("uncategorized_text", "x");
+    const t = text(render(await load(), { actionData: { error: NOT_SAVED, intent: "save" } }));
+    expect(t).toContain(`Save draft ${NOT_SAVED}`);
+    expect(t).not.toContain("Saved.");
   });
 });

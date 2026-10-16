@@ -134,13 +134,27 @@ export async function action({ context, params, request }: Route.ActionArgs) {
       // A field the form did not carry is left as it is.
       .filter((f): f is { fieldName: string; fieldValue: string } => typeof f.fieldValue === "string")
       .map((f) => ({ fieldName: f.fieldName, fieldValue: f.fieldName === CUSTOMER_IP_FIELD ? f.fieldValue.trim() : f.fieldValue }));
+    let written: boolean;
     try {
-      await saveDisputeDraft(db, accountId, detail.dispute.id, detail.evidence, fields, new Date());
+      written = await saveDisputeDraft(db, accountId, detail.dispute.id, detail.evidence, fields, new Date());
     } catch (err) {
       // Recova's line beside Save draft is "Could not save."; the whole error
       // goes to the log, never to the page.
       console.error("dispute draft save failed", err);
       return data({ error: "Could not save.", intent: "save" as const }, { status: 500 });
+    }
+    // A guarded write that changed nothing (an approval or another session's
+    // save got there between this read and the write) is reported, never
+    // "Saved." (RULES.md 3.9). The result is not ok, so the page keeps the
+    // draft unsaved and Approve held.
+    if (!written) {
+      return data(
+        {
+          error: "Your draft was not saved: this dispute changed. Reload to see the current evidence.",
+          intent: "save" as const,
+        },
+        { status: 409 },
+      );
     }
     return data({ ok: true, intent: "save" as const });
   }
