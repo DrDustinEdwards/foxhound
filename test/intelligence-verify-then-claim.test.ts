@@ -152,7 +152,14 @@ describe("281c: claims the evidence SUPPORTS, with the source named", () => {
     // stays, read here on the RENDERED page, not in source.
     const dashboard = readFileSync("app/routes/app/dashboard.tsx", "utf8");
     expect(dashboard).not.toContain("isIntelligenceEntitled");
-    for (const f of ["newMrrCents", "churnMrrCents", "CohortGrid"]) expect(dashboard).toContain(f);
+    // The console draws the movements and the cohorts with Enarratio (J64);
+    // the movement fields are read in console.ts, which the route draws from.
+    for (const f of ["drawLatestMovement", "drawCohorts", "perCohortBreakdown"]) expect(dashboard).toContain(f);
+    const consoleLib = readFileSync("app/lib/dashboard/console.ts", "utf8");
+    for (const f of ["newMrrCents", "churnMrrCents"]) expect(consoleLib).toContain(f);
+    const charts = readFileSync("app/lib/dashboard/console-charts.ts", "utf8");
+    expect(charts).not.toContain("isIntelligenceEntitled");
+    expect(charts).toContain("export function drawCohorts");
     const body = await renderedText();
     expect(body).toContain("MRR, movements, churn, and cohort analytics are free for every Recovery merchant.");
     expect(body).toContain("adds predictive risk scoring");

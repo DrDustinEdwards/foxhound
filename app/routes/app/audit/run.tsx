@@ -75,7 +75,7 @@ export default function AuditRunPage({ loaderData }: Route.ComponentProps) {
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <Link
-              to="/audit/history"
+              to="/audit/dashboard"
               className="inline-block text-label text-text-tertiary no-underline hover:text-text"
             >
               Back to history

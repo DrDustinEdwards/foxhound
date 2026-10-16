@@ -40,7 +40,7 @@ export const DISALLOW_PATHS = [
   // for a crawler. Foxhound disallows the exact path. `/audit/connect` and
   // `/audit/callback` join it: one is a step inside a flow, the other is an
   // OAuth return, and neither is a destination.
-  "/audit/history",
+  "/audit/dashboard",
   "/audit/runs/",
   "/audit/connect",
   "/audit/callback",
