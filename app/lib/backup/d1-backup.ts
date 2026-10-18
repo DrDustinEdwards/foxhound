@@ -96,7 +96,7 @@ export async function runD1Backup(env: Env, now: Date): Promise<CronJobResult> {
   const rows = dump.tables.reduce((sum, t) => sum + t.rows, 0);
   return {
     rowsProcessed: rows,
-    message: `${dump.tables.length} tables, ${rows} rows, ${dump.excluded.length} excluded, pruned ${pruned.pruned}`,
+    message: `${dump.tables.length} tables, ${rows} rows, ${dump.excluded.length} excluded, pruned ${pruned.pruned}, locked ${pruned.locked}`,
   };
 }
 
