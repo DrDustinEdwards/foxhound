@@ -98,17 +98,6 @@ interface Env {
   // "temporarily unavailable" state and never accepts a submission or skips
   // the gate silently (mirrors gotcha #16's ANTHROPIC_API_KEY pattern).
   TURNSTILE_SECRET_KEY?: string;
-
-  // ---- J07: merchant dispute evidence files ----
-  // The private R2 bucket holding the files merchants attach to a dispute
-  // (Recova's recova-dispute-evidence). R2 bindings are Dustin's to create
-  // (capsid/conventions.md 1.4), so it is declared here, ambient and optional,
-  // until he adds the r2_buckets entry to wrangler.jsonc; while it is absent
-  // the upload control says uploads are not available yet, the file routes
-  // answer 503 uploads_unavailable, and a submission goes without files
-  // (app/lib/disputes/evidence-files.server.ts). Once the binding is in
-  // wrangler.jsonc, `wrangler types` declares it too and this line is removed.
-  EVIDENCE?: R2Bucket;
 }
 
 // Foxhound's adapter shape over the Cloudflare Email Service send binding. The
