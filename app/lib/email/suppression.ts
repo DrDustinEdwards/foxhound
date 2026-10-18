@@ -1,6 +1,6 @@
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
 
-import { getDb, emailSuppressions } from "~/db";
+import { accounts, getDb, emailSuppressions } from "~/db";
 
 import type { UnsubscribeTokenPayload } from "./unsubscribe-token";
 
@@ -69,4 +69,39 @@ export async function recordUnsubscribe(
     })
     .returning({ id: emailSuppressions.id });
   return written.length > 0 ? "unsubscribed" : "already";
+}
+
+/** What a followed digest unsubscribe link did. "changed": the account no
+ *  longer sends its digest to this address, so nothing was switched off and
+ *  the visit is not reported as a success (RULES.md 3.9). */
+export type DigestUnsubscribeOutcome = UnsubscribeOutcome | "changed";
+
+/**
+ * Record a digest unsubscribe (E23, review round 1 of PR 158): switch off the
+ * weekly digest for the account the token was signed for, while that account
+ * still sends its digest to the token's address. No suppression row is
+ * written: the digest's link leaves the digest, as a Recova merchant sees it,
+ * and every other mail to the address, and every other account sharing it,
+ * carries on (RULES.md 3.16, 1.6).
+ *
+ * One conditional UPDATE does the switch, its guard joined to the write (3.9):
+ * it matches only a row whose id, address and toggle (on) all agree. When it
+ * matches nothing, a read says which of the two reasons applies: the toggle was
+ * already off (or NULL, which reads as off) for this address, "already"; or the
+ * account's address is no longer this one, "changed".
+ */
+export async function recordDigestUnsubscribe(
+  env: Env,
+  payload: UnsubscribeTokenPayload,
+): Promise<DigestUnsubscribeOutcome> {
+  const db = getDb(env);
+  const match = and(eq(accounts.id, payload.accountId), eq(accounts.notificationEmail, payload.email));
+  const switched = await db
+    .update(accounts)
+    .set({ digestEnabled: false })
+    .where(and(match, eq(accounts.digestEnabled, true)))
+    .returning({ id: accounts.id });
+  if (switched.length > 0) return "unsubscribed";
+  const still = await db.select({ id: accounts.id }).from(accounts).where(match).limit(1);
+  return still.length > 0 ? "already" : "changed";
 }

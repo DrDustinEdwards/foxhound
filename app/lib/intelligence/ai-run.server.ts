@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, eq, gte, isNull, lte, ne, notInArray } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import {
@@ -6,6 +6,8 @@ import {
   alertHistory,
   alerts,
   customerContext,
+  disputes,
+  failedPayments,
   getDb,
   healthScoreHistory,
   intelligenceReports,
@@ -13,15 +15,28 @@ import {
 } from "~/db";
 import { buildAiCallRow } from "~/lib/ai/cost";
 import {
+  FAILED_PAYMENT_STATUS_ACTIVE,
   HEALTH_SCORE_AT_RISK_THRESHOLD,
   INTELLIGENCE_NARRATIVE_TOP_N,
   MODEL_INTELLIGENCE_NARRATIVE,
   PREDICTION_HORIZON_DAYS,
 } from "~/lib/constants";
 import { getMrrAnalytics } from "~/lib/dashboard/stats.server";
+import { RESOLVED_DISPUTE_STATES } from "~/lib/disputes/labels";
 
 import {
+  CRITICAL_CUSTOMERS_ALERT_LIVE,
+  loadAlertTarget,
+  notifyCriticalCustomers,
+  notifyThresholdAlert,
+  type CriticalNotifyOutcome,
+} from "./alert-notify.server";
+import {
+  ALERT_COOLDOWN_WINDOW_MS,
+  CRITICAL_CUSTOMERS_METRIC,
+  CRITICAL_HEALTH_SCORE_MAX,
   buildAlertHistoryInsert,
+  buildCriticalAlertHistoryInsert,
   buildAlertLastTriggeredUpdate,
   evaluateAlerts,
   type AlertConfig,
@@ -194,7 +209,10 @@ export async function runIntelligenceAiForAccount(
     metrics.mrr_contraction_cents = mrr.latest.contractionMrrCents;
   }
 
-  const alertsFired = await evaluateAndRecordAlerts(db, accountId, metrics, now);
+  const alertsFired = await evaluateAndRecordAlerts(env, db, accountId, metrics, now);
+  // E22, Recova's always-on critical customers check, after the configured
+  // alerts as Recova runs it. Off until its button's page exists (RULES.md 2.7).
+  if (CRITICAL_CUSTOMERS_ALERT_LIVE) await runCriticalCustomersCheck(env, db, accountId, now);
 
   let narrativeGenerated = false;
   let narrativeSkippedReason: string | null = null;
@@ -319,7 +337,16 @@ export async function writeNarrativeReport(
   await db.batch([narrativeBatch[0], ...narrativeBatch.slice(1)]);
 }
 
-async function evaluateAndRecordAlerts(
+/**
+ * Evaluate the account's enabled alerts and, for each that fires, notify and
+ * then record, in Recova's order (lib/alert-evaluation.ts, blob 0e28ecbf):
+ * the email or Slack post first, then the alert_history row with whether it
+ * went, then last_triggered_at, which starts the 24 hour cooldown. Returns the
+ * number of alerts that fired. A notification never throws (alert-notify), so
+ * one failed send never stops the next alert or the run.
+ */
+export async function evaluateAndRecordAlerts(
+  env: Env,
   db: Db,
   accountId: string,
   metrics: Record<string, number>,
@@ -333,30 +360,126 @@ async function evaluateAndRecordAlerts(
       thresholdValue: alerts.thresholdValue,
       direction: alerts.direction,
       channel: alerts.channel,
+      lastTriggeredAt: alerts.lastTriggeredAt,
     })
     .from(alerts)
     .where(and(eq(alerts.accountId, accountId), eq(alerts.enabled, true)));
   if (configs.length === 0) return 0;
 
-  const history = await db
-    .select({ alertId: alertHistory.alertId, actualValue: alertHistory.actualValue })
-    .from(alertHistory)
-    .where(inArray(alertHistory.alertId, configs.map((c) => c.id)))
-    .orderBy(desc(alertHistory.firedAt));
-  const previousActuals = new Map<string, number | null>();
-  for (const row of history) {
-    if (!previousActuals.has(row.alertId)) previousActuals.set(row.alertId, row.actualValue);
-  }
-
-  const firings = evaluateAlerts(configs, metrics, previousActuals);
+  const firings = evaluateAlerts(configs, metrics, now.getTime());
   if (firings.length === 0) return 0;
 
-  const batch: BatchItem<"sqlite">[] = firings.flatMap((f) => [
-    buildAlertHistoryInsert(db, f, now),
-    buildAlertLastTriggeredUpdate(db, f.alertId, now),
-  ]);
-  await db.batch([batch[0], ...batch.slice(1)]);
+  const target = await loadAlertTarget(db, accountId);
+  for (const f of firings) {
+    const outcome = await notifyThresholdAlert(env, target, f, now);
+    await db.batch([
+      buildAlertHistoryInsert(db, f, now, outcome.sent),
+      buildAlertLastTriggeredUpdate(db, f.alertId, now),
+    ]);
+  }
   return firings.length;
+}
+
+export type CriticalCustomersOutcome =
+  | { kind: "skipped"; reason: "cooldown" | "none_critical" }
+  | {
+      kind: "fired";
+      count: number;
+      channel: "email" | "slack" | "none";
+      notificationSent: boolean;
+      detail: CriticalNotifyOutcome["detail"];
+    }
+  | { kind: "error"; message: string };
+
+/**
+ * The customers that are critical now: an active, undeleted failed payment, a
+ * customer_context health score of 33 or less, and an open dispute, for the
+ * same Stripe customer on the same account. One query with joins rather than
+ * Recova's three reads with growing id lists, because D1 caps bound
+ * parameters (RULES.md 3.11).
+ *
+ * "OPEN" IS FOXHOUND'S. Recova reads disputes.status in (needs_response,
+ * under_review); Foxhound stores Stripe's status at intake and never updates
+ * it, and keeps the dispute's life in `state`, so open is a state not yet
+ * resolved, the same predicate the digest counts (RULES.md 3.20). The dispute's
+ * customer is stripe_customer_id, which Foxhound writes at intake; Recova's
+ * customer_id is a provenance column here.
+ */
+export async function findCriticalCustomerIds(db: Db, accountId: string): Promise<string[]> {
+  const rows = await db
+    .selectDistinct({ stripeCustomerId: failedPayments.stripeCustomerId })
+    .from(failedPayments)
+    .innerJoin(
+      customerContext,
+      and(
+        eq(customerContext.accountId, failedPayments.accountId),
+        eq(customerContext.stripeCustomerId, failedPayments.stripeCustomerId),
+      ),
+    )
+    .innerJoin(
+      disputes,
+      and(eq(disputes.accountId, failedPayments.accountId), eq(disputes.stripeCustomerId, failedPayments.stripeCustomerId)),
+    )
+    .where(
+      and(
+        eq(failedPayments.accountId, accountId),
+        eq(failedPayments.status, FAILED_PAYMENT_STATUS_ACTIVE),
+        isNull(failedPayments.deletedAt),
+        // Recova drops the empty string its webhook writes for a missing customer.
+        ne(failedPayments.stripeCustomerId, ""),
+        lte(customerContext.healthScore, CRITICAL_HEALTH_SCORE_MAX),
+        notInArray(disputes.state, [...RESOLVED_DISPUTE_STATES]),
+      ),
+    );
+  return rows.map((r) => r.stripeCustomerId);
+}
+
+/**
+ * Recova's cross-product critical customer check (E22), for one account, in
+ * Recova's order: the cooldown on the account's last cross_product_critical
+ * row, the customers, the notification (notifyCriticalCustomers: email first,
+ * Slack without an address), then one alert_history row with whether it went.
+ * The row is written here, not in the notification module (RULES.md 3.2), as
+ * evaluateAndRecordAlerts does for E21. Never throws.
+ */
+export async function runCriticalCustomersCheck(
+  env: Env,
+  db: Db,
+  accountId: string,
+  now: Date,
+): Promise<CriticalCustomersOutcome> {
+  try {
+    const [recent] = await db
+      .select({ id: alertHistory.id })
+      .from(alertHistory)
+      .where(
+        and(
+          eq(alertHistory.accountId, accountId),
+          eq(alertHistory.metric, CRITICAL_CUSTOMERS_METRIC),
+          gte(alertHistory.firedAt, new Date(now.getTime() - ALERT_COOLDOWN_WINDOW_MS)),
+        ),
+      )
+      .limit(1);
+    if (recent) return { kind: "skipped", reason: "cooldown" };
+
+    const critical = await findCriticalCustomerIds(db, accountId);
+    if (critical.length === 0) return { kind: "skipped", reason: "none_critical" };
+    const count = critical.length;
+
+    const sent = await notifyCriticalCustomers(env, db, accountId, count, now);
+    await buildCriticalAlertHistoryInsert(db, {
+      accountId,
+      count,
+      channel: sent.channel,
+      notificationSent: sent.notificationSent,
+      firedAt: now,
+    });
+    return { kind: "fired", count, ...sent };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`critical customers alert failed for account ${accountId}:`, message);
+    return { kind: "error", message };
+  }
 }
 
 /** The full nightly AI run: every processing-eligible account. Mirrors

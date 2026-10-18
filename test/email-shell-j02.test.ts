@@ -28,12 +28,12 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const { sendEmail, sendTransactionalEmail } = await import("~/lib/email/send");
+const { sendEmail } = await import("~/lib/email/send");
 const { buildRecoveryEmailJob } = await import("~/lib/engine/execute-step");
 const { buildTemplateEmail } = await import("~/lib/recovery/email-template");
 const { buildWinbackEmail, winbackSubject } = await import("~/lib/recovery/winback-email");
 const { buildExpiringCardEmail, expiringCardSubject } = await import("~/lib/recovery/expiring-card-email");
-const { buildDigestEmail, digestSubject } = await import("~/lib/recovery/digest-email");
+const { digestContent } = await import("~/lib/recovery/digest-email");
 const { sendRecoveryNotification } = await import("~/lib/recovery/merchant-notification.server");
 const { sendSequenceCompleteNotification } = await import(
   "~/lib/recovery/sequence-complete-notification.server"
@@ -42,6 +42,8 @@ const { resendDepsFor } = await import("~/lib/recovery/manual-actions.server");
 const { sendTestEmail } = await import("~/lib/settings/test-email.server");
 const { sendAuthEmail, sendPasswordResetEmail } = await import("~/lib/auth/send-auth-email");
 const { buildFailureAlertEmail, buildStaleAlertEmail } = await import("~/lib/cron/alerts.server");
+const { renderFoxhoundAlertEmail } = await import("~/lib/email/templates");
+const { sendRenderedTransactionalEmail } = await import("~/lib/email/send");
 const { buildMonthlyAuditEmail } = await import("~/lib/audit/monthly.server");
 
 const BASE = "https://foxhoundapp.test";
@@ -208,14 +210,18 @@ describe("customer mail carries both parts and the CAN-SPAM footer", () => {
   for (const step of [1, 2, 3]) {
     it(`win-back step ${step}`, async () => {
       const resubscribe = `${BASE}/p/resub_tok`;
-      const body = buildWinbackEmail({
+      // J91: the win-back template is written as Capsomer's blocks.
+      const blocks = buildWinbackEmail({
         stepNumber: step,
         customerName: "Jane",
         planName: "Pro",
         senderName: "Acme",
         resubscribeUrl: resubscribe,
       });
-      await sendEmail(env, customerJob(body, { subject: winbackSubject({ stepNumber: step, planName: "Pro" }) }));
+      await sendEmail(
+        env,
+        customerJob("", { bodyHtml: undefined, blocks, subject: winbackSubject({ stepNumber: step, planName: "Pro" }) }),
+      );
       const m = only();
       expectBothParts(m, ["Hi Jane,", "Acme"]);
       expect(m.html).toContain(`href="${resubscribe}"`);
@@ -226,7 +232,8 @@ describe("customer mail carries both parts and the CAN-SPAM footer", () => {
 
   it("expiring card", async () => {
     const update = `${BASE}/p/card_tok`;
-    const body = buildExpiringCardEmail({
+    // E12: the alert is written as Capsomer's blocks, not as an HTML body.
+    const blocks = buildExpiringCardEmail({
       customerName: "Jane",
       cardBrand: "Visa",
       cardLast4: "4242",
@@ -237,7 +244,11 @@ describe("customer mail carries both parts and the CAN-SPAM footer", () => {
     });
     await sendEmail(
       env,
-      customerJob(body, { subject: expiringCardSubject({ cardBrand: "Visa", cardLast4: "4242" }) }),
+      customerJob("", {
+        bodyHtml: undefined,
+        blocks,
+        subject: expiringCardSubject({ cardBrand: "Visa", cardLast4: "4242" }),
+      }),
     );
     const m = only();
     expectBothParts(m, ["Hi Jane,", "Visa card ending in 4242", "03/2027", "Update Payment Method"]);
@@ -298,7 +309,7 @@ describe("customer mail carries both parts and the CAN-SPAM footer", () => {
 // Merchant notices: never the footer
 // ============================================================================
 
-describe("merchant notices carry both parts and never the footer", () => {
+describe("merchant notices carry both parts and never the footer, except the digest", () => {
   it("the recovery notification", async () => {
     const out = await sendRecoveryNotification(env, { accountId: ACCOUNT, failedPaymentId: FP });
     expect(out.kind).toBe("sent");
@@ -316,38 +327,42 @@ describe("merchant notices carry both parts and never the footer", () => {
     expectNoCustomerFooter(m);
   });
 
-  it("the weekly digest", async () => {
+  it("the weekly digest is the one merchant mail with the footer (E23)", async () => {
+    // Recova wraps its digest with an unsubscribe token, so it carries
+    // Unsubscribe and the postal address; RULES.md 3.16 keeps every other
+    // merchant notice without them.
     const now = new Date("2026-10-12T09:00:00.000Z");
-    const body = buildDigestEmail({
-      totalFailed: 4,
-      totalRecovered: 2,
-      recoveredRevenueCents: 1200,
-      atRiskRevenueCents: 5000,
-      activeCount: 2,
-      emailsSent: 7,
-      winBackCount: 1,
-      expiringCardCount: 0,
-      openDisputeCount: 0,
-      openDisputeCents: 0,
-      currency: "usd",
-      senderName: "Acme",
-      disputesActive: false,
-      intelligenceActive: false,
-      highRiskCustomers: [],
-      now,
-      dashboardUrl: `${BASE}/dashboard`,
-    });
     await sendEmail(env, {
-      ...customerJob(body, {
-        subject: digestSubject({ now, intelligenceActive: false, disputesActive: false }),
-        unsubscribeToken: "",
-        physicalAddress: "",
+      accountId: ACCOUNT,
+      to: "ops@acme.test",
+      ...digestContent({
+        totalFailed: 4,
+        totalRecovered: 2,
+        recoveredRevenueCents: 1200,
+        atRiskRevenueCents: 5000,
+        activeCount: 2,
+        emailsSent: 7,
+        winBackCount: 1,
+        expiringCardCount: 0,
+        openDisputeCount: 0,
+        openDisputeCents: 0,
+        currency: "usd",
+        senderName: "Acme",
+        disputesActive: false,
+        intelligenceActive: false,
+        highRiskCustomers: [],
+        now,
+        baseUrl: BASE,
       }),
-      audience: "merchant",
+      template: "weekly_digest",
+      unsubscribeToken: "tok",
+      physicalAddress: ADDRESS,
+      idempotencyKey: "k",
+      audience: "digest",
     });
     const m = only();
     expectBothParts(m, ["Your recovery summary", "Failed payments detected", "Revenue recovered", "View Dashboard"]);
-    expectNoCustomerFooter(m);
+    expectCustomerFooter(m);
   });
 });
 
@@ -399,15 +414,16 @@ describe("transactional mail carries both parts and never the footer", () => {
       { cronName: "recovery", runId: "run_1", error: "boom: timed out", lastSuccessAt: null },
       now,
     );
-    await sendTransactionalEmail(env, { to: "support@foxhoundapp.test", ...failure });
+    const to = "support@foxhoundapp.test";
+    await sendRenderedTransactionalEmail(env, { to, rendered: renderFoxhoundAlertEmail({ to, ...failure }) });
     const stale = buildStaleAlertEmail(
-      { cronName: "digest", reason: "never_run", lastRunAt: null } as Parameters<typeof buildStaleAlertEmail>[0],
+      { cronName: "digest", reason: "never_run", lastRunAt: null, schedule: "0 8 * * 1" },
       now,
     );
-    await sendTransactionalEmail(env, { to: "support@foxhoundapp.test", ...stale });
+    await sendRenderedTransactionalEmail(env, { to, rendered: renderFoxhoundAlertEmail({ to, ...stale }) });
     expect(harness.sent).toHaveLength(2);
     expectBothParts(harness.sent[0], ["recovery", "Run id: run_1", "boom: timed out"]);
-    expectBothParts(harness.sent[1], ["digest", "It has NEVER run."]);
+    expectBothParts(harness.sent[1], ["digest", "Last succeeded: (never)"]);
     harness.sent.forEach(expectNoCustomerFooter);
   });
 
@@ -437,9 +453,20 @@ describe("transactional mail carries both parts and never the footer", () => {
       runId: "run_123",
       baseUrl: BASE,
       comparisons: [{ currency: "usd", cents: 1240, changeCents: 310 }],
-      periodMonth: "2026-09",
     });
-    await sendTransactionalEmail(env, { to: "owner@acme.test", ...message });
+    // E24: merchant notice mail, written as Capsomer blocks, as the sender sends it.
+    await sendEmail(env, {
+      accountId: ACCOUNT,
+      to: "owner@acme.test",
+      fromName: "Foxhound",
+      subject: message.subject,
+      blocks: message.blocks,
+      template: "monthly_audit",
+      audience: "merchant",
+      unsubscribeToken: "",
+      physicalAddress: "",
+      idempotencyKey: "monthly-audit:acct_1:2026-09",
+    });
     const m = only();
     expectBothParts(m, ["What Foxhound did this month", "MRR:", "View full audit"]);
     expect(m.html).toContain(`href="${BASE}/audit/results/run_123"`);

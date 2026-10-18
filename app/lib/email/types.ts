@@ -2,7 +2,9 @@
 // message and log it. Produced by the recovery/win-back engine (Phase 4b/4e),
 // consumed by the queue handler. Kept transport-agnostic; only send.ts touches
 // the binding.
-import type { EmailTracking } from "./templates";
+import type { Block } from "capsomer/email";
+
+import type { EmailNotice, EmailTracking } from "./templates";
 
 /**
  * Who the message is addressed to, which decides whether CAN-SPAM applies.
@@ -29,12 +31,22 @@ import type { EmailTracking } from "./templates";
  * everything (RULES.md 3.16). It is not held by the live-send gate either; see
  * processEmailJob.
  *
+ * "digest" is the WEEKLY DIGEST and nothing else (E23): merchant mail that
+ * carries Recova's unsubscribe, because Recova's digest does. Recova
+ * suppression-checks it and wraps it with an unsubscribe token
+ * (app/api/cron/weekly-digest/route.ts, blob b6ff2a8c), so its footer has the
+ * Unsubscribe link and the postal address, and the send module holds it to the
+ * same two guards as customer mail. Its token is a digest token
+ * (`list: "digest"`), which switches off that account's digest rather than
+ * suppressing the address. No other merchant notice uses it (RULES.md 3.16); a
+ * test walking app/ holds the digest's two senders as its only users.
+ *
  * The field is OPTIONAL and defaults to "customer" deliberately: an omitted
  * audience must never be the one that skips the CAN-SPAM guard.
  */
-export type EmailAudience = "customer" | "merchant" | "preview";
+export type EmailAudience = "customer" | "merchant" | "preview" | "digest";
 
-export interface EmailJob {
+interface EmailJobFields {
   accountId: string | null;
   /** Links the send to its recovery step (one of recovery/winBack set, or neither for merchant notices). */
   recoveryStepId?: string | null;
@@ -51,18 +63,19 @@ export interface EmailJob {
    */
   replyTo?: string | null;
   subject: string;
-  bodyHtml: string;
   /** email_sends.template label (e.g. recovery_dunning, winback, merchant_notify). */
   template: string;
-  /** CAN-SPAM one-click unsubscribe token (required for merchant-customer sends). */
+  /** CAN-SPAM one-click unsubscribe token (required for merchant-customer sends and the digest). */
   unsubscribeToken: string;
-  /** CAN-SPAM sender postal address (required for merchant-customer sends). */
+  /** CAN-SPAM sender postal address (required for merchant-customer sends and the digest). */
   physicalAddress: string;
   /**
-   * A sentence for the top of the customer footer, before the unsubscribe link
-   * and the postal address: Recova's "You're receiving this from ..." on
-   * recovery mail (J85). On preview mail it is the whole footer slot (E3).
-   * Ignored on merchant mail.
+   * Recova's footer sentence ("You're receiving this from ..."), first in the
+   * footer slot. Customer mail: before the unsubscribe link and the postal
+   * address (J85). Preview mail: the whole footer slot (E3). Merchant mail:
+   * before Recova's "Manage email settings" link to /settings, as Recova's
+   * wrapEmailHtml writes it for a mail with no unsubscribe (E10); a merchant
+   * mail without a note has no footer line of its own.
    */
   footerNote?: string | null;
   /**
@@ -94,9 +107,52 @@ export interface EmailJob {
   /** Defaults to "customer", the CAN-SPAM-bearing case. */
   audience?: EmailAudience;
   /**
+   * "skip" lets this job past the per-account live-send gate in
+   * processEmailJob. ONLY for platform-to-merchant mail whose caller has already
+   * applied the demo and account-eligibility checks itself (the monthly audit,
+   * E24, through accountProcessingEligibleCondition). Never for customer mail:
+   * the gate is what keeps a merchant's customers unmailed until the merchant
+   * is switched on. Absent means the gate applies.
+   */
+  liveSendGate?: "skip";
+  /**
    * The open pixel and the scanner trap of a dunning send (J02). Carried beside
    * the body rather than inside it, so the frame places them in the HTML part
    * only and the text part never shows them. Absent on every other send.
    */
   tracking?: EmailTracking | null;
 }
+
+/**
+ * A mail whose body the sender wrote as HTML (dunning, win-back, the dispute
+ * notices), read by the frame for text and links.
+ */
+export interface EmailJob extends EmailJobFields {
+  bodyHtml: string;
+  notice?: never;
+  blocks?: never;
+}
+
+/**
+ * A merchant notice on Capsomer's `notice` template (E10): a title, paragraphs
+ * and a button, each a plain string Capsomer escapes. No HTML body.
+ */
+export interface NoticeEmailJob extends EmailJobFields {
+  notice: EmailNotice;
+  bodyHtml?: never;
+  blocks?: never;
+}
+
+/**
+ * A mail written directly as Capsomer's blocks (E12, the expiring card alert,
+ * which has no heading of its own; E23, the weekly digest): Recova's lines and
+ * buttons, each a plain string Capsomer escapes. No HTML body.
+ */
+export interface BlocksEmailJob extends EmailJobFields {
+  blocks: Block[];
+  bodyHtml?: never;
+  notice?: never;
+}
+
+/** Any kind of mail, as the send seam (processEmailJob, sendEmail) takes it. */
+export type OutboundEmailJob = EmailJob | NoticeEmailJob | BlocksEmailJob;

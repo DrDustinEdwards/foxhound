@@ -119,6 +119,8 @@ export default [
     ...prefix("disputes", [
       route("dashboard", "./routes/app/disputes/index.tsx"),
       route(":id", "./routes/app/disputes/detail.tsx"),
+      // J07: one merchant evidence file, served after the account check.
+      route(":id/files/:fileId", "./routes/app/disputes/file.ts"),
     ]),
     ...prefix("intelligence", [
       route("dashboard", "./routes/app/intelligence/index.tsx"),

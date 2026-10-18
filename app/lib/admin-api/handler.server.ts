@@ -219,15 +219,16 @@ async function merchantForAgent(db: Db, accountId: string) {
   };
 }
 
-/** The merchant whose settings a test mail renders with. Customer mail needs
- *  one; merchant and platform mail use it when given. */
+/** The merchant whose settings a test mail renders with. Customer mail and
+ *  the weekly digest (its unsubscribe is signed for an account, E23) need one;
+ *  other merchant and platform mail use it when given. */
 async function emailMerchant(db: Db, body: Json, types: AdminEmailType[]): Promise<MerchantEmailSettings | null> {
   const accountId = typeof body.account_id === "string" && body.account_id ? body.account_id : null;
   if (!accountId) {
-    if (types.some((t) => t.audience === "customer")) {
+    if (types.some((t) => t.audience === "customer" || t.type === "weekly_digest")) {
       throw new ApiError(
         400,
-        `Customer mail renders with a merchant's sender name and Reply-To: send account_id. Find one with GET ${ADMIN_API_PREFIX}/merchants?query=.`,
+        `Customer mail renders with a merchant's sender name and Reply-To, and the weekly digest's unsubscribe is signed for a merchant: send account_id. Find one with GET ${ADMIN_API_PREFIX}/merchants?query=.`,
       );
     }
     return null;

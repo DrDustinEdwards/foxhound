@@ -64,8 +64,10 @@ describe("PLANT 1: EXACTLY ONE monthly merchant email hangs off the audit toggle
     // definition a monthly merchant email off this toggle, whatever it is called.
     const gatesOnToggle = (b: string) =>
       b.includes("isDigestEnabled") || b.includes("auditAutoRun") || b.includes("audit_auto_run");
+    // processEmailJob is the merchant notice path the monthly audit has sent
+    // on since E24; any module calling it reaches the sender too.
     const sends = (b: string) =>
-      b.includes("sendTransactionalEmail") || /\bsendEmail\s*\(/.test(b);
+      b.includes("sendTransactionalEmail") || /\bsendEmail\s*\(/.test(b) || /\bprocessEmailJob\s*\(/.test(b);
 
     const senders = appModules()
       .filter((m) => gatesOnToggle(m.body) && sends(m.body))
@@ -94,7 +96,8 @@ describe("PLANT 1: EXACTLY ONE monthly merchant email hangs off the audit toggle
     // env argument. 363 binding 17's shape, one subsystem over, and the reason
     // both arms of a derived plant get mutated rather than one.
     const monthly = code(read("app/lib/audit/monthly.server.ts"));
-    expect(monthly).toMatch(/await sendTransactionalEmail\(\s*env,/);
+    // Since E24 the call is processEmailJob, the merchant notice path.
+    expect(monthly).toMatch(/await processEmailJob\(\s*env,/);
     expect(monthly).toMatch(/isDigestEnabled\(/);
     expect(monthly).toContain("notificationEmail");
   });
@@ -139,7 +142,7 @@ describe("PLANT 2: legacy's alerts re-evaluation is ABSENT, and the reason is as
 
   it("Foxhound's evaluator is a DIFFERENT FUNCTION from legacy's, not the same one skipped", () => {
     // Legacy: evaluateAlerts(supabase, accountId), which does its own reads.
-    // Foxhound: evaluateAlerts(configs, metrics, previousActuals), pure. Calling
+    // Foxhound: evaluateAlerts(configs, metrics, nowMs), pure. Calling
     // it here would need metrics computed first, which is the intelligence cron's
     // whole job. Pinned so "we skipped an idempotent call" is not read back later
     // as the finding; the finding is that it is not that call at all.

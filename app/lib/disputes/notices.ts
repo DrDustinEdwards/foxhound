@@ -1,7 +1,7 @@
-import { CRON_SCHEDULE_MONTHLY } from "~/lib/constants";
-import { formatMoney } from "~/lib/money-format";
-
-import { disputeFeeTerms } from "./detail";
+import { disputeFeeCents } from "~/lib/billing/fees";
+import { CRON_SCHEDULE_MONTHLY, DISPUTE_FEE_BPS, DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
+import { recoveryFooterNote, type EmailNotice } from "~/lib/email/templates";
+import { formatMoney, formatMoneyShort } from "~/lib/money-format";
 
 // THE MERCHANT'S DISPUTE NOTICES (J06, job_4f4c9c2f5383): the words and the
 // pure rules, no database and no send. Recova is the spec, read whole:
@@ -20,13 +20,21 @@ import { disputeFeeTerms } from "./detail";
 // - Only Recova's auto-submit-OFF sentences are used, because auto-submit is
 //   never on (RULES.md 5.6; the build plan's E16 and E17 entries say so).
 // - The won notice's fee sentence states the fee the resolution writer
-//   snapshotted (resolved_fee_cents, which carries the $500 cap) and Foxhound's
-//   own terms read from the constants, not Recova's "20% of the saved amount",
-//   which was untrue above the cap (RULES.md 1.2, 2.1).
-// - Plain semantic HTML with the first line as the heading, as the recovery
-//   notification does: Capsomer's email frame is the shell (RULES.md 3.16), and
-//   Recova's button styles do not cross over.
-// J92 and J93 bring the words the rest of the way to Recova's.
+//   snapshotted (resolved_fee_cents, which carries the $500 cap) in Recova's
+//   words, "(20% of the saved amount)", the percentage read from the constants.
+//   Recova had no cap (its lib/dispute-fees.ts, blob 00b58c14), so where the cap
+//   set the fee the sentence adds ", capped at $500", and only there: Recova's
+//   words alone would be untrue above the cap (RULES.md 1.2, 2.1).
+//
+// ALL FOUR NOTICES (J92 rows E16 and E17, J93 rows E19 and E20) are Capsomer's
+// `notice` template, as the recovery notification is (E10): Recova's bold first
+// line is the title and the mail's one heading, its sentences are the
+// paragraphs, and "Review dispute" is the button. Plain strings, never markup:
+// Capsomer escapes each one, so a customer name from Stripe is shown exactly as
+// written. Recova's bold runs (the reason, the deadline, the fee and its invoice
+// date) are plain text here (capsomer job_2adddfaab5dc).
+// The footer is Recova's wrapEmailHtml line with the connection's sender name
+// (disputeNoticeFooterNote), and send.ts puts "Manage email settings" under it.
 
 export const DISPUTE_CREATED_TEMPLATE = "merchant_dispute_created";
 export const DISPUTE_REMINDER_TEMPLATE = "merchant_dispute_reminder";
@@ -35,17 +43,6 @@ export const DISPUTE_OUTCOME_TEMPLATE = "merchant_dispute_outcome";
 /** The platform's From name, as on the recovery notification. Recova sent
  *  these from its own disputes address under the platform name. */
 export const DISPUTE_NOTICE_FROM_NAME = "Foxhound";
-
-/** Merchant data inside a notice is escaped: a customer name comes from Stripe
- *  and is not ours to trust. */
-export function escapeNoticeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
 
 /** Recova's titleCaseReason: "product_not_received" to "Product Not Received". */
 export function titleCaseReason(reason: string): string {
@@ -114,9 +111,21 @@ function isoDay(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-export interface RenderedNotice {
+/** A notice on Capsomer's `notice` template: the subject and the notice. */
+export interface NoticeMail {
   subject: string;
-  bodyHtml: string;
+  notice: EmailNotice;
+}
+
+/** The sender name Recova's dispute mail puts in its footer: the connection's
+ *  `sender_name ?? 'Recova'`, with Foxhound's name. A blank name falls back as
+ *  well, so the sentence never reads "from  about". */
+export const DISPUTE_FOOTER_FALLBACK_SENDER = "Foxhound";
+
+/** Recova's footer sentence on these notices (lib/email.ts wrapEmailHtml with
+ *  `params.senderName ?? 'Recova'`). Pure. */
+export function disputeNoticeFooterNote(senderName: string | null | undefined, year: number): string {
+  return recoveryFooterNote(senderName?.trim() ? senderName.trim() : DISPUTE_FOOTER_FALLBACK_SENDER, year);
 }
 
 export interface CreatedNoticeInput {
@@ -128,21 +137,24 @@ export interface CreatedNoticeInput {
   disputeUrl: string;
 }
 
-/** Recova's sendDisputeCreatedEmail, without the triage line. */
-export function createdNotice(input: CreatedNoticeInput): RenderedNotice {
+/** Recova's sendDisputeCreatedEmail, auto-submit off and without the triage
+ *  line (see the header). */
+export function createdNotice(input: CreatedNoticeInput): NoticeMail {
   const amount = formatMoney(input.amountCents, input.currency);
-  const who = escapeNoticeHtml(input.customerLabel);
   const deadlineLine = input.evidenceDeadline
-    ? `Evidence deadline: <strong>${isoDay(input.evidenceDeadline)}</strong>.`
+    ? `Evidence deadline: ${isoDay(input.evidenceDeadline)}.`
     : "No evidence deadline set by Stripe.";
   return {
     subject: `New dispute: ${amount} from ${input.customerLabel}`,
-    bodyHtml:
-      `<h1>New dispute.</h1>` +
-      `<p>${who} disputed ${amount} for reason: <strong>${escapeNoticeHtml(titleCaseReason(input.reason))}</strong>.</p>` +
-      `<p>${deadlineLine}</p>` +
-      `<p>Auto-submit is off. We will remind you 3 days before the deadline.</p>` +
-      `<p><a href="${input.disputeUrl}">Review dispute</a></p>`,
+    notice: {
+      title: "New dispute.",
+      body: [
+        `${input.customerLabel} disputed ${amount} for reason: ${titleCaseReason(input.reason)}.`,
+        deadlineLine,
+        "Auto-submit is off. We will remind you 3 days before the deadline.",
+      ],
+      action: { label: "Review dispute", url: input.disputeUrl },
+    },
   };
 }
 
@@ -171,17 +183,20 @@ export const REMINDER_APPROVED_LINE =
   "Your evidence is approved, but Stripe has not confirmed the submission. Check this dispute in Stripe, or open it in Foxhound to submit it again.";
 
 /** Recova's sendDisputeDeadlineReminderEmail, auto-submit off. */
-export function reminderNotice(input: ReminderNoticeInput): RenderedNotice {
+export function reminderNotice(input: ReminderNoticeInput): NoticeMail {
   const amount = formatMoney(input.amountCents, input.currency);
   const plural = input.daysLeft === 1 ? "day" : "days";
   return {
     subject: `URGENT: Dispute response due in ${input.daysLeft} ${plural}`,
-    bodyHtml:
-      `<h1>Dispute response due in ${input.daysLeft} ${plural}.</h1>` +
-      `<p>${escapeNoticeHtml(input.customerLabel)} disputed ${amount} for reason: <strong>${escapeNoticeHtml(titleCaseReason(input.reason))}</strong>.</p>` +
-      `<p>Current status: <strong>needs response</strong>.</p>` +
-      `<p>${input.approved ? REMINDER_APPROVED_LINE : REMINDER_ACTION_LINE}</p>` +
-      `<p><a href="${input.disputeUrl}">Review dispute</a></p>`,
+    notice: {
+      title: `Dispute response due in ${input.daysLeft} ${plural}.`,
+      body: [
+        `${input.customerLabel} disputed ${amount} for reason: ${titleCaseReason(input.reason)}.`,
+        "Current status: needs response.",
+        input.approved ? REMINDER_APPROVED_LINE : REMINDER_ACTION_LINE,
+      ],
+      action: { label: "Review dispute", url: input.disputeUrl },
+    },
   };
 }
 
@@ -204,50 +219,64 @@ export interface OutcomeNoticeInput {
   listUrl: string;
 }
 
-/** Recova's sendDisputeOutcomeEmail: two won variants and the lost one. */
-export function outcomeNotice(input: OutcomeNoticeInput): RenderedNotice {
+/** The fee's terms in the won notice: Recova's "20% of the saved amount", and
+ *  the cap only when the cap is what set the fee. The percentage and the cap
+ *  are the constants the fee writer uses (disputeFeeCents). Pure. */
+export function wonFeeTerms(amountCents: number, feeCents: number): string {
+  const pct = DISPUTE_FEE_BPS / 100;
+  const terms = `${Number.isInteger(pct) ? pct : pct.toFixed(1)}% of the saved amount`;
+  const uncapped = disputeFeeCents(amountCents, Number.POSITIVE_INFINITY);
+  return feeCents < uncapped ? `${terms}, capped at ${formatMoneyShort(DISPUTE_FEE_CAP_CENTS, "usd")}` : terms;
+}
+
+/** Recova's sendDisputeOutcomeEmail: two won variants and the lost one, each
+ *  with "View dispute" to the disputes list (Recova's APP_URL/disputes). */
+export function outcomeNotice(input: OutcomeNoticeInput): NoticeMail {
   const amount = formatMoney(input.amountCents, input.currency);
-  const reason = escapeNoticeHtml(titleCaseReason(input.reason));
-  const link = `<p><a href="${input.listUrl}">View dispute</a></p>`;
+  const reason = titleCaseReason(input.reason);
+  const action = { label: "View dispute", url: input.listUrl };
 
   if (!input.won) {
     return {
       subject: `Dispute lost: ${amount}`,
-      bodyHtml:
-        `<h1>Dispute closed as lost.</h1>` +
-        `<p>${amount} was deducted from your account by the cardholder bank. Reason: ${reason}.</p>` +
-        `<p>No Foxhound fee. We only charge when we win.</p>` +
-        link,
+      notice: {
+        title: "Dispute closed as lost.",
+        body: [
+          `${amount} was deducted from your account by the cardholder bank. Reason: ${reason}.`,
+          "No Foxhound fee. We only charge when we win.",
+        ],
+        action,
+      },
     };
   }
 
   if (!input.foxhoundSubmitted) {
     return {
       subject: `Dispute won: ${amount} (no Foxhound fee)`,
-      bodyHtml:
-        `<h1>You won the dispute.</h1>` +
-        `<p>${amount} stays in your account.</p>` +
-        `<p>Stripe Smart Disputes or your team submitted this response, not Foxhound. No Foxhound fee applies.</p>` +
-        link,
+      notice: {
+        title: "You won the dispute.",
+        body: [
+          `${amount} stays in your account.`,
+          "Stripe Smart Disputes or your team submitted this response, not Foxhound. No Foxhound fee applies.",
+        ],
+        action,
+      },
     };
   }
 
   // A fee nobody will invoice is never announced: an exempt account, or a win
   // whose cap could not be priced yet (resolved_fee_error), gets the win
   // without a fee sentence rather than a number that is not owed.
-  const feeLine =
-    input.feeCents != null
-      ? `<p>Foxhound fee: <strong>${formatMoney(input.feeCents, input.feeCurrency)}</strong> (${disputeFeeTerms()}). ` +
-        (input.invoiceDate
-          ? `This will be invoiced on <strong>${isoDay(input.invoiceDate)}</strong>.</p>`
-          : `It will be invoiced at the first monthly billing run after processing resumes.</p>`)
-      : "";
+  const body = [`${amount} stays in your account. Reason: ${reason}.`];
+  if (input.feeCents != null) {
+    const fee = formatMoney(input.feeCents, input.feeCurrency);
+    const when = input.invoiceDate
+      ? `This will be invoiced on ${isoDay(input.invoiceDate)}.`
+      : "It will be invoiced at the first monthly billing run after processing resumes.";
+    body.push(`Foxhound fee: ${fee} (${wonFeeTerms(input.amountCents, input.feeCents)}). ${when}`);
+  }
   return {
     subject: `Dispute won: ${amount} recovered`,
-    bodyHtml:
-      `<h1>You won the dispute.</h1>` +
-      `<p>${amount} stays in your account. Reason: ${reason}.</p>` +
-      feeLine +
-      link,
+    notice: { title: "You won the dispute.", body, action },
   };
 }

@@ -1,8 +1,11 @@
 import {
+  alert,
   checkUrl,
   escapeHtml,
+  notice,
   renderEmail,
   reset,
+  type AlertLevel,
   type Block,
   type Copy,
   type FooterLine,
@@ -67,26 +70,60 @@ export const foxhoundMail: Template<FoxhoundMailData> = {
   blocks: (d) => htmlToBlocks(d.bodyHtml),
 };
 
-export interface RenderInput {
+/**
+ * A merchant notice as Capsomer's `notice` template takes it: a title (the
+ * mail's one heading), its paragraphs, and an optional button. Plain strings,
+ * never markup: Capsomer escapes each one, so a customer name from Stripe is
+ * shown exactly as written.
+ */
+export interface EmailNotice {
+  title: string;
+  body: string[];
+  action?: { label: string; url: string };
+}
+
+/**
+ * A mail the sender wrote as Capsomer's blocks, in the sender's order and
+ * wording, with no heading added (E12: Recova's expiring card alert has none).
+ */
+export const foxhoundBlocks: Template<{ subjectLine: string; content: Block[] }> = {
+  name: "foxhound-blocks",
+  subject: (d) => d.subjectLine,
+  blocks: (d) => d.content,
+};
+
+/** The content of one mail: a body the sender wrote as HTML, a notice, or
+ *  Capsomer's blocks. */
+export type RenderContent =
+  | { bodyHtml: string; notice?: never; blocks?: never }
+  | { notice: EmailNotice; bodyHtml?: never; blocks?: never }
+  | { blocks: Block[]; bodyHtml?: never; notice?: never };
+
+export type RenderInput = RenderContent & {
   subject: string;
-  bodyHtml: string;
   /** The name set in type at the top of the mail: the From display name. */
   brandName: string;
   to: string;
-  /** Customer mail only: the unsubscribe link and the postal address. */
+  /** The footer slot, under Capsomer's "This message was sent to" line. */
   footer?: FooterLine[];
   tracking?: EmailTracking | null;
-}
+};
 
 /** Render one Foxhound mail to a subject, an HTML part and a text part. */
 export function renderFoxhoundEmail(input: RenderInput): Rendered {
-  const rendered = renderEmail(foxhoundMail, {
-    subjectLine: input.subject,
-    bodyHtml: input.bodyHtml,
+  const common = {
     brand: { name: input.brandName, family: FOXHOUND_EMAIL_FAMILY },
     to: input.to,
     footer: input.footer,
-  });
+  };
+  // A notice goes on Capsomer's own `notice` template, its subject passed as
+  // copy because the subject and the title differ (E10: "Payment recovered:
+  // $99.00 from Jane Buyer" over the title "Payment recovered.").
+  const rendered = input.notice
+    ? renderEmail(notice, { ...common, ...input.notice, copy: { subject: input.subject } })
+    : input.blocks
+      ? renderEmail(foxhoundBlocks, { ...common, subjectLine: input.subject, content: input.blocks })
+      : renderEmail(foxhoundMail, { ...common, subjectLine: input.subject, bodyHtml: input.bodyHtml });
   if (!input.tracking) return rendered;
   // The pixel and the trap go into the HTML part only. In the text part a
   // reader would see them, and a text part cannot load an image anyway.
@@ -95,6 +132,38 @@ export function renderFoxhoundEmail(input: RenderInput): Rendered {
     input.tracking.honeypotUrl,
   );
   return { ...rendered, html };
+}
+
+// ---- Recova's footer line ---------------------------------------------------------
+//
+// Recova's shell (lib/email.ts wrapEmailHtml, blob 3f882729) puts one sentence
+// in every footer: "You're receiving this from {senderName} about a recent
+// payment. &copy; {year}". Under it, a mail with an unsubscribe token gets the
+// Unsubscribe link and the postal address; a mail without one gets "Manage
+// email settings" linking to APP_URL/settings. Recovery mail carries the first
+// (J85); the merchant notices that went through wrapEmailHtml carry the second
+// (E10, with 'Recova' as the sender name). Capsomer's footer slot holds both.
+
+/**
+ * Recova's footer sentence, with the sender name as Recova's From has it
+ * (`sender_name || 'Support'`). Rows E4 to E6 carry it (J85), E10 with
+ * "Foxhound". Pure.
+ */
+export function recoveryFooterNote(senderName: string | null | undefined, year: number): string {
+  return `You're receiving this from ${footerSenderName(senderName)} about a recent payment. \u00a9 ${year}`;
+}
+
+/** The sender name a footer line shows: Recova's `sender_name || 'Support'`,
+ *  trimmed. The one authority for that fallback in footer lines (E4 to E6,
+ *  E9). Pure. */
+export function footerSenderName(senderName: string | null | undefined): string {
+  return senderName?.trim() ? senderName.trim() : "Support";
+}
+
+/** Recova's footer link on mail with no unsubscribe: "Manage email settings",
+ *  to the settings hub (Recova's APP_URL/settings; Foxhound's /settings). */
+export function manageEmailSettingsLine(baseUrl: string): FooterLine {
+  return { text: "Manage email settings", url: `${baseUrl}/settings` };
 }
 
 // ---- the password reset (J82, parity row E1) -----------------------------------
@@ -126,6 +195,44 @@ export function renderFoxhoundResetEmail(input: ResetRenderInput): Rendered {
     url: input.url,
     expiresIn: input.expiresIn,
     copy: input.copy,
+  });
+}
+
+// ---- operator alerts (E26, E27) ------------------------------------------------
+//
+// The cron failure and stale alerts, on Capsomer's own `alert` template: the
+// title as the one heading, the first sentence in the level's note (Capsomer
+// puts the level in front of it as a word), then the detail lines. Plain
+// strings, never markup: Capsomer escapes each one. From "Foxhound", as
+// Recova's FROM_HELLO is "Recova".
+
+export interface EmailAlert {
+  level: AlertLevel;
+  title: string;
+  /** The first sentence, shown in the level's note after the level word. */
+  intro: string;
+  /** When it happened, in words; Capsomer's default intro uses it. */
+  when: string;
+  details: string[];
+}
+
+/** Render one operator alert on Capsomer's alert template. Pure. */
+export function renderFoxhoundAlertEmail(input: {
+  subject: string;
+  to: string;
+  alert: EmailAlert;
+  footer?: FooterLine[];
+}): Rendered {
+  const a = input.alert;
+  return renderEmail(alert, {
+    brand: { name: "Foxhound", family: FOXHOUND_EMAIL_FAMILY },
+    to: input.to,
+    footer: input.footer,
+    level: a.level,
+    what: a.title,
+    when: a.when,
+    details: a.details,
+    copy: { subject: input.subject, heading: a.title, intro: a.intro },
   });
 }
 

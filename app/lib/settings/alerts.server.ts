@@ -26,12 +26,10 @@ export interface CreateAlertInput {
 /**
  * The channel every alert is created with.
  *
- * `alerts.channel` is NOT NULL and the schema keeps it, but S28 renders NO
- * channel picker, because nothing in this codebase delivers an alert:
- * `buildAlertFiringRow` writes `notificationSent: false` and its own comment
- * says the slice detects and records only. Offering Email or Slack would be a
- * delivery promise no code keeps. The column carries the value the sender will
- * default to when one is built.
+ * `alerts.channel` is NOT NULL and the schema keeps it. S28 renders no channel
+ * picker (J33), so every alert carries this value, and since J94 it is the
+ * channel the sender reads: an alert that fires is emailed to the account's
+ * notification address (app/lib/intelligence/alert-notify.server.ts, row E21).
  */
 export const ALERT_DEFAULT_CHANNEL = "email";
 

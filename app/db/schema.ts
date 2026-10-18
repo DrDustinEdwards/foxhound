@@ -1104,7 +1104,9 @@ export const alertHistory = sqliteTable(
   "alert_history",
   {
     id: id(),
-    alertId: text("alert_id").notNull().references(() => alerts.id),
+    // NULL on the critical customers firing (E22), which has no alert row
+    // behind it, as Recova writes it (lib/alert-evaluation.ts, blob 0e28ecbf).
+    alertId: text("alert_id").references(() => alerts.id),
     accountId: text("account_id").notNull().references(() => accounts.id),
     metric: text("metric").notNull(),
     thresholdValue: real("threshold_value").notNull(),

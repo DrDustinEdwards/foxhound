@@ -8,7 +8,7 @@ vi.mock("~/lib/recovery/email-template", () => ({
 }));
 vi.mock("~/lib/recovery/winback-email", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/lib/recovery/winback-email")>()),
-  buildWinbackEmail: () => "<p>No link here.</p>",
+  buildWinbackEmail: () => [{ type: "paragraph", text: "No link here." }],
 }));
 
 const { hrefsIn, linksTo } = await import("~/lib/recovery/update-link");
@@ -118,6 +118,8 @@ describe("if even the template lost the link, nothing is sent", () => {
           cachedSubject: null,
           cachedBodyHtml: null,
           replyToEmail: null,
+          scheduledAt: new Date(3_601_000),
+          sequenceCreatedAt: new Date(1000),
         },
         "https://foxhoundapp.com/p/tok",
       ),

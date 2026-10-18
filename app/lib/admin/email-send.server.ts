@@ -12,18 +12,15 @@ import {
   sendTransactionalEmail,
 } from "~/lib/email/send";
 import { isSuppressed } from "~/lib/email/suppression";
-import type { EmailAudience, EmailJob } from "~/lib/email/types";
+import type { EmailNotice } from "~/lib/email/templates";
+import type { EmailAudience, OutboundEmailJob } from "~/lib/email/types";
 import { signUnsubscribeToken } from "~/lib/email/unsubscribe-token";
 import { recoveryFooterNote } from "~/lib/engine/execute-step";
-import { DIGEST_SENDER_FALLBACK, buildDigestEmail, digestSubject } from "~/lib/recovery/digest-email";
+import { digestContent } from "~/lib/recovery/digest-email";
 import { buildTemplateEmail } from "~/lib/recovery/email-template";
 import { buildExpiringCardEmail, expiringCardSubject } from "~/lib/recovery/expiring-card-email";
-import {
-  RECOVERY_NOTIFY_FROM_NAME,
-  recoveryNotifyBody,
-  recoveryNotifySubject,
-} from "~/lib/recovery/merchant-notification.server";
-import { sequenceCompleteBody, sequenceCompleteSubject } from "~/lib/recovery/sequence-complete-notification.server";
+import { recoveryNotifyContent } from "~/lib/recovery/merchant-notification.server";
+import { sequenceCompleteContent } from "~/lib/recovery/sequence-complete-notification.server";
 import { buildWinbackEmail, winbackSubject } from "~/lib/recovery/winback-email";
 import { isValidReplyToEmail } from "~/lib/settings/reply-to";
 import { buildTestEmailJob } from "~/lib/settings/test-email.server";
@@ -121,7 +118,7 @@ export const ADMIN_EMAIL_TYPES: readonly AdminEmailType[] = [
   {
     type: "weekly_digest",
     audience: "merchant",
-    description: "The weekly recovery summary a merchant gets at their notification address, with sample numbers.",
+    description: "The weekly recovery summary a merchant gets at their notification address, with sample numbers and a working unsubscribe. Needs account_id.",
   },
   {
     type: "recovery_notification",
@@ -252,7 +249,7 @@ export async function loadMerchantEmailSettings(db: Db, accountId: string): Prom
 
 /** One email ready for the send module, in the shape its sender takes. */
 export type PreparedEmail =
-  | { channel: "job"; audience: EmailAudience; job: EmailJob }
+  | { channel: "job"; audience: EmailAudience; job: OutboundEmailJob }
   | { channel: "transactional"; message: { to: string; subject: string; bodyHtml: string } }
   | { channel: "rendered"; to: string; rendered: Rendered };
 
@@ -294,7 +291,12 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
       cronRunId: null,
       audience: "customer" as const,
     };
-    const job = (content: { subject: string; bodyHtml: string; footerNote?: string }): PreparedEmail => ({
+    const job = (
+      content: { subject: string; footerNote?: string } & (
+        | { bodyHtml: string }
+        | { blocks: ReturnType<typeof buildExpiringCardEmail> }
+      ),
+    ): PreparedEmail => ({
       channel: "job",
       audience: "customer",
       job: { ...base, ...content },
@@ -318,7 +320,8 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
       const stepNumber = Number(winback[1]);
       return job({
         subject: winbackSubject({ stepNumber, planName: null }),
-        bodyHtml: buildWinbackEmail({ stepNumber, customerName: null, planName: null, senderName, resubscribeUrl: standIn }),
+        blocks: buildWinbackEmail({ stepNumber, customerName: null, planName: null, senderName, resubscribeUrl: standIn }),
+        footerNote: recoveryFooterNote(senderName, now.getUTCFullYear()),
       });
     }
     if (type.type === "expiring_card") {
@@ -326,7 +329,7 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
       const card = { cardBrand: "Visa", cardLast4: "4242" };
       return job({
         subject: expiringCardSubject(card),
-        bodyHtml: buildExpiringCardEmail({
+        blocks: buildExpiringCardEmail({
           ...card,
           customerName: null,
           expiresMonth: next.getUTCMonth() + 1,
@@ -334,6 +337,7 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
           senderName,
           updateUrl: standIn,
         }),
+        footerNote: recoveryFooterNote(senderName, now.getUTCFullYear()),
       });
     }
     if (type.type === "settings_test") {
@@ -356,7 +360,9 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
   }
 
   if (type.audience === "merchant") {
-    const merchantJob = (content: { subject: string; bodyHtml: string; fromName: string }): PreparedEmail => ({
+    const merchantJob = (
+      content: { subject: string; fromName: string; footerNote?: string } & ({ bodyHtml: string } | { notice: EmailNotice }),
+    ): PreparedEmail => ({
       channel: "job",
       audience: "merchant",
       job: {
@@ -374,42 +380,58 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
     const sample = { amountCents: SAMPLE_AMOUNT_CENTS, currency: SAMPLE_CURRENCY, customerLabel: SAMPLE_CUSTOMER_LABEL };
     const paymentUrl = `${baseUrl}/recovery/payments`;
     if (type.type === "weekly_digest") {
+      // The digest's own content function and its own audience (E23): the
+      // platform's From, Recova's footer sentence, and a real signed digest
+      // unsubscribe with the postal address, as the cron sends it. Signed for
+      // the test inbox, which is not the merchant's notification address, so
+      // following it reports the link as expired and switches nothing off.
+      // Its unsubscribe is signed for an account, so it needs a merchant, as
+      // customer mail does.
+      if (!merchant) throw new Error("the weekly digest needs a merchant");
       const flags = { now, intelligenceActive: false, disputesActive: true };
-      return merchantJob({
-        fromName: senderName ?? DIGEST_SENDER_FALLBACK,
-        subject: digestSubject(flags),
-        bodyHtml: buildDigestEmail({
-          ...flags,
-          totalFailed: 12,
-          totalRecovered: 7,
-          recoveredRevenueCents: 69300,
-          atRiskRevenueCents: 118800,
-          activeCount: 5,
-          emailsSent: 31,
-          winBackCount: 2,
-          expiringCardCount: 3,
-          openDisputeCount: 1,
-          openDisputeCents: 4900,
-          currency: SAMPLE_CURRENCY,
-          senderName,
-          highRiskCustomers: [],
-          dashboardUrl: `${baseUrl}/console`,
-        }),
-      });
+      return {
+        channel: "job",
+        audience: "digest",
+        job: {
+          accountId: merchant.accountId,
+          to,
+          ...digestContent({
+            ...flags,
+            totalFailed: 12,
+            totalRecovered: 7,
+            recoveredRevenueCents: 69300,
+            atRiskRevenueCents: 118800,
+            activeCount: 5,
+            emailsSent: 31,
+            winBackCount: 2,
+            expiringCardCount: 3,
+            openDisputeCount: 1,
+            openDisputeCents: 4900,
+            currency: SAMPLE_CURRENCY,
+            senderName,
+            highRiskCustomers: [],
+            baseUrl,
+          }),
+          template: `admin_test:${type.type}`,
+          unsubscribeToken: await signUnsubscribeToken(env, {
+            email: to,
+            accountId: merchant.accountId,
+            list: "digest",
+          }),
+          physicalAddress: env.PHYSICAL_ADDRESS ?? "",
+          idempotencyKey: `admin-test:${crypto.randomUUID()}`,
+          cronRunId: null,
+          audience: "digest",
+        },
+      };
     }
     if (type.type === "recovery_notification") {
-      return merchantJob({
-        fromName: RECOVERY_NOTIFY_FROM_NAME,
-        subject: recoveryNotifySubject(sample),
-        bodyHtml: recoveryNotifyBody({ ...sample, declineCategory: "soft", paymentUrl }),
-      });
+      // The notifier's own content function (E10): the notice and its footer.
+      return merchantJob(recoveryNotifyContent({ ...sample, declineCategory: "soft" }, paymentUrl, now));
     }
     if (type.type === "sequence_complete") {
-      return merchantJob({
-        fromName: RECOVERY_NOTIFY_FROM_NAME,
-        subject: sequenceCompleteSubject(sample),
-        bodyHtml: sequenceCompleteBody({ ...sample, paymentUrl }),
-      });
+      // The notifier's own content function (E11): the notice and its footer.
+      return merchantJob(sequenceCompleteContent(sample, paymentUrl, now));
     }
   }
 

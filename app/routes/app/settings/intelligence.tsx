@@ -145,7 +145,7 @@ export default function IntelligenceSettings({ loaderData }: Route.ComponentProp
                 <Link to="/settings/alerts" className={linkClass}>
                   Settings and Alerts
                 </Link>{" "}
-                can alert on {ALERT_METRIC_LABELS.health_score_avg}, across your scored customers. Foxhound records each breach on that page and does not email or post to Slack yet.
+                can alert on {ALERT_METRIC_LABELS.health_score_avg}, across your scored customers. Foxhound records each breach on that page and emails it to your notification address; it does not post alerts to Slack.
               </DeliveryRow>
             </ul>
           </div>
