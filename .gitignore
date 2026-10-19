@@ -181,11 +181,6 @@ worker-configuration.d.ts
 # transform artifacts (reproducible; may embed legacy content)
 scripts/out/
 
-# The holdout suite is pulled here by improve-score.yml and must NEVER be committed:
-# a hidden test set in the repo is one the attempt path can read, which defeats the
-# measurement entirely.
-.improve-holdout/
-
 # Project MCP config: carries a driver bearer token
 .mcp.json
 
