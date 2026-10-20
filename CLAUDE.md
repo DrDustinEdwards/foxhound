@@ -42,4 +42,4 @@ The one exception (MCP ruling 2026-10-10, rule 9 amendment): `foxhound-admin-mcp
 
 ## Commands
 
-`npm run check:all` (typecheck, lint, test, tokens, gates) before a push; `npm run db:generate` and `npm run db:migrate` for migrations; `npm run deploy` builds and deploys. Private repo: CI shares Dustin's free monthly minutes, so heavy runs happen locally, one at a time.
+`npm run db:generate` and `npm run db:migrate` for migrations; `npm run deploy` builds and deploys. Private repo: CI shares Dustin's free monthly minutes, so heavy runs happen locally, one at a time.
