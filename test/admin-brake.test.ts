@@ -25,7 +25,7 @@ import {
 import { setProcessingPaused } from "~/lib/admin/merchants.server";
 import { DEMO_ACCOUNT_ID_PREFIX, RECOVERY_TICK_CRON_NAME } from "~/lib/constants";
 
-import { accountProcessingEligibleCondition } from "~/lib/cron/recovery-tick";
+import { accountProcessingEligibleCondition } from "~/lib/cron/due-steps";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 

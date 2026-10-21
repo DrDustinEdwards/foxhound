@@ -30,7 +30,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import { applyIntelligenceContext, MRR_ERROR } from "~/lib/settings/apply.server";
 import { buildAccountProfileUpdate } from "~/lib/settings/persist.server";
 import { getAccount } from "~/lib/settings/queries.server";
-import { cancelMerchant } from "~/lib/admin/merchants.server";
+import { cancelMerchant } from "~/lib/admin/merchant-cancel.server";
 import { getAuth, getSession, listMemberships, setSessionActiveAccount } from "~/lib/auth";
 import { deleteUserAccount } from "~/lib/auth/delete-account.server";
 import { deletionConsequence, ownedAccountNames } from "~/lib/auth/deletion-copy";

@@ -288,7 +288,11 @@ describe("J69: the reader guard", () => {
   });
 
   it("nothing in app/ or workers/ reads Recova's Intelligence preferences except the schema and account deletion", () => {
-    const allowed = [join("db", "schema", "intelligence.ts"), join("auth", "delete-account.server.ts")];
+    const allowed = [
+      join("db", "schema", "intelligence.ts"),
+      join("auth", "delete-account.server.ts"),
+      join("auth", "account-scrub.server.ts"),
+    ];
     const readers = [...walk(APP_DIR), ...walk(WORKERS_DIR)]
       .filter((f) => !allowed.some((a) => f.endsWith(a)))
       .filter((f) =>

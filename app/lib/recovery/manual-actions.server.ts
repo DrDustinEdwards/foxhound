@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import type { MoneyWriteBuilder } from "~/db/money-write";
 import { type Db, failedPayments, recoverySteps } from "~/db";
-import { toEmailContext, toRetryContext } from "~/lib/cron/recovery-tick";
+import { toEmailContext, toRetryContext } from "~/lib/cron/due-steps";
 import type { EmailJobResult } from "~/lib/email/dispatch";
 import { stepAction } from "~/lib/engine/step-runner";
 import { FAILED_PAYMENT_STATUS_ACTIVE, FAILED_PAYMENT_STATUS_CANCELLED } from "~/lib/constants";

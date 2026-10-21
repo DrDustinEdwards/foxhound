@@ -71,7 +71,7 @@ const { queryStrandedInvoices, retryInvoiceCharge, runChargeRetrySweep, periodKe
 const { describeSweepRun, runMonthlyBilling } = await import("~/lib/billing/run");
 const { CRON_JOBS } = await import("~/lib/cron/registry");
 const { engageBrake } = await import("~/lib/admin/brake.server");
-const { accountProcessingEligibleCondition } = await import("~/lib/cron/recovery-tick");
+const { accountProcessingEligibleCondition } = await import("~/lib/cron/due-steps");
 const { recoveryFeeItemIdempotencyKey } = await import("~/lib/billing/stripe-invoice");
 const schema = await import("~/db/schema");
 

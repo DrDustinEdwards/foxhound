@@ -9,7 +9,7 @@ import { asc, desc, eq, inArray, max } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import { accountMembers, accounts, session, user } from "~/db";
-import { normalizeInviteEmail } from "~/lib/auth/account";
+import { normalizeInviteEmail } from "~/lib/auth/invites";
 import { MEMBER_STATUS, isAdminEmail } from "~/lib/auth/roles";
 
 export interface UserMembership {

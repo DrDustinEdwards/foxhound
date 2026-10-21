@@ -26,8 +26,8 @@ vi.mock("~/db", async (importOriginal) => ({
 
 const { sendSequenceCompleteNotification, sequenceCompleteSubject, sequenceCompleteBody, SEQUENCE_COMPLETE_TEMPLATE } =
   await import("~/lib/recovery/sequence-complete-notification.server");
-const { flipExhaustedSequences, queryExhaustedSequences, readClaimedSequences, buildExhaustedSequenceFlip } =
-  await import("~/lib/cron/recovery-tick");
+const { flipExhaustedSequences, readClaimedSequences } = await import("~/lib/cron/recovery-tick");
+const { queryExhaustedSequences, buildExhaustedSequenceFlip } = await import("~/lib/cron/due-steps");
 const { LIVE_SENDS_DISABLED_ERROR } = await import("~/lib/email/dispatch");
 
 const ACCOUNT = "acct_1";

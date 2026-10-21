@@ -6,14 +6,8 @@ import { Badge } from "~/components/badge";
 import { getDb } from "~/db";
 import { logAdminAction } from "~/lib/admin/audit.server";
 import { PAUSE_REASON_BRAKE } from "~/lib/admin/brake";
-import {
-  cancelMerchant,
-  getMerchantDetail,
-  grantIntelligence,
-  revokeIntelligence,
-  setBillingExempt,
-  setProcessingPaused,
-} from "~/lib/admin/merchants.server";
+import { getMerchantDetail, grantIntelligence, revokeIntelligence, setBillingExempt, setProcessingPaused } from "~/lib/admin/merchants.server";
+import { cancelMerchant } from "~/lib/admin/merchant-cancel.server";
 import { INTELLIGENCE_PRODUCT, SUBSCRIPTION_STATUS_ACTIVE } from "~/lib/constants";
 import { adminContext } from "~/lib/admin/context";
 import { createAdjustment } from "~/lib/billing/adjustment";

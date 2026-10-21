@@ -30,7 +30,7 @@ vi.mock("~/db", async (importOriginal) => ({
 
 const { action, loader } = await import("~/routes/app/settings/email");
 const { buildEmailMessage } = await import("~/lib/email/send");
-const { toEmailContext } = await import("~/lib/cron/recovery-tick");
+const { toEmailContext } = await import("~/lib/cron/due-steps");
 const { buildRecoveryEmailJob } = await import("~/lib/engine/execute-step");
 const { SENDER_NAME_MAX_LENGTH } = await import("~/lib/settings/persist.server");
 const { LIVE_SENDS_DISABLED_ERROR } = await import("~/lib/email/dispatch");

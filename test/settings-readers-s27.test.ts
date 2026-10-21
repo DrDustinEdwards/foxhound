@@ -23,7 +23,7 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const { queryDueRecoverySteps, toEmailContext } = await import("~/lib/cron/recovery-tick");
+const { queryDueRecoverySteps, toEmailContext } = await import("~/lib/cron/due-steps");
 const { buildUserPrompt, merchantContextLine } = await import("~/lib/recovery/email-generation");
 const { buildGenerateEmailInput } = await import("~/lib/engine/execute-step");
 

@@ -27,7 +27,7 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const { disconnectConnection } = await import("~/lib/admin/merchants.server");
+const { disconnectConnection } = await import("~/lib/admin/merchant-cancel.server");
 
 const STRIPE_X = "acct_stripe_x";
 const ACCOUNT_A = "acct_a";

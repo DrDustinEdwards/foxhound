@@ -50,9 +50,8 @@ vi.mock("~/lib/stripe/client", () => ({
   },
 }));
 
-const { flipExhaustedSequences, queryExhaustedSequences, runRecoveryTick } = await import(
-  "~/lib/cron/recovery-tick"
-);
+const { flipExhaustedSequences, runRecoveryTick } = await import("~/lib/cron/recovery-tick");
+const { queryExhaustedSequences } = await import("~/lib/cron/due-steps");
 const { processConnectedWebhook } = await import("~/lib/webhooks/process");
 const schema = await import("~/db/schema");
 

@@ -33,7 +33,8 @@ vi.mock("~/lib/stripe/encryption", async (importOriginal) => ({
 }));
 
 const monthly = await import("~/lib/audit/monthly.server");
-const { buildMonthlyAuditEmail, processMonthlyAuditMessage } = monthly;
+const { processMonthlyAuditMessage } = monthly;
+const { buildMonthlyAuditEmail } = await import("~/lib/audit/monthly-email");
 const { driveMonthlyAudit } = await import("./helpers/monthly-audit-queue");
 
 const NOW = new Date("2026-09-01T09:00:00.000Z");

@@ -348,7 +348,7 @@ describe("U4: a saved run at Recova's path, /audit/results/:id", () => {
   it("the history table and the monthly email link to the new path", () => {
     const read = (p: string) => readFileSync(fileURLToPath(new URL(`../${p}`, import.meta.url)), "utf8");
     expect(read("app/routes/app/audit/dashboard.tsx")).toContain("/audit/results/${run.id}");
-    expect(read("app/lib/audit/monthly.server.ts")).toContain("/audit/results/${runId}");
+    expect(read("app/lib/audit/monthly-email.ts")).toContain("/audit/results/${runId}");
   });
 });
 

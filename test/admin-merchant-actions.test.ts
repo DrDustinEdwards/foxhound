@@ -5,14 +5,10 @@ import { describe, expect, it } from "vitest";
 import { accounts } from "~/db";
 import * as schema from "~/db/schema";
 import { getBillableRecoveries } from "~/db/billable";
-import { accountProcessingEligibleCondition } from "~/lib/cron/recovery-tick";
+import { accountProcessingEligibleCondition } from "~/lib/cron/due-steps";
 import { accountProcessingEligible as intelligenceProcessingEligible } from "~/lib/intelligence/sync.server";
-import {
-  buildCancelMerchantBatch,
-  cancelMerchant,
-  setBillingExempt,
-  setProcessingPaused,
-} from "~/lib/admin/merchants.server";
+import { setBillingExempt, setProcessingPaused } from "~/lib/admin/merchants.server";
+import { buildCancelMerchantBatch, cancelMerchant } from "~/lib/admin/merchant-cancel.server";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
