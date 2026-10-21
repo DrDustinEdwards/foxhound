@@ -8,7 +8,7 @@ import {
   recoveredPayments,
   type Db,
 } from "~/db";
-import { HEALTH_SCORE_AT_RISK_THRESHOLD } from "~/lib/constants";
+import { HEALTH_SCORE_AT_RISK_THRESHOLD, HOUR_MS } from "~/lib/constants";
 import { RESOLVED_DISPUTE_STATES } from "~/lib/disputes/labels";
 import { isIntelligenceEntitled } from "~/lib/intelligence/views.server";
 import { groupSumByCurrency, type CurrencyAmount } from "./stats.server";
@@ -136,7 +136,7 @@ export async function getConsoleView(
   // UTC month boundary, so "this month" is stable regardless of server zone and
   // matches what the billing run considers a month.
   const startOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-  const urgentBefore = new Date(nowMs + DISPUTE_URGENT_HOURS * 60 * 60 * 1000);
+  const urgentBefore = new Date(nowMs + DISPUTE_URGENT_HOURS * HOUR_MS);
 
   const [
     monthRecovered,

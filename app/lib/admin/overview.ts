@@ -18,8 +18,7 @@ import { merchantHref, pagePending } from "~/lib/admin/page";
 import type { AdminOverview } from "~/lib/admin/overview.server";
 import { daysUntilDeadline, deadlineLabel, humanizeDisputeReason } from "~/lib/disputes/labels";
 import { formatMoney } from "~/lib/money-format";
-
-const DAY_MS = 24 * 60 * 60 * 1000;
+import { DAY_MS } from "~/lib/constants";
 
 export function plural(n: number, one: string, many: string): string {
   return `${n} ${n === 1 ? one : many}`;

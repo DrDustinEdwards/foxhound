@@ -7,7 +7,7 @@ import type {
   winBackSteps,
 } from "~/db";
 import { findAttributionSignals, resolveAttribution } from "~/lib/recovery/attribution";
-import { DECLINE_CATEGORIES } from "~/lib/constants";
+import { DAY_MS, DECLINE_CATEGORIES, HOUR_MS } from "~/lib/constants";
 import type { DeclineCategory } from "~/lib/constants";
 import { classifyDecline } from "~/lib/recovery/decline";
 import { isEmailStep, isRetryStep, planRecoverySteps, WIN_BACK_SCHEDULE } from "~/lib/recovery/schedule";
@@ -37,8 +37,6 @@ import {
 // would have written, so /recovery's loaders (and attribution.ts's own
 // findAttributionSignals) can't tell a seeded row from a live one.
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-const HOUR_MS = 60 * 60 * 1000;
 const WALK_DAYS = 90;
 
 export type FailedPaymentInsert = typeof failedPayments.$inferInsert;

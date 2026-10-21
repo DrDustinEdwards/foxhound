@@ -8,6 +8,7 @@ import { and, desc, eq, gte, max, or } from "drizzle-orm";
 import type { Db } from "~/db";
 import { CRON_JOBS } from "~/lib/cron/registry";
 import { cronConfig, cronRunHistory } from "~/db";
+import { DAY_MS } from "~/lib/constants";
 
 export interface CronRow {
   name: string;
@@ -32,7 +33,7 @@ export interface CronRow {
   recentFailures: Array<{ id: string; finishedAt: Date; message: string | null }>;
 }
 
-const FAILURE_WINDOW_MS = 24 * 60 * 60 * 1000;
+const FAILURE_WINDOW_MS = DAY_MS;
 const PAIRS_PER_READ = 30;
 
 /** One row per registered job (app/lib/cron/registry.ts is the source of

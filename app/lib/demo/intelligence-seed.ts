@@ -11,6 +11,7 @@ import {
   type DemoCustomer,
   type DemoEngagementOverride,
 } from "./customer-base";
+import { DAY_MS } from "~/lib/constants";
 
 // Intelligence seed (TASK-foxhound-demo-data-engine.md Phase 3): customer_context
 // + health_score_history + mrr_snapshots + the demo alert rules, built from the
@@ -21,7 +22,6 @@ import {
 // customer's actual signup/churn date, so movements are derived, not invented.
 // Pure: returns plain insert rows, no DB access.
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 const MONTH_COUNT = 12;
 
 export type CustomerContextInsert = typeof customerContext.$inferInsert;

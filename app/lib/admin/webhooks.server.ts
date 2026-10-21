@@ -6,6 +6,7 @@ import { and, count, desc, eq, isNotNull, like, sql, type SQL } from "drizzle-or
 import type { Db } from "~/db";
 import { webhookEvents } from "~/db";
 import { WEBHOOK_PAGE_SIZE, type WebhookFilters } from "~/lib/admin/webhooks";
+import { DAY_MS } from "~/lib/constants";
 
 export interface WebhookHealthSummary {
   totalLast24h: number;
@@ -14,7 +15,7 @@ export interface WebhookHealthSummary {
 }
 
 export async function getWebhookHealthSummary(db: Db): Promise<WebhookHealthSummary> {
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const since = new Date(Date.now() - DAY_MS);
   const [totalRows, errorRows, unprocessedRows] = await Promise.all([
     db.select({ n: count() }).from(webhookEvents).where(sql`${webhookEvents.receivedAt} >= ${since.getTime()}`),
     db

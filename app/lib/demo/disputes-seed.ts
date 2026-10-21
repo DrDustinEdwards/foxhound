@@ -1,4 +1,4 @@
-import { DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
+import { DAY_MS, DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
 import type { disputeApprovals, disputeEvidence, disputes } from "~/db";
 import { disputeFeeCents } from "~/lib/billing/fees";
 
@@ -21,8 +21,6 @@ import { disputeFeeCents } from "~/lib/billing/fees";
 // Foxhound's evidence, so it carries NO approval row and NO resolved fee, even
 // though its state is resolved_won, exactly mirroring the real non-billable
 // case the billable.ts predicate exists to exclude.
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 export type DisputeInsert = typeof disputes.$inferInsert;
 export type DisputeEvidenceInsert = typeof disputeEvidence.$inferInsert;

@@ -9,8 +9,7 @@
 // to live here.
 
 import { formatMoneyShort } from "~/lib/money-format";
-
-const DAY_MS = 24 * 60 * 60 * 1000;
+import { DAY_MS, HOUR_MS } from "~/lib/constants";
 
 /** How far ahead a dispute deadline counts as urgent, matching legacy's
  *  DISPUTE_URGENT_HOURS. A console presentation threshold, not an engine
@@ -35,7 +34,7 @@ export const DISPUTE_ATTENTION_LIMIT = 5;
 export function deadlinePhrase(deadline: Date, nowMs: number): string {
   const ms = deadline.getTime() - nowMs;
   if (ms < 0) return "overdue";
-  const hours = Math.floor(ms / (60 * 60 * 1000));
+  const hours = Math.floor(ms / HOUR_MS);
   if (hours < 1) return "within the hour";
   if (hours < 24) return `in ${hours}h`;
   return "tomorrow";

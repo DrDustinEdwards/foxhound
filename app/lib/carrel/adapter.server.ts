@@ -19,6 +19,7 @@ import {
 import { renderMarkdown } from "~/lib/blog/markdown.server";
 
 import { parsePostSource, serializePostSource, SourceError, type PostSource } from "./source";
+import { SITE_ORIGIN } from "~/lib/seo/jsonld";
 
 // The Carrel site adapter over Foxhound's blog (job_cbe1b96107fc). Posts live in
 // D1 (blog_posts, blog_post_versions) and are edited from /admin/blog, so the
@@ -37,7 +38,7 @@ import { parsePostSource, serializePostSource, SourceError, type PostSource } fr
 const CARREL_SITE = {
   id: "foxhound",
   name: "Foxhound",
-  origin: "https://foxhoundapp.com",
+  origin: SITE_ORIGIN,
 } as const;
 
 const DEFAULT_AUTHOR = "Foxhound";

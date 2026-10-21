@@ -1,4 +1,10 @@
-import { DECLINE_CATEGORIES, RECOVERY_FEE_BPS, type DeclineCategory } from "~/lib/constants";
+import {
+  DAY_MS,
+  DECLINE_CATEGORIES,
+  type DeclineCategory,
+  HOUR_MS,
+  RECOVERY_FEE_BPS,
+} from "~/lib/constants";
 import { recoveryFeeCents } from "~/lib/billing/fees";
 import { DECLINE_CATEGORY_LABELS } from "~/lib/recovery/labels";
 import { formatMoney } from "~/lib/money-format";
@@ -9,8 +15,6 @@ import { dayKey, type DailyRatePoint, type RecoveryTimingBucket } from "./recove
 // database, safe in the browser bundle. Recova is the spec for what each panel
 // shows (app/(app)/recovery/dashboard at the blob shas named in the route);
 // every number here is computed from Foxhound's own read model and constants.
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** A money total in one currency. Mirrors stats.server.ts's CurrencyAmount
  *  without importing a server module into the browser bundle. */
@@ -267,7 +271,7 @@ export function onboardingNeeded(o: OnboardingInput): boolean {
 
 /** The queue's heading window, in hours, from the read model's window. */
 export function hoursFromMs(ms: number): number {
-  return Math.round(ms / (60 * 60 * 1000));
+  return Math.round(ms / HOUR_MS);
 }
 
 // ---- Failed payments table ----

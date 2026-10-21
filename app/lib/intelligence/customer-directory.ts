@@ -3,7 +3,7 @@
 // query (views.server.ts) and the route component so the formatting rules
 // are unit-testable without a DB or a render tree.
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+import { DAY_MS } from "~/lib/constants";
 
 /** Recova's lastSeenLabel (lib/intelligence-display.ts, blob 379635a7) word
  *  for word: "today" / "yesterday" / "Nd ago" (under 30 days) / "1mo ago"

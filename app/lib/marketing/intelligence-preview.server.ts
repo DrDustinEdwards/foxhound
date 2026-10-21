@@ -11,6 +11,7 @@ import { healthScoreBand, type HealthScoreBand } from "~/lib/intelligence/health
 import { formatMoney, formatMoneyShort } from "~/lib/money-format";
 
 import type { IntelligencePreview, PreviewBand, PreviewCustomerRow } from "./intelligence-preview";
+import { HOUR_MS } from "~/lib/constants";
 
 // The data behind the /product/intelligence previews (J58): the demo account's
 // seed, never a merchant's rows. Recova draws these from hand-written numbers
@@ -32,7 +33,6 @@ import type { IntelligencePreview, PreviewBand, PreviewCustomerRow } from "./int
 // Strings are formatted here, on the server, so the page renders the same
 // text on the server and in the browser.
 
-const HOUR_MS = 60 * 60 * 1000;
 /** Recova's customer table preview lists five customers. */
 const PREVIEW_CUSTOMER_ROWS = 5;
 const BAND_ORDER: HealthScoreBand[] = ["at_risk", "watch", "healthy"];

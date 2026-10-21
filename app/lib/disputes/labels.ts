@@ -1,5 +1,6 @@
 import type { DisputeState } from "~/lib/constants";
 import type { Tone } from "~/lib/recovery/labels";
+import { DAY_MS } from "~/lib/constants";
 
 // Human-readable labels + status-taxonomy tones for the disputes surfaces
 // (Phase 5 slice 5c). Pure and unit-tested, mirroring app/lib/recovery/labels.ts.
@@ -129,7 +130,7 @@ export function humanizeDisputeReason(reason: string | null): string {
  *  with no deadline renders nothing rather than a bogus count. */
 export function daysUntilDeadline(deadline: Date | null, nowMs: number): number | null {
   if (!deadline) return null;
-  return Math.ceil((deadline.getTime() - nowMs) / (24 * 60 * 60 * 1000));
+  return Math.ceil((deadline.getTime() - nowMs) / DAY_MS);
 }
 
 export type DeadlineUrgency = "overdue" | "urgent" | "soon" | "normal";

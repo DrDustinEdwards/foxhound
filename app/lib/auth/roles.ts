@@ -5,6 +5,8 @@
 //   Account role   - owner vs member, stored on account_members.role. Governs
 //                    team permissions within a single merchant account.
 
+import { DAY_MS } from "~/lib/constants";
+
 export const MEMBER_ROLE = {
   OWNER: "owner",
   MEMBER: "member",
@@ -30,7 +32,7 @@ export type MemberStatus = (typeof MEMBER_STATUS)[keyof typeof MEMBER_STATUS];
 // their first account, which is what the old shape did.
 
 /** Team invites expire after 7 days. */
-export const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+export const INVITE_TTL_MS = 7 * DAY_MS;
 
 /** Parsed, normalized ADMIN_EMAIL allowlist (comma-separated). Empty => none. */
 export function adminEmails(env: Env): string[] {

@@ -13,6 +13,8 @@
 // the string identical on both sides. Existing inline call sites elsewhere in
 // the app predate this module and are left alone.
 
+import { DAY_MS, HOUR_MS, MINUTE_MS } from "~/lib/constants";
+
 /** "Jan 5, 2026". Empty string for null, so a caller can drop it into JSX
  *  without a branch. */
 export function formatDateShort(date: Date | null): string {
@@ -37,9 +39,9 @@ export function formatDateShort(date: Date | null): string {
 export function formatTimeAgo(date: Date | null, nowMs: number): string {
   if (!date) return "never";
   const diff = nowMs - date.getTime();
-  const days = Math.floor(diff / 86_400_000);
-  const hours = Math.floor(diff / 3_600_000);
-  const mins = Math.floor(diff / 60_000);
+  const days = Math.floor(diff / DAY_MS);
+  const hours = Math.floor(diff / HOUR_MS);
+  const mins = Math.floor(diff / MINUTE_MS);
   if (days > 0) return `${days}d ago`;
   if (hours > 0) return `${hours}h ago`;
   if (mins > 0) return `${mins}m ago`;
@@ -70,10 +72,6 @@ export function formatTimestamp(date: Date | null): string {
     timeZone: "UTC",
   });
 }
-
-const MINUTE_MS = 60 * 1000;
-const HOUR_MS = 60 * MINUTE_MS;
-const DAY_MS = 24 * HOUR_MS;
 
 /**
  * Forward-looking relative time, for scheduled work that has not run yet:

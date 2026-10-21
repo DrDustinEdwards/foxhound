@@ -25,11 +25,12 @@
 
 import type { DeclineCategory } from "~/lib/constants";
 import { formatMoney } from "~/lib/money-format";
+import { SITE_ORIGIN } from "~/lib/seo/jsonld";
 
 /** Where the demo's card-update links point. An unknown token renders the
  *  hosted page's clean "Link not found" state, so a visitor who clicks one in
  *  the demo lands somewhere coherent rather than on an error. */
-const DEMO_CARD_UPDATE_URL = "https://foxhoundapp.com/p/demo";
+const DEMO_CARD_UPDATE_URL = `${SITE_ORIGIN}/p/demo`;
 
 export interface DemoEmailContext {
   customerName: string | null;

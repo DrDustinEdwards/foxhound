@@ -19,6 +19,7 @@ import { generateWinbackEmail } from "~/lib/recovery/winback-generation";
 import type { Block } from "capsomer/email";
 import { linksTo, storedCopyCarriesResubscribeLink } from "~/lib/recovery/update-link";
 import { isLastWinbackStep, WINBACK_STATUS } from "~/lib/recovery/winback";
+import { HOUR_MS } from "~/lib/constants";
 
 // THE WIN-BACK SEND CRON. Ported from legacy's
 // app/api/cron/process-winback/route.ts (blob `18f20de9`, 24,184 bytes).
@@ -34,8 +35,6 @@ import { isLastWinbackStep, WINBACK_STATUS } from "~/lib/recovery/winback";
 //
 // NOT A RECOVERY STEP. A win-back step never enters `decideEmailStep`; it is its
 // own table with its own claim, exactly as legacy has it.
-
-const HOUR_MS = 60 * 60 * 1000;
 
 /** One tick's cap, matching the recovery tick's shape. Legacy uses
  *  `CRON_BATCH_LIMIT` on the same query. */

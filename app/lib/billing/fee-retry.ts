@@ -1,4 +1,8 @@
-import { FEE_INVOICE_MAX_RETRY_AGE_DAYS, FEE_INVOICE_MAX_RETRY_ATTEMPTS } from "~/lib/constants";
+import {
+  DAY_MS,
+  FEE_INVOICE_MAX_RETRY_AGE_DAYS,
+  FEE_INVOICE_MAX_RETRY_ATTEMPTS,
+} from "~/lib/constants";
 
 // The fee-invoice collection state machine, ported from legacy's
 // lib/dispute-fees.ts decideFeeRetryAction (parity ruling 11). Pure: it decides,
@@ -46,8 +50,6 @@ export interface FeeRetryInput {
   maxAttempts?: number;
   maxAgeDays?: number;
 }
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Decide what to do with one unpaid fee invoice. Branch order is load-bearing

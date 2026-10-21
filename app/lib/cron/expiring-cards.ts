@@ -2,7 +2,7 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import { accounts, expiringCardAlerts, getDb, stripeConnections } from "~/db";
-import { EXPIRING_CARD_DAYS_AHEAD } from "~/lib/constants";
+import { DAY_MS, EXPIRING_CARD_DAYS_AHEAD } from "~/lib/constants";
 import { signCardUpdateToken } from "~/lib/card-update/token";
 import { processEmailJob } from "~/lib/email/dispatch";
 import { recoveryFooterNote } from "~/lib/email/templates";
@@ -100,7 +100,7 @@ export function isInsideLeadWindow(
   leadDays: number = EXPIRING_CARD_DAYS_AHEAD,
 ): boolean {
   const expiry = new Date(Date.UTC(expYear, expMonth - 1, 1));
-  const horizon = new Date(now.getTime() + leadDays * 24 * 60 * 60 * 1000);
+  const horizon = new Date(now.getTime() + leadDays * DAY_MS);
   return expiry <= horizon && expiry >= now;
 }
 

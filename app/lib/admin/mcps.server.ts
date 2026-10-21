@@ -15,6 +15,7 @@ import type { Db } from "~/db";
 import { accounts, apiKeys, mcpCalls } from "~/db";
 import { MCP_CALLS_SHOWN, maskSecretsInText } from "~/lib/admin/mcps";
 import { MERCHANT_TOOLS } from "~/lib/mcp/tools.server";
+import { DAY_MS } from "~/lib/constants";
 
 export interface AdminApiKeyRow {
   id: string;
@@ -97,7 +98,7 @@ export interface McpSummary {
 }
 
 export async function getMcpSummary(db: Db, now = new Date()): Promise<McpSummary> {
-  const since = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const since = new Date(now.getTime() - DAY_MS);
   const [total, active, calls, failed] = await Promise.all([
     db.select({ n: count() }).from(apiKeys),
     db.select({ n: count() }).from(apiKeys).where(isNull(apiKeys.revokedAt)),

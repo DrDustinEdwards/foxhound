@@ -1,6 +1,6 @@
 import type Stripe from "stripe";
 
-import { CAU_EVENT_RETENTION_DAYS } from "~/lib/constants";
+import { CAU_EVENT_RETENTION_DAYS, DAY_MS } from "~/lib/constants";
 import { getConnectedStripe } from "~/lib/stripe/client";
 import {
   readCardUpdaterEvents,
@@ -45,13 +45,13 @@ export async function collectAuditInputs(
   ranAt: Date,
 ): Promise<AuditInputs> {
   const nowMs = ranAt.getTime();
-  const lookbackStartSeconds = Math.floor((nowMs - lookbackDays * 86_400_000) / 1000);
+  const lookbackStartSeconds = Math.floor((nowMs - lookbackDays * DAY_MS) / 1000);
   // THE CARD UPDATER'S WINDOW IS THE SHORTER OF THE TWO, and the asymmetry is
   // legacy's: Stripe retains events for 30 days, so a 90-day lookback cannot ask
   // for 90 days of them. Mirrors the same clamp inside runAudit, which computes
   // the denominator over the same window.
   const cauWindowDays = Math.min(lookbackDays, CAU_EVENT_RETENTION_DAYS);
-  const cauWindowStartSeconds = Math.floor((nowMs - cauWindowDays * 86_400_000) / 1000);
+  const cauWindowStartSeconds = Math.floor((nowMs - cauWindowDays * DAY_MS) / 1000);
 
   const [uncollectibleInvoices, openInvoices, subscriptions, disputes, cardUpdaterEvents] =
     await Promise.all([

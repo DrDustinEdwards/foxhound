@@ -2,6 +2,7 @@ import { createMcpHandler, fromJsonSchema, McpServer, type JsonSchemaType } from
 
 import { maskEmailsInText } from "./redact";
 import { ToolInputError, type McpToolContext, type McpToolRegistry } from "./registry";
+import { HOUR_MS } from "~/lib/constants";
 
 // THE PROTOCOL, FROM THE OFFICIAL SDK (MCP ruling rule 8, 2026-10-10).
 //
@@ -35,8 +36,8 @@ const INSTRUCTIONS = [
 /** The tool list never changes within a deploy, so a client may cache it for an
  *  hour. Private: it is served to an authenticated caller. */
 const CACHE_HINTS = {
-  "tools/list": { ttlMs: 3_600_000, cacheScope: "private" },
-  "server/discover": { ttlMs: 3_600_000, cacheScope: "private" },
+  "tools/list": { ttlMs: HOUR_MS, cacheScope: "private" },
+  "server/discover": { ttlMs: HOUR_MS, cacheScope: "private" },
 } as const;
 
 /** What a tool execution returns on the wire. A failed tool comes back inside

@@ -8,6 +8,7 @@ import { eq } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import { alertHistory, alerts } from "~/db";
+import { DAY_MS, HOUR_MS } from "~/lib/constants";
 
 export interface AlertConfig {
   id: string;
@@ -22,7 +23,7 @@ export interface AlertConfig {
 
 /** Recova's COOLDOWN_MS: an alert that has fired does not fire again for 24
  *  hours, however many evaluations see it still past its threshold. */
-export const ALERT_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+export const ALERT_COOLDOWN_MS = DAY_MS;
 
 /**
  * The nightly run's start drifts by however long the daily jobs before it take
@@ -33,7 +34,7 @@ export const ALERT_COOLDOWN_MS = 24 * 60 * 60 * 1000;
  * effective period was 24 hours plus one tick; one evaluation a night gets the
  * same behaviour from this margin (review round 1, PR 156).
  */
-export const ALERT_COOLDOWN_MARGIN_MS = 60 * 60 * 1000;
+export const ALERT_COOLDOWN_MARGIN_MS = HOUR_MS;
 
 /** How long after a firing the alert stays quiet: the cooldown less the margin. */
 export const ALERT_COOLDOWN_WINDOW_MS = ALERT_COOLDOWN_MS - ALERT_COOLDOWN_MARGIN_MS;

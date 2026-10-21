@@ -29,7 +29,7 @@ import { describeStaged, listStagedChanges, stageChange, type StagedRow } from "
 import { getWebhookHealthSummary } from "~/lib/admin/webhooks.server";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE, verifyMcpToken } from "~/lib/auth/mcp-tokens";
 import { isAdminEmail } from "~/lib/auth/roles";
-import { RATE_LIMIT_MCP, RATE_LIMIT_MCP_ANON } from "~/lib/constants";
+import { DAY_MS, RATE_LIMIT_MCP, RATE_LIMIT_MCP_ANON } from "~/lib/constants";
 import { listDisputes } from "~/lib/disputes/queries.server";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
 import { getIntelligenceOverview } from "~/lib/intelligence/views.server";
@@ -346,7 +346,7 @@ const ROUTES: ApiRoute[] = [
     method: "GET",
     pattern: "/health",
     handler: async ({ db, env, now }) => {
-      const since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const since = new Date(now.getTime() - 7 * DAY_MS);
       const [webhooks, crons, migrations, d1SizeBytes, notFound] = await Promise.all([
         getWebhookHealthSummary(db),
         listCronRows(db),

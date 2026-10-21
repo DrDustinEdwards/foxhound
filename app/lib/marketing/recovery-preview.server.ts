@@ -1,6 +1,12 @@
 import { isBillableRecoveryRow } from "~/lib/billing/billable-predicates";
 import { recoveryFeeCents } from "~/lib/billing/fees";
-import { RECOVERY_FEE_BPS, RECOVERY_MATURITY_MS, type DeclineCategory } from "~/lib/constants";
+import {
+  DAY_MS,
+  type DeclineCategory,
+  HOUR_MS,
+  RECOVERY_FEE_BPS,
+  RECOVERY_MATURITY_MS,
+} from "~/lib/constants";
 import { recoveryRateBand, recoveryRateTone } from "~/lib/dashboard/recovery-rate";
 import { formatRelativeTime } from "~/lib/dashboard/recovery-window";
 import { groupSumByCurrency } from "~/lib/dashboard/stats.server";
@@ -36,8 +42,6 @@ import type { PreviewPaymentRow, RecoveryPreview, RoiColumn } from "./recovery-p
 // Strings are formatted here, on the server, so the page renders the same
 // text on the server and in the browser.
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-const HOUR_MS = 60 * 60 * 1000;
 /** Recova's preview lists eight payments; so does the dashboard's own list. */
 const PREVIEW_PAYMENT_ROWS = 8;
 

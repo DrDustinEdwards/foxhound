@@ -244,7 +244,7 @@ describe("J73 PLANT 2: every claim is Foxhound's engine, not Recova's", () => {
     const windowSrc = read("app/lib/dashboard/recovery-window.server.ts");
     expect(windowSrc).toContain("listRecentFailedPayments(db, accountId, cutoffMs)");
     expect(windowSrc).toContain("listUpcomingSteps(db, accountId, nowMs, UPCOMING_STEPS_WINDOW_MS)");
-    const hours = Number(/UPCOMING_STEPS_WINDOW_MS = (\d+) \* 60 \* 60 \* 1000/.exec(windowSrc)?.[1]);
+    const hours = Number(/UPCOMING_STEPS_WINDOW_MS = (\d+) \* HOUR_MS/.exec(windowSrc)?.[1]);
     expect(hours).toBeGreaterThan(0);
     expect(route).toContain("<RecoveryTimingChart w={data30d}");
     const rangeSentence = text.split("\n").find((l) => l.includes("buttons in the dashboard header")) ?? "";
