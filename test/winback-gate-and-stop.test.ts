@@ -32,7 +32,9 @@ import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
 const now = new Date("2026-08-14T00:00:00.000Z");
 const HOUR_MS = 60 * 60 * 1000;
-const PROCESS = readFileSync("app/lib/webhooks/process.ts", "utf8");
+const PROCESS = ["process", "lookups", "recovery-handlers", "dispute-handlers", "winback-handlers"]
+  .map((f) => readFileSync(`app/lib/webhooks/${f}.ts`, "utf8"))
+  .join("\n");
 
 function offsets(step1OffsetHours?: number): number[] {
   return planWinbackSteps({

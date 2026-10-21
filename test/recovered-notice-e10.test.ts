@@ -279,13 +279,13 @@ describe("E10 carries Recova's footer line and Manage email settings link, and n
 describe("E10 sends on Recova's trigger, once, and names every refusal", () => {
   it("only after the recovery money write applied, the transition claim in Foxhound's terms", () => {
     const code = readFileSync(
-      fileURLToPath(new URL("../app/lib/webhooks/process.ts", import.meta.url)),
+      fileURLToPath(new URL("../app/lib/webhooks/recovery-handlers.ts", import.meta.url)),
       "utf8",
     )
       .replace(/\/\*[\s\S]*?\*\//g, "")
       .replace(/^\s*\/\/.*$/gm, "");
     expect(code).toContain(
-      "if (applied) {\n        await sendRecoveryNotification(env, { accountId, failedPaymentId });",
+      "if (applied) {\n    await sendRecoveryNotification(env, { accountId, failedPaymentId });",
     );
   });
 

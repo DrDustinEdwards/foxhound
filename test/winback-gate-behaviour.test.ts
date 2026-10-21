@@ -19,7 +19,7 @@ vi.mock("~/lib/intelligence/views.server", async (importOriginal) => ({
   isIntelligenceEntitled: async () => state.entitled,
 }));
 
-const { resolveWinbackStep1Offset } = await import("~/lib/webhooks/process");
+const { resolveWinbackStep1Offset } = await import("~/lib/webhooks/lookups");
 const env = {} as Env;
 
 beforeEach(async () => {

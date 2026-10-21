@@ -27,7 +27,7 @@ vi.mock("~/lib/stripe/client", () => ({
 vi.mock("~/lib/stripe/encryption", () => ({
   decryptToken: async () => "sk_test_connected",
 }));
-vi.mock("~/lib/webhooks/process", () => ({
+vi.mock("~/lib/webhooks/lookups", () => ({
   resolveDisputedRecovery: (...args: unknown[]) => resolveDisputedRecovery(...args),
 }));
 

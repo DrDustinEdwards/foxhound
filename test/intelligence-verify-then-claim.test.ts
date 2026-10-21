@@ -56,7 +56,7 @@ describe("281c: claims the evidence REFUTED are gone, and stay gone", () => {
     // neither, which is the same distinction 292 used to keep the item-3 entry
     // alive rather than retire it. So the matcher narrows to the subject: the
     // file may read the entitlement, and may NOT read a score or a prediction.
-    const processSource = readFileSync("app/lib/webhooks/process.ts", "utf8");
+    const processSource = readFileSync("app/lib/webhooks/lookups.ts", "utf8");
     const intelligenceImports = [
       ...processSource.matchAll(/from "~\/lib\/intelligence\/[^"]+"/g),
     ].map((m) => m[0]);
