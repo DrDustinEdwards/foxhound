@@ -30,8 +30,8 @@ const REFUNDED_AT = new Date(RECOVERED_AT.getTime() + 10 * 24 * 60 * 60 * 1000);
 
 const harness = vi.hoisted(() => ({
   db: null as unknown,
-  invoiceSearchResult: [{ id: "in_recovered_1" }] as { id: string }[],
-  invoiceSearchError: null as Error | null,
+  invoicePaymentsResult: [{ invoice: "in_recovered_1" }] as { invoice: string }[],
+  invoicePaymentsError: null as Error | null,
 }));
 
 vi.mock("~/db", async (importOriginal) => ({
@@ -63,10 +63,15 @@ vi.mock("~/lib/stripe/encryption", () => ({
 
 vi.mock("~/lib/stripe/client", () => ({
   getConnectedStripe: () => ({
+    invoicePayments: {
+      list: async () => {
+        if (harness.invoicePaymentsError) throw harness.invoicePaymentsError;
+        return { data: harness.invoicePaymentsResult };
+      },
+    },
     invoices: {
       search: async () => {
-        if (harness.invoiceSearchError) throw harness.invoiceSearchError;
-        return { data: harness.invoiceSearchResult };
+        throw new Error("search is eventually consistent; the refund path must not use it");
       },
     },
   }),
@@ -140,8 +145,8 @@ async function seedRecoveredPayment() {
 }
 
 beforeEach(() => {
-  harness.invoiceSearchResult = [{ id: "in_recovered_1" }];
-  harness.invoiceSearchError = null;
+  harness.invoicePaymentsResult = [{ invoice: "in_recovered_1" }];
+  harness.invoicePaymentsError = null;
 });
 
 describe("classifyStripeEvent on charge.refunded (parity ruling 29)", () => {
@@ -376,7 +381,7 @@ describe("a refund that arrives BEFORE the recovery still unbills it", () => {
       status: "active",
       detectedAt: new Date(RECOVERED_AT.getTime() - 5 * 60_000),
     });
-    harness.invoiceSearchResult = [{ id: "in_other" }];
+    harness.invoicePaymentsResult = [{ invoice: "in_other" }];
 
     await processConnectedWebhook(
       {} as Env,
@@ -399,7 +404,7 @@ describe("a refund that arrives BEFORE the recovery still unbills it", () => {
 describe("refund resolution failure semantics", () => {
   it("a refund on a payment Foxhound never took in claims and ignores", async () => {
     const { db } = await seedRecoveredPayment();
-    harness.invoiceSearchResult = []; // Stripe answered; no invoice matches.
+    harness.invoicePaymentsResult = []; // Stripe answered; no invoice payment matches.
 
     expect(await processConnectedWebhook({} as Env, refundEvent("evt_theirs", true), REFUNDED_AT)).toEqual({
       status: "ignored",
@@ -412,7 +417,7 @@ describe("refund resolution failure semantics", () => {
 
   it("a TRANSIENT resolution failure claims nothing and surfaces as an error, so Stripe redelivers", async () => {
     const { db } = await seedRecoveredPayment();
-    harness.invoiceSearchError = new Error("stripe unavailable");
+    harness.invoicePaymentsError = new Error("stripe unavailable");
 
     const outcome = await processConnectedWebhook({} as Env, refundEvent("evt_flaky", true), REFUNDED_AT);
     expect(outcome.status).toBe("error");

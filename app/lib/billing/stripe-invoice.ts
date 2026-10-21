@@ -108,6 +108,24 @@ export function disputeFeeItemIdempotencyKey(disputeId: string): string {
   return `dispute_fee_item_${disputeId}`;
 }
 
+/** The Stripe key for one committed billing_line_items row. The first charge
+ *  (run.ts) and every retry (charge-retry.ts) both derive it here, so they can
+ *  never disagree. A fee line keys on its evidence, as above. A line with no
+ *  evidence FK keys on its own row id: a shared fallback (the line type, or an
+ *  empty dispute id) would hand two lines one key, and Stripe would return the
+ *  first line's item for the second, which drops a line or attaches it to
+ *  another merchant's invoice. */
+export function lineItemIdempotencyKey(
+  row: { id: string; type: string; recoveredPaymentId: string | null; disputeId: string | null },
+  ctx: { accountId: string; periodKey: string; currency: string },
+): string {
+  if (row.type === "recovery_fee" && row.recoveredPaymentId) {
+    return recoveryFeeItemIdempotencyKey(ctx.accountId, ctx.periodKey, ctx.currency, row.recoveredPaymentId);
+  }
+  if (row.type === "dispute_fee" && row.disputeId) return disputeFeeItemIdempotencyKey(row.disputeId);
+  return `line_item_${row.id}`;
+}
+
 /** Creates + finalizes the platform Stripe invoice for one billing_invoices row.
  *  The Stripe seam; deferred live to Phase 8. Guards ensure no accidental charge.
  *

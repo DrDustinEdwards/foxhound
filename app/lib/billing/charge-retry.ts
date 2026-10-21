@@ -8,11 +8,10 @@ import { accountBillingEligibleCondition } from "~/db/billable";
 import { decideFeeRetryAction, billingStatusForSettledStripeStatus } from "./fee-retry";
 import {
   createPlatformInvoice,
-  disputeFeeItemIdempotencyKey,
   finalizePlatformInvoice,
   findPlatformInvoiceByBillingId,
+  lineItemIdempotencyKey,
   payPlatformInvoice,
-  recoveryFeeItemIdempotencyKey,
   type PlatformInvoiceLineInput,
 } from "./stripe-invoice";
 
@@ -121,6 +120,7 @@ export async function queryStrandedInvoices(env: Env, limit: number): Promise<St
  *  exclude already-billed rows, so they return nothing on a retry. */
 function linesFromLineItems(
   rows: {
+    id: string;
     type: string;
     amountCents: number;
     description: string | null;
@@ -133,14 +133,7 @@ function linesFromLineItems(
     type: row.type,
     amountCents: row.amountCents,
     description: row.description ?? row.type,
-    idempotencyKey: row.disputeId
-      ? disputeFeeItemIdempotencyKey(row.disputeId)
-      : recoveryFeeItemIdempotencyKey(
-          ctx.accountId,
-          ctx.periodKey,
-          ctx.currency,
-          row.recoveredPaymentId ?? row.type,
-        ),
+    idempotencyKey: lineItemIdempotencyKey(row, ctx),
   }));
 }
 
@@ -164,6 +157,7 @@ async function loadLines(env: Env, invoiceId: string): Promise<PlatformInvoiceLi
   if (!invoice) return [];
   const rows = await db
     .select({
+      id: billingLineItems.id,
       type: billingLineItems.type,
       amountCents: billingLineItems.amountCents,
       description: billingLineItems.description,

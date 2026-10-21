@@ -317,7 +317,12 @@ async function resolveConnectedCustomer(
 /**
  * Resolve the connected-account invoice a payment_intent belongs to. Invoice
  * <-> PaymentIntent linkage is not a direct field on either object in the pinned
- * API version; search is the seam Stripe exposes for it.
+ * API version; the InvoicePayments list, filtered by payment intent, is the seam.
+ * NOT invoices.search: Stripe documents search as eventually consistent (new or
+ * changed data can take a minute, longer during an outage, to appear), so an
+ * empty search could not tell "not ours" from "not indexed yet", and the refund
+ * path would claim a refund on our own recovery and go on to bill it. A list
+ * read is not indexed, so an empty page is a real answer.
  *
  * THROWS on a transient failure (no stored access token, a decrypt failure, any
  * Stripe error). Returns null ONLY for a clean miss: Stripe answered and no
@@ -342,11 +347,13 @@ async function resolveInvoiceIdForPaymentIntent(
   }
   const token = await decryptToken(env, connection.accessToken);
   const stripe = getConnectedStripe(token);
-  const results = await stripe.invoices.search({
-    query: `payment_intent:'${paymentIntentId}'`,
+  const results = await stripe.invoicePayments.list({
+    payment: { type: "payment_intent", payment_intent: paymentIntentId },
     limit: 1,
   });
-  return results.data[0]?.id ?? null;
+  const invoice = results.data[0]?.invoice;
+  if (!invoice) return null;
+  return typeof invoice === "string" ? invoice : invoice.id;
 }
 
 /**

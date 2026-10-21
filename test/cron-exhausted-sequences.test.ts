@@ -44,7 +44,7 @@ vi.mock("~/lib/money/execute", () => ({
 
 vi.mock("~/lib/stripe/encryption", () => ({ decryptToken: async () => "sk_test_connected" }));
 vi.mock("~/lib/stripe/client", () => ({
-  getConnectedStripe: () => ({ invoices: { search: async () => ({ data: [] }) } }),
+  getConnectedStripe: () => ({ invoicePayments: { list: async () => ({ data: [] }) } }),
   getStripe: () => {
     throw new Error("platform stripe must not be used here");
   },
