@@ -14,7 +14,8 @@ Look and components come from Capsomer now, on every surface, teal throughout, w
 
 ## Rules that come first
 
-- The portfolio rules are in Capsid: `capsid/conventions.md`. Then `foxhound/core.md`, then `foxhound/RULES.md`, the only Foxhound rules document that binds. Where conventions and this file disagree, conventions wins; the prime directive above is Foxhound's own and stands.
+- Read `foxhound/core.md`, then `foxhound/RULES.md`, the only Foxhound rules document that binds. The prime directive above stands.
+- Tests: keep the minimal set (a few browser tests for flows that must never break, one integration test per real behaviour, unit tests only for tricky logic, shared code tested once where it lives), and remove any test that pins design, repeats coverage or has never caught a real mistake, unless it guards a harm that cannot be undone.
 - Canon lives in Capsid namespace `foxhound`: ARCHITECTURE.md, PRICING.md, DESIGN.md, SCHEMA.md, ROUTES.md, rebuild-plan.md and backlog.md; parity state is `parity/PARITY-LEDGER.md`. `docs/canon/` in this repo holds pointer stubs only; never restore content there.
 
 ## Repo-specific hard rules
