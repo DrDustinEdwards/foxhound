@@ -5,7 +5,7 @@ import { SUBMITTED_OR_RESOLVED } from "~/lib/disputes/approval";
 import { REMINDER_BANDS, reminderKey, type ReminderBucket } from "~/lib/disputes/notices";
 import { sendDisputeReminderNotice } from "~/lib/disputes/notices.server";
 import { recordOutcome } from "~/lib/engine/outcomes";
-import { accountProcessingEligibleCondition } from "~/lib/cron/recovery-tick";
+import { accountProcessingEligibleCondition } from "~/lib/cron/due-steps";
 import { HOUR_MS } from "~/lib/constants";
 
 // THE DISPUTE DEADLINE REMINDER (J06, job_4f4c9c2f5383). Recova's spec is

@@ -18,7 +18,7 @@ import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { listAccountConnections } from "~/lib/settings/queries.server";
-import { disconnectConnection, findLiveConnection } from "~/lib/admin/merchants.server";
+import { disconnectConnection, findLiveConnection } from "~/lib/admin/merchant-cancel.server";
 import { deauthorizeConnectedAccount } from "~/lib/stripe/connect";
 import { disconnectFeedback, type DisconnectResult } from "~/lib/settings/stripe-disconnect-feedback";
 

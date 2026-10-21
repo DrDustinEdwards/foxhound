@@ -3,7 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { Db } from "~/db";
 import { accountMembers, accounts } from "~/db/schema";
-import { acceptInvite, createAccountForUser, resolveMembership } from "~/lib/auth/account";
+import { createAccountForUser, resolveMembership } from "~/lib/auth/account";
+import { acceptInvite } from "~/lib/auth/invites";
 import { MEMBER_ROLE, MEMBER_STATUS } from "~/lib/auth/roles";
 
 import { executeMoneyWrite } from "~/lib/money/execute";

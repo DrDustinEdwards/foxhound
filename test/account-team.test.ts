@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import type { InviteView, Membership } from "~/lib/auth/account";
-import { evaluateAcceptInvite, normalizeInviteEmail } from "~/lib/auth/account";
+import type { Membership } from "~/lib/auth/account";
+import type { InviteView } from "~/lib/auth/invites";
+import { evaluateAcceptInvite, normalizeInviteEmail } from "~/lib/auth/invites";
 
 const invite: InviteView = {
   memberId: "mem_1",

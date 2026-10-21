@@ -4,7 +4,7 @@
 
 import { and, eq } from "drizzle-orm";
 import { type Db, failedPayments, getDb, recoverySteps, stripeConnections } from "~/db";
-import { queryStepForManualTrigger, type DueStepRow } from "~/lib/cron/recovery-tick";
+import { queryStepForManualTrigger, type DueStepRow } from "~/lib/cron/due-steps";
 import { executeEmailStep, type EmailStepContext, type EmailStepResult } from "~/lib/engine/execute-step";
 import { executeRetryStep, type RetryStepContext, type RetryStepResult } from "~/lib/engine/retry-step";
 import { processEmailJob, type EmailJobResult } from "~/lib/email/dispatch";

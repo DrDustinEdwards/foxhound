@@ -24,17 +24,19 @@ export {
   findActiveMembership,
   resolveMembership,
   createAccountForUser,
+  listMembers,
+  removeMember,
+  type Membership,
+} from "./account";
+export {
   getInviteByToken,
   createInvite,
   acceptInvite,
   evaluateAcceptInvite,
   normalizeInviteEmail,
-  listMembers,
-  removeMember,
-  type Membership,
   type InviteView,
   type AcceptInviteResult,
-} from "./account";
+} from "./invites";
 export { setSessionActiveAccount, safeReturnPath } from "./active-account";
 export { authContext, type AuthContext } from "./context";
 export { appShellMiddleware } from "./guards";

@@ -39,13 +39,8 @@ import {
   type ToggleIntent,
   type ToggleResult,
 } from "~/lib/admin/merchants";
-import {
-  cancelMerchant,
-  getMerchantActionTarget,
-  setBillingExemptIfChanged,
-  setProcessingPausedIfChanged,
-  type AdminMerchantRow,
-} from "~/lib/admin/merchants.server";
+import { getMerchantActionTarget, setBillingExemptIfChanged, setProcessingPausedIfChanged, type AdminMerchantRow } from "~/lib/admin/merchants.server";
+import { cancelMerchant } from "~/lib/admin/merchant-cancel.server";
 import { plural } from "~/lib/admin/overview";
 import { merchantHref, pagePending, type AdminHandle } from "~/lib/admin/page";
 import { cloudflareContext } from "~/lib/cloudflare-context";

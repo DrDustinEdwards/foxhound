@@ -7,7 +7,7 @@ import { signCardUpdateToken } from "~/lib/card-update/token";
 import { processEmailJob } from "~/lib/email/dispatch";
 import { recoveryFooterNote } from "~/lib/email/templates";
 import { recordOutcome } from "~/lib/engine/outcomes";
-import { accountProcessingEligibleCondition } from "~/lib/cron/recovery-tick";
+import { accountProcessingEligibleCondition } from "~/lib/cron/due-steps";
 import { getConnectedStripe } from "~/lib/stripe/client";
 import { decryptToken } from "~/lib/stripe/encryption";
 

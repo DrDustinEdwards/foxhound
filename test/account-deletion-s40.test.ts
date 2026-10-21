@@ -7,7 +7,7 @@ import { account as authAccount, session, user, verification } from "~/db/auth-s
 import { getBillableDisputes, getBillableRecoveries } from "~/db/billable";
 import { getBillingLedger } from "~/lib/billing/queries.server";
 import { getBillingPreview } from "~/lib/billing/preview.server";
-import { cancelMerchantLocal } from "~/lib/admin/merchants.server";
+import { cancelMerchantLocal } from "~/lib/admin/merchant-cancel.server";
 import { deleteUserAccountLocal } from "~/lib/auth/delete-account.server";
 import type { Db } from "~/db";
 

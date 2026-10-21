@@ -44,7 +44,7 @@ const { sendAuthEmail, sendPasswordResetEmail } = await import("~/lib/auth/send-
 const { buildFailureAlertEmail, buildStaleAlertEmail } = await import("~/lib/cron/alerts.server");
 const { renderFoxhoundAlertEmail } = await import("~/lib/email/templates");
 const { sendRenderedTransactionalEmail } = await import("~/lib/email/send");
-const { buildMonthlyAuditEmail } = await import("~/lib/audit/monthly.server");
+const { buildMonthlyAuditEmail } = await import("~/lib/audit/monthly-email");
 
 const BASE = "https://foxhoundapp.test";
 const ADDRESS = "1 Test Way, Austin TX";

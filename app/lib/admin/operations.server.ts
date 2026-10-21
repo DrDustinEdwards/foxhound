@@ -13,7 +13,7 @@ import migrationJournal from "../../../drizzle/migrations/meta/_journal.json";
 
 import type { Db } from "~/db";
 import { countActiveRecoveries } from "~/lib/admin/overview.server";
-import { accountProcessingEligibleCondition, stepDueCondition } from "~/lib/cron/recovery-tick";
+import { accountProcessingEligibleCondition, stepDueCondition } from "~/lib/cron/due-steps";
 import { CRON_LOCK_PEEK_TIMEOUT_MS } from "~/lib/constants";
 import { CRON_JOBS } from "~/lib/cron/registry";
 import { cronLockHealth, type CronLockView } from "~/lib/cron/lock-state";

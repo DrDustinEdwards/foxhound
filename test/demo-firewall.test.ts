@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { accounts } from "~/db";
 import { accountBillingEligibleCondition } from "~/db/billable";
-import { accountProcessingEligibleCondition } from "~/lib/cron/recovery-tick";
+import { accountProcessingEligibleCondition } from "~/lib/cron/due-steps";
 import { DEMO_ACCOUNT_ID } from "~/lib/demo/constants";
 import { seedDemoAccount } from "~/lib/demo/seed";
 import { accountProcessingEligible } from "~/lib/intelligence/sync.server";

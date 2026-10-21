@@ -53,7 +53,7 @@ const { action: accountAction } = await import("~/routes/app/settings/account");
 const schema = await import("~/db/schema");
 const { listSwitcherAccounts } = await import("~/lib/nav/accounts.server");
 const { listMemberships } = await import("~/lib/auth/account");
-const { accountProcessingEligibleCondition } = await import("~/lib/cron/recovery-tick");
+const { accountProcessingEligibleCondition } = await import("~/lib/cron/due-steps");
 
 const USER = "user_1";
 const ACTIVE = "acct_active";
@@ -343,7 +343,7 @@ describe("PLANT 4: one batch, and a deauthorize failure never rolls the local wr
 
   it("the write is a plain batch and never the money DO", async () => {
     const source = readFileSync(
-      fileURLToPath(new URL("../app/lib/admin/merchants.server.ts", import.meta.url)),
+      fileURLToPath(new URL("../app/lib/admin/merchant-cancel.server.ts", import.meta.url)),
       "utf8",
     );
     const code = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");

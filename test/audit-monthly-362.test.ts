@@ -80,13 +80,8 @@ vi.mock("~/lib/stripe/encryption", async (importOriginal) => ({
   decryptToken: async () => "sk_test_token",
 }));
 
-const {
-  auditPeriod,
-  buildMonthlyAuditEmail,
-  compareTotals,
-  describeMonthlyAuditRun,
-  MONTHLY_AUDIT_SUBJECT,
-} = await import("~/lib/audit/monthly.server");
+const { auditPeriod, describeMonthlyAuditRun } = await import("~/lib/audit/monthly.server");
+const { buildMonthlyAuditEmail, compareTotals, MONTHLY_AUDIT_SUBJECT } = await import("~/lib/audit/monthly-email");
 const { driveMonthlyAudit } = await import("./helpers/monthly-audit-queue");
 const { renderFoxhoundEmail } = await import("~/lib/email/templates");
 const { handleQueueBatch } = await import("~/lib/queue/consumer");

@@ -46,7 +46,7 @@ const { htmlToBlocks } = await import("~/lib/email/templates");
 const { buildEmailMessage } = await import("~/lib/email/send");
 const { processEmailJob } = await import("~/lib/email/dispatch");
 const { executeEmailStep, buildRecoveryEmailJob } = await import("~/lib/engine/execute-step");
-const { queryDueRecoverySteps, toEmailContext } = await import("~/lib/cron/recovery-tick");
+const { queryDueRecoverySteps, toEmailContext } = await import("~/lib/cron/due-steps");
 
 type EmailStepContext = import("~/lib/engine/execute-step").EmailStepContext;
 type EmailJob = import("~/lib/email/types").EmailJob;

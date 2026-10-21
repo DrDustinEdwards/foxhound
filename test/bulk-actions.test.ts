@@ -13,7 +13,7 @@ import {
   BULK_ACTION_MAX_PER_SUBMISSION,
   MANUAL_ATTRIBUTION_KIND,
 } from "~/lib/constants";
-import { queryStepForManualTrigger, type DueStepRow } from "~/lib/cron/recovery-tick";
+import { queryStepForManualTrigger, type DueStepRow } from "~/lib/cron/due-steps";
 import { mapWithConcurrency, runBulkAction } from "~/lib/recovery/bulk-actions.server";
 import {
   BULK_ACTION_INTENTS,

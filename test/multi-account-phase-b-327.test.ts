@@ -429,7 +429,7 @@ describe("AuthContext carries the membership set", () => {
 
 describe("the invite path joins rather than refuses", () => {
   it("an invite to an account already held is success, and writes nothing", async () => {
-    const { acceptInvite } = await import("~/lib/auth/account");
+    const { acceptInvite } = await import("~/lib/auth/invites");
     seedAccount("acct_a", "Acme A");
     seedMembership({ id: "m1", accountId: "acct_a", userId: USER });
     sqlite
@@ -447,7 +447,7 @@ describe("the invite path joins rather than refuses", () => {
   });
 
   it("an invite to a NEW account creates a second active membership", async () => {
-    const { acceptInvite } = await import("~/lib/auth/account");
+    const { acceptInvite } = await import("~/lib/auth/invites");
     seedAccount("acct_a", "Acme A");
     seedAccount("acct_b", "Globex");
     seedMembership({ id: "m1", accountId: "acct_a", userId: USER });
@@ -479,7 +479,7 @@ describe("the invite path joins rather than refuses", () => {
     const { readFileSync } = await import("node:fs");
     const { fileURLToPath } = await import("node:url");
     const source = readFileSync(
-      fileURLToPath(new URL("../app/lib/auth/account.ts", import.meta.url)),
+      fileURLToPath(new URL("../app/lib/auth/invites.ts", import.meta.url)),
       "utf8",
     );
     // Layer 2's removal, pinned at the type. `createAccountForUser` keeps its

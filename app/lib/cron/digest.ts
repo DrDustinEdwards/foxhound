@@ -19,7 +19,7 @@ import { RESOLVED_DISPUTE_STATES } from "~/lib/disputes/labels";
 import { processEmailJob, type EmailSendStatus } from "~/lib/email/dispatch";
 import { signUnsubscribeToken } from "~/lib/email/unsubscribe-token";
 import { isIntelligenceEntitled } from "~/lib/intelligence/views.server";
-import { accountProcessingEligibleCondition } from "~/lib/cron/recovery-tick";
+import { accountProcessingEligibleCondition } from "~/lib/cron/due-steps";
 
 import {
   DIGEST_TEMPLATE,

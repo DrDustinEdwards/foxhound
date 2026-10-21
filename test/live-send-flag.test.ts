@@ -108,7 +108,7 @@ describe("live-send flag: the demo account", () => {
     // request; and the flag now defaults OFF for it like every other row.
     const seed = readFileSync("app/lib/demo/seed.ts", "utf8");
     expect(seed).toContain("processingPaused: true");
-    const tick = readFileSync("app/lib/cron/recovery-tick.ts", "utf8");
+    const tick = readFileSync("app/lib/cron/due-steps.ts", "utf8");
     expect(tick).toContain("DEMO_ACCOUNT_ID_PREFIX");
     expect(tick).toContain("eq(accounts.processingPaused, false)");
     // And the seeder does NOT switch the flag on, so the demo stays blocked.

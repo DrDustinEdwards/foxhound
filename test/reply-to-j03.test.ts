@@ -58,7 +58,7 @@ vi.mock("~/lib/money/execute", () => ({
 
 const { buildEmailMessage, sendEmail } = await import("~/lib/email/send");
 const { buildRecoveryEmailJob } = await import("~/lib/engine/execute-step");
-const { queryStepForManualTrigger, toEmailContext } = await import("~/lib/cron/recovery-tick");
+const { queryStepForManualTrigger, toEmailContext } = await import("~/lib/cron/due-steps");
 const { buildTemplateEmail } = await import("~/lib/recovery/email-template");
 const { runWinbackSends } = await import("~/lib/cron/winback");
 const { sendExpiringCardAlerts } = await import("~/lib/cron/expiring-cards");
@@ -210,7 +210,7 @@ describe("Reply-To is the merchant's address on every merchant-customer send", (
 
   it("recovery: the due-step query reads it too", async () => {
     seed(REPLY);
-    const { queryDueRecoverySteps } = await import("~/lib/cron/recovery-tick");
+    const { queryDueRecoverySteps } = await import("~/lib/cron/due-steps");
     const rows = await queryDueRecoverySteps(env, new Date(5000));
     expect(rows.map((r) => r.stepId)).toContain("step_1");
     expect(toEmailContext(rows.find((r) => r.stepId === "step_1")!).replyTo).toBe(REPLY);
