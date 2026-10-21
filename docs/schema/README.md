@@ -1,7 +1,7 @@
 # Data layer (Drizzle + D1)
 
 The Foxhound data layer: Drizzle schema, D1 migrations, query helpers, and the
-legacy transform. Design is governed by `docs/canon/SCHEMA.md`; column truth and
+legacy transform. Design is governed by `SCHEMA.md` in Capsid (namespace `foxhound`); column truth and
 dispositions are in `docs/schema/legacy-map.md`.
 
 ## Layout
