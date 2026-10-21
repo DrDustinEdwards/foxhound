@@ -81,7 +81,7 @@ export interface FinalizeSetupResult {
 
 /** Extract the customer id from a Checkout Session's `customer` field, whether
  *  it is an id string, an expanded object, or null. Pure. */
-export function sessionCustomerId(
+function sessionCustomerId(
   customer: string | { id: string } | null | undefined,
 ): string | null {
   if (!customer) return null;

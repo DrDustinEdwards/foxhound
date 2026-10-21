@@ -50,7 +50,7 @@ export interface PlatformBillingTarget {
  * a D1 failure THROWS, which is the point: an unresolvable event must not be
  * claimed.
  */
-export async function resolvePlatformBillingTarget(
+async function resolvePlatformBillingTarget(
   env: Env,
   event: Stripe.Event,
 ): Promise<PlatformBillingTarget | null> {
@@ -85,7 +85,7 @@ export async function resolvePlatformBillingTarget(
  * is the exactly-once key: a replay fails the claim insert and rolls the whole
  * batch back, so the status is never applied twice.
  */
-export function buildPlatformBillingBatch(
+function buildPlatformBillingBatch(
   db: Db,
   input: { claim: WebhookClaimInput; target: PlatformBillingTarget; now: Date },
 ): MoneyWriteBatch {

@@ -65,7 +65,7 @@ import { getGlobalPaymentStatusCounts } from "~/lib/recovery/queries.server";
 // admin_audit_log row naming the acting admin.
 
 export const ADMIN_API_PREFIX = "/api/admin/v1";
-export const ACTING_ADMIN_HEADER = "Foxhound-Acting-Admin";
+const ACTING_ADMIN_HEADER = "Foxhound-Acting-Admin";
 const PAGE_SIZE = 25;
 
 type Json = Record<string, unknown>;
@@ -508,7 +508,7 @@ const ROUTES: ApiRoute[] = [
 ];
 
 /** The method and path of every route, so a plant can assert the surface. */
-export const ADMIN_API_ROUTES = ROUTES.map((r) => `${r.method} ${r.pattern}`);
+const ADMIN_API_ROUTES = ROUTES.map((r) => `${r.method} ${r.pattern}`);
 
 function match(method: string, path: string): { route: ApiRoute; params: string[] } | null {
   const segments = path.split("/").filter(Boolean);

@@ -149,7 +149,7 @@ export interface ResubscribePlan {
  * the price is re-read at click rather than stored. This is a READ: it creates
  * and modifies nothing.
  */
-export async function loadResubscribePlan(input: {
+async function loadResubscribePlan(input: {
   accessToken: string;
   subscriptionId: string;
 }): Promise<ResubscribePlan | null> {

@@ -63,7 +63,7 @@ export const PRIVATE_DIRECTIVE = "private, no-store";
  * `better-auth.` family also covers `session_data` and `account_data` when the
  * cookie cache is on, and any cookie Better Auth adds later.
  */
-export const SESSION_COOKIE_FAMILY = "better-auth.";
+const SESSION_COOKIE_FAMILY = "better-auth.";
 
 const COOKIE_NAME_PREFIXES = ["__Secure-", "__Host-"];
 

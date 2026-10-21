@@ -37,7 +37,7 @@ export interface DeadLetterRecord {
 
 /** Build the row for one dead-lettered job. Pure apart from the hash, so the
  *  shape is assertable without a queue or a database. */
-export async function buildDeadLetterRecord(
+async function buildDeadLetterRecord(
   job: EmailJob,
   input: { queueMessageId: string | null; attempts: number | null; error: string | null; now: Date },
 ): Promise<DeadLetterRecord> {

@@ -44,7 +44,7 @@ import {
 // send failure.
 
 /** Foxhound's family in Capsomer: teal throughout (RULES.md 1.1). */
-export const FOXHOUND_EMAIL_FAMILY = "teal" as const;
+const FOXHOUND_EMAIL_FAMILY = "teal" as const;
 
 /** The first-party engagement links a dunning send carries (PRICING.md: the
  *  open feeds Intelligence only; the trap marks scanners, RULES.md 3.4). */
@@ -64,7 +64,7 @@ interface FoxhoundMailData {
  * Foxhound's one template. Its blocks are the sender's own paragraphs, headings
  * and links, in the sender's order and wording.
  */
-export const foxhoundMail: Template<FoxhoundMailData> = {
+const foxhoundMail: Template<FoxhoundMailData> = {
   name: "foxhound-mail",
   subject: (d) => d.subjectLine,
   blocks: (d) => htmlToBlocks(d.bodyHtml),
@@ -86,7 +86,7 @@ export interface EmailNotice {
  * A mail the sender wrote as Capsomer's blocks, in the sender's order and
  * wording, with no heading added (E12: Recova's expiring card alert has none).
  */
-export const foxhoundBlocks: Template<{ subjectLine: string; content: Block[] }> = {
+const foxhoundBlocks: Template<{ subjectLine: string; content: Block[] }> = {
   name: "foxhound-blocks",
   subject: (d) => d.subjectLine,
   blocks: (d) => d.content,

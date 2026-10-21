@@ -50,7 +50,7 @@ export interface WinbackSequenceForReactivation {
 
 /** Read the sequence this reactivation names, scoped to the webhook's account
  *  so a metadata value from another merchant resolves to nothing. */
-export async function loadReactivatableSequence(
+async function loadReactivatableSequence(
   db: Db,
   accountId: string,
   sequenceId: string,

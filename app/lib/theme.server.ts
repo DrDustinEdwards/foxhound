@@ -4,7 +4,7 @@ import { getDb, type Db } from "~/db";
 import { accounts } from "~/db/schema";
 import { resolveActiveMembership } from "./auth/account";
 import { getSession } from "./auth/session";
-import { DEFAULT_THEME, isTheme, resolveThemePreference, THEME_COOKIE, type Theme } from "./theme";
+import { isTheme, resolveThemePreference, THEME_COOKIE, type Theme } from "./theme";
 
 // Better Auth's default session cookie is `better-auth.session_token` (no
 // cookiePrefix is configured in auth/options.ts). Matching the suffix is enough
@@ -13,7 +13,7 @@ import { DEFAULT_THEME, isTheme, resolveThemePreference, THEME_COOKIE, type Them
 const SESSION_COOKIE_MARKER = "session_token";
 
 /** The theme cookie's value, or null when absent or malformed. */
-export function getThemeCookie(request: Request): Theme | null {
+function getThemeCookie(request: Request): Theme | null {
   const header = request.headers.get("Cookie") ?? "";
   for (const part of header.split(";")) {
     const eq = part.indexOf("=");
@@ -23,15 +23,6 @@ export function getThemeCookie(request: Request): Theme | null {
     return isTheme(value) ? value : null;
   }
   return null;
-}
-
-/**
- * Cookie-only theme read. Kept for callers that must stay synchronous and
- * zero-DB. Prefer resolveThemeForRequest anywhere a stored preference should
- * win (ruling 59).
- */
-export function getThemeFromRequest(request: Request): Theme {
-  return getThemeCookie(request) ?? DEFAULT_THEME;
 }
 
 /**

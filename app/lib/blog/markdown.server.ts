@@ -24,6 +24,7 @@
 // produce a TOC list. The highlight.js theme stylesheet is imported by the
 // post detail route, not here.
 
+import { escapeHtml } from "@dustinedwards/site-runtime/html";
 import { marked, type Tokens, type Token } from "marked";
 import hljs from "highlight.js";
 import sanitizeHtml from "sanitize-html";
@@ -103,10 +104,10 @@ function configureMarked(): void {
       link({ href, title, tokens }: Tokens.Link): string {
         const self = this as unknown as LinkRendererThis;
         const text = self.parser.parseInline(tokens);
-        const titleAttr = title ? ` title="${escapeAttr(title)}"` : "";
+        const titleAttr = title ? ` title="${escapeHtml(title)}"` : "";
         const isExternal = /^https?:\/\//i.test(href) && !INTERNAL_HOSTNAMES.test(href);
         const targetAttrs = isExternal ? ' target="_blank" rel="noopener noreferrer"' : "";
-        return `<a href="${escapeAttr(href)}"${titleAttr}${targetAttrs}>${text}</a>`;
+        return `<a href="${escapeHtml(href)}"${titleAttr}${targetAttrs}>${text}</a>`;
       },
     },
   });
@@ -137,14 +138,6 @@ const POSTLINK_RE = /::postlink\[([^|\]]+)(?:\|([^\]]+))?\]/g;
 
 type Replacement = { token: string; html: string };
 
-function escapeAttr(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-function escapeText(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
 function makeToken(i: number): string {
   return `\n\nXBLOGTOKEN${i}X\n\n`;
 }
@@ -158,7 +151,7 @@ function renderCallout(type: string, content: string): string {
 }
 
 function renderPullquote(content: string): string {
-  return `<blockquote class="blog-pullquote">${escapeText(content.trim())}</blockquote>`;
+  return `<blockquote class="blog-pullquote">${escapeHtml(content.trim())}</blockquote>`;
 }
 
 interface FaqPair {
@@ -218,7 +211,7 @@ function renderFaq(content: string): string {
   const items = pairs
     .map(
       ({ q, a }) =>
-        `<div class="blog-faq-item"><dt class="blog-faq-question">${escapeText(q)}</dt><dd class="blog-faq-answer">${escapeText(a)}</dd></div>`,
+        `<div class="blog-faq-item"><dt class="blog-faq-question">${escapeHtml(q)}</dt><dd class="blog-faq-answer">${escapeHtml(a)}</dd></div>`,
     )
     .join("");
   return `<div class="blog-faq" data-faq="true"><dl class="blog-faq-list">${items}</dl></div>`;
@@ -231,16 +224,16 @@ function renderDiagram(slug: string): string {
   const svg = diagramSvg(slug);
   if (svg === undefined) {
     if (import.meta.env.DEV) {
-      return `<figure class="blog-diagram blog-diagram--missing"><div class="blog-diagram-placeholder">Diagram not found: ${escapeText(slug)}.svg</div></figure>`;
+      return `<figure class="blog-diagram blog-diagram--missing"><div class="blog-diagram-placeholder">Diagram not found: ${escapeHtml(slug)}.svg</div></figure>`;
     }
     return "";
   }
   const label = slug.replace(/-/g, " ");
-  return `<figure class="blog-diagram" role="img" aria-label="Diagram: ${escapeAttr(label)}">${svg}</figure>`;
+  return `<figure class="blog-diagram" role="img" aria-label="Diagram: ${escapeHtml(label)}">${svg}</figure>`;
 }
 
 function renderToggle(header: string, content: string): string {
-  const headerHtml = escapeText(header.trim());
+  const headerHtml = escapeHtml(header.trim());
   const inner = sanitizeBody(marked.parse(content, { async: false }) as string);
   return `<details class="blog-toggle"><summary class="blog-toggle-header">${headerHtml}</summary><div class="blog-toggle-content">${inner}</div></details>`;
 }
@@ -282,9 +275,9 @@ function renderBookmark(url: string): string {
   const safe = url.trim();
   try {
     const host = new URL(safe).host.replace(/^www\./, "");
-    return `<a href="${escapeAttr(safe)}" target="_blank" rel="noopener noreferrer" class="blog-bookmark-link">${escapeText(host)}</a>`;
+    return `<a href="${escapeHtml(safe)}" target="_blank" rel="noopener noreferrer" class="blog-bookmark-link">${escapeHtml(host)}</a>`;
   } catch {
-    return `<a href="${escapeAttr(safe)}" target="_blank" rel="noopener noreferrer">${escapeText(safe)}</a>`;
+    return `<a href="${escapeHtml(safe)}" target="_blank" rel="noopener noreferrer">${escapeHtml(safe)}</a>`;
   }
 }
 
@@ -362,7 +355,7 @@ export async function renderMarkdown(db: Db, body: string): Promise<{ html: stri
     } else if (k === "bookmark") {
       slots.push({ token: token.trim(), resolve: () => renderBookmark(arg) });
     } else {
-      slots.push({ token: token.trim(), resolve: () => `<code>${escapeText(`::${kind}[${arg}]`)}</code>` });
+      slots.push({ token: token.trim(), resolve: () => `<code>${escapeHtml(`::${kind}[${arg}]`)}</code>` });
     }
     return token;
   });
@@ -376,10 +369,10 @@ export async function renderMarkdown(db: Db, body: string): Promise<{ html: stri
       const target = await resolvePostLink(db, s.slug);
       if (target) {
         const text = s.display ?? target.title;
-        return `<a href="/blog/${escapeAttr(target.slug)}">${escapeText(text)}</a>`;
+        return `<a href="/blog/${escapeHtml(target.slug)}">${escapeHtml(text)}</a>`;
       }
       const raw = s.display ? `::postlink[${s.slug}|${s.display}]` : `::postlink[${s.slug}]`;
-      return `<code>${escapeText(raw)}</code>`;
+      return `<code>${escapeHtml(raw)}</code>`;
     }),
   );
 

@@ -13,7 +13,7 @@ import { estimateReadingTime, generateSlug } from "./format";
 /** Keep at most this many saved versions per post (SCHEMA.md: "version
  *  retention: keep last 10 per post"). Enforced on every update, not just at
  *  read time, so the table never grows unbounded per post. */
-export const BLOG_VERSION_RETENTION = 10;
+const BLOG_VERSION_RETENTION = 10;
 
 export interface AdminPostListRow {
   id: string;

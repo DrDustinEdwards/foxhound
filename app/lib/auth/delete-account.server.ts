@@ -102,7 +102,7 @@ export const ACCOUNT_DELETION_AUDIT_ACTION = "user_self_deleted_account";
 /** Who the audit row names as the actor. Recova writes the person's email here;
  *  Foxhound keeps the record and drops the address, because the address is the
  *  personal data being deleted. The user id stays as the target. */
-export const ACCOUNT_DELETION_AUDIT_ACTOR = "account-owner";
+const ACCOUNT_DELETION_AUDIT_ACTOR = "account-owner";
 
 type DeletionBatch = [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]];
 
@@ -216,7 +216,7 @@ function disputeBilled(db: Db, disputeId: AnySQLiteColumn): SQL {
  * The statements that delete one owned account's personal data, in
  * foreign-key order. Pure: compiles without a database.
  */
-export function buildAccountScrubStatements(db: Db, accountId: string, now: Date): BatchItem<"sqlite">[] {
+function buildAccountScrubStatements(db: Db, accountId: string, now: Date): BatchItem<"sqlite">[] {
   const nowMs = now.getTime();
 
   // The account's own rows in tables whose account_id is nullable, reached
@@ -468,7 +468,7 @@ export function buildAccountScrubStatements(db: Db, accountId: string, now: Date
  * Better Auth rows and the user. Recova's cascade ends the same way, with the
  * residual memberships and the user.
  */
-export function buildUserDeletionStatements(
+function buildUserDeletionStatements(
   db: Db,
   plan: Pick<DeletionPlan, "userId" | "email">,
   now: Date,
@@ -506,7 +506,7 @@ export function buildUserDeletionStatements(
 }
 
 /** The whole deletion as one atomic batch, the audit row first. Pure. */
-export function buildAccountDeletionBatch(db: Db, plan: DeletionPlan, now: Date): DeletionBatch {
+function buildAccountDeletionBatch(db: Db, plan: DeletionPlan, now: Date): DeletionBatch {
   return [
     db.insert(adminAuditLog).values({
       actorEmail: ACCOUNT_DELETION_AUDIT_ACTOR,
@@ -563,7 +563,7 @@ export const ACCOUNT_DELETION_DEAUTHORIZE_FAILED_ACTION = "user_self_deleted_acc
 /** One durable admin_audit_log row for a Stripe grant that could not be revoked
  *  after a deletion, through the one audit writer. Ids and the error only: the
  *  person's email and name are already gone and are not written back here. */
-export async function recordDeauthorizeFailure(db: Db, userId: string, failure: DeauthorizeFailure): Promise<void> {
+async function recordDeauthorizeFailure(db: Db, userId: string, failure: DeauthorizeFailure): Promise<void> {
   await logAdminAction(db, {
     actorEmail: ACCOUNT_DELETION_AUDIT_ACTOR,
     action: ACCOUNT_DELETION_DEAUTHORIZE_FAILED_ACTION,

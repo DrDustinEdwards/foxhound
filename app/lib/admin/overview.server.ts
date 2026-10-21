@@ -30,8 +30,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 /** How old an open dispute with no response is before it needs attention, and
  *  how far back a connection counts as new: Recova's overview (app/admin/page.tsx)
  *  used seven days for both. */
-export const STALE_DISPUTE_DAYS = 7;
-export const NEW_CONNECTION_DAYS = 7;
+const STALE_DISPUTE_DAYS = 7;
+const NEW_CONNECTION_DAYS = 7;
 
 /** A ceiling on the dispute and fee attention rows. The list shows five of a
  *  group; their groups have no page to link on to, so the titles carry the
@@ -39,7 +39,7 @@ export const NEW_CONNECTION_DAYS = 7;
 const ATTENTION_LIMIT = 50;
 
 /** Recova's Recent admin actions showed the newest ten audit rows. */
-export const RECENT_ACTIONS_LIMIT = 10;
+const RECENT_ACTIONS_LIMIT = 10;
 
 export interface PausedMerchant {
   id: string;
@@ -271,10 +271,10 @@ async function openDisputes(
  *  (gave_up, written by the retry sweep when it stops; uncollectible, from
  *  Stripe). void is left out: a voided invoice was cancelled on purpose.
  *  billing/labels.ts counts all four as failed. */
-export const FEE_ATTENTION_STATUSES = ["payment_failed", "gave_up", "uncollectible"] as const;
+const FEE_ATTENTION_STATUSES = ["payment_failed", "gave_up", "uncollectible"] as const;
 /** Recova's window for failed billing charges; an older write-off has had
  *  its month on the Overview. */
-export const FEE_ATTENTION_DAYS = 30;
+const FEE_ATTENTION_DAYS = 30;
 
 async function failedFeeInvoices(db: Db, nowMs: number): Promise<{ count: number; rows: FailedFeeInvoice[] }> {
   const failedAt = sql<number>`coalesce(${billingInvoices.lastChargeAttemptAt}, ${billingInvoices.createdAt})`;

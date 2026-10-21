@@ -119,7 +119,7 @@ export async function queryStrandedInvoices(env: Env, limit: number): Promise<St
  *  original attempt would have used. Deriving them from the ledger rather than
  *  recomputing from the billable queries is the point: the billable queries
  *  exclude already-billed rows, so they return nothing on a retry. */
-export function linesFromLineItems(
+function linesFromLineItems(
   rows: {
     type: string;
     amountCents: number;
@@ -235,7 +235,7 @@ export interface ChargeGuard {
  * Deliberately the SAME predicate the select uses, re-evaluated, so the two can
  * never disagree about what eligible means.
  */
-export async function checkChargeGuard(env: Env, accountId: string): Promise<ChargeGuard> {
+async function checkChargeGuard(env: Env, accountId: string): Promise<ChargeGuard> {
   const db = getDb(env);
   const rows = await db
     .select({ id: accounts.id })

@@ -28,9 +28,9 @@ import { data } from "react-router";
 // the bucket only, never the address, the email or the password.
 
 /** 10 a minute per IP, every credential or mail POST. */
-export const AUTH_RULES = [{ limit: 10, windowSeconds: 60 }];
+const AUTH_RULES = [{ limit: 10, windowSeconds: 60 }];
 /** Ruling 24: 5 signups an hour per IP. */
-export const SIGNUP_RULES = [{ limit: 5, windowSeconds: 60 * 60 }];
+const SIGNUP_RULES = [{ limit: 5, windowSeconds: 60 * 60 }];
 
 /** Recova's words for a refused sign-in (app/api/auth/login/route.ts line 11). */
 export const SIGN_IN_LIMITED = "Too many attempts. Please try again in a minute.";

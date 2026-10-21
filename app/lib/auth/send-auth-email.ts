@@ -1,3 +1,4 @@
+import { escapeHtml } from "@dustinedwards/site-runtime/html";
 import type { Rendered } from "capsomer/email";
 
 import {
@@ -36,16 +37,6 @@ const COPY: Record<AuthEmailKind, { subject: string; heading: string; body: stri
     cta: "Verify email",
   },
 };
-
-/** Escape text destined for HTML. The URL is a trusted Better Auth link but is
- *  attribute-escaped defensively. */
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
 
 // Plain semantic HTML, no inline styles (J02). The frame, colours and type come
 // from Capsomer's shared email component through app/lib/email/templates.ts,

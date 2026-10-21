@@ -39,11 +39,11 @@ const usd = (cents: number) => formatMoneyShort(cents, "usd");
 
 export const RECOVERY_FEE = pct(RECOVERY_FEE_BPS);
 export const DISPUTE_FEE = pct(DISPUTE_FEE_BPS);
-export const DISPUTE_CAP = usd(DISPUTE_FEE_CAP_CENTS);
-export const INTELLIGENCE_PRICE = `${usd(INTELLIGENCE_PRICE_CENTS)}/mo`;
+const DISPUTE_CAP = usd(DISPUTE_FEE_CAP_CENTS);
+const INTELLIGENCE_PRICE = `${usd(INTELLIGENCE_PRICE_CENTS)}/mo`;
 export const MATURITY_DAYS = RECOVERY_MATURITY_DAYS;
 export const SEQUENCE_DAYS = RECOVERY_SEQUENCE_DAYS;
-export const STRIPE_RATE = `${STRIPE_RECOVERY_RATE_PERCENT}%`;
+const STRIPE_RATE = `${STRIPE_RECOVERY_RATE_PERCENT}%`;
 export const STRIPE_GAP = `${STRIPE_UNRECOVERED_RATE_PERCENT}%`;
 
 /** Recova's title, "Recova: Recover failed Stripe payments", in Foxhound's name (divergence 50). */

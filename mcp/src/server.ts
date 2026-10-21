@@ -7,7 +7,7 @@ import { ADMIN_TOOLS, runAdminTool } from "./tools";
 // 2025-era clients that still open with initialize, as Foxhound's merchant /mcp
 // does. Who the caller is was settled by door.ts before this runs.
 
-export const SERVER_INFO = { name: "foxhound-admin", title: "Foxhound Admin", version: "1.0.0" } as const;
+const SERVER_INFO = { name: "foxhound-admin", title: "Foxhound Admin", version: "1.0.0" } as const;
 
 const INSTRUCTIONS = [
   "Foxhound Admin: operate Foxhound for its admin. Start with foxhound_admin_whats_next.",

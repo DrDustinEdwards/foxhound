@@ -45,7 +45,7 @@ export const DISPUTE_OUTCOME_TEMPLATE = "merchant_dispute_outcome";
 export const DISPUTE_NOTICE_FROM_NAME = "Foxhound";
 
 /** Recova's titleCaseReason: "product_not_received" to "Product Not Received". */
-export function titleCaseReason(reason: string): string {
+function titleCaseReason(reason: string): string {
   return reason.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
@@ -120,7 +120,7 @@ export interface NoticeMail {
 /** The sender name Recova's dispute mail puts in its footer: the connection's
  *  `sender_name ?? 'Recova'`, with Foxhound's name. A blank name falls back as
  *  well, so the sentence never reads "from  about". */
-export const DISPUTE_FOOTER_FALLBACK_SENDER = "Foxhound";
+const DISPUTE_FOOTER_FALLBACK_SENDER = "Foxhound";
 
 /** Recova's footer sentence on these notices (lib/email.ts wrapEmailHtml with
  *  `params.senderName ?? 'Recova'`). Pure. */
@@ -171,7 +171,7 @@ export interface ReminderNoticeInput {
 }
 
 /** Recova's line, for a dispute nobody has approved yet. */
-export const REMINDER_ACTION_LINE = "Auto-submit is off. You need to review and submit, or choose to accept.";
+const REMINDER_ACTION_LINE = "Auto-submit is off. You need to review and submit, or choose to accept.";
 
 /** The line for an approved dispute Stripe has not confirmed as submitted
  *  (job_2663d92094ab). Accept is refused while an approval stands (PR 149
@@ -222,7 +222,7 @@ export interface OutcomeNoticeInput {
 /** The fee's terms in the won notice: Recova's "20% of the saved amount", and
  *  the cap only when the cap is what set the fee. The percentage and the cap
  *  are the constants the fee writer uses (disputeFeeCents). Pure. */
-export function wonFeeTerms(amountCents: number, feeCents: number): string {
+function wonFeeTerms(amountCents: number, feeCents: number): string {
   const pct = DISPUTE_FEE_BPS / 100;
   const terms = `${Number.isInteger(pct) ? pct : pct.toFixed(1)}% of the saved amount`;
   const uncapped = disputeFeeCents(amountCents, Number.POSITIVE_INFINITY);

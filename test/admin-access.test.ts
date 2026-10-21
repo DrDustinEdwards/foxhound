@@ -3,22 +3,20 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { getAdminSession } from "~/lib/auth/access.server";
 
-// The Cloudflare Access gate in front of /admin (job_6566f4776fdf). Real
-// signatures against a key set served through a stubbed fetch, so every path
-// that must say "not signed in" is exercised against jose itself.
+// The Cloudflare Access gate in front of /admin: Foxhound's own part of it (the
+// allowlist, the cookie, failing closed, the dev bypass). The token checks
+// themselves are site-runtime's and tested there.
 
 const TEAM = "https://foxhound-test.cloudflareaccess.com";
 const AUD = "aud-tag-123";
 const ADMIN = "admin@example.com";
 
 let privateKey: CryptoKey;
-let otherKey: CryptoKey;
 let jwks: { keys: unknown[] };
 
 beforeAll(async () => {
   const pair = await generateKeyPair("RS256");
   privateKey = pair.privateKey;
-  otherKey = (await generateKeyPair("RS256")).privateKey;
   jwks = { keys: [{ ...(await exportJWK(pair.publicKey)), kid: "k1", alg: "RS256", use: "sig" }] };
 });
 
@@ -74,31 +72,6 @@ describe("getAdminSession (Cloudflare Access)", () => {
     stubKeys();
     const jwt = await token({ email: "someone@example.com" });
     expect(await getAdminSession(env(), request({ "Cf-Access-Jwt-Assertion": jwt }))).toBeNull();
-  });
-
-  it("refuses a token with no email", async () => {
-    stubKeys();
-    const jwt = await token({});
-    expect(await getAdminSession(env(), request({ "Cf-Access-Jwt-Assertion": jwt }))).toBeNull();
-  });
-
-  it("refuses the wrong audience, the wrong issuer, an expired token and a foreign signature", async () => {
-    stubKeys();
-    const bad = [
-      await token({ email: ADMIN, aud: "another-app" }),
-      await token({ email: ADMIN, iss: "https://evil.cloudflareaccess.com" }),
-      await token({ email: ADMIN, exp: "-1m" }),
-      await token({ email: ADMIN }, otherKey),
-      "not-a-jwt",
-    ];
-    for (const jwt of bad) {
-      expect(await getAdminSession(env(), request({ "Cf-Access-Jwt-Assertion": jwt }))).toBeNull();
-    }
-  });
-
-  it("refuses a request with no assertion at all", async () => {
-    stubKeys();
-    expect(await getAdminSession(env(), request())).toBeNull();
   });
 
   it("fails closed when the team domain or AUD is unset", async () => {

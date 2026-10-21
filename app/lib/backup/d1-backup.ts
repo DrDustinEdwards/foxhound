@@ -43,7 +43,7 @@ import type { CronJobResult } from "~/lib/cron/run";
 export const BACKUP_EXCLUDED_TABLES = ["session", "verification", "account"] as const;
 
 /** Tables that must be in every dump; their absence means the dump is not real. */
-export const BACKUP_REQUIRED_TABLES = ["accounts", "stripe_connections", "failed_payments"] as const;
+const BACKUP_REQUIRED_TABLES = ["accounts", "stripe_connections", "failed_payments"] as const;
 
 export class BackupVerificationError extends Error {}
 

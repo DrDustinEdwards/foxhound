@@ -64,7 +64,7 @@ export const SYNC_RESULT_MESSAGES: Record<string, SyncDisputeResult> = {
  *  DisputeSyncForm (blob f0f1ee7d) on the dispute page, which reads "Sync a
  *  different dispute from Stripe" and has no explanatory line. The words are
  *  props; the control is one. */
-export const SYNC_LIST_COPY = {
+const SYNC_LIST_COPY = {
   linkLabel: "Sync dispute from Stripe",
   note: "Use this for disputes that came in before you connected to Foxhound.",
 };

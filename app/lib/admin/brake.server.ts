@@ -63,10 +63,10 @@ import { DEMO_ACCOUNT_ID_PREFIX, RECOVERY_TICK_CRON_NAME } from "~/lib/constants
  *  single-merchant toggle writes it too. */
 export const BRAKE_PAUSE_REASON = PAUSE_REASON_BRAKE;
 
-export const BRAKE_ACTION_ENGAGE = "brake.engage";
-export const BRAKE_ACTION_RELEASE = "brake.release";
-export const BRAKE_ACTION_PAUSE_ACCOUNT = "brake.pause.account";
-export const BRAKE_ACTION_RESUME_ACCOUNT = "brake.resume.account";
+const BRAKE_ACTION_ENGAGE = "brake.engage";
+const BRAKE_ACTION_RELEASE = "brake.release";
+const BRAKE_ACTION_PAUSE_ACCOUNT = "brake.pause.account";
+const BRAKE_ACTION_RESUME_ACCOUNT = "brake.resume.account";
 
 /**
  * Accounts the brake will pause: EVERY account except demo-prefixed, already
@@ -97,7 +97,7 @@ export const BRAKE_ACTION_RESUME_ACCOUNT = "brake.resume.account";
  * merchants.server.ts) for as long as the brake stayed engaged. So the brake
  * leaves them alone and the sweep keeps collecting what they already owe.
  */
-export function brakeEligibleCondition(): SQL {
+function brakeEligibleCondition(): SQL {
   return and(
     eq(accounts.processingPaused, false),
     isNull(accounts.cancelledAt),
@@ -122,7 +122,7 @@ export function brakePausedCondition(): SQL {
  *  "is 'manual'" means an unrecognised or absent reason is treated as
  *  not-the-brake's, which is the safe direction: the failure mode is a merchant
  *  staying paused, never one being resumed by a release that did not pause it. */
-export function individuallyPausedCondition(): SQL {
+function individuallyPausedCondition(): SQL {
   return and(
     eq(accounts.processingPaused, true),
     or(isNull(accounts.pauseReason), ne(accounts.pauseReason, PAUSE_REASON_BRAKE)),
@@ -158,7 +158,7 @@ export const SUBREQUEST_BUDGET = 1000;
 /** How many account ids the umbrella row samples into its metadata. The
  *  per-account rows carry every id, so this is a readability cap on one blob,
  *  not a loss of audit detail. */
-export const AUDIT_ID_SAMPLE_LIMIT = 100;
+const AUDIT_ID_SAMPLE_LIMIT = 100;
 
 /** Split ids into batch-sized groups. Pure, so the subrequest arithmetic is
  *  assertable in a test instead of argued in a comment. */

@@ -149,7 +149,7 @@ export class ToolInputError extends Error {}
 
 /** Every name is `foxhound_{action}_{resource}` (ruling rule 5): the service
  *  prefix, then at least an action and a resource, snake case. */
-export const TOOL_NAME_PATTERN = /^foxhound(_[a-z]+){2,}$/;
+const TOOL_NAME_PATTERN = /^foxhound(_[a-z]+){2,}$/;
 
 /**
  * Build a registry, refusing any denied name at construction time.

@@ -63,7 +63,7 @@ function Figure({ value }: { value: string | number }) {
 
 /** The dashboard's five cards. `columns` is Recova's grid: five across on the
  *  dashboard, three across in the numbers block. */
-export function DisputeStatCards({ preview, columns }: { preview: DisputesPreview; columns: 3 | 5 }) {
+function DisputeStatCards({ preview, columns }: { preview: DisputesPreview; columns: 3 | 5 }) {
   const { stats } = preview;
   const grid = columns === 5 ? "md:grid-cols-5" : "sm:grid-cols-3";
   return (

@@ -49,12 +49,12 @@ const SAMPLE_DECLINE_CATEGORY = "soft";
 const SAMPLE_CUSTOMER_NAME = "Alex";
 /** The step the sample is: the first recovery email a customer gets. */
 const SAMPLE_STEP = "email_day1";
-export const TEST_EMAIL_TEMPLATE = "settings_test";
-export const TEST_EMAIL_SUBJECT_PREFIX = "[PREVIEW] ";
+const TEST_EMAIL_TEMPLATE = "settings_test";
+const TEST_EMAIL_SUBJECT_PREFIX = "[PREVIEW] ";
 /** Recova's preview banner, less the brand-voice clause (difference 2 above). */
-export const TEST_EMAIL_BANNER = "PREVIEW: This is a sample recovery email.";
+const TEST_EMAIL_BANNER = "PREVIEW: This is a sample recovery email.";
 /** Recova's preview footer, Foxhound-branded. */
-export const TEST_EMAIL_FOOTER = "This is a preview email sent from Foxhound. Your real recovery emails will look like this.";
+const TEST_EMAIL_FOOTER = "This is a preview email sent from Foxhound. Your real recovery emails will look like this.";
 
 /**
  * The subject, body and footer this control sends: the banner and the
@@ -62,7 +62,7 @@ export const TEST_EMAIL_FOOTER = "This is a preview email sent from Foxhound. Yo
  * /settings/email. Pure. The admin email preview sends the same mail through
  * buildTestEmailJob (app/lib/admin/email-send.server.ts).
  */
-export function buildTestEmailCopy(
+function buildTestEmailCopy(
   senderName: string | null,
   baseUrl: string,
 ): { subject: string; bodyHtml: string; footerNote: string } {

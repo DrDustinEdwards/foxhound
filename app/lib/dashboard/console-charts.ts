@@ -41,13 +41,13 @@ export function drawLatestMovement(m: MovementTotals, currency: string, width: n
 }
 
 /** The cohort chart's text equivalent, every cohort with its share. */
-export function cohortAlt(rows: readonly CohortRow[]): string {
+function cohortAlt(rows: readonly CohortRow[]): string {
   const parts = rows.map((r) => `${r.label} ${r.values[0] ?? 0}%`);
   return `Share of each customer cohort still paying: ${parts.join(", ")}.`;
 }
 
 /** About 22px a cohort, never shorter than an axis. */
-export function cohortChartHeight(count: number): number {
+function cohortChartHeight(count: number): number {
   return Math.max(140, 64 + count * 22);
 }
 

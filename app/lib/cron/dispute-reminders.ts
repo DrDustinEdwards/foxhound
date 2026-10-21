@@ -68,7 +68,7 @@ import { accountProcessingEligibleCondition } from "~/lib/cron/recovery-tick";
 export const DISPUTE_REMINDERS_CRON_NAME = "dispute-reminders";
 
 /** Recova's CRON_BATCH_LIMIT for this query. */
-export const DISPUTE_REMINDER_BATCH_LIMIT = 100;
+const DISPUTE_REMINDER_BATCH_LIMIT = 100;
 
 const HOUR_MS = 60 * 60 * 1000;
 

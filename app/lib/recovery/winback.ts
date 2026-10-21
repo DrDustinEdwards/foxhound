@@ -15,7 +15,7 @@ export const WINBACK_STATUS = {
 } as const;
 export type WinbackStatus = (typeof WINBACK_STATUS)[keyof typeof WINBACK_STATUS];
 
-export const WINBACK_TERMINAL_STATUSES: readonly WinbackStatus[] = [
+const WINBACK_TERMINAL_STATUSES: readonly WinbackStatus[] = [
   WINBACK_STATUS.REACTIVATED,
   WINBACK_STATUS.EXHAUSTED,
   WINBACK_STATUS.RESOLVED,

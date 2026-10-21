@@ -144,15 +144,6 @@ export async function listCronRows(db: Db, now: number = Date.now()): Promise<Cr
   });
 }
 
-export async function getRunHistory(db: Db, cronName: string, limit = 20) {
-  return db
-    .select()
-    .from(cronRunHistory)
-    .where(eq(cronRunHistory.cronName, cronName))
-    .orderBy(desc(cronRunHistory.finishedAt))
-    .limit(limit);
-}
-
 /** True when `cronName` is a job the registry actually dispatches. */
 export function isKnownCronName(cronName: string): boolean {
   return CRON_JOBS.some((job) => job.name === cronName);

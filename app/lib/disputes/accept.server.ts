@@ -75,7 +75,7 @@ export interface AcceptDisputeInput {
   hasApproval: boolean;
 }
 
-export const ACCEPT_CLOSED_MESSAGE =
+const ACCEPT_CLOSED_MESSAGE =
   "This dispute is already closed or submitted, so it cannot be accepted.";
 export const ACCEPT_APPROVED_MESSAGE =
   "This dispute's evidence has been approved for submission, so it cannot be accepted here.";
@@ -85,24 +85,24 @@ export const ACCEPT_APPROVED_MESSAGE =
 // a validation failure or a request that never arrived). The key stays stable on purpose: it is
 // what keeps two tabs or two clicks to one close. So the message says a retry
 // may repeat the answer, rather than varying the key on a retry.
-export const ACCEPT_UNKNOWN_MESSAGE =
+const ACCEPT_UNKNOWN_MESSAGE =
   "Something went wrong while accepting. Stripe may or may not have closed this dispute, so check it in Stripe before trying again. If Stripe returned a server error, trying again here within 24 hours gets the same answer.";
 
 /** The Stripe idempotency key for closing one dispute. */
-export function stripeCloseIdempotencyKey(disputeId: string): string {
+function stripeCloseIdempotencyKey(disputeId: string): string {
   return `dispute-accept:${disputeId}`;
 }
 
 /** The outcome Recova recorded, its event and its words. */
-export const DISPUTE_ACCEPTED_EVENT = "dispute_accepted";
-export const DISPUTE_ACCEPTED_OUTCOME = "accepted";
+const DISPUTE_ACCEPTED_EVENT = "dispute_accepted";
+const DISPUTE_ACCEPTED_OUTCOME = "accepted";
 
-export function acceptIdempotencyKey(disputeId: string): string {
+function acceptIdempotencyKey(disputeId: string): string {
   return `dispute-accepted:${disputeId}`;
 }
 
 /** The accepted state and its outcome, as one batch. */
-export function buildDisputeAcceptBatch(
+function buildDisputeAcceptBatch(
   db: Db,
   input: Pick<
     AcceptDisputeInput,
@@ -179,7 +179,7 @@ export type CloseResult =
   | { ok: false; refused: false };
 
 /** Close the dispute at Stripe: Stripe's "accept", which concedes it. */
-export async function closeDisputeWithClient(
+async function closeDisputeWithClient(
   stripe: Stripe,
   stripeDisputeId: string,
   idempotencyKey: string,

@@ -27,7 +27,7 @@ export interface MultiLineSeries {
  * An interior label landing within half a stride of the end is dropped, because
  * that is the pair that would collide.
  */
-export function xLabelIndexes(count: number, maxLabels: number): number[] {
+function xLabelIndexes(count: number, maxLabels: number): number[] {
   const last = count - 1;
   if (last <= 0) return [0];
   const room = Math.max(2, Math.min(maxLabels, count));

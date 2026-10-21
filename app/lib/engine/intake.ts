@@ -1,7 +1,6 @@
 import type { Db } from "~/db";
-import { getDb, recoverySteps } from "~/db";
-import type { DeclineCategory } from "~/lib/constants";
-import { planRecoverySteps, type PlannedRecoveryStep } from "~/lib/recovery/schedule";
+import { recoverySteps } from "~/db";
+import type { PlannedRecoveryStep } from "~/lib/recovery/schedule";
 
 // Recovery intake: turn a detected failed payment into the scheduled recovery
 // sequence. planRecoverySteps (pure, schedule.ts) decides the steps; this inserts
@@ -13,13 +12,6 @@ import { planRecoverySteps, type PlannedRecoveryStep } from "~/lib/recovery/sche
 // Idempotency: the webhook that calls intake owns dedup on the Stripe event id
 // (SCHEMA.md failed_payments), so intake does not re-check; a caller must not
 // invoke it twice for the same failed payment.
-
-export interface IntakeInput {
-  failedPaymentId: string;
-  accountId: string;
-  declineCategory: DeclineCategory;
-  detectedAt: Date;
-}
 
 /**
  * Build the recovery_steps insert statements for a planned sequence. Extracted so
@@ -38,22 +30,3 @@ export function buildRecoveryStepInserts(db: Db, planned: PlannedRecoveryStep[])
   );
 }
 
-/**
- * Plan and insert the recovery sequence for a failed payment. Returns the number
- * of steps scheduled. No-op-safe against an empty plan (never happens for a valid
- * decline category, but guarded so db.batch's non-empty contract is never broken).
- */
-export async function intakeRecoverySequence(env: Env, input: IntakeInput): Promise<number> {
-  const planned = planRecoverySteps({
-    failedPaymentId: input.failedPaymentId,
-    accountId: input.accountId,
-    declineCategory: input.declineCategory,
-    detectedAt: input.detectedAt,
-  });
-  if (planned.length === 0) return 0;
-
-  const db = getDb(env);
-  const inserts = buildRecoveryStepInserts(db, planned);
-  await db.batch(inserts as [(typeof inserts)[number], ...(typeof inserts)[number][]]);
-  return planned.length;
-}

@@ -23,7 +23,7 @@ export type TrendComparison =
     };
 
 /** Recova's "unchanged" threshold, in percent. */
-export const UNCHANGED_BELOW_PCT = 5;
+const UNCHANGED_BELOW_PCT = 5;
 
 export function compareRuns(
   currentCents: number | null,

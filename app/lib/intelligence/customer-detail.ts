@@ -118,7 +118,7 @@ export interface HealthReading {
 }
 
 /** The text equivalent of the health history chart. */
-export function healthHistoryAlt(readings: readonly HealthReading[]): string {
+function healthHistoryAlt(readings: readonly HealthReading[]): string {
   const first = readings[0];
   const last = readings[readings.length - 1];
   if (!first || !last) return "Health score: no readings yet.";
@@ -139,7 +139,7 @@ const BAND_COLOR: Record<HealthScoreBand, string> = {
 };
 
 /** Recova's chart is 120px of plot; Enarratio keeps 64px for its axes. */
-export const HEALTH_CHART_HEIGHT = 184;
+const HEALTH_CHART_HEIGHT = 184;
 
 /** Recova's HealthSparkline: an area chart of the readings, oldest first, with
  *  short dates along the bottom. Readings arrive oldest first. */

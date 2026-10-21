@@ -46,7 +46,7 @@ const DEMO_NOTE =
   "Recova's separate per-product demo pages collapse onto Foxhound's single /demos entry point; the per-product /demos/* links set a cookie and redirect again, which would make a chain.";
 
 /** Recova paths with no page at the same Foxhound path, and where each goes. */
-export const NOT_SERVED_AT_SAME_PATH: Readonly<Record<string, { to: string; note: string }>> = {
+const NOT_SERVED_AT_SAME_PATH: Readonly<Record<string, { to: string; note: string }>> = {
   "/blog/rss.xml": { to: "/feed.rss", note: "Foxhound has one RSS route, /feed.rss, not a separate per-section feed." },
   "/blog/sitemap.xml": {
     to: "/sitemap.xml",
@@ -59,7 +59,7 @@ export const NOT_SERVED_AT_SAME_PATH: Readonly<Record<string, { to: string; note
 
 /** A path with every dynamic segment reduced to ":", so /blog/:slug and
  *  /blog/:post compare equal. */
-export function routeShape(path: string): string {
+function routeShape(path: string): string {
   return path
     .split("/")
     .map((segment) => (segment.startsWith(":") ? ":" : segment))
@@ -71,7 +71,7 @@ const CONFIG_NOTE = "One of Recova's own next.config.ts redirects, mapped straig
 const PATH_SPLAT = "/:path*";
 
 /** Recova's apex. A host rule must send its host here with the path kept. */
-export const RECOVA_APEX = "recovamrr.com";
+const RECOVA_APEX = "recovamrr.com";
 
 export function deriveRecovaMap(
   legacy: readonly LegacyRoute[],

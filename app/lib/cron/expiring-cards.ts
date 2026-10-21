@@ -42,7 +42,7 @@ import {
 export const EXPIRING_CARD_SCAN_SOFT_LIMIT = 1000;
 
 /** How many unsent candidates one tick will send. Legacy's is 100. */
-export const EXPIRING_CARD_SEND_LIMIT = 100;
+const EXPIRING_CARD_SEND_LIMIT = 100;
 
 export interface ScanAccount {
   accountId: string;
@@ -60,7 +60,7 @@ export interface ScanAccount {
  * as found: the record of an expiring card is worth having even when the
  * merchant does not want the customer emailed.
  */
-export async function queryScanAccounts(env: Env): Promise<ScanAccount[]> {
+async function queryScanAccounts(env: Env): Promise<ScanAccount[]> {
   const db = getDb(env);
   const rows = await db
     .select({
