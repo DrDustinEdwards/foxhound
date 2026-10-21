@@ -1,7 +1,7 @@
 // Centralized constants (ARCHITECTURE.md non-negotiable #6: no hardcoded fees,
 // timings, limits, or canon enum values scattered through business logic).
 // Pricing values trace to PRICING.md (Capsid, namespace foxhound); enum value sets mirror the
-// CHECK constraints in app/db/schema.ts (kept in sync by hand; SCHEMA.md is canon).
+// CHECK constraints in app/db/schema/ (kept in sync by hand; SCHEMA.md is canon).
 
 // ---- Pricing (PRICING.md) ----
 /** Recovery fee: 20% of Foxhound-attributed recoveries (pay-on-lift). */

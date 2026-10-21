@@ -280,7 +280,7 @@ function code(src: string): string {
 describe("J69: the reader guard", () => {
   it("finds a known reference first, so an empty result means something", () => {
     const hits = walk(APP_DIR).filter((f) => readFileSync(f, "utf8").includes("intelligenceNotificationPreferences"));
-    expect(hits.some((f) => f.endsWith(join("db", "schema.ts")))).toBe(true);
+    expect(hits.some((f) => f.endsWith(join("db", "schema", "intelligence.ts")))).toBe(true);
   });
 
   it("the walk reaches workers/ too", () => {
@@ -288,7 +288,7 @@ describe("J69: the reader guard", () => {
   });
 
   it("nothing in app/ or workers/ reads Recova's Intelligence preferences except the schema and account deletion", () => {
-    const allowed = [join("db", "schema.ts"), join("auth", "delete-account.server.ts")];
+    const allowed = [join("db", "schema", "intelligence.ts"), join("auth", "delete-account.server.ts")];
     const readers = [...walk(APP_DIR), ...walk(WORKERS_DIR)]
       .filter((f) => !allowed.some((a) => f.endsWith(a)))
       .filter((f) =>

@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
@@ -27,7 +27,9 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 const norm = (p: string) => readFileSync(p, "utf8").replace(/\r\n/g, "\n");
 const DETAIL = norm("app/routes/admin/merchants/detail.tsx");
 const MERCHANTS = norm("app/lib/admin/merchants.server.ts");
-const SCHEMA = norm("app/db/schema.ts");
+const SCHEMA = readdirSync("app/db/schema")
+  .map((f) => norm(`app/db/schema/${f}`))
+  .join("\n");
 
 function tableNames(): string[] {
   const { sqlite } = createInMemoryDb();
