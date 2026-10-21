@@ -25,7 +25,7 @@ import "~/site-header.css";
 // nearest of the five.
 
 /** Capsomer's link, as base.css draws it, plus Recova's underline. */
-export const LEGAL_LINK = "text-accent-text underline underline-offset-2 hover:text-accent-hover";
+const LEGAL_LINK = "text-accent-text underline underline-offset-2 hover:text-accent-hover";
 
 export interface LegalSectionDef {
   id: string;

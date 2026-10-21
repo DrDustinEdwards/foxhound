@@ -11,17 +11,17 @@ import { benchmarkData, estimatorRuns } from "~/db";
 // flagship-surface-3 confidence-caveat convention: this is an ESTIMATE with
 // a stated range, not a precise number).
 
-export const COHORT_DIMENSION = "mrr_band";
-export const LEAKAGE_METRIC_NAME = "monthly_failed_payment_leakage_pct_of_mrr";
+const COHORT_DIMENSION = "mrr_band";
+const LEAKAGE_METRIC_NAME = "monthly_failed_payment_leakage_pct_of_mrr";
 
-export const MRR_BANDS = [
+const MRR_BANDS = [
   { cohortValue: "under_10k", maxMrrCents: 10_000_00 },
   { cohortValue: "10k_50k", maxMrrCents: 50_000_00 },
   { cohortValue: "50k_250k", maxMrrCents: 250_000_00 },
   { cohortValue: "250k_plus", maxMrrCents: Infinity },
 ] as const;
 
-export function mrrBandForCents(mrrCents: number): string {
+function mrrBandForCents(mrrCents: number): string {
   const band = MRR_BANDS.find((b) => mrrCents <= b.maxMrrCents);
   return (band ?? MRR_BANDS[MRR_BANDS.length - 1]).cohortValue;
 }

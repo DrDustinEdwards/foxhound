@@ -306,7 +306,7 @@ export const MODEL_RECOVERY_EMAIL = "claude-sonnet-5";
 /** Intelligence nightly AI analyst narrative + per-customer assessments. */
 export const MODEL_INTELLIGENCE_NARRATIVE = "claude-sonnet-5";
 /** Cheap quality/scoring gate on generated copy. */
-export const MODEL_EMAIL_QUALITY = "claude-haiku-4-5-20251001";
+const MODEL_EMAIL_QUALITY = "claude-haiku-4-5-20251001";
 /** Unauthenticated home-page email sample generator: copy generation, not
  *  money-path reasoning, so the cheap model is correct here too. */
 export const MODEL_MARKETING_EMAIL_SAMPLE = "claude-haiku-4-5-20251001";
@@ -466,7 +466,7 @@ export type DeclineCategory = (typeof DECLINE_CATEGORIES)[number];
 
 // ---- Email pipeline (ARCHITECTURE.md: Cloudflare Email Service, one send module) ----
 /** Authenticated send domain (warmed independently of Worker routing). */
-export const EMAIL_SEND_DOMAIN = "send.foxhoundapp.com";
+const EMAIL_SEND_DOMAIN = "send.foxhoundapp.com";
 /** Envelope From address for merchant dunning copy (merchant display name is prefixed per send). */
 export const EMAIL_FROM_ADDRESS = `recovery@${EMAIL_SEND_DOMAIN}`;
 /** Authenticated domain for transactional platform mail (signup verification,
@@ -894,37 +894,8 @@ export const RATE_LIMIT_MCP = { max: 120, windowMs: 60 * 1000 } as const;
  */
 export const RATE_LIMIT_MCP_ANON = { max: 20, windowMs: 60 * 1000 } as const;
 
-/**
- * Statement descriptor shown on a merchant's card statement for platform
- * invoice charges (Stripe's cap is 22 characters). Settled by the
- * operating-entity ruling (recova/decisions.md, 2026-07-21): entity-independent,
- * so it does not change at Foxing LLC formation. NOT wired into
- * createPlatformInvoice (app/lib/billing/stripe-invoice.ts) yet; live charge
- * dispatch is Phase 8. The Stripe account's own dashboard-level statement
- * descriptor is a separate Phase 9 dashboard action, not code.
- */
-export const STRIPE_STATEMENT_DESCRIPTOR = "FOXHOUND";
-/**
- * Stripe Connect platform display name. Settled by the same 2026-07-21
- * ruling; entity-independent. There is no code-level Stripe API call this
- * feeds today, the merchant-facing platform name shown during Connect OAuth
- * is configured on the Stripe dashboard, a separate Phase 9 dashboard action.
- */
-export const STRIPE_CONNECT_PLATFORM_NAME = "Foxhound";
-
-/**
- * The CSP report sink's per-IP bucket (/api/csp-report, J22), keyed on
- * cf-connecting-ip and spent through the EXISTING limiter (311) with no change
- * to it, as the audit pair does. Recova capped the same endpoint per IP
- * (RATE_LIMIT_CSP_REPORT in its lib/constants.ts) to protect its Sentry quota;
- * here it bounds Workers Logs lines from one misbehaving browser or a flood.
- *
- * 20 PER MINUTE, the existing `public` bucket's number rather than an invented
- * one (as RATE_LIMIT_MCP_ANON reasons). Recova's own value was not readable
- * when this was written (Capsid's GitHub reads were rate limited); compare it
- * and take Recova's if it differs. With at most CSP_REPORT_MAX_LOGGED lines a
- * request, one address can write at most 100 lines a minute.
- */
+/** The CSP report sink's per-IP bucket (/api/csp-report), bounding Workers
+ *  Logs lines from one misbehaving browser or a flood. */
 export const RATE_LIMIT_CSP_REPORT = { max: 20, windowMs: 60 * 1000 } as const;
 
 // ============================================================================

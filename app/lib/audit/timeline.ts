@@ -40,7 +40,7 @@ export function expiringCardsMonths(expiresByMonth: Record<string, number>): Exp
 }
 
 /** The chart's text equivalent (capsid/conventions-web.md rule 8). */
-export function expiringCardsAlt(months: readonly ExpiringMonth[]): string {
+function expiringCardsAlt(months: readonly ExpiringMonth[]): string {
   return `Cards expiring by month: ${months.map((m) => `${m.label} ${m.count}`).join(", ")}.`;
 }
 

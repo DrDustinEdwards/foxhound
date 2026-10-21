@@ -38,7 +38,7 @@ const PREVIEW_CUSTOMER_ROWS = 5;
 const BAND_ORDER: HealthScoreBand[] = ["at_risk", "watch", "healthy"];
 
 /** Build the preview as of `now`. Pure: the same instant gives the same preview. */
-export function buildIntelligencePreview(now: Date): IntelligencePreview {
+function buildIntelligencePreview(now: Date): IntelligencePreview {
   const customers = buildTeamflowBase(now);
   const recovery = buildRecoverySeed(DEMO_ACCOUNT_ID, customers, now);
   const disputes = buildDisputesSeed(DEMO_ACCOUNT_ID, now, DEMO_MEMBER_EMAIL);

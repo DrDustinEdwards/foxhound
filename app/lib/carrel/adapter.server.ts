@@ -34,7 +34,7 @@ import { parsePostSource, serializePostSource, SourceError, type PostSource } fr
 // refused; media is omitted (Foxhound stores no uploaded images, covers are URLs),
 // so the media routes answer 501.
 
-export const CARREL_SITE = {
+const CARREL_SITE = {
   id: "foxhound",
   name: "Foxhound",
   origin: "https://foxhoundapp.com",

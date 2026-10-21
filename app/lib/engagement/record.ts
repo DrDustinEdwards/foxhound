@@ -152,7 +152,7 @@ export function buildClickStamp(db: Db, stepId: string, now: Date, suspectReason
  * marks the step whether the real click has already landed or has not arrived
  * yet. It never clears a reason that is already there.
  */
-export function buildHoneypotStamp(db: Db, stepId: string) {
+function buildHoneypotStamp(db: Db, stepId: string) {
   return db
     .update(recoverySteps)
     .set({ clickSuspectReason: CLICK_SUSPECT_HONEYPOT })

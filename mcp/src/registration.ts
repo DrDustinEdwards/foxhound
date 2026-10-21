@@ -28,8 +28,8 @@ export const DCR_REDIRECT_URIS: readonly string[] = [
   "https://vertexaisearch.cloud.google.com/oauth-redirect",
 ];
 
-export const PER_ADDRESS_PER_HOUR = 5;
-export const ALL_PER_DAY = 30;
+const PER_ADDRESS_PER_HOUR = 5;
+const ALL_PER_DAY = 30;
 export const REGISTER_PATH = "/register";
 
 export function allowedRedirects(env: Pick<AdminMcpEnv, "DCR_REDIRECT_URIS">): Set<string> {

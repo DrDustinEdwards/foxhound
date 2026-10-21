@@ -13,7 +13,7 @@ export const EXPIRING_CARD_TEMPLATE = "expiring_card_alert";
 
 /** Legacy's fallbacks, verbatim: `customer_name || 'there'`,
  *  `card_brand || 'Card'`, `card_last4 || '****'`, `sender_name || 'Support'`. */
-export const EXPIRING_CARD_FALLBACKS = {
+const EXPIRING_CARD_FALLBACKS = {
   customerName: "there",
   cardBrand: "Card",
   cardLast4: "****",

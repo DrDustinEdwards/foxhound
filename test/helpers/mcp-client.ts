@@ -8,7 +8,7 @@
 // and is answered with a JSON body.
 
 export const MODERN_VERSION = "2026-07-28";
-export const TEST_ORIGIN = "https://foxhoundapp.test";
+const TEST_ORIGIN = "https://foxhoundapp.test";
 
 export interface McpCallInit {
   token?: string | null;

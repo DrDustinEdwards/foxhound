@@ -89,7 +89,7 @@ export const SCHEDULE_PERIOD_MS: Record<string, number> = {
 /** A job may miss this many periods before it is called stale. Two rather than
  *  one, because a single skipped tick is normal (a lock held, a not-due skip)
  *  and alerting on it would train the reader to ignore the alert. */
-export const STALE_PERIOD_MULTIPLIER = 2;
+const STALE_PERIOD_MULTIPLIER = 2;
 
 /** Each schedule's cadence in words, for the stale alert's subject and body
  *  (E27). Recova's check-cron-health keeps a hand label per cron in the same
@@ -201,7 +201,7 @@ export interface CronAlertMessage {
 /** Recova's subject tag: "[Recova Ops]", Foxhound's name (E26, E27). */
 const OPS_TAG = "[Foxhound Ops]";
 /** The sender wrapEmailHtml names in the footer: Recova's 'Recova Ops'. */
-export const OPS_SENDER_NAME = "Foxhound Ops";
+const OPS_SENDER_NAME = "Foxhound Ops";
 /** Recova's stack excerpt length: `error.stack.slice(0, 500)`. */
 const STACK_EXCERPT_CHARS = 500;
 
@@ -355,7 +355,7 @@ export async function lastSuccessAt(db: Db, cronName: string): Promise<Date | nu
  *  Named as a cron for dedupe purposes even though the queue, not a cron, is what
  *  failed: the dedupe table is keyed (cron_name, kind, day), and reusing it beats
  *  inventing a second dedupe store for the same job. */
-export const DEAD_LETTER_ALERT_KEY = "email-dead-letters";
+const DEAD_LETTER_ALERT_KEY = "email-dead-letters";
 
 export async function alertDeadLetters(
   env: Env,

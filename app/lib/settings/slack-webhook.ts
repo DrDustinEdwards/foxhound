@@ -19,8 +19,6 @@
 // The host allowlist closes that. It is a DIVERGENCE from legacy on a
 // user-visible surface and is recorded as one.
 
-export const SLACK_WEBHOOK_PREFIX = "https://hooks.slack.com/";
-
 export const SLACK_WEBHOOK_PLACEHOLDER = "https://hooks.slack.com/services/...";
 
 export const SLACK_WEBHOOK_ERROR =

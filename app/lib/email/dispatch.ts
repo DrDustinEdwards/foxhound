@@ -40,7 +40,7 @@ export type EmailSendStatus = "sent" | "suppressed" | "failed" | "blocked" | "pe
 /** email_sends.error for a claim that reached the provider and never came back
  *  with an answer. Not used as a status: the ROW stays `pending`, because
  *  "pending" is the honest word for a send whose outcome nobody knows. */
-export const SEND_CLAIM_MISSING_KEY_ERROR = "email job has no idempotency key";
+const SEND_CLAIM_MISSING_KEY_ERROR = "email job has no idempotency key";
 
 /** email_sends.error for a send the live-send flag refused. A stable string so
  *  "how many sends did the flag stop" is one WHERE clause, not a guess. */

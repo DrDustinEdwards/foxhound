@@ -55,7 +55,7 @@ const PREVIEW_TABLE_ROWS = 6;
 const DEMO_FEES_OWED: MoneyPart[] = [];
 
 /** Build the preview as of `now`. Pure: the same instant gives the same preview. */
-export function buildDisputesPreview(now: Date): DisputesPreview {
+function buildDisputesPreview(now: Date): DisputesPreview {
   const nowMs = now.getTime();
   const seed = buildDisputesSeed(DEMO_ACCOUNT_ID, now, DEMO_MEMBER_EMAIL);
   const withEvidence = new Set(

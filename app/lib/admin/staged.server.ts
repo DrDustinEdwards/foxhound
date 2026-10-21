@@ -31,7 +31,7 @@ import { releaseBrake } from "./brake.server";
 import { isKnownCronName, setCronEnabled } from "./crons.server";
 import { grantIntelligence, setBillingExempt, setProcessingPaused } from "./merchants.server";
 
-export const STAGED_KINDS = [
+const STAGED_KINDS = [
   "resume_account",
   "release_brake",
   "cron_enable",
@@ -41,7 +41,7 @@ export const STAGED_KINDS = [
 export type StagedKind = (typeof STAGED_KINDS)[number];
 
 /** A pending change older than this can no longer be confirmed. */
-export const STAGED_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const STAGED_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 export type StagedRow = typeof stagedChanges.$inferSelect;
 

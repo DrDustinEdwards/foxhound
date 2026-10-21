@@ -135,7 +135,7 @@ export interface CreditLineInput {
  * refund events cannot both land: the second violates the index and its whole
  * money batch rolls back to applied=false.
  */
-export function buildCreditLineBatch(db: Db, input: CreditLineInput): MoneyWriteBatch {
+function buildCreditLineBatch(db: Db, input: CreditLineInput): MoneyWriteBatch {
   return [
     db.insert(billingLineItems).values({
       id: input.creditLineItemId,

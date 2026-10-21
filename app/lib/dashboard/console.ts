@@ -18,7 +18,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export const DISPUTE_URGENT_HOURS = 48;
 
 /** How far ahead a card expiry surfaces in the feed. */
-export const EXPIRING_CARD_WINDOW_DAYS = 7;
+const EXPIRING_CARD_WINDOW_DAYS = 7;
 
 /** Rows shown per attention category before collapsing into "and N more". */
 export const ATTENTION_ROWS_PER_CATEGORY = 3;

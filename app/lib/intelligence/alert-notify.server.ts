@@ -42,7 +42,7 @@ export const CRITICAL_ALERT_TEMPLATE = "alert_critical_customers";
 
 /** Recova's From for both mails is FROM_HELLO, "Recova <hello@...>", and its
  *  footer names "Recova". The platform speaks, never the merchant's sender. */
-export const ALERT_FROM_NAME = "Foxhound";
+const ALERT_FROM_NAME = "Foxhound";
 
 /**
  * THE CRITICAL CUSTOMERS ALERT IS OFF UNTIL ITS BUTTON HAS SOMEWHERE TO GO.
@@ -60,7 +60,7 @@ export const CRITICAL_CUSTOMERS_ALERT_LIVE = false;
 
 /** Recova's formatThreshold: every cents metric as US dollars, Intl's default
  *  two decimals; anything else as the bare number. */
-export function formatAlertValue(metric: string, value: number): string {
+function formatAlertValue(metric: string, value: number): string {
   if (isCentsMetric(metric)) {
     return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value / 100);
   }
@@ -95,7 +95,7 @@ export function thresholdAlertContent(firing: AlertFiring, baseUrl: string, now:
 }
 
 /** Recova's fireSlack line for a threshold alert, with Foxhound's name. Pure. */
-export function thresholdAlertSlackText(firing: AlertFiring): string {
+function thresholdAlertSlackText(firing: AlertFiring): string {
   const label = alertMetricLabel(firing.metric);
   return (
     `Foxhound alert: ${label} is ${formatAlertValue(firing.metric, firing.actualValue)}, ` +
@@ -133,7 +133,7 @@ export function criticalCustomersContent(count: number, baseUrl: string, now: Da
 }
 
 /** Recova's Slack line for the critical customers alert, emoji included. Pure. */
-export function criticalCustomersSlackText(count: number, baseUrl: string): string {
+function criticalCustomersSlackText(count: number, baseUrl: string): string {
   return (
     `\u{1F6A8} Foxhound: ${count} critical ${customerWord(count)} flagged ` +
     `(active recovery + health ≤ ${CRITICAL_HEALTH_SCORE_MAX} + open dispute). ` +
@@ -172,7 +172,7 @@ export type SlackPostOutcome =
  * RULES.md 4.12), and a stored URL off hooks.slack.com is never fetched
  * (RULES.md 4.16). Never throws, and never logs the URL, which is a credential.
  */
-export async function postAlertToSlack(accountId: string, webhookUrl: string, text: string): Promise<SlackPostOutcome> {
+async function postAlertToSlack(accountId: string, webhookUrl: string, text: string): Promise<SlackPostOutcome> {
   if (accountId.startsWith(DEMO_ACCOUNT_ID_PREFIX)) return { status: "refused", reason: "demo" };
   const checked = normalizeSlackWebhookUrl(webhookUrl);
   if (!checked.ok || !checked.value) return { status: "refused", reason: "host_not_allowed" };

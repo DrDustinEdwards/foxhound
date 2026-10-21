@@ -52,7 +52,7 @@ export const CONNECT_ACTION = "connect";
  */
 export const AUDIT_ACTION = "audit";
 
-export const CONNECT_ACTIONS = [CONNECT_ACTION, ADD_ACCOUNT_ACTION, AUDIT_ACTION] as const;
+const CONNECT_ACTIONS = [CONNECT_ACTION, ADD_ACCOUNT_ACTION, AUDIT_ACTION] as const;
 export type ConnectAction = (typeof CONNECT_ACTIONS)[number];
 
 export interface ConnectState {

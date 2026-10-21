@@ -87,7 +87,7 @@ function outcomeOf(answer: JsonRpcMessage | undefined): { outcome: McpCallOutcom
 }
 
 /** Replace every credential argument, at any depth. */
-export function redactArguments(value: unknown): unknown {
+function redactArguments(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(redactArguments);
   if (!value || typeof value !== "object") return value;
   return Object.fromEntries(

@@ -58,7 +58,7 @@ function ordinal(n: number): string {
   return `${n}${({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[n % 10] ?? "th"}`;
 }
 /** The cron's day-of-month field. */
-export const AUDIT_AUTO_RUN_DAY = Number(CRON_SCHEDULE_MONTHLY_AUDIT.trim().split(/\s+/)[2]);
+const AUDIT_AUTO_RUN_DAY = Number(CRON_SCHEDULE_MONTHLY_AUDIT.trim().split(/\s+/)[2]);
 const autoRunDay = ordinal(AUDIT_AUTO_RUN_DAY);
 
 const tokenMinutes = Math.round(AUDIT_TOKEN_TTL_SECONDS / 60);

@@ -89,13 +89,13 @@ export function cronEveryMinutes(expr: string): number {
 }
 
 /** True for a once-a-day "M H * * *" schedule. */
-export function cronIsDaily(expr: string): boolean {
+function cronIsDaily(expr: string): boolean {
   return /^\d+ \d+ \* \* \*$/.test(expr);
 }
 
 /** The cadence word for a schedule: "nightly" for a daily run (Foxhound's
  *  daily jobs run at night, UTC), "weekly", "monthly", or "every N minutes". */
-export function cronCadence(expr: string): string {
+function cronCadence(expr: string): string {
   if (/^\*\/\d+ \* \* \* \*$/.test(expr)) return `every ${cronEveryMinutes(expr)} minutes`;
   if (cronIsDaily(expr)) return "nightly";
   if (/^\d+ \d+ \* \* \d$/.test(expr)) return "weekly";
@@ -105,7 +105,7 @@ export function cronCadence(expr: string): string {
 
 /** When in its period a schedule runs: "the 1st of each month" for a monthly
  *  run, "each Tuesday" for a weekly one, "each night" for a daily one. */
-export function cronWhen(expr: string): string {
+function cronWhen(expr: string): string {
   const cadence = cronCadence(expr);
   if (cadence === "monthly") return `the ${ordinal(cronMonthDay(expr))} of each month`;
   if (cadence === "weekly") return `each ${cronWeekday(expr)}`;
@@ -118,7 +118,7 @@ function capitalize(word: string): string {
 }
 
 /** The day of the month of a monthly "M H D * *" schedule. */
-export function cronMonthDay(expr: string): number {
+function cronMonthDay(expr: string): number {
   const m = /^\d+ \d+ (\d+) \* \*$/.exec(expr);
   if (!m) throw new Error(`not a monthly schedule: ${expr}`);
   return Number(m[1]);

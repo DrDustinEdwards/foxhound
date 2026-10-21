@@ -26,22 +26,6 @@ export interface ActiveConnectionBrandVoice {
   brandVoice: string | null;
 }
 
-/** The account's active (non-disconnected) Stripe connection, oldest first,
- *  or null if none. Only the columns the settings page's brand-voice card
- *  needs. */
-export async function getActiveConnectionBrandVoice(
-  db: Db,
-  accountId: string,
-): Promise<ActiveConnectionBrandVoice | null> {
-  const rows = await db
-    .select({ id: stripeConnections.id, brandVoice: stripeConnections.brandVoice })
-    .from(stripeConnections)
-    .where(and(eq(stripeConnections.accountId, accountId), isNull(stripeConnections.disconnectedAt)))
-    .orderBy(stripeConnections.connectedAt)
-    .limit(1);
-  return rows[0] ?? null;
-}
-
 export interface SettingsConnection {
   id: string;
   name: string | null;

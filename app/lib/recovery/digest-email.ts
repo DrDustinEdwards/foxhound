@@ -60,11 +60,11 @@ export interface DigestInput extends DigestNumbers {
 
 /** Recova's `senderName = connection.sender_name || 'Recova'`, with Foxhound's
  *  brand in the fallback. It names the sender in the footer sentence. */
-export const DIGEST_SENDER_FALLBACK = "Foxhound";
+const DIGEST_SENDER_FALLBACK = "Foxhound";
 
 /** Recova sends the digest from FROM_HELLO, `Recova <hello@...>`: the platform
  *  speaks, never the merchant's sender name. */
-export const DIGEST_FROM_NAME = "Foxhound";
+const DIGEST_FROM_NAME = "Foxhound";
 
 /**
  * Recova's Intelligence section ends with "View recommendations", to

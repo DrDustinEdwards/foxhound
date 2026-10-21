@@ -3,7 +3,7 @@
 // two most recent posts that are not it; with nothing featured, the three most
 // recent. Pure, so the order is tested without a database.
 
-export const BLOG_STRIP_SIZE = 3;
+const BLOG_STRIP_SIZE = 3;
 
 export function blogStripCards<T extends { slug: string }>(featured: T | null, latest: T[]): T[] {
   if (!featured) return latest.slice(0, BLOG_STRIP_SIZE);

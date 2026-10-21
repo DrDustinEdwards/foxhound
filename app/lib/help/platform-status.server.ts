@@ -61,7 +61,7 @@ export const CRON_LABELS: Record<string, string> = {
  * than legacy's; expiring-cards and intelligence-ai are daily and take legacy's
  * daily allowance unchanged.
  */
-export const CRON_STALE_MINUTES: Record<string, number> = {
+const CRON_STALE_MINUTES: Record<string, number> = {
   "recovery-tick": 90,
   "winback-send": 90,
   "expiring-cards": 1500,

@@ -77,10 +77,10 @@ export const DIGEST_WINDOW_MS = 7 * DAY_MS;
 export const DIGEST_CLAIM_WINDOW_MS = DIGEST_WINDOW_MS - DAY_MS;
 
 /** Legacy takes the top three at-risk customers. */
-export const DIGEST_HIGH_RISK_LIMIT = 3;
+const DIGEST_HIGH_RISK_LIMIT = 3;
 
 /** Legacy's at-risk band for the Intelligence section: `health_score <= 33`. */
-export const DIGEST_HIGH_RISK_MAX_SCORE = 33;
+const DIGEST_HIGH_RISK_MAX_SCORE = 33;
 
 /**
  * What happened to one account's digest, by name (RULES.md 3.16: a send path

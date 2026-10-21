@@ -24,7 +24,7 @@ import { ToolInputError, type McpToolContext, type McpToolRegistry } from "./reg
 // request reaches this file, and the account is closed over here, never read
 // from the request.
 
-export const MCP_SERVER_INFO = { name: "foxhound", title: "Foxhound", version: "2.0.0" } as const;
+const MCP_SERVER_INFO = { name: "foxhound", title: "Foxhound", version: "2.0.0" } as const;
 
 const INSTRUCTIONS = [
   "Foxhound recovers failed Stripe payments and tracks disputes and subscription health for one merchant: the account this key belongs to, and no other.",
@@ -61,7 +61,7 @@ function toolResult(data: unknown, isError = false) {
  * among them, and no rule can find a name in free text. So its message never
  * leaves the server: it goes to the log, and the agent is told to try again.
  */
-export function errorForAgent(tool: string, err: unknown): string {
+function errorForAgent(tool: string, err: unknown): string {
   if (err instanceof ToolInputError) return maskEmailsInText(err.message);
   console.error("mcp tool failed:", tool, err instanceof Error ? err.message : String(err));
   return `${tool} could not finish because of an error inside Foxhound. Try again; if it keeps failing, the merchant can report it from the Foxhound app.`;
@@ -71,7 +71,7 @@ export function errorForAgent(tool: string, err: unknown): string {
  * One server for one request, with every registered tool on it in registry
  * order, so `tools/list` is deterministic.
  */
-export function buildMcpServer(registry: McpToolRegistry, ctx: McpToolContext): McpServer {
+function buildMcpServer(registry: McpToolRegistry, ctx: McpToolContext): McpServer {
   const server = new McpServer(MCP_SERVER_INFO, { instructions: INSTRUCTIONS, cacheHints: CACHE_HINTS });
   for (const descriptor of registry.list()) {
     const tool = registry.get(descriptor.name);

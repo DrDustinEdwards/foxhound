@@ -54,7 +54,7 @@ export function breachesThreshold(direction: string, actualValue: number, thresh
  * email row (E21) is judged on when it sends, and the job says to keep
  * Recova's cooldown.
  */
-export function inAlertCooldown(lastTriggeredAt: Date | null, nowMs: number): boolean {
+function inAlertCooldown(lastTriggeredAt: Date | null, nowMs: number): boolean {
   if (!lastTriggeredAt) return false;
   const lastMs = lastTriggeredAt.getTime();
   if (!Number.isFinite(lastMs)) return false;

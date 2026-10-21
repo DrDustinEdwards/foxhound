@@ -28,10 +28,10 @@ import { INDEXNOW_KEY, INDEXNOW_KEY_PATH } from "./indexnow-key";
 // Carrel takes over blog publishing (J11, job_09c55603e321) and Prelum serves
 // the blog pages (J19 job_deffd581af37, J61 job_2ee0cfdd5c29).
 
-export const INDEXNOW_ENDPOINT = "https://api.indexnow.org/indexnow";
-export const INDEXNOW_HOST = "foxhoundapp.com";
-export const INDEXNOW_ORIGIN = `https://${INDEXNOW_HOST}`;
-export const INDEXNOW_KEY_LOCATION = `${INDEXNOW_ORIGIN}${INDEXNOW_KEY_PATH}`;
+const INDEXNOW_ENDPOINT = "https://api.indexnow.org/indexnow";
+const INDEXNOW_HOST = "foxhoundapp.com";
+const INDEXNOW_ORIGIN = `https://${INDEXNOW_HOST}`;
+const INDEXNOW_KEY_LOCATION = `${INDEXNOW_ORIGIN}${INDEXNOW_KEY_PATH}`;
 
 /** The public URL of a blog post, the one URL Recova submits per save. */
 export function blogPostUrl(slug: string): string {

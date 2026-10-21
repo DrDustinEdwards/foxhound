@@ -15,7 +15,7 @@ import { getStripe } from "./client";
 // one (legacy created the account inside the callback).
 
 /** The redirect_uri registered with Stripe and sent on both authorize + token. */
-export function connectRedirectUri(env: Env): string {
+function connectRedirectUri(env: Env): string {
   if (!env.BETTER_AUTH_URL) throw new Error("BETTER_AUTH_URL is not set");
   return `${env.BETTER_AUTH_URL}/connect/callback`;
 }
@@ -27,7 +27,7 @@ export function connectRedirectUri(env: Env): string {
  * exactly. Both have to be registered on the platform's Connect settings before
  * either flow works in production; that is on core.md's credentials list.
  */
-export function auditRedirectUri(env: Env): string {
+function auditRedirectUri(env: Env): string {
   if (!env.BETTER_AUTH_URL) throw new Error("BETTER_AUTH_URL is not set");
   return `${env.BETTER_AUTH_URL}/audit/callback`;
 }
@@ -131,7 +131,7 @@ export interface DeauthorizeResult {
  * Never throws: a Stripe-side failure reports ok:false so the caller can log
  * and retry later rather than propagate.
  */
-export async function deauthorizeConnectedAccountWithClient(
+async function deauthorizeConnectedAccountWithClient(
   stripe: Stripe,
   clientId: string,
   stripeUserId: string,

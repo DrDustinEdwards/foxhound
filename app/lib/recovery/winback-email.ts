@@ -91,7 +91,7 @@ export function winbackSubject(input: { stepNumber: number; planName: string | n
 }
 
 /** Legacy's `applyTemplate`: replace every `{{key}}` with its value. */
-export function applyWinbackTemplate(source: string, vars: Record<string, string>): string {
+function applyWinbackTemplate(source: string, vars: Record<string, string>): string {
   return source.replace(/\{\{(\w+)\}\}/g, (whole, key: string) =>
     key in vars ? vars[key] : whole,
   );

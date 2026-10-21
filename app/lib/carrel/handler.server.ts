@@ -11,13 +11,13 @@ import { carrelAdapter } from "./adapter.server";
 // other route (admin, merchant, billing, webhooks) authenticates by session or
 // signature and never looks at it.
 
-export const CARREL_RATE_LIMIT = { limit: 120, periodMs: 60_000 } as const;
+const CARREL_RATE_LIMIT = { limit: 120, periodMs: 60_000 } as const;
 
 /** The repo's own Durable Object limiter, not the Workers ratelimit binding:
  *  workers/rate-limiter.ts records that binding returned success past its limit
  *  here. Unlike the auth limiter this FAILS CLOSED (a throw becomes a refusal in
  *  site-api), which suits a write API. */
-export function carrelLimiter(env: Env): RateLimiter {
+function carrelLimiter(env: Env): RateLimiter {
   return {
     async limit({ key }) {
       const ns = env.RATE_LIMITER;

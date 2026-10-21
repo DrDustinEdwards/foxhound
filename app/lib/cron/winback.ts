@@ -39,7 +39,7 @@ const HOUR_MS = 60 * 60 * 1000;
 
 /** One tick's cap, matching the recovery tick's shape. Legacy uses
  *  `CRON_BATCH_LIMIT` on the same query. */
-export const WINBACK_SEND_LIMIT = 100;
+const WINBACK_SEND_LIMIT = 100;
 
 export interface WinbackSendResult {
   sent: number;
@@ -152,7 +152,7 @@ export async function queryDueWinbackSteps(
 }
 
 /** Stamp a step terminal with legacy's result string, without claiming a send. */
-export async function stampStep(
+async function stampStep(
   db: Db,
   stepId: string,
   result: string,

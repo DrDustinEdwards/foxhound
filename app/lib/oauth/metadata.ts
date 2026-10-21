@@ -2,7 +2,7 @@
 
 /** Paths the documents name. Each is a route in app/routes.ts, and
  *  test/oauth-provider-j79.test.ts fails if one is not (RULES.md 2.7). */
-export const OAUTH_PATHS = {
+const OAUTH_PATHS = {
   authorize: "/oauth/authorize",
   token: "/api/oauth/token",
   register: "/api/oauth/register",

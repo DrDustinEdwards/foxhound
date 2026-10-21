@@ -44,7 +44,7 @@ const STEP_DESCRIPTIONS: Record<number, { which: string; tone: string }> = {
 
 /** A delay in legacy's words: whole days when it is a whole number of days,
  *  else hours ("1 hour", "4 hours", "4 days", "14 days"). Pure. */
-export function describeWinbackDelay(offsetHours: number): string {
+function describeWinbackDelay(offsetHours: number): string {
   const hours = Math.max(0, Math.round(offsetHours));
   if (hours >= 24 && hours % 24 === 0) {
     const days = hours / 24;

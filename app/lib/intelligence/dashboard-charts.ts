@@ -33,7 +33,7 @@ import {
 
 /** Recova's chart heights plus the 64px Enarratio keeps for its axes, so the
  *  plotted area is about Recova's. */
-export const CHART_HEIGHTS = { trend: 220, nrr: 180, movement: 240, health: 240 } as const;
+const CHART_HEIGHTS = { trend: 220, nrr: 180, movement: 240, health: 240 } as const;
 
 const dollars = (cents: number) => Math.round(cents / 100);
 const unit = (currency: string) => currency.toUpperCase();
@@ -107,7 +107,7 @@ const MOVEMENT_COLORS: Record<(typeof MOVEMENT_SERIES)[number], string> = {
 
 /** Recova works in whole dollars and draws contraction and churn as negatives
  *  (MRRMovementChart.tsx:32-38). */
-export function movementRows(points: readonly MovementPoint[]) {
+function movementRows(points: readonly MovementPoint[]) {
   return points.flatMap((p) => [
     { Month: p.at, series: "New", amount: dollars(p.newMrrCents) },
     { Month: p.at, series: "Expansion", amount: dollars(p.expansionMrrCents) },
@@ -139,7 +139,7 @@ export function drawMovement(points: readonly MovementPoint[], currency: string,
 }
 
 /** One bar per plan: about Recova's row rhythm, never shorter than an axis. */
-export function planChartHeight(planCount: number): number {
+function planChartHeight(planCount: number): number {
   return Math.max(140, 64 + planCount * 36);
 }
 

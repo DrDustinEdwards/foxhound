@@ -4,7 +4,7 @@
 // DATE_RANGES set, and is a single-sided detected-after cutoff, not a
 // dual-range window.
 
-export const PAYMENT_TIME_RANGES = ["all", "today", "7d", "30d", "90d"] as const;
+const PAYMENT_TIME_RANGES = ["all", "today", "7d", "30d", "90d"] as const;
 export type PaymentTimeRange = (typeof PAYMENT_TIME_RANGES)[number];
 
 const DAY_MS = 24 * 60 * 60 * 1000;

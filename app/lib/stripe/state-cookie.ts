@@ -29,7 +29,7 @@ export function clearStateCookie(name: string = STRIPE_OAUTH_STATE_COOKIE): stri
   return `${name}=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0`;
 }
 
-export function readCookie(request: Request, name: string): string | null {
+function readCookie(request: Request, name: string): string | null {
   const header = request.headers.get("Cookie") ?? "";
   for (const part of header.split(";")) {
     const eq = part.indexOf("=");
@@ -116,10 +116,6 @@ export async function setAuditGrantCookie(
     }),
   );
   return `${AUDIT_TOKEN_COOKIE}=${sealed}; HttpOnly; Secure; SameSite=Lax; Path=/audit; Max-Age=${AUDIT_TOKEN_TTL_SECONDS}`;
-}
-
-export function clearAuditTokenCookie(): string {
-  return `${AUDIT_TOKEN_COOKIE}=; HttpOnly; Secure; SameSite=Lax; Path=/audit; Max-Age=0`;
 }
 
 /**

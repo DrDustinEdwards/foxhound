@@ -109,10 +109,10 @@ export const MONTHLY_AUDIT_SUBJECT = "Your monthly Foxhound report";
 
 /** Recova sends this from FROM_HELLO, "Recova <hello@...>", and its footer
  *  names "Recova": the platform speaks, never the merchant's sender (E24). */
-export const MONTHLY_AUDIT_FROM_NAME = "Foxhound";
+const MONTHLY_AUDIT_FROM_NAME = "Foxhound";
 
 /** The email_sends template label for this mail. */
-export const MONTHLY_AUDIT_TEMPLATE = "monthly_audit";
+const MONTHLY_AUDIT_TEMPLATE = "monthly_audit";
 
 /**
  * A figure, or the one sentence every audit surface uses for a scope that could
@@ -281,7 +281,7 @@ export interface MonthlyAuditAccountRow {
  * (`id NOT LIKE 'demo\\_%'`), alongside processing-paused and cancelled. Reused
  * unchanged; this phase does not touch the firewall.
  */
-export async function monthlyAuditCandidates(db: Db): Promise<MonthlyAuditAccountRow[]> {
+async function monthlyAuditCandidates(db: Db): Promise<MonthlyAuditAccountRow[]> {
   return db
     .select({
       id: accounts.id,
@@ -311,7 +311,7 @@ export interface MonthlyAuditConnection {
  * the firewall in two places, which is how the two drift. This phase's bounds
  * forbid touching the firewall, and this is what not touching it looks like.
  */
-export async function primaryConnection(
+async function primaryConnection(
   db: Db,
   accountId: string,
 ): Promise<MonthlyAuditConnection | null> {
@@ -337,7 +337,7 @@ export async function primaryConnection(
 /** The prior month's cumulative snapshot for this account, or null when this is
  *  the first one. Ordered by the period string, which sorts correctly because it
  *  is zero-padded YYYY-MM. */
-export async function priorTotals(
+async function priorTotals(
   db: Db,
   accountId: string,
   periodMonth: string,
@@ -386,7 +386,7 @@ export type MonthClaim = { claimed: true; id: string } | { claimed: false; heldS
  * there is nothing to retake and no row exists, the insert's own error is
  * rethrown, so the message retries instead of being acked as a duplicate.
  */
-export async function claimMonthSlot(
+async function claimMonthSlot(
   db: Db,
   accountId: string,
   periodMonth: string,
@@ -431,7 +431,7 @@ export async function claimMonthSlot(
 
 /** The registered cron's name (app/lib/cron/registry.ts), which the consumer's
  *  last-attempt alert is filed under. */
-export const MONTHLY_AUDIT_CRON_NAME = "monthly-audit";
+const MONTHLY_AUDIT_CRON_NAME = "monthly-audit";
 
 /** One queue message: one account, one month, and the cron run that queued it. */
 export interface MonthlyAuditMessage {

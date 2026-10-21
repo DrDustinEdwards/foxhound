@@ -15,7 +15,7 @@ export interface AdminMcpEnv {
   FOXHOUND_ADMIN_API_KEY?: string;
   /** Grants and tokens for workers-oauth-provider. */
   OAUTH_KV: KVNamespace;
-  /** Cloudflare Access for SaaS, the upstream sign-in (access-login.ts). */
+  /** Cloudflare Access for SaaS, the upstream sign-in (@dustinedwards/site-runtime/access-login). */
   ACCESS_TEAM_DOMAIN?: string;
   ACCESS_SAAS_CLIENT_ID?: string;
   ACCESS_SAAS_CLIENT_SECRET?: string;

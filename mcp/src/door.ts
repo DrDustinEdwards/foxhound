@@ -6,7 +6,8 @@ import OAuthProvider, {
   type OAuthHelpers,
 } from "@cloudflare/workers-oauth-provider";
 
-import { accessSaas, authorizationUrl, finishSignIn, newSignIn } from "./access-login";
+import { accessSaas, authorizationUrl, finishSignIn, newSignIn } from "@dustinedwards/site-runtime/access-login";
+import { escapeHtml as escape } from "@dustinedwards/site-runtime/html";
 import type { AdminMcpEnv } from "./env";
 import { adminMcpOrigin, guardMcpRequest, isFoxhoundAdmin, MCP_ROUTE, type DoorProps } from "./guard";
 import { allowedRedirects, checkRegistration, REGISTER_PATH, registrationLimited } from "./registration";
@@ -20,7 +21,7 @@ import { serveAdminMcp } from "./server";
 // (@cloudflare/workers-oauth-provider): CIMD for Claude, Claude Code and
 // ChatGPT, a tightened registration for Grok and Gemini (registration.ts), and
 // the person signs in upstream through Cloudflare Access for SaaS
-// (access-login.ts), as Carrel's AI door does.
+// (@dustinedwards/site-runtime/access-login), as Carrel's AI door does.
 //
 // WHO IS AN ADMIN IS NEVER DECIDED HERE. At sign-in the verified email is put
 // to the admin API's /me, which answers from Foxhound's ADMIN_EMAIL; on every
@@ -67,8 +68,6 @@ function redirectError(request: AuthRequest, description: string, headers?: Head
   if (request.issuer) url.searchParams.set("iss", request.issuer);
   return redirect(url.href, headers);
 }
-
-const escape = (value: string) => value.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 function clientLabel(client: ClientInfo | null, clientId: string): string {
   const name = client?.clientName?.trim();
@@ -173,16 +172,17 @@ async function callback(request: Request, env: DoorEnv): Promise<Response> {
     console.warn(JSON.stringify({ door: "sign-in-refused", reason: signedIn.reason }));
     return redirectError(original, "Foxhound Admin could not verify the sign-in.", headers);
   }
-  if (!(await isFoxhoundAdmin(env, signedIn.email))) {
+  const email = signedIn.email.toLowerCase();
+  if (!(await isFoxhoundAdmin(env, email))) {
     console.warn(JSON.stringify({ door: "refused", reason: "not-an-admin" }));
     return redirectError(original, "This person is not a Foxhound admin.", headers);
   }
 
   const client = clientLabel(await oauth.lookupClient(original.clientId).catch(() => null), original.clientId);
-  const props: DoorProps = { email: signedIn.email, client, clientId: original.clientId };
+  const props: DoorProps = { email, client, clientId: original.clientId };
   const { redirectTo } = await oauth.completeAuthorization({
     request: original,
-    userId: signedIn.email,
+    userId: email,
     metadata: { client },
     scope: original.scope,
     props,

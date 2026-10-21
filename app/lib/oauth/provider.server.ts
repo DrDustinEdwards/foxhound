@@ -49,7 +49,7 @@ import { isAcceptableRedirectUri, isRegisteredRedirect, redirectUriMatchesCode }
 // never a success (RULES.md 3.9).
 
 /** Prefix on refresh tokens, so a leaked one is recognisable in a scan. */
-export const OAUTH_REFRESH_TOKEN_PREFIX = "fox_rt_";
+const OAUTH_REFRESH_TOKEN_PREFIX = "fox_rt_";
 
 /** Recova's default when a registration names no client. */
 const DEFAULT_CLIENT_NAME = "OAuth Client";

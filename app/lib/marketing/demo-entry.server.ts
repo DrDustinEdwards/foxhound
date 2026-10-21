@@ -8,7 +8,7 @@ import { setDemoCookieHeader } from "~/lib/demo/session";
 // is never interpolated from a request. Reused as-is here (not touched):
 // ensureDemoSeeded and setDemoCookieHeader still live in app/lib/demo/, the
 // seeded account's AI firewall, and this file only calls them.
-export const DEMO_ENTRY_TARGETS = {
+const DEMO_ENTRY_TARGETS = {
   dashboard: "/console",
   recovery: "/recovery/dashboard",
   disputes: "/disputes/dashboard",
