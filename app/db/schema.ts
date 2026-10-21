@@ -1,6 +1,6 @@
 // Foxhound D1 schema (Drizzle, SQLite dialect).
 //
-// Design governed by docs/canon/SCHEMA.md; column truth cross-checked against the
+// Design governed by SCHEMA.md (Capsid, namespace foxhound); column truth cross-checked against the
 // legacy database schema (docs/schema/legacy-map.md). Conventions:
 //   - ids: text (uuid string), app-generated via crypto.randomUUID()
 //   - timestamps: integer epoch ms (mode: 'timestamp_ms' -> Date in TS)

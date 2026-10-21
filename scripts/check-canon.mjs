@@ -9,9 +9,9 @@
 // real work forever. The remedy is mechanisation, not priority.
 //
 // WHAT IT CANNOT DO, STATED LOUDLY RATHER THAN PAPERED OVER:
-// canon lives in Capsid (namespace `recova`), not in this repo, and CLAUDE.md
-// forbids mirroring canon content back into the tree (docs/canon/ holds pointer
-// stubs only, because the repo copies drifted once already). So this script
+// canon lives in Capsid (namespace `foxhound`), not in this repo, and CLAUDE.md
+// forbids mirroring canon content back into the tree (the repo copies drifted
+// once already). So this script
 // cannot reach canon by itself. It takes an EXPORT directory and refuses to run
 // without one. That makes the sweep one command instead of a manual procedure;
 // it does not make it a zero-touch CI gate, and pretending otherwise would be

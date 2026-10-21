@@ -1,7 +1,7 @@
 # PENDING-BUILD-NOTES
 
 Confirmed gotchas from Claude Code sessions, staged here to be folded into the
-Capsid `foxhound-build-notes.md` (namespace recova) by Dustin / the next phase.
+Capsid `foxhound-build-notes.md` (namespace foxhound) by Dustin / the next phase.
 
 ## Phase 3 (auth and accounts, Better Auth on D1)
 
