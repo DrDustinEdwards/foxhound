@@ -193,7 +193,7 @@ describe("PLANT 2: every capability sentence, tied to its code", () => {
   it("NINE STAT CARDS, not legacy's six", () => {
     expect(TEXT).toContain("Nine stat cards sit on the recovery dashboard: three across the top and six further down");
     const dashboard = readFileSync(
-      fileURLToPath(new URL("../app/routes/app/recovery/index.tsx", import.meta.url)),
+      fileURLToPath(new URL("../app/components/recovery-dashboard-panels.tsx", import.meta.url)),
       "utf8",
     );
     expect(dashboard).toContain('label="Win-backs active"');
@@ -206,7 +206,7 @@ describe("PLANT 2: every capability sentence, tied to its code", () => {
     expect(TEXT).toContain("They read the last 30 days whatever range is selected.");
     expect(TEXT).toContain("Recovery emails sent in the last 30 days, with their open and click rates.");
     const dashboard = readFileSync(
-      fileURLToPath(new URL("../app/routes/app/recovery/index.tsx", import.meta.url)),
+      fileURLToPath(new URL("../app/components/recovery-dashboard-panels.tsx", import.meta.url)),
       "utf8",
     );
     expect(dashboard).toContain("value={String(w.emailsSentInRange.sent)}");

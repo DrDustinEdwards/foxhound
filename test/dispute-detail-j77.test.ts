@@ -56,6 +56,7 @@ vi.mock("~/lib/disputes/manual-import.server", () => ({
 }));
 
 const route = await import("~/routes/app/disputes/detail");
+const { ApproveButton } = await import("~/components/dispute-detail-parts");
 const Page = route.default as unknown as (props: Record<string, unknown>) => ReturnType<typeof createElement>;
 const SOURCE = readFileSync("app/routes/app/disputes/detail.tsx", "utf8");
 
@@ -781,13 +782,13 @@ describe("J77 review: the draft cannot change after an approval exists", () => {
 
 describe("J77 review: Approve never sends a draft with unsaved edits", () => {
   it("blocks Approve and says why while the draft has unsaved edits", () => {
-    const html = renderToStaticMarkup(createElement(route.ApproveButton, { label: "Approve and submit (fee $24.00)", approving: false, dirty: true }));
+    const html = renderToStaticMarkup(createElement(ApproveButton, { label: "Approve and submit (fee $24.00)", approving: false, dirty: true }));
     expect(html).toMatch(/<button[^>]*aria-disabled="true"[^>]*aria-describedby="dispute_approve_unsaved"/);
     expect(text(html)).toContain("You have unsaved changes. Save your draft first: Approve submits the saved draft.");
   });
 
   it("lets Approve through once the draft is saved", () => {
-    const html = renderToStaticMarkup(createElement(route.ApproveButton, { label: "Approve and submit (fee $24.00)", approving: false, dirty: false }));
+    const html = renderToStaticMarkup(createElement(ApproveButton, { label: "Approve and submit (fee $24.00)", approving: false, dirty: false }));
     expect(html).not.toContain("aria-disabled");
     expect(html).not.toContain("unsaved changes");
   });

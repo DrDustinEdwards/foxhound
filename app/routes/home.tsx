@@ -1,6 +1,12 @@
-import { ArrowRight, ArrowUpRight, RefreshCw, ScanSearch, Shield, TrendingUp } from "lucide-react";
+import "capsomer/panel.css";
+import "capsomer/button.css";
+import "capsomer/disclosure.css";
+// Capsomer's tokens and the teal family (capbase layer), which every part on
+// this page reads. The site header loads the same file; importing it here
+// keeps the page whole under any layout.
+import "~/site-header.css";
+import { ArrowRight } from "lucide-react";
 import { Link } from "react-router";
-
 import { EmailSamples } from "~/components/email-samples";
 import { FadeUp } from "~/components/fade-up";
 import { LedgerMock } from "~/components/ledger-mock";
@@ -11,7 +17,6 @@ import { getFeaturedPost, listPublishedPosts } from "~/lib/blog/queries.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { blogStripCards } from "~/lib/marketing/blog-strip";
 import {
-  BILLING_FAQ_PARTS,
   citation,
   COMPARISON_ROWS,
   COMPAT_TAGS,
@@ -24,7 +29,6 @@ import {
   PRODUCT_CARDS,
   RECOVERY_FEE,
   SECURITY_CHIPS,
-  SEQUENCE_DAYS,
   STATEMENT_BODY,
   STATS,
   STRIPE_GAP,
@@ -32,18 +36,23 @@ import {
 } from "~/lib/marketing/home-copy";
 import { PRODUCT_ORDER, PRODUCTS } from "~/lib/marketing/products";
 import { STAT_AS_OF, STAT_SOURCES } from "~/lib/marketing/statistics";
-import { faqPageJsonLd, organizationJsonLd, siteUrl, softwareApplicationJsonLd, speakableWebPageJsonLd, websiteJsonLd } from "~/lib/seo/jsonld";
+import {
+  faqPageJsonLd,
+  organizationJsonLd,
+  siteUrl,
+  softwareApplicationJsonLd,
+  speakableWebPageJsonLd,
+  websiteJsonLd,
+} from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
-
-import "capsomer/panel.css";
-import "capsomer/button.css";
-import "capsomer/disclosure.css";
-// Capsomer's tokens and the teal family (capbase layer), which every part on
-// this page reads. The site header loads the same file; importing it here
-// keeps the page whole under any layout.
-import "~/site-header.css";
-
 import type { Route } from "./+types/home";
+import {
+  PRODUCT_ICONS,
+  Arrow,
+  SourceArrow,
+  HOW_IT_WORKS,
+  BILLING_ANSWER,
+} from "../components/home-parts";
 
 // The marketing home page (J59, row M3). Recova's spec, read whole at HEAD:
 // app/(marketing)/page.tsx (blob c10db7d5), components/hero/RecoveryDemo.tsx
@@ -96,101 +105,6 @@ export async function loader({ context }: Route.LoaderArgs) {
   }
   return { siteUrl: siteUrl(env), blogPosts };
 }
-
-const PRODUCT_ICONS = {
-  audit: ScanSearch,
-  recovery: RefreshCw,
-  disputes: Shield,
-  intelligence: TrendingUp,
-} as const;
-
-/** Recova's inline link inside a sentence, in the family's accent. */
-const INLINE_LINK = "text-accent-text underline underline-offset-2 transition-opacity duration-150 hover:opacity-80";
-
-function Arrow() {
-  return (
-    <ArrowRight
-      className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
-      size={13}
-      strokeWidth={1.5}
-      aria-hidden
-    />
-  );
-}
-
-function SourceArrow() {
-  return (
-    <ArrowUpRight
-      className="inline-block transition-transform duration-150 group-hover:-translate-y-px group-hover:translate-x-px"
-      size={12}
-      strokeWidth={1.5}
-      aria-hidden
-    />
-  );
-}
-
-const HOW_IT_WORKS: { title: string; body: React.ReactNode }[] = [
-  {
-    title: "Connect Stripe",
-    // Recova: "Read-only OAuth." The connection is read and write (ruling 20d),
-    // so "Read-only" goes and Recova's OAuth link stays.
-    body: (
-      <>
-        <a
-          href="https://stripe.com/docs/connect/oauth-standard-accounts"
-          target="_blank"
-          rel="noopener noreferrer"
-          className={INLINE_LINK}
-        >
-          OAuth
-        </a>
-        . 60 seconds. Foxhound never touches your billing configuration or existing Stripe setup.
-      </>
-    ),
-  },
-  {
-    title: "Foxhound runs sequences",
-    // Recova's sentence, with the engine's silent retry named where it runs
-    // (ratified 2026-08-01). Recova's "timed to card network retry windows" is
-    // left out: the engine times its steps by category, not by network window.
-    body: (
-      <>
-        When a payment fails, Foxhound classifies the decline and starts a{" "}
-        <Link to="/product/recovery" className={INLINE_LINK}>
-          {SEQUENCE_DAYS}-day AI-written email sequence
-        </Link>
-        , with a silent retry ahead of the first email wherever the decline can be retried.
-      </>
-    ),
-  },
-  {
-    title: `Pay ${RECOVERY_FEE} of matured recoveries`,
-    body: (
-      <>
-        Monthly invoice for{" "}
-        <Link to="/pricing" className={INLINE_LINK}>
-          {RECOVERY_FEE} of the prior month&apos;s recoveries
-        </Link>{" "}
-        that have matured for {MATURITY_DAYS}+ days. Nothing owed on failed recoveries or Stripe&apos;s own
-        baseline recoveries. No minimums, no setup fees.
-      </>
-    ),
-  },
-];
-
-const BILLING_ANSWER = (
-  <>
-    {BILLING_FAQ_PARTS.map((part) =>
-      typeof part === "string" ? (
-        part
-      ) : (
-        <Link key={part.to} to={part.to} className={INLINE_LINK}>
-          {part.label}
-        </Link>
-      ),
-    )}
-  </>
-);
 
 export default function Home({ loaderData }: Route.ComponentProps) {
   const { siteUrl: url, blogPosts } = loaderData;

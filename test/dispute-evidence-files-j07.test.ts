@@ -683,7 +683,7 @@ describe("J07: Recova's Evidence files section", () => {
   });
 
   it("keeps the upload form outside the draft form (no nested forms)", () => {
-    const source = readFileSync("app/routes/app/disputes/detail.tsx", "utf8");
+    const source = readFileSync("app/components/dispute-detail-parts.tsx", "utf8");
     expect(source).toContain("EVIDENCE_UPLOAD_FORM_ID");
   });
 });

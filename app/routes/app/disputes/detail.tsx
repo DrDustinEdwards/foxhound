@@ -1,10 +1,3 @@
-import { DISPUTE_EVIDENCE_ALLOWED_TYPES, DISPUTE_EVIDENCE_MAX_FILES, DISPUTE_EVIDENCE_MAX_SIZE_BYTES, DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
-import * as Sentry from "@sentry/cloudflare";
-import { useEffect, useId, useReducer, useRef, useState } from "react";
-import { Form, Link, data, redirect, useFetcher, useNavigation } from "react-router";
-import { Banner } from "capsomer/react/banner";
-import { Panel } from "capsomer/react/panel";
-import { Pill, Status } from "capsomer/react/status";
 import "capsomer/banner.css";
 import "capsomer/button.css";
 import "capsomer/field.css";
@@ -14,27 +7,26 @@ import "capsomer/status.css";
 // Capsomer's tokens and the teal family, which the components above read, as
 // the disputes list and the payment pages load them.
 import "~/site-header.css";
-
-import { SYNC_DETAIL_COPY, SYNC_RESULT_MESSAGES, SyncDisputeLink } from "~/components/sync-dispute-link";
+import { DISPUTE_FEE_CAP_CENTS, type DisputeState } from "~/lib/constants";
+import { useEffect, useReducer, useState } from "react";
+import { Form, Link, useFetcher, useNavigation } from "react-router";
+import { Banner } from "capsomer/react/banner";
+import { Panel } from "capsomer/react/panel";
+import { Pill, Status } from "capsomer/react/status";
+import { SYNC_DETAIL_COPY, SyncDisputeLink } from "~/components/sync-dispute-link";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
 import { disputeFeeCents } from "~/lib/billing/fees";
-import type { DisputeState } from "~/lib/constants";
-import { ACCEPT_APPROVED_MESSAGE, acceptDispute } from "~/lib/disputes/accept.server";
 import { canApprove } from "~/lib/disputes/approval";
 import {
-  ACCEPT_CONFIRM_LINE,
   ACCEPT_UNAVAILABLE_APPROVED_LINE,
   BACK_LINK_DEMO,
   BACK_LINK_REAL,
-  CUSTOMER_IP_FIELD,
-  NARRATIVE_FIELD,
   SHIPPING_CARRIERS,
   SHIPPING_CARRIER_FIELD,
   SHIPPING_DATE_FIELD,
   SHIPPING_TRACKING_FIELD,
-  UNSAVED_APPROVE_LINE,
   deadlineRemaining,
   disputeFeeTerms,
   draftAfter,
@@ -43,21 +35,7 @@ import {
   outcomeWord,
   splitEvidence,
 } from "~/lib/disputes/detail";
-import {
-  EVIDENCE_DELETE_FORM_ID,
-  EVIDENCE_FILE_FIELD,
-  EVIDENCE_FILE_MESSAGES,
-  EVIDENCE_FILE_REMOVE_CONFIRM,
-  EVIDENCE_FILE_STATUS,
-  EVIDENCE_FILES_LIMITS_LINE,
-  EVIDENCE_FILES_UNAVAILABLE_LINE,
-  EVIDENCE_UPLOAD_FORM_ID,
-  evidenceFileHref,
-  fileNameFromPath,
-  precheckEvidenceFile,
-  type EvidenceFileOutcome,
-} from "~/lib/disputes/evidence-files";
-import { deleteEvidenceFile, uploadEvidenceFile } from "~/lib/disputes/evidence-files.server";
+import { EVIDENCE_FILE_FIELD } from "~/lib/disputes/evidence-files";
 import { getDisputeFindings } from "~/lib/disputes/findings.server";
 import {
   daysUntilDeadline,
@@ -66,21 +44,21 @@ import {
   humanizeDisputeReason,
   isDisputeResolved,
 } from "~/lib/disputes/labels";
-import { importDisputeFromStripe } from "~/lib/disputes/manual-import.server";
-import {
-  approveAndSubmitDispute,
-  getConnectionAccessToken,
-  getDisputeDetail,
-  readDisputeSettings,
-  saveDisputeDraft,
-} from "~/lib/disputes/queries.server";
+import { getDisputeDetail, readDisputeSettings } from "~/lib/disputes/queries.server";
 import { buildDisputeTimeline } from "~/lib/disputes/timeline";
 import { formatDateShort, formatTimestamp } from "~/lib/date-format";
 import { formatMoney } from "~/lib/money-format";
 import { FAILED_PAYMENT_STATUS_LABELS } from "~/lib/recovery/labels";
 import { declineWord } from "~/lib/recovery/payments-list";
-
 import type { Route } from "./+types/detail";
+import { disputeDetailAction } from "./detail.action.server";
+import {
+  ApproveButton,
+  AcceptControl,
+  FieldRow,
+  EvidenceFileForms,
+  EvidenceFiles,
+} from "../../../components/dispute-detail-parts";
 
 // /disputes/:id (J77, row S14): Recova's dispute page on Foxhound's engine.
 // Recova is the spec, read whole at HEAD: app/(app)/disputes/[id]/page.tsx
@@ -141,255 +119,9 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   };
 }
 
-export async function action({ context, params, request }: Route.ActionArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
-  const db = getDb(env);
-  const accountId = auth.membership.accountId;
-
-  const detail = await getDisputeDetail(db, accountId, params.id);
-  if (!detail) throw new Response("Not Found", { status: 404 });
-
-  // No post to this page is near one evidence file's size except an upload, so
-  // a body far past it is refused before it is read into memory (J07).
-  const declaredLength = Number(request.headers.get("content-length") ?? "0");
-  if (declaredLength > DISPUTE_EVIDENCE_MAX_SIZE_BYTES + UPLOAD_BODY_SLACK_BYTES) {
-    return fileResult("upload_file", "file_too_large", 413);
-  }
-
-  const form = await request.formData();
-  const intent = String(form.get("intent") ?? "");
-
-  if (intent === "save") {
-    if (!canApprove(detail.dispute.state as DisputeState)) {
-      return data(
-        { error: "This dispute has already been submitted; evidence is locked.", intent: "save" as const },
-        { status: 409 },
-      );
-    }
-    // Once a merchant has approved, the evidence that approval attests is never
-    // rewritten here, even while the state is still approvable (a submission in
-    // flight, rejected by Stripe, or unconfirmed). saveDisputeDraft carries the
-    // same guard inside each write, so a race past this read writes nothing.
-    if (detail.approval) {
-      return data(
-        { error: "This dispute has been approved, so its evidence is locked.", intent: "save" as const },
-        { status: 409 },
-      );
-    }
-    const fields = [
-      { fieldName: NARRATIVE_FIELD, fieldValue: form.get("narrative") },
-      { fieldName: CUSTOMER_IP_FIELD, fieldValue: form.get("customer_ip") },
-      // Present only when the shipping inputs are on the page (S32's setting).
-      { fieldName: SHIPPING_TRACKING_FIELD, fieldValue: trimmed(form.get(SHIPPING_TRACKING_FIELD)) },
-      { fieldName: SHIPPING_CARRIER_FIELD, fieldValue: carrier(form.get(SHIPPING_CARRIER_FIELD)) },
-      { fieldName: SHIPPING_DATE_FIELD, fieldValue: trimmed(form.get(SHIPPING_DATE_FIELD)) },
-    ]
-      // A field the form did not carry is left as it is.
-      .filter((f): f is { fieldName: string; fieldValue: string } => typeof f.fieldValue === "string")
-      .map((f) => ({ fieldName: f.fieldName, fieldValue: f.fieldName === CUSTOMER_IP_FIELD ? f.fieldValue.trim() : f.fieldValue }));
-    let written: boolean;
-    try {
-      written = await saveDisputeDraft(db, accountId, detail.dispute.id, detail.evidence, fields, new Date());
-    } catch (err) {
-      // Recova's line beside Save draft is "Could not save."; the whole error
-      // goes to the log, never to the page.
-      console.error("dispute draft save failed", err);
-      return data({ error: "Could not save.", intent: "save" as const }, { status: 500 });
-    }
-    // A guarded write that changed nothing (an approval or another session's
-    // save got there between this read and the write) is reported, never
-    // "Saved." (RULES.md 3.9). The result is not ok, so the page keeps the
-    // draft unsaved and Approve held.
-    if (!written) {
-      return data(
-        {
-          error: "Your draft was not saved: this dispute changed. Reload to see the current evidence.",
-          intent: "save" as const,
-        },
-        { status: 409 },
-      );
-    }
-    return data({ ok: true, intent: "save" as const });
-  }
-
-  if (intent === "upload_file" || intent === "delete_file") {
-    // Recova's upload-evidence and delete-evidence (J07). The dispute was read
-    // under the signed-in account above, so another account's dispute is
-    // already a 404. With no bucket bound, the answer says so first.
-    if (!env.EVIDENCE) return fileResult(intent, "uploads_unavailable");
-    if (!canApprove(detail.dispute.state as DisputeState) || detail.approval) {
-      return fileResult(intent, "evidence_locked");
-    }
-    const outcome =
-      intent === "upload_file"
-        ? await uploadEvidenceFile(db, env.EVIDENCE, {
-            accountId,
-            disputeId: detail.dispute.id,
-            file: form.get("file"),
-            now: new Date(),
-          })
-        : await deleteEvidenceFile(db, env.EVIDENCE, {
-            accountId,
-            disputeId: detail.dispute.id,
-            evidenceId: String(form.get("evidence_id") ?? ""),
-          });
-    return fileResult(intent, outcome);
-  }
-
-  if (intent === "sync_dispute") {
-    // Recova's DisputeSyncForm: the same manual import the disputes list runs,
-    // on the signed-in account's own Stripe connection.
-    const posted = form.get("stripe_dispute_id");
-    try {
-      const result = await importDisputeFromStripe(env, accountId, typeof posted === "string" ? posted : "", new Date());
-      return data({ sync: SYNC_RESULT_MESSAGES[result.status] });
-    } catch (err) {
-      console.error("dispute sync failed", err);
-      return data({ sync: { ok: false, message: "Could not import the dispute. Please try again." } }, { status: 500 });
-    }
-  }
-
-  if (intent === "accept_confirm") {
-    // Accept's first step without script: the page shows the confirmation.
-    // With script the button opens it in place and never posts this.
-    return data({ acceptConfirm: true as const, intent: "accept_confirm" as const });
-  }
-
-  if (intent === "accept") {
-    // Recova's /api/disputes/accept: refuse a dispute that is no longer open,
-    // close it at Stripe, then write the accepted state and its outcome.
-    if (!canApprove(detail.dispute.state as DisputeState)) {
-      return data({ error: "This dispute is already closed or submitted.", intent: "accept" as const }, { status: 409 });
-    }
-    // Not while an approval stands (PR 149 review): its submission is in
-    // flight, rejected or unconfirmed, and a concession would race it.
-    if (detail.approval) {
-      return data({ error: ACCEPT_APPROVED_MESSAGE, intent: "accept" as const }, { status: 409 });
-    }
-    const token = detail.dispute.stripeConnectionId
-      ? await getConnectionAccessToken(db, detail.dispute.stripeConnectionId)
-      : null;
-    if (!token) {
-      return data({ error: "No connected Stripe account for this dispute.", intent: "accept" as const }, { status: 409 });
-    }
-    try {
-      const result = await acceptDispute(env, {
-        accountId,
-        disputeId: detail.dispute.id,
-        stripeDisputeId: detail.dispute.stripeDisputeId,
-        state: detail.dispute.state,
-        amountCents: detail.dispute.amountCents,
-        currency: detail.dispute.currency,
-        connectionAccessToken: token,
-        acceptedAt: new Date(),
-        hasApproval: Boolean(detail.approval),
-      });
-      if (result.status === "error") {
-        return data({ error: result.message, intent: "accept" as const }, { status: 400 });
-      }
-    } catch (err) {
-      console.error("dispute accept failed", err);
-      Sentry.captureException(err, { extra: { scope: "dispute-accept", disputeId: detail.dispute.id } });
-      return data(
-        { error: "Accept failed. Check this dispute in Stripe before trying again.", intent: "accept" as const },
-        { status: 500 },
-      );
-    }
-    // Recova: router.push('/disputes/dashboard').
-    return redirect(BACK_LINK_REAL.href);
-  }
-
-  if (intent === "approve") {
-    // Re-check against a fresh read, never the form's own hidden state: this is
-    // the schema-enforced gate (dispute_approvals is unique per dispute), the
-    // app-level check here just fails fast with a readable message.
-    if (!canApprove(detail.dispute.state as DisputeState)) {
-      return data({ error: "This dispute has already been submitted.", intent: "approve" as const }, { status: 409 });
-    }
-
-    let resolvedToken: string | null = null;
-    if (detail.dispute.stripeConnectionId) {
-      resolvedToken = await getConnectionAccessToken(db, detail.dispute.stripeConnectionId);
-    }
-    if (!resolvedToken) {
-      return data({ error: "No connected Stripe account for this dispute.", intent: "approve" as const }, { status: 409 });
-    }
-
-    try {
-      // Ordering (approveAndSubmitDispute, wrapping approveAndSubmit): a
-      // durable pending-approval record is written BEFORE the Stripe call, and
-      // the `submitted` marker (submitted_at, which billing keys off) is
-      // written only AFTER Stripe accepts. So the record and the submission
-      // can never diverge (dispute-intake review MEDIUM), and billing counts
-      // this dispute only if Stripe genuinely took it. The submitted package
-      // is what the merchant approved: the currently-saved evidence (their
-      // edits, not the raw AI draft).
-      const result = await approveAndSubmitDispute(
-        db,
-        env,
-        {
-          disputeId: detail.dispute.id,
-          accountId,
-          stripeDisputeId: detail.dispute.stripeDisputeId,
-          connectionAccessToken: resolvedToken,
-          approvedByUserId: auth.userId,
-          approvedByEmail: auth.email,
-          approvedAt: new Date(),
-        },
-        detail.evidence,
-      );
-      if (result.status === "error") {
-        return data({ error: result.message, intent: "approve" as const }, { status: 400 });
-      }
-      return data({ ok: true, intent: "approve" as const });
-    } catch (err) {
-      // The throw can come before the Stripe call (the pending record, the
-      // token) or after it (the confirmation write). In the second case Stripe
-      // holds the submission while submitted_at did not land; the pending
-      // approval record still exists, so billing safely under-counts until it
-      // is reconciled, never over-bills. Either way the page cannot know which,
-      // so it says so. The whole error goes to the log and to Sentry.
-      console.error("dispute approve and submit failed", err);
-      Sentry.captureException(err, {
-        extra: { scope: "dispute-approve-and-submit", disputeId: detail.dispute.id },
-      });
-      return data(
-        {
-          error:
-            "Something went wrong while submitting. Stripe may or may not have received the evidence, so check this dispute in Stripe before trying again.",
-          intent: "approve" as const,
-        },
-        { status: 500 },
-      );
-    }
-  }
-
-  return data({ error: "Unknown action.", intent: null }, { status: 400 });
-}
-
-/** Room for the multipart framing around one evidence file. */
-const UPLOAD_BODY_SLACK_BYTES = 64 * 1024;
-
-/** A file path's answer: its named outcome, the merchant's line, and the
- *  outcome's status (J07). */
-function fileResult(intent: "upload_file" | "delete_file", outcome: EvidenceFileOutcome, status?: number) {
-  const message = EVIDENCE_FILE_MESSAGES[outcome];
-  return data(
-    message ? { intent, fileOutcome: outcome, error: message } : { intent, fileOutcome: outcome },
-    { status: status ?? EVIDENCE_FILE_STATUS[outcome] },
-  );
-}
-
-/** A posted text value, trimmed, or null when the form did not carry it. */
-function trimmed(value: FormDataEntryValue | null): string | null {
-  return typeof value === "string" ? value.trim() : null;
-}
-
-/** The carrier select's value, held to Recova's list (blank is "Select"). */
-function carrier(value: FormDataEntryValue | null): string | null {
-  if (typeof value !== "string") return null;
-  return (SHIPPING_CARRIERS as readonly string[]).includes(value) ? value : "";
+/** Approve, accept, evidence and sync posts; see detail.action.server.ts. */
+export async function action(args: Route.ActionArgs) {
+  return disputeDetailAction(args);
 }
 
 export default function DisputeDetail({ loaderData, actionData }: Route.ComponentProps) {
@@ -829,281 +561,5 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
         </div>
       ) : null}
     </div>
-  );
-}
-
-/**
- * The Approve button (J77 review). Approve submits the SAVED draft, so while
- * the page holds unsaved edits it is held back, focusable, with the reason in
- * visible text beside it, never a silent drop of the merchant's edits.
- */
-export function ApproveButton({ label, approving, dirty }: { label: string; approving: boolean; dirty: boolean }) {
-  const held = approving || dirty;
-  return (
-    <div className="flex flex-wrap items-center gap-3">
-      <button
-        type="submit"
-        className="cap-btn"
-        data-variant="primary"
-        aria-disabled={held ? true : undefined}
-        aria-describedby={dirty ? "dispute_approve_unsaved" : undefined}
-        onClick={(e) => {
-          if (held) e.preventDefault();
-        }}
-      >
-        {approving ? "Submitting…" : label}
-      </button>
-      {dirty ? (
-        <span id="dispute_approve_unsaved" className="text-label text-text-secondary">
-          {UNSAVED_APPROVE_LINE}
-        </span>
-      ) : null}
-    </div>
-  );
-}
-
-/**
- * Recova's Accept (DisputeActionBar.tsx): "Accept dispute", then in its place
- * the line, "Yes, accept" and "Cancel". The first button posts a harmless
- * intent so the confirmation also works without script; with script it opens
- * in place. Focus follows the swap so a keyboard user is never left on a button
- * that has gone: opening lands on Cancel (never on "Yes, accept", so a second
- * Enter cannot concede the dispute), and Cancel returns to "Accept dispute".
- */
-function AcceptControl({
-  open,
-  accepting,
-  returnFocus,
-  onOpen,
-  onCancel,
-}: {
-  open: boolean;
-  accepting: boolean;
-  returnFocus: boolean;
-  onOpen: () => void;
-  onCancel: () => void;
-}) {
-  const lineId = useId();
-  if (!open) {
-    return (
-      <Form method="post">
-        <input type="hidden" name="intent" value="accept_confirm" />
-        <button
-          type="submit"
-          className="cap-btn"
-          autoFocus={returnFocus}
-          onClick={(e) => {
-            e.preventDefault();
-            onOpen();
-          }}
-        >
-          Accept dispute
-        </button>
-      </Form>
-    );
-  }
-  return (
-    <Form method="post" className="flex flex-wrap items-center gap-2" aria-label="Accept this dispute">
-      <input type="hidden" name="intent" value="accept" />
-      <span id={lineId} className="text-label text-text-secondary">
-        {ACCEPT_CONFIRM_LINE}
-      </span>
-      <button
-        type="submit"
-        className="cap-btn"
-        data-variant="danger"
-        data-size="sm"
-        aria-describedby={lineId}
-        aria-disabled={accepting ? true : undefined}
-        onClick={(e) => {
-          if (accepting) e.preventDefault();
-        }}
-      >
-        {accepting ? "Accepting…" : "Yes, accept"}
-      </button>
-      <button
-        type="button"
-        className="cap-btn"
-        data-variant="quiet"
-        data-size="sm"
-        aria-describedby={lineId}
-        autoFocus
-        onClick={onCancel}
-      >
-        Cancel
-      </button>
-    </Form>
-  );
-}
-
-/** Recova's Row (formatters.tsx): the label in a 140px column, the value
- *  beside it. Multi-line evidence keeps its line breaks. */
-function FieldRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex gap-4">
-      <dt className="w-[140px] shrink-0 text-text-tertiary">{label}</dt>
-      <dd className="m-0 flex-1 whitespace-pre-line text-text">{value}</dd>
-    </div>
-  );
-}
-
-/** The fetcher keys the evidence file section and its forms share (J07). */
-const UPLOAD_FETCHER_KEY = "dispute-evidence-upload";
-const DELETE_FETCHER_KEY = "dispute-evidence-delete";
-
-/**
- * The upload and remove forms (J07), rendered after the draft form because
- * forms cannot nest. The section's file input and Remove file buttons belong
- * to them through the form attribute, so they sit where Recova shows them.
- */
-function EvidenceFileForms() {
-  const upload = useFetcher<typeof action>({ key: UPLOAD_FETCHER_KEY });
-  const remove = useFetcher<typeof action>({ key: DELETE_FETCHER_KEY });
-  return (
-    <>
-      <upload.Form id={EVIDENCE_UPLOAD_FORM_ID} method="post" encType="multipart/form-data" hidden>
-        <input type="hidden" name="intent" value="upload_file" />
-      </upload.Form>
-      <remove.Form id={EVIDENCE_DELETE_FORM_ID} method="post" hidden>
-        <input type="hidden" name="intent" value="delete_file" />
-      </remove.Form>
-    </>
-  );
-}
-
-/**
- * Recova's DisputeFileUploads (1286eb21): the title with the limits line, an
- * "Upload file" control while fewer than five files are on the dispute, the
- * files by name and date with "Remove file", or "No files uploaded.". Choosing
- * a file uploads it at once, as Recova's onChange did, after Recova's own
- * checks; without script the Upload button beside it posts the same form.
- * Read-only once approved or submitted, and in the demo. With no bucket bound,
- * the upload control's place says so.
- */
-function EvidenceFiles({
-  disputeId,
-  files,
-  editable,
-  available,
-}: {
-  disputeId: string;
-  files: { id: string; fieldValue: string; createdAt: Date }[];
-  editable: boolean;
-  available: boolean;
-}) {
-  const upload = useFetcher<typeof action>({ key: UPLOAD_FETCHER_KEY });
-  const remove = useFetcher<typeof action>({ key: DELETE_FETCHER_KEY });
-  const inputRef = useRef<HTMLInputElement>(null);
-  const inputId = useId();
-  const [precheck, setPrecheck] = useState<EvidenceFileOutcome | null>(null);
-  const uploading = upload.state !== "idle";
-  const canChange = editable && available;
-
-  // A finished upload clears the chosen file, as Recova's did.
-  const uploadDone = upload.state === "idle" && upload.data !== undefined;
-  useEffect(() => {
-    if (uploadDone && inputRef.current) inputRef.current.value = "";
-  }, [uploadDone, upload.data]);
-
-  const resultError = (d: unknown) =>
-    d && typeof d === "object" && "fileOutcome" in d && "error" in d ? String((d as { error: unknown }).error) : null;
-  const error = precheck ? EVIDENCE_FILE_MESSAGES[precheck] : (resultError(upload.data) ?? resultError(remove.data));
-
-  let control: React.ReactNode = null;
-  if (editable && !available) {
-    control = <span className="text-micro text-text-subtle">{EVIDENCE_FILES_UNAVAILABLE_LINE}</span>;
-  } else if (canChange && files.length < DISPUTE_EVIDENCE_MAX_FILES) {
-    control = (
-      <span className="inline-flex items-center gap-2">
-        <span className="inline-flex rounded-md has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-1 has-[:focus-visible]:outline-(--ring) has-[:focus-visible]:outline-solid">
-          <label htmlFor={inputId} className="cap-btn" data-size="sm" aria-disabled={uploading ? true : undefined}>
-            {uploading ? "Uploading…" : "Upload file"}
-          </label>
-        </span>
-        <input
-          ref={inputRef}
-          id={inputId}
-          type="file"
-          name="file"
-          accept={DISPUTE_EVIDENCE_ALLOWED_TYPES.join(",")}
-          form={EVIDENCE_UPLOAD_FORM_ID}
-          className="sr-only"
-          disabled={uploading}
-          onChange={(e) => {
-            const input = e.currentTarget;
-            const file = input.files?.[0];
-            if (!file) return;
-            const refused = precheckEvidenceFile(file, files.length);
-            setPrecheck(refused);
-            if (refused) return;
-            if (input.form) void upload.submit(input.form, { method: "post", encType: "multipart/form-data" });
-          }}
-        />
-        <noscript>
-          <button type="submit" form={EVIDENCE_UPLOAD_FORM_ID} className="cap-btn" data-size="sm">
-            Upload
-          </button>
-        </noscript>
-      </span>
-    );
-  }
-
-  return (
-    <Panel title="Evidence files" description={EVIDENCE_FILES_LIMITS_LINE} actions={control}>
-      <div className="text-label">
-        <div role="status" className="text-micro">
-          {error ? <Status tone="crit">{error}</Status> : null}
-        </div>
-        {files.length === 0 ? (
-          <p className="m-0 text-micro text-text-subtle">No files uploaded.</p>
-        ) : (
-          <ul className="m-0 list-none space-y-1 p-0">
-            {files.map((f) => {
-              const name = fileNameFromPath(f.fieldValue);
-              return (
-                <li
-                  key={f.id}
-                  className="flex items-center justify-between gap-3 border-b border-border-sub py-1.5 last:border-b-0"
-                >
-                  {available ? (
-                    <a
-                      href={evidenceFileHref(disputeId, f.id)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-label text-brand-text hover:opacity-80"
-                    >
-                      {name}
-                    </a>
-                  ) : (
-                    <span className="text-label text-text">{name}</span>
-                  )}
-                  <span className="flex items-center gap-3">
-                    <span className="text-micro text-text-subtle">{formatDateShort(f.createdAt)}</span>
-                    {canChange ? (
-                      <button
-                        type="submit"
-                        form={EVIDENCE_DELETE_FORM_ID}
-                        name="evidence_id"
-                        value={f.id}
-                        className="cap-btn"
-                        data-variant="quiet"
-                        data-size="sm"
-                        aria-label={`Remove file ${name}`}
-                        onClick={(e) => {
-                          setPrecheck(null);
-                          if (!window.confirm(EVIDENCE_FILE_REMOVE_CONFIRM)) e.preventDefault();
-                        }}
-                      >
-                        Remove file
-                      </button>
-                    ) : null}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
-    </Panel>
   );
 }
