@@ -70,13 +70,8 @@ import { recoveryRateBand, recoveryRateClassName } from "~/lib/dashboard/recover
 import { formatRelativeFuture, formatTimestamp } from "~/lib/date-format";
 import { formatMoney } from "~/lib/money-format";
 import { priorFailureCount } from "~/lib/recovery/prior-failures";
-import {
-  getDashboardOnboardingProfile,
-  getDeliverabilityCounts,
-  listAttributedRecoveredSince,
-  listBillableRecoveredForRoi,
-  listStepsForFailedPayments,
-} from "~/lib/recovery/queries.server";
+import { listStepsForFailedPayments } from "~/lib/recovery/queries.server";
+import { getDashboardOnboardingProfile, getDeliverabilityCounts, listAttributedRecoveredSince, listBillableRecoveredForRoi } from "~/lib/recovery/dashboard-queries.server";
 import {
   DECLINE_CATEGORY_LABELS,
   FAILED_PAYMENT_STATUS_LABELS,

@@ -38,7 +38,7 @@ const { sendRecoveryNotification } = await import("~/lib/recovery/merchant-notif
 const { sendSequenceCompleteNotification } = await import(
   "~/lib/recovery/sequence-complete-notification.server"
 );
-const { resendDepsFor } = await import("~/lib/recovery/manual-actions.server");
+const { resendDepsFor } = await import("~/lib/recovery/manual-action-deps.server");
 const { sendTestEmail } = await import("~/lib/settings/test-email.server");
 const { sendAuthEmail, sendPasswordResetEmail } = await import("~/lib/auth/send-auth-email");
 const { buildFailureAlertEmail, buildStaleAlertEmail } = await import("~/lib/cron/alerts.server");

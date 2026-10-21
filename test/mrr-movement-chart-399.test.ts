@@ -4,11 +4,8 @@ import { createRoutesStub } from "react-router";
 import { describe, expect, it } from "vitest";
 
 import IntelligenceOverviewPage from "~/routes/app/intelligence/index";
-import type {
-  HealthDistributionDay,
-  IntelligenceOverview,
-  MrrSnapshotPoint,
-} from "~/lib/intelligence/views.server";
+import type { IntelligenceOverview } from "~/lib/intelligence/views.server";
+import type { HealthDistributionDay, MrrSnapshotPoint } from "~/lib/intelligence/trends.server";
 
 // Ruling 399, session 90 job 3. MRRMovementChart is the second of the two
 // dashboard charts the 394 walk never saw, for the same reason as NRRChart:

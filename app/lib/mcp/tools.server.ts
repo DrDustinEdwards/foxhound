@@ -3,14 +3,9 @@ import { toStoredAuditRun } from "~/lib/audit/render";
 import { getBillingPreview } from "~/lib/billing/preview.server";
 import { getBillingLedger, listBillingInvoices } from "~/lib/billing/queries.server";
 import { listDisputes, type DisputeRow } from "~/lib/disputes/queries.server";
-import {
-  getAlertsView,
-  getChurnView,
-  getCustomerHealthDetail,
-  getIntelligenceOverview,
-  listCustomerDirectory,
-  listCustomerTiers,
-} from "~/lib/intelligence/views.server";
+import { getAlertsView, getCustomerHealthDetail, getIntelligenceOverview } from "~/lib/intelligence/views.server";
+import { getChurnView } from "~/lib/intelligence/trends.server";
+import { listCustomerDirectory, listCustomerTiers } from "~/lib/intelligence/directory.server";
 import {
   getFailedPaymentDetail,
   getGlobalPaymentStatusCounts,

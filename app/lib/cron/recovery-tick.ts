@@ -9,13 +9,8 @@ import {
   RECOVERY_TICK_LIMIT,
   RETRY_TOKEN_MAX_ATTEMPTS,
 } from "~/lib/constants";
-import {
-  buildRetryAttemptPatch,
-  executeEmailStep,
-  executeRetryStep,
-  type EmailStepContext,
-  type RetryStepContext,
-} from "~/lib/engine/execute-step";
+import { executeEmailStep, type EmailStepContext } from "~/lib/engine/execute-step";
+import { buildRetryAttemptPatch, executeRetryStep, type RetryStepContext } from "~/lib/engine/retry-step";
 import { stepAction } from "~/lib/engine/step-runner";
 import { afterTransientFailureWith } from "~/lib/recovery/step-state";
 import { sendSequenceCompleteNotification } from "~/lib/recovery/sequence-complete-notification.server";

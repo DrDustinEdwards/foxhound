@@ -46,7 +46,7 @@ describe("281c: claims the evidence REFUTED are gone, and stay gone", () => {
   });
 
   it("the FACT that refuted it still holds: no intelligence SCORING in the recovery path", () => {
-    for (const f of ["app/lib/recovery/schedule.ts", "app/lib/engine/execute-step.ts"]) {
+    for (const f of ["app/lib/recovery/schedule.ts", "app/lib/engine/execute-step.ts", "app/lib/engine/retry-step.ts"]) {
       expect(readFileSync(f, "utf8")).not.toContain("lib/intelligence");
     }
     // process.ts is ADJUDICATED here, not exempted (292). It gained exactly one

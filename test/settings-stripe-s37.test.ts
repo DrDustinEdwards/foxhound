@@ -279,7 +279,7 @@ describe("PLANT 3: disconnect stamps the timestamp, leaves is_primary, and the r
 
   it("READER 2, the recovery connection query, already filtered and still does", async () => {
     const source = readFileSync(
-      fileURLToPath(new URL("../app/lib/recovery/queries.server.ts", import.meta.url)),
+      fileURLToPath(new URL("../app/lib/recovery/dashboard-queries.server.ts", import.meta.url)),
       "utf8",
     );
     // Measured: this reader ALREADY carried the filter before 333, so it is the

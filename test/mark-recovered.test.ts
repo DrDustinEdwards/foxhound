@@ -10,7 +10,7 @@ import { billableRecoveryRowConditions } from "~/db/billable";
 import { accounts, failedPayments, recoveredPayments, recoverySteps } from "~/db/schema";
 import { MANUAL_ATTRIBUTION_KIND, RECOVERY_MATURITY_MS } from "~/lib/constants";
 import { SerialMoneyCommitter } from "~/lib/money/serializer";
-import { buildMarkRecoveredBatch } from "~/lib/recovery/manual-actions.server";
+import { buildMarkRecoveredBatch } from "~/lib/recovery/manual-action-batches.server";
 import { buildRecoveryBatch } from "~/lib/recovery/record-recovery";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";

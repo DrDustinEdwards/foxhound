@@ -34,13 +34,8 @@ import {
 } from "~/lib/intelligence/dashboard-charts";
 import { healthScoreMeterTone } from "~/lib/intelligence/health-band";
 import { generateMonthlyReport } from "~/lib/intelligence/report-generate.server";
-import {
-  getHealthDistribution,
-  getIntelligenceOverview,
-  getMrrSnapshotSeries,
-  getReportsArchive,
-  isIntelligenceEntitled,
-} from "~/lib/intelligence/views.server";
+import { getIntelligenceOverview, getReportsArchive, isIntelligenceEntitled } from "~/lib/intelligence/views.server";
+import { getHealthDistribution, getMrrSnapshotSeries } from "~/lib/intelligence/trends.server";
 import { formatMoney, formatMoneyShort } from "~/lib/money-format";
 
 import type { Route } from "./+types/index";

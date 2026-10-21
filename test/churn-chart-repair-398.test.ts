@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import IntelligenceChurn from "~/routes/app/intelligence/churn";
 
-import type { ChurnView } from "~/lib/intelligence/views.server";
+import type { ChurnView } from "~/lib/intelligence/trends.server";
 
 // Ruling 398, session 89b job 1. The 2026-08-28 walk called this chart a
 // Foxhound ADDITION under corollary 112 and 396 ordered it out of the page. Both

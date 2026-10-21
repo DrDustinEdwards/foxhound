@@ -28,7 +28,8 @@ import {
   formatChurnPct,
   type ChurnRatePointLike,
 } from "~/lib/intelligence/churn";
-import { getChurnView, isIntelligenceEntitled } from "~/lib/intelligence/views.server";
+import { isIntelligenceEntitled } from "~/lib/intelligence/views.server";
+import { getChurnView } from "~/lib/intelligence/trends.server";
 import { formatMoney } from "~/lib/money-format";
 
 import type { Route } from "./+types/churn";

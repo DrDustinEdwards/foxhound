@@ -30,12 +30,8 @@ import {
   planTierPill,
 } from "~/lib/intelligence/customer-directory";
 import { healthScoreClassName } from "~/lib/intelligence/health-band";
-import {
-  isIntelligenceEntitled,
-  listCustomerDirectory,
-  listCustomerTiers,
-  type CustomerDirectorySort,
-} from "~/lib/intelligence/views.server";
+import { isIntelligenceEntitled } from "~/lib/intelligence/views.server";
+import { listCustomerDirectory, listCustomerTiers, type CustomerDirectorySort } from "~/lib/intelligence/directory.server";
 import type { HealthScoreBand } from "~/lib/intelligence/health-band";
 import { formatMoney } from "~/lib/money-format";
 

@@ -14,11 +14,8 @@ import {
   planBreakdownRows,
   shiftMonth,
 } from "~/lib/intelligence/dashboard";
-import type {
-  HealthDistributionDay,
-  IntelligenceOverview,
-  MrrSnapshotPoint,
-} from "~/lib/intelligence/views.server";
+import type { IntelligenceOverview } from "~/lib/intelligence/views.server";
+import type { HealthDistributionDay, MrrSnapshotPoint } from "~/lib/intelligence/trends.server";
 
 // J67, row S16: the Intelligence dashboard toward Recova's real page,
 // app/(app)/intelligence/dashboard/page.tsx at blob cbe7e8fe, and its seven
