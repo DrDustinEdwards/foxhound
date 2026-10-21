@@ -34,7 +34,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // in production D1 (3ad240ed) this session, alongside 8 dispute rows with 8
 // distinct stripe_dispute_id values. The backstop 400 ruled for was already in
 // place; what was missing was the import path that relies on it. The index is
-// asserted here against the MIGRATION rather than against app/db/schema.ts,
+// asserted here against the MIGRATION rather than against app/db/schema/,
 // because 386's rule is that the fixture builds from migrations and a schema.ts
 // assertion proves nothing about what actually runs.
 //

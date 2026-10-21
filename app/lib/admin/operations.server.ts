@@ -42,7 +42,7 @@ import {
  *  Drizzle's d1 driver does not surface `.meta` on query results, and this is
  *  infrastructure telemetry, not a business-logic query (ARCHITECTURE.md's
  *  "Drizzle only" rule governs business logic; the schema comment in
- *  app/db/schema.ts scopes the raw-SQL ban the same way). */
+ *  app/db/schema/ scopes the raw-SQL ban the same way). */
 export async function getD1SizeBytes(env: Env): Promise<number> {
   const result = await env.DB.prepare("SELECT 1").run();
   return result.meta.size_after;

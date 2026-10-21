@@ -209,7 +209,7 @@ describe("the review's other fixes", () => {
   });
 
   it("indexes mcp_calls by time and outcome, with its migration", () => {
-    expect(readFileSync("app/db/schema.ts", "utf8")).toMatch(/index\("mcp_calls_created_idx"\)\.on\(t\.createdAt, t\.outcome\)/);
+    expect(readFileSync("app/db/schema/platform.ts", "utf8")).toMatch(/index\("mcp_calls_created_idx"\)\.on\(t\.createdAt, t\.outcome\)/);
     const journal = JSON.parse(readFileSync("drizzle/migrations/meta/_journal.json", "utf8")) as { entries: Array<{ tag: string }> };
     const tag = journal.entries.find((e) => e.tag.startsWith("0030_"))?.tag;
     expect(tag).toBe("0030_mcp_calls_created_index");
