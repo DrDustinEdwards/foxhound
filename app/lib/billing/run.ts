@@ -20,6 +20,7 @@ import {
   buildInvoiceStripeRefUpdate,
   chargeableLines,
   disputeFeeItemIdempotencyKey,
+  lineItemIdempotencyKey,
   recoveryFeeItemIdempotencyKey,
   type PlatformInvoiceLineInput,
 } from "./stripe-invoice";
@@ -114,6 +115,7 @@ async function readCommittedInvoice(
 ): Promise<{ totalCents: number; lineItemCount: number; lines: PlatformInvoiceLineInput[] }> {
   const rows = await db
     .select({
+      id: billingLineItems.id,
       type: billingLineItems.type,
       amountCents: billingLineItems.amountCents,
       description: billingLineItems.description,
@@ -127,14 +129,7 @@ async function readCommittedInvoice(
     type: row.type,
     amountCents: row.amountCents,
     description: row.description ?? "",
-    idempotencyKey: row.recoveredPaymentId
-      ? recoveryFeeItemIdempotencyKey(
-          opts.accountId,
-          opts.periodKey,
-          opts.currency,
-          row.recoveredPaymentId,
-        )
-      : disputeFeeItemIdempotencyKey(row.disputeId ?? ""),
+    idempotencyKey: lineItemIdempotencyKey(row, opts),
   }));
 
   return {

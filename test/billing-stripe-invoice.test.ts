@@ -50,6 +50,7 @@ const {
   platformInvoiceFinalizeIdempotencyKey,
   recoveryFeeItemIdempotencyKey,
   disputeFeeItemIdempotencyKey,
+  lineItemIdempotencyKey,
 } = await import("~/lib/billing/stripe-invoice");
 
 beforeEach(() => {
@@ -175,6 +176,17 @@ describe("createPlatformInvoice call shape (Phase 5 review HIGH fix)", () => {
     expect(platformInvoiceIdempotencyKey("inv_1")).toBe(platformInvoiceIdempotencyKey("inv_1"));
     expect(platformInvoiceIdempotencyKey("inv_1")).not.toBe(platformInvoiceIdempotencyKey("inv_2"));
     expect(platformInvoiceIdempotencyKey("inv_1")).not.toBe(platformInvoiceFinalizeIdempotencyKey("inv_1"));
+  });
+
+  it("gives every committed line its own key, so no line can replay another's item", () => {
+    const ctx = { accountId: "acc_1", periodKey: "2026-06", currency: "usd" };
+    const line = (id: string, type: string, recoveredPaymentId: string | null, disputeId: string | null) =>
+      lineItemIdempotencyKey({ id, type, recoveredPaymentId, disputeId }, ctx);
+    // Fee lines keep the keys the first charge already sent Stripe.
+    expect(line("li_1", "recovery_fee", "rec_1", null)).toBe(RECOVERY_KEY);
+    expect(line("li_2", "dispute_fee", null, "dsp_1")).toBe(DISPUTE_KEY);
+    // Two lines with no evidence FK used to share one fallback key.
+    expect(line("li_3", "subscription", null, null)).not.toBe(line("li_4", "subscription", null, null));
   });
 
   it("still drops adjustment lines and zero amounts before ever calling Stripe (chargeableLines unchanged)", async () => {
