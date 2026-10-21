@@ -9,8 +9,12 @@
 // in a route loader). Every builder below takes the resolved `url: string`
 // so page components never need to thread Env through JSX.
 
+/** The production origin, for code that has no Env to ask (and siteUrl's
+ *  fallback). Anything that can read Env uses siteUrl(env). */
+export const SITE_ORIGIN = "https://foxhoundapp.com";
+
 export function siteUrl(env: Env): string {
-  return env.BETTER_AUTH_URL || "https://foxhoundapp.com";
+  return env.BETTER_AUTH_URL || SITE_ORIGIN;
 }
 
 // Single source of truth for the support contact address, used in JSON-LD

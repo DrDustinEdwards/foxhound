@@ -20,12 +20,10 @@ import {
 import { auditTarget, describeAuditAction, type AuditTarget } from "~/lib/admin/audit-describe";
 import { listAuditLog, loadAuditLookups } from "~/lib/admin/audit-log.server";
 import { groupSumByCurrency, startOfUtcMonthMs, type CurrencyAmount } from "~/lib/billing/preview.server";
-import { BILLABLE_ATTRIBUTION_KINDS, DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
+import { BILLABLE_ATTRIBUTION_KINDS, DAY_MS, DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
 import { RESOLVED_DISPUTE_STATES } from "~/lib/disputes/labels";
 
 const NOT_DEMO = notLike(accounts.id, `${DEMO_ACCOUNT_ID_PREFIX}%`);
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** How old an open dispute with no response is before it needs attention, and
  *  how far back a connection counts as new: Recova's overview (app/admin/page.tsx)

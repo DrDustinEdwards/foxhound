@@ -1,4 +1,5 @@
 import type { DeclineCategory } from "~/lib/constants";
+import { DAY_MS, HOUR_MS } from "~/lib/constants";
 
 // Pure aggregation math for the Recovery dashboard's windowed read model
 // (TASK-foxhound-recovery-surface-parity.md Phase 1, legacy's
@@ -8,8 +9,6 @@ import type { DeclineCategory } from "~/lib/constants";
 
 export const RECOVERY_RANGES = ["7d", "30d", "90d", "all"] as const;
 export type RecoveryRange = (typeof RECOVERY_RANGES)[number];
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** The per-category sparkline is ALWAYS a trailing 30 days, independent of
  *  whatever range the rest of a call is scoped to (see resolveRangeCutoff).
@@ -219,8 +218,8 @@ export interface WebhookHealth {
   label: string;
 }
 
-const WEBHOOK_HEALTHY_WITHIN_MS = 24 * 60 * 60 * 1000;
-const WEBHOOK_QUIET_WITHIN_MS = 72 * 60 * 60 * 1000;
+const WEBHOOK_HEALTHY_WITHIN_MS = DAY_MS;
+const WEBHOOK_QUIET_WITHIN_MS = 72 * HOUR_MS;
 
 /** Classify Stripe webhook freshness into a Badge-compatible tone. A webhook
  *  received within 24h reads healthy; within 72h reads as a quiet-but-not-

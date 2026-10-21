@@ -30,7 +30,7 @@ import {
 import { grantIntelligence } from "~/lib/admin/merchants.server";
 import { isBillableDisputeRow, isBillableRecoveryRow } from "~/lib/billing/billable-predicates";
 import { disputeFeeCents, recoveryFeeCents } from "~/lib/billing/fees";
-import { CRON_LOCK_LEASE_MS, DISPUTE_FEE_CAP_CENTS} from "~/lib/constants";
+import { CRON_LOCK_LEASE_MS, DAY_MS, DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
 
 import {
   DEMO_ACCOUNT_ID,
@@ -67,8 +67,6 @@ import { buildRecoverySeed } from "./recovery-seed";
 //
 // Money is integer cents. Timestamps are relative to the passed-in `now`, so the
 // data always looks recent no matter when the reset cron last ran.
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Split an array into fixed-size chunks (keeps D1 statement/param counts bounded). */
 function chunk<T>(xs: T[], size: number): T[][] {

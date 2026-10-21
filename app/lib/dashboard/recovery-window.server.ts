@@ -1,5 +1,5 @@
 import type { Db } from "~/db";
-import { DECLINE_CATEGORIES, type DeclineCategory } from "~/lib/constants";
+import { DAY_MS, DECLINE_CATEGORIES, type DeclineCategory, HOUR_MS } from "~/lib/constants";
 import { isCardExpiringSoon } from "~/lib/recovery/expiring-card";
 import {
   countActiveWinbacks,
@@ -52,8 +52,7 @@ import {
 // categorySparkline), and that falls out of what each field actually means,
 // not a branch on which call this is.
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-export const UPCOMING_STEPS_WINDOW_MS = 48 * 60 * 60 * 1000;
+export const UPCOMING_STEPS_WINDOW_MS = 48 * HOUR_MS;
 
 export interface RecoveryDashboardWindow {
   rangeLabel: string;

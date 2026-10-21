@@ -30,6 +30,7 @@ import { BRAKE_CONFIRM_PHRASES, cronEnableConfirmPhrase } from "./brake";
 import { releaseBrake } from "./brake.server";
 import { isKnownCronName, setCronEnabled } from "./crons.server";
 import { grantIntelligence, setBillingExempt, setProcessingPaused } from "./merchants.server";
+import { DAY_MS } from "~/lib/constants";
 
 const STAGED_KINDS = [
   "resume_account",
@@ -41,7 +42,7 @@ const STAGED_KINDS = [
 export type StagedKind = (typeof STAGED_KINDS)[number];
 
 /** A pending change older than this can no longer be confirmed. */
-const STAGED_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const STAGED_TTL_MS = 7 * DAY_MS;
 
 export type StagedRow = typeof stagedChanges.$inferSelect;
 

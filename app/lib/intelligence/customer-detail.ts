@@ -5,6 +5,7 @@ import { DISPUTE_STATE_LABELS } from "~/lib/disputes/labels";
 import { formatAmounts } from "~/lib/money-format";
 
 import { healthScoreBand, type HealthScoreBand } from "./health-band";
+import { DAY_MS } from "~/lib/constants";
 
 // The Intelligence customer detail page's words and figures (row S18, job
 // J68), kept out of the route so they are testable without a render tree and
@@ -12,7 +13,7 @@ import { healthScoreBand, type HealthScoreBand } from "./health-band";
 // spec: app/(app)/intelligence/customers/[id]/page.tsx at blob 8d31766d and
 // components/intelligence/HealthSparkline.tsx at blob f4a163f5.
 
-const MONTH_MS = 30 * 86_400_000;
+const MONTH_MS = 30 * DAY_MS;
 
 /** Recova's tenureFromSince (page.tsx:20-30) word for word: "unknown",
  *  "< 1 month", "1 month", "N months", "N year(s)", "Ny Mmo". Takes nowMs so

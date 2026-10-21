@@ -2,8 +2,9 @@ import type Stripe from "stripe";
 
 import {
   CAU_EVENT_RETENTION_DAYS,
-  MIN_EXPIRED_DECLINES_FOR_CAU_ADVISORY,
+  DAY_MS,
   type DeclineCategory,
+  MIN_EXPIRED_DECLINES_FOR_CAU_ADVISORY,
 } from "~/lib/constants";
 import { classifyDecline } from "~/lib/recovery/decline";
 
@@ -380,9 +381,9 @@ export interface RunAuditInput {
 export function runAudit(input: RunAuditInput): AuditResult {
   const { stripeAccountId, lookbackDays, ranAt, reads } = input;
   const nowMs = ranAt.getTime();
-  const lookbackStartSeconds = Math.floor((nowMs - lookbackDays * 86_400_000) / 1000);
+  const lookbackStartSeconds = Math.floor((nowMs - lookbackDays * DAY_MS) / 1000);
   const cauWindowDays = Math.min(lookbackDays, CAU_EVENT_RETENTION_DAYS);
-  const cauWindowStartSeconds = Math.floor((nowMs - cauWindowDays * 86_400_000) / 1000);
+  const cauWindowStartSeconds = Math.floor((nowMs - cauWindowDays * DAY_MS) / 1000);
 
   const failed = resolveFailedInvoices(reads, nowMs);
 

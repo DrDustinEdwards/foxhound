@@ -4,10 +4,10 @@
 // DATE_RANGES set, and is a single-sided detected-after cutoff, not a
 // dual-range window.
 
+import { DAY_MS } from "~/lib/constants";
+
 const PAYMENT_TIME_RANGES = ["all", "today", "7d", "30d", "90d"] as const;
 export type PaymentTimeRange = (typeof PAYMENT_TIME_RANGES)[number];
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Resolve a time-range selector into a detected_at >= cutoff, or null for
  *  "all" (no cutoff). "today" is the start of the current UTC day. */

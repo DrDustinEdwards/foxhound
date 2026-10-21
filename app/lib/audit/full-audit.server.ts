@@ -2,7 +2,12 @@ import { getConnectedStripe } from "~/lib/stripe/client";
 import { byAccountActive } from "~/db/scope";
 import type { Db } from "~/db";
 import { recoveredPayments } from "~/db";
-import { AUDIT_LOOKBACK_DAYS, AUDIT_MAX_INVOICES_SCANNED, BILLABLE_ATTRIBUTION_KINDS } from "~/lib/constants";
+import {
+  AUDIT_LOOKBACK_DAYS,
+  AUDIT_MAX_INVOICES_SCANNED,
+  BILLABLE_ATTRIBUTION_KINDS,
+  DAY_MS,
+} from "~/lib/constants";
 
 // Data/query layer for the authenticated "full audit" (ROUTES.md: "/audit,
 // no-auth estimator (Turnstile) -> Stripe connect -> full audit report", one
@@ -79,7 +84,7 @@ export async function computeStripeInvoiceLiftBands(
   lookbackDays: number = AUDIT_LOOKBACK_DAYS,
 ): Promise<StripeInvoiceLiftBands[]> {
   const stripe = getConnectedStripe(accessToken);
-  const sinceUnixSeconds = Math.floor((nowMs - lookbackDays * 24 * 60 * 60 * 1000) / 1000);
+  const sinceUnixSeconds = Math.floor((nowMs - lookbackDays * DAY_MS) / 1000);
 
   const byCurrency = new Map<string, StripeInvoiceLiftBands>();
   function bucket(currency: string): StripeInvoiceLiftBands {

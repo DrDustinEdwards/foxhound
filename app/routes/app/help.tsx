@@ -15,6 +15,7 @@ import "~/site-header.css";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { formatTimeAgo } from "~/lib/date-format";
+import { SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 import {
   getVisibleCronStatus,
   type CronDisplayStatus,
@@ -267,7 +268,7 @@ export default function Help({ loaderData }: Route.ComponentProps) {
       <section>
         <h2 className={SECTION_LABEL}>Contact</h2>
         <Panel
-          title={<a href="mailto:support@foxhoundapp.com">support@foxhoundapp.com</a>}
+          title={<a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>}
           level={3}
         >
           Email for billing questions, account issues, or anything not covered in the guides.

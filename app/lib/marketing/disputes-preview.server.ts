@@ -15,6 +15,7 @@ import { computeDisputeStats, winRateCard, type MoneyPart } from "~/lib/disputes
 import { formatAmounts, formatMoney } from "~/lib/money-format";
 
 import type { DisputesPreview, PreviewDisputeRow } from "./disputes-preview";
+import { HOUR_MS } from "~/lib/constants";
 
 // The data behind the /product/disputes previews (J57): the demo account's
 // seed, never a merchant's rows. Recova draws these from a hand-written
@@ -38,7 +39,6 @@ import type { DisputesPreview, PreviewDisputeRow } from "./disputes-preview";
 // Strings are formatted here, on the server, so the page renders the same
 // text on the server and in the browser.
 
-const HOUR_MS = 60 * 60 * 1000;
 /** Recova's dispute table preview lists six disputes. */
 const PREVIEW_TABLE_ROWS = 6;
 

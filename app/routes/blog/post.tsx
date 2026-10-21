@@ -23,6 +23,7 @@ import {
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/post";
+import { DAY_MS } from "~/lib/constants";
 
 // Ported from legacy app/(marketing)/blog/[slug]/{page,PostDetailBody}.tsx
 // (Phase 6 Pass 2). Structure kept: cover image, tag chips, byline row,
@@ -125,7 +126,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
     post.showUpdatedAt &&
     post.publishedAt &&
     post.updatedAt &&
-    post.updatedAt.getTime() - post.publishedAt.getTime() > 24 * 60 * 60 * 1000;
+    post.updatedAt.getTime() - post.publishedAt.getTime() > DAY_MS;
   const showPublished = post.showPublishedAt && post.publishedAt;
 
   return (

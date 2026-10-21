@@ -1,4 +1,5 @@
 import type { DeclineCategory } from "~/lib/constants";
+import { DAY_MS } from "~/lib/constants";
 
 // Shared demo customer base: a pure, deterministic 200-customer Teamflow roster
 // (+ a 200-customer Bolt roster, built but not seeded yet: the demo seeds ONE
@@ -298,9 +299,8 @@ function emailFromName(name: string, customerId: string): string {
 // Anonymous-customer attribute samplers
 // ============================================================================
 
-const MS_PER_DAY = 86_400_000;
 function daysAgo(now: Date, n: number): Date {
-  return new Date(now.getTime() - n * MS_PER_DAY);
+  return new Date(now.getTime() - n * DAY_MS);
 }
 
 /** Customer signup date with growth-curve weighting: 40% in last 6 months,

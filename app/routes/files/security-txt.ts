@@ -2,6 +2,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import { SUPPORT_EMAIL, siteUrl } from "~/lib/seo/jsonld";
 
 import type { Route } from "./+types/security-txt";
+import { DAY_MS } from "~/lib/constants";
 
 // /.well-known/security.txt, RFC 9116 (377 item 11).
 //
@@ -44,7 +45,7 @@ export const SECURITY_TXT_MAX_EXPIRES_DAYS = 366;
  * recognised as a copy rather than a second, possibly forged, contact route.
  */
 export function buildSecurityTxt(url: string, now: Date): string {
-  const expires = new Date(now.getTime() + SECURITY_TXT_EXPIRES_DAYS * 24 * 60 * 60 * 1000);
+  const expires = new Date(now.getTime() + SECURITY_TXT_EXPIRES_DAYS * DAY_MS);
   return [
     `Contact: mailto:${SUPPORT_EMAIL}`,
     `Expires: ${expires.toISOString().replace(/\.\d{3}Z$/, "Z")}`,

@@ -8,6 +8,7 @@ import {
   CRON_SCHEDULE_MONTHLY_AUDIT,
   CRON_SCHEDULE_RECOVERY_TICK,
   CRON_SCHEDULE_WEEKLY,
+  DAY_MS,
 } from "~/lib/constants";
 import { sendRenderedTransactionalEmail, sendTransactionalEmail } from "~/lib/email/send";
 import {
@@ -76,14 +77,14 @@ export const SCHEDULE_PERIOD_MS: Record<string, number> = {
   // The comment three lines below predicted exactly this and did not prevent it,
   // which is why the parity plant now derives the schedule set from the registry
   // rather than trusting a warning to be read.
-  [CRON_SCHEDULE_WEEKLY]: 7 * 24 * 60 * 60 * 1000,
-  [CRON_SCHEDULE_DAILY]: 24 * 60 * 60 * 1000,
-  [CRON_SCHEDULE_MONTHLY]: 31 * 24 * 60 * 60 * 1000,
+  [CRON_SCHEDULE_WEEKLY]: 7 * DAY_MS,
+  [CRON_SCHEDULE_DAILY]: DAY_MS,
+  [CRON_SCHEDULE_MONTHLY]: 31 * DAY_MS,
   // The merged monthly audit's own hour (362 ruling 3). Mapped at the same
   // period as the other monthly jobs: a schedule missing from this map is
   // reported as `unknown_schedule`, which is a blind spot rather than an alert,
   // so a new expression that skips this line silently stops being watched.
-  [CRON_SCHEDULE_MONTHLY_AUDIT]: 31 * 24 * 60 * 60 * 1000,
+  [CRON_SCHEDULE_MONTHLY_AUDIT]: 31 * DAY_MS,
 };
 
 /** A job may miss this many periods before it is called stale. Two rather than

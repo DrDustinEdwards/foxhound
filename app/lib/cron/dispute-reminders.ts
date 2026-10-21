@@ -6,6 +6,7 @@ import { REMINDER_BANDS, reminderKey, type ReminderBucket } from "~/lib/disputes
 import { sendDisputeReminderNotice } from "~/lib/disputes/notices.server";
 import { recordOutcome } from "~/lib/engine/outcomes";
 import { accountProcessingEligibleCondition } from "~/lib/cron/recovery-tick";
+import { HOUR_MS } from "~/lib/constants";
 
 // THE DISPUTE DEADLINE REMINDER (J06, job_4f4c9c2f5383). Recova's spec is
 // app/api/cron/process-disputes/route.ts (blob 1cbd5bd0, 21,298 bytes), "Thing
@@ -69,8 +70,6 @@ export const DISPUTE_REMINDERS_CRON_NAME = "dispute-reminders";
 
 /** Recova's CRON_BATCH_LIMIT for this query. */
 const DISPUTE_REMINDER_BATCH_LIMIT = 100;
-
-const HOUR_MS = 60 * 60 * 1000;
 
 /** How long a refused reminder send waits before it is tried again. */
 export const REFUSED_REMINDER_BACKOFF_MS = HOUR_MS;

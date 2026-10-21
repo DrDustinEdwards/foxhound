@@ -2,7 +2,7 @@ import { and, eq, isNotNull } from "drizzle-orm";
 
 import { accounts, customerContext, type Db } from "~/db";
 import { getMrrAnalytics } from "~/lib/dashboard/stats.server";
-import { INTELLIGENCE_REPORT_HOURLY_LIMIT } from "~/lib/constants";
+import { HOUR_MS, INTELLIGENCE_REPORT_HOURLY_LIMIT } from "~/lib/constants";
 import { isWithinRateLimit, RateLimiterUnavailableError } from "~/lib/http/rate-limit";
 
 import {
@@ -42,7 +42,6 @@ import type { HealthFactor } from "./risk";
 //     2), so the page says why nothing was written instead of failing quietly.
 
 const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
-const HOUR_MS = 60 * 60 * 1000;
 const RATE_LIMIT_BUCKET = "intelligence-report";
 
 export type GenerateReportResult =

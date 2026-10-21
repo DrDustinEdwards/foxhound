@@ -1,4 +1,5 @@
 import { WIN_BACK_SCHEDULE } from "./schedule";
+import { HOUR_MS } from "~/lib/constants";
 
 // Win-back sequence state machine. The legacy bug was sequences stuck in
 // 'active' forever; the rebuild fix is an explicit terminal-state machine: a
@@ -45,8 +46,6 @@ export function nextWinbackStatus(input: WinbackTransitionInput): WinbackStatus 
   if (input.isLastStep) return WINBACK_STATUS.EXHAUSTED;
   return WINBACK_STATUS.ACTIVE;
 }
-
-const HOUR_MS = 60 * 60 * 1000;
 
 export interface PlannedWinbackStep {
   winBackSequenceId: string;
