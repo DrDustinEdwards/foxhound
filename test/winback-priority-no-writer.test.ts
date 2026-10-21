@@ -29,11 +29,11 @@ const EXPECTED_VALUE: Record<string, number> = {
   // `export const WINBACK_PRIORITY_ACTION = "winback_priority";`
   "app/lib/constants.ts": 2,
   // the import, and `recommendation === WINBACK_PRIORITY_ACTION`
-  "app/lib/webhooks/process.ts": 2,
+  "app/lib/webhooks/lookups.ts": 2,
 };
 const EXPECTED_KEY: Record<string, number> = {
   // the read: `{ recommended_action?: string }` and `?.recommended_action`
-  "app/lib/webhooks/process.ts": 2,
+  "app/lib/webhooks/lookups.ts": 2,
 };
 
 const MESSAGE =
@@ -77,7 +77,7 @@ const readReal = (f: string) => readFileSync(f, "utf8");
 describe("nothing writes winback_priority, so the copy's \"nothing flags a customer\" stays true", () => {
   it("scans a real file set", () => {
     expect(FILES.length).toBeGreaterThan(100);
-    expect(FILES).toContain("app/lib/webhooks/process.ts");
+    expect(FILES).toContain("app/lib/webhooks/lookups.ts");
   });
 
   it("the value is named in code exactly where it is defined and read, and nowhere else", () => {
@@ -86,7 +86,7 @@ describe("nothing writes winback_priority, so the copy's \"nothing flags a custo
     );
   });
 
-  it("the recommended_action key is named in code only by process.ts's read", () => {
+  it("the recommended_action key is named in code only by lookups.ts's read", () => {
     expect(counts(FILES, readReal, KEY), `recommended_action is named in code somewhere new. ${MESSAGE}`).toEqual(
       EXPECTED_KEY,
     );

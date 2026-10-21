@@ -8,7 +8,7 @@ import { executeMoneyWrite } from "~/lib/money/execute";
 import { getConnectedStripe } from "~/lib/stripe/client";
 import { decryptToken } from "~/lib/stripe/encryption";
 import { buildDisputeIntakeBatch } from "~/lib/webhooks/batches";
-import { resolveDisputedRecovery } from "~/lib/webhooks/process";
+import { resolveDisputedRecovery } from "~/lib/webhooks/lookups";
 
 // Manual dispute import: legacy's "Sync dispute from Stripe" control
 // (app/(app)/disputes/dashboard/SyncDisputeLink.tsx, backed by

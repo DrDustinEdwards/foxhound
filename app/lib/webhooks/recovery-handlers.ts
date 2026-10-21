@@ -1,0 +1,314 @@
+// Recovery-side intents of the connected-account webhook: intake, Stripe giving
+// up, recovery, expiring cards and refund stamping. Dispatched from process.ts.
+
+import { FAILED_PAYMENT_STATUS_STRIPE_RETRYING, type DeclineCategory } from "~/lib/constants";
+import { issueCreditNoteForEvidence, refundedRecoveryIdsFor } from "~/lib/billing/credit-note";
+import { executeMoneyWrite } from "~/lib/money/execute";
+import { sendRecoveryNotification } from "~/lib/recovery/merchant-notification.server";
+import { buildCandidateUpsert, isInsideLeadWindow } from "~/lib/cron/expiring-cards";
+
+import {
+  buildClaimOnlyBatch,
+  buildIntakeBatch,
+  buildRecoverBatch,
+  buildRefundStampBatch,
+  buildSequenceStartBatch,
+} from "./batches";
+import type { IntentOf, WebhookContext, WebhookOutcome } from "./handler-context";
+import {
+  findActiveFailedPayment,
+  findRecoverableFailedPayment,
+  resolveExpiringCard,
+  resolveRecoveryAttribution,
+  resolveRefundedFailedPayment,
+  tryWinbackReactivationFromInvoice,
+} from "./lookups";
+
+export async function handleIntake(
+  ctx: WebhookContext,
+  intent: IntentOf<"intake">,
+): Promise<WebhookOutcome> {
+  const { env, event, receivedAt, accountId, connectionId, claim, idempotencyKey } = ctx;
+  // Per-invoice dedupe: Stripe emits one payment_failed per collection
+  // attempt. The FIRST creates the row; a later one either promotes it out
+  // of stripe_retrying or is a no-op claim (377(1)).
+  const existing = await findActiveFailedPayment(env, accountId, intent.invoiceId);
+  if (existing) {
+    if (
+      existing.status === FAILED_PAYMENT_STATUS_STRIPE_RETRYING &&
+      intent.stripeGaveUp
+    ) {
+      // Stripe has stopped retrying. The sequence starts NOW, anchored on
+      // this moment rather than on the original failure, which is what
+      // makes "Foxhound starts when Stripe stops" true.
+      const { applied } = await executeMoneyWrite(env, {
+        accountId,
+        // KEYED ON THE PAYMENT, NOT THE EVENT. Two different give-up events
+        // for one invoice (a final payment_failed and a marked_uncollectible)
+        // can both pass the status read above, because that read happens
+        // outside the Durable Object. Keyed on the event they would both
+        // commit and the payment would get two cadences; keyed on the
+        // payment the DO's seen-set makes the second a no-op.
+        idempotencyKey: `sequence-start:${existing.id}`,
+        build: (db) =>
+          buildSequenceStartBatch(db, {
+            claim,
+            failedPaymentId: existing.id,
+            accountId,
+            declineCategory: intent.declineCategory,
+            startedAt: receivedAt,
+          }),
+      });
+      return applied ? { status: "applied" } : { status: "duplicate" };
+    }
+    const { applied } = await executeMoneyWrite(env, {
+      accountId,
+      idempotencyKey,
+      build: (db) => buildClaimOnlyBatch(db, claim),
+    });
+    return applied
+      ? {
+          status: "ignored",
+          reason: existing.status === FAILED_PAYMENT_STATUS_STRIPE_RETRYING
+            ? "stripe_still_retrying"
+            : "duplicate_attempt",
+        }
+      : { status: "duplicate" };
+  }
+  const failedPaymentId = crypto.randomUUID();
+  const { applied } = await executeMoneyWrite(env, {
+    accountId,
+    idempotencyKey,
+    build: (db) =>
+      buildIntakeBatch(db, {
+        claim,
+        failedPaymentId,
+        accountId,
+        stripeConnectionId: connectionId,
+        stripeEventId: event.id,
+        invoiceId: intent.invoiceId,
+        customerId: intent.customerId,
+        customerEmail: intent.customerEmail,
+        customerName: intent.customerName,
+        amountCents: intent.amountCents,
+        currency: intent.currency,
+        declineCode: intent.declineCode,
+        declineCategory: intent.declineCategory,
+        detectedAt: receivedAt,
+        stripeGaveUp: intent.stripeGaveUp,
+      }),
+  });
+  return applied ? { status: "applied" } : { status: "duplicate" };
+}
+
+// invoice.marked_uncollectible: Stripe has written the invoice off, which is
+// the other way it can be finished with a payment (377(1)). Same promotion,
+// same conditional flip, so an uncollectible arriving after a final
+// payment_failed plans no second sequence.
+export async function handleStripeGaveUp(
+  ctx: WebhookContext,
+  intent: IntentOf<"stripe_gave_up">,
+): Promise<WebhookOutcome> {
+  const { env, receivedAt, accountId, claim, idempotencyKey } = ctx;
+  const existing = await findActiveFailedPayment(env, accountId, intent.invoiceId);
+  if (!existing || existing.status !== FAILED_PAYMENT_STATUS_STRIPE_RETRYING) {
+    const { applied } = await executeMoneyWrite(env, {
+      accountId,
+      idempotencyKey,
+      build: (db) => buildClaimOnlyBatch(db, claim),
+    });
+    return applied
+      ? { status: "ignored", reason: existing ? "sequence_already_started" : "no_failed_payment" }
+      : { status: "duplicate" };
+  }
+  const { applied } = await executeMoneyWrite(env, {
+    accountId,
+    // Same payment-scoped key as the payment_failed promotion above, so the
+    // two events cannot each start a sequence for one invoice.
+    idempotencyKey: `sequence-start:${existing.id}`,
+    build: (db) =>
+      buildSequenceStartBatch(db, {
+        claim,
+        failedPaymentId: existing.id,
+        accountId,
+        declineCategory: existing.declineCategory as DeclineCategory,
+        startedAt: receivedAt,
+      }),
+  });
+  return applied ? { status: "applied" } : { status: "duplicate" };
+}
+
+export async function handleRecover(
+  ctx: WebhookContext,
+  intent: IntentOf<"recover">,
+): Promise<WebhookOutcome> {
+  const { env, receivedAt, accountId, connectionId, claim, idempotencyKey } = ctx;
+  // THE REACTIVATION, SECOND PATH, and legacy's own event. It runs BEFORE
+  // the recovery block for legacy's stated reason: that block returns early
+  // when it loses its transition claim, and the two are independent.
+  //
+  // THE PREFILTER IS A COST GUARD, NEVER THE MATCH. Reading the
+  // subscription's metadata costs a Stripe call, and the overwhelming
+  // majority of paid invoices are ordinary renewals, so the cheap DB
+  // question "does this customer have a live win-back at all" is asked
+  // first. The MATCH is still the metadata id and only the metadata id,
+  // which is exactly what stops legacy's defect: a customer with a live
+  // sequence who pays a DIFFERENT subscription passes the prefilter and
+  // then fails the match, as it should.
+  await tryWinbackReactivationFromInvoice(env, {
+    accountId,
+    connectionId,
+    customerId: intent.customerId,
+    subscriptionId: intent.subscriptionId,
+    now: receivedAt,
+  });
+
+  const failedPaymentId = await findRecoverableFailedPayment(env, accountId, intent.invoiceId);
+  if (!failedPaymentId) {
+    // A normal renewal payment (no active failure): nothing to recover, claim only.
+    const { applied } = await executeMoneyWrite(env, {
+      accountId,
+      idempotencyKey,
+      build: (db) => buildClaimOnlyBatch(db, claim),
+    });
+    return applied ? { status: "ignored", reason: "no_active_failure" } : { status: "duplicate" };
+  }
+  const { attribution, recoveredByStepId, recoveryMethod } =
+    await resolveRecoveryAttribution(env, failedPaymentId, receivedAt);
+  const { applied } = await executeMoneyWrite(env, {
+    accountId,
+    idempotencyKey,
+    build: (db) =>
+      buildRecoverBatch(db, {
+        claim,
+        accountId,
+        failedPaymentId,
+        amountPaidCents: intent.amountPaidCents,
+        currency: intent.currency,
+        recoveredAt: receivedAt,
+        attribution,
+        recoveredByStepId,
+        recoveryMethod,
+        idempotencyKey: failedPaymentId,
+      }),
+  });
+  // THE MERCHANT NOTIFICATION, after the money write has committed and
+  // changing nothing about it. `applied` is this delivery's transition
+  // claim: false on a replay, because the outcomes idempotency key collides
+  // and the whole batch rolls back, so a redelivered webhook sends no
+  // second email. Legacy gates the same notification on the same thing, its
+  // active-to-recovered update returning rows.
+  //
+  // It never throws (its own try/catch), for legacy's reason: the recovery
+  // and its fee are already recorded and a mail failure must not unwind
+  // them or fail the webhook.
+  if (applied) {
+    await sendRecoveryNotification(env, { accountId, failedPaymentId });
+  }
+  return applied ? { status: "applied" } : { status: "duplicate" };
+}
+
+export async function handleRecordExpiringCard(
+  ctx: WebhookContext,
+  intent: IntentOf<"record_expiring_card">,
+): Promise<WebhookOutcome> {
+  const { env, receivedAt, accountId, connectionId, claim, idempotencyKey } = ctx;
+  // WRITER TWO (341 binding 4). It RECORDS and never sends: legacy's
+  // handleCustomerUpdated writes the candidate row and the nightly cron
+  // owns every send, so a card update cannot email a customer directly.
+  //
+  // The claim is the money write, as every branch here does; the candidate
+  // upsert rides the same batch so a replayed event cannot double-write.
+  const card = await resolveExpiringCard(env, connectionId, intent);
+  if (!card || !isInsideLeadWindow(card.expMonth, card.expYear, receivedAt)) {
+    const { applied } = await executeMoneyWrite(env, {
+      accountId,
+      idempotencyKey,
+      build: (db) => buildClaimOnlyBatch(db, claim),
+    });
+    return applied
+      ? { status: "ignored", reason: card ? "card_outside_lead_window" : "no_card" }
+      : { status: "duplicate" };
+  }
+
+  const { applied } = await executeMoneyWrite(env, {
+    accountId,
+    idempotencyKey,
+    build: (db) => [
+      ...buildClaimOnlyBatch(db, claim),
+      buildCandidateUpsert(
+        db,
+        {
+          accountId,
+          connectionId,
+          stripeCustomerId: intent.customerId,
+          customerEmail: intent.customerEmail,
+          customerName: intent.customerName,
+          cardBrand: card.brand,
+          cardLast4: card.last4,
+          expiresMonth: card.expMonth,
+          expiresYear: card.expYear,
+        },
+        receivedAt,
+      ),
+    ],
+  });
+  return applied ? { status: "applied" } : { status: "duplicate" };
+}
+
+export async function handleStampRefund(
+  ctx: WebhookContext,
+  intent: IntentOf<"stamp_refund">,
+): Promise<WebhookOutcome> {
+  const { env, receivedAt, accountId, connectionId, claim, idempotencyKey } = ctx;
+  // stamp_refund: ANY refund, full or partial, disqualifies the recovery from
+  // billing entirely (parity ruling 29). resolveRefundedFailedPayment THROWS
+  // on a transient failure instead of resolving to null, and that asymmetry is
+  // deliberate: claiming a refund we could not stamp is the one direction that
+  // overcharges a merchant, so an unresolvable refund leaves the event
+  // unclaimed and 500s for redelivery. A clean miss (a refund on a payment we
+  // never took in) is genuinely nothing to do, and claims.
+  const refundedFailedPaymentId = await resolveRefundedFailedPayment(
+    env,
+    accountId,
+    connectionId,
+    intent.paymentIntentId,
+  );
+  if (!refundedFailedPaymentId) {
+    const { applied } = await executeMoneyWrite(env, {
+      accountId,
+      idempotencyKey,
+      build: (db) => buildClaimOnlyBatch(db, claim),
+    });
+    return applied ? { status: "ignored", reason: "refund_not_ours" } : { status: "duplicate" };
+  }
+  const { applied } = await executeMoneyWrite(env, {
+    accountId,
+    idempotencyKey,
+    build: (db) =>
+      buildRefundStampBatch(db, {
+        claim,
+        failedPaymentId: refundedFailedPaymentId,
+        at: receivedAt,
+      }),
+  });
+
+  // THE CLAWBACK, AFTER THE STAMP COMMITS (ruling 377(5)). It depends on a
+  // Stripe call, so it cannot ride the batch above, and it must not be able
+  // to unwind it: the refund is a fact whether or not Stripe answers.
+  //
+  // Only on `applied`. A replayed refund event has already had its credit
+  // considered on the first delivery, and the fee line's own key would refuse
+  // a second note anyway; not re-entering keeps a redelivery storm from
+  // calling Stripe once per delivery.
+  if (applied) {
+    for (const recoveredPaymentId of await refundedRecoveryIdsFor(env, refundedFailedPaymentId)) {
+      await issueCreditNoteForEvidence(
+        env,
+        { recoveredPaymentId },
+        { now: receivedAt, description: "Refunded recovery: fee credited" },
+      );
+    }
+  }
+  return applied ? { status: "applied" } : { status: "duplicate" };
+}

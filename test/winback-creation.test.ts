@@ -200,7 +200,9 @@ describe("290: exactly-once on the SUBSCRIPTION, both sides", () => {
 });
 
 describe("290: the eligibility gates are wired, per condition", () => {
-  const PROCESS = readFileSync("app/lib/webhooks/process.ts", "utf8");
+  const PROCESS = ["process", "lookups", "recovery-handlers", "dispute-handlers", "winback-handlers"]
+    .map((f) => readFileSync(`app/lib/webhooks/${f}.ts`, "utf8"))
+    .join("\n");
 
   it("involuntary churn returns without a sequence", () => {
     // UPDATED 2026-08-14 under 291: the read was hasActiveFailedPayment, a
@@ -230,10 +232,8 @@ describe("290: the eligibility gates are wired, per condition", () => {
     // 4. The involuntary branch now commits buildInvoluntaryStopBatch instead,
     // which carries the claim itself, so the COUNT moved while the property did
     // not. Asserting the property directly rather than one builder's name.
-    const branch = PROCESS.slice(
-      PROCESS.indexOf('if (intent.kind === "winback_start")'),
-      PROCESS.indexOf("// stamp_refund:"),
-    );
+    // handleWinbackStart is the last function of the last file read.
+    const branch = PROCESS.slice(PROCESS.indexOf("function handleWinbackStart("));
     const claimOnly = branch.split("buildClaimOnlyBatch").length - 1;
     const involuntary = branch.split("buildInvoluntaryStopBatch").length - 1;
     expect(claimOnly).toBe(3);

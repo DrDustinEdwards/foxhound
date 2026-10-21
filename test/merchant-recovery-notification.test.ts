@@ -264,7 +264,7 @@ describe("PLANT 5: platform-to-merchant mail carries no unsubscribe", () => {
 
 describe("PLANT 6: the hook is gated on the money write applying", () => {
   const SOURCE = readFileSync(
-    fileURLToPath(new URL("../app/lib/webhooks/process.ts", import.meta.url)),
+    fileURLToPath(new URL("../app/lib/webhooks/recovery-handlers.ts", import.meta.url)),
     "utf8",
   );
   const code = SOURCE.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
@@ -273,11 +273,11 @@ describe("PLANT 6: the hook is gated on the money write applying", () => {
     // A replayed webhook rolls the batch back on the outcomes idempotency key,
     // so applied is false and no second email leaves. That is legacy's
     // transition claim in Foxhound's terms.
-    expect(code).toContain("if (applied) {\n        await sendRecoveryNotification(env, { accountId, failedPaymentId });");
+    expect(code).toContain("if (applied) {\n    await sendRecoveryNotification(env, { accountId, failedPaymentId });");
   });
 
   it("the hook is AFTER the money write, never inside its build", () => {
-    const recoverBlock = code.slice(code.indexOf('intent.kind === "recover"'), code.indexOf('intent.kind === "stamp_dispute"'));
+    const recoverBlock = code.slice(code.indexOf("function handleRecover("), code.indexOf("function handleRecordExpiringCard("));
     expect(recoverBlock.indexOf("buildRecoverBatch")).toBeLessThan(
       recoverBlock.indexOf("sendRecoveryNotification"),
     );
