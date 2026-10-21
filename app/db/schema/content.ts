@@ -126,7 +126,11 @@ export const socialLeads = sqliteTable(
     replyApprovedAt: ts("reply_approved_at"),
     keywordId: text("keyword_id").references(() => socialKeywords.id),
   },
-  (t) => [index("social_leads_keyword_idx").on(t.keywordId)],
+  (t) => [
+    index("social_leads_keyword_idx").on(t.keywordId),
+    // Retention sweep predicate (cron/retention.ts); without it every daily sweep reads the whole table.
+    index("social_leads_scout_run_idx").on(t.scoutRunAt),
+  ],
 );
 
 export const socialPosts = sqliteTable(

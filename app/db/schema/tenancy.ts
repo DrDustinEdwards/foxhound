@@ -106,6 +106,10 @@ export const accountMembers = sqliteTable(
   },
   (t) => [
     index("account_members_account_idx").on(t.accountId),
+    // Every signed-in request resolves its memberships by user. The partial
+    // unique index below cannot serve it: its status = 'active' filter does not
+    // match a bound parameter.
+    index("account_members_user_idx").on(t.userId),
     // A user joins a given account AT MOST ONCE, and may join MANY accounts.
     //
     // This replaces `account_members_one_active_per_user_uq`, which was the same
@@ -227,5 +231,9 @@ export const apiKeys = sqliteTable(
      *  refuses the key once it has passed. */
     expiresAt: ts("expires_at"),
   },
-  (t) => [index("api_keys_account_idx").on(t.accountId)],
+  (t) => [
+    index("api_keys_account_idx").on(t.accountId),
+    // Every bearer-token request looks its key up by hash (auth/mcp-tokens.ts).
+    index("api_keys_key_hash_idx").on(t.keyHash),
+  ],
 );

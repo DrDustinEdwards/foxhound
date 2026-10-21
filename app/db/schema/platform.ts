@@ -47,6 +47,8 @@ export const webhookEvents = sqliteTable(
   },
   (t) => [
     index("webhook_events_account_idx").on(t.accountId),
+    // Retention sweep predicate (cron/retention.ts); without it every daily sweep reads the whole table.
+    index("webhook_events_received_idx").on(t.receivedAt),
     uniqueIndex("webhook_events_stripe_event_uq").on(t.stripeEventId),
   ],
 );
@@ -74,6 +76,10 @@ export const cronRunHistory = sqliteTable(
   },
   (t) => [
     index("cron_run_history_cron_idx").on(t.cronName),
+    // Retention sweep predicate (cron/retention.ts); without it every daily sweep reads the whole table.
+    index("cron_run_history_created_idx").on(t.createdAt),
+    // The admin overview's "last cron finished" read (admin/overview.server.ts).
+    index("cron_run_history_finished_idx").on(t.finishedAt),
     // The admin Crons page (J72) reads each cron's newest run and newest
     // success (max finished_at grouped by cron and status, then those rows) and
     // the last day's failures. Without these it scans the whole history, which

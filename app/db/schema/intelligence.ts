@@ -66,6 +66,8 @@ export const healthScoreHistory = sqliteTable(
   (t) => [
     index("health_score_history_account_idx").on(t.accountId),
     index("health_score_history_customer_idx").on(t.customerContextId),
+    // Retention sweep predicate (cron/retention.ts); without it every daily sweep reads the whole table.
+    index("health_score_history_recorded_idx").on(t.recordedAt),
   ],
 );
 

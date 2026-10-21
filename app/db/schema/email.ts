@@ -52,6 +52,8 @@ export const emailSends = sqliteTable(
   },
   (t) => [
     index("email_sends_account_idx").on(t.accountId),
+    // Retention sweep predicate (cron/retention.ts); without it every daily sweep reads the whole table.
+    index("email_sends_created_idx").on(t.createdAt),
     uniqueIndex("email_sends_idempotency_uq")
       .on(t.idempotencyKey)
       .where(sql`${t.idempotencyKey} is not null`),
@@ -123,6 +125,8 @@ export const engagementEvents = sqliteTable(
   },
   (t) => [
     index("engagement_events_account_idx").on(t.accountId),
+    // Retention sweep predicate (cron/retention.ts); without it every daily sweep reads the whole table.
+    index("engagement_events_occurred_idx").on(t.occurredAt),
     uniqueIndex("engagement_events_idempotency_uq").on(t.idempotencyKey),
     check(
       "engagement_events_type_ck",
