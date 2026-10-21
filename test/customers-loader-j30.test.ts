@@ -24,6 +24,9 @@ const mocks = vi.hoisted(() => ({
 vi.mock("~/lib/intelligence/views.server", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/lib/intelligence/views.server")>()),
   isIntelligenceEntitled: mocks.isIntelligenceEntitled.mockImplementation(async () => true),
+}));
+vi.mock("~/lib/intelligence/directory.server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("~/lib/intelligence/directory.server")>()),
   listCustomerTiers: mocks.listCustomerTiers.mockImplementation(async () => ["growth"]),
   listCustomerDirectory: mocks.listCustomerDirectory.mockImplementation(async () => ({
     customers: [

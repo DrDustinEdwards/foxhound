@@ -4,7 +4,7 @@ import { accountSubscriptions, accounts, customerContext, mrrSnapshots } from "~
 import { HEALTH_SCORE_AT_RISK_THRESHOLD, INTELLIGENCE_PRODUCT, SUBSCRIPTION_STATUS_ACTIVE } from "~/lib/constants";
 import { WATCH_CEILING } from "~/lib/intelligence/health-band";
 import { churnBandSharePct } from "~/lib/intelligence/churn";
-import { getChurnView } from "~/lib/intelligence/views.server";
+import { getChurnView } from "~/lib/intelligence/trends.server";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 

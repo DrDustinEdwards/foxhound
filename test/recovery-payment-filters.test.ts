@@ -7,7 +7,7 @@ import {
   type PaymentFilterState,
 } from "~/lib/recovery/payment-filters";
 import { priorFailureCount } from "~/lib/recovery/prior-failures";
-import { listExecutedEmailSteps } from "~/lib/recovery/queries.server";
+import { listExecutedEmailSteps } from "~/lib/recovery/dashboard-queries.server";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 

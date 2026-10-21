@@ -23,7 +23,7 @@ import { buildRecoveryStepInserts } from "~/lib/engine/intake";
 import type { ResolvedAttribution } from "~/lib/recovery/attribution";
 import { buildRecoveryBatch } from "~/lib/recovery/record-recovery";
 import { planRecoverySteps } from "~/lib/recovery/schedule";
-import { buildStopRecoveryBatch } from "~/lib/recovery/manual-actions.server";
+import { buildStopRecoveryBatch } from "~/lib/recovery/manual-action-batches.server";
 import { planWinbackSteps, WINBACK_STATUS } from "~/lib/recovery/winback";
 
 // The atomic DO batches for connected-account webhook processing. Every webhook

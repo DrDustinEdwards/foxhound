@@ -5,12 +5,7 @@ import { emailSends, emailSuppressions, failedPayments, recoveredPayments } from
 import { getRecoveryDashboardWindow } from "~/lib/dashboard/recovery-window.server";
 import { DEMO_ACCOUNT_ID } from "~/lib/demo/constants";
 import { seedDemoAccount } from "~/lib/demo/seed";
-import {
-  getDeliverabilityCounts,
-  listAttributedRecoveredSince,
-  listBillableRecoveredForRoi,
-  listExecutedEmailSteps,
-} from "~/lib/recovery/queries.server";
+import { getDeliverabilityCounts, listAttributedRecoveredSince, listBillableRecoveredForRoi, listExecutedEmailSteps } from "~/lib/recovery/dashboard-queries.server";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 

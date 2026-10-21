@@ -35,15 +35,8 @@ import { formatTimeAgo } from "~/lib/date-format";
 import { formatLongDate, paymentStepSummary } from "~/lib/dashboard/recovery-dashboard";
 import { formatMoney } from "~/lib/money-format";
 import { FAILED_PAYMENT_STATUS_LABELS, failedPaymentStatusTone } from "~/lib/recovery/labels";
-import {
-  getAmountBounds,
-  getGlobalPaymentStatusCounts,
-  listFilteredFailedPayments,
-  listPaymentSummaryRows,
-  listStepsForFailedPayments,
-  countFailuresByCustomer,
-  tallyStatusCounts,
-} from "~/lib/recovery/queries.server";
+import { getAmountBounds, getGlobalPaymentStatusCounts, listFilteredFailedPayments, listPaymentSummaryRows, listStepsForFailedPayments, tallyStatusCounts } from "~/lib/recovery/queries.server";
+import { countFailuresByCustomer } from "~/lib/recovery/dashboard-queries.server";
 import type { AmountBounds, FailedPaymentPageSize, FailedPaymentSort } from "~/lib/recovery/queries.server";
 import { buildPaymentParams, withParams } from "~/lib/recovery/payment-filters";
 import {
@@ -79,11 +72,8 @@ import {
   type BulkActionIntent,
   type BulkFailureReason,
 } from "~/lib/recovery/bulk-results";
-import {
-  moneyWriteCommit,
-  resendDepsFor,
-  triggerDepsFor,
-} from "~/lib/recovery/manual-actions.server";
+import { moneyWriteCommit } from "~/lib/recovery/manual-actions.server";
+import { resendDepsFor, triggerDepsFor } from "~/lib/recovery/manual-action-deps.server";
 import {
   BULK_ACTION_CONFIRM_THRESHOLD,
   BULK_ACTION_MAX_PER_SUBMISSION,

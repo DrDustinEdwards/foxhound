@@ -7,12 +7,8 @@ import IntelligenceOverviewPage from "~/routes/app/intelligence/index";
 import { accounts, customerContext, healthScoreHistory } from "~/db";
 import { HEALTH_SCORE_AT_RISK_THRESHOLD } from "~/lib/constants";
 import { WATCH_CEILING } from "~/lib/intelligence/health-band";
-import {
-  getHealthDistribution,
-  type HealthDistributionDay,
-  type IntelligenceOverview,
-  type MrrSnapshotPoint,
-} from "~/lib/intelligence/views.server";
+import { type IntelligenceOverview } from "~/lib/intelligence/views.server";
+import { getHealthDistribution, type HealthDistributionDay, type MrrSnapshotPoint } from "~/lib/intelligence/trends.server";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 

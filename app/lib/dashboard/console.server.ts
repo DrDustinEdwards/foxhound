@@ -23,12 +23,8 @@ import {
   isCardInAttentionWindow,
   isSequenceExhausted,
 } from "./console";
-import {
-  getConnectionSummary,
-  listActiveFailedPayments,
-  listExpiringCardAlerts,
-  listStepsForFailedPayments,
-} from "~/lib/recovery/queries.server";
+import { listActiveFailedPayments, listExpiringCardAlerts, listStepsForFailedPayments } from "~/lib/recovery/queries.server";
+import { getConnectionSummary } from "~/lib/recovery/dashboard-queries.server";
 
 // The console read model: the platform-level hero row, the four product tiles,
 // and the needs-attention feed. Legacy's parity source is app/(app)/console/

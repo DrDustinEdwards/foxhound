@@ -1,12 +1,8 @@
 import type { Db } from "~/db";
 import { BULK_ACTION_CONCURRENCY, BULK_ACTION_MAX_PER_SUBMISSION } from "~/lib/constants";
 
-import {
-  dispatchManualAction,
-  type ManualActionCommit,
-  type ResendDeps,
-  type TriggerDeps,
-} from "./manual-actions.server";
+import { dispatchManualAction, type ManualActionCommit } from "./manual-actions.server";
+import { type ResendDeps, type TriggerDeps } from "./manual-action-deps.server";
 import {
   isBulkActionIntent,
   toItemResult,

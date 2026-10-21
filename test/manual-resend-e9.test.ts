@@ -41,9 +41,8 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const { dispatchManualAction, resendDepsFor, resendFooterNote } = await import(
-  "~/lib/recovery/manual-actions.server"
-);
+const { dispatchManualAction } = await import("~/lib/recovery/manual-actions.server");
+const { resendDepsFor, resendFooterNote } = await import("~/lib/recovery/manual-action-deps.server");
 type ManualActionCommit = import("~/lib/recovery/manual-actions.server").ManualActionCommit;
 
 const BASE = "https://foxhound.example.com";

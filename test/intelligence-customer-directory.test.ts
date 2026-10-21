@@ -9,7 +9,7 @@ import {
   hasActiveRecoverySignal,
   hasDisputeHistorySignal,
 } from "~/lib/intelligence/customer-directory";
-import { listCustomerDirectory, listCustomerTiers } from "~/lib/intelligence/views.server";
+import { listCustomerDirectory, listCustomerTiers } from "~/lib/intelligence/directory.server";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 

@@ -47,12 +47,8 @@ import { paymentStepLabel } from "~/lib/recovery/payments-list.server";
 import { isEmailStep } from "~/lib/recovery/schedule";
 import { lastResendableEmailStep, nextPendingStep } from "~/lib/recovery/step-state";
 import { getFailedPaymentDetail } from "~/lib/recovery/queries.server";
-import {
-  dispatchManualAction,
-  moneyWriteCommit,
-  resendDepsFor,
-  triggerDepsFor,
-} from "~/lib/recovery/manual-actions.server";
+import { dispatchManualAction, moneyWriteCommit } from "~/lib/recovery/manual-actions.server";
+import { resendDepsFor, triggerDepsFor } from "~/lib/recovery/manual-action-deps.server";
 import { sanitizeEmailPreviewHtml } from "~/lib/recovery/email-preview.server";
 import type { AttributionKind } from "~/lib/constants";
 import type { loader as appShellLoader } from "~/layouts/app-shell";

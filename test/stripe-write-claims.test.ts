@@ -129,7 +129,7 @@ describe("the code fact the disclosure rests on", () => {
     expect(found.sort()).toEqual(
       [
         // Connected account.
-        "app/lib/engine/execute-step.ts invoices.pay",
+        "app/lib/engine/retry-step.ts invoices.pay",
         "app/lib/card-update/service.ts checkout.sessions.create",
         "app/lib/card-update/service.ts checkout.sessions.create",
         "app/lib/card-update/service.ts customers.update",

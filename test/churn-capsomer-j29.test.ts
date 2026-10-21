@@ -13,7 +13,7 @@ import IntelligenceChurn, {
   meta as churnMeta,
 } from "~/routes/app/intelligence/churn";
 
-import type { ChurnView } from "~/lib/intelligence/views.server";
+import type { ChurnView } from "~/lib/intelligence/trends.server";
 
 // J29 (job_6f2452e8b11d), row S19, under Dustin's Q1, Q10 and Q11 rulings of
 // 2026-10-14: /intelligence/churn is Recova's page (app/(app)/intelligence/churn/

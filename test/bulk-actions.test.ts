@@ -23,12 +23,8 @@ import {
   orderForDisplay,
   toItemResult,
 } from "~/lib/recovery/bulk-results";
-import {
-  manualActionIdempotencyKey,
-  type ManualActionCommit,
-  type ResendDeps,
-  type TriggerDeps,
-} from "~/lib/recovery/manual-actions.server";
+import { manualActionIdempotencyKey, type ManualActionCommit } from "~/lib/recovery/manual-actions.server";
+import { type ResendDeps, type TriggerDeps } from "~/lib/recovery/manual-action-deps.server";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
