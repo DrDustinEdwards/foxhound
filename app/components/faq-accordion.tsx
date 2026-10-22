@@ -33,6 +33,8 @@ export function FaqAccordion({ faqs }: { faqs: FaqItem[] }) {
             </span>
           </button>
           <div
+            // A closed answer is clipped to zero height, so it leaves the accessibility tree too.
+            aria-hidden={open !== i}
             style={{
               maxHeight: open === i ? "480px" : "0px",
               overflow: "hidden",

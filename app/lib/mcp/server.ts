@@ -73,7 +73,8 @@ function errorForAgent(tool: string, err: unknown): string {
  * order, so `tools/list` is deterministic.
  */
 function buildMcpServer(registry: McpToolRegistry, ctx: McpToolContext): McpServer {
-  const server = new McpServer(MCP_SERVER_INFO, { instructions: INSTRUCTIONS, cacheHints: CACHE_HINTS });
+  // The element cap on tool arguments (GHSA-46jr-4wx8-v453): the SDK leaves it off by default.
+  const server = new McpServer(MCP_SERVER_INFO, { instructions: INSTRUCTIONS, cacheHints: CACHE_HINTS, maxToolInputElements: 10_000 });
   for (const descriptor of registry.list()) {
     const tool = registry.get(descriptor.name);
     if (!tool) continue;

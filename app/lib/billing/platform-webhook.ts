@@ -4,6 +4,7 @@ import type Stripe from "stripe";
 import type { Db, MoneyWriteBatch } from "~/db";
 import { billingInvoices, getDb, webhookEvents } from "~/db";
 import { executeMoneyWrite } from "~/lib/money/execute";
+import { isUniqueConstraintError } from "~/lib/money/serializer";
 import { buildWebhookClaim, type WebhookClaimInput } from "~/lib/webhooks/batches";
 import type { WebhookOutcome } from "~/lib/webhooks/process";
 
@@ -168,7 +169,10 @@ async function claimUnroutableEvent(
       payload: event,
     });
     return true;
-  } catch {
+  } catch (err) {
+    // Only the unique index means "already claimed"; anything else throws so the
+    // route 500s and Stripe retries, instead of a 200 that drops the event.
+    if (!isUniqueConstraintError(err)) throw err;
     return false;
   }
 }

@@ -20,6 +20,11 @@ import type { Route } from "./+types/stripe-platform";
 // return 200. A dropped invoice.paid was therefore permanent: marked processed,
 // never redelivered, and with the platform webhook itself being the only
 // reconciler for platform invoice status, nothing else would have caught it.
+// A GET never reaches the action; without a loader it rendered as a 400 "Unexpected Server Error".
+export function loader() {
+  return new Response("method not allowed", { status: 405, headers: { Allow: "POST" } });
+}
+
 export async function action({ request, context }: Route.ActionArgs) {
   if (request.method !== "POST") {
     return new Response("method not allowed", { status: 405 });

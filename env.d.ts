@@ -56,7 +56,7 @@ interface Env {
   // that writer reports nothing left on old keys. The full runbook is in the
   // header of app/lib/stripe/encryption.ts.
   ENCRYPTION_KEYS_OLD?: string;
-  // Foxhound's Stripe platform secret key (test key on staging). Used for the
+  // Foxhound's Stripe platform secret key. Used for the
   // Connect OAuth token exchange, account retrieve, and webhook constructEvent.
   STRIPE_SECRET_KEY?: string;
   // Stripe Connect OAuth client id (ca_...). Public-ish but kept ambient.

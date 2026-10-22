@@ -16,6 +16,11 @@ import type { Route } from "./+types/stripe";
 //
 // Live delivery + signature verification are exercised on staging via the Stripe
 // CLI in Phase 8; this pass wires and unit-proves the seams.
+// A GET never reaches the action; without a loader it rendered as a 400 "Unexpected Server Error".
+export function loader() {
+  return new Response("method not allowed", { status: 405, headers: { Allow: "POST" } });
+}
+
 export async function action({ request, context }: Route.ActionArgs) {
   if (request.method !== "POST") {
     return new Response("method not allowed", { status: 405 });

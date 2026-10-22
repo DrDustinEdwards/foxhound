@@ -170,7 +170,8 @@ export async function applyTimingWordGuard(
       const retried = await retry(TIMING_RETRY_INSTRUCTION);
       if (retried.subject.trim() && retried.bodyHtml.trim()) copy = retried;
     } catch (err) {
-      console.error("timing-word retry failed; keeping the first copy:", err);
+      // The message only: an SDK error object can carry request details.
+      console.error("timing-word retry failed; keeping the first copy:", err instanceof Error ? err.message : "unknown error");
     }
   }
   return {

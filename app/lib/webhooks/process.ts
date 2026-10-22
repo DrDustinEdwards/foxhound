@@ -1,6 +1,7 @@
 import type Stripe from "stripe";
 import { getDb, webhookEvents } from "~/db";
 import { executeMoneyWrite } from "~/lib/money/execute";
+import { isUniqueConstraintError } from "~/lib/money/serializer";
 
 import { buildClaimOnlyBatch, type WebhookClaimInput } from "./batches";
 import { classifyStripeEvent } from "./events";
@@ -47,7 +48,11 @@ export async function processConnectedWebhook(
   if (!resolved) {
     // Unknown account: claim via a plain insert (not a money write) so replays
     // short-circuit, then ignore. The unique index makes the claim idempotent.
-    await claimUnknownAccount(env, event, receivedAt);
+    try {
+      await claimUnknownAccount(env, event, receivedAt);
+    } catch (err) {
+      return { status: "error", message: err instanceof Error ? err.message : "webhook claim error" };
+    }
     return { status: "ignored", reason: "unknown_account" };
   }
   const { accountId, connectionId } = resolved;
@@ -102,7 +107,9 @@ async function claimUnknownAccount(env: Env, event: Stripe.Event, receivedAt: Da
       processingStartedAt: receivedAt,
       payload: event,
     });
-  } catch {
-    // Unique-index violation = already claimed; idempotent no-op.
+  } catch (err) {
+    // Unique-index violation = already claimed; idempotent no-op. Anything else
+    // (a transient D1 failure) throws, so the route 500s and Stripe retries.
+    if (!isUniqueConstraintError(err)) throw err;
   }
 }
