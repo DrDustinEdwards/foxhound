@@ -62,15 +62,9 @@ const PATTERNS: { name: string; re: RegExp }[] = [
   { name: "the amber rgb triple", re: /rgba?\(\s*240[\s,]+180[\s,]+41\b/gi },
 ];
 
-// One word that is not a colour: a demo company-name prefix ("Amber Labs"),
-// part of the seeded demo data, not an accent. Pinned to its exact line text so
-// any other use still fails.
-const ALLOWED: { file: string; line: string }[] = [
-  {
-    file: "app/lib/demo/customer-base.ts",
-    line: `"Coast", "Field", "Forge", "Cobalt", "Amber", "Slate", "Crimson", "Ember",`,
-  },
-];
+// Nothing is allowed. The one exception was a demo company-name prefix ("Amber"),
+// and it reached the rendered Recovery page (Grok audit 2026-10-21, FH-18).
+const ALLOWED: { file: string; line: string }[] = [];
 
 function walk(dir: string, out: string[]): void {
   for (const name of readdirSync(dir)) {

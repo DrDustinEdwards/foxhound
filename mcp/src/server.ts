@@ -37,7 +37,8 @@ function result(data: Record<string, unknown>, isError = false) {
 }
 
 function buildServer(env: AdminMcpEnv, session: AdminSession): McpServer {
-  const server = new McpServer(SERVER_INFO, { instructions: INSTRUCTIONS, cacheHints: CACHE_HINTS });
+  // The element cap on tool arguments (GHSA-46jr-4wx8-v453): the SDK leaves it off by default.
+  const server = new McpServer(SERVER_INFO, { instructions: INSTRUCTIONS, cacheHints: CACHE_HINTS, maxToolInputElements: 10_000 });
   for (const tool of ADMIN_TOOLS) {
     server.registerTool(
       tool.name,

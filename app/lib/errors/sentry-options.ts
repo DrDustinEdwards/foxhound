@@ -28,6 +28,8 @@ const TOKEN_PATH = /\/(u|p|e\/[och]|invite)\/[^/?#\s'"]+/g;
 const TEXT_URL_QUERY = /(https?:\/\/[^\s?#'"]*)[?#][^\s'"]*/g;
 // The query string or fragment of a field that holds only a URL or path.
 const URL_QUERY = /[?#]\S*/g;
+// Stripe secret, restricted and webhook-signing keys, should one reach an error message.
+const STRIPE_KEY = /\b(sk|rk)_(live|test)_[A-Za-z0-9]+|\bwhsec_[A-Za-z0-9]+/g;
 // Data keys that hold a query string, request headers, cookies, or raw console
 // arguments (the Console integration keeps them unformatted beside the message).
 const DROP_KEY = /query|header|cookie|arguments/i;
@@ -36,6 +38,7 @@ function scrubText(text: string): string {
   return text
     .replace(DRIZZLE_PARAMS, "\nparams: [redacted]")
     .replace(TEXT_URL_QUERY, "$1")
+    .replace(STRIPE_KEY, "[key]")
     .replace(EMAIL, "[email]")
     .replace(TOKEN_PATH, "/$1/[token]");
 }

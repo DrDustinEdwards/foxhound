@@ -10,10 +10,9 @@
 // unthrottled. What is left here is the public bucket and the per-caller
 // checks (isWithinRateLimit) other surfaces use.
 //
-// THE PUBLIC BUCKET HAS THE SAME ".data" GAP, recorded and not fixed here:
-// POST /demos.data and /audit.data reach the same actions as /demos and /audit
-// and resolve to no rule below. J52 is scoped to the sign-in pages; the gap is
-// reported for its own job.
+// THE PUBLIC BUCKET HAD THE SAME ".data" GAP: POST /demos.data and /audit.data
+// reach the same actions as /demos and /audit, so resolveRateLimitBinding
+// drops the ".data" suffix before matching (Grok audit 2026-10-21, FH-8).
 //
 // THE MATCHER MUST NORMALIZE THE WAY THE ROUTER DOES, or it is bypassable by
 // spelling. React Router matches on a DECODED pathname
@@ -74,7 +73,8 @@ function routedPath(rawPathname: string): string {
 
 export function resolveRateLimitBinding(request: Request): RateLimitRule | null {
   if (request.method !== "POST") return null;
-  const pathname = routedPath(new URL(request.url).pathname);
+  const routed = routedPath(new URL(request.url).pathname);
+  const pathname = routed.endsWith(".data") ? routed.slice(0, -".data".length) : routed;
   if (PUBLIC_ACTION_PATHS.has(pathname)) return { bucket: "public", limit: 20, periodMs: 60_000 };
   return null;
 }

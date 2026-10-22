@@ -257,7 +257,8 @@ export const ADMIN_TOOLS: AdminTool[] = [
       required: ["types"],
     },
     // Not destructive: it only mails the caller. Not idempotent: each call sends again.
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    // Open world: the mail leaves Foxhound.
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     run: (session, args) =>
       callAdminApi(session.env, session.actor, {
         method: "POST",

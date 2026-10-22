@@ -239,7 +239,7 @@ const LAST_NAMES = [
 const TEAMFLOW_COMPANY_PREFIXES = [
   "North", "South", "East", "West", "Bright", "Iron", "Silver", "Cedar",
   "Maple", "Pine", "Oak", "Ridge", "Stone", "River", "Lake", "Bay",
-  "Coast", "Field", "Forge", "Cobalt", "Amber", "Slate", "Crimson", "Ember",
+  "Coast", "Field", "Forge", "Cobalt", "Summit", "Slate", "Crimson", "Ember",
 ] as const;
 const TEAMFLOW_COMPANY_SUFFIXES = [
   "Labs", "Works", "Group", "Studio", "Co", "Stack", "Logic", "Loop",

@@ -154,6 +154,14 @@ describe("PLANT 2: every row disconnected takes the EXISTING no-connection path"
     expect(claimedAccountIds()).toEqual([null]);
   });
 
+  it("PLANT: a claim that fails for any reason but the unique index is an error, so Stripe retries", async () => {
+    // Grok audit 2026-10-21, FH-1: the catch used to swallow every failure into
+    // "ignored", a 200, and Stripe never sent the event again.
+    sqlite.exec("DROP TABLE webhook_events");
+    const outcome = await processConnectedWebhook({} as Env, event("evt_6"), RECEIVED_AT);
+    expect(outcome.status).toBe("error");
+  });
+
   it("reports the same thing for a Stripe account Foxhound has never seen", async () => {
     // The calibration that the disconnected case is genuinely reaching the
     // unknown-account branch rather than some other refusal.
