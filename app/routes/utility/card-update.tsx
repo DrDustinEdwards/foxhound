@@ -488,7 +488,7 @@ function CardUpdateFrame({
 }) {
   return (
     <main className="mx-auto w-full max-w-md px-4 py-8 md:py-16">
-      <div className="fh-cap [--border-focus:var(--ring)]" data-family="teal" data-card-update="">
+      <div className="fh-cap [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="teal" data-card-update="">
         <section className="cap-panel">
           <div className="cap-panel-body">
             <Wordmark />

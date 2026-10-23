@@ -208,7 +208,7 @@ function ConsentCard({ children }: { children: ReactNode }) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-bg p-6">
       <div
-        className="fh-cap w-full max-w-[460px] [--border-focus:var(--ring)]"
+        className="fh-cap w-full max-w-[460px] [--border-focus:var(--ring)]" data-cap-site="foxhound"
         data-family="teal"
         data-oauth-consent=""
       >

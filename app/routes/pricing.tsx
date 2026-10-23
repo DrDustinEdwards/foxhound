@@ -65,7 +65,7 @@ export default function PricingPage({ loaderData }: Route.ComponentProps) {
     // Capsomer's teal family with Foxhound's neutrals. Foxhound's global focus
     // ring reads --border-focus (app.css); inside this page it reads the
     // family's --ring, so a keyboard user sees teal as in Capsomer's own parts.
-    <div className="fh-cap [--border-focus:var(--ring)]" data-family="teal">
+    <div className="fh-cap [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="teal">
       <MarketingPageHeader
         eyebrow="Pricing"
         title="Pricing"

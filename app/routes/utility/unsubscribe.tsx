@@ -179,7 +179,7 @@ export default function Unsubscribe({ loaderData }: Route.ComponentProps) {
       <Header isAuthenticated={false} />
       <main className="flex flex-1 items-center justify-center bg-bg">
         <div
-          className="fh-cap w-full max-w-[480px] px-6 py-10 text-center [--border-focus:var(--ring)]"
+          className="fh-cap w-full max-w-[480px] px-6 py-10 text-center [--border-focus:var(--ring)]" data-cap-site="foxhound"
           data-family="teal"
         >
           {/* The page's heading, for screen readers only: Recova's page has none

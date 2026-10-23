@@ -395,7 +395,7 @@ describe("the page is built from Capsomer's parts, teal, on the five sizes (Q11,
   const html = render();
 
   it("sits in Capsomer's teal family with Foxhound's neutrals", () => {
-    expect(html).toMatch(/^<div class="fh-cap[^"]*" data-family="teal"/);
+    expect(html).toMatch(/^<div class="fh-cap[^"]*" data-cap-site="foxhound" data-family="teal"/);
   });
 
   it("draws the audit calls to action as Capsomer's primary button and See it live as its default", () => {

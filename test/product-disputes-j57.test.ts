@@ -369,7 +369,7 @@ describe("the page is built from Capsomer's parts, teal, on the five sizes (J57)
   const html = render(await load());
 
   it("sits in Capsomer's teal family with Foxhound's neutrals", () => {
-    expect(html).toMatch(/^<div class="fh-cap[^"]*" data-family="teal"/);
+    expect(html).toMatch(/^<div class="fh-cap[^"]*" data-cap-site="foxhound" data-family="teal"/);
   });
 
   it("draws every call to action as Capsomer's primary button", () => {

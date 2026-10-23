@@ -113,7 +113,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     // Capsomer's teal family with Foxhound's neutrals. Foxhound's global focus
     // ring reads --border-focus (app.css); inside this page it reads the
     // family's --ring, so a keyboard user sees teal as in Capsomer's own parts.
-    <div className="fh-cap [--border-focus:var(--ring)]" data-family="teal">
+    <div className="fh-cap [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="teal">
       {/* 1. Hero */}
       <section className="speakable-hero border-b border-border-sub px-5 pb-16 pt-8 sm:px-8 sm:pb-20 sm:pt-10">
         <div className="mx-auto max-w-[1100px]">

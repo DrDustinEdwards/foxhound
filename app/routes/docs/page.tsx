@@ -72,7 +72,7 @@ export default function DocGuidePage({ loaderData }: Route.ComponentProps) {
   const sectionIds = guide.sections.map((section) => slugify(section.heading));
 
   return (
-    <div className="fh-cap mx-auto max-w-[760px] px-6 py-16 [--border-focus:var(--ring)]" data-family="teal">
+    <div className="fh-cap mx-auto max-w-[760px] px-6 py-16 [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="teal">
       <div className="mb-8 text-micro">
         <Breadcrumb
           items={[{ label: "Docs", href: "/docs" }, { label: guide.title }]}

@@ -11,6 +11,7 @@
    page's own look moves. */
 @layer capbase, theme, base, cap, components, utilities;
 @import "tailwindcss";
+@import "capsomer/site-foxhound.css";
 
 /* Self-hosted fonts. No Google Fonts request at runtime; files vendored
    into app/assets/fonts/. DM Sans ships as a single variable-weight
@@ -1006,33 +1007,17 @@ body {
   cursor: pointer;
 }
 
-/* Capsomer's site header and dashboard shell, in Foxhound's colours.
-
-   The neutrals Capsomer reads (--ground, --surface, --text, --line and the
-   rest) are Foxhound's own, so a panel, the phone's sheet, the merchant app's
-   menu and every page under it look as they did; only the accents come from
-   Capsomer's teal family (data-family="teal" on the same element, Dustin's
-   answer 1 of 2026-10-13). --surface, --sunken and --text share a name with
-   Capsomer's, so their Foxhound values are read once at the root, before the
-   family's are set lower down. */
-:root {
-  --fh-surface: var(--surface);
-  --fh-sunken: var(--sunken);
-  --fh-text: var(--text);
-}
-.fh-cap {
-  --ground: var(--bg);
-  --surface: var(--fh-surface);
-  --raised: var(--surface2);
-  --sunken: var(--fh-sunken);
-  --text: var(--fh-text);
-  --muted: var(--text-secondary);
-  --dim: var(--text-tertiary);
-  --line: var(--border);
-  --line-strong: var(--border-strong);
-  --font-ui: var(--font-dm-sans), Arial, sans-serif;
-  --ui: var(--font-dm-sans), Arial, sans-serif;
-  --mono: var(--font-dm-mono), monospace;
+/* Capsomer's site header and dashboard shell, in Foxhound's colours: every
+   .fh-cap wrapper carries data-cap-site="foxhound", so the neutrals and faces
+   Capsomer reads are Foxhound's own (capsomer/site-foxhound.css, in the cap
+   layer above capbase's teal family) and only the accents are teal (Dustin's
+   answer 1 of 2026-10-13). The site file holds literals, so a raised-contrast
+   preference, which moves --text-tertiary, still reaches --dim from here. */
+@media (prefers-contrast: more) {
+  .fh-cap,
+  .fh-cap :is([data-family], [data-density]) {
+    --dim: var(--text-tertiary);
+  }
 }
 /* The public site's header is the only thing in its wrapper: no box of its
    own, so the header sticks to the window rather than to a wrapper as tall as

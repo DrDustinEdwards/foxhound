@@ -106,7 +106,7 @@ export default function BlogIndexPage({ loaderData }: Route.ComponentProps) {
   return (
     // Capsomer's teal family with Foxhound's own neutrals (.fh-cap, as the site
     // header, /products and /docs); the focus ring reads the family's ring.
-    <div className="fh-cap [--border-focus:var(--ring)]" data-family="teal">
+    <div className="fh-cap [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="teal">
       <div className="mx-auto max-w-[1080px] px-5 pb-10 pt-16 sm:px-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <BlogHeaderIntro />

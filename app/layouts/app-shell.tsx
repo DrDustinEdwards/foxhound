@@ -297,7 +297,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
   const currentAccountRow = currentRow(pathname, accountRows);
 
   return (
-    <div className="fh-cap fh-app" data-family="teal">
+    <div className="fh-cap fh-app" data-cap-site="foxhound" data-family="teal">
       <AdminShell
         variant="user"
         // The app's name: the phone sheet's heading ("Foxhound menu") and,
@@ -397,7 +397,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 
   return (
     <div>
-      <div className="fh-cap fh-site-header" data-family="teal">
+      <div className="fh-cap fh-site-header" data-cap-site="foxhound" data-family="teal">
         <SiteHeader logo={headerLogo("/")} themePrefKey={THEME_PREF_KEY} sheetTitle="Foxhound menu" renderLink={renderHeaderLink} />
       </div>
       <main className="flex flex-col items-center justify-center gap-4 px-4 py-16 text-center">

@@ -97,7 +97,7 @@ export function ErrorView({ error, isDev = false }: { error: unknown; isDev?: bo
   // five standard sizes everywhere".
   return (
     <main
-      className="fh-cap fh-error-page relative flex min-h-screen flex-col items-center justify-center bg-bg"
+      className="fh-cap fh-error-page relative flex min-h-screen flex-col items-center justify-center bg-bg" data-cap-site="foxhound"
       data-family="teal"
     >
       <nav className="fh-error-bar absolute left-0 right-0 top-0 flex h-14 items-center border-b bg-chrome px-6">

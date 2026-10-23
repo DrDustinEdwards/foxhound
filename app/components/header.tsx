@@ -107,7 +107,7 @@ export function Header({
   const switchers = isAuthenticated ? [...(business ? [business] : []), products] : [];
 
   return (
-    <div className="fh-cap fh-site-header" data-family="teal">
+    <div className="fh-cap fh-site-header" data-cap-site="foxhound" data-family="teal">
       <SiteHeader
         logo={headerLogo("/")}
         links="right"

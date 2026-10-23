@@ -245,7 +245,7 @@ describe("the copy states the audit Foxhound runs (J55, RULES.md 2.1 and 2.2)", 
 
 describe("the page is built from Capsomer's parts, teal, on the five sizes (J55)", () => {
   it("sits in Capsomer's teal family with Foxhound's neutrals", () => {
-    expect(html).toMatch(/^<div class="fh-cap[^"]*" data-family="teal"/);
+    expect(html).toMatch(/^<div class="fh-cap[^"]*" data-cap-site="foxhound" data-family="teal"/);
   });
 
   it("draws every call to action as Capsomer's primary button", () => {

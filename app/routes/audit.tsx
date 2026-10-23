@@ -174,7 +174,7 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
     // and /pricing), comfortable density so each panel takes Capsomer's roomier
     // padding.
     <div
-      className="fh-cap mx-auto max-w-[680px] px-4 py-10 text-center md:px-8 md:py-20"
+      className="fh-cap mx-auto max-w-[680px] px-4 py-10 text-center md:px-8 md:py-20" data-cap-site="foxhound"
       data-family="teal"
       data-density="comfortable"
     >
