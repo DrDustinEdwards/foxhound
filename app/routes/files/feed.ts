@@ -1,3 +1,5 @@
+import { cdata, escapeXmlText } from "@drdustinedwards/site-helpers/xml";
+
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { getAllPublishedPosts } from "~/lib/blog/queries.server";
@@ -11,10 +13,6 @@ import type { Route } from "./+types/feed";
 // app/(marketing)/blog/rss.xml/route.ts is NOT the reference here: this
 // repo's canonical feed path is /feed.rss (ROUTES.md), which is what legacy's
 // root-level route already was.
-
-function xmlEscapeAttr(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
 
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
@@ -47,14 +45,14 @@ export async function loader({ context }: Route.LoaderArgs) {
       const pubDate = post.publishedAt
         ? `\n      <pubDate>${post.publishedAt.toUTCString()}</pubDate>`
         : "";
-      const categories = post.tags.map((tag) => `<category>${xmlEscapeAttr(tag)}</category>`).join("");
+      const categories = post.tags.map((tag) => `<category>${escapeXmlText(tag)}</category>`).join("");
       return `
     <item>
-      <title><![CDATA[${post.title}]]></title>
+      <title>${cdata(post.title)}</title>
       <link>${postUrl}</link>
       <guid isPermaLink="true">${postUrl}</guid>
-      <description><![CDATA[${post.excerpt}]]></description>${pubDate}
-      <author>${xmlEscapeAttr(SUPPORT_EMAIL)} (${xmlEscapeAttr(post.author)})</author>
+      <description>${cdata(post.excerpt)}</description>${pubDate}
+      <author>${escapeXmlText(SUPPORT_EMAIL)} (${escapeXmlText(post.author)})</author>
       ${categories}
     </item>`;
     })
