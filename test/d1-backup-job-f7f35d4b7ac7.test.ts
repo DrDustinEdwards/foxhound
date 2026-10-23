@@ -1,63 +1,13 @@
 import { readFileSync } from "node:fs";
 
-import type { DumpResult } from "@dustinedwards/d1-dump";
 import { describe, expect, it } from "vitest";
 
-import {
-  assertDumpIsSafe,
-  BACKUP_EXCLUDED_TABLES,
-  BackupVerificationError,
-  backupStatus,
-  runD1Backup,
-} from "~/lib/backup/d1-backup";
+import { BACKUP_EXCLUDED_TABLES, backupStatus, runD1Backup } from "~/lib/backup/d1-backup";
 import { CRON_JOBS } from "~/lib/cron/registry";
 import { CRON_SCHEDULE_DAILY } from "~/lib/constants";
 
-function dump(tables: Array<[string, number]>): DumpResult {
-  return {
-    run_id: "r",
-    prefix: "backups/json/r/",
-    exported_at: "2026-10-09T03:00:00.000Z",
-    keys: [],
-    tables: tables.map(([name, rows]) => ({ name, rows, key: `k/${name}.json` })),
-    fts: [],
-    excluded: [...BACKUP_EXCLUDED_TABLES],
-    shadow_skipped: [],
-    complete: false,
-  };
-}
-
-const GOOD: Array<[string, number]> = [
-  ["accounts", 3],
-  ["stripe_connections", 2],
-  ["failed_payments", 10],
-  ["user", 4],
-];
-
-describe("assertDumpIsSafe", () => {
-  it("passes a real dump without credential tables", () => {
-    expect(() => assertDumpIsSafe(dump(GOOD))).not.toThrow();
-  });
-
-  it("PLANT: an empty dump (no tables) is refused", () => {
-    expect(() => assertDumpIsSafe(dump([]))).toThrow(BackupVerificationError);
-  });
-
-  it("PLANT: tables with zero rows are refused", () => {
-    expect(() => assertDumpIsSafe(dump(GOOD.map(([n]) => [n, 0])))).toThrow(/no rows/);
-  });
-
-  it.each(BACKUP_EXCLUDED_TABLES)("PLANT: credential table %s left in the dump is refused", (table) => {
-    expect(() => assertDumpIsSafe(dump([...GOOD, [table, 5]]))).toThrow(new RegExp(`"${table}"`));
-  });
-
-  it("PLANT: a dump missing stripe_connections is refused (encrypted tokens must be kept)", () => {
-    expect(() => assertDumpIsSafe(dump(GOOD.filter(([n]) => n !== "stripe_connections")))).toThrow(
-      /stripe_connections/,
-    );
-  });
-});
-
+// The dump checks (empty, credential table present, required table missing) are d1-dump's
+// runCheckedBackup, tested there.
 describe("excluded tables match the schema", () => {
   it("each excluded table is a real Better Auth table", () => {
     const schema = readFileSync("app/db/auth-schema.ts", "utf8");

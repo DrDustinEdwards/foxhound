@@ -1,12 +1,4 @@
-import {
-  backupHealth,
-  dumpDatabase,
-  pruneDumps,
-  writeCompleteMarker,
-  type BackupHealth,
-  type DumpResult,
-  type R2Like,
-} from "@dustinedwards/d1-dump";
+import { backupHealth, runCheckedBackup, type BackupHealth, type R2Like } from "@dustinedwards/d1-dump";
 
 import type { CronJobResult } from "~/lib/cron/run";
 
@@ -45,54 +37,27 @@ export const BACKUP_EXCLUDED_TABLES = ["session", "verification", "account"] as 
 /** Tables that must be in every dump; their absence means the dump is not real. */
 const BACKUP_REQUIRED_TABLES = ["accounts", "stripe_connections", "failed_payments"] as const;
 
-export class BackupVerificationError extends Error {}
-
-/**
- * The checks a dump must pass BEFORE its completion marker is written, so a bad
- * run is never the "latest" dump. Pure, so each arm is planted in a test.
- * Never swallows: it throws on the first failure.
- */
-export function assertDumpIsSafe(result: DumpResult): void {
-  const names = new Set(result.tables.map((t) => t.name));
-  if (result.tables.length === 0) {
-    throw new BackupVerificationError("backup refused: the dump holds no tables");
-  }
-  const totalRows = result.tables.reduce((sum, t) => sum + t.rows, 0);
-  if (totalRows === 0) {
-    throw new BackupVerificationError("backup refused: the dump holds no rows (empty dump)");
-  }
-  for (const table of BACKUP_EXCLUDED_TABLES) {
-    if (names.has(table)) {
-      throw new BackupVerificationError(`backup refused: credential table "${table}" is in the dump`);
-    }
-  }
-  for (const table of BACKUP_REQUIRED_TABLES) {
-    if (!names.has(table)) {
-      throw new BackupVerificationError(`backup refused: required table "${table}" is missing from the dump`);
-    }
-  }
-}
-
 function requireBucket(env: Env): R2Like {
   if (!env.BACKUPS) {
-    throw new BackupVerificationError(
+    throw new Error(
       "BACKUPS R2 binding is not configured (wrangler.jsonc r2_buckets should bind foxhound-backups)",
     );
   }
   return env.BACKUPS as unknown as R2Like;
 }
 
-/** The cron handler body: dump, verify, mark complete, prune. */
+/**
+ * The cron handler body, by d1-dump's runCheckedBackup: dump without the marker, refuse a dump
+ * with no tables or no rows, a credential table in it or a required table missing (BackupIncomplete,
+ * leaving it without the marker, so a bad run is never the "latest" dump), then mark complete and
+ * prune.
+ */
 export async function runD1Backup(env: Env, now: Date): Promise<CronJobResult> {
-  const bucket = requireBucket(env);
-  const dump = await dumpDatabase(env.DB, bucket, {
+  const { dump, pruned } = await runCheckedBackup(env.DB, requireBucket(env), {
     now,
     exclude: [...BACKUP_EXCLUDED_TABLES],
-    markComplete: false,
+    required: [...BACKUP_REQUIRED_TABLES],
   });
-  assertDumpIsSafe(dump);
-  await writeCompleteMarker(bucket, dump);
-  const pruned = await pruneDumps(bucket, { now });
   const rows = dump.tables.reduce((sum, t) => sum + t.rows, 0);
   return {
     rowsProcessed: rows,
