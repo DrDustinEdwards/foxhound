@@ -4,8 +4,12 @@ import { Alert, Field, Submit } from "~/components/auth-ui";
 import { Badge } from "~/components/badge";
 import { DemoGuardedForm } from "~/components/demo-guarded-form";
 import { getDb } from "~/db";
-import { authContext, createInvite, listMembers, removeMember, MEMBER_ROLE } from "~/lib/auth";
+import { authContext, createInvite, hasOpenInviteForEmail, listMembers, removeMember, MEMBER_ROLE } from "~/lib/auth";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { RATE_LIMIT_INVITE } from "~/lib/constants";
+import { isWithinRateLimit } from "~/lib/http/rate-limit";
+import { isValidReplyToEmail } from "~/lib/settings/reply-to";
+import { sendTeamInviteEmail, teamInviteEmailNotice } from "~/lib/settings/team-invite-email.server";
 
 import type { Route } from "./+types/team";
 
@@ -97,6 +101,21 @@ export async function action({ request, context }: Route.ActionArgs) {
     return data({ error: null, invited: null, inviteUrl: null });
   }
 
+  // E2: RECOVA'S REFUSALS, in Recova's order and before anything is written
+  // (app/api/invite/route.ts, blob 960aefc6): the IP rate limit (429), a
+  // malformed address (400), and a pending or active membership (409).
+  //
+  // The limit is 311's limiter, used unchanged, at Recova's RATE_LIMIT_SIGNUP
+  // numbers on `invite:{ip}`, and fails open like every other caller (Recova's
+  // limiter does too). It is spent on every invite attempt, as Recova's is.
+  const ip = request.headers.get("cf-connecting-ip") ?? "unknown";
+  if (!(await isWithinRateLimit(env, "invite", ip, RATE_LIMIT_INVITE.max, RATE_LIMIT_INVITE.windowMs))) {
+    return data(
+      { error: "Too many requests. Try again later.", invited: null, inviteUrl: null },
+      { status: 429 },
+    );
+  }
+
   const email = String(form.get("email") ?? "").trim();
   if (!email) {
     return data(
@@ -104,11 +123,42 @@ export async function action({ request, context }: Route.ActionArgs) {
       { status: 400 },
     );
   }
+  // One address: no whitespace or control characters (so no line break and no
+  // second address after a space), no comma, semicolon or angle brackets, and
+  // a dot in the domain. The address becomes the To of the invite email, so
+  // the reply-to field's server check (J03) is the right one, reused as is.
+  if (!isValidReplyToEmail(email)) {
+    return data({ error: "Invalid email address", invited: null, inviteUrl: null }, { status: 400 });
+  }
+  if (await hasOpenInviteForEmail(db, membership.accountId, email)) {
+    return data(
+      { error: "This email already has a pending or active membership", invited: null, inviteUrl: null },
+      { status: 409 },
+    );
+  }
 
-  const { token } = await createInvite(db, membership.accountId, email);
+  const { token, memberId } = await createInvite(db, membership.accountId, email);
   const url = new URL(request.url);
   const inviteUrl = `${url.origin}/invite/${token}`;
-  return data({ error: null, invited: email, inviteUrl });
+  // E2: Recova emails the invitee here, after the pending row is written
+  // (app/api/invite/route.ts, blob 960aefc6). The link stays on the page as
+  // well, and when the email did not go the page says so rather than
+  // reporting success as Recova does (RULES.md 3.16).
+  const sent = await sendTeamInviteEmail(env, {
+    accountId: membership.accountId,
+    to: email,
+    accountName: membership.accountName,
+    inviteUrl,
+    memberId,
+    token,
+  });
+  return data({
+    error: null,
+    invited: email,
+    inviteUrl,
+    emailStatus: sent.status,
+    emailError: teamInviteEmailNotice(sent.status),
+  });
 }
 
 export default function Team({ loaderData, actionData }: Route.ComponentProps) {
@@ -183,6 +233,9 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
               <Alert tone="success">
                 Invited {actionData.invited}. Share this link: {actionData.inviteUrl}
               </Alert>
+            ) : null}
+            {actionData && "emailError" in actionData && actionData.emailError ? (
+              <Alert tone="error">{actionData.emailError}</Alert>
             ) : null}
             <Field label="Invite email" name="email" type="email" />
             <div>

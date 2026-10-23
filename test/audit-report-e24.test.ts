@@ -420,7 +420,7 @@ describe("the demo firewall on the consumer side (PR 160 re-review)", () => {
     expect(await db.select().from(emailSends)).toHaveLength(0);
   });
 
-  it('only the monthly audit skips the live-send gate: liveSendGate: "skip" appears nowhere else under app/', () => {
+  it('only the monthly audit and the team invite skip the live-send gate: liveSendGate: "skip" appears nowhere else under app/', () => {
     const root = fileURLToPath(new URL("../app", import.meta.url));
     const hits: string[] = [];
     const walk = (dir: string) => {
@@ -433,6 +433,6 @@ describe("the demo firewall on the consumer side (PR 160 re-review)", () => {
       }
     };
     walk(root);
-    expect(hits).toEqual(["app/lib/audit/monthly.server.ts"]);
+    expect(hits.sort()).toEqual(["app/lib/audit/monthly.server.ts", "app/lib/settings/team-invite-email.server.ts"]);
   });
 });
