@@ -46,6 +46,14 @@ export const authOptions = {
     // sendVerificationEmail is injected by the runtime factory (see above).
   },
   databaseHooks: {
+    account: {
+      // The Google id token is not stored (FH-5). Better Auth keeps it in plain
+      // text even with encryptOAuthTokens on, Foxhound never reads it, and it
+      // carries the user's name and email and is a sign-in credential while it
+      // lasts. Sign-in verifies Google's response before this write.
+      create: { before: async (account) => ({ data: { ...account, idToken: null } }) },
+      update: { before: async (account) => ("idToken" in account ? { data: { ...account, idToken: null } } : undefined) },
+    },
     user: {
       create: {
         // Disposable-email blocklist at account creation (legacy rule). Applies
@@ -59,6 +67,14 @@ export const authOptions = {
         },
       },
     },
+  },
+  account: {
+    // Google access and refresh tokens are stored encrypted (Grok audit FH-5),
+    // as the Stripe Connect tokens already are. Better Auth encrypts on every
+    // write and decrypts on read with BETTER_AUTH_SECRET; rows stored before
+    // this was on are sealed by the oauth-token-encryption cron. Better Auth
+    // never encrypts the id token, so the account hooks below drop it.
+    encryptOAuthTokens: true,
   },
   session: {
     // Sessions live in the D1 session table (strong consistency -> immediate
