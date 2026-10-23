@@ -182,9 +182,15 @@ export async function handleDisputeResolved(
       }),
   });
 
-  // A dispute Foxhound WON, billed, and then lost on reopening is the
-  // 120-day case maturity cannot reach (377(5)). Same shape as the refund
-  // above: after the commit, never unwinding it, keyed on the fee line.
+  // A lost dispute credits any fee line it carries (377(5)), after the commit,
+  // never unwinding it, keyed on the fee line. Stripe does not move a dispute
+  // from won to lost: an issuer that re-files opens a NEW dispute object with
+  // its own charge.dispute.created (Stripe's "Receiving multiple disputes per
+  // payment" FAQ), and a resolved row takes the already_resolved branch above.
+  // So a fee is billed only on a won dispute, and this credit finds nothing
+  // to credit on a dispute that reaches here unresolved. Whether a later lost
+  // dispute on the same charge should credit the first one's fee is a pricing
+  // question for Dustin, not something this branch decides.
   if (applied && !intent.won) {
     await issueCreditNoteForEvidence(
       env,
