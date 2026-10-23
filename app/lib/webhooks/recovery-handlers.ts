@@ -2,7 +2,11 @@
 // up, recovery, expiring cards and refund stamping. Dispatched from process.ts.
 
 import { FAILED_PAYMENT_STATUS_STRIPE_RETRYING, type DeclineCategory } from "~/lib/constants";
-import { issueCreditNoteForEvidence, refundedRecoveryIdsFor } from "~/lib/billing/credit-note";
+import {
+  issueCreditNoteForEvidence,
+  REFUND_CREDIT_DESCRIPTION,
+  refundedRecoveryIdsFor,
+} from "~/lib/billing/credit-note";
 import { executeMoneyWrite } from "~/lib/money/execute";
 import { sendRecoveryNotification } from "~/lib/recovery/merchant-notification.server";
 import { buildCandidateUpsert, isInsideLeadWindow } from "~/lib/cron/expiring-cards";
@@ -306,7 +310,7 @@ export async function handleStampRefund(
       await issueCreditNoteForEvidence(
         env,
         { recoveredPaymentId },
-        { now: receivedAt, description: "Refunded recovery: fee credited" },
+        { now: receivedAt, description: REFUND_CREDIT_DESCRIPTION },
       );
     }
   }

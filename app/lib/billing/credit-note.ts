@@ -1,7 +1,9 @@
-import { and, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, notExists, notLike, or } from "drizzle-orm";
+import { alias } from "drizzle-orm/sqlite-core";
 
 import type { Db, MoneyWriteBatch } from "~/db";
-import { billingInvoices, billingLineItems, getDb, recoveredPayments } from "~/db";
+import { billingInvoices, billingLineItems, disputes, getDb, recoveredPayments } from "~/db";
+import { DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
 import { executeMoneyWrite } from "~/lib/money/execute";
 
 import { createCreditNote, creditNoteIdempotencyKey } from "./stripe-invoice";
@@ -166,17 +168,11 @@ export interface CreditNoteOutcome {
  * reverse. Safe to call on every refund and every lost dispute: the common case
  * is that nothing was ever invoiced and this is two reads and a null.
  *
- * ORDER: STRIPE FIRST, THEN THE LEDGER, and it is deliberate rather than
- * incidental. A ledger row written before the note would claim a credit the
- * merchant does not have if the Stripe call then failed, which is the worse of
- * the two failures: they would see the credit and never receive it. This way a
- * failure between the two leaves the note issued and the row missing, the
- * retry replays the SAME Stripe idempotency key so no second note is created,
- * and the unique index refuses a second row.
- *
  * It never throws into the caller. The refund stamp and the dispute resolution
  * have already committed by the time this runs, and a Stripe outage must not
- * unwind a ledger fact that is true.
+ * unwind a ledger fact that is true. A failure here is not lost either: the
+ * fee is still owed by the ledger's own facts, and creditOwedFeeLines (the
+ * daily credit-note-retry cron) finds it and tries again.
  */
 export async function issueCreditNoteForEvidence(
   env: Env,
@@ -186,34 +182,7 @@ export async function issueCreditNoteForEvidence(
   try {
     const line = await findCreditableFeeLine(env, evidence);
     if (!line) return { credited: false, reason: "no_charged_fee_line" };
-
-    const { creditNoteId } = await createCreditNote(env, {
-      stripeInvoiceId: line.stripeInvoiceId,
-      amountCents: Math.abs(line.amountCents),
-      feeLineItemId: line.lineItemId,
-      memo: opts.description,
-    });
-
-    const { applied } = await executeMoneyWrite(env, {
-      accountId: line.accountId,
-      // Keyed on the FEE LINE, not on the event: two different Stripe events
-      // can both mean "this fee is owed back" (a refund and a later dispute on
-      // the same payment), and keyed on the event they would each try to
-      // credit it.
-      idempotencyKey: creditNoteIdempotencyKey(line.lineItemId),
-      build: (db) =>
-        buildCreditLineBatch(db, {
-          creditLineItemId: crypto.randomUUID(),
-          line,
-          stripeCreditNoteId: creditNoteId,
-          description: opts.description,
-          createdAt: opts.now,
-        }),
-    });
-
-    return applied
-      ? { credited: true, reason: "credited", creditNoteId }
-      : { credited: false, reason: "already_credited", creditNoteId };
+    return await creditFeeLine(env, line, opts);
   } catch (err) {
     // Recorded, never rethrown: see the note above about not unwinding a
     // committed ledger fact.
@@ -224,6 +193,145 @@ export async function issueCreditNoteForEvidence(
     );
     return { credited: false, reason: "credit_note_failed" };
   }
+}
+
+/**
+ * Credit one charged fee line: the Stripe note, then the ledger row.
+ *
+ * ORDER: STRIPE FIRST, THEN THE LEDGER, and it is deliberate rather than
+ * incidental. A ledger row written before the note would claim a credit the
+ * merchant does not have if the Stripe call then failed, which is the worse of
+ * the two failures: they would see the credit and never receive it. This way a
+ * failure between the two leaves the note issued and the row missing, the
+ * retry finds that same note on the invoice (createCreditNote), and the unique
+ * index refuses a second row.
+ */
+async function creditFeeLine(
+  env: Env,
+  line: CreditableFeeLine,
+  opts: { now: Date; description: string },
+): Promise<CreditNoteOutcome> {
+  const { creditNoteId } = await createCreditNote(env, {
+    stripeInvoiceId: line.stripeInvoiceId,
+    amountCents: Math.abs(line.amountCents),
+    feeLineItemId: line.lineItemId,
+    memo: opts.description,
+  });
+
+  const { applied } = await executeMoneyWrite(env, {
+    accountId: line.accountId,
+    // Keyed on the FEE LINE, not on the event: two different Stripe events
+    // can both mean "this fee is owed back" (a refund and a later dispute on
+    // the same payment), and keyed on the event they would each try to
+    // credit it.
+    idempotencyKey: creditNoteIdempotencyKey(line.lineItemId),
+    build: (db) =>
+      buildCreditLineBatch(db, {
+        creditLineItemId: crypto.randomUUID(),
+        line,
+        stripeCreditNoteId: creditNoteId,
+        description: opts.description,
+        createdAt: opts.now,
+      }),
+  });
+
+  return applied
+    ? { credited: true, reason: "credited", creditNoteId }
+    : { credited: false, reason: "already_credited", creditNoteId };
+}
+
+export const REFUND_CREDIT_DESCRIPTION = "Refunded recovery: fee credited";
+export const DISPUTE_CREDIT_DESCRIPTION = "Dispute lost after billing: fee credited";
+
+/** Fee lines handled per sweep. Each costs a Stripe list and a create, so this
+ *  keeps one run well inside a Worker's subrequest budget; anything past it is
+ *  still owed tomorrow, and the run's message says so. */
+export const CREDIT_SWEEP_LIMIT = 50;
+
+/**
+ * Every charged fee line the ledger says is owed back and that has no credit
+ * yet. THE OWED STATE IS DERIVED, NOT STORED: a recovery fee whose recovery is
+ * stamped refunded, or a dispute fee whose dispute resolved lost, on an invoice
+ * that reached Stripe, with no credit line pointing at it. Those are the same
+ * facts the webhook path acts on, so a failed Stripe call, a Worker that died
+ * between the stamp and the note, and a redelivery that skipped the clawback
+ * all leave the line here until it is credited. No second table can drift from
+ * the ledger, because there is no second table.
+ */
+export async function findOwedFeeLines(env: Env, limit = CREDIT_SWEEP_LIMIT): Promise<CreditableFeeLine[]> {
+  const db = getDb(env);
+  const credit = alias(billingLineItems, "credit");
+  const rows = await db
+    .select({
+      lineItemId: billingLineItems.id,
+      invoiceId: billingLineItems.invoiceId,
+      accountId: billingLineItems.accountId,
+      currency: billingLineItems.currency,
+      amountCents: billingLineItems.amountCents,
+      stripeInvoiceId: billingInvoices.stripeInvoiceId,
+      recoveredPaymentId: billingLineItems.recoveredPaymentId,
+      disputeId: billingLineItems.disputeId,
+    })
+    .from(billingLineItems)
+    .innerJoin(billingInvoices, eq(billingInvoices.id, billingLineItems.invoiceId))
+    .leftJoin(recoveredPayments, eq(recoveredPayments.id, billingLineItems.recoveredPaymentId))
+    .leftJoin(disputes, eq(disputes.id, billingLineItems.disputeId))
+    .where(
+      and(
+        isNotNull(billingInvoices.stripeInvoiceId),
+        notLike(billingLineItems.accountId, `${DEMO_ACCOUNT_ID_PREFIX}%`),
+        or(
+          and(
+            eq(billingLineItems.type, "recovery_fee"),
+            isNotNull(recoveredPayments.refundedAt),
+            isNull(recoveredPayments.deletedAt),
+          ),
+          and(eq(billingLineItems.type, "dispute_fee"), eq(disputes.state, "resolved_lost")),
+        ),
+        notExists(
+          db.select({ id: credit.id }).from(credit).where(eq(credit.creditsLineItemId, billingLineItems.id)),
+        ),
+      ),
+    )
+    .orderBy(billingLineItems.createdAt)
+    .limit(limit);
+  return rows.map((row) => ({ ...row, stripeInvoiceId: row.stripeInvoiceId as string }));
+}
+
+export interface CreditSweepResult {
+  credited: number;
+  failed: { lineItemId: string; error: string }[];
+  /** True when the sweep hit CREDIT_SWEEP_LIMIT, so more may still be owed. */
+  full: boolean;
+}
+
+/** The credit-note retry sweep: credit every owed fee line it finds, one at a
+ *  time, recording each failure rather than stopping on it. */
+export async function creditOwedFeeLines(env: Env, now: Date): Promise<CreditSweepResult> {
+  const owed = await findOwedFeeLines(env);
+  const result: CreditSweepResult = { credited: 0, failed: [], full: owed.length === CREDIT_SWEEP_LIMIT };
+  for (const line of owed) {
+    try {
+      const description = line.disputeId ? DISPUTE_CREDIT_DESCRIPTION : REFUND_CREDIT_DESCRIPTION;
+      const outcome = await creditFeeLine(env, line, { now, description });
+      if (outcome.credited) result.credited += 1;
+    } catch (err) {
+      result.failed.push({ lineItemId: line.lineItemId, error: err instanceof Error ? err.message : String(err) });
+    }
+  }
+  return result;
+}
+
+export function describeCreditSweep(result: CreditSweepResult): string {
+  const more = result.full ? `, limit ${CREDIT_SWEEP_LIMIT} reached (more may be owed)` : "";
+  return `${result.credited} credited, ${result.failed.length} failed${more}`;
+}
+
+/** The alert text when any owed fee could not be credited, or null. */
+export function creditSweepFailureError(result: CreditSweepResult): string | null {
+  if (result.failed.length === 0) return null;
+  const detail = result.failed.map((f) => `${f.lineItemId}: ${f.error}`).join("; ");
+  return `${result.failed.length} fee credit note(s) still owed after retry: ${detail}`;
 }
 
 /** Every recovery stamped refunded for one failed payment. The refund stamp is

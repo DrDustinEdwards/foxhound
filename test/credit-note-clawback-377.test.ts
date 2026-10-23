@@ -34,6 +34,8 @@ const harness = vi.hoisted(() => ({
   creditNoteCalls: [] as { args: Record<string, unknown>; options: Record<string, unknown> | undefined }[],
   failCreditNote: false,
   seen: new Set<string>(),
+  // What Stripe holds, so a retry can find a note an earlier attempt left.
+  stripeNotes: [] as { id: string; invoice: string; status: string; metadata: Record<string, string> }[],
 }));
 
 vi.mock("~/db", async (importOriginal) => ({
@@ -47,7 +49,17 @@ vi.mock("~/lib/stripe/client", () => ({
       create: async (args: Record<string, unknown>, options?: Record<string, unknown>) => {
         harness.creditNoteCalls.push({ args, options });
         if (harness.failCreditNote) throw new Error("stripe unavailable");
-        return { id: `cn_${harness.creditNoteCalls.length}` };
+        const note = {
+          id: `cn_${harness.creditNoteCalls.length}`,
+          invoice: args.invoice as string,
+          status: "issued",
+          metadata: args.metadata as Record<string, string>,
+        };
+        harness.stripeNotes.push(note);
+        return note;
+      },
+      list: async function* (params: { invoice: string }) {
+        yield* harness.stripeNotes.filter((n) => n.invoice === params.invoice);
       },
     },
   }),
@@ -76,7 +88,7 @@ vi.mock("~/lib/money/execute", () => ({
   },
 }));
 
-const { issueCreditNoteForEvidence, findCreditableFeeLine } = await import(
+const { issueCreditNoteForEvidence, findCreditableFeeLine, creditOwedFeeLines } = await import(
   "~/lib/billing/credit-note"
 );
 const schema = await import("~/db/schema");
@@ -168,6 +180,7 @@ beforeEach(() => {
   harness.creditNoteCalls = [];
   harness.failCreditNote = false;
   harness.seen = new Set<string>();
+  harness.stripeNotes = [];
 });
 
 describe("a refund AFTER the fee was invoiced", () => {
@@ -317,16 +330,68 @@ describe("the failure shape", () => {
     expect(await lines(db)).toHaveLength(0);
   });
 
-  it("and the retry after that failure credits exactly once", async () => {
+});
+
+// GROK AUDIT FH-2. The webhook's credit never throws, and its redelivery is a
+// duplicate that skips the clawback, so before the sweep a failed Stripe call
+// kept the fee for good.
+describe("the daily credit-note-retry sweep", () => {
+  async function stampRefund(db: Awaited<ReturnType<typeof seed>>) {
+    await db
+      .update(schema.recoveredPayments)
+      .set({ refundedAt: REFUNDED_AT })
+      .where(eq(schema.recoveredPayments.id, RECOVERY));
+  }
+
+  it("credits a fee the webhook failed to credit, exactly once", async () => {
     const db = await seed();
+    // Not refunded: nothing is owed, so the sweep must not touch it.
+    expect(await creditOwedFeeLines({} as Env, REFUNDED_AT)).toEqual({ credited: 0, failed: [], full: false });
+
+    await stampRefund(db);
     harness.failCreditNote = true;
     await issueCreditNoteForEvidence({} as Env, RECOVERY_EVIDENCE, OPTS);
+    expect(await lines(db)).toHaveLength(0);
 
     harness.failCreditNote = false;
-    const retry = await issueCreditNoteForEvidence({} as Env, RECOVERY_EVIDENCE, OPTS);
-
-    expect(retry.credited).toBe(true);
+    expect((await creditOwedFeeLines({} as Env, REFUNDED_AT)).credited).toBe(1);
+    expect((await creditOwedFeeLines({} as Env, REFUNDED_AT)).credited).toBe(0);
     expect(await lines(db)).toHaveLength(1);
+  });
+
+  it("finds a note that reached Stripe without its ledger row instead of issuing a second", async () => {
+    // Stripe prunes idempotency keys after 24 hours, and the sweep is daily, so
+    // the key cannot be what stops the second note.
+    const db = await seed();
+    await stampRefund(db);
+    harness.stripeNotes.push({
+      id: "cn_earlier",
+      invoice: "in_platform_1",
+      status: "issued",
+      metadata: { fee_line_item_id: FEE_LINE },
+    });
+
+    expect((await creditOwedFeeLines({} as Env, REFUNDED_AT)).credited).toBe(1);
+    expect(harness.creditNoteCalls).toHaveLength(0);
+    const credits = await lines(db);
+    expect(credits).toHaveLength(1);
+    expect(credits[0].stripeCreditNoteId).toBe("cn_earlier");
+  });
+
+  it("never reissues a note someone voided, and reports it", async () => {
+    const db = await seed();
+    await stampRefund(db);
+    harness.stripeNotes.push({
+      id: "cn_voided",
+      invoice: "in_platform_1",
+      status: "void",
+      metadata: { fee_line_item_id: FEE_LINE },
+    });
+
+    const result = await creditOwedFeeLines({} as Env, REFUNDED_AT);
+    expect(result.failed.map((f) => f.lineItemId)).toEqual([FEE_LINE]);
+    expect(harness.creditNoteCalls).toHaveLength(0);
+    expect(await lines(db)).toHaveLength(0);
   });
 });
 

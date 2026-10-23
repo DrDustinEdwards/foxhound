@@ -1,5 +1,6 @@
 import { getDb } from "~/db";
 import { describeMonthlyAuditRun, enqueueMonthlyAudits } from "~/lib/audit/monthly.server";
+import { creditOwedFeeLines, creditSweepFailureError, describeCreditSweep } from "~/lib/billing/credit-note";
 import { computeBillingPeriod, describeSweepRun, runMonthlyBilling } from "~/lib/billing/run";
 import {
   CRON_SCHEDULE_DAILY,
@@ -196,6 +197,22 @@ const expiringCards: CronHandler = async (env) => {
  *  new wrangler.jsonc trigger. See app/lib/backup/d1-backup.ts. */
 const d1Backup: CronHandler = (env) => runD1Backup(env, new Date());
 
+/** The credit-note retry (Grok audit FH-2). A refund or lost dispute credits
+ *  its charged fee from the webhook, and that call never throws, so a Stripe
+ *  failure there used to be a console line and a fee kept for good: the
+ *  redelivery is a duplicate and skips the clawback. This sweep credits every
+ *  fee the ledger says is owed, daily, until it is. A fee still owed after the
+ *  sweep alerts, as billing-monthly's per-account failures do. */
+const creditNoteRetry: CronHandler = async (env, ctx) => {
+  const now = new Date();
+  const result = await creditOwedFeeLines(env, now);
+  const failure = creditSweepFailureError(result);
+  if (failure) {
+    await alertCronFailure(env, getDb(env), { cronName: "credit-note-retry", runId: ctx?.runId ?? null, error: failure }, now);
+  }
+  return { rowsProcessed: result.credited, message: describeCreditSweep(result) };
+};
+
 const cronHealth: CronHandler = async (env) =>
   runCronHealthCheck(env, getDb(env), CRON_JOBS, new Date());
 
@@ -237,6 +254,7 @@ export const CRON_JOBS: CronJob[] = [
   { name: "expiring-cards", schedule: CRON_SCHEDULE_DAILY, handler: expiringCards },
   { name: "d1-backup", schedule: CRON_SCHEDULE_DAILY, handler: d1Backup },
   { name: DEMO_RESET_CRON_NAME, schedule: CRON_SCHEDULE_DAILY, handler: demoReset },
+  { name: "credit-note-retry", schedule: CRON_SCHEDULE_DAILY, handler: creditNoteRetry },
   { name: "billing-monthly", schedule: CRON_SCHEDULE_MONTHLY, handler: billingMonthly },
   { name: "intelligence-sync", schedule: CRON_SCHEDULE_MONTHLY, handler: intelligenceSync },
   { name: "monthly-audit", schedule: CRON_SCHEDULE_MONTHLY_AUDIT, handler: monthlyAudit },

@@ -8,7 +8,7 @@ import { isDisputeResolved } from "~/lib/disputes/labels";
 import { sendDisputeCreatedNotice, sendDisputeOutcomeNotice } from "~/lib/disputes/notices.server";
 import { readDisputeProductDescription } from "~/lib/disputes/queries.server";
 import { resolveDisputeCap, type ResolvedDisputeCap } from "~/lib/billing/dispute-cap";
-import { issueCreditNoteForEvidence } from "~/lib/billing/credit-note";
+import { DISPUTE_CREDIT_DESCRIPTION, issueCreditNoteForEvidence } from "~/lib/billing/credit-note";
 import { executeMoneyWrite } from "~/lib/money/execute";
 
 import {
@@ -189,7 +189,7 @@ export async function handleDisputeResolved(
     await issueCreditNoteForEvidence(
       env,
       { disputeId: dispute.id },
-      { now: receivedAt, description: "Dispute lost after billing: fee credited" },
+      { now: receivedAt, description: DISPUTE_CREDIT_DESCRIPTION },
     );
   }
   // THE WON OR LOST NOTICE (J06), after the resolution has committed.
