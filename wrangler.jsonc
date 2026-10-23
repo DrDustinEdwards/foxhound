@@ -2,7 +2,8 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "foxhound",
   "main": "./workers/app.ts",
-  "compatibility_date": "2026-10-23",
+  // No newer than the workerd that @cloudflare/vite-plugin bundles supports, or `npm run dev` refuses to start.
+  "compatibility_date": "2026-10-19",
   "compatibility_flags": ["nodejs_compat"],
   "upload_source_maps": true,
   "assets": {
