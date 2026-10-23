@@ -35,7 +35,7 @@
     "@modelcontextprotocol/server": "2.3.1",
     "@sentry/cloudflare": "10.66.0",
     "better-auth": "1.6.23",
-    "capsomer": "github:DrDustinEdwards/capsomer#v0.11.1",
+    "capsomer": "github:DrDustinEdwards/capsomer#v0.11.2",
     "drizzle-orm": "0.45.2",
     "enarratio": "0.3.1",
     "highlight.js": "11.11.1",
