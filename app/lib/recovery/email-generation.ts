@@ -1,4 +1,5 @@
 import { createAnthropicClient } from "~/lib/ai/client";
+import { UNTRUSTED_DATA_RULE, untrusted } from "~/lib/ai/untrusted";
 import { MODEL_RECOVERY_EMAIL } from "~/lib/constants";
 
 // AI dunning-copy generation. Copy is written in the MERCHANT's brand voice, not
@@ -423,7 +424,8 @@ const OUTPUT_SCHEMA = {
 function buildSystemPrompt(brandVoice: string): string {
   return [
     "You write short payment-recovery emails on behalf of a business, in that",
-    `business's own voice: ${brandVoice}.`,
+    `business's own voice: ${untrusted(brandVoice)}.`,
+    UNTRUSTED_DATA_RULE,
     "Rules you must follow exactly:",
     "- Never use em dashes or en dashes. Use commas or short sentences.",
     "- Never mention how many days or hours it has been, or reference an internal",
@@ -469,8 +471,8 @@ export function buildUserPrompt(input: GenerateEmailInput): string {
   // three columns reach nothing.
   const merchantContext = merchantContextLine(input.merchant);
   return [
-    `Business: ${input.merchant.merchantName}`,
-    merchantContext ?? "",
+    `Business: ${untrusted(input.merchant.merchantName)}`,
+    merchantContext ? untrusted(merchantContext) : "",
     `A customer's payment of ${input.amountFormatted} did not go through`,
     `(reason category: ${input.declineCategory}).`,
     guidance ?? `Write a brief note asking them to fix it using this link: ${input.updateUrl}`,
