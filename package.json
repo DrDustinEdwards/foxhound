@@ -21,7 +21,7 @@
     "check-gates": "node scripts/check-gates.mjs",
     "report:knip": "knip --no-exit-code",
     "report:duplication": "jscpd",
-    "report:page-weight": "node scripts/report-page-weight.mjs",
+    "report:page-weight": "devkit-route-weight",
     "report:assertions": "node scripts/report-assertionless-tests.mjs",
     "report:bloat": "npm run report:knip && npm run report:duplication && npm run report:page-weight && npm run report:assertions",
     "check:all": "npm run typecheck && npm run lint && npm run test && npm run check-tokens && npm run check-gates"
@@ -52,7 +52,7 @@
   "devDependencies": {
     "@better-auth/cli": "1.4.21",
     "@cloudflare/vite-plugin": "1.64.0",
-    "@dustinedwards/devkit": "github:DrDustinEdwards/devkit#v0.8.0",
+    "@dustinedwards/devkit": "github:DrDustinEdwards/devkit#v0.9.0",
     "@eslint/js": "9.39.5",
     "@fontsource/martian-mono": "5.3.0",
     "@fontsource/schibsted-grotesk": "5.3.0",
