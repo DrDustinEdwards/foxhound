@@ -1,4 +1,5 @@
 import { createAnthropicClient } from "~/lib/ai/client";
+import { UNTRUSTED_DATA_RULE, untrusted } from "~/lib/ai/untrusted";
 import { MODEL_RECOVERY_EMAIL } from "~/lib/constants";
 import { sanitizeCopy } from "~/lib/recovery/email-generation";
 
@@ -108,15 +109,16 @@ function buildSystemPrompt(): string {
     "amount, an event, or any detail that is not explicitly provided. If the",
     "facts are sparse, write a short, honest summary using just what is given.",
     "Never use em dashes or en dashes. No corporate filler, no AI-sounding phrases.",
+    UNTRUSTED_DATA_RULE,
   ].join("\n");
 }
 
 function buildUserPrompt(facts: EvidenceFacts): string {
   const lines = ["Known facts about this transaction and customer contact:"];
   if (facts.merchantProductDescription) {
-    lines.push(`Product description (stated by the merchant): ${facts.merchantProductDescription}`);
+    lines.push(`Product description (stated by the merchant): ${untrusted(facts.merchantProductDescription)}`);
   }
-  if (facts.productName) lines.push(`Product/plan: ${facts.productName}`);
+  if (facts.productName) lines.push(`Product/plan: ${untrusted(facts.productName)}`);
   if (facts.serviceDate) {
     lines.push(`Service/subscription start: ${facts.serviceDate.toISOString().slice(0, 10)}`);
   }
