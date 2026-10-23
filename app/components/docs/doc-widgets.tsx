@@ -294,8 +294,6 @@ const WIDGETS = {
 
 export type DocWidgetName = keyof typeof WIDGETS;
 
-export const DOC_WIDGET_NAMES = Object.keys(WIDGETS) as DocWidgetName[];
-
 export function DocWidget({ name }: { name: DocWidgetName }) {
   const Component = WIDGETS[name];
   return <Component />;
