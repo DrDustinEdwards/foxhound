@@ -64,7 +64,7 @@ export default function AuditProductPage({ loaderData }: Route.ComponentProps) {
   return (
     // Capsomer's teal family with Foxhound's neutrals, and the family's focus
     // ring inside the page, as on the other three spokes.
-    <div className="fh-cap [--border-focus:var(--ring)]" data-family="teal">
+    <div className="fh-cap [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="teal">
       <ProductHero
         productName="Audit"
         Icon={ScanSearch}

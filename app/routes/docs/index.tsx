@@ -54,7 +54,7 @@ export default function DocsIndexPage({ loaderData }: Route.ComponentProps) {
           Recova's 720px column, in Capsomer's teal family with Foxhound's own
           neutrals (.fh-cap, as the site header and the /products hub); the focus
           ring reads the family's teal ring here, as in Capsomer's own parts. */}
-      <div className="fh-cap mx-auto max-w-[720px] px-6 pb-16 [--border-focus:var(--ring)]" data-family="teal">
+      <div className="fh-cap mx-auto max-w-[720px] px-6 pb-16 [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="teal">
         <div className="flex flex-col gap-4">
           {/* Platform: full width, the same card as the product guides below. */}
           <GuideCard guide={platform} />

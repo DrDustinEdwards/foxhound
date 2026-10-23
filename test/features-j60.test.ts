@@ -363,7 +363,7 @@ describe("/features look: Capsomer's parts, teal, five sizes (Q11, Q12, RULES.md
   const html = render();
 
   it("sits in Capsomer's teal family with Foxhound's neutrals", () => {
-    expect(html).toMatch(/<div class="fh-cap[^"]*" data-family="teal"/);
+    expect(html).toMatch(/<div class="fh-cap[^"]*" data-cap-site="foxhound" data-family="teal"/);
   });
 
   it("builds each card from Capsomer's panel, body only, with no Foxhound class on the panel", () => {
@@ -439,7 +439,7 @@ describe("/features focus rule (J60 review)", () => {
     expect(hits.filter((h) => h.selector.includes("cap-chip"))).toEqual([
       { selector: ".fh-features :is(.cap-chip, .cap-btn):focus-visible", media: "not (forced-colors: active)" },
     ]);
-    expect(render()).toMatch(/<div class="fh-cap fh-features[^"]*" data-family="teal"/);
+    expect(render()).toMatch(/<div class="fh-cap fh-features[^"]*" data-cap-site="foxhound" data-family="teal"/);
   });
 });
 

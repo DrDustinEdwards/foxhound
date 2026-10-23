@@ -41,7 +41,7 @@ export interface LegalSectionDef {
  */
 export function LegalBody({ children }: { children: ReactNode }) {
   return (
-    <div className="fh-cap mx-auto max-w-[720px] px-6 pb-16 [--border-focus:var(--ring)]" data-family="teal">
+    <div className="fh-cap mx-auto max-w-[720px] px-6 pb-16 [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="teal">
       {children}
     </div>
   );

@@ -83,7 +83,7 @@ export default function BlogTagPage({ loaderData }: Route.ComponentProps) {
     // div, not main: marketing.tsx already renders this page's one main landmark.
     // Capsomer's teal family with Foxhound's own neutrals (.fh-cap), the focus
     // ring reading the family's ring, as on /blog.
-    <div className="fh-cap [--border-focus:var(--ring)]" data-family="teal">
+    <div className="fh-cap [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="teal">
       <div className="mx-auto max-w-[1100px] px-5 py-16 sm:px-8">
         <Link
           to="/blog"

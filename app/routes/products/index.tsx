@@ -67,7 +67,7 @@ export default function ProductsIndexPage() {
           neutrals (.fh-cap, as the site header and the legal pages); the focus
           ring reads the family's teal ring here, as in Capsomer's own parts. */}
       <div
-        className="fh-cap mx-auto max-w-[720px] px-5 pb-16 sm:px-8 [--border-focus:var(--ring)]"
+        className="fh-cap mx-auto max-w-[720px] px-5 pb-16 sm:px-8 [--border-focus:var(--ring)]" data-cap-site="foxhound"
         data-family="teal"
       >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
