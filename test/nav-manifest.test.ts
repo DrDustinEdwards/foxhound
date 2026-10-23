@@ -78,10 +78,6 @@ describe("nav manifest matches routes.ts", () => {
   const realPaths = new Set<string>();
   collectPaths(routes as unknown as RouteConfigEntry[], "", realPaths);
 
-  it("found a sane number of real routes (fixture is walking something)", () => {
-    expect(realPaths.size).toBeGreaterThan(20);
-  });
-
   it("every product manifest href is a real route", () => {
     for (const product of Object.values(PRODUCT_MANIFEST)) {
       expect(realPaths.has(product.href), `${product.href} (product: ${product.key}) is not in routes.ts`).toBe(

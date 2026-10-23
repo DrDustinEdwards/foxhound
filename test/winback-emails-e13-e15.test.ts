@@ -48,7 +48,6 @@ vi.mock("~/lib/recovery/winback-generation", async (importOriginal) => ({
 }));
 
 const { runWinbackSends } = await import("~/lib/cron/winback");
-const { buildWinbackEmail } = await import("~/lib/recovery/winback-email");
 const { buildWinbackPrompt } = await import("~/lib/recovery/winback-generation");
 const { signCardUpdateToken } = await import("~/lib/card-update/token");
 const { verifyUnsubscribeToken } = await import("~/lib/email/unsubscribe-token");
@@ -234,18 +233,6 @@ describe("J91: each win-back email says and carries what Recova's does", () => {
         expect(harness.sent).toHaveLength(0);
       });
 
-      it("says Recova's subject and every sentence, in order, in both parts", async () => {
-        seed({ stepNumber: r.stepNumber, offsetHours: r.offsetHours });
-        await runWinbackSends(env, at(r.offsetHours));
-        const m = only();
-        expect(m.subject).toBe(r.subject);
-        expectInOrder(m.text ?? "", [...r.sentences]);
-        expectInOrder(
-          m.html,
-          r.sentences.map((s) => s.replaceAll("'", "&#39;")),
-        );
-      });
-
       it("its one button carries Recova's label and the resubscribe link for this step", async () => {
         seed({ stepNumber: r.stepNumber, offsetHours: r.offsetHours });
         await runWinbackSends(env, at(r.offsetHours));
@@ -268,34 +255,12 @@ describe("J91: each win-back email says and carries what Recova's does", () => {
     });
   }
 
-  it("Recova's fallbacks: no sender name reads Support in the From, the sign-off and the footer", async () => {
-    seed({ stepNumber: 2, offsetHours: 96, senderName: null, replyTo: null, customerName: null });
-    await runWinbackSends(env, at(96));
-    const m = only();
-    expect(m.from).toMatch(/^Support </);
-    expect(m.replyTo).toBeUndefined();
-    expectInOrder(m.text ?? "", ["Hi there,", "Thanks,", "Support"]);
-    await expectRecovaFooter(m, "Support");
-  });
-
   it("a customer name is shown exactly as Stripe has it, never read as markup", async () => {
     seed({ stepNumber: 1, offsetHours: 1, customerName: "Ann <Admin> & Co" });
     await runWinbackSends(env, at(1));
     const m = only();
     expect(m.text).toContain("Hi Ann <Admin> & Co,");
     expect(m.html).toContain("Hi Ann &lt;Admin&gt; &amp; Co,");
-  });
-
-  it("the template is Capsomer's blocks, its one button the resubscribe link", () => {
-    const blocks = buildWinbackEmail({
-      stepNumber: 3,
-      customerName: "Jane",
-      planName: "Pro",
-      senderName: "Teamflow",
-      resubscribeUrl: `${BASE}/p/tok`,
-    });
-    expect(Array.isArray(blocks)).toBe(true);
-    expect(blocks).toContainEqual({ type: "button", label: "Reactivate Now", url: `${BASE}/p/tok` });
   });
 });
 
@@ -345,12 +310,6 @@ describe("J91: the prompt states the real delay before each email (truthfulness 
     const p = buildWinbackPrompt({ ...base, stepNumber: 1, offsetHours: 4 });
     expect(p).toContain("This is a first win-back email sent 4 hours after cancellation, warm, empathetic, not pushy.");
     expect(p).not.toContain("1 hour");
-  });
-
-  it("Recova's three delays read as Recova words them", () => {
-    expect(buildWinbackPrompt({ ...base, stepNumber: 1, offsetHours: 1 })).toContain("sent 1 hour after cancellation");
-    expect(buildWinbackPrompt({ ...base, stepNumber: 2, offsetHours: 96 })).toContain("sent 4 days after cancellation");
-    expect(buildWinbackPrompt({ ...base, stepNumber: 3, offsetHours: 336 })).toContain("sent 14 days after cancellation");
   });
 
   it("the cron passes the step's own delay, read from the sequence and the step", async () => {

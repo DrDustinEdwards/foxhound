@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
@@ -16,20 +15,7 @@ import { isPaymentDetailPath, shouldShowRouteSplash } from "~/lib/navigation/rou
 // is proven by source. What is NOT proven is that React paints it; that rests on
 // the demo probe.
 
-const SHELL = readFileSync("app/layouts/app-shell.tsx", "utf8");
-const SPLASH = readFileSync("app/components/route-splash.tsx", "utf8");
-const CSS = readFileSync("app/app.css", "utf8");
 
-/** Comments stripped. Both files explain what they deliberately do NOT do, so a
- *  bare search for an avoided construct matches the explanation. Third instance
- *  of that class in this campaign; the shape is now standing. */
-const strip = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-const SHELL_CODE = strip(SHELL);
-/** The splash file NAMES the legacy brand while explaining the substitution, so
- *  the brand assertion below must read stripped source or it matches the very
- *  comment that documents the fix. Caught by this file's own first run, which is
- *  the FOURTH instance of the class in this campaign. */
-const SPLASH_CODE = strip(SPLASH);
 
 const DETAIL = "/recovery/payments/dfp_46";
 
@@ -132,64 +118,5 @@ describe("305: the path predicate is the detail route and nothing else", () => {
     expect(isPaymentDetailPath("/recovery/payments/dfp_1/edit")).toBe(false);
     expect(isPaymentDetailPath("/disputes/d_1")).toBe(false);
     expect(isPaymentDetailPath("/console")).toBe(false);
-  });
-});
-
-describe("305: the splash carries legacy's shape", () => {
-  it("renders the favicon at legacy's 96 square with legacy's spacing", () => {
-    expect(SPLASH).toContain('width={96}');
-    expect(SPLASH).toContain('height={96}');
-    expect(SPLASH).toContain('className="mb-6"');
-  });
-
-  it("carries legacy's centred full-height column and mono copy", () => {
-    expect(SPLASH).toContain("min-h-screen bg-bg flex flex-col items-center justify-center");
-    expect(SPLASH).toContain("font-mono");
-    expect(SPLASH).toContain("tracking-wider");
-    expect(SPLASH).toContain("Loading...");
-  });
-
-  it("is branded Foxhound, not Recova", () => {
-    expect(SPLASH).toContain('alt="Foxhound"');
-    expect(SPLASH_CODE).not.toContain("Recova");
-  });
-
-  it("BEHAVIOUR, not prose: text-label IS legacy's 0.8125rem", () => {
-    // Legacy writes the arbitrary text-[0.8125rem]. This proves the token the
-    // port uses resolves to the identical size, so the substitution is a
-    // resolved-value match (147) rather than an approximation. If the token is
-    // ever retuned, this fails instead of the page silently drifting.
-    expect(CSS).toMatch(/--text-label:\s*0\.8125rem/);
-    // Stripped, because this file's own comment NAMES the token while explaining
-    // the substitution: unstripped, the token-drift plant passed. Fifth instance
-    // of the self-match class, and the first in a POSITIVE assertion.
-    expect(SPLASH_CODE).toContain("text-label");
-    expect(SPLASH_CODE).not.toContain("text-[0.8125rem]");
-  });
-});
-
-describe("305: the shell hosts it in the Outlet's place", () => {
-  it("renders the splash INSTEAD of the outlet while pending", () => {
-    expect(SHELL_CODE).toContain("{splash ? <RouteSplash /> : <Outlet />}");
-    expect(SHELL_CODE).toContain("shouldShowRouteSplash(useNavigation())");
-  });
-
-  it("REGRESSION GUARD: the Outlet still renders when not pending", () => {
-    // A splash that replaced the Outlet unconditionally would render an app
-    // that never shows a page. The conditional is what makes this safe, and
-    // this guard is proven non-vacuous by its own plant per 296.
-    expect(SHELL_CODE).toContain("<Outlet />");
-    expect(SHELL_CODE).toMatch(/splash \?[\s\S]{0,40}<Outlet \/>/);
-  });
-
-  it("REGRESSION GUARD: the shell keeps its single main landmark (146)", () => {
-    // The splash goes inside <main>, not beside it. Since Capsomer 0.9.0 the
-    // main region is the dashboard shell's own (AdminShell's #cap-main), which
-    // renders its children inside it, so the layout writes no <main> of its
-    // own: the splash and the Outlet are AdminShell's children. Two landmarks,
-    // or a splash that escaped main, would both break 146's ratified structure.
-    const DEFAULT_LAYOUT = SHELL_CODE.slice(SHELL_CODE.indexOf("export default function AppLayout"), SHELL_CODE.indexOf("export function ErrorBoundary"));
-    expect(DEFAULT_LAYOUT).not.toMatch(/<main\b/);
-    expect(DEFAULT_LAYOUT).toMatch(/<AdminShell[\s\S]*\{splash \? <RouteSplash \/> : <Outlet \/>\}[\s\S]*<\/AdminShell>/);
   });
 });

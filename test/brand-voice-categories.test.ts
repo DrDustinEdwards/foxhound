@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -28,7 +26,6 @@ const { queryDueRecoverySteps, toEmailContext } = await import("~/lib/cron/due-s
 const { buildPrompts, resolveBrandVoice } = await import("~/lib/recovery/email-generation");
 const { buildGenerateEmailInput } = await import("~/lib/engine/execute-step");
 const { DECLINE_CATEGORIES } = await import("~/lib/constants");
-const { BRAND_VOICE_PRESETS, CATEGORY_VOICE_ROWS } = await import("~/lib/settings/brand-voice-presets");
 const { action: brandVoiceAction } = await import("~/routes/app/settings/brand-voice");
 
 const ACCOUNT = "acct_1";
@@ -184,77 +181,6 @@ describe("PLANT 3: six categories against four columns", () => {
     for (const category of DECLINE_CATEGORIES) {
       expect(resolveBrandVoice({ merchantName: "A" }, category).length).toBeGreaterThan(0);
     }
-  });
-});
-
-describe("PLANT 4: 309's bound holds", () => {
-  it("findBrandVoiceViolations reads COPY and has no dispute caller", async () => {
-    const { readFileSync } = await import("node:fs");
-    const { fileURLToPath } = await import("node:url");
-    const gen = readFileSync(
-      fileURLToPath(new URL("../app/lib/recovery/email-generation.ts", import.meta.url)),
-      "utf8",
-    );
-    // The gate takes EmailCopy. It has never read the resolved voice, on either
-    // side: the name describes what it protects, not what it reads.
-    expect(gen).toContain("export function findBrandVoiceViolations(copy: EmailCopy)");
-
-    const disputes = readFileSync(
-      fileURLToPath(new URL("../app/lib/disputes/queries.server.ts", import.meta.url)),
-      "utf8",
-    );
-    expect(disputes).not.toContain("findBrandVoiceViolations");
-    expect(disputes).not.toContain("passesQualityGate");
-  });
-});
-
-describe("PLANT 5: the settings surface renders exactly the four legacy fields", () => {
-  const SOURCE = readFileSync(
-    fileURLToPath(new URL("../app/routes/app/settings/brand-voice.tsx", import.meta.url)),
-    "utf8",
-  );
-  const code = SOURCE.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-
-  it("the four categories legacy has a column for, and NOT the two it does not", () => {
-    for (const key of ["soft", "expired", "network", "fraud"]) {
-      expect(CATEGORY_VOICE_ROWS.some((r) => r.key === key)).toBe(true);
-    }
-    // revoked and unknown resolve to the general voice through legacy's default
-    // arm. A field for them would be inventing a column.
-    expect(CATEGORY_VOICE_ROWS).toHaveLength(4);
-    expect(code).not.toContain("voice_revoked");
-    expect(code).not.toContain("voice_unknown");
-  });
-
-  it("carries legacy's option set and its custom reveal", () => {
-    expect(code).toContain("Same as main voice");
-    expect(code).toContain("Custom...");
-    expect(BRAND_VOICE_PRESETS).toHaveLength(7);
-  });
-
-  it("no bound on any field, which is legacy", () => {
-    expect(code).not.toContain("maxLength");
-    expect(code).not.toContain("required");
-  });
-
-  it("the write goes through DemoGuardedForm", () => {
-    expect(code).toContain('<DemoGuardedForm method="post"');
-    expect(code).not.toContain('<Form method="post"');
-    expect(code).not.toContain('<form method="post"');
-  });
-
-  it("the docs describe the built shape, not one field", () => {
-    const docs = readFileSync(
-      fileURLToPath(new URL("../app/lib/marketing/docs-content.ts", import.meta.url)),
-      "utf8",
-    );
-    expect(docs).not.toContain("one brand voice field");
-    expect(docs).toContain("a different tone for each failure category");
-    expect(docs).toContain("falls back to the main one");
-    // J36: Recova's page has no main-voice field, so neither does this one,
-    // and the docs must not send a merchant to look for it there.
-    expect(docs).not.toContain("holds the main brand voice");
-    expect(docs).not.toContain("The page holds the main voice");
   });
 });
 

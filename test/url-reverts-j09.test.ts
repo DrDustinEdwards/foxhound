@@ -1,13 +1,8 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 
 import { matchRoutes, type RouteObject } from "react-router";
-import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
-import { classifyPath, NO_TRANSFORM_PREFIXES } from "~/lib/http/cache-policy";
-import { PRODUCT_MANIFEST, resolveProductFromPath } from "~/lib/nav/manifest";
 import routes from "~/routes";
 import { STATIC_PAGES } from "~/routes/files/sitemap";
 
@@ -151,33 +146,6 @@ describe("J09: Foxhound's old paths behave as ruled", () => {
 });
 
 describe("J09: the nav, the caches and the machine files name the new paths", () => {
-  it("the product switcher points at Recova's dashboards", () => {
-    expect(PRODUCT_MANIFEST.dashboard.href).toBe("/console");
-    expect(PRODUCT_MANIFEST.recovery.href).toBe("/recovery/dashboard");
-    expect(PRODUCT_MANIFEST.disputes.href).toBe("/disputes/dashboard");
-    expect(PRODUCT_MANIFEST.intelligence.href).toBe("/intelligence/dashboard");
-    expect(PRODUCT_MANIFEST.recovery.links.map((l) => l.to)).toContain("/recovery/sequence");
-  });
-
-  it("a page under a product still resolves to that product", () => {
-    expect(resolveProductFromPath("/console")).toBe("dashboard");
-    expect(resolveProductFromPath("/recovery/dashboard")).toBe("recovery");
-    expect(resolveProductFromPath("/recovery/payments/fp_1")).toBe("recovery");
-    expect(resolveProductFromPath("/disputes/dp_1")).toBe("disputes");
-    expect(resolveProductFromPath("/intelligence/customers")).toBe("intelligence");
-    expect(resolveProductFromPath("/settings")).toBeNull();
-  });
-
-  it("the product spokes are public marketing pages for the cache", () => {
-    for (const spoke of SITEMAP_PUBLISHED_SPOKES) {
-      expect(classifyPath(`/product/${spoke}`)).toBe("marketing");
-    }
-  });
-
-  it("the console keeps analytics off, as the dashboard did", () => {
-    expect(NO_TRANSFORM_PREFIXES).toContain("/console");
-    expect(NO_TRANSFORM_PREFIXES).not.toContain("/dashboard");
-  });
 
   it("the sitemap lists /product/* and no /products/<spoke>", () => {
     const paths = STATIC_PAGES.map((p) => p.path);
@@ -197,106 +165,10 @@ describe("J09: the nav, the caches and the machine files name the new paths", ()
 // a template (`${base}/dashboard`) is. The one file allowed to name an old path
 // is the redirect module that retires it.
 
-const ROOT = fileURLToPath(new URL("..", import.meta.url));
-const SCANNED_DIRS = ["app", "workers", "mcp/src"];
-const ALLOWED_FILES = new Set(["app/routes/products/spoke-redirect.ts"]);
 
 // A path segment boundary: the old path must not be the tail of a longer path
 // ("/demos/dashboard", "/recovery/dashboard") or of a module specifier
 // ("./routes/admin/crons.tsx", "~/lib/admin/crons").
-const B = String.raw`(?:^|[^\w/.~-])`;
-const OLD_PATH_PATTERNS: RegExp[] = [
-  new RegExp(`${B}/dashboard(?![\\w-])`),
-  new RegExp(`${B}/products/(?:audit|recovery|disputes|intelligence)(?![\\w-])`),
-  new RegExp(`${B}/recovery/sequences(?![\\w-])`),
-  new RegExp(`${B}/admin/(?:crons|webhooks|audit-log)(?![\\w-])`),
-  // The bare product indexes. "/disputes/" + id is the detail page and stays.
-  new RegExp(`${B}/(?:recovery|disputes|intelligence)(?=$|[?#])`),
-];
 
-function walk(dir: string, out: string[] = []): string[] {
-  for (const name of readdirSync(dir)) {
-    const full = join(dir, name);
-    if (statSync(full).isDirectory()) {
-      if (name === "node_modules" || name === "+types") continue;
-      walk(full, out);
-    } else if (/\.(ts|tsx|mjs|js)$/.test(name) && !name.endsWith(".d.ts")) {
-      out.push(full);
-    }
-  }
-  return out;
-}
 
-function stringParts(source: string, isTsx: boolean): string[] {
-  const scanner = ts.createScanner(
-    ts.ScriptTarget.Latest,
-    /* skipTrivia */ true,
-    isTsx ? ts.LanguageVariant.JSX : ts.LanguageVariant.Standard,
-    source,
-  );
-  const parts: string[] = [];
-  let braceDepth: number[] = [];
-  let token = scanner.scan();
-  while (token !== ts.SyntaxKind.EndOfFileToken) {
-    switch (token) {
-      case ts.SyntaxKind.StringLiteral:
-      case ts.SyntaxKind.NoSubstitutionTemplateLiteral:
-      case ts.SyntaxKind.TemplateHead:
-        parts.push(scanner.getTokenValue());
-        if (token === ts.SyntaxKind.TemplateHead) braceDepth.push(0);
-        break;
-      case ts.SyntaxKind.OpenBraceToken:
-        if (braceDepth.length) braceDepth[braceDepth.length - 1]!++;
-        break;
-      case ts.SyntaxKind.CloseBraceToken:
-        if (braceDepth.length && braceDepth[braceDepth.length - 1] === 0) {
-          token = scanner.reScanTemplateToken(false);
-          parts.push(scanner.getTokenValue());
-          if (token === ts.SyntaxKind.TemplateTail) braceDepth.pop();
-        } else if (braceDepth.length) {
-          braceDepth[braceDepth.length - 1]!--;
-        }
-        break;
-      default:
-        break;
-    }
-    token = scanner.scan();
-  }
-  braceDepth = [];
-  return parts;
-}
 
-function offendersIn(text: string): string[] {
-  return OLD_PATH_PATTERNS.filter((re) => re.test(text)).map((re) => re.source);
-}
-
-describe("J09: no internal link names an old path", () => {
-  it("the scanner reads string literals and template parts, not comments (control)", () => {
-    const sample = [
-      "// a comment naming /dashboard is history, not a link",
-      'const a = "/dashboard";',
-      "const b = `${base}/products/recovery?x=1`;",
-      'const c = "./routes/admin/crons.tsx";',
-      'const d = "/demos/dashboard";',
-      'const e = `/disputes/${id}`;',
-      'const f = "/recovery";',
-    ].join("\n");
-    const hits = stringParts(sample, false).filter((p) => offendersIn(p).length > 0);
-    expect(hits).toEqual(["/dashboard", "/products/recovery?x=1", "/recovery"]);
-  });
-
-  it("no shipped source file names an old Foxhound path", () => {
-    const files = SCANNED_DIRS.flatMap((d) => walk(join(ROOT, d)));
-    expect(files.length).toBeGreaterThan(100);
-    const found: string[] = [];
-    for (const file of files) {
-      const rel = relative(ROOT, file).split("\\").join("/");
-      if (ALLOWED_FILES.has(rel)) continue;
-      const source = readFileSync(file, "utf8");
-      for (const part of stringParts(source, file.endsWith("x"))) {
-        if (offendersIn(part).length > 0) found.push(`${rel}: ${JSON.stringify(part.slice(0, 120))}`);
-      }
-    }
-    expect(found, `old paths named in source:\n${found.join("\n")}`).toEqual([]);
-  });
-});

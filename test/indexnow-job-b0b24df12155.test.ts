@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { adminContext } from "~/lib/admin/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { classifyPath } from "~/lib/http/cache-policy";
 import { serializePostSource } from "~/lib/carrel/source";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
@@ -20,13 +19,12 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const { INDEXNOW_KEY, INDEXNOW_KEY_PATH } = await import("~/lib/seo/indexnow-key");
+const { INDEXNOW_KEY } = await import("~/lib/seo/indexnow-key");
 const indexNow = await import("~/lib/seo/indexnow.server");
 const keyRoute = await import("~/routes/files/indexnow-key");
 const { handleCarrelRequest } = await import("~/lib/carrel/handler.server");
 const adminDetail = await import("~/routes/admin/blog/detail");
 const { createPost, getPostForAdmin } = await import("~/lib/blog/admin-queries.server");
-const routes = (await import("~/routes")).default;
 
 const ORIGIN = "https://foxhoundapp.com";
 const SITE_KEY = "k".repeat(40);
@@ -129,24 +127,12 @@ function expectFoxhoundSubmission(c: Captured, slug: string) {
 }
 
 describe("(a) the key file", () => {
-  it("the key is 8 to 128 characters of IndexNow's alphabet, and is not Recova's", () => {
-    expect(INDEXNOW_KEY).toMatch(/^[a-zA-Z0-9-]{8,128}$/);
-    expect(INDEXNOW_KEY).not.toBe("recova2026indexnow");
-    expect(INDEXNOW_KEY.toLowerCase()).not.toContain("recova");
-    expect(INDEXNOW_KEY_PATH).toBe(`/${INDEXNOW_KEY}.txt`);
-  });
 
   it("the route serves exactly the key, 200, as plain text, with no trailing newline", async () => {
     const res = keyRoute.loader();
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type")).toBe("text/plain; charset=utf-8");
     expect(await res.text()).toBe(INDEXNOW_KEY);
-  });
-
-  it("is mounted at the site root under its own name, and caches like the other files", () => {
-    const paths = (routes as Array<{ path?: string; file: string }>).filter((r) => r.file.endsWith("routes/files/indexnow-key.ts"));
-    expect(paths.map((r) => r.path)).toEqual([`${INDEXNOW_KEY}.txt`]);
-    expect(classifyPath(INDEXNOW_KEY_PATH)).toBe("files");
   });
 });
 

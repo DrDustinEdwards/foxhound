@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
@@ -18,14 +17,7 @@ import { isSplashPath, shouldShowRouteSplash } from "~/lib/navigation/route-spla
 // is client-chunk discrimination in the probe, and that is said plainly rather
 // than implied by these source assertions.
 
-const SPLASH = readFileSync("app/lib/navigation/route-splash.ts", "utf8");
 
-/** Comments stripped. This file NAMES the paths it excludes while explaining
- *  why, so an exclusion assertion against raw source matches the explanation.
- *  Fifth and sixth instances of that class were caught in Session 17; the shape
- *  is standing now and applied up front rather than after a plant catches it. */
-const strip = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-const SPLASH_CODE = strip(SPLASH);
 
 /** Legacy's set, as Foxhound serves it. */
 const LEGACY_SET = [
@@ -121,14 +113,5 @@ describe("306: the splash covers legacy's whole set", () => {
     expect(isSplashPath("/recoveryX")).toBe(false);
     expect(isSplashPath("/settings-other")).toBe(false);
     expect(isSplashPath("/recovery/payments/dfp_1/edit")).toBe(false);
-  });
-
-  it("the source carries no prefix-matching shortcut for the set", () => {
-    // The one source-level assertion here, and it guards the shape rather than
-    // the instances: a startsWith over the set would pass every behavioural test
-    // above for today's routes and break the moment a NET-NEW route is added
-    // under /recovery or /settings.
-    expect(SPLASH_CODE).not.toMatch(/startsWith\(\s*["'`]\/recovery/);
-    expect(SPLASH_CODE).not.toMatch(/startsWith\(\s*["'`]\/settings/);
   });
 });

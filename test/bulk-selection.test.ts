@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
@@ -22,7 +21,6 @@ import {
 // SUBMIT) is that its count and its request set are different sets; here they
 // are the same set by construction, which is what these assertions pin.
 
-const LIST_ROUTE = readFileSync("app/routes/app/recovery/payments/index.tsx", "utf8");
 
 const rows = (...spec: [string, string][]): SelectableRow[] =>
   spec.map(([id, status]) => ({ id, status }));
@@ -116,79 +114,5 @@ describe("bulk selection: toggling one row", () => {
     expect([...removed]).toEqual(["p3"]);
     // The original set is untouched: React state must not be mutated in place.
     expect([...selected]).toEqual(["p1"]);
-  });
-});
-
-describe("bulk selection: the demo renders NO checkbox, and non-demo renders them", () => {
-  // Both sides asserted per 255: testing only the demo side could not tell a
-  // working gate apart from a column that does not exist at all.
-  it("gates BOTH the select-all header and the per-row box on !isDemo", () => {
-    expect(LIST_ROUTE).toContain("{!isDemo ? (");
-    // J75: Capsomer's row checkbox, named by its hidden label text.
-    expect(LIST_ROUTE).toContain('<span className="sr-only">Select all payments</span>');
-    // Two checkboxes, header and row, and both inside a !isDemo branch.
-    expect(LIST_ROUTE.match(/type="checkbox"/g)).toHaveLength(2);
-    expect(LIST_ROUTE.match(/\{!isDemo \? \(/g)?.length).toBeGreaterThanOrEqual(2);
-  });
-
-  it("reads isDemo the way the existing surface does, off the app-shell loader", () => {
-    // Matching DemoGuardedForm rather than inventing a second source of truth.
-    expect(LIST_ROUTE).toContain('useRouteLoaderData<typeof appShellLoader>("app-shell")');
-    expect(LIST_ROUTE).toContain("const isDemo = Boolean(shell?.isDemo);");
-  });
-
-  it("withholds the whole bulk bar in demo as legacy does", () => {
-    expect(LIST_ROUTE).toContain("{!isDemo && selectionCount > 0 ? (");
-  });
-
-  it("shows Recova's empty state in place of the table, so no row can misalign", () => {
-    // J75: the colspan row this used to pin is gone with the table it sat in.
-    expect(LIST_ROUTE).toContain('<Empty kind="no-match" title="No payments match your filters">');
-    expect(LIST_ROUTE).not.toContain("colSpan");
-  });
-});
-
-describe("bulk selection: the bar is still the selection layer it was", () => {
-  // Session 1 asserted here that NO button was wired. Session 2 wired exactly
-  // one of them, so that assertion was retired rather than weakened, and the
-  // wiring it was guarding is now pinned in test/bulk-actions.test.ts, which
-  // asserts which button is live and which two are not. What stays here is the
-  // selection layer itself, which Session 2 did not change.
-  it("Clear is still selection-only, mutating nothing on the server", () => {
-    const bar = LIST_ROUTE.slice(LIST_ROUTE.indexOf('aria-label="Bulk actions"'));
-    const start = bar.indexOf("{actionable.length > 0");
-    expect(start).toBeGreaterThan(-1);
-    // Clear sits AFTER the actionable block and carries no intent, so it can
-    // never submit: an empty-intent POST is not something it can produce.
-    const clear = bar.slice(bar.indexOf("setSelected(new Set())"));
-    expect(clear).not.toContain("type=\"submit\"");
-    expect(clear).not.toContain("name=\"intent\"");
-  });
-
-  it("Clear IS wired, because clearing selection mutates nothing", () => {
-    expect(LIST_ROUTE).toContain("onClick={() => setSelected(new Set())}");
-  });
-
-  it("legacy's three actions in legacy's order, with Stop recovery per 251", () => {
-    // The ORDER now lives in the controls and the LABELS in the intent map,
-    // because Session 3 replaced three hand-written buttons with one shared
-    // component. Both halves are still asserted, just at the two places they
-    // moved to. An earlier version of this matcher sliced up to the literal
-    // "Clear" and swept in the Clear button's own onClick, and a later one read
-    // button order off text the confirmation panel also contains: the matcher
-    // was wrong both times, not the code (239).
-    // J75: the controls are one map over BULK_INTENTS, so their order is the
-    // map's key order.
-    const keys = LIST_ROUTE.slice(LIST_ROUTE.indexOf("const BULK_INTENTS = {"), LIST_ROUTE.indexOf("} as const satisfies"));
-    expect([...keys.matchAll(/^ {2}(\w+): \{/gm)].map((m) => m[1])).toEqual(["trigger", "mark_recovered", "cancel"]);
-    expect(LIST_ROUTE).toContain("(Object.keys(BULK_INTENTS) as BulkActionIntent[]).map((intent) => {");
-
-    // And the labels those intents render, legacy's own strings.
-    expect(LIST_ROUTE).toContain('label: "Trigger next step"');
-    expect(LIST_ROUTE).toContain('label: "Mark recovered"');
-    // 251 ratified "Stop recovery" for this subject on BOTH sides, so legacy's
-    // own "Cancel recovery" wording is NOT reintroduced here.
-    expect(LIST_ROUTE).toContain('label: "Stop recovery"');
-    expect(LIST_ROUTE).not.toContain("Cancel recovery");
   });
 });

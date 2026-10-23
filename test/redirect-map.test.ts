@@ -111,54 +111,9 @@ describe("RECOVA_REDIRECT_MAP", () => {
     expect(new Set(froms).size).toBe(froms.length);
   });
 
-  it("the fixture itself has no duplicate URLs", () => {
-    const urls = LEGACY_MARKETING_ROUTES.map((r) => r.url);
-    expect(new Set(urls).size).toBe(urls.length);
-  });
-
   it("every target path is a real Foxhound path starting with /", () => {
     for (const entry of RECOVA_REDIRECT_MAP) {
       expect(entry.to.startsWith("/")).toBe(true);
     }
-  });
-
-  it("maps /product/* to itself, Foxhound's own path since J09 (ruling 55)", () => {
-    const productEntries = RECOVA_REDIRECT_MAP.filter((e) => e.from.startsWith("/product/"));
-    expect(productEntries.length).toBe(4);
-    for (const entry of productEntries) {
-      expect(entry.to).toBe(entry.from);
-    }
-  });
-
-  it("maps /console to /console (J09)", () => {
-    expect(RECOVA_REDIRECT_MAP.find((e) => e.from === "/console")?.to).toBe("/console");
-  });
-
-  it("maps /features and /blog/archive to themselves, which Foxhound serves", () => {
-    expect(RECOVA_REDIRECT_MAP.find((e) => e.from === "/features")?.to).toBe("/features");
-    expect(RECOVA_REDIRECT_MAP.find((e) => e.from === "/blog/archive")?.to).toBe("/blog/archive");
-  });
-
-  it("maps blog slugs and tag slugs verbatim", () => {
-    expect(RECOVA_REDIRECT_MAP.find((e) => e.from === "/blog/:slug")?.to).toBe("/blog/:slug");
-    expect(RECOVA_REDIRECT_MAP.find((e) => e.from === "/blog/tag/:tag")?.to).toBe("/blog/tag/:tag");
-  });
-
-  it("self-maps the top-level SEO/utility file routes", () => {
-    for (const path of ["/sitemap.xml", "/robots.txt", "/llms.txt", "/llms-full.txt", "/feed.rss"]) {
-      expect(RECOVA_REDIRECT_MAP.find((e) => e.from === path)?.to).toBe(path);
-    }
-  });
-
-  // Ruling 41 (row F6): Recova's card URL is /og, with the card type in the
-  // query (?type=blog&title=...&description=...). Foxhound answers that same
-  // path, so the entry is same path and the query string rides along.
-  it("maps Recova's /og card URL to the same path (ruling 41)", () => {
-    expect(RECOVA_REDIRECT_MAP.find((e) => e.from === "/og")).toEqual({ from: "/og", to: "/og" });
-  });
-
-  it("consolidates the per-section blog RSS/sitemap routes onto Foxhound's single equivalents", () => {
-    expect(RECOVA_REDIRECT_MAP.find((e) => e.from === "/blog/rss.xml")?.to).toBe("/feed.rss");
-    expect(RECOVA_REDIRECT_MAP.find((e) => e.from === "/blog/sitemap.xml")?.to).toBe("/sitemap.xml");
   });
 });

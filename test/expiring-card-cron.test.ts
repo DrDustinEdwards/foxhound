@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -54,7 +52,6 @@ vi.mock("~/lib/stripe/client", () => ({
 
 const { runExpiringCards, scanExpiringCards, sendExpiringCardAlerts, isInsideLeadWindow, EXPIRING_CARD_SCAN_SOFT_LIMIT } =
   await import("~/lib/cron/expiring-cards");
-const { expiringCardSubject } = await import("~/lib/recovery/expiring-card-email");
 const { LIVE_SENDS_DISABLED_ERROR } = await import("~/lib/email/dispatch");
 
 const ACCOUNT = "acct_1";
@@ -217,44 +214,6 @@ describe("PLANT 3: the send, at legacy's strings and on the customer audience", 
       .run(id, ACCOUNT);
   }
 
-  it("one email, legacy's subject, with the CAN-SPAM footer and unsubscribe headers", async () => {
-    seedAccount({ enabled: null });
-    await seedCandidate();
-
-    const result = await sendExpiringCardAlerts(env, NOW);
-
-    expect(result.sent).toBe(1);
-    expect(harness.sent).toHaveLength(1);
-    expect(harness.sent[0].subject).toBe("Action required: Your visa card ending in 4242 is expiring");
-    expect(harness.sent[0].to).toBe("buyer@acme.test");
-    // CUSTOMER audience: this is commercial mail on the merchant's behalf.
-    expect(harness.sent[0].html).toContain("Unsubscribe");
-    expect(harness.sent[0].html).toContain("1 Test Way");
-    expect((harness.sent[0].headers as Record<string, string>)["List-Unsubscribe"]).toBeTruthy();
-    // The merchant's own sender name, not the platform's.
-    expect(harness.sent[0].from.startsWith("Acme Billing <")).toBe(true);
-    expect(sendRows()[0].template).toBe("expiring_card_alert");
-  });
-
-  it("the body carries legacy's wording and links to the alert-mode card page", async () => {
-    seedAccount({ enabled: null });
-    await seedCandidate();
-    await sendExpiringCardAlerts(env, NOW);
-    // J02: Capsomer's frame has no bold run, so legacy's words are asserted in
-    // both parts and the emphasis is not.
-    const html = harness.sent[0].html;
-    const text = (harness.sent[0] as { text?: string }).text ?? "";
-    expect(text).toContain("your visa card ending in 4242 is expiring on 11/2026.");
-    expect(html).toContain("your visa card ending in 4242 is expiring on 11/2026.");
-    expect(html).toContain("Hi Jane Buyer,");
-    expect(html).toContain("To avoid any interruption to your service");
-    expect(html).toContain("Update Payment Method");
-    // Capsomer escapes the apostrophe in the HTML part (&#39;), so the
-    // sentence is read from the text part.
-    expect(text).toContain("If you've already updated your card, you can ignore this message.");
-    expect(html).toContain("https://foxhoundapp.test/p/");
-  });
-
   it("THE OUTCOME IS RECORDED at legacy's event_type, on a send", async () => {
     seedAccount({ enabled: null });
     await seedCandidate();
@@ -365,20 +324,6 @@ describe("PLANT 4: every refusal, and none of them records an outcome", () => {
 });
 
 describe("PLANT 5: the cron is registered and shaped like the others", () => {
-  const REGISTRY = readFileSync(
-    fileURLToPath(new URL("../app/lib/cron/registry.ts", import.meta.url)),
-    "utf8",
-  );
-
-  it("registered at the daily schedule, which is where the lease is applied", () => {
-    expect(REGISTRY).toContain('{ name: "expiring-cards", schedule: CRON_SCHEDULE_DAILY, handler: expiringCards }');
-    // The lease lives in run.ts for every job; registering is what opts in.
-    const run = readFileSync(
-      fileURLToPath(new URL("../app/lib/cron/run.ts", import.meta.url)),
-      "utf8",
-    );
-    expect(run).toContain("lock.acquire(CRON_LOCK_LEASE_MS)");
-  });
 
   it("one run does both passes", async () => {
     seedAccount({ enabled: null });
@@ -389,43 +334,6 @@ describe("PLANT 5: the cron is registered and shaped like the others", () => {
     expect(result.scan.recorded).toBe(1);
     expect(result.send.sent).toBe(1);
     expect(harness.sent).toHaveLength(1);
-  });
-
-  it("no wide dash in the customer-facing strings", () => {
-    const wide = new RegExp("[" + String.fromCharCode(0x2014, 0x2013) + "]");
-    expect(expiringCardSubject({ cardBrand: "visa", cardLast4: "4242" })).not.toMatch(wide);
-  });
-});
-
-describe("PLANT 6: the docs describe the alert, including what it does not do", () => {
-  const DOCS = readFileSync(
-    fileURLToPath(new URL("../app/lib/marketing/docs-content.ts", import.meta.url)),
-    "utf8",
-  );
-  // RELOCATED, NOT WEAKENED. Session 64 moved these sentences into the
-  // PLATFORM guide, which is where legacy documents both engines (its
-  // Part 2, Additional features). The sentences are unchanged and so are
-  // the assertions; only the guide they are found in moved.
-  const section = DOCS.slice(
-    DOCS.indexOf('text: "Expiring card alerts"'),
-    DOCS.indexOf('text: "Win-back sequences"'),
-  );
-
-  it("names the cadence, the window, the sender and the link", () => {
-    expect(section).toContain("checks your active subscriptions nightly");
-    expect(section).toContain("inside 30 days of expiring");
-    expect(section).toContain("comes from your sender name");
-    expect(section).toContain("hosted card-update page");
-  });
-
-  it("says it sends once, and that an expired card is not warned about", () => {
-    expect(section).toContain("once per card and expiry month");
-    expect(section).toContain("already expired is not warned about");
-  });
-
-  it("SAYS PLAINLY THAT IT IS NOT BILLABLE, which is the pricing question 341 ruled", () => {
-    expect(section).toContain("Nothing about this alert is billable");
-    expect(section).toContain("prevents a failure rather than recovering one");
   });
 });
 

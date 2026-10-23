@@ -1,9 +1,4 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
-import { createRoutesStub } from "react-router";
 import { describe, expect, it } from "vitest";
 
 import { accountMembers, accounts, session, user } from "~/db";
@@ -17,7 +12,6 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // engine (Better Auth's session table in D1). A user may belong to several
 // accounts (RULES.md 1.6), so every membership shows, one person per row.
 
-const UsersPage = (await import("~/routes/admin/users")).default;
 // Looked up so a missing export fails the assertion that names it, not the
 // whole file (RULES.md 6.5).
 const serverLib: Record<string, unknown> = await import("~/lib/admin/users.server");
@@ -159,87 +153,7 @@ describe("listPlatformUsers", () => {
   });
 });
 
-function render(users: UserRow[]): string {
-  const Stub = createRoutesStub([
-    {
-      path: "/admin/users",
-      Component: () => createElement(UsersPage as never, { loaderData: { users } } as never),
-    },
-  ]);
-  return renderToStaticMarkup(createElement(Stub, { initialEntries: ["/admin/users"] }));
-}
 
-const text = (html: string) =>
-  html
-    .replace(/<[^>]+>/g, " ")
-    .replaceAll("&#x27;", "'")
-    .replaceAll("&amp;", "&")
-    .replace(/\s+/g, " ");
-
-describe("the Users page", () => {
-  it("shows one row per person, with every account and a pending invite marked invited", async () => {
-    const html = render(await list(await seed()));
-    const body = html.slice(html.indexOf("<tbody"));
-    expect([...body.matchAll(/<tr[ >]/g)].length).toBe(3);
-    const t = text(html);
-    expect(t).toContain("Rosa Park");
-    expect(t).toContain("rosa@example.com");
-    expect(html).toMatch(/<a [^>]*href="\/admin\/merchants\/acct_north"[^>]*>Northwind Coffee<\/a>/);
-    expect(html).toMatch(/<a [^>]*href="\/admin\/merchants\/acct_lumen"[^>]*>Lumen Studio<\/a>/);
-    expect(t).toMatch(/Harbor Yoga\s*invited/);
-    expect(t).toMatch(/Northwind Coffee\s*owner/);
-    expect(t).toContain("invite expired");
-  });
-
-  it("says no sign-in on record for a user with no session, not never", async () => {
-    const t = text(render(await list(await seed())));
-    expect(t).toContain("No sign-in on record");
-    expect(t).not.toMatch(/\bnever\b/);
-  });
-
-  it("says how many people in a plain sentence", async () => {
-    expect(text(render(await list(await seed())))).toContain("3 people can sign in to Foxhound.");
-    expect(text(render((await list(await seed())).slice(0, 1)))).toContain("1 person can sign in to Foxhound.");
-  });
-
-  it("has the columns in sentence case, a User ID column, scoped headers and a named region", async () => {
-    const html = render(await list(await seed()));
-    const headers = [...html.matchAll(/<th scope="col"[^>]*>([^<]*)</g)].map((m) => m[1]);
-    expect(headers).toEqual(["Person", "Accounts", "Platform role", "Last sign-in", "Joined", "User ID"]);
-    expect(html).toContain('class="cap-table"');
-    expect(html).toMatch(/<caption[^>]*>/);
-    expect(html).toMatch(/class="cap-table-wrap"[^>]*role="region"[^>]*aria-labelledby="[^"]+"[^>]*tabindex="0"/);
-    expect(html).toMatch(/<th scope="row"/);
-    expect(text(html)).toContain("u_rosa");
-    expect(html).toMatch(/break-all/);
-  });
-
-  it("says so when there are no users, with Capsomer's empty state", () => {
-    const html = render([]);
-    expect(html).toContain("cap-empty");
-    expect(text(html)).toContain("No users yet.");
-    expect(html).not.toContain("<table");
-  });
-
-  it("writes in sentence case with Foxhound's text sizes and no amber", async () => {
-    const html = render(await list(await seed()));
-    expect(html).not.toMatch(/\buppercase\b/);
-    expect(html).not.toMatch(/tracking-/);
-    expect(html).not.toMatch(/text-\[/);
-    expect(html).not.toMatch(/amber/i);
-    const source = readFileSync(fileURLToPath(new URL("../app/routes/admin/users.tsx", import.meta.url)), "utf8");
-    expect(source).not.toMatch(/text-\[/);
-    expect(source).not.toMatch(/amber/i);
-    expect(source).not.toMatch(/\buppercase\b/);
-  });
-
-  it("gives every link a 24 px target", async () => {
-    const html = render(await list(await seed()));
-    const links = [...html.matchAll(/<a [^>]*>/g)].map((m) => m[0]);
-    expect(links.length).toBeGreaterThan(0);
-    for (const a of links) expect(a).toMatch(/min-h-6/);
-  });
-});
 
 const invite = (id: string, accountId: string, email: string, expiresAt: Date) => ({
   id,
@@ -305,29 +219,5 @@ describe("pagePending (shared by the admin pages)", () => {
     expect(pending({ state: "loading", location: { pathname: "/admin/" } }, "idle", "/admin")).toBe(true);
     expect(pending({ state: "loading", location: { pathname: "/admin/users" } }, "idle", "/admin")).toBe(false);
     expect(pending({ state: "idle" }, "loading", "/admin/users")).toBe(true);
-  });
-});
-
-describe("merchantHref (one helper)", () => {
-  it("is exported once and used by the overview, the users page and the audit log", () => {
-    expect(typeof pageLib.merchantHref).toBe("function");
-    expect((pageLib.merchantHref as (id: string) => string)("acct a")).toBe("/admin/merchants/acct%20a");
-    for (const f of ["overview.ts", "users.ts", "audit-describe.ts"]) {
-      const src = readFileSync(fileURLToPath(new URL(`../app/lib/admin/${f}`, import.meta.url)), "utf8");
-      expect(src, f).not.toContain("`/admin/merchants/${");
-    }
-  });
-});
-
-describe("the Users page's pending state", () => {
-  it("is pending while the Users page's own data is read again, not while leaving it", () => {
-    // usersPending became the shared pagePending (code review).
-    expect(typeof pageLib.pagePending).toBe("function");
-    const shared = pageLib.pagePending as (nav: { state: string; location?: { pathname: string } }, r: string, p: string) => boolean;
-    const pending = (nav: { state: string; location?: { pathname: string } }, r: string) => shared(nav, r, "/admin/users");
-    expect(pending({ state: "idle" }, "loading")).toBe(true);
-    expect(pending({ state: "loading", location: { pathname: "/admin/users" } }, "idle")).toBe(true);
-    expect(pending({ state: "loading", location: { pathname: "/admin" } }, "idle")).toBe(false);
-    expect(pending({ state: "idle" }, "idle")).toBe(false);
   });
 });

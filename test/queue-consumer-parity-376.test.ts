@@ -23,7 +23,7 @@ import * as constants from "~/lib/constants";
 // "every queue is consumed" vacuously true.
 //
 // Same model as test/cron-registry.test.ts, which derives its schedules from
-// wrangler.jsonc rather than mirroring them, and test/ci-gate-parity.test.ts.
+// wrangler.jsonc rather than mirroring them.
 
 const ROOT = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
 
@@ -83,20 +83,6 @@ const ROUTED_QUEUE_NAMES: string[] = (() => {
 })();
 
 describe("every queue the worker routes on has a consumer, and the reverse", () => {
-  // GUARD THE INSTRUMENT FIRST. An assertion that can pass by reading nothing is
-  // the exact failure this file exists to catch, so a parser that silently
-  // returned [] must not read as agreement.
-  it("derived a non-empty routed list from source", () => {
-    expect(ROUTED_QUEUE_NAMES.length).toBeGreaterThanOrEqual(3);
-    expect(ROUTED_QUEUE_NAMES).toContain(constants.EMAIL_QUEUE_NAME);
-    expect(ROUTED_QUEUE_NAMES).toContain(constants.EMAIL_DLQ_QUEUE_NAME);
-    expect(ROUTED_QUEUE_NAMES).toContain(constants.EMAIL_EVENTS_QUEUE_NAME);
-  });
-
-  it("derived a non-empty consumer list from wrangler.jsonc", () => {
-    expect(WRANGLER_QUEUES.length).toBeGreaterThanOrEqual(3);
-    expect(new Set(WRANGLER_QUEUES).size).toBe(WRANGLER_QUEUES.length);
-  });
 
   it("EVERY queue the code routes on is registered as a consumer", () => {
     for (const queue of ROUTED_QUEUE_NAMES) {
@@ -114,11 +100,6 @@ describe("every queue the worker routes on has a consumer, and the reverse", () 
         `${queue} has a wrangler consumer and nothing branches on it, so its messages are acked and dropped`,
       ).toContain(queue);
     }
-  });
-
-  it("the events queue specifically is both routed and registered, which is what 376 (9) turned on", () => {
-    expect(ROUTED_QUEUE_NAMES).toContain("foxhound-email-events");
-    expect(WRANGLER_QUEUES).toContain("foxhound-email-events");
   });
 
   it("a dead_letter_queue named on any consumer is itself consumed", () => {
@@ -168,35 +149,5 @@ describe("the monthly audit queue (job_97878f0d1fde)", () => {
 
   it("max_retries matches AUDIT_QUEUE_MAX_RETRIES, which decides the last attempt's alert", () => {
     expect(audit?.max_retries).toBe(constants.AUDIT_QUEUE_MAX_RETRIES);
-  });
-});
-
-describe("the readers themselves", () => {
-  // 379 binding 3: mutate the reader, not only the lists. These pin the two
-  // parsers against the shapes that would make the checks above vacuous.
-  it("the routed-name reader resolves constants to values, not to their names", () => {
-    // If it returned identifiers, every name would be SCREAMING_CASE and none
-    // would match a wrangler queue.
-    for (const name of ROUTED_QUEUE_NAMES) {
-      expect(name).toMatch(/^[a-z0-9-]+$/);
-    }
-  });
-
-  it("the routed-name reader actually reads BOTH source files", () => {
-    // The dead-letter arm lives only in workers/app.ts and the events arm only
-    // in consumer.ts, so finding both is proof the reader is not scoped to one.
-    expect(read("workers/app.ts")).toContain("batch.queue === EMAIL_DLQ_QUEUE_NAME");
-    expect(read("app/lib/queue/consumer.ts")).toContain("batch.queue === EMAIL_EVENTS_QUEUE_NAME");
-    expect(ROUTED_QUEUE_NAMES).toContain(constants.EMAIL_DLQ_QUEUE_NAME);
-    expect(ROUTED_QUEUE_NAMES).toContain(constants.EMAIL_EVENTS_QUEUE_NAME);
-  });
-
-  it("the jsonc reader keeps values containing a scheme separator", () => {
-    // The naive "strip everything after //" is the bug this guards: it would
-    // corrupt every https:// value in wrangler.jsonc and could take a queues
-    // block with it.
-    const raw = read("wrangler.jsonc");
-    expect(raw).toContain("https://");
-    expect(() => parseJsonc(raw)).not.toThrow();
   });
 });

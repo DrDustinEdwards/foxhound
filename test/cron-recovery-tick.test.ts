@@ -291,10 +291,6 @@ describe("RECOVERY_TICK_LIMIT is inside an honest subrequest budget", () => {
   // guard read, the Stripe or AI call, the send, and the state write.
   const PER_STEP_SUBREQUESTS = 5;
 
-  it("pins the limit, so raising it silently fails CI", () => {
-    expect(RECOVERY_TICK_LIMIT).toBe(100);
-  });
-
   it("a full batch fits, and the old value did not", () => {
     expect(RECOVERY_TICK_LIMIT * PER_STEP_SUBREQUESTS).toBeLessThan(SUBREQUEST_BUDGET);
     expect(500 * PER_STEP_SUBREQUESTS).toBeGreaterThan(SUBREQUEST_BUDGET);

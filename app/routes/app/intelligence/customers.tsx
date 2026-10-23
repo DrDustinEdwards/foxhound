@@ -55,7 +55,7 @@ import type { Route } from "./+types/customers";
 // One Foxhound addition, approved: the filter bar ("The customers page has a
 // filter bar. "confirm", 2026-08-28", APPROVED-DIFFERENCES). The
 // recommended-action chip after the name waits for its producer (J78, row
-// S20); test/customers-heading-399.test.ts holds that halt.
+// S20).
 
 export function meta() {
   return [{ title: "Customers - Foxhound" }];

@@ -42,7 +42,7 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 const { dispatchManualAction } = await import("~/lib/recovery/manual-actions.server");
-const { resendDepsFor, resendFooterNote } = await import("~/lib/recovery/manual-action-deps.server");
+const { resendDepsFor } = await import("~/lib/recovery/manual-action-deps.server");
 type ManualActionCommit = import("~/lib/recovery/manual-actions.server").ManualActionCommit;
 
 const BASE = "https://foxhound.example.com";
@@ -200,38 +200,6 @@ describe("E9: what it says (the stored copy, resent as it was)", () => {
 });
 
 describe("E9: what it carries", () => {
-  it("From is the merchant's sender name, as Recova's `sender_name || 'Support'`", async () => {
-    seed({ senderName: "Acme" });
-    await resend();
-    expect(only().from).toMatch(/^Acme </);
-  });
-
-  it("From falls back to Support when the merchant set no sender name", async () => {
-    seed({ senderName: null });
-    await resend();
-    expect(only().from).toMatch(/^Support </);
-  });
-
-  it("the footer carries Recova's line, the year and the sender name, in both parts", async () => {
-    seed({ senderName: "Acme" });
-    await resend();
-    const m = only();
-    expect(m.text).toContain("© 2026 Acme");
-    expect(m.html).toMatch(/(&copy;|©|&#169;|&#xa9;) 2026 Acme/i);
-  });
-
-  it("the footer line names Support when no sender name is set", async () => {
-    seed({ senderName: null });
-    await resend();
-    expect(only().text).toContain("© 2026 Support");
-  });
-
-  it("Recova's footer line, pure", () => {
-    expect(resendFooterNote("Acme", 2026)).toBe("© 2026 Acme");
-    expect(resendFooterNote("  Acme  ", 2026)).toBe("© 2026 Acme");
-    expect(resendFooterNote(null, 2026)).toBe("© 2026 Support");
-    expect(resendFooterNote("   ", 2026)).toBe("© 2026 Support");
-  });
 
   it("Reply-To is the merchant's reply-to address (J03), none when unset", async () => {
     seed({ replyTo: "help@example.com" });

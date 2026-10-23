@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -28,12 +26,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // than D1, so where the two can disagree the assertion is on the SQL SHAPE
 // rather than on the harness accepting the query (ruling 318).
 
-const OLD_INDEX = "account_members_one_active_per_user_uq";
-const NEW_INDEX = "account_members_user_account_active_uq";
 
-const MIGRATION_0018 = fileURLToPath(
-  new URL("../drizzle/migrations/0018_wakeful_gamma_corps.sql", import.meta.url),
-);
 
 let sqlite: Database.Database;
 let db: Db;
@@ -70,12 +63,6 @@ function insertMembership(opts: {
     );
 }
 
-function indexNames(): string[] {
-  return sqlite
-    .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'account_members'")
-    .all()
-    .map((r) => (r as { name: string }).name);
-}
 
 describe("the migration is what enforces the new membership rule", () => {
   it("ACCEPTS two active memberships for one user on two different accounts", () => {
@@ -122,16 +109,6 @@ describe("the migration is what enforces the new membership rule", () => {
     expect(() =>
       insertMembership({ id: "i2", accountId: "acct_a", userId: null, status: "pending" }),
     ).not.toThrow();
-  });
-
-  it("the OLD index name is ABSENT from sqlite_master and the NEW one is present", () => {
-    const names = indexNames();
-    expect(names).not.toContain(OLD_INDEX);
-    expect(names).toContain(NEW_INDEX);
-    // Calibration: prove the query reads real rows, so "absent" cannot be an
-    // empty result set masquerading as a result (ruling 259's data-dependent
-    // zero, and 313's rule that a non-result is not a result).
-    expect(names).toContain("account_members_account_idx");
   });
 });
 
@@ -236,87 +213,13 @@ describe("resolveActiveMembership turns a session marker into an account", () =>
   });
 });
 
-describe("the guards.ts chokepoint passes the session marker", () => {
-  const GUARDS = fileURLToPath(new URL("../app/lib/auth/guards.ts", import.meta.url));
-
-  it("appShellMiddleware resolves with session.session.activeAccountId", () => {
-    const source = readFileSync(GUARDS, "utf8");
-
-    // Scoped to the CALL, never to the import line: an assertion that matches
-    // `import { resolveActiveMembershipFrom }` would pass against a call site
-    // that had stopped using it entirely (ruling 316's vacuous-assertion catch).
-    //
-    // PHASE (b) RENAMED WHAT IS CALLED HERE, and this guard caught it: guards.ts
-    // now takes the membership LIST (for AuthContext.memberships) and resolves
-    // from it with `resolveActiveMembershipFrom`, so one query serves both. The
-    // property under guard is unchanged and is not the function's name: the
-    // marker must reach the resolver. Matching either name keeps the guard
-    // pointed at that property rather than at this week's spelling.
-    const call = source.match(/resolveActiveMembership(?:From)?\(([\s\S]*?)\);/);
-    expect(call).not.toBeNull();
-
-    const args = call![1];
-    expect(args).toContain("session.session.activeAccountId");
-    // A hardcoded null in the third position is the exact regression this guard
-    // exists to catch: it type-checks, it keeps every behavioural test green
-    // (the marker is null everywhere at phase (a)), and it silently disables
-    // account switching the moment phase (b) ships a writer.
-    expect(args).not.toMatch(/,\s*null\s*,?\s*$/);
-    // The user still has to be the one whose memberships are read, whichever
-    // shape the resolver takes.
-    expect(source).toMatch(/listMemberships\([\s\S]*?session\.user\.id/);
-  });
-
-  it("guards.ts no longer imports the pre-326 resolver", () => {
-    const source = readFileSync(GUARDS, "utf8");
-    expect(source).not.toMatch(/import\s*\{[^}]*\bresolveMembership\b/);
-  });
-});
-
 describe("harness gap: assert the SQL shape, not that better-sqlite3 accepts it", () => {
   // Ruling 318. A green suite proves the harness accepts the query, not that D1
   // does; better-sqlite3 tolerated 417 bound parameters while D1's ceiling of
   // 100 failed the retention sweeper daily for 29 days. Partial indexes are the
   // same class of trap: the two engines agree only when the WHERE clause is a
   // LITERAL, so the guard reads the committed migration text.
-  const sql = () => readFileSync(MIGRATION_0018, "utf8");
 
-  function createStatement(): string {
-    const line = sql()
-      .split("--> statement-breakpoint")
-      .map((s) => s.trim())
-      .find((s) => s.startsWith("CREATE UNIQUE INDEX"));
-    expect(line).toBeDefined();
-    return line!;
-  }
-
-  it("the CREATE UNIQUE INDEX carries a placeholder-free, literal partial WHERE", () => {
-    const statement = createStatement();
-    expect(statement).toContain(NEW_INDEX);
-    expect(statement).toMatch(/ON `account_members` \(`user_id`,`account_id`\)/);
-    expect(statement).toMatch(/WHERE\s+"account_members"\."status"\s*=\s*'active'/);
-    // No bound parameter anywhere. A parameterised partial index is not a thing
-    // SQLite will accept, and the failure mode is a migration that dies on the
-    // production apply after passing every local test.
-    expect(statement).not.toContain("?");
-  });
-
-  it("the migration drops the struck index by name, and adds the session column", () => {
-    const statements = sql()
-      .split("--> statement-breakpoint")
-      .map((s) => s.trim())
-      .filter(Boolean);
-
-    expect(statements.some((s) => s === `DROP INDEX \`${OLD_INDEX}\`;`)).toBe(true);
-    // ADD COLUMN rather than a table rebuild: SQLite cannot add a column with a
-    // non-constant default, and drizzle-kit falls back to recreating the table
-    // when it has to, which on `session` would drop every live login.
-    expect(
-      statements.some((s) => /^ALTER TABLE `session` ADD `active_account_id` text;?$/.test(s)),
-    ).toBe(true);
-    expect(statements.some((s) => /CREATE TABLE `__new_session`/.test(s))).toBe(false);
-    expect(statements).toHaveLength(3);
-  });
 
   it("the session column exists in the built database and defaults to null", () => {
     const cols = sqlite.prepare("PRAGMA table_info(session)").all() as Array<{

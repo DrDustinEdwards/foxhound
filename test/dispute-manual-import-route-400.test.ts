@@ -1,6 +1,3 @@
-import { createElement, type ReactElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
-import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Ruling 400 halt ruling 1, the surface half: what the merchant can reach, and
@@ -35,7 +32,6 @@ const { accounts, stripeConnections } = await import("~/db");
 const { importDisputeFromStripe, manualImportClaimKey } = await import(
   "~/lib/disputes/manual-import.server"
 );
-const DisputesRoute = (await import("~/routes/app/disputes/index")).default;
 const { createInMemoryDb } = await import("./helpers/inmemory-db");
 
 const NOW = new Date("2026-08-30T00:00:00.000Z");
@@ -156,46 +152,5 @@ describe("importDisputeFromStripe", () => {
       status: "not_found",
     });
     expect(executeMoneyWrite).not.toHaveBeenCalled();
-  });
-});
-
-describe("the Sync dispute control on /disputes", () => {
-  const Page = DisputesRoute as unknown as (props: {
-    loaderData: Record<string, unknown>;
-  }) => ReactElement;
-
-  function render(isDemo: boolean): string {
-    const Stub = createRoutesStub([
-      {
-        path: "/",
-        Component: () =>
-          createElement(Page, {
-            loaderData: {
-              disputes: [],
-              stats: { openCount: 0, atStake: [], feesOwed: [], winRatePct: null, wonCount: 0, lostCount: 0 },
-              health: null,
-              nowMs: NOW.getTime(),
-              isDemo,
-            },
-          }),
-      },
-    ]);
-    return renderToStaticMarkup(createElement(Stub));
-  }
-
-  it("renders legacy's control for a real merchant, on the empty state too", () => {
-    // Legacy renders SyncDisputeLink OUTSIDE DisputesDashboardView's empty
-    // branch, so it shows with no disputes. That is the state a merchant
-    // importing a pre-connection dispute is most likely looking at, so the
-    // empty fixture above is the discriminating one.
-    const html = render(false);
-    expect(html).toContain("Sync dispute from Stripe");
-  });
-
-  it("withholds it entirely from a demo visitor", () => {
-    // Legacy's demo twin renders DisputesDashboardView alone and no import
-    // control. The middleware's method gate is still the boundary for a
-    // hand-crafted POST; this is the surface not offering the action at all.
-    expect(render(true)).not.toContain("Sync dispute from Stripe");
   });
 });

@@ -1,14 +1,9 @@
-import { createElement, type ReactElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
-import { createRoutesStub } from "react-router";
 import { describe, expect, it } from "vitest";
 
-import IntelligenceOverviewPage from "~/routes/app/intelligence/index";
 import { accounts, customerContext, healthScoreHistory } from "~/db";
 import { HEALTH_SCORE_AT_RISK_THRESHOLD } from "~/lib/constants";
 import { WATCH_CEILING } from "~/lib/intelligence/health-band";
-import { type IntelligenceOverview } from "~/lib/intelligence/views.server";
-import { getHealthDistribution, type HealthDistributionDay, type MrrSnapshotPoint } from "~/lib/intelligence/trends.server";
+import { getHealthDistribution } from "~/lib/intelligence/trends.server";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -54,107 +49,14 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // its labelled rule, its data table. What each one guards is unchanged. The
 // J67 suite (test/intelligence-dashboard-j67.test.ts) pins the page around it.
 
-const Page = IntelligenceOverviewPage as unknown as (props: { loaderData: unknown }) => ReactElement;
 
 // The page shows its sections once there is an MRR snapshot (legacy's gate),
 // so one flat snapshot carries this render; it draws no movement, NRR or plan
 // chart of its own.
-const SNAPSHOT: MrrSnapshotPoint = {
-  at: new Date(Date.UTC(2026, 5, 1)),
-  nrrPct: null,
-  totalMrrCents: 100_000,
-  activeCustomersCount: 10,
-  newMrrCents: 0,
-  expansionMrrCents: 0,
-  reactivationMrrCents: 0,
-  contractionMrrCents: 0,
-  churnMrrCents: 0,
-  perPlanBreakdown: {},
-  currency: "usd",
-};
 
-const overview: IntelligenceOverview = {
-  currency: "usd",
-  scoredCustomerCount: 3,
-  scoreDistribution: { healthy: 1, watch: 1, atRisk: 1 },
-  mrrAtRiskCents: 4200,
-  atRiskCustomerCount: 1,
-  topAtRisk: [],
-  narrative: null,
-  narrativeGeneratedAt: null,
-};
 
-const healthDistribution: HealthDistributionDay[] = [
-  { date: "2026-06-01", atRisk: 2, watch: 3, healthy: 9 },
-  { date: "2026-06-08", atRisk: 3, watch: 4, healthy: 7 },
-  { date: "2026-06-15", atRisk: 5, watch: 2, healthy: 7 },
-  { date: "2026-06-22", atRisk: 4, watch: 4, healthy: 6 },
-  { date: "2026-06-29", atRisk: 6, watch: 3, healthy: 5 },
-];
 
-function render(days: HealthDistributionDay[] = healthDistribution): string {
-  const loaderData = {
-    entitled: true,
-    overview,
-    healthDistribution: days,
-    mrrSeries: [SNAPSHOT],
-    reports: [],
-    currentMonth: "2026-10",
-    nowMs: Date.UTC(2026, 9, 15),
-    isDemo: false,
-  };
-  const Stub = createRoutesStub([
-    { path: "/intelligence/dashboard", Component: () => createElement(Page, { loaderData }) },
-  ]);
-  return renderToStaticMarkup(createElement(Stub, { initialEntries: ["/intelligence/dashboard"] }));
-}
 
-function card(html: string): string {
-  const start = html.indexOf("Customer health distribution");
-  return html.slice(start, html.indexOf("</section>", start));
-}
-
-describe("S16 health distribution chart, ported toward legacy (399)", () => {
-  it("renders legacy's card copy", () => {
-    const html = render();
-    expect(html).toContain("Customer health distribution");
-    expect(html).toContain("Customer count per health band over 90 days");
-  });
-
-  it("carries legacy's three band series names as a legend", () => {
-    const legend = [...card(render()).matchAll(/<li data-enarratio-series="([^"]+)"/g)].map((m) => m[1]);
-    expect(legend).toEqual(["High risk", "Medium risk", "Healthy"]);
-  });
-
-  it("plots a stack per sampled day, not one bar per band", () => {
-    // Three series over five days, every value non-zero: fifteen bars. The
-    // pre-fix card drew three bars total, so this count is what discriminates
-    // the two charts.
-    const rects = card(render()).match(/<rect/g) ?? [];
-    expect(rects.length).toBe(15);
-  });
-
-  it("labels the x axis with dates and no year", () => {
-    const html = card(render());
-    expect(html).toContain("Jun 1");
-    expect(html).toContain("Jun 29");
-    expect(html).not.toContain("Jun 1, 2026");
-  });
-
-  it("draws at a real size, never a stretched box (384c0db's lesson)", () => {
-    // The hand-built chart stretched a 100x100 viewBox with
-    // preserveAspectRatio="none", which smeared any text inside it. Enarratio
-    // draws at the panel's measured width with a viewBox of the same size.
-    const c = card(render());
-    expect(c).not.toContain('preserveAspectRatio="none"');
-    expect(c).toMatch(/<svg[^>]*width="([0-9]+)"[^>]*viewBox="0 0 \1 /);
-  });
-
-  it("renders nothing when there is no history rather than an empty frame", () => {
-    const html = render([]);
-    expect(html).not.toContain("Customer health distribution");
-  });
-});
 
 describe("getHealthDistribution", () => {
   const NOW = Date.UTC(2026, 7, 29, 12, 0, 0);

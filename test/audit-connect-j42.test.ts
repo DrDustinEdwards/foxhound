@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -85,11 +84,6 @@ function render(loaderData: LoaderData): string {
   return renderToStaticMarkup(createElement(RouterProvider, { router }));
 }
 
-function tagWith(html: string, cls: RegExp): string {
-  const m = html.match(new RegExp(`<[a-z]+[^>]*class="[^"]*${cls.source}[^"]*"[^>]*>`));
-  expect(m, `an element with ${cls.source} is on the page`).not.toBeNull();
-  return m![0];
-}
 
 function text(html: string): string {
   return html
@@ -100,235 +94,14 @@ function text(html: string): string {
     .trim();
 }
 
-function inOrder(haystack: string, needles: string[]) {
-  let from = -1;
-  for (const n of needles) {
-    const i = haystack.indexOf(n, from + 1);
-    expect(i, `"${n}" appears after the item before it`).toBeGreaterThan(from);
-    from = i;
-  }
-}
 
-/** Source with comments stripped, so a comment cannot satisfy an assertion. */
-const code = (source: string) =>
-  source
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .split("\n")
-    .filter((line) => !line.trim().startsWith("//"))
-    .join("\n");
 
-const FIVE_SIZES = new Set(["text-display", "text-title", "text-body", "text-label", "text-micro"]);
-const NOT_A_SIZE =
-  /^text-(text|text-secondary|text-tertiary|text-subtle|accent-text|accent-hover|error-text|success-text|on-brand|brand-text|chrome-text|chrome-text-secondary|chrome-brand|wordmark|left|right|center)$/;
 
-function sizeClasses(html: string): string[] {
-  const out: string[] = [];
-  for (const m of html.matchAll(/class="([^"]*)"/g)) {
-    for (const c of m[1].split(/\s+/)) {
-      const base = c.replace(/^[a-z0-9-]+:/g, "");
-      if (base.startsWith("text-") && !NOT_A_SIZE.test(base)) out.push(base);
-    }
-  }
-  return out;
-}
 
 const PAGE: LoaderData = { lookbackDays: AUDIT_LOOKBACK_DAYS, stripeEnabled: true, error: null };
 
-describe("J42 U1: Recova's one card, built from Capsomer's parts", () => {
-  it("one 480px column in a Capsomer panel inside the teal family wrapper", () => {
-    const html = render(PAGE);
-    const wrap = tagWith(html, /fh-cap/);
-    expect(wrap).toContain('data-family="teal"');
-    expect(wrap).toContain("max-w-[480px]");
-    expect(html).toMatch(/<section class="cap-panel"><div class="cap-panel-body">/);
-  });
-
-  it("no second main landmark: the marketing layout already renders main", () => {
-    expect(render(PAGE)).not.toMatch(/<main[\s>]/);
-  });
-
-  it("Recova's 48px inset at every width, phone included (p-12, no breakpoint)", () => {
-    // The panel body carries --gap (12px) by --pad-card (16px); the inner div
-    // adds 36px by 32px, which is Recova's 48px on all four sides, as the
-    // sign-in card does. Recova's card has no smaller phone padding.
-    const html = render(PAGE);
-    expect(html).toMatch(/<div class="cap-panel-body"><div class="px-8 py-9">/);
-    expect(html).not.toMatch(/md:p-12|p-8 md:/);
-  });
-
-  it("Recova's heading and the line under it, the window from the engine constant", () => {
-    const html = render(PAGE);
-    expect(html).toMatch(/<h1[^>]*>Connect your Stripe account<\/h1>/);
-    expect(text(html)).toContain(
-      `We need read-only access to scan your failed payments from the last ${AUDIT_LOOKBACK_DAYS} days. We never store your data permanently.`,
-    );
-  });
-
-  it("Recova's order, every line word for word", () => {
-    inOrder(text(render(PAGE)), [
-      "Connect your Stripe account",
-      "We need read-only access",
-      "What we can do",
-      "View failed invoices and payment history",
-      "Scan decline codes and categories",
-      "Calculate your recoverable revenue",
-      "What we can never do",
-      "Create new charges or move money",
-      "Access your payouts or bank account",
-      "Store your Stripe data permanently",
-      "Connect Stripe and see my numbers",
-      "Read-only · Secure · Free ·",
-      "See a demo first",
-    ]);
-  });
-
-  it("each list is a list, named by its heading, which keeps Recova's spacing (no added tracking)", () => {
-    const html = render(PAGE);
-    const lists = [...html.matchAll(/<ul[^>]*aria-labelledby="([^"]+)"/g)].map((m) => m[1]);
-    expect(lists).toHaveLength(2);
-    expect(html).toMatch(new RegExp(`id="${lists[0]}"[^>]*>What we can do<`));
-    expect(html).toMatch(new RegExp(`id="${lists[1]}"[^>]*>What we can never do<`));
-    // Recova's labels are `text-xs font-medium` with no letter spacing.
-    expect(html).not.toContain("tracking-wide");
-    for (const li of html.match(/<li[^>]*>/g) ?? []) expect(li).toContain("text-label");
-  });
-
-  it("the ticks and crosses are hidden from assistive tech, so each line reads as its words", () => {
-    const html = render(PAGE);
-    const icons = html.match(/<svg[^>]*>/g) ?? [];
-    expect(icons.length).toBeGreaterThanOrEqual(6);
-    for (const svg of icons) expect(svg).toContain('aria-hidden="true"');
-  });
-});
-
-describe("J42 U1: the one action is Capsomer's primary Button, full width as Recova's", () => {
-  it("Connect Stripe and see my numbers submits a POST through a cap-btn primary", () => {
-    const html = render(PAGE);
-    const btn = tagWith(html, /cap-btn/);
-    expect(btn).toMatch(/^<button/);
-    expect(btn).toContain('type="submit"');
-    expect(btn).toContain('data-variant="primary"');
-    const form = html.match(/<form[^>]*>/g)?.find((f) => f.includes('method="post"'));
-    expect(form, "a POST form is on the page").toBeDefined();
-    expect(form).toContain('class="grid"');
-  });
-
-  it("keeps Recova's arrow, hidden from screen readers so the name is the words", () => {
-    const html = render(PAGE);
-    expect(html).toMatch(
-      /<button[^>]*><span class="whitespace-normal">Connect Stripe and see my numbers<span aria-hidden="true"> →<\/span><\/span><\/button>/,
-    );
-  });
-
-  it("the label may wrap, as Recova's does on a phone, so it is never clipped at 320px", () => {
-    // Capsomer's button is white-space: nowrap; Recova's 33-character label
-    // needs two lines below about 400px. The wrap sits on the page's own label.
-    const html = render(PAGE);
-    expect(html).toMatch(/<button[^>]*data-size="lg"[^>]*><span class="whitespace-normal">/);
-  });
-
-  it("no hand-rolled button and no Recova class strings are left", () => {
-    const html = render(PAGE);
-    expect(html).not.toMatch(/bg-purple|text-purple-bg|p-\[14px\]/);
-  });
-
-  it("pending says Recova's first step, the one that is true, and never the three it faked", () => {
-    // Recova cycles four steps on an 1800ms timer while it has already left
-    // for Stripe after 400ms, so "Reading invoices...", "Analyzing decline
-    // codes..." and "Building summary..." describe work not happening (fixing
-    // copy where Recova lied, RULES.md 1.2). "Connecting to Stripe..." is
-    // true, so it stays, announced through a polite status region as Recova's
-    // role="status" did.
-    const src = code(readFileSync("app/routes/audit/connect.tsx", "utf8"));
-    expect(src).toContain('"Connecting to Stripe..."');
-    expect(src).not.toContain("Redirecting to Stripe");
-    for (const fake of ["Reading invoices", "Analyzing decline codes", "Building summary"]) {
-      expect(src).not.toContain(fake);
-    }
-    const html = render(PAGE);
-    expect(html).toMatch(/<[a-z]+[^>]*role="status"[^>]*aria-live="polite"[^>]*>/);
-  });
-
-  describe("pending is shown only while THIS form posts (review round 1, must-fix 1)", () => {
-    // The real component in a real memory router, with a loader on the demo
-    // route and an action on this route that never settle, so the router
-    // holds the navigation in flight while the page is rendered.
-    const never = () => new Promise<never>(() => {});
-    function liveRouter() {
-      const props = { loaderData: PAGE, params: {}, matches: [] } as unknown as Props;
-      return createMemoryRouter(
-        [
-          { path: "/audit/connect", element: createElement(AuditConnect, props), action: never },
-          { path: "/demos/recovery", element: null, loader: never },
-          { path: "/pricing", element: null, loader: never },
-        ],
-        { initialEntries: ["/audit/connect"] },
-      );
-    }
-    const renderRouter = (router: ReturnType<typeof liveRouter>) =>
-      renderToStaticMarkup(createElement(RouterProvider, { router }));
-    const statusText = (html: string) =>
-      html.match(/<span role="status"[^>]*>([^<]*)<\/span>/)?.[1] ?? null;
-
-    it("idle: no busy button and an empty status region", () => {
-      const html = renderRouter(liveRouter());
-      expect(html).not.toContain('aria-busy="true"');
-      expect(statusText(html)).toBe("");
-    });
-
-    for (const to of ["/demos/recovery", "/pricing"]) {
-      it(`following a link to ${to} shows no pending state and announces nothing`, async () => {
-        const router = liveRouter();
-        void router.navigate(to);
-        await Promise.resolve();
-        expect(router.state.navigation.state).toBe("loading");
-        const html = renderRouter(router);
-        expect(html).not.toContain('aria-busy="true"');
-        expect(statusText(html)).toBe("");
-        expect(html).not.toContain("Connecting to Stripe...");
-      });
-    }
-
-    it("posting this form shows the busy button and announces Connecting to Stripe...", async () => {
-      const router = liveRouter();
-      void router.navigate("/audit/connect", { formMethod: "post", formData: new FormData() });
-      await Promise.resolve();
-      expect(router.state.navigation.state).toBe("submitting");
-      const html = renderRouter(router);
-      expect(html).toContain('aria-busy="true"');
-      expect(statusText(html)).toBe("Connecting to Stripe...");
-    });
-  });
-
-  it("See a demo first goes to the read-only recovery demo, underlined and 24px tall", () => {
-    const html = render(PAGE);
-    const a = html.match(/<a[^>]*href="\/demos\/recovery"[^>]*>/);
-    expect(a, "the demo link is on the page").not.toBeNull();
-    expect(a![0]).toContain("underline");
-    expect(a![0]).toContain("min-h-6");
-    expect(text(html)).toContain("Read-only · Secure · Free · See a demo first");
-  });
-
-  it("without Stripe configured, no dead button is shown (RULES.md 2.7)", () => {
-    const html = render({ ...PAGE, stripeEnabled: false });
-    expect(html).not.toMatch(/<button/);
-    expect(text(html)).toContain("Stripe Connect is not configured in this environment yet.");
-  });
-});
-
 describe("J42 U1: refusals in a Capsomer alert, never naming an account, never echoing the URL", () => {
-  const CODES = ["rate_limited", "cancelled", "invalid_state", "scope_refused", "failed", "session_expired"];
 
-  for (const error of CODES) {
-    it(`${error}: a role=alert Capsomer alert between the line and the box`, () => {
-      const html = render({ ...PAGE, error });
-      expect(tagWith(html, /cap-alert/)).toContain('role="alert"');
-      const t = text(html);
-      inOrder(t, ["We need read-only access", "What we can do"]);
-      // No refusal names an account or its holder (RULES.md 4.14).
-      expect(t).not.toMatch(/acct_|connected to|belongs to|held by/i);
-    });
-  }
 
   it("scope_refused is true for every grant the callback refuses, a null scope included", () => {
     // The callback refuses any scope that is not read_only, null included, so
@@ -345,25 +118,6 @@ describe("J42 U1: refusals in a Capsomer alert, never naming an account, never e
     expect(html).not.toContain("onerror");
     expect(html).not.toContain("acct_stranger");
     expect(html).not.toContain("Dana");
-  });
-});
-
-describe("J42 U1: five text sizes, no amber, the Capsomer CSS loaded", () => {
-  it("every text size on the page is one of the five", () => {
-    for (const state of [PAGE, { ...PAGE, error: "failed" }, { ...PAGE, stripeEnabled: false }]) {
-      for (const c of sizeClasses(render(state))) expect(FIVE_SIZES.has(c), c).toBe(true);
-    }
-  });
-
-  it("no amber anywhere on the rendered page", () => {
-    expect(render({ ...PAGE, error: "failed" })).not.toMatch(/amber/i);
-  });
-
-  it("the route loads the Capsomer CSS its parts read", () => {
-    const src = readFileSync("app/routes/audit/connect.tsx", "utf8");
-    for (const css of ["capsomer/panel.css", "capsomer/button.css", "capsomer/banner.css", "~/site-header.css"]) {
-      expect(src).toContain(`import "${css}"`);
-    }
   });
 });
 

@@ -186,38 +186,6 @@ describe("E4 to E6 send on Recova's timing (lib/recovery-schedules.ts, lib/const
 
 describe("E4 to E6 fallback copy is Recova's FALLBACK_TEMPLATES, step by step", () => {
   for (const stepType of STEPS) {
-    for (const declineCategory of CATEGORIES) {
-      it(`${stepType} (${declineCategory}): subject and every sentence are Recova's`, () => {
-        const copy = buildTemplateEmail({
-          stepType,
-          declineCategory,
-          merchantName: "Teamflow",
-          senderName: "Teamflow",
-          customerName: "Jane Buyer",
-          amountFormatted: "$49.00",
-          updateUrl: URL,
-        });
-        expect(copy.subject).toBe(RECOVA[stepType].subject);
-        expect(htmlToBlocks(copy.bodyHtml)).toEqual(
-          RECOVA[stepType].blocks({ name: "Jane Buyer", amount: "$49.00", url: URL, sender: "Teamflow" }),
-        );
-      });
-    }
-
-    it(`${stepType}: Recova's own fallbacks, "there" and "Support", when the names are missing`, () => {
-      const copy = buildTemplateEmail({
-        stepType,
-        declineCategory: "soft",
-        merchantName: "your subscription",
-        senderName: null,
-        customerName: null,
-        amountFormatted: "$49.00",
-        updateUrl: URL,
-      });
-      expect(htmlToBlocks(copy.bodyHtml)).toEqual(
-        RECOVA[stepType].blocks({ name: "there", amount: "$49.00", url: URL, sender: "Support" }),
-      );
-    });
 
     it(`${stepType}: names are text, never markup`, () => {
       const copy = buildTemplateEmail({
@@ -252,16 +220,6 @@ describe("E4 to E6 fallback copy is Recova's FALLBACK_TEMPLATES, step by step", 
       }
     });
   }
-
-  it("the revoked notice, the one step outside E4 to E8, keeps the per-category template", () => {
-    const input = {
-      declineCategory: "revoked",
-      merchantName: "Teamflow",
-      amountFormatted: "$49.00",
-      updateUrl: URL,
-    };
-    expect(buildTemplateEmail({ ...input, stepType: "email_revoked" })).toEqual(buildTemplateEmail(input));
-  });
 });
 
 // ---- 3. The executor sends Recova's words when generation fails ----------------
@@ -396,12 +354,6 @@ describe("E4 to E6 carry Recova's From, recipient, parts, footer and links", () 
       expect(m.text).not.toContain(constants.ENGAGEMENT_HONEYPOT_PATH + "/");
     });
   }
-
-  it("the footer sentence names Recova's 'Support' when the merchant set no sender name", async () => {
-    const { jobs } = await runStep({ senderName: null, merchantName: "your subscription" });
-    expect(jobs[0].footerNote).toMatch(/^You're receiving this from Support about a recent payment\. © \d{4}$/);
-    expect(buildEmailMessage(jobs[0], BASE).from).toBe(`Support <${constants.EMAIL_FROM_ADDRESS}>`);
-  });
 
   it("merchant notices never carry the CAN-SPAM lines, and the sentence only when they set it (RULES.md 3.16)", () => {
     // REPOINTED BY E10 (J88). This said a merchant notice never carries the

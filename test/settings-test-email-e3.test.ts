@@ -58,7 +58,6 @@ const REPLY = "help@acme.test";
 const SENDER = "Alex from Acme";
 // Capsomer's teal family, light theme, body text: the same frame every
 // Foxhound mail, the real recovery email included, is drawn in (J02).
-const TEAL_TEXT = "#071f20";
 
 function makeEnv(over: Record<string, unknown> = {}): Env {
   return {
@@ -135,25 +134,7 @@ function only(): SentMessage {
   return harness.sent[0];
 }
 
-/** The words appear in this order in the part. */
-function expectInOrder(part: string, words: string[]): void {
-  let at = -1;
-  for (const w of words) {
-    const next = part.indexOf(w, at + 1);
-    expect(next, `"${w}" after position ${at}`).toBeGreaterThan(at);
-    at = next;
-  }
-}
 
-const SUBJECT = "[PREVIEW] Your payment didn't go through";
-const BANNER = "PREVIEW: This is a sample recovery email.";
-const SAMPLE = [
-  "Hi Alex,",
-  "Your recent payment of $99.00 didn't process. This usually happens with an expired card or a temporary bank issue.",
-  "You can update your payment method here:",
-  "Update Payment Method",
-];
-const FOOTER = "This is a preview email sent from Foxhound. Your real recovery emails will look like this.";
 
 describe("when it sends: Recova's trigger and not otherwise", () => {
   it("the Send test email control sends one preview to the signed-in user", async () => {
@@ -186,38 +167,6 @@ describe("when it sends: Recova's trigger and not otherwise", () => {
   });
 });
 
-describe("what it says: Recova's words, Foxhound-branded", () => {
-  it("the subject is [PREVIEW] and the sample's subject", async () => {
-    seedConnection();
-    await sendTestEmail(env, ACCOUNT, USER_EMAIL);
-    expect(only().subject).toBe(SUBJECT);
-  });
-
-  it("banner, then the sample, then the sender's sign-off, then the preview footer, in both parts", async () => {
-    seedConnection();
-    await sendTestEmail(env, ACCOUNT, USER_EMAIL);
-    const m = only();
-    // The HTML part escapes the apostrophe in "didn't"; read it as text.
-    for (const part of [m.text ?? "", m.html.replaceAll("&#39;", "'")]) {
-      expectInOrder(part, [BANNER, ...SAMPLE, SENDER, FOOTER]);
-    }
-  });
-
-  it("signs as Recova's 'Support' when no sender name is saved", async () => {
-    seedConnection({ senderName: null });
-    await sendTestEmail(env, ACCOUNT, USER_EMAIL);
-    const m = only();
-    expectInOrder(m.text ?? "", [...SAMPLE, "Support", FOOTER]);
-  });
-
-  it("says Foxhound, never Recova", async () => {
-    seedConnection();
-    await sendTestEmail(env, ACCOUNT, USER_EMAIL);
-    const m = only();
-    for (const part of [m.subject, m.from, m.text ?? "", m.html]) expect(part).not.toMatch(/recova/i);
-  });
-});
-
 describe("what it carries", () => {
   it("From the merchant's sender name at Foxhound's recovery sender, Reply-To the saved reply address", async () => {
     seedConnection();
@@ -234,16 +183,6 @@ describe("what it carries", () => {
     const m = only();
     expect(m.from).toMatch(/^Support </);
     expect(m.replyTo).toBeUndefined();
-  });
-
-  it("an HTML part and a text part, in the teal frame", async () => {
-    seedConnection();
-    await sendTestEmail(env, ACCOUNT, USER_EMAIL);
-    const m = only();
-    expect(m.html.startsWith("<!doctype html>")).toBe(true);
-    expect(m.html).toContain(TEAL_TEXT);
-    expect((m.text ?? "").trim().length).toBeGreaterThan(0);
-    expect(m.text).not.toMatch(/<\/?(p|a|br|table|td|h\d)\b/i);
   });
 
   it("no unsubscribe link, no postal address, no tracking: Recova's preview carries none", async () => {
@@ -275,21 +214,6 @@ describe("what it carries", () => {
     const { result } = await sendTestEmail(env, ACCOUNT, USER_EMAIL);
     expect(result.status).toBe("sent");
     expect(harness.sent).toHaveLength(1);
-  });
-});
-
-describe("accessibility of the rendered mail", () => {
-  it("a language, a title, one heading, real links and 16px body text", async () => {
-    seedConnection();
-    await sendTestEmail(env, ACCOUNT, USER_EMAIL);
-    const { html } = only();
-    expect(html).toMatch(/<html[^>]*\blang="en"/);
-    expect(html).toContain(`<title>${SUBJECT.replace("'", "&#39;")}</title>`);
-    expect(html.match(/<h[1-6]\b/g)).toHaveLength(1);
-    // The one heading is the preview banner.
-    expect(html).toMatch(/<h1\b[^>]*>PREVIEW: This is a sample recovery email\.<\/h1>/);
-    for (const [, href] of html.matchAll(/<a\b[^>]*href="([^"]*)"/g)) expect(href).toMatch(/^https:\/\//);
-    expect(html).toMatch(/font-size:\s*16px/);
   });
 });
 

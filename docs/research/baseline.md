@@ -169,8 +169,7 @@ The `verify` job runs `npm run report:bloat` after Build: Knip, jscpd, page
 weight against that build, and the assertion scan. Each exits 0 on a finding, and
 the step is `continue-on-error`, so it reports and never blocks. Findings appear
 as `::warning::` annotations (page weight over budget, tests with no assertion).
-It adds about 8 seconds to a run. `test/ci-gate-parity.test.ts` declares it a
-non-gate step.
+It adds about 8 seconds to a run.
 
 ## For the seat
 

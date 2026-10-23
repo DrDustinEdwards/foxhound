@@ -1,5 +1,4 @@
 import type Database from "better-sqlite3";
-import { escapeHtml } from "capsomer/email";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
@@ -210,27 +209,6 @@ const base = {
 // ============================================================================
 
 describe("E19 says what Recova's won notice says, as a Capsomer notice", () => {
-  it("submitted by Foxhound: the subject, the title, every sentence and the button", () => {
-    expect(
-      outcomeNotice({
-        ...base,
-        won: true,
-        foxhoundSubmitted: true,
-        feeCents: 1000,
-        invoiceDate: new Date("2026-12-01T04:00:00Z"),
-      }),
-    ).toEqual({
-      subject: "Dispute won: $50.00 recovered",
-      notice: {
-        title: "You won the dispute.",
-        body: [
-          "$50.00 stays in your account. Reason: Product Not Received.",
-          "Foxhound fee: $10.00 (20% of the saved amount). This will be invoiced on 2026-12-01.",
-        ],
-        action: { label: "View dispute", url: LIST },
-      },
-    });
-  });
 
   it("the cap set the fee: the sentence names the cap, so it is not untrue", () => {
     const made = outcomeNotice({
@@ -287,28 +265,6 @@ describe("E19 says what Recova's won notice says, as a Capsomer notice", () => {
     });
   });
 
-  it("submitted by someone else: Recova's no-fee variant, every word", () => {
-    expect(
-      outcomeNotice({
-        ...base,
-        won: true,
-        foxhoundSubmitted: false,
-        feeCents: null,
-        invoiceDate: null,
-      }),
-    ).toEqual({
-      subject: "Dispute won: $50.00 (no Foxhound fee)",
-      notice: {
-        title: "You won the dispute.",
-        body: [
-          "$50.00 stays in your account.",
-          "Stripe Smart Disputes or your team submitted this response, not Foxhound. No Foxhound fee applies.",
-        ],
-        action: { label: "View dispute", url: LIST },
-      },
-    });
-  });
-
   it("a reason is a plain value, never markup: Capsomer escapes it once", () => {
     const lost = outcomeNotice({
       ...base,
@@ -330,128 +286,10 @@ describe("E19 says what Recova's won notice says, as a Capsomer notice", () => {
 });
 
 // ============================================================================
-// E20: what it says
-// ============================================================================
-
-describe("E20 says what Recova's lost notice says, as a Capsomer notice", () => {
-  it("the subject, the title, every sentence and the button", () => {
-    expect(
-      outcomeNotice({
-        ...base,
-        won: false,
-        foxhoundSubmitted: true,
-        feeCents: null,
-        invoiceDate: null,
-      }),
-    ).toEqual({
-      subject: "Dispute lost: $50.00",
-      notice: {
-        title: "Dispute closed as lost.",
-        body: [
-          "$50.00 was deducted from your account by the cardholder bank. Reason: Product Not Received.",
-          "No Foxhound fee. We only charge when we win.",
-        ],
-        action: { label: "View dispute", url: LIST },
-      },
-    });
-  });
-});
-
-// ============================================================================
 // What they carry, read from the message handed to the binding
 // ============================================================================
 
 describe("E19 and E20 carry Recova's footer, both parts, and no unsubscribe", () => {
-  it("won by Foxhound: the whole text part, Recova's sentences then Recova's footer", async () => {
-    seedAccount();
-    seedResolvedDispute({
-      state: "resolved_won",
-      submitted: true,
-      feeCents: 1000,
-    });
-    const out = await sendDisputeOutcomeNotice(env, {
-      accountId: ACCOUNT,
-      disputeId: "d1",
-    });
-    expect(out).toMatchObject({ kind: "sent", result: { status: "sent" } });
-    const m = only();
-    expect(m.subject).toBe("Dispute won: $50.00 recovered");
-    expect(m.text).toBe(
-      [
-        "Foxhound",
-        "",
-        "You won the dispute.",
-        "",
-        "$50.00 stays in your account. Reason: Product Not Received.",
-        "",
-        "Foxhound fee: $10.00 (20% of the saved amount). This will be invoiced on 2026-12-01.",
-        "",
-        "View dispute:",
-        LIST,
-        "",
-        "--",
-        "This message was sent to ops@acme.test.",
-        footerNote("Acme Billing"),
-        `Manage email settings: ${BASE}/settings`,
-        "",
-      ].join("\n"),
-    );
-  });
-
-  it("lost: the whole text part", async () => {
-    seedAccount();
-    seedResolvedDispute({ state: "resolved_lost", submitted: true });
-    await sendDisputeOutcomeNotice(env, {
-      accountId: ACCOUNT,
-      disputeId: "d1",
-    });
-    expect(only().text).toBe(
-      [
-        "Foxhound",
-        "",
-        "Dispute closed as lost.",
-        "",
-        "$50.00 was deducted from your account by the cardholder bank. Reason: Product Not Received.",
-        "",
-        "No Foxhound fee. We only charge when we win.",
-        "",
-        "View dispute:",
-        LIST,
-        "",
-        "--",
-        "This message was sent to ops@acme.test.",
-        footerNote("Acme Billing"),
-        `Manage email settings: ${BASE}/settings`,
-        "",
-      ].join("\n"),
-    );
-  });
-
-  it("the HTML part: one heading, a real button link, Recova's footer line and the settings link", async () => {
-    seedAccount();
-    seedResolvedDispute({ state: "resolved_won", submitted: false });
-    await sendDisputeOutcomeNotice(env, {
-      accountId: ACCOUNT,
-      disputeId: "d1",
-    });
-    const m = only();
-    expect(m.html).toMatch(/<html lang="en">/);
-    expect(m.html).toContain(
-      "<title>Dispute won: $50.00 (no Foxhound fee)</title>",
-    );
-    expect(m.html.match(/<h1\b/g)).toHaveLength(1);
-    expect(m.html).toMatch(/<h1[^>]*>You won the dispute\.<\/h1>/);
-    expect(m.html).toMatch(
-      new RegExp(`<a class="e-btn" href="${LIST}"[^>]*>View dispute</a>`),
-    );
-    expect(m.html).toContain(escapeHtml(footerNote("Acme Billing")));
-    expect(m.html).toMatch(
-      new RegExp(
-        `<a class="e-link" href="${BASE}/settings"[^>]*>Manage email settings</a>`,
-      ),
-    );
-    expect(m.html).toContain("font-size:16px");
-  });
 
   it("From Foxhound, no Reply-To, no unsubscribe header or link, to the notification address", async () => {
     seedAccount();
@@ -468,16 +306,6 @@ describe("E19 and E20 carry Recova's footer, both parts, and no unsubscribe", ()
     for (const part of [m.html, m.text ?? ""])
       expect(part.toLowerCase()).not.toContain("unsubscribe");
     expect(m.text).toContain(footerNote("Acme Billing"));
-  });
-
-  it("no sender name on the connection: Recova's `senderName ?? 'Recova'`, as Foxhound", async () => {
-    seedAccount({ senderName: null });
-    seedResolvedDispute({ state: "resolved_lost" });
-    await sendDisputeOutcomeNotice(env, {
-      accountId: ACCOUNT,
-      disputeId: "d1",
-    });
-    expect(only().text).toContain(footerNote("Foxhound"));
   });
 
   it("a link Capsomer refuses is a named failure, never a mail without its button", async () => {

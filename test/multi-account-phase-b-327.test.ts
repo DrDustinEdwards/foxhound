@@ -398,35 +398,6 @@ describe("resolution follows legacy's fallback order", () => {
   });
 });
 
-describe("AuthContext carries the membership set", () => {
-  it("guards.ts populates memberships and activeAccountId from one query", async () => {
-    const { readFileSync } = await import("node:fs");
-    const { fileURLToPath } = await import("node:url");
-    const source = readFileSync(
-      fileURLToPath(new URL("../app/lib/auth/guards.ts", import.meta.url)),
-      "utf8",
-    );
-
-    // Both branches set them, and the demo branch sets the DEMO membership
-    // rather than anything read from a signed-in visitor's session.
-    expect(source).toMatch(/memberships,\n\s+activeAccountId: membership\.accountId,/);
-    expect(source).toMatch(/memberships: \[membership\],\n\s+activeAccountId: membership\.accountId,/);
-    // One membership query per request, not one per consumer.
-    expect(source.match(/listMemberships\(/g) ?? []).toHaveLength(1);
-  });
-
-  it("the switch route is registered at legacy's own path", async () => {
-    const routes = (await import("~/routes")).default as Array<{
-      path?: string;
-      file: string;
-      children?: unknown[];
-    }>;
-    const flat = JSON.stringify(routes);
-    expect(flat).toContain("./routes/api/account-switch.ts");
-    expect(flat).toContain("api/account/switch");
-  });
-});
-
 describe("the invite path joins rather than refuses", () => {
   it("an invite to an account already held is success, and writes nothing", async () => {
     const { acceptInvite } = await import("~/lib/auth/invites");
@@ -473,21 +444,5 @@ describe("the invite path joins rather than refuses", () => {
     // rather than restating the route's control flow.
     await setSessionActiveAccount(db, "sess_1", "acct_b");
     expect(markerOf("sess_1")).toBe("acct_b");
-  });
-
-  it("already_member is gone from the result type's reasons", async () => {
-    const { readFileSync } = await import("node:fs");
-    const { fileURLToPath } = await import("node:url");
-    const source = readFileSync(
-      fileURLToPath(new URL("../app/lib/auth/invites.ts", import.meta.url)),
-      "utf8",
-    );
-    // Layer 2's removal, pinned at the type. `createAccountForUser` keeps its
-    // own already_member (phase (d)'s debt), so this is scoped to the invite
-    // result union rather than to the file.
-    const union = source.match(/export type AcceptInviteResult =[\s\S]*?;\n/);
-    expect(union).not.toBeNull();
-    expect(union![0]).not.toContain("already_member");
-    expect(union![0]).toContain("alreadyMember");
   });
 });

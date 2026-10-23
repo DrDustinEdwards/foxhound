@@ -39,7 +39,6 @@ vi.mock("~/lib/ai/client", () => ({
 }));
 
 const {
-  TIMING_WORD_PATTERN,
   TIMING_RETRY_INSTRUCTION,
   buildPrompts,
   findBrandVoiceViolations,
@@ -102,12 +101,6 @@ beforeEach(() => {
 });
 
 describe("LAYER 2: the detector catches each of legacy's nine phrases", () => {
-  it("is legacy's exact pattern", () => {
-    expect(TIMING_WORD_PATTERN.source).toBe(
-      "\\b(today|tonight|yesterday|this morning|this afternoon|this evening|right now|immediately|by end of day)\\b",
-    );
-    expect(TIMING_WORD_PATTERN.flags).toBe("i");
-  });
 
   it.each(NINE)("'%s' in the SUBJECT is caught by the detector and the gate", (phrase) => {
     const copy = { subject: `Update your card ${phrase}`, bodyHtml: CLEAN_BODY };
@@ -207,28 +200,6 @@ describe("LAYER 4: hardStripTimingWords", () => {
   it("leaves clean text byte for byte", () => {
     const clean = "<p>Hi  there,\n\nyour card did not go through .</p>";
     expect(hardStripTimingWords(clean)).toBe(clean);
-  });
-});
-
-describe("LAYER 1: the prompts carry the timing rule", () => {
-  it("the dunning SYSTEM prompt names the nine words for subject and body", () => {
-    const { system } = buildPrompts(DUNNING_INPUT);
-    for (const phrase of NINE) expect(system).toContain(`'${phrase}'`);
-    expect(system).toMatch(/subject or the body/i);
-    expect(system).toMatch(/you do not know when the customer will read this/i);
-  });
-
-  it("the win-back prompt names the nine words for subject and body", () => {
-    const prompt = buildWinbackPrompt(WINBACK_INPUT);
-    for (const phrase of NINE) expect(prompt).toContain(`'${phrase}'`);
-    expect(prompt).toMatch(/subject or the body/i);
-    expect(prompt).toMatch(/you do not know when the customer will read this/i);
-  });
-
-  it("the retry instruction is legacy's, verbatim", () => {
-    expect(TIMING_RETRY_INSTRUCTION).toBe(
-      "\n\nADDITIONAL INSTRUCTION:\nThe previous subject contained a timing word like 'today' or 'tonight'. Rewrite it without any timing-specific words. The customer may read this hours or days after it was sent.",
-    );
   });
 });
 

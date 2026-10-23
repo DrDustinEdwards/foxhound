@@ -213,8 +213,7 @@ const BY_CATEGORY: Record<DeclineCategory, Record<string, StepCopyBuilder>> = {
  * Copy for one seeded email step, or null when the step type is not an email
  * step in that category's schedule. Returning null rather than a fallback
  * string is deliberate: a missing entry means the schedule and this file have
- * drifted, and a silent generic body would hide that. test/demo-email-copy
- * asserts every scheduled email step resolves.
+ * drifted, and a silent generic body would hide that.
  */
 export function demoEmailCopyFor(
   category: DeclineCategory,

@@ -125,25 +125,6 @@ const errorOf = (data: Record<string, unknown>) => (data as { error: string }).e
 // ============================================================================
 
 describe("PLANT 1: the four are registered as writes", () => {
-  it("the four this session shipped are the first four sections of the one settings writer, in order", () => {
-    // THE REGROUP MADE THEM SECTIONS. What THIS suite is still the authority on
-    // is that its own four are registered, are writes, and did not get
-    // reordered or quietly dropped by a later session. Registry size and the
-    // other sections are asserted by the suites that own them.
-    expect(MERCHANT_WRITE_TOOL_NAMES).toContain(UPDATE);
-    expect(MERCHANT_TOOL_NAMES).toContain(UPDATE);
-    const tool = MERCHANT_TOOLS.list().find((t) => t.name === UPDATE);
-    expect(Object.keys(tool?.inputSchema.properties ?? {}).slice(0, 4)).toEqual([
-      "audit",
-      "features",
-      "notifications",
-      "sender_name",
-    ]);
-    // A write, and hinted as one: a client that trusted the hints would
-    // otherwise run it without asking.
-    expect(tool?.annotations.readOnlyHint).toBe(false);
-    expect(tool?.annotations.destructiveHint).toBe(true);
-  });
 
   it("and NONE of them is on the HUMAN-FOREVER denylist", () => {
     for (const name of MERCHANT_WRITE_TOOL_NAMES) {

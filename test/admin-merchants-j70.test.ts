@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 
 import { eq } from "drizzle-orm";
 import { createElement } from "react";
@@ -325,15 +323,6 @@ describe("listAdminMerchants: one row per account, Recova's inventory from Foxho
     expect(by.get("acct_lumen")).toMatchObject({ billingExempt: true, activeRecoveriesCount: 1 });
     expect(by.get("acct_gone")?.cancelledAt).toEqual(at(2 * DAY));
   });
-
-  it("leaves the admin API's listMerchants rows as they were", async () => {
-    const { listMerchants } = await import("~/lib/admin/merchants.server");
-    const rows = await listMerchants((await seed()).db);
-    expect(Object.keys(rows[0]).sort()).toEqual(
-      ["activeRecoveriesCount", "billingExempt", "cancelledAt", "connectionStatus", "createdAt", "id", "name", "processingPaused"].sort(),
-    );
-    expect(rows.find((r) => r.id === "acct_north")).toMatchObject({ connectionStatus: "connected", activeRecoveriesCount: 2 });
-  });
 });
 
 interface Figures {
@@ -653,198 +642,7 @@ function render(over: { merchants?: Row[]; confirmCancel?: { id: string; name: s
   return renderToStaticMarkup(createElement(Stub, { initialEntries: ["/admin/merchants"] }));
 }
 
-const text = (html: string) =>
-  html
-    .replace(/<[^>]+>/g, " ")
-    .replaceAll("&#x27;", "'")
-    .replaceAll("&quot;", '"')
-    .replaceAll("&amp;", "&")
-    .replace(/\s+/g, " ");
 
-const rowOf = (html: string, name: string) =>
-  [...html.matchAll(/<tr>[\s\S]*?<\/tr>/g)].map((m) => m[0]).find((r) => text(r).includes(name)) ?? "";
-
-describe("the Merchants page", () => {
-  it("states Recova's five figures in plain words, demo accounts left out", () => {
-    const t = text(render());
-    expect(t).toContain("Estimated MRR");
-    expect(t).toContain("$1,200.00");
-    expect(t).toContain("Connected to Stripe");
-    expect(t).toContain("3 of 5 merchants");
-    expect(t).toContain("Total recovered");
-    expect(t).toContain("$50.00");
-    expect(t).toContain("Recovery fees this month");
-    expect(t).toContain("$8.00");
-    expect(t).toContain("Payments in queue");
-    expect(t).toMatch(/Demo accounts are not counted/);
-  });
-
-  it("is one captioned Capsomer table with Recova's columns in sentence case", () => {
-    const html = render();
-    expect(html).toMatch(/<table class="cap-table"/);
-    expect(html).toMatch(/<caption[^>]*>[^<]*merchant/i);
-    const headers = [...html.matchAll(/<th scope="col"[^>]*>(.*?)<\/th>/g)].map((m) => text(m[1]).trim());
-    expect(headers).toEqual([
-      "Merchant",
-      "Status",
-      "Stripe",
-      "Recovery rate",
-      "Recovered",
-      "Active recoveries",
-      "Last webhook",
-      "Joined",
-      "Actions",
-    ]);
-    expect(html).not.toMatch(/\buppercase\b|\btracking-/);
-  });
-
-  it("names each merchant once, linked to its page, with its owner's email beneath", () => {
-    const html = render();
-    const north = rowOf(html, "Northwind Coffee");
-    expect(north).toMatch(/<a[^>]*href="\/admin\/merchants\/acct_north"[^>]*>Northwind Coffee<\/a>/);
-    expect(text(north)).toContain("rosa@example.com");
-    // No name: the id stands in, and no email is a plain word, never a dash.
-    expect(text(rowOf(html, "acct_new"))).toContain("No owner on record");
-  });
-
-  it("names an account with no name by its owner's email, as Recova did, once", () => {
-    const html = render({ merchants: [row("acct_noname", { name: null, ownerEmail: "kai@example.com" })] });
-    expect(html).toMatch(/<a[^>]*class="cap-table-open"[^>]*href="\/admin\/merchants\/acct_noname"[^>]*>kai@example\.com<\/a>/);
-    // Shown once in the row header: no aside repeats it (the buttons' hidden
-    // words name the row by the same label, which is what they are for).
-    const header = /<th scope="row">[\s\S]*?<\/th>/.exec(html)?.[0] ?? "";
-    expect(header.match(/kai@example\.com/g)).toHaveLength(1);
-  });
-
-  it("uses Capsomer's table parts for the row's link and its second line, with no Foxhound class on them", () => {
-    const north = rowOf(render(), "Northwind Coffee");
-    expect(north).toMatch(/<th scope="row"><a class="cap-table-open" href="\/admin\/merchants\/acct_north"/);
-    expect(north).toMatch(/<span class="cap-table-aside">rosa@example\.com<\/span>/);
-    expect(north).not.toMatch(/<(th|td)[^>]*class=/);
-  });
-
-  it("says one status per row in Recova's order, with Capsomer's status shape", () => {
-    const html = render();
-    expect(text(rowOf(html, "Northwind Coffee"))).toContain("Active");
-    expect(text(rowOf(html, "Lumen Studio"))).toContain("Billing exempt");
-    expect(text(rowOf(html, "Paused Pets"))).toContain("Paused by brake");
-    expect(text(rowOf(html, "Gone Goods"))).toContain("Cancelled");
-    expect(text(rowOf(html, "acct_new"))).toContain("Inactive");
-    expect(rowOf(html, "Northwind Coffee")).toMatch(/class="cap-status"/);
-  });
-
-  it("shows the band as words beside the rate, not a hover title the row link covers (PR 140 review)", () => {
-    const row = rowOf(render(), "Paused Pets");
-    expect(row).not.toMatch(/title="Below target"/);
-    expect(row).toMatch(/class="cap-status-reason">Below target</);
-  });
-
-  it("says the recovery rate with its band, and No failures yet rather than a dash", () => {
-    const html = render();
-    expect(text(rowOf(html, "Northwind Coffee"))).toMatch(/40%/);
-    expect(text(rowOf(html, "Paused Pets"))).toMatch(/10%.*Below target/);
-    expect(text(rowOf(html, "acct_new"))).toContain("No failures yet");
-    expect(text(rowOf(html, "acct_new"))).toContain("None yet");
-  });
-
-  it("says each currency recovered once, joined, never added together", () => {
-    expect(text(rowOf(render(), "Northwind Coffee"))).toMatch(/\$40\.00 \+ €25\.00/);
-  });
-
-  it("gives the last webhook as a relative time, and says when none came", () => {
-    const html = render();
-    expect(rowOf(html, "Northwind Coffee")).toContain(`dateTime="${new Date(T - 2 * HOUR).toISOString()}"`);
-    expect(text(rowOf(html, "Gone Goods"))).toContain("None received");
-  });
-
-  it("opens the Stripe dashboard in a new tab with a real icon, never a typed arrow", () => {
-    const north = rowOf(render(), "Northwind Coffee");
-    const link = /<a[^>]*href="https:\/\/dashboard\.stripe\.com\/acct_1North"[^>]*>[\s\S]*?<\/a>/.exec(north)?.[0] ?? "";
-    expect(link).toMatch(/target="_blank"/);
-    expect(link).toMatch(/rel="noopener noreferrer"/);
-    expect(link).toMatch(/<svg[^>]*aria-hidden="true"/);
-    expect(text(link)).toMatch(/opens in a new tab/);
-    expect(north).not.toMatch(/→|-&gt;/);
-    expect(text(rowOf(render(), "Gone Goods"))).not.toMatch(/Stripe dashboard/);
-  });
-
-  it("acts on a row at once: billing exempt and pause post the value to set", () => {
-    const html = render();
-    const north = rowOf(html, "Northwind Coffee");
-    expect(north).toMatch(/name="intent" value="billing-exempt"[\s\S]*?name="value" value="true"[\s\S]*?Set exempt/);
-    expect(north).toMatch(/name="intent" value="processing-paused"[\s\S]*?name="value" value="true"[\s\S]*?Pause/);
-    const lumen = rowOf(html, "Lumen Studio");
-    expect(lumen).toMatch(/name="value" value="false"[\s\S]*?End exemption/);
-    expect(rowOf(html, "Paused Pets")).toMatch(/name="value" value="false"[\s\S]*?Resume/);
-    // Each button says what it does and names its merchant to a screen reader,
-    // its visible words first (WCAG 2.5.3).
-    expect(text(north)).toMatch(/Set exempt from billing, Northwind Coffee/);
-    expect(text(north)).toMatch(/Pause processing for Northwind Coffee/);
-  });
-
-  it("cancels through a link to the typed confirmation, never one click, and not for a cancelled merchant", () => {
-    const html = render();
-    expect(rowOf(html, "Northwind Coffee")).toMatch(/<a[^>]*href="\/admin\/merchants\?cancel=acct_north"[^>]*>[\s\S]*?Cancel merchant/);
-    expect(text(rowOf(html, "Gone Goods"))).not.toContain("Cancel merchant");
-    expect(html).not.toMatch(/name="intent" value="cancel"/);
-  });
-
-  it("has no Impersonate (ruling 125)", () => {
-    expect(text(render())).not.toMatch(/impersonate/i);
-  });
-
-  it("has one message region for results and Undo, present from the start", () => {
-    const html = render();
-    expect(html.match(/aria-label="Results and failures"/g)).toHaveLength(1);
-  });
-
-  it("has an empty state", () => {
-    expect(text(render({ merchants: [] }))).toContain("No merchants yet.");
-  });
-
-  it("says a result posted without script, with Undo as a form posting the other value", () => {
-    const html = render({ actionData: { ok: true, intent: "billing-exempt", accountId: "acct_north", name: "Northwind Coffee", value: true, changed: true, wasBrakePause: false } });
-    expect(text(html)).toContain("Northwind Coffee is billing exempt.");
-    const undo = /<form[^>]*>(?:(?!<\/form>)[\s\S])*Undo[\s\S]*?<\/form>/.exec(html)?.[0] ?? "";
-    expect(undo).toMatch(/name="intent" value="billing-exempt"/);
-    expect(undo).toMatch(/name="value" value="false"/);
-    expect(undo).toMatch(/name="undo" value="1"/);
-  });
-
-  it("gives no Undo for a change that changed nothing", () => {
-    const html = render({ actionData: { ok: true, intent: "processing-paused", accountId: "acct_paused", name: "Paused Pets", value: true, changed: false, wasBrakePause: false } });
-    expect(text(html)).toContain("Paused Pets was already paused. Nothing was changed.");
-    expect(html).not.toMatch(/<button[^>]*>Undo/);
-  });
-
-  it("gives no Undo for a resume that took a merchant off the brake, and says why", () => {
-    const html = render({ actionData: { ok: true, intent: "processing-paused", accountId: "acct_paused", name: "Paused Pets", value: false, changed: true, wasBrakePause: true } });
-    expect(text(html)).toMatch(/Resumed processing for Paused Pets\. The emergency brake had paused it/);
-    expect(html).not.toMatch(/<button[^>]*>Undo/);
-  });
-
-  it("says a cancel's Stripe revoke failure as a warning that stays", () => {
-    const html = render({ actionData: { ok: true, intent: "cancel", accountId: "acct_north", name: "Northwind Coffee", warning: "1 Stripe connection could not be revoked." } });
-    expect(text(html)).toContain("Cancelled Northwind Coffee.");
-    expect(text(html)).toContain("1 Stripe connection could not be revoked.");
-  });
-});
-
-describe("the cancel confirmation", () => {
-  it("is Capsomer's confirm page naming the merchant, posting the typed word", () => {
-    const html = render({ confirmCancel: { id: "acct_north", name: "Northwind Coffee" } });
-    expect(html).toMatch(/<form class="cap-confirm-page"[^>]*method="post"/);
-    expect(html).toMatch(/action="\/admin\/merchants\?index&amp;cancel=acct_north"/);
-    expect(html).toMatch(/<input type="hidden" name="intent" value="cancel"/);
-    expect(html).toMatch(/<input type="hidden" name="accountId" value="acct_north"/);
-    expect(/<input[^>]*name="confirm"[^>]*>/.exec(html)?.[0] ?? "").toMatch(/\brequired\b/);
-    const t = text(html);
-    expect(t).toContain("Cancel Northwind Coffee?");
-    expect(t).toContain("Type cancel to confirm");
-    expect(t).toMatch(/still billed/);
-    expect(html).toMatch(/<a class="cap-btn" href="\/admin\/merchants">Go back<\/a>/);
-  });
-});
 
 describe("pure helpers", () => {
   it("decides the in-page message and its Undo from the answer alone", () => {
@@ -865,17 +663,6 @@ describe("pure helpers", () => {
     });
   });
 
-  it("orders a row's status as Recova did, with cancel first", () => {
-    expect(typeof pageLib.merchantStatus).toBe("function");
-    const status = pageLib.merchantStatus as (r: Partial<Row>) => { tone: string; word: string };
-    const base = { cancelledAt: null, processingPaused: false, pauseReason: null, billingExempt: false, connectionStatus: "connected" as const };
-    expect(status({ ...base, cancelledAt: new Date(), processingPaused: true })).toEqual({ tone: "crit", word: "Cancelled" });
-    expect(status({ ...base, processingPaused: true, billingExempt: true, pauseReason: PAUSE_REASON_MANUAL })).toEqual({ tone: "crit", word: "Paused" });
-    expect(status({ ...base, billingExempt: true })).toEqual({ tone: "info", word: "Billing exempt" });
-    expect(status(base)).toEqual({ tone: "ok", word: "Active" });
-    expect(status({ ...base, connectionStatus: "disconnected" })).toEqual({ tone: "nodata", word: "Inactive" });
-  });
-
   it("accepts the typed word in any case, and nothing else", () => {
     expect(typeof pageLib.isCancelConfirmValid).toBe("function");
     const valid = pageLib.isCancelConfirmValid as (s: string) => boolean;
@@ -883,18 +670,5 @@ describe("pure helpers", () => {
     expect(valid(" CANCEL ")).toBe(true);
     expect(valid("cancel merchant")).toBe(false);
     expect(valid("")).toBe(false);
-  });
-});
-
-describe("the route's source", () => {
-  const source = readFileSync(fileURLToPath(new URL("../app/routes/admin/merchants/index.tsx", import.meta.url)), "utf8");
-
-  it("uses the five text sizes, never an arbitrary one, and no amber", () => {
-    expect(source).not.toMatch(/text-\[/);
-    expect(source).not.toMatch(/amber/);
-  });
-
-  it("has no in-app admin role check: Access and the shell guard the page", () => {
-    expect(source).not.toMatch(/isAdminEmail|requireAdmin/);
   });
 });

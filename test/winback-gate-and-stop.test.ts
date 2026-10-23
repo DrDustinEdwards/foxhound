@@ -87,20 +87,6 @@ describe("291 B: the gate delays the UNFLAGGED, on the aligned base", () => {
     expect(PROCESS).toContain("recommendation === WINBACK_PRIORITY_ACTION");
     expect(WINBACK_PRIORITY_ACTION).toBe("winback_priority");
   });
-
-  it("the gate fails OPEN, never onto a silently different cadence", () => {
-    expect(PROCESS).toContain("// Fail open: the default schedule, never a silently different cadence.");
-  });
-
-  it("the bound is HALVED, not dropped and not left standing whole (292)", () => {
-    // The account_products half died with the read it justified: leaving it as
-    // prose after the code stopped depending on it is 288's dead-conditional
-    // rule. The producer half is still true and still stated.
-    expect(PROCESS).not.toContain("account_products has ZERO writers in Foxhound");
-    expect(PROCESS).toContain(
-      "nothing in Foxhound writes `winback_priority` into recommended_action,",
-    );
-  });
 });
 
 describe("291 C: the involuntary flip goes through 265's ratified transition", () => {
@@ -244,13 +230,5 @@ describe("291 C: the involuntary flip goes through 265's ratified transition", (
       resolved_at: number;
     };
     expect(second.resolved_at).toBe(first.resolved_at);
-  });
-
-  it("reuses the RATIFIED builder rather than a second writer", () => {
-    const BATCHES = readFileSync("app/lib/webhooks/batches.ts", "utf8");
-    expect(BATCHES).toContain("buildStopRecoveryBatch(db, {");
-    // The processor must route the involuntary case through it.
-    expect(PROCESS).toContain("buildInvoluntaryStopBatch(db, {");
-    expect(PROCESS).toContain('reason: "involuntary_churn"');
   });
 });

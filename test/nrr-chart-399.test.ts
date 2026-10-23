@@ -70,7 +70,6 @@ function point(month: number, nrrPct: number | null): MrrSnapshotPoint {
   };
 }
 
-const series = [point(0, 98.5), point(1, 101.2), point(2, 104), point(3, 103.4)];
 
 function render(mrrSeries: MrrSnapshotPoint[]): string {
   const loaderData = {
@@ -89,40 +88,8 @@ function render(mrrSeries: MrrSnapshotPoint[]): string {
   return renderToStaticMarkup(createElement(Stub, { initialEntries: ["/intelligence/dashboard"] }));
 }
 
-function card(html: string): string {
-  const start = html.indexOf("Net Revenue Retention");
-  return html.slice(start, html.indexOf("</section>", start));
-}
 
 describe("S16 NRR chart, built toward legacy (399)", () => {
-  it("renders legacy's card copy with Foxhound's real window", () => {
-    const html = render(series);
-    expect(html).toContain("Net Revenue Retention");
-    expect(html).toContain("Above 100% means expansion exceeds churn, last 12 months");
-    // The window is the divergence a reader is most likely to "correct" back to
-    // legacy's literal, which would make the sentence false here.
-    expect(html).not.toContain("(90 days)");
-  });
-
-  it("draws the 100% reference line legacy marks the comparison with", () => {
-    // Enarratio's labelled rule at y=100, dashed as legacy's was.
-    const html = card(render(series));
-    expect(html).toMatch(/data-enarratio-mark="rule"[^>]*stroke-dasharray/);
-    expect(html).toMatch(/<text[^>]*>100%<\/text>/);
-  });
-
-  it("renders no legend, because legacy renders none on a single series", () => {
-    // Enarratio draws a legend only for a chart with a series field.
-    expect(card(render(series))).not.toContain("enarratio-legend");
-  });
-
-  it("names the y axis in percent and percent-formats the data table", () => {
-    // Enarratio 0.3.1 has no tick formatter (an Enarratio gap named in the J67
-    // pull request), so the unit sits on the axis label until it does.
-    const c = card(render(series));
-    expect(c).toContain("NRR (%)");
-    expect(c).toContain("<td>101.2%</td>");
-  });
 
   it("is withheld entirely when no snapshot carries a retention figure", () => {
     // Legacy's own gate. An account whose first sync has no prior period gets

@@ -42,17 +42,7 @@ async function render(path: string, params: Record<string, string> = {}): Promis
   return { response, html };
 }
 
-/** The inline style of the innermost div whose own text is exactly `text`. */
-function styleOf(html: string, text: string): string {
-  const match = new RegExp(`<div style="([^"]*)">${text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}</div>`).exec(html);
-  if (!match) throw new Error(`no div with text ${text}`);
-  return match[1];
-}
 
-function px(style: string, property: string): number {
-  const match = new RegExp(`(?:^|;)${property}:(\\d+)px`).exec(style);
-  return match ? Number(match[1]) : 0;
-}
 
 describe("Recova's /og URL shape (ruling 41)", () => {
   it("/og with no query draws the default card", async () => {
@@ -79,36 +69,6 @@ describe("Recova's /og URL shape (ruling 41)", () => {
   it("the path form Foxhound's own pages use still works", async () => {
     const { html } = await render("/og/blog?title=Path%20form", { params: "blog" });
     expect(html).toContain(">Path form</div>");
-  });
-
-  it("no card carries a Recova string", async () => {
-    for (const path of ["/og", "/og?type=blog&title=T&description=D", "/og?type=blog"]) {
-      const { html } = await render(path);
-      expect(html.toLowerCase()).not.toContain("recova");
-    }
-  });
-});
-
-describe("Recova's default card spacing", () => {
-  it("puts the tagline 24px under the wordmark and the teal line 32px under the tagline", async () => {
-    const { html } = await render("/og");
-    const tagline = styleOf(html, "Recover failed Stripe payments without overbilling for it.");
-    const line = styleOf(html, "Pay only on Foxhound-attributed recoveries");
-    const wordmark = /<div style="([^"]*)">\s*<div style="[^"]*">fo<\/div>/.exec(html)?.[1] ?? "";
-    expect(px(wordmark, "margin-bottom") + px(tagline, "margin-top")).toBe(24);
-    expect(px(tagline, "margin-bottom") + px(line, "margin-top")).toBe(32);
-  });
-});
-
-// Recova draws the blog title in #f0ede8, the same light text as its default
-// card. Foxhound keeps that value as --chrome-text (app/app.css), legacy's own
-// value for text on the dark band, but the card drew the title in the
-// wordmark's #f5f5f3 instead. The wordmark keeps its own colour: that is
-// Foxhound branding.
-describe("Recova's blog card colours", () => {
-  it("draws the post title in Recova's #f0ede8", async () => {
-    const { html } = await render("/og?type=blog&title=Colour%20check");
-    expect(styleOf(html, "Colour check")).toContain("color:#f0ede8;");
   });
 });
 

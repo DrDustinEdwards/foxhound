@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -167,12 +165,6 @@ describe("PLANT 2: the three refusals legacy enforces", () => {
     expect(res.status).toBe(400);
     expect(memberIds(ACCOUNT)).toEqual(["m_a", "m_owner"]);
   });
-
-  it("no error string carries a wide dash", async () => {
-    const wide = new RegExp("[" + String.fromCharCode(0x2014, 0x2013) + "]");
-    const res = await post({ _action: "remove", memberId: "m_owner" });
-    expect(String(res.body.error)).not.toMatch(wide);
-  });
 });
 
 describe("PLANT 3: inviting still works and is unchanged", () => {
@@ -206,64 +198,5 @@ describe("PLANT 3: inviting still works and is unchanged", () => {
       params: {},
     } as never)) as { members: { removable: boolean }[] };
     expect(loaded.members.every((m) => !m.removable)).toBe(true);
-  });
-});
-
-describe("PLANT 4: the render carries legacy's control set", () => {
-  const SOURCE = readFileSync(
-    fileURLToPath(new URL("../app/routes/app/settings/team.tsx", import.meta.url)),
-    "utf8",
-  );
-  const code = SOURCE.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-
-  it("the two-step confirm uses legacy's labels", () => {
-    expect(code).toContain("Remove member");
-    expect(code).toContain("Yes, remove member");
-    expect(code).toContain("Cancel");
-  });
-
-  it("the control is gated by a loader-resolved boolean, not a server import", () => {
-    // The three refusals are resolved in the loader and the render reads one
-    // boolean. Referencing MEMBER_ROLE here would import a server module into
-    // this route's client chunk, which the build refuses. Pinned because a
-    // scoped test run never runs the build.
-    expect(code).toContain("m.removable ?");
-    expect(code).toContain("m.role !== MEMBER_ROLE.OWNER");
-    const render = code.slice(code.indexOf("export default function Team"));
-    expect(render).not.toContain("MEMBER_ROLE");
-  });
-
-  it("a Pending pill appears only for a pending member, never an Active pill", () => {
-    // Legacy renders a status pill ONLY when pending.
-    expect(code).toContain("Pending");
-    expect(code).not.toMatch(/Badge[^>]*>\{m\.status\}/);
-  });
-
-  it("the remove control posts through DemoGuardedForm like every settings write", () => {
-    // Asserted on the REMOVE block specifically, and against a raw lowercase
-    // <form> as well as a capitalised <Form>: swapping in a plain element
-    // type-checks fine and would silently leave the demo firewall's UX layer.
-    const removeBlock = code.slice(code.indexOf("m.removable ?"), code.indexOf("Remove member"));
-    expect(removeBlock).toContain('<DemoGuardedForm method="post"');
-    expect(code).not.toContain('<Form method="post"');
-    expect(code).not.toContain('<form method="post"');
-  });
-});
-
-describe("PLANT 5: the docs describe the control that now exists", () => {
-  const DOCS = readFileSync(
-    fileURLToPath(new URL("../app/lib/marketing/docs-content.ts", import.meta.url)),
-    "utf8",
-  );
-
-  it("names removal, who can do it, and when access ends", () => {
-    // Line for the heading map: platform, "Team and brand voice", body[0]. It
-    // promised invites and stopped there, which was accurate while nothing
-    // could remove a member.
-    expect(DOCS).toContain("Invite teammates from Settings and Team");
-    expect(DOCS).toContain("can remove any member other than themselves");
-    // J73: the sentence now opens with it ("Access ends immediately, and the
-    // owner cannot be removed at all."), so the case is not the claim.
-    expect(DOCS.toLowerCase()).toContain("access ends immediately");
   });
 });

@@ -3,7 +3,7 @@
    draws y gridlines by default; this is its documented way to hide them
    (enarratio docs/api.md, "Custom properties": hide a direction with a rule on
    the x-grid or y-grid mark). Scoped to this chart only. Tested by
-   test/churn-chart-repair-398.test.ts and test/churn-capsomer-j29.test.ts. */
+   test/churn-capsomer-j29.test.ts. */
 .fh-churn-chart [data-enarratio-mark="y-grid"] {
   display: none;
 }

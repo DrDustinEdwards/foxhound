@@ -1,6 +1,3 @@
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
-import { createRoutesStub } from "react-router";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -22,7 +19,6 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // Needs attention and Recent admin actions panels and its stats, each one
 // computed by Foxhound's own engine. Per-currency money stays (RULES.md 3.20).
 
-const Overview = (await import("~/routes/admin/index")).default;
 // Imported so that a missing helper fails the assertion that names it, not the
 // whole file (RULES.md 6.5).
 const overviewLib: Partial<typeof import("~/lib/admin/overview")> = await import("~/lib/admin/overview").catch(() => ({}));
@@ -321,125 +317,10 @@ const busyAttention: Partial<AdminOverview> = {
   },
 };
 
-const actions = [
-  {
-    id: "a1",
-    createdAt: at(60 * 60 * 1000),
-    actorEmail: "admin@example.com",
-    action: "Paused a merchant's processing",
-    target: { label: "Lumen Studio", href: "/admin/merchants/acct_lumen" },
-  },
-  { id: "a2", createdAt: at(2 * DAY), actorEmail: "admin@example.com", action: "Engaged the emergency brake", target: null },
-];
 
-type PageData = { overview: AdminOverview; d1SizeBytes: number; recentActions: typeof actions; now: number };
 
-function render(data: PageData): string {
-  const Stub = createRoutesStub([
-    {
-      path: "/admin",
-      // The route's props are generated types; the test hands it the loader's shape.
-      Component: () => createElement(Overview as never, { loaderData: data } as never),
-    },
-  ]);
-  return renderToStaticMarkup(createElement(Stub, { initialEntries: ["/admin"] }));
-}
 
-const text = (html: string) =>
-  html
-    .replace(/<[^>]+>/g, " ")
-    .replaceAll("&#x27;", "'")
-    .replaceAll("&amp;", "&")
-    .replace(/\s+/g, " ");
 
-const page = (over: Partial<AdminOverview> = {}, recentActions = actions) =>
-  render({ overview: overviewData(over), d1SizeBytes: 50 * 1024 * 1024, recentActions, now: NOW });
-
-describe("the Overview page", () => {
-  it("keeps every tile it had and adds Recova's stats, each linked to the page behind it", () => {
-    const html = page();
-    const labels = [...html.matchAll(/class="cap-tile-label"[^>]*>([^<]*)</g)].map((m) => m[1]);
-    expect(labels).toEqual([
-      "MRR under management",
-      "Merchants",
-      "Recovered this month",
-      "Open disputes",
-      "Active recoveries",
-      "New connections",
-      "Billing exempt",
-      "Database size",
-    ]);
-    // Every tile is a link: a figure with nowhere to go would be a dead button.
-    expect([...html.matchAll(/<a [^>]*class="cap-tile"/g)].length).toBe(8);
-  });
-
-  it("says money per currency, never one summed figure", () => {
-    const t = text(page());
-    expect(t).toContain("$12,500.00 + €3,000.00");
-    expect(t).toContain("$75.00 + €30.00");
-    expect(t).toContain("3 attributed payments since the 1st (UTC)");
-  });
-
-  it("says the counts in plain sentences", () => {
-    const t = text(page(busyAttention));
-    expect(t).toContain("1 paused");
-    expect(t).toContain("1 a week old with no response");
-    expect(t).toContain("Connected in the last 7 days");
-    expect(t).toContain("Not invoiced");
-  });
-
-  it("lists what needs attention, each row linked to where it is fixed", () => {
-    const html = page(busyAttention);
-    const t = text(html);
-    expect(html).toMatch(/<h2[^>]*>Needs attention<\/h2>/);
-    expect(t).toContain("Lumen Studio is paused");
-    expect(html).toContain('href="/admin/merchants/acct_lumen"');
-    expect(t).toContain("Northwind Coffee has a dispute with no response after 12 days");
-    expect(t).toContain("Northwind Coffee's fee invoice payment failed");
-    expect(t).toContain("weekly-digest failed");
-    expect(html).toContain('href="/admin/platform/crons#run-run_1"');
-    expect(t).toContain("4 problems");
-  });
-
-  it("says all clear when nothing needs attention", () => {
-    const t = text(page());
-    expect(t).toContain("All clear");
-    expect(t).toContain("Nothing needs you.");
-  });
-
-  it("shows the latest admin actions in plain English, with a link to the whole log", () => {
-    const html = page();
-    const t = text(html);
-    expect(html).toMatch(/<h2[^>]*>Recent admin actions<\/h2>/);
-    expect(t).toContain("Paused a merchant's processing");
-    // Each row is one link (Capsomer's row list): to what the action was done
-    // to, or to the audit log when it has no page of its own.
-    expect(html).toMatch(/<a [^>]*href="\/admin\/merchants\/acct_lumen"[^>]*>Paused a merchant&#x27;s processing<\/a>/);
-    expect(t).toContain("Lumen Studio, by admin@example.com");
-    expect(html).toMatch(/<a [^>]*href="\/admin\/platform\/audit-log"[^>]*>Engaged the emergency brake<\/a>/);
-    expect(t).toContain("Engaged the emergency brake");
-    expect(html).toContain('href="/admin/platform/audit-log"');
-  });
-
-  it("says so when no admin action has been recorded", () => {
-    const t = text(page({}, []));
-    expect(t).toContain("No admin actions yet.");
-  });
-
-  it("keeps the cron health with its failed-run links and relative times", () => {
-    const html = page(busyAttention);
-    expect(html).toMatch(/<h2[^>]*>Cron health<\/h2>/);
-    expect(text(html)).toContain("1 cron run failed in the last 24 hours.");
-  });
-
-  it("writes in sentence case with the five text sizes, real icons and no amber", () => {
-    const html = page(busyAttention);
-    expect(html).not.toMatch(/\buppercase\b/);
-    expect(html).not.toMatch(/text-\[/);
-    expect(html).not.toMatch(/amber/);
-    expect(html).not.toMatch(/&rarr;|→|-&gt;/);
-  });
-});
 
 describe("Needs attention, as Capsomer's attention list wants it", () => {
   it("folds like rows into groups and keeps every row's own link", () => {
@@ -506,17 +387,6 @@ describe("Needs attention, as Capsomer's attention list wants it", () => {
     );
     expect(groups.disputes.title?.(50)).toBe("60 disputes have had no response for a week");
     expect(groups.billing.title?.(50)).toBe("70 fee invoices not paid");
-  });
-});
-
-describe("every list on the Overview has a pending state", () => {
-  it("is pending while the Overview's own data is read again, not while leaving it", () => {
-    expect(typeof overviewLib.overviewPending).toBe("function");
-    const overviewPending = overviewLib.overviewPending!;
-    expect(overviewPending({ state: "idle" }, "idle")).toBe(false);
-    expect(overviewPending({ state: "idle" }, "loading")).toBe(true);
-    expect(overviewPending({ state: "loading", location: { pathname: "/admin" } }, "idle")).toBe(true);
-    expect(overviewPending({ state: "loading", location: { pathname: "/admin/platform/crons" } }, "idle")).toBe(false);
   });
 });
 

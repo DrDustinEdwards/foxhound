@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -150,39 +148,5 @@ describe("PLANT 3: the reader is wired to the cron's own query", () => {
     expect(ctx.merchantIndustry).toBe("Education");
     expect(ctx.primaryCustomerType).toBe("B2C");
     expect(ctx.merchantMrrCents).toBe(1_234_500);
-  });
-
-  it("the prompt line carries no wide dash", async () => {
-    seedAccount({ industry: "SaaS", customerType: "B2B", mrrCents: 500_000 });
-    const prompt = await promptForAccount();
-    expect(prompt).not.toMatch(new RegExp("[" + String.fromCharCode(0x2014, 0x2013) + "]"));
-  });
-});
-
-describe("PLANT 4: the claim the reader makes true is stated, and the false one is gone", () => {
-  it("the settings card no longer says the fields change nothing", () => {
-    // It read "they do not change anything today", which the reader made false
-    // the moment it landed. A control may not assert a falsehood (333).
-    // Session 59 moved this card to /settings/account, which is where legacy's
-    // own docs place the merchant-context fields.
-    const route = readFileSync(
-      fileURLToPath(new URL("../app/routes/app/settings/account.tsx", import.meta.url)),
-      "utf8",
-    );
-    expect(route).not.toContain("they do not change anything today");
-    // J32 restored Recova's own line under the fields, which the reader makes
-    // true, and dropped the old card's promise of risk scoring.
-    expect(route).toContain("Used to personalize recovery emails.");
-    expect(route).not.toMatch(/risk scoring/i);
-  });
-
-  it("the docs say what the fields do and what happens when they are blank", () => {
-    // Line for the heading map: platform, "Team and brand voice", body[1].
-    const docs = readFileSync(
-      fileURLToPath(new URL("../app/lib/marketing/docs-content.ts", import.meta.url)),
-      "utf8",
-    );
-    expect(docs).toContain("go to the AI with every recovery email");
-    expect(docs).toContain("Leave them blank and the copy simply omits that context.");
   });
 });

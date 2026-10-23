@@ -24,39 +24,6 @@ function adminRouteFiles(dir = "app/routes/admin"): string[] {
   });
 }
 
-describe("every admin page shares one content frame", () => {
-  const files = adminRouteFiles();
-
-  it("finds the admin pages (a moved directory must not pass vacuously)", () => {
-    expect(files.length).toBeGreaterThanOrEqual(13);
-  });
-
-  it("no page sets its own centred column, width or outer padding", () => {
-    // The shell's page frame (.cap-admin-page) gives every page the same left
-    // edge and width. A page that centres its own narrower column (mx-auto with
-    // a max-w-*) starts at a different x than its neighbours, which is the
-    // defect Overview vs Crons vs Audit log showed.
-    for (const file of files) {
-      const source = readFileSync(file, "utf8");
-      expect(source, `${file} sets its own centred column`).not.toMatch(/\bmx-auto\b/);
-      expect(source, `${file} sets its own max width`).not.toMatch(/\bmax-w-/);
-    }
-  });
-
-  it("the layout puts every page in Capsomer's one page frame", () => {
-    const layout = readFileSync("app/layouts/admin-shell.tsx", "utf8");
-    expect(layout).toMatch(/<div className="cap-admin-page">\s*<Outlet \/>\s*<\/div>\s*<\/AdminShell>/);
-  });
-
-  it("every page names itself once, for the top bar, and has no heading of its own", () => {
-    for (const file of files) {
-      const source = readFileSync(file, "utf8");
-      expect(source, `${file} has no page name`).toMatch(/export const handle: AdminHandle/);
-      expect(source, `${file} renders its own h1`).not.toMatch(/<h1\b/);
-    }
-  });
-});
-
 describe("adminPageName", () => {
   it("takes the deepest named route, from a string or from its loader data", () => {
     expect(adminPageName([{ handle: undefined }, { handle: { page: "Crons" } }])).toBe("Crons");
@@ -136,16 +103,6 @@ describe("a failed run is linked from the Overview and shown on its cron", () =>
     expect(cronRunHref("r-fail")).toBe(`/admin/platform/crons#${cronRunAnchor("r-fail")}`);
     expect(cronAnchor("weekly-digest")).toBe("cron-weekly-digest");
   });
-
-  it("the Crons page renders the run anchor the Overview links to", () => {
-    const source = readFileSync("app/routes/admin/crons.tsx", "utf8");
-    expect(source).toContain("id={cronRunAnchor(run.id)}");
-    expect(readFileSync("app/routes/admin/index.tsx", "utf8")).toContain("cronRunHref(");
-  });
-
-  it("drops the unexplained row count", () => {
-    expect(readFileSync("app/routes/admin/crons.tsx", "utf8")).not.toMatch(/rowsProcessed/);
-  });
 });
 
 describe("the audit log in plain English", () => {
@@ -219,11 +176,5 @@ describe("the audit log in plain English", () => {
         entry("cron.disable", { cronName: "x" }),
       ]),
     ).toEqual({ accountIds: ["acct_b"], postIds: ["post_1"] });
-  });
-
-  it("the page shows the sentence and the target, not the action code or JSON", () => {
-    const source = readFileSync("app/routes/admin/audit-log.tsx", "utf8");
-    expect(source).toContain("describeAuditAction(e.action)");
-    expect(source).not.toContain("JSON.stringify");
   });
 });

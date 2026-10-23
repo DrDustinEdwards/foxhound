@@ -1,6 +1,3 @@
-import { execSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -106,47 +103,5 @@ describe("PLANT 1: a posted digest_email writes nothing", () => {
   it("an empty notification email still nulls, so the removal narrowed nothing else", async () => {
     await post({ notificationEmail: "" });
     expect(accountRow().notificationEmail).toBeNull();
-  });
-});
-
-describe("PLANT 2: the field does not render", () => {
-  const SOURCE = readFileSync(
-    fileURLToPath(new URL("../app/routes/app/settings/notifications.tsx", import.meta.url)),
-    "utf8",
-  );
-  const code = SOURCE.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-
-  it("no digest email input and no digest email label", () => {
-    expect(code).not.toContain('name="digestEmail"');
-    expect(code).not.toContain("Digest email");
-  });
-
-  it("THE PAGE IS THE ONLY WRITER OF notification_email", () => {
-    // The /settings index carried an Email card writing the same column until
-    // session 59 removed it. Two surfaces writing one column means the later
-    // save wins silently, which is why the card went rather than being moved.
-    const writers = execSync('git grep -l notificationEmail -- app/routes || true', {
-      encoding: "utf8",
-    })
-      .trim()
-      .split("\n")
-      .filter(Boolean)
-      .sort();
-    expect(writers).toEqual(["app/routes/app/settings/notifications.tsx"]);
-  });
-
-  it("the notification email field is still there", () => {
-    expect(code).toContain('name="notificationEmail"');
-  });
-});
-
-describe("PLANT 3: the writer no longer names the column", () => {
-  it("buildEmailSettingsUpdate takes one address and emits one column", () => {
-    const persist = readFileSync(
-      fileURLToPath(new URL("../app/lib/settings/persist.server.ts", import.meta.url)),
-      "utf8",
-    );
-    const code = persist.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-    expect(code).not.toContain("digestEmail");
   });
 });

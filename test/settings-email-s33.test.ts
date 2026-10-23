@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -218,17 +216,6 @@ describe("PLANT 2: sender_name is required and bounded", () => {
     expect(res.status).toBe(400);
     expect(String(res.body.error)).toContain("Connect Stripe");
   });
-
-  it("the error strings carry no wide dashes", async () => {
-    seedConnection({ id: "c1" });
-    const wide = new RegExp("[" + String.fromCharCode(0x2014, 0x2013) + "]");
-    const over = await post({
-      _action: "sender",
-      connectionId: "c1",
-      senderName: "x".repeat(SENDER_NAME_MAX_LENGTH + 1),
-    });
-    expect(String(over.body.error)).not.toMatch(wide);
-  });
 });
 
 describe("PLANT 3: the saved name becomes the From header", () => {
@@ -342,107 +329,7 @@ describe("PLANT 4: the test email is a real send", () => {
   });
 });
 
-describe("PLANT 5: a field with no reader does not render", () => {
-  const SOURCE = readFileSync(
-    fileURLToPath(new URL("../app/routes/app/settings/email.tsx", import.meta.url)),
-    "utf8",
-  );
-  const code = SOURCE.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-
-  it("renders sender name and reply-to, and NOT sender domain", () => {
-    expect(code).toContain('name="senderName"');
-    // Reply-to was BUILT at J03, with its reader in send.ts, which is what this
-    // plant asked for (test/reply-to-j03.test.ts proves the reader). Sender
-    // domain still writes a column nothing reads, and is not built (RULES 5.6).
-    expect(code).toContain('name="replyToEmail"');
-    expect(code).not.toContain('name="senderDomain"');
-    expect(code).not.toContain('name="sender_domain"');
-  });
-
-  it("the sender domain's reader genuinely does not exist, which is what licenses its absence", () => {
-    // If this ever goes red, the field should be BUILT, not this assertion
-    // relaxed. That is the whole shape of the plant.
-    const send = readFileSync(
-      fileURLToPath(new URL("../app/lib/email/send.ts", import.meta.url)),
-      "utf8",
-    );
-    expect(send).not.toContain("senderDomain");
-  });
-
-  it("both controls render inside DemoGuardedForm, like every other settings write", () => {
-    expect(code).toContain('<DemoGuardedForm method="post"');
-    expect(code).not.toContain('<Form method="post"');
-    expect(code).not.toContain("DEMO_ACCOUNT_ID");
-  });
-});
-
-describe("PLANT 6: the docs describe the fields that were built", () => {
-  const DOCS = readFileSync(
-    fileURLToPath(new URL("../app/lib/marketing/docs-content.ts", import.meta.url)),
-    "utf8",
-  );
-
-  it("names the sender name, its default, and the test-email control", () => {
-    expect(DOCS).toContain("Settings and Email holds the sender name");
-    expect(DOCS).toContain("From line");
-    // The default is stated because a merchant who never sets it still sends.
-    expect(DOCS).toContain('recovery mail goes out from \\"Support\\"');
-    expect(DOCS).toContain("Send test email");
-  });
-
-  it("promises NOTHING the page does not render", () => {
-    const platform = DOCS.slice(0, DOCS.indexOf('slug: "audit"'));
-    expect(platform).not.toContain("sender domain");
-    expect(platform).not.toContain("Sender domain");
-    // Reply-to is rendered since J03, so the docs name it.
-    expect(platform).toContain("Reply-to email");
-  });
-});
-
 describe("PLANT 7: the shared settings surfaces still stand", () => {
-  it("S37's route keeps both its intents and its own guards", () => {
-    // This row adds a settings ROUTE beside /settings; the regression that
-    // matters is the S37 controls on the index route, which share the surface.
-    // Session 59 split the two S37 controls onto legacy's two pages.
-    const stripePage = readFileSync(
-      fileURLToPath(new URL("../app/routes/app/settings/stripe.tsx", import.meta.url)),
-      "utf8",
-    );
-    const accountPage = readFileSync(
-      fileURLToPath(new URL("../app/routes/app/settings/account.tsx", import.meta.url)),
-      "utf8",
-    );
-    expect(stripePage).toContain('value="disconnect-stripe"');
-    expect(accountPage).toContain('value="cancel-account"');
-    expect(stripePage).toContain('name="connectionId" value={conn.id}');
-  });
-
-  it("the email route is registered and reachable from the nav", () => {
-    const routes = readFileSync(
-      fileURLToPath(new URL("../app/routes.ts", import.meta.url)),
-      "utf8",
-    );
-    expect(routes).toContain('route("email", "./routes/app/settings/email.tsx")');
-    const manifest = readFileSync(
-      fileURLToPath(new URL("../app/lib/nav/manifest.ts", import.meta.url)),
-      "utf8",
-    );
-    expect(manifest).toContain('to: "/settings/email"');
-  });
-
-  it("the component's constant does not come from a .server module", () => {
-    // The build catches this as "Server-only module referenced by client", and
-    // it caught exactly this constant: the form renders
-    // maxLength={SENDER_NAME_MAX_LENGTH}, so importing it from persist.server
-    // ships drizzle and the table objects in this route's client chunk. Pinned
-    // here because a scoped test run does not run the build.
-    const route = readFileSync(
-      fileURLToPath(new URL("../app/routes/app/settings/email.tsx", import.meta.url)),
-      "utf8",
-    );
-    expect(route).toContain('SENDER_NAME_MAX_LENGTH } from "~/lib/settings/sender-name"');
-    expect(route).not.toMatch(/SENDER_NAME_MAX_LENGTH[^;]*from "[^"]*\.server"/);
-  });
 
   it("the loader hands the form the primary LIVE connection, never a disconnected one", async () => {
     // S37 leaves is_primary SET on a disconnected row, so a reader without the

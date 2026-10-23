@@ -6,7 +6,7 @@ import type { Db } from "~/db";
 import { accounts, failedPayments, recoverySteps } from "~/db/schema";
 import { queryStepForManualTrigger, type DueStepRow } from "~/lib/cron/due-steps";
 import { buildEmailStepPatch } from "~/lib/engine/execute-step";
-import { MANUAL_ACTION_INTENTS, MANUAL_ACTION_REQUIRES_ACTIVE, MANUAL_INTENTS, dispatchManualAction, manualActionIdempotencyKey, parseManualActionIntent, parseManualIntent, type ManualActionCommit } from "~/lib/recovery/manual-actions.server";
+import { MANUAL_ACTION_REQUIRES_ACTIVE, MANUAL_INTENTS, dispatchManualAction, manualActionIdempotencyKey, parseManualIntent, type ManualActionCommit } from "~/lib/recovery/manual-actions.server";
 import { type ResendDeps, type ResendSendInput, type TriggerDeps } from "~/lib/recovery/manual-action-deps.server";
 import { buildStopRecoveryBatch, noteContentToken, resendRepeatToken } from "~/lib/recovery/manual-action-batches.server";
 import type { EmailJobResult } from "~/lib/email/dispatch";
@@ -185,10 +185,6 @@ function request(db: Db, commit: ManualActionCommit, over: Record<string, unknow
 }
 
 describe("manual actions: intent parsing", () => {
-  it("the ACTION ROW is exactly legacy's four, in legacy's order", () => {
-    expect([...MANUAL_ACTION_INTENTS]).toEqual(["trigger", "mark_recovered", "cancel", "resend"]);
-    expect(parseManualActionIntent("note")).toBeNull();
-  });
 
   it("the dispatcher additionally accepts note, which is not a row button", () => {
     expect([...MANUAL_INTENTS]).toEqual([

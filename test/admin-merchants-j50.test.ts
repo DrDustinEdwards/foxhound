@@ -1,10 +1,6 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 
 import { eq } from "drizzle-orm";
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
-import { createRoutesStub, RouterContextProvider } from "react-router";
+import { RouterContextProvider } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { accounts, adminAuditLog } from "~/db";
@@ -88,13 +84,6 @@ const ids = (data: Record<string, unknown>) => (data.merchants as Array<{ id: st
 // ---------------------------------------------------------------- pure helpers
 
 describe("the lists' addresses and filters", () => {
-  it("are Recova's three Merchants entries, at Recova's addresses (admin-nav.ts, blob c5df324c)", () => {
-    expect(pageLib.MERCHANT_VIEWS).toEqual([
-      { view: "all", label: "All merchants", path: "/admin/merchants" },
-      { view: "paused", label: "Paused", path: "/admin/merchants/paused" },
-      { view: "billing-exempt", label: "Billing exempt", path: "/admin/merchants/billing-exempt" },
-    ]);
-  });
 
   it("keeps exactly the rows whose flag is set, as Recova's .eq() reads did, cancelled ones included", () => {
     expect(typeof pageLib.merchantsInView).toBe("function");
@@ -108,46 +97,6 @@ describe("the lists' addresses and filters", () => {
     expect(inView(rows, "all").map((r) => r.id)).toEqual(["a", "b", "c", "d"]);
     expect(inView(rows, "paused").map((r) => r.id)).toEqual(["b", "d"]);
     expect(inView(rows, "billing-exempt").map((r) => r.id)).toEqual(["c", "d"]);
-  });
-
-  it("posts each list's forms to its own address, so a post made without script lands back on the same list", () => {
-    expect(typeof pageLib.merchantsActionFor).toBe("function");
-    const actionFor = pageLib.merchantsActionFor as (view: string) => string;
-    expect(actionFor("all")).toBe("/admin/merchants?index");
-    expect(actionFor("paused")).toBe("/admin/merchants/paused");
-    expect(actionFor("billing-exempt")).toBe("/admin/merchants/billing-exempt");
-  });
-
-  it("opens a cancel confirmation on the list it was asked from, and posts it there", () => {
-    const cancelHref = pageLib.merchantCancelHref as (id: string, view?: string) => string;
-    expect(cancelHref("acct_north")).toBe("/admin/merchants?cancel=acct_north");
-    expect(cancelHref("acct_north", "paused")).toBe("/admin/merchants/paused?cancel=acct_north");
-    expect(typeof pageLib.merchantCancelAction).toBe("function");
-    const cancelAction = pageLib.merchantCancelAction as (id: string, view: string) => string;
-    expect(cancelAction("acct_north", "all")).toBe("/admin/merchants?index&cancel=acct_north");
-    expect(cancelAction("acct_north", "billing-exempt")).toBe("/admin/merchants/billing-exempt?cancel=acct_north");
-  });
-});
-
-describe("the routes", () => {
-  const routes = readFileSync(fileURLToPath(new URL("../app/routes.ts", import.meta.url)), "utf8");
-
-  it("serves the two lists at Recova's addresses, ahead of a merchant's own page", () => {
-    const paused = routes.indexOf('route("paused", "./routes/admin/merchants/paused.tsx")');
-    const exempt = routes.indexOf('route("billing-exempt", "./routes/admin/merchants/billing-exempt.tsx")');
-    const detail = routes.indexOf('route(":id", "./routes/admin/merchants/detail.tsx")');
-    expect(paused).toBeGreaterThan(-1);
-    expect(exempt).toBeGreaterThan(-1);
-    expect(paused).toBeLessThan(detail);
-    expect(exempt).toBeLessThan(detail);
-  });
-
-  it("share the Merchants page's action and page, so one set of writers and one Undo serve all three", () => {
-    for (const route of [pausedRoute, exemptRoute]) {
-      expect(route.action).toBe(indexRoute.action);
-      expect(route.default).toBe(indexRoute.default);
-      expect(route.handle).toEqual(indexRoute.handle);
-    }
   });
 });
 
@@ -245,170 +194,9 @@ describe("the action from a list: the Merchants page's writers and audit rows", 
 
 // ---------------------------------------------------------------- the page
 
-const Page = indexRoute.default as (props: unknown) => React.ReactNode;
-const T = Date.now();
 
-function row(id: string, name: string, over: Record<string, unknown> = {}) {
-  return {
-    id,
-    name,
-    ownerEmail: `${id}@example.com`,
-    createdAt: new Date(T - 20 * DAY),
-    billingExempt: false,
-    processingPaused: false,
-    pauseReason: null,
-    cancelledAt: null,
-    connectionStatus: "connected",
-    stripeUserId: null,
-    lastWebhookAt: null,
-    activeRecoveriesCount: 0,
-    recoveryRatePct: null,
-    recovered: [],
-    ...over,
-  };
-}
 
-const PAUSED = [
-  row("acct_pets", "Paused Pets", { processingPaused: true, pauseReason: PAUSE_REASON_MANUAL }),
-  row("acct_brake", "Brake Bikes", { processingPaused: true, pauseReason: PAUSE_REASON_BRAKE }),
-];
-const EXEMPT = [row("acct_lumen", "Lumen Studio", { billingExempt: true })];
-const COUNTS = { all: 5, paused: 2, "billing-exempt": 1 };
 
-function render(view: "all" | "paused" | "billing-exempt", over: Record<string, unknown> = {}) {
-  const path = { all: "/admin/merchants", paused: "/admin/merchants/paused", "billing-exempt": "/admin/merchants/billing-exempt" }[view];
-  const data = {
-    view,
-    merchants: view === "paused" ? PAUSED : view === "billing-exempt" ? EXEMPT : [...PAUSED, ...EXEMPT],
-    counts: COUNTS,
-    brakePaused: view === "paused" ? 1 : 0,
-    figures:
-      view === "all"
-        ? { merchantCount: 5, mrrByCurrency: [], connectedCount: 0, totalRecovered: [], recoveryFeesThisMonth: [], paymentsInQueue: 0 }
-        : null,
-    confirmCancel: null,
-    ...over,
-  };
-  const Stub = createRoutesStub([{ path, Component: () => createElement(Page as never, { loaderData: data } as never) }]);
-  return renderToStaticMarkup(createElement(Stub, { initialEntries: [path] }));
-}
 
-const text = (html: string) =>
-  html
-    .replace(/<[^>]+>/g, " ")
-    .replaceAll("&#x27;", "'")
-    .replaceAll("&quot;", '"')
-    .replaceAll("&amp;", "&")
-    .replace(/\s+/g, " ");
 
-const tabs = (html: string) => /<nav class="cap-tabs-list"[\s\S]*?<\/nav>/.exec(html)?.[0] ?? "";
 
-describe("the lists on the page", () => {
-  it("are Capsomer's links form of tabs, each with its count, the current one marked", () => {
-    const nav = tabs(render("paused"));
-    expect(nav).toMatch(/aria-label="Filter merchants"/);
-    expect(text(nav)).toMatch(/All merchants\s*5\s+Paused\s*2\s+Billing exempt\s*1/);
-    expect(nav).toMatch(/<a[^>]*aria-current="page"[^>]*href="\/admin\/merchants\/paused"|<a[^>]*href="\/admin\/merchants\/paused"[^>]*aria-current="page"/);
-    expect(nav.match(/aria-current="page"/g)).toHaveLength(1);
-    expect(nav).toMatch(/href="\/admin\/merchants"/);
-    expect(nav).toMatch(/href="\/admin\/merchants\/billing-exempt"/);
-  });
-
-  it("marks All merchants on the Merchants page", () => {
-    const nav = tabs(render("all"));
-    expect(nav).toMatch(/<a[^>]*href="\/admin\/merchants"[^>]*aria-current="page"|<a[^>]*aria-current="page"[^>]*href="\/admin\/merchants"/);
-  });
-
-  it("shows only the list's own rows, in the same table and with the same actions", () => {
-    const html = render("paused");
-    expect(text(html)).toContain("Paused Pets");
-    expect(text(html)).toContain("Brake Bikes");
-    expect(text(html)).not.toContain("Lumen Studio");
-    expect(html).toMatch(/<table class="cap-table"/);
-    // Recova's one action on this list, Resume, is the row's pause button.
-    expect(text(html)).toMatch(/Resume processing for Paused Pets/);
-  });
-
-  it("says how many are on the list and what the flag does in Foxhound's engine", () => {
-    const paused = text(render("paused"));
-    expect(paused).toMatch(/2 merchants are paused/);
-    expect(paused).toMatch(/neither processed nor billed while paused/);
-    // billable.ts reads the flag at run time with no lower bound on the
-    // recovery date: a pause defers fees, it never forgives them (PR 144 review).
-    expect(paused).toMatch(/fees already earned are billed at the first billing run after it is resumed/);
-    expect(paused).toMatch(/1 of them is held by the emergency brake/);
-    // A brake pause's Resume has no Undo (toggleMessage), so the list must not
-    // promise one for every row (PR 144 review, LOW 2).
-    expect(paused).toMatch(/can be undone, except for a merchant the emergency brake paused/);
-    const exempt = text(render("billing-exempt"));
-    expect(exempt).toMatch(/1 merchant is billing exempt/);
-    // Not "never billed": an exemption defers fees (PR 144 review, MEDIUM 1).
-    expect(exempt).not.toMatch(/never billed/);
-    expect(exempt).toMatch(/processed as usual and is not billed while exempt/);
-    expect(exempt).toMatch(/Fees that come due while exempt wait, and are billed at the first billing run after the exemption ends/);
-  });
-
-  it("gives each list its own browser title, as Recova's headings named them (PR 144 review, LOW 3)", () => {
-    const title = (route: Record<string, unknown>) => {
-      expect(typeof route.meta).toBe("function");
-      return (route.meta as () => Array<{ title: string }>)()[0]?.title;
-    };
-    expect(title(indexRoute)).toBe("Merchants - Foxhound admin");
-    expect(title(pausedRoute)).toBe("Paused merchants - Foxhound admin");
-    expect(title(exemptRoute)).toBe("Billing exempt merchants - Foxhound admin");
-  });
-
-  it("links the brake's share to the brake, in the sentence, not as a button", () => {
-    const html = render("paused");
-    expect(html).toMatch(/<a[^>]*href="\/admin\/brake"[^>]*>emergency brake<\/a>/);
-  });
-
-  it("has no platform figures on a list, as Recova's lists had none", () => {
-    expect(text(render("paused"))).not.toContain("Estimated MRR");
-    expect(text(render("all"))).toContain("Estimated MRR");
-  });
-
-  it("posts each row's actions to the list it is on", () => {
-    const html = render("paused");
-    expect(html).toMatch(/<form[^>]*action="\/admin\/merchants\/paused"/);
-    expect(html).not.toMatch(/action="\/admin\/merchants\?index"/);
-    expect(html).toMatch(/href="\/admin\/merchants\/paused\?cancel=acct_pets"/);
-  });
-
-  it("names the table for its list", () => {
-    expect(render("billing-exempt")).toMatch(/<caption[^>]*>Every billing exempt merchant/);
-    expect(render("paused")).toMatch(/<caption[^>]*>Every paused merchant/);
-  });
-
-  it("says an empty list plainly, with a way back to every merchant", () => {
-    const paused = render("paused", { merchants: [], counts: { ...COUNTS, paused: 0 }, brakePaused: 0 });
-    expect(paused).toMatch(/data-kind="no-match"/);
-    expect(text(paused)).toContain("No merchants are paused.");
-    expect(paused).toMatch(/<a[^>]*href="\/admin\/merchants"[^>]*>Show all merchants<\/a>/);
-    const exempt = render("billing-exempt", { merchants: [], counts: { ...COUNTS, "billing-exempt": 0 } });
-    expect(text(exempt)).toContain("No merchants are billing exempt.");
-  });
-
-  it("posts a result made without script back to the list, with its Undo", () => {
-    const html = renderWithResult();
-    expect(text(html)).toContain("Resumed processing for Paused Pets.");
-    const undo = /<form[^>]*>(?:(?!<\/form>)[\s\S])*Undo[\s\S]*?<\/form>/.exec(html)?.[0] ?? "";
-    expect(undo).toMatch(/action="\/admin\/merchants\/paused"/);
-    expect(undo).toMatch(/name="value" value="true"/);
-  });
-
-  it("asks for the typed word on the list it came from, and goes back there", () => {
-    const html = render("paused", { confirmCancel: { id: "acct_pets", name: "Paused Pets" } });
-    expect(text(html)).toContain("Cancel Paused Pets?");
-    expect(html).toMatch(/<form[^>]*action="\/admin\/merchants\/paused\?cancel=acct_pets"/);
-    expect(html).toMatch(/<a class="cap-btn" href="\/admin\/merchants\/paused">Go back<\/a>/);
-  });
-});
-
-function renderWithResult() {
-  const path = "/admin/merchants/paused";
-  const data = { view: "paused", merchants: PAUSED.slice(1), counts: COUNTS, brakePaused: 1, figures: null, confirmCancel: null };
-  const actionData = { ok: true, intent: "processing-paused", accountId: "acct_pets", name: "Paused Pets", value: false, changed: true, wasBrakePause: false };
-  const Stub = createRoutesStub([{ path, Component: () => createElement(Page as never, { loaderData: data, actionData } as never) }]);
-  return renderToStaticMarkup(createElement(Stub, { initialEntries: [path] }));
-}

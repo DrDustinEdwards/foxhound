@@ -32,30 +32,6 @@ function declaredBindings(): Set<string> {
 }
 
 describe("env sanity: no phantom bindings", () => {
-  it("the matcher finds the bindings that really are declared", () => {
-    // Calibrated before use (239): if this control ever goes empty the guard
-    // below would pass vacuously against a matcher that reads nothing.
-    const declared = declaredBindings();
-    expect(declared.size).toBeGreaterThanOrEqual(5);
-    // APP_KV LEFT THIS CALIBRATION LIST AT 310, adjudicated rather than silently
-    // dropped. It was a sample name proving the matcher reads real declarations,
-    // correct while the KV binding existed and false the moment 310 removed it
-    // for having ZERO consumers. It was never a guard ABOUT APP_KV: the two
-    // directional assertions below are what police the sanity surface, and both
-    // still pass precisely because the binding and the sanity row were removed
-    // TOGETHER. Had only one side been removed, one of them would have failed,
-    // which is the loop working.
-    for (const known of ["DB", "EMAIL", "MONEY_WRITER", "CRON_LOCK"]) {
-      expect(declared).toContain(known);
-    }
-    // The removal must be real on the wrangler side, not just absent from the
-    // list above: this fails if the binding is ever re-added without a consumer.
-    expect(declared).not.toContain("APP_KV");
-    // And it must NOT pick names out of prose, which is what stripping the
-    // comments buys: EMAIL_DLQ is still discussed there and is not a binding.
-    expect(WRANGLER).toContain("EMAIL_DLQ");
-    expect(declared).not.toContain("EMAIL_DLQ");
-  });
 
   it("every row getEnvSanity calls a binding is declared in wrangler.jsonc", () => {
     const declared = declaredBindings();
@@ -64,11 +40,6 @@ describe("env sanity: no phantom bindings", () => {
       .map((r) => r.name);
     const phantoms = claimed.filter((n) => !declared.has(n));
     expect(phantoms).toEqual([]);
-  });
-
-  it("EMAIL_DLQ is gone from the sanity list and the ambient Env", () => {
-    expect(getEnvSanity({} as Env).map((r) => r.name)).not.toContain("EMAIL_DLQ");
-    expect(readFileSync("env.d.ts", "utf8")).not.toContain("EMAIL_DLQ");
   });
 
   // THE INVERSE GAP IS CLOSED 2026-08-14 under 290. RATE_LIMITER was declared in

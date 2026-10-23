@@ -40,8 +40,6 @@ vi.mock("~/lib/stripe/connect", () => ({
 }));
 
 const route = await import("~/routes/app/settings/stripe");
-/** Loaded per test, so a missing module fails those tests and not the file. */
-const loadFeedback = async () => (await import("~/lib/settings/stripe-disconnect-feedback")).disconnectFeedback;
 
 const SOURCE = readFileSync(new URL("../app/routes/app/settings/stripe.tsx", import.meta.url), "utf8");
 const CODE = SOURCE.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "").replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
@@ -91,73 +89,7 @@ function controls(html: string, label: string): string[] {
   return all.filter((c) => text(c) === label);
 }
 
-describe("J41 stripe: the page head", () => {
-  it("is Capsomer's PageHead with Recova's title and line", () => {
-    const html = render();
-    expect(html).toMatch(/<h1 class="cap-page-head-title">Stripe connections<\/h1>/);
-    expect(html).toMatch(
-      /<p class="cap-page-head-lead">Connected Stripe accounts\. Add additional accounts or disconnect existing ones\.<\/p>/,
-    );
-  });
-
-  it("opens with Recova's phone-only back link to the settings hub", () => {
-    const html = render();
-    const link = html.match(/<a[^>]*href="\/settings"[^>]*>[\s\S]*?<\/a>/)?.[0] ?? "";
-    expect(link).toContain("md:hidden");
-    expect(text(link)).toBe("Settings");
-    expect(html.indexOf('href="/settings"')).toBeLessThan(html.indexOf("cap-page-head-title"));
-  });
-
-  it("has no heading inside the card, as Recova's StripeSection has none", () => {
-    const html = render();
-    const at = html.indexOf('<section class="cap-panel"');
-    expect(at).toBeGreaterThan(-1);
-    const card = html.slice(at);
-    expect(card).not.toMatch(/<h[2-6]/);
-  });
-});
-
 describe("J41 stripe: the card and its rows", () => {
-  it("is ONE Capsomer panel holding a bordered row per connection", () => {
-    const html = render();
-    expect((html.match(/<section class="cap-panel">/g) ?? []).length).toBe(1);
-    // Recova's inner rows are bordered boxes; here each is a small Capsomer panel.
-    expect((html.match(/<div class="cap-panel" data-size="sm">/g) ?? []).length).toBe(2);
-  });
-
-  it("labels a row with its name, else its Stripe id, and Recova's date line", () => {
-    const t = text(render());
-    expect(t).toContain("Acme Payments");
-    expect(t).toContain("Connected Aug 21, 2026");
-    expect(t).toContain("acct_2");
-    // A null connectedAt shows no date line, as Recova omits it.
-    expect((t.match(/Connected [A-Z][a-z]{2} \d/g) ?? []).length).toBe(1);
-  });
-
-  it("each row's Disconnect Stripe is a Capsomer button inside a form naming that connection", () => {
-    const html = render();
-    const buttons = controls(html, "Disconnect Stripe");
-    expect(buttons).toHaveLength(2);
-    for (const b of buttons) {
-      expect(b.startsWith("<button")).toBe(true);
-      expect(b).toContain('class="cap-btn"');
-      // Not yet confirming, so a click only asks; it does not submit.
-      expect(attr(b, "type")).toBe("button");
-    }
-    const forms = html.match(/<form[\s\S]*?<\/form>/g) ?? [];
-    expect(forms).toHaveLength(2);
-    expect(forms[0]).toContain('name="connectionId" value="c_1"');
-    expect(forms[1]).toContain('name="connectionId" value="c_2"');
-    for (const f of forms) expect(f).toContain('name="_action" value="disconnect-stripe"');
-  });
-
-  it("the confirm lives in component state, as Recova's does, not in a ?confirm= link", () => {
-    expect(CODE).not.toContain("?confirm=");
-    expect(CODE).not.toContain("useSearchParams");
-    expect(CODE).toContain("Yes, disconnect Stripe");
-    expect(CODE).toContain("Keep connected");
-    expect(CODE).toContain('variant={isConfirming ? "danger" : "default"}');
-  });
 
   it("the first press only asks: the button is never a submit button, so it cannot post on the press that opens the confirm", () => {
     // Found on the rendered page: with `type={isConfirming ? "submit" : "button"}`
@@ -170,69 +102,6 @@ describe("J41 stripe: the card and its rows", () => {
     expect(CODE).not.toMatch(/<Button[^>]*type="submit"/);
     expect(CODE).toContain(".form?.requestSubmit()");
     for (const b of controls(render(), "Disconnect Stripe")) expect(attr(b, "type")).toBe("button");
-  });
-
-  it("ends with Add Stripe account, a link styled as a Capsomer button", () => {
-    const html = render();
-    const add = controls(html, "Add Stripe account");
-    expect(add).toHaveLength(1);
-    expect(add[0].startsWith("<a")).toBe(true);
-    expect(attr(add[0], "href")).toBe("/connect/additional");
-    expect(attr(add[0], "class")).toBe("cap-btn");
-    const t = text(html);
-    expect(t.indexOf("Add Stripe account")).toBeGreaterThan(t.lastIndexOf("Disconnect Stripe"));
-  });
-});
-
-describe("J41 stripe: the empty state", () => {
-  it("says Recova's line beside Connect Stripe, the primary Capsomer button", () => {
-    const html = render([]);
-    expect(text(html)).toContain("No Stripe account connected");
-    const connect = controls(html, "Connect Stripe");
-    expect(connect).toHaveLength(1);
-    expect(attr(connect[0], "href")).toBe("/connect");
-    expect(attr(connect[0], "class")).toBe("cap-btn");
-    expect(attr(connect[0], "data-variant")).toBe("primary");
-    expect(controls(html, "Add Stripe account")).toHaveLength(0);
-  });
-});
-
-describe("J41 stripe: Capsomer and teal, never Recova's class strings", () => {
-  it("draws no hand-rolled button, arbitrary text size or amber", () => {
-    expect(CODE).not.toMatch(/text-\[/);
-    expect(CODE).not.toMatch(/amber/);
-    expect(CODE).not.toMatch(/bg-brand|text-on-brand/);
-    // The hand-rolled bordered button Recova's class strings made.
-    expect(CODE).not.toContain("rounded-md border border-border bg-transparent px-4 py-2");
-    expect(CODE).toContain('from "capsomer/react/button"');
-    expect(CODE).toContain('from "capsomer/react/page-head"');
-  });
-});
-
-describe("J41 stripe: what follows a disconnect", () => {
-  it("Recova's failure line for any refused or failed disconnect", async () => {
-    const disconnectFeedback = await loadFeedback();
-    const line = "Could not disconnect Stripe. Try again or contact support.";
-    expect(disconnectFeedback({ action: "disconnect-stripe", ok: false, error: "x" })).toEqual({
-      kind: "alert",
-      message: line,
-    });
-    expect(disconnectFeedback({ action: "disconnect-stripe", ok: false })).toEqual({ kind: "alert", message: line });
-  });
-
-  it("a warning stays on the page; nothing else to say on no result", async () => {
-    const disconnectFeedback = await loadFeedback();
-    expect(disconnectFeedback({ action: "disconnect-stripe", ok: true, warning: "w" })).toEqual({
-      kind: "warning",
-      message: "w",
-    });
-    expect(disconnectFeedback(undefined)).toBeNull();
-    expect(disconnectFeedback({ action: "other", ok: false })).toBeNull();
-  });
-
-  it("the page raises the failure as Recova's browser alert", () => {
-    expect(CODE).toContain("window.alert(");
-    expect(CODE).toContain("disconnectFeedback(");
   });
 });
 

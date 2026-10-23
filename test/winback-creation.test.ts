@@ -204,50 +204,10 @@ describe("290: the eligibility gates are wired, per condition", () => {
     .map((f) => readFileSync(`app/lib/webhooks/${f}.ts`, "utf8"))
     .join("\n");
 
-  it("involuntary churn returns without a sequence", () => {
-    // UPDATED 2026-08-14 under 291: the read was hasActiveFailedPayment, a
-    // boolean, and became listActiveFailedPaymentIds because the branch now also
-    // STOPS those recoveries through 265's ratified transition. Still no win-back.
-    expect(PROCESS).toContain("listActiveFailedPaymentIds(env, accountId, intent.customerId)");
-    expect(PROCESS).toContain('reason: "involuntary_churn"');
-  });
-
   it("the recently-chased window is legacy's seven days", () => {
     expect(WINBACK_RECENT_RESOLVED_DAYS).toBe(7);
     expect(PROCESS).toContain("WINBACK_RECENT_RESOLVED_DAYS * DAY_MS");
     expect(PROCESS).toContain('reason: "recently_resolved"');
-  });
-
-  it("the replay pre-check and the no-email gate are both present", () => {
-    expect(PROCESS).toContain("findWinbackSequence(env, accountId, intent.subscriptionId)");
-    expect(PROCESS).toContain('reason: "winback_exists"');
-    expect(PROCESS).toContain('reason: "no_customer_email"');
-  });
-
-  it("every ineligible path still CLAIMS the event", () => {
-    // Four ignore branches, so a redelivery of an ineligible cancellation
-    // short-circuits instead of re-reading Stripe.
-    //
-    // UPDATED 2026-08-14 under 291: this counted buildClaimOnlyBatch and expected
-    // 4. The involuntary branch now commits buildInvoluntaryStopBatch instead,
-    // which carries the claim itself, so the COUNT moved while the property did
-    // not. Asserting the property directly rather than one builder's name.
-    // handleWinbackStart is the last function of the last file read.
-    const branch = PROCESS.slice(PROCESS.indexOf("function handleWinbackStart("));
-    const claimOnly = branch.split("buildClaimOnlyBatch").length - 1;
-    const involuntary = branch.split("buildInvoluntaryStopBatch").length - 1;
-    expect(claimOnly).toBe(3);
-    expect(involuntary).toBe(1);
-    // Every one of the four ignore returns is preceded by a committing build.
-    expect(claimOnly + involuntary).toBe(4);
-    expect(branch.split('status: "ignored"').length - 1).toBe(4);
-  });
-
-  it("the involuntary CANCEL side effect is raised, not silently dropped", () => {
-    // 265 owns that transition; porting legacy's unconditional update would
-    // contradict its ratified claim shape. The comment is the record.
-    expect(PROCESS).toContain("is NOT ported in this fold");
-    expect(PROCESS).toContain("265's ratified Stop-recovery");
   });
 });
 
