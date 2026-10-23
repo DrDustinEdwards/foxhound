@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { type Db, accountMembers, accounts, apiKeys, oauthGrants, user } from "~/db";
 import { executeMoneyWrite } from "~/lib/money/execute";
 import { MEMBER_ROLE, MEMBER_STATUS } from "./roles";
@@ -340,7 +340,15 @@ export function isUniqueConstraintError(err: unknown): boolean {
   return /unique constraint/i.test(message);
 }
 
-/** Pending + active members of an account, for the team settings view. */
+/**
+ * Pending + active members of an account, for the team settings view.
+ *
+ * Order: by created_at, oldest first, with rows that have no created_at last
+ * (the column is nullable, and SQLite would otherwise sort NULL first); then
+ * by id. The id is a random UUID, so it only keeps the order the same from one
+ * load to the next among rows with the same time; it says nothing about who
+ * came first. The page then puts the owner first (S26, Recova's TeamSection).
+ */
 export async function listMembers(db: Db, accountId: string) {
   return db
     .select({
@@ -354,7 +362,8 @@ export async function listMembers(db: Db, accountId: string) {
     })
     .from(accountMembers)
     .leftJoin(user, eq(accountMembers.userId, user.id))
-    .where(eq(accountMembers.accountId, accountId));
+    .where(eq(accountMembers.accountId, accountId))
+    .orderBy(asc(isNull(accountMembers.createdAt)), asc(accountMembers.createdAt), asc(accountMembers.id));
 }
 
 /**
