@@ -2,14 +2,15 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "foxhound",
   "main": "./workers/app.ts",
-  "compatibility_date": "2026-07-12",
+  "compatibility_date": "2026-10-23",
   "compatibility_flags": ["nodejs_compat"],
   "upload_source_maps": true,
   "assets": {
     "directory": "./build/client"
   },
   "observability": {
-    "enabled": true
+    "enabled": true,
+    "traces": { "enabled": true, "head_sampling_rate": 0.1 }
   },
 
   // WORKERS CACHE (345 binding 4, enabled session 53). Enabled only AFTER the
