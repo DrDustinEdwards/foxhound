@@ -1,0 +1,22 @@
+name: worker-size
+
+# The Worker bundle size budget in .worker-size.json, checked by devkit's shared worker-size.yml against
+# `wrangler deploy --dry-run` of the build. No secret: a dry run never talks to the account.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: worker-size-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  worker-size:
+    uses: DrDustinEdwards/devkit/.github/workflows/worker-size.yml@d92c2d87a1d14fa059cd256fa6b011fde8666f96 # v0.8.0
+    with:
+      prepare: npm run build
