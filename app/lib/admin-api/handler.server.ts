@@ -31,6 +31,7 @@ import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE, verifyMcpToken } from "~/lib/auth/mc
 import { isAdminEmail } from "~/lib/auth/roles";
 import { DAY_MS, RATE_LIMIT_MCP, RATE_LIMIT_MCP_ANON } from "~/lib/constants";
 import { listDisputes } from "~/lib/disputes/queries.server";
+import { PRIVATE_DIRECTIVE } from "~/lib/http/cache-policy";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
 import { getIntelligenceOverview } from "~/lib/intelligence/views.server";
 import { redactToolResult } from "~/lib/mcp/redact";
@@ -87,7 +88,7 @@ class ApiError extends Error {
 function json(status: number, body: Json): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json", "Cache-Control": "private, no-store" },
+    headers: { "Content-Type": "application/json", "Cache-Control": PRIVATE_DIRECTIVE },
   });
 }
 

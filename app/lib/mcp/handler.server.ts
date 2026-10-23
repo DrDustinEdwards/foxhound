@@ -5,6 +5,7 @@ import {
   RATE_LIMIT_MCP_ANON,
 } from "~/lib/constants";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE, verifyMcpToken } from "~/lib/auth/mcp-tokens";
+import { PRIVATE_DIRECTIVE } from "~/lib/http/cache-policy";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
 import { mcpWwwAuthenticate } from "~/lib/oauth/metadata";
 
@@ -69,7 +70,7 @@ function jsonResponse(status: number, body: unknown, extra: Record<string, strin
       // Belt and braces with the worker's own cache policy, which classifies
       // /mcp private by default. An answer carrying a merchant's data must
       // never be stored by an intermediary.
-      "Cache-Control": "private, no-store",
+      "Cache-Control": PRIVATE_DIRECTIVE,
       ...extra,
     },
   });
@@ -261,6 +262,6 @@ export async function handleMcpRequest(
   }
 
   const headers = new Headers(response.headers);
-  headers.set("Cache-Control", "private, no-store");
+  headers.set("Cache-Control", PRIVATE_DIRECTIVE);
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }

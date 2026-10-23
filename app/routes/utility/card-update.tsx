@@ -24,6 +24,7 @@ import {
 import { verifyCardUpdateToken } from "~/lib/card-update/token";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
+import { TOKEN_LINK_DIRECTIVE } from "~/lib/http/cache-policy";
 import { formatMoney } from "~/lib/money-format";
 import { isWinbackResubscribable } from "~/lib/recovery/winback";
 import { decryptToken } from "~/lib/stripe/encryption";
@@ -36,7 +37,7 @@ import type { Route } from "./+types/card-update";
 // neither side sent a directive, and the e/o pixel was the only one of the four
 // tokenised routes that did.
 export function headers() {
-  return { "Cache-Control": "no-store, no-cache, must-revalidate, private" };
+  return { "Cache-Control": TOKEN_LINK_DIRECTIVE };
 }
 
 export function meta() {

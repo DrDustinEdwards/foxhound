@@ -1,6 +1,7 @@
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { recordHoneypot } from "~/lib/engagement/record";
 import { verifyEngagementToken } from "~/lib/engagement/token";
+import { TOKEN_LINK_DIRECTIVE } from "~/lib/http/cache-policy";
 
 import type { Route } from "./+types/engagement-honeypot";
 
@@ -33,7 +34,7 @@ function pixel(): Response {
     status: 200,
     headers: {
       "Content-Type": "image/gif",
-      "Cache-Control": "no-store, no-cache, must-revalidate, private",
+      "Cache-Control": TOKEN_LINK_DIRECTIVE,
     },
   });
 }

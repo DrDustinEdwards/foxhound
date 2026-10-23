@@ -11,6 +11,7 @@ import { Wordmark } from "~/components/wordmark";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { RATE_LIMIT_UNSUBSCRIBE } from "~/lib/constants";
 import { recordDigestUnsubscribe, recordUnsubscribe } from "~/lib/email/suppression";
+import { TOKEN_LINK_DIRECTIVE } from "~/lib/http/cache-policy";
 import { verifyUnsubscribeToken, type UnsubscribeTokenPayload } from "~/lib/email/unsubscribe-token";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
 
@@ -27,10 +28,9 @@ export function meta() {
 // correctness class as the F2 robots row, where Foxhound already disallows
 // /u/ /p/ /e/ that legacy crawled and the ledger records that it must not be
 // reverted; robots.txt is advisory and a cache directive is not.
-const NO_STORE = "no-store, no-cache, must-revalidate, private";
 
 export function headers() {
-  return { "Cache-Control": NO_STORE };
+  return { "Cache-Control": TOKEN_LINK_DIRECTIVE };
 }
 
 // CAN-SPAM one-click unsubscribe (ROUTES.md public-utility /u/:token, ARCHITECTURE
@@ -75,7 +75,7 @@ export const middleware: Route.MiddlewareFunction[] = [
     if (!allowed) {
       return new Response("Too many requests", {
         status: 429,
-        headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": NO_STORE },
+        headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": TOKEN_LINK_DIRECTIVE },
       });
     }
     return next();

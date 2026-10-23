@@ -2,6 +2,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import { classifyEngagementRequest } from "~/lib/engagement/agents";
 import { recordClick } from "~/lib/engagement/record";
 import { verifyEngagementToken } from "~/lib/engagement/token";
+import { TOKEN_LINK_DIRECTIVE } from "~/lib/http/cache-policy";
 
 import type { Route } from "./+types/engagement-click";
 
@@ -33,7 +34,7 @@ function noStoreRedirect(url: string): Response {
     status: 302,
     headers: {
       Location: url,
-      "Cache-Control": "no-store, no-cache, must-revalidate, private",
+      "Cache-Control": TOKEN_LINK_DIRECTIVE,
     },
   });
 }

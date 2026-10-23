@@ -49,6 +49,9 @@ export const CACHE_DIRECTIVES: Record<Exclude<CacheClass, "private">, string> = 
 
 export const PRIVATE_DIRECTIVE = "private, no-store";
 
+/** The per-recipient token links (card update, unsubscribe, engagement). */
+export const TOKEN_LINK_DIRECTIVE = "no-store, no-cache, must-revalidate, private";
+
 /**
  * Better Auth's cookie name is `${securePrefix}${cookiePrefix}.${name}`
  * (node_modules/better-auth/dist/cookies/index.mjs), and the secure prefix is

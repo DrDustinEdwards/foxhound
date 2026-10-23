@@ -1,6 +1,7 @@
 import { getDb } from "~/db";
 import { getPublishedTagSet } from "~/lib/blog/queries.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { CACHE_DIRECTIVES } from "~/lib/http/cache-policy";
 import { RECOVERY_SEQUENCE_DAYS } from "~/lib/marketing/decline-categories";
 import { siteUrl, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 
@@ -113,7 +114,7 @@ Contact: ${SUPPORT_EMAIL}
   return new Response(content, {
     headers: {
       "Content-Type": "text/plain; charset=utf-8",
-      "Cache-Control": "public, max-age=86400, stale-while-revalidate=86400",
+      "Cache-Control": CACHE_DIRECTIVES.files,
     },
   });
 }

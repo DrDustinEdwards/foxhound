@@ -2,6 +2,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import { classifyEngagementRequest } from "~/lib/engagement/agents";
 import { recordOpen } from "~/lib/engagement/record";
 import { verifyEngagementToken } from "~/lib/engagement/token";
+import { TOKEN_LINK_DIRECTIVE } from "~/lib/http/cache-policy";
 
 import type { Route } from "./+types/engagement-open";
 
@@ -37,7 +38,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     headers: {
       "Content-Type": "image/gif",
       "Content-Length": String(PIXEL.length),
-      "Cache-Control": "no-store, no-cache, must-revalidate, private",
+      "Cache-Control": TOKEN_LINK_DIRECTIVE,
     },
   });
 }

@@ -10,6 +10,7 @@ import {
   hasSessionCookie,
   PRIVATE_DIRECTIVE,
   resolveCacheControl,
+  TOKEN_LINK_DIRECTIVE,
   VARY_HEADER_VALUE,
 } from "~/lib/http/cache-policy";
 
@@ -228,10 +229,9 @@ describe("PLANT 5: routes that set their own directive keep it", () => {
       "app/routes/utility/engagement-open.ts",
       "app/routes/utility/engagement-click.ts",
     ];
+    expect(TOKEN_LINK_DIRECTIVE).toBe("no-store, no-cache, must-revalidate, private");
     for (const path of utility) {
-      expect(readFileSync(path, "utf8"), path).toContain(
-        '"no-store, no-cache, must-revalidate, private"',
-      );
+      expect(readFileSync(path, "utf8"), path).toContain("TOKEN_LINK_DIRECTIVE");
     }
 
     const existing = new Response("x", {
@@ -245,11 +245,12 @@ describe("PLANT 5: routes that set their own directive keep it", () => {
   it("the files routes' committed values are unchanged", () => {
     const expected: Record<string, string> = {
       "app/routes/files/feed.ts": "public, max-age=3600, stale-while-revalidate=86400",
-      "app/routes/files/llms.ts": "public, max-age=86400, stale-while-revalidate=86400",
-      "app/routes/files/llms-full.ts": "public, max-age=86400, stale-while-revalidate=86400",
+      "app/routes/files/llms.ts": "CACHE_DIRECTIVES.files",
+      "app/routes/files/llms-full.ts": "CACHE_DIRECTIVES.files",
       "app/routes/files/robots.ts": "public, max-age=86400",
       "app/routes/files/sitemap.ts": "public, max-age=3600",
     };
+    expect(CACHE_DIRECTIVES.files).toBe("public, max-age=86400, stale-while-revalidate=86400");
     for (const [path, value] of Object.entries(expected)) {
       expect(readFileSync(path, "utf8"), path).toContain(value);
     }
