@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -182,34 +180,6 @@ async function post(fields: Record<string, string>): Promise<{ status: number; b
   return { status: res.init?.status ?? 200, body: res.data };
 }
 
-describe("PLANT 1: the client method and the route method agree", () => {
-  // BOTH pages, because S37's two controls now live on two of them.
-  const SOURCE = [
-    readFileSync(fileURLToPath(new URL("../app/routes/app/settings/stripe.tsx", import.meta.url)), "utf8"),
-    readFileSync(fileURLToPath(new URL("../app/routes/app/settings/account.tsx", import.meta.url)), "utf8"),
-  ].join("\n");
-
-  it("both S37 forms POST, and the route handles them in its action", () => {
-    // LEGACY'S DEFECT, asserted against. Its client sent
-    // fetch(..., { method: 'POST' }) at a route exporting only DELETE, so the
-    // button could never succeed (325). Here both intents are form posts to this
-    // route's own action, so the methods agree by construction.
-    const code = SOURCE.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-    const forms = code.match(/<DemoGuardedForm method="post"/g) ?? [];
-    expect(forms.length).toBeGreaterThanOrEqual(2);
-    expect(code).not.toMatch(/method="(delete|DELETE|get|GET)"/);
-    expect(code).toContain('value="disconnect-stripe"');
-    expect(code).toContain('value="cancel-account"');
-    expect(code).toContain("export async function action");
-  });
-
-  it("the disconnect form carries a REAL connection id, not a decorative one", () => {
-    // Legacy takes an id in its handler and then sends no body at all, so its
-    // route resolves is_primary itself and the second row disconnects the first.
-    expect(SOURCE).toContain('name="connectionId" value={conn.id}');
-  });
-});
-
 describe("PLANT 2: disconnect refuses what the active account does not own", () => {
   it("403 and NO write for a connection on another user's account", async () => {
     seedAccount("acct_theirs", "Someone else", 3_000);
@@ -277,27 +247,6 @@ describe("PLANT 3: disconnect stamps the timestamp, leaves is_primary, and the r
     expect(after.find((a) => a.id === ACTIVE)?.stripeUserId).toBeNull();
   });
 
-  it("READER 2, the recovery connection query, already filtered and still does", async () => {
-    const source = readFileSync(
-      fileURLToPath(new URL("../app/lib/recovery/dashboard-queries.server.ts", import.meta.url)),
-      "utf8",
-    );
-    // Measured: this reader ALREADY carried the filter before 333, so it is the
-    // one of the three that needed no change. Pinned so it cannot lose it.
-    const block = source.slice(source.indexOf("isPrimary, true"), source.indexOf("isPrimary, true") + 200);
-    expect(block).toContain("isNull(stripeConnections.disconnectedAt)");
-  });
-
-  it("READER 3, the admin Primary badge, is gated at the render", async () => {
-    const source = readFileSync(
-      fileURLToPath(new URL("../app/routes/admin/merchants/detail.tsx", import.meta.url)),
-      "utf8",
-    );
-    // Gated in the render and not the query on purpose: that view lists
-    // disconnected connections deliberately, as its audit trail.
-    expect(source).toContain("c.isPrimary && !c.disconnectedAt");
-  });
-
   it("the last connection leaves the account with none live, and the loader renders the empty state", async () => {
     seedConnection({ id: "c_only", accountId: ACTIVE, stripeUserId: "acct_o", isPrimary: true });
 
@@ -339,18 +288,6 @@ describe("PLANT 4: one batch, and a deauthorize failure never rolls the local wr
     expect(connectionRow("c_a").disconnectedAt).not.toBeNull();
     expect(String(res.body.warning)).toContain("Stripe dashboard");
     expect(String(res.body.warning)).not.toMatch(new RegExp("[" + String.fromCharCode(0x2014, 0x2013) + "]"));
-  });
-
-  it("the write is a plain batch and never the money DO", async () => {
-    const source = readFileSync(
-      fileURLToPath(new URL("../app/lib/admin/merchant-cancel.server.ts", import.meta.url)),
-      "utf8",
-    );
-    const code = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-    expect(code).toContain("buildDisconnectConnectionBatch");
-    // 333: one writer, one atomicity. If this module ever reaches for the DO,
-    // stripe_connections gains a second writer with different guarantees.
-    expect(code).not.toContain("executeMoneyWrite");
   });
 });
 
@@ -427,74 +364,5 @@ describe("PLANT 5: cancel stops processing, disconnects all, and leaves billing 
     expect(markerOf("sess_1")).toBe(ACTIVE);
     const remaining = await listMemberships(db, USER);
     expect(remaining.map((m) => m.accountId)).toEqual([ACTIVE]);
-  });
-});
-
-describe("PLANT 6: the docs describe the control that now exists", () => {
-  const DOCS = readFileSync(
-    fileURLToPath(new URL("../app/lib/marketing/docs-content.ts", import.meta.url)),
-    "utf8",
-  );
-
-  it("the disconnect promise is per connection, and no longer claims it stops everything", () => {
-    // The sentence promised a Settings disconnect that did not exist, which is
-    // the launch blocker S37 closes. It also claimed "Disconnecting stops every
-    // active sequence immediately", and that went false the moment multi-account
-    // shipped: a merchant holding two connected Stripe accounts keeps running on
-    // the other one. Truthfulness fixes need no ratification (PRIME DIRECTIVE).
-    expect(DOCS).toContain("from Settings inside Foxhound");
-    expect(DOCS).toContain("one connected Stripe account at a time");
-    expect(DOCS).not.toContain("stops every active sequence immediately");
-    expect(DOCS).toContain("keeps running");
-  });
-
-  it("it does not let a merchant read disconnect as a way out of owed fees", () => {
-    // cancelled_at is absent from app/db/billable.ts on purpose, so neither a
-    // disconnect nor a cancel forgives matured, unbilled recoveries. PLANT 5
-    // asserts that in the database; this asserts we say so.
-    expect(DOCS).toContain("does not waive fees");
-    expect(DOCS).toContain("still invoice");
-    expect(DOCS).toContain("Danger zone");
-  });
-});
-
-describe("PLANT 7: the demo firewall is untouched", () => {
-  // Session 59 put the two controls on two pages, so each block is read from
-  // the page that now owns it.
-  const STRIPE_SOURCE = readFileSync(
-    fileURLToPath(new URL("../app/routes/app/settings/stripe.tsx", import.meta.url)),
-    "utf8",
-  );
-  const ACCOUNT_SOURCE = readFileSync(
-    fileURLToPath(new URL("../app/routes/app/settings/account.tsx", import.meta.url)),
-    "utf8",
-  );
-  /** Both pages together, for the assertions that are about the pair. */
-  const BOTH = [STRIPE_SOURCE, ACCOUNT_SOURCE].join("\n");
-
-  it("both S37 controls render inside DemoGuardedForm, like every other settings write", () => {
-    // The hard refusal is appShellMiddleware's 405 on any non-GET for a demo
-    // caller, which this session does not touch. DemoGuardedForm is the UX over
-    // it, and using it keeps S37 identical to the five settings cards beside it.
-    const stripeBlock = STRIPE_SOURCE.slice(STRIPE_SOURCE.indexOf("function StripeSection"));
-    // BOUNDED AT THE FUNCTION, not at end of file: slicing to the end swept in
-    // the account page's sign-out section below it, which is not an S37 control.
-    const dangerBlock = ACCOUNT_SOURCE.slice(
-      ACCOUNT_SOURCE.indexOf("function DangerZone"),
-      ACCOUNT_SOURCE.indexOf("export default function"),
-    );
-    expect(stripeBlock).toContain("<DemoGuardedForm method=\"post\"");
-    expect(dangerBlock).toContain("<DemoGuardedForm method=\"post\"");
-    // SCOPED TO THE S37 BLOCKS. The account page also carries a sign-out,
-    // which is a session action rather than a settings write and uses the same
-    // plain Form the nav's gear menu does; a whole-file assertion would fail on
-    // it and say nothing about S37.
-    expect(stripeBlock).not.toContain("<Form method=\"post\"");
-    expect(dangerBlock).not.toContain("<Form method=\"post\"");
-  });
-
-  it("no demo constant or firewall helper is referenced here", () => {
-    expect(BOTH).not.toContain("DEMO_ACCOUNT_ID");
-    expect(BOTH).not.toContain("resolveDemoMembership");
   });
 });

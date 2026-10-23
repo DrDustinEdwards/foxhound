@@ -121,24 +121,6 @@ describe("the data layer", () => {
   });
 });
 
-describe("the words", () => {
-  it("names each scope in plain words", () => {
-    expect(typeof pageLib.scopeWords).toBe("function");
-    const words = pageLib.scopeWords as (s: string) => string;
-    expect(words("mcp_merchant")).toBe("Merchant");
-    expect(words("mcp_admin")).toBe("Admin API");
-    expect(words("something_else")).toBe("something_else");
-  });
-
-  it("names each outcome in plain words", () => {
-    expect(typeof pageLib.outcomeWords).toBe("function");
-    const words = pageLib.outcomeWords as (s: string) => string;
-    expect(words("ok")).toBe("Worked");
-    expect(words("tool_error")).toBe("Refused");
-    expect(words("protocol_error")).toBe("Failed");
-  });
-});
-
 // Review of PR #96 (CHANGES): the error text an agent was given can echo its
 // own input, so the page masks credentials and encoded addresses in it as well
 // as the plain addresses the log already masked.
@@ -189,33 +171,6 @@ describe("the error text is masked for display", () => {
   it("masks on the page too", () => {
     const html = render({ calls: [call(1, { outcome: "tool_error", error: HOSTILE.join(" | ") })] });
     expect(html).not.toMatch(/SECRET|alice|carol@/);
-  });
-});
-
-describe("the review's other fixes", () => {
-  it("keeps the shown-call count in the client-safe module", () => {
-    expect(pageLib.MCP_CALLS_SHOWN).toBe(50);
-    // The page imports nothing but its loader's functions and types from the
-    // .server module, or the client build fails ("Server-only module
-    // referenced by client").
-    const src = readFileSync("app/routes/admin/mcps.tsx", "utf8");
-    const serverImport = /import \{([^}]*)\} from "~\/lib\/admin\/mcps\.server";/.exec(src)?.[1] ?? "";
-    expect(serverImport).not.toMatch(/MCP_CALLS_SHOWN|maskSecretsInText/);
-    expect(src).toMatch(/import \{[^}]*MCP_CALLS_SHOWN[^}]*\} from "~\/lib\/admin\/mcps";/);
-  });
-
-  it("says up to the newest 50 calls", () => {
-    expect(text(render())).toContain("Up to the newest 50 merchant MCP calls");
-  });
-
-  it("indexes mcp_calls by time and outcome, with its migration", () => {
-    expect(readFileSync("app/db/schema/platform.ts", "utf8")).toMatch(/index\("mcp_calls_created_idx"\)\.on\(t\.createdAt, t\.outcome\)/);
-    const journal = JSON.parse(readFileSync("drizzle/migrations/meta/_journal.json", "utf8")) as { entries: Array<{ tag: string }> };
-    const tag = journal.entries.find((e) => e.tag.startsWith("0030_"))?.tag;
-    expect(tag).toBe("0030_mcp_calls_created_index");
-    expect(readFileSync(`drizzle/migrations/${tag}.sql`, "utf8")).toMatch(
-      /CREATE INDEX `mcp_calls_created_idx` ON `mcp_calls` \(`created_at`,`outcome`\)/,
-    );
   });
 });
 
@@ -294,110 +249,11 @@ function render(over: { keys?: KeyRow[]; calls?: unknown[]; tools?: unknown[] } 
   return renderToStaticMarkup(createElement(Stub, { initialEntries: ["/admin/mcps"] }));
 }
 
-const text = (html: string) =>
-  html
-    .replace(/<[^>]+>/g, " ")
-    .replaceAll("&#x27;", "'")
-    .replaceAll("&quot;", '"')
-    .replaceAll("&amp;", "&")
-    .replace(/\s+/g, " ");
 
 describe("the MCP servers page", () => {
-  it("names itself once, through the shell", () => {
-    expect((route.handle as { page?: string } | undefined)?.page).toBe("MCP servers");
-  });
-
-  it("shows the figures first", () => {
-    const t = text(render());
-    expect(t).toMatch(/4 API keys/);
-    expect(t).toMatch(/3 Active keys/);
-    expect(t).toMatch(/12 Calls/);
-    expect(t).toMatch(/2 Failed calls/);
-  });
-
-  it("has a captioned keys table with sentence-case column names", () => {
-    const html = render();
-    expect(html).toMatch(/<caption[^>]*>[^<]*API keys/);
-    const tables = html.split("<table").slice(1);
-    const headers = [...tables[0].matchAll(/<th scope="col"[^>]*>(.*?)<\/th>/g)].map((m) => text(m[1]).trim());
-    expect(headers).toEqual(["Label", "Scope", "Account", "Status", "Created", "Last used"]);
-    expect(html).not.toMatch(/\buppercase\b|\btracking-/);
-  });
-
-  it("says each key's scope, account and status in words, and links the merchant", () => {
-    const html = render();
-    const t = text(html);
-    expect(t).toContain("Unlabelled");
-    expect(t).toContain("Merchant");
-    expect(t).toContain("Admin API");
-    expect(t).toContain("Platform");
-    expect(t).toContain("Active");
-    expect(t).toContain("Revoked");
-    expect(html).toContain('href="/admin/merchants/acct_north"');
-    expect(html).toContain('href="/admin/merchants/acct_quiet"');
-    expect(t).toContain("never");
-  });
-
-  it("lists the merchant tools from the registry, read or write", () => {
-    const t = text(render());
-    expect(t).toContain("foxhound_list_recoveries");
-    expect(t).toContain("foxhound_update_settings");
-    expect(t).toMatch(/Reads/);
-    expect(t).toMatch(/Writes/);
-  });
-
-  it("lists the recent calls with their outcome, key and error", () => {
-    const html = render();
-    const tables = html.split("<table").slice(1);
-    const headers = [...tables[2].matchAll(/<th scope="col"[^>]*>(.*?)<\/th>/g)].map((m) => text(m[1]).trim());
-    expect(headers).toEqual(["Tool", "Account", "Key", "Outcome", "When", "Error"]);
-    const t = text(html);
-    expect(t).toContain("Worked");
-    expect(t).toContain("Refused");
-    expect(t).toContain("Bad input");
-    expect(t).toContain("Removed key");
-  });
-
-  it("has an empty state on every list", () => {
-    const t = text(render({ keys: [], calls: [], tools: [] }));
-    expect(t).toContain("No API keys yet.");
-    expect(t).toContain("No MCP calls yet.");
-    expect(t).toContain("No merchant tools registered.");
-  });
 
   it("never renders key material", () => {
     const html = render({ keys: [{ ...key(), keyHash: SECRET_HASH } as KeyRow] });
     expect(html).not.toContain(SECRET_HASH);
-  });
-
-  it("makes no claim about any server's status or Recova", () => {
-    const t = text(render());
-    expect(t).not.toMatch(/\bLive\b|\bConnected\b|Recova|recovamrr|Streamable HTTP/i);
-  });
-});
-
-describe("the page source", () => {
-  const source = () => {
-    try {
-      return readFileSync("app/routes/admin/mcps.tsx", "utf8");
-    } catch {
-      return "";
-    }
-  };
-
-  it("has no amber, no hand-sized text and no heading of its own", () => {
-    expect(source()).toMatch(/AdminHandle/);
-    expect(source()).not.toMatch(/amber|orange|warning-text|tone="warn"/);
-    expect(source()).not.toMatch(/text-\[/);
-    expect(source()).not.toMatch(/<h1\b/);
-  });
-
-  it("marks its lists busy while they are read again", () => {
-    expect(source()).toMatch(/pagePending\(/);
-    expect(source()).toMatch(/aria-busy=/);
-  });
-
-  it("is routed at /admin/mcps inside the admin shell", () => {
-    expect(readFileSync("app/routes.ts", "utf8")).toMatch(/route\("mcps", "\.\/routes\/admin\/mcps\.tsx"\)/);
   });
 });

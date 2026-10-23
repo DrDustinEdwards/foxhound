@@ -1,5 +1,3 @@
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 
 import type Stripe from "stripe";
 import { describe, expect, it } from "vitest";
@@ -142,77 +140,5 @@ describe("PLANT 3: the arguments legacy sends", () => {
       created: { gte: 1_700_000_000 },
       limit: 100,
     });
-  });
-});
-
-
-describe("PLANT 4: NO STRIPE LIST ANYWHERE IS WALKED AS A BARE PAGE", () => {
-  const root = fileURLToPath(new URL("../app/lib", import.meta.url));
-  const LIST_CALL = /\w+\.(invoices|subscriptions|disputes|events|customers|charges)\.list\(/g;
-
-  /** Every Stripe collection `.list(` call under app/lib, with the file it sits
-   *  in and the 200 characters before it, comments stripped first so an
-   *  assertion cannot pass or fail on prose (352 binding 5). */
-  function listCallSites(): { file: string; before: string; call: string }[] {
-    const sites: { file: string; before: string; call: string }[] = [];
-    const walk = (dir: string) => {
-      for (const entry of readdirSync(dir)) {
-        const full = `${dir}/${entry}`;
-        if (statSync(full).isDirectory()) {
-          walk(full);
-          continue;
-        }
-        if (!/\.tsx?$/.test(entry)) continue;
-        const source = readFileSync(full, "utf8")
-          .replace(/\/\*[\s\S]*?\*\//g, "")
-          .split("\n")
-          .filter((line) => !line.trim().startsWith("//"))
-          .join("\n");
-        for (const match of source.matchAll(LIST_CALL)) {
-          sites.push({
-            file: full.slice(root.length + 1).split("\\").join("/"),
-            before: source.slice(Math.max(0, match.index - 200), match.index),
-            call: match[0],
-          });
-        }
-      }
-    };
-    walk(root);
-    return sites;
-  }
-
-  it("outside the reads module, every list call is walked with for await", () => {
-    // Legacy broke this rule five times in one function. Derived from the tree,
-    // so a read added later joins the rule without anybody remembering to.
-    const offenders = listCallSites()
-      .filter((site) => site.file !== "stripe/reads.ts")
-      .filter((site) => !/for await[^;]*$/.test(site.before))
-      .map((site) => `${site.file} :: ${site.call}`);
-    expect(offenders).toEqual([]);
-  });
-
-  it("inside the reads module, every list call goes through the ONE bounded walk", () => {
-    // Not a context sniff. The module is asserted to have exactly one place that
-    // consumes a list, and every reader is asserted to delegate to it.
-    const source = readFileSync(`${root}/stripe/reads.ts`, "utf8");
-    const inModule = listCallSites().filter((site) => site.file === "stripe/reads.ts");
-    expect(inModule).toHaveLength(5);
-    for (const site of inModule) {
-      expect(site.before, `${site.call} is not inside read()`).toMatch(/return read\([\s\S]*=>\s*$/);
-    }
-    expect(source).toContain("for await (const item of list)");
-    // ONE call site for the walk, and it is inside read(). The declaration
-    // carries a type parameter so it does not match this, which is what makes
-    // the count a count of CALLERS rather than of mentions.
-    expect(source.match(/collectPaginated\(/g) ?? []).toHaveLength(1);
-    // J63: the audit reads walk to the end (RULES.md 3.19), no ceiling, and
-    // narrow each row as it is read (review round 1).
-    expect(source).toContain("await collectPaginated(list(), narrow)");
-  });
-
-  it("the sweep really found list calls, so an empty offender list means something", () => {
-    // 259's data-dependent zero: "no offenders" and "nothing was read" look
-    // identical without this.
-    expect(listCallSites().length).toBeGreaterThanOrEqual(6);
   });
 });

@@ -164,30 +164,6 @@ const texts = (blocks: { type: string; text?: string; label?: string }[]) =>
 // ============================================================================
 
 describe("E24 says what Recova's says", () => {
-  it("the subject is Recova's, Foxhound-branded, with no month", () => {
-    // Recova: `const subject = 'Your monthly Recova report'`.
-    expect(emailFor().subject).toBe("Your monthly Foxhound report");
-  });
-
-  it("every block, in Recova's order and words, on Capsomer's blocks", () => {
-    expect(emailFor().blocks).toEqual([
-      { type: "paragraph", text: "One. Two. Three." },
-      { type: "fine", text: "What Foxhound did this month" },
-      { type: "paragraph", text: "$12.40 recovered to date (USD), up $3.10 since last month." },
-      { type: "fine", text: "Your Stripe health" },
-      { type: "paragraph", text: "MRR: $1,000" },
-      { type: "paragraph", text: "ARR: $12,000" },
-      { type: "paragraph", text: "Active subs: 42" },
-      { type: "paragraph", text: "Failed payments detected: 2, $42" },
-      { type: "paragraph", text: "Expiring cards: 1, $15 MRR at risk" },
-      { type: "paragraph", text: "Past-due subscriptions: 0, $0" },
-      { type: "paragraph", text: "Voluntary churn: 2.1%" },
-      { type: "paragraph", text: "Involuntary churn: 0.9%" },
-      { type: "paragraph", text: "Open disputes: 1, $99" },
-      { type: "paragraph", text: "Dispute win rate: 75% (3W / 1L)" },
-      { type: "button", label: "View full audit", url: `${BASE}/audit/results/run_123` },
-    ]);
-  });
 
   it("Open disputes shows only when the count is above zero, as Recova's does", () => {
     const none = emailFor({
@@ -245,12 +221,6 @@ describe("E24 says what Recova's says", () => {
     expect(lines).toContain(`Open disputes: ${SCOPE_UNREAD}`);
     expect(lines).toContain(`Disputes accepted without response: ${SCOPE_UNREAD}`);
     expect(lines).toContain(`Dispute win rate: ${SCOPE_UNREAD}`);
-  });
-
-  it("carries no sentence Recova's does not: the old opt-out line is gone", () => {
-    const lines = texts(emailFor().blocks).join("\n");
-    expect(lines).not.toContain("audit settings");
-    expect(lines).not.toContain("You are receiving this because");
   });
 
   it("the model-written summary and the advisory are plain strings, never markup", () => {

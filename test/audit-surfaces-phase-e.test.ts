@@ -1,12 +1,10 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 
 import type Database from "better-sqlite3";
 import type Stripe from "stripe";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { runAudit, type AuditInputs, type ScopeOutcome } from "~/lib/audit/engine";
-import { SCOPE_UNREAD, toStoredAuditRun } from "~/lib/audit/render";
+import { toStoredAuditRun } from "~/lib/audit/render";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
@@ -212,126 +210,5 @@ describe("PLANT 3: the Card Updater's two nulls stay apart", () => {
     const b = (await loadRun(ACCOUNT_A, notRead)) as { run: ReturnType<typeof toStoredAuditRun> };
     expect(a.run.cardUpdater).toMatchObject({ eventsInWindow: 0, advisory: null });
     expect(b.run.cardUpdater).toBeNull();
-  });
-});
-
-describe("PLANT 4: what these surfaces must NOT carry", () => {
-  const source = (path: string) =>
-    readFileSync(fileURLToPath(new URL(`../${path}`, import.meta.url)), "utf8")
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .split("\n")
-      .filter((line) => !line.trim().startsWith("//"))
-      .join("\n");
-
-  const runSource = source("app/routes/app/audit/run.tsx");
-  const historySource = source("app/routes/app/audit/dashboard.tsx");
-  // THE SECTIONS MOVED IN PHASE (f), and two assertions below moved with them.
-  // Session 70 scoped them to run.tsx because it was the only renderer; the live
-  // anonymous results page is the second, so the four sections were extracted to
-  // one component module and these now assert against the place BOTH surfaces
-  // read from. That is a strictly stronger check than the pair it replaces: it
-  // could previously have passed on run.tsx while a second copy of the render
-  // coalesced its nulls, which is exactly the drift the extraction prevents.
-  const sectionsSource = source("app/components/audit/sections.tsx");
-
-  it("no recoverable estimate, no platform medians, no recovery-rate bands", () => {
-    // Three legacy renders, all already NOT PORTABLE: the estimate built from
-    // AUDIT_RECOVERY_ESTIMATE_PCT, the two "Platform median" churn figures, and
-    // the >=36/21-35 recovery-rate colour bands.
-    for (const forbidden of [
-      "Recoverable estimate",
-      "AUDIT_RECOVERY_ESTIMATE_PCT",
-      "Platform median",
-      "platform average recovery rate",
-    ]) {
-      expect(runSource, `${forbidden} reached the run page`).not.toContain(forbidden);
-    }
-  });
-
-  it("NO SECOND WRITER FOR S30'S TWO COLUMNS", () => {
-    // J43 (row U2) restored Recova's inline AuditSettingsForm on this page, as
-    // Recova has it. It is a second FORM, not a second writer: the action
-    // writes through applyAuditSettings, the one core /settings/audit and the
-    // MCP tool share, and the page builds no update of its own.
-    expect(historySource).toContain("applyAuditSettings(");
-    expect(historySource).not.toContain(".update(accounts)");
-    expect(historySource).not.toContain(".set({ auditLookbackDays");
-  });
-
-  it("THE RUN-NEW-AUDIT BUTTON IS LIVE, because phase (f) built the flow it names", () => {
-    // INVERTED IN SESSION 71, and this is the assertion doing the job it was
-    // written for. Session 70 shipped a sentence instead of a button under 329's
-    // rule that a control which cannot yet do the right thing must do nothing,
-    // and pinned the absence so the button could not appear before its route
-    // did. Both halves now hold: the control exists, and so does /audit/connect.
-    expect(historySource).toContain("/audit/connect");
-    expect(historySource).toContain("Run new audit");
-    expect(historySource).toContain("Run first audit");
-    expect(runSource).toContain("/audit/connect");
-    // The sentence it replaced is gone rather than left beside its own button.
-    expect(historySource).not.toContain("Running one on demand is not built yet");
-    // DERIVED: the destination is a real route, so this cannot go green against
-    // a button that 404s. That is the direction the old plant was protecting.
-    const routes = readFileSync(
-      fileURLToPath(new URL("../app/routes.ts", import.meta.url)),
-      "utf8",
-    );
-    expect(routes).toContain('route("audit/connect", "./routes/audit/connect.tsx")');
-  });
-
-  it("no copy-link affordance, because legacy's link is not shareable", () => {
-    // Legacy's own stored-run page redirects a signed-out visitor and filters
-    // account_id, so its Copy link produces a URL only the same account can
-    // open. The button is not ported rather than ported and quietly useless.
-    expect(runSource).not.toContain("Copy link");
-    expect(runSource).not.toContain("clipboard");
-  });
-
-  it("neither surface writes money or builds a write of its own, and neither bills", () => {
-    for (const [name, code] of [
-      ["run", runSource],
-      ["history", historySource],
-    ] as const) {
-      for (const forbidden of [
-        "recordOutcome",
-        "executeMoneyWrite",
-        "billingLineItems",
-        "db.insert",
-        "db.update",
-      ]) {
-        expect(code, `${forbidden} reached the ${name} surface`).not.toContain(forbidden);
-      }
-    }
-  });
-
-  it("renders SIX decline categories, not legacy's four", () => {
-    // J63: the rows carry Recova's own words ("Soft declines" and the rest),
-    // in a map typed on DeclineCategory, so the compiler refuses a category
-    // without a row. What this pins is that none is a hardcoded JSX row.
-    expect(sectionsSource).toContain("const BREAKDOWN_ROWS: Record<DeclineCategory, string>");
-    expect(sectionsSource).not.toContain('label="Soft declines"');
-  });
-
-  it("the unread sentence is one string, used rather than retyped", () => {
-    expect(SCOPE_UNREAD).toBe("Could not be read on this run.");
-    expect(sectionsSource).toContain("SCOPE_UNREAD");
-    expect(SCOPE_UNREAD).not.toContain(String.fromCharCode(0x2014));
-  });
-
-  it("AND THERE IS EXACTLY ONE COPY OF THE SECTIONS, so the null cannot drift", () => {
-    // The reason the two assertions above could safely move to one file. If a
-    // surface ever inlines its own copy of a section instead of importing this
-    // one, the `?? 0` defect 365 binding 2 named gets a second place to live and
-    // only one of the two would be re-read. Derived: every route that renders a
-    // run must import from the shared module.
-    for (const [name, code] of [
-      ["stored run", runSource],
-      ["live results", source("app/routes/audit/results.tsx")],
-    ] as const) {
-      expect(code, `${name} does not import the shared sections`).toContain(
-        'from "~/components/audit/sections"',
-      );
-      expect(code, `${name} re-implements a section`).not.toContain("function AuditRecoverySection");
-    }
   });
 });

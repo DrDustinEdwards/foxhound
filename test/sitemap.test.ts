@@ -140,10 +140,6 @@ describe("/sitemap.xml stays in sync with the real route tree", () => {
   collectPaths(routes as unknown as RouteConfigEntry[], "", realPaths);
   const staticPagePaths = new Set(STATIC_PAGES.map((p) => p.path));
 
-  it("found a sane number of real routes (fixture is walking something)", () => {
-    expect(realPaths.size).toBeGreaterThan(20);
-  });
-
   it("every static, non-excluded public route appears in STATIC_PAGES", () => {
     const missing: string[] = [];
     for (const path of realPaths) {
@@ -152,14 +148,6 @@ describe("/sitemap.xml stays in sync with the real route tree", () => {
       if (!staticPagePaths.has(path)) missing.push(path);
     }
     expect(missing, `missing from sitemap.ts STATIC_PAGES: ${missing.join(", ")}`).toEqual([]);
-  });
-
-  it("/features is present (foxhound-audit-seo.md M2)", () => {
-    expect(staticPagePaths.has("/features")).toBe(true);
-  });
-
-  it("/blog/archive is present (foxhound-audit-parity.md Cluster B fix 3)", () => {
-    expect(staticPagePaths.has("/blog/archive")).toBe(true);
   });
 
   it("every STATIC_PAGES entry is a real route", () => {

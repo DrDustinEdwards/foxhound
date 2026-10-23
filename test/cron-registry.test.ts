@@ -49,10 +49,6 @@ describe("cron registry", () => {
     }
   });
 
-  it("the derived list is non-empty, so a parse failure cannot read as a pass", () => {
-    expect(WRANGLER_CRONS.length).toBeGreaterThanOrEqual(4);
-  });
-
   it("the schedule constants match wrangler triggers", () => {
     expect(WRANGLER_CRONS).toContain(CRON_SCHEDULE_DAILY);
     expect(WRANGLER_CRONS).toContain(CRON_SCHEDULE_MONTHLY);

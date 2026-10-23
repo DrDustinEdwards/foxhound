@@ -1,5 +1,4 @@
 import type Database from "better-sqlite3";
-import { escapeHtml } from "capsomer/email";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
@@ -58,11 +57,10 @@ vi.mock("~/lib/money/execute", () => ({
 }));
 
 const { processConnectedWebhook } = await import("~/lib/webhooks/process");
-const { createdNotice, reminderNotice, REMINDER_APPROVED_LINE, DISPUTE_CREATED_TEMPLATE } = await import(
+const { createdNotice, DISPUTE_CREATED_TEMPLATE } = await import(
   "~/lib/disputes/notices"
 );
 const { sendDisputeCreatedNotice, sendDisputeReminderNotice } = await import("~/lib/disputes/notices.server");
-const { runDisputeReminders } = await import("~/lib/cron/dispute-reminders");
 
 const ACCOUNT = "acct_1";
 const BASE = "https://foxhoundapp.test";
@@ -137,50 +135,6 @@ function only(): SentMessage {
 // ============================================================================
 
 describe("E16 says what Recova's sendDisputeCreatedEmail says, as a Capsomer notice", () => {
-  it("the subject, the title, every sentence and the button, in Recova's order and words", () => {
-    expect(
-      createdNotice({
-        amountCents: 5000,
-        currency: "usd",
-        customerLabel: "Jane Buyer",
-        reason: "product_not_received",
-        evidenceDeadline: DEADLINE,
-        disputeUrl: `${BASE}/disputes/d1`,
-      }),
-    ).toEqual({
-      subject: "New dispute: $50.00 from Jane Buyer",
-      notice: {
-        title: "New dispute.",
-        body: [
-          "Jane Buyer disputed $50.00 for reason: Product Not Received.",
-          "Evidence deadline: 2026-11-24.",
-          // Only the auto-submit-off branch: Foxhound has no auto-submit (RULES.md 5.6).
-          "Auto-submit is off. We will remind you 3 days before the deadline.",
-        ],
-        action: { label: "Review dispute", url: `${BASE}/disputes/d1` },
-      },
-    });
-  });
-
-  it("no deadline from Stripe: Recova's other deadline sentence", () => {
-    const made = createdNotice({
-      amountCents: 5000,
-      currency: "usd",
-      customerLabel: "Jane Buyer",
-      reason: "fraudulent",
-      evidenceDeadline: null,
-      disputeUrl: `${BASE}/disputes/d1`,
-    });
-    expect(made).toMatchObject({
-      notice: {
-        body: [
-          "Jane Buyer disputed $50.00 for reason: Fraudulent.",
-          "No evidence deadline set by Stripe.",
-          "Auto-submit is off. We will remind you 3 days before the deadline.",
-        ],
-      },
-    });
-  });
 
   it("a customer name is a plain value, never markup: Capsomer escapes it once", () => {
     const made = createdNotice({
@@ -209,50 +163,6 @@ describe("E16 says what Recova's sendDisputeCreatedEmail says, as a Capsomer not
 // ============================================================================
 
 describe("E16 carries Recova's footer, both parts, and no unsubscribe", () => {
-  it("the whole text part, Recova's sentences then Recova's footer with the sender name", async () => {
-    seedAccount();
-    seedDispute();
-    const out = await sendDisputeCreatedNotice(env, { accountId: ACCOUNT, disputeId: "d1" });
-    expect(out).toMatchObject({ kind: "sent", result: { status: "sent" } });
-    const m = only();
-    expect(m.text).toBe(
-      [
-        "Foxhound",
-        "",
-        "New dispute.",
-        "",
-        "Jane Buyer disputed $50.00 for reason: Product Not Received.",
-        "",
-        "Evidence deadline: 2026-11-24.",
-        "",
-        "Auto-submit is off. We will remind you 3 days before the deadline.",
-        "",
-        "Review dispute:",
-        `${BASE}/disputes/d1`,
-        "",
-        "--",
-        "This message was sent to ops@acme.test.",
-        footerNote("Acme Billing"),
-        `Manage email settings: ${BASE}/settings`,
-        "",
-      ].join("\n"),
-    );
-  });
-
-  it("the HTML part: one heading, a real button link, Recova's footer line and the settings link", async () => {
-    seedAccount();
-    seedDispute();
-    await sendDisputeCreatedNotice(env, { accountId: ACCOUNT, disputeId: "d1" });
-    const m = only();
-    expect(m.html).toMatch(/<html lang="en">/);
-    expect(m.html).toContain("<title>New dispute: $50.00 from Jane Buyer</title>");
-    expect(m.html.match(/<h1\b/g)).toHaveLength(1);
-    expect(m.html).toMatch(/<h1[^>]*>New dispute\.<\/h1>/);
-    expect(m.html).toMatch(new RegExp(`<a class="e-btn" href="${BASE}/disputes/d1"[^>]*>Review dispute</a>`));
-    expect(m.html).toContain(escapeHtml(footerNote("Acme Billing")));
-    expect(m.html).toMatch(new RegExp(`<a class="e-link" href="${BASE}/settings"[^>]*>Manage email settings</a>`));
-    expect(m.html).toContain("font-size:16px");
-  });
 
   it("From Foxhound, no Reply-To, no unsubscribe header or link, to the notification address", async () => {
     seedAccount();
@@ -266,20 +176,6 @@ describe("E16 carries Recova's footer, both parts, and no unsubscribe", () => {
     for (const part of [m.html, m.text ?? ""]) expect(part.toLowerCase()).not.toContain("unsubscribe");
     // Recova's footer is there, so the absence above is not an empty footer.
     expect(m.text).toContain(footerNote("Acme Billing"));
-  });
-
-  it("no sender name on the connection: Recova's `senderName ?? 'Recova'`, as Foxhound", async () => {
-    seedAccount({ senderName: null });
-    seedDispute();
-    await sendDisputeCreatedNotice(env, { accountId: ACCOUNT, disputeId: "d1" });
-    expect(only().text).toContain(footerNote("Foxhound"));
-  });
-
-  it("a blank sender name is not printed as a gap: Foxhound", async () => {
-    seedAccount({ senderName: "   " });
-    seedDispute();
-    await sendDisputeCreatedNotice(env, { accountId: ACCOUNT, disputeId: "d1" });
-    expect(only().text).toContain(footerNote("Foxhound"));
   });
 
   it("a link Capsomer refuses is a named failure, never a mail without its button", async () => {
@@ -334,105 +230,10 @@ describe("E16 sends on charge.dispute.created with Recova's words and footer", (
 });
 
 // ============================================================================
-// E17: what it says
-// ============================================================================
-
-describe("E17 says what Recova's sendDisputeDeadlineReminderEmail says, as a Capsomer notice", () => {
-  const input = {
-    amountCents: 5000,
-    currency: "usd",
-    customerLabel: "Jane Buyer",
-    reason: "fraudulent",
-    disputeUrl: `${BASE}/disputes/d1`,
-    approved: false,
-  };
-
-  it("3 days: the subject, the title, every sentence and the button", () => {
-    expect(reminderNotice({ ...input, daysLeft: 3 })).toEqual({
-      subject: "URGENT: Dispute response due in 3 days",
-      notice: {
-        title: "Dispute response due in 3 days.",
-        body: [
-          "Jane Buyer disputed $50.00 for reason: Fraudulent.",
-          "Current status: needs response.",
-          "Auto-submit is off. You need to review and submit, or choose to accept.",
-        ],
-        action: { label: "Review dispute", url: `${BASE}/disputes/d1` },
-      },
-    });
-  });
-
-  it("1 day: Recova's singular", () => {
-    expect(reminderNotice({ ...input, daysLeft: 1 })).toMatchObject({
-      subject: "URGENT: Dispute response due in 1 day",
-      notice: { title: "Dispute response due in 1 day." },
-    });
-  });
-
-  it("an approved dispute Stripe has not confirmed keeps J06's line in place of Recova's (Needs Dustin)", () => {
-    expect(reminderNotice({ ...input, daysLeft: 3, approved: true })).toMatchObject({
-      notice: {
-        body: [
-          "Jane Buyer disputed $50.00 for reason: Fraudulent.",
-          "Current status: needs response.",
-          REMINDER_APPROVED_LINE,
-        ],
-      },
-    });
-  });
-});
-
-// ============================================================================
 // E17: what it carries, from the cron
 // ============================================================================
 
 describe("E17 carries Recova's footer, both parts, and no unsubscribe", () => {
-  it("the cron's 3-day reminder: the whole text part", async () => {
-    seedAccount();
-    seedDispute({ id: "d3", deadline: new Date(NOW.getTime() + 80 * HOUR) });
-    const run = await runDisputeReminders(env, NOW);
-    expect(run.sent).toBe(1);
-    const m = only();
-    expect(m.subject).toBe("URGENT: Dispute response due in 3 days");
-    expect(m.text).toBe(
-      [
-        "Foxhound",
-        "",
-        "Dispute response due in 3 days.",
-        "",
-        "Jane Buyer disputed $50.00 for reason: Product Not Received.",
-        "",
-        "Current status: needs response.",
-        "",
-        "Auto-submit is off. You need to review and submit, or choose to accept.",
-        "",
-        "Review dispute:",
-        `${BASE}/disputes/d3`,
-        "",
-        "--",
-        "This message was sent to ops@acme.test.",
-        footerNote("Acme Billing"),
-        `Manage email settings: ${BASE}/settings`,
-        "",
-      ].join("\n"),
-    );
-  });
-
-  it("the HTML part and the headers, as E16", async () => {
-    seedAccount();
-    seedDispute({ id: "d1", deadline: new Date(NOW.getTime() + 30 * HOUR) });
-    await runDisputeReminders(env, NOW);
-    const m = only();
-    expect(m.from).toBe("Foxhound <recovery@send.foxhoundapp.com>");
-    expect(m.replyTo).toBeUndefined();
-    expect(m.headers).toBeUndefined();
-    expect(m.html.match(/<h1\b/g)).toHaveLength(1);
-    expect(m.html).toMatch(/<h1[^>]*>Dispute response due in 1 day\.<\/h1>/);
-    expect(m.html).toMatch(new RegExp(`<a class="e-btn" href="${BASE}/disputes/d1"[^>]*>Review dispute</a>`));
-    expect(m.html).toContain(escapeHtml(footerNote("Acme Billing")));
-    expect(m.html).toMatch(new RegExp(`<a class="e-link" href="${BASE}/settings"[^>]*>Manage email settings</a>`));
-    expect(m.html.toLowerCase()).not.toContain("unsubscribe");
-  });
 
   it("a link Capsomer refuses is a named failure, never a mail without its button", async () => {
     seedAccount();

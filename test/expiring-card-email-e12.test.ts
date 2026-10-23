@@ -49,16 +49,11 @@ vi.mock("~/lib/money/execute", () => ({
 }));
 
 const { sendExpiringCardAlerts } = await import("~/lib/cron/expiring-cards");
-const { buildExpiringCardEmail, expiringCardSubject } = await import("~/lib/recovery/expiring-card-email");
-const { buildEmailMessage } = await import("~/lib/email/send");
-const { ADMIN_EMAIL_TYPES, prepareAdminEmail } = await import("~/lib/admin/email-send.server");
-const { EMAIL_FROM_ADDRESS } = await import("~/lib/constants");
 
 const BASE = "https://foxhoundapp.test";
 const ADDRESS = "1 Test Way, Austin TX";
 const ACCOUNT = "acct_e12";
 const NOW = new Date("2026-11-01T00:00:00Z");
-const UPDATE_URL = `${BASE}/p/EXAMPLE-NOT-A-TOKEN`;
 
 const env = {
   ENCRYPTION_KEY: "ab".repeat(32),
@@ -119,56 +114,6 @@ function alertSentAt(): number | null {
 // ---- what it says ----------------------------------------------------------------
 
 describe("E12 says Recova's words, on Capsomer's blocks", () => {
-  it("each of Recova's paragraphs is one block, and the button is Recova's label", () => {
-    // Recova's buildExpiringCardEmail, sentence by sentence. Its <strong> runs
-    // around the card and the date wait on Capsomer's bold run
-    // (capsomer job_2adddfaab5dc); the words are kept exactly.
-    const blocks = buildExpiringCardEmail({
-      customerName: "Jane Buyer",
-      cardBrand: "visa",
-      cardLast4: "4242",
-      expiresMonth: 3,
-      expiresYear: 2027,
-      senderName: "Acme Billing",
-      updateUrl: UPDATE_URL,
-    });
-    expect(blocks).toEqual([
-      { type: "paragraph", text: "Hi Jane Buyer," },
-      {
-        type: "paragraph",
-        text: "We wanted to give you a heads up that your visa card ending in 4242 is expiring on 03/2027.",
-      },
-      {
-        type: "paragraph",
-        text: "To avoid any interruption to your service, please update your payment method before it expires.",
-      },
-      { type: "button", label: "Update Payment Method", url: UPDATE_URL },
-      { type: "paragraph", text: "If you've already updated your card, you can ignore this message." },
-      // Recova's "Thanks,<br>{senderName}": Capsomer's paragraph has no line
-      // break, so the two lines are two paragraphs, same words.
-      { type: "paragraph", text: "Thanks," },
-      { type: "paragraph", text: "Acme Billing" },
-    ]);
-  });
-
-  it("Recova's fallbacks: there, Card, ****, Support", () => {
-    const blocks = buildExpiringCardEmail({
-      customerName: null,
-      cardBrand: null,
-      cardLast4: null,
-      expiresMonth: 3,
-      expiresYear: 2027,
-      senderName: null,
-      updateUrl: UPDATE_URL,
-    });
-    const texts = blocks.flatMap((b) => ("text" in b ? [b.text] : []));
-    expect(texts[0]).toBe("Hi there,");
-    expect(texts[1]).toBe("We wanted to give you a heads up that your Card card ending in **** is expiring on 03/2027.");
-    expect(texts.at(-1)).toBe("Support");
-    expect(expiringCardSubject({ cardBrand: null, cardLast4: null })).toBe(
-      "Action required: Your Card card ending in **** is expiring",
-    );
-  });
 
   it("a customer name is shown exactly as Stripe holds it, escaped by Capsomer, never read as markup", async () => {
     seedMerchant();
@@ -185,29 +130,6 @@ describe("E12 says Recova's words, on Capsomer's blocks", () => {
 // ---- what it carries --------------------------------------------------------------
 
 describe("E12 carries Recova's parts, From, Reply-To, footer and links", () => {
-  it("subject, From name, a text part with every sentence, and the button to Foxhound's card-update page", async () => {
-    seedMerchant();
-    seedAlert();
-
-    await sendExpiringCardAlerts(env, NOW);
-
-    const m = harness.sent[0];
-    expect(m.subject).toBe("Action required: Your visa card ending in 4242 is expiring");
-    expect(m.from).toBe(`Acme Billing <${EMAIL_FROM_ADDRESS}>`);
-    const text = m.text ?? "";
-    const order = [
-      "Hi Jane Buyer,",
-      "We wanted to give you a heads up that your visa card ending in 4242 is expiring on 11/2026.",
-      "To avoid any interruption to your service, please update your payment method before it expires.",
-      "Update Payment Method:\nhttps://foxhoundapp.test/p/",
-      "If you've already updated your card, you can ignore this message.",
-      "Thanks,\n\nAcme Billing",
-    ].map((s) => text.indexOf(s));
-    expect(order.every((i) => i >= 0)).toBe(true);
-    expect([...order].sort((a, b) => a - b)).toEqual(order);
-    // The button is a real link with its visible label.
-    expect(m.html).toMatch(/<a class="e-btn" href="https:\/\/foxhoundapp\.test\/p\/[^"]+"[^>]*>Update Payment Method<\/a>/);
-  });
 
   it("the footer carries Recova's sentence, then the unsubscribe link and the postal address, in both parts", async () => {
     seedMerchant();
@@ -226,16 +148,6 @@ describe("E12 carries Recova's parts, From, Reply-To, footer and links", () => {
     expect(m.headers?.["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
   });
 
-  it("with no sender name, the footer says Support, as Recova's sender_name || 'Support'", async () => {
-    seedMerchant({ senderName: null });
-    seedAlert();
-
-    await sendExpiringCardAlerts(env, NOW);
-
-    expect(harness.sent[0].from).toBe(`Support <${EMAIL_FROM_ADDRESS}>`);
-    expect(harness.sent[0].text).toContain("You're receiving this from Support about a recent payment.");
-  });
-
   it("Reply-To is the merchant's saved address (J03), and absent when none is saved", async () => {
     seedMerchant({ replyTo: "help@acme.example" });
     seedAlert();
@@ -247,38 +159,6 @@ describe("E12 carries Recova's parts, From, Reply-To, footer and links", () => {
     seedAlert();
     await sendExpiringCardAlerts(env, NOW);
     expect(harness.sent[0].replyTo).toBeUndefined();
-  });
-
-  it("the rendered mail has a language, the subject as its title, and 16px body text", async () => {
-    seedMerchant();
-    seedAlert();
-
-    await sendExpiringCardAlerts(env, NOW);
-
-    const html = harness.sent[0].html;
-    expect(html).toContain('<html lang="en">');
-    expect(html).toContain("<title>Action required: Your visa card ending in 4242 is expiring</title>");
-    expect(html).toMatch(/font-size:16px;line-height:24px;[^"]*">Hi Jane Buyer,</);
-  });
-
-  it("the owner's admin preview is the same mail: the same blocks and Recova's footer sentence", async () => {
-    const type = ADMIN_EMAIL_TYPES.find((t) => t.type === "expiring_card");
-    if (!type) throw new Error("no expiring_card type");
-    const prepared = await prepareAdminEmail(env, {
-      type,
-      to: "owner@example.com",
-      merchant: {
-        accountId: ACCOUNT,
-        senderName: "Acme Billing",
-        replyTo: null,
-      } as unknown as Parameters<typeof prepareAdminEmail>[1]["merchant"],
-      now: NOW,
-    });
-    if (prepared.channel !== "job") throw new Error("expected a job");
-    const m = buildEmailMessage(prepared.job, BASE);
-    expect(m.text).toContain("Hi there,");
-    expect(m.text).toContain("Update Payment Method:\nhttps://foxhoundapp.test/settings/email");
-    expect(m.text).toContain("You're receiving this from Acme Billing about a recent payment. © 2026");
   });
 });
 

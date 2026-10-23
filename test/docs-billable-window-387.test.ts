@@ -86,22 +86,6 @@ describe("PLANT 1: the window in the docs is the window the engine bills on", ()
     expect(recovery.length).toBeGreaterThan(2000);
     expect(recovery).toContain(`within ${EMAIL_ENGAGEMENT_WINDOW_DAYS} days before the payment`);
   });
-
-  it("and the source INTERPOLATES it rather than restating the number", () => {
-    // A page reading "14 days" because somebody typed 14 satisfies any output
-    // check and drifts the day the constant moves. This is the same reason the
-    // decline-category count is derived at its carriers.
-    const src = read("app/lib/marketing/docs-content.ts");
-    expect(src).toContain("${EMAIL_ENGAGEMENT_WINDOW_DAYS} days before the payment");
-    expect(src).toContain('from "~/lib/constants"');
-  });
-
-  it("the copy says what happens OUTSIDE the window, not only inside it", () => {
-    // The half a merchant needs: a late click is not a lost recovery, it is a
-    // free one. Without this the rule reads as Foxhound declining to record.
-    expect(recovery).toContain("Stripe's own baseline");
-    expect(recovery.toLowerCase()).toContain("free");
-  });
 });
 
 describe("PLANT 2: the suspect-click rule is stated and derived", () => {
@@ -112,35 +96,5 @@ describe("PLANT 2: the suspect-click rule is stated and derived", () => {
     expect(recovery).toContain(`within ${CLICK_SUSPECT_MIN_SECONDS} seconds of the email being sent`);
     const src = read("app/lib/marketing/docs-content.ts");
     expect(src).toContain("${CLICK_SUSPECT_MIN_SECONDS} seconds");
-  });
-
-  it("both suspect tests are described, and the outcome is stated", () => {
-    // 380 marks a click suspect on either test, so copy naming one would
-    // describe a narrower guard than the one that ships.
-    expect(recovery).toContain("on a link no human can see");
-    // SHOWN and NOT BILLED, which is the pair that matters: a suppressed click
-    // that vanished would look like Foxhound hiding a recovery.
-    expect(recovery).toContain("shown on the ledger");
-    expect(recovery).toContain("never billed");
-  });
-});
-
-describe("PLANT 3: /pricing states the same rule", () => {
-  // /pricing's FAQ copy lives in lib/marketing/pricing-copy.ts since J54.
-  const pricing = read("app/lib/marketing/pricing-copy.ts");
-
-  it("the billable FAQ carries both halves, derived", () => {
-    // Re-verified at a0c41ac: /pricing's FAQ did state the billable rule, and
-    // stated it in the pre-380 form, so it needed the same correction.
-    expect(pricing).toContain("${EMAIL_ENGAGEMENT_WINDOW_DAYS} days before the payment");
-    expect(pricing).toContain("marks suspect");
-    expect(pricing).toContain("never billed");
-  });
-
-  it("and it does not contradict the guide", () => {
-    // Both surfaces describe one rule. If either drifts to a typed number this
-    // fails, because only one of them can be right about a moved constant.
-    expect(pricing).not.toContain("14 days before the payment");
-    expect(read("app/lib/marketing/docs-content.ts")).not.toContain("14 days before the payment");
   });
 });

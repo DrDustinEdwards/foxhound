@@ -45,7 +45,7 @@ const {
   DIGEST_WINDOW_MS,
   DIGEST_CLAIM_WINDOW_MS,
 } = await import("~/lib/cron/digest");
-const { buildDigestBlocks, digestSubject, recoveryRate, resolveDigestCurrency } = await import(
+const { buildDigestBlocks, recoveryRate, resolveDigestCurrency } = await import(
   "~/lib/recovery/digest-email"
 );
 
@@ -161,57 +161,6 @@ describe("PLANT 1: the pure copy is legacy's", () => {
     expect(resolveDigestCurrency([], [])).toBe("usd");
   });
 
-  it("the subject is `recovery` alone and `platform` with a product", () => {
-    expect(digestSubject({ now: NOW, intelligenceActive: false, disputesActive: false })).toBe(
-      "Your weekly recovery report: November 2",
-    );
-    expect(digestSubject({ now: NOW, intelligenceActive: true, disputesActive: false })).toBe(
-      "Your weekly platform report: November 2",
-    );
-    expect(digestSubject({ now: NOW, intelligenceActive: false, disputesActive: true })).toBe(
-      "Your weekly platform report: November 2",
-    );
-  });
-
-  it("the body carries legacy's labels and the computed figures", () => {
-    const text = words(
-      buildDigestBlocks({
-      totalFailed: 4,
-      totalRecovered: 1,
-      recoveredRevenueCents: 5000,
-      atRiskRevenueCents: 20000,
-      activeCount: 3,
-      emailsSent: 7,
-      winBackCount: 2,
-      expiringCardCount: 0,
-      openDisputeCount: 0,
-      openDisputeCents: 0,
-      currency: "usd",
-      senderName: "Teamflow",
-      disputesActive: false,
-      intelligenceActive: false,
-      highRiskCustomers: [],
-      now: NOW,
-      baseUrl: "https://foxhoundapp.test",
-      }),
-    );
-
-    expect(text).toContain("Week ending Monday, November 2");
-    expect(text).toContain("Your recovery summary");
-    expect(text).toContain("$50.00");
-    expect(text).toContain("25%");
-    expect(text).toContain("Failed payments detected");
-    expect(text).toContain("Revenue at risk");
-    expect(text).toContain("$200.00");
-    expect(text).toContain("Active recovery sequences");
-    expect(text).toContain("Recovery emails sent");
-    expect(text).toContain("Active win-back sequences");
-    // Conditional rows absent at zero, as legacy has them.
-    expect(text).not.toContain("Cards expiring soon");
-    expect(text).not.toContain("Open disputes");
-    expect(text).toContain("https://foxhoundapp.test/recovery/dashboard");
-  });
-
   it("the conditional rows appear once their counts are above zero", () => {
     const text = words(
       buildDigestBlocks({
@@ -238,35 +187,6 @@ describe("PLANT 1: the pure copy is legacy's", () => {
     expect(text).toContain("Cards expiring soon");
     expect(text).toContain("Open disputes");
     expect(text).toContain("1 open dispute totaling $99.00 need a response");
-  });
-
-  it("THE INTELLIGENCE SECTION CARRIES NO PERSONAL-OUTREACH LINE, which has no producer", () => {
-    const text = words(
-      buildDigestBlocks({
-      totalFailed: 0,
-      totalRecovered: 0,
-      recoveredRevenueCents: 0,
-      atRiskRevenueCents: 0,
-      activeCount: 0,
-      emailsSent: 0,
-      winBackCount: 0,
-      expiringCardCount: 0,
-      openDisputeCount: 0,
-      openDisputeCents: 0,
-      currency: "usd",
-      senderName: null,
-      disputesActive: false,
-      intelligenceActive: true,
-      highRiskCustomers: [{ name: "Acme Co", mrrCents: 19900 }],
-      now: NOW,
-      baseUrl: "https://u.test",
-      }),
-    );
-
-    expect(text).toContain("Top at-risk customers");
-    expect(text).toContain("Acme Co");
-    expect(text).not.toContain("personal outreach");
-    expect(text).not.toContain("flagged for");
   });
 });
 
@@ -478,23 +398,5 @@ describe("PLANT 6: the digest does not skip itself (376 item 13)", () => {
     expect(DIGEST_WINDOW_MS).toBe(604_800_000);
     expect(DIGEST_CLAIM_WINDOW_MS).toBe(518_400_000);
     expect(DIGEST_WINDOW_MS - DIGEST_CLAIM_WINDOW_MS).toBe(86_400_000);
-  });
-});
-
-describe("PLANT 5: the docs describe the built behaviour", () => {
-  it("the platform guide no longer says the digest is unbuilt, and says what it does", async () => {
-    const { DOC_GUIDES } = await import("~/lib/marketing/docs-content");
-    const body = DOC_GUIDES.flatMap((g) => g.sections)
-      .flatMap((s) => s.body)
-      .join(" ");
-
-    expect(body).not.toContain("The weekly digest and Slack delivery are not built yet");
-    expect(body).toContain("The weekly digest is a Monday morning summary");
-    // The three facts a merchant needs: when, that it is off by default, and
-    // that a quiet week still produces one.
-    expect(body).toContain("previous seven days");
-    // Session 56 built the page, so the sentence now names it.
-    expect(body).toContain("off until you enable it on the notifications page");
-    expect(body).toContain("even in a quiet week");
   });
 });

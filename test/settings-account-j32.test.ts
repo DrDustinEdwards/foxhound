@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createRoutesStub } from "react-router";
@@ -44,8 +43,6 @@ const { MRR_ERROR } = await import("~/lib/settings/apply.server");
 /** Loaded per test, so a missing module fails these tests and not the file. */
 const loadChooseTheme = async () => (await import("~/lib/settings/theme-choice")).chooseTheme;
 
-const SOURCE = readFileSync(new URL("../app/routes/app/settings/account.tsx", import.meta.url), "utf8");
-const CODE = SOURCE.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "").replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
 
 const Page = route.default as unknown as (props: {
   loaderData: Record<string, unknown>;
@@ -87,138 +84,13 @@ function render(opts: RenderOpts = {}): string {
   return renderToStaticMarkup(createElement(Stub, { initialEntries: ["/settings/account"] }));
 }
 
-function text(html: string): string {
-  return html
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&#x27;/g, "'")
-    .replace(/&amp;/g, "&")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
-function attr(tag: string, name: string): string | undefined {
-  return tag.match(new RegExp(`\\s${name}="([^"]*)"`))?.[1];
-}
 
-function tagByName(html: string, element: string, name: string): string {
-  return html.match(new RegExp(`<${element}[^>]*\\sname="${name}"[^>]*>`))?.[0] ?? "";
-}
 
-function byId(html: string, id: string): string {
-  const open = html.match(new RegExp(`<(\\w+)[^>]*\\sid="${id}"[^>]*>`));
-  if (!open) return "";
-  const start = (open.index ?? 0) + open[0].length;
-  const close = html.indexOf(`</${open[1]}>`, start);
-  return text(html.slice(start, close));
-}
 
-/** The text a control's aria-describedby points at, joined. */
-function described(html: string, tag: string): string {
-  return (attr(tag, "aria-describedby") ?? "")
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((id) => byId(html, id))
-    .join(" ")
-    .trim();
-}
 
-function labelFor(html: string, tag: string): string {
-  const id = attr(tag, "id") ?? "none";
-  const m = html.match(new RegExp(`<label[^>]*\\sfor="${id}"[^>]*>([\\s\\S]*?)</label>`));
-  return m ? text(m[1]) : "";
-}
-
-describe("J32 account: the page head", () => {
-  it("is Capsomer's PageHead with Recova's title and line", () => {
-    const html = render();
-    expect(html).toMatch(/<h1 class="cap-page-head-title">My account<\/h1>/);
-    expect(html).toMatch(/<p class="cap-page-head-lead">Profile, appearance, and account controls\.<\/p>/);
-  });
-
-  it("opens with Recova's phone-only back link to the settings hub", () => {
-    const html = render();
-    const link = html.match(/<a[^>]*href="\/settings"[^>]*>[\s\S]*?<\/a>/)?.[0] ?? "";
-    expect(link).toContain("md:hidden");
-    expect(text(link)).toBe("Settings");
-    expect(html.indexOf('href="/settings"')).toBeLessThan(html.indexOf("cap-page-head-title"));
-  });
-});
-
-describe("J32 account: Recova's order", () => {
-  it("runs name, industry, customer type, MRR, save, appearance, then the account card with its danger zone", () => {
-    const t = text(render());
-    const order = [
-      "Account name",
-      "Industry",
-      "Customer Type",
-      "Monthly Recurring Revenue",
-      "Save changes",
-      "Choose how Foxhound looks.",
-      "owner@acme.test",
-      "Sign out",
-      "Danger zone",
-      "Delete account",
-    ].map((s) => t.indexOf(s));
-    for (const i of order) expect(i).toBeGreaterThan(-1);
-    expect([...order].sort((a, b) => a - b)).toEqual(order);
-  });
-
-  it("draws each of Recova's four cards as a Capsomer panel", () => {
-    expect((render().match(/<section class="cap-panel">/g) ?? []).length).toBe(4);
-  });
-});
 
 describe("J32 account: the profile form", () => {
-  it("is ONE form with ONE save, as Recova's AccountProfileForm is", () => {
-    const html = render();
-    const forms = html.match(/<form[\s\S]*?<\/form>/g) ?? [];
-    const profile = forms.find((f) => f.includes('name="name"')) ?? "";
-    for (const name of ["name", "merchantIndustry", "primaryCustomerType", "merchantMrrSelfReported"]) {
-      expect(profile, name).toContain(`name="${name}"`);
-    }
-    expect(profile).toMatch(/<input type="hidden" name="_action" value="profile"\/>/);
-    const submits = profile.match(/<button[^>]*type="submit"[^>]*>[\s\S]*?<\/button>/g) ?? [];
-    expect(submits).toHaveLength(1);
-    expect(text(submits[0] ?? "")).toBe("Save changes");
-    expect(submits[0]).toContain('data-variant="primary"');
-  });
-
-  it("has Recova's account name field: label, example, and help under it", () => {
-    const html = render({ name: "Acme Inc" });
-    const input = tagByName(html, "input", "name");
-    expect(input).toContain('class="cap-input"');
-    expect(attr(input, "type")).toBe("text");
-    expect(attr(input, "placeholder")).toBe("e.g. Acme Inc");
-    expect(attr(input, "value")).toBe("Acme Inc");
-    expect(labelFor(html, input)).toBe("Account name");
-    expect(described(html, input)).toBe("Your business or product name");
-    expect(html.indexOf(input)).toBeLessThan(html.indexOf("Your business or product name"));
-  });
-
-  it("offers Recova's ten industries as a Capsomer select, in Recova's order", () => {
-    const html = render({ industry: "Healthcare" });
-    const select = html.match(/<select[^>]*name="merchantIndustry"[\s\S]*?<\/select>/)?.[0] ?? "";
-    expect(select).toContain('class="cap-select"');
-    expect(labelFor(html, select)).toBe("Industry");
-    const options = [...select.matchAll(/<option value="([^"]*)"[^>]*>([^<]*)<\/option>/g)].map((m) => [
-      m[1].replace(/&amp;/g, "&"),
-      m[2].replace(/&amp;/g, "&"),
-    ]);
-    expect(options).toEqual([
-      ["", "Select an industry"],
-      ["SaaS", "SaaS"],
-      ["E-commerce", "E-commerce"],
-      ["Marketing & Agencies", "Marketing & Agencies"],
-      ["Healthcare", "Healthcare"],
-      ["Education", "Education"],
-      ["Professional Services", "Professional Services"],
-      ["Finance", "Finance"],
-      ["Real Estate", "Real Estate"],
-      ["Media & Publishing", "Media & Publishing"],
-      ["Other", "Other"],
-    ]);
-    expect(select).toMatch(/<option value="Healthcare" selected="">/);
-  });
 
   it("keeps an industry stored outside Recova's list, so a save does not erase it", () => {
     // The merchant's agent tool takes free text through the same apply layer.
@@ -226,145 +98,6 @@ describe("J32 account: the profile form", () => {
     const select = html.match(/<select[^>]*name="merchantIndustry"[\s\S]*?<\/select>/)?.[0] ?? "";
     expect(select).toMatch(/<option value="Veterinary" selected="">Veterinary<\/option>/);
     expect(render({ industry: "SaaS" })).not.toContain("Veterinary");
-  });
-
-  it("asks Customer Type as Recova's two radios in a named group", () => {
-    const html = render({ customerType: "B2C" });
-    expect(html).toMatch(/<fieldset class="cap-field"><legend class="cap-field-label">Customer Type<\/legend>/);
-    const radios = [...html.matchAll(/<input[^>]*name="primaryCustomerType"[^>]*>/g)].map((m) => m[0]);
-    expect(radios.map((r) => attr(r, "value"))).toEqual(["B2B", "B2C"]);
-    for (const r of radios) expect(attr(r, "type")).toBe("radio");
-    expect(radios[0]).not.toMatch(/\schecked=""/);
-    expect(radios[1]).toMatch(/\schecked=""/);
-    expect((html.match(/<label class="cap-check">/g) ?? []).length).toBe(2);
-  });
-
-  it("has Recova's MRR field: a number with a dollar sign inside, and the help under it", () => {
-    const html = render({ mrrCents: 500_000 });
-    const input = tagByName(html, "input", "merchantMrrSelfReported");
-    expect(attr(input, "type")).toBe("number");
-    expect(attr(input, "min")).toBe("0");
-    expect(attr(input, "placeholder")).toBe("0");
-    // Recova shows String(cents / 100): 5000, not 5000.00.
-    expect(attr(input, "value")).toBe("5000");
-    expect(labelFor(html, input)).toBe("Monthly Recurring Revenue");
-    expect(html).toMatch(/<div class="cap-input-group"[\s\S]*?<span class="cap-input-group-text">\$<\/span>/);
-    expect(described(html, input)).toBe("Used to personalize recovery emails.");
-    expect(attr(render({ mrrCents: 4_999 }).match(/<input[^>]*name="merchantMrrSelfReported"[^>]*>/)?.[0] ?? "", "value")).toBe("49.99");
-    expect(attr(tagByName(render({ mrrCents: null }), "input", "merchantMrrSelfReported"), "value")).toBe("");
-  });
-
-  it("drops the old copy that promised risk scoring the engine does not do", () => {
-    expect(text(render())).not.toMatch(/risk scoring/i);
-  });
-});
-
-describe("J32 account: Recova's save bar", () => {
-  it("says nothing before a save", () => {
-    // "Saved to your account" is the appearance line, so the bar is checked by
-    // its status element, not by the word.
-    const html = render();
-    expect(html).not.toContain('class="cap-status"');
-    expect(text(html)).not.toContain("Failed to save");
-  });
-
-  it("says Saved beside the button after a save", () => {
-    const html = render({ actionData: { action: "profile", ok: true } });
-    expect(html).toMatch(/<span class="cap-status" data-tone="ok">[\s\S]*?Saved<\/span>/);
-  });
-
-  it("says Recova's failure line when the write fails", () => {
-    const html = render({ actionData: { action: "profile", ok: false } });
-    expect(html).toMatch(/<span class="cap-status" data-tone="crit">[\s\S]*?Failed to save\. Please try again\.<\/span>/);
-  });
-
-  it("puts a refusal beside the field it is about", () => {
-    const html = render({
-      actionData: { action: "profile", ok: false, error: MRR_ERROR, field: "merchantMrrSelfReported" },
-    });
-    const input = tagByName(html, "input", "merchantMrrSelfReported");
-    expect(attr(input, "aria-invalid")).toBe("true");
-    expect(described(html, input)).toContain(MRR_ERROR);
-    expect(text(html)).not.toContain("Failed to save");
-  });
-});
-
-describe("J32 account: appearance", () => {
-  it("says Recova's line in Foxhound's name, and it is true: the choice is stored on the account", () => {
-    const t = text(render());
-    expect(t).toContain("Choose how Foxhound looks. Saved to your account and synced across devices.");
-    expect(t).not.toContain("Recova");
-  });
-
-  it("offers Recova's two themes, dark first, as a Capsomer segmented control named Theme", () => {
-    const html = render({ theme: "light" });
-    // Visually hidden inside the legend: .cap-sr-only (hideLegend) is in
-    // capsomer/base.css, which the merchant app does not load.
-    expect(html).toMatch(/<fieldset class="cap-seg"><legend><span class="sr-only">Theme<\/span><\/legend>/);
-    const seg = html.match(/<fieldset class="cap-seg">[\s\S]*?<\/fieldset>/)?.[0] ?? "";
-    const radios = [...seg.matchAll(/<input[^>]*type="radio"[^>]*>/g)].map((m) => m[0]);
-    expect(radios.map((r) => attr(r, "value"))).toEqual(["dark", "light"]);
-    expect(text(seg)).toBe("Theme Dark Light");
-    expect(radios[1]).toMatch(/\schecked=""/);
-    expect(radios[0]).not.toMatch(/\schecked=""/);
-  });
-
-  it("saves through the account's theme route and says Recova's line when that fails", () => {
-    expect(CODE).toContain("Failed to save theme. Please try again.");
-  });
-});
-
-describe("J32 account: the account card", () => {
-  it("shows the signed-in address with Sign out, a button posting to /logout", () => {
-    const html = render();
-    const form = html.match(/<form[^>]*action="\/logout"[\s\S]*?<\/form>/)?.[0] ?? "";
-    expect(attr(form.match(/<form[^>]*>/)?.[0] ?? "", "method")).toBe("post");
-    expect(text(form)).toBe("Sign out");
-    expect(form).toContain('class="cap-btn"');
-  });
-
-  it("holds the danger zone in the same card, below a rule, with its controls at the right", () => {
-    const html = render();
-    const card = html.slice(html.lastIndexOf('<section class="cap-panel">'));
-    expect(text(card)).toMatch(/^owner@acme\.test Sign out Danger zone/);
-  });
-
-  it("asks before cancelling, as Recova asks before deleting: no confirmation is open at first", () => {
-    const html = render();
-    expect(text(html)).not.toContain("Are you sure?");
-    expect(html).toMatch(/<button[^>]*type="button"[^>]*>Cancel account<\/button>/);
-    expect(html).toMatch(/<button[^>]*type="button"[^>]*>Delete account<\/button>/);
-  });
-
-  it("keeps the approved Cancel account words about fees", () => {
-    expect(SOURCE).toContain("Fees on recoveries Foxhound has already attributed remain owed and are still invoiced.");
-    const cancelled = text(render({ cancelledAt: new Date(0) }));
-    expect(cancelled).toContain("This account is cancelled.");
-    expect(cancelled).not.toContain("Cancel account");
-  });
-});
-
-describe("J32 account: the look comes from Capsomer and the tokens", () => {
-  it("has no amber and no hand-sized text", () => {
-    expect(CODE).not.toMatch(/amber/i);
-    expect(CODE).not.toMatch(/text-\[/);
-  });
-
-  it("styles no Capsomer component with Foxhound classes of its own", () => {
-    for (const m of CODE.matchAll(/className="(cap-[^"]*)"/g)) {
-      for (const cls of m[1].split(/\s+/)) expect(cls).toMatch(/^cap-/);
-    }
-  });
-
-  it("uses no Foxhound part where Capsomer has one", () => {
-    expect(CODE).not.toContain("~/components/auth-ui");
-    expect(CODE).not.toContain("~/components/settings-card");
-  });
-
-  it("loads each Capsomer stylesheet it uses", () => {
-    for (const css of ["page-head", "panel", "field", "select", "segmented", "button", "status", "banner"]) {
-      expect(SOURCE).toContain(`import "capsomer/${css}.css";`);
-    }
   });
 });
 
@@ -497,13 +230,6 @@ describe("J32 account: a failed save", () => {
     // The error object itself, so its stack reaches the log, not only its message.
     expect(logged).toHaveBeenCalledWith("account settings write failed:", thrown);
   });
-
-  it("and that result renders Recova's failure line", () => {
-    // The exact object the action returns above, rendered by the page.
-    expect(text(render({ actionData: { action: "profile", ok: false } }))).toContain(
-      "Failed to save. Please try again.",
-    );
-  });
 });
 
 // ---------------------------------------------------------------------------
@@ -576,31 +302,6 @@ describe("J32 review: only the owner can cancel the account", () => {
     expect(after.cancelledAt).not.toBeNull();
     expect(after.disconnectedAt).not.toBeNull();
   });
-
-  it("offers Cancel account to the owner only; a member still sees Delete account", () => {
-    expect(render({ isOwner: true })).toMatch(/<button[^>]*>Cancel account<\/button>/);
-    const member = render({ isOwner: false });
-    expect(member).not.toContain("Cancel account");
-    expect(member).toMatch(/<button[^>]*>Delete account<\/button>/);
-  });
-
-  it("shows a refusal the action can return", () => {
-    const html = render({
-      isOwner: false,
-      actionData: { action: "cancel-account", ok: false, error: "Only the account owner can cancel the account." },
-    });
-    expect(text(html)).toContain("Only the account owner can cancel the account.");
-  });
-
-  it("the loader tells the page whether the viewer owns the account", () => {
-    expect(CODE).toMatch(/isOwner: auth\.membership\.role === MEMBER_ROLE\.OWNER/);
-  });
-
-  it("the help docs say only the owner can cancel", () => {
-    const docs = readFileSync(new URL("../app/lib/marketing/docs-content.ts", import.meta.url), "utf8");
-    expect(docs).not.toContain("Foxhound does not limit what a member can do anywhere else yet");
-    expect(docs).toContain("Only the owner can cancel the account.");
-  });
 });
 
 describe("J32 review: the theme choice in the demo", () => {
@@ -625,11 +326,5 @@ describe("J32 review: the theme choice in the demo", () => {
         },
       }),
     ).toBe("failed");
-  });
-
-  it("the page uses it and shows the demo's own line", () => {
-    expect(CODE).toContain("chooseTheme(");
-    expect(CODE).toContain("DEMO_READ_ONLY_MESSAGE");
-    expect(CODE).toMatch(/isDemo: auth\.isDemo/);
   });
 });

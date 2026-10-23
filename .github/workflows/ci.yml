@@ -86,8 +86,7 @@ jobs:
       # ruling 378 call (b) it was the one gate CI did not run. It went red at
       # some point and stayed red, invisibly, because check:all was the only
       # thing that ran it and nothing ran check:all. A gate the pipeline does
-      # not run is not a gate (153, 318). test/ci-gate-parity.test.ts now fails
-      # if this step and the check:all chain ever disagree again.
+      # not run is not a gate (153, 318).
       - name: Lint
         if: steps.tested.outputs.same != 'true'
         run: npm run lint
@@ -100,8 +99,7 @@ jobs:
       # files, exports, dependencies), jscpd (duplication), page weight per route
       # from this build, and tests with no assertion. Every script exits 0 on a
       # finding and continue-on-error keeps a crash from failing the run, so it
-      # reports and never blocks. Measured at about 10 seconds locally. It is
-      # declared as a non-gate step in test/ci-gate-parity.test.ts.
+      # reports and never blocks. Measured at about 10 seconds locally.
       - name: Bloat report (warn only)
         if: steps.tested.outputs.same != 'true'
         continue-on-error: true

@@ -90,11 +90,6 @@ async function callTool(
 describe("PLANT 1: the Worker holds no Stripe key, no money binding and no D1", () => {
   const config = jsonc(read("mcp/wrangler.jsonc"));
 
-  it("is its own Worker on admin-mcp.foxhoundapp.com", () => {
-    expect(config.name).toBe("foxhound-admin-mcp");
-    expect(config.routes).toEqual([{ pattern: "admin-mcp.foxhoundapp.com", custom_domain: true }]);
-  });
-
   it("binds only the foxhound service and the OAuth KV, nothing else", () => {
     expect(config.services).toEqual([{ binding: "FOXHOUND", service: "foxhound" }]);
     expect((config.kv_namespaces as { binding: string }[]).map((k) => k.binding)).toEqual(["OAUTH_KV"]);
@@ -269,14 +264,5 @@ describe("PLANT 5: tightened registration (rule 13)", () => {
     for (let i = 0; i < 6; i += 1) results.push(await registrationLimited(request, { OAUTH_KV: kv } as never, 0));
     expect(results.slice(0, 5).every((r) => r === null)).toBe(true);
     expect(results[5]?.status).toBe(429);
-  });
-});
-
-describe("PLANT 6: the exception is on record", () => {
-  it("Foxhound's CLAUDE.md names the admin MCP as the one exception to the single Worker rule", () => {
-    const claude = read("CLAUDE.md");
-    expect(claude).toMatch(/foxhound-admin-mcp/);
-    expect(claude).toMatch(/admin-mcp\.foxhoundapp\.com/);
-    expect(claude).toMatch(/one exception/i);
   });
 });

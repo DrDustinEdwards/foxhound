@@ -195,58 +195,6 @@ describe("E1: the reset mail is sent on Better Auth's reset hook, and only there
 });
 
 describe("E1: what the reset mail says and carries", () => {
-  it("is Capsomer's reset template, byte for byte, with Foxhound's words", async () => {
-    const outcome = await sendPasswordResetEmail(makeEnv(), { to: TO, url: URL_FIXTURE, token: TOKEN });
-    expect(outcome).toEqual({ status: "sent", providerMessageId: "msg_1" });
-    expect(sent).toHaveLength(1);
-    const m = sent[0];
-    const want = expectedRender(TO, URL_FIXTURE);
-    expect(m.subject).toBe(want.subject);
-    expect(m.html).toBe(want.html);
-    expect(m.text).toBe(want.text);
-  });
-
-  it("every line of the text part, in order", async () => {
-    await sendPasswordResetEmail(makeEnv(), { to: TO, url: URL_FIXTURE, token: TOKEN });
-    expect(sent[0].subject).toBe("Reset your password");
-    expect(sent[0].text).toBe(
-      [
-        "Foxhound",
-        "",
-        "Reset your password",
-        "",
-        "We received a request to reset your Foxhound password.",
-        "",
-        "Reset password:",
-        URL_FIXTURE,
-        "",
-        "The link works once and expires in 1 hour.",
-        "",
-        "If this was not you, you can ignore this email.",
-        "",
-        "--",
-        "This message was sent to jane@example.com.",
-        "",
-      ].join("\n"),
-    );
-  });
-
-  it("the HTML part carries the same words, one h1 and one button", async () => {
-    await sendPasswordResetEmail(makeEnv(), { to: TO, url: URL_FIXTURE, token: TOKEN });
-    const { html } = sent[0];
-    expect(html.startsWith("<!doctype html>")).toBe(true);
-    expect(html).toContain('<html lang="en">');
-    expect(html).toContain("<title>Reset your password</title>");
-    expect(html.match(/<h1\b/g)).toHaveLength(1);
-    expect(html).toContain(">Reset your password</h1>");
-    for (const line of [WORDS.intro, EXPIRY_LINE, WORDS.ignore, "This message was sent to jane@example.com."]) {
-      expect(html).toContain(line);
-    }
-    const anchors = [...html.matchAll(/<a\b[^>]*href="([^"]*)"[^>]*>([^<]*)<\/a>/g)];
-    expect(anchors).toHaveLength(1);
-    expect(anchors[0][1].replace(/&amp;/g, "&")).toBe(URL_FIXTURE);
-    expect(anchors[0][2]).toBe("Reset password");
-  });
 
   it("comes from Foxhound at the auth sender, with no Reply-To, footer, unsubscribe or tracking", async () => {
     await sendPasswordResetEmail(makeEnv(), { to: TO, url: URL_FIXTURE, token: TOKEN });

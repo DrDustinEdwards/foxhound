@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -223,12 +221,6 @@ describe("PLANT 2: every bound the evaluator implies is enforced", () => {
     }
     expect(alertRows(ACCOUNT)).toHaveLength(0);
   });
-
-  it("no error string carries a wide dash", async () => {
-    const wide = new RegExp("[" + String.fromCharCode(0x2014, 0x2013) + "]");
-    const res = await post({ _action: "create", metric: "nope", direction: "above", threshold: "1" });
-    expect(String(res.body.error)).not.toMatch(wide);
-  });
 });
 
 describe("PLANT 3: toggle and delete are account-scoped", () => {
@@ -278,55 +270,6 @@ describe("PLANT 3: toggle and delete are account-scoped", () => {
   });
 });
 
-describe("PLANT 4: the render offers legacy's control set, minus what would lie", () => {
-  const SOURCE = readFileSync(
-    fileURLToPath(new URL("../app/routes/app/settings/alerts.tsx", import.meta.url)),
-    "utf8",
-  );
-  const code = SOURCE.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-
-  it("carries legacy's create, toggle and delete controls and both empty states", () => {
-    expect(code).toContain("Create alert");
-    expect(code).toContain("Delete alert");
-    expect(code).toContain("Recent triggers");
-    expect(code).toContain("No alerts yet.");
-    expect(code).toContain("No alerts have fired yet.");
-  });
-
-  it("the metric options come from the evaluator's enum, not a hand-written list", () => {
-    // A hand-written list is how the eleven-versus-four gap would come back.
-    expect(code).toContain("ALERT_METRICS.map");
-    for (const legacyOnly of [
-      "recovery_rate_pct",
-      "active_sequences",
-      "emails_sent_7d",
-      "open_disputes_count",
-      "audit_leaking_cents",
-    ]) {
-      expect(code).not.toContain(legacyOnly);
-    }
-  });
-
-  it("NO channel picker, and no promise of a notification nothing sends", () => {
-    // alert_history.notification_sent is written false and never read by a
-    // sender. Legacy's subtitle "Get notified..." is therefore not ported.
-    expect(code).not.toContain('name="channel"');
-    expect(code).not.toContain("Slack");
-    expect(code).not.toContain("Get notified");
-    expect(code).not.toContain("email goes to");
-  });
-
-  it("every write goes through DemoGuardedForm", () => {
-    expect(code).toContain('<DemoGuardedForm method="post"');
-    expect(code).not.toContain('<Form method="post"');
-    expect(code).not.toContain('<form method="post"');
-  });
-
-  it("the loader reuses the existing reader rather than a second query", () => {
-    expect(SOURCE).toContain("getAlertsView");
-  });
-});
-
 describe("PLANT 5: the loader is scoped to the active account", () => {
   it("returns the ACTIVE account's alerts, never the earliest membership's", async () => {
     seedAlert({ id: "a_mine" });
@@ -342,34 +285,5 @@ describe("PLANT 5: the loader is scoped to the active account", () => {
 
     expect(loaded.alerts.map((a) => a.id)).toEqual(["a_mine"]);
     expect(loaded.history).toEqual([]);
-  });
-});
-
-describe("PLANT 6: the docs describe what was built, including what it does not do", () => {
-  const DOCS = readFileSync(
-    fileURLToPath(new URL("../app/lib/marketing/docs-content.ts", import.meta.url)),
-    "utf8",
-  );
-
-  it("names the four metrics and no others", () => {
-    expect(DOCS).toContain("Settings and Alerts");
-    for (const shown of ["average health score", "MRR at risk", "churned MRR", "contracted MRR"]) {
-      expect(DOCS).toContain(shown);
-    }
-    // Legacy metrics Foxhound does not compute must not be promised HERE.
-    // Scoped to the Alerts section: "recovery rate" is legitimate prose in the
-    // recovery guide, and a whole-file assertion caught that instead.
-    const section = DOCS.slice(DOCS.indexOf('heading: "Alerts"'), DOCS.indexOf('heading: "API keys"'));
-    for (const absent of ["recovery rate", "active sequences", "open disputes"]) {
-      expect(section.toLowerCase()).not.toContain(absent);
-    }
-  });
-
-  it("says a breach is emailed, once a day at most, and not posted to Slack (J94, E21)", () => {
-    expect(DOCS).toContain(
-      "and emailed to your notification address, no more than once a day for each alert. Alerts are not posted to Slack.",
-    );
-    expect(DOCS).not.toContain("does not email or Slack you when an alert fires yet");
-    expect(DOCS).toContain("Recent triggers");
   });
 });

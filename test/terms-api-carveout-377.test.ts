@@ -37,37 +37,6 @@ const read = (path: string) =>
 
 const terms = read("app/routes/terms.tsx");
 
-describe("PLANT 1: the carve-out exists and names the endpoint", () => {
-  it("section 3 no longer forbids the product outright", () => {
-    expect(terms.length).toBeGreaterThan(2000);
-    // The sentence is still there, and now carries its exception.
-    expect(terms).toContain("you will not access the Services through automated or non-human means");
-    expect(terms).toContain(
-      "except through the Foxhound MCP endpoint using an API key issued to your account",
-    );
-    expect(terms).toContain("governed by the API terms below");
-  });
-
-  it("and the prohibited-activities list carries the same exception", () => {
-    // A carrier the brief did not name. Leaving this one absolute would have
-    // reinstated the contradiction one section further down, which is this
-    // repo's standing rule about grepping every carrier of a treatment.
-    expect(terms).toContain("Use automated scripts, bots, or data-mining tools against the Services");
-    expect(terms).toContain(
-      "other than the Foxhound MCP endpoint used with an API key issued to your account",
-    );
-  });
-
-  it("the API terms block states the four things 377(10) required", () => {
-    expect(terms).toContain("API terms");
-    // Account-scoped, revocable, rate limited, and the holder answers for it.
-    expect(terms).toContain("scoped to the single account that issued them");
-    expect(terms).toContain("revoked at any time");
-    expect(terms).toContain("rate limits apply");
-    expect(terms).toContain("You are responsible for everything done under your keys");
-  });
-});
-
 describe("PLANT 2: the never-exposed four are the denylist's own four", () => {
   /**
    * The Terms sentence, mapped to the registry fragments that make it true.

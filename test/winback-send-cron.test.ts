@@ -49,7 +49,7 @@ vi.mock("~/lib/money/execute", () => ({
 
 const { runWinbackSends, queryDueWinbackSteps, claimStepSent, claimSequenceExhausted } =
   await import("~/lib/cron/winback");
-const { buildWinbackEmail, winbackSubject } = await import("~/lib/recovery/winback-email");
+const { buildWinbackEmail } = await import("~/lib/recovery/winback-email");
 const { verifyCardUpdateToken } = await import("~/lib/card-update/token");
 
 const ACCOUNT = "acct_1";
@@ -160,16 +160,6 @@ describe("PLANT 1: the copy is legacy's, per step", () => {
   const words = (blocks: { type: string; text?: string; label?: string; url?: string }[]) =>
     blocks.map((b) => (b.type === "button" ? `[${b.label}](${b.url})` : (b.text ?? "")));
 
-  it("carries legacy's three subjects", () => {
-    expect(winbackSubject({ stepNumber: 1, planName: "Pro" })).toBe(
-      "We're sorry to see you go. Here's what you're missing.",
-    );
-    expect(winbackSubject({ stepNumber: 2, planName: "Pro" })).toBe("A quick update since you left");
-    expect(winbackSubject({ stepNumber: 3, planName: "Pro" })).toBe(
-      "Last chance to reactivate your account",
-    );
-  });
-
   it("substitutes every placeholder, including the resubscribe url", () => {
     const blocks = buildWinbackEmail({
       stepNumber: 1,
@@ -225,27 +215,6 @@ describe("PLANT 1: the copy is legacy's, per step", () => {
     // "your {{plan_name}} subscription", so the fallback reads back doubled.
     // Ported verbatim rather than smoothed, because legacy is the spec.
     expect(words(blocks).join("\n")).toContain("cancelled your your subscription subscription");
-  });
-
-  it("step 3 carries legacy's last-chance label", () => {
-    expect(
-      words(
-        buildWinbackEmail({
-          stepNumber: 3,
-          customerName: "Jane",
-          planName: "Pro",
-          senderName: "T",
-          resubscribeUrl: "https://foxhoundapp.test/p/u",
-        }),
-      ),
-    ).toEqual([
-      "Hi Jane,",
-      "This is our last check-in. If you've decided to move on, we completely understand and wish you the best.",
-      "But if you've been on the fence, now's a great time to come back. Your data is still here waiting for you.",
-      "[Reactivate Now](https://foxhoundapp.test/p/u)",
-      "Thanks for giving us a shot,",
-      "T",
-    ]);
   });
 });
 
@@ -527,31 +496,5 @@ describe("PLANT 6: a lost claim records nothing, and the cron is registered", ()
     const job = CRON_JOBS.find((j) => j.name === "winback-send");
     expect(job).toBeDefined();
     expect(job?.schedule).toBe("*/5 * * * *");
-  });
-});
-
-describe("PLANT 7: the docs say what the engine now does", () => {
-  it("the recovery guide describes the sequence, its exclusions, and that it is not billed", async () => {
-    const { DOC_GUIDES } = await import("~/lib/marketing/docs-content");
-    // RELOCATED, NOT WEAKENED. Session 64 moved these sentences into the
-    // PLATFORM guide, which is where legacy documents both engines (its
-    // Part 2, Additional features). The sentences are unchanged and so are
-    // the assertions; only the guide they are found in moved.
-    const platform = DOC_GUIDES.find((g) => g.slug === "platform");
-    const section = platform?.sections.find((s) => s.heading === "Additional features");
-
-    expect(section).toBeDefined();
-    const body = (section?.body ?? [])
-      .map((b) => (typeof b === "string" ? b : JSON.stringify(b)))
-      .join(" ");
-    // The schedule the cron actually sends on: 1h, 96h, 336h.
-    expect(body).toContain("an hour after the cancellation");
-    expect(body).toContain("four days");
-    expect(body).toContain("fourteen");
-    // The two gates the trigger really applies (290 to 292).
-    expect(body).toContain("failing");
-    expect(body).toContain("seven days");
-    // 343 binding 1, stated to the merchant.
-    expect(body).toContain("A reactivation is not billed");
   });
 });

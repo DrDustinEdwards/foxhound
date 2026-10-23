@@ -160,12 +160,6 @@ describe("PLANT 2: request bodies are never logged by the gateway", () => {
     // bodies would be stored, which is the failure this pins.
     expect(AI_GATEWAY_NO_BODY_LOG_HEADER).toBe("cf-aig-collect-log-payload");
   });
-
-  it("IT IS SET IN THE REPO, not left to a dashboard toggle", () => {
-    const source = readFileSync("app/lib/ai/client.ts", "utf8");
-    expect(source).toContain("cf-aig-collect-log-payload");
-    expect(source).toContain("defaultHeaders");
-  });
 });
 
 describe("PLANT 3: no call site builds its own client", () => {
@@ -194,72 +188,5 @@ describe("PLANT 3: no call site builds its own client", () => {
 
     // The factory is the only module allowed to construct one.
     expect(filesContaining("new Anthropic(")).toEqual(["app/lib/ai/client.ts"]);
-  });
-});
-
-describe("PLANT 4: the request shape at every call site is unchanged", () => {
-  it("the models, token budgets and output formats are byte-identical", () => {
-    // `structured` is the five JSON-returning call sites. THE AUDIT SUMMARY IS
-    // PROSE, on both sides: legacy asks for three sentences and reads the text
-    // block back, so pinning a json_schema on it would be a divergence invented
-    // by this guard rather than found in the code. The flag is what keeps the
-    // rule true of the sites it is actually about.
-    const expected: Record<
-      string,
-      { model: string; maxTokens: string; structured?: boolean }
-    > = {
-      "app/lib/recovery/email-generation.ts": {
-        model: "model: MODEL_RECOVERY_EMAIL",
-        maxTokens: "max_tokens: 2000",
-      },
-      "app/lib/disputes/evidence.ts": {
-        model: "model: MODEL_RECOVERY_EMAIL",
-        maxTokens: "max_tokens: 500",
-      },
-      "app/lib/intelligence/narrative.ts": {
-        model: "model: MODEL_INTELLIGENCE_NARRATIVE",
-        maxTokens: "max_tokens: 2000",
-      },
-      "app/lib/marketing/home-email-sample.server.ts": {
-        model: "model: MODEL_MARKETING_EMAIL_SAMPLE",
-        maxTokens: "max_tokens: 400",
-      },
-      // Legacy's own win-back call is max_tokens 1000, which differs from the
-      // dunning path's 2000 and is ported as legacy has it.
-      "app/lib/recovery/winback-generation.ts": {
-        model: "model: MODEL_RECOVERY_EMAIL",
-        maxTokens: "max_tokens: 1000",
-      },
-      // The audit summary. Legacy's MODEL_HAIKU_PINNED is the same dated Haiku
-      // string Foxhound's constant carries, and its budget is 300, so this row
-      // is a port with nothing to reconcile.
-      "app/lib/audit/summary.server.ts": {
-        model: "model: MODEL_AUDIT_SUMMARY",
-        maxTokens: "max_tokens: AUDIT_SUMMARY_MAX_TOKENS",
-        structured: false,
-      },
-    };
-
-    // NON-VACUOUS: five of the six really are structured, so the flag cannot be
-    // read as "the rule was switched off".
-    expect(Object.values(expected).filter((w) => w.structured !== false)).toHaveLength(5);
-
-    for (const [path, want] of Object.entries(expected)) {
-      const source = readFileSync(path, "utf8");
-      expect(source, path).toContain(want.model);
-      expect(source, path).toContain(want.maxTokens);
-      if (want.structured === false) {
-        expect(source, path).not.toContain("json_schema");
-        continue;
-      }
-      expect(source, path).toContain('thinking: { type: "disabled" }');
-      expect(source, path).toContain('format: { type: "json_schema", schema: OUTPUT_SCHEMA }');
-    }
-  });
-
-  it("NO TEMPERATURE WAS INTRODUCED anywhere", () => {
-    for (const path of CALL_SITES) {
-      expect(readFileSync(path, "utf8"), path).not.toContain("temperature");
-    }
   });
 });

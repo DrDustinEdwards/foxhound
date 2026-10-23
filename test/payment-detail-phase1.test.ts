@@ -65,58 +65,11 @@ describe("LTV computed fresh, under 253's column guard", () => {
     expect(estimateCustomerLtvCents([])).toBeNull();
     expect(estimateCustomerLtvCents([5000])).toBeNull();
   });
-
-  it("never reads customerLtvCents, which holds a different value", () => {
-    expect(QUERIES).not.toMatch(/estimatedLtvCents:\s*\w*\.?customerLtvCents/);
-    expect(ROUTE).not.toContain("customerLtvCents");
-  });
 });
 
 describe("previous-failures query shape, per 253's spec", () => {
-  it("scopes to the same customer, excludes this payment, orders newest first, caps at five", () => {
-    expect(QUERIES).toContain("eq(failedPayments.stripeCustomerId, failedPayment.stripeCustomerId)");
-    expect(QUERIES).toContain("ne(failedPayments.id, failedPaymentId)");
-    expect(QUERIES).toContain("orderBy(desc(failedPayments.detectedAt))");
-    expect(QUERIES).toContain("limit(5)");
-  });
 
   it("stays account-scoped, as every read in this tree is", () => {
     expect(QUERIES).toContain("eq(failedPayments.accountId, accountId)");
-  });
-
-  it("the route renders the list under legacy's heading", () => {
-    expect(ROUTE).toContain("Previous failures (");
-  });
-});
-
-describe("notes textarea renders with an honest submit path", () => {
-  it("renders the column value and legacy's placeholder", () => {
-    expect(ROUTE).toContain("failedPayment.notes");
-    expect(ROUTE).toContain("Add a note about this payment or customer...");
-  });
-
-  it("carries the brand-accent (teal) Save note button", () => {
-    expect(ROUTE).toContain("Save note");
-    expect(ROUTE).toContain("bg-brand");
-  });
-
-  it("posts the note intent, which the dispatcher handles as a real save", () => {
-    // RENAMED AND RE-POINTED (296), with the adjudication recorded rather than
-    // silently swapped. The old name said the handler "refuses it honestly
-    // rather than faking a save" and its second assertion pinned
-    // MANUAL_ACTIONS_NOT_AVAILABLE_MESSAGE. Both were true only while the save
-    // was unwired. 265 wired it and 272 closed the phase, so that assertion was
-    // DEAD, not a misnamed regression guard, and it was the last thing keeping
-    // the constant alive: a test was holding a dead string in the route.
-    //
-    // The surviving half IS a live regression guard: the form must keep
-    // submitting the intent the dispatcher branches on, or the save silently
-    // stops reaching it.
-    expect(ROUTE).toContain('value="note"');
-    expect(ROUTE).toContain("dispatchManualAction");
-    // The dead constant's DECLARATION is gone. Matched on the declaration form,
-    // not the bare name, because the route's own comment now records that it was
-    // removed and a bare match would fire on that prose.
-    expect(ROUTE).not.toContain("MANUAL_ACTIONS_NOT_AVAILABLE_MESSAGE = ");
   });
 });

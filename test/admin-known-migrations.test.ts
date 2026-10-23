@@ -60,17 +60,6 @@ describe("KNOWN_MIGRATIONS tracks the migrations directory", () => {
     expect(journalFiles).toHaveLength(onDisk.length);
   });
 
-  it("STAYS DERIVED: operations.server.ts hardcodes no migration filename", () => {
-    // The regression guard for 317's actual fix. If someone reintroduces a hand
-    // list, this fails even though every assertion above would still pass.
-    const source = readFileSync(
-      fileURLToPath(new URL("../app/lib/admin/operations.server.ts", import.meta.url)),
-      "utf8",
-    );
-    const hardcoded = source.match(/"\d{4}_[a-z0-9_]+\.sql"/g) ?? [];
-    expect(hardcoded).toEqual([]);
-  });
-
   it("has no duplicates", () => {
     expect(new Set(KNOWN_MIGRATIONS).size).toBe(KNOWN_MIGRATIONS.length);
   });

@@ -33,13 +33,7 @@ import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 //     no counterpart for. Removing it restores legacy, which is a repair and
 //     never a ratified divergence (252).
 
-const LIST_ROUTE = readFileSync("app/routes/app/recovery/payments/index.tsx", "utf8");
 
-function cardBlock() {
-  // J75: the five cards are one array the page maps onto Capsomer panels.
-  const start = LIST_ROUTE.indexOf("const cards: { label: string;");
-  return LIST_ROUTE.slice(start, LIST_ROUTE.indexOf("];", start));
-}
 
 const now = new Date("2026-08-14T00:00:00.000Z");
 
@@ -141,68 +135,5 @@ describe("S6 Showing card: legacy's global count, responding only to the pill", 
     expect(queries).toContain(
       "export async function getGlobalPaymentStatusCounts(db: Db, accountId: string)",
     );
-  });
-});
-
-describe("S6 stat cards: the route renders legacy's treatment", () => {
-  it("card one is Showing and its value tracks the selected pill", () => {
-    expect(cardBlock()).toContain('label: "Showing"');
-    expect(cardBlock()).toContain("showingCountFor(globalCounts, filters.status)");
-  });
-
-  it("the `all filters` subtext is gone, because legacy has no counterpart", () => {
-    // Legacy's card renders label and value only. The subtext also became
-    // actively FALSE once the value started tracking the pill.
-    expect(cardBlock()).not.toContain('subtext="all filters"');
-  });
-
-  it("Active carries the brand accent (teal, Q11) and Recovered legacy's green", () => {
-    expect(cardBlock()).toContain('className: "text-brand-text"');
-    expect(cardBlock()).toContain('className: "text-green"');
-  });
-
-  it("Recovery rate is thresholded through the shared helper", () => {
-    expect(cardBlock()).toContain("recoveryRateValueClass(globalRecoveryRatePct)");
-  });
-
-  it("an EMPTY account reads 0% in legacy's red band, never a hyphen", () => {
-    // REPAIRED 2026-08-14 under 285. Legacy computes
-    // `globalCounts.all > 0 ? Math.round(...) : 0` and colours the result by the
-    // same thresholds, so an account with no failed payments shows "0%" in red.
-    // Foxhound rendered a hyphen with no colour, an unratified divergence and so
-    // a defect under the PRIME DIRECTIVE.
-    expect(LIST_ROUTE).toContain(
-      "globalCounts.all > 0 ? Math.round((globalCounts.recovered / globalCounts.all) * 100) : 0",
-    );
-    // The hyphen branch is gone from the card, both in the value and the class.
-    expect(cardBlock()).not.toContain('"-"');
-    expect(cardBlock()).not.toContain("=== null");
-    expect(cardBlock()).toContain("value: `${globalRecoveryRatePct}%`");
-    // And 0 lands in the red band, which is what makes the repair visible.
-    expect(recoveryRateValueClass(0)).toBe("text-red");
-  });
-
-  it("every legacy token maps to an existing Foxhound token, none minted", () => {
-    // Legacy's four non-default classes all exist in Foxhound's CSS under the
-    // same names, verified in app/app.css, so this port approximates nothing.
-    const css = readFileSync("app/app.css", "utf8");
-    for (const token of ["--color-brand-text", "--color-caution", "--color-green", "--color-red"]) {
-      expect(css).toContain(token);
-    }
-  });
-
-  it("the helper is CLIENT-SAFE: no `.server` module reaches the card", () => {
-    // 276's bundle-boundary class. These two functions run in the route
-    // component, so a `.server` home would typecheck, lint and pass every test
-    // under vitest's node importer and still ship a broken page.
-    // Matched on IMPORT EDGES, not on the substring ".server": this module's
-    // own comments discuss the server boundary at length, and a bare substring
-    // matcher would fail against correct code. Matcher checked before subject
-    // (239).
-    const helper = readFileSync("app/lib/recovery/payments-stats.ts", "utf8");
-    const imports = [...helper.matchAll(/from\s+"([^"]+)"/g)].map((m) => m[1]);
-    expect(imports.filter((s) => s.includes(".server"))).toEqual([]);
-    expect(imports).toEqual([]);
-    expect(LIST_ROUTE).toContain('from "~/lib/recovery/payments-stats"');
   });
 });

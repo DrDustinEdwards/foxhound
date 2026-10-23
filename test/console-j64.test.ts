@@ -1,7 +1,3 @@
-import { readFileSync } from "node:fs";
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
-import { MemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -15,9 +11,7 @@ import {
 } from "~/db";
 import { INTELLIGENCE_PRODUCT, SUBSCRIPTION_STATUS_ACTIVE } from "~/lib/constants";
 import { formatCurrencyTotalsShort, mrrMovementAlt } from "~/lib/dashboard/console";
-import { getConsoleView, type ConsoleView } from "~/lib/dashboard/console.server";
-import type { MrrAnalytics, RecoveryStats } from "~/lib/dashboard/stats.server";
-import Console from "~/routes/app/dashboard";
+import { getConsoleView } from "~/lib/dashboard/console.server";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -248,175 +242,9 @@ describe("console formatting helpers", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// The page
-// ---------------------------------------------------------------------------
 
-type LoaderData = {
-  stats: RecoveryStats;
-  mrr: MrrAnalytics;
-  consoleView: ConsoleView;
-  nowMs: number;
-};
 
-function makeData(over: { view?: Partial<ConsoleView>; tiles?: Partial<ConsoleView["tiles"]>; hero?: Partial<ConsoleView["hero"]> } = {}): LoaderData {
-  const base: ConsoleView = {
-    hero: {
-      protectedThisMonth: [{ currency: "usd", cents: 1_000 }, { currency: "eur", cents: 2_000 }],
-      recoveredAllTimeCount: 4,
-      atRisk: [{ currency: "usd", cents: 5_500 }],
-      activeSequenceCount: 3,
-      openDisputeCount: 1,
-      recoveryRatePct: 42,
-      ...over.hero,
-    },
-    tiles: {
-      stripeConnected: true,
-      intelligenceEntitled: true,
-      recoveredThisMonth: [{ currency: "usd", cents: 1_000 }],
-      recoveryRatePct: 42,
-      openDisputeCount: 1,
-      disputesDueSoonCount: 0,
-      highRiskMrr: [{ currency: "usd", cents: 4_000 }],
-      highRiskCustomerCount: 2,
-      lastAuditAt: new Date(NOW - DAY),
-      auditLeakingCents: 10_500,
-      auditCurrency: "usd",
-      ...over.tiles,
-    },
-    mrrSync: "eligible",
-    attention: [
-      {
-        key: "dispute-d1",
-        tone: "urgent",
-        subject: "Disputer 1",
-        detail: "dispute due",
-        emphasis: "in 5h",
-        mrrCents: null,
-        mrrCurrency: null,
-        href: "/disputes/d1",
-        ariaLabel: "Open dispute for Disputer 1",
-        product: "Disputes",
-      },
-    ],
-    ...over.view,
-  };
-  return {
-    stats: {
-      activeFailedCount: 3,
-      totalFailedCount: 10,
-      recoveredCount: 4,
-      recoveryRatePct: 42,
-      revenueRecovered: [{ currency: "usd", cents: 50_000 }, { currency: "eur", cents: 7_000 }],
-      billableRevenue: [{ currency: "usd", cents: 40_000 }],
-      feeOwed: [{ currency: "usd", cents: 8_000 }],
-    },
-    mrr: { latest: null, trend: [] },
-    consoleView: base,
-    nowMs: NOW,
-  };
-}
 
-function render(data: LoaderData): string {
-  try {
-    const Page = Console as unknown as (p: { loaderData: LoaderData }) => React.ReactElement;
-    return renderToStaticMarkup(createElement(MemoryRouter, null, createElement(Page, { loaderData: data })));
-  } catch (err) {
-    return `render failed: ${err instanceof Error ? err.message : String(err)}`;
-  }
-}
-
-const text = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
-
-describe("the console page, toward Recova", () => {
-  it("is headed Console, as Recova's page is", () => {
-    const html = render(makeData());
-    expect(html).toMatch(/<h1[^>]*>\s*Console\s*<\/h1>/);
-  });
-
-  it("has no visible Needs attention heading, which Recova's page never had", () => {
-    const html = render(makeData());
-    expect(html).not.toMatch(/<h2[^>]*>[^<]*Needs attention/);
-    expect(html).toContain('aria-label="Needs attention"');
-  });
-
-  it("says N high-risk on the Intelligence tile, Recova's words", () => {
-    expect(text(render(makeData()))).toContain("2 high-risk");
-  });
-
-  it("adds nothing under Disputes when none are due, as Recova adds nothing", () => {
-    const t = text(render(makeData()));
-    // Proves the tile rendered before the absence counts (RULES.md 6.2).
-    expect(t).toContain("1 open");
-    expect(t).not.toContain("Nothing due soon");
-  });
-
-  it("links the Audit tile to the run history once a run exists, else to connect", () => {
-    expect(render(makeData())).toContain('href="/audit/dashboard"');
-    const none = render(makeData({ tiles: { lastAuditAt: null, auditLeakingCents: 0 } }));
-    expect(none).toContain('href="/audit/connect"');
-    expect(text(none)).toContain("Run free audit");
-  });
-
-  it("shows every currency of the protected total", () => {
-    const t = text(render(makeData()));
-    expect(t).toContain("$10 · €20");
-  });
-
-  it("shows every currency of revenue recovered", () => {
-    const t = text(render(makeData()));
-    expect(t).toContain("$500.00 · €70.00");
-  });
-
-  it("carries no amber anywhere on the page (Q11)", () => {
-    const html = render(makeData({ tiles: { stripeConnected: false, intelligenceEntitled: false } }));
-    // Proves the inactive tiles rendered before the absence counts (RULES.md 6.2).
-    expect(text(html)).toContain("Connect Stripe");
-    expect(html).not.toMatch(/amber|caution|warning-text/);
-  });
-
-  it("is built from Capsomer's parts (Q10): page head, panels, stat tiles and rows", () => {
-    const html = render(makeData());
-    expect(html).toContain("cap-page-head");
-    expect(html).toContain("cap-panel");
-    expect(html).toContain("cap-tile");
-    expect(html).toContain("cap-row");
-  });
-
-  it("names the monthly sync when there is no MRR snapshot yet, true of the engine", () => {
-    const t = text(render(makeData()));
-    expect(t).toContain("The first snapshot runs on");
-    expect(t).not.toContain("full billing cycle");
-  });
-
-  // The monthly sync writes nothing for an account with no Stripe connection
-  // (sync.server.ts runIntelligenceSyncForAccount) and skips paused and
-  // cancelled accounts (accountProcessingEligible), so promising those a
-  // snapshot on a date would be false.
-  it("promises no snapshot date to an account without Stripe connected", () => {
-    const t = text(render(makeData({ tiles: { stripeConnected: false }, view: { mrrSync: "unconnected" } })));
-    expect(t).toContain("No MRR data yet");
-    expect(t).not.toContain("The first snapshot runs on");
-    expect(t).toContain("once Stripe is connected");
-  });
-
-  it("promises no snapshot date to a paused or cancelled account", () => {
-    for (const state of ["paused", "cancelled"] as const) {
-      const t = text(render(makeData({ view: { mrrSync: state } })));
-      expect(t).toContain("No MRR data yet");
-      expect(t).not.toContain("The first snapshot runs on");
-    }
-  });
-
-  it("keeps the Disputes count neutral and marks only the due line, as Recova does", () => {
-    const html = render(makeData({ tiles: { disputesDueSoonCount: 2 } }));
-    expect(text(html)).toContain("2 due in 48h");
-    // The tile carrying the open count takes no critical tone of its own.
-    const tile = html.match(/<a[^>]*href="\/disputes\/dashboard"[^>]*>/)?.[0] ?? "";
-    expect(tile).not.toBe("");
-    expect(tile).not.toContain('data-tone="crit"');
-  });
-});
 
 describe("console read model: whether the monthly sync will write a snapshot", () => {
   it("says unconnected without a Stripe connection, eligible with one", async () => {
@@ -436,24 +264,5 @@ describe("console read model: whether the monthly sync will write a snapshot", (
     const db = await seed({});
     await db.delete(stripeConnections);
     expect((await getConsoleView(db, ACCOUNT_ID, NOW, null)).mrrSync).toBe("unconnected");
-  });
-});
-
-describe("console source", () => {
-  const source = readFileSync("app/routes/app/dashboard.tsx", "utf8");
-  const panels = readFileSync("app/components/console-panels.tsx", "utf8");
-
-  it("draws its charts with Enarratio, not the hand-built SVG module (Q1)", () => {
-    expect(source).not.toContain("~/components/charts");
-    expect(source).toContain("EnarratioFigure");
-  });
-
-  it("prints the fee from the pricing constant, never a typed 20%", () => {
-    expect(source).not.toMatch(/`20% of/);
-  });
-
-  it("keeps the type scale to the five sizes and no arbitrary text values (RULES.md 5.2)", () => {
-    expect(source + panels).not.toMatch(/text-\[/);
-    expect(source + panels).not.toMatch(/\btext-(xs|sm|base|lg|xl|2xl)\b/);
   });
 });

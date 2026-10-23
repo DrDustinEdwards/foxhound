@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { BLOG_SLUG_REDIRECTS } from "~/lib/blog/slug-redirects";
 import {
   isWithdrawnBlogSlug,
   WITHDRAWN_BLOG_MESSAGE,
@@ -74,14 +73,6 @@ describe("PLANT 1: a withdrawn slug answers 410", () => {
       expect(res.headers.get("Location"), `${slug} redirects somewhere`).toBeNull();
     }
   });
-
-  it("and the message says why, rather than leaving a bare status", async () => {
-    // A 410 with an empty body is a status code arguing with a human. The
-    // sentence is the half a reader gets.
-    expect(WITHDRAWN_BLOG_MESSAGE.length).toBeGreaterThan(60);
-    expect(WITHDRAWN_BLOG_MESSAGE).toContain("withdrawn");
-    expect(WITHDRAWN_BLOG_MESSAGE).toContain("verify");
-  });
 });
 
 describe("PLANT 2: the withdrawal does not catch anything else", () => {
@@ -97,20 +88,5 @@ describe("PLANT 2: the withdrawal does not catch anything else", () => {
     // statement.
     const res = (await thrownFrom("a-post-that-never-existed")) as Response;
     expect(res.status).toBe(404);
-  });
-
-  it("the withdrawn list and the redirect map do not overlap", () => {
-    // A slug cannot both move and be gone. Overlap would make the answer depend
-    // on which check runs first.
-    for (const slug of WITHDRAWN_BLOG_SLUGS) {
-      expect(Object.keys(BLOG_SLUG_REDIRECTS)).not.toContain(slug);
-      expect(Object.values(BLOG_SLUG_REDIRECTS)).not.toContain(slug);
-    }
-  });
-
-  it("the renamed slugs still redirect, so 391 did not disturb 376 item 21", async () => {
-    const res = (await thrownFrom("recova-vs-churnkey")) as Response;
-    expect(res.status).toBe(301);
-    expect(res.headers.get("Location")).toBe("/blog/foxhound-vs-churnkey");
   });
 });

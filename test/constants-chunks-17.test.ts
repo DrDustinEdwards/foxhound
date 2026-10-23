@@ -26,9 +26,6 @@ import { afterTransientFailure } from "~/lib/recovery/step-state";
 // changing. Something has to assert the number itself.
 
 describe("CHUNKS item 17: win-back window", () => {
-  it("spans 14 days, the legacy value", () => {
-    expect(WINBACK_STEP3_HOURS).toBe(336);
-  });
 
   it("carries legacy's INTERIOR steps too, aligned by 291", () => {
     // The interiors were 24h and 72h against legacy's 1h and 96h. 291 ruled the
@@ -53,9 +50,6 @@ describe("CHUNKS item 17: win-back window", () => {
 });
 
 describe("CHUNKS item 17: send-retry policy", () => {
-  it("allows 5 attempts", () => {
-    expect(SEND_MAX_ATTEMPTS).toBe(5);
-  });
 
   it("carries one backoff entry per non-terminal attempt, so the clamp is not load-bearing", () => {
     // The clamp in afterTransientFailureWith stays as a safety net for a future

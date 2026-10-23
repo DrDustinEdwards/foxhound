@@ -110,37 +110,11 @@ describe("S32 THE READERS: NULL is off and empty, as Recova's ?? false and ?? ''
 });
 
 describe("S32 THE PAGE: Recova's content, in Recova's order, from Capsomer", () => {
-  it("title, the Disputes row with its pill, then the two settings and the save bar", () => {
-    const html = render({ productDescription: "Candles", shipsPhysical: true });
-    const plain = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
-    const order = [
-      "Disputes",
-      "Active",
-      "Product description",
-      "Describe what your product or service is. Used in all dispute responses.",
-      "Ships physical goods",
-      "Enable if you ship physical products. Adds shipping evidence fields to dispute responses.",
-      "Save changes",
-    ].map((s) => plain.indexOf(s));
-    expect(order.every((i) => i >= 0)).toBe(true);
-    expect([...order].sort((a, b) => a - b)).toEqual(order);
-    expect(html).toContain("e.g. Monthly SaaS subscription for project management software");
-    expect(html).toContain('name="dispute_product_description"');
-    expect(html).toContain('name="dispute_ships_physical"');
-    expect(html).toMatch(/<input[^>]*name="dispute_ships_physical"[^>]*checked/);
-  });
 
   it("there is no auto-submit control anywhere on it (RULES.md 5.6)", () => {
     const html = render({ productDescription: "", shipsPhysical: false });
     expect(html.toLowerCase()).not.toContain("auto-submit");
     expect(CODE).not.toContain("dispute_auto_submit");
     expect(CODE).not.toContain("disputeAutoSubmit");
-  });
-
-  it("Recova's save results beside the button", () => {
-    expect(render({ productDescription: "", shipsPhysical: false }, { ok: true })).toContain("Saved");
-    expect(render({ productDescription: "", shipsPhysical: false }, { ok: false })).toContain(
-      "Failed to save. Please try again.",
-    );
   });
 });

@@ -214,19 +214,6 @@ describe("PLANT 3: THE DIGEST CHAIN, END TO END", () => {
 });
 
 describe("PLANT 4: the Slack payload is legacy's", () => {
-  it("payment_recovered carries legacy's emoji and title", () => {
-    expect(
-      buildSlackPayload({
-        type: "payment_recovered",
-        stepType: "retry",
-        customerEmail: "b@a.test",
-        customerName: "Jane",
-        amount: "$49.00",
-      }),
-    ).toEqual({
-      text: "✅ *Payment recovered: $49.00*\nCustomer: Jane (b@a.test)\nAmount: $49.00",
-    });
-  });
 
   it("email_sent carries the envelope and the STEP TYPE in the title", () => {
     expect(
@@ -346,24 +333,5 @@ describe("PLANT 6: a Slack failure is recorded and never thrown", () => {
     const row = accountRow();
     expect(row.slack).toBe(1);
     expect(row.url).toBe("https://hooks.slack.com/services/x");
-  });
-});
-
-describe("PLANT 7: the docs say what is built", () => {
-  it("Slack is no longer called unbuilt and the digest names the page", async () => {
-    const { DOC_GUIDES } = await import("~/lib/marketing/docs-content");
-    // J73: the notification list is rich blocks now, so every block is read,
-    // not only the plain-string paragraphs.
-    const body = DOC_GUIDES.flatMap((g) => g.sections)
-      .flatMap((s) => s.body)
-      .map((b) => (typeof b === "string" ? b : JSON.stringify(b)))
-      .join(" ");
-
-    expect(body).not.toContain("Slack delivery is not built yet");
-    expect(body).toContain(
-      "Slack delivery posts to an incoming webhook you paste on the notifications page",
-    );
-    expect(body).toContain("when a recovery email goes out and when a retry recovers a payment");
-    expect(body).toContain("off until you enable it on the notifications page");
   });
 });

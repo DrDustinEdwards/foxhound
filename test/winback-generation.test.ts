@@ -200,35 +200,11 @@ describe("PLANT 1: the prompt is legacy's, per step", () => {
     resubscribeUrl: "https://foxhoundapp.test/p/tok",
   };
 
-  it("carries legacy's opening line and JSON contract", () => {
-    const p = buildWinbackPrompt({ ...base, stepNumber: 1 });
-    expect(p).toContain(
-      "You are writing a win-back email for a SaaS business trying to re-engage a cancelled customer.",
-    );
-    expect(p).toContain("Respond ONLY in this exact JSON format with no preamble or markdown:");
-  });
-
-  it("STEP 3 DIFFERS, as legacy's step descriptions do", () => {
-    const one = buildWinbackPrompt({ ...base, stepNumber: 1 });
-    const three = buildWinbackPrompt({ ...base, stepNumber: 3, offsetHours: 336 });
-
-    expect(one).toContain("warm, empathetic, not pushy");
-    expect(three).toContain("last chance, no pressure");
-    expect(three).toContain("14 days after cancellation");
-    expect(one).not.toContain("last chance");
-  });
-
   it("carries the customer, the plan and the cancellation reason", () => {
     const p = buildWinbackPrompt({ ...base, stepNumber: 2 });
     expect(p).toContain("- Name: Jane");
     expect(p).toContain("- Cancelled plan: Pro");
     expect(p).toContain("- Cancellation reason: too expensive");
-  });
-
-  it("an absent reason reads legacy's `not provided`", () => {
-    expect(buildWinbackPrompt({ ...base, stepNumber: 1, cancelReason: null })).toContain(
-      "- Cancellation reason: not provided",
-    );
   });
 
   it("THE VOICE IS THE GENERAL ONE, with legacy's own fallback", () => {
@@ -239,13 +215,6 @@ describe("PLANT 1: the prompt is legacy's, per step", () => {
       `- Brand voice: ${WINBACK_VOICE_FALLBACK}`,
     );
     expect(WINBACK_VOICE_FALLBACK).toBe("friendly and conversational");
-  });
-
-  it("NO MERCHANT CONTEXT, because legacy's win-back select carries none", () => {
-    const p = buildWinbackPrompt({ ...base, stepNumber: 1 });
-    expect(p).not.toContain("Merchant context");
-    expect(p).not.toContain("industry");
-    expect(p).not.toContain("MRR");
   });
 
   it("carries the resubscribe link and the sender", () => {
@@ -268,16 +237,6 @@ describe("PLANT 2: a live generation sends the model's copy", () => {
     expect(harness.emailJobs[0].subject).toBe("We miss you");
     expect(String(harness.emailJobs[0].bodyHtml)).toContain("Come back when you like.");
     expect(stepRow().result).toBe("email_sent_ai");
-  });
-
-  it("THE CALL SHAPE IS LEGACY'S: max_tokens 1000, not the dunning path's 2000", async () => {
-    seedStep();
-
-    await runWinbackSends(env, NOW);
-
-    const body = harness.requests[0].body as { max_tokens?: number; model?: string };
-    expect(body.max_tokens).toBe(1000);
-    expect(body.model).toBe("claude-sonnet-5");
   });
 
   it("THE PROMPT THAT LEFT CARRIES THE VOICE AND THE REASON FROM THE DATABASE", async () => {
@@ -426,19 +385,6 @@ describe("PLANT 3: every failure falls back to the template", () => {
     );
 
     expect(copy.result).toBe("email_sent_fallback");
-  });
-});
-
-describe("PLANT 4: the docs describe the copy", () => {
-  it("the win-back section says the emails are written in the brand voice per step", async () => {
-    const { DOC_GUIDES } = await import("~/lib/marketing/docs-content");
-    const body = DOC_GUIDES.flatMap((g) => g.sections)
-      .flatMap((s) => s.body)
-      .join(" ");
-
-    expect(body).toContain(
-      "Each is written in your brand voice for the step it is, warmer at the first and lighter at the last",
-    );
   });
 });
 

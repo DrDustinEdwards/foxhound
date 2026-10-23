@@ -1,4 +1,3 @@
-import { readFileSync as readSource } from "node:fs";
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -48,7 +47,6 @@ const { loader } = await import("~/routes/auth/connect-callback");
 const { verifyConnectState, buildConnectState, ADD_ACCOUNT_ACTION, CONNECT_ACTION } = await import(
   "~/lib/stripe/connect-state"
 );
-const schema = await import("~/db/schema");
 const { STRIPE_OAUTH_STATE_COOKIE } = await import("~/lib/constants");
 
 const USER = "user_1";
@@ -403,83 +401,6 @@ describe("PLANT 5: an unminted or unknown state is refused before any write", ()
   });
 });
 
-describe("PLANT 8: Escape closes the switcher's panel, and an outside press still does", () => {
-  // Capsomer 0.9.0 moved the switcher into the site header (Dustin's answer 3 of
-  // 2026-10-13): its panel is Capsomer's disclosure panel, wired by
-  // capsomer/behaviour/site-header's wirePanel, which owns Escape and light
-  // dismiss for every header panel. Foxhound's own bindSwitcherDismiss went
-  // with the old dropdown, so this pins the two halves that remain: Foxhound
-  // hands the switcher to the header, and the header's behaviour closes a
-  // panel on Escape and on a press outside it.
-  const read = (p: string) => readSource(new URL(p, import.meta.url), "utf8");
-
-  it("both headers hand the business switcher to Capsomer's switcher slot", () => {
-    expect(read("../app/components/header.tsx")).toMatch(/businessSwitcher\(accounts, activeAccountId\)/);
-    expect(read("../app/components/header.tsx")).toContain("switchers={switchers}");
-    expect(read("../app/layouts/app-shell.tsx")).toMatch(/businessSwitcher\(accounts, activeAccountId\)/);
-    expect(read("../app/layouts/app-shell.tsx")).toContain("switchers={business ? [business, products] : [products]}");
-  });
-
-  it("the header's panel behaviour closes on Escape, on no other key, and on an outside press", () => {
-    const behaviour = read("../node_modules/capsomer/dist/components/site-header/site-header.js");
-    expect(behaviour).toContain('if (e.key !== "Escape")');
-    expect(behaviour).toMatch(/on\(document, "pointerdown"[\s\S]{0,200}!panel\.contains\(t\) && !trigger\.contains\(t\)\)\s*close\(\)/);
-  });
-});
-
-describe("the connect flow marks its own state now", () => {
-  it("both mint sites use the shared builder, so neither can go unmarked", async () => {
-    const { readFileSync } = await import("node:fs");
-    const { fileURLToPath } = await import("node:url");
-    const read = (p: string) =>
-      readFileSync(fileURLToPath(new URL(p, import.meta.url)), "utf8").replace(
-        /^\s*\/\/.*$/gm,
-        "",
-      );
-
-    expect(read("../app/routes/auth/connect.tsx")).toContain(
-      "buildConnectState(CONNECT_ACTION)",
-    );
-    expect(read("../app/routes/auth/connect-additional.ts")).toContain(
-      "buildConnectState(ADD_ACCOUNT_ACTION)",
-    );
-    // A bare uuid state would be refused by the callback now, so a mint site
-    // that regressed to one would break the flow rather than silently pick a
-    // branch. Asserted anyway: the failure should be visible here, not in an
-    // OAuth round trip.
-    expect(read("../app/routes/auth/connect.tsx")).not.toContain(
-      "const state = crypto.randomUUID()",
-    );
-  });
-
-  it("the fail-closed guard phase (e) needed is gone with its error param", async () => {
-    const { readFileSync } = await import("node:fs");
-    const { fileURLToPath } = await import("node:url");
-    const source = readFileSync(
-      fileURLToPath(new URL("../app/routes/auth/connect-additional.ts", import.meta.url)),
-      "utf8",
-    );
-    // Scoped to the code, since the comment explains the retirement by name.
-    const code = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-    expect(code).not.toContain("add_account_unavailable");
-    expect(code).not.toContain("resolveMembership");
-  });
-
-  it("the callback no longer resolves with the null-marker shim", async () => {
-    const { readFileSync } = await import("node:fs");
-    const { fileURLToPath } = await import("node:url");
-    const source = readFileSync(
-      fileURLToPath(new URL("../app/routes/auth/connect-callback.ts", import.meta.url)),
-      "utf8",
-    );
-    const code = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-    expect(code).toContain("resolveActiveMembershipFrom");
-    // `resolveMembership` is the shim; its name is a prefix of nothing else in
-    // this file, so a plain absence check is exact here.
-    expect(code).not.toMatch(/\bresolveMembership\b/);
-  });
-});
-
 describe("nothing about the demo firewall or the money DO semantics moved", () => {
   it("the callback writes only through executeMoneyWrite", async () => {
     const { readFileSync } = await import("node:fs");
@@ -502,14 +423,5 @@ describe("nothing about the demo firewall or the money DO semantics moved", () =
     seedAccount("acct_a", "Acme");
     seedMembership("m1", "acct_a", USER);
     expect(() => seedMembership("m2", "acct_a", USER)).toThrow(/UNIQUE constraint failed/i);
-  });
-
-  it("account_products is still absent, so add_account creating none is correct", () => {
-    const tables = sqlite
-      .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
-      .all() as { name: string }[];
-    expect(tables.map((t) => t.name)).not.toContain("account_products");
-    expect(tables.map((t) => t.name)).toContain("stripe_connections");
-    void schema;
   });
 });

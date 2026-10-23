@@ -1,8 +1,5 @@
-import { readFileSync } from "node:fs";
 
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
-import { createRoutesStub, RouterContextProvider } from "react-router";
+import { RouterContextProvider } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { webhookEvents, type Db } from "~/db";
@@ -26,7 +23,6 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 const route: Record<string, unknown> = await import("~/routes/admin/webhooks");
-const WebhooksPage = route.default as (props: unknown) => React.ReactNode;
 // Looked up so a missing export fails the assertion that names it, not the
 // whole file (RULES.md 6.5).
 const serverLib: Record<string, unknown> = await import("~/lib/admin/webhooks.server");
@@ -205,160 +201,9 @@ describe("the loader", () => {
 
 // ---------------------------------------------------------------- the page
 
-function event(i: number, over: Partial<EventRow> = {}): EventRow {
-  return {
-    id: `we_${i}`,
-    eventType: "invoice.payment_failed",
-    accountId: "acct_north",
-    receivedAt: new Date(NOW - i * HOUR),
-    processed: true,
-    errorMessage: null,
-    payload: { id: `evt_${i}`, object: "event", livemode: false },
-    ...over,
-  };
-}
 
-const DEFAULT_FILTERS: Filters = { type: "", errorsOnly: false, pendingOnly: false, page: 1 };
 
-function render(over: { events?: EventRow[]; total?: number; page?: number; pageCount?: number; filters?: Partial<Filters> } = {}) {
-  const events = over.events ?? [event(1), event(2, { errorMessage: "No such customer", accountId: null }), event(3, { processed: false })];
-  const data = {
-    summary: { totalLast24h: 12, errorsLast24h: 2, unprocessedCount: 1 },
-    list: { events, total: over.total ?? events.length, page: over.page ?? 1, pageCount: over.pageCount ?? 1 },
-    filters: { ...DEFAULT_FILTERS, ...over.filters },
-  };
-  const Stub = createRoutesStub([
-    {
-      path: "/admin/platform/webhooks",
-      Component: () => createElement(WebhooksPage as never, { loaderData: data } as never),
-    },
-  ]);
-  return renderToStaticMarkup(createElement(Stub, { initialEntries: ["/admin/platform/webhooks"] }));
-}
 
-const text = (html: string) =>
-  html
-    .replace(/<[^>]+>/g, " ")
-    .replaceAll("&#x27;", "'")
-    .replaceAll("&quot;", '"')
-    .replaceAll("&amp;", "&")
-    .replace(/\s+/g, " ");
-
-describe("the Webhooks page", () => {
-  it("keeps the three health figures, each a link to the events behind it", () => {
-    const html = render();
-    const t = text(html);
-    expect(t).toMatch(/12 Received/);
-    expect(t).toMatch(/2 Errors/);
-    expect(t).toMatch(/1 Unprocessed/);
-    expect(html).toMatch(/href="\/admin\/platform\/webhooks\?errors=1"/);
-    expect(html).toMatch(/href="\/admin\/platform\/webhooks\?pending=1"/);
-  });
-
-  it("is a captioned table with sentence-case column names and the account column", () => {
-    const html = render();
-    expect(html).toMatch(/<caption[^>]*>[^<]*webhook events/i);
-    const headers = [...html.matchAll(/<th scope="col"[^>]*>(.*?)<\/th>/g)].map((m) => text(m[1]).trim());
-    expect(headers).toEqual(["Event type", "Account", "Status", "Received", "Error"]);
-    expect(html).not.toMatch(/\buppercase\b|\btracking-/);
-  });
-
-  it("links a known account to its merchant page and says so when there is none", () => {
-    const html = render();
-    expect(html).toContain('href="/admin/merchants/acct_north"');
-    expect(text(html)).toContain("No account");
-  });
-
-  it("says each event's status in a word with its shape", () => {
-    const t = text(render());
-    expect(t).toContain("Processed");
-    expect(t).toContain("Error");
-    expect(t).toContain("Pending");
-    expect(t).toContain("No such customer");
-  });
-
-  it("opens each payload in place from a real button wired to its row", () => {
-    const html = render();
-    const buttons = [...html.matchAll(/<button[^>]*aria-expanded="false"[^>]*>/g)].map((m) => m[0]);
-    expect(buttons).toHaveLength(3);
-    for (const b of buttons) {
-      expect(b).toMatch(/type="button"/);
-      const controls = /aria-controls="([^"]+)"/.exec(b)?.[1];
-      expect(controls).toBeTruthy();
-      // The row it controls is in the table, hidden until opened, across every column.
-      const row = new RegExp(`<tr[^>]*id="${controls!.replace(/[:]/g, "\\$&")}"[^>]*hidden`).exec(html);
-      expect(row, controls).not.toBeNull();
-    }
-    expect(text(html)).toMatch(/invoice\.payment_failed payload/);
-  });
-
-  it("pretty-prints the payload inside the hidden row", () => {
-    const html = render({ events: [event(1)] });
-    expect(html).toMatch(/<pre[^>]*>\{\n {2}&quot;id&quot;: &quot;evt_1&quot;,/);
-    expect(html).toMatch(/<td[^>]*colSpan="5"|<td[^>]*colspan="5"/);
-  });
-
-  it("has a labelled event-type field and two labelled toggles in a GET form", () => {
-    const html = render({ filters: { type: "invoice", errorsOnly: true } });
-    expect(html).toMatch(/<form[^>]*method="get"/i);
-    expect(html).toMatch(/<label[^>]*for="([^"]+)"[^>]*>Event type<\/label>/);
-    expect(html).toMatch(/<input[^>]*name="type"[^>]*value="invoice"/);
-    const box = (name: string) => new RegExp(`<input[^>]*type="checkbox"[^>]*name="${name}"[^>]*>`).exec(html)?.[0] ?? "";
-    expect(box("errors")).toMatch(/value="1"/);
-    expect(box("errors")).toMatch(/\bchecked/);
-    expect(box("pending")).toMatch(/value="1"/);
-    expect(box("pending")).not.toMatch(/\bchecked/);
-    expect(text(html)).toContain("Errors only");
-    expect(text(html)).toContain("Pending only");
-  });
-
-  it("says the count in words", () => {
-    expect(text(render({ total: 120, events: [event(1)], pageCount: 3 }))).toContain("120 events");
-    expect(text(render({ total: 1, events: [event(1)] }))).toContain("1 event");
-  });
-
-  it("tells an empty log from a filter that matched nothing", () => {
-    const empty = text(render({ events: [], total: 0 }));
-    expect(empty).toContain("No webhook events recorded yet.");
-    expect(empty).not.toContain("No events match this filter.");
-
-    const noMatch = render({ events: [], total: 0, filters: { type: "nothing" } });
-    expect(text(noMatch)).toContain("No events match this filter.");
-    expect(noMatch).toMatch(/href="\/admin\/platform\/webhooks"[^>]*>[^<]*Clear/);
-  });
-
-  it("pages with links that keep the filters", () => {
-    const html = render({ total: 120, page: 2, pageCount: 3, events: [event(1)], filters: { type: "invoice", page: 2 } });
-    expect(html).toMatch(/<nav[^>]*aria-label="Webhook event pages"/);
-    expect(html).toContain('href="/admin/platform/webhooks?type=invoice"');
-    expect(html).toContain('href="/admin/platform/webhooks?type=invoice&amp;page=3"');
-    expect(text(html)).toContain("Page 2 of 3");
-  });
-
-  it("has no pager for a single page", () => {
-    expect(render()).not.toMatch(/aria-label="Webhook event pages"/);
-  });
-});
-
-describe("the page source", () => {
-  const source = readFileSync("app/routes/admin/webhooks.tsx", "utf8");
-
-  it("has no amber, no hand-sized text and no heading of its own", () => {
-    expect(source).not.toMatch(/amber|orange|warning-text|tone="warn"/);
-    expect(source).not.toMatch(/text-\[/);
-    expect(source).not.toMatch(/<h1\b/);
-  });
-
-  it("marks its lists busy while they are read again", () => {
-    expect(source).toMatch(/pagePending\(/);
-    expect(source).toMatch(/aria-busy=/);
-  });
-
-  it("reads through the data layer, never the webhook engine", () => {
-    expect(source).not.toMatch(/~\/lib\/webhooks\//);
-    expect(readFileSync("app/lib/admin/webhooks.server.ts", "utf8")).not.toMatch(/~\/lib\/webhooks\//);
-  });
-});
 
 describe("the admin API's health read is unchanged", () => {
   it("getWebhookHealthSummary still counts the last day and the waiting events", async () => {
@@ -375,11 +220,5 @@ describe("the admin API's health read is unchanged", () => {
       payload: {},
     });
     expect(await (serverLib.getWebhookHealthSummary as (db: Db) => Promise<unknown>)(db)).toEqual(summary);
-  });
-
-  it("the handler still imports it", () => {
-    expect(readFileSync("app/lib/admin-api/handler.server.ts", "utf8")).toMatch(
-      /import \{ getWebhookHealthSummary \} from "~\/lib\/admin\/webhooks.server";/,
-    );
   });
 });

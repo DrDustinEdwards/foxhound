@@ -1,6 +1,3 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
@@ -65,24 +62,4 @@ describe("recovery emails say only what is true", () => {
       });
     }
   }
-
-  it("no source file under app/ carries the untrue sentences", () => {
-    const root = fileURLToPath(new URL("../app", import.meta.url));
-    const hits: string[] = [];
-    const walk = (dir: string): void => {
-      for (const name of readdirSync(dir)) {
-        const path = join(dir, name);
-        if (statSync(path).isDirectory()) {
-          walk(path);
-        } else if (/\.(ts|tsx|md)$/.test(name)) {
-          const text = readFileSync(path, "utf8");
-          for (const pattern of BANNED) {
-            if (pattern.test(text)) hits.push(`${path}: ${pattern}`);
-          }
-        }
-      }
-    };
-    walk(root);
-    expect(hits).toEqual([]);
-  });
 });

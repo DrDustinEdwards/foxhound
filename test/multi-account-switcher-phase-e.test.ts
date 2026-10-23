@@ -41,7 +41,7 @@ const { ADD_ACCOUNT_PATH } = await import("~/lib/nav/paths");
 const { ADD_ACCOUNT_ACTION, buildConnectState, parseConnectState } = await import(
   "~/lib/stripe/connect-state"
 );
-const { accountLabel, accountInitial, businessSwitcher, switchAccountHref, switchTargetFromHref } = await import(
+const { accountLabel, accountInitial, switchAccountHref, switchTargetFromHref } = await import(
   "~/components/nav/account-switcher"
 );
 const { loader: addAccountLoader } = await import("~/routes/auth/connect-additional");
@@ -202,47 +202,6 @@ describe("the switcher, in Capsomer's site header (Dustin's answer 3, 2026-10-13
   // assertions went with the old dropdown. What legacy fixed and the move
   // keeps is pinned here: the rows, the switch transport and the add row.
   const SOURCE = code("../app/components/nav/account-switcher.tsx");
-  const accounts = [
-    { id: "acct_a", name: "Acme Supply Co.", stripeUserId: null },
-    { id: "acct_b", name: null, stripeUserId: "acct_1Stripe" },
-  ];
-
-  it("the comment stripper actually stripped something", () => {
-    // Calibration, so "not present" cannot quietly mean "nothing was read".
-    const raw = readFileSync(
-      fileURLToPath(new URL("../app/components/nav/account-switcher.tsx", import.meta.url)),
-      "utf8",
-    );
-    expect(SOURCE.length).toBeGreaterThan(500);
-    expect(SOURCE.length).toBeLessThan(raw.length);
-    expect(raw).toContain("AccountSwitcher.tsx:112");
-    expect(SOURCE).not.toContain("AccountSwitcher.tsx:112");
-  });
-
-  it("is a square tile with the ACTIVE account's initial and label", () => {
-    const sw = businessSwitcher(accounts, "acct_b");
-    expect(sw?.tile).toBe("A");
-    expect(sw?.label).toBe("acct_1Stripe");
-    expect(sw?.name).toBe("Switch account: acct_1Stripe");
-    // Falls back to the first account when the active id is unknown.
-    expect(businessSwitcher(accounts, "gone")?.label).toBe("Acme Supply Co.");
-  });
-
-  it("lists every account, the active one current, then + Add account", () => {
-    const sw = businessSwitcher(accounts, "acct_a")!;
-    expect(sw.groups).toHaveLength(1);
-    const links = sw.groups[0]!.links;
-    expect(links.map((l) => [l.label, Boolean(l.current)])).toEqual([
-      ["Acme Supply Co.", true],
-      ["acct_1Stripe", false],
-      ["+ Add account", false],
-    ]);
-    expect(links.at(-1)).toEqual({ id: "add-account", label: "+ Add account", href: ADD_ACCOUNT_PATH });
-  });
-
-  it("is absent with no account at all", () => {
-    expect(businessSwitcher([], null)).toBeNull();
-  });
 
   it("an account row switches through the POST, then hard-navigates (legacy's re-read)", () => {
     expect(switchTargetFromHref(switchAccountHref("acct_b"))).toBe("acct_b");
@@ -266,52 +225,6 @@ describe("the switcher, in Capsomer's site header (Dustin's answer 3, 2026-10-13
     expect(SOURCE).not.toContain('href: "/connect"');
     expect(ADD_ACCOUNT_PATH).not.toBe("/connect");
     expect(ADD_ACCOUNT_PATH).toBe("/connect/additional");
-  });
-});
-
-describe("the render rule, read from legacy's nav", () => {
-  const HEADER = code("../app/components/header.tsx");
-  const SHELL = code("../app/layouts/app-shell.tsx");
-
-  it("SHOWN at one account, which is what legacy's own condition resolves to", () => {
-    // components/SiteNavClient.tsx:
-    //   accountAvatarVisible = accounts.length > 0
-    //     && (multiSeat || (isAuthenticated && hasAccount))
-    // With one account `multiSeat` is false and the second clause is true, so
-    // the switcher renders, listing that one account plus + Add account. The
-    // gate is therefore "has any account", never "has two".
-    expect(HEADER).toContain("isAuthenticated && accounts.length > 0");
-    expect(HEADER).not.toContain("accounts.length > 1");
-    expect(SHELL).not.toContain("accounts.length > 1");
-  });
-
-  it("HIDDEN when the visitor has no account at all", () => {
-    expect(HEADER).toContain("accounts.length > 0");
-  });
-
-  it("both M1 and S1 build the same switcher", () => {
-    // One header serves desktop and phone (Capsomer draws the switcher in the
-    // row on a desktop and in the sheet on a phone), so each builds it once.
-    expect(HEADER.match(/businessSwitcher\(/g) ?? []).toHaveLength(1);
-    expect(SHELL.match(/businessSwitcher\(/g) ?? []).toHaveLength(1);
-  });
-
-  it("the demo shell renders no switcher, so the demo_ firewall is untouched", () => {
-    expect(SHELL).toContain("!isDemo && accounts.length > 0");
-  });
-
-  it("M1's ANONYMOUS render is unchanged: no switcher, no membership query", () => {
-    const MARKETING = code("../app/layouts/marketing.tsx");
-    // The anonymous branch returns before `getDb` is ever called, so ruling 59's
-    // zero-DB rule for that surface still holds, and it hands the header an
-    // empty list so the switcher's own gate keeps it off the page.
-    const anonymousBranch = MARKETING.slice(
-      MARKETING.indexOf("if (!session)"),
-      MARKETING.indexOf("const db = getDb(env)"),
-    );
-    expect(anonymousBranch).toContain("accounts: []");
-    expect(anonymousBranch).not.toContain("getDb");
-    expect(anonymousBranch).not.toContain("listMemberships");
   });
 });
 

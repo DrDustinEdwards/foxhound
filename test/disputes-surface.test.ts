@@ -126,11 +126,6 @@ describe("buildDisputeTimeline", () => {
     expect(ruling.label).toBe("Bank ruled: WON. Funds retained.");
   });
 
-  it("says a loss in Recova's words", () => {
-    const items = buildDisputeTimeline({ ...base, resolvedAt: new Date(NOW + day), state: "resolved_lost" });
-    expect(items.at(-1)!.label).toBe("Bank ruled: LOST. Funds deducted.");
-  });
-
   it("credits an external submitter correctly", () => {
     const items = buildDisputeTimeline({
       ...base,

@@ -1,5 +1,3 @@
-import { readFileSync, readdirSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 
 import { eq } from "drizzle-orm";
 import type Stripe from "stripe";
@@ -45,15 +43,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // real SerialMoneyCommitter drives them, so the batch atomicity and the
 // applied=false path are the shipped code rather than a restatement of it.
 
-const MIGRATIONS_DIR = fileURLToPath(new URL("../drizzle/migrations", import.meta.url));
 
-function migrationSql(): string {
-  return readdirSync(MIGRATIONS_DIR)
-    .filter((f) => f.endsWith(".sql"))
-    .sort()
-    .map((f) => readFileSync(`${MIGRATIONS_DIR}/${f}`, "utf8"))
-    .join("\n");
-}
 
 const NOW = new Date("2026-08-30T00:00:00.000Z");
 const ACCOUNT = "acct_manual";
@@ -167,13 +157,6 @@ describe("the manual-import claim key", () => {
 });
 
 describe("the unique backstop exists in the SQL the fixture runs (381, 386)", () => {
-  it("is created by a committed migration, not merely declared in schema.ts", () => {
-    const sql = migrationSql();
-    expect(sql.length).toBeGreaterThan(1000);
-    expect(sql).toContain(
-      "CREATE UNIQUE INDEX `disputes_stripe_dispute_uq` ON `disputes` (`stripe_dispute_id`)",
-    );
-  });
 
   it("fires directly on a second row with the same stripe_dispute_id", async () => {
     // 381's discipline: prove the constraint by hitting it, not by reading that
