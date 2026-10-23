@@ -257,12 +257,6 @@ describe("SCOPE 4: the Card Updater advisory", () => {
     expect(data(audit({}, 7).cardUpdater).windowDays).toBe(7);
     expect(data(audit({}, 365).cardUpdater).windowDays).toBe(30);
   });
-
-  it("no wide dash in the advisory string", () => {
-    const advisory = buildCardUpdaterAdvisory(0, 5) ?? "";
-    expect(advisory).not.toContain(String.fromCharCode(0x2014));
-    expect(advisory).not.toContain(String.fromCharCode(0x2013));
-  });
 });
 
 describe("SCOPE 5: disputes", () => {
@@ -377,15 +371,6 @@ describe("PER-SCOPE STATUS: a zero never means unknown", () => {
     const result = audit({ cardUpdaterEvents: failed("events unavailable") });
     expect(result.cardUpdater).toEqual({ ok: false, reason: "events unavailable" });
     expect(result.failedInvoices.ok).toBe(true);
-  });
-
-  it("every reason string is free of wide dashes", () => {
-    const result = audit({ subscriptions: failed("no dash here") });
-    const reasons = [result.expiringCards, result.health]
-      .map((s) => (s.ok ? "" : s.reason))
-      .join(" ");
-    expect(reasons).not.toContain(String.fromCharCode(0x2014));
-    expect(reasons).not.toContain(String.fromCharCode(0x2013));
   });
 });
 

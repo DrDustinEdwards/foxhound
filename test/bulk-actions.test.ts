@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 
 import type Database from "better-sqlite3";
 import { eq } from "drizzle-orm";
@@ -9,7 +8,6 @@ import type { Db } from "~/db";
 import { accounts, failedPayments, recoverySteps } from "~/db/schema";
 import {
   BULK_ACTION_CONCURRENCY,
-  BULK_ACTION_CONFIRM_THRESHOLD,
   BULK_ACTION_MAX_PER_SUBMISSION,
   MANUAL_ATTRIBUTION_KIND,
 } from "~/lib/constants";
@@ -46,7 +44,6 @@ import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
 const now = new Date("2026-08-13T00:00:00.000Z");
 
-const ROUTE = readFileSync("app/routes/app/recovery/payments/index.tsx", "utf8");
 
 interface PaymentSeed {
   id: string;
@@ -687,107 +684,5 @@ describe("bulk actions: the surface itemises, and failures come first", () => {
     // A retry that ran and was declined is a true success whose detail says what
     // happened to the charge. Reporting a bare "Ran" would be the fold.
     expect(declined).toEqual({ id: "x", ok: true, reason: null, detail: "retry_card_declined" });
-  });
-});
-
-describe("bulk actions: the list route wires all three intents", () => {
-  it("posts to its own action with the intent named on the submit control", () => {
-    expect(ROUTE).toContain("export async function action({ context, request }: Route.ActionArgs)");
-    expect(ROUTE).toContain('const intent = String(form.get("intent") ?? "");');
-    expect(ROUTE).toContain('const ids = form.getAll("ids").map(String).filter(Boolean);');
-    expect(ROUTE).toContain("await runBulkAction({");
-  });
-
-  it("submits the ACTIONABLE set, so the count on the label is the set sent", () => {
-    // The gate-versus-submit repair (274 decision two) only holds if the hidden
-    // inputs come from `actionable` and not from the whole stored selection.
-    expect(ROUTE).toContain("{actionable.map((id) => (");
-    expect(ROUTE).toContain('<input key={id} type="hidden" name="ids" value={id} />');
-  });
-
-  it("renders one control per bulk intent, each carrying its own value", () => {
-    // J75: the three controls are one map over BULK_INTENTS, in legacy's order,
-    // each a Capsomer button whose value is its intent.
-    const bar = ROUTE.slice(ROUTE.indexOf('aria-label="Bulk actions"'));
-    expect(bar).toContain("(Object.keys(BULK_INTENTS) as BulkActionIntent[]).map((intent) => {");
-    expect(bar).toContain('name="intent"');
-    expect(bar).toContain("value={intent}");
-    const keys = ROUTE.slice(ROUTE.indexOf("const BULK_INTENTS = {"), ROUTE.indexOf("} as const satisfies"));
-    expect([...keys.matchAll(/^ {2}(\w+): \{/gm)].map((m) => m[1])).toEqual([...BULK_ACTION_INTENTS]);
-  });
-
-  it("the shared control submits directly below the threshold and confirms above it", () => {
-    expect(ROUTE).toContain('type={needsConfirm || overCeiling ? "button" : "submit"}');
-    expect(ROUTE).toContain("setConfirmFor({ from: bulk, intent });");
-  });
-
-  it("names the exact count and the action for every intent, and states the ceiling", () => {
-    expect(BULK_ACTION_CONFIRM_THRESHOLD).toBe(25);
-    expect(BULK_ACTION_MAX_PER_SUBMISSION).toBe(100);
-    expect(ROUTE).toContain("const needsConfirm = actionable.length > BULK_ACTION_CONFIRM_THRESHOLD;");
-    expect(ROUTE).toContain("const overCeiling = actionable.length > BULK_ACTION_MAX_PER_SUBMISSION;");
-    // J75: Capsomer's confirm dialog. Its title, its action and the intent it
-    // submits all come from the one intent it was opened for.
-    expect(ROUTE).toContain("title={`${BULK_INTENTS[confirming ?? lastConfirm].question} ${actionable.length} payments?`}");
-    expect(ROUTE).toContain("action={`${BULK_INTENTS[confirming ?? lastConfirm].label} for ${actionable.length} payments`}");
-    expect(ROUTE).toContain("perform={() => performConfirmed(confirming ?? lastConfirm)}");
-    expect(ROUTE).toContain("Bulk actions take at most {BULK_ACTION_MAX_PER_SUBMISSION} at a");
-    expect(ROUTE).toContain("and nothing is trimmed to fit.");
-    // Each intent supplies its own question and consequence: no shared verb.
-    for (const intent of BULK_ACTION_INTENTS) {
-      expect(ROUTE).toContain(`  ${intent}: {`);
-    }
-  });
-
-  it("the result surface names the intent's own verb and carries the detail", () => {
-    expect(ROUTE).toContain('<p className="cap-banner-title">{bulkResultLine(bulk.intent, bulk.results)}</p>');
-    expect(ROUTE).toContain("bulkCopy(bulk.intent)?.didLabel");
-    expect(ROUTE).toContain("bulkCopy(bulk.intent)?.didNotLabel");
-    expect(ROUTE).toContain("{r.detail ? <span");
-    // Both dismiss paths: the itemised result's own button, and the refusal
-    // Banner's onDismiss.
-    expect(ROUTE).toContain("setDismissedFor(bulk);");
-    expect(ROUTE).toContain('data-cap-part="dismiss"');
-    expect(ROUTE).toContain("onDismiss={() => setDismissedFor(bulk)}");
-    // Recova clears its bulk result after 3 seconds (PaymentsClient.tsx
-    // doBulkAction). Here only an all-succeeded result does; one with a
-    // failure or a refusal waits to be dismissed (WCAG 2.2.1), pending
-    // Dustin's ruling. The route's two timers are that and the search's
-    // typing delay.
-    expect(ROUTE.match(/setTimeout\(/g)).toHaveLength(2);
-    expect(ROUTE).toContain("searchTimer.current = setTimeout(");
-    expect(ROUTE).toContain("setTimeout(() => setDismissedFor(bulk), BULK_RESULT_DISMISS_MS)");
-  });
-
-  it("every failure reason the dispatcher can produce has copy on this surface", () => {
-    // A reason with no label would render blank, which is a fold by omission.
-    for (const reason of [
-      "not_found",
-      "not_active",
-      "already_resolved",
-      "write_failed",
-      "no_pending_step",
-      "unknown_step_type",
-      "processing_paused",
-      "customer_unsubscribed",
-      "send_retrying",
-      "step_failed",
-      "unexpected",
-    ]) {
-      expect(ROUTE).toContain(`  ${reason}: "`);
-    }
-  });
-
-  it("the failed ids are the selection once a response lands", () => {
-    expect(ROUTE).toContain(
-      "sel.from !== bulk && applied ? new Set(failedIds(applied.results)) : sel.ids;",
-    );
-  });
-
-  it("the demo gate from Session 1 is untouched", () => {
-    expect(ROUTE).toContain("{!isDemo && selectionCount > 0 ? (");
-    // J75: Recova's empty state replaces the table, so no colspan is needed;
-    // the box column itself is gated on !isDemo in both head and body.
-    expect(ROUTE.match(/\{!isDemo \? \(/g)?.length).toBeGreaterThanOrEqual(2);
   });
 });

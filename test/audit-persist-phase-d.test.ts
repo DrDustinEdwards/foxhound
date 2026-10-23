@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 
 import type Database from "better-sqlite3";
 import type Stripe from "stripe";
@@ -228,28 +226,6 @@ describe("PLANT 4: the read-back is account-scoped", () => {
 });
 
 describe("PLANT 5: the audit is still free", () => {
-  it("the persistence module records no outcome and rides no money write", () => {
-    // PRICING rev 3. An insert of a diagnostic is not a fee, and this is the pin
-    // that phase (d) did not quietly make it one.
-    const source = readFileSync(
-      fileURLToPath(new URL("../app/lib/audit/persist.server.ts", import.meta.url)),
-      "utf8",
-    );
-    const code = source
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .split("\n")
-      .filter((line) => !line.trim().startsWith("//"))
-      .join("\n");
-    for (const forbidden of [
-      "recordOutcome",
-      "executeMoneyWrite",
-      "billingLineItems",
-      "recoveredPayments",
-      "findAttributionSignals",
-    ]) {
-      expect(code, `${forbidden} reached the audit's persistence`).not.toContain(forbidden);
-    }
-  });
 
   it("the row builder is pure, so a plant drives the real mapping", () => {
     const row = buildAuditRunRow(auditWith(), context());

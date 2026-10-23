@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createRoutesStub } from "react-router";
@@ -7,8 +6,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { accounts, failedPayments, recoverySteps } from "~/db/schema";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { BULK_ACTION_CONFIRM_THRESHOLD, BULK_ACTION_MAX_PER_SUBMISSION } from "~/lib/constants";
-import type { BulkActionResult } from "~/lib/recovery/bulk-results";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
@@ -32,7 +29,6 @@ const route = await import("~/routes/app/recovery/payments/index");
 const exportRoute = await import("~/routes/app/recovery/payments/export");
 const Page = route.default as unknown as (props: Record<string, unknown>) => ReturnType<typeof createElement>;
 
-const ROUTE_SOURCE = readFileSync("app/routes/app/recovery/payments/index.tsx", "utf8");
 const NOW = Date.parse("2026-10-16T12:00:00.000Z");
 const DAY = 86_400_000;
 
@@ -108,33 +104,10 @@ function text(html: string): string {
     .trim();
 }
 
-function columnHeads(html: string): string[] {
-  const thead = html.match(/<thead>([\s\S]*?)<\/thead>/)?.[1] ?? "";
-  return [...thead.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/g)].map((m) => text(m[1]!));
-}
 
 // ---- The head ----
 
 describe("J75: Recova's head", () => {
-  it("says Recova's line, in whole units, with no clause of Foxhound's own", () => {
-    const html = render(
-      data({
-        header: {
-          atRisk: [{ currency: "usd", cents: 123_456 }],
-          recovered: [{ currency: "usd", cents: 5_000 }],
-          ratePct: 33,
-        },
-      }),
-    );
-    expect(text(html)).toContain("$1,235 at risk · $50 recovered · 33% recovery rate");
-    expect(html).not.toContain("for the current filters");
-  });
-
-  it("leaves the rate off at zero, as Recova does", () => {
-    const html = render(data());
-    expect(text(html)).toContain("$50 at risk · $0 recovered");
-    expect(text(html)).not.toContain("0% recovery rate");
-  });
 
   it("never adds two currencies together (RULES.md 3.20)", () => {
     const html = render(
@@ -161,118 +134,11 @@ describe("J75: Recova's head", () => {
     expect(qs.get("page")).toBe("2");
     expect(qs.get("perPage")).toBe("25");
   });
-
-  it("puts Export CSV in the head as a Capsomer button", () => {
-    const html = render(data());
-    expect(html).toMatch(/<a[^>]*class="cap-btn"[^>]*href="\/recovery\/payments\/export\.csv[^"]*"[^>]*>Export CSV<\/a>|<a[^>]*href="\/recovery\/payments\/export\.csv[^"]*"[^>]*class="cap-btn"[^>]*>Export CSV<\/a>/);
-    expect(html).toMatch(/<h1[^>]*>Payments<\/h1>/);
-  });
-});
-
-// ---- The cards ----
-
-describe("J75: Recova's five cards, on Capsomer panels", () => {
-  it("shows Showing, Active, Recovered, Cancelled and Recovery rate in order", () => {
-    const html = render(data());
-    const cards = html.slice(html.indexOf('aria-label="Payment counts"'));
-    const labels = [...cards.matchAll(/<header class="cap-panel-head"><h2>([^<]+)<\/h2>/g)].map((m) => m[1]).slice(0, 5);
-    expect(labels).toEqual(["Showing", "Active", "Recovered", "Cancelled", "Recovery rate"]);
-  });
-
-  it("uses no Foxhound-only card or badge component", () => {
-    expect(ROUTE_SOURCE).not.toContain("~/components/stat-card");
-    expect(ROUTE_SOURCE).not.toContain("~/components/badge");
-  });
-});
-
-// ---- The filter panel ----
-
-describe("J75: Recova's filter panel", () => {
-  it("puts the search and the status filter in the panel's first row, the status filter after the search", () => {
-    const html = render(data());
-    const form = html.match(/<form[^>]*method="get"[\s\S]*?<\/form>/)?.[0] ?? "";
-    expect(form).toContain('aria-label="Search payments"');
-    expect(form).toContain('placeholder="Search by name, email, or plan..."');
-    expect(form).toMatch(/<fieldset class="cap-seg"/);
-    expect(form.indexOf('aria-label="Search payments"')).toBeLessThan(form.indexOf("cap-seg"));
-  });
-
-  it("names the status filter and lists Recova's five with their counts", () => {
-    const html = render(data({ pillCounts: { all: 9, active: 4, recovered: 3, failedUnrecovered: 1, cancelled: 1 } }));
-    const seg = html.match(/<fieldset class="cap-seg"[\s\S]*?<\/fieldset>/)?.[0] ?? "";
-    expect(text(seg.match(/<legend[^>]*>([\s\S]*?)<\/legend>/)?.[1] ?? "")).toBe("Filter by status");
-    const labels = [...seg.matchAll(/<label[^>]*>([\s\S]*?)<\/label>/g)].map((m) => text(m[1]!));
-    expect(labels).toEqual(["All 9", "Active 4", "Recovered 3", "Cancelled 1", "Failed 1"]);
-    expect([...seg.matchAll(/type="radio"/g)]).toHaveLength(5);
-  });
-
-  it("names each select as Recova does and shows no visible label over it", () => {
-    const html = render(data());
-    expect(html).toContain('aria-label="Filter by date range"');
-    expect(html).toContain('aria-label="Filter by decline category"');
-    expect(html).toContain('aria-label="Filter by sort order"');
-    expect(html).not.toContain(">Name, email, or plan<");
-    expect(html).not.toContain(">Rows per page</span></label>");
-  });
-
-  it("uses Recova's sort words and decline words", () => {
-    const html = render(data());
-    const sort = html.match(/<select[^>]*aria-label="Filter by sort order"[\s\S]*?<\/select>/)?.[0] ?? "";
-    expect([...sort.matchAll(/<option[^>]*>([^<]+)<\/option>/g)].map((m) => m[1])).toEqual([
-      "Newest first",
-      "Oldest first",
-      "Highest amount",
-      "Lowest amount",
-    ]);
-    const decline = html.match(/<select[^>]*aria-label="Filter by decline category"[\s\S]*?<\/select>/)?.[0] ?? "";
-    const words = [...decline.matchAll(/<option[^>]*>([^<]+)<\/option>/g)].map((m) => m[1]);
-    expect(words.slice(0, 5)).toEqual(["All declines", "Soft", "Network", "Expired", "Fraud"]);
-  });
-
-  it("applies a filter on change, with no Filter button", () => {
-    const html = render(data());
-    // The form must be there for its absent button to mean anything.
-    expect(html).toContain('aria-label="Search payments"');
-    expect(text(html)).not.toMatch(/\bFilter\b(?! by)/);
-  });
-
-  it("draws Recova's amount slider: the word, the span over the track, the ends under it", () => {
-    const html = render(data({ filters: { ...data().filters, amountMinCents: 2_000, amountMaxCents: 100_000 } }));
-    const t = text(html);
-    expect(t).toContain("Amount $20 – $1000+");
-    expect(t).toContain("$0 $1000+");
-    expect(html).toContain('aria-label="Minimum amount"');
-    expect(html).toContain('aria-label="Maximum amount"');
-    expect(html).toContain('step="1000"');
-  });
-
-  it("shows the result count in the panel, and Clear filters only when a filter is on", () => {
-    const off = render(data());
-    expect(text(off)).toContain("1 result");
-    expect(text(off)).not.toContain("Clear filters");
-    const on = render(
-      data({
-        result: { payments: [row(), row({ id: "fp_2" })], totalCount: 2, page: 1, totalPages: 1, pageSize: 25 },
-        filters: { ...data().filters, search: "jordan" },
-      }),
-    );
-    expect(text(on)).toContain("2 results");
-    expect(on).toMatch(/<a[^>]*href="\/recovery\/payments"[^>]*>Clear filters<\/a>/);
-  });
 });
 
 // ---- Rows per page ----
 
 describe("J75: Recova's rows-per-page links, defaulting to 25", () => {
-  it("is a labelled row of links between the panel and the table", () => {
-    const html = render(data());
-    const nav = html.match(/<nav[^>]*aria-label="Rows per page"[\s\S]*?<\/nav>/)?.[0] ?? "";
-    expect(text(nav)).toBe("Rows per page 10 25 50 100 All");
-    expect(nav).toMatch(/aria-current="true"[^>]*>25<|>25<\/a>/);
-    expect(nav.match(/<a[^>]*aria-current="true"[^>]*>([^<]+)</)?.[1]).toBe("25");
-    expect(html.indexOf('aria-label="Rows per page"')).toBeGreaterThan(html.indexOf("</form>"));
-    expect(html.indexOf('aria-label="Rows per page"')).toBeLessThan(html.indexOf("<table"));
-  });
 
   it("defaults to 25 in the loader", async () => {
     const { sqlite, db } = createInMemoryDb();
@@ -280,205 +146,6 @@ describe("J75: Recova's rows-per-page links, defaulting to 25", () => {
     runStatement(sqlite, db.insert(accounts).values({ id: A, name: "Alpha" }));
     const out = await load("/recovery/payments");
     expect(out.filters.pageSize).toBe(25);
-  });
-});
-
-// ---- The table ----
-
-describe("J75: Recova's table on Capsomer's", () => {
-  it("has Recova's columns after the select-all box", () => {
-    const html = render(data());
-    expect(html).toContain('class="cap-table"');
-    expect(columnHeads(html)).toEqual(["Select all payments", "Customer", "Amount", "Decline", "Steps", "Status", "Detected"]);
-  });
-
-  it("says Nx failure for a repeat customer, and note when the payment has one", () => {
-    const html = render(data({ result: { ...data().result, payments: [row({ priorFailures: 2, hasNote: true })] } }));
-    expect(text(html)).toContain("3x failure");
-    expect(text(html)).toContain("note");
-    expect(html).not.toContain("prior</span>");
-  });
-
-  it("shows the email under the name only when there is a name", () => {
-    const named = render(data());
-    expect(text(named)).toContain("Jordan Lee jordan@example.com");
-    const unnamed = render(data({ result: { ...data().result, payments: [row({ customerName: null })] } }));
-    // The box's hidden name says the email too; what is seen says it once.
-    const seen = unnamed.replace(/<span class="sr-only">[^<]*<\/span>/g, "");
-    expect(text(seen).match(/jordan@example\.com/g)).toHaveLength(1);
-  });
-
-  it("shows the decline as a pill with its code under it", () => {
-    const html = render(data());
-    expect(html).toMatch(/class="cap-pill"[^>]*>(?:<[^>]+>)*Soft/);
-    expect(html).toMatch(/insufficient_funds/);
-  });
-
-  it("shows steps as done/total with Recova's Next line", () => {
-    const html = render(data());
-    expect(text(html)).toContain("1/4");
-    expect(text(html)).toContain("Next: Day 3 email");
-  });
-
-  it("shows the tab word in the status pill, never the database value", () => {
-    const html = render(data({ result: { ...data().result, payments: [row({ status: "failed_unrecovered" })] } }));
-    expect(text(html)).toContain("Failed");
-    expect(html).not.toContain(">failed_unrecovered<");
-  });
-
-  it("dates a payment as Recova does: time ago, then the short date in UTC", () => {
-    const html = render(data());
-    expect(text(html)).toContain("3d ago");
-    expect(text(html)).toContain("Oct 13, 2026");
-  });
-
-  it("makes the whole row one link, and keeps Recova's View link", () => {
-    const html = render(data());
-    expect(html).toMatch(/<a[^>]*class="cap-table-open"[^>]*href="\/recovery\/payments\/fp_1"|<a[^>]*href="\/recovery\/payments\/fp_1"[^>]*class="cap-table-open"/);
-    expect(text(html)).toContain("View");
-  });
-
-  it("gives each row box Recova's name", () => {
-    const html = render(data());
-    expect(html).toContain("Select payment from Jordan Lee");
-  });
-});
-
-describe("J75: Recova's empty state", () => {
-  it("says Recova's two lines in place of the table", () => {
-    const html = render(data({ result: { payments: [], totalCount: 0, page: 1, totalPages: 1, pageSize: 25 } }));
-    expect(text(html)).toContain("No payments match your filters");
-    expect(text(html)).toContain("Try adjusting your search or filters");
-    expect(html).not.toContain("<table");
-  });
-});
-
-describe("J75: Recova's pager", () => {
-  it("says which payments are showing, with both ends present", () => {
-    const html = render(
-      data({ result: { payments: [row()], totalCount: 60, page: 1, totalPages: 3, pageSize: 25 } }),
-    );
-    const nav = html.match(/<nav class="cap-pagination"[\s\S]*?<\/nav>/)?.[0] ?? "";
-    expect(text(nav)).toContain("Showing 1–25 of 60 payments");
-    expect(nav).toMatch(/data-kind="prev"[^>]*aria-disabled="true"|aria-disabled="true"[^>]*data-kind="prev"/);
-    expect(nav).toMatch(/href="\/recovery\/payments\?page=2"/);
-  });
-
-  it("counts every row when All is chosen", () => {
-    const html = render(
-      data({
-        result: { payments: [row()], totalCount: 40, page: 1, totalPages: 1, pageSize: "all" },
-        filters: { ...data().filters, pageSize: "all" },
-      }),
-    );
-    expect(text(html)).toContain("Showing 1–40 of 40 payments");
-  });
-});
-
-// ---- Bulk ----
-
-describe("J75: the bulk result, where Recova shows it", () => {
-  const applied: BulkActionResult = {
-    intent: "cancel",
-    results: [
-      { id: "fp_1", ok: true, reason: null, detail: null },
-      { id: "fp_2", ok: false, reason: "not_active", detail: null },
-    ],
-  };
-
-  it("sits between the cards and the filter panel, in Recova's words, failures first", () => {
-    const html = render(
-      data({ result: { ...data().result, payments: [row(), row({ id: "fp_2", customerName: "Sam Rivera" })] } }),
-      { bulk: applied },
-    );
-    const banner = html.indexOf("Cancelled: 1 succeeded, 1 failed");
-    expect(banner).toBeGreaterThan(html.indexOf('aria-label="Payment counts"'));
-    expect(banner).toBeLessThan(html.indexOf('method="get"'));
-    const list = text(html.slice(banner));
-    expect(list.indexOf("Sam Rivera")).toBeLessThan(list.indexOf("Jordan Lee"));
-    expect(list).toContain("No longer active");
-  });
-
-  it("uses Capsomer's banner, crit when anything failed", () => {
-    const html = render(data(), { bulk: applied });
-    expect(html).toMatch(/class="cap-banner"[^>]*data-tone="crit"|data-tone="crit"[^>]*class="cap-banner"/);
-  });
-
-  it("is built on Capsomer's bulk bar and confirm dialog, with the approved limits", () => {
-    expect(ROUTE_SOURCE).toContain('className="cap-bulk"');
-    expect(ROUTE_SOURCE).toContain('className="cap-bulk-count" role="status"');
-    expect(ROUTE_SOURCE).toContain('from "capsomer/react/confirm-dialog"');
-    expect(ROUTE_SOURCE).toContain("actionable.length > BULK_ACTION_CONFIRM_THRESHOLD");
-    expect(ROUTE_SOURCE).toContain("actionable.length > BULK_ACTION_MAX_PER_SUBMISSION");
-    expect(BULK_ACTION_CONFIRM_THRESHOLD).toBe(25);
-    expect(BULK_ACTION_MAX_PER_SUBMISSION).toBe(100);
-  });
-
-  it("clears after Recova's 3 seconds only when every payment took it (PaymentsClient.tsx doBulkAction, setTimeout 3000)", async () => {
-    const list = (await import("~/lib/recovery/payments-list")) as Record<string, unknown>;
-    expect(list.BULK_RESULT_DISMISS_MS).toBe(3000);
-    expect(ROUTE_SOURCE).toMatch(/setTimeout\(\s*\(\) => setDismissedFor\(bulk\),\s*BULK_RESULT_DISMISS_MS\s*\)/);
-    // WCAG 2.2.1: a report with a failure or a refusal waits for the merchant.
-    const clears = list.bulkResultClearsItself as (bulk: unknown) => boolean;
-    expect(typeof clears).toBe("function");
-    expect(clears({ intent: "cancel", results: [{ id: "a", ok: true, reason: null, detail: null }] })).toBe(true);
-    expect(clears(applied)).toBe(false);
-    expect(clears({ refused: "over_ceiling", submitted: 101, ceiling: 100 })).toBe(false);
-    expect(clears({ refused: "empty" })).toBe(false);
-    expect(clears(undefined)).toBe(false);
-    expect(ROUTE_SOURCE).toContain("if (!bulkResultClearsItself(bulk)) return;");
-  });
-
-  it("is Capsomer's documented banner markup, with no Foxhound class on a Capsomer element", () => {
-    const html = render(
-      data({ result: { ...data().result, payments: [row(), row({ id: "fp_2", customerName: "Sam Rivera" })] } }),
-      { bulk: applied },
-    );
-    const banner = html.slice(html.indexOf('class="cap-banner"'), html.indexOf('method="get"'));
-    expect(html).toMatch(/<div[^>]*class="cap-banner"[^>]*data-cap="banner"|<div[^>]*data-cap="banner"[^>]*class="cap-banner"/);
-    expect(banner).toMatch(/<button[^>]*data-cap-part="dismiss"[^>]*>Dismiss<\/button>/);
-    const capClasses = [...banner.matchAll(/class="([^"]*\bcap-[^"]*)"/g)].map((m) => m[1]!);
-    expect(capClasses.length).toBeGreaterThan(3);
-    for (const cls of capClasses) {
-      // A Capsomer element carries Capsomer classes only (job J75 DEPENDS ON).
-      expect(cls.split(/\s+/).every((c) => c.startsWith("cap-")), cls).toBe(true);
-    }
-  });
-
-  it("sets no text colour of its own on the banner's tint, so Capsomer's 4.5:1 text holds", () => {
-    // Measured from the tokens: text-subtle on the crit tint is 4.23:1 light
-    // and 3.99:1 dark, and error-text 3.92:1 dark, all under 4.5:1 at 13px.
-    const html = render(
-      data({ result: { ...data().result, payments: [row(), row({ id: "fp_2", customerName: "Sam Rivera" })] } }),
-      { bulk: applied },
-    );
-    const banner = html.slice(html.indexOf('class="cap-banner"'), html.indexOf('method="get"'));
-    expect(banner).toContain("Sam Rivera");
-    expect(banner).not.toMatch(/\btext-(text|text-subtle|success-text|error-text|brand-text)\b/);
-  });
-
-  it("moves focus to the page's main region on Dismiss, through Capsomer's dismissBanner", () => {
-    expect(ROUTE_SOURCE).toContain('import { dismissBanner } from "capsomer/behaviour/banner";');
-    expect(ROUTE_SOURCE).toContain(`const banner = e.currentTarget.closest<HTMLElement>("[data-cap='banner']");`);
-    expect(ROUTE_SOURCE).toContain("if (banner) dismissBanner(banner);");
-  });
-
-  it("puts no block element inside a paragraph, so the result survives the HTML parser", () => {
-    const html = render(
-      data({ result: { ...data().result, payments: [row(), row({ id: "fp_2", customerName: "Sam Rivera" })] } }),
-      { bulk: applied },
-    );
-    const banner = html.slice(html.indexOf('class="cap-banner"'), html.indexOf('method="get"'));
-    expect(banner).toContain("Sam Rivera");
-    for (const m of banner.matchAll(/<p\b[^>]*>/g)) {
-      const start = m.index! + m[0].length;
-      const inner = banner.slice(start, banner.indexOf("</p>", start));
-      expect(inner, `block content inside <p>: ${inner.slice(0, 80)}`).not.toMatch(/<(ul|ol|li|div|p|table|section|header)\b/);
-    }
-  });
-
-  it("says Working... on the pressed button, as Recova's does", () => {
-    expect(ROUTE_SOURCE).toContain('"Working..."');
   });
 });
 

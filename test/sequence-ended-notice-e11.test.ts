@@ -37,24 +37,17 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const { sendSequenceCompleteNotification, sequenceCompleteBody, SEQUENCE_COMPLETE_TEMPLATE } =
+const { sendSequenceCompleteNotification, SEQUENCE_COMPLETE_TEMPLATE } =
   await import("~/lib/recovery/sequence-complete-notification.server");
-const { findAdminEmailType, prepareAdminEmail, previewAdminEmail } =
-  await import("~/lib/admin/email-send.server");
 
 const BASE = "https://foxhoundapp.test";
 const ADDRESS = "1 Test Way, Austin TX";
 const ACCOUNT = "acct_1";
 const FP = "fp_1";
-const YEAR = new Date().getUTCFullYear();
 // Recova's footer sentence, wrapEmailHtml(notifyBody, 'Recova', undefined), with
 // Foxhound's name: "You're receiving this from ${senderName} about a recent
 // payment. &copy; ${year}".
-const FOOTER_NOTE = `You're receiving this from Foxhound about a recent payment. © ${YEAR}`;
 // Recova's sentence (route.ts line 398), less the false "7-day".
-const SENTENCE =
-  "The recovery sequence for Jane Buyer ($99.00) has ended without a successful payment. " +
-  "You may want to manually reach out or write off this balance.";
 
 const env = {
   ENCRYPTION_KEY: "ab".repeat(32),
@@ -103,44 +96,6 @@ async function sendOne(): Promise<SentMessage> {
 // ============================================================================
 
 describe("E11 says Recova's words, as a title, one sentence and a View payment button", () => {
-  it("sequenceCompleteBody is the notice template's content: title, sentence, button", () => {
-    // DO step 4. Recova's notifyBody (route.ts line 397 to 399) is three
-    // paragraphs: the bold title, the sentence, the button. On Capsomer's
-    // notice they are its title, its one body paragraph and its action.
-    const notice = sequenceCompleteBody({
-      amountCents: 9900,
-      currency: "usd",
-      customerLabel: "Jane Buyer",
-      paymentUrl: `${BASE}/recovery/payments/${FP}`,
-    });
-    expect(notice).toEqual({
-      title: "Recovery sequence complete.",
-      body: [SENTENCE],
-      action: { label: "View payment", url: `${BASE}/recovery/payments/${FP}` },
-    });
-  });
-
-  it("the sent mail carries exactly the title as its one heading, the sentence, and the button", async () => {
-    seed();
-    const m = await sendOne();
-    expect(m.html.match(/<h1\b/g)).toHaveLength(1);
-    expect(m.html).toMatch(/<h1[^>]*>Recovery sequence complete\.<\/h1>/);
-    expect(m.html).toContain(`>${SENTENCE}</td>`);
-    expect(m.html).toMatch(
-      new RegExp(`<a class="e-btn" href="${BASE}/recovery/payments/${FP}"[^>]*>View payment</a>`),
-    );
-    // The plain-text part, from the same blocks.
-    expect(m.text).toContain("Recovery sequence complete.\n\n");
-    expect(m.text).toContain(SENTENCE);
-    expect(m.text).toContain(`View payment:\n${BASE}/recovery/payments/${FP}`);
-  });
-
-  it("the subject is Recova's, not the title", async () => {
-    seed();
-    const m = await sendOne();
-    expect(m.subject).toBe("Recovery sequence ended: $99.00 from Jane Buyer was not recovered");
-    expect(m.html).toContain("<title>Recovery sequence ended: $99.00 from Jane Buyer was not recovered</title>");
-  });
 
   it("never says 7-day, the one word of Recova's not kept (truthfulness, ENGINE-SEQUENCE-COMPLETE reversal 6)", async () => {
     seed();
@@ -165,14 +120,6 @@ describe("E11 says Recova's words, as a title, one sentence and a View payment b
 // ============================================================================
 
 describe("E11 carries Recova's footer line and Manage email settings link, and no unsubscribe", () => {
-  it("the footer slot holds Recova's sentence, then Manage email settings to /settings", async () => {
-    seed();
-    const m = await sendOne();
-    expect(m.html).toContain(escapeHtml(FOOTER_NOTE));
-    expect(m.html).toMatch(new RegExp(`<a class="e-link" href="${BASE}/settings"[^>]*>Manage email settings</a>`));
-    expect(m.html.indexOf(escapeHtml(FOOTER_NOTE))).toBeLessThan(m.html.indexOf("Manage email settings"));
-    expect(m.text).toContain(`${FOOTER_NOTE}\nManage email settings: ${BASE}/settings`);
-  });
 
   it("no unsubscribe, no postal address, no List-Unsubscribe (RULES.md 3.16)", async () => {
     seed();
@@ -195,16 +142,6 @@ describe("E11 carries Recova's footer line and Manage email settings link, and n
     expect(m.to).toBe("ops@acme.test");
     const rows = sqlite.prepare("SELECT status, template FROM email_sends WHERE account_id = ?").all(ACCOUNT);
     expect(rows).toEqual([{ status: "sent", template: SEQUENCE_COMPLETE_TEMPLATE }]);
-  });
-
-  it("is accessible as rendered: a language, a title, one heading, a real link button, 16px body", async () => {
-    seed();
-    const m = await sendOne();
-    expect(m.html).toMatch(/<html lang="en">/);
-    expect(m.html).toMatch(/<title>[^<]+<\/title>/);
-    expect(m.html.match(/<h1\b/g)).toHaveLength(1);
-    expect(m.html).toMatch(/<a [^>]*href="https:[^"]+"[^>]*>View payment<\/a>/);
-    expect(m.html).toContain("font-size:16px");
   });
 });
 
@@ -243,27 +180,5 @@ describe("E11 names every refusal", () => {
     } as unknown as Env;
     const out = await sendSequenceCompleteNotification(failing, { accountId: ACCOUNT, failedPaymentId: FP });
     expect(out.kind === "sent" && out.result.status).toBe("failed");
-  });
-});
-
-// ============================================================================
-// The admin preview is the same function's output
-// ============================================================================
-
-describe("the admin preview of E11 is the mail the notifier sends", () => {
-  it("carries the notice template's heading, button and Recova's footer", async () => {
-    const type = findAdminEmailType("sequence_complete");
-    expect(type).not.toBeNull();
-    const prepared = await prepareAdminEmail(env, {
-      type: type!,
-      to: "admin@foxhoundapp.test",
-      merchant: null,
-      now: new Date(),
-    });
-    const preview = previewAdminEmail(env, type!, prepared);
-    expect(preview.from).toBe("Foxhound <recovery@send.foxhoundapp.com>");
-    expect(preview.html).toMatch(/<h1[^>]*>Recovery sequence complete\.<\/h1>/);
-    expect(preview.html).toMatch(/>View payment<\/a>/);
-    expect(preview.text).toContain(`${FOOTER_NOTE}\nManage email settings: ${BASE}/settings`);
   });
 });

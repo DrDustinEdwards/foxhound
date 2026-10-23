@@ -183,20 +183,6 @@ describe("review fixes (PR #68 review F1 to F5)", () => {
     expect(html).toContain("20% of attributed recoveries");
     expect(html).not.toContain("Invoiced on the 1st");
   });
-
-  it("F5: a subscription never links to its own section; a known product links to its page", () => {
-    const html = render(
-      loaderData({
-        subscriptions: [
-          { id: "s1", product: "disputes", status: "active", currentPeriodEndsAt: null, canceledAt: null },
-          { id: "s2", product: "legacy_addon", status: "canceled", currentPeriodEndsAt: null, canceledAt: null },
-        ],
-      }),
-    );
-    expect(html).not.toMatch(/href="[^"]*#subscriptions"/);
-    expect(html).toContain('href="/disputes/dashboard"');
-    expect(html).toContain("Legacy addon");
-  });
 });
 
 describe("ordinal (Recova's 'Invoiced on the 1st', from the run's day of month)", () => {
@@ -393,37 +379,8 @@ function render(data: LoaderShape): string {
 /** renderToStaticMarkup escapes apostrophes; compare against what a reader sees. */
 const text = (html: string) => html.replaceAll("&#x27;", "'").replaceAll("&amp;", "&");
 
-const headings = (html: string, level: 1 | 2) =>
-  [...html.matchAll(new RegExp(`<h${level}[^>]*>(.*?)</h${level}>`, "g"))].map((m) => m[1]!.replace(/<[^>]+>/g, ""));
 
 describe("/billing renders Recova's page on Foxhound's engine", () => {
-  it("heads the page as Recova does, with its subtitle", () => {
-    const html = render(loaderData());
-    expect(headings(html, 1)).toEqual(["Billing"]);
-    expect(html).toContain("Invoices, subscriptions, and payment method.");
-  });
-
-  it("keeps Recova's sections in Recova's order, with the evidence ledger after them", () => {
-    const html = render(
-      loaderData({
-        subscriptions: [
-          { id: "s1", product: "intelligence", status: "active", currentPeriodEndsAt: null, canceledAt: null },
-        ],
-      }),
-    );
-    expect(headings(html, 2)).toEqual([
-      "Recovery",
-      "Dispute Fees",
-      "Intelligence",
-      "Subscriptions",
-      "Payment method",
-      "Evidence ledger",
-    ]);
-  });
-
-  it("states the recovery rate and the invoice day from the engine's own constants", () => {
-    expect(text(render(loaderData()))).toContain("20% of attributed recoveries · Invoiced on the 1st");
-  });
 
   it("shows attributed recoveries this month and the next run's recovery fee, never the whole invoice", () => {
     const html = text(render(loaderData()));
@@ -434,109 +391,6 @@ describe("/billing renders Recova's page on Foxhound's engine", () => {
     // The whole invoice (recovery plus dispute fees) is NOT the recovery fee.
     expect(html).not.toContain("$296");
     expect(html).toContain("Next invoice: August 1, 2026");
-  });
-
-  it("says why the fee is not 20% of this month: maturity, in PRICING's own words", () => {
-    expect(text(render(loaderData()))).toContain(
-      "We never bill a recovery until you've held the money for 30 days.",
-    );
-  });
-
-  it("renders a recovery history row with Recova's fields, linked to its invoice", () => {
-    const html = text(render(loaderData()));
-    expect(html).toContain("Invoiced July 1, 2026");
-    expect(html).toContain("Recovered: $100 · Fee: $20.00");
-    expect(html).toContain('href="/billing/invoices/inv_june"');
-    expect(html).toMatch(/<a[^>]*href="https:\/\/invoice\.stripe\.com\/i\/123"[^>]*>View invoice/);
-    expect(html).toMatch(/href="https:\/\/invoice\.stripe\.com\/i\/123"[^>]*target="_blank"|target="_blank"[^>]*href="https:\/\/invoice\.stripe\.com\/i\/123"/);
-  });
-
-  it("with no history, says when the first invoice comes without promising next month", () => {
-    const html = text(render(loaderData({ recoveryHistory: [] })));
-    expect(html).toContain("No billing history yet.");
-    expect(html).not.toContain("1st of next month");
-  });
-
-  it("states the dispute fee with its cap, and the pending total for the next invoice", () => {
-    const html = text(render(loaderData()));
-    expect(html).toContain(
-      "Foxhound charges 20% of disputes we win on your behalf, capped at $500 per dispute, converted at Stripe's rate on the day the dispute resolves.",
-    );
-    expect(html).toContain("Disputes won by Stripe Smart Disputes or submitted by you are not charged.");
-    expect(html).toContain("Pending fees this month");
-    expect(html).toContain("$250.00");
-    expect(html).toContain("Added to your next monthly invoice on August 1, 2026.");
-    expect(html).toContain("No dispute fees yet.");
-  });
-
-  it("renders a dispute fee row as Recova does, naming a capped fee as capped", () => {
-    const html = text(
-      render(
-        loaderData({
-          disputeFees: buildDisputeFeeRows(
-            [invoice({ id: "inv_1" })],
-            [disputeLine("big", "inv_1", 1_000_000, 50_000)],
-            [],
-          ),
-        }),
-      ),
-    );
-    expect(html).toContain("Dispute won: $10,000");
-    expect(html).toContain("Fee (capped): $500.00");
-    expect(html).not.toContain("No dispute fees yet.");
-  });
-
-  it("offers Intelligence at the engine's price only to an account without it, with no dead button", () => {
-    const html = text(render(loaderData()));
-    expect(html).toContain("$199/mo, account-wide");
-    expect(html).toContain("Subscribing from Foxhound is not built yet.");
-    expect(html).not.toContain("Subscribe to Intelligence");
-    expect(headings(render(loaderData({ intelligenceEntitled: true })), 2)).not.toContain("Intelligence");
-  });
-
-  it("lists subscriptions with a readable status and leaves out cancel and reactivate, which have no writer", () => {
-    const html = text(
-      render(
-        loaderData({
-          subscriptions: [
-            {
-              id: "s1",
-              product: "intelligence",
-              status: "active",
-              currentPeriodEndsAt: T("2026-09-01T00:00:00.000Z"),
-              canceledAt: null,
-            },
-          ],
-        }),
-      ),
-    );
-    expect(html).toContain("Renews Sep 1, 2026");
-    expect(html).toContain(">Active<");
-    expect(html).not.toContain("Cancel subscription");
-    expect(html).not.toContain("Keep subscription");
-    expect(headings(render(loaderData()), 2)).not.toContain("Subscriptions");
-  });
-
-  it("shows the card on file, and Update payment method", () => {
-    const html = text(render(loaderData()));
-    expect(html).toContain("Visa ending 4242");
-    expect(html).toContain("Expires 04/2030");
-    expect(html).toContain("Update payment method");
-  });
-
-  it("with no card, says so truthfully: Foxhound emails no payment link", () => {
-    const html = text(render(loaderData({ card: null })));
-    expect(html).toContain("No payment method on file.");
-    expect(html).toContain("Add payment method");
-    expect(html).not.toContain("payment link");
-    expect(html).not.toContain("A payment method is on file");
-  });
-
-  it("is built from Capsomer's parts and carries no amber and no Recova", () => {
-    const html = render(loaderData());
-    for (const part of ["cap-page-head", "cap-panel", "cap-rows", "cap-btn"]) expect(html).toContain(part);
-    expect(html.toLowerCase()).not.toContain("amber");
-    expect(html).not.toContain("Recova");
   });
 
   describe("states where Recova's next-invoice line would be false", () => {

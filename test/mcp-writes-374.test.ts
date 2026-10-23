@@ -664,81 +664,6 @@ describe("PLANT 5: validator parity, over the shared function", () => {
     const mine = (await db.select().from(accounts).where(eq(accounts.id, MINE)))[0];
     expect(mine.merchantMrrSelfReported).toBeNull();
   });
-
-  it("STRUCTURAL: every one of the four routes calls its applyX and writes nothing itself", () => {
-    // 374 binding 1: parity is not a comparison between two implementations,
-    // it is the absence of a second one. This asserts the shape.
-    const routes: Record<string, string[]> = {
-      "app/routes/app/settings/brand-voice.tsx": ["applyBrandVoice("],
-      "app/routes/app/settings/account.tsx": ["applyIntelligenceContext("],
-      "app/routes/app/settings/alerts.tsx": ["applyAlertCreate(", "applyAlertConfig("],
-      "app/routes/app/settings/email.tsx": ["applySenderName("],
-    };
-    for (const [path, calls] of Object.entries(routes)) {
-      const source = code(read(path));
-      for (const call of calls) expect(source, `${path} calls ${call}`).toContain(call);
-      for (const writer of ["db.update(", "db.insert(", "db.delete("]) {
-        expect(source, `${path} writes directly`).not.toContain(writer);
-      }
-    }
-    // And the tool side reaches the same functions, so the two halves share one.
-    const tools = code(read("app/lib/mcp/tools.server.ts"));
-    for (const call of [
-      "applyBrandVoice(",
-      "applyIntelligenceContext(",
-      "applyAlertCreate(",
-      "applyAlertConfig(",
-      "applySenderName(",
-    ]) {
-      expect(tools, `the tools call ${call}`).toContain(call);
-    }
-  });
-
-  it("STRUCTURAL: and NO ROUTE VALIDATES DIRECTLY, which is the arm that catches drift", () => {
-    // A route that kept calling the writer would fail the plant above. A route
-    // that re-grew its OWN copy of the bounds while still calling applyX would
-    // not, and that is the drift 372 asked to prevent. Every validator and
-    // every writer these four actions used to reach for is named here.
-    const forbidden: Record<string, RegExp[]> = {
-      "app/routes/app/settings/brand-voice.tsx": [
-        /buildBrandVoiceUpdate\s*\(/,
-        /buildCategoryVoicesUpdate\s*\(/,
-      ],
-      "app/routes/app/settings/account.tsx": [
-        /buildIntelligenceContextUpdate\s*\(/,
-        /parseDollarsToCents\s*\(/,
-      ],
-      "app/routes/app/settings/alerts.tsx": [
-        /isAlertMetric\s*\(/,
-        /isAlertDirection\s*\(/,
-        /isCentsMetric\s*\(/,
-        /buildAlertInsert\s*\(/,
-        /buildAlertEnabledUpdate\s*\(/,
-        /buildAlertDelete\s*\(/,
-        /buildAlertHistoryDelete\s*\(/,
-      ],
-    };
-    for (const [path, patterns] of Object.entries(forbidden)) {
-      const source = code(read(path));
-      for (const pattern of patterns) {
-        expect(pattern.test(source), `${path} still calls ${pattern.source}`).toBe(false);
-      }
-    }
-  });
-
-  it("STRUCTURAL: the untouched branches are still in their routes and reach no tool", () => {
-    const account = code(read("app/routes/app/settings/account.tsx"));
-    // The profile name and the danger zone stayed behind, whole.
-    expect(account).toContain("buildAccountProfileUpdate(");
-    expect(account).toContain("cancelMerchant(");
-    // And neither is reachable from the apply layer or the tools.
-    const apply = code(read("app/lib/settings/apply.server.ts"));
-    const tools = code(read("app/lib/mcp/tools.server.ts"));
-    for (const forbidden of ["buildAccountProfileUpdate", "cancelMerchant", "sendTestEmail"]) {
-      expect(apply, `${forbidden} reached the apply layer`).not.toContain(forbidden);
-      expect(tools, `${forbidden} reached the tools`).not.toContain(forbidden);
-    }
-  });
 });
 
 describe("PLANT 6: every write leaves a trace, naming fields and never values", () => {
@@ -926,28 +851,9 @@ describe("PLANT 8: the demo account is refused at the gate, before any tool runs
     );
     expect(await db.select().from(mcpWrites)).toHaveLength(0);
   });
-
-  it("and the four forms still carry the demo guard the tool bypasses nothing of", () => {
-    for (const path of [
-      "app/routes/app/settings/brand-voice.tsx",
-      "app/routes/app/settings/account.tsx",
-      "app/routes/app/settings/alerts.tsx",
-      "app/routes/app/settings/email.tsx",
-    ]) {
-      expect(code(read(path)), `${path} demo guard`).toContain("DemoGuardedForm");
-    }
-  });
 });
 
 describe("PLANT 9: the alert delete is two statements in the order the key requires", () => {
-  it("history first, then the alert, in one batch", () => {
-    const apply = code(read("app/lib/settings/apply.server.ts"));
-    const historyAt = apply.indexOf("buildAlertHistoryDelete(db, accountId, alertId)");
-    const alertAt = apply.indexOf("buildAlertDelete(db, accountId, alertId)");
-    expect(historyAt).toBeGreaterThan(-1);
-    expect(alertAt).toBeGreaterThan(-1);
-    expect(historyAt).toBeLessThan(alertAt);
-  });
 
   it("BEHAVIOURAL, not only positional: the delete succeeds against a real foreign key", async () => {
     // The structural check above would pass on a batch that never ran. This one

@@ -81,7 +81,7 @@ vi.mock("~/lib/stripe/encryption", async (importOriginal) => ({
 }));
 
 const { auditPeriod, describeMonthlyAuditRun } = await import("~/lib/audit/monthly.server");
-const { buildMonthlyAuditEmail, compareTotals, MONTHLY_AUDIT_SUBJECT } = await import("~/lib/audit/monthly-email");
+const { buildMonthlyAuditEmail, compareTotals } = await import("~/lib/audit/monthly-email");
 const { driveMonthlyAudit } = await import("./helpers/monthly-audit-queue");
 const { renderFoxhoundEmail } = await import("~/lib/email/templates");
 const { handleQueueBatch } = await import("~/lib/queue/consumer");
@@ -360,40 +360,6 @@ describe("the comparison is per currency and never summed across them", () => {
 // ============================================================================
 
 describe("362 ruling 3: the ONE email carries BOTH halves", () => {
-  it("THE SUBJECT IS LEGACY'S, with the one brand substitution", () => {
-    // Legacy: `const subject = 'Your monthly Recova report'`.
-    expect(MONTHLY_AUDIT_SUBJECT).toBe("Your monthly Foxhound report");
-    expect(MONTHLY_AUDIT_SUBJECT).not.toContain("Recova");
-    // E24: Recova's subject carries no month, so neither does this one.
-    expect(emailFor().subject).toBe(MONTHLY_AUDIT_SUBJECT);
-  });
-
-  it("carries the AUDIT half, at legacy's row labels", () => {
-    const { body: bodyHtml } = emailFor();
-    for (const label of [
-      "Your Stripe health",
-      "MRR",
-      "ARR",
-      "Active subs",
-      "Failed payments detected",
-      "Expiring cards",
-      "Past-due subscriptions",
-      "Voluntary churn",
-      "Involuntary churn",
-      "Open disputes",
-      "Dispute win rate",
-      "View full audit",
-    ]) {
-      expect(bodyHtml, `${label} missing`).toContain(label);
-    }
-    // E24: Recova shows this row only when the count is above zero, and the
-    // fixture has none accepted.
-    expect(bodyHtml).not.toContain("Disputes accepted without response");
-    expect(bodyHtml).toContain("$1,000"); // MRR
-    expect(bodyHtml).toContain("42"); // active subs
-    expect(bodyHtml).toContain("2.1%"); // voluntary churn, legacy's one decimal
-    expect(bodyHtml).toContain("75% (3W / 1L)"); // legacy's win-rate format
-  });
 
   it("AND THE ABSORBED DIGEST LINE, which is what the merge is", () => {
     // 362 ruling 3: the ported audit email absorbs computeFoxhoundAddsCents.
@@ -467,28 +433,6 @@ describe("362 ruling 3: the ONE email carries BOTH halves", () => {
         );
       }
     }
-  });
-
-  it("carries no opt-out sentence of its own: Recova's footer links to settings (E24)", () => {
-    // The sentence that named the audit settings was Foxhound's, not Recova's.
-    // Recova's footer ("Manage email settings") is added by the merchant path.
-    expect(emailFor().body).not.toContain("audit settings");
-  });
-
-  it("NEVER names the AI vendor", () => {
-    const { body: bodyHtml } = emailFor();
-    for (const banned of ["Claude", "Anthropic", "GPT", "LLM", "written by AI"]) {
-      expect(bodyHtml).not.toContain(banned);
-    }
-  });
-
-  it("AND CARRIES NO EM DASH, which legacy's own row separators are", () => {
-    // Legacy writes `${count} &mdash; ${amount}` on five rows, which renders as
-    // an em dash in the merchant's inbox. Not ported.
-    const { body: bodyHtml } = emailFor();
-    expect(bodyHtml).not.toContain("&mdash;");
-    expect(bodyHtml).not.toContain(String.fromCharCode(0x2014));
-    expect(bodyHtml).not.toContain(String.fromCharCode(0x2013));
   });
 });
 

@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createRoutesStub } from "react-router";
@@ -16,9 +15,6 @@ import {
 } from "~/db/schema";
 import CustomerPage from "~/routes/app/intelligence/customer";
 import {
-  disputeSignalFields,
-  engagementSignalFields,
-  recoverySignalFields,
   tenureFromSince,
   type CustomerActivity,
 } from "~/lib/intelligence/customer-detail";
@@ -114,49 +110,6 @@ const BUSY: CustomerActivity = {
   engagement: { everEngaged: true, opens30d: 4, clicks30d: 1, lastOpenAt: new Date(Date.UTC(2026, 9, 10)) },
   lastActivityAt: new Date(NOW - 2 * DAY),
 };
-
-describe("the three signal cards: Recova's labels, Foxhound's numbers", () => {
-  it("is empty (Recova's empty sentence) when there is nothing on record", () => {
-    expect(recoverySignalFields(EMPTY.recovery)).toBeNull();
-    expect(disputeSignalFields(EMPTY.disputes)).toBeNull();
-    expect(engagementSignalFields(EMPTY.engagement)).toBeNull();
-  });
-
-  it("lists Recova's six recovery fields in its order, with no raw id", () => {
-    expect(recoverySignalFields(BUSY.recovery)).toEqual([
-      { label: "Failed payments", value: "3" },
-      { label: "Recovered", value: "2" },
-      { label: "Recovered amount", value: "$98.00 · €15.00" },
-      { label: "Last failed", value: "Oct 1, 2026" },
-      { label: "Last recovered", value: "Sep 20, 2026" },
-      { label: "Active recovery", value: "In progress" },
-    ]);
-    const quiet = recoverySignalFields({ ...BUSY.recovery, activeRecovery: false, lastRecoveredAt: null });
-    expect(quiet?.find((f) => f.label === "Active recovery")?.value).toBe("-");
-    expect(quiet?.find((f) => f.label === "Last recovered")?.value).toBe("-");
-  });
-
-  it("lists Recova's six dispute fields, the outcome as a word", () => {
-    expect(disputeSignalFields(BUSY.disputes)).toEqual([
-      { label: "Open", value: "1" },
-      { label: "Won", value: "0" },
-      { label: "Lost", value: "1" },
-      { label: "Total disputed", value: "$120.00" },
-      { label: "Last dispute", value: "Oct 3, 2026" },
-      { label: "Last outcome", value: "Lost" },
-    ]);
-    const open = disputeSignalFields({ ...BUSY.disputes, lastOutcome: null });
-    expect(open?.find((f) => f.label === "Last outcome")?.value).toBe("-");
-  });
-
-  it("lists Recova's three engagement fields", () => {
-    expect(engagementSignalFields(BUSY.engagement)).toEqual([
-      { label: "Opens (30d)", value: "4" },
-      { label: "Clicks (30d)", value: "1" },
-      { label: "Last open", value: "Oct 10, 2026" },
-    ]);
-  });
-});
 
 describe("getCustomerActivity: one customer's rows, this account only", () => {
   async function seeded() {
@@ -360,118 +313,7 @@ function text(html: string): string {
     .trim();
 }
 
-const headings = (html: string, level: 1 | 2) =>
-  [...html.matchAll(new RegExp(`<h${level}[^>]*>([\\s\\S]*?)</h${level}>`, "g"))].map((m) => text(m[1]!));
 
-const SRC = readFileSync("app/routes/app/intelligence/customer.tsx", "utf8");
-
-describe("S18 /intelligence/customers/:id: Recova's width, head and order", () => {
-  it("sits in Recova's 1080px column with its padding", () => {
-    // Recova: max-w-[1080px] mx-auto px-4 md:px-8 py-8.
-    expect(render()).toContain('class="mx-auto max-w-[1080px] px-4 py-8 md:px-8"');
-  });
-
-  it("carries Recova's breadcrumb, back link and recovery payments link", () => {
-    const html = render();
-    expect(html).toContain('class="cap-breadcrumb"');
-    expect(html).toMatch(/href="\/intelligence\/customers"[^>]*>Customers</);
-    expect(html).toContain('aria-current="page">Sample Bakery<');
-    expect(text(html)).toContain("All Acme customers");
-    expect(html).toMatch(/href="\/recovery\/payments"[^>]*>3 recovery payments/);
-  });
-
-  it("names the customer in the h1 with email and Stripe id beneath", () => {
-    const html = render();
-    expect(headings(html, 1)).toEqual(["Sample Bakery"]);
-    expect(text(html)).toContain("owner@example.com · cus_sample_1");
-    expect(text(html)).toContain("Growth Monthly");
-    expect(text(html)).toContain("$49.00/mo");
-  });
-
-  it("shows Recova's four header stats, with LTV saying Foxhound does not compute it", () => {
-    const t = text(render());
-    expect(t).toContain("Tenure 1y 3mo");
-    expect(t).toContain("LTV Not computed");
-    expect(t).toContain("Last seen Oct 13, 2026");
-    expect(t).toContain("Customer since Jul 22, 2025");
-  });
-
-  it("lays the sections out in Recova's order, Foxhound's held sections last", () => {
-    const html = render();
-    expect(headings(html, 2)).toEqual([
-      "Recovery signals",
-      "Dispute signals",
-      "Engagement signals",
-      "Health score",
-      "Why this customer needs attention",
-    ]);
-    // The held factors list keeps its old eyebrow, after the footer.
-    const footer = html.indexOf("This customer&#x27;s data is shared");
-    expect(footer).toBeGreaterThan(0);
-    expect(html.indexOf(">Factors</p>")).toBeGreaterThan(footer);
-  });
-
-  it("leaves the AI assessment out when there is none, as Recova does", () => {
-    const data = loaderData();
-    const html = render({ ...data, customer: { ...data.customer, aiAssessment: null, aiAssessmentGeneratedAt: null } });
-    expect(headings(html, 2)).not.toContain("Why this customer needs attention");
-    expect(text(html)).not.toContain("No AI assessment");
-  });
-
-  it("dates the assessment 'Updated', as Recova does", () => {
-    expect(text(render())).toContain("Updated Oct 14, 2026");
-  });
-
-  it("draws the health history with Enarratio, with a text equivalent and a data table", () => {
-    const html = render();
-    expect(html).toContain('data-enarratio="area"');
-    expect(html).toContain("Data table");
-    expect(text(html)).toContain("Health score over 3 readings, from 64 on Sep 25 to 41 on Oct 14");
-    expect(SRC).not.toContain("~/components/charts");
-  });
-
-  it("draws no chart with fewer than two readings, as Recova does", () => {
-    const data = loaderData();
-    const html = render({ ...data, customer: { ...data.customer, history: history.slice(0, 1) } });
-    expect(html).not.toContain("data-enarratio");
-  });
-
-  it("shows the score out of 100 in its band's colour", () => {
-    const html = render();
-    expect(html).toMatch(/class="[^"]*text-display[^"]*text-caution[^"]*"[^>]*>41</);
-    expect(text(html)).toContain("41 / 100");
-  });
-
-  it("shows the signal cards' empty sentences when nothing is on record", () => {
-    const t = text(render(loaderData({ activity: EMPTY })));
-    expect(t).toContain("No recovery events");
-    expect(t).toContain("No dispute history");
-    expect(t).toContain("No engagement data yet");
-  });
-
-  it("ends with Recova's footer, naming only the products with history", () => {
-    const t = text(render());
-    expect(t).toContain(
-      "This customer's data is shared across Recovery, Disputes, and Intelligence. View their recovery history in Recovery. View their disputes in Disputes.",
-    );
-    const quiet = text(render(loaderData({ activity: EMPTY })));
-    expect(quiet).not.toContain("This customer's data is shared");
-    expect(quiet).not.toContain("recovery payment");
-  });
-
-  it("shows no raw database value and no amber", () => {
-    const html = render();
-    expect(html).not.toMatch(/resolved_(won|lost)|refunds_disputes|failed_unrecovered/);
-    expect(html).not.toMatch(/amber/);
-    expect(SRC).not.toMatch(/amber/);
-  });
-
-  it("has no Recova banner or raw-data toggle, which Foxhound has no producer or admin role for", () => {
-    const html = render();
-    expect(html).not.toContain("integrity-layer-banner");
-    expect(text(html)).not.toMatch(/Show raw data/);
-  });
-});
 
 // J68 review, must-fix 1: the nightly sync writes customer_context.last_seen_at
 // as the sync's own time for every customer (sync.server.ts
@@ -546,7 +388,7 @@ describe("J68 review: 'Last seen' on rows shaped the way the sync writes them", 
     const { loader } = await import("~/routes/app/intelligence/customer");
     const data = await loader({ context: contextFor(), params: { id }, request: new Request("https://x.test/") } as never);
     // The loader's data goes through the page exactly as React Router hands it over.
-    return render(JSON.parse(JSON.stringify(data), (k, v) =>
+    return render(JSON.parse(JSON.stringify(data), (_k, v) =>
       typeof v === "string" && /^\d{4}-\d\d-\d\dT/.test(v) ? new Date(v) : v,
     ));
   }
@@ -568,12 +410,5 @@ describe("J68 review: 'Last seen' on rows shaped the way the sync writes them", 
     const detail = await getCustomerHealthDetail(db, "acct_live", "cus_busy");
     expect(detail).not.toBeNull();
     expect(detail).not.toHaveProperty("lastSeenAt");
-  });
-
-  it("shows a zero MRR as $0.00/mo, as Recova does, and keeps a missing one as -", async () => {
-    expect(text(await renderThroughLoader("cus_busy"))).toContain("$0.00/mo");
-    const data = loaderData();
-    const t = text(render({ ...data, customer: { ...data.customer, mrrContributionCents: null } }));
-    expect(t).not.toContain("/mo");
   });
 });

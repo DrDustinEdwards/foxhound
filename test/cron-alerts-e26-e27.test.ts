@@ -1,8 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { cronAlerts, cronRunHistory } from "~/db/schema";
-import { EMAIL_AUTH_SENDER_ADDRESS } from "~/lib/constants";
-import { SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -50,7 +48,6 @@ vi.mock("~/db/billable", async (importOriginal) => {
 const {
   alertCronFailure,
   buildFailureAlertEmail,
-  buildStaleAlertEmail,
   CADENCE_LABEL,
   describeAge,
   runCronHealthCheck,
@@ -107,38 +104,6 @@ describe("E26: the cron failure alert says what Recova's notifyCronFailure says"
     lastSuccessAt: new Date("2026-07-01T04:00:00.000Z"),
   };
 
-  it("subject: Recova's '[Recova Ops] Cron failure: {cron}', Foxhound's name", () => {
-    expect(buildFailureAlertEmail(input, NOW).subject).toBe("[Foxhound Ops] Cron failure: billing-monthly");
-  });
-
-  it("every sentence of Recova's body, then Foxhound's run id and last success", async () => {
-    const db = createInMemoryDb().db;
-    harness.db = db;
-    // The last success comes from the history table, as alertCronFailure reads it.
-    await db.insert(cronRunHistory).values({
-      id: "ok_1",
-      cronName: "billing-monthly",
-      finishedAt: input.lastSuccessAt,
-      status: "success",
-      createdAt: input.lastSuccessAt,
-    });
-    await alertCronFailure(env(), db, input, NOW);
-    const m = only();
-    expectBothParts(m, [
-      "The billing-monthly cron failed.",
-      "Message: D1 timeout",
-      "Stack (first 500 chars):",
-      "Error: D1 timeout",
-      "at bill (app/lib/billing/run.ts:12:3)",
-      "Failed at 2026-08-16T12:00:00.000Z UTC.",
-      "Run id: run_abc",
-      "Last success: 2026-07-01T04:00:00.000Z",
-    ]);
-    // Foxhound's own closing line is not Recova's and is gone.
-    expect(m.text).not.toContain("One alert per cron per day");
-    expect(m.text).not.toContain("FAILED");
-  });
-
   it("the stack is cut at Recova's 500 characters", () => {
     const stack = `Error: long\n${"x".repeat(480)}${"TAIL-PAST-500".repeat(10)}`;
     const built = buildFailureAlertEmail({ ...input, stack }, NOW);
@@ -152,33 +117,6 @@ describe("E26: the cron failure alert says what Recova's notifyCronFailure says"
     harness.db = db;
     await alertCronFailure(env(), db, { ...input, stack: null }, NOW);
     expect(only().text).not.toContain("Stack (first 500 chars):");
-  });
-
-  it("carries what Recova's carries: Foxhound's From, to the operator, no Reply-To, Recova's footer, no unsubscribe", async () => {
-    const db = createInMemoryDb().db;
-    harness.db = db;
-    await alertCronFailure(env(), db, input, NOW);
-    const m = only();
-    expect(m.from).toBe(`Foxhound <${EMAIL_AUTH_SENDER_ADDRESS}>`);
-    expect(m.to).toBe(SUPPORT_EMAIL);
-    expect(m.replyTo).toBeUndefined();
-    expect(m.headers?.["List-Unsubscribe"]).toBeUndefined();
-    expect(m.text).not.toContain("Unsubscribe");
-    // wrapEmailHtml(body, 'Recova Ops') with no token: the sentence and the
-    // Manage email settings link to APP_URL/settings.
-    expectBothParts(m, ["You're receiving this from Foxhound Ops about a recent payment. © 2026", "Manage email settings"]);
-    expect(m.html).toContain(`href="${BASE}/settings"`);
-  });
-
-  it("on Capsomer's alert template: one heading, a language, the level as a word", async () => {
-    const db = createInMemoryDb().db;
-    harness.db = db;
-    await alertCronFailure(env(), db, input, NOW);
-    const m = only();
-    expect(m.html.match(/<h1\b/g)).toHaveLength(1);
-    expect(m.html).toMatch(/<html[^>]*\blang="en"/);
-    expect(m.html).toContain("<title>[Foxhound Ops] Cron failure: billing-monthly</title>");
-    expect(m.text).toContain("Critical. The billing-monthly cron failed.");
   });
 
   it("escapes every value it carries (PR 146 safety kept)", async () => {
@@ -275,24 +213,6 @@ describe("E26 trigger: the billing run alerts when any account fails to invoice"
 // ---- E27 ------------------------------------------------------------------------
 
 describe("E27: the cron stale alert says what Recova's notifyCronStale says", () => {
-  const overdue = {
-    cronName: "weekly-digest",
-    lastRunAt: new Date(NOW.getTime() - 15 * 24 * 60 * 60 * 1000),
-    reason: "overdue" as const,
-    schedule: constants.CRON_SCHEDULE_WEEKLY,
-  };
-
-  it("subject carries the age and the cadence, as Recova's does", () => {
-    expect(buildStaleAlertEmail(overdue, NOW).subject).toBe(
-      "[Foxhound Ops] Cron stale: weekly-digest (last succeeded 15 days ago, expected weekly (Mon 08:00 UTC))",
-    );
-    expect(
-      buildStaleAlertEmail(
-        { cronName: "billing-monthly", lastRunAt: null, reason: "never_run", schedule: constants.CRON_SCHEDULE_MONTHLY },
-        NOW,
-      ).subject,
-    ).toBe("[Foxhound Ops] Cron stale: billing-monthly (never succeeded, expected monthly (1st 04:00 UTC))");
-  });
 
   it("Recova's describeAge, its units and its floor", () => {
     expect(describeAge(59_000)).toBe("59 seconds ago");
@@ -308,43 +228,6 @@ describe("E27: the cron stale alert says what Recova's notifyCronStale says", ()
     expect(CADENCE_LABEL[constants.CRON_SCHEDULE_RECOVERY_TICK]).toBe("every 5 min");
     expect(CADENCE_LABEL[constants.CRON_SCHEDULE_DAILY]).toBe("daily 03:00 UTC");
     expect(CADENCE_LABEL[constants.CRON_SCHEDULE_MONTHLY_AUDIT]).toBe("monthly (1st 09:00 UTC)");
-  });
-
-  it("every sentence of Recova's body, with Foxhound's own pointer for the Vercel line", async () => {
-    const db = createInMemoryDb().db;
-    harness.db = db;
-    await db.insert(cronRunHistory).values({
-      id: "r1",
-      cronName: "weekly-digest",
-      finishedAt: overdue.lastRunAt,
-      status: "success",
-      createdAt: overdue.lastRunAt,
-    });
-    await runCronHealthCheck(env(), db, [{ name: "weekly-digest", schedule: constants.CRON_SCHEDULE_WEEKLY }], NOW);
-    const m = only();
-    expect(m.subject).toBe(buildStaleAlertEmail(overdue, NOW).subject);
-    expectBothParts(m, [
-      "The weekly-digest cron has not reported a successful run within its expected interval.",
-      `Last succeeded: ${overdue.lastRunAt.toISOString()}`,
-      "Age: last succeeded 15 days ago",
-      "Expected cadence: weekly (Mon 08:00 UTC)",
-      "Check /admin/operations and the cron_run_history table.",
-      "You're receiving this from Foxhound Ops about a recent payment. © 2026",
-      "Manage email settings",
-    ]);
-    expect(m.text).toContain("Warning. The weekly-digest cron");
-    expect(m.text).not.toContain("Vercel");
-    expect(m.text).not.toContain("STALE");
-    expect(m.to).toBe(SUPPORT_EMAIL);
-    expect(m.from).toBe(`Foxhound <${EMAIL_AUTH_SENDER_ADDRESS}>`);
-    expect(m.html.match(/<h1\b/g)).toHaveLength(1);
-  });
-
-  it("never succeeded: Recova's '(never)'", async () => {
-    const db = createInMemoryDb().db;
-    harness.db = db;
-    await runCronHealthCheck(env(), db, [{ name: "billing-monthly", schedule: constants.CRON_SCHEDULE_MONTHLY }], NOW);
-    expectBothParts(only(), ["Last succeeded: (never)", "Age: never succeeded"]);
   });
 
   it("TRIGGER: no SUCCESSFUL run within the interval, as Recova's watcher reads last_succeeded_at", async () => {

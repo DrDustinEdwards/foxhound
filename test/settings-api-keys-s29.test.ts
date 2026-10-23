@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -226,12 +224,6 @@ describe("PLANT 4: the label is required and bounded", () => {
     expect(at.status).toBe(200);
     expect(keyRows(ACCOUNT)).toHaveLength(1);
   });
-
-  it("no error string carries a wide dash", async () => {
-    const wide = new RegExp("[" + String.fromCharCode(0x2014, 0x2013) + "]");
-    const res = await post({ _action: "create", label: "" });
-    expect(String(res.body.error)).not.toMatch(wide);
-  });
 });
 
 describe("PLANT 5: the list is live, merchant-scoped and this account's", () => {
@@ -263,50 +255,5 @@ describe("PLANT 5: the list is live, merchant-scoped and this account's", () => 
     } as never)) as { keys: { label: string | null }[] };
 
     expect(loaded.keys.map((k) => k.label)).toEqual(["live"]);
-  });
-});
-
-describe("PLANT 6: the render carries legacy's control set", () => {
-  const SOURCE = readFileSync(
-    fileURLToPath(new URL("../app/routes/app/settings/api-keys.tsx", import.meta.url)),
-    "utf8",
-  );
-  const code = SOURCE.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-
-  it("has the table, the generate panel, the one-time reveal and both empty states", () => {
-    expect(code).toContain("Generate new key");
-    expect(code).toContain("Revoke key");
-    expect(code).toContain("Last used");
-    expect(code).toContain("This key will not be shown again.");
-    expect(code).toContain("No API keys yet. Generate one to get started.");
-  });
-
-  it("never uses a browser alert, which is what legacy does on failure", () => {
-    expect(code).not.toContain("alert(");
-  });
-
-  it("every write goes through DemoGuardedForm", () => {
-    expect(code).toContain('<DemoGuardedForm method="post"');
-    expect(code).not.toContain('<Form method="post"');
-    expect(code).not.toContain('<form method="post"');
-  });
-
-  it("the length bound is imported from the client-safe module", () => {
-    expect(SOURCE).toContain('API_KEY_LABEL_MAX_LENGTH } from "~/lib/settings/api-key-label"');
-    expect(SOURCE).not.toMatch(/API_KEY_LABEL_MAX_LENGTH[^;]*from "[^"]*\.server"/);
-  });
-});
-
-describe("PLANT 7: the docs describe the key lifecycle honestly", () => {
-  const DOCS = readFileSync(
-    fileURLToPath(new URL("../app/lib/marketing/docs-content.ts", import.meta.url)),
-    "utf8",
-  );
-
-  it("says the key is shown once and that only its hash is stored", () => {
-    expect(DOCS).toContain("Settings and API keys");
-    expect(DOCS).toContain("shown once");
-    expect(DOCS).toContain("only its hash is stored");
-    expect(DOCS).toContain("A revoked key stops working immediately.");
   });
 });

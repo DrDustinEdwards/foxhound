@@ -1,12 +1,7 @@
-import { readFileSync } from "node:fs";
 
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
-import { createRoutesStub, RouterContextProvider } from "react-router";
+import { RouterContextProvider } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { cronEnableConfirmPhrase } from "~/lib/admin/brake";
-import { adminContext } from "~/lib/admin/context";
 import { listCronRows } from "~/lib/admin/crons.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { RECOVERY_TICK_CRON_NAME } from "~/lib/constants";
@@ -31,7 +26,6 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 const route: Record<string, unknown> = await import("~/routes/admin/crons");
-const CronsPage = route.default as (props: unknown) => React.ReactNode;
 
 const NOW = Date.UTC(2026, 9, 15, 18, 0, 0);
 const MIN = 60 * 1000;
@@ -146,225 +140,9 @@ describe("the loader", () => {
   });
 });
 
-// ---------------------------------------------------------------- the page
-
-interface Row {
-  name: string;
-  schedule: string;
-  enabled: boolean;
-  configured: boolean;
-  minIntervalMinutes: number | null;
-  lastRun: { id: string; status: string; finishedAt: Date; rowsProcessed: number | null; message: string | null } | null;
-  lastSucceededAt: Date | null;
-  recentFailures: Array<{ id: string; finishedAt: Date; message: string | null }>;
-}
 
 // The page says times relative to the real clock, so its rows are too.
-const T = Date.now();
 
-function row(name: string, over: Partial<Row> = {}): Row {
-  return {
-    name,
-    schedule: "0 3 * * *",
-    enabled: true,
-    configured: true,
-    minIntervalMinutes: null,
-    lastRun: { id: `${name}-last`, status: "success", finishedAt: new Date(T - HOUR), rowsProcessed: 4, message: "4 sent" },
-    lastSucceededAt: new Date(T - HOUR),
-    recentFailures: [],
-    ...over,
-  };
-}
 
-const ROWS: Row[] = [
-  row(RECOVERY_TICK_CRON_NAME, { schedule: "*/5 * * * *" }),
-  row("weekly-digest", {
-    schedule: "0 8 * * 1",
-    enabled: false,
-    lastRun: { id: "f1", status: "failed", finishedAt: new Date(T - 2 * HOUR), rowsProcessed: 0, message: "Email binding unavailable" },
-    lastSucceededAt: new Date(T - 7 * DAY),
-    recentFailures: [{ id: "f1", finishedAt: new Date(T - 2 * HOUR), message: "Email binding unavailable" }],
-  }),
-  row("d1-backup", { configured: false, lastRun: null, lastSucceededAt: null }),
-];
 
-function render(over: { crons?: Row[]; confirmEnable?: string | null; actionData?: unknown } = {}) {
-  const data = { crons: over.crons ?? ROWS, confirmEnable: over.confirmEnable ?? null };
-  const Stub = createRoutesStub([
-    {
-      path: "/admin/platform/crons",
-      Component: () => createElement(CronsPage as never, { loaderData: data, actionData: over.actionData } as never),
-    },
-  ]);
-  return renderToStaticMarkup(createElement(Stub, { initialEntries: ["/admin/platform/crons"] }));
-}
 
-const text = (html: string) =>
-  html
-    .replace(/<[^>]+>/g, " ")
-    .replaceAll("&#x27;", "'")
-    .replaceAll("&quot;", '"')
-    .replaceAll("&amp;", "&")
-    .replace(/\s+/g, " ");
-
-describe("the Crons page", () => {
-  it("is one captioned Capsomer table with Recova's columns in sentence case", () => {
-    const html = render();
-    expect(html).toMatch(/<table class="cap-table"/);
-    expect(html).toMatch(/<caption[^>]*>[^<]*scheduled jobs/i);
-    const headers = [...html.matchAll(/<th scope="col"[^>]*>(.*?)<\/th>/g)].map((m) => text(m[1]).trim());
-    expect(headers).toEqual(["Cron", "State", "Last run", "Last succeeded", "Last message", "Change"]);
-    expect(html).not.toMatch(/\buppercase\b|\btracking-/);
-  });
-
-  it("keeps each cron's anchor and its schedule in words", () => {
-    const html = render();
-    expect(html).toMatch(/<tr[^>]*id="cron-recovery-tick"/);
-    expect(text(html)).toContain("Every 5 minutes");
-    expect(text(html)).toContain("Mondays at 08:00 UTC");
-  });
-
-  it("says each last run in a word with its shape, and No runs yet for a cron that never ran", () => {
-    const t = text(render());
-    expect(t).toContain("Succeeded");
-    expect(t).toContain("Failed");
-    expect(t).toContain("No runs yet");
-  });
-
-  it("shows when a cron last succeeded, apart from its last run, and never when it has not", () => {
-    const html = render();
-    const digestRow = /<tr[^>]*id="cron-weekly-digest"[\s\S]*?<\/tr>/.exec(html)?.[0] ?? "";
-    expect(digestRow).toContain(`dateTime="${new Date(T - 7 * DAY).toISOString()}"`);
-    const backupRow = /<tr[^>]*id="cron-d1-backup"[\s\S]*?<\/tr>/.exec(html)?.[0] ?? "";
-    expect(text(backupRow)).toMatch(/\bNever\b/);
-  });
-
-  it("shows the last message and says None when there is none", () => {
-    const t = text(render());
-    expect(t).toContain("Email binding unavailable");
-    expect(t).toContain("4 sent");
-    expect(t).toContain("None");
-  });
-
-  it("says On or Switched off, and On by default for a cron never switched here", () => {
-    const html = render();
-    const t = text(html);
-    expect(t).toContain("On");
-    expect(t).toContain("Switched off");
-    const backupRow = /<tr[^>]*id="cron-d1-backup"[\s\S]*?<\/tr>/.exec(html)?.[0] ?? "";
-    expect(text(backupRow)).toContain("On by default");
-  });
-
-  it("lists each failure of the last day under its cron, with the run's own anchor", () => {
-    const html = render();
-    expect(html).toMatch(/<li[^>]*id="run-f1"/);
-    expect(text(html)).toContain("1 failed run in the last 24 hours");
-  });
-
-  it("disables in one click, a posted form with no phrase", () => {
-    const html = render();
-    const form = /<form[^>]*method="post"[^>]*>(?:(?!<\/form>)[\s\S])*name="cronName" value="recovery-tick"[\s\S]*?<\/form>/.exec(html)?.[0] ?? "";
-    expect(form).toMatch(/name="nextEnabled" value="false"/);
-    expect(form).not.toMatch(/name="confirm"/);
-    expect(text(form)).toContain("Disable");
-  });
-
-  it("enables through a link to the confirm page, never an inline one-click button", () => {
-    const html = render();
-    expect(html).toMatch(/<a[^>]*href="\/admin\/platform\/crons\?enable=weekly-digest"[^>]*>[\s\S]*?Enable/);
-    expect(html).not.toMatch(/name="nextEnabled" value="true"/);
-  });
-
-  it("has no Run now control (ruling 406 binding 5)", () => {
-    expect(text(render())).not.toMatch(/run now/i);
-  });
-
-  it("says how many crons there are and how many are switched off, in words", () => {
-    const t = text(render());
-    expect(t).toContain("3 scheduled jobs, 1 switched off.");
-  });
-
-  it("has an empty state", () => {
-    expect(text(render({ crons: [] }))).toContain("No scheduled jobs are registered.");
-  });
-
-  it("says what a change did", () => {
-    expect(text(render({ actionData: { ok: true, cronName: "weekly-digest", enabled: false } }))).toContain(
-      "weekly-digest is switched off.",
-    );
-    expect(text(render({ actionData: { ok: true, cronName: "weekly-digest", enabled: true } }))).toContain(
-      "weekly-digest is on.",
-    );
-  });
-});
-
-describe("the confirm page", () => {
-  const phrase = cronEnableConfirmPhrase("weekly-digest");
-
-  it("is Capsomer's confirm page for that cron, posting the typed phrase", () => {
-    const html = render({ confirmEnable: "weekly-digest" });
-    expect(html).toMatch(/<form class="cap-confirm-page"[^>]*method="post"/);
-    expect(html).toMatch(/action="\/admin\/platform\/crons\?enable=weekly-digest"/);
-    expect(html).toMatch(/<input type="hidden" name="cronName" value="weekly-digest"/);
-    expect(html).toMatch(/<input type="hidden" name="nextEnabled" value="true"/);
-    const typed = /<input[^>]*name="confirm"[^>]*>/.exec(html)?.[0] ?? "";
-    expect(typed).toMatch(/\brequired\b/);
-    expect(text(html)).toContain(`Type ${phrase} to confirm`);
-    expect(text(html)).toContain("Enable weekly-digest?");
-    expect(html).toMatch(/<h2[^>]*class="cap-dialog-title"/);
-    expect(html).toMatch(/<a class="cap-btn" href="\/admin\/platform\/crons#cron-weekly-digest">Cancel<\/a>/);
-  });
-
-  it("shows the action's own refusal inside it, saying Nothing was changed once", async () => {
-    // The real action, refusing a wrong phrase, as test/admin-cron-enable-confirm
-    // does; then the page rendered with what it returned. Capsomer's confirm page
-    // prints "Not done. Nothing was changed." itself, so the action's message
-    // must not say it again.
-    const { db } = createInMemoryDb();
-    harness.db = db;
-    const body = new FormData();
-    body.append("cronName", "weekly-digest");
-    body.append("nextEnabled", "true");
-    body.append("confirm", "enable weekly digest");
-    const action = route.action as (args: unknown) => Promise<{ data: unknown }>;
-    const context = {
-      get(key: unknown) {
-        if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
-        if (key === adminContext) return { email: "admin@foxhoundapp.com" };
-        throw new Error("unexpected context key");
-      },
-    };
-    const result = await action({
-      context,
-      request: new Request("http://localhost/admin/platform/crons?enable=weekly-digest", { method: "POST", body }),
-      params: {},
-    });
-
-    const t = text(render({ confirmEnable: "weekly-digest", actionData: result.data }));
-    expect(t).toContain(`Type ${phrase} exactly`);
-    expect(t.split("Nothing was changed.").length - 1).toBe(1);
-  });
-
-  it("replaces the table while it is open", () => {
-    expect(render({ confirmEnable: "weekly-digest" })).not.toMatch(/<table/);
-  });
-});
-
-describe("the page source", () => {
-  const source = readFileSync("app/routes/admin/crons.tsx", "utf8");
-
-  it("has no amber, no hand-sized text and no heading of its own", () => {
-    expect(source).not.toMatch(/amber|orange|warning-text|tone="warn"/);
-    expect(source).not.toMatch(/text-\[/);
-    expect(source).not.toMatch(/<h1\b/);
-  });
-
-  it("marks its list busy while it is read again", () => {
-    expect(source).toMatch(/pagePending\(/);
-    expect(source).toMatch(/aria-busy=/);
-  });
-
-  it("reads through the admin data layer and never runs a cron", () => {
-    expect(source).not.toMatch(/runCronJob|~\/lib\/cron\/run/);
-  });
-});

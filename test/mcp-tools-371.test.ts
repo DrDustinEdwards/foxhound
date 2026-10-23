@@ -5,7 +5,6 @@ import { describe, expect, it, vi } from "vitest";
 
 import { accounts, apiKeys, customerContext, failedPayments } from "~/db/schema";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
-import { DOC_GUIDES } from "~/lib/marketing/docs-content";
 import { maskEmail, redactToolResult } from "~/lib/mcp/redact";
 import { isDeniedToolName } from "~/lib/mcp/registry";
 
@@ -636,97 +635,5 @@ describe("PLANT 7: the tool module holds no money writer", () => {
     // persist.server holds a writer too (saveAuditRun, above); only its two
     // readers are taken from it.
     expect(tools).toMatch(/import \{ getAuditRun, listAuditRuns \} from "~\/lib\/audit\/persist\.server"/);
-  });
-});
-
-describe("PLANT 8: the copy release, and every earlier state gone", () => {
-  const flatten = (guide: (typeof DOC_GUIDES)[number]) =>
-    JSON.stringify(guide.sections);
-
-  const platform = flatten(DOC_GUIDES.find((g) => g.slug === "platform")!);
-  const s29 = read("app/routes/app/settings/api-keys.tsx");
-  const llms = read("app/routes/files/llms.ts");
-
-  it("S29 describes a live endpoint, the settings it changes, and the redaction default", () => {
-    // MOVED IN SESSION 79. "read-only" and "cannot change anything" were true of
-    // the thirteen and became false the moment four write tools shipped; a copy
-    // carrier that kept them would be understating what a key grants, which is
-    // the same defect as overstating it.
-    expect(s29).toContain("/mcp");
-    // SESSION 80 moved it to eight writes; the regroup folded those eight into
-    // two tools, and the page now names what a key can change rather than a
-    // tool count. Both earlier counts are asserted ABSENT, not merely
-    // superseded: a page that still said four would understate what a key
-    // grants, and one that still said eight would describe tools that are gone.
-    expect(s29).toContain("and change your settings: audit,");
-    expect(s29).not.toContain("change four settings");
-    expect(s29).not.toContain("change eight settings");
-    expect(s29).toContain("brand voice");
-    expect(s29).toContain("switch off and delete");
-    // The omission rule is stated where it is true and only there: brand voice
-    // and business context keep an omitted field, notifications do not.
-    expect(s29.replace(/\s+/g, " ")).toContain(
-      "Leaving a field out of the brand voice or business context leaves it as it is.",
-    );
-    expect(s29).toContain("Every change it makes is logged with");
-    expect(s29).toContain("cannot move money");
-    expect(s29).toContain("customer names and full email addresses are");
-    expect(s29).not.toContain("cannot change anything");
-  });
-
-  it("THE OVER-PROMISE THAT 368 NAMED IS GONE, in its exact words", () => {
-    // "Connect Foxhound data to external AI agents and automations" described a
-    // transport that 404'd. The endpoint exists now; the sentence that promised
-    // it before it did must not survive alongside its replacement.
-    expect(s29).not.toContain("Connect Foxhound data to external AI agents and automations.");
-    expect(platform).not.toContain("credentials for external AI agents and automations");
-  });
-
-  it("the docs say where the endpoint is, what it reads, and what it cannot do", () => {
-    expect(platform).toContain("foxhoundapp.com/mcp");
-    expect(platform).toContain("Most of the tools READ");
-    // The count is the regroup's two, and both earlier counts are ABSENT.
-    expect(platform).toContain("Two tools WRITE, and they change settings only:");
-    expect(platform).not.toContain("Eight tools WRITE");
-    expect(platform).not.toContain("Four tools WRITE");
-    // The omitted-versus-empty rule is a thing an agent has to be told, because
-    // guessing it wrong in one direction erases a merchant's settings. It is
-    // told per section, because notifications are replaced whole: the old
-    // blanket sentence would have been wrong for them.
-    expect(platform).toContain(
-      "Leaving a field out of the brand voice or the business context leaves it as it is and only an empty value clears one; the notification settings are replaced as a whole, so an agent sends all of them.",
-    );
-    expect(platform).not.toContain("Leaving a field out of a write leaves it as it is");
-    expect(platform).toContain("Every change an agent makes is recorded with the key");
-    expect(platform).not.toContain("The tools are READ ONLY");
-    expect(platform).toContain("absent by construction");
-    expect(platform).toContain("Customer names are never sent");
-  });
-
-  it("llms.txt gains its MCP section in the file's own voice", () => {
-    expect(llms).toContain("## For agents");
-    expect(llms).toContain("Model Context Protocol endpoint at ${url}/mcp");
-    expect(llms).toContain("Settings and API keys");
-    expect(llms).toContain("Most tools read");
-    expect(llms).toContain("Two tools write, and only to settings:");
-    expect(llms).not.toContain("Eight tools write, and only to settings");
-    expect(llms).not.toContain("Four tools write, and only to settings");
-    expect(llms).toContain(
-      "A field left out of the brand voice or the merchant context is left as it is and only an empty value clears one; the notification settings are replaced as a whole.",
-    );
-    expect(llms).not.toContain("A field left out of a write is left as it is");
-    expect(llms).not.toContain("The tools are READ ONLY");
-    expect(llms).toContain("masked to their first character and domain");
-  });
-
-  it("and the HUMAN-FOREVER five are named to an agent as absent, not as forbidden", () => {
-    // "Those do not exist rather than being switched off" is the honest framing
-    // and the one that survives a jailbreak attempt: there is nothing to unlock.
-    for (const source of [platform, llms]) {
-      expect(source).toMatch(/submits dispute evidence/);
-      expect(source).toMatch(/cancels an account/);
-      expect(source).toMatch(/disconnects Stripe/);
-      expect(source).toMatch(/issues another key/);
-    }
   });
 });

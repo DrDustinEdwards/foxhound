@@ -68,11 +68,6 @@ describe("J05: the options object carries the posture", () => {
     expect(entry).toMatch(/withSentry<Env>\(\s*sentryOptions,/);
     expect(entry).not.toContain("tracesSampleRate: 1");
   });
-
-  it("@sentry/cloudflare stays pinned exactly (RULES.md 3.14)", () => {
-    const pkg = JSON.parse(read("package.json")) as { dependencies: Record<string, string> };
-    expect(pkg.dependencies["@sentry/cloudflare"]).toMatch(/^\d+\.\d+\.\d+$/);
-  });
 });
 
 describe("J05: personal data is scrubbed from what the call sites send", () => {

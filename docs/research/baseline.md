@@ -50,7 +50,7 @@ plus settings). The full table is the output of `npm run report:page-weight`.
 
 Finished 2026-10-10 at commit d04f134 (main), by running the six chunks of
 `stryker.config.mjs` one at a time with incremental mode on, then merging them
-with `node scripts/report-mutation.mjs --json`. Each chunk's mutation JSON and
+with `npm run report:mutation`. Each chunk's mutation JSON and
 incremental file were pushed to the branch `results/foxhound-mutation-baseline`
 (`chunks/`) as soon as the chunk finished, so a restart loses at most one chunk.
 
@@ -94,8 +94,8 @@ The raw chunk reports are on the results branch.
 | Unprotected zero-kill candidates | 194 | |
 | Unprotected covered-by-others candidates | 592 | |
 
-Protected means the file or test name matches the keep rules in
-`scripts/report-mutation.mjs`: payment, billing, money, Stripe, webhook, dispute,
+Protected means the file or test name matches the keep rule (`--protected`) in
+the `report:mutation` script in `package.json`: payment, billing, money, Stripe, webhook, dispute,
 auth, session, tenant isolation, account scope, role and admin guards, and tests
 written for a fixed bug. The match is a name heuristic that errs toward keeping.
 These are never removal candidates.
@@ -169,8 +169,7 @@ The `verify` job runs `npm run report:bloat` after Build: Knip, jscpd, page
 weight against that build, and the assertion scan. Each exits 0 on a finding, and
 the step is `continue-on-error`, so it reports and never blocks. Findings appear
 as `::warning::` annotations (page weight over budget, tests with no assertion).
-It adds about 8 seconds to a run. `test/ci-gate-parity.test.ts` declares it a
-non-gate step.
+It adds about 8 seconds to a run.
 
 ## For the seat
 

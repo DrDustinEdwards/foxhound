@@ -6,11 +6,11 @@
 //
 //   npm i --no-save @stryker-mutator/core@10.0.0 @stryker-mutator/vitest-runner@10.0.0
 //   for c in db audit admin content core rest; do STRYKER_CHUNK=$c npx stryker run; done
-//   node scripts/report-mutation.mjs
+//   npm run report:mutation
 //
 // With no STRYKER_CHUNK it mutates everything in one run. Each chunk writes
 // reports/mutation/<chunk>.json and its own incremental file (reports/ is
-// ignored); scripts/report-mutation.mjs merges every JSON report it finds.
+// ignored); `npm run report:mutation` (devkit-mutation-report) merges every JSON report it finds.
 import process from "node:process";
 
 const ALL = ["app/lib/**/*.ts", "app/db/**/*.ts", "workers/**/*.ts"];

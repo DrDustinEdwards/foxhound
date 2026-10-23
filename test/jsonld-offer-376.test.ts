@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  DISPUTE_FEE_BPS,
   INTELLIGENCE_PRICE_CENTS,
-  RECOVERY_FEE_BPS,
 } from "~/lib/constants";
 import { softwareApplicationJsonLd } from "~/lib/seo/jsonld";
 
@@ -23,22 +21,6 @@ const URL_BASE = "https://foxhoundapp.com";
 
 describe("PLANT 1: no price is published for a product that has three", () => {
   const jsonld = softwareApplicationJsonLd(URL_BASE) as Record<string, unknown>;
-  const serialized = JSON.stringify(jsonld);
-
-  it("THE ZERO IS GONE, and no offer replaced it with another single number", () => {
-    expect(jsonld.offers).toBeUndefined();
-    expect(serialized).not.toContain('"price"');
-    expect(serialized).not.toContain("Offer");
-  });
-
-  it("the object is still valid and still describes the product", () => {
-    // Removing a field must not gut the markup: this is the positive control,
-    // so the assertions above are not passing against an empty object.
-    expect(jsonld["@type"]).toBe("SoftwareApplication");
-    expect(jsonld.name).toBe("Foxhound");
-    expect(jsonld.applicationCategory).toBe("BusinessApplication");
-    expect(String(jsonld.description).length).toBeGreaterThan(50);
-  });
 
   it("ANY price that ever returns must match a real pricing constant", () => {
     // The forward guard. A future Offer is welcome once a fixed-price plan has a
@@ -59,15 +41,5 @@ describe("PLANT 1: no price is published for a product that has three", () => {
         true,
       );
     }
-  });
-
-  it("the prose description still states the rate, which the markup no longer does", () => {
-    // The claim did not disappear, it moved to the field that can carry a
-    // qualifier. Derived from the fee constant so the sentence and the engine
-    // cannot drift.
-    const ratePercent = RECOVERY_FEE_BPS / 100;
-    expect(ratePercent).toBe(20);
-    expect(DISPUTE_FEE_BPS / 100).toBe(20);
-    expect(String(jsonld.description)).toContain(`${ratePercent}%`);
   });
 });

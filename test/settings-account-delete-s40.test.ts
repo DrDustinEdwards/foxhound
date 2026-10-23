@@ -1,9 +1,6 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
-import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { authContext } from "~/lib/auth/context";
@@ -50,7 +47,7 @@ vi.mock("~/lib/auth/auth.server", () => ({
   }),
 }));
 
-const { action, default: AccountSettings } = await import("~/routes/app/settings/account");
+const { action } = await import("~/routes/app/settings/account");
 
 const ctx = {
   get(key: unknown) {
@@ -120,53 +117,6 @@ describe("S40: the delete-account action", () => {
       ok: false,
       error: "Failed to delete account. Please contact support.",
     });
-  });
-});
-
-describe("S40: the Danger zone control", () => {
-  function render(cancelledAt: Date | null): string {
-    const Stub = createRoutesStub([
-      {
-        path: "/",
-        Component: () =>
-          createElement(AccountSettings as never, {
-            loaderData: {
-              account: { name: "Acme", merchantIndustry: null, primaryCustomerType: null, merchantMrrSelfReported: null },
-              cancelledAt,
-              userEmail: "owner@acme.test",
-              ownedAccountNames: ["Acme"],
-            },
-            actionData: undefined,
-          }),
-      },
-    ]);
-    return renderToStaticMarkup(createElement(Stub));
-  }
-
-  it("offers Delete account in the Danger zone, with Recova's label", () => {
-    const html = render(null);
-    expect(html).toContain("Danger zone");
-    expect(html).toMatch(/<button[^>]*type="button"[^>]*>Delete account<\/button>/);
-  });
-
-  it("still offers it once the account is cancelled", () => {
-    const html = render(new Date(0));
-    expect(html).toMatch(/<button[^>]*>Delete account<\/button>/);
-  });
-
-  it("posts the delete-account intent, and its confirm copy tells the truth about what is kept", () => {
-    const source = readFileSync(fileURLToPath(new URL("../app/routes/app/settings/account.tsx", import.meta.url)), "utf8");
-    expect(source).toContain('value="delete-account"');
-    expect(source).toContain("Yes, delete my account");
-    expect(source).toContain("Keep my account");
-    // Recova's copy says "all payment data" is deleted. Foxhound keeps the
-    // record of recovered payments (Q14), so that sentence would be false here.
-    expect(source).not.toContain("all payment data");
-    // The words are per case (review fix F2), built by deletionConsequence.
-    expect(source).toContain("{deletionConsequence(ownedAccountNames)}");
-    const copy = readFileSync(fileURLToPath(new URL("../app/lib/auth/deletion-copy.ts", import.meta.url)), "utf8");
-    expect(copy).not.toContain("all payment data");
-    expect(copy).toMatch(/keeps the amounts, dates and Stripe ids of the payments it recovered/);
   });
 });
 

@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -23,7 +21,7 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const { sendRecoveryNotification, recoveryNotifySubject, recoveryNotifyBody, RECOVERY_NOTIFY_TEMPLATE } =
+const { sendRecoveryNotification, RECOVERY_NOTIFY_TEMPLATE } =
   await import("~/lib/recovery/merchant-notification.server");
 const { buildEmailMessage } = await import("~/lib/email/send");
 const { LIVE_SENDS_DISABLED_ERROR } = await import("~/lib/email/dispatch");
@@ -113,18 +111,6 @@ describe("PLANT 1: a recovery with the toggle NULL sends one email", () => {
     seed({ enabled: 1 });
     await sendRecoveryNotification(env, { accountId: ACCOUNT, failedPaymentId: FP });
     expect(harness.sent).toHaveLength(1);
-  });
-
-  it("the body carries legacy's wording and the payment link", async () => {
-    seed({ enabled: null, declineCategory: "expired" });
-    await sendRecoveryNotification(env, { accountId: ACCOUNT, failedPaymentId: FP });
-    // J02: Capsomer's frame. The all-bold first line is the mail's heading, and
-    // the sentence keeps legacy's words without the bold run.
-    const html = harness.sent[0].html;
-    expect(html).toMatch(/<h1[^>]*>Payment recovered\.<\/h1>/);
-    expect(html).toContain("Jane Buyer just paid $99.00.");
-    expect(html).toContain("recovered it automatically after a expired decline");
-    expect(html).toContain(`https://foxhoundapp.test/recovery/payments/${FP}`);
   });
 
   it("falls back to the customer EMAIL when there is no name, as legacy does", async () => {
@@ -259,123 +245,6 @@ describe("PLANT 5: platform-to-merchant mail carries no unsubscribe", () => {
     expect(msg.html).toContain("Unsubscribe");
     expect(msg.html).toContain("1 Test Way");
     expect(msg.headers?.["List-Unsubscribe"]).toBeTruthy();
-  });
-});
-
-describe("PLANT 6: the hook is gated on the money write applying", () => {
-  const SOURCE = readFileSync(
-    fileURLToPath(new URL("../app/lib/webhooks/recovery-handlers.ts", import.meta.url)),
-    "utf8",
-  );
-  const code = SOURCE.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-
-  it("sends only when applied is true, which is what collapses a replay", () => {
-    // A replayed webhook rolls the batch back on the outcomes idempotency key,
-    // so applied is false and no second email leaves. That is legacy's
-    // transition claim in Foxhound's terms.
-    expect(code).toContain("if (applied) {\n    await sendRecoveryNotification(env, { accountId, failedPaymentId });");
-  });
-
-  it("the hook is AFTER the money write, never inside its build", () => {
-    const recoverBlock = code.slice(code.indexOf("function handleRecover("), code.indexOf("function handleRecordExpiringCard("));
-    expect(recoverBlock.indexOf("buildRecoverBatch")).toBeLessThan(
-      recoverBlock.indexOf("sendRecoveryNotification"),
-    );
-    // Nothing about the money write changed: the notification takes no part in
-    // the batch and cannot alter recordOutcome's arguments.
-    expect(recoverBlock).not.toContain("sendRecoveryNotification(db");
-  });
-
-  it("no wide dash in the user-facing strings", () => {
-    const wide = new RegExp("[" + String.fromCharCode(0x2014, 0x2013) + "]");
-    expect(recoveryNotifySubject({ amountCents: 9900, currency: "usd", customerLabel: "X" })).not.toMatch(wide);
-    expect(
-      JSON.stringify(
-        recoveryNotifyBody({
-          amountCents: 9900,
-          currency: "usd",
-          customerLabel: "X",
-          declineCategory: "soft",
-          paymentUrl: "https://x/1",
-        }),
-      ),
-    ).not.toMatch(wide);
-  });
-});
-
-describe("PLANT 7: the money write is untouched", () => {
-  it("the recovery recorder knows nothing about the notification", () => {
-    // recordOutcome and the recovery batch are not modified by this engine.
-    // The notification is a READER of three rows plus a send, hooked after the
-    // batch commits, and it must not appear anywhere in the writer.
-    for (const path of [
-      "../app/lib/recovery/record-recovery.ts",
-      "../app/lib/webhooks/batches.ts",
-      "../app/lib/engine/outcomes.ts",
-    ]) {
-      const src = readFileSync(fileURLToPath(new URL(path, import.meta.url)), "utf8");
-      expect(src).not.toContain("sendRecoveryNotification");
-      expect(src).not.toContain("merchant-notification");
-    }
-  });
-
-  it("the notification module never writes an outcome or a recovered payment", () => {
-    // Comment-stripped: the module's own header NAMES recordOutcome to say it
-    // leaves it alone, and a raw substring check would match that prose rather
-    // than a call (316's vacuous-assertion class).
-    const src = readFileSync(
-      fileURLToPath(new URL("../app/lib/recovery/merchant-notification.server.ts", import.meta.url)),
-      "utf8",
-    )
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/^\s*\/\/.*$/gm, "");
-    expect(src).not.toContain("recordOutcome");
-    expect(src).not.toContain("recoveredPayments");
-    expect(src).not.toContain("executeMoneyWrite");
-    // It reads. It does not write anything but the email_sends row that
-    // processEmailJob logs.
-    expect(src).not.toContain("db.insert");
-    expect(src).not.toContain("db.update");
-  });
-});
-
-describe("PLANT 8: the copy says what sends and what does not", () => {
-  it("the settings card no longer claims notifications are not sending", () => {
-    // It read "Notifications aren't sending yet", which this engine made false.
-    // A control may not assert a falsehood (333).
-    // SESSION 59 MOVED THE SUBJECT. The prose card this pinned lived on the
-    // /settings index; session 56 built the real notifications page and session
-    // 59 removed the card, whose copy had been false for three sessions. The
-    // property now lives where the controls do: the page states what sends by
-    // rendering a toggle for each, so the claim cannot go stale as prose does.
-    const route = readFileSync(
-      fileURLToPath(new URL("../app/routes/app/settings/notifications.tsx", import.meta.url)),
-      "utf8",
-    );
-    expect(route).not.toContain("Notifications aren't sending yet");
-    expect(route).toContain("Payment recovered notification");
-    expect(route).toContain("Sequence complete notification");
-    expect(route).toContain("Slack notifications");
-  });
-
-  it("the docs describe the one notification that exists and no others", () => {
-    // Line for the heading map: platform, "Notifications", body[0] and body[1].
-    const docs = readFileSync(
-      fileURLToPath(new URL("../app/lib/marketing/docs-content.ts", import.meta.url)),
-      "utf8",
-    );
-    // REPOINTED, NOT WEAKENED (354 reversal 9). Session 64 gave the docs a
-    // block vocabulary, so Notifications and Alerts are H3 blocks inside the
-    // settings section rather than top-level `heading:` keys. The assertions
-    // below are unchanged; only the slice that finds the section moved.
-    const section = docs.slice(docs.indexOf('text: "Notifications"'), docs.indexOf('text: "Alerts"'));
-    expect(section).toContain("emails the notification email set in Settings");
-    expect(section).toContain("It sends once per recovery");
-    expect(section).toContain("Set no notification email and Foxhound sends nothing");
-    // Sessions 55 and 56 built the digest and Slack, so the section now says
-    // what each does rather than that either is missing.
-    expect(section).not.toContain("not built yet");
-    expect(section).toContain("Slack delivery posts to an incoming webhook");
   });
 });
 

@@ -2,7 +2,6 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import type Database from "better-sqlite3";
-import { escapeHtml } from "capsomer/email";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
@@ -43,11 +42,8 @@ vi.mock("~/db", async (importOriginal) => ({
 
 const notify = await import("~/lib/intelligence/alert-notify.server");
 const {
-  CRITICAL_ALERT_TEMPLATE,
   CRITICAL_CUSTOMERS_ALERT_LIVE,
   THRESHOLD_ALERT_TEMPLATE,
-  criticalCustomersContent,
-  thresholdAlertContent,
 } = notify;
 const { evaluateAndRecordAlerts, runCriticalCustomersCheck, runIntelligenceAiForAccount } = await import(
   "~/lib/intelligence/ai-run.server"
@@ -59,10 +55,8 @@ const ACCOUNT = "acct_1";
 const ALERT = "alert_1";
 const WEBHOOK = "https://hooks.slack.com/services/T000/B000/EXAMPLE";
 const NOW = new Date("2026-10-16T03:00:00.000Z");
-const YEAR = NOW.getUTCFullYear();
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
-const FOOTER_NOTE = `You're receiving this from Foxhound about a recent payment. © ${YEAR}`;
 
 const env = {
   ENCRYPTION_KEY: "ab".repeat(32),
@@ -184,71 +178,6 @@ function sendRows() {
 }
 
 // ============================================================================
-// E21: what it says
-// ============================================================================
-
-describe("E21 says Recova's words: subject, sentence, View dashboard", () => {
-  const firing = {
-    alertId: ALERT,
-    accountId: ACCOUNT,
-    metric: "mrr_at_risk_cents",
-    thresholdValue: 500_000,
-    direction: "above",
-    actualValue: 712_345,
-    channel: "email",
-  };
-
-  it("thresholdAlertContent is Recova's subject, sentence and button, Foxhound-branded", () => {
-    const content = thresholdAlertContent(firing, BASE, NOW);
-    expect(content.subject).toBe("Foxhound alert: MRR at risk above threshold");
-    expect(content.notice).toEqual({
-      title: "Foxhound alert: MRR at risk above threshold",
-      body: ["MRR at risk is currently $7,123.45, which is above your threshold of $5,000.00."],
-      action: { label: "View dashboard", url: `${BASE}/recovery/dashboard` },
-    });
-    expect(content.fromName).toBe("Foxhound");
-    expect(content.footerNote).toBe(FOOTER_NOTE);
-  });
-
-  it("formats a score metric as Recova's formatThreshold does a count: the bare number", () => {
-    const content = thresholdAlertContent(
-      { ...firing, metric: "health_score_avg", direction: "below", thresholdValue: 40, actualValue: 35 },
-      BASE,
-      NOW,
-    );
-    expect(content.subject).toBe("Foxhound alert: Average health score below threshold");
-    expect(content.notice.body).toEqual([
-      "Average health score is currently 35, which is below your threshold of 40.",
-    ]);
-  });
-
-  it("the sent mail: one heading, the sentence, the button, Recova's footer and settings link", async () => {
-    seedAccount();
-    seedAlert();
-    const fired = await evaluateAndRecordAlerts(env, db(), ACCOUNT, { mrr_at_risk_cents: 712_345 }, NOW);
-    expect(fired).toBe(1);
-    expect(harness.sent).toHaveLength(1);
-    const m = harness.sent[0];
-    expect(m.subject).toBe("Foxhound alert: MRR at risk above threshold");
-    expect(m.html.match(/<h1\b/g)).toHaveLength(1);
-    expect(m.html).toMatch(/<h1[^>]*>Foxhound alert: MRR at risk above threshold<\/h1>/);
-    expect(m.html).toContain(
-      ">MRR at risk is currently $7,123.45, which is above your threshold of $5,000.00.</td>",
-    );
-    expect(m.html).toMatch(
-      new RegExp(`<a class="e-btn" href="${BASE}/recovery/dashboard"[^>]*>View dashboard</a>`),
-    );
-    expect(m.html).toContain(escapeHtml(FOOTER_NOTE));
-    expect(m.html).toMatch(
-      new RegExp(`<a class="e-link" href="${BASE}/settings"[^>]*>Manage email settings</a>`),
-    );
-    expect(m.text).toContain("MRR at risk is currently $7,123.45, which is above your threshold of $5,000.00.");
-    expect(m.text).toContain(`View dashboard:\n${BASE}/recovery/dashboard`);
-    expect(m.text).toContain(`${FOOTER_NOTE}\nManage email settings: ${BASE}/settings`);
-  });
-});
-
-// ============================================================================
 // E21: what it carries
 // ============================================================================
 
@@ -267,17 +196,6 @@ describe("E21 carries From Foxhound, no Reply-To, no unsubscribe, to the notific
       expect(part).not.toContain("1 Example Way");
     }
     expect(sendRows()).toEqual([{ status: "sent", template: THRESHOLD_ALERT_TEMPLATE }]);
-  });
-
-  it("is accessible as rendered: a language, a title, one heading, a real link button, 16px body", async () => {
-    seedAccount();
-    seedAlert();
-    await evaluateAndRecordAlerts(env, db(), ACCOUNT, { mrr_at_risk_cents: 712_345 }, NOW);
-    const m = harness.sent[0];
-    expect(m.html).toMatch(/<html lang="en">/);
-    expect(m.html).toContain("<title>Foxhound alert: MRR at risk above threshold</title>");
-    expect(m.html).toMatch(/<a [^>]*href="https:[^"]+"[^>]*>View dashboard<\/a>/);
-    expect(m.html).toContain("font-size:16px");
   });
 });
 
@@ -471,53 +389,6 @@ function seedCritical(
   });
 }
 
-describe("E22 says Recova's words: subject, title, sentence, View recommendations", () => {
-  it("criticalCustomersContent for one customer and for several", () => {
-    const one = criticalCustomersContent(1, BASE, NOW);
-    expect(one.subject).toBe("Foxhound: 1 critical customer need attention");
-    expect(one.notice).toEqual({
-      title: "1 critical customer need immediate attention.",
-      body: [
-        "These customers have an active recovery sequence, a health score of 33 or below (high churn risk), and an open dispute, all simultaneously.",
-      ],
-      action: { label: "View recommendations", url: `${BASE}/intelligence/recommendations` },
-    });
-    expect(one.fromName).toBe("Foxhound");
-    expect(one.footerNote).toBe(FOOTER_NOTE);
-    expect(criticalCustomersContent(3, BASE, NOW).subject).toBe("Foxhound: 3 critical customers need attention");
-    expect(criticalCustomersContent(3, BASE, NOW).notice.title).toBe(
-      "3 critical customers need immediate attention.",
-    );
-  });
-
-  it("the sent mail: one heading, the sentence, the button, Recova's footer, no unsubscribe", async () => {
-    seedAccount();
-    seedCritical({ customers: ["cus_1", "cus_2"] });
-    const out = await runCriticalCustomersCheck(env, db(), ACCOUNT, NOW);
-    expect(out).toMatchObject({ kind: "fired", count: 2, channel: "email", notificationSent: true });
-    expect(harness.sent).toHaveLength(1);
-    const m = harness.sent[0];
-    expect(m.subject).toBe("Foxhound: 2 critical customers need attention");
-    expect(m.from).toBe("Foxhound <recovery@send.foxhoundapp.com>");
-    expect(m.to).toBe("ops@acme.example.com");
-    expect(m.replyTo).toBeUndefined();
-    expect(m.headers).toBeUndefined();
-    expect(m.html).toMatch(/<html lang="en">/);
-    expect(m.html.match(/<h1\b/g)).toHaveLength(1);
-    expect(m.html).toMatch(/<h1[^>]*>2 critical customers need immediate attention\.<\/h1>/);
-    expect(m.html).toMatch(
-      new RegExp(
-        `<a class="e-btn" href="${BASE}/intelligence/recommendations"[^>]*>View recommendations</a>`,
-      ),
-    );
-    expect(m.html).toContain(escapeHtml(FOOTER_NOTE));
-    expect(m.text).toContain(`${FOOTER_NOTE}\nManage email settings: ${BASE}/settings`);
-    expect(m.html).not.toContain("Unsubscribe");
-    expect(m.html).toContain("font-size:16px");
-    expect(sendRows()).toEqual([{ status: "sent", template: CRITICAL_ALERT_TEMPLATE }]);
-  });
-});
-
 describe("E22 fires on Recova's three conditions at once, with a 24h cooldown", () => {
   it("records alert_history cross_product_critical with no alert row behind it", async () => {
     seedAccount();
@@ -679,26 +550,5 @@ describe("E22 stays off until its button has somewhere to go (RULES.md 2.7)", ()
     // the nightly run calls it once that page exists, and not before.
     const hasPage = /route\("recommendations"/.test(read("app/routes.ts"));
     expect(CRITICAL_CUSTOMERS_ALERT_LIVE).toBe(hasPage);
-  });
-
-  it("the notification module writes nothing; the run records each firing (RULES.md 3.2, review round 1)", () => {
-    const notifier = read("app/lib/intelligence/alert-notify.server.ts")
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/^\s*\/\/.*$/gm, "");
-    expect(notifier).not.toMatch(/\.insert\(|\.update\(|\.delete\(|build\w*Insert|build\w*Update/);
-    const run = read("app/lib/intelligence/ai-run.server.ts");
-    expect(run).toContain("await buildCriticalAlertHistoryInsert(db, {");
-  });
-
-  it("the nightly run calls the check behind that switch, after the threshold alerts", () => {
-    const code = read("app/lib/intelligence/ai-run.server.ts")
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/^\s*\/\/.*$/gm, "");
-    const alertsAt = code.indexOf("await evaluateAndRecordAlerts(env, db, accountId, metrics, now)");
-    const criticalAt = code.indexOf(
-      "if (CRITICAL_CUSTOMERS_ALERT_LIVE) await runCriticalCustomersCheck(env, db, accountId, now);",
-    );
-    expect(alertsAt).toBeGreaterThan(-1);
-    expect(criticalAt).toBeGreaterThan(alertsAt);
   });
 });

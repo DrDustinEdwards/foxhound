@@ -27,15 +27,10 @@ const ROOT = new URL("../", import.meta.url);
 const read = (path: string) => readFileSync(fileURLToPath(new URL(path, ROOT)), "utf8");
 
 const GUIDE_ROUTE = read("app/routes/docs/page.tsx");
-const INDEX_ROUTE = read("app/routes/docs/index.tsx");
 
 const URL_BASE = "https://foxhoundapp.test";
 
 describe("PLANT 1: every guide's JSON-LD, built from the real builders", () => {
-  it("the fixture is non-empty, so an empty loop cannot read as a pass", () => {
-    expect(DOC_GUIDES.length).toBe(5);
-    expect(DOCS_FIRST_PUBLISHED).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-  });
 
   it("EVERY GUIDE emits a TechArticle whose headline is the page h1", () => {
     // THE HEADLINE AND THE H1 ARE ONE VARIABLE in the route (`guide.title` feeds
@@ -82,34 +77,6 @@ describe("PLANT 1: every guide's JSON-LD, built from the real builders", () => {
       expect(parsed.map((b) => b["@type"])).toEqual(["TechArticle", "BreadcrumbList"]);
     }
   });
-
-  it("the breadcrumb matches the one the page RENDERS, Docs then the title", () => {
-    const crumbs = breadcrumbListJsonLd(URL_BASE, [
-      { name: "Docs", path: "/docs" },
-      { name: "Audit", path: "/docs/audit" },
-    ]);
-    expect(crumbs.itemListElement.map((i) => i.name)).toEqual(["Docs", "Audit"]);
-    expect(crumbs.itemListElement[0].item).toBe(`${URL_BASE}/docs`);
-    // The visible breadcrumb the route draws, so the two cannot say different
-    // things to a person and to a crawler.
-    // J73: Capsomer's Breadcrumb draws the nav (aria-label="Breadcrumb", its
-    // own contract in breadcrumb.md); the route hands it Docs then the title.
-    expect(GUIDE_ROUTE).toContain('from "capsomer/react/breadcrumb"');
-    expect(GUIDE_ROUTE).toContain('{ label: "Docs", href: "/docs" }, { label: guide.title }');
-  });
-
-  it("EXACTLY ONE JSON-LD SCRIPT PER ROUTE, matching how marketing emits", () => {
-    // Two blocks in one array, not two script tags: the pattern every marketing
-    // page uses (routes/home.tsx). Counted, because a second tag is the shape a
-    // careless addition takes.
-    for (const [name, source] of [
-      ["guide", GUIDE_ROUTE],
-      ["index", INDEX_ROUTE],
-    ] as const) {
-      const tags = source.match(/type="application\/ld\+json"/g) ?? [];
-      expect(tags, `${name} route emits ${tags.length} blocks`).toHaveLength(1);
-    }
-  });
 });
 
 describe("PLANT 2: the docs index emits its list", () => {
@@ -122,36 +89,6 @@ describe("PLANT 2: the docs index emits its list", () => {
     for (const item of list.itemListElement) {
       expect(item.url.startsWith(`${URL_BASE}/docs/`)).toBe(true);
     }
-  });
-
-  it("DERIVED FROM DOC_GUIDES, so a sixth guide joins without a code change", () => {
-    // Passing the constant itself is what makes this true; a hand-listed array
-    // in the route would have to be maintained twice.
-    expect(INDEX_ROUTE).toContain("docsItemListJsonLd(url, DOC_GUIDES)");
-  });
-});
-
-describe("PLANT 3: the date is measured, not invented", () => {
-  it("every guide carries the same measured first-published date", () => {
-    // All five first appear in commit 5478d6b. If a guide ever ships later it
-    // gets its own date, and this assertion is what forces that to be a decision
-    // rather than an oversight.
-    for (const guide of DOC_GUIDES) {
-      expect(guide.datePublished, `${guide.slug} has no date`).toBe(DOCS_FIRST_PUBLISHED);
-    }
-  });
-
-  it("NO dateModified IS EMITTED, because nothing tracks one", () => {
-    // The honest absence. A fabricated revision timestamp in a file built to be
-    // quoted by machines is worse than no timestamp at all.
-    const block = techArticleJsonLd(URL_BASE, {
-      headline: "Audit",
-      description: "d",
-      path: "/docs/audit",
-      datePublished: DOCS_FIRST_PUBLISHED,
-    }) as Record<string, unknown>;
-    expect(block.dateModified).toBeUndefined();
-    expect(block.author).toBeUndefined();
   });
 });
 

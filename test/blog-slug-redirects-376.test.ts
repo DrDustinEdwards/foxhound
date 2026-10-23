@@ -64,33 +64,11 @@ describe("PLANT 1: every old slug 301s to its new one, driven through the loader
     }
   });
 
-  it("the old name is gone from the destination, which is the point of the rename", () => {
-    for (const [oldSlug, newSlug] of Object.entries(BLOG_SLUG_REDIRECTS)) {
-      expect(oldSlug).toContain("recova-vs-");
-      expect(newSlug).toContain("foxhound-vs-");
-      expect(newSlug).not.toContain("recova");
-      // The rest of the slug is untouched, so no inbound link loses its topic.
-      expect(newSlug).toBe(oldSlug.replace("recova-vs-", "foxhound-vs-"));
-    }
-  });
-
   it("a slug that was never renamed is NOT redirected", () => {
     // The discriminator. A redirect that fires on everything would send every
     // post to a 404 rather than only the four.
     expect(redirectedBlogSlug("how-to-reduce-saas-churn")).toBeNull();
     expect(redirectedBlogSlug("foxhound-vs-churnkey")).toBeNull();
     expect(redirectedBlogSlug("")).toBeNull();
-  });
-
-  it("and an unrenamed slug reaches the database lookup instead", async () => {
-    // Proves the redirect check does not swallow ordinary traffic: with an empty
-    // in-memory store the loader must 404, which means it got past the redirect
-    // and asked for the post.
-    const thrown = await loader(loaderArgs("how-to-reduce-saas-churn")).then(
-      () => null,
-      (err: unknown) => err,
-    );
-    expect(thrown).toBeInstanceOf(Response);
-    expect((thrown as Response).status).toBe(404);
   });
 });

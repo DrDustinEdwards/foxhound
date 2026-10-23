@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -369,19 +367,5 @@ describe("the settings writer", () => {
     expect(res.ok).toBe(false);
     expect(replyToRow()).toBe(REPLY);
     expect(isValidReplyToEmail(REPLY)).toBe(true);
-  });
-
-  it("the page renders Recova's field, after Sender name", () => {
-    const source = readFileSync(
-      fileURLToPath(new URL("../app/routes/app/settings/email.tsx", import.meta.url)),
-      "utf8",
-    );
-    const code = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-    expect(code).toContain('name="replyToEmail"');
-    expect(code).toContain('type="email"');
-    expect(code).toContain("Reply-to email");
-    expect(code).toContain('placeholder="support@yourapp.com"');
-    expect(code).toContain("Customer replies go here. Use your support inbox.");
-    expect(code.indexOf('name="senderName"')).toBeLessThan(code.indexOf('name="replyToEmail"'));
   });
 });

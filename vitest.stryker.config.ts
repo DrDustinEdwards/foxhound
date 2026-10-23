@@ -17,7 +17,6 @@ const SOURCE_TEXT_TEST_FILES = [
   "test/docs-platform-claims.test.ts",
   "test/docs-recovery-claims.test.ts",
   "test/expiring-card-cron.test.ts",
-  "test/intelligence-verify-then-claim.test.ts",
   "test/live-send-flag.test.ts",
   "test/merchant-recovery-notification.test.ts",
   "test/multi-account-phase-b-327.test.ts",

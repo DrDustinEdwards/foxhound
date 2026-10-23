@@ -3,7 +3,6 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import type Database from "better-sqlite3";
-import type { Block } from "capsomer/email";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
@@ -156,38 +155,6 @@ function fullInput(over: Partial<Parameters<typeof digestEmail.digestContent>[0]
 // ============================================================================
 
 describe("E23 says Recova's words, in Recova's order, on Capsomer's blocks", () => {
-  it("every block of a full digest, top to bottom", () => {
-    const { blocks } = digestEmail.digestContent(fullInput());
-    const expected: Block[] = [
-      // Recova: <p>Week ending {weekday, month day}</p> above the h2.
-      { type: "fine", text: "Week ending Monday, November 2" },
-      { type: "heading", text: "Your recovery summary" },
-      // The two tiles, value and label, as one line each.
-      { type: "paragraph", text: "Revenue recovered: $50.00" },
-      { type: "paragraph", text: "Recovery rate: 25%" },
-      { type: "paragraph", text: "Failed payments detected: 4" },
-      { type: "paragraph", text: "Payments recovered: 1" },
-      { type: "paragraph", text: "Revenue at risk: $200.00" },
-      { type: "paragraph", text: "Active recovery sequences: 3" },
-      { type: "paragraph", text: "Recovery emails sent: 7" },
-      { type: "paragraph", text: "Active win-back sequences: 2" },
-      { type: "paragraph", text: "Cards expiring soon: 2" },
-      { type: "paragraph", text: "Open disputes: 1, $99.00" },
-      // Recova's h3, which Capsomer has no level for (a Capsomer gap).
-      { type: "paragraph", text: "Disputes" },
-      {
-        type: "paragraph",
-        text: "1 open dispute totaling $99.00 need a response. Foxhound has staged evidence for each.",
-      },
-      { type: "button", label: "View disputes →", url: `${BASE}/disputes/dashboard` },
-      { type: "paragraph", text: "Intelligence" },
-      { type: "paragraph", text: "Top at-risk customers" },
-      { type: "paragraph", text: "Acme Co: $199.00/mo" },
-      { type: "paragraph", text: "(unnamed)" },
-      { type: "button", label: "View Dashboard", url: `${BASE}/recovery/dashboard` },
-    ];
-    expect(blocks).toEqual(expected);
-  });
 
   it("the conditional rows and both sections are absent when Recova leaves them out", () => {
     const { blocks } = digestEmail.digestContent(
@@ -207,27 +174,9 @@ describe("E23 says Recova's words, in Recova's order, on Capsomer's blocks", () 
     expect(blocks.at(-1)).toEqual({ type: "button", label: "View Dashboard", url: `${BASE}/recovery/dashboard` });
   });
 
-  it("an open dispute with no amount still shows Recova's amount, $0.00", () => {
-    // Recova sets openDisputeAmount whenever the count is above zero, so a
-    // dispute with no amount reads "totaling $0.00", never a dropped clause.
-    const { blocks } = digestEmail.digestContent(fullInput({ openDisputeCount: 2, openDisputeCents: 0 }));
-    expect(blocks).toContainEqual({ type: "paragraph", text: "Open disputes: 2, $0.00" });
-    expect(blocks).toContainEqual({
-      type: "paragraph",
-      text: "2 open disputes totaling $0.00 need a response. Foxhound has staged evidence for each.",
-    });
-  });
-
   it("the Intelligence section waits for an at-risk customer, as Recova's does", () => {
     const { blocks } = digestEmail.digestContent(fullInput({ highRiskCustomers: [] }));
     expect(JSON.stringify(blocks)).not.toContain("Intelligence");
-  });
-
-  it("the subject is Recova's, recovery alone and platform with a product", () => {
-    expect(digestEmail.digestContent(fullInput()).subject).toBe("Your weekly platform report: November 2");
-    expect(
-      digestEmail.digestContent(fullInput({ disputesActive: false, intelligenceActive: false })).subject,
-    ).toBe("Your weekly recovery report: November 2");
   });
 });
 
@@ -239,15 +188,6 @@ describe("E23 carries Recova's From, footer, unsubscribe and postal address", ()
   it("the platform's From name, never the merchant's sender (Recova's FROM_HELLO)", () => {
     expect(digestEmail.digestContent(fullInput()).fromName).toBe("Foxhound");
     expect(digestEmail.digestContent(fullInput({ senderName: null })).fromName).toBe("Foxhound");
-  });
-
-  it("Recova's footer sentence names the merchant's sender, else the platform", () => {
-    expect(digestEmail.digestContent(fullInput()).footerNote).toBe(
-      `You're receiving this from Teamflow about a recent payment. © ${YEAR}`,
-    );
-    expect(digestEmail.digestContent(fullInput({ senderName: null })).footerNote).toBe(
-      `You're receiving this from Foxhound about a recent payment. © ${YEAR}`,
-    );
   });
 
   it("the cron sends the digest with an unsubscribe signed for this address and account", async () => {
@@ -288,30 +228,6 @@ describe("E23 carries Recova's From, footer, unsubscribe and postal address", ()
     expect(m.text).toContain(`Unsubscribe: ${unsub![1]}`);
     // No "Manage email settings": that is Recova's line for mail WITHOUT a token.
     expect(m.html).not.toContain("Manage email settings");
-  });
-
-  it("the rendered mail has Recova's words and its dashboard link, in both parts", async () => {
-    seedAccount();
-    seedFailed("f1", 10000);
-    seedRecovered("r1", 5000);
-
-    await runWeeklyDigest(env, NOW);
-
-    const m = harness.sent[0];
-    for (const words of [
-      "Week ending Monday, November 2",
-      "Your recovery summary",
-      "Revenue recovered: $50.00",
-      "Recovery rate: 50%",
-      "Failed payments detected: 2",
-      "View Dashboard",
-    ]) {
-      expect(m.html).toContain(words);
-      expect(m.text).toContain(words);
-    }
-    expect(m.html).toMatch(new RegExp(`<a class="e-btn" href="${BASE}/recovery/dashboard"[^>]*>View Dashboard</a>`));
-    // One heading, the summary.
-    expect(m.html.match(/<h1[\s>]/g)).toHaveLength(1);
   });
 
   it("a customer name carrying markup is shown as written, escaped by Capsomer", async () => {

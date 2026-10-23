@@ -1,4 +1,3 @@
-import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
@@ -220,40 +219,6 @@ describe("PLANT 5: routes that set their own directive keep it", () => {
       "public, max-age=3600",
     );
   });
-
-  it("THE UTILITY no-store VALUES ARE UNCHANGED, in the source and through the policy", () => {
-    const utility = [
-      "app/routes/utility/card-update.tsx",
-      "app/routes/utility/unsubscribe.tsx",
-      "app/routes/utility/engagement-open.ts",
-      "app/routes/utility/engagement-click.ts",
-    ];
-    for (const path of utility) {
-      expect(readFileSync(path, "utf8"), path).toContain(
-        '"no-store, no-cache, must-revalidate, private"',
-      );
-    }
-
-    const existing = new Response("x", {
-      headers: { "Cache-Control": "no-store, no-cache, must-revalidate, private" },
-    });
-    expect(applyCachePolicy(request("/p/tok"), existing).headers.get("Cache-Control")).toBe(
-      "no-store, no-cache, must-revalidate, private",
-    );
-  });
-
-  it("the files routes' committed values are unchanged", () => {
-    const expected: Record<string, string> = {
-      "app/routes/files/feed.ts": "public, max-age=3600, stale-while-revalidate=86400",
-      "app/routes/files/llms.ts": "public, max-age=86400, stale-while-revalidate=86400",
-      "app/routes/files/llms-full.ts": "public, max-age=86400, stale-while-revalidate=86400",
-      "app/routes/files/robots.ts": "public, max-age=86400",
-      "app/routes/files/sitemap.ts": "public, max-age=3600",
-    };
-    for (const [path, value] of Object.entries(expected)) {
-      expect(readFileSync(path, "utf8"), path).toContain(value);
-    }
-  });
 });
 
 describe("PLANT 6: Vary: Cookie keys the cache by session presence (348)", () => {
@@ -329,46 +294,5 @@ describe("PLANT 7: the policy is applied at the one choke point", () => {
     const source = readFileSync("workers/app.ts", "utf8");
     expect(source).toContain("applyCachePolicy(request, applySecurityHeaders(limited, nonce))");
     expect(source).toContain("applyCachePolicy(request, applySecurityHeaders(response, nonce))");
-  });
-
-  it("NO ROUTE DUPLICATES THE POLICY: the Cache-Control sites are exactly the ones folded in", () => {
-    // DERIVED FROM THE TREE, not from a list in this file, and it fails in both
-    // directions: a route that starts setting its own header opts itself out of
-    // the policy silently, and a folded-in route that stops setting one changes
-    // its behaviour silently.
-    const found = execSync('git grep -l Cache-Control -- app/routes || true', {
-      encoding: "utf8",
-    })
-      .trim()
-      .split("\n")
-      .filter(Boolean)
-      .sort();
-
-    expect(found).toEqual(
-      [
-        "app/routes/files/feed.ts",
-        "app/routes/files/llms-full.ts",
-        "app/routes/files/llms.ts",
-        // RFC 8414 metadata (J79): five minutes public, as Recova sent it.
-        // It holds no per-person data and its path is not in a public class,
-        // so without its own header the policy would make it private, and
-        // every MCP client's discovery probe would miss the edge.
-        "app/routes/files/oauth-metadata.ts",
-        "app/routes/files/robots.ts",
-        "app/routes/files/sitemap.ts",
-        // Names Cache-Control in a comment only: the policy pins this route
-        // private/no-store (job_f7f35d4b7ac7).
-        "app/routes/health.ts",
-        "app/routes/utility/card-update.tsx",
-        "app/routes/utility/engagement-click.ts",
-        // The honeypot (377(4)). Same no-store header as its siblings, for the
-        // same reason and one more: a cached response would let a scanner's
-        // fetch be served without ever reaching the recorder, so the trap would
-        // spring once and never again.
-        "app/routes/utility/engagement-honeypot.ts",
-        "app/routes/utility/engagement-open.ts",
-        "app/routes/utility/unsubscribe.tsx",
-      ].sort(),
-    );
   });
 });

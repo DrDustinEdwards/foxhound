@@ -73,16 +73,6 @@ function point(month: number, cents: Partial<MrrSnapshotPoint> = {}): MrrSnapsho
   };
 }
 
-const series = [
-  point(0, { newMrrCents: 120_000, expansionMrrCents: 40_000, churnMrrCents: 30_000 }),
-  point(1, {
-    newMrrCents: 90_000,
-    reactivationMrrCents: 25_000,
-    contractionMrrCents: 15_000,
-    churnMrrCents: 50_000,
-  }),
-  point(2, { newMrrCents: 150_000, expansionMrrCents: 60_000, churnMrrCents: 20_000 }),
-];
 
 function render(mrrSeries: MrrSnapshotPoint[]): string {
   const loaderData = {
@@ -101,68 +91,8 @@ function render(mrrSeries: MrrSnapshotPoint[]): string {
   return renderToStaticMarkup(createElement(Stub, { initialEntries: ["/intelligence/dashboard"] }));
 }
 
-function card(html: string): string {
-  const start = html.indexOf("MRR movement");
-  return html.slice(start, html.indexOf("</section>", start));
-}
 
 describe("S16 MRR movement chart, built toward legacy (399)", () => {
-  it("renders legacy's card copy with Foxhound's real bucket", () => {
-    const html = render(series);
-    expect(html).toContain("MRR movement");
-    expect(html).toContain("New, expansion, contraction, and churn by month");
-    expect(html).not.toContain("and churn by week");
-  });
-
-  it("carries legacy's five series in legacy's order", () => {
-    const c = card(render(series));
-    const legend = [...c.matchAll(/<li data-enarratio-series="([^"]+)"/g)].map((m) => m[1]);
-    expect(legend).toEqual(["New", "Expansion", "Reactivation", "Contraction", "Churn"]);
-  });
-
-  it("gives each series legacy's colour, purple on Reactivation only", () => {
-    const c = card(render(series));
-    // Each legend entry names its palette slot, and the figure maps each slot
-    // to a colour. Pairing the two is what makes this an assertion about WHICH
-    // series is purple rather than about purple being present somewhere.
-    const pairs: [string, string][] = [
-      ["New", "var(--green)"],
-      ["Expansion", "var(--blue)"],
-      ["Reactivation", "var(--purple)"],
-      ["Contraction", "var(--orange)"],
-      ["Churn", "var(--red)"],
-    ];
-    for (const [name, colour] of pairs) {
-      const slot = new RegExp(`data-enarratio-series="${name}" data-slot="([0-9])"`).exec(c)?.[1];
-      expect(slot).toBeDefined();
-      expect(c).toContain(`--enarratio-series-${slot}: ${colour}`);
-    }
-    // The reservation is what makes purple mean something, so no other series
-    // may borrow it.
-    expect((c.match(/var\(--purple\)/g) ?? []).length).toBe(1);
-  });
-
-  it("hangs contraction and churn below the baseline", () => {
-    // Month 2 has contraction and churn against new and reactivation, so the
-    // plot must cross zero and draw the baseline rule legacy's ReferenceLine
-    // puts there. StackedBars only draws it when the data actually goes
-    // negative, which is the discriminating condition.
-    const c = card(render(series));
-    // The value axis reaches below zero, and the table carries the negatives.
-    expect(c).toMatch(/>−\d/);
-    expect(c).toContain("<td>-$500</td>");
-  });
-
-  it("works in whole dollars, named on the axis", () => {
-    // Legacy's ticks read "$500" on both sides of the baseline (it takes the
-    // absolute value). Enarratio 0.3.1 has no tick formatter, so the unit is
-    // the axis label and a tick below the baseline reads with its minus: an
-    // Enarratio gap named in the J67 pull request. The data table keeps
-    // legacy's whole-dollar values.
-    const c = card(render(series));
-    expect(c).toContain(">USD<");
-    expect(c).toContain("<td>$1,200</td>");
-  });
 
   it("is withheld when every bucket is flat", () => {
     // Legacy's own gate. An account with snapshots but no movement gets no

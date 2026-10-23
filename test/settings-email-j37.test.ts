@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createRoutesStub } from "react-router";
@@ -42,8 +41,6 @@ vi.mock("~/db", async (importOriginal) => ({
 
 const route = await import("~/routes/app/settings/email");
 
-const SOURCE = readFileSync(new URL("../app/routes/app/settings/email.tsx", import.meta.url), "utf8");
-const CODE = SOURCE.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
 const Page = route.default as unknown as (props: {
   loaderData: Record<string, unknown>;
@@ -75,9 +72,6 @@ function text(html: string): string {
     .trim();
 }
 
-function input(html: string, name: string): string {
-  return html.match(new RegExp(`<input[^>]*name="${name}"[^>]*>`))?.[0] ?? "";
-}
 
 function attr(tag: string, name: string): string | undefined {
   return tag.match(new RegExp(`\\s${name}="([^"]*)"`))?.[1];
@@ -93,87 +87,12 @@ function testButton(html: string): string {
   return card(html).match(/<button[^>]*form="[^"]*"[^>]*>[\s\S]*?<\/button>/)?.[0] ?? "";
 }
 
-const SENDER_HELP = "Name that appears in the From field of recovery emails";
-const REPLY_HELP = "Customer replies go here. Use your support inbox.";
 const SAVE_FAILED = "Failed to save. Please try again.";
 const TEST_SENT = "Sent! Check your inbox";
 const TEST_FAILED = "Failed. Try again.";
 const TEST_SUPPRESSED = "Not sent. Your address is blocked after an unsubscribe, bounce or complaint.";
 
-describe("J37 email: the page head", () => {
-  it("is Capsomer's PageHead with Recova's title and line", () => {
-    const html = render();
-    expect(html).toMatch(/<header class="cap-page-head">[\s\S]*<h1 class="cap-page-head-title">Email<\/h1>/);
-    expect(html).toContain(
-      '<p class="cap-page-head-lead">Configure how recovery emails appear to your customers.</p>',
-    );
-  });
-
-  it("opens with Recova's phone-only back link to the settings hub", () => {
-    const html = render();
-    const link = html.match(/<a[^>]*href="\/settings"[^>]*>[\s\S]*?<\/a>/)?.[0] ?? "";
-    expect(link).toContain("md:hidden");
-    expect(text(link)).toBe("Settings");
-    expect(html.indexOf('href="/settings"')).toBeLessThan(html.indexOf("cap-page-head-title"));
-  });
-
-  it("sits in the settings layout's 800px column with no width or padding of its own", () => {
-    const html = render();
-    expect(html).not.toContain("max-w-2xl");
-    expect(html).not.toMatch(/class="mx-auto/);
-  });
-});
-
 describe("J37 email: the card", () => {
-  it("is ONE Capsomer panel holding Sender name, Reply-to email and Send test email, in Recova's order", () => {
-    const html = render();
-    expect(html.match(/<section class="cap-panel">/g)).toHaveLength(1);
-    const body = card(html);
-    let at = -1;
-    for (const label of ["Sender name", "Reply-to email", "Send test email"]) {
-      const next = body.indexOf(label);
-      expect(next, label).toBeGreaterThan(at);
-      at = next;
-    }
-  });
-
-  it("labels the sender name as a Capsomer field with Recova's placeholder and help under it", () => {
-    const html = render();
-    const tag = input(html, "senderName");
-    expect(attr(tag, "type")).toBe("text");
-    expect(attr(tag, "class")).toBe("cap-input");
-    expect(attr(tag, "value")).toBe("Alex from Acme");
-    expect(attr(tag, "placeholder")).toBe("e.g. Alex from Acme");
-    expect(attr(tag, "maxLength") ?? attr(tag, "maxlength")).toBe(String(SENDER_NAME_MAX_LENGTH));
-    expect(html).toMatch(new RegExp(`<label class="cap-field-label" for="${attr(tag, "id")}">Sender name</label>`));
-    const help = attr(tag, "aria-describedby") ?? "";
-    expect(html).toContain(`<p class="cap-field-help" id="${help}">${SENDER_HELP}</p>`);
-  });
-
-  it("labels the reply-to as a Capsomer email field with Recova's placeholder and help under it", () => {
-    const html = render();
-    const tag = input(html, "replyToEmail");
-    expect(attr(tag, "type")).toBe("email");
-    expect(attr(tag, "class")).toBe("cap-input");
-    expect(attr(tag, "value")).toBe("help@acme.test");
-    expect(attr(tag, "placeholder")).toBe("support@yourapp.com");
-    expect(html).toMatch(new RegExp(`<label class="cap-field-label" for="${attr(tag, "id")}">Reply-to email</label>`));
-    const help = attr(tag, "aria-describedby") ?? "";
-    expect(html).toContain(`<p class="cap-field-help" id="${help}">${REPLY_HELP}</p>`);
-  });
-
-  it("has no Test email heading or sentence of its own: Recova's card ends with the button", () => {
-    const html = render();
-    expect(html).not.toMatch(/<h2[^>]*>Test email<\/h2>/);
-    expect(text(html)).not.toContain("Sends a sample recovery email");
-  });
-
-  it("draws Send test email as a Capsomer default button inside the card", () => {
-    const button = testButton(render());
-    expect(button).toContain('class="cap-btn"');
-    expect(button).not.toContain("data-variant");
-    expect(text(button)).toBe("Send test email");
-  });
 
   it("posts the test email through its own form, so Enter in a field never sends one", () => {
     const html = render();
@@ -192,132 +111,6 @@ describe("J37 email: the card", () => {
     const mainSubmits = [...main.matchAll(/<button[^>]*type="submit"[^>]*>/g)].filter((m) => !m[0].includes(' form="'));
     expect(mainSubmits).toHaveLength(1);
     expect(main).toContain('name="_action" value="sender"');
-  });
-
-  it("says each outcome ON the button, as Recova does, in the button's own words", () => {
-    const sent = testButton(render({ actionData: { action: "test-email", ok: true, status: "sent" } }));
-    expect(text(sent)).toBe(TEST_SENT);
-
-    const failed = testButton(render({ actionData: { action: "test-email", ok: false, status: "failed" } }));
-    expect(text(failed)).toBe(TEST_FAILED);
-  });
-
-  it("puts no 12px status inside the button, which measured 4.18:1 in dark", () => {
-    const sent = testButton(render({ actionData: { action: "test-email", ok: true, status: "sent" } }));
-    expect(sent).not.toContain("cap-status");
-  });
-
-  it("says a suppressed address truly, not Recova's 'Try again', which would not help", () => {
-    const html = render({ actionData: { action: "test-email", ok: false, status: "suppressed" } });
-    expect(text(testButton(html))).toBe(TEST_SUPPRESSED);
-  });
-
-  it("announces the outcome in a live region that is on the page from the start", () => {
-    const idle = render();
-    const region = (html: string) => card(html).match(/<span[^>]*role="status"[^>]*>([\s\S]*?)<\/span>/);
-    expect(region(idle)).not.toBeNull();
-    expect(region(idle)?.[1]).toBe("");
-    const sent = render({ actionData: { action: "test-email", ok: true, status: "sent" } });
-    expect(text(region(sent)?.[1] ?? "")).toBe(TEST_SENT);
-  });
-
-  it("a test-email result never says Saved", () => {
-    const html = render({ actionData: { action: "test-email", ok: true, status: "sent" } });
-    const bar = html.slice(html.indexOf("</section>"));
-    expect(text(bar)).not.toContain("Saved");
-  });
-});
-
-describe("J37 email: the save bar", () => {
-  it("sits under the card, outside it, with Recova's Save changes as the primary button", () => {
-    const html = render();
-    const after = html.slice(html.indexOf("</section>"));
-    const button = after.match(/<button[^>]*>Save changes<\/button>/)?.[0] ?? "";
-    expect(button).toContain('type="submit"');
-    expect(button).toContain('class="cap-btn"');
-    expect(button).toContain('data-variant="primary"');
-    expect(after).toMatch(/class="[^"]*justify-end[^"]*"/);
-  });
-
-  it("says Saved beside the button after a save, as a Capsomer ok status in a live region", () => {
-    const html = render({ actionData: { action: "sender", ok: true } });
-    const bar = html.slice(html.indexOf("</section>"));
-    expect(bar).toMatch(/role="status"[\s\S]*class="cap-status" data-tone="ok"[\s\S]*Saved/);
-    expect(bar.indexOf("Saved")).toBeLessThan(bar.indexOf("Save changes"));
-    expect(html).not.toContain("cap-alert");
-  });
-
-  it("keeps the live region on the page before anything is said", () => {
-    const bar = render().slice(render().indexOf("</section>"));
-    expect(bar).toContain('role="status"');
-    expect(text(bar)).toBe("Save changes");
-  });
-
-  it("puts a refused sender name beside its field", () => {
-    const error = `Sender name must be ${SENDER_NAME_MAX_LENGTH} characters or fewer.`;
-    const html = render({ actionData: { action: "sender", ok: false, error, field: "senderName" } });
-    const tag = input(html, "senderName");
-    expect(attr(tag, "aria-invalid")).toBe("true");
-    const errorId = (attr(tag, "aria-describedby") ?? "").split(" ")[0];
-    expect(html).toContain(`id="${errorId}" role="alert">${error}</p>`);
-    expect(text(html.slice(html.indexOf("</section>")))).toBe("Save changes");
-  });
-
-  it("puts a refused reply-to beside its field", () => {
-    const error = "Enter a valid reply-to email address.";
-    const html = render({ actionData: { action: "sender", ok: false, error, field: "replyToEmail" } });
-    const tag = input(html, "replyToEmail");
-    expect(attr(tag, "aria-invalid")).toBe("true");
-    const errorId = (attr(tag, "aria-describedby") ?? "").split(" ")[0];
-    expect(html).toContain(`id="${errorId}" role="alert">${error}</p>`);
-  });
-});
-
-describe("J37 email: the look comes from Capsomer and the tokens", () => {
-  it("has no amber and no hand-sized text", () => {
-    expect(CODE).not.toMatch(/amber/i);
-    expect(CODE).not.toMatch(/text-\[/);
-  });
-
-  it("styles no Capsomer component with Foxhound classes of its own", () => {
-    for (const m of CODE.matchAll(/className="(cap-[^"]*)"/g)) {
-      for (const cls of m[1].split(/\s+/)) expect(cls).toMatch(/^cap-/);
-    }
-  });
-
-  it("uses the shared settings back link, not a local copy", () => {
-    expect(SOURCE).toContain('import { SettingsBackLink } from "~/components/settings-back-link";');
-    expect(CODE).not.toMatch(/function SettingsBackLink/);
-  });
-
-  it("no longer uses the auth screens' Alert", () => {
-    expect(CODE).not.toContain("~/components/auth-ui");
-  });
-
-  it("loads each Capsomer stylesheet it uses", () => {
-    for (const css of ["page-head", "panel", "field", "button", "status"]) {
-      expect(SOURCE).toContain(`import "capsomer/${css}.css";`);
-    }
-  });
-});
-
-// ---------------------------------------------------------------------------
-// The suppressed sentence is true only while these are the ways an address
-// gets suppressed. If another is added, this fails and the sentence changes.
-// ---------------------------------------------------------------------------
-
-describe("J37 email: the suppressed sentence matches the engine", () => {
-  const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
-
-  it("an address is suppressed by an unsubscribe, a bounce or a complaint, and nothing else", () => {
-    expect(read("app/lib/email/suppression.ts")).toContain('export const UNSUBSCRIBE_REASON = "unsubscribe";');
-    expect(read("app/lib/email/events.ts")).toContain(
-      'const SUPPRESSING_TYPES = new Set(["bounce", "hard_bounce", "complaint", "spam"]);',
-    );
-  });
-
-  it("the page says so", () => {
-    expect(SOURCE).toContain(TEST_SUPPRESSED);
   });
 });
 

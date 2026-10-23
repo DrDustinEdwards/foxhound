@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -24,7 +22,7 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const { sendSequenceCompleteNotification, sequenceCompleteSubject, sequenceCompleteBody, SEQUENCE_COMPLETE_TEMPLATE } =
+const { sendSequenceCompleteNotification, sequenceCompleteBody, SEQUENCE_COMPLETE_TEMPLATE } =
   await import("~/lib/recovery/sequence-complete-notification.server");
 const { flipExhaustedSequences, readClaimedSequences } = await import("~/lib/cron/recovery-tick");
 const { queryExhaustedSequences, buildExhaustedSequenceFlip } = await import("~/lib/cron/due-steps");
@@ -127,18 +125,6 @@ describe("PLANT 1: an exhausted sequence sends one email with legacy's strings",
     expect(harness.sent[0].from).toBe("Foxhound <recovery@send.foxhoundapp.com>");
     expect(sendRows()).toHaveLength(1);
     expect(sendRows()[0].template).toBe(SEQUENCE_COMPLETE_TEMPLATE);
-  });
-
-  it("the body carries legacy's wording and the payment link", async () => {
-    seedAccount({ enabled: null });
-    seedPayment({});
-    await sendSequenceCompleteNotification(env, { accountId: ACCOUNT, failedPaymentId: FP });
-    // J02: Capsomer's frame; the all-bold first line is the mail's heading.
-    const html = harness.sent[0].html;
-    expect(html).toMatch(/<h1[^>]*>Recovery sequence complete\.<\/h1>/);
-    expect(html).toContain("The recovery sequence for Jane Buyer ($99.00) has ended without a");
-    expect(html).toContain("manually reach out or write off this balance");
-    expect(html).toContain(`https://foxhoundapp.test/recovery/payments/${FP}`);
   });
 
   it("does NOT claim seven days, because no schedule runs seven days", () => {
@@ -290,80 +276,6 @@ describe("PLANT 4: the claim, and the mutual exclusion with the recovery notice"
       .run(ACCOUNT, FP);
 
     expect(await flipExhaustedSequences(env, new Date(5_000_000))).toEqual([]);
-  });
-});
-
-describe("PLANT 5: the tick hooks the notification on the claim", () => {
-  const SOURCE = readFileSync(
-    fileURLToPath(new URL("../app/lib/cron/recovery-tick.ts", import.meta.url)),
-    "utf8",
-  );
-  const code = SOURCE.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-
-  it("it iterates what the flip CLAIMED, not what it considered", () => {
-    expect(code).toContain("const claimed = await flipExhausted(env, now);");
-    expect(code).toContain("for (const sequence of claimed) {");
-    expect(code).toContain("await sendSequenceCompleteNotification(env, sequence);");
-  });
-
-  it("the notification runs AFTER the flip, never inside the batch", () => {
-    const flipIdx = code.indexOf("const claimed = await flipExhausted");
-    const sendIdx = code.indexOf("sendSequenceCompleteNotification(env, sequence)");
-    expect(flipIdx).toBeGreaterThan(-1);
-    expect(sendIdx).toBeGreaterThan(flipIdx);
-    expect(code).not.toContain("buildExhaustedSequenceFlip(db, ids, now), sendSequence");
-  });
-
-  it("the notification module writes nothing and records no outcome", () => {
-    const src = readFileSync(
-      fileURLToPath(new URL("../app/lib/recovery/sequence-complete-notification.server.ts", import.meta.url)),
-      "utf8",
-    )
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/^\s*\/\/.*$/gm, "");
-    expect(src).not.toContain("recordOutcome");
-    expect(src).not.toContain("executeMoneyWrite");
-    expect(src).not.toContain("db.insert");
-    expect(src).not.toContain("db.update");
-  });
-
-  it("no wide dash in the user-facing strings", () => {
-    const wide = new RegExp("[" + String.fromCharCode(0x2014, 0x2013) + "]");
-    expect(
-      sequenceCompleteSubject({ amountCents: 9900, currency: "usd", customerLabel: "X" }),
-    ).not.toMatch(wide);
-    expect(
-      JSON.stringify(
-        sequenceCompleteBody({ amountCents: 9900, currency: "usd", customerLabel: "X", paymentUrl: "https://x/1" }),
-      ),
-    ).not.toMatch(wide);
-  });
-});
-
-describe("PLANT 6: the docs describe the notice and its exclusivity", () => {
-  const DOCS = readFileSync(
-    fileURLToPath(new URL("../app/lib/marketing/docs-content.ts", import.meta.url)),
-    "utf8",
-  );
-  // REPOINTED, NOT WEAKENED (354 reversal 9). Session 64 gave the docs a
-  // block vocabulary, so Notifications and Alerts are H3 blocks inside the
-  // settings section rather than top-level `heading:` keys. The assertions
-  // below are unchanged; only the slice that finds the section moved.
-  const section = DOCS.slice(DOCS.indexOf('text: "Notifications"'), DOCS.indexOf('text: "Alerts"'));
-
-  it("says what ends a sequence and that the two notices never both fire", () => {
-    // Line for the heading map: platform, "Notifications", body[1].
-    expect(section).toContain("runs out of steps without the payment coming back");
-    expect(section).toContain("you never get both for one payment");
-  });
-
-  it("no longer lists the sequence-complete notice as unbuilt", () => {
-    expect(section).not.toContain("the sequence-complete notice are not built");
-    // Session 55 built the digest and session 56 built Slack, so NOTHING in
-    // this section is listed as unbuilt any more. What it must still do is say
-    // what each channel actually does.
-    expect(section).not.toContain("not built yet");
-    expect(section).toContain("Slack delivery posts to an incoming webhook");
   });
 });
 

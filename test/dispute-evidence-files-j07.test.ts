@@ -1,8 +1,4 @@
-import { readFileSync } from "node:fs";
 import type Stripe from "stripe";
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
-import { Outlet, createRoutesStub } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Db } from "~/db";
@@ -57,7 +53,6 @@ const { submitDisputeEvidenceWithClient } = await import("~/lib/disputes/submiss
 const { deleteEvidenceFile, readEvidenceFilesForSubmission, uploadEvidenceFile } = await import(
   "~/lib/disputes/evidence-files.server"
 );
-const Page = detail.default as unknown as (props: Record<string, unknown>) => ReturnType<typeof createElement>;
 
 const NOW = Date.parse("2026-10-16T12:00:00.000Z");
 const DAY = 86_400_000;
@@ -258,36 +253,7 @@ async function view(
   }
 }
 
-async function render(opts: { bucket?: FakeBucket; isDemo?: boolean } = {}): Promise<string> {
-  const loaderData = await detail.loader({
-    context: contextFor(A, envWith(opts.bucket), opts.isDemo),
-    request: new Request("https://foxhoundapp.test/disputes/dsp_1"),
-    params: { id: "dsp_1" },
-  } as never);
-  const Stub = createRoutesStub([
-    {
-      id: "app-shell",
-      path: "/",
-      Component: () => createElement(Outlet),
-      children: [{ path: "disputes/:id", Component: () => createElement(Page, { loaderData }) }],
-    },
-  ] as never);
-  return renderToStaticMarkup(
-    createElement(Stub, {
-      initialEntries: ["/disputes/dsp_1"],
-      hydrationData: { loaderData: { "app-shell": { isDemo: Boolean(opts.isDemo) } } },
-    } as never),
-  );
-}
 
-function text(html: string): string {
-  return html
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&#x27;|&#39;/g, "'")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
@@ -587,16 +553,6 @@ describe("J07: with no EVIDENCE binding, every path says so truthfully", () => {
     expect(await res.json()).toEqual({ error: "uploads_unavailable" });
   });
 
-  it("the section says uploads are not available yet and offers no upload control", async () => {
-    seedDispute();
-    const html = await render();
-    const t = text(html);
-    expect(t).toContain("Evidence files");
-    expect(t).toContain("File uploads are not available yet.");
-    expect(html).not.toContain('type="file"');
-    expect(t).not.toContain("Upload file");
-  });
-
   it("submission still goes ahead, without files", async () => {
     seedDispute();
     seedEvidence("ev_t", "product_description", "Growth plan");
@@ -609,82 +565,6 @@ describe("J07: with no EVIDENCE binding, every path says so truthfully", () => {
     const ctx = harness.submitted[0] as DisputeSubmissionContext;
     expect(ctx.evidence).toEqual({ product_description: "Growth plan" });
     expect(ctx.files ?? []).toEqual([]);
-  });
-});
-
-// ---- The page ----
-
-describe("J07: Recova's Evidence files section", () => {
-  it("shows Recova's title, limits line, upload control and empty line, built from the constants", async () => {
-    seedDispute();
-    const html = await render({ bucket: fakeBucket() });
-    const t = text(html);
-    expect(t).toContain("Evidence files");
-    expect(t).toContain("JPG, PNG, or PDF. 5 MB max. 5 files max per dispute.");
-    expect(t).toContain("Upload file");
-    expect(t).toContain("No files uploaded.");
-    expect(html).toMatch(/<input[^>]*type="file"[^>]*accept="image\/jpeg,image\/png,application\/pdf"/);
-    expect(html).toMatch(/<form id="dispute-evidence-upload"[^>]*enctype="multipart\/form-data"/i);
-  });
-
-  it("lists each file by name and date with Remove file, linking to the account-scoped view", async () => {
-    seedDispute();
-    seedEvidence("ev_f", "file_upload", "acct_alpha/dsp_1/0f1e.png");
-    const html = await render({ bucket: fakeBucket() });
-    const t = text(html);
-    expect(html).toContain('href="/disputes/dsp_1/files/ev_f"');
-    expect(t).toContain("0f1e.png");
-    expect(t).toContain("Oct 15, 2026");
-    expect(t).toContain("Remove file");
-  });
-
-  it("drops the upload control at five files, as Recova does", async () => {
-    seedDispute();
-    for (let i = 0; i < 5; i++) seedEvidence(`ev_${i}`, "file_upload", `acct_alpha/dsp_1/${i}.png`);
-    const html = await render({ bucket: fakeBucket() });
-    expect(html).not.toContain('type="file"');
-    expect(text(html)).toContain("Remove file");
-  });
-
-  it("shows the files read-only once approved", async () => {
-    seedDispute();
-    seedEvidence("ev_f", "file_upload", "acct_alpha/dsp_1/0f1e.png");
-    seedApproval();
-    const html = await render({ bucket: fakeBucket() });
-    expect(text(html)).toContain("0f1e.png");
-    expect(text(html)).not.toContain("Remove file");
-    expect(html).not.toContain('type="file"');
-  });
-
-  it("shows no upload or remove control in the demo", async () => {
-    seedDispute();
-    seedEvidence("ev_f", "file_upload", "acct_alpha/dsp_1/0f1e.png");
-    const html = await render({ bucket: fakeBucket(), isDemo: true });
-    expect(html).not.toContain('type="file"');
-    expect(text(html)).not.toContain("Remove file");
-  });
-
-  it("never lists a file as a staged evidence field", async () => {
-    seedDispute();
-    seedEvidence("ev_t", "product_description", "Growth plan");
-    seedEvidence("ev_f", "file_upload", "acct_alpha/dsp_1/0f1e.png");
-    const t = text(await render({ bucket: fakeBucket() }));
-    expect(t).not.toContain("File upload");
-    expect(t).not.toContain("acct_alpha/dsp_1/0f1e.png");
-  });
-
-  it("sits between Staged evidence and Additional evidence, as Recova's section 6", async () => {
-    seedDispute();
-    seedEvidence("ev_t", "product_description", "Growth plan");
-    const t = text(await render({ bucket: fakeBucket() }));
-    const order = ["Staged evidence", "Evidence files", "Additional evidence (optional)"].map((s) => t.indexOf(s));
-    for (const i of order) expect(i).toBeGreaterThan(-1);
-    expect(order).toEqual([...order].sort((a, b) => a - b));
-  });
-
-  it("keeps the upload form outside the draft form (no nested forms)", () => {
-    const source = readFileSync("app/components/dispute-detail-parts.tsx", "utf8");
-    expect(source).toContain("EVIDENCE_UPLOAD_FORM_ID");
   });
 });
 

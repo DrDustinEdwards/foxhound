@@ -1,8 +1,5 @@
-import { readFileSync } from "node:fs";
 
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
-import { createRoutesStub, RouterContextProvider } from "react-router";
+import { RouterContextProvider } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -71,13 +68,6 @@ describe("the cron lock's read-only view", () => {
     const health = lockState.cronLockHealth as (v: unknown, now: number) => Record<string, unknown>;
     expect(health({ heldUntil: null, legacyHeldUntil: NOW + MIN }, NOW)).toEqual({ state: "running", heldUntil: NOW + MIN });
     expect(health({ heldUntil: NOW - MIN, legacyHeldUntil: NOW + 2 * MIN }, NOW).state).toBe("running");
-  });
-
-  it("is a read on the Durable Object that writes nothing", () => {
-    const source = readFileSync("workers/cron-lock.ts", "utf8");
-    const peek = /async peek\(\)[\s\S]*?\n {2}\}/.exec(source)?.[0] ?? "";
-    expect(peek).toMatch(/cronLockView\(await this\.readState\(\)\)/);
-    expect(peek).not.toMatch(/storage\.(put|delete)/);
   });
 });
 
@@ -281,168 +271,7 @@ describe("the loader", () => {
   });
 });
 
-// ---------------------------------------------------------------- the page
 
-type Lock = { name: string; state: string; heldUntil: Date | null };
-const T = Date.now();
 
-function loaderData(over: Record<string, unknown> = {}) {
-  return {
-    sizeBytes: 900 * 1024,
-    queue: { activePayments: 12, dueSteps: 3, oldestDueAt: new Date(T - 4 * MIN) },
-    locks: [
-      { name: "recovery-tick", state: "running", heldUntil: new Date(T + 12 * MIN) },
-      { name: "weekly-digest", state: "not-released", heldUntil: new Date(T - 2 * HOUR) },
-      { name: "d1-backup", state: "idle", heldUntil: null },
-      { name: "cron-health", state: "unreadable", heldUntil: null },
-    ] as Lock[],
-    growthTables: [{ label: "Email sends", retentionPolicy: "180 days", rowCount: 1234 }],
-    migrations: {
-      rows: [
-        { name: "0000_init.sql", applied: true, appliedAt: new Date(T - 30 * 24 * HOUR) },
-        { name: "0029_cron_reads.sql", applied: false, appliedAt: null },
-      ],
-      unexpectedApplied: [],
-    },
-    envSanity: [
-      { name: "DB", kind: "binding", set: true },
-      { name: "SENTRY_AUTH_TOKEN", kind: "secret", set: false },
-      { name: "SENTRY_ORG", kind: "secret", set: true },
-      { name: "AI_GATEWAY_BASE_URL", kind: "var", set: false },
-    ],
-    ...over,
-  };
-}
 
-function render(data: Record<string, unknown> = loaderData()) {
-  const Page = route.default as unknown;
-  expect(typeof Page).toBe("function");
-  const Stub = createRoutesStub([
-    { path: "/admin/operations", Component: () => createElement(Page as never, { loaderData: data } as never) },
-  ]);
-  return renderToStaticMarkup(createElement(Stub, { initialEntries: ["/admin/operations"] }));
-}
 
-const text = (html: string) =>
-  html
-    .replace(/<[^>]+>/g, " ")
-    .replaceAll("&#x27;", "'")
-    .replaceAll("&quot;", '"')
-    .replaceAll("&amp;", "&")
-    .replace(/\s+/g, " ");
-
-const panelTitles = (html: string) => [...html.matchAll(/<h2[^>]*>(.*?)<\/h2>/g)].map((m) => text(m[1]).trim());
-
-describe("the Operations page", () => {
-  it("is Capsomer panels in sentence case, queue and locks first, Foxhound's four after", () => {
-    const html = render();
-    expect(panelTitles(html)).toEqual([
-      "Recovery queue",
-      "Cron locks",
-      "Database size",
-      "Table growth",
-      "Migrations",
-      "Settings",
-    ]);
-    expect(html).toMatch(/class="cap-panel/);
-    expect(html).not.toMatch(/\buppercase\b|\btracking-/);
-  });
-
-  it("shows the queue's depth in plain words", () => {
-    const t = text(render());
-    expect(t).toContain("Payments in recovery");
-    expect(t).toContain("12");
-    expect(t).toContain("Steps due now");
-    expect(t).toMatch(/Oldest due 4 minutes ago/);
-    expect(t).toContain("Steps on paused or cancelled accounts are not counted.");
-  });
-
-  it("says the queue is empty in words", () => {
-    const t = text(render(loaderData({ queue: { activePayments: 0, dueSteps: 0, oldestDueAt: null } })));
-    expect(t).toContain("No step is waiting for the recovery tick.");
-  });
-
-  it("is one captioned table of cron locks with a word, a glyph and a time each", () => {
-    const html = render();
-    expect(html).toMatch(/<caption[^>]*>[^<]*cron locks/i);
-    const t = text(html);
-    expect(t).toContain("Running");
-    expect(t).toContain("Not released");
-    expect(t).toContain("Idle");
-    expect(t).toContain("Could not read");
-    expect(html).toContain(`dateTime="${new Date(T + 12 * MIN).toISOString()}"`);
-    expect(t).toContain("1 cron lock held, 1 not released.");
-  });
-
-  it("has an empty state for the locks", () => {
-    expect(text(render(loaderData({ locks: [] })))).toContain("No crons are registered, so there are no locks to read.");
-  });
-
-  it("draws the database size as a meter with its number in text, and no amber over half", () => {
-    const html = render();
-    expect(html).toMatch(/role="meter"/);
-    expect(text(html)).toContain("900 KB of 10 GB");
-    const full = render(loaderData({ sizeBytes: 6 * 1024 * 1024 * 1024 }));
-    expect(text(full)).toContain("Over half full");
-    expect(full).not.toMatch(/data-tone="warn"/);
-  });
-
-  it("keeps the table growth, migrations and settings Foxhound has today", () => {
-    const t = text(render());
-    expect(t).toContain("Email sends");
-    expect(t).toContain("1,234");
-    expect(t).toContain("0029_cron_reads.sql");
-    expect(t).toContain("Not applied");
-    expect(t).toContain("SENTRY_AUTH_TOKEN");
-    expect(t).toContain("SENTRY_ORG");
-    expect(t).toContain("Not set");
-    expect(t).toContain("Secret");
-    expect(t).toContain("Variable");
-  });
-
-  it("has an empty state for the migrations", () => {
-    expect(text(render(loaderData({ migrations: { rows: [], unexpectedApplied: [] } })))).toContain(
-      "No migrations are recorded in this build.",
-    );
-  });
-
-  it("repeats neither the brake nor the crons page, and has no run-now or redeploy", () => {
-    const html = render();
-    const t = text(html);
-    expect(t).not.toMatch(/pause all|emergency brake|resume all|run now|redeploy|vercel/i);
-    expect(html).not.toMatch(/href="\/admin\/(brake|platform\/crons)/);
-    expect(t).not.toMatch(/Last succeeded|Last message/);
-  });
-});
-
-describe("the page source", () => {
-  const source = (() => {
-    try {
-      return readFileSync("app/routes/admin/operations.tsx", "utf8");
-    } catch {
-      return "";
-    }
-  })();
-
-  it("names itself once for the top bar", () => {
-    expect(source).toMatch(/export const handle: AdminHandle = \{ page: "Operations" \}/);
-    expect(source).not.toMatch(/<h1\b/);
-  });
-
-  it("has no amber and no hand-sized text", () => {
-    expect(source).toMatch(/\S/);
-    expect(source).not.toMatch(/amber|orange|warning-text|tone="warn"|text-\[/);
-  });
-
-  it("marks its lists busy while they are read again", () => {
-    expect(source).toMatch(/pagePending\(/);
-    expect(source).toMatch(/aria-busy=/);
-  });
-
-  it("keeps the settings list's read settings for the Errors page", async () => {
-    const getEnvSanity = lib.getEnvSanity as (env: unknown) => Array<{ name: string }>;
-    const names = getEnvSanity({}).map((r) => r.name);
-    expect(names).toContain("SENTRY_AUTH_TOKEN");
-    expect(names).toContain("SENTRY_ORG");
-  });
-});

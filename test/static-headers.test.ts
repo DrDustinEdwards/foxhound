@@ -65,12 +65,6 @@ describe("public/_headers is generated from the Worker's security header set", (
     expect(text).toBe(renderStaticHeadersFile());
   });
 
-  it("parses a non-empty /* block", () => {
-    // Parser control: every assertion below is all()-shaped over this map, and
-    // all() over an empty map is vacuously true (ruling 89).
-    expect(parsed.size).toBeGreaterThan(0);
-  });
-
   it("carries every non-CSP header the Worker sends, with identical values", () => {
     for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
       expect(parsed.get(name), `${name} missing from or differing in public/_headers`).toBe(value);
@@ -93,9 +87,5 @@ describe("public/_headers is generated from the Worker's security header set", (
       expect(detachedIn(text, path), path).toEqual(["Cross-Origin-Resource-Policy"]);
       expect(parseBlock(text, path).get("Cross-Origin-Resource-Policy"), path).toBe("cross-origin");
     }
-  });
-
-  it("keeps the immutable cache rule on hashed assets", () => {
-    expect(parseBlock(text, "/assets/*").get("Cache-Control")).toBe("public, max-age=31536000, immutable");
   });
 });

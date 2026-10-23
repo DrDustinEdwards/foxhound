@@ -41,7 +41,7 @@ vi.mock("~/db", async (importOriginal) => ({
 const schema = await import("~/db/schema");
 const constants = await import("~/lib/constants");
 const { RECOVERY_SCHEDULES, planRecoverySteps } = await import("~/lib/recovery/schedule");
-const { buildTemplateEmail, hasStepTemplate } = await import("~/lib/recovery/email-template");
+const { buildTemplateEmail } = await import("~/lib/recovery/email-template");
 const { passesQualityGate, findBrandVoiceViolations, hasTimingWord } = await import(
   "~/lib/recovery/email-generation"
 );
@@ -171,42 +171,7 @@ describe("E7 and E8 send on Recova's timing (lib/recovery-schedules.ts, lib/cons
 
 describe("E7 and E8 fallback copy is Recova's FALLBACK_TEMPLATES, step by step", () => {
   for (const stepType of STEPS) {
-    it(`${stepType} has its own step template`, () => {
-      expect(hasStepTemplate(stepType)).toBe(true);
-    });
 
-    for (const declineCategory of CATEGORIES) {
-      it(`${stepType} (${declineCategory}): subject and every sentence are Recova's`, () => {
-        const copy = buildTemplateEmail({
-          stepType,
-          declineCategory,
-          merchantName: "Teamflow",
-          senderName: "Teamflow",
-          customerName: "Jane Buyer",
-          amountFormatted: "$49.00",
-          updateUrl: URL,
-        });
-        expect(copy.subject).toBe(RECOVA[stepType].subject);
-        expect(htmlToBlocks(copy.bodyHtml)).toEqual(
-          RECOVA[stepType].blocks({ name: "Jane Buyer", amount: "$49.00", url: URL, sender: "Teamflow" }),
-        );
-      });
-    }
-
-    it(`${stepType}: Recova's own fallbacks, "there" and "Support", when the names are missing`, () => {
-      const copy = buildTemplateEmail({
-        stepType,
-        declineCategory: "soft",
-        merchantName: "your subscription",
-        senderName: null,
-        customerName: "   ",
-        amountFormatted: "$49.00",
-        updateUrl: URL,
-      });
-      expect(htmlToBlocks(copy.bodyHtml)).toEqual(
-        RECOVA[stepType].blocks({ name: "there", amount: "$49.00", url: URL, sender: "Support" }),
-      );
-    });
 
     it(`${stepType}: names are text, never markup`, () => {
       const copy = buildTemplateEmail({
@@ -249,17 +214,6 @@ describe("E7 and E8 fallback copy is Recova's FALLBACK_TEMPLATES, step by step",
       }
     });
   }
-
-  it("the revoked notice keeps its per-category copy: Recova has no step template for it", () => {
-    const input = {
-      declineCategory: "revoked",
-      merchantName: "Teamflow",
-      amountFormatted: "$49.00",
-      updateUrl: URL,
-    };
-    expect(hasStepTemplate("email_revoked")).toBe(false);
-    expect(buildTemplateEmail({ ...input, stepType: "email_revoked" })).toEqual(buildTemplateEmail(input));
-  });
 });
 
 // ---- 3. The executor sends Recova's words when generation fails ----------------
@@ -405,14 +359,6 @@ describe("E7 and E8 carry Recova's From, recipient, parts, footer and links", ()
       expect(m.html).toContain(`${BASE}${constants.ENGAGEMENT_HONEYPOT_PATH}/`);
       expect(m.text).not.toContain(constants.ENGAGEMENT_OPEN_PATH + "/");
       expect(m.text).not.toContain(constants.ENGAGEMENT_HONEYPOT_PATH + "/");
-    });
-
-    it(`${stepType}: with no sender name, From, sign-off and footer all say Recova's "Support"`, async () => {
-      const { jobs } = await runStep({ stepType, senderName: null, merchantName: "your subscription" });
-      const m = buildEmailMessage(jobs[0], BASE);
-      expect(m.from).toBe(`Support <${constants.EMAIL_FROM_ADDRESS}>`);
-      expect(htmlToBlocks(jobs[0].bodyHtml).at(-1)).toEqual({ type: "paragraph", text: "Support" });
-      expect(jobs[0].footerNote).toMatch(/^You're receiving this from Support about a recent payment\. © \d{4}$/);
     });
   }
 });

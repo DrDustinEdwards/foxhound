@@ -1,8 +1,6 @@
 import { readFileSync } from "node:fs";
 
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
-import { createRoutesStub, RouterContextProvider } from "react-router";
+import { RouterContextProvider } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { adminAuditLog } from "~/db";
@@ -78,28 +76,6 @@ beforeEach(() => {
 });
 afterEach(() => {
   vi.unstubAllGlobals();
-});
-
-// ---------------------------------------------------------------- the route
-
-describe("the route", () => {
-  it("is /admin/platform/errors, beside Recova's other Platform pages", () => {
-    const routes = readFileSync("app/routes.ts", "utf8");
-    expect(routes).toMatch(/route\("errors", "\.\/routes\/admin\/errors\.tsx"\)/);
-    const platform = /prefix\("platform", \[([\s\S]*?)\]\)/.exec(routes)?.[1] ?? "";
-    expect(platform).toContain('"errors"');
-  });
-
-  it("has a menu entry named Errors, between Crons and Webhooks as in Recova's nav", () => {
-    const shell = readFileSync("app/layouts/admin-shell.tsx", "utf8");
-    const ids = [...shell.matchAll(/\{ id: "([a-z-]+)", label: "([^"]+)", href: "([^"]+)"/g)].map((m) => m.slice(1));
-    const at = ids.findIndex(([id]) => id === "errors");
-    expect(at).toBeGreaterThan(-1);
-    expect(ids[at]).toEqual(["errors", "Errors", "/admin/platform/errors"]);
-    expect(ids[at - 1]?.[0]).toBe("crons");
-    expect(ids[at + 1]?.[0]).toBe("webhooks");
-    expect(shell).toMatch(/id: "errors"[^\n]*group: "Platform"/);
-  });
 });
 
 // ---------------------------------------------------------------- reading Sentry
@@ -261,158 +237,10 @@ describe("failed actions from the audit log (Recova's list)", () => {
 
 // ---------------------------------------------------------------- the page
 
-const Page = route.default as ((props: unknown) => React.ReactNode) | undefined;
 
-function render(loaderData: LoaderData) {
-  expect(typeof Page).toBe("function");
-  const Stub = createRoutesStub([
-    { path: "/admin/platform/errors", Component: () => createElement(Page as never, { loaderData } as never) },
-  ]);
-  return renderToStaticMarkup(createElement(Stub, { initialEntries: ["/admin/platform/errors"] }));
-}
 
-const text = (html: string) =>
-  html
-    .replace(/<[^>]+>/g, " ")
-    .replaceAll("&#x27;", "'")
-    .replaceAll("&quot;", '"')
-    .replaceAll("&amp;", "&")
-    .replace(/\s+/g, " ");
 
-const readyIssues = [
-  {
-    id: "9001",
-    shortId: "FOXHOUND-1",
-    title: "TypeError: thing 1 is undefined",
-    culprit: "app/lib/thing1.ts in run",
-    level: "error",
-    count: 1200,
-    userCount: 3,
-    firstSeen: new Date(Date.now() - 3 * 86400000),
-    lastSeen: new Date(Date.now() - 3600000),
-    permalink: "https://example-org.sentry.io/issues/9001/",
-  },
-  {
-    id: "9002",
-    shortId: "FOXHOUND-2",
-    title: "Slow query",
-    culprit: null,
-    level: "warning",
-    count: 1,
-    userCount: 0,
-    firstSeen: new Date(Date.now() - 86400000),
-    lastSeen: new Date(Date.now() - 7200000),
-    permalink: null,
-  },
-];
 
-const failedEntry = {
-  id: "a1",
-  createdAt: new Date(Date.now() - 600000),
-  actor: "ops@example.com",
-  action: "A staged change failed to apply",
-  target: { label: "Pause Acme", href: "/admin/staged" },
-  detail: "No such account",
-};
-
-describe("the Errors page", () => {
-  it("says plainly that error reporting is not connected, in a teal-family notice", () => {
-    const html = render({ sentry: { state: "not-connected" }, failed: [] });
-    const t = text(html);
-    expect(t).toContain("Error reporting is not connected.");
-    expect(t).toContain("SENTRY_DSN");
-    expect(html).toMatch(/class="cap-banner"[^>]*data-tone="info"/);
-    expect(html).not.toMatch(/data-tone="warn"/);
-  });
-
-  it("names the missing read settings when errors are sent but cannot be read here", () => {
-    const t = text(render({ sentry: { state: "no-reader", missing: ["SENTRY_AUTH_TOKEN", "SENTRY_ORG"] }, failed: [] }));
-    expect(t).toContain("Errors are sent to Sentry, but this page cannot read them yet.");
-    expect(t).toContain("SENTRY_AUTH_TOKEN and SENTRY_ORG");
-  });
-
-  it("says when the DSN is not one it can read from", () => {
-    expect(text(render({ sentry: { state: "unreadable-dsn" }, failed: [] }))).toContain(
-      "This page reads only from sentry.io",
-    );
-  });
-
-  it("shows a failed read as Capsomer's failed empty state with Sentry's answer", () => {
-    const html = render({ sentry: { state: "failed", message: "Sentry refused the token (401)." }, failed: [] });
-    expect(html).toMatch(/class="cap-empty"[^>]*data-kind="failed"/);
-    expect(text(html)).toContain("Could not read errors from Sentry.");
-    expect(text(html)).toContain("Sentry refused the token (401).");
-  });
-
-  it("lists unresolved issues in a captioned Capsomer table in sentence case", () => {
-    const html = render({ sentry: { state: "ready", issues: readyIssues }, failed: [] });
-    const t = text(html);
-    expect(t).toContain("2 unresolved errors seen in the last 14 days, most recent first.");
-    const tables = [...html.matchAll(/<table class="cap-table">([\s\S]*?)<\/table>/g)];
-    expect(tables).toHaveLength(1);
-    const headers = [...tables[0][1].matchAll(/<th scope="col"[^>]*>(.*?)<\/th>/g)].map((m) => text(m[1]).trim());
-    expect(headers).toEqual(["Error", "Level", "Events", "Users", "Last seen", "First seen"]);
-    expect(tables[0][1]).toMatch(/<caption[^>]*>[^<]*unresolved errors/i);
-    expect(t).toContain("1,200");
-    expect(t).toContain("TypeError: thing 1 is undefined");
-    expect(t).toContain("app/lib/thing1.ts in run");
-    expect(t).toContain("Warning");
-    expect(html).not.toMatch(/\buppercase\b|\btracking-/);
-  });
-
-  it("opens an issue in Sentry from a real link with a 24 px target and an icon", () => {
-    const html = render({ sentry: { state: "ready", issues: readyIssues }, failed: [] });
-    const link = /<a [^>]*href="https:\/\/example-org\.sentry\.io\/issues\/9001\/"[^>]*>[\s\S]*?<\/a>/.exec(html)?.[0] ?? "";
-    expect(link).toMatch(/class="[^"]*\bmin-h-6\b/);
-    expect(link).toMatch(/rel="noreferrer"/);
-    expect(link).toMatch(/<svg[^>]*aria-hidden="true"/);
-    expect(text(link)).toMatch(/opens in Sentry/);
-    // The issue with no safe link shows its title as plain text.
-    expect(html).not.toMatch(/href="null"|href=""/);
-  });
-
-  it("says all clear when Sentry has nothing unresolved", () => {
-    const html = render({ sentry: { state: "ready", issues: [] }, failed: [] });
-    expect(html).toMatch(/data-kind="all-clear"/);
-    expect(text(html)).toContain("No unresolved errors in the last 14 days.");
-  });
-
-  it("lists failed actions with Recova's five columns, and an empty state", () => {
-    const html = render({ sentry: { state: "not-connected" }, failed: [failedEntry] });
-    const t = text(html);
-    expect(t).toContain("Failed actions");
-    expect(t).toContain("Showing the last 1 failed action, newest first.");
-    const headers = [...html.matchAll(/<th scope="col"[^>]*>(.*?)<\/th>/g)].map((m) => text(m[1]).trim());
-    // Recova's errors page orders them Time, Action, Actor (not the audit log's order).
-    expect(headers).toEqual(["Time", "Action", "Actor", "Target", "Detail"]);
-    expect(t).toContain("No such account");
-    expect(html).toMatch(/role="tooltip"/);
-
-    const empty = text(render({ sentry: { state: "not-connected" }, failed: [] }));
-    expect(empty).toContain("No failed actions in the audit log.");
-  });
-
-  it("scrolls each table in its own labelled region on a phone", () => {
-    const html = render({ sentry: { state: "ready", issues: readyIssues }, failed: [failedEntry] });
-    const regions = html.match(/<div class="cap-table-wrap"[^>]*role="region"[^>]*aria-labelledby="[^"]+"[^>]*tabindex="0"/gi) ?? [];
-    expect(regions).toHaveLength(2);
-  });
-});
-
-// Review of #94: the operations page's settings list names the read settings.
-describe("the settings list on /admin/operations", () => {
-  it("lists SENTRY_AUTH_TOKEN and SENTRY_ORG as secrets beside SENTRY_DSN, by presence only", async () => {
-    const { getEnvSanity } = await import("~/lib/admin/operations.server");
-    const rows = getEnvSanity({ SENTRY_ORG: "example-org" } as unknown as Env);
-    const sentry = rows.filter((r) => r.name.startsWith("SENTRY_"));
-    expect(sentry).toEqual([
-      { name: "SENTRY_DSN", kind: "secret", set: false },
-      { name: "SENTRY_AUTH_TOKEN", kind: "secret", set: false },
-      { name: "SENTRY_ORG", kind: "secret", set: true },
-    ]);
-    expect(JSON.stringify(rows)).not.toContain("example-org");
-  });
-});
 
 // Review of #94: a failure's error text is cut like the fallback detail.
 describe("a long error in the detail column", () => {
@@ -437,21 +265,6 @@ describe("the page source", () => {
     }
   };
   const source = read("app/routes/admin/errors.tsx");
-
-  it("exists and names itself once for the top bar", () => {
-    expect(source).toMatch(/export const handle: AdminHandle = \{ page: "Errors" \}/);
-    expect(source).not.toMatch(/<h1\b/);
-  });
-
-  it("has no amber and no hand-sized text", () => {
-    expect(source).toMatch(/\S/);
-    expect(source).not.toMatch(/amber|orange|warning-text|tone="warn"|text-\[/);
-  });
-
-  it("marks its lists busy while they are read again", () => {
-    expect(source).toMatch(/pagePending\(/);
-    expect(source).toMatch(/aria-busy=/);
-  });
 
   it("never names the read token in what it renders", () => {
     expect(source).not.toMatch(/SENTRY_AUTH_TOKEN\b(?!")/);

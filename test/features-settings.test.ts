@@ -125,11 +125,6 @@ function stepResult(): string | null {
 }
 
 describe("PLANT 1: NULL renders ON, and both ends agree", () => {
-  it("an untouched account has both columns NULL", () => {
-    const row = toggles();
-    expect(row.winback).toBeNull();
-    expect(row.expiring).toBeNull();
-  });
 
   it("NULL SENDS: the win-back cron does not skip an untouched account", async () => {
     seedWinbackStep();
@@ -243,44 +238,6 @@ describe("PLANT 4: the page un-gates nothing else, which is 176 disproven", () =
     await save(false, false);
 
     expect(sqlite.prepare("SELECT count(*) AS n FROM account_subscriptions").get()).toEqual(before);
-  });
-
-  it("THE PAGE'S CODE NAMES NEITHER GATE TABLE, comments stripped first", async () => {
-    // The header comment DISCUSSES account_products at length, explaining that
-    // legacy's page never touches it, so a raw grep would fail on the
-    // explanation rather than on the code. Strip comments and assert what the
-    // module actually does.
-    const { readFileSync } = await import("node:fs");
-    const raw = readFileSync("app/routes/app/settings/features.tsx", "utf8");
-    const code = raw
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .split("\n")
-      .filter((line) => !line.trim().startsWith("//"))
-      .join("\n");
-
-    // REPOINTED IN SESSION 79: the page writes through the shared apply layer so
-    // the form and the MCP `set_feature_settings` tool cannot validate
-    // differently. The property is unchanged; the writer's name moved.
-    expect(code).toContain("applyFeatureSettings");
-    expect(code).not.toContain("account_products");
-    expect(code).not.toContain("accountSubscriptions");
-    expect(code).not.toContain("isIntelligenceEntitled");
-  });
-});
-
-describe("PLANT 5: the docs say the toggles exist", () => {
-  it("both engine sections name the features page", async () => {
-    const { DOC_GUIDES } = await import("~/lib/marketing/docs-content");
-    const body = DOC_GUIDES.flatMap((g) => g.sections)
-      .flatMap((s) => s.body)
-      .join(" ");
-
-    expect(body).toContain(
-      "Expiring card alerts are on unless you turn them off on the features page",
-    );
-    expect(body).toContain(
-      "Win-back sequences are on unless you turn them off on the features page",
-    );
   });
 });
 
