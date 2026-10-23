@@ -1,3 +1,5 @@
+import { sitemapDocument, type SitemapEntry as PrelumEntry } from "@drdustinedwards/site-helpers/sitemap";
+
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { getAllPublishedPosts } from "~/lib/blog/queries.server";
@@ -27,12 +29,8 @@ import type { Route } from "./+types/sitemap";
 // truth into a SitemapEntry[] here, never hand-list URLs that already exist
 // as data elsewhere in the repo.
 
-interface SitemapEntry {
-  path: string;
-  lastModified?: Date;
-  changeFrequency?: "always" | "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "never";
-  priority?: number;
-}
+// Prelum's entry, with a path where Prelum takes the absolute loc (the origin comes from env at request time).
+type SitemapEntry = Omit<PrelumEntry, "loc"> & { path: string };
 
 // Every static (non-parameterized) public marketing route belongs here.
 // test/sitemap.test.ts walks the real route tree (app/routes.ts) and asserts
@@ -55,53 +53,41 @@ interface SitemapEntry {
 // path since J09 (ruling 55). The old /products/<name> addresses this file
 // used to list answer a 301 to them.
 export const STATIC_PAGES: SitemapEntry[] = [
-  { path: "/", changeFrequency: "weekly", priority: 1.0 },
-  { path: "/pricing", changeFrequency: "monthly", priority: 0.8 },
-  { path: "/products", changeFrequency: "monthly", priority: 0.9 },
-  { path: "/product/audit", changeFrequency: "monthly", priority: 0.9 },
-  { path: "/product/recovery", changeFrequency: "monthly", priority: 0.9 },
-  { path: "/product/disputes", changeFrequency: "monthly", priority: 0.9 },
-  { path: "/product/intelligence", changeFrequency: "monthly", priority: 0.9 },
-  { path: "/features", changeFrequency: "monthly", priority: 0.8 },
+  { path: "/", changefreq: "weekly", priority: 1.0 },
+  { path: "/pricing", changefreq: "monthly", priority: 0.8 },
+  { path: "/products", changefreq: "monthly", priority: 0.9 },
+  { path: "/product/audit", changefreq: "monthly", priority: 0.9 },
+  { path: "/product/recovery", changefreq: "monthly", priority: 0.9 },
+  { path: "/product/disputes", changefreq: "monthly", priority: 0.9 },
+  { path: "/product/intelligence", changefreq: "monthly", priority: 0.9 },
+  { path: "/features", changefreq: "monthly", priority: 0.8 },
   // NET-NEW (no legacy pair): /about, /decline-codes, /compare and their
   // children. Ruling 56 permits a NET-NEW surface listing ITSELF; none of
   // them changes an entry for a ported page.
-  { path: "/about", changeFrequency: "monthly", priority: 0.5 },
-  { path: "/demos", changeFrequency: "monthly", priority: 0.7 },
-  { path: "/docs", changeFrequency: "weekly", priority: 0.8 },
-  { path: "/audit", changeFrequency: "monthly", priority: 0.9 },
-  { path: "/privacy", changeFrequency: "yearly", priority: 0.3 },
-  { path: "/terms", changeFrequency: "yearly", priority: 0.3 },
-  { path: "/security", changeFrequency: "yearly", priority: 0.3 },
-  { path: "/blog", changeFrequency: "weekly", priority: 0.8 },
+  { path: "/about", changefreq: "monthly", priority: 0.5 },
+  { path: "/demos", changefreq: "monthly", priority: 0.7 },
+  { path: "/docs", changefreq: "weekly", priority: 0.8 },
+  { path: "/audit", changefreq: "monthly", priority: 0.9 },
+  { path: "/privacy", changefreq: "yearly", priority: 0.3 },
+  { path: "/terms", changefreq: "yearly", priority: 0.3 },
+  { path: "/security", changefreq: "yearly", priority: 0.3 },
+  { path: "/blog", changefreq: "weekly", priority: 0.8 },
   // TASK-foxhound-parity-cluster-b.md fix 3: restores legacy's archive page.
-  { path: "/blog/archive", changeFrequency: "weekly", priority: 0.7 },
+  { path: "/blog/archive", changefreq: "weekly", priority: 0.7 },
   // Pass 3 extension point: decline-codes and compare hubs + their
   // templated per-code/per-competitor pages, added below via
   // DECLINE_CODES/COMPETITOR_ORDER rather than hand-listed here.
-  { path: "/decline-codes", changeFrequency: "monthly", priority: 0.8 },
-  { path: "/compare", changeFrequency: "monthly", priority: 0.7 },
+  { path: "/decline-codes", changefreq: "monthly", priority: 0.8 },
+  { path: "/compare", changefreq: "monthly", priority: 0.7 },
 ];
 
 // /docs/:slug pages, mapped the same way DECLINE_CODES/COMPETITOR_ORDER are
 // below (a static list already in the repo, not hand-duplicated here).
 const docEntries: SitemapEntry[] = DOC_GUIDES.map((g) => ({
   path: `/docs/${g.slug}`,
-  changeFrequency: "weekly",
+  changefreq: "weekly",
   priority: 0.7,
 }));
-
-function xmlEscape(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-function entryXml(url: string, entry: SitemapEntry): string {
-  const loc = `${url}${entry.path}`;
-  const lastmod = entry.lastModified ? `\n    <lastmod>${entry.lastModified.toISOString()}</lastmod>` : "";
-  const changefreq = entry.changeFrequency ? `\n    <changefreq>${entry.changeFrequency}</changefreq>` : "";
-  const priority = typeof entry.priority === "number" ? `\n    <priority>${entry.priority.toFixed(1)}</priority>` : "";
-  return `  <url>\n    <loc>${xmlEscape(loc)}</loc>${lastmod}${changefreq}${priority}\n  </url>`;
-}
 
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
@@ -112,8 +98,8 @@ export async function loader({ context }: Route.LoaderArgs) {
 
   const postEntries: SitemapEntry[] = posts.map((post) => ({
     path: `/blog/${post.slug}`,
-    lastModified: post.updatedAt ?? post.publishedAt ?? undefined,
-    changeFrequency: "monthly",
+    lastmod: post.updatedAt ?? post.publishedAt,
+    changefreq: "monthly",
     priority: 0.7,
   }));
 
@@ -125,19 +111,19 @@ export async function loader({ context }: Route.LoaderArgs) {
   // comparisons nuance is recorded rather than encoded.
   const tagEntries: SitemapEntry[] = [...tagsWithPosts].map((tag) => ({
     path: `/blog/tag/${tag}`,
-    changeFrequency: "weekly",
+    changefreq: "weekly",
     priority: 0.7,
   }));
 
   const declineCodeEntries: SitemapEntry[] = DECLINE_CODES.map((c) => ({
     path: `/decline-codes/${c.code}`,
-    changeFrequency: "monthly",
+    changefreq: "monthly",
     priority: 0.6,
   }));
 
   const compareEntries: SitemapEntry[] = COMPETITOR_ORDER.map((slug) => ({
     path: `/compare/${slug}`,
-    changeFrequency: "monthly",
+    changefreq: "monthly",
     priority: 0.6,
   }));
 
@@ -150,11 +136,10 @@ export async function loader({ context }: Route.LoaderArgs) {
     ...compareEntries,
   ];
 
-  const xml =
-    '<?xml version="1.0" encoding="UTF-8"?>\n' +
-    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
-    entries.map((e) => entryXml(url, e)).join("\n") +
-    "\n</urlset>\n";
+  const xml = sitemapDocument(
+    entries.map(({ path, ...entry }) => ({ loc: `${url}${path}`, ...entry })),
+    { layout: "expanded", lastmodFormat: "datetime" },
+  );
 
   return new Response(xml, {
     headers: {
