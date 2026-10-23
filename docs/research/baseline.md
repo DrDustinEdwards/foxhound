@@ -50,7 +50,7 @@ plus settings). The full table is the output of `npm run report:page-weight`.
 
 Finished 2026-10-10 at commit d04f134 (main), by running the six chunks of
 `stryker.config.mjs` one at a time with incremental mode on, then merging them
-with `node scripts/report-mutation.mjs --json`. Each chunk's mutation JSON and
+with `npm run report:mutation`. Each chunk's mutation JSON and
 incremental file were pushed to the branch `results/foxhound-mutation-baseline`
 (`chunks/`) as soon as the chunk finished, so a restart loses at most one chunk.
 
@@ -94,8 +94,8 @@ The raw chunk reports are on the results branch.
 | Unprotected zero-kill candidates | 194 | |
 | Unprotected covered-by-others candidates | 592 | |
 
-Protected means the file or test name matches the keep rules in
-`scripts/report-mutation.mjs`: payment, billing, money, Stripe, webhook, dispute,
+Protected means the file or test name matches the keep rule (`--protected`) in
+the `report:mutation` script in `package.json`: payment, billing, money, Stripe, webhook, dispute,
 auth, session, tenant isolation, account scope, role and admin guards, and tests
 written for a fixed bug. The match is a name heuristic that errs toward keeping.
 These are never removal candidates.
