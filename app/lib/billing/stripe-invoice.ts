@@ -317,12 +317,28 @@ export interface CreditNoteInput {
  * ruling: Stripe holds the credit against the customer in THAT currency and
  * draws it down on their next finalized invoice, so no money leaves and no
  * card is touched. A cash refund is Dustin's call and is not this path.
+ *
+ * THE INVOICE IS READ FIRST, because the idempotency key is not enough on a
+ * retry. Stripe prunes v1 keys once they are at least 24 hours old and treats a
+ * reused key after that as a new request, and the credit-note retry sweep runs
+ * daily. If an earlier attempt's note landed but its ledger row did not, the
+ * key alone would issue a second note. The note's own `fee_line_item_id`
+ * metadata is what finds it instead. A note someone VOIDED is refused rather
+ * than reissued: voiding is a person's decision, so the fee stays owed and the
+ * sweep's alert puts it in front of one.
  */
 export async function createCreditNote(
   env: Env,
   input: CreditNoteInput,
 ): Promise<{ creditNoteId: string }> {
   const stripe = getStripe(env);
+  for await (const existing of stripe.creditNotes.list({ invoice: input.stripeInvoiceId, limit: 100 })) {
+    if (existing.metadata?.fee_line_item_id !== input.feeLineItemId) continue;
+    if (existing.status === "void") {
+      throw new Error(`credit note ${existing.id} for fee line ${input.feeLineItemId} was voided at Stripe`);
+    }
+    return { creditNoteId: existing.id };
+  }
   const note = await stripe.creditNotes.create(
     {
       invoice: input.stripeInvoiceId,
