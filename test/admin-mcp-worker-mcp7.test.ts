@@ -91,7 +91,7 @@ describe("PLANT 1: the Worker holds no Stripe key, no money binding and no D1", 
   const config = jsonc(read("mcp/wrangler.jsonc"));
 
   it("binds only the foxhound service and the OAuth KV, nothing else", () => {
-    expect(config.services).toEqual([{ binding: "FOXHOUND", service: "foxhound" }]);
+    expect(config.services).toEqual([{ binding: "FOXHOUND", service: "foxhound", entrypoint: "AdminApi" }]);
     expect((config.kv_namespaces as { binding: string }[]).map((k) => k.binding)).toEqual(["OAUTH_KV"]);
     for (const forbidden of ["d1_databases", "r2_buckets", "queues", "durable_objects", "send_email", "analytics_engine_datasets", "hyperdrive"]) {
       expect(config[forbidden], forbidden).toBeUndefined();
