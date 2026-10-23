@@ -30,7 +30,7 @@
     "@anthropic-ai/sdk": "0.111.0",
     "@cloudflare/workers-oauth-provider": "1.1.0",
     "@dustinedwards/d1-dump": "github:DrDustinEdwards/d1-dump#v0.5.0",
-    "@dustinedwards/site-api": "github:DrDustinEdwards/site-api#v0.7.1",
+    "@dustinedwards/site-api": "github:DrDustinEdwards/site-api#v0.7.2",
     "@dustinedwards/site-runtime": "github:DrDustinEdwards/site-runtime#v0.7.0",
     "@modelcontextprotocol/server": "2.3.1",
     "@sentry/cloudflare": "10.66.0",
