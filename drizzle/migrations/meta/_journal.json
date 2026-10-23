@@ -239,6 +239,13 @@
       "when": 1792563951453,
       "tag": "0033_hot_query_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "6",
+      "when": 1792787796801,
+      "tag": "0034_stripe_deauthorize_retry",
+      "breakpoints": true
     }
   ]
 }
