@@ -70,7 +70,7 @@ function env(): Env {
     BETTER_AUTH_URL: ORIGIN,
     RATE_LIMITER: {
       idFromName: (n: string) => n,
-      get: () => ({ check: async () => ({ allowed: harness.allowed, retryAfterSec: 60 }) }),
+      get: () => ({ hit: async () => ({ ok: harness.allowed, retryAfterSeconds: 60 }) }),
     },
   } as unknown as Env;
 }

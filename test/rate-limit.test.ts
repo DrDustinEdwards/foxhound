@@ -1,50 +1,23 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { checkRateLimitWindow, type RateLimitWindow } from "~/lib/http/rate-limit-window";
 import {
   enforceRateLimit,
   rateLimitedResponse,
   resolveRateLimitBinding,
 } from "~/lib/http/rate-limit";
 
+import { makeRateLimiterNamespace } from "./helpers/rate-limiter";
+
 // audit finding M-1 (foxhound-audit-security.md): /api/auth/* was
-// live-verified unthrottled (8 rapid sign-in POSTs, no 429). Originally
-// tested against a mock Cloudflare RateLimit binding
-// (TASK-foxhound-auth-rate-limit.md); that binding was replaced with a
-// Durable Object we own after it proved untrustworthy live in production
-// (TASK-foxhound-do-rate-limiter.md). enforceRateLimit's DO calls below run
-// through the REAL checkRateLimitWindow algorithm via a fake
-// DurableObjectNamespace (same code path as production, only the storage
-// backing - real DO SQLite vs. an in-memory map keyed by idFromName - is
-// faked), so this is not a dumb stub of the outcome.
+// live-verified unthrottled. The counting is site-runtime's (its own tests
+// cover it); these drive Foxhound's matcher and wrappers through a fake
+// namespace that runs site-runtime's hitRules on SQLite.
 
-/** A fake DurableObjectNamespace: same idFromName -> same instance and
- *  storage, different idFromName -> fully isolated storage, exactly like a
- *  real DurableObjectNamespace. Each stub's check() runs the real window
- *  algorithm. */
-function makeFakeRateLimiterNamespace() {
-  const storage = new Map<string, RateLimitWindow | undefined>();
-  const idFromName = vi.fn((name: string) => name);
-  const get = vi.fn((id: string) => ({
-    check: (limit: number, periodMs: number) =>
-      checkRateLimitWindow(
-        {
-          getWindow: async () => storage.get(id),
-          putWindow: async (w) => {
-            storage.set(id, w);
-          },
-        },
-        Date.now(),
-        limit,
-        periodMs,
-      ),
-  }));
-  return { idFromName, get };
-}
-
-function makeEnv(namespace = makeFakeRateLimiterNamespace()) {
+function makeEnv(namespace: unknown = makeRateLimiterNamespace()) {
   return { RATE_LIMITER: namespace } as unknown as Env;
 }
+
+const broken = { idFromName: (name: string) => name, get: () => ({ hit: () => Promise.reject(new Error("DO unavailable")) }) };
 
 const PUBLIC_RULE = { bucket: "public", limit: 20, periodMs: 60_000 };
 
@@ -204,7 +177,6 @@ describe("rateLimitedResponse", () => {
 });
 
 describe("enforceRateLimit", () => {
-
   it("allows the first 20 public requests for a key and denies the 21st with 429", async () => {
     const env = makeEnv();
     const ip = { "cf-connecting-ip": "1.2.3.4" };
@@ -219,26 +191,18 @@ describe("enforceRateLimit", () => {
     expect(result?.headers.get("Retry-After")).toMatch(/^\d+$/);
   });
 
-  it("falls back to a stable key when cf-connecting-ip is absent", async () => {
-    const namespace = makeFakeRateLimiterNamespace();
+  it("keys the DO id on bucket + cf-connecting-ip, or a stable key without one", async () => {
+    const namespace = makeRateLimiterNamespace();
     const env = makeEnv(namespace);
-    const request = new Request("http://localhost/audit", { method: "POST" });
-    await enforceRateLimit(request, env);
-    expect(namespace.idFromName).toHaveBeenCalledWith("public:unknown");
+    await enforceRateLimit(new Request("http://localhost/audit", { method: "POST", headers: { "cf-connecting-ip": "9.8.7.6" } }), env);
+    await enforceRateLimit(new Request("http://localhost/audit", { method: "POST" }), env);
+    expect(namespace.names).toEqual(["public:9.8.7.6", "public:unknown"]);
   });
 
   it("fails open when the Durable Object call throws", async () => {
-    const namespace = {
-      idFromName: vi.fn((name: string) => name),
-      get: vi.fn(() => ({
-        check: vi.fn().mockRejectedValue(new Error("DO unavailable")),
-      })),
-    };
-    const env = makeEnv(namespace);
-    const request = new Request("http://localhost/demos", {
-      method: "POST",
-      headers: { "cf-connecting-ip": "1.1.1.1" },
-    });
-    await expect(enforceRateLimit(request, env)).resolves.toBeNull();
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const request = new Request("http://localhost/demos", { method: "POST", headers: { "cf-connecting-ip": "1.1.1.1" } });
+    await expect(enforceRateLimit(request, makeEnv(broken))).resolves.toBeNull();
+    log.mockRestore();
   });
 });

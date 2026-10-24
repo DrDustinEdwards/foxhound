@@ -1,4 +1,5 @@
 import { generateNonce } from "@dustinedwards/site-runtime/csp";
+import { RateLimiter } from "@dustinedwards/site-runtime/rate-limit/durable-object";
 import { withSentry } from "@sentry/cloudflare";
 import { createRequestHandler, RouterContextProvider } from "react-router";
 
@@ -15,10 +16,13 @@ import { handleQueueBatch } from "~/lib/queue/consumer";
 // Durable Objects exported from the worker entry so wrangler can bind them.
 export { MoneyWriteDurableObject } from "./money-writer";
 export { CronLockDurableObject } from "./cron-lock";
-export { RateLimiterDurableObject } from "./rate-limiter";
 // site-runtime's limiter class, bound as AUTH_RATE_LIMITER: the sign-in and
 // signup limiter (Q5; app/lib/auth/rate-limit.server.ts).
 export { RateLimiter } from "@dustinedwards/site-runtime/rate-limit/durable-object";
+// RATE_LIMITER (app/lib/http/rate-limit.ts) counts with the same class under
+// its old name, which keeps its namespace: retiring the name would delete a
+// Durable Object namespace, which waits for Dustin (RULES.md 3.13).
+export class RateLimiterDurableObject extends RateLimiter {}
 // The admin API, served only to a service binding that names this entrypoint
 // (FH-20); the public fetch below does not route it.
 export { AdminApi } from "./admin-api";

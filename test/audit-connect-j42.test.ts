@@ -59,7 +59,7 @@ function envWith(allowed = true): Env {
     ENCRYPTION_KEY: "0123456789abcdef".repeat(4),
     RATE_LIMITER: {
       idFromName: () => "id",
-      get: () => ({ check: async () => ({ allowed, retryAfterSec: 60 }) }),
+      get: () => ({ hit: async () => ({ ok: allowed, retryAfterSeconds: 60 }) }),
     },
   } as unknown as Env;
 }

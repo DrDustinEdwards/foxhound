@@ -124,7 +124,7 @@ describe("the generation route's edges (review round 1)", () => {
   it("over the rate limit, the real action answers { error: true } with 429", async () => {
     const limiter = {
       idFromName: (name: string) => name,
-      get: () => ({ check: async () => ({ allowed: false }) }),
+      get: () => ({ hit: async () => ({ ok: false, retryAfterSeconds: 60 }) }),
     };
     const form = new FormData();
     form.set("category", "soft");

@@ -1,6 +1,7 @@
 import { createSiteApi, type RateLimiter } from "@dustinedwards/site-api";
 
 import { getDb } from "~/db";
+import { isWithinRateLimit } from "~/lib/http/rate-limit";
 import { blogPostUrl, scheduleIndexNow } from "~/lib/seo/indexnow.server";
 
 import { carrelAdapter } from "./adapter.server";
@@ -13,17 +14,16 @@ import { carrelAdapter } from "./adapter.server";
 
 const CARREL_RATE_LIMIT = { limit: 120, periodMs: 60_000 } as const;
 
-/** The repo's own Durable Object limiter, not the Workers ratelimit binding:
- *  workers/rate-limiter.ts records that binding returned success past its limit
- *  here. Unlike the auth limiter this FAILS CLOSED (a throw becomes a refusal in
- *  site-api), which suits a write API. */
+/** The RATE_LIMITER Durable Object, not the Workers ratelimit binding, which
+ *  returned success past its limit here. Unlike the auth limiter this FAILS
+ *  CLOSED (the throw becomes a refusal in site-api), which suits a write API. */
 function carrelLimiter(env: Env): RateLimiter {
   return {
     async limit({ key }) {
-      const ns = env.RATE_LIMITER;
-      const stub = ns.get(ns.idFromName(`carrel:${key}`));
-      const { allowed } = await stub.check(CARREL_RATE_LIMIT.limit, CARREL_RATE_LIMIT.periodMs);
-      return { success: allowed };
+      const within = await isWithinRateLimit(env, "carrel", key, CARREL_RATE_LIMIT.limit, CARREL_RATE_LIMIT.periodMs, {
+        failClosed: true,
+      });
+      return { success: within };
     },
   };
 }
