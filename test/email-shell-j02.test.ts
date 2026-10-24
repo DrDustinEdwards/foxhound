@@ -40,7 +40,6 @@ const { sendSequenceCompleteNotification } = await import(
 );
 const { resendDepsFor } = await import("~/lib/recovery/manual-action-deps.server");
 const { sendTestEmail } = await import("~/lib/settings/test-email.server");
-const { sendAuthEmail } = await import("~/lib/auth/send-auth-email");
 const { buildFailureAlertEmail, buildStaleAlertEmail } = await import("~/lib/cron/alerts.server");
 const { renderFoxhoundAlertEmail } = await import("~/lib/email/templates");
 const { sendRenderedTransactionalEmail } = await import("~/lib/email/send");
@@ -367,16 +366,6 @@ describe("the settings test email carries both parts and Recova's preview footer
 });
 
 describe("transactional mail carries both parts and never the footer", () => {
-  it("email verification", async () => {
-    const url = `${BASE}/api/auth/verify-email?token=EXAMPLE-NOT-A-TOKEN`;
-    await sendAuthEmail(env, "email-verification", "owner@acme.test", url);
-    const m = only();
-    expectBothParts(m, ["Confirm your email", "Verify email", "This link expires in 1 hour."]);
-    expect(m.html).toContain(`href="${url}"`);
-    expect(m.text).toContain(url);
-    expectNoCustomerFooter(m);
-  });
-
   it("the cron failure and stale alerts", async () => {
     const now = new Date("2026-10-14T00:00:00.000Z");
     const failure = buildFailureAlertEmail(

@@ -34,11 +34,13 @@
 
 import {
   buildSecurityHeaders,
-  STANDARD_SECURITY_HEADERS,
+  PASSKEY_OVERRIDES,
   type HeaderOverride,
 } from "@dustinedwards/site-runtime/headers";
 
-const OWASP_PERMISSIONS_POLICY = STANDARD_SECURITY_HEADERS["Permissions-Policy"] ?? "";
+// OWASP's Permissions-Policy with passkey sign-in allowed for this origin
+// (site-runtime's PASSKEY_OVERRIDES), the starting point for clipboard-write below.
+const PASSKEY_PERMISSIONS_POLICY = PASSKEY_OVERRIDES["Permissions-Policy"]?.value ?? "";
 
 /**
  * A Permissions-Policy with clipboard-write set to (self), from a parsed list,
@@ -67,9 +69,9 @@ export const SECURITY_HEADER_OVERRIDES: Readonly<Record<string, HeaderOverride>>
       "OWASP's no-referrer also makes browsers send `Origin: null` on same-origin form and fetch POSTs (Fetch spec, request origin serialisation), and Better Auth refuses those with MISSING_OR_NULL_ORIGIN, so every signed-in auth POST would fail; /api/account/switch also returns the merchant to the page they were on from the same-origin Referer. This is Foxhound's pre-J22 value and Recova's (next.config.ts), so nothing is weakened.",
   },
   "Permissions-Policy": {
-    value: withClipboardWriteSelf(OWASP_PERMISSIONS_POLICY),
+    value: withClipboardWriteSelf(PASSKEY_PERMISSIONS_POLICY),
     reason:
-      "OWASP denies clipboard-write outright, which blocks navigator.clipboard.writeText in Chromium and kills two controls Recova has: the blog Share row's Copy link and the payment detail page's copy-email button. Allowed for this origin only; every other OWASP feature stays denied, camera, microphone, geolocation and payment included.",
+      "OWASP denies clipboard-write outright, which blocks navigator.clipboard.writeText in Chromium and kills two controls Recova has: the blog Share row's Copy link and the payment detail page's copy-email button. It also denies publickey-credentials-get, which refuses every passkey sign-in (site-runtime's PASSKEY_OVERRIDES). Both are allowed for this origin only; every other OWASP feature stays denied, camera, microphone, geolocation and payment included.",
   },
 };
 

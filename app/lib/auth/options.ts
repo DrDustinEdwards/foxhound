@@ -2,13 +2,10 @@ import type { BetterAuthOptions } from "better-auth";
 import { APIError } from "better-auth/api";
 
 import { isDisposableEmail } from "./disposable-emails";
-import { MIN_PASSWORD_LENGTH } from "./password-policy";
-
-export { MIN_PASSWORD_LENGTH };
 
 // Database-agnostic Better Auth options shared by the runtime factory
-// (auth.server.ts, which injects the D1-backed Drizzle adapter and env-gated
-// social providers) and the CLI schema generator (generate.config.ts, which
+// (auth.server.ts, which adds the family sign-in from site-runtime ./sign-in and
+// the D1-backed Drizzle adapter) and the CLI schema generator (generate.config.ts, which
 // introspects these options to emit the auth tables). Nothing here touches a
 // binding or a secret, so it is safe to import from both contexts.
 //
@@ -19,14 +16,6 @@ export { MIN_PASSWORD_LENGTH };
 /** Session lifetime: 30 days, refreshed at most once per day. */
 export const SESSION_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 30;
 export const SESSION_UPDATE_AGE_SECONDS = 60 * 60 * 24;
-
-/**
- * How long a password reset link works: one hour. This is Better Auth's own
- * default (3600 seconds in better-auth's api/routes/password.mjs), set here
- * explicitly so the reset email's "expires in 1 hour" is read from the same
- * number Better Auth uses, rather than from a comment that could drift (J82).
- */
-export const PASSWORD_RESET_EXPIRES_IN_SECONDS = 60 * 60;
 
 /** What every Better Auth account write stores in place of Google's tokens. */
 const NO_OAUTH_TOKENS = {
@@ -39,25 +28,10 @@ const NO_OAUTH_TOKENS = {
 
 export const authOptions = {
   appName: "Foxhound",
-  emailAndPassword: {
-    enabled: true,
-    requireEmailVerification: true,
-    minPasswordLength: MIN_PASSWORD_LENGTH,
-    autoSignIn: false,
-    resetPasswordTokenExpiresIn: PASSWORD_RESET_EXPIRES_IN_SECONDS,
-    // sendResetPassword is injected by the runtime factory (auth.server.ts), which
-    // has `env` and routes through the one EMAIL-binding send module. Absent here
-    // because this static config is shared with the CLI schema generator (no env).
-  },
-  emailVerification: {
-    sendOnSignUp: true,
-    autoSignInAfterVerification: false,
-    // sendVerificationEmail is injected by the runtime factory (see above).
-  },
   databaseHooks: {
     account: {
-      // Google is sign-in only and nothing reads its tokens, so none are stored
-      // (FH-5). Every account write Better Auth makes on a Google sign-in
+      // Google and Apple are sign-in only and nothing reads their tokens, so none
+      // are stored (FH-5). Every account write Better Auth makes on a social sign-in
       // (createOAuthUser, linkAccount, updateAccount) runs these hooks; the
       // clear_oauth_tokens migration cleared the rows from before.
       create: { before: async () => ({ data: NO_OAUTH_TOKENS }) },
@@ -66,7 +40,7 @@ export const authOptions = {
     user: {
       create: {
         // Disposable-email blocklist at account creation (legacy rule). Applies
-        // to every path that mints a user (email/password and OAuth).
+        // to every path that mints a user (the email link, Google and Apple).
         before: async (user) => {
           if (isDisposableEmail(user.email)) {
             throw new APIError("BAD_REQUEST", {

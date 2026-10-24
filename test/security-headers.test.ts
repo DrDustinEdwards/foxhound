@@ -1,6 +1,6 @@
 
 import { generateNonce, scriptHash } from "@dustinedwards/site-runtime/csp";
-import { STANDARD_SECURITY_HEADERS } from "@dustinedwards/site-runtime/headers";
+import { PASSKEY_OVERRIDES, STANDARD_SECURITY_HEADERS } from "@dustinedwards/site-runtime/headers";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -95,9 +95,12 @@ describe("the declared header set (site-runtime standard plus Foxhound's overrid
     expect(spaced.split(", ")).toEqual(["camera=()", "clipboard-write=(self)", "usb=()"]);
     const absent = withClipboardWriteSelf("camera=(), usb=()");
     expect(absent.split(", ")).toEqual(["camera=()", "usb=()", "clipboard-write=(self)"]);
-    const listed = withClipboardWriteSelf(STANDARD_SECURITY_HEADERS["Permissions-Policy"] ?? "");
+    // The Worker's list is site-runtime's passkey list (publickey-credentials
+    // allowed for the site's own pages) with clipboard-write added.
+    const listed = withClipboardWriteSelf(PASSKEY_OVERRIDES["Permissions-Policy"]?.value ?? "");
     expect(listed.match(/clipboard-write=/g)).toHaveLength(1);
     expect(listed).toBe(SECURITY_HEADERS["Permissions-Policy"]);
+    expect(listed).toContain("publickey-credentials-get=(self)");
   });
 });
 

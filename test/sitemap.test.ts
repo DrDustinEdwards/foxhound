@@ -65,12 +65,11 @@ const EXCLUDED_PREFIXES = [
   "/help",
   "/welcome",
   "/admin",
-  // Auth flow (login/signup/password reset/OAuth/team invite/logout): no SEO
+  // Auth flow (login/signup/passkey offer/OAuth/team invite/logout): no SEO
   // value, and robots.txt Disallows every one of these.
   "/login",
   "/signup",
-  "/forgot-password",
-  "/reset-password",
+  "/passkey",
   "/connect",
   "/invite",
   "/auth/",

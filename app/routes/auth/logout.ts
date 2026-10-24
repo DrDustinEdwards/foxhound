@@ -8,7 +8,7 @@ import type { Route } from "./+types/logout";
 // Sign out on POST only (CSRF-safe); a stray GET just bounces to /login.
 export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
-  const res = await getAuth(env).api.signOut({
+  const res = await (await getAuth(env)).api.signOut({
     headers: request.headers,
     asResponse: true,
   });

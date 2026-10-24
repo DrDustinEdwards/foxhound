@@ -74,6 +74,7 @@ function render(opts: RenderOpts = {}): string {
     theme: opts.theme ?? "dark",
     isOwner: opts.isOwner ?? true,
     isDemo: false,
+    signIn: { passkeys: [], providers: [] },
   };
   const Stub = createRoutesStub([
     {

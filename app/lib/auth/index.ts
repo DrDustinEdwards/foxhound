@@ -4,7 +4,6 @@ export {
   authOptions,
   SESSION_EXPIRES_IN_SECONDS,
   SESSION_UPDATE_AGE_SECONDS,
-  MIN_PASSWORD_LENGTH,
 } from "./options";
 export { getSession, type SessionResult } from "./session";
 export {

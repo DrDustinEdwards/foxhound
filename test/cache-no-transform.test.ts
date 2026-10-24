@@ -41,7 +41,7 @@ describe("no-transform on signed-in and token HTML", () => {
     "/p/sometoken",
     "/u/sometoken",
     "/invite/sometoken",
-    "/reset-password",
+    "/passkey",
   ])("%s carries no-transform once", (path) => {
     const response = html(path);
     expect(cacheControl(response)).toContain("no-transform");

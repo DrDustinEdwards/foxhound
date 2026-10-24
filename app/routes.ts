@@ -85,18 +85,19 @@ export default [
     route("connect/additional", "./routes/auth/connect-additional.ts"),
     route("invite/:token", "./routes/auth/invite.tsx"),
 
-    // Google OAuth start (POST): builds the provider URL + CSRF state cookie.
-    // The callback is the resource route auth/google/callback below.
-    route("auth/google", "./routes/auth/google-start.ts"),
+    // Google or Apple start (POST /auth/google, /auth/apple): builds the
+    // provider URL + CSRF state cookie. Google's callback is the resource route
+    // auth/google/callback below; Apple's is Better Auth's own under api/auth.
+    route("auth/:provider", "./routes/auth/social-start.ts"),
   ]),
 
-  // The four sign-in pages: Recova's bare auth layout, no site navigation and
-  // the footer's auth variant (row A1, ruling 403; J52).
+  // The sign-in pages: Recova's bare auth layout, no site navigation and the
+  // footer's auth variant (row A1, ruling 403; J52). /passkey is where an
+  // emailed sign-in link lands (site-runtime ./sign-in).
   layout("./layouts/auth.tsx", [
     route("login", "./routes/auth/login.tsx"),
     route("signup", "./routes/auth/signup.tsx"),
-    route("forgot-password", "./routes/auth/forgot-password.tsx"),
-    route("reset-password", "./routes/auth/reset-password.tsx"),
+    route("passkey", "./routes/auth/passkey-offer.tsx"),
   ]),
 
   // Recova's paths (J09, rulings 55 and 56): the console is /console and each

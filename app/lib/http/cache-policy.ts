@@ -225,7 +225,8 @@ export const NO_TRANSFORM_PREFIXES = [
   "/p/",
   "/u/",
   "/invite/",
-  "/reset-password",
+  // Where the emailed sign-in link lands, carrying a signed-in session.
+  "/passkey",
   // The OAuth consent page (J79): its query carries a client's id and state.
   "/oauth/",
 ];

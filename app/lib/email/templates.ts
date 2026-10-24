@@ -3,11 +3,10 @@ import {
   checkUrl,
   escapeHtml,
   notice,
+  magicLink,
   renderEmail,
-  reset,
   type AlertLevel,
   type Block,
-  type Copy,
   type FooterLine,
   type Rendered,
   type Template,
@@ -17,9 +16,9 @@ import {
 // here, on Capsomer's shared email component (RULES.md 3.16; Q3, Dustin "yes",
 // 2026-10-14, message cmsg_01Nd8kh3hkgYNYpWXrNkvBQL1VeHhPyiYfFgdd86VozbJD).
 // send.ts calls renderFoxhoundEmail for both sendEmail and sendTransactionalEmail,
-// so the frame is applied in exactly one place. The password reset is the one
-// exception to foxhoundMail: it is rendered on Capsomer's `reset` template by
-// renderFoxhoundResetEmail below, still in this module (J82).
+// so the frame is applied in exactly one place. The sign-in link is the one
+// exception to foxhoundMail: it is rendered on Capsomer's `magicLink` template by
+// renderFoxhoundSignInLinkEmail below, still in this module.
 //
 // WHAT STAYS FOXHOUND'S. The senders still write their own content, in the same
 // words as before; this module only turns that content into Capsomer's typed
@@ -166,35 +165,29 @@ export function manageEmailSettingsLine(baseUrl: string): FooterLine {
   return { text: "Manage email settings", url: `${baseUrl}/settings` };
 }
 
-// ---- the password reset (J82, parity row E1) -----------------------------------
+// ---- the sign-in link -----------------------------------------------------------
 //
-// The one mail not written as HTML by its sender: it is Capsomer's own `reset`
-// template, used as it stands, with Foxhound's words passed as `copy`. The
-// template fixes two lines that copy cannot replace: "The link works once and
-// expires in <expiresIn>." (true here: Better Auth consumes the reset token on
-// use and it lives PASSWORD_RESET_EXPIRES_IN_SECONDS), and the button with no
-// "paste this link" line under it in the HTML part. The text part still carries
-// the link on a line of its own. Recorded as a proposed Capsomer job, not
-// forked here: a shared component changes only in Capsomer.
+// Capsomer's own `magicLink` template, used as it stands, in its own words (the
+// family's one sign-in mail). Recova had no sign-in link: it had passwords. The
+// template's expiry line, "The link works once and expires in <expiresIn>.", is
+// true here: Better Auth consumes the link's token on use.
 
-export interface ResetRenderInput {
+export interface SignInLinkRenderInput {
   to: string;
-  /** Better Auth's reset link, passed through untouched. */
+  /** Better Auth's sign-in link, passed through untouched. */
   url: string;
-  /** How long the link works, in words: "1 hour". */
+  /** How long the link works, in words: "5 minutes". */
   expiresIn: string;
-  copy: Copy;
 }
 
-/** Render the password reset on Capsomer's reset template. Throws, through
+/** Render the sign-in link on Capsomer's magicLink template. Throws, through
  *  Capsomer's link check, on a link that is not https:. */
-export function renderFoxhoundResetEmail(input: ResetRenderInput): Rendered {
-  return renderEmail(reset, {
+export function renderFoxhoundSignInLinkEmail(input: SignInLinkRenderInput): Rendered {
+  return renderEmail(magicLink, {
     brand: { name: "Foxhound", family: FOXHOUND_EMAIL_FAMILY },
     to: input.to,
     url: input.url,
     expiresIn: input.expiresIn,
-    copy: input.copy,
   });
 }
 
