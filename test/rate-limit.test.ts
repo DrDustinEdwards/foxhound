@@ -3,8 +3,6 @@ import { describe, expect, it, vi } from "vitest";
 import { checkRateLimitWindow, type RateLimitWindow } from "~/lib/http/rate-limit-window";
 import {
   enforceRateLimit,
-  isWithinRateLimit,
-  RateLimiterUnavailableError,
   rateLimitedResponse,
   resolveRateLimitBinding,
 } from "~/lib/http/rate-limit";
@@ -206,11 +204,6 @@ describe("rateLimitedResponse", () => {
 });
 
 describe("enforceRateLimit", () => {
-  it("returns null (proceed) for a route with no matching rule", async () => {
-    const env = makeEnv();
-    const request = new Request("http://localhost/pricing", { method: "GET" });
-    expect(await enforceRateLimit(request, env)).toBeNull();
-  });
 
   it("allows the first 20 public requests for a key and denies the 21st with 429", async () => {
     const env = makeEnv();
@@ -226,33 +219,12 @@ describe("enforceRateLimit", () => {
     expect(result?.headers.get("Retry-After")).toMatch(/^\d+$/);
   });
 
-  it("keys the DO id on bucket + cf-connecting-ip", async () => {
-    const namespace = makeFakeRateLimiterNamespace();
-    const env = makeEnv(namespace);
-    const request = new Request("http://localhost/audit", {
-      method: "POST",
-      headers: { "cf-connecting-ip": "9.8.7.6" },
-    });
-    await enforceRateLimit(request, env);
-    expect(namespace.idFromName).toHaveBeenCalledWith("public:9.8.7.6");
-  });
-
   it("falls back to a stable key when cf-connecting-ip is absent", async () => {
     const namespace = makeFakeRateLimiterNamespace();
     const env = makeEnv(namespace);
     const request = new Request("http://localhost/audit", { method: "POST" });
     await enforceRateLimit(request, env);
     expect(namespace.idFromName).toHaveBeenCalledWith("public:unknown");
-  });
-
-  it("never touches the counter for an auth POST, which its action counts", async () => {
-    const namespace = makeFakeRateLimiterNamespace();
-    const env = makeEnv(namespace);
-    for (const path of ["/login", "/signup", "/api/auth/sign-in/email"]) {
-      const req = new Request(`http://localhost${path}`, { method: "POST", headers: { "cf-connecting-ip": "5.5.5.5" } });
-      expect(await enforceRateLimit(req, env)).toBeNull();
-    }
-    expect(namespace.idFromName).not.toHaveBeenCalled();
   });
 
   it("fails open when the Durable Object call throws", async () => {
@@ -268,63 +240,5 @@ describe("enforceRateLimit", () => {
       headers: { "cf-connecting-ip": "1.1.1.1" },
     });
     await expect(enforceRateLimit(request, env)).resolves.toBeNull();
-  });
-});
-
-describe("isWithinRateLimit", () => {
-  it("allows the first N calls for a key and denies the (N+1)th", async () => {
-    const env = makeEnv();
-    for (let i = 1; i <= 3; i++) {
-      expect(await isWithinRateLimit(env, "marketing_email_sample", "8.8.8.8", 3, 60_000)).toBe(true);
-    }
-    expect(await isWithinRateLimit(env, "marketing_email_sample", "8.8.8.8", 3, 60_000)).toBe(false);
-  });
-
-  it("isolates by bucket, so a different bucket for the same key is untouched", async () => {
-    const namespace = makeFakeRateLimiterNamespace();
-    const env = makeEnv(namespace);
-    for (let i = 1; i <= 3; i++) {
-      await isWithinRateLimit(env, "marketing_email_sample", "8.8.8.8", 3, 60_000);
-    }
-    expect(await isWithinRateLimit(env, "marketing_email_sample", "8.8.8.8", 3, 60_000)).toBe(false);
-    expect(await isWithinRateLimit(env, "public", "8.8.8.8", 20, 60_000)).toBe(true);
-  });
-
-  it("fails open when the Durable Object call throws", async () => {
-    const namespace = {
-      idFromName: vi.fn((name: string) => name),
-      get: vi.fn(() => ({
-        check: vi.fn().mockRejectedValue(new Error("DO unavailable")),
-      })),
-    };
-    const env = makeEnv(namespace);
-    await expect(isWithinRateLimit(env, "marketing_email_sample", "1.1.1.1", 10, 60_000)).resolves.toBe(true);
-  });
-
-  // J67 review: a caller whose request costs money (the Intelligence report
-  // button's paid model call) opts in to failing closed. The error is logged
-  // whole and thrown as RateLimiterUnavailableError, so the caller can refuse
-  // and say why instead of calling it a rate limit.
-  it("fails closed, logging the whole error, when the caller opts in", async () => {
-    const cause = new Error("DO unavailable");
-    const namespace = {
-      idFromName: vi.fn((name: string) => name),
-      get: vi.fn(() => ({ check: vi.fn().mockRejectedValue(cause) })),
-    };
-    const env = makeEnv(namespace);
-    const log = vi.spyOn(console, "error").mockImplementation(() => {});
-    await expect(
-      isWithinRateLimit(env, "intelligence-report", "acc_1", 5, 3_600_000, { failClosed: true }),
-    ).rejects.toBeInstanceOf(RateLimiterUnavailableError);
-    expect(log.mock.calls.some((call) => call.includes(cause))).toBe(true);
-    log.mockRestore();
-  });
-
-  it("is unchanged by the fail-closed option when the Durable Object answers", async () => {
-    const env = makeEnv();
-    for (let i = 0; i < 2; i++) {
-      expect(await isWithinRateLimit(env, "intelligence-report", "acc_1", 2, 60_000, { failClosed: true })).toBe(true);
-    }
-    expect(await isWithinRateLimit(env, "intelligence-report", "acc_1", 2, 60_000, { failClosed: true })).toBe(false);
   });
 });

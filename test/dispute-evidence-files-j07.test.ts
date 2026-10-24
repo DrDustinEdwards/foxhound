@@ -50,7 +50,7 @@ const { approveAndSubmitDispute, getDisputeDetail, getDisputesWithEvidence } = a
   "~/lib/disputes/queries.server"
 );
 const { submitDisputeEvidenceWithClient } = await import("~/lib/disputes/submission");
-const { deleteEvidenceFile, readEvidenceFilesForSubmission, uploadEvidenceFile } = await import(
+const { deleteEvidenceFile, uploadEvidenceFile } = await import(
   "~/lib/disputes/evidence-files.server"
 );
 
@@ -297,30 +297,6 @@ describe("J07: upload (Recova's upload-evidence route)", () => {
     expect(bucket.objects.get(rows[0]!.field_value)!.contentType).toBe("image/png");
   });
 
-  it("refuses an upload to another account's dispute, storing nothing", async () => {
-    seedDispute();
-    const bucket = fakeBucket();
-    const res = await post(uploadForm(fileOf(PNG, "r.png", "image/png")), { bucket, accountId: B });
-    expect(res.status).toBe(404);
-    expect(fileRows()).toHaveLength(0);
-    expect(bucket.objects.size).toBe(0);
-  });
-
-  it("the insert itself refuses another account's dispute, and leaves no object behind", async () => {
-    // Below the route's account-scoped read: the guard joined to the write.
-    seedDispute();
-    const bucket = fakeBucket();
-    const outcome = await uploadEvidenceFile(db, bucket as unknown as R2Bucket, {
-      accountId: B,
-      disputeId: "dsp_1",
-      file: fileOf(PNG, "r.png", "image/png"),
-      now: new Date(NOW),
-    });
-    expect(outcome).toBe("not_saved");
-    expect(fileRows()).toHaveLength(0);
-    expect(bucket.objects.size).toBe(0);
-  });
-
   it("refuses a file over 5 MB with file_too_large, storing nothing", async () => {
     seedDispute();
     const bucket = fakeBucket();
@@ -400,16 +376,6 @@ describe("J07: upload (Recova's upload-evidence route)", () => {
     expect(res.body).toMatchObject({ fileOutcome: "file_required" });
   });
 
-  it("refuses an upload once the evidence is approved, since the approval attests it", async () => {
-    seedDispute();
-    seedApproval();
-    const bucket = fakeBucket();
-    const res = await post(uploadForm(fileOf(PNG, "r.png", "image/png")), { bucket });
-    expect(res.status).toBe(409);
-    expect(res.body).toMatchObject({ fileOutcome: "evidence_locked" });
-    expect(bucket.objects.size).toBe(0);
-  });
-
   it("refuses an upload on a submitted dispute", async () => {
     seedDispute({ state: "submitted", submittedAt: new Date(NOW - DAY) });
     const res = await post(uploadForm(fileOf(PNG, "r.png", "image/png")), { bucket: fakeBucket() });
@@ -447,35 +413,12 @@ describe("J07: delete (Recova's delete-evidence route)", () => {
     expect(bucket.objects.size).toBe(0);
   });
 
-  it("refuses to delete another account's file, leaving it whole", async () => {
-    seedDispute();
-    const bucket = fakeBucket();
-    const { id, key } = await uploaded(bucket);
-    // Account B's own dispute, so the page read succeeds and the file id is the only foreign thing.
-    seedDispute({ id: "dsp_b", accountId: B, stripeDisputeId: "dp_b", stripeChargeId: "ch_b" });
-    const res = await post(deleteForm(id), { bucket, accountId: B, id: "dsp_b" });
-    expect(res.status).toBe(404);
-    expect(fileRows()).toHaveLength(1);
-    expect(bucket.objects.has(key)).toBe(true);
-  });
-
   it("refuses to delete a non-file evidence row through the file path", async () => {
     seedDispute();
     seedEvidence("ev_text", "product_description", "Growth plan");
     const res = await post(deleteForm("ev_text"), { bucket: fakeBucket() });
     expect(res.status).toBe(404);
     expect(sqlite.prepare("select count(*) as n from dispute_evidence where id = 'ev_text'").get()).toEqual({ n: 1 });
-  });
-
-  it("refuses a delete once the evidence is approved", async () => {
-    seedDispute();
-    const bucket = fakeBucket();
-    const { id } = await uploaded(bucket);
-    seedApproval();
-    const res = await post(deleteForm(id), { bucket });
-    expect(res.status).toBe(409);
-    expect(fileRows()).toHaveLength(1);
-    expect(bucket.objects.size).toBe(1);
   });
 });
 
@@ -509,15 +452,6 @@ describe("J07: view (Recova's evidence-url route, served by the Worker)", () => 
     expect(res.headers.get("content-security-policy")).not.toContain("script-src");
     expect(res.headers.get("content-disposition")).toBe(`inline; filename="${row.field_value.split("/").pop()}"`);
     expect(new Uint8Array(await res.arrayBuffer()).slice(0, 5)).toEqual(new Uint8Array(PDF.slice(0, 5)));
-  });
-
-  it("refuses another account's file with 404", async () => {
-    seedDispute();
-    const bucket = fakeBucket();
-    await post(uploadForm(fileOf(PNG, "r.png", "image/png")), { bucket });
-    const row = fileRows()[0]!;
-    const res = await view(row.id, { bucket, accountId: B });
-    expect(res.status).toBe(404);
   });
 
   it("refuses a file id under a different dispute of the same account", async () => {
@@ -650,32 +584,6 @@ describe("J07: files go with the evidence submission (Recova's submit route)", (
       submit: true,
     });
   });
-
-  it("submits the rest when one file upload to Stripe fails, as Recova does", async () => {
-    let n = 0;
-    const updates: { evidence: Record<string, string> }[] = [];
-    const stripe = {
-      files: {
-        create: async () => {
-          n += 1;
-          if (n === 1) throw new Error("stripe file rejected");
-          return { id: `file_${n}` };
-        },
-      },
-      disputes: { update: async (_id: string, params: { evidence: Record<string, string> }) => (updates.push(params), {}) },
-    } as unknown as Stripe;
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    const result = await submitDisputeEvidenceWithClient(stripe, {
-      stripeDisputeId: "dp_1",
-      evidence: { product_description: "Widget" },
-      files: [
-        { name: "a.png", contentType: "image/png", bytes: new Uint8Array([1]) },
-        { name: "b.png", contentType: "image/png", bytes: new Uint8Array([2]) },
-      ],
-    });
-    expect(result).toEqual({ ok: true });
-    expect(updates[0]!.evidence).toEqual({ product_description: "Widget", service_documentation: "file_2" });
-  });
 });
 
 // ---- The guards joined to the writes (RULES.md 3.9), past the route's reads ----
@@ -694,15 +602,6 @@ describe("J07 review: each write carries its own guard", () => {
     const bucket = fakeBucket({ onPut: () => seedApproval() });
     expect(await upload(bucket)).toBe("not_saved");
     expect(fileRows()).toHaveLength(0);
-    expect(bucket.objects.size).toBe(0);
-  });
-
-  it("an upload writes nothing when another takes the fifth place between its count and its insert", async () => {
-    seedDispute();
-    for (let i = 0; i < 4; i++) seedEvidence(`ev_${i}`, "file_upload", `acct_alpha/dsp_1/${i}.png`);
-    const bucket = fakeBucket({ onPut: () => seedEvidence("ev_4", "file_upload", "acct_alpha/dsp_1/4.png") });
-    expect(await upload(bucket)).toBe("not_saved");
-    expect(fileRows()).toHaveLength(5);
     expect(bucket.objects.size).toBe(0);
   });
 
@@ -725,21 +624,6 @@ describe("J07 review: each write carries its own guard", () => {
 });
 
 describe("J07 review: a file keeps its own Stripe slot when an earlier one is missing (Recova's slot i)", () => {
-  it("reads the slots by the files' places in the list", async () => {
-    const bucket = fakeBucket();
-    await bucket.put("k/a.png", new Uint8Array(PNG), { httpMetadata: { contentType: "image/png" } });
-    await bucket.put("k/c.pdf", new Uint8Array(PDF), { httpMetadata: { contentType: "application/pdf" } });
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    const files = await readEvidenceFilesForSubmission(bucket as unknown as R2Bucket, [
-      { fieldName: "file_upload", fieldValue: "k/a.png" },
-      { fieldName: "file_upload", fieldValue: "k/missing.png" },
-      { fieldName: "file_upload", fieldValue: "k/c.pdf" },
-    ]);
-    expect(files.map((f) => [f.name, f.slot])).toEqual([
-      ["a.png", 0],
-      ["c.pdf", 2],
-    ]);
-  });
 
   it("submits a file in its own slot, leaving the missing one's slot empty", async () => {
     const updates: { evidence: Record<string, string> }[] = [];

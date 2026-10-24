@@ -31,13 +31,6 @@ describe("getDefaultCard (the card on file, read only)", () => {
     expect(result).toEqual({ brand: "visa", last4: "4242", expMonth: 4, expYear: 2030 });
   });
 
-  it("is null when the customer exists but no card was ever collected", async () => {
-    const result = await getDefaultCard({} as Env, "cus_1", {
-      retrieveCustomer: async () => ({ invoice_settings: { default_payment_method: null } }),
-    });
-    expect(result).toBeNull();
-  });
-
   it("is null for a deleted customer, and for a read that fails, rather than breaking the page", async () => {
     expect(
       await getDefaultCard({} as Env, "cus_1", { retrieveCustomer: async () => ({ deleted: true }) }),

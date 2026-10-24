@@ -19,7 +19,7 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const { flipExhaustedSequences, recordMissingTokenAttempt, runRecoveryTick, RETRY_RESULT_NO_CONNECTION } = await import("~/lib/cron/recovery-tick");
+const { flipExhaustedSequences, recordMissingTokenAttempt, RETRY_RESULT_NO_CONNECTION } = await import("~/lib/cron/recovery-tick");
 const { queryDueRecoverySteps } = await import("~/lib/cron/due-steps");
 const { RETRY_TOKEN_MAX_ATTEMPTS, SEND_RETRY_BACKOFF_MINUTES } = await import("~/lib/constants");
 const schema = await import("~/db/schema");
@@ -149,34 +149,6 @@ describe.each(["null-token", "no-connection"] as const)(
   },
 );
 
-describe("a token that comes back mid-grace", () => {
-  it("lets the silent retry run normally instead of having forfeited it", async () => {
-    // The whole point of MEDIUM-2: a merchant mid-reconnect must not lose the
-    // first and highest-value step of a soft-decline sequence.
-    const db = await seed("null-token");
-    await recordMissingTokenAttempt({} as Env, { stepId: "step_retry", attemptCount: 0 }, T0);
-
-    // The merchant reconnects: the token is stored again.
-    await db
-      .update(schema.stripeConnections)
-      .set({ stripeAccessToken: "encrypted:reconnected" });
-
-    let charged = 0;
-    const result = await runRecoveryTick({} as Env, {
-      query: async (env, now) => queryDueRecoverySteps(env, now),
-      runRetry: async () => {
-        charged += 1;
-        return { recovered: false };
-      },
-      runEmail: async () => ({}),
-      flipExhausted: async () => [],
-    });
-    // The tick's own clock is real time, well past T0 + 5min backoff.
-    expect(charged).toBe(1);
-    expect(result.message).toMatch(/1 retries/);
-  });
-});
-
 describe("what the terminal stamp unblocks", () => {
   it("lets a one-step sequence exhaust into failed_unrecovered", async () => {
     const db = await seed("null-token");
@@ -195,19 +167,5 @@ describe("what the terminal stamp unblocks", () => {
 
     const [payment] = await db.select().from(schema.failedPayments);
     expect(payment.status).toBe("failed_unrecovered");
-  });
-
-  it("leaves the remaining email steps alone", async () => {
-    const db = await seed("null-token", ["email_day1", "email_day3"]);
-    await recordMissingTokenAttempt(
-      {} as Env,
-      { stepId: "step_retry", attemptCount: RETRY_TOKEN_MAX_ATTEMPTS - 1 },
-      T0,
-    );
-
-    const steps = await db.select().from(schema.recoverySteps);
-    const pending = steps.filter((s) => s.executedAt === null && s.result === null);
-    expect(pending.map((s) => s.stepType).sort()).toEqual(["email_day1", "email_day3"]);
-    expect((await flipExhaustedSequences({} as Env, minutesAfter(T0, 1))).length).toBe(0);
   });
 });

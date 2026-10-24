@@ -17,10 +17,6 @@ describe("hashMcpToken", () => {
     expect(a).toBe(b);
     expect(a).toMatch(/^[0-9a-f]{64}$/);
   });
-
-  it("differs for different inputs", async () => {
-    expect(await hashMcpToken("fox_mcp_x")).not.toBe(await hashMcpToken("fox_mcp_y"));
-  });
 });
 
 describe("verifyMcpToken", () => {

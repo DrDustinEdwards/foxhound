@@ -32,8 +32,7 @@ import type { Route } from "./+types/index";
 // diff decides whether it stands.
 //
 // Spoke hrefs come from lib/marketing/products.ts and are Recova's /product/*
-// since J09 (rulings 55 and 56); test/products-hub-j16.test.ts checks every
-// href is a route.
+// since J09 (rulings 55 and 56).
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return marketingMeta({

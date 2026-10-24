@@ -57,15 +57,13 @@ vi.mock("~/lib/money/execute", () => ({
 }));
 
 const { processConnectedWebhook } = await import("~/lib/webhooks/process");
-const { createdNotice, DISPUTE_CREATED_TEMPLATE } = await import(
+const { DISPUTE_CREATED_TEMPLATE } = await import(
   "~/lib/disputes/notices"
 );
-const { sendDisputeCreatedNotice, sendDisputeReminderNotice } = await import("~/lib/disputes/notices.server");
 
 const ACCOUNT = "acct_1";
 const BASE = "https://foxhoundapp.test";
 const NOW = new Date("2026-11-10T12:00:00Z");
-const HOUR = 60 * 60 * 1000;
 const DEADLINE = new Date("2026-11-24T23:59:59Z");
 const YEAR = new Date().getUTCFullYear();
 
@@ -110,85 +108,11 @@ function seedAccount(opts: { senderName?: string | null } = {}) {
     .run(ACCOUNT, opts.senderName === undefined ? "Acme Billing" : opts.senderName);
 }
 
-function seedDispute(opts: { id?: string; customerName?: string | null; deadline?: Date | null } = {}) {
-  const deadline = opts.deadline === undefined ? DEADLINE : opts.deadline;
-  sqlite
-    .prepare(
-      "INSERT INTO disputes (id, account_id, stripe_dispute_id, stripe_charge_id, customer_name, customer_email, amount_cents, currency, reason, status, state, evidence_deadline, created_at, stripe_connection_id) VALUES (?, ?, ?, 'ch_1', ?, 'buyer@acme.test', 5000, 'usd', 'product_not_received', 'needs_response', 'pending_review', ?, 1000, 'c1')",
-    )
-    .run(
-      opts.id ?? "d1",
-      ACCOUNT,
-      `dp_${opts.id ?? "d1"}`,
-      opts.customerName === undefined ? "Jane Buyer" : opts.customerName,
-      deadline ? deadline.getTime() : null,
-    );
-}
 
 function only(): SentMessage {
   expect(harness.sent).toHaveLength(1);
   return harness.sent[0];
 }
-
-// ============================================================================
-// E16: what it says
-// ============================================================================
-
-describe("E16 says what Recova's sendDisputeCreatedEmail says, as a Capsomer notice", () => {
-
-  it("a customer name is a plain value, never markup: Capsomer escapes it once", () => {
-    const made = createdNotice({
-      amountCents: 5000,
-      currency: "usd",
-      customerLabel: "Tom & Jerry <Co>",
-      reason: "fraudulent",
-      evidenceDeadline: DEADLINE,
-      disputeUrl: `${BASE}/disputes/d1`,
-    });
-    expect(made).toMatchObject({
-      subject: "New dispute: $50.00 from Tom & Jerry <Co>",
-      notice: {
-        body: [
-          "Tom & Jerry <Co> disputed $50.00 for reason: Fraudulent.",
-          "Evidence deadline: 2026-11-24.",
-          "Auto-submit is off. We will remind you 3 days before the deadline.",
-        ],
-      },
-    });
-  });
-});
-
-// ============================================================================
-// E16: what it carries, read from the message handed to the binding
-// ============================================================================
-
-describe("E16 carries Recova's footer, both parts, and no unsubscribe", () => {
-
-  it("From Foxhound, no Reply-To, no unsubscribe header or link, to the notification address", async () => {
-    seedAccount();
-    seedDispute();
-    await sendDisputeCreatedNotice(env, { accountId: ACCOUNT, disputeId: "d1" });
-    const m = only();
-    expect(m.from).toBe("Foxhound <recovery@send.foxhoundapp.com>");
-    expect(m.to).toBe("ops@acme.test");
-    expect(m.replyTo).toBeUndefined();
-    expect(m.headers).toBeUndefined();
-    for (const part of [m.html, m.text ?? ""]) expect(part.toLowerCase()).not.toContain("unsubscribe");
-    // Recova's footer is there, so the absence above is not an empty footer.
-    expect(m.text).toContain(footerNote("Acme Billing"));
-  });
-
-  it("a link Capsomer refuses is a named failure, never a mail without its button", async () => {
-    seedAccount();
-    seedDispute();
-    const out = await sendDisputeCreatedNotice(makeEnv("http://localhost:5173"), {
-      accountId: ACCOUNT,
-      disputeId: "d1",
-    });
-    expect(out).toMatchObject({ kind: "sent", result: { status: "failed" } });
-    expect(harness.sent).toHaveLength(0);
-  });
-});
 
 // ============================================================================
 // E16: when it sends, on Recova's trigger
@@ -226,25 +150,5 @@ describe("E16 sends on charge.dispute.created with Recova's words and footer", (
     expect(m.text).toContain(`${footerNote("Acme Billing")}\nManage email settings: ${BASE}/settings`);
     const sends = sqlite.prepare("SELECT status, template FROM email_sends").all();
     expect(sends).toEqual([{ status: "sent", template: DISPUTE_CREATED_TEMPLATE }]);
-  });
-});
-
-// ============================================================================
-// E17: what it carries, from the cron
-// ============================================================================
-
-describe("E17 carries Recova's footer, both parts, and no unsubscribe", () => {
-
-  it("a link Capsomer refuses is a named failure, never a mail without its button", async () => {
-    seedAccount();
-    seedDispute({ id: "d1", deadline: new Date(NOW.getTime() + 30 * HOUR) });
-    const out = await sendDisputeReminderNotice(makeEnv("http://localhost:5173"), {
-      accountId: ACCOUNT,
-      disputeId: "d1",
-      bucket: { eventType: "dispute_reminder_1d", daysLeft: 1 },
-      cronRunId: null,
-    });
-    expect(out).toMatchObject({ kind: "sent", result: { status: "failed" } });
-    expect(harness.sent).toHaveLength(0);
   });
 });

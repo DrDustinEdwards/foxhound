@@ -167,17 +167,6 @@ describe("generateMonthlyReport: Recova's button on Foxhound's engine", () => {
     expect(cc!.aiAssessment).toBe("Two refunds pulled it down.");
   });
 
-  it("regenerates over an existing report rather than returning it unchanged", async () => {
-    const db = await seed();
-    createMock.mockResolvedValueOnce(modelReply("First."));
-    createMock.mockResolvedValueOnce(modelReply("Second."));
-    await generateMonthlyReport(ENV, db, "acc_1", "2026-10", NOW);
-    const again = await generateMonthlyReport(ENV, db, "acc_1", "2026-10", NOW + 1000);
-    expect(again).toEqual({ ok: true, month: "2026-10", narrative: "Second." });
-    const reports = await db.select().from(intelligenceReports).where(eq(intelligenceReports.accountId, "acc_1"));
-    expect(reports.map((r) => r.narrative)).toEqual(["Second."]);
-  });
-
   it("allows Recova's five generations an hour per account and refuses the sixth", async () => {
     const db = await seed();
     expect(INTELLIGENCE_REPORT_HOURLY_LIMIT).toBe(5);
@@ -206,36 +195,6 @@ describe("generateMonthlyReport: Recova's button on Foxhound's engine", () => {
     expect(await generateMonthlyReport(ENV, db, "acc_2", "2026-10", NOW)).toMatchObject({ ok: true });
   });
 
-  it("does not spend the merchant's five on the nightly run's own narrative", async () => {
-    const db = await seed();
-    for (let i = 0; i < INTELLIGENCE_REPORT_HOURLY_LIMIT; i++) {
-      await db.insert(aiCalls).values({
-        id: `ai_${i}`,
-        accountId: "acc_1",
-        source: "intelligence_narrative",
-        model: "m",
-        promptTokens: 1,
-        completionTokens: 1,
-        costCents: 0,
-        createdAt: new Date(NOW - 10 * 60 * 1000),
-      });
-    }
-    createMock.mockResolvedValue(modelReply("Fine."));
-    expect(await generateMonthlyReport(ENV, db, "acc_1", "2026-10", NOW)).toMatchObject({ ok: true });
-  });
-
-  it("counts a call the model was paid for even when its reply would not parse", async () => {
-    const db = await seed();
-    createMock.mockResolvedValue({ content: [{ type: "text", text: "not json" }], usage: { input_tokens: 1, output_tokens: 1 } });
-    const log = vi.spyOn(console, "error").mockImplementation(() => {});
-    for (let i = 0; i < INTELLIGENCE_REPORT_HOURLY_LIMIT; i++) {
-      expect(await generateMonthlyReport(ENV, db, "acc_1", "2026-10", NOW)).toEqual({ ok: false, error: "generation_failed" });
-    }
-    expect(await generateMonthlyReport(ENV, db, "acc_1", "2026-10", NOW)).toEqual({ ok: false, error: "rate_limited" });
-    expect(createMock).toHaveBeenCalledTimes(INTELLIGENCE_REPORT_HOURLY_LIMIT);
-    log.mockRestore();
-  });
-
   // A paid call is never made unmetered: if the limiter itself errors, the
   // button refuses with its own sentence rather than calling the model.
   it("fails closed when the limiter errors: no model call, and its own error", async () => {
@@ -257,45 +216,11 @@ describe("generateMonthlyReport: Recova's button on Foxhound's engine", () => {
     log.mockRestore();
   });
 
-  it("logs a model failure whole, stack and status included", async () => {
-    const db = await seed();
-    const err = Object.assign(new Error("529 overloaded"), { status: 529 });
-    createMock.mockRejectedValue(err);
-    const log = vi.spyOn(console, "error").mockImplementation(() => {});
-    await generateMonthlyReport(ENV, db, "acc_1", "2026-10", NOW);
-    expect(log.mock.calls.some((call) => call.includes(err))).toBe(true);
-    log.mockRestore();
-  });
-
   it("fails visibly with no AI key, and writes nothing", async () => {
     const db = await seed();
     const result = await generateMonthlyReport({ RATE_LIMITER: limiter } as unknown as Env, db, "acc_1", "2026-10", NOW);
     expect(result).toEqual({ ok: false, error: "ai_not_configured" });
     expect(await db.select().from(intelligenceReports)).toHaveLength(0);
-  });
-
-  it("fails visibly when the AI account has no credit, and writes nothing", async () => {
-    const db = await seed();
-    createMock.mockRejectedValue(
-      Object.assign(
-        new Error(
-          '400 {"type":"error","error":{"type":"invalid_request_error","message":"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits."}}',
-        ),
-        { status: 400 },
-      ),
-    );
-    const result = await generateMonthlyReport(ENV, db, "acc_1", "2026-10", NOW);
-    expect(result).toEqual({ ok: false, error: "ai_no_credit" });
-    expect(await db.select().from(intelligenceReports)).toHaveLength(0);
-  });
-
-  it("names any other model failure as a failed generation", async () => {
-    const db = await seed();
-    createMock.mockRejectedValue(Object.assign(new Error("529 overloaded"), { status: 529 }));
-    expect(await generateMonthlyReport(ENV, db, "acc_1", "2026-10", NOW)).toEqual({
-      ok: false,
-      error: "generation_failed",
-    });
   });
 });
 

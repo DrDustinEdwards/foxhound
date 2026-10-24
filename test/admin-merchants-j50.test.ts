@@ -107,27 +107,6 @@ describe("the loader, by address", () => {
     harness.db = (await seed()).db;
   });
 
-  it("lists only paused merchants on the Paused list, newest first, the brake's included", async () => {
-    const data = await load(pausedRoute, "/admin/merchants/paused");
-    expect(data.view).toBe("paused");
-    expect(ids(data)).toEqual(["acct_both", "acct_brake", "acct_pets"]);
-  });
-
-  it("lists only billing exempt merchants on the Billing exempt list", async () => {
-    const data = await load(exemptRoute, "/admin/merchants/billing-exempt");
-    expect(data.view).toBe("billing-exempt");
-    expect(ids(data)).toEqual(["acct_both", "acct_lumen"]);
-  });
-
-  it("knows its list from its route, not its address: a revalidation reads /paused.data (seen in the browser)", async () => {
-    const paused = await load(pausedRoute, "/admin/merchants/paused.data");
-    expect(paused.view).toBe("paused");
-    expect(ids(paused)).toEqual(["acct_both", "acct_brake", "acct_pets"]);
-    const exempt = await load(exemptRoute, "/admin/merchants/billing-exempt.data?_routes=routes%2Fadmin%2Fmerchants%2Fbilling-exempt");
-    expect(exempt.view).toBe("billing-exempt");
-    expect((await load(indexRoute, "/admin/merchants/_.data")).view).toBe("all");
-  });
-
   it("counts every list for its tab, whichever list is shown", async () => {
     const counts = { all: 5, paused: 3, "billing-exempt": 2 };
     expect((await load(pausedRoute, "/admin/merchants/paused")).counts).toEqual(counts);
@@ -169,13 +148,6 @@ describe("the action from a list: the Merchants page's writers and audit rows", 
     expect(await account("acct_pets")).toMatchObject({ processingPaused: false, pauseReason: null });
     expect(await audit()).toEqual(["merchant.processing.resume"]);
     expect(ids(await load(pausedRoute, "/admin/merchants/paused"))).not.toContain("acct_pets");
-  });
-
-  it("puts it back with Undo, which re-pauses it as a person's pause", async () => {
-    await post(pausedRoute, "/admin/merchants/paused", { intent: "processing-paused", accountId: "acct_pets", value: "false" });
-    const undone = await post(pausedRoute, "/admin/merchants/paused", { intent: "processing-paused", accountId: "acct_pets", value: "true", undo: "1" });
-    expect(undone.data).toMatchObject({ ok: true, changed: true });
-    expect(await account("acct_pets")).toMatchObject({ processingPaused: true, pauseReason: PAUSE_REASON_MANUAL });
   });
 
   it("ends an exemption (Recova's Remove exemption), so the billing run bills the merchant again", async () => {

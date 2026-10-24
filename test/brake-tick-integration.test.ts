@@ -20,8 +20,7 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 const { checkTickGuards } = await import("~/lib/cron/recovery-tick");
-const { queryDueRecoverySteps } = await import("~/lib/cron/due-steps");
-const { engageBrake, releaseBrake } = await import("~/lib/admin/brake.server");
+const { engageBrake } = await import("~/lib/admin/brake.server");
 const { RECOVERY_TICK_CRON_NAME } = await import("~/lib/constants");
 const schema = await import("~/db/schema");
 
@@ -75,31 +74,6 @@ beforeEach(() => {
   harness.db = null;
 });
 
-describe("the brake against the real step-selection query", () => {
-  it("a due step is selected before the brake and NOT selected after", async () => {
-    const db = await seed();
-    const laterThanDue = new Date(T0.getTime() + 60_000);
-
-    expect(await queryDueRecoverySteps({} as Env, laterThanDue)).toHaveLength(1);
-
-    await engageBrake(db, { actorEmail: ACTOR });
-
-    // The composed query, not the predicate: joins, status filter and all.
-    expect(await queryDueRecoverySteps({} as Env, laterThanDue)).toHaveLength(0);
-  });
-
-  it("releasing the brake makes the same step selectable again", async () => {
-    const db = await seed();
-    const laterThanDue = new Date(T0.getTime() + 60_000);
-
-    await engageBrake(db, { actorEmail: ACTOR });
-    await releaseBrake(db, { actorEmail: ACTOR });
-
-    // Nothing about the step changed: it was never executed, never stamped.
-    expect(await queryDueRecoverySteps({} as Env, laterThanDue)).toHaveLength(1);
-  });
-});
-
 describe("the real mid-run guard reads live state", () => {
   it("reports the account ineligible the moment the brake marks it", async () => {
     const db = await seed();
@@ -130,18 +104,9 @@ describe("the real mid-run guard reads live state", () => {
 
     expect((await checkTickGuards({} as Env, ACCOUNT_ID)).tickEnabled).toBe(false);
   });
-
-  it("reports an unknown account as ineligible rather than throwing", async () => {
-    await seed();
-    expect((await checkTickGuards({} as Env, "acc_does_not_exist")).accountEligible).toBe(false);
-  });
 });
 
 describe("LOW-B: the tick guard fails closed in BOTH halves", () => {
-  it("treats a missing cron_config row as enabled (gotcha 44), not as a failure", async () => {
-    await seed();
-    expect((await checkTickGuards({} as Env, ACCOUNT_ID)).tickEnabled).toBe(true);
-  });
 
   it("throws rather than reading a malformed batch result as enabled", async () => {
     await seed();

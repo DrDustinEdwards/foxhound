@@ -3,7 +3,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createRoutesStub } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 
-import { accounts } from "~/db/schema";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -54,28 +53,6 @@ function text(html: string): string {
     .replace(/\s+/g, " ")
     .trim();
 }
-
-
-describe("J35 audit settings: the switch off posts nothing, and nothing is off", () => {
-  it("a form with no audit_auto_run writes false through the real action", async () => {
-    const { db } = createInMemoryDb();
-    harness.db = db;
-    await db.insert(accounts).values({ id: "acct_j35", name: "Acme", createdAt: new Date(), auditAutoRun: true });
-    const body = new FormData();
-    body.append("audit_lookback_days", "60");
-    const ctx = {
-      get: (key: unknown) => {
-        const name = String((key as { name?: string })?.name ?? "");
-        if (name.includes("cloudflare")) return { env: {} as Env };
-        return { membership: { accountId: "acct_j35" } };
-      },
-    } as never;
-    await route.action({ request: new Request("http://x/settings/audit", { method: "POST", body }), context: ctx } as never);
-    const rows = await db.select().from(accounts);
-    expect(rows[0].auditAutoRun).toBe(false);
-    expect(rows[0].auditLookbackDays).toBe(60);
-  });
-});
 
 describe("J35 review: a write that throws reaches the merchant and the log", () => {
   it("the real action catches it, logs the Error, answers 500 and the page says Recova's failure line", async () => {

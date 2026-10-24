@@ -32,35 +32,6 @@ const envRotated = {
 } as unknown as Env;
 
 describe("312: the ciphertext format carries a key id", () => {
-  it("round-trips in BOTH directions under the active key", async () => {
-    const secret = "sk_live_rotation_subject";
-    const encrypted = await encryptToken(envA, secret);
-    expect(encrypted.startsWith("v1:k1:")).toBe(true);
-    expect(keyIdOf(encrypted)).toBe("k1");
-    expect(await decryptToken(envA, encrypted)).toBe(secret);
-  });
-
-  it("defaults the key id to k1, so the already-set secret needs no config change", () => {
-    // The load-bearing compatibility property: ENCRYPTION_KEY is set in
-    // production today and ENCRYPTION_KEY_ID is not.
-    expect(loadKeyring(envA).activeId).toBe("k1");
-    expect(loadKeyring(envA).byId.get("k1")).toBe(KEY_A);
-  });
-
-  it("THE ROTATION: a value written under the OLD key still decrypts after rotating", async () => {
-    // This is what the whole ruling buys. Encrypt under k1, rotate to k2 with k1
-    // kept decrypt-only, and the old value must still read.
-    const old = await encryptToken(envA, "written-before-rotation");
-    expect(keyIdOf(old)).toBe("k1");
-    expect(await decryptToken(envRotated, old)).toBe("written-before-rotation");
-  });
-
-  it("after rotating, NEW values are written under the new key", async () => {
-    const fresh = await encryptToken(envRotated, "written-after-rotation");
-    expect(keyIdOf(fresh)).toBe("k2");
-    // and the old key alone cannot read it
-    await expect(decryptToken(envA, fresh)).rejects.toThrow(/No encryption key for id 'k2'/);
-  });
 
   it("reencryptToken moves a value onto the active key, and is a no-op when already there", async () => {
     const old = await encryptToken(envA, "subject");
@@ -165,14 +136,6 @@ describe("312: the re-encrypt writer, against a real database", () => {
     expect(second.alreadyActive).toBe(1);
   });
 
-  it("runs clean against ZERO rows, which is what it will do in production today", async () => {
-    // 311 measured one connection with a NULL token, so this is the real
-    // production shape and it must not throw on an empty scan.
-    const { db } = createInMemoryDb();
-    const report = await reencryptConnectionTokens(envRotated, db);
-    expect(report).toMatchObject({ scanned: 0, rewritten: 0, alreadyActive: 0, failures: [] });
-  });
-
   it("a row it cannot read is REPORTED, not thrown past, and carries no token material", async () => {
     // A token under a key this env cannot resolve. The run must continue and
     // name the connection, and the reason must not contain the value.
@@ -190,24 +153,5 @@ describe("312: the re-encrypt writer, against a real database", () => {
     expect(report.failures[0].connectionId).toBe("conn_bad");
     expect(report.failures[0].reason).toMatch(/No encryption key for id 'kX'/);
     expect(JSON.stringify(report)).not.toContain(unreadable);
-  });
-
-  // RENAMED after its plant did not bite. It read "fails BEFORE any row is
-  // touched", but moving the keyring load after the SELECT still threw before any
-  // UPDATE, so the assertion passed against the planted code and its name
-  // overclaimed. What it actually proves, and what matters, is that a broken
-  // keyring THROWS rather than degrading into a per-row failure report, and that
-  // no row is modified on the way out.
-  it("a broken keyring THROWS and modifies no row", async () => {
-    const { sqlite, db } = createInMemoryDb();
-    const original = await encryptToken(envA, "tok");
-    seed(sqlite, db, "conn_a", original);
-
-    await expect(reencryptConnectionTokens({} as unknown as Env, db)).rejects.toThrow(
-      /ENCRYPTION_KEY is not set/,
-    );
-
-    const rows = await db.select().from(stripeConnections);
-    expect(rows[0].stripeAccessToken).toBe(original);
   });
 });

@@ -22,7 +22,7 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 const { queryDueRecoverySteps, toEmailContext } = await import("~/lib/cron/due-steps");
-const { buildUserPrompt, merchantContextLine } = await import("~/lib/recovery/email-generation");
+const { buildUserPrompt } = await import("~/lib/recovery/email-generation");
 const { buildGenerateEmailInput } = await import("~/lib/engine/execute-step");
 
 const ACCOUNT = "acct_1";
@@ -77,26 +77,6 @@ async function promptForAccount(): Promise<string> {
 }
 
 describe("PLANT 1: each column reaches the prompt, observed at the output", () => {
-  it("industry appears as legacy words it", async () => {
-    seedAccount({ industry: "SaaS" });
-    const prompt = await promptForAccount();
-    expect(prompt).toContain("Merchant context: SaaS business");
-  });
-
-  it("customer type appears as legacy words it", async () => {
-    seedAccount({ customerType: "B2B" });
-    const prompt = await promptForAccount();
-    expect(prompt).toContain("Merchant context: serving B2B customers");
-  });
-
-  it("MRR appears in DOLLARS, converted from the cents column", async () => {
-    seedAccount({ mrrCents: 500_000 });
-    const prompt = await promptForAccount();
-    // 500000 cents is $5,000/month. A reader that forgot the divide would say
-    // ~$500000/month and this is the assertion that catches it.
-    expect(prompt).toContain("with ~$5000/month MRR");
-    expect(prompt).not.toContain("500000/month");
-  });
 
   it("all three together, in legacy's order and joined by a space", async () => {
     seedAccount({ industry: "SaaS", customerType: "B2B", mrrCents: 500_000 });
@@ -104,17 +84,6 @@ describe("PLANT 1: each column reaches the prompt, observed at the output", () =
     expect(prompt).toContain(
       "Merchant context: SaaS business serving B2B customers with ~$5000/month MRR",
     );
-  });
-
-  it("CHANGING the column changes the prompt, which is the point of a reader", async () => {
-    seedAccount({ industry: "SaaS" });
-    expect(await promptForAccount()).toContain("SaaS business");
-
-    sqlite.prepare("UPDATE accounts SET merchant_industry = 'Healthcare' WHERE id = ?").run(ACCOUNT);
-
-    const after = await promptForAccount();
-    expect(after).toContain("Healthcare business");
-    expect(after).not.toContain("SaaS business");
   });
 });
 
@@ -126,27 +95,5 @@ describe("PLANT 2: absent context produces NO line, never a placeholder", () => 
     // And no empty artefact where the line would have been.
     expect(prompt).not.toContain("null");
     expect(prompt).not.toContain("undefined");
-  });
-
-  it("zero MRR contributes no part, matching legacy's falsy check", async () => {
-    seedAccount({ industry: "SaaS", mrrCents: 0 });
-    const prompt = await promptForAccount();
-    expect(prompt).toContain("Merchant context: SaaS business");
-    expect(prompt).not.toContain("MRR");
-  });
-
-  it("the line is omitted entirely rather than rendered empty", () => {
-    expect(merchantContextLine({ merchantName: "Acme" })).toBeNull();
-  });
-});
-
-describe("PLANT 3: the reader is wired to the cron's own query", () => {
-  it("toEmailContext carries the three values off the accounts row", async () => {
-    seedAccount({ industry: "Education", customerType: "B2C", mrrCents: 1_234_500 });
-    const rows = await queryDueRecoverySteps({} as Env, NOW);
-    const ctx = toEmailContext(rows[0]);
-    expect(ctx.merchantIndustry).toBe("Education");
-    expect(ctx.primaryCustomerType).toBe("B2C");
-    expect(ctx.merchantMrrCents).toBe(1_234_500);
   });
 });

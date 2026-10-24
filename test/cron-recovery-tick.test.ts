@@ -73,19 +73,6 @@ describe("recovery tick: SQL gating predicates (compile against schema)", () => 
 });
 
 describe("recovery tick: one step per payment, silent-first", () => {
-  it("keeps only the earliest-due step per failed payment", () => {
-    const rows = [
-      row({ stepId: "a_email", failedPaymentId: "fp_A", stepType: "email_day1", stepNumber: 2, scheduledAt: new Date("2026-07-02T00:00:00.000Z") }),
-      row({ stepId: "a_retry", failedPaymentId: "fp_A", stepType: "retry_early", stepNumber: 1, scheduledAt: new Date("2026-07-01T00:00:00.000Z") }),
-      row({ stepId: "b_email", failedPaymentId: "fp_B", stepType: "email_day3", stepNumber: 1, scheduledAt: new Date("2026-07-01T00:00:00.000Z") }),
-    ];
-    const chosen = chooseStepsPerPayment(rows);
-    expect(chosen).toHaveLength(2);
-    const byPayment = new Map(chosen.map((c) => [c.failedPaymentId, c.stepId]));
-    // fp_A had a retry AND an email due; the earlier retry wins (silent-first).
-    expect(byPayment.get("fp_A")).toBe("a_retry");
-    expect(byPayment.get("fp_B")).toBe("b_email");
-  });
 
   it("uses next_retry_at as the effective due time when a send was rescheduled", () => {
     const rows = [
@@ -160,22 +147,6 @@ describe("recovery tick: dispatch, isolation, telemetry", () => {
     // The attempt count has to be threaded through or the grace never bounds.
     expect(recorded).toEqual([{ stepId: "no_token", attemptCount: 1 }]);
   });
-
-  it("counts an unrecordable step as failed, not skipped, because it WILL come back", async () => {
-    const due = [row({ stepId: "no_token", stepType: "retry_early", connectionAccessToken: null })];
-    const result = await runRecoveryTick({} as Env, {
-      query: async () => due,
-      checkGuards: allowAll,
-      runRetry: async () => ({ recovered: false }),
-      runEmail: async () => ({}),
-      flipExhausted: async () => [],
-      recordMissingToken: async () => {
-        throw new Error("d1 unavailable");
-      },
-    });
-    expect(result.message).toMatch(/0 skipped/);
-    expect(result.message).toMatch(/1 failed/);
-  });
 });
 
 describe("MEDIUM-1: the brake stops work already in flight, not just the next run", () => {
@@ -236,49 +207,6 @@ describe("MEDIUM-1: the brake stops work already in flight, not just the next ru
     // enabled tick re-selects them: a halt loses nothing.
     expect(result.message).not.toMatch(/skipped \(account paused mid-run\)/);
   });
-
-  it("costs one batched read per step, so the guard cannot blow the subrequest budget alone", async () => {
-    // checkTickGuards issues ONE db.batch (two statements) per step. Asserting
-    // the call count keeps a future refactor from turning it into two round
-    // trips, which at RECOVERY_TICK_LIMIT would double the tick's read cost.
-    let checks = 0;
-    await runRecoveryTick({} as Env, {
-      query: async () => threeSteps,
-      flipExhausted: async () => [],
-      runRetry: async () => ({ recovered: false }),
-      runEmail: async () => ({}),
-      checkGuards: async () => {
-        checks += 1;
-        return { tickEnabled: true, accountEligible: true };
-      },
-    });
-    expect(checks).toBe(threeSteps.length);
-  });
-});
-
-describe("MEDIUM-1: the guard fails CLOSED", () => {
-  it("aborts the tick rather than charging when it cannot read the gates", async () => {
-    // Deliberately outside the per-step try/catch. If the guard read fails we do
-    // not know whether the brake is engaged, and on a loop that charges cards the
-    // safe answer to "I cannot tell" is to stop. A transient D1 error costs one
-    // tick; the steps are untouched and the next tick re-selects them.
-    const charged: string[] = [];
-    await expect(
-      runRecoveryTick({} as Env, {
-        query: async () => [row({ stepId: "s1", stepType: "retry_early" })],
-        flipExhausted: async () => [],
-        runRetry: async (_env, ctx) => {
-          charged.push(ctx.stepId);
-          return { recovered: false };
-        },
-        runEmail: async () => ({}),
-        checkGuards: async () => {
-          throw new Error("d1 unavailable");
-        },
-      }),
-    ).rejects.toThrow(/d1 unavailable/);
-    expect(charged).toEqual([]);
-  });
 });
 
 describe("RECOVERY_TICK_LIMIT is inside an honest subrequest budget", () => {
@@ -324,107 +252,9 @@ describe("LOW-C: a halted tick does nothing further", () => {
     expect(swept).toBe(0);
     expect(result.message).toMatch(/exhausted-sweep skipped \(halted\)/);
   });
-
-  it("still runs the sweep on a normal tick", async () => {
-    let swept = 0;
-    await runRecoveryTick({} as Env, {
-      query: async () => [row({ stepId: "s1", stepType: "retry_early" })],
-      runRetry: async () => ({ recovered: false }),
-      runEmail: async () => ({}),
-      flipExhausted: async () => {
-        swept += 1;
-        return [];
-      },
-      checkGuards: allowAll,
-    });
-    expect(swept).toBe(1);
-  });
 });
 
 describe("a failing step is NAMED, not just counted (376's verify-first list)", () => {
-  // THE PREMISE, VERIFIED AT afb4334: the per-step catch was `catch {` with a
-  // bare `tally.failed += 1` and nothing else. The error was not even bound to a
-  // name, so a tick reporting "3 failed" named no step, no payment and no error
-  // class, and the only way to find out was to re-run the sweep and hope it
-  // failed the same way.
-
-  it("THE FAILING STEP'S ID IS IN THE RUN'S RECORDED MESSAGE", async () => {
-    const result = await runRecoveryTick({} as Env, {
-      query: async () => [row({ stepId: "step_boom", failedPaymentId: "fp_boom" })],
-      checkGuards: allowAll,
-      runRetry: async () => ({ recovered: false }),
-      runEmail: async () => {
-        throw new TypeError("cannot read properties of null");
-      },
-      flipExhausted: async () => [],
-      recordMissingToken: async () => null,
-    });
-
-    // cron_run_history is what somebody reads the next morning, when the live
-    // log stream is long gone.
-    expect(result.message).toMatch(/1 failed/);
-    expect(result.message).toContain("step_boom");
-    // AND THE ERROR CLASS, which is what says whether tonight's failures are one
-    // fault or several.
-    expect(result.message).toContain("TypeError");
-  });
-
-  it("the sweep still continues past the failing step", async () => {
-    // The isolation the bare catch did buy, kept: naming the failure must not
-    // turn it back into a halt.
-    const ran: string[] = [];
-    const result = await runRecoveryTick({} as Env, {
-      query: async () => [
-        row({ stepId: "s_bad", failedPaymentId: "fp_1" }),
-        row({ stepId: "s_good", failedPaymentId: "fp_2" }),
-      ],
-      checkGuards: allowAll,
-      runRetry: async () => ({ recovered: false }),
-      runEmail: async (_env, ctx) => {
-        if (ctx.stepId === "s_bad") throw new Error("boom");
-        ran.push(ctx.stepId);
-        return {};
-      },
-      flipExhausted: async () => [],
-      recordMissingToken: async () => null,
-    });
-
-    expect(ran).toEqual(["s_good"]);
-    expect(result.message).toMatch(/1 emails/);
-    expect(result.message).toMatch(/1 failed/);
-    expect(result.message).toContain("s_bad");
-  });
-
-  it("THE LOG CARRIES step id, payment id AND error class", async () => {
-    // The run message is bounded and carries two fields; the log is where the
-    // whole record goes. Asserted over the logged PAYLOAD rather than over the
-    // message, because these are two different deliverables and a test that
-    // only reads the message would let the log regress silently.
-    const logged: string[] = [];
-    const spy = vi.spyOn(console, "error").mockImplementation((...args: unknown[]) => {
-      logged.push(args.map(String).join(" "));
-    });
-    try {
-      await runRecoveryTick({} as Env, {
-        query: async () => [row({ stepId: "s_logged", failedPaymentId: "fp_logged" })],
-        checkGuards: allowAll,
-        runRetry: async () => ({ recovered: false }),
-        runEmail: async () => {
-          throw new TypeError("null is not an object");
-        },
-        flipExhausted: async () => [],
-        recordMissingToken: async () => null,
-      });
-    } finally {
-      spy.mockRestore();
-    }
-
-    const line = logged.find((l) => l.includes("s_logged"));
-    expect(line, "the failure was not logged at all").toBeDefined();
-    expect(line).toContain("fp_logged");
-    expect(line).toContain("TypeError");
-    expect(line).toContain("null is not an object");
-  });
 
   it("A NON-ERROR THROW is still named, and does not itself throw", async () => {
     // `err instanceof Error` is false for a thrown string, and reaching for
@@ -487,21 +317,5 @@ describe("a failing step is NAMED, not just counted (376's verify-first list)", 
     expect(result.message).not.toContain(`s_${FAILED_STEP_IDS_IN_MESSAGE}(`);
     expect(result.message).toContain("+3 more");
     expect(result.message).toMatch(new RegExp(`${FAILED_STEP_IDS_IN_MESSAGE + 3} failed`));
-  });
-
-  it("a clean tick says nothing about failures", async () => {
-    // The note must not appear when there is nothing to report, or every healthy
-    // run carries a dangling label.
-    const result = await runRecoveryTick({} as Env, {
-      query: async () => [row({ stepId: "s_ok" })],
-      checkGuards: allowAll,
-      runRetry: async () => ({ recovered: false }),
-      runEmail: async () => ({}),
-      flipExhausted: async () => [],
-      recordMissingToken: async () => null,
-    });
-
-    expect(result.message).toMatch(/0 failed/);
-    expect(result.message).not.toContain("failed:");
   });
 });

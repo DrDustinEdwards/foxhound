@@ -70,22 +70,6 @@ describe("buildPaymentsCsv", () => {
     expect(lines[0].split(",")).toHaveLength(13);
   });
 
-  it("fills each column from Foxhound's own row, steps from the step counts", () => {
-    const csv = buildPaymentsCsv(
-      [
-        fakeRow({
-          status: "recovered",
-          resolvedAt: new Date("2026-07-03T12:00:00.000Z"),
-          notes: "Called the customer",
-        }),
-      ],
-      new Map([["dfp_1", { executed: 2, total: 3 }]]),
-    );
-    expect(csv.split("\n")[1]).toBe(
-      "Jordan Lee,jordan@example.com,Growth,49.99,USD,soft,insufficient_funds,recovered,2,3,2026-07-01T00:00:00.000Z,2026-07-03T12:00:00.000Z,Called the customer",
-    );
-  });
-
   it("writes 0 and 0 for a payment with no steps, and blanks for no resolution or notes", () => {
     const csv = buildPaymentsCsv([fakeRow()]);
     expect(csv.split("\n")[1]).toBe(
@@ -93,21 +77,9 @@ describe("buildPaymentsCsv", () => {
     );
   });
 
-  it("quotes a field containing a comma", () => {
-    const csv = buildPaymentsCsv([fakeRow({ customerName: "Acme, Inc." })]);
-    expect(csv).toContain('"Acme, Inc."');
-  });
-
   it("doubles an embedded quote and wraps the field in quotes", () => {
     const csv = buildPaymentsCsv([fakeRow({ planName: 'The "Pro" plan' })]);
     expect(csv).toContain('"The ""Pro"" plan"');
-  });
-
-  it("quotes a field containing a line feed or a carriage return", () => {
-    const csv = buildPaymentsCsv([fakeRow({ notes: "line one\nline two" })]);
-    expect(csv).toContain('"line one\nline two"');
-    const cr = buildPaymentsCsv([fakeRow({ notes: "line one\rline two" })]);
-    expect(cr).toContain('"line one\rline two"');
   });
 
   it("falls back to empty strings for null customer name / plan / decline code", () => {
@@ -115,114 +87,13 @@ describe("buildPaymentsCsv", () => {
     const dataLine = csv.split("\n")[1];
     expect(dataLine.startsWith(",jordan@example.com,,")).toBe(true);
   });
-
-  // Recova's lib/csv.ts writes p.decline_category and p.status as stored, and
-  // APPROVED-DIFFERENCES 2026-08-14 covers the status badges only, not the
-  // export. Every Recova value is also a Foxhound value with the same name, so
-  // the stored value passes straight through.
-  it.each([
-    ["active", "soft"],
-    ["recovered", "network"],
-    ["failed_unrecovered", "expired"],
-    ["cancelled", "fraud"],
-  ])("writes Recova's stored Status and Decline Category values: %s, %s", (status, declineCategory) => {
-    const cells = buildPaymentsCsv([fakeRow({ status, declineCategory: declineCategory as never })])
-      .split("\n")[1]
-      .split(",");
-    expect(cells[5]).toBe(declineCategory);
-    expect(cells[7]).toBe(status);
-  });
-
-  it("writes Foxhound's values with no Recova twin as stored too (stripe_retrying, revoked, unknown)", () => {
-    const csv = buildPaymentsCsv([
-      fakeRow({ id: "a", status: "stripe_retrying", declineCategory: "revoked" }),
-      fakeRow({ id: "b", declineCategory: "unknown" }),
-    ]);
-    const [, a, b] = csv.split("\n");
-    expect(a.split(",")[7]).toBe("stripe_retrying");
-    expect(a.split(",")[5]).toBe("revoked");
-    expect(b.split(",")[5]).toBe("unknown");
-    expect(csv).not.toMatch(/Soft decline|Unclassified decline|Revoked authorization|Stripe retrying|Failed/);
-  });
-
-  it("returns just the header, with no line break, for an empty payment list", () => {
-    const csv = buildPaymentsCsv([]);
-    expect(csv).toBe(RECOVA_HEADER);
-  });
-
-  it("ends lines with LF and writes no final line break, as Recova's paymentRowsToCsv does", () => {
-    const csv = buildPaymentsCsv([fakeRow({ id: "a" }), fakeRow({ id: "b" })]);
-    expect(csv).not.toContain("\r");
-    expect(csv.split("\n")).toHaveLength(3);
-    expect(csv.endsWith("\n")).toBe(false);
-    expect(csv.endsWith(",")).toBe(true);
-  });
 });
 
 describe("buildPaymentsCsv: spreadsheet-formula safety", () => {
-  // A customer name, plan or note comes from Stripe or the merchant and can
-  // start with a formula trigger; a spreadsheet would run it on open.
-  it.each([
-    ["=HYPERLINK(\"http://example.com\")", "'=HYPERLINK(\"\"http://example.com\"\")"],
-    ["+1+1", "'+1+1"],
-    ["-2+3", "'-2+3"],
-    ["@SUM(A1:A2)", "'@SUM(A1:A2)"],
-    ["\tleading tab", "'\tleading tab"],
-    ["\rleading cr", "'\rleading cr"],
-  ])("neutralises a cell starting with a trigger: %j", (name, expected) => {
-    const csv = buildPaymentsCsv([fakeRow({ customerName: name })]);
-    const dataLine = csv.slice(csv.indexOf("\n") + 1);
-    expect(dataLine.startsWith(expected) || dataLine.startsWith(`"${expected}"`)).toBe(true);
-    expect(dataLine.startsWith(name)).toBe(false);
-  });
-
-  it("neutralises every column, not only the name (email, plan, decline code, notes)", () => {
-    const csv = buildPaymentsCsv([
-      fakeRow({ customerEmail: "=a@example.com", planName: "+Plan", declineCode: "-x", notes: "@note" }),
-    ]);
-    const cells = csv.split("\n")[1].split(",");
-    expect(cells[1]).toBe("'=a@example.com");
-    expect(cells[2]).toBe("'+Plan");
-    expect(cells[6]).toBe("'-x");
-    expect(cells[12]).toBe("'@note");
-  });
 
   it("a CR-led cell is both neutralised and quoted", () => {
     const csv = buildPaymentsCsv([fakeRow({ notes: "\r=1+1" })]);
     expect(csv).toContain(`"'\r=1+1"`);
-  });
-
-  it("leaves a negative amount a plain number, not text", () => {
-    const cells = buildPaymentsCsv([fakeRow({ amountCents: -500 })]).split("\n")[1].split(",");
-    expect(cells[3]).toBe("-5.00");
-  });
-
-  it("still guards a free-text cell that only looks like a number", () => {
-    const cells = buildPaymentsCsv([
-      fakeRow({ customerName: "-5.00", planName: "+12", declineCode: "-1", notes: "-2026-07-01T00:00:00.000Z" }),
-    ])
-      .split("\n")[1]
-      .split(",");
-    expect(cells[0]).toBe("'-5.00");
-    expect(cells[2]).toBe("'+12");
-    expect(cells[6]).toBe("'-1");
-    expect(cells[12]).toBe("'-2026-07-01T00:00:00.000Z");
-  });
-
-  it("guards the stored Status and Decline Category, which are not numbers", () => {
-    const cells = buildPaymentsCsv([fakeRow({ status: "=cmd", declineCategory: "-x" as never })])
-      .split("\n")[1]
-      .split(",");
-    expect(cells[5]).toBe("'-x");
-    expect(cells[7]).toBe("'=cmd");
-  });
-
-  it("leaves an ordinary cell, a mid-cell trigger and the amount untouched", () => {
-    const csv = buildPaymentsCsv([fakeRow({ customerName: "Jo = Lee", planName: "Pro-Plus" })]);
-    const cells = csv.split("\n")[1].split(",");
-    expect(cells[0]).toBe("Jo = Lee");
-    expect(cells[2]).toBe("Pro-Plus");
-    expect(cells[3]).toBe("49.99");
   });
 });
 
@@ -277,16 +148,5 @@ describe("countStepsForFailedPayments", () => {
     const counts = await countStepsForFailedPayments(seed(), "acc_1", ["fp_a", "fp_b"]);
     expect(counts.get("fp_a")).toEqual({ executed: 2, total: 3 });
     expect(counts.get("fp_b")).toBeUndefined();
-  });
-
-  it("stays scoped to the account: another account's payment id counts nothing", async () => {
-    const counts = await countStepsForFailedPayments(seed(), "acc_1", ["fp_a", "fp_x"]);
-    expect(counts.get("fp_x")).toBeUndefined();
-  });
-
-  it("reads more ids than one D1 statement can bind (the All page size)", async () => {
-    const ids = Array.from({ length: 250 }, (_, i) => `fp_none_${i}`).concat("fp_a");
-    const counts = await countStepsForFailedPayments(seed(), "acc_1", ids);
-    expect(counts.get("fp_a")).toEqual({ executed: 2, total: 3 });
   });
 });

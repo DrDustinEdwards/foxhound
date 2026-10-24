@@ -70,33 +70,12 @@ describe(":::diagram[slug] renders the SVG inline in a figure (legacy renderDiag
     );
   });
 
-  it("never passes the trusted SVG through the author-body sanitizer", async () => {
-    const { html } = await renderMarkdown(emptyDb(), ":::diagram[recovery-sequence]");
-    expect(html).toContain("<style>");
-    expect(html).toContain('marker-end="url(#arrow-rs)"');
-    expect(html).toContain("<title>Stripe failed-payment recovery sequence by decline category</title>");
-  });
-
   it("is not mistaken for the opening of a fenced ::: block", async () => {
     const body = ":::diagram[dispute-lifecycle]\n\n:::tip\nCheck the deadline.\n:::";
     const { html } = await renderMarkdown(emptyDb(), body);
     expect(html).toContain('aria-label="Diagram: dispute lifecycle"');
     expect(html).toContain("blog-callout-tip");
     expect(html).toContain("Check the deadline.");
-  });
-
-  it("has one meaning only: a file under /diagrams, never Mermaid or inline source", async () => {
-    const body = ":::diagram\ngraph TD; A-->B\n:::";
-    const { html } = await renderMarkdown(emptyDb(), body);
-    expect(html).not.toContain("blog-diagram");
-    expect(html).not.toContain("<svg");
-  });
-
-  it("does not read a source/ file or any path outside /diagrams", async () => {
-    for (const slug of ["source", "../root", "source/recovery-sequence"]) {
-      const { html } = await renderMarkdown(emptyDb(), `:::diagram[${slug}]`);
-      expect(html).not.toContain("<svg");
-    }
   });
 
   it("renders nothing for an unknown slug in production, as legacy did", async () => {

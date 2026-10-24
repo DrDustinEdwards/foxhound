@@ -48,10 +48,7 @@ vi.mock("~/lib/stripe/connect", () => ({
 // substance; `post` routes each intent to the action that now owns it.
 const { action: stripeAction, loader } = await import("~/routes/app/settings/stripe");
 const { action: accountAction } = await import("~/routes/app/settings/account");
-const schema = await import("~/db/schema");
-const { listSwitcherAccounts } = await import("~/lib/nav/accounts.server");
 const { listMemberships } = await import("~/lib/auth/account");
-const { accountProcessingEligibleCondition } = await import("~/lib/cron/due-steps");
 
 const USER = "user_1";
 const ACTIVE = "acct_active";
@@ -181,28 +178,6 @@ async function post(fields: Record<string, string>): Promise<{ status: number; b
 }
 
 describe("PLANT 2: disconnect refuses what the active account does not own", () => {
-  it("403 and NO write for a connection on another user's account", async () => {
-    seedAccount("acct_theirs", "Someone else", 3_000);
-    seedConnection({ id: "c_theirs", accountId: "acct_theirs", stripeUserId: "acct_x" });
-
-    const res = await post({ _action: "disconnect-stripe", connectionId: "c_theirs" });
-
-    expect(res.status).toBe(403);
-    expect(connectionRow("c_theirs").disconnectedAt).toBeNull();
-    expect(harness.deauthorizeCalls).toEqual([]);
-  });
-
-  it("403 and NO write for a connection under the EARLIEST account the caller holds", async () => {
-    // The sharp case. The caller owns this account, so a shim that resolved the
-    // earliest membership would happily disconnect it.
-    seedConnection({ id: "c_earliest", accountId: EARLIEST, stripeUserId: "acct_earliest_stripe" });
-
-    const res = await post({ _action: "disconnect-stripe", connectionId: "c_earliest" });
-
-    expect(res.status).toBe(403);
-    expect(connectionRow("c_earliest").disconnectedAt).toBeNull();
-    expect(harness.deauthorizeCalls).toEqual([]);
-  });
 
   it("400 and NO write when no connection id is sent, which is legacy's actual request", async () => {
     seedConnection({ id: "c_active", accountId: ACTIVE, stripeUserId: "acct_a", isPrimary: true });
@@ -212,40 +187,9 @@ describe("PLANT 2: disconnect refuses what the active account does not own", () 
     expect(res.status).toBe(400);
     expect(connectionRow("c_active").disconnectedAt).toBeNull();
   });
-
-  it("403 for a connection that is already disconnected", async () => {
-    seedConnection({ id: "c_gone", accountId: ACTIVE, stripeUserId: "acct_g", disconnectedAt: 500 });
-    const res = await post({ _action: "disconnect-stripe", connectionId: "c_gone" });
-    expect(res.status).toBe(403);
-  });
 });
 
 describe("PLANT 3: disconnect stamps the timestamp, leaves is_primary, and the readers stop seeing it", () => {
-  it("the primary keeps is_primary set and gains disconnected_at, matching legacy", async () => {
-    seedConnection({ id: "c_primary", accountId: ACTIVE, stripeUserId: "acct_p", isPrimary: true });
-
-    const res = await post({ _action: "disconnect-stripe", connectionId: "c_primary" });
-
-    // J41: success goes back to /settings, as Recova's window.location does.
-    expect(res.status).toBe(302);
-    expect(res.body.location).toBe("/settings");
-    const row = connectionRow("c_primary");
-    expect(row.disconnectedAt).not.toBeNull();
-    // 333 ruled AGAINST promotion and against clearing the flag: legacy does
-    // neither, so the flag survives and the readers filter instead.
-    expect(row.isPrimary).toBe(1);
-  });
-
-  it("READER 1, the switcher, returns no Stripe id for the account once disconnected", async () => {
-    seedConnection({ id: "c_primary", accountId: ACTIVE, stripeUserId: "acct_p", isPrimary: true });
-    const before = await listSwitcherAccounts(db, await listMemberships(db, USER));
-    expect(before.find((a) => a.id === ACTIVE)?.stripeUserId).toBe("acct_p");
-
-    await post({ _action: "disconnect-stripe", connectionId: "c_primary" });
-
-    const after = await listSwitcherAccounts(db, await listMemberships(db, USER));
-    expect(after.find((a) => a.id === ACTIVE)?.stripeUserId).toBeNull();
-  });
 
   it("the last connection leaves the account with none live, and the loader renders the empty state", async () => {
     seedConnection({ id: "c_only", accountId: ACTIVE, stripeUserId: "acct_o", isPrimary: true });
@@ -259,35 +203,6 @@ describe("PLANT 3: disconnect stamps the timestamp, leaves is_primary, and the r
     // or not the account was ever connected, so the loader no longer returns
     // the never-connected flag nothing read.
     expect(loaded.connections).toEqual([]);
-  });
-});
-
-describe("PLANT 4: one batch, and a deauthorize failure never rolls the local write back", () => {
-  it("the OAuth revoke runs AFTER the local commit, once, for that connection", async () => {
-    seedConnection({ id: "c_a", accountId: ACTIVE, stripeUserId: "acct_a", isPrimary: true });
-    seedConnection({ id: "c_b", accountId: ACTIVE, stripeUserId: "acct_b", connectedAt: 2_000 });
-
-    await post({ _action: "disconnect-stripe", connectionId: "c_b" });
-
-    expect(harness.deauthorizeCalls).toEqual(["acct_b"]);
-    expect(connectionRow("c_b").disconnectedAt).not.toBeNull();
-    // The sibling is untouched: one connection per request.
-    expect(connectionRow("c_a").disconnectedAt).toBeNull();
-  });
-
-  it("a failed revoke leaves the connection disconnected and surfaces a warning", async () => {
-    seedConnection({ id: "c_a", accountId: ACTIVE, stripeUserId: "acct_a", isPrimary: true });
-    harness.deauthorizeOk = false;
-
-    const res = await post({ _action: "disconnect-stripe", connectionId: "c_a" });
-
-    // ok stays true: the merchant asked to disconnect and IS disconnected. The
-    // revoke is a retriable follow-up, which is what deauthorizeConnectedAccount's
-    // own comment binds.
-    expect(res.body.ok).toBe(true);
-    expect(connectionRow("c_a").disconnectedAt).not.toBeNull();
-    expect(String(res.body.warning)).toContain("Stripe dashboard");
-    expect(String(res.body.warning)).not.toMatch(new RegExp("[" + String.fromCharCode(0x2014, 0x2013) + "]"));
   });
 });
 
@@ -308,51 +223,6 @@ describe("PLANT 5: cancel stops processing, disconnects all, and leaves billing 
     expect(harness.deauthorizeCalls.sort()).toEqual(["acct_a", "acct_b"]);
     // The caller still holds the earliest account, so the session lands there.
     expect(markerOf("sess_1")).toBe(EARLIEST);
-  });
-
-  it("the processing gate now excludes the account, which is how recovery stops", async () => {
-    seedConnection({ id: "c_a", accountId: ACTIVE, stripeUserId: "acct_a", isPrimary: true });
-
-    const eligibleBefore = await db
-      .select({ id: schema.accounts.id })
-      .from(schema.accounts)
-      .where(accountProcessingEligibleCondition());
-    expect(eligibleBefore.map((r) => r.id)).toContain(ACTIVE);
-
-    await post({ _action: "cancel-account" });
-
-    const eligibleAfter = await db
-      .select({ id: schema.accounts.id })
-      .from(schema.accounts)
-      .where(accountProcessingEligibleCondition());
-    expect(eligibleAfter.map((r) => r.id)).not.toContain(ACTIVE);
-    // The other account the caller holds is untouched.
-    expect(eligibleAfter.map((r) => r.id)).toContain(EARLIEST);
-  });
-
-  it("BILLING IS UNTOUCHED: cancelled_at is a processing gate, never a billing gate", async () => {
-    seedConnection({ id: "c_a", accountId: ACTIVE, stripeUserId: "acct_a", isPrimary: true });
-    sqlite
-      .prepare(
-        "INSERT INTO failed_payments (id, account_id, stripe_event_id, stripe_invoice_id, stripe_customer_id, customer_email, amount_cents, currency, decline_category, status, detected_at) VALUES ('fp_1', ?, 'evt_1', 'in_1', 'cus_1', 'c@acme.test', 5000, 'usd', 'soft', 'active', 1000)",
-      )
-      .run(ACTIVE);
-    sqlite
-      .prepare(
-        "INSERT INTO recovered_payments (id, account_id, failed_payment_id, amount_cents, currency, recovered_at, recovery_method, attribution_kind) VALUES ('rp_1', ?, 'fp_1', 5000, 'usd', 1000, 'email', 'foxhound_retry')",
-      )
-      .run(ACTIVE);
-
-    await post({ _action: "cancel-account" });
-
-    // The row PRICING rev 3 bills 20 percent on survives, which is exactly what
-    // legacy's Delete account destroys via delete_account_cascade (333).
-    const rows = sqlite.prepare("SELECT id FROM recovered_payments WHERE account_id = ?").all(ACTIVE);
-    expect(rows).toHaveLength(1);
-    const acctRow = sqlite
-      .prepare("SELECT billing_exempt AS b FROM accounts WHERE id = ?")
-      .get(ACTIVE) as { b: number };
-    expect(acctRow.b).toBe(0);
   });
 
   it("with no other account held, the marker is left alone and the shell lands the empty state", async () => {

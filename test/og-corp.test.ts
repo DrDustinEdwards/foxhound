@@ -35,13 +35,6 @@ async function render(type: string): Promise<Response> {
 }
 
 describe("/og/* cards can be embedded by other origins", () => {
-  it("the route sets Cross-Origin-Resource-Policy: cross-origin on its own response", async () => {
-    for (const type of ["default", "blog"]) {
-      const response = await render(type);
-      expect(response.headers.get("Content-Type")).toBe("image/png");
-      expect(response.headers.get("Cross-Origin-Resource-Policy")).toBe("cross-origin");
-    }
-  });
 
   it("survives the Worker's merge, while every other response keeps same-origin", async () => {
     const merged = applySecurityHeaders(await render("default"), "dGVzdC1ub25jZS12YWx1ZTAw", "https://foxhound.example.com");

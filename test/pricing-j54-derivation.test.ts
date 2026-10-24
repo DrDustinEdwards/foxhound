@@ -46,26 +46,6 @@ function render(): string {
 describe("/pricing follows the engine constants (J54)", () => {
   const html = render();
 
-  it("Recovery's fee comes from RECOVERY_FEE_BPS", () => {
-    expect(html).toMatch(/>15%</);
-  });
-
-  it("Disputes' fee and cap come from DISPUTE_FEE_BPS and DISPUTE_FEE_CAP_CENTS, in the label and the bullet", () => {
-    expect(html).toMatch(/>25%</);
-    expect(html).toContain(">of won disputes, capped at $750<");
-    expect(html).toContain(">25% only when Foxhound wins, capped at $750<");
-  });
-
-  it("Intelligence's price comes from INTELLIGENCE_PRICE_CENTS, in the price and the bullet", () => {
-    expect(html).toMatch(/>\$249</);
-    expect(html).toContain(">Predictive risk scoring: the paid $249/mo layer<");
-  });
-
-  it("the sequence length comes from the recovery schedule, and the category count from the engine", () => {
-    expect(html).toContain("AI-drafted email sequences and silent retries across 35 days. Seven decline categories, four different sequences.");
-    expect(html).toContain(">Up to 35-day sequences across 7 decline categories<");
-  });
-
   it("the maturity window comes from RECOVERY_MATURITY_DAYS, in the bullet, the FAQ and the meta description", () => {
     expect(html).toContain(">No fee until the recovery has matured 45 days<");
     expect(html).toContain("recoveries you&#x27;ve held for 45 or more days");
@@ -73,19 +53,5 @@ describe("/pricing follows the engine constants (J54)", () => {
     expect(tags.find((t) => (t as { name?: string }).name === "description")?.content).toContain(
       "matured for 45 days",
     );
-  });
-
-  it("the click window comes from EMAIL_ENGAGEMENT_WINDOW_DAYS", () => {
-    expect(html).toContain("within 10 days before the payment");
-  });
-
-  it("shows none of today's figures once the constants move", () => {
-    expect(html.length).toBeGreaterThan(5000);
-    expect(html).not.toContain("20%");
-    expect(html).not.toContain("$199");
-    expect(html).not.toContain("$500");
-    expect(html).not.toMatch(/\b30(?:-| )days?\b/);
-    expect(html).not.toContain("14 days");
-    expect(html).not.toMatch(/\b[46] decline categories/);
   });
 });

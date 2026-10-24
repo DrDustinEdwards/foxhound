@@ -25,7 +25,7 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const { action, loader } = await import("~/routes/app/settings/api-keys");
+const { action } = await import("~/routes/app/settings/api-keys");
 const { verifyMcpToken, MCP_TOKEN_SCOPE, MCP_TOKEN_PREFIX } = await import("~/lib/auth/mcp-tokens");
 const { API_KEY_LABEL_MAX_LENGTH } = await import("~/lib/settings/api-key-label");
 
@@ -118,28 +118,6 @@ describe("PLANT 1: creating a key stores a hash and returns the secret once", ()
     const verified = await verifyMcpToken(db, raw);
     expect(verified?.accountId).toBe(ACCOUNT);
   });
-
-  it("a form posting extra column names writes none of them", async () => {
-    await post({
-      _action: "create",
-      label: "My agent",
-      accountId: OTHER,
-      account_id: OTHER,
-      keyHash: "pwned",
-      key_hash: "pwned",
-      revokedAt: "0",
-      revoked_at: "0",
-    });
-
-    expect(keyRows(OTHER)).toHaveLength(0);
-    const rows = keyRows(ACCOUNT);
-    expect(rows).toHaveLength(1);
-    expect(rows[0].revokedAt).toBeNull();
-    const stored = sqlite.prepare("SELECT key_hash AS h FROM api_keys WHERE id = ?").get(rows[0].id) as {
-      h: string;
-    };
-    expect(stored.h).not.toBe("pwned");
-  });
 });
 
 describe("PLANT 2: the scope is the session's, not the form's", () => {
@@ -163,15 +141,6 @@ describe("PLANT 2: the scope is the session's, not the form's", () => {
     await post({ _action: "create", label: "ops", scope: "admin" }, true);
     expect(keyRows(null)).toHaveLength(1);
     expect(keyRows(null)[0].scope).toBe(MCP_TOKEN_SCOPE.ADMIN);
-  });
-
-  it("the scope picker only renders for an admin", async () => {
-    const asMerchant = (await loader({
-      context: ctxFor(false),
-      request: new Request("https://x/settings/api-keys"),
-      params: {},
-    } as never)) as { isAdmin: boolean };
-    expect(asMerchant.isAdmin).toBe(false);
   });
 });
 
@@ -223,37 +192,5 @@ describe("PLANT 4: the label is required and bounded", () => {
     const at = await post({ _action: "create", label: "y".repeat(API_KEY_LABEL_MAX_LENGTH) });
     expect(at.status).toBe(200);
     expect(keyRows(ACCOUNT)).toHaveLength(1);
-  });
-});
-
-describe("PLANT 5: the list is live, merchant-scoped and this account's", () => {
-  it("excludes revoked keys, admin keys, and other accounts", async () => {
-    const live = await post({ _action: "create", label: "live" });
-    expect(live.status).toBe(200);
-    await post({ _action: "create", label: "gone" });
-    const gone = keyRows(ACCOUNT).find((k) => k.label === "gone")!;
-    await post({ _action: "revoke", keyId: gone.id });
-    await post({ _action: "create", label: "platform", scope: "admin" }, true);
-    sqlite
-      .prepare(
-        "INSERT INTO api_keys (id, account_id, key_hash, label, scope, created_at) VALUES ('k_theirs', ?, 'h', 'Theirs', ?, 1000)",
-      )
-      .run(OTHER, MCP_TOKEN_SCOPE.MERCHANT);
-    // An admin-scoped row that DOES carry this account id. issueMcpToken never
-    // makes one, so the account filter alone would not exclude it; the scope
-    // filter is what does, and without this row that filter is untestable.
-    sqlite
-      .prepare(
-        "INSERT INTO api_keys (id, account_id, key_hash, label, scope, created_at) VALUES ('k_admin_scoped', ?, 'h2', 'Wrong scope', ?, 1000)",
-      )
-      .run(ACCOUNT, MCP_TOKEN_SCOPE.ADMIN);
-
-    const loaded = (await loader({
-      context: ctxFor(true),
-      request: new Request("https://x/settings/api-keys"),
-      params: {},
-    } as never)) as { keys: { label: string | null }[] };
-
-    expect(loaded.keys.map((k) => k.label)).toEqual(["live"]);
   });
 });

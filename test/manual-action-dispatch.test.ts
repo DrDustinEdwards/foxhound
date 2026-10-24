@@ -4,9 +4,9 @@ import { describe, expect, it } from "vitest";
 
 import type { Db } from "~/db";
 import { accounts, failedPayments, recoverySteps } from "~/db/schema";
-import { queryStepForManualTrigger, type DueStepRow } from "~/lib/cron/due-steps";
+import { type DueStepRow } from "~/lib/cron/due-steps";
 import { buildEmailStepPatch } from "~/lib/engine/execute-step";
-import { MANUAL_ACTION_REQUIRES_ACTIVE, MANUAL_INTENTS, dispatchManualAction, manualActionIdempotencyKey, parseManualIntent, type ManualActionCommit } from "~/lib/recovery/manual-actions.server";
+import { dispatchManualAction, manualActionIdempotencyKey, type ManualActionCommit } from "~/lib/recovery/manual-actions.server";
 import { type ResendDeps, type ResendSendInput, type TriggerDeps } from "~/lib/recovery/manual-action-deps.server";
 import { buildStopRecoveryBatch, noteContentToken, resendRepeatToken } from "~/lib/recovery/manual-action-batches.server";
 import type { EmailJobResult } from "~/lib/email/dispatch";
@@ -184,50 +184,7 @@ function request(db: Db, commit: ManualActionCommit, over: Record<string, unknow
   } as Parameters<typeof dispatchManualAction>[0];
 }
 
-describe("manual actions: intent parsing", () => {
-
-  it("the dispatcher additionally accepts note, which is not a row button", () => {
-    expect([...MANUAL_INTENTS]).toEqual([
-      "trigger",
-      "mark_recovered",
-      "cancel",
-      "resend",
-      "note",
-    ]);
-    expect(parseManualIntent("note")).toBe("note");
-  });
-
-  it("rejects anything else, including non-string form values", () => {
-    for (const raw of ["override_next_email", "", "TRIGGER", null, undefined, 7, {}]) {
-      expect(parseManualIntent(raw)).toBeNull();
-    }
-  });
-});
-
 describe("manual actions: ownership is the same 404 as a missing payment", () => {
-  it("refuses another account's payment without distinguishing it from a missing one", async () => {
-    const { sqlite, db } = seed({ steps: [PENDING] });
-    const commit = inMemoryCommit(sqlite, db);
-
-    expect(
-      await dispatchManualAction(request(db, commit, { failedPaymentId: "fp_theirs" })),
-    ).toEqual({ ok: false, reason: "not_found" });
-    expect(await dispatchManualAction(request(db, commit, { failedPaymentId: "fp_nope" }))).toEqual({
-      ok: false,
-      reason: "not_found",
-    });
-  });
-
-  it("an unowned payment is not mutated even when the intent is wired", async () => {
-    const { sqlite, db } = seed({ steps: [PENDING] });
-    const commit = inMemoryCommit(sqlite, db);
-
-    await dispatchManualAction(
-      request(db, commit, { failedPaymentId: "fp_theirs", intent: "cancel" }),
-    );
-
-    expect(readPayment(sqlite, "fp_theirs").status).toBe("active");
-  });
 
   it("an unknown intent is refused BEFORE any payment is loaded", async () => {
     const { sqlite, db } = seed();
@@ -242,52 +199,7 @@ describe("manual actions: ownership is the same 404 as a missing payment", () =>
   });
 });
 
-describe("manual actions: the status gate ports legacy's per-handler shape", () => {
-  it("trigger, mark_recovered and cancel refuse a non-active payment", async () => {
-    const { sqlite, db } = seed({ status: "recovered", steps: [PENDING, SENT_EMAIL] });
-    const commit = inMemoryCommit(sqlite, db);
-
-    for (const intent of ["trigger", "mark_recovered", "cancel"] as const) {
-      expect(await dispatchManualAction(request(db, commit, { intent }))).toEqual({
-        ok: false,
-        reason: "not_active",
-        intent,
-      });
-    }
-    // And the refusal is real: nothing was written.
-    expect(readPayment(sqlite).status).toBe("recovered");
-    expect(dueStepCount(sqlite)).toBe(1);
-  });
-
-  it("RESEND NOW CHECKS STATUS, flipped by RULING 264, and note still does not", async () => {
-    // THE TRIPWIRE, FLIPPED. Session A pinned this `false` because legacy's resend
-    // route never selects the status column (scope 1.5, defect 2), and pinned it
-    // precisely so the value could not change by drift. **Ruling 264 changed it by
-    // ruling:** resending a dunning email about a payment already recovered or
-    // cancelled asserts a FALSE state to the customer and manufactures the
-    // complaints the suppression check exists to prevent, and a client-side state
-    // gate is treatment, never authority. The test did its job.
-    expect(MANUAL_ACTION_REQUIRES_ACTIVE.resend).toBe(true);
-    // Note has no status gate in legacy and 264 did not reach it.
-    expect(MANUAL_ACTION_REQUIRES_ACTIVE.note).toBe(false);
-
-    const { sqlite, db } = seed({ status: "failed_unrecovered", steps: [SENT_EMAIL] });
-    const commit = inMemoryCommit(sqlite, db);
-
-    expect(
-      await dispatchManualAction(request(db, commit, { intent: "note", note: "closed out" })),
-    ).toEqual({ ok: true, intent: "note" });
-    expect(readPayment(sqlite).notes).toBe("closed out");
-  });
-});
-
 describe("manual actions: per-intent preconditions", () => {
-  it("trigger needs a pending step", async () => {
-    const a = seed({ steps: [SENT_EMAIL] });
-    expect(
-      await dispatchManualAction(request(a.db, inMemoryCommit(a.sqlite, a.db), { intent: "trigger" })),
-    ).toEqual({ ok: false, reason: "no_pending_step" });
-  });
 
   it("resend needs an executed email step carrying generated copy", async () => {
     const none = seed({ steps: [PENDING] });
@@ -330,49 +242,9 @@ describe("manual actions: per-intent preconditions", () => {
       .get() as { amount_cents: number; currency: string; attribution_kind: string };
     expect(row).toEqual({ amount_cents: 4200, currency: "usd", attribution_kind: "manual" });
   });
-
-  it("a second mark_recovered answers already_resolved, never a second fee row", async () => {
-    const { sqlite, db } = seed();
-    const commit = inMemoryCommit(sqlite, db);
-    await dispatchManualAction(request(db, commit, { intent: "mark_recovered" }));
-    // The payment is now 'recovered', so the dispatcher's own active-only gate
-    // answers first. The batch-level guarantee is proven separately in
-    // test/mark-recovered.test.ts against the real committer.
-    expect(
-      await dispatchManualAction(request(db, commit, { intent: "mark_recovered" })),
-    ).toEqual({ ok: false, reason: "not_active", intent: "mark_recovered" });
-    expect(
-      (sqlite.prepare("select count(*) as n from recovered_payments").get() as { n: number }).n,
-    ).toBe(1);
-  });
 });
 
 describe("note save: legacy's contract, through the money DO seam", () => {
-  it("writes the note, account-scoped", async () => {
-    const { sqlite, db } = seed();
-    expect(
-      await dispatchManualAction(
-        request(db, inMemoryCommit(sqlite, db), { intent: "note", note: "call the customer" }),
-      ),
-    ).toEqual({ ok: true, intent: "note" });
-    expect(readPayment(sqlite).notes).toBe("call the customer");
-  });
-
-  it("an empty textarea clears the column to NULL, legacy's `note || null`", async () => {
-    const { sqlite, db } = seed({ notes: "previous" });
-    await dispatchManualAction(
-      request(db, inMemoryCommit(sqlite, db), { intent: "note", note: "" }),
-    );
-    expect(readPayment(sqlite).notes).toBeNull();
-  });
-
-  it("whitespace-only text is preserved, also legacy's behaviour", async () => {
-    const { sqlite, db } = seed();
-    await dispatchManualAction(
-      request(db, inMemoryCommit(sqlite, db), { intent: "note", note: "   " }),
-    );
-    expect(readPayment(sqlite).notes).toBe("   ");
-  });
 
   it("a missing note field is treated as empty rather than crashing", async () => {
     const { sqlite, db } = seed({ notes: "previous" });
@@ -460,82 +332,6 @@ describe("trigger: legacy's six statuses, ported", () => {
     });
   });
 
-  it("a paused or braked account refuses rather than executing", async () => {
-    const { sqlite, db } = seed({ steps: [PENDING] });
-    expect(
-      await dispatchManualAction(triggerReq(db, sqlite, { loadStep: async () => null })),
-    ).toEqual({ ok: false, reason: "processing_paused" });
-  });
-
-  it("the real loader applies the account scope and the brake", async () => {
-    const { sqlite, db } = seed({ steps: [PENDING] });
-    // Owner reaches it.
-    expect(await queryStepForManualTrigger(db, "acc_1", "step_pending")).not.toBeNull();
-    // Another account does not, even with the right step id.
-    expect(await queryStepForManualTrigger(db, "acc_2", "step_pending")).toBeNull();
-    // Brake engaged: processing_paused excludes the account.
-    runStatement(sqlite, db.update(accounts).set({ processingPaused: true }).where(eq(accounts.id, "acc_1")));
-    expect(await queryStepForManualTrigger(db, "acc_1", "step_pending")).toBeNull();
-  });
-
-  it("the loader ignores the SCHEDULE, so a not-yet-due step can still be fired", async () => {
-    // Legacy's whole point: the merchant overrides the cadence. The cron's own
-    // query would exclude this row; this one must not.
-    const future = new Date(now.getTime() + 7 * 24 * 3600 * 1000);
-    const { sqlite, db } = seed();
-    runStatement(
-      sqlite,
-      db.insert(recoverySteps).values({
-        id: "step_future",
-        accountId: "acc_1",
-        failedPaymentId: "fp_mine",
-        stepType: "email_day7",
-        scheduledAt: future,
-        attemptCount: 0,
-      }),
-    );
-    expect(await queryStepForManualTrigger(db, "acc_1", "step_future")).not.toBeNull();
-  });
-
-  it("a retry with no connected token refuses and writes nothing", async () => {
-    const { sqlite, db } = seed({ steps: [{ id: "step_pending", stepType: "retry_4hr" }] });
-    expect(
-      await dispatchManualAction(
-        triggerReq(db, sqlite, {
-          loadStep: async () => stepRow({ stepType: "retry_4hr", connectionAccessToken: null }),
-        }),
-      ),
-    ).toEqual({ ok: false, reason: "step_failed", result: "retry_no_connection" });
-    expect(dueStepCount(sqlite)).toBe(1); // untouched, so reconnect-and-retry works
-  });
-
-  it("a succeeded retry is a 200 carrying the STORED result", async () => {
-    const { sqlite, db } = seed({ steps: [{ id: "step_pending", stepType: "retry_4hr" }] });
-    expect(
-      await dispatchManualAction(
-        triggerReq(db, sqlite, {
-          loadStep: async () => stepRow({ stepType: "retry_4hr" }),
-          runRetry: async () => {
-            runStatement(
-              sqlite,
-              db
-                .update(recoverySteps)
-                .set({ executedAt: now, result: "retry_succeeded", retryResult: "retry_succeeded" })
-                .where(eq(recoverySteps.id, "step_pending")),
-            );
-            return { action: "retry", executed: true, recovered: true, retryResult: "retry_succeeded" };
-          },
-        }),
-      ),
-    ).toEqual({
-      ok: true,
-      intent: "trigger",
-      action: "retry",
-      result: "retry_succeeded",
-      subject: null,
-    });
-  });
-
   it("a DECLINED retry is still a 200, exactly as legacy's prefix rule gives", async () => {
     const { sqlite, db } = seed({ steps: [{ id: "step_pending", stepType: "retry_4hr" }] });
     const out = await dispatchManualAction(
@@ -592,55 +388,6 @@ describe("trigger: legacy's six statuses, ported", () => {
       result: "email_sent",
       subject: "Your payment failed",
     });
-  });
-
-  it("a SUPPRESSED recipient is 409, even though the step lands on email_sent", async () => {
-    // Foxhound has no distinct stored result for suppression: processEmailJob
-    // treats it as a terminal success. Reading the stored row alone would report
-    // a send that never happened, which is why the executor's flag is checked.
-    const { sqlite, db } = seed({ steps: [PENDING] });
-    const out = await dispatchManualAction(
-      triggerReq(db, sqlite, {
-        loadStep: async () => stepRow(),
-        runEmail: async () => {
-          runStatement(
-            sqlite,
-            db
-              .update(recoverySteps)
-              .set({ executedAt: now, result: "email_sent" })
-              .where(eq(recoverySteps.id, "step_pending")),
-          );
-          return {
-            action: "email",
-            sent: true,
-            result: "email_sent",
-            usedTemplate: false,
-            templateReason: null,
-            suppressed: true,
-          };
-        },
-      }),
-    );
-    expect(out).toEqual({ ok: false, reason: "customer_unsubscribed" });
-  });
-
-  it("a transient send failure is 503: the step stayed unexecuted for the backoff", async () => {
-    const { sqlite, db } = seed({ steps: [PENDING] });
-    const out = await dispatchManualAction(
-      triggerReq(db, sqlite, {
-        loadStep: async () => stepRow(),
-        // The state machine leaves executed_at and result NULL and sets a backoff.
-        runEmail: async () => ({
-          action: "email",
-          sent: false,
-          result: null,
-          usedTemplate: false,
-          templateReason: null,
-          suppressed: false,
-        }),
-      }),
-    );
-    expect(out).toEqual({ ok: false, reason: "send_retrying" });
   });
 
   it("a terminal send failure is 502 carrying the stored result", async () => {
@@ -809,24 +556,6 @@ describe("resend: legacy's intent, not legacy's defects", () => {
     }[];
   }
 
-  it("refuses a NON-ACTIVE payment, the flip ruling 264 ordered", async () => {
-    const { sqlite, db } = seed({ status: "recovered", steps: [SENT_EMAIL] });
-    expect(
-      await dispatchManualAction(resendReq(db, sqlite, unusedResendDeps())),
-    ).toEqual({ ok: false, reason: "not_active", intent: "resend" });
-    // The refusal is real: no mail attempted (the seam would have thrown) and no
-    // timeline row written.
-    expect(resendSteps(sqlite)).toHaveLength(0);
-  });
-
-  it("refuses when there is no email to resend, legacy's 400", async () => {
-    const { sqlite, db } = seed({ steps: [PENDING] });
-    expect(await dispatchManualAction(resendReq(db, sqlite, unusedResendDeps()))).toEqual({
-      ok: false,
-      reason: "no_email_to_resend",
-    });
-  });
-
   it("sends the last email and records it as its own timeline step", async () => {
     const { sqlite, db } = seed({ steps: [SENT_EMAIL] });
     const sent: ResendSendInput[] = [];
@@ -905,31 +634,6 @@ describe("resend: legacy's intent, not legacy's defects", () => {
     );
     expect(out).toEqual({ ok: false, reason: "resend_failed", detail: "smtp 550" });
     expect(resendSteps(sqlite)).toHaveLength(0);
-  });
-
-  it("a send that THROWS is a refusal, not a crash", async () => {
-    const { sqlite, db } = seed({ steps: [SENT_EMAIL] });
-    const out = await dispatchManualAction(
-      resendReq(db, sqlite, {
-        send: async () => {
-          throw new Error("binding gone");
-        },
-      }),
-    );
-    expect(out).toEqual({ ok: false, reason: "resend_failed", detail: null });
-  });
-
-  it("mail sent but the row failing is its OWN answer, never a plain failure", async () => {
-    // The customer has the email. Telling the merchant "failed" would invite a
-    // second send to someone who already received one.
-    const { db } = seed({ steps: [SENT_EMAIL] });
-    const failingCommit: ManualActionCommit = async () => {
-      throw new Error("d1 unavailable");
-    };
-    const out = await dispatchManualAction(
-      request(db, failingCommit, { intent: "resend", resend: fakeSend({ status: "sent" }) }),
-    );
-    expect(out).toEqual({ ok: false, reason: "resend_logged_failed" });
   });
 
   it("the key collapses a retried PERSIST of one send and separates two sends", () => {

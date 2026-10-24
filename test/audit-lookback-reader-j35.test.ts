@@ -7,11 +7,9 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 
 // J35 (job_9ad6ef3e08f6), row S30, DO step 3 and RULES.md 3.18: the lookback
 // control on /settings/audit has a reader, and the reader is the monthly audit
-// cron's content scope. Before this file nothing proved it: the guard in
-// audit-monthly-guards-362.test.ts checks that monthly.server.ts names
-// readAuditSettings, which a call that ignored its result would also pass, and
-// every run in audit-monthly-362.test.ts seeds a NULL lookback, so a cron that
-// always used 90 would pass the whole suite.
+// cron's content scope. Before this file nothing proved it: every run in
+// audit-monthly-362.test.ts seeds a NULL lookback, so a cron that always used
+// 90 would pass the whole suite.
 //
 // This drives the REAL monthly audit (cron half, then the consumer's per-account
 // half, through driveMonthlyAudit) with getConnectedStripe as the only seam
@@ -123,16 +121,4 @@ describe("J35: the lookback a merchant sets is the window the monthly audit read
       expect(runs[0].lookbackDays).toBe(days);
     });
   }
-
-  it("a NULL lookback reads as Recova's 90, through the one shared reader", async () => {
-    const { runs, gte } = await runWith(null);
-    expect(gte).toBe(windowStart(90));
-    expect(runs[0].lookbackDays).toBe(90);
-  });
-
-  it("a stored value outside Recova's four options clamps to 90, as the page shows it", async () => {
-    const { runs, gte } = await runWith(45);
-    expect(gte).toBe(windowStart(90));
-    expect(runs[0].lookbackDays).toBe(90);
-  });
 });

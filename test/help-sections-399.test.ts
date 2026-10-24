@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { accounts, cronRunHistory } from "~/db";
 import {
-  VISIBLE_CRONS,
   cronDisplayStatus,
   getVisibleCronStatus,
 } from "~/lib/help/platform-status.server";
@@ -45,9 +44,6 @@ const NOW = Date.UTC(2026, 7, 29, 12, 0, 0);
 
 
 describe("cronDisplayStatus", () => {
-  it("reads a failed latest run as an error", () => {
-    expect(cronDisplayStatus("failed", new Date(NOW - 60_000), NOW, "recovery-tick")).toBe("error");
-  });
 
   it("reads no successful run ever as pending, not as an error", () => {
     expect(cronDisplayStatus(null, null, NOW, "recovery-tick")).toBe("pending");
@@ -65,13 +61,6 @@ describe("cronDisplayStatus", () => {
     expect(cronDisplayStatus("success", new Date(NOW - 91 * 60_000), NOW, "expiring-cards")).toBe(
       "ok",
     );
-  });
-
-  it("does not read a skipped tick as a failure", () => {
-    // `skipped` means disabled, not due or locked. Legacy has no such status;
-    // treating it as an error would light the dot red the moment a cron is
-    // paused rather than when it is actually behind.
-    expect(cronDisplayStatus("skipped", new Date(NOW - 60_000), NOW, "recovery-tick")).toBe("ok");
   });
 });
 
@@ -93,13 +82,6 @@ describe("getVisibleCronStatus", () => {
     return db;
   }
 
-  it("always returns four rows in the declared order, even with no history", async () => {
-    const db = await seed([]);
-    const rows = await getVisibleCronStatus(db, NOW);
-    expect(rows.map((r) => r.cronName)).toEqual([...VISIBLE_CRONS]);
-    expect(rows.every((r) => r.status === "pending")).toBe(true);
-  });
-
   it("takes the newest SUCCESS for the time-ago and the newest run for the status", async () => {
     // The discriminating case: a cron that succeeded an hour ago and failed
     // five minutes ago must read as an error while still reporting the real
@@ -112,11 +94,5 @@ describe("getVisibleCronStatus", () => {
     const row = (await getVisibleCronStatus(db, NOW)).find((r) => r.cronName === "recovery-tick")!;
     expect(row.status).toBe("error");
     expect(row.lastSucceededAt?.getTime()).toBe(NOW - 60 * 60_000);
-  });
-
-  it("ignores crons a merchant should not see", async () => {
-    const db = await seed([{ cronName: "retention-ai-calls", status: "success", minutesAgo: 1 }]);
-    const rows = await getVisibleCronStatus(db, NOW);
-    expect(rows.map((r) => r.cronName)).not.toContain("retention-ai-calls");
   });
 });

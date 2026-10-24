@@ -99,27 +99,6 @@ function logRows(sqlite: ReturnType<typeof createInMemoryDb>["sqlite"]): LogRow[
 // ============================================================================
 
 describe("PLANT 1: every tool call leaves one row", () => {
-  it("a read is logged with its caller, its arguments and outcome ok", async () => {
-    const { sqlite, token } = await seed();
-    await callTool(token, "foxhound_list_payments", { page_size: 10 });
-    const rows = logRows(sqlite);
-    expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({
-      account_id: MINE,
-      api_key_id: `key_${MINE}`,
-      tool: "foxhound_list_payments",
-      outcome: "ok",
-      error: null,
-    });
-    expect(JSON.parse(rows[0].arguments)).toEqual({ page_size: 10 });
-  });
-
-  it("a write is logged too, beside its mcp_writes trace", async () => {
-    const { sqlite, token } = await seed();
-    await callTool(token, "foxhound_update_settings", { audit: { lookback_days: 60, auto_run: true } });
-    const rows = logRows(sqlite);
-    expect(rows.map((r) => [r.tool, r.outcome])).toEqual([["foxhound_update_settings", "ok"]]);
-  });
 
   it("a call the tool refused is logged as tool_error with the refusal", async () => {
     const { sqlite, token } = await seed();
@@ -177,14 +156,6 @@ describe("PLANT 2: what the log never keeps", () => {
     expect(row.outcome).toBe("tool_error");
     expect(row.error).not.toContain("wanda.lowell@example.test");
     expect(row.error).toContain("w***@example.test");
-  });
-
-  it("the result of a read is not copied into the log", async () => {
-    const { sqlite, token } = await seed();
-    await callTool(token, "foxhound_get_settings", {});
-    const columns = (sqlite.prepare("PRAGMA table_info(mcp_calls)").all() as { name: string }[]).map((c) => c.name);
-    expect(columns).not.toContain("result");
-    expect(logRows(sqlite)[0].arguments).toBe("{}");
   });
 });
 

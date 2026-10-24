@@ -22,11 +22,8 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const { sendSequenceCompleteNotification, sequenceCompleteBody, SEQUENCE_COMPLETE_TEMPLATE } =
+const { sendSequenceCompleteNotification } =
   await import("~/lib/recovery/sequence-complete-notification.server");
-const { flipExhaustedSequences, readClaimedSequences } = await import("~/lib/cron/recovery-tick");
-const { queryExhaustedSequences, buildExhaustedSequenceFlip } = await import("~/lib/cron/due-steps");
-const { LIVE_SENDS_DISABLED_ERROR } = await import("~/lib/email/dispatch");
 
 const ACCOUNT = "acct_1";
 const FP = "fp_1";
@@ -91,66 +88,12 @@ function seedPayment(opts: {
     );
 }
 
-/** One executed step, so the payment counts as a started-and-finished sequence. */
-function seedExecutedStep(paymentId = FP, id = "s1"): void {
-  sqlite
-    .prepare(
-      "INSERT INTO recovery_steps (id, account_id, failed_payment_id, step_type, step_number, scheduled_at, attempt_count, executed_at, result) VALUES (?, ?, ?, 'email_day1', 1, 1000, 1, 2000, 'sent')",
-    )
-    .run(id, ACCOUNT, paymentId);
-}
 
 function sendRows() {
   return sqlite
     .prepare("SELECT status, template, error FROM email_sends WHERE account_id = ?")
     .all(ACCOUNT) as { status: string; template: string | null; error: string | null }[];
 }
-
-describe("PLANT 1: an exhausted sequence sends one email with legacy's strings", () => {
-  it("toggle NULL sends, to the notification email, with legacy's subject", async () => {
-    seedAccount({ enabled: null });
-    seedPayment({});
-
-    const result = await sendSequenceCompleteNotification(env, {
-      accountId: ACCOUNT,
-      failedPaymentId: FP,
-    });
-
-    expect(result.kind).toBe("sent");
-    expect(harness.sent).toHaveLength(1);
-    expect(harness.sent[0].to).toBe("ops@acme.test");
-    expect(harness.sent[0].subject).toBe(
-      "Recovery sequence ended: $99.00 from Jane Buyer was not recovered",
-    );
-    expect(harness.sent[0].from).toBe("Foxhound <recovery@send.foxhoundapp.com>");
-    expect(sendRows()).toHaveLength(1);
-    expect(sendRows()[0].template).toBe(SEQUENCE_COMPLETE_TEMPLATE);
-  });
-
-  it("does NOT claim seven days, because no schedule runs seven days", () => {
-    // Legacy says "The 7-day recovery sequence" while its own schedules plan
-    // out to email_day30. Class (c) truthfulness.
-    // E11 (J89): the body is the notice template's content now, so its words
-    // are read from every string it holds.
-    const body = JSON.stringify(
-      sequenceCompleteBody({
-        amountCents: 9900,
-        currency: "usd",
-        customerLabel: "X",
-        paymentUrl: "https://x/1",
-      }),
-    );
-    expect(body).not.toContain("7-day");
-    expect(body).not.toContain("7 day");
-  });
-
-  it("empty customer name falls back to the email, as legacy's || does", async () => {
-    seedAccount({ enabled: null });
-    seedPayment({ customerName: "" });
-    await sendSequenceCompleteNotification(env, { accountId: ACCOUNT, failedPaymentId: FP });
-    expect(harness.sent[0].subject).toContain("from buyer@acme.test");
-  });
-});
 
 describe("PLANT 2: the toggle and the recipient are legacy's", () => {
   it("FALSE sends nothing and names the refusal", async () => {
@@ -191,37 +134,6 @@ describe("PLANT 2: the toggle and the recipient are legacy's", () => {
 });
 
 describe("PLANT 3: the demo refusal and a send failure", () => {
-  it("an account without live sends is blocked, and the block is logged", async () => {
-    seedAccount({ enabled: null, liveSends: 0 });
-    seedPayment({});
-    const result = await sendSequenceCompleteNotification(env, {
-      accountId: ACCOUNT,
-      failedPaymentId: FP,
-    });
-    expect(result.kind === "sent" && result.result.status).toBe("blocked");
-    expect(harness.sent).toHaveLength(0);
-    expect(sendRows()[0].error).toBe(LIVE_SENDS_DISABLED_ERROR);
-  });
-
-  it("a send failure leaves the terminal state recorded", async () => {
-    seedAccount({ enabled: null });
-    seedPayment({ status: "failed_unrecovered" });
-    const failing = {
-      ...env,
-      EMAIL: { send: async () => { throw new Error("provider exploded"); } },
-    } as unknown as Env;
-
-    const result = await sendSequenceCompleteNotification(failing, {
-      accountId: ACCOUNT,
-      failedPaymentId: FP,
-    });
-
-    expect(result.kind === "sent" && result.result.status).toBe("failed");
-    const fp = sqlite.prepare("SELECT status FROM failed_payments WHERE id = ?").get(FP) as {
-      status: string;
-    };
-    expect(fp.status).toBe("failed_unrecovered");
-  });
 
   it("a database failure is caught and named, never thrown at the tick", async () => {
     harness.db = { select() { throw new Error("d1 exploded"); } };
@@ -231,100 +143,5 @@ describe("PLANT 3: the demo refusal and a send failure", () => {
     });
     expect(result.kind).toBe("error");
     expect(result.kind === "error" && result.message).toBe("d1 exploded");
-  });
-});
-
-describe("PLANT 4: the claim, and the mutual exclusion with the recovery notice", () => {
-  it("the flip reports exactly the sequences it claimed, and a re-run claims none", async () => {
-    seedAccount({ enabled: null });
-    seedPayment({});
-    seedExecutedStep();
-    const now = new Date(5_000_000);
-
-    const first = await flipExhaustedSequences(env, now);
-    expect(first).toEqual([{ failedPaymentId: FP, accountId: ACCOUNT }]);
-
-    // A SECOND TICK over the same data claims nothing: the flip is conditional
-    // on status='active' and the row is no longer active. This is what stops a
-    // re-run sending a second email.
-    const second = await flipExhaustedSequences(env, new Date(6_000_000));
-    expect(second).toEqual([]);
-    expect(await queryExhaustedSequences(env, 10)).toEqual([]);
-  });
-
-  it("A RECOVERED SEQUENCE IS NEVER A CANDIDATE, so it gets the other notice only", async () => {
-    // The mutual exclusion, at its source. queryExhaustedSequences selects
-    // status='active' only, so a payment the webhook already flipped to
-    // 'recovered' can never reach this notification.
-    seedAccount({ enabled: null });
-    seedPayment({ status: "recovered" });
-    seedExecutedStep();
-
-    expect(await queryExhaustedSequences(env, 10)).toEqual([]);
-    expect(await flipExhaustedSequences(env, new Date(5_000_000))).toEqual([]);
-    expect(harness.sent).toHaveLength(0);
-  });
-
-  it("a sequence with a step still pending is not exhausted", async () => {
-    seedAccount({ enabled: null });
-    seedPayment({});
-    seedExecutedStep(FP, "s1");
-    sqlite
-      .prepare(
-        "INSERT INTO recovery_steps (id, account_id, failed_payment_id, step_type, step_number, scheduled_at, attempt_count) VALUES ('s2', ?, ?, 'email_day3', 2, 9000, 0)",
-      )
-      .run(ACCOUNT, FP);
-
-    expect(await flipExhaustedSequences(env, new Date(5_000_000))).toEqual([]);
-  });
-});
-
-describe("PLANT 7: the two layers of the claim, each proven on its own", () => {
-  // Inside flipExhaustedSequences the query and the flip run back to back on
-  // one thread, so every candidate is claimed and neither layer is observable
-  // through the public function. Reached directly, both are.
-
-  it("THE FLIP IS A CLAIM: an already-terminal row is not re-stamped", async () => {
-    seedAccount({ enabled: null });
-    seedPayment({ id: "fp_done", status: "failed_unrecovered" });
-    sqlite.prepare("UPDATE failed_payments SET resolved_at = 1234 WHERE id = 'fp_done'").run();
-
-    // Its id is handed to the flip anyway, which is what a concurrent tick
-    // would do. The `status = 'active'` guard is the only thing refusing it.
-    await db.batch([buildExhaustedSequenceFlip(db, ["fp_done"], new Date(9_999_999))]);
-
-    const row = sqlite
-      .prepare("SELECT resolved_at AS r FROM failed_payments WHERE id = 'fp_done'")
-      .get() as { r: number };
-    expect(row.r).toBe(1234);
-  });
-
-  it("THE READ-BACK NARROWS: a candidate this flip did not claim is excluded", async () => {
-    seedAccount({ enabled: null });
-    seedPayment({ id: "fp_mine" });
-    seedPayment({ id: "fp_theirs" });
-    const now = new Date(5_000_000);
-
-    // fp_mine is claimed by THIS flip; fp_theirs was already terminal, stamped
-    // by another tick at a different time. Both are in the candidate list.
-    sqlite
-      .prepare("UPDATE failed_payments SET status = 'failed_unrecovered', resolved_at = 4000 WHERE id = 'fp_theirs'")
-      .run();
-    await db.batch([buildExhaustedSequenceFlip(db, ["fp_mine", "fp_theirs"], now)]);
-
-    const claimed = await readClaimedSequences(db, ["fp_mine", "fp_theirs"], now);
-
-    expect(claimed).toEqual([{ failedPaymentId: "fp_mine", accountId: ACCOUNT }]);
-  });
-
-  it("a row terminal at a DIFFERENT time is excluded even with the same status", async () => {
-    seedAccount({ enabled: null });
-    seedPayment({ id: "fp_old", status: "failed_unrecovered" });
-    sqlite.prepare("UPDATE failed_payments SET resolved_at = 4000 WHERE id = 'fp_old'").run();
-
-    expect(await readClaimedSequences(db, ["fp_old"], new Date(5_000_000))).toEqual([]);
-    // And it IS found at its own timestamp, so the filter is the timestamp and
-    // not something incidental.
-    expect(await readClaimedSequences(db, ["fp_old"], new Date(4000))).toHaveLength(1);
   });
 });

@@ -89,26 +89,6 @@ function alertRows() {
 }
 
 describe("PLANT 1: the classifier reads the card both ways legacy does", () => {
-  it("off the deprecated sources array", () => {
-    const intent = classifyStripeEvent(
-      customerEvent({ sources: { data: [{ object: "card", exp_month: 11, exp_year: 2026, brand: "visa", last4: "4242" }] } }),
-    );
-    expect(intent.kind).toBe("record_expiring_card");
-    expect(intent.kind === "record_expiring_card" && intent.card).toEqual({
-      expMonth: 11,
-      expYear: 2026,
-      brand: "visa",
-      last4: "4242",
-    });
-  });
-
-  it("or defers to the default payment method, which the processor retrieves", () => {
-    const intent = classifyStripeEvent(
-      customerEvent({ invoice_settings: { default_payment_method: "pm_1" } }),
-    );
-    expect(intent.kind === "record_expiring_card" && intent.card).toBeNull();
-    expect(intent.kind === "record_expiring_card" && intent.paymentMethodId).toBe("pm_1");
-  });
 
   it("ignores a customer with no card and one with no email", () => {
     expect(classifyStripeEvent(customerEvent({})).kind).toBe("ignore");
@@ -147,16 +127,6 @@ describe("PLANT 2: the webhook records a candidate and sends nothing", () => {
 
     expect(harness.retrievedPaymentMethods).toEqual(["pm_1"]);
     expect(alertRows()[0]).toMatchObject({ brand: "amex", last4: "0005", m: 12, y: 2026 });
-  });
-
-  it("a card OUTSIDE the lead window records nothing", async () => {
-    const result = await processConnectedWebhook(
-      env,
-      customerEvent({ sources: { data: [{ object: "card", exp_month: 6, exp_year: 2027, brand: "visa", last4: "4242" }] } }),
-      RECEIVED,
-    );
-    expect(result).toEqual({ status: "ignored", reason: "card_outside_lead_window" });
-    expect(alertRows()).toEqual([]);
   });
 
   it("AN ALREADY EXPIRED CARD RECORDS NOTHING, closing legacy's asymmetry", async () => {

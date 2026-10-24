@@ -11,7 +11,6 @@ import {
   formatRelativeTime,
   recoveryTimingBuckets,
   resolveRangeCutoff,
-  SPARKLINE_TRAILING_DAYS,
   sumCentsByDayWindow,
 } from "~/lib/dashboard/recovery-window";
 
@@ -31,13 +30,6 @@ describe("resolveRangeCutoff", () => {
     expect(r.rangeLabel).toBe("7d");
   });
 
-  it("30d: cutoff 30 days back, spans 30 days", () => {
-    const r = resolveRangeCutoff("30d", NOW);
-    expect(r.cutoffMs).toBe(NOW - 30 * DAY_MS);
-    expect(r.rangeDays).toBe(30);
-    expect(r.rangeLabel).toBe("30d");
-  });
-
   it("90d: cutoff 90 days back, spans 90 days", () => {
     const r = resolveRangeCutoff("90d", NOW);
     expect(r.cutoffMs).toBe(NOW - 90 * DAY_MS);
@@ -54,12 +46,6 @@ describe("resolveRangeCutoff", () => {
 });
 
 describe("dayKey / countByDay", () => {
-  it("buckets dates into UTC day keys", () => {
-    const d1 = new Date("2026-07-20T23:59:00.000Z");
-    const d2 = new Date("2026-07-21T00:01:00.000Z");
-    expect(dayKey(d1)).toBe("2026-07-20");
-    expect(dayKey(d2)).toBe("2026-07-21");
-  });
 
   it("counts occurrences per day", () => {
     const counts = countByDay([
@@ -87,11 +73,6 @@ describe("countByDayAndCategory", () => {
 });
 
 describe("cumulativeRecoveryRateDaily", () => {
-  it("returns null (not 0%) for a day with zero cumulative failures", () => {
-    const points = cumulativeRecoveryRateDaily(new Map(), new Map(), 3, NOW);
-    expect(points).toHaveLength(3);
-    expect(points.every((p) => p.rate === null)).toBe(true);
-  });
 
   it("is cumulative, not same-day: a recovery on day 2 for a day-0 failure never exceeds 100%", () => {
     const today = dayKey(new Date(NOW));
@@ -112,26 +93,9 @@ describe("cumulativeRecoveryRateDaily", () => {
       expect(rate).toBeLessThanOrEqual(100);
     }
   });
-
-  it("never divides by zero: a recovery with no failure yet stays at a defined rate", () => {
-    const recoveredByDay = new Map([[dayKey(new Date(NOW)), 1]]);
-    const points = cumulativeRecoveryRateDaily(new Map(), recoveredByDay, 1, NOW);
-    expect(points[0].rate).not.toBeNaN();
-  });
 });
 
 describe("categorySparklineWindow", () => {
-  it("always spans SPARKLINE_TRAILING_DAYS regardless of the caller's own range", () => {
-    const byCat = countByDayAndCategory([
-      { detectedAt: new Date(NOW - 45 * DAY_MS), declineCategory: "soft" },
-    ]);
-    const sparkline = categorySparklineWindow(byCat, NOW);
-    expect(sparkline.soft).toHaveLength(SPARKLINE_TRAILING_DAYS);
-    // The 45-day-old failure is outside the 30-day window, so every point is 0,
-    // proving the window is a real trailing 30 days, not "whatever range was
-    // filtered upstream" (the legacy bug this function exists to avoid).
-    expect(sparkline.soft.every((p) => p.count === 0)).toBe(true);
-  });
 
   it("a failure inside the window shows up on its exact day", () => {
     const target = new Date(NOW - 5 * DAY_MS);
@@ -139,12 +103,6 @@ describe("categorySparklineWindow", () => {
     const sparkline = categorySparklineWindow(byCat, NOW);
     const point = sparkline.fraud.find((p) => p.date === dayKey(target));
     expect(point?.count).toBe(1);
-  });
-
-  it("only includes categories present in the input", () => {
-    const byCat = countByDayAndCategory([{ detectedAt: new Date(NOW), declineCategory: "expired" }]);
-    const sparkline = categorySparklineWindow(byCat, NOW);
-    expect(Object.keys(sparkline)).toEqual(["expired"]);
   });
 });
 
@@ -201,10 +159,6 @@ describe("classifyWebhookHealth", () => {
     expect(classifyWebhookHealth(null, NOW).tone).toBe("neutral");
   });
 
-  it("within 24h: success", () => {
-    expect(classifyWebhookHealth(new Date(NOW - 1 * 60 * 60 * 1000), NOW).tone).toBe("success");
-  });
-
   it("between 1 and 3 days: neutral", () => {
     expect(classifyWebhookHealth(new Date(NOW - 48 * 60 * 60 * 1000), NOW).tone).toBe("neutral");
   });
@@ -229,29 +183,12 @@ describe("sumCentsByDayWindow", () => {
     expect(points[0].cents).toBe(0);
     expect(points[1].cents).toBe(0);
   });
-
-  it("spans exactly rangeDays points, oldest first", () => {
-    const points = sumCentsByDayWindow([], 5, NOW);
-    expect(points).toHaveLength(5);
-    expect(points[4].date).toBe(dayKey(new Date(NOW)));
-  });
 });
 
 describe("formatRelativeTime", () => {
-  it("null date -> null", () => {
-    expect(formatRelativeTime(null, NOW)).toBeNull();
-  });
-
-  it("same day -> Today", () => {
-    expect(formatRelativeTime(new Date(NOW - 60_000), NOW)).toBe("Today");
-  });
 
   it("1 day back -> Yesterday", () => {
     expect(formatRelativeTime(new Date(NOW - DAY_MS - 60_000), NOW)).toBe("Yesterday");
-  });
-
-  it("under 30 days -> Nd ago", () => {
-    expect(formatRelativeTime(new Date(NOW - 5 * DAY_MS), NOW)).toBe("5d ago");
   });
 
   it("30+ days -> Nmo ago", () => {

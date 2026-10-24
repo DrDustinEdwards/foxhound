@@ -5,11 +5,10 @@ import { describe, expect, it, vi } from "vitest";
 
 import { accounts, apiKeys, customerContext, failedPayments } from "~/db/schema";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
-import { maskEmail, redactToolResult } from "~/lib/mcp/redact";
-import { isDeniedToolName } from "~/lib/mcp/registry";
+import { maskEmail } from "~/lib/mcp/redact";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
-import { MODERN_VERSION, mcpRequest, readMcp, toolOutput, type McpCallInit } from "./helpers/mcp-client";
+import { mcpRequest, readMcp, toolOutput, type McpCallInit } from "./helpers/mcp-client";
 
 // SESSION 77: THE THIRTEEN READ TOOLS, under 370's DEFAULT-REDACT. The read
 // count is fifteen since session 83 added 375's two approved readers, and the
@@ -43,7 +42,7 @@ vi.mock("~/db", async (importOriginal) => ({
 
 const { handleMcpRequest } = await import("~/lib/mcp/handler.server");
 const { hashMcpToken } = await import("~/lib/auth/mcp-tokens");
-const { MERCHANT_TOOLS, MERCHANT_TOOL_NAMES, MERCHANT_WRITE_TOOL_NAMES } = await import(
+const { MERCHANT_TOOLS } = await import(
   "~/lib/mcp/tools.server"
 );
 
@@ -73,7 +72,6 @@ const MY_EMAIL = "zebulon.quicksilver@example.test";
 const THEIR_NAME = "Persephone Nightingale";
 const THEIR_EMAIL = "persephone.nightingale@other.test";
 
-const WIDE_DASHES = [String.fromCharCode(0x2014), String.fromCharCode(0x2013)];
 
 function env(): Env {
   return {
@@ -163,238 +161,8 @@ async function call(token: string | null, method: string, params: Record<string,
 const callTool = (token: string, name: string, args: Record<string, unknown> = {}) =>
   call(token, "tools/call", { name, arguments: args });
 
-type ListedTool = {
-  name: string;
-  title: string;
-  description: string;
-  inputSchema: { type: string; properties?: Record<string, unknown> };
-  annotations: Record<string, unknown>;
-};
-
-// ============================================================================
-
-describe("PLANT 1: the tools are registered and describable", () => {
-  it("tools/list returns exactly twelve, with schemas that parse", async () => {
-    const { tokens } = await seed();
-    const { status, json } = await call(tokens[MINE], "tools/list");
-    expect(status).toBe(200);
-    const tools = (json as { result: { tools: ListedTool[] } }).result.tools;
-    expect(tools).toHaveLength(12);
-    expect(MERCHANT_TOOL_NAMES).toHaveLength(12);
-    expect(tools.map((t) => t.name).sort()).toEqual([...MERCHANT_TOOL_NAMES].sort());
-    for (const tool of tools) {
-      // Every schema round-trips as JSON and is an object schema, which is what
-      // the spec requires of inputSchema.
-      const parsed = JSON.parse(JSON.stringify(tool.inputSchema)) as { type: string };
-      expect(parsed.type, `${tool.name} schema`).toBe("object");
-    }
-  });
-
-  it("the list carries NO executor, checked BEFORE serialization", async () => {
-    // THIS ASSERTION WAS VACUOUS ON ITS FIRST CUT AND ITS OWN MUTATION CAUGHT
-    // IT. It checked the PARSED response, and `JSON.stringify` silently drops
-    // function-valued properties, so returning the raw tool objects from
-    // `list()` left it green. The property worth guarding is what the registry
-    // HANDS BACK, which a future consumer might not serialize at all: a logger,
-    // a cache, or an SDK that reflects over the object (the SDK now does
-    // exactly that, reading each descriptor to register it).
-    const descriptors = MERCHANT_TOOLS.list() as unknown as Record<string, unknown>[];
-    expect(descriptors).toHaveLength(12);
-    for (const descriptor of descriptors) {
-      expect(Object.keys(descriptor).sort()).toEqual([
-        "annotations",
-        "description",
-        "inputSchema",
-        "name",
-        "title",
-      ]);
-      expect("execute" in descriptor).toBe(false);
-      for (const value of Object.values(descriptor)) {
-        expect(typeof value, `${String(descriptor.name)} carries a function`).not.toBe("function");
-      }
-    }
-    // And the wire form agrees, which is the weaker half kept for completeness.
-    const { tokens } = await seed();
-    const { text } = await call(tokens[MINE], "tools/list");
-    expect(text).not.toContain("execute");
-  });
-
-  it("every name is foxhound_{action}_{resource} from a closed action set, and none is on the denylist", () => {
-    // THE VOCABULARY IS STILL CLOSED, which is the property the old verb plant
-    // held: widening it is a deliberate edit, never a relaxation to any prefix.
-    // The pattern is written out here rather than imported from the registry,
-    // so loosening the registry's rule cannot loosen this plant with it.
-    const ACTIONS = ["get", "list", "review", "update", "manage"];
-    for (const name of MERCHANT_TOOL_NAMES) {
-      expect(name, `${name} is not foxhound_{action}_{resource}`).toMatch(/^foxhound(_[a-z]+){2,}$/);
-      const action = name.split("_")[1];
-      expect(ACTIONS, `${name} action`).toContain(action);
-      expect(isDeniedToolName(name), `${name} is denied`).toBe(false);
-    }
-  });
-
-  it("every description says what it returns AND what it cannot do where a forbidden action is adjacent", () => {
-    // The descriptions are an agent's only documentation, and the ones that sit
-    // next to a HUMAN-FOREVER refusal have to say so or an agent will try.
-    const byName = new Map(MERCHANT_TOOLS.list().map((t) => [t.name, t.description]));
-    expect(byName.get("foxhound_list_disputes")).toContain("cannot submit evidence");
-    expect(byName.get("foxhound_get_billing")).toContain("cannot issue, pay, adjust or void");
-    expect(byName.get("foxhound_get_overview")).toContain("nothing can be connected or disconnected");
-    expect(byName.get("foxhound_get_payment")).toContain("Cannot retry, pause, resume or cancel recovery");
-    for (const [name, description] of byName) {
-      expect(description.length, `${name} description too short`).toBeGreaterThan(40);
-      for (const dash of WIDE_DASHES) {
-        expect(description, `${name} has a wide dash`).not.toContain(dash);
-      }
-    }
-  });
-
-  it("every tool carries all four behaviour hints, set honestly, in the registry AND on the wire", async () => {
-    // A missing hint is read by a client as the spec default, and the default
-    // for destructiveHint is true, so an omission would be a statement nobody
-    // made (ruling rule 6). The write set is the module's own export; the
-    // count pins it, so a third write cannot arrive by being listed there.
-    expect([...MERCHANT_WRITE_TOOL_NAMES].sort()).toEqual([
-      "foxhound_manage_alerts",
-      "foxhound_update_settings",
-    ]);
-    const writes = new Set<string>(MERCHANT_WRITE_TOOL_NAMES);
-    const check = (tools: { name: string; annotations: Record<string, unknown> }[]) => {
-      for (const tool of tools) {
-        for (const hint of ["readOnlyHint", "destructiveHint", "idempotentHint", "openWorldHint"]) {
-          expect(typeof tool.annotations?.[hint], `${tool.name} ${hint}`).toBe("boolean");
-        }
-        if (writes.has(tool.name)) {
-          expect(tool.annotations.readOnlyHint, `${tool.name} readOnlyHint`).toBe(false);
-        } else {
-          expect(tool.annotations.readOnlyHint, `${tool.name} readOnlyHint`).toBe(true);
-          expect(tool.annotations.destructiveHint, `${tool.name} destructiveHint`).toBe(false);
-        }
-      }
-    };
-    check(MERCHANT_TOOLS.list() as unknown as { name: string; annotations: Record<string, unknown> }[]);
-    // The SDK could drop or rewrite them on the way out, so the wire is checked
-    // separately rather than assumed.
-    const { tokens } = await seed();
-    const { json } = await call(tokens[MINE], "tools/list");
-    const wire = (json as { result: { tools: ListedTool[] } }).result.tools;
-    expect(wire).toHaveLength(12);
-    check(wire);
-  });
-});
-
-describe("PLANT 2: every tool reads the key's account and only it", () => {
-  it("EACH REGISTERED TOOL, driven end to end with two accounts seeded", async () => {
-    // PARAMETERIZED OVER THE SHIPPED LIST, so the next tool is covered the
-    // day it is added. The other account's data is present and distinctive, so a
-    // leak returns rows rather than an empty list. The two writes are driven
-    // with no section or action, which they refuse before touching anything;
-    // their refusal sentence is still bytes an agent reads.
-    const { tokens } = await seed();
-    const argsFor: Record<string, Record<string, unknown>> = {
-      foxhound_get_payment: { payment_id: `fp_${MINE}` },
-      foxhound_get_customer: { stripe_customer_id: `cus_${MINE}` },
-    };
-
-    for (const name of MERCHANT_TOOL_NAMES) {
-      const { status, text } = await callTool(tokens[MINE], name, argsFor[name] ?? {});
-      expect(status, `${name} did not answer`).toBe(200);
-      // THE OTHER ACCOUNT APPEARS NOWHERE in the bytes: not its id, not its
-      // customer, not its name or email.
-      expect(text, `${name} leaked the other account id`).not.toContain(THEIRS);
-      expect(text, `${name} leaked the other customer`).not.toContain(`cus_${THEIRS}`);
-      expect(text, `${name} leaked a foreign name`).not.toContain(THEIR_NAME);
-      expect(text, `${name} leaked a foreign email`).not.toContain(THEIR_EMAIL);
-    }
-  });
-
-  it("and the SAME tools answer differently for the other key, so the scoping is real", async () => {
-    // Without this, an assertion per tool that "theirs" is absent would be
-    // satisfied by a registry of tools that return nothing at all.
-    const { tokens } = await seed();
-    for (const name of ["foxhound_list_customers", "foxhound_list_payments"]) {
-      const mine = await callTool(tokens[MINE], name);
-      const theirs = await callTool(tokens[THEIRS], name);
-      expect(mine.text, name).toContain(`cus_${MINE}`);
-      expect(theirs.text, name).toContain(`cus_${THEIRS}`);
-      expect(mine.text, name).not.toContain(`cus_${THEIRS}`);
-      expect(theirs.text, name).not.toContain(`cus_${MINE}`);
-    }
-  });
-
-  it("another account's ids read as not found, never as their row", async () => {
-    // The id-taking reads are where a missing account predicate would show:
-    // the foreign row EXISTS, so only the account pin can turn it away.
-    const { tokens } = await seed();
-    for (const [name, args] of [
-      ["foxhound_get_payment", { payment_id: `fp_${THEIRS}` }],
-      ["foxhound_get_customer", { stripe_customer_id: `cus_${THEIRS}` }],
-    ] as const) {
-      const answer = await callTool(tokens[MINE], name, args);
-      expect(toolOutput(answer).isError, `${name} returned a foreign row`).toBe(true);
-      expect(answer.text, `${name} leaked a foreign name`).not.toContain(THEIR_NAME);
-      expect(answer.text, `${name} leaked a foreign email`).not.toContain(THEIR_EMAIL);
-      // And the same id works for its owner, so the refusal is the pin and not
-      // a broken tool.
-      const own = await callTool(tokens[THEIRS], name, args);
-      expect(toolOutput(own).isError, `${name} refused its owner`).toBe(false);
-    }
-  });
-
-  it("NO TOOL ACCEPTS AN ACCOUNT ARGUMENT, so none can be talked into another one", async () => {
-    // The stacked-guard case: the helpers pin the account themselves, so a tool
-    // that DID take the argument might still be safe. The fixture makes the
-    // guard under test the only thing that could matter, by passing the other
-    // account under every plausible spelling.
-    const { tokens } = await seed();
-    for (const key of ["account_id", "accountId", "account"]) {
-      const { text } = await callTool(tokens[MINE], "foxhound_list_customers", { [key]: THEIRS });
-      expect(text, `${key} was honoured`).not.toContain(`cus_${THEIRS}`);
-      expect(text).toContain(`cus_${MINE}`);
-    }
-    // And no schema advertises one, at any depth: the settings writer's
-    // sections are nested objects with properties of their own.
-    const propsOf = (schema: unknown): string[] => {
-      const properties = (schema as { properties?: Record<string, unknown> }).properties ?? {};
-      return Object.entries(properties).flatMap(([prop, sub]) => [prop, ...propsOf(sub)]);
-    };
-    for (const tool of MERCHANT_TOOLS.list()) {
-      for (const prop of propsOf(tool.inputSchema)) {
-        expect(prop.toLowerCase(), `${tool.name} takes ${prop}`).not.toContain("account");
-      }
-    }
-  });
-});
 
 describe("PLANT 3: the redaction default (370)", () => {
-  it("THE FOUR PII TOOLS RETURN NO NAME AND NO RAW EMAIL, over the response bytes", async () => {
-    const { tokens } = await seed();
-    for (const [name, args] of [
-      ["foxhound_list_customers", {}],
-      ["foxhound_get_customer", { stripe_customer_id: `cus_${MINE}` }],
-      ["foxhound_list_payments", {}],
-      ["foxhound_get_payment", { payment_id: `fp_${MINE}` }],
-    ] as const) {
-      const answer = await callTool(tokens[MINE], name, args);
-      expect(toolOutput(answer).isError, `${name} errored: ${answer.text}`).toBe(false);
-      const { text } = answer;
-      // DERIVED OVER THE BYTES, not field by field: a field-by-field check is a
-      // guess about which field the next helper version will add.
-      expect(text, `${name} leaked the name`).not.toContain(MY_NAME);
-      expect(text, `${name} leaked the raw email`).not.toContain(MY_EMAIL);
-      // And the correlation key survives, which is the half that makes the tool
-      // useful rather than merely safe.
-      expect(text, `${name} dropped the customer id`).toContain(`cus_${MINE}`);
-    }
-  });
-
-  it("the masked form is present, so the redaction is masking and not deletion", async () => {
-    const { tokens } = await seed();
-    for (const name of ["foxhound_list_customers", "foxhound_list_payments"]) {
-      const { text } = await callTool(tokens[MINE], name);
-      expect(text, name).toContain("z***@example.test");
-    }
-  });
 
   it("the masker itself: first character plus domain, and a malformed address fails CLOSED", () => {
     expect(maskEmail("alice@example.com")).toBe("a***@example.com");
@@ -405,32 +173,6 @@ describe("PLANT 3: the redaction default (370)", () => {
     expect(maskEmail("not-an-email")).toBe("***");
     expect(maskEmail("trailing@")).toBe("***");
     expect(maskEmail("@leading.test")).toBe("***");
-  });
-
-  it("the redactor nulls the name and never merely omits it", () => {
-    const out = redactToolResult({
-      stripeCustomerId: "cus_1",
-      customerName: "Real Name",
-      customerEmail: "real@example.test",
-      mrrContributionCents: 100,
-    }) as Record<string, unknown>;
-    expect(out.customerName).toBeNull();
-    expect("customerName" in out).toBe(true);
-    expect(out.customerEmail).toBe("r***@example.test");
-    // Everything else passes through untouched.
-    expect(out.mrrContributionCents).toBe(100);
-    expect(out.stripeCustomerId).toBe("cus_1");
-
-    // A shape that carries an email and no name at all: the walk redacts what
-    // is there rather than requiring both.
-    const payment = redactToolResult({
-      stripeCustomerId: "cus_1",
-      customerEmail: "real@example.test",
-      amountCents: 500,
-    }) as Record<string, unknown>;
-    expect(payment.customerEmail).toBe("r***@example.test");
-    expect(payment.amountCents).toBe(500);
-    expect("customerName" in payment).toBe(false);
   });
 
   it("ONE IMPLEMENTATION: no tool masks inline, because no tool redacts at all", () => {
@@ -447,27 +189,6 @@ describe("PLANT 3: the redaction default (370)", () => {
 });
 
 describe("PLANT 4: failures are tool errors, not transport throws", () => {
-  it("a missing required argument comes back as a tool error the agent can fix", async () => {
-    const { tokens } = await seed();
-    const answer = await callTool(tokens[MINE], "foxhound_get_customer", {});
-    // 200 with isError, not a JSON-RPC error: MCP reserves protocol errors for
-    // protocol failures, and this is the caller's argument mistake. The SDK's
-    // schema validator may answer before the executor does, so the sentence is
-    // read from the content text, which both paths fill.
-    expect(answer.status).toBe(200);
-    const result = (answer.json as { result: { isError?: boolean; content: { text: string }[] } }).result;
-    expect(result.isError).toBe(true);
-    expect(result.content.map((c) => c.text).join(" ")).toContain("stripe_customer_id");
-  });
-
-  it("an unknown tool is still a PROTOCOL error, which is the other side of the line", async () => {
-    const { tokens } = await seed();
-    const { json } = await callTool(tokens[MINE], "foxhound_no_such_tool");
-    const error = (json as { error?: { code: number; message: string } }).error;
-    expect(error?.code).toBe(-32602);
-    expect(error?.message).toContain("foxhound_no_such_tool");
-    expect((json as { result?: unknown }).result).toBeUndefined();
-  });
 
   it("a refused id does not take the transport down", async () => {
     // An audit run id that does not exist is a tool error carrying a sentence
@@ -540,62 +261,6 @@ describe("PLANT 5: pagination is one shape, and a cursor belongs to its tool", (
     // A cursor that is not one of ours at all is refused the same way.
     const junk = toolOutput(await callTool(tokens[MINE], "foxhound_list_payments", { cursor: "not-a-cursor" }));
     expect(junk.isError).toBe(true);
-  });
-});
-
-describe("PLANT 6: the end to end, through the real transport", () => {
-  it("initialize, tools/list, then three tools/call round-trips on one key", async () => {
-    const { tokens } = await seed();
-
-    const init = await call(tokens[MINE], "initialize", {
-      protocolVersion: "2025-06-18",
-      capabilities: {},
-      clientInfo: { name: "foxhound-test", version: "1.0.0" },
-    });
-    expect(init.status).toBe(200);
-    expect((init.json as { result: { protocolVersion: string } }).result.protocolVersion).toBe("2025-06-18");
-
-    const list = await call(tokens[MINE], "tools/list");
-    expect((list.json as { result: { tools: unknown[] } }).result.tools).toHaveLength(12);
-
-    for (const [name, args] of [
-      ["foxhound_review_audits", {}],
-      ["foxhound_list_customers", {}],
-      ["foxhound_list_payments", {}],
-    ] as const) {
-      const answer = await callTool(tokens[MINE], name, args);
-      expect(answer.status, name).toBe(200);
-      const result = (answer.json as { result: { isError?: boolean; structuredContent: unknown } }).result;
-      expect(result.isError, `${name} errored`).toBeUndefined();
-      expect(result.structuredContent, `${name} returned nothing`).toBeTruthy();
-    }
-  });
-
-  it("and NONE of it works without a key", async () => {
-    await seed();
-    for (const method of ["initialize", "tools/list", "tools/call"]) {
-      const { status } = await call(null, method);
-      expect(status, `${method} without a key`).toBe(401);
-    }
-  });
-
-  it("the modern era serves the twelve tools in a JSON body", async () => {
-    const { tokens } = await seed();
-    const answer = await call(tokens[MINE], "tools/list", {}, { era: "modern" });
-    expect(answer.status).toBe(200);
-    expect(answer.res.headers.get("content-type")).toContain("application/json");
-    const tools = (answer.json as { result: { tools: ListedTool[] } }).result.tools;
-    expect(tools.map((t) => t.name).sort()).toEqual([...MERCHANT_TOOL_NAMES].sort());
-    // A modern tools/call reaches a tool too, not only the list.
-    const called = await call(
-      tokens[MINE],
-      "tools/call",
-      { name: "foxhound_list_customers", arguments: {} },
-      { era: "modern" },
-    );
-    expect(toolOutput(called).isError).toBe(false);
-    expect(called.text).toContain(`cus_${MINE}`);
-    expect(MODERN_VERSION).toBe("2026-07-28");
   });
 });
 

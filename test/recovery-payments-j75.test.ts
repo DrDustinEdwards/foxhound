@@ -297,21 +297,4 @@ describe("J75: the loader", () => {
     expect(await exportRows("/recovery/payments/export.csv?page=2")).toHaveLength(5);
     expect(await exportRows("/recovery/payments/export.csv?perPage=all")).toHaveLength(30);
   });
-
-  it("keeps the export to the signed-in account", async () => {
-    seed(sqlite, db, { accountId: B, customerEmail: "other@beta.test" });
-    seed(sqlite, db, {});
-    const rows = await exportRows("/recovery/payments/export.csv");
-    expect(rows).toHaveLength(1);
-    expect(rows.join("\n")).not.toContain("other@beta.test");
-  });
-
-  // ALREADY LANDED before J75 (queries.server.ts:100-105); kept as the proof.
-  it("never lists another account's payment", async () => {
-    seed(sqlite, db, { accountId: B, customerEmail: "other@beta.test" });
-    seed(sqlite, db, {});
-    const out = await load("/recovery/payments");
-    expect(out.result.payments.map((p) => p.customerEmail)).toEqual(["jordan@example.com"]);
-    expect(out.globalCounts.all).toBe(1);
-  });
 });

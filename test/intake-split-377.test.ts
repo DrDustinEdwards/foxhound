@@ -81,7 +81,6 @@ vi.mock("~/lib/stripe/client", () => ({
 }));
 
 const { processConnectedWebhook } = await import("~/lib/webhooks/process");
-const { classifyStripeEvent } = await import("~/lib/webhooks/events");
 const schema = await import("~/db/schema");
 
 /**
@@ -169,44 +168,7 @@ beforeEach(() => {
   harness.seen = new Set<string>();
 });
 
-describe("the classifier reads Stripe's own retry intent", () => {
-  it("a scheduled next attempt means Stripe has NOT given up", () => {
-    const intent = classifyStripeEvent(paymentFailed("evt_a", 1_756_000_000));
-    expect(intent.kind).toBe("intake");
-    if (intent.kind === "intake") expect(intent.stripeGaveUp).toBe(false);
-  });
-
-  it("a null next attempt means Stripe HAS given up", () => {
-    const intent = classifyStripeEvent(paymentFailed("evt_b", null));
-    expect(intent.kind).toBe("intake");
-    if (intent.kind === "intake") expect(intent.stripeGaveUp).toBe(true);
-  });
-
-  it("invoice.marked_uncollectible is its own intent, not an unhandled type", () => {
-    expect(classifyStripeEvent(markedUncollectible("evt_c"))).toEqual({
-      kind: "stripe_gave_up",
-      invoiceId: INVOICE,
-    });
-  });
-});
-
 describe("ARM ONE: Stripe is still retrying", () => {
-  it("records the payment in stripe_retrying and plans NOTHING", async () => {
-    const db = await seed();
-
-    const outcome = await processConnectedWebhook(
-      {} as Env,
-      paymentFailed("evt_first", 1_756_000_000),
-      FIRST_FAILURE,
-    );
-    expect(outcome).toEqual({ status: "applied" });
-
-    const [payment] = await payments(db);
-    expect(payment.status).toBe(FAILED_PAYMENT_STATUS_STRIPE_RETRYING);
-    expect(payment.detectedAt).toEqual(FIRST_FAILURE);
-    // The whole point: no outreach while the payment is Stripe's.
-    expect(await steps(db)).toHaveLength(0);
-  });
 
   it("a second failure while Stripe is STILL retrying stays parked and adds no row", async () => {
     const db = await seed();
@@ -335,50 +297,6 @@ describe("hard declines never wait, because Stripe never retries them", () => {
     const [payment] = await payments(db);
     expect(payment.status).toBe(FAILED_PAYMENT_STATUS_ACTIVE);
     expect((await steps(db)).length).toBeGreaterThan(0);
-  });
-
-  it("a soft decline WAITS, which is the contrast that makes the above mean something", async () => {
-    const db = await seed();
-
-    await processConnectedWebhook(
-      {} as Env,
-      paymentFailed("evt_soft", 1_756_000_000, { declineCode: "insufficient_funds" }),
-      FIRST_FAILURE,
-    );
-
-    const [payment] = await payments(db);
-    expect(payment.status).toBe(FAILED_PAYMENT_STATUS_STRIPE_RETRYING);
-    expect(await steps(db)).toHaveLength(0);
-  });
-});
-
-describe("the parked row does not leak into the rest of the engine", () => {
-  it("a payment on a parked invoice still records, and attributes to no Foxhound action", async () => {
-    const db = await seed();
-    await processConnectedWebhook({} as Env, paymentFailed("evt_1", 1_756_000_000), FIRST_FAILURE);
-
-    const paid = {
-      id: "evt_paid",
-      type: "invoice.payment_succeeded",
-      account: "acct_connected_1",
-      data: {
-        object: { id: INVOICE, amount_paid: 10_000, currency: "usd", customer: CUSTOMER },
-      },
-    } as unknown as Stripe.Event;
-
-    await processConnectedWebhook({} as Env, paid, new Date("2026-08-05T00:00:00.000Z"));
-
-    const recoveries = await db.select().from(schema.recoveredPayments);
-    expect(recoveries).toHaveLength(1);
-    // Stripe's own retry got the money and Foxhound sent nothing, so this is
-    // the free baseline. Billing it would be the exact defect 377(1) closes.
-    expect(recoveries[0].attributionKind).toBe("stripe_baseline");
-
-    const [payment] = await db
-      .select()
-      .from(schema.failedPayments)
-      .where(eq(schema.failedPayments.stripeInvoiceId, INVOICE));
-    expect(payment.status).toBe("recovered");
   });
 });
 

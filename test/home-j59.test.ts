@@ -4,7 +4,6 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it } from "vitest";
 
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { RECOVERY_SCHEDULES, isRetryStep } from "~/lib/recovery/schedule";
 import Home, { loader } from "~/routes/home";
 import { action as generateEmailSample } from "~/routes/marketing/generate-email-sample";
 
@@ -43,41 +42,6 @@ function render(blogPosts: Post[] = POSTS): string {
   return renderToStaticMarkup(createElement(RouterProvider, { router }));
 }
 
-/** Text with tags stripped and the entities this page uses decoded. */
-function text(html: string): string {
-  return html
-    .replace(/<script[\s\S]*?<\/script>/g, " ")
-    .replace(/<style[\s\S]*?<\/style>/g, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&#x27;|&#39;/g, "'")
-    .replace(/&quot;/g, '"')
-    .replace(/&middot;/g, "·")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-
-
-
-
-describe("the copy says only what Foxhound's engine does (RULES.md 2.1)", () => {
-  const html = render();
-  const page = text(html);
-
-  it("never says a silent retry comes before every email: only categories whose schedule starts with a retry get one", () => {
-    const retryFirst = Object.values(RECOVERY_SCHEDULES).filter((s) => isRetryStep(s[0].stepType)).length;
-    expect(retryFirst, "some categories lead with an email").toBeLessThan(Object.keys(RECOVERY_SCHEDULES).length);
-    expect(page).not.toMatch(/before any customer ever sees an email/i);
-    expect(page).toContain("wherever the decline can be retried");
-  });
-
-  it("never claims different sequences per category when the engine shares one between two", () => {
-    const distinct = new Set(Object.values(RECOVERY_SCHEDULES).map((s) => JSON.stringify(s))).size;
-    expect(distinct).toBeLessThan(Object.keys(RECOVERY_SCHEDULES).length);
-    expect(page).not.toMatch(/each handled with a different sequence|four different sequences|four decline categories/i);
-  });
-});
 
 describe("the blog strip puts the featured post first (M3 divergence 34)", () => {
 

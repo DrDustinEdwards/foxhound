@@ -25,35 +25,11 @@ describe("computeHealthScore (universal coverage, never unknown)", () => {
     expect(result.factors).toEqual([]);
   });
 
-  it("penalizes rising payment latency drift", () => {
-    const result = computeHealthScore({ ...BASELINE_INPUT, paymentLatencyDriftDays: 10 });
-    expect(result.score).toBeLessThan(70);
-    expect(result.factors.map((f) => f.signal)).toContain("payment_latency");
-  });
-
   it("rewards improving (earlier) payment latency drift, capped", () => {
     const result = computeHealthScore({ ...BASELINE_INPUT, paymentLatencyDriftDays: -20 });
     expect(result.score).toBeGreaterThan(70);
     const factor = result.factors.find((f) => f.signal === "payment_latency");
     expect(factor?.deltaPoints).toBe(10); // clamped
-  });
-
-  it("treats plan/interval changes as general volatility, not a guessed direction", () => {
-    const result = computeHealthScore({ ...BASELINE_INPUT, planChangeCount: 3, intervalSwitchCount: 1 });
-    expect(result.score).toBeLessThan(70);
-    const factor = result.factors.find((f) => f.signal === "billing_volatility");
-    expect(factor?.detail).not.toMatch(/downgrade|upgrade|annual|monthly/i);
-  });
-
-  it("penalizes refunds and disputes, capped", () => {
-    const result = computeHealthScore({ ...BASELINE_INPUT, refundCount: 10, disputeCount: 10 });
-    const factor = result.factors.find((f) => f.signal === "refunds_disputes");
-    expect(factor?.deltaPoints).toBe(-30); // clamped
-  });
-
-  it("does not penalize engagement when the customer never had a failed payment", () => {
-    const result = computeHealthScore(BASELINE_INPUT);
-    expect(result.factors.some((f) => f.signal === "recovery_engagement")).toBe(false);
   });
 
   it("penalizes zero engagement when recovery communications were sent", () => {

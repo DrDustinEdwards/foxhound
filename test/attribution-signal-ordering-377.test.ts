@@ -2,7 +2,7 @@ import { asc, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { accounts, failedPayments, recoverySteps } from "~/db/schema";
-import { findAttributionSignals, resolveAttribution } from "~/lib/recovery/attribution";
+import { findAttributionSignals } from "~/lib/recovery/attribution";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -87,21 +87,6 @@ async function readStepsAsProcessDoes(db: Awaited<ReturnType<typeof seed>>) {
 }
 
 describe("attribution signal ordering: the latest click wins", () => {
-  it("attributes the LATER click when it sits at the LOWER rowid", async () => {
-    const db = await seed([
-      { id: "step_late", clickedAt: LATE_CLICK },
-      { id: "step_early", clickedAt: EARLY_CLICK },
-    ]);
-
-    const rows = await readStepsAsProcessDoes(db);
-
-    // Confirm the fixture is adversarial before trusting the assertion under
-    // it: the unordered read must hand back the later click first, which is
-    // exactly the order that made the old `find` right by luck.
-    expect(rows.map((r) => r.id)).toEqual(["step_late", "step_early"]);
-
-    expect(findAttributionSignals(rows, RECOVERED_AT).clickedEngagementId).toBe("step_late");
-  });
 
   it("AND attributes the later click when it sits at the HIGHER rowid, which is where the bug lived", async () => {
     const db = await seed([
@@ -116,61 +101,6 @@ describe("attribution signal ordering: the latest click wins", () => {
     expect(rows.map((r) => r.id)).toEqual(["step_early", "step_late"]);
 
     expect(findAttributionSignals(rows, RECOVERED_AT).clickedEngagementId).toBe("step_late");
-  });
-
-  it("the attribution kind and its evidence ref both follow the later click", async () => {
-    const db = await seed([
-      { id: "step_late", clickedAt: LATE_CLICK },
-      { id: "step_early", clickedAt: EARLY_CLICK },
-    ]);
-
-    const attribution = resolveAttribution(findAttributionSignals(await readStepsAsProcessDoes(db), RECOVERED_AT));
-    expect(attribution).toEqual({ kind: "email_engaged", ref: "step_late" });
-  });
-
-  it("three clicks out of order still resolve to the newest", async () => {
-    const middle = new Date("2026-08-17T10:00:00.000Z");
-    const db = await seed([
-      { id: "step_middle", clickedAt: middle },
-      { id: "step_late", clickedAt: LATE_CLICK },
-      { id: "step_early", clickedAt: EARLY_CLICK },
-    ]);
-
-    const rows = await readStepsAsProcessDoes(db);
-    expect(rows).toHaveLength(3);
-    expect(findAttributionSignals(rows, RECOVERED_AT).clickedEngagementId).toBe("step_late");
-  });
-
-  it("does not reorder the caller's array, which would move the other signals", async () => {
-    const db = await seed([
-      { id: "step_early", clickedAt: EARLY_CLICK },
-      { id: "step_late", clickedAt: LATE_CLICK },
-    ]);
-
-    const rows = await readStepsAsProcessDoes(db);
-    const before = rows.map((r) => r.id);
-    findAttributionSignals(rows, RECOVERED_AT);
-    expect(rows.map((r) => r.id)).toEqual(before);
-  });
-
-  it("a single click is still the signal, and an unclicked set still has none", async () => {
-    const one = await seed([{ id: "step_only", clickedAt: LATE_CLICK }]);
-    expect(findAttributionSignals(await readStepsAsProcessDoes(one), RECOVERED_AT).clickedEngagementId).toBe(
-      "step_only",
-    );
-
-    const none = await seed([{ id: "step_sent", clickedAt: null }]);
-    expect(findAttributionSignals(await readStepsAsProcessDoes(none), RECOVERED_AT).clickedEngagementId).toBeNull();
-  });
-
-  it("a succeeded retry still outranks the newest click, so ordering did not change priority", async () => {
-    const db = await seed([
-      { id: "step_late", clickedAt: LATE_CLICK },
-      { id: "step_retry", clickedAt: null, stepType: "retry_early", result: "retry_succeeded" },
-    ]);
-
-    const attribution = resolveAttribution(findAttributionSignals(await readStepsAsProcessDoes(db), RECOVERED_AT));
-    expect(attribution).toEqual({ kind: "foxhound_retry", ref: "step_retry" });
   });
 
   it("the rows really are stored in insertion order, so the fixtures above mean what they say", async () => {

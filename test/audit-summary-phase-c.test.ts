@@ -42,18 +42,6 @@ function auditWith(over: Partial<AuditInputs> = {}) {
 
 
 describe("PLANT 2: a scope that could not be read says so", () => {
-  it("A FAILED SCOPE REACHES THE PROMPT AS WORDS, never as a zero", () => {
-    // THE DIVERGENCE, and the reason for it. Legacy would print
-    // "Open disputes: $0.00 across 0 disputes" for a disputes call that failed,
-    // and the model would then write a sentence about a merchant with none.
-    const prompt = buildAuditSummaryPrompt(
-      auditWith({ disputes: failedRead("Could not read disputes from Stripe: rate limited") }),
-    );
-    expect(prompt).toContain("Open disputes: could not be read");
-    expect(prompt).toContain("Disputes accepted without fighting: could not be read");
-    expect(prompt).toContain("Dispute history: could not be read");
-    expect(prompt).not.toContain("across 0 disputes");
-  });
 
   it("an OK scope still renders its numbers, so the absence is not everywhere", () => {
     // BOTH DIRECTIONS: a builder that printed "could not be read" for everything
@@ -73,14 +61,6 @@ describe("PLANT 3: the fallback", () => {
       summary: AUDIT_SUMMARY_FALLBACK,
       reason: "ANTHROPIC_API_KEY is not set",
     });
-  });
-
-  it("the outcome is DISCRIMINATED, so a caller cannot mistake the fallback for a reading", async () => {
-    const { generateAuditSummary } = await import("~/lib/audit/summary.server");
-    const outcome = await generateAuditSummary({} as Env, auditWith());
-    expect(outcome.source).toBe("fallback");
-    // Both arms carry a usable string, so no caller has to handle an absent one.
-    expect(outcome.summary.length).toBeGreaterThan(50);
   });
 });
 

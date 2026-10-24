@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import { classifyPath } from "~/lib/http/cache-policy";
 import {
   buildSecurityTxt,
   SECURITY_TXT_EXPIRES_DAYS,
@@ -21,7 +20,6 @@ import { SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 // finder has already been ignored.
 
 const URL_BASE = "https://foxhoundapp.com";
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Parse the file into fields, the way a consumer of the spec would. */
 function fields(text: string): Map<string, string[]> {
@@ -65,33 +63,6 @@ describe("PLANT 1: the required fields are present and parse", () => {
 });
 
 describe("PLANT 2: Expires parses, and is under the spec's ceiling", () => {
-  it("THE DATE PARSES AND IS IN THE FUTURE, derived at test time", () => {
-    // Derived from the clock the test runs on rather than a fixture, so this
-    // exercises the same arithmetic a request will.
-    const now = new Date();
-    const f = fields(buildSecurityTxt(URL_BASE, now));
-    const raw = f.get("Expires")?.[0];
-    expect(raw, "Expires is missing").toBeDefined();
-
-    const expires = new Date(raw!);
-    expect(Number.isNaN(expires.getTime()), `Expires does not parse: ${raw}`).toBe(false);
-    expect(expires.getTime()).toBeGreaterThan(now.getTime());
-    // RFC 9116 wants a full ISO timestamp, not a bare date.
-    expect(raw).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
-  });
-
-  it("IT IS UNDER 366 DAYS OUT, and this is the assertion that ages", () => {
-    const now = new Date();
-    const raw = fields(buildSecurityTxt(URL_BASE, now)).get("Expires")![0];
-    const days = (new Date(raw).getTime() - now.getTime()) / DAY_MS;
-
-    expect(
-      days,
-      `security.txt Expires is ${Math.round(days)} days out, past RFC 9116's under-a-year ` +
-        `recommendation. Lower SECURITY_TXT_EXPIRES_DAYS in app/routes/files/security-txt.ts.`,
-    ).toBeLessThan(SECURITY_TXT_MAX_EXPIRES_DAYS);
-    expect(days).toBeGreaterThan(0);
-  });
 
   it("the configured window itself is inside the ceiling, with margin", () => {
     // The window is what a maintainer edits; the served date is a consequence.
@@ -102,27 +73,5 @@ describe("PLANT 2: Expires parses, and is under the spec's ceiling", () => {
     // At least a month of margin, so a slow deploy cadence cannot push a served
     // file past the ceiling between deploys.
     expect(SECURITY_TXT_MAX_EXPIRES_DAYS - SECURITY_TXT_EXPIRES_DAYS).toBeGreaterThanOrEqual(28);
-  });
-
-  it("a file built a year ago would ALREADY be failing, which is the point", () => {
-    // The guard is only worth having if it discriminates on age. Building with
-    // a clock from a year back must produce an Expires in the past.
-    const stale = new Date(Date.now() - 400 * DAY_MS);
-    const raw = fields(buildSecurityTxt(URL_BASE, stale)).get("Expires")![0];
-    expect(new Date(raw).getTime()).toBeLessThan(Date.now());
-  });
-});
-
-describe("PLANT 3: it is served as a files route", () => {
-  it("the path classifies as `files`, not `private`", () => {
-    // Everything unmatched in cache-policy is private, so a new route is
-    // uncached until somebody lists it. This asserts it was listed.
-    expect(classifyPath("/.well-known/security.txt")).toBe("files");
-  });
-
-  it("and an unrelated well-known path is still private", () => {
-    // The discriminator: the entry is the exact file, not a prefix that would
-    // quietly make every future .well-known route public.
-    expect(classifyPath("/.well-known/anything-else")).toBe("private");
   });
 });

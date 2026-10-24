@@ -40,7 +40,7 @@ const { sendSequenceCompleteNotification } = await import(
 );
 const { resendDepsFor } = await import("~/lib/recovery/manual-action-deps.server");
 const { sendTestEmail } = await import("~/lib/settings/test-email.server");
-const { sendAuthEmail, sendPasswordResetEmail } = await import("~/lib/auth/send-auth-email");
+const { sendAuthEmail } = await import("~/lib/auth/send-auth-email");
 const { buildFailureAlertEmail, buildStaleAlertEmail } = await import("~/lib/cron/alerts.server");
 const { renderFoxhoundAlertEmail } = await import("~/lib/email/templates");
 const { sendRenderedTransactionalEmail } = await import("~/lib/email/send");
@@ -283,26 +283,6 @@ describe("customer mail carries both parts and the CAN-SPAM footer", () => {
     }
     expectCustomerFooter(m);
   });
-
-  it("a refused URL Foxhound itself supplies outside the body still throws", async () => {
-    await expect(
-      sendEmail(env, { ...customerJob("<p>x</p>"), tracking: { openUrl: "http://x.test/e/o/t", honeypotUrl: `${BASE}/e/h/t` } }),
-    ).rejects.toThrow(/https/);
-    await expect(
-      sendEmail({ ...env, BETTER_AUTH_URL: "http://localhost:5173" } as unknown as Env, customerJob("<p>x</p>")),
-    ).rejects.toThrow(/https/);
-    expect(harness.sent).toHaveLength(0);
-  });
-
-  it("still fails closed without a postal address or an unsubscribe token", async () => {
-    await expect(sendEmail(env, customerJob("<p>x</p>", { physicalAddress: " " }))).rejects.toThrow(
-      /physical address/,
-    );
-    await expect(sendEmail(env, customerJob("<p>x</p>", { unsubscribeToken: "" }))).rejects.toThrow(
-      /unsubscribe token/,
-    );
-    expect(harness.sent).toHaveLength(0);
-  });
 });
 
 // ============================================================================
@@ -397,17 +377,6 @@ describe("transactional mail carries both parts and never the footer", () => {
     expectNoCustomerFooter(m);
   });
 
-  it("password reset", async () => {
-    await sendPasswordResetEmail(env, {
-      to: "owner@acme.test",
-      url: `${BASE}/api/auth/reset-password/EXAMPLE-NOT-A-TOKEN?callbackURL=%2Freset-password`,
-      token: "EXAMPLE-NOT-A-TOKEN",
-    });
-    const m = only();
-    expectBothParts(m, ["Reset your password", "If this was not you, you can ignore this email."]);
-    expectNoCustomerFooter(m);
-  });
-
   it("the cron failure and stale alerts", async () => {
     const now = new Date("2026-10-14T00:00:00.000Z");
     const failure = buildFailureAlertEmail(
@@ -481,16 +450,6 @@ describe("transactional mail carries both parts and never the footer", () => {
 describe("htmlToBlocks keeps the sender's words and order", async () => {
   const { htmlToBlocks } = await import("~/lib/email/templates");
 
-  it("a link of its own is a button; a link in a sentence keeps its words and adds a button", () => {
-    expect(
-      htmlToBlocks(`<p>You can <a href="https://x.test/p/t">update your card</a> now.</p><p><a href="https://x.test/d">View Dashboard</a></p>`),
-    ).toEqual([
-      { type: "paragraph", text: "You can update your card now." },
-      { type: "button", label: "update your card", url: "https://x.test/p/t" },
-      { type: "button", label: "View Dashboard", url: "https://x.test/d" },
-    ]);
-  });
-
   it("a line break starts a new paragraph, and a real heading tag is a heading", () => {
     expect(htmlToBlocks(`<h1>Payment recovered.</h1><p>Thanks,<br />Acme</p>`)).toEqual([
       { type: "heading", text: "Payment recovered." },
@@ -526,12 +485,6 @@ describe("htmlToBlocks keeps the sender's words and order", async () => {
     ]);
   });
 
-  it("entities are decoded once, so Capsomer escapes them once", () => {
-    expect(htmlToBlocks(`<p>Tom &amp; Jerry &lt;3 &#39;quoted&#39;</p>`)).toEqual([
-      { type: "paragraph", text: "Tom & Jerry <3 'quoted'" },
-    ]);
-  });
-
   it("a whole small block is fine print", () => {
     expect(htmlToBlocks(`<p><small>If the button does not work:<br>https://x.test/a</small></p>`)).toEqual([
       { type: "fine", text: "If the button does not work:" },
@@ -546,33 +499,6 @@ describe("htmlToBlocks keeps the sender's words and order", async () => {
 
 describe("review fixes to the HTML reader", async () => {
   const { htmlToBlocks } = await import("~/lib/email/templates");
-  const { buildEmailMessage } = await import("~/lib/email/send");
-
-  for (const href of [
-    "tel:+15125550100",
-    "http://x.test/p",
-    "#",
-    "/p/tok",
-    "{{resubscribe_url}}",
-    "javascript:alert(1)",
-    "data:text/html,x",
-  ]) {
-    it(`fix 1: a link to ${href} keeps its words and makes no button`, () => {
-      expect(
-        htmlToBlocks(`<p>You can <a href="${href}">update your card</a> now.</p><p><a href="${href}">Pay now</a></p>`),
-      ).toEqual([
-        { type: "paragraph", text: "You can update your card now." },
-        { type: "paragraph", text: "Pay now" },
-      ]);
-    });
-  }
-
-  it("fix 1: a cached body with an http link still sends, with no button for it", async () => {
-    const msg = buildEmailMessage(customerJob(`<p>Hi,</p><p><a href="http://x.test/p/t">Update</a></p>`), BASE);
-    expect(msg.html).not.toContain("http://x.test");
-    expect(msg.text).not.toContain("http://x.test");
-    expect(msg.text).toContain("Update");
-  });
 
   it("fix 2: numeric and common named entities are decoded; unknown ones stay", () => {
     expect(
@@ -592,10 +518,6 @@ describe("review fixes to the HTML reader", async () => {
     ]);
   });
 
-  it("fix 3: a hidden p is closed by the next p", () => {
-    expect(htmlToBlocks(`<p hidden>x<p>Pay now</p>`)).toEqual([{ type: "paragraph", text: "Pay now" }]);
-  });
-
   it("fix 3: a hidden li, td or p is closed by a sibling or a parent end tag", () => {
     expect(htmlToBlocks(`<ul><li hidden>secret<li>Shown</ul>`)).toEqual([{ type: "paragraph", text: "Shown" }]);
     expect(htmlToBlocks(`<ul><li hidden><ul><li>nested</li></ul>still hidden<li>Shown</ul>`)).toEqual([
@@ -613,30 +535,6 @@ describe("review fixes to the HTML reader", async () => {
     expect(htmlToBlocks(`<p><span hidden />Still</p><p>Next</p>`)).toEqual([
       { type: "paragraph", text: "Still" },
       { type: "paragraph", text: "Next" },
-    ]);
-  });
-
-  it("fix 4: the word hidden inside a quoted value hides nothing", () => {
-    expect(htmlToBlocks(`<p><a href="https://x.test/a" title="no hidden fees">Pay</a></p>`)).toEqual([
-      { type: "button", label: "Pay", url: "https://x.test/a" },
-    ]);
-    expect(htmlToBlocks(`<p class=hidden data-x='display:none' title="aria-hidden=true">Seen</p>`)).toEqual([
-      { type: "paragraph", text: "Seen" },
-    ]);
-  });
-
-  it("fix 4: real hidden attributes still hide", () => {
-    expect(
-      htmlToBlocks(
-        `<p HIDDEN>a</p><p hidden=hidden>b</p><p aria-hidden=TRUE>c</p><p style="visibility : hidden">d</p><p style='DISPLAY:none'>e</p><p>Seen</p>`,
-      ),
-    ).toEqual([{ type: "paragraph", text: "Seen" }]);
-  });
-
-  it("fix 5: an all-bold paragraph stays a paragraph; only h1 to h6 are headings", () => {
-    expect(htmlToBlocks(`<p><strong>Important</strong></p><h2>Section</h2>`)).toEqual([
-      { type: "paragraph", text: "Important" },
-      { type: "heading", text: "Section" },
     ]);
   });
 

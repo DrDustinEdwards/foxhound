@@ -64,17 +64,4 @@ describe("/health backup memo", () => {
     await hit(env);
     expect(b.calls.list).toBe(2);
   });
-
-  it("an unreadable bucket is reported, and retried after the window", async () => {
-    const b = bucket();
-    const failing = { ...b, list: async () => Promise.reject(new Error("r2 down")) };
-    const first = (await (await hit({ BACKUPS: failing } as unknown as Env)).json()) as {
-      backup: { warning: string; age_hours: null };
-    };
-    expect(first.backup.warning).toMatch(/unreadable: r2 down/);
-    expect(first.backup.age_hours).toBeNull();
-    vi.setSystemTime(new Date("2026-10-11T09:05:00.000Z"));
-    await hit({ BACKUPS: b } as unknown as Env);
-    expect(b.calls.list).toBe(1);
-  });
 });

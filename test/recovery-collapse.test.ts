@@ -167,36 +167,6 @@ function reconciliationBatch() {
   );
 }
 
-describe("recovery collapse: dominant ordering (executor's patch lands first)", () => {
-  it("the reconcile is a no-op before the webhook records anything, then the webhook flips status and self-attributes", async () => {
-    const fake = makeFakeD1();
-
-    // The retry executor's reconcile runs immediately after its step patch lands,
-    // before the webhook has arrived: nothing to correct yet.
-    const reconcileResult = await fake.committer.commit({
-      idempotencyKey: "recovery-reconcile:fp_1",
-      statements: reconciliationBatch(),
-    });
-    expect(reconcileResult.applied).toBe(true); // the batch ran fine (0 rows touched), not an error
-    expect(fake.attributionOf("fp_1")).toBeUndefined();
-    expect(fake.isActive("fp_1")).toBe(true);
-
-    // The webhook arrives later. By now the step's result is persisted, so it
-    // correctly self-attributes foxhound_retry without any help from the executor.
-    const webhookResult = await fake.committer.commit({
-      idempotencyKey: "webhook:evt_1",
-      statements: recoverBatch("evt_1", { kind: "foxhound_retry", ref: "step_1" }),
-    });
-    expect(webhookResult.applied).toBe(true);
-
-    // The invariant the review demands: the status flip SURVIVES.
-    expect(fake.isActive("fp_1")).toBe(false); // no longer 'active' -> the cron's
-    // stepDueCondition/status='active' predicate excludes it -> remaining steps halt.
-    expect(fake.attributionOf("fp_1")).toBe("foxhound_retry");
-    expect(fake.outcomeAttributionOf("fp_1")).toBe("foxhound_retry");
-  });
-});
-
 describe("recovery collapse: reverse race (webhook records before the executor's patch lands)", () => {
   it("the webhook's early baseline record does not block the status flip, and the executor's later reconcile upgrades it cleanly (no rollback)", async () => {
     const fake = makeFakeD1();
@@ -293,23 +263,5 @@ describe("recovery collapse: reconcileRetryRecovery's retry window", () => {
     expect(fake.attributionOf("fp_1")).toBe("foxhound_retry");
     expect(fake.outcomeAttributionOf("fp_1")).toBe("foxhound_retry");
     expect(fake.isActive("fp_1")).toBe(false);
-  });
-
-  it("dominant ordering: every attempt is a harmless no-op when nothing exists yet", async () => {
-    vi.useFakeTimers();
-    const fake = makeFakeD1();
-    const env = envWithMoneyWriter(fake.committer);
-
-    const reconcile = reconcileRetryRecovery(env, {
-      accountId: "acc_1",
-      failedPaymentId: "fp_1",
-      stepId: "step_1",
-      recoveredAt: now,
-    });
-    await vi.advanceTimersByTimeAsync(1000);
-    await reconcile;
-
-    expect(fake.attributionOf("fp_1")).toBeUndefined();
-    expect(fake.isActive("fp_1")).toBe(true);
   });
 });

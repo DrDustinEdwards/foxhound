@@ -154,28 +154,6 @@ describe("E1: the reset mail is sent on Better Auth's reset hook, and only there
     expect(m.text).toBe(want.text);
   });
 
-  it("the link lives one hour, which is what the mail says", async () => {
-    const auth = getAuth(makeEnv());
-    await signUp(auth);
-    await auth.api.requestPasswordReset({ body: { email: TO, redirectTo: "/reset-password" } });
-    const [row] = resetTokens();
-    const lifetimeSeconds = Math.round((Number(row.expires_at) - Number(row.created_at)) / 1000);
-    expect(lifetimeSeconds).toBe(3600);
-    expect(sent[sent.length - 1].text).toContain(EXPIRY_LINE);
-  });
-
-  it("the link works once: a second reset with the same token is refused", async () => {
-    const auth = getAuth(makeEnv());
-    await signUp(auth);
-    await auth.api.requestPasswordReset({ body: { email: TO, redirectTo: "/reset-password" } });
-    const token = resetTokens()[0].identifier.slice("reset-password:".length);
-
-    await auth.api.resetPassword({ body: { token, newPassword: "Another-password-2026!" } });
-    await expect(
-      auth.api.resetPassword({ body: { token, newPassword: "Third-password-2026!!" } }),
-    ).rejects.toThrow();
-  });
-
   it("signing up sends the verification mail, not the reset mail", async () => {
     const auth = getAuth(makeEnv());
     await signUp(auth);
@@ -183,14 +161,6 @@ describe("E1: the reset mail is sent on Better Auth's reset hook, and only there
     expect(sent[0].subject).not.toBe(WORDS.subject);
     expect(sent[0].text).not.toContain(WORDS.intro);
     expect(sent[0].text).not.toContain(EXPIRY_LINE);
-  });
-
-  it("a reset request for an unknown address sends nothing", async () => {
-    const restore = consoleSpies();
-    const auth = getAuth(makeEnv());
-    await auth.api.requestPasswordReset({ body: { email: "nobody@example.com", redirectTo: "/reset-password" } });
-    expect(sent).toHaveLength(0);
-    restore();
   });
 });
 

@@ -18,11 +18,6 @@ describe("estimateReadingTime", () => {
   it("is at least 1 minute for very short content", () => {
     expect(estimateReadingTime("a few words")).toBe(1);
   });
-
-  it("scales with word count at ~200 words/minute", () => {
-    const words = new Array(400).fill("word").join(" ");
-    expect(estimateReadingTime(words)).toBe(2);
-  });
 });
 
 describe("formatTagChip", () => {

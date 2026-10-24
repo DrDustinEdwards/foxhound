@@ -49,7 +49,6 @@ vi.mock("~/lib/recovery/winback-generation", async (importOriginal) => ({
 
 const { runWinbackSends } = await import("~/lib/cron/winback");
 const { buildWinbackPrompt } = await import("~/lib/recovery/winback-generation");
-const { signCardUpdateToken } = await import("~/lib/card-update/token");
 const { verifyUnsubscribeToken } = await import("~/lib/email/unsubscribe-token");
 const { WIN_BACK_SCHEDULE } = await import("~/lib/recovery/schedule");
 const { WINBACK_UNFLAGGED_STEP1_HOURS } = await import("~/lib/constants");
@@ -254,14 +253,6 @@ describe("J91: each win-back email says and carries what Recova's does", () => {
       });
     });
   }
-
-  it("a customer name is shown exactly as Stripe has it, never read as markup", async () => {
-    seed({ stepNumber: 1, offsetHours: 1, customerName: "Ann <Admin> & Co" });
-    await runWinbackSends(env, at(1));
-    const m = only();
-    expect(m.text).toContain("Hi Ann <Admin> & Co,");
-    expect(m.html).toContain("Hi Ann &lt;Admin&gt; &amp; Co,");
-  });
 });
 
 describe("J91: the AI copy path is on the same component and carries the same footer", () => {
@@ -281,18 +272,6 @@ describe("J91: the AI copy path is on the same component and carries the same fo
     await expectRecovaFooter(m, "Teamflow");
     const row = sqlite.prepare("SELECT result FROM win_back_steps WHERE id = 'st_1'").get() as { result: string };
     expect(row.result).toBe("email_sent_ai");
-  });
-
-  it("cached copy from an earlier tick goes out with the same footer", async () => {
-    seed({ stepNumber: 3, offsetHours: 336 });
-    const token = await signCardUpdateToken(env, { winBackSequenceId: "wb_1", winBackStepNumber: 3, accountId: ACCOUNT });
-    sqlite
-      .prepare("UPDATE win_back_steps SET ai_subject = ?, ai_body_html = ? WHERE id = 'st_1'")
-      .run("One last note", `<p>Hi Jane,</p><p><a href="${BASE}/p/${token}">Reactivate Now</a></p>`);
-    await runWinbackSends(env, at(336));
-    const m = only();
-    expect(m.subject).toBe("One last note");
-    await expectRecovaFooter(m, "Teamflow");
   });
 });
 

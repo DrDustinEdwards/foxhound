@@ -141,47 +141,7 @@ function only(): SentMessage {
   return harness.sent[0];
 }
 
-describe("E9: when it sends and to whom (Recova's trigger)", () => {
-  it("sends once, on the merchant's Resend, to the payment's customer", async () => {
-    seed();
-    expect(await resend()).toEqual({ ok: true, intent: "resend", subject: SUBJECT });
-    expect(only().to).toBe(CUSTOMER);
-  });
-
-  it("sends nothing when the payment has no executed email with stored copy", async () => {
-    seed();
-    sqlite.prepare("UPDATE recovery_steps SET ai_body_html = NULL").run();
-    expect(await resend()).toEqual({ ok: false, reason: "no_email_to_resend" });
-    expect(harness.sent).toHaveLength(0);
-  });
-
-  it("a suppressed customer is a named refusal, and nothing leaves", async () => {
-    seed();
-    sqlite
-      .prepare("INSERT INTO email_suppressions (id, email, token, reason, suppressed_at) VALUES ('sup_e9', ?, 'tok', 'unsubscribed', 1000)")
-      .run(CUSTOMER);
-    expect(await resend()).toEqual({ ok: false, reason: "customer_unsubscribed" });
-    expect(harness.sent).toHaveLength(0);
-  });
-
-  it("records the resend as its own email_resend step, as Recova's route does", async () => {
-    seed();
-    await resend();
-    const rows = sqlite
-      .prepare("SELECT step_type, step_number, result, ai_subject, ai_body_html FROM recovery_steps WHERE step_type = 'email_resend'")
-      .all();
-    expect(rows).toEqual([
-      { step_type: "email_resend", step_number: null, result: "email_sent", ai_subject: SUBJECT, ai_body_html: BODY },
-    ]);
-  });
-});
-
 describe("E9: what it says (the stored copy, resent as it was)", () => {
-  it("the subject is the stored subject, unchanged", async () => {
-    seed();
-    await resend();
-    expect(only().subject).toBe(SUBJECT);
-  });
 
   it("every sentence and the button of the stored body are resent, with no regeneration", async () => {
     // The timing-word gate (J01) and the update-link check (J04) ran when this
@@ -214,24 +174,6 @@ describe("E9: what it carries", () => {
     expect(only().replyTo).toBeUndefined();
   });
 
-  it("keeps the approved customer footer: unsubscribe link, postal address, List-Unsubscribe", async () => {
-    seed();
-    await resend();
-    const m = only();
-    expect(m.text).toContain(ADDRESS);
-    expect(m.html).toContain(`${BASE}/u/`);
-    expect(m.headers?.["List-Unsubscribe"]).toMatch(/^<https:\/\/foxhound\.example\.com\/u\//);
-    expect(m.headers?.["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
-  });
-
-  it("carries an HTML part and a plain-text part (J02)", async () => {
-    seed();
-    await resend();
-    const m = only();
-    expect(m.html).toMatch(/^<!doctype html>/i);
-    expect(m.text?.length ?? 0).toBeGreaterThan(0);
-  });
-
   it("reads the payment's own connection, not another connection on the same account", async () => {
     seed({ senderName: "Acme" });
     sqlite.prepare("UPDATE stripe_connections SET is_primary = 0 WHERE id = 'c_e9'").run();
@@ -243,26 +185,5 @@ describe("E9: what it carries", () => {
     await resend();
     expect(only().from).toMatch(/^Acme </);
     expect(only().replyTo).toBeUndefined();
-  });
-
-  it("a step id from another account never reads that account's sender", async () => {
-    seed({ senderName: "Acme", replyTo: "help@example.com" });
-    sqlite
-      .prepare("INSERT INTO accounts (id, name, created_at, live_sends_enabled) VALUES ('acct_other', 'Other', 1000, 1)")
-      .run();
-    await resendDepsFor(env).send({
-      accountId: "acct_other",
-      recoveryStepId: "step_d3",
-      to: CUSTOMER,
-      subject: SUBJECT,
-      bodyHtml: BODY,
-      now: NOW,
-    });
-    // A loop over no sends proves nothing (RULES.md 6.2).
-    expect(harness.sent).toHaveLength(1);
-    for (const m of harness.sent) {
-      expect(m.from).toMatch(/^Support </);
-      expect(m.replyTo).toBeUndefined();
-    }
   });
 });

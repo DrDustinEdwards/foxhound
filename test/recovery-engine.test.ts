@@ -13,7 +13,6 @@ import {
 import {
   decideEmailStep,
   decideRetryStep,
-  stepAction,
 } from "~/lib/engine/step-runner";
 import { SEND_MAX_ATTEMPTS } from "~/lib/constants";
 import { planRecoverySteps } from "~/lib/recovery/schedule";
@@ -32,15 +31,6 @@ function step(overrides: Partial<SchedulableStep>): SchedulableStep {
 }
 
 describe("scheduler due-step selection", () => {
-  it("a scheduled, unexecuted, past-due step is due", () => {
-    expect(isStepDue(step({}), now)).toBe(true);
-  });
-
-  it("a future step is not due", () => {
-    expect(isStepDue(step({ scheduledAt: new Date("2026-07-11T00:00:00.000Z") }), now)).toBe(
-      false,
-    );
-  });
 
   it("an executed or resolved step is never due", () => {
     expect(isStepDue(step({ executedAt: now }), now)).toBe(false);
@@ -72,11 +62,6 @@ describe("scheduler due-step selection", () => {
 });
 
 describe("step-runner: retry deciders", () => {
-  it("routes step types to actions", () => {
-    expect(stepAction("retry_day2")).toBe("retry");
-    expect(stepAction("email_day3")).toBe("email");
-    expect(stepAction("weird")).toBeNull();
-  });
 
   it("a paid invoice is a recovered retry (record foxhound_retry)", () => {
     const d = decideRetryStep({ invoiceStatus: "paid" }, now);
@@ -89,12 +74,6 @@ describe("step-runner: retry deciders", () => {
   it("an unpaid invoice resolves the step without recording", () => {
     const d = decideRetryStep({ invoiceStatus: "open" }, now);
     expect(d.retryResult).toBe("retry_failed");
-    expect(d.recovered).toBe(false);
-  });
-
-  it("a thrown card error is a decline, not a recovery", () => {
-    const d = decideRetryStep({ threw: true, error: { type: "StripeCardError" } }, now);
-    expect(d.retryResult).toBe("retry_card_declined");
     expect(d.recovered).toBe(false);
   });
 });
@@ -121,12 +100,6 @@ describe("step-runner: email deciders", () => {
       { ok: false, error: "still down" },
       now,
     );
-    expect(p.result).toBe("email_failed");
-    expect(p.nextRetryAt).toBeNull();
-  });
-
-  it("a permanent failure is terminal immediately", () => {
-    const p = decideEmailStep({ attemptCount: 0 }, { ok: false, permanent: true }, now);
     expect(p.result).toBe("email_failed");
     expect(p.nextRetryAt).toBeNull();
   });

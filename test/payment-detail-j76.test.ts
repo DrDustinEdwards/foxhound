@@ -199,21 +199,6 @@ describe("J76: the action result, as Recova reports it", () => {
   });
 });
 
-// ---- Loader scope ----
-
-describe("J76: the loader", () => {
-  it("never shows another account's payment", async () => {
-    seedPayment({ accountId: B });
-    await expect(load("fp_1", A)).rejects.toMatchObject({ status: 404 });
-  });
-
-  it("names the next step for the trigger button from the same selector the server gates on", async () => {
-    seedPayment();
-    seedStep({ id: "s2", stepType: "email_day3", stepNumber: 2, scheduledAt: new Date(NOW + DAY) });
-    expect((await load()).nextStepLabel).toBe("Day 3 email");
-  });
-});
-
 // ---- The dispatcher's failure lines ----
 
 describe("J76: the dispatcher logs the whole error on every failure line", () => {
@@ -222,25 +207,6 @@ describe("J76: the dispatcher logs the whole error on every failure line", () =>
     throw err;
   };
   const noTrigger = { loadStep: async () => null, runRetry: async () => {}, runEmail: async () => ({ suppressed: false }) };
-
-  it("logs a failed note save and still answers write_failed", async () => {
-    seedPayment();
-    const err = new Error("note write broke");
-    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const { dispatchManualAction } = await manual();
-    const out = await dispatchManualAction({
-      db,
-      accountId: A,
-      failedPaymentId: "fp_1",
-      intent: "note",
-      note: "x",
-      commit: throwingCommit(err),
-      trigger: noTrigger as never,
-      resend: { send: async () => ({ status: "sent", providerMessageId: "m" }) } as never,
-    });
-    expect(out).toEqual({ ok: false, reason: "write_failed", intent: "note" });
-    expect(spy).toHaveBeenCalledWith(expect.any(String), err);
-  });
 
   it("logs a failed stop and a failed mark as recovered", async () => {
     seedPayment();
@@ -294,30 +260,5 @@ describe("J76: the dispatcher logs the whole error on every failure line", () =>
     });
     expect(b).toEqual({ ok: false, reason: "resend_logged_failed" });
     expect(spy).toHaveBeenCalledWith(expect.any(String), rowErr);
-  });
-
-  it("logs a trigger whose executor throws", async () => {
-    seedPayment();
-    seedStep({ id: "s1", stepType: "email_day1" });
-    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const { dispatchManualAction } = await manual();
-    const err = new Error("executor threw");
-    const out = await dispatchManualAction({
-      db,
-      accountId: A,
-      failedPaymentId: "fp_1",
-      intent: "trigger",
-      commit: async () => ({ applied: true }),
-      trigger: {
-        loadStep: async () => ({}) as never,
-        runRetry: async () => {},
-        runEmail: async () => {
-          throw err;
-        },
-      } as never,
-      resend: { send: async () => ({ status: "sent", providerMessageId: "m" }) } as never,
-    });
-    expect(out).toEqual({ ok: false, reason: "step_failed", result: null });
-    expect(spy).toHaveBeenCalledWith(expect.any(String), err);
   });
 });

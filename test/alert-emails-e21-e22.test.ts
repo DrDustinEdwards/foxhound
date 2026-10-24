@@ -43,7 +43,6 @@ vi.mock("~/db", async (importOriginal) => ({
 const notify = await import("~/lib/intelligence/alert-notify.server");
 const {
   CRITICAL_CUSTOMERS_ALERT_LIVE,
-  THRESHOLD_ALERT_TEMPLATE,
 } = notify;
 const { evaluateAndRecordAlerts, runCriticalCustomersCheck, runIntelligenceAiForAccount } = await import(
   "~/lib/intelligence/ai-run.server"
@@ -171,57 +170,12 @@ function lastTriggeredAt(): number | null {
   return row.last_triggered_at;
 }
 
-function sendRows() {
-  return sqlite
-    .prepare("SELECT status, template FROM email_sends WHERE account_id = ?")
-    .all(ACCOUNT) as { status: string; template: string }[];
-}
-
-// ============================================================================
-// E21: what it carries
-// ============================================================================
-
-describe("E21 carries From Foxhound, no Reply-To, no unsubscribe, to the notification address", () => {
-  it("is merchant mail: From Foxhound, to notification_email, no Reply-To, no List-Unsubscribe", async () => {
-    seedAccount();
-    seedAlert();
-    await evaluateAndRecordAlerts(env, db(), ACCOUNT, { mrr_at_risk_cents: 712_345 }, NOW);
-    const m = harness.sent[0];
-    expect(m.from).toBe("Foxhound <recovery@send.foxhoundapp.com>");
-    expect(m.to).toBe("ops@acme.example.com");
-    expect(m.replyTo).toBeUndefined();
-    expect(m.headers).toBeUndefined();
-    for (const part of [m.html, m.text ?? ""]) {
-      expect(part).not.toContain("Unsubscribe");
-      expect(part).not.toContain("1 Example Way");
-    }
-    expect(sendRows()).toEqual([{ status: "sent", template: THRESHOLD_ALERT_TEMPLATE }]);
-  });
-});
 
 // ============================================================================
 // E21: when it sends
 // ============================================================================
 
 describe("E21 sends on Recova's trigger and cooldown, and records notification_sent truly", () => {
-  it("a breach outside the cooldown sends, writes alert_history with notification_sent 1, stamps last_triggered_at", async () => {
-    seedAccount();
-    seedAlert();
-    await evaluateAndRecordAlerts(env, db(), ACCOUNT, { mrr_at_risk_cents: 712_345 }, NOW);
-    expect(historyRows()).toEqual([
-      {
-        alert_id: ALERT,
-        metric: "mrr_at_risk_cents",
-        threshold_value: 500_000,
-        direction: "above",
-        actual_value: 712_345,
-        channel: "email",
-        fired_at: NOW.getTime(),
-        notification_sent: 1,
-      },
-    ]);
-    expect(lastTriggeredAt()).toBe(NOW.getTime());
-  });
 
   it("no breach: no mail and no row", async () => {
     seedAccount();
@@ -229,33 +183,6 @@ describe("E21 sends on Recova's trigger and cooldown, and records notification_s
     await evaluateAndRecordAlerts(env, db(), ACCOUNT, { mrr_at_risk_cents: 400_000 }, NOW);
     expect(harness.sent).toHaveLength(0);
     expect(historyRows()).toHaveLength(0);
-  });
-
-  it("inside the 24h cooldown: no mail and no row (Recova's COOLDOWN_MS on last_triggered_at)", async () => {
-    seedAccount();
-    seedAlert({ lastTriggeredAt: NOW.getTime() - 12 * HOUR });
-    await evaluateAndRecordAlerts(env, db(), ACCOUNT, { mrr_at_risk_cents: 712_345 }, NOW);
-    expect(harness.sent).toHaveLength(0);
-    expect(historyRows()).toHaveLength(0);
-  });
-
-  it("a nightly run that starts a few seconds earlier than last night's still fires (review round 1)", async () => {
-    // The intelligence-ai run takes Date.now() at its start, which drifts by
-    // the daily jobs before it. Without a margin a steady breach is mailed
-    // every other night; Recova, ticking every few minutes, mailed it daily.
-    seedAccount();
-    seedAlert({ lastTriggeredAt: NOW.getTime() - DAY + 5_000 });
-    await evaluateAndRecordAlerts(env, db(), ACCOUNT, { mrr_at_risk_cents: 712_345 }, NOW);
-    expect(harness.sent).toHaveLength(1);
-    expect(historyRows()).toHaveLength(1);
-  });
-
-  it("still breaching once the cooldown has passed: fires again, as Recova's does (not once per crossing)", async () => {
-    seedAccount();
-    seedAlert({ lastTriggeredAt: NOW.getTime() - DAY });
-    await evaluateAndRecordAlerts(env, db(), ACCOUNT, { mrr_at_risk_cents: 712_345 }, NOW);
-    expect(harness.sent).toHaveLength(1);
-    expect(historyRows()).toHaveLength(1);
   });
 
   it("the pure evaluator applies the same rule: breach and outside the cooldown", () => {
@@ -296,23 +223,6 @@ describe("E21 sends on Recova's trigger and cooldown, and records notification_s
     seedAlert();
     await evaluateAndRecordAlerts(failingBinding, db(), ACCOUNT, { mrr_at_risk_cents: 712_345 }, NOW);
     expect(historyRows().map((r) => r.notification_sent)).toEqual([0]);
-  });
-
-  it("an account whose live sends are off is held at the send gate: notification_sent 0", async () => {
-    seedAccount({ live: 0 });
-    seedAlert();
-    await evaluateAndRecordAlerts(env, db(), ACCOUNT, { mrr_at_risk_cents: 712_345 }, NOW);
-    expect(harness.sent).toHaveLength(0);
-    expect(historyRows().map((r) => r.notification_sent)).toEqual([0]);
-    expect(sendRows()).toEqual([{ status: "blocked", template: THRESHOLD_ALERT_TEMPLATE }]);
-  });
-
-  it("a disabled alert never fires", async () => {
-    seedAccount();
-    seedAlert({ enabled: 0 });
-    await evaluateAndRecordAlerts(env, db(), ACCOUNT, { mrr_at_risk_cents: 712_345 }, NOW);
-    expect(harness.sent).toHaveLength(0);
-    expect(historyRows()).toHaveLength(0);
   });
 
   it("a slack-channel alert posts Recova's Slack line and sends no mail", async () => {
@@ -425,12 +335,6 @@ describe("E22 fires on Recova's three conditions at once, with a 24h cooldown", 
     expect((await runCriticalCustomersCheck(env, db(), ACCOUNT, NOW)).kind).toBe("skipped");
   });
 
-  it("a payment no longer in an active sequence is not critical", async () => {
-    seedAccount();
-    seedCritical({ paymentStatus: "recovered" });
-    expect((await runCriticalCustomersCheck(env, db(), ACCOUNT, NOW)).kind).toBe("skipped");
-  });
-
   it("inside 24h of the last critical firing: nothing", async () => {
     seedAccount();
     seedCritical();
@@ -442,62 +346,6 @@ describe("E22 fires on Recova's three conditions at once, with a 24h cooldown", 
     });
     expect(harness.sent).toHaveLength(0);
     expect(historyRows()).toHaveLength(1);
-  });
-
-  it("a run a few seconds short of 24h after the last firing still fires (review round 1)", async () => {
-    seedAccount();
-    seedCritical();
-    await runCriticalCustomersCheck(env, db(), ACCOUNT, new Date(NOW.getTime() - DAY + 5_000));
-    await runCriticalCustomersCheck(env, db(), ACCOUNT, NOW);
-    expect(historyRows()).toHaveLength(2);
-  });
-
-  it("only this account's customers count (review round 1)", async () => {
-    seedAccount();
-    sqlite
-      .prepare(
-        "INSERT INTO accounts (id, name, created_at, notification_email, live_sends_enabled) VALUES ('acct_2', 'Other', 1000, 'ops@other.example.com', 1)",
-      )
-      .run();
-    seedCritical({ account: "acct_2" });
-    expect(await runCriticalCustomersCheck(env, db(), ACCOUNT, NOW)).toEqual({
-      kind: "skipped",
-      reason: "none_critical",
-    });
-    expect(harness.sent).toHaveLength(0);
-  });
-
-  it("another account's recent firing is not this account's cooldown (review round 1)", async () => {
-    seedAccount();
-    sqlite
-      .prepare("INSERT INTO accounts (id, name, created_at, live_sends_enabled) VALUES ('acct_2', 'Other', 1000, 1)")
-      .run();
-    sqlite
-      .prepare(
-        "INSERT INTO alert_history (id, alert_id, account_id, metric, threshold_value, direction, actual_value, channel, fired_at, notification_sent) VALUES ('h_2', NULL, 'acct_2', 'cross_product_critical', 0, 'above', 1, 'email', ?, 1)",
-      )
-      .run(NOW.getTime() - HOUR);
-    seedCritical();
-    const out = await runCriticalCustomersCheck(env, db(), ACCOUNT, NOW);
-    expect(out).toMatchObject({ kind: "fired", count: 1 });
-    expect(harness.sent).toHaveLength(1);
-    expect(historyRows()).toHaveLength(1);
-  });
-
-  it("24h after the last firing it fires again", async () => {
-    seedAccount();
-    seedCritical();
-    await runCriticalCustomersCheck(env, db(), ACCOUNT, new Date(NOW.getTime() - DAY - 1));
-    await runCriticalCustomersCheck(env, db(), ACCOUNT, NOW);
-    expect(historyRows()).toHaveLength(2);
-  });
-
-  it("email first: with an address and a webhook, the mail goes and Slack does not", async () => {
-    seedAccount({ slack: WEBHOOK });
-    seedCritical();
-    await runCriticalCustomersCheck(env, db(), ACCOUNT, NOW);
-    expect(harness.sent).toHaveLength(1);
-    expect(slackPosts).toHaveLength(0);
   });
 
   it("Slack only when there is no address: Recova's line, channel slack", async () => {

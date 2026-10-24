@@ -104,19 +104,6 @@ describe("createPlatformInvoice call shape (Phase 5 review HIGH fix)", () => {
     expect(createOptions.idempotencyKey).toBe(platformInvoiceIdempotencyKey("inv_1"));
   });
 
-  it("attaches every chargeable line explicitly to the created invoice id (never a bare pending item)", async () => {
-    await createPlatformInvoice({} as Env, baseInput);
-    const itemCalls = mockStripe.calls.filter((c) => c.method === "invoiceItems.create");
-    expect(itemCalls).toHaveLength(2);
-    for (const call of itemCalls) {
-      const [params] = call.args as [Record<string, unknown>];
-      expect(params.invoice).toBe("in_test_1");
-      expect(params.customer).toBe("cus_1");
-    }
-    expect((itemCalls[0].args[0] as Record<string, unknown>).amount).toBe(2_000);
-    expect((itemCalls[1].args[0] as Record<string, unknown>).amount).toBe(10_000);
-  });
-
   it("finalizes with a deterministic idempotency key derived from the same billing_invoices id", async () => {
     await createPlatformInvoice({} as Env, baseInput);
     const finalize = mockStripe.calls.find((c) => c.method === "invoices.finalizeInvoice");

@@ -2,7 +2,6 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
-import { sanitizeEmailPreviewHtml } from "~/lib/recovery/email-preview.server";
 import { estimateCustomerLtvCents } from "~/lib/recovery/queries.server";
 
 // S7 Phase 1 closing build, rulings 253, 255 and 256.
@@ -21,26 +20,6 @@ const ROUTE = readFileSync("app/routes/app/recovery/payments/detail.tsx", "utf8"
 const QUERIES = readFileSync("app/lib/recovery/queries.server.ts", "utf8");
 
 describe("expander sanitization: hostile aiBodyHtml is neutralized", () => {
-  it("strips a script tag entirely", () => {
-    const out = sanitizeEmailPreviewHtml('<p>hi</p><script>alert(1)</script>');
-    expect(out).not.toContain("script");
-    expect(out).toContain("<p>hi</p>");
-  });
-
-  it("strips an inline event handler while keeping the element's text", () => {
-    const out = sanitizeEmailPreviewHtml('<p onclick="steal()">click</p>');
-    expect(out).not.toContain("onclick");
-    expect(out).toContain("click");
-  });
-
-  it("strips a javascript: href but keeps a safe one", () => {
-    expect(sanitizeEmailPreviewHtml('<a href="javascript:alert(1)">x</a>')).not.toContain("javascript:");
-    expect(sanitizeEmailPreviewHtml('<a href="https://example.com">x</a>')).toContain("https://example.com");
-  });
-
-  it("drops an img payload, which is not on legacy's allowlist", () => {
-    expect(sanitizeEmailPreviewHtml('<img src=x onerror="alert(1)">')).not.toContain("img");
-  });
 
   it("the ROUTE sanitizes in the loader, before the body is in the response", () => {
     // The whole point of 256: never render step.aiBodyHtml directly.

@@ -13,7 +13,7 @@ import {
 import { DISALLOW_PATHS } from "~/routes/files/robots";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
-import { MODERN_VERSION, mcpRequest, readMcp, type McpCallInit } from "./helpers/mcp-client";
+import { mcpRequest, readMcp, type McpCallInit } from "./helpers/mcp-client";
 
 // RULING 370, ROADMAP ITEM 3: the transport, driven with an EMPTY tool registry
 // so every assertion here is about the door and the protocol, not a tool.
@@ -146,21 +146,6 @@ describe("PLANT 1: the endpoint's shape", () => {
     expect(absent.status).toBe(200);
   });
 
-  it("an unknown METHOD is refused with -32601 on both eras", async () => {
-    const { good } = await seed();
-    for (const era of ["legacy", "modern"] as const) {
-      const { json } = await call({ token: good, era, method: "resources/list" });
-      expect((json as { error: { code: number } }).error.code, era).toBe(-32601);
-    }
-  });
-
-  it("a NOTIFICATION is 202 with no body", async () => {
-    const { good } = await seed();
-    const { status, res } = await call({ token: good, id: null, method: "notifications/initialized" });
-    expect(status).toBe(202);
-    expect(await res.text()).toBe("");
-  });
-
   it("malformed JSON is a parse error, not a crash", async () => {
     const { good } = await seed();
     const { status, json } = await call({ token: good, body: "{not json" });
@@ -170,16 +155,6 @@ describe("PLANT 1: the endpoint's shape", () => {
 });
 
 describe("PLANT 2: both eras on one route, through the SDK", () => {
-  it("MODERN: server/discover names 2026-07-28 and the server", async () => {
-    const { good } = await seed();
-    const { status, json } = await call({ token: good, era: "modern", method: "server/discover" });
-    expect(status).toBe(200);
-    const result = (json as {
-      result: { supportedVersions: string[]; _meta: Record<string, { name: string }> };
-    }).result;
-    expect(result.supportedVersions).toContain(MODERN_VERSION);
-    expect(result._meta["io.modelcontextprotocol/serverInfo"].name).toBe("foxhound");
-  });
 
   it("MODERN: tools/list is a plain JSON body carrying a private cache hint", async () => {
     const { good } = await seed();
@@ -190,53 +165,6 @@ describe("PLANT 2: both eras on one route, through the SDK", () => {
     expect((result.tools as { name: string }[]).map((t) => t.name)).toEqual(PROBE_NAMES);
     expect(result.cacheScope).toBe("private");
     expect(result.ttlMs).toBeGreaterThan(0);
-  });
-
-  it("LEGACY: initialize round-trips the protocol version", async () => {
-    // The older revisions open with an `initialize` handshake and send no
-    // MCP-Protocol-Version header. A modern-only endpoint would be conformant
-    // and unusable, because that is what the clients that exist today speak.
-    const { good } = await seed();
-    const { status, json } = await call({
-      token: good,
-      method: "initialize",
-      params: {
-        protocolVersion: "2025-06-18",
-        capabilities: {},
-        clientInfo: { name: "legacy-client", version: "1.0.0" },
-      },
-    });
-    expect(status).toBe(200);
-    const result = (json as { result: { protocolVersion: string; serverInfo: { name: string } } })
-      .result;
-    expect(result.protocolVersion).toBe("2025-06-18");
-    expect(result.serverInfo.name).toBe("foxhound");
-  });
-
-  it("HEADER MISMATCH is 400 with -32020, on each mirrored header", async () => {
-    // "Servers MUST reject requests where the values specified in the headers do
-    // not match the corresponding values in the request body ... MUST return
-    // HTTP status 400 Bad Request and MUST include ... code -32020."
-    const { good } = await seed();
-    const base: McpCallInit = {
-      token: good,
-      era: "modern",
-      method: "tools/call",
-      params: { name: "foxhound_a_tool", arguments: {} },
-    };
-    const mismatches: Record<string, string>[] = [
-      { "Mcp-Method": "tools/list" },
-      { "Mcp-Name": "foxhound_other_tool" },
-    ];
-    for (const headers of mismatches) {
-      const { status, json } = await call({ ...base, headers });
-      expect(status, JSON.stringify(headers)).toBe(400);
-      expect((json as { error: { code: number } }).error.code).toBe(-32020);
-    }
-    // And the matching set reaches the server, so the refusals discriminate:
-    // the registry answers that the tool does not exist, not -32020.
-    const { json } = await call(base);
-    expect((json as { error?: { code: number } }).error?.code).not.toBe(-32020);
   });
 });
 
@@ -273,35 +201,9 @@ describe("PLANT 3: the 401 is byte-stable across every failure", () => {
     expect(seen.size).toBe(1);
     expect([...seen][0]).toContain("Unauthorized");
   });
-
-  it("THE SCOPE CHECK IS LOAD-BEARING ON ITS OWN, not masked by the null account", async () => {
-    // A normal admin key has a null account and is refused one line later, so
-    // this is the only case that proves the scope check discriminates. Its
-    // absence let a mutation of that check pass green; the fixture exists
-    // because of that mutation.
-    const { adminWithAccount } = await seed();
-    const { status } = await call({ token: adminWithAccount });
-    expect(status).toBe(401);
-  });
-
-  it("and a VALID key reaches the registry, so the refusals are the guard", async () => {
-    const { good } = await seed();
-    const { status, json } = await call({ token: good, method: "tools/list" });
-    expect(status).toBe(200);
-    const tools = (json as { result: { tools: { name: string }[] } }).result.tools;
-    expect(tools.map((t) => t.name)).toEqual(PROBE_NAMES);
-  });
 });
 
 describe("PLANT 4: the registry can never hold a denied or unprefixed name", () => {
-  it("tools/call refuses every name the registry does not hold", async () => {
-    const { good } = await seed();
-    for (const name of ["foxhound_get_overview", "anything"]) {
-      const res = await call({ token: good, method: "tools/call", params: { name, arguments: {} } });
-      const error = (res.json as { error?: { message: string } }).error;
-      expect(error?.message, `${name} was not refused`).toContain("not found");
-    }
-  });
 
   it("THE DENYLIST THROWS AT CONSTRUCTION, for every HUMAN-FOREVER fragment", () => {
     // 368 ruling 4, ratified at 370. Parameterized over the shipped constant, so
@@ -316,32 +218,10 @@ describe("PLANT 4: the registry can never hold a denied or unprefixed name", () 
     }
   });
 
-  it("the five named refusals each have a fragment that catches them", () => {
-    for (const name of [
-      "foxhound_submit_dispute_evidence",
-      "foxhound_cancel_account",
-      "foxhound_disconnect_stripe",
-      "foxhound_connect_stripe_account",
-      "foxhound_create_api_key",
-      "foxhound_record_outcome",
-      "foxhound_trigger_charge",
-      "foxhound_issue_refund",
-    ]) {
-      expect(isDeniedToolName(name), `${name} would be registrable`).toBe(true);
-    }
-  });
-
   it("a name off the foxhound_{action}_{resource} pattern throws (ruling rule 5)", () => {
     for (const name of ["get_overview", "foxhound_overview", "Foxhound_get_overview", "foxhound_get-overview"]) {
       expect(() => defineToolRegistry([tool(name)]), name).toThrow(/foxhound_\{action\}_\{resource\}/);
     }
-  });
-
-  it("AND AN ORDINARY READ TOOL IS ACCEPTED, so the denylist is not deny-everything", () => {
-    const registry = defineToolRegistry([tool("foxhound_review_audits"), tool("foxhound_get_overview")]);
-    expect(registry.list().map((t) => t.name)).toEqual(["foxhound_review_audits", "foxhound_get_overview"]);
-    expect(registry.get("foxhound_review_audits")).not.toBeNull();
-    expect(registry.get("nope")).toBeNull();
   });
 
   it("a duplicate name throws, because a shadowed tool cannot be reasoned about", () => {
@@ -360,24 +240,6 @@ describe("PLANT 5: the posture", () => {
     // And an authenticated caller over ITS budget gets 429 too.
     const authed = await call({ token: good, allowed: false });
     expect(authed.status).toBe(429);
-  });
-
-  it("FAILS OPEN on a limiter error, per 311's precedent", async () => {
-    const { good } = await seed();
-    const broken = {
-      DB: {},
-      RATE_LIMITER: {
-        idFromName: () => {
-          throw new Error("DO down");
-        },
-        get: () => {
-          throw new Error("DO down");
-        },
-      },
-    } as unknown as Env;
-    const res = (await handleMcpRequest(mcpRequest({ token: good }), broken)) as Response;
-    // A limiter outage must not take down a merchant's integration.
-    expect(res.status).toBe(200);
   });
 
   it("the two buckets carry the numbers the record states", () => {

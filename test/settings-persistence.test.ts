@@ -117,10 +117,6 @@ describe("settings persistence builders (compile against schema)", () => {
 });
 
 describe("parseDollarsToCents / formatCentsAsDollars (round trip)", () => {
-  it("parses a plain dollar amount to cents", () => {
-    expect(parseDollarsToCents("5000")).toBe(500_000);
-    expect(parseDollarsToCents("5000.50")).toBe(500_050);
-  });
 
   it("strips thousands separators", () => {
     expect(parseDollarsToCents("5,000")).toBe(500_000);

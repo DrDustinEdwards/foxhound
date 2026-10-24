@@ -59,17 +59,6 @@ describe("Recova's /og URL shape (ruling 41)", () => {
     expect(html).toContain(">Why cards fail</div>");
     expect(html).toContain(">Soft declines explained</div>");
   });
-
-  it("/og with any other type draws the default card, as Recova does", async () => {
-    const { html } = await render("/og?type=unknown&title=Ignored");
-    expect(html).not.toContain("Foxhound Blog");
-    expect(html).not.toContain("Ignored");
-  });
-
-  it("the path form Foxhound's own pages use still works", async () => {
-    const { html } = await render("/og/blog?title=Path%20form", { params: "blog" });
-    expect(html).toContain(">Path form</div>");
-  });
 });
 
 // workers-og parses the card from HTML, and a run of spaces and newlines

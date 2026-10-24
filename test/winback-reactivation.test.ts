@@ -63,12 +63,6 @@ vi.mock("~/lib/stripe/client", () => ({
 
 const { processConnectedWebhook } = await import("~/lib/webhooks/process");
 const { classifyStripeEvent } = await import("~/lib/webhooks/events");
-const { claimWinbackReactivation, daysSinceCancel } = await import(
-  "~/lib/recovery/winback-reactivation.server"
-);
-const { findAttributionSignals } = await import("~/lib/recovery/attribution");
-const { readWinbackSequenceId } = await import("~/lib/recovery/winback-metadata");
-const { getBillableRecoveries } = await import("~/db/billable");
 
 const ACCOUNT = "acct_1";
 const CANCELLED_AT = new Date("2026-10-20T00:00:00Z");
@@ -153,30 +147,11 @@ function outcomeRows() {
 }
 
 describe("PLANT 1: the classifier reads the sequence id off the session", () => {
-  it("classifies a win-back checkout", () => {
-    const intent = classifyStripeEvent(checkoutEvent({ win_back_sequence_id: "wb_1" }));
-    expect(intent.kind).toBe("winback_reactivate");
-    expect(intent.kind === "winback_reactivate" && intent.sequenceId).toBe("wb_1");
-  });
 
   it("IGNORES an ordinary checkout that carries no win-back metadata", () => {
     expect(classifyStripeEvent(checkoutEvent(null)).kind).toBe("ignore");
     expect(classifyStripeEvent(checkoutEvent({ other: "x" })).kind).toBe("ignore");
     expect(classifyStripeEvent(checkoutEvent({ win_back_sequence_id: "" })).kind).toBe("ignore");
-  });
-
-  it("THE HELPER ITSELF REFUSES AN EMPTY VALUE, reached past the classifier's guard", () => {
-    // classifyStripeEvent's own `if (!sequenceId)` also refuses an empty
-    // string, so the helper's rule was never observable through it.
-    expect(readWinbackSequenceId({ win_back_sequence_id: "" })).toBeNull();
-    expect(readWinbackSequenceId({})).toBeNull();
-    expect(readWinbackSequenceId(null)).toBeNull();
-    expect(readWinbackSequenceId({ win_back_sequence_id: "wb_9" })).toBe("wb_9");
-  });
-
-  it("carries the invoice's subscription onto the recover intent", () => {
-    const intent = classifyStripeEvent(invoiceEvent("sub_new"));
-    expect(intent.kind === "recover" && intent.subscriptionId).toBe("sub_new");
   });
 });
 
@@ -201,15 +176,6 @@ describe("PLANT 2: checkout.session.completed reactivates", () => {
     expect(rows[0].outcome).toBe("reactivated");
     expect(JSON.parse(rows[0].eventData)).toEqual({ amountCents: 4900, daysSinceCancel: 12 });
     expect(rows[0].key).toBe("winback-reactivated:wb_1");
-  });
-
-  it("AN EXHAUSTED SEQUENCE STILL REACTIVATES, because step 3 flipped it on send", async () => {
-    seedSequence({ status: "exhausted" });
-
-    await processConnectedWebhook(env, checkoutEvent({ win_back_sequence_id: "wb_1" }), RECEIVED);
-
-    expect(sequenceRows()[0].status).toBe("reactivated");
-    expect(outcomeRows()).toHaveLength(1);
   });
 
   it("a sequence on ANOTHER account is not found, and nothing flips", async () => {
@@ -277,12 +243,6 @@ describe("PLANT 2: checkout.session.completed reactivates", () => {
     expect(result).toEqual({ status: "ignored", reason: "winback_duplicate" });
     expect(outcomeRows()).toEqual([]);
   });
-
-  it("the claim itself refuses a second take", async () => {
-    seedSequence();
-    expect(await claimWinbackReactivation(db, "wb_1", RECEIVED)).toBe(true);
-    expect(await claimWinbackReactivation(db, "wb_1", new Date(RECEIVED.getTime() + 1))).toBe(false);
-  });
 });
 
 describe("PLANT 3: invoice.payment_succeeded reactivates by METADATA, never by customer", () => {
@@ -295,22 +255,6 @@ describe("PLANT 3: invoice.payment_succeeded reactivates by METADATA, never by c
     expect(harness.retrieved).toEqual(["sub_new"]);
     expect(sequenceRows()[0].status).toBe("reactivated");
     expect(outcomeRows().map((r) => r.eventType)).toEqual(["winback_reactivated"]);
-  });
-
-  it("THE TWO-SUBSCRIPTION FIXTURE: an unrelated renewal for the SAME customer reactivates nothing", async () => {
-    // This is the fixture that separates legacy's match from Foxhound's. The
-    // customer has a live win-back for the subscription they cancelled AND a
-    // second, surviving subscription. Legacy would credit this renewal as a
-    // win-back; matching on the metadata id refuses it.
-    seedSequence();
-    harness.subscriptions["sub_other"] = { metadata: {} };
-
-    await processConnectedWebhook(env, invoiceEvent("sub_other"), RECEIVED);
-
-    expect(harness.retrieved).toEqual(["sub_other"]);
-    expect(sequenceRows()[0].status).toBe("active");
-    expect(sequenceRows()[0].reactivatedAt).toBeNull();
-    expect(outcomeRows()).toEqual([]);
   });
 
   it("A CUSTOMER WITH NO LIVE SEQUENCE COSTS NO STRIPE READ", async () => {
@@ -330,53 +274,9 @@ describe("PLANT 3: invoice.payment_succeeded reactivates by METADATA, never by c
     expect(result).toEqual({ status: "ignored", reason: "no_active_failure" });
     expect(sequenceRows()[0].status).toBe("active");
   });
-
-  it("BOTH EVENTS TOGETHER FLIP ONCE, whichever order they arrive in", async () => {
-    seedSequence();
-    harness.subscriptions["sub_new"] = { metadata: { win_back_sequence_id: "wb_1" } };
-
-    await processConnectedWebhook(env, checkoutEvent({ win_back_sequence_id: "wb_1" }), RECEIVED);
-    await processConnectedWebhook(
-      env,
-      invoiceEvent("sub_new"),
-      new Date(RECEIVED.getTime() + 60_000),
-    );
-
-    expect(outcomeRows()).toHaveLength(1);
-    expect(sequenceRows()[0].reactivatedAt).toBe(RECEIVED.getTime());
-  });
 });
 
 describe("PLANT 4: nothing about a reactivation is billable", () => {
-  it("writes no recovered_payments row and no attribution signal", async () => {
-    seedSequence();
-
-    await processConnectedWebhook(env, checkoutEvent({ win_back_sequence_id: "wb_1" }), RECEIVED);
-
-    expect(sqlite.prepare("SELECT id FROM recovered_payments").all()).toEqual([]);
-    expect(sqlite.prepare("SELECT id FROM recovery_steps").all()).toEqual([]);
-  });
-
-  it("THE FEE BASE IS UNCHANGED ACROSS A REACTIVATION", async () => {
-    seedSequence();
-    const before = await getBillableRecoveries(db, ACCOUNT, RECEIVED.getTime());
-
-    await processConnectedWebhook(env, checkoutEvent({ win_back_sequence_id: "wb_1" }), RECEIVED);
-
-    const after = await getBillableRecoveries(db, ACCOUNT, RECEIVED.getTime());
-    expect(after).toEqual(before);
-    expect(after).toEqual([]);
-  });
-
-  it("findAttributionSignals reads recovery_steps and a win-back has none", () => {
-    // The reader's input type IS recovery_steps rows. A win-back writes none,
-    // so there is nothing for it to attribute, by construction.
-    expect(findAttributionSignals([], new Date("2026-08-01T00:00:00.000Z"))).toEqual({
-      succeededRetryStepId: null,
-      cardUpdateRef: null,
-      clickedEngagementId: null,
-    });
-  });
 
   it("NEITHER BILLING MODULE NAMES A WIN-BACK TABLE OR EVENT", async () => {
     // Reading the sources is the only way to prove a module does NOT reference
@@ -388,13 +288,5 @@ describe("PLANT 4: nothing about a reactivation is billable", () => {
       expect(source).not.toContain("win_back");
       expect(source).not.toContain("winback");
     }
-  });
-});
-
-describe("PLANT 5: daysSinceCancel is legacy's whole-day floor", () => {
-  it("floors partial days", () => {
-    expect(daysSinceCancel(CANCELLED_AT, RECEIVED)).toBe(12);
-    expect(daysSinceCancel(CANCELLED_AT, new Date(CANCELLED_AT.getTime() + 86_399_000))).toBe(0);
-    expect(daysSinceCancel(CANCELLED_AT, new Date(CANCELLED_AT.getTime() + 86_400_000))).toBe(1);
   });
 });

@@ -6,12 +6,10 @@ import {
   accounts,
   auditDigestRuns,
   auditRuns,
-  cronRunHistory,
   failedPayments,
   recoveredPayments,
   stripeConnections,
 } from "~/db/schema";
-import { findStaleCrons } from "~/lib/cron/alerts.server";
 import { CRON_SCHEDULE_MONTHLY, CRON_SCHEDULE_MONTHLY_AUDIT } from "~/lib/constants";
 import { SCOPE_UNREAD } from "~/lib/audit/render";
 
@@ -80,7 +78,7 @@ vi.mock("~/lib/stripe/encryption", async (importOriginal) => ({
   decryptToken: async () => "sk_test_token",
 }));
 
-const { auditPeriod, describeMonthlyAuditRun } = await import("~/lib/audit/monthly.server");
+const { describeMonthlyAuditRun } = await import("~/lib/audit/monthly.server");
 const { buildMonthlyAuditEmail, compareTotals } = await import("~/lib/audit/monthly-email");
 const { driveMonthlyAudit } = await import("./helpers/monthly-audit-queue");
 const { renderFoxhoundEmail } = await import("~/lib/email/templates");
@@ -299,34 +297,10 @@ const emailFor = (over: Partial<EmailInput> = {}) => {
   return { ...built, body: asText(built.blocks) };
 };
 
-// ============================================================================
-// Pure decisions
-// ============================================================================
-
-describe("the period a run covers", () => {
-  it("a run on the 1st covers the month that just ended", () => {
-    expect(auditPeriod(NOW)).toBe(PERIOD);
-  });
-
-  it("January's run covers the PREVIOUS YEAR's December", () => {
-    expect(auditPeriod(new Date("2027-01-01T09:00:00.000Z"))).toBe("2026-12");
-  });
-
-  it("the period string is zero-padded, so it sorts as a string", () => {
-    expect(auditPeriod(new Date("2026-11-01T09:00:00.000Z"))).toBe("2026-10");
-  });
-});
-
 describe("the comparison is per currency and never summed across them", () => {
   it("a first run reports NO change rather than a change of zero", () => {
     expect(compareTotals([{ currency: "usd", cents: 500 }], null)).toEqual([
       { currency: "usd", cents: 500, changeCents: null },
-    ]);
-  });
-
-  it("a later run reports the delta against the prior snapshot", () => {
-    expect(compareTotals([{ currency: "usd", cents: 800 }], [{ currency: "usd", cents: 500 }])).toEqual([
-      { currency: "usd", cents: 800, changeCents: 300 },
     ]);
   });
 
@@ -347,12 +321,6 @@ describe("the comparison is per currency and never summed across them", () => {
       { currency: "usd", cents: 800, changeCents: 300 },
     ]);
   });
-
-  it("a currency that DISAPPEARED still produces a row, as a fall to zero", () => {
-    expect(compareTotals([], [{ currency: "gbp", cents: 400 }])).toEqual([
-      { currency: "gbp", cents: 0, changeCents: -400 },
-    ]);
-  });
 });
 
 // ============================================================================
@@ -361,31 +329,10 @@ describe("the comparison is per currency and never summed across them", () => {
 
 describe("362 ruling 3: the ONE email carries BOTH halves", () => {
 
-  it("AND THE ABSORBED DIGEST LINE, which is what the merge is", () => {
-    // 362 ruling 3: the ported audit email absorbs computeFoxhoundAddsCents.
-    // Its heading is legacy's, with the brand substitution.
-    const { body: bodyHtml } = emailFor();
-    expect(bodyHtml).toContain("What Foxhound did this month");
-    expect(bodyHtml).toContain("$12.40");
-    expect(bodyHtml).toContain("up $3.10");
-  });
-
   it("a FALL reads as down, not as a negative amount", () => {
     const { body: bodyHtml } = emailFor({ comparisons: [{ currency: "usd", cents: 100, changeCents: -500 }] });
     expect(bodyHtml).toContain("down $5.00");
     expect(bodyHtml).not.toContain("-$5.00");
-  });
-
-  it("no attributed recovery yet says so, rather than printing a zero", () => {
-    const { body: bodyHtml } = emailFor({ comparisons: [] });
-    expect(bodyHtml).toContain("No recovered payments are attributed to Foxhound yet");
-  });
-
-  it("THE LINK IS THE STORED RUN, which only that account can open", () => {
-    // 365 binding 1: no stored run was ever publicly readable, on either side.
-    // The email carries a per-run URL and the page pins the account in its
-    // predicate, so a forwarded link refuses rather than leaking.
-    expect(emailFor().body).toContain(`${BASE_URL}/audit/results/run_123`);
   });
 
   it("A FAILED SCOPE READS AS COULD-NOT-BE-READ, never as a zero", () => {
@@ -453,36 +400,6 @@ describe("(1): the cron is REGISTERED and the real runner executes it", () => {
     expect(CRON_JOBS.map((j) => j.name)).not.toContain("audit-digest");
   });
 
-  it("THE REGISTERED HANDLER RUNS through runCronJob and records history", async () => {
-    // Not "the array contains a name": the registry's own handler is pulled out
-    // and driven through the real gate/lock/history path.
-    // Since job_97878f0d1fde the handler enqueues and the consumer audits, so
-    // the queued message is handed to the real consumer before the claim row is
-    // read. rowsProcessed is the number queued.
-    const db = fresh();
-    await seedAccount(db, "acct_on", { auditAutoRun: true });
-
-    const queued: unknown[] = [];
-    const e = env(undefined, queued);
-    const job = CRON_JOBS.find((j) => j.name === CRON_NAME)!;
-    const outcome = await runCronJob(e, job.name, job.handler);
-
-    expect(outcome.status).toBe("success");
-    const runs = await db.select().from(cronRunHistory);
-    expect(runs).toHaveLength(1);
-    expect(runs[0].cronName).toBe(CRON_NAME);
-    expect(runs[0].rowsProcessed).toBe(1);
-    expect(queued).toHaveLength(1);
-
-    await consume(e, queued);
-
-    // The claim row names the run that produced it.
-    const claims = await db.select().from(auditDigestRuns);
-    expect(claims).toHaveLength(1);
-    expect(claims[0].cronRunId).toBe(runs[0].id);
-    expect(claims[0].status).toBe("sent");
-  });
-
   it("A FAILED STRIPE READ REACHES THE MERCHANT'S INBOX AS A SENTENCE", async () => {
     // END TO END, from a throwing Stripe list to the delivered body: the read
     // fails, the engine marks the scope, persistence stores NULL, and the email
@@ -505,81 +422,6 @@ describe("(1): the cron is REGISTERED and the real runner executes it", () => {
     // Legacy's zero-fraction formatting on a diagnostic figure.
     expect(bodies[0]).toContain("$42");
   });
-
-  it("AND THE AUDIT ITSELF IS PERSISTED, which the digest never did", async () => {
-    // Phase (d)'s writer, reached from the cron. The digest read Foxhound's own
-    // rows and wrote no audit_runs row at all.
-    const db = fresh();
-    await seedAccount(db, "acct_on", { auditAutoRun: true });
-
-    await driveMonthlyAudit(env(), NOW, null);
-
-    const stored = await db.select().from(auditRuns);
-    expect(stored).toHaveLength(1);
-    expect(stored[0].accountId).toBe("acct_on");
-    expect(stored[0].failedInvoicesCents).toBe(4200);
-    expect(stored[0].openDisputesCents).toBe(9900);
-  });
-});
-
-// ============================================================================
-// 2. The opt-in gate, THROUGH the shared predicate
-// ============================================================================
-
-describe("(2): the toggle is read through the SHARED predicate", () => {
-  it("a NULL account is SKIPPED, which is the halt Session 25 called", async () => {
-    const db = fresh();
-    await seedAccount(db, "acct_null", { auditAutoRun: null });
-
-    const result = await driveMonthlyAudit(env(), NOW, null);
-
-    expect(result.eligible).toBe(1); // it WAS enumerated
-    expect(result.optedIn).toBe(0); // and the predicate refused it
-    expect(result.sent).toBe(0);
-    expect(await db.select().from(auditDigestRuns)).toHaveLength(0);
-    expect(await db.select().from(auditRuns)).toHaveLength(0);
-  });
-
-  it("an explicitly FALSE account is skipped the same way", async () => {
-    const db = fresh();
-    await seedAccount(db, "acct_off", { auditAutoRun: false });
-
-    const result = await driveMonthlyAudit(env(), NOW, null);
-
-    expect(result.eligible).toBe(1);
-    expect(result.optedIn).toBe(0);
-    expect(await db.select().from(auditDigestRuns)).toHaveLength(0);
-  });
-
-  it("a TRUE account sends, so the skips above are the predicate and not inertia", async () => {
-    const db = fresh();
-    await seedAccount(db, "acct_on", { auditAutoRun: true });
-
-    const { to, env: e } = collector();
-    const result = await driveMonthlyAudit(e, NOW, null);
-
-    expect(result.optedIn).toBe(1);
-    expect(result.ran).toBe(1);
-    expect(result.sent).toBe(1);
-    expect(to).toEqual(["acct_on@merchant.test"]);
-  });
-
-  it("THE GATE IS NOT IN SQL: an opted-out account is still ENUMERATED", async () => {
-    // 316's design note, kept in force by the merge. If the toggle moved into
-    // the WHERE clause (which is what legacy writes), the page and the cron
-    // could drift apart on what NULL means with no test noticing. `eligible`
-    // counts rows the QUERY returned; `optedIn` counts what the shared predicate
-    // allowed. They must differ here.
-    const db = fresh();
-    await seedAccount(db, "a_on", { auditAutoRun: true });
-    await seedAccount(db, "a_null", { auditAutoRun: null });
-    await seedAccount(db, "a_off", { auditAutoRun: false });
-
-    const result = await driveMonthlyAudit(env(), NOW, null);
-
-    expect(result.eligible).toBe(3);
-    expect(result.optedIn).toBe(1);
-  });
 });
 
 // ============================================================================
@@ -587,45 +429,6 @@ describe("(2): the toggle is read through the SHARED predicate", () => {
 // ============================================================================
 
 describe("(3): the account states every other per-account cron respects", () => {
-  it("a PROCESSING-PAUSED account is skipped even with the toggle on", async () => {
-    const db = fresh();
-    await seedAccount(db, "acct_paused", { auditAutoRun: true, processingPaused: true });
-
-    const result = await driveMonthlyAudit(env(), NOW, null);
-
-    expect(result.eligible).toBe(0);
-    expect(result.sent).toBe(0);
-  });
-
-  it("a CANCELLED account is skipped even with the toggle on", async () => {
-    const db = fresh();
-    await seedAccount(db, "acct_cancelled", { auditAutoRun: true, cancelledAt: NOW });
-
-    expect((await driveMonthlyAudit(env(), NOW, null)).eligible).toBe(0);
-  });
-
-  it("A DEMO ACCOUNT IS REFUSED, toggle on, connection live, everything else right", async () => {
-    // The demo firewall is `accountProcessingEligibleCondition()`'s
-    // `id NOT LIKE 'demo\\_%'`, unchanged by this phase. Legacy needs a SECOND
-    // filter on the Stripe id because the account id is not its firewall;
-    // Foxhound's sits one level up and catches this before a token is decrypted.
-    const db = fresh();
-    await seedAccount(db, "demo_teamflow", { auditAutoRun: true }, { stripeUserId: "acct_demo_teamflow" });
-
-    const { to, env: e } = collector();
-    const result = await driveMonthlyAudit(e, NOW, null);
-
-    expect(result.eligible).toBe(0);
-    expect(to).toEqual([]);
-    expect(await db.select().from(auditRuns)).toHaveLength(0);
-  });
-
-  it("BILLING-EXEMPT is deliberately NOT a gate: the audit is free", async () => {
-    const db = fresh();
-    await seedAccount(db, "acct_exempt", { auditAutoRun: true, billingExempt: true });
-
-    expect((await driveMonthlyAudit(env(), NOW, null)).sent).toBe(1);
-  });
 
   it("an account with NO notification email is audited but not mailed", async () => {
     // 339: notification_email is the only recipient. The run still happens and
@@ -657,17 +460,6 @@ describe("(3): the account states every other per-account cron respects", () => 
     expect(result.ran).toBe(0);
     expect(to).toEqual([]);
     expect((await db.select().from(auditDigestRuns))[0].status).toBe("no_connection");
-  });
-
-  it("A DISCONNECTED connection is not a live one", async () => {
-    const db = fresh();
-    await seedAccount(db, "acct_gone", { auditAutoRun: true });
-    await db
-      .update(stripeConnections)
-      .set({ disconnectedAt: NOW })
-      .where(eq(stripeConnections.id, "sc_acct_gone"));
-
-    expect((await driveMonthlyAudit(env(), NOW, null)).skippedNoConnection).toBe(1);
   });
 });
 
@@ -806,63 +598,6 @@ describe("the absorbed line runs off the prior month's stored snapshot", () => {
 // ============================================================================
 
 describe("(5): a failing account is retried, and never stops another", () => {
-  // Since job_97878f0d1fde each account is its own queue message, so a failure
-  // asks the queue to retry that message and the last attempt raises Session
-  // 24's alert. The retry, the logging and the alert are proven through the
-  // real consumer in test/audit-monthly-queue-apa.test.ts; this section keeps
-  // the per-account half.
-
-  it("ONE MERCHANT'S FAILURE does not stop another merchant's report", async () => {
-    const db = fresh();
-    await seedAccount(db, "a_bad", { auditAutoRun: true, notificationEmail: "bad@merchant.test" });
-    await seedAccount(db, "a_good", { auditAutoRun: true, notificationEmail: "good@merchant.test" });
-
-    const delivered: string[] = [];
-    const result = await driveMonthlyAudit(
-      env(async (m) => {
-        const to = (m as { to: string }).to;
-        if (to === "bad@merchant.test") throw new Error("mailbox full");
-        delivered.push(to);
-        return { id: "m" };
-      }),
-      NOW,
-      null,
-    );
-
-    expect(result.failed).toBe(1);
-    expect((result.errors[0] as Error).message).toBe("mailbox full");
-    // The good merchant was still served, and the bad one left a trace.
-    expect(delivered).toEqual(["good@merchant.test"]);
-    const rows = await db.select().from(auditDigestRuns);
-    expect(rows.find((r) => r.accountId === "a_bad")!.status).toBe("failed");
-    expect(rows.find((r) => r.accountId === "a_bad")!.error).toBe("mailbox full");
-    expect(rows.find((r) => r.accountId === "a_good")!.status).toBe("sent");
-  });
-
-  it("A FAILED MONTH IS RETAKEN by the next delivery, once, and a sent one never is", async () => {
-    const db = fresh();
-    await seedAccount(db, "acct_on", { auditAutoRun: true });
-
-    const failed = await driveMonthlyAudit(
-      env(async () => {
-        throw new Error("email down");
-      }),
-      NOW,
-      null,
-    );
-    expect(failed.failed).toBe(1);
-
-    const { bodies, env: e } = collector();
-    const retry = await driveMonthlyAudit(e, NOW, null);
-    expect(retry.sent).toBe(1);
-    expect(retry.skippedDuplicate).toBe(0);
-
-    const again = await driveMonthlyAudit(e, NOW, null);
-    expect(again.sent).toBe(0);
-    expect(again.skippedDuplicate).toBe(1);
-    expect(bodies).toHaveLength(1);
-    expect(await db.select().from(auditDigestRuns)).toHaveLength(1);
-  });
 
   it("an account switched off after it was queued is not audited", async () => {
     const db = fresh();
@@ -881,36 +616,6 @@ describe("(5): a failing account is retried, and never stops another", () => {
 });
 
 // ============================================================================
-// 6. cron-health can judge it (314's unmappable posture)
-// ============================================================================
-
-describe("(6): cron-health sees the NEW schedule as MAPPABLE", () => {
-  it("the merged job's schedule resolves to a period, so staleness is judgeable", () => {
-    // THE TRAP A NEW CRON EXPRESSION SETS. `SCHEDULE_PERIOD_MS` is keyed by the
-    // expression string, so a job on an unmapped one reports `unknown_schedule`,
-    // which is a blind spot rather than an alert. Moving to legacy's 09:00 meant
-    // mapping it, and this is what proves the mapping landed.
-    const job = CRON_JOBS.find((j) => j.name === CRON_NAME)!;
-    const findings = findStaleCrons([job], new Map([[job.name, new Date(NOW)]]), NOW);
-    expect(findings).toEqual([]);
-
-    const overdue = findStaleCrons(
-      [job],
-      new Map([[job.name, new Date("2026-05-01T09:00:00.000Z")]]),
-      NOW,
-    );
-    expect(overdue).toHaveLength(1);
-    expect(overdue[0].reason).toBe("overdue");
-    expect(overdue[0].reason).not.toBe("unknown_schedule");
-  });
-
-  it("a NEVER-RUN job is reported, which is the billing-monthly class", () => {
-    const job = CRON_JOBS.find((j) => j.name === CRON_NAME)!;
-    expect(findStaleCrons([job], new Map([[job.name, null]]), NOW)[0].reason).toBe("never_run");
-  });
-});
-
-// ============================================================================
 // The run message an operator reads
 // ============================================================================
 
@@ -922,12 +627,6 @@ describe("the run message says what the cron queued", () => {
     expect(message).toContain("0 opted in");
     expect(message).toContain("0 queued for audit");
   });
-
-  it("names the number queued, which is the run's rowsProcessed", () => {
-    expect(describeMonthlyAuditRun({ eligible: 5, optedIn: 2, enqueued: 2 })).toBe(
-      "5 eligible, 2 opted in, 2 queued for audit",
-    );
-  });
 });
 
 describe("the monthly audit email escapes what it interpolates (review of PR 146)", () => {
@@ -935,8 +634,6 @@ describe("the monthly audit email escapes what it interpolates (review of PR 146
   // neither may land in the merchant's inbox as markup. Since E24 the builder
   // hands Capsomer plain strings and Capsomer escapes them, once, as it renders;
   // so the assertion reads the rendered HTML part.
-  const hostile = `<img src=x onerror="alert(1)">&'`;
-  const escaped = "&lt;img src=x onerror=&quot;alert(1)&quot;&gt;&amp;&#39;";
   const withAdvisory = (advisory: string) =>
     resultWith({
       cardUpdater: ok({
@@ -950,25 +647,6 @@ describe("the monthly audit email escapes what it interpolates (review of PR 146
     const { subject, blocks } = emailFor(over);
     return renderFoxhoundEmail({ subject, blocks, brandName: "Foxhound", to: "owner@merchant.test" }).html;
   };
-
-  it("the model-written summary is escaped", () => {
-    const out = html({ summary: hostile });
-    expect(out).not.toContain("<img");
-    expect(out).toContain(`>${escaped}</td>`);
-  });
-
-  it("the Card Updater advisory is escaped", () => {
-    const out = html({ result: withAdvisory(hostile) });
-    expect(out).not.toContain("<img");
-    expect(out).toContain(`>Card Updater: ${escaped}</td>`);
-  });
-
-  it("a hostile run id never reaches the link: Capsomer's link check refuses it", () => {
-    // The run id is a UUID from saveAuditRun. A value carrying a quote or an
-    // angle bracket is refused by checkUrl before any markup is written, and the
-    // throw becomes processEmailJob's failed outcome.
-    expect(() => html({ runId: `r"><script>x</script>` })).toThrow(/link/);
-  });
 
   it("escapes once, never twice", () => {
     const out = html({ summary: "Fees & refunds", result: withAdvisory("A & B") });

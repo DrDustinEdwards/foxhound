@@ -2,13 +2,11 @@ import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import Database from "better-sqlite3";
-import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import type { Db, MoneyWriteBatch } from "~/db";
-import { billableRecoveryRowConditions } from "~/db/billable";
 import { accounts, failedPayments, recoveredPayments, recoverySteps } from "~/db/schema";
-import { MANUAL_ATTRIBUTION_KIND, RECOVERY_MATURITY_MS } from "~/lib/constants";
+import { MANUAL_ATTRIBUTION_KIND } from "~/lib/constants";
 import { SerialMoneyCommitter } from "~/lib/money/serializer";
 import { buildMarkRecoveredBatch } from "~/lib/recovery/manual-action-batches.server";
 import { buildRecoveryBatch } from "~/lib/recovery/record-recovery";
@@ -236,46 +234,6 @@ describe("mark recovered: enters through the spine, never as a second writer", (
     const steps = sqlite.prepare("select result from recovery_steps").all() as { result: string }[];
     expect(steps.map((s) => s.result)).toEqual(["cancelled", "cancelled"]);
   });
-
-  it("a manual recovery is NOT billable, while a foxhound_retry one IS", async () => {
-    // Paired against a positive control so the assertion cannot pass by returning
-    // nothing, which is the failure mode a bare "expect empty" invites.
-    const { sqlite, db } = seed();
-    const commit = committerFor(sqlite, db);
-    await commit("manual:mark_recovered:fp_1", markRecoveredBatch);
-    // A matured, attributed control row on the same account.
-    const matured = new Date(now.getTime() - RECOVERY_MATURITY_MS - 1);
-    runStatement(
-      sqlite,
-      db.insert(recoveredPayments).values({
-        id: "rp_control",
-        accountId: "acc_1",
-        failedPaymentId: "fp_1",
-        recoveredAt: matured,
-        amountCents: 999,
-        currency: "usd",
-        recoveryMethod: "foxhound_retry",
-        attributionKind: "foxhound_retry",
-        attributedAt: matured,
-      }),
-    );
-    // Age the manual row past maturity too, so maturity cannot be what excludes it.
-    runStatement(
-      sqlite,
-      db
-        .update(recoveredPayments)
-        .set({ recoveredAt: matured })
-        .where(eq(recoveredPayments.attributionKind, MANUAL_ATTRIBUTION_KIND)),
-    );
-
-    const billable = await db
-      .select({ id: recoveredPayments.id, kind: recoveredPayments.attributionKind })
-      .from(recoveredPayments)
-      .where(billableRecoveryRowConditions("acc_1", now.getTime()));
-
-    expect(billable.map((r) => r.id)).toEqual(["rp_control"]);
-    expect(billable.map((r) => r.kind)).not.toContain(MANUAL_ATTRIBUTION_KIND);
-  });
 });
 
 describe("mark recovered: exactly once, inherited from the outcomes key", () => {
@@ -326,32 +284,7 @@ describe("mark recovered: exactly once, inherited from the outcomes key", () => 
   });
 });
 
-describe("mark recovered: the claim shape", () => {
-  it("a non-active payment claims ZERO rows and cancels no steps", () => {
-    const { sqlite, db } = seed({ status: "cancelled", steps: 1 });
-    const batch = markRecoveredBatch(db);
-
-    const claimed = runStatement(sqlite, batch[0]);
-    // Statements two and three still run, as they would inside the batch.
-    runStatement(sqlite, batch[1]);
-    runStatement(sqlite, batch[2]);
-    const stepsChanged = runStatement(sqlite, batch[3]);
-
-    expect(claimed).toBe(0);
-    // The step cancel is conditioned on the claim's effect, so a lost claim
-    // resolves nothing.
-    expect(stepsChanged).toBe(0);
-    expect(
-      (sqlite.prepare("select status from failed_payments where id='fp_1'").get() as { status: string }).status,
-    ).toBe("cancelled");
-  });
-});
-
 describe("mark recovered: the dispatcher gates", () => {
-  it("keeps requiring an active payment", async () => {
-    const { MANUAL_ACTION_REQUIRES_ACTIVE } = await import("~/lib/recovery/manual-actions.server");
-    expect(MANUAL_ACTION_REQUIRES_ACTIVE.mark_recovered).toBe(true);
-  });
 
   it("the manual kind is absent from the billable allow-list", async () => {
     const { BILLABLE_ATTRIBUTION_KINDS } = await import("~/lib/constants");

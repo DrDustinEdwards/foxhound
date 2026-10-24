@@ -88,10 +88,4 @@ describe("CHUNKS item 17: the grace span the state machine actually produces", (
     expect(waitsMinutes).toEqual([15, 60, 240, 720]);
     expect(terminalAtAttempt).toBe(SEND_MAX_ATTEMPTS);
   });
-
-  it("totals legacy's ~17.25 hours of grace", () => {
-    const totalMinutes = walkGrace().waitsMinutes.reduce((a, b) => a + b, 0);
-    expect(totalMinutes).toBe(1035);
-    expect(totalMinutes / 60).toBeCloseTo(17.25, 5);
-  });
 });

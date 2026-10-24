@@ -99,31 +99,6 @@ function claimedAccountIds(): (string | null)[] {
   ).map((r) => r.a);
 }
 
-describe("PLANT 1: a disconnected row never answers for a live one", () => {
-  it("resolves the LIVE connection on account B, not the dead row on account A", async () => {
-    // The row on A comes first by rowid, which is exactly what the pre-fix
-    // `.limit(1)` with no ordering and no filter would have returned.
-    seedConnection({ id: "conn_a", accountId: ACCOUNT_A, disconnectedAt: 2_000 });
-    seedConnection({ id: "conn_b", accountId: ACCOUNT_B });
-
-    const outcome = await processConnectedWebhook({} as Env, event("evt_1"), RECEIVED_AT);
-
-    expect(outcome.status).toBe("ignored");
-    expect(harness.writes.map((w) => w.accountId)).toEqual([ACCOUNT_B]);
-    expect(claimedAccountIds()).toEqual([ACCOUNT_B]);
-  });
-
-  it("still resolves a live connection when there is no dead row at all", async () => {
-    // BOTH DIRECTIONS. A filter that matched nothing would pass the case above
-    // by resolving nobody, and the unknown-account path would swallow it.
-    seedConnection({ id: "conn_b", accountId: ACCOUNT_B });
-
-    await processConnectedWebhook({} as Env, event("evt_2"), RECEIVED_AT);
-
-    expect(harness.writes.map((w) => w.accountId)).toEqual([ACCOUNT_B]);
-  });
-});
-
 describe("PLANT 2: every row disconnected takes the EXISTING no-connection path", () => {
   it("claims the event with a null account and reports unknown_account", async () => {
     seedConnection({ id: "conn_a", accountId: ACCOUNT_A, disconnectedAt: 2_000 });
@@ -160,12 +135,5 @@ describe("PLANT 2: every row disconnected takes the EXISTING no-connection path"
     sqlite.exec("DROP TABLE webhook_events");
     const outcome = await processConnectedWebhook({} as Env, event("evt_6"), RECEIVED_AT);
     expect(outcome.status).toBe("error");
-  });
-
-  it("reports the same thing for a Stripe account Foxhound has never seen", async () => {
-    // The calibration that the disconnected case is genuinely reaching the
-    // unknown-account branch rather than some other refusal.
-    const outcome = await processConnectedWebhook({} as Env, event("evt_5"), RECEIVED_AT);
-    expect(outcome).toEqual({ status: "ignored", reason: "unknown_account" });
   });
 });

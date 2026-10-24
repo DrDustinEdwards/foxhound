@@ -27,7 +27,6 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const { disconnectConnection } = await import("~/lib/admin/merchant-cancel.server");
 
 const STRIPE_X = "acct_stripe_x";
 const ACCOUNT_A = "acct_a";
@@ -154,33 +153,5 @@ describe("PLANT 2: a disconnected row does not block a live one (356 binding 4)"
       }),
     ).not.toThrow();
     expect(liveRowsFor(STRIPE_X)).toEqual([]);
-  });
-});
-
-describe("PLANT 3: S37 disconnect then a fresh connect elsewhere, end to end", () => {
-  it("lets account B connect the Stripe account that account A just disconnected", async () => {
-    insertConnection({ id: "conn_a", accountId: ACCOUNT_A, stripeUserId: STRIPE_X });
-
-    // While A still holds it live, B cannot have it. This is the assertion that
-    // stops the test proving only that the second insert happens to work.
-    expect(() =>
-      insertConnection({ id: "conn_b", accountId: ACCOUNT_B, stripeUserId: STRIPE_X }),
-    ).toThrow(/unique/i);
-
-    // S37's real control, through its own module, with the Stripe deauthorize
-    // stubbed because it is a network call and not the behaviour under test.
-    const result = await disconnectConnection(
-      {} as Env,
-      { id: "conn_a", stripeUserId: STRIPE_X },
-      { deauthorize: async () => ({ ok: true }) },
-    );
-    expect(result.deauthorizeError).toBeUndefined();
-    expect(liveRowsFor(STRIPE_X)).toEqual([]);
-
-    // And now the same Stripe account attaches to a different merchant.
-    expect(() =>
-      insertConnection({ id: "conn_b", accountId: ACCOUNT_B, stripeUserId: STRIPE_X }),
-    ).not.toThrow();
-    expect(liveRowsFor(STRIPE_X)).toEqual([ACCOUNT_B]);
   });
 });

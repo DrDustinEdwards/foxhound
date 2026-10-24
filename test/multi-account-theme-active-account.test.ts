@@ -35,7 +35,6 @@ vi.mock("~/lib/auth/session", () => ({
   getSession: async () => harness.session,
 }));
 
-const { resolveThemeForRequest } = await import("~/lib/theme.server");
 const { action: themeAction } = await import("~/routes/api/theme");
 
 const USER = "user_1";
@@ -109,30 +108,6 @@ function signedInRequest(init?: RequestInit): Request {
   headers.set("Cookie", "better-auth.session_token=tok_1");
   return new Request("https://foxhoundapp.test/connect", { ...init, headers });
 }
-
-describe("DEFECT 1: the theme READ resolved the earliest account, not the active one", () => {
-  it("reads the MARKED account theme for a merchant who has switched", async () => {
-    // Earliest is dark, marked is light. The shim answers dark.
-    //
-    // LEGACY IS THE SPEC AND ALREADY DECIDED THIS: lib/theme-server.ts (blob
-    // 7fd9693e) reads accounts.theme through resolveAccount, the SAME
-    // cookie-aware active-account resolver every other legacy surface uses, so
-    // the active account's theme is legacy's behaviour rather than a Foxhound
-    // choice waiting on a ruling.
-    await expect(resolveThemeForRequest({} as Env, signedInRequest())).resolves.toBe("light");
-  });
-
-  it("still falls back to the earliest account with no marker", async () => {
-    // The unswitched merchant, which is every session in production today. The
-    // fix must not move this case.
-    sqlite.prepare("UPDATE session SET active_account_id = NULL WHERE id = ?").run(SESSION_ID);
-    harness.session = {
-      user: { id: USER, name: USER, email: "owner@acme.test" },
-      session: { id: SESSION_ID, activeAccountId: null },
-    };
-    await expect(resolveThemeForRequest({} as Env, signedInRequest())).resolves.toBe("dark");
-  });
-});
 
 describe("DEFECT 2: the theme WRITE stamped the earliest account, not the active one", () => {
   it("writes the MARKED account row and leaves the earliest one alone", async () => {

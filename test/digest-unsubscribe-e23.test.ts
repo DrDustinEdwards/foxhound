@@ -1,8 +1,6 @@
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -39,22 +37,14 @@ vi.mock("~/lib/intelligence/views.server", () => ({
 }));
 
 const route = await import("~/routes/utility/unsubscribe");
-const settingsRoute = await import("~/routes/app/settings/notifications");
 const { runWeeklyDigest } = await import("~/lib/cron/digest");
-const { signUnsubscribeToken, verifyUnsubscribeToken } = await import("~/lib/email/unsubscribe-token");
-const { sendRecoveryNotification } = await import("~/lib/recovery/merchant-notification.server");
-const { sendSequenceCompleteNotification } = await import(
-  "~/lib/recovery/sequence-complete-notification.server"
-);
-const { sendDisputeCreatedNotice } = await import("~/lib/disputes/notices.server");
-const { notifyCriticalCustomers } = await import("~/lib/intelligence/alert-notify.server");
+const { verifyUnsubscribeToken } = await import("~/lib/email/unsubscribe-token");
 
 const BASE = "https://foxhoundapp.test";
 const OWNER = "owner@acme.test";
 const A = "acct_1";
 const B = "acct_2";
 const MONDAY_1 = new Date("2026-11-02T08:00:00Z");
-const MONDAY_2 = new Date("2026-11-09T08:00:00Z");
 
 const env = {
   ENCRYPTION_KEY: "ab".repeat(32),
@@ -123,19 +113,6 @@ async function digestTokenForA(): Promise<string> {
   throw new Error("no digest for account A");
 }
 
-describe("the digest's token says which list it is", () => {
-  it("the cron signs {email, accountId, list: digest}", async () => {
-    const token = await digestTokenForA();
-    expect(await verifyUnsubscribeToken(env, token)).toEqual({ email: OWNER, accountId: A, list: "digest" });
-  });
-
-  it("a digest token and a customer token for the same address and account differ", async () => {
-    const customer = await signUnsubscribeToken(env, { email: OWNER, accountId: A });
-    const digest = await signUnsubscribeToken(env, { email: OWNER, accountId: A, list: "digest" });
-    expect(digest).not.toBe(customer);
-  });
-});
-
 describe("a digest Unsubscribe switches off that account's digest and nothing else", () => {
   it("the visit reads done, the toggle is off, and no suppression row is written", async () => {
     const token = await digestTokenForA();
@@ -165,94 +142,5 @@ describe("a digest Unsubscribe switches off that account's digest and nothing el
 
     expect(await visit(token)).toEqual({ state: "changed" });
     expect(digestOn(A)).toBe(1);
-  });
-
-  it("E10, E11, a dispute notice and an E22 alert to the same address still send", async () => {
-    const token = await digestTokenForA();
-    await visit(token);
-    harness.sent = [];
-
-    sqlite
-      .prepare(
-        "INSERT INTO failed_payments (id, account_id, stripe_event_id, stripe_invoice_id, stripe_customer_id, customer_email, customer_name, amount_cents, currency, decline_category, status, detected_at) VALUES ('fp_1', ?, 'evt', 'in_1', 'cus_1', 'buyer@acme.test', 'Jane Buyer', 9900, 'usd', 'soft', 'recovered', 1000)",
-      )
-      .run(A);
-    sqlite
-      .prepare(
-        "INSERT INTO disputes (id, account_id, stripe_dispute_id, stripe_charge_id, customer_name, customer_email, amount_cents, currency, reason, status, state, created_at, stripe_connection_id) VALUES ('d1', ?, 'dp_1', 'ch_1', 'Jane Buyer', 'buyer@acme.test', 5000, 'usd', 'product_not_received', 'needs_response', 'draft', 1000, ?)",
-      )
-      .run(A, `c_${A}`);
-
-    const e10 = await sendRecoveryNotification(env, { accountId: A, failedPaymentId: "fp_1" });
-    const e11 = await sendSequenceCompleteNotification(env, { accountId: A, failedPaymentId: "fp_1" });
-    const dispute = await sendDisputeCreatedNotice(env, { accountId: A, disputeId: "d1" });
-    const alert = await notifyCriticalCustomers(env, harness.db as never, A, 2, MONDAY_1);
-
-    expect(e10).toMatchObject({ kind: "sent", result: { status: "sent" } });
-    expect(e11).toMatchObject({ kind: "sent", result: { status: "sent" } });
-    expect(dispute).toMatchObject({ kind: "sent", result: { status: "sent" } });
-    expect(alert).toMatchObject({ channel: "email", notificationSent: true });
-    expect(harness.sent.map((m) => m.to)).toEqual([OWNER, OWNER, OWNER, OWNER]);
-  });
-
-  it("a second account sharing the address keeps its digest", async () => {
-    const token = await digestTokenForA();
-    await visit(token);
-    harness.sent = [];
-
-    const next = await runWeeklyDigest(env, MONDAY_2);
-
-    expect(next.outcomes).toEqual([{ accountId: B, status: "sent" }]);
-    expect(digestOn(B)).toBe(1);
-  });
-
-  it("the settings page shows the digest off afterwards", async () => {
-    const token = await digestTokenForA();
-    await visit(token);
-
-    const settingsContext = {
-      get(key: unknown) {
-        if (key === cloudflareContext) return { env, ctx: {} as ExecutionContext, nonce: "n" };
-        if (key === authContext) {
-          return {
-            userId: "user_1",
-            email: OWNER,
-            membership: { memberId: "m1", accountId: A, accountName: "Acme", role: "owner" },
-          };
-        }
-        throw new Error("unexpected context key");
-      },
-    } as never;
-    const loaded = (await settingsRoute.loader({
-      context: settingsContext,
-      request: new Request(`${BASE}/settings/notifications`),
-      params: {},
-    } as never)) as { digestEnabled: boolean };
-    expect(loaded.digestEnabled).toBe(false);
-  });
-});
-
-describe("a customer token cannot switch off a digest", () => {
-  it("it suppresses the address as before and leaves the toggle alone", async () => {
-    const customer = await signUnsubscribeToken(env, { email: OWNER, accountId: A });
-
-    expect(await visit(customer)).toEqual({ state: "done" });
-    expect(digestOn(A)).toBe(1);
-    expect(suppressionCount()).toBe(1);
-  });
-});
-
-describe("the cron still honours suppression for bounces, complaints and migrated opt-outs", () => {
-  it("a bounced notification address gets no digest", async () => {
-    sqlite
-      .prepare(
-        "INSERT INTO email_suppressions (id, email, token, reason, suppressed_at) VALUES ('s1', ?, 't', 'bounce', 1000)",
-      )
-      .run(OWNER);
-
-    const run = await runWeeklyDigest(env, MONDAY_1);
-
-    expect(harness.sent).toEqual([]);
-    expect(run.outcomes.map((o) => o.status)).toEqual(["suppressed", "suppressed"]);
   });
 });

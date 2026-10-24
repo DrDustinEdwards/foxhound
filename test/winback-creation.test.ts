@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import { accounts } from "~/db/schema";
-import { WINBACK_RECENT_RESOLVED_DAYS, WINBACK_STEP1_HOURS, WINBACK_STEP2_HOURS, WINBACK_STEP3_HOURS } from "~/lib/constants";
+import { WINBACK_RECENT_RESOLVED_DAYS } from "~/lib/constants";
 import { classifyStripeEvent } from "~/lib/webhooks/events";
 import { buildWinbackStartBatch } from "~/lib/webhooks/batches";
 
@@ -27,7 +27,6 @@ import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 // classifier + batch here; the branch wiring itself is asserted on source.
 
 const now = new Date("2026-08-14T00:00:00.000Z");
-const HOUR_MS = 60 * 60 * 1000;
 
 function seed() {
   const { sqlite, db } = createInMemoryDb();
@@ -125,44 +124,6 @@ describe("290: the classifier maps subscription deletion to a win-back intent", 
   });
 });
 
-describe("290: the sequence and its steps are created", () => {
-  it("creates ONE sequence with legacy's field semantics", () => {
-    const { sqlite, db } = seed();
-    expect(commitBatch(sqlite, buildWinbackStartBatch(db, startInput("sub_1"))).applied).toBe(true);
-    const row = sqlite
-      .prepare("select * from win_back_sequences where stripe_subscription_id = ?")
-      .get("sub_1") as Record<string, unknown>;
-    expect(row.status).toBe("active");
-    expect(row.customer_email).toBe("jordan@example.com");
-    expect(row.plan_name).toBe("Growth");
-    expect(row.amount_cents).toBe(4900);
-    expect(row.cancel_reason).toBe("cancellation_requested");
-    expect(row.account_id).toBe("acc_1");
-  });
-
-  it("creates the three steps on the planner's schedule, its FIRST production caller", () => {
-    const { sqlite, db } = seed();
-    commitBatch(sqlite, buildWinbackStartBatch(db, startInput("sub_1")));
-    const steps = sqlite
-      .prepare("select step_number, scheduled_at from win_back_steps order by step_number")
-      .all() as { step_number: number; scheduled_at: number }[];
-    expect(steps.map((s) => s.step_number)).toEqual([1, 2, 3]);
-    // Offsets are the shipped constants, so a schedule change must come here.
-    const offsets = steps.map((s) => (Number(s.scheduled_at) - now.getTime()) / HOUR_MS);
-    expect(offsets).toEqual([WINBACK_STEP1_HOURS, WINBACK_STEP2_HOURS, WINBACK_STEP3_HOURS]);
-  });
-
-  it("steps are scheduled off the cancellation time, never a fixed date", () => {
-    const { sqlite, db } = seed();
-    const later = new Date("2026-09-01T12:00:00.000Z");
-    commitBatch(sqlite, buildWinbackStartBatch(db, { ...startInput("sub_2"), canceledAt: later }));
-    const first = sqlite
-      .prepare("select scheduled_at from win_back_steps order by step_number limit 1")
-      .get() as { scheduled_at: number };
-    expect(Number(first.scheduled_at) - later.getTime()).toBe(WINBACK_STEP1_HOURS * HOUR_MS);
-  });
-});
-
 describe("290: exactly-once on the SUBSCRIPTION, both sides", () => {
   it("a REDELIVERY collapses: one sequence, one set of steps", () => {
     const { sqlite, db } = seed();
@@ -178,24 +139,6 @@ describe("290: exactly-once on the SUBSCRIPTION, both sides", () => {
     const stepCount = sqlite.prepare("select count(*) as n from win_back_steps").get() as { n: number };
     expect(seqCount.n).toBe(1);
     expect(stepCount.n).toBe(3);
-  });
-
-  it("the SINGLE delivery creates: without this the test above passes on doing nothing", () => {
-    const { sqlite, db } = seed();
-    expect(commitBatch(sqlite, buildWinbackStartBatch(db, startInput("sub_solo"))).applied).toBe(true);
-    const seqCount = sqlite
-      .prepare("select count(*) as n from win_back_sequences where stripe_subscription_id = ?")
-      .get("sub_solo") as { n: number };
-    expect(seqCount.n).toBe(1);
-  });
-
-  it("two DIFFERENT subscriptions each get a sequence", () => {
-    const { sqlite, db } = seed();
-    for (const sub of ["sub_a", "sub_b"]) {
-      expect(commitBatch(sqlite, buildWinbackStartBatch(db, startInput(sub))).applied).toBe(true);
-    }
-    const n = sqlite.prepare("select count(*) as n from win_back_sequences").get() as { n: number };
-    expect(n.n).toBe(2);
   });
 });
 

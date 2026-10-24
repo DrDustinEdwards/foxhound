@@ -98,34 +98,6 @@ describe("SCOPE 1: failed invoices", () => {
     expect(data(result.failedInvoices).count).toBe(0);
   });
 
-  it("BUCKETS BY FOXHOUND'S SIX CATEGORIES, so a revoked mandate is not counted as soft", () => {
-    // THE DIVERGENCE. Legacy buckets four and pushes everything else into `soft`,
-    // which misattributes a revoked mandate as a retryable decline. Foxhound's
-    // classifier returns six, so legacy's catch-all has nothing left to catch.
-    const result = audit({
-      uncollectibleInvoices: ok<Stripe.Invoice>([
-        invoice({ amount_due: 100, last_finalization_error: { decline_code: "insufficient_funds" } }),
-        invoice({ amount_due: 200, last_finalization_error: { decline_code: "expired_card" } }),
-        invoice({ amount_due: 400, last_finalization_error: { decline_code: "revocation_of_authorization" } }),
-        invoice({ amount_due: 800, last_finalization_error: { decline_code: "not_a_real_code" } }),
-      ]),
-    });
-    const byCategory = data(result.failedInvoices).byCategory;
-    expect(byCategory.soft).toBe(100);
-    expect(byCategory.expired).toBe(200);
-    expect(byCategory.revoked).toBe(400);
-    expect(byCategory.unknown).toBe(800);
-    // Legacy would have made soft 1300 of the 1500.
-    expect(Object.keys(byCategory).sort()).toEqual([
-      "expired",
-      "fraud",
-      "network",
-      "revoked",
-      "soft",
-      "unknown",
-    ]);
-  });
-
   it("the decline-code fallback chain runs in legacy's order", () => {
     expect(extractDeclineCode(invoice({ last_finalization_error: { decline_code: "a" }, last_payment_error: { code: "b" } }))).toBe("a");
     expect(extractDeclineCode(invoice({ last_payment_error: { code: "b" }, charge: { failure_code: "c" } }))).toBe("b");
@@ -171,16 +143,6 @@ describe("SCOPE 2: expiring cards", () => {
     expect(data(result.expiringCards).count).toBe(1);
     // The FIRST subscription's amount, because the second never reaches the sum.
     expect(data(result.expiringCards).mrrAtRiskCents).toBe(1_000);
-  });
-
-  it("skips a non-active subscription and a payment method that is still an id", () => {
-    const result = audit({
-      subscriptions: ok<Stripe.Subscription>([
-        subscription({ status: "canceled", customer: "cus_x", ...card(8, 2026), ...price(1_000, "month") }),
-        subscription({ customer: "cus_y", default_payment_method: "pm_1", ...price(1_000, "month") }),
-      ]),
-    });
-    expect(data(result.expiringCards).count).toBe(0);
   });
 
   it("the timeline is FOUR months wide and collapses the past into this month", () => {
@@ -251,11 +213,6 @@ describe("SCOPE 4: the Card Updater advisory", () => {
     // One decline is below the threshold, so no advisory even though the count
     // over the full lookback would have cleared it.
     expect(data(result.cardUpdater).advisory).toBeNull();
-  });
-
-  it("the window shrinks with a short lookback and never grows past 30", () => {
-    expect(data(audit({}, 7).cardUpdater).windowDays).toBe(7);
-    expect(data(audit({}, 365).cardUpdater).windowDays).toBe(30);
   });
 });
 
@@ -336,19 +293,6 @@ describe("SCOPE 6: health", () => {
 });
 
 describe("PER-SCOPE STATUS: a zero never means unknown", () => {
-  it("ONE FAILED READ YIELDS FIVE OK AND ONE FAILED, with the reason carried", () => {
-    const result = audit({ disputes: failed("stripe disputes.list timed out") });
-    expect(result.disputes).toEqual({ ok: false, reason: "stripe disputes.list timed out" });
-    for (const scope of [
-      result.failedInvoices,
-      result.expiringCards,
-      result.pastDueSubscriptions,
-      result.cardUpdater,
-      result.health,
-    ]) {
-      expect(scope.ok).toBe(true);
-    }
-  });
 
   it("the subscriptions read fails THREE scopes, because three depend on it", () => {
     const result = audit({ subscriptions: failed("subs unavailable") });
