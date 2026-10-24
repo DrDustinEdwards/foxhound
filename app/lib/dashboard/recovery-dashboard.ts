@@ -7,7 +7,7 @@ import {
 } from "~/lib/constants";
 import { recoveryFeeCents } from "~/lib/billing/fees";
 import { DECLINE_CATEGORY_LABELS } from "~/lib/recovery/labels";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney, fromMajorUnits, toMajorUnits } from "~/lib/money-format";
 
 import { dayKey, type DailyRatePoint, type RecoveryTimingBucket } from "./recovery-window";
 
@@ -144,7 +144,7 @@ export function dailyRecoveredRows(
   for (let i = days - 1; i >= 0; i--) {
     const Day = dayKey(new Date(nowMs - i * DAY_MS));
     for (const currency of currencies) {
-      rows.push({ Day, currency: currency.toUpperCase(), amount: (byKey.get(`${Day}|${currency}`) ?? 0) / 100 });
+      rows.push({ Day, currency: currency.toUpperCase(), amount: toMajorUnits(byKey.get(`${Day}|${currency}`) ?? 0, currency) });
     }
   }
   return { rows, currencies: currencies.map((c) => c.toUpperCase()) };
@@ -159,9 +159,9 @@ export function recoveredRevenueAlt(rows: readonly DailyRecoveredRow[], days: nu
     byCurrency.set(r.currency, entry);
   }
   const parts = [...byCurrency.entries()].map(([currency, e]) => {
-    const total = formatMoney(Math.round(e.total * 100), currency);
+    const total = formatMoney(fromMajorUnits(e.total, currency), currency);
     if (!e.best) return `${total}`;
-    return `${total}, most on ${formatShortDate(e.best.Day)} (${formatMoney(Math.round(e.best.amount * 100), currency)})`;
+    return `${total}, most on ${formatShortDate(e.best.Day)} (${formatMoney(fromMajorUnits(e.best.amount, currency), currency)})`;
   });
   return `Revenue recovered per day over the last ${days} days: ${parts.join("; ")}.`;
 }

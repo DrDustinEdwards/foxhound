@@ -25,6 +25,7 @@
 import type { Block } from "capsomer/email";
 
 import { recoveryFooterNote } from "~/lib/email/templates";
+import { formatMoney } from "~/lib/money-format";
 
 export const DIGEST_TEMPLATE = "weekly_digest";
 
@@ -102,10 +103,7 @@ export function resolveDigestCurrency(
 }
 
 function formatAmount(cents: number, currency: string): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: currency.toUpperCase(),
-  }).format(cents / 100);
+  return formatMoney(cents, currency);
 }
 
 /**

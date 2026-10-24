@@ -1,5 +1,6 @@
 import { ALERT_METRICS, ALERT_DIRECTIONS } from "~/lib/constants";
 import type { AlertDirection, AlertMetric } from "~/lib/constants";
+import { formatMoneyShort } from "~/lib/money-format";
 
 // S28's metric vocabulary, in a CLIENT-SAFE module because the create form
 // renders it. Nothing here touches the database.
@@ -54,11 +55,7 @@ export function alertMetricLabel(metric: string): string {
  *  number for the score. Mirrors legacy's formatThreshold. */
 export function formatThresholdValue(metric: string, value: number): string {
   if (isCentsMetric(metric)) {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      maximumFractionDigits: 0,
-    }).format(value / 100);
+    return formatMoneyShort(value, "usd");
   }
   return String(value);
 }

@@ -1,6 +1,7 @@
 import type { AuditResult, ScopeOutcome } from "./engine";
 
 import type { AuditRunRow } from "./persist.server";
+import { formatMoneyShort } from "~/lib/money-format";
 
 // Reading a STORED run back for the surfaces. Phase (e).
 //
@@ -201,14 +202,9 @@ export function toStoredAuditRun(row: AuditRunRow): StoredAuditRun {
 /** The one sentence every surface uses for a scope that was not read. */
 export const SCOPE_UNREAD = "Could not be read on this run.";
 
-/** Cents to a display string in the run's currency. */
+/** Minor units to a whole-unit display string in the run's currency. */
 export function formatCents(cents: number, currency: string): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: currency.toUpperCase(),
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(cents / 100);
+  return formatMoneyShort(cents, currency);
 }
 
 /** Basis points to a percentage, at legacy's one decimal. */

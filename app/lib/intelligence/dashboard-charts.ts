@@ -3,7 +3,7 @@ import { barChart } from "enarratio/lite/bar";
 import { lineChart } from "enarratio/lite/line";
 
 import { formatDateMonthDay } from "~/lib/date-format";
-import { formatMoneyShort } from "~/lib/money-format";
+import { formatMoneyShort, fromMajorUnits, toMajorUnits } from "~/lib/money-format";
 
 import {
   formatPct,
@@ -35,7 +35,8 @@ import {
  *  plotted area is about Recova's. */
 const CHART_HEIGHTS = { trend: 220, nrr: 180, movement: 240, health: 240 } as const;
 
-const dollars = (cents: number) => Math.round(cents / 100);
+/** Whole units of the account currency (yen for JPY, not hundredths of it). */
+const whole = (minor: number, currency: string) => Math.round(toMajorUnits(minor, currency));
 const unit = (currency: string) => currency.toUpperCase();
 
 export interface TrendPoint {
@@ -46,13 +47,13 @@ export interface TrendPoint {
 export function drawMrrTrend(points: readonly TrendPoint[], currency: string, width: number): string {
   const yLabel = `MRR (${unit(currency)})`;
   return areaChart({
-    data: points.map((p) => ({ Date: p.at, mrr: dollars(p.totalMrrCents) })),
+    data: points.map((p) => ({ Date: p.at, mrr: whole(p.totalMrrCents, currency) })),
     x: "Date",
     y: "mrr",
     xLabel: null,
     yLabel,
     colors: { [yLabel]: "var(--brand-ui)" },
-    formatValue: (v) => formatMoneyShort(v * 100, currency),
+    formatValue: (v) => formatMoneyShort(fromMajorUnits(v, currency), currency),
     formatX: (v) => formatDateMonthDay(new Date(v)),
     alt: mrrTrendAlt(points, currency),
     width,
@@ -106,20 +107,20 @@ const MOVEMENT_COLORS: Record<(typeof MOVEMENT_SERIES)[number], string> = {
 };
 
 /** Recova works in whole dollars and draws contraction and churn as negatives
- *  (MRRMovementChart.tsx:32-38). */
-function movementRows(points: readonly MovementPoint[]) {
+ *  (MRRMovementChart.tsx:32-38); here whole units of the account currency. */
+function movementRows(points: readonly MovementPoint[], currency: string) {
   return points.flatMap((p) => [
-    { Month: p.at, series: "New", amount: dollars(p.newMrrCents) },
-    { Month: p.at, series: "Expansion", amount: dollars(p.expansionMrrCents) },
-    { Month: p.at, series: "Reactivation", amount: dollars(p.reactivationMrrCents) },
-    { Month: p.at, series: "Contraction", amount: -dollars(p.contractionMrrCents) },
-    { Month: p.at, series: "Churn", amount: -dollars(p.churnMrrCents) },
+    { Month: p.at, series: "New", amount: whole(p.newMrrCents, currency) },
+    { Month: p.at, series: "Expansion", amount: whole(p.expansionMrrCents, currency) },
+    { Month: p.at, series: "Reactivation", amount: whole(p.reactivationMrrCents, currency) },
+    { Month: p.at, series: "Contraction", amount: -whole(p.contractionMrrCents, currency) },
+    { Month: p.at, series: "Churn", amount: -whole(p.churnMrrCents, currency) },
   ]);
 }
 
 export function drawMovement(points: readonly MovementPoint[], currency: string, width: number): string {
   return barChart({
-    data: movementRows(points),
+    data: movementRows(points, currency),
     x: "Month",
     // One bar per monthly snapshot, named by its date as Recova names its bars.
     xType: "time",
@@ -131,7 +132,7 @@ export function drawMovement(points: readonly MovementPoint[], currency: string,
     colors: MOVEMENT_COLORS,
     xLabel: null,
     yLabel: unit(currency),
-    formatValue: (v) => formatMoneyShort(v * 100, currency),
+    formatValue: (v) => formatMoneyShort(fromMajorUnits(v, currency), currency),
     alt: movementAlt(points, currency),
     width,
     height: CHART_HEIGHTS.movement,
@@ -146,7 +147,7 @@ function planChartHeight(planCount: number): number {
 export function drawPlans(rows: readonly PlanRow[], currency: string, width: number): string {
   const yLabel = `MRR (${unit(currency)})`;
   return barChart({
-    data: rows.map((r) => ({ Plan: r.plan, mrr: dollars(r.mrrCents) })),
+    data: rows.map((r) => ({ Plan: r.plan, mrr: whole(r.mrrCents, currency) })),
     x: "Plan",
     y: "mrr",
     orientation: "horizontal",
@@ -154,7 +155,7 @@ export function drawPlans(rows: readonly PlanRow[], currency: string, width: num
     xLabel: null,
     yLabel,
     colors: { [yLabel]: "var(--brand-ui)" },
-    formatValue: (v) => formatMoneyShort(v * 100, currency),
+    formatValue: (v) => formatMoneyShort(fromMajorUnits(v, currency), currency),
     alt: planAlt(rows, currency),
     width,
     height: planChartHeight(rows.length),

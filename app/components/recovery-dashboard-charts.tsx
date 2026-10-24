@@ -21,7 +21,7 @@ import {
   recoveryTimingAlt,
   withoutHoverTitles,
 } from "~/lib/dashboard/recovery-dashboard";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney, fromMajorUnits } from "~/lib/money-format";
 
 // ---- Charts ----
 
@@ -105,7 +105,7 @@ export function RevenueChart({ w, nowMs }: { w: RecoveryDashboardWindow; nowMs: 
               colors: single ? { Recovered: "var(--green)" } : undefined,
               xLabel: null,
               yLabel: "Recovered",
-              formatValue: (v) => (single ? formatMoney(Math.round(v * 100), single) : v.toFixed(2)),
+              formatValue: (v) => (single ? formatMoney(fromMajorUnits(v, single), single) : v.toFixed(2)),
               formatX: (d) => formatShortDate(d),
               maxXTicks: 4,
               alt: recoveredRevenueAlt(rows, days),

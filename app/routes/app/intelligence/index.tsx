@@ -36,7 +36,7 @@ import { healthScoreMeterTone } from "~/lib/intelligence/health-band";
 import { generateMonthlyReport } from "~/lib/intelligence/report-generate.server";
 import { getIntelligenceOverview, getReportsArchive, isIntelligenceEntitled } from "~/lib/intelligence/views.server";
 import { getHealthDistribution, getMrrSnapshotSeries } from "~/lib/intelligence/trends.server";
-import { formatMoney, formatMoneyShort } from "~/lib/money-format";
+import { formatMoney, formatMoneyShort, toMajorUnits } from "~/lib/money-format";
 
 import type { Route } from "./+types/index";
 
@@ -293,11 +293,11 @@ function MovementCard({ series, currency }: { series: Series; currency: string }
   const draw = useCallback((w: number) => drawMovement(series, currency, w), [series, currency]);
   const moved = series.some(
     (p) =>
-      Math.round(p.newMrrCents / 100) !== 0 ||
-      Math.round(p.expansionMrrCents / 100) !== 0 ||
-      Math.round(p.reactivationMrrCents / 100) !== 0 ||
-      Math.round(p.contractionMrrCents / 100) !== 0 ||
-      Math.round(p.churnMrrCents / 100) !== 0,
+      Math.round(toMajorUnits(p.newMrrCents, currency)) !== 0 ||
+      Math.round(toMajorUnits(p.expansionMrrCents, currency)) !== 0 ||
+      Math.round(toMajorUnits(p.reactivationMrrCents, currency)) !== 0 ||
+      Math.round(toMajorUnits(p.contractionMrrCents, currency)) !== 0 ||
+      Math.round(toMajorUnits(p.churnMrrCents, currency)) !== 0,
   );
   if (!moved) return null;
   return (
