@@ -19,6 +19,9 @@ export { RateLimiterDurableObject } from "./rate-limiter";
 // site-runtime's limiter class, bound as AUTH_RATE_LIMITER: the sign-in and
 // signup limiter (Q5; app/lib/auth/rate-limit.server.ts).
 export { RateLimiter } from "@dustinedwards/site-runtime/rate-limit/durable-object";
+// The admin API, served only to a service binding that names this entrypoint
+// (FH-20); the public fetch below does not route it.
+export { AdminApi } from "./admin-api";
 
 const requestHandler = createRequestHandler(
   () => import("virtual:react-router/server-build"),
@@ -52,16 +55,6 @@ export default withSentry<Env>(
         const { handleCarrelRequest } = await import("~/lib/carrel/handler.server");
         const carrel = await handleCarrelRequest(request, env, ctx);
         if (carrel) return applyCachePolicy(request, applySecurityHeaders(carrel, nonce, origin));
-      }
-
-      // THE FOXHOUND ADMIN API (job_21de68b30fc2), before the router. Null for any
-      // path outside /api/admin/v1; inside it an admin-scope key AND an acting
-      // admin on ADMIN_EMAIL are checked on every call. Its only intended caller
-      // is the Foxhound Admin MCP Worker over a service binding.
-      if (new URL(request.url).pathname.startsWith("/api/admin/v1")) {
-        const { handleAdminApiRequest } = await import("~/lib/admin-api/handler.server");
-        const admin = await handleAdminApiRequest(request, env);
-        if (admin) return applyCachePolicy(request, applySecurityHeaders(admin, nonce, origin));
       }
 
       // THE MERCHANT MCP ENDPOINT, before the router (370, roadmap item 3).

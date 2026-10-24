@@ -42,6 +42,8 @@ import { getGlobalPaymentStatusCounts } from "~/lib/recovery/queries.server";
 // WHO CALLS IT. The Foxhound Admin MCP, which runs as its own Worker holding no
 // Stripe key, no money binding and no database, and reaches this API over a
 // service binding. It is the only thing in that Worker that can touch Foxhound.
+// It is served only on the AdminApi entrypoint (workers/admin-api.ts), which
+// that binding names; the public fetch handler never routes it (FH-20).
 //
 // TWO CREDENTIALS ON EVERY CALL. An `mcp_admin` key (the MCP Worker's, issued
 // with scripts/issue-admin-api-key.mjs) and the acting admin's email in the
