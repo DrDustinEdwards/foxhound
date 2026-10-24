@@ -1,4 +1,4 @@
-import { cdata, escapeXmlText } from "@drdustinedwards/site-helpers/xml";
+import { rssDocument } from "@drdustinedwards/site-helpers/feeds";
 
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -12,7 +12,7 @@ import type { Route } from "./+types/feed";
 // instead of a hardcoded recovamrr.com. legacy's
 // app/(marketing)/blog/rss.xml/route.ts is NOT the reference here: this
 // repo's canonical feed path is /feed.rss (ROUTES.md), which is what legacy's
-// root-level route already was.
+// root-level route already was. The XML is Prelum's rssDocument.
 
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
@@ -30,50 +30,31 @@ export async function loader({ context }: Route.LoaderArgs) {
   // crawler audience and were asserting opposite things about the same 45
   // posts. Ruling 89 is EXTENDED to this file (Dustin, 2026-08-02).
   // getAllPublishedPosts orders by publishedAt DESC, so the first post with a
-  // date is the newest.
+  // date is the newest. An item's pubDate is likewise OMITTED rather than
+  // defaulted to now (rssItem leaves it out when publishAt is null), same
+  // ruling: an item whose pubDate reads "now" on every fetch re-surfaces
+  // forever in any reader that sorts by date.
   const newestPublishedAt = posts.find((post) => post.publishedAt)?.publishedAt;
-  const lastBuildDate = newestPublishedAt
-    ? `\n    <lastBuildDate>${newestPublishedAt.toUTCString()}</lastBuildDate>`
-    : "";
 
-  const items = posts
-    .map((post) => {
-      const postUrl = `${url}/blog/${post.slug}`;
-      // OMITTED rather than defaulted to now, same ruling: an item whose
-      // pubDate reads "now" on every fetch re-surfaces forever in any reader
-      // that sorts by date. pubDate is optional in RSS 2.0; a wrong one is not.
-      const pubDate = post.publishedAt
-        ? `\n      <pubDate>${post.publishedAt.toUTCString()}</pubDate>`
-        : "";
-      const categories = post.tags.map((tag) => `<category>${escapeXmlText(tag)}</category>`).join("");
-      return `
-    <item>
-      <title>${cdata(post.title)}</title>
-      <link>${postUrl}</link>
-      <guid isPermaLink="true">${postUrl}</guid>
-      <description>${cdata(post.excerpt)}</description>${pubDate}
-      <author>${escapeXmlText(SUPPORT_EMAIL)} (${escapeXmlText(post.author)})</author>
-      ${categories}
-    </item>`;
-    })
-    .join("");
-
-  const rss = `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>Foxhound Blog</title>
-    <link>${url}/blog</link>
-    <description>Guides on Stripe payment recovery, dispute handling, and subscription intelligence.</description>
-    <language>en-us</language>${lastBuildDate}
-    <atom:link href="${url}/feed.rss" rel="self" type="application/rss+xml"/>
-    <image>
-      <url>${url}/favicon.png</url>
-      <title>Foxhound Blog</title>
-      <link>${url}/blog</link>
-    </image>
-    ${items}
-  </channel>
-</rss>`;
+  const rss = rssDocument({
+    title: "Foxhound Blog",
+    link: `${url}/blog`,
+    description: "Guides on Stripe payment recovery, dispute handling, and subscription intelligence.",
+    selfUrl: `${url}/feed.rss`,
+    origin: url,
+    itemPath: "/blog",
+    lastBuildDate: newestPublishedAt,
+    image: { url: `${url}/favicon.png`, title: "Foxhound Blog", link: `${url}/blog` },
+    posts: posts.map((post) => ({
+      slug: post.slug,
+      title: post.title,
+      html: null,
+      description: post.excerpt,
+      publishAt: post.publishedAt,
+      tags: post.tags,
+      author: `${SUPPORT_EMAIL} (${post.author})`,
+    })),
+  });
 
   return new Response(rss, {
     headers: {
