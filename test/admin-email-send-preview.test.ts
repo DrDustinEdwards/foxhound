@@ -99,8 +99,7 @@ const ALL_TYPES = [
   "weekly_digest",
   "recovery_notification",
   "sequence_complete",
-  "email_verification",
-  "password_reset",
+  "sign_in_link",
 ];
 const CUSTOMER_TYPES = ALL_TYPES.slice(0, 11);
 
@@ -272,7 +271,7 @@ describe("PLANT 1: the admin API's two credentials guard both routes", () => {
 describe("PLANT 2: mail goes only to the caller or the configured test inboxes", () => {
   it("with no `to`, it goes to the acting admin's own address", async () => {
     const { keys } = await seed();
-    const { status, json } = await post(keys.admin, "/emails/send", { types: ["email_verification"] });
+    const { status, json } = await post(keys.admin, "/emails/send", { types: ["sign_in_link"] });
     expect(status, JSON.stringify(json)).toBe(200);
     expect(sent.map((m) => m.to)).toEqual([ADMIN]);
   });
@@ -280,7 +279,7 @@ describe("PLANT 2: mail goes only to the caller or the configured test inboxes",
   it("the caller's own address in any case, and an allow-listed inbox, are accepted", async () => {
     const { keys } = await seed();
     for (const to of [ADMIN.toUpperCase(), TEST_INBOX]) {
-      const { status, json } = await post(keys.admin, "/emails/send", { types: ["email_verification"], to });
+      const { status, json } = await post(keys.admin, "/emails/send", { types: ["sign_in_link"], to });
       expect(status, `${to}: ${JSON.stringify(json)}`).toBe(200);
     }
     expect(sent.map((m) => m.to)).toEqual([ADMIN, TEST_INBOX]);
@@ -299,8 +298,8 @@ describe("PLANT 2: mail goes only to the caller or the configured test inboxes",
   it("with the allow list unset, only the caller's own address is accepted", async () => {
     const { keys } = await seed();
     const bare = env({ ADMIN_EMAIL_TEST_RECIPIENTS: undefined });
-    expect((await post(keys.admin, "/emails/send", { types: ["email_verification"], to: TEST_INBOX }, { env: bare })).status).toBe(400);
-    expect((await post(keys.admin, "/emails/send", { types: ["email_verification"] }, { env: bare })).status).toBe(200);
+    expect((await post(keys.admin, "/emails/send", { types: ["sign_in_link"], to: TEST_INBOX }, { env: bare })).status).toBe(400);
+    expect((await post(keys.admin, "/emails/send", { types: ["sign_in_link"] }, { env: bare })).status).toBe(200);
     expect(sent.map((m) => m.to)).toEqual([ADMIN]);
   });
 });
@@ -371,10 +370,9 @@ describe("PLANT 5 and 6: a send goes through the send module, with Reply-To, and
     expect(results.map((r) => [r.type, r.status])).toEqual(ALL_TYPES.map((t) => [t, "sent"]));
     expect(sent).toHaveLength(ALL_TYPES.length);
     expect(sent.every((m) => m.to === ADMIN)).toBe(true);
-    // Customer and merchant mail through sendEmail, platform mail through the
-    // module's two transactional senders: the binding is reached from nowhere else.
-    expect(sendSpies.sendEmail).toHaveBeenCalledTimes(ALL_TYPES.length - 2);
-    expect(sendSpies.sendTransactionalEmail).toHaveBeenCalledTimes(1);
+    // Customer and merchant mail through sendEmail, the sign-in link through
+    // the module's rendered sender: the binding is reached from nowhere else.
+    expect(sendSpies.sendEmail).toHaveBeenCalledTimes(ALL_TYPES.length - 1);
     expect(sendSpies.sendRenderedTransactionalEmail).toHaveBeenCalledTimes(1);
   });
 
@@ -393,7 +391,7 @@ describe("PLANT 5 and 6: a send goes through the send module, with Reply-To, and
 
   it("each send leaves an admin_audit_log row naming the acting admin, the type and the merchant", async () => {
     const { db, keys } = await seed();
-    await post(keys.admin, "/emails/send", { types: ["recovery_day1", "password_reset"], account_id: MERCHANT, to: TEST_INBOX });
+    await post(keys.admin, "/emails/send", { types: ["recovery_day1", "sign_in_link"], account_id: MERCHANT, to: TEST_INBOX });
     const rows = (await db.select().from(adminAuditLog)).filter((r) => r.action === "email.test_send");
     expect(rows).toHaveLength(2);
     for (const row of rows) {
@@ -401,7 +399,7 @@ describe("PLANT 5 and 6: a send goes through the send module, with Reply-To, and
       expect(row.targetEmail).toBe(TEST_INBOX);
       expect((row.metadata as { accountId: string }).accountId).toBe(MERCHANT);
     }
-    expect(rows.map((r) => (r.metadata as { type: string }).type).sort()).toEqual(["password_reset", "recovery_day1"]);
+    expect(rows.map((r) => (r.metadata as { type: string }).type).sort()).toEqual(["recovery_day1", "sign_in_link"]);
   });
 
   it("a suppressed test inbox is reported, not sent to, for customer mail", async () => {
@@ -420,14 +418,14 @@ describe("PLANT 5 and 6: a send goes through the send module, with Reply-To, and
     const { json } = await post(
       keys.admin,
       "/emails/send",
-      { types: ["recovery_day1", "email_verification"], account_id: MERCHANT },
+      { types: ["recovery_day1", "sign_in_link"], account_id: MERCHANT },
       { env: env({ PHYSICAL_ADDRESS: undefined }) },
     );
     const results = (json.data as { results: { type: string; status: string; error: string | null }[] }).results;
     expect(results[0]).toMatchObject({ type: "recovery_day1", status: "failed" });
     expect(String(results[0].error)).toMatch(/physical address/);
-    expect(results[1]).toMatchObject({ type: "email_verification", status: "sent" });
-    expect(sent.map((m) => m.subject)).toEqual(["Verify your email"]);
+    expect(results[1]).toMatchObject({ type: "sign_in_link", status: "sent" });
+    expect(sent.map((m) => m.subject)).toEqual(["Your sign-in link for Foxhound"]);
   });
 });
 

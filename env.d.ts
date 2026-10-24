@@ -18,12 +18,19 @@ interface Env {
   // Better Auth signing key. Required in real environments; absent locally is
   // tolerated (dev-only default) but flagged.
   BETTER_AUTH_SECRET?: string;
-  // Google OAuth (C3). Provider is enabled only when both id and secret are
-  // present; otherwise the Google path is cleanly inert. The client id is public
-  // but kept ambient (not a committed var) so its type stays `string | undefined`
-  // rather than an empty-string literal.
+  // Google sign-in (C3). Offered only when both id and secret are present;
+  // otherwise the Google path is cleanly inert. The client id is public but kept
+  // ambient (not a committed var) so its type stays `string | undefined` rather
+  // than an empty-string literal.
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
+  // Sign in with Apple, offered only when all four are set: the Services ID, the
+  // team, and the Sign in with Apple key's id and PEM, from which site-runtime
+  // ./apple-secret signs the client secret (./sign-in).
+  APPLE_CLIENT_ID?: string;
+  APPLE_TEAM_ID?: string;
+  APPLE_KEY_ID?: string;
+  APPLE_PRIVATE_KEY?: string;
   // Admin allowlist (C4). Comma-separated emails granted the admin role.
   // Access-control sensitive -> secret, not a committed var. Unset => no admins.
   ADMIN_EMAIL?: string;
@@ -95,7 +102,9 @@ interface Env {
   // secret (set via `wrangler secret put`), never a committed var. While
   // unset, the estimator's action stays cleanly inert: it renders a
   // "temporarily unavailable" state and never accepts a submission or skips
-  // the gate silently (mirrors gotcha #16's ANTHROPIC_API_KEY pattern).
+  // the gate silently (mirrors gotcha #16's ANTHROPIC_API_KEY pattern). With
+  // TURNSTILE_SITE_KEY it also puts the check on the sign-in email link
+  // (site-runtime ./sign-in's captcha plugin); without, the link has none.
   TURNSTILE_SECRET_KEY?: string;
 }
 

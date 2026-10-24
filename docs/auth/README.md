@@ -1,13 +1,15 @@
 # Auth model (Phase 3)
 
-Better Auth on D1: sessions, email/password, Google OAuth, team invites, the
-merchant/admin role split, and RR8 middleware guards. This is the reference for
+Better Auth on D1: sessions, the family sign-in (passkey, emailed link, Google
+and Apple), team invites, the merchant/admin role split, and RR8 middleware
+guards. This is the reference for
 how every authenticated route resolves identity.
 
 ## Session model
 
 - **Better Auth on D1**, tables owned by Better Auth's own generator
-  (`app/db/auth-schema.ts`: `user`, `session`, `account`, `verification`). Our
+  (`app/db/auth-schema.ts`: `user`, `session`, `account`, `verification`,
+  `passkey`, `rate_limit`). Our
   business tables (`accounts`, `account_members`) are separate; the names do not
   collide (singular vs plural). Regenerate the auth tables with
   `npm run auth:generate` then `npm run db:generate`.
@@ -18,9 +20,33 @@ how every authenticated route resolves identity.
   the deliberate "Cloudflare-appropriate" choice for a money app.
 - Session cookie is HTTP-only and signed with `BETTER_AUTH_SECRET`. Lifetime 30
   days, refreshed at most daily (`app/lib/auth/options.ts`).
-- Email verification is required; auto-sign-in is off. Password minimum 12 chars.
 - The HTTP surface is mounted at `/api/auth/*` (Better Auth's default basePath),
-  covering sign-in/up/out, verify-email, reset-password, and OAuth callbacks.
+  covering the passkey and email-link sign-ins, sign-out, the link's verify, and
+  the OAuth callbacks.
+
+## Sign-in
+
+The family's one sign-in, from `@dustinedwards/site-runtime/sign-in`
+(`signInOptions` in `app/lib/auth/auth.server.ts`). No passwords: migration 0038
+deleted the old password rows.
+
+- **Passkey first.** `/login` leads with "Sign in with a passkey" and offers
+  saved passkeys in the email field's suggestions (autocomplete `webauthn`).
+  The passkey belongs to `BETTER_AUTH_URL`'s host.
+- **Emailed link** for a first sign-in or a lost device: one link that signs in
+  an existing merchant or creates a new one, valid 5 minutes, sent by
+  `sendSignInLinkEmail` on Capsomer's magic-link template. `/login` and
+  `/signup` send it through Better Auth's handler
+  (`app/lib/auth/sign-in-link.server.ts`) so Better Auth's limiter and the
+  Turnstile check run. Turnstile is on once `TURNSTILE_SITE_KEY` and
+  `TURNSTILE_SECRET_KEY` are both set. The link lands on `/passkey`, which offers
+  a passkey and goes on.
+- **Google and Apple**, each when its settings are present. Accounts are joined
+  only by a signed-in person under My account's Sign-in panel, never by a
+  matching email at sign-in (`disableImplicitLinking`); a refused sign-in comes
+  back to `/login?error=account_not_linked`, which explains.
+- The page actions spend the auth bucket (10 a minute per IP) and `/signup` the
+  signup bucket (5 an hour) first (`app/lib/auth/rate-limit.server.ts`).
 
 ## Two role axes (kept separate)
 
@@ -37,7 +63,7 @@ app-shell layout and a pathless admin-guard layout.
 | Route tree | Requires | Unauthenticated | Authed, no account | Authed, non-admin |
 |---|---|---|---|---|
 | Marketing (`/`, `/pricing`, `/products/*`, `/audit`, `/blog/*`, `/docs/*`, `/demos`, `/privacy`, `/terms`, file routes) | nothing | open | open | open |
-| Auth (`/login`, `/signup`, `/forgot-password`, `/reset-password`, `/api/auth/*`, `/auth/google`, `/auth/google/callback`, `/logout`) | nothing (self-guard where relevant) | open | open | open |
+| Auth (`/login`, `/signup`, `/passkey`, `/api/auth/*`, `/auth/google`, `/auth/apple`, `/auth/google/callback`, `/logout`) | nothing (self-guard where relevant; `/passkey` -> `/login` without a session) | open | open | open |
 | `/connect` | session only (self-guarded in its loader) | -> `/login` | shows setup form | n/a |
 | `/invite/:token` | session only to accept | view open; accept -> `/login` | can accept (this is how they get an account) | n/a |
 | Public utility (`/u/:token`, `/p/:token`, `/e/o/:token`, `/e/c/:token`) | nothing | open | open | open |
@@ -73,17 +99,19 @@ Single account per user (legacy model); multi-account switching is out of scope.
 Phase 4 also emails the invite link through the send module; Phase 5 builds the
 full team UI. Phase 3 seeds the create + accept paths.
 
-## Google OAuth
+## Google and Apple
 
-- Provider is enabled only when `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are
-  both set; otherwise the "Continue with Google" button is not rendered and the
-  path is inert (clean stub).
+- Each provider is enabled only when its settings are all set; otherwise its
+  button is not rendered and `/auth/<provider>` is inert.
 - CSRF is covered by Better Auth's signed OAuth **state cookie**, set on start
   and validated on callback.
 - The callback is pinned to the canonical `/auth/google/callback` (ROUTES.md) via
   the provider `redirectURI`; that route forwards into the Better Auth handler.
   **Register `${BETTER_AUTH_URL}/auth/google/callback` as the redirect URI on the
   Google OAuth client.**
+- Apple returns with a form POST to Better Auth's own
+  `/api/auth/callback/apple`. **Register `${BETTER_AUTH_URL}/api/auth/callback/apple`
+  as the return URL on the Apple Services ID**, with the site's domain.
 
 ## Environment variables
 
@@ -93,6 +121,8 @@ full team UI. Phase 3 seeds the create + accept paths.
 | `BETTER_AUTH_URL` | var (`wrangler.jsonc`) | canonical origin for callbacks/redirects. |
 | `GOOGLE_CLIENT_ID` | secret/ambient | Google OAuth client id (public value; kept ambient for typing). |
 | `GOOGLE_CLIENT_SECRET` | secret (`wrangler secret`) | Google OAuth client secret. |
+| `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY` | secrets (`wrangler secret`) | Sign in with Apple: the Services ID, the team, and the key's id and PEM. |
+| `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` | var / secret | the check on the emailed link (and the estimator). |
 | `ADMIN_EMAIL` | secret (`wrangler secret`) | comma-separated platform-admin allowlist. Unset => no admins. |
 
 Never commit secret values; they live only in `wrangler secret`.

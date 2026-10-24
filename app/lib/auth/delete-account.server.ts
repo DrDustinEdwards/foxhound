@@ -11,6 +11,7 @@ import {
   intelligenceNotificationPreferences,
   oauthAuthorizationCodes,
   oauthGrants,
+  passkey,
   recoveredPayments,
   session,
   stripeConnections,
@@ -180,6 +181,7 @@ function buildUserDeletionStatements(
     db.delete(oauthAuthorizationCodes).where(eq(oauthAuthorizationCodes.userId, userId)),
     db.delete(session).where(eq(session.userId, userId)),
     db.delete(authAccount).where(eq(authAccount.userId, userId)),
+    db.delete(passkey).where(eq(passkey.userId, userId)),
     db.delete(verification).where(or(eq(verification.identifier, email), eq(verification.value, userId))),
     db.delete(user).where(eq(user.id, userId)),
   ];

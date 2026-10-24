@@ -37,11 +37,10 @@ function post(path: string) {
 // method it reaches, so a future reader can check the row against the route
 // rather than trusting this list.
 const IN_PROCESS_AUTH_POSTS = [
-  ["/login", "api.signInEmail"],
-  ["/signup", "api.signUpEmail"],
-  ["/forgot-password", "api.requestPasswordReset"],
-  ["/reset-password", "api.resetPassword"],
+  ["/login", "handler sign-in/magic-link"],
+  ["/signup", "handler sign-in/magic-link"],
   ["/auth/google", "api.signInSocial"],
+  ["/auth/apple", "api.signInSocial"],
 ] as const;
 
 describe("resolveRateLimitBinding", () => {
@@ -56,7 +55,7 @@ describe("resolveRateLimitBinding", () => {
   });
 
   it("leaves POST /api/auth/* and /api/auth to the splat route's action", () => {
-    expect(resolveRateLimitBinding(post("/api/auth/sign-in/email"))).toBeNull();
+    expect(resolveRateLimitBinding(post("/api/auth/sign-in/magic-link"))).toBeNull();
     expect(resolveRateLimitBinding(post("/api/auth"))).toBeNull();
   });
 

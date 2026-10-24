@@ -1,17 +1,16 @@
-import { Alert, Banner } from "capsomer/react/banner";
-import { data, Form, Link, redirect, useNavigation } from "react-router";
+import { signInMethods } from "@dustinedwards/site-runtime/sign-in";
+import { data, redirect, useNavigation } from "react-router";
 
 import {
   AuthCard,
-  AuthField,
   AuthFootnote,
   AuthHeading,
   AuthLink,
-  AuthSubmit,
-  GoogleContinue,
+  PasskeyContinue,
+  SignInLinkForm,
+  SignInLinkSent,
+  SocialContinue,
 } from "~/components/auth-card";
-import { getAuth } from "~/lib/auth";
-import { authErrorMessage, forwardSetCookie } from "~/lib/auth/http";
 import {
   checkAuthLimit,
   limitedData,
@@ -20,28 +19,38 @@ import {
 } from "~/lib/auth/rate-limit.server";
 import { DEFAULT_NEXT_PATH, safeNextPath } from "~/lib/auth/next-path";
 import { getSession } from "~/lib/auth/session";
+import { requestSignInLink, signInLinkAnswer } from "~/lib/auth/sign-in-link.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import type { Route } from "./+types/login";
 
 // Row A2, /login (J52): Recova's app/(auth)/login/page.tsx (blob ec09cd24),
-// read whole. One card: "Welcome back", the line under it, Continue with
-// Google, the "or" rule, Email, Password with "Forgot password?" on its label
-// row, the error, "Log in", then "Don't have an account? Connect Stripe".
-// The mechanism is Foxhound's: Better Auth on D1 through this action, never
-// Recova's Supabase client calls.
+// read whole, for the frame: one card, "Welcome back", the line under it, the
+// providers, the "or" rule, Email, the error, then "Don't have an account?
+// Connect Stripe". The ways in are the family's one sign-in (site-runtime
+// ./sign-in; APPROVED-DIFFERENCES, "Sign-in and invites", 2026-10-24): a
+// passkey first, Google and Apple, and an emailed link in place of Recova's
+// password. The mechanism is Foxhound's: Better Auth on D1, never Recova's
+// Supabase client calls.
 
 export function meta() {
   return [{ title: "Log in - Foxhound" }];
 }
 
-/** Recova's ?error= messages (login/page.tsx ERROR_MESSAGES), for the codes
- *  something in Foxhound sends here. Recova's disposable_email has no sender
- *  in Foxhound (the disposable check refuses inside Better Auth), so it is not
- *  carried. */
+/** The ?error= codes something sends here: the limiter's, and Better Auth's
+ *  from a spent link or a refused Google or Apple sign-in. */
+const LINK_SPENT = "That sign-in link has expired or was already used. Send yourself a new one.";
 const ERROR_MESSAGES: Record<string, string> = {
   [RATE_LIMITED_ERROR]: SIGN_IN_LIMITED,
+  EXPIRED_TOKEN: LINK_SPENT,
+  INVALID_TOKEN: LINK_SPENT,
+  ATTEMPTS_EXCEEDED: LINK_SPENT,
+  // Accounts are joined only by a signed-in person (site-runtime ./sign-in),
+  // never by a matching email at sign-in, so this one has a way forward.
+  account_not_linked:
+    "That email already has a Foxhound account. Sign in with an email link, then connect Google or Apple in My account.",
 };
+const SIGN_IN_FAILED = "That sign-in did not complete. Try again or use another way.";
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
@@ -57,43 +66,38 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   // already showed them authenticated.
   const session = await getSession(env, request);
   if (session) throw redirect(next);
+  const code = params.get("error");
   return {
     next,
-    googleEnabled: Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET),
-    verified: params.get("verified") === "1",
-    error: ERROR_MESSAGES[params.get("error") ?? ""] ?? null,
+    methods: signInMethods(env, { social: true }),
+    error: code ? (ERROR_MESSAGES[code] ?? SIGN_IN_FAILED) : null,
   };
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
-  // First, before the form is read or a password is checked (J52).
+  // First, before the form is read or mail is sent (J52).
   const refusal = await checkAuthLimit(env, request, "credential");
-  if (refusal) return limitedData({ error: SIGN_IN_LIMITED }, refusal);
+  if (refusal) return limitedData({ sent: null, error: SIGN_IN_LIMITED }, refusal);
 
   const form = await request.formData();
+  const email = String(form.get("email") ?? "").trim();
+  if (!email) return data({ sent: null, error: "Enter your email address." }, { status: 400 });
   const next = safeNextPath(String(form.get("next") ?? ""));
-  const email = String(form.get("email") ?? "");
-  const password = String(form.get("password") ?? "");
 
-  const res = await getAuth(env).api.signInEmail({
-    body: { email, password },
-    headers: request.headers,
-    asResponse: true,
+  const result = await requestSignInLink(env, request, {
+    email,
+    captchaToken: String(form.get("cf-turnstile-response") ?? ""),
+    next,
+    // Someone new through /login lands where a Google signup does.
+    newUserNext: next,
   });
-
-  if (res.ok) {
-    return redirect(next, { headers: forwardSetCookie(res) });
-  }
-  return data(
-    { error: await authErrorMessage(res, "Invalid email or password") },
-    { status: 400 },
-  );
+  return signInLinkAnswer(result, email, SIGN_IN_LIMITED);
 }
 
 export default function Login({ loaderData, actionData }: Route.ComponentProps) {
   const busy = useNavigation().state !== "idle";
-  const error = actionData?.error ?? loaderData.error;
+  const error = actionData ? actionData.error : loaderData.error;
   // Carried only when it says somewhere other than the default, so the plain
   // page is unchanged.
   const carriedNext = loaderData.next !== DEFAULT_NEXT_PATH ? loaderData.next : undefined;
@@ -102,52 +106,22 @@ export default function Login({ loaderData, actionData }: Route.ComponentProps) 
     <AuthCard>
       <AuthHeading title="Welcome back" subtitle="Log in to your Foxhound account" />
 
-      {loaderData.googleEnabled ? <GoogleContinue next={carriedNext} /> : null}
-
-      <Form method="post">
-        {carriedNext ? <input type="hidden" name="next" value={carriedNext} /> : null}
-        {/* Foxhound's own notice: its engine verifies an email before the
-            first sign-in, and the verification link lands here. */}
-        {loaderData.verified && !error ? (
-          <div className="mb-4">
-            <Banner tone="ok">Your email is verified. You can sign in now.</Banner>
-          </div>
-        ) : null}
-        <div className="mb-4">
-          <AuthField
-            id="login-email"
-            errorId={error ? "login-error" : undefined}
-            label="Email"
-            name="email"
-            type="email"
-            autoComplete="email"
+      {actionData?.sent ? (
+        <SignInLinkSent email={actionData.sent} />
+      ) : (
+        <>
+          <PasskeyContinue next={loaderData.next} />
+          <SocialContinue methods={loaderData.methods} next={carriedNext} afterPasskey />
+          <SignInLinkForm
+            idPrefix="login"
+            turnstileSiteKey={loaderData.methods.turnstileSiteKey}
+            next={carriedNext}
+            error={error}
+            busy={busy}
+            attempt={actionData}
           />
-        </div>
-        <div className="mb-6">
-          <AuthField
-            id="login-password"
-            errorId={error ? "login-error" : undefined}
-            label="Password"
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            aside={
-              <Link
-                to="/forgot-password"
-                className="inline-flex min-h-6 items-center text-micro text-text-subtle underline underline-offset-2 hover:opacity-80"
-              >
-                Forgot password?
-              </Link>
-            }
-          />
-        </div>
-        {error ? (
-          <div id="login-error" className="mb-4">
-            <Alert tone="crit">{error}</Alert>
-          </div>
-        ) : null}
-        <AuthSubmit busy={busy} label="Log in" busyLabel="Logging in..." />
-      </Form>
+        </>
+      )}
 
       <AuthFootnote>
         Don&apos;t have an account? <AuthLink to="/signup">Connect Stripe</AuthLink>

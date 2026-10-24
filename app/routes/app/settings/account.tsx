@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { data, Form, redirect, useNavigation } from "react-router";
+import { eq } from "drizzle-orm";
 import { applyTheme } from "capsomer/behaviour/theme-switch";
 import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
@@ -21,10 +22,13 @@ import "capsomer/status.css";
 // page whole under any layout, as /settings/features does.
 import "~/site-header.css";
 
+import { signInMethods } from "@dustinedwards/site-runtime/sign-in";
+
 import { DemoGuardedForm } from "~/components/demo-guarded-form";
+import { SignInMethodsPanel, type SignInSettings } from "~/components/sign-in-settings";
 import { SettingsBackLink } from "~/components/settings-back-link";
 import { THEME_PREF_KEY } from "~/components/site-header";
-import { getDb } from "~/db";
+import { account as authAccount, getDb, passkey } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { applyIntelligenceContext, MRR_ERROR } from "~/lib/settings/apply.server";
@@ -75,7 +79,10 @@ import type { Route } from "./+types/account";
 // records where Recova's "Delete account" erased them (APPROVED-DIFFERENCES,
 // "yes", 2026-09-19); Delete account is Recova's control, and it keeps the
 // record of recovered payments the fees are billed on (Q14, row S40, "yes",
-// 2026-10-14); Sign out is a button that posts ("yes", 2026-09-19).
+// 2026-10-14); Sign out is a button that posts ("yes", 2026-09-19); the
+// Sign-in panel after Appearance lists passkeys and joins Google or Apple, the
+// one place an account is joined (the family sign-in, APPROVED-DIFFERENCES
+// "Sign-in and invites", 2026-10-24).
 
 export function meta() {
   return [{ title: "My account - Foxhound" }];
@@ -87,6 +94,7 @@ export async function loader({ context }: Route.LoaderArgs) {
   const account = await getAccount(getDb(env), auth.membership.accountId);
   if (!account) throw new Response("Not Found", { status: 404 });
   return {
+    signIn: await signInSettings(env, auth.userId, auth.isDemo),
     account,
     cancelledAt: account.cancelledAt,
     // The signed-in address, which legacy's AccountSection displays beside its
@@ -105,6 +113,36 @@ export async function loader({ context }: Route.LoaderArgs) {
     isOwner: auth.membership.role === MEMBER_ROLE.OWNER,
     // The demo saves nothing, the theme included (lib/settings/theme-choice.ts).
     isDemo: auth.isDemo,
+  };
+}
+
+/**
+ * The Sign-in panel's lists: this person's passkeys, and which of Google and
+ * Apple are joined, read from Better Auth's tables by the session's user, as
+ * the app's other reads of them are (delete-account.server.ts). The demo
+ * changes nothing, so it lists none.
+ */
+async function signInSettings(env: Env, userId: string, isDemo: boolean): Promise<SignInSettings> {
+  const methods = signInMethods(env, { social: true });
+  const offered = [
+    methods.google ? { id: "google" as const, label: "Google" } : null,
+    methods.apple ? { id: "apple" as const, label: "Apple" } : null,
+  ].filter((p) => p !== null);
+  if (isDemo) return { passkeys: [], providers: offered.map((p) => ({ ...p, accountId: null })) };
+  const db = getDb(env);
+  const [passkeys, joined] = await Promise.all([
+    db
+      .select({ id: passkey.id, name: passkey.name })
+      .from(passkey)
+      .where(eq(passkey.userId, userId))
+      .orderBy(passkey.createdAt),
+    db.select({ id: authAccount.id, providerId: authAccount.providerId }).from(authAccount).where(eq(authAccount.userId, userId)),
+  ]);
+  // The joined account's own id, which Disconnect names.
+  const byProvider = new Map(joined.map((a) => [a.providerId, a.id]));
+  return {
+    passkeys: passkeys.map((p) => ({ id: p.id, name: p.name || "Passkey" })),
+    providers: offered.map((p) => ({ ...p, accountId: byProvider.get(p.id) ?? null })),
   };
 }
 
@@ -242,7 +280,7 @@ export async function action({ request, context }: Route.ActionArgs) {
       }
       // The user and their sessions are gone; this clears the cookie the
       // browser still holds, and Recova then sends the person to "/".
-      const signedOut = await getAuth(env).api.signOut({
+      const signedOut = await (await getAuth(env)).api.signOut({
         headers: request.headers,
         asResponse: true,
       });
@@ -678,6 +716,10 @@ export default function AccountSettings({ loaderData, actionData }: Route.Compon
       </div>
 
       <Appearance initial={theme ?? DEFAULT_THEME} isDemo={Boolean(isDemo)} />
+
+      <div className="mt-10">
+        <SignInMethodsPanel initial={loaderData.signIn} isDemo={Boolean(isDemo)} />
+      </div>
 
       {/* Recova's mt-6 over the account card, after the appearance card's mb-4. */}
       <div className="mt-10">

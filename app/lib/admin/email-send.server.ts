@@ -2,14 +2,12 @@ import { and, eq, isNull } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import { accounts, stripeConnections } from "~/db/schema";
-import { buildAuthEmail, renderPasswordResetEmail } from "~/lib/auth/send-auth-email";
+import { renderSignInLinkEmail } from "~/lib/auth/send-auth-email";
 import {
   buildEmailMessage,
   buildRenderedTransactionalMessage,
-  buildTransactionalMessage,
   sendEmail,
   sendRenderedTransactionalEmail,
-  sendTransactionalEmail,
 } from "~/lib/email/send";
 import { isSuppressed } from "~/lib/email/suppression";
 import type { EmailNotice } from "~/lib/email/templates";
@@ -131,14 +129,9 @@ export const ADMIN_EMAIL_TYPES: readonly AdminEmailType[] = [
     description: "The notice a merchant gets when a recovery sequence ends without a payment.",
   },
   {
-    type: "email_verification",
+    type: "sign_in_link",
     audience: "platform",
-    description: "The sign-up email asking a new user to verify their address. Its button goes to the sign-in page.",
-  },
-  {
-    type: "password_reset",
-    audience: "platform",
-    description: "The password reset email. Its button goes to the reset page with no token, so it resets nothing.",
+    description: "The email with a sign-in link. Its button goes to the sign-in page with no token, so it signs nobody in.",
   },
 ];
 
@@ -250,7 +243,6 @@ export async function loadMerchantEmailSettings(db: Db, accountId: string): Prom
 /** One email ready for the send module, in the shape its sender takes. */
 export type PreparedEmail =
   | { channel: "job"; audience: EmailAudience; job: OutboundEmailJob }
-  | { channel: "transactional"; message: { to: string; subject: string; bodyHtml: string } }
   | { channel: "rendered"; to: string; rendered: Rendered };
 
 // Sample data, the same sample the merchant's Send test email uses where it has one.
@@ -435,11 +427,8 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
     }
   }
 
-  if (type.type === "email_verification") {
-    return { channel: "transactional", message: { to, ...buildAuthEmail("email-verification", `${baseUrl}/login`) } };
-  }
-  if (type.type === "password_reset") {
-    return { channel: "rendered", to, rendered: renderPasswordResetEmail(to, `${baseUrl}/reset-password`) };
+  if (type.type === "sign_in_link") {
+    return { channel: "rendered", to, rendered: renderSignInLinkEmail(to, `${baseUrl}/login`) };
   }
   throw new Error(`no builder for ${type.type}`);
 }
@@ -465,9 +454,7 @@ export function previewAdminEmail(env: Env, type: AdminEmailType, prepared: Prep
   const message =
     prepared.channel === "job"
       ? buildEmailMessage({ ...prepared.job }, env.BETTER_AUTH_URL ?? "")
-      : prepared.channel === "transactional"
-        ? buildTransactionalMessage(prepared.message)
-        : buildRenderedTransactionalMessage({ to: prepared.to, rendered: prepared.rendered });
+      : buildRenderedTransactionalMessage({ to: prepared.to, rendered: prepared.rendered });
   return {
     type: type.type,
     audience: type.audience,
@@ -503,10 +490,6 @@ export async function sendAdminEmail(env: Env, type: AdminEmailType, prepared: P
       // The suppression gate every real customer and merchant send passes.
       if (await isSuppressed(env, prepared.job.to)) return done("suppressed");
       const { providerMessageId } = await sendEmail(env, prepared.job);
-      return done("sent", providerMessageId);
-    }
-    if (prepared.channel === "transactional") {
-      const { providerMessageId } = await sendTransactionalEmail(env, prepared.message);
       return done("sent", providerMessageId);
     }
     const outcome = await sendRenderedTransactionalEmail(env, { to: prepared.to, rendered: prepared.rendered, redact: [prepared.to] });

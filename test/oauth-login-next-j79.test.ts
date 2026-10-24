@@ -14,18 +14,19 @@ import { safeNextPath } from "~/lib/auth/next-path";
 // round trip in a pending_redirect cookie that app/auth/callback/route.ts
 // (7cb52c7b) validated and burned. Foxhound's Google sign-in is Better Auth's,
 // whose callbackURL rides in its own one-time OAuth state, so the validated
-// path goes there instead of a cookie.
+// path goes there instead of a cookie. The emailed sign-in link carries it
+// through the passkey offer (/passkey?next=), which goes on to it.
 
 const harness = vi.hoisted(() => ({
   session: null as unknown,
   signInSocial: vi.fn(),
-  signInEmail: vi.fn(),
+  handler: vi.fn(),
 }));
 
 vi.mock("~/lib/auth/session", () => ({ getSession: async () => harness.session }));
 vi.mock("~/lib/auth", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/lib/auth")>()),
-  getAuth: () => ({ api: { signInSocial: harness.signInSocial, signInEmail: harness.signInEmail } }),
+  getAuth: async () => ({ api: { signInSocial: harness.signInSocial }, handler: harness.handler }),
 }));
 vi.mock("~/lib/auth/rate-limit.server", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/lib/auth/rate-limit.server")>()),
@@ -33,7 +34,7 @@ vi.mock("~/lib/auth/rate-limit.server", async (importOriginal) => ({
 }));
 
 const login = await import("~/routes/auth/login");
-const googleStart = await import("~/routes/auth/google-start");
+const socialStart = await import("~/routes/auth/social-start");
 
 const ORIGIN = "https://foxhoundapp.test";
 const AUTHORIZE =
@@ -52,7 +53,7 @@ function context(): RouterContextProvider {
 beforeEach(() => {
   harness.session = null;
   harness.signInSocial.mockReset();
-  harness.signInEmail.mockReset();
+  harness.handler.mockReset();
 });
 
 describe("safeNextPath: Recova's validateRedirect, every check anchored at position 0", () => {
@@ -85,37 +86,40 @@ describe("/login carries next= through both ways of signing in", () => {
     expect((thrown as Response).headers.get("Location")).toBe(AUTHORIZE);
   });
 
-  it("a password sign-in lands on next, and a foreign next lands on /console", async () => {
-    harness.signInEmail.mockImplementation(async () => new Response("{}", { status: 200, headers: { "Set-Cookie": "a=b" } }));
+  it("an emailed link goes on to next through the passkey offer, and a foreign next to /console", async () => {
+    harness.handler.mockImplementation(async () => new Response("{}", { status: 200 }));
     for (const [next, expected] of [
       [AUTHORIZE, AUTHORIZE],
       ["https://evil.example/", "/console"],
     ]) {
-      const form = new URLSearchParams({ email: "dana@acme.test", password: "pw", next });
-      const res = (await login.action({
+      harness.handler.mockClear();
+      const form = new URLSearchParams({ email: "dana@acme.test", next });
+      await login.action({
         request: new Request(`${ORIGIN}/login`, { method: "POST", body: form }),
         context: context(),
         params: {},
-      } as never)) as Response;
-      expect(res.headers.get("Location"), next).toBe(expected);
+      } as never);
+      const sent = harness.handler.mock.calls[0][0] as Request;
+      const { callbackURL } = (await sent.json()) as { callbackURL: string };
+      expect(callbackURL, next).toBe(`${ORIGIN}/passkey?next=${encodeURIComponent(expected)}`);
     }
   });
 
   it("the Google start sends the validated next to Better Auth as an absolute same-site URL", async () => {
     harness.signInSocial.mockImplementation(async () => new Response(JSON.stringify({ url: "https://accounts.google.com/x" })));
     const form = new URLSearchParams({ next: AUTHORIZE });
-    await googleStart.action({
+    await socialStart.action({
       request: new Request(`${ORIGIN}/auth/google`, { method: "POST", body: form }),
       context: context(),
-      params: {},
+      params: { provider: "google" },
     } as never);
     expect(harness.signInSocial.mock.calls[0][0].body.callbackURL).toBe(`${ORIGIN}${AUTHORIZE}`);
 
     harness.signInSocial.mockClear();
-    await googleStart.action({
+    await socialStart.action({
       request: new Request(`${ORIGIN}/auth/google`, { method: "POST", body: new URLSearchParams({ next: "//evil.example" }) }),
       context: context(),
-      params: {},
+      params: { provider: "google" },
     } as never);
     expect(harness.signInSocial.mock.calls[0][0].body.callbackURL).toBe(`${ORIGIN}/console`);
   });
@@ -123,7 +127,7 @@ describe("/login carries next= through both ways of signing in", () => {
   function renderLogin(next: string): string {
     const Login = login.default;
     const props = {
-      loaderData: { googleEnabled: true, verified: false, error: null, next },
+      loaderData: { methods: { google: true, apple: false, turnstileSiteKey: null }, error: null, next },
       params: {},
       matches: [],
     } as unknown as Parameters<typeof Login>[0];

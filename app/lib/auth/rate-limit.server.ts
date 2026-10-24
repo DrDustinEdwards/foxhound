@@ -1,4 +1,4 @@
-import { ipKey, limit, matchRule, mustStop } from "@dustinedwards/site-runtime/rate-limit";
+import { ipKey, limit, mustStop } from "@dustinedwards/site-runtime/rate-limit";
 import { data } from "react-router";
 
 // The sign-in and signup limiter, from site-runtime (Q5, Dustin "yes",
@@ -15,17 +15,19 @@ import { data } from "react-router";
 // instead of a bare 429.
 //
 // THE LIMITS, unchanged (RULES.md 4.10, "limits as the ledger set them"):
-// - every signed-out POST that can test a password or send mail shares one
+// - every signed-out POST that can test a passkey or send mail shares one
 //   bucket of 10 a minute per IP, as Foxhound's auth bucket did. Recova's
 //   RATE_LIMIT_LOGIN is the same 10 a minute (lib/constants.ts line 109).
 // - a signup also spends ruling 24's bucket of 5 an hour per IP, Recova's
 //   RATE_LIMIT_SIGNUP (lib/constants.ts line 108), checked after the shared one
 //   so a request the shared bucket refuses does not spend an hourly signup.
+//   With no passwords, /signup's sign-in link is the one signup that spends
+//   it; Better Auth's own limiter (storage "database") is behind both.
 //
 // A failing counter lets the request through (onUnavailable "allow"): RULES.md
 // 4.10, "fails open by design", because a Durable Object hiccup must never lock
 // a merchant out of signing in. site-runtime logs that case as one line naming
-// the bucket only, never the address, the email or the password.
+// the bucket only, never the address or the email.
 
 /** 10 a minute per IP, every credential or mail POST. */
 const AUTH_RULES = [{ limit: 10, windowSeconds: 60 }];
@@ -79,13 +81,4 @@ export function limitedData<T extends { error: string }>(body: T, refusal: AuthL
     status: 429,
     headers: { "Retry-After": String(refusal.retryAfterSeconds) },
   });
-}
-
-/** Better Auth's own sign-up endpoints under /api/auth, which spend the signup
- *  bucket like the page does. Matched as the router sees the path. */
-const API_SIGN_UP = [{ path: "/api/auth/sign-up", prefix: true, methods: ["POST"] }];
-
-/** Which budget a POST to Better Auth's HTTP surface spends. */
-export function apiAuthAttempt(request: Request): AuthAttempt {
-  return matchRule(request, API_SIGN_UP) ? "signup" : "credential";
 }
