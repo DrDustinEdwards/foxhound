@@ -84,18 +84,12 @@ full team UI. Phase 3 seeds the create + accept paths.
   the provider `redirectURI`; that route forwards into the Better Auth handler.
   **Register `${BETTER_AUTH_URL}/auth/google/callback` as the redirect URI on the
   Google OAuth client.**
-- The stored Google tokens (`account.access_token`, `refresh_token`) are
-  encrypted by Better Auth's `encryptOAuthTokens` with `BETTER_AUTH_SECRET`, and
-  the id token is not stored; the daily `oauth-token-encryption` cron seals or
-  clears rows stored before that. Changing the secret without moving to
-  `BETTER_AUTH_SECRETS` (versioned) leaves stored tokens undecryptable until the
-  user next signs in with Google.
 
 ## Environment variables
 
 | name | kind | purpose |
 |---|---|---|
-| `BETTER_AUTH_SECRET` | secret (`wrangler secret`) | session/cookie signing key and the OAuth token encryption key. Required in production. |
+| `BETTER_AUTH_SECRET` | secret (`wrangler secret`) | session/cookie signing key. Required in staging/production. |
 | `BETTER_AUTH_URL` | var (`wrangler.jsonc`) | canonical origin for callbacks/redirects. |
 | `GOOGLE_CLIENT_ID` | secret/ambient | Google OAuth client id (public value; kept ambient for typing). |
 | `GOOGLE_CLIENT_SECRET` | secret (`wrangler secret`) | Google OAuth client secret. |

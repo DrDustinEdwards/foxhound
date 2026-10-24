@@ -28,6 +28,15 @@ export const SESSION_UPDATE_AGE_SECONDS = 60 * 60 * 24;
  */
 export const PASSWORD_RESET_EXPIRES_IN_SECONDS = 60 * 60;
 
+/** What every Better Auth account write stores in place of Google's tokens. */
+const NO_OAUTH_TOKENS = {
+  accessToken: null,
+  refreshToken: null,
+  idToken: null,
+  accessTokenExpiresAt: null,
+  refreshTokenExpiresAt: null,
+};
+
 export const authOptions = {
   appName: "Foxhound",
   emailAndPassword: {
@@ -47,12 +56,12 @@ export const authOptions = {
   },
   databaseHooks: {
     account: {
-      // The Google id token is not stored (FH-5). Better Auth keeps it in plain
-      // text even with encryptOAuthTokens on, Foxhound never reads it, and it
-      // carries the user's name and email and is a sign-in credential while it
-      // lasts. Sign-in verifies Google's response before this write.
-      create: { before: async (account) => ({ data: { ...account, idToken: null } }) },
-      update: { before: async (account) => ("idToken" in account ? { data: { ...account, idToken: null } } : undefined) },
+      // Google is sign-in only and nothing reads its tokens, so none are stored
+      // (FH-5). Every account write Better Auth makes on a Google sign-in
+      // (createOAuthUser, linkAccount, updateAccount) runs these hooks; the
+      // clear_oauth_tokens migration cleared the rows from before.
+      create: { before: async () => ({ data: NO_OAUTH_TOKENS }) },
+      update: { before: async () => ({ data: NO_OAUTH_TOKENS }) },
     },
     user: {
       create: {
@@ -67,14 +76,6 @@ export const authOptions = {
         },
       },
     },
-  },
-  account: {
-    // Google access and refresh tokens are stored encrypted (Grok audit FH-5),
-    // as the Stripe Connect tokens already are. Better Auth encrypts on every
-    // write and decrypts on read with BETTER_AUTH_SECRET; rows stored before
-    // this was on are sealed by the oauth-token-encryption cron. Better Auth
-    // never encrypts the id token, so the account hooks below drop it.
-    encryptOAuthTokens: true,
   },
   session: {
     // Sessions live in the D1 session table (strong consistency -> immediate

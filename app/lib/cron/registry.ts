@@ -15,8 +15,6 @@ import { seedDemoAccount } from "~/lib/demo/seed";
 import { runIntelligenceAiForAllAccounts } from "~/lib/intelligence/ai-run.server";
 import { runIntelligenceSyncForAllAccounts } from "~/lib/intelligence/sync.server";
 
-import { getAuth } from "~/lib/auth/auth.server";
-import { encryptStoredOAuthTokens } from "~/lib/auth/oauth-token-encryption.server";
 import { runD1Backup } from "~/lib/backup/d1-backup";
 import {
   describeDisputeReminderRun,
@@ -215,12 +213,6 @@ const creditNoteRetry: CronHandler = async (env, ctx) => {
   return { rowsProcessed: result.credited, message: describeCreditSweep(result) };
 };
 
-/** Encrypts OAuth tokens stored before Better Auth's encryptOAuthTokens was on
- *  (Grok audit FH-5). Daily and idempotent: once every old row is sealed it
- *  writes nothing, and it seals any row an older isolate wrote mid-deploy. */
-const oauthTokenEncryption: CronHandler = async (env) =>
-  encryptStoredOAuthTokens(getDb(env), await getAuth(env).$context);
-
 const cronHealth: CronHandler = async (env) =>
   runCronHealthCheck(env, getDb(env), CRON_JOBS, new Date());
 
@@ -263,7 +255,6 @@ export const CRON_JOBS: CronJob[] = [
   { name: "d1-backup", schedule: CRON_SCHEDULE_DAILY, handler: d1Backup },
   { name: DEMO_RESET_CRON_NAME, schedule: CRON_SCHEDULE_DAILY, handler: demoReset },
   { name: "credit-note-retry", schedule: CRON_SCHEDULE_DAILY, handler: creditNoteRetry },
-  { name: "oauth-token-encryption", schedule: CRON_SCHEDULE_DAILY, handler: oauthTokenEncryption },
   { name: "billing-monthly", schedule: CRON_SCHEDULE_MONTHLY, handler: billingMonthly },
   { name: "intelligence-sync", schedule: CRON_SCHEDULE_MONTHLY, handler: intelligenceSync },
   { name: "monthly-audit", schedule: CRON_SCHEDULE_MONTHLY_AUDIT, handler: monthlyAudit },
