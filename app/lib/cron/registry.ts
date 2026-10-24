@@ -17,6 +17,11 @@ import { runIntelligenceSyncForAllAccounts } from "~/lib/intelligence/sync.serve
 
 import { runD1Backup } from "~/lib/backup/d1-backup";
 import {
+  deauthorizeRetryFailureError,
+  describeDeauthorizeRetry,
+  retryFailedDeauthorizations,
+} from "~/lib/stripe/deauthorize-retry.server";
+import {
   describeDisputeReminderRun,
   DISPUTE_REMINDERS_CRON_NAME,
   runDisputeReminders,
@@ -213,6 +218,21 @@ const creditNoteRetry: CronHandler = async (env, ctx) => {
   return { rowsProcessed: result.credited, message: describeCreditSweep(result) };
 };
 
+/** The Stripe grant revoke retry (Grok audit FH-7). Cancel, disconnect and
+ *  account deletion revoke the grant after the local disconnect, and a failed
+ *  revoke is queued on the connection row. This retries each daily until
+ *  Stripe accepts, and alerts while any grant is still in place. */
+const stripeDeauthorizeRetry: CronHandler = async (env, ctx) => {
+  const now = new Date();
+  const db = getDb(env);
+  const result = await retryFailedDeauthorizations(env, db);
+  const failure = deauthorizeRetryFailureError(result);
+  if (failure) {
+    await alertCronFailure(env, db, { cronName: "stripe-deauthorize-retry", runId: ctx?.runId ?? null, error: failure }, now);
+  }
+  return { rowsProcessed: result.revoked + result.superseded, message: describeDeauthorizeRetry(result) };
+};
+
 const cronHealth: CronHandler = async (env) =>
   runCronHealthCheck(env, getDb(env), CRON_JOBS, new Date());
 
@@ -255,6 +275,7 @@ export const CRON_JOBS: CronJob[] = [
   { name: "d1-backup", schedule: CRON_SCHEDULE_DAILY, handler: d1Backup },
   { name: DEMO_RESET_CRON_NAME, schedule: CRON_SCHEDULE_DAILY, handler: demoReset },
   { name: "credit-note-retry", schedule: CRON_SCHEDULE_DAILY, handler: creditNoteRetry },
+  { name: "stripe-deauthorize-retry", schedule: CRON_SCHEDULE_DAILY, handler: stripeDeauthorizeRetry },
   { name: "billing-monthly", schedule: CRON_SCHEDULE_MONTHLY, handler: billingMonthly },
   { name: "intelligence-sync", schedule: CRON_SCHEDULE_MONTHLY, handler: intelligenceSync },
   { name: "monthly-audit", schedule: CRON_SCHEDULE_MONTHLY_AUDIT, handler: monthlyAudit },

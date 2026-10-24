@@ -155,6 +155,9 @@ export const stripeConnections = sqliteTable(
     isPrimary: bool("is_primary").notNull().default(false),
     connectedAt: ts("connected_at"),
     disconnectedAt: ts("disconnected_at"),
+    // Set when the Stripe oauth.deauthorize after a disconnect failed; the
+    // daily stripe-deauthorize-retry cron retries it and clears it (FH-7).
+    deauthorizeFailedAt: ts("deauthorize_failed_at"),
     lastWebhookAt: ts("last_webhook_at"),
     webhookEndpointId: text("webhook_endpoint_id"),
     createdAt: ts("created_at").notNull(),

@@ -6,6 +6,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import { type Db, accounts, getDb, stripeConnections } from "~/db";
 import { deauthorizeConnectedAccount } from "~/lib/stripe/connect";
+import { revokeDisconnectedGrants } from "~/lib/stripe/deauthorize-retry.server";
 
 export interface CancelledConnection {
   id: string;
@@ -72,11 +73,10 @@ export interface CancelMerchantDeps {
  * app/db/billable.ts, so already-matured, unbilled recoveries/disputes still
  * bill at the next run unless the account is also billing_exempt (PRICING.md:
  * cancel never silently forgives owed fees). The Stripe oauth.deauthorize call
- * is best-effort AFTER the local commit: a deauthorize failure is logged and
- * returned for the caller to surface, but NEVER rolls back the local cancel -
- * the merchant is cancelled on our side regardless; the OAuth grant revoke is
- * a separate, retriable follow-up, same posture as the platform-charge
- * follow-up in billing/run.ts. Both deps default to the real IO; tests inject
+ * is best-effort AFTER the local commit: a deauthorize failure is logged,
+ * queued for the daily stripe-deauthorize-retry cron, and returned for the
+ * caller to surface, but NEVER rolls back the local cancel - the merchant is
+ * cancelled on our side regardless. Both deps default to the real IO; tests inject
  * fakes to prove the local-commit-first ordering and that a deauthorize
  * failure never leaves a half-cancelled account.
  */
@@ -91,14 +91,7 @@ export async function cancelMerchant(
 
   const disconnected = await cancelLocal(env, accountId, now);
 
-  const deauthorizeErrors: CancelMerchantResult["deauthorizeErrors"] = [];
-  for (const c of disconnected) {
-    const result = await deauthorize(env, c.stripeUserId);
-    if (!result.ok) {
-      deauthorizeErrors.push({ connectionId: c.id, stripeUserId: c.stripeUserId, error: result.error ?? "unknown error" });
-      console.error(`stripe deauthorize failed for account ${accountId} connection ${c.id}:`, result.error);
-    }
-  }
+  const deauthorizeErrors = await revokeDisconnectedGrants(env, disconnected, now, deauthorize);
 
   return { cancelledAt: now, connectionsDisconnected: disconnected.length, deauthorizeErrors };
 }
@@ -146,12 +139,8 @@ export async function disconnectConnection(
 
   await db.batch(buildDisconnectConnectionBatch(db, connection.id, now));
 
-  const revoke = await deauthorize(env, connection.stripeUserId);
-  if (!revoke.ok) {
-    console.error(`stripe deauthorize failed for connection ${connection.id}:`, revoke.error);
-    return { disconnectedAt: now, deauthorizeError: revoke.error ?? "unknown error" };
-  }
-  return { disconnectedAt: now };
+  const [failure] = await revokeDisconnectedGrants(env, [connection], now, deauthorize);
+  return failure ? { disconnectedAt: now, deauthorizeError: failure.error } : { disconnectedAt: now };
 }
 
 /**
