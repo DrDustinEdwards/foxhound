@@ -185,6 +185,9 @@ export function getEnvSanity(env: Env): EnvSanityRow[] {
     // The monthly audit queue producer (job_97878f0d1fde). Unset means the
     // monthly-audit cron fails on its first send and no account is audited.
     ["AUDIT_QUEUE", "binding"],
+    // Merchant dispute evidence files (J07). Unset means uploads answer 503
+    // uploads_unavailable and a submission goes to Stripe without files.
+    ["EVIDENCE", "binding"],
     ["BETTER_AUTH_URL", "var"],
     ["TURNSTILE_SITE_KEY", "var"],
     ["BETTER_AUTH_SECRET", "secret"],
