@@ -82,7 +82,7 @@ describe("sample emails", () => {
       currency: "usd",
       merchantName: "Acme",
       voiceSamples: [SAMPLE],
-    } as Parameters<typeof buildGenerateEmailInput>[1]);
+    } as unknown as Parameters<typeof buildGenerateEmailInput>[1]);
     const escaped = "<data>Hey folks, Jo here. Short one: the roaster's back &lt;on&gt; Friday. Cheers, Jo</data>";
     expect(buildPrompts(input).system).toContain(`Sample 1: ${escaped}`);
     expect(
