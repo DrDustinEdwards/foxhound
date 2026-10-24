@@ -130,6 +130,15 @@ export function lineItemIdempotencyKey(
   return `line_item_${row.id}`;
 }
 
+/** A Stripe error described by its type and code only. Stripe's own message
+ *  can repeat what it was sent, the billing email included, and these strings
+ *  reach console.error and the sweep's result reason. Pure. */
+export function stripeErrorSummary(err: unknown): string {
+  const e = (err ?? {}) as { type?: unknown; code?: unknown };
+  const type = typeof e.type === "string" ? e.type : "error";
+  return typeof e.code === "string" ? `${type} (${e.code})` : type;
+}
+
 /** Days a merchant has to pay an emailed invoice, as Recova sets it
  *  (process-recovery-billing, days_until_due 30). */
 export const SEND_INVOICE_DAYS_UNTIL_DUE = 30;
@@ -196,7 +205,11 @@ export async function createPlatformInvoice(
     // row stays draft rather than finalizing an invoice nobody receives.
     const email = input.billingEmail ? await input.billingEmail() : null;
     if (!email) throw new Error("no billing email for an emailed platform invoice");
-    await stripe.customers.update(input.platformCustomerId, { email });
+    try {
+      await stripe.customers.update(input.platformCustomerId, { email });
+    } catch (err) {
+      throw new Error(`platform customer email update failed: ${stripeErrorSummary(err)}`);
+    }
   }
 
   const invoice = await stripe.invoices.create(

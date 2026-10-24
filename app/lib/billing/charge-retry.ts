@@ -6,7 +6,7 @@ import { executeMoneyWrite } from "~/lib/money/execute";
 
 import { accountBillingEligibleCondition } from "~/db/billable";
 import { decideFeeRetryAction, billingStatusForSettledStripeStatus } from "./fee-retry";
-import { lookupPlatformBillingEmail } from "./platform-customer";
+import { buildPlatformCustomerUpdate, ensurePlatformCustomer, lookupPlatformBillingEmail } from "./platform-customer";
 import {
   createPlatformInvoice,
   finalizePlatformInvoice,
@@ -272,6 +272,25 @@ export interface ChargeRetryDeps {
   pay: typeof payPlatformInvoice;
   /** Re-read the billing gate. Default: the real per-account read. */
   checkGuard: (env: Env, accountId: string) => Promise<ChargeGuard>;
+  /** Make a platform customer for an account with none. Default: the real one. */
+  ensureCustomer: (env: Env, accountId: string) => Promise<string>;
+}
+
+/** Create an account's platform customer at Stripe. Does not persist: the
+ *  caller stores the id through the SAME money write the billing setup action
+ *  and the billing run use (same builder, same key). */
+async function makePlatformCustomer(env: Env, accountId: string): Promise<string> {
+  const [row] = await getDb(env)
+    .select({ name: accounts.name })
+    .from(accounts)
+    .where(eq(accounts.id, accountId))
+    .limit(1);
+  const customerId = await ensurePlatformCustomer(env, {
+    existingCustomerId: null,
+    accountId,
+    accountName: row?.name ?? null,
+  });
+  return customerId;
 }
 
 /**
@@ -318,10 +337,30 @@ export async function retryInvoiceCharge(
     };
   };
 
-  if (!invoice.platformCustomerId) {
-    // Same guard runAccountBilling applies: never charge without a stored
-    // platform customer id. Not a failure, just not chargeable yet.
-    return { invoiceId: invoice.id, outcome: "skipped", reason: "no_platform_customer" };
+  let platformCustomerId = invoice.platformCustomerId;
+  if (!platformCustomerId) {
+    // E25 (J97): Recova made every account's billing customer at connect, so
+    // no fee waited on one. An invoice stranded before its account had a
+    // platform customer gets one here, stored through the existing
+    // platform-customer write, exactly as runAccountBilling does. If it cannot
+    // be made, the old guard stands: never charge without a stored id.
+    const ensureCustomer = deps.ensureCustomer ?? makePlatformCustomer;
+    try {
+      const customerId = await ensureCustomer(env, invoice.accountId);
+      await executeMoneyWrite(env, {
+        accountId: invoice.accountId,
+        idempotencyKey: `platform-customer:${invoice.accountId}`,
+        build: (db) =>
+          buildPlatformCustomerUpdate(db, { accountId: invoice.accountId, platformStripeCustomerId: customerId }),
+      });
+      platformCustomerId = customerId;
+    } catch (err) {
+      console.error(
+        `platform customer create failed for billing invoice ${invoice.id}:`,
+        err instanceof Error ? err.message : err,
+      );
+      return { invoiceId: invoice.id, outcome: "skipped", reason: "no_platform_customer" };
+    }
   }
 
   const existing = await findExisting(env, invoice.id);
@@ -359,7 +398,7 @@ export async function retryInvoiceCharge(
     let created;
     try {
       created = await create(env, {
-        platformCustomerId: invoice.platformCustomerId,
+        platformCustomerId,
         // Passed explicitly, and asserted by a plant. Stripe bills a
         // multi-currency customer in a second currency only when `currency` is
         // set on the invoice AND on every invoice item, and this is the value
@@ -411,6 +450,17 @@ export async function retryInvoiceCharge(
   }
 
   const liveStatus = existing.status ?? "open";
+
+  // AN EMAILED INVOICE IS NEVER CHARGED BY THE SWEEP (E25 review). Stripe sent
+  // it with a hosted page and 30 days to pay, and Recova's crons never call
+  // invoices.pay. So the sweep only finalizes a send_invoice draft (which is
+  // what makes Stripe email it) and syncs a settled status; it never pays, and
+  // never records a failed attempt against an invoice the merchant has not had
+  // the chance to pay. Writes go through writeAttempt, the sweep's one money
+  // write, with the attempt count unchanged.
+  if (existing.collection_method === "send_invoice") {
+    return settleEmailedInvoice(env, invoice, existing, liveStatus, finalize, blockedByGuard, now);
+  }
   const decision = decideFeeRetryAction({
     invoiceStatus: liveStatus,
     attemptCount: invoice.chargeAttemptCount,
@@ -456,9 +506,7 @@ export async function retryInvoiceCharge(
     // are now separated: the sentinel above means Stripe has NO invoice, this
     // means Stripe has a real unfinalized one.
     if (liveStatus === "draft") {
-      await finalize(env, stripeInvoiceId, invoice.id, {
-        sendByEmail: existing.collection_method === "send_invoice",
-      });
+      await finalize(env, stripeInvoiceId, invoice.id);
     }
     const paid = await pay(env, stripeInvoiceId, attemptCount);
     await writeAttempt(env, invoice, {
@@ -486,6 +534,77 @@ export async function retryInvoiceCharge(
       reason: err instanceof Error ? err.message : "charge attempt failed",
     };
   }
+}
+
+async function settleEmailedInvoice(
+  env: Env,
+  invoice: StrandedInvoice,
+  existing: { id?: string; hosted_invoice_url?: string | null },
+  liveStatus: string,
+  finalize: ChargeRetryDeps["finalize"],
+  blockedByGuard: () => Promise<SweepResult | null>,
+  now: Date,
+): Promise<SweepResult> {
+  const stripeInvoiceId = existing.id as string;
+  const settled = billingStatusForSettledStripeStatus(liveStatus);
+  if (settled) {
+    await writeAttempt(env, invoice, {
+      status: settled,
+      stripeInvoiceId,
+      hostedInvoiceUrl: existing.hosted_invoice_url ?? null,
+      attemptCount: invoice.chargeAttemptCount,
+      now,
+    });
+    return {
+      invoiceId: invoice.id,
+      outcome: settled === "paid" ? "adopted" : "gave_up",
+      reason: `stripe_status_${liveStatus}`,
+    };
+  }
+
+  if (liveStatus === "draft") {
+    const blocked = await blockedByGuard();
+    if (blocked) return blocked;
+    try {
+      const finalized = await finalize(env, stripeInvoiceId, invoice.id, { sendByEmail: true });
+      await writeAttempt(env, invoice, {
+        status: "finalized",
+        stripeInvoiceId,
+        hostedInvoiceUrl: finalized.hosted_invoice_url ?? existing.hosted_invoice_url ?? null,
+        attemptCount: invoice.chargeAttemptCount,
+        now,
+      });
+      return { invoiceId: invoice.id, outcome: "retried", reason: "emailed_invoice_finalized" };
+    } catch (err) {
+      // Counted, so a finalize that keeps failing reaches the cap; the row stays
+      // draft rather than reading "Payment failed" for an invoice never sent.
+      await writeAttempt(env, invoice, {
+        status: "draft",
+        stripeInvoiceId,
+        hostedInvoiceUrl: existing.hosted_invoice_url ?? null,
+        attemptCount: invoice.chargeAttemptCount + 1,
+        now,
+      });
+      return {
+        invoiceId: invoice.id,
+        outcome: "failed",
+        reason: err instanceof Error ? err.message : "emailed invoice finalize failed",
+      };
+    }
+  }
+
+  // Open at Stripe and waiting on the merchant. Record the Stripe reference if
+  // our row lost it (mode 2), otherwise write nothing.
+  if (invoice.stripeInvoiceId !== stripeInvoiceId || invoice.status !== "finalized") {
+    await writeAttempt(env, invoice, {
+      status: "finalized",
+      stripeInvoiceId,
+      hostedInvoiceUrl: existing.hosted_invoice_url ?? null,
+      attemptCount: invoice.chargeAttemptCount,
+      now,
+    });
+  }
+  return { invoiceId: invoice.id, outcome: "skipped", reason: "emailed_invoice_awaiting_payment" };
 }
 
 function writeAttempt(

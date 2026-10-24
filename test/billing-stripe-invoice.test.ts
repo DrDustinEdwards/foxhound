@@ -280,3 +280,32 @@ describe("an emailed invoice needs an address on the customer (E25)", () => {
     expect(mockStripe.calls.some((c) => c.method === "customers.update")).toBe(false);
   });
 });
+
+describe("an emailed invoice with no address to send to (E25 review)", () => {
+  const noCard = { invoice_settings: { default_payment_method: null }, default_source: null };
+
+  it("creates nothing at Stripe when no billing email can be found", async () => {
+    mockStripe.customer.value = { id: "cus_1", email: null, ...noCard };
+    await expect(
+      createPlatformInvoice({} as Env, { ...baseInput, billingEmail: async () => null }),
+    ).rejects.toThrow("no billing email");
+    expect(mockStripe.calls.map((c) => c.method)).toEqual(["customers.retrieve"]);
+  });
+
+  it("keeps the address out of the error when Stripe refuses it", async () => {
+    mockStripe.customer.value = { id: "cus_1", email: null, ...noCard };
+    mockStripe.customers.update.mockImplementationOnce(async () => {
+      throw Object.assign(new Error("Invalid email address: billing@example.com"), {
+        type: "StripeInvalidRequestError",
+        code: "email_invalid",
+      });
+    });
+    const err = await createPlatformInvoice({} as Env, {
+      ...baseInput,
+      billingEmail: async () => "billing@example.com",
+    }).catch((e: Error) => e);
+    expect(String((err as Error).message)).not.toContain("billing@example.com");
+    expect(String((err as Error).message)).toContain("email_invalid");
+    expect(mockStripe.calls.some((c) => c.method === "invoices.create")).toBe(false);
+  });
+});

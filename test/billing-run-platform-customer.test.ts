@@ -134,6 +134,9 @@ describe("an account with billable lines and no platform customer (E25)", () => 
     const create = harness.calls.find((c) => c.method === "customers.create");
     expect(create).toBeTruthy();
     expect((create!.args[0] as Record<string, unknown>).email).toBe("billing@example.com");
+    expect((create!.args[1] as Record<string, unknown>).idempotencyKey).toBe(
+      `platform-customer-create:${ACCOUNT_ID}`,
+    );
 
     const [account] = await db
       .select({ id: schema.accounts.platformStripeCustomerId })

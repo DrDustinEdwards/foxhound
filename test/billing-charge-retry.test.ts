@@ -367,10 +367,10 @@ describe("a Stripe invoice stuck in draft (review MEDIUM-1)", () => {
 
   // E25 (J97): a stranded send_invoice draft must be finalized the way the
   // first attempt would have finalized it, or Stripe never emails it.
-  it("finalizes a stranded send_invoice draft so Stripe emails it", async () => {
-    await seed({ status: "draft", stripeInvoiceId: "in_platform_draft" });
+  it("finalizes a stranded send_invoice draft so Stripe emails it, and never pays it", async () => {
+    const db = await seed({ status: "draft", stripeInvoiceId: "in_platform_draft" });
     const seen: unknown[] = [];
-    const { deps } = stripeDeps({ id: "in_platform_draft", status: "draft", collection_method: "send_invoice" } as never, {
+    const { calls, deps } = stripeDeps({ id: "in_platform_draft", status: "draft", collection_method: "send_invoice" } as never, {
       finalize: async (_env: Env, id: string, _billingInvoiceId: string, opts?: unknown) => {
         seen.push(opts);
         return { id, status: "open", hosted_invoice_url: "https://pay/open" } as never;
@@ -380,6 +380,35 @@ describe("a Stripe invoice stuck in draft (review MEDIUM-1)", () => {
 
     await retryInvoiceCharge({} as Env, invoice, NOW_MS, deps);
     expect(seen).toEqual([{ sendByEmail: true }]);
+    // The merchant pays an emailed invoice from Stripe's page; the sweep never
+    // charges it (Recova's crons never call invoices.pay).
+    expect(calls.some((c) => c.startsWith("pay:"))).toBe(false);
+    const [row] = await db.select().from(schema.billingInvoices);
+    expect(row.status).toBe("finalized");
+    expect(row.chargeAttemptCount).toBe(0);
+  });
+
+  it("leaves an open emailed invoice to Stripe: no pay, no failed attempt", async () => {
+    const db = await seed({ status: "finalized", stripeInvoiceId: "in_emailed" });
+    const { calls, deps } = stripeDeps({ id: "in_emailed", status: "open", collection_method: "send_invoice" } as never);
+    const [invoice] = await queryStrandedInvoices({} as Env, 100);
+
+    const result = await retryInvoiceCharge({} as Env, invoice, NOW_MS, deps);
+    expect(result.outcome).toBe("skipped");
+    expect(calls).toEqual(["findExisting"]);
+    const [row] = await db.select().from(schema.billingInvoices);
+    expect(row.status).toBe("finalized");
+    expect(row.chargeAttemptCount).toBe(0);
+  });
+
+  it("syncs an emailed invoice the merchant paid", async () => {
+    const db = await seed({ status: "finalized", stripeInvoiceId: "in_emailed" });
+    const { calls, deps } = stripeDeps({ id: "in_emailed", status: "paid", collection_method: "send_invoice" } as never);
+    const [invoice] = await queryStrandedInvoices({} as Env, 100);
+
+    await retryInvoiceCharge({} as Env, invoice, NOW_MS, deps);
+    expect(calls).toEqual(["findExisting"]);
+    expect((await db.select().from(schema.billingInvoices))[0].status).toBe("paid");
   });
 
   it("does not finalize an invoice that is already open", async () => {
@@ -393,18 +422,40 @@ describe("a Stripe invoice stuck in draft (review MEDIUM-1)", () => {
 });
 
 describe("guards", () => {
-  it("never charges an account with no stored platform customer id", async () => {
-    await seed({ platformCustomerId: null });
-    const { calls, deps } = stripeDeps(null);
+  // E25 (J97): an invoice stranded before its account had a platform customer
+  // gets one, through the same platform-customer write the run uses.
+  it("creates and stores a platform customer for an account with none, then bills against it", async () => {
+    const db = await seed({ platformCustomerId: null });
+    let created: { platformCustomerId: string } | null = null;
+    const { calls, deps } = stripeDeps(null, {
+      ensureCustomer: async () => "cus_made_by_sweep",
+      create: async (_env: Env, input: { platformCustomerId: string }) => {
+        created = input;
+        return { stripeInvoiceId: "in_platform_new", hostedInvoiceUrl: "https://pay/new" };
+      },
+    });
     const [invoice] = await queryStrandedInvoices({} as Env, 100);
 
     const result = await retryInvoiceCharge({} as Env, invoice, NOW_MS, deps);
-    expect(result).toEqual({
-      invoiceId: "binv_1",
-      outcome: "skipped",
-      reason: "no_platform_customer",
+    expect(result.outcome).toBe("charged");
+    expect(created!.platformCustomerId).toBe("cus_made_by_sweep");
+    expect(calls).toEqual(["findExisting"]);
+    const [account] = await db.select().from(schema.accounts);
+    expect(account.platformStripeCustomerId).toBe("cus_made_by_sweep");
+  });
+
+  it("never charges an account whose platform customer could not be made", async () => {
+    await seed({ platformCustomerId: null });
+    const { calls, deps } = stripeDeps(null, {
+      ensureCustomer: async () => {
+        throw new Error("stripe unavailable");
+      },
     });
-    expect(calls).toEqual([]); // Stripe never touched at all
+    const [invoice] = await queryStrandedInvoices({} as Env, 100);
+
+    const result = await retryInvoiceCharge({} as Env, invoice, NOW_MS, deps);
+    expect(result).toEqual({ invoiceId: "binv_1", outcome: "skipped", reason: "no_platform_customer" });
+    expect(calls).toEqual([]); // Stripe never touched for the invoice
   });
 
   it("skips an invoice whose line items are missing rather than creating an empty one", async () => {

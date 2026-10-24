@@ -6,6 +6,8 @@ import { accountMembers, accounts, getDb, stripeConnections, user } from "~/db";
 import { MEMBER_ROLE, MEMBER_STATUS } from "~/lib/auth/roles";
 import { getStripe } from "~/lib/stripe/client";
 
+import { stripeErrorSummary } from "./stripe-invoice";
+
 // Billing-setup (Phase 5 slice 5d, PRICING.md rev 3: direct platform invoicing).
 // The merchant is a Customer on FOXHOUND'S OWN Stripe account, never charged
 // through their connected account. This module creates that customer + collects
@@ -101,7 +103,7 @@ export async function lookupPlatformBillingEmail(
     try {
       stripeAccount = await retrieveAccount(connection.stripeUserId);
     } catch (err) {
-      console.error("billing email account read failed:", err instanceof Error ? err.message : err);
+      console.error("billing email account read failed:", stripeErrorSummary(err));
     }
   }
   return resolveBillingEmailFromStripeAccount(stripeAccount, owner?.email ?? null);
@@ -136,14 +138,20 @@ export async function ensurePlatformCustomer(
   const lookupBillingEmail = deps?.lookupBillingEmail ?? lookupPlatformBillingEmail;
   const email = await lookupBillingEmail(env, input.accountId);
   const stripe = getStripe(env);
-  const customer = await stripe.customers.create(
-    {
-      email: email ?? undefined,
-      name: input.accountName || email || undefined,
-      metadata: { account_id: input.accountId },
-    },
-    { idempotencyKey: platformCustomerCreateIdempotencyKey(input.accountId) },
-  );
+  let customer: Stripe.Customer;
+  try {
+    customer = await stripe.customers.create(
+      {
+        email: email ?? undefined,
+        name: input.accountName || email || undefined,
+        metadata: { account_id: input.accountId },
+      },
+      { idempotencyKey: platformCustomerCreateIdempotencyKey(input.accountId) },
+    );
+  } catch (err) {
+    // Type and code only: Stripe's message can repeat the email it was sent.
+    throw new Error(`platform customer create failed: ${stripeErrorSummary(err)}`);
+  }
   return customer.id;
 }
 
