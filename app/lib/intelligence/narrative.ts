@@ -1,4 +1,5 @@
 import { createAnthropicClient } from "~/lib/ai/client";
+import { UNTRUSTED_DATA_RULE, untrusted } from "~/lib/ai/untrusted";
 import { MODEL_INTELLIGENCE_NARRATIVE } from "~/lib/constants";
 import { formatMoney } from "~/lib/money-format";
 import { sanitizeCopy } from "~/lib/recovery/email-generation";
@@ -100,12 +101,13 @@ function buildSystemPrompt(): string {
     "in the list given to you; never invent or reference any other customer.",
     "Never use em dashes or en dashes. No corporate filler, no AI-sounding",
     "phrases, no 'I hope this finds you well'.",
+    UNTRUSTED_DATA_RULE,
   ].join("\n");
 }
 
 function buildUserPrompt(facts: NarrativeFacts): string {
   const lines = [
-    `Business: ${facts.accountName}`,
+    `Business: ${untrusted(facts.accountName)}`,
     `Total MRR: ${formatMoney(facts.totalMrrCents, facts.currency)}`,
     `MRR movement this period: new ${formatMoney(facts.newMrrCents, facts.currency)}, ` +
       `expansion ${formatMoney(facts.expansionMrrCents, facts.currency)}, ` +
@@ -117,7 +119,7 @@ function buildUserPrompt(facts: NarrativeFacts): string {
   if (facts.topAtRiskCustomers.length > 0) {
     lines.push("Most at-risk customers:");
     for (const c of facts.topAtRiskCustomers) {
-      const name = c.customerName ?? c.stripeCustomerId;
+      const name = c.customerName ? untrusted(c.customerName) : c.stripeCustomerId;
       const factorText =
         c.factorDetails.length > 0 ? c.factorDetails.join("; ") : "no specific factors on record";
       lines.push(

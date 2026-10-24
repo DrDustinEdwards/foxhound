@@ -295,9 +295,6 @@ export const BILLING_LINE_ITEM_TYPES = [
 ] as const;
 export type BillingLineItemType = (typeof BILLING_LINE_ITEM_TYPES)[number];
 
-export const ENGAGEMENT_EVENT_TYPES = ["open", "click"] as const;
-export type EngagementEventType = (typeof ENGAGEMENT_EVENT_TYPES)[number];
-
 // ---- AI models (ARCHITECTURE.md: Sonnet generates, Haiku scores) ----
 // One place holds every model id. Phase 4e owns the ai_calls cost map that must
 // cover each id here (closes legacy R-49 drift); Phase 4b uses generation only.

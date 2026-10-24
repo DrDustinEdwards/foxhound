@@ -58,7 +58,7 @@
 //    Foxhound already had.
 
 import { applyHeaderSet } from "@dustinedwards/site-runtime/headers";
-import { buildContentSecurityPolicy } from "@dustinedwards/site-runtime/csp";
+import { buildContentSecurityPolicy, reportingEndpoints } from "@dustinedwards/site-runtime/csp";
 
 import { SECURITY_HEADERS } from "./header-set";
 import { INLINE_STYLE_HASHES } from "./inline-styles";
@@ -108,15 +108,23 @@ function contentSecurityPolicy(nonce: string) {
  * Headers guard; passing response.body through directly preserves streaming
  * SSR output instead of buffering it. `nonce` must be the SAME value passed
  * to root.tsx's <Scripts>/<ScrollRestoration> for this request, or the
- * browser will reject the very scripts the nonce exists to allow.
+ * browser will reject the very scripts the nonce exists to allow. `origin` is
+ * the request's own: the Reporting API ignores a relative endpoint, so the
+ * report-to group needs this origin's absolute URL (until site-runtime v0.12.0
+ * the header named the bare path and no report-to report was ever sent).
  */
-export function applySecurityHeaders(response: Response, nonce: string): Response {
+export function applySecurityHeaders(response: Response, nonce: string, origin: string): Response {
   const headers = new Headers(response.headers);
   applyHeaderSet(headers, SECURITY_HEADERS, { overwrite: false });
   if (!headers.has("Content-Security-Policy")) {
     const policy = contentSecurityPolicy(nonce);
     headers.set(policy.name, policy.value);
-    headers.set("Reporting-Endpoints", `${CSP_REPORT_GROUP}="${CSP_REPORT_PATH}"`);
+    try {
+      headers.set("Reporting-Endpoints", reportingEndpoints(CSP_REPORT_GROUP, new URL(CSP_REPORT_PATH, origin)));
+    } catch {
+      // A plain-http origin, which reportingEndpoints refuses and a browser
+      // would ignore: the page is still served, with report-uri as its sink.
+    }
   }
   return new Response(response.body, {
     status: response.status,
