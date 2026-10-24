@@ -231,37 +231,49 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
               Member removed.
             </p>
           ) : null}
-          <ul className="flex flex-col" aria-label="Members">
+          {/* Each row wraps the same way at any width: the name first,
+              breaking a long address anywhere rather than overflowing, then
+              the action and pills together, pushed right by ml-auto so a
+              wrapped line lines up with the rows that fit. A confirming row
+              keeps its pills beside the name and gives the question and its
+              two buttons a line of their own, until the card is wide enough
+              (the @xl container) to hold them all in one line. */}
+          <ul className="@container flex flex-col" aria-label="Members">
             {loaderData.members.map((m) => {
               const name = displayName(m);
+              const confirming = m.removable && confirmingId === m.id;
               return (
                 <li
                   key={m.id}
-                  className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-border py-3 last:border-b-0"
+                  className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border py-3 last:border-b-0"
                 >
-                  <span className="min-w-0 break-words text-label text-text">{name}</span>
-                  <span className="flex flex-wrap items-center justify-end gap-2">
-                    {/* `removable` is legacy's three refusals, resolved in the
-                        loader. The server enforces them again. */}
-                    {m.removable ? (
-                      confirmingId === m.id ? (
-                        <DemoGuardedForm method="post" className="flex flex-wrap items-center gap-1.5">
-                          <input type="hidden" name="_action" value="remove" />
-                          <input type="hidden" name="memberId" value={m.id} />
-                          <span className="text-micro text-text-subtle">Remove {name}?</span>
-                          <Button type="submit" variant="danger" size="sm" pending={pending.removing === m.id}>
-                            {pending.removing === m.id ? "Removing..." : "Yes, remove member"}
-                          </Button>
-                          <a href="?" className="cap-btn" data-variant="quiet" data-size="sm">
-                            Cancel
-                          </a>
-                        </DemoGuardedForm>
-                      ) : (
-                        <a href={"?confirm=" + m.id} className="cap-btn" data-variant="quiet" data-size="sm">
-                          Remove member
-                          <span className="sr-only">{" " + name}</span>
+                  <span className="min-w-0 wrap-anywhere text-label text-text">{name}</span>
+                  {/* `removable` is legacy's three refusals, resolved in the
+                      loader. The server enforces them again. */}
+                  {confirming ? (
+                    <DemoGuardedForm
+                      method="post"
+                      className="order-last flex basis-full flex-wrap items-center justify-end gap-x-2 gap-y-1 @xl:order-none @xl:ml-auto @xl:basis-auto"
+                    >
+                      <input type="hidden" name="_action" value="remove" />
+                      <input type="hidden" name="memberId" value={m.id} />
+                      <span className="text-micro text-text-subtle">Remove {name}?</span>
+                      <span className="flex items-center gap-1.5">
+                        <Button type="submit" variant="danger" size="sm" pending={pending.removing === m.id}>
+                          {pending.removing === m.id ? "Removing..." : "Yes, remove member"}
+                        </Button>
+                        <a href="?" className="cap-btn" data-variant="quiet" data-size="sm">
+                          Cancel
                         </a>
-                      )
+                      </span>
+                    </DemoGuardedForm>
+                  ) : null}
+                  <span className={`ml-auto flex items-center gap-2${confirming ? " @xl:ml-0" : ""}`}>
+                    {m.removable && !confirming ? (
+                      <a href={"?confirm=" + m.id} className="cap-btn" data-variant="quiet" data-size="sm">
+                        Remove member
+                        <span className="sr-only">{" " + name}</span>
+                      </a>
                     ) : null}
                     <Pill variant={m.isOwnerRole ? "default" : "secondary"}>
                       {m.isOwnerRole ? "Owner" : "Member"}
