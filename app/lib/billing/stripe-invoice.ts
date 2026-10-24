@@ -126,6 +126,34 @@ export function lineItemIdempotencyKey(
   return `line_item_${row.id}`;
 }
 
+/** Days a merchant has to pay an emailed invoice, as Recova sets it
+ *  (process-recovery-billing, days_until_due 30). */
+export const SEND_INVOICE_DAYS_UNTIL_DUE = 30;
+
+/** The slice of a retrieved platform customer the collection choice reads. */
+interface CustomerPaymentMethodFields {
+  deleted?: boolean | void;
+  invoice_settings?: { default_payment_method?: unknown } | null;
+  default_source?: unknown;
+}
+
+/** Whether the platform customer has a payment method Stripe can charge, by
+ *  Recova's rule: invoice_settings.default_payment_method, else default_source.
+ *  Pure. A deleted customer has none. */
+export function hasDefaultPaymentMethod(customer: CustomerPaymentMethodFields): boolean {
+  if (customer.deleted) return false;
+  return Boolean(customer.invoice_settings?.default_payment_method || customer.default_source);
+}
+
+/** The finalize params for a platform invoice. A send_invoice invoice is
+ *  finalized with auto_advance on, because Stripe emails an invoice only when
+ *  it advances automatically; the charge path keeps its params exactly as they
+ *  were (none). The first attempt and the retry sweep both derive them here, so
+ *  the shared finalize idempotency key always carries the same params. */
+function finalizeParams(sendByEmail: boolean): Stripe.InvoiceFinalizeInvoiceParams | undefined {
+  return sendByEmail ? { auto_advance: true } : undefined;
+}
+
 /** Creates + finalizes the platform Stripe invoice for one billing_invoices row.
  *  The Stripe seam; deferred live to Phase 8. Guards ensure no accidental charge.
  *
@@ -152,11 +180,21 @@ export async function createPlatformInvoice(
   }
   const stripe = getStripe(env); // throws if STRIPE_SECRET_KEY unset
 
+  // E25: with no payment method on file, Stripe emails the invoice and the
+  // merchant has 30 days to pay it, as Recova arranges it. A failed read throws
+  // before anything is created, so the row stays draft for the retry sweep.
+  const customer = await stripe.customers.retrieve(input.platformCustomerId);
+  const sendByEmail = !hasDefaultPaymentMethod(customer);
+
   const invoice = await stripe.invoices.create(
     {
       customer: input.platformCustomerId,
       currency: input.currency,
-      collection_method: "charge_automatically",
+      ...(sendByEmail
+        ? { collection_method: "send_invoice" as const, days_until_due: SEND_INVOICE_DAYS_UNTIL_DUE }
+        : { collection_method: "charge_automatically" as const }),
+      // Held as a draft while items attach, on both paths: a half-built
+      // invoice must never advance, and for send_invoice never be emailed.
       auto_advance: false,
       pending_invoice_items_behavior: "exclude",
       metadata: { billing_invoice_id: input.billingInvoiceId },
@@ -182,7 +220,7 @@ export async function createPlatformInvoice(
 
   const finalized = await stripe.invoices.finalizeInvoice(
     invoice.id,
-    undefined,
+    finalizeParams(sendByEmail),
     { idempotencyKey: platformInvoiceFinalizeIdempotencyKey(input.billingInvoiceId) },
   );
   return {
@@ -236,14 +274,19 @@ export async function findPlatformInvoiceByBillingId(
  * paid, so the retry sweep has to finalize before it can collect (review
  * MEDIUM-1). Reuses createPlatformInvoice's finalize key, so a retry inside the
  * 24h idempotency window is the same call rather than a second one.
+ *
+ * `sendByEmail` is true for a send_invoice draft (E25): it is finalized with
+ * the same params createPlatformInvoice would have used, so Stripe emails it
+ * and the shared key never sees two different param sets.
  */
 export async function finalizePlatformInvoice(
   env: Env,
   stripeInvoiceId: string,
   billingInvoiceId: string,
+  opts: { sendByEmail?: boolean } = {},
 ): Promise<Stripe.Invoice> {
   const stripe = getStripe(env);
-  return stripe.invoices.finalizeInvoice(stripeInvoiceId, undefined, {
+  return stripe.invoices.finalizeInvoice(stripeInvoiceId, finalizeParams(opts.sendByEmail ?? false), {
     idempotencyKey: platformInvoiceFinalizeIdempotencyKey(billingInvoiceId),
   });
 }

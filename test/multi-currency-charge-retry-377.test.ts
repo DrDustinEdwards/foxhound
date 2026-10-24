@@ -50,6 +50,7 @@ vi.mock("~/lib/stripe/client", () => ({
         return { id: `ii_${harness.itemCreates.length}` };
       },
     },
+    customers: { retrieve: async () => ({ invoice_settings: { default_payment_method: "pm_1" } }) },
   }),
   getConnectedStripe: () => {
     throw new Error("connected stripe must not be used here");

@@ -13,9 +13,19 @@ const mockStripe = vi.hoisted(() => {
   // second one. `failOnKey` lets a test blow up one specific item to simulate
   // the mid-loop failure the per-item keys exist to make survivable.
   const items = { created: new Map<string, { id: string }>(), failOnKey: null as string | null };
+  // The platform customer as customers.retrieve returns it. Defaults to a card
+  // on file, which is the charge_automatically path every older test assumes.
+  const customer = { value: { id: "cus_1", invoice_settings: { default_payment_method: "pm_1" }, default_source: null } as Record<string, unknown> };
   return {
     calls,
     invoiceItemState: items,
+    customer,
+    customers: {
+      retrieve: vi.fn(async (id: string) => {
+        calls.push({ method: "customers.retrieve", args: [id] });
+        return customer.value;
+      }),
+    },
     invoices: {
       create: vi.fn(async (params: unknown, options: unknown) => {
         calls.push({ method: "invoices.create", args: [params, options] });
@@ -57,6 +67,7 @@ beforeEach(() => {
   mockStripe.calls.length = 0;
   mockStripe.invoiceItemState.created.clear();
   mockStripe.invoiceItemState.failOnKey = null;
+  mockStripe.customer.value = { id: "cus_1", invoice_settings: { default_payment_method: "pm_1" }, default_source: null };
   vi.clearAllMocks();
 });
 
@@ -88,13 +99,14 @@ describe("createPlatformInvoice call shape (Phase 5 review HIGH fix)", () => {
     await createPlatformInvoice({} as Env, baseInput);
     const methodOrder = mockStripe.calls.map((c) => c.method);
     expect(methodOrder).toEqual([
+      "customers.retrieve",
       "invoices.create",
       "invoiceItems.create",
       "invoiceItems.create",
       "invoices.finalizeInvoice",
     ]);
 
-    const create = mockStripe.calls[0];
+    const create = mockStripe.calls.find((c) => c.method === "invoices.create")!;
     const [createParams, createOptions] = create.args as [Record<string, unknown>, Record<string, unknown>];
     expect(createParams.auto_advance).toBe(false);
     expect(createParams.pending_invoice_items_behavior).toBe("exclude");
@@ -191,5 +203,55 @@ describe("createPlatformInvoice call shape (Phase 5 review HIGH fix)", () => {
     const itemCalls = mockStripe.calls.filter((c) => c.method === "invoiceItems.create");
     expect(itemCalls).toHaveLength(1);
     expect((itemCalls[0].args[0] as Record<string, unknown>).amount).toBe(2_000);
+  });
+});
+
+// E25 (J97): Recova emails the month's invoice when the platform customer has
+// no payment method on file (collection_method send_invoice, days_until_due 30)
+// and charges the card otherwise. Same rule for "on file" as Recova:
+// invoice_settings.default_payment_method, else default_source.
+describe("collection method follows the payment method on file (E25)", () => {
+  const callOf = (method: string) => mockStripe.calls.find((c) => c.method === method)!;
+
+  it("a customer with no default payment method gets send_invoice, 30 days, and a finalize that lets Stripe email it", async () => {
+    mockStripe.customer.value = { id: "cus_1", invoice_settings: { default_payment_method: null }, default_source: null };
+    await createPlatformInvoice({} as Env, baseInput);
+
+    const [createParams, createOptions] = callOf("invoices.create").args as [Record<string, unknown>, Record<string, unknown>];
+    expect(createParams.collection_method).toBe("send_invoice");
+    expect(createParams.days_until_due).toBe(30);
+    // Still a held draft while items attach, so a half-built invoice is never emailed.
+    expect(createParams.auto_advance).toBe(false);
+    expect(createOptions.idempotencyKey).toBe(platformInvoiceIdempotencyKey("inv_1"));
+
+    const [, finalizeParams, finalizeOptions] = callOf("invoices.finalizeInvoice").args as [string, Record<string, unknown>, Record<string, unknown>];
+    // Stripe emails a send_invoice invoice only when it advances automatically.
+    expect(finalizeParams).toEqual({ auto_advance: true });
+    expect(finalizeOptions.idempotencyKey).toBe(platformInvoiceFinalizeIdempotencyKey("inv_1"));
+
+    const keys = mockStripe.calls
+      .filter((c) => c.method === "invoiceItems.create")
+      .map((c) => (c.args[1] as { idempotencyKey?: string }).idempotencyKey);
+    expect(keys).toEqual([RECOVERY_KEY, DISPUTE_KEY]);
+  });
+
+  it("a customer with a default payment method keeps charge_automatically and the unchanged finalize", async () => {
+    await createPlatformInvoice({} as Env, baseInput);
+
+    const [createParams, createOptions] = callOf("invoices.create").args as [Record<string, unknown>, Record<string, unknown>];
+    expect(createParams.collection_method).toBe("charge_automatically");
+    expect(createParams).not.toHaveProperty("days_until_due");
+    expect(createOptions.idempotencyKey).toBe(platformInvoiceIdempotencyKey("inv_1"));
+
+    const [, finalizeParams, finalizeOptions] = callOf("invoices.finalizeInvoice").args as [string, unknown, Record<string, unknown>];
+    expect(finalizeParams).toBeUndefined();
+    expect(finalizeOptions.idempotencyKey).toBe(platformInvoiceFinalizeIdempotencyKey("inv_1"));
+  });
+
+  it("a legacy default source counts as a payment method, as in Recova", async () => {
+    mockStripe.customer.value = { id: "cus_1", invoice_settings: { default_payment_method: null }, default_source: "card_1" };
+    await createPlatformInvoice({} as Env, baseInput);
+    const [createParams] = callOf("invoices.create").args as [Record<string, unknown>];
+    expect(createParams.collection_method).toBe("charge_automatically");
   });
 });

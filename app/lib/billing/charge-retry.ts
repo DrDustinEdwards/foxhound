@@ -454,7 +454,9 @@ export async function retryInvoiceCharge(
     // are now separated: the sentinel above means Stripe has NO invoice, this
     // means Stripe has a real unfinalized one.
     if (liveStatus === "draft") {
-      await finalize(env, stripeInvoiceId, invoice.id);
+      await finalize(env, stripeInvoiceId, invoice.id, {
+        sendByEmail: existing.collection_method === "send_invoice",
+      });
     }
     const paid = await pay(env, stripeInvoiceId, attemptCount);
     await writeAttempt(env, invoice, {

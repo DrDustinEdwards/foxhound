@@ -62,6 +62,7 @@ vi.mock("~/lib/stripe/client", () => ({
       pay: async (id: string) => ({ id, status: "paid", hosted_invoice_url: null }),
     },
     invoiceItems: { create: async () => ({ id: "ii_1" }) },
+    customers: { retrieve: async () => ({ invoice_settings: { default_payment_method: "pm_1" } }) },
   }),
 }));
 
@@ -362,6 +363,23 @@ describe("a Stripe invoice stuck in draft (review MEDIUM-1)", () => {
     });
     expect(calls).toEqual(["findExisting"]); // never touched Stripe again
     expect((await db.select().from(schema.billingInvoices))[0].status).toBe("gave_up");
+  });
+
+  // E25 (J97): a stranded send_invoice draft must be finalized the way the
+  // first attempt would have finalized it, or Stripe never emails it.
+  it("finalizes a stranded send_invoice draft so Stripe emails it", async () => {
+    await seed({ status: "draft", stripeInvoiceId: "in_platform_draft" });
+    const seen: unknown[] = [];
+    const { deps } = stripeDeps({ id: "in_platform_draft", status: "draft", collection_method: "send_invoice" } as never, {
+      finalize: async (_env: Env, id: string, _billingInvoiceId: string, opts?: unknown) => {
+        seen.push(opts);
+        return { id, status: "open", hosted_invoice_url: "https://pay/open" } as never;
+      },
+    });
+    const [invoice] = await queryStrandedInvoices({} as Env, 100);
+
+    await retryInvoiceCharge({} as Env, invoice, NOW_MS, deps);
+    expect(seen).toEqual([{ sendByEmail: true }]);
   });
 
   it("does not finalize an invoice that is already open", async () => {
