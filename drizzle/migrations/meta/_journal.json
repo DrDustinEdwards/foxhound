@@ -239,6 +239,20 @@
       "when": 1792563951453,
       "tag": "0033_hot_query_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "6",
+      "when": 1792820276447,
+      "tag": "0034_clear_oauth_tokens",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "6",
+      "when": 1792825088038,
+      "tag": "0035_stripe_deauthorize_retry",
+      "breakpoints": true
     }
   ]
 }

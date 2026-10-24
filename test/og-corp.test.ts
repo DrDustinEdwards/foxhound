@@ -44,10 +44,10 @@ describe("/og/* cards can be embedded by other origins", () => {
   });
 
   it("survives the Worker's merge, while every other response keeps same-origin", async () => {
-    const merged = applySecurityHeaders(await render("default"), "dGVzdC1ub25jZS12YWx1ZTAw");
+    const merged = applySecurityHeaders(await render("default"), "dGVzdC1ub25jZS12YWx1ZTAw", "https://foxhound.example.com");
     expect(merged.headers.get("Cross-Origin-Resource-Policy")).toBe("cross-origin");
     expect(SECURITY_HEADERS["Cross-Origin-Resource-Policy"]).toBe("same-origin");
-    expect(applySecurityHeaders(new Response("x"), "dGVzdC1ub25jZS12YWx1ZTAw").headers.get("Cross-Origin-Resource-Policy")).toBe(
+    expect(applySecurityHeaders(new Response("x"), "dGVzdC1ub25jZS12YWx1ZTAw", "https://foxhound.example.com").headers.get("Cross-Origin-Resource-Policy")).toBe(
       "same-origin",
     );
   });

@@ -1,0 +1,1 @@
+ALTER TABLE `stripe_connections` ADD `deauthorize_failed_at` integer;
