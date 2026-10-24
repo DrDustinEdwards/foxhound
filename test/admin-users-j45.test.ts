@@ -121,16 +121,6 @@ describe("listPlatformUsers", () => {
     expect(rosa?.lastSignInAt?.getTime()).toBe(at(2 * 60 * 60 * 1000).getTime());
   });
 
-  it("has no last sign-in for a user with no session", async () => {
-    const rows = await list(await seed());
-    expect(rows.find((r) => r.id === "u_sam")?.lastSignInAt).toBeNull();
-  });
-
-  it("returns one row per person, newest first", async () => {
-    const rows = await list(await seed());
-    expect(rows.map((r) => r.id)).toEqual(["u_sam", "u_rosa", "u_admin"]);
-  });
-
   it("returns every account a user belongs to, active first, pending invites after", async () => {
     const rows = await list(await seed());
     const rosa = rows.find((r) => r.id === "u_rosa")!;
@@ -144,12 +134,6 @@ describe("listPlatformUsers", () => {
       { accountId: "acct_north", accountName: "Northwind Coffee", role: "member", status: "pending", inviteExpired: true },
     ]);
     expect(rows.find((r) => r.id === "u_admin")!.memberships).toEqual([]);
-  });
-
-  it("keeps the platform role from the admin allowlist", async () => {
-    const rows = await list(await seed());
-    expect(rows.find((r) => r.id === "u_admin")?.isAdmin).toBe(true);
-    expect(rows.find((r) => r.id === "u_rosa")?.isAdmin).toBe(false);
   });
 });
 

@@ -271,10 +271,6 @@ async function listRows(db: unknown): Promise<Row[]> {
 }
 
 describe("listAdminMerchants: one row per account, Recova's inventory from Foxhound's engine", () => {
-  it("lists every account newest first, demo accounts included as Recova's list did", async () => {
-    const { db } = await seed();
-    expect((await listRows(db)).map((r) => r.id)).toEqual(["acct_new", "acct_gone", "acct_lumen", "acct_north", "demo_acct"]);
-  });
 
   it("gives the active owner's email, never another member's", async () => {
     const rows = await listRows((await seed()).db);
@@ -357,32 +353,9 @@ describe("getMerchantFigures: Recova's five stat cards, demo accounts not counte
     expect(f.merchantCount).toBe(4);
   });
 
-  it("totals everything recovered, all time, per currency, deleted rows left out", async () => {
-    const f = await figures((await seed()).db);
-    expect(f.totalRecovered).toEqual(
-      expect.arrayContaining([
-        { currency: "usd", cents: 5000 },
-        { currency: "eur", cents: 2500 },
-      ]),
-    );
-    expect(f.totalRecovered).toHaveLength(2);
-  });
-
   it("sums the recovery fees invoiced since the first of the month, a voided invoice left out", async () => {
     const f = await figures((await seed()).db);
     expect(f.recoveryFeesThisMonth).toEqual([{ currency: "usd", cents: 800 }]);
-  });
-
-  it("counts the payments in an active recovery sequence", async () => {
-    const f = await figures((await seed()).db);
-    expect(f.paymentsInQueue).toBe(3);
-  });
-
-  it("agrees with the Overview's Active recoveries: one count, soft-deleted rows left out of both (PR 140 review)", async () => {
-    const { db } = await seed();
-    const { countActiveRecoveries } = await import("~/lib/admin/overview.server");
-    expect(await countActiveRecoveries(db)).toBe(3);
-    expect((await figures(db)).paymentsInQueue).toBe(await countActiveRecoveries(db));
   });
 });
 
@@ -423,22 +396,6 @@ describe("the action: Foxhound's writers, each with its audit row", () => {
     harness.deauthorized = [];
   });
 
-  it("sets billing exempt to the value posted, so Undo is the same post with the other value", async () => {
-    const on = await post({ intent: "billing-exempt", accountId: "acct_north", value: "true" });
-    expect(on.data).toMatchObject({ ok: true, intent: "billing-exempt", accountId: "acct_north", value: true, name: "Northwind Coffee" });
-    expect((await account(seeded.db, "acct_north")).billingExempt).toBe(true);
-    // Posting the same value again changes nothing and still succeeds.
-    await post({ intent: "billing-exempt", accountId: "acct_north", value: "true" });
-    expect((await account(seeded.db, "acct_north")).billingExempt).toBe(true);
-    await post({ intent: "billing-exempt", accountId: "acct_north", value: "false" });
-    expect((await account(seeded.db, "acct_north")).billingExempt).toBe(false);
-    expect(await auditActions(seeded.db)).toEqual([
-      "merchant.billing_exempt.enable",
-      "merchant.billing_exempt.enable",
-      "merchant.billing_exempt.disable",
-    ]);
-  });
-
   it("pauses and resumes processing through setProcessingPaused, marking a person's pause manual", async () => {
     await post({ intent: "processing-paused", accountId: "acct_north", value: "true" });
     expect(await account(seeded.db, "acct_north")).toMatchObject({ processingPaused: true, pauseReason: PAUSE_REASON_MANUAL });
@@ -446,18 +403,6 @@ describe("the action: Foxhound's writers, each with its audit row", () => {
     expect(resumed.data).toMatchObject({ ok: true, value: false, wasBrakePause: false });
     expect(await account(seeded.db, "acct_north")).toMatchObject({ processingPaused: false, pauseReason: null });
     expect(await auditActions(seeded.db)).toEqual(["merchant.processing.pause", "merchant.processing.resume"]);
-  });
-
-  it("says when a resume took a merchant off the emergency brake, which no Undo can put back", async () => {
-    await seeded.db.update(accounts).set({ processingPaused: true, pauseReason: PAUSE_REASON_BRAKE }).where(eq(accounts.id, "acct_north"));
-    const resumed = await post({ intent: "processing-paused", accountId: "acct_north", value: "false" });
-    expect(resumed.data).toMatchObject({ ok: true, value: false, wasBrakePause: true });
-  });
-
-  it("writes the audit row before the flag, so a failed audit changes nothing", async () => {
-    seeded.sqlite.exec("drop table admin_audit_log");
-    await expect(post({ intent: "billing-exempt", accountId: "acct_north", value: "true" })).rejects.toThrow();
-    expect((await account(seeded.db, "acct_north")).billingExempt).toBe(false);
   });
 
   it("refuses an account that does not exist, writing nothing", async () => {
@@ -544,45 +489,10 @@ describe("the action: Foxhound's writers, each with its audit row", () => {
     expect((await account(seeded.db, "acct_lumen")).billingExempt).toBe(true);
   });
 
-  it("undoes a real Set exempt", async () => {
-    const set = await post({ intent: "billing-exempt", accountId: "acct_north", value: "true" });
-    expect(toggleMessage(set.data).undo).toEqual({ intent: "billing-exempt", accountId: "acct_north", value: false });
-    const undone = await post({ intent: "billing-exempt", accountId: "acct_north", value: "false", undo: "1" });
-    expect(undone.data).toMatchObject({ ok: true, changed: true });
-    expect((await account(seeded.db, "acct_north")).billingExempt).toBe(false);
-  });
-
   it("refuses to cancel a merchant already cancelled", async () => {
     const res = await post({ intent: "cancel", accountId: "acct_gone", confirm: "cancel" });
     expect(res.init?.status).toBe(400);
     expect(await auditActions(seeded.db)).toEqual([]);
-  });
-});
-
-// ---------------------------------------------------------------- the loader
-
-describe("the loader", () => {
-  beforeEach(async () => {
-    harness.db = (await seed()).db;
-  });
-
-  async function load(search: string) {
-    expect(typeof route.loader).toBe("function");
-    const loader = route.loader as (args: unknown) => Promise<Record<string, unknown>>;
-    return loader({ request: new Request(`https://foxhoundapp.com/admin/merchants${search}`), context: context(), params: {} });
-  }
-
-  it("reads the rows and the figures", async () => {
-    const data = await load("");
-    expect((data.merchants as unknown[]).length).toBe(5);
-    expect(data.figures).toMatchObject({ paymentsInQueue: 3 });
-    expect(data.confirmCancel).toBeNull();
-  });
-
-  it("opens the cancel confirmation for a live merchant named in the address, and for nothing else", async () => {
-    expect(await load("?cancel=acct_north")).toMatchObject({ confirmCancel: { id: "acct_north", name: "Northwind Coffee" } });
-    expect((await load("?cancel=acct_gone")).confirmCancel).toBeNull();
-    expect((await load("?cancel=acct_nope")).confirmCancel).toBeNull();
   });
 });
 

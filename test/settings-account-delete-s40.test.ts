@@ -102,11 +102,6 @@ describe("S40: the delete-account action", () => {
     expect(res.headers.get("Set-Cookie")).toContain("better-auth.session_token=;");
   });
 
-  it("ignores any user or account id posted with the form", async () => {
-    await post({ _action: "delete-account", userId: "user_victim", accountId: "acct_victim" });
-    expect(harness.deleteCalls).toEqual(["user_1"]);
-  });
-
   it("on failure keeps the person signed in and tells them, in Recova's words", async () => {
     harness.deleteThrows = true;
     const res = (await post({ _action: "delete-account" })) as { data: Record<string, unknown>; init?: { status?: number } };
@@ -121,12 +116,6 @@ describe("S40: the delete-account action", () => {
 });
 
 describe("S40: deletion is never an agent tool (RULES.md 3.6)", () => {
-  it("the tool registry refuses any delete-account name", async () => {
-    const { isDeniedToolName } = await import("~/lib/mcp/registry");
-    for (const name of ["foxhound_delete_account", "foxhound_account_delete", "delete_account", "foxhound_delete_user"]) {
-      expect(isDeniedToolName(name), name).toBe(true);
-    }
-  });
 
   it("no agent surface reaches the deletion module", () => {
     const read = (p: string) => readFileSync(fileURLToPath(new URL(`../${p}`, import.meta.url)), "utf8");

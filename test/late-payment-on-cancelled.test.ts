@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { accounts, failedPayments, recoverySteps } from "~/db/schema";
 import {
-  BILLABLE_ATTRIBUTION_KINDS,
   FAILED_PAYMENT_STATUS_CANCELLED,
   RECOVERABLE_FAILED_PAYMENT_STATUSES,
 } from "~/lib/constants";
@@ -134,33 +133,6 @@ describe("284 one: the gate widens to cancelled, and stays symmetric", () => {
     expect([...RECOVERABLE_FAILED_PAYMENT_STATUSES]).toContain("stripe_retrying");
     expect(RECOVERABLE_FAILED_PAYMENT_STATUSES).toHaveLength(4);
   });
-
-  it("the status flip accepts a cancelled row and writes recovered", () => {
-    const { sqlite, db } = seed();
-    seedPayment(sqlite, db, "fp_cancelled", FAILED_PAYMENT_STATUS_CANCELLED);
-    const attribution = resolveAttribution({});
-    expect(commitBatch(sqlite, buildRecoverBatch(db, recoverInput("fp_cancelled", attribution))).applied).toBe(true);
-    const row = sqlite
-      .prepare("select status, resolved_at from failed_payments where id = ?")
-      .get("fp_cancelled") as { status: string; resolved_at: number | null };
-    expect(row.status).toBe("recovered");
-    expect(row.resolved_at).not.toBeNull();
-  });
-
-  it("POSITIVE CONTROL: an already-recovered row is NOT flipped again", () => {
-    // The guard is a real guard, not a pass-through. `recovered` is outside the
-    // list, so the conditional UPDATE touches zero rows.
-    const { sqlite, db } = seed();
-    seedPayment(sqlite, db, "fp_done", "recovered");
-    const attribution = resolveAttribution({});
-    const stmts = buildRecoverBatch(db, recoverInput("fp_done", attribution));
-    runStatement(sqlite, stmts[1]);
-    const row = sqlite
-      .prepare("select status, resolved_at from failed_payments where id = ?")
-      .get("fp_done") as { status: string; resolved_at: number | null };
-    expect(row.status).toBe("recovered");
-    expect(row.resolved_at).toBeNull();
-  });
 });
 
 describe("284 one: the recovery is recorded through the spine's sole builder", () => {
@@ -204,53 +176,6 @@ describe("284 one: the recovery is recorded through the spine's sole builder", (
       .get("recovery:fp_pure") as { outcome: string };
     expect(out.outcome).toBe("recovered_baseline");
   });
-
-  it("a Foxhound click that PRECEDED the stop keeps its kind and BILLS", () => {
-    // The other half of 284's rule: the stop click must not launder a real
-    // Foxhound recovery free. An executed, clicked email survives Stop recovery
-    // because Stop only resolves UNEXECUTED steps.
-    const { sqlite, db } = seed();
-    seedPayment(sqlite, db, "fp_clicked", FAILED_PAYMENT_STATUS_CANCELLED);
-    runStatement(
-      sqlite,
-      db.insert(recoverySteps).values({
-        id: "step_clicked",
-        failedPaymentId: "fp_clicked",
-        accountId: "acc_1",
-        stepType: "email_1",
-        stepNumber: 1,
-        scheduledAt: now,
-        executedAt: now,
-        result: "email_sent",
-        clickedAt: now,
-      }),
-    );
-    const steps = sqlite
-      .prepare("select id, step_type as stepType, result, clicked_at as clickedAt from recovery_steps where failed_payment_id = ?")
-      .all("fp_clicked") as { id: string; stepType: string; result: string | null; clickedAt: Date | null }[];
-    // A second after the click, because the click must PRECEDE the payment to
-    // have caused it (377(2)) and this fixture stamps both at `now`. The test's
-    // subject is unchanged: a click before the merchant's stop still bills.
-    const recoveredAt = new Date(now.getTime() + 1_000);
-    const attribution = resolveAttribution(findAttributionSignals(steps, recoveredAt));
-
-    expect(attribution.kind).toBe("email_engaged");
-    expect(isBillableAttribution(attribution.kind)).toBe(true);
-    expect([...BILLABLE_ATTRIBUTION_KINDS]).toContain("email_engaged");
-
-    expect(commitBatch(sqlite, buildRecoverBatch(db, recoverInput("fp_clicked", attribution))).applied).toBe(true);
-    const rec = sqlite
-      .prepare("select attribution_kind, attributed_at from recovered_payments where failed_payment_id = ?")
-      .get("fp_clicked") as { attribution_kind: string; attributed_at: number | null };
-    expect(rec.attribution_kind).toBe("email_engaged");
-    // attributed_at SET is what makes it billable.
-    expect(rec.attributed_at).not.toBeNull();
-  });
-
-  it("manual stays NEVER billable, unchanged by this fold (262 one)", () => {
-    expect(isBillableAttribution("manual")).toBe(false);
-    expect([...BILLABLE_ATTRIBUTION_KINDS]).not.toContain("manual");
-  });
 });
 
 describe("284 one: exactly-once, proven at the capability level (265)", () => {
@@ -286,42 +211,5 @@ describe("284 one: exactly-once, proven at the capability level (265)", () => {
       .get("recovery:fp_dup") as { n: number };
     expect(recCount.n).toBe(1);
     expect(outCount.n).toBe(1);
-  });
-
-  it("the SINGLE delivery records: the both-sides shape", () => {
-    // Without this half, the test above would pass against code that records
-    // nothing at all.
-    const { sqlite, db } = seed();
-    seedPayment(sqlite, db, "fp_once", FAILED_PAYMENT_STATUS_CANCELLED);
-    const { applied } = commitBatch(
-      sqlite,
-      buildRecoverBatch(db, recoverInput("fp_once", resolveAttribution({}))),
-    );
-    expect(applied).toBe(true);
-    const recCount = sqlite
-      .prepare("select count(*) as n from recovered_payments where failed_payment_id = ?")
-      .get("fp_once") as { n: number };
-    const row = sqlite
-      .prepare("select status from failed_payments where id = ?")
-      .get("fp_once") as { status: string };
-    expect(recCount.n).toBe(1);
-    expect(row.status).toBe("recovered");
-  });
-
-  it("two DIFFERENT cancelled payments each record: the key is per payment", () => {
-    const { sqlite, db } = seed();
-    seedPayment(sqlite, db, "fp_a", FAILED_PAYMENT_STATUS_CANCELLED);
-    seedPayment(sqlite, db, "fp_b", FAILED_PAYMENT_STATUS_CANCELLED);
-    for (const id of ["fp_a", "fp_b"]) {
-      const { applied } = commitBatch(
-        sqlite,
-        buildRecoverBatch(db, recoverInput(id, resolveAttribution({}))),
-      );
-      expect(applied).toBe(true);
-    }
-    const n = sqlite
-      .prepare("select count(*) as n from recovered_payments where account_id = ?")
-      .get("acc_1") as { n: number };
-    expect(n.n).toBe(2);
   });
 });

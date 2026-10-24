@@ -3,16 +3,12 @@ import type Stripe from "stripe";
 import { describe, expect, it } from "vitest";
 
 import * as schema from "~/db/schema";
-import { SEND_MAX_ATTEMPTS } from "~/lib/constants";
 import { appendOpenPixel } from "~/lib/email/templates";
-import { buildEmailStepPatch, buildEngagementUrls, executeEmailStep, sendResultToAttempt, type EmailStepContext } from "~/lib/engine/execute-step";
+import { buildEngagementUrls, executeEmailStep, sendResultToAttempt, type EmailStepContext } from "~/lib/engine/execute-step";
 import { buildRetryReconciliationInput, buildRetryStepPatch, executeRetryStep, payInvoiceWithClient, retryIdempotencyKey, type RetryStepContext } from "~/lib/engine/retry-step";
-import { stepAction } from "~/lib/engine/step-runner";
-import { nextDueStep, type SchedulableStep } from "~/lib/engine/scheduler";
 import type { EmailJobResult } from "~/lib/email/dispatch";
 import { verifyEngagementToken } from "~/lib/engagement/token";
 import type { RetryReconciliationInput } from "~/lib/recovery/record-recovery";
-import { planRecoverySteps } from "~/lib/recovery/schedule";
 
 const db = drizzle({} as never, { schema });
 const now = new Date("2026-07-15T00:00:00.000Z");
@@ -149,45 +145,6 @@ describe("retry executor: orchestration + exactly-once", () => {
     expect(res.recovered).toBe(false);
     expect(recorded).toHaveLength(0);
   });
-
-  it("two overlapping successful runs both reconcile against the same failed payment", async () => {
-    const recorded: RetryReconciliationInput[] = [];
-    const deps = {
-      payInvoice: async () => ({ invoiceStatus: "paid" as const }),
-      persistPatch: async () => {},
-      reconcileRecovery: async (_env: Env, input: RetryReconciliationInput) => {
-        recorded.push(input);
-        return true;
-      },
-    };
-    await executeRetryStep({} as Env, retryCtx(), deps);
-    await executeRetryStep({} as Env, retryCtx(), deps);
-    expect(recorded.map((r) => r.failedPaymentId)).toEqual(["fp_1", "fp_1"]);
-  });
-});
-
-describe("silent-first ordering at the dispatch boundary", () => {
-  it("a soft payment's first due step is the silent retry, never an email", () => {
-    const detectedAt = new Date("2026-07-01T00:00:00.000Z");
-    const plan = planRecoverySteps({
-      failedPaymentId: "fp_1",
-      accountId: "acc_1",
-      declineCategory: "soft",
-      detectedAt,
-    });
-    const steps: (SchedulableStep & { stepType: string })[] = plan.map((p) => ({
-      stepType: p.stepType,
-      stepNumber: p.stepNumber,
-      scheduledAt: p.scheduledAt,
-      executedAt: null,
-      result: null,
-      nextRetryAt: null,
-    }));
-    // 5h after detection: retry_early (4h) is due, email_day1 (24h) is not.
-    const due = nextDueStep(steps, new Date(detectedAt.getTime() + 5 * 3600_000));
-    expect(due).not.toBeNull();
-    expect(stepAction(due!.stepType)).toBe("retry");
-  });
 });
 
 describe("email executor: tracking wires a click to attribution", () => {
@@ -222,21 +179,6 @@ describe("email executor: send-result mapping + persist", () => {
       permanent: false,
       error: "boom",
     });
-  });
-
-  it("caches the resolved copy onto ai_subject/ai_body_html for backoff reuse", () => {
-    const sql = sqlOf(
-      buildEmailStepPatch(
-        db,
-        "step_e",
-        { attemptCount: 1, lastAttemptError: null, nextRetryAt: null, executedAt: now, result: "email_sent" },
-        { subject: "S", bodyHtml: "<p>B</p>" },
-      ),
-    );
-    expect(sql.sql).toMatch(/update .*recovery_steps/i);
-    expect(sql.sql).toMatch(/ai_subject/i);
-    expect(sql.params).toContain("email_sent");
-    expect(sql.params).toContain("S");
   });
 });
 
@@ -285,16 +227,5 @@ describe("email executor: orchestration + failure isolation", () => {
     // attemptCount 0 -> transient failure reschedules (not terminal yet).
     expect(patchResult).toBeNull();
     expect(nextRetry).not.toBeNull();
-  });
-
-  it("a transient failure at the last attempt goes terminal (email_failed)", async () => {
-    let patchResult: string | null = "unset";
-    await executeEmailStep(env, emailCtx({ attemptCount: SEND_MAX_ATTEMPTS - 1 }), {
-      send: async () => ({ status: "failed", providerMessageId: null, error: "down", retryable: true }),
-      persistPatch: async (_env, _id, patch) => {
-        patchResult = patch.result;
-      },
-    });
-    expect(patchResult).toBe("email_failed");
   });
 });

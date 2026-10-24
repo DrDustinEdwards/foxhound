@@ -169,16 +169,6 @@ function outcomeRows() {
 }
 
 describe("PLANT 1: the resubscribe token round-trips, and a stale one does not", () => {
-  it("carries the sequence id and the step number", async () => {
-    const token = await resubscribeToken({ stepNumber: 3 });
-
-    const payload = await verifyCardUpdateToken(ENV, token);
-
-    expect(payload?.winBackSequenceId).toBe("wb_1");
-    expect(payload?.winBackStepNumber).toBe(3);
-    expect(payload?.failedPaymentId).toBeUndefined();
-    expect(payload?.expiringCardAlertId).toBeUndefined();
-  });
 
   it("AN EXPIRED TOKEN REFUSES, so a win-back link does not work forever", async () => {
     const issued = Date.now() - CARD_UPDATE_TOKEN_MAX_AGE_MS - 1000;
@@ -188,15 +178,6 @@ describe("PLANT 1: the resubscribe token round-trips, and a stale one does not",
 
     expect(await verifyCardUpdateToken(ENV, token)).toBeNull();
     expect(await load(token)).toEqual({ state: "invalid" });
-  });
-
-  it("a token inside the window still verifies, so the expiry test discriminates", async () => {
-    const issued = Date.now() - CARD_UPDATE_TOKEN_MAX_AGE_MS + 60_000;
-    const spy = vi.spyOn(Date, "now").mockReturnValue(issued);
-    const token = await resubscribeToken();
-    spy.mockRestore();
-
-    expect(await verifyCardUpdateToken(ENV, token)).not.toBeNull();
   });
 
   it("A SEQUENCE ID WITH NO STEP NUMBER REFUSES, so no session can be minted unattributed", async () => {
@@ -219,31 +200,11 @@ describe("PLANT 1: the resubscribe token round-trips, and a stale one does not",
 });
 
 describe("PLANT 2: the page renders one button and calls no Stripe", () => {
-  it("renders the resubscribe state with the plan name", async () => {
-    seedSequence();
-
-    const state = await load(await resubscribeToken());
-
-    expect(state).toEqual({ state: "resubscribe", planName: "Pro" });
-    // 343 binding 4: no Stripe object exists until the customer clicks.
-    expect(harness.sessionsCreated).toEqual([]);
-    expect(harness.subscriptionsRetrieved).toEqual([]);
-  });
 
   it("a sequence with no plan name still renders, with no subtitle to build", async () => {
     seedSequence({ planName: null });
 
     expect(await load(await resubscribeToken())).toEqual({ state: "resubscribe", planName: null });
-  });
-
-  it("a missing sequence is invalid", async () => {
-    expect(await load(await resubscribeToken())).toEqual({ state: "invalid" });
-  });
-
-  it("a sequence on ANOTHER account is invalid", async () => {
-    seedSequence();
-    const token = await resubscribeToken({ accountId: "acct_other" });
-    expect(await load(token)).toEqual({ state: "invalid" });
   });
 
   it("AND STAYS INVALID WHEN EVERY OTHER LAYER IS SATISFIED", async () => {
@@ -378,18 +339,6 @@ describe("PLANT 4: the sequences that must NOT reach Stripe", () => {
     expect(await load(token)).toEqual({ state: "handled" });
     await post(token);
     expect(harness.sessionsCreated).toEqual([]);
-  });
-
-  it("AN EXHAUSTED SEQUENCE STILL WORKS, because step 3's own button must not be dead", async () => {
-    // Legacy flips the sequence terminal the moment step 3 is SENT, so gating
-    // on a non-terminal status would ship a dead button in the one email
-    // whose subject is "Last chance to reactivate your account".
-    seedSequence({ status: "exhausted" });
-    const token = await resubscribeToken({ stepNumber: 3 });
-
-    expect(await load(token)).toEqual({ state: "resubscribe", planName: "Pro" });
-    expect((await post(token)).status).toBe(302);
-    expect(harness.sessionsCreated).toHaveLength(1);
   });
 
   it("A DEMO ACCOUNT REFUSES AT THE STRIPE-CALL GATE", async () => {

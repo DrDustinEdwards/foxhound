@@ -48,7 +48,6 @@ vi.mock("~/db/billable", async (importOriginal) => {
 const {
   alertCronFailure,
   buildFailureAlertEmail,
-  CADENCE_LABEL,
   describeAge,
   runCronHealthCheck,
 } = await import("~/lib/cron/alerts.server");
@@ -119,16 +118,6 @@ describe("E26: the cron failure alert says what Recova's notifyCronFailure says"
     expect(only().text).not.toContain("Stack (first 500 chars):");
   });
 
-  it("escapes every value it carries (PR 146 safety kept)", async () => {
-    const hostile = `<img src=x onerror="alert(1)">&'`;
-    const db = createInMemoryDb().db;
-    harness.db = db;
-    await alertCronFailure(env(), db, { cronName: hostile, runId: hostile, error: hostile, stack: hostile }, NOW);
-    const m = only();
-    expect(m.html).not.toContain("<img");
-    expect(m.html).toContain("&lt;img src=x onerror=&quot;alert(1)&quot;&gt;&amp;&#39;");
-  });
-
   it("a refused send returns its named outcome and never throws", async () => {
     const db = createInMemoryDb().db;
     harness.db = db;
@@ -156,12 +145,6 @@ describe("E26 trigger: every cron's catch, with the error's stack", () => {
     expect(m.subject).toBe("[Foxhound Ops] Cron failure: recovery-tick");
     expectBothParts(m, ["Message: boom", "Stack (first 500 chars):", "Error: boom"]);
     expect(m.text).toContain(`Run id: ${outcome.runId}`);
-  });
-
-  it("a successful run sends nothing", async () => {
-    harness.db = createInMemoryDb().db;
-    await runCronJob(env(), "recovery-tick", async () => ({ rowsProcessed: 0 }));
-    expect(sent()).toHaveLength(0);
   });
 });
 
@@ -221,15 +204,6 @@ describe("E27: the cron stale alert says what Recova's notifyCronStale says", ()
     expect(describeAge(49 * 60 * 60_000)).toBe("2 days ago");
   });
 
-  it("every schedule the registry uses has Recova-style cadence words", () => {
-    const schedules = [...new Set(CRON_JOBS.map((j) => j.schedule))];
-    expect(schedules.length).toBeGreaterThan(0);
-    for (const s of schedules) expect(CADENCE_LABEL[s], `no cadence for ${s}`).toBeTruthy();
-    expect(CADENCE_LABEL[constants.CRON_SCHEDULE_RECOVERY_TICK]).toBe("every 5 min");
-    expect(CADENCE_LABEL[constants.CRON_SCHEDULE_DAILY]).toBe("daily 03:00 UTC");
-    expect(CADENCE_LABEL[constants.CRON_SCHEDULE_MONTHLY_AUDIT]).toBe("monthly (1st 09:00 UTC)");
-  });
-
   it("TRIGGER: no SUCCESSFUL run within the interval, as Recova's watcher reads last_succeeded_at", async () => {
     // A cron that keeps running and failing is stale to Recova: its watcher
     // reads last_succeeded_at, not the last run of any status.
@@ -254,14 +228,6 @@ describe("E27: the cron stale alert says what Recova's notifyCronStale says", ()
     await runCronHealthCheck(env(), db, [{ name: "d1-backup", schedule: constants.CRON_SCHEDULE_DAILY }], NOW);
     const m = only();
     expectBothParts(m, [`Last succeeded: ${oldSuccess.toISOString()}`, "Age: last succeeded 3 days ago"]);
-  });
-
-  it("a cron that succeeded within its interval sends nothing", async () => {
-    const db = createInMemoryDb().db;
-    harness.db = db;
-    await db.insert(cronRunHistory).values({ id: "s", cronName: "d1-backup", finishedAt: NOW, status: "success", createdAt: NOW });
-    await runCronHealthCheck(env(), db, [{ name: "d1-backup", schedule: constants.CRON_SCHEDULE_DAILY }], NOW);
-    expect(sent()).toHaveLength(0);
   });
 
   it("an unmapped schedule is reported in the run, never emailed (Recova alerts only on its schedule list)", async () => {

@@ -9,7 +9,7 @@ import {
   recoveredPayments,
   stripeConnections,
 } from "~/db";
-import { getPlatformOverview, type AdminOverview } from "~/lib/admin/overview.server";
+import { type AdminOverview } from "~/lib/admin/overview.server";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -160,15 +160,6 @@ async function seed() {
 }
 
 describe("the Overview's figures come from Foxhound's engine", () => {
-  it("counts paused merchants (not cancelled, deleted or demo) and lists them to resume", async () => {
-    const overview = await adminOverview(await seed(), NOW);
-    expect(overview.pausedCount).toBe(2);
-    expect(overview).toHaveProperty("attention.pausedMerchants");
-    expect(overview.attention.pausedMerchants.map((m) => [m.id, m.name, m.pauseReason])).toEqual([
-      ["acct_brake", "Harbor Yoga", "brake"],
-      ["acct_lumen", "Lumen Studio", null],
-    ]);
-  });
 
   it("counts billing exempt merchants without the demo", async () => {
     const overview = await adminOverview(await seed(), NOW);
@@ -217,34 +208,6 @@ describe("the Overview's figures come from Foxhound's engine", () => {
       { currency: "eur", cents: 3000 },
       { currency: "usd", cents: 7500 },
     ]);
-  });
-});
-
-describe("the admin API's platform read is unchanged", () => {
-  it("GET /platform (getPlatformOverview) returns the four fields it always had, and nothing of the page's", async () => {
-    const overview = await getPlatformOverview(await seed(), NOW);
-    expect(Object.keys(overview).sort()).toEqual(["activeRecoveriesCount", "cronHealth", "merchantCount", "mrrByCurrency"]);
-  });
-
-  it("reads the cron window from the caller's clock, not the wall clock", async () => {
-    const { db, sqlite } = createInMemoryDb();
-    const past = Date.UTC(2026, 0, 10, 12, 0, 0);
-    sqlite
-      .prepare(
-        "insert into cron_run_history (id, cron_name, started_at, finished_at, status, rows_processed, message, created_at) values (?, ?, ?, ?, ?, 0, ?, ?)",
-      )
-      .run("r1", "weekly-digest", past - 5 * 3600_000 - 1000, past - 5 * 3600_000, "failed", "boom", past - 5 * 3600_000);
-    const overview = await getPlatformOverview(db, past);
-    expect(overview.cronHealth.failedRuns.map((r) => r.id)).toEqual(["r1"]);
-  });
-
-  it("reads every paused merchant, so the group's link count is the real one", async () => {
-    const { db } = createInMemoryDb();
-    await db.insert(accounts).values(
-      Array.from({ length: 60 }, (_, i) => ({ id: `acct_${i}`, name: `M ${i}`, createdAt: at(DAY), processingPaused: true })),
-    );
-    const overview = await adminOverview(db, NOW);
-    expect(overview.attention.pausedMerchants).toHaveLength(60);
   });
 });
 

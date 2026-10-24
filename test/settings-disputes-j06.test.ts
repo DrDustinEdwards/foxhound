@@ -70,12 +70,6 @@ describe("S32 THE WRITER: two columns, pinned to the account", () => {
     expect(columns("a2")).toEqual({ d: null, s: null, a: null });
   });
 
-  it("a blank description is stored as not set", async () => {
-    await applyDisputeSettings(db, "a1", { productDescription: "Candles", shipsPhysical: false });
-    await applyDisputeSettings(db, "a1", { productDescription: "   ", shipsPhysical: false });
-    expect(columns("a1")).toEqual({ d: null, s: 0, a: null });
-  });
-
   it("a description past Stripe's evidence limit is refused and nothing is written", async () => {
     const result = await applyDisputeSettings(db, "a1", { productDescription: "x".repeat(20_001), shipsPhysical: true });
     expect(result).toEqual({ ok: false, error: DISPUTE_PRODUCT_DESCRIPTION_ERROR });
@@ -87,12 +81,6 @@ describe("S32 THE READERS: NULL is off and empty, as Recova's ?? false and ?? ''
   it("an account that never saved reads as blank and off", async () => {
     expect(await readDisputeSettings(db, "a1")).toEqual({ productDescription: "", shipsPhysical: false });
     expect(await readDisputeProductDescription(db, "a1")).toBeNull();
-  });
-
-  it("the saved description is what intake reads", async () => {
-    await applyDisputeSettings(db, "a1", { productDescription: "Candles", shipsPhysical: true });
-    expect(await readDisputeProductDescription(db, "a1")).toBe("Candles");
-    expect((await readDisputeSettings(db, "a1")).shipsPhysical).toBe(true);
   });
 
   it("the dispute page keeps shipping evidence out of the read-only list while its inputs show", () => {

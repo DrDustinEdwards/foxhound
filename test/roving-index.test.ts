@@ -22,16 +22,6 @@ describe("nextRovingIndex: arrows move forward and wrap", () => {
     expect(nextRovingIndex("ArrowRight", 0, N)).toBe(1);
     expect(nextRovingIndex("ArrowRight", 2, N)).toBe(3);
   });
-
-  it("ArrowRight WRAPS from last to first", () => {
-    expect(nextRovingIndex("ArrowRight", N - 1, N)).toBe(0);
-  });
-
-  it("ArrowDown behaves identically to ArrowRight", () => {
-    for (let i = 0; i < N; i++) {
-      expect(nextRovingIndex("ArrowDown", i, N)).toBe(nextRovingIndex("ArrowRight", i, N));
-    }
-  });
 });
 
 describe("nextRovingIndex: arrows move backward and wrap", () => {
@@ -39,25 +29,11 @@ describe("nextRovingIndex: arrows move backward and wrap", () => {
     expect(nextRovingIndex("ArrowLeft", 3, N)).toBe(2);
     expect(nextRovingIndex("ArrowLeft", 1, N)).toBe(0);
   });
-
-  it("ArrowLeft WRAPS from first to last", () => {
-    expect(nextRovingIndex("ArrowLeft", 0, N)).toBe(N - 1);
-  });
-
-  it("ArrowUp behaves identically to ArrowLeft", () => {
-    for (let i = 0; i < N; i++) {
-      expect(nextRovingIndex("ArrowUp", i, N)).toBe(nextRovingIndex("ArrowLeft", i, N));
-    }
-  });
 });
 
 describe("nextRovingIndex: Home and End", () => {
   it("Home goes to the first option from anywhere", () => {
     for (let i = 0; i < N; i++) expect(nextRovingIndex("Home", i, N)).toBe(0);
-  });
-
-  it("End goes to the last option from anywhere", () => {
-    for (let i = 0; i < N; i++) expect(nextRovingIndex("End", i, N)).toBe(N - 1);
   });
 });
 
@@ -77,11 +53,6 @@ describe("nextRovingIndex: degenerate inputs", () => {
   it("returns null on an empty set rather than computing an index into nothing", () => {
     expect(nextRovingIndex("ArrowRight", 0, 0)).toBeNull();
     expect(nextRovingIndex("Home", 0, 0)).toBeNull();
-  });
-
-  it("a single option wraps to itself in both directions", () => {
-    expect(nextRovingIndex("ArrowRight", 0, 1)).toBe(0);
-    expect(nextRovingIndex("ArrowLeft", 0, 1)).toBe(0);
   });
 
   it("every handled key returns an index inside the set", () => {

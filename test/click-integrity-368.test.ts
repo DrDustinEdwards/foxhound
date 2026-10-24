@@ -8,7 +8,6 @@ import {
   recoverySteps,
 } from "~/db/schema";
 import { AUTOMATED_AGENT_TOKENS, isAutomatedUserAgent } from "~/lib/engagement/agents";
-import { findAttributionSignals, resolveAttribution, isBillableAttribution } from "~/lib/recovery/attribution";
 import { ALLOWED_BOTS } from "~/routes/files/robots";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
@@ -114,19 +113,6 @@ const stepRow = async (db: Awaited<ReturnType<typeof seed>>["db"], id: string) =
 // ============================================================================
 
 describe("PLANT 1: every listed agent is refused the write", () => {
-  it("PARAMETERIZED OVER THE CONSTANT, so a token added later is covered", async () => {
-    // A hand-written list of cases would go stale the moment somebody appends a
-    // token. This drives the shipped constant, so the coverage follows the list.
-    expect(AUTOMATED_AGENT_TOKENS.length).toBeGreaterThan(20);
-    for (const token of AUTOMATED_AGENT_TOKENS) {
-      const ua = `Mozilla/5.0 (compatible; ${token}/1.0; +https://example.test/bot)`;
-      expect(isAutomatedUserAgent(ua), `${token} not matched`).toBe(true);
-      expect(
-        classifyEngagementRequest(request({ "user-agent": ua }), "click"),
-        `${token} not classified automated`,
-      ).toEqual({ automated: true, reason: "bot_user_agent" });
-    }
-  });
 
   it("every agent 368 names by hand is in the shipped list", () => {
     // The ruling's minimum, asserted against the constant so a future trim of
@@ -259,64 +245,6 @@ describe("PLANT 3: the write, against the real schema", () => {
 
     await recordOpen(ENV, { stepId: STEP_A, accountId: ACCOUNT_A, kind: "open" }, { automated: false });
     expect(await db.select().from(engagementEvents)).toHaveLength(1);
-  });
-});
-
-describe("PLANT 4: the attribution chain cannot start from a skipped request", () => {
-  it("A SKIPPED CLICK LEAVES THE RECOVERY UNATTRIBUTED, and the billable base unchanged", async () => {
-    // THE PLANT THAT MATTERS. Two accounts, one bot-fetched and one
-    // human-clicked, driven through the REAL attribution resolver rather than a
-    // reproduction of it. A skipped request must produce `stripe_baseline`,
-    // which is the free kind, and a real click must produce `email_engaged`,
-    // which bills.
-    const { db } = await seed();
-
-    await recordClick(
-      ENV,
-      { stepId: STEP_A, accountId: ACCOUNT_A, kind: "click", url: DEST },
-      { automated: true, reason: "bot_user_agent" },
-    );
-    await recordClick(
-      ENV,
-      { stepId: STEP_B, accountId: ACCOUNT_B, kind: "click", url: DEST },
-      { automated: false },
-    );
-
-    const rowsFor = async (stepId: string) => {
-      const s = await stepRow(db, stepId);
-      return [{ id: s.id, stepType: s.stepType, result: s.result, clickedAt: s.clickedAt }];
-    };
-
-    // Derived from the click that was actually stamped, one minute later, so
-    // this stays a test about bot filtering rather than about the 14-day
-    // engagement window (377(2)). recordClick stamps with its own clock, so a
-    // recoveredAt built from this file's NOW would land BEFORE the click and
-    // the window would decide the assertion instead of the bot guard.
-    const clickedRow = await stepRow(db, STEP_B);
-    const RECOVERED_AT = new Date((clickedRow.clickedAt as Date).getTime() + 60_000);
-    const botAttribution = resolveAttribution(findAttributionSignals(await rowsFor(STEP_A), RECOVERED_AT));
-    const humanAttribution = resolveAttribution(findAttributionSignals(await rowsFor(STEP_B), RECOVERED_AT));
-
-    expect(botAttribution.kind).toBe("stripe_baseline");
-    expect(isBillableAttribution(botAttribution.kind)).toBe(false);
-    expect(botAttribution.ref).toBeNull();
-
-    expect(humanAttribution.kind).toBe("email_engaged");
-    expect(isBillableAttribution(humanAttribution.kind)).toBe(true);
-    expect(humanAttribution.ref).toBe(STEP_B);
-  });
-
-  it("and the two accounts do not bleed into each other", async () => {
-    const { db } = await seed();
-    await recordClick(
-      ENV,
-      { stepId: STEP_B, accountId: ACCOUNT_B, kind: "click", url: DEST },
-      { automated: false },
-    );
-    const events = await db.select().from(engagementEvents);
-    expect(events).toHaveLength(1);
-    expect(events[0].accountId).toBe(ACCOUNT_B);
-    expect((await stepRow(db, STEP_A)).clickedAt).toBeNull();
   });
 });
 

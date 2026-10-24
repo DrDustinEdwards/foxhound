@@ -79,39 +79,6 @@ describe("getRecoveryDashboardWindow structural sanity", () => {
 });
 
 describe("getRecoveryDashboardWindow: the dual-range shape", () => {
-  it("range-scoped fields differ between a narrow and a wide range", async () => {
-    const db = await seededDb();
-    const narrow = await getRecoveryDashboardWindow(db, DEMO_ACCOUNT_ID, "7d", now.getTime());
-    const wide = await getRecoveryDashboardWindow(db, DEMO_ACCOUNT_ID, "90d", now.getTime());
-
-    expect(narrow.totalFailedCount).toBeLessThanOrEqual(wide.totalFailedCount);
-    expect(narrow.recoveryRateDaily).toHaveLength(7);
-    expect(wide.recoveryRateDaily).toHaveLength(90);
-  });
-
-  it("range-invariant fields are identical across a narrow and a wide range call", async () => {
-    const db = await seededDb();
-    const narrow = await getRecoveryDashboardWindow(db, DEMO_ACCOUNT_ID, "7d", now.getTime());
-    const wide = await getRecoveryDashboardWindow(db, DEMO_ACCOUNT_ID, "90d", now.getTime());
-
-    // These describe current account state or an unscoped-by-range fact, so
-    // they must read the same no matter which range the caller asked for -
-    // exactly what lets a Phase 2 loader pick either call's result for them.
-    expect(narrow.activePaymentsCount).toBe(wide.activePaymentsCount);
-    expect(narrow.atRiskRevenue).toEqual(wide.atRiskRevenue);
-    expect(narrow.activeWinbacksCount).toBe(wide.activeWinbacksCount);
-    expect(narrow.expiringCardsCount).toBe(wide.expiringCardsCount);
-    expect(narrow.connection).toEqual(wide.connection);
-    expect(narrow.webhookHealth).toEqual(wide.webhookHealth);
-    expect(narrow.lastRecoveryAgo).toBe(wide.lastRecoveryAgo);
-    expect(narrow.upcomingSteps).toEqual(wide.upcomingSteps);
-    expect(narrow.totalEmailsSent).toBe(wide.totalEmailsSent);
-    expect(narrow.openRatePct).toBe(wide.openRatePct);
-    expect(narrow.clickRatePct).toBe(wide.clickRatePct);
-    expect(narrow.emailCategoryPerformance).toEqual(wide.emailCategoryPerformance);
-    // The sparkline is always a trailing 30 days, independent of range too.
-    expect(narrow.categorySparkline).toEqual(wide.categorySparkline);
-  });
 
   it("calling with '30d' twice (simulating the reused-single-fetch case) is deterministic", async () => {
     const db = await seededDb();

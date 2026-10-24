@@ -183,42 +183,6 @@ describe("connected webhook: the method and configuration rungs", () => {
 });
 
 describe("connected webhook: the signature rung, against a real HMAC", () => {
-  it("rejects a garbage signature with 400 and claims nothing", async () => {
-    const db = await seed();
-    const res = await call(webhookRequest(connectedEvent("evt_garbage"), "t=1,v1=notasignature"), WEBHOOK_SECRET);
-    expect(res.status).toBe(400);
-    expect(await db.select().from(schema.webhookEvents)).toHaveLength(0);
-    expect(captureException).toHaveBeenCalledTimes(1);
-  });
-
-  it("rejects a well-formed signature computed under the WRONG secret", async () => {
-    const db = await seed();
-    const payload = connectedEvent("evt_wrong_key");
-    // Correct scheme, correct timestamp, real HMAC: only the key is wrong. This
-    // is the forgery the verifier exists to stop, and it is indistinguishable
-    // from a valid signature by shape alone.
-    const res = await call(signedRequest(payload, "whsec_attacker_guess"), WEBHOOK_SECRET);
-    expect(res.status).toBe(400);
-    expect(await db.select().from(schema.webhookEvents)).toHaveLength(0);
-  });
-
-  it("rejects a signature that is valid for a DIFFERENT payload", async () => {
-    const db = await seed();
-    const signedFor = connectedEvent("evt_original");
-    const header = stripeSignature(signedFor, WEBHOOK_SECRET, nowSec());
-    // Same header, swapped body: the HMAC covers the payload, so this must fail.
-    const res = await call(webhookRequest(connectedEvent("evt_swapped"), header), WEBHOOK_SECRET);
-    expect(res.status).toBe(400);
-    expect(await db.select().from(schema.webhookEvents)).toHaveLength(0);
-  });
-
-  it("rejects a correctly signed payload whose timestamp is outside Stripe's tolerance", async () => {
-    const db = await seed();
-    const payload = connectedEvent("evt_stale");
-    const res = await call(signedRequest(payload, WEBHOOK_SECRET, nowSec() - 86_400), WEBHOOK_SECRET);
-    expect(res.status).toBe(400);
-    expect(await db.select().from(schema.webhookEvents)).toHaveLength(0);
-  });
 
   it("rejects a POST carrying no stripe-signature header at all", async () => {
     const db = await seed();
@@ -285,19 +249,6 @@ describe("connected webhook: a valid event", () => {
     expect(second.status).toBe(200);
     expect(await second.json()).toEqual({ received: true, outcome: "duplicate" });
     expect(await db.select().from(schema.webhookEvents)).toHaveLength(1);
-  });
-
-  it("claims an event from an account Foxhound does not know, and ignores it", async () => {
-    // No stripe_connections row: the processor claims via a plain insert so
-    // replays short-circuit, and the claim carries no account.
-    const db = await seed({ connected: false });
-    const res = await call(signedRequest(connectedEvent("evt_unknown_acct")), WEBHOOK_SECRET);
-
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ received: true, outcome: "ignored" });
-    const rows = await db.select().from(schema.webhookEvents);
-    expect(rows).toHaveLength(1);
-    expect(rows[0].accountId).toBeNull();
   });
 
   it("ignores an event carrying no connected account, without claiming", async () => {

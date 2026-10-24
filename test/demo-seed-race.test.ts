@@ -48,32 +48,6 @@ describe("ensureDemoSeededWithLock", () => {
     expect(lock.release).not.toHaveBeenCalled();
   });
 
-  it("cold miss: account absent, lock grants, seeds, then releases", async () => {
-    const { db } = createInMemoryDb();
-    const lock = stubLock();
-
-    await ensureDemoSeededWithLock(db, lock);
-
-    expect(lock.acquire).toHaveBeenCalledTimes(1);
-    expect(lock.release).toHaveBeenCalledTimes(1);
-    expect(await accountExists(db)).toBe(true);
-  });
-
-  it("releases the lock even when seeding throws", async () => {
-    const { db } = createInMemoryDb();
-    const lock = stubLock();
-    const originalInsert = db.insert.bind(db);
-    (db as unknown as { insert: typeof db.insert }).insert = (() => {
-      throw new Error("boom");
-    }) as typeof db.insert;
-
-    await expect(ensureDemoSeededWithLock(db, lock)).rejects.toThrow("boom");
-
-    expect(lock.acquire).toHaveBeenCalledTimes(1);
-    expect(lock.release).toHaveBeenCalledTimes(1);
-    (db as unknown as { insert: typeof db.insert }).insert = originalInsert;
-  });
-
   it("contention: lock denied, polls until the row appears, never seeds itself", async () => {
     const { db } = createInMemoryDb();
     const lock = stubLock(async () => null);

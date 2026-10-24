@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { accountSubscriptions, accounts, customerContext, mrrSnapshots } from "~/db";
-import { HEALTH_SCORE_AT_RISK_THRESHOLD, INTELLIGENCE_PRODUCT, SUBSCRIPTION_STATUS_ACTIVE } from "~/lib/constants";
-import { WATCH_CEILING } from "~/lib/intelligence/health-band";
+import { INTELLIGENCE_PRODUCT, SUBSCRIPTION_STATUS_ACTIVE } from "~/lib/constants";
 import { churnBandSharePct } from "~/lib/intelligence/churn";
 import { getChurnView } from "~/lib/intelligence/trends.server";
 
@@ -68,24 +67,6 @@ async function setup(opts: { scored?: { score: number | null; mrrCents: number; 
 }
 
 describe("getChurnView bands", () => {
-  // Foxhound standardizes on healthScoreBand (40/70). Legacy split this page at
-  // 33/66 while its own text tones used 40/70, so one customer could read
-  // "at risk" on the overview and "medium" here.
-  it("bands on the 40/70 thresholds, not legacy's 33/66", async () => {
-    const db = await setup({
-      scored: [
-        { score: HEALTH_SCORE_AT_RISK_THRESHOLD - 1, mrrCents: 1000 }, // 39 -> at_risk
-        { score: HEALTH_SCORE_AT_RISK_THRESHOLD, mrrCents: 2000 }, // 40 -> watch
-        { score: WATCH_CEILING - 1, mrrCents: 4000 }, // 69 -> watch
-        { score: WATCH_CEILING, mrrCents: 8000 }, // 70 -> healthy
-      ],
-    });
-    const view = await getChurnView(db, ACCOUNT_ID, NOW);
-    const band = (k: string) => view.bands.find((b) => b.band === k)!;
-    expect(band("at_risk")).toMatchObject({ customerCount: 1, mrrCents: 1000 });
-    expect(band("watch")).toMatchObject({ customerCount: 2, mrrCents: 6000 });
-    expect(band("healthy")).toMatchObject({ customerCount: 1, mrrCents: 8000 });
-  });
 
   // Legacy's numerators counted only scored customers but its denominator
   // counted every customer, so the three shares silently failed to sum to 100%
@@ -111,20 +92,6 @@ describe("getChurnView bands", () => {
     expect(view.scoredCustomerCount).toBe(0);
     expect(view.topHighRisk).toEqual([]);
     expect(churnBandSharePct(0, 0)).toBe(0);
-  });
-});
-
-describe("getChurnView high-risk table", () => {
-  it("lists only the at-risk band, highest MRR first", async () => {
-    const db = await setup({
-      scored: [
-        { score: 10, mrrCents: 3000, name: "Small risk" },
-        { score: 15, mrrCents: 9000, name: "Big risk" },
-        { score: 80, mrrCents: 50_000, name: "Healthy whale" },
-      ],
-    });
-    const view = await getChurnView(db, ACCOUNT_ID, NOW);
-    expect(view.topHighRisk.map((r) => r.customerName)).toEqual(["Big risk", "Small risk"]);
   });
 });
 

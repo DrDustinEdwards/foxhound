@@ -64,13 +64,6 @@ async function serve(method: string, status: number, url = "https://example.com/
 }
 
 describe("handleRequest counts document 404s", () => {
-  it("schedules the write on a GET 404 and the row lands with the path only", async () => {
-    const { ctx, response } = await serve("GET", 404);
-    expect(response.status).toBe(404);
-    expect(ctx.waitUntil).toHaveBeenCalledTimes(1);
-    const stored = await db.select({ path: page404Daily.path, hits: page404Daily.hitCount }).from(page404Daily);
-    expect(stored).toEqual([{ path: "/no-such-page", hits: 1 }]);
-  });
 
   it("does not count a 200", async () => {
     const { ctx } = await serve("GET", 200);

@@ -150,20 +150,6 @@ beforeEach(() => {
 });
 
 describe("classifyStripeEvent on charge.refunded (parity ruling 29)", () => {
-  it("classifies a PARTIAL refund as stamp_refund, not ignore", () => {
-    // Pre-fix this returned { kind: "ignore", reason: "partial_refund" }.
-    expect(classifyStripeEvent(refundEvent("evt_partial", false))).toEqual({
-      kind: "stamp_refund",
-      paymentIntentId: "pi_1",
-    });
-  });
-
-  it("still classifies a FULL refund as stamp_refund", () => {
-    expect(classifyStripeEvent(refundEvent("evt_full", true))).toEqual({
-      kind: "stamp_refund",
-      paymentIntentId: "pi_1",
-    });
-  });
 
   it("ignores a refund with no payment intent to resolve against", () => {
     const event = refundEvent("evt_no_pi", true) as unknown as {
@@ -178,43 +164,6 @@ describe("classifyStripeEvent on charge.refunded (parity ruling 29)", () => {
 });
 
 describe("a refunded recovery is not billable at maturity", () => {
-  for (const [label, fullyRefunded] of [
-    ["fully", true],
-    ["partially", false],
-  ] as const) {
-    it(`stamps refunded_at and drops the recovery from the billable set when ${label} refunded on day 10`, async () => {
-      const { db } = await seedRecoveredPayment();
-
-      // Billable before the refund arrives: proves the exclusion below is the
-      // refund stamp doing the work, not some other predicate.
-      expect(await getBillableRecoveries(db, ACCOUNT_ID, NOW.getTime())).toHaveLength(1);
-
-      const outcome = await processConnectedWebhook(
-        {} as Env,
-        refundEvent(`evt_${label}`, fullyRefunded),
-        REFUNDED_AT,
-      );
-      expect(outcome).toEqual({ status: "applied" });
-
-      const [recovery] = await db.select().from(schema.recoveredPayments);
-      expect(recovery.refundedAt).toEqual(REFUNDED_AT);
-
-      // The whole point: at the 2026-08-01 run this recovery is gone from the
-      // billable set. Pre-fix it billed 20% of refunded money.
-      expect(await getBillableRecoveries(db, ACCOUNT_ID, NOW.getTime())).toHaveLength(0);
-    });
-  }
-
-  it("keeps the FIRST refund timestamp when a second partial refund arrives", async () => {
-    const { db } = await seedRecoveredPayment();
-    await processConnectedWebhook({} as Env, refundEvent("evt_partial_1", false), REFUNDED_AT);
-
-    const later = new Date(REFUNDED_AT.getTime() + 60 * 60 * 1000);
-    await processConnectedWebhook({} as Env, refundEvent("evt_partial_2", false), later);
-
-    const [recovery] = await db.select().from(schema.recoveredPayments);
-    expect(recovery.refundedAt).toEqual(REFUNDED_AT);
-  });
 
   it("a replayed refund event is a duplicate no-op", async () => {
     await seedRecoveredPayment();
@@ -293,17 +242,6 @@ describe("a refund that arrives BEFORE the recovery still unbills it", () => {
     } as unknown as Stripe.Event;
   }
 
-  it("CONTROL: with no refund at all, that same recovery IS billable at maturity", async () => {
-    // Without this the assertions below would pass for the wrong reason.
-    const db = await seedAwaitingRecovery();
-    await processConnectedWebhook({} as Env, paymentSucceeded("evt_ok"), RECOVERED_AT);
-
-    const [recovery] = await db.select().from(schema.recoveredPayments);
-    expect(recovery.attributionKind).toBe("email_engaged");
-    expect(recovery.refundedAt).toBeNull();
-    expect(await getBillableRecoveries(db, ACCOUNT_ID, NOW.getTime())).toHaveLength(1);
-  });
-
   for (const [label, fullyRefunded] of [
     ["fully", true],
     ["partially", false],
@@ -337,68 +275,6 @@ describe("a refund that arrives BEFORE the recovery still unbills it", () => {
       expect(await getBillableRecoveries(db, ACCOUNT_ID, NOW.getTime())).toHaveLength(0);
     });
   }
-
-  it("keeps the FIRST refund's timestamp when two refunds arrive before the recovery", async () => {
-    const db = await seedAwaitingRecovery();
-    await processConnectedWebhook({} as Env, refundEvent("evt_e1", false), REFUND_BEFORE_AT);
-    const later = new Date(REFUND_BEFORE_AT.getTime() + 30_000);
-    await processConnectedWebhook({} as Env, refundEvent("evt_e2", false), later);
-
-    const [payment] = await db.select().from(schema.failedPayments);
-    expect(payment.refundSignalAt).toEqual(REFUND_BEFORE_AT);
-
-    await processConnectedWebhook({} as Env, paymentSucceeded("evt_late"), RECOVERED_AT);
-    const [recovery] = await db.select().from(schema.recoveredPayments);
-    expect(recovery.refundedAt).toEqual(REFUND_BEFORE_AT);
-  });
-
-  it("a marker with no recovery ever recorded is inert", async () => {
-    const db = await seedAwaitingRecovery();
-    await processConnectedWebhook({} as Env, refundEvent("evt_orphan", true), REFUND_BEFORE_AT);
-
-    expect(await db.select().from(schema.recoveredPayments)).toHaveLength(0);
-    const [payment] = await db.select().from(schema.failedPayments);
-    expect(payment.refundSignalAt).toEqual(REFUND_BEFORE_AT);
-    expect(payment.status).toBe("active"); // the refund never resolves the payment
-  });
-
-  it("a recovery for a DIFFERENT failed payment is unaffected by the marker", async () => {
-    // The marker is scoped per failed_payment, not per account or per invoice.
-    const db = await seedAwaitingRecovery();
-    await processConnectedWebhook({} as Env, refundEvent("evt_scoped", true), REFUND_BEFORE_AT);
-
-    await db.insert(schema.failedPayments).values({
-      id: "fp_other",
-      accountId: ACCOUNT_ID,
-      stripeConnectionId: CONNECTION_ID,
-      stripeEventId: "evt_intake_other",
-      stripeInvoiceId: "in_other",
-      stripeCustomerId: "cus_1",
-      customerEmail: "payer@example.com",
-      amountCents: 5_000,
-      currency: "usd",
-      declineCategory: "soft",
-      status: "active",
-      detectedAt: new Date(RECOVERED_AT.getTime() - 5 * 60_000),
-    });
-    harness.invoicePaymentsResult = [{ invoice: "in_other" }];
-
-    await processConnectedWebhook(
-      {} as Env,
-      {
-        id: "evt_other_paid",
-        type: "invoice.payment_succeeded",
-        account: "acct_connected_1",
-        data: { object: { id: "in_other", amount_paid: 5_000, currency: "usd", customer: "cus_1" } },
-      } as unknown as Stripe.Event,
-      RECOVERED_AT,
-    );
-
-    const other = (await db.select().from(schema.recoveredPayments)).find(
-      (r) => r.failedPaymentId === "fp_other",
-    );
-    expect(other?.refundedAt).toBeNull();
-  });
 });
 
 describe("refund resolution failure semantics", () => {

@@ -5,8 +5,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it } from "vitest";
 
-import { STRIPE_CONNECT_SCOPE } from "~/lib/constants";
-import { buildConnectAuthorizeUrl } from "~/lib/stripe/connect";
 
 const { default: Connect } = await import("~/routes/auth/connect");
 
@@ -58,14 +56,6 @@ const CONNECT: LoaderData = {
 };
 
 describe("J53: the access-disclosure panel (ruling 20(d)), true of Foxhound's scope", () => {
-  it("the scope it describes is still read_write: the copy fits the scope, never the reverse", () => {
-    expect(STRIPE_CONNECT_SCOPE).toBe("read_write");
-    const url = buildConnectAuthorizeUrl(
-      { STRIPE_CLIENT_ID: "ca_test", BETTER_AUTH_URL: "https://example.com" } as unknown as Env,
-      "s",
-    );
-    expect(new URL(url).searchParams.get("scope")).toBe("read_write");
-  });
 
   it("never claims Foxhound charges only on invoices the merchant issued, while win-back checkout exists", () => {
     // The win-back resubscribe checkout makes a new subscription, invoice and

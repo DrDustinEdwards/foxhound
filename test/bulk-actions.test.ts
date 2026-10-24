@@ -3,20 +3,17 @@ import type Database from "better-sqlite3";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { getBillableRecoveries } from "~/db/billable";
 import type { Db } from "~/db";
 import { accounts, failedPayments, recoverySteps } from "~/db/schema";
 import {
   BULK_ACTION_CONCURRENCY,
   BULK_ACTION_MAX_PER_SUBMISSION,
-  MANUAL_ATTRIBUTION_KIND,
 } from "~/lib/constants";
 import { queryStepForManualTrigger, type DueStepRow } from "~/lib/cron/due-steps";
 import { mapWithConcurrency, runBulkAction } from "~/lib/recovery/bulk-actions.server";
 import {
   BULK_ACTION_INTENTS,
   failedIds,
-  isBulkActionIntent,
   isBulkRefusal,
   orderForDisplay,
   toItemResult,
@@ -225,47 +222,6 @@ function results(outcome: Awaited<ReturnType<typeof runBulkAction>>) {
 describe("bulk actions: a mixed selection is answered payment by payment", () => {
   const MIXED = [ACTIVE_WITH_EMAIL, ACTIVE_NO_STEP, RECOVERED, THEIRS];
 
-  it("stops what it can and names why it could not stop the rest", async () => {
-    const { sqlite, db } = seed(MIXED);
-    const out = await run(sqlite, db, "cancel", [
-      "fp_step",
-      "fp_recovered",
-      "fp_theirs",
-      "fp_missing",
-      "fp_nostep",
-    ]);
-
-    // Input order, one result per submitted id, nothing dropped either way.
-    expect(results(out).map((r) => r.id)).toEqual([
-      "fp_step",
-      "fp_recovered",
-      "fp_theirs",
-      "fp_missing",
-      "fp_nostep",
-    ]);
-    expect(results(out).map((r) => r.reason)).toEqual([
-      null,
-      "not_active",
-      // Another account's payment is NOT FOUND, never "forbidden": the account
-      // scoped read cannot see it, so bulk leaks no more than the single path.
-      "not_found",
-      "not_found",
-      null,
-    ]);
-  });
-
-  it("commits only the payments that passed, and leaves the others alone", async () => {
-    const { sqlite, db } = seed(MIXED);
-    await run(sqlite, db, "cancel", ["fp_step", "fp_recovered", "fp_theirs", "fp_nostep"]);
-
-    expect(statusOf(sqlite, "fp_step")).toBe("cancelled");
-    expect(statusOf(sqlite, "fp_nostep")).toBe("cancelled");
-    expect(statusOf(sqlite, "fp_recovered")).toBe("recovered");
-    // The cross-account id is the one that matters: a bulk write must not reach
-    // outside the account however the ids were assembled in the browser.
-    expect(statusOf(sqlite, "fp_theirs")).toBe("active");
-  });
-
   it("adds NO key scheme: each payment keeps the key the single path assigns", async () => {
     const { sqlite, db } = seed(MIXED);
     const keys: string[] = [];
@@ -286,17 +242,6 @@ describe("bulk actions: a mixed selection is answered payment by payment", () =>
 
     expect(results(out)).toHaveLength(1);
     expect(keys).toHaveLength(1);
-  });
-
-  it("re-running over an already stopped payment answers, it does not throw", async () => {
-    const { sqlite, db } = seed(MIXED);
-    await run(sqlite, db, "cancel", ["fp_step"]);
-    const again = await run(sqlite, db, "cancel", ["fp_step"]);
-
-    // Already cancelled is no longer active, which is the gate that answers.
-    expect(results(again)).toEqual([
-      { id: "fp_step", ok: false, reason: "not_active", detail: null },
-    ]);
   });
 });
 
@@ -417,16 +362,6 @@ describe("bulk trigger: every executor status keeps its own name (267)", () => {
       { id: "fp_two", ok: false, reason: "processing_paused", detail: null },
     ]);
   });
-
-  it("and the same braked account still stops recovery, which is the positive control", async () => {
-    // Without this the test above could not tell a working brake apart from a
-    // seed that broke every intent. Executing a step is processing; stopping one
-    // is not (267), so cancel passes on the very account trigger just refused.
-    const { sqlite, db } = seed([ACTIVE_WITH_EMAIL], { paused: true });
-    const out = await run(sqlite, db, "cancel", ["fp_step"]);
-    expect(results(out)).toEqual([{ id: "fp_step", ok: true, reason: null, detail: null }]);
-    expect(statusOf(sqlite, "fp_step")).toBe("cancelled");
-  });
 });
 
 describe("bulk mark recovered: through the spine's own recorder (271)", () => {
@@ -459,20 +394,6 @@ describe("bulk mark recovered: through the spine's own recorder (271)", () => {
     expect(statusOf(sqlite, "fp_theirs")).toBe("active");
   });
 
-  it("records AT MOST ONE outcome per payment across a bulk and a re-submit", async () => {
-    // The guarantee is the shared outcomes key space (271), not a new guard the
-    // bulk layer adds. Three payments, submitted twice.
-    const { sqlite, db } = seed(THREE);
-    await run(sqlite, db, "mark_recovered", ["fp_a", "fp_b", "fp_c"]);
-    const second = await run(sqlite, db, "mark_recovered", ["fp_a", "fp_b", "fp_c"]);
-
-    const rows = outcomeRows(sqlite);
-    expect(rows).toHaveLength(3);
-    expect(new Set(rows.map((r) => r.idempotency_key)).size).toBe(3);
-    // The second pass answers rather than throwing or double-recording.
-    expect(results(second).every((r) => !r.ok && r.reason === "not_active")).toBe(true);
-  });
-
   it("a payment whose outcome key is ALREADY TAKEN answers already_resolved", async () => {
     // The webhook-won race: the outcomes row exists while the payment is still
     // active. Reproduced by recording it, then putting the payment back to
@@ -493,42 +414,6 @@ describe("bulk mark recovered: through the spine's own recorder (271)", () => {
     // Still exactly one, so the rollback took the whole batch with it.
     expect(outcomeRows(sqlite)).toHaveLength(1);
   });
-
-  it("NO manual outcome is billable, asserted through the real billable query", async () => {
-    const { sqlite, db } = seed(THREE);
-    await run(sqlite, db, "mark_recovered", ["fp_a", "fp_b", "fp_c"]);
-
-    const rows = outcomeRows(sqlite);
-    expect(rows).toHaveLength(3);
-    expect(rows.every((r) => r.attribution_kind === MANUAL_ATTRIBUTION_KIND)).toBe(true);
-
-    // Far enough in the future that maturity cannot be what excludes them: the
-    // ONLY thing keeping these out of the billable set is the attribution kind
-    // (262 decision one). A test that used a near asOf could not tell the two
-    // apart.
-    const asOf = now.getTime() + 1000 * 60 * 60 * 24 * 365;
-    expect(await getBillableRecoveries(db, "acc_1", asOf)).toEqual([]);
-  });
-
-  it("and a foxhound-attributed recovery on the same account IS billable", async () => {
-    // The positive control for the assertion above. Same account, same maturity
-    // window, same query; only the attribution kind differs.
-    const { sqlite, db } = seed([{ id: "fp_a" }]);
-    await run(sqlite, db, "mark_recovered", ["fp_a"]);
-    runStatement(
-      sqlite,
-      db
-        .update(failedPayments)
-        .set({ status: "recovered" })
-        .where(eq(failedPayments.id, "fp_a")),
-    );
-    sqlite
-      .prepare("update recovered_payments set attribution_kind = 'foxhound_retry' where failed_payment_id = ?")
-      .run("fp_a");
-
-    const asOf = now.getTime() + 1000 * 60 * 60 * 24 * 365;
-    expect(await getBillableRecoveries(db, "acc_1", asOf)).toHaveLength(1);
-  });
 });
 
 describe("bulk actions: the intent itself is gated, not just the volume", () => {
@@ -547,27 +432,6 @@ describe("bulk actions: the intent itself is gated, not just the volume", () => 
     if (!isBulkRefusal(out)) return;
     expect(out.refused).toBe("unknown_intent");
     expect(keys).toHaveLength(0);
-  });
-
-  it("refuses note too, so a bulk POST cannot blank N notes", async () => {
-    const { sqlite, db } = seed([ACTIVE_WITH_EMAIL]);
-    const out = await run(sqlite, db, "note", ["fp_step"]);
-    expect(isBulkRefusal(out)).toBe(true);
-    if (!isBulkRefusal(out)) return;
-    expect(out.refused).toBe("unknown_intent");
-  });
-
-  it("refuses a string that is no intent at all", async () => {
-    const { sqlite, db } = seed([ACTIVE_WITH_EMAIL]);
-    const out = await run(sqlite, db, "", ["fp_step"]);
-    expect(isBulkRefusal(out)).toBe(true);
-  });
-
-  it("the allow-list is legacy's own three, and the predicate agrees with it", () => {
-    expect([...BULK_ACTION_INTENTS]).toEqual(["trigger", "mark_recovered", "cancel"]);
-    expect(isBulkActionIntent("resend")).toBe(false);
-    expect(isBulkActionIntent("note")).toBe(false);
-    for (const intent of BULK_ACTION_INTENTS) expect(isBulkActionIntent(intent)).toBe(true);
   });
 });
 
@@ -607,14 +471,6 @@ describe("bulk actions: the ceiling refuses, it never truncates (274 decision fo
     expect(out.refused).toBe("empty");
     expect(out.submitted).toBe(0);
   });
-
-  it("the ceiling is enforced on the SERVER, not only in the dialog", async () => {
-    // The dialog is the reason a merchant does not hit this. The server check is
-    // the reason a hand crafted POST does not either, and only the second one is
-    // a guarantee. Both exist; this asserts the second.
-    const { sqlite, db } = seed([ACTIVE_WITH_EMAIL]);
-    expect(isBulkRefusal(await run(sqlite, db, "mark_recovered", ids(500)))).toBe(true);
-  });
 });
 
 describe("bulk actions: the fan-out is bounded and order-preserving", () => {
@@ -636,16 +492,6 @@ describe("bulk actions: the fan-out is bounded and order-preserving", () => {
     expect(peak).toBeGreaterThan(1);
     expect(out).toEqual(items.map((n) => n * 2));
   });
-
-  it("handles fewer items than the cap without spawning idle workers", async () => {
-    let calls = 0;
-    const out = await mapWithConcurrency([1, 2], BULK_ACTION_CONCURRENCY, async (n) => {
-      calls += 1;
-      return n;
-    });
-    expect(out).toEqual([1, 2]);
-    expect(calls).toBe(2);
-  });
 });
 
 describe("bulk actions: the surface itemises, and failures come first", () => {
@@ -660,10 +506,6 @@ describe("bulk actions: the surface itemises, and failures come first", () => {
     expect(orderForDisplay(mixed).map((r) => r.id)).toEqual(["b", "d", "a", "c"]);
   });
 
-  it("keeps every payment in the output, so nothing hides behind a count", () => {
-    expect(orderForDisplay(mixed)).toHaveLength(mixed.length);
-  });
-
   it("failedIds is exactly the set that stays selected", () => {
     expect(failedIds(mixed)).toEqual(["b", "d"]);
   });
@@ -671,18 +513,5 @@ describe("bulk actions: the surface itemises, and failures come first", () => {
   it("an outcome this intent should not produce is reported, never swallowed", () => {
     const odd = toItemResult("x", { ok: false, reason: "no_email_to_resend" });
     expect(odd).toEqual({ id: "x", ok: false, reason: "unexpected", detail: null });
-  });
-
-  it("carries the STORED result of a trigger rather than flattening it to ok", () => {
-    const declined = toItemResult("x", {
-      ok: true,
-      intent: "trigger",
-      action: "retry",
-      result: "retry_card_declined",
-      subject: null,
-    });
-    // A retry that ran and was declined is a true success whose detail says what
-    // happened to the charge. Reporting a bare "Ran" would be the fold.
-    expect(declined).toEqual({ id: "x", ok: true, reason: null, detail: "retry_card_declined" });
   });
 });

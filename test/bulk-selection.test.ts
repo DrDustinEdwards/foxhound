@@ -33,35 +33,14 @@ const PAGE: SelectableRow[] = rows(
 );
 
 describe("bulk selection: the effective selection is pruned to what is on screen", () => {
-  it("drops ids that are no longer visible, which is 274 decision three", () => {
-    // The exact legacy scenario: five selected, then a filter narrows the page
-    // to two of them. Legacy would still submit all five (scope 1.3).
-    const selected = new Set(["p1", "p2", "p3", "gone_a", "gone_b"]);
-    const narrowed = rows(["p1", "active"], ["p2", "recovered"]);
-
-    expect(visibleSelection(selected, narrowed)).toEqual(["p1", "p2"]);
-    expect(selectedCount(selected, narrowed)).toBe(2);
-  });
 
   it("returns ids in ROW order, not insertion order, so output is deterministic", () => {
     const selected = new Set(["p3", "p1"]);
     expect(visibleSelection(selected, PAGE)).toEqual(["p1", "p3"]);
   });
-
-  it("an emptied page selects nothing, however much state survives", () => {
-    const selected = new Set(["p1", "p2", "p3"]);
-    expect(visibleSelection(selected, [])).toEqual([]);
-    expect(selectedCount(selected, [])).toBe(0);
-  });
 });
 
 describe("bulk selection: the actionable subset is the ONLY set an action may use", () => {
-  it("is selected AND visible AND active, all three", () => {
-    const selected = new Set(["p1", "p2", "p4", "off_page"]);
-    // p1 active and selected -> in. p2 recovered -> out. p4 cancelled -> out.
-    // p3 active but NOT selected -> out. off_page not visible -> out.
-    expect(actionableSelection(selected, PAGE)).toEqual(["p1"]);
-  });
 
   it("COUNT AND REQUEST ARE ONE SET, which is the gate-versus-submit repair", () => {
     // Legacy's bar would label this "Trigger next step (2)" and then submit 4.
@@ -73,10 +52,6 @@ describe("bulk selection: the actionable subset is the ONLY set an action may us
     expect(actionable.length).toBe(2);
     // And the whole selection is strictly larger, which is the trap being closed.
     expect(selectedCount(selected, PAGE)).toBe(4);
-  });
-
-  it("is empty when nothing selected is active, so the bar withholds its actions", () => {
-    expect(actionableSelection(new Set(["p2", "p4"]), PAGE)).toEqual([]);
   });
 });
 

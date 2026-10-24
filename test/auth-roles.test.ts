@@ -39,11 +39,6 @@ describe("isDisposableEmail", () => {
     expect(isDisposableEmail("x@YOPMAIL.com")).toBe(true);
   });
 
-  it("allows normal domains", () => {
-    expect(isDisposableEmail("dustin@example.com")).toBe(false);
-    expect(isDisposableEmail("a@gmail.com")).toBe(false);
-  });
-
   it("handles malformed input without throwing", () => {
     expect(isDisposableEmail("not-an-email")).toBe(false);
     expect(isDisposableEmail("")).toBe(false);

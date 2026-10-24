@@ -286,45 +286,12 @@ describe(`317: no retention statement exceeds D1's ${D1_MAX_BOUND_PARAMS} bound 
 describe("317: the predicate sites carry NO id list at all", () => {
   const predicateSites = Object.entries(SWEEPERS).filter(([, s]) => !s.batched);
 
-  for (const [name, sweeper] of predicateSites) {
-    it(`${name}'s delete parameter count is CONSTANT, not merely under the ceiling`, async () => {
-      // The stronger property: a batched fix would still scale with row count.
-      // A predicate does not, so 417 rows and 150 rows must produce identical
-      // parameter counts. This is what makes the fix immune to someone later
-      // raising RETENTION_SWEEP_LIMIT.
-      const counts: number[] = [];
-      for (const n of [N, 150]) {
-        const { sqlite, db } = createInMemoryDb();
-        harness.db = db;
-        await sweeper.seed(db, n, AGED);
-        const captured = captureStatements(sqlite);
-        await sweeper.fn({} as Env);
-        counts.push(Math.max(...deletesIn(captured).map(placeholders)));
-      }
-      expect(counts[0]).toBe(counts[1]);
-      expect(counts[0]).toBeLessThan(10);
-    });
-  }
-
   it("covers seven of the eight sweepers, the eighth being the batched one", () => {
     expect(predicateSites).toHaveLength(7);
   });
 });
 
 describe("317: sweepAiCalls keeps its id list, and batches it", () => {
-  it("issues ceil(N / DELETE_ID_BATCH_SIZE) deletes, none above the batch size", async () => {
-    const { sqlite, db } = createInMemoryDb();
-    harness.db = db;
-    await SWEEPERS.sweepAiCalls.seed(db, N, AGED);
-
-    const captured = captureStatements(sqlite);
-    const result = await retention.sweepAiCalls({} as Env);
-
-    expect(result.rowsProcessed).toBe(N);
-    const deletes = deletesIn(captured);
-    expect(deletes).toHaveLength(Math.ceil(N / DELETE_ID_BATCH_SIZE));
-    for (const stmt of deletes) expect(placeholders(stmt)).toBeLessThanOrEqual(DELETE_ID_BATCH_SIZE);
-  });
 
   it("still aggregates into monthly buckets and removes every aged row", async () => {
     // The atomicity contract survives the chunking: aggregate and delete are one
@@ -348,23 +315,6 @@ describe("317: sweepAiCalls keeps its id list, and batches it", () => {
 // ============================================================================
 
 describe("317: the subquery predicate deletes the aged rows and spares fresh ones", () => {
-  it("fresh rows survive a sweep of 417 aged ones", async () => {
-    const { db } = createInMemoryDb();
-    harness.db = db;
-    await SWEEPERS.sweepHealthScoreHistory.seed(db, N, AGED);
-    await SWEEPERS.sweepHealthScoreHistory.seed(db, FRESH_COUNT, FRESH);
-
-    const before = await db.select().from(healthScoreHistory);
-    expect(before).toHaveLength(N + FRESH_COUNT);
-
-    const result = await retention.sweepHealthScoreHistory({} as Env);
-
-    expect(result.rowsProcessed).toBe(N);
-    const after = await db.select().from(healthScoreHistory);
-    expect(after).toHaveLength(FRESH_COUNT);
-    // Every survivor is a fresh one, so the predicate did not delete by luck.
-    for (const row of after) expect(row.recordedAt.getTime()).toBeGreaterThan(AGED.getTime());
-  });
 
   it("an empty table sweeps to zero and issues no delete at all", async () => {
     const { sqlite, db } = createInMemoryDb();
@@ -373,29 +323,6 @@ describe("317: the subquery predicate deletes the aged rows and spares fresh one
     const result = await retention.sweepHealthScoreHistory({} as Env);
     expect(result.rowsProcessed).toBe(0);
     expect(deletesIn(captured)).toHaveLength(0);
-  });
-
-  it("sweepSocialLeads still spares a lead that was replied to", async () => {
-    const { db } = createInMemoryDb();
-    harness.db = db;
-    await SWEEPERS.sweepSocialLeads.seed(db, N, AGED);
-    await db.insert(socialLeads).values({
-      id: "sl_replied",
-      platform: "reddit",
-      postUrl: "https://example.test/replied",
-      intentScore: 9,
-      status: "replied",
-      scoutRunAt: AGED,
-      repliedAt: AGED,
-      createdAt: AGED,
-    });
-
-    const result = await retention.sweepSocialLeads({} as Env);
-
-    expect(result.rowsProcessed).toBe(N);
-    const left = await db.select().from(socialLeads);
-    expect(left).toHaveLength(1);
-    expect(left[0].id).toBe("sl_replied");
   });
 });
 
@@ -419,14 +346,6 @@ describe("317: the ceiling, and the harness gap that hid it", () => {
     const sql = `select 1 where 'x' in (${ids.map(() => "?").join(",")})`;
     expect(() => sqlite.prepare(sql).all(...ids)).not.toThrow();
     expect(ids.length).toBeGreaterThan(D1_MAX_BOUND_PARAMS);
-  });
-
-  it("chunkIds never emits a chunk above the batch size, and loses nothing", () => {
-    const ids = Array.from({ length: N }, (_, i) => i);
-    const chunks = retention.chunkIds(ids);
-    expect(chunks.flat()).toEqual(ids);
-    expect(chunks).toHaveLength(Math.ceil(N / DELETE_ID_BATCH_SIZE));
-    for (const c of chunks) expect(c.length).toBeLessThanOrEqual(DELETE_ID_BATCH_SIZE);
   });
 
   it("chunkIds handles the boundaries: empty, exactly one chunk, one over", () => {

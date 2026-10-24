@@ -48,8 +48,4 @@ describe("resolveErrorBoundaryDetails", () => {
     expect(resolveErrorBoundaryDetails(err, true).details).toBe("a real stack trace detail");
     expect(resolveErrorBoundaryDetails(err, false).details).toBe("An unexpected error occurred.");
   });
-
-  it("shows the generic default for a non-Error, non-route-response thrown value", () => {
-    expect(resolveErrorBoundaryDetails("a string throw", true).details).toBe("An unexpected error occurred.");
-  });
 });

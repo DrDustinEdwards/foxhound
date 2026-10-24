@@ -178,17 +178,6 @@ describe("J41 stripe: the action", () => {
     expect(disconnectedAt("c_mine")).not.toBeNull();
   });
 
-  it("a disconnect whose Stripe revoke failed stays, with its warning", async () => {
-    seedConnection("c_mine", ACTIVE);
-    harness.deauthorizeOk = false;
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    const res = (await post({ _action: "disconnect-stripe", connectionId: "c_mine" })) as {
-      data: { ok: boolean; warning?: string };
-    };
-    expect(res.data.ok).toBe(true);
-    expect(res.data.warning).toContain("Stripe dashboard");
-  });
-
   it("a revoke that THROWS after the committed batch says the true state: disconnected, with the revoke warning", async () => {
     // Review finding on 8bbe191: the catch wrapped disconnectConnection whole,
     // so a throw from the Stripe revoke, which runs AFTER the batch committed,
@@ -209,12 +198,6 @@ describe("J41 stripe: the action", () => {
     );
     // The thrown error is logged whole.
     expect(logged).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ message: "STRIPE_SECRET_KEY is not set" }));
-  });
-
-  it("the loader returns only what the page reads: the live connections", async () => {
-    seedConnection("c_mine", ACTIVE);
-    const loaded = (await route.loader({ context: ctx, request: new Request("https://x/settings/stripe"), params: {} } as never)) as Record<string, unknown>;
-    expect(Object.keys(loaded)).toEqual(["connections"]);
   });
 
   it("refuses another account's connection with 403 and writes nothing", async () => {

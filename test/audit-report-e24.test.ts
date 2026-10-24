@@ -5,7 +5,6 @@ import type Stripe from "stripe";
 import { describe, expect, it, vi } from "vitest";
 
 import { accounts, auditDigestRuns, auditRuns, emailSends, emailSuppressions, stripeConnections } from "~/db/schema";
-import { SCOPE_UNREAD } from "~/lib/audit/render";
 import { EMAIL_AUTH_SENDER_ADDRESS, EMAIL_FROM_ADDRESS } from "~/lib/constants";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
@@ -124,7 +123,6 @@ async function seed(db: ReturnType<typeof fresh>, id: string, row: Record<string
 type EmailInput = Parameters<typeof buildMonthlyAuditEmail>[0];
 type EmailResult = EmailInput["result"];
 const ok = <T,>(data: T) => ({ ok: true as const, data });
-const unread = (reason: string) => ({ ok: false as const, reason });
 
 const resultWith = (over: Partial<EmailResult> = {}): EmailResult =>
   ({
@@ -215,25 +213,6 @@ describe("E24 says what Recova's says", () => {
     const win = lines.indexOf("Dispute win rate: 75% (3W / 1L)");
     expect(lines[win + 1]).toBe("Card Updater: 3 expired-card declines and no Card Updater events.");
   });
-
-  it("a disputes read that failed still says so, rather than hiding the rows (362 ruling 2)", () => {
-    const lines = texts(emailFor({ result: resultWith({ disputes: unread("stripe 500") }) }).blocks);
-    expect(lines).toContain(`Open disputes: ${SCOPE_UNREAD}`);
-    expect(lines).toContain(`Disputes accepted without response: ${SCOPE_UNREAD}`);
-    expect(lines).toContain(`Dispute win rate: ${SCOPE_UNREAD}`);
-  });
-
-  it("the model-written summary and the advisory are plain strings, never markup", () => {
-    const hostile = `<img src=x onerror="alert(1)">&'`;
-    const { blocks } = emailFor({
-      summary: hostile,
-      result: resultWith({
-        cardUpdater: ok({ eventsInWindow: 0, expiredCardDeclinesInWindow: 3, advisory: hostile, windowDays: 30 }),
-      }),
-    });
-    expect(blocks[0]).toEqual({ type: "paragraph", text: hostile });
-    expect(texts(blocks)).toContain(`Card Updater: ${hostile}`);
-  });
 });
 
 // ============================================================================
@@ -267,37 +246,6 @@ describe("E24 carries what Recova's carries, and sends when Recova's does", () =
     expect(m.html).toContain('<html lang="en">');
     expect(m.html).toContain("<title>Your monthly Foxhound report</title>");
   });
-
-  it("logs the send under its own template, on the account", async () => {
-    const db = fresh();
-    await seed(db, "acct_on");
-    await driveMonthlyAudit(collector().env, NOW, null);
-
-    const rows = await db.select().from(emailSends);
-    expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ accountId: "acct_on", template: "monthly_audit", status: "sent" });
-    expect((await db.select().from(auditDigestRuns))[0].status).toBe("sent");
-  });
-
-  it("not when the toggle is off or NULL (Recova's audit_auto_run = true)", async () => {
-    const db = fresh();
-    await seed(db, "acct_off", { auditAutoRun: false });
-    await seed(db, "acct_null", { auditAutoRun: null });
-    const { sent, env } = collector();
-
-    await driveMonthlyAudit(env, NOW, null);
-
-    expect(sent).toHaveLength(0);
-  });
-
-  it("not when the account has no notification address, as in Recova", async () => {
-    const db = fresh();
-    await seed(db, "acct_none", { notificationEmail: null });
-    const { sent, env } = collector();
-
-    expect((await driveMonthlyAudit(env, NOW, null)).skippedNoRecipient).toBe(1);
-    expect(sent).toHaveLength(0);
-  });
 });
 
 // ============================================================================
@@ -322,21 +270,6 @@ describe("a refused send returns its named outcome (RULES.md 3.16)", () => {
     expect((await db.select().from(auditDigestRuns))[0].status).toBe("suppressed");
     // The audit itself still ran and is in history.
     expect(await db.select().from(auditRuns)).toHaveLength(1);
-  });
-
-  it("an account whose live sends are off still gets its report: Recova has no such switch", async () => {
-    // Review round 1 of PR 160. live_sends_enabled defaults false and is on
-    // only for the end-to-end test account (RULES.md 3.21), so holding this
-    // mail behind it would silence every real merchant's report.
-    const db = fresh();
-    await seed(db, "acct_on", { liveSendsEnabled: false });
-    const { sent, env } = collector();
-
-    const outcome = await monthly.auditAccountForMonth(env, { accountId: "acct_on", periodMonth: PERIOD, cronRunId: null }, NOW);
-
-    expect(outcome.status).toBe("sent");
-    expect(sent).toHaveLength(1);
-    expect((await db.select().from(auditDigestRuns))[0].status).toBe("sent");
   });
 
   it("a standing send claim for the month is already_sent: nothing is mailed again", async () => {

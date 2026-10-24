@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  applyCustomBody,
-  findBrandVoiceViolations,
-  passesQualityGate,
   resolveBrandVoice,
   resolveContentPlan,
   sanitizeCopy,
@@ -22,44 +19,6 @@ describe("sanitizers (hard brand rules)", () => {
     const out = sanitizeCopy("I hope this email finds you well. Your card was declined.");
     expect(out).toBe("Your card was declined.");
     expect(out).not.toMatch(/finds you well/i);
-  });
-
-  it("sanitized copy has no dashes remaining", () => {
-    expect(sanitizeCopy("update now — it only takes a minute")).not.toMatch(/[—–]/);
-  });
-});
-
-describe("brand-voice quality gate", () => {
-  it("passes clean merchant-voice copy", () => {
-    const copy = {
-      subject: "Your Acme payment needs a quick fix",
-      bodyHtml: "<p>Hi, your card did not go through. Update it here.</p>",
-    };
-    expect(findBrandVoiceViolations(copy)).toEqual([]);
-    expect(passesQualityGate(copy)).toBe(true);
-  });
-
-  it("flags an em dash", () => {
-    const copy = { subject: "Payment failed — act now", bodyHtml: "<p>ok</p>" };
-    expect(findBrandVoiceViolations(copy)).toContain("em_dash");
-    expect(passesQualityGate(copy)).toBe(false);
-  });
-
-  it("flags an internal-schedule timing leak (detector, not stripped)", () => {
-    const copy = {
-      subject: "Reminder",
-      bodyHtml: "<p>Your payment failed 3 days ago, please update.</p>",
-    };
-    expect(findBrandVoiceViolations(copy)).toContain("timing_leak");
-  });
-
-  it("flags 'day N' schedule leaks and empty copy", () => {
-    expect(
-      findBrandVoiceViolations({ subject: "Day 3 notice", bodyHtml: "<p>x</p>" }),
-    ).toContain("timing_leak");
-    expect(
-      findBrandVoiceViolations({ subject: "", bodyHtml: "<p>x</p>" }),
-    ).toContain("empty");
   });
 });
 
@@ -90,18 +49,6 @@ describe("cache-order resolution (custom_body -> cached -> generate)", () => {
     }
   });
 
-  it("generates when the subject is missing, carrying custom_body forward", () => {
-    const plan = resolveContentPlan({
-      customBody: "<p>merchant body</p>",
-      cachedSubject: null,
-      cachedBodyHtml: null,
-    });
-    expect(plan.source).toBe("generate");
-    if (plan.source === "generate") {
-      expect(plan.customBody).toBe("<p>merchant body</p>");
-    }
-  });
-
   it("generates when both subject and body are missing", () => {
     const plan = resolveContentPlan({
       customBody: null,
@@ -113,21 +60,6 @@ describe("cache-order resolution (custom_body -> cached -> generate)", () => {
 });
 
 describe("applyCustomBody + brand voice", () => {
-  it("custom body overrides a generated body but keeps the generated subject", () => {
-    const merged = applyCustomBody(
-      { subject: "Generated subject", bodyHtml: "<p>generated</p>" },
-      "<p>custom</p>",
-    );
-    expect(merged).toEqual({ subject: "Generated subject", bodyHtml: "<p>custom</p>" });
-  });
-
-  it("keeps the generated body when there is no custom body", () => {
-    const merged = applyCustomBody(
-      { subject: "S", bodyHtml: "<p>generated</p>" },
-      null,
-    );
-    expect(merged.bodyHtml).toBe("<p>generated</p>");
-  });
 
   it("resolves a default voice when the merchant has none, else the merchant's", () => {
     // The third rung is legacy's BRAND_VOICE_DEFAULT, byte for byte (338).

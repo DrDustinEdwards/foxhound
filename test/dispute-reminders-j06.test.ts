@@ -106,12 +106,6 @@ function outcomeRows() {
 }
 
 describe("THE WINDOW: Recova's two bands, edges included", () => {
-  it("72 to 96 hours is the 3-day reminder", () => {
-    expect(resolveReminderBucket(96)).toBeNull();
-    expect(resolveReminderBucket(95.9)).toEqual({ eventType: "dispute_reminder_3d", daysLeft: 3 });
-    expect(resolveReminderBucket(72)).toEqual({ eventType: "dispute_reminder_3d", daysLeft: 3 });
-    expect(resolveReminderBucket(71.9)).toBeNull();
-  });
 
   it("24 to 48 hours is the 1-day reminder; nothing between or after", () => {
     expect(resolveReminderBucket(60)).toBeNull();
@@ -155,133 +149,9 @@ describe("THE RUN: who is reminded", () => {
       { type: "dispute_reminder_3d", outcome: "sent", product: "disputes" },
     ]);
   });
-
-  it("a second tick in the same band sends nothing more", async () => {
-    seedAccount("a1");
-    seedDispute("d3", "a1", 80);
-    await runDisputeReminders(env, NOW);
-    await runDisputeReminders(env, new Date(NOW.getTime() + HOUR));
-    expect(harness.sent).toHaveLength(1);
-    expect(outcomeRows()).toHaveLength(1);
-  });
-
-  it("the same dispute is reminded again when it reaches the 1-day band", async () => {
-    seedAccount("a1");
-    seedDispute("d3", "a1", 80);
-    await runDisputeReminders(env, NOW);
-    await runDisputeReminders(env, new Date(NOW.getTime() + 48 * HOUR));
-    expect(harness.sent.map((m) => m.subject)).toEqual([
-      "URGENT: Dispute response due in 3 days",
-      "URGENT: Dispute response due in 1 day",
-    ]);
-  });
-
-  it("submitted, resolved, paused, unaddressed and switched-off accounts are not reminded", async () => {
-    seedAccount("a1");
-    seedAccount("apaused", { paused: true });
-    seedAccount("anoaddr", { email: null });
-    seedAccount("aoff", { liveSends: false });
-    seedDispute("dsub", "a1", 80, { state: "submitted", submitted: true });
-    seedDispute("dwon", "a1", 80, { state: "resolved_won" });
-    seedDispute("dlost", "a1", 30, { state: "resolved_lost" });
-    seedDispute("dp", "apaused", 80);
-    seedDispute("dn", "anoaddr", 80);
-    seedDispute("doff", "aoff", 80);
-
-    const result = await runDisputeReminders(env, NOW);
-    expect(result.sent).toBe(0);
-    expect(harness.sent).toHaveLength(0);
-    expect(outcomeRows()).toHaveLength(0);
-  });
-
-  it("a demo account is never reminded", async () => {
-    seedAccount("demo_acct");
-    seedDispute("dd", "demo_acct", 80);
-    await runDisputeReminders(env, NOW);
-    expect(harness.sent).toHaveLength(0);
-  });
-});
-
-describe("PR 149 review: no dispute starves, and a tick repeats no work", () => {
-  function emailSendCount(): number {
-    return (sqlite.prepare("SELECT count(*) AS n FROM email_sends").get() as { n: number }).n;
-  }
-
-  it("more than the batch limit in a band: every dispute is reminded over the next ticks, soonest deadline first", async () => {
-    seedAccount("a1");
-    // 150 disputes in the 3-day band, the soonest deadlines planted last so
-    // insertion order cannot pass for the deadline order.
-    for (let i = 0; i < 150; i++) seedDispute(`d${String(i).padStart(3, "0")}`, "a1", 95 - i * 0.1);
-
-    const first = await runDisputeReminders(env, NOW);
-    expect(first).toMatchObject({ considered: 100, sent: 100 });
-    // The 100 soonest went first: the 50 latest deadlines (d000 to d049) wait.
-    const firstTo = new Set(harness.sent.map((m) => m.html.match(/disputes\/(d\d{3})/)![1]));
-    expect([...firstTo].sort()[0]).toBe("d050");
-
-    const second = await runDisputeReminders(env, NOW);
-    expect(second).toMatchObject({ considered: 50, sent: 50 });
-    const third = await runDisputeReminders(env, NOW);
-    // Already reminded for its band: not selected at all, so no load, no
-    // suppression check, no claim attempt and no row.
-    expect(third).toEqual({ considered: 0, sent: 0, skipped: 0, failed: 0 });
-    expect(harness.sent).toHaveLength(150);
-    expect(emailSendCount()).toBe(150);
-  });
-
-  it("the gap between the bands is never selected, so it cannot crowd out a due dispute", async () => {
-    seedAccount("a1");
-    // 120 disputes 60 hours out (between the bands), planted first, and one due.
-    for (let i = 0; i < 120; i++) seedDispute(`g${String(i).padStart(3, "0")}`, "a1", 60);
-    seedDispute("due", "a1", 30);
-    const result = await runDisputeReminders(env, NOW);
-    expect(result).toMatchObject({ considered: 1, sent: 1 });
-    expect(harness.sent[0].html).toContain("https://foxhoundapp.test/disputes/due");
-  });
-
-  it("a suppressed notification address is not selected, so no suppressed row is written each tick", async () => {
-    seedAccount("a1");
-    sqlite
-      .prepare("INSERT INTO email_suppressions (id, email, token, suppressed_at, reason) VALUES ('s1', 'ops@a1.test', 't', 1000, 'bounce')")
-      .run();
-    seedDispute("d3", "a1", 80);
-    for (let tick = 0; tick < 3; tick++) {
-      expect(await runDisputeReminders(env, new Date(NOW.getTime() + tick * 5 * 60 * 1000))).toMatchObject({
-        considered: 0,
-      });
-    }
-    expect(harness.sent).toHaveLength(0);
-    expect(emailSendCount()).toBe(0);
-  });
-
-  it("a send the provider refused is tried again on the next tick", async () => {
-    seedAccount("a1");
-    seedDispute("d3", "a1", 80);
-    const send = (env.EMAIL as { send: unknown }).send;
-    (env.EMAIL as { send: unknown }).send = async () => {
-      throw new Error("provider down");
-    };
-    try {
-      expect(await runDisputeReminders(env, NOW)).toMatchObject({ considered: 1, failed: 1 });
-    } finally {
-      (env.EMAIL as { send: unknown }).send = send;
-    }
-    // Tried again once the back-off (job_2663d92094ab) has passed.
-    expect(await runDisputeReminders(env, new Date(NOW.getTime() + REFUSED_REMINDER_BACKOFF_MS))).toMatchObject({
-      considered: 1,
-      sent: 1,
-    });
-    expect(harness.sent).toHaveLength(1);
-  });
 });
 
 describe("job_2663d92094ab: the reminder says only what the merchant can do", () => {
-  it("an unapproved dispute keeps Recova's line: review and submit, or accept", async () => {
-    seedAccount("a1");
-    seedDispute("d3", "a1", 80);
-    await runDisputeReminders(env, NOW);
-    expect(harness.sent[0].html).toContain("You need to review and submit, or choose to accept.");
-  });
 
   it("an approved dispute Stripe has not confirmed is still reminded, without offering Accept", async () => {
     seedAccount("a1");

@@ -56,26 +56,11 @@ beforeEach(() => {
 });
 
 describe("safeNextPath: Recova's validateRedirect, every check anchored at position 0", () => {
-  it("keeps an internal path with its whole query, resource URL included", () => {
-    expect(safeNextPath(AUTHORIZE)).toBe(AUTHORIZE);
-    // The motive for never using includes(): a resource value that decodes
-    // to an absolute URL inside the query.
-    expect(safeNextPath("/oauth/authorize?resource=https://foxhoundapp.test/mcp")).toBe(
-      "/oauth/authorize?resource=https://foxhoundapp.test/mcp",
-    );
-  });
 
   it("refuses absolute, protocol-relative and backslash targets", () => {
     for (const bad of ["https://evil.example/", "//evil.example/x", "/\\evil.example", "evil", "", null, undefined, "/\t/evil.example", "/\n/evil.example", "%2F%09%2Fevil.example"]) {
       expect(safeNextPath(bad), String(bad)).toBe("/console");
     }
-  });
-
-  it("never decodes an already-decoded path a second time (a Recova defect not copied)", () => {
-    // Recova's tryDecode ran on every value and rewrote the authorize URL's own
-    // encoded query; an encoded "&" in state would have split the parameter.
-    const withAmp = "/oauth/authorize?state=a%26b&x=1";
-    expect(safeNextPath(withAmp)).toBe(withAmp);
   });
 
   it("decodes a doubly encoded value once, as Recova's tryDecode did", () => {

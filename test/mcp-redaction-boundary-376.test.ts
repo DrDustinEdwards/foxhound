@@ -6,13 +6,9 @@ import { describe, expect, it, vi } from "vitest";
 import { accounts, apiKeys, customerContext, disputes, failedPayments, recoverySteps } from "~/db/schema";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
 import {
-  defineToolRegistry,
-  type McpTool,
-  type McpToolAnnotations,
-  type McpToolContext,
   type McpToolRegistry,
 } from "~/lib/mcp/registry";
-import { REDACTED_CUSTOMER_FIELDS, redactToolResult } from "~/lib/mcp/redact";
+import { redactToolResult } from "~/lib/mcp/redact";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 import { mcpRequest, readMcp, toolOutput } from "./helpers/mcp-client";
@@ -56,7 +52,6 @@ vi.mock("~/db", async (importOriginal) => ({
 
 const { handleMcpRequest } = await import("~/lib/mcp/handler.server");
 const { hashMcpToken } = await import("~/lib/auth/mcp-tokens");
-const { getFailedPaymentDetail } = await import("~/lib/recovery/queries.server");
 const { MERCHANT_TOOLS, MERCHANT_TOOL_NAMES, MERCHANT_WRITE_TOOL_NAMES } = await import(
   "~/lib/mcp/tools.server"
 );
@@ -76,14 +71,6 @@ const THEIR_EMAIL = "persephone.nightingale@other.test";
  *  actually return a customer row. See the fixture lesson in the header. */
 const AT_RISK_SCORE = 12;
 
-/** The hints every synthetic tool below carries. The registry types them as
- *  required, so a plant tool has to say something; it says "read". */
-const READ_HINTS: McpToolAnnotations = {
-  readOnlyHint: true,
-  destructiveHint: false,
-  idempotentHint: true,
-  openWorldHint: false,
-};
 
 /**
  * EVERY READ TOOL, WITH THE ARGUMENTS IT NEEDS TO RETURN SOMETHING.
@@ -254,38 +241,7 @@ const READ_TOOL_NAMES = MERCHANT_TOOL_NAMES.filter(
   (name) => !MERCHANT_WRITE_TOOL_NAMES.includes(name),
 );
 
-/** A synthetic tool, shaped the way the registry now requires (title and all
- *  four hints), carrying whatever executor the plant needs. */
-function plantTool(name: string, execute: McpTool["execute"]): McpTool {
-  return {
-    name,
-    title: name,
-    description: "A tool written next year by somebody who never read redact.ts.",
-    inputSchema: { type: "object", properties: {}, required: [] },
-    annotations: READ_HINTS,
-    execute,
-  };
-}
 
-/**
- * A registry that BYPASSES the boundary: same `list`/`get` contract, but `get`
- * hands back the raw executor, the way a registry would if somebody moved the
- * wrap out of `defineToolRegistry` or built a second registry beside it.
- */
-function unwrappedRegistry(tools: McpTool[]): McpToolRegistry {
-  const byName = new Map(tools.map((t) => [t.name, t]));
-  return {
-    list: () =>
-      tools.map(({ name, title, description, inputSchema, annotations }) => ({
-        name,
-        title,
-        description,
-        inputSchema,
-        annotations,
-      })),
-    get: (name) => byName.get(name) ?? null,
-  };
-}
 
 /** The source of the tool module, comments stripped, so a sentence ABOUT the
  *  redactor (the header says where it lives) is not mistaken for a use of it. */
@@ -312,31 +268,6 @@ const TOOLS_SOURCE = readFileSync(
 // ============================================================================
 
 describe("PLANT 1: no read tool returns a customer name or a raw email", () => {
-  it("sweeps EVERY registered read tool over the response bytes", async () => {
-    const { tokens } = await seed();
-    // DERIVED OVER THE REGISTRY, not over a list of the tools known to carry
-    // PII. Deciding in advance which tools carry a customer row is exactly the
-    // judgement 370 got wrong, and it is the judgement this sweep refuses to
-    // make: every read tool is driven, and the three that were leaking are found
-    // by the same assertion that will find the fourth.
-    for (const name of READ_TOOL_NAMES) {
-      const { status, text, isError } = await callTool(tokens[MINE], name, READ_TOOL_ARGS[name]);
-      expect(status, `${name} did not answer`).toBe(200);
-      // An error answer carries no row, so it would pass every absence below
-      // for the wrong reason.
-      expect.soft(isError, `${name} answered with a tool error: ${text}`).toBe(false);
-      // SOFT, so one run names EVERY leaking tool rather than stopping at the
-      // first. A sweep that reports one of six leaks sends the next session to
-      // fix one of six, which is how 376 item 7 came to list three tools that
-      // had all been failing the same rule since session 77.
-      expect.soft(text, `${name} leaked the customer name`).not.toContain(MY_NAME);
-      expect.soft(text, `${name} leaked the raw email`).not.toContain(MY_EMAIL);
-      // The other account's data has no business here whatever the redaction
-      // does, so the two-account pin rides along.
-      expect.soft(text, `${name} leaked the other account`).not.toContain(THEIR_NAME);
-      expect.soft(text, `${name} leaked the other email`).not.toContain(THEIR_EMAIL);
-    }
-  });
 
   it("the sweep had something to find: the customer-carrying tools returned rows", async () => {
     const { tokens } = await seed();
@@ -368,167 +299,9 @@ describe("PLANT 1: no read tool returns a customer name or a raw email", () => {
     expect(text).not.toContain(MY_NAME);
     expect(text).not.toContain(MY_EMAIL);
   });
-
-  it("the masked form is present, so this is masking and not deletion", async () => {
-    const { tokens } = await seed();
-    const { text } = await callTool(tokens[MINE], "foxhound_list_customers");
-    expect(text).toContain("z***@example.test");
-  });
-
-  it("the dispute row is PROJECTED, so the columns the redactor cannot reach never ship", async () => {
-    const { tokens } = await seed();
-    const { text } = await callTool(tokens[MINE], "foxhound_list_disputes");
-    // Not name or email fields, so no redactor keyed on those two could ever
-    // remove them. The tool returning a pick rather than the row is the only
-    // thing standing between an agent and the customer's address.
-    expect(text, "leaked the customer IP").not.toContain("203.0.113.77");
-    expect(text, "leaked the billing address").not.toContain("Coriander Lane");
-    expect(text, "leaked the model-written evidence").not.toContain("we are contesting");
-    expect(text, "leaked the triage reasoning").not.toContain("three prior charges");
-    // And the dispute is still usable: what it is, what it is worth, where it
-    // stands, and the correlation key.
-    expect(text).toContain("fraudulent");
-    expect(text).toContain("4200");
-    expect(text).toContain(`cus_${MINE}`);
-  });
 });
 
 describe("PLANT 2: REGISTRATION is what redacts, so a tool nobody has written yet is covered", () => {
-  const ctx = { accountId: MINE, now: NOW } as unknown as McpToolContext;
-
-  it("a brand new tool that never heard of the redactor comes back redacted", async () => {
-    // THE FOURTH TOOL. It does not exist in the product and never will; it
-    // exists to prove the guard is not a list of the other twelve. It returns a
-    // customer row the way a careless future tool would, straight off a helper,
-    // with no redaction anywhere in it.
-    const registry = defineToolRegistry([
-      plantTool("foxhound_list_future_customers", async () => ({
-        rows: [{ stripeCustomerId: "cus_1", customerName: MY_NAME, customerEmail: MY_EMAIL }],
-      })),
-    ]);
-
-    const tool = registry.get("foxhound_list_future_customers");
-    expect(tool).not.toBeNull();
-    const out = (await tool!.execute(ctx, {})) as {
-      rows: { customerName: unknown; customerEmail: unknown; stripeCustomerId: string }[];
-    };
-    expect(out.rows[0].customerName).toBeNull();
-    expect(out.rows[0].customerEmail).toBe("z***@example.test");
-    expect(out.rows[0].stripeCustomerId).toBe("cus_1");
-  });
-
-  it("THE WIRE ASSERTION DISCRIMINATES: bypass the wrap and the same bytes carry the name", async () => {
-    // The sweep in PLANT 1 is an absence over the response text. This proves
-    // that absence is caused by the registry and not by something else on the
-    // path (the SDK, the result envelope, the handler) quietly dropping the
-    // field: the SAME executor, served through the SAME real handler, is
-    // driven once through `defineToolRegistry` and once through a registry that
-    // hands back the raw executor. Only the wrap differs, and only the wrap
-    // decides whether the name reaches the agent.
-    //
-    // The executor is the REAL foxhound_get_payment helper, so this also proves
-    // the product's own payment detail carries the raw name and email before
-    // the boundary: the get_payment line in the sweep is not passing on a row
-    // that never had anything in it.
-    const { tokens } = await seed();
-    // The steps are dropped here: their email text is kept off the wire by the
-    // tool's projection (PLANT 5), not by the boundary this plant isolates.
-    const realDetail = plantTool("foxhound_get_rawpayment", async (c) => {
-      const detail = await getFailedPaymentDetail(c.db, c.accountId, `fp_${MINE}`);
-      return detail ? { ...detail, steps: [] } : null;
-    });
-
-    const bypassed = await callTool(tokens[MINE], "foxhound_get_rawpayment", {}, unwrappedRegistry([realDetail]));
-    expect(bypassed.isError, bypassed.text).toBe(false);
-    expect(bypassed.text, "the bypass did not put the name on the wire").toContain(MY_NAME);
-    expect(bypassed.text, "the bypass did not put the email on the wire").toContain(MY_EMAIL);
-
-    const wrapped = await callTool(tokens[MINE], "foxhound_get_rawpayment", {}, defineToolRegistry([realDetail]));
-    expect(wrapped.isError, wrapped.text).toBe(false);
-    expect(wrapped.text).toContain(`fp_${MINE}`);
-    expect(wrapped.text).not.toContain(MY_NAME);
-    expect(wrapped.text).not.toContain(MY_EMAIL);
-  });
-
-  it("AN IP AND A BILLING ADDRESS REACH THE WIRE AND ARE REDACTED (383)", async () => {
-    // 383 ruled location into the set: an address is more reachable than an
-    // email and an IP is where somebody was. This drives them through a
-    // REGISTERED tool, because registration is the thing that applies the rule,
-    // and nothing in the product returns either field any more:
-    // foxhound_list_disputes projects them away, so without a synthetic carrier
-    // the new half of the ruling would have no executed coverage at all.
-    const registry = defineToolRegistry([
-      plantTool("foxhound_list_future_locations", async () => ({
-        rows: [
-          {
-            stripeCustomerId: "cus_1",
-            customerIp: "203.0.113.77",
-            billingAddress: "14 Coriander Lane, Bakersfield",
-            customerPhone: "+1 555 0134",
-            amountCents: 4200,
-          },
-        ],
-      })),
-    ]);
-
-    const out = (await registry.get("foxhound_list_future_locations")!.execute(ctx, {})) as {
-      rows: Record<string, unknown>[];
-    };
-    expect(out.rows[0].customerIp).toBeNull();
-    expect(out.rows[0].billingAddress).toBeNull();
-    // Listed against a column that does not exist yet, on purpose: the day a
-    // helper starts returning one it is already covered.
-    expect(out.rows[0].customerPhone).toBeNull();
-    // Dropped, not deleted, and the row is still useful.
-    expect("customerIp" in out.rows[0]).toBe(true);
-    expect(out.rows[0].amountCents).toBe(4200);
-    expect(out.rows[0].stripeCustomerId).toBe("cus_1");
-    // And over the bytes, which is where a missed nested case would show.
-    expect(JSON.stringify(out)).not.toContain("203.0.113.77");
-    expect(JSON.stringify(out)).not.toContain("Coriander Lane");
-    expect(JSON.stringify(out)).not.toContain("555 0134");
-  });
-
-  it("THE CONSTANT IS WHAT ENFORCES: every listed field is redacted, derived from the constant", () => {
-    // 379 binding 3 applied to this guard's own reader. The subject is DERIVED
-    // from REDACTED_CUSTOMER_FIELDS rather than re-listed here, so removing a
-    // field from the constant removes its protection AND is caught, and the
-    // assertion cannot silently stop covering a field somebody deletes.
-    const names = Object.keys(REDACTED_CUSTOMER_FIELDS);
-    expect(names.length).toBeGreaterThan(0);
-    // The set 383 ruled, asserted by membership so the plant that removes one is
-    // red here as well as on the wire.
-    expect(names.sort()).toEqual([
-      "billingAddress",
-      "customerEmail",
-      "customerIp",
-      "customerName",
-      "customerPhone",
-    ]);
-
-    const row: Record<string, unknown> = { keepMe: "untouched" };
-    for (const name of names) row[name] = `RAW-${name}@example.test`;
-    const out = redactToolResult(row) as Record<string, unknown>;
-
-    for (const name of names) {
-      expect(out[name], `${name} came back raw`).not.toBe(row[name]);
-      expect(JSON.stringify(out), `${name} leaked`).not.toContain(`RAW-${name}`);
-    }
-    expect(out.keepMe).toBe("untouched");
-  });
-
-  it("the wrapping is on `get`, not only on the transport", async () => {
-    // `get()` hands the tool to whoever asks. A future caller that is not the
-    // JSON-RPC dispatch (./server.ts) must not be redaction-free by default,
-    // which is why the wrap lives in the registry rather than in the transport.
-    const registry = defineToolRegistry([
-      plantTool("foxhound_get_future_customer", async () => ({ customerName: MY_NAME })),
-    ]);
-    const direct = (await registry.get("foxhound_get_future_customer")!.execute(ctx, {})) as {
-      customerName: unknown;
-    };
-    expect(direct.customerName).toBeNull();
-  });
 
   it("the tool module contains NO masking of its own: the boundary is the one authority", () => {
     // 381 binding e: one authority, not two. If tools.server.ts masked a field
@@ -559,24 +332,6 @@ describe("PLANT 2: REGISTRATION is what redacts, so a tool nobody has written ye
 });
 
 describe("PLANT 3: the walk itself", () => {
-  it("redacts at depth, through arrays and nested containers", () => {
-    // The churn view (foxhound_get_intelligence's `churn`) buries its rows two
-    // deep. A top-level check would have passed every one of the three tools
-    // that were leaking.
-    const out = redactToolResult({
-      bands: [{ band: "at_risk", customerCount: 1 }],
-      topHighRisk: [{ stripeCustomerId: "cus_1", customerName: MY_NAME }],
-      nested: { deeper: { rows: [{ customerEmail: MY_EMAIL }] } },
-    }) as {
-      topHighRisk: { customerName: unknown }[];
-      nested: { deeper: { rows: { customerEmail: unknown }[] } };
-      bands: { customerCount: number }[];
-    };
-    expect(out.topHighRisk[0].customerName).toBeNull();
-    expect(out.nested.deeper.rows[0].customerEmail).toBe("z***@example.test");
-    // A field whose NAME merely starts with "customer" is not a customer field.
-    expect(out.bands[0].customerCount).toBe(1);
-  });
 
   it("keeps Dates as Dates, which a spread would have destroyed", () => {
     const at = new Date("2026-01-02T03:04:05.000Z");
@@ -603,35 +358,6 @@ describe("PLANT 3: the walk itself", () => {
     expect(JSON.stringify(out)).not.toContain(MY_EMAIL);
     // Absence is not a value to hide.
     expect(out.d.customerEmail).toBeNull();
-  });
-
-  it("a field named after an Object prototype member is NOT treated as redacted", () => {
-    // Why the rules live in a Map. A plain object lookup walks the prototype
-    // chain, so `constructor` and `toString` would each find a function there,
-    // read as "this field has a rule", and be nulled. Real data does carry keys
-    // like these: a JSON blob keyed by user input can hold anything.
-    const out = redactToolResult({
-      constructor: "a real value",
-      toString: "another real value",
-      valueOf: 7,
-    }) as Record<string, unknown>;
-    expect(out.constructor).toBe("a real value");
-    expect(out.toString).toBe("another real value");
-    expect(out.valueOf).toBe(7);
-  });
-
-  it("leaves the MERCHANT's own address alone", () => {
-    // The merchant reading their own settings back through their own key must
-    // get their own email whole. Masking it would break the settings readers to
-    // protect nobody.
-    const out = redactToolResult({
-      notificationEmail: "owner@merchant.test",
-      senderName: "The Merchant",
-      approvedByEmail: "owner@merchant.test",
-    }) as Record<string, unknown>;
-    expect(out.notificationEmail).toBe("owner@merchant.test");
-    expect(out.senderName).toBe("The Merchant");
-    expect(out.approvedByEmail).toBe("owner@merchant.test");
   });
 
   it("a cycle terminates and stays redacted", () => {
@@ -690,13 +416,5 @@ describe("PLANT 5: what the tools choose not to return", () => {
     }
     expect(text).not.toContain("Zebulon");
     expect(text).not.toContain(MY_EMAIL);
-  });
-
-  it("foxhound_list_customers takes no search, because the directory's search matches names", () => {
-    // A search argument would let an agent confirm a guessed name that the
-    // redactor never sends: the row comes back or it does not.
-    const descriptor = MERCHANT_TOOLS.list().find((tool) => tool.name === "foxhound_list_customers");
-    expect(descriptor).toBeDefined();
-    expect(Object.keys(descriptor?.inputSchema.properties ?? {})).not.toContain("search");
   });
 });

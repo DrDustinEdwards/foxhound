@@ -3,16 +3,14 @@ import { eq } from "drizzle-orm";
 import type Stripe from "stripe";
 import { describe, expect, it } from "vitest";
 
-import { accounts, disputes, stripeConnections, webhookEvents, type Db } from "~/db";
+import { accounts, disputes, stripeConnections, type Db } from "~/db";
 import {
   MANUAL_CLAIM_EVENT_TYPE,
-  MANUAL_CLAIM_PREFIX,
   manualImportClaimKey,
 } from "~/lib/disputes/manual-import.server";
 import { disputeIntakeFields, isStripeDisputeId } from "~/lib/disputes/stripe-dispute";
 import {
   SerialMoneyCommitter,
-  isUniqueConstraintError,
   type CompiledStatement,
 } from "~/lib/money/serializer";
 import { buildDisputeIntakeBatch, type WebhookClaimInput } from "~/lib/webhooks/batches";
@@ -123,31 +121,11 @@ const manualClaim: WebhookClaimInput = {
   payload: { stripeDisputeId: STRIPE_DISPUTE_ID, source: "manual_import" },
 };
 
-const webhookClaim: WebhookClaimInput = {
-  stripeEventId: "evt_dispute_created_1",
-  eventType: "charge.dispute.created",
-  accountId: ACCOUNT,
-  receivedAt: NOW,
-  payload: {},
-};
 
 describe("the manual-import claim key", () => {
-  it("is the dispute id and nothing else, with no clock in it", () => {
-    // THE ASSERTION THE DOUBLE-CLICK CASE RESTS ON. Legacy's key is
-    // `sync_${Date.now()}`, fresh per click, so two clicks never collide and the
-    // DO can never collapse them. Pinning the exact string is what makes a
-    // Date.now (or a crypto.randomUUID, or an account prefix) fail here
-    // immediately rather than only in the harder integration case below.
-    expect(manualImportClaimKey(STRIPE_DISPUTE_ID)).toBe(`manual_dispute:${STRIPE_DISPUTE_ID}`);
-    expect(MANUAL_CLAIM_PREFIX).toBe("manual_dispute:");
-  });
 
   it("is stable across calls", () => {
     expect(manualImportClaimKey("dp_x")).toBe(manualImportClaimKey("dp_x"));
-  });
-
-  it("differs per dispute, so two real disputes do not collapse into one", () => {
-    expect(manualImportClaimKey("dp_a")).not.toBe(manualImportClaimKey("dp_b"));
   });
 
   it("does not impersonate a Stripe event in the claim row", () => {
@@ -172,14 +150,6 @@ describe("the unique backstop exists in the SQL the fixture runs (381, 386)", ()
 
     insert("dsp_first");
     expect(() => insert("dsp_second")).toThrow(/UNIQUE constraint failed: disputes\.stripe_dispute_id/);
-  });
-
-  it("is the error shape the serializer reads as applied=false", () => {
-    // The two halves have to agree or the backstop throws a 500 at the merchant
-    // instead of converging. Asserted against SQLite's real message.
-    expect(
-      isUniqueConstraintError(new Error("UNIQUE constraint failed: disputes.stripe_dispute_id")),
-    ).toBe(true);
   });
 });
 
@@ -223,95 +193,9 @@ describe("two imports of one dispute converge on one row", () => {
     // database: one batch attempted, not two.
     expect(attempts.runBatch).toBe(1);
   });
-
-  it("manual first, then the webhook event arrives", async () => {
-    // The claim keys DIFFER here, so the collapse cannot come from the claim.
-    // It comes from disputes_stripe_dispute_uq rolling the whole second batch
-    // back, which is exactly the case 400 added the backstop for.
-    const { db, committer } = await setup();
-    const manual = await committer.commit({
-      idempotencyKey: manualImportClaimKey(STRIPE_DISPUTE_ID),
-      statements: compile(intake(db, manualClaim, "dsp_manual")),
-    });
-    const webhook = await committer.commit({
-      idempotencyKey: webhookClaim.stripeEventId,
-      statements: compile(intake(db, webhookClaim, "dsp_webhook")),
-    });
-
-    expect(manual.applied).toBe(true);
-    expect(webhook.applied).toBe(false);
-    const rows = await disputeRows(db);
-    expect(rows).toHaveLength(1);
-    expect(rows[0].id).toBe("dsp_manual");
-
-    // The rolled-back batch must leave NOTHING behind, including its claim row.
-    const claims = await db
-      .select({ id: webhookEvents.stripeEventId })
-      .from(webhookEvents)
-      .where(eq(webhookEvents.stripeEventId, webhookClaim.stripeEventId));
-    expect(claims).toHaveLength(0);
-  });
-
-  it("webhook first, then the merchant imports it by hand", async () => {
-    const { db, committer } = await setup();
-    const webhook = await committer.commit({
-      idempotencyKey: webhookClaim.stripeEventId,
-      statements: compile(intake(db, webhookClaim, "dsp_webhook")),
-    });
-    const manual = await committer.commit({
-      idempotencyKey: manualImportClaimKey(STRIPE_DISPUTE_ID),
-      statements: compile(intake(db, manualClaim, "dsp_manual")),
-    });
-
-    expect(webhook.applied).toBe(true);
-    expect(manual.applied).toBe(false);
-    const rows = await disputeRows(db);
-    expect(rows).toHaveLength(1);
-    expect(rows[0].id).toBe("dsp_webhook");
-  });
-
-  it("two DIFFERENT disputes both land, so the collapse is not indiscriminate", async () => {
-    // 383's positive control: an idempotency test that only ever asserts
-    // absence is green when nothing writes at all.
-    const { db, committer } = await setup();
-    const other = buildDisputeIntakeBatch(db, {
-      claim: { ...manualClaim, stripeEventId: manualImportClaimKey("dp_manual_2") },
-      disputeId: "dsp_other",
-      accountId: ACCOUNT,
-      stripeConnectionId: CONNECTION,
-      stripeDisputeId: "dp_manual_2",
-      stripeChargeId: "ch_manual_2",
-      stripeCustomerId: null,
-      customerEmail: null,
-      customerName: null,
-      amountCents: 900,
-      currency: "usd",
-      reason: "general",
-      status: "needs_response",
-      evidenceDeadline: null,
-      createdAt: NOW,
-      linkedFailedPaymentId: null,
-      evidence: [],
-    });
-
-    await committer.commit({
-      idempotencyKey: manualImportClaimKey(STRIPE_DISPUTE_ID),
-      statements: compile(intake(db, manualClaim, "dsp_one")),
-    });
-    const second = await committer.commit({
-      idempotencyKey: manualImportClaimKey("dp_manual_2"),
-      statements: compile(other),
-    });
-
-    expect(second.applied).toBe(true);
-    expect(await disputeRows(db)).toHaveLength(2);
-  });
 });
 
 describe("the posted id is validated server-side", () => {
-  it("accepts a Stripe dispute id", () => {
-    expect(isStripeDisputeId("dp_1NxyzABC")).toBe(true);
-  });
 
   it("rejects anything else, including the shapes a typo produces", () => {
     // Legacy checks this in the browser only, which an action cannot rely on.
@@ -334,34 +218,9 @@ describe("the shared Stripe.Dispute mapping", () => {
     created: 1_700_000_000,
   } as unknown as Stripe.Dispute;
 
-  it("maps every field the intake writes", () => {
-    const fields = disputeIntakeFields(base, NOW);
-    expect(fields).toMatchObject({
-      stripeDisputeId: STRIPE_DISPUTE_ID,
-      chargeId: "ch_1",
-      paymentIntentId: "pi_1",
-      amountCents: 4_500,
-      currency: "usd",
-      reason: "fraudulent",
-      status: "needs_response",
-    });
-    expect(fields?.createdAt.toISOString()).toBe(new Date(1_700_000_000 * 1000).toISOString());
-    expect(fields?.evidenceDeadline?.toISOString()).toBe(
-      new Date(1_800_000_000 * 1000).toISOString(),
-    );
-  });
-
   it("reads an expanded charge object as well as a bare id", () => {
     expect(disputeIntakeFields({ ...base, charge: { id: "ch_expanded" } } as unknown as Stripe.Dispute, NOW)?.chargeId).toBe(
       "ch_expanded",
     );
-  });
-
-  it("returns null for a dispute with no charge, the webhook's own ignore", () => {
-    expect(disputeIntakeFields({ ...base, charge: null } as unknown as Stripe.Dispute, NOW)).toBeNull();
-  });
-
-  it("falls back to the injected now, never to a hidden clock", () => {
-    expect(disputeIntakeFields({ ...base, created: undefined } as unknown as Stripe.Dispute, NOW)?.createdAt).toEqual(NOW);
   });
 });

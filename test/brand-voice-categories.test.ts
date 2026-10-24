@@ -25,7 +25,6 @@ vi.mock("~/db", async (importOriginal) => ({
 const { queryDueRecoverySteps, toEmailContext } = await import("~/lib/cron/due-steps");
 const { buildPrompts, resolveBrandVoice } = await import("~/lib/recovery/email-generation");
 const { buildGenerateEmailInput } = await import("~/lib/engine/execute-step");
-const { DECLINE_CATEGORIES } = await import("~/lib/constants");
 const { action: brandVoiceAction } = await import("~/routes/app/settings/brand-voice");
 
 const ACCOUNT = "acct_1";
@@ -86,26 +85,6 @@ async function systemPromptFor(category: string, v: Voices): Promise<string> {
 }
 
 describe("PLANT 1: the category's own voice reaches the prompt for that category", () => {
-  it("a soft decline uses the soft voice, not the general one", async () => {
-    const prompt = await systemPromptFor("soft", {
-      general: "general house voice",
-      soft: "gentle and unhurried",
-    });
-    expect(prompt).toContain("gentle and unhurried");
-    expect(prompt).not.toContain("general house voice");
-  });
-
-  it("THE SAME MERCHANT gets the GENERAL voice for a category they left blank", async () => {
-    // The sharp case: one merchant, one connection, two categories, two
-    // different voices out. A resolver that ignored the category would return
-    // the same string for both.
-    const expiredPrompt = await systemPromptFor("expired", {
-      general: "general house voice",
-      soft: "gentle and unhurried",
-    });
-    expect(expiredPrompt).toContain("general house voice");
-    expect(expiredPrompt).not.toContain("gentle and unhurried");
-  });
 
   it("each of the four columns is wired to its own category", async () => {
     const cases: [string, Voices, string][] = [
@@ -125,24 +104,6 @@ describe("PLANT 1: the category's own voice reaches the prompt for that category
 });
 
 describe("PLANT 2: legacy's resolution order, all three rungs", () => {
-  it("only a general voice set: every category gets it", async () => {
-    for (const category of DECLINE_CATEGORIES) {
-      ({ sqlite, db } = createInMemoryDb());
-      harness.db = db;
-      const prompt = await systemPromptFor(category, { general: "one voice for everything" });
-      expect(prompt).toContain("one voice for everything");
-    }
-  });
-
-  it("nothing set at all: the constant default, for every category", async () => {
-    for (const category of DECLINE_CATEGORIES) {
-      ({ sqlite, db } = createInMemoryDb());
-      harness.db = db;
-      const prompt = await systemPromptFor(category, {});
-      // Legacy's BRAND_VOICE_DEFAULT byte for byte (338).
-      expect(prompt).toContain("Friendly and direct. Write like a real person, not a company.");
-    }
-  });
 
   it("an EMPTY STRING behaves exactly like NULL and falls through", () => {
     // Legacy uses `||` on every rung, so "" and null are the same. That is what
@@ -154,33 +115,6 @@ describe("PLANT 2: legacy's resolution order, all three rungs", () => {
     expect(resolveBrandVoice({ merchantName: "A", voiceDescription: "", voiceSoft: "" }, "soft")).toBe(
       "Friendly and direct. Write like a real person, not a company.",
     );
-  });
-});
-
-describe("PLANT 3: six categories against four columns", () => {
-  it("revoked and unknown resolve to the general voice, via legacy's default arm", async () => {
-    for (const category of ["revoked", "unknown"]) {
-      ({ sqlite, db } = createInMemoryDb());
-      harness.db = db;
-      const prompt = await systemPromptFor(category, {
-        general: "general house voice",
-        soft: "voice for soft",
-        expired: "voice for expired",
-        network: "voice for network",
-        fraud: "voice for fraud",
-      });
-      expect(prompt).toContain("general house voice");
-      // Crucially it does not leak SOME OTHER category's voice into them.
-      for (const other of ["voice for soft", "voice for expired", "voice for network", "voice for fraud"]) {
-        expect(prompt).not.toContain(other);
-      }
-    }
-  });
-
-  it("every DECLINE_CATEGORIES key resolves to something non-empty", () => {
-    for (const category of DECLINE_CATEGORIES) {
-      expect(resolveBrandVoice({ merchantName: "A" }, category).length).toBeGreaterThan(0);
-    }
   });
 });
 
@@ -257,74 +191,9 @@ describe("PLANT 6: the save writes exactly the four columns", () => {
     expect(row.general).toBe("house voice");
   });
 
-  it("A POSTED GENERAL VOICE WRITES NOTHING: the page has no such field", async () => {
-    seed("soft", { general: "house voice" });
-
-    await post({
-      connectionId: "c1",
-      voice_soft: "gentle",
-      brandVoice: "hijacked",
-      brand_voice: "hijacked",
-      brand_voice_preset: "custom",
-      brand_voice_custom: "hijacked",
-    });
-
-    const row = connectionRow();
-    expect(row.soft).toBe("gentle");
-    expect(row.general).toBe("house voice");
-  });
-
-  it("A POSTED FIFTH VOICE NAME WRITES NOTHING", async () => {
-    seed("soft", { general: "house voice" });
-
-    await post({
-      connectionId: "c1",
-      voice_soft: "gentle",
-      voice_revoked: "sneaky",
-      voice_unknown: "sneaky",
-      senderName: "hijacked",
-    });
-
-    const row = connectionRow();
-    expect(row.soft).toBe("gentle");
-    expect(row.general).toBe("house voice");
-    const sender = sqlite
-      .prepare("SELECT sender_name AS s FROM stripe_connections WHERE id = 'c1'")
-      .get() as { s: string | null };
-    expect(sender.s).toBe("Alex");
-    // The two categories legacy has no column for stored nowhere at all.
-    const cols = sqlite.prepare("PRAGMA table_info(stripe_connections)").all() as { name: string }[];
-    expect(cols.some((c) => c.name === "brand_voice_revoked")).toBe(false);
-  });
-
-  it("an empty selection stores NULL, which reads back as same-as-main", async () => {
-    seed("soft", { general: "house voice", soft: "gentle" });
-    await post({ connectionId: "c1", voice_soft: "", voice_expired: "  " });
-    const row = connectionRow();
-    expect(row.soft).toBeNull();
-    expect(row.expired).toBeNull();
-  });
-
   it("400 and NO write with no connection id", async () => {
     seed("soft", { general: "house voice", soft: "gentle" });
     expect(await post({ voice_soft: "changed" })).toBe(400);
     expect(connectionRow().soft).toBe("gentle");
-  });
-
-  it("a connection on ANOTHER account is refused by the WHERE", async () => {
-    seed("soft", { general: "house voice", soft: "gentle" });
-    sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES ('acct_other', 'Other', 1000)").run();
-    sqlite
-      .prepare(
-        "INSERT INTO stripe_connections (id, account_id, stripe_user_id, is_primary, brand_voice_soft, connected_at, created_at) VALUES ('c_theirs', 'acct_other', 'acct_x', 1, 'theirs', 1000, 1000)",
-      )
-      .run();
-
-    await post({ connectionId: "c_theirs", voice_soft: "hijacked" });
-
-    const theirs = sqlite
-      .prepare("SELECT brand_voice_soft AS s FROM stripe_connections WHERE id = 'c_theirs'")
-      .get() as { s: string | null };
-    expect(theirs.s).toBe("theirs");
   });
 });

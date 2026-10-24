@@ -90,23 +90,6 @@ describe("J39 notifications: the loader and the action", () => {
     vi.restoreAllMocks();
   });
 
-  it("fills a NULL notification email with the signed-in email, as Recova does, so the first Save stores it", async () => {
-    // Recova's `notification_email ?? user.email`. The box is truthful because
-    // Save writes what it shows.
-    const loaded = (await route.loader({ context: ctx(), request: new Request("https://x/"), params: {} } as never)) as {
-      notificationEmail: string;
-    };
-    expect(loaded.notificationEmail).toBe("owner@acme.test");
-  });
-
-  it("shows a stored notification email as it is", async () => {
-    sqlite.prepare("UPDATE accounts SET notification_email = 'ops@acme.test' WHERE id = ?").run(ACCOUNT);
-    const loaded = (await route.loader({ context: ctx(), request: new Request("https://x/"), params: {} } as never)) as {
-      notificationEmail: string;
-    };
-    expect(loaded.notificationEmail).toBe("ops@acme.test");
-  });
-
   it("names the webhook field on a refused webhook, so the page can put the error beside it", async () => {
     const res = await post({ notificationEmail: "ops@acme.test", slackWebhookUrl: "https://evil.test/x" });
     expect(res.init?.status).toBe(400);

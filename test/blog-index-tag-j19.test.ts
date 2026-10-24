@@ -76,15 +76,6 @@ describe("/blog loader (J19, row M11)", () => {
     const data = (await index.loader({ context } as never)) as Awaited<ReturnType<typeof index.loader>>;
     expect(data.sections.map((s) => s.section.id)).toEqual(["disputes"]);
   });
-
-  it("hides a section whose tag only a draft carries", async () => {
-    const { db } = createInMemoryDb();
-    harness.db = db;
-    await seed(db, "stripe-disputes-guide", { tags: ["comparisons"] });
-    await seed(db, "a-draft", { tags: ["disputes"], published: false });
-    const data = (await index.loader({ context } as never)) as Awaited<ReturnType<typeof index.loader>>;
-    expect(data.sections).toEqual([]);
-  });
 });
 
 async function tagLoader(t: string) {

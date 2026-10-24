@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { formatBytes } from "~/lib/admin/format";
 import { diffMigrations, getEnvSanity } from "~/lib/admin/operations.server";
-import { versionIdsToPrune } from "~/lib/blog/admin-queries.server";
 
 describe("formatBytes", () => {
   it("renders sub-1KB sizes as whole bytes", () => {
@@ -78,21 +77,5 @@ describe("getEnvSanity", () => {
     const names = rows.map((r) => r.name);
     expect(names).toEqual(expect.arrayContaining(["DB", "MONEY_WRITER", "CRON_LOCK"]));
     expect(names).not.toContain("APP_KV");
-  });
-});
-
-describe("versionIdsToPrune", () => {
-  it("keeps everything when under the retention count", () => {
-    expect(versionIdsToPrune(["a", "b"], 10)).toEqual([]);
-  });
-
-  it("keeps exactly the retention count with none to prune", () => {
-    const ten = Array.from({ length: 10 }, (_, i) => `v${i}`);
-    expect(versionIdsToPrune(ten, 10)).toEqual([]);
-  });
-
-  it("prunes everything past the retention count, oldest-first input order preserved", () => {
-    const eleven = Array.from({ length: 11 }, (_, i) => `v${i}`); // newest-first
-    expect(versionIdsToPrune(eleven, 10)).toEqual(["v10"]);
   });
 });

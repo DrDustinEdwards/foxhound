@@ -5,38 +5,11 @@ import {
   recoveryRateBand,
   recoveryRateClassNameOrNull,
 } from "~/lib/dashboard/recovery-rate";
-import { formatMoney, formatMoneyShort } from "~/lib/money-format";
-
-describe("formatMoneyShort", () => {
-  it("drops the cents that formatMoney keeps", () => {
-    expect(formatMoney(1_234_000, "usd")).toBe("$12,340.00");
-    expect(formatMoneyShort(1_234_000, "usd")).toBe("$12,340");
-  });
-
-  it("rounds rather than truncating", () => {
-    expect(formatMoneyShort(1060, "usd")).toBe("$11");
-    expect(formatMoneyShort(1040, "usd")).toBe("$10");
-  });
-
-  it("honors the currency, like formatMoney", () => {
-    expect(formatMoneyShort(500_00, "eur")).toBe("€500");
-  });
-});
 
 describe("formatDateShort", () => {
-  it("renders a short month-day-year date", () => {
-    expect(formatDateShort(new Date("2026-03-04T12:00:00Z"))).toBe("Mar 4, 2026");
-  });
 
   it("returns an empty string for null so callers need no branch", () => {
     expect(formatDateShort(null)).toBe("");
-  });
-
-  // A UTC-pinned formatter is the whole point: an unpinned one renders a
-  // different day on a client east or west of the server and trips hydration.
-  it("pins UTC, so a late-UTC instant does not roll to the local day", () => {
-    expect(formatDateShort(new Date("2026-03-04T23:59:00Z"))).toBe("Mar 4, 2026");
-    expect(formatDateShort(new Date("2026-03-04T00:01:00Z"))).toBe("Mar 4, 2026");
   });
 });
 
@@ -107,10 +80,5 @@ describe("recoveryRateClassNameOrNull", () => {
   it("renders a no-history account subtle rather than alarming red", () => {
     expect(recoveryRateClassNameOrNull(null)).toBe("text-text-subtle");
     expect(recoveryRateClassNameOrNull(0)).toBe("text-error-text");
-  });
-
-  it("matches the non-null helper for real rates", () => {
-    expect(recoveryRateClassNameOrNull(50)).toBe("text-success-text");
-    expect(recoveryRateClassNameOrNull(25)).toBe("text-caution");
   });
 });

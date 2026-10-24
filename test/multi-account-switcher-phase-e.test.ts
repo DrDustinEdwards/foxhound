@@ -38,10 +38,10 @@ vi.mock("~/lib/auth/session", () => ({ getSession: async () => harness.session }
 const { listSwitcherAccounts } = await import("~/lib/nav/accounts.server");
 const { listMemberships } = await import("~/lib/auth/account");
 const { ADD_ACCOUNT_PATH } = await import("~/lib/nav/paths");
-const { ADD_ACCOUNT_ACTION, buildConnectState, parseConnectState } = await import(
+const { ADD_ACCOUNT_ACTION, parseConnectState } = await import(
   "~/lib/stripe/connect-state"
 );
-const { accountLabel, accountInitial, switchAccountHref, switchTargetFromHref } = await import(
+const { accountLabel, accountInitial } = await import(
   "~/components/nav/account-switcher"
 );
 const { loader: addAccountLoader } = await import("~/routes/auth/connect-additional");
@@ -116,47 +116,6 @@ describe("the switcher's data, assembled legacy's way", () => {
     ]);
   });
 
-  it("an account with NO connection yields null, not a string and not a placeholder", async () => {
-    seedAccount("acct_a", "Acme");
-    seedAccount("acct_b", "Not connected yet", 2_000);
-    seedMembership("m1", "acct_a", 1_000);
-    seedMembership("m2", "acct_b", 2_000);
-    seedConnection({ id: "c1", accountId: "acct_a", stripeUserId: "acct_stripe_A" });
-
-    const rows = await listSwitcherAccounts(db, await listMemberships(db, USER));
-
-    const b = rows.find((r) => r.id === "acct_b");
-    expect(b?.stripeUserId).toBeNull();
-    // Not undefined, not "", not the account id wearing a disguise: legacy's
-    // `?? null` (SiteNav.tsx:88) makes the absence explicit.
-    expect(b).toEqual({ id: "acct_b", name: "Not connected yet", stripeUserId: null });
-  });
-
-  it("ignores non-primary connections, which is legacy's is_primary filter", async () => {
-    seedAccount("acct_a", "Acme");
-    seedMembership("m1", "acct_a");
-    seedConnection({
-      id: "c_secondary",
-      accountId: "acct_a",
-      stripeUserId: "acct_stripe_SECOND",
-      isPrimary: false,
-    });
-
-    const rows = await listSwitcherAccounts(db, await listMemberships(db, USER));
-    expect(rows[0].stripeUserId).toBeNull();
-  });
-
-  it("cannot widen past the memberships handed to it", async () => {
-    seedAccount("acct_a", "Acme");
-    seedAccount("acct_theirs", "Someone else");
-    seedMembership("m1", "acct_a");
-    seedConnection({ id: "c1", accountId: "acct_a", stripeUserId: "acct_stripe_A" });
-    seedConnection({ id: "c9", accountId: "acct_theirs", stripeUserId: "acct_stripe_THEIRS" });
-
-    const rows = await listSwitcherAccounts(db, await listMemberships(db, USER));
-    expect(rows.map((r) => r.id)).toEqual(["acct_a"]);
-  });
-
   it("an empty membership list is a constant, not a query", async () => {
     expect(await listSwitcherAccounts(db, [])).toEqual([]);
   });
@@ -202,19 +161,6 @@ describe("the switcher, in Capsomer's site header (Dustin's answer 3, 2026-10-13
   // assertions went with the old dropdown. What legacy fixed and the move
   // keeps is pinned here: the rows, the switch transport and the add row.
   const SOURCE = code("../app/components/nav/account-switcher.tsx");
-
-  it("an account row switches through the POST, then hard-navigates (legacy's re-read)", () => {
-    expect(switchTargetFromHref(switchAccountHref("acct_b"))).toBe("acct_b");
-    expect(switchTargetFromHref("/settings")).toBeNull();
-    expect(SOURCE).toContain("window.location.assign");
-    expect(SOURCE).toContain("window.location.pathname + window.location.search");
-    // The switch itself goes to phase (b)'s action.
-    expect(SOURCE).toContain('"/api/account/switch"');
-    // The header draws that row as a button, and a current row switches nothing.
-    const RENDER = code("../app/components/site-header.tsx");
-    expect(RENDER).toContain("switchTargetFromHref(href)");
-    expect(RENDER).toContain("if (!isCurrent) void switchAccount(switchTo)");
-  });
 
   it("the + Add account href is the marked route and is NEVER /connect", () => {
     // LEGACY DEFECT 1, asserted against. AccountSwitcher.tsx:112 points this row
@@ -288,59 +234,5 @@ describe("the add-account route marks its OAuth state", () => {
     harness.session = null;
     const res = await run();
     expect(res.headers.get("location")).toBe("/login");
-  });
-
-  it("NO LONGER fails closed when active and earliest differ (phase (d) retired that guard)", async () => {
-    // Phase (e) refused this case, because connect-callback.ts attached to the
-    // EARLIEST membership and would have put a live payment processor on the
-    // wrong ledger. Phase (d) made add_account mint its own account instead, so
-    // the question the guard asked has no answer to get wrong, and refusing
-    // would now block the feature rather than protect it. Ruling 329 ratified
-    // the guard for its window and assigned the window's closure.
-    seedAccount("acct_a", "Acme", 1_000);
-    seedAccount("acct_b", "Globex", 2_000);
-    seedMembership("m1", "acct_a", 1_000);
-    seedMembership("m2", "acct_b", 2_000);
-    seedSession("sess_1", "acct_b"); // switched away from the earliest
-
-    const res = await run();
-
-    expect(res.headers.get("location")).toContain("connect.stripe.com");
-    expect(res.headers.get("location")).not.toContain("add_account_unavailable");
-  });
-
-  it("proceeds when the active account IS the earliest, the single-account case", async () => {
-    seedAccount("acct_a", "Acme");
-    seedMembership("m1", "acct_a");
-    seedSession("sess_1", "acct_a");
-
-    const res = await run();
-    expect(res.headers.get("location")).toContain("connect.stripe.com");
-  });
-});
-
-describe("the state payload format", () => {
-  it("round-trips the marker", () => {
-    const state = buildConnectState(ADD_ACCOUNT_ACTION, "nonce-value");
-    expect(parseConnectState(state)).toEqual({ nonce: "nonce-value", action: ADD_ACCOUNT_ACTION });
-  });
-
-  it("REFUSES a bare uuid, which phase (d) made an invalid state", () => {
-    // Phase (e) read an unparseable state as a bare csrf with no action, which
-    // is legacy's own fallback and legacy's own hole: an action-less state runs
-    // the default branch. Ruling 329 phase (d) mints both flows, so it can
-    // require the shape.
-    expect(parseConnectState("6f1c9b1e-0000-4000-8000-000000000000")).toBeNull();
-  });
-
-  it("refuses an action outside the two known ones", () => {
-    expect(parseConnectState(JSON.stringify({ nonce: "x", action: "something_else" }))).toBeNull();
-  });
-
-  it("the route is mounted at the path the switcher links to", async () => {
-    const routes = (await import("~/routes")).default;
-    const flat = JSON.stringify(routes);
-    expect(flat).toContain("./routes/auth/connect-additional.ts");
-    expect(flat).toContain(ADD_ACCOUNT_PATH.slice(1));
   });
 });

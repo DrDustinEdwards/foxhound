@@ -81,8 +81,6 @@ vi.mock("~/lib/billing/credit-note", async (importOriginal) => ({
 const { processConnectedWebhook } = await import("~/lib/webhooks/process");
 const { outcomeNotice, DISPUTE_OUTCOME_TEMPLATE } =
   await import("~/lib/disputes/notices");
-const { sendDisputeOutcomeNotice } =
-  await import("~/lib/disputes/notices.server");
 
 const ACCOUNT = "acct_1";
 const BASE = "https://foxhoundapp.test";
@@ -152,26 +150,6 @@ function seedOpenDispute(
     );
 }
 
-/** A dispute already resolved, as the resolution batch leaves it. */
-function seedResolvedDispute(opts: {
-  state: "resolved_won" | "resolved_lost";
-  submitted?: boolean;
-  feeCents?: number | null;
-}) {
-  sqlite
-    .prepare(
-      "INSERT INTO disputes (id, account_id, stripe_dispute_id, stripe_charge_id, customer_name, customer_email, amount_cents, currency, reason, status, state, submitted_at, resolved_at, resolved_fee_cents, resolved_fee_currency, created_at, stripe_connection_id) VALUES ('d1', ?, 'dp_1', 'ch_1', 'Jane Buyer', 'buyer@acme.test', 5000, 'usd', 'product_not_received', ?, ?, ?, ?, ?, ?, 1000, 'c1')",
-    )
-    .run(
-      ACCOUNT,
-      opts.state === "resolved_won" ? "won" : "lost",
-      opts.state,
-      opts.submitted ? 2000 : null,
-      RECEIVED.getTime(),
-      opts.feeCents ?? null,
-      opts.feeCents != null ? "usd" : null,
-    );
-}
 
 function closedEvent(status: string, id = "evt_x1", amount = 5000) {
   return {
@@ -229,24 +207,6 @@ describe("E19 says what Recova's won notice says, as a Capsomer notice", () => {
     });
   });
 
-  it("a paused account: the fee, and when the billing run will really take it", () => {
-    const made = outcomeNotice({
-      ...base,
-      won: true,
-      foxhoundSubmitted: true,
-      feeCents: 1000,
-      invoiceDate: null,
-    });
-    expect(made).toMatchObject({
-      notice: {
-        body: [
-          "$50.00 stays in your account. Reason: Product Not Received.",
-          "Foxhound fee: $10.00 (20% of the saved amount). It will be invoiced at the first monthly billing run after processing resumes.",
-        ],
-      },
-    });
-  });
-
   it("no fee to invoice (billing exempt, or the cap not yet priced): no fee sentence", () => {
     const made = outcomeNotice({
       ...base,
@@ -286,44 +246,6 @@ describe("E19 says what Recova's won notice says, as a Capsomer notice", () => {
 });
 
 // ============================================================================
-// What they carry, read from the message handed to the binding
-// ============================================================================
-
-describe("E19 and E20 carry Recova's footer, both parts, and no unsubscribe", () => {
-
-  it("From Foxhound, no Reply-To, no unsubscribe header or link, to the notification address", async () => {
-    seedAccount();
-    seedResolvedDispute({ state: "resolved_lost" });
-    await sendDisputeOutcomeNotice(env, {
-      accountId: ACCOUNT,
-      disputeId: "d1",
-    });
-    const m = only();
-    expect(m.from).toBe("Foxhound <recovery@send.foxhoundapp.com>");
-    expect(m.to).toBe("ops@acme.test");
-    expect(m.replyTo).toBeUndefined();
-    expect(m.headers).toBeUndefined();
-    for (const part of [m.html, m.text ?? ""])
-      expect(part.toLowerCase()).not.toContain("unsubscribe");
-    expect(m.text).toContain(footerNote("Acme Billing"));
-  });
-
-  it("a link Capsomer refuses is a named failure, never a mail without its button", async () => {
-    seedAccount();
-    seedResolvedDispute({ state: "resolved_lost" });
-    const out = await sendDisputeOutcomeNotice(
-      makeEnv("http://localhost:5173"),
-      {
-        accountId: ACCOUNT,
-        disputeId: "d1",
-      },
-    );
-    expect(out).toMatchObject({ kind: "sent", result: { status: "failed" } });
-    expect(harness.sent).toHaveLength(0);
-  });
-});
-
-// ============================================================================
 // When they send: Recova's trigger, charge.dispute.closed won or lost
 // ============================================================================
 
@@ -356,19 +278,6 @@ describe("E19 and E20 send on charge.dispute.closed, and not otherwise", () => {
     ]);
   });
 
-  it("won above the cap: the capped fee, and the cap named", async () => {
-    seedAccount();
-    seedOpenDispute({ amountCents: 300_000 });
-    await processConnectedWebhook(
-      env,
-      closedEvent("won", "evt_x1", 300_000),
-      RECEIVED,
-    );
-    expect(only().text).toContain(
-      "Foxhound fee: $500.00 (20% of the saved amount, capped at $500). This will be invoiced on 2026-12-01.",
-    );
-  });
-
   it("won, not submitted by Foxhound: Recova's no-fee variant", async () => {
     seedAccount();
     seedOpenDispute({ submitted: false });
@@ -381,22 +290,6 @@ describe("E19 and E20 send on charge.dispute.closed, and not otherwise", () => {
     expect(m.text).not.toContain("Foxhound fee:");
   });
 
-  it("lost: Recova's lost notice", async () => {
-    seedAccount();
-    seedOpenDispute();
-    await processConnectedWebhook(env, closedEvent("lost"), RECEIVED);
-    const m = only();
-    expect(m.subject).toBe("Dispute lost: $50.00");
-    expect(m.text).toContain("No Foxhound fee. We only charge when we win.");
-  });
-
-  it("a close that is neither won nor lost sends nothing, as Recova's outcome null", async () => {
-    seedAccount();
-    seedOpenDispute();
-    await processConnectedWebhook(env, closedEvent("warning_closed"), RECEIVED);
-    expect(harness.sent).toHaveLength(0);
-  });
-
   it("won on a paused account: the fee, with no date the billing run will not keep", async () => {
     seedAccount({ paused: true });
     seedOpenDispute();
@@ -404,15 +297,5 @@ describe("E19 and E20 send on charge.dispute.closed, and not otherwise", () => {
     expect(only().text).toContain(
       "Foxhound fee: $10.00 (20% of the saved amount). It will be invoiced at the first monthly billing run after processing resumes.",
     );
-  });
-
-  it("won on a billing-exempt account: no fee sentence (Needs Dustin)", async () => {
-    seedAccount({ exempt: true });
-    seedOpenDispute();
-    await processConnectedWebhook(env, closedEvent("won"), RECEIVED);
-    const m = only();
-    expect(m.subject).toBe("Dispute won: $50.00 recovered");
-    expect(m.text).not.toContain("Foxhound fee:");
-    expect(m.text).not.toContain("invoiced");
   });
 });

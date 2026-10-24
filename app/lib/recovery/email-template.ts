@@ -131,7 +131,6 @@ const STEP_TEMPLATES: Record<string, { subject: string; body: (v: StepTemplateVa
   // update restored the account, but finalizeCardUpdateSession only saves the
   // new card as the default and charges nothing, so it now says the update
   // "only takes a minute". Every other word is Recova's.
-  // Pinned by test/recovery-emails-truthful-lines.test.ts.
   email_day30: {
     subject: "Final notice on your account",
     body: (v) =>

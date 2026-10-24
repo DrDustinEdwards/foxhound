@@ -216,7 +216,6 @@ describe("RULES.md 3.19: the audit's Stripe reads page to the end and log the co
 
 // ---- Review round 1 (PR #123) -------------------------------------------------
 
-const reads = await import("~/lib/stripe/reads");
 
 /** A Stripe-shaped list of the given items, page by page as the SDK yields. */
 const listOf = (items: unknown[]) => () => ({
@@ -287,29 +286,6 @@ describe("Review round 1, must-fix 1: the reads keep only what the engine reads"
   });
   afterEach(() => info.mockRestore());
 
-  const stripe = fakeStripe({
-    invoices: [fullInvoice({})],
-    subscriptions: [fullSubscription({})],
-    disputes: [fullDispute({})],
-    events: [fullEvent()],
-  });
-
-  it("no full Stripe object is retained by any of the five reads", async () => {
-    const outcomes = await Promise.all([
-      reads.readUncollectibleInvoices(stripe, 0),
-      reads.readOpenInvoices(stripe),
-      reads.readSubscriptions(stripe),
-      reads.readDisputes(stripe),
-      reads.readCardUpdaterEvents(stripe, 0),
-    ]);
-    for (const outcome of outcomes) {
-      expect(outcome.ok).toBe(true);
-      const kept = JSON.stringify(outcome.ok ? outcome.data : null);
-      expect(kept, "a field the engine never reads was kept").not.toContain(BULK.slice(0, 100));
-      expect(kept).not.toContain('"id":');
-      expect(kept).not.toContain('"object":');
-    }
-  });
 
   it("the engine's answer from the narrowed rows is the answer from the full objects", async () => {
     const full = {

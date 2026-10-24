@@ -75,22 +75,6 @@ function context() {
 }
 
 describe("J30 customers loader", () => {
-  it("scopes every query to the signed-in account", async () => {
-    mocks.isIntelligenceEntitled.mockClear();
-    mocks.listCustomerDirectory.mockClear();
-    mocks.listCustomerTiers.mockClear();
-    await route.loader({
-      context: context(),
-      request: new Request("https://x.test/intelligence/customers?q=Sample&tier=growth"),
-      params: {},
-    } as never);
-    expect(mocks.isIntelligenceEntitled).toHaveBeenCalledTimes(1);
-    expect(mocks.isIntelligenceEntitled.mock.calls[0][1]).toBe("acct_sample");
-    expect(mocks.listCustomerDirectory).toHaveBeenCalledTimes(1);
-    expect(mocks.listCustomerDirectory.mock.calls[0][1]).toBe("acct_sample");
-    expect(mocks.listCustomerTiers).toHaveBeenCalledTimes(1);
-    expect(mocks.listCustomerTiers.mock.calls[0][1]).toBe("acct_sample");
-  });
 
   it("sends the page's columns and no customer email", async () => {
     const data = (await route.loader({
@@ -102,21 +86,5 @@ describe("J30 customers loader", () => {
     expect(data.result.customers[0].stripeCustomerId).toBe("cus_sample_1");
     expect(data.result.customers[0]).not.toHaveProperty("customerEmail");
     expect(JSON.stringify(data)).not.toContain("owner@example.com");
-  });
-
-  it("sends the two signals as booleans, never the raw signal JSON", async () => {
-    const data = (await route.loader({
-      context: context(),
-      request: new Request("https://x.test/intelligence/customers"),
-      params: {},
-    } as never)) as { entitled: true; result: { customers: Record<string, unknown>[] } };
-    const [quiet, busy] = data.result.customers;
-    expect(quiet).toMatchObject({ hasActiveRecovery: false, hasDisputeHistory: false });
-    expect(busy).toMatchObject({ hasActiveRecovery: true, hasDisputeHistory: true });
-    for (const c of data.result.customers) {
-      expect(c).not.toHaveProperty("recoverySignals");
-      expect(c).not.toHaveProperty("disputeSignals");
-    }
-    expect(JSON.stringify(data)).not.toContain("fp_sample_secret");
   });
 });

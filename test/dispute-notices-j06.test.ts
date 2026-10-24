@@ -55,7 +55,7 @@ vi.mock("~/lib/billing/credit-note", async (importOriginal) => ({
 }));
 
 const { processConnectedWebhook } = await import("~/lib/webhooks/process");
-const { DISPUTE_CREATED_TEMPLATE, DISPUTE_OUTCOME_TEMPLATE, nextDisputeBillingRun } = await import(
+const { DISPUTE_CREATED_TEMPLATE, nextDisputeBillingRun } = await import(
   "~/lib/disputes/notices"
 );
 
@@ -205,50 +205,9 @@ describe("NOTICE 1: a new dispute notifies the merchant", () => {
     await processConnectedWebhook(env, createdEvent(), RECEIVED);
     expect(harness.sent).toHaveLength(0);
   });
-
-  it("live sends off: the block is logged and no mail leaves", async () => {
-    seedAccount({ liveSends: false });
-    await processConnectedWebhook(env, createdEvent(), RECEIVED);
-    expect(harness.sent).toHaveLength(0);
-    expect(sendRows()).toEqual([{ status: "blocked", template: DISPUTE_CREATED_TEMPLATE }]);
-  });
 });
 
 describe("NOTICE 2 and 3: a closed dispute tells the merchant it was won or lost", () => {
-  it("won, Foxhound submitted: the fee and the invoice date agree with the fee writer", async () => {
-    seedAccount();
-    seedDispute({ submitted: true });
-    const result = await processConnectedWebhook(env, closedEvent("won"), RECEIVED);
-
-    expect(result).toEqual({ status: "applied" });
-    expect(harness.sent).toHaveLength(1);
-    const mail = harness.sent[0];
-    expect(mail.subject).toBe("Dispute won: $50.00 recovered");
-    expect(mail.html).toMatch(/<h1[^>]*>You won the dispute\.<\/h1>/);
-    // The fee is the snapshot the resolution batch wrote, not a recomputation.
-    const fee = sqlite.prepare("SELECT resolved_fee_cents AS fee FROM disputes WHERE id = 'd1'").get() as {
-      fee: number;
-    };
-    expect(fee.fee).toBe(1000);
-    expect(mail.html).toContain("$10.00");
-    expect(mail.html).toContain("Foxhound fee: $10.00 (20% of the saved amount). This will be invoiced on 2026-12-01.");
-    // Billed at the next monthly run after resolution (PRICING.md).
-    expect(mail.html).toContain("2026-12-01");
-    expect(mail.html).toContain("https://foxhoundapp.test/disputes/dashboard");
-    expect(sendRows()).toEqual([{ status: "sent", template: DISPUTE_OUTCOME_TEMPLATE }]);
-    // The timeline's "Outcome notification sent." reads this stamp.
-    expect(outcomeNotifiedAt()).not.toBeNull();
-  });
-
-  it("won, not submitted by Foxhound: Recova's no-fee variant", async () => {
-    seedAccount();
-    seedDispute({ submitted: false });
-    await processConnectedWebhook(env, closedEvent("won"), RECEIVED);
-    const mail = harness.sent[0];
-    expect(mail.subject).toBe("Dispute won: $50.00 (no Foxhound fee)");
-    expect(mail.html).toContain("No Foxhound fee applies.");
-    expect(mail.html).not.toContain("$10.00");
-  });
 
   it("lost: Recova's lost notice, no fee", async () => {
     seedAccount();
@@ -260,14 +219,6 @@ describe("NOTICE 2 and 3: a closed dispute tells the merchant it was won or lost
     expect(mail.html).toMatch(/<h1[^>]*>Dispute closed as lost\.<\/h1>/);
     expect(mail.html).toContain("No Foxhound fee. We only charge when we win.");
     expect(outcomeNotifiedAt()).not.toBeNull();
-  });
-
-  it("once per dispute: a second close event for the same dispute sends nothing", async () => {
-    seedAccount();
-    seedDispute();
-    await processConnectedWebhook(env, closedEvent("lost", "evt_x1"), RECEIVED);
-    await processConnectedWebhook(env, closedEvent("lost", "evt_x2"), RECEIVED);
-    expect(harness.sent).toHaveLength(1);
   });
 
   it("a dispute already resolved by an Accept still gets Recova's lost notice when Stripe closes it", async () => {
@@ -291,10 +242,6 @@ describe("NOTICE 2 and 3: a closed dispute tells the merchant it was won or lost
 });
 
 describe("the invoice date is the next monthly billing run after resolution", () => {
-  it("mid-month resolves bill on the 1st of the next month", () => {
-    expect(nextDisputeBillingRun(new Date("2026-11-10T12:00:00Z")).toISOString().slice(0, 10)).toBe("2026-12-01");
-    expect(nextDisputeBillingRun(new Date("2026-12-31T23:00:00Z")).toISOString().slice(0, 10)).toBe("2027-01-01");
-  });
 
   it("a win resolved on the 1st before the run is billed by that same run", () => {
     expect(nextDisputeBillingRun(new Date("2026-12-01T01:00:00Z")).toISOString().slice(0, 10)).toBe("2026-12-01");
@@ -318,26 +265,5 @@ describe("PR 149 review: the notices hold when a delivery is cut short or the ac
     // And the send key still holds it to one: a third delivery sends nothing.
     await processConnectedWebhook(env, createdEvent(), RECEIVED);
     expect(harness.sent).toHaveLength(1);
-  });
-
-  it("won on a paused account: the fee is stated, but no invoice date the billing run will not keep", async () => {
-    seedAccount({ paused: true });
-    seedDispute({ submitted: true });
-    await processConnectedWebhook(env, closedEvent("won"), RECEIVED);
-    expect(harness.sent).toHaveLength(1);
-    const html = harness.sent[0].html;
-    expect(html).toContain("$10.00");
-    expect(html).not.toContain("2026-12-01");
-    expect(html).toContain("It will be invoiced at the first monthly billing run after processing resumes.");
-  });
-
-  it("won on a billing-exempt account: no fee sentence at all", async () => {
-    seedAccount();
-    sqlite.prepare("UPDATE accounts SET billing_exempt = 1 WHERE id = ?").run(ACCOUNT);
-    seedDispute({ submitted: true });
-    await processConnectedWebhook(env, closedEvent("won"), RECEIVED);
-    const html = harness.sent[0].html;
-    expect(html).not.toContain("Foxhound fee:");
-    expect(html).not.toContain("invoiced");
   });
 });

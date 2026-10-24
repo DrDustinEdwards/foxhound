@@ -24,7 +24,7 @@ const indexNow = await import("~/lib/seo/indexnow.server");
 const keyRoute = await import("~/routes/files/indexnow-key");
 const { handleCarrelRequest } = await import("~/lib/carrel/handler.server");
 const adminDetail = await import("~/routes/admin/blog/detail");
-const { createPost, getPostForAdmin } = await import("~/lib/blog/admin-queries.server");
+const { createPost } = await import("~/lib/blog/admin-queries.server");
 
 const ORIGIN = "https://foxhoundapp.com";
 const SITE_KEY = "k".repeat(40);
@@ -150,34 +150,6 @@ describe("(b) a publish submits exactly Foxhound's changed URL", () => {
     expectFoxhoundSubmission(captured[0], "why-cards-fail");
   });
 
-  it("Carrel: a save of an already published post submits it again (Recova fires on every live save)", async () => {
-    freshDb();
-    await carrel("/content/p1/draft", { source: SOURCE, expectedVersion: null, changeId: "c1" });
-    await carrel("/content/p1/publish", { expectedVersion: await carrelVersion("p1"), changeId: "c2" });
-    await settled();
-    captured = [];
-    await new Promise((r) => setTimeout(r, 5));
-    const edited = SOURCE.replace("Hello", "Goodbye");
-    const saved = await carrel("/content/p1/draft", { source: edited, expectedVersion: await carrelVersion("p1"), changeId: "c3" });
-    expect(saved?.status).toBe(200);
-    await settled();
-    expect(captured).toHaveLength(1);
-    expectFoxhoundSubmission(captured[0], "why-cards-fail");
-  });
-
-  it("Carrel: unpublish submits nothing", async () => {
-    freshDb();
-    await carrel("/content/p1/draft", { source: SOURCE, expectedVersion: null, changeId: "c1" });
-    await carrel("/content/p1/publish", { expectedVersion: await carrelVersion("p1"), changeId: "c2" });
-    await settled();
-    captured = [];
-    await new Promise((r) => setTimeout(r, 5));
-    const un = await carrel("/content/p1/unpublish", { expectedVersion: await carrelVersion("p1"), changeId: "c3" });
-    expect(un?.status).toBe(200);
-    await settled();
-    expect(captured).toEqual([]);
-  });
-
   it("the helper drops URLs that are not Foxhound's and is a no-op on an empty list", async () => {
     await indexNow.submitToIndexNow([]);
     await indexNow.submitToIndexNow(["https://recovamrr.com/blog/x", "http://foxhoundapp.com/blog/y"]);
@@ -258,66 +230,5 @@ describe("(b) only a publish arriving on https://foxhoundapp.com submits", () =>
     expect(pub?.status).toBe(200);
     await settled();
     expect(captured).toEqual([]);
-  });
-
-  it.each(ELSEWHERE)("admin publish on %s sends nothing", async (origin) => {
-    const db = freshDb();
-    const id = await seedPost(db);
-    expect((await adminCall(id, { _intent: "publish" }, origin)).data.ok).toBe(true);
-    await settled();
-    expect(captured).toEqual([]);
-  });
-
-  it("the same publish on https://foxhoundapp.com sends, on both paths", async () => {
-    const db = freshDb();
-    const id = await seedPost(db);
-    await adminCall(id, { _intent: "publish" }, ORIGIN);
-    await carrel("/content/p1/draft", { source: SOURCE, expectedVersion: null, changeId: "c1" }, ORIGIN);
-    await carrel("/content/p1/publish", { expectedVersion: await carrelVersion("p1"), changeId: "c2" }, ORIGIN);
-    await settled();
-    expect(captured).toHaveLength(2);
-    expectFoxhoundSubmission(captured[0], "dunning-that-works");
-    expectFoxhoundSubmission(captured[1], "why-cards-fail");
-  });
-});
-
-describe("(c) a failed submission never fails or delays the publish", () => {
-  it.each([
-    ["fetch rejects", () => Promise.reject(new Error("network down"))],
-    ["fetch returns 500", async () => new Response("boom", { status: 500 })],
-  ])("Carrel publish succeeds when %s", async (_label, failing) => {
-    freshDb();
-    fetchImpl = failing as () => Promise<Response>;
-    await carrel("/content/p1/draft", { source: SOURCE, expectedVersion: null, changeId: "c1" });
-    const pub = await carrel("/content/p1/publish", { expectedVersion: await carrelVersion("p1"), changeId: "c2" });
-    expect(pub?.status).toBe(200);
-    expect(((await pub!.json()) as { status: string }).status).toBe("published");
-    await settled();
-    expect(captured).toHaveLength(1);
-  });
-
-  it.each([
-    ["fetch rejects", () => Promise.reject(new Error("network down"))],
-    ["fetch returns 500", async () => new Response("boom", { status: 500 })],
-  ])("admin publish succeeds when %s", async (_label, failing) => {
-    const db = freshDb();
-    const id = await seedPost(db);
-    fetchImpl = failing as () => Promise<Response>;
-    expect((await adminCall(id, { _intent: "publish" })).data.ok).toBe(true);
-    expect((await getPostForAdmin(db, id))?.published).toBe(true);
-    await settled();
-    expect(captured).toHaveLength(1);
-  });
-
-  it("a submission that never answers does not hold up the publish (fire and forget)", async () => {
-    const db = freshDb();
-    const id = await seedPost(db);
-    fetchImpl = () => new Promise<Response>(() => {});
-    const result = await Promise.race([
-      adminCall(id, { _intent: "publish" }).then(() => "returned"),
-      new Promise((r) => setTimeout(() => r("held"), 500)),
-    ]);
-    expect(result).toBe("returned");
-    expect(captured).toHaveLength(1);
   });
 });

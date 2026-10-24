@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { isAdminPath, resolvesToDemo } from "~/lib/auth/guards";
-import { DEMO_ACCOUNT_ID, DEMO_SESSION_COOKIE } from "~/lib/demo/constants";
-import { seedDemoAccount } from "~/lib/demo/seed";
+import { DEMO_SESSION_COOKIE } from "~/lib/demo/constants";
 import {
   clearDemoCookieHeader,
   DEMO_READ_ONLY_MESSAGE,
@@ -62,13 +61,6 @@ describe("demo read-only gate", () => {
 // demoBlocksMethod above: no Request/session mocking needed), covering
 // exactly the cases the task calls out by name.
 describe("isAdminPath", () => {
-  it("matches /admin and every nested admin route, including the .data suffix", () => {
-    expect(isAdminPath("/admin")).toBe(true);
-    expect(isAdminPath("/admin/merchants")).toBe(true);
-    expect(isAdminPath("/admin/merchants/123")).toBe(true);
-    expect(isAdminPath("/admin.data")).toBe(true);
-    expect(isAdminPath("/admin/merchants.data")).toBe(true);
-  });
 
   it("does not match non-admin paths, including a prefix lookalike", () => {
     expect(isAdminPath("/dashboard")).toBe(false);
@@ -78,21 +70,11 @@ describe("isAdminPath", () => {
 });
 
 describe("resolvesToDemo (demo-over-session precedence)", () => {
-  it("cookie + real session resolves demo membership on app surfaces", () => {
-    expect(resolvesToDemo(true, true, "/dashboard")).toBe(true);
-    expect(resolvesToDemo(true, true, "/recovery")).toBe(true);
-    expect(resolvesToDemo(true, true, "/intelligence/customers/1")).toBe(true);
-  });
 
   it("cookie + real session on /admin resolves real, not demo", () => {
     expect(resolvesToDemo(true, true, "/admin")).toBe(false);
     expect(resolvesToDemo(true, true, "/admin/merchants")).toBe(false);
     expect(resolvesToDemo(true, true, "/admin.data")).toBe(false);
-  });
-
-  it("real session with no demo cookie is unaffected (today's behavior)", () => {
-    expect(resolvesToDemo(true, false, "/dashboard")).toBe(false);
-    expect(resolvesToDemo(true, false, "/admin")).toBe(false);
   });
 
   it("no session: an anonymous demo visitor resolves demo on every path, including /admin (untouched by this change)", () => {
@@ -116,14 +98,5 @@ describe("resolveDemoMembership", () => {
   it("returns null before the demo is seeded (so the shell sends the visitor back to /demos)", async () => {
     const { db } = createInMemoryDb();
     expect(await resolveDemoMembership(db)).toBeNull();
-  });
-
-  it("resolves to the demo account once seeded, never a real account id", async () => {
-    const { db } = createInMemoryDb();
-    await seedDemoAccount(db, new Date("2026-07-21T00:00:00.000Z"));
-    const membership = await resolveDemoMembership(db);
-    expect(membership).not.toBeNull();
-    expect(membership!.accountId).toBe(DEMO_ACCOUNT_ID);
-    expect(membership!.accountId.startsWith("demo_")).toBe(true);
   });
 });

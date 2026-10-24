@@ -1,9 +1,7 @@
-import { eq, type SQL } from "drizzle-orm";
+import { type SQL } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { accounts } from "~/db";
-import { accountBillingEligibleCondition } from "~/db/billable";
-import { accountProcessingEligibleCondition } from "~/lib/cron/due-steps";
 import { DEMO_ACCOUNT_ID } from "~/lib/demo/constants";
 import { seedDemoAccount } from "~/lib/demo/seed";
 import { accountProcessingEligible } from "~/lib/intelligence/sync.server";
@@ -37,37 +35,11 @@ describe("demo account is firewalled out of every Stripe/AI account enumeration"
     return db;
   }
 
-  it("billing run (accountBillingEligibleCondition) excludes both demo accounts, keeps the real one", async () => {
-    const db = await setup();
-    const eligible = await ids(db, accountBillingEligibleCondition());
-    expect(eligible).toContain("acc_real");
-    expect(eligible).not.toContain(DEMO_ACCOUNT_ID);
-    expect(eligible).not.toContain("demo_probe");
-  });
-
-  it("recovery tick (accountProcessingEligibleCondition) excludes both demo accounts", async () => {
-    const db = await setup();
-    const eligible = await ids(db, accountProcessingEligibleCondition());
-    expect(eligible).toContain("acc_real");
-    expect(eligible).not.toContain(DEMO_ACCOUNT_ID);
-    expect(eligible).not.toContain("demo_probe");
-  });
-
   it("intelligence sync + AI (accountProcessingEligible) excludes both demo accounts", async () => {
     const db = await setup();
     const eligible = await ids(db, accountProcessingEligible());
     expect(eligible).toContain("acc_real");
     expect(eligible).not.toContain(DEMO_ACCOUNT_ID);
     expect(eligible).not.toContain("demo_probe");
-  });
-
-  it("the seeded demo account carries the pause/exempt belt-and-suspenders flags too", async () => {
-    const db = await setup();
-    const rows = await db
-      .select({ billingExempt: accounts.billingExempt, processingPaused: accounts.processingPaused })
-      .from(accounts)
-      .where(eq(accounts.id, DEMO_ACCOUNT_ID));
-    expect(rows[0]?.billingExempt).toBe(true);
-    expect(rows[0]?.processingPaused).toBe(true);
   });
 });

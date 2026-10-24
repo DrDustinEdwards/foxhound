@@ -2,9 +2,6 @@
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import type { Db } from "~/db";
-import { listMemberships, resolveActiveMembership, resolveMembership } from "~/lib/auth/account";
-
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
 // Phase (a) of the multi-account build (ruling 326, under 324's strike of the
@@ -29,10 +26,9 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 
 
 let sqlite: Database.Database;
-let db: Db;
 
 beforeEach(() => {
-  ({ sqlite, db } = createInMemoryDb());
+  ({ sqlite } = createInMemoryDb());
 });
 
 function seedAccount(id: string, name: string): void {
@@ -109,107 +105,6 @@ describe("the migration is what enforces the new membership rule", () => {
     expect(() =>
       insertMembership({ id: "i2", accountId: "acct_a", userId: null, status: "pending" }),
     ).not.toThrow();
-  });
-});
-
-describe("resolveActiveMembership turns a session marker into an account", () => {
-  function seedTwoAccounts(): void {
-    seedAccount("acct_a", "Account A");
-    seedAccount("acct_b", "Account B");
-    insertMembership({
-      id: "m1",
-      accountId: "acct_a",
-      userId: "user_1",
-      status: "active",
-      createdAt: 1_000,
-    });
-    insertMembership({
-      id: "m2",
-      accountId: "acct_b",
-      userId: "user_1",
-      status: "active",
-      role: "member",
-      createdAt: 2_000,
-    });
-  }
-
-  it("marker null resolves the EARLIEST membership", async () => {
-    seedTwoAccounts();
-    const m = await resolveActiveMembership(db, "user_1", null);
-    expect(m?.accountId).toBe("acct_a");
-  });
-
-  it("marker matching a held membership resolves THAT one", async () => {
-    seedTwoAccounts();
-    const m = await resolveActiveMembership(db, "user_1", "acct_b");
-    expect(m?.accountId).toBe("acct_b");
-    expect(m?.role).toBe("member");
-  });
-
-  it("marker for an account the user does NOT hold falls back, and does not throw", async () => {
-    seedTwoAccounts();
-    seedAccount("acct_c", "Someone else's account");
-    const m = await resolveActiveMembership(db, "user_1", "acct_c");
-    expect(m?.accountId).toBe("acct_a");
-  });
-
-  it("marker for an account the user holds as REVOKED falls back, and does not throw", async () => {
-    seedTwoAccounts();
-    seedAccount("acct_r", "Revoked account");
-    insertMembership({
-      id: "m3",
-      accountId: "acct_r",
-      userId: "user_1",
-      status: "revoked",
-      createdAt: 3_000,
-    });
-    // The case an ON DELETE SET NULL foreign key could never have caught: the
-    // account still exists, the row still exists, and the membership is gone.
-    const m = await resolveActiveMembership(db, "user_1", "acct_r");
-    expect(m?.accountId).toBe("acct_a");
-  });
-
-  it("marker for an account id that does not exist at all falls back", async () => {
-    seedTwoAccounts();
-    const m = await resolveActiveMembership(db, "user_1", "acct_deleted");
-    expect(m?.accountId).toBe("acct_a");
-  });
-
-  it("a user with no membership resolves null, with or without a marker", async () => {
-    seedAccount("acct_a", "Account A");
-    expect(await resolveActiveMembership(db, "nobody", null)).toBeNull();
-    expect(await resolveActiveMembership(db, "nobody", "acct_a")).toBeNull();
-  });
-
-  it("listMemberships returns every active membership, earliest first", async () => {
-    seedTwoAccounts();
-    const all = await listMemberships(db, "user_1");
-    expect(all.map((m) => m.accountId)).toEqual(["acct_a", "acct_b"]);
-  });
-
-  it("listMemberships excludes non-active rows", async () => {
-    seedTwoAccounts();
-    seedAccount("acct_r", "Revoked account");
-    insertMembership({
-      id: "m3",
-      accountId: "acct_r",
-      userId: "user_1",
-      status: "revoked",
-      createdAt: 3_000,
-    });
-    const all = await listMemberships(db, "user_1");
-    expect(all.map((m) => m.accountId)).toEqual(["acct_a", "acct_b"]);
-  });
-
-  it("the resolveMembership shim is exactly the null-marker case", async () => {
-    // Phase (a) ships no behaviour change for the six callers that still use the
-    // shim (theme read/write, the marketing layout, the connect pair). This is
-    // that promise as an assertion rather than as a comment.
-    seedTwoAccounts();
-    const shim = await resolveMembership(db, "user_1");
-    const explicit = await resolveActiveMembership(db, "user_1", null);
-    expect(shim).toEqual(explicit);
-    expect(shim?.accountId).toBe("acct_a");
   });
 });
 

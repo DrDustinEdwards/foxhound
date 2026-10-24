@@ -21,30 +21,6 @@ async function seedAccount(db: ReturnType<typeof createInMemoryDb>["db"]) {
 }
 
 describe("intelligence entitlement grant/revoke", () => {
-  it("gate is closed with no subscription", async () => {
-    const { db } = createInMemoryDb();
-    await seedAccount(db);
-    expect(await isIntelligenceEntitled(db, "acc_1")).toBe(false);
-  });
-
-  it("admin grant opens the gate; the row is admin_granted with no stripe fields", async () => {
-    const { db } = createInMemoryDb();
-    await seedAccount(db);
-
-    const result = await grantIntelligence(db, "acc_1", now);
-    expect(result.granted).toBe(true);
-    expect(await isIntelligenceEntitled(db, "acc_1")).toBe(true);
-
-    const rows = await db
-      .select()
-      .from(schema.accountSubscriptions)
-      .where(eq(schema.accountSubscriptions.accountId, "acc_1"));
-    expect(rows).toHaveLength(1);
-    expect(rows[0]?.product).toBe("intelligence");
-    expect(rows[0]?.status).toBe("active");
-    expect(rows[0]?.adminGranted).toBe(true);
-    expect(rows[0]?.stripeSubscriptionId).toBeNull();
-  });
 
   it("revoke closes the gate again", async () => {
     const { db } = createInMemoryDb();

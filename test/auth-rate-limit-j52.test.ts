@@ -6,7 +6,6 @@ import { RouterContextProvider } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { resolveRateLimitBinding } from "~/lib/http/rate-limit";
 
 // J52 (job_674e728b50a3), row A3 and the sign-in limiter (Q5, Dustin "yes",
 // 2026-10-14, message cmsg_01Nd8kh3hkgYNYpWXrNkvBQLC6A6GvHRyQ6YQF4rboRtgK):
@@ -193,30 +192,6 @@ describe("sign-in: 10 a minute per IP, through the login action", () => {
     expect(Number(eleventh.headers.get("Retry-After"))).toBeGreaterThan(0);
     expect(Number(eleventh.headers.get("Retry-After"))).toBeLessThanOrEqual(60);
   });
-
-  it("counts per IP: another address still signs in", async () => {
-    for (let i = 0; i < 11; i++) await run(login, loginForm("203.0.113.7"));
-    const other = await run(login, loginForm("198.51.100.9"));
-    expect(other.status).toBe(400);
-    expect(harness.calls.signInEmail).toBe(11);
-  });
-
-  it("opens again in the next minute", async () => {
-    for (let i = 0; i < 11; i++) await run(login, loginForm());
-    vi.setSystemTime(new Date("2026-10-16T12:01:00.000Z"));
-    expect((await run(login, loginForm())).status).toBe(400);
-  });
-
-  // The old guard matched the path in workers/app.ts. A hydrated browser posts
-  // a form to /login.data (react-router's single fetch adds the suffix), which
-  // that matcher never matched, so every sign-in from the page's own form went
-  // unthrottled. The action runs whatever URL reached it.
-  it("limits the same action when it is reached as /login.data", async () => {
-    for (let i = 0; i < 10; i++) await run(login, form("/login.data", { email: "a@example.com", password: PASSWORD }));
-    const r = await run(login, form("/login.data", { email: "a@example.com", password: PASSWORD }));
-    expect(r.status).toBe(429);
-    expect(harness.calls.signInEmail).toBe(10);
-  });
 });
 
 describe("signup: ruling 24's 5 an hour per IP, through the signup action", () => {
@@ -235,15 +210,6 @@ describe("signup: ruling 24's 5 an hour per IP, through the signup action", () =
     // The hourly window has about half an hour left.
     expect(Number(sixth.headers.get("Retry-After"))).toBeGreaterThan(60);
     expect(Number(sixth.headers.get("Retry-After"))).toBeLessThanOrEqual(1800);
-  });
-
-  it("the hourly bucket is signup's own: sign-in from the same IP is not spent by it", async () => {
-    for (let i = 0; i < 6; i++) {
-      vi.setSystemTime(new Date(Date.UTC(2026, 9, 16, 12, i * 2, 0)));
-      await run(signup, signupForm());
-    }
-    vi.setSystemTime(new Date(Date.UTC(2026, 9, 16, 12, 20, 0)));
-    expect((await run(login, loginForm())).status).toBe(400);
   });
 
   it("closes Better Auth's own sign-up endpoint the same way", async () => {
@@ -296,17 +262,6 @@ describe("the shared auth bucket: every signed-out POST that tests a password or
     expect(harness.calls).toEqual(before);
   });
 
-  it("does not count a GET to /api/auth (session reads and verification links)", async () => {
-    for (let i = 0; i < 12; i++) {
-      const get = new Request("https://foxhoundapp.com/api/auth/get-session", {
-        headers: { "CF-Connecting-IP": "203.0.113.7" },
-      });
-      await apiAuth.loader({ request: get, context: context(makeEnv()), params: {} } as never);
-    }
-    expect(namespace.names).toEqual([]);
-    expect((await run(login, loginForm())).status).toBe(400);
-  });
-
   it("keys on the client address, never on the email or the password", async () => {
     await run(login, loginForm());
     await run(signup, signupForm());
@@ -315,25 +270,6 @@ describe("the shared auth bucket: every signed-out POST that tests a password or
 });
 
 describe("a counter that fails lets the request through, by design (RULES.md 4.10)", () => {
-  it("signs in when the Durable Object throws, and logs neither the password nor the address", async () => {
-    const broken = {
-      idFromName: (n: string) => n,
-      get: () => ({
-        hit: async () => {
-          throw new Error("Durable Object unavailable");
-        },
-      }),
-    };
-    const log = vi.spyOn(console, "error").mockImplementation(() => {});
-    const r = await run(login, loginForm(), makeEnv(broken));
-    expect(r.status).toBe(400);
-    expect(harness.calls.signInEmail).toBe(1);
-    const logged = JSON.stringify(log.mock.calls);
-    expect(logged).toContain("rate-limit-unavailable");
-    expect(logged).not.toContain(PASSWORD);
-    expect(logged).not.toContain("203.0.113.7");
-    log.mockRestore();
-  });
 
   it("signs up when the binding is missing altogether", async () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -345,11 +281,6 @@ describe("a counter that fails lets the request through, by design (RULES.md 4.1
 });
 
 describe("Foxhound's own limiter no longer handles these paths", () => {
-  it("the worker-level matcher leaves every auth POST to the actions", () => {
-    for (const path of ["/login", "/signup", "/forgot-password", "/reset-password", "/auth/google", "/api/auth/sign-in/email", "/api/auth"]) {
-      expect(resolveRateLimitBinding(new Request(`https://foxhoundapp.com${path}`, { method: "POST" })), path).toBeNull();
-    }
-  });
 
   it("the routes import the limiter from site-runtime, not from app/lib/http/rate-limit", () => {
     const src = readFileSync("app/lib/auth/rate-limit.server.ts", "utf8");

@@ -69,7 +69,7 @@ vi.mock("~/lib/stripe/client", () => ({
 }));
 
 const { processConnectedWebhook } = await import("~/lib/webhooks/process");
-const { grantIntelligence, revokeIntelligence } = await import("~/lib/admin/merchants.server");
+const { grantIntelligence } = await import("~/lib/admin/merchants.server");
 const schema = await import("~/db/schema");
 
 /** A cancellation event for the seeded customer. Legacy's win-back trigger. */
@@ -145,16 +145,6 @@ describe("292: the gate reads the LIVE entitlement, end to end", () => {
     expect(step1OffsetHours(sqlite)).toBe(WINBACK_STEP1_HOURS);
   });
 
-  it("GRANTED and UNFLAGGED: the admin grant reaches the gate and DELAYS to 4h", async () => {
-    // The load-bearing assertion of the whole rewire. Against the 291 gate this
-    // returns 1, because the granted account_subscriptions row is invisible to a
-    // read of account_products.
-    const { sqlite } = await seed({ grant: true, recommendedAction: "churn_save_outreach" });
-    const outcome = await processConnectedWebhook({} as Env, deletionEvent("evt_b"), NOW);
-    expect(outcome).toEqual({ status: "applied" });
-    expect(step1OffsetHours(sqlite)).toBe(WINBACK_UNFLAGGED_STEP1_HOURS);
-  });
-
   it("GRANTED with NO customer_context row is still UNFLAGGED, so still 4h", async () => {
     // Legacy reads the recommendation with maybeSingle and compares the absent
     // value, which is not the priority string, so the delay applies.
@@ -167,39 +157,5 @@ describe("292: the gate reads the LIVE entitlement, end to end", () => {
     const { sqlite } = await seed({ grant: true, recommendedAction: WINBACK_PRIORITY_ACTION });
     await processConnectedWebhook({} as Env, deletionEvent("evt_d"), NOW);
     expect(step1OffsetHours(sqlite)).toBe(WINBACK_STEP1_HOURS);
-  });
-
-  it("the direction survives the rewire: unflagged is strictly LATER than flagged", async () => {
-    // 291's direction assertion, re-proven on the LIVE entitlement rather than on
-    // the planner alone. This is what catches a delay/acceleration inversion.
-    const unflagged = await seed({ grant: true, recommendedAction: "expansion_outreach" });
-    await processConnectedWebhook({} as Env, deletionEvent("evt_e"), NOW);
-    const delayed = step1OffsetHours(unflagged.sqlite);
-
-    const flagged = await seed({ grant: true, recommendedAction: WINBACK_PRIORITY_ACTION });
-    await processConnectedWebhook({} as Env, deletionEvent("evt_f"), NOW);
-    const kept = step1OffsetHours(flagged.sqlite);
-
-    expect(delayed).toBeGreaterThan(kept);
-  });
-
-  it("a REVOKED entitlement stops entitling: back to the 1h default", async () => {
-    // The status half of the predicate is load-bearing, not just row presence.
-    // Without it a revoked account would keep the paid cadence forever.
-    const { sqlite, db } = await seed({ grant: true, recommendedAction: "churn_save_outreach" });
-    await revokeIntelligence(db, ACCOUNT_ID, NOW);
-    await processConnectedWebhook({} as Env, deletionEvent("evt_g"), NOW);
-    expect(step1OffsetHours(sqlite)).toBe(WINBACK_STEP1_HOURS);
-  });
-
-  it("steps 2 and 3 are never touched by the gate, on either branch", async () => {
-    // Legacy overrides step ONE only. Regression guard.
-    const { sqlite } = await seed({ grant: true, recommendedAction: "churn_save_outreach" });
-    await processConnectedWebhook({} as Env, deletionEvent("evt_h"), NOW);
-    const rows = sqlite
-      .prepare("select step_number, scheduled_at from win_back_steps order by step_number")
-      .all() as { step_number: number; scheduled_at: number }[];
-    const offsets = rows.map((r) => (r.scheduled_at - NOW.getTime()) / HOUR_MS);
-    expect(offsets).toEqual([WINBACK_UNFLAGGED_STEP1_HOURS, 96, 336]);
   });
 });

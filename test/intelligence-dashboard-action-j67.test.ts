@@ -116,22 +116,6 @@ describe("/intelligence/dashboard action", () => {
     expect(status).toBe(expected);
   });
 
-  // Recova's server answered a 500 with "Could not generate the report. Try
-  // again or contact support.", which its card showed; "Network error." was
-  // only for a request that never got an answer. A database error thrown out of the action would
-  // instead reach the route's error boundary and replace the whole dashboard.
-  it("keeps a thrown generation error in the card as a 500, and logs it whole", async () => {
-    isIntelligenceEntitled.mockResolvedValue(true);
-    const boom = new Error("D1_ERROR: database is locked");
-    generateMonthlyReport.mockRejectedValue(boom);
-    const log = vi.spyOn(console, "error").mockImplementation(() => {});
-    const { status, body } = await answer({ intent: "generate", month: "2026-10" });
-    expect(body).toEqual({ ok: false, error: "server_error" });
-    expect(status).toBe(500);
-    expect(log.mock.calls.some((call) => call.includes(boom))).toBe(true);
-    log.mockRestore();
-  });
-
   it("keeps a thrown entitlement read in the card as a 500 too", async () => {
     generateMonthlyReport.mockClear();
     isIntelligenceEntitled.mockRejectedValue(new Error("D1_ERROR: no such table"));

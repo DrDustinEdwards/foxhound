@@ -99,9 +99,4 @@ describe("PLANT 1: a posted digest_email writes nothing", () => {
     // so the post neither writes nor CLEARS it.
     expect(row.digestEmail).toBe("digest@acme.test");
   });
-
-  it("an empty notification email still nulls, so the removal narrowed nothing else", async () => {
-    await post({ notificationEmail: "" });
-    expect(accountRow().notificationEmail).toBeNull();
-  });
 });

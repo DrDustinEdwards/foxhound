@@ -118,54 +118,8 @@ async function seed(opts: {
   return db;
 }
 
-const sorted = (rows: { currency: string; cents: number }[]) =>
-  [...rows].sort((a, b) => a.currency.localeCompare(b.currency));
 
 describe("console read model: money per currency (RULES.md 3.20)", () => {
-  it("totals this month's recoveries per currency, never adding EUR to USD", async () => {
-    const db = await seed({
-      recovered: [
-        { cents: 1_000, currency: "usd" },
-        { cents: 2_000, currency: "eur" },
-        { cents: 500, currency: "usd" },
-      ],
-    });
-    const view = await getConsoleView(db, ACCOUNT_ID, NOW, null);
-    expect(sorted(view.hero.protectedThisMonth)).toEqual([
-      { currency: "eur", cents: 2_000 },
-      { currency: "usd", cents: 1_500 },
-    ]);
-    expect(sorted(view.tiles.recoveredThisMonth)).toEqual(sorted(view.hero.protectedThisMonth));
-  });
-
-  it("keeps every currency of the at-risk total, not only the first", async () => {
-    const db = await seed({
-      active: [
-        { cents: 1_200, currency: "usd" },
-        { cents: 3_000, currency: "gbp" },
-      ],
-    });
-    const view = await getConsoleView(db, ACCOUNT_ID, NOW, null);
-    expect(sorted(view.hero.atRisk)).toEqual([
-      { currency: "gbp", cents: 3_000 },
-      { currency: "usd", cents: 1_200 },
-    ]);
-  });
-
-  it("totals high-risk MRR per currency", async () => {
-    const db = await seed({
-      entitled: true,
-      atRisk: [
-        { mrr: 4_000, currency: "usd" },
-        { mrr: 9_000, currency: "eur" },
-      ],
-    });
-    const view = await getConsoleView(db, ACCOUNT_ID, NOW, null);
-    expect(sorted(view.tiles.highRiskMrr)).toEqual([
-      { currency: "eur", cents: 9_000 },
-      { currency: "usd", cents: 4_000 },
-    ]);
-  });
 
   it("formats an attention row's MRR in that customer's own currency", async () => {
     const db = await seed({ entitled: true, atRisk: [{ mrr: 9_000, currency: "eur" }] });

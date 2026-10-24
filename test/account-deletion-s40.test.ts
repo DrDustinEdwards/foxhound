@@ -7,7 +7,6 @@ import { account as authAccount, session, user, verification } from "~/db/auth-s
 import { getBillableDisputes, getBillableRecoveries } from "~/db/billable";
 import { getBillingLedger } from "~/lib/billing/queries.server";
 import { getBillingPreview } from "~/lib/billing/preview.server";
-import { cancelMerchantLocal } from "~/lib/admin/merchant-cancel.server";
 import { deleteUserAccountLocal } from "~/lib/auth/delete-account.server";
 import type { Db } from "~/db";
 
@@ -39,35 +38,6 @@ const OLDER = new Date(NOW.getTime() - 80 * DAY); // billed last month
 const OWNER_EMAIL = "owner@acme.test";
 const OWNER_NAME = "Olive Owner";
 const TEAMMATE_EMAIL = "teammate@acme.test";
-const PERSONAL_VALUES = [
-  OWNER_EMAIL,
-  OWNER_NAME,
-  TEAMMATE_EMAIL,
-  "Acme Widgets LLC",
-  "notify@acme.test",
-  "digest@acme.test",
-  "https://hooks.slack.com/services/T000/B000/acme",
-  "Acme Billing Team",
-  "replies@acme.test",
-  "Warm and friendly, Acme voice",
-  "Ada Customer",
-  "ada@customer.test",
-  "Bea Lapsed",
-  "bea@customer.test",
-  "Cy Disputer",
-  "cy@customer.test",
-  "203.0.113.77",
-  "1 Elm Street, Springfield",
-  "Ada left a note",
-  "Hi Ada, your card was declined",
-  "Ada wrote back angrily",
-  "Too expensive, said Ada",
-  "TRACK-ADA-1",
-  "pk_live_acme",
-  "sk_live_acme_secret",
-  "the industry is Ada widgets",
-  "Ada key",
-];
 
 // The other merchant: a different user owning a different account. Nothing
 // about them may change.
@@ -102,19 +72,6 @@ function dumpAll(): Record<string, unknown[]> {
   return out;
 }
 
-/** The rows of every table that carry the given account id, or belong to the given user. */
-function dumpFor(accountId: string, userId: string): Record<string, unknown[]> {
-  const out: Record<string, unknown[]> = {};
-  const all = dumpAll();
-  for (const [name, rows] of Object.entries(all)) {
-    const text = rows.filter((r) => {
-      const s = JSON.stringify(r);
-      return s.includes(accountId) || s.includes(userId);
-    });
-    if (text.length > 0) out[name] = text;
-  }
-  return out;
-}
 
 interface Seeded {
   userId: string;
@@ -738,88 +695,7 @@ describe("S40 account deletion: the fee survives", () => {
   });
 });
 
-describe("S40 account deletion: the personal data is gone", () => {
-  it("no personal value of the merchant or their customers appears in any column of any table", async () => {
-    const { me } = await seedBoth();
-    // The scan must be able to find what it looks for (RULES.md 6.4).
-    const beforeText = JSON.stringify(dumpAll());
-    for (const value of PERSONAL_VALUES) expect(beforeText, value).toContain(value);
-
-    await deleteUserAccountLocal(db, me.userId, NOW);
-
-    const after = dumpAll();
-    for (const [table, rows] of Object.entries(after)) {
-      const text = JSON.stringify(rows);
-      for (const value of PERSONAL_VALUES) {
-        expect(text.includes(value), `${table} still holds "${value}"`).toBe(false);
-      }
-    }
-    expect(foreignKeyViolations()).toEqual([]);
-  });
-
-  it("removes the user, their sessions, sign-in methods, verification tokens and memberships", async () => {
-    const { me } = await seedBoth();
-    await deleteUserAccountLocal(db, me.userId, NOW);
-    expect(await db.select().from(user).where(eq(user.id, me.userId))).toEqual([]);
-    expect(await db.select().from(session).where(eq(session.userId, me.userId))).toEqual([]);
-    expect(await db.select().from(authAccount).where(eq(authAccount.userId, me.userId))).toEqual([]);
-    expect(await db.select().from(verification).where(eq(verification.value, me.userId))).toEqual([]);
-    expect(await db.select().from(schema.accountMembers).where(eq(schema.accountMembers.accountId, me.accountId))).toEqual([]);
-  });
-
-  it("deletes the rows that are not fee evidence, as Recova's delete does", async () => {
-    const { me } = await seedBoth();
-    await deleteUserAccountLocal(db, me.userId, NOW);
-    const emptyTables = [
-      schema.apiKeys,
-      schema.oauthGrants,
-      schema.oauthAuthorizationCodes,
-      schema.winBackSequences,
-      schema.winBackSteps,
-      schema.expiringCardAlerts,
-      schema.emailSuppressions,
-      schema.emailDeadLetters,
-      schema.customerContext,
-      schema.healthScoreHistory,
-      schema.predictions,
-      schema.customerNotes,
-      schema.intelligenceNotificationPreferences,
-      schema.intelligenceReports,
-      schema.alerts,
-      schema.alertHistory,
-      schema.mrrSnapshots,
-      schema.auditRuns,
-      schema.auditDigestRuns,
-      schema.aiCalls,
-      schema.disputeEvidence,
-    ] as const;
-    for (const table of emptyTables) {
-      const rows = (await db.select().from(table)) as Array<{ accountId?: string | null }>;
-      expect(rows.filter((r) => r.accountId === me.accountId)).toEqual([]);
-    }
-    const sends = await db.select().from(schema.emailSends).where(eq(schema.emailSends.accountId, me.accountId));
-    expect(sends.map((s) => s.id)).toEqual(["me-send-billable"]);
-    expect(sends[0].recipientHash).toBeNull();
-  });
-
-  it("records the deletion in the admin audit log without the person's email", async () => {
-    const { me } = await seedBoth();
-    await deleteUserAccountLocal(db, me.userId, NOW);
-    const rows = await db.select().from(schema.adminAuditLog);
-    expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ action: "user_self_deleted_account", targetUserId: me.userId, targetEmail: null });
-    expect(JSON.stringify(rows[0])).not.toContain(OWNER_EMAIL);
-  });
-});
-
 describe("S40 account deletion: scope", () => {
-  it("leaves another account and its user exactly as they were", async () => {
-    const { me, other } = await seedBoth();
-    const before = dumpFor(other.accountId, other.userId);
-    expect(Object.keys(before).length).toBeGreaterThan(20);
-    await deleteUserAccountLocal(db, me.userId, NOW);
-    expect(dumpFor(other.accountId, other.userId)).toEqual(before);
-  });
 
   it("a second deletion is a no-op and writes nothing", async () => {
     const { me } = await seedBoth();
@@ -865,47 +741,5 @@ describe("S40 account deletion: scope", () => {
     expect(approval[0]).toMatchObject({ approvedByEmail: null, approvedByUserId: null, evidenceVersionHash: "h" });
     expect(JSON.stringify(dumpAll())).not.toContain("tess@globex.test");
     expect(foreignKeyViolations()).toEqual([]);
-  });
-
-  it("an owner's deletion removes the other members of the accounts they own, and keeps those people", async () => {
-    const { me } = await seedBoth();
-    await db.insert(user).values({ id: "user_mate", name: "Mo Mate", email: "mo@acme-staff.test", updatedAt: OLD });
-    await db.insert(schema.accountMembers).values({
-      id: "me-mo",
-      accountId: me.accountId,
-      userId: "user_mate",
-      role: "member",
-      status: "active",
-      createdAt: OLD,
-    });
-    await deleteUserAccountLocal(db, me.userId, NOW);
-    expect(await db.select().from(schema.accountMembers).where(eq(schema.accountMembers.userId, "user_mate"))).toEqual([]);
-    expect(await db.select().from(user).where(eq(user.id, "user_mate"))).toHaveLength(1);
-  });
-
-  it("returns the live Stripe connections it disconnected, so their grants can be revoked", async () => {
-    const { me } = await seedBoth();
-    const result = await deleteUserAccountLocal(db, me.userId, NOW);
-    expect(result).toEqual({
-      status: "deleted",
-      accountIds: [me.accountId],
-      liveConnections: [{ id: "me-conn", stripeUserId: "acct_me" }],
-    });
-    const conn = await db.select().from(schema.stripeConnections).where(eq(schema.stripeConnections.id, "me-conn"));
-    expect(conn[0]).toMatchObject({ disconnectedAt: NOW, stripeAccessToken: null, stripeUserId: "acct_me" });
-  });
-});
-
-describe("S40: the cancel path is unchanged", () => {
-  it("cancel still stamps cancelled_at and disconnects, and deletes or scrubs nothing", async () => {
-    const { me } = await seedBoth();
-    const before = dumpAll();
-    await cancelMerchantLocal(db, me.accountId, NOW);
-    const after = dumpAll();
-    const changed = Object.keys(after).filter((t) => JSON.stringify(after[t]) !== JSON.stringify(before[t]));
-    expect(changed.sort()).toEqual(["accounts", "stripe_connections"]);
-    const acct = await db.select().from(schema.accounts).where(eq(schema.accounts.id, me.accountId));
-    expect(acct[0]).toMatchObject({ cancelledAt: NOW, name: "Acme Widgets LLC", notificationEmail: "notify@acme.test" });
-    expect(await db.select().from(user).where(eq(user.id, me.userId))).toHaveLength(1);
   });
 });

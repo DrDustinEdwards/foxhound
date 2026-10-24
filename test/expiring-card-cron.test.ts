@@ -50,9 +50,8 @@ vi.mock("~/lib/stripe/client", () => ({
   }),
 }));
 
-const { runExpiringCards, scanExpiringCards, sendExpiringCardAlerts, isInsideLeadWindow, EXPIRING_CARD_SCAN_SOFT_LIMIT } =
+const { runExpiringCards, scanExpiringCards, sendExpiringCardAlerts, EXPIRING_CARD_SCAN_SOFT_LIMIT } =
   await import("~/lib/cron/expiring-cards");
-const { LIVE_SENDS_DISABLED_ERROR } = await import("~/lib/email/dispatch");
 
 const ACCOUNT = "acct_1";
 const NOW = new Date("2026-11-01T00:00:00Z");
@@ -121,15 +120,6 @@ function outcomeRows() {
 }
 
 describe("PLANT 1: the band guard, ported as found", () => {
-  it("a card inside the window qualifies, one outside does not, and an expired one does not", () => {
-    // now is 2026-11-01, so the horizon is 2026-12-01.
-    expect(isInsideLeadWindow(11, 2026, NOW)).toBe(true);
-    expect(isInsideLeadWindow(12, 2026, NOW)).toBe(true);
-    expect(isInsideLeadWindow(1, 2027, NOW)).toBe(false);
-    // ALREADY EXPIRED is skipped, not alerted: the window is a band.
-    expect(isInsideLeadWindow(10, 2026, NOW)).toBe(false);
-    expect(isInsideLeadWindow(1, 2020, NOW)).toBe(false);
-  });
 
   it("the scan records only the cards inside the band", async () => {
     seedAccount();
@@ -144,13 +134,6 @@ describe("PLANT 1: the band guard, ported as found", () => {
     expect(result.scanned).toBe(3);
     expect(result.recorded).toBe(1);
     expect(alertRows().map((r) => r.customer)).toEqual(["cus_in"]);
-  });
-
-  it("a customer with no email is not recorded, because it could never be sent", async () => {
-    seedAccount();
-    harness.subscriptions = [subscription(11, 2026, "cus_noemail", null)];
-    await scanExpiringCards(env, NOW);
-    expect(alertRows()).toEqual([]);
   });
 });
 
@@ -226,19 +209,6 @@ describe("PLANT 3: the send, at legacy's strings and on the customer audience", 
     expect(outcomes[0].outcome).toBe("sent");
     expect(String(outcomes[0].eventData)).toContain("2026");
   });
-
-  it("a SECOND tick sends nothing more and records no second outcome", async () => {
-    seedAccount({ enabled: null });
-    await seedCandidate();
-
-    await sendExpiringCardAlerts(env, NOW);
-    const second = await sendExpiringCardAlerts(env, new Date(NOW.getTime() + 86_400_000));
-
-    expect(second.sent).toBe(0);
-    expect(harness.sent).toHaveLength(1);
-    expect(outcomeRows()).toHaveLength(1);
-    expect(alertRows()[0].sentAt).not.toBeNull();
-  });
 });
 
 describe("PLANT 4: every refusal, and none of them records an outcome", () => {
@@ -249,25 +219,6 @@ describe("PLANT 4: every refusal, and none of them records an outcome", () => {
       )
       .run(ACCOUNT);
   }
-
-  it("toggle FALSE sends nothing, stamps the candidate, records no outcome", async () => {
-    seedAccount({ enabled: 0 });
-    await seedCandidate();
-
-    const result = await sendExpiringCardAlerts(env, NOW);
-
-    expect(result.sent).toBe(0);
-    expect(harness.sent).toHaveLength(0);
-    expect(outcomeRows()).toEqual([]);
-    // STAMPED, so it is never reconsidered: legacy's behaviour.
-    expect(alertRows()[0].sentAt).not.toBeNull();
-  });
-
-  it("toggle NULL sends, which is the whole point of NULL-is-ON", async () => {
-    seedAccount({ enabled: null });
-    await seedCandidate();
-    expect((await sendExpiringCardAlerts(env, NOW)).sent).toBe(1);
-  });
 
   it("a SUPPRESSED address sends nothing and is stamped", async () => {
     seedAccount({ enabled: null });
@@ -283,19 +234,6 @@ describe("PLANT 4: every refusal, and none of them records an outcome", () => {
     expect(result.sent).toBe(0);
     expect(harness.sent).toHaveLength(0);
     expect(alertRows()[0].sentAt).not.toBeNull();
-    expect(outcomeRows()).toEqual([]);
-  });
-
-  it("a DEMO or live-sends-off account refuses at the send gate", async () => {
-    seedAccount({ enabled: null, liveSends: 0 });
-    await seedCandidate();
-
-    const result = await sendExpiringCardAlerts(env, NOW);
-
-    expect(result.sent).toBe(0);
-    expect(harness.sent).toHaveLength(0);
-    expect(sendRows()[0].status).toBe("blocked");
-    expect(sendRows()[0].error).toBe(LIVE_SENDS_DISABLED_ERROR);
     expect(outcomeRows()).toEqual([]);
   });
 

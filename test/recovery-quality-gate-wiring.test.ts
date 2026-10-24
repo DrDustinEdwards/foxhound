@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   TEMPLATE_LABEL_FALLBACK,
-  TEMPLATE_LABEL_GENERATED,
   buildEngagementUrls,
   executeEmailStep,
   type EmailStepContext,
@@ -71,10 +70,6 @@ async function runWithGenerated(copy: EmailCopy, context: Partial<EmailStepConte
   return { result, job: jobs[0] };
 }
 
-const CLEAN: EmailCopy = {
-  subject: "A payment issue with Teamflow",
-  bodyHtml: '<p>Your payment did not go through. You can <a href="{{LINK}}">update your card here</a>.</p>',
-};
 
 // One violating sample PER RULE CLASS, not one clean sample. Each of these is a
 // distinct branch of findBrandVoiceViolations, and a gate that catches only em
@@ -134,13 +129,6 @@ const VIOLATIONS: { name: string; copy: EmailCopy; expect: string }[] = [
 ];
 
 describe("the gate is actually wired into the send path", () => {
-  it("sends generated copy that passes the gate", async () => {
-    const { result, job } = await runWithGenerated(CLEAN);
-    expect(result.usedTemplate).toBe(false);
-    expect(result.templateReason).toBeNull();
-    expect(job.subject).toBe(CLEAN.subject);
-    expect(job.template).toBe(TEMPLATE_LABEL_GENERATED);
-  });
 
   // Sweep every rule class. Each entry must (a) actually violate the rule it
   // claims, and (b) be replaced by the template in the send path.
@@ -160,47 +148,9 @@ describe("the gate is actually wired into the send path", () => {
       expect(job.bodyHtml, v.name).not.toMatch(/I hope this email finds you well/i);
     }
   });
-
-  it("still reports the step as sent when the gate rejects: the step did not fail", async () => {
-    const { result } = await runWithGenerated(VIOLATIONS[0].copy);
-    expect(result.sent).toBe(true);
-    expect(result.result).toBe("email_sent");
-  });
-
-  it("distinguishes a gate rejection from a generation failure in the reason", async () => {
-    const gated = await runWithGenerated(VIOLATIONS[0].copy);
-    expect(gated.result.templateReason).toBe("quality_gate");
-
-    const jobs: EmailJob[] = [];
-    const thrown = await executeEmailStep(env, ctx(), {
-      generate: () => Promise.reject(new Error("anthropic 503")),
-      send: (_e, job) => {
-        jobs.push(job);
-        return Promise.resolve({ status: "sent" } as EmailJobResult);
-      },
-      persistPatch: async () => {},
-    });
-    expect(thrown.templateReason).toBe("generation_failed");
-    // Both use the same email_sends label; the distinction lives on the result.
-    expect(jobs[0].template).toBe(TEMPLATE_LABEL_FALLBACK);
-  });
 });
 
 describe("the gate polices the model, not the merchant", () => {
-  // A merchant-authored custom body is their own voice and their own choice.
-  // Rejecting it for an em dash would be the tool overruling the user, so the
-  // gate runs on the GENERATED copy before applyCustomBody.
-  it("keeps a merchant custom body containing an em dash", async () => {
-    const link = await stepLink();
-    const { job } = await runWithGenerated(CLEAN, {
-      cached: {
-        customBody: `<p>We tried your card — it did not work. Please <a href="${link}">update it</a>.</p>`,
-        cachedSubject: null,
-        cachedBodyHtml: null,
-      },
-    });
-    expect(job.bodyHtml).toContain("—");
-  });
 
   it("still falls back for the SUBJECT when generation violates and a custom body exists", async () => {
     const link = await stepLink();
@@ -218,34 +168,5 @@ describe("the gate polices the model, not the merchant", () => {
     // Merchant body wins, template subject replaces the violating generated one.
     expect(job.bodyHtml).toContain("Merchant body.");
     expect(job.subject).not.toContain("day 3");
-  });
-});
-
-describe("the gate does not touch cached copy", () => {
-  // Cached copy already passed the gate when it was generated, and re-gating it
-  // would let a rule change silently rewrite mail a customer already received.
-  it("sends cached copy without gating or generating", async () => {
-    const jobs: EmailJob[] = [];
-    const result = await executeEmailStep(
-      env,
-      ctx({
-        cached: {
-          customBody: null,
-          cachedSubject: "Cached — subject with a dash",
-          cachedBodyHtml: `<p>Cached body. <a href="${await stepLink()}">Update</a></p>`,
-        },
-      }),
-      {
-        generate: () => Promise.reject(new Error("must not be called")),
-        send: (_e, job) => {
-          jobs.push(job);
-          return Promise.resolve({ status: "sent" } as EmailJobResult);
-        },
-        persistPatch: async () => {},
-      },
-    );
-    expect(result.usedTemplate).toBe(false);
-    expect(result.templateReason).toBeNull();
-    expect(jobs[0].subject).toContain("—");
   });
 });

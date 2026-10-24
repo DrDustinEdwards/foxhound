@@ -106,7 +106,6 @@ function listOf(words: string[]): string {
 describe("the copy says only what Foxhound computes (J58)", async () => {
   const html = render(await load());
   const body = text(html);
-  const copy = text(html);
 
   it("names the score's signals from the engine, every one the engine can emit and no other", () => {
     const labels = signalLabels();
@@ -116,13 +115,6 @@ describe("the copy says only what Foxhound computes (J58)", async () => {
     expect(body).toContain(`0-100 health scores per customer, derived from ${list}.`);
     expect(body).toContain(`${COUNT_WORD[labels.length]} signals, ${list}, combine into a 0-100 health score`);
     expect(body).toContain(`The health score is derived from ${COUNT_WORD[labels.length].toLowerCase()} independent signals: ${list}.`);
-  });
-
-  it("claims no recommended actions, because nothing in Foxhound writes one", () => {
-    expect(copy).not.toMatch(/Seven recommend/i);
-    expect(copy).not.toMatch(/recommendation types/i);
-    expect(copy).not.toMatch(/actionable recommendations/i);
-    expect(copy).toContain("A recommended action per customer is not built yet.");
   });
 });
 

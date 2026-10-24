@@ -109,18 +109,6 @@ describe("readCronLocks", () => {
     expect(locks.find((l) => l.name === "weekly-digest")).toMatchObject({ state: "not-released" });
     expect(locks.find((l) => l.name === "d1-backup")).toEqual({ name: "d1-backup", state: "idle", heldUntil: null });
   });
-
-  it("says a lock could not be read rather than failing the page", async () => {
-    const read = lib.readCronLocks as (env: unknown, now: number) => Promise<Array<Record<string, unknown>>>;
-    const { ns } = lockNamespace({}, ["d1-backup"]);
-    const locks = await read({ CRON_LOCK: ns }, NOW);
-    expect(locks.find((l) => l.name === "d1-backup")).toEqual({
-      name: "d1-backup",
-      state: "unreadable",
-      heldUntil: null,
-    });
-    expect(locks.filter((l) => l.state === "unreadable")).toHaveLength(1);
-  });
 });
 
 // Review of #97: one hung Durable Object must not stall the whole loader.

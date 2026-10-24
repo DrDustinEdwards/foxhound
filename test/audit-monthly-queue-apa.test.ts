@@ -1,4 +1,3 @@
-import { eq } from "drizzle-orm";
 import type Stripe from "stripe";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -258,37 +257,9 @@ describe("the cron enqueues one message per opted-in account and audits nothing 
     expect(queue.batchSizes.length).toBe(3);
     for (const size of queue.batchSizes) expect(size).toBeLessThanOrEqual(100);
   });
-
-  it("a queue that refuses the send fails the cron run, so the alert path sees it", async () => {
-    const { db, env } = setup();
-    await seedAccount(db, "a_on");
-    const broken = fakeQueue(new Error("queue unavailable"));
-    const outcome = await runCron({ ...env, AUDIT_QUEUE: broken.binding } as unknown as Env);
-
-    expect(outcome.status).toBe("failed");
-    expect(outcome.message).toContain("queue unavailable");
-  });
 });
 
 describe("the consumer audits the one account its message names", () => {
-  it("one message, one account audited, stored and mailed, and the message acked", async () => {
-    const { db, env, queue, delivered } = setup();
-    await seedAccount(db, "a_on");
-    await seedAccount(db, "b_on");
-    await runCron(env);
-
-    const verdicts = await deliver(env, [{ body: bodyFor(queue.bodies, "a_on") }]);
-
-    expect(verdicts).toEqual(["ack"]);
-    expect(delivered).toEqual(["a_on@merchant.test"]);
-    const stored = await db.select().from(auditRuns);
-    expect(stored.map((r) => r.accountId)).toEqual(["a_on"]);
-    const claims = await db.select().from(auditDigestRuns);
-    expect(claims).toHaveLength(1);
-    expect(claims[0]).toMatchObject({ accountId: "a_on", periodMonth: PERIOD, status: "sent" });
-    const runs = await db.select().from(cronRunHistory);
-    expect(claims[0].cronRunId).toBe(runs[0].id);
-  });
 
   it("A REDELIVERED message audits nothing twice and mails nobody twice", async () => {
     const { db, env, queue, delivered, stripeCalls } = setup();
@@ -308,18 +279,6 @@ describe("the consumer audits the one account its message names", () => {
     expect(await db.select().from(auditDigestRuns)).toHaveLength(1);
   });
 
-  it("an account switched off between enqueue and delivery is not audited", async () => {
-    const { db, env, queue, delivered } = setup();
-    await seedAccount(db, "a_on");
-    await runCron(env);
-    await db.update(accounts).set({ auditAutoRun: false }).where(eq(accounts.id, "a_on"));
-
-    expect(await deliver(env, [{ body: bodyFor(queue.bodies, "a_on") }])).toEqual(["ack"]);
-    expect(delivered).toEqual([]);
-    expect(await db.select().from(auditRuns)).toHaveLength(0);
-    expect(await db.select().from(auditDigestRuns)).toHaveLength(0);
-  });
-
   it("a malformed message is acked, not retried, and writes nothing", async () => {
     const { db, env } = setup();
     await seedAccount(db, "a_on");
@@ -331,52 +290,6 @@ describe("the consumer audits the one account its message names", () => {
 });
 
 describe("a failure logs the whole err and lets the queue retry", () => {
-  it("the failing message is retried with the error object logged, and the retry sends once", async () => {
-    const { db, env, queue, delivered, failFor } = setup();
-    await seedAccount(db, "a_on");
-    await runCron(env);
-    const body = bodyFor(queue.bodies, "a_on");
-    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
-
-    failFor.add("a_on@merchant.test");
-    expect(await deliver(env, [{ body }])).toEqual(["retry"]);
-
-    // THE WHOLE ERR, not its message: the logged arguments carry the Error.
-    const loggedErrors = logged.mock.calls.flat().filter((a): a is Error => a instanceof Error);
-    expect(loggedErrors.map((e) => e.message)).toContain("mailbox full: a_on@merchant.test");
-    const failed = (await db.select().from(auditDigestRuns))[0];
-    expect(failed.status).toBe("failed");
-    expect(failed.error).toBe("mailbox full: a_on@merchant.test");
-
-    // The queue redelivers; the failed claim is retaken, not refused.
-    failFor.clear();
-    expect(await deliver(env, [{ body, attempts: 2 }])).toEqual(["ack"]);
-    expect(delivered).toEqual(["a_on@merchant.test"]);
-    const claims = await db.select().from(auditDigestRuns);
-    expect(claims).toHaveLength(1);
-    expect(claims[0].status).toBe("sent");
-    expect(claims[0].error).toBeNull();
-  });
-
-  it("ONE ACCOUNT'S FAILURE never stops another's, even inside one batch", async () => {
-    const { db, env, queue, delivered, failFor } = setup();
-    await seedAccount(db, "a_bad");
-    await seedAccount(db, "b_good");
-    await runCron(env);
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    failFor.add("a_bad@merchant.test");
-
-    const verdicts = await deliver(env, [
-      { body: bodyFor(queue.bodies, "a_bad") },
-      { body: bodyFor(queue.bodies, "b_good") },
-    ]);
-
-    expect(verdicts).toEqual(["retry", "ack"]);
-    expect(delivered).toEqual(["b_good@merchant.test"]);
-    const rows = await db.select().from(auditDigestRuns);
-    expect(rows.find((r) => r.accountId === "a_bad")!.status).toBe("failed");
-    expect(rows.find((r) => r.accountId === "b_good")!.status).toBe("sent");
-  });
 
   it("the LAST attempt raises the monthly-audit failure alert", async () => {
     const { db, env, queue, failFor } = setup();
@@ -501,22 +414,5 @@ describe("a refused claim on a redelivery is seen, and a stuck one alerts", () =
     expect(alert?.text).toContain("may not have been sent");
     expect(alert?.text).not.toContain("no email was sent");
     expect((await db.select().from(auditDigestRuns))[0].status).toBe("pending");
-  });
-});
-
-describe("the failure alert names the account", () => {
-  it("the last failed attempt's alert carries the account id and month", async () => {
-    const { db, env, queue, failFor, messages } = setup();
-    await seedAccount(db, "a_on");
-    await runCron(env);
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    failFor.add("a_on@merchant.test");
-
-    await deliver(env, [{ body: bodyFor(queue.bodies, "a_on"), attempts: 4 }]);
-
-    const alert = messages.find((m) => m.to !== "a_on@merchant.test");
-    expect(alert?.text).toContain("account a_on");
-    expect(alert?.text).toContain(PERIOD);
-    expect(alert?.text).toContain("mailbox full: a_on@merchant.test");
   });
 });

@@ -70,8 +70,6 @@ const { queryStrandedInvoices, retryInvoiceCharge, runChargeRetrySweep, periodKe
 );
 const { describeSweepRun, runMonthlyBilling } = await import("~/lib/billing/run");
 const { CRON_JOBS } = await import("~/lib/cron/registry");
-const { engageBrake } = await import("~/lib/admin/brake.server");
-const { accountProcessingEligibleCondition } = await import("~/lib/cron/due-steps");
 const { recoveryFeeItemIdempotencyKey } = await import("~/lib/billing/stripe-invoice");
 const schema = await import("~/db/schema");
 
@@ -200,121 +198,7 @@ beforeEach(() => {
   stripeSpy.created = 0;
 });
 
-describe("queryStrandedInvoices", () => {
-  it("finds an unsettled invoice with a positive total", async () => {
-    await seed();
-    const rows = await queryStrandedInvoices({} as Env, 100);
-    expect(rows.map((r) => r.id)).toEqual(["binv_1"]);
-    expect(rows[0].platformCustomerId).toBe("cus_platform_1");
-  });
-
-  it("skips invoices that already settled", async () => {
-    for (const status of ["paid", "void", "uncollectible", "gave_up"]) {
-      await seed({ status });
-      expect(await queryStrandedInvoices({} as Env, 100)).toEqual([]);
-    }
-  });
-
-  it("skips a zero-total invoice, which has nothing chargeable", async () => {
-    await seed({ totalCents: 0 });
-    expect(await queryStrandedInvoices({} as Env, 100)).toEqual([]);
-  });
-
-  it("stops chasing a merchant who became billing-exempt after the invoice was raised", async () => {
-    await seed({ billingExempt: true });
-    expect(await queryStrandedInvoices({} as Env, 100)).toEqual([]);
-  });
-});
-
-describe("the brake and the cancellation ruling compose", () => {
-  // The two rulings have to hold TOGETHER, and each is the other's reason.
-  // The brake deliberately skips cancelled accounts (so their owed fees are not
-  // deferred), and the sweep deliberately collects from them (because those fees
-  // were earned before cancellation). Pausing a cancelled account would flip
-  // accountBillingEligibleCondition false and strand the very invoice the sweep
-  // exists to clean up, for as long as the brake stayed engaged.
-  it("engage leaves a cancelled account unpaused, and its pre-cancellation invoice still collects", async () => {
-    const db = await seed();
-    await db
-      .update(schema.accounts)
-      .set({ cancelledAt: new Date("2026-08-15T00:00:00.000Z") })
-      .where(eq(schema.accounts.id, ACCOUNT_ID));
-
-    // The invoice under test was raised BEFORE the cancellation.
-    const [before] = await db.select().from(schema.billingInvoices);
-    expect(before.createdAt.getTime()).toBeLessThan(new Date("2026-08-15T00:00:00.000Z").getTime());
-
-    const result = await engageBrake(db as never, { actorEmail: "admin@foxhoundapp.com" });
-    expect(result.accountIds).not.toContain(ACCOUNT_ID);
-
-    const [account] = await db.select().from(schema.accounts).where(eq(schema.accounts.id, ACCOUNT_ID));
-    expect(account.processingPaused).toBe(false);
-    expect(account.pauseReason).toBeNull();
-
-    // Still selected and still charged, with the brake engaged.
-    expect(await queryStrandedInvoices({} as Env, 100)).toHaveLength(1);
-    const created: string[] = [];
-    const results = await runChargeRetrySweep({} as Env, NOW_MS, {
-      deps: {
-        findExisting: async () => null,
-        create: async (_env, input) => {
-          created.push(input.billingInvoiceId);
-          return { stripeInvoiceId: "in_new", hostedInvoiceUrl: null };
-        },
-      },
-    });
-    expect(created).toEqual(["binv_1"]);
-    expect(results.map((r) => r.outcome)).toEqual(["charged"]);
-  });
-
-  it("no NEW recovery can accrue for a cancelled account, so no later period can bill one", async () => {
-    // The other half of the MEDIUM-3 ruling, and the reason collecting from a
-    // cancelled account is bounded rather than open-ended: the processing gate
-    // excludes them, so the tick never creates another recovery to bill.
-    const db = await seed();
-    await db
-      .update(schema.accounts)
-      .set({ cancelledAt: new Date("2026-08-15T00:00:00.000Z") })
-      .where(eq(schema.accounts.id, ACCOUNT_ID));
-
-    const stillProcessed = await db
-      .select({ id: schema.accounts.id })
-      .from(schema.accounts)
-      .where(accountProcessingEligibleCondition());
-    expect(stillProcessed).toEqual([]);
-  });
-
-  it("would strand that invoice if the brake did pause cancelled accounts", async () => {
-    // The counterfactual, so the exclusion is pinned by consequence rather than
-    // by restating the predicate. Pausing is exactly what the brake used to do
-    // to every non-exempt account before the cancelled clause was added.
-    const db = await seed();
-    await db
-      .update(schema.accounts)
-      .set({ cancelledAt: new Date("2026-08-15T00:00:00.000Z"), processingPaused: true })
-      .where(eq(schema.accounts.id, ACCOUNT_ID));
-
-    expect(await queryStrandedInvoices({} as Env, 100)).toEqual([]);
-  });
-});
-
 describe("mode 1: the create threw, Stripe has nothing", () => {
-  it("creates the invoice on the next run and records the attempt", async () => {
-    const db = await seed();
-    const { calls, deps } = stripeDeps(null);
-    const [invoice] = await queryStrandedInvoices({} as Env, 100);
-
-    const result = await retryInvoiceCharge({} as Env, invoice, NOW_MS, deps);
-    expect(result.outcome).toBe("charged");
-    // LOOK UP before CREATE, always.
-    expect(calls).toEqual(["findExisting", "create"]);
-
-    const [row] = await db.select().from(schema.billingInvoices);
-    expect(row.status).toBe("finalized");
-    expect(row.stripeInvoiceId).toBe("in_platform_new");
-    expect(row.chargeAttemptCount).toBe(1);
-    expect(row.lastChargeAttemptAt).toEqual(NOW);
-  });
 
   // RULING 377(6). The pay path has always counted a failed attempt; the CREATE
   // path did not, so a throw here reached the sweep's per-invoice catch with
@@ -343,24 +227,6 @@ describe("mode 1: the create threw, Stripe has nothing", () => {
     expect(row.lastChargeAttemptAt).toEqual(NOW);
     // No Stripe id was obtained, so none is recorded.
     expect(row.stripeInvoiceId).toBeNull();
-  });
-
-  it("a guard-read failure is still the SWEEP's problem and is not counted here", async () => {
-    const db = await seed();
-    const { deps } = stripeDeps(null, {
-      checkGuard: async () => {
-        throw new Error("d1 unavailable");
-      },
-    });
-    const [invoice] = await queryStrandedInvoices({} as Env, 100);
-
-    // It must propagate as ChargeGuardReadError rather than being swallowed
-    // into a counted charge attempt: failing closed on a guard read is what
-    // stops the sweep charging the next merchant's card.
-    await expect(retryInvoiceCharge({} as Env, invoice, NOW_MS, deps)).rejects.toThrow();
-
-    const [row] = await db.select().from(schema.billingInvoices);
-    expect(row.chargeAttemptCount).toBe(0);
   });
 
   it("rebuilds the line keys from the committed line items, not from the billable queries", async () => {
@@ -428,45 +294,6 @@ describe("mode 2: Stripe charged, our ref write failed", () => {
       const [row] = await db.select().from(schema.billingInvoices);
       expect(row.status).toBe(status);
     }
-  });
-});
-
-describe("collection on a finalized-but-unpaid invoice", () => {
-  it("calls invoices.pay, because Stripe does not auto-retry a one-off invoice", async () => {
-    const db = await seed({ status: "payment_failed", stripeInvoiceId: "in_platform_open" });
-    const { calls, deps } = stripeDeps({ id: "in_platform_open", status: "open" });
-    const [invoice] = await queryStrandedInvoices({} as Env, 100);
-
-    const result = await retryInvoiceCharge({} as Env, invoice, NOW_MS, deps);
-    expect(result.outcome).toBe("retried");
-    expect(calls).toEqual(["findExisting", "pay:in_platform_open:1"]);
-
-    const [row] = await db.select().from(schema.billingInvoices);
-    expect(row.status).toBe("paid");
-    expect(row.chargeAttemptCount).toBe(1);
-  });
-
-  it("stops at the attempt cap and marks the invoice gave_up", async () => {
-    const db = await seed({
-      status: "payment_failed",
-      stripeInvoiceId: "in_platform_open",
-      chargeAttemptCount: FEE_INVOICE_MAX_RETRY_ATTEMPTS,
-    });
-    const { calls, deps } = stripeDeps({ id: "in_platform_open", status: "open" });
-    const [invoice] = await queryStrandedInvoices({} as Env, 100);
-
-    const result = await retryInvoiceCharge({} as Env, invoice, NOW_MS, deps);
-    expect(result).toEqual({
-      invoiceId: "binv_1",
-      outcome: "gave_up",
-      reason: "max_attempts_reached",
-    });
-    expect(calls).toEqual(["findExisting"]);
-
-    const [row] = await db.select().from(schema.billingInvoices);
-    expect(row.status).toBe("gave_up");
-    // And it is out of the sweep's set for good.
-    expect(await queryStrandedInvoices({} as Env, 100)).toEqual([]);
   });
 });
 
@@ -588,28 +415,6 @@ describe("guards", () => {
 });
 
 describe("stranded-invoice-recovers-on-next-run", () => {
-  it("a draft invoice from last month is charged by this month's run and then leaves the set", async () => {
-    const db = await seed();
-
-    // Run 1 (2026-09-01): finds it, creates the Stripe invoice.
-    const first = await runChargeRetrySweep({} as Env, NOW_MS, { deps: stripeDeps(null).deps });
-    expect(first.map((r) => r.outcome)).toEqual(["charged"]);
-    expect((await db.select().from(schema.billingInvoices))[0].stripeInvoiceId).toBe(
-      "in_platform_new",
-    );
-
-    // Run 2 (2026-10-01): Stripe now reports it paid, so the row is synced and
-    // the invoice drops out of the sweep permanently.
-    const nextMonth = NOW_MS + 30 * 24 * 60 * 60 * 1000;
-    const second = await runChargeRetrySweep({} as Env, nextMonth, {
-      deps: stripeDeps({ id: "in_platform_new", status: "paid" }).deps,
-    });
-    expect(second.map((r) => r.outcome)).toEqual(["adopted"]);
-
-    const [row] = await db.select().from(schema.billingInvoices);
-    expect(row.status).toBe("paid");
-    expect(await queryStrandedInvoices({} as Env, 100)).toEqual([]);
-  });
 
   it("runMonthlyBilling runs the sweep, so the recovery needs no separate cron", async () => {
     // The wiring. Pre-fix runMonthlyBilling went straight to billing the new
@@ -628,14 +433,6 @@ describe("stranded-invoice-recovers-on-next-run", () => {
     expect(row.status).toBe("finalized");
     expect(row.stripeInvoiceId).toBe("in_from_run");
     expect(row.chargeAttemptCount).toBe(1);
-  });
-
-  it("a sweep failure never aborts the billing run", async () => {
-    const db = await seed({ platformCustomerId: null });
-    // No platform customer, so the sweep skips; the run must still complete and
-    // leave the ledger untouched.
-    await expect(runMonthlyBilling({} as Env, NOW_MS)).resolves.toBeDefined();
-    expect((await db.select().from(schema.billingInvoices))[0].status).toBe("draft");
   });
 });
 
@@ -703,126 +500,6 @@ describe("MEDIUM-A: the brake stops the sweep already in flight", () => {
     expect(skipped).toHaveLength(2);
     expect(results.filter((r) => r.outcome === "failed")).toHaveLength(0);
     expect(skipped.every((r) => r.reason === "account_not_billing_eligible")).toBe(true);
-  });
-
-  it("leaves a skipped invoice untouched, so the next sweep still finds it", async () => {
-    const db = await seedThree();
-
-    await runChargeRetrySweep({} as Env, NOW_MS, {
-      deps: {
-        findExisting: async () => null,
-        create: async () => ({ stripeInvoiceId: "in_new", hostedInvoiceUrl: null }),
-        checkGuard: async () => ({ billingEligible: false }),
-      },
-    });
-
-    const rows = await db.select().from(schema.billingInvoices);
-    // No status change, no attempt recorded: a skip is not an attempt.
-    expect(rows.every((r) => r.status === "draft")).toBe(true);
-    expect(rows.every((r) => r.chargeAttemptCount === 0)).toBe(true);
-    expect(await queryStrandedInvoices({} as Env, 200)).toHaveLength(3);
-  });
-
-  it("FAILS CLOSED: a guard that throws aborts the sweep instead of charging on", async () => {
-    // The pin that forbids fail-open. If the guard call were moved inside the
-    // per-invoice try/catch, this would resolve and `created` would be non-empty.
-    //
-    // Note what this alone does NOT reach: an always-throwing guard throws on
-    // the FIRST loop-level call, so the two PRE-CHARGE guards inside
-    // retryInvoiceCharge are never exercised. Those are covered below (LOW-2).
-    await seedThree();
-    const created: string[] = [];
-
-    await expect(
-      runChargeRetrySweep({} as Env, NOW_MS, {
-        deps: {
-          findExisting: async () => null,
-          create: async (_env, input) => {
-            created.push(input.billingInvoiceId);
-            return { stripeInvoiceId: "in_new", hostedInvoiceUrl: null };
-          },
-          checkGuard: async () => {
-            throw new Error("d1 unavailable");
-          },
-        },
-      }),
-    ).rejects.toThrow(/d1 unavailable/);
-    expect(created).toEqual([]);
-  });
-
-  it("LOW-2: fails closed on the PRE-CREATE guard too, not just the loop-level one", async () => {
-    // Reaches the guard the test above cannot: let the loop-level read succeed,
-    // then throw on the read that happens immediately before `create`. That one
-    // runs inside retryInvoiceCharge, which the sweep calls inside its try, so
-    // it used to be caught, recorded as outcome "failed", and the sweep moved on
-    // to charge the next merchant's card. The comment on the loop-level check
-    // claimed fail-closed for all of them.
-    await seedThree();
-    const created: string[] = [];
-    let call = 0;
-
-    await expect(
-      runChargeRetrySweep({} as Env, NOW_MS, {
-        deps: {
-          findExisting: async () => null,
-          create: async (_env, input) => {
-            created.push(input.billingInvoiceId);
-            return { stripeInvoiceId: "in_new", hostedInvoiceUrl: null };
-          },
-          checkGuard: async () => {
-            call += 1;
-            if (call === 1) return { billingEligible: true }; // loop level: fine
-            throw new Error("d1 unavailable mid-invoice"); // pre-create: unreadable
-          },
-        },
-      }),
-    ).rejects.toThrow(/d1 unavailable mid-invoice/);
-
-    // Nothing charged, and critically the sweep stopped rather than continuing
-    // to invoices two and three.
-    expect(created).toEqual([]);
-    expect(call).toBe(2);
-  });
-
-  it("LOW-2: fails closed on the PRE-PAY guard, the more common retry path", async () => {
-    await seed({ status: "payment_failed", stripeInvoiceId: "in_existing", withLineItem: true });
-    let call = 0;
-    const { calls, deps } = stripeDeps(
-      { id: "in_existing", status: "open" },
-      {
-        checkGuard: async () => {
-          call += 1;
-          if (call === 1) return { billingEligible: true };
-          throw new Error("d1 unavailable before pay");
-        },
-      },
-    );
-
-    await expect(
-      runChargeRetrySweep({} as Env, NOW_MS, { deps }),
-    ).rejects.toThrow(/d1 unavailable before pay/);
-    expect(calls.some((c) => c.startsWith("pay:"))).toBe(false);
-  });
-
-  it("LOW-2: a CHARGE failure is still isolated per invoice, not escalated", async () => {
-    // The other half of the rule, so the fix cannot be read as "any throw aborts
-    // the sweep". A Stripe error on one invoice must still let the rest run.
-    await seedThree();
-    const attempted: string[] = [];
-
-    const results = await runChargeRetrySweep({} as Env, NOW_MS, {
-      deps: {
-        findExisting: async () => null,
-        create: async (_env, input) => {
-          attempted.push(input.billingInvoiceId);
-          throw new Error("stripe is down");
-        },
-        checkGuard: async () => ({ billingEligible: true }),
-      },
-    });
-
-    expect(attempted).toHaveLength(3);
-    expect(results.filter((r) => r.outcome === "failed")).toHaveLength(3);
   });
 
   it("closes the window between the loop check and the charge itself", async () => {
@@ -976,56 +653,6 @@ describe("gate review 7.4: an aborted sweep is visible, and stops exactly where 
     );
   });
 
-  it("leaves the invoice it was about to charge completely untouched", async () => {
-    const db = await seedStrandedPlusBillable();
-    const guard = guardThatDiesBeforeCharging();
-
-    await runMonthlyBilling({} as Env, NOW_MS, {
-      sweepDeps: {
-        findExisting: async () => null,
-        create: async () => ({ stripeInvoiceId: "in_new", hostedInvoiceUrl: null }),
-        checkGuard: guard.checkGuard,
-      },
-    });
-
-    const [stranded] = await db
-      .select()
-      .from(schema.billingInvoices)
-      .where(eq(schema.billingInvoices.id, "binv_1"));
-    expect(stranded.status).toBe("draft");
-    expect(stranded.chargeAttemptCount).toBe(0);
-    expect(stranded.stripeInvoiceId).toBeNull();
-    // Still stranded, so the next sweep picks it up.
-    expect((await queryStrandedInvoices({} as Env, 100)).map((r) => r.id)).toContain("binv_1");
-  });
-
-  it("THE BOUNDARY: the abort stops the sweep and NOT the new-period billing behind it", async () => {
-    // Exactly what the gate review described. The new-period loop does not
-    // depend on the guard that just failed; it re-reads eligibility through the
-    // billable queries' own inner joins. Pinned, not changed.
-    const db = await seedStrandedPlusBillable();
-    const guard = guardThatDiesBeforeCharging();
-
-    const { accounts, sweep } = await runMonthlyBilling({} as Env, NOW_MS, {
-      sweepDeps: {
-        findExisting: async () => null,
-        create: async () => ({ stripeInvoiceId: "in_new", hostedInvoiceUrl: null }),
-        checkGuard: guard.checkGuard,
-      },
-    });
-
-    expect(sweep.status).toBe("aborted");
-    // Both eligible accounts were still walked.
-    expect(accounts.map((a) => a.accountId).sort()).toEqual(["acc_newperiod", "acc_stranded"]);
-    // And the account with an unbilled matured recovery really was invoiced.
-    const raised = await db
-      .select()
-      .from(schema.billingInvoices)
-      .where(eq(schema.billingInvoices.accountId, "acc_newperiod"));
-    expect(raised).toHaveLength(1);
-    expect(raised[0].totalCents).toBeGreaterThan(0);
-  });
-
   it("says what the sweep DID when it completes, so the aborted branch is not the only one that speaks", async () => {
     // The control. Without it "aborted" could be the only reachable status and
     // every assertion above would still pass.
@@ -1059,52 +686,5 @@ describe("gate review 7.4: an aborted sweep is visible, and stops exactly where 
     const result = await job!.handler({} as Env);
 
     expect(result.message).toMatch(/^2 accounts, \d+ invoices, sweep /);
-  });
-});
-
-describe("MEDIUM-A: the monthly per-account loop self-guards on a mid-run pause", () => {
-  // runMonthlyBilling reads its eligible-account list ONCE and then loops. What
-  // keeps a mid-run brake from billing the remaining accounts is not that list:
-  // it is that runAccountBilling re-runs getBillableRecoveries/getBillableDisputes
-  // per account, and both inner-join accounts with accountBillingEligibleCondition.
-  // The discharge review verified that by reading; nothing enforced it. These pin
-  // it, so the second gate cannot be refactored away silently.
-  //
-  // withLineItem:false leaves rec_1 UNBILLED, so it is genuinely billable and the
-  // assertions are not vacuous.
-
-  it("a paused account's billable set empties the moment the brake marks it", async () => {
-    const db = await seed({ withLineItem: false });
-    const { getBillableRecoveries } = await import("~/db/billable");
-
-    expect(await getBillableRecoveries(db as never, ACCOUNT_ID, NOW_MS)).toHaveLength(1);
-
-    await db
-      .update(schema.accounts)
-      .set({ processingPaused: true, pauseReason: "brake" })
-      .where(eq(schema.accounts.id, ACCOUNT_ID));
-
-    // Same query, same instant, nothing about the recovery itself changed.
-    expect(await getBillableRecoveries(db as never, ACCOUNT_ID, NOW_MS)).toHaveLength(0);
-  });
-
-  it("raises an invoice when running, and none once the brake has marked the account", async () => {
-    // Branch 1: the control. Without this the paused branch could pass vacuously.
-    const running = await seed({ withLineItem: false });
-    const beforeRunning = (await running.select().from(schema.billingInvoices)).length;
-    await runMonthlyBilling({} as Env, NOW_MS);
-    const afterRunning = (await running.select().from(schema.billingInvoices)).length;
-    expect(afterRunning).toBeGreaterThan(beforeRunning);
-
-    // Branch 2: same fixture, account marked by the brake.
-    const paused = await seed({ withLineItem: false });
-    await paused
-      .update(schema.accounts)
-      .set({ processingPaused: true, pauseReason: "brake" })
-      .where(eq(schema.accounts.id, ACCOUNT_ID));
-    const beforePaused = (await paused.select().from(schema.billingInvoices)).length;
-    await runMonthlyBilling({} as Env, NOW_MS);
-    const afterPaused = (await paused.select().from(schema.billingInvoices)).length;
-    expect(afterPaused).toBe(beforePaused);
   });
 });

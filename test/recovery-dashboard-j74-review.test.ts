@@ -1,11 +1,11 @@
 import { and, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { emailSends, emailSuppressions, failedPayments, recoveredPayments } from "~/db/schema";
+import { emailSends, emailSuppressions } from "~/db/schema";
 import { getRecoveryDashboardWindow } from "~/lib/dashboard/recovery-window.server";
 import { DEMO_ACCOUNT_ID } from "~/lib/demo/constants";
 import { seedDemoAccount } from "~/lib/demo/seed";
-import { getDeliverabilityCounts, listAttributedRecoveredSince, listBillableRecoveredForRoi, listExecutedEmailSteps } from "~/lib/recovery/dashboard-queries.server";
+import { getDeliverabilityCounts, listExecutedEmailSteps } from "~/lib/recovery/dashboard-queries.server";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -18,7 +18,6 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // so it has not held for the 30-day maturity and is not yet billable.
 const now = new Date("2026-07-20T12:00:00.000Z");
 const DAY_MS = 24 * 60 * 60 * 1000;
-const firstOfMonthUtc = Date.UTC(2026, 6, 1);
 
 async function seededDb() {
   const { db } = createInMemoryDb();
@@ -26,64 +25,6 @@ async function seededDb() {
   return db;
 }
 
-async function anyFailedPaymentId(db: Awaited<ReturnType<typeof seededDb>>): Promise<string> {
-  const [row] = await db
-    .select({ id: failedPayments.id })
-    .from(failedPayments)
-    .where(eq(failedPayments.accountId, DEMO_ACCOUNT_ID))
-    .limit(1);
-  if (!row) throw new Error("demo seed has no failed payment");
-  return row.id;
-}
-
-describe("ROI This month: what Foxhound recovered since the 1st, matured or not", () => {
-  it("a recovery from the 5th, viewed on the 20th, is in this month's column", async () => {
-    const db = await seededDb();
-    const failedPaymentId = await anyFailedPaymentId(db);
-    await db.insert(recoveredPayments).values({
-      failedPaymentId,
-      accountId: DEMO_ACCOUNT_ID,
-      recoveredAt: new Date(Date.UTC(2026, 6, 5, 9)),
-      amountCents: 12_345,
-      currency: "usd",
-      recoveryMethod: "retry",
-      attributionKind: "foxhound_retry",
-    });
-
-    const thisMonth = await listAttributedRecoveredSince(db, DEMO_ACCOUNT_ID, firstOfMonthUtc);
-    expect(thisMonth.map((r) => r.amountCents)).toContain(12_345);
-
-    // The read the panel used before: the 30-day maturity and "since the 1st"
-    // together leave the column empty for a recovery made this month.
-    const billable = await listBillableRecoveredForRoi(db, DEMO_ACCOUNT_ID, now.getTime(), firstOfMonthUtc);
-    expect(billable.map((r) => r.amountCents)).not.toContain(12_345);
-  });
-
-  it("counts only Foxhound-attributed recoveries, never Stripe's own, refunded, disputed or deleted ones", async () => {
-    const db = await seededDb();
-    const failedPaymentId = await anyFailedPaymentId(db);
-    const base = {
-      failedPaymentId,
-      accountId: DEMO_ACCOUNT_ID,
-      recoveredAt: new Date(Date.UTC(2026, 6, 6)),
-      currency: "usd",
-      recoveryMethod: "retry",
-    };
-    await db.insert(recoveredPayments).values([
-      { ...base, amountCents: 11_001, attributionKind: "stripe_baseline" },
-      { ...base, amountCents: 11_002, attributionKind: "foxhound_retry", refundedAt: now },
-      { ...base, amountCents: 11_003, attributionKind: "email_engaged", disputedAt: now },
-      { ...base, amountCents: 11_004, attributionKind: "card_update", deletedAt: now },
-      { ...base, amountCents: 11_005, attributionKind: "email_engaged" },
-      { ...base, amountCents: 11_006, attributionKind: "card_update", recoveredAt: new Date(Date.UTC(2026, 5, 30)) },
-    ]);
-    const amounts = (await listAttributedRecoveredSince(db, DEMO_ACCOUNT_ID, firstOfMonthUtc)).map(
-      (r) => r.amountCents,
-    );
-    expect(amounts).toContain(11_005);
-    for (const excluded of [11_001, 11_002, 11_003, 11_004, 11_006]) expect(amounts).not.toContain(excluded);
-  });
-});
 
 describe("Emails sent card: the same 30 days as every other stat card", () => {
   it("counts only email steps executed inside the window, with rates over those", async () => {

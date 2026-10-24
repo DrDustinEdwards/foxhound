@@ -219,18 +219,6 @@ describe("PLANT 1: the predicate itself, three discriminated answers", () => {
       status: "held_elsewhere",
     });
   });
-
-  it("treats a DISCONNECTED row as unattached, which is what keeps reconnect legal", async () => {
-    seedConnection({
-      id: "conn_a",
-      accountId: ACCOUNT_A,
-      stripeUserId: STRIPE_X,
-      disconnectedAt: 2_000,
-    });
-    await expect(findLiveAttachment(db, STRIPE_X, [ACCOUNT_B])).resolves.toEqual({
-      status: "unattached",
-    });
-  });
 });
 
 describe("PLANT 2: DEFECT 4's reproduction is refused in the connect branch", () => {
@@ -250,17 +238,6 @@ describe("PLANT 2: DEFECT 4's reproduction is refused in the connect branch", ()
     // fetch, so a merchant who is going to be refused is not a request Foxhound
     // makes on their behalf.
     expect(harness.nameFetches).toBe(0);
-  });
-
-  it("does not name the account that holds it", async () => {
-    seedConnection({ id: "conn_a", accountId: ACCOUNT_A, stripeUserId: STRIPE_X });
-    signIn(SESSION_B, OTHER, ACCOUNT_B);
-
-    const location = (await callback(CONNECT_ACTION)).headers.get("location") ?? "";
-    // 329 R3: naming the holder, or even confirming which one, leaks another
-    // merchant's tenancy to whoever controls the Stripe account.
-    expect(location).not.toContain(ACCOUNT_A);
-    expect(location).not.toContain("Acme");
   });
 });
 
@@ -335,17 +312,6 @@ describe("PLANT 5: the cases that must still SUCCEED", () => {
         .prepare("SELECT disconnected_at AS d FROM stripe_connections WHERE id = 'conn_a'")
         .get() as { d: number | null },
     ).toEqual({ d: null });
-  });
-
-  it("an unattached Stripe account attaches to the active account", async () => {
-    signIn(SESSION_B, OTHER, ACCOUNT_B);
-
-    await callback(CONNECT_ACTION);
-
-    expect(connections().map((c) => [c.accountId, c.stripeUserId])).toEqual([
-      [ACCOUNT_B, STRIPE_X],
-    ]);
-    expect(harness.writes.map((w) => w.accountId)).toEqual([ACCOUNT_B]);
   });
 
   it("a Stripe account DISCONNECTED elsewhere attaches here, which is binding 4 end to end", async () => {

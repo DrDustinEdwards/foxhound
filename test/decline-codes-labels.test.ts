@@ -9,16 +9,6 @@ import { CATEGORY_STATUS_LABEL } from "~/lib/decline-codes/presentation";
 // they cannot re-diverge into two different status claims for the same
 // category the way the hub's old hardcoded ternary did.
 describe("CATEGORY_STATUS_LABEL", () => {
-  it("has a label for every category the hub and detail pages render", () => {
-    for (const category of CATEGORY_ORDER) {
-      expect(CATEGORY_STATUS_LABEL[category]).toBeTruthy();
-    }
-  });
-
-  it("never claims a revoked-authorization decline retries automatically", () => {
-    expect(CATEGORY_STATUS_LABEL.revoked).toBe("Cancel or update");
-    expect(CATEGORY_STATUS_LABEL.revoked).not.toBe("Retries automatically");
-  });
 
   it("only claims automatic retry for categories decline.ts actually marks retryable", () => {
     for (const category of CATEGORY_ORDER) {

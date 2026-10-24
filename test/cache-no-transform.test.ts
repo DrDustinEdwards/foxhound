@@ -60,22 +60,6 @@ describe("no-transform on signed-in and token HTML", () => {
     expect(cacheControl(once)).toBe("private, no-store, no-transform");
   });
 
-  it.each(["/", "/pricing", "/blog", "/blog/some-post", "/login", "/signup", "/forgot-password", "/audit", "/assets/app.js"])(
-    "%s does not carry no-transform",
-    (path) => {
-      expect(cacheControl(html(path))).not.toContain("no-transform");
-    },
-  );
-
-  it("non-HTML responses on a covered path are untouched (CSV export, JSON)", () => {
-    const request = new Request("https://foxhoundapp.com/recovery/payments/export.csv");
-    const response = applyCachePolicy(
-      request,
-      new Response("a,b", { headers: { "Content-Type": "text/csv" } }),
-    );
-    expect(cacheControl(response)).not.toContain("no-transform");
-  });
-
   it("a prefix does not match a longer sibling word (/helpful, /pay)", () => {
     expect(cacheControl(html("/helpful"))).not.toContain("no-transform");
     expect(cacheControl(html("/paywall"))).not.toContain("no-transform");

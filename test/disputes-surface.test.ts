@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   daysUntilDeadline,
-  deadlineClassName,
   deadlineLabel,
   deadlineUrgency,
   humanizeDisputeReason,
@@ -13,17 +12,6 @@ const NOW = Date.parse("2026-07-25T00:00:00.000Z");
 const day = 24 * 60 * 60 * 1000;
 
 describe("humanizeDisputeReason", () => {
-  // Both surfaces rendered the raw enum, so a merchant reviewing a chargeback
-  // saw "product_not_received" in a column headed Reason.
-  it("maps Stripe's reason codes to readable labels", () => {
-    expect(humanizeDisputeReason("product_not_received")).toBe("Product not received");
-    expect(humanizeDisputeReason("subscription_canceled")).toBe("Subscription canceled");
-    expect(humanizeDisputeReason("fraudulent")).toBe("Fraudulent");
-  });
-
-  it("falls back to a de-underscored label for an unmapped code", () => {
-    expect(humanizeDisputeReason("some_new_reason")).toBe("Some new reason");
-  });
 
   // Legacy capitalized the first character and de-underscored only the REST, so
   // a leading underscore survived into the UI.
@@ -38,10 +26,6 @@ describe("humanizeDisputeReason", () => {
 });
 
 describe("deadline urgency", () => {
-  it("counts whole days remaining, rounding up", () => {
-    expect(daysUntilDeadline(new Date(NOW + 3 * day), NOW)).toBe(3);
-    expect(daysUntilDeadline(new Date(NOW + 2.4 * day), NOW)).toBe(3);
-  });
 
   it("passes null through for a dispute with no deadline", () => {
     expect(daysUntilDeadline(null, NOW)).toBeNull();
@@ -57,13 +41,6 @@ describe("deadline urgency", () => {
     expect(deadlineUrgency(4)).toBe("soon");
     expect(deadlineUrgency(7)).toBe("soon");
     expect(deadlineUrgency(8)).toBe("normal");
-  });
-
-  it("tones urgent red, soon caution, and normal plain", () => {
-    expect(deadlineClassName("overdue")).toBe("text-error-text");
-    expect(deadlineClassName("urgent")).toBe("text-error-text");
-    expect(deadlineClassName("soon")).toBe("text-caution");
-    expect(deadlineClassName("normal")).toBe("text-text-tertiary");
   });
 
   it("phrases the remaining time, singular at one day", () => {

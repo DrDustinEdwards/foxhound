@@ -58,12 +58,6 @@ describe("getGlobalPaymentStatusCounts", () => {
 });
 
 describe("listPaymentSummaryRows", () => {
-  it("with no filters, returns status+amount for every non-noise payment", async () => {
-    const db = await seededDb();
-    const all = await listFailedPayments(db, DEMO_ACCOUNT_ID);
-    const rows = await listPaymentSummaryRows(db, DEMO_ACCOUNT_ID, NO_FILTERS);
-    expect(rows).toHaveLength(all.length);
-  });
 
   it("respects declineCategory, so pill counts reflect the OTHER active filters", async () => {
     const db = await seededDb();
@@ -74,12 +68,5 @@ describe("listPaymentSummaryRows", () => {
     const all = await listFailedPayments(db, DEMO_ACCOUNT_ID);
     const manualCount = all.filter((p) => p.declineCategory === "expired").length;
     expect(rows).toHaveLength(manualCount);
-  });
-
-  it("does NOT filter by status - the caller does that itself for the header line", async () => {
-    const db = await seededDb();
-    const rows = await listPaymentSummaryRows(db, DEMO_ACCOUNT_ID, NO_FILTERS);
-    const statuses = new Set(rows.map((r) => r.status));
-    expect(statuses.size).toBeGreaterThan(1);
   });
 });

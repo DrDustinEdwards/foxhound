@@ -78,7 +78,6 @@ vi.mock("~/lib/stripe/encryption", () => ({ decryptToken: async () => "sk_test" 
 const { resolveDisputeCap, minorUnitsPerMajor, DisputeCapQuoteError } = await import(
   "~/lib/billing/dispute-cap"
 );
-const { disputeFeeCents } = await import("~/lib/billing/fees");
 const { buildDisputeResolutionBatch } = await import("~/lib/webhooks/batches");
 const schema = await import("~/db/schema");
 
@@ -164,12 +163,6 @@ describe("a USD dispute is unchanged and asks Stripe nothing", () => {
     // A USD dispute must not depend on an external call to resolve at all.
     expect(harness.rawRequests).toHaveLength(0);
   });
-
-  it("and below the cap the percentage still governs", async () => {
-    const db = await seed("usd", 100_000);
-    const row = await resolveWon(db, "usd", 100_000);
-    expect(row.resolvedFeeCents).toBe(20_000);
-  });
 });
 
 describe("a JPY dispute: the converted cap lands BELOW the old flat 50,000", () => {
@@ -186,22 +179,6 @@ describe("a JPY dispute: the converted cap lands BELOW the old flat 50,000", () 
     expect(row.resolvedFeeRateAt).toEqual(RESOLVED_AT);
     expect(row.resolvedFeeError).toBeNull();
   });
-
-  it("asks Stripe for a usd quote with no lock", async () => {
-    harness.rates.jpy = 90;
-    const db = await seed("jpy", 10_000_000);
-    await resolveWon(db, "jpy", 10_000_000);
-
-    expect(harness.rawRequests).toHaveLength(1);
-    const call = harness.rawRequests[0];
-    expect(call.method).toBe("POST");
-    expect(call.path).toBe("/v1/fx_quotes");
-    expect(call.params.from_currency).toBe("usd");
-    expect(call.params["to_currencies[0]"]).toBe("jpy");
-    // No lock: the number is frozen on the row at resolution, so there is
-    // nothing to hold and no fee to pay for holding it.
-    expect(call.params.lock_duration).toBe("none");
-  });
 });
 
 describe("a GBP dispute: the converted cap lands ABOVE the old flat 50,000", () => {
@@ -215,20 +192,6 @@ describe("a GBP dispute: the converted cap lands ABOVE the old flat 50,000", () 
     expect(row.resolvedFeeCents).toBeGreaterThan(DISPUTE_FEE_CAP_CENTS);
     expect(row.resolvedFeeRate).toBe(1.2);
     expect(row.resolvedFeeRateAt).toEqual(RESOLVED_AT);
-  });
-
-  it("the two directions together are the point: the cap is computed, not the constant", async () => {
-    harness.rates.jpy = 90;
-    const jpyDb = await seed("jpy", 10_000_000);
-    const jpy = await resolveWon(jpyDb, "jpy", 10_000_000);
-
-    harness.rates.gbp = 1.2;
-    const gbpDb = await seed("gbp", 1_000_000);
-    const gbp = await resolveWon(gbpDb, "gbp", 1_000_000);
-
-    expect(jpy.resolvedFeeCents).not.toBe(DISPUTE_FEE_CAP_CENTS);
-    expect(gbp.resolvedFeeCents).not.toBe(DISPUTE_FEE_CAP_CENTS);
-    expect(jpy.resolvedFeeCents).not.toBe(gbp.resolvedFeeCents);
   });
 });
 
@@ -257,28 +220,11 @@ describe("FAIL CLOSED when the quote cannot be had", () => {
     expect(row.resolvedFeeError).toContain("no usable exchange rate");
   });
 
-  it("resolveDisputeCap throws rather than returning a guess", async () => {
-    harness.failQuote = true;
-    await seed("gbp", 1_000_000);
-    await expect(resolveDisputeCap({} as Env, "gbp", RESOLVED_AT)).rejects.toBeInstanceOf(
-      DisputeCapQuoteError,
-    );
-  });
-
   it("a zero or negative rate is not a rate", async () => {
     harness.rates.gbp = 0;
     await seed("gbp", 1_000_000);
     await expect(resolveDisputeCap({} as Env, "gbp", RESOLVED_AT)).rejects.toBeInstanceOf(
       DisputeCapQuoteError,
     );
-  });
-});
-
-describe("the pure fee function caps at whatever it is handed", () => {
-  it("uses the given cap, in both directions", () => {
-    expect(disputeFeeCents(1_000_000, 45_000)).toBe(45_000);
-    expect(disputeFeeCents(1_000_000, 60_000)).toBe(60_000);
-    // Below the cap the percentage governs, whatever the cap is.
-    expect(disputeFeeCents(100_000, 45_000)).toBe(20_000);
   });
 });

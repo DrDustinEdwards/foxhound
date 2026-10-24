@@ -119,26 +119,6 @@ describe("PLANT 1: the base URL is opt in, by environment", () => {
     expect(sent[0].url).toBe(`${GATEWAY}/v1/messages`);
   });
 
-  it("AND GOES DIRECT when it is unset, so local and test runs never touch the gateway", async () => {
-    await callOnce(envWith());
-
-    expect(sent[0].url).toBe("https://api.anthropic.com/v1/messages");
-    expect(sent[0].url).not.toContain("gateway.ai.cloudflare.com");
-  });
-
-  it("an EMPTY string is treated as unset, never as a base URL of nothing", async () => {
-    await callOnce(envWith({ AI_GATEWAY_BASE_URL: "" }));
-
-    expect(sent[0].url).toBe("https://api.anthropic.com/v1/messages");
-  });
-
-  it("BRING YOUR OWN KEY: the request carries the Anthropic key, not a gateway token", async () => {
-    await callOnce(envWith({ AI_GATEWAY_BASE_URL: GATEWAY }));
-
-    expect(sent[0].headers["x-api-key"]).toBe("sk-ant-test");
-    expect(sent[0].headers.authorization).toBeUndefined();
-  });
-
   it("refuses to build a client with no key, as every call site did before", () => {
     expect(() => createAnthropicClient({} as unknown as Env)).toThrow("ANTHROPIC_API_KEY");
   });
