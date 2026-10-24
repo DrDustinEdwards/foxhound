@@ -1,7 +1,7 @@
 // Account invites (account.ts split): reading an invite by token, creating
 // one, and accepting it into a membership.
 
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { type Db, accountMembers, accounts } from "~/db";
 import { INVITE_TTL_MS, MEMBER_ROLE, MEMBER_STATUS } from "./roles";
 import { type Membership, findActiveMembership, isUniqueConstraintError } from "./account";
@@ -47,6 +47,27 @@ export async function getInviteByToken(
 /** Trim + lowercase, the one normal form an invited/accepting email is compared in. */
 export function normalizeInviteEmail(email: string): string {
   return email.trim().toLowerCase();
+}
+
+/**
+ * Whether the account already has a PENDING or ACTIVE membership invited at
+ * this address: legacy's repeat-invite check (app/api/invite/route.ts, blob
+ * 960aefc6), which matches `invited_email` alone, on the address in its stored
+ * normal form, an expired pending invite included.
+ */
+export async function hasOpenInviteForEmail(db: Db, accountId: string, email: string): Promise<boolean> {
+  const rows = await db
+    .select({ id: accountMembers.id })
+    .from(accountMembers)
+    .where(
+      and(
+        eq(accountMembers.accountId, accountId),
+        eq(accountMembers.invitedEmail, normalizeInviteEmail(email)),
+        inArray(accountMembers.status, [MEMBER_STATUS.ACTIVE, MEMBER_STATUS.PENDING]),
+      ),
+    )
+    .limit(1);
+  return rows.length > 0;
 }
 
 /** Create a pending team-member invite. Returns the token for the invite link. */

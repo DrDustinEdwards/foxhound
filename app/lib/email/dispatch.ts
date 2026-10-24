@@ -4,7 +4,7 @@ import type { Db } from "~/db";
 import { accounts, getDb, emailSends } from "~/db";
 import { isUniqueConstraintError } from "~/lib/money/serializer";
 
-import { sendEmail } from "./send";
+import { redactSecrets, sendEmail } from "./send";
 import { isSuppressed } from "./suppression";
 import type { OutboundEmailJob } from "./types";
 
@@ -252,7 +252,7 @@ export async function processEmailJob(
     await flipClaimToSent(db, job.idempotencyKey, providerMessageId, now);
     return { status: "sent", providerMessageId, error: null, retryable: false };
   } catch (err) {
-    const error = err instanceof Error ? err.message : "send failed";
+    const error = redactSecrets(err instanceof Error ? err.message : "send failed", job.redact);
     // THE ROW STAYS `pending`, WITH THE ERROR ON IT. Not flipped to `failed`,
     // and the difference is the whole point: `failed` would assert that no mail
     // left, and this code cannot know that. A provider that throws after

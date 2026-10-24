@@ -858,6 +858,12 @@ export const AUDIT_TOKEN_TTL_SECONDS = 300;
  * Spent through the EXISTING limiter (311) with no change to it.
  */
 export const RATE_LIMIT_AUDIT = { max: 10, windowMs: 60 * 60 * 1000 } as const;
+/**
+ * The team invite's IP rate limit (E2): legacy's app/api/invite/route.ts (blob
+ * 960aefc6) spends RATE_LIMIT_SIGNUP, 5 per hour, on `invite:{ip}`. Spent
+ * through the EXISTING limiter (311) with no change to it.
+ */
+export const RATE_LIMIT_INVITE = { max: 5, windowMs: 60 * 60 * 1000 } as const;
 
 /**
  * The unsubscribe page's IP rate limit (row F7): Recova's

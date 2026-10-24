@@ -31,6 +31,7 @@ export {
 export {
   getInviteByToken,
   createInvite,
+  hasOpenInviteForEmail,
   acceptInvite,
   evaluateAcceptInvite,
   normalizeInviteEmail,

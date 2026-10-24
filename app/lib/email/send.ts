@@ -253,9 +253,16 @@ export async function sendRenderedTransactionalEmail(
   const sent = await sendThroughAuthSender(env, { to: message.to, rendered: message.rendered, fromName: "Foxhound" });
   if (sent.status === "sent") return sent;
   if (sent.reason === "email_binding_missing") return { status: "failed", reason: sent.reason, error: null };
-  let error = sent.cause instanceof Error ? sent.cause.message : String(sent.cause);
-  for (const secret of message.redact ?? []) {
-    if (secret) error = error.split(secret).join("[redacted]");
-  }
+  const error = redactSecrets(sent.cause instanceof Error ? sent.cause.message : String(sent.cause), message.redact);
   return { status: "failed", reason: "provider_error", error };
+}
+
+/** Cut each secret (a link, a token) out of a provider's error string. Pure.
+ *  An empty or absent list returns the error unchanged. */
+export function redactSecrets(error: string, secrets: readonly string[] | undefined): string {
+  let out = error;
+  for (const secret of secrets ?? []) {
+    if (secret) out = out.split(secret).join("[redacted]");
+  }
+  return out;
 }
