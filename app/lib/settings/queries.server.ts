@@ -21,11 +21,6 @@ export async function getAccount(db: Db, accountId: string): Promise<AccountRow 
   return rows[0] ?? null;
 }
 
-export interface ActiveConnectionBrandVoice {
-  id: string;
-  brandVoice: string | null;
-}
-
 export interface SettingsConnection {
   id: string;
   name: string | null;

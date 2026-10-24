@@ -35,13 +35,14 @@ export default withSentry<Env>(
       // the response header (applySecurityHeaders) below carry the exact
       // same value (TASK-foxhound-csp-nonce-hydration.md).
       const nonce = generateNonce();
+      const { origin } = new URL(request.url);
 
       // Checked before the route handler runs (not after). The public bucket
       // only: sign-in, signup, reset and Better Auth's own endpoints are
       // limited inside their actions by site-runtime's limiter (J52), where a
       // ".data" spelling of the path cannot slip past it.
       const limited = await enforceRateLimit(request, env);
-      if (limited) return applyCachePolicy(request, applySecurityHeaders(limited, nonce));
+      if (limited) return applyCachePolicy(request, applySecurityHeaders(limited, nonce, origin));
 
       // CARREL'S SITE API (job_cbe1b96107fc), before the router. Null for any path
       // outside /api/carrel/v1; inside it the package enforces rate limit, key and
@@ -50,7 +51,7 @@ export default withSentry<Env>(
       if (new URL(request.url).pathname.startsWith("/api/carrel/v1")) {
         const { handleCarrelRequest } = await import("~/lib/carrel/handler.server");
         const carrel = await handleCarrelRequest(request, env, ctx);
-        if (carrel) return applyCachePolicy(request, applySecurityHeaders(carrel, nonce));
+        if (carrel) return applyCachePolicy(request, applySecurityHeaders(carrel, nonce, origin));
       }
 
       // THE FOXHOUND ADMIN API (job_21de68b30fc2), before the router. Null for any
@@ -60,7 +61,7 @@ export default withSentry<Env>(
       if (new URL(request.url).pathname.startsWith("/api/admin/v1")) {
         const { handleAdminApiRequest } = await import("~/lib/admin-api/handler.server");
         const admin = await handleAdminApiRequest(request, env);
-        if (admin) return applyCachePolicy(request, applySecurityHeaders(admin, nonce));
+        if (admin) return applyCachePolicy(request, applySecurityHeaders(admin, nonce, origin));
       }
 
       // THE MERCHANT MCP ENDPOINT, before the router (370, roadmap item 3).
@@ -81,7 +82,7 @@ export default withSentry<Env>(
       if (new URL(request.url).pathname === "/mcp") {
         const { MERCHANT_TOOLS } = await import("~/lib/mcp/tools.server");
         const mcp = await handleMcpRequest(request, env, MERCHANT_TOOLS);
-        if (mcp) return applyCachePolicy(request, applySecurityHeaders(mcp, nonce));
+        if (mcp) return applyCachePolicy(request, applySecurityHeaders(mcp, nonce, origin));
       }
 
       const context = new RouterContextProvider();
@@ -91,7 +92,7 @@ export default withSentry<Env>(
       // passes through (345 binding 4). A route's own `headers` export would be
       // per route and a new route would default to nothing, which under RFC
       // 9111 heuristic freshness is not the same as "not cached".
-      return applyCachePolicy(request, applySecurityHeaders(response, nonce));
+      return applyCachePolicy(request, applySecurityHeaders(response, nonce, origin));
     },
     // Queue consumer (email dispatch; bounce/complaint events added in 4c-C3).
     // Inert until the queue consumer config is added to wrangler.jsonc (Dustin
