@@ -1,9 +1,9 @@
 import { createAnthropicClient } from "~/lib/ai/client";
-import { PLAIN_WRITING_LINES, findStockPhrasing, retryStockPhrasing } from "~/lib/ai/plain-writing";
+import { PLAIN_WRITING_LINES, findStockPhrasing, ownPhrasing, retryStockPhrasing } from "~/lib/ai/plain-writing";
 import { UNTRUSTED_DATA_RULE, untrusted } from "~/lib/ai/untrusted";
 import { MODEL_RECOVERY_EMAIL } from "~/lib/constants";
 
-import { voiceSampleLines } from "./voice-samples";
+import { strayContent, voiceSampleLines } from "./voice-samples";
 
 // AI dunning-copy generation. Copy is written in the MERCHANT's brand voice, not
 // Foxhound's, and must carry no AI tells and no em dashes (hard brand rules from
@@ -167,12 +167,16 @@ export function hardStripTimingWords(text: string): string {
 export async function applyTimingWordGuard(
   first: EmailCopy,
   retry: (instruction: string) => Promise<EmailCopy>,
+  allow: readonly string[] = [],
 ): Promise<EmailCopy> {
   let copy = first;
   if (hasTimingWord(copy.subject)) {
     try {
       const retried = await retry(TIMING_RETRY_INSTRUCTION);
-      if (retried.subject.trim() && retried.bodyHtml.trim()) copy = retried;
+      // Never trade a timing word for stock phrasing the first guard took out:
+      // the hard strip below handles the timing word either way.
+      const stock = (c: EmailCopy) => findStockPhrasing(readableText(c), allow).length;
+      if (retried.subject.trim() && retried.bodyHtml.trim() && stock(retried) <= stock(copy)) copy = retried;
     } catch (err) {
       // The message only: an SDK error object can carry request details.
       console.error("timing-word retry failed; keeping the first copy:", err instanceof Error ? err.message : "unknown error");
@@ -185,8 +189,11 @@ export async function applyTimingWordGuard(
 }
 
 /**
- * Read one structured-output reply into sanitized copy. Shared by the dunning
- * and win-back seams, which parse the same `{subject, bodyHtml}` schema.
+ * Read one structured-output reply into copy as the model wrote it. Shared by
+ * the dunning and win-back seams, which parse the same `{subject, bodyHtml}`
+ * schema. `finishCopy` sanitizes after the retries, so the stock-phrasing check
+ * sees the filler the sanitizer would cut and asks for a rewrite, rather than
+ * the sentence the cut leaves behind.
  */
 export function readGeneratedCopy(
   response: { content: { type: string; text?: string }[] },
@@ -197,10 +204,19 @@ export function readGeneratedCopy(
     throw new Error(`${label} generation returned no text block`);
   }
   const parsed = JSON.parse(textBlock.text) as { subject: string; bodyHtml: string };
-  return {
-    subject: sanitizeCopy(parsed.subject),
-    bodyHtml: sanitizeCopy(parsed.bodyHtml),
-  };
+  return { subject: parsed.subject.trim(), bodyHtml: parsed.bodyHtml.trim() };
+}
+
+/**
+ * The seams' last steps, after both retries: the deterministic sanitizer, then
+ * the stray-content check (voice-samples.ts), which throws so the caller sends
+ * the template.
+ */
+export function finishCopy(copy: EmailCopy, samples: readonly string[], url: string): EmailCopy {
+  const done = { subject: sanitizeCopy(copy.subject), bodyHtml: sanitizeCopy(copy.bodyHtml) };
+  const stray = strayContent(done.bodyHtml, readableText(done), samples, url);
+  if (stray.length > 0) throw new Error(`generated email carries what it was not given: ${stray.length} item(s)`);
+  return done;
 }
 
 export interface EmailCopy {
@@ -208,7 +224,7 @@ export interface EmailCopy {
   bodyHtml: string;
 }
 
-export type BrandVoiceViolation = "em_dash" | "ai_tell" | "timing_leak" | "stock_phrase" | "empty";
+export type BrandVoiceViolation = "em_dash" | "ai_tell" | "timing_leak" | "empty";
 
 // ---- Stock phrasing (app/lib/ai/plain-writing.ts) ----
 
@@ -221,16 +237,22 @@ function readableText(copy: EmailCopy): string {
   return `${copy.subject}\n\n${body}`;
 }
 
-/** One retry when the first draft carries stock phrasing; a retry that loses
- *  its subject or body is never kept. */
+/**
+ * One retry when the first draft carries stock phrasing; a retry that loses its
+ * subject or body is never kept. Phrases the merchant's own emails use are
+ * theirs, not stock. What a retry leaves is sent: one stock word costs less
+ * than throwing out the merchant's voice for the template.
+ */
 export function applyStockPhrasingGuard(
   first: EmailCopy,
   retry: (instruction: string) => Promise<EmailCopy>,
+  allow: readonly string[] = [],
 ): Promise<EmailCopy> {
   return retryStockPhrasing(
     first,
     (copy) => (copy.subject.trim() && copy.bodyHtml.trim() ? readableText(copy) : ""),
     retry,
+    allow,
   );
 }
 
@@ -253,7 +275,6 @@ export function findBrandVoiceViolations(copy: EmailCopy): BrandVoiceViolation[]
   for (const pat of TIMING_TELL_PATTERNS) {
     if (pat.test(both)) violations.add("timing_leak");
   }
-  if (findStockPhrasing(readableText(copy)).length > 0) violations.add("stock_phrase");
   // Job J01, defense in depth: the seams strip legacy's nine timing words, so
   // copy reaching here with one means a path skipped that layer. Read outside
   // tags only, so an href token is never a leak. The body is also read with
@@ -573,5 +594,8 @@ export async function generateDunningEmail(
 
   // Stock phrasing first, then job J01, layers 3 and 4 (legacy
   // recovery-execution.ts blob `3a8f8768` lines 313 to 351).
-  return applyTimingWordGuard(await applyStockPhrasingGuard(await call(), call), call);
+  const samples = input.merchant.voiceSamples ?? [];
+  const allow = ownPhrasing(samples);
+  const copy = await applyTimingWordGuard(await applyStockPhrasingGuard(await call(), call, allow), call, allow);
+  return finishCopy(copy, samples, input.updateUrl);
 }

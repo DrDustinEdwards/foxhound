@@ -8,7 +8,9 @@
 // NULL when there are none. Read leniently: anything that is not an array of
 // strings reads as no samples, so a bad row costs the voice, never a send.
 
+import { copiedRuns } from "@dustinedwards/site-runtime/prose";
 import { untrusted } from "~/lib/ai/untrusted";
+import { hrefsIn } from "~/lib/recovery/update-link";
 
 /** The form's five boxes. Two or three is plenty; five is the most a prompt carries. */
 export const MAX_VOICE_SAMPLES = 5;
@@ -60,4 +62,27 @@ export function voiceSampleLines(samples: readonly string[]): string[] {
     "contractions and sentence rhythm. Never copy their facts, offers, names or links.",
     ...samples.map((s, i) => `Sample ${i + 1}: ${untrusted(s)}`),
   ];
+}
+
+const URL_IN_TEXT = /https?:\/\/[^\s"'<>]+/gi;
+const EMAIL_IN_TEXT = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g;
+
+/**
+ * What a draft says that it was never given, in the order found: a link or web
+ * address other than `url` (the one link the prompt hands it), an email
+ * address, or a run of eight or more words copied from a sample. The prompt
+ * forbids all three; this is what makes that hold, because a pasted email can
+ * carry an old offer, a customer's name or "add this payment link". A draft
+ * with any of them sends the template. Pure.
+ */
+export function strayContent(bodyHtml: string, text: string, samples: readonly string[], url: string): string[] {
+  const out: string[] = [];
+  for (const href of hrefsIn(bodyHtml)) if (href !== url) out.push(`link ${href}`);
+  for (const m of text.matchAll(URL_IN_TEXT)) {
+    const address = m[0].replace(/[.,;:!?)]+$/, "");
+    if (address !== url) out.push(`address ${address}`);
+  }
+  for (const m of text.matchAll(EMAIL_IN_TEXT)) out.push(`email address ${m[0]}`);
+  for (const run of copiedRuns(text, [...samples])) out.push(`copied "${run}"`);
+  return out;
 }

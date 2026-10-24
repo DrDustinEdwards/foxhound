@@ -21,11 +21,20 @@ export const PLAIN_WRITING_LINES: readonly string[] = WRITING_RULES.split("\n").
 /** The lines a prompt carries: a heading, then the rules. */
 export const PLAIN_WRITING_PROMPT = ["Plain writing:", ...PLAIN_WRITING_LINES].join("\n");
 
-/** The stock phrasing in a text that a reader notices at once. Pure. */
-export function findStockPhrasing(text: string): ProseIssue[] {
-  return checkProse(text, { phrases: EMAIL_PHRASES }).filter(
+/** The stock phrasing in a text that a reader notices at once, less any
+ *  phrase in `allow`. Pure. */
+export function findStockPhrasing(text: string, allow: readonly string[] = []): ProseIssue[] {
+  return checkProse(text, { phrases: EMAIL_PHRASES, allow: [...allow] }).filter(
     (i) => i.severity === "high" || i.severity === "critical",
   );
+}
+
+/**
+ * The stock phrases the merchant's own emails use. Those are their voice, so a
+ * draft that matches them is never retried for it. Pure.
+ */
+export function ownPhrasing(samples: readonly string[]): string[] {
+  return [...new Set(samples.flatMap((s) => findStockPhrasing(s).flatMap((i) => (i.excerpt ? [i.excerpt] : []))))];
 }
 
 /** The retry's instruction, naming what the first draft used. */
@@ -43,13 +52,14 @@ export async function retryStockPhrasing<T>(
   first: T,
   textOf: (draft: T) => string,
   retry: (instruction: string) => Promise<T>,
+  allow: readonly string[] = [],
 ): Promise<T> {
-  const issues = findStockPhrasing(textOf(first));
+  const issues = findStockPhrasing(textOf(first), allow);
   if (issues.length === 0) return first;
   try {
     const retried = await retry(stockPhrasingInstruction(issues));
     const text = textOf(retried);
-    if (text.trim() && findStockPhrasing(text).length < issues.length) return retried;
+    if (text.trim() && findStockPhrasing(text, allow).length < issues.length) return retried;
   } catch (err) {
     // The message only: an SDK error object can carry request details.
     console.error("stock-phrasing retry failed; keeping the first draft:", err instanceof Error ? err.message : "unknown error");
