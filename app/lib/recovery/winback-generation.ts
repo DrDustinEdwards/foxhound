@@ -1,4 +1,5 @@
 import { createAnthropicClient } from "~/lib/ai/client";
+import { UNTRUSTED_DATA_RULE, untrusted } from "~/lib/ai/untrusted";
 import { MODEL_RECOVERY_EMAIL } from "~/lib/constants";
 
 import { applyTimingWordGuard, readGeneratedCopy, type EmailCopy } from "./email-generation";
@@ -107,16 +108,18 @@ export function buildWinbackPrompt(input: WinbackPromptInput): string {
     "",
     `This is a ${description}.`,
     "",
+    UNTRUSTED_DATA_RULE,
+    "",
     "Customer details:",
-    `- Name: ${input.customerName}`,
-    `- Cancelled plan: ${input.planName}`,
-    `- Cancellation reason: ${input.cancelReason || "not provided"}`,
+    `- Name: ${untrusted(input.customerName)}`,
+    `- Cancelled plan: ${untrusted(input.planName)}`,
+    `- Cancellation reason: ${input.cancelReason ? untrusted(input.cancelReason) : "not provided"}`,
     "",
     "Email requirements:",
-    `- Brand voice: ${input.brandVoice || WINBACK_VOICE_FALLBACK}`,
+    `- Brand voice: ${input.brandVoice ? untrusted(input.brandVoice) : WINBACK_VOICE_FALLBACK}`,
     "- Keep it under 120 words",
     `- Include a reactivation button linking to: ${input.resubscribeUrl}`,
-    `- Sender name: ${input.senderName}`,
+    `- Sender name: ${untrusted(input.senderName)}`,
     "- Do NOT be desperate or salesy, be genuine",
     "- Never use timing words like 'today', 'tonight', 'yesterday', 'this morning', 'this afternoon', 'this evening', 'right now', 'immediately' or 'by end of day' in the subject or the body, you do not know when the customer will read this",
     "",

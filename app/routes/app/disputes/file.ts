@@ -1,3 +1,5 @@
+import { buildPolicy } from "@dustinedwards/site-runtime/csp";
+
 import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -17,11 +19,11 @@ import type { Route } from "./+types/file";
 // can run nothing.
 
 /** An image opens in a sandboxed document that may show itself and nothing else. */
-const IMAGE_POLICY = "sandbox; default-src 'none'; img-src 'self'; style-src 'unsafe-inline'";
+const IMAGE_POLICY = buildPolicy(["sandbox", "default-src 'none'", "img-src 'self'", "style-src 'unsafe-inline'"]);
 /** A PDF needs the browser's own viewer, which a sandboxed document is refused
  *  (Chrome will not run its viewer in one), so the PDF policy allows only that
  *  viewer's embed of this same response and nothing else. */
-const PDF_POLICY = "default-src 'none'; object-src 'self'; style-src 'unsafe-inline'; frame-ancestors 'none'";
+const PDF_POLICY = buildPolicy(["default-src 'none'", "object-src 'self'", "style-src 'unsafe-inline'", "frame-ancestors 'none'"]);
 
 export async function loader({ context, params }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);

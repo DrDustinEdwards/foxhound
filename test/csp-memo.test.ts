@@ -26,7 +26,7 @@ describe("the policy is validated once and only the nonce varies per request", a
 
   it("does not re-run the builder for each response", () => {
     const before = builderCalls.length;
-    for (let i = 0; i < 3; i++) applySecurityHeaders(new Response(null), generateNonce());
+    for (let i = 0; i < 3; i++) applySecurityHeaders(new Response(null), generateNonce(), "https://foxhound.example.com");
     expect(builderCalls.length - before).toBe(0);
   });
 
@@ -36,7 +36,7 @@ describe("the policy is validated once and only the nonce varies per request", a
     for (let i = 0; i < 5; i++) {
       const nonce = generateNonce();
       const expected = buildContentSecurityPolicy({ ...site, nonce });
-      expect(applySecurityHeaders(new Response(null), nonce).headers.get(expected.name)).toBe(expected.value);
+      expect(applySecurityHeaders(new Response(null), nonce, "https://foxhound.example.com").headers.get(expected.name)).toBe(expected.value);
     }
   });
 });

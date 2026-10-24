@@ -12,8 +12,6 @@ export const CANONICAL_TAGS = [
   "comparisons",
 ] as const;
 
-export type CanonicalTag = (typeof CANONICAL_TAGS)[number];
-
 const TAG_LABELS: Record<string, string> = {
   "payment-recovery": "Payment Recovery",
   disputes: "Dispute Handling",

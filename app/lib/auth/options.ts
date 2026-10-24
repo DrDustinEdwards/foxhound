@@ -28,6 +28,15 @@ export const SESSION_UPDATE_AGE_SECONDS = 60 * 60 * 24;
  */
 export const PASSWORD_RESET_EXPIRES_IN_SECONDS = 60 * 60;
 
+/** What every Better Auth account write stores in place of Google's tokens. */
+const NO_OAUTH_TOKENS = {
+  accessToken: null,
+  refreshToken: null,
+  idToken: null,
+  accessTokenExpiresAt: null,
+  refreshTokenExpiresAt: null,
+};
+
 export const authOptions = {
   appName: "Foxhound",
   emailAndPassword: {
@@ -46,6 +55,14 @@ export const authOptions = {
     // sendVerificationEmail is injected by the runtime factory (see above).
   },
   databaseHooks: {
+    account: {
+      // Google is sign-in only and nothing reads its tokens, so none are stored
+      // (FH-5). Every account write Better Auth makes on a Google sign-in
+      // (createOAuthUser, linkAccount, updateAccount) runs these hooks; the
+      // clear_oauth_tokens migration cleared the rows from before.
+      create: { before: async () => ({ data: NO_OAUTH_TOKENS }) },
+      update: { before: async () => ({ data: NO_OAUTH_TOKENS }) },
+    },
     user: {
       create: {
         // Disposable-email blocklist at account creation (legacy rule). Applies
