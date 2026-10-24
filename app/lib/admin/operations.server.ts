@@ -201,7 +201,8 @@ export function getEnvSanity(env: Env): EnvSanityRow[] {
     // Optional: unset simply means the Anthropic calls go direct rather
     // than through AI Gateway. Listed so the surface shows whether the
     // gateway is actually in front of them.
-    ["AI_GATEWAY_BASE_URL", "var"],
+    ["AI_GATEWAY_BASE_URL", "secret"],
+    ["AI_GATEWAY_TOKEN", "secret"],
     ["GOOGLE_CLIENT_ID", "secret"],
     ["GOOGLE_CLIENT_SECRET", "secret"],
     ["TURNSTILE_SECRET_KEY", "secret"],
