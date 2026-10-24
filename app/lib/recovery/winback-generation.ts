@@ -1,11 +1,12 @@
 import { createAnthropicClient } from "~/lib/ai/client";
-import { PLAIN_WRITING_LINES } from "~/lib/ai/plain-writing";
+import { PLAIN_WRITING_LINES, ownPhrasing } from "~/lib/ai/plain-writing";
 import { UNTRUSTED_DATA_RULE, untrusted } from "~/lib/ai/untrusted";
 import { MODEL_RECOVERY_EMAIL } from "~/lib/constants";
 
 import {
   applyStockPhrasingGuard,
   applyTimingWordGuard,
+  finishCopy,
   readGeneratedCopy,
   type EmailCopy,
 } from "./email-generation";
@@ -198,5 +199,8 @@ export async function generateWinbackEmail(
   // the win-back seam retries once too: a difference in spend, not in what a
   // customer reads, and never more than one extra call.
   // The stock-phrasing retry comes first, on the same terms (one call at most).
-  return applyTimingWordGuard(await applyStockPhrasingGuard(await call(), call), call);
+  const samples = input.voiceSamples ?? [];
+  const allow = ownPhrasing(samples);
+  const copy = await applyTimingWordGuard(await applyStockPhrasingGuard(await call(), call, allow), call, allow);
+  return finishCopy(copy, samples, input.resubscribeUrl);
 }

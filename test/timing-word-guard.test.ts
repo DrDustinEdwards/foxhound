@@ -66,12 +66,15 @@ const NINE = [
 
 const env = { ANTHROPIC_API_KEY: "sk-ant-test" } as unknown as Env;
 
+// One link for both seams: a draft may link only the URL its prompt was given.
+const LINK = "https://foxhoundapp.test/u/today-1";
+
 const DUNNING_INPUT = {
   merchant: { merchantName: "Acme" },
   stepType: "soft_1",
   declineCategory: "soft",
   amountFormatted: "$49.00",
-  updateUrl: "https://foxhoundapp.test/u/tok-123",
+  updateUrl: LINK,
 };
 
 const WINBACK_INPUT = {
@@ -82,10 +85,10 @@ const WINBACK_INPUT = {
   cancelReason: "too expensive",
   brandVoice: "Dry and direct",
   senderName: "Teamflow",
-  resubscribeUrl: "https://foxhoundapp.test/p/tok-456",
+  resubscribeUrl: LINK,
 };
 
-const CLEAN_BODY = '<p>Your card did not go through. <a href="https://foxhoundapp.test/u/tok-123">Update it here</a>.</p>';
+const CLEAN_BODY = `<p>Your card did not go through. <a href="${LINK}">Update it here</a>.</p>`;
 
 function queue(...replies: Reply[]): void {
   harness.replies.push(...replies);
