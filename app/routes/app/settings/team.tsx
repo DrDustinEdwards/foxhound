@@ -1,8 +1,16 @@
+import { useEffect, useRef } from "react";
 import { data, useNavigation, useSearchParams } from "react-router";
+import { Alert, Banner } from "capsomer/react/banner";
+import { Button } from "capsomer/react/button";
+import { Pill } from "capsomer/react/status";
+import "capsomer/banner.css";
+import "capsomer/button.css";
+import "capsomer/field.css";
+import "capsomer/panel.css";
+import "capsomer/status.css";
 
-import { Alert, Field, Submit } from "~/components/auth-ui";
-import { Badge } from "~/components/badge";
 import { DemoGuardedForm } from "~/components/demo-guarded-form";
+import { SettingsBackLink } from "~/components/settings-back-link";
 import { getDb } from "~/db";
 import { authContext, createInvite, hasOpenInviteForEmail, listMembers, removeMember, MEMBER_ROLE } from "~/lib/auth";
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -10,6 +18,7 @@ import { RATE_LIMIT_INVITE } from "~/lib/constants";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
 import { getPrimarySenderConnection } from "~/lib/settings/queries.server";
 import { isValidReplyToEmail } from "~/lib/settings/reply-to";
+import { pendingState, shouldClearInvite, type TeamActionData } from "~/lib/settings/team-page";
 import { sendTeamInviteEmail, teamInviteEmailNotice } from "~/lib/settings/team-invite-email.server";
 
 import type { Route } from "./+types/team";
@@ -43,8 +52,9 @@ export async function loader({ context }: Route.LoaderArgs) {
   const auth = context.get(authContext);
   const members = await listMembers(getDb(env), membership.accountId);
   const isOwner = membership.role === MEMBER_ROLE.OWNER;
+  // No account name: Recova's heading is "Team" alone (J31), and the header's
+  // business tile already names the account this page is scoped to.
   return {
-    accountName: membership.accountName,
     isOwner,
     // LEGACY'S THREE REFUSALS, RESOLVED HERE rather than in the render: owners
     // only, never yourself, never another owner. It is a plain boolean on
@@ -53,10 +63,16 @@ export async function loader({ context }: Route.LoaderArgs) {
     // "Server-only module referenced by client", which is how this was caught.
     // The server enforces all three again inside removeMember; this only
     // decides what to draw.
-    members: members.map((m) => ({
-      ...m,
-      removable: isOwner && m.userId !== auth.userId && m.role !== MEMBER_ROLE.OWNER,
-    })),
+    //
+    // OWNER FIRST, as Recova's TeamSection sorts its list; everyone else keeps
+    // the order they were added (listMembers' order). Array sort is stable.
+    members: members
+      .map((m) => ({
+        ...m,
+        isOwnerRole: m.role === MEMBER_ROLE.OWNER,
+        removable: isOwner && m.userId !== auth.userId && m.role !== MEMBER_ROLE.OWNER,
+      }))
+      .sort((a, b) => Number(b.isOwnerRole) - Number(a.isOwnerRole)),
   };
 }
 
@@ -65,41 +81,39 @@ export async function action({ request, context }: Route.ActionArgs) {
   const { membership } = context.get(authContext);
   const db = getDb(env);
 
-  if (membership.role !== MEMBER_ROLE.OWNER) {
-    return data(
-      { error: "Only the account owner can invite teammates.", invited: null, inviteUrl: null },
-      { status: 403 },
-    );
-  }
-
   const form = await request.formData();
-  const intent = String(form.get("_action") ?? "invite");
+  // No `_action` is an invite, so a plain post keeps working.
+  const intent = String(form.get("_action") ?? "invite") === "remove" ? "remove" : "invite";
 
+  // Every result says which form it answers (`action`), and a remove result
+  // names its row (`memberId`), so each form reads only its own result.
   if (intent === "remove") {
-    const memberId = String(form.get("memberId") ?? "").trim();
-    if (!memberId) {
-      return data(
-        { error: "Select a member to remove.", invited: null, inviteUrl: null },
-        { status: 400 },
-      );
+    const memberId = String(form.get("memberId") ?? "").trim() || null;
+    const refuse = (error: string, status: number) =>
+      data<TeamActionData>({ action: "remove", error, invited: null, inviteUrl: null, memberId }, { status });
+
+    // The actor's role, checked on the server before anything else.
+    if (membership.role !== MEMBER_ROLE.OWNER) {
+      return refuse("Only the account owner can remove members.", 403);
     }
+    if (!memberId) return refuse("Select a member to remove.", 400);
     // Scoped to the ACTIVE account inside removeMember, so a member id from
     // another account is refused exactly like one that does not exist.
     const result = await removeMember(db, membership.accountId, memberId);
     if (!result.ok) {
-      return data(
-        {
-          error:
-            result.reason === "is_owner"
-              ? "The account owner cannot be removed."
-              : "That member is not on this account.",
-          invited: null,
-          inviteUrl: null,
-        },
-        { status: 403 },
+      return refuse(
+        result.reason === "is_owner" ? "The account owner cannot be removed." : "That member is not on this account.",
+        403,
       );
     }
-    return data({ error: null, invited: null, inviteUrl: null });
+    return data<TeamActionData>({ action: "remove", error: null, invited: null, inviteUrl: null, memberId });
+  }
+
+  const refuse = (error: string, status: number) =>
+    data<TeamActionData>({ action: "invite", error, invited: null, inviteUrl: null, memberId: null }, { status });
+
+  if (membership.role !== MEMBER_ROLE.OWNER) {
+    return refuse("Only the account owner can invite teammates.", 403);
   }
 
   // E2: RECOVA'S REFUSALS, in Recova's order and before anything is written
@@ -111,31 +125,17 @@ export async function action({ request, context }: Route.ActionArgs) {
   // limiter does too). It is spent on every invite attempt, as Recova's is.
   const ip = request.headers.get("cf-connecting-ip") ?? "unknown";
   if (!(await isWithinRateLimit(env, "invite", ip, RATE_LIMIT_INVITE.max, RATE_LIMIT_INVITE.windowMs))) {
-    return data(
-      { error: "Too many requests. Try again later.", invited: null, inviteUrl: null },
-      { status: 429 },
-    );
+    return refuse("Too many requests. Try again later.", 429);
   }
-
   const email = String(form.get("email") ?? "").trim();
-  if (!email) {
-    return data(
-      { error: "Enter an email address to invite.", invited: null, inviteUrl: null },
-      { status: 400 },
-    );
-  }
+  if (!email) return refuse("Enter an email address to invite.", 400);
   // One address: no whitespace or control characters (so no line break and no
   // second address after a space), no comma, semicolon or angle brackets, and
   // a dot in the domain. The address becomes the To of the invite email, so
   // the reply-to field's server check (J03) is the right one, reused as is.
-  if (!isValidReplyToEmail(email)) {
-    return data({ error: "Invalid email address", invited: null, inviteUrl: null }, { status: 400 });
-  }
+  if (!isValidReplyToEmail(email)) return refuse("Invalid email address", 400);
   if (await hasOpenInviteForEmail(db, membership.accountId, email)) {
-    return data(
-      { error: "This email already has a pending or active membership", invited: null, inviteUrl: null },
-      { status: 409 },
-    );
+    return refuse("This email already has a pending or active membership", 409);
   }
 
   const { token, memberId } = await createInvite(db, membership.accountId, email);
@@ -156,98 +156,202 @@ export async function action({ request, context }: Route.ActionArgs) {
     senderName: (await getPrimarySenderConnection(db, membership.accountId))?.senderName,
     year: new Date().getUTCFullYear(),
   });
-  return data({
+  return data<TeamActionData>({
+    action: "invite",
     error: null,
     invited: email,
     inviteUrl,
+    memberId: null,
     emailStatus: sent.status,
     emailError: teamInviteEmailNotice(sent.status),
   });
 }
 
+/** The row's name, Recova's order: full name, else email, else the invited
+ *  address. `||` as Recova has it, so an empty name falls through. */
+function displayName(m: { userId: string | null; userName: string | null; userEmail: string | null; invitedEmail: string | null }): string {
+  return (m.userId ? m.userName || m.userEmail : null) || m.invitedEmail || "";
+}
+
+// J31 (job_8d030f93c15f), row S26: Recova's page (app/(app)/settings/team/page.tsx,
+// blob 09983bed; TeamSection.tsx, blob ab19f9de) on Capsomer's parts, teal.
+//
+// Recova, top to bottom: the phone-only Settings link, the page head "Team"
+// with its line, then ONE card: the member rows, owner first, a rule between
+// them, and for an owner the invite form under a rule, its input and button on
+// one row and the result line under them. No column of its own: the settings
+// layout gives Recova's 800px column and padding (app/layouts/settings.tsx).
+//
+// The heading is composed on the five sizes (Capsomer's page head computes
+// 22px, off them). The row buttons are Capsomer's sm size (13px, text-label),
+// because xs computes 12px, also off them; Capsomer's pills compute 12px with
+// no size to choose, which is for Capsomer's per-site layer to map.
+//
+// The card is Capsomer's panel through its HTML contract, body only, because
+// the React Panel always draws a header band and Recova's card has none (the
+// gap J53 and J62 named). The member list is composed inside it: Capsomer's
+// row list is for rows that open a detail, and these open nothing. Pills,
+// buttons, the field and the notices are Capsomer's; the teal comes from the
+// app shell's family wrapper (app/layouts/app-shell.tsx).
+//
+// Two words differ from Recova on purpose. The role pill says "Owner" or
+// "Member", never the raw database value (RULES.md 1.5). The success line keeps
+// Foxhound's share link beside the invite email (E2), and when the email did
+// not go an alert says so, where Recova would still say "Invite sent to"
+// (RULES.md 1.2).
 export default function Team({ loaderData, actionData }: Route.ComponentProps) {
-  const busy = useNavigation().state !== "idle";
+  const navigation = useNavigation();
+  // Pending belongs to the form that was sent: a remove marks its row, an
+  // invite the invite button.
+  const pending = pendingState(navigation.state === "idle" ? undefined : navigation.formData);
   const confirmingId = useSearchParams()[0].get("confirm");
 
-  return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-8">
-      <h1 className="text-title font-medium text-text">
-        Team {loaderData.accountName ? `- ${loaderData.accountName}` : ""}
-      </h1>
+  // Results belong to the form they answer.
+  const removeResult = actionData?.action === "remove" ? actionData : null;
+  const inviteResult = actionData?.action === "invite" ? actionData : null;
 
-      <section className="rounded-lg border border-border bg-surface p-5">
-        <h2 className="text-label font-semibold text-text">Members</h2>
-        <ul className="mt-4 flex flex-col gap-2">
-          {loaderData.members.map((m) => (
-            <li
-              key={m.id}
-              className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2 text-label text-text-secondary"
-            >
-              <span className="min-w-0 truncate">{m.userId ? (m.userName || m.userEmail) : m.invitedEmail}</span>
-              <span className="flex shrink-0 items-center gap-2">
-                {/* `removable` is legacy's three refusals, resolved in the
-                    loader. The server enforces them again. */}
-                {m.removable ? (
-                  confirmingId === m.id ? (
-                    <DemoGuardedForm method="post" className="flex items-center gap-2">
+  // Clear the field only after an invite that worked; a remove result or a
+  // refused invite leaves a half-typed address alone.
+  const inviteInput = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (shouldClearInvite(actionData) && inviteInput.current) inviteInput.current.value = "";
+  }, [actionData]);
+
+  return (
+    <>
+      <SettingsBackLink />
+      {/* Recova's PageHeader: h1 text-title medium, the line in text-label.
+          Composed on the five sizes, because Capsomer's page head computes
+          22px at weight 800, off them (RULES.md 5.2). */}
+      <div className="mb-8">
+        <h1 className="mb-1 text-title font-medium text-text">Team</h1>
+        <p className="text-label text-text-subtle">Members and pending invites for this account.</p>
+      </div>
+
+      <section className="cap-panel">
+        <div className="cap-panel-body">
+          {removeResult && !removeResult.error ? (
+            <p role="status" className="sr-only">
+              Member removed.
+            </p>
+          ) : null}
+          {/* Each row wraps the same way at any width: the name first,
+              breaking a long address anywhere rather than overflowing, then
+              the action and pills together, pushed right by ml-auto so a
+              wrapped line lines up with the rows that fit. A confirming row
+              keeps its pills beside the name and gives the question and its
+              two buttons a line of their own, until the card is wide enough
+              (the @xl container) to hold them all in one line. */}
+          <ul className="@container flex flex-col" aria-label="Members">
+            {loaderData.members.map((m) => {
+              const name = displayName(m);
+              const confirming = m.removable && confirmingId === m.id;
+              return (
+                <li
+                  key={m.id}
+                  className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border py-3 last:border-b-0"
+                >
+                  <span className="min-w-0 wrap-anywhere text-label text-text">{name}</span>
+                  {/* `removable` is legacy's three refusals, resolved in the
+                      loader. The server enforces them again. */}
+                  {confirming ? (
+                    <DemoGuardedForm
+                      method="post"
+                      className="order-last flex basis-full flex-wrap items-center justify-end gap-x-2 gap-y-1 @xl:order-none @xl:ml-auto @xl:basis-auto"
+                    >
                       <input type="hidden" name="_action" value="remove" />
                       <input type="hidden" name="memberId" value={m.id} />
-                      <span className="text-micro text-text-subtle">
-                        Remove {m.userName || m.userEmail || m.invitedEmail}?
+                      <span className="text-micro text-text-subtle">Remove {name}?</span>
+                      <span className="flex items-center gap-1.5">
+                        <Button type="submit" variant="danger" size="sm" pending={pending.removing === m.id}>
+                          {pending.removing === m.id ? "Removing..." : "Yes, remove member"}
+                        </Button>
+                        <a href="?" className="cap-btn" data-variant="quiet" data-size="sm">
+                          Cancel
+                        </a>
                       </span>
-                      <button
-                        type="submit"
-                        disabled={busy}
-                        className="text-micro text-red transition-opacity duration-500 hover:opacity-80 disabled:opacity-60"
-                      >
-                        {busy ? "Removing..." : "Yes, remove member"}
-                      </button>
-                      <a
-                        href="?"
-                        className="text-micro text-text-subtle no-underline transition-opacity duration-500 hover:opacity-80"
-                      >
-                        Cancel
-                      </a>
                     </DemoGuardedForm>
-                  ) : (
-                    <a
-                      href={"?confirm=" + m.id}
-                      className="text-micro text-text-subtle no-underline transition-opacity duration-500 hover:opacity-80"
-                    >
-                      Remove member
-                    </a>
-                  )
-                ) : null}
-                <Badge tone="neutral">{m.role}</Badge>
-                {/* Legacy shows a status pill ONLY when pending, never an
-                    "active" pill beside every member. */}
-                {m.status === "active" ? null : <Badge tone="neutral">Pending</Badge>}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </section>
+                  ) : null}
+                  <span className={`ml-auto flex items-center gap-2${confirming ? " @xl:ml-0" : ""}`}>
+                    {m.removable && !confirming ? (
+                      <a href={"?confirm=" + m.id} className="cap-btn" data-variant="quiet" data-size="sm">
+                        Remove member
+                        <span className="sr-only">{" " + name}</span>
+                      </a>
+                    ) : null}
+                    <Pill variant={m.isOwnerRole ? "default" : "secondary"}>
+                      {m.isOwnerRole ? "Owner" : "Member"}
+                    </Pill>
+                    {/* Legacy shows a status pill ONLY when pending, never an
+                        "active" pill beside every member. */}
+                    {m.status === "active" ? null : <Pill variant="secondary">Pending</Pill>}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
 
-      {loaderData.isOwner ? (
-        <section className="rounded-lg border border-border bg-surface p-5">
-          <h2 className="text-label font-semibold text-text">Invite a teammate</h2>
-          <DemoGuardedForm method="post" className="mt-4 flex flex-col gap-3">
-            {actionData?.error ? <Alert tone="error">{actionData.error}</Alert> : null}
-            {actionData?.inviteUrl ? (
-              <Alert tone="success">
-                Invited {actionData.invited}. Share this link: {actionData.inviteUrl}
-              </Alert>
+            {loaderData.isOwner ? (
+              <DemoGuardedForm method="post" className="border-t border-border pt-5">
+                <input type="hidden" name="_action" value="invite" />
+                {/* Capsomer's field through its HTML contract, with the aria
+                    wiring its React Field would add. The React Field takes one
+                    control, so the button cannot share the input's row as
+                    Recova has it, and its required prop prints a "Required"
+                    marker Recova never had: a Capsomer gap. */}
+                <div className="cap-field" data-invalid={inviteResult?.error ? "true" : undefined}>
+                  <label className="cap-field-label" htmlFor="invite_email">
+                    Invite a team member
+                  </label>
+                  <div className="flex gap-2">
+                    <div className="min-w-0 flex-1">
+                      <input
+                        ref={inviteInput}
+                        id="invite_email"
+                        className="cap-input"
+                        type="email"
+                        name="email"
+                        autoComplete="email"
+                        placeholder="colleague@company.com"
+                        required
+                        aria-invalid={inviteResult?.error ? true : undefined}
+                        aria-describedby={inviteResult?.error ? "invite_email-error" : undefined}
+                      />
+                    </div>
+                    <Button type="submit" variant="primary" pending={pending.invite}>
+                      {pending.invite ? "Sending\u2026" : "Send invite"}
+                    </Button>
+                  </div>
+                  <p className="cap-field-error" id="invite_email-error" hidden={!inviteResult?.error}>
+                    {inviteResult?.error ?? null}
+                  </p>
+                </div>
+                {/* A refused remove, where Recova's TeamSection shows it: its
+                    one error line under the invite row. An alert, and not
+                    the field's error, since the address is not what was
+                    wrong. Showing it at the row instead is a question for
+                    Dustin (J31 notes). */}
+                {removeResult?.error ? (
+                  <div className="mt-2">
+                    <Alert tone="crit">{removeResult.error}</Alert>
+                  </div>
+                ) : null}
+                {inviteResult?.inviteUrl ? (
+                  <div className="mt-2">
+                    <Banner tone="ok">
+                      Invited {inviteResult.invited}. Share this link: {inviteResult.inviteUrl}
+                    </Banner>
+                  </div>
+                ) : null}
+                {inviteResult && "emailError" in inviteResult && inviteResult.emailError ? (
+                  <div className="mt-2">
+                    <Alert tone="crit">{inviteResult.emailError}</Alert>
+                  </div>
+                ) : null}
+              </DemoGuardedForm>
             ) : null}
-            {actionData && "emailError" in actionData && actionData.emailError ? (
-              <Alert tone="error">{actionData.emailError}</Alert>
-            ) : null}
-            <Field label="Invite email" name="email" type="email" />
-            <div>
-              <Submit disabled={busy}>{busy ? "Inviting..." : "Send invite"}</Submit>
-            </div>
-          </DemoGuardedForm>
-        </section>
-      ) : null}
-    </div>
+        </div>
+      </section>
+    </>
   );
 }
