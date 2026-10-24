@@ -2,7 +2,7 @@
 // processed, which steps are due, the per-payment step choice, exhausted
 // sequences, and the row-to-context mapping the step executors take.
 
-import { and, asc, eq, inArray, isNull, lte, notExists, notLike, or, type SQL } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, lte, notExists, notLike, or, sql, type SQL } from "drizzle-orm";
 import { type Db, accounts, failedPayments, getDb, recoverySteps, stripeConnections } from "~/db";
 import {
   DEMO_ACCOUNT_ID_PREFIX,
@@ -200,11 +200,23 @@ export interface DueStepRow {
   brandVoiceExpired: string | null;
   brandVoiceNetwork: string | null;
   brandVoiceFraud: string | null;
-  /** The connection's `brand_voice_samples`, as stored. */
+  /** The account's primary connection's `brand_voice_samples`, as stored. */
   brandVoiceSamples?: string | null;
   /** The payment's connection's `reply_to_email` (J03), for the Reply-To. */
   replyToEmail?: string | null;
 }
+
+// The sample emails are the account's, saved on its primary connection by
+// /settings/brand-voice, so they are read from there whichever connection the
+// payment came through (as win-back reads them). Inside the subquery its own
+// stripe_connections shadows the outer join's, as SQL scoping has it.
+const primarySamples = sql<string | null>`(
+  select ${stripeConnections.brandVoiceSamples} from ${stripeConnections}
+  where ${stripeConnections.accountId} = ${recoverySteps.accountId}
+    and ${stripeConnections.isPrimary} = 1
+    and ${stripeConnections.disconnectedAt} is null
+  limit 1
+)`;
 
 /** Fetch due steps for active failed payments on processing-eligible accounts,
  *  bounded to RECOVERY_TICK_LIMIT and earliest-scheduled first. */
@@ -239,7 +251,7 @@ export async function queryDueRecoverySteps(env: Env, now: Date): Promise<DueSte
       brandVoiceExpired: stripeConnections.brandVoiceExpired,
       brandVoiceNetwork: stripeConnections.brandVoiceNetwork,
       brandVoiceFraud: stripeConnections.brandVoiceFraud,
-      brandVoiceSamples: stripeConnections.brandVoiceSamples,
+      brandVoiceSamples: primarySamples,
       replyToEmail: stripeConnections.replyToEmail,
     })
     .from(recoverySteps)
@@ -339,7 +351,7 @@ export async function queryStepForManualTrigger(
       brandVoiceExpired: stripeConnections.brandVoiceExpired,
       brandVoiceNetwork: stripeConnections.brandVoiceNetwork,
       brandVoiceFraud: stripeConnections.brandVoiceFraud,
-      brandVoiceSamples: stripeConnections.brandVoiceSamples,
+      brandVoiceSamples: primarySamples,
       replyToEmail: stripeConnections.replyToEmail,
     })
     .from(recoverySteps)

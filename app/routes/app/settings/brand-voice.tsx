@@ -250,7 +250,7 @@ export default function BrandVoiceSettings({ loaderData, actionData }: Route.Com
         <div className="mt-6">
           <Panel
             title="Sample emails"
-            description="Paste two to five emails you wrote to customers yourself. Recovery and win-back emails are written to sound like these, in the tone set above. Their facts, offers and links are never copied."
+            description="Paste two to five emails you wrote to customers yourself. Recovery and win-back emails are written to sound like these, in the tone set above. A draft that copies a link, an address or a sentence from them is not sent. Leave out card numbers and anything private: the AI that writes your emails reads them."
           >
             <div className="grid gap-4">
               {Array.from({ length: MAX_VOICE_SAMPLES }, (_, i) => (
