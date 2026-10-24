@@ -1,4 +1,5 @@
 import { createAnthropicClient } from "~/lib/ai/client";
+import { PLAIN_WRITING_PROMPT, retryStockPhrasing } from "~/lib/ai/plain-writing";
 import { UNTRUSTED_DATA_RULE, untrusted } from "~/lib/ai/untrusted";
 import { MODEL_RECOVERY_EMAIL } from "~/lib/constants";
 import { sanitizeCopy } from "~/lib/recovery/email-generation";
@@ -109,6 +110,7 @@ function buildSystemPrompt(): string {
     "amount, an event, or any detail that is not explicitly provided. If the",
     "facts are sparse, write a short, honest summary using just what is given.",
     "Never use em dashes or en dashes. No corporate filler, no AI-sounding phrases.",
+    PLAIN_WRITING_PROMPT,
     UNTRUSTED_DATA_RULE,
   ].join("\n");
 }
@@ -161,23 +163,26 @@ export async function draftDisputeEvidence(env: Env, facts: EvidenceFacts): Prom
 
   try {
     const client = createAnthropicClient(env);
-    const response = await client.messages.create({
-      model: MODEL_RECOVERY_EMAIL,
-      max_tokens: 500,
-      thinking: { type: "disabled" },
-      output_config: {
-        effort: "low",
-        format: { type: "json_schema", schema: OUTPUT_SCHEMA },
-      },
-      system: buildSystemPrompt(),
-      messages: [{ role: "user", content: buildUserPrompt(facts) }],
-    });
-    const textBlock = response.content.find((b) => b.type === "text");
-    if (textBlock && textBlock.type === "text") {
+    const call = async (instruction = ""): Promise<string> => {
+      const response = await client.messages.create({
+        model: MODEL_RECOVERY_EMAIL,
+        max_tokens: 500,
+        thinking: { type: "disabled" },
+        output_config: {
+          effort: "low",
+          format: { type: "json_schema", schema: OUTPUT_SCHEMA },
+        },
+        system: buildSystemPrompt(),
+        messages: [{ role: "user", content: buildUserPrompt(facts) + instruction }],
+      });
+      const textBlock = response.content.find((b) => b.type === "text");
+      if (!textBlock || textBlock.type !== "text") return "";
       const parsed = JSON.parse(textBlock.text) as { uncategorizedText: string };
-      const clean = sanitizeCopy(parsed.uncategorizedText);
-      if (clean.trim()) fields.push({ fieldName: "uncategorized_text", fieldValue: clean });
-    }
+      return sanitizeCopy(parsed.uncategorizedText);
+    };
+    // One retry when the draft reads as machine-written (ai/plain-writing.ts).
+    const clean = await retryStockPhrasing(await call(), (text) => text, call);
+    if (clean.trim()) fields.push({ fieldName: "uncategorized_text", fieldValue: clean });
   } catch {
     // AI drafting must never block dispute intake (mirrors recordOutcome's
     // never-throws posture): the deterministic fields above still land.

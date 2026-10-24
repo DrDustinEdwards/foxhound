@@ -1,4 +1,5 @@
 import { createAnthropicClient } from "~/lib/ai/client";
+import { PLAIN_WRITING_PROMPT, retryStockPhrasing } from "~/lib/ai/plain-writing";
 import { UNTRUSTED_DATA_RULE, untrusted } from "~/lib/ai/untrusted";
 import { MODEL_INTELLIGENCE_NARRATIVE } from "~/lib/constants";
 import { formatMoney } from "~/lib/money-format";
@@ -101,6 +102,7 @@ function buildSystemPrompt(): string {
     "in the list given to you; never invent or reference any other customer.",
     "Never use em dashes or en dashes. No corporate filler, no AI-sounding",
     "phrases, no 'I hope this finds you well'.",
+    PLAIN_WRITING_PROMPT,
     UNTRUSTED_DATA_RULE,
   ].join("\n");
 }
@@ -157,7 +159,21 @@ export async function generateIntelligenceNarrative(
     throw new Error("ANTHROPIC_API_KEY is not set");
   }
   const client = createAnthropicClient(env);
+  const call = (instruction = ""): Promise<NarrativeResult> => narrate(client, facts, instruction);
+  // One retry when the narrative or an assessment reads as machine-written
+  // (ai/plain-writing.ts). The usage recorded is the kept call's.
+  return retryStockPhrasing(
+    await call(),
+    (r) => [r.narrative, ...r.customerAssessments.map((a) => a.assessment)].join("\n\n"),
+    call,
+  );
+}
 
+async function narrate(
+  client: ReturnType<typeof createAnthropicClient>,
+  facts: NarrativeFacts,
+  instruction: string,
+): Promise<NarrativeResult> {
   const response = await client.messages.create({
     model: MODEL_INTELLIGENCE_NARRATIVE,
     max_tokens: 2000,
@@ -167,7 +183,7 @@ export async function generateIntelligenceNarrative(
       format: { type: "json_schema", schema: OUTPUT_SCHEMA },
     },
     system: buildSystemPrompt(),
-    messages: [{ role: "user", content: buildUserPrompt(facts) }],
+    messages: [{ role: "user", content: buildUserPrompt(facts) + instruction }],
   });
 
   const textBlock = response.content.find((b) => b.type === "text");
