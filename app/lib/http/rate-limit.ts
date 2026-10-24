@@ -1,5 +1,7 @@
-// Rate-limit enforcement, keyed on cf-connecting-ip, on Foxhound's own
-// fixed-window Durable Object (workers/rate-limiter.ts).
+import { limit } from "@dustinedwards/site-runtime/rate-limit";
+
+// Rate-limit enforcement, keyed on cf-connecting-ip, on site-runtime's
+// RateLimiter Durable Object (bound as RATE_LIMITER).
 //
 // THE AUTH BUCKET LEFT THIS FILE IN J52 (job_674e728b50a3). Sign-in, signup,
 // password reset, the Google start and Better Auth's own /api/auth endpoints
@@ -28,12 +30,16 @@
 // with plain requests; the 429 outcome with a mock DO stub), without needing
 // a live Workers runtime.
 //
-// Originally built on Cloudflare's unsafe ratelimit binding
-// (TASK-foxhound-auth-rate-limit.md); replaced with a Durable Object we own
-// (workers/rate-limiter.ts, TASK-foxhound-do-rate-limiter.md) after the
-// binding was proven - via deployed diagnostic tail logs - to be correctly
-// configured, invoked, and keyed, yet returned {success:true}
-// unconditionally live in production past every configured limit.
+// THE COUNTING IS SITE-RUNTIME'S (wave 2). This file used to call its own
+// fixed-window Durable Object (workers/rate-limiter.ts, which replaced
+// Cloudflare's ratelimit binding after that binding returned {success:true}
+// live in production past every configured limit). site-runtime's RateLimiter
+// is the same idea, a Durable Object per key, and Foxhound already used it for
+// sign-in and signup. RATE_LIMITER keeps its class name and namespace
+// (workers/app.ts extends site-runtime's class under the old name), so no
+// Durable Object namespace is deleted (RULES.md 3.13). Windows are now aligned
+// to the clock rather than to a key's first hit, and a refused hit is not
+// counted.
 //
 // Scope is POST only. /demos and /audit are single-route pages where GET
 // renders the marketing page and POST is the enter/estimate action; only the
@@ -93,69 +99,52 @@ export function rateLimitedResponse(retryAfterSeconds: number): Response {
 }
 
 /**
- * Low-level per-key check against the same RateLimiterDurableObject, for a
- * route action that needs to react to "over limit" itself instead of the
- * raw 429 Response enforceRateLimit returns (TASK-foxhound-demo-entry-parity.md
- * item 3: the home email generator falls back to a static sample rather than
- * surfacing an error, so it checks its own budget inside the action). Fails
- * open exactly like enforceRateLimit, for the same reason, unless the caller
- * passes { failClosed: true }: then a failed check is logged whole and thrown
- * as RateLimiterUnavailableError, so a caller whose request costs money (the
+ * Per-key check for a route action that reacts to "over limit" itself
+ * (TASK-foxhound-demo-entry-parity.md item 3: the home email generator falls
+ * back to a static sample rather than surfacing an error). Fails open, unless
+ * the caller passes { failClosed: true }: then a failed check is thrown as
+ * RateLimiterUnavailableError, so a caller whose request costs money (the
  * Intelligence report button's paid model call, J67) refuses and can say why
- * rather than calling it a rate limit. No other caller passes it.
+ * rather than calling it a rate limit. site-runtime logs the failure either
+ * way, naming the bucket and never the key.
  */
 export class RateLimiterUnavailableError extends Error {
   constructor(cause: unknown) {
-    super("RateLimiterDurableObject check failed", { cause });
+    super("Rate limiter check failed", { cause });
     this.name = "RateLimiterUnavailableError";
   }
+}
+
+async function check(env: Env, bucket: string, key: string, max: number, periodMs: number, failClosed: boolean) {
+  const onUnavailable = failClosed ? "refuse" : "allow";
+  const verdict = await limit(env.RATE_LIMITER, `${bucket}:${key}`, [{ limit: max, windowSeconds: periodMs / 1000 }], {
+    onUnavailable,
+  });
+  if (verdict.status === "unavailable" && failClosed) throw new RateLimiterUnavailableError(verdict.detail);
+  return verdict;
 }
 
 export async function isWithinRateLimit(
   env: Env,
   bucket: string,
   key: string,
-  limit: number,
+  max: number,
   periodMs: number,
   options: { failClosed?: boolean } = {},
 ): Promise<boolean> {
-  try {
-    const ns = env.RATE_LIMITER;
-    const stub = ns.get(ns.idFromName(`${bucket}:${key}`));
-    const { allowed } = await stub.check(limit, periodMs);
-    return allowed;
-  } catch (err) {
-    if (options.failClosed) {
-      console.error(`RateLimiterDurableObject check failed; refusing request (${bucket})`, err);
-      throw new RateLimiterUnavailableError(err);
-    }
-    console.error("RateLimiterDurableObject check failed; allowing request", err);
-    return true;
-  }
+  return (await check(env, bucket, key, max, periodMs, options.failClosed ?? false)).status !== "limited";
 }
 
 /**
  * Check the request against whichever rate-limit rule applies, and return
  * the 429 response to send if it is over budget, or null if the request
  * should proceed. Call this BEFORE the route handler runs (workers/app.ts
- * fetch), so a throttled request never reaches the action.
- *
- * Fail-open: if the Durable Object call throws (RPC failure, DO outage), the
- * request is allowed through.
+ * fetch), so a throttled request never reaches the action. Fails open.
  */
 export async function enforceRateLimit(request: Request, env: Env): Promise<Response | null> {
   const rule = resolveRateLimitBinding(request);
   if (!rule) return null;
-
   const key = request.headers.get("cf-connecting-ip") ?? "unknown";
-  try {
-    const ns = env.RATE_LIMITER;
-    const stub = ns.get(ns.idFromName(`${rule.bucket}:${key}`));
-    const { allowed, retryAfterSec } = await stub.check(rule.limit, rule.periodMs);
-    if (allowed) return null;
-    return rateLimitedResponse(retryAfterSec);
-  } catch (err) {
-    console.error("RateLimiterDurableObject check failed; allowing request", err);
-    return null;
-  }
+  const verdict = await check(env, rule.bucket, key, rule.limit, rule.periodMs, false);
+  return verdict.status === "limited" ? rateLimitedResponse(verdict.retryAfterSeconds) : null;
 }

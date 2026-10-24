@@ -48,7 +48,7 @@ function env(allowed = true): Env {
     DB: {},
     RATE_LIMITER: {
       idFromName: (n: string) => n,
-      get: () => ({ check: async () => ({ allowed, retryAfterSec: 60 }) }),
+      get: () => ({ hit: async () => ({ ok: allowed, retryAfterSeconds: 60 }) }),
     },
   } as unknown as Env;
 }

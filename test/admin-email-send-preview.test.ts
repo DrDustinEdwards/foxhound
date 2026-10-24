@@ -137,7 +137,7 @@ function env(overrides: Record<string, unknown> = {}): Env {
     },
     RATE_LIMITER: {
       idFromName: (n: string) => n,
-      get: () => ({ check: async () => ({ allowed: true, retryAfterSec: 60 }) }),
+      get: () => ({ hit: async () => ({ ok: true, retryAfterSeconds: 60 }) }),
     },
     ...overrides,
   } as unknown as Env;

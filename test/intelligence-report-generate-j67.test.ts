@@ -3,9 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { accounts, aiCalls, customerContext, intelligenceReports, mrrSnapshots } from "~/db";
 import { INTELLIGENCE_REPORT_HOURLY_LIMIT } from "~/lib/constants";
-import { checkRateLimitWindow, type RateLimitWindow } from "~/lib/http/rate-limit-window";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
+import { makeRateLimiterNamespace } from "./helpers/rate-limiter";
 
 // J67: Recova's "Generate report" / "Regenerate report" button on the
 // Intelligence dashboard (MonthlyNarrative.tsx at blob 791e2f5f, posting to
@@ -37,34 +37,10 @@ const NOW = Date.UTC(2026, 9, 15, 12, 0, 0);
 
 // The hourly limit lives on the RATE_LIMITER Durable Object, which serializes
 // every check for one key, so parallel clicks cannot all slip past a count.
-// This fake namespace runs the real window algorithm (as test/rate-limit.test.ts
-// does) on an in-memory store, with a clock the test moves.
+// The fake namespace runs site-runtime's counting on SQLite, with a clock the
+// test moves.
 let clock = NOW;
-function fakeRateLimiter() {
-  const storage = new Map<string, RateLimitWindow | undefined>();
-  const keys: string[] = [];
-  return {
-    keys,
-    idFromName: (name: string) => {
-      keys.push(name);
-      return name;
-    },
-    get: (id: string) => ({
-      check: (limit: number, periodMs: number) =>
-        checkRateLimitWindow(
-          {
-            getWindow: async () => storage.get(id),
-            putWindow: async (w) => {
-              storage.set(id, w);
-            },
-          },
-          clock,
-          limit,
-          periodMs,
-        ),
-    }),
-  };
-}
+const fakeRateLimiter = () => makeRateLimiterNamespace(() => clock);
 let limiter = fakeRateLimiter();
 let ENV = { ANTHROPIC_API_KEY: "sk-test", RATE_LIMITER: limiter } as unknown as Env;
 
@@ -187,7 +163,7 @@ describe("generateMonthlyReport: Recova's button on Foxhound's engine", () => {
     }
     expect(await generateMonthlyReport(ENV, db, "acc_1", "2026-10", NOW)).toEqual({ ok: false, error: "rate_limited" });
     expect(createMock).toHaveBeenCalledTimes(INTELLIGENCE_REPORT_HOURLY_LIMIT);
-    expect(limiter.keys.every((k) => k === "intelligence-report:acc_1")).toBe(true);
+    expect(limiter.names.every((k) => k === "intelligence-report:acc_1")).toBe(true);
   });
 
   it("starts a fresh hour once the hour has passed", async () => {
@@ -241,7 +217,7 @@ describe("generateMonthlyReport: Recova's button on Foxhound's engine", () => {
   it("fails closed when the limiter errors: no model call, and its own error", async () => {
     const db = await seed();
     const cause = new Error("Durable Object reset");
-    const broken = { idFromName: (n: string) => n, get: () => ({ check: () => Promise.reject(cause) }) };
+    const broken = { idFromName: (n: string) => n, get: () => ({ hit: () => Promise.reject(cause) }) };
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     const result = await generateMonthlyReport(
       { ANTHROPIC_API_KEY: "sk-test", RATE_LIMITER: broken } as unknown as Env,
@@ -252,7 +228,7 @@ describe("generateMonthlyReport: Recova's button on Foxhound's engine", () => {
     );
     expect(result).toEqual({ ok: false, error: "limiter_unavailable" });
     expect(createMock).not.toHaveBeenCalled();
-    expect(log.mock.calls.some((call) => call.includes(cause))).toBe(true);
+    expect(log.mock.calls.some((call) => String(call[0]).includes(cause.message))).toBe(true);
     expect(await db.select().from(intelligenceReports)).toHaveLength(0);
     log.mockRestore();
   });

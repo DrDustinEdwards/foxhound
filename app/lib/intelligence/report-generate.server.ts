@@ -76,7 +76,7 @@ export async function generateMonthlyReport(
       failClosed: true,
     });
   } catch (err) {
-    // isWithinRateLimit has already logged the cause whole.
+    // site-runtime has already logged the failure (bucket and message).
     if (err instanceof RateLimiterUnavailableError) return { ok: false, error: "limiter_unavailable" };
     throw err;
   }

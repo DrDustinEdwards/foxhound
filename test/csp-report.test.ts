@@ -19,13 +19,13 @@ function post(body: string, ip = "203.0.113.7"): Request {
 }
 
 function call(request: Request, allowed = true) {
-  const calls: Array<{ name: string; limit: number; periodMs: number }> = [];
+  const calls: Array<{ name: string; rules: Array<{ limit: number; windowSeconds: number }> }> = [];
   const ns = {
     idFromName: (name: string) => name,
     get: (name: string) => ({
-      check: async (limit: number, periodMs: number) => {
-        calls.push({ name, limit, periodMs });
-        return { allowed, retryAfterSec: 60 };
+      hit: async (rules: Array<{ limit: number; windowSeconds: number }>) => {
+        calls.push({ name, rules });
+        return { ok: allowed, retryAfterSeconds: 60 };
       },
     }),
   };
@@ -50,7 +50,7 @@ describe("POST /api/csp-report", () => {
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
     const { response, calls } = call(post(TOKEN_REPORT, "198.51.100.9"));
     expect((await response).status).toBe(204);
-    expect(calls).toEqual([{ name: "csp-report:198.51.100.9", limit: 20, periodMs: 60_000 }]);
+    expect(calls).toEqual([{ name: "csp-report:198.51.100.9", rules: [{ limit: 20, windowSeconds: 60 }] }]);
     expect(log).toHaveBeenCalledTimes(1);
     const line = String(log.mock.calls[0]?.[0]);
     expect(JSON.parse(line)).toEqual({

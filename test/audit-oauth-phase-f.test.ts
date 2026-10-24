@@ -473,7 +473,7 @@ describe("PLANT 3: the callback, and what it refuses", () => {
       ENCRYPTION_KEY: undefined,
       RATE_LIMITER: {
         idFromName: () => "id",
-        get: () => ({ check: async () => ({ allowed: true, retryAfterSec: 0 }) }),
+        get: () => ({ hit: async () => ({ ok: true, retryAfterSeconds: 0 }) }),
       },
     } as unknown as Env;
     const state = buildConnectState(AUDIT_ACTION);
@@ -872,7 +872,7 @@ describe("PLANT 7: 311's rate limiter is USED, and UNCHANGED", () => {
       ...ENV,
       RATE_LIMITER: {
         idFromName: () => "id",
-        get: () => ({ check: async () => ({ allowed: false, retryAfterSec: 60 }) }),
+        get: () => ({ hit: async () => ({ ok: false, retryAfterSeconds: 60 }) }),
       },
     } as unknown as Env;
     const response = (await connectRoute.action({
