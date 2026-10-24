@@ -2,9 +2,9 @@ import { eq } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
 
 import { accounts, emailSuppressions } from "~/db/schema";
-import { checkRateLimitWindow, type RateLimitWindow } from "~/lib/http/rate-limit-window";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
+import { makeRateLimiterNamespace } from "./helpers/rate-limiter";
 
 // Row F7 (J26, job_652baa37855c): the /u/:token page against Recova's
 // app/api/unsubscribe/route.ts (blob 31de4bc5, read whole). Recova is the spec
@@ -33,26 +33,7 @@ const { isSuppressed } = await import("~/lib/email/suppression");
 const ACCOUNT = "acct_sample";
 const EMAIL = "sam@example.com";
 
-/** The real fixed-window algorithm behind a fake namespace, as test/rate-limit.test.ts does. */
-function fakeRateLimiter() {
-  const storage = new Map<string, RateLimitWindow | undefined>();
-  const idFromName = vi.fn((name: string) => name);
-  const get = vi.fn((id: string) => ({
-    check: (limit: number, periodMs: number) =>
-      checkRateLimitWindow(
-        {
-          getWindow: async () => storage.get(id),
-          putWindow: async (w) => {
-            storage.set(id, w);
-          },
-        },
-        Date.now(),
-        limit,
-        periodMs,
-      ),
-  }));
-  return { idFromName, get };
-}
+const fakeRateLimiter = () => makeRateLimiterNamespace();
 
 function makeEnv(rateLimiter = fakeRateLimiter()) {
   return { ENCRYPTION_KEY: "a".repeat(64), RATE_LIMITER: rateLimiter } as unknown as Env;
@@ -207,7 +188,7 @@ describe("F7 rate limit: Recova's 10 per 60 seconds per IP on the page", () => {
     const limiter = fakeRateLimiter();
     const env = makeEnv(limiter);
     await hit(env, "GET", "198.51.100.4").result;
-    expect(limiter.idFromName).toHaveBeenCalledWith("unsubscribe:198.51.100.4");
+    expect(limiter.names).toEqual(["unsubscribe:198.51.100.4"]);
   });
 
   it("does not spend the budget on the RFC 8058 one-click POST (Recova had no POST)", async () => {
@@ -218,6 +199,6 @@ describe("F7 rate limit: Recova's 10 per 60 seconds per IP on the page", () => {
       await result;
       expect(next).toHaveBeenCalledTimes(1);
     }
-    expect(limiter.idFromName).not.toHaveBeenCalled();
+    expect(limiter.names).toEqual([]);
   });
 });

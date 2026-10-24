@@ -284,14 +284,10 @@
         "class_name": "CronLockDurableObject"
       },
       {
-        // Fixed-window rate limiter (TASK-foxhound-do-rate-limiter.md),
-        // replacing the Cloudflare unsafe ratelimit binding (proven correctly
-        // configured, invoked, and keyed, yet .limit() returned
-        // {success:true} unconditionally live in production past every
-        // configured limit - an open-beta API with no observability from our
-        // side). Addressed by idFromName(`${bucket}:${key}`): the "public"
-        // bucket keyed on client IP and the per-caller checks of
-        // app/lib/http/rate-limit.ts. Sign-in and signup moved to
+        // The per-caller limiter of app/lib/http/rate-limit.ts, addressed by
+        // idFromName(`${bucket}:${key}`). Its class is site-runtime's
+        // RateLimiter under Foxhound's old class name (workers/app.ts), so the
+        // namespace stays (RULES.md 3.13). Sign-in and signup use
         // AUTH_RATE_LIMITER below (J52).
         "name": "RATE_LIMITER",
         "class_name": "RateLimiterDurableObject"

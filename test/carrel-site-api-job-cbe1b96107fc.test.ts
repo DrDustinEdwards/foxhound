@@ -134,7 +134,7 @@ describe("the key reaches only the prefix", () => {
   );
 
   it("the mounted handler takes its key from env, through the repo's own limiter", async () => {
-    const stub = { check: async () => ({ allowed: true, retryAfterSec: 0 }) };
+    const stub = { hit: async () => ({ ok: true, retryAfterSeconds: 0 }) };
     const env = {
       DB: {},
       CARREL_SITE_KEY: KEY,

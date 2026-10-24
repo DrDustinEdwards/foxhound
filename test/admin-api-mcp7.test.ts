@@ -66,7 +66,7 @@ function env(): Env {
     ADMIN_EMAIL: `${ADMIN}, second@foxhound.test`,
     RATE_LIMITER: {
       idFromName: (n: string) => n,
-      get: () => ({ check: async () => ({ allowed: true, retryAfterSec: 60 }) }),
+      get: () => ({ hit: async () => ({ ok: true, retryAfterSeconds: 60 }) }),
     },
   } as unknown as Env;
 }

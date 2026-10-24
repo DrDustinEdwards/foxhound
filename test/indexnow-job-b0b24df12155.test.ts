@@ -56,7 +56,7 @@ afterEach(() => {
 /** The env every request sees, dev and previews included: wrangler.jsonc sets
  *  BETTER_AUTH_URL to production, so the env cannot tell them apart. */
 function envFor(): Env {
-  const stub = { check: async () => ({ allowed: true, retryAfterSec: 0 }) };
+  const stub = { hit: async () => ({ ok: true, retryAfterSeconds: 0 }) };
   return {
     DB: {},
     CARREL_SITE_KEY: SITE_KEY,

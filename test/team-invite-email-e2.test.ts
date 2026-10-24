@@ -403,8 +403,7 @@ describe("the live-send gate still holds every other send", () => {
 
 interface LimiterCall {
   name: string;
-  limit: number;
-  periodMs: number;
+  rules: Array<{ limit: number; windowSeconds: number }>;
 }
 
 function limiterEnv(allowed: boolean, calls: LimiterCall[]): Env {
@@ -412,9 +411,9 @@ function limiterEnv(allowed: boolean, calls: LimiterCall[]): Env {
     RATE_LIMITER: {
       idFromName: (name: string) => name,
       get: (name: string) => ({
-        check: async (limit: number, periodMs: number) => {
-          calls.push({ name, limit, periodMs });
-          return { allowed, retryAfterSec: 60 };
+        hit: async (rules: LimiterCall["rules"]) => {
+          calls.push({ name, rules });
+          return { ok: allowed, retryAfterSeconds: 60 };
         },
       }),
     },
@@ -440,7 +439,7 @@ describe("Recova's rate limit: 5 invites an hour per IP, then 429", () => {
       }),
       params: {},
     } as never);
-    expect(calls).toEqual([{ name: "invite:203.0.113.9", limit: 5, periodMs: 60 * 60 * 1000 }]);
+    expect(calls).toEqual([{ name: "invite:203.0.113.9", rules: [{ limit: 5, windowSeconds: 60 * 60 }] }]);
     expect(harness.sent).toHaveLength(1);
   });
 

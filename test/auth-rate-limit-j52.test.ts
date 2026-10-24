@@ -1,12 +1,12 @@
 import { readFileSync } from "node:fs";
 
-import Database from "better-sqlite3";
-import { hitRules } from "@dustinedwards/site-runtime/rate-limit";
 import { RouterContextProvider } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { resolveRateLimitBinding } from "~/lib/http/rate-limit";
+
+import { makeRateLimiterNamespace } from "./helpers/rate-limiter";
 
 // J52 (job_674e728b50a3), row A3 and the sign-in limiter (Q5, Dustin "yes",
 // 2026-10-14, message cmsg_01Nd8kh3hkgYNYpWXrNkvBQLC6A6GvHRyQ6YQF4rboRtgK):
@@ -74,41 +74,7 @@ const reset = await import("~/routes/auth/reset-password");
 const googleStart = await import("~/routes/auth/google-start");
 const apiAuth = await import("~/routes/api/auth");
 
-type Rule = { limit: number; windowSeconds: number };
-
-/** A DurableObjectNamespace whose instances count with site-runtime's own
- *  hitRules on real SQLite: same name, same database; a different name, a
- *  different database, as with real Durable Objects. */
-function makeNamespace() {
-  const dbs = new Map<string, Database.Database>();
-  const names: string[] = [];
-  const sqlFor = (db: Database.Database) => ({
-    exec: (query: string, ...bindings: unknown[]) => {
-      const stmt = db.prepare(query);
-      const rows = stmt.reader ? stmt.all(...bindings) : (stmt.run(...bindings), []);
-      return { toArray: () => rows as unknown[] };
-    },
-  });
-  return {
-    names,
-    idFromName: (name: string) => {
-      names.push(name);
-      return name;
-    },
-    get: (id: string) => ({
-      hit: async (rules: Rule[]) => {
-        let db = dbs.get(id);
-        if (!db) {
-          db = new Database(":memory:");
-          dbs.set(id, db);
-        }
-        return hitRules(sqlFor(db), rules, Date.now());
-      },
-    }),
-  };
-}
-
-let namespace: ReturnType<typeof makeNamespace>;
+let namespace: ReturnType<typeof makeRateLimiterNamespace>;
 
 function makeEnv(ns: unknown = namespace): Env {
   return {
@@ -163,7 +129,7 @@ const loginForm = (ip?: string) => form("/login", { email: "a@example.com", pass
 const signupForm = (ip?: string) => form("/signup", { email: "a@example.com", password: PASSWORD }, ip);
 
 beforeEach(() => {
-  namespace = makeNamespace();
+  namespace = makeRateLimiterNamespace();
   for (const k of Object.keys(harness.calls) as (keyof typeof harness.calls)[]) harness.calls[k] = 0;
   harness.lastBodies.length = 0;
   // Pin the clock to the first second of an hour, so ten requests can never
