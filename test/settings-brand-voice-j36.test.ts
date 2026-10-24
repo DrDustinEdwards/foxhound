@@ -41,6 +41,7 @@ function render(opts: { stored?: Stored; actionData?: Record<string, unknown> } 
   const loaderData = {
     connectionId: "conn_1",
     stored: { soft: null, expired: null, network: null, fraud: null, ...opts.stored },
+    samples: [],
   };
   const Stub = createRoutesStub([
     {
@@ -73,7 +74,10 @@ describe("J36 brand voice: each category's picker", () => {
 
   it("opens Recova's custom box, a Capsomer input, for a stored voice that is no preset", () => {
     const html = render({ stored: { fraud: "calm and careful" } });
-    const areas = [...html.matchAll(/<textarea[^>]*>[\s\S]*?<\/textarea>/g)].map((m) => m[0]);
+    // The custom boxes only: the sample-email boxes below are textareas too.
+    const areas = [...html.matchAll(/<textarea[^>]*>[\s\S]*?<\/textarea>/g)]
+      .map((m) => m[0])
+      .filter((t) => t.includes("Custom brand voice"));
     expect(areas).toHaveLength(1);
     const area = areas[0];
     expect(area).toContain('class="cap-input"');

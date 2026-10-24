@@ -102,6 +102,7 @@ describe("if even the template lost the link, nothing is sent", () => {
           senderName: "Teamflow",
           cancelReason: null,
           brandVoice: null,
+          brandVoiceSamples: null,
           cachedSubject: null,
           cachedBodyHtml: null,
           replyToEmail: null,

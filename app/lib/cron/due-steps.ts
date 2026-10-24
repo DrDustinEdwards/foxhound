@@ -11,6 +11,7 @@ import {
 } from "~/lib/constants";
 import type { EmailStepContext } from "~/lib/engine/execute-step";
 import type { RetryStepContext } from "~/lib/engine/retry-step";
+import { readVoiceSamples } from "~/lib/recovery/voice-samples";
 
 // The recovery tick: the sweep that runs due recovery_steps. Registered through
 // runCronJob (registry.ts), so cron-level overlap safety (the per-cron DO lock),
@@ -199,6 +200,8 @@ export interface DueStepRow {
   brandVoiceExpired: string | null;
   brandVoiceNetwork: string | null;
   brandVoiceFraud: string | null;
+  /** The connection's `brand_voice_samples`, as stored. */
+  brandVoiceSamples?: string | null;
   /** The payment's connection's `reply_to_email` (J03), for the Reply-To. */
   replyToEmail?: string | null;
 }
@@ -236,6 +239,7 @@ export async function queryDueRecoverySteps(env: Env, now: Date): Promise<DueSte
       brandVoiceExpired: stripeConnections.brandVoiceExpired,
       brandVoiceNetwork: stripeConnections.brandVoiceNetwork,
       brandVoiceFraud: stripeConnections.brandVoiceFraud,
+      brandVoiceSamples: stripeConnections.brandVoiceSamples,
       replyToEmail: stripeConnections.replyToEmail,
     })
     .from(recoverySteps)
@@ -335,6 +339,7 @@ export async function queryStepForManualTrigger(
       brandVoiceExpired: stripeConnections.brandVoiceExpired,
       brandVoiceNetwork: stripeConnections.brandVoiceNetwork,
       brandVoiceFraud: stripeConnections.brandVoiceFraud,
+      brandVoiceSamples: stripeConnections.brandVoiceSamples,
       replyToEmail: stripeConnections.replyToEmail,
     })
     .from(recoverySteps)
@@ -390,6 +395,7 @@ export function toEmailContext(row: DueStepRow): EmailStepContext {
     brandVoiceExpired: row.brandVoiceExpired,
     brandVoiceNetwork: row.brandVoiceNetwork,
     brandVoiceFraud: row.brandVoiceFraud,
+    voiceSamples: readVoiceSamples(row.brandVoiceSamples),
     replyTo: row.replyToEmail ?? null,
     cached: {
       customBody: row.customBody,

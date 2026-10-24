@@ -1,6 +1,10 @@
+import { checkProse, EMAIL_PHRASES, WRITING_RULES, type ProseIssue } from "@dustinedwards/site-runtime/prose";
+
 import { createAnthropicClient } from "~/lib/ai/client";
 import { UNTRUSTED_DATA_RULE, untrusted } from "~/lib/ai/untrusted";
 import { MODEL_RECOVERY_EMAIL } from "~/lib/constants";
+
+import { voiceSampleLines } from "./voice-samples";
 
 // AI dunning-copy generation. Copy is written in the MERCHANT's brand voice, not
 // Foxhound's, and must carry no AI tells and no em dashes (hard brand rules from
@@ -205,7 +209,67 @@ export interface EmailCopy {
   bodyHtml: string;
 }
 
-export type BrandVoiceViolation = "em_dash" | "ai_tell" | "timing_leak" | "empty";
+export type BrandVoiceViolation = "em_dash" | "ai_tell" | "timing_leak" | "stock_phrase" | "empty";
+
+// ---- Stock phrasing (site-runtime ./prose, the family's one prose check) ----
+//
+// The check Carrel runs on AI drafts, run here on what a customer reads. Only
+// high and critical findings count (AI vocabulary like "seamless", the email
+// openers in EMAIL_PHRASES): the medium ones (an intensifier, a list of three)
+// are the prompt's to prevent, and sending Recova's template over one would
+// cost more than the phrase does. Recorded as an approved difference from
+// Recova, 2026-10-24.
+
+/** The copy as a reader sees it: tags dropped, paragraphs and breaks as lines. */
+function readableText(copy: EmailCopy): string {
+  const body = copy.bodyHtml
+    .replace(/<br\s*\/?>|<\/(?:p|div|li|h[1-6]|tr)>/gi, "\n")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/g, " ");
+  return `${copy.subject}\n\n${body}`;
+}
+
+/** The stock phrasing in a piece of copy that a reader notices at once. Pure. */
+export function findStockPhrasing(copy: EmailCopy): ProseIssue[] {
+  return checkProse(readableText(copy), { phrases: EMAIL_PHRASES }).filter(
+    (i) => i.severity === "high" || i.severity === "critical",
+  );
+}
+
+/** The retry's instruction, naming what the first draft used. */
+export function stockPhrasingInstruction(issues: readonly ProseIssue[]): string {
+  const named = [...new Set(issues.map((i) => (i.excerpt ? `"${i.excerpt}"` : i.message)))].join(", ");
+  return `\n\nADDITIONAL INSTRUCTION:\nThe previous draft used phrasing that reads as machine-written: ${named}. Write it again in plain words, without them.`;
+}
+
+/**
+ * One retry when the first draft carries stock phrasing, kept only if it has
+ * less. The same shape as the timing-word retry: never more than one extra
+ * call, and a failed retry keeps the first copy for the gate to judge.
+ */
+export async function applyStockPhrasingGuard(
+  first: EmailCopy,
+  retry: (instruction: string) => Promise<EmailCopy>,
+): Promise<EmailCopy> {
+  const issues = findStockPhrasing(first);
+  if (issues.length === 0) return first;
+  try {
+    const retried = await retry(stockPhrasingInstruction(issues));
+    if (retried.subject.trim() && retried.bodyHtml.trim() && findStockPhrasing(retried).length < issues.length) {
+      return retried;
+    }
+  } catch (err) {
+    // The message only: an SDK error object can carry request details.
+    console.error("stock-phrasing retry failed; keeping the first copy:", err instanceof Error ? err.message : "unknown error");
+  }
+  return first;
+}
+
+/** The family's plain-writing rules, as prompt lines for an email. Its line on
+ *  headings is about posts and is left out. */
+export const PLAIN_WRITING_LINES: readonly string[] = WRITING_RULES.split("\n").filter(
+  (line) => line.startsWith("- ") && !/headings/i.test(line),
+);
 
 /**
  * Flag brand-voice violations in a piece of copy. Used as the quality gate before
@@ -226,6 +290,7 @@ export function findBrandVoiceViolations(copy: EmailCopy): BrandVoiceViolation[]
   for (const pat of TIMING_TELL_PATTERNS) {
     if (pat.test(both)) violations.add("timing_leak");
   }
+  if (findStockPhrasing(copy).length > 0) violations.add("stock_phrase");
   // Job J01, defense in depth: the seams strip legacy's nine timing words, so
   // copy reaching here with one means a path skipped that layer. Read outside
   // tags only, so an href token is never a leak. The body is also read with
@@ -315,6 +380,9 @@ export interface MerchantBrandVoice {
   voiceExpired?: string | null;
   voiceNetwork?: string | null;
   voiceFraud?: string | null;
+  /** The merchant's own past emails (voice-samples.ts), which every category's
+   *  draft is written from beside the resolved voice. */
+  voiceSamples?: readonly string[] | null;
 }
 
 /**
@@ -421,10 +489,11 @@ const OUTPUT_SCHEMA = {
   required: ["subject", "bodyHtml"],
 } as const;
 
-function buildSystemPrompt(brandVoice: string): string {
+function buildSystemPrompt(brandVoice: string, samples: readonly string[]): string {
   return [
     "You write short payment-recovery emails on behalf of a business, in that",
     `business's own voice: ${untrusted(brandVoice)}.`,
+    ...voiceSampleLines(samples),
     UNTRUSTED_DATA_RULE,
     "Rules you must follow exactly:",
     "- Never use em dashes or en dashes. Use commas or short sentences.",
@@ -439,6 +508,8 @@ function buildSystemPrompt(brandVoice: string): string {
     "- Sound like a real person from the business, not a template.",
     "- Keep it short. One clear call to action: the update link provided.",
     "- Output valid HTML for the body.",
+    "Plain writing:",
+    ...PLAIN_WRITING_LINES,
   ].join("\n");
 }
 
@@ -502,7 +573,10 @@ export function buildUserPrompt(input: GenerateEmailInput): string {
  */
 export function buildPrompts(input: GenerateEmailInput): { system: string; user: string } {
   return {
-    system: buildSystemPrompt(resolveBrandVoice(input.merchant, input.declineCategory)),
+    system: buildSystemPrompt(
+      resolveBrandVoice(input.merchant, input.declineCategory),
+      input.merchant.voiceSamples ?? [],
+    ),
     user: buildUserPrompt(input),
   };
 }
@@ -534,7 +608,7 @@ export async function generateDunningEmail(
     return readGeneratedCopy(response, "recovery email");
   };
 
-  // Job J01, layers 3 and 4 (legacy recovery-execution.ts blob `3a8f8768`
-  // lines 313 to 351).
-  return applyTimingWordGuard(await call(), call);
+  // Stock phrasing first, then job J01, layers 3 and 4 (legacy
+  // recovery-execution.ts blob `3a8f8768` lines 313 to 351).
+  return applyTimingWordGuard(await applyStockPhrasingGuard(await call(), call), call);
 }

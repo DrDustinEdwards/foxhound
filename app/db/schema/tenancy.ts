@@ -169,6 +169,9 @@ export const stripeConnections = sqliteTable(
     brandVoiceExpired: text("brand_voice_expired"),
     brandVoiceNetwork: text("brand_voice_network"),
     brandVoiceFraud: text("brand_voice_fraud"),
+    // The merchant's own past emails, a JSON array of up to five strings
+    // (app/lib/recovery/voice-samples.ts). NULL when there are none.
+    brandVoiceSamples: text("brand_voice_samples"),
   },
   (t) => [
     index("stripe_connections_account_idx").on(t.accountId),

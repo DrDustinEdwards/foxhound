@@ -2,6 +2,7 @@ import { useId, useState } from "react";
 import { data, useNavigation } from "react-router";
 import { Button } from "capsomer/react/button";
 import { PageHead } from "capsomer/react/page-head";
+import { Panel } from "capsomer/react/panel";
 import { Select } from "capsomer/react/select";
 import { Status } from "capsomer/react/status";
 import "capsomer/button.css";
@@ -22,6 +23,12 @@ import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { applyBrandVoice } from "~/lib/settings/apply.server";
 import { getPrimaryBrandVoices } from "~/lib/settings/queries.server";
+import {
+  MAX_VOICE_SAMPLES,
+  readVoiceSamples,
+  VOICE_SAMPLE_MAX_CHARS,
+  voiceSampleFieldName,
+} from "~/lib/recovery/voice-samples";
 import {
   BRAND_VOICE_PRESETS,
   CATEGORY_VOICE_ROWS,
@@ -67,6 +74,13 @@ import type { Route } from "./+types/brand-voice";
 // required. An empty selection stores NULL and reads back as "Same as main
 // voice".
 //
+// SAMPLE EMAILS, an approved difference from Recova (Dustin, 2026-10-24,
+// parity/APPROVED-DIFFERENCES.md): a second card where the merchant pastes up
+// to five emails they wrote themselves, which recovery and win-back drafts are
+// written from (app/lib/recovery/voice-samples.ts). It posts with the same
+// Save changes. Each box is cut at VOICE_SAMPLE_MAX_CHARS, so it carries a
+// maxLength, unlike the voice fields above.
+//
 // DIVERGENCE, class (a): legacy's write path is the shared /settings/update
 // handler (row S38, unbuilt). This is the route's own action, exactly S30's
 // divergence 1.
@@ -87,6 +101,7 @@ export async function loader({ context }: Route.LoaderArgs) {
       network: voices?.network ?? null,
       fraud: voices?.fraud ?? null,
     },
+    samples: readVoiceSamples(voices?.samples),
   };
 }
 
@@ -120,6 +135,7 @@ export async function action({ request, context }: Route.ActionArgs) {
       expired: read("expired"),
       network: read("network"),
       fraud: read("fraud"),
+      samples: Array.from({ length: MAX_VOICE_SAMPLES }, (_, i) => String(form.get(voiceSampleFieldName(i)) ?? "")),
     });
   } catch (err) {
     console.error("brand voice write failed:", err);
@@ -197,7 +213,7 @@ function CategoryVoice({
 }
 
 export default function BrandVoiceSettings({ loaderData, actionData }: Route.ComponentProps) {
-  const { connectionId, stored } = loaderData;
+  const { connectionId, stored, samples } = loaderData;
   const result = actionData as ActionResult | undefined;
   const saving = useNavigation().state === "submitting";
 
@@ -230,6 +246,28 @@ export default function BrandVoiceSettings({ loaderData, actionData }: Route.Com
             </div>
           </div>
         </section>
+
+        <div className="mt-6">
+          <Panel
+            title="Sample emails"
+            description="Paste two to five emails you wrote to customers yourself. Recovery and win-back emails are written to sound like these, in the tone set above. Their facts, offers and links are never copied."
+          >
+            <div className="grid gap-4">
+              {Array.from({ length: MAX_VOICE_SAMPLES }, (_, i) => (
+                <textarea
+                  key={i}
+                  className="cap-input"
+                  name={voiceSampleFieldName(i)}
+                  aria-label={`Sample email ${i + 1}`}
+                  rows={i < 2 ? 6 : 3}
+                  maxLength={VOICE_SAMPLE_MAX_CHARS}
+                  defaultValue={samples[i] ?? ""}
+                  placeholder={i === 0 ? "Hi Sam, thanks for sticking with us this year..." : undefined}
+                />
+              ))}
+            </div>
+          </Panel>
+        </div>
 
         {/* Recova's SaveBar: right-aligned, the result beside the button. */}
         <div className="mt-6 flex flex-wrap items-center justify-end gap-3">

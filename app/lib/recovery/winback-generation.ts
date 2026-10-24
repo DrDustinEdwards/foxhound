@@ -2,7 +2,14 @@ import { createAnthropicClient } from "~/lib/ai/client";
 import { UNTRUSTED_DATA_RULE, untrusted } from "~/lib/ai/untrusted";
 import { MODEL_RECOVERY_EMAIL } from "~/lib/constants";
 
-import { applyTimingWordGuard, readGeneratedCopy, type EmailCopy } from "./email-generation";
+import {
+  PLAIN_WRITING_LINES,
+  applyStockPhrasingGuard,
+  applyTimingWordGuard,
+  readGeneratedCopy,
+  type EmailCopy,
+} from "./email-generation";
+import { voiceSampleLines } from "./voice-samples";
 
 // THE WIN-BACK AI HALF. Ported from legacy's inline generation in
 // app/api/cron/process-winback/route.ts (blob `18f20de9`, 24,184 bytes,
@@ -78,6 +85,8 @@ export interface WinbackPromptInput {
   cancelReason: string | null;
   /** `stripe_connections.brand_voice`, the general voice. */
   brandVoice: string | null;
+  /** The merchant's own past emails (voice-samples.ts); empty when none. */
+  voiceSamples?: readonly string[];
   senderName: string;
   resubscribeUrl: string;
 }
@@ -90,6 +99,10 @@ export interface WinbackPromptInput {
  * EMAIL_COLORS module, and check-tokens fails the build on raw hex. The line is
  * dropped rather than recoloured, because a style instruction naming colours
  * Foxhound does not have would ask the model for the wrong thing.
+ *
+ * THE ADDITION OF 2026-10-24, an approved difference from Recova: the
+ * merchant's own past emails after the brand-voice line, and the family's
+ * plain-writing lines (site-runtime ./prose) after the requirements.
  *
  * THE ADDITION, job J01: the timing-word requirement line. Legacy's win-back
  * gets that rule from its Haiku quality-check prompt (lib/email-generation.ts
@@ -117,11 +130,15 @@ export function buildWinbackPrompt(input: WinbackPromptInput): string {
     "",
     "Email requirements:",
     `- Brand voice: ${input.brandVoice ? untrusted(input.brandVoice) : WINBACK_VOICE_FALLBACK}`,
+    ...voiceSampleLines(input.voiceSamples ?? []),
     "- Keep it under 120 words",
     `- Include a reactivation button linking to: ${input.resubscribeUrl}`,
     `- Sender name: ${untrusted(input.senderName)}`,
     "- Do NOT be desperate or salesy, be genuine",
     "- Never use timing words like 'today', 'tonight', 'yesterday', 'this morning', 'this afternoon', 'this evening', 'right now', 'immediately' or 'by end of day' in the subject or the body, you do not know when the customer will read this",
+    "",
+    "Plain writing:",
+    ...PLAIN_WRITING_LINES,
     "",
     "Respond ONLY in this exact JSON format with no preamble or markdown:",
     '{"subject":"<email subject line>","body":"<full HTML email body>"}',
@@ -180,5 +197,6 @@ export async function generateWinbackEmail(
   // recovery path makes. The job asks for all four layers on both paths, so
   // the win-back seam retries once too: a difference in spend, not in what a
   // customer reads, and never more than one extra call.
-  return applyTimingWordGuard(await call(), call);
+  // The stock-phrasing retry comes first, on the same terms (one call at most).
+  return applyTimingWordGuard(await applyStockPhrasingGuard(await call(), call), call);
 }

@@ -145,6 +145,20 @@ export function buildBrandVoiceUpdate(
     .where(and(eq(stripeConnections.id, connectionId), eq(stripeConnections.accountId, accountId)));
 }
 
+/** Writes `brand_voice_samples` (the stored JSON, or NULL) and nothing else,
+ *  with the same account pin as buildBrandVoiceUpdate. */
+export function buildVoiceSamplesUpdate(
+  db: Db,
+  accountId: string,
+  connectionId: string,
+  brandVoiceSamples: string | null,
+) {
+  return db
+    .update(stripeConnections)
+    .set({ brandVoiceSamples })
+    .where(and(eq(stripeConnections.id, connectionId), eq(stripeConnections.accountId, accountId)));
+}
+
 // ---------------------------------------------------------------------------
 // S33: the sender settings on the connection (rulings 14, 40's launch-blocker
 // list, and this session's brief).
