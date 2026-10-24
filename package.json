@@ -33,7 +33,7 @@
     "@drdustinedwards/site-helpers": "github:DrDustinEdwards/prelum#v0.5.0",
     "@dustinedwards/d1-dump": "github:DrDustinEdwards/d1-dump#v0.6.0",
     "@dustinedwards/site-api": "github:DrDustinEdwards/site-api#v0.8.1",
-    "@dustinedwards/site-runtime": "github:DrDustinEdwards/site-runtime#v0.12.0",
+    "@dustinedwards/site-runtime": "github:DrDustinEdwards/site-runtime#v0.12.1",
     "@modelcontextprotocol/server": "2.3.1",
     "@sentry/cloudflare": "10.66.0",
     "better-auth": "1.6.23",
