@@ -43,6 +43,7 @@ const OSHP_EXPECTED_FAILURES = [
 ];
 
 const TEST_NONCE = "dGVzdC1ub25jZS12YWx1ZTAw";
+const TEST_ORIGIN = "https://foxhound.example.com";
 
 function directive(csp: string, name: string): string {
   return (
@@ -54,7 +55,7 @@ function directive(csp: string, name: string): string {
 }
 
 function applied(response: Response = new Response("<html></html>", { headers: { "Content-Type": "text/html" } })) {
-  return applySecurityHeaders(response, TEST_NONCE);
+  return applySecurityHeaders(response, TEST_NONCE, TEST_ORIGIN);
 }
 
 // FOXHOUND'S SET BEFORE J22, verbatim from the deleted
@@ -195,8 +196,8 @@ describe("applySecurityHeaders", () => {
   });
 
   it("carries a distinct nonce per call, matching whatever value is passed in", () => {
-    const a = applySecurityHeaders(new Response(null), generateNonce());
-    const b = applySecurityHeaders(new Response(null), generateNonce());
+    const a = applySecurityHeaders(new Response(null), generateNonce(), TEST_ORIGIN);
+    const b = applySecurityHeaders(new Response(null), generateNonce(), TEST_ORIGIN);
     expect(a.headers.get("Content-Security-Policy")).not.toBe(b.headers.get("Content-Security-Policy"));
   });
 
@@ -279,7 +280,7 @@ describe("applySecurityHeaders", () => {
     const csp = result.headers.get("Content-Security-Policy") ?? "";
     expect(directive(csp, "report-uri")).toBe(`report-uri ${CSP_REPORT_PATH}`);
     expect(directive(csp, "report-to")).toBe(`report-to ${CSP_REPORT_GROUP}`);
-    expect(result.headers.get("Reporting-Endpoints")).toBe(`${CSP_REPORT_GROUP}="${CSP_REPORT_PATH}"`);
+    expect(result.headers.get("Reporting-Endpoints")).toBe(`${CSP_REPORT_GROUP}="${TEST_ORIGIN}${CSP_REPORT_PATH}"`);
   });
 });
 
