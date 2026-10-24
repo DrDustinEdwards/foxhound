@@ -89,8 +89,9 @@ export async function generateMarketingEmailSample(
     model: MODEL_MARKETING_EMAIL_SAMPLE,
     max_tokens: 400,
     thinking: { type: "disabled" },
+    // No effort: Haiku 4.5 rejects it with a 400 ("This model does not support
+    // the effort parameter"), which failed every home page generation.
     output_config: {
-      effort: "low",
       format: { type: "json_schema", schema: OUTPUT_SCHEMA },
     },
     messages: [{ role: "user", content: buildPrompt(category) }],
