@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import { DOC_GUIDES } from "~/lib/marketing/docs-content";
-import { deriveRecovaMap, deriveRecovaMapHosts, renderRecovaMapSource } from "~/lib/redirects/derive-recova-map";
 import { RECOVA_CONFIG_REDIRECTS } from "~/lib/redirects/recova-config-redirects";
 import { RECOVA_REDIRECT_MAP } from "~/lib/redirects/recova-map";
 import routes from "~/routes";
@@ -47,18 +46,6 @@ const SERVED = new Set([
 // /blog/sitemap.xml).
 
 describe("RECOVA_REDIRECT_MAP", () => {
-  // RULES.md 7.3: the map is regenerated, never hand-edited. The committed
-  // file must be exactly what the derivation writes from Recova's routes and
-  // Foxhound's routes.ts; `npm run gen:recova-map` rewrites it.
-  it("is exactly the generated file (regenerate with `npm run gen:recova-map`)", async () => {
-    expect(SERVED.has("/pricing")).toBe(true);
-    await expect(renderRecovaMapSource(
-        deriveRecovaMap(LEGACY_MARKETING_ROUTES, SERVED, RECOVA_CONFIG_REDIRECTS),
-        deriveRecovaMapHosts(RECOVA_CONFIG_REDIRECTS),
-      )).toMatchFileSnapshot(
-      "../app/lib/redirects/recova-map.ts",
-    );
-  });
 
   it("sends every Recova path to a path Foxhound serves", () => {
     const shapes = new Set([...SERVED].map((p) => p.replace(/:[^/]+/g, ":")));

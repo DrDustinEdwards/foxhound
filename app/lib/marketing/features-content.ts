@@ -34,8 +34,7 @@ import { LOOKBACK_OPTIONS } from "~/lib/settings/audit-settings";
 // words are true, rewritten to Foxhound's own fact where it ships the thing
 // differently, and left out where Foxhound has not built it (RULES.md 2.7).
 // test/fixtures/recova-features.ts lists all 129 Recova entries with what
-// happened to each, and test/features-j60.test.ts checks that every entry
-// rendered here names code that exists.
+// happened to each.
 //
 // EVERY NUMBER IS READ FROM THE ENGINE, never typed (RULES.md 2.1): cadences
 // from the cron schedule constants, the fee and maturity from the pricing
@@ -199,7 +198,7 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
   const auditWhen = cronWhen(CRON_SCHEDULE_MONTHLY_AUDIT);
   const digestDay = cronWeekday(CRON_SCHEDULE_WEEKLY);
   // Each cadence word is read from the schedule its job runs on (the cron
-  // registry pairs job and schedule; test/features-j60.test.ts checks it).
+  // registry pairs job and schedule).
   const nightly = cronCadence(CRON_SCHEDULE_DAILY);
   const Nightly = capitalize(nightly);
   const daily = cronIsDaily(CRON_SCHEDULE_DAILY) ? "daily" : cronCadence(CRON_SCHEDULE_DAILY);

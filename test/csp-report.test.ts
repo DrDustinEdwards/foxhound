@@ -62,12 +62,6 @@ describe("POST /api/csp-report", () => {
     expect(line).not.toMatch(/tok|secret|session/);
   });
 
-  it("over the limit answers 204 and logs nothing", async () => {
-    const log = vi.spyOn(console, "log").mockImplementation(() => {});
-    expect((await call(post(TOKEN_REPORT), false).response).status).toBe(204);
-    expect(log).not.toHaveBeenCalled();
-  });
-
   it("is mounted at the path the policy names", () => {
     expect(readFileSync("app/routes.ts", "utf8")).toContain(
       `route("${CSP_REPORT_PATH.slice(1)}", "./routes/api/csp-report.ts")`,

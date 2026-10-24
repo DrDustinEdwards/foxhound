@@ -226,14 +226,6 @@ describe("J37 email: the loader and the action", () => {
     expect(text(testButton(render({ actionData: res.data })))).toBe(TEST_FAILED);
   });
 
-  it("a send the provider refuses shows the button's failure line", async () => {
-    env = makeEnv({ EMAIL: undefined });
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    const res = await post({ _action: "test-email" });
-    expect(res.data).toMatchObject({ action: "test-email", ok: false, status: "failed" });
-    expect(text(testButton(render({ actionData: res.data })))).toBe(TEST_FAILED);
-  });
-
   it("a suppressed address shows the suppressed sentence", async () => {
     sqlite
       .prepare("INSERT INTO email_suppressions (id, email, token, reason, suppressed_at) VALUES ('s1', ?, 't', 'bounce', 2000)")

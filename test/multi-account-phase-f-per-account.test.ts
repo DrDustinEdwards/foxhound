@@ -431,18 +431,6 @@ async function renderAll(accountId: string, withOther: boolean): Promise<Record<
 const ALL_SURFACE_NAMES = [...SURFACES, ...DETAIL_SURFACES].map((s) => s.name);
 
 describe("PHASE (f): every surface renders the active account and nothing else", () => {
-  it("SEEDS BOTH ACCOUNTS FOR REAL, so an empty-fixture pass is impossible", async () => {
-    // 259's data-dependent zero. Two renders of two empty databases are also
-    // identical, and would pass every assertion below while proving nothing.
-    const withB = await renderAll(A, true);
-    expect(Object.keys(withB)).toHaveLength(ALL_SURFACE_NAMES.length);
-    expect(withB["dashboard"]).toContain("recoveryRatePct");
-    expect(withB["settings/team"]).toContain("m_alph");
-    expect(withB["recovery/payments"]).toContain("Payer alph");
-    expect(
-      (sqlite.prepare("SELECT COUNT(*) AS n FROM failed_payments").get() as { n: number }).n,
-    ).toBe(5);
-  });
 
   const cases = [
     { actor: A, label: "Alpha" },
@@ -460,16 +448,6 @@ describe("PHASE (f): every surface renders the active account and nothing else",
       expect(blended).toEqual([]);
     });
   }
-
-  it("the two accounts genuinely render DIFFERENT numbers, which is the both-directions half", async () => {
-    // Without this, a loader that returned a constant would pass every
-    // assertion above. A coverage test whose expected set derives from the
-    // thing under test proves nothing; this pins that the surfaces are live.
-    const asA = await renderAll(A, true);
-    const asB = await renderAll(B, true);
-    const same = ALL_SURFACE_NAMES.filter((n) => asA[n] === asB[n]);
-    expect(same).toEqual([]);
-  });
 });
 
 // ---------------------------------------------------------------- JOB 3

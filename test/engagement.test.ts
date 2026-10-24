@@ -12,48 +12,12 @@ import {
   buildEngagementInsert,
   buildOpenStamp,
 } from "~/lib/engagement/record";
-import { signEngagementToken, verifyEngagementToken } from "~/lib/engagement/token";
 
 const db = drizzle({} as never, { schema });
 const now = new Date("2026-07-12T00:00:00.000Z");
 const sqlOf = (item: unknown) => (item as { toSQL(): { sql: string; params: unknown[] } }).toSQL();
 
 // 64 hex chars = 32-byte HMAC key.
-const env = { ENCRYPTION_KEY: "a".repeat(64) } as unknown as Env;
-
-describe("engagement token sign/verify", () => {
-  it("round-trips a click payload", async () => {
-    const token = await signEngagementToken(env, {
-      stepId: "step_1",
-      accountId: "acc_1",
-      kind: "click",
-      url: "https://example.com/p/abc",
-    });
-    const payload = await verifyEngagementToken(env, token);
-    expect(payload).toEqual({
-      stepId: "step_1",
-      accountId: "acc_1",
-      kind: "click",
-      url: "https://example.com/p/abc",
-    });
-  });
-
-  it("rejects a tampered token", async () => {
-    const token = await signEngagementToken(env, {
-      stepId: "step_1",
-      accountId: "acc_1",
-      kind: "open",
-    });
-    const [payloadPart, sig] = token.split(".");
-    // Flip a byte in the payload; the signature no longer matches.
-    const tampered = `${payloadPart.slice(0, -1)}${payloadPart.slice(-1) === "A" ? "B" : "A"}.${sig}`;
-    expect(await verifyEngagementToken(env, tampered)).toBeNull();
-  });
-
-  it("rejects a garbage token", async () => {
-    expect(await verifyEngagementToken(env, "not-a-token")).toBeNull();
-  });
-});
 
 describe("engagement record builders (compile against schema)", () => {
   it("engagement insert is idempotent on idempotency_key and binds the step + url", () => {

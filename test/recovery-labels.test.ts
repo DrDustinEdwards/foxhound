@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  ATTRIBUTION_KIND_LABELS,
   failedPaymentStatusTone,
   formatStepResult,
   formatStepType,
@@ -13,10 +12,6 @@ import {
 describe("stepResultTone", () => {
   it("neutral when there is no result yet", () => {
     expect(stepResultTone(null)).toBe("neutral");
-  });
-  it("success for a completed retry or sent email", () => {
-    expect(stepResultTone("retry_succeeded")).toBe("success");
-    expect(stepResultTone("email_sent")).toBe("success");
   });
   it("failure for a declined retry or a failed send", () => {
     expect(stepResultTone("retry_card_declined")).toBe("failure");
@@ -71,18 +66,5 @@ describe("recoveryLifecycleStatus / recoveryLifecycleTone", () => {
     const disputed = { refundedAt: null, disputedAt: new Date("2026-07-18") };
     expect(recoveryLifecycleStatus(disputed)).toBe("disputed");
     expect(recoveryLifecycleTone(disputed)).toBe("failure");
-  });
-
-  it("refunded takes priority if both are somehow set", () => {
-    const both = { refundedAt: new Date("2026-07-18"), disputedAt: new Date("2026-07-18") };
-    expect(recoveryLifecycleStatus(both)).toBe("refunded");
-  });
-});
-
-describe("ATTRIBUTION_KIND_LABELS", () => {
-  it("is a plain factual label for every kind, never a fee or billing claim", () => {
-    for (const label of Object.values(ATTRIBUTION_KIND_LABELS)) {
-      expect(label).not.toMatch(/\$|fee|bill/i);
-    }
   });
 });

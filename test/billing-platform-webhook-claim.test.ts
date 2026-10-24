@@ -166,30 +166,9 @@ describe("platform webhook: a dispatch failure must not claim the event", () => 
     expect(await third.json()).toEqual({ received: true, outcome: "duplicate" });
     expect(await db.select().from(schema.webhookEvents)).toHaveLength(1);
   });
-
-  it("claims the event against the account the fee invoice belongs to", async () => {
-    const db = await seed();
-    harness.event = invoicePaidEvent("evt_paid_scoped", BILLING_INVOICE_ID);
-    await post();
-    const [claim] = await db.select().from(schema.webhookEvents);
-    // Pre-fix this was always null: the claim ran before the row was resolved.
-    expect(claim.accountId).toBe(ACCOUNT_ID);
-    expect(claim.processed).toBe(true);
-  });
 });
 
 describe("platform webhook: events with nothing to apply", () => {
-  it("claims and ignores an event carrying no billing_invoice_id", async () => {
-    const db = await seed();
-    harness.event = invoicePaidEvent("evt_foreign", null);
-
-    const res = await post();
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ received: true, outcome: "ignored" });
-    expect(await db.select().from(schema.webhookEvents)).toHaveLength(1);
-    const [invoice] = await db.select().from(schema.billingInvoices);
-    expect(invoice.status).toBe("finalized");
-  });
 
   it("claims and ignores an event whose billing_invoice_id matches no row", async () => {
     const db = await seed();

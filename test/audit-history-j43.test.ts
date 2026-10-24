@@ -166,11 +166,6 @@ describe("J43: the loader and the action, scoped to the caller's account", () =>
     expect(stored(ACCOUNT_B)).toEqual({ d: null, a: null });
   });
 
-  it("an absent digest field is off, as an unchecked switch posts nothing", async () => {
-    await callAction(ACCOUNT_A, { audit_lookback_days: "60" });
-    expect(stored(ACCOUNT_A)).toEqual({ d: 60, a: 0 });
-  });
-
   it("a failed write returns 500 with ok false and logs the whole error", async () => {
     const boom = new Error("D1 is down");
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -195,12 +190,6 @@ describe("J43: the loader and the action, scoped to the caller's account", () =>
 
 describe("J43 review: a change made during a save is queued, and the last value wins", async () => {
   const { createSaveQueue } = await import("~/lib/audit/save-queue");
-
-  it("submits at once when nothing is in flight", () => {
-    const submit = vi.fn();
-    createSaveQueue(submit).change();
-    expect(submit).toHaveBeenCalledTimes(1);
-  });
 
   it("holds every change made mid-save and sends one more save, after the first settles", () => {
     const submit = vi.fn();

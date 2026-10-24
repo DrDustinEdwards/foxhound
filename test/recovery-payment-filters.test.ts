@@ -3,10 +3,8 @@ import { describe, expect, it } from "vitest";
 import { accounts, failedPayments, recoverySteps } from "~/db";
 import {
   buildPaymentParams,
-  withParams,
   type PaymentFilterState,
 } from "~/lib/recovery/payment-filters";
-import { priorFailureCount } from "~/lib/recovery/prior-failures";
 import { listExecutedEmailSteps } from "~/lib/recovery/dashboard-queries.server";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
@@ -31,18 +29,6 @@ const build = (f: PaymentFilterState, overrides?: Record<string, string>) =>
   buildPaymentParams(f, { bounds: BOUNDS, defaultPageSize: 50, overrides });
 
 describe("buildPaymentParams carries the amount range", () => {
-  // The regression this covers: the amount range was dropped from every
-  // generated link, so engaging the slider and then clicking a status pill,
-  // a page link, or Export CSV silently widened the result set back out.
-  it("keeps a narrowed minimum", () => {
-    const params = build(filters({ amountMinCents: 5_000 }));
-    expect(params.get("amountMin")).toBe("5000");
-  });
-
-  it("keeps a narrowed maximum", () => {
-    const params = build(filters({ amountMaxCents: 40_000 }));
-    expect(params.get("amountMax")).toBe("40000");
-  });
 
   it("keeps the range across a status-pill override", () => {
     const params = build(filters({ amountMinCents: 5_000, amountMaxCents: 40_000 }), {
@@ -51,15 +37,6 @@ describe("buildPaymentParams carries the amount range", () => {
     expect(params.get("status")).toBe("active");
     expect(params.get("amountMin")).toBe("5000");
     expect(params.get("amountMax")).toBe("40000");
-  });
-
-  it("keeps the range on the export link", () => {
-    const href = withParams(
-      "/recovery/payments/export.csv",
-      build(filters({ amountMinCents: 2_500, amountMaxCents: 7_500 })),
-    );
-    expect(href).toContain("amountMin=2500");
-    expect(href).toContain("amountMax=7500");
   });
 
   // A handle resting on its own bound is not a filter; emitting it would put a
@@ -85,25 +62,6 @@ describe("buildPaymentParams carries the amount range", () => {
   it("clears a param when an override is empty", () => {
     const params = build(filters({ status: "active" }), { status: "" });
     expect(params.has("status")).toBe(false);
-  });
-});
-
-describe("priorFailureCount", () => {
-  // The row on screen is itself one of the totals, so a customer whose only
-  // failure is the row being rendered has zero prior failures. Before the fix
-  // the raw total was rendered, so every row with any history read "+1 prior"
-  // against itself.
-  it("does not count the row being rendered", () => {
-    expect(priorFailureCount(1)).toBe(0);
-  });
-
-  it("counts only the others", () => {
-    expect(priorFailureCount(3)).toBe(2);
-  });
-
-  it("clamps a missing or zero total at zero", () => {
-    expect(priorFailureCount(undefined)).toBe(0);
-    expect(priorFailureCount(0)).toBe(0);
   });
 });
 

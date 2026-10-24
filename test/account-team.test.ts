@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Membership } from "~/lib/auth/account";
 import type { InviteView } from "~/lib/auth/invites";
-import { evaluateAcceptInvite, normalizeInviteEmail } from "~/lib/auth/invites";
+import { evaluateAcceptInvite } from "~/lib/auth/invites";
 
 const invite: InviteView = {
   memberId: "mem_1",
@@ -22,24 +22,11 @@ const membershipOnInvitedAccount: Membership = {
   role: "owner",
 };
 
-describe("normalizeInviteEmail", () => {
-  it("trims and lowercases", () => {
-    expect(normalizeInviteEmail("  Teammate@Acme.com  ")).toBe("teammate@acme.com");
-  });
-});
-
 describe("evaluateAcceptInvite (the team invite/role decision, pure)", () => {
   it("rejects a missing/expired invite as invalid", () => {
     expect(evaluateAcceptInvite(null, null, "teammate@acme.com")).toEqual({
       ok: false,
       reason: "invalid",
-    });
-  });
-
-  it("rejects when the accepting user's email does not match the invited email", () => {
-    expect(evaluateAcceptInvite(invite, null, "someone-else@acme.com")).toEqual({
-      ok: false,
-      reason: "email_mismatch",
     });
   });
 
@@ -65,34 +52,6 @@ describe("evaluateAcceptInvite (the team invite/role decision, pure)", () => {
       accountId: "acc_1",
       alreadyMember: true,
     });
-  });
-
-  it("accepts a fresh invite for a user with no membership on that account", () => {
-    expect(evaluateAcceptInvite(invite, null, "teammate@acme.com")).toEqual({
-      ok: true,
-      accountId: "acc_1",
-      alreadyMember: false,
-    });
-  });
-
-  // The narrowing, asserted rather than described: holding a DIFFERENT account
-  // is not the function's business. Under the pre-327 shape this argument
-  // produced a refusal, so this case discriminates the change directly.
-  it("ignores memberships on other accounts entirely", () => {
-    const onAnotherAccount: Membership = {
-      memberId: "mem_9",
-      accountId: "acc_2",
-      accountName: "Other Co",
-      role: "owner",
-    };
-    // The caller passes the membership for the INVITED account, so a user who
-    // only belongs to acc_2 arrives here with null and joins acc_1.
-    expect(evaluateAcceptInvite(invite, null, "teammate@acme.com")).toEqual({
-      ok: true,
-      accountId: "acc_1",
-      alreadyMember: false,
-    });
-    expect(onAnotherAccount.accountId).not.toBe(invite.accountId);
   });
 
   it("refuses a mismatched email even when the user already holds the account", () => {

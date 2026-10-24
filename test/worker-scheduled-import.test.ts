@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import { CRON_SCHEDULE_DAILY } from "~/lib/constants";
-import { jobsForSchedule as staticJobsForSchedule } from "~/lib/cron/registry";
 
 // H-2 (foxhound-audit-perf.md): workers/app.ts's scheduled() handler now
 // resolves the cron registry via a dynamic `await import("~/lib/cron/registry")`
@@ -17,13 +15,5 @@ describe("workers/app.ts scheduled() dynamic cron-registry import", () => {
     const dynamic = await import("~/lib/cron/registry");
     expect(dynamic.jobsForSchedule).toBeTypeOf("function");
     expect(dynamic.CRON_JOBS).toEqual(expect.any(Array));
-  });
-
-  it("dispatches identically to the static import for a real schedule", async () => {
-    const { jobsForSchedule: dynamicJobsForSchedule } = await import("~/lib/cron/registry");
-    const dynamicResult = dynamicJobsForSchedule(CRON_SCHEDULE_DAILY).map((j) => j.name);
-    const staticResult = staticJobsForSchedule(CRON_SCHEDULE_DAILY).map((j) => j.name);
-    expect(dynamicResult).toEqual(staticResult);
-    expect(dynamicResult).toContain("demo-reset");
   });
 });

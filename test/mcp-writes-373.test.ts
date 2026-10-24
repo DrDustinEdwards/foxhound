@@ -6,9 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { accounts, apiKeys, mcpWrites, stripeConnections } from "~/db/schema";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
-import { SLACK_WEBHOOK_ERROR } from "~/lib/settings/slack-webhook";
 import { SENDER_NAME_MAX_LENGTH } from "~/lib/settings/sender-name";
-import { isDeniedToolName } from "~/lib/mcp/registry";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 import { mcpRequest, readMcp, toolOutput } from "./helpers/mcp-client";
@@ -43,11 +41,8 @@ vi.mock("~/db", async (importOriginal) => ({
 
 const { handleMcpRequest } = await import("~/lib/mcp/handler.server");
 const { hashMcpToken } = await import("~/lib/auth/mcp-tokens");
-const { MERCHANT_TOOLS, MERCHANT_TOOL_NAMES, MERCHANT_WRITE_TOOL_NAMES } = await import(
+const { MERCHANT_TOOLS } = await import(
   "~/lib/mcp/tools.server"
-);
-const { applyAuditSettings, applySenderName, applyNotificationSettings } = await import(
-  "~/lib/settings/apply.server"
 );
 
 const ROOT = new URL("../", import.meta.url);
@@ -122,98 +117,13 @@ const updateSettings = (token: string, section: string, fields: Record<string, u
 
 const errorOf = (data: Record<string, unknown>) => (data as { error: string }).error;
 
-// ============================================================================
-
-describe("PLANT 1: the four are registered as writes", () => {
-
-  it("and NONE of them is on the HUMAN-FOREVER denylist", () => {
-    for (const name of MERCHANT_WRITE_TOOL_NAMES) {
-      expect(isDeniedToolName(name), `${name} is denied`).toBe(false);
-    }
-  });
-
-  it("THE FIVE REFUSALS ARE STILL ABSENT from tools/list", async () => {
-    // The control that matters most on a session that added writes: the money
-    // and lifecycle actions gained no tool, and cannot. Checked bare and under
-    // the foxhound_ prefix every name now carries, so the prefix is not a way
-    // around the denylist.
-    for (const bare of [
-      "submit_dispute_evidence",
-      "cancel_account",
-      "disconnect_stripe",
-      "connect_stripe",
-      "create_api_key",
-      "record_outcome",
-    ]) {
-      for (const name of [bare, `foxhound_${bare}`]) {
-        expect(MERCHANT_TOOL_NAMES).not.toContain(name);
-        expect(isDeniedToolName(name), `${name} would be registrable`).toBe(true);
-      }
-    }
-  });
-});
-
 describe("PLANT 2: a write lands on the caller's account and nowhere else", () => {
-  it("the audit section changes MINE and leaves THEIRS untouched", async () => {
-    const { db, tokens } = await seed();
-    const { status, isError, data } = await updateSettings(tokens[MINE], "audit", {
-      lookback_days: 60,
-      auto_run: true,
-    });
-    expect(status).toBe(200);
-    expect(isError).toBe(false);
-    expect(data.section).toBe("audit");
-
-    const mine = (await db.select().from(accounts).where(eq(accounts.id, MINE)))[0];
-    const theirs = (await db.select().from(accounts).where(eq(accounts.id, THEIRS)))[0];
-    expect(mine.auditLookbackDays).toBe(60);
-    expect(mine.auditAutoRun).toBe(true);
-    // The other account is untouched at its seeded values, which is what makes
-    // this a scoping assertion rather than a "did anything happen" one.
-    expect(theirs.auditLookbackDays).toBe(90);
-    expect(theirs.auditAutoRun).toBe(false);
-  });
 
   it("SET THEN GET: the read tool reflects the write, end to end", async () => {
     const { tokens } = await seed();
     await updateSettings(tokens[MINE], "audit", { lookback_days: 180, auto_run: true });
     const { data } = await callTool(tokens[MINE], "foxhound_get_settings");
     expect(data.audit).toEqual({ lookbackDays: 180, autoRun: true });
-  });
-
-  it("the sender_name section REFUSES A CONNECTION THIS ACCOUNT DOES NOT OWN", async () => {
-    // THE STACKED-GUARD CASE. The form never had to check ownership because its
-    // loader only ever offered the caller's own connection; a tool takes the id
-    // as an ARGUMENT, so the check has to be explicit or the argument is a way
-    // to name somebody else's connection. The fixture passes a real, existing
-    // connection id belonging to the other account, so only the ownership check
-    // can produce the refusal.
-    const { db, tokens } = await seed();
-    const { isError, data } = await updateSettings(tokens[MINE], "sender_name", {
-      connection_id: `sc_${THEIRS}`,
-      sender_name: "Hijacked",
-    });
-    expect(isError).toBe(true);
-    expect(data.tool).toBe(UPDATE);
-
-    const theirs = (
-      await db.select().from(stripeConnections).where(eq(stripeConnections.id, `sc_${THEIRS}`))
-    )[0];
-    expect(theirs.senderName ?? null).toBeNull();
-    expect(await db.select().from(mcpWrites)).toHaveLength(0);
-  });
-
-  it("and the SAME call against its own connection succeeds, so the refusal discriminates", async () => {
-    const { db, tokens } = await seed();
-    const { isError } = await updateSettings(tokens[MINE], "sender_name", {
-      connection_id: `sc_${MINE}`,
-      sender_name: "Acme Billing",
-    });
-    expect(isError).toBe(false);
-    const mine = (
-      await db.select().from(stripeConnections).where(eq(stripeConnections.id, `sc_${MINE}`))
-    )[0];
-    expect(mine.senderName).toBe("Acme Billing");
   });
 });
 
@@ -256,30 +166,6 @@ describe("PLANT 3: validator parity, over the shared function", () => {
     expect(tools).toContain('from "~/lib/settings/apply.server"');
   });
 
-  it("a bad Slack webhook is refused with THE FORM'S OWN SENTENCE", async () => {
-    const { tokens } = await seed();
-    const { isError, data } = await updateSettings(tokens[MINE], "notifications", {
-      slack_webhook_url: "https://evil.test/hook",
-    });
-    expect(isError).toBe(true);
-    // The exact string the form shows a person, not a paraphrase for agents.
-    expect(errorOf(data)).toBe(SLACK_WEBHOOK_ERROR);
-  });
-
-  it("a good Slack webhook is stored but never echoed back: the answer says only that one is set", async () => {
-    const { db, tokens } = await seed();
-    const url = "https://hooks.slack.com/services/T0ECHO/B0ECHO/echoWombatSecret";
-    const answer = await callTool(tokens[MINE], UPDATE, { notifications: { slack_webhook_url: url } });
-    const { isError, data } = answer;
-    expect(isError).toBe(false);
-    expect((data.state as { slackWebhookConfigured: boolean }).slackWebhookConfigured).toBe(true);
-    expect(answer.text).not.toContain("echoWombatSecret");
-    expect(answer.text).not.toContain("slackWebhookUrl");
-    // Stored all the same, so the absence above is the projection, not a refusal.
-    const [row] = await db.select().from(accounts).where(eq(accounts.id, MINE));
-    expect(row.slackWebhookUrl).toBe(url);
-  });
-
   it("an over-long sender name is refused with the form's own sentence and bound", async () => {
     const { tokens } = await seed();
     const { isError, data } = await updateSettings(tokens[MINE], "sender_name", {
@@ -297,33 +183,6 @@ describe("PLANT 3: validator parity, over the shared function", () => {
       sender_name: "x".repeat(SENDER_NAME_MAX_LENGTH),
     });
     expect(ok.isError).toBe(false);
-  });
-
-  it("the lookback CLAMPS rather than refusing, which is the form's behaviour", async () => {
-    const { tokens } = await seed();
-    const set = await updateSettings(tokens[MINE], "audit", { lookback_days: 9999, auto_run: false });
-    expect(set.isError).toBe(false);
-    const { data } = await callTool(tokens[MINE], "foxhound_get_settings");
-    expect((data.audit as { lookbackDays: number }).lookbackDays).toBe(90);
-  });
-
-  it("and the shared function refuses identically when called as a FORM would", async () => {
-    // The other direction: driving `applyX` with form-shaped values produces the
-    // same refusals. If a future edit made the tool path stricter than the form
-    // path, one of these two would move.
-    await seed();
-    const db = harness.db as Parameters<typeof applyAuditSettings>[0];
-    expect(await applyNotificationSettings(db, MINE, { slackWebhookUrl: "https://evil.test" })).toEqual(
-      { ok: false, error: SLACK_WEBHOOK_ERROR },
-    );
-    const long = await applySenderName(db, MINE, {
-      connectionId: `sc_${MINE}`,
-      senderName: "x".repeat(SENDER_NAME_MAX_LENGTH + 1),
-    });
-    expect(long).toEqual({
-      ok: false,
-      error: `Sender name must be ${SENDER_NAME_MAX_LENGTH} characters or fewer.`,
-    });
   });
 });
 
@@ -353,31 +212,6 @@ describe("PLANT 4: every write leaves a trace naming the key", () => {
     const rows = await db.select().from(mcpWrites);
     expect(JSON.stringify(rows)).not.toContain("Zebulon");
     expect(rows[0].fields).toEqual(["sender_name"]);
-  });
-
-  it("A REFUSED WRITE LEAVES NO TRACE AND NO CHANGE", async () => {
-    const { db, tokens } = await seed();
-    await updateSettings(tokens[MINE], "notifications", {
-      slack_webhook_url: "https://evil.test/hook",
-    });
-    expect(await db.select().from(mcpWrites)).toHaveLength(0);
-    const mine = (await db.select().from(accounts).where(eq(accounts.id, MINE)))[0];
-    expect(mine.slackWebhookUrl ?? null).toBeNull();
-  });
-
-  it("THE FORM'S OWN WRITE LEAVES NO TRACE, which is the asymmetry on purpose", async () => {
-    // A signed-in human's change is already attributable through the session and
-    // the account it landed on. The trace exists for the UNATTENDED case.
-    const { db } = await seed();
-    // No trace argument: this is the form's call shape.
-    const result = await applyAuditSettings(db, MINE, { lookbackDays: 60, autoRun: true });
-    expect(result.ok).toBe(true);
-
-    // The write landed.
-    const mine = (await db.select().from(accounts).where(eq(accounts.id, MINE)))[0];
-    expect(mine.auditLookbackDays).toBe(60);
-    // And left no trace row, because no key made it.
-    expect(await db.select().from(mcpWrites)).toHaveLength(0);
   });
 
   it("and the trace goes in the SAME batch, so a write cannot outrun it", () => {

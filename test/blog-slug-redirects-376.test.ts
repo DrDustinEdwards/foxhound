@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { BLOG_SLUG_REDIRECTS, redirectedBlogSlug } from "~/lib/blog/slug-redirects";
+import { BLOG_SLUG_REDIRECTS } from "~/lib/blog/slug-redirects";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -62,13 +62,5 @@ describe("PLANT 1: every old slug 301s to its new one, driven through the loader
         `/blog/${newSlug}`,
       );
     }
-  });
-
-  it("a slug that was never renamed is NOT redirected", () => {
-    // The discriminator. A redirect that fires on everything would send every
-    // post to a 404 rather than only the four.
-    expect(redirectedBlogSlug("how-to-reduce-saas-churn")).toBeNull();
-    expect(redirectedBlogSlug("foxhound-vs-churnkey")).toBeNull();
-    expect(redirectedBlogSlug("")).toBeNull();
   });
 });

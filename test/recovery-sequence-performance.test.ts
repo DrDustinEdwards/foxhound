@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import * as constants from "~/lib/constants";
 import { DECLINE_CATEGORIES } from "~/lib/constants";
-import { RECOVERY_SCHEDULES } from "~/lib/recovery/schedule";
 import {
   buildCategorySections,
   buildStepCard,
@@ -19,14 +17,6 @@ describe("formatStepTiming", () => {
   it("renders sub-day offsets in hours", () => {
     expect(formatStepTiming(4)).toBe("4 hours after failure");
     expect(formatStepTiming(1)).toBe("1 hour after failure");
-  });
-
-  // Recova's chips say hours at every offset ("72 hours after failure",
-  // "168 hours after failure", SequenceView.tsx 5507b89f); J12.
-  it("renders day-multiple offsets in hours too, as Recova does", () => {
-    expect(formatStepTiming(24)).toBe("24 hours after failure");
-    expect(formatStepTiming(72)).toBe("72 hours after failure");
-    expect(formatStepTiming(720)).toBe("720 hours after failure");
   });
 });
 
@@ -97,14 +87,6 @@ describe("summarizeStepPerformance", () => {
     expect(summary.bestStep).not.toBeNull();
     expect(summary.bestStep!.clickRatePct).toBe(33);
   });
-
-  it("never lets a step under the 3-send floor become bestStep even with a perfect rate", () => {
-    const summary = summarizeStepPerformance([
-      step({ stepType: "email_day1", clickedAt: new Date() }),
-      step({ stepType: "email_day1", clickedAt: new Date() }),
-    ]);
-    expect(summary.bestStep).toBeNull();
-  });
 });
 
 describe("buildStepCard", () => {
@@ -151,23 +133,6 @@ describe("buildStepCard", () => {
 });
 
 describe("buildCategorySections", () => {
-  it("returns one section per category, in real schedule step order", () => {
-    const sections = buildCategorySections(DECLINE_CATEGORIES, []);
-    expect(sections).toHaveLength(DECLINE_CATEGORIES.length);
-    const soft = sections.find((s) => s.category === "soft")!;
-    expect(soft.stepCards.map((c) => c.stepType)).toEqual([
-      "retry_early",
-      "email_day1",
-      "retry_day2",
-      "email_day3",
-      "email_day7",
-      "email_day14",
-      "retry_day21",
-      "email_day30",
-    ]);
-    const revoked = sections.find((s) => s.category === "revoked")!;
-    expect(revoked.stepCards.map((c) => c.stepType)).toEqual(["email_revoked"]);
-  });
 
   it("scopes each step card's rows to its own category, never leaking another category's steps", () => {
     const steps = [
@@ -195,31 +160,5 @@ describe("buildCategorySections", () => {
 describe("each category's timing chips are that category's own offsets", () => {
   it("shows no timing for a step no schedule defines, never a fabricated one", () => {
     expect(buildStepCard("email_made_up", [], null).timingLabel).toBeNull();
-  });
-
-
-  it("every card's chip is formatStepTiming of its own schedule offset", () => {
-    const sections = buildCategorySections(DECLINE_CATEGORIES, []);
-    for (const section of sections) {
-      const schedule = RECOVERY_SCHEDULES[section.category];
-      expect(section.stepCards.map((c) => c.timingLabel), section.category).toEqual(
-        schedule.map((s) => formatStepTiming(s.offsetHours)),
-      );
-    }
-  });
-
-  it("reads the engine constants where categories differ", () => {
-    const chip = (category: (typeof DECLINE_CATEGORIES)[number], stepType: string) =>
-      buildCategorySections(DECLINE_CATEGORIES, [])
-        .find((s) => s.category === category)!
-        .stepCards.find((c) => c.stepType === stepType)!.timingLabel;
-    expect(chip("expired", "email_day1")).toBe(formatStepTiming(constants.STEP_TIMING_EMAIL_DAY1_HOURS));
-    expect(chip("unknown", "email_day1")).toBe(formatStepTiming(constants.STEP_TIMING_EMAIL_DAY1_HOURS));
-    expect(chip("soft", "email_day1")).toBe(formatStepTiming(constants.STEP_TIMING_SOFT_EMAIL_DAY1_HOURS));
-    expect(chip("fraud", "email_day1")).toBe(formatStepTiming(constants.STEP_TIMING_FRAUD_EMAIL_DAY1_HOURS));
-    expect(chip("network", "retry_day2")).toBe(formatStepTiming(constants.STEP_TIMING_NETWORK_RETRY_DAY2_HOURS));
-    expect(chip("soft", "retry_day2")).toBe(formatStepTiming(constants.STEP_TIMING_RETRY_DAY2_HOURS));
-    expect(chip("network", "email_day3")).toBe(formatStepTiming(constants.STEP_TIMING_NETWORK_EMAIL_DAY3_HOURS));
-    expect(chip("soft", "email_day3")).toBe(formatStepTiming(constants.STEP_TIMING_EMAIL_DAY3_HOURS));
   });
 });

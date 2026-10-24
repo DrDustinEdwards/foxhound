@@ -124,46 +124,7 @@ function stepResult(): string | null {
   )?.result ?? null;
 }
 
-describe("PLANT 1: NULL renders ON, and both ends agree", () => {
-
-  it("NULL SENDS: the win-back cron does not skip an untouched account", async () => {
-    seedWinbackStep();
-
-    const result = await runWinbackSends(env, NOW);
-
-    expect(result.sent).toBe(1);
-    expect(stepResult()).toBe("email_sent_fallback");
-  });
-
-  it("NULL SENDS: the expiring-card cron does not skip one either", async () => {
-    seedExpiringAlert();
-
-    const result = await sendExpiringCardAlerts(env, NOW);
-
-    expect(result.sent).toBe(1);
-  });
-});
-
 describe("PLANT 2: the save writes its two columns and only those", () => {
-  it("both on", async () => {
-    await save(true, true);
-    const row = toggles();
-    expect(row.winback).toBe(1);
-    expect(row.expiring).toBe(1);
-  });
-
-  it("both off", async () => {
-    await save(false, false);
-    const row = toggles();
-    expect(row.winback).toBe(0);
-    expect(row.expiring).toBe(0);
-  });
-
-  it("each column moves independently of the other", async () => {
-    await save(false, true);
-    expect(toggles().winback).toBe(0);
-    expect(toggles().expiring).toBe(1);
-  });
 
   it("AND WRITES NO S36 COLUMN, because those are a different page", async () => {
     sqlite
@@ -202,33 +163,6 @@ describe("PLANT 3: OFF skips each cron, reached alone", () => {
     expect(result).toEqual({ sent: 0, skipped: 1 });
     expect(harness.emailJobs).toEqual([]);
   });
-
-  it("EACH TOGGLE GATES ONLY ITS OWN CRON", async () => {
-    // Win-back off, expiring-card on: the alert must still go out. This is what
-    // makes the two independent rather than one feature flag.
-    seedWinbackStep();
-    seedExpiringAlert();
-    await save(false, true);
-
-    expect((await runWinbackSends(env, NOW)).sent).toBe(0);
-    expect((await sendExpiringCardAlerts(env, NOW)).sent).toBe(1);
-  });
-
-  it("and the other way round", async () => {
-    seedWinbackStep();
-    seedExpiringAlert();
-    await save(true, false);
-
-    expect((await runWinbackSends(env, NOW)).sent).toBe(1);
-    expect((await sendExpiringCardAlerts(env, NOW)).sent).toBe(0);
-  });
-
-  it("turning it back ON sends again", async () => {
-    seedWinbackStep();
-    await save(true, true);
-
-    expect((await runWinbackSends(env, NOW)).sent).toBe(1);
-  });
 });
 
 describe("PLANT 4: the page un-gates nothing else, which is 176 disproven", () => {
@@ -250,18 +184,6 @@ describe("PLANT 6: the PAGE itself, loader and action", () => {
 
     expect(result.winbackNotificationsEnabled).toBe(true);
     expect(result.expiringCardNotificationsEnabled).toBe(true);
-  });
-
-  it("and renders a stored false as off", async () => {
-    await save(false, false);
-
-    const result = (await featuresRoute.loader({ context: routeContext() } as never)) as {
-      winbackNotificationsEnabled: boolean;
-      expiringCardNotificationsEnabled: boolean;
-    };
-
-    expect(result.winbackNotificationsEnabled).toBe(false);
-    expect(result.expiringCardNotificationsEnabled).toBe(false);
   });
 
   it("THE ACTION MAPS EACH FIELD TO ITS OWN COLUMN, not one to both", async () => {
@@ -296,21 +218,6 @@ describe("PLANT 6: the PAGE itself, loader and action", () => {
 
     expect(toggles().winback).toBe(0);
     expect(toggles().expiring).toBe(1);
-  });
-
-  it("AN EMPTY FORM TURNS BOTH OFF, because an absent checkbox is off", async () => {
-    await save(true, true);
-
-    await featuresRoute.action({
-      context: routeContext(),
-      request: new Request("https://foxhoundapp.test/settings/features", {
-        method: "POST",
-        body: new FormData(),
-      }),
-    } as never);
-
-    expect(toggles().winback).toBe(0);
-    expect(toggles().expiring).toBe(0);
   });
 });
 

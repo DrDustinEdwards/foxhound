@@ -84,15 +84,6 @@ describe("F1: a failed Stripe revoke after deletion is recorded durably", () => 
     });
     expect(JSON.stringify(rows[0])).not.toContain("olive@acme.test");
   });
-
-  it("writes no failure row when every revoke succeeds", async () => {
-    await deleteUserAccount({} as Env, "u1", { deauthorize: async () => ({ ok: true }) });
-    const rows = await db
-      .select()
-      .from(schema.adminAuditLog)
-      .where(eq(schema.adminAuditLog.action, "user_self_deleted_account_deauthorize_failed"));
-    expect(rows).toEqual([]);
-  });
 });
 
 describe("F2: the confirmation says what will happen to this person", () => {

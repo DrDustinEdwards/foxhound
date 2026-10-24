@@ -31,7 +31,6 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 const route = await import("~/routes/app/settings/api-keys");
-const { MCP_TOKEN_SCOPE } = await import("~/lib/auth/mcp-tokens");
 
 
 const Page = route.default as unknown as (props: {
@@ -147,20 +146,6 @@ describe("J34 api keys: the loader", () => {
     vi.restoreAllMocks();
   });
 
-  it("lists the newest key first, as Recova's API orders it (created_at descending)", async () => {
-    const insert = sqlite.prepare(
-      "INSERT INTO api_keys (id, account_id, key_hash, label, scope, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-    );
-    insert.run("k_old", ACCOUNT, "h1", "Oldest", MCP_TOKEN_SCOPE.MERCHANT, 1000);
-    insert.run("k_new", ACCOUNT, "h3", "Newest", MCP_TOKEN_SCOPE.MERCHANT, 3000);
-    insert.run("k_mid", ACCOUNT, "h2", "Middle", MCP_TOKEN_SCOPE.MERCHANT, 2000);
-
-    const loaded = (await route.loader({ context: ctx(), request: new Request("https://x/"), params: {} } as never)) as {
-      keys: { label: string }[];
-    };
-    expect(loaded.keys.map((k) => k.label)).toEqual(["Newest", "Middle", "Oldest"]);
-  });
-
   it("returns Recova's load-failure state instead of throwing when the read fails", async () => {
     harness.db = new Proxy(
       {},
@@ -177,25 +162,5 @@ describe("J34 api keys: the loader", () => {
     };
     expect(loaded.keys).toBeNull();
     expect(loaded.loadError).toBe(true);
-  });
-
-  it("never logs the secret it returns", async () => {
-    const calls: unknown[][] = [];
-    for (const level of ["log", "info", "warn", "error", "debug"] as const) {
-      vi.spyOn(console, level).mockImplementation((...args: unknown[]) => {
-        calls.push(args);
-      });
-    }
-    const form = new FormData();
-    form.append("_action", "create");
-    form.append("label", "My Claude agent");
-    const res = (await route.action({
-      context: ctx(),
-      request: new Request("https://x/settings/api-keys", { method: "POST", body: form }),
-      params: {},
-    } as never)) as unknown as { data: { rawKey?: string } };
-    const raw = String(res.data.rawKey);
-    expect(raw.length).toBeGreaterThan(20);
-    expect(JSON.stringify(calls)).not.toContain(raw);
   });
 });

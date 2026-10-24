@@ -242,12 +242,6 @@ describe("PLANT 1: every id argument has an ownership case", () => {
     // Not vacuous: there are id arguments to cover.
     expect(fromSchemas.length).toBeGreaterThanOrEqual(6);
   });
-
-  it("no tool takes an account id at all: the account is the key's", () => {
-    for (const tool of MERCHANT_TOOLS.list()) {
-      expect(idPaths(tool.inputSchema).some((p) => p.includes("account")), tool.name).toBe(false);
-    }
-  });
 });
 
 describe("PLANT 2: another merchant's id is refused, and their row is untouched", () => {

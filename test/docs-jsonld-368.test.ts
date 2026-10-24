@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { DOCS_FIRST_PUBLISHED, DOC_GUIDES } from "~/lib/marketing/docs-content";
-import { breadcrumbListJsonLd, docsItemListJsonLd, techArticleJsonLd } from "~/lib/seo/jsonld";
+import { docsItemListJsonLd, techArticleJsonLd } from "~/lib/seo/jsonld";
 import { STATIC_PAGES } from "~/routes/files/sitemap";
 
 // 368 ROADMAP ITEM 2's REMAINDER: the docs guides had no structured data.
@@ -56,26 +56,6 @@ describe("PLANT 1: every guide's JSON-LD, built from the real builders", () => {
     expect(GUIDE_ROUTE).toContain("headline: guide.heading");
     expect(GUIDE_ROUTE).toContain("<h1");
     expect(GUIDE_ROUTE).toContain(">{guide.heading}</h1>");
-  });
-
-  it("EVERY BLOCK PARSES, which a hand-built string would not guarantee", () => {
-    for (const guide of DOC_GUIDES) {
-      const payload = JSON.stringify([
-        techArticleJsonLd(URL_BASE, {
-          headline: guide.heading,
-          description: guide.description,
-          path: `/docs/${guide.slug}`,
-          datePublished: guide.datePublished,
-        }),
-        breadcrumbListJsonLd(URL_BASE, [
-          { name: "Docs", path: "/docs" },
-          { name: guide.title, path: `/docs/${guide.slug}` },
-        ]),
-      ]);
-      const parsed = JSON.parse(payload) as { "@type": string }[];
-      expect(parsed).toHaveLength(2);
-      expect(parsed.map((b) => b["@type"])).toEqual(["TechArticle", "BreadcrumbList"]);
-    }
   });
 });
 

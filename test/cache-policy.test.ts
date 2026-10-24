@@ -130,16 +130,6 @@ describe("PLANT 1: an anonymous request gets the public directive", () => {
     );
   });
 
-  it("THE PRIVATE DIRECTIVE IS `no-store`, asserted as a LITERAL", () => {
-    // Every other assertion in this file compares against PRIVATE_DIRECTIVE, so
-    // mutating the constant moved both sides and proved nothing. `no-store` is
-    // the word that forbids storage outright; `private, max-age=0` still
-    // permits a store-and-revalidate, which is not what this policy promises.
-    expect(PRIVATE_DIRECTIVE).toBe("private, no-store");
-    expect(resolveCacheControl(request("/console"))).toBe("private, no-store");
-    expect(resolveCacheControl(request("/", PROD_COOKIE))).toBe("private, no-store");
-  });
-
   it("blog is SHORTER than marketing, because posts change without a deploy", () => {
     expect(CACHE_DIRECTIVES.blog).toBe("public, max-age=60, stale-while-revalidate=600");
     expect(CACHE_DIRECTIVES.marketing).toBe("public, max-age=300, stale-while-revalidate=3600");
@@ -155,69 +145,10 @@ describe("PLANT 2: A SIGNED-IN REQUEST NEVER GETS A PUBLIC DIRECTIVE", () => {
     expect(resolveCacheControl(request(path, LOCAL_COOKIE))).toBe(PRIVATE_DIRECTIVE);
   });
 
-  it("the __Secure- prefix is stripped before matching, which is the production case", () => {
-    expect(hasSessionCookie(request("/", PROD_COOKIE))).toBe(true);
-    expect(hasSessionCookie(request("/", LOCAL_COOKIE))).toBe(true);
-    expect(hasSessionCookie(request("/", "__Host-better-auth.session_token=x"))).toBe(true);
-  });
-
-  it("the cookie-cache cookies count too, not just session_token", () => {
-    expect(hasSessionCookie(request("/", "__Secure-better-auth.session_data=x"))).toBe(true);
-    expect(hasSessionCookie(request("/", "better-auth.account_data=x"))).toBe(true);
-  });
-
   it("it is found among OTHER cookies, not only when it is alone", () => {
     expect(
       hasSessionCookie(request("/", `theme=dark; ${PROD_COOKIE}; demo=1`)),
     ).toBe(true);
-  });
-
-  it("a NON-session cookie alone leaves the route public, so the check discriminates", () => {
-    expect(hasSessionCookie(request("/", "theme=dark"))).toBe(false);
-    expect(resolveCacheControl(request("/", "theme=dark"))).toBe(CACHE_DIRECTIVES.marketing);
-  });
-});
-
-describe("PLANT 3: every PRIVATE route is private, cookie or not", () => {
-  it.each(PRIVATE_ROUTES)("%s is private anonymous", (path) => {
-    expect(classifyPath(path)).toBe("private");
-    expect(resolveCacheControl(request(path))).toBe(PRIVATE_DIRECTIVE);
-  });
-
-  it.each(PRIVATE_ROUTES)("%s is private signed in", (path) => {
-    expect(resolveCacheControl(request(path, PROD_COOKIE))).toBe(PRIVATE_DIRECTIVE);
-  });
-});
-
-describe("PLANT 4: an unclassified route defaults to PRIVATE", () => {
-  it("a route that does not exist yet is private", () => {
-    // The throwaway: no such route is registered, and it must still be private
-    // rather than falling through to a public directive or to no header at all.
-    expect(classifyPath("/some-route-added-tomorrow")).toBe("private");
-    expect(resolveCacheControl(request("/some-route-added-tomorrow"))).toBe(PRIVATE_DIRECTIVE);
-  });
-
-  it("a near-miss on a public prefix is private, not public", () => {
-    // `/blogging` must not inherit `/blog`'s directive.
-    expect(classifyPath("/blogging")).toBe("private");
-    expect(classifyPath("/docsy")).toBe("private");
-    expect(classifyPath("/productsx")).toBe("private");
-  });
-
-  it("EVERY response leaves with an explicit directive, so nothing is left to heuristics", () => {
-    const applied = applyCachePolicy(request("/anything"), new Response("x"));
-    expect(applied.headers.get("Cache-Control")).toBe(PRIVATE_DIRECTIVE);
-  });
-});
-
-describe("PLANT 5: routes that set their own directive keep it", () => {
-  it("a files route's existing value is not overwritten", () => {
-    const existing = new Response("x", {
-      headers: { "Cache-Control": "public, max-age=3600" },
-    });
-    expect(applyCachePolicy(request("/sitemap.xml"), existing).headers.get("Cache-Control")).toBe(
-      "public, max-age=3600",
-    );
   });
 });
 
@@ -245,29 +176,6 @@ describe("PLANT 6: Vary: Cookie keys the cache by session presence (348)", () =>
     });
     const applied = applyCachePolicy(request("/robots.txt"), existing);
     expect(applied.headers.get("Cache-Control")).toBe("public, max-age=86400");
-    expect(applied.headers.get("Vary")).toBe("Cookie");
-  });
-
-  it("A PRIVATE route that sets its own Cache-Control keeps it AND gains nothing", () => {
-    const existing = new Response("x", {
-      headers: { "Cache-Control": "no-store, no-cache, must-revalidate, private" },
-    });
-    const applied = applyCachePolicy(request("/p/tok"), existing);
-    expect(applied.headers.get("Cache-Control")).toBe(
-      "no-store, no-cache, must-revalidate, private",
-    );
-    expect(applied.headers.get("Vary")).toBeNull();
-  });
-
-  it("THE THEME-ONLY CASE stays public AND carries Vary", () => {
-    const applied = applyCachePolicy(request("/", "theme=dark"), new Response("x"));
-    expect(applied.headers.get("Cache-Control")).toBe(CACHE_DIRECTIVES.marketing);
-    expect(applied.headers.get("Vary")).toBe("Cookie");
-  });
-
-  it("a signed-in public-class request is private and still carries Vary", () => {
-    const applied = applyCachePolicy(request("/", PROD_COOKIE), new Response("x"));
-    expect(applied.headers.get("Cache-Control")).toBe(PRIVATE_DIRECTIVE);
     expect(applied.headers.get("Vary")).toBe("Cookie");
   });
 

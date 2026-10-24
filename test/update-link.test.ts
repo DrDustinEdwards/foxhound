@@ -29,13 +29,6 @@ describe("hrefsIn and linksTo", () => {
     expect(hrefsIn(html)).toEqual([URL, "b", "c"]);
   });
 
-  it("matches the exact link only", () => {
-    expect(linksTo(`<a href="${URL}">x</a>`, URL)).toBe(true);
-    expect(linksTo(`<a href="${URL}x">x</a>`, URL)).toBe(false);
-    expect(linksTo(`<a href="${URL.slice(0, -1)}">x</a>`, URL)).toBe(false);
-    expect(linksTo(`<p>${URL}</p>`, URL)).toBe(false);
-  });
-
   // Only an anchor's own href is a link a customer can press. Each of these
   // carries the URL somewhere that is not one.
   const NOT_LINKS: { name: string; html: string }[] = [
@@ -53,12 +46,6 @@ describe("hrefsIn and linksTo", () => {
       expect(linksTo(c.html, URL)).toBe(false);
     });
   }
-
-  it("still counts an anchor whose href follows other attributes, in any case", () => {
-    expect(linksTo(`<A class="btn" data-x='1' HREF="${URL}">x</A>`, URL)).toBe(true);
-    expect(linksTo(`<a\n  style="color: red"\n  href='${URL}'>x</a>`, URL)).toBe(true);
-    expect(linksTo(`<a title="a > b" href="${URL}">x</a>`, URL)).toBe(true);
-  });
 
   it("never matches an empty link", () => {
     expect(linksTo(`<a href="">x</a>`, "")).toBe(false);

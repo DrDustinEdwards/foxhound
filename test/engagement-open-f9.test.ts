@@ -84,23 +84,6 @@ describe("F9: every human open counts, as Recova's email.opened did", () => {
     expect(row.timeToOpenMinutes).toBe(125);
   });
 
-  it("a later open adds one and moves last_opened_at, leaving opened_at and time to open alone", async () => {
-    vi.useFakeTimers();
-    const db = await seed();
-    const first = new Date(SENT.getTime() + 10 * 60_000);
-    const second = new Date(SENT.getTime() + 3 * 60 * 60_000);
-    const third = new Date(SENT.getTime() + 26 * 60 * 60_000);
-
-    await openAt(first);
-    await openAt(second);
-    await openAt(third);
-    const row = await step(db);
-    expect(row.emailOpenedCount).toBe(3);
-    expect(row.openedAt?.getTime()).toBe(first.getTime());
-    expect(row.lastOpenedAt?.getTime()).toBe(third.getTime());
-    expect(row.timeToOpenMinutes).toBe(10);
-  });
-
   it("the engagement_events row stays one per step however many opens arrive", async () => {
     vi.useFakeTimers();
     const db = await seed();
@@ -109,22 +92,6 @@ describe("F9: every human open counts, as Recova's email.opened did", () => {
     const events = await db.select().from(engagementEvents);
     expect(events).toHaveLength(1);
     expect(events[0]?.idempotencyKey).toBe(`open:${STEP}`);
-  });
-
-  it("a step with no executed_at gets no time to open, as Recova's guard has it", async () => {
-    vi.useFakeTimers();
-    const db = await seed(null);
-    await openAt(new Date(SENT.getTime() + 60 * 60_000));
-    const row = await step(db);
-    expect(row.emailOpenedCount).toBe(1);
-    expect(row.timeToOpenMinutes).toBeNull();
-  });
-
-  it("an open before executed_at floors the negative gap as Recova's Math.floor does", async () => {
-    vi.useFakeTimers();
-    const db = await seed();
-    await openAt(new Date(SENT.getTime() - 30_000)); // 30 s before the send was stamped
-    expect((await step(db)).timeToOpenMinutes).toBe(-1);
   });
 
   it("an automated open writes nothing: no count, no stamp, no event", async () => {

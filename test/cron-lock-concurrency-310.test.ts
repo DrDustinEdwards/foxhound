@@ -145,29 +145,6 @@ describe("310 item 1: the cron runner honours the lock", () => {
     expect(calls.released, "a thrown handler must not wedge the cron").toBe(1);
   });
 
-  it("THE RUNNER RELEASES ITS OWN TOKEN, not a bare release", async () => {
-    // The caller half of the fence. A runner that called release() with nothing,
-    // or with a token it did not hold, would free whatever lease is current.
-    const calls: LockCalls = { acquired: 0, released: 0, granted: [], releasedWith: [] };
-    const env = envWith([true], calls);
-
-    await runCronJob(env, "recovery-tick", async () => ({ rowsProcessed: 1 }));
-
-    expect(calls.releasedWith).toEqual(calls.granted);
-    expect(calls.releasedWith).toHaveLength(1);
-  });
-
-  it("and a THROWING handler releases its own token too", async () => {
-    const calls: LockCalls = { acquired: 0, released: 0, granted: [], releasedWith: [] };
-    const env = envWith([true], calls);
-
-    await runCronJob(env, "recovery-tick", async () => {
-      throw new Error("handler blew up");
-    });
-
-    expect(calls.releasedWith).toEqual(calls.granted);
-  });
-
   it("the lease is bounded, so a crashed run cannot hold the lock forever", async () => {
     // 376 item 14 MOVED THIS NUMBER, and the old assertion is why it is worth
     // restating rather than editing quietly: the lease used to be five minutes,

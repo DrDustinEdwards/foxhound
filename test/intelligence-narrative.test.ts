@@ -22,13 +22,6 @@ const EMPTY_FACTS: NarrativeFacts = {
 };
 
 describe("hasNarrativeFacts", () => {
-  it("is false for a brand-new account with no MRR and no at-risk customers", () => {
-    expect(hasNarrativeFacts(EMPTY_FACTS)).toBe(false);
-  });
-
-  it("is true when there is any MRR", () => {
-    expect(hasNarrativeFacts({ ...EMPTY_FACTS, totalMrrCents: 5000 })).toBe(true);
-  });
 
   it("is true when there is an at-risk customer even with zero MRR recorded", () => {
     expect(

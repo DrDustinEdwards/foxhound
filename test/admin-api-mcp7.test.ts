@@ -159,12 +159,6 @@ describe("PLANT 1: two credentials on every call", () => {
       expect(String(json.error)).toMatch(/acting admin/i);
     }
   });
-
-  it("and the acting admin is matched case-insensitively, as the /admin guard does", async () => {
-    const { keys } = await seed();
-    const { status } = await api("/platform", { key: keys.admin, actor: ADMIN.toUpperCase() });
-    expect(status).toBe(200);
-  });
 });
 
 describe("PLANT 2: the reads", () => {

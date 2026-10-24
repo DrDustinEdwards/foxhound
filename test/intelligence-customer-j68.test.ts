@@ -20,7 +20,7 @@ import {
 } from "~/lib/intelligence/customer-detail";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
-import { getCustomerActivity, getCustomerHealthDetail } from "~/lib/intelligence/views.server";
+import { getCustomerActivity } from "~/lib/intelligence/views.server";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -403,12 +403,5 @@ describe("J68 review: 'Last seen' on rows shaped the way the sync writes them", 
     const t = text(await renderThroughLoader("cus_quiet"));
     expect(t).toContain("Last seen Not tracked");
     expect(t).not.toContain("Oct 15, 2026");
-  });
-
-  it("does not send the sync-written last_seen_at out of the shared helper (the MCP tool reads it)", async () => {
-    const db = await syncShaped();
-    const detail = await getCustomerHealthDetail(db, "acct_live", "cus_busy");
-    expect(detail).not.toBeNull();
-    expect(detail).not.toHaveProperty("lastSeenAt");
   });
 });

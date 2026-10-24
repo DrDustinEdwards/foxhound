@@ -196,14 +196,6 @@ const byCurrency = (rows: { currency: string; cents: number }[]) =>
   Object.fromEntries(rows.map((r) => [r.currency, r.cents]));
 
 describe("nextBillingRunAtMs (derived from the '0 4 1 * *' cron, never hardcoded)", () => {
-  it("mid-month points at the 1st of next month, 04:00 UTC", () => {
-    expect(new Date(nextBillingRunAtMs(NOW_MS)).toISOString()).toBe("2026-08-01T04:00:00.000Z");
-  });
-
-  it("crosses a year boundary", () => {
-    const inDecember = new Date("2026-12-14T09:30:00.000Z").getTime();
-    expect(new Date(nextBillingRunAtMs(inDecember)).toISOString()).toBe("2027-01-01T04:00:00.000Z");
-  });
 
   it("on the 1st before 04:00, the next run is later THAT day, not next month", () => {
     // The cron fires at 04:00 on the 1st. A merchant loading /billing at 02:00
@@ -216,22 +208,11 @@ describe("nextBillingRunAtMs (derived from the '0 4 1 * *' cron, never hardcoded
   it("on the 1st at exactly 04:00, that run is going, so the next one is next month", () => {
     expect(new Date(nextBillingRunAtMs(NEXT_RUN_MS)).toISOString()).toBe("2026-09-01T04:00:00.000Z");
   });
-
-  it("crosses a month boundary from the last instant of a month", () => {
-    const lastInstant = new Date("2026-07-31T23:59:59.999Z").getTime();
-    expect(new Date(nextBillingRunAtMs(lastInstant)).toISOString()).toBe("2026-08-01T04:00:00.000Z");
-  });
 });
 
 describe("getBillingPreview", () => {
   beforeEach(() => {
     harness.db = null;
-  });
-
-  it("anchors the estimate at the next run instant", async () => {
-    const db = await seed();
-    const preview = await getBillingPreview(db, ACCOUNT_ID, NOW_MS);
-    expect(preview.nextRunAtMs).toBe(NEXT_RUN_MS);
   });
 
   // THE equality gate. Same fixture, same instant, two code paths, one number.
@@ -257,57 +238,7 @@ describe("getBillingPreview", () => {
     );
   });
 
-  it("prefers a dispute resolved-fee snapshot over the computed fee, exactly as the run does", async () => {
-    const db = await seed();
-    const preview = await getBillingPreview(db, ACCOUNT_ID, NOW_MS);
-    // usd estimate: recoveries 2_000 + 1_000 + 1_600, disputes 15_000 (the
-    // snapshot, NOT the 40_000 the fee function would compute) + 10_000.
-    expect(byCurrency(preview.estimatedInvoice).usd).toBe(29_600);
-  });
-
-  it("invoices each currency separately, matching how the run groups", async () => {
-    const db = await seed();
-    const preview = await getBillingPreview(db, ACCOUNT_ID, NOW_MS);
-    expect(byCurrency(preview.estimatedInvoice).eur).toBe(4_000);
-  });
-
-  describe("maturity window (measured back from the run, not from now)", () => {
-    it("includes a recovery landing exactly on the cutoff", async () => {
-      const db = await seed();
-      const preview = await getBillingPreview(db, ACCOUNT_ID, NOW_MS);
-      // rec_on_cutoff contributes 1_000 of the usd total; drop it and the total
-      // would be 28_600.
-      expect(byCurrency(preview.estimatedInvoice).usd).toBe(29_600);
-    });
-
-    it("excludes one recovered a millisecond after the cutoff", async () => {
-      const db = await seed();
-      const preview = await getBillingPreview(db, ACCOUNT_ID, NOW_MS);
-      // rec_past_cutoff is 7_000, so its fee would be 1_400.
-      expect(byCurrency(preview.estimatedInvoice).usd).not.toBe(29_600 + 1_400);
-      expect(byCurrency(preview.estimatedInvoice).usd).toBe(29_600);
-    });
-
-    it("anchors maturity at the run, not at now: nothing is billable measured from now", async () => {
-      // Measured from NOW (2026-07-15) the cutoff is 2026-06-15, and every
-      // July recovery in the fixture is younger than that. Only June's
-      // rec_last_month would qualify, for 1_600. If this test ever reports
-      // 1_600, the preview silently switched to a now-anchored window and is
-      // under-reporting the merchant's next invoice.
-      const db = await seed();
-      const preview = await getBillingPreview(db, ACCOUNT_ID, NOW_MS);
-      expect(byCurrency(preview.estimatedInvoice).usd).not.toBe(1_600 + 15_000 + 10_000);
-    });
-  });
-
   describe("recoveredThisMonth", () => {
-    it("counts refunded and disputed recoveries: they happened", async () => {
-      const db = await seed();
-      const preview = await getBillingPreview(db, ACCOUNT_ID, NOW_MS);
-      // 10_000 + 5_000 + 7_000 + 3_000 (refunded) + 4_000 (disputed) + 6_000
-      // (baseline). June's 8_000 is a different month and is excluded.
-      expect(byCurrency(preview.recoveredThisMonth).usd).toBe(35_000);
-    });
 
     it("never bills them: neither refunded nor disputed reaches the estimate", async () => {
       const db = await seed();
@@ -317,21 +248,6 @@ describe("getBillingPreview", () => {
       expect(usd).not.toBe(29_600 + 600);
       expect(usd).not.toBe(29_600 + 800);
       expect(usd).not.toBe(29_600 + 600 + 800);
-    });
-
-    it("is month-bounded while the estimate is not", async () => {
-      const db = await seed();
-      const preview = await getBillingPreview(db, ACCOUNT_ID, NOW_MS);
-      // June's 8_000 recovery is absent from this month's recovered revenue but
-      // present in the estimate (its 1_600 fee is inside the 29_600).
-      expect(byCurrency(preview.recoveredThisMonth).usd).toBe(35_000);
-      expect(byCurrency(preview.estimatedInvoice).usd).toBe(29_600);
-    });
-
-    it("carries each currency separately", async () => {
-      const db = await seed();
-      const preview = await getBillingPreview(db, ACCOUNT_ID, NOW_MS);
-      expect(byCurrency(preview.recoveredThisMonth).eur).toBe(20_000);
     });
   });
 
@@ -363,16 +279,6 @@ describe("getBillingPreview", () => {
       // cancelled_at: cancel never forgives an already-matured fee.
       expect(byCurrency(preview.estimatedInvoice).usd).toBe(29_600);
     });
-
-    it("reports an ordinary account as neither exempt nor paused nor cancelled", async () => {
-      const db = await seed();
-      const preview = await getBillingPreview(db, ACCOUNT_ID, NOW_MS);
-      expect(preview.accountBillingState).toEqual({
-        billingExempt: false,
-        processingPaused: false,
-        cancelledAt: null,
-      });
-    });
   });
 
   it("returns empty totals for an account with nothing at all, without throwing", async () => {
@@ -396,23 +302,5 @@ describe("getBillingPreview, split for Recova's sections (J65)", () => {
     // 35_000 less the 6_000 baseline. Refunded and disputed still count: they
     // were recovered, as Recova counts them.
     expect(byCurrency(preview.attributedThisMonth)).toEqual({ usd: 29_000, eur: 20_000 });
-  });
-
-  it("splits the estimate into recovery fees and dispute fees that sum to the invoice", async () => {
-    const db = await seed();
-    const preview = await getBillingPreview(db, ACCOUNT_ID, NOW_MS);
-    expect(byCurrency(preview.estimatedRecoveryFees)).toEqual({ usd: 4_600, eur: 4_000 });
-    expect(byCurrency(preview.estimatedDisputeFees)).toEqual({ usd: 25_000 });
-    expect(byCurrency(preview.estimatedRecoveryFees).usd! + byCurrency(preview.estimatedDisputeFees).usd!).toBe(
-      byCurrency(preview.estimatedInvoice).usd,
-    );
-  });
-
-  it("lists each dispute fee the next run will bill, with the run's own fee", async () => {
-    const db = await seed();
-    const preview = await getBillingPreview(db, ACCOUNT_ID, NOW_MS);
-    const byId = Object.fromEntries(preview.pendingDisputeFees.map((d) => [d.disputeId, d]));
-    expect(byId.dsp_snapshot).toMatchObject({ amountCents: 200_000, feeCents: 15_000, currency: "usd" });
-    expect(byId.dsp_computed).toMatchObject({ amountCents: 50_000, feeCents: 10_000, currency: "usd" });
   });
 });

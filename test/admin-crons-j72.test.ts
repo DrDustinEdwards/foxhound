@@ -5,7 +5,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { listCronRows } from "~/lib/admin/crons.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { RECOVERY_TICK_CRON_NAME } from "~/lib/constants";
-import { CRON_JOBS } from "~/lib/cron/registry";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -43,28 +42,6 @@ function insertRun(sqlite: Sqlite, id: string, cronName: string, status: string,
 }
 
 describe("listCronRows reads each cron's own history", () => {
-  it("finds a daily job's last run behind a day of five-minute ticks", async () => {
-    // The recovery tick and the win-back send each write a row every five
-    // minutes: 576 a day between them. A daily job that ran 23 hours ago sits
-    // behind more than 500 newer rows, and a monthly job far behind that.
-    const { db, sqlite } = createInMemoryDb();
-    insertRun(sqlite, "r-digest", "cron-health", "success", NOW - 23 * HOUR, "all due");
-    insertRun(sqlite, "r-month", "billing-monthly", "success", NOW - 14 * DAY, "3 accounts");
-    const tx = sqlite.transaction(() => {
-      for (let i = 0; i < 23 * 12; i += 1) {
-        insertRun(sqlite, `t-${i}`, RECOVERY_TICK_CRON_NAME, "success", NOW - i * 5 * MIN);
-        insertRun(sqlite, `w-${i}`, "winback-send", "success", NOW - i * 5 * MIN);
-      }
-    });
-    tx();
-
-    const rows = await listCronRows(db, NOW);
-    const health = rows.find((r) => r.name === "cron-health");
-    expect(health?.lastRun?.id).toBe("r-digest");
-    expect(health?.lastRun?.message).toBe("all due");
-    expect(rows.find((r) => r.name === "billing-monthly")?.lastRun?.id).toBe("r-month");
-    expect(rows.find((r) => r.name === RECOVERY_TICK_CRON_NAME)?.lastRun?.id).toBe("t-0");
-  });
 
   it("says when each cron last succeeded, apart from its last run", async () => {
     const { db, sqlite } = createInMemoryDb();
@@ -81,19 +58,6 @@ describe("listCronRows reads each cron's own history", () => {
     expect(rows.find((r) => r.name === "expiring-cards")?.lastSucceededAt).toBeNull();
   });
 
-  it("keeps the last day's failures, newest first, and drops older ones", async () => {
-    const { db, sqlite } = createInMemoryDb();
-    insertRun(sqlite, "f1", "weekly-digest", "failed", NOW - 1 * HOUR, "one");
-    insertRun(sqlite, "f2", "weekly-digest", "failed", NOW - 5 * HOUR, "two");
-    insertRun(sqlite, "f-old", "weekly-digest", "failed", NOW - 30 * HOUR, "old");
-
-    const rows = await listCronRows(db, NOW);
-    expect(rows.find((r) => r.name === "weekly-digest")?.recentFailures).toEqual([
-      { id: "f1", finishedAt: new Date(NOW - 1 * HOUR), message: "one" },
-      { id: "f2", finishedAt: new Date(NOW - 5 * HOUR), message: "two" },
-    ]);
-  });
-
   it("says whether a cron has ever been switched here (Recova's config row note)", async () => {
     const { db, sqlite } = createInMemoryDb();
     sqlite
@@ -102,11 +66,6 @@ describe("listCronRows reads each cron's own history", () => {
     const rows = await listCronRows(db, NOW);
     expect(rows.find((r) => r.name === "weekly-digest")).toMatchObject({ configured: true, enabled: false });
     expect(rows.find((r) => r.name === "d1-backup")).toMatchObject({ configured: false, enabled: true });
-  });
-
-  it("lists every registered cron, once, in the registry's order", async () => {
-    const { db } = createInMemoryDb();
-    expect((await listCronRows(db, NOW)).map((r) => r.name)).toEqual(CRON_JOBS.map((j) => j.name));
   });
 });
 

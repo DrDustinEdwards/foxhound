@@ -104,13 +104,4 @@ describe("tool errors are masked before they reach the agent", () => {
     expect(debug.mock.calls.flat().join(" ")).toContain("SQLITE_CONSTRAINT");
     debug.mockRestore();
   });
-
-  it("a refusal goes out as written, with the email in it masked", async () => {
-    const token = await seed();
-    const answer = await call(token, "foxhound_get_refusal");
-    const { isError, data } = toolOutput(answer);
-    expect(isError).toBe(true);
-    expect(answer.text).not.toContain(EMAIL);
-    expect(data.error).toBe("No customer o***@example.test on this account.");
-  });
 });

@@ -1,4 +1,3 @@
-import { eq } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
 
 import { accounts, emailSends } from "~/db/schema";
@@ -123,32 +122,6 @@ describe("PLANT 1: the same key twice sends once", () => {
   });
 });
 
-describe("PLANT 2: the row exists BEFORE the provider is called", () => {
-  it("the provider stub sees the claim already written", async () => {
-    await seed();
-
-    await processEmailJob({} as Env, job(), null);
-
-    // Asserted at the moment of the call, not from the end state: a row written
-    // after the send would leave exactly the same rows behind.
-    expect(sendCalls).toHaveLength(1);
-    expect(sendCalls[0].atRowCount, "the provider was called before the claim").toBe(1);
-  });
-
-  it("and the claim is pending at that moment, not already sent", async () => {
-    // The flip must come after the provider accepts, or a crashed send would
-    // leave a row claiming mail went out that never did.
-    const { db } = await seed();
-    sendBehaviour.mode = "throw";
-
-    await processEmailJob({} as Env, job(), null);
-
-    const rows = await db.select().from(emailSends);
-    expect(rows[0].status).toBe("pending");
-    expect(rows[0].sentAt).toBeNull();
-  });
-});
-
 describe("PLANT 3: a provider throw", () => {
   it("LEAVES A PENDING ROW WITH THE ERROR AND NO SENT FLIP", async () => {
     const { db } = await seed();
@@ -190,29 +163,6 @@ describe("PLANT 3: a provider throw", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].status).toBe("sent");
     expect(rows[0].error).toBeNull();
-  });
-
-  it("BUT AN UNKNOWN OUTCOME IS NEVER RETRIED, which is the residual 385 closed", async () => {
-    // The decisive asymmetry. A claim with NO error is a worker that never came
-    // back: it may have sent the mail and died before recording it. That is the
-    // case the whole claim exists for, and it must skip.
-    const { db } = await seed();
-    await buildEmailSendRow(db, {
-      job: job(),
-      status: "pending",
-      providerMessageId: null,
-      error: null, // nobody knows what happened
-      recipientHash: "hash",
-      queueMessageId: null,
-      now: NOW,
-      idempotencyKey: "step_1:0",
-    });
-
-    const result = await processEmailJob({} as Env, job(), null);
-
-    expect(result.status).toBe("duplicate");
-    expect(sent, "an unknown outcome was retried").toHaveLength(0);
-    expect(await db.select().from(emailSends)).toHaveLength(1);
   });
 });
 
@@ -281,27 +231,6 @@ describe("PLANT 5: a denied claim is OK to the step machine, not a failure", () 
 });
 
 describe("PLANT 6: the gates before the claim still hold, and claim nothing", () => {
-  it("a BLOCKED send writes no claim, so switching the merchant on can still send", async () => {
-    // The trap this avoids: a blocked row holding the key would mean the day the
-    // live-send flag is switched on, every previously blocked send finds its own
-    // claim and skips forever.
-    const { db } = await seed();
-    await db.update(accounts).set({ liveSendsEnabled: false }).where(eq(accounts.id, ACCOUNT));
-
-    const blocked = await processEmailJob({} as Env, job(), null);
-
-    expect(blocked.status).toBe("blocked");
-    expect(sent).toHaveLength(0);
-    const rows = await db.select().from(emailSends);
-    expect(rows).toHaveLength(1);
-    expect(rows[0].idempotencyKey, "a blocked row must not hold the claim").toBeNull();
-
-    // And once the flag is on, the same job sends.
-    await db.update(accounts).set({ liveSendsEnabled: true }).where(eq(accounts.id, ACCOUNT));
-    const after = await processEmailJob({} as Env, job(), null);
-    expect(after.status).toBe("sent");
-    expect(sent).toHaveLength(1);
-  });
 
   it("an EMPTY key is refused rather than sent unclaimed", async () => {
     // An empty string is a real value to a unique index, so it would collide

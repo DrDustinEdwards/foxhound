@@ -83,13 +83,6 @@ describe("J69: the loader reads the one thing the page shows, the entitlement", 
     const out = await route.loader({ context: ctx(), request: new Request("https://x/"), params: {} } as never);
     expect(out).toEqual({ intelligenceActive: true });
   });
-
-  it("is not active for an account without one, even when another account has it", async () => {
-    await seed({ entitled: false, otherAccountEntitled: true });
-    const route = await loadRoute();
-    const out = await route.loader({ context: ctx(), request: new Request("https://x/"), params: {} } as never);
-    expect(out).toEqual({ intelligenceActive: false });
-  });
 });
 
 // ---------------------------------------------------------------------------

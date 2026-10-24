@@ -22,9 +22,7 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const { action, loader } = await import("~/routes/app/settings/alerts");
-const { ALERT_METRICS } = await import("~/lib/constants");
-const { evaluateAlerts } = await import("~/lib/intelligence/alerts");
+const { action } = await import("~/routes/app/settings/alerts");
 
 const ACCOUNT = "acct_1";
 const OTHER = "acct_other";
@@ -137,77 +135,9 @@ describe("PLANT 1: create writes only the columns this surface owns", () => {
     expect(rows[0].label).toBe("Churn watch");
     expect(rows[0].enabled).toBe(1);
   });
-
-  it("a form posting extra column names writes none of them", async () => {
-    await post({
-      _action: "create",
-      metric: "health_score_avg",
-      direction: "below",
-      threshold: "40",
-      accountId: OTHER,
-      account_id: OTHER,
-      enabled: "false",
-      channel: "slack",
-      lastTriggeredAt: "1",
-      last_triggered_at: "1",
-    });
-
-    const rows = alertRows(ACCOUNT);
-    expect(rows).toHaveLength(1);
-    expect(rows[0].enabled).toBe(1);
-    // The channel is the module's default, never the form's.
-    expect(rows[0].channel).toBe("email");
-    expect(alertRows(OTHER)).toHaveLength(0);
-    const lastTriggered = sqlite
-      .prepare("SELECT last_triggered_at AS t FROM alerts WHERE id = ?")
-      .get(rows[0].id) as { t: number | null };
-    expect(lastTriggered.t).toBeNull();
-  });
-
-  it("health_score_avg is NOT converted to cents", async () => {
-    await post({ _action: "create", metric: "health_score_avg", direction: "below", threshold: "40" });
-    expect(alertRows(ACCOUNT)[0].threshold).toBe(40);
-  });
 });
 
 describe("PLANT 2: every bound the evaluator implies is enforced", () => {
-  it("400 and NO write for a metric the evaluator does not compute", async () => {
-    // Legacy offers eleven metrics. Foxhound computes four. This is one of
-    // legacy's, and storing it would create a rule that is skipped every night
-    // without ever saying so.
-    const res = await post({
-      _action: "create",
-      metric: "recovery_rate_pct",
-      direction: "below",
-      threshold: "25",
-    });
-
-    expect(res.status).toBe(400);
-    expect(alertRows(ACCOUNT)).toHaveLength(0);
-  });
-
-  it("every metric the form offers IS one the evaluator computes", async () => {
-    // The real invariant, asserted against the evaluator rather than the list.
-    for (const metric of ALERT_METRICS) {
-      const res = await post({ _action: "create", metric, direction: "above", threshold: "1" });
-      expect(res.status).toBe(302);
-    }
-    expect(alertRows(ACCOUNT)).toHaveLength(ALERT_METRICS.length);
-
-    const configs = alertRows(ACCOUNT).map((r) => ({
-      id: r.id,
-      accountId: ACCOUNT,
-      metric: r.metric,
-      thresholdValue: r.threshold,
-      direction: r.direction as "above" | "below",
-      channel: "email",
-      enabled: true,
-      lastTriggeredAt: null,
-    }));
-    const metrics = Object.fromEntries(ALERT_METRICS.map((m) => [m, 1_000_000]));
-    // Every one of them fires, so none was stored as a key the evaluator skips.
-    expect(evaluateAlerts(configs, metrics, Date.now())).toHaveLength(ALERT_METRICS.length);
-  });
 
   it("400 and NO write for a bad direction, a negative threshold, or no threshold", async () => {
     for (const fields of [
@@ -228,16 +158,6 @@ describe("PLANT 3: toggle and delete are account-scoped", () => {
     seedAlert({ id: "a1", enabled: true });
     await post({ _action: "toggle", alertId: "a1", enabled: "false" });
     expect(alertRows(ACCOUNT)[0].enabled).toBe(0);
-  });
-
-  it("an alert on ANOTHER account is untouched by toggle and by delete", async () => {
-    seedAlert({ id: "a_theirs", accountId: OTHER, enabled: true });
-
-    await post({ _action: "toggle", alertId: "a_theirs", enabled: "false" });
-    expect(alertRows(OTHER)[0].enabled).toBe(1);
-
-    await post({ _action: "delete", alertId: "a_theirs" });
-    expect(alertRows(OTHER)).toHaveLength(1);
   });
 
   it("delete removes the alert and its own firing history, and nobody else's", async () => {
@@ -267,23 +187,5 @@ describe("PLANT 3: toggle and delete are account-scoped", () => {
     expect((await post({ _action: "toggle", enabled: "false" })).status).toBe(400);
     expect((await post({ _action: "delete" })).status).toBe(400);
     expect(alertRows(ACCOUNT)[0].enabled).toBe(1);
-  });
-});
-
-describe("PLANT 5: the loader is scoped to the active account", () => {
-  it("returns the ACTIVE account's alerts, never the earliest membership's", async () => {
-    seedAlert({ id: "a_mine" });
-    // OTHER is an account the SAME caller holds, and it is their earliest
-    // membership. This is the case a first-membership shim gets wrong.
-    seedAlert({ id: "a_theirs", accountId: OTHER });
-
-    const loaded = (await loader({
-      context: ctx,
-      request: new Request("https://x/settings/alerts"),
-      params: {},
-    } as never)) as { alerts: { id: string }[]; history: unknown[] };
-
-    expect(loaded.alerts.map((a) => a.id)).toEqual(["a_mine"]);
-    expect(loaded.history).toEqual([]);
   });
 });

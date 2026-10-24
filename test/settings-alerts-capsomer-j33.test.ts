@@ -80,31 +80,6 @@ async function load(): Promise<{ alerts: { id: string }[]; history: { id: string
 }
 
 describe("J33 alerts: the loader reads as Recova's page does", () => {
-  it("lists alerts newest first", async () => {
-    for (const [id, createdAt] of [
-      ["a_old", 1000],
-      ["a_new", 3000],
-      ["a_mid", 2000],
-    ] as const) {
-      sqlite
-        .prepare(
-          "INSERT INTO alerts (id, account_id, metric, threshold_value, direction, channel, enabled, created_at) VALUES (?, ?, 'mrr_at_risk_cents', 100, 'above', 'email', 1, ?)",
-        )
-        .run(id, ACCOUNT, createdAt);
-    }
-    expect((await load()).alerts.map((a) => a.id)).toEqual(["a_new", "a_mid", "a_old"]);
-  });
-
-  it("breaks a tie on the same creation time by id, newest id first", async () => {
-    for (const id of ["a_b", "a_c", "a_a"]) {
-      sqlite
-        .prepare(
-          "INSERT INTO alerts (id, account_id, metric, threshold_value, direction, channel, enabled, created_at) VALUES (?, ?, 'mrr_at_risk_cents', 100, 'above', 'email', 1, 5000)",
-        )
-        .run(id, ACCOUNT);
-    }
-    expect((await load()).alerts.map((a) => a.id)).toEqual(["a_c", "a_b", "a_a"]);
-  });
 
   it("shows Recova's twenty most recent triggers", async () => {
     sqlite

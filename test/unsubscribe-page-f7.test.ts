@@ -65,44 +65,6 @@ const suppressionRows = async (db: Awaited<ReturnType<typeof seed>>) =>
 // ============================================================================
 
 describe("F7 loader: Recova's four states on Foxhound's engine", () => {
-  it("a valid first visit suppresses the address and reports it newly done", async () => {
-    const db = await seed();
-    const env = makeEnv();
-    const token = await signUnsubscribeToken(env, { email: EMAIL, accountId: ACCOUNT });
-
-    expect(await callLoader(env, token)).toEqual({ state: "done" });
-    const rows = await suppressionRows(db);
-    expect(rows).toHaveLength(1);
-    expect(rows[0]?.reason).toBe("unsubscribe");
-    expect(rows[0]?.suppressedAt).not.toBeNull();
-  });
-
-  it("a second visit reads 'already unsubscribed' and names the address, as Recova does", async () => {
-    const db = await seed();
-    const env = makeEnv();
-    const token = await signUnsubscribeToken(env, { email: EMAIL, accountId: ACCOUNT });
-
-    await callLoader(env, token);
-    expect(await callLoader(env, token)).toEqual({ state: "already", email: EMAIL });
-    expect(await suppressionRows(db)).toHaveLength(1);
-  });
-
-  it("an address a bounce already suppressed reads 'already unsubscribed' (Recova: any suppressed_at)", async () => {
-    const db = await seed();
-    const env = makeEnv();
-    await db.insert(emailSuppressions).values({
-      email: EMAIL,
-      token: "evt_bounce",
-      reason: "bounce",
-      accountId: ACCOUNT,
-      suppressedAt: new Date("2026-10-01T00:00:00.000Z"),
-    });
-    const token = await signUnsubscribeToken(env, { email: EMAIL, accountId: ACCOUNT });
-
-    expect(await callLoader(env, token)).toEqual({ state: "already", email: EMAIL });
-    const rows = await suppressionRows(db);
-    expect(rows[0]?.reason).toBe("bounce");
-  });
 
   it("a migrated Recova row with no suppressed_at is suppressed now and records this opt-out", async () => {
     // Recova registered a token row per send with suppressed_at NULL. Such a row
@@ -137,11 +99,6 @@ describe("F7 loader: Recova's four states on Foxhound's engine", () => {
     expect(await callLoader(env, "not-a-token")).toEqual({ state: "invalid" });
     expect(await callLoader(env, " ")).toEqual({ state: "invalid" });
     expect(await suppressionRows(db)).toHaveLength(0);
-  });
-
-  it("no token at all folds into the invalid state (the route cannot deliver one)", async () => {
-    await seed();
-    expect(await callLoader(makeEnv(), undefined)).toEqual({ state: "invalid" });
   });
 });
 

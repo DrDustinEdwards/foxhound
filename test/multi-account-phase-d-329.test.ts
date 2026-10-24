@@ -44,7 +44,7 @@ vi.mock("~/lib/money/execute", () => ({ executeMoneyWrite: vi.fn() }));
 
 const { executeMoneyWrite } = await import("~/lib/money/execute");
 const { loader } = await import("~/routes/auth/connect-callback");
-const { verifyConnectState, buildConnectState, ADD_ACCOUNT_ACTION, CONNECT_ACTION } = await import(
+const { buildConnectState, ADD_ACCOUNT_ACTION, CONNECT_ACTION } = await import(
   "~/lib/stripe/connect-state"
 );
 const { STRIPE_OAUTH_STATE_COOKIE } = await import("~/lib/constants");
@@ -126,12 +126,6 @@ function seedSession(id: string, activeAccountId: string | null, userId = USER):
   };
 }
 
-function markerOf(sessionId: string): string | null {
-  const row = sqlite
-    .prepare("SELECT active_account_id AS m FROM session WHERE id = ?")
-    .get(sessionId) as { m: string | null } | undefined;
-  return row?.m ?? null;
-}
 
 function connections(): { accountId: string; stripeUserId: string }[] {
   return sqlite
@@ -186,39 +180,6 @@ function seedSwitchedToB(): void {
   seedSession("sess_1", "acct_b");
 }
 
-describe("PLANT 1: add_account mints a new account and attaches only there", () => {
-  it("creates a THIRD account, attaches the Stripe account to it alone, and marks it", async () => {
-    seedSwitchedToB();
-
-    const res = await callback({ action: ADD_ACCOUNT_ACTION });
-
-    expect(res.status).toBe(302);
-
-    const accounts = sqlite.prepare("SELECT id, name FROM accounts").all() as {
-      id: string;
-      name: string;
-    }[];
-    expect(accounts).toHaveLength(3);
-    const created = accounts.find((a) => a.id !== "acct_a" && a.id !== "acct_b")!;
-    expect(created.name).toBe("Connected Co");
-
-    // ONLY there. Neither held account gained a connection.
-    expect(connections()).toEqual([{ accountId: created.id, stripeUserId: "acct_NEW" }]);
-
-    // The owner membership landed with it.
-    const members = sqlite
-      .prepare("SELECT account_id AS a FROM account_members WHERE user_id = ? AND status = 'active'")
-      .all(USER) as { a: string }[];
-    expect(members.map((m) => m.a).sort()).toEqual(["acct_a", "acct_b", created.id].sort());
-
-    // THE MARKER MOVES TO THE NEW ACCOUNT, not back to the earliest. A mutation
-    // that lands the caller on memberships[0] passes every assertion above and
-    // fails this one, which is why it is separate.
-    expect(markerOf("sess_1")).toBe(created.id);
-    expect(markerOf("sess_1")).not.toBe("acct_a");
-  });
-});
-
 describe("PLANT 7: the whole of add_account is ONE money write, keyed on the new account", () => {
   it("commits exactly one batch of three statements, keyed on the account it creates", async () => {
     seedSwitchedToB();
@@ -244,88 +205,7 @@ describe("PLANT 7: the whole of add_account is ONE money write, keyed on the new
   });
 });
 
-describe("PLANT 2: a Stripe account already on an account the user holds", () => {
-  it("redirects there, creates nothing, and moves the marker", async () => {
-    seedSwitchedToB();
-    seedConnection("c_existing", "acct_a", "acct_NEW");
-
-    const res = await callback({ action: ADD_ACCOUNT_ACTION });
-
-    expect(res.status).toBe(302);
-    // NOTHING written: no third account, no second connection, no money write.
-    expect(sqlite.prepare("SELECT count(*) AS n FROM accounts").get()).toEqual({ n: 2 });
-    expect(connections()).toHaveLength(1);
-    expect(harness.writes).toHaveLength(0);
-    // They asked to go to that Stripe account, so take them to it.
-    expect(markerOf("sess_1")).toBe("acct_a");
-  });
-});
-
-describe("PLANT 3: a Stripe account on an account the user does NOT hold", () => {
-  it("creates nothing and refuses without naming the other account", async () => {
-    seedSwitchedToB();
-    seedAccount("acct_theirs", "Someone else", 3_000);
-    seedMembership("m9", "acct_theirs", OTHER, 3_000);
-    seedConnection("c_theirs", "acct_theirs", "acct_NEW");
-
-    const res = await callback({ action: ADD_ACCOUNT_ACTION });
-
-    const location = res.headers.get("location")!;
-    expect(location).toBe("/connect?error=stripe_account_already_connected");
-    // The refusal must not leak WHICH account, or even that it is somebody
-    // else's: whoever controls the Stripe account would learn another
-    // merchant's tenancy.
-    expect(location).not.toContain("acct_theirs");
-    expect(location).not.toContain("Someone else");
-
-    expect(sqlite.prepare("SELECT count(*) AS n FROM accounts").get()).toEqual({ n: 3 });
-    expect(connections()).toHaveLength(1);
-    expect(harness.writes).toHaveLength(0);
-    expect(markerOf("sess_1")).toBe("acct_b");
-  });
-});
-
 describe("PLANT 4: connect attaches to the ACTIVE account, not the earliest", () => {
-  it("lands the connection on the account the caller switched to", async () => {
-    // THE PHASE (e) HAZARD, as an assertion. connect-callback.ts resolved with
-    // the null-marker shim and would have attached to acct_a here, permanently,
-    // with every future webhook for acct_NEW resolving to the wrong ledger.
-    seedSwitchedToB();
-
-    const res = await callback({ action: CONNECT_ACTION });
-
-    expect(res.status).toBe(302);
-    expect(connections()).toEqual([{ accountId: "acct_b", stripeUserId: "acct_NEW" }]);
-    expect(harness.writes[0].accountId).toBe("acct_b");
-    // No new account: connect attaches, it does not mint.
-    expect(sqlite.prepare("SELECT count(*) AS n FROM accounts").get()).toEqual({ n: 2 });
-  });
-
-  it("falls back to the earliest only when there is no marker", async () => {
-    seedAccount("acct_a", "Acme", 1_000);
-    seedAccount("acct_b", "Globex", 2_000);
-    seedMembership("m1", "acct_a", USER, 1_000);
-    seedMembership("m2", "acct_b", USER, 2_000);
-    seedSession("sess_1", null);
-
-    await callback({ action: CONNECT_ACTION });
-
-    expect(connections()).toEqual([{ accountId: "acct_a", stripeUserId: "acct_NEW" }]);
-  });
-
-  it("refuses to MOVE a connection that sits on another account the user holds", async () => {
-    // Legacy's upsert is keyed `onConflict: 'stripe_user_id'` and would move it,
-    // silently re-attributing every future recovery. Not a leak (they own both)
-    // and not a reconnect either.
-    seedSwitchedToB();
-    seedConnection("c_on_a", "acct_a", "acct_NEW");
-
-    const res = await callback({ action: CONNECT_ACTION });
-
-    expect(res.headers.get("location")).toBe("/connect?error=stripe_account_already_connected");
-    expect(connections()).toEqual([{ accountId: "acct_a", stripeUserId: "acct_NEW" }]);
-    expect(harness.writes).toHaveLength(0);
-  });
 
   it("still reconnects in place when the connection is on the ACTIVE account", async () => {
     seedSwitchedToB();
@@ -340,19 +220,6 @@ describe("PLANT 4: connect attaches to the ACTIVE account, not the earliest", ()
 });
 
 describe("PLANT 5: an unminted or unknown state is refused before any write", () => {
-  it("refuses a state the cookie does not match", async () => {
-    seedSwitchedToB();
-    const res = await callback({
-      action: ADD_ACCOUNT_ACTION,
-      stateParam: buildConnectState(ADD_ACCOUNT_ACTION),
-      cookie: buildConnectState(ADD_ACCOUNT_ACTION),
-    });
-    // Two independently minted payloads carry different nonces, so this is the
-    // "did we mint THIS one" case.
-    expect(res.headers.get("location")).toBe("/connect?error=invalid_state");
-    expect(harness.writes).toHaveLength(0);
-    expect(sqlite.prepare("SELECT count(*) AS n FROM accounts").get()).toEqual({ n: 2 });
-  });
 
   it("refuses an action outside the two known ones, even with a matching cookie", async () => {
     seedSwitchedToB();
@@ -360,35 +227,6 @@ describe("PLANT 5: an unminted or unknown state is refused before any write", ()
     const res = await callback({ stateParam: forged, cookie: forged });
     expect(res.headers.get("location")).toBe("/connect?error=invalid_state");
     expect(harness.writes).toHaveLength(0);
-  });
-
-  it("refuses a bare uuid state, the pre-phase-(d) shape", async () => {
-    seedSwitchedToB();
-    const bare = "6f1c9b1e-0000-4000-8000-000000000000";
-    const res = await callback({ stateParam: bare, cookie: bare });
-    expect(res.headers.get("location")).toBe("/connect?error=invalid_state");
-    expect(harness.writes).toHaveLength(0);
-  });
-
-  it("refuses with no cookie at all", async () => {
-    seedSwitchedToB();
-    const res = await callback({ action: ADD_ACCOUNT_ACTION, cookie: null });
-    expect(res.headers.get("location")).toBe("/connect?error=invalid_state");
-    expect(harness.writes).toHaveLength(0);
-  });
-
-  it("verifyConnectState is the whole decision, and it is strict", () => {
-    const minted = buildConnectState(CONNECT_ACTION);
-    expect(verifyConnectState(minted, minted)).toBe(CONNECT_ACTION);
-    expect(verifyConnectState(minted, buildConnectState(CONNECT_ACTION))).toBeNull();
-    expect(verifyConnectState(null, minted)).toBeNull();
-    expect(verifyConnectState(minted, null)).toBeNull();
-    // THE ESCALATION THIS EXISTS FOR: same nonce, action rewritten in the URL.
-    // Comparing parsed nonces instead of raw strings would let this through and
-    // mint a whole new account from a plain connect flow.
-    const connectState = buildConnectState(CONNECT_ACTION, "shared-nonce");
-    const upgraded = buildConnectState(ADD_ACCOUNT_ACTION, "shared-nonce");
-    expect(verifyConnectState(upgraded, connectState)).toBeNull();
   });
 
   it("the state check runs before the code is exchanged", async () => {

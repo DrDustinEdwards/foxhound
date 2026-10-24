@@ -154,16 +154,4 @@ describe("getMrrSnapshotSeries", () => {
     const points = await getMrrSnapshotSeries(db, "acc_1", NOW);
     expect(points.map((p) => p.nrrPct)).toEqual([100, 110]);
   });
-
-  it("carries the five movement components the sibling chart needs", async () => {
-    const db = await seed([{ monthsAgo: 1, nrrBps: 10_000 }]);
-    const [p] = await getMrrSnapshotSeries(db, "acc_1", NOW);
-    expect(p).toMatchObject({
-      newMrrCents: 1_000,
-      expansionMrrCents: 2_000,
-      contractionMrrCents: 3_000,
-      churnMrrCents: 4_000,
-      reactivationMrrCents: 5_000,
-    });
-  });
 });

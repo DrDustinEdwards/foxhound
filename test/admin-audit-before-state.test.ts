@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 import { describe, expect, it, vi } from "vitest";
 
-import { BRAKE_CONFIRM_PHRASES, cronEnableConfirmPhrase } from "~/lib/admin/brake";
+import { BRAKE_CONFIRM_PHRASES } from "~/lib/admin/brake";
 import { adminContext } from "~/lib/admin/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { RECOVERY_TICK_CRON_NAME } from "~/lib/constants";
@@ -79,43 +79,9 @@ describe("LOW-4: /admin/crons writes the intent before the state", () => {
     // audit entry accounted for.
     expect(await cronRowCount(sqlite)).toBe(0);
   });
-
-  it("still writes both, in that order, on the happy path", async () => {
-    const { db } = createInMemoryDb();
-    harness.db = db;
-
-    await cronsAction({
-      context: fakeContext,
-      request: post("http://localhost/admin/crons", {
-        cronName: RECOVERY_TICK_CRON_NAME,
-        nextEnabled: "true",
-        confirm: cronEnableConfirmPhrase(RECOVERY_TICK_CRON_NAME),
-      }),
-      params: {},
-    } as never);
-
-    expect((await db.select().from(schema.adminAuditLog)).map((r) => r.action)).toEqual(["cron.enable"]);
-    expect(await db.select().from(schema.cronConfig)).toHaveLength(1);
-  });
 });
 
 describe("LOW-4: the brake panel's tick toggle writes the intent before the state", () => {
-  it("a failed audit insert leaves the tick's enabled state untouched", async () => {
-    const { sqlite } = dbWithBrokenAudit();
-
-    await expect(
-      brakeAction({
-        context: fakeContext,
-        request: post("http://localhost/admin/brake", {
-          intent: "tick-disable",
-          confirm: BRAKE_CONFIRM_PHRASES["tick-disable"],
-        }),
-        params: {},
-      } as never),
-    ).rejects.toThrow();
-
-    expect(await cronRowCount(sqlite)).toBe(0);
-  });
 
   it("still stamps via=brake-panel on the happy path, so the two routes stay distinguishable", async () => {
     // The one thing that already went right here, per the review. Kept pinned

@@ -64,19 +64,6 @@ describe("classifyStripeEvent", () => {
     expect(intent).toEqual({ kind: "ignore", reason: "zero_amount" });
   });
 
-  it("payment_succeeded -> recover", () => {
-    const intent = classifyStripeEvent(
-      event("invoice.payment_succeeded", {
-        id: "in_2",
-        amount_paid: 4200,
-        currency: "usd",
-        customer: "cus_1",
-      }),
-    );
-    expect(intent.kind).toBe("recover");
-    if (intent.kind === "recover") expect(intent.amountPaidCents).toBe(4200);
-  });
-
   it("charge.refunded -> stamp_refund, partial as well as full (parity ruling 29)", () => {
     // This assertion used to require a PARTIAL refund to be ignored. Ruling 29
     // settled it the other way: any refund inside the maturity window

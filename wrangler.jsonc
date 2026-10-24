@@ -114,6 +114,12 @@
     {
       "binding": "BACKUPS",
       "bucket_name": "foxhound-backups"
+    },
+    {
+      // J07: merchant dispute evidence files (Recova's recova-dispute-evidence).
+      // Bucket created by Dustin 2026-10-18.
+      "binding": "EVIDENCE",
+      "bucket_name": "foxhound-dispute-evidence"
     }
   ],
   // NO KV BINDING, deliberately. The APP_KV binding was REMOVED 2026-08-15 by

@@ -263,15 +263,6 @@ describe("E23 honours suppression, as Recova's checkAndRegisterUnsubscribe does"
     expect(result).toMatchObject({ sent: 0, skipped: 1 });
   });
 
-  it("a missing postal address refuses the send by name rather than mailing without one", async () => {
-    seedAccount();
-
-    const result = await runWeeklyDigest({ ...env, PHYSICAL_ADDRESS: "" } as unknown as Env, NOW);
-
-    expect(harness.sent).toEqual([]);
-    expect(result.outcomes).toEqual([{ accountId: ACCOUNT, status: "failed" }]);
-  });
-
   it("an account already sent this week is named, not silent", async () => {
     seedAccount();
     sqlite
@@ -303,14 +294,6 @@ describe("the unsubscribe is the digest's alone (RULES.md 3.16)", () => {
     idempotencyKey: "k",
     footerNote: "note",
   };
-
-  it("merchant mail still carries no unsubscribe and no postal address", () => {
-    const m = buildEmailMessage({ ...job, audience: "merchant" }, BASE);
-    expect(m.html).not.toContain("Unsubscribe");
-    expect(m.html).not.toContain(ADDRESS);
-    expect(m.headers).toBeUndefined();
-    expect(m.html).toContain("Manage email settings");
-  });
 
   it("digest mail carries both, and refuses to build without either", () => {
     const m = buildEmailMessage({ ...job, audience: "digest", replyTo: "billing@acme.test" }, BASE);

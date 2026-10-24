@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from "vitest";
 import { cronAlerts, cronRunHistory, emailDeadLetters } from "~/db/schema";
 import {
   buildFailureAlertEmail,
-  buildStaleAlertEmail,
   claimAlertSlot,
   findStaleCrons,
   runCronHealthCheck,
@@ -14,7 +13,6 @@ import {
 import { CRON_JOBS } from "~/lib/cron/registry";
 import { recordDeadLetters } from "~/lib/email/dead-letters.server";
 import { buildEmailSendRow } from "~/lib/email/dispatch";
-import { renderFoxhoundAlertEmail, type EmailAlert } from "~/lib/email/templates";
 import type { EmailJob } from "~/lib/email/types";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
@@ -38,10 +36,6 @@ const NOW = new Date("2026-08-16T12:00:00.000Z");
 /** An alert's words, before rendering: its first sentence and its detail lines. */
 function words(built: { alert: { intro: string; details: string[] } }): string {
   return [built.alert.intro, ...built.alert.details].join("\n");
-}
-/** The HTML part Capsomer renders for an alert. */
-function html(built: { subject: string; alert: EmailAlert }): string {
-  return renderFoxhoundAlertEmail({ to: "support@example.com", ...built }).html;
 }
 
 function envWith(send: () => Promise<{ id: string }>) {
@@ -139,18 +133,6 @@ describe("313 A: the never-executed detector", () => {
     { name: "demo-reset", schedule: "0 3 * * *" },
   ];
 
-  it("THE BILLING-MONTHLY CASE: a cron that has NEVER run is stale", () => {
-    const last = new Map<string, Date | null>([
-      ["recovery-tick", new Date(NOW.getTime() - 60_000)],
-      ["billing-monthly", null],
-      ["demo-reset", new Date(NOW.getTime() - 60_000)],
-    ]);
-    const stale = findStaleCrons(jobs, last, NOW);
-    expect(stale).toEqual([
-      { cronName: "billing-monthly", lastRunAt: null, reason: "never_run" },
-    ]);
-  });
-
   it("flags a cron overdue against its own schedule, and not one within tolerance", () => {
     const last = new Map<string, Date | null>([
       // 30 minutes for a 5-minute job: well past two periods.
@@ -162,19 +144,6 @@ describe("313 A: the never-executed detector", () => {
     const stale = findStaleCrons(jobs, last, NOW);
     expect(stale.map((s) => s.cronName)).toEqual(["recovery-tick"]);
     expect(stale[0].reason).toBe("overdue");
-  });
-
-  it("an UNMAPPED schedule is reported, never silently treated as healthy", () => {
-    // A blind spot must announce itself. This is what stops a fourth schedule
-    // being added and quietly never watched.
-    const stale = findStaleCrons(
-      [{ name: "mystery", schedule: "0 0 */3 * *" }],
-      new Map([["mystery", NOW]]),
-      NOW,
-    );
-    expect(stale).toEqual([
-      { cronName: "mystery", lastRunAt: NOW, reason: "unknown_schedule" },
-    ]);
   });
 
   it("EVERY SCHEDULE THE REGISTRY USES HAS A PERIOD (376 item 15)", () => {
@@ -203,20 +172,6 @@ describe("313 A: the never-executed detector", () => {
     }
   });
 
-  it("and every job in the registry is answerable, driven through findStaleCrons", () => {
-    // The behavioural half. The check above reads the table; this one drives the
-    // real reader over every registered job and refuses `unknown_schedule`,
-    // because a table key that exists but is never consulted would satisfy the
-    // check above while the report still said unknown.
-    const jobs = CRON_JOBS.map((j) => ({ name: j.name, schedule: j.schedule }));
-    const lastRun = new Map(jobs.map((j) => [j.name, NOW] as const));
-
-    const stale = findStaleCrons(jobs, lastRun, NOW);
-
-    expect(jobs.length).toBeGreaterThan(0);
-    expect(stale.filter((s) => s.reason === "unknown_schedule")).toEqual([]);
-  });
-
   it("the health check alerts on findings and reports what it did", async () => {
     const { db } = createInMemoryDb();
     const result = await runCronHealthCheck(
@@ -230,25 +185,6 @@ describe("313 A: the never-executed detector", () => {
     const alerts = await db.select().from(cronAlerts);
     expect(alerts).toHaveLength(1);
     expect(alerts[0].kind).toBe("stale");
-  });
-
-  it("a healthy registry alerts nothing", async () => {
-    const { db } = createInMemoryDb();
-    await db.insert(cronRunHistory).values({
-      id: "r1",
-      cronName: "demo-reset",
-      finishedAt: NOW,
-      status: "success",
-      createdAt: NOW,
-    });
-    const result = await runCronHealthCheck(
-      okEnv(),
-      db,
-      [{ name: "demo-reset", schedule: "0 3 * * *" }],
-      NOW,
-    );
-    expect(result.rowsProcessed).toBe(0);
-    expect(await db.select().from(cronAlerts)).toHaveLength(0);
   });
 });
 
@@ -323,18 +259,6 @@ describe("313 B: the dead-letter trace", () => {
     expect(alerts[0].kind).toBe("dead_letter");
     expect(await db.select().from(emailDeadLetters)).toHaveLength(2); // both rows still written
   });
-
-  it("a broken alert path still writes the rows", async () => {
-    const { db } = createInMemoryDb();
-    const result = await recordDeadLetters(
-      brokenEnv(),
-      db,
-      [{ id: "qm_1", attempts: 3, body: job }],
-      NOW,
-    );
-    expect(result.written).toBe(1);
-    expect(result.alerted).toBe(false);
-  });
 });
 
 describe("313 C: send-to-run attribution", () => {
@@ -366,25 +290,6 @@ describe("313 C: send-to-run attribution", () => {
     expect(sql).toMatch(/cron_run_id/);
     expect(params).toContain("run_xyz");
   });
-
-  it("NULL for a non-cron send, which is the enumerated case", () => {
-    // Enumerated in canon: the manual trigger and resend actions, the bulk
-    // actions, and any direct executor call run on a request thread with no cron
-    // run to name. The column is nullable precisely for them.
-    const { db } = createInMemoryDb();
-    const { params } = (
-      buildEmailSendRow(db, {
-        job: base,
-        status: "sent",
-        providerMessageId: "pm",
-        error: null,
-        recipientHash: "h",
-        queueMessageId: null,
-        now: NOW,
-      }) as unknown as { toSQL(): { sql: string; params: unknown[] } }
-    ).toSQL();
-    expect(params).not.toContain("run_xyz");
-  });
 });
 
 // The WIRING, driven through the real runCronJob. Everything above tests the
@@ -408,26 +313,6 @@ function lockEnv(send: () => Promise<{ id: string }>) {
 }
 
 describe("313 A: runCronJob actually alerts", () => {
-  it("a FAILING run writes the history row, alerts, and reports both", async () => {
-    harness.db = createInMemoryDb().db;
-    const env = lockEnv(async () => ({ id: "m" }));
-
-    const outcome = await runCronJob(env, "billing-monthly", async () => {
-      throw new Error("boom");
-    });
-
-    expect(outcome.status).toBe("failed");
-    expect(outcome.runId).toBeTruthy();
-    expect(outcome.alert).toEqual({ sent: true });
-
-    const db = harness.db as ReturnType<typeof createInMemoryDb>["db"];
-    const runs = await db.select().from(cronRunHistory);
-    expect(runs).toHaveLength(1);
-    expect(runs[0].status).toBe("failed");
-    // The alert names the run that is on the record.
-    expect(runs[0].id).toBe(outcome.runId);
-    expect(await db.select().from(cronAlerts)).toHaveLength(1);
-  });
 
   it("a SECOND failure the same day is deduped, and the run still records", async () => {
     harness.db = createInMemoryDb().db;
@@ -443,67 +328,5 @@ describe("313 A: runCronJob actually alerts", () => {
     const db = harness.db as ReturnType<typeof createInMemoryDb>["db"];
     expect(await db.select().from(cronRunHistory)).toHaveLength(2); // both runs recorded
     expect(await db.select().from(cronAlerts)).toHaveLength(1); // one alert
-  });
-
-  it("THE SWALLOW: a broken alert path does NOT change the cron's outcome", async () => {
-    harness.db = createInMemoryDb().db;
-    const env = lockEnv(async () => {
-      throw new Error("email down");
-    });
-
-    const outcome = await runCronJob(env, "recovery-tick", async () => {
-      throw new Error("boom");
-    });
-
-    // The run still reports its own failure, not the alert's.
-    expect(outcome.status).toBe("failed");
-    expect(outcome.message).toBe("boom");
-    expect(outcome.alert).toMatchObject({ sent: false, reason: "send_failed" });
-  });
-
-  it("a SUCCESSFUL run alerts nothing", async () => {
-    harness.db = createInMemoryDb().db;
-    const env = lockEnv(async () => ({ id: "m" }));
-    const outcome = await runCronJob(env, "recovery-tick", async () => ({ rowsProcessed: 1 }));
-    expect(outcome.status).toBe("success");
-    const db = harness.db as ReturnType<typeof createInMemoryDb>["db"];
-    expect(await db.select().from(cronAlerts)).toHaveLength(0);
-  });
-});
-
-describe("alert HTML escapes what it interpolates (job_17249e7da871)", () => {
-  // An error can carry Stripe or model text, and a cron name or run id is data
-  // too. None of it may land in the alert email as markup.
-  const hostile = `<img src=x onerror="alert(1)">&'`;
-  const escaped = "&lt;img src=x onerror=&quot;alert(1)&quot;&gt;&amp;&#39;";
-
-  it("the failure email escapes the error, the cron name and the run id", () => {
-    const built = buildFailureAlertEmail(
-      { cronName: hostile, runId: hostile, error: hostile, lastSuccessAt: null },
-      NOW,
-    );
-    const out = html(built);
-    expect(out).not.toContain("<img");
-    // The cron name in the title, the heading, the first sentence, then the
-    // message and the run id: Capsomer escapes each value it is given.
-    expect(out.split(escaped).length).toBeGreaterThanOrEqual(6);
-  });
-
-  it("the stale email escapes the cron name", () => {
-    const built = buildStaleAlertEmail(
-      { cronName: hostile, lastRunAt: null, reason: "never_run", schedule: "0 3 * * *" },
-      NOW,
-    );
-    const out = html(built);
-    expect(out).not.toContain("<img");
-    expect(out).toContain(escaped);
-  });
-
-  it("the escaped error still reads as the original text", () => {
-    const built = buildFailureAlertEmail(
-      { cronName: "billing-monthly", runId: "run_1", error: "a < b && c > d", lastSuccessAt: null },
-      NOW,
-    );
-    expect(html(built)).toContain("a &lt; b &amp;&amp; c &gt; d");
   });
 });

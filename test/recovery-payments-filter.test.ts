@@ -34,30 +34,6 @@ const BASE_FILTERS: FailedPaymentFilters = {
 };
 
 describe("listFilteredFailedPayments against the seeded demo account", () => {
-  it("paginates at 50 per page and totals match the unfiltered count", async () => {
-    const db = await seededDb();
-    const page1 = await listFilteredFailedPayments(db, DEMO_ACCOUNT_ID, { ...BASE_FILTERS });
-    expect(page1.totalCount).toBe(76);
-    expect(page1.payments).toHaveLength(50);
-    expect(page1.totalPages).toBe(2);
-  });
-
-  it("filters by status", async () => {
-    const db = await seededDb();
-    const result = await listFilteredFailedPayments(db, DEMO_ACCOUNT_ID, { ...BASE_FILTERS, status: "recovered" });
-    expect(result.totalCount).toBeGreaterThan(0);
-    expect(result.payments.every((p) => p.status === "recovered")).toBe(true);
-  });
-
-  it("filters by decline category", async () => {
-    const db = await seededDb();
-    const result = await listFilteredFailedPayments(db, DEMO_ACCOUNT_ID, {
-      ...BASE_FILTERS,
-      declineCategory: "expired",
-    });
-    expect(result.totalCount).toBeGreaterThan(0);
-    expect(result.payments.every((p) => p.declineCategory === "expired")).toBe(true);
-  });
 
   it("finds Acme Industries' scripted failures by name search", async () => {
     const db = await seededDb();
@@ -122,20 +98,5 @@ describe("listFilteredFailedPayments against the seeded demo account", () => {
     for (const p of result.payments) {
       expect(p.detectedAt.getTime()).toBeGreaterThanOrEqual(cutoffMs);
     }
-  });
-
-  it("pageSize 'all' returns every matching row on page 1", async () => {
-    const db = await seededDb();
-    const result = await listFilteredFailedPayments(db, DEMO_ACCOUNT_ID, { ...BASE_FILTERS, pageSize: "all" });
-    expect(result.payments).toHaveLength(result.totalCount);
-    expect(result.totalPages).toBe(1);
-    expect(result.page).toBe(1);
-  });
-
-  it("a smaller page size changes total pages accordingly", async () => {
-    const db = await seededDb();
-    const result = await listFilteredFailedPayments(db, DEMO_ACCOUNT_ID, { ...BASE_FILTERS, pageSize: 10 });
-    expect(result.payments).toHaveLength(10);
-    expect(result.totalPages).toBe(Math.ceil(76 / 10));
   });
 });

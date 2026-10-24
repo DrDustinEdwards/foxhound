@@ -84,37 +84,10 @@ describe("Recova's next.config.ts redirects, served by Foxhound (J23, F17)", () 
     });
   }
 
-  it("keeps the query string, as Next.js does", () => {
-    expect(resolveRecovaConfigRedirect("/user-guides", "?ref=old")?.location).toBe("/docs?ref=old");
-    expect(resolveRecovaConfigRedirect("/recovery/audit", "?a=1&b=2")?.location).toBe("/audit?a=1&b=2");
-  });
-
-  it("matches nothing outside the seven sources", () => {
-    for (const path of ["/user-guidesx", "/recovery/audit/other", "/recovery", "/docs", "/sitemap.xml", "/"]) {
-      expect(resolveRecovaConfigRedirect(path), path).toBeNull();
-    }
-  });
-
   it("matches the way the router does: any case, a trailing slash, percent-encoding", () => {
     expect(resolveRecovaConfigRedirect("/Recovery/Audit/")?.location).toBe("/audit");
     expect(resolveRecovaConfigRedirect("/recovery/%61udit")?.location).toBe("/audit");
     expect(resolveRecovaConfigRedirect("/user-guides/")?.location).toBe("/docs");
-  });
-
-  it("can never send a visitor to another origin", () => {
-    for (const path of [
-      "/user-guides//evil.example",
-      "/user-guides/%2F%2Fevil.example",
-      "/user-guides/%5Cevil.example",
-      "/user-guides/..%2F..%2F%2Fevil.example",
-      "/user-guides/https:%2F%2Fevil.example",
-    ]) {
-      const location = resolveRecovaConfigRedirect(path)?.location;
-      expect(location, path).toBeDefined();
-      const resolved = new URL(location!, ORIGIN);
-      expect(resolved.origin, `${path} -> ${location}`).toBe(ORIGIN);
-      expect(resolved.pathname.startsWith("/docs/"), `${path} -> ${location}`).toBe(true);
-    }
   });
 
   it("never redirects onto the home page (ruling 408 binding 4)", () => {

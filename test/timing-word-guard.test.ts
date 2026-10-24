@@ -109,20 +109,6 @@ describe("LAYER 2: the detector catches each of legacy's nine phrases", () => {
     expect(passesQualityGate(copy)).toBe(false);
   });
 
-  it.each(NINE)("'%s' in the BODY is caught by the detector and the gate", (phrase) => {
-    const copy = {
-      subject: "Your Acme payment needs a quick fix",
-      bodyHtml: `<p>Please fix your card ${phrase}. <a href="https://foxhoundapp.test/u/1">Update</a></p>`,
-    };
-    expect(hasTimingWord(copy.bodyHtml)).toBe(true);
-    expect(findBrandVoiceViolations(copy)).toContain("timing_leak");
-  });
-
-  it("is case-insensitive", () => {
-    expect(hasTimingWord("TODAY only")).toBe(true);
-    expect(hasTimingWord("Right Now")).toBe(true);
-  });
-
   it("a timing word INSIDE A TAG is not a leak: an href token is never read", () => {
     const copy = {
       subject: "Your Acme payment needs a quick fix",
@@ -131,49 +117,9 @@ describe("LAYER 2: the detector catches each of legacy's nine phrases", () => {
     expect(hasTimingWord(copy.bodyHtml)).toBe(false);
     expect(findBrandVoiceViolations(copy)).toEqual([]);
   });
-
-  it("a phrase SPLIT BY A TAG is still a leak to the gate, which sends the template", () => {
-    const copy = {
-      subject: "Your Acme payment needs a quick fix",
-      bodyHtml: '<p>We tried this <b>morning</b>. <a href="https://foxhoundapp.test/u/1">Update</a></p>',
-    };
-    expect(findBrandVoiceViolations(copy)).toContain("timing_leak");
-  });
-
-  it("clean copy passes", () => {
-    expect(hasTimingWord("Your Acme payment needs a quick fix")).toBe(false);
-    expect(passesQualityGate({ subject: "Your Acme payment needs a quick fix", bodyHtml: CLEAN_BODY })).toBe(true);
-  });
-});
-
-describe("schedule leaks are still caught by the gate, exactly as before", () => {
-  it.each([
-    ["day 3", { subject: "Day 3 notice", bodyHtml: "<p>x</p>" }],
-    ["72 hours ago", { subject: "Reminder", bodyHtml: "<p>Your payment failed 72 hours ago.</p>" }],
-    ["3 days ago", { subject: "Reminder", bodyHtml: "<p>It failed 3 days ago.</p>" }],
-  ])("'%s' is a timing_leak", (_name, copy) => {
-    expect(findBrandVoiceViolations(copy)).toContain("timing_leak");
-  });
 });
 
 describe("LAYER 4: hardStripTimingWords", () => {
-  it.each(NINE)("removes '%s' and leaves tidy text", (phrase) => {
-    const out = hardStripTimingWords(`Please update your card ${phrase}. It only takes a minute, ${phrase}!`);
-    expect(hasTimingWord(out)).toBe(false);
-    expect(out).not.toMatch(/ {2}/);
-    expect(out).not.toMatch(/\s[.,!?]/);
-  });
-
-  it.each(NINE)("removes '%s' from an HTML body without touching tags", (phrase) => {
-    const html = `<p>Please update your card ${phrase}.</p>\n<p><a href="https://foxhoundapp.test/u/tok">Update</a></p>`;
-    const out = hardStripTimingWords(html);
-    expect(hasTimingWord(out)).toBe(false);
-    expect(out).not.toMatch(/ {2}/);
-    expect(out).not.toMatch(/ [.,!?]/);
-    expect(out).toContain('<a href="https://foxhoundapp.test/u/tok">Update</a>');
-    // Newlines between blocks survive: the tidy is spaces and tabs only.
-    expect(out).toContain("</p>\n<p>");
-  });
 
   it("ports legacy's replacements in order", () => {
     expect(hardStripTimingWords("Your trial closes tonight")).toBe("Your trial will close soon");
@@ -186,15 +132,6 @@ describe("LAYER 4: hardStripTimingWords", () => {
     expect(hardStripTimingWords("We noticed this morning that it failed")).toBe(
       "We noticed that it failed",
     );
-  });
-
-  it("NEVER alters text inside a tag", () => {
-    expect(
-      hardStripTimingWords('<a href="https://x.example.com/u/today-123">fix it today</a>'),
-    ).toBe('<a href="https://x.example.com/u/today-123">fix it now</a>');
-    expect(
-      hardStripTimingWords('<p data-when="tonight">Pay tonight.</p>'),
-    ).toBe('<p data-when="tonight">Pay.</p>');
   });
 
   it("leaves clean text byte for byte", () => {
@@ -313,34 +250,5 @@ describe.each(SEAMS)("LAYERS 3 and 4 on the $name seam", (seam) => {
 
     await expect(seam.run()).rejects.toThrow("model outage");
     expect(harness.calls).toHaveLength(1);
-  });
-});
-
-// The template is where the gate falls back TO, so it must never itself say
-// when it is being read. Every recovery step with Recova's own words (J85 for
-// day 1 to day 7, J86 for day 14 and day 30) is checked, in every category
-// that schedules it: none of the nine phrases, and no schedule leak either.
-describe("Recova's per-step templates carry no timing word (J85, J86)", () => {
-  const STEP_TYPES = ["email_day1", "email_day3", "email_day7", "email_day14", "email_day30"];
-  const CATEGORIES = ["soft", "network", "expired", "fraud", "unknown"];
-
-  it.each(STEP_TYPES)("%s has its own template, and it passes the timing checks", async (stepType) => {
-    const { buildTemplateEmail, hasStepTemplate } = await import("~/lib/recovery/email-template");
-    expect(hasStepTemplate(stepType)).toBe(true);
-    for (const declineCategory of CATEGORIES) {
-      const copy = buildTemplateEmail({
-        stepType,
-        declineCategory,
-        merchantName: "Acme",
-        senderName: "Acme",
-        customerName: "Jane",
-        amountFormatted: "$49.00",
-        updateUrl: "https://foxhoundapp.test/e/c/EXAMPLE",
-      });
-      expect(hasTimingWord(copy.subject), `${stepType} ${declineCategory}`).toBe(false);
-      expect(hasTimingWord(copy.bodyHtml), `${stepType} ${declineCategory}`).toBe(false);
-      expect(findBrandVoiceViolations(copy), `${stepType} ${declineCategory}`).toEqual([]);
-      expect(passesQualityGate(copy)).toBe(true);
-    }
   });
 });

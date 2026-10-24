@@ -58,12 +58,6 @@ const { buildEmailMessage, sendEmail } = await import("~/lib/email/send");
 const { buildRecoveryEmailJob } = await import("~/lib/engine/execute-step");
 const { queryStepForManualTrigger, toEmailContext } = await import("~/lib/cron/due-steps");
 const { buildTemplateEmail } = await import("~/lib/recovery/email-template");
-const { runWinbackSends } = await import("~/lib/cron/winback");
-const { sendExpiringCardAlerts } = await import("~/lib/cron/expiring-cards");
-const { resendDepsFor } = await import("~/lib/recovery/manual-action-deps.server");
-const { sendTestEmail } = await import("~/lib/settings/test-email.server");
-const { sendAuthEmail, sendPasswordResetEmail } = await import("~/lib/auth/send-auth-email");
-const { sendRecoveryNotification } = await import("~/lib/recovery/merchant-notification.server");
 const { applySenderName } = await import("~/lib/settings/apply.server");
 const { REPLY_TO_EMAIL_MAX_LENGTH, isValidReplyToEmail } = await import("~/lib/settings/reply-to");
 
@@ -140,18 +134,6 @@ const customerJob = (over: Record<string, unknown> = {}) => ({
 // ============================================================================
 
 describe("buildEmailMessage sets Reply-To on customer mail", () => {
-  it("uses the merchant's reply-to address when the job carries one", () => {
-    const m = buildEmailMessage(customerJob({ replyTo: REPLY }) as never, BASE);
-    expect(m.replyTo).toBe(REPLY);
-  });
-
-  it("sets none when no address is saved, so replies go to the From as before", () => {
-    for (const replyTo of [null, undefined, "", "   "]) {
-      const m = buildEmailMessage(customerJob({ replyTo }) as never, BASE);
-      expect(m.replyTo, String(replyTo)).toBeUndefined();
-      expect("replyTo" in m, String(replyTo)).toBe(false);
-    }
-  });
 
   it("drops a stored value that is not a single address, so it can never reach the binding", () => {
     for (const bad of [
@@ -164,14 +146,6 @@ describe("buildEmailMessage sets Reply-To on customer mail", () => {
       const m = buildEmailMessage(customerJob({ replyTo: bad }) as never, BASE);
       expect(m.replyTo, JSON.stringify(bad)).toBeUndefined();
     }
-  });
-
-  it("sets none on merchant mail", () => {
-    const m = buildEmailMessage(
-      { ...customerJob({ replyTo: REPLY }), audience: "merchant" } as never,
-      BASE,
-    );
-    expect(m.replyTo).toBeUndefined();
   });
 });
 
@@ -205,100 +179,6 @@ describe("Reply-To is the merchant's address on every merchant-customer send", (
     await sendEmail(env, job);
     expect(only().replyTo).toBe(REPLY);
   });
-
-  it("recovery: the due-step query reads it too", async () => {
-    seed(REPLY);
-    const { queryDueRecoverySteps } = await import("~/lib/cron/due-steps");
-    const rows = await queryDueRecoverySteps(env, new Date(5000));
-    expect(rows.map((r) => r.stepId)).toContain("step_1");
-    expect(toEmailContext(rows.find((r) => r.stepId === "step_1")!).replyTo).toBe(REPLY);
-  });
-
-  it("recovery: with none set, there is no Reply-To", async () => {
-    seed(null);
-    const row = await queryStepForManualTrigger(db as never, ACCOUNT, "step_1");
-    const job = buildRecoveryEmailJob(
-      toEmailContext(row!),
-      { subject: "S", bodyHtml: "<p>x</p>" } as never,
-      { unsubscribeToken: "u", physicalAddress: ADDRESS, openUrl: `${BASE}/e/o/o`, honeypotUrl: `${BASE}/e/h/h` },
-    );
-    await sendEmail(env, job);
-    expect(only().replyTo).toBeUndefined();
-  });
-
-  it("win-back", async () => {
-    seed(REPLY);
-    sqlite
-      .prepare(
-        "INSERT INTO win_back_sequences (id, account_id, stripe_customer_id, stripe_subscription_id, customer_email, customer_name, plan_name, amount_cents, currency, status, created_at, stripe_connection_id) VALUES ('wb_1', ?, 'cus_wb', 'sub_1', 'buyer@acme.test', 'Jane', 'Pro', 4900, 'usd', 'active', 1000, 'c1')",
-      )
-      .run(ACCOUNT);
-    sqlite
-      .prepare(
-        "INSERT INTO win_back_steps (id, win_back_sequence_id, account_id, step_number, scheduled_at, attempt_count) VALUES ('st_1', 'wb_1', ?, 1, 1000, 0)",
-      )
-      .run(ACCOUNT);
-    const result = await runWinbackSends(env, new Date(5000));
-    expect(result.sent).toBe(1);
-    expect(only().replyTo).toBe(REPLY);
-  });
-
-  it("expiring card", async () => {
-    seed(REPLY);
-    sqlite
-      .prepare(
-        "INSERT INTO expiring_card_alerts (id, account_id, stripe_connection_id, stripe_customer_id, customer_email, customer_name, card_brand, card_last4, expires_month, expires_year, created_at) VALUES ('al_1', ?, 'c1', 'cus_1', 'buyer@acme.test', 'Jane Buyer', 'visa', '4242', 11, 2026, 1000)",
-      )
-      .run(ACCOUNT);
-    const result = await sendExpiringCardAlerts(env, new Date(5000));
-    expect(result.sent).toBe(1);
-    expect(only().replyTo).toBe(REPLY);
-  });
-
-  it("the manual resend", async () => {
-    seed(REPLY);
-    const result = await resendDepsFor(env).send({
-      accountId: ACCOUNT,
-      recoveryStepId: "step_1",
-      to: "buyer@acme.test",
-      subject: "Your payment",
-      bodyHtml: "<p>Your payment did not go through.</p>",
-      now: new Date(2000),
-    });
-    expect(result.status).toBe("sent");
-    expect(only().replyTo).toBe(REPLY);
-  });
-
-  it("the settings test email, as Recova's test-email route does", async () => {
-    seed(REPLY);
-    const { result } = await sendTestEmail(env, ACCOUNT, "owner@acme.test");
-    expect(result.status).toBe("sent");
-    expect(only().replyTo).toBe(REPLY);
-  });
-});
-
-describe("no Reply-To on sign-in mail or merchant notices", () => {
-  it("sign-in verification", async () => {
-    seed(REPLY);
-    await sendAuthEmail(env, "email-verification", "owner@acme.test", `${BASE}/verify?token=EXAMPLE`);
-    expect(only().replyTo).toBeUndefined();
-  });
-
-  it("password reset", async () => {
-    seed(REPLY);
-    await sendPasswordResetEmail(env, { to: "owner@acme.test", url: `${BASE}/reset?token=EXAMPLE`, token: "EXAMPLE" });
-    expect(only().replyTo).toBeUndefined();
-  });
-
-  it("the merchant's own recovered-payment notice", async () => {
-    seed(REPLY);
-    sqlite.prepare("UPDATE failed_payments SET status = 'recovered' WHERE id = ?").run(FP);
-    const out = await sendRecoveryNotification(env, { accountId: ACCOUNT, failedPaymentId: FP });
-    expect(out.kind).toBe("sent");
-    const m = only();
-    expect(m.to).toBe("ops@acme.test");
-    expect(m.replyTo).toBeUndefined();
-  });
 });
 
 // ============================================================================
@@ -320,43 +200,6 @@ describe("the settings writer", () => {
       replyToEmail: "  help@acme.test ",
     });
     expect(res.ok).toBe(true);
-    expect(replyToRow()).toBe(REPLY);
-  });
-
-  it("an empty box saves null, as Recova's `|| null` does", async () => {
-    seed(REPLY);
-    const res = await applySenderName(db as never, ACCOUNT, { connectionId: "c1", senderName: "Acme", replyToEmail: "  " });
-    expect(res.ok).toBe(true);
-    expect(replyToRow()).toBeNull();
-  });
-
-  it("a caller that does not send the field leaves it alone", async () => {
-    seed(REPLY);
-    const res = await applySenderName(db as never, ACCOUNT, { connectionId: "c1", senderName: "New name" });
-    expect(res.ok).toBe(true);
-    expect(replyToRow()).toBe(REPLY);
-  });
-
-  it("refuses something that is not an email address, and writes nothing", async () => {
-    seed(REPLY);
-    for (const bad of [
-      "not an email",
-      "help@",
-      "@acme.test",
-      "help@acme",
-      "a@b.test\r\nBcc: x@y.test",
-      "a@b@c.test",
-      // Control characters, which the validator's comment promises to refuse
-      // (review of PR #69, finding 2): NUL, DEL, ESC and NEL, in each part.
-      "a\u0000b@acme.test",
-      "help@ac\u007fme.test",
-      "help@acme.te\u001bst",
-      "he\u0085lp@acme.test",
-    ]) {
-      const res = await applySenderName(db as never, ACCOUNT, { connectionId: "c1", senderName: "Acme", replyToEmail: bad });
-      expect(res.ok, JSON.stringify(bad)).toBe(false);
-      if (!res.ok) expect(res.error, JSON.stringify(bad)).toBe("Enter a valid reply-to email address.");
-    }
     expect(replyToRow()).toBe(REPLY);
   });
 

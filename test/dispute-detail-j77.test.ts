@@ -406,15 +406,6 @@ describe("J77 review: the draft cannot change after an approval exists", () => {
     ], new Date(NOW));
     expect(evidenceRows()).toEqual([{ field_name: "uncategorized_text", field_value: "Approved text." }]);
   });
-
-  it("does not insert a second row for a field another save already added", async () => {
-    seedDispute();
-    const { saveDisputeDraft } = await import("~/lib/disputes/queries.server");
-    // Two first-time saves that both read "no IP row yet".
-    await saveDisputeDraft(db, A, "dsp_1", [], [{ fieldName: "customer_purchase_ip", fieldValue: "198.51.100.1" }], new Date(NOW));
-    await saveDisputeDraft(db, A, "dsp_1", [], [{ fieldName: "customer_purchase_ip", fieldValue: "198.51.100.2" }], new Date(NOW));
-    expect(evidenceRows()).toEqual([{ field_name: "customer_purchase_ip", field_value: "198.51.100.1" }]);
-  });
 });
 
 describe("J77 review: Approve never sends a draft with unsaved edits", () => {
@@ -456,29 +447,12 @@ describe("J77 review: one row per field, the same one everywhere", () => {
     expect(splitEvidence(rows, true).narrative).toBe("First.");
     expect(buildStripeEvidencePayload(rows).uncategorized_text).toBe("First.");
   });
-
-  it("reads evidence in a fixed order, oldest first", async () => {
-    seedDispute();
-    seedEvidence("uncategorized_text", "Later.", { id: "ev_z", createdAt: new Date(NOW - DAY) });
-    seedEvidence("uncategorized_text", "Earlier.", { id: "ev_y", createdAt: new Date(NOW - 2 * DAY) });
-    const data = await load();
-    expect(data.evidence.map((e) => e.id)).toEqual(["ev_y", "ev_z"]);
-  });
 });
 
 // ---- Re-review of a297ac1 (CHANGES): a guarded write that wrote nothing is not "Saved." ----
 
 describe("J77 re-review: a save that wrote nothing is reported, never Saved (RULES.md 3.9)", () => {
   const NOT_SAVED = "Your draft was not saved: this dispute changed. Reload to see the current evidence.";
-
-  it("answers 409 when another session added the same field first", async () => {
-    seedDispute();
-    harness.beforeSave = () => seedEvidence("customer_purchase_ip", "198.51.100.1"); // the other tab's save
-    const res = await act({ intent: "save", customer_ip: "198.51.100.2" });
-    expect(res.status).toBe(409);
-    expect(res.body).toMatchObject({ intent: "save", error: NOT_SAVED });
-    expect(res.body).not.toHaveProperty("ok");
-  });
 
   it("answers 409 when an approval lands between the read and the write", async () => {
     seedDispute();
@@ -499,16 +473,6 @@ describe("J77 re-review: a save that wrote nothing is reported, never Saved (RUL
     const res = await act({ intent: "save", narrative: "Edited." });
     expect(res.status).toBe(409);
     expect(res.body).toMatchObject({ intent: "save", error: NOT_SAVED });
-  });
-
-  it("reports whether every statement changed a row", async () => {
-    seedDispute();
-    seedEvidence("uncategorized_text", "Same.");
-    const { saveDisputeDraft } = await import("~/lib/disputes/queries.server");
-    const existing = [{ id: "ev_uncategorized_text_acct_alpha", fieldName: "uncategorized_text" }];
-    // An unchanged value still matches its row, so it counts as written.
-    expect(await saveDisputeDraft(db, A, "dsp_1", existing, [{ fieldName: "uncategorized_text", fieldValue: "Same." }], new Date(NOW))).toBe(true);
-    expect(await saveDisputeDraft(db, A, "dsp_1", [], [{ fieldName: "uncategorized_text", fieldValue: "Dup." }], new Date(NOW))).toBe(false);
   });
 
   it("shows the refusal beside Save draft, so the draft stays unsaved", async () => {

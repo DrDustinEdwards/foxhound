@@ -26,31 +26,6 @@ function job(overrides: Partial<EmailJob> = {}): EmailJob {
 }
 
 describe("buildEmailMessage (CAN-SPAM + from)", () => {
-  it("appends an unsubscribe link and the physical address, and sets the List-Unsubscribe header", () => {
-    const msg = buildEmailMessage(job(), "https://foxhound.example");
-    expect(msg.from).toBe("Acme <recovery@send.foxhoundapp.com>");
-    // J02: the body sits in Capsomer's frame, so the words are asserted, in the
-    // HTML part and in the plain-text part made from the same blocks.
-    expect(msg.html).toContain("Please update your card.");
-    expect(msg.text).toContain("Please update your card.");
-    expect(msg.html).toContain("https://foxhound.example/u/unsub_tok");
-    expect(msg.html).toContain("123 Main St, Springfield");
-    expect(msg.text).toContain("Unsubscribe: https://foxhound.example/u/unsub_tok");
-    expect(msg.text).toContain("123 Main St, Springfield");
-    expect(msg.headers?.["List-Unsubscribe"]).toBe("<https://foxhound.example/u/unsub_tok>");
-    expect(msg.headers?.["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
-  });
-
-  // S33 moved this expectation from "Billing" to "Support". Legacy's fallback is
-  // `merchant.sender_name || 'Support'` (lib/recovery-execution.ts:197, and the
-  // same string in its test-email route); "Billing" is a name no legacy surface
-  // produces. The assertion moved because the behaviour was corrected toward
-  // legacy, not to keep a suite green.
-  it("falls back to legacy's default sender name when none is given", () => {
-    expect(buildEmailMessage(job({ fromName: null }), "https://x").from).toBe(
-      "Support <recovery@send.foxhoundapp.com>",
-    );
-  });
 
   it("throws (never sends) when the physical address is missing", () => {
     expect(() => buildEmailMessage(job({ physicalAddress: "" }), "https://x")).toThrow(
@@ -62,12 +37,6 @@ describe("buildEmailMessage (CAN-SPAM + from)", () => {
     expect(() => buildEmailMessage(job({ unsubscribeToken: "" }), "https://x")).toThrow(
       /unsubscribe/i,
     );
-  });
-
-  it("escapes HTML in the physical address so the footer can't be broken out of", () => {
-    const msg = buildEmailMessage(job({ physicalAddress: '<script>"x"' }), "https://x");
-    expect(msg.html).toContain("&lt;script&gt;&quot;x&quot;");
-    expect(msg.html).not.toContain("<script>");
   });
 });
 

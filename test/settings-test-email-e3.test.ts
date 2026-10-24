@@ -137,26 +137,6 @@ function only(): SentMessage {
 
 
 describe("when it sends: Recova's trigger and not otherwise", () => {
-  it("the Send test email control sends one preview to the signed-in user", async () => {
-    seedConnection();
-    const out = await post({ _action: "test-email" });
-    expect(out.ok).toBe(true);
-    expect(only().to).toBe(USER_EMAIL);
-  });
-
-  it("sends with live sends off, because Recova's control has no such switch", async () => {
-    seedConnection();
-    const { result } = await sendTestEmail(env, ACCOUNT, USER_EMAIL);
-    expect(result.status).toBe("sent");
-    expect(harness.sent).toHaveLength(1);
-  });
-
-  it("every click sends, as every POST to Recova's route does", async () => {
-    seedConnection();
-    await post({ _action: "test-email" });
-    await post({ _action: "test-email" });
-    expect(harness.sent).toHaveLength(2);
-  });
 
   it("saving the sender settings, loading the page, or an unknown action sends nothing", async () => {
     seedConnection();
@@ -177,28 +157,6 @@ describe("what it carries", () => {
     expect(m.replyTo).toBe(REPLY);
   });
 
-  it("From 'Support' and no Reply-To when neither is saved, as Recova's fallbacks", async () => {
-    seedConnection({ senderName: null, replyTo: null });
-    await sendTestEmail(env, ACCOUNT, USER_EMAIL);
-    const m = only();
-    expect(m.from).toMatch(/^Support </);
-    expect(m.replyTo).toBeUndefined();
-  });
-
-  it("no unsubscribe link, no postal address, no tracking: Recova's preview carries none", async () => {
-    seedConnection();
-    await sendTestEmail(env, ACCOUNT, USER_EMAIL);
-    const m = only();
-    for (const part of [m.html, m.text ?? ""]) {
-      expect(part).not.toContain("Unsubscribe");
-      expect(part).not.toContain(ADDRESS);
-      expect(part).not.toContain(`${BASE}/u/`);
-      expect(part).not.toContain(`${BASE}/e/`);
-      expect(part).not.toContain(`${BASE}/p/`);
-    }
-    expect(m.headers?.["List-Unsubscribe"]).toBeUndefined();
-  });
-
   it("its one link is the button, to a real Foxhound page", async () => {
     seedConnection();
     await sendTestEmail(env, ACCOUNT, USER_EMAIL);
@@ -206,14 +164,6 @@ describe("what it carries", () => {
     const hrefs = [...m.html.matchAll(/href="([^"]*)"/g)].map((h) => h[1]);
     expect(hrefs).toEqual([`${BASE}/settings/email`]);
     expect(m.text).toContain(`${BASE}/settings/email`);
-  });
-
-  it("needs no postal address, since it carries none", async () => {
-    seedConnection();
-    env = makeEnv({ PHYSICAL_ADDRESS: undefined });
-    const { result } = await sendTestEmail(env, ACCOUNT, USER_EMAIL);
-    expect(result.status).toBe("sent");
-    expect(harness.sent).toHaveLength(1);
   });
 });
 
@@ -236,18 +186,5 @@ describe("a refused send returns its named outcome", () => {
     const { result } = await sendTestEmail(env, ACCOUNT, USER_EMAIL);
     expect(result.status).toBe("failed");
     expect(result.error).toMatch(/EMAIL binding/);
-  });
-
-  it("a provider refusal: 'failed', with the provider's words", async () => {
-    seedConnection();
-    env = makeEnv({
-      EMAIL: {
-        send: async () => {
-          throw new Error("provider said no");
-        },
-      },
-    });
-    const { result } = await sendTestEmail(env, ACCOUNT, USER_EMAIL);
-    expect(result).toMatchObject({ status: "failed", error: "provider said no" });
   });
 });

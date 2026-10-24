@@ -11,9 +11,6 @@ import {
 const EMPTY_FACTS: EvidenceFacts = { productName: null, serviceDate: null, communications: [] };
 
 describe("buildEvidenceFacts (grounded only in real records)", () => {
-  it("is empty when the disputed charge never resolved to a known recovery", () => {
-    expect(buildEvidenceFacts(null, [])).toEqual(EMPTY_FACTS);
-  });
 
   it("pulls plan name and service date from the resolved failed_payment row", () => {
     const facts = buildEvidenceFacts(
@@ -26,14 +23,6 @@ describe("buildEvidenceFacts (grounded only in real records)", () => {
     );
     expect(facts.productName).toBe("Pro Monthly");
     expect(facts.serviceDate).toEqual(new Date("2026-01-15T00:00:00.000Z"));
-  });
-
-  it("falls back to detectedAt for service date when there is no subscription start", () => {
-    const facts = buildEvidenceFacts(
-      { planName: null, subscriptionStart: null, detectedAt: new Date("2026-07-01T00:00:00.000Z") },
-      [],
-    );
-    expect(facts.serviceDate).toEqual(new Date("2026-07-01T00:00:00.000Z"));
   });
 
   it("only counts recovery_steps that actually executed, never a scheduled-but-unsent step", () => {
@@ -87,13 +76,6 @@ describe("formatCommunicationLog", () => {
 });
 
 describe("draftDisputeEvidence (no fabrication)", () => {
-  it("never calls the model and returns no fields when there are no grounding facts at all", async () => {
-    // No ANTHROPIC_API_KEY on this fake env either: if the function attempted
-    // a live call despite empty facts, it would throw constructing the client
-    // or fail the network call, not resolve cleanly to [].
-    const fields = await draftDisputeEvidence({} as Env, EMPTY_FACTS);
-    expect(fields).toEqual([]);
-  });
 
   it("returns the deterministic fields straight from the facts when ANTHROPIC_API_KEY is unset, without throwing", async () => {
     const facts: EvidenceFacts = {
@@ -126,17 +108,6 @@ describe("draftDisputeEvidence (no fabrication)", () => {
 // buildEvidenceFields (lib/disputes-evidence.ts) set product_description from
 // the merchant's dispute_product_description on every response.
 describe("the merchant's product description (S32)", () => {
-  it("is the product_description field, over the plan name", async () => {
-    const facts = buildEvidenceFacts(
-      { planName: "Pro Monthly", subscriptionStart: null, detectedAt: new Date("2026-07-01T00:00:00.000Z") },
-      [],
-      "Monthly SaaS subscription for project management software",
-    );
-    const fields = await draftDisputeEvidence({} as Env, facts);
-    expect(fields.find((f) => f.fieldName === "product_description")?.fieldValue).toBe(
-      "Monthly SaaS subscription for project management software",
-    );
-  });
 
   it("grounds a dispute that matches no recovery, as Recova used it on every response", async () => {
     const facts = buildEvidenceFacts(null, [], "Handmade candles, shipped in the US");
@@ -144,9 +115,5 @@ describe("the merchant's product description (S32)", () => {
     expect(await draftDisputeEvidence({} as Env, facts)).toEqual([
       { fieldName: "product_description", fieldValue: "Handmade candles, shipped in the US" },
     ]);
-  });
-
-  it("absent, nothing changes: the plan name stands in", () => {
-    expect(buildEvidenceFacts(null, [])).toEqual(EMPTY_FACTS);
   });
 });

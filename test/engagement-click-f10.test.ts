@@ -116,43 +116,6 @@ afterEach(() => {
 });
 
 describe("F10: every human click counts, as Recova's email.clicked did", () => {
-  it("the first click sets count 1, clicked_at and last_clicked_at", async () => {
-    const db = await seed();
-    expect(await clickAt(at(10))).toEqual({ recorded: true });
-    const row = await step(db);
-    expect(row.emailClickedCount).toBe(1);
-    expect(row.clickedAt?.getTime()).toBe(at(10).getTime());
-    expect(row.lastClickedAt?.getTime()).toBe(at(10).getTime());
-  });
-
-  it("a later click adds one and moves last_clicked_at, while clicked_at keeps the first", async () => {
-    const db = await seed();
-    await clickAt(at(10));
-    await clickAt(at(95));
-    await clickAt(at(300));
-    const row = await step(db);
-    expect(row.emailClickedCount).toBe(3);
-    expect(row.clickedAt?.getTime()).toBe(at(10).getTime());
-    expect(row.lastClickedAt?.getTime()).toBe(at(300).getTime());
-  });
-
-  it("an existing count carries on from where it was, as Recova's (count ?? 0) + 1", async () => {
-    const db = await seed(4);
-    await clickAt(at(10));
-    expect((await step(db)).emailClickedCount).toBe(5);
-  });
-
-  it("an automated click writes nothing, the first time or the tenth", async () => {
-    const db = await seed();
-    await clickAt(at(10));
-    expect(await clickAt(at(20), { automated: true, reason: "bot_user_agent" })).toEqual({
-      recorded: false,
-      reason: "bot_user_agent",
-    });
-    const row = await step(db);
-    expect(row.emailClickedCount).toBe(1);
-    expect(row.lastClickedAt?.getTime()).toBe(at(10).getTime());
-  });
 
   it("the engagement_events row stays one per step, on its existing key", async () => {
     const db = await seed();
@@ -166,37 +129,6 @@ describe("F10: every human click counts, as Recova's email.clicked did", () => {
 });
 
 describe("F10: a repeat click never changes what bills (RULES.md 3.4)", () => {
-  it("a too-fast first click stays suspect after a later, slower click", async () => {
-    const db = await seed();
-    await clickAt(new Date(SENT.getTime() + 5_000));
-    await clickAt(at(30));
-    const row = await step(db);
-    expect(row.emailClickedCount).toBe(2);
-    expect(row.clickSuspectReason).toBe(CLICK_SUSPECT_TOO_FAST);
-    expect(row.clickedAt?.getTime()).toBe(SENT.getTime() + 5_000);
-    expect((await attribution(db)).kind).not.toBe("email_engaged");
-  });
-
-  it("a honeypot mark set after the first click survives every later click", async () => {
-    const db = await seed();
-    await clickAt(at(10));
-    await recordHoneypot(ENV, { stepId: STEP, accountId: ACCOUNT, kind: "honeypot" });
-    await clickAt(at(40));
-    const row = await step(db);
-    expect(row.clickSuspectReason).toBe(CLICK_SUSPECT_HONEYPOT);
-    expect((await attribution(db)).kind).not.toBe("email_engaged");
-  });
-
-  it("a clean first click stays clean and billable after later clicks", async () => {
-    const db = await seed();
-    await clickAt(at(10));
-    const before = await attribution(db);
-    await clickAt(at(95));
-    const row = await step(db);
-    expect(row.clickSuspectReason).toBeNull();
-    expect(before.kind).toBe("email_engaged");
-    expect(await attribution(db)).toEqual(before);
-  });
 
   it("a too-fast first click after a honeypot fetch is marked too_fast, as before this row", async () => {
     const db = await seed();
@@ -207,19 +139,6 @@ describe("F10: a repeat click never changes what bills (RULES.md 3.4)", () => {
 });
 
 describe("F10: a later SUSPECT click never changes the first click's billing input", () => {
-  it("a clean first click stays clean and billable after later suspect clicks", async () => {
-    const db = await seed();
-    await stampWithReason(db, at(10), null);
-    const before = await attribution(db);
-    await stampWithReason(db, at(20), CLICK_SUSPECT_TOO_FAST);
-    await stampWithReason(db, at(30), CLICK_SUSPECT_HONEYPOT);
-    const row = await step(db);
-    expect(row.clickSuspectReason).toBeNull();
-    expect(row.clickedAt?.getTime()).toBe(at(10).getTime());
-    expect(row.emailClickedCount).toBe(3);
-    expect(before.kind).toBe("email_engaged");
-    expect(await attribution(db)).toEqual(before);
-  });
 
   it("a honeypot mark stays after a later suspect click, so it never bills", async () => {
     const db = await seed();

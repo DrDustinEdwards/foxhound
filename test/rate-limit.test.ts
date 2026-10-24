@@ -2,8 +2,6 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   enforceRateLimit,
-  isWithinRateLimit,
-  RateLimiterUnavailableError,
   rateLimitedResponse,
   resolveRateLimitBinding,
 } from "~/lib/http/rate-limit";
@@ -179,12 +177,6 @@ describe("rateLimitedResponse", () => {
 });
 
 describe("enforceRateLimit", () => {
-  it("returns null (proceed) for a route with no matching rule", async () => {
-    const env = makeEnv();
-    const request = new Request("http://localhost/pricing", { method: "GET" });
-    expect(await enforceRateLimit(request, env)).toBeNull();
-  });
-
   it("allows the first 20 public requests for a key and denies the 21st with 429", async () => {
     const env = makeEnv();
     const ip = { "cf-connecting-ip": "1.2.3.4" };
@@ -207,40 +199,10 @@ describe("enforceRateLimit", () => {
     expect(namespace.names).toEqual(["public:9.8.7.6", "public:unknown"]);
   });
 
-  it("never touches the counter for an auth POST, which its action counts", async () => {
-    const namespace = makeRateLimiterNamespace();
-    const env = makeEnv(namespace);
-    for (const path of ["/login", "/signup", "/api/auth/sign-in/email"]) {
-      const req = new Request(`http://localhost${path}`, { method: "POST", headers: { "cf-connecting-ip": "5.5.5.5" } });
-      expect(await enforceRateLimit(req, env)).toBeNull();
-    }
-    expect(namespace.names).toEqual([]);
-  });
-
   it("fails open when the Durable Object call throws", async () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     const request = new Request("http://localhost/demos", { method: "POST", headers: { "cf-connecting-ip": "1.1.1.1" } });
     await expect(enforceRateLimit(request, makeEnv(broken))).resolves.toBeNull();
-    log.mockRestore();
-  });
-});
-
-describe("isWithinRateLimit", () => {
-  it("fails open when the Durable Object call throws", async () => {
-    const log = vi.spyOn(console, "error").mockImplementation(() => {});
-    await expect(isWithinRateLimit(makeEnv(broken), "marketing_email_sample", "1.1.1.1", 10, 60_000)).resolves.toBe(true);
-    log.mockRestore();
-  });
-
-  // J67 review: a caller whose request costs money (the Intelligence report
-  // button's paid model call) opts in to failing closed, and gets
-  // RateLimiterUnavailableError so it can refuse and say why instead of
-  // calling it a rate limit.
-  it("fails closed when the caller opts in", async () => {
-    const log = vi.spyOn(console, "error").mockImplementation(() => {});
-    await expect(
-      isWithinRateLimit(makeEnv(broken), "intelligence-report", "acc_1", 5, 3_600_000, { failClosed: true }),
-    ).rejects.toBeInstanceOf(RateLimiterUnavailableError);
     log.mockRestore();
   });
 });

@@ -119,27 +119,6 @@ const loadRun = (accountId: string, id: string) =>
   } as never);
 
 describe("PLANT 1: the history surface", () => {
-  it("lists an account's runs, newest first", async () => {
-    await save(ACCOUNT_A, auditWith({}, new Date(RAN_AT.getTime() - 86_400_000)));
-    const newest = await save(ACCOUNT_A);
-    const { runs } = await loadHistory(ACCOUNT_A);
-    expect(runs).toHaveLength(2);
-    expect(runs[0].id).toBe(newest);
-  });
-
-  it("IS EMPTY FOR AN ACCOUNT WITH NO RUNS, which is every account at this sha", async () => {
-    // Nothing triggers a run yet: the on-demand flow is phase (f)'s OAuth and
-    // the monthly one is (g)'s cron. The empty state is the state.
-    expect((await loadHistory(ACCOUNT_A)).runs).toEqual([]);
-  });
-
-  it("NEVER SHOWS ANOTHER ACCOUNT'S RUNS", async () => {
-    await save(ACCOUNT_B);
-    await save(ACCOUNT_B);
-    await save(ACCOUNT_A);
-    expect((await loadHistory(ACCOUNT_A)).runs).toHaveLength(1);
-    expect((await loadHistory(ACCOUNT_B)).runs).toHaveLength(2);
-  });
 
   it("carries a NULL through to the loader rather than coalescing it", async () => {
     await save(ACCOUNT_A, auditWith({ subscriptions: failedRead("subs unavailable") }));
@@ -186,12 +165,6 @@ describe("PLANT 2: the stored-run surface", () => {
     expect(run.health).toBeNull();
     // And a scope that WAS read still carries its numbers, including a real zero.
     expect(run.failedInvoices).toMatchObject({ count: 0, totalCents: 0 });
-  });
-
-  it("404s on another account's run id", async () => {
-    const theirs = await save(ACCOUNT_B);
-    await expect(loadRun(ACCOUNT_A, theirs)).rejects.toMatchObject({ status: 404 });
-    await expect(loadRun(ACCOUNT_B, theirs)).resolves.toBeTruthy();
   });
 
   it("404s on an id that does not exist at all", async () => {

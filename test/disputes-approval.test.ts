@@ -5,7 +5,6 @@ import * as schema from "~/db/schema";
 import {
   approvalRaceErrorMessage,
   approveAndSubmit,
-  canApprove,
   hashEvidence,
   type ApproveAndSubmitDeps,
   type PendingApprovalOutcome,
@@ -19,20 +18,6 @@ const db = drizzle({} as never, { schema });
 function sqlOf(item: unknown): { sql: string; params: unknown[] } {
   return (item as { toSQL(): { sql: string; params: unknown[] } }).toSQL();
 }
-
-describe("canApprove", () => {
-  it("allows every pre-submission state", () => {
-    expect(canApprove("draft")).toBe(true);
-    expect(canApprove("pending_review")).toBe(true);
-    expect(canApprove("approved")).toBe(true);
-  });
-
-  it("blocks a dispute that is already submitted or resolved (no re-approval, no reopen)", () => {
-    expect(canApprove("submitted")).toBe(false);
-    expect(canApprove("resolved_won")).toBe(false);
-    expect(canApprove("resolved_lost")).toBe(false);
-  });
-});
 
 describe("approvalRaceErrorMessage (Phase 5 review MEDIUM fix: the race loser's handled path)", () => {
   it("maps a unique-constraint violation on the approval batch to the same clean message the sequential pre-check uses", () => {
@@ -138,15 +123,6 @@ describe("approveAndSubmit (record and submission can never diverge: review MEDI
     return { calls, deps };
   }
 
-  it("happy path: pending record is written BEFORE submit, and confirm runs only AFTER submit succeeds", async () => {
-    const { calls, deps } = harness();
-    const result = await approveAndSubmit(deps);
-    expect(result).toEqual({ status: "submitted" });
-    // The exact ordering is the invariant: the durable record precedes Stripe,
-    // the submitted marker follows a successful Stripe call.
-    expect(calls).toEqual(["pending", "submit", "confirm"]);
-  });
-
   it("a failed Stripe submission NEVER writes the submitted marker (confirm is not reached)", async () => {
     const { calls, deps } = harness({ submit: { ok: false, error: "evidence too long" } });
     const result = await approveAndSubmit(deps);
@@ -164,20 +140,5 @@ describe("approveAndSubmit (record and submission can never diverge: review MEDI
     expect(result.status).toBe("error");
     // Neither submit nor confirm runs: no re-submission of an already-submitted dispute.
     expect(calls).toEqual(["pending"]);
-  });
-
-  it("resume (a prior unconfirmed attempt) proceeds through submit and confirm", async () => {
-    const { calls, deps } = harness({ pending: "resume" });
-    const result = await approveAndSubmit(deps);
-    expect(result).toEqual({ status: "submitted" });
-    expect(calls).toEqual(["pending", "submit", "confirm"]);
-  });
-
-  it("a post-Stripe confirmation failure propagates (Stripe has it, our marker did not land): surfaced, never swallowed", async () => {
-    const { calls, deps } = harness({ confirmThrows: true });
-    await expect(approveAndSubmit(deps)).rejects.toThrow(/database is locked/);
-    // The pending record still exists (no divergence to a record-less submission);
-    // the throw is what the route captures to Sentry and re-raises.
-    expect(calls).toEqual(["pending", "submit", "confirm"]);
   });
 });

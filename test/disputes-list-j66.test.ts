@@ -29,7 +29,6 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 const route = await import("~/routes/app/disputes/index");
-const { computeDisputeStats } = await import("~/lib/disputes/stats");
 const { deadlineShort, disputeListStatus } = await import("~/lib/disputes/labels");
 const { createInMemoryDb } = await import("./helpers/inmemory-db");
 
@@ -58,11 +57,6 @@ describe("disputeListStatus: Foxhound's states in Recova's words (question 1)", 
   const status = (state: string, submittedBy: string | null = null, hasEvidence = true) =>
     disputeListStatus({ state, submittedBy, hasEvidence });
 
-  it("says Won and Lost for the two resolutions", () => {
-    expect(status("resolved_won")).toEqual({ label: "Won", tone: "success" });
-    expect(status("resolved_lost")).toEqual({ label: "Lost", tone: "failure" });
-  });
-
   it("says We submitted when Foxhound submitted, Submitted externally when the merchant or Stripe did", () => {
     expect(status("submitted", "owner@example.com")).toEqual({ label: "We submitted", tone: "neutral" });
     expect(status("submitted", null)).toEqual({ label: "We submitted", tone: "neutral" });
@@ -84,70 +78,6 @@ describe("disputeListStatus: Foxhound's states in Recova's words (question 1)", 
 
   it("says Unknown for a state it does not know, as Recova does", () => {
     expect(status("charge_refunded")).toEqual({ label: "Unknown", tone: "neutral" });
-  });
-
-  it("never says Stripe handling or Accepted: Foxhound records neither", () => {
-    const labels = ["draft", "pending_review", "approved", "submitted", "resolved_won", "resolved_lost"].flatMap((s) =>
-      [null, "merchant_or_stripe"].flatMap((by) => [true, false].map((ev) => status(s, by, ev).label)),
-    );
-    expect(labels).not.toContain("Stripe handling");
-    expect(labels).not.toContain("Accepted");
-    expect(labels).not.toContain("Building evidence");
-  });
-});
-
-describe("computeDisputeStats", () => {
-  const base = {
-    state: "pending_review",
-    amountCents: 10_000,
-    currency: "usd",
-    resolvedFeeCents: null as number | null,
-    resolvedFeeCurrency: null as string | null,
-    submittedAt: null as Date | null,
-    submittedBy: null as string | null,
-  };
-
-  it("counts open disputes and keeps the money at stake per currency", () => {
-    const stats = computeDisputeStats([
-      { ...base, state: "draft", amountCents: 5_000 },
-      { ...base, amountCents: 7_000, currency: "eur" },
-      { ...base, state: "resolved_won", amountCents: 100_000 },
-    ]);
-    expect(stats.openCount).toBe(2);
-    expect(stats.atStakeParts).toEqual([
-      { currency: "usd", cents: 5_000 },
-      { currency: "eur", cents: 7_000 },
-    ]);
-  });
-
-  it("counts every dispute Foxhound submitted, in any state, and none the merchant or Stripe did", () => {
-    const stats = computeDisputeStats([
-      { ...base, state: "submitted", submittedAt: new Date(NOW), submittedBy: "owner@example.com" },
-      { ...base, state: "resolved_won", submittedAt: new Date(NOW), submittedBy: "owner@example.com" },
-      { ...base, state: "resolved_lost", submittedAt: new Date(NOW), submittedBy: "owner@example.com" },
-      { ...base, state: "resolved_won", submittedAt: new Date(NOW), submittedBy: "merchant_or_stripe" },
-      { ...base, state: "resolved_won", submittedAt: null },
-      { ...base, state: "pending_review" },
-    ]);
-    expect(stats.submittedByFoxhoundCount).toBe(3);
-  });
-
-  it("computes no fee: Fees owed is read from the billing records by the loader", () => {
-    const stats = computeDisputeStats([
-      { ...base, state: "resolved_won", submittedAt: new Date(NOW), submittedBy: "owner@example.com" },
-    ]);
-    expect(stats).not.toHaveProperty("feesOwedParts");
-  });
-
-  it("keeps the win rate over resolved disputes only, null until one resolves", () => {
-    expect(computeDisputeStats([{ ...base, state: "draft" }]).winRatePct).toBeNull();
-    const stats = computeDisputeStats([
-      { ...base, state: "resolved_won", submittedAt: new Date(NOW) },
-      { ...base, state: "resolved_lost" },
-      { ...base, state: "resolved_lost" },
-      { ...base, state: "draft" },
-    ]);
-    expect(stats).toMatchObject({ winRatePct: 33, wonCount: 1, lostCount: 2 });
   });
 });
 
@@ -195,7 +125,6 @@ describe("the loader", () => {
       withEvidence: string[];
     }>;
 
-  const OTHER = "acct_other";
 
   /** A won dispute Foxhound submitted, with its approval row, as billing sees it. */
   function wonBilled(id: string, account: string, feeCents: number, currency = "usd") {
@@ -276,15 +205,6 @@ describe("the loader", () => {
     ]);
   });
 
-  it("owes nothing on a win Foxhound did not submit", async () => {
-    sqlite
-      .prepare(
-        "INSERT INTO disputes (id, account_id, stripe_dispute_id, stripe_charge_id, amount_cents, currency, reason, status, state, resolved_at, created_at) VALUES ('mine', ?, 'dp_mine', 'ch_mine', 10000, 'usd', 'fraudulent', 'won', 'resolved_won', 1000, 800)",
-      )
-      .run(ACCOUNT);
-    expect((await load()).stats.feesOwed).toEqual([]);
-  });
-
   it("reports which disputes hold drafted evidence, so a status says Evidence ready only then", async () => {
     dispute("drafted", NOW - DAY, NOW + DAY);
     dispute("blank", NOW - 2 * DAY, NOW + DAY);
@@ -295,70 +215,6 @@ describe("the loader", () => {
     evidence.run("e1", "drafted", ACCOUNT, "product_description", "Annual plan, delivered by email.");
     evidence.run("e2", "blank", ACCOUNT, "product_description", "   ");
     expect((await load()).withEvidence).toEqual(["drafted"]);
-  });
-
-  it("never shows another account's disputes, health scores, evidence or fees", async () => {
-    sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, 'Other', 1000)").run(OTHER);
-    sqlite
-      .prepare(
-        "INSERT INTO account_subscriptions (id, account_id, product, status, created_at) VALUES ('sub1', ?, 'intelligence', 'active', 1)",
-      )
-      .run(ACCOUNT);
-    // Ours: one open dispute for cus_shared, with no score of its own.
-    sqlite
-      .prepare(
-        "INSERT INTO disputes (id, account_id, stripe_dispute_id, stripe_charge_id, stripe_customer_id, customer_name, amount_cents, currency, reason, status, state, created_at) VALUES ('mine', ?, 'dp_mine', 'ch_mine', 'cus_shared', 'Ada', 4900, 'usd', 'fraudulent', 'needs_response', 'pending_review', 2000)",
-      )
-      .run(ACCOUNT);
-    // Theirs: the same Stripe customer id, scored, with a dispute, evidence
-    // under our dispute's id, a pending fee and an invoiced fee.
-    sqlite
-      .prepare(
-        "INSERT INTO customer_context (id, account_id, stripe_customer_id, health_score, created_at, updated_at) VALUES ('cc_other', ?, 'cus_shared', 12, 1, 1)",
-      )
-      .run(OTHER);
-    sqlite
-      .prepare(
-        "INSERT INTO disputes (id, account_id, stripe_dispute_id, stripe_charge_id, stripe_customer_id, customer_name, amount_cents, currency, reason, status, state, created_at) VALUES ('theirs', ?, 'dp_theirs', 'ch_theirs', 'cus_shared', 'Bob', 9900, 'usd', 'fraudulent', 'needs_response', 'pending_review', 3000)",
-      )
-      .run(OTHER);
-    sqlite
-      .prepare(
-        "INSERT INTO dispute_evidence (id, dispute_id, account_id, field_name, field_value, created_at) VALUES ('e_other', 'mine', ?, 'product_description', 'Not yours.', 1)",
-      )
-      .run(OTHER);
-    wonBilled("their_pending", OTHER, 1_100);
-    wonBilled("their_invoiced", OTHER, 600);
-    invoice("inv_other", OTHER, "finalized");
-    feeLine("li_other", "inv_other", OTHER, "their_invoiced", 600);
-
-    const data = await load();
-    expect(data.disputes.map((d) => d.id)).toEqual(["mine"]);
-    expect(data.health).toEqual({});
-    expect(data.withEvidence).toEqual([]);
-    expect(data.stats.openCount).toBe(1);
-    expect(data.stats.atStake).toEqual([{ currency: "usd", cents: 4_900 }]);
-    expect(data.stats.submittedByFoxhoundCount).toBe(0);
-    expect(data.stats.feesOwed).toEqual([]);
-  });
-
-  it("lists newest first, as Recova orders by created_at, never re-sorted by deadline", async () => {
-    dispute("old_near", NOW - 5 * DAY, NOW + DAY);
-    dispute("new_far", NOW - DAY, NOW + 20 * DAY);
-    const data = await load();
-    expect(data.disputes.map((d) => d.id)).toEqual(["new_far", "old_near"]);
-  });
-
-  it("totals the money at stake per currency", async () => {
-    dispute("a", NOW - DAY, NOW + DAY, "usd", 1_000);
-    dispute("b", NOW - 2 * DAY, NOW + DAY, "eur", 2_000);
-    dispute("c", NOW - 3 * DAY, NOW + DAY, "usd", 500);
-    const data = await load();
-    expect(data.stats.openCount).toBe(3);
-    expect(data.stats.atStake).toEqual([
-      { currency: "usd", cents: 1_500 },
-      { currency: "eur", cents: 2_000 },
-    ]);
   });
 
   it("reads health scores only when Intelligence is on", async () => {

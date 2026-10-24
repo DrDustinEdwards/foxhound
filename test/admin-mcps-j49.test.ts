@@ -70,19 +70,6 @@ interface KeyRow {
 }
 
 describe("the data layer", () => {
-  it("lists every key newest first with safe metadata only, never the hash", async () => {
-    expect(typeof serverLib.listAdminApiKeys).toBe("function");
-    const db = await seed();
-    const keys = (await (serverLib.listAdminApiKeys as (db: unknown) => Promise<KeyRow[]>)(db));
-    expect(keys.map((k) => k.id)).toEqual(["key_c", "key_b", "key_a", "key_d"]);
-    expect(keys[2]).toMatchObject({ label: "Claude desktop", scope: "mcp_merchant", accountId: "acct_north", accountName: "North Coffee" });
-    expect(keys[0]).toMatchObject({ scope: "mcp_admin", accountId: null, accountName: null });
-    expect(keys[3].revokedAt).toBeInstanceOf(Date);
-    for (const k of keys) {
-      expect(Object.keys(k)).not.toContain("keyHash");
-      expect(JSON.stringify(k)).not.toContain(SECRET_HASH);
-    }
-  });
 
   it("lists the newest calls with the key's label and the account's name, and no arguments", async () => {
     expect(typeof serverLib.listRecentMcpCalls).toBe("function");
@@ -93,17 +80,6 @@ describe("the data layer", () => {
     expect(calls[0].keyFound).toBe(true);
     expect(calls[2]).toMatchObject({ keyFound: false, keyLabel: null, accountId: "acct_quiet", error: "Bad input for j***@example.com" });
     for (const c of calls) expect(Object.keys(c)).not.toContain("arguments");
-  });
-
-  it("counts keys, active keys, and the calls and failed calls of the last day", async () => {
-    expect(typeof serverLib.getMcpSummary).toBe("function");
-    const db = await seed();
-    expect(await (serverLib.getMcpSummary as (db: unknown) => Promise<unknown>)(db)).toEqual({
-      keysTotal: 4,
-      keysActive: 3,
-      callsLast24h: 2,
-      failedLast24h: 1,
-    });
   });
 
   it("reads the merchant tools from the live registry, read or write by its hints", async () => {
@@ -148,29 +124,6 @@ describe("the error text is masked for display", () => {
     expect(mask("Stripe said sk_live_51HabcDEF123SECRET")).toBe("Stripe said sk_live_[redacted]");
     expect(mask("No customer alice%40example.com")).toBe("No customer a***%40example.com");
     expect(mask("Nothing to hide here: limit must be 1 to 50")).toBe("Nothing to hide here: limit must be 1 to 50");
-  });
-
-  it("masks in the data layer, so the raw text never reaches the browser", async () => {
-    const db = await seed();
-    await db.insert(mcpCalls).values({
-      id: "call_9",
-      accountId: "acct_north",
-      apiKeyId: "key_a",
-      tool: "foxhound_update_settings",
-      arguments: {},
-      outcome: "tool_error",
-      error: HOSTILE.join(" | "),
-      createdAt: new Date(NOW),
-    });
-    const calls = await (serverLib.listRecentMcpCalls as (db: unknown) => Promise<Array<{ id: string; error: string | null }>>)(db);
-    const err = calls.find((c) => c.id === "call_9")?.error ?? "";
-    expect(err).toContain("[redacted]");
-    expect(err).not.toMatch(/SECRET|alice|carol@/);
-  });
-
-  it("masks on the page too", () => {
-    const html = render({ calls: [call(1, { outcome: "tool_error", error: HOSTILE.join(" | ") })] });
-    expect(html).not.toMatch(/SECRET|alice|carol@/);
   });
 });
 

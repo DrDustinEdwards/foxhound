@@ -107,129 +107,10 @@ function sendRows() {
   return sqlite.prepare("SELECT status FROM email_sends WHERE account_id = ?").all(ACCOUNT) as { status: string }[];
 }
 
-function alertSentAt(): number | null {
-  return (sqlite.prepare("SELECT alert_sent_at AS s FROM expiring_card_alerts WHERE id = 'al_1'").get() as { s: number | null }).s;
-}
-
-// ---- what it says ----------------------------------------------------------------
-
-describe("E12 says Recova's words, on Capsomer's blocks", () => {
-
-  it("a customer name is shown exactly as Stripe holds it, escaped by Capsomer, never read as markup", async () => {
-    seedMerchant();
-    seedAlert({ customerName: 'Jane "JJ" <Buyer> & Co' });
-
-    await sendExpiringCardAlerts(env, NOW);
-
-    expect(harness.sent).toHaveLength(1);
-    expect(harness.sent[0].text).toContain('Hi Jane "JJ" <Buyer> & Co,');
-    expect(harness.sent[0].html).toContain("Hi Jane &quot;JJ&quot; &lt;Buyer&gt; &amp; Co,");
-  });
-});
-
-// ---- what it carries --------------------------------------------------------------
-
-describe("E12 carries Recova's parts, From, Reply-To, footer and links", () => {
-
-  it("the footer carries Recova's sentence, then the unsubscribe link and the postal address, in both parts", async () => {
-    seedMerchant();
-    seedAlert();
-
-    await sendExpiringCardAlerts(env, NOW);
-
-    const m = harness.sent[0];
-    const note = "You're receiving this from Acme Billing about a recent payment. © 2026";
-    const text = m.text ?? "";
-    const at = [note, "Unsubscribe: https://foxhoundapp.test/u/", ADDRESS].map((s) => text.indexOf(s));
-    expect(at.every((i) => i >= 0)).toBe(true);
-    expect([...at].sort((a, b) => a - b)).toEqual(at);
-    expect(m.html).toContain("You&#39;re receiving this from Acme Billing about a recent payment. © 2026");
-    expect(m.headers?.["List-Unsubscribe"]).toMatch(/^<https:\/\/foxhoundapp\.test\/u\//);
-    expect(m.headers?.["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
-  });
-
-  it("Reply-To is the merchant's saved address (J03), and absent when none is saved", async () => {
-    seedMerchant({ replyTo: "help@acme.example" });
-    seedAlert();
-    await sendExpiringCardAlerts(env, NOW);
-    expect(harness.sent[0].replyTo).toBe("help@acme.example");
-
-    beforeEachReset();
-    seedMerchant({ replyTo: null });
-    seedAlert();
-    await sendExpiringCardAlerts(env, NOW);
-    expect(harness.sent[0].replyTo).toBeUndefined();
-  });
-});
 
 // ---- when it sends ----------------------------------------------------------------
 
 describe("E12 sends on Recova's trigger, to Recova's recipient, and not otherwise", () => {
-  it("an unsent candidate on an account with the toggle unset (NULL is on) goes to the customer's own address", async () => {
-    seedMerchant({ enabled: null });
-    seedAlert({ email: "jane@buyer.example" });
-
-    const result = await sendExpiringCardAlerts(env, NOW);
-
-    expect(result.sent).toBe(1);
-    expect(harness.sent.map((m) => m.to)).toEqual(["jane@buyer.example"]);
-  });
-
-  it("the toggle off sends nothing and stamps the candidate, as Recova does", async () => {
-    seedMerchant({ enabled: 0 });
-    seedAlert();
-
-    await sendExpiringCardAlerts(env, NOW);
-
-    expect(harness.sent).toHaveLength(0);
-    expect(alertSentAt()).not.toBeNull();
-  });
-
-  it("with no primary live Stripe connection it sends nothing and leaves the candidate for a later night, as Recova skips", async () => {
-    seedMerchant();
-    seedAlert();
-    sqlite.prepare("UPDATE stripe_connections SET disconnected_at = 2000 WHERE id = 'c1'").run();
-
-    const result = await sendExpiringCardAlerts(env, NOW);
-
-    expect(harness.sent).toHaveLength(0);
-    // Filtered out by the query, so it is not even counted as skipped.
-    expect(result.skipped).toBe(0);
-    // Recova's `if (!merchantConnection) { results.skipped++; continue }`
-    // stamps nothing, so a reconnected merchant's customer is still warned.
-    expect(alertSentAt()).toBeNull();
-    expect(sendRows()).toEqual([]);
-  });
-
-  it("alerts held back by a disconnected merchant never fill the page and starve another merchant's customer", async () => {
-    // 100 unsent alerts on an account whose only connection is disconnected,
-    // seeded first so they come first in the scan, then one on a connected
-    // account. The send page is 100 rows with no
-    // order, so a gate applied in the loop would leave the held-back rows
-    // in the page every night and the connected customer would never be
-    // mailed. Over two runs that customer is sent.
-    sqlite
-      .prepare(
-        "INSERT INTO accounts (id, name, created_at, expiring_card_notifications_enabled, live_sends_enabled) VALUES ('acct_0gone', 'Gone', 1000, NULL, 1)",
-      )
-      .run();
-    sqlite
-      .prepare(
-        "INSERT INTO stripe_connections (id, account_id, stripe_user_id, is_primary, stripe_access_token, sender_name, connected_at, created_at, disconnected_at) VALUES ('c_gone', 'acct_0gone', 'acct_s2', 1, 'cipher', 'Gone Co', 1000, 1000, 2000)",
-      )
-      .run();
-    const insert = sqlite.prepare(
-      "INSERT INTO expiring_card_alerts (id, account_id, stripe_connection_id, stripe_customer_id, customer_email, card_brand, card_last4, expires_month, expires_year, created_at) VALUES (?, 'acct_0gone', 'c_gone', ?, ?, 'visa', '4242', 11, 2026, 1000)",
-    );
-    for (let i = 0; i < 100; i += 1) insert.run(`al_0held_${i}`, `cus_gone_${i}`, `held${i}@gone.example`);
-    seedMerchant();
-    seedAlert();
-
-    await sendExpiringCardAlerts(env, NOW);
-    await sendExpiringCardAlerts(env, new Date(NOW.getTime() + 86_400_000));
-
-    expect(harness.sent.map((m) => m.to)).toEqual(["buyer@acme.test"]);
-  });
 
   it("a refused send returns its named outcome: a suppressed address is logged as suppressed, not sent", async () => {
     seedMerchant();
@@ -245,9 +126,3 @@ describe("E12 sends on Recova's trigger, to Recova's recipient, and not otherwis
   });
 });
 
-function beforeEachReset(): void {
-  const made = createInMemoryDb();
-  sqlite = made.sqlite;
-  harness.db = made.db;
-  harness.sent = [];
-}

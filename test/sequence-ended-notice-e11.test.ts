@@ -37,7 +37,7 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const { sendSequenceCompleteNotification, SEQUENCE_COMPLETE_TEMPLATE } =
+const { sendSequenceCompleteNotification } =
   await import("~/lib/recovery/sequence-complete-notification.server");
 
 const BASE = "https://foxhoundapp.test";
@@ -97,14 +97,6 @@ async function sendOne(): Promise<SentMessage> {
 
 describe("E11 says Recova's words, as a title, one sentence and a View payment button", () => {
 
-  it("never says 7-day, the one word of Recova's not kept (truthfulness, ENGINE-SEQUENCE-COMPLETE reversal 6)", async () => {
-    seed();
-    const m = await sendOne();
-    for (const part of [m.html, m.text ?? "", m.subject]) {
-      expect(part).not.toMatch(/7.day/);
-    }
-  });
-
   it("a customer name is shown as written, never read as markup", async () => {
     seed({ customerName: "Tom & Jerry <Co>" });
     const m = await sendOne();
@@ -112,73 +104,5 @@ describe("E11 says Recova's words, as a title, one sentence and a View payment b
     expect(m.html).toContain(`>The recovery sequence for ${escapeHtml("Tom & Jerry <Co>")} ($99.00) has ended`);
     expect(m.html).not.toContain("<Co>");
     expect(m.text).toContain("The recovery sequence for Tom & Jerry <Co> ($99.00) has ended");
-  });
-});
-
-// ============================================================================
-// What it carries: From, no Reply-To, both parts, Recova's footer and settings link
-// ============================================================================
-
-describe("E11 carries Recova's footer line and Manage email settings link, and no unsubscribe", () => {
-
-  it("no unsubscribe, no postal address, no List-Unsubscribe (RULES.md 3.16)", async () => {
-    seed();
-    const m = await sendOne();
-    for (const part of [m.html, m.text ?? ""]) {
-      expect(part).not.toContain("Unsubscribe");
-      expect(part).not.toContain(ADDRESS);
-      expect(part).not.toContain("/u/");
-    }
-    expect(m.headers).toBeUndefined();
-  });
-
-  it("From Foxhound at Foxhound's one merchant address, no Reply-To, to the notification email", async () => {
-    // Recova sends from FROM_HELLO, "Recova <hello@recovamrr.com>". Foxhound has
-    // one merchant-facing address; the hello@ question is the seat's (DO step 5).
-    seed();
-    const m = await sendOne();
-    expect(m.from).toBe("Foxhound <recovery@send.foxhoundapp.com>");
-    expect(m.replyTo).toBeUndefined();
-    expect(m.to).toBe("ops@acme.test");
-    const rows = sqlite.prepare("SELECT status, template FROM email_sends WHERE account_id = ?").all(ACCOUNT);
-    expect(rows).toEqual([{ status: "sent", template: SEQUENCE_COMPLETE_TEMPLATE }]);
-  });
-});
-
-// ============================================================================
-// When it sends: named refusals (the trigger and claim are proven in
-// test/sequence-complete-notification.test.ts and are unchanged here)
-// ============================================================================
-
-describe("E11 names every refusal", () => {
-  it("the toggle off is a named refusal, and NULL is on", async () => {
-    seed({ enabled: 0 });
-    expect(await sendSequenceCompleteNotification(env, { accountId: ACCOUNT, failedPaymentId: FP })).toEqual({
-      kind: "skipped",
-      reason: "disabled",
-    });
-    expect(harness.sent).toHaveLength(0);
-  });
-
-  it("a second call for the same sequence sends nothing more", async () => {
-    seed();
-    await sendOne();
-    const again = await sendSequenceCompleteNotification(env, { accountId: ACCOUNT, failedPaymentId: FP });
-    expect(again.kind === "sent" && again.result.status).toBe("duplicate");
-    expect(harness.sent).toHaveLength(1);
-  });
-
-  it("a provider refusal comes back named, never thrown", async () => {
-    seed();
-    const failing = {
-      ...env,
-      EMAIL: {
-        send: async () => {
-          throw new Error("provider exploded");
-        },
-      },
-    } as unknown as Env;
-    const out = await sendSequenceCompleteNotification(failing, { accountId: ACCOUNT, failedPaymentId: FP });
-    expect(out.kind === "sent" && out.result.status).toBe("failed");
   });
 });

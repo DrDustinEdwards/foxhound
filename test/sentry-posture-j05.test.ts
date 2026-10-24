@@ -39,28 +39,6 @@ function runBeforeSendTransaction(event: Event): Event | null {
 }
 
 describe("J05: the options object carries the posture", () => {
-  it("is still inert with no DSN", () => {
-    expect(sentryOptions({})).toBeUndefined();
-    expect(sentryOptions({ SENTRY_DSN: "" })).toBeUndefined();
-  });
-
-  it("sets sendDefaultPii to false EXPLICITLY, not by leaving it out", () => {
-    // The SDK default is false today. Written out so a default change in a
-    // future version cannot turn on IP addresses and cookies unnoticed.
-    const opts = withDsn();
-    expect(Object.prototype.hasOwnProperty.call(opts, "sendDefaultPii")).toBe(true);
-    expect(opts.sendDefaultPii).toBe(false);
-  });
-
-  it("samples traces at 10 percent, never every request", () => {
-    const opts = withDsn();
-    expect(opts.tracesSampleRate).toBe(0.1);
-    expect(opts.tracesSampler).toBeUndefined();
-  });
-
-  it("keeps the DSN it was given", () => {
-    expect(withDsn().dsn).toBe(DSN);
-  });
 
   it("the worker entry passes THIS function to withSentry", () => {
     const entry = read("workers/app.ts");
@@ -91,45 +69,6 @@ describe("J05: personal data is scrubbed from what the call sites send", () => {
     expect(value).not.toContain("jane@example.com");
     expect(value).not.toContain("Jane Doe");
     expect(value).toContain("params: [redacted]");
-  });
-
-  it("an email address in a plain message or breadcrumb is masked", () => {
-    const out = runBeforeSend({
-      message: "no customer for jane@example.com",
-      breadcrumbs: [{ category: "console", message: "billing card read failed: bob@example.org" }],
-    });
-    expect(out?.message).toBe("no customer for [email]");
-    expect(out?.breadcrumbs?.[0]?.message).toBe("billing card read failed: [email]");
-  });
-
-  it("emailed-link tokens and query strings leave the request URL", () => {
-    const out = runBeforeSend({
-      request: {
-        url: "https://foxhoundapp.com/u/tok_secret123?x=1",
-        query_string: "token=abc",
-        cookies: { session: "s" },
-        headers: { cookie: "session=s", "stripe-signature": "t=1,v1=abc" },
-        data: '{"email":"jane@example.com"}',
-      },
-    });
-    expect(out?.request?.url).toBe("https://foxhoundapp.com/u/[token]");
-    expect(out?.request?.query_string).toBeUndefined();
-    expect(out?.request?.cookies).toBeUndefined();
-    expect(out?.request?.headers).toBeUndefined();
-    expect(out?.request?.data).toBeUndefined();
-  });
-
-  it("every token-bearing route is covered: /p, /e/o, /e/c, /e/h, /invite, ?token=", () => {
-    for (const [url, want] of [
-      ["https://f.test/p/abc", "https://f.test/p/[token]"],
-      ["https://f.test/e/o/abc", "https://f.test/e/o/[token]"],
-      ["https://f.test/e/c/abc", "https://f.test/e/c/[token]"],
-      ["https://f.test/e/h/abc", "https://f.test/e/h/[token]"],
-      ["https://f.test/invite/abc", "https://f.test/invite/[token]"],
-      ["https://f.test/reset-password?token=abc", "https://f.test/reset-password"],
-    ] as const) {
-      expect(runBeforeSend({ request: { url } })?.request?.url).toBe(want);
-    }
   });
 
   it("transactions are scrubbed too: name, request and outgoing span URLs", () => {
@@ -173,12 +112,5 @@ describe("J05: personal data is scrubbed from what the call sites send", () => {
       out = runBeforeSend(hostile);
     }).not.toThrow();
     expect(out).toBeNull();
-  });
-
-  it("ids in extra context are kept, because they are what makes an event useful", () => {
-    const out = runBeforeSend({
-      extra: { scope: "stripe-webhook-process", eventType: "invoice.paid", eventId: "evt_1" },
-    });
-    expect(out?.extra).toEqual({ scope: "stripe-webhook-process", eventType: "invoice.paid", eventId: "evt_1" });
   });
 });

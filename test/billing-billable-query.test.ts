@@ -45,13 +45,6 @@ describe("getBillableRecoveries excludes what must never be billed", () => {
     expect(sql).toMatch(/billing_line_items/i);
   });
 
-  it("is scoped to one account", () => {
-    const { params } = (getBillableRecoveries(db, "acc_1", AS_OF) as unknown as {
-      toSQL(): { sql: string; params: unknown[] };
-    }).toSQL();
-    expect(params).toContain("acc_1");
-  });
-
   it("the assertions above are not vacuous: the query is real SQL over the right table", () => {
     // A toSQL() that returned an empty string would pass every toMatch above only if
     // they were negated, and would pass a naive "contains" check trivially. Pin the

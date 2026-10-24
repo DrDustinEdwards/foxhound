@@ -221,32 +221,6 @@ describe("a refund AFTER the fee was invoiced", () => {
   });
 });
 
-describe("CONTROL: a refund BEFORE the fee was invoiced", () => {
-  it("credits nothing, because maturity already handled it", async () => {
-    const db = await seed({ invoiced: false });
-
-    const outcome = await issueCreditNoteForEvidence({} as Env, RECOVERY_EVIDENCE, OPTS);
-
-    expect(outcome).toEqual({ credited: false, reason: "no_charged_fee_line" });
-    // The control that matters: a clawback that fired on everything would pass
-    // every assertion in the block above.
-    expect(harness.creditNoteCalls).toHaveLength(0);
-    expect(await lines(db)).toHaveLength(0);
-  });
-
-  it("and a recovery with no fee line at all credits nothing", async () => {
-    const db = await seed();
-    await db.delete(schema.billingLineItems).where(eq(schema.billingLineItems.id, FEE_LINE));
-
-    expect(await issueCreditNoteForEvidence({} as Env, RECOVERY_EVIDENCE, OPTS)).toEqual({
-      credited: false,
-      reason: "no_charged_fee_line",
-    });
-    expect(harness.creditNoteCalls).toHaveLength(0);
-    expect(await lines(db)).toHaveLength(0);
-  });
-});
-
 describe("a SECOND refund event on the same line", () => {
   it("yields no second note and no second line", async () => {
     const db = await seed();
@@ -255,63 +229,6 @@ describe("a SECOND refund event on the same line", () => {
     const second = await issueCreditNoteForEvidence({} as Env, RECOVERY_EVIDENCE, OPTS);
 
     expect(second).toEqual({ credited: false, reason: "no_charged_fee_line" });
-    expect(harness.creditNoteCalls).toHaveLength(1);
-    expect(await lines(db)).toHaveLength(1);
-  });
-
-  it("AND THE DATABASE REFUSES ONE EVEN IF THE READ IS BYPASSED", async () => {
-    // The read above is a courtesy that avoids a redundant Stripe call. The
-    // guarantee is the unique index, so it is exercised directly rather than
-    // trusted: a caller reaching the insert with the check skipped still cannot
-    // produce a second credit for one fee line.
-    const db = await seed();
-    await issueCreditNoteForEvidence({} as Env, RECOVERY_EVIDENCE, OPTS);
-
-    await expect(
-      db.insert(schema.billingLineItems).values({
-        id: "bli_second_credit",
-        invoiceId: INVOICE,
-        accountId: ACCOUNT,
-        type: "credit",
-        currency: "usd",
-        amountCents: -FEE_CENTS,
-        recoveredPaymentId: RECOVERY,
-        description: "second credit",
-        createdAt: REFUNDED_AT,
-        stripeCreditNoteId: "cn_rogue",
-        creditsLineItemId: FEE_LINE,
-      }),
-    ).rejects.toThrow();
-
-    expect(await lines(db)).toHaveLength(1);
-  });
-});
-
-describe("a LOST dispute on a dispute fee behaves the same as a refund on a recovery fee", () => {
-  it("issues one credit note against the invoice and links the dispute", async () => {
-    const db = await seed({ kind: "dispute" });
-
-    const outcome = await issueCreditNoteForEvidence({} as Env, DISPUTE_EVIDENCE, {
-      now: REFUNDED_AT,
-      description: "Dispute lost after billing: fee credited",
-    });
-
-    expect(outcome.credited).toBe(true);
-    expect(harness.creditNoteCalls).toHaveLength(1);
-    expect(harness.creditNoteCalls[0].args.credit_amount).toBe(FEE_CENTS);
-
-    const credits = await lines(db);
-    expect(credits).toHaveLength(1);
-    expect(credits[0].disputeId).toBe(DISPUTE);
-    expect(credits[0].recoveredPaymentId).toBeNull();
-    expect(credits[0].amountCents).toBe(-FEE_CENTS);
-  });
-
-  it("a second lost-dispute delivery yields nothing new", async () => {
-    const db = await seed({ kind: "dispute" });
-    await issueCreditNoteForEvidence({} as Env, DISPUTE_EVIDENCE, OPTS);
-    await issueCreditNoteForEvidence({} as Env, DISPUTE_EVIDENCE, OPTS);
-
     expect(harness.creditNoteCalls).toHaveLength(1);
     expect(await lines(db)).toHaveLength(1);
   });

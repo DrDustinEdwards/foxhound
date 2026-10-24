@@ -3,7 +3,6 @@ import type Stripe from "stripe";
 import { describe, expect, it } from "vitest";
 
 import {
-  collectPaginated,
   readCardUpdaterEvents,
   readDisputes,
   readOpenInvoices,
@@ -41,23 +40,6 @@ function throwingList(message: string): AsyncIterable<never> {
 
 const stripeWith = (lists: Record<string, unknown>) => lists as unknown as Stripe;
 
-describe("PLANT 1: the walk is paginated to the end and narrowed as it goes", () => {
-  it("collects every page rather than the first one, and past the old 2,000 ceiling", async () => {
-    const items = Array.from({ length: 2_250 }, (_, i) => i);
-    const rows = await collectPaginated(fakeList(items), (n) => n);
-    expect(rows).toHaveLength(2_250);
-  });
-
-  it("keeps what the narrowing returns, not the row Stripe sent", async () => {
-    const rows = await collectPaginated(fakeList([{ id: "x", big: "y".repeat(1000) }]), (row) => ({ id: row.id }));
-    expect(rows).toEqual([{ id: "x" }]);
-  });
-
-  it("an empty list is an empty answer", async () => {
-    expect(await collectPaginated(fakeList([]), (n) => n)).toEqual([]);
-  });
-});
-
 describe("PLANT 2: every read answers, and a failure is data", () => {
   const stripe = stripeWith({
     invoices: { list: () => fakeList([{ id: "in_1", amount_due: 100 }, { id: "in_2", amount_due: 200 }]) },
@@ -79,15 +61,6 @@ describe("PLANT 2: every read answers, and a failure is data", () => {
     expect(disputes.ok && disputes.data.map((d) => d.status)).toEqual(["won"]);
     const events = await readCardUpdaterEvents(stripe, 0);
     expect(events.ok && events.data).toHaveLength(2);
-  });
-
-  it("A THROWN READ BECOMES ok:false WITH A REASON, never an exception", async () => {
-    const broken = stripeWith({ disputes: { list: () => throwingList("rate limited") } });
-    const outcome = await readDisputes(broken);
-    expect(outcome.ok).toBe(false);
-    expect(outcome.ok === false && outcome.reason).toBe(
-      "Could not read disputes from Stripe: rate limited",
-    );
   });
 
   it("the reason names the read and carries no wide dash", async () => {

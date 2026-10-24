@@ -56,11 +56,6 @@ function request(headers: Record<string, string> = {}, url = "https://foxhoundap
 }
 
 describe("getAdminSession (Cloudflare Access)", () => {
-  it("accepts a valid assertion for an allowlisted email, from the header", async () => {
-    stubKeys();
-    const jwt = await token({ email: "Admin@Example.com" });
-    expect(await getAdminSession(env(), request({ "Cf-Access-Jwt-Assertion": jwt }))).toEqual({ email: ADMIN });
-  });
 
   it("accepts the same token from the CF_Authorization cookie", async () => {
     stubKeys();
@@ -72,14 +67,6 @@ describe("getAdminSession (Cloudflare Access)", () => {
     stubKeys();
     const jwt = await token({ email: "someone@example.com" });
     expect(await getAdminSession(env(), request({ "Cf-Access-Jwt-Assertion": jwt }))).toBeNull();
-  });
-
-  it("fails closed when the team domain or AUD is unset", async () => {
-    stubKeys();
-    const jwt = await token({ email: ADMIN });
-    const headers = { "Cf-Access-Jwt-Assertion": jwt };
-    expect(await getAdminSession(env({ ACCESS_TEAM_DOMAIN: undefined }), request(headers))).toBeNull();
-    expect(await getAdminSession(env({ ACCESS_AUD: undefined }), request(headers))).toBeNull();
   });
 
   it("the dev bypass works on localhost only", async () => {

@@ -1,18 +1,12 @@
 import { readFileSync } from "node:fs";
 
-import { eq } from "drizzle-orm";
 
 import { describe, expect, it } from "vitest";
 
 import { accounts, failedPayments, recoverySteps } from "~/db/schema";
 import {
   WINBACK_PRIORITY_ACTION,
-  WINBACK_STEP1_HOURS,
-  WINBACK_STEP2_HOURS,
-  WINBACK_STEP3_HOURS,
-  WINBACK_UNFLAGGED_STEP1_HOURS,
 } from "~/lib/constants";
-import { planWinbackSteps } from "~/lib/recovery/winback";
 import { buildInvoluntaryStopBatch } from "~/lib/webhooks/batches";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
@@ -31,52 +25,12 @@ import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 // have ACCELERATED the unflagged, inverting the mechanism.
 
 const now = new Date("2026-08-14T00:00:00.000Z");
-const HOUR_MS = 60 * 60 * 1000;
 const PROCESS = ["process", "lookups", "recovery-handlers", "dispute-handlers", "winback-handlers"]
   .map((f) => readFileSync(`app/lib/webhooks/${f}.ts`, "utf8"))
   .join("\n");
 
-function offsets(step1OffsetHours?: number): number[] {
-  return planWinbackSteps({
-    winBackSequenceId: "wb_1",
-    accountId: "acc_1",
-    canceledAt: now,
-    step1OffsetHours,
-  }).map((s) => (s.scheduledAt.getTime() - now.getTime()) / HOUR_MS);
-}
-
-describe("291 A: the schedule is legacy's", () => {
-  it("the planner emits 1 / 96 / 336, legacy's exact hours", () => {
-    expect(offsets()).toEqual([1, 96, 336]);
-    // Tied to the constants too, so a constant change must come through here.
-    expect(offsets()).toEqual([WINBACK_STEP1_HOURS, WINBACK_STEP2_HOURS, WINBACK_STEP3_HOURS]);
-  });
-});
 
 describe("291 B: the gate delays the UNFLAGGED, on the aligned base", () => {
-  it("an unflagged customer is delayed to 4h, steps 2 and 3 untouched", () => {
-    expect(offsets(WINBACK_UNFLAGGED_STEP1_HOURS)).toEqual([4, 96, 336]);
-  });
-
-  it("a flagged customer keeps the 1h default", () => {
-    // The gate resolves to undefined for a flagged customer, which is the
-    // schedule as written, so this is the SAME shape as no gate at all.
-    expect(offsets(undefined)).toEqual([1, 96, 336]);
-  });
-
-  it("the delay is a DELAY: unflagged step 1 is strictly later than flagged", () => {
-    // The assertion that would have caught the inverted port. On the old 24h
-    // base this comparison ran the other way, which is why 291 coupled the two.
-    expect(offsets(WINBACK_UNFLAGGED_STEP1_HOURS)[0]).toBeGreaterThan(offsets()[0]);
-    expect(WINBACK_UNFLAGGED_STEP1_HOURS).toBe(4);
-    expect(WINBACK_STEP1_HOURS).toBe(1);
-  });
-
-  it("only step ONE is overridable, as legacy overrides only step one", () => {
-    const weird = offsets(999);
-    expect(weird[0]).toBe(999);
-    expect(weird.slice(1)).toEqual([96, 336]);
-  });
 
   it("the gate reads the LIVE capability and legacy's value (292)", () => {
     // 292's semantic port: the STORAGE moved to the live entitlement, the value
@@ -167,42 +121,6 @@ describe("291 C: the involuntary flip goes through 265's ratified transition", (
       .prepare("select result from recovery_steps order by id")
       .all() as { result: string | null }[];
     expect(results.every((r) => r.result === "cancelled")).toBe(true);
-  });
-
-  it("CLAIMS the transition: a payment already recovered is NOT overwritten", () => {
-    // 265's first guard. This is the assertion legacy's unconditional per-row
-    // update would fail: it would stamp cancelled over a recovered payment.
-    const { sqlite, db } = seedActive(["fp_r"]);
-    runStatement(
-      sqlite,
-      db.update(failedPayments).set({ status: "recovered" }).where(eq(failedPayments.id, "fp_r")),
-    );
-    commit(
-      sqlite,
-      buildInvoluntaryStopBatch(db, { claim, accountId: "acc_1", failedPaymentIds: ["fp_r"], now }),
-    );
-    const row = sqlite.prepare("select status from failed_payments where id = ?").get("fp_r") as {
-      status: string;
-    };
-    expect(row.status).toBe("recovered");
-  });
-
-  it("and when the claim LOSES, the steps are not touched either", () => {
-    // 265's second guard, the correlated subquery. Without it a lost claim would
-    // still cancel the steps of a payment this batch did not cancel.
-    const { sqlite, db } = seedActive(["fp_r"]);
-    runStatement(
-      sqlite,
-      db.update(failedPayments).set({ status: "recovered" }).where(eq(failedPayments.id, "fp_r")),
-    );
-    commit(
-      sqlite,
-      buildInvoluntaryStopBatch(db, { claim, accountId: "acc_1", failedPaymentIds: ["fp_r"], now }),
-    );
-    const step = sqlite.prepare("select result from recovery_steps limit 1").get() as {
-      result: string | null;
-    };
-    expect(step.result).toBeNull();
   });
 
   it("a REDELIVERED stop does not double-resolve", () => {

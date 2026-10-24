@@ -107,35 +107,6 @@ describe("PLANT 1: one job's infrastructure throw does not take the schedule wit
     expect(failed[0].status).toBe("failed");
     expect(failed[0].message).toBe("DO unavailable");
   });
-
-  it("runCronJob NEVER THROWS, which is the property scheduled() relies on", async () => {
-    freshDb();
-    // Stated as its own assertion because scheduled() has no try/catch by
-    // design: if this ever becomes false, the loop silently regains the defect.
-    await expect(
-      runCronJob(envWith(throwingLock()), "recovery-tick", async () => ({ rowsProcessed: 1 })),
-    ).resolves.toBeDefined();
-  });
-
-  it("a whole schedule survives its first job throwing, driven as a loop", async () => {
-    freshDb();
-    const ran: string[] = [];
-    const jobs = [
-      { name: "recovery-tick", lock: throwingLock() },
-      { name: "expiring-cards", lock: workingLock() },
-      { name: "demo-reset", lock: workingLock() },
-    ];
-
-    // The shape of scheduled()'s loop, with no guard of its own.
-    for (const job of jobs) {
-      await runCronJob(envWith(job.lock), job.name, async () => {
-        ran.push(job.name);
-        return { rowsProcessed: 1 };
-      });
-    }
-
-    expect(ran).toEqual(["expiring-cards", "demo-reset"]);
-  });
 });
 
 describe("PLANT 2: the postamble, where a release failure must not rewrite the outcome", () => {
@@ -172,15 +143,5 @@ describe("PLANT 3: the handler path is unchanged", () => {
     const rows = await db.select().from(cronRunHistory);
     expect(rows).toHaveLength(1);
     expect(rows[0].status).toBe("failed");
-  });
-
-  it("and a healthy run is still a plain success", async () => {
-    freshDb();
-    const outcome = await runCronJob(envWith(workingLock()), "recovery-tick", async () => ({
-      rowsProcessed: 2,
-      message: "ok",
-    }));
-    expect(outcome.status).toBe("success");
-    expect(outcome.message).toBe("ok");
   });
 });

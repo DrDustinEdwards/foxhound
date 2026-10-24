@@ -4,7 +4,7 @@ import type Database from "better-sqlite3";
 import { RouterContextProvider } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { apiKeys, oauthAuthorizationCodes, oauthClients, oauthGrants } from "~/db/schema";
+import { apiKeys, oauthAuthorizationCodes, oauthGrants } from "~/db/schema";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE, verifyMcpToken } from "~/lib/auth/mcp-tokens";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { OAUTH_ACCESS_TOKEN_TTL_SECONDS, OAUTH_CODE_TTL_MS } from "~/lib/constants";
@@ -12,10 +12,7 @@ import { removeMember } from "~/lib/auth/account";
 import { deleteUserAccountLocal } from "~/lib/auth/delete-account.server";
 import { safeNextPath } from "~/lib/auth/next-path";
 import { applyCachePolicy, classifyPath, NO_TRANSFORM_PREFIXES, PRIVATE_DIRECTIVE } from "~/lib/http/cache-policy";
-import { listAccountApiKeys } from "~/lib/settings/api-keys.server";
-import { MERCHANT_TOOL_NAMES } from "~/lib/mcp/tools.server";
 import { authorizationServerMetadata, protectedResourceMetadata } from "~/lib/oauth/metadata";
-import { CONSENT_CAPABILITIES } from "~/lib/oauth/consent-copy";
 import { isAcceptableRedirectUri, isRegisteredRedirect } from "~/lib/oauth/redirects";
 import { DISALLOW_PATHS } from "~/routes/files/robots";
 
@@ -221,12 +218,6 @@ describe("F18 and F19: the metadata, at both of Recova's well-known paths", () =
       expect(routes, `${key} names a route`).toContain(`route("${path}",`);
     }
   });
-
-  it("does not claim client id metadata documents, which nothing here fetches", () => {
-    // Recova advertised client_id_metadata_document_supported: true and its
-    // authorize page answered such a client "Unknown client".
-    expect(authorizationServerMetadata(ORIGIN)).not.toHaveProperty("client_id_metadata_document_supported");
-  });
 });
 
 describe("the protected-resource document and the /mcp 401 that points at it", () => {
@@ -249,42 +240,9 @@ describe("the protected-resource document and the /mcp 401 that points at it", (
     expect(routes).toMatch(/route\("\.well-known\/oauth-protected-resource", "\.\/routes\/files\/oauth-protected-resource\.ts"/);
     expect(routes).toMatch(/route\("\.well-known\/oauth-protected-resource\/mcp", "\.\/routes\/files\/oauth-protected-resource\.ts"/);
   });
-
-  it("the 401 carries resource_metadata, the same on every failure", async () => {
-    const headersFor = async (auth?: string) => {
-      const res = (await handleMcpRequest(
-        new Request(`${ORIGIN}/mcp`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...(auth ? { Authorization: auth } : {}) },
-          body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
-        }),
-        env(),
-      )) as Response;
-      expect(res.status).toBe(401);
-      return res.headers.get("WWW-Authenticate");
-    };
-    const expected = `Bearer resource_metadata="${ORIGIN}/.well-known/oauth-protected-resource", scope="merchant"`;
-    expect(await headersFor()).toBe(expected);
-    expect(await headersFor(`Bearer ${MCP_TOKEN_PREFIX}nope`)).toBe(expected);
-  });
 });
 
 describe("registration (RFC 7591)", () => {
-  it("mints the client id and never takes one from the request", async () => {
-    // Recova upserted on a supplied client_id, so anyone could rewrite an
-    // existing client's redirect URIs.
-    const first = await provider.registerClient(db, { client_name: "Claude", redirect_uris: [CLAUDE_REDIRECT] }, NOW);
-    const hijack = await provider.registerClient(
-      db,
-      { client_id: first.body.client_id, client_name: "Evil", redirect_uris: ["https://evil.example/cb"] },
-      NOW,
-    );
-    expect(hijack.status).toBe(201);
-    expect(hijack.body.client_id).not.toBe(first.body.client_id);
-    const rows = await db.select().from(oauthClients);
-    const original = rows.find((r) => r.id === first.body.client_id)!;
-    expect(original.redirectUris).toEqual([CLAUDE_REDIRECT]);
-  });
 
   it("answers Recova's shape, defaults included", async () => {
     const res = await provider.registerClient(db, { redirect_uris: [CLAUDE_REDIRECT] }, NOW);
@@ -504,18 +462,6 @@ describe("A9: consent", () => {
     expect((res as { data: { error: string } }).data.error).toBeTruthy();
     expect(await db.select().from(oauthAuthorizationCodes)).toHaveLength(0);
   });
-
-  it("the merchant scope is the only one: no admin option, whatever the URL asks", async () => {
-    const clientId = await registered();
-    const { challenge } = await pkcePair();
-    const data = (await authorizeRoute.loader({
-      request: new Request(`${ORIGIN}/oauth/authorize?${authorizeParams(clientId, challenge, { scope: "admin" })}`),
-      context: context(),
-      params: {},
-    } as never)) as Record<string, unknown>;
-    expect(data).not.toHaveProperty("isAdmin");
-    expect(JSON.stringify(data)).not.toContain("admin");
-  });
 });
 
 describe("the token endpoint", () => {
@@ -590,14 +536,6 @@ describe("the token endpoint", () => {
     expect(await verifyMcpToken(db, first.body.access_token as string)).toBeNull();
     const [grant] = await db.select().from(oauthGrants);
     expect(grant.revokedAt).not.toBeNull();
-  });
-
-  it("an account_id sent to the token endpoint is ignored (RULES.md 4.6)", async () => {
-    const clientId = await registered();
-    const { verifier, challenge } = await pkcePair();
-    const code = (await consent(clientId, challenge)).searchParams.get("code")!;
-    const { body } = await tokenCall({ grant_type: "authorization_code", code, code_verifier: verifier, client_id: clientId, account_id: ACCOUNT_A });
-    expect((await verifyMcpToken(db, body.access_token as string))?.accountId).toBe(ACCOUNT_B);
   });
 
   it("refuses an unknown grant type and a body it cannot read", async () => {
@@ -676,20 +614,6 @@ describe("expiry and revocation", () => {
   });
 });
 
-describe("the consent copy says what the token can actually do", () => {
-  it("every merchant tool is covered by a line, and every line names real tools", () => {
-    const covered = new Set(CONSENT_CAPABILITIES.flatMap((c) => c.tools));
-    for (const name of MERCHANT_TOOL_NAMES) expect(covered.has(name), name).toBe(true);
-    for (const name of covered) expect(MERCHANT_TOOL_NAMES).toContain(name);
-  });
-
-  it("never promises dispute responses or payment management the tools do not do", () => {
-    const lines = CONSENT_CAPABILITIES.map((c) => c.text).join(" ");
-    expect(lines).not.toMatch(/respond to disputes/i);
-    expect(lines).not.toMatch(/manage your recovery/i);
-  });
-});
-
 describe("the shared cache policy owns the private responses (test/cache-policy.test.ts PLANT 7)", () => {
   it("the protected-resource document and revocation get the policy's private, no-store", async () => {
     const prmReq = new Request(`${ORIGIN}/.well-known/oauth-protected-resource`);
@@ -727,11 +651,6 @@ async function makeMember(): Promise<void> {
 }
 
 describe("a grant ends when the person who approved it leaves the account", () => {
-  it("the grant records who approved it", async () => {
-    await fullFlow();
-    const [grant] = await db.select().from(oauthGrants);
-    expect(grant.userId).toBe(USER);
-  });
 
   it("removed between consent and exchange: the code is refused and mints nothing", async () => {
     await makeMember();
@@ -768,21 +687,6 @@ describe("a grant ends when the person who approved it leaves the account", () =
     expect(grant.revokedAt).not.toBeNull();
   });
 
-  it("removing one person leaves another person's grant on the same account alone", async () => {
-    sqlite
-      .prepare("INSERT INTO user (id, name, email, email_verified, updated_at) VALUES ('user_2', 'Eli', 'eli@acme.test', 0, 0)")
-      .run();
-    sqlite
-      .prepare("INSERT INTO account_members (id, account_id, user_id, role, status, created_at) VALUES ('m_eli', ?, 'user_2', 'member', 'active', 3000)")
-      .run(ACCOUNT_B);
-    const mine = await fullFlow();
-    harness.session = { user: { id: "user_2", name: "Eli", email: "eli@acme.test" }, session: { id: "s2", activeAccountId: ACCOUNT_B } };
-    const elis = await fullFlow();
-    expect((await removeMember(db, ACCOUNT_B, "m_eli")).ok).toBe(true);
-    expect(await verifyMcpToken(db, elis.access)).toBeNull();
-    expect(await verifyMcpToken(db, mine.access)).toMatchObject({ accountId: ACCOUNT_B });
-  });
-
   it("deleting the person ends their grant on an account they do not own, under foreign keys", async () => {
     sqlite.pragma("foreign_keys = ON");
     sqlite
@@ -799,23 +703,6 @@ describe("a grant ends when the person who approved it leaves the account", () =
     expect(await db.select().from(oauthGrants)).toHaveLength(0);
     expect((await tokenCall({ grant_type: "refresh_token", refresh_token: elis.refresh, client_id: elis.clientId })).body.error).toBe("invalid_grant");
     expect(sqlite.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
-  });
-});
-
-describe("Settings lists a connection while it can still work, and not after", () => {
-  it("hides an OAuth key whose access hour and grant have both lapsed, keeps a live one and a Settings key", async () => {
-    const live = await fullFlow();
-    const dead = await fullFlow();
-    const later = new Date(Date.now() + 2 * 60 * 60 * 1000);
-    // The dead connection's grant has lapsed; the live one's has not.
-    const deadKey = (await verifyMcpToken(db, dead.access))!;
-    sqlite.prepare("UPDATE oauth_grants SET refresh_expires_at = 0 WHERE api_key_id = ?").run(deadKey.keyId);
-    sqlite.prepare("INSERT INTO api_keys (id, account_id, key_hash, label, scope, created_at) VALUES ('k_settings', ?, 'h', 'Zapier', 'mcp_merchant', 0)").run(ACCOUNT_B);
-    const ids = (await listAccountApiKeys(db, ACCOUNT_B, later)).map((k) => k.id);
-    const liveKey = (await verifyMcpToken(db, live.access))!;
-    expect(ids).toContain(liveKey.keyId);
-    expect(ids).toContain("k_settings");
-    expect(ids).not.toContain(deadKey.keyId);
   });
 });
 

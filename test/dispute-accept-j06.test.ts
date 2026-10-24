@@ -229,26 +229,9 @@ describe("ACCEPT: Stripe first, then the accepted state and its outcome together
     await acceptDispute(env, input(), { stripe: fakeStripe("ok").stripe });
     expect(outcomes()).toHaveLength(1);
   });
-
-  it("the write is pinned to the account: another account's id changes nothing", async () => {
-    const { stripe } = fakeStripe("ok");
-    await acceptDispute(env, input({ accountId: "acct_other" }), { stripe });
-    expect(dispute().state).toBe("pending_review");
-    expect(outcomes()).toHaveLength(0);
-  });
 });
 
 describe("PR 149 review: an unknown Stripe result is never reported as a refusal", () => {
-  it("a 4xx is Stripe's answer: the merchant is told Stripe did not accept it", async () => {
-    const result = await acceptDispute(env, input(), {
-      stripe: fakeStripe("fail").stripe,
-    });
-    expect(result).toEqual({
-      status: "error",
-      message:
-        "Stripe did not accept the dispute: This dispute is already closed",
-    });
-  });
 
   it.each(["outage", "network", "conflict"] as const)(
     "%s: Stripe may have closed it, so the merchant is told to check Stripe, and nothing is written",

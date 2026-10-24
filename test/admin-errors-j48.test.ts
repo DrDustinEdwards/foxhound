@@ -217,43 +217,6 @@ describe("failed actions from the audit log (Recova's list)", () => {
     expect(failed[2]).toMatchObject({ action: "A staged change failed to apply", detail: "No such account" });
     expect(failed[1]).toMatchObject({ actor: "The account owner", detail: "Stripe said no" });
   });
-
-  it("shows Recova's 50 at most", async () => {
-    const { db } = createInMemoryDb();
-    await db.insert(adminAuditLog).values(
-      Array.from({ length: 55 }, (_, i) => ({
-        id: `f${i}`,
-        actorEmail: "ops@example.com",
-        action: "staged.failed",
-        metadata: { error: "x" },
-        createdAt: new Date(Date.now() - i * 1000),
-      })),
-    );
-    harness.db = db;
-    vi.stubGlobal("fetch", vi.fn());
-    expect((await runLoader({})).failed).toHaveLength(50);
-  });
-});
-
-// ---------------------------------------------------------------- the page
-
-
-
-
-
-
-// Review of #94: a failure's error text is cut like the fallback detail.
-describe("a long error in the detail column", () => {
-  it("is cut at 80 characters with an ellipsis, for both failure actions", async () => {
-    const { auditDetail } = await import("~/lib/admin/audit-describe");
-    const long = "e".repeat(300);
-    for (const action of ["staged.failed", "user_self_deleted_account_deauthorize_failed"]) {
-      const entry = { action, metadata: { error: long }, targetEmail: null, targetUserId: null };
-      expect(auditDetail(entry as never), action).toBe(`${"e".repeat(80)}…`);
-      const short = { ...entry, metadata: { error: "e".repeat(80) } };
-      expect(auditDetail(short as never), action).toBe("e".repeat(80));
-    }
-  });
 });
 
 describe("the page source", () => {

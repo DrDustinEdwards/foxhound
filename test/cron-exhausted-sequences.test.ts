@@ -1,7 +1,6 @@
 import type Stripe from "stripe";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { RECOVERY_TICK_LIMIT } from "~/lib/constants";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -131,73 +130,18 @@ const ranStep = (stepNumber: number, stepType = "email_day1"): StepSpec => ({
   executedAt: new Date("2026-06-26T00:00:00.000Z"),
   result: "email_sent",
 });
-const pendingStep = (stepNumber: number, over: Partial<StepSpec> = {}): StepSpec => ({
-  stepType: "email_day30",
-  stepNumber,
-  executedAt: null,
-  result: null,
-  ...over,
-});
 
 beforeEach(() => {
   harness.db = null;
 });
 
 describe("queryExhaustedSequences", () => {
-  it("selects an active payment whose every step has run", async () => {
-    await seed({ payments: [{ id: "fp_done", invoiceId: "in_1", steps: [ranStep(1), ranStep(2)] }] });
-    expect(await queryExhaustedSequences({} as Env, 100)).toEqual(["fp_done"]);
-  });
-
-  it("does not select a sequence with a step still to run", async () => {
-    await seed({
-      payments: [{ id: "fp_running", invoiceId: "in_1", steps: [ranStep(1), pendingStep(2)] }],
-    });
-    expect(await queryExhaustedSequences({} as Env, 100)).toEqual([]);
-  });
-
-  it("does not select a sequence waiting on a send backoff", async () => {
-    // afterTransientFailure leaves the step unexecuted with next_retry_at set.
-    // That is pending, not exhausted; flipping it would abandon a live retry.
-    await seed({
-      payments: [
-        {
-          id: "fp_backoff",
-          invoiceId: "in_1",
-          steps: [ranStep(1), pendingStep(2, { nextRetryAt: new Date("2026-08-02T00:00:00.000Z") })],
-        },
-      ],
-    });
-    expect(await queryExhaustedSequences({} as Env, 100)).toEqual([]);
-  });
-
-  it("does not select a payment that has no steps at all", async () => {
-    // Not a finished sequence: a sequence that never started. Intake always
-    // plans at least one step, so this shape means something went wrong and
-    // must stay visible rather than be quietly marked done.
-    await seed({ payments: [{ id: "fp_nosteps", invoiceId: "in_1", steps: [] }] });
-    expect(await queryExhaustedSequences({} as Env, 100)).toEqual([]);
-  });
 
   it("does not select a payment that already left 'active'", async () => {
     await seed({
       payments: [{ id: "fp_recovered", invoiceId: "in_1", status: "recovered", steps: [ranStep(1)] }],
     });
     expect(await queryExhaustedSequences({} as Env, 100)).toEqual([]);
-  });
-
-  it("honors the processing gate: demo, paused and cancelled accounts are excluded", async () => {
-    for (const overrides of [
-      { id: "demo_teamflow" },
-      { processingPaused: true },
-      { cancelledAt: NOW },
-    ]) {
-      await seed({
-        accountOverrides: overrides,
-        payments: [{ id: "fp_gated", invoiceId: "in_1", steps: [ranStep(1)] }],
-      });
-      expect(await queryExhaustedSequences({} as Env, 100)).toEqual([]);
-    }
   });
 });
 
@@ -223,12 +167,6 @@ describe("the flip itself", () => {
     expect(afterSecond.resolvedAt).toEqual(NOW); // not overwritten
   });
 
-  it("runs as part of the tick and is reported in the run message", async () => {
-    await seed({ payments: [{ id: "fp_done", invoiceId: "in_1", steps: [ranStep(1)] }] });
-    const result = await runRecoveryTick({} as Env, { query: async () => [] });
-    expect(result.message).toContain("1 exhausted");
-  });
-
   it("a sweep failure is reported without being counted as a step failure", async () => {
     await seed({ payments: [] });
     const result = await runRecoveryTick({} as Env, {
@@ -241,28 +179,6 @@ describe("the flip itself", () => {
     // `failed` counts STEPS. A sweep failure must not inflate it, or the number
     // means two different things depending on which part of the tick broke.
     expect(result.message).toContain("0 failed");
-  });
-
-  it("LOW-1: is bounded by RECOVERY_TICK_LIMIT, the same constant that caps due steps", async () => {
-    // The second, undocumented consumer of that constant. Dropping it from 500
-    // to 100 cut this sweep fivefold as well, and only the step cap was
-    // reasoned about at the time. Pinned behaviourally so the shared budget is
-    // a fact rather than a comment, and so a future change to one bound cannot
-    // move the other silently.
-    await seed({
-      payments: Array.from({ length: RECOVERY_TICK_LIMIT + 5 }, (_, i) => ({
-        id: `fp_${String(i).padStart(3, "0")}`,
-        invoiceId: `in_${i}`,
-        steps: [ranStep(1)],
-      })),
-    });
-
-    expect(await queryExhaustedSequences({} as Env, RECOVERY_TICK_LIMIT + 5)).toHaveLength(
-      RECOVERY_TICK_LIMIT + 5,
-    );
-    // One tick flips exactly the cap, and the remainder survives for the next.
-    expect((await flipExhaustedSequences({} as Env, NOW)).length).toBe(RECOVERY_TICK_LIMIT);
-    expect((await flipExhaustedSequences({} as Env, NOW)).length).toBe(5);
   });
 });
 

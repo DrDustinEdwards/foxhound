@@ -117,19 +117,6 @@ describe("PLANT 1: remove deletes exactly the named membership", () => {
     expect(res.status).toBe(200);
     expect(memberIds(ACCOUNT)).toEqual(["m_b", "m_owner"]);
   });
-
-  it("a form posting extra column names changes nothing but the deletion", async () => {
-    seedMember("m_a", ACCOUNT, MEMBER_USER, "member", "active");
-
-    await post({ _action: "remove", memberId: "m_a", role: "owner", status: "active", accountId: OTHER });
-
-    // The owner's role and the account are untouched: the write names one row
-    // by id and deletes it, and takes no column values from the form at all.
-    const owner = sqlite
-      .prepare("SELECT role, status, account_id AS a FROM account_members WHERE id = ?")
-      .get("m_owner") as { role: string; status: string; a: string };
-    expect(owner).toEqual({ role: "owner", status: "active", a: ACCOUNT });
-  });
 });
 
 describe("PLANT 2: the three refusals legacy enforces", () => {

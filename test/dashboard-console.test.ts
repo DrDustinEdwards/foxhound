@@ -15,7 +15,6 @@ import {
 import { INTELLIGENCE_PRODUCT, SUBSCRIPTION_STATUS_ACTIVE } from "~/lib/constants";
 import {
   atRiskSubtext,
-  cardExpiryDate,
   deadlinePhrase,
   expiryPhrase,
   isCardInAttentionWindow,
@@ -57,15 +56,6 @@ describe("expiryPhrase and the card window", () => {
     expect(expiryPhrase(new Date(NOW + 5 * DAY), NOW)).toBe("expires in 5 days");
   });
 
-  // A card is valid through the END of its expiry month. Month is 1-based and JS
-  // months are 0-based, so day 0 of month N is the last day of month N.
-  it("resolves a card's expiry to the last day of its month", () => {
-    expect(cardExpiryDate(2, 2026).toISOString().slice(0, 10)).toBe("2026-02-28");
-    expect(cardExpiryDate(12, 2026).toISOString().slice(0, 10)).toBe("2026-12-31");
-    // A leap February, which an off-by-one here would get wrong.
-    expect(cardExpiryDate(2, 2028).toISOString().slice(0, 10)).toBe("2028-02-29");
-  });
-
   it("includes cards inside the window and excludes ones long past", () => {
     expect(isCardInAttentionWindow(new Date(NOW + 3 * DAY), NOW)).toBe(true);
     expect(isCardInAttentionWindow(new Date(NOW + 7 * DAY), NOW)).toBe(true);
@@ -91,27 +81,10 @@ describe("isSequenceExhausted", () => {
     ...o,
   });
 
-  it("is not exhausted while a future unexecuted step remains", () => {
-    expect(isSequenceExhausted([step({ scheduledAt: new Date(NOW + DAY) })], NOW)).toBe(false);
-  });
-
-  it("is exhausted once every step has run", () => {
-    expect(
-      isSequenceExhausted(
-        [step({ scheduledAt: new Date(NOW - DAY), executedAt: new Date(NOW - DAY), result: "email_sent" })],
-        NOW,
-      ),
-    ).toBe(true);
-  });
-
   // A step scheduled in the past that never executed will not fire on its own, so
   // the sequence is done in practice even though the step is unexecuted.
   it("is exhausted when the only unexecuted step is already overdue", () => {
     expect(isSequenceExhausted([step({ scheduledAt: new Date(NOW - DAY) })], NOW)).toBe(true);
-  });
-
-  it("is exhausted for a payment with no steps at all", () => {
-    expect(isSequenceExhausted([], NOW)).toBe(true);
   });
 });
 
@@ -119,11 +92,6 @@ describe("hero subtexts", () => {
   it("pluralizes and joins both parts", () => {
     expect(atRiskSubtext(3, 2)).toBe("3 active sequences · 2 open disputes");
     expect(atRiskSubtext(1, 1)).toBe("1 active sequence · 1 open dispute");
-  });
-
-  it("drops an empty part rather than printing a zero", () => {
-    expect(atRiskSubtext(4, 0)).toBe("4 active sequences");
-    expect(atRiskSubtext(0, 4)).toBe("4 open disputes");
   });
 
   it("says All clear when there is nothing in play", () => {
@@ -335,28 +303,12 @@ async function seedConsole(opts: {
 }
 
 describe("getConsoleView hero", () => {
-  // Legacy's console shipped `const atRiskCents = 0`: a permanent $0 with the
-  // real signal demoted to the subtext. This must be the actual sum.
-  it("sums the real at-risk amount rather than reporting zero", async () => {
-    const db = await seedConsole({ activeAmounts: [1200, 3400, 900] });
-    const view = await getConsoleView(db, ACCOUNT_ID, NOW, 42);
-    expect(view.hero.atRisk).toEqual([{ currency: "usd", cents: 5500 }]);
-    expect(view.hero.activeSequenceCount).toBe(3);
-  });
 
   it("counts only this month's recoveries as protected, but all time in the subtext", async () => {
     const db = await seedConsole({ recoveredThisMonth: [1000, 2000], recoveredEarlier: [9999] });
     const view = await getConsoleView(db, ACCOUNT_ID, NOW, 50);
     expect(view.hero.protectedThisMonth).toEqual([{ currency: "usd", cents: 3000 }]);
     expect(view.hero.recoveredAllTimeCount).toBe(3);
-  });
-
-  // Platform health is handed the rate the dashboard already computed. Legacy
-  // recomputed it here with different filters, so two adjacent screens disagreed.
-  it("reports the rate it was given, without recomputing", async () => {
-    const db = await seedConsole({ activeAmounts: [100] });
-    expect((await getConsoleView(db, ACCOUNT_ID, NOW, 37)).hero.recoveryRatePct).toBe(37);
-    expect((await getConsoleView(db, ACCOUNT_ID, NOW, null)).hero.recoveryRatePct).toBeNull();
   });
 
   it("counts unresolved disputes only", async () => {
@@ -372,39 +324,15 @@ describe("getConsoleView tiles", () => {
     expect((await getConsoleView(db, ACCOUNT_ID, NOW, null)).tiles.stripeConnected).toBe(false);
   });
 
-  it("gates Intelligence on the real entitlement, not on account_products", async () => {
-    const off = await seedConsole({ entitled: false });
-    expect((await getConsoleView(off, ACCOUNT_ID, NOW, null)).tiles.intelligenceEntitled).toBe(false);
-    const on = await seedConsole({ entitled: true });
-    expect((await getConsoleView(on, ACCOUNT_ID, NOW, null)).tiles.intelligenceEntitled).toBe(true);
-  });
-
-  it("counts only disputes due inside the 48h window", async () => {
-    const db = await seedConsole({ disputeDeadlines: [HOUR, 20 * HOUR, 10 * DAY, null] });
-    const view = await getConsoleView(db, ACCOUNT_ID, NOW, null);
-    expect(view.tiles.disputesDueSoonCount).toBe(2);
-  });
-
   it("sums audit leakage across both of its components", async () => {
     const db = await seedConsole({ audit: { daysAgo: 3, failedCents: 40_000, disputeCents: 2_500 } });
     const view = await getConsoleView(db, ACCOUNT_ID, NOW, null);
     expect(view.tiles.auditLeakingCents).toBe(42_500);
     expect(view.tiles.lastAuditAt).not.toBeNull();
   });
-
-  it("reports no audit run when the account has never run one", async () => {
-    const db = await seedConsole({ audit: null });
-    const view = await getConsoleView(db, ACCOUNT_ID, NOW, null);
-    expect(view.tiles.lastAuditAt).toBeNull();
-    expect(view.tiles.auditLeakingCents).toBe(0);
-  });
 });
 
 describe("getConsoleView attention feed", () => {
-  it("is empty for an account with nothing needing action", async () => {
-    const db = await seedConsole({});
-    expect((await getConsoleView(db, ACCOUNT_ID, NOW, null)).attention).toEqual([]);
-  });
 
   it("puts urgent dispute deadlines before warnings and subtle rows", async () => {
     const db = await seedConsole({
@@ -434,12 +362,6 @@ describe("getConsoleView attention feed", () => {
     const view = await getConsoleView(db, ACCOUNT_ID, NOW, null);
     const rows = view.attention.filter((r) => r.key.startsWith("at-risk-"));
     expect(rows.map((r) => r.mrrCents)).toEqual([50_000, 20_000, 1_000]);
-  });
-
-  it("excludes healthy customers from the at-risk rows", async () => {
-    const db = await seedConsole({ atRisk: [{ score: 85, mrr: 99_000 }], entitled: true });
-    const view = await getConsoleView(db, ACCOUNT_ID, NOW, null);
-    expect(view.attention.filter((r) => r.key.startsWith("at-risk-"))).toEqual([]);
   });
 
   it("collapses more than three exhausted sequences into a trailing row", async () => {

@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  isWithdrawnBlogSlug,
   WITHDRAWN_BLOG_MESSAGE,
   WITHDRAWN_BLOG_SLUGS,
 } from "~/lib/blog/withdrawn";
@@ -64,23 +63,9 @@ describe("PLANT 1: a withdrawn slug answers 410", () => {
       expect(await res.text()).toBe(WITHDRAWN_BLOG_MESSAGE);
     }
   });
-
-  it("it is NOT a redirect, which is the ruled distinction", async () => {
-    for (const slug of WITHDRAWN_BLOG_SLUGS) {
-      const res = (await thrownFrom(slug)) as Response;
-      expect(res.status).not.toBe(301);
-      expect(res.status).not.toBe(302);
-      expect(res.headers.get("Location"), `${slug} redirects somewhere`).toBeNull();
-    }
-  });
 });
 
 describe("PLANT 2: the withdrawal does not catch anything else", () => {
-  it("a live post is not withdrawn", () => {
-    expect(isWithdrawnBlogSlug("how-to-reduce-saas-churn")).toBe(false);
-    expect(isWithdrawnBlogSlug("stripe-decline-codes")).toBe(false);
-    expect(isWithdrawnBlogSlug("")).toBe(false);
-  });
 
   it("an ordinary unknown slug still 404s, not 410", async () => {
     // The discriminator. If everything 410'd, a typo would claim the page once

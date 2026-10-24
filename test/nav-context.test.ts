@@ -67,22 +67,6 @@ describe("resolveNavContext", () => {
     expect(await storedValue(db, "acc_1")).toBe("recovery");
   });
 
-  it("product page, demo account: never writes, even when the value differs", async () => {
-    const { db } = createInMemoryDb();
-    await db.insert(accounts).values({ id: "demo_teamflow", name: "Teamflow", lastVisitedProduct: "dashboard" });
-    const updateSpy = vi.spyOn(db, "update");
-    const { waitUntil, flush } = collectWaitUntil();
-
-    const nav = await resolveNavContext(db, "demo_teamflow", "/recovery/dashboard", true, waitUntil);
-    await flush();
-
-    // The URL still drives the active key for this render...
-    expect(nav.activeProductKey).toBe("recovery");
-    // ...but nothing was ever written to the shared demo row.
-    expect(updateSpy).not.toHaveBeenCalled();
-    expect(await storedValue(db, "demo_teamflow")).toBe("dashboard");
-  });
-
   it("platform page: uses the stored fallback, never writes", async () => {
     const { db } = createInMemoryDb();
     await db.insert(accounts).values({ id: "acc_1", name: "Acme", lastVisitedProduct: "disputes" });

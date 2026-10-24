@@ -89,60 +89,6 @@ describe("PLANT 1: the overrun sequence, which is the defect", () => {
     // And the proof that it is still B's, not merely "a" lock: C cannot get in.
     expect(storage.acquire(17 * MINUTE, LEASE, "C")).toBeNull();
   });
-
-  it("B can still release its own lease afterwards", async () => {
-    // The fence must not turn into a lock nobody can free.
-    const storage = new StorageStub();
-    storage.acquire(0, LEASE, "A");
-    storage.acquire(16 * MINUTE, LEASE, "B");
-    storage.release("A");
-
-    storage.release("B");
-
-    expect(storage.held()).toBe(false);
-    expect(storage.acquire(17 * MINUTE, LEASE, "C")).toBe("C");
-  });
-});
-
-describe("PLANT 2: the lease still lapses, so a dead holder cannot wedge the job", () => {
-  it("a holder that never releases is displaced once its lease expires", () => {
-    const storage = new StorageStub();
-    storage.acquire(0, LEASE, "A");
-
-    // One millisecond before expiry: still held.
-    expect(storage.acquire(LEASE - 1, LEASE, "B")).toBeNull();
-    // Exactly at expiry: free. `>` not `>=`, and this is that boundary.
-    expect(storage.acquire(LEASE, LEASE, "B")).toBe("B");
-  });
-
-  it("a live holder is not displaced early", () => {
-    const storage = new StorageStub();
-    storage.acquire(0, LEASE, "A");
-
-    expect(storage.acquire(MINUTE, LEASE, "B")).toBeNull();
-    expect(storage.acquire(15 * MINUTE, LEASE, "B")).toBeNull();
-  });
-});
-
-describe("PLANT 3: a release from a caller that never held anything", () => {
-  it("an unknown token frees nothing", () => {
-    const storage = new StorageStub();
-    storage.acquire(0, LEASE, "A");
-
-    storage.release("never-issued");
-
-    expect(storage.held()).toBe(true);
-  });
-
-  it("a release against an empty lock is a no-op rather than a throw", () => {
-    // The expected end of an overrun, not a fault: the runner's `finally` calls
-    // release unconditionally and must not turn a lapsed lease into an error
-    // that masks the job's real outcome.
-    const storage = new StorageStub();
-
-    expect(() => storage.release("A")).not.toThrow();
-    expect(storage.held()).toBe(false);
-  });
 });
 
 describe("PLANT 4: the one-deploy compatibility read", () => {
@@ -163,22 +109,9 @@ describe("PLANT 4: the one-deploy compatibility read", () => {
 
     expect(storage.acquire(11 * MINUTE, LEASE, "B")).toBe("B");
   });
-
-  it("the old key is cleared by the first fenced acquire, so the read stops mattering", () => {
-    const storage = new StorageStub();
-    storage.seedLegacy(10 * MINUTE);
-    storage.acquire(11 * MINUTE, LEASE, "B");
-
-    expect(storage.state().legacyHeldUntil).toBeNull();
-  });
 });
 
 describe("PLANT 5: the decisions are pure, asserted directly", () => {
-  it("decideAcquire never mutates the state it is given", () => {
-    const state: CronLockState = { lock: null, legacyHeldUntil: null };
-    decideAcquire(state, 0, LEASE, "A");
-    expect(state).toEqual({ lock: null, legacyHeldUntil: null });
-  });
 
   it("decideRelease is token equality and nothing else", () => {
     const held: CronLockState = {

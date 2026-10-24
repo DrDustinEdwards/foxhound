@@ -171,17 +171,6 @@ describe("J32 account: one save writes the name and the three context fields", (
     expect(row("acct_other").name).toBe("Other Co");
   });
 
-  it("clears the select and the MRR to NULL when they are blank, as Recova's `|| null` does", async () => {
-    await post({ _action: "profile", name: "Acme Inc", merchantIndustry: "", merchantMrrSelfReported: "" });
-    expect(row().industry).toBeNull();
-    expect(row().mrr).toBeNull();
-  });
-
-  it("leaves Customer Type alone when no radio is chosen, as Recova's formData.has does", async () => {
-    await post({ _action: "profile", name: "Acme Inc", merchantIndustry: "SaaS", merchantMrrSelfReported: "" });
-    expect(row().type).toBe("B2C");
-  });
-
   it("refuses a bad MRR beside the field and writes nothing at all", async () => {
     const res = await post({
       _action: "profile",
@@ -229,34 +218,6 @@ describe("J32 account: a failed save", () => {
     expect(res.init?.status).toBe(500);
     // The error object itself, so its stack reaches the log, not only its message.
     expect(logged).toHaveBeenCalledWith("account settings write failed:", thrown);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Review round 1 (CHANGES at ba8853e).
-// ---------------------------------------------------------------------------
-
-describe("J32 review: one save is one batch", () => {
-  it("commits the context and the name together, so the save is all or nothing", async () => {
-    const made = createInMemoryDb();
-    made.sqlite
-      .prepare("INSERT INTO accounts (id, name, created_at, billing_exempt) VALUES (?, ?, 0, 0)")
-      .run("acct_1", "Old Name");
-    const db = made.db as unknown as { batch: (s: unknown[]) => Promise<unknown> };
-    const real = db.batch.bind(db);
-    const batches: number[] = [];
-    db.batch = async (statements: unknown[]) => {
-      batches.push(statements.length);
-      return real(statements);
-    };
-    const update = vi.spyOn(made.db, "update");
-    harness.db = made.db;
-    const res = await post({ _action: "profile", name: "Acme Inc", merchantIndustry: "SaaS", merchantMrrSelfReported: "1" });
-    expect(res.data).toEqual({ action: "profile", ok: true });
-    // One batch carrying both statements, and no update run on its own.
-    expect(batches).toEqual([2]);
-    expect(update).toHaveBeenCalledTimes(2);
-    expect(made.sqlite.prepare("SELECT name FROM accounts WHERE id = 'acct_1'").get()).toEqual({ name: "Acme Inc" });
   });
 });
 

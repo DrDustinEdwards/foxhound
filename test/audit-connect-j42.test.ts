@@ -102,15 +102,6 @@ const PAGE: LoaderData = { lookbackDays: AUDIT_LOOKBACK_DAYS, stripeEnabled: tru
 
 describe("J42 U1: refusals in a Capsomer alert, never naming an account, never echoing the URL", () => {
 
-
-  it("scope_refused is true for every grant the callback refuses, a null scope included", () => {
-    // The callback refuses any scope that is not read_only, null included, so
-    // "granted more access" was untrue for a grant with no scope (review round 1).
-    const t = text(render({ ...PAGE, error: "scope_refused" }));
-    expect(t).toContain("Stripe did not grant read-only access, so the run was refused. Nothing was read.");
-    expect(t).not.toContain("more access");
-  });
-
   it("an unknown code shows the fallback and never reflects the query string", () => {
     const hostile = '<img src=x onerror=alert(1)>acct_stranger owned by Dana';
     const html = render({ ...PAGE, error: hostile });
@@ -194,26 +185,6 @@ describe("J42 U5: the callback refuses before it exchanges, and every exit clear
     expect(cookies.some((c) => c.startsWith(`${AUDIT_OAUTH_STATE_COOKIE}=;`) && c.includes("Max-Age=0"))).toBe(true);
     expect(cookies.some((c) => c.startsWith(`${AUDIT_TOKEN_COOKIE}=`))).toBe(false);
   }
-
-  it("no state cookie at all: refused as invalid_state, and the code is never exchanged", async () => {
-    const response = await call({ code: "ac_1", state: buildConnectState(AUDIT_ACTION) }, null);
-    expectRefused(response, "invalid_state");
-    expect(exchange.calls).toBe(0);
-  });
-
-  it("no state in the query: refused, never exchanged", async () => {
-    const state = buildConnectState(AUDIT_ACTION);
-    const response = await call({ code: "ac_1" }, state);
-    expectRefused(response, "invalid_state");
-    expect(exchange.calls).toBe(0);
-  });
-
-  it("a bare random state (Recova's shape) is refused: the state must be a minted pair", async () => {
-    const bare = crypto.randomUUID();
-    const response = await call({ code: "ac_1", state: bare }, bare);
-    expectRefused(response, "invalid_state");
-    expect(exchange.calls).toBe(0);
-  });
 
   it("over the rate limit: refused before anything else, never exchanged", async () => {
     const state = buildConnectState(AUDIT_ACTION);

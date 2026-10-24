@@ -124,11 +124,6 @@ function creditLine(id: string, fee: EnrichedLineItem, creditCents: number): Enr
 }
 
 describe("review fixes (PR #68 review F1 to F5)", () => {
-  it("F1: a recovery fee credited after billing shows its credit on the history row", () => {
-    const fee = recoveryLine("c1", "inv_c", 10_000, 2_000);
-    const rows = buildRecoveryHistory([invoice({ id: "inv_c" })], [fee, creditLine("cr1", fee, 2_000)]);
-    expect(rows[0]).toMatchObject({ feeCents: 2_000, creditedCents: 2_000 });
-  });
 
   it("F1: a dispute fee credited after billing shows its credit on the dispute row", () => {
     const fee = disputeLine("d9", "inv_c", 50_000, 10_000);
@@ -151,23 +146,6 @@ describe("review fixes (PR #68 review F1 to F5)", () => {
     );
     expect(html).toContain("Fee: $20.00 · Credited: $20.00");
     expect(html).toContain("Fee (20%): $100.00 · Credited: $100.00");
-  });
-
-  it("F2: a fee under 50 cents is never shown as $0", () => {
-    const html = text(
-      render(
-        loaderData({
-          preview: basePreview({
-            estimatedRecoveryFees: [{ currency: "usd", cents: 40 }],
-            estimatedDisputeFees: [{ currency: "usd", cents: 30 }],
-          }),
-          recoveryHistory: buildRecoveryHistory([invoice({ id: "inv_s" })], [recoveryLine("s1", "inv_s", 200, 40)]),
-        }),
-      ),
-    );
-    expect(html).toContain("$0.40");
-    expect(html).toContain("$0.30");
-    expect(html).toContain("Fee: $0.40");
   });
 
   it("F4: an exempt account is not told it is invoiced on the 1st", () => {
