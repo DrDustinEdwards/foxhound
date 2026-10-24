@@ -1,4 +1,5 @@
 import { createAnthropicClient } from "~/lib/ai/client";
+import { PLAIN_WRITING_PROMPT, retryStockPhrasing } from "~/lib/ai/plain-writing";
 import { AUDIT_SUMMARY_MAX_TOKENS, MODEL_AUDIT_SUMMARY } from "~/lib/constants";
 
 import type { AuditResult } from "./engine";
@@ -35,14 +36,18 @@ export async function generateAuditSummary(
 
   try {
     const client = createAnthropicClient(env);
-    const response = await client.messages.create({
-      model: MODEL_AUDIT_SUMMARY,
-      max_tokens: AUDIT_SUMMARY_MAX_TOKENS,
-      messages: [{ role: "user", content: buildAuditSummaryPrompt(result) }],
-    });
-    const block = response.content.find((b) => b.type === "text");
-    const raw = block && block.type === "text" ? block.text : "";
-    const summary = sanitizeSummary(raw);
+    const prompt = `${buildAuditSummaryPrompt(result)}\n\n${PLAIN_WRITING_PROMPT}`;
+    const call = async (instruction = ""): Promise<string> => {
+      const response = await client.messages.create({
+        model: MODEL_AUDIT_SUMMARY,
+        max_tokens: AUDIT_SUMMARY_MAX_TOKENS,
+        messages: [{ role: "user", content: prompt + instruction }],
+      });
+      const block = response.content.find((b) => b.type === "text");
+      return sanitizeSummary(block && block.type === "text" ? block.text : "");
+    };
+    // One retry when the summary reads as machine-written (ai/plain-writing.ts).
+    const summary = await retryStockPhrasing(await call(), (text) => text, call);
     // An empty reply is a failure wearing a success. Legacy falls back on it and
     // so does this, with the reason recorded rather than inferred.
     if (!summary) {

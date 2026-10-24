@@ -1,9 +1,9 @@
 import { createAnthropicClient } from "~/lib/ai/client";
+import { PLAIN_WRITING_LINES } from "~/lib/ai/plain-writing";
 import { UNTRUSTED_DATA_RULE, untrusted } from "~/lib/ai/untrusted";
 import { MODEL_RECOVERY_EMAIL } from "~/lib/constants";
 
 import {
-  PLAIN_WRITING_LINES,
   applyStockPhrasingGuard,
   applyTimingWordGuard,
   readGeneratedCopy,

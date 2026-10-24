@@ -1,4 +1,5 @@
 import { createAnthropicClient } from "~/lib/ai/client";
+import { PLAIN_WRITING_PROMPT, retryStockPhrasing } from "~/lib/ai/plain-writing";
 import { MODEL_MARKETING_EMAIL_SAMPLE } from "~/lib/constants";
 import { sanitizeCopy } from "~/lib/recovery/email-generation";
 
@@ -73,6 +74,8 @@ function buildPrompt(category: MarketingEmailCategory): string {
     "- Subject: short and specific, no clickbait.",
     "- Body: one or two short paragraphs, under 120 words, signed off with a",
     "  first name or team name.",
+    "",
+    PLAIN_WRITING_PROMPT,
   ].join("\n");
 }
 
@@ -84,7 +87,17 @@ export async function generateMarketingEmailSample(
     throw new Error("ANTHROPIC_API_KEY is not set");
   }
   const client = createAnthropicClient(env);
+  const call = (instruction = ""): Promise<MarketingEmailCopy> => draftSample(client, category, instruction);
+  // One retry when the sample reads as machine-written (ai/plain-writing.ts):
+  // it is the email a visitor judges Foxhound by.
+  return retryStockPhrasing(await call(), (copy) => `${copy.subject}\n\n${copy.body}`, call);
+}
 
+async function draftSample(
+  client: ReturnType<typeof createAnthropicClient>,
+  category: MarketingEmailCategory,
+  instruction: string,
+): Promise<MarketingEmailCopy> {
   const response = await client.messages.create({
     model: MODEL_MARKETING_EMAIL_SAMPLE,
     max_tokens: 400,
@@ -94,7 +107,7 @@ export async function generateMarketingEmailSample(
     output_config: {
       format: { type: "json_schema", schema: OUTPUT_SCHEMA },
     },
-    messages: [{ role: "user", content: buildPrompt(category) }],
+    messages: [{ role: "user", content: buildPrompt(category) + instruction }],
   });
 
   const textBlock = response.content.find((b) => b.type === "text");

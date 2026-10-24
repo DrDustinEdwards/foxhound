@@ -4,13 +4,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // approved difference from Recova (parity/APPROVED-DIFFERENCES.md, 2026-10-24).
 // The check itself is site-runtime ./prose's and is tested there; these hold
 // Foxhound's part: the samples are saved, read and reach both prompts as data,
-// and a draft with stock phrasing is retried once and kept from sending.
+// and a draft with stock phrasing is retried once and kept from sending. The
+// other model-written texts (dispute evidence, the Intelligence narrative, the
+// audit summary) share the retry in ai/plain-writing.ts; one plant here proves
+// the wiring outside the email path.
 //
 // The model is stubbed at the client factory, as timing-word-guard does.
 
 const harness = vi.hoisted(() => ({
   calls: [] as { system?: unknown; messages: { role: string; content: string }[] }[],
-  replies: [] as { subject: string; bodyHtml: string }[],
+  replies: [] as Record<string, string>[],
 }));
 
 vi.mock("~/lib/ai/client", () => ({
@@ -36,6 +39,7 @@ const { buildPrompts, findBrandVoiceViolations, generateDunningEmail } = await i
   "~/lib/recovery/email-generation"
 );
 const { buildWinbackPrompt, generateWinbackEmail } = await import("~/lib/recovery/winback-generation");
+const { draftDisputeEvidence } = await import("~/lib/disputes/evidence");
 
 const env = { ANTHROPIC_API_KEY: "sk-ant-test" } as unknown as Env;
 const UPDATE_URL = "https://foxhoundapp.test/u/tok-123";
@@ -133,5 +137,15 @@ describe("stock phrasing", () => {
     const copy = await generateDunningEmail(env, dunning);
     expect(harness.calls).toHaveLength(1);
     expect(findBrandVoiceViolations(copy)).toEqual([]);
+  });
+
+  it("PLANT: dispute evidence that reads as machine-written is retried, and the plain retry is what Stripe gets", async () => {
+    harness.replies.push(
+      { uncategorizedText: "The customer had seamless access to the plan, a testament to our robust service." },
+      { uncategorizedText: "The customer used the plan from 3 March." },
+    );
+    const fields = await draftDisputeEvidence(env, { productName: "Pro", serviceDate: null, communications: [] });
+    expect(harness.calls).toHaveLength(2);
+    expect(fields.find((f) => f.fieldName === "uncategorized_text")?.fieldValue).toBe("The customer used the plan from 3 March.");
   });
 });
