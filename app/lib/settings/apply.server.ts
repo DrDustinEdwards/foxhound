@@ -14,6 +14,7 @@ import { normalizeLookback } from "./audit-settings";
 import { parseDollarsToCents } from "./dollars";
 import {
   buildBrandVoiceUpdate,
+  buildVoiceSamplesUpdate,
   buildCategoryVoicesUpdate,
   buildFeatureSettingsUpdate,
   buildIntelligenceContextUpdate,
@@ -24,6 +25,7 @@ import { DISPUTE_PRODUCT_DESCRIPTION_MAX_LENGTH } from "./dispute-description";
 import { isValidReplyToEmail, REPLY_TO_EMAIL_MAX_LENGTH } from "./reply-to";
 import { SENDER_NAME_MAX_LENGTH } from "./sender-name";
 import { normalizeSlackWebhookUrl } from "./slack-webhook";
+import { readVoiceSamples, storeVoiceSamples } from "~/lib/recovery/voice-samples";
 
 // THE ONE PLACE A SETTING IS VALIDATED AND WRITTEN (372's item-4 ruling).
 //
@@ -338,6 +340,8 @@ export interface BrandVoiceState {
   expired: string | null;
   network: string | null;
   fraud: string | null;
+  /** The merchant's own past emails, as they will be read back. */
+  samples: string[];
 }
 
 /** The five voice columns, keyed the way callers name them and valued the way
@@ -394,6 +398,9 @@ export async function applyBrandVoice(
     expired?: unknown;
     network?: unknown;
     fraud?: unknown;
+    /** The pasted past emails, one string per box. Absent leaves them alone;
+     *  a list of empty boxes clears them. */
+    samples?: unknown;
   },
   trace?: WriteTrace,
 ): Promise<ApplyResult<BrandVoiceState>> {
@@ -410,6 +417,7 @@ export async function applyBrandVoice(
       expired: stripeConnections.brandVoiceExpired,
       network: stripeConnections.brandVoiceNetwork,
       fraud: stripeConnections.brandVoiceFraud,
+      samples: stripeConnections.brandVoiceSamples,
     })
     .from(stripeConnections)
     .where(and(eq(stripeConnections.id, connectionId), eq(stripeConnections.accountId, accountId)))
@@ -432,7 +440,15 @@ export async function applyBrandVoice(
     expired: resolve("expired"),
     network: resolve("network"),
     fraud: resolve("fraud"),
+    samples: readVoiceSamples(stored.samples),
   };
+  let storedSamples = stored.samples;
+  if (input.samples !== undefined) {
+    if (!Array.isArray(input.samples)) return { ok: false, error: "Sample emails must be a list of texts." };
+    fields.push("brand_voice_samples");
+    storedSamples = storeVoiceSamples(input.samples);
+    state.samples = readVoiceSamples(storedSamples);
+  }
 
   await commit(
     db,
@@ -446,6 +462,7 @@ export async function applyBrandVoice(
         fraud: state.fraud,
       }),
       buildBrandVoiceUpdate(db, accountId, connectionId, state.general),
+      buildVoiceSamplesUpdate(db, accountId, connectionId, storedSamples),
     ],
     trace,
   );

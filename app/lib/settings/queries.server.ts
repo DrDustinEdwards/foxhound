@@ -146,6 +146,8 @@ export interface PrimaryBrandVoices {
   expired: string | null;
   network: string | null;
   fraud: string | null;
+  /** `brand_voice_samples` as stored; read with readVoiceSamples. */
+  samples: string | null;
 }
 
 /**
@@ -176,6 +178,7 @@ export async function getPrimaryBrandVoices(
       expired: stripeConnections.brandVoiceExpired,
       network: stripeConnections.brandVoiceNetwork,
       fraud: stripeConnections.brandVoiceFraud,
+      samples: stripeConnections.brandVoiceSamples,
     })
     .from(stripeConnections)
     .where(

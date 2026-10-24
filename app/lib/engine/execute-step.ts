@@ -108,6 +108,8 @@ export interface EmailStepContext {
   brandVoiceExpired?: string | null;
   brandVoiceNetwork?: string | null;
   brandVoiceFraud?: string | null;
+  /** The merchant's own past emails, read from the connection. */
+  voiceSamples?: readonly string[];
   /** Cached content on the recovery_steps row (custom body / prior AI copy). */
   cached: CachedStepContent;
 }
@@ -309,6 +311,7 @@ export function buildGenerateEmailInput(
       voiceExpired: ctx.brandVoiceExpired,
       voiceNetwork: ctx.brandVoiceNetwork,
       voiceFraud: ctx.brandVoiceFraud,
+      voiceSamples: ctx.voiceSamples ?? [],
     },
     stepType: ctx.stepType,
     declineCategory: ctx.declineCategory,

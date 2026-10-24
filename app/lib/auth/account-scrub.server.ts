@@ -167,6 +167,7 @@ export function buildAccountScrubStatements(db: Db, accountId: string, now: Date
         brandVoiceExpired: null,
         brandVoiceNetwork: null,
         brandVoiceFraud: null,
+        brandVoiceSamples: null,
         disconnectedAt: sql`coalesce(${stripeConnections.disconnectedAt}, ${nowMs})`,
       })
       .where(eq(stripeConnections.accountId, accountId)),

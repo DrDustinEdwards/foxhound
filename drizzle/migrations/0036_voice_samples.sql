@@ -1,0 +1,1 @@
+ALTER TABLE `stripe_connections` ADD `brand_voice_samples` text;
