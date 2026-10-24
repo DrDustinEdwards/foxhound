@@ -17,7 +17,9 @@
   "minify": true,
   "upload_source_maps": true,
   "routes": [{ "pattern": "admin-mcp.foxhoundapp.com", "custom_domain": true }],
-  "services": [{ "binding": "FOXHOUND", "service": "foxhound" }],
+  // The AdminApi entrypoint (workers/admin-api.ts): the admin API is served
+  // only there, never on the public host (FH-20).
+  "services": [{ "binding": "FOXHOUND", "service": "foxhound", "entrypoint": "AdminApi" }],
   "kv_namespaces": [
     // Grants and tokens for workers-oauth-provider: the foxhound-admin-mcp-oauth namespace.
     { "binding": "OAUTH_KV", "id": "32200ad2d6974a29934965aba8d497ae" }

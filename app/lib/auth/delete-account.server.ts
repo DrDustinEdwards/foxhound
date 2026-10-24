@@ -19,6 +19,7 @@ import {
 } from "~/db";
 import { logAdminAction } from "~/lib/admin/audit.server";
 import { deauthorizeConnectedAccount } from "~/lib/stripe/connect";
+import { type DeauthorizeFailure, revokeDisconnectedGrants } from "~/lib/stripe/deauthorize-retry.server";
 import { MEMBER_ROLE, MEMBER_STATUS } from "./roles";
 import { buildAccountScrubStatements } from "./account-scrub.server";
 
@@ -231,12 +232,6 @@ export interface DeleteAccountDeps {
   recordDeauthorizeFailure: (env: Env, userId: string, failure: DeauthorizeFailure) => Promise<void>;
 }
 
-export interface DeauthorizeFailure {
-  connectionId: string;
-  stripeUserId: string;
-  error: string;
-}
-
 export const ACCOUNT_DELETION_DEAUTHORIZE_FAILED_ACTION = "user_self_deleted_account_deauthorize_failed";
 
 /** One durable admin_audit_log row for a Stripe grant that could not be revoked
@@ -273,21 +268,16 @@ export async function deleteUserAccount(
   const local = await deleteLocal(env, userId, new Date());
   if (local.status === "not_found") return local;
 
-  const deauthorizeErrors: Array<{ connectionId: string; stripeUserId: string; error: string }> = [];
-  for (const c of local.liveConnections) {
-    const result = await deauthorize(env, c.stripeUserId);
-    if (!result.ok) {
-      const failure = { connectionId: c.id, stripeUserId: c.stripeUserId, error: result.error ?? "unknown error" };
-      deauthorizeErrors.push(failure);
-      console.error(`stripe deauthorize failed after account deletion, connection ${c.id}:`, result.error);
-      // Nobody is signed in to see this once the account is gone, so the
-      // failure is written where an operator finds it (/admin/platform/audit-log). A
-      // failed write is logged and never reports the deletion as failed.
-      try {
-        await recordFailure(env, userId, failure);
-      } catch (err) {
-        console.error(`could not record deauthorize failure for connection ${c.id}:`, err);
-      }
+  const deauthorizeErrors = await revokeDisconnectedGrants(env, local.liveConnections, new Date(), deauthorize);
+  for (const failure of deauthorizeErrors) {
+    // Nobody is signed in to see this once the account is gone, so the
+    // failure is written where an operator finds it (/admin/platform/audit-log),
+    // beside the retry the revoke queued. A failed write is logged and never
+    // reports the deletion as failed.
+    try {
+      await recordFailure(env, userId, failure);
+    } catch (err) {
+      console.error(`could not record deauthorize failure for connection ${failure.connectionId}:`, err);
     }
   }
   return { status: "deleted", accountIds: local.accountIds, deauthorizeErrors };

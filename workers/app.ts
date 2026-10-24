@@ -19,6 +19,9 @@ export { RateLimiterDurableObject } from "./rate-limiter";
 // site-runtime's limiter class, bound as AUTH_RATE_LIMITER: the sign-in and
 // signup limiter (Q5; app/lib/auth/rate-limit.server.ts).
 export { RateLimiter } from "@dustinedwards/site-runtime/rate-limit/durable-object";
+// The admin API, served only to a service binding that names this entrypoint
+// (FH-20); the public fetch below does not route it.
+export { AdminApi } from "./admin-api";
 
 const requestHandler = createRequestHandler(
   () => import("virtual:react-router/server-build"),
@@ -35,13 +38,14 @@ export default withSentry<Env>(
       // the response header (applySecurityHeaders) below carry the exact
       // same value (TASK-foxhound-csp-nonce-hydration.md).
       const nonce = generateNonce();
+      const { origin } = new URL(request.url);
 
       // Checked before the route handler runs (not after). The public bucket
       // only: sign-in, signup, reset and Better Auth's own endpoints are
       // limited inside their actions by site-runtime's limiter (J52), where a
       // ".data" spelling of the path cannot slip past it.
       const limited = await enforceRateLimit(request, env);
-      if (limited) return applyCachePolicy(request, applySecurityHeaders(limited, nonce));
+      if (limited) return applyCachePolicy(request, applySecurityHeaders(limited, nonce, origin));
 
       // CARREL'S SITE API (job_cbe1b96107fc), before the router. Null for any path
       // outside /api/carrel/v1; inside it the package enforces rate limit, key and
@@ -50,17 +54,7 @@ export default withSentry<Env>(
       if (new URL(request.url).pathname.startsWith("/api/carrel/v1")) {
         const { handleCarrelRequest } = await import("~/lib/carrel/handler.server");
         const carrel = await handleCarrelRequest(request, env, ctx);
-        if (carrel) return applyCachePolicy(request, applySecurityHeaders(carrel, nonce));
-      }
-
-      // THE FOXHOUND ADMIN API (job_21de68b30fc2), before the router. Null for any
-      // path outside /api/admin/v1; inside it an admin-scope key AND an acting
-      // admin on ADMIN_EMAIL are checked on every call. Its only intended caller
-      // is the Foxhound Admin MCP Worker over a service binding.
-      if (new URL(request.url).pathname.startsWith("/api/admin/v1")) {
-        const { handleAdminApiRequest } = await import("~/lib/admin-api/handler.server");
-        const admin = await handleAdminApiRequest(request, env);
-        if (admin) return applyCachePolicy(request, applySecurityHeaders(admin, nonce));
+        if (carrel) return applyCachePolicy(request, applySecurityHeaders(carrel, nonce, origin));
       }
 
       // THE MERCHANT MCP ENDPOINT, before the router (370, roadmap item 3).
@@ -81,7 +75,7 @@ export default withSentry<Env>(
       if (new URL(request.url).pathname === "/mcp") {
         const { MERCHANT_TOOLS } = await import("~/lib/mcp/tools.server");
         const mcp = await handleMcpRequest(request, env, MERCHANT_TOOLS);
-        if (mcp) return applyCachePolicy(request, applySecurityHeaders(mcp, nonce));
+        if (mcp) return applyCachePolicy(request, applySecurityHeaders(mcp, nonce, origin));
       }
 
       const context = new RouterContextProvider();
@@ -91,7 +85,7 @@ export default withSentry<Env>(
       // passes through (345 binding 4). A route's own `headers` export would be
       // per route and a new route would default to nothing, which under RFC
       // 9111 heuristic freshness is not the same as "not cached".
-      return applyCachePolicy(request, applySecurityHeaders(response, nonce));
+      return applyCachePolicy(request, applySecurityHeaders(response, nonce, origin));
     },
     // Queue consumer (email dispatch; bounce/complaint events added in 4c-C3).
     // Inert until the queue consumer config is added to wrangler.jsonc (Dustin

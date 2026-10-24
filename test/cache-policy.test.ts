@@ -292,7 +292,7 @@ describe("PLANT 6: Vary: Cookie keys the cache by session presence (348)", () =>
 describe("PLANT 7: the policy is applied at the one choke point", () => {
   it("the fetch entry applies it to both the rate-limited and the handled response", () => {
     const source = readFileSync("workers/app.ts", "utf8");
-    expect(source).toContain("applyCachePolicy(request, applySecurityHeaders(limited, nonce))");
-    expect(source).toContain("applyCachePolicy(request, applySecurityHeaders(response, nonce))");
+    expect(source).toContain("applyCachePolicy(request, applySecurityHeaders(limited, nonce, origin))");
+    expect(source).toContain("applyCachePolicy(request, applySecurityHeaders(response, nonce, origin))");
   });
 });

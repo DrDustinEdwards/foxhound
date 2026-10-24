@@ -112,11 +112,13 @@ describe("/admin/staged", () => {
 });
 
 describe("the wiring around the API", () => {
-  it("the worker mounts /api/admin/v1 before the router", () => {
-    const worker = read("workers/app.ts");
-    const mount = worker.indexOf("handleAdminApiRequest");
-    expect(mount).toBeGreaterThan(-1);
-    expect(mount).toBeLessThan(worker.indexOf("requestHandler(request, context)"));
+  it("the admin API is served only on the AdminApi entrypoint, never the public fetch (FH-20)", () => {
+    // workers/ imports cloudflare:workers, which does not load in node, so this
+    // guards the one security line by its source: the public handler must never
+    // call the admin API again.
+    expect(read("workers/app.ts")).not.toContain("handleAdminApiRequest");
+    expect(read("workers/app.ts")).toContain('export { AdminApi } from "./admin-api"');
+    expect(read("workers/admin-api.ts")).toContain("handleAdminApiRequest(request, this.env)");
   });
 
   it("scripts/issue-admin-api-key.mjs prints a key once and the SQL that stores only its hash", () => {

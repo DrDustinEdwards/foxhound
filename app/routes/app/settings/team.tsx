@@ -16,6 +16,7 @@ import { authContext, createInvite, hasOpenInviteForEmail, listMembers, removeMe
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { RATE_LIMIT_INVITE } from "~/lib/constants";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
+import { getPrimarySenderConnection } from "~/lib/settings/queries.server";
 import { isValidReplyToEmail } from "~/lib/settings/reply-to";
 import { pendingState, shouldClearInvite, type TeamActionData } from "~/lib/settings/team-page";
 import { sendTeamInviteEmail, teamInviteEmailNotice } from "~/lib/settings/team-invite-email.server";
@@ -151,6 +152,9 @@ export async function action({ request, context }: Route.ActionArgs) {
     inviteUrl,
     memberId,
     token,
+    // Recova's footer names the primary connection's sender (E2).
+    senderName: (await getPrimarySenderConnection(db, membership.accountId))?.senderName,
+    year: new Date().getUTCFullYear(),
   });
   return data<TeamActionData>({
     action: "invite",

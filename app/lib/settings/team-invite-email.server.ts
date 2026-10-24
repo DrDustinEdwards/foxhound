@@ -3,6 +3,7 @@ import { escapeHtml } from "capsomer/email";
 import { processEmailJob } from "~/lib/email/dispatch";
 import type { EmailJobResult } from "~/lib/email/dispatch";
 import { redactSecrets } from "~/lib/email/send";
+import { recoveryFooterNote } from "~/lib/email/templates";
 import type { EmailJob } from "~/lib/email/types";
 
 // E2, the team invite email, ported from Recova's app/api/invite/route.ts
@@ -17,13 +18,18 @@ import type { EmailJob } from "~/lib/email/types";
 //   Body      "You've been invited to join <strong>{account name || 'a team'}
 //             </strong> on Recova.", an "Accept Invite" button to the invite
 //             link, then "This invite expires in 7 days." in small muted type
-//   No unsubscribe, no postal address, no tracking.
+//   Footer    wrapEmailHtml's, with no unsubscribe token: "You're receiving
+//             this from {primary connection's sender_name || 'Recova'} about a
+//             recent payment. (c) {year}", then "Manage email settings"
+//   No heading, no unsubscribe, no postal address, no tracking.
 // Foxhound sends the same words with Foxhound's name, on Capsomer's email
 // component in teal with a text part beside the HTML (J02), to the approved
 // /invite/:token link (APPROVED-DIFFERENCES, Sign-in and invites, 2026-09-19).
 //
 // IT IS MERCHANT MAIL (RULES.md 3.16): our own user's teammate, not a
-// merchant's customer, so no unsubscribe and no postal footer. It goes through
+// merchant's customer, so no unsubscribe and no postal footer. Its footer note
+// is Recova's sentence, which the merchant audience writes with "Manage email
+// settings" after it, as wrapEmailHtml does (E10). It goes through
 // processEmailJob, so it passes the suppression gate and writes an email_sends
 // row for whatever happens. The live-send gate does not hold it
 // (liveSendGate "skip"), as Recova's route has no such switch, and the invite
@@ -42,6 +48,8 @@ export const TEAM_INVITE_SUBJECT = "You've been invited to join Foxhound";
 export const TEAM_INVITE_TEMPLATE = "team_invite";
 /** Recova's words for an account with no name. */
 const TEAM_NAME_FALLBACK = "a team";
+/** Recova's footer sender fallback (`sender_name || 'Recova'`), Foxhound-branded. */
+const FOOTER_SENDER_FALLBACK = "Foxhound";
 
 /** The subject and body of the invite. Pure. The team name is escaped: it is
  *  the merchant's own text, and the body is read as HTML. */
@@ -53,11 +61,9 @@ export function buildTeamInviteCopy(
   return {
     subject: TEAM_INVITE_SUBJECT,
     bodyHtml: [
-      // The invitation is the mail's one heading (WCAG 2.2 AA, the job's
-      // check): Recova's mail has none, and this is its first sentence in its
-      // own words. Recova bolds the team name; Capsomer has no bold run, so
-      // the name is plain text here and the heading's weight carries it.
-      `<h1>You've been invited to join ${team} on Foxhound.</h1>`,
+      // No heading, as Recova's mail has none. Recova bolds the team name;
+      // Capsomer has no bold run, so the name is plain text here.
+      `<p>You've been invited to join ${team} on Foxhound.</p>`,
       `<p><a href="${escapeHtml(inviteUrl)}">Accept Invite</a></p>`,
       `<p><small>This invite expires in 7 days.</small></p>`,
     ].join("\n"),
@@ -74,6 +80,10 @@ export function buildTeamInviteJob(input: {
   memberId: string;
   /** The invite's token, cut out of any stored provider error with the link. */
   token: string;
+  /** The primary live connection's sender name, for Recova's footer line. */
+  senderName: string | null | undefined;
+  /** The footer's copyright year. */
+  year: number;
 }): EmailJob {
   return {
     accountId: input.accountId,
@@ -82,6 +92,7 @@ export function buildTeamInviteJob(input: {
     ...buildTeamInviteCopy(input.accountName, input.inviteUrl),
     template: TEAM_INVITE_TEMPLATE,
     audience: "merchant",
+    footerNote: recoveryFooterNote(input.senderName?.trim() || FOOTER_SENDER_FALLBACK, input.year),
     liveSendGate: "skip",
     // Merchant mail carries neither (EmailAudience "merchant").
     unsubscribeToken: "",
