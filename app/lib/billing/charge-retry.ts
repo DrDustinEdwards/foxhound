@@ -6,6 +6,7 @@ import { executeMoneyWrite } from "~/lib/money/execute";
 
 import { accountBillingEligibleCondition } from "~/db/billable";
 import { decideFeeRetryAction, billingStatusForSettledStripeStatus } from "./fee-retry";
+import { lookupPlatformBillingEmail } from "./platform-customer";
 import {
   createPlatformInvoice,
   finalizePlatformInvoice,
@@ -366,6 +367,7 @@ export async function retryInvoiceCharge(
         currency: invoice.currency,
         lines,
         billingInvoiceId: invoice.id,
+        billingEmail: () => lookupPlatformBillingEmail(env, invoice.accountId),
       });
     } catch (err) {
       // COUNT THE ATTEMPT EVEN THOUGH THE STRIPE CALL FAILED (ruling 377(6)).

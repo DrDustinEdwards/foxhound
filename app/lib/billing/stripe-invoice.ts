@@ -53,6 +53,10 @@ export interface CreatePlatformInvoiceInput {
   lines: PlatformInvoiceLineInput[];
   /** Our billing_invoices.id, attached as Stripe metadata for reconciliation. */
   billingInvoiceId: string;
+  /** Resolves the billing email (platform-customer.ts lookupPlatformBillingEmail).
+   *  Called only for an emailed invoice whose customer has no address, which is
+   *  every customer made before E25 put the email on at creation. */
+  billingEmail?: () => Promise<string | null>;
 }
 
 export interface PlatformInvoiceResult {
@@ -133,6 +137,7 @@ export const SEND_INVOICE_DAYS_UNTIL_DUE = 30;
 /** The slice of a retrieved platform customer the collection choice reads. */
 interface CustomerPaymentMethodFields {
   deleted?: boolean | void;
+  email?: string | null;
   invoice_settings?: { default_payment_method?: unknown } | null;
   default_source?: unknown;
 }
@@ -185,6 +190,14 @@ export async function createPlatformInvoice(
   // before anything is created, so the row stays draft for the retry sweep.
   const customer = await stripe.customers.retrieve(input.platformCustomerId);
   const sendByEmail = !hasDefaultPaymentMethod(customer);
+  if (sendByEmail && !("email" in customer && customer.email)) {
+    // Stripe can email the invoice only to an address on the customer. Fill it
+    // in before anything is created; with none to be found, stop here so the
+    // row stays draft rather than finalizing an invoice nobody receives.
+    const email = input.billingEmail ? await input.billingEmail() : null;
+    if (!email) throw new Error("no billing email for an emailed platform invoice");
+    await stripe.customers.update(input.platformCustomerId, { email });
+  }
 
   const invoice = await stripe.invoices.create(
     {

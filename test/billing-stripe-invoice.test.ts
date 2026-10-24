@@ -25,6 +25,10 @@ const mockStripe = vi.hoisted(() => {
         calls.push({ method: "customers.retrieve", args: [id] });
         return customer.value;
       }),
+      update: vi.fn(async (id: string, params: unknown) => {
+        calls.push({ method: "customers.update", args: [id, params] });
+        return { ...customer.value, ...(params as object) };
+      }),
     },
     invoices: {
       create: vi.fn(async (params: unknown, options: unknown) => {
@@ -214,7 +218,7 @@ describe("collection method follows the payment method on file (E25)", () => {
   const callOf = (method: string) => mockStripe.calls.find((c) => c.method === method)!;
 
   it("a customer with no default payment method gets send_invoice, 30 days, and a finalize that lets Stripe email it", async () => {
-    mockStripe.customer.value = { id: "cus_1", invoice_settings: { default_payment_method: null }, default_source: null };
+    mockStripe.customer.value = { id: "cus_1", email: "billing@example.com", invoice_settings: { default_payment_method: null }, default_source: null };
     await createPlatformInvoice({} as Env, baseInput);
 
     const [createParams, createOptions] = callOf("invoices.create").args as [Record<string, unknown>, Record<string, unknown>];
@@ -253,5 +257,26 @@ describe("collection method follows the payment method on file (E25)", () => {
     await createPlatformInvoice({} as Env, baseInput);
     const [createParams] = callOf("invoices.create").args as [Record<string, unknown>];
     expect(createParams.collection_method).toBe("charge_automatically");
+  });
+});
+
+// E25 (J97): a platform customer made before it carried an email has nowhere
+// for Stripe to send the invoice, so the address is filled in first.
+describe("an emailed invoice needs an address on the customer (E25)", () => {
+  const noCard = { invoice_settings: { default_payment_method: null }, default_source: null };
+
+  it("sets the resolved billing email on a customer with none, before the invoice is created", async () => {
+    mockStripe.customer.value = { id: "cus_1", email: null, ...noCard };
+    await createPlatformInvoice({} as Env, { ...baseInput, billingEmail: async () => "billing@example.com" });
+    const methods = mockStripe.calls.map((c) => c.method);
+    expect(methods.slice(0, 3)).toEqual(["customers.retrieve", "customers.update", "invoices.create"]);
+    const update = mockStripe.calls.find((c) => c.method === "customers.update")!;
+    expect(update.args).toEqual(["cus_1", { email: "billing@example.com" }]);
+  });
+
+  it("leaves a customer that already has an email alone", async () => {
+    mockStripe.customer.value = { id: "cus_1", email: "kept@example.com", ...noCard };
+    await createPlatformInvoice({} as Env, { ...baseInput, billingEmail: async () => "billing@example.com" });
+    expect(mockStripe.calls.some((c) => c.method === "customers.update")).toBe(false);
   });
 });
