@@ -19,7 +19,9 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 //   Body     "You've been invited to join <strong>{account name || 'a team'}
 //            </strong> on Recova.", an "Accept Invite" button to the invite
 //            link, then "This invite expires in 7 days." in muted small type
-//   No unsubscribe link, no postal address, no tracking, no text part.
+//   Footer   "You're receiving this from {primary sender_name || 'Recova'}
+//            about a recent payment. (c) {year}", then "Manage email settings"
+//   No heading, no unsubscribe link, no postal address, no tracking, no text part.
 // A failed send is logged and the route still answers success.
 //
 // Foxhound sends the same words with Foxhound's name, on Capsomer's email
@@ -244,6 +246,22 @@ describe("what it says: Recova's words, Foxhound-branded", () => {
     expect([7 * 24 * 60 * 60, 7 * 24 * 60 * 60 * 1000]).toContain(row.ttl);
   });
 
+  it("Recova's footer line, naming the primary connection's sender, then Manage email settings", async () => {
+    await invite();
+    const year = new Date().getUTCFullYear();
+    for (const part of [only().text ?? "", htmlWords(only().html)]) {
+      expectInOrder(part, [`You're receiving this from Foxhound about a recent payment. \u00a9 ${year}`, "Manage email settings"]);
+    }
+    harness.sent.length = 0;
+    sqlite
+      .prepare(
+        "INSERT INTO stripe_connections (id, account_id, stripe_user_id, is_primary, stripe_access_token, sender_name, connected_at, created_at) VALUES ('c1', ?, 'acct_s_1', 1, 'cipher', 'Acme Billing', 1000, 1000)",
+      )
+      .run(ACCOUNT);
+    await invite("second@example.com");
+    expect(only().text).toContain(`You're receiving this from Acme Billing about a recent payment. \u00a9 ${year}`);
+  });
+
   it("says Foxhound, never Recova", async () => {
     await invite();
     const m = only();
@@ -282,13 +300,13 @@ describe("what it carries", () => {
     expect(m.headers?.["List-Unsubscribe"]).toBeUndefined();
   });
 
-  it("its one link is the Accept Invite button, the same /invite/:token link the page shows", async () => {
+  it("its links are the Accept Invite button, the same /invite/:token link the page shows, then Recova's settings link", async () => {
     const res = await invite();
     const m = only();
     const url = `${BASE}/invite/${inviteToken()}`;
     expect(res.body.inviteUrl).toBe(url);
     const hrefs = [...m.html.matchAll(/href="([^"]*)"/g)].map((h) => h[1]);
-    expect(hrefs).toEqual([url]);
+    expect(hrefs).toEqual([url, `${BASE}/settings`]);
     expect(m.html).toMatch(new RegExp(`<a\\b[^>]*href="${url}"[^>]*>\\s*Accept Invite\\s*</a>`));
     expect(m.text).toContain(url);
   });
@@ -316,9 +334,8 @@ describe("accessibility of the rendered mail", () => {
     expect(html).toContain(`<title>${SUBJECT.replace("'", "&#39;")}</title>`);
     for (const [, href] of html.matchAll(/<a\b[^>]*href="([^"]*)"/g)) expect(href).toMatch(/^https:\/\//);
     for (const [, label] of html.matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/g)) expect(label.trim().length).toBeGreaterThan(0);
-    // One heading, and it is the invitation in Recova's words.
-    expect(html.match(/<h[1-6]\b/g)).toHaveLength(1);
-    expect(htmlWords(html)).toMatch(/<h1\b[^>]*>You've been invited to join Acme on Foxhound\.<\/h1>/);
+    // No heading, as Recova's mail has none.
+    expect(html).not.toMatch(/<h[1-6]\b/);
     expect(html).toMatch(/font-size:\s*16px/);
   });
 });
@@ -377,7 +394,7 @@ describe("a refused send returns its named outcome, and the invite still stands"
 describe("the live-send gate still holds every other send", () => {
   it("only the invite job opts out of the gate, through main's liveSendGate flag", async () => {
     const { buildTeamInviteJob } = await import("~/lib/settings/team-invite-email.server");
-    const job = buildTeamInviteJob({ accountId: "acct_1", to: "new@example.com", accountName: "Sample", inviteUrl: "https://foxhoundapp.test/invite/t", memberId: "m1", token: "t" });
+    const job = buildTeamInviteJob({ accountId: "acct_1", to: "new@example.com", accountName: "Sample", inviteUrl: "https://foxhoundapp.test/invite/t", memberId: "m1", token: "t", senderName: null, year: 2026 });
     expect(job).toMatchObject({ audience: "merchant", liveSendGate: "skip" });
   });
 });
