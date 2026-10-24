@@ -1,4 +1,5 @@
 import { CARD_UPDATE_TOKEN_MAX_AGE_MS } from "~/lib/constants";
+import { readSignedToken, signToken } from "~/lib/http/signed-token";
 
 // Stateless HMAC-signed token for the hosted card-update page (/p/:token,
 // ROUTES.md public-utility). Mirrors the /e/* engagement token pattern
@@ -47,47 +48,13 @@ export interface CardUpdateTokenPayload {
   iat: number;
 }
 
-function hexToBytes(hex: string): Uint8Array<ArrayBuffer> {
-  const out = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
-  return out;
-}
-
-function b64urlEncode(bytes: Uint8Array): string {
-  let bin = "";
-  for (const b of bytes) bin += String.fromCharCode(b);
-  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-
-function b64urlDecode(s: string): Uint8Array<ArrayBuffer> {
-  const pad = s.length % 4 === 0 ? "" : "=".repeat(4 - (s.length % 4));
-  const bin = atob(s.replace(/-/g, "+").replace(/_/g, "/") + pad);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
-}
-
-async function signingKey(env: Env): Promise<CryptoKey> {
-  if (!env.ENCRYPTION_KEY) throw new Error("ENCRYPTION_KEY is not set");
-  return crypto.subtle.importKey(
-    "raw",
-    hexToBytes(env.ENCRYPTION_KEY),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign", "verify"],
-  );
-}
-
 /** Sign a card-update payload into a compact `payload.signature` token. Stamps `iat` itself. */
 export async function signCardUpdateToken(
   env: Env,
   payload: Omit<CardUpdateTokenPayload, "iat">,
 ): Promise<string> {
   const full: CardUpdateTokenPayload = { ...payload, iat: Date.now() };
-  const key = await signingKey(env);
-  const payloadBytes = new Uint8Array(new TextEncoder().encode(JSON.stringify(full)));
-  const sig = await crypto.subtle.sign("HMAC", key, payloadBytes);
-  return `${b64urlEncode(payloadBytes)}.${b64urlEncode(new Uint8Array(sig))}`;
+  return signToken(env, full);
 }
 
 /** Verify + parse a card-update token. Returns null on tamper/format/parse
@@ -96,38 +63,28 @@ export async function verifyCardUpdateToken(
   env: Env,
   token: string,
 ): Promise<CardUpdateTokenPayload | null> {
-  const dot = token.indexOf(".");
-  if (dot <= 0) return null;
-  try {
-    const key = await signingKey(env);
-    const payloadBytes = b64urlDecode(token.slice(0, dot));
-    const sig = b64urlDecode(token.slice(dot + 1));
-    const ok = await crypto.subtle.verify("HMAC", key, sig, payloadBytes);
-    if (!ok) return null;
-    const parsed = JSON.parse(new TextDecoder().decode(payloadBytes)) as CardUpdateTokenPayload;
-    // EXACTLY ONE MODE. A token carrying no id is refused here rather than
-    // resolving to nothing downstream, and a token carrying more than one is
-    // refused rather than letting the route's dispatch order silently pick a
-    // winner. This is the fail-closed half of making `failedPaymentId` optional
-    // (341 binding 2): the fields are optional, the REQUIREMENT that a token
-    // names exactly one target is not.
-    const targets = [
-      parsed.failedPaymentId,
-      parsed.expiringCardAlertId,
-      parsed.winBackSequenceId,
-    ].filter(Boolean).length;
-    if (targets !== 1 || !parsed.accountId || typeof parsed.iat !== "number") {
-      return null;
-    }
-    // Resubscribe mode carries its step number into the Checkout Session's
-    // metadata; a sequence id with no step number would mint a session that
-    // session 52 could match but never attribute to a step.
-    if (parsed.winBackSequenceId && typeof parsed.winBackStepNumber !== "number") {
-      return null;
-    }
-    if (Date.now() - parsed.iat > CARD_UPDATE_TOKEN_MAX_AGE_MS) return null;
-    return parsed;
-  } catch {
+  const parsed = (await readSignedToken(env, token)) as CardUpdateTokenPayload | null;
+  if (!parsed) return null;
+  // EXACTLY ONE MODE. A token carrying no id is refused here rather than
+  // resolving to nothing downstream, and a token carrying more than one is
+  // refused rather than letting the route's dispatch order silently pick a
+  // winner. This is the fail-closed half of making `failedPaymentId` optional
+  // (341 binding 2): the fields are optional, the REQUIREMENT that a token
+  // names exactly one target is not.
+  const targets = [
+    parsed.failedPaymentId,
+    parsed.expiringCardAlertId,
+    parsed.winBackSequenceId,
+  ].filter(Boolean).length;
+  if (targets !== 1 || !parsed.accountId || typeof parsed.iat !== "number") {
     return null;
   }
+  // Resubscribe mode carries its step number into the Checkout Session's
+  // metadata; a sequence id with no step number would mint a session that
+  // session 52 could match but never attribute to a step.
+  if (parsed.winBackSequenceId && typeof parsed.winBackStepNumber !== "number") {
+    return null;
+  }
+  if (Date.now() - parsed.iat > CARD_UPDATE_TOKEN_MAX_AGE_MS) return null;
+  return parsed;
 }
