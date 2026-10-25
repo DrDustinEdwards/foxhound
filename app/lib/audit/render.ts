@@ -1,4 +1,4 @@
-import type { AuditResult, ScopeOutcome } from "./engine";
+import type { AuditResult, MoneyTotals, ScopeOutcome } from "./engine";
 
 import type { AuditRunRow } from "./persist.server";
 import { formatMoneyShort } from "~/lib/money-format";
@@ -15,6 +15,11 @@ import { formatMoneyShort } from "~/lib/money-format";
 // So the shape below is deliberately not "numbers with defaults". It is
 // `number | null` all the way to the component, and the component decides how to
 // say "could not be read".
+//
+// MONEY IS PER CURRENCY (job_ed1c41e4bd95): each figure is its totals, one
+// entry per currency in groupSumByCurrency's order (RULES.md 3.20), and the
+// sections show one line per currency. A run stored before money_by_currency
+// existed has one total in its one currency, and shows it as it always did.
 
 export interface StoredScope<T> {
   /** Null when the scope could not be read on the run that produced this row. */
@@ -41,28 +46,28 @@ export interface AuditRunView {
   summary: string | null;
   failedInvoices: {
     count: number;
-    totalCents: number;
-    byCategory: Record<string, number>;
+    totals: MoneyTotals;
+    byCategory: Record<string, MoneyTotals>;
   } | null;
   expiringCards: {
     count: number;
-    mrrAtRiskCents: number;
+    mrrAtRisk: MoneyTotals;
     expiresByMonth: Record<string, number>;
   } | null;
-  pastDueSubscriptions: { count: number; totalCents: number } | null;
+  pastDueSubscriptions: { count: number; totals: MoneyTotals } | null;
   cardUpdater: {
     eventsInWindow: number;
     expiredCardDeclinesInWindow: number;
     advisory: string | null;
   } | null;
   disputes: {
-    open: { count: number; totalCents: number };
-    acceptedWithoutFighting: { count: number; totalCents: number };
+    open: { count: number; totals: MoneyTotals };
+    acceptedWithoutFighting: { count: number; totals: MoneyTotals };
     historical: { won: number; lost: number };
   } | null;
   health: {
-    mrrCents: number;
-    arrCents: number;
+    mrr: MoneyTotals;
+    arr: MoneyTotals;
     activeSubscriptionsCount: number;
     voluntaryChurnRateBps: number;
     involuntaryChurnRateBps: number;
@@ -91,14 +96,23 @@ function live<T>(scope: ScopeOutcome<T>): T | null {
  */
 export function toAuditRunView(result: AuditResult, summary: string | null): AuditRunView {
   const cardUpdater = live(result.cardUpdater);
+  const failed = live(result.failedInvoices);
+  const expiring = live(result.expiringCards);
+  const pastDue = live(result.pastDueSubscriptions);
+  const disputes = live(result.disputes);
+  const health = live(result.health);
   return {
     runAt: result.meta.ranAt,
     lookbackDays: result.meta.lookbackDays,
     currency: result.meta.currency,
     summary,
-    failedInvoices: live(result.failedInvoices),
-    expiringCards: live(result.expiringCards),
-    pastDueSubscriptions: live(result.pastDueSubscriptions),
+    failedInvoices:
+      failed === null ? null : { count: failed.count, totals: failed.totals, byCategory: failed.byCategoryTotals },
+    expiringCards:
+      expiring === null
+        ? null
+        : { count: expiring.count, mrrAtRisk: expiring.mrrAtRiskTotals, expiresByMonth: expiring.expiresByMonth },
+    pastDueSubscriptions: pastDue === null ? null : { count: pastDue.count, totals: pastDue.totals },
     cardUpdater:
       cardUpdater === null
         ? null
@@ -107,8 +121,27 @@ export function toAuditRunView(result: AuditResult, summary: string | null): Aud
             expiredCardDeclinesInWindow: cardUpdater.expiredCardDeclinesInWindow,
             advisory: cardUpdater.advisory,
           },
-    disputes: live(result.disputes),
-    health: live(result.health),
+    disputes:
+      disputes === null
+        ? null
+        : {
+            open: { count: disputes.open.count, totals: disputes.open.totals },
+            acceptedWithoutFighting: {
+              count: disputes.acceptedWithoutFighting.count,
+              totals: disputes.acceptedWithoutFighting.totals,
+            },
+            historical: disputes.historical,
+          },
+    health:
+      health === null
+        ? null
+        : {
+            mrr: health.mrrTotals,
+            arr: health.arrTotals,
+            activeSubscriptionsCount: health.activeSubscriptionsCount,
+            voluntaryChurnRateBps: health.voluntaryChurnRateBps,
+            involuntaryChurnRateBps: health.involuntaryChurnRateBps,
+          },
   };
 }
 
@@ -122,6 +155,21 @@ function numberMap(raw: unknown): Record<string, number> {
   return out;
 }
 
+/** Totals from stored JSON, dropping any entry that is not one. */
+function totalsFrom(raw: unknown): MoneyTotals | null {
+  if (!Array.isArray(raw)) return null;
+  return raw.filter(
+    (t): t is { currency: string; cents: number } =>
+      !!t && typeof t === "object" && typeof t.currency === "string" && typeof t.cents === "number",
+  );
+}
+
+/** A stored figure per currency: the money_by_currency entry when the run has
+ *  one, else the run's one total in its one currency, as it was stored. */
+function storedTotals(perCurrency: unknown, cents: number | null, currency: string): MoneyTotals {
+  return totalsFrom(perCurrency) ?? (cents ? [{ currency, cents }] : []);
+}
+
 /**
  * Map a stored row to the render shape.
  *
@@ -132,11 +180,14 @@ function numberMap(raw: unknown): Record<string, number> {
  * advisory fires (364 binding 20).
  */
 export function toStoredAuditRun(row: AuditRunRow): StoredAuditRun {
+  const currency = row.currency ?? "usd";
+  const money = row.moneyByCurrency;
+  const breakdown = money?.declineBreakdown ?? null;
   return {
     id: row.id,
     runAt: row.runAt,
     lookbackDays: row.lookbackDays,
-    currency: row.currency ?? "usd",
+    currency,
     summary: row.aiSummary,
 
     failedInvoices:
@@ -144,8 +195,13 @@ export function toStoredAuditRun(row: AuditRunRow): StoredAuditRun {
         ? null
         : {
             count: row.failedInvoicesCount,
-            totalCents: row.failedInvoicesCents ?? 0,
-            byCategory: numberMap(row.declineBreakdown),
+            totals: storedTotals(money?.failedInvoices, row.failedInvoicesCents, currency),
+            byCategory: Object.fromEntries(
+              Object.entries(numberMap(row.declineBreakdown)).map(([key, cents]) => [
+                key,
+                storedTotals(breakdown?.[key], cents, currency),
+              ]),
+            ),
           },
 
     expiringCards:
@@ -153,7 +209,7 @@ export function toStoredAuditRun(row: AuditRunRow): StoredAuditRun {
         ? null
         : {
             count: row.expiringCardsCount,
-            mrrAtRiskCents: row.expiringCardsMrrCents ?? 0,
+            mrrAtRisk: storedTotals(money?.expiringCardsMrr, row.expiringCardsMrrCents, currency),
             expiresByMonth: numberMap(row.expiresByMonth),
           },
 
@@ -162,7 +218,7 @@ export function toStoredAuditRun(row: AuditRunRow): StoredAuditRun {
         ? null
         : {
             count: row.pastDueSubscriptionsCount,
-            totalCents: row.pastDueSubscriptionsCents ?? 0,
+            totals: storedTotals(money?.pastDueSubscriptions, row.pastDueSubscriptionsCents, currency),
           },
 
     cardUpdater:
@@ -178,10 +234,13 @@ export function toStoredAuditRun(row: AuditRunRow): StoredAuditRun {
       row.openDisputesCount === null
         ? null
         : {
-            open: { count: row.openDisputesCount, totalCents: row.openDisputesCents ?? 0 },
+            open: {
+              count: row.openDisputesCount,
+              totals: storedTotals(money?.openDisputes, row.openDisputesCents, currency),
+            },
             acceptedWithoutFighting: {
               count: row.disputesAcceptedCount ?? 0,
-              totalCents: row.disputesAcceptedCents ?? 0,
+              totals: storedTotals(money?.disputesAccepted, row.disputesAcceptedCents, currency),
             },
             historical: { won: row.disputesWon ?? 0, lost: row.disputesLost ?? 0 },
           },
@@ -190,8 +249,8 @@ export function toStoredAuditRun(row: AuditRunRow): StoredAuditRun {
       row.mrrCents === null
         ? null
         : {
-            mrrCents: row.mrrCents,
-            arrCents: row.arrCents ?? 0,
+            mrr: storedTotals(money?.mrr, row.mrrCents, currency),
+            arr: storedTotals(money?.arr, row.arrCents, currency),
             activeSubscriptionsCount: row.activeSubscriptionsCount ?? 0,
             voluntaryChurnRateBps: row.voluntaryChurnRateBps ?? 0,
             involuntaryChurnRateBps: row.involuntaryChurnRateBps ?? 0,
@@ -205,6 +264,21 @@ export const SCOPE_UNREAD = "Could not be read on this run.";
 /** Minor units to a whole-unit display string in the run's currency. */
 export function formatCents(cents: number, currency: string): string {
   return formatMoneyShort(cents, currency);
+}
+
+/**
+ * A figure's display lines, one per currency in its totals' order. No money
+ * at all reads as a zero in the run's currency, which is what a
+ * single-currency run always showed.
+ */
+export function formatTotals(totals: readonly { currency: string; cents: number }[], runCurrency: string): string[] {
+  if (totals.length === 0) return [formatCents(0, runCurrency)];
+  return totals.map((t) => formatCents(t.cents, t.currency));
+}
+
+/** Whether a figure carries any money above zero. */
+export function anyAbove(totals: readonly { cents: number }[]): boolean {
+  return totals.some((t) => t.cents > 0);
 }
 
 /** Basis points to a percentage, at legacy's one decimal. */

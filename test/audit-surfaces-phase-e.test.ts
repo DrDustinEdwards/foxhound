@@ -141,10 +141,10 @@ describe("PLANT 2: the stored-run surface", () => {
       }),
     );
     const { run } = (await loadRun(ACCOUNT_A, id)) as { run: ReturnType<typeof toStoredAuditRun> };
-    expect(run.failedInvoices).toMatchObject({ count: 1, totalCents: 25_000 });
-    expect(run.failedInvoices!.byCategory.expired).toBe(25_000);
-    expect(run.disputes!.open).toEqual({ count: 1, totalCents: 9_000 });
-    expect(run.health!.mrrCents).toBe(0);
+    expect(run.failedInvoices).toMatchObject({ count: 1, totals: [{ currency: "usd", cents: 25_000 }] });
+    expect(run.failedInvoices!.byCategory.expired).toEqual([{ currency: "usd", cents: 25_000 }]);
+    expect(run.disputes!.open).toEqual({ count: 1, totals: [{ currency: "usd", cents: 9_000 }] });
+    expect(run.health!.mrr).toEqual([]);
     expect(run.summary).toBe("One. Two. Three.");
   });
 
@@ -164,7 +164,7 @@ describe("PLANT 2: the stored-run surface", () => {
     expect(run.pastDueSubscriptions).toBeNull();
     expect(run.health).toBeNull();
     // And a scope that WAS read still carries its numbers, including a real zero.
-    expect(run.failedInvoices).toMatchObject({ count: 0, totalCents: 0 });
+    expect(run.failedInvoices).toMatchObject({ count: 0, totals: [] });
   });
 
   it("404s on an id that does not exist at all", async () => {

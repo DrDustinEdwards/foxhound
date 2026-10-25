@@ -10,6 +10,8 @@ import type { AuditResult, ScopeOutcome } from "./engine";
 //
 // NO MIGRATION, which the walk found and 363 confirmed: the table was built with
 // legacy's full column set and has sat empty since. This is code, not schema.
+// One column was added since: money_by_currency (0039), the per-currency
+// figures legacy never kept.
 //
 // WHERE THE PER-SCOPE STATUS LIVES, since 362 ruling 2 gave the engine one and
 // the table has no column for it: IN THE NULLS. Every scope column is nullable,
@@ -79,6 +81,19 @@ export function buildAuditRunRow(result: AuditResult, context: SaveAuditRunConte
     activeSubscriptionsCount: value(result.health, (d) => d.activeSubscriptionsCount),
     voluntaryChurnRateBps: value(result.health, (d) => d.voluntaryChurnRateBps),
     involuntaryChurnRateBps: value(result.health, (d) => d.involuntaryChurnRateBps),
+
+    // Every money figure per currency (job_ed1c41e4bd95). The single-number
+    // columns above are the figure in `currency` only (engine.ts).
+    moneyByCurrency: {
+      failedInvoices: value(result.failedInvoices, (d) => d.totals),
+      declineBreakdown: value(result.failedInvoices, (d) => d.byCategoryTotals),
+      expiringCardsMrr: value(result.expiringCards, (d) => d.mrrAtRiskTotals),
+      pastDueSubscriptions: value(result.pastDueSubscriptions, (d) => d.totals),
+      openDisputes: value(result.disputes, (d) => d.open.totals),
+      disputesAccepted: value(result.disputes, (d) => d.acceptedWithoutFighting.totals),
+      mrr: value(result.health, (d) => d.mrrTotals),
+      arr: value(result.health, (d) => d.arrTotals),
+    },
 
     aiSummary: context.summary,
     isAuthenticated: context.isAuthenticated,
