@@ -86,7 +86,13 @@ export { DENIED_BOTS };
  * at the click recorder, app/lib/engagement/agents.ts.
  */
 export function buildRobotsTxt(url: string): string {
-  return robotsDocument({ origin: url, disallow: DISALLOW_PATHS, allowBots: ALLOWED_BOTS, denyBots: DENIED_BOTS });
+  return robotsDocument({
+    origin: url,
+    disallow: DISALLOW_PATHS,
+    allowBots: ALLOWED_BOTS,
+    denyBots: DENIED_BOTS,
+    notes: [`AI usage policy: ${url}/ai.txt`, `LLM guide: ${url}/llms.txt`],
+  });
 }
 
 export function loader({ context }: Route.LoaderArgs) {
