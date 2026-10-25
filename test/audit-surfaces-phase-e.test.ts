@@ -105,9 +105,9 @@ const loadHistory = (accountId: string) =>
   } as never) as Promise<{
     runs: {
       id: string;
-      failedInvoicesCents: number | null;
-      openDisputesCents: number | null;
-      mrrCents: number | null;
+      failedInvoices: unknown[] | null;
+      openDisputes: unknown[] | null;
+      mrr: unknown[] | null;
     }[];
   }>;
 
@@ -124,8 +124,8 @@ describe("PLANT 1: the history surface", () => {
     await save(ACCOUNT_A, auditWith({ subscriptions: failedRead("subs unavailable") }));
     const { runs } = await loadHistory(ACCOUNT_A);
     // MRR comes from the subscriptions read, so it is null, not 0.
-    expect(runs[0].failedInvoicesCents).toBe(0);
-    expect(runs[0].mrrCents).toBeNull();
+    expect(runs[0].failedInvoices).toEqual([]);
+    expect(runs[0].mrr).toBeNull();
   });
 });
 

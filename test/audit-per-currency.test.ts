@@ -48,14 +48,18 @@ const dispute = (amount: number, currency: string, status: string) =>
   ({ amount, currency, status, evidence_details: { submission_count: 0 } }) as unknown as Stripe.Dispute;
 
 /** $1,240 and EUR 310 failed; $1,000 and EUR 500 MRR; $200 and EUR 50 in open
- *  disputes, and $300 and EUR 70 lost without a response. */
-const twoCurrencies = () =>
+ *  disputes, and $300 and EUR 70 lost without a response. USD comes first in
+ *  Stripe's rows. `failed` replaces the failed invoices, for an earlier run. */
+const twoCurrencies = (
+  failed = [invoice(100_000, "usd"), invoice(31_000, "eur"), invoice(24_000, "usd")],
+  ranAt = RAN_AT,
+) =>
   runAudit({
     stripeAccountId: "acct_stripe_x",
     lookbackDays: 90,
-    ranAt: RAN_AT,
+    ranAt,
     reads: {
-      uncollectibleInvoices: ok([invoice(100_000, "usd"), invoice(31_000, "eur"), invoice(24_000, "usd")]),
+      uncollectibleInvoices: ok(failed),
       openInvoices: ok<Stripe.Invoice>([]),
       subscriptions: ok([subscription(100_000, "usd", "cus_1"), subscription(50_000, "eur", "cus_2")]),
       disputes: ok([
@@ -81,7 +85,9 @@ function renderRun(run: AuditRunView): string {
   ].join("\n");
 }
 
-/** Each figure's lines in the order shown, and never a sum across currencies. */
+/** Each figure's lines, never a sum across currencies, in currency-code order
+ *  as the other per-currency totals are (views.server.ts), not in the order
+ *  Stripe's rows came. */
 function expectPerCurrency(html: string) {
   for (const [usd, eur, mixed] of [
     ["$1,240", "€310", "$1,550"], // failed invoices
@@ -94,7 +100,7 @@ function expectPerCurrency(html: string) {
     expect(html).toContain(`>${usd}<`);
     expect(html).toContain(`>${eur}<`);
     expect(html).not.toContain(`>${mixed}<`);
-    expect(html.indexOf(`>${usd}<`)).toBeLessThan(html.indexOf(`>${eur}<`));
+    expect(html.indexOf(`>${eur}<`)).toBeLessThan(html.indexOf(`>${usd}<`));
   }
 }
 
@@ -181,11 +187,71 @@ describe("audit money figures, one line per currency", () => {
     });
     const lines = blocks.map((b) => ("text" in b ? b.text : ""));
     const after = (first: string) => lines[lines.indexOf(first) + 1];
-    expect(after("MRR: $1,000")).toBe("€500");
-    expect(after("ARR: $12,000")).toBe("€6,000");
-    expect(after("Failed payments detected: 3, $1,240")).toBe("€310");
-    expect(after("Expiring cards: 2, $1,000 MRR at risk")).toBe("€500 MRR at risk");
-    expect(after("Open disputes: 2, $200")).toBe("€50");
+    expect(after("MRR: €500")).toBe("$1,000");
+    expect(after("ARR: €6,000")).toBe("$12,000");
+    expect(after("Failed payments detected: 3, €310")).toBe("$1,240");
+    expect(after("Expiring cards: 2, €500 MRR at risk")).toBe("$1,000 MRR at risk");
+    expect(after("Open disputes: 2, €50")).toBe("$200");
     expect(lines.join("\n")).not.toMatch(/\$1,550|\$1,500|\$18,000|\$250/);
+  });
+
+  async function save(result: ReturnType<typeof twoCurrencies>, now: Date): Promise<string> {
+    const { saveAuditRun } = await import("~/lib/audit/persist.server");
+    return saveAuditRun({} as Env, result, { accountId: ACCOUNT, isAuthenticated: true, summary: "s", now });
+  }
+
+  async function renderHistory(): Promise<string> {
+    const page = await import("~/routes/app/audit/dashboard");
+    const loaderData = await page.loader({
+      context: contextFor(ACCOUNT),
+      request: new Request("https://foxhoundapp.test/audit/dashboard"),
+      params: {},
+    } as never);
+    return render(createElement(page.default, { loaderData, actionData: undefined } as never));
+  }
+
+  const EARLIER = new Date("2026-09-10T09:00:00.000Z");
+
+  it("/audit/dashboard shows each currency on its own line, compared like with like", async () => {
+    // A month earlier: $1,000 and EUR 200 failed.
+    await save(twoCurrencies([invoice(100_000, "usd"), invoice(20_000, "eur")], EARLIER), EARLIER);
+    await save(twoCurrencies(), RAN_AT);
+    const html = await renderHistory();
+    for (const cell of [">$1,240<", ">€310<", ">$200<", ">€50<", ">$1,000<", ">€500<", ">€200<"]) {
+      expect(html).toContain(cell);
+    }
+    expect(html).not.toMatch(/>\$1,550<|>\$1,500<|>\$250<|>\$1,200</);
+    // Failed invoices: EUR 200 to EUR 310 is up 55% and $1,000 to $1,240 up
+    // 24%, each in its own currency. MRR and open disputes did not move.
+    expect(html).toMatch(/€310<.*vs.*€200<.*55%.*\$1,240<.*vs.*\$1,000<.*24%/s);
+    expect(html).not.toContain("▼");
+  });
+
+  it("/audit/dashboard shows no change against a run stored as one mixed sum", async () => {
+    sqlite
+      .prepare(
+        `INSERT INTO audit_runs (id, account_id, run_at, lookback_days, created_at, currency,
+           failed_invoices_count, failed_invoices_cents, open_disputes_count, open_disputes_cents,
+           mrr_cents, arr_cents, active_subscriptions_count, voluntary_churn_rate_bps, involuntary_churn_rate_bps)
+         VALUES ('old', ?, ?, 90, ?, 'usd', 3, 155000, 2, 25000, 150000, 1800000, 2, 0, 0)`,
+      )
+      .run(ACCOUNT, EARLIER.getTime(), EARLIER.getTime());
+    await save(twoCurrencies(), RAN_AT);
+    const html = await renderHistory();
+    // The old run still shows what it stored, but $1,240 against its mixed
+    // $1,550 is no 20% drop, so no figure draws a change.
+    expect(html).toContain(">$1,550<");
+    expect(html).not.toMatch(/[▲▼]|no change/);
+  });
+
+  it("the console's audit tile shows the leak in each currency", async () => {
+    const { getConsoleView } = await import("~/lib/dashboard/console.server");
+    const { ConsoleTileRow } = await import("~/components/console-panels");
+    await save(twoCurrencies(), RAN_AT);
+    const nowMs = RAN_AT.getTime() + 60_000;
+    const view = await getConsoleView(harness.db as never, ACCOUNT, nowMs, null);
+    const html = render(createElement(ConsoleTileRow, { tiles: view.tiles, nowMs }));
+    // Failed invoices and open disputes: EUR 310 + 50 and $1,240 + 200.
+    expect(html).toContain("€360 · $1,440");
   });
 });

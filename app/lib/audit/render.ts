@@ -17,7 +17,7 @@ import { formatMoneyShort } from "~/lib/money-format";
 // say "could not be read".
 //
 // MONEY IS PER CURRENCY (job_ed1c41e4bd95): each figure is its totals, one
-// entry per currency in groupSumByCurrency's order (RULES.md 3.20), and the
+// entry per currency in currency-code order (RULES.md 3.20), and the
 // sections show one line per currency. A run stored before money_by_currency
 // existed has one total in its one currency, and shows it as it always did.
 

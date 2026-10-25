@@ -10,7 +10,7 @@ import type { AuditResult, ScopeOutcome } from "./engine";
 //
 // NO MIGRATION, which the walk found and 363 confirmed: the table was built with
 // legacy's full column set and has sat empty since. This is code, not schema.
-// One column was added since: money_by_currency (0039), the per-currency
+// One column was added since: money_by_currency (0040), the per-currency
 // figures legacy never kept.
 //
 // WHERE THE PER-SCOPE STATUS LIVES, since 362 ruling 2 gave the engine one and

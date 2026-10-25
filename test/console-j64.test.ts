@@ -131,7 +131,7 @@ describe("console read model: money per currency (RULES.md 3.20)", () => {
   it("carries the audit run's own currency for its leak figure", async () => {
     const db = await seed({ audit: { currency: "gbp" } });
     const view = await getConsoleView(db, ACCOUNT_ID, NOW, null);
-    expect(view.tiles.auditCurrency).toBe("gbp");
+    expect(view.tiles.auditLeaking).toEqual([{ currency: "gbp", cents: 10_500 }]);
   });
 });
 

@@ -21,9 +21,9 @@ import { DemoGuardedForm } from "~/components/demo-guarded-form";
 import { accounts, getDb } from "~/db";
 import type { loader as appShellLoader } from "~/layouts/app-shell";
 import { listAuditRuns } from "~/lib/audit/persist.server";
-import { formatCents } from "~/lib/audit/render";
+import { formatCents, formatTotals, toStoredAuditRun } from "~/lib/audit/render";
 import { createSaveQueue, type SaveQueue } from "~/lib/audit/save-queue";
-import { compareRuns } from "~/lib/audit/trend";
+import { compareTotals, type TrendComparison, type TrendSide } from "~/lib/audit/trend";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { applyAuditSettings } from "~/lib/settings/apply.server";
@@ -65,8 +65,15 @@ import type { Route } from "./+types/dashboard";
 // "written by AI", as /settings/audit already does on Dustin's word in 316's
 // session. And a figure that could not be read on a run says so instead of
 // Recova's `?? 0` (365 binding 2), in the table and in Since last run, which
-// shows no comparison when either side is unread or the two runs are in
-// different currencies (app/lib/audit/trend.ts).
+// shows no comparison when either side is unread (app/lib/audit/trend.ts).
+//
+// ONE LINE PER CURRENCY (Dustin, 2026-10-25, parity/APPROVED-DIFFERENCES.md).
+// Each money figure is its totals per currency from money_by_currency, read
+// through toStoredAuditRun as /audit/results/:id reads them, stacked one line
+// per currency in currency-code order. Since last run compares each currency
+// with the same currency on the last run. A run stored before that column
+// has one figure that may have added currencies together (Recova's sum), so
+// it shows what it stored and no change is drawn against it.
 
 export function meta() {
   return [{ title: "Audit history - Foxhound" }];
@@ -91,18 +98,22 @@ export async function loader({ context }: Route.LoaderArgs) {
   ]);
 
   return {
-    runs: runs.map((run) => ({
-      id: run.id,
-      runAt: run.runAt,
-      // NULL when the run stored none. Since last run treats that as unknown
-      // (trend.ts); the figures display as the stored-run page does
-      // (render.ts toStoredAuditRun).
-      currency: run.currency,
-      failedInvoicesCents: run.failedInvoicesCents,
-      openDisputesCents: run.openDisputesCents,
-      mrrCents: run.mrrCents,
-      summary: run.aiSummary,
-    })),
+    runs: runs.map((row) => {
+      // The same mapping the stored-run page uses, so a figure reads the
+      // same here as on /audit/results/:id. Null where the scope was not read.
+      const run = toStoredAuditRun(row);
+      return {
+        id: run.id,
+        runAt: run.runAt,
+        // NULL when the run stored none (trend.ts).
+        currency: row.currency,
+        perCurrency: row.moneyByCurrency !== null,
+        failedInvoices: run.failedInvoices?.totals ?? null,
+        openDisputes: run.disputes?.open.totals ?? null,
+        mrr: run.health?.mrr ?? null,
+        summary: run.summary,
+      };
+    }),
     settings: readAuditSettings(settingsRows[0] ?? { auditLookbackDays: null, auditAutoRun: null }),
   };
 }
@@ -139,17 +150,39 @@ function formatDate(value: Date): string {
   });
 }
 
-/** A stored figure, or "Not read" when the scope was not read on that run.
- *  Recova prints a zero here; a zero that means unknown is what 362 ruling 2
- *  forbids. */
-function Amount({ cents, currency }: { cents: number | null; currency: string | null }) {
-  if (cents === null) return <span className="text-text-tertiary">Not read</span>;
-  return <>{formatCents(cents, currency ?? "usd")}</>;
+/** A stored figure, one line per currency, or "Not read" when the scope was
+ *  not read on that run. Recova prints a zero here; a zero that means unknown
+ *  is what 362 ruling 2 forbids. */
+function Amount({ totals, currency }: { totals: TrendSide["totals"]; currency: string | null }) {
+  if (totals === null) return <span className="text-text-tertiary">Not read</span>;
+  const lines = formatTotals(totals, currency ?? "usd");
+  if (lines.length === 1) return <>{lines[0]}</>;
+  return (
+    <span className="inline-flex flex-col items-end">
+      {lines.map((line) => (
+        <span key={line}>{line}</span>
+      ))}
+    </span>
+  );
+}
+
+/** Recova's move: the arrow is drawn, and the direction is also in words for
+ *  a screen reader, so the colour is never the only signal. */
+function Move({ cmp }: { cmp: TrendComparison }) {
+  if (cmp.kind === "unchanged") return <span className="text-text-subtle">no change</span>;
+  if (cmp.kind !== "moved") return null;
+  return (
+    <span className={cmp.tone === "good" ? "text-green" : "text-red"}>
+      <span aria-hidden="true">{cmp.direction === "up" ? "▲" : "▼"}</span>
+      <span className="sr-only">{cmp.direction}</span> {cmp.deltaPct}%
+    </span>
+  );
 }
 
 /** One of Recova's TrendRows: the label, then this run against the last, then
- *  the move. The arrow is drawn, and the direction is also in words for a
- *  screen reader, so the colour is never the only signal. */
+ *  the move, one line per currency. With no like-for-like comparison (a
+ *  scope unread, or a run stored as one total) it shows both runs' figures
+ *  and no move. */
 function TrendRow({
   label,
   current,
@@ -157,29 +190,34 @@ function TrendRow({
   higherIsBetter,
 }: {
   label: string;
-  current: { cents: number | null; currency: string | null };
-  previous: { cents: number | null; currency: string | null };
+  current: TrendSide;
+  previous: TrendSide;
   higherIsBetter: boolean;
 }) {
-  const cmp = compareRuns(current.cents, previous.cents, higherIsBetter, current.currency, previous.currency);
+  const lines = compareTotals(current, previous, higherIsBetter);
   return (
     <div className="flex items-baseline justify-between gap-4 border-b border-border-sub py-2 last:border-b-0">
       <div className="text-label text-text-secondary">{label}</div>
-      <div className="flex flex-wrap items-baseline justify-end gap-2 font-mono text-label">
-        <span className="text-text">
-          <Amount cents={current.cents} currency={current.currency} />
-        </span>
-        <span className="text-text-subtle">
-          vs <Amount cents={previous.cents} currency={previous.currency} />
-        </span>
-        {cmp.kind === "unchanged" ? <span className="text-text-subtle">no change</span> : null}
-        {cmp.kind === "moved" ? (
-          <span className={cmp.tone === "good" ? "text-green" : "text-red"}>
-            <span aria-hidden="true">{cmp.direction === "up" ? "▲" : "▼"}</span>
-            <span className="sr-only">{cmp.direction}</span> {cmp.deltaPct}%
+      {lines === null ? (
+        <div className="flex flex-wrap items-baseline justify-end gap-2 font-mono text-label">
+          <span className="text-text">
+            <Amount totals={current.totals} currency={current.currency} />
           </span>
-        ) : null}
-      </div>
+          <span className="text-text-subtle">
+            vs <Amount totals={previous.totals} currency={previous.currency} />
+          </span>
+        </div>
+      ) : (
+        <div className="flex flex-col items-end gap-1">
+          {lines.map((line) => (
+            <div key={line.currency} className="flex flex-wrap items-baseline justify-end gap-2 font-mono text-label">
+              <span className="text-text">{formatCents(line.currentCents, line.currency)}</span>
+              <span className="text-text-subtle">vs {formatCents(line.previousCents, line.currency)}</span>
+              <Move cmp={line.comparison} />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -363,9 +401,10 @@ export default function AuditDashboard({ loaderData, actionData }: Route.Compone
 
   const last: RunView = runs[0];
   const previous: RunView | undefined = runs[1];
-  const at = (run: RunView, cents: number | null) => ({
-    cents,
+  const at = (run: RunView, totals: TrendSide["totals"]): TrendSide => ({
+    totals,
     currency: run.currency,
+    perCurrency: run.perCurrency,
   });
 
   return (
@@ -385,20 +424,20 @@ export default function AuditDashboard({ loaderData, actionData }: Route.Compone
           <Panel title="Since last run">
             <TrendRow
               label="Failed invoices"
-              current={at(last, last.failedInvoicesCents)}
-              previous={at(previous, previous.failedInvoicesCents)}
+              current={at(last, last.failedInvoices)}
+              previous={at(previous, previous.failedInvoices)}
               higherIsBetter={false}
             />
             <TrendRow
               label="MRR"
-              current={at(last, last.mrrCents)}
-              previous={at(previous, previous.mrrCents)}
+              current={at(last, last.mrr)}
+              previous={at(previous, previous.mrr)}
               higherIsBetter
             />
             <TrendRow
               label="Open disputes"
-              current={at(last, last.openDisputesCents)}
-              previous={at(previous, previous.openDisputesCents)}
+              current={at(last, last.openDisputes)}
+              previous={at(previous, previous.openDisputes)}
               higherIsBetter={false}
             />
           </Panel>
@@ -431,13 +470,13 @@ export default function AuditDashboard({ loaderData, actionData }: Route.Compone
                   <tr key={run.id}>
                     <th scope="row">{formatDate(run.runAt)}</th>
                     <td data-num="" className="font-mono">
-                      <Amount cents={run.failedInvoicesCents} currency={run.currency} />
+                      <Amount totals={run.failedInvoices} currency={run.currency} />
                     </td>
                     <td data-num="" className="font-mono">
-                      <Amount cents={run.openDisputesCents} currency={run.currency} />
+                      <Amount totals={run.openDisputes} currency={run.currency} />
                     </td>
                     <td data-num="" className="font-mono">
-                      <Amount cents={run.mrrCents} currency={run.currency} />
+                      <Amount totals={run.mrr} currency={run.currency} />
                     </td>
                     <td data-num="">
                       <Link to={`/audit/results/${run.id}`} className="cap-btn" data-variant="link">

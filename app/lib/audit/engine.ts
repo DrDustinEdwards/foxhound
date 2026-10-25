@@ -7,6 +7,7 @@ import {
   MIN_EXPIRED_DECLINES_FOR_CAU_ADVISORY,
 } from "~/lib/constants";
 import { groupSumByCurrency, type CurrencyAmount } from "~/lib/billing/preview.server";
+import { byCurrencyCode } from "~/lib/money-format";
 import { classifyDecline } from "~/lib/recovery/decline";
 
 // The audit engine, phase (a) of the port ruled by 362. Legacy's
@@ -29,13 +30,14 @@ import { classifyDecline } from "~/lib/recovery/decline";
 // EVERY MONEY FIGURE IS KEPT PER CURRENCY (job_ed1c41e4bd95). Legacy adds every
 // amount into one number and labels it with whichever currency it met first, so
 // $1,240 and EUR 310 read "$1,550". Each figure here carries its totals per
-// currency through groupSumByCurrency (RULES.md 3.20), in the order that
-// function returns them, and the surfaces show one line per currency (Dustin,
-// 2026-10-25, parity/APPROVED-DIFFERENCES.md). The plain `...Cents` numbers
-// beside them are the figure IN THE RUN'S CURRENCY only (meta.currency), never
-// a sum across currencies: they fill the single-number columns the audit
-// history and the console read. A single-currency account gets the same number
-// either way.
+// currency through groupSumByCurrency (RULES.md 3.20), ordered by currency
+// code as /intelligence orders its totals (byCurrencyCode), and the surfaces
+// show one line per currency (Dustin, 2026-10-25,
+// parity/APPROVED-DIFFERENCES.md). The plain `...Cents` numbers beside them are
+// the figure IN THE RUN'S CURRENCY only (meta.currency), never a sum across
+// currencies: they fill the single-number columns, which a run stored before
+// money_by_currency falls back to. A single-currency account gets the same
+// number either way.
 
 /** One scope's answer. Never a bare value, so a caller cannot read a failure as
  *  data (339 binding 5, one subsystem over). */
@@ -52,7 +54,7 @@ export interface AuditInputs {
   cardUpdaterEvents: ReadOutcome<Stripe.Event>;
 }
 
-/** Per-currency totals, as groupSumByCurrency returns them, zeroes left out.
+/** Per-currency totals from groupSumByCurrency, in currency-code order, zeroes left out.
  *  Empty when there is no money at all. */
 export type MoneyTotals = CurrencyAmount[];
 
@@ -206,10 +208,12 @@ function amountOf(cents: number, currency: string | null | undefined, runCurrenc
   return { currency: (currency ?? runCurrency).toLowerCase(), cents };
 }
 
-/** Totals per currency, through the one money-total path (RULES.md 3.20).
- *  A currency whose total is zero adds no line. */
+/** Totals per currency, through the one money-total path (RULES.md 3.20), in
+ *  currency-code order. A currency whose total is zero adds no line. */
 function totalsOf(amounts: Amount[]): MoneyTotals {
-  return groupSumByCurrency(amounts).filter((t) => t.cents !== 0);
+  return groupSumByCurrency(amounts)
+    .filter((t) => t.cents !== 0)
+    .sort(byCurrencyCode);
 }
 
 /** The figure in one currency, for the single-number columns. */

@@ -9,7 +9,7 @@ import { accounts } from "./tenancy";
 
 type CurrencyTotals = { currency: string; cents: number }[];
 
-/** One run's money figures per currency, in groupSumByCurrency's order. A
+/** One run's money figures per currency, in currency-code order. A
  *  scope that could not be read is null here as its count column is. */
 export interface AuditMoneyByCurrency {
   failedInvoices: CurrencyTotals | null;
