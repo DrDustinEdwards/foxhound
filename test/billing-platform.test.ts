@@ -17,6 +17,7 @@ describe("createPlatformInvoice safe-throw (real getStripe, no mock)", () => {
         platformCustomerId: "cus_1",
         currency: "usd",
         billingInvoiceId: "inv_1",
+        periodStart: new Date(Date.UTC(2026, 5, 1)),
         lines: [
           {
             type: "recovery_fee",
@@ -35,6 +36,7 @@ describe("createPlatformInvoice safe-throw (real getStripe, no mock)", () => {
         platformCustomerId: "",
         currency: "usd",
         billingInvoiceId: "inv_1",
+        periodStart: new Date(Date.UTC(2026, 5, 1)),
         lines: [
           {
             type: "recovery_fee",
@@ -51,6 +53,7 @@ describe("createPlatformInvoice safe-throw (real getStripe, no mock)", () => {
         platformCustomerId: "cus_1",
         currency: "usd",
         billingInvoiceId: "inv_1",
+        periodStart: new Date(Date.UTC(2026, 5, 1)),
         lines: [
           {
             type: "adjustment",

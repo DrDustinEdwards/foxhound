@@ -21,7 +21,16 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // NULL map and the six columns stay in settings-digest-email-removed and the
 // MCP write tests. Every assertion here was seen failing before the rebuild.
 
-const harness = vi.hoisted(() => ({ db: null as unknown }));
+const harness = vi.hoisted(() => ({
+  db: null as unknown,
+  customerUpdate: null as unknown as ReturnType<typeof vi.fn>,
+}));
+
+// The platform Stripe client, faked at its one factory: only the customer
+// email push reads it.
+vi.mock("~/lib/stripe/client", () => ({
+  getStripe: () => ({ customers: { update: harness.customerUpdate } }),
+}));
 
 vi.mock("~/db", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/db")>()),
@@ -83,6 +92,7 @@ describe("J39 notifications: the loader and the action", () => {
     const made = createInMemoryDb();
     sqlite = made.sqlite;
     harness.db = made.db;
+    harness.customerUpdate = vi.fn(async () => ({}));
     sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, ?, 1000)").run(ACCOUNT, "Acme");
   });
 
@@ -113,5 +123,42 @@ describe("J39 notifications: the loader and the action", () => {
     const err = logged.mock.calls[0]?.[1];
     expect(err).toBeInstanceOf(Error);
     expect((err as Error).message).toBe("D1 unavailable");
+  });
+
+  // Recova's settings/update/route.ts (blob 878c0637, lines 167 to 196) pushes
+  // a changed notification email to the billing customer so Stripe's invoices
+  // and portal follow it.
+  it("pushes a changed notification email to the billing customer, and only a changed one", async () => {
+    sqlite
+      .prepare("UPDATE accounts SET notification_email = ?, platform_stripe_customer_id = ? WHERE id = ?")
+      .run("old@acme.test", "cus_platform_1", ACCOUNT);
+
+    expect((await post({ notificationEmail: "new@acme.test" })).data).toEqual({ ok: true });
+    expect(harness.customerUpdate).toHaveBeenCalledTimes(1);
+    expect(harness.customerUpdate).toHaveBeenCalledWith("cus_platform_1", { email: "new@acme.test" });
+
+    // Unchanged, and cleared: Recova pushes neither.
+    await post({ notificationEmail: "new@acme.test" });
+    await post({ notificationEmail: "" });
+    expect(harness.customerUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it("saves the settings when the Stripe push fails, and keeps the email out of the log", async () => {
+    sqlite
+      .prepare("UPDATE accounts SET platform_stripe_customer_id = ? WHERE id = ?")
+      .run("cus_platform_1", ACCOUNT);
+    harness.customerUpdate = vi.fn(async () => {
+      throw Object.assign(new Error("No such customer, email new@acme.test"), {
+        type: "StripeInvalidRequestError",
+        code: "resource_missing",
+      });
+    });
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    expect((await post({ notificationEmail: "new@acme.test" })).data).toEqual({ ok: true });
+    const saved = sqlite.prepare("SELECT notification_email FROM accounts WHERE id = ?").get(ACCOUNT);
+    expect(saved).toEqual({ notification_email: "new@acme.test" });
+    expect(logged).toHaveBeenCalled();
+    expect(JSON.stringify(logged.mock.calls)).not.toContain("new@acme.test");
   });
 });

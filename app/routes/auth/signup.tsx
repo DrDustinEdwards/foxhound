@@ -11,7 +11,7 @@ import {
   SocialContinue,
 } from "~/components/auth-card";
 import { checkAuthLimit, limitedData, SIGN_UP_LIMITED } from "~/lib/auth/rate-limit.server";
-import { DEFAULT_NEXT_PATH } from "~/lib/auth/next-path";
+import { DEFAULT_NEXT_PATH, safeNextPath } from "~/lib/auth/next-path";
 import { getSession } from "~/lib/auth/session";
 import { requestSignInLink, signInLinkAnswer } from "~/lib/auth/sign-in-link.server";
 import { RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
@@ -47,9 +47,15 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   // visitor hitting /signup otherwise saw the create-account form. Recova
   // hides its "Already have an account?" line from a signed-in visitor; here
   // that visitor never sees the page.
+  //
+  // next= is where to land once signed up (J28, row A7): the invite page sends
+  // a signed-out "Accept invite" here with next=/invite/:token, as Recova's
+  // sent it to /signup?invite=true, so the invite is accepted on the way back.
+  // Validated the way /login validates it (app/lib/auth/next-path.ts).
+  const next = safeNextPath(new URL(request.url).searchParams.get("next"));
   const session = await getSession(env, request);
-  if (session) throw redirect(DEFAULT_NEXT_PATH);
-  return { methods: signInMethods(env, { social: true }) };
+  if (session) throw redirect(next);
+  return { next, methods: signInMethods(env, { social: true }) };
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
@@ -63,17 +69,22 @@ export async function action({ request, context }: Route.ActionArgs) {
   const email = String(form.get("email") ?? "").trim();
   if (!email) return data({ sent: null, error: "Enter your email address." }, { status: 400 });
 
+  const next = safeNextPath(String(form.get("next") ?? ""));
+
   const result = await requestSignInLink(env, request, {
     email,
     captchaToken: String(form.get("cf-turnstile-response") ?? ""),
-    next: DEFAULT_NEXT_PATH,
-    newUserNext: DEFAULT_NEXT_PATH,
+    next,
+    newUserNext: next,
   });
   return signInLinkAnswer(result, email, SIGN_UP_LIMITED);
 }
 
 export default function Signup({ loaderData, actionData }: Route.ComponentProps) {
   const busy = useNavigation().state !== "idle";
+  // Carried only when it says somewhere other than the default, so the plain
+  // page is unchanged.
+  const carriedNext = loaderData.next !== DEFAULT_NEXT_PATH ? loaderData.next : undefined;
 
   return (
     <AuthCard>
@@ -86,10 +97,11 @@ export default function Signup({ loaderData, actionData }: Route.ComponentProps)
         <SignInLinkSent email={actionData.sent} />
       ) : (
         <>
-          <SocialContinue methods={loaderData.methods} />
+          <SocialContinue methods={loaderData.methods} next={carriedNext} />
           <SignInLinkForm
             primary
             idPrefix="signup"
+            next={carriedNext}
             turnstileSiteKey={loaderData.methods.turnstileSiteKey}
             error={actionData?.error ?? null}
             busy={busy}
@@ -99,7 +111,8 @@ export default function Signup({ loaderData, actionData }: Route.ComponentProps)
       )}
 
       <AuthFootnote>
-        Already have an account? <AuthLink to="/login">Log in</AuthLink>
+        Already have an account?{" "}
+        <AuthLink to={carriedNext ? `/login?next=${encodeURIComponent(carriedNext)}` : "/login"}>Log in</AuthLink>
       </AuthFootnote>
     </AuthCard>
   );

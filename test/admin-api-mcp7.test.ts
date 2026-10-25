@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 import { accounts, accountSubscriptions, adminAuditLog, apiKeys, cronConfig, stripeConnections } from "~/db/schema";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
 
-import { createInMemoryDb } from "./helpers/inmemory-db";
+import { createInMemoryDb, inMemoryMoneyWriter } from "./helpers/inmemory-db";
 
 // JOB job_21de68b30fc2, PR 1: THE FOXHOUND ADMIN API (MCP ruling 2026-10-10,
 // rule 9 amendment and DECIDE answer 4).
@@ -27,7 +27,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 //   3. EVERY CALL IS LOGGED in an append-only table, and every write and every
 //      staging leaves an admin_audit_log row naming the acting admin.
 
-const harness = vi.hoisted(() => ({ db: null as unknown }));
+const harness = vi.hoisted(() => ({ db: null as unknown, sqlite: null as unknown }));
 vi.mock("~/db", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/db")>()),
   getDb: () => harness.db,
@@ -68,12 +68,14 @@ function env(): Env {
       idFromName: (n: string) => n,
       get: () => ({ hit: async () => ({ ok: true, retryAfterSeconds: 60 }) }),
     },
+    MONEY_WRITER: inMemoryMoneyWriter(() => harness.sqlite as never).binding,
   } as unknown as Env;
 }
 
 async function seed() {
   const { db, sqlite } = createInMemoryDb();
   harness.db = db;
+  harness.sqlite = sqlite;
   for (const id of [MERCHANT, OTHER]) {
     await db.insert(accounts).values({
       id,
@@ -256,7 +258,7 @@ describe("PLANT 4: money starts only after a human confirms in /admin", () => {
     expect(audit.map((a) => [a.actorEmail, a.action])).toContainEqual([ADMIN, "staged.create"]);
 
     // Confirmed by a person in /admin: now, and only now, the merchant resumes.
-    const result = await confirmStagedChange(db, { id: staged.id, actorEmail: "second@foxhound.test", confirmPhrase: "", now: NOW });
+    const result = await confirmStagedChange(env(), { id: staged.id, actorEmail: "second@foxhound.test", confirmPhrase: "", now: NOW });
     expect(result.ok).toBe(true);
     const [after] = await db.select().from(accounts).where(eq(accounts.id, MERCHANT));
     expect(after.processingPaused).toBe(false);
@@ -264,7 +266,7 @@ describe("PLANT 4: money starts only after a human confirms in /admin", () => {
     expect(actions).toContainEqual(["second@foxhound.test", "staged.confirm"]);
 
     // A confirmed change cannot be applied twice.
-    const again = await confirmStagedChange(db, { id: staged.id, actorEmail: ADMIN, confirmPhrase: "", now: NOW });
+    const again = await confirmStagedChange(env(), { id: staged.id, actorEmail: ADMIN, confirmPhrase: "", now: NOW });
     expect(again.ok).toBe(false);
   });
 
@@ -286,7 +288,7 @@ describe("PLANT 4: money starts only after a human confirms in /admin", () => {
     expect(await db.select().from(accountSubscriptions)).toEqual([]);
     for (const staged of [exempt, grant]) {
       const id = (staged.json.data as { staged: { id: string } }).staged.id;
-      expect((await confirmStagedChange(db, { id, actorEmail: ADMIN, confirmPhrase: "", now: NOW })).ok).toBe(true);
+      expect((await confirmStagedChange(env(), { id, actorEmail: ADMIN, confirmPhrase: "", now: NOW })).ok).toBe(true);
     }
     [row] = await db.select().from(accounts).where(eq(accounts.id, MERCHANT));
     expect(row.billingExempt).toBe(true);
@@ -302,11 +304,11 @@ describe("PLANT 4: money starts only after a human confirms in /admin", () => {
       body: { kind: "cron_enable", cron_name: "recovery-tick" },
     });
     const id = (staged.json.data as { staged: { id: string } }).staged.id;
-    const wrong = await confirmStagedChange(db, { id, actorEmail: ADMIN, confirmPhrase: "yes", now: NOW });
+    const wrong = await confirmStagedChange(env(), { id, actorEmail: ADMIN, confirmPhrase: "yes", now: NOW });
     expect(wrong.ok).toBe(false);
     const [still] = await db.select().from(cronConfig).where(eq(cronConfig.cronName, "recovery-tick"));
     expect(still.enabled).toBe(false);
-    const right = await confirmStagedChange(db, { id, actorEmail: ADMIN, confirmPhrase: "ENABLE recovery-tick", now: NOW });
+    const right = await confirmStagedChange(env(), { id, actorEmail: ADMIN, confirmPhrase: "ENABLE recovery-tick", now: NOW });
     expect(right.ok).toBe(true);
     const [now] = await db.select().from(cronConfig).where(eq(cronConfig.cronName, "recovery-tick"));
     expect(now.enabled).toBe(true);
@@ -325,10 +327,10 @@ describe("PLANT 4: money starts only after a human confirms in /admin", () => {
       ).staged.id;
     const rejected = await stage();
     expect((await rejectStagedChange(db, { id: rejected, actorEmail: ADMIN, now: NOW })).ok).toBe(true);
-    expect((await confirmStagedChange(db, { id: rejected, actorEmail: ADMIN, confirmPhrase: "", now: NOW })).ok).toBe(false);
+    expect((await confirmStagedChange(env(), { id: rejected, actorEmail: ADMIN, confirmPhrase: "", now: NOW })).ok).toBe(false);
     const stale = await stage();
     const later = new Date(Date.now() + 8 * 24 * 60 * 60 * 1000);
-    expect((await confirmStagedChange(db, { id: stale, actorEmail: ADMIN, confirmPhrase: "", now: later })).ok).toBe(false);
+    expect((await confirmStagedChange(env(), { id: stale, actorEmail: ADMIN, confirmPhrase: "", now: later })).ok).toBe(false);
     const [row] = await db.select().from(accounts).where(eq(accounts.id, MERCHANT));
     expect(row.processingPaused).toBe(true);
   });

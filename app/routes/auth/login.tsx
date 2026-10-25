@@ -45,6 +45,9 @@ const ERROR_MESSAGES: Record<string, string> = {
   EXPIRED_TOKEN: LINK_SPENT,
   INVALID_TOKEN: LINK_SPENT,
   ATTEMPTS_EXCEEDED: LINK_SPENT,
+  // The disposable-address refusal (app/lib/auth/options.ts), in Recova's words
+  // (app/(auth)/login/page.tsx).
+  disposable_email: "Please use a real email address. Disposable email providers are not allowed.",
   // Accounts are joined only by a signed-in person (site-runtime ./sign-in),
   // never by a matching email at sign-in, so this one has a way forward.
   account_not_linked:

@@ -126,10 +126,10 @@ describe("the expired day 21 retry charges only a changed card", () => {
   });
 });
 
-describe("migration 0039: sequences already scheduled", () => {
+describe("migration 0040: sequences already scheduled", () => {
   it("moves unsent soft day 1 emails to 5 hours, adds the expired day 21 retry, refiles live transaction_not_allowed payments, leaves sent steps, and is idempotent", () => {
     const migration = readFileSync(
-      new URL("../drizzle/migrations/0039_dunning_timing.sql", import.meta.url),
+      new URL("../drizzle/migrations/0040_dunning_timing.sql", import.meta.url),
       "utf8",
     );
     const { sqlite } = createInMemoryDb();

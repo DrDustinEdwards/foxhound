@@ -349,7 +349,7 @@ export const STEP_TIMING_EMAIL_DAY1_HOURS = 1;
 // 1 email goes 1 hour after it, at 5 hours, as Recova's went 1 hour after the
 // failure. Dustin approved this on 2026-10-25 (decision card, "Yes, all three",
 // on research/dunning-wording-and-timing-2026-10-15.md), replacing Foxhound's
-// 24 hours. Migration 0039 moves the unsent ones already scheduled.
+// 24 hours. Migration 0040 moves the unsent ones already scheduled.
 export const STEP_TIMING_SOFT_EMAIL_DAY1_HOURS = STEP_TIMING_RETRY_EARLY_HOURS + 1;
 export const STEP_TIMING_RETRY_DAY2_HOURS = 48;
 export const STEP_TIMING_NETWORK_RETRY_DAY2_HOURS = 24;

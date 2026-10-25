@@ -53,6 +53,9 @@ export interface CreatePlatformInvoiceInput {
   lines: PlatformInvoiceLineInput[];
   /** Our billing_invoices.id, attached as Stripe metadata for reconciliation. */
   billingInvoiceId: string;
+  /** billing_invoices.period_start: the month the invoice bills, named in its
+   *  Stripe description. */
+  periodStart: Date;
   /** Resolves the billing email (platform-customer.ts lookupPlatformBillingEmail).
    *  Called only for an emailed invoice whose customer has no address, which is
    *  every customer made before E25 put the email on at creation. */
@@ -159,14 +162,23 @@ export function hasDefaultPaymentMethod(customer: CustomerPaymentMethodFields): 
   return Boolean(customer.invoice_settings?.default_payment_method || customer.default_source);
 }
 
-/** The finalize params for a platform invoice. A send_invoice invoice is
- *  finalized with auto_advance on, because Stripe emails an invoice only when
- *  it advances automatically; the charge path keeps its params exactly as they
- *  were (none). The first attempt and the retry sweep both derive them here, so
- *  the shared finalize idempotency key always carries the same params. */
-function finalizeParams(sendByEmail: boolean): Stripe.InvoiceFinalizeInvoiceParams | undefined {
-  return sendByEmail ? { auto_advance: true } : undefined;
+/** The Stripe description of a platform invoice, Recova's pattern with
+ *  Foxhound's name: "Foxhound: June 2026" for the month the invoice bills
+ *  (Recova process-recovery-billing, `Recova: ${monthLabel}`). In UTC, as the
+ *  billing period is. Pure. */
+export function platformInvoiceDescription(periodStart: Date): string {
+  const month = periodStart.toLocaleString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+  return `Foxhound: ${month}`;
 }
+
+/** The finalize params for every platform invoice: auto_advance on, as Recova
+ *  creates its invoices. On a charge_automatically invoice that is what makes
+ *  Stripe charge the card on file once the invoice is finalized; with it off,
+ *  Stripe never tried the card and the fee waited a month for the retry sweep.
+ *  On a send_invoice invoice it is what makes Stripe email it. One constant for
+ *  both paths, used by the first attempt and the retry sweep alike, so the
+ *  shared finalize idempotency key always carries the same params. */
+const FINALIZE_PARAMS: Stripe.InvoiceFinalizeInvoiceParams = { auto_advance: true };
 
 /** Creates + finalizes the platform Stripe invoice for one billing_invoices row.
  *  The Stripe seam; deferred live to Phase 8. Guards ensure no accidental charge.
@@ -216,11 +228,13 @@ export async function createPlatformInvoice(
     {
       customer: input.platformCustomerId,
       currency: input.currency,
+      description: platformInvoiceDescription(input.periodStart),
       ...(sendByEmail
         ? { collection_method: "send_invoice" as const, days_until_due: SEND_INVOICE_DAYS_UNTIL_DUE }
         : { collection_method: "charge_automatically" as const }),
       // Held as a draft while items attach, on both paths: a half-built
-      // invoice must never advance, and for send_invoice never be emailed.
+      // invoice must never advance, and for send_invoice never be emailed. The
+      // finalize below turns auto_advance on, which is when Stripe collects.
       auto_advance: false,
       pending_invoice_items_behavior: "exclude",
       metadata: { billing_invoice_id: input.billingInvoiceId },
@@ -244,9 +258,13 @@ export async function createPlatformInvoice(
     );
   }
 
+  // auto_advance on: Stripe now charges the card on file, or emails the
+  // invoice when there is none. The retry sweep never re-creates an invoice
+  // Stripe already has (findPlatformInvoiceByBillingId), so this is the one
+  // invoice Stripe collects on.
   const finalized = await stripe.invoices.finalizeInvoice(
     invoice.id,
-    finalizeParams(sendByEmail),
+    FINALIZE_PARAMS,
     { idempotencyKey: platformInvoiceFinalizeIdempotencyKey(input.billingInvoiceId) },
   );
   return {
@@ -301,24 +319,25 @@ export async function findPlatformInvoiceByBillingId(
  * MEDIUM-1). Reuses createPlatformInvoice's finalize key, so a retry inside the
  * 24h idempotency window is the same call rather than a second one.
  *
- * `sendByEmail` is true for a send_invoice draft (E25): it is finalized with
- * the same params createPlatformInvoice would have used, so Stripe emails it
- * and the shared key never sees two different param sets.
+ * Finalized with the same params createPlatformInvoice uses, so Stripe collects
+ * (or, for a send_invoice draft, emails it) and the shared key never sees two
+ * different param sets.
  */
 export async function finalizePlatformInvoice(
   env: Env,
   stripeInvoiceId: string,
   billingInvoiceId: string,
-  opts: { sendByEmail?: boolean } = {},
 ): Promise<Stripe.Invoice> {
   const stripe = getStripe(env);
-  return stripe.invoices.finalizeInvoice(stripeInvoiceId, finalizeParams(opts.sendByEmail ?? false), {
+  return stripe.invoices.finalizeInvoice(stripeInvoiceId, FINALIZE_PARAMS, {
     idempotencyKey: platformInvoiceFinalizeIdempotencyKey(billingInvoiceId),
   });
 }
 
-/** Attempt collection on an existing platform invoice. Separate from creation
- *  because Stripe does not auto-retry a one-off charge_automatically invoice. */
+/** Attempt collection on an existing platform invoice, now. The retry sweep's
+ *  explicit attempt on an invoice still open a month on. Stripe pays an invoice
+ *  at most once, so this can fail against an invoice Stripe already collected
+ *  but never charge it twice. */
 export async function payPlatformInvoice(
   env: Env,
   stripeInvoiceId: string,

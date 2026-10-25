@@ -1,4 +1,5 @@
 import { DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
+import { currencyExponent } from "~/lib/money-format";
 import { getStripe } from "~/lib/stripe/client";
 
 // THE $500 CAP, CONVERTED AT RESOLUTION (ruling 377(7), PRICING.md rev 5 item 2,
@@ -24,23 +25,13 @@ import { getStripe } from "~/lib/stripe/client";
 // response shape below is Stripe's documented one and has NOT been exercised
 // against a live account; that is stated rather than implied.
 
-/** Currencies Stripe treats as having no minor unit: the amount IS the whole
- *  unit. Getting this wrong scales a cap by 100. */
-const ZERO_DECIMAL = new Set([
-  "bif", "clp", "djf", "gnf", "jpy", "kmf", "krw", "mga",
-  "pyg", "rwf", "ugx", "vnd", "vuv", "xaf", "xof", "xpf",
-]);
-
-/** Currencies with three minor digits. Stripe requires amounts in these to be
- *  evenly divisible by 10, which is Stripe's rule and not ours to round around. */
-const THREE_DECIMAL = new Set(["bhd", "jod", "kwd", "omr", "tnd"]);
-
-/** Minor units per major unit for a currency (100 for USD, 1 for JPY). */
+/** Minor units per major unit for a currency, as Stripe reports amounts (100
+ *  for USD, 1 for JPY, 1,000 for KWD, and 100 for UGX, which Stripe still
+ *  sends as a two-decimal value). The exponent comes from the one table in
+ *  money-format.ts, so the cap and every displayed amount agree on what a
+ *  Stripe amount means. Getting this wrong scales a cap by 100. */
 export function minorUnitsPerMajor(currency: string): number {
-  const code = currency.toLowerCase();
-  if (ZERO_DECIMAL.has(code)) return 1;
-  if (THREE_DECIMAL.has(code)) return 1_000;
-  return 100;
+  return 10 ** currencyExponent(currency);
 }
 
 export interface ResolvedDisputeCap {
