@@ -344,12 +344,13 @@ export const STEP_TIMING_RETRY_4HR_HOURS = 4;
 // and email_day3 at 48 as literals in its network row. Foxhound had 24 for day 1
 // and 48 and 72 for network, with no ruling recorded for any of them.
 export const STEP_TIMING_EMAIL_DAY1_HOURS = 1;
-// SOFT IS HELD at Foxhound's 24 hours, the one place day 1 cannot follow Recova:
-// the silent retry comes before the first email (APPROVED-DIFFERENCES,
-// 2026-08-01) and runs at 4 hours, so a 1 hour email would come first. How long
-// after the retry the email goes is Dustin's to say; the question is in J85's
-// pull request. Until then the value is unchanged.
-export const STEP_TIMING_SOFT_EMAIL_DAY1_HOURS = 24;
+// SOFT keeps Recova's gap rather than its hour: the silent retry comes before the
+// first email (APPROVED-DIFFERENCES, 2026-08-01) and runs at 4 hours, so the day
+// 1 email goes 1 hour after it, at 5 hours, as Recova's went 1 hour after the
+// failure. Dustin approved this on 2026-10-25 (decision card, "Yes, all three",
+// on research/dunning-wording-and-timing-2026-10-15.md), replacing Foxhound's
+// 24 hours. Migration 0039 moves the unsent ones already scheduled.
+export const STEP_TIMING_SOFT_EMAIL_DAY1_HOURS = STEP_TIMING_RETRY_EARLY_HOURS + 1;
 export const STEP_TIMING_RETRY_DAY2_HOURS = 48;
 export const STEP_TIMING_NETWORK_RETRY_DAY2_HOURS = 24;
 export const STEP_TIMING_EMAIL_DAY3_HOURS = 72;

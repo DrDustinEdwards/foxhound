@@ -35,6 +35,9 @@ const STEP_RESULT_WORDS: Record<string, string> = {
   retry_card_declined: "Card declined",
   retry_failed: "Retry failed",
   retry_error: "Retry error",
+  // An expired card's day 21 retry that did not charge (card-change.ts).
+  retry_skipped_card_unchanged: "Skipped: card not updated",
+  retry_skipped_unverified: "Skipped: card update not confirmed",
   cancelled: "Cancelled",
   skipped_inactive: "Skipped",
   error: "Error",

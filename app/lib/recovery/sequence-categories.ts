@@ -48,13 +48,16 @@ function offsetOf(category: DeclineCategory, stepType: string): number {
  */
 export const SEQUENCE_CATEGORY_DESCRIPTIONS: Record<DeclineCategory, string> = {
   soft: `Insufficient funds and generic declines. Foxhound retries silently first, then sends an email and retries the payment again ${offsetOf("soft", "retry_day2")} hours after the failure.`,
-  expired: "Expired card declines. Foxhound sends emails only. Retrying an expired card never succeeds.",
+  // Recova's sentence said "emails only" while its schedule had a day 21 retry.
+  // Foxhound keeps that retry and charges only a card updated since the decline
+  // (Dustin, 2026-10-25), so the sentence says what the engine does.
+  expired: `Expired card declines. Foxhound sends emails, and retries on day ${offsetOf("expired", "retry_day21") / 24} only if the card has been updated. Retrying an unchanged expired card never succeeds.`,
   network: "Processing errors and issuer timeouts. Foxhound retries first, then emails if retries fail.",
   fraud: "Fraud flags and security holds. Foxhound sends reassurance emails. Retries are not attempted.",
   revoked:
     "The customer revoked payment authorization. Foxhound sends one email offering to cancel or add a new payment method. Retries are not attempted.",
   unknown:
-    "Decline codes Foxhound does not recognize. Foxhound sends emails only, on the same schedule as an expired card. Retries are not attempted.",
+    "Decline codes Foxhound does not recognize. Foxhound sends emails only, on the same days as the expired card emails. Retries are not attempted.",
 };
 
 export type SequenceRateTone = "green" | "caution" | "red";
