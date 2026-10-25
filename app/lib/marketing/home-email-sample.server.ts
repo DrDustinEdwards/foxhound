@@ -68,7 +68,7 @@ function buildPrompt(category: MarketingEmailCategory): string {
     "Rules:",
     "- Never use em dashes or en dashes. Use commas or short sentences instead.",
     "- Write like a real person at a small software company, not corporate copy.",
-    "- No \"I hope this finds you well\", no performative empathy, no apology",
+    "- No performative empathy, no apology",
     "  for the payment failing.",
     "- Do not repeat the same idea three different ways.",
     "- Subject: short and specific, no clickbait.",

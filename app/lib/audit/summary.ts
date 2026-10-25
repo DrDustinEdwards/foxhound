@@ -77,7 +77,7 @@ export function buildAuditSummaryPrompt(result: AuditResult): string {
       `${d.eventsInWindow} updates fired across ${d.expiredCardDeclinesInWindow} expired-card declines. Advisory: ${d.advisory ?? "none"}.`,
   );
 
-  return `You are writing a 3-sentence audit summary for a SaaS merchant. Do not use em dashes. Do not use bullet points. Do not use AI writing tells like "leverage", "unlock", "streamline". Reference specific dollar amounts from the data below. Where a line says it could not be read, say that scope is unavailable rather than reporting a number for it.
+  return `You are writing a 3-sentence audit summary for a SaaS merchant. Do not use em dashes. Do not use bullet points. Reference specific dollar amounts from the data below. Where a line says it could not be read, say that scope is unavailable rather than reporting a number for it.
 
 DATA:
 Failed invoices (last ${result.meta.lookbackDays} days): ${failed}

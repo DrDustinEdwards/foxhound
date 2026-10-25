@@ -101,7 +101,7 @@ function buildSystemPrompt(): string {
     "Only write a customerAssessments entry for a stripeCustomerId that appears",
     "in the list given to you; never invent or reference any other customer.",
     "Never use em dashes or en dashes. No corporate filler, no AI-sounding",
-    "phrases, no 'I hope this finds you well'.",
+    "phrases.",
     PLAIN_WRITING_PROMPT,
     UNTRUSTED_DATA_RULE,
   ].join("\n");

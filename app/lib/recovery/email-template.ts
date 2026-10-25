@@ -23,7 +23,6 @@ import type { EmailCopy } from "./email-generation";
 //
 // Constraints the copy obeys, all enforced by that test:
 //   - no em or en dashes (the strongest AI tell, and a repo-wide rule)
-//   - none of the AI_TELL_PHRASES the sanitizer strips from generated copy
 //   - NO timing references in the per-category copy. The generator is merely
 //     told not to leak the schedule; a fixed template has no excuse to reference
 //     time, so it does not mention days, hours, or "recently" in any form. The
