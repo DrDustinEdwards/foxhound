@@ -46,20 +46,45 @@ describe("renderMarkdown", () => {
     expect(html).toContain('id="a-subsection"');
   });
 
-  it("renders ::bookmark[url] as a plain link with no live OG fetch", async () => {
-    const { html } = await renderMarkdown(emptyDb(), "::bookmark[https://example.com/pricing]");
-    expect(html).toContain('href="https://example.com/pricing"');
-    expect(html).toContain("example.com");
-    expect(html).toContain('target="_blank"');
+  it("renders a diagram figure as its light and dark drawings, sized from the file name", async () => {
+    const { html } = await renderMarkdown(
+      emptyDb(),
+      ':::figure{src="/diagrams/mrr-waterfall-light-680x380.svg" dark="/diagrams/mrr-waterfall-dark-680x380.svg" alt="Two waterfalls"}\n:::',
+    );
+    expect(html).toContain('<img src="/diagrams/mrr-waterfall-light-680x380.svg" alt="Two waterfalls" class="figure-light" width="680" height="380"');
+    expect(html).toContain('<img src="/diagrams/mrr-waterfall-dark-680x380.svg" alt="Two waterfalls" class="figure-dark" width="680" height="380"');
+    await expect(renderMarkdown(emptyDb(), "![x](https://example.com/a.png)")).rejects.toThrow(/not an image this site serves/);
   });
 
-  it("renders ::youtube[id] as an embed iframe", async () => {
-    const { html } = await renderMarkdown(emptyDb(), "::youtube[dQw4w9WgXcQ]");
-    expect(html).toContain("youtube-nocookie.com/embed/dQw4w9WgXcQ");
+  it("falls back to a visible <code> for an unresolved ::postlink, also at the start of a line and inside bold", async () => {
+    const { html } = await renderMarkdown(
+      emptyDb(),
+      "See ::postlink[some-other-post] for more.\n\n::postlink[a-post|Its name] starts this line.\n\n**::postlink[b-post]**",
+    );
+    expect(html).toBe(
+      "<p>See <code>::postlink[some-other-post]</code> for more.</p>\n" +
+        "<p><code>::postlink[a-post|Its name]</code> starts this line.</p>\n" +
+        "<p><strong><code>::postlink[b-post]</code></strong></p>",
+    );
   });
 
-  it("falls back to a visible <code> for an unresolved ::postlink", async () => {
-    const { html } = await renderMarkdown(emptyDb(), "See ::postlink[some-other-post] for more.");
-    expect(html).toContain("<code>::postlink[some-other-post]</code>");
+  it("keeps legacy's heading ids and opens only off-site links in a new tab", async () => {
+    const { html } = await renderMarkdown(
+      emptyDb(),
+      "## What does call_issuer mean?\n\n[Stripe](https://stripe.com) and [the audit](/audit) and [home](https://foxhoundapp.com/).",
+    );
+    expect(html).toContain('<h2 id="what-does-callissuer-mean">');
+    expect(html).toContain('<a href="https://stripe.com" target="_blank" rel="noopener noreferrer">Stripe</a>');
+    expect(html).toContain('<a href="/audit">the audit</a>');
+    expect(html).toContain('<a href="https://foxhoundapp.com/">home</a>');
+  });
+
+  it("renders a :::faq block as legacy's list, the answers as written", async () => {
+    const { html } = await renderMarkdown(emptyDb(), ":::faq\nQ: Is it *soft*?\nA: See [the guide](https://example.com).\n:::");
+    expect(html).toBe(
+      '<div class="blog-faq" data-faq="true"><dl class="blog-faq-list"><div class="blog-faq-item">' +
+        '<dt class="blog-faq-question">Is it *soft*?</dt><dd class="blog-faq-answer">See [the guide](https://example.com).</dd>' +
+        "</div></dl></div>",
+    );
   });
 });
