@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 320"><title>Stripe Smart Retries vs dedicated dunning</title><desc>Gap analysis comparing what Stripe Smart Retries does (retry timing only, no decline classification) with what a dedicated dunning system adds, showing the 38% versus 70% recovery rate differential.</desc><defs><marker id="arrow-rvs" markerHeight="6" markerWidth="6" orient="auto-start-reverse" refX="9" refY="5" viewBox="0 0 10 10"><path d="m0 0 10 5-10 5z" class="arrow-head-accent"/></marker></defs><style>.node-neutral { fill: #e8e6e0; stroke: #b0ada6; }
+    .node-accent  { fill: #faeeda; stroke: #d4941a; }
+    .node-success { fill: #e1f5ee; stroke: #1d9e75; }
+    .node-info    { fill: #e6f1fb; stroke: #185fa5; }
+    .label-primary   { fill: #1a1c18; font-family: system-ui, sans-serif; font-size: 13px; font-weight: 500; }
+    .label-secondary { fill: #595c56; font-family: system-ui, sans-serif; font-size: 11px; font-family: system-ui, sans-serif; }
+    .label-accent    { fill: #8a5c06; font-family: system-ui, sans-serif; font-size: 13px; font-weight: 600; }
+    .header          { fill: #1a1c18; font-family: system-ui, sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; }
+    .rate-num        { fill: #8a5c06; font-family: system-ui, sans-serif; font-size: 22px; font-weight: 700; }
+    .connector-accent { stroke: #d4941a; stroke-width: 1.5; fill: none; }
+    .arrow-head-accent { fill: #d4941a; }
+    :root:not([data-theme=&quot;light&quot;]) .node-neutral { fill: #222420; stroke: #4a4c44; }
+    :root:not([data-theme=&quot;light&quot;]) .node-accent  { fill: #1e1a0a; stroke: #826217; }
+    :root:not([data-theme=&quot;light&quot;]) .node-success { fill: #091e14; stroke: #1f7a5f; }
+    :root:not([data-theme=&quot;light&quot;]) .node-info    { fill: #0a1428; stroke: #315dc4; }
+    :root:not([data-theme=&quot;light&quot;]) .label-primary   { fill: #f0ede8; }
+    :root:not([data-theme=&quot;light&quot;]) .label-secondary { fill: #a8a49e; }
+    :root:not([data-theme=&quot;light&quot;]) .label-accent    { fill: #f0b429; }
+    :root:not([data-theme=&quot;light&quot;]) .header          { fill: #f0ede8; }
+    :root:not([data-theme=&quot;light&quot;]) .rate-num        { fill: #f0b429; }
+    :root:not([data-theme=&quot;light&quot;]) .connector-accent { stroke: #f0b429; }
+    :root:not([data-theme=&quot;light&quot;]) .arrow-head-accent { fill: #f0b429; }</style><rect width="240" height="200" x="40" y="40" class="node-neutral" rx="10"/><text x="160" y="66" class="header" text-anchor="middle">SMART RETRIES</text><text x="160" y="84" class="label-secondary" text-anchor="middle">built into Stripe</text><text x="60" y="118" class="label-secondary">What it does:</text><text x="60" y="138" class="label-primary">• Retry timing windows</text><text x="60" y="160" class="label-primary">• Skip retries on hard declines</text><text x="60" y="200" class="label-secondary" font-style="italic">No emails. No classification.</text><text x="60" y="216" class="label-secondary" font-style="italic">No expiring card alerts.</text><rect width="240" height="200" x="400" y="40" class="node-success" rx="10"/><text x="520" y="66" class="header" text-anchor="middle">DEDICATED DUNNING</text><text x="520" y="84" class="label-secondary" text-anchor="middle">what Recovery adds</text><text x="420" y="118" class="label-secondary">What it adds:</text><text x="420" y="138" class="label-primary">• Decline-code classification</text><text x="420" y="160" class="label-primary">• Coordinated email by category</text><text x="420" y="182" class="label-primary">• Brand voice, merchant domain</text><text x="420" y="204" class="label-primary">• Proactive expiry alerts</text><path marker-end="url(#arrow-rvs)" d="M290 140h100" class="connector-accent"/><text x="340" y="128" class="label-accent" text-anchor="middle">the gap</text><text x="160" y="280" class="rate-num" text-anchor="middle">38%</text><text x="160" y="298" class="label-secondary" text-anchor="middle">Smart Retries alone</text><text x="520" y="280" class="rate-num" text-anchor="middle">70%</text><text x="520" y="298" class="label-secondary" text-anchor="middle">dedicated recovery</text></svg>

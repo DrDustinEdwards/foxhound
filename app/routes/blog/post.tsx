@@ -1,5 +1,3 @@
-import "highlight.js/styles/github-dark.css";
-
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Link, redirect } from "react-router";
 
