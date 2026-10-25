@@ -22,6 +22,7 @@ vi.mock("~/db", async (importOriginal) => ({
 
 const { getBillableDisputes, getBillableRecoveries } = await import("~/db/billable");
 const { setBillingExempt } = await import("~/lib/admin/merchants.server");
+const { listBillableRecoveredForRoi } = await import("~/lib/recovery/dashboard-queries.server");
 const schema = await import("~/db/schema");
 
 const ACCOUNT = "acct_exempt";
@@ -142,5 +143,37 @@ describe("a billing exemption forgives the fees that came due while exempt", () 
     // still unbilled, so it is forgiven too; rp_second was earned while exempt.
     expect(ids(await getBillableRecoveries(db, ACCOUNT, day(120).getTime()))).toEqual([]);
     expect(ids(await getBillableDisputes(db, ACCOUNT, day(120).getTime()))).toEqual([]);
+  });
+
+  it("keeps a fee invoiced before a later exemption in the ROI widget, and drops one it forgave", async () => {
+    const db = await seed();
+    await recovery(db, "rp_invoiced", 0); // matures day 30, invoiced day 32
+    await recovery(db, "rp_forgiven", 10); // matures day 40, inside the exemption
+    await db.insert(schema.billingInvoices).values({
+      id: "inv_1",
+      accountId: ACCOUNT,
+      currency: "usd",
+      periodStart: day(0),
+      periodEnd: day(31),
+      idempotencyKey: "inv_1",
+      createdAt: day(32),
+    });
+    await db.insert(schema.billingLineItems).values({
+      id: "li_1",
+      invoiceId: "inv_1",
+      accountId: ACCOUNT,
+      type: "recovery_fee",
+      currency: "usd",
+      amountCents: 2_000,
+      feeCents: 2_000,
+      recoveredPaymentId: "rp_invoiced",
+      createdAt: day(32),
+    });
+
+    expect(await setBillingExempt(ENV, ACCOUNT, true, day(35))).toBe(true);
+    const asOf = day(120).getTime();
+    expect(ids(await getBillableRecoveries(db, ACCOUNT, asOf))).toEqual([]);
+    const roi = await listBillableRecoveredForRoi(db, ACCOUNT, asOf, null);
+    expect(roi).toEqual([{ amountCents: 10_000, currency: "usd" }]);
   });
 });

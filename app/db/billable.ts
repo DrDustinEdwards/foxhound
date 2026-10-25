@@ -75,7 +75,7 @@ function stretchOfRowNotEndedBy(rowAccountId: AnyColumn, from: AnyColumn | SQL):
 /** A recovery is forgiven when an exempt stretch covered the moment it was
  *  recovered (no fee builds up while exempt), or any moment from its maturity
  *  to asOf (it came due, unbilled, while exempt). */
-function exemptionForgaveRecovery(asOfMs: number): SQL {
+export function exemptionForgaveRecovery(asOfMs: number): SQL {
   const maturedAt = sql`${recoveredPayments.recoveredAt} + ${RECOVERY_MATURITY_MS}`;
   return notExists(
     qb
@@ -113,7 +113,13 @@ function exemptionForgaveDispute(asOfMs: number): SQL {
 }
 
 /** Row-level billable conditions for recoveries (everything except the
- *  not-already-billed clause, which is a join and lives in the query below). */
+ *  not-already-billed clause, which is a join and lives in the query below,
+ *  and the exemption clause, exemptionForgaveRecovery). The exemption clause
+ *  stays out because it only holds for a fee not yet billed: it asks whether
+ *  an exemption covered any moment up to asOf, so an exemption set long after
+ *  a fee was invoiced would match it too. Readers of what to bill next add it
+ *  (getBillableRecoveries, buildGuardedRecoveryLineInsert); a reader that also
+ *  keeps billed rows, like the ROI widget, keeps a billed row whatever it says. */
 export function billableRecoveryRowConditions(accountId: string, asOfMs: number): SQL {
   const maturityCutoff = new Date(asOfMs - RECOVERY_MATURITY_MS);
   return and(
@@ -123,7 +129,6 @@ export function billableRecoveryRowConditions(accountId: string, asOfMs: number)
     isNull(recoveredPayments.refundedAt),
     isNull(recoveredPayments.disputedAt),
     isNull(recoveredPayments.deletedAt),
-    exemptionForgaveRecovery(asOfMs),
   ) as SQL;
 }
 
@@ -145,6 +150,7 @@ export function getBillableRecoveries(db: Db, accountId: string, asOfMs: number)
     .where(
       and(
         billableRecoveryRowConditions(accountId, asOfMs),
+        exemptionForgaveRecovery(asOfMs),
         accountBillingEligibleCondition(),
         isNull(billingLineItems.id),
       ),
@@ -265,6 +271,7 @@ export function buildGuardedRecoveryLineInsert(db: Db, input: GuardedRecoveryLin
         and(
           eq(recoveredPayments.id, input.recoveredPaymentId),
           billableRecoveryRowConditions(input.accountId, input.asOfMs),
+          exemptionForgaveRecovery(input.asOfMs),
         ),
       ),
   );
