@@ -147,6 +147,20 @@ describe("minor units are per currency, or the cap is out by a factor of a hundr
     expect(minorUnitsPerMajor("gbp")).toBe(100);
     expect(minorUnitsPerMajor("jpy")).toBe(1);
     expect(minorUnitsPerMajor("kwd")).toBe(1_000);
+    expect(minorUnitsPerMajor("ugx")).toBe(100);
+  });
+});
+
+describe("a UGX dispute: Stripe sends UGX in hundredths, so the cap is too", () => {
+  it("caps at 500 x rate shillings, expressed as hundredths", async () => {
+    harness.rates.ugx = 3_700; // fake
+    const db = await seed("ugx", 10_000_000_000);
+    const row = await resolveWon(db, "ugx", 10_000_000_000);
+
+    // $500 * 3,700 = 1,850,000 UGX. Stripe's special case represents UGX as a
+    // two-decimal value, so that is 185,000,000 in the amount Stripe reports.
+    expect(row.resolvedFeeCents).toBe(185_000_000);
+    expect(row.resolvedFeeCurrency).toBe("ugx");
   });
 });
 
