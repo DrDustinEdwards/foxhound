@@ -110,3 +110,35 @@ export const billingLineItems = sqliteTable(
     ),
   ],
 );
+
+/**
+ * When an account was billing exempt (Dustin, 2026-10-25, "Forgive, like
+ * Recova"). An exemption FORGIVES: a recovery or dispute win whose fee was
+ * earned or came due while the account was exempt is never billed, not held
+ * for the first run after the exemption ends. Recova got that by billing only
+ * the prior calendar month and skipping exempt accounts; Foxhound bills by
+ * maturity with no lower date bound, so it needs to know the stretches
+ * themselves, and accounts.billing_exempt only says what is true now.
+ *
+ * One row per stretch, [started_at, ended_at), ended_at null while it lasts.
+ * Written only by setBillingExempt's money write, in the same atomic batch as
+ * the accounts.billing_exempt flag, so the two never disagree. Read only by
+ * app/db/billable.ts.
+ */
+export const billingExemptionPeriods = sqliteTable(
+  "billing_exemption_periods",
+  {
+    id: id(),
+    accountId: text("account_id").notNull().references(() => accounts.id),
+    startedAt: ts("started_at").notNull(),
+    endedAt: ts("ended_at"),
+    /** The change that ended this stretch, so the caller can tell its own
+     *  "End exemption" from one that matched nothing. */
+    endedByChangeId: text("ended_by_change_id"),
+  },
+  (t) => [
+    index("billing_exemption_periods_account_idx").on(t.accountId),
+    // At most one open stretch per account.
+    uniqueIndex("billing_exemption_periods_open_uq").on(t.accountId).where(sql`${t.endedAt} is null`),
+  ],
+);

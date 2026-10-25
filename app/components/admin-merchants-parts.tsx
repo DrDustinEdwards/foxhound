@@ -47,10 +47,10 @@ type Figures = NonNullable<Route.ComponentProps["loaderData"]["figures"]>;
  *  what the flag does in Foxhound's engine: billing_exempt and
  *  processing_paused both leave a merchant out of the billing run
  *  (app/db/billable.ts, accountBillingEligibleCondition), and only a pause
- *  stops processing. Both defer fees and never forgive them: the gate is read
- *  at each run and the billable queries have no lower bound on the recovery
- *  date, so the first run after the flag clears bills what matured meanwhile
- *  (PR 144 review). Whether an exemption should forgive is Dustin's ruling. */
+ *  stops processing. A pause defers fees: the first run after it clears bills
+ *  what matured meanwhile (PR 144 review). An exemption forgives them, as
+ *  Recova's did (Dustin, 2026-10-25): a fee earned or due while exempt is never
+ *  billed (billing_exemption_periods, read by app/db/billable.ts). */
 const VIEW_WORDS: Record<
   MerchantView,
   { caption: string; empty: string; emptyBody: string; describe: (n: number) => string }
@@ -74,7 +74,7 @@ const VIEW_WORDS: Record<
     empty: "No merchants are billing exempt.",
     emptyBody: "A merchant set exempt here appears on this list.",
     describe: (n) =>
-      `${plural(n, "merchant is", "merchants are")} billing exempt, newest first. A billing exempt merchant is processed as usual and is not billed while exempt. Fees that come due while exempt wait, and are billed at the first billing run after the exemption ends. Ending an exemption takes effect at once and can be undone.`,
+      `${plural(n, "merchant is", "merchants are")} billing exempt, newest first. A billing exempt merchant is processed as usual and is not billed while exempt. Fees that come due while exempt are forgiven: they are never billed, even after the exemption ends. Ending an exemption takes effect at once and can be undone.`,
   },
 };
 

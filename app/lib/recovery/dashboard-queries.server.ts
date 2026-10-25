@@ -9,19 +9,22 @@ import {
   count,
   desc,
   eq,
+  exists,
   gte,
   inArray,
   isNull,
   like,
   lte,
+  or,
   sql,
   type SQL,
 } from "drizzle-orm";
 import { byAccountActive } from "~/db/scope";
-import { billableRecoveryRowConditions } from "~/db/billable";
+import { billableRecoveryRowConditions, exemptionForgaveRecovery } from "~/db/billable";
 import {
   type Db,
   accounts,
+  billingLineItems,
   emailSends,
   emailSuppressions,
   failedPayments,
@@ -335,10 +338,11 @@ export async function getConnectionSummary(db: Db, accountId: string): Promise<C
  * time when null), for the ROI widget. Reuses `billableRecoveryRowConditions`
  * directly from app/db/billable.ts, the SAME predicate the real billing run
  * uses (attribution in BILLABLE_ATTRIBUTION_KINDS, 30-day maturity, not
- * refunded/disputed/deleted). Deliberately does NOT join billing_line_items
- * (unlike getBillableRecoveries, which excludes already-invoiced rows to
+ * refunded/disputed/deleted). Deliberately does NOT leave out
+ * already-invoiced rows (unlike getBillableRecoveries, which excludes them to
  * compute what to bill NEXT): an ROI summary should never shrink just
- * because an invoice already went out. Legacy's `recovery_method in
+ * because an invoice already went out, or because an exemption came after it.
+ * It does leave out a fee a billing exemption forgave, which is never billed. Legacy's `recovery_method in
  * ('retry','email_click','manual')` filter is NOT ported (TASK-foxhound-
  * recovery-surface-parity.md: use BILLABLE_ATTRIBUTION_KINDS and the
  * maturity window instead).
@@ -349,7 +353,21 @@ export async function listBillableRecoveredForRoi(
   nowMs: number,
   windowStartMs: number | null,
 ): Promise<{ amountCents: number; currency: string }[]> {
-  const conditions = [billableRecoveryRowConditions(accountId, nowMs)];
+  const conditions = [
+    billableRecoveryRowConditions(accountId, nowMs),
+    // A row already invoiced stays, whatever exemption came later; one not yet
+    // invoiced stays only while no billing exemption has forgiven its fee
+    // (app/db/billable.ts, exemptionForgaveRecovery), since it will never be billed.
+    or(
+      exists(
+        db
+          .select({ one: sql`1` })
+          .from(billingLineItems)
+          .where(eq(billingLineItems.recoveredPaymentId, recoveredPayments.id)),
+      ),
+      exemptionForgaveRecovery(nowMs),
+    ) as SQL,
+  ];
   if (windowStartMs !== null) conditions.push(gte(recoveredPayments.recoveredAt, new Date(windowStartMs)));
   return db
     .select({ amountCents: recoveredPayments.amountCents, currency: recoveredPayments.currency })

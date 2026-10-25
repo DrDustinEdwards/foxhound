@@ -56,7 +56,7 @@ export async function action({ context, request }: Route.ActionArgs) {
   const now = new Date();
 
   if (intent === "confirm") {
-    const result = await confirmStagedChange(db, {
+    const result = await confirmStagedChange(env, {
       id,
       actorEmail: auth.email,
       confirmPhrase: String(form.get("confirm") ?? ""),
