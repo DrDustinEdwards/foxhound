@@ -12,6 +12,7 @@ import { applySecurityHeaders } from "~/lib/http/content-security-policy";
 import { enforceRateLimit } from "~/lib/http/rate-limit";
 import { handleMcpRequest } from "~/lib/mcp/handler.server";
 import { handleQueueBatch } from "~/lib/queue/consumer";
+import { recovaRedirect } from "~/lib/redirects/recova-edge";
 
 // Durable Objects exported from the worker entry so wrangler can bind them.
 export { MoneyWriteDurableObject } from "./money-writer";
@@ -36,6 +37,13 @@ export default withSentry<Env>(
   sentryOptions,
   {
     async fetch(request, env, ctx) {
+      // RECOVA'S OLD ADDRESSES, first (CUTOVER-PLAN.md step 4). Null for every
+      // host but recovamrr.com and its www and app hosts, which reach this
+      // Worker only once the cutover attaches them; each then answers one 301
+      // to its foxhoundapp.com address (app/lib/redirects/recova-edge.ts).
+      const moved = recovaRedirect(request);
+      if (moved) return moved;
+
       // site-runtime's generateNonce (the 16-byte base64 algorithm Foxhound had,
       // moved there in J22). Generated before the route handler runs, so both
       // the HTML (root.tsx's <Scripts>/<ScrollRestoration>, via cloudflareContext) and

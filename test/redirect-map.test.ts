@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
+import { BLOG_SLUG_REDIRECTS } from "~/lib/blog/slug-redirects";
 import { DOC_GUIDES } from "~/lib/marketing/docs-content";
+import { deriveRecovaMap, deriveRecovaMapHosts, renderRecovaMapSource } from "~/lib/redirects/derive-recova-map";
 import { RECOVA_CONFIG_REDIRECTS } from "~/lib/redirects/recova-config-redirects";
+import { recovaRedirect } from "~/lib/redirects/recova-edge";
 import { RECOVA_REDIRECT_MAP } from "~/lib/redirects/recova-map";
 import routes from "~/routes";
 
@@ -46,11 +49,27 @@ const SERVED = new Set([
 // /blog/sitemap.xml).
 
 describe("RECOVA_REDIRECT_MAP", () => {
+  // `npm run gen:recova-map` (vitest --update) rewrites the file from here.
+  it("is the committed file, regenerated from its inputs (RULES.md 7.3)", async () => {
+    const source = renderRecovaMapSource(
+      deriveRecovaMap(LEGACY_MARKETING_ROUTES, SERVED, RECOVA_CONFIG_REDIRECTS),
+      deriveRecovaMapHosts(RECOVA_CONFIG_REDIRECTS),
+    );
+    await expect(source).toMatchFileSnapshot("../app/lib/redirects/recova-map.ts");
+  });
 
   it("sends every Recova path to a path Foxhound serves", () => {
-    const shapes = new Set([...SERVED].map((p) => p.replace(/:[^/]+/g, ":")));
+    // A served ":param" segment accepts any segment, so /blog/foxhound-vs-churnkey
+    // is served by /blog/:slug.
+    const segs = (p: string) => p.split("/").filter(Boolean).map((s) => (s.startsWith(":") ? ":" : s));
+    const served = (to: string) =>
+      [...SERVED].some((p) => {
+        const want = segs(p);
+        const got = segs(to);
+        return want.length === got.length && want.every((s, i) => s === ":" || s === got[i]);
+      });
     for (const entry of RECOVA_REDIRECT_MAP) {
-      expect(shapes.has(entry.to.replace(/:[^/]+/g, ":")), `${entry.from} -> ${entry.to}`).toBe(true);
+      expect(served(entry.to), `${entry.from} -> ${entry.to}`).toBe(true);
     }
   });
 
@@ -60,6 +79,8 @@ describe("RECOVA_REDIRECT_MAP", () => {
       [
         "/blog/rss.xml",
         "/blog/sitemap.xml",
+        // The four renamed comparison posts (376 item 21), one hop to the new slug.
+        ...Object.keys(BLOG_SLUG_REDIRECTS).map((slug) => `/blog/${slug}`),
         "/disputes/demo",
         "/intelligence/demo",
         "/recovery/demo",
@@ -87,6 +108,7 @@ describe("RECOVA_REDIRECT_MAP", () => {
     const fixtureUrls = new Set([
       ...LEGACY_MARKETING_ROUTES.map((r) => r.url),
       ...RECOVA_CONFIG_REDIRECTS.filter((r) => !r.host).map((r) => r.source),
+      ...Object.keys(BLOG_SLUG_REDIRECTS).map((slug) => `/blog/${slug}`),
     ]);
     for (const entry of RECOVA_REDIRECT_MAP) {
       expect(fixtureUrls.has(entry.from), `${entry.from} is mapped but not in the legacy-routes fixture`).toBe(true);
@@ -102,5 +124,48 @@ describe("RECOVA_REDIRECT_MAP", () => {
     for (const entry of RECOVA_REDIRECT_MAP) {
       expect(entry.to.startsWith("/")).toBe(true);
     }
+  });
+});
+
+// What a visitor on an old address actually gets, through the function the
+// Worker calls first on every request.
+describe("recovaRedirect, served on Recova's hosts at cutover", () => {
+  const at = (url: string) => {
+    const response = recovaRedirect(new Request(url));
+    return response && { status: response.status, location: response.headers.get("location") };
+  };
+
+  it("answers every fixed map entry with one 301 to its foxhoundapp.com address", () => {
+    for (const { from, to } of RECOVA_REDIRECT_MAP) {
+      if (from.includes(":")) continue;
+      expect(at(`https://recovamrr.com${from}`), from).toEqual({ status: 301, location: `https://foxhoundapp.com${to}` });
+    }
+  });
+
+  it("keeps blog posts and tags post to post, and sends a renamed post straight to its new slug", () => {
+    expect(at("https://recovamrr.com/blog/stripe-failed-payment-recovery")?.location).toBe(
+      "https://foxhoundapp.com/blog/stripe-failed-payment-recovery",
+    );
+    expect(at("https://recovamrr.com/blog/tag/decline-codes")?.location).toBe("https://foxhoundapp.com/blog/tag/decline-codes");
+    expect(at("https://recovamrr.com/blog/recova-vs-churnkey")?.location).toBe("https://foxhoundapp.com/blog/foxhound-vs-churnkey");
+    expect(at("https://recovamrr.com/blog/archive")?.location).toBe("https://foxhoundapp.com/blog/archive");
+  });
+
+  it("answers on www and app hosts too, keeps the query, and ignores case and a trailing slash", () => {
+    expect(at("https://www.recovamrr.com/Pricing/")?.location).toBe("https://foxhoundapp.com/pricing");
+    expect(at("https://app.recovamrr.com/user-guides/recovery?ref=x")?.location).toBe(
+      "https://foxhoundapp.com/docs/recovery?ref=x",
+    );
+    expect(at("https://recovamrr.com/og?type=blog")?.location).toBe("https://foxhoundapp.com/og?type=blog");
+  });
+
+  it("keeps an unmapped path on the new domain and never leaves foxhoundapp.com", () => {
+    expect(at("https://recovamrr.com/api/whatever")?.location).toBe("https://foxhoundapp.com/api/whatever");
+    expect(at("https://recovamrr.com//evil.example/x")?.location).toBe("https://foxhoundapp.com/evil.example/x");
+  });
+
+  it("leaves Foxhound's own hosts alone", () => {
+    expect(recovaRedirect(new Request("https://foxhoundapp.com/pricing"))).toBeNull();
+    expect(recovaRedirect(new Request("https://www.foxhoundapp.com/"))).toBeNull();
   });
 });

@@ -6,12 +6,9 @@
 // inbound link. Branding divergence needs no ratification (PRIME DIRECTIVE class
 // 2), so the slugs move and the old paths keep working.
 //
-// NOT `RECOVA_REDIRECT_MAP`, DELIBERATELY. That map exists in
-// ~/lib/redirects/recova-map.ts and Fable measured it as having no runtime
-// consumer at all. Wiring it here would mean either shipping a redirect table
-// nobody has audited, or auditing 100+ legacy paths as a side effect of moving
-// four blog posts. The four live here, where the route that serves them can see
-// them, and the map's own question stays open as its own decision.
+// The Recova cutover map (~/lib/redirects/recova-map.ts) reads this table too,
+// so recovamrr.com/blog/recova-vs-* goes straight to the new slug in one hop
+// instead of landing here and redirecting again.
 //
 // PERMANENT, not temporary: these URLs are indexed and linked, and 301 is what
 // tells a crawler to move its equity to the new path. A 302 would leave the old
