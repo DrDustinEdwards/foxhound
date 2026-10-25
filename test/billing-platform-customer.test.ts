@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { ensurePlatformCustomer, getDefaultCard } from "~/lib/billing/platform-customer";
+import * as platformCustomer from "~/lib/billing/platform-customer";
+
+const { ensurePlatformCustomer, getDefaultCard } = platformCustomer;
 
 describe("ensurePlatformCustomer (reuse vs create)", () => {
   it("returns the existing id without calling Stripe when one is already stored", async () => {
@@ -48,5 +50,21 @@ describe("getDefaultCard (the card on file, read only)", () => {
     } finally {
       console.error = errors;
     }
+  });
+});
+
+// E25 (J97): Recova's billing customer carries the address Stripe emails the
+// invoice to, chosen in lib/billing-email.ts (blob 312e9177): the connected
+// account's support_email, then its account email, then the login email, with
+// an empty string treated as missing.
+describe("billing email for the platform customer (E25)", () => {
+  it("prefers support_email, then the account email, then the login email", () => {
+    const resolve = platformCustomer.resolveBillingEmailFromStripeAccount;
+    const full = { business_profile: { support_email: "support@example.com" }, email: "acct@example.com" };
+    expect(resolve(full, "login@example.com")).toBe("support@example.com");
+    expect(resolve({ business_profile: { support_email: "" }, email: "acct@example.com" }, "login@example.com")).toBe("acct@example.com");
+    expect(resolve({ business_profile: null, email: "" }, "login@example.com")).toBe("login@example.com");
+    expect(resolve(null, "login@example.com")).toBe("login@example.com");
+    expect(resolve(null, null)).toBeNull();
   });
 });

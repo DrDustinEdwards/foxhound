@@ -15,6 +15,7 @@ import { executeMoneyWrite } from "~/lib/money/execute";
 
 import { ChargeGuardReadError, runChargeRetrySweep, type ChargeRetryDeps } from "./charge-retry";
 import { disputeFeeCents, recoveryFeeCents } from "./fees";
+import { buildPlatformCustomerUpdate, ensurePlatformCustomer, lookupPlatformBillingEmail } from "./platform-customer";
 import {
   createPlatformInvoice,
   buildInvoiceStripeRefUpdate,
@@ -329,11 +330,13 @@ export async function runAccountBilling(
   const createdAt = new Date(nowMs);
 
   const [account] = await db
-    .select({ platformStripeCustomerId: accounts.platformStripeCustomerId })
+    .select({ platformStripeCustomerId: accounts.platformStripeCustomerId, name: accounts.name })
     .from(accounts)
     .where(eq(accounts.id, accountId))
     .limit(1);
-  const platformCustomerId = account?.platformStripeCustomerId ?? null;
+  // Not const: an account billed before it has a platform customer gets one
+  // below, and every later currency in this run uses it.
+  let platformCustomerId = account?.platformStripeCustomerId ?? null;
 
   const recoveries = await getBillableRecoveries(db, accountId, nowMs);
   const disputes = await getBillableDisputes(db, accountId, nowMs);
@@ -427,6 +430,39 @@ export async function runAccountBilling(
     // next run, which is the correct place for it to be handled. Ratified in the
     // 2026-07-26 gate review, section 4; recorded here because two passes have
     // now reached this line and had to re-derive it.
+    //
+    // AN ACCOUNT WITH NO PLATFORM CUSTOMER GETS ONE HERE (E25, J97). Recova
+    // creates every account's billing customer at connect, so every billable
+    // account is invoiced; Foxhound made it only when billing setup started, and
+    // this step used to skip the account, so the merchant was never invoiced.
+    // It is created after the ledger batch has committed, through the same
+    // ensurePlatformCustomer and the same platform-customer money write (same
+    // builder, same key) the billing setup action uses, so no existing write
+    // changes its order, key or batch. A failure here is caught below like any
+    // other Stripe failure: the ledger stands and the row stays draft.
+    if (applied && chargeableLines(summary.lines).length > 0) {
+      try {
+        if (!platformCustomerId) {
+          const createdCustomerId = await ensurePlatformCustomer(env, {
+            existingCustomerId: null,
+            accountId,
+            accountName: account?.name ?? null,
+          });
+          await executeMoneyWrite(env, {
+            accountId,
+            idempotencyKey: `platform-customer:${accountId}`,
+            build: (bdb) =>
+              buildPlatformCustomerUpdate(bdb, { accountId, platformStripeCustomerId: createdCustomerId }),
+          });
+          platformCustomerId = createdCustomerId;
+        }
+      } catch (err) {
+        console.error(
+          `platform customer create failed for account ${accountId} invoice ${invoiceId}:`,
+          err instanceof Error ? err.message : err,
+        );
+      }
+    }
     if (applied && shouldAttemptPlatformCharge(platformCustomerId, summary.lines)) {
       try {
         // platformCustomerId is non-null here (the guard above requires it).
@@ -435,6 +471,7 @@ export async function runAccountBilling(
           currency,
           lines: summary.lines,
           billingInvoiceId: invoiceId,
+          billingEmail: () => lookupPlatformBillingEmail(env, accountId),
         });
         await executeMoneyWrite(env, {
           accountId,

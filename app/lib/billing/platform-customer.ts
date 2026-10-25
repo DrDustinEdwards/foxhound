@@ -1,9 +1,12 @@
-import { eq } from "drizzle-orm";
+import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import type Stripe from "stripe";
 
 import type { Db, MoneyWriteBatch } from "~/db";
-import { accounts } from "~/db";
+import { accountMembers, accounts, getDb, stripeConnections, user } from "~/db";
+import { MEMBER_ROLE, MEMBER_STATUS } from "~/lib/auth/roles";
 import { getStripe } from "~/lib/stripe/client";
+
+import { stripeErrorSummary } from "./stripe-invoice";
 
 // Billing-setup (Phase 5 slice 5d, PRICING.md rev 3: direct platform invoicing).
 // The merchant is a Customer on FOXHOUND'S OWN Stripe account, never charged
@@ -33,20 +36,122 @@ export function buildPlatformCustomerUpdate(
   ];
 }
 
+/** The slice of a connected Stripe account the billing email reads. */
+interface BillingEmailAccountFields {
+  business_profile?: { support_email?: string | null } | null;
+  email?: string | null;
+}
+
+/**
+ * The address Stripe sends the platform invoice to, in Recova's order
+ * (lib/billing-email.ts, blob 312e9177, resolveBillingEmailFromStripeAccount):
+ * the connected account's business_profile.support_email, then its account
+ * email, then the login email. `||`, not `??`, as in Recova: Stripe returns ""
+ * for some fields and an empty string is not an address. Pure. Null only when
+ * there is no login email either.
+ */
+export function resolveBillingEmailFromStripeAccount(
+  stripeAccount: BillingEmailAccountFields | null,
+  loginEmail: string | null,
+): string | null {
+  return stripeAccount?.business_profile?.support_email || stripeAccount?.email || loginEmail || null;
+}
+
+export interface BillingEmailDeps {
+  retrieveAccount: (stripeUserId: string) => Promise<BillingEmailAccountFields>;
+}
+
+/**
+ * Resolve one account's billing email from what Foxhound holds. Recova resolved
+ * it once, at connect, from the connected account and the user connecting
+ * (app/api/auth/stripe/callback/route.ts, blob c60331af, lines 166 to 176).
+ * Here it is resolved when the platform customer is made or needs an address:
+ * the primary live connection is read through the platform key, and the login
+ * email is the account owner's, who is the user who connected. A failed account
+ * read falls back to the login email, as Recova's does.
+ */
+export async function lookupPlatformBillingEmail(
+  env: Env,
+  accountId: string,
+  deps?: Partial<BillingEmailDeps>,
+): Promise<string | null> {
+  const db = getDb(env);
+  const [connection] = await db
+    .select({ stripeUserId: stripeConnections.stripeUserId })
+    .from(stripeConnections)
+    .where(and(eq(stripeConnections.accountId, accountId), isNull(stripeConnections.disconnectedAt)))
+    .orderBy(desc(stripeConnections.isPrimary), asc(stripeConnections.createdAt))
+    .limit(1);
+  const [owner] = await db
+    .select({ email: user.email })
+    .from(accountMembers)
+    .innerJoin(user, eq(user.id, accountMembers.userId))
+    .where(
+      and(
+        eq(accountMembers.accountId, accountId),
+        eq(accountMembers.role, MEMBER_ROLE.OWNER),
+        eq(accountMembers.status, MEMBER_STATUS.ACTIVE),
+      ),
+    )
+    .orderBy(asc(accountMembers.createdAt))
+    .limit(1);
+
+  let stripeAccount: BillingEmailAccountFields | null = null;
+  if (connection) {
+    const retrieveAccount =
+      deps?.retrieveAccount ?? ((id: string) => getStripe(env).accounts.retrieve(id));
+    try {
+      stripeAccount = await retrieveAccount(connection.stripeUserId);
+    } catch (err) {
+      console.error("billing email account read failed:", stripeErrorSummary(err));
+    }
+  }
+  return resolveBillingEmailFromStripeAccount(stripeAccount, owner?.email ?? null);
+}
+
+/** Stripe idempotency key for creating one account's platform customer. The
+ *  billing setup action and the billing run both create through
+ *  ensurePlatformCustomer, so a same-day race between them yields one customer. */
+export function platformCustomerCreateIdempotencyKey(accountId: string): string {
+  return `platform-customer-create:${accountId}`;
+}
+
+export interface EnsurePlatformCustomerDeps {
+  lookupBillingEmail: (env: Env, accountId: string) => Promise<string | null>;
+}
+
 /** Returns the existing platform customer id, or creates one on Foxhound's own
  *  Stripe account. Does not persist; the caller stores the id via
  *  buildPlatformCustomerUpdate so the Stripe call and the DB write stay
- *  separate concerns (mirrors createPlatformInvoice / buildInvoiceStripeRefUpdate). */
+ *  separate concerns (mirrors createPlatformInvoice / buildInvoiceStripeRefUpdate).
+ *
+ *  The customer carries the billing email and, failing a name, the email as its
+ *  name, as Recova's ensureBillingCustomer creates it (callback/route.ts, blob
+ *  c60331af, lines 64 to 68): Stripe emails an invoice only to an address on
+ *  the customer (E25). */
 export async function ensurePlatformCustomer(
   env: Env,
   input: { existingCustomerId: string | null; accountId: string; accountName: string | null },
+  deps?: Partial<EnsurePlatformCustomerDeps>,
 ): Promise<string> {
   if (input.existingCustomerId) return input.existingCustomerId;
+  const lookupBillingEmail = deps?.lookupBillingEmail ?? lookupPlatformBillingEmail;
+  const email = await lookupBillingEmail(env, input.accountId);
   const stripe = getStripe(env);
-  const customer = await stripe.customers.create({
-    name: input.accountName ?? undefined,
-    metadata: { account_id: input.accountId },
-  });
+  let customer: Stripe.Customer;
+  try {
+    customer = await stripe.customers.create(
+      {
+        email: email ?? undefined,
+        name: input.accountName || email || undefined,
+        metadata: { account_id: input.accountId },
+      },
+      { idempotencyKey: platformCustomerCreateIdempotencyKey(input.accountId) },
+    );
+  } catch (err) {
+    // Type and code only: Stripe's message can repeat the email it was sent.
+    throw new Error(`platform customer create failed: ${stripeErrorSummary(err)}`);
+  }
   return customer.id;
 }
 
