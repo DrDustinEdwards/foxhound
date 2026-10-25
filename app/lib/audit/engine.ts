@@ -6,6 +6,8 @@ import {
   type DeclineCategory,
   MIN_EXPIRED_DECLINES_FOR_CAU_ADVISORY,
 } from "~/lib/constants";
+import { groupSumByCurrency, type CurrencyAmount } from "~/lib/billing/preview.server";
+import { byCurrencyCode } from "~/lib/money-format";
 import { classifyDecline } from "~/lib/recovery/decline";
 
 // The audit engine, phase (a) of the port ruled by 362. Legacy's
@@ -24,6 +26,18 @@ import { classifyDecline } from "~/lib/recovery/decline";
 // from "the disputes call failed", because both render as 0. Every scope here
 // answers `{ ok: true, data }` or `{ ok: false, reason }`, so a zero always means
 // zero. A zero that means unknown is a lie with digits.
+//
+// EVERY MONEY FIGURE IS KEPT PER CURRENCY (job_ed1c41e4bd95). Legacy adds every
+// amount into one number and labels it with whichever currency it met first, so
+// $1,240 and EUR 310 read "$1,550". Each figure here carries its totals per
+// currency through groupSumByCurrency (RULES.md 3.20), ordered by currency
+// code as /intelligence orders its totals (byCurrencyCode), and the surfaces
+// show one line per currency (Dustin, 2026-10-25,
+// parity/APPROVED-DIFFERENCES.md). The plain `...Cents` numbers beside them are
+// the figure IN THE RUN'S CURRENCY only (meta.currency), never a sum across
+// currencies: they fill the single-number columns, which a run stored before
+// money_by_currency falls back to. A single-currency account gets the same
+// number either way.
 
 /** One scope's answer. Never a bare value, so a caller cannot read a failure as
  *  data (339 binding 5, one subsystem over). */
@@ -40,24 +54,38 @@ export interface AuditInputs {
   cardUpdaterEvents: ReadOutcome<Stripe.Event>;
 }
 
+/** Per-currency totals from groupSumByCurrency, in currency-code order, zeroes left out.
+ *  Empty when there is no money at all. */
+export type MoneyTotals = CurrencyAmount[];
+
 export interface FailedInvoicesScope {
   count: number;
+  /** In the run's currency only. */
   totalCents: number;
-  /** Keyed by Foxhound's SIX categories, not legacy's four. */
+  totals: MoneyTotals;
+  /** Keyed by Foxhound's SIX categories, not legacy's four. In the run's
+   *  currency only. */
   byCategory: Record<DeclineCategory, number>;
+  byCategoryTotals: Record<DeclineCategory, MoneyTotals>;
 }
 
 export interface ExpiringCardsScope {
   count: number;
+  /** In the run's currency only. */
   mrrAtRiskCents: number;
+  mrrAtRiskTotals: MoneyTotals;
   /** Deduped customers per `YYYY-MM`, four months wide. */
   expiresByMonth: Record<string, number>;
 }
 
-export interface PastDueScope {
+/** A count with its money: `totalCents` in the run's currency only. */
+export interface CountedMoney {
   count: number;
   totalCents: number;
+  totals: MoneyTotals;
 }
+
+export type PastDueScope = CountedMoney;
 
 export interface CardUpdaterScope {
   eventsInWindow: number;
@@ -67,14 +95,17 @@ export interface CardUpdaterScope {
 }
 
 export interface DisputesScope {
-  open: { count: number; totalCents: number };
-  acceptedWithoutFighting: { count: number; totalCents: number };
+  open: CountedMoney;
+  acceptedWithoutFighting: CountedMoney;
   historical: { won: number; lost: number };
 }
 
 export interface HealthScope {
+  /** In the run's currency only, as is arrCents. */
   mrrCents: number;
   arrCents: number;
+  mrrTotals: MoneyTotals;
+  arrTotals: MoneyTotals;
   activeSubscriptionsCount: number;
   voluntaryChurnRateBps: number;
   involuntaryChurnRateBps: number;
@@ -168,6 +199,33 @@ function zeroByCategory(): Record<DeclineCategory, number> {
   return { soft: 0, network: 0, expired: 0, fraud: 0, revoked: 0, unknown: 0 };
 }
 
+/** One amount in its own currency. */
+type Amount = CurrencyAmount;
+
+/** A row Stripe sent without a currency is taken to be in the run's, which is
+ *  legacy's assumption for every row. */
+function amountOf(cents: number, currency: string | null | undefined, runCurrency: string): Amount {
+  return { currency: (currency ?? runCurrency).toLowerCase(), cents };
+}
+
+/** Totals per currency, through the one money-total path (RULES.md 3.20), in
+ *  currency-code order. A currency whose total is zero adds no line. */
+function totalsOf(amounts: Amount[]): MoneyTotals {
+  return groupSumByCurrency(amounts)
+    .filter((t) => t.cents !== 0)
+    .sort(byCurrencyCode);
+}
+
+/** The figure in one currency, for the single-number columns. */
+function inCurrency(totals: MoneyTotals, currency: string): number {
+  return totals.find((t) => t.currency === currency)?.cents ?? 0;
+}
+
+function counted(count: number, amounts: Amount[], runCurrency: string): CountedMoney {
+  const totals = totalsOf(amounts);
+  return { count, totalCents: inCurrency(totals, runCurrency), totals };
+}
+
 /**
  * The failed set legacy builds: everything uncollectible in the window, plus the
  * open invoices whose due date has passed. Both reads are required, so a failure
@@ -187,25 +245,40 @@ function resolveFailedInvoices(
   return { ok: true, data: [...inputs.uncollectibleInvoices.data, ...overdue] };
 }
 
-function computeFailedInvoices(failed: Stripe.Invoice[]): FailedInvoicesScope {
-  const byCategory = zeroByCategory();
-  let totalCents = 0;
+function computeFailedInvoices(failed: Stripe.Invoice[], runCurrency: string): FailedInvoicesScope {
+  const amounts: Amount[] = [];
+  const byCategoryAmounts: Record<DeclineCategory, Amount[]> = {
+    soft: [],
+    network: [],
+    expired: [],
+    fraud: [],
+    revoked: [],
+    unknown: [],
+  };
   for (const invoice of failed) {
-    const amount = invoice.amount_due ?? 0;
-    totalCents += amount;
+    const amount = amountOf(invoice.amount_due ?? 0, invoice.currency, runCurrency);
+    amounts.push(amount);
     // SIX CATEGORIES, and the reshape is a DELETION rather than an addition.
     // Legacy buckets four and pushes everything else into `soft`, which
     // misattributes a revoked mandate as a retryable decline. Foxhound's
     // classifier already returns `revoked` and `unknown`, so every code lands in
     // its own bucket and legacy's catch-all has nothing left to catch.
-    byCategory[classifyDecline(extractDeclineCode(invoice))] += amount;
+    byCategoryAmounts[classifyDecline(extractDeclineCode(invoice))].push(amount);
   }
-  return { count: failed.length, totalCents, byCategory };
+  const byCategory = zeroByCategory();
+  const byCategoryTotals = {} as Record<DeclineCategory, MoneyTotals>;
+  for (const key of Object.keys(byCategory) as DeclineCategory[]) {
+    byCategoryTotals[key] = totalsOf(byCategoryAmounts[key]);
+    byCategory[key] = inCurrency(byCategoryTotals[key], runCurrency);
+  }
+  const { totalCents, totals } = counted(failed.length, amounts, runCurrency);
+  return { count: failed.length, totalCents, totals, byCategory, byCategoryTotals };
 }
 
 function computeExpiringCards(
   subscriptions: Stripe.Subscription[],
   ranAt: Date,
+  runCurrency: string,
 ): ExpiringCardsScope {
   const currentYear = ranAt.getUTCFullYear();
   const currentMonth = ranAt.getUTCMonth() + 1;
@@ -217,7 +290,7 @@ function computeExpiringCards(
   const seenCustomers = new Set<string>();
   const buckets = new Map<string, Set<string>>();
   let count = 0;
-  let mrrAtRiskCents = 0;
+  const atRisk: Amount[] = [];
 
   for (const subscription of subscriptions) {
     if (subscription.status !== "active") continue;
@@ -244,7 +317,7 @@ function computeExpiringCards(
     if (isExpiring && !seenCustomers.has(customerId)) {
       seenCustomers.add(customerId);
       count += 1;
-      mrrAtRiskCents += monthlyPlanCents(subscription);
+      atRisk.push(amountOf(monthlyPlanCents(subscription), subscription.currency, runCurrency));
     }
 
     // The timeline is FOUR months wide against the count's two, so a merchant
@@ -267,48 +340,48 @@ function computeExpiringCards(
 
   const expiresByMonth: Record<string, number> = {};
   for (const [key, customers] of buckets) expiresByMonth[key] = customers.size;
-  return { count, mrrAtRiskCents, expiresByMonth };
+  const { totalCents: mrrAtRiskCents, totals: mrrAtRiskTotals } = counted(count, atRisk, runCurrency);
+  return { count, mrrAtRiskCents, mrrAtRiskTotals, expiresByMonth };
 }
 
-function computePastDue(subscriptions: Stripe.Subscription[]): PastDueScope {
+function computePastDue(subscriptions: Stripe.Subscription[], runCurrency: string): PastDueScope {
   let count = 0;
-  let totalCents = 0;
+  const amounts: Amount[] = [];
   for (const subscription of subscriptions) {
     if (subscription.status !== "past_due") continue;
     count += 1;
     // RAW `unit_amount`, NOT normalized to monthly, which is legacy's own choice
     // and its own comment: this is the next cycle's value, so a render calls it
     // subscription value and never MRR.
-    totalCents += subscription.items?.data?.[0]?.price?.unit_amount ?? 0;
+    amounts.push(
+      amountOf(subscription.items?.data?.[0]?.price?.unit_amount ?? 0, subscription.currency, runCurrency),
+    );
   }
-  return { count, totalCents };
+  return counted(count, amounts, runCurrency);
 }
 
-function computeDisputes(disputes: Stripe.Dispute[]): DisputesScope {
-  let openCount = 0;
-  let openCents = 0;
-  let acceptedCount = 0;
-  let acceptedCents = 0;
+function computeDisputes(disputes: Stripe.Dispute[], runCurrency: string): DisputesScope {
+  const open: Amount[] = [];
+  const accepted: Amount[] = [];
   let won = 0;
   let lost = 0;
   for (const dispute of disputes) {
+    const amount = amountOf(dispute.amount ?? 0, dispute.currency, runCurrency);
     if (dispute.status === "needs_response" || dispute.status === "under_review") {
-      openCount += 1;
-      openCents += dispute.amount ?? 0;
+      open.push(amount);
     }
     // ACCEPTED WITHOUT FIGHTING is lost AND never submitted. The submission
     // count is what separates a dispute somebody fought and lost from one nobody
     // answered, and only the second is a process failure worth reporting.
     if (dispute.status === "lost" && dispute.evidence_details?.submission_count === 0) {
-      acceptedCount += 1;
-      acceptedCents += dispute.amount ?? 0;
+      accepted.push(amount);
     }
     if (dispute.status === "won") won += 1;
     if (dispute.status === "lost") lost += 1;
   }
   return {
-    open: { count: openCount, totalCents: openCents },
-    acceptedWithoutFighting: { count: acceptedCount, totalCents: acceptedCents },
+    open: counted(open.length, open, runCurrency),
+    acceptedWithoutFighting: counted(accepted.length, accepted, runCurrency),
     historical: { won, lost },
   };
 }
@@ -316,8 +389,9 @@ function computeDisputes(disputes: Stripe.Dispute[]): DisputesScope {
 function computeHealth(
   subscriptions: Stripe.Subscription[],
   lookbackStartSeconds: number,
+  runCurrency: string,
 ): HealthScope {
-  let mrrCents = 0;
+  const mrr: Amount[] = [];
   let activeSubscriptionsCount = 0;
   let pastDueCount = 0;
   let voluntaryCanceled = 0;
@@ -325,7 +399,7 @@ function computeHealth(
   for (const subscription of subscriptions) {
     if (subscription.status === "active") {
       activeSubscriptionsCount += 1;
-      mrrCents += monthlyPlanCents(subscription);
+      mrr.push(amountOf(monthlyPlanCents(subscription), subscription.currency, runCurrency));
     } else if (subscription.status === "past_due") {
       pastDueCount += 1;
     } else if (subscription.status === "canceled") {
@@ -344,9 +418,14 @@ function computeHealth(
   // active ones, and the divide-by-zero guard is its own. Ported as found: a
   // different denominator would silently move every merchant's churn figure.
   const denominator = subscriptions.length > 0 ? subscriptions.length : 1;
+  const mrrTotals = totalsOf(mrr);
+  const arrTotals = mrrTotals.map((t) => ({ currency: t.currency, cents: t.cents * 12 }));
+  const mrrCents = inCurrency(mrrTotals, runCurrency);
   return {
     mrrCents,
     arrCents: mrrCents * 12,
+    mrrTotals,
+    arrTotals,
     activeSubscriptionsCount,
     voluntaryChurnRateBps: Math.round((voluntaryCanceled / denominator) * 10_000),
     involuntaryChurnRateBps: Math.round((pastDueCount / denominator) * 10_000),
@@ -385,18 +464,19 @@ export function runAudit(input: RunAuditInput): AuditResult {
   const cauWindowDays = Math.min(lookbackDays, CAU_EVENT_RETENTION_DAYS);
   const cauWindowStartSeconds = Math.floor((nowMs - cauWindowDays * DAY_MS) / 1000);
 
+  const currency = resolveCurrency(reads);
   const failed = resolveFailedInvoices(reads, nowMs);
 
   const failedInvoices: ScopeOutcome<FailedInvoicesScope> = failed.ok
-    ? { ok: true, data: computeFailedInvoices(failed.data) }
+    ? { ok: true, data: computeFailedInvoices(failed.data, currency) }
     : { ok: false, reason: failed.reason };
 
   const expiringCards: ScopeOutcome<ExpiringCardsScope> = reads.subscriptions.ok
-    ? { ok: true, data: computeExpiringCards(reads.subscriptions.data, ranAt) }
+    ? { ok: true, data: computeExpiringCards(reads.subscriptions.data, ranAt, currency) }
     : { ok: false, reason: reads.subscriptions.reason };
 
   const pastDueSubscriptions: ScopeOutcome<PastDueScope> = reads.subscriptions.ok
-    ? { ok: true, data: computePastDue(reads.subscriptions.data) }
+    ? { ok: true, data: computePastDue(reads.subscriptions.data, currency) }
     : { ok: false, reason: reads.subscriptions.reason };
 
   // THE ADVISORY NEEDS BOTH READS, and the denominator is counted inside the CAU
@@ -431,11 +511,11 @@ export function runAudit(input: RunAuditInput): AuditResult {
   }
 
   const disputes: ScopeOutcome<DisputesScope> = reads.disputes.ok
-    ? { ok: true, data: computeDisputes(reads.disputes.data) }
+    ? { ok: true, data: computeDisputes(reads.disputes.data, currency) }
     : { ok: false, reason: reads.disputes.reason };
 
   const health: ScopeOutcome<HealthScope> = reads.subscriptions.ok
-    ? { ok: true, data: computeHealth(reads.subscriptions.data, lookbackStartSeconds) }
+    ? { ok: true, data: computeHealth(reads.subscriptions.data, lookbackStartSeconds, currency) }
     : { ok: false, reason: reads.subscriptions.reason };
 
   return {
@@ -445,6 +525,6 @@ export function runAudit(input: RunAuditInput): AuditResult {
     cardUpdater,
     disputes,
     health,
-    meta: { stripeAccountId, lookbackDays, currency: resolveCurrency(reads), ranAt },
+    meta: { stripeAccountId, lookbackDays, currency, ranAt },
   };
 }

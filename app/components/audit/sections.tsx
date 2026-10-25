@@ -7,8 +7,9 @@ import "capsomer/panel.css";
 
 import { EnarratioFigure } from "~/components/enarratio-figure";
 import {
+  anyAbove,
   formatBps,
-  formatCents,
+  formatTotals,
   SCOPE_UNREAD,
   type AuditRunView,
 } from "~/lib/audit/render";
@@ -36,6 +37,12 @@ import { formatMoneyShort } from "~/lib/money-format";
 // the mono figures, the stat-row layout) is listed for Capsomer's per-site
 // layer, capsomer job_ec5ec0754626, in the J63 pull request; no Foxhound class
 // sits on a Capsomer element.
+//
+// ONE LINE PER CURRENCY. Each money figure is its totals per currency
+// (RULES.md 3.20), stacked one under another as /billing stacks its totals.
+// Recova added the currencies into one number under the first one's label;
+// Dustin approved the lines on 2026-10-25 (parity/APPROVED-DIFFERENCES.md).
+// A single-currency run shows one line, as before.
 //
 // THE NULL. Every figure is `number | null` and says "could not be read"
 // rather than printing a zero (365 binding 2). Recova's `?? 0` is where a
@@ -85,6 +92,19 @@ function NoneDetected() {
   return <p className="m-0 mb-5 text-label text-text-subtle">None detected in this period.</p>;
 }
 
+/** One line per currency, stacked, each an element of its own. A single
+ *  line renders as the bare text it always was. */
+function Lines({ lines }: { lines: readonly string[] }) {
+  if (lines.length === 1) return <>{lines[0]}</>;
+  return (
+    <span className="flex flex-col items-end">
+      {lines.map((line) => (
+        <span key={line}>{line}</span>
+      ))}
+    </span>
+  );
+}
+
 function StatRow({
   label,
   primary,
@@ -92,7 +112,7 @@ function StatRow({
   primaryClassName = "text-text",
 }: {
   label: string;
-  primary: string;
+  primary: string | readonly string[];
   secondary?: string;
   primaryClassName?: string;
 }) {
@@ -103,7 +123,7 @@ function StatRow({
         {secondary ? <div className="mt-0.5 text-micro text-text-subtle">{secondary}</div> : null}
       </div>
       <div className={`whitespace-nowrap font-mono text-body font-semibold ${primaryClassName}`}>
-        {primary}
+        {typeof primary === "string" ? primary : <Lines lines={primary} />}
       </div>
     </div>
   );
@@ -111,11 +131,23 @@ function StatRow({
 
 /** Recova's large figure under a rule: a small uppercase label over a mono
  *  number ("Revenue left on the table"). */
-function Headline({ label, value, valueClassName }: { label: string; value: string; valueClassName: string }) {
+function Headline({
+  label,
+  value,
+  valueClassName,
+}: {
+  label: string;
+  value: readonly string[];
+  valueClassName: string;
+}) {
   return (
     <div className="mb-2">
       <div className="mb-1 text-micro uppercase tracking-wide text-text-tertiary">{label}</div>
-      <div className={`font-mono text-display font-bold ${valueClassName}`}>{value}</div>
+      {value.map((line) => (
+        <div key={line} className={`font-mono text-display font-bold ${valueClassName}`}>
+          {line}
+        </div>
+      ))}
     </div>
   );
 }
@@ -176,7 +208,10 @@ function ExpiringCardsTimeline({ expiresByMonth }: { expiresByMonth: Record<stri
   const months = expiringCardsMonths(expiresByMonth);
   if (months.length === 0) return null;
   return (
-    <div className="mt-4">
+    // min-w-0: the panel body is a grid, and without it the chart's first
+    // 640px draw sets the column's width, pushing every figure in the panel
+    // past a phone's edge before the redraw can measure.
+    <div className="mt-4 min-w-0">
       <EnarratioFigure draw={(width) => drawExpiringCardsTimeline(months, width)} initialWidth={640} />
     </div>
   );
@@ -242,7 +277,7 @@ export function AuditRecoverySection({
             ) : (
               <StatRow
                 label="Failed invoices"
-                primary={formatCents(failed.totalCents, cur)}
+                primary={formatTotals(failed.totals, cur)}
                 secondary={plural(failed.count, "invoice")}
               />
             )}
@@ -264,10 +299,10 @@ export function AuditRecoverySection({
             {failed !== null && failed.count > 0 ? (
               <div className="mb-4 ml-5 mt-3 space-y-2">
                 {BREAKDOWN_ORDER.map((key) => (
-                  <div key={key} className="flex items-center justify-between text-micro">
+                  <div key={key} className="flex items-start justify-between text-micro">
                     <span className="text-text-tertiary">{BREAKDOWN_ROWS[key]}</span>
-                    <span className="font-mono text-text-secondary">
-                      {formatCents(failed.byCategory[key] ?? 0, cur)}
+                    <span className="whitespace-nowrap font-mono text-text-secondary">
+                      <Lines lines={formatTotals(failed.byCategory[key] ?? [], cur)} />
                     </span>
                   </div>
                 ))}
@@ -285,7 +320,7 @@ export function AuditRecoverySection({
                     month or next (app/lib/audit/engine.ts computeExpiringCards). */}
                 <StatRow
                   label="Expiring cards (through next month)"
-                  primary={formatCents(expiring.mrrAtRiskCents, cur)}
+                  primary={formatTotals(expiring.mrrAtRisk, cur)}
                   secondary={`${plural(expiring.count, "card")} at risk`}
                 />
                 <ExpiringCardsTimeline expiresByMonth={expiring.expiresByMonth} />
@@ -297,7 +332,7 @@ export function AuditRecoverySection({
             ) : (
               <StatRow
                 label="Past-due subscriptions"
-                primary={formatCents(pastDue.totalCents, cur)}
+                primary={formatTotals(pastDue.totals, cur)}
                 secondary={plural(pastDue.count, "subscription")}
               />
             )}
@@ -378,12 +413,12 @@ function DisputeFigures({
     <>
       <StatRow
         label="Open disputes"
-        primary={formatCents(open.totalCents, cur)}
+        primary={formatTotals(open.totals, cur)}
         secondary={`${open.count} awaiting response`}
       />
       <StatRow
         label="Accepted without fighting"
-        primary={formatCents(accepted.totalCents, cur)}
+        primary={formatTotals(accepted.totals, cur)}
         secondary={
           accepted.count === 0
             ? "No disputes forfeited by default"
@@ -422,11 +457,11 @@ function DisputeFigures({
         </div>
       ) : null}
 
-      {accepted.totalCents > 0 ? (
+      {anyAbove(accepted.totals) ? (
         <div className="mt-5 border-t border-border pt-5">
           <Headline
             label="Revenue left on the table"
-            value={formatCents(accepted.totalCents, cur)}
+            value={formatTotals(accepted.totals, cur)}
             valueClassName="text-red"
           />
           {/* Truthfulness fix: Recova's line says it "submits structured
@@ -461,8 +496,8 @@ export function AuditHealthSection({
   const health = run.health;
   const anyData =
     health !== null &&
-    (health.mrrCents > 0 ||
-      health.arrCents > 0 ||
+    (anyAbove(health.mrr) ||
+      anyAbove(health.arr) ||
       health.activeSubscriptionsCount > 0 ||
       health.voluntaryChurnRateBps > 0 ||
       health.involuntaryChurnRateBps > 0);
@@ -492,8 +527,8 @@ export function AuditHealthSection({
         ) : (
           <>
             <div className="mb-5 grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Headline label="MRR" value={formatCents(health.mrrCents, cur)} valueClassName="text-text" />
-              <Headline label="ARR" value={formatCents(health.arrCents, cur)} valueClassName="text-text" />
+              <Headline label="MRR" value={formatTotals(health.mrr, cur)} valueClassName="text-text" />
+              <Headline label="ARR" value={formatTotals(health.arr, cur)} valueClassName="text-text" />
             </div>
             <StatRow label="Active subscriptions" primary={String(health.activeSubscriptionsCount)} />
             <StatRow label="Involuntary churn rate" primary={formatBps(health.involuntaryChurnRateBps)} />

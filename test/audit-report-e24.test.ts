@@ -126,18 +126,20 @@ const ok = <T,>(data: T) => ({ ok: true as const, data });
 
 const resultWith = (over: Partial<EmailResult> = {}): EmailResult =>
   ({
-    failedInvoices: ok({ count: 2, totalCents: 4200, byCategory: {} }),
-    expiringCards: ok({ count: 1, mrrAtRiskCents: 1500, expiresByMonth: {} }),
-    pastDueSubscriptions: ok({ count: 0, totalCents: 0 }),
+    failedInvoices: ok({ count: 2, totalCents: 4200, totals: [{ currency: "usd", cents: 4200 }], byCategory: {}, byCategoryTotals: {} }),
+    expiringCards: ok({ count: 1, mrrAtRiskCents: 1500, mrrAtRiskTotals: [{ currency: "usd", cents: 1500 }], expiresByMonth: {} }),
+    pastDueSubscriptions: ok({ count: 0, totalCents: 0, totals: [] }),
     cardUpdater: ok({ eventsInWindow: 0, expiredCardDeclinesInWindow: 0, advisory: null, windowDays: 30 }),
     disputes: ok({
-      open: { count: 1, totalCents: 9900 },
-      acceptedWithoutFighting: { count: 0, totalCents: 0 },
+      open: { count: 1, totalCents: 9900, totals: [{ currency: "usd", cents: 9900 }] },
+      acceptedWithoutFighting: { count: 0, totalCents: 0, totals: [] },
       historical: { won: 3, lost: 1 },
     }),
     health: ok({
       mrrCents: 100_000,
+      mrrTotals: [{ currency: "usd", cents: 100_000 }],
       arrCents: 1_200_000,
+      arrTotals: [{ currency: "usd", cents: 1_200_000 }],
       activeSubscriptionsCount: 42,
       voluntaryChurnRateBps: 210,
       involuntaryChurnRateBps: 90,
@@ -167,8 +169,8 @@ describe("E24 says what Recova's says", () => {
     const none = emailFor({
       result: resultWith({
         disputes: ok({
-          open: { count: 0, totalCents: 0 },
-          acceptedWithoutFighting: { count: 0, totalCents: 0 },
+          open: { count: 0, totalCents: 0, totals: [] },
+          acceptedWithoutFighting: { count: 0, totalCents: 0, totals: [] },
           historical: { won: 0, lost: 0 },
         }),
       }),
@@ -184,8 +186,8 @@ describe("E24 says what Recova's says", () => {
       emailFor({
         result: resultWith({
           disputes: ok({
-            open: { count: 1, totalCents: 9900 },
-            acceptedWithoutFighting: { count: 2, totalCents: 5000 },
+            open: { count: 1, totalCents: 9900, totals: [{ currency: "usd", cents: 9900 }] },
+            acceptedWithoutFighting: { count: 2, totalCents: 5000, totals: [{ currency: "usd", cents: 5000 }] },
             historical: { won: 3, lost: 1 },
           }),
         }),

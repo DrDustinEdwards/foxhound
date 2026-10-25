@@ -181,7 +181,7 @@ describe("SCOPE 3: past-due subscriptions", () => {
         subscription({ status: "active", customer: "cus_b", ...price(1_200_00, "year") }),
       ]),
     });
-    expect(data(result.pastDueSubscriptions)).toEqual({ count: 1, totalCents: 1_200_00 });
+    expect(data(result.pastDueSubscriptions)).toMatchObject({ count: 1, totalCents: 1_200_00 });
     expect(data(result.health).mrrCents).toBe(10_000);
   });
 });
@@ -230,8 +230,8 @@ describe("SCOPE 5: disputes", () => {
       ]),
     });
     const scope = data(result.disputes);
-    expect(scope.open).toEqual({ count: 2, totalCents: 300 });
-    expect(scope.acceptedWithoutFighting).toEqual({ count: 1, totalCents: 400 });
+    expect(scope.open).toMatchObject({ count: 2, totalCents: 300 });
+    expect(scope.acceptedWithoutFighting).toMatchObject({ count: 1, totalCents: 400 });
     expect(scope.historical).toEqual({ won: 1, lost: 2 });
   });
 });

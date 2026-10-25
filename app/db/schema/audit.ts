@@ -7,6 +7,21 @@ import { accounts } from "./tenancy";
 // Audit product
 // ============================================================================
 
+type CurrencyTotals = { currency: string; cents: number }[];
+
+/** One run's money figures per currency, in currency-code order. A
+ *  scope that could not be read is null here as its count column is. */
+export interface AuditMoneyByCurrency {
+  failedInvoices: CurrencyTotals | null;
+  declineBreakdown: Record<string, CurrencyTotals> | null;
+  expiringCardsMrr: CurrencyTotals | null;
+  pastDueSubscriptions: CurrencyTotals | null;
+  openDisputes: CurrencyTotals | null;
+  disputesAccepted: CurrencyTotals | null;
+  mrr: CurrencyTotals | null;
+  arr: CurrencyTotals | null;
+}
+
 export const auditRuns = sqliteTable(
   "audit_runs",
   {
@@ -45,6 +60,10 @@ export const auditRuns = sqliteTable(
     stripeBaselineRecoveredCents: integer("stripe_baseline_recovered_cents"),
     stillDyingCents: integer("still_dying_cents"),
     foxhoundAddsCents: integer("foxhound_adds_cents"),
+    // Every money figure per currency (job_ed1c41e4bd95, RULES.md 3.20). The
+    // single-number columns above hold the figure in `currency` only. NULL on a
+    // run stored before this column, which renders its one total as it was.
+    moneyByCurrency: json<AuditMoneyByCurrency>("money_by_currency"),
   },
   (t) => [index("audit_runs_account_idx").on(t.accountId)],
 );

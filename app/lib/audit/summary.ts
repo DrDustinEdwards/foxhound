@@ -1,4 +1,4 @@
-import type { AuditResult, ScopeOutcome } from "./engine";
+import type { AuditResult, MoneyTotals, ScopeOutcome } from "./engine";
 import { plainMajorAmount } from "~/lib/money-format";
 
 // Phase (c) of the audit port. Legacy's `generateAiSummary`
@@ -28,6 +28,19 @@ function amountIn(currency: string): (minor: number) => string {
   return (minor) => `${plainMajorAmount(minor, code)} ${code.toUpperCase()}`;
 }
 
+/**
+ * A figure's amounts, each in its own currency, joined with "and"
+ * (job_ed1c41e4bd95): never one sum across currencies (RULES.md 3.20). A
+ * single-currency run reads exactly as before, and no money at all reads as a
+ * zero in the run's currency.
+ */
+function amountsIn(currency: string): (totals: MoneyTotals) => string {
+  return (totals) =>
+    totals.length === 0
+      ? amountIn(currency)(0)
+      : totals.map((t) => amountIn(t.currency)(t.cents)).join(" and ");
+}
+
 /** A scope's line, or the honest absence. */
 function line<T>(scope: ScopeOutcome<T>, render: (data: T) => string): string {
   return scope.ok ? render(scope.data) : "could not be read";
@@ -49,32 +62,32 @@ export const AUDIT_SUMMARY_STRUCTURE = [
  * structure. Pure: same result, same string.
  */
 export function buildAuditSummaryPrompt(result: AuditResult): string {
-  const money = amountIn(result.meta.currency);
+  const money = amountsIn(result.meta.currency);
   const failed = line(
     result.failedInvoices,
-    (d) => `${money(d.totalCents)} across ${d.count} invoices`,
+    (d) => `${money(d.totals)} across ${d.count} invoices`,
   );
   const expiring = line(
     result.expiringCards,
-    (d) => `${money(d.mrrAtRiskCents)} MRR at risk across ${d.count} customers`,
+    (d) => `${money(d.mrrAtRiskTotals)} MRR at risk across ${d.count} customers`,
   );
   const pastDue = line(
     result.pastDueSubscriptions,
-    (d) => `${money(d.totalCents)} across ${d.count} subs`,
+    (d) => `${money(d.totals)} across ${d.count} subs`,
   );
   const openDisputes = line(
     result.disputes,
-    (d) => `${money(d.open.totalCents)} across ${d.open.count} disputes`,
+    (d) => `${money(d.open.totals)} across ${d.open.count} disputes`,
   );
   const accepted = line(
     result.disputes,
-    (d) => `${money(d.acceptedWithoutFighting.totalCents)} across ${d.acceptedWithoutFighting.count}`,
+    (d) => `${money(d.acceptedWithoutFighting.totals)} across ${d.acceptedWithoutFighting.count}`,
   );
   const history = line(result.disputes, (d) => `${d.historical.won} won, ${d.historical.lost} lost`);
   const health = line(
     result.health,
     (d) =>
-      `MRR: ${money(d.mrrCents)}, ARR: ${money(d.arrCents)}, active subs: ${d.activeSubscriptionsCount}`,
+      `MRR: ${money(d.mrrTotals)}, ARR: ${money(d.arrTotals)}, active subs: ${d.activeSubscriptionsCount}`,
   );
   const churn = line(
     result.health,

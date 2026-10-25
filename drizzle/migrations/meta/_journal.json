@@ -288,6 +288,13 @@
       "when": 1792949338446,
       "tag": "0040_dunning_timing",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "6",
+      "when": 1792950734919,
+      "tag": "0041_audit_money_by_currency",
+      "breakpoints": true
     }
   ]
 }

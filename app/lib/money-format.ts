@@ -108,3 +108,10 @@ export function formatAmounts(rows: readonly { currency: string; cents: number }
 export function formatMoneyShort(minor: number, currency: string): string {
   return format(minor, currency, 0);
 }
+
+/** The order per-currency totals are shown in: by currency code, as
+ *  /intelligence orders them (app/lib/intelligence/views.server.ts), so a
+ *  figure's lines do not move with the order Stripe's rows happened to come. */
+export function byCurrencyCode(a: { currency: string }, b: { currency: string }): number {
+  return a.currency.localeCompare(b.currency);
+}
