@@ -110,7 +110,12 @@ export type RetryResult =
    *  merchant disconnected Stripe, and it is the merchant who has to act. Kept
    *  queryable on its own so "how many steps died because a merchant is
    *  disconnected" is one WHERE clause, not a guess. */
-  | "retry_no_connection";
+  | "retry_no_connection"
+  /** An expired card's retry that was not attempted because the card has not
+   *  changed since the decline, or because the change could not be checked
+   *  (app/lib/engine/card-change.ts). Terminal: no charge was made. */
+  | "retry_skipped_card_unchanged"
+  | "retry_skipped_unverified";
 
 /** Classify a completed invoices.pay call by the resulting invoice status. */
 export function classifyRetryStatus(invoiceStatus: string | null | undefined): RetryResult {
