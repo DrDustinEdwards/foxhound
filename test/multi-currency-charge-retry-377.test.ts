@@ -84,6 +84,7 @@ async function createIn(currency: string) {
     currency,
     lines: lines(),
     billingInvoiceId: "binv_1",
+    periodStart: new Date(Date.UTC(2026, 5, 1)),
   });
   return { invoiceCreates: [...harness.invoiceCreates], itemCreates: [...harness.itemCreates] };
 }

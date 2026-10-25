@@ -471,6 +471,7 @@ export async function runAccountBilling(
           currency,
           lines: summary.lines,
           billingInvoiceId: invoiceId,
+          periodStart: period.periodStart,
           billingEmail: () => lookupPlatformBillingEmail(env, accountId),
         });
         await executeMoneyWrite(env, {
