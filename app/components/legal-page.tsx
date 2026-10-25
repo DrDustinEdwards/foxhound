@@ -20,9 +20,8 @@ import "~/site-header.css";
 // Foxhound's own neutrals (.fh-cap, the same pairing the site header uses),
 // links take Capsomer's link roles (accent text, accent hover), the focus ring
 // is the family's amber ring, and the summary card is Capsomer's Panel.
-// Text is on the five sizes (RULES.md 5.2): Recova's 0.9375rem body becomes
-// body (1rem) and its 0.875rem summary text becomes label (0.8125rem), each the
-// nearest of the five.
+// Text is at Recova's sizes: the 0.9375rem body, the 1.25rem section heads and
+// the 0.875rem summary.
 
 /** Capsomer's link, as base.css draws it, plus Recova's underline. */
 const LEGAL_LINK = "text-accent-text underline underline-offset-2 hover:text-accent-hover";
@@ -88,15 +87,15 @@ export function LegalPreambleHeading({ children }: { children: ReactNode }) {
 }
 
 export function LegalH3({ children }: { children: ReactNode }) {
-  return <h3 className="mb-2 mt-6 text-body font-medium text-text">{children}</h3>;
+  return <h3 className="mb-2 mt-6 text-item-title font-medium text-text">{children}</h3>;
 }
 
 export function LegalP({ children }: { children: ReactNode }) {
-  return <p className="mb-4 text-body leading-relaxed text-text-secondary">{children}</p>;
+  return <p className="mb-4 text-subhead leading-relaxed text-text-secondary">{children}</p>;
 }
 
 export function LegalList({ children }: { children: ReactNode }) {
-  return <ul className="mb-4 list-disc space-y-1.5 pl-6 text-body leading-relaxed text-text-secondary">{children}</ul>;
+  return <ul className="mb-4 list-disc space-y-1.5 pl-6 text-subhead leading-relaxed text-text-secondary">{children}</ul>;
 }
 
 export function LegalMailto({ email }: { email: string }) {

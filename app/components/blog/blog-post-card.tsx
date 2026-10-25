@@ -14,20 +14,13 @@ import type { BlogPostSummary } from "~/lib/blog/queries.server";
 // the whole-card link (the /products and /docs cards, J16 and J17), and the
 // tag is Capsomer's outline pill. Recova's content and order stay: the first
 // tag, the title (two lines), the excerpt (three lines), the reading time.
-// Text is on the five sizes (RULES.md 5.2), each Recova size taken to the
-// nearest and a tie to the larger: the 0.875rem title and the 0.75rem excerpt
-// both to label, the 0.6875rem reading time to micro.
-//
-// Waits on Capsomer (named in the J19 PR): Capsomer has no link card, so
-// Recova's amber hover border is not drawn, and the panel's body does not fill
-// the card, so the reading time sits under the excerpt rather than at the foot
-// of a taller neighbour. Both are the per-site layer's (capsomer
-// job_ec5ec0754626) or a Capsomer link-card job's; no Foxhound CSS is laid over
-// the panel meanwhile.
+// Sizes are Recova's: p-5, the 0.875rem title, the 0.75rem excerpt and the
+// 0.6875rem reading time. Capsomer's linked panel draws Recova's amber edge
+// under the pointer; Recova's post cards do not lift, so the lift is off.
 export function BlogPostCard({ post }: { post: BlogPostSummary }) {
   const tag = post.tags[0] ? formatTagChip(post.tags[0]) : null;
   return (
-    <Link to={`/blog/${post.slug}`} className="cap-panel">
+    <Link to={`/blog/${post.slug}`} className="cap-panel [--card-lift:0px] [--gap:1.25rem] [--pad-card:1.25rem]">
       <div className="cap-panel-body">
         {/* One block, so the body's grid gap leaves Recova's own spacing alone. */}
         <div className="flex flex-col gap-3">
@@ -38,8 +31,8 @@ export function BlogPostCard({ post }: { post: BlogPostSummary }) {
               </span>
             </span>
           ) : null}
-          <h3 className="line-clamp-2 text-label font-semibold leading-snug text-text">{post.title}</h3>
-          <p className="line-clamp-3 text-label leading-relaxed text-text-secondary">{post.excerpt}</p>
+          <h3 className="line-clamp-2 text-copy font-semibold leading-snug text-text">{post.title}</h3>
+          <p className="line-clamp-3 text-caption leading-relaxed text-text-secondary">{post.excerpt}</p>
           <span className="font-mono text-micro text-text-tertiary">{post.readingTimeMinutes} min read</span>
         </div>
       </div>

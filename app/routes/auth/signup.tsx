@@ -88,6 +88,7 @@ export default function Signup({ loaderData, actionData }: Route.ComponentProps)
         <>
           <SocialContinue methods={loaderData.methods} />
           <SignInLinkForm
+            primary
             idPrefix="signup"
             turnstileSiteKey={loaderData.methods.turnstileSiteKey}
             error={actionData?.error ?? null}

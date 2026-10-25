@@ -25,12 +25,10 @@ import "~/site-header.css";
 // audit spoke (J55) was the last, and the old file and its product-faq.tsx went
 // with it.
 //
-// Look is Capsomer's: buttons, panels, badges, the FAQ's disclosure. Text is on
-// the five sizes (RULES.md 5.2), each Recova size taken to the nearest, a tie
-// to the larger. Accents are amber. No Foxhound class sits on a Capsomer
-// part; where Recova's look needs more than Capsomer ships (a full-width
-// button, a mono pill, Recova's own card padding) the PR names the per-site
-// layer it waits for (capsomer job_ec5ec0754626).
+// Look is Capsomer's: buttons, panels, badges, the FAQ's disclosure. Text is at
+// Recova's sizes, accents amber. Recova's card padding and button heights are
+// set through Capsomer's own variables (--pad-card, --cap-btn-h), not by CSS
+// laid over its parts.
 
 interface CTA {
   href: string;
@@ -40,7 +38,7 @@ interface CTA {
 /** A Capsomer primary button that is a link, at the large size. */
 function PrimaryLink({ cta }: { cta: CTA }) {
   return (
-    <Link to={cta.href} className="cap-btn" data-variant="primary" data-size="lg">
+    <Link to={cta.href} className="cap-btn px-6 [--cap-btn-h:3rem]" data-variant="primary" data-size="lg">
       {cta.label}
     </Link>
   );
@@ -73,19 +71,19 @@ export function ProductHero({
           </Pill>
         </div>
         {/* Recova's mechanism: a literal newline in the string is a line break. */}
-        <h1 className="mb-4 whitespace-pre-line text-display font-medium leading-[1.1] tracking-tight text-text">
+        <h1 className="mb-4 whitespace-pre-line text-product-hero font-medium leading-[1.1] tracking-tight text-text">
           {headline}
         </h1>
-        <p className="speakable-description mx-auto mb-3 max-w-[520px] text-body leading-relaxed text-text-secondary">
+        <p className="speakable-description mx-auto mb-3 max-w-[520px] text-product-sub leading-relaxed text-text-secondary">
           {sub}
         </p>
         <p className="mb-8 font-mono text-label text-text-tertiary">{pricing}</p>
-        <div className="flex flex-wrap items-center justify-center gap-4" data-density="comfortable">
+        <div className="flex flex-wrap items-center justify-center gap-4">
           <PrimaryLink cta={primaryCTA} />
           {/* leading-6 keeps the link a 24px target. */}
           <Link
             to={secondaryCTA.href}
-            className="group text-body leading-6 text-text-secondary transition-colors hover:text-text"
+            className="group text-subhead leading-6 text-text-secondary transition-colors hover:text-text"
           >
             {secondaryCTA.label}{" "}
             <ArrowRight
@@ -114,8 +112,8 @@ export function HowItWorks({ steps }: { steps: { title: string; body: React.Reac
               <div className="mb-3 font-mono text-micro text-accent-text" aria-hidden="true">
                 0{i + 1}
               </div>
-              <h3 className="mb-2 text-body font-medium text-text">{step.title}</h3>
-              <p className="text-label leading-relaxed text-text-secondary">{step.body}</p>
+              <h3 className="mb-2 text-item-title font-medium text-text">{step.title}</h3>
+              <p className="text-copy leading-relaxed text-text-secondary">{step.body}</p>
             </li>
           ))}
         </ol>
@@ -151,8 +149,8 @@ export function FeatureBlocks({ sectionLabel, blocks }: { sectionLabel: string; 
                   <div className="mb-3 text-micro font-medium uppercase tracking-widest text-accent-text">
                     {block.eyebrow}
                   </div>
-                  <h3 className="mb-3 text-title font-medium leading-snug text-text">{block.title}</h3>
-                  <p className="text-body leading-relaxed text-text-secondary">{block.body}</p>
+                  <h3 className="mb-3 text-feature-title font-medium leading-snug text-text">{block.title}</h3>
+                  <p className="text-subhead leading-relaxed text-text-secondary">{block.body}</p>
                 </div>
                 {/* Recova's UI card: a bordered surface with no padding of its
                     own, so each preview sets its own, as Recova's do. */}
@@ -178,7 +176,8 @@ export function FeatureBlocks({ sectionLabel, blocks }: { sectionLabel: string; 
             );
             if (block.lifted) {
               return (
-                <div key={block.title} className="cap-panel" data-block={kind}>
+                // Recova's lifted block: p-8 and 16px corners.
+                <div key={block.title} className="cap-panel rounded-2xl [--gap:2rem] [--pad-card:2rem]" data-block={kind}>
                   <div className="cap-panel-body">{inner}</div>
                 </div>
               );
@@ -212,14 +211,15 @@ export function ProductPricing({
         <h2 className="mb-8 text-center text-micro font-medium uppercase tracking-widest text-text-tertiary">
           Pricing
         </h2>
-        <div className="cap-panel" data-density="comfortable">
+        {/* Recova's price card: the page ground on the surface band, p-8. */}
+        <div className="cap-panel [--gap:2rem] [--pad-card:2rem] [--surface:var(--bg)]">
           <div className="cap-panel-body">
             <div>
-              <div className="mb-1 font-mono text-display font-medium leading-none text-text">{price}</div>
-              <div className="mb-6 text-label text-text-secondary">{priceLabel}</div>
+              <div className="mb-1 font-mono text-product-price font-medium leading-none text-text">{price}</div>
+              <div className="mb-6 text-copy text-text-secondary">{priceLabel}</div>
               <ul className="m-0 mb-8 list-none space-y-3 p-0">
                 {points.map((point) => (
-                  <li key={point} className="flex items-start gap-3 text-label text-text-secondary">
+                  <li key={point} className="flex items-start gap-3 text-copy text-text-secondary">
                     <span aria-hidden="true" className="mt-0.5 flex-shrink-0 text-green">
                       &#10003;
                     </span>
@@ -255,10 +255,10 @@ export function ProductFAQ({ name, faqs }: { name: string; faqs: { q: string; a:
         <ul className="m-0 flex list-none flex-col gap-3 p-0">
           {faqs.map((faq) => (
             <li key={faq.q}>
-              <details className="cap-disclosure" name={name}>
+              <details className="cap-disclosure" data-variant="card" name={name}>
                 <summary>{faq.q}</summary>
                 <div className="cap-disclosure-body">
-                  <p className="m-0 text-label leading-relaxed text-text-secondary">{faq.a}</p>
+                  <p className="m-0 text-copy leading-relaxed text-text-secondary">{faq.a}</p>
                 </div>
               </details>
             </li>
@@ -272,11 +272,11 @@ export function ProductFAQ({ name, faqs }: { name: string; faqs: { q: string; a:
 export function BottomCTA({ title, sub, cta, note }: { title: string; sub: string; cta: CTA; note: string }) {
   return (
     <section className="px-5 py-20 text-center sm:px-8">
-      <div className="mx-auto max-w-[480px]" data-density="comfortable">
-        <h2 className="mb-3 text-display font-medium tracking-tight text-text">{title}</h2>
-        <p className="mb-8 text-body leading-relaxed text-text-secondary">{sub}</p>
+      <div className="mx-auto max-w-[480px]">
+        <h2 className="mb-3 text-subsection font-medium tracking-tight text-text">{title}</h2>
+        <p className="mb-8 text-subhead leading-relaxed text-text-secondary">{sub}</p>
         <PrimaryLink cta={cta} />
-        <p className="mt-3 text-label text-text-tertiary">{note}</p>
+        <p className="mt-3 text-caption text-text-tertiary">{note}</p>
       </div>
     </section>
   );

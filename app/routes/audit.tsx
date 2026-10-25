@@ -41,12 +41,9 @@ import type { Route } from "./+types/audit";
 // content, order and width. The look is Capsomer's (RULES.md 1.1, Q12): the
 // pill is its badge, every card its panel, the form its field, select and
 // button, the unavailable notice its alert, each call to action its primary
-// button. Amber throughout, and text on the five sizes (RULES.md 5.2),
-// which finishes the migration Recova left as a foothold. Where Foxhound needs
-// a treatment of its own that Capsomer's shared parts do not carry (Recova's
-// hero h1 clamp, its tinted mono pill, the covers card's 40px padding), the
-// shared part stands with no Foxhound CSS over it until Capsomer's per-site
-// layer (capsomer job_ec5ec0754626) ships.
+// button. Amber throughout, text at Recova's sizes: the hero h1 clamp, the
+// tinted mono pill and the covers card's 40px padding are set through the
+// parts' own variables.
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return marketingMeta({
@@ -180,25 +177,22 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
     >
       {/* Bespoke hero, restored per ruling 64: Recova's /audit sits OUTSIDE
           (marketing) and never used MarketingPageHeader. The pill is
-          Capsomer's badge in its default (amber) variant; Recova's translucent
-          tint, mono face and 0.06em tracking are a hero treatment for the
-          per-site layer. */}
+          Capsomer's badge in Recova's treatment: mono at 0.75rem with 0.06em
+          tracking, amber words on a 13% amber tint inside a 27% amber edge. */}
       <div className="mb-6">
-        <span className="cap-pill" data-variant="default">
+        <span className="cap-pill font-mono text-caption font-normal tracking-[0.06em] [--_bg:color-mix(in_srgb,var(--primary)_13%,transparent)] [--_fg:var(--accent-text)] [--_line:color-mix(in_srgb,var(--primary)_27%,transparent)]">
           FREE LOST REVENUE AUDIT
         </span>
       </div>
 
-      {/* Recova's clamp(28px,5vw,44px) h1 goes to the display size (1.75rem),
-          the five-sizes approval of 2026-09-19 as /products' spokes did (J56).
-          A larger hero size is a per-site layer place. The words are Recova's,
+      {/* Recova's clamp(28px,5vw,44px) h1, in rem. The words are Recova's,
           drift fixed on sight (RULES.md 2.2): they describe the audit, not the
           estimator, so they hold in every state of the form below. */}
-      <h1 className="m-0 mb-5 text-display font-semibold leading-[1.15] tracking-[-1px] text-text">
+      <h1 className="m-0 mb-5 text-[clamp(1.75rem,5vw,2.75rem)] font-semibold leading-[1.15] tracking-[-1px] text-text">
         See everything leaking from your Stripe account
       </h1>
 
-      <p className="m-0 mb-10 text-body leading-[1.6] text-text-subtle">
+      <p className="m-0 mb-10 text-product-sub leading-[1.6] text-text-subtle">
         Enter your MRR and customer count for a directional estimate. No signup, no credit card, 30
         seconds.
       </p>
@@ -256,10 +250,11 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
           read_only (STRIPE_AUDIT_SCOPE), where Recova asked read_write beside
           the same sentence. */}
       <div className="mb-6 grid">
-        <section className="cap-panel">
+        {/* Recova's covers card: p-6, p-10 from md, 16px corners. */}
+        <section className="cap-panel rounded-2xl [--gap:1.5rem] [--pad-card:1.5rem] md:[--gap:2.5rem] md:[--pad-card:2.5rem]">
           <div className="cap-panel-body">
             <div>
-              <h2 className="m-0 mb-5 text-micro font-medium uppercase tracking-[0.06em] text-text-tertiary">
+              <h2 className="m-0 mb-5 text-caption font-medium uppercase tracking-[0.06em] text-text-tertiary">
                 What the audit covers
               </h2>
               <ul className="m-0 mb-8 list-none p-0">
@@ -267,18 +262,21 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
                   <li key={title} className="mb-3 flex items-start gap-3 text-left">
                     <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--accent)]" aria-hidden="true" />
                     <span>
-                      <span className="mb-0.5 block text-label font-medium text-text">{title}</span>
+                      <span className="mb-0.5 block text-copy font-medium text-text">{title}</span>
                       <span className="block text-label text-text-subtle">{desc}</span>
                     </span>
                   </li>
                 ))}
               </ul>
 
-              {/* Capsomer's large primary button as the link Recova draws full
-                  width: the one-column grid stretches it, so the button
-                  carries no Foxhound class. */}
+              {/* Recova's full-width button: py-4 at 1rem bold, 10px corners. */}
               <div className="grid">
-                <Link to="/audit/connect" className="cap-btn" data-variant="primary" data-size="lg">
+                <Link
+                  to="/audit/connect"
+                  className="cap-btn rounded-[10px] font-bold [--cap-btn-fs:var(--text-body)] [--cap-btn-h:3.5rem]"
+                  data-variant="primary"
+                  data-size="lg"
+                >
                   See my numbers
                 </Link>
               </div>
@@ -300,7 +298,7 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
           <div className="cap-panel-body">
             <div>
               <p className="m-0 mb-1 font-mono text-display font-bold text-green">Low single digits</p>
-              <p className="m-0 text-label text-text-subtle">percent of MRR fails every month for most accounts</p>
+              <p className="m-0 text-caption text-text-subtle">percent of MRR fails every month for most accounts</p>
             </div>
           </div>
         </div>
@@ -308,7 +306,7 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
           <div className="cap-panel-body">
             <div>
               <p className="m-0 mb-1 font-mono text-display font-bold text-blue">$0</p>
-              <p className="m-0 text-label text-text-subtle">cost to run this estimate today</p>
+              <p className="m-0 text-caption text-text-subtle">cost to run this estimate today</p>
             </div>
           </div>
         </div>
@@ -318,7 +316,7 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
       {/* A 24px target (min-h-6) for a link that stands alone. */}
       <a
         href="/demos/recovery"
-        className="inline-flex min-h-6 items-center text-label text-accent-text no-underline hover:text-accent-hover"
+        className="inline-flex min-h-6 items-center text-copy text-accent-text no-underline transition-opacity duration-500 hover:opacity-80"
       >
         View live demo &rarr;
       </a>

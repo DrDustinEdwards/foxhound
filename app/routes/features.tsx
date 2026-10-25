@@ -5,6 +5,7 @@ import { HealthScoreBadge } from "~/components/docs/health-score-badge";
 import { SequenceTimeline } from "~/components/docs/sequence-timeline";
 import { FeatureFilter } from "~/components/feature-filter";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
+import { ProductTag } from "~/components/tone-pills";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { FEATURE_FILTER_CSS } from "~/lib/http/inline-styles";
 import {
@@ -47,35 +48,25 @@ import type { Route } from "./+types/features";
 // card is Capsomer's panel, each product tag a Capsomer badge, and the closing
 // link Capsomer's primary button.
 //
-// Text is on the five sizes (RULES.md 5.2): the h2 (1.25rem) is title; the
-// intro (0.875rem), card description (0.8125rem), nav links and the band line
-// (0.8125rem) are label; the closing line (0.9375rem) is body. The card name
-// (0.875rem) is body rather than the nearer label, so it stays a step above its
-// description as in Recova.
+// Text is at Recova's sizes: the h2 1.25rem, the intro and card name 0.875rem,
+// card description, nav links and the band line 0.8125rem, the closing line
+// 0.9375rem.
 //
 // Recova renders a third inline example in Visibility, two stat tiles reading
 // its own 26.6% and $6,884. Those are Recova's figures, so the tiles are not
 // drawn (RULES.md 2.1, 2.3); which numbers, if any, Foxhound shows there is
 // left open for a ruling.
 
-/** Recova's product-tag colours, mapped onto Capsomer's badge variants: Recova
- *  tints the three products and draws Audit and Platform on the neutral
- *  surface. A per-product colour waits for Capsomer's per-site layer. */
-function tagVariant(product: Feature["product"]): "outline" | "secondary" {
-  return product === "Audit" || product === "Platform" ? "secondary" : "outline";
-}
-
 function FeatureCard({ feature }: { feature: Feature }) {
   return (
     // data-product is what FEATURE_FILTER_CSS reads to hide a card.
-    <div className="cap-panel" data-product={feature.product}>
+    // Recova's feature card: p-4 and 8px corners.
+    <div className="cap-panel rounded-lg [--gap:1rem] [--pad-card:1rem]" data-product={feature.product}>
       <div className="cap-panel-body">
         <div>
           <div className="mb-2 flex items-start justify-between gap-3">
-            <span className="text-body font-medium text-text">{feature.name}</span>
-            <span className="cap-pill" data-variant={tagVariant(feature.product)}>
-              {feature.product}
-            </span>
+            <span className="text-copy font-medium text-text">{feature.name}</span>
+            <ProductTag product={feature.product} />
           </div>
           <p className="m-0 text-label leading-relaxed text-text-secondary">{feature.description}</p>
         </div>
@@ -166,7 +157,7 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
                 <section key={s.id} id={s.id} className="scroll-mt-20">
                   <div className="mb-6">
                     <h2 className="mb-1 text-title font-medium text-text">{s.title}</h2>
-                    <p className="m-0 text-label leading-relaxed text-text-secondary">{s.intro}</p>
+                    <p className="m-0 text-copy leading-relaxed text-text-secondary">{s.intro}</p>
                   </div>
                   <SectionInlineExample id={s.id} />
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -181,13 +172,13 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
         </div>
 
         <div className="mt-24 border-t border-border pt-12 text-center">
-          <p className="mx-auto mb-6 max-w-[400px] text-body text-text-secondary">
+          <p className="mx-auto mb-6 max-w-[400px] text-subhead text-text-secondary">
             See what your Stripe account is leaking. Free diagnostic, no account required.
           </p>
           {/* Comfortable density for Capsomer's lg button, as /pricing: 40px
               tall with a pointer, 44px on a touch screen. */}
           <div data-density="comfortable">
-            <Link to="/audit" className="cap-btn" data-variant="primary" data-size="lg">
+            <Link to="/audit" className="cap-btn px-6 [--cap-btn-h:3rem]" data-variant="primary" data-size="lg">
               Run your free audit
             </Link>
           </div>

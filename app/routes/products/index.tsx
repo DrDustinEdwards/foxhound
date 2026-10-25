@@ -21,8 +21,9 @@ import type { Route } from "./+types/index";
 //
 // Layout is Recova's: the shared page header, the 720px column, the two-column
 // grid at sm, and the four cards in Recova's order. Look is Capsomer's (Q12):
-// each card is Capsomer's panel in the amber family, text on the five sizes
-// (RULES.md 5.2), amber throughout.
+// each card is Capsomer's linked panel in the amber family at Recova's sizes
+// (p-5, 8px corners, the 4px lift and amber edge under the pointer), amber
+// throughout.
 //
 // Copy is Recova's word for word, with every number read from Foxhound's
 // pricing constants and one truthfulness fix; both are in
@@ -75,18 +76,16 @@ export default function ProductsIndexPage() {
             const copy = HUB_COPY[key];
             const Icon = ICONS[key];
             return (
-              // Capsomer's panel, body only, as the whole-card link Recova draws.
-              // Capsomer has no link card yet: no hover lift or hover border,
-              // which Recova has (see the PR notes, a Capsomer job to post).
-              // "group" carries no style; it drives the arrow's nudge below.
-              <Link key={key} to={p.href} className="cap-panel group">
+              // Capsomer's linked panel, the whole-card link Recova draws. "group"
+              // carries no style; it drives the arrow's nudge below.
+              <Link key={key} to={p.href} className="cap-panel group rounded-lg [--gap:1.25rem] [--pad-card:1.25rem]">
                 <div className="cap-panel-body">
                   {/* One block, so the body's grid gap leaves Recova's own spacing alone. */}
                   <div>
                     <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-surface2">
                       <Icon className="h-[18px] w-[18px] text-accent-text" strokeWidth={1.8} aria-hidden />
                     </div>
-                    <div className="mb-2 text-body font-medium text-text">{p.name}</div>
+                    <div className="mb-2 text-item-title font-medium text-text">{p.name}</div>
                     <div className="mb-3 text-label leading-relaxed text-text-secondary">{copy.description}</div>
                     <div className="mb-4 font-mono text-label text-accent-text">{copy.price}</div>
                     <div className="text-label text-accent-text">

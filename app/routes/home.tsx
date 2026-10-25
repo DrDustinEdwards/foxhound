@@ -9,7 +9,7 @@ import { ArrowRight } from "lucide-react";
 import { Link } from "react-router";
 import { EmailSamples } from "~/components/email-samples";
 import { FadeUp } from "~/components/fade-up";
-import { LedgerMock } from "~/components/ledger-mock";
+import { CARD, CTA_BUTTON } from "~/components/marketing-card";
 import { RecoveryQueueDemo } from "~/components/recovery-queue-demo";
 import { RecoveryCalculator } from "~/components/recovery-calculator";
 import { getDb } from "~/db";
@@ -62,22 +62,20 @@ import {
 //
 // Recova's sections, in Recova's order, at Recova's widths and padding (1100px
 // sections, 760px FAQ and closing block, 600px calculator and generator,
-// px-5 sm:px-8, py-24 on the stats, calculator and closing block). The one
-// section Recova lacks is the evidence ledger, relocated from the hero when the
-// recovery-queue demo took that slot (ruling 6, ratified).
+// px-5 sm:px-8, py-24 on the stats, calculator and closing block).
 //
-// Look is Capsomer's (RULES.md 1.1, Q12): cards are Capsomer panels, calls to
-// action Capsomer buttons, the FAQ Capsomer's disclosure, the decline picker
-// its segmented control, amber throughout. Text is on the five sizes
-// (RULES.md 5.2), each Recova size taken to the nearest of the five, a tie to
-// the larger. No Foxhound class sits on a Capsomer part; where Recova's look
-// needs more than Capsomer ships (the hover lift and amber edge on a linked
-// card, Recova's 12px radius and padding, the tinted decline buttons, the
-// slider's filled track) the PR names the per-site layer it waits for (capsomer
-// job_ec5ec0754626).
+// Look is Capsomer's (RULES.md 1.1, Q12) with Recova's sizes (Dustin,
+// 2026-10-25: "there is still so much wrong with foxhound... as compared to
+// recova"): cards are Capsomer panels, linked ones lifting 4px with an amber
+// edge under the pointer (the foxhound site layer), calls to action Capsomer
+// buttons, the FAQ Capsomer's card disclosure, the decline picker its cards
+// layout. Text takes Recova's size for each role from the marketing scale in
+// app.css, and cards Recova's 24px padding (CARD).
 //
 // Copy, and every number in it read from the engine, is in
 // lib/marketing/home-copy.ts.
+
+const H2 = "m-0 mb-3 text-section font-semibold tracking-[-0.02em] text-text sm:text-section-lg";
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return marketingMeta({
@@ -119,7 +117,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         <div className="mx-auto max-w-[1100px]">
           <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2 lg:gap-16">
             <div className="flex flex-col">
-              <h1 className="animate-fade-up delay-80 m-0 mb-5 text-display font-semibold leading-[1.02] tracking-[-0.03em] text-text">
+              <h1 className="animate-fade-up delay-80 m-0 mb-5 text-hero font-semibold leading-[1.02] tracking-[-0.03em] text-text sm:text-hero-lg sm:tracking-[-0.04em]">
                 You pay when
                 <br />
                 you recover.
@@ -134,10 +132,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               </p>
 
               <div className="animate-fade-up delay-240 flex flex-wrap items-center gap-4" data-density="comfortable">
-                <Link to="/audit" className="cap-btn" data-variant="primary" data-size="lg">
+                <Link to="/audit" className="cap-btn font-semibold" data-variant="primary" data-size="lg">
                   Run your free audit
                 </Link>
-                <Link to="/demos/recovery" className="cap-btn group" data-size="lg">
+                {/* Recova's outlined button: no fill at rest, amber sweeping in under the pointer. */}
+                <Link to="/demos/recovery" className="cap-btn group [--cap-btn-bg:transparent]" data-size="lg">
                   See it live
                   <ArrowRight
                     data-icon="end"
@@ -164,7 +163,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   href="https://stripe.com/connect"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-mono text-label leading-6 text-cobalt-text no-underline transition-opacity duration-150 hover:opacity-80"
+                  className="font-mono text-caption leading-6 text-cobalt-text no-underline transition-opacity duration-150 hover:opacity-80"
                 >
                   Built on Stripe Connect
                 </a>
@@ -174,7 +173,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               </li>
               {TRUST_ITEMS.map((label, i, arr) => (
                 <li key={label} className="flex items-center gap-3">
-                  <span className="font-mono text-label text-text-subtle">{label}</span>
+                  <span className="font-mono text-caption text-text-subtle">{label}</span>
                   {i < arr.length - 1 ? (
                     <span aria-hidden="true" className="text-border-sub">
                       &middot;
@@ -192,10 +191,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         <div className="mx-auto max-w-[1100px]">
           <FadeUp>
             <div className="mb-12 text-center">
-              <h2 className="m-0 mb-3 text-display font-semibold tracking-[-0.02em] text-text">
+              <h2 className={H2}>
                 The revenue you&apos;re losing isn&apos;t showing up as churn.
               </h2>
-              <p className="m-0 text-body text-text-secondary">
+              <p className="m-0 text-subhead text-text-secondary">
                 Stripe&apos;s own data on failed payments and what happens next.
               </p>
             </div>
@@ -203,19 +202,19 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             {STATS.map((item, i) => (
               <FadeUp key={item.stat} delay={i * 100} className="grid">
-                <div className="cap-panel">
+                <div className={CARD}>
                   <div className="cap-panel-body">
                     <div className="flex h-full flex-col">
-                      <div className="mb-4 font-mono text-display font-semibold leading-none text-accent-text">
+                      <div className="mb-4 font-mono text-hero font-semibold leading-none text-accent-text">
                         {item.stat}
                       </div>
-                      <p className="m-0 mb-4 flex-1 text-label leading-[1.6] text-text-secondary">{item.body}</p>
+                      <p className="m-0 mb-4 flex-1 text-copy leading-[1.6] text-text-secondary">{item.body}</p>
                       {/* RULES.md 2.3: the exact page and the day it was read. */}
                       <a
                         href={item.href}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="group font-mono text-micro leading-6 text-text-subtle no-underline transition-colors duration-150 hover:text-text-tertiary"
+                        className="group font-mono text-source leading-6 text-text-subtle no-underline transition-colors duration-150 hover:text-text-tertiary"
                       >
                         Source: {citation(item.href)}, read {STAT_AS_OF} <SourceArrow />
                       </a>
@@ -233,29 +232,29 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         <div className="mx-auto max-w-[1100px]">
           <FadeUp>
             <div className="mb-12 text-center">
-              <h2 className="m-0 mb-3 text-display font-semibold tracking-[-0.02em] text-text">Stripe plus Foxhound</h2>
-              <p className="m-0 text-body text-text-secondary">What Stripe does, and what Foxhound adds on top.</p>
+              <h2 className={H2}>Stripe plus Foxhound</h2>
+              <p className="m-0 text-subhead text-text-secondary">What Stripe does, and what Foxhound adds on top.</p>
             </div>
           </FadeUp>
           <div className="space-y-4">
             {COMPARISON_ROWS.map((row, i) => (
               <FadeUp key={row.stripeTitle} delay={i * 100} className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="cap-panel">
+                <div className={CARD}>
                   <div className="cap-panel-body">
                     <div>
-                      <div className="mb-3 text-label text-text-tertiary">Stripe does this</div>
+                      <div className="mb-3 text-caption text-text-tertiary">Stripe does this</div>
                       <div className="mb-2 text-body font-medium text-text">{row.stripeTitle}</div>
-                      <p className="m-0 text-label leading-[1.55] text-text-secondary">{row.stripeBody}</p>
+                      <p className="m-0 text-copy leading-[1.55] text-text-secondary">{row.stripeBody}</p>
                     </div>
                   </div>
                 </div>
-                <Link to={row.foxhoundHref} className="cap-panel group">
+                <Link to={row.foxhoundHref} className={`${CARD} group`}>
                   <div className="cap-panel-body">
                     <div>
-                      <div className="mb-3 text-label font-medium text-accent-text">Foxhound adds this</div>
+                      <div className="mb-3 text-caption font-medium text-accent-text">Foxhound adds this</div>
                       <div className="mb-2 text-body font-semibold text-text">{row.foxhoundTitle}</div>
-                      <p className="m-0 text-label leading-[1.55] text-text-secondary">{row.foxhoundBody}</p>
-                      <div className="mt-4 font-mono text-label text-accent-text">
+                      <p className="m-0 text-copy leading-[1.55] text-text-secondary">{row.foxhoundBody}</p>
+                      <div className="mt-4 font-mono text-caption text-accent-text">
                         Learn more <Arrow />
                       </div>
                     </div>
@@ -274,12 +273,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             <p className="mb-6 text-center font-mono text-micro uppercase tracking-widest text-text-subtle">
               The gap Stripe leaves open
             </p>
-            <h2 className="m-0 text-center text-display font-semibold leading-[1.0] tracking-[-0.04em] text-text">
+            <h2 className="m-0 text-center text-statement font-semibold leading-[1.0] tracking-[-0.04em] text-text sm:text-statement-md lg:text-statement-lg">
               {STRIPE_GAP} of failed payments
               <br />
               <span className="text-accent-text">never come back.</span>
             </h2>
-            <p className="mx-auto mt-8 max-w-[560px] text-center text-body leading-[1.6] text-text-secondary">
+            <p className="mx-auto mt-8 max-w-[560px] text-center text-subhead leading-[1.6] text-text-secondary sm:text-product-sub">
               {STATEMENT_BODY}
             </p>
             <div className="mt-8 flex justify-center">
@@ -287,7 +286,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 href={STAT_SOURCES.stripeBilling}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group font-mono text-micro leading-6 text-text-subtle no-underline transition-colors duration-150 hover:text-text-tertiary"
+                className="group font-mono text-source leading-6 text-text-subtle no-underline transition-colors duration-150 hover:text-text-tertiary"
               >
                 Source: {citation(STAT_SOURCES.stripeBilling)}, read {STAT_AS_OF} <SourceArrow />
               </a>
@@ -301,8 +300,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         <div className="mx-auto max-w-[1100px]">
           <FadeUp>
             <div className="mb-12 text-center">
-              <h2 className="m-0 mb-3 text-display font-semibold tracking-[-0.02em] text-text">How it works</h2>
-              <p className="m-0 text-body text-text-secondary">Live in an afternoon. No code, no setup fees.</p>
+              <h2 className={H2}>How it works</h2>
+              <p className="m-0 text-subhead text-text-secondary">Live in an afternoon. No code, no setup fees.</p>
             </div>
           </FadeUp>
           {/* Recova's one bordered strip of three. Capsomer's panel, flush, holds it. */}
@@ -316,7 +315,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     className={`p-7 ${i < 2 ? "border-b border-border md:border-b-0 md:border-r" : ""}`}
                   >
                     <div className="mb-2 text-body font-medium text-text">{s.title}</div>
-                    <p className="m-0 text-label leading-[1.55] text-text-secondary">{s.body}</p>
+                    <p className="m-0 text-copy leading-[1.55] text-text-secondary">{s.body}</p>
                   </FadeUp>
                 ))}
               </div>
@@ -325,37 +324,15 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         </div>
       </section>
 
-      {/* Evidence ledger. Relocated out of the hero when the animated recovery
-          queue took that slot (ruling 6). It sits here because it is the
-          receipt for the step above it. */}
-      <section className="border-t border-border-sub px-5 py-20 sm:px-8">
-        <div className="mx-auto max-w-[1100px]">
-          <FadeUp>
-            <div className="mb-12 text-center">
-              <h2 className="m-0 mb-3 text-display font-semibold tracking-[-0.02em] text-text">Every fee shows its work</h2>
-              <p className="m-0 text-body text-text-secondary">
-                Each charge links back to the action that earned it. Recoveries Stripe would have made on its own
-                appear in the same ledger, marked free.
-              </p>
-            </div>
-          </FadeUp>
-          <FadeUp delay={100}>
-            <div className="mx-auto max-w-[600px]">
-              <LedgerMock />
-            </div>
-          </FadeUp>
-        </div>
-      </section>
-
       {/* Calculator */}
       <section className="border-t border-border-sub bg-surface px-5 py-24 sm:px-8">
         <div className="mx-auto max-w-[1100px]">
           <FadeUp>
             <div className="mb-10 text-center">
-              <h2 className="m-0 mb-3 text-display font-semibold tracking-[-0.02em] text-text">
+              <h2 className={H2}>
                 How much are you leaving on the table?
               </h2>
-              <p className="m-0 mx-auto max-w-[480px] text-body text-text-secondary">
+              <p className="m-0 mx-auto max-w-[480px] text-subhead text-text-secondary">
                 Adjust your MRR and see the estimated recovery. Foxhound takes{" "}
                 <span className="font-mono">{RECOVERY_FEE}</span> of what it recovers. Nothing if it recovers
                 nothing.
@@ -373,8 +350,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         <div className="mx-auto max-w-[1100px]">
           <FadeUp>
             <div className="mb-12 text-center">
-              <h2 className="m-0 mb-3 text-display font-semibold tracking-[-0.02em] text-text">Start with recovery.</h2>
-              <p className="m-0 text-body text-text-secondary">Add the rest when you need it.</p>
+              <h2 className={H2}>Start with recovery.</h2>
+              <p className="m-0 text-subhead text-text-secondary">Add the rest when you need it.</p>
             </div>
           </FadeUp>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -383,7 +360,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               const card = PRODUCT_CARDS[key];
               return (
                 <FadeUp key={key} delay={i * 80} className="grid">
-                  <Link to={PRODUCTS[key].href} className="cap-panel">
+                  <Link to={PRODUCTS[key].href} className={CARD}>
                     <div className="cap-panel-body">
                       <div>
                         <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-surface2">
@@ -413,10 +390,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   prompts, same output as the product." The sample runs its own
                   prompt on its own model (MODEL_MARKETING_EMAIL_SAMPLE) for a
                   fictional customer, so neither claim holds here. */}
-              <h2 className="m-0 mb-3 text-display font-semibold tracking-[-0.02em] text-text">
+              <h2 className={H2}>
                 What a Foxhound recovery email looks like
               </h2>
-              <p className="m-0 mx-auto max-w-[480px] text-body text-text-secondary">
+              <p className="m-0 mx-auto max-w-[480px] text-subhead text-text-secondary">
                 Pick a decline type and generate a real recovery email. Every account customizes its own brand
                 voice.
               </p>
@@ -434,17 +411,17 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         <div className="mx-auto max-w-[760px]">
           <FadeUp>
             <div className="mb-12 text-center">
-              <h2 className="m-0 mb-3 text-display font-semibold tracking-[-0.02em] text-text">Common questions</h2>
+              <h2 className={H2}>Common questions</h2>
             </div>
           </FadeUp>
           <ul className="m-0 flex list-none flex-col gap-3 p-0">
             {FAQS.map((faq, i) => (
               <li key={faq.question}>
                 <FadeUp delay={i * 60}>
-                  <details className="cap-disclosure" name="home-faq">
+                  <details className="cap-disclosure [--pad-card:1.5rem]" data-variant="card" name="home-faq">
                     <summary>{faq.question}</summary>
                     <div className="cap-disclosure-body">
-                      <p className="m-0 text-label leading-[1.6] text-text-secondary">
+                      <p className="m-0 text-copy leading-[1.6] text-text-secondary">
                         {i === 2 ? BILLING_ANSWER : faq.answer}
                       </p>
                     </div>
@@ -492,8 +469,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           <div className="mx-auto max-w-[1100px]">
             <FadeUp>
               <div className="mb-8 flex items-center justify-between">
-                <h2 className="m-0 text-label font-normal text-text-secondary">From the blog</h2>
-                <Link to="/blog" className="group text-label leading-6 text-text-tertiary transition-colors hover:text-text">
+                <h2 className="m-0 text-copy font-normal text-text-secondary">From the blog</h2>
+                <Link to="/blog" className="group text-caption leading-6 text-text-tertiary transition-colors hover:text-text">
                   All articles <Arrow />
                 </Link>
               </div>
@@ -501,13 +478,17 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               {blogPosts.map((post, i) => (
                 <FadeUp key={post.slug} delay={i * 80} className="grid">
-                  <Link to={`/blog/${post.slug}`} className="cap-panel">
+                  {/* Recova's blog card: the page ground on the surface band, p-5, 10px corners. */}
+                  <Link
+                    to={`/blog/${post.slug}`}
+                    className="cap-panel h-full rounded-[10px] [--gap:1.25rem] [--pad-card:1.25rem] [--surface:var(--bg)]"
+                  >
                     <div className="cap-panel-body">
                       <div className="flex h-full flex-col gap-3">
                         {post.tags[0] ? (
                           <div className="font-mono text-micro text-text-tertiary">{post.tags[0].replace(/-/g, " ")}</div>
                         ) : null}
-                        <h3 className="m-0 line-clamp-2 text-body font-medium leading-snug text-text">{post.title}</h3>
+                        <h3 className="m-0 line-clamp-2 text-item-title font-medium leading-snug text-text">{post.title}</h3>
                         <span className="mt-auto font-mono text-micro text-text-tertiary">
                           {post.readingTimeMinutes} min read
                         </span>
@@ -524,25 +505,25 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       {/* Closing CTA, with Recova's two demo links (M3 divergence 39). */}
       <section className="border-t border-border-sub px-5 py-24 sm:px-8">
         <div className="mx-auto max-w-[760px] text-center" data-density="comfortable">
-          <h2 className="m-0 mb-4 text-display font-semibold tracking-[-0.02em] text-text">
+          <h2 className="m-0 mb-4 text-section font-semibold tracking-[-0.02em] text-text sm:text-section-lg">
             See what your Stripe account is leaking
           </h2>
-          <p className="m-0 mx-auto mb-7 max-w-[560px] text-body leading-[1.55] text-text-secondary">
+          <p className="m-0 mx-auto mb-7 max-w-[560px] text-subhead leading-[1.55] text-text-secondary">
             Connect Stripe for a free diagnostic. Results in <span className="font-mono">30</span> seconds. No
             setup, no card.
           </p>
-          <Link to="/audit" className="cap-btn" data-variant="primary" data-size="lg">
+          <Link to="/audit" className={CTA_BUTTON} data-variant="primary" data-size="lg">
             Connect Stripe, it is free
           </Link>
-          <div className="mt-5 font-mono text-label text-text-subtle">
+          <div className="mt-5 font-mono text-caption text-text-subtle">
             No account required &middot; Results in 30 seconds &middot; Disconnect anytime
           </div>
-          <div className="mt-2 font-mono text-label text-text-subtle">{COMPAT_TAGS.join(" · ")}</div>
+          <div className="mt-2 font-mono text-caption text-text-subtle">{COMPAT_TAGS.join(" · ")}</div>
           <div className="mt-8 flex flex-wrap justify-center gap-4 border-t border-border-sub pt-6">
-            <Link to="/demos/recovery" className="group text-label leading-6 text-text-secondary transition-colors hover:text-text">
+            <Link to="/demos/recovery" className="group text-copy leading-6 text-text-secondary transition-colors hover:text-text">
               View Recovery demo <Arrow />
             </Link>
-            <Link to="/demos/disputes" className="group text-label leading-6 text-text-secondary transition-colors hover:text-text">
+            <Link to="/demos/disputes" className="group text-copy leading-6 text-text-secondary transition-colors hover:text-text">
               View Disputes demo <Arrow />
             </Link>
           </div>

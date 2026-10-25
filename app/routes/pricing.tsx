@@ -1,6 +1,7 @@
 import { ArrowRight, Check } from "lucide-react";
 import { Link } from "react-router";
 
+import { CARD, CTA_BUTTON } from "~/components/marketing-card";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { PRICING_CARDS, PRICING_FAQS, PRICING_META_DESCRIPTION } from "~/lib/marketing/pricing-copy";
@@ -29,12 +30,10 @@ import type { Route } from "./+types/pricing";
 // /products hub), each card and FAQ item is Capsomer's panel, and the closing
 // link is Capsomer's primary button.
 //
-// Text is on the five sizes (RULES.md 5.2), each Recova size taken to the
-// nearest of the five, a tie to the larger: card name 1.125rem to title, price
-// 2.5rem to display, price label and the closing microcopy 0.75rem to label,
-// description, bullets and Learn more 0.8125rem to label, both h2s (1.5rem and
-// 1.75rem, 1.75rem and 2rem) to display, FAQ question and closing line
-// 0.9375rem to body, FAQ answer 0.875rem to label.
+// Text is at Recova's sizes: card name 1.125rem, price 2.5rem, price label and
+// closing microcopy 0.75rem, description, bullets and Learn more 0.8125rem, the
+// h2s 1.5rem to 1.75rem and 1.75rem to 2rem, FAQ question and closing line
+// 0.9375rem, FAQ answer 0.875rem.
 //
 // Headings: Recova draws the card names and the FAQ questions as plain divs.
 // Here they are h2 and h3, so a screen reader can move between the plans and
@@ -77,30 +76,27 @@ export default function PricingPage({ loaderData }: Route.ComponentProps) {
           constant, which is why ruling 60 says check it per surface rather than
           bulk-replacing max-w-5xl everywhere.
 
-          Each card is Capsomer's panel, body only, in its comfortable density:
-          24px sides as Recova's p-6, 16px top and bottom where Recova has 24px,
-          10px corners where Recova has 12px, and the density's faint shadow.
-          Those are Capsomer's panel as it ships; a Foxhound variant waits for
-          Capsomer's per-site layer (job_ec5ec0754626). The id and Recova's
+          Each card is Capsomer's panel at Recova's p-6 and 12px corners, with
+          Recova's card shadow from Foxhound's site layer. The id and Recova's
           60px scroll margin sit on a wrapper so the panel carries no Foxhound
           class; the wrapper is a one-cell grid so the panel fills the row. */}
       <section className="speakable-pricing-cards px-5 pb-12 sm:px-8">
         <div className="mx-auto max-w-[1200px]">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" data-density="comfortable">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {PRICING_CARDS.map((card) => (
               <div key={card.id} id={card.id} className="relative grid scroll-mt-[60px]">
-                <div className="cap-panel">
+                <div className={CARD}>
                   <div className="cap-panel-body">
                     {/* One block, so the body's grid gap leaves Recova's own spacing alone. */}
                     <div className="flex flex-col">
-                      <h2 className="mb-4 text-title font-medium text-text">{card.name}</h2>
+                      <h2 className="mb-4 text-card-title font-medium text-text">{card.name}</h2>
                       <div className="mb-1">
-                        <span className="font-mono text-display font-medium leading-none tracking-[-0.02em] text-accent-text">
+                        <span className="font-mono text-price font-medium leading-none tracking-[-0.02em] text-accent-text">
                           {card.price}
                         </span>
                       </div>
                       {card.priceLabel ? (
-                        <div className="mb-4 font-mono text-label text-text-tertiary">{card.priceLabel}</div>
+                        <div className="mb-4 font-mono text-caption text-text-tertiary">{card.priceLabel}</div>
                       ) : (
                         <div className="mb-4">&nbsp;</div>
                       )}
@@ -154,7 +150,7 @@ export default function PricingPage({ loaderData }: Route.ComponentProps) {
 
       <section className="speakable-pricing-faq border-t border-border-sub px-5 py-16 sm:px-8">
         <div className="mx-auto max-w-[760px]">
-          <h2 className="mb-10 text-center text-display font-medium tracking-[-0.01em] text-text">Questions</h2>
+          <h2 className="mb-10 text-center text-subsection font-medium tracking-[-0.01em] text-text sm:text-section">Questions</h2>
           {/* Static list, not the shared FaqAccordion. Legacy makes this choice
               per surface: pricing/page.tsx:181-188 is a plain ul with every
               answer always visible, while its home page does use an accordion
@@ -162,13 +158,13 @@ export default function PricingPage({ loaderData }: Route.ComponentProps) {
               Foxhound had flattened both onto the accordion. Ruled 2026-07-28:
               match legacy per surface, so home keeps the accordion. Each item
               is Capsomer's panel, as the cards are. */}
-          <ul className="m-0 flex list-none flex-col gap-3 p-0" data-density="comfortable">
+          <ul className="m-0 flex list-none flex-col gap-3 p-0">
             {PRICING_FAQS.map((faq) => (
-              <li key={faq.question} className="cap-panel">
+              <li key={faq.question} className={CARD}>
                 <div className="cap-panel-body">
                   <div>
-                    <h3 className="mb-2 text-body font-medium text-text">{faq.question}</h3>
-                    <p className="m-0 text-label leading-[1.6] text-text-secondary">{faq.answer}</p>
+                    <h3 className="mb-2 text-item-title font-medium text-text">{faq.question}</h3>
+                    <p className="m-0 text-copy leading-[1.6] text-text-secondary">{faq.answer}</p>
                   </div>
                 </div>
               </li>
@@ -178,17 +174,16 @@ export default function PricingPage({ loaderData }: Route.ComponentProps) {
       </section>
 
       <section className="border-t border-border-sub px-5 py-20 sm:px-8">
-        {/* Comfortable density for Capsomer's lg button: 40px tall with a
-            pointer (Recova's is 44px), 44px on a touch screen, a 1rem label. */}
-        <div className="mx-auto max-w-[760px] text-center" data-density="comfortable">
-          <h2 className="mb-4 text-display font-medium tracking-[-0.01em] text-text">
+        {/* Recova's 48px closing button at 1rem. */}
+        <div className="mx-auto max-w-[760px] text-center">
+          <h2 className="mb-4 text-section font-medium tracking-[-0.01em] text-text sm:text-section-lg">
             See what your Stripe account is leaking
           </h2>
-          <p className="mx-auto mb-7 max-w-[560px] text-body leading-[1.55] text-text-secondary">
+          <p className="mx-auto mb-7 max-w-[560px] text-subhead leading-[1.55] text-text-secondary">
             Connect Stripe for a free diagnostic. Failed invoices, expiring cards, open disputes, and
             business health. Results in <span className="font-mono">30</span> seconds.
           </p>
-          <Link to="/audit" className="cap-btn" data-variant="primary" data-size="lg">
+          <Link to="/audit" className={CTA_BUTTON} data-variant="primary" data-size="lg">
             Connect Stripe, it is free
           </Link>
           {/* 376 item 20: this line used to read "No account required . No Stripe
@@ -198,7 +193,7 @@ export default function PricingPage({ loaderData }: Route.ComponentProps) {
               estimator needs no connection, the full audit is a connection. The
               line now names which is which. Same element, same separators, same
               place: only the words changed. */}
-          <div className="mt-5 font-mono text-label text-text-subtle">
+          <div className="mt-5 font-mono text-caption text-text-subtle">
             Estimator: no account, no Stripe connection &middot; Full audit: read-only Stripe
             connection, no account, 30 seconds
           </div>

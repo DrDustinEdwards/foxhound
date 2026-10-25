@@ -1,4 +1,3 @@
-import { Panel } from "capsomer/react/panel";
 
 import {
   LegalBody,
@@ -10,6 +9,7 @@ import {
   LegalSection as Section,
   type LegalSectionDef,
 } from "~/components/legal-page";
+import { CARD } from "~/components/marketing-card";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { siteUrl, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
@@ -41,7 +41,7 @@ import type { Route } from "./+types/privacy";
 // J51 (job_615a012e7035, row M20) put the page in Recova's order, read from
 // its source (blob 8f8dfb8e, lines 46-192): intro, summary card, table of
 // contents, rule, sections. Foxhound had the contents and rule first. The
-// summary card is Capsomer's Panel (Q12), the contents heading is Recova's
+// summary card is a Capsomer panel (Q12), the contents heading is Recova's
 // "Table of Contents", and the chrome kit (column, contents, rule, section,
 // paragraph, links) is shared with /terms in ~/components/legal-page. The one
 // word of copy touched is "above" to "below" in the summary's intro, so that
@@ -95,12 +95,17 @@ export default function PrivacyPage() {
         </P>
 
         <div className="my-8">
-          <Panel title="Summary of key points">
-            <p className="m-0 text-label leading-relaxed text-text-secondary">
+          {/* Recova's summary card: p-6, its heading a mono label inside. */}
+          <section className={CARD} aria-labelledby="privacy-summary">
+            <div className="cap-panel-body">
+            <h2 id="privacy-summary" className="m-0 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">
+              Summary of key points
+            </h2>
+            <p className="m-0 text-copy leading-relaxed text-text-secondary">
               This summary covers the key points from our Privacy Policy below. Use the Table of
               Contents to jump to the full detail on any topic.
             </p>
-            <ul className="m-0 flex list-none flex-col gap-3 p-0 text-label leading-relaxed text-text-secondary">
+            <ul className="m-0 flex list-none flex-col gap-3 p-0 text-copy leading-relaxed text-text-secondary">
               <li>
                 <strong className="font-medium text-text">What information do we collect?</strong> Merchant Stripe
                 data (invoices, subscriptions, disputes, customer records) through a Stripe OAuth
@@ -139,7 +144,8 @@ export default function PrivacyPage() {
                 are US-based.
               </li>
             </ul>
-          </Panel>
+            </div>
+          </section>
         </div>
 
         <LegalContents heading="Table of Contents" sections={SECTIONS} />

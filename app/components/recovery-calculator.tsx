@@ -4,8 +4,11 @@ import { Link } from "react-router";
 import { RECOVERY_FEE_BPS, RECOVERY_MATURITY_DAYS } from "~/lib/constants";
 import { STAT_AS_OF, STRIPE_RECOVERY_RATE_PERCENT } from "~/lib/marketing/statistics";
 
+import { Range } from "capsomer/react/field";
+
 import "capsomer/panel.css";
 import "capsomer/button.css";
+import "capsomer/field.css";
 
 /** The slider's starting position. An ASSUMPTION the visitor may change, never a
  *  Foxhound result: 52 is where the page has always started and is kept so the
@@ -17,9 +20,9 @@ const DEFAULT_ASSUMED_RECOVERY_SHARE = 52;
 // order. The changes: the second slider (approved 2026-08-26 and 2026-09-19),
 // the attribution and maturity labels (sanctioned, M3 divergences 31 and 32),
 // and the look (J59), which is Capsomer's: the card is a panel and the call to
-// action its primary button, with text on the five sizes. Recova's slider has
-// a filled track; Capsomer ships no slider, so the native range input
-// takes the family's accent and the filled track is named as a Capsomer gap.
+// action its primary button, at Recova's sizes and padding (p-6, p-8 from sm).
+// The sliders are Capsomer's Range: a 4px track filled in amber up to a round
+// amber thumb, as Recova's were.
 export function RecoveryCalculator() {
   const [mrr, setMrr] = useState(25000);
   // THE RECOVERY SHARE IS THE VISITOR'S ASSUMPTION, NOT FOXHOUND'S CLAIM
@@ -44,28 +47,26 @@ export function RecoveryCalculator() {
   }
 
   return (
-    <div className="cap-panel" data-density="comfortable">
+    <div className="cap-panel [--gap:1.5rem] [--pad-card:1.5rem] sm:[--gap:2rem] sm:[--pad-card:2rem]">
       <div className="cap-panel-body">
       <div>
       <div className="mb-6">
         <div className="mb-2 flex items-center justify-between">
           <label
             htmlFor="mrr-slider"
-            className="font-mono text-micro uppercase tracking-wide text-text-tertiary"
+            className="font-mono text-micro uppercase tracking-widest text-text-tertiary"
           >
             Monthly recurring revenue
           </label>
           <span className="font-mono text-body font-medium text-text">{fmt(mrr)}</span>
         </div>
-        <input
+        <Range
           id="mrr-slider"
-          type="range"
           min={1000}
           max={500000}
           step={1000}
           value={mrr}
           onChange={(e) => setMrr(Number(e.target.value))}
-          className="h-6 w-full accent-brand"
           aria-valuemin={1000}
           aria-valuemax={500000}
           aria-valuenow={mrr}
@@ -78,8 +79,8 @@ export function RecoveryCalculator() {
           suppressHydrationWarning
         />
         <div className="mt-1 flex justify-between">
-          <span className="font-mono text-micro text-text-subtle">$1k</span>
-          <span className="font-mono text-micro text-text-subtle">$500k</span>
+          <span className="font-mono text-source text-text-subtle">$1k</span>
+          <span className="font-mono text-source text-text-subtle">$500k</span>
         </div>
       </div>
 
@@ -87,21 +88,19 @@ export function RecoveryCalculator() {
         <div className="mb-2 flex items-center justify-between">
           <label
             htmlFor="recovery-share-slider"
-            className="font-mono text-micro uppercase tracking-wide text-text-tertiary"
+            className="font-mono text-micro uppercase tracking-widest text-text-tertiary"
           >
             Assumed recovery of the remainder
           </label>
           <span className="font-mono text-body font-medium text-text">{recoveryShare}%</span>
         </div>
-        <input
+        <Range
           id="recovery-share-slider"
-          type="range"
           min={0}
           max={100}
           step={1}
           value={recoveryShare}
           onChange={(e) => setRecoveryShare(Number(e.target.value))}
-          className="h-6 w-full accent-brand"
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={recoveryShare}
@@ -110,12 +109,12 @@ export function RecoveryCalculator() {
           suppressHydrationWarning
         />
         <div className="mt-1 flex justify-between">
-          <span className="font-mono text-micro text-text-subtle">0%</span>
-          <span className="font-mono text-micro text-text-subtle">100%</span>
+          <span className="font-mono text-source text-text-subtle">0%</span>
+          <span className="font-mono text-source text-text-subtle">100%</span>
         </div>
       </div>
 
-      <div className="mb-6 flex flex-col">
+      <div className="mb-6 flex flex-col gap-3">
         <Row
           label="Failed payments per month"
           sub="About 8% of MRR fails on average"
@@ -131,6 +130,7 @@ export function RecoveryCalculator() {
           label="Your recoverable opportunity"
           sub="What Stripe's own retries could not get back"
           value={fmt(remaining)}
+          valueClassName="text-accent-text"
         />
         <Row
           label="Foxhound recovers from that"
@@ -146,7 +146,7 @@ export function RecoveryCalculator() {
         />
         <div className="flex items-center justify-between py-3">
           <div>
-            <p className="text-body font-medium text-text">Net revenue retained</p>
+            <p className="text-subhead font-medium text-text">Net revenue retained</p>
             <p className="mt-0.5 font-mono text-micro text-text-tertiary">
               Nothing is billed until the recovery has matured for {RECOVERY_MATURITY_DAYS} days.
             </p>
@@ -154,12 +154,12 @@ export function RecoveryCalculator() {
           <div className="text-right">
             <p className="font-mono text-title font-semibold text-success-text">
               +{fmt(netGainAnnual)}
-              <span className="text-label font-normal text-text-tertiary">/yr</span>
+              <span className="text-caption font-normal text-text-tertiary">/yr</span>
             </p>
             {/* Recova dims this line to 70%, which takes it and its "/mo" under
                 4.5:1 in both themes (measured 3.02 and 3.29). Full strength here
                 (RULES.md 1.5). */}
-            <p className="mt-0.5 font-mono text-body font-medium text-success-text">
+            <p className="mt-0.5 font-mono text-subhead font-medium text-success-text">
               +{fmt(netGain)}
               <span className="text-micro font-normal text-text-tertiary">/mo</span>
             </p>
@@ -167,14 +167,19 @@ export function RecoveryCalculator() {
         </div>
       </div>
 
-      <p className="mb-6 text-center font-mono text-micro text-text-subtle">
+      <p className="mb-6 text-center font-mono text-source text-text-subtle">
         Stripe {STRIPE_RECOVERY_RATE_PERCENT}% recovery: stripe.com/billing, read {STAT_AS_OF}. The
         recovery share is an assumption you set, not a Foxhound result: Foxhound does not project a
         recovery rate.
       </p>
 
-      <div className="flex justify-center" data-density="comfortable">
-        <Link to="/audit" className="cap-btn" data-variant="primary" data-size="lg">
+      <div className="flex justify-center">
+        <Link
+          to="/audit"
+          className="cap-btn w-full px-6 font-semibold sm:w-auto sm:min-w-[280px] [--cap-btn-h:3rem]"
+          data-variant="primary"
+          data-size="lg"
+        >
           Get your actual numbers free
         </Link>
       </div>
@@ -204,10 +209,10 @@ function Row({
   return (
     <div className="flex items-center justify-between border-b border-border-sub py-3">
       <div>
-        <p className="text-label text-text">{label}</p>
+        <p className="text-copy text-text">{label}</p>
         <p className="mt-0.5 font-mono text-micro text-text-tertiary">{sub}</p>
       </div>
-      <div className={`font-mono text-body font-medium ${valueClassName}`}>{value}</div>
+      <div className={`font-mono text-subhead font-medium ${valueClassName}`}>{value}</div>
     </div>
   );
 }

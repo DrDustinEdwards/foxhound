@@ -3,12 +3,12 @@ import type { LucideIcon } from "lucide-react";
 import { Pill, type Tone } from "capsomer/react/status";
 import { StatTile, StatTiles } from "capsomer/react/stat-tile";
 
+import { CategoryPill } from "~/components/tone-pills";
 import { SequenceSteps } from "~/components/recovery-previews";
 import { timingLabel } from "~/components/docs/sequence-timeline";
 import { HEALTH_SCORE_AT_RISK_THRESHOLD, type DeclineCategory } from "~/lib/constants";
 import { DISPUTE_STATE_LABELS } from "~/lib/disputes/labels";
 import { WATCH_CEILING, healthScoreBand } from "~/lib/intelligence/health-band";
-import { CATEGORY_PILL_WORDS } from "~/lib/marketing/recovery-copy";
 import { DECLINE_CATEGORY_LABELS, FAILED_PAYMENT_STATUS_LABELS, formatStepResult, formatStepType } from "~/lib/recovery/labels";
 import { RECOVERY_SCHEDULES, isRetryStep } from "~/lib/recovery/schedule";
 
@@ -120,7 +120,7 @@ function DeclineCategories() {
           <li key={category} data-category={category} className="cap-panel">
             <div className="cap-panel-body">
               <div className="flex items-start gap-3">
-                <Pill variant="outline">{CATEGORY_PILL_WORDS[category]}</Pill>
+                <CategoryPill category={category} />
                 <span className="text-label leading-relaxed text-text-secondary">
                   <span className="font-medium text-text">{DECLINE_CATEGORY_LABELS[category]}.</span>{" "}
                   {note}
@@ -166,7 +166,7 @@ function PaymentTimeline() {
       <div className="cap-panel-body" data-flush>
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
           <span className="text-label font-medium text-text">Example: a soft decline</span>
-          <Pill variant="outline">{CATEGORY_PILL_WORDS.soft}</Pill>
+          <CategoryPill category="soft" />
         </div>
         <ol className="m-0 list-none divide-y divide-border p-0">
           {steps.map((step, i) => (
