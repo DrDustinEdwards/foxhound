@@ -46,15 +46,17 @@ export interface BillableDisputeRow {
   state?: string;
   submittedAt?: Date | null;
   resolvedAt?: Date | null;
+  resolvedFeeCents?: number | null;
 }
 
 /**
  * Mirrors app/db/billable.ts's billableDisputeRowConditions PLUS the
  * dispute_approvals inner join getBillableDisputes adds around it: won,
  * resolved by `asOfMs`, AND Foxhound actually submitted it (submitted_at set
- * AND an approval row exists). `hasApproval` stands in for that join since a
- * caller working from in-memory rows has no join to perform; pass whether a
- * dispute_approvals row exists for this dispute id.
+ * AND an approval row exists), AND its fee is stored (an unpriced win waits).
+ * `hasApproval` stands in for that join since a caller working from in-memory
+ * rows has no join to perform; pass whether a dispute_approvals row exists for
+ * this dispute id.
  */
 export function isBillableDisputeRow(dispute: BillableDisputeRow, hasApproval: boolean, asOfMs: number): boolean {
   return (
@@ -62,6 +64,7 @@ export function isBillableDisputeRow(dispute: BillableDisputeRow, hasApproval: b
     dispute.submittedAt != null &&
     hasApproval &&
     dispute.resolvedAt != null &&
-    dispute.resolvedAt.getTime() <= asOfMs
+    dispute.resolvedAt.getTime() <= asOfMs &&
+    dispute.resolvedFeeCents != null
   );
 }

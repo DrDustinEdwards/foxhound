@@ -57,7 +57,7 @@ describe("buildBillingInvoiceBatch", () => {
           { id: "rec_1", amountCents: 10_000 },
           { id: "rec_2", amountCents: 5_000 },
         ],
-        disputes: [{ id: "dsp_1", amountCents: 50_000, resolvedFeeCents: null }],
+        disputes: [{ id: "dsp_1", amountCents: 50_000, resolvedFeeCents: 10_000 }],
       }),
     );
     // 2000 + 1000 + 10000 = 13000; 3 line items.
@@ -70,7 +70,7 @@ describe("buildBillingInvoiceBatch", () => {
       db,
       baseInput({
         recoveries: [{ id: "rec_1", amountCents: 10_000 }],
-        disputes: [{ id: "dsp_1", amountCents: 50_000, resolvedFeeCents: null }],
+        disputes: [{ id: "dsp_1", amountCents: 50_000, resolvedFeeCents: 10_000 }],
       }),
     );
     expect(lines).toEqual([
@@ -97,7 +97,7 @@ describe("buildBillingInvoiceBatch", () => {
           { id: "rec_1", amountCents: 10_000 },
           { id: "rec_2", amountCents: 10_000 },
         ],
-        disputes: [{ id: "dsp_1", amountCents: 50_000, resolvedFeeCents: null }],
+        disputes: [{ id: "dsp_1", amountCents: 50_000, resolvedFeeCents: 10_000 }],
       }),
     );
     // Two recovery lines with IDENTICAL amounts and descriptions must still get

@@ -157,19 +157,36 @@ export function getBillableRecoveries(db: Db, accountId: string, asOfMs: number)
     );
 }
 
+/** A won dispute Foxhound submitted, resolved by asOf, on a billing-eligible
+ *  account, and not forgiven by an exemption: everything billing asks of a win
+ *  except its account, the stored fee and the not-yet-billed join. */
+function wonFoxhoundDisputeConditions(asOfMs: number): SQL {
+  return and(
+    eq(disputes.state, "resolved_won"),
+    isNotNull(disputes.submittedAt),
+    lte(disputes.resolvedAt, new Date(asOfMs)),
+    exemptionForgaveDispute(asOfMs),
+  ) as SQL;
+}
+
 /** Row-level billable conditions for disputes: resolved_won by asOf AND Foxhound
  *  actually submitted it (disputes.submitted_at set post-Stripe-acceptance). The
  *  dispute_approvals-row requirement is the inner join in getBillableDisputes.
  *  Disputes have no maturity window (PRICING.md: billed at the next run after
  *  resolution); the resolved fee snapshot on the row already carries the cap
- *  applied at resolution. */
+ *  applied at resolution.
+ *
+ *  SKIP UNTIL PRICED (Dustin, 2026-10-25). A win whose cap could not be
+ *  converted at resolution has no stored fee, and it is left out here rather
+ *  than billed at the flat 50,000 in its own currency, which ruling 377(7) says
+ *  is never used. Nothing marks it billed, so once the daily pricing retry
+ *  (app/lib/disputes/fee-pricing.server.ts) stores its fee, the next run bills
+ *  exactly that amount. */
 export function billableDisputeRowConditions(accountId: string, asOfMs: number): SQL {
   return and(
     eq(disputes.accountId, accountId),
-    eq(disputes.state, "resolved_won"),
-    isNotNull(disputes.submittedAt),
-    lte(disputes.resolvedAt, new Date(asOfMs)),
-    exemptionForgaveDispute(asOfMs),
+    wonFoxhoundDisputeConditions(asOfMs),
+    isNotNull(disputes.resolvedFeeCents),
   ) as SQL;
 }
 
@@ -199,6 +216,34 @@ export function getBillableDisputes(db: Db, accountId: string, asOfMs: number) {
     );
 }
 
+/**
+ * Won disputes that would bill but for a stored fee, across every account: the
+ * daily pricing retry's work list. Same joins and gates as getBillableDisputes,
+ * with the fee clause inverted, so a win priced here is one the next run bills.
+ */
+export function getUnpricedBillableWins(db: Db, asOfMs: number, limit: number) {
+  return db
+    .select({
+      id: disputes.id,
+      accountId: disputes.accountId,
+      amountCents: disputes.amountCents,
+      currency: disputes.currency,
+    })
+    .from(disputes)
+    .innerJoin(accounts, eq(accounts.id, disputes.accountId))
+    .innerJoin(disputeApprovals, eq(disputeApprovals.disputeId, disputes.id))
+    .leftJoin(billingLineItems, eq(billingLineItems.disputeId, disputes.id))
+    .where(
+      and(
+        wonFoxhoundDisputeConditions(asOfMs),
+        isNull(disputes.resolvedFeeCents),
+        accountBillingEligibleCondition(),
+        isNull(billingLineItems.id),
+      ),
+    )
+    .orderBy(disputes.resolvedAt)
+    .limit(limit);
+}
 
 /** Everything the guarded recovery-fee line insert needs. The fee is computed
  *  in Foxhound code and passed in as a bound constant: the 20% rate stays out

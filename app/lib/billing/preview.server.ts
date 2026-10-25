@@ -8,9 +8,8 @@ import {
   BILLABLE_ATTRIBUTION_KINDS,
   BILLING_RUN_DAY_OF_MONTH,
   BILLING_RUN_HOUR_UTC,
-  DISPUTE_FEE_CAP_CENTS,
 } from "~/lib/constants";
-import { disputeFeeCents, recoveryFeeCents } from "~/lib/billing/fees";
+import { recoveryFeeCents } from "~/lib/billing/fees";
 
 // The /billing fee preview (ruling 33): what the next monthly run will invoice,
 // shown to the merchant before the invoice exists. Strictly read-only.
@@ -19,11 +18,10 @@ import { disputeFeeCents, recoveryFeeCents } from "~/lib/billing/fees";
 // app/db/billable.ts and the fee amounts from app/lib/billing/fees.ts, the same
 // two modules app/lib/billing/run.ts reads, so the card and the invoice cannot
 // disagree about who is billable or what a fee is. The one piece of run.ts this
-// mirrors rather than imports is the per-dispute `resolvedFeeCents ?? computed`
-// ordering, which lives inside buildBillingInvoiceBatch's loop and is not
-// separately exported; test/billing-preview.test.ts pins the two against each
-// other with a fixture whose snapshot deliberately differs from the computed
-// fee, so a drift in that ordering fails a test rather than reaching a merchant.
+// mirrors rather than imports is the per-dispute fee: the stored snapshot, with
+// an unpriced win left out, as runAccountBilling does; test/billing-preview.test.ts
+// pins the two against each other, so a drift fails a test rather than reaching
+// a merchant.
 //
 // Everything here is evaluated at the NEXT RUN INSTANT, not at now. See
 // nextBillingRunAtMs.
@@ -173,16 +171,21 @@ export async function getBillingPreview(
     currency: r.currency,
     cents: recoveryFeeCents(r.amountCents),
   }));
-  const pendingDisputeFees: PendingDisputeFee[] = billableDisputes.map((d) => ({
-    disputeId: d.id,
-    amountCents: d.amountCents,
-    currency: d.currency,
-    // Mirrors buildBillingInvoiceBatch exactly: the cap-applied snapshot taken
-    // at resolution wins, and the fee function is the fallback for a dispute
-    // resolved before that column was written.
-    feeCents: d.resolvedFeeCents ?? disputeFeeCents(d.amountCents, DISPUTE_FEE_CAP_CENTS),
-    resolvedAt: d.resolvedAt ?? null,
-  }));
+  // Mirrors runAccountBilling exactly: the stored cap-applied fee, and an
+  // unpriced win (no stored fee) is not pending, because the run skips it.
+  const pendingDisputeFees: PendingDisputeFee[] = billableDisputes.flatMap((d) =>
+    d.resolvedFeeCents == null
+      ? []
+      : [
+          {
+            disputeId: d.id,
+            amountCents: d.amountCents,
+            currency: d.currency,
+            feeCents: d.resolvedFeeCents,
+            resolvedAt: d.resolvedAt ?? null,
+          },
+        ],
+  );
   const disputeFeeRows = pendingDisputeFees.map((d) => ({ currency: d.currency, cents: d.feeCents }));
   const attributed = new Set<string>(BILLABLE_ATTRIBUTION_KINDS);
 

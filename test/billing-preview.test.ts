@@ -157,11 +157,11 @@ async function seed(
   // Two won disputes, both Foxhound-submitted and approved. The first carries a
   // resolved fee snapshot DIFFERENT from what the fee function would compute
   // (20% of 200_000 is 40_000, the snapshot says 15_000), which is the only way
-  // to prove the preview mirrors the run's `resolvedFeeCents ?? computed`
-  // ordering rather than always recomputing.
+  // to prove the preview reads the stored fee the run bills rather than
+  // recomputing it.
   const disputeRows = [
     { id: "dsp_snapshot", amountCents: 200_000, resolvedFeeCents: 15_000 },
-    { id: "dsp_computed", amountCents: 50_000, resolvedFeeCents: null },
+    { id: "dsp_computed", amountCents: 50_000, resolvedFeeCents: 10_000 },
   ];
   for (const [i, d] of disputeRows.entries()) {
     await db.insert(schema.disputes).values({

@@ -3,9 +3,7 @@ import { and, eq, isNotNull } from "drizzle-orm";
 import type { Db } from "~/db";
 import { billingInvoices, billingLineItems } from "~/db";
 import { getBillableDisputes } from "~/db/billable";
-import { disputeFeeCents } from "~/lib/billing/fees";
 import { SETTLED_STATUSES } from "~/lib/billing/charge-retry";
-import { DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
 
 import type { MoneyPart } from "./stats";
 
@@ -22,7 +20,7 @@ import type { MoneyPart } from "./stats";
 //
 // - Pending: a win the next billing run will bill, exactly the set and the fee
 //   /billing's preview shows (getBillableDisputes, the run's own query, and
-//   the run's fee: the stored snapshot, else disputeFeeCents under the cap).
+//   the run's fee: the stored snapshot; an unpriced win is not yet pending).
 // - Invoiced: a dispute_fee line on an invoice that is not settled. Settled is
 //   the charge-retry sweep's own list (paid, void, uncollectible, gave_up):
 //   nothing more will be collected on those, so nothing is owed. A failed charge
@@ -70,10 +68,10 @@ export async function getDisputeFeesOwed(db: Db, accountId: string, nowMs: numbe
     creditedCents.set(c.creditsLineItemId, (creditedCents.get(c.creditsLineItemId) ?? 0) + Math.abs(c.amountCents));
   }
 
-  const parts: MoneyPart[] = pending.map((d) => ({
-    currency: d.currency,
-    cents: d.resolvedFeeCents ?? disputeFeeCents(d.amountCents, DISPUTE_FEE_CAP_CENTS),
-  }));
+  // The run's own fee: the stored snapshot. An unpriced win is not pending.
+  const parts: MoneyPart[] = pending.flatMap((d) =>
+    d.resolvedFeeCents == null ? [] : [{ currency: d.currency, cents: d.resolvedFeeCents }],
+  );
   for (const line of invoiced) {
     if (SETTLED_STATUSES.includes(line.invoiceStatus)) continue;
     const owed = line.amountCents - (creditedCents.get(line.id) ?? 0);
