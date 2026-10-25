@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   resolveBrandVoice,
   resolveContentPlan,
-  sanitizeCopy,
   stripEmDashes,
 } from "~/lib/recovery/email-generation";
 
@@ -15,11 +14,6 @@ describe("sanitizers (hard brand rules)", () => {
     expect(stripEmDashes("range 3–5")).toBe("range 3, 5");
   });
 
-  it("removes AI-tell filler and collapses the whitespace left behind", () => {
-    const out = sanitizeCopy("I hope this email finds you well. Your card was declined.");
-    expect(out).toBe("Your card was declined.");
-    expect(out).not.toMatch(/finds you well/i);
-  });
 });
 
 describe("cache-order resolution (custom_body -> cached -> generate)", () => {

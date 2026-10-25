@@ -52,7 +52,7 @@ const CLEAN = {
 };
 const STOCK = {
   subject: "A quick note about your Acme plan",
-  bodyHtml: `<p>We want to ensure a seamless experience for you.</p><p><a href="${UPDATE_URL}">Update your card</a>.</p>`,
+  bodyHtml: `<p>No hard feelings if you would rather stop. We genuinely value you.</p><p><a href="${UPDATE_URL}">Update your card</a>.</p>`,
 };
 const SAMPLE = "Hey folks, Jo here. Short one: the roaster's back <on> Friday. Cheers, Jo";
 
@@ -157,7 +157,7 @@ describe("stock phrasing", () => {
     harness.replies.push(STOCK, CLEAN);
     const copy = await generateDunningEmail(env, dunning);
     expect(harness.calls).toHaveLength(2);
-    expect(harness.calls[1].messages[0].content).toContain('"seamless"');
+    expect(harness.calls[1].messages[0].content).toContain('"No hard feelings"');
     expect(copy).toEqual(CLEAN);
   });
 
@@ -167,15 +167,6 @@ describe("stock phrasing", () => {
     expect(harness.calls).toHaveLength(2);
     expect(copy).toEqual(STOCK);
     expect(passesQualityGate(copy)).toBe(true);
-  });
-
-  it("PLANT: filler the sanitizer would cut is rewritten, not cut out of the sentence", async () => {
-    harness.replies.push(
-      { subject: CLEAN.subject, bodyHtml: `<p>Rest assured, your plan is safe. <a href="${UPDATE_URL}">Update your card</a>.</p>` },
-      CLEAN,
-    );
-    expect(await generateDunningEmail(env, dunning)).toEqual(CLEAN);
-    expect(harness.calls[1].messages[0].content).toContain('"Rest assured"');
   });
 
   it("PLANT: a timing retry that brings stock phrasing back is not kept", async () => {
@@ -192,7 +183,7 @@ describe("stock phrasing", () => {
     harness.replies.push(STOCK);
     const copy = await generateDunningEmail(env, {
       ...dunning,
-      merchant: { merchantName: "Acme", voiceSamples: ["Hi all, we keep checkout seamless for you. Cheers, Jo"] },
+      merchant: { merchantName: "Acme", voiceSamples: ["Hi all, no hard feelings if you skip a month, we genuinely mean it. Cheers, Jo"] },
     });
     expect(harness.calls).toHaveLength(1);
     expect(copy).toEqual(STOCK);
@@ -207,7 +198,7 @@ describe("stock phrasing", () => {
 
   it("PLANT: dispute evidence that reads as machine-written is retried, and the plain retry is what Stripe gets", async () => {
     harness.replies.push(
-      { uncategorizedText: "The customer had seamless access to the plan, a testament to our robust service." },
+      { uncategorizedText: "The customer genuinely had access to the plan, and that's completely fine by us." },
       { uncategorizedText: "The customer used the plan from 3 March." },
     );
     const fields = await draftDisputeEvidence(env, { productName: "Pro", serviceDate: null, communications: [] });

@@ -36,25 +36,16 @@ export function stripEmDashes(text: string): string {
   return text.replace(DASH_PATTERN, ", ");
 }
 
-// Filler phrases that read as machine-written. Removed as fixed strings (safe:
-// no grammar left behind because each carries its own trailing punctuation/space).
-const AI_TELL_PHRASES: readonly RegExp[] = [
-  /\bI hope this (?:email|message) finds you well[.,]?\s*/gi,
-  /\bwe understand that[.,]?\s*/gi,
-  /\brest assured[.,]?\s*/gi,
-  /\bat your earliest convenience\b/gi,
-  /\bplease don't hesitate to\b/gi,
-];
+// Phrasing that reads as machine-written is not cut here: cutting a phrase
+// leaves a broken sentence. The plain-writing check (app/lib/ai/plain-writing.ts)
+// names it and the model writes the draft again.
 
 /**
- * Apply the safe deterministic transforms to generated copy: strip dashes, drop
- * fixed AI-tell filler, and collapse the whitespace those removals leave behind.
+ * Apply the safe deterministic transforms to generated copy: strip dashes and
+ * collapse the whitespace they leave behind.
  */
 export function sanitizeCopy(text: string): string {
-  let out = stripEmDashes(text);
-  for (const phrase of AI_TELL_PHRASES) {
-    out = out.replace(phrase, "");
-  }
+  const out = stripEmDashes(text);
   // Collapse runs of spaces/tabs (not newlines) and trim line-trailing space.
   return out.replace(/[ \t]{2,}/g, " ").replace(/[ \t]+\n/g, "\n").trim();
 }
@@ -224,7 +215,7 @@ export interface EmailCopy {
   bodyHtml: string;
 }
 
-export type BrandVoiceViolation = "em_dash" | "ai_tell" | "timing_leak" | "empty";
+export type BrandVoiceViolation = "em_dash" | "timing_leak" | "empty";
 
 // ---- Stock phrasing (app/lib/ai/plain-writing.ts) ----
 
@@ -259,7 +250,7 @@ export function applyStockPhrasingGuard(
 /**
  * Flag brand-voice violations in a piece of copy. Used as the quality gate before
  * a generated email is allowed to send: any violation means regenerate or reject.
- * Post-`sanitizeCopy`, `em_dash`/`ai_tell` should be clear; `timing_leak` is the
+ * Post-`sanitizeCopy`, `em_dash` should be clear; `timing_leak` is the
  * detector that a sanitizer cannot safely fix.
  */
 export function findBrandVoiceViolations(copy: EmailCopy): BrandVoiceViolation[] {
@@ -267,11 +258,6 @@ export function findBrandVoiceViolations(copy: EmailCopy): BrandVoiceViolation[]
   const both = `${copy.subject}\n${copy.bodyHtml}`;
   if (!copy.subject.trim() || !copy.bodyHtml.trim()) violations.add("empty");
   if (/[\u2014\u2013]/.test(both)) violations.add("em_dash");
-  for (const phrase of AI_TELL_PHRASES) {
-    // fresh lastIndex: these are /g regexes reused across calls
-    phrase.lastIndex = 0;
-    if (phrase.test(both)) violations.add("ai_tell");
-  }
   for (const pat of TIMING_TELL_PATTERNS) {
     if (pat.test(both)) violations.add("timing_leak");
   }
@@ -488,7 +474,7 @@ function buildSystemPrompt(brandVoice: string, samples: readonly string[]): stri
     "- Never use timing words like 'today', 'tonight', 'yesterday', 'this morning',",
     "  'this afternoon', 'this evening', 'right now', 'immediately' or 'by end of day'",
     "  in the subject or the body. You do not know when the customer will read this.",
-    "- No corporate filler, no AI-sounding phrases, no 'I hope this finds you well'.",
+    "- No corporate filler and no AI-sounding phrases.",
     "- Sound like a real person from the business, not a template.",
     "- Keep it short. One clear call to action: the update link provided.",
     "- Output valid HTML for the body.",

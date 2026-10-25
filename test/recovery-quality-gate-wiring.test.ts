@@ -86,22 +86,6 @@ const VIOLATIONS: { name: string; copy: EmailCopy; expect: string }[] = [
     expect: "em_dash",
   },
   {
-    name: "ai_tell filler",
-    copy: {
-      subject: "Payment issue",
-      bodyHtml: "<p>I hope this email finds you well. Your payment failed.</p>",
-    },
-    expect: "ai_tell",
-  },
-  {
-    name: "ai_tell, another phrase",
-    copy: {
-      subject: "Payment issue",
-      bodyHtml: "<p>Rest assured we are here. Please update your card.</p>",
-    },
-    expect: "ai_tell",
-  },
-  {
     name: "timing_leak, day N",
     copy: { subject: "Payment issue", bodyHtml: "<p>This is your day 3 reminder.</p>" },
     expect: "timing_leak",
@@ -145,7 +129,6 @@ describe("the gate is actually wired into the send path", () => {
       // The violating text must not reach the customer.
       expect(job.bodyHtml, v.name).not.toContain("—");
       expect(job.bodyHtml, v.name).not.toContain("day 3");
-      expect(job.bodyHtml, v.name).not.toMatch(/I hope this email finds you well/i);
     }
   });
 });

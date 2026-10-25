@@ -5,12 +5,13 @@
 // AI drafts too. An approved difference from Recova (Dustin, 2026-10-24,
 // parity/APPROVED-DIFFERENCES.md).
 //
-// Only high and critical findings count (AI vocabulary like "seamless", the
-// email openers in EMAIL_PHRASES). The medium ones (an intensifier, a list of
-// three) are the prompt's to prevent, and a retry over one would cost more
-// than the phrase does.
+// Only high and critical findings count: the phrases and words current models
+// still write ("no hard feelings", "genuinely", "great question"), from
+// site-runtime's tested lists. The medium ones (a dash, "not X, it's Y") and a
+// list of three are the prompt's to prevent, and a retry over one would cost
+// more than the phrase does.
 
-import { checkProse, EMAIL_PHRASES, WRITING_RULES, type ProseIssue } from "@dustinedwards/site-runtime/prose";
+import { checkProse, WRITING_RULES, type ProseIssue } from "@dustinedwards/site-runtime/prose";
 
 /** The family's plain-writing rules as prompt lines. Its line on headings is
  *  about blog posts and is left out. */
@@ -24,7 +25,7 @@ export const PLAIN_WRITING_PROMPT = ["Plain writing:", ...PLAIN_WRITING_LINES].j
 /** The stock phrasing in a text that a reader notices at once, less any
  *  phrase in `allow`. Pure. */
 export function findStockPhrasing(text: string, allow: readonly string[] = []): ProseIssue[] {
-  return checkProse(text, { phrases: EMAIL_PHRASES, allow: [...allow] }).filter(
+  return checkProse(text, { allow: [...allow] }).filter(
     (i) => i.severity === "high" || i.severity === "critical",
   );
 }
