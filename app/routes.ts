@@ -237,6 +237,7 @@ export default [
   // Files (resource routes, no shell)
   route("sitemap.xml", "./routes/files/sitemap.ts"),
   route("robots.txt", "./routes/files/robots.ts"),
+  route("ai.txt", "./routes/files/ai-txt.ts"),
   route("llms.txt", "./routes/files/llms.ts"),
   route("llms-full.txt", "./routes/files/llms-full.ts"),
   route("feed.rss", "./routes/files/feed.ts"),

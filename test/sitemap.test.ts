@@ -105,6 +105,7 @@ const EXCLUDED_PREFIXES = [
   "/sitemap.xml",
   "/robots.txt",
   "/llms.txt",
+  "/ai.txt",
   "/llms-full.txt",
   "/feed.rss",
   "/og/",

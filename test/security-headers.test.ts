@@ -1,4 +1,5 @@
 
+import { TDM_RESERVATION_HEADERS } from "@drdustinedwards/site-helpers/robots";
 import { generateNonce, scriptHash } from "@dustinedwards/site-runtime/csp";
 import { PASSKEY_OVERRIDES, STANDARD_SECURITY_HEADERS } from "@dustinedwards/site-runtime/headers";
 import { describe, expect, it } from "vitest";
@@ -77,11 +78,11 @@ describe("generateNonce (site-runtime/csp, the same algorithm Foxhound had)", ()
 
 describe("the declared header set (site-runtime standard plus Foxhound's overrides)", () => {
 
-  it("differs from the OWASP standard only where an override says why", () => {
+  it("differs from the OWASP standard only where an override says why, plus Prelum's TDMRep header", () => {
     const differing = Object.keys({ ...STANDARD_SECURITY_HEADERS, ...SECURITY_HEADERS })
       .filter((name) => STANDARD_SECURITY_HEADERS[name] !== SECURITY_HEADERS[name])
       .sort();
-    expect(differing).toEqual(Object.keys(SECURITY_HEADER_OVERRIDES).sort());
+    expect(differing).toEqual([...Object.keys(SECURITY_HEADER_OVERRIDES), ...Object.keys(TDM_RESERVATION_HEADERS)].sort());
     for (const { reason } of Object.values(SECURITY_HEADER_OVERRIDES)) expect(reason.length).toBeGreaterThan(40);
   });
 
