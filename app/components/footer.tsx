@@ -176,7 +176,7 @@ export function Footer({ variant = "marketing" }: { variant?: FooterVariant } = 
             <div className="flex min-w-0 items-center gap-2.5">
               <img src="/favicon.svg" alt="" width={28} height={28} className="shrink-0" aria-hidden />
               <span className="font-mono text-[0.6875rem] text-chrome-text-secondary">
-                © 2026 Foxhound. Operated by Dustin Edwards, sole proprietor, Texas.
+                © 2026 Foxhound.
               </span>
             </div>
             {variant === "auth"
