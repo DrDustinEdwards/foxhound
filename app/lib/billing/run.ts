@@ -1,4 +1,3 @@
-import { DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
 import { eq } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
@@ -14,7 +13,7 @@ import { accounts, billingInvoices, billingLineItems, getDb } from "~/db";
 import { executeMoneyWrite } from "~/lib/money/execute";
 
 import { ChargeGuardReadError, runChargeRetrySweep, type ChargeRetryDeps } from "./charge-retry";
-import { disputeFeeCents, recoveryFeeCents } from "./fees";
+import { recoveryFeeCents } from "./fees";
 import { buildPlatformCustomerUpdate, ensurePlatformCustomer, lookupPlatformBillingEmail } from "./platform-customer";
 import {
   createPlatformInvoice,
@@ -73,8 +72,11 @@ export interface BillableRecoveryLite {
 export interface BillableDisputeLite {
   id: string;
   amountCents: number;
-  /** Cap-applied fee snapshotted at resolution; falls back to computed if absent. */
-  resolvedFeeCents: number | null;
+  /** The cap-applied fee stored at resolution or by the pricing retry. An
+   *  unpriced win never reaches the run (billableDisputeRowConditions), and
+   *  there is no computed fallback: the fee billed is the fee the merchant was
+   *  told. */
+  resolvedFeeCents: number;
 }
 
 export interface InvoiceBatchInput {
@@ -184,7 +186,7 @@ export function buildBillingInvoiceBatch(db: Db, input: InvoiceBatchInput): Buil
   }
 
   for (const d of input.disputes) {
-    const fee = d.resolvedFeeCents ?? disputeFeeCents(d.amountCents, DISPUTE_FEE_CAP_CENTS);
+    const fee = d.resolvedFeeCents;
     total += fee;
     lineItems.push(
       db.insert(billingLineItems).values({
@@ -350,13 +352,14 @@ export async function runAccountBilling(
     const cr: BillableRecoveryLite[] = recoveries
       .filter((r) => r.currency === currency)
       .map((r) => ({ id: r.id, amountCents: r.amountCents }));
-    const cd: BillableDisputeLite[] = disputes
-      .filter((d) => d.currency === currency)
-      .map((d) => ({
-        id: d.id,
-        amountCents: d.amountCents,
-        resolvedFeeCents: d.resolvedFeeCents ?? null,
-      }));
+    // The billable query already leaves out an unpriced win; this filter is
+    // the same rule restated where the fee is read, so a null can never become
+    // a computed number on an invoice.
+    const cd: BillableDisputeLite[] = disputes.flatMap((d) =>
+      d.currency === currency && d.resolvedFeeCents != null
+        ? [{ id: d.id, amountCents: d.amountCents, resolvedFeeCents: d.resolvedFeeCents }]
+        : [],
+    );
     if (cr.length === 0 && cd.length === 0) continue;
 
     const invoiceId = crypto.randomUUID();

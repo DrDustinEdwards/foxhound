@@ -27,6 +27,11 @@ import {
   runDisputeReminders,
 } from "~/lib/cron/dispute-reminders";
 import { describeExpiringCardRun, runExpiringCards } from "~/lib/cron/expiring-cards";
+import {
+  describeDisputeFeePricing,
+  disputeFeePricingFailureError,
+  priceUnpricedDisputeFees,
+} from "~/lib/disputes/fee-pricing.server";
 import { describeWeeklyDigestRun, runWeeklyDigest } from "~/lib/cron/digest";
 import { describeWinbackRun, runWinbackSends } from "~/lib/cron/winback";
 import { alertCronFailure, billingFailureError, runCronHealthCheck } from "./alerts.server";
@@ -218,6 +223,21 @@ const creditNoteRetry: CronHandler = async (env, ctx) => {
   return { rowsProcessed: result.credited, message: describeCreditSweep(result) };
 };
 
+/** The dispute fee pricing retry ("Skip until priced", Dustin 2026-10-25). A
+ *  won dispute whose cap could not be converted at resolution is skipped by
+ *  billing until its fee is stored; this prices it daily, tells the merchant,
+ *  and alerts while any stays unpriced. 03:00 daily runs before the 04:00
+ *  billing run on the 1st. */
+const disputeFeePricing: CronHandler = async (env, ctx) => {
+  const now = new Date();
+  const result = await priceUnpricedDisputeFees(env, now, ctx?.runId ?? null);
+  const failure = disputeFeePricingFailureError(result);
+  if (failure) {
+    await alertCronFailure(env, getDb(env), { cronName: "dispute-fee-pricing", runId: ctx?.runId ?? null, error: failure }, now);
+  }
+  return { rowsProcessed: result.priced, message: describeDisputeFeePricing(result) };
+};
+
 /** The Stripe grant revoke retry (Grok audit FH-7). Cancel, disconnect and
  *  account deletion revoke the grant after the local disconnect, and a failed
  *  revoke is queued on the connection row. This retries each daily until
@@ -276,6 +296,7 @@ export const CRON_JOBS: CronJob[] = [
   { name: DEMO_RESET_CRON_NAME, schedule: CRON_SCHEDULE_DAILY, handler: demoReset },
   { name: "credit-note-retry", schedule: CRON_SCHEDULE_DAILY, handler: creditNoteRetry },
   { name: "stripe-deauthorize-retry", schedule: CRON_SCHEDULE_DAILY, handler: stripeDeauthorizeRetry },
+  { name: "dispute-fee-pricing", schedule: CRON_SCHEDULE_DAILY, handler: disputeFeePricing },
   { name: "billing-monthly", schedule: CRON_SCHEDULE_MONTHLY, handler: billingMonthly },
   { name: "intelligence-sync", schedule: CRON_SCHEDULE_MONTHLY, handler: intelligenceSync },
   { name: "monthly-audit", schedule: CRON_SCHEDULE_MONTHLY_AUDIT, handler: monthlyAudit },

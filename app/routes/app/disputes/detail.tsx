@@ -552,7 +552,9 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
                   {state === "resolved_won"
                     ? dispute.resolvedFeeCents != null
                       ? `Won. Fee of ${formatMoney(dispute.resolvedFeeCents, dispute.resolvedFeeCurrency ?? dispute.currency)} billed at the next monthly run.`
-                      : "Won. No fee: this dispute was not submitted through Foxhound."
+                      : dispute.submittedAt != null
+                        ? "Won. The fee is not priced yet, so it is not billed until it is."
+                        : "Won. No fee: this dispute was not submitted through Foxhound."
                     : "Lost. Not billed."}
                 </p>
               ) : null}

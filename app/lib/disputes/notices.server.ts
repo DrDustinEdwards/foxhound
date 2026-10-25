@@ -228,6 +228,56 @@ export async function sendDisputeOutcomeNotice(
   }
 }
 
+/**
+ * The won notice again, once a fee priced late is stored (job_a7020c40c211).
+ * The first won notice went out without a fee sentence because the cap could
+ * not be converted at resolution, and a fee the merchant was never told is
+ * never billed. So the pricing retry sends Recova's won notice a second time,
+ * now carrying its fee sentence and the run that will invoice it, under its
+ * own once-only key. Only a priced, Foxhound-submitted win on an account that
+ * is invoiced is told; anything else has no fee to state.
+ */
+export async function sendDisputeFeeNotice(
+  env: Env,
+  ctx: { accountId: string; disputeId: string; pricedAt: Date; cronRunId: string | null },
+): Promise<DisputeNoticeOutcome> {
+  try {
+    const row = await loadNoticeRow(env, ctx.accountId, ctx.disputeId);
+    if (!row) return { kind: "skipped", reason: "not_found" };
+    if (row.state !== "resolved_won" || row.submittedAt == null || row.resolvedFeeCents == null) {
+      return { kind: "skipped", reason: "not_resolved" };
+    }
+    if (!row.notificationEmail) return { kind: "skipped", reason: "no_recipient" };
+    const notice = {
+      ...outcomeNotice({
+        won: true,
+        amountCents: row.amountCents,
+        currency: row.currency,
+        reason: row.reason,
+        foxhoundSubmitted: true,
+        feeCents: row.billingExempt ? null : row.resolvedFeeCents,
+        feeCurrency: row.resolvedFeeCurrency ?? row.currency,
+        // The first run at or after the pricing, which is the first run that
+        // can bill it.
+        invoiceDate: row.processingPaused ? null : nextDisputeBillingRun(ctx.pricedAt),
+        listUrl: appUrl(env, "/disputes/dashboard"),
+      }),
+      footerNote: disputeNoticeFooterNote(row.senderName, new Date().getUTCFullYear()),
+    };
+    return await send(
+      env,
+      ctx.accountId,
+      row.notificationEmail,
+      notice,
+      DISPUTE_OUTCOME_TEMPLATE,
+      `dispute-fee:${row.id}`,
+      ctx.cronRunId,
+    );
+  } catch (err) {
+    return failed("fee", ctx, err);
+  }
+}
+
 /** A dispute_approvals row exists for the dispute, pinned to the account. The
  *  cron selects only unsubmitted disputes, so a row here is an approval Stripe
  *  has not confirmed (job_2663d92094ab). */
