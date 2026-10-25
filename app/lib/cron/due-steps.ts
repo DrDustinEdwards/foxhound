@@ -380,6 +380,7 @@ export function toRetryContext(row: DueStepRow): RetryStepContext | null {
     amountCents: row.amountCents,
     currency: row.currency,
     connectionAccessToken: row.connectionAccessToken,
+    declineCategory: row.declineCategory,
   };
 }
 

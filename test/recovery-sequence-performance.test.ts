@@ -94,6 +94,8 @@ describe("buildStepCard", () => {
     const card = buildStepCard("retry_early", [
       { executedAt: new Date(), result: "retry_succeeded", openedAt: null, clickedAt: null, aiSubject: null, aiBodyHtml: null },
       { executedAt: new Date(), result: "retry_failed", openedAt: null, clickedAt: null, aiSubject: null, aiBodyHtml: null },
+      // A guarded expired-card retry that made no charge is not an attempt.
+      { executedAt: new Date(), result: "retry_skipped_card_unchanged", openedAt: null, clickedAt: null, aiSubject: null, aiBodyHtml: null },
     ], 4);
     expect(card.kind).toBe("retry");
     if (card.kind !== "retry") throw new Error("expected retry card");

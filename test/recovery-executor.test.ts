@@ -28,6 +28,7 @@ function retryCtx(overrides: Partial<RetryStepContext> = {}): RetryStepContext {
     amountCents: 4200,
     currency: "usd",
     connectionAccessToken: "iv:cipher",
+    declineCategory: "soft",
     ...overrides,
   };
 }

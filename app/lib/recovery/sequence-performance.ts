@@ -179,8 +179,12 @@ export function buildStepCard(stepType: string, rows: StepCardRow[], offsetHours
   const timingLabel = offsetHours === null ? null : formatStepTiming(offsetHours);
 
   if (isRetryStep(stepType)) {
-    const attempted = rows.length;
-    const recovered = rows.filter((r) => r.result === "retry_succeeded").length;
+    // An expired card's guarded retry that was skipped made no charge
+    // (card-change.ts), so it is not an attempt: counting it would show
+    // charges that never happened and drag the rate down with them.
+    const charged = rows.filter((r) => !r.result?.startsWith("retry_skipped_"));
+    const attempted = charged.length;
+    const recovered = charged.filter((r) => r.result === "retry_succeeded").length;
     return {
       kind: "retry",
       stepType,
