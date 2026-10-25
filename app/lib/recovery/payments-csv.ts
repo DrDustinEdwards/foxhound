@@ -1,4 +1,5 @@
 import type { FailedPaymentRow } from "./queries.server";
+import { plainMajorAmount } from "~/lib/money-format";
 
 // The /recovery/payments CSV export. Pure and unit-tested: given the rows
 // listFilteredFailedPayments returns for the list's own filters, sort, page
@@ -53,7 +54,7 @@ function neutraliseFormula(value: string): string {
 /** The only cells exempt from the guard: values this module produces itself,
  *  and only while they match the strict shape it produces. An amount such as
  *  -5.00 then stays a number in the spreadsheet instead of becoming text. */
-const AMOUNT_PATTERN = /^-?\d+\.\d{2}$/;
+const AMOUNT_PATTERN = /^-?\d+(\.\d{2,3})?$/;
 const COUNT_PATTERN = /^\d+$/;
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 
@@ -94,7 +95,7 @@ export function buildPaymentsCsv(
         text(p.customerName ?? ""),
         text(p.customerEmail),
         text(p.planName ?? ""),
-        produced((p.amountCents / 100).toFixed(2), AMOUNT_PATTERN),
+        produced(plainMajorAmount(p.amountCents, p.currency), AMOUNT_PATTERN),
         text(p.currency.toUpperCase()),
         text(p.declineCategory),
         text(p.declineCode ?? ""),

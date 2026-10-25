@@ -8,6 +8,7 @@ import { alertMetricLabel, isCentsMetric } from "~/lib/settings/alert-metrics";
 import { normalizeSlackWebhookUrl } from "~/lib/settings/slack-webhook";
 
 import { CRITICAL_HEALTH_SCORE_MAX, type AlertFiring } from "./alerts";
+import { formatMoney } from "~/lib/money-format";
 
 // THE ALERT EMAILS (J94, rows E21 and E22). Ported from Recova's
 // lib/alert-evaluation.ts (blob 0e28ecbf, 18,968 bytes): fireEmail and
@@ -62,7 +63,7 @@ export const CRITICAL_CUSTOMERS_ALERT_LIVE = false;
  *  two decimals; anything else as the bare number. */
 function formatAlertValue(metric: string, value: number): string {
   if (isCentsMetric(metric)) {
-    return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value / 100);
+    return formatMoney(value, "usd");
   }
   return String(value);
 }

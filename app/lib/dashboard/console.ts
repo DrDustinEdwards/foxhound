@@ -8,7 +8,7 @@
 // passes typecheck and fails the client build, so anything a component calls has
 // to live here.
 
-import { formatMoneyShort } from "~/lib/money-format";
+import { formatMoneyShort, fromMajorUnits, toMajorUnits } from "~/lib/money-format";
 import { DAY_MS, HOUR_MS } from "~/lib/constants";
 
 /** How far ahead a dispute deadline counts as urgent, matching legacy's
@@ -127,8 +127,8 @@ export interface MovementTotals {
 
 /** The movement bars as rows in whole currency units, the values the chart
  *  draws: contraction and churn below zero. */
-export function mrrMovementBars(m: MovementTotals): { label: string; units: number }[] {
-  const units = (cents: number) => Math.round(cents / 100);
+export function mrrMovementBars(m: MovementTotals, currency: string): { label: string; units: number }[] {
+  const units = (minor: number) => Math.round(toMajorUnits(minor, currency));
   return [
     { label: "New", units: units(m.newMrrCents) },
     { label: "Expand", units: units(m.expansionMrrCents) },
@@ -141,7 +141,7 @@ export function mrrMovementBars(m: MovementTotals): { label: string; units: numb
 /** The movement chart's text equivalent, built from the same whole units the
  *  bars and the data table show, so the three never disagree. */
 export function mrrMovementAlt(m: MovementTotals, currency: string): string {
-  const parts = mrrMovementBars(m).map((b) => `${b.label} ${formatMoneyShort(b.units * 100, currency)}`);
+  const parts = mrrMovementBars(m, currency).map((b) => `${b.label} ${formatMoneyShort(fromMajorUnits(b.units, currency), currency)}`);
   return `MRR movements in the latest month: ${parts.join(", ")}.`;
 }
 

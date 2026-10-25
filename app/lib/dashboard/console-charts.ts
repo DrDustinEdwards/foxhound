@@ -1,7 +1,7 @@
 import { barChart } from "enarratio/lite/bar";
 
 import type { CohortRow } from "~/lib/intelligence/mrr";
-import { formatMoneyShort } from "~/lib/money-format";
+import { formatMoneyShort, fromMajorUnits } from "~/lib/money-format";
 
 import { mrrMovementAlt, mrrMovementBars, type MovementTotals } from "./console";
 
@@ -22,7 +22,7 @@ const MOVEMENT_COLORS: Record<string, string> = {
 };
 
 export function drawLatestMovement(m: MovementTotals, currency: string, width: number): string {
-  const bars = mrrMovementBars(m);
+  const bars = mrrMovementBars(m, currency);
   return barChart({
     data: bars.map((b) => ({ Movement: b.label, kind: b.label, amount: b.units })),
     x: "Movement",
@@ -33,7 +33,7 @@ export function drawLatestMovement(m: MovementTotals, currency: string, width: n
     colors: MOVEMENT_COLORS,
     xLabel: null,
     yLabel: currency.toUpperCase(),
-    formatValue: (v) => formatMoneyShort(v * 100, currency),
+    formatValue: (v) => formatMoneyShort(fromMajorUnits(v, currency), currency),
     alt: mrrMovementAlt(m, currency),
     width,
     height: 200,

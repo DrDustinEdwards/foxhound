@@ -151,13 +151,10 @@ function count(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
-/** An amount with its currency; a code Intl refuses is shown beside the figure. */
+/** An amount with its currency; a code Intl refuses is shown beside the
+ *  figure, which formatMoney now does itself. */
 function money(cents: number, currency: string): string {
-  try {
-    return formatMoney(cents, currency);
-  } catch {
-    return `${(cents / 100).toFixed(2)} ${currency.toUpperCase()}`;
-  }
+  return formatMoney(cents, currency);
 }
 
 /**
