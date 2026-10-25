@@ -9,13 +9,12 @@
 // Stripe's zero-decimal currencies the amount IS the whole unit, so 5000 JPY is
 // 5,000 yen; for its three-decimal currencies it is a thousandth. Recova divided
 // everything by 100 and showed a 5,000 yen dispute as 50 yen. This table is the
-// one place the exponent is decided for display; every display path below goes
-// through it.
+// one place the exponent is decided; every display path below goes through it,
+// and so does the dispute fee cap.
 //
-// DISPLAY ONLY. Nothing here is a fee, a cap or an amount sent to Stripe
-// (RULES.md 3.2, 3.8). billing/dispute-cap.ts keeps its own table for the cap
-// conversion and is deliberately not routed through this one; see the PR that
-// added this table for the one place they disagree (UGX).
+// Nothing here writes a fee or sends an amount to Stripe (RULES.md 3.2, 3.8).
+// billing/dispute-cap.ts reads currencyExponent to express the converted cap in
+// the dispute's Stripe amount, so the cap and the display share one table.
 
 /** Stripe's zero-decimal currencies: the amount is the whole unit.
  *  docs.stripe.com/currencies, "Zero-decimal currencies". UGX is left out on
