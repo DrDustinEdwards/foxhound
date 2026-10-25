@@ -8,7 +8,7 @@ import { PAUSE_REASON_BRAKE, PAUSE_REASON_MANUAL } from "~/lib/admin/brake";
 import { adminContext } from "~/lib/admin/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
-import { createInMemoryDb } from "./helpers/inmemory-db";
+import { createInMemoryDb, inMemoryMoneyWriter } from "./helpers/inmemory-db";
 
 // J50 (job_53a17d86a49e, rows D5 and D6): Recova's two merchant lists,
 // app/admin/merchants/billing-exempt/page.tsx (blob a0c4f9da) and
@@ -21,7 +21,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // action and writers (PRs 140 and 142), so Undo, the brake guard and the
 // audit row come with them.
 
-const harness = vi.hoisted(() => ({ db: null as unknown }));
+const harness = vi.hoisted(() => ({ db: null as unknown, sqlite: null as unknown }));
 vi.mock("~/db", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/db")>()),
   getDb: () => harness.db,
@@ -55,7 +55,11 @@ async function seed(): Promise<Seeded> {
 
 function context() {
   const c = new RouterContextProvider();
-  c.set(cloudflareContext, { env: {} as Env, ctx: {} as ExecutionContext, nonce: "" });
+  c.set(cloudflareContext, {
+    env: { MONEY_WRITER: inMemoryMoneyWriter(() => harness.sqlite as never).binding } as unknown as Env,
+    ctx: {} as ExecutionContext,
+    nonce: "",
+  });
   c.set(adminContext, { email: ACTOR });
   return c;
 }
@@ -137,6 +141,7 @@ describe("the action from a list: the Merchants page's writers and audit rows", 
   beforeEach(async () => {
     seeded = await seed();
     harness.db = seeded.db;
+    harness.sqlite = seeded.sqlite;
   });
 
   const account = async (id: string) => (await seeded.db.select().from(accounts).where(eq(accounts.id, id)))[0];

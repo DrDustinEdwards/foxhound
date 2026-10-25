@@ -21,7 +21,7 @@ import { PAUSE_REASON_BRAKE, PAUSE_REASON_MANUAL } from "~/lib/admin/brake";
 import { adminContext } from "~/lib/admin/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
-import { createInMemoryDb } from "./helpers/inmemory-db";
+import { createInMemoryDb, inMemoryMoneyWriter } from "./helpers/inmemory-db";
 
 // J70 (job_fe19adcaaf19, row D3): /admin/merchants on the family admin pattern
 // (Capsomer patterns, Dustin's Q9 of 2026-10-14) and his 2026-10-11 admin
@@ -35,7 +35,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // through cancelMerchant. Impersonate stays out (ruling 125). Every write goes
 // through Foxhound's existing writers.
 
-const harness = vi.hoisted(() => ({ db: null as unknown, deauthorized: [] as string[] }));
+const harness = vi.hoisted(() => ({ db: null as unknown, sqlite: null as unknown, deauthorized: [] as string[] }));
 vi.mock("~/db", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/db")>()),
   getDb: () => harness.db,
@@ -363,7 +363,11 @@ describe("getMerchantFigures: Recova's five stat cards, demo accounts not counte
 
 function context() {
   const c = new RouterContextProvider();
-  c.set(cloudflareContext, { env: {} as Env, ctx: {} as ExecutionContext, nonce: "" });
+  c.set(cloudflareContext, {
+    env: { MONEY_WRITER: inMemoryMoneyWriter(() => harness.sqlite as never).binding } as unknown as Env,
+    ctx: {} as ExecutionContext,
+    nonce: "",
+  });
   c.set(adminContext, { email: ACTOR });
   return c;
 }
@@ -393,6 +397,7 @@ describe("the action: Foxhound's writers, each with its audit row", () => {
   beforeEach(async () => {
     seeded = await seed();
     harness.db = seeded.db;
+    harness.sqlite = seeded.sqlite;
     harness.deauthorized = [];
   });
 

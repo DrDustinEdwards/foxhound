@@ -21,7 +21,7 @@ import {
 } from "~/lib/admin/merchants";
 import {
   getMerchantActionTarget,
-  setBillingExemptIfChanged,
+  setBillingExempt,
   setProcessingPausedIfChanged,
 } from "~/lib/admin/merchants.server";
 import { cancelMerchant } from "~/lib/admin/merchant-cancel.server";
@@ -147,7 +147,7 @@ export async function action({ context, request }: Route.ActionArgs) {
   });
   const changed =
     intent === "billing-exempt"
-      ? await setBillingExemptIfChanged(db, accountId, value)
+      ? await setBillingExempt(env, accountId, value, new Date())
       : await setProcessingPausedIfChanged(db, accountId, value, { undoOfPause: undo });
 
   if (undo && !changed) {

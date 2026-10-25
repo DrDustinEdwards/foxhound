@@ -63,7 +63,7 @@ export async function action({ context, request, params }: Route.ActionArgs) {
 
   if (intent === "toggle-billing-exempt") {
     const nextExempt = String(form.get("nextExempt") ?? "") === "true";
-    await setBillingExempt(db, accountId, nextExempt);
+    await setBillingExempt(env, accountId, nextExempt, new Date());
     await logAdminAction(db, {
       actorEmail: auth.email,
       action: nextExempt ? "merchant.billing_exempt.enable" : "merchant.billing_exempt.disable",

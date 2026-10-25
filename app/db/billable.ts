@@ -1,8 +1,17 @@
-import { and, eq, getTableColumns, inArray, isNotNull, isNull, lte, notLike, sql, type SQL } from "drizzle-orm";
+import { and, eq, getTableColumns, gt, inArray, isNotNull, isNull, lte, notExists, notLike, or, sql, type AnyColumn, type SQL } from "drizzle-orm";
+import { QueryBuilder } from "drizzle-orm/sqlite-core";
 
 import { BILLABLE_ATTRIBUTION_KINDS, DEMO_ACCOUNT_ID_PREFIX, RECOVERY_MATURITY_MS } from "~/lib/constants";
 import type { Db } from "./client";
-import { accounts, billingInvoices, billingLineItems, disputeApprovals, disputes, recoveredPayments } from "./schema";
+import {
+  accounts,
+  billingExemptionPeriods,
+  billingInvoices,
+  billingLineItems,
+  disputeApprovals,
+  disputes,
+  recoveredPayments,
+} from "./schema";
 
 // THE single source of truth for the billable sets (PRICING.md maturity-window
 // billing + SCHEMA.md spine #3). No other module reimplements these predicates.
@@ -17,7 +26,8 @@ import { accounts, billingInvoices, billingLineItems, disputeApprovals, disputes
 //   - matured >= RECOVERY_MATURITY_DAYS (recovered_at <= asOf - maturity),
 //   - not refunded, not disputed, not soft-deleted,
 //   - not already billed (no billing_line_item references it),
-//   - the account is billing-eligible (not exempt, not paused, not a demo account).
+//   - the account is billing-eligible (not exempt, not paused, not a demo account),
+//   - and no billing exemption forgave it (exemptionForgaveRecovery below).
 // A won dispute bills only when Foxhound actually drafted AND submitted the
 // evidence (PRICING.md rev 3: "Billable only if Foxhound drafted AND submitted
 // the evidence. Merchant-fought disputes are never billed."). The proof of a
@@ -26,7 +36,18 @@ import { accounts, billingInvoices, billingLineItems, disputeApprovals, disputes
 // the submission; see app/lib/disputes/approval.ts buildSubmissionConfirmationBatch).
 // A merchant-fought or auto-resolved win has neither and yields ZERO fee, even
 // though its state is resolved_won. On top of that: resolved_won by asOf, not
-// previously billed, and the account is billing-eligible.
+// previously billed, the account is billing-eligible, and no billing exemption
+// forgave it (exemptionForgaveDispute below).
+//
+// AN EXEMPTION FORGIVES (Dustin, 2026-10-25, "Forgive, like Recova"). Recova
+// billed only the prior calendar month and skipped exempt accounts, so a fee
+// that came due while an account was exempt was never billed. The run-time
+// billing_exempt gate alone only HELD such fees for the first run after the
+// exemption ended. A fee is forgiven when an exempt stretch
+// (billing_exemption_periods, [started_at, ended_at)) covered the moment it
+// was earned, or any moment it was due and unbilled: from maturity (a
+// recovery) or resolution (a dispute) up to asOf. Only stretches that had
+// started by asOf count, so a run never forgives on an exemption set after it.
 
 /** Account-level billing gate (PRICING.md: billing_exempt / processing_paused
  *  honored in the billable query itself; demo accounts never bill). Applied via an
@@ -37,6 +58,58 @@ export function accountBillingEligibleCondition(): SQL {
     eq(accounts.processingPaused, false),
     notLike(accounts.id, `${DEMO_ACCOUNT_ID_PREFIX}%`),
   ) as SQL;
+}
+
+// The correlated subqueries need no db handle, so the row-condition builders
+// keep their signatures and the guarded insert re-checks forgiveness as it writes.
+const qb = new QueryBuilder();
+
+/** The stretch belongs to the row's account and had not ended by `from`. */
+function stretchOfRowNotEndedBy(rowAccountId: AnyColumn, from: AnyColumn | SQL): SQL {
+  return and(
+    eq(billingExemptionPeriods.accountId, rowAccountId),
+    or(isNull(billingExemptionPeriods.endedAt), gt(billingExemptionPeriods.endedAt, from)),
+  ) as SQL;
+}
+
+/** A recovery is forgiven when an exempt stretch covered the moment it was
+ *  recovered (no fee builds up while exempt), or any moment from its maturity
+ *  to asOf (it came due, unbilled, while exempt). */
+function exemptionForgaveRecovery(asOfMs: number): SQL {
+  const maturedAt = sql`${recoveredPayments.recoveredAt} + ${RECOVERY_MATURITY_MS}`;
+  return notExists(
+    qb
+      .select({ one: sql`1` })
+      .from(billingExemptionPeriods)
+      .where(
+        and(
+          stretchOfRowNotEndedBy(recoveredPayments.accountId, recoveredPayments.recoveredAt),
+          or(
+            lte(billingExemptionPeriods.startedAt, recoveredPayments.recoveredAt),
+            and(
+              lte(billingExemptionPeriods.startedAt, new Date(asOfMs)),
+              stretchOfRowNotEndedBy(recoveredPayments.accountId, maturedAt),
+            ),
+          ),
+        ),
+      ),
+  );
+}
+
+/** A dispute win is forgiven when an exempt stretch covered any moment from its
+ *  resolution to asOf. */
+function exemptionForgaveDispute(asOfMs: number): SQL {
+  return notExists(
+    qb
+      .select({ one: sql`1` })
+      .from(billingExemptionPeriods)
+      .where(
+        and(
+          stretchOfRowNotEndedBy(disputes.accountId, disputes.resolvedAt),
+          lte(billingExemptionPeriods.startedAt, new Date(asOfMs)),
+        ),
+      ),
+  );
 }
 
 /** Row-level billable conditions for recoveries (everything except the
@@ -50,6 +123,7 @@ export function billableRecoveryRowConditions(accountId: string, asOfMs: number)
     isNull(recoveredPayments.refundedAt),
     isNull(recoveredPayments.disputedAt),
     isNull(recoveredPayments.deletedAt),
+    exemptionForgaveRecovery(asOfMs),
   ) as SQL;
 }
 
@@ -89,6 +163,7 @@ export function billableDisputeRowConditions(accountId: string, asOfMs: number):
     eq(disputes.state, "resolved_won"),
     isNotNull(disputes.submittedAt),
     lte(disputes.resolvedAt, new Date(asOfMs)),
+    exemptionForgaveDispute(asOfMs),
   ) as SQL;
 }
 
