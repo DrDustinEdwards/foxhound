@@ -327,7 +327,7 @@ describe("getConsoleView tiles", () => {
   it("sums audit leakage across both of its components", async () => {
     const db = await seedConsole({ audit: { daysAgo: 3, failedCents: 40_000, disputeCents: 2_500 } });
     const view = await getConsoleView(db, ACCOUNT_ID, NOW, null);
-    expect(view.tiles.auditLeakingCents).toBe(42_500);
+    expect(view.tiles.auditLeaking).toEqual([{ currency: "usd", cents: 42_500 }]);
     expect(view.tiles.lastAuditAt).not.toBeNull();
   });
 });

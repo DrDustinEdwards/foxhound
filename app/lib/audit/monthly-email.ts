@@ -3,9 +3,9 @@
 
 import type { Block } from "capsomer/email";
 import type { CurrencyCents } from "~/lib/audit/full-audit.server";
-import { formatBps, formatCents, SCOPE_UNREAD } from "~/lib/audit/render";
+import { formatBps, formatTotals, SCOPE_UNREAD } from "~/lib/audit/render";
 import { formatMoney } from "~/lib/money-format";
-import type { AuditResult, ScopeOutcome } from "./engine";
+import type { AuditResult, MoneyTotals, ScopeOutcome } from "./engine";
 
 export interface CurrencyComparison {
   currency: string;
@@ -76,6 +76,29 @@ function figure<T>(scope: ScopeOutcome<T>, render: (data: T) => string): string 
  *  rows of its own are capsomer job_d7f02cec277c. */
 function row(label: string, value: string): Block {
   return { type: "paragraph", text: `${label}: ${value}` };
+}
+
+/**
+ * A money row, one line per currency (job_ed1c41e4bd95, approved by Dustin on
+ * 2026-10-25). The first currency sits on the labelled row as before; each
+ * other currency is its own line straight below it. Recova added them into one
+ * number under the first currency's label (RULES.md 3.20). A single-currency
+ * account gets the one row it always did. `lead` is what goes before the
+ * amount on the labelled row ("3, "), `tail` what follows every amount.
+ */
+function moneyRows<T>(
+  label: string,
+  scope: ScopeOutcome<T>,
+  pick: (data: T) => { lead?: string; totals: MoneyTotals; tail?: string },
+  cur: string,
+): Block[] {
+  if (!scope.ok) return [row(label, SCOPE_UNREAD)];
+  const { lead = "", totals, tail = "" } = pick(scope.data);
+  const [first, ...rest] = formatTotals(totals, cur);
+  return [
+    row(label, `${lead}${first}${tail}`),
+    ...rest.map((line): Block => ({ type: "paragraph", text: `${line}${tail}` })),
+  ];
 }
 
 export interface MonthlyAuditEmailInput {
@@ -168,26 +191,27 @@ export function buildMonthlyAuditEmail(input: MonthlyAuditEmailInput): {
     ...addsLines,
 
     { type: "fine", text: "Your Stripe health" },
-    row("MRR", figure(result.health, (h) => formatCents(h.mrrCents, cur))),
-    row("ARR", figure(result.health, (h) => formatCents(h.arrCents, cur))),
+    ...moneyRows("MRR", result.health, (h) => ({ totals: h.mrrTotals }), cur),
+    ...moneyRows("ARR", result.health, (h) => ({ totals: h.arrTotals }), cur),
     row("Active subs", figure(result.health, (h) => String(h.activeSubscriptionsCount))),
 
-    row(
-      "Failed payments detected",
-      figure(result.failedInvoices, (f) => `${f.count}, ${formatCents(f.totalCents, cur)}`),
-    ),
-    row(
+    ...moneyRows("Failed payments detected", result.failedInvoices, (f) => ({ lead: `${f.count}, `, totals: f.totals }), cur),
+    ...moneyRows(
       "Expiring cards",
-      figure(result.expiringCards, (e) => `${e.count}, ${formatCents(e.mrrAtRiskCents, cur)} MRR at risk`),
+      result.expiringCards,
+      (e) => ({ lead: `${e.count}, `, totals: e.mrrAtRiskTotals, tail: " MRR at risk" }),
+      cur,
     ),
-    row(
+    ...moneyRows(
       "Past-due subscriptions",
-      figure(result.pastDueSubscriptions, (p) => `${p.count}, ${formatCents(p.totalCents, cur)}`),
+      result.pastDueSubscriptions,
+      (p) => ({ lead: `${p.count}, `, totals: p.totals }),
+      cur,
     ),
     row("Voluntary churn", figure(result.health, (h) => formatBps(h.voluntaryChurnRateBps))),
     row("Involuntary churn", figure(result.health, (h) => formatBps(h.involuntaryChurnRateBps))),
     ...(openDisputes
-      ? [row("Open disputes", figure(disputes, (d) => `${d.open.count}, ${formatCents(d.open.totalCents, cur)}`))]
+      ? moneyRows("Open disputes", disputes, (d) => ({ lead: `${d.open.count}, `, totals: d.open.totals }), cur)
       : []),
     ...(acceptedDisputes
       ? [row("Disputes accepted without response", figure(disputes, (d) => String(d.acceptedWithoutFighting.count)))]

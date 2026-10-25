@@ -11,6 +11,7 @@ import {
 import { HEALTH_SCORE_AT_RISK_THRESHOLD, HOUR_MS } from "~/lib/constants";
 import { RESOLVED_DISPUTE_STATES } from "~/lib/disputes/labels";
 import { isIntelligenceEntitled } from "~/lib/intelligence/views.server";
+import { byCurrencyCode } from "~/lib/money-format";
 import { groupSumByCurrency, type CurrencyAmount } from "./stats.server";
 import {
   ATTENTION_ROWS_PER_CATEGORY,
@@ -82,9 +83,9 @@ export interface ConsoleTiles {
   /** Every high-risk customer, uncapped, as Recova counts them. */
   highRiskCustomerCount: number;
   lastAuditAt: Date | null;
-  auditLeakingCents: number;
-  /** The audit run's own currency, so its leak figure is not printed in another's. */
-  auditCurrency: string;
+  /** The last audit run's failed invoices plus open disputes, per currency
+   *  in currency-code order, as the run's own page shows them. */
+  auditLeaking: CurrencyAmount[];
 }
 
 export type AttentionTone = "urgent" | "warning" | "subtle";
@@ -120,6 +121,31 @@ export interface ConsoleView {
 /** The label a row uses for its subject, with legacy's fallback chain. */
 function subjectLabel(name: string | null, email: string | null): string {
   return name || email || "Customer";
+}
+
+/**
+ * The audit tile's leak: the run's failed invoices plus its open disputes,
+ * added within each currency only (RULES.md 3.20) and shown one per currency
+ * (Dustin, 2026-10-25). A run stored before money_by_currency has one figure
+ * per scope in its one currency, and shows that as it always did; one that
+ * recorded no currency reads as USD, the engine's own fallback. No money at
+ * all is a zero in the run's currency.
+ */
+function auditLeaking(audit: {
+  failedInvoicesCents: number | null;
+  openDisputesCents: number | null;
+  currency: string | null;
+  moneyByCurrency: { failedInvoices: CurrencyAmount[] | null; openDisputes: CurrencyAmount[] | null } | null;
+}): CurrencyAmount[] {
+  const currency = audit.currency ?? "usd";
+  const money = audit.moneyByCurrency;
+  const parts = money
+    ? [...(money.failedInvoices ?? []), ...(money.openDisputes ?? [])]
+    : [{ currency, cents: (audit.failedInvoicesCents ?? 0) + (audit.openDisputesCents ?? 0) }];
+  const totals = groupSumByCurrency(parts.map((p) => ({ currency: p.currency, amountCents: p.cents })))
+    .filter((t) => t.cents !== 0)
+    .sort(byCurrencyCode);
+  return totals.length > 0 ? totals : [{ currency, cents: 0 }];
 }
 
 export async function getConsoleView(
@@ -222,6 +248,7 @@ export async function getConsoleView(
         failedInvoicesCents: auditRuns.failedInvoicesCents,
         openDisputesCents: auditRuns.openDisputesCents,
         currency: auditRuns.currency,
+        moneyByCurrency: auditRuns.moneyByCurrency,
       })
       .from(auditRuns)
       .where(eq(auditRuns.accountId, accountId))
@@ -391,11 +418,7 @@ export async function getConsoleView(
       highRiskMrr,
       highRiskCustomerCount: highRisk.length,
       lastAuditAt: audit?.runAt ?? null,
-      // Both parts of one run are in that run's currency (the audit engine
-      // resolves one currency per run). A run that recorded none reads as USD,
-      // the engine's own fallback.
-      auditLeakingCents: audit ? (audit.failedInvoicesCents ?? 0) + (audit.openDisputesCents ?? 0) : 0,
-      auditCurrency: audit?.currency ?? "usd",
+      auditLeaking: audit ? auditLeaking(audit) : [],
     },
     attention,
     mrrSync,

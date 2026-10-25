@@ -95,6 +95,7 @@ const dollars = (cents: number) => `$${(cents / 100).toLocaleString("en-US")}`;
 const RECOVERY_FEE = pct(RECOVERY_FEE_BPS);
 const DISPUTE_FEE = pct(DISPUTE_FEE_BPS);
 const NETWORK_FIRST = RECOVERY_SCHEDULES.network[0]!;
+const EXPIRED_RETRY_DAY = RECOVERY_SCHEDULES.expired.find((s) => s.stepType === "retry_day21")!.offsetHours / 24;
 
 export const DOC_GUIDES: DocGuide[] = [
   {
@@ -374,7 +375,7 @@ export const DOC_GUIDES: DocGuide[] = [
           { kind: "widget", name: "decline-categories" },
           "Each category's steps in order, from the engine's own schedule table:",
           { kind: "widget", name: "sequence-timelines" },
-          { kind: "p", body: [ { strong: "Why no retries for expired cards and fraud?" }, " A retry on an expired card fails every time until the customer updates it. Retrying a blocked card can draw further flags with the issuer. In both cases the only path to recovery is the customer acting, which is what the emails are for, and a revoked mandate gets a single email for the same reason. An unknown decline gets the same treatment. Emails only, failing closed: no silent retry against a code that has not been classified." ] },
+          { kind: "p", body: [ { strong: "Why so few retries for expired cards, and none for fraud?" }, ` A retry on an expired card fails every time until the card is updated, and the card networks do not allow retrying the same card number and expiry. So an expired card gets one retry, on day ${EXPIRED_RETRY_DAY}, and it charges only if the card has changed since the decline: Stripe's card updater gave it a new expiry, or the customer added a card on the card-update page. Otherwise the step is skipped. Retrying a blocked card can draw further flags with the issuer, so fraud gets no retry. In both cases the main path to recovery is the customer acting, which is what the emails are for, and a revoked mandate gets a single email for the same reason. An unknown decline gets no retry at all. Emails only, failing closed: no silent retry against a code that has not been classified.` ] },
           { kind: "p", body: [ { strong: `Why does network get an early retry at ${NETWORK_FIRST.offsetHours} hours?` }, " Network errors are usually passing: a processor hiccup or a bank briefly unavailable. Most clear within a few hours on their own, and the early retry catches those before any email is needed." ] },
           { kind: "h3", text: "Reading the sequence performance page" },
           { kind: "p", body: [ "The page at ", { link: "/recovery/sequence", to: "/recovery/sequence" }, " reads across your whole recovery history by category. For each step it shows how many went out, the open rate, the click rate and the most recent subject line used. A retry step shows how often the retry worked instead." ] },

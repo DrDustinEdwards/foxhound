@@ -1,0 +1,1 @@
+ALTER TABLE `audit_runs` ADD `money_by_currency` text;

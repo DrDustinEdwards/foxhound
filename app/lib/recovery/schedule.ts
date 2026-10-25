@@ -75,12 +75,19 @@ export const RECOVERY_SCHEDULES: Record<DeclineCategory, ScheduledStep[]> = {
     { stepType: "email_day30", offsetHours: STEP_TIMING_EMAIL_DAY30_HOURS },
   ],
   // Expired cards re-decline on retry; recovery needs a card update, so the first
-  // step is the email that carries the update link. No silent retry.
+  // step is the email that carries the update link. No early silent retry.
+  // Recova's day 21 retry is kept, GUARDED: it charges only if the card changed
+  // after the decline (Stripe's card updater, a different card, or the customer
+  // on the hosted card page) and is skipped otherwise, because Mastercard
+  // forbids retrying an expired-card decline on the same number and expiry.
+  // The guard is executeRetryStep's (app/lib/engine/card-change.ts). Dustin
+  // approved the guard on 2026-10-25 (decision card, "Yes, all three").
   expired: [
     { stepType: "email_day1", offsetHours: STEP_TIMING_EMAIL_DAY1_HOURS },
     { stepType: "email_day3", offsetHours: STEP_TIMING_EMAIL_DAY3_HOURS },
     { stepType: "email_day7", offsetHours: STEP_TIMING_EMAIL_DAY7_HOURS },
     { stepType: "email_day14", offsetHours: STEP_TIMING_EMAIL_DAY14_HOURS },
+    { stepType: "retry_day21", offsetHours: STEP_TIMING_RETRY_DAY21_HOURS },
     { stepType: "email_day30", offsetHours: STEP_TIMING_EMAIL_DAY30_HOURS },
   ],
   // Fraud never retries (issuer fraud-counter risk). Email-only, gentle cadence.
@@ -98,8 +105,8 @@ export const RECOVERY_SCHEDULES: Record<DeclineCategory, ScheduledStep[]> = {
   // an ability-to-pay failure). The single send IS the hold.
   revoked: [{ stepType: "email_revoked", offsetHours: STEP_TIMING_REVOKED_EMAIL_HOURS }],
   // Unrecognized/unmapped decline codes fail closed: no silent retry against a
-  // code the engine cannot classify. Same cadence as expired (email carrying
-  // the card-update link, no repeat charge).
+  // code the engine cannot classify. The expired emails' days (email carrying
+  // the card-update link), without expired's guarded day 21 retry.
   unknown: [
     { stepType: "email_day1", offsetHours: STEP_TIMING_EMAIL_DAY1_HOURS },
     { stepType: "email_day3", offsetHours: STEP_TIMING_EMAIL_DAY3_HOURS },

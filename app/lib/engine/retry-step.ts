@@ -10,10 +10,11 @@ import {
   reconcileRetryRecovery as reconcileRetryRecoveryReal,
   type RetryReconciliationInput,
 } from "~/lib/recovery/record-recovery";
-import type { StepStatePatch } from "~/lib/recovery/step-state";
+import type { RetryResult, StepStatePatch } from "~/lib/recovery/step-state";
 import { loadSlackCustomer, postToSlack, resolveSlackTarget } from "~/lib/notify/slack.server";
 import { getConnectedStripe } from "~/lib/stripe/client";
 import { decryptToken } from "~/lib/stripe/encryption";
+import { type CardChangeVerdict, checkCardChanged, retryNeedsChangedCard } from "./card-change";
 import { decideRetryStep, type RetryAttempt } from "./step-runner";
 
 // The LIVE recovery-step executors: the seam that wraps the pure deciders
@@ -60,6 +61,9 @@ export interface RetryStepContext {
   currency: string;
   /** Encrypted stripe_connections.stripe_access_token for the connected account. */
   connectionAccessToken: string;
+  /** failed_payments.decline_category. Required, so every caller says it: an
+   *  expired card's retry charges only a changed card (card-change.ts). */
+  declineCategory: string;
 }
 
 /** Stripe idempotency key for a retry charge: stable per step, so a redelivered
@@ -153,6 +157,9 @@ export interface RetryStepDeps {
   /** Reconcile the foxhound_retry attribution against whatever the webhook
    *  already recorded, through the money DO. Default: reconcileRetryRecovery. */
   reconcileRecovery: (env: Env, input: RetryReconciliationInput) => Promise<boolean>;
+  /** Whether the card changed since the decline, asked only for a category
+   *  whose retry needs it (expired). Default: checkCardChanged, read-only. */
+  checkCardChanged: (env: Env, ctx: RetryStepContext) => Promise<CardChangeVerdict>;
 }
 
 async function defaultPayInvoice(env: Env, ctx: RetryStepContext): Promise<RetryAttempt> {
@@ -191,8 +198,20 @@ export async function executeRetryStep(
   const payInvoice = deps.payInvoice ?? defaultPayInvoice;
   const persistPatch = deps.persistPatch ?? defaultPersistPatch;
   const reconcileRecovery = deps.reconcileRecovery ?? reconcileRetryRecoveryReal;
+  const checkChanged = deps.checkCardChanged ?? checkCardChanged;
 
   const now = new Date();
+  // THE EXPIRED-CARD GUARD, before any charge. An unchanged (or unreadable)
+  // card ends the step with no charge; the sequence moves on to its next step.
+  if (retryNeedsChangedCard(ctx.declineCategory)) {
+    const verdict = await checkChanged(env, ctx);
+    if (verdict !== "changed") {
+      const skipped: RetryResult =
+        verdict === "unchanged" ? "retry_skipped_card_unchanged" : "retry_skipped_unverified";
+      await persistPatch(env, ctx.stepId, { executedAt: now, result: skipped, retryResult: skipped });
+      return { action: "retry", executed: true, recovered: false, retryResult: skipped };
+    }
+  }
   const attempt = await payInvoice(env, ctx);
   const decision = decideRetryStep(attempt, now);
   await persistPatch(env, ctx.stepId, decision.patch);

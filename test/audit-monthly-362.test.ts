@@ -255,9 +255,9 @@ const unread = (reason: string) => ({ ok: false as const, reason });
 /** A complete result, with any scope replaceable by a failed one. */
 const resultWith = (over: Partial<EmailResult> = {}): EmailResult =>
   ({
-    failedInvoices: ok({ count: 2, totalCents: 4200, byCategory: {} }),
-    expiringCards: ok({ count: 1, mrrAtRiskCents: 1500, expiresByMonth: {} }),
-    pastDueSubscriptions: ok({ count: 0, totalCents: 0 }),
+    failedInvoices: ok({ count: 2, totalCents: 4200, totals: [{ currency: "usd", cents: 4200 }], byCategory: {}, byCategoryTotals: {} }),
+    expiringCards: ok({ count: 1, mrrAtRiskCents: 1500, mrrAtRiskTotals: [{ currency: "usd", cents: 1500 }], expiresByMonth: {} }),
+    pastDueSubscriptions: ok({ count: 0, totalCents: 0, totals: [] }),
     cardUpdater: ok({
       eventsInWindow: 0,
       expiredCardDeclinesInWindow: 0,
@@ -265,13 +265,15 @@ const resultWith = (over: Partial<EmailResult> = {}): EmailResult =>
       windowDays: 30,
     }),
     disputes: ok({
-      open: { count: 1, totalCents: 9900 },
-      acceptedWithoutFighting: { count: 0, totalCents: 0 },
+      open: { count: 1, totalCents: 9900, totals: [{ currency: "usd", cents: 9900 }] },
+      acceptedWithoutFighting: { count: 0, totalCents: 0, totals: [] },
       historical: { won: 3, lost: 1 },
     }),
     health: ok({
       mrrCents: 100_000,
+      mrrTotals: [{ currency: "usd", cents: 100_000 }],
       arrCents: 1_200_000,
+      arrTotals: [{ currency: "usd", cents: 1_200_000 }],
       activeSubscriptionsCount: 42,
       voluntaryChurnRateBps: 210,
       involuntaryChurnRateBps: 90,

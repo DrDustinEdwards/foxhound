@@ -185,7 +185,7 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
 
   transaction_not_allowed: {
     meaning:
-      "`transaction_not_allowed` is Stripe's label for a decline the issuing bank returned without a specific stated reason, though in practice this code shows up more often than most for a particular pattern: the cardholder's bank has restricted the type of transaction being attempted, or the card itself doesn't support it. It's a soft decline, not a sign of a closed account.",
+      "`transaction_not_allowed` is Stripe's label for a decline the issuing bank returned without a specific stated reason, though in practice this code shows up more often than most for a particular pattern: the cardholder's bank has restricted the type of transaction being attempted, or the card itself doesn't support it. It is not a sign of a closed account.",
     whyItHappens:
       "This code carries a stronger subscription-specific signal than most soft declines. Some banks apply restrictions to recurring or online transactions specifically, meaning a card that works fine for an in-person purchase or even a one-time online checkout can still get blocked when the same card is charged as part of a recurring billing arrangement. Certain card types compound this: some prepaid cards, some debit cards, and some corporate or virtual cards are issued without recurring-payment support enabled at all, either by design or because the cardholder never opted in to that transaction type with their bank. A charge that would succeed as a one-time purchase can fail every time as a subscription renewal on the exact same card.",
     howToFix:
@@ -214,7 +214,7 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
       {
         question: "Does Foxhound treat this differently from other soft declines?",
         answer:
-          "The retry-then-email mechanism is the same as other soft codes. Silent background retry first, merchant-branded email only if retries don't resolve the charge.",
+          "Yes. Stripe lists `transaction_not_allowed` among the hard declines it does not retry until a new payment method appears, so Foxhound does not retry it either. It goes to the fraud and hard-decline bucket: no silent retry, and the email sequence asks the customer to approve the charge with their bank or use a different card.",
       },
     ],
   },
@@ -430,7 +430,7 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
       {
         question: "Does Foxhound distinguish `service_unavailable` from a hard decline like an expired card?",
         answer:
-          "Yes. Foxhound's classifier routes `service_unavailable` into the retryable network bucket, while hard declines like expired cards go into a separate, non-retryable bucket that skips automated retries entirely.",
+          "Yes. Foxhound's classifier routes `service_unavailable` into the retryable network bucket, while expired cards go into their own bucket, which skips the early silent retries and retries once, late in the sequence, only if the card has been updated.",
       },
     ],
   },

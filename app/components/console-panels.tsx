@@ -162,9 +162,9 @@ export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: n
         {tiles.lastAuditAt ? (
           <StatTile
             label="Audit"
-            figure={formatMoneyShort(tiles.auditLeakingCents, tiles.auditCurrency)}
+            figure={formatCurrencyTotalsShort(tiles.auditLeaking)}
             unit="leaking"
-            tone={tiles.auditLeakingCents > 0 ? "crit" : "ok"}
+            tone={anyAboveZero(tiles.auditLeaking) ? "crit" : "ok"}
             detail={lastRunPhrase(tiles.lastAuditAt, nowMs)}
             href="/audit/dashboard"
             renderLink={routerLink}
