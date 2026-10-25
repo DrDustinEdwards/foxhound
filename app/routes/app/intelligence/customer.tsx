@@ -6,7 +6,7 @@ import { Panel } from "capsomer/react/panel";
 import "capsomer/breadcrumb.css";
 import "capsomer/panel.css";
 import "capsomer/status.css";
-// Capsomer's tokens and the teal family, which the components above read. The
+// Capsomer's tokens and the amber family, which the components above read. The
 // shell loads the same file through its header; importing it here keeps the
 // page whole under any layout, as /intelligence/customers does.
 import "~/site-header.css";
@@ -46,8 +46,8 @@ import type { Route } from "./+types/customer";
 // cards, the health score with its chart, the AI assessment when there is
 // one, and the footer.
 //
-// Built from Capsomer 0.9.0's parts (Q10), the chart by Enarratio (Q1), teal
-// throughout (Q11). No Foxhound class sits on a Capsomer element. Recova's
+// Built from Capsomer 0.9.0's parts (Q10), the chart by Enarratio (Q1), amber
+// throughout. No Foxhound class sits on a Capsomer element. Recova's
 // 12px card radius, its uppercase mono labels, the score beside the "Health
 // score" heading and its plan colours wait for Capsomer's per-site layer
 // (capsomer job_ec5ec0754626), listed in the J68 pull request.

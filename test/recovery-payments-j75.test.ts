@@ -15,8 +15,8 @@ import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 // PaymentsFilters.tsx b6612faf, PaymentsTable.tsx 95a10450, BulkActionBar.tsx
 // 7f40166f, components/recovery/PaymentRow.tsx 0d2e1f52,
 // components/AmountRangeSlider.tsx d6bb58e8 and lib/payments-data.ts 14e0a6a3,
-// each read whole) built from Capsomer 0.9.0's parts (Q10), teal throughout
-// (Q11), on Foxhound's engine. The approved differences it keeps are named
+// each read whole) built from Capsomer 0.9.0's parts (Q10), amber throughout
+//, on Foxhound's engine. The approved differences it keeps are named
 // where they are tested. Every assertion here was seen failing first.
 
 const harness = vi.hoisted(() => ({ db: null as unknown }));

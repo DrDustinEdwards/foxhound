@@ -143,13 +143,13 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 // answers of 2026-10-13 are approved differences from legacy, recorded in
 // parity/APPROVED-DIFFERENCES.md: the business switcher on the left as a
 // square tile, then the product switcher ("Acme Supply Co. / Recovery"); the
-// avatar menu last in place of the gear; teal on the dark band; the product's
+// avatar menu last in place of the gear; amber on the dark band; the product's
 // pages as a 288px menu on the left in place of the links in the header row;
 // a page bar naming the page and how fresh it is; and on a phone one row, a
 // sheet for everything else, and a bottom bar of at most five tabs.
 //
 // Everything under the menu is the page as it was: the shell takes Foxhound's
-// own neutrals (.fh-cap, app.css), so only the accents are teal, and every
+// own neutrals (.fh-cap, app.css), so only the accents are amber, and every
 // page keeps its own column.
 
 const ICONS: Record<string, LucideIcon> = {
@@ -297,7 +297,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
   const currentAccountRow = currentRow(pathname, accountRows);
 
   return (
-    <div className="fh-cap fh-app" data-cap-site="foxhound" data-family="teal">
+    <div className="fh-cap fh-app" data-cap-site="foxhound" data-family="amber">
       <AdminShell
         variant="user"
         // The app's name: the phone sheet's heading ("Foxhound menu") and,
@@ -397,7 +397,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 
   return (
     <div>
-      <div className="fh-cap fh-site-header" data-cap-site="foxhound" data-family="teal">
+      <div className="fh-cap fh-site-header" data-cap-site="foxhound" data-family="amber">
         <SiteHeader logo={headerLogo("/")} themePrefKey={THEME_PREF_KEY} sheetTitle="Foxhound menu" renderLink={renderHeaderLink} />
       </div>
       <main className="flex flex-col items-center justify-center gap-4 px-4 py-16 text-center">

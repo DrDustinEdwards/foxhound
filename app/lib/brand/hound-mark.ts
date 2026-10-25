@@ -10,7 +10,7 @@
 //   - HoundMark (app/components/hound-mark.tsx) draws it inline in
 //     currentColor, as on the admin shell's family strip;
 //   - scripts/build-icons.mjs writes public/favicon.svg from it (the mark in
-//     the header band's teal on the dark rounded square), which the footer,
+//     the header band's amber on the dark rounded square), which the footer,
 //     the blog author box and the JSON-LD logo point at, and rasterises that
 //     to public/favicon.png and public/apple-touch-icon.png (512, as legacy),
 //     which the route splash and the RSS channel image point at.

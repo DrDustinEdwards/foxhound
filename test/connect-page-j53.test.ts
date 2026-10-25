@@ -15,7 +15,7 @@ const { default: Connect } = await import("~/routes/auth/connect");
 // centred on the page, holding the h1 "Connect your Stripe account", the line
 // under it, the error notice, the access-disclosure panel ruling 20(d) owes,
 // the full-width "Connect Stripe" button, "Not ready? See a demo first" and
-// "Manage account". Its parts are Capsomer's (Q12), teal (Q11), on the five
+// "Manage account". Its parts are Capsomer's (Q12), amber, on the five
 // text sizes (RULES.md 5.2).
 //
 // The Stripe scope is never narrowed to fit the copy: the copy is fixed to fit

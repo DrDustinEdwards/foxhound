@@ -6,7 +6,7 @@ import { data, Form, redirect, useNavigation } from "react-router";
 import "capsomer/banner.css";
 import "capsomer/button.css";
 import "capsomer/panel.css";
-// Capsomer's tokens and the teal family (capbase layer), which the panel, the
+// Capsomer's tokens and the amber family (capbase layer), which the panel, the
 // buttons, the alert and the focus ring read. The site header loads the same
 // file; this page has no header, so it imports it itself, as auth-card.tsx does.
 import "~/site-header.css";
@@ -36,7 +36,7 @@ import type { Route } from "./+types/authorize";
 // none): the wordmark, the h1 naming the client, the line under it, the
 // account box, what the client can do, the error, Allow access and Deny side
 // by side, and the closing line. A refused request is the same card holding
-// Recova's title and message. The parts are Capsomer's (Q12), teal (Q11), on
+// Recova's title and message. The parts are Capsomer's (Q12), amber, on
 // the five text sizes (RULES.md 5.2).
 //
 // The engine is Foxhound's (app/lib/oauth/provider.server.ts). Ruling 8's
@@ -200,8 +200,8 @@ export async function action({ request, context }: Route.ActionArgs) {
  * `w-full max-w-[460px]` card with a 40px inset. The card is Capsomer's panel
  * through its HTML contract, body only, because the React Panel always draws
  * an h2 header band and this page's one heading is its h1 (the gap J62 named).
- * The wrapper puts the parts in Capsomer's teal family with Foxhound's
- * neutrals (.fh-cap), so the buttons and the focus ring are teal. The inner
+ * The wrapper puts the parts in Capsomer's amber family with Foxhound's
+ * neutrals (.fh-cap), so the buttons and the focus ring are amber. The inner
  * div's 24px plus the panel body's own 16px is Recova's 40px.
  */
 function ConsentCard({ children }: { children: ReactNode }) {
@@ -209,7 +209,7 @@ function ConsentCard({ children }: { children: ReactNode }) {
     <main className="flex min-h-screen items-center justify-center bg-bg p-6">
       <div
         className="fh-cap w-full max-w-[460px] [--border-focus:var(--ring)]" data-cap-site="foxhound"
-        data-family="teal"
+        data-family="amber"
         data-oauth-consent=""
       >
         <section className="cap-panel">

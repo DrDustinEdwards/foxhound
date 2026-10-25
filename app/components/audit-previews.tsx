@@ -6,8 +6,8 @@ import { AUDIT_HISTORY_EXAMPLE, AUDIT_SCOPES, AUDIT_SUMMARY_EXAMPLE } from "~/li
 // AISummaryPreview and AuditHistoryPreview.
 //
 // Content and layout are Recova's; the parts are Capsomer's (Q12): each scope
-// is a Capsomer panel, as Recova's is a bordered surface card. Accents are teal
-// (Q11), on the glyphs and on "Monthly auto-run on" as on Recova's. Text is
+// is a Capsomer panel, as Recova's is a bordered surface card. Accents are amber
+//, on the glyphs and on "Monthly auto-run on" as on Recova's. Text is
 // on the five sizes (RULES.md 5.2), each Recova size taken to the nearest, a
 // tie to the larger: 1.125rem to title, 0.875rem and 0.8125rem to label,
 // 0.75rem to label, 0.6875rem to micro.

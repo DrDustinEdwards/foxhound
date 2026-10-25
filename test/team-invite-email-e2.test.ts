@@ -25,7 +25,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // A failed send is logged and the route still answers success.
 //
 // Foxhound sends the same words with Foxhound's name, on Capsomer's email
-// component in teal, with a text part, to the approved /invite/:token link, and
+// component in amber, with a text part, to the approved /invite/:token link, and
 // says so on the page when the email did not go (RULES.md 3.16). Every
 // assertion reads the message as it reaches env.EMAIL.send.
 
@@ -59,9 +59,9 @@ const ADDRESS = "1 Test Way, Austin TX";
 const ACCOUNT = "acct_1";
 const OWNER = "user_owner";
 const INVITEE = "new.person@example.com";
-// Capsomer's teal family, light theme, body text: the frame every Foxhound
+// Capsomer's amber family, light theme, body text: the frame every Foxhound
 // mail is drawn in (J02).
-const TEAL_TEXT = "#071f20";
+const BRAND_TEXT = "#211909";
 
 function makeEnv(over: Record<string, unknown> = {}): Env {
   return {
@@ -278,11 +278,11 @@ describe("what it carries", () => {
     expect(m.replyTo).toBeUndefined();
   });
 
-  it("an HTML part and a text part, in the teal frame", async () => {
+  it("an HTML part and a text part, in the amber frame", async () => {
     await invite();
     const m = only();
     expect(m.html.startsWith("<!doctype html>")).toBe(true);
-    expect(m.html).toContain(TEAL_TEXT);
+    expect(m.html).toContain(BRAND_TEXT);
     expect((m.text ?? "").trim().length).toBeGreaterThan(0);
     expect(m.text).not.toMatch(/<\/?(p|a|br|table|td|h\d)\b/i);
   });

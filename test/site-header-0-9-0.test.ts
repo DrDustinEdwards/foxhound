@@ -8,7 +8,7 @@ import { merchantAccountMenu } from "~/components/site-header";
 // approved differences in parity/APPROVED-DIFFERENCES.md). These pin the
 // header's contract on the RENDERED markup where a render is possible (the
 // public header) and on the layouts' source where the shell needs a route
-// tree: the order of the slots, the avatar menu that replaced the gear, teal on
+// tree: the order of the slots, the avatar menu that replaced the gear, amber on
 // the band in place of amber, and the owner and user variants.
 
 

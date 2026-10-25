@@ -12,7 +12,7 @@ import "capsomer/panel.css";
 import "capsomer/segmented.css";
 import "capsomer/switch.css";
 import "capsomer/table.css";
-// Capsomer's tokens and the teal family, which the components above read, as
+// Capsomer's tokens and the amber family, which the components above read, as
 // /settings/audit and /settings/alerts load them.
 import "~/site-header.css";
 
@@ -44,7 +44,7 @@ import type { Route } from "./+types/dashboard";
 // card (No audit runs yet, two lines, Run first audit), then Settings. The
 // page keeps Recova's 1280px column and padding. The look is Capsomer 0.9.0's
 // (Q10 to Q12): PageHead, Panel, the table, the empty state's markup, the
-// segmented control, the switch and the button, teal throughout (Q11), and
+// segmented control, the switch and the button, amber throughout, and
 // text on the five sizes (RULES.md 5.2). What Recova's look still needs is
 // listed for Capsomer's per-site layer (capsomer job_ec5ec0754626) in the J43
 // pull request; no Foxhound class sits on a Capsomer element.

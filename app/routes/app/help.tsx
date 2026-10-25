@@ -7,7 +7,7 @@ import "capsomer/page-head.css";
 import "capsomer/panel.css";
 import "capsomer/table.css";
 import "capsomer/status.css";
-// Capsomer's tokens and the teal family, which the components above read. The
+// Capsomer's tokens and the amber family, which the components above read. The
 // shell loads the same file through its header; importing it here keeps the
 // page whole under any layout, as the legal pages do.
 import "~/site-header.css";
@@ -44,7 +44,7 @@ import type { Route } from "./+types/help";
 //
 // LOOK FROM CAPSOMER (J13, Dustin's Q10 ruling of 2026-10-14). Content,
 // sections, order and the 720px column stay legacy's; the parts are now
-// Capsomer 0.9.0's, in the teal family the shell sets, with no Foxhound CSS
+// Capsomer 0.9.0's, in the amber family the shell sets, with no Foxhound CSS
 // over any of them: PageHead for the H1 and subtitle, a Panel titled by its
 // link for each guide card and for the contact block (so every description
 // shows in full; row-list's detail line would cut it), Panel around each

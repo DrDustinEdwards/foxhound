@@ -11,7 +11,7 @@ import { marketingMeta } from "~/lib/seo/meta";
 
 import "capsomer/panel.css";
 import "capsomer/status.css";
-// Capsomer's tokens and the teal family (capbase layer), which the cards, the
+// Capsomer's tokens and the amber family (capbase layer), which the cards, the
 // pills and the focus ring read. The site header loads the same file;
 // importing it here keeps the page whole under any layout.
 import "~/site-header.css";
@@ -74,16 +74,16 @@ export function meta({ loaderData }: Route.MetaArgs) {
 // above otherwise 404s a tag no published post carries.
 // Recova's text-[1.75rem] h1 is display, its text-[0.8125rem] back link and
 // count line label (RULES.md 5.2). Cards are Capsomer's panel (BlogPostCard),
-// the colour teal (Q11), and the back link a 24px target.
+// the colour amber, and the back link a 24px target.
 export default function BlogTagPage({ loaderData }: Route.ComponentProps) {
   const { siteUrl: url, tag, posts } = loaderData;
   const label = labelForTag(tag);
 
   return (
     // div, not main: marketing.tsx already renders this page's one main landmark.
-    // Capsomer's teal family with Foxhound's own neutrals (.fh-cap), the focus
+    // Capsomer's amber family with Foxhound's own neutrals (.fh-cap), the focus
     // ring reading the family's ring, as on /blog.
-    <div className="fh-cap [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="teal">
+    <div className="fh-cap [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="amber">
       <div className="mx-auto max-w-[1100px] px-5 py-16 sm:px-8">
         <Link
           to="/blog"

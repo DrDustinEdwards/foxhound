@@ -11,7 +11,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 // (app/(app)/settings/features/page.tsx at blob d130d2c8, FeaturesForm.tsx at
 // blob 4aed5869 and components/FeaturesSection.tsx at blob e7559f6b, with
 // SaveBar.tsx at blob f1d6eb23 and SettingsBackLink.tsx at blob 64d4a153)
-// built from Capsomer 0.9.0's components, teal throughout. Recova stays the
+// built from Capsomer 0.9.0's components, amber throughout. Recova stays the
 // spec for every control, label and help line and their order; the page keeps
 // the settings layout's 800px column.
 //

@@ -49,9 +49,9 @@ const BASE = "https://foxhoundapp.test";
 const ADDRESS = "1 Test Way, Austin TX";
 const ACCOUNT = "acct_1";
 const FP = "fp_1";
-// Capsomer's teal family, light theme, the body text colour. Read from
-// capsomer/email's generated colours.ts at v0.9.0; every mail has body text.
-const TEAL_TEXT = "#071f20";
+// Capsomer's amber family, light theme, the body text colour. Read from
+// capsomer/email's generated colours.ts at v0.18.0; every mail has body text.
+const BRAND_TEXT = "#211909";
 
 const env = {
   ENCRYPTION_KEY: "ab".repeat(32),
@@ -99,7 +99,7 @@ function expectBothParts(m: SentMessage, words: string[]): void {
   expect(typeof m.text).toBe("string");
   expect((m.text ?? "").trim().length).toBeGreaterThan(0);
   expect(m.html.startsWith("<!doctype html>")).toBe(true);
-  expect(m.html).toContain(TEAL_TEXT);
+  expect(m.html).toContain(BRAND_TEXT);
   // The text part carries the wording, not markup.
   expect(m.text).not.toMatch(/<\/?(p|a|strong|br|table|tr|td|span|h\d)\b/i);
   for (const w of words) {

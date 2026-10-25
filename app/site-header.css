@@ -10,7 +10,7 @@
    element rules (capsomer/base.css) are not loaded here, so no page's own
    elements change. */
 @import "capsomer/tokens.css" layer(capbase);
-@import "capsomer/family-teal.css" layer(capbase);
+@import "capsomer/family-amber.css" layer(capbase);
 @import "capsomer/site-header.css";
 @import "capsomer/dialog.css";
 @import "capsomer/popover.css";

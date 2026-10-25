@@ -7,7 +7,7 @@ import "capsomer/page-head.css";
 import "capsomer/panel.css";
 import "capsomer/status.css";
 import "capsomer/table.css";
-// Capsomer's tokens and the teal family, which the components above read. The
+// Capsomer's tokens and the amber family, which the components above read. The
 // shell loads the same file through its header; importing it here keeps the
 // page whole under any layout, as /help does.
 import "~/site-header.css";
@@ -43,7 +43,7 @@ import type { Route } from "./+types/index";
 // DisputesDashboardView.tsx (3c1b7a98) and SyncDisputeLink.tsx (d2c2a744). In
 // Recova's order: the "Dashboard" head, the stat cards (shown on the empty
 // state too), then the empty card or the table, then the sync control, in a
-// 1280px column. Look is Capsomer's (Q10), teal (Q11).
+// 1280px column. Look is Capsomer's (Q10), amber.
 //
 // Dustin answered PR #75's five questions "yes ro all" (2026-10-15,
 // cmsg_01Nd8kh3hkgYNYpWXrNkvBQL2LnH5XBcKc3DcWHoEsDbT6): the status column uses
@@ -154,7 +154,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 
 /** The status tones on Capsomer's pill: won is ok, lost is critical, every
  *  other status has no tone (Capsomer has no blue for Recova's in-progress
- *  states, and the brand accent is teal, Q11). */
+ *  states, and the brand accent is amber). */
 const PILL_TONE: Record<Tone, PillTone | undefined> = {
   success: "ok",
   failure: "crit",

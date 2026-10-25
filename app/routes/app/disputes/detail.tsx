@@ -4,7 +4,7 @@ import "capsomer/field.css";
 import "capsomer/panel.css";
 import "capsomer/select.css";
 import "capsomer/status.css";
-// Capsomer's tokens and the teal family, which the components above read, as
+// Capsomer's tokens and the amber family, which the components above read, as
 // the disputes list and the payment pages load them.
 import "~/site-header.css";
 import { DISPUTE_FEE_CAP_CENTS, type DisputeState } from "~/lib/constants";
@@ -68,7 +68,7 @@ import {
 // (81bf7f8b), timeline (04fbe976) and types (9ffb7b8e). In Recova's order: the
 // back link, the header, the timeline, what Foxhound found, the staged
 // evidence, the additional evidence, the sync form, and the approve card where
-// Recova's action bar sits. Look is Capsomer's (Q10), teal (Q11).
+// Recova's action bar sits. Look is Capsomer's (Q10), amber.
 //
 // Not built, and why:
 // - Recova's triage banner and Integrity layer banner: nothing in Foxhound

@@ -45,7 +45,7 @@ import type { Route } from "./+types/sequences";
 // components/SequenceView.tsx 5507b89f, StepPerformanceChart.tsx edf8f83c and
 // lib/sequence-utils.ts 061aba7a, each read whole. Every section, label and
 // their order are Recova's; the parts are Capsomer 0.9.0's (Q10), the chart is
-// Enarratio's (Q1), teal throughout (Q11), and the numbers and categories are
+// Enarratio's (Q1), amber throughout, and the numbers and categories are
 // Foxhound's engine (RECOVERY_SCHEDULES, six categories, silent retry first,
 // ruling 80).
 
@@ -149,7 +149,7 @@ function StepPerformanceChart({ chart }: { chart: StepPerformanceSummary["chart"
             series: "series",
             layout: "grouped",
             // Recova's funnel order, Open then Click then Recovery, in its
-            // colours, except that Recovery rate takes Foxhound's teal (Q11).
+            // colours, except that Recovery rate takes Foxhound's amber.
             seriesDomain: STEP_PERFORMANCE_SERIES,
             colors: { "Open rate": "var(--green)", "Click rate": "var(--blue)", "Recovery rate": "var(--brand-ui)" },
             xLabel: null,

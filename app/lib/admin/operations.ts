@@ -11,7 +11,7 @@ export const OPERATIONS_PATH = "/admin/operations";
 export type CronLockState = "idle" | "running" | "not-released" | "unreadable";
 
 /** A lock's state as a word with Capsomer's status glyph (Recova's Idle,
- *  Running and Stale pills), in the teal family's tones only (Q11). */
+ *  Running and Stale pills), in the amber family's tones only. */
 export const LOCK_STATUS: Record<CronLockState, { tone: StatusTone; word: string }> = {
   running: { tone: "ok", word: "Running" },
   idle: { tone: "nodata", word: "Idle" },

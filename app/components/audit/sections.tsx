@@ -31,7 +31,7 @@ import { formatMoneyShort } from "~/lib/money-format";
 // 0.9.0's (Q10 to Q12): each section is a Panel with its description, the
 // calls to action sit in the panel's footer as Capsomer buttons, the Card
 // Updater advisory is a Capsomer banner, and the expiring-cards timeline is an
-// Enarratio chart (Q1). Teal throughout (Q11). Text is on the five sizes
+// Enarratio chart (Q1). Amber throughout. Text is on the five sizes
 // (RULES.md 5.2). What Recova's look still needs (the summary's accent rail,
 // the mono figures, the stat-row layout) is listed for Capsomer's per-site
 // layer, capsomer job_ec5ec0754626, in the J63 pull request; no Foxhound class
@@ -400,7 +400,7 @@ function DisputeFigures({
           whose evidence Foxhound submitted, won over resolved. Recova's bands
           are 70 and 50. The middle band takes the caution colour, the same
           rule as the recovery rate's middle band (recoveryRateClassName):
-          status colours are not accents, so Q11's teal-only rule leaves them
+          status colours are not accents, so the one-accent rule leaves them
           alone. */}
       {foxhoundWinRate !== null ? (
         <div className="mt-2 text-label text-text-secondary">

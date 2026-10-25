@@ -10,7 +10,7 @@ import IntelligenceCustomersPage from "~/routes/app/intelligence/customers";
 // 2026-10-14: /intelligence/customers is Recova's page
 // (app/(app)/intelligence/customers/page.tsx at blob 0413f035, with
 // lib/intelligence-display.ts at blob 379635a7) built from Capsomer 0.9.0's
-// components, teal throughout. Recova stays the spec for every section, label,
+// components, amber throughout. Recova stays the spec for every section, label,
 // column and their order, and for the page's 1280px column. The filter bar is
 // Foxhound's, approved ("The customers page has a filter bar. "confirm",
 // 2026-08-28", APPROVED-DIFFERENCES). The recommended-action chip waits for

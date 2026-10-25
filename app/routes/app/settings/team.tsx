@@ -174,7 +174,7 @@ function displayName(m: { userId: string | null; userName: string | null; userEm
 }
 
 // J31 (job_8d030f93c15f), row S26: Recova's page (app/(app)/settings/team/page.tsx,
-// blob 09983bed; TeamSection.tsx, blob ab19f9de) on Capsomer's parts, teal.
+// blob 09983bed; TeamSection.tsx, blob ab19f9de) on Capsomer's parts, amber.
 //
 // Recova, top to bottom: the phone-only Settings link, the page head "Team"
 // with its line, then ONE card: the member rows, owner first, a rule between
@@ -191,7 +191,7 @@ function displayName(m: { userId: string | null; userName: string | null; userEm
 // the React Panel always draws a header band and Recova's card has none (the
 // gap J53 and J62 named). The member list is composed inside it: Capsomer's
 // row list is for rows that open a detail, and these open nothing. Pills,
-// buttons, the field and the notices are Capsomer's; the teal comes from the
+// buttons, the field and the notices are Capsomer's; the amber comes from the
 // app shell's family wrapper (app/layouts/app-shell.tsx).
 //
 // Two words differ from Recova on purpose. The role pill says "Owner" or

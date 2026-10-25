@@ -10,7 +10,7 @@ import "capsomer/page-head.css";
 import "capsomer/panel.css";
 import "capsomer/status.css";
 import "capsomer/switch.css";
-// Capsomer's tokens and the teal family, which the components above read. The
+// Capsomer's tokens and the amber family, which the components above read. The
 // shell loads the same file through its header; importing it here keeps the
 // page whole under any layout, as /settings/api-keys does.
 import "~/site-header.css";
@@ -44,7 +44,7 @@ import type { Route } from "./+types/features";
 //
 // J38 (job_4ed2f8dafcf4) rebuilt the page from Capsomer 0.9.0's parts under
 // Dustin's Q10 and Q11 answers of 2026-10-14: PageHead, a Panel's card, Switch,
-// Button and Status, teal throughout. Recova stays the spec for what is here
+// Button and Status, amber throughout. Recova stays the spec for what is here
 // and in what order: the phone-only back link, the title and its line, one
 // card holding the two rows (label and help on the left, the toggle on the
 // right), then SaveBar's right-aligned "Save changes" with "Saved" or

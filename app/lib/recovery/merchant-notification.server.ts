@@ -31,7 +31,7 @@ import { recoveryFooterNote, type EmailNotice } from "~/lib/email/templates";
 // receiving this from" sentence and a "Manage email settings" link (E10).
 //
 // THE SHELL IS CAPSOMER'S `notice` TEMPLATE (E10, job J88; RULES.md 3.16):
-// title, sentence, View payment button, in Foxhound's teal family.
+// title, sentence, View payment button, in Foxhound's amber family.
 
 export const RECOVERY_NOTIFY_TEMPLATE = "merchant_recovery_notify";
 

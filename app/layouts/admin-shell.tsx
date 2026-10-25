@@ -115,7 +115,7 @@ export default function AdminShellLayout({ loaderData }: Route.ComponentProps) {
   // has no search and no inbox for them to open, and a control that does
   // nothing is worse than none.
   return (
-    <div data-cap-theme={theme} data-family="teal" className="fh-admin">
+    <div data-cap-theme={theme} data-family="amber" className="fh-admin">
       <AdminShell
         variant="owner"
         app="foxhound"

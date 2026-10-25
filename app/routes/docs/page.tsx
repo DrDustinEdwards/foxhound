@@ -12,7 +12,7 @@ import "capsomer/breadcrumb.css";
 import "capsomer/panel.css";
 import "capsomer/status.css";
 import "capsomer/table.css";
-// Capsomer's tokens and the teal family (capbase layer), which every part on
+// Capsomer's tokens and the amber family (capbase layer), which every part on
 // this page reads. The site header loads the same file; importing it here keeps
 // the page whole under any layout (as /docs does, J17).
 import "~/site-header.css";
@@ -25,9 +25,9 @@ import type { Route } from "./+types/page";
 //
 // LAYOUT IS RECOVA'S: the 760px column with px-6 and py-16, the breadcrumb, the
 // "User Guide" eyebrow, the page heading and lead, the Contents card with
-// "Part N." links in two columns from sm, and each Part's teal eyebrow over its
+// "Part N." links in two columns from sm, and each Part's amber eyebrow over its
 // h2. LOOK IS CAPSOMER'S (Q12): the breadcrumb, the Contents card (a body-only
-// panel), the tables, callouts and pills, in the teal family (Q11), with text
+// panel), the tables, callouts and pills, in the amber family, with text
 // on the five sizes (RULES.md 5.2). CONTENT is app/lib/marketing/docs-content.ts.
 //
 // The page heading and lead are Recova's page's own ("Platform setup",
@@ -64,7 +64,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
   });
 }
 
-/** Recova's RelLink and TOC link: teal, underlined. */
+/** Recova's RelLink and TOC link: amber, underlined. */
 const LINK = "text-accent-text underline underline-offset-2 hover:opacity-80";
 
 export default function DocGuidePage({ loaderData }: Route.ComponentProps) {
@@ -72,7 +72,7 @@ export default function DocGuidePage({ loaderData }: Route.ComponentProps) {
   const sectionIds = guide.sections.map((section) => slugify(section.heading));
 
   return (
-    <div className="fh-cap mx-auto max-w-[760px] px-6 py-16 [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="teal">
+    <div className="fh-cap mx-auto max-w-[760px] px-6 py-16 [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="amber">
       <div className="mb-8 text-micro">
         <Breadcrumb
           items={[{ label: "Docs", href: "/docs" }, { label: guide.title }]}

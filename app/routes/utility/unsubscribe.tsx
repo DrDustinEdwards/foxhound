@@ -1,7 +1,7 @@
 import { Check, X } from "lucide-react";
 
 import "capsomer/panel.css";
-// Capsomer's tokens and the teal family (capbase layer), which the panel, the
+// Capsomer's tokens and the amber family (capbase layer), which the panel, the
 // status tones and the focus ring read. The site header loads the same file;
 // importing it here keeps the page whole under any layout (as legal-page.tsx).
 import "~/site-header.css";
@@ -166,9 +166,9 @@ const MARK = {
 // column with 40px by 24px padding and centred text, the wordmark 32px above the
 // card, the card at 40px by 32px, the 48px mark 20px above the sentence, the
 // sentence 24px above the link. Look is Capsomer's (Q12): the column sits in the
-// teal family with Foxhound's neutrals (.fh-cap, as the legal pages), the card is
+// amber family with Foxhound's neutrals (.fh-cap, as the legal pages), the card is
 // Capsomer's panel (its body-only state), and the focus ring is the family's
-// teal. Text is on the five sizes (RULES.md 5.2): Recova's 20px wordmark is
+// amber. Text is on the five sizes (RULES.md 5.2): Recova's 20px wordmark is
 // title (1.25rem, exact), its 15px sentence body (1rem, the nearest), its 13px
 // link label (0.8125rem, exact).
 export default function Unsubscribe({ loaderData }: Route.ComponentProps) {
@@ -180,7 +180,7 @@ export default function Unsubscribe({ loaderData }: Route.ComponentProps) {
       <main className="flex flex-1 items-center justify-center bg-bg">
         <div
           className="fh-cap w-full max-w-[480px] px-6 py-10 text-center [--border-focus:var(--ring)]" data-cap-site="foxhound"
-          data-family="teal"
+          data-family="amber"
         >
           {/* The page's heading, for screen readers only: Recova's page has none
               visible, and the wordmark is not one. It names the outcome, so the

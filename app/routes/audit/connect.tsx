@@ -7,7 +7,7 @@ import { Form, Link, redirect, useFormAction, useNavigation } from "react-router
 import "capsomer/banner.css";
 import "capsomer/button.css";
 import "capsomer/panel.css";
-// Capsomer's tokens and the teal family (capbase layer), which the panel, the
+// Capsomer's tokens and the amber family (capbase layer), which the panel, the
 // button, the alert and the focus ring read, as on /connect.
 import "~/site-header.css";
 
@@ -168,9 +168,9 @@ function AccessList({
  * `w-full max-w-[480px]` card with `p-12`. The card is Capsomer's panel
  * through its HTML contract, body only, because the React Panel always draws
  * an h2 header band and this page's one heading is its h1 (the gap J62
- * named). The wrapper puts the parts in Capsomer's teal family with
- * Foxhound's neutrals (.fh-cap), so the button and its focus ring are teal
- * (Q11). The inner div adds 36px by 32px to the panel body's 12px by 16px,
+ * named). The wrapper puts the parts in Capsomer's amber family with
+ * Foxhound's neutrals (.fh-cap), so the button and its focus ring are amber
+ *. The inner div adds 36px by 32px to the panel body's 12px by 16px,
  * which is Recova's 48px on every side at every width, as the sign-in card
  * does (RULES.md 5.1).
  */
@@ -179,7 +179,7 @@ function AuditConnectFrame({ children }: { children: ReactNode }) {
     <div className="flex items-center justify-center px-4 py-[60px]">
       <div
         className="fh-cap w-full max-w-[480px] [--border-focus:var(--ring)]" data-cap-site="foxhound"
-        data-family="teal"
+        data-family="amber"
         data-audit-connect=""
       >
         <section className="cap-panel">

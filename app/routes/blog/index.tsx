@@ -21,7 +21,7 @@ import { marketingMeta } from "~/lib/seo/meta";
 import "capsomer/panel.css";
 import "capsomer/button.css";
 import "capsomer/status.css";
-// Capsomer's tokens and the teal family (capbase layer), which the panel, the
+// Capsomer's tokens and the amber family (capbase layer), which the panel, the
 // button, the pill and the accent text read. The site header loads the same
 // file; importing it here keeps the page whole under any layout.
 import "~/site-header.css";
@@ -47,7 +47,7 @@ import type { Route } from "./+types/index";
 // label, description and See all, the Latest strip, at Recova's widths (1080px
 // header, 1280px bands). The parts are Capsomer's (Q12): post cards are the
 // panel, the tag is the outline pill, Read the guide the primary button. Accents
-// are teal (Q11), text on the five sizes (RULES.md 5.2: each Recova size to the
+// are amber, text on the five sizes (RULES.md 5.2: each Recova size to the
 // nearest, a tie to the larger), and every text link a 24px target.
 //
 // One Recova defect is not copied (parity/M11-M13-BLOG-CLUSTER.md, F3): a
@@ -104,9 +104,9 @@ export default function BlogIndexPage({ loaderData }: Route.ComponentProps) {
   const hasAnyContent = Boolean(featured) || sections.length > 0 || latest.length > 0;
 
   return (
-    // Capsomer's teal family with Foxhound's own neutrals (.fh-cap, as the site
+    // Capsomer's amber family with Foxhound's own neutrals (.fh-cap, as the site
     // header, /products and /docs); the focus ring reads the family's ring.
-    <div className="fh-cap [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="teal">
+    <div className="fh-cap [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="amber">
       <div className="mx-auto max-w-[1080px] px-5 pb-10 pt-16 sm:px-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <BlogHeaderIntro />

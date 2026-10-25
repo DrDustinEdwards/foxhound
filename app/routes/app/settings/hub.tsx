@@ -7,7 +7,7 @@ import { StatTile, StatTiles, type StatTileLinkProps } from "capsomer/react/stat
 import "capsomer/page-head.css";
 import "capsomer/row-list.css";
 import "capsomer/stat-tile.css";
-// Capsomer's tokens and the teal family, which the components above read. The
+// Capsomer's tokens and the amber family, which the components above read. The
 // shell loads the same file through its header; importing it here keeps the
 // page whole under any layout, as /settings/email does.
 import "~/site-header.css";
@@ -50,7 +50,7 @@ import type { Route } from "./+types/hub";
 //
 // LOOK FROM CAPSOMER (J40; Q10, Q11, 2026-10-14). The title and its line are
 // Capsomer's PageHead, the three figures its StatTiles, and every entry its
-// Row, so the sizes are Capsomer's five and the accent teal. Recova's content,
+// Row, so the sizes are Capsomer's five and the accent amber. Recova's content,
 // order and arrangement stay: the phone's one list, the desktop's three
 // figures over a two-column grid. Capsomer's RowList is one column, so the
 // desktop grid is Recova's two columns of one-row lists; the per-site layer

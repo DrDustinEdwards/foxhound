@@ -42,7 +42,7 @@ import type { Route } from "./+types/churn";
 // scored yet, Recova's "being calculated" card in place of the bands and table.
 //
 // Built from Capsomer 0.9.0's parts (Q10) with the chart drawn by Enarratio
-// (Q1), teal throughout (Q11). No Foxhound CSS sits over a Capsomer component:
+// (Q1), amber throughout. No Foxhound CSS sits over a Capsomer component:
 // Recova's band tints, its pill colours per plan and its 12px radius wait for
 // Capsomer's per-site layer (capsomer job_ec5ec0754626), listed in the J29
 // notes. Band cutoffs are Foxhound's engine (40/70, rulings 78/79), derived

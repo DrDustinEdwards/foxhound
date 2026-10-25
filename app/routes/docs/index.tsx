@@ -8,7 +8,7 @@ import { breadcrumbListJsonLd, docsItemListJsonLd, siteUrl } from "~/lib/seo/jso
 import { marketingMeta } from "~/lib/seo/meta";
 
 import "capsomer/panel.css";
-// Capsomer's tokens and the teal family (capbase layer), which the panel, the
+// Capsomer's tokens and the amber family (capbase layer), which the panel, the
 // accent text and the focus ring read. The site header loads the same file;
 // importing it here keeps the page whole under any layout.
 import "~/site-header.css";
@@ -23,8 +23,8 @@ import type { Route } from "./+types/index";
 // pb-16, Platform as a full-width card above a two-column grid at sm, the four
 // product guides in Recova's order (Audit, Recovery, Disputes, Intelligence),
 // then the two cross-links. Look is Capsomer's (Q12): each card is Capsomer's
-// panel in the teal family, text on the five sizes (RULES.md 5.2), teal
-// throughout (Q11). Guide titles and descriptions come from
+// panel in the amber family, text on the five sizes (RULES.md 5.2), amber
+// throughout. Guide titles and descriptions come from
 // app/lib/marketing/docs-content.ts and stay 20d-frozen.
 
 export function meta({ loaderData }: Route.MetaArgs) {
@@ -51,10 +51,10 @@ export default function DocsIndexPage({ loaderData }: Route.ComponentProps) {
       <MarketingPageHeader eyebrow="User guides" title="Documentation" subtext="Documentation for the Foxhound platform." />
 
       {/* div, not main: marketing.tsx already renders this page's one main landmark.
-          Recova's 720px column, in Capsomer's teal family with Foxhound's own
+          Recova's 720px column, in Capsomer's amber family with Foxhound's own
           neutrals (.fh-cap, as the site header and the /products hub); the focus
-          ring reads the family's teal ring here, as in Capsomer's own parts. */}
-      <div className="fh-cap mx-auto max-w-[720px] px-6 pb-16 [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="teal">
+          ring reads the family's amber ring here, as in Capsomer's own parts. */}
+      <div className="fh-cap mx-auto max-w-[720px] px-6 pb-16 [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="amber">
         <div className="flex flex-col gap-4">
           {/* Platform: full width, the same card as the product guides below. */}
           <GuideCard guide={platform} />

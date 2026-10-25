@@ -24,7 +24,7 @@ import "capsomer/panel.css";
 import "capsomer/chips.css";
 import "capsomer/status.css";
 import "capsomer/button.css";
-// Capsomer's tokens and the teal family (capbase layer), which the panel, the
+// Capsomer's tokens and the amber family (capbase layer), which the panel, the
 // chips, the badges, the button and the focus ring read. The site header loads
 // the same file; importing it here keeps the page whole under any layout.
 import "~/site-header.css";
@@ -42,7 +42,7 @@ import type { Route } from "./+types/features";
 // row, the 220px sticky section nav beside the sections at lg, each section's
 // h2 and intro, the per-section inline example, the two-column card grid, and
 // the closing line and audit link. Look is Capsomer's (Q12): the page sits in
-// the teal family with Foxhound's neutrals (.fh-cap, as the site header, the
+// the amber family with Foxhound's neutrals (.fh-cap, as the site header, the
 // legal pages and the /products hub), the filter is Capsomer's chips, each
 // card is Capsomer's panel, each product tag a Capsomer badge, and the closing
 // link Capsomer's primary button.
@@ -126,10 +126,10 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
   const shown = filter === "All" ? all.length : all.filter((f) => f.product === filter).length;
 
   return (
-    // Capsomer's teal family with Foxhound's neutrals. Foxhound's global focus
+    // Capsomer's amber family with Foxhound's neutrals. Foxhound's global focus
     // ring reads --border-focus (app.css); inside this page it reads the
-    // family's --ring, so a keyboard user sees teal as in Capsomer's own parts.
-    <div className="fh-cap fh-features [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="teal">
+    // family's --ring, so a keyboard user sees amber as in Capsomer's own parts.
+    <div className="fh-cap fh-features [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="amber">
       <style>{FEATURE_FILTER_CSS}</style>
       <MarketingPageHeader eyebrow="Platform" title="Features" subtext={FEATURES_SUBTEXT} />
 
@@ -142,7 +142,7 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
           <div className="grid grid-cols-1 gap-12 lg:grid-cols-[220px_1fr]">
             {/* Recova's sticky section nav. Capsomer's anchor bar is a
                 horizontal bar with an "On this page" label, so this stays
-                Recova's vertical list in Foxhound utilities with the teal
+                Recova's vertical list in Foxhound utilities with the amber
                 accent on hover; a vertical anchor bar is a Capsomer gap. */}
             <aside className="hidden lg:block">
               <nav aria-label="Sections" className="sticky top-20 space-y-1">

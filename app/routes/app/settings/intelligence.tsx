@@ -6,7 +6,7 @@ import { Status } from "capsomer/react/status";
 import "capsomer/page-head.css";
 import "capsomer/panel.css";
 import "capsomer/status.css";
-// Capsomer's tokens and the teal family, which the components above read. The
+// Capsomer's tokens and the amber family, which the components above read. The
 // shell loads the same file through its header; importing it here keeps the
 // page whole under any layout, as /settings/features does.
 import "~/site-header.css";
@@ -67,7 +67,7 @@ import type { Route } from "./+types/intelligence";
 // check the nav and every Intelligence page use.
 //
 // LOOK FROM CAPSOMER (Q10, Q11, 2026-10-14): PageHead, a Panel's card and
-// Status, teal throughout. Recova's arrangement stays: the phone-only back
+// Status, amber throughout. Recova's arrangement stays: the phone-only back
 // link, the title and its line, then one card. Capsomer 0.9.0 has no
 // "not built" row (a label and help on the left, a state on the right), so
 // the rows are the same markup /settings/features uses for its toggle rows,

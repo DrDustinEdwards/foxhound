@@ -9,7 +9,7 @@ import { siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import "capsomer/panel.css";
-// Capsomer's tokens and the teal family (capbase layer), which the panel, the
+// Capsomer's tokens and the amber family (capbase layer), which the panel, the
 // accent text and the focus ring read. The site header loads the same file;
 // importing it here keeps the page whole under any layout.
 import "~/site-header.css";
@@ -21,8 +21,8 @@ import type { Route } from "./+types/index";
 //
 // Layout is Recova's: the shared page header, the 720px column, the two-column
 // grid at sm, and the four cards in Recova's order. Look is Capsomer's (Q12):
-// each card is Capsomer's panel in the teal family, text on the five sizes
-// (RULES.md 5.2), teal throughout (Q11).
+// each card is Capsomer's panel in the amber family, text on the five sizes
+// (RULES.md 5.2), amber throughout.
 //
 // Copy is Recova's word for word, with every number read from Foxhound's
 // pricing constants and one truthfulness fix; both are in
@@ -62,12 +62,12 @@ export default function ProductsIndexPage() {
       <MarketingPageHeader eyebrow="Products" title="Four products" subtext="Use them independently or together." />
 
       {/* div, not main: marketing.tsx already renders this page's one main landmark.
-          Recova's 720px column, in Capsomer's teal family with Foxhound's own
+          Recova's 720px column, in Capsomer's amber family with Foxhound's own
           neutrals (.fh-cap, as the site header and the legal pages); the focus
-          ring reads the family's teal ring here, as in Capsomer's own parts. */}
+          ring reads the family's amber ring here, as in Capsomer's own parts. */}
       <div
         className="fh-cap mx-auto max-w-[720px] px-5 pb-16 sm:px-8 [--border-focus:var(--ring)]" data-cap-site="foxhound"
-        data-family="teal"
+        data-family="amber"
       >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {PRODUCT_ORDER.map((key) => {

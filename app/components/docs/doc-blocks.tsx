@@ -28,8 +28,8 @@ import { HealthScoreBadge } from "./health-score-badge";
 // tables; those become body (1rem) and label (0.8125rem), finishing the
 // migration Recova's globals.css began rather than copying its arbitrary values.
 
-/** Teal, underlined: Recova's RelLink, in the accent text the 2026-10-13 tokens
- *  set (Q11). */
+/** Amber, underlined: Recova's RelLink, in the accent text the 2026-10-13 tokens
+ *  set. */
 const LINK = "text-accent-text underline underline-offset-2 hover:opacity-80";
 
 function InlineRun({ inline }: { inline: DocInline }) {

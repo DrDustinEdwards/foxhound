@@ -13,7 +13,7 @@ import "capsomer/panel.css";
 import "capsomer/select.css";
 import "capsomer/status.css";
 import "capsomer/table.css";
-// Capsomer's tokens and the teal family, which the components above read. The
+// Capsomer's tokens and the amber family, which the components above read. The
 // shell loads the same file through its header; importing it here keeps the
 // page whole under any layout, as /disputes does.
 import "~/site-header.css";
@@ -44,7 +44,7 @@ import type { Route } from "./+types/customers";
 // then the table or Recova's "No customer data yet" card, then the pager, in a
 // 1280px column.
 //
-// Built from Capsomer 0.9.0's parts (Q10), teal throughout, with no warm accent (Q11).
+// Built from Capsomer 0.9.0's parts (Q10), amber throughout.
 // No Foxhound class sits on a Capsomer element: where the page needs Recova's
 // mono figures, its label size or its spacing, the class goes on an element of
 // the page's own inside or around the Capsomer part. Recova's mono uppercase

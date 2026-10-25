@@ -10,7 +10,7 @@ import "capsomer/page-head.css";
 import "capsomer/panel.css";
 import "capsomer/status.css";
 import "capsomer/switch.css";
-// Capsomer's tokens and the teal family, which the components above read. The
+// Capsomer's tokens and the amber family, which the components above read. The
 // shell loads the same file through its header; importing it here keeps the
 // page whole under any layout, as /settings/api-keys does.
 import "~/site-header.css";
@@ -47,7 +47,7 @@ import type { Route } from "./+types/notifications";
 //
 // J39 (job_4b5f4ca4e9ae) rebuilt it from Capsomer 0.9.0's parts under Dustin's
 // Q10 and Q11 answers of 2026-10-14: PageHead, the panel, the field parts,
-// Switch, Status and Button, teal throughout. Recova stays the spec for what
+// Switch, Status and Button, amber throughout. Recova stays the spec for what
 // is here and in what order: the phone-only back link, the title and its line,
 // one card holding the notification email, the Slack webhook URL, then four
 // toggles (Slack notifications, Weekly digest, Payment recovered notification,

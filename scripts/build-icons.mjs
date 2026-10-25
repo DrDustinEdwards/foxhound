@@ -9,7 +9,7 @@
 // and later), so the path data has one home and this script never copies it.
 //
 // It writes three files:
-//   public/favicon.svg           the mark in the header band's teal on the dark
+//   public/favicon.svg           the mark in the header band's amber on the dark
 //                                rounded square, so it reads in a light and a
 //                                dark browser tab alike;
 //   public/favicon.png           that SVG at 512;
@@ -31,12 +31,12 @@ import { HOUND_MARK_PATH, HOUND_MARK_VIEWBOX } from "../app/lib/brand/hound-mark
 
 const pub = new URL("../public/", import.meta.url);
 
-// The band's colours (app/app.css: --bg in the dark theme, --header-teal). This
+// The band's colours (app/app.css: --bg in the dark theme, --header-brand). This
 // script is outside app/, where the raw-hex rule (scripts/check-tokens.mjs)
 // does not reach, because an SVG favicon cannot read CSS custom properties.
 const SQUARE = "#111210";
-const TEAL = "#249398";
-const TEAL_RGB = [0x24, 0x93, 0x98];
+const AMBER = "#f0b429";
+const AMBER_RGB = [0xf0, 0xb4, 0x29];
 
 // The mark sits in a 26 square centred on the 32 tile, 3 from each edge.
 const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
@@ -44,7 +44,7 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
        Built by scripts/build-icons.mjs from app/lib/brand/hound-mark.ts; do not edit by hand. -->
   <rect width="32" height="32" rx="6" fill="${SQUARE}"/>
   <svg x="3" y="3" width="26" height="26" viewBox="${HOUND_MARK_VIEWBOX}">
-    <path fill="${TEAL}" fill-rule="evenodd" d="${HOUND_MARK_PATH}"/>
+    <path fill="${AMBER}" fill-rule="evenodd" d="${HOUND_MARK_PATH}"/>
   </svg>
 </svg>
 `;
@@ -63,33 +63,33 @@ for (const { name, size } of OUTPUTS) {
 
   // Verify before writing, because a rasteriser that silently produces a blank
   // image is the same failure shape as the OG card's empty PNG: a 200 and a
-  // file of plausible size that contains nothing. Assert the teal is actually
+  // file of plausible size that contains nothing. Assert the amber is actually
   // there, and in a share of the tile a drawn head fills (well over a tenth).
   const { data, info } = await sharp(png).raw().toBuffer({ resolveWithObject: true });
   if (info.width !== size || info.height !== size) {
     throw new Error(`${name}: expected ${size}x${size}, got ${info.width}x${info.height}`);
   }
-  let teal = 0;
+  let amber = 0;
   for (let i = 0; i < data.length; i += info.channels) {
-    // #249398 with a little tolerance for antialiasing at the edges
+    // #f0b429 with a little tolerance for antialiasing at the edges
     if (
-      Math.abs(data[i] - TEAL_RGB[0]) < 24 &&
-      Math.abs(data[i + 1] - TEAL_RGB[1]) < 24 &&
-      Math.abs(data[i + 2] - TEAL_RGB[2]) < 24
+      Math.abs(data[i] - AMBER_RGB[0]) < 24 &&
+      Math.abs(data[i + 1] - AMBER_RGB[1]) < 24 &&
+      Math.abs(data[i + 2] - AMBER_RGB[2]) < 24
     ) {
-      teal++;
+      amber++;
     }
   }
-  const share = teal / (size * size);
+  const share = amber / (size * size);
   if (share < 0.15) {
-    throw new Error(`${name}: only ${teal} teal pixels (${(share * 100).toFixed(1)}%): the mark did not render, refusing to write a blank icon`);
+    throw new Error(`${name}: only ${amber} amber pixels (${(share * 100).toFixed(1)}%): the mark did not render, refusing to write a blank icon`);
   }
-  rasters.push({ name, png, teal, share });
+  rasters.push({ name, png, amber, share });
 }
 
 writeFileSync(new URL("favicon.svg", pub), svg);
-for (const { name, png, teal, share } of rasters) {
+for (const { name, png, amber, share } of rasters) {
   writeFileSync(new URL(name, pub), png);
-  console.log(`wrote ${name}: ${png.length} bytes, ${teal} teal pixels (${(share * 100).toFixed(1)}%, guard is 15%)`);
+  console.log(`wrote ${name}: ${png.length} bytes, ${amber} amber pixels (${(share * 100).toFixed(1)}%, guard is 15%)`);
 }
 console.log("wrote favicon.svg");

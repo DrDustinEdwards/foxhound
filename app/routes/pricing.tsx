@@ -10,7 +10,7 @@ import { marketingMeta } from "~/lib/seo/meta";
 
 import "capsomer/panel.css";
 import "capsomer/button.css";
-// Capsomer's tokens and the teal family (capbase layer), which the panel, the
+// Capsomer's tokens and the amber family (capbase layer), which the panel, the
 // button, the accent text and the focus ring read. The site header loads the
 // same file; importing it here keeps the page whole under any layout.
 import "~/site-header.css";
@@ -24,7 +24,7 @@ import type { Route } from "./+types/pricing";
 // 1/2/4 column grid with gap-4, each card's order (name, price, price label or
 // a blank line, description, check list, Learn more), the 760px FAQ under its
 // "Questions" h2, and the 760px closing block with its 560px line. Look is
-// Capsomer's (RULES.md 1.1): the page sits in Capsomer's teal family with
+// Capsomer's (RULES.md 1.1): the page sits in Capsomer's amber family with
 // Foxhound's own neutrals (.fh-cap, as the site header, the legal pages and the
 // /products hub), each card and FAQ item is Capsomer's panel, and the closing
 // link is Capsomer's primary button.
@@ -62,10 +62,10 @@ export default function PricingPage({ loaderData }: Route.ComponentProps) {
   const { siteUrl: url } = loaderData;
 
   return (
-    // Capsomer's teal family with Foxhound's neutrals. Foxhound's global focus
+    // Capsomer's amber family with Foxhound's neutrals. Foxhound's global focus
     // ring reads --border-focus (app.css); inside this page it reads the
-    // family's --ring, so a keyboard user sees teal as in Capsomer's own parts.
-    <div className="fh-cap [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="teal">
+    // family's --ring, so a keyboard user sees amber as in Capsomer's own parts.
+    <div className="fh-cap [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="amber">
       <MarketingPageHeader
         eyebrow="Pricing"
         title="Pricing"

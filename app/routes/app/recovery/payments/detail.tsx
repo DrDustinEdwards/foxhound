@@ -11,7 +11,7 @@ import "capsomer/button.css";
 import "capsomer/field.css";
 import "capsomer/panel.css";
 import "capsomer/status.css";
-// Capsomer's tokens and the teal family, which the components above read, as
+// Capsomer's tokens and the amber family, which the components above read, as
 // the payments list and /disputes load them.
 import "~/site-header.css";
 

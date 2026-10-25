@@ -7,7 +7,7 @@ import "capsomer/banner.css";
 import "capsomer/button.css";
 import "capsomer/page-head.css";
 import "capsomer/panel.css";
-// Capsomer's tokens and the teal family, which the components above read. The
+// Capsomer's tokens and the amber family, which the components above read. The
 // shell loads the same file through its header; importing it here keeps the
 // page whole under any layout, as /settings/account does.
 import "~/site-header.css";
@@ -38,7 +38,7 @@ import type { Route } from "./+types/stripe";
 // Add Stripe account under them.
 //
 // J41 rebuilt it from Capsomer 0.9.0's parts under Dustin's Q10 and Q11 answers
-// of 2026-10-14: PageHead, panels, Button and Alert, teal throughout.
+// of 2026-10-14: PageHead, panels, Button and Alert, amber throughout.
 //
 // THE ENGINE IS FOXHOUND'S. Recova's client POSTs /api/stripe/disconnect with
 // no id at a route exporting only DELETE, which picks the account's primary

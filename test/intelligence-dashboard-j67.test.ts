@@ -17,7 +17,7 @@ import {
 // customer health"), four stat cards, MRR trend, NRR, MRR movement, MRR by
 // plan, customer health distribution, then the monthly summary with its month
 // pager and Generate/Regenerate button. Charts are Enarratio's (Q1), parts are
-// Capsomer's (Q10), teal throughout (Q11). Foxhound's own at-risk table is held
+// Capsomer's (Q10), amber throughout. Foxhound's own at-risk table is held
 // for Dustin and stays exactly as it was, after the summary.
 //
 // Two of Recova's four stats are numbers Foxhound's engine does not compute

@@ -74,10 +74,10 @@ const COLOR_WORDMARK = "#f5f5f3";
 // as --chrome-text, legacy's value for text on the dark band. The blog title
 // uses it; the wordmark keeps --wordmark, which is Foxhound branding (J20).
 const COLOR_TEXT = "#f0ede8";
-const COLOR_BRAND = "#249398";
+const COLOR_BRAND = "#f0b429";
 const COLOR_TEXT_SECONDARY = "#a8a49e";
 const COLOR_TEXT_TERTIARY = "#928d87";
-const COLOR_ON_BRAND = "#070f0f";
+const COLOR_ON_BRAND = "#0d0e0c";
 const FONT = "DM Mono";
 const FONT_SANS = "DM Sans";
 
@@ -106,8 +106,8 @@ function wordmarkHtml(fontSize: number, extraStyle = ""): string {
 
 // Legacy's default card (app/og/route.tsx, blob 59c49647): wordmark 80px with
 // 24px below it, tagline 28px at letter-spacing -0.01em with 24px below it,
-// then an 18px teal line at weight 500 with 8px above it. The margins are
-// legacy's, placed where legacy places them, so the teal line sits 32px under
+// then an 18px amber line at weight 500 with 8px above it. The margins are
+// legacy's, placed where legacy places them, so the amber line sits 32px under
 // the tagline (24 + 8), not 8px as this card had it (J20). The COPY is
 // Foxhound's and stays 20d-frozen (legacy's "20% of recovered revenue" is a
 // pricing claim, Foxhound's attribution wording is the accurate one).
@@ -121,10 +121,10 @@ function defaultCardHtml(): string {
 }
 
 // Legacy's blog card, ported structure for structure (app/og/route.tsx):
-// a teal 10px dot plus an 18px weight-500 teal eyebrow, the title at
+// an amber 10px dot plus an 18px weight-500 amber eyebrow, the title at
 // 56px (48px past 50 characters) weight 600 with line-height 1.15 and
 // letter-spacing -0.03em, the post EXCERPT beneath it at 22px, and a footer
-// pairing the host with a teal pill. Foxhound had dropped the excerpt
+// pairing the host with an amber pill. Foxhound had dropped the excerpt
 // entirely, replaced the pill with a tag chip, and shrunk the title; all four
 // were unratified. Branding only is Foxhound's: "Foxhound Blog", "FOXHOUND".
 function blogCardHtml(title: string, description: string, host: string): string {

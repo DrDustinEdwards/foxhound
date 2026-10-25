@@ -10,7 +10,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 //      redirect entry sends that path to the same path on Foxhound, so Foxhound
 //      has to answer it with the same card Recova would draw.
 //   2. Recova's default card spacing. Recova stacks the wordmark (24px below
-//      it), the tagline (24px below it) and the teal line (8px above it), so
+//      it), the tagline (24px below it) and the amber line (8px above it), so
 //      the line sits 32px under the tagline. Foxhound had 8px.
 //
 // workers-og's WASM cannot load under vitest, so ImageResponse is replaced by

@@ -42,8 +42,8 @@ import {
 // into processEmailJob, which records it on the email_sends claim like any other
 // send failure.
 
-/** Foxhound's family in Capsomer: teal throughout (RULES.md 1.1). */
-const FOXHOUND_EMAIL_FAMILY = "teal" as const;
+/** Foxhound's family in Capsomer: amber throughout (RULES.md 1.1). */
+const FOXHOUND_EMAIL_FAMILY = "amber" as const;
 
 /** The first-party engagement links a dunning send carries (PRICING.md: the
  *  open feeds Intelligence only; the trap marks scanners, RULES.md 3.4). */

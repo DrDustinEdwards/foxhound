@@ -11,7 +11,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 // (app/(app)/settings/brand-voice/page.tsx at blob 81435702,
 // BrandVoiceForm.tsx at blob 8dd126bf and components/BrandVoiceSection.tsx at
 // blob 9f4de70c, with SaveBar.tsx at blob f1d6eb23 and SettingsBackLink.tsx at
-// blob 64d4a153) built from Capsomer 0.9.0's components, teal throughout.
+// blob 64d4a153) built from Capsomer 0.9.0's components, amber throughout.
 // Recova stays the spec for every control, label and help line and their
 // order; the page keeps the settings layout's 800px column.
 //

@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Link } from "react-router";
 
 import "capsomer/panel.css";
-// Capsomer's tokens and the teal family (capbase layer), which the Panel, the
+// Capsomer's tokens and the amber family (capbase layer), which the Panel, the
 // link roles and the focus ring read. The site header loads the same file;
 // importing it here keeps these pages whole under any layout.
 import "~/site-header.css";
@@ -16,10 +16,10 @@ import "~/site-header.css";
 // Layout is Recova's: the 720px column with 24px sides and 64px below, the
 // numbered h2 at the title size with 48px above, 16px below and an 80px scroll
 // margin, the contents grid, the rule and every margin as Recova writes them.
-// Look is Capsomer's (Q12): the column sits in Capsomer's teal family with
+// Look is Capsomer's (Q12): the column sits in Capsomer's amber family with
 // Foxhound's own neutrals (.fh-cap, the same pairing the site header uses),
 // links take Capsomer's link roles (accent text, accent hover), the focus ring
-// is the family's teal ring, and the summary card is Capsomer's Panel.
+// is the family's amber ring, and the summary card is Capsomer's Panel.
 // Text is on the five sizes (RULES.md 5.2): Recova's 0.9375rem body becomes
 // body (1rem) and its 0.875rem summary text becomes label (0.8125rem), each the
 // nearest of the five.
@@ -34,14 +34,14 @@ export interface LegalSectionDef {
 }
 
 /**
- * Recova's legal column, in Capsomer's teal family. One main landmark stays the
+ * Recova's legal column, in Capsomer's amber family. One main landmark stays the
  * layout's. Foxhound's global focus ring reads --border-focus (app.css);
  * inside this column it reads the family's --ring instead, so a keyboard user
- * sees teal here as in Capsomer's own components.
+ * sees amber here as in Capsomer's own components.
  */
 export function LegalBody({ children }: { children: ReactNode }) {
   return (
-    <div className="fh-cap mx-auto max-w-[720px] px-6 pb-16 [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="teal">
+    <div className="fh-cap mx-auto max-w-[720px] px-6 pb-16 [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="amber">
       {children}
     </div>
   );

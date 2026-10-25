@@ -10,7 +10,7 @@ import "capsomer/field.css";
 import "capsomer/panel.css";
 import "capsomer/select.css";
 import "capsomer/status.css";
-// Capsomer's tokens and the teal family (capbase layer), which the panel, the
+// Capsomer's tokens and the amber family (capbase layer), which the panel, the
 // badge, the field, the select, the alert, the button and the focus ring read.
 // The site header loads the same file; importing it here keeps the page whole
 // under any layout.
@@ -41,7 +41,7 @@ import type { Route } from "./+types/audit";
 // content, order and width. The look is Capsomer's (RULES.md 1.1, Q12): the
 // pill is its badge, every card its panel, the form its field, select and
 // button, the unavailable notice its alert, each call to action its primary
-// button. Teal throughout (Q11), and text on the five sizes (RULES.md 5.2),
+// button. Amber throughout, and text on the five sizes (RULES.md 5.2),
 // which finishes the migration Recova left as a foothold. Where Foxhound needs
 // a treatment of its own that Capsomer's shared parts do not carry (Recova's
 // hero h1 clamp, its tinted mono pill, the covers card's 40px padding), the
@@ -170,17 +170,17 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
 
   return (
     // Recova's column: 680px, centred, px-4 md:px-8, py-10 md:py-20. In
-    // Capsomer's teal family with Foxhound's own neutrals (.fh-cap, as /demos
+    // Capsomer's amber family with Foxhound's own neutrals (.fh-cap, as /demos
     // and /pricing), comfortable density so each panel takes Capsomer's roomier
     // padding.
     <div
       className="fh-cap mx-auto max-w-[680px] px-4 py-10 text-center md:px-8 md:py-20" data-cap-site="foxhound"
-      data-family="teal"
+      data-family="amber"
       data-density="comfortable"
     >
       {/* Bespoke hero, restored per ruling 64: Recova's /audit sits OUTSIDE
           (marketing) and never used MarketingPageHeader. The pill is
-          Capsomer's badge in its default (teal) variant; Recova's translucent
+          Capsomer's badge in its default (amber) variant; Recova's translucent
           tint, mono face and 0.06em tracking are a hero treatment for the
           per-site layer. */}
       <div className="mb-6">

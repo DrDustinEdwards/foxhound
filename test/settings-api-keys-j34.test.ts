@@ -13,7 +13,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // 2026-10-14: /settings/api-keys is Recova's page
 // (app/(app)/settings/api-keys/page.tsx at blob b50fb228 and ApiKeysClient.tsx
 // at blob 338db3db, with its API at app/api/settings/api-keys/route.ts, blob
-// 81e694f5) built from Capsomer 0.9.0's components, teal throughout. Recova
+// 81e694f5) built from Capsomer 0.9.0's components, amber throughout. Recova
 // stays the spec for every section, label, column and control and their
 // order; the page keeps the settings layout's 800px column.
 //

@@ -19,7 +19,7 @@ import "capsomer/select.css";
 import "capsomer/status.css";
 import "capsomer/switch.css";
 import "capsomer/table.css";
-// Capsomer's tokens and the teal family, which the components above read, as
+// Capsomer's tokens and the amber family, which the components above read, as
 // /intelligence/customers and /disputes load them.
 import "~/site-header.css";
 
@@ -49,7 +49,7 @@ import type { Route } from "./+types/alerts";
 // and alerts/AlertsClient.tsx (blob ee8dac99, 20,909 bytes).
 //
 // J33 (job_947a0b8bbe06) rebuilt the page on Capsomer 0.9.0's parts (Q10),
-// teal throughout with no warm accent (Q11). Recova is the spec for what is on it and
+// amber throughout. Recova is the spec for what is on it and
 // in what order: the phone-only Settings link, the head, a card with the count
 // line, Create alert, the alerts table and the create form, then a Recent
 // triggers card. The settings layout gives the page Recova's 800px column and

@@ -10,7 +10,7 @@ import "capsomer/page-head.css";
 import "capsomer/panel.css";
 import "capsomer/status.css";
 import "capsomer/switch.css";
-// Capsomer's tokens and the teal family, which the components above read, as
+// Capsomer's tokens and the amber family, which the components above read, as
 // /settings/features loads them.
 import "~/site-header.css";
 
@@ -58,8 +58,8 @@ import type { Route } from "./+types/disputes";
 // does not triage and never submits without the merchant's approval, so the
 // line says what it does (RULES.md 1.2, copy where Recova was untrue).
 //
-// LOOK FROM CAPSOMER (Q10, Q11): PageHead, one panel card with Recova's rows,
-// Switch, a cap-input textarea, Button and Status, teal throughout. Recova's
+// LOOK FROM CAPSOMER (Q10): PageHead, one panel card with Recova's rows,
+// Switch, a cap-input textarea, Button and Status, amber throughout. Recova's
 // content, order and arrangement stay, as /settings/features does.
 
 export function meta() {

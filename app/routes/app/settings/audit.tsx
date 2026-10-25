@@ -10,7 +10,7 @@ import "capsomer/page-head.css";
 import "capsomer/panel.css";
 import "capsomer/segmented.css";
 import "capsomer/switch.css";
-// Capsomer's tokens and the teal family, which the components above read, as
+// Capsomer's tokens and the amber family, which the components above read, as
 // /settings/alerts and /settings/api-keys load them.
 import "~/site-header.css";
 
@@ -29,7 +29,7 @@ import type { Route } from "./+types/audit";
 // components/Toggle.tsx (0ebdd395) and settings/SaveBar.tsx (f1d6eb23).
 //
 // J35 (job_9ad6ef3e08f6) rebuilt the page on Capsomer 0.9.0's parts (Q10),
-// teal throughout with no warm accent (Q11). Recova is the spec for what is on
+// amber throughout. Recova is the spec for what is on
 // it and in what order: the phone-only Settings link, the head, one card with
 // the lookback period and then the monthly digest, and the save bar. The
 // settings layout gives the page Recova's 800px column and padding, so the

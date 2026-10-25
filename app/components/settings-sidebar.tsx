@@ -82,7 +82,7 @@ export const SETTINGS_NAV_GROUPS: SettingsNavGroup[] = [
 // tokens, dark in both themes, because its aside continued its dark nav. Inside
 // the Capsomer frame the aside sits on the page's ground beside AdminShell's
 // menu (app/layouts/settings.tsx), so the text takes the page's text tokens and
-// the current item's edge and the hover take teal (Q11). Group labels are
+// the current item's edge and the hover take amber. Group labels are
 // Recova's medium-weight sans; the mono they had here was not Recova's.
 //
 // Capsomer 0.9.0 has no in-page section menu (its Shell and AdminShell menus

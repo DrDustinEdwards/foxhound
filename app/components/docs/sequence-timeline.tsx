@@ -4,7 +4,7 @@ import type { DeclineCategory } from "~/lib/constants";
 
 // Ported from legacy components/docs/SequenceTimeline.tsx. Legacy's TREATMENT
 // is carried over exactly: a surface card with a bordered rounded pill per
-// step, blue for email and teal for retry, a mono timing line beneath each
+// step, blue for email and amber for retry, a mono timing line beneath each
 // label, hairline connectors between them, and a horizontal scroll on narrow
 // viewports.
 //

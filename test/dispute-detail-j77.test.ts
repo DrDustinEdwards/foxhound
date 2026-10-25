@@ -21,7 +21,7 @@ import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 // J77 (job_4d41a53774f0), row S14: /disputes/:id is Recova's page
 // (app/(app)/disputes/[id]/page.tsx a9452f59, DisputeDetailClient.tsx 3d56b55d,
 // components/disputes/* at the blobs the job names, read whole) built from
-// Capsomer 0.9.0's parts (Q10), teal (Q11), on Foxhound's engine. Every
+// Capsomer 0.9.0's parts (Q10), amber, on Foxhound's engine. Every
 // assertion here was seen failing first.
 
 const harness = vi.hoisted(() => ({

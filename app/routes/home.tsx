@@ -1,7 +1,7 @@
 import "capsomer/panel.css";
 import "capsomer/button.css";
 import "capsomer/disclosure.css";
-// Capsomer's tokens and the teal family (capbase layer), which every part on
+// Capsomer's tokens and the amber family (capbase layer), which every part on
 // this page reads. The site header loads the same file; importing it here
 // keeps the page whole under any layout.
 import "~/site-header.css";
@@ -68,10 +68,10 @@ import {
 //
 // Look is Capsomer's (RULES.md 1.1, Q12): cards are Capsomer panels, calls to
 // action Capsomer buttons, the FAQ Capsomer's disclosure, the decline picker
-// its segmented control, teal throughout (Q11). Text is on the five sizes
+// its segmented control, amber throughout. Text is on the five sizes
 // (RULES.md 5.2), each Recova size taken to the nearest of the five, a tie to
 // the larger. No Foxhound class sits on a Capsomer part; where Recova's look
-// needs more than Capsomer ships (the hover lift and teal edge on a linked
+// needs more than Capsomer ships (the hover lift and amber edge on a linked
 // card, Recova's 12px radius and padding, the tinted decline buttons, the
 // slider's filled track) the PR names the per-site layer it waits for (capsomer
 // job_ec5ec0754626).
@@ -110,10 +110,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const { siteUrl: url, blogPosts } = loaderData;
 
   return (
-    // Capsomer's teal family with Foxhound's neutrals. Foxhound's global focus
+    // Capsomer's amber family with Foxhound's neutrals. Foxhound's global focus
     // ring reads --border-focus (app.css); inside this page it reads the
-    // family's --ring, so a keyboard user sees teal as in Capsomer's own parts.
-    <div className="fh-cap [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="teal">
+    // family's --ring, so a keyboard user sees amber as in Capsomer's own parts.
+    <div className="fh-cap [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="amber">
       {/* 1. Hero */}
       <section className="speakable-hero border-b border-border-sub px-5 pb-16 pt-8 sm:px-8 sm:pb-20 sm:pt-10">
         <div className="mx-auto max-w-[1100px]">
