@@ -128,8 +128,8 @@ describe("the cutover map carries the seven in one hop (CUTOVER-PLAN.md: F17 fol
     for (const e of RECOVA_REDIRECT_MAP) expect(froms.has(e.to), `${e.from} -> ${e.to}`).toBe(false);
   });
 
-  it("serves the same map on app.recovamrr.com, Recova's path-preserving host rule", () => {
-    expect(RECOVA_MAP_HOSTS).toEqual(["recovamrr.com", "app.recovamrr.com"]);
+  it("serves the same map on www and app.recovamrr.com, Recova's path-preserving host moves", () => {
+    expect(RECOVA_MAP_HOSTS).toEqual(["recovamrr.com", "www.recovamrr.com", "app.recovamrr.com"]);
   });
 
   it("refuses a config redirect onto the home page instead of deciding it (ruling 408 binding 4)", () => {
