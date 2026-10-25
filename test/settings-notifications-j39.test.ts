@@ -14,7 +14,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // settings/components/NotificationsSection.tsx at blob 494c6dfa, with the
 // SaveBar at app/(app)/settings/SaveBar.tsx blob f1d6eb23 and the Toggle at
 // components/Toggle.tsx blob 0ebdd395) built from Capsomer 0.9.0's components,
-// teal throughout. Recova stays the spec for every field, toggle and label and
+// amber throughout. Recova stays the spec for every field, toggle and label and
 // their order; the page keeps the settings layout's 800px column.
 //
 // The webhook host rule (hooks.slack.com) stays pinned where it was; the

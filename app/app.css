@@ -96,15 +96,13 @@
   --color-on-brand: var(--text-on-brand);
   /* Caution, named by meaning: the middle band of a red / caution / green
      scale (near target, watch, deadline soon, a stale cron, MRR at risk,
-     expiring cards). Recova drew it in its accent colour; Foxhound's accent is
-     teal, which reads as neutral beside green, so caution takes the warning
-     status tokens (job_3037f6d2a135 review). Changing the caution palette is
-     these three lines. Inline, so the admin's mapping of the warning tokens
-     applies. Text: #f97316 dark (6.70:1 on --bg, 5.59:1 on --surface2),
-     #7a5c00 light (5.78:1 on --bg, 5.86:1 on --caution-bg). */
-  --color-caution: var(--warning-text);
-  --color-caution-bg: var(--orange-bg);
-  --color-caution-border: var(--warning-border);
+     expiring cards). Recova drew it in its accent colour, amber, and so does
+     Foxhound again (it took the warning tokens while the accent was teal).
+     Changing the caution palette is these three lines. Text: #f0b429 dark
+     (10.08:1 on --bg), #8a5c06 light (5.37:1 on --bg, 5.34:1 on --brand-bg). */
+  --color-caution: var(--brand-text);
+  --color-caution-bg: var(--brand-bg);
+  --color-caution-border: var(--brand-border-interactive);
   --color-chrome: var(--chrome);
   --color-chrome-text: var(--chrome-text);
   --color-chrome-text-secondary: var(--chrome-text-secondary);
@@ -156,13 +154,13 @@
   --color-tooltip-bg: var(--tooltip-bg);
   --color-tooltip-text: var(--tooltip-text);
   /* Capsomer's accent roles, as utilities, for content that sits inside an
-     element carrying data-family="teal" (Capsomer's teal family, Dustin's
+     element carrying data-family="amber" (Capsomer's amber family, Dustin's
      answers of 2026-10-13 and Q11 of 2026-10-14): text-accent-text for a link
      and hover:text-accent-hover for its hover. Capsomer's own base.css gives
      every link exactly these two; Foxhound does not load that file, so pages
-     that adopt teal name them. Outside a teal family they take whatever
+     that adopt amber name them. Outside an amber family they take whatever
      family is in scope (the admin's :root is purple), so set data-family. First used by the legal pages (J51); the
-     site-wide teal job (J81) can reuse them. */
+     site-wide amber job (J81) can reuse them. */
   --color-accent-text: var(--accent-text);
   --color-accent-hover: var(--accent-hover);
   --font-sans: var(--font-dm-sans);
@@ -320,31 +318,25 @@
   --text-disabled: #8a837b;
   --wordmark: #f5f5f3;
 
-  /* The brand accent: teal throughout (Q11, Dustin "yes", 2026-10-14;
-     Capsid foxhound/parity/ANSWERS-2026-10-14.md), from Capsomer's teal family
-     (capsomer/tokens/family-teal.css, core #008489). Two roles, two tokens
+  /* The brand accent: Recova's amber (Dustin, 2026-10-25: Foxhound keeps
+     amber; it was amber from 2026-10-14). In dark these are legacy's own
+     values (Recova app/globals.css), which are also Capsomer's amber family
+     (capsomer/family-amber.css, step 9 #f0b429). Two roles, two tokens
      (DESIGN.md rule 3): --brand-ui drives fills and borders; --brand-text is
-     the text-safe variant. In dark the fill is the header band's teal,
-     #249398 with #070f0f on it (Capsomer's dark primary and primary-fg).
-     --brand-dark is the hover step of a fill, so in dark it is lighter, not
-     darker: the text on a fill is dark, and a darker teal would drop it under
-     4.5:1. Text on a page surface takes --brand-text, never --brand: the
-     fill is 4.25:1 on --surface2 in dark. Ratios (WCAG 2.2): #070f0f on
-     #249398 5.26:1, on #55a8ab 6.99:1; #249398 as a boundary or a graphic
-     5.10:1 on --bg and 4.79:1 on --surface; #97c8cb on --bg 10.23:1 and on
-     --surface 9.61:1; --brand-border-interactive 3.85:1 on --bg;
-     --border-focus 5.10:1 on --bg. */
-  --brand-ui: #249398;
+     the text-safe variant. The text on a fill is always the near-black
+     #0d0e0c. Ratios (WCAG 2.2): #0d0e0c on #f0b429 10.38:1, on #d4941a
+     7.42:1; #f0b429 on --bg 10.08:1 and on --chrome 9.21:1; #ffd166 on --bg
+     13.03:1; --brand-border-interactive 3.32:1 on --bg, 3.12:1 on --surface. */
+  --brand-ui: #f0b429;
   --brand: var(--brand-ui);
-  --brand-dark: #55a8ab;
-  --brand-bg: #1a2d2e;
-  --brand-text: #97c8cb;
-  /* A brand-text link on hover: Capsomer's accent-hover, 15.86:1 on --bg. */
-  --brand-text-hover: #e3eeee;
-  --brand-border: #294547;
-  --brand-border-interactive: #2d7c80;
-  --text-on-brand: #070f0f;
-  --border-focus: #249398;
+  --brand-dark: #d4941a;
+  --brand-bg: #1e1a0a;
+  --brand-text: #f0b429;
+  --brand-text-hover: #ffd166;
+  --brand-border: #3d3010;
+  --brand-border-interactive: #826217;
+  --text-on-brand: #0d0e0c;
+  --border-focus: #f0b429;
 
   /* Chrome (nav/footer/mobile bar): dark in both modes, defined once here. */
   --chrome: #1a1c18;
@@ -352,17 +344,14 @@
   --chrome-text-secondary: #a8a49e;
   --chrome-text-tertiary: #928d87;
   --chrome-border: #2a2b28;
-  /* The brand accent on the chrome: the header band's teal, one value in both
-     modes because the chrome is dark in both (4.66:1 on --chrome). */
-  --chrome-brand: var(--header-teal);
+  /* The brand accent on the chrome: the header band's amber, one value in both
+     modes because the chrome is dark in both (9.21:1 on --chrome). */
+  --chrome-brand: var(--header-brand);
 
-  /* Teal on the header band (Capsomer's teal family, Dustin's answer 1 of
-     2026-10-13, recorded in parity/APPROVED-DIFFERENCES.md): the band stays
-     dark in both modes, so its accent and the text on it are one pair in both.
-     The page's own teal (panels, the sheet, the tab bar) is the family's
-     accent text, #01585c light and #97c8cb dark, from capsomer/family-teal.css. */
-  --header-teal: #249398;
-  --header-teal-fg: #070f0f;
+  /* Amber on the header band, Recova's: the band stays dark in both modes, so
+     its accent and the text on it are one pair in both (10.38:1). */
+  --header-brand: #f0b429;
+  --header-brand-fg: #0d0e0c;
 
   /* Cobalt: reinstated secondary (exact complement, H:221.9). Superseded
      the Phase 6 removal per TASK-foxhound-design-system-port.md. */
@@ -472,25 +461,23 @@
   --text-disabled: #636959;
   --wordmark: #181917;
 
-  /* The brand accent in light (see the dark block): Capsomer's light primary
-     #077478 with its primary-fg #fbfefe as the fill (5.48:1), hovering to
-     #01585c (8.12:1); as a boundary or a graphic #077478 is 5.14:1 on --bg
-     and 5.56:1 on --surface. --brand-text is Capsomer's light accent text,
-     #01585c: 7.61:1 on --bg, 8.23:1 on --surface. --brand-border-interactive
-     and --border-focus are the family's core #008489: 4.17:1 on --bg, 4.50:1
-     on --surface. On the chrome, dark in both modes, the accent is
-     --chrome-brand, not this. */
-  --brand-ui: #077478;
+  /* The brand accent in light (see the dark block). Recova kept #f0b429 as
+     the fill here, 1.8:1 against white, so the fill is Capsomer's light amber
+     step 9 #b68508 (3.06:1 on --bg, 3.31:1 on --surface), hovering to
+     #a37705, with the same near-black text (5.85:1 and 4.79:1). The rest are
+     legacy's light values: --brand-text #8a5c06 is 5.37:1 on --bg and 5.34:1
+     on --brand-bg; --brand-border-interactive #b2861f is 3.07:1 on --bg.
+     On the chrome, dark in both modes, the accent is --chrome-brand. */
+  --brand-ui: #b68508;
   --brand: var(--brand-ui);
-  --brand-dark: #01585c;
-  --brand-text: #01585c;
-  /* A brand-text link on hover: Capsomer's accent-hover, 15.90:1 on --bg. */
-  --brand-text-hover: #0c1e1f;
-  --brand-border: #badadb;
-  --brand-border-interactive: #008489;
-  --text-on-brand: #fbfefe;
-  --border-focus: #008489;
-  --brand-bg: #e8f5f5;
+  --brand-dark: #a37705;
+  --brand-text: #8a5c06;
+  --brand-text-hover: #644803;
+  --brand-border: #f5d98a;
+  --brand-border-interactive: #b2861f;
+  --text-on-brand: #0d0e0c;
+  --border-focus: #b68508;
+  --brand-bg: #fff5d6;
 
   --cobalt-ui: #2965f0;
   --cobalt-hover: #104fe0;
@@ -614,7 +601,7 @@
     0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
 
-/* Primary brand-accent CTA (teal, Q11), ported from legacy app/globals.css:640 for the M6 product
+/* Primary brand-accent CTA (amber), ported from legacy app/globals.css:640 for the M6 product
    spokes (divergence 10: legacy uses this class, Foxhound was hand-rolling
    `bg-brand hover:bg-brand-dark` at each call site). Pair it with text-on-brand
    and the normal radius/padding/font utilities, exactly as legacy does.
@@ -1010,7 +997,7 @@ body {
 /* Capsomer's site header and dashboard shell, in Foxhound's colours: every
    .fh-cap wrapper carries data-cap-site="foxhound", so the neutrals and faces
    Capsomer reads are Foxhound's own (capsomer/site-foxhound.css, in the cap
-   layer above capbase's teal family) and only the accents are teal (Dustin's
+   layer above capbase's amber family) and only the accents are amber (Dustin's
    answer 1 of 2026-10-13). The site file holds literals, so a raised-contrast
    preference, which moves --text-tertiary, still reaches --dim from here. */
 @media (prefers-contrast: more) {
@@ -1026,7 +1013,7 @@ body {
   display: contents;
 }
 
-/* The band: Foxhound's chrome, dark in both modes, with teal on it. The same
+/* The band: Foxhound's chrome, dark in both modes, with amber on it. The same
    on the public site, the merchant app and the admin. */
 .fh-cap .cap-site-header,
 .fh-admin .cap-site-header {
@@ -1034,12 +1021,12 @@ body {
   --header-fg: var(--chrome-text);
   --header-fg-muted: var(--chrome-text-secondary);
   --header-line: var(--chrome-border);
-  --header-accent: var(--header-teal);
-  --header-cta: var(--header-teal);
-  --header-cta-fg: var(--header-teal-fg);
-  --header-avatar: var(--header-teal);
-  --header-avatar-fg: var(--header-teal-fg);
-  --ring: var(--header-teal);
+  --header-accent: var(--header-brand);
+  --header-cta: var(--header-brand);
+  --header-cta-fg: var(--header-brand-fg);
+  --header-avatar: var(--header-brand);
+  --header-avatar-fg: var(--header-brand-fg);
+  --ring: var(--header-brand);
   --font-ui: var(--font-dm-sans), Arial, sans-serif;
 }
 /* Foxhound's own focus rule above squares every focused element's corners;
@@ -1050,12 +1037,12 @@ body {
 }
 /* The same for a Capsomer panel that is itself a link (the /products hub
    cards, J16): it keeps its own rounded corners when a keyboard user lands on
-   it, so the teal ring follows the card's shape. */
+   it, so the amber ring follows the card's shape. */
 .fh-cap .cap-panel:focus-visible {
   border-radius: revert-layer;
 }
 
-/* The wordmark in the header: DM Mono, the x in teal. */
+/* The wordmark in the header: DM Mono, the x in amber. */
 .fh-wordmark {
   font-family: "DM Mono", monospace;
   font-size: 1.125rem;
@@ -1064,7 +1051,7 @@ body {
   color: var(--header-fg);
 }
 .fh-wordmark-x {
-  color: var(--header-teal);
+  color: var(--header-brand);
 }
 
 /* Capsomer's controls on a .fh-cap marketing page (the Recovery spoke, J56):
@@ -1072,7 +1059,7 @@ body {
    unlayered, so it beats Capsomer's layered rings and squares their corners.
    Reverting the three properties to the layer below hands each its own ring
    back; it adds nothing to the components. A disclosure's summary has no ring
-   of its own in Capsomer, so it keeps Foxhound's teal one. */
+   of its own in Capsomer, so it keeps Foxhound's amber one. */
 .fh-cap :is(.cap-btn, .cap-table-wrap):focus-visible {
   outline: revert-layer;
   outline-offset: revert-layer;
@@ -1106,8 +1093,8 @@ body {
 }
 [aria-current] > * > .fh-account-tile,
 [aria-current] > .fh-account-tile {
-  background: var(--header-teal);
-  color: var(--header-teal-fg);
+  background: var(--header-brand);
+  color: var(--header-brand-fg);
 }
 
 /* The merchant app's page bar: the page's name first, then how fresh its data

@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from "react";
 //
 // Container is 1080px and left aligned; the subtext clamps at 560px inside it so
 // long lines do not stretch the full width. Legacy has no bottom border and does
-// not center. title is ReactNode because legacy's pricing embeds an accent span (teal here, Q11)
+// not center. title is ReactNode because legacy's pricing embeds an accent span (amber here)
 // span in the second half of its headline.
 //
 // The reveal is legacy's STRUCTURE, not just its effect: ONE observer on the

@@ -23,7 +23,7 @@ import "capsomer/segmented.css";
 import "capsomer/select.css";
 import "capsomer/status.css";
 import "capsomer/table.css";
-// Capsomer's tokens and the teal family, which the components above read, as
+// Capsomer's tokens and the amber family, which the components above read, as
 // /intelligence/customers and /disputes load them.
 import "~/site-header.css";
 
@@ -95,11 +95,11 @@ import type { Route } from "./+types/index";
 // Clear filters), the rows-per-page links, the table, the pager, and the bulk
 // bar while something is selected.
 //
-// Built from Capsomer 0.9.0's parts (Q10), teal throughout (Q11). No Foxhound
+// Built from Capsomer 0.9.0's parts (Q10), amber throughout. No Foxhound
 // class sits on a Capsomer element: Recova's mono figures, its sizes and its
 // spacing go on elements of the page's own inside or around them. Recova's
 // per-status colours on the status filter and the row pills, its filled (now
-// teal) Next button in the pager, and its 12px radius wait for Capsomer's
+// amber) Next button in the pager, and its 12px radius wait for Capsomer's
 // per-site layer (capsomer job_ec5ec0754626), listed in the J75 pull request.
 //
 // Approved differences kept (APPROVED-DIFFERENCES): status pills say the tab

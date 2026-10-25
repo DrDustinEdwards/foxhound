@@ -23,7 +23,7 @@ import type { EmailJob } from "~/lib/email/types";
 //             recent payment. (c) {year}", then "Manage email settings"
 //   No heading, no unsubscribe, no postal address, no tracking.
 // Foxhound sends the same words with Foxhound's name, on Capsomer's email
-// component in teal with a text part beside the HTML (J02), to the approved
+// component in amber with a text part beside the HTML (J02), to the approved
 // /invite/:token link (APPROVED-DIFFERENCES, Sign-in and invites, 2026-09-19).
 //
 // IT IS MERCHANT MAIL (RULES.md 3.16): our own user's teammate, not a

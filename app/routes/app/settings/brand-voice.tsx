@@ -11,7 +11,7 @@ import "capsomer/page-head.css";
 import "capsomer/panel.css";
 import "capsomer/select.css";
 import "capsomer/status.css";
-// Capsomer's tokens and the teal family, which the components above read. The
+// Capsomer's tokens and the amber family, which the components above read. The
 // shell loads the same file through its header; importing it here keeps the
 // page whole under any layout, as /settings/features does.
 import "~/site-header.css";
@@ -51,7 +51,7 @@ import type { Route } from "./+types/brand-voice";
 //
 // J36 (job_36eb888192d0) rebuilt the page from Capsomer 0.9.0's parts under
 // Dustin's Q10 and Q11 answers of 2026-10-14: PageHead, a Panel's card,
-// Select, a cap-input textarea, Button and Status, teal throughout. Recova
+// Select, a cap-input textarea, Button and Status, amber throughout. Recova
 // stays the spec for what is here and in what order: the phone-only back
 // link, the title and its line, one card that opens with its own line and
 // holds the four categories (dot, label and help, then the preset picker, then

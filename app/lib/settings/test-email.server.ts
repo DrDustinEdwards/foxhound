@@ -18,7 +18,7 @@ import { getPrimarySenderConnection } from "~/lib/settings/queries.server";
 //             this."
 //   No unsubscribe, no postal address, no tracking, no retry.
 // Foxhound sends the same, with Foxhound's name in the footer, on Capsomer's
-// email component in Foxhound's teal (Q3) with a text part beside the HTML.
+// email component in Foxhound's amber (Q3) with a text part beside the HTML.
 //
 // IT IS A REAL SEND. It goes through processEmailJob, as the recovery cron's
 // sends do, so it passes the suppression gate and writes an email_sends row for

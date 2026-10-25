@@ -32,7 +32,7 @@ import {
 //
 // THE SHELL IS CAPSOMER'S `notice` TEMPLATE (E11, job J89; RULES.md 3.16), as
 // E10 put the recovery notice on it: title, sentence, View payment button, in
-// Foxhound's teal family. Its footer is legacy's: wrapEmailHtml(notifyBody,
+// Foxhound's amber family. Its footer is legacy's: wrapEmailHtml(notifyBody,
 // 'Recova', undefined) writes the "You're receiving this from" sentence and a
 // "Manage email settings" link, with no unsubscribe and no postal address.
 

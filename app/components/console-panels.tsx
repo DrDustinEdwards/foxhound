@@ -138,10 +138,9 @@ export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: n
             label="Intelligence"
             figure={formatCurrencyTotalsShort(tiles.highRiskMrr)}
             unit="MRR at risk"
-            // Recova's yellow-orange figure for MRR at risk has no place on a teal page
-            // (Q11); the figure stays neutral and turns ok when nothing is at
-            // risk, as Recova's turned green.
-            tone={highRisk ? undefined : "ok"}
+            // Recova's figure for MRR at risk is amber while any is at risk and
+            // green when none is: Capsomer's warn tone, then ok.
+            tone={highRisk ? "warn" : "ok"}
             detail={tiles.highRiskCustomerCount > 0 ? `${tiles.highRiskCustomerCount} high-risk` : "All healthy"}
             href="/intelligence/dashboard"
             renderLink={routerLink}

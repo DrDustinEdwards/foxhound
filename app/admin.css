@@ -5,11 +5,11 @@
    the attention list and the row list under it, empty states, the spinner), and
    the Users page's table. The layer order is declared at the top
    of app.css, so Capsomer sits above Tailwind's base and below its utilities.
-   Foxhound's family is teal (Dustin's answer 1 of 2026-10-13): its tokens come
-   after the themes, so the accents are teal in both. */
+   Foxhound's family is amber (Dustin's answer 1 of 2026-10-13): its tokens come
+   after the themes, so the accents are amber in both. */
 @import "capsomer/tokens.css";
 @import "capsomer/themes.css" layer(cap.tokens);
-@import "capsomer/family-teal.css" layer(cap.tokens);
+@import "capsomer/family-amber.css" layer(cap.tokens);
 @import "capsomer/base.css";
 @import "capsomer/site-header.css";
 @import "capsomer/admin-shell.css";
@@ -45,7 +45,7 @@
    admin those names resolve to Capsomer's tokens, so the pages wear Capsomer's
    palette and faces without a second set of components. --surface, --sunken and
    --text already share a name with Capsomer's and need no line here. The brand
-   accent (teal, Q11) becomes Capsomer's teal accent. */
+   accent (amber) becomes Capsomer's amber accent. */
 .fh-admin {
   --bg: var(--ground);
   --surface2: var(--raised);

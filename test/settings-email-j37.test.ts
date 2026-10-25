@@ -15,7 +15,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // page.tsx at blob 62de18af, EmailSectionForm.tsx at blob 57b2fb09,
 // settings/components/EmailSection.tsx at blob 3c89ca41 and the SaveBar at
 // settings/SaveBar.tsx blob f1d6eb23) built from Capsomer 0.9.0's components,
-// teal throughout. Recova stays the spec for every field, label and control
+// amber throughout. Recova stays the spec for every field, label and control
 // and their order: the phone-only back link, the title and its line, one card
 // holding Sender name, Reply-to email and the Send test email button (sender
 // domain is not built, RULES.md 5.6), and under the card, right-aligned, Saved

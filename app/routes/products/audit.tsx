@@ -32,7 +32,7 @@ import type { Route } from "./+types/audit";
 //
 // Recova's sections, in Recova's order: the hero, How it works, three feature
 // blocks (the scope card, plain; the AI summary, lifted; the audit history,
-// plain), Pricing, Questions and the closing block. Parts are Capsomer's, teal,
+// plain), Pricing, Questions and the closing block. Parts are Capsomer's, amber,
 // on the five text sizes (product-sections-cap.tsx, audit-previews.tsx). Copy
 // is Recova's with every product fact read from the engine and its
 // truthfulness fixes named (lib/marketing/audit-copy.ts). Recova draws no chart
@@ -62,9 +62,9 @@ export default function AuditProductPage({ loaderData }: Route.ComponentProps) {
   const { siteUrl: url } = loaderData;
 
   return (
-    // Capsomer's teal family with Foxhound's neutrals, and the family's focus
+    // Capsomer's amber family with Foxhound's neutrals, and the family's focus
     // ring inside the page, as on the other three spokes.
-    <div className="fh-cap [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="teal">
+    <div className="fh-cap [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="amber">
       <ProductHero
         productName="Audit"
         Icon={ScanSearch}

@@ -16,7 +16,7 @@ import "~/site-header.css";
 // for the frame: each of its pages (app/(auth)/login and signup page.tsx) is
 // one 400px card, centred in a full-height column, holding a centred heading,
 // a line under it, the form and a line of links. The parts are Capsomer's
-// (Q12), teal (Q11), and the text keeps the five sizes (RULES.md 5.2).
+// (Q12), amber, and the text keeps the five sizes (RULES.md 5.2).
 //
 // The ways in are the family's one sign-in (site-runtime ./sign-in; Dustin's
 // approval in APPROVED-DIFFERENCES, "Sign-in and invites", 2026-10-24): a
@@ -29,9 +29,9 @@ import "~/site-header.css";
  * `w-full max-w-[400px]` card. The card is Capsomer's panel through its HTML
  * contract, body only, because the React Panel always draws an h2 header band
  * and these pages' one heading is their h1 (the gap J62 named). The wrapper
- * puts the parts in Capsomer's teal family with Foxhound's neutrals (.fh-cap,
+ * puts the parts in Capsomer's amber family with Foxhound's neutrals (.fh-cap,
  * the pairing /connect and the site header use), so the button and its focus
- * ring are teal. The inner div carries Recova's 48px inset on top of the
+ * ring are amber. The inner div carries Recova's 48px inset on top of the
  * panel's own, less the panel's: the padding is Recova's (RULES.md 5.1).
  */
 export function AuthCard({ children }: { children: ReactNode }) {
@@ -39,7 +39,7 @@ export function AuthCard({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen items-center justify-center bg-bg">
       <div
         className="fh-cap w-full max-w-[400px] [--border-focus:var(--ring)]" data-cap-site="foxhound"
-        data-family="teal"
+        data-family="amber"
         data-auth-card=""
       >
         <section className="cap-panel">
@@ -138,7 +138,7 @@ export function AuthSubmit({ busy, label, busyLabel }: { busy: boolean; label: s
   );
 }
 
-/** A small text link, teal, underlined so it is not told apart by colour
+/** A small text link, amber, underlined so it is not told apart by colour
  *  alone, and 24px tall as a target. */
 export function AuthLink({ to, children }: { to: string; children: ReactNode }) {
   return (

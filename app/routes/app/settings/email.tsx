@@ -8,7 +8,7 @@ import "capsomer/field.css";
 import "capsomer/page-head.css";
 import "capsomer/panel.css";
 import "capsomer/status.css";
-// Capsomer's tokens and the teal family, which the components above read. The
+// Capsomer's tokens and the amber family, which the components above read. The
 // shell loads the same file through its header; importing it here keeps the
 // page whole under any layout, as /settings/notifications does.
 import "~/site-header.css";
@@ -67,7 +67,7 @@ import type { Route } from "./+types/email";
 //
 // J37 (job_49a1f499ce53) rebuilt the page from Capsomer 0.9.0's parts under
 // Dustin's Q10 and Q11 answers of 2026-10-14: PageHead, the panel, the field
-// parts, Button and Status, teal throughout. Recova stays the spec for what is
+// parts, Button and Status, amber throughout. Recova stays the spec for what is
 // here and in what order: the phone-only back link, the title and its line, one
 // card holding Sender name, Reply-to email and the Send test email button, and
 // under the card, right-aligned, Saved or the failure sentence beside Save

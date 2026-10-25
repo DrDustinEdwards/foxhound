@@ -56,7 +56,7 @@ const TOKEN = "EXAMPLE-NOT-A-TOKEN";
 const URL_FIXTURE = `${BASE}/api/auth/magic-link/verify?token=${TOKEN}&callbackURL=%2Fconsole`;
 
 function expectedRender(to: string, url: string) {
-  return renderEmail(magicLink, { brand: { name: "Foxhound", family: "teal" }, to, url, expiresIn: "5 minutes" });
+  return renderEmail(magicLink, { brand: { name: "Foxhound", family: "amber" }, to, url, expiresIn: "5 minutes" });
 }
 
 let sqlite: Database.Database;

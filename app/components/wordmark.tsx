@@ -16,7 +16,7 @@ export function Wordmark({
 }) {
   const textClass = tone === "chrome" ? "text-chrome-text" : "text-wordmark";
   const sizeClass = size === "title" ? "text-title" : "text-lg";
-  // The x is the brand accent, teal (Q11): the chrome's own teal on the
+  // The x is the brand accent, amber: the chrome's own amber on the
   // always-dark chrome, the page's brand text on a theme-switching surface.
   const xClass = tone === "chrome" ? "text-chrome-brand" : "text-brand-text";
   return (

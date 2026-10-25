@@ -79,7 +79,7 @@ import {
 // secondary stats, then the failed-payments table.
 //
 // Built from Capsomer 0.9.0's parts (Q10) with every chart drawn by Enarratio
-// (Q1), teal throughout (Q11). No Foxhound CSS sits over a Capsomer component;
+// (Q1), amber throughout. No Foxhound CSS sits over a Capsomer component;
 // dashboard.css only hides Enarratio's gridlines, which Recova's charts never
 // drew. Recova's per-category colours, its green and red figures inside
 // panels, and its 12px radius wait for Capsomer's per-site layer (capsomer

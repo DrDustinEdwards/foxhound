@@ -10,7 +10,7 @@ import { barChart } from "enarratio/lite/bar";
 // the month (or months) with the most cards marked in red. Recova marks the
 // peak by colour alone; here the peak is its own series, so the legend and the
 // data table say which month it is in words too (WCAG 1.4.1). The other bars
-// are teal (Q11). Recova hides the value axis; Enarratio
+// are amber. Recova hides the value axis; Enarratio
 // keeps one, which is the chart library's difference and is covered by Q1.
 
 export interface ExpiringMonth {

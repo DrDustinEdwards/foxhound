@@ -67,7 +67,7 @@ describe("hex matcher: real hex colors are still caught", () => {
 
 describe("hex matcher: exemptions still hold", () => {
   it("allows raw hex in the token file", () => {
-    expect(scanContent("app/app.css", "--brand: #249398;")).toEqual([]);
+    expect(scanContent("app/app.css", "--brand: #f0b429;")).toEqual([]);
   });
 
   it("allows raw hex under the email directory", () => {

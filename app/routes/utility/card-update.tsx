@@ -7,7 +7,7 @@ import { data, Form, redirect, useNavigation } from "react-router";
 import "capsomer/banner.css";
 import "capsomer/button.css";
 import "capsomer/panel.css";
-// Capsomer's tokens and the teal family (capbase layer), which the Panel, the
+// Capsomer's tokens and the amber family (capbase layer), which the Panel, the
 // Button, the Banner and Alert, and the focus ring read. The site header loads the same
 // file; importing it here keeps the page whole under any layout.
 import "~/site-header.css";
@@ -466,9 +466,9 @@ export async function action({ request, params, context }: Route.ActionArgs) {
  * an h2 header band and this page's one heading must be its h1 (a Capsomer gap,
  * named in the PR). Inside: a Banner for a state the page lands in, an Alert
  * above the button for a failure of that button's action, and the primary
- * Button. The wrapper puts them in Capsomer's teal family with Foxhound's own
+ * Button. The wrapper puts them in Capsomer's amber family with Foxhound's own
  * neutrals (.fh-cap, the pairing the site header and the legal pages use), so
- * the button is teal (Q11) and the focus ring inside it is the family's teal
+ * the button is amber and the focus ring inside it is the family's amber
  * ring. Capsomer's banner and button text is 13px, the label size, and the
  * heading and line under it keep the title and label sizes, so the page stays
  * on the five sizes (RULES.md 5.2).
@@ -488,7 +488,7 @@ function CardUpdateFrame({
 }) {
   return (
     <main className="mx-auto w-full max-w-md px-4 py-8 md:py-16">
-      <div className="fh-cap [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="teal" data-card-update="">
+      <div className="fh-cap [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="amber" data-card-update="">
         <section className="cap-panel">
           <div className="cap-panel-body">
             <Wordmark />

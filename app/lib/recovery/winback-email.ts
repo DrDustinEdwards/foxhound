@@ -43,8 +43,8 @@ interface WinbackTemplate {
 
 /**
  * Legacy's three templates, keyed by step number, wording and order verbatim.
- * The labels are legacy's; the button itself is Capsomer's, in Foxhound's teal
- * (Q3, Q11), because legacy's `CTA_BUTTON_STYLE` is its own inline style.
+ * The labels are legacy's; the button itself is Capsomer's, in Foxhound's amber
+ * (Q3), because legacy's `CTA_BUTTON_STYLE` is its own inline style.
  */
 const WINBACK_TEMPLATES: Record<number, WinbackTemplate> = {
   1: {

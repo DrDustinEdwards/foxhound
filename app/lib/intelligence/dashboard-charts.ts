@@ -24,7 +24,7 @@ import {
 // it at its panel's width.
 //
 // Colours are Recova's, by Foxhound's token of the same name, except Recova's
-// accent colour: the MRR line and the plan bars are teal (Q11), and the
+// accent colour: the MRR line and the plan bars are amber, and the
 // "Medium risk" band takes the caution colour every other band in the app uses.
 //
 // Enarratio 0.3.1 has no tick formatter, so Recova's "$1,200" and "102%" ticks

@@ -6,7 +6,7 @@
     .lane-label-soft  { fill: #185fa5; font-family: system-ui, sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; }
     .lane-label-hard  { fill: #a32d2d; font-family: system-ui, sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; }
     .lane-label-card  { fill: #1d9e75; font-family: system-ui, sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; }
-    .event-retry { fill: #e8f5f5; stroke: #01585c; }
+    .event-retry { fill: #faeeda; stroke: #d4941a; }
     .event-email { fill: #e6f1fb; stroke: #185fa5; }
     .event-letter { fill: #1a1c18; font-family: system-ui, sans-serif; font-size: 11px; font-weight: 600; }
     .label-secondary { fill: #595c56; font-family: system-ui, sans-serif; font-size: 11px; }
@@ -16,7 +16,7 @@
     :root[data-theme="dark"] .lane-label-soft  { fill: #6c93ef; }
     :root[data-theme="dark"] .lane-label-hard  { fill: #db5757; }
     :root[data-theme="dark"] .lane-label-card  { fill: #3ecf8e; }
-    :root[data-theme="dark"] .event-retry { fill: #1a2d2e; stroke: #2d7c80; }
+    :root[data-theme="dark"] .event-retry { fill: #1e1a0a; stroke: #826217; }
     :root[data-theme="dark"] .event-email { fill: #0a1428; stroke: #315dc4; }
     :root[data-theme="dark"] .event-letter { fill: #f0ede8; }
     :root[data-theme="dark"] .label-secondary { fill: #a8a49e; }

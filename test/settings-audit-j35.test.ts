@@ -10,7 +10,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // 2026-10-14: /settings/audit is Recova's page (app/(app)/settings/audit/page.tsx
 // at blob 18e6a384, AuditForm.tsx at 5bf81c10, settings/components/AuditSection.tsx
 // at 58c5abce, components/Toggle.tsx at 0ebdd395, and settings/SaveBar.tsx at
-// f1d6eb23) built from Capsomer 0.9.0's components, teal throughout. Recova stays
+// f1d6eb23) built from Capsomer 0.9.0's components, amber throughout. Recova stays
 // the spec for every section, label and control and their order; the page keeps
 // the settings layout's 800px column.
 //

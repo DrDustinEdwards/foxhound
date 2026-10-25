@@ -9,7 +9,7 @@ import { marketingMeta } from "~/lib/seo/meta";
 
 import "capsomer/panel.css";
 import "capsomer/button.css";
-// Capsomer's tokens and the teal family (capbase layer), which the panel, the
+// Capsomer's tokens and the amber family (capbase layer), which the panel, the
 // button and the focus ring read. The site header loads the same file;
 // importing it here keeps the page whole under any layout.
 import "~/site-header.css";
@@ -85,12 +85,12 @@ export default function DemosPage() {
         subtext="This is not a screenshot tour. You'll be inside the actual Foxhound app, exploring a seeded account of 200 customers. No signup, nothing to connect, and nothing you do can change it."
       />
 
-      {/* Recova's 1200px column (px-4, md:px-8, pb-16), in Capsomer's teal
+      {/* Recova's 1200px column (px-4, md:px-8, pb-16), in Capsomer's amber
           family with Foxhound's own neutrals (.fh-cap, as /pricing and the
           /products hub). The buttons are the only focusable parts here; their
-          teal ring is Capsomer's own, handed back by app.css
+          amber ring is Capsomer's own, handed back by app.css
           (.fh-cap .cap-btn:focus-visible). */}
-      <div className="fh-cap mx-auto max-w-[1200px] px-4 pb-16 md:px-8" data-cap-site="foxhound" data-family="teal">
+      <div className="fh-cap mx-auto max-w-[1200px] px-4 pb-16 md:px-8" data-cap-site="foxhound" data-family="amber">
         {/* Four cards against legacy's three: legacy filters to products with a
             demoHref, Foxhound also entry-points the console demo. Ratified
             (Dustin, 2026-07-31, "Four demo cards, in Recova's treatment") on

@@ -121,7 +121,7 @@ function LinkColumn({
 // row A1, ruling 403): the bottom row alone, with Privacy and Terms after the
 // mark and the copyright, "so visitors can review the legal pages before
 // creating an account" (Recova's app/(auth)/layout.tsx). Recova's links are
-// mono at the copyright's size and secondary; teal on hover (Q11), and 24px
+// mono at the copyright's size and secondary; amber on hover, and 24px
 // tall as targets.
 export type FooterVariant = "marketing" | "app" | "auth";
 

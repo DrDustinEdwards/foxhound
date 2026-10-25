@@ -18,8 +18,8 @@ import { headerLogo } from "./header-logo";
 // the component renders in a plain node test under MemoryRouter, so the plants
 // read what a reader reads.
 
-// THE LOOK (J21): Capsomer's button, teal, Foxhound's five text sizes. Teal
-// throughout (Q11) has since landed site-wide, so this page and the rest of
+// THE LOOK (J21): Capsomer's button, amber, Foxhound's five text sizes. Amber
+// throughout has since landed site-wide, so this page and the rest of
 // the site share the one accent.
 //
 // Recova's buttons are 44px tall (px-6 py-3, text-sm). Capsomer's nearest is
@@ -68,10 +68,10 @@ export function ErrorView({ error, isDev = false }: { error: unknown; isDev?: bo
       ? WITHDRAWN_BLOG_REASON
       : details;
 
-  // The numeral's colour is the kit's fault signal: the brand accent (teal) for
+  // The numeral's colour is the kit's fault signal: the brand accent (amber) for
   // an expected condition (404), red for a fault. A withdrawal is expected, so it
   // takes the expected tone. Red here would be the same error framing the
-  // heading just stopped doing, one element over. On the teal family the
+  // heading just stopped doing, one element over. On the amber family the
   // expected tone is the accent text and the fault is --crit (app/error-page.css);
   // --crit holds AA on Foxhound's ground in both themes, as text-red did.
   const numeralTone = isNotFound || isWithdrawn ? "expected" : "fault";
@@ -89,7 +89,7 @@ export function ErrorView({ error, isDev = false }: { error: unknown; isDev?: bo
   // which would open a sheet with nothing in it, a control that does nothing.
   // So the bar takes the J10 header's look by tokens instead: Foxhound's dark
   // chrome band in both themes, 56px, 24px sides, and the header's own
-  // wordmark (headerLogo) with the x in the band's teal. When Capsomer can
+  // wordmark (headerLogo) with the x in the band's amber. When Capsomer can
   // leave the Menu out, this becomes <SiteHeader logo={logo} theme={false} />.
   //
   // Text sizes are Foxhound's five (RULES 5.2): the numeral is display, which
@@ -98,7 +98,7 @@ export function ErrorView({ error, isDev = false }: { error: unknown; isDev?: bo
   return (
     <main
       className="fh-cap fh-error-page relative flex min-h-screen flex-col items-center justify-center bg-bg" data-cap-site="foxhound"
-      data-family="teal"
+      data-family="amber"
     >
       <nav className="fh-error-bar absolute left-0 right-0 top-0 flex h-14 items-center border-b bg-chrome px-6">
         <a href={logo.href} aria-label={logo.label} className="no-underline">

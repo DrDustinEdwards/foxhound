@@ -56,7 +56,7 @@ const ACCOUNT = "acct_1";
 const USER_EMAIL = "owner@acme.test";
 const REPLY = "help@acme.test";
 const SENDER = "Alex from Acme";
-// Capsomer's teal family, light theme, body text: the same frame every
+// Capsomer's amber family, light theme, body text: the same frame every
 // Foxhound mail, the real recovery email included, is drawn in (J02).
 
 function makeEnv(over: Record<string, unknown> = {}): Env {

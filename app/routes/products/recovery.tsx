@@ -34,7 +34,7 @@ import type { Route } from "./+types/recovery";
 //
 // Recova's sections, in Recova's order: the hero, How it works, three feature
 // blocks (the category sequences; the dashboard, lifted; the payments table,
-// tall), Pricing, Questions and the closing block. Parts are Capsomer's, teal,
+// tall), Pricing, Questions and the closing block. Parts are Capsomer's, amber,
 // on the five text sizes (product-sections-cap.tsx). Copy is Recova's with
 // every product fact read from the engine (lib/marketing/recovery-copy.ts).
 // The previews draw the demo account's seed, never a merchant's rows
@@ -65,10 +65,10 @@ export default function RecoveryProductPage({ loaderData }: Route.ComponentProps
   const { categories, dashboard, payments } = RECOVERY_BLOCKS;
 
   return (
-    // Capsomer's teal family with Foxhound's neutrals. Foxhound's global focus
+    // Capsomer's amber family with Foxhound's neutrals. Foxhound's global focus
     // ring reads --border-focus (app.css); inside this page it reads the
-    // family's --ring, so a keyboard user sees teal as in Capsomer's own parts.
-    <div className="fh-cap [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="teal">
+    // family's --ring, so a keyboard user sees amber as in Capsomer's own parts.
+    <div className="fh-cap [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="amber">
       <ProductHero
         productName="Recovery"
         Icon={RefreshCw}

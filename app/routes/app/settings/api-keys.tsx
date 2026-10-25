@@ -16,7 +16,7 @@ import "capsomer/page-head.css";
 import "capsomer/panel.css";
 import "capsomer/segmented.css";
 import "capsomer/table.css";
-// Capsomer's tokens and the teal family, which the components above read. The
+// Capsomer's tokens and the amber family, which the components above read. The
 // shell loads the same file through its header; importing it here keeps the
 // page whole under any layout, as /help does.
 import "~/site-header.css";
@@ -41,7 +41,7 @@ import type { Route } from "./+types/api-keys";
 //
 // J34 (job_cc3655778b55) rebuilt it from Capsomer 0.9.0's parts under Dustin's
 // Q10 and Q11 answers of 2026-10-14: PageHead, Panel, Table, Field, Segmented,
-// Button, Empty and Alert, teal throughout. Recova stays the spec for what is
+// Button, Empty and Alert, amber throughout. Recova stays the spec for what is
 // here and in what order: the phone-only back link, the title and its line,
 // one card holding the count and Generate new key, the load failure, the empty
 // sentence, the four-column table, then the generate form or the one-time

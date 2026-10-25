@@ -23,7 +23,7 @@ import { readAuditGrantCookie } from "~/lib/stripe/state-cookie";
 // "Connect your Stripe account", the line under it, a box with WHAT WE CAN DO
 // and WHAT WE CAN NEVER DO, the full-width "Connect Stripe and see my numbers
 // →" button and "Read-only · Secure · Free · See a demo first". Its parts are
-// Capsomer's (Q12), teal (Q11), on the five text sizes (RULES.md 5.2).
+// Capsomer's (Q12), amber, on the five text sizes (RULES.md 5.2).
 //
 // The OAuth pair (Recova's app/api/audit/connect/route.ts, blob dedddf99, and
 // app/audit/callback/route.ts, blob 0cf90598) is driven through the REAL

@@ -47,12 +47,11 @@ const FAILED_HEADING_ID = "admin-errors-failed-heading";
 // A link in a table cell is given a 24 px target (WCAG 2.2, 2.5.8).
 const LINK = "inline-flex min-h-6 items-center gap-1 text-text underline underline-offset-2 hover:text-brand-text";
 
-// Sentry's levels in words, with Capsomer's status glyph. Foxhound is teal
-// throughout (Q11), so a warning carries the notice tone and says Warning.
+// Sentry's levels in words, with Capsomer's status glyph and tone.
 const LEVELS: Record<string, { tone: StatusTone; word: string }> = {
   fatal: { tone: "crit", word: "Fatal" },
   error: { tone: "crit", word: "Error" },
-  warning: { tone: "info", word: "Warning" },
+  warning: { tone: "warn", word: "Warning" },
   info: { tone: "info", word: "Info" },
   debug: { tone: "nodata", word: "Debug" },
 };

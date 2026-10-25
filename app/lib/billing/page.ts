@@ -127,7 +127,7 @@ export function titleCase(s: string): string {
 /**
  * Recova's line under a subscription: "Renews", "Cancels on" or "Expired" with
  * the period end, and nothing without one. `warn` marks "Cancels on", which
- * Recova colours apart; here it takes Foxhound's teal accent.
+ * Recova colours apart; here it takes Foxhound's amber accent.
  */
 export function subscriptionDetail(
   s: Pick<SubscriptionView, "status" | "canceledAt" | "currentPeriodEndsAt">,

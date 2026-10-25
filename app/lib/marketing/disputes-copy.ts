@@ -75,14 +75,13 @@ export const DISPUTES_BLOCKS = {
   dashboard: {
     eyebrow: "What you see after connecting",
     title: "Every dispute. Status. Deadline. Fee.",
-    // Recova names its own accent colour here. Foxhound is teal throughout
-    // (Q11) and draws a deadline inside the soon band in its
-    // warning color, as the dashboard does (deadlineClassName).
+    // Recova's words: a deadline inside the soon band is amber, as the
+    // dashboard draws it (deadlineClassName, the caution token).
     // Truthfulness: Recova's "whether it is an active fee relationship" is its
     // Mode column, which the dashboard and this preview do not draw (Mode is
     // out for good, Dustin, 2026-10-15,
     // cmsg_01Nd8kh3hkgYNYpWXrNkvBQL2LnH5XBcKc3DcWHoEsDbT6).
-    body: `The disputes dashboard shows every open and closed dispute with customer, amount, reason, Foxhound's status, and deadline proximity. Deadlines inside ${DEADLINE_SOON_DAYS} days appear in the warning color. Inside ${DEADLINE_URGENT_DAYS} days, red.`,
+    body: `The disputes dashboard shows every open and closed dispute with customer, amount, reason, Foxhound's status, and deadline proximity. Deadlines inside ${DEADLINE_SOON_DAYS} days appear in amber. Inside ${DEADLINE_URGENT_DAYS} days, red.`,
   },
   numbers: {
     eyebrow: "The numbers",

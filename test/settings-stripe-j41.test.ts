@@ -15,7 +15,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 //   app/(app)/settings/stripe/page.tsx               blob 338541e6   738 bytes
 //   app/(app)/settings/components/StripeSection.tsx  blob 4068961e 4,410 bytes
 //   app/api/stripe/disconnect/route.ts               blob 01252285 2,656 bytes
-// built from Capsomer 0.9.0's components, teal throughout. Recova is the spec
+// built from Capsomer 0.9.0's components, amber throughout. Recova is the spec
 // for the head, the back link, the one card, each row, the two-step confirm,
 // the empty state and Add Stripe account, and for what happens after a
 // disconnect (back to /settings) or a failed one (its alert line). Recova's

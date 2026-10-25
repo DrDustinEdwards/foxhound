@@ -9,7 +9,7 @@ import "capsomer/banner.css";
 import "capsomer/button.css";
 import "capsomer/field.css";
 import "capsomer/panel.css";
-// Capsomer's tokens and the teal family (capbase layer), which the panel, the
+// Capsomer's tokens and the amber family (capbase layer), which the panel, the
 // button, the field, the banner and alert, and the focus ring read. The site
 // header loads the same file; importing it here keeps the page whole under any
 // layout.
@@ -247,7 +247,7 @@ const OAUTH_ERROR_MESSAGES: Record<string, string> = {
 };
 const OAUTH_ERROR_FALLBACK = "Something went wrong. Please try again.";
 
-/** A small text link on the card, teal, underlined so it is not told apart by
+/** A small text link on the card, amber, underlined so it is not told apart by
  *  colour alone, and 24px tall as a target. */
 function CardLink({ to, children }: { to: string; children: ReactNode }) {
   return (
@@ -269,8 +269,8 @@ function CardLink({ to, children }: { to: string; children: ReactNode }) {
  * The card is Capsomer's panel through its HTML contract, body only, because
  * the React Panel always draws an h2 header band and this page's one heading is
  * its h1 (the Capsomer gap J62 named). The wrapper puts the parts in Capsomer's
- * teal family with Foxhound's neutrals (.fh-cap, the pairing the site header
- * uses), so the button and its focus ring are teal (Q11). One inner div holds
+ * amber family with Foxhound's neutrals (.fh-cap, the pairing the site header
+ * uses), so the button and its focus ring are amber. One inner div holds
  * Recova's spacing, so the panel body's own grid gap does not replace it.
  */
 function ConnectFrame({ children }: { children: ReactNode }) {
@@ -278,7 +278,7 @@ function ConnectFrame({ children }: { children: ReactNode }) {
     <div className="flex justify-center px-4 py-[60px]">
       <div
         className="fh-cap w-full max-w-[480px] [--border-focus:var(--ring)]" data-cap-site="foxhound"
-        data-family="teal"
+        data-family="amber"
         data-connect=""
       >
         <section className="cap-panel">

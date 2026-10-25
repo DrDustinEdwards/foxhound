@@ -8,7 +8,7 @@ import "capsomer/button.css";
 import "capsomer/status.css";
 import "capsomer/table.css";
 import "capsomer/disclosure.css";
-// Capsomer's tokens and the teal family (capbase layer), which every part
+// Capsomer's tokens and the amber family (capbase layer), which every part
 // below reads. The site header loads the same file; importing it here keeps
 // the page whole under any layout.
 import "~/site-header.css";
@@ -27,7 +27,7 @@ import "~/site-header.css";
 //
 // Look is Capsomer's: buttons, panels, badges, the FAQ's disclosure. Text is on
 // the five sizes (RULES.md 5.2), each Recova size taken to the nearest, a tie
-// to the larger. Accents are teal (Q11). No Foxhound class sits on a Capsomer
+// to the larger. Accents are amber. No Foxhound class sits on a Capsomer
 // part; where Recova's look needs more than Capsomer ships (a full-width
 // button, a mono pill, Recova's own card padding) the PR names the per-site
 // layer it waits for (capsomer job_ec5ec0754626).

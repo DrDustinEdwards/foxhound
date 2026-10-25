@@ -207,9 +207,9 @@ export default function AuditResults({ loaderData }: Route.ComponentProps) {
 
   // Recova's column: max-w-[1280px] mx-auto px-4 md:px-8 py-10. The page sits
   // under the marketing shell, which is not a Capsomer family, so it names the
-  // teal family itself (Q11), as the legal pages do (J51).
+  // amber family itself, as the legal pages do (J51).
   return (
-    <div className="fh-cap mx-auto w-full min-w-0 max-w-[1280px] px-4 py-10 md:px-8" data-cap-site="foxhound" data-family="teal">
+    <div className="fh-cap mx-auto w-full min-w-0 max-w-[1280px] px-4 py-10 md:px-8" data-cap-site="foxhound" data-family="amber">
       <div className="mb-6">
         <div className="mb-2 font-mono text-micro uppercase tracking-widest text-text-subtle">
           Stripe Account Diagnostic

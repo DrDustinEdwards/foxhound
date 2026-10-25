@@ -48,8 +48,8 @@ export function stepResultWords(result: string | null, executed: boolean): strin
 
 /**
  * Recova's decline colour on a card (getCategoryTextVar): soft blue, network
- * orange, fraud red. Recova's expired colour was its accent, which is teal in
- * Foxhound (Q11). Categories Recova lacks take the subtle grey, as its default.
+ * orange, fraud red. Recova's expired colour was its accent, which is amber in
+ * Foxhound. Categories Recova lacks take the subtle grey, as its default.
  */
 export function declineValueClass(category: string): string {
   switch (category) {
@@ -66,7 +66,7 @@ export function declineValueClass(category: string): string {
   }
 }
 
-/** Recova's status colour for an amount (getStatusColor), its accent in teal. */
+/** Recova's status colour for an amount (getStatusColor), its accent in amber. */
 export function statusValueClass(status: string): string {
   switch (status) {
     case "active":

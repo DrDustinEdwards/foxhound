@@ -25,24 +25,6 @@ function readDiagram(rel: string): string {
   return readFileSync(resolve(DIAGRAMS_DIR, rel), "utf8");
 }
 
-// Recova public/diagrams/ at HEAD (DrDustinEdwards/recova, main), as listed
-// by Capsid's repo tree on 2026-10-16: eight served diagrams and their eight
-// readable sources, sixteen files. Commit 54efd0d ported them byte for byte
-// (each file's git blob sha equal to legacy's, e.g. recovery-sequence.svg
-// c6d98a94). Q11 then moved their amber accents to teal, so what is pinned
-// here is each legacy file's SHA-256 with every six-digit colour masked:
-// apart from colour literals, every byte is still Recova's.
-
-
-// Q11 (APPROVED-DIFFERENCES.md, Dustin "yes", 2026-10-14): no page carries
-// an amber accent. Each amber literal takes the teal of the token that held
-// it in the Q11 change (PR #51): --amber-bg to --brand-bg, --amber-dark to
-// --brand-dark, --amber-text to --brand-text, --amber-border-interactive to
-// --brand-border-interactive, and the dark --amber-ui to --brand-ui for lines
-// and arrowheads. Recova's light accent tint #faeeda held no token; it is the
-// accent background, so it takes --brand-bg.
-
-
 // The slugs the eight live posts use, read from production D1 on 2026-10-16
 // (SELECT slug ... FROM blog_posts WHERE body LIKE '%:::diagram[%'), one each.
 const POST_DIAGRAMS: Record<string, string> = {

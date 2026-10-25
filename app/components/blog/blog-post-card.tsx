@@ -19,7 +19,7 @@ import type { BlogPostSummary } from "~/lib/blog/queries.server";
 // both to label, the 0.6875rem reading time to micro.
 //
 // Waits on Capsomer (named in the J19 PR): Capsomer has no link card, so
-// Recova's teal hover border is not drawn, and the panel's body does not fill
+// Recova's amber hover border is not drawn, and the panel's body does not fill
 // the card, so the reading time sits under the excerpt rather than at the foot
 // of a taller neighbour. Both are the per-site layer's (capsomer
 // job_ec5ec0754626) or a Capsomer link-card job's; no Foxhound CSS is laid over

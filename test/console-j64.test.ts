@@ -18,7 +18,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // J64 (job_88cdaa1852f1), row S2: /console is Recova's page
 // (app/(app)/console/page.tsx at blob 3b8a736e, lib/console-data.tsx at
 // 234791c4, lib/products.ts at 6be24574, each read whole) built from Capsomer
-// 0.9.0's parts, charts by Enarratio, teal throughout. Recova is the spec for
+// 0.9.0's parts, charts by Enarratio, amber throughout. Recova is the spec for
 // the sections, labels and their order; the numbers are Foxhound's engine.
 // Every assertion here was seen failing before the change (red output in the
 // pull request).

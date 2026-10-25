@@ -1,24 +1,24 @@
 /* The 404 and error page (app/components/error-view.tsx, job J21): Capsomer's
-   button on the teal family, in Foxhound's neutrals.
+   button on the amber family, in Foxhound's neutrals.
 
-   Same pattern as app/site-header.css: Capsomer's tokens and the teal family
+   Same pattern as app/site-header.css: Capsomer's tokens and the amber family
    go into the capbase layer, the lowest, so Foxhound's own tokens and
    Tailwind's keep winning everywhere else; the component's CSS sits in
    Capsomer's own cap layer. The page wraps itself in .fh-cap with
-   data-family="teal" (app.css), so the button reads Foxhound's surface, text
-   and line values and only the accents are teal.
+   data-family="amber" (app.css), so the button reads Foxhound's surface, text
+   and line values and only the accents are amber.
 
    This file reaches every page, not just the boundary: root.tsx imports the
    view, so its CSS rides in the root route's stylesheet. Nothing here changes
    a page that draws no .cap-btn or .fh-error-page. */
 @import "capsomer/tokens.css" layer(capbase);
-@import "capsomer/family-teal.css" layer(capbase);
+@import "capsomer/family-amber.css" layer(capbase);
 @import "capsomer/button.css";
 
 /* The numeral's two tones (Recova's expected-state accent and red, carried
-   onto the teal family): the family's accent text for an expected state (404, the 410
+   onto the amber family): the family's accent text for an expected state (404, the 410
    withdrawal), its critical colour for a fault. Both read from the
-   data-family="teal" wrapper, so they switch with the theme on their own. */
+   data-family="amber" wrapper, so they switch with the theme on their own. */
 .fh-error-page .fh-error-numeral {
   color: var(--accent-text);
 }
@@ -43,9 +43,9 @@
    .cap-site-header): Foxhound's chrome, its line, and the header's wordmark in
    chrome text. Its home link is not a Capsomer component, so it keeps
    Foxhound's global ring, with the ring's colour taken off the page's
-   --border-focus for the band's teal, the one the site header's ring uses on the same chrome. */
+   --border-focus for the band's amber, the one the site header's ring uses on the same chrome. */
 .fh-error-page .fh-error-bar {
-  --border-focus: var(--header-teal);
+  --border-focus: var(--header-brand);
   --header-fg: var(--chrome-text);
   border-bottom-color: var(--chrome-border);
 }

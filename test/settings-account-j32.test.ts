@@ -19,7 +19,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 //   settings/components/AccountSection.tsx        blob a154ac8f  3,839 bytes
 // with SaveBar.tsx (blob f1d6eb23), ThemeToggle.tsx (blob 8f32b6c7) and
 // settings/update/route.ts (blob 878c0637), built from Capsomer 0.9.0's
-// components, teal throughout. Recova is the spec for every field, label,
+// components, amber throughout. Recova is the spec for every field, label,
 // help line and their order. The approved differences stay: Cancel account
 // keeps billing records (APPROVED-DIFFERENCES 2026-09-19), Delete account keeps
 // the fee evidence (Q14, S40), and Sign out is a button that posts (2026-09-19).

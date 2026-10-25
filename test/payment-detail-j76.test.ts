@@ -14,7 +14,7 @@ import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 // (app/(app)/recovery/payments/[id]/page.tsx 6034a8ba and PaymentDetailClient.tsx
 // 7f54aa45, read whole, with lib/format.ts 080fb3b2 and lib/ui-display.ts
 // 35c4d676 for its formatters and step words) built from Capsomer 0.9.0's parts
-// (Q10), teal throughout (Q11), on Foxhound's engine. Every assertion here was
+// (Q10), amber throughout, on Foxhound's engine. Every assertion here was
 // seen failing first.
 
 const harness = vi.hoisted(() => ({

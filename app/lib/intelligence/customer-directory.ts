@@ -55,7 +55,7 @@ export type PlanPillTone = "info" | "nodata";
  *  0413f035): starter, growth, scale, pro and hobby in sentence case, each in
  *  a rounded outline pill with one of three colours. Recova's colours were
  *  subtle (starter, hobby, anything else), blue (growth) and the old warm
- *  accent (scale, pro). With teal throughout (Q11), the ranks map onto
+ *  accent (scale, pro). With amber throughout, the ranks map onto
  *  Capsomer's outline pill: the no-data tone's muted text, the info tone's
  *  blue, and no tone at all, which is the strongest text colour. An unknown
  *  tier is capitalised, where Recova showed the raw value (RULES 1.5). */

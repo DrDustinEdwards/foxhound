@@ -34,20 +34,20 @@ export const BLOG_COVER_FALLBACK_CSS = `
 
 // /blog/<slug>: the <style> inside each of Recova's eight diagram SVGs (J25,
 // F23), inlined by `:::diagram[slug]` (app/lib/blog/diagrams.server.ts). The
-// CSS lives in public/diagrams/*.svg (Recova's files, gold accents moved to
-// teal by Q11), so it is hashed rather than copied here. Each hash is of the
-// element's text as the browser parses it, so the files' &quot; references
-// are hashed as ". test/blog-diagrams-j25.test.ts recomputes them from the
-// files and fails if a file changes without its hash.
+// CSS lives in public/diagrams/*.svg, byte-identical to legacy, so it is
+// hashed rather than copied here. Each hash is of the element's text as the
+// browser parses it, so the files' &quot; references are hashed as ".
+// test/blog-diagrams-j25.test.ts recomputes them from the files and fails if
+// a file changes without its hash.
 export const DIAGRAM_STYLE_HASHES: readonly string[] = [
-  "sha256-S8DC8uM6ZxYlxRdXl7iuuB25dyh5r8VQ/ze0eei8o7k=", // decline-code-taxonomy.svg
-  "sha256-cp6vuobfH3Ri6nZOppBIggCx0ywA1i7e065cj+1+Zg4=", // dispute-lifecycle.svg
-  "sha256-junjTYH/cRcR9UfRF42fx6fxVFxkxWj5QaNwtA9wgF0=", // dunning-sequence-timeline.svg
+  "sha256-UfEVYMsrDqwUdZg5pvKg2zi3fKlqnf5zD/aecIopmFw=", // decline-code-taxonomy.svg
+  "sha256-5kiDd35yF+ELXjCDvtUTFXKlNM3T6SohFFA4GzgZ5GY=", // dispute-lifecycle.svg
+  "sha256-B4rehl+x1OzYeMWkyLgNeYHZIKLt+rYbTOI2HAxr+XY=", // dunning-sequence-timeline.svg
   "sha256-BvbyQGxw8HpFscigsfruagxZTc7Cnocw89EpvQ90giw=", // involuntary-vs-voluntary.svg
-  "sha256-FOBwh4wNMykoxNWTw8Gf0tEr+zyCsSmaf52U66N9qVQ=", // mrr-waterfall.svg
-  "sha256-DuPlXVt0JgHPi+xc37VQUQ779Lbv1J8VHUiaWufoJkM=", // nrr-calculation.svg
-  "sha256-SVj5J4k+pPWm3smDJURDzwK95RSGp4h29tap/aMUaPw=", // recovery-sequence.svg
-  "sha256-O/6V339GZIqB+FUUTTCkg/qhFGV+t2ckaGjsxqHRGjQ=", // recovery-vs-smart-retries.svg
+  "sha256-cnlhoKNzPB4sTlf0rDCMx9DbsFR5Suy6GzQxWoncync=", // mrr-waterfall.svg
+  "sha256-iYyHHXx7b2AgDCYZrnEWnh9pnhhVa5jMXLOm/PdczN8=", // nrr-calculation.svg
+  "sha256-tRIoDdJL7nnmoWvyvQpjCBlGQLvGP4GJKDZoaNimZVc=", // recovery-sequence.svg
+  "sha256-JK3i1u4EVRleKm3eOdHal6RNhcf9zYW1dPZgGK79440=", // recovery-vs-smart-retries.svg
 ];
 
 export const INLINE_STYLE_HASHES: readonly string[] = [

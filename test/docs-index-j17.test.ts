@@ -9,7 +9,7 @@ import DocsIndexPage from "~/routes/docs/index";
 // J17 (job_a6208d2d8478), row M17: the /docs index. The spec is Recova's
 // app/(marketing)/docs/page.tsx (blob 4562a1ed) and
 // components/MarketingPageHeader.tsx (blob 118a5104), read whole. This file
-// pins the layout, the links and the look (Capsomer's parts, teal, the five
+// pins the layout, the links and the look (Capsomer's parts, amber, the five
 // text sizes). The copy is 20d-frozen and not touched by this job.
 //
 // These read the RENDERED page below the shared marketing page header (row

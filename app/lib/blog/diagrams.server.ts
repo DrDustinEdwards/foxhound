@@ -10,15 +10,6 @@
 // legacy's `public/diagrams/${slug}.svg` path with a [a-z0-9-] slug never
 // reached it.
 //
-// The files are Recova's apart from colour: Q11 (APPROVED-DIFFERENCES.md,
-// Dustin "yes", 2026-10-14) puts teal on every page, so each of Recova's gold
-// accent literals in their <style> takes the value of the teal token that
-// replaced its token in the Q11 change: --brand-bg for the accent tint,
-// --brand-dark and --brand-text for accent lines and text, and in the dark
-// theme --brand-border-interactive for accent lines and --brand-ui for the
-// accent arrow. test/blog-diagrams-j25.test.ts pins the values and every
-// other byte to Recova's.
-//
 // One meaning only. In this engine `:::diagram[slug]` names a file here and
 // nothing else (never Mermaid or inline source): BLOG-EDITOR-COMPARISON.md
 // records that dustinedwards-info uses the same name for Mermaid, and that a

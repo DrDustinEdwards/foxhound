@@ -2,7 +2,7 @@ import type { AttributionKind, DeclineCategory } from "~/lib/constants";
 
 // Human-readable labels + status-taxonomy tones for the recovery surfaces
 // (Phase 5 slice 5b). Pure so the mapping is unit-tested and reused across the
-// payment list, payment detail, and sequences views. The brand accent (teal) is reserved (DESIGN.md:
+// payment list, payment detail, and sequences views. The brand accent (amber) is reserved (DESIGN.md:
 // the action color, one per card); none of these tones use it. Purple is
 // reserved exclusively for win-back attribution (see winback-labels usage).
 

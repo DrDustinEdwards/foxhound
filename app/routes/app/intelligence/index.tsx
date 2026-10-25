@@ -50,8 +50,8 @@ import type { Route } from "./+types/index";
 // the monthly summary with its month pager and Generate/Regenerate button. With
 // no snapshot yet, Recova's syncing card stands in for all of it.
 //
-// Built from Capsomer 0.9.0's parts (Q10), charts by Enarratio (Q1), teal
-// throughout (Q11). No Foxhound CSS sits over a Capsomer component: Recova's
+// Built from Capsomer 0.9.0's parts (Q10), charts by Enarratio (Q1), amber
+// throughout. No Foxhound CSS sits over a Capsomer component: Recova's
 // 12px card radius, its uppercase eyebrow labels and its stat figure colours
 // wait for Capsomer's per-site layer (capsomer job_ec5ec0754626), listed in
 // the J67 pull request.

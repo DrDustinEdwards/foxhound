@@ -23,7 +23,7 @@ vi.mock("capsomer/react/button", async (importOriginal) => {
 const { default: CardUpdate } = await import("~/routes/utility/card-update");
 
 // J62 (job_323ed2a2f37e), row F8: the hosted card update page at /p/:token,
-// built from Capsomer's parts (Q12), teal (Q11) and on the five text sizes
+// built from Capsomer's parts (Q12), amber and on the five text sizes
 // (RULES.md 5.2), keeping Foxhound's own Checkout flow.
 //
 // Recova has no page here: its dunning, expiring-card and win-back emails link

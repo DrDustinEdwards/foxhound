@@ -35,8 +35,8 @@ import type { Route } from "./+types/dashboard";
 // together" block is not built: its three sentences claim cooperation between
 // products that Foxhound's engine does not perform (ROWS-S S2, frozen into 20d).
 //
-// Built from Capsomer 0.9.0's parts (Q10), charts by Enarratio (Q1), teal
-// throughout (Q11). The numbers are Foxhound's engine, never Recova's: money
+// Built from Capsomer 0.9.0's parts (Q10), charts by Enarratio (Q1), amber
+// throughout. The numbers are Foxhound's engine, never Recova's: money
 // per currency through groupSumByCurrency (RULES.md 3.20), and the recovery
 // rate the one getRecoveryStats computes over every failure by the date it
 // failed (APPROVED-DIFFERENCES, "Recovery rate statistics count by the date a

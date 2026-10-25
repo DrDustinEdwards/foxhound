@@ -17,7 +17,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // "Settings" back link, the heading "Team" and its line, then ONE card with
 // the member rows (owner first) and, for an owner, the invite form under a
 // rule: "Invite a team member", the email input and "Send invite" on one row,
-// the result line under them. The parts are Capsomer's (Q10, Q12), teal (Q11),
+// the result line under them. The parts are Capsomer's (Q10, Q12), amber,
 // on the five text sizes (RULES.md 5.2).
 //
 // The server rules (owner only, same account, owner never removable) are
@@ -179,7 +179,7 @@ describe("J31: Recova's page frame, inside the settings column", () => {
 });
 
 describe("J31: the member rows", () => {
-  it("each role is a Capsomer pill in words, the owner's in the teal fill and set apart", () => {
+  it("each role is a Capsomer pill in words, the owner's in the amber fill and set apart", () => {
     const html = render(AS_OWNER);
     expect(html).toContain('<span class="cap-pill" data-variant="default">Owner</span>');
     expect(html.match(/<span class="cap-pill" data-variant="secondary">Member<\/span>/g)).toHaveLength(2);
@@ -298,11 +298,6 @@ describe("J31: sizes and colour", () => {
     }
   });
 
-  it("no amber anywhere, teal only", () => {
-    for (const state of [render(AS_OWNER), render(AS_OWNER, undefined, "/settings/team?confirm=m_sam")]) {
-      expect(state).not.toMatch(/amber/i);
-    }
-  });
 });
 
 describe("J31: the remove result, where Recova shows it", () => {

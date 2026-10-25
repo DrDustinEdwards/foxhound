@@ -38,7 +38,7 @@ import type { Route } from "./+types/intelligence";
 // Recova's sections, in Recova's order: the hero, How it works, three feature
 // blocks (the dashboard, plain; the customer table, lifted; the churn bands,
 // plain), Pricing, Questions and the closing block. Parts are Capsomer's,
-// teal, on the five text sizes (product-sections-cap.tsx), and the one chart
+// amber, on the five text sizes (product-sections-cap.tsx), and the one chart
 // is Enarratio's. Copy is Recova's with every product fact read from the
 // engine and its truthfulness fixes named (lib/marketing/intelligence-copy.ts).
 // The previews draw the demo account's seed, never a merchant's rows
@@ -74,10 +74,10 @@ export default function IntelligenceProductPage({ loaderData }: Route.ComponentP
   const { dashboard, score, churn } = intelligenceBlocks(preview.dashboard.activeCustomers);
 
   return (
-    // Capsomer's teal family with Foxhound's neutrals. Foxhound's global focus
+    // Capsomer's amber family with Foxhound's neutrals. Foxhound's global focus
     // ring reads --border-focus (app.css); inside this page it reads the
-    // family's --ring, so a keyboard user sees teal as in Capsomer's own parts.
-    <div className="fh-cap [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="teal">
+    // family's --ring, so a keyboard user sees amber as in Capsomer's own parts.
+    <div className="fh-cap [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="amber">
       <ProductHero
         productName="Intelligence"
         Icon={TrendingUp}
