@@ -1,3 +1,5 @@
+import { submitIndexNow } from "@drdustinedwards/site-helpers/indexnow";
+
 import { INDEXNOW_KEY, INDEXNOW_KEY_PATH } from "./indexnow-key";
 
 // IndexNow submissions (job_b0b24df12155, row F20). Recova is the spec
@@ -28,57 +30,37 @@ import { INDEXNOW_KEY, INDEXNOW_KEY_PATH } from "./indexnow-key";
 // Carrel takes over blog publishing (J11, job_09c55603e321) and Prelum serves
 // the blog pages (J19 job_deffd581af37, J61 job_2ee0cfdd5c29).
 
-const INDEXNOW_ENDPOINT = "https://api.indexnow.org/indexnow";
-const INDEXNOW_HOST = "foxhoundapp.com";
-const INDEXNOW_ORIGIN = `https://${INDEXNOW_HOST}`;
-const INDEXNOW_KEY_LOCATION = `${INDEXNOW_ORIGIN}${INDEXNOW_KEY_PATH}`;
+const INDEXNOW_ORIGIN = "https://foxhoundapp.com";
 
 /** The public URL of a blog post, the one URL Recova submits per save. */
 export function blogPostUrl(slug: string): string {
   return `${INDEXNOW_ORIGIN}/blog/${slug}`;
 }
 
-/** Only Foxhound's own URLs: IndexNow refuses a urlList outside `host`. */
-function ownUrls(urls: string[]): string[] {
-  return urls.filter((url) => url.startsWith(`${INDEXNOW_ORIGIN}/`));
-}
-
 /**
- * POST the URLs to IndexNow. NEVER THROWS: a network error and a non-2xx answer
- * both resolve to false, so a caller that does not await it can never see a
- * rejection. A no-op (false) on an empty list.
+ * POST the URLs to IndexNow through Prelum's `submitIndexNow`, which keeps only
+ * Foxhound's own URLs and NEVER THROWS: a network error and a non-2xx answer
+ * both resolve to false. A no-op (false) on an empty list.
  */
-export async function submitToIndexNow(urls: string[]): Promise<boolean> {
-  const urlList = ownUrls(urls);
-  if (urlList.length === 0) return false;
-  try {
-    const response = await fetch(INDEXNOW_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json; charset=utf-8" },
-      body: JSON.stringify({
-        host: INDEXNOW_HOST,
-        key: INDEXNOW_KEY,
-        keyLocation: INDEXNOW_KEY_LOCATION,
-        urlList,
-      }),
-    });
-    return response.ok;
-  } catch {
-    // Intentionally swallowed: see the header comment.
-    return false;
-  }
+export function submitToIndexNow(urls: string[], from?: string): Promise<boolean> {
+  return submitIndexNow({
+    origin: INDEXNOW_ORIGIN,
+    key: INDEXNOW_KEY,
+    keyLocation: `${INDEXNOW_ORIGIN}${INDEXNOW_KEY_PATH}`,
+    urls,
+    from,
+  });
 }
 
 /**
  * Fire and forget. Starts the submission without waiting for it and keeps the
- * Worker alive for it through ctx.waitUntil. Does nothing at all unless the
- * request that made the change arrived on https://foxhoundapp.com.
+ * Worker alive for it through ctx.waitUntil. Sends nothing unless the request
+ * that made the change arrived on https://foxhoundapp.com.
  */
 export function scheduleIndexNow(request: Request, ctx: ExecutionContext, urls: string[]): void {
   try {
     if (new URL(request.url).origin !== INDEXNOW_ORIGIN) return;
-    const pending = submitToIndexNow(urls);
-    ctx.waitUntil(pending);
+    ctx.waitUntil(submitToIndexNow(urls, request.url));
   } catch {
     // A failure to schedule is the same as a missed ping: never the caller's.
   }

@@ -1,3 +1,5 @@
+import { headTags } from "@drdustinedwards/site-helpers/head";
+
 // Shared meta-tag builder (TASK-foxhound-seo-remediation.md, fixing
 // foxhound-audit-seo.md H1/M1/L1): every marketing route now emits the same
 // tag set instead of each route hand-rolling a subset (title/description
@@ -36,26 +38,15 @@ export function marketingMeta({
   ogTitle,
   ogType = "website",
 }: MarketingMetaInput) {
-  const resolvedCanonical = canonical ?? `${siteUrl}${path}`;
-  const resolvedImage = image ?? `${siteUrl}/og/default`;
-  const resolvedOgTitle = ogTitle ?? title;
-  const resolvedImageAlt = imageAlt ?? "Foxhound";
-
-  return [
-    { title },
-    { name: "description", content: description },
-    { tagName: "link" as const, rel: "canonical", href: resolvedCanonical },
-    { property: "og:type", content: ogType },
-    { property: "og:title", content: resolvedOgTitle },
-    { property: "og:description", content: description },
-    { property: "og:url", content: resolvedCanonical },
-    { property: "og:image", content: resolvedImage },
-    { property: "og:image:width", content: "1200" },
-    { property: "og:image:height", content: "630" },
-    { property: "og:image:alt", content: resolvedImageAlt },
-    { name: "twitter:card", content: "summary_large_image" },
-    { name: "twitter:title", content: resolvedOgTitle },
-    { name: "twitter:description", content: description },
-    { name: "twitter:image", content: resolvedImage },
-  ];
+  return headTags({
+    origin: siteUrl,
+    path,
+    canonical,
+    title,
+    description,
+    socialTitle: ogTitle,
+    image: { url: image ?? `${siteUrl}/og/default`, width: 1200, height: 630, alt: imageAlt ?? "Foxhound" },
+    siteName: "Foxhound",
+    type: ogType,
+  });
 }
