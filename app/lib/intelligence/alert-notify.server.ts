@@ -46,16 +46,15 @@ export const CRITICAL_ALERT_TEMPLATE = "alert_critical_customers";
 const ALERT_FROM_NAME = "Foxhound";
 
 /**
- * THE CRITICAL CUSTOMERS ALERT IS OFF UNTIL ITS BUTTON HAS SOMEWHERE TO GO.
+ * THE CRITICAL CUSTOMERS ALERT WAITED UNTIL ITS BUTTON HAD SOMEWHERE TO GO.
  *
  * Recova's mail and Slack line both send the merchant to
- * /intelligence/recommendations (row S20). Foxhound does not serve that page
- * yet (job J78, job_f8aefbc800fe, blocked on its producer), and RULES.md 2.7
- * says an email ships after its link has somewhere to go. The check below is
- * built and tested; the nightly run calls it once this is true, and a test
- * holds this equal to whether routes.ts serves the page.
+ * /intelligence/recommendations (row S20). RULES.md 2.7 says an email ships
+ * after its link has somewhere to go, so the nightly run called this check only
+ * once that page existed; it does now (job J78). A test holds this equal to
+ * whether routes.ts serves the page.
  */
-export const CRITICAL_CUSTOMERS_ALERT_LIVE = false;
+export const CRITICAL_CUSTOMERS_ALERT_LIVE = true;
 
 // ---- what each says ------------------------------------------------------------
 

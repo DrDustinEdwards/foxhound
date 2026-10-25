@@ -48,6 +48,8 @@ import {
   type NarrativeResult,
 } from "./narrative";
 import { buildPredictionFields, buildPredictionInsert } from "./predictions";
+import type { CustomerRecommendation } from "./recommend";
+import { buildRecommendationLogInsert, recommendForAccount } from "./recommendations.server";
 import { computeHealthScore, type HealthFactor } from "./risk";
 import type { EngagementSignals, RecoverySignals } from "./signals";
 import { accountProcessingEligible } from "./sync.server";
@@ -71,6 +73,8 @@ interface ScoredCustomer {
   mrrContributionCents: number;
   score: number;
   factors: HealthFactor[];
+  /** Recova's recommendation rules' result (J78). */
+  recommendation: CustomerRecommendation;
 }
 
 async function scoreAccountCustomers(
@@ -97,6 +101,17 @@ async function scoreAccountCustomers(
     .from(customerContext)
     .where(eq(customerContext.accountId, accountId));
 
+  const recommendations = await recommendForAccount(
+    db,
+    accountId,
+    rows.map((row) => ({
+      stripeCustomerId: row.stripeCustomerId,
+      mrrContributionCents: row.mrrContributionCents ?? 0,
+      recoverySignals: row.recoverySignals,
+    })),
+    nowMs,
+  );
+
   return rows.map((row) => {
     const { score, factors } = computeHealthScore({
       nowMs,
@@ -117,21 +132,31 @@ async function scoreAccountCustomers(
       mrrContributionCents: row.mrrContributionCents ?? 0,
       score,
       factors,
+      // recommendForAccount returns one entry per row it was given.
+      recommendation: recommendations.get(row.stripeCustomerId)!,
     };
   });
 }
 
-/** One customer's triple of writes: score update, history append, prediction log. */
+/** One customer's writes: score and recommended action, history append,
+ *  prediction log, recommendation log. None is a money write, and nothing on a
+ *  money path reads recommended_action. */
 function buildCustomerScoringWrites(
   db: Db,
   accountId: string,
   c: ScoredCustomer,
   now: Date,
+  currency: string,
 ): BatchItem<"sqlite">[] {
   return [
     db
       .update(customerContext)
-      .set({ healthScore: c.score, healthFactors: c.factors, healthScoreCalculatedAt: now })
+      .set({
+        healthScore: c.score,
+        healthFactors: c.factors,
+        healthScoreCalculatedAt: now,
+        recommendedAction: c.recommendation.recommendation.action,
+      })
       .where(eq(customerContext.id, c.customerContextId)),
     db.insert(healthScoreHistory).values({
       accountId,
@@ -153,6 +178,13 @@ function buildCustomerScoringWrites(
         predictedAt: now,
       }),
     ),
+    buildRecommendationLogInsert(db, {
+      accountId,
+      stripeCustomerId: c.stripeCustomerId,
+      result: c.recommendation,
+      currency,
+      now,
+    }),
   ];
 }
 
@@ -161,8 +193,9 @@ function buildScoringBatch(
   accountId: string,
   scored: ScoredCustomer[],
   now: Date,
+  currency: string,
 ): BatchItem<"sqlite">[] {
-  return scored.flatMap((c) => buildCustomerScoringWrites(db, accountId, c, now));
+  return scored.flatMap((c) => buildCustomerScoringWrites(db, accountId, c, now, currency));
 }
 
 export interface AccountAiRunResult {
@@ -189,7 +222,7 @@ export async function runIntelligenceAiForAccount(
   const accountName = account[0]?.name ?? "the business";
 
   if (scored.length > 0) {
-    const batch = buildScoringBatch(db, accountId, scored, now);
+    const batch = buildScoringBatch(db, accountId, scored, now, currency);
     await db.batch([batch[0], ...batch.slice(1)]);
   }
 
@@ -211,7 +244,7 @@ export async function runIntelligenceAiForAccount(
 
   const alertsFired = await evaluateAndRecordAlerts(env, db, accountId, metrics, now);
   // E22, Recova's always-on critical customers check, after the configured
-  // alerts as Recova runs it. Off until its button's page exists (RULES.md 2.7).
+  // alerts as Recova runs it, now that its button has a page (RULES.md 2.7).
   if (CRITICAL_CUSTOMERS_ALERT_LIVE) await runCriticalCustomersCheck(env, db, accountId, now);
 
   let narrativeGenerated = false;

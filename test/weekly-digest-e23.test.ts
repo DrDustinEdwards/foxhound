@@ -341,14 +341,18 @@ describe("View recommendations waits for its page", () => {
     expect(digestEmail.DIGEST_RECOMMENDATIONS_LIVE).toBe(hasPage);
   });
 
-  it("while it is off, the Intelligence section has no button, and every other link resolves", () => {
+  it("the Intelligence section ends with the button, and every link resolves", () => {
     const { blocks } = digestEmail.digestContent(fullInput());
     const urls = blocks.flatMap((b) => (b.type === "button" ? [b.url] : []));
-    expect(urls).not.toContain(`${BASE}/intelligence/recommendations`);
     const routes = read("app/routes.ts");
     expect(routes).toMatch(/prefix\("recovery", \[\s*route\("dashboard"/);
     expect(routes).toMatch(/prefix\("disputes", \[\s*route\("dashboard"/);
-    expect(urls).toEqual([`${BASE}/disputes/dashboard`, `${BASE}/recovery/dashboard`]);
+    expect(routes).toMatch(/prefix\("intelligence", \[[^\]]*route\("recommendations"/);
+    expect(urls).toEqual([
+      `${BASE}/disputes/dashboard`,
+      `${BASE}/intelligence/recommendations`,
+      `${BASE}/recovery/dashboard`,
+    ]);
   });
 });
 

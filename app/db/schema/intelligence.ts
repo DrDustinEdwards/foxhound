@@ -33,6 +33,12 @@ export const customerContext = sqliteTable(
     aiAssessment: text("ai_assessment"),
     aiAssessmentGeneratedAt: ts("ai_assessment_generated_at"),
     aiRecommendedActions: json("ai_recommended_actions"),
+    // Recova's recommendation rules' action for this customer (J78,
+    // app/lib/intelligence/recommend.ts), written by the nightly scoring batch.
+    // Its own column, because health_factors is a HealthFactor[] array here and
+    // cannot carry Recova's { recommended_action } key. Read by
+    // /intelligence/recommendations only: nothing on a money path reads it.
+    recommendedAction: text("recommended_action"),
     createdAt: ts("created_at").notNull(),
     updatedAt: ts("updated_at").notNull(),
     // Structured billing-behavior signals (SCHEMA.md; names are Phase-2 judgment,
@@ -89,6 +95,41 @@ export const predictions = sqliteTable(
   (t) => [
     index("predictions_account_idx").on(t.accountId),
     index("predictions_customer_idx").on(t.stripeCustomerId),
+  ],
+);
+
+// One row per customer per nightly run: the bands, the evidence and the
+// recommendation the rules gave, with an outcome slot left empty, so the lift
+// of each action can be measured once outcomes are graded (J78). Recova logged
+// the same to its outcomes table with outcome and outcome_at null.
+export const recommendationLog = sqliteTable(
+  "recommendation_log",
+  {
+    id: id(),
+    accountId: text("account_id").notNull().references(() => accounts.id),
+    stripeCustomerId: text("stripe_customer_id").notNull(),
+    recommendedAt: ts("recommended_at").notNull(),
+    action: text("action").notNull(),
+    confidence: text("confidence").notNull(),
+    rationale: text("rationale").notNull(),
+    engagementBand: text("engagement_band").notNull(),
+    recoveryBand: text("recovery_band").notNull(),
+    valueBand: text("value_band").notNull(),
+    // the three bands' evidence and band confidence, as recommend.ts returns them
+    evidence: json("evidence").notNull(),
+    // MRR times 12 (Recova's estimated_mrr_at_risk_cents), for the two actions
+    // that ask for attention; null otherwise
+    annualizedMrrAtRiskCents: integer("annualized_mrr_at_risk_cents"),
+    currency: text("currency"),
+    // which rules produced it, so a later rule change is told apart
+    scoreSource: text("score_source").notNull(),
+    // realized-outcome slot for measuring lift (nullable until graded)
+    outcome: text("outcome"),
+    outcomeAt: ts("outcome_at"),
+  },
+  (t) => [
+    index("recommendation_log_account_idx").on(t.accountId),
+    index("recommendation_log_customer_idx").on(t.stripeCustomerId),
   ],
 );
 

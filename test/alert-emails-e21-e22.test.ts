@@ -393,9 +393,8 @@ describe("E22 stays off until its button has somewhere to go (RULES.md 2.7)", ()
   const read = (p: string) => readFileSync(fileURLToPath(new URL(`../${p}`, import.meta.url)), "utf8");
 
   it("is live only when /intelligence/recommendations is a route", () => {
-    // Recova's button opens /intelligence/recommendations (row S20, job J78),
-    // which Foxhound does not serve yet. The check is built and tested above;
-    // the nightly run calls it once that page exists, and not before.
+    // Recova's button opens /intelligence/recommendations (row S20, job J78).
+    // The nightly run calls the check only while that page exists.
     const hasPage = /route\("recommendations"/.test(read("app/routes.ts"));
     expect(CRITICAL_CUSTOMERS_ALERT_LIVE).toBe(hasPage);
   });

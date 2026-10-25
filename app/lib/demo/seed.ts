@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import type { Db } from "~/db";
@@ -29,6 +29,7 @@ import {
   winBackSteps,
 } from "~/db";
 import { grantIntelligence } from "~/lib/admin/merchants.server";
+import { recommendForAccount } from "~/lib/intelligence/recommendations.server";
 import { isBillableDisputeRow, isBillableRecoveryRow } from "~/lib/billing/billable-predicates";
 import { disputeFeeCents, recoveryFeeCents } from "~/lib/billing/fees";
 import { CRON_LOCK_LEASE_MS, DAY_MS, DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
@@ -237,6 +238,25 @@ export async function seedDemoAccount(db: Db, now: Date): Promise<void> {
   await runBatched(
     db,
     recovery.expiringCardAlerts.map((row) => db.insert(expiringCardAlerts).values(row)),
+  );
+
+  // 4b) Recommended actions (J78), by the same rules the nightly run uses, over
+  //     the rows just written: the demo is firewalled out of the nightly run,
+  //     so without this /intelligence/recommendations would have nothing to read.
+  const subjects = intelligence.customerContext.map((c) => ({
+    stripeCustomerId: c.stripeCustomerId,
+    mrrContributionCents: c.mrrContributionCents ?? 0,
+    recoverySignals: c.recoverySignals,
+  }));
+  const recommended = await recommendForAccount(db, DEMO_ACCOUNT_ID, subjects, now.getTime());
+  await runBatched(
+    db,
+    subjects.map((s) =>
+      db
+        .update(customerContext)
+        .set({ recommendedAction: recommended.get(s.stripeCustomerId)?.recommendation.action ?? null })
+        .where(and(eq(customerContext.accountId, DEMO_ACCOUNT_ID), eq(customerContext.stripeCustomerId, s.stripeCustomerId))),
+    ),
   );
 
   // 5) Disputes: the 8-dispute Teamflow set, with evidence + approvals for the

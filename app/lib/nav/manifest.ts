@@ -70,6 +70,8 @@ export const PRODUCT_MANIFEST: Record<ProductKey, ProductManifestEntry> = {
     links: [
       { label: "Overview", to: "/intelligence/dashboard", end: true },
       { label: "Customers", to: "/intelligence/customers" },
+      // Recova's place for it: after Customers, before Churn Risk (SiteNav.tsx).
+      { label: "Recommendations", to: "/intelligence/recommendations" },
       { label: "Churn", to: "/intelligence/churn" },
       { label: "Alerts", to: "/intelligence/alerts" },
       { label: "Reports", to: "/intelligence/reports" },
