@@ -36,7 +36,7 @@ export interface AccountBillingState {
   billingExempt: boolean;
   processingPaused: boolean;
   /** Operator cancel/disconnect. A PROCESSING gate only, never a billing gate:
-   *  accountBillingEligibleCondition deliberately ignores it, so a cancelled
+   *  accountBillingEligibleCondition deliberately ignores it, so a canceled
    *  account still owes its already-matured fees. */
   cancelledAt: Date | null;
 }

@@ -38,7 +38,7 @@ import { LOOKBACK_OPTIONS } from "~/lib/settings/audit-settings";
 //
 // EVERY NUMBER IS READ FROM THE ENGINE, never typed (RULES.md 2.1): cadences
 // from the cron schedule constants, the fee and maturity from the pricing
-// constants, the bands from the functions that colour them. Two counts live
+// constants, the bands from the functions that color them. Two counts live
 // only on the server (the cron registry and the MCP tool list); the route's
 // loader reads them and passes them in as FeatureFacts.
 
@@ -426,7 +426,7 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "Recovery rate chart",
-          description: `Daily recovery rate over the chosen range, beside the rate itself coloured by band: green above ${cautionMax}%, caution ${redMax + 1}-${cautionMax}%, red at or below ${redMax}%.`,
+          description: `Daily recovery rate over the chosen range, beside the rate itself colored by band: green above ${cautionMax}%, caution ${redMax + 1}-${cautionMax}%, red at or below ${redMax}%.`,
           product: "Recovery",
         },
         {
@@ -650,7 +650,7 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "MCP Merchant connector",
-          description: `An MCP endpoint at /mcp with ${facts.merchantMcpToolCount} tools across Recovery, Disputes, Intelligence, and Audit, authorised by an API key scoped to one account.`,
+          description: `An MCP endpoint at /mcp with ${facts.merchantMcpToolCount} tools across Recovery, Disputes, Intelligence, and Audit, authorized by an API key scoped to one account.`,
           product: "Platform",
         },
         {
@@ -755,7 +755,7 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "CVD accessibility",
-          description: "Status is never colour alone: every status badge carries its word.",
+          description: "Status is never color alone: every status badge carries its word.",
           product: "Platform",
         },
         {

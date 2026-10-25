@@ -36,7 +36,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // WHAT THIS SUITE PROVES, in the order 257/286/296 require:
 //   1. registration, through the REAL runner, not by reading the array
 //   2. toggle-off AND NULL both skipped THROUGH THE SHARED PREDICATE
-//   3. processing_paused, cancelled and demo accounts all skipped
+//   3. processing_paused, canceled and demo accounts all skipped
 //   4. idempotency per account per month, by DATABASE refusal
 //   5. a failure reaching Session 24's alert machinery
 //   6. cron-health seeing the schedule as MAPPABLE
@@ -434,7 +434,7 @@ describe("(3): the account states every other per-account cron respects", () => 
 
   it("an account with NO notification email is audited but not mailed", async () => {
     // 339: notification_email is the only recipient. The run still happens and
-    // is still readable in history, which is the merge's one behaviour change
+    // is still readable in history, which is the merge's one behavior change
     // over the digest here.
     const db = fresh();
     await seedAccount(db, "acct_noemail", { auditAutoRun: true, notificationEmail: null });

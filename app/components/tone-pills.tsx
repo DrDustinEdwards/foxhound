@@ -5,12 +5,12 @@ import { CATEGORY_PILL_WORDS } from "~/lib/marketing/recovery-copy";
 import "capsomer/status.css";
 
 // Recova's tinted pills as Capsomer badges with no glyph, each on its own tint
-// with an edge in its colour: the decline category (CategoryPill: soft blue,
+// with an edge in its color: the decline category (CategoryPill: soft blue,
 // network amber, expired orange, fraud red; Foxhound's revoked red and
-// unclassified grey), the sequence step (SequenceTimeline: blue for an email,
+// unclassified gray), the sequence step (SequenceTimeline: blue for an email,
 // amber for a retry, its timing in mono beneath) and the product tag on a
 // feature card (FeatureCard: Recovery amber, Disputes blue, Intelligence
-// green, Audit and Platform grey).
+// green, Audit and Platform gray).
 
 const TONE: Record<DeclineCategory, "info" | "accent" | "warn" | "crit" | "nodata"> = {
   soft: "info",
@@ -21,7 +21,7 @@ const TONE: Record<DeclineCategory, "info" | "accent" | "warn" | "crit" | "nodat
   unknown: "nodata",
 };
 
-// The badge's edge takes the word's colour, as Recova's bordered pills do.
+// The badge's edge takes the word's color, as Recova's bordered pills do.
 const EDGE = "[--_line:var(--_fg)]";
 // Capsomer's badge has no accent tone; the accent's own tint and text stand in.
 const ACCENT = "[--_bg:var(--accent-soft)] [--_fg:var(--accent-text)]";

@@ -26,7 +26,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // query"). health_score_history held 1,242 rows, 417 of them past the 90 day
 // window, which matches the placeholder count exactly.
 //
-// WHY THE PARAMETER COUNT IS THE ASSERTION, AND A BEHAVIOURAL TEST IS NOT.
+// WHY THE PARAMETER COUNT IS THE ASSERTION, AND A BEHAVIORAL TEST IS NOT.
 // These tests run on better-sqlite3, whose SQLITE_MAX_VARIABLE_NUMBER is orders
 // of magnitude above D1's 100. So a test that merely sweeps 417 rows and checks
 // they are gone PASSES WITH THE BUG STILL IN PLACE. That is the harness
@@ -34,7 +34,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // survived 29 days of daily failure. The guard therefore asserts the SQL that
 // production would SEND, captured off the real driver, not the result it gets
 // back here. The "HARNESS GAP" test at the bottom pins that difference, so
-// nobody later "simplifies" this suite into a behavioural one.
+// nobody later "simplifies" this suite into a behavioral one.
 //
 // COVERAGE BOUND (246): this proves no retention statement exceeds the ceiling
 // and that the sweeps still delete the right rows. It does NOT exercise D1
@@ -336,9 +336,9 @@ describe("317: the ceiling, and the harness gap that hid it", () => {
     expect(DELETE_ID_BATCH_SIZE).toBeLessThan(D1_MAX_BOUND_PARAMS);
   });
 
-  it("HARNESS GAP: better-sqlite3 accepts far more parameters than D1, so behaviour alone proves nothing", () => {
+  it("HARNESS GAP: better-sqlite3 accepts far more parameters than D1, so behavior alone proves nothing", () => {
     // This is the reason the bug shipped and then survived 29 days. If this ever
-    // starts failing, the harness has gained D1's limit and a behavioural test
+    // starts failing, the harness has gained D1's limit and a behavioral test
     // would finally be evidence; until then, only the parameter-count
     // assertions above are.
     const { sqlite } = createInMemoryDb();

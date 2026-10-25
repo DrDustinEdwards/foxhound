@@ -157,7 +157,7 @@ function SequenceTimelines() {
 
 /** Recova's PaymentTimelinePreview (blob `be6fb312`): one payment's steps with
  *  their result. Recova's rows name a demo customer and raw step types
- *  ("retry_4hr"); this one is labelled an example, takes its steps from the
+ *  ("retry_4hr"); this one is labeled an example, takes its steps from the
  *  soft schedule, and words them as the payment page does (formatStepType). */
 function PaymentTimeline() {
   const steps = RECOVERY_SCHEDULES.soft;

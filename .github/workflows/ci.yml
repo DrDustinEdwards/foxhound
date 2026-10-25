@@ -11,8 +11,8 @@ on:
 
 # Actions minutes are shared and capped (Dustin's account, 2026-10-15: 90% of
 # the month's 2,000 used). On a pull request a newer push makes the older run
-# worthless, so it is cancelled and the newest push still gets the full run.
-# On main nothing is cancelled mid-run, so a deploy is never cut off.
+# worthless, so it is canceled and the newest push still gets the full run.
+# On main nothing is canceled mid-run, so a deploy is never cut off.
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -140,7 +140,7 @@ jobs:
       # the correct direction: old code against an old schema still works.
       #
       # DB_MIGRATE_CONFIRM is deliberate. scripts/db-migrate.mjs defaults to the
-      # local database and demands explicit acknowledgement before touching the
+      # local database and demands explicit acknowledgment before touching the
       # remote one, because the database named "foxhound" is production.
       # CI opts in on purpose; a developer's reflexive `npm run db:migrate` does
       # not.

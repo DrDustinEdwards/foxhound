@@ -162,8 +162,8 @@ const MARK = {
   crit: "border-[var(--crit)] bg-[var(--crit-soft)] text-[var(--crit)]",
 } as const;
 
-// Layout is Recova's: the page centred both ways under the site header, a 480px
-// column with 40px by 24px padding and centred text, the wordmark 32px above the
+// Layout is Recova's: the page centered both ways under the site header, a 480px
+// column with 40px by 24px padding and centered text, the wordmark 32px above the
 // card, the card at 40px by 32px, the 48px mark 20px above the sentence, the
 // sentence 24px above the link. Look is Capsomer's (Q12): the column sits in the
 // amber family with Foxhound's neutrals (.fh-cap, as the legal pages), the card is
@@ -201,7 +201,7 @@ export default function Unsubscribe({ loaderData }: Route.ComponentProps) {
               <p role="status" className="m-0 mb-6 text-body leading-relaxed text-text">
                 {message(loaderData)}
               </p>
-              {/* Recova's small underlined link in the secondary text colour. Its
+              {/* Recova's small underlined link in the secondary text color. Its
                   box is Capsomer's minimum target height (--target), so the 13px
                   line is still a 24px target (WCAG 2.2, 2.5.8). */}
               <a

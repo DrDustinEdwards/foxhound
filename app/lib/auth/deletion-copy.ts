@@ -36,7 +36,7 @@ export function deletionConsequence(ownedAccountNames: Array<string | null>): st
   }
   const what = "permanently delete your login and your personal data, and";
   const clears =
-    "removing your customers' names and emails and cancelling all active recovery sequences.";
+    "removing your customers' names and emails and canceling all active recovery sequences.";
   if (n === 1) {
     return `This will ${what} clear the account you own, ${label(ownedAccountNames[0] ?? null)}, ${clears} ${KEPT} ${FINAL}`;
   }

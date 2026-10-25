@@ -60,7 +60,7 @@ function routePaths(entries: RouteEntry[], parent = "", out = new Set<string>())
   return out;
 }
 
-// Tailwind's text-* utilities that are colours, not sizes.
+// Tailwind's text-* utilities that are colors, not sizes.
 
 describe("/docs index (J17, row M17)", () => {
   const html = render();

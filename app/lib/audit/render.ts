@@ -8,7 +8,7 @@ import { formatMoneyShort } from "~/lib/money-format";
 // THE WHOLE POINT OF THIS MODULE IS THE NULL. Legacy's stored-run page maps
 // every column with `?? 0`, so an audit whose disputes call failed renders as a
 // merchant with no open disputes, and nobody can tell. 362 ruling 2 and 364's
-// NULL-as-status exist to stop that, and they only hold if the RENDER honours
+// NULL-as-status exist to stop that, and they only hold if the RENDER honors
 // them too: a value that was never read comes back as `null` here and every
 // consumer must say so rather than print a figure.
 //

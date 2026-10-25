@@ -226,7 +226,7 @@ export interface RecoveryQueueDepth {
    *  "Payments in active recovery queue", the same count as the Overview's. */
   activePayments: number;
   /** Steps the recovery tick would run if it ran now: due, on an active payment,
-   *  on an account it may process (not paused, cancelled or demo). */
+   *  on an account it may process (not paused, canceled or demo). */
   dueSteps: number;
   /** When the longest-waiting of those steps fell due; null when none waits. */
   oldestDueAt: Date | null;

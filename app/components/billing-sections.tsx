@@ -183,7 +183,7 @@ export function RecoverySection({
         <p className="mt-3 text-micro text-text-subtle">{stateNote ?? `Next invoice: ${formatLongDate(nextRunAtMs)}`}</p>
         {accountBillingState.cancelledAt && !stateNote ? (
           <p className="mt-1 text-micro text-text-subtle">
-            This account is cancelled. Fees already earned still appear on the next invoice.
+            This account is canceled. Fees already earned still appear on the next invoice.
           </p>
         ) : null}
         {/* Truthfulness fix: Recova's estimate was this month's recoveries times

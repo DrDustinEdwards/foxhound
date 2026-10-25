@@ -96,7 +96,7 @@ describe("PLANT 3: the arguments legacy sends", () => {
 
     await readSubscriptions(stripe);
     // `status: "all"` where the expiring-card cron uses "active", because
-    // past-due and cancelled subscriptions are two of the audit's six scopes.
+    // past-due and canceled subscriptions are two of the audit's six scopes.
     // Same call, same expansion, one parameter apart.
     expect(calls.subscriptions).toEqual({
       status: "all",

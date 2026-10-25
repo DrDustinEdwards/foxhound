@@ -9,7 +9,7 @@ import { safeNextPath } from "~/lib/auth/next-path";
 
 // J79, ruling 8's inherited artifacts on the sign-in side. The authorize page
 // sends a signed-out visitor to /login?next=<the whole authorize URL>; Recova's
-// login page (app/(auth)/login/page.tsx, ec09cd24) honoured next= through
+// login page (app/(auth)/login/page.tsx, ec09cd24) honored next= through
 // validateRedirect, and its Google button carried it through the provider
 // round trip in a pending_redirect cookie that app/auth/callback/route.ts
 // (7cb52c7b) validated and burned. Foxhound's Google sign-in is Better Auth's,

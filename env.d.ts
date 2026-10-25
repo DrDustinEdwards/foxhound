@@ -10,7 +10,7 @@ interface Env {
   SENTRY_DSN?: string;
   // Reading errors back for /admin/platform/errors (J48). The DSN only sends;
   // listing issues needs a Sentry auth token with event:read and the
-  // organisation's slug. Either unset => the page says it cannot read them.
+  // organization's slug. Either unset => the page says it cannot read them.
   // The token is sent only to the sentry.io API named by the DSN's region,
   // and is never rendered or logged (app/lib/admin/errors.server.ts).
   SENTRY_AUTH_TOKEN?: string;

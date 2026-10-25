@@ -44,7 +44,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   // route.ts:17-28. THIS IS THE CHECK THE WHOLE ROUTE EXISTS FOR: a session may
   // only be pointed at an account the caller ACTIVELY holds. Without it the
   // marker is caller-controlled input naming somebody else's ledger, and every
-  // account-keyed query downstream would honour it. `findActiveMembership` is
+  // account-keyed query downstream would honor it. `findActiveMembership` is
   // the shared query the invite accept also uses, so the two cannot drift on
   // what membership means. A revoked or pending membership is not a membership
   // and lands here as a 403, same as never having held the account.

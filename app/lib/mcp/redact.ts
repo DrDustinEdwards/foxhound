@@ -98,7 +98,7 @@ const RULES = new Map<string, RedactionRule>(Object.entries(REDACTED_CUSTOMER_FI
 /**
  * Mask an email to its first character and its domain.
  *
- * `alice@example.com` becomes `a***@example.com`. Enough to recognise an address
+ * `alice@example.com` becomes `a***@example.com`. Enough to recognize an address
  * you already know, not enough to send to one you do not.
  *
  * A MALFORMED ADDRESS IS FULLY REDACTED rather than passed through. An input

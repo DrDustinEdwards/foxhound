@@ -4,7 +4,7 @@ import { nextRovingIndex } from "~/lib/a11y/roving-index";
 
 // Ruling 209 recorded the radiogroup port as verified by typecheck, lint and the
 // suite but never DRIVEN, with no test of its own. This discharges that for the
-// decision logic. Legacy's behaviour, from
+// decision logic. Legacy's behavior, from
 // app/(app)/recovery/payments/components/PaymentsFilters.tsx: arrows move and
 // WRAP at both ends, Home goes first, End goes last, and any other key falls
 // through untouched so the control does not swallow Tab or typing.
@@ -15,7 +15,7 @@ import { nextRovingIndex } from "~/lib/a11y/roving-index";
 // verified is that a non-handled key returns null, which is the condition the
 // component uses to skip preventDefault entirely.
 
-const N = 5; // the five status pills: All, Active, Recovered, Cancelled, Failed
+const N = 5; // the five status pills: All, Active, Recovered, Canceled, Failed
 
 describe("nextRovingIndex: arrows move forward and wrap", () => {
   it("ArrowRight advances", () => {

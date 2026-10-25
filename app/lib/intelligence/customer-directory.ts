@@ -53,12 +53,12 @@ export type PlanPillTone = "info" | "nodata";
 
 /** Recova's planTierBadge (app/(app)/intelligence/customers/page.tsx, blob
  *  0413f035): starter, growth, scale, pro and hobby in sentence case, each in
- *  a rounded outline pill with one of three colours. Recova's colours were
+ *  a rounded outline pill with one of three colors. Recova's colors were
  *  subtle (starter, hobby, anything else), blue (growth) and the old warm
  *  accent (scale, pro). With amber throughout, the ranks map onto
  *  Capsomer's outline pill: the no-data tone's muted text, the info tone's
- *  blue, and no tone at all, which is the strongest text colour. An unknown
- *  tier is capitalised, where Recova showed the raw value (RULES 1.5). */
+ *  blue, and no tone at all, which is the strongest text color. An unknown
+ *  tier is capitalized, where Recova showed the raw value (RULES 1.5). */
 export function planTierPill(tier: string | null): { label: string; tone?: PlanPillTone } {
   // current_plan_tier is free text (SCHEMA.md), so "Growth" and " pro " are
   // Recova's tiers too.

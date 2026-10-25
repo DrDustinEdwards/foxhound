@@ -150,7 +150,7 @@ async function deauthorizeConnectedAccountWithClient(
  * call in this module. Callers MUST commit the local cancel state
  * (accounts.cancelledAt + stripe_connections.disconnectedAt) BEFORE calling
  * this, and must never roll that local state back on a deauthorize failure -
- * the merchant is cancelled either way; a failed deauthorize only means the
+ * the merchant is canceled either way; a failed deauthorize only means the
  * OAuth grant itself needs a retry, not that processing should resume.
  */
 export async function deauthorizeConnectedAccount(

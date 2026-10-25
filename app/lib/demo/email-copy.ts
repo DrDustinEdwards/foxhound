@@ -169,7 +169,7 @@ const FRAUD: Record<string, StepCopyBuilder> = {
 // quiet. No cadence, no chasing.
 const REVOKED: Record<string, StepCopyBuilder> = {
   email_revoked: (c) => ({
-    subject: `Your subscription payment was cancelled`,
+    subject: `Your subscription payment was canceled`,
     bodyHtml: `<p>${greeting(c.customerName)},</p><p>Your bank tells us the authorization for ${planPhrase(c.planName)} has been withdrawn, so we will not attempt any further charges. The outstanding amount is <strong>${formatMoney(c.amountCents, c.currency)}</strong>.</p><p>If that was deliberate, there is nothing more to do and you will not hear from us about it again. If it was not, you can ${updateLink("add a new payment method")} to carry on.</p><p>Thanks,<br />${c.merchantName}</p>`,
   }),
 };
@@ -224,13 +224,13 @@ export function demoEmailCopyFor(
   return build ? build(ctx) : null;
 }
 
-/** The win-back arc, for a customer who has already cancelled. Three sends,
+/** The win-back arc, for a customer who has already canceled. Three sends,
  *  warmer than dunning: there is no unpaid balance to collect, only an offer to
  *  come back. */
 const WIN_BACK: Record<number, StepCopyBuilder> = {
   1: (c) => ({
     subject: `Sorry to see you go`,
-    bodyHtml: `<p>${greeting(c.customerName)},</p><p>Your ${planPhrase(c.planName)} has been cancelled and your final invoice is settled, so there is nothing outstanding.</p><p>If something specific pushed you out, we would genuinely like to hear it. And if you change your mind, your account and data are still here.</p><p>Thanks,<br />${c.merchantName}</p>`,
+    bodyHtml: `<p>${greeting(c.customerName)},</p><p>Your ${planPhrase(c.planName)} has been canceled and your final invoice is settled, so there is nothing outstanding.</p><p>If something specific pushed you out, we would genuinely like to hear it. And if you change your mind, your account and data are still here.</p><p>Thanks,<br />${c.merchantName}</p>`,
   }),
   2: (c) => ({
     subject: `Your data is still here`,
@@ -238,7 +238,7 @@ const WIN_BACK: Record<number, StepCopyBuilder> = {
   }),
   3: (c) => ({
     subject: `Last note from us`,
-    bodyHtml: `<p>${greeting(c.customerName)},</p><p>This is the last message you will get from us about your cancelled ${planPhrase(c.planName)}. Your data stays available for a while yet if you want to pick it back up.</p><p>Either way, thanks for having been a customer.</p><p>Thanks,<br />${c.merchantName}</p>`,
+    bodyHtml: `<p>${greeting(c.customerName)},</p><p>This is the last message you will get from us about your canceled ${planPhrase(c.planName)}. Your data stays available for a while yet if you want to pick it back up.</p><p>Either way, thanks for having been a customer.</p><p>Thanks,<br />${c.merchantName}</p>`,
   }),
 };
 

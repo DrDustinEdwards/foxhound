@@ -16,7 +16,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // would be wired in later. Foxhound writes such entries (staged.failed and the
 // account deletion's deauthorize failure), so that list is ported. Sentry is
 // read only when something writes to it (SENTRY_DSN set) and the page holds a
-// read token and an organisation (RULES.md 3.18); until then the page says
+// read token and an organization (RULES.md 3.18); until then the page says
 // plainly that error reporting is not connected.
 
 const harness = vi.hoisted(() => ({ db: null as unknown }));

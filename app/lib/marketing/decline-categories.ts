@@ -49,7 +49,7 @@ const COUNT_WORDS: Record<number, string> = {
   8: "Eight",
 };
 
-/** A count as its capitalised word ("Six"), or its digits outside COUNT_WORDS. */
+/** A count as its capitalized word ("Six"), or its digits outside COUNT_WORDS. */
 export function countWord(n: number): string {
   return COUNT_WORDS[n] ?? String(n);
 }
@@ -77,7 +77,7 @@ export const DISTINCT_SEQUENCE_COUNT = new Set(
   Object.values(RECOVERY_SCHEDULES).map((steps) => JSON.stringify(steps)),
 ).size;
 
-/** Capitalised, for the head of a sentence. */
+/** Capitalized, for the head of a sentence. */
 export const DECLINE_CATEGORY_COUNT_WORD = countWord(DECLINE_CATEGORY_COUNT);
 
 /** Lower case, for mid-sentence use. */

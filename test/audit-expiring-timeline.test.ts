@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import { drawExpiringCardsTimeline } from "~/lib/audit/timeline";
 
 // The expiring-cards chart once refused to draw when every month had the same
-// count: the peak is then the only series, but the colours still named the
-// "Cards expiring" series, and Enarratio rejects a colour for a series that is
+// count: the peak is then the only series, but the colors still named the
+// "Cards expiring" series, and Enarratio rejects a color for a series that is
 // not in the chart.
 describe("expiring-cards timeline", () => {
   it("draws when every month has the same count", () => {

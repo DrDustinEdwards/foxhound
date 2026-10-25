@@ -80,7 +80,7 @@ export interface MonthlyAuditAccountRow {
  * construction.
  *
  * `accountProcessingEligibleCondition()` is where the DEMO refusal lives
- * (`id NOT LIKE 'demo\\_%'`), alongside processing-paused and cancelled. Reused
+ * (`id NOT LIKE 'demo\\_%'`), alongside processing-paused and canceled. Reused
  * unchanged; this phase does not touch the firewall.
  */
 async function monthlyAuditCandidates(db: Db): Promise<MonthlyAuditAccountRow[]> {
@@ -301,7 +301,7 @@ export async function enqueueMonthlyAudits(
 
 /** The opted-in, processing-eligible account row, or null. Read again at
  *  delivery: a merchant who switched the audit off, paused processing or
- *  cancelled after the cron queued them is not audited, and the demo firewall
+ *  canceled after the cron queued them is not audited, and the demo firewall
  *  (`accountProcessingEligibleCondition`) sits on this path too. */
 async function eligibleAccount(
   db: Db,

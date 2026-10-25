@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import "enarratio/base.css";
 // Capsomer's --enarratio-* mapping onto its tokens, loaded with the chart so
-// its colours do not depend on another file's imports.
+// its colors do not depend on another file's imports.
 import "capsomer/enarratio.css";
 
 import { withoutHoverTitles } from "~/lib/dashboard/recovery-dashboard";

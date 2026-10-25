@@ -28,7 +28,7 @@ import { HOUR_MS } from "~/lib/constants";
 // (app/routes/app/disputes/index.tsx) reads its own rows:
 //
 // - The order: sortDisputesNewestFirst, the order listDisputes returns.
-// - The cards: the dashboard's five, from computeDisputeStats, totalled per
+// - The cards: the dashboard's five, from computeDisputeStats, totaled per
 //   currency with groupSumByCurrency and written with formatAmounts, and Win
 //   rate's words from winRateCard.
 // - The status words: disputeListStatus, with "has evidence" decided from the

@@ -103,7 +103,7 @@ function skippedClause(intendedCount: number, affectedCount: number, what: strin
 
 export function engageResultMessage(result: { affectedCount: number; intendedCount: number }): string {
   if (result.intendedCount === 0) {
-    return "Brake engaged. No accounts were eligible to pause (every account is demo, cancelled, or already paused).";
+    return "Brake engaged. No accounts were eligible to pause (every account is demo, canceled, or already paused).";
   }
   return (
     `Brake engaged. Paused ${result.affectedCount} account(s).` +

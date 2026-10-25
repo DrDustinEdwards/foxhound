@@ -148,7 +148,7 @@ export function mrrMovementAlt(m: MovementTotals, currency: string): string {
 /**
  * Whether the monthly intelligence-sync will write this account an MRR
  * snapshot: it writes nothing without a Stripe connection
- * (runIntelligenceSyncForAccount) and skips paused and cancelled accounts
+ * (runIntelligenceSyncForAccount) and skips paused and canceled accounts
  * (accountProcessingEligible).
  */
 export type MrrSyncState = "eligible" | "unconnected" | "paused" | "cancelled";
@@ -164,6 +164,6 @@ export function mrrEmptySentence(state: MrrSyncState, firstSnapshot: string): st
     case "paused":
       return "Processing is paused for this account, so Foxhound is not taking MRR snapshots.";
     case "cancelled":
-      return "This account is cancelled, so Foxhound takes no MRR snapshots.";
+      return "This account is canceled, so Foxhound takes no MRR snapshots.";
   }
 }

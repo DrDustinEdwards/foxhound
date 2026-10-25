@@ -155,7 +155,7 @@ export async function sendTransactionalEmail(
 ): Promise<{ providerMessageId: string | null }> {
   const { fromName, rendered } = renderTransactional(message);
   const sent = await sendThroughAuthSender(env, { to: message.to, rendered, fromName });
-  // Same behaviour as before the shared seam: a missing binding and a provider
+  // Same behavior as before the shared seam: a missing binding and a provider
   // throw both reach the caller as throws, the provider's own error unchanged.
   if (sent.status === "sent") return { providerMessageId: sent.providerMessageId };
   if (sent.reason === "email_binding_missing") throw new Error("EMAIL binding is not configured");

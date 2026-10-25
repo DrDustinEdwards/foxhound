@@ -3,7 +3,7 @@
 // just use a hound head or body or something for now").
 //
 // A hound's head in side profile, facing right: long muzzle, one drooping ear,
-// the eye and the ear's front edge cut out. One colour, solid shapes, drawn to
+// the eye and the ear's front edge cut out. One color, solid shapes, drawn to
 // read at 16px.
 //
 // This module is the ONE source of the mark. Everything else is drawn from it:
@@ -11,7 +11,7 @@
 //     currentColor, as on the admin shell's family strip;
 //   - scripts/build-icons.mjs writes public/favicon.svg from it (the mark in
 //     the header band's amber on the dark rounded square), which the footer,
-//     the blog author box and the JSON-LD logo point at, and rasterises that
+//     the blog author box and the JSON-LD logo point at, and rasterizes that
 //     to public/favicon.png and public/apple-touch-icon.png (512, as legacy),
 //     which the route splash and the RSS channel image point at.
 // The real logo replaces this file and the icons are rebuilt in one change.

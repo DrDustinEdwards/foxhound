@@ -19,7 +19,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
 // job_ed1c41e4bd95: an account charging in two currencies. Recova added the
-// amounts together and labelled the sum with the first currency it saw, so
+// amounts together and labeled the sum with the first currency it saw, so
 // $1,240 and EUR 310 read "$1,550". Dustin approved one line per currency on
 // 2026-10-25 (parity/APPROVED-DIFFERENCES.md). Each money figure is kept per
 // currency (RULES.md 3.20) on the live page, a saved run and the monthly email.

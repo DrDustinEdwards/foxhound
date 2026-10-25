@@ -153,7 +153,7 @@ export function recoveryNotifyContent(
  *
  * TOGGLE: `recovery_notifications_enabled !== false`, so NULL is ON. That is
  * legacy's own reading and 337 binding 3's per-column rule; 315's NULL-is-OFF
- * belongs to `audit_auto_run` and does not generalise.
+ * belongs to `audit_auto_run` and does not generalize.
  */
 export async function loadNotificationData(
   db: Db,

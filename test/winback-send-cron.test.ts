@@ -170,7 +170,7 @@ describe("PLANT 1: the copy is legacy's, per step", () => {
 
     expect(words(blocks)).toEqual([
       "Hi Jane,",
-      "We noticed you recently cancelled your Pro subscription. We're sorry to see you go.",
+      "We noticed you recently canceled your Pro subscription. We're sorry to see you go.",
       "If there's anything we could have done better, we'd love to hear from you. And if you ever want to come back, we'll be here.",
       "[Reactivate My Account](https://foxhoundapp.test/p/tok)",
       "Thanks for being a customer,",

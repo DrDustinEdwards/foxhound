@@ -359,7 +359,7 @@ export async function runRecoveryTick(
     // An operator disabled the tick mid-run. "Disabled" should mean the tick
     // does nothing further, and this sweep was still performing a write pass
     // after the halt (review LOW-C). It moves no money and it already excludes
-    // brake-paused accounts, so the old behaviour was harmless, just not what
+    // brake-paused accounts, so the old behavior was harmless, just not what
     // the word means. Skipped and reported, never silent.
     sweepNote = ", exhausted-sweep skipped (halted)";
   } else {

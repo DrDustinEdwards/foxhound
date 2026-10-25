@@ -339,7 +339,7 @@ export interface MerchantBrandVoice {
   voiceDescription?: string | null;
   /** S27's three merchant-context fields, from `accounts`. All optional: a
    *  merchant who filled none gets no context line at all, which is legacy's
-   *  behaviour and not a placeholder. */
+   *  behavior and not a placeholder. */
   industry?: string | null;
   customerType?: string | null;
   mrrCents?: number | null;
@@ -431,7 +431,7 @@ function categoryVoiceFor(
     case "fraud":
       return merchant.voiceFraud;
     default:
-      // `revoked` and `unknown` land here, as does anything unrecognised.
+      // `revoked` and `unknown` land here, as does anything unrecognized.
       return undefined;
   }
 }

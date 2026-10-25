@@ -280,7 +280,7 @@ describe("J31: the invite form", () => {
   });
 });
 
-describe("J31: sizes and colour", () => {
+describe("J31: sizes and color", () => {
   // WHAT THIS READS: only the Tailwind text-size classes the page itself
   // writes. It does not read the sizes Capsomer's parts compute. Measured in
   // a browser at a87fda7 (Foxhound's five are 28, 20, 16, 13 and 11px), these

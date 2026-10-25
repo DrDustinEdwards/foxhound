@@ -66,7 +66,7 @@ type LoaderState =
   | { state: "done" }
   // RESUBSCRIBE MODE (343 binding 4). A separate set of states, because
   // nothing has failed and no card is being collected: the customer
-  // cancelled, and the one button restarts the subscription on Stripe.
+  // canceled, and the one button restarts the subscription on Stripe.
   | { state: "resubscribe"; planName: string | null }
   | { state: "handled" }
   | { state: "resubscribed" };
@@ -168,7 +168,7 @@ export interface ResubscribeTarget {
 /**
  * RESUBSCRIBE MODE's target, read off `win_back_sequences`.
  *
- * The sequence carries the cancelled subscription id, which is what the price
+ * The sequence carries the canceled subscription id, which is what the price
  * is re-read from at click time: neither side stores a price id, because
  * legacy's billing portal never needed one.
  */

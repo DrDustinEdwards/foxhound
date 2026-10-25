@@ -183,7 +183,7 @@ export const stripeConnections = sqliteTable(
     // Stripe account follows whichever row that lookup returns. That is sound
     // only if the live mapping is ONE-TO-ONE, and until this index nothing
     // enforced it: two users who both hold Stripe access to one account could
-    // attach it to two Foxhound accounts, and the webhook layer would honour
+    // attach it to two Foxhound accounts, and the webhook layer would honor
     // the wrong one faithfully and forever.
     //
     // SCOPED TO LIVE ROWS, which is binding 4 and not an accident of shape. S37

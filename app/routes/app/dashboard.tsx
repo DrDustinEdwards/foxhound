@@ -189,7 +189,7 @@ export default function Console({ loaderData }: Route.ComponentProps) {
           <div className="mt-4">
             {/* Foxhound's intelligence-sync writes the first MRR snapshot on its
                 monthly run, but only for an account with Stripe connected that
-                is neither paused nor cancelled. Only that account is promised
+                is neither paused nor canceled. Only that account is promised
                 a date; the others are told why none is coming. */}
             <Empty kind="nothing-yet" title="No MRR data yet">
               {mrrEmptySentence(consoleView.mrrSync, firstSnapshotSentence(nowMs))}

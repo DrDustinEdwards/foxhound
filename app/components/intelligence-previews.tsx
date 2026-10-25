@@ -29,8 +29,8 @@ import type { IntelligencePreview } from "~/lib/marketing/intelligence-preview";
 // action, and nothing in Foxhound writes one (digest-email.ts records the same
 // finding). The J58 notes list it for the seat.
 
-/** A health band as Capsomer's badge tone: the colour Recova's
- *  HealthScoreBadge and ChurnRiskSummary give it (red, the warning colour,
+/** A health band as Capsomer's badge tone: the color Recova's
+ *  HealthScoreBadge and ChurnRiskSummary give it (red, the warning color,
  *  green), at Foxhound's cutoffs (healthScoreBand). */
 const BAND_TONE: Record<HealthScoreBand, Tone> = { at_risk: "crit", watch: "warn", healthy: "ok" };
 

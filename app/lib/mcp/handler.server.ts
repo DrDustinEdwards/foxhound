@@ -164,7 +164,7 @@ async function authenticate(
   // DEMO ACCOUNTS CANNOT DRIVE THIS ENDPOINT. S29's page refuses a demo
   // merchant at the form (every mutating demo request is 405'd), so no demo key
   // should exist; `createAccountApiKey` itself carries no such check, which
-  // makes this defence in depth rather than duplication. It uses the existing
+  // makes this defense in depth rather than duplication. It uses the existing
   // prefix constant, the same one accountProcessingEligibleCondition uses, and
   // changes no firewall.
   if (verified.accountId.startsWith(DEMO_ACCOUNT_ID_PREFIX)) {

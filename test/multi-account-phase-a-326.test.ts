@@ -15,8 +15,8 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 //      had never seen the change.
 //   2. THE RESOLVER, which is where a marker becomes an account.
 //   3. THE CALL SITE, read out of guards.ts as source text, so phase (b) cannot
-//      quietly stop passing the marker while every behavioural test still
-//      passes (the marker is null for every session at phase (a), so behaviour
+//      quietly stop passing the marker while every behavioral test still
+//      passes (the marker is null for every session at phase (a), so behavior
 //      alone cannot discriminate here).
 //
 // Plus a fourth guard for the harness gap: better-sqlite3 is more permissive

@@ -31,14 +31,14 @@ import { HOUND_MARK_PATH, HOUND_MARK_VIEWBOX } from "../app/lib/brand/hound-mark
 
 const pub = new URL("../public/", import.meta.url);
 
-// The band's colours (app/app.css: --bg in the dark theme, --header-brand). This
+// The band's colors (app/app.css: --bg in the dark theme, --header-brand). This
 // script is outside app/, where the raw-hex rule (scripts/check-tokens.mjs)
 // does not reach, because an SVG favicon cannot read CSS custom properties.
 const SQUARE = "#111210";
 const AMBER = "#f0b429";
 const AMBER_RGB = [0xf0, 0xb4, 0x29];
 
-// The mark sits in a 26 square centred on the 32 tile, 3 from each edge.
+// The mark sits in a 26 square centered on the 32 tile, 3 from each edge.
 const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
   <!-- PLACEHOLDER: a hound's head until Dustin picks the real logo (capsomer #65 item 15).
        Built by scripts/build-icons.mjs from app/lib/brand/hound-mark.ts; do not edit by hand. -->

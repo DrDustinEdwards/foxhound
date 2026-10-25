@@ -9,7 +9,7 @@ import { Footer } from "~/components/footer";
 // can review the legal pages before creating an account".
 //
 // Recova's own shape: a full-height flex column, main at flex-1, the footer
-// after it. Each page centres its card in a full-height box of its own, so the
+// after it. Each page centers its card in a full-height box of its own, so the
 // footer sits below the fold, as Recova's comment accepts.
 //
 // No home-linked logo: Recova's layout has none, and its bottom-row mark is an

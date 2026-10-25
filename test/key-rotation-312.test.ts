@@ -51,7 +51,7 @@ describe("312: unresolvable keys and the retired format FAIL LOUD", () => {
     await expect(decryptToken(envA, fresh)).rejects.toThrow(/ENCRYPTION_KEYS_OLD/);
   });
 
-  it("THE ADJUDICATION: the pre-312 two-part format is RECOGNISED and REFUSED", async () => {
+  it("THE ADJUDICATION: the pre-312 two-part format is RECOGNIZED and REFUSED", async () => {
     // Adjudicated rather than supported. Reading it would mean assuming the
     // ACTIVE key encrypted it, which is true only until the first rotation and
     // silently wrong after: the branch would fail exactly when rotation is first

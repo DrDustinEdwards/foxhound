@@ -167,7 +167,7 @@ function Amount({ totals, currency }: { totals: TrendSide["totals"]; currency: s
 }
 
 /** Recova's move: the arrow is drawn, and the direction is also in words for
- *  a screen reader, so the colour is never the only signal. */
+ *  a screen reader, so the color is never the only signal. */
 function Move({ cmp }: { cmp: TrendComparison }) {
   if (cmp.kind === "unchanged") return <span className="text-text-subtle">no change</span>;
   if (cmp.kind !== "moved") return null;

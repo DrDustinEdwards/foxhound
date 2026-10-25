@@ -36,7 +36,7 @@
 // Step 4 is what makes step 5 safe, and the writer reports the counts that prove
 // it. Rotating the production key is Dustin's call; this module is the mechanism.
 //
-// THE LEGACY 2-PART FORMAT IS RECOGNISED AND REFUSED, NOT DECRYPTED, and that is
+// THE LEGACY 2-PART FORMAT IS RECOGNIZED AND REFUSED, NOT DECRYPTED, and that is
 // a decision rather than an oversight. The pre-312 format was `ivHex:cipherHex`
 // with no key id. Supporting it on read would mean assuming it was encrypted with
 // the ACTIVE key, which is true only until the first rotation and silently WRONG
@@ -48,6 +48,8 @@
 // see.
 //
 // Decrypted values are NEVER logged or returned to a client.
+
+import { fromHex, toHex } from "@dustinedwards/site-runtime/encoding";
 
 const IV_BYTES = 12; // 96-bit IV, the standard for AES-GCM.
 const FORMAT_VERSION = "v1";
@@ -108,23 +110,8 @@ export function loadKeyring(env: Env): Keyring {
   return { activeId, byId };
 }
 
-function hexToBytes(hex: string): Uint8Array<ArrayBuffer> {
-  if (hex.length % 2 !== 0) throw new Error("Malformed hex");
-  const out = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < out.length; i += 1) {
-    out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
-  }
-  return out;
-}
-
-function bytesToHex(bytes: Uint8Array): string {
-  let out = "";
-  for (const b of bytes) out += b.toString(16).padStart(2, "0");
-  return out;
-}
-
 async function importKeyHex(hex: string): Promise<CryptoKey> {
-  return crypto.subtle.importKey("raw", hexToBytes(hex), { name: "AES-GCM" }, false, [
+  return crypto.subtle.importKey("raw", fromHex(hex), { name: "AES-GCM" }, false, [
     "encrypt",
     "decrypt",
   ]);
@@ -138,7 +125,7 @@ export async function encryptToken(env: Env, plaintext: string): Promise<string>
   const iv = crypto.getRandomValues(new Uint8Array(IV_BYTES));
   const data = new Uint8Array(new TextEncoder().encode(plaintext));
   const cipher = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, data));
-  return `${FORMAT_VERSION}:${keyring.activeId}:${bytesToHex(iv)}:${bytesToHex(cipher)}`;
+  return `${FORMAT_VERSION}:${keyring.activeId}:${toHex(iv)}:${toHex(cipher)}`;
 }
 
 /** The key id a stored value names, or null when it is not in the v1 format. */
@@ -154,7 +141,7 @@ export async function decryptToken(env: Env, encrypted: string): Promise<string>
   const parts = encrypted.split(":");
 
   if (parts.length === 2) {
-    // Recognised, deliberately unsupported. See the header note.
+    // Recognized, deliberately unsupported. See the header note.
     throw new Error(
       "Encrypted token is in the pre-rotation format (ivHex:cipherHex) with no key id. " +
         "Nothing should hold this format: zero rows existed when 312 introduced key ids. " +
@@ -181,9 +168,9 @@ export async function decryptToken(env: Env, encrypted: string): Promise<string>
 
   const key = await importKeyHex(keyHex);
   const plain = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: hexToBytes(ivHex) },
+    { name: "AES-GCM", iv: fromHex(ivHex) },
     key,
-    hexToBytes(cipherHex),
+    fromHex(cipherHex),
   );
   return new TextDecoder().decode(plain);
 }

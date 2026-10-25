@@ -67,7 +67,7 @@ export const SECURITY_HEADER_OVERRIDES: Readonly<Record<string, HeaderOverride>>
   "Referrer-Policy": {
     value: "strict-origin-when-cross-origin",
     reason:
-      "OWASP's no-referrer also makes browsers send `Origin: null` on same-origin form and fetch POSTs (Fetch spec, request origin serialisation), and Better Auth refuses those with MISSING_OR_NULL_ORIGIN, so every signed-in auth POST would fail; /api/account/switch also returns the merchant to the page they were on from the same-origin Referer. This is Foxhound's pre-J22 value and Recova's (next.config.ts), so nothing is weakened.",
+      "OWASP's no-referrer also makes browsers send `Origin: null` on same-origin form and fetch POSTs (Fetch spec, request origin serialization), and Better Auth refuses those with MISSING_OR_NULL_ORIGIN, so every signed-in auth POST would fail; /api/account/switch also returns the merchant to the page they were on from the same-origin Referer. This is Foxhound's pre-J22 value and Recova's (next.config.ts), so nothing is weakened.",
   },
   "Permissions-Policy": {
     value: withClipboardWriteSelf(PASSKEY_PERMISSIONS_POLICY),

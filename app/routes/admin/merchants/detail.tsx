@@ -118,8 +118,8 @@ export async function action({ context, request, params }: Route.ActionArgs) {
       return data<ActionResult>({
         ok: true,
         warning:
-          `Cancelled. ${result.deauthorizeErrors.length} Stripe connection(s) could not be revoked ` +
-          "automatically and will need a manual revoke or a retry; the account is fully cancelled locally either way.",
+          `Canceled. ${result.deauthorizeErrors.length} Stripe connection(s) could not be revoked ` +
+          "automatically and will need a manual revoke or a retry; the account is fully canceled locally either way.",
       });
     }
     return data<ActionResult>({ ok: true });
@@ -306,7 +306,7 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
 
       <section className="rounded-lg border border-border bg-surface p-4">
         <div className="flex flex-wrap items-center gap-2">
-          {account.cancelledAt ? <Badge tone="failure">Cancelled</Badge> : null}
+          {account.cancelledAt ? <Badge tone="failure">Canceled</Badge> : null}
           {account.billingExempt ? <Badge tone="neutral">Billing exempt</Badge> : null}
           {account.processingPaused ? (
             <Badge tone="failure">
@@ -325,7 +325,7 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
         </p>
         {account.cancelledAt ? (
           <p className="text-label text-text-tertiary">
-            Cancelled <AdminTime at={account.cancelledAt} />
+            Canceled <AdminTime at={account.cancelledAt} />
           </p>
         ) : null}
         <p className="text-label text-text-tertiary">
@@ -368,7 +368,7 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
 
         {/* Review INFO-E. The pause toggle behaves differently on a row the brake
             owns, and nothing on this page said so. Both sentences below are the
-            behaviour pinned in test/admin-brake.test.ts: resuming clears the
+            behavior pinned in test/admin-brake.test.ts: resuming clears the
             marker, and re-pausing a still-marked row PRESERVES 'brake' via the
             CASE in buildSetProcessingPaused, so that pause is undone by the next
             Release. The stale-tab version of that (a form rendered before the

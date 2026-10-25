@@ -183,7 +183,7 @@ export const expiringCardAlerts = sqliteTable(
     //
     // PLAIN, not partial on `deleted_at IS NULL`, because that is legacy's
     // shape: a soft-deleted alert therefore blocks a fresh candidate for the
-    // same card and month, which is legacy's behaviour and is recorded rather
+    // same card and month, which is legacy's behavior and is recorded rather
     // than improved.
     uniqueIndex("expiring_card_alerts_card_month_uq").on(
       t.accountId,

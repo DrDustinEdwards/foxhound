@@ -19,7 +19,7 @@ import { describe, expect, it } from "vitest";
 // two sessions into misreading the system; 312 purged them. The scan below still
 // walks workers/, which now holds only real modules.
 //
-// BOUND, stated per 246: this is a SOURCE-SHAPE guard, not a behavioural one.
+// BOUND, stated per 246: this is a SOURCE-SHAPE guard, not a behavioral one.
 // Proving the effective tolerance at runtime would mean signing a payload with a
 // backdated timestamp against a real secret, and STRIPE_WEBHOOK_SECRET is not
 // configured on this Worker (measured: 8 secrets set, that one absent). So this

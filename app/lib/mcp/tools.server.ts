@@ -46,7 +46,7 @@ import {
 //
 // Twenty-three one-endpoint tools became twelve whole-job ones (rule 3: 5 to 15
 // per server; rule 4: outcomes, not API mirrors), each named
-// foxhound_{action}_{resource} (rule 5) and carrying all four behaviour hints
+// foxhound_{action}_{resource} (rule 5) and carrying all four behavior hints
 // set honestly (rule 6). Ten read and two write. Read and write are never
 // merged into one tool, so a read never carries a write's hints and a client
 // never has to confirm a read. The design is capsid/research/design-mcp-servers.md
@@ -162,7 +162,7 @@ function slicePage<T>(tool: string, rows: T[], page: number, pageSize: number) {
  * 383 SPLIT THAT LIST, and this comment is corrected rather than left standing.
  * `customerIp` and `billingAddress` ARE redacted at the boundary now, so the
  * sentence that used to sit here, that the redactor could not help with any of
- * it, was true when written and is false today. The projection stays as DEFENCE
+ * it, was true when written and is false today. The projection stays as DEFENSE
  * IN DEPTH on those two and remains the ONLY cover for the rest, because 383
  * deliberately declined to redact purchase history and Foxhound's own generated
  * text: those are facts about the merchant's relationship with a customer rather
@@ -287,7 +287,7 @@ const READ_TOOLS: McpTool[] = [
       properties: {
         status: {
           type: "string",
-          description: "Only payments in this recovery status, for example active, recovered, failed or cancelled.",
+          description: "Only payments in this recovery status, for example active, recovered, failed or canceled.",
         },
         decline_category: {
           type: "string",
@@ -652,8 +652,8 @@ const SETTINGS_SECTIONS: Record<string, SettingsSection> = {
     );
   },
   // This text lands in the system prompt that writes the merchant's recovery
-  // emails. It is not sanitised on the way in, exactly as the form does not
-  // sanitise it: `sanitizeCopy` and `passesQualityGate` run on what comes out.
+  // emails. It is not sanitized on the way in, exactly as the form does not
+  // sanitize it: `sanitizeCopy` and `passesQualityGate` run on what comes out.
   brand_voice: async (ctx, s) => {
     await requireOwnConnection(ctx, s);
     return applied(

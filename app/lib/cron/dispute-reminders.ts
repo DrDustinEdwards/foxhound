@@ -22,7 +22,7 @@ import { HOUR_MS } from "~/lib/constants";
 // - with an evidence deadline inside one of the two bands (72 to 96 hours, the
 //   "3 days" reminder; 24 to 48 hours, the "1 day" one);
 // - on an account that is not paused, as Recova's `processing_paused` skip.
-//   accountProcessingEligibleCondition also excludes cancelled and demo
+//   accountProcessingEligibleCondition also excludes canceled and demo
 //   accounts, which Recova reached through its active-product and non-demo
 //   gates;
 // - with a notification address, as Recova's `!account.notification_email`

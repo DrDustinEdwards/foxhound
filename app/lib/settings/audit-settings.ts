@@ -43,7 +43,7 @@ export function normalizeLookback(value: unknown): LookbackOption {
 }
 
 /** How the stored columns render. NULL is OFF and NULL is 90, which is legacy's
- *  `??` behaviour moved into one named place so the cron-facing read and the page
+ *  `??` behavior moved into one named place so the cron-facing read and the page
  *  cannot disagree about what NULL means. */
 export function readAuditSettings(row: {
   auditLookbackDays: number | null;

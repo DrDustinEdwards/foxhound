@@ -72,7 +72,7 @@ export function sequenceRateTone(pct: number, kind: "open" | "click"): SequenceR
   return "red";
 }
 
-// Recova drew the middle band in its accent colour, amber: the caution token the
+// Recova drew the middle band in its accent color, amber: the caution token the
 // dashboard's rate bands use (app.css).
 const RATE_CLASS_NAME: Record<SequenceRateTone, string> = {
   green: "text-success-text",

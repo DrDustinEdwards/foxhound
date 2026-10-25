@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef } from "react";
-import { attach } from "capsomer/behaviour/tooltip";
-import { exact } from "capsomer/behaviour/time";
+import { attach } from "capsomer/behavior/tooltip";
+import { exact } from "capsomer/behavior/time";
 import { Time } from "capsomer/react/time";
 
 // A time in the admin: relative in words ("5 minutes ago"), with the exact time
@@ -12,7 +12,7 @@ import { Time } from "capsomer/react/time";
 // usually one line in a list or a card; Dustin's review, 2026-10-11).
 //
 // Capsomer's Tooltip wrapper renders its tip as a <div>, which is invalid inside
-// the <p> lines these times sit in, so this wires the same behaviour module
+// the <p> lines these times sit in, so this wires the same behavior module
 // (show on hover and focus, Esc hides) to a <span> tip with the same classes.
 export function AdminTime({ at, empty = "never" }: { at: Date | null | undefined; empty?: string }) {
   const id = useId();
@@ -39,7 +39,7 @@ export function AdminTime({ at, empty = "never" }: { at: Date | null | undefined
         role="tooltip"
         popover="manual"
       >
-        {/* Plain text in the tip's own colours: Capsomer's exact Time paints
+        {/* Plain text in the tip's own colors: Capsomer's exact Time paints
             itself in --text, which is the tip's background. The viewer's zone
             differs from the server's, so the browser's words win. */}
         <span suppressHydrationWarning>{exact(at.getTime())}</span>

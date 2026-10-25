@@ -6,7 +6,7 @@
    Capsomer's tokens go into the capbase layer, the lowest (declared first in
    app.css): Foxhound's own tokens and Tailwind's stay as they are, and the
    header, its panels and the shell read Capsomer's where Foxhound has none.
-   Foxhound's colours over them are in app.css (.fh-cap). Capsomer's base
+   Foxhound's colors over them are in app.css (.fh-cap). Capsomer's base
    element rules (capsomer/base.css) are not loaded here, so no page's own
    elements change. */
 @import "capsomer/tokens.css" layer(capbase);

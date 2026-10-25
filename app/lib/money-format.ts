@@ -37,7 +37,7 @@ const WHOLE_UNITS_SENT_AS_HUNDREDTHS = new Set(["isk", "ugx"]);
 
 /** The power of ten between a currency's Stripe amount and its whole unit:
  *  0 for JPY, 3 for KWD, 2 for everything else (including a code nobody
- *  recognises, which is Recova's assumption and the commonest case). */
+ *  recognizes, which is Recova's assumption and the commonest case). */
 export function currencyExponent(currency: string): 0 | 2 | 3 {
   const code = currency.toLowerCase();
   if (ZERO_DECIMAL.has(code)) return 0;

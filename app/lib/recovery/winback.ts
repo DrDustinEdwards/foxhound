@@ -98,7 +98,7 @@ export function isLastWinbackStep(stepNumber: number): boolean {
  * (`if (step.step_number === 3)` sets status 'completed' straight after the
  * claim), so gating the button on a non-terminal status would ship step 3 with
  * a button that is dead on arrival, in the one email whose subject is "Last
- * chance to reactivate your account". A customer who cancelled and has not
+ * chance to reactivate your account". A customer who canceled and has not
  * come back may act on the last email; a customer who already came back, or
  * whose sequence ended some other way, has nothing left to do here.
  */

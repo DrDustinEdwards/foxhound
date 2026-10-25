@@ -86,7 +86,7 @@ export interface IntakeBatchInput {
   detectedAt: Date;
   /**
    * Whether Stripe has stopped retrying (ruling 377(1)). False parks the row in
-   * `stripe_retrying` with NO steps planned; true is the old behaviour, a live
+   * `stripe_retrying` with NO steps planned; true is the old behavior, a live
    * sequence from the first event, which is what a hard decline gets because
    * Stripe never retries one.
    */
@@ -489,7 +489,7 @@ export function buildClaimOnlyBatch(db: Db, claim: WebhookClaimInput): MoneyWrit
  *
  * THE TRANSITION IS 265'S, NOT LEGACY'S. Legacy fires an unconditional per-row
  * `Promise.all` and discards both results. Foxhound already has a RATIFIED
- * active-to-cancelled transition in buildStopRecoveryBatch: the status UPDATE
+ * active-to-canceled transition in buildStopRecoveryBatch: the status UPDATE
  * CLAIMS on `status = 'active'`, and the steps UPDATE is conditioned on that
  * claim having landed via a correlated subquery. Reusing it is what keeps this
  * from seating a second writer against a ratified money transition, and it means

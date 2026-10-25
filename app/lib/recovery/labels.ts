@@ -28,7 +28,7 @@ export const ATTRIBUTION_KIND_LABELS: Record<AttributionKind, string> = {
 export const FAILED_PAYMENT_STATUS_LABELS: Record<string, string> = {
   // ALL FOUR are legacy's own words, READ from its status tabs rather than
   // invented: app/(app)/recovery/payments/components/PaymentsFilters.tsx
-  // STATUS_TABS carries All / Active / Recovered / Cancelled / Failed.
+  // STATUS_TABS carries All / Active / Recovered / Canceled / Failed.
   //
   // `active` and `failed_unrecovered` read "In recovery" and "Not recovered"
   // until 2026-08-14. Those renames were never ratified: PRIME DIRECTIVE item 3
@@ -48,7 +48,7 @@ export const FAILED_PAYMENT_STATUS_LABELS: Record<string, string> = {
   active: "Active",
   recovered: "Recovered",
   failed_unrecovered: "Failed",
-  cancelled: "Cancelled",
+  cancelled: "Canceled",
   // 377(1). Not one of legacy's four tab words, because legacy has no such
   // state: it starts its sequence on the first failure, which is the defect
   // this status exists to fix. Phrased as the merchant's question ("who is

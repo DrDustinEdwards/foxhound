@@ -105,7 +105,7 @@ describe("listExecutedEmailSteps counts sends whose result is not yet recorded",
     return db;
   }
 
-  it("includes the null-result step and still excludes the cancelled one", async () => {
+  it("includes the null-result step and still excludes the canceled one", async () => {
     const db = await seed();
     const rows = await listExecutedEmailSteps(db, "acct_1");
     expect(rows).toHaveLength(2);

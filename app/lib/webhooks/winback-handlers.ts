@@ -104,7 +104,7 @@ export async function handleWinbackStart(
   }
 
   // 3. REPLAY GUARD. Legacy keys its own on stripe_subscription_id: "one
-  //    win-back sequence per cancelled subscription, ever". This SELECT is
+  //    win-back sequence per canceled subscription, ever". This SELECT is
   //    the cheap pre-check; the real guarantee is the unique index, which
   //    makes a concurrent redelivery roll the whole batch back.
   const existing = await findWinbackSequence(env, accountId, intent.subscriptionId);

@@ -29,7 +29,7 @@ import type { HealthFactor } from "./risk";
 //     snapshot, today's scores); a report for a past month written from them
 //     would describe this month under that month's name.
 //   * Regenerate regenerates. Recova returned an existing report unchanged
-//     under a button labelled "Regenerate".
+//     under a button labeled "Regenerate".
 //   * The limit is the RATE_LIMITER Durable Object (app/lib/http/rate-limit.ts),
 //     keyed per account and checked before the model call. The object
 //     serializes every check for one key, so parallel clicks cannot all pass,

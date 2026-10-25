@@ -6,7 +6,7 @@ import { redactToolResult } from "./redact";
 //
 // THE LIVE TOOLS ARE IN ./tools.server.ts, regrouped to the 2026-10-10 MCP
 // ruling (capsid/rulings/mcp-2026-10-10.md): twelve whole-job tools named
-// foxhound_{action}_{resource}, each carrying all four behaviour hints. This
+// foxhound_{action}_{resource}, each carrying all four behavior hints. This
 // module is the gate every one of them passes through at load.
 //
 // THE DENYLIST IS THE HUMAN-FOREVER FIVE, ENFORCED BY CONSTRUCTION (368 ruling
@@ -93,7 +93,7 @@ export interface McpToolContext {
 }
 
 /**
- * The four behaviour hints the 2026-10-10 ruling (rule 6) requires on every
+ * The four behavior hints the 2026-10-10 ruling (rule 6) requires on every
  * tool, set honestly so a client can ask before acting. All four are REQUIRED
  * here rather than optional as in the spec: a missing hint is read by a client
  * as the spec's default, and the default for destructiveHint is true, so an

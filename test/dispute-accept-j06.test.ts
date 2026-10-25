@@ -79,12 +79,12 @@ beforeEach(() => {
     .run(ACCOUNT);
 });
 
-type StripeBehaviour = "ok" | "fail" | "outage" | "network" | "conflict";
+type StripeBehavior = "ok" | "fail" | "outage" | "network" | "conflict";
 
 /** Errors shaped as the Stripe SDK's: a definite 4xx refusal carries its status
  *  code; a 5xx, a concurrent idempotent request (409) and a dropped connection
  *  leave the result unknown. */
-function stripeError(behaviour: Exclude<StripeBehaviour, "ok">): Error {
+function stripeError(behavior: Exclude<StripeBehavior, "ok">): Error {
   const shapes = {
     fail: {
       type: "StripeInvalidRequestError",
@@ -108,14 +108,14 @@ function stripeError(behaviour: Exclude<StripeBehaviour, "ok">): Error {
         "There is currently another in-progress request using this Idempotent Key",
     },
   } as const;
-  const shape = shapes[behaviour];
+  const shape = shapes[behavior];
   return Object.assign(new Error(shape.message), {
     type: shape.type,
     statusCode: shape.statusCode,
   });
 }
 
-function fakeStripe(behaviour: StripeBehaviour) {
+function fakeStripe(behavior: StripeBehavior) {
   const closed: string[] = [];
   const keys: (string | undefined)[] = [];
   const stripe = {
@@ -126,7 +126,7 @@ function fakeStripe(behaviour: StripeBehaviour) {
         options?: { idempotencyKey?: string },
       ) => {
         keys.push(options?.idempotencyKey);
-        if (behaviour !== "ok") throw stripeError(behaviour);
+        if (behavior !== "ok") throw stripeError(behavior);
         closed.push(id);
         return { id, status: "lost" };
       },
@@ -235,9 +235,9 @@ describe("PR 149 review: an unknown Stripe result is never reported as a refusal
 
   it.each(["outage", "network", "conflict"] as const)(
     "%s: Stripe may have closed it, so the merchant is told to check Stripe, and nothing is written",
-    async (behaviour) => {
+    async (behavior) => {
       const result = await acceptDispute(env, input(), {
-        stripe: fakeStripe(behaviour).stripe,
+        stripe: fakeStripe(behavior).stripe,
       });
       expect(result.status).toBe("error");
       const message = result.status === "error" ? result.message : "";

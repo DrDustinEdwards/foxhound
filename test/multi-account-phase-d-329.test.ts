@@ -67,7 +67,7 @@ beforeEach(() => {
   };
   harness.writes = [];
 
-  // The money DO, modelled: one atomic batch per call, recorded so the tests can
+  // The money DO, modeled: one atomic batch per call, recorded so the tests can
   // assert HOW MANY writes happened and what each was keyed on.
   vi.mocked(executeMoneyWrite).mockImplementation(async (_env, write) => {
     const statements = write.build(db);

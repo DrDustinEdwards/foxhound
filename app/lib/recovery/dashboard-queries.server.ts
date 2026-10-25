@@ -191,7 +191,7 @@ export async function countFailuresByCustomer(
   return counts;
 }
 
-// `result != 'cancelled'` is NOT the same as "not cancelled" in SQL: for a row
+// `result != 'cancelled'` is NOT the same as "not canceled" in SQL: for a row
 // whose result IS NULL the comparison evaluates to NULL, which a WHERE clause
 // treats as false, so the row is dropped. An executed step that has not yet
 // recorded a result is a legitimately counted send, so it must survive. This
@@ -200,7 +200,7 @@ export function notCancelledResult(): SQL {
   return sql`(${recoverySteps.result} is null or ${recoverySteps.result} != 'cancelled')`;
 }
 
-/** Executed, non-cancelled email steps (renewal noise excluded), with the
+/** Executed, non-canceled email steps (renewal noise excluded), with the
  *  decline category of their failed payment. UNSCOPED by range, matching
  *  legacy's own emailCategoryPerformance/openRate/clickRate query exactly (it
  *  carries no date filter at all, verified against the actual legacy source,

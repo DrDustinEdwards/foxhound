@@ -68,7 +68,7 @@ function isConnectAction(value: unknown): value is ConnectAction {
  * A fresh state payload for one OAuth flow.
  *
  * The caller puts the returned string in BOTH the `state` query parameter and
- * the state cookie. Serialised in one expression with an explicit key order, so
+ * the state cookie. Serialized in one expression with an explicit key order, so
  * the two copies are produced identically and cannot drift into a mismatch that
  * would read as an attack.
  */

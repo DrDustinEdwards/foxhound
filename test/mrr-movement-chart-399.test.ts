@@ -19,7 +19,7 @@ import type { HealthDistributionDay, MrrSnapshotPoint } from "~/lib/intelligence
 //   sub      "New, expansion, contraction, and churn by week"
 //   plot     recharts BarChart height={200}, five Bar marks on two stackIds:
 //            "pos" New / Expansion / Reactivation, "neg" Contraction / Churn
-//   colours  New var(--green), Expansion var(--blue), Reactivation
+//   colors  New var(--green), Expansion var(--blue), Reactivation
 //            var(--purple), Contraction var(--orange), Churn var(--red)
 //   values   whole dollars; contraction and churn NEGATED so they hang below
 //   axes     YAxis tickFormatter `$${Math.abs(v)}`, ReferenceLine y={0}
@@ -34,13 +34,13 @@ import type { HealthDistributionDay, MrrSnapshotPoint } from "~/lib/intelligence
 // PURPLE IS FLAGGED RATHER THAN ASSUMED. DESIGN.md's Charts section reserves it
 // for "the win-back attribution series" and nothing else. Reactivation MRR is
 // revenue from customers who churned and returned, which is what win-back
-// sequences exist to produce, so the reservation and legacy's colour agree.
+// sequences exist to produce, so the reservation and legacy's color agree.
 // Asserted below so the reading is on the record and a later reader who
 // disagrees changes one class name and one test line together.
 
 // J67 (Q1, Dustin "yes", 2026-10-14) moved this chart from the hand-built SVG
 // to Enarratio, so the assertions below read Enarratio's figure: its legend,
-// its labelled rule, its data table. What each one guards is unchanged. The
+// its labeled rule, its data table. What each one guards is unchanged. The
 // J67 suite (test/intelligence-dashboard-j67.test.ts) pins the page around it.
 
 const Page = IntelligenceOverviewPage as unknown as (props: { loaderData: unknown }) => ReactElement;

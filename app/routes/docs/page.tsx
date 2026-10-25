@@ -1,3 +1,4 @@
+import { slugify } from "@drdustinedwards/site-helpers/slug";
 import { Breadcrumb } from "capsomer/react/breadcrumb";
 import { Link } from "react-router";
 
@@ -36,13 +37,6 @@ import type { Route } from "./+types/page";
 //
 // Ids are generated from Foxhound's section headings. The wrapper is a div: the
 // marketing layout already renders the page's one <main>.
-
-function slugify(heading: string): string {
-  return heading
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
 
 export function loader({ params, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);

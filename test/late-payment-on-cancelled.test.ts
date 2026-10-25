@@ -17,9 +17,9 @@ import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 // GROUND TRUTH, read at source before any of this was designed (the 284 rule):
 // legacy's handlePaymentSucceeded (app/api/webhooks/stripe/route.ts, blob
 // deb585e) selects failed_payments with `.eq('status','active')` ALONE, so a
-// cancelled payment is never found, `failedPayment` is null, and the entire
+// canceled payment is never found, `failedPayment` is null, and the entire
 // recovered block is skipped. LEGACY RECORDS NOTHING: no recovered_payments row,
-// no status flip, no outcome, no merchant notification. Foxhound's behaviour
+// no status flip, no outcome, no merchant notification. Foxhound's behavior
 // here is therefore a DELIBERATE DIVERGENCE, ratified onto PRIME DIRECTIVE item
 // 3 under 284's reasoning: a merchant's stop is Foxhound workflow state, Stripe
 // does not rescind the event, and money that came back is a fact.
@@ -119,8 +119,8 @@ function commitBatch(
   }
 }
 
-describe("284 one: the gate widens to cancelled, and stays symmetric", () => {
-  it("cancelled is recoverable alongside active and the exhausted status", () => {
+describe("284 one: the gate widens to canceled, and stays symmetric", () => {
+  it("canceled is recoverable alongside active and the exhausted status", () => {
     expect([...RECOVERABLE_FAILED_PAYMENT_STATUSES]).toContain(FAILED_PAYMENT_STATUS_CANCELLED);
     // The other two must survive: widening for one status must not drop another.
     expect([...RECOVERABLE_FAILED_PAYMENT_STATUSES]).toContain("active");

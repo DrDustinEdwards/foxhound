@@ -17,8 +17,8 @@ import { resolveDisputedRecovery } from "~/lib/webhooks/lookups";
 //
 // WHAT LEGACY DOES AND WHY IT IS NOT PORTED VERBATIM. Legacy retrieves the
 // dispute, guards against a double import with a pre-check SELECT, inserts a
-// minimal row, then re-enters its webhook handler with a SYNTHESISED event id
-// (`sync_${Date.now()}`). That synthesised id is the problem: it is fresh on
+// minimal row, then re-enters its webhook handler with a SYNTHESIZED event id
+// (`sync_${Date.now()}`). That synthesized id is the problem: it is fresh on
 // every click, so it is not an idempotency key at all, and the only thing
 // standing between two clicks and two dispute rows is a SELECT that ran before
 // the INSERT. That is a read-then-write race on a row that gates a 20%-of-won

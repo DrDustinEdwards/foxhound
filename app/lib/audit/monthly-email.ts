@@ -71,7 +71,7 @@ function figure<T>(scope: ScopeOutcome<T>, render: (data: T) => string): string 
   return scope.ok ? render(scope.data) : SCOPE_UNREAD;
 }
 
-/** One labelled line, as Recova's label and value spans read: "MRR: $1,000".
+/** One labeled line, as Recova's label and value spans read: "MRR: $1,000".
  *  Plain strings; Capsomer escapes them once, in both parts. Label and value
  *  rows of its own are capsomer job_d7f02cec277c. */
 function row(label: string, value: string): Block {
@@ -80,11 +80,11 @@ function row(label: string, value: string): Block {
 
 /**
  * A money row, one line per currency (job_ed1c41e4bd95, approved by Dustin on
- * 2026-10-25). The first currency sits on the labelled row as before; each
+ * 2026-10-25). The first currency sits on the labeled row as before; each
  * other currency is its own line straight below it. Recova added them into one
  * number under the first currency's label (RULES.md 3.20). A single-currency
  * account gets the one row it always did. `lead` is what goes before the
- * amount on the labelled row ("3, "), `tail` what follows every amount.
+ * amount on the labeled row ("3, "), `tail` what follows every amount.
  */
 function moneyRows<T>(
   label: string,
@@ -123,7 +123,7 @@ export interface MonthlyAuditEmailInput {
  * 310), with "Recova" becoming "Foxhound" in the one label that names the
  * product. Its two section labels are muted lines, as Recova's are, not
  * headings (a heading below the mail's one h1 is capsomer job_19bf5c96e33d).
- * Recova's colours on the churn, rate and advisory values are look, which is
+ * Recova's colors on the churn, rate and advisory values are look, which is
  * Capsomer's; the words are unchanged. Recova's `&mdash;` row separators are a
  * comma, as no em dash is ported (ENGINE-AUDIT reversal 54, and E22).
  *

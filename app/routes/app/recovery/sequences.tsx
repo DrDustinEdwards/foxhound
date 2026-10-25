@@ -149,7 +149,7 @@ function StepPerformanceChart({ chart }: { chart: StepPerformanceSummary["chart"
             series: "series",
             layout: "grouped",
             // Recova's funnel order, Open then Click then Recovery, in its
-            // colours, except that Recovery rate takes Foxhound's amber.
+            // colors, except that Recovery rate takes Foxhound's amber.
             seriesDomain: STEP_PERFORMANCE_SERIES,
             colors: { "Open rate": "var(--green)", "Click rate": "var(--blue)", "Recovery rate": "var(--brand-ui)" },
             xLabel: null,
@@ -214,7 +214,7 @@ function StepCardView({ card }: { card: StepCard }) {
       <>Latest subject: {card.latestSubject}</>
     ) : null;
   // The figures sit in the body, on the panel's surface, not in its raised
-  // header: the rate colours and the subtle text reach 4.5:1 on the surface in
+  // header: the rate colors and the subtle text reach 4.5:1 on the surface in
   // both themes and fall short on the dark raised tone.
   return (
     <Panel

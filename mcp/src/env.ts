@@ -21,6 +21,6 @@ export interface AdminMcpEnv {
   ACCESS_SAAS_CLIENT_SECRET?: string;
   /** This Worker's own origin. Defaults to https://admin-mcp.foxhoundapp.com. */
   ADMIN_MCP_ORIGIN?: string;
-  /** Extra exact registration callbacks, space or comma separated (registration.ts). */
+  /** Extra exact registration callbacks, space or comma separated, beside site-runtime's DCR_CALLBACKS (door.ts). */
   DCR_REDIRECT_URIS?: string;
 }

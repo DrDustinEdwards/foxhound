@@ -220,7 +220,7 @@ export function tallyStatusCounts(statuses: string[]): PaymentStatusCounts {
  *  search/category/amount/time.
  *
  *  ONE card reads a different member of this same result depending on the
- *  selected status pill, "Showing", which is legacy's own behaviour at its
+ *  selected status pill, "Showing", which is legacy's own behavior at its
  *  PaymentsClient.tsx call site (279). That is a different KEY off this
  *  unfiltered tally and never a filtered query, so this function stays
  *  status-independent and still runs once. This comment read
@@ -476,7 +476,7 @@ export interface ExecutedRecoveryStepRow {
   creditedRecovery: boolean;
 }
 
-/** Every executed (non-cancelled) recovery_steps row for the account, across
+/** Every executed (non-canceled) recovery_steps row for the account, across
  *  every failed payment, joined to its decline category - the account-wide
  *  step-performance read model for /recovery/sequence. */
 export async function listExecutedRecoverySteps(db: Db, accountId: string): Promise<ExecutedRecoveryStepRow[]> {

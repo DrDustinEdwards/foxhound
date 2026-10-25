@@ -163,7 +163,7 @@ export function readOpenInvoices(stripe: Stripe): Promise<ReadOutcome<Stripe.Inv
  *
  * THE EXPANSION AND THE PAGINATION ARE THE SAME ONES `cron/expiring-cards.ts`
  * ALREADY USES. The cron narrows to `status: "active"` because it only alerts on
- * live subscriptions; the audit needs `"all"` because past-due and cancelled
+ * live subscriptions; the audit needs `"all"` because past-due and canceled
  * subscriptions are two of its six scopes. Same call, one parameter apart.
  */
 export function readSubscriptions(stripe: Stripe): Promise<ReadOutcome<Stripe.Subscription>> {

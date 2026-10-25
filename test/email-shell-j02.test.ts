@@ -49,8 +49,8 @@ const BASE = "https://foxhoundapp.test";
 const ADDRESS = "1 Test Way, Austin TX";
 const ACCOUNT = "acct_1";
 const FP = "fp_1";
-// Capsomer's amber family, light theme, the body text colour. Read from
-// capsomer/email's generated colours.ts at v0.18.0; every mail has body text.
+// Capsomer's amber family, light theme, the body text color. Read from
+// capsomer/email's generated colors.ts at v0.18.0; every mail has body text.
 const BRAND_TEXT = "#211909";
 
 const env = {

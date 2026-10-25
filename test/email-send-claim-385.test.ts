@@ -31,7 +31,7 @@ vi.mock("~/db", async (importOriginal) => ({
 
 const sent: { subject: string }[] = [];
 const sendCalls: { atRowCount: number }[] = [];
-const sendBehaviour = { mode: "ok" as "ok" | "throw" };
+const sendBehavior = { mode: "ok" as "ok" | "throw" };
 
 vi.mock("~/lib/email/send", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/lib/email/send")>()),
@@ -43,7 +43,7 @@ vi.mock("~/lib/email/send", async (importOriginal) => ({
     const rows = await db.select().from(emailSends);
     sendCalls.push({ atRowCount: rows.length });
     sent.push({ subject: job.subject });
-    if (sendBehaviour.mode === "throw") throw new Error("provider refused: 550 mailbox full");
+    if (sendBehavior.mode === "throw") throw new Error("provider refused: 550 mailbox full");
     return { providerMessageId: "prov_1" };
   },
 }));
@@ -77,7 +77,7 @@ async function seed() {
   harness.db = made.db;
   sent.length = 0;
   sendCalls.length = 0;
-  sendBehaviour.mode = "ok";
+  sendBehavior.mode = "ok";
   // Live sends ON, or the gate short-circuits before the claim is ever reached
   // and every test below would pass having exercised nothing (383's rule).
   await made.db
@@ -125,7 +125,7 @@ describe("PLANT 1: the same key twice sends once", () => {
 describe("PLANT 3: a provider throw", () => {
   it("LEAVES A PENDING ROW WITH THE ERROR AND NO SENT FLIP", async () => {
     const { db } = await seed();
-    sendBehaviour.mode = "throw";
+    sendBehavior.mode = "throw";
 
     const result = await processEmailJob({} as Env, job(), null);
 
@@ -150,10 +150,10 @@ describe("PLANT 3: a provider throw", () => {
     // so without this a single transient refusal would permanently consume those
     // sends. expiring-card-cron.test.ts asserts the opposite by name.
     const { db } = await seed();
-    sendBehaviour.mode = "throw";
+    sendBehavior.mode = "throw";
     await processEmailJob({} as Env, job(), null);
 
-    sendBehaviour.mode = "ok";
+    sendBehavior.mode = "ok";
     const second = await processEmailJob({} as Env, job(), null);
 
     expect(second.status).toBe("sent");
@@ -192,7 +192,7 @@ describe("PLANT 4: the unique index, fired directly (381)", () => {
   it("but a NULL key is not a value, so unclaimed rows do not collide", async () => {
     // Suppressed and blocked rows carry no key, and there can be many of them.
     // A plain unique index would be enough in SQLite; the index is partial and
-    // this proves the behaviour either way.
+    // this proves the behavior either way.
     const { db } = await seed();
     const base = {
       job: job(),

@@ -28,7 +28,7 @@ import { HOUR_MS } from "~/lib/constants";
 // - Customers: listCustomerDirectory's default order, health ascending, with
 //   its plan pill (planTierPill) and its MRR cell ("-" with none).
 // - Bands: getChurnBands, per healthScoreBand (the engine's 40/70 cutoffs),
-//   totalled with groupSumByCurrency (RULES.md 3.20).
+//   totaled with groupSumByCurrency (RULES.md 3.20).
 //
 // Strings are formatted here, on the server, so the page renders the same
 // text on the server and in the browser.

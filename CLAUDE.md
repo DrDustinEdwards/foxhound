@@ -1,6 +1,6 @@
 # CLAUDE.md - foxhound
 
-Foxhound is the Cloudflare-native rebuild of Recova: failed-payment recovery, disputes and subscription intelligence for Stripe merchants. Work in this repo only; the legacy Recova app is the separate, frozen repo DrDustinEdwards/recova.
+Foxhound is the Cloudflare-native rebuild of Recova: failed-payment recovery, disputes and subscription intelligence for Stripe merchants. Work in this repo only; the legacy Recova app is the separate, frozen repo DrDustinEdwards/recova. Before writing anything another site might have, read what the family shares: https://github.com/DrDustinEdwards/devkit/blob/shared-list/SHARED.md (CI's family check fails on a copy).
 
 ## PRIME DIRECTIVE (Dustin, verbatim intent, 2026-07-27)
 
@@ -15,7 +15,7 @@ Look and components come from Capsomer now, on every surface, Recova's amber thr
 ## Rules that come first
 
 - Read `foxhound/core.md`, then `foxhound/RULES.md`, the only Foxhound rules document that binds. The prime directive above stands.
-- Tests: keep the minimal set (a few browser tests for flows that must never break, one integration test per real behaviour, unit tests only for tricky logic, shared code tested once where it lives), and remove any test that pins design, repeats coverage or has never caught a real mistake, unless it guards a harm that cannot be undone.
+- Tests: keep the minimal set (a few browser tests for flows that must never break, one integration test per real behavior, unit tests only for tricky logic, shared code tested once where it lives), and remove any test that pins design, repeats coverage or has never caught a real mistake, unless it guards a harm that cannot be undone.
 - Canon lives in Capsid namespace `foxhound`: ARCHITECTURE.md, PRICING.md, DESIGN.md, SCHEMA.md, ROUTES.md, rebuild-plan.md and backlog.md; parity state is `parity/PARITY-LEDGER.md`. Never copy canon into this repo.
 
 ## Repo-specific hard rules

@@ -24,7 +24,7 @@ export interface CategoryVoiceRow {
   key: "soft" | "expired" | "network" | "fraud";
   label: string;
   description: string;
-  /** Legacy's coloured dot per category. */
+  /** Legacy's colored dot per category. */
   dotClass: string;
 }
 

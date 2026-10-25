@@ -19,7 +19,7 @@ import "capsomer/status.css";
 // Capsomer's (Q10): a link button, the card as a body-only panel, Capsomer's
 // field label and input, a primary button (amber) and a quiet Cancel, and
 // the result as a Capsomer status in a live region, so it is announced and is
-// never colour alone. Like legacy, Cancel clears the result and a successful
+// never color alone. Like legacy, Cancel clears the result and a successful
 // import clears the input.
 //
 // THE TRANSPORT IS FOXHOUND'S, class (a) internals. Legacy is a client

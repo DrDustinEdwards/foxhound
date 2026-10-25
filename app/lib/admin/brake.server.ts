@@ -70,7 +70,7 @@ const BRAKE_ACTION_RESUME_ACCOUNT = "brake.resume.account";
 
 /**
  * Accounts the brake will pause: EVERY account except demo-prefixed, already
- * paused, and cancelled. Three exclusions, and no others.
+ * paused, and canceled. Three exclusions, and no others.
  *
  * Already-paused is skipped so the brake never takes ownership of a merchant an
  * operator paused deliberately (see the pause_reason comment in schema.ts). The
@@ -88,7 +88,7 @@ const BRAKE_ACTION_RESUME_ACCOUNT = "brake.resume.account";
  * charge THAT MERCHANT fees; it says nothing about whether their customers
  * should keep being charged. The brake is an incident control, not a billing one.
  *
- * Cancelled accounts ARE skipped (review LOW-1), and this is the half that has
+ * Canceled accounts ARE skipped (review LOW-1), and this is the half that has
  * to compose with the ruling in charge-retry.ts's queryStrandedInvoices.
  * Cancellation already halts processing, so pausing adds nothing operationally,
  * but processing_paused ALSO gates billing: pausing would flip
@@ -119,7 +119,7 @@ export function brakePausedCondition(): SQL {
  *  The null branch is not legacy tolerance, it is required: the demo seeder
  *  writes processing_paused directly, and any row paused before the pause_reason
  *  column existed carries null too. Keying this on "not 'brake'" rather than on
- *  "is 'manual'" means an unrecognised or absent reason is treated as
+ *  "is 'manual'" means an unrecognized or absent reason is treated as
  *  not-the-brake's, which is the safe direction: the failure mode is a merchant
  *  staying paused, never one being resumed by a release that did not pause it. */
 function individuallyPausedCondition(): SQL {
@@ -498,7 +498,7 @@ export interface StaleMarkerCounts {
    *  setProcessingPaused. */
   markedButNotPaused: number;
   /** A PAUSED row carrying a reason outside KNOWN_PAUSE_REASONS. Release matches
-   *  the exact 'brake' string, so an unrecognised value is a row release will
+   *  the exact 'brake' string, so an unrecognized value is a row release will
    *  silently never touch, and the panel would otherwise report it as merely
    *  "paused outside the brake" and hide the drift. */
   pausedWithUnknownReason: number;

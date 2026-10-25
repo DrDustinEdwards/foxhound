@@ -92,7 +92,7 @@ describe("PLANT 2: absent context produces NO line, never a placeholder", () => 
     seedAccount({});
     const prompt = await promptForAccount();
     expect(prompt).not.toContain("Merchant context");
-    // And no empty artefact where the line would have been.
+    // And no empty artifact where the line would have been.
     expect(prompt).not.toContain("null");
     expect(prompt).not.toContain("undefined");
   });

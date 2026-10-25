@@ -146,7 +146,7 @@ export async function listActiveFailedPaymentIds(
         eq(failedPayments.stripeCustomerId, stripeCustomerId),
         // LIVE, not just active. THIS IS HALT 1 OF SESSION 82 (377(1)): the
         // whole reason the row is created during Stripe's retry window instead
-        // of being deferred. A subscription cancelled while the payment sits in
+        // of being deferred. A subscription canceled while the payment sits in
         // stripe_retrying is involuntary churn, and if this read cannot see the
         // row the cancellation looks voluntary and spawns a win-back campaign
         // at customers whose card just failed.
@@ -190,7 +190,7 @@ export async function resolveWinbackStep1Offset(
   }
 }
 
-/** Legacy's already-chased test: a failed payment RESOLVED (cancelled or
+/** Legacy's already-chased test: a failed payment RESOLVED (canceled or
  *  recovered) since the cutoff. Legacy's status pair exactly. */
 export async function hasRecentlyResolvedFailedPayment(
   env: Env,

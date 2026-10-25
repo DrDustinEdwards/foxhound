@@ -214,7 +214,7 @@ function BlogHero({ post }: { post: BlogPostSummary }) {
         ) : (
           <div className="aspect-video w-full overflow-hidden rounded-xl border border-border-sub">
             {/* Legacy's hand-drawn cover fallback, ported from app/(marketing)/blog/page.tsx.
-                Legacy inlines four literal colours plus a [data-theme="light"] override block.
+                Legacy inlines four literal colors plus a [data-theme="light"] override block.
                 Its two dark values are exactly our --bg and --brand-text, and its two light
                 values are exactly what those same tokens hold under [data-theme="light"]
                 (verified against app.css), so the var() form renders identically in both

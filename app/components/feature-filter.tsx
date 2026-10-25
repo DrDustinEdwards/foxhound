@@ -5,13 +5,13 @@ import { FEATURE_FILTERS, type FeatureFilterValue } from "~/lib/marketing/featur
 // exactly one active, flex-wrap with gap-2 and mb-10 under the header. The
 // pills are Capsomer's filter chips (capsomer/chips.css), the family part for
 // "filter a list by up to six values" (Q12): a pressed chip carries a tick,
-// the accent edge and the tint, so the active one is not marked by colour
-// alone. Recova's one-active behaviour is kept, so a press moves the choice
+// the accent edge and the tint, so the active one is not marked by color
+// alone. Recova's one-active behavior is kept, so a press moves the choice
 // rather than adding to it; Capsomer's FilterChips React wrapper is
 // multi-select, which is why the chip markup is used here directly.
 //
 // Recova marks the row up as a tablist of tabs with aria-selected but no tab
-// panels. Capsomer's chips are a labelled group of toggle buttons with
+// panels. Capsomer's chips are a labeled group of toggle buttons with
 // aria-pressed, which says what the control does. The group keeps Recova's
 // accessible name. A visually hidden live line says what the filter left,
 // as Capsomer's chips do with a visible count; Recova shows no count, so the

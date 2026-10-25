@@ -18,8 +18,8 @@ import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
 const now = new Date("2026-08-12T00:00:00.000Z");
 
-describe("cancelled status: the schema needs no migration to accept it", () => {
-  it("stores and reads back a cancelled payment against the committed migrations", () => {
+describe("canceled status: the schema needs no migration to accept it", () => {
+  it("stores and reads back a canceled payment against the committed migrations", () => {
     // MEASURED, and it is why this fold ships no migration: `failed_payments.status`
     // is `text NOT NULL` with NO CHECK constraint (zero CHECK clauses for that
     // table across all committed migrations), so the column already accepts the
@@ -50,8 +50,8 @@ describe("cancelled status: the schema needs no migration to accept it", () => {
   });
 });
 
-describe("cancelled status: counting", () => {
-  it("counts cancelled on its own and never folds it into not-recovered", () => {
+describe("canceled status: counting", () => {
+  it("counts canceled on its own and never folds it into not-recovered", () => {
     const counts = tallyStatusCounts([
       "active",
       "active",
@@ -70,7 +70,7 @@ describe("cancelled status: counting", () => {
     });
   });
 
-  it("an unrecognised status still lands in `all` and in no bucket", () => {
+  it("an unrecognized status still lands in `all` and in no bucket", () => {
     const counts = tallyStatusCounts(["something_new"]);
     expect(counts.all).toBe(1);
     expect(counts.active + counts.recovered + counts.failedUnrecovered + counts.cancelled).toBe(0);

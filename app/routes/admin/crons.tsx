@@ -98,7 +98,7 @@ export async function action({ context, request }: Route.ActionArgs) {
 }
 
 // A run's status in words, with Capsomer's status glyph (shape, word and
-// colour together), not an uppercase code-style badge. Recova's status pills:
+// color together), not an uppercase code-style badge. Recova's status pills:
 // success, failed, and "no runs" for a cron that has never run.
 const RUN_STATUS: Record<string, { tone: StatusTone; word: string }> = {
   success: { tone: "ok", word: "Succeeded" },

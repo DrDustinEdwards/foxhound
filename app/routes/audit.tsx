@@ -166,7 +166,7 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
   const busy = useNavigation().state !== "idle";
 
   return (
-    // Recova's column: 680px, centred, px-4 md:px-8, py-10 md:py-20. In
+    // Recova's column: 680px, centered, px-4 md:px-8, py-10 md:py-20. In
     // Capsomer's amber family with Foxhound's own neutrals (.fh-cap, as /demos
     // and /pricing), comfortable density so each panel takes Capsomer's roomier
     // padding.

@@ -91,7 +91,7 @@ export interface PlatformOverview {
  *  inventory (app/admin/page.tsx), each computed by Foxhound's engine. */
 export interface AdminOverview extends PlatformOverview {
   /** Merchants whose processing is paused and who could be resumed (not
-   *  cancelled or deleted, where processing is gated anyway). */
+   *  canceled or deleted, where processing is gated anyway). */
   pausedCount: number;
   billingExemptCount: number;
   /** Stripe connections made in the last NEW_CONNECTION_DAYS and still live. */
@@ -267,7 +267,7 @@ async function openDisputes(
 /** Fee invoices that need a person: a charge that failed and is still being
  *  chased (payment_failed), and fees owed that nobody will collect without one
  *  (gave_up, written by the retry sweep when it stops; uncollectible, from
- *  Stripe). void is left out: a voided invoice was cancelled on purpose.
+ *  Stripe). void is left out: a voided invoice was canceled on purpose.
  *  billing/labels.ts counts all four as failed. */
 const FEE_ATTENTION_STATUSES = ["payment_failed", "gave_up", "uncollectible"] as const;
 /** Recova's window for failed billing charges; an older write-off has had

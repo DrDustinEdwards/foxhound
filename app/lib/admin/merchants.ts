@@ -30,7 +30,7 @@ export function merchantViewPath(view: MerchantView): string {
 
 /** The rows a list shows: exactly those whose flag is set, as Recova's
  *  .eq("processing_paused", true) and .eq("billing_exempt", true) reads did,
- *  so a cancelled merchant still holding the flag stays on the list. */
+ *  so a canceled merchant still holding the flag stays on the list. */
 export function merchantsInView<T extends { processingPaused: boolean; billingExempt: boolean }>(
   rows: readonly T[],
   view: MerchantView,
@@ -46,7 +46,7 @@ export function merchantsActionFor(view: MerchantView): string {
   return view === "all" ? MERCHANTS_ACTION : merchantViewPath(view);
 }
 
-/** The confirm page for cancelling one merchant, on the list it was asked from. */
+/** The confirm page for canceling one merchant, on the list it was asked from. */
 export function merchantCancelHref(accountId: string, view: MerchantView = "all"): string {
   return `${merchantViewPath(view)}?cancel=${encodeURIComponent(accountId)}`;
 }
@@ -70,7 +70,7 @@ export function isCancelConfirmValid(typed: string): boolean {
 export type MerchantTone = "crit" | "warn" | "ok" | "info" | "nodata";
 
 /** One status per row, in Recova's order (Paused, then Exempt, then Active,
- *  then Inactive), with Foxhound's Cancelled first: a cancelled merchant is
+ *  then Inactive), with Foxhound's Canceled first: a canceled merchant is
  *  stopped whatever its flags say. Inactive is Recova's word for a merchant
  *  with no live Stripe connection. */
 export function merchantStatus(row: {
@@ -80,7 +80,7 @@ export function merchantStatus(row: {
   billingExempt: boolean;
   connectionStatus: "connected" | "disconnected" | "never_connected";
 }): { tone: MerchantTone; word: string } {
-  if (row.cancelledAt) return { tone: "crit", word: "Cancelled" };
+  if (row.cancelledAt) return { tone: "crit", word: "Canceled" };
   if (row.processingPaused) {
     return { tone: "crit", word: row.pauseReason === PAUSE_REASON_BRAKE ? "Paused by brake" : "Paused" };
   }

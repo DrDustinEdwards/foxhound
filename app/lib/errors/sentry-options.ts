@@ -1,7 +1,7 @@
 import type { CloudflareOptions, Event } from "@sentry/cloudflare";
 
 // J05 (job_f1f5ebd7fe50): the Sentry posture, set before Dustin puts in
-// SENTRY_DSN. With no DSN this returns undefined and the SDK initialises
+// SENTRY_DSN. With no DSN this returns undefined and the SDK initializes
 // nothing, exactly as before. With a DSN:
 //
 // - sendDefaultPii is false, written out so a changed SDK default cannot turn

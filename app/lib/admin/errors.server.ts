@@ -4,7 +4,7 @@
 //
 // 1. Sentry. The Worker sends to Sentry only while SENTRY_DSN is set
 //    (workers/app.ts). The DSN cannot read anything back: listing issues needs
-//    a Sentry auth token (event:read) and the organisation's slug, so the page
+//    a Sentry auth token (event:read) and the organization's slug, so the page
 //    reads Sentry only when all three are set, and otherwise says which are
 //    missing. The token goes in the Authorization header to the sentry.io API
 //    for the DSN's own region and nowhere else; it is never returned, rendered
@@ -83,7 +83,8 @@ function safePermalink(value: unknown): string | null {
   }
 }
 
-function toDate(value: unknown): Date | null {
+// Sentry sends ISO strings; anything else, or an unreadable one, is no date.
+function sentryDate(value: unknown): Date | null {
   if (typeof value !== "string") return null;
   const d = new Date(value);
   return Number.isNaN(d.getTime()) ? null : d;
@@ -103,17 +104,17 @@ function toIssue(raw: Record<string, unknown>): SentryIssue {
     level: typeof raw.level === "string" ? raw.level : "error",
     count: toCount(raw.count),
     userCount: toCount(raw.userCount),
-    firstSeen: toDate(raw.firstSeen),
-    lastSeen: toDate(raw.lastSeen),
+    firstSeen: sentryDate(raw.firstSeen),
+    lastSeen: sentryDate(raw.lastSeen),
     permalink: safePermalink(raw.permalink),
   };
 }
 
 function failureMessage(status: number, org: string): string {
   if (status === 401 || status === 403) {
-    return `Sentry refused the token (${status}). It needs the event:read scope on this organisation.`;
+    return `Sentry refused the token (${status}). It needs the event:read scope on this organization.`;
   }
-  if (status === 404) return `Sentry found no organisation named ${org}, or no project with this DSN's id in it.`;
+  if (status === 404) return `Sentry found no organization named ${org}, or no project with this DSN's id in it.`;
   if (status === 429) return "Sentry asked Foxhound to slow down (429). Read again in a minute.";
   return `Sentry answered ${status}.`;
 }

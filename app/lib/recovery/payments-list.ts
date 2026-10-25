@@ -52,7 +52,7 @@ export function sliderDollars(cents: number, isMax = false, absoluteMax = 0): st
   return `$${Math.round(cents / 100)}`;
 }
 
-/** The head's figures, totalled per currency over the rows on screen, as
+/** The head's figures, totaled per currency over the rows on screen, as
  *  Recova's PaymentsClient totals its `filtered` rows. */
 export interface PaymentsHeaderStats {
   atRisk: { currency: string; cents: number }[];
@@ -97,7 +97,7 @@ export function bulkResultClearsItself(
 const BULK_RESULT_LABELS: Record<string, string> = {
   trigger: "Triggered",
   mark_recovered: "Marked recovered",
-  cancel: "Cancelled",
+  cancel: "Canceled",
 };
 
 export function bulkResultLine(intent: string, results: readonly { ok: boolean }[]): string {

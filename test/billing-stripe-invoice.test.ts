@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // billing-platform.test.ts, which deliberately never mocks stripe/client.
 const mockStripe = vi.hoisted(() => {
   const calls: Array<{ method: string; args: unknown[] }> = [];
-  // Stripe's own idempotency behavior, modelled only as far as these tests
+  // Stripe's own idempotency behavior, modeled only as far as these tests
   // need it: a replayed key returns the ORIGINAL object instead of creating a
   // second one. `failOnKey` lets a test blow up one specific item to simulate
   // the mid-loop failure the per-item keys exist to make survivable.

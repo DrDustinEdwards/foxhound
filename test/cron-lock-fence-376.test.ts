@@ -92,7 +92,7 @@ describe("PLANT 1: the overrun sequence, which is the defect", () => {
 });
 
 describe("PLANT 4: the one-deploy compatibility read", () => {
-  it("a PRE-FENCE hold is still honoured, so the fence deploy cannot double-run a job", () => {
+  it("a PRE-FENCE hold is still honored, so the fence deploy cannot double-run a job", () => {
     // At the deploy that ships the fence, a run started by the old code may be
     // in flight holding the old bare-expiry key. New code reading only the new
     // key would see no lock and start a second concurrent run of a job that

@@ -27,7 +27,7 @@ export async function loadMerchantsPage(env: Env, request: Request, view: Mercha
   // (brakePausedCondition: paused and carrying the brake's marker).
   const brakePaused = paused.filter((m) => m.pauseReason === PAUSE_REASON_BRAKE).length;
   // ?cancel=<id> opens the confirm page for a merchant that can still be
-  // cancelled. An unknown or already cancelled one opens nothing, so a stale
+  // canceled. An unknown or already canceled one opens nothing, so a stale
   // link lands on the table rather than on a confirmation of nothing.
   const asked = new URL(request.url).searchParams.get("cancel");
   const live = all.find((m) => m.id === asked && !m.cancelledAt);

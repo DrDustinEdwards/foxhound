@@ -48,7 +48,7 @@ import { isAcceptableRedirectUri, isRegisteredRedirect, redirectUriMatchesCode }
 // RETURNING rows, because one that matches nothing is a failure to report,
 // never a success (RULES.md 3.9).
 
-/** Prefix on refresh tokens, so a leaked one is recognisable in a scan. */
+/** Prefix on refresh tokens, so a leaked one is recognizable in a scan. */
 const OAUTH_REFRESH_TOKEN_PREFIX = "fox_rt_";
 
 /** Recova's default when a registration names no client. */

@@ -101,7 +101,7 @@ describe.each(["null-token", "no-connection"] as const)(
       expect(step.lastAttemptError).toBe("no connected stripe token");
       // Derived from the constant, not a literal: this assertion silently
       // encoded 5 minutes and had to be hand-edited when CHUNKS item 17 restored the
-      // legacy backoff span. The behaviour under test is "reschedules by the
+      // legacy backoff span. The behavior under test is "reschedules by the
       // first backoff", not "reschedules by five minutes".
       const firstBackoff = SEND_RETRY_BACKOFF_MINUTES[0];
       expect(step.nextRetryAt).toEqual(minutesAfter(T0, firstBackoff));

@@ -6,9 +6,9 @@ import { barChart } from "enarratio/lite/bar";
 // measured width in the browser (app/components/enarratio-figure.tsx).
 //
 // WHAT IS PLOTTED IS RECOVA'S: the months with at least one card expiring,
-// oldest first, at most four, each labelled "Oct 2026", one bar per month, and
+// oldest first, at most four, each labeled "Oct 2026", one bar per month, and
 // the month (or months) with the most cards marked in red. Recova marks the
-// peak by colour alone; here the peak is its own series, so the legend and the
+// peak by color alone; here the peak is its own series, so the legend and the
 // data table say which month it is in words too (WCAG 1.4.1). The other bars
 // are amber. Recova hides the value axis; Enarratio
 // keeps one, which is the chart library's difference and is covered by Q1.
@@ -54,7 +54,7 @@ export function drawExpiringCardsTimeline(months: readonly ExpiringMonth[], widt
     y: "count",
     series: "kind",
     seriesDomain: series,
-    // Only the series in the chart get a colour: Enarratio refuses a colour
+    // Only the series in the chart get a color: Enarratio refuses a color
     // for a series that is not there, which is every equal-months chart.
     colors: Object.fromEntries(series.map((s) => [s, s === PEAK ? "var(--red)" : "var(--brand-ui)"])),
     xLabel: null,

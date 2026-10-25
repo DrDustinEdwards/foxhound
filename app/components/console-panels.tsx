@@ -22,7 +22,7 @@ import type { AttentionRow, ConsoleHero, ConsoleTiles } from "~/lib/dashboard/co
 // product tiles are StatTiles, the attention rows are row-list rows with a
 // Pill for the product. No Foxhound CSS sits over a Capsomer component; what
 // Recova's look needs beyond Capsomer's defaults (the tile icons and arrows,
-// the dimmed inactive tile, the row's coloured dot) waits for Capsomer's
+// the dimmed inactive tile, the row's colored dot) waits for Capsomer's
 // per-site layer (capsomer job_ec5ec0754626) and is listed in the J64 pull
 // request.
 //
@@ -120,8 +120,8 @@ export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: n
           figure={String(tiles.openDisputeCount)}
           unit="open"
           // Recova keeps the open count neutral and makes only the due line red.
-          // A tile tone would colour the figure too, so the line carries the
-          // colour and the tile takes none.
+          // A tile tone would color the figure too, so the line carries the
+          // color and the tile takes none.
           detail={
             tiles.disputesDueSoonCount > 0 ? (
               <span className="font-medium text-error-text">{tiles.disputesDueSoonCount} due in 48h</span>

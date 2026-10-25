@@ -74,7 +74,7 @@ describe("305: the path predicate is the detail route and nothing else", () => {
     // the extension parity rather than divergence. It was a bounded-scope
     // assertion, not a regression guard, so it is re-pointed at the new truth
     // with the reason recorded, the same adjudication 296 applied to the stale
-    // note-intent test. The live behaviour now lives in route-splash-306.
+    // note-intent test. The live behavior now lives in route-splash-306.
     expect(shouldShowRouteSplash({ state: "loading", location: { pathname: "/recovery/payments" } })).toBe(
       true,
     );

@@ -3,8 +3,7 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-import { checkRegistration, DCR_REDIRECT_URIS, registrationLimited } from "../mcp/src/registration";
-import { SCOPE_READ, SCOPE_WRITE, grantScopes } from "../mcp/src/scopes";
+import { SCOPE_READ, SCOPE_WRITE } from "../mcp/src/scopes";
 import { ADMIN_TOOLS, ADMIN_TOOL_NAMES } from "../mcp/src/tools";
 import { serveAdminMcp } from "../mcp/src/server";
 import { guardMcpRequest, isFoxhoundAdmin } from "../mcp/src/guard";
@@ -19,7 +18,8 @@ import { mcpRequest, readMcp, toolOutput } from "./helpers/mcp-client";
 // binding, carrying the admin key and the signed-in admin's email on every
 // call, and that API re-checks the admin and offers only reads, pause and
 // staging. These plants hold the Worker to that shape, the nine tools to the
-// ruling, and the door to rules 12 and 13.
+// ruling, and the door to rule 12. The consent scope and the registration rules
+// (rule 13) are site-runtime's mcp-login, tested there.
 
 const ROOT = new URL("../", import.meta.url);
 const read = (path: string) => readFileSync(fileURLToPath(new URL(path, ROOT)), "utf8");
@@ -207,13 +207,6 @@ describe("PLANT 3: least scope (rule 12.3)", () => {
     }
     expect(fox.calls.map((c) => c.path)).toEqual(["/api/admin/v1/platform"]);
   });
-
-  it("write is granted only when asked for and not narrowed at consent", () => {
-    expect(grantScopes([])).toEqual([SCOPE_READ]);
-    expect(grantScopes([SCOPE_READ, SCOPE_WRITE])).toEqual([SCOPE_READ, SCOPE_WRITE]);
-    expect(grantScopes([SCOPE_READ, SCOPE_WRITE], { readOnly: true })).toEqual([SCOPE_READ]);
-    expect(grantScopes(["admin:everything"])).toEqual([SCOPE_READ]);
-  });
 });
 
 describe("PLANT 4: the door (rule 12.2)", () => {
@@ -237,32 +230,5 @@ describe("PLANT 4: the door (rule 12.2)", () => {
     expect(await isFoxhoundAdmin(env(fox.binding), ADMIN)).toBe(true);
     expect(await isFoxhoundAdmin(env(fox.binding), "intruder@foxhound.test")).toBe(false);
     expect(fox.calls.map((c) => c.path)).toEqual(["/api/admin/v1/me", "/api/admin/v1/me"]);
-  });
-});
-
-describe("PLANT 5: tightened registration (rule 13)", () => {
-  const allowed = new Set(DCR_REDIRECT_URIS);
-
-  it("accepts only the exact callbacks of the AI apps on the list", () => {
-    expect(checkRegistration(allowed, { redirect_uris: ["https://grok.com/connectors/oauth/callback"] })).toBeUndefined();
-    for (const uris of [
-      ["https://evil.test/callback"],
-      ["https://grok.com/connectors/oauth/callback/../../evil"],
-      ["http://localhost:8080/callback"],
-      [],
-      "https://grok.com/connectors/oauth/callback",
-    ]) {
-      expect(checkRegistration(allowed, { redirect_uris: uris }), JSON.stringify(uris)).toBeDefined();
-    }
-  });
-
-  it("is rate limited per address", async () => {
-    const store = new Map<string, string>();
-    const kv = { get: async (k: string) => store.get(k) ?? null, put: async (k: string, v: string) => void store.set(k, v) };
-    const request = new Request("https://admin-mcp.foxhoundapp.com/register", { method: "POST", headers: { "CF-Connecting-IP": "203.0.113.9" } });
-    const results: (Response | null)[] = [];
-    for (let i = 0; i < 6; i += 1) results.push(await registrationLimited(request, { OAUTH_KV: kv } as never, 0));
-    expect(results.slice(0, 5).every((r) => r === null)).toBe(true);
-    expect(results[5]?.status).toBe(429);
   });
 });

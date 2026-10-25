@@ -230,7 +230,7 @@ describe("mark recovered: enters through the spine, never as a second writer", (
     expect(payment.status).toBe("recovered");
     expect(payment.resolved_at).toBe(now.getTime());
 
-    // Legacy's step three, read from source: unexecuted steps resolve to cancelled.
+    // Legacy's step three, read from source: unexecuted steps resolve to canceled.
     const steps = sqlite.prepare("select result from recovery_steps").all() as { result: string }[];
     expect(steps.map((s) => s.result)).toEqual(["cancelled", "cancelled"]);
   });

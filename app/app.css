@@ -122,7 +122,7 @@
   --color-on-brand: var(--text-on-brand);
   /* Caution, named by meaning: the middle band of a red / caution / green
      scale (near target, watch, deadline soon, a stale cron, MRR at risk,
-     expiring cards). Recova drew it in its accent colour, amber, and so does
+     expiring cards). Recova drew it in its accent color, amber, and so does
      Foxhound again (it took the warning tokens while the accent was teal).
      Changing the caution palette is these three lines. Text: #f0b429 dark
      (10.08:1 on --bg), #8a5c06 light (5.37:1 on --bg, 5.34:1 on --brand-bg). */
@@ -319,7 +319,7 @@
   --bg: #111210;
   /* --surface is legacy's #181917 (394 C1). It had drifted to #1a1c18, which
      is --chrome's value one line down and legacy's value for THAT token, so
-     the card surface and the nav/footer surface had collapsed onto one colour.
+     the card surface and the nav/footer surface had collapsed onto one color.
      verification-gotchas names this exact pair as unfalsifiable by a dark-mode
      eye check, since both read identically until light mode splits them. It
      was caught by reading the token, not the render. --chrome below is
@@ -987,7 +987,7 @@ body {
   cursor: pointer;
 }
 
-/* Capsomer's site header and dashboard shell, in Foxhound's colours: every
+/* Capsomer's site header and dashboard shell, in Foxhound's colors: every
    .fh-cap wrapper carries data-cap-site="foxhound", so the neutrals and faces
    Capsomer reads are Foxhound's own (capsomer/site-foxhound.css, in the cap
    layer above capbase's amber family) and only the accents are amber (Dustin's
@@ -1062,7 +1062,7 @@ body {
 }
 
 /* A link pill on a .fh-cap page (the blog's tag, J19) gets its own ring back
-   the same way. Not under forced colours, where the global 3px Highlight ring
+   the same way. Not under forced colors, where the global 3px Highlight ring
    must stay (as on /features). */
 @media not (forced-colors: active) {
   .fh-cap .cap-pill:focus-visible {
@@ -1133,7 +1133,7 @@ body {
    squared to 2px, which turns a focused round chip into a square. Reverting
    the three properties to the layer below hands each part back its own ring
    (3px, the family's --ring), as app/error-page.css does for the error page;
-   it adds nothing to the components. Not under forced colours, where the
+   it adds nothing to the components. Not under forced colors, where the
    global 3px Highlight ring must stay. */
 @media not (forced-colors: active) {
   .fh-features :is(.cap-chip, .cap-btn):focus-visible {

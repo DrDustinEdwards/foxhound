@@ -6,7 +6,7 @@
 // session 62 and recorded as that suite's coverage bound: "Cannot find package
 // 'cloudflare:workers'"). So the Durable Object's own lease arithmetic could not
 // be driven from vitest at all, and the 310 pin says so out loud: it proves the
-// RUNNER honours a denied claim and explicitly does not prove the DO's
+// RUNNER honors a denied claim and explicitly does not prove the DO's
 // arithmetic. That half rested on source review, which is exactly where 376
 // item 14's defect survived.
 //

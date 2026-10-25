@@ -10,7 +10,7 @@
 // never says "All clear" while a cron is failing.
 
 import type { AttentionGroupInfo, AttentionItem } from "capsomer/react/attention-list";
-import { relative } from "capsomer/behaviour/time";
+import { relative } from "capsomer/behavior/time";
 
 import { PAUSE_REASON_BRAKE } from "~/lib/admin/brake";
 import { cronRunHref } from "~/lib/admin/crons";

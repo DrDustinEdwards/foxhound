@@ -193,7 +193,7 @@ describe("J42 U5: the callback refuses before it exchanges, and every exit clear
     expect(exchange.calls).toBe(0);
   });
 
-  it("Stripe's error and a missing code both come back as cancelled", async () => {
+  it("Stripe's error and a missing code both come back as canceled", async () => {
     const state = buildConnectState(AUDIT_ACTION);
     expectRefused(await call({ error: "access_denied", state }, state), "cancelled");
     expectRefused(await call({ state }, state), "cancelled");

@@ -18,7 +18,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // 'cloudflare:workers'"), so its acquire/release/lease arithmetic cannot be
 // driven from vitest. What IS driven is the real runCronJob against a real
 // in-memory SQLite with the committed migrations, with the lock faked at the
-// boundary. So this proves the RUNNER honours a denied claim; it does not prove
+// boundary. So this proves the RUNNER honors a denied claim; it does not prove
 // the DO's own lease arithmetic. That half rests on source review and is said
 // plainly rather than implied.
 
@@ -84,7 +84,7 @@ function envWith(grants: boolean[], calls: LockCalls) {
   return { DB: {}, CRON_LOCK: lockNamespace(grants, calls) } as unknown as Env;
 }
 
-describe("310 item 1: the cron runner honours the lock", () => {
+describe("310 item 1: the cron runner honors the lock", () => {
   it("THE CONCURRENT CLAIM: a denied lock skips WITHOUT running the handler", async () => {
     // The decisive assertion. A runner that acquired, was denied, and ran anyway
     // would still report "locked" while doing the work twice, so the handler

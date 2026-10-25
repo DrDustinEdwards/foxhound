@@ -52,7 +52,7 @@ export interface ScanAccount {
 
 /**
  * The accounts this tick scans: processing-eligible (which excludes demo,
- * paused and cancelled) with a live Stripe connection.
+ * paused and canceled) with a live Stripe connection.
  *
  * The per-account toggle is deliberately NOT applied here. Legacy scans every
  * eligible account and applies `expiring_card_notifications_enabled` in the SEND
@@ -230,7 +230,7 @@ export interface SendResult {
  * PASS 2. Every unsent candidate, one email each.
  *
  * THE TOGGLE IS READ AS `!== false`, so NULL is ON, and a disabled account's
- * candidate is STAMPED rather than skipped, which is legacy's behaviour: an
+ * candidate is STAMPED rather than skipped, which is legacy's behavior: an
  * unstamped candidate would be reconsidered every night forever.
  *
  * The send is claimed on `alert_sent_at` conditionally, so a second tick over
@@ -296,7 +296,7 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
       continue;
     }
     // NULL is ON. A disabled account's candidate is stamped so it is never
-    // reconsidered, which is legacy's behaviour and not a Foxhound choice.
+    // reconsidered, which is legacy's behavior and not a Foxhound choice.
     if (alert.notificationsEnabled === false) {
       await stampSent(db, alert.id, now);
       result.skipped += 1;

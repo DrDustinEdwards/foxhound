@@ -14,9 +14,9 @@ import { HealthScoreBadge } from "./health-score-badge";
 // than a copy per guide.
 //
 // LOOK IS CAPSOMER'S, CONTENT AND ORDER RECOVA'S. The reference table is
-// Capsomer's table (a labelled scroll region, so a wide table is a keyboard
+// Capsomer's table (a labeled scroll region, so a wide table is a keyboard
 // stop). Note and Tip are Recova's callout: a 2px rule at the left (amber for
-// a tip, the border colour for a note) beside 13px secondary text, a plain
+// a tip, the border color for a note) beside 13px secondary text, a plain
 // paragraph so nothing is announced as an interruption.
 //
 // TEXT IS AT RECOVA'S SIZES: 0.9375rem for body and H3, 0.8125rem for callouts

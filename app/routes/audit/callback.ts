@@ -35,7 +35,7 @@ import type { Route } from "./+types/callback";
 // anything but read-only the flow refuses rather than proceeding on a
 // write-capable token for a stranger's account. Legacy neither requests
 // read-only nor inspects what it got. FAIL CLOSED, portfolio canon, and the one
-// arm of this route whose live Stripe behaviour is unverified: production Connect
+// arm of this route whose live Stripe behavior is unverified: production Connect
 // is not configured yet (core.md launch blocker 4), so this has been exercised
 // against a fake client only.
 //

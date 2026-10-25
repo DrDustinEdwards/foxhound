@@ -127,7 +127,7 @@ export function pickMarkedMembership(
  * with NO ordering, so with two visited accounts it returns whichever row
  * Postgres feels like and a user can land somewhere different on consecutive
  * requests. This orders by the same `createdAt, id` the membership list uses, so
- * the pick is stable. Legacy's nondeterminism is a defect, not a behaviour to
+ * the pick is stable. Legacy's nondeterminism is a defect, not a behavior to
  * reproduce; the tier itself is ported faithfully.
  */
 export async function resolveActiveMembershipFrom(
@@ -167,7 +167,7 @@ export async function resolveActiveMembershipFrom(
  *
  * COMPATIBILITY SHIM, not the long-term shape. It is exactly
  * `resolveActiveMembership(db, userId, null)`, so every caller that has not yet
- * been taught about the marker keeps its pre-326 behaviour byte for byte.
+ * been taught about the marker keeps its pre-326 behavior byte for byte.
  *
  * ONE CALLER REMAINS after phase (c)'s re-audit: `connect.tsx`'s ACTION, which
  * reads only `!membership`. That question ("does this user hold any account at
@@ -248,7 +248,7 @@ export async function createAccountForUser(
       // either would put them in two Durable Objects and serialize nothing.
       accountId: firstConnectPartition(userId),
       // THE SAME KEY FOR BOTH RACERS, which is the whole fix. The first commit
-      // applies; the second is recognised as a re-delivery and no-ops, so the
+      // applies; the second is recognized as a re-delivery and no-ops, so the
       // loser's account row is never written rather than being written and then
       // orphaned. 327 ruled for exactly this and against a per-user constraint.
       idempotencyKey: `connect:first:${userId}`,
@@ -304,7 +304,7 @@ export function firstConnectPartition(userId: string): string {
  *
  * This is the exact query legacy's two account-scoped checks make:
  * `app/api/invite/accept/route.ts:48-53` before activating an invite, and
- * `app/api/account/switch/route.ts:18-25` before honouring a switch. Both filter
+ * `app/api/account/switch/route.ts:18-25` before honoring a switch. Both filter
  * `user_id`, `account_id` and `status = 'active'` and take at most one row.
  * Shared here so the switch action and the invite accept cannot drift apart on
  * what "is a member" means, which is the whole question both of them turn on.
