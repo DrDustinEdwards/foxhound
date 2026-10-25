@@ -372,7 +372,7 @@ describe("/billing renders Recova's page on Foxhound's engine", () => {
   });
 
   describe("states where Recova's next-invoice line would be false", () => {
-    it("a billing-exempt account is told it is not invoiced", () => {
+    it("a billing-exempt account is told its fees wait until the exemption ends", () => {
       const html = text(
         render(
           loaderData({
@@ -384,7 +384,10 @@ describe("/billing renders Recova's page on Foxhound's engine", () => {
           }),
         ),
       );
-      expect(html).toContain("Billing exempt. Foxhound does not invoice this account, so no fee is building up.");
+      expect(html).toContain(
+        "Billing exempt. Foxhound does not invoice this account while it is exempt. Fees that come due while exempt wait, and are billed at the first billing run after the exemption ends.",
+      );
+      expect(html).not.toContain("no fee is building up");
       expect(html).not.toContain("Next invoice:");
       expect(html).not.toContain("Added to your next monthly invoice");
     });

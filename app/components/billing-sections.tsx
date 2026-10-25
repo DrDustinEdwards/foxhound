@@ -139,11 +139,15 @@ function InvoiceRef({ url, stripeId }: { url: string | null; stripeId: string | 
   return null;
 }
 
-/** Where Recova's "Next invoice" line would be false: an exempt account is never
- *  invoiced, and a paused one is not invoiced while paused. */
+/** Where Recova's "Next invoice" line would be false: an exempt account is not
+ *  invoiced while exempt, and a paused one is not invoiced while paused. Neither
+ *  forgives a fee: the billable queries (app/db/billable.ts) have no lower bound
+ *  on date, so the first run after an exemption or pause ends bills every fee
+ *  that came due meanwhile. The exempt wording is the admin list's own
+ *  (admin-merchants-parts.tsx). */
 function billingStateNote(state: AccountBillingState): string | null {
   if (state.billingExempt) {
-    return "Billing exempt. Foxhound does not invoice this account, so no fee is building up.";
+    return "Billing exempt. Foxhound does not invoice this account while it is exempt. Fees that come due while exempt wait, and are billed at the first billing run after the exemption ends.";
   }
   if (state.processingPaused) {
     return "Processing is paused. Nothing is invoiced while it stays paused. A pause defers a fee, it does not cancel one.";
@@ -169,7 +173,7 @@ export function RecoverySection({
     <Panel
       title="Recovery"
       description={
-        // An exempt account is never invoiced (review F4), so it is not told the day.
+        // An exempt account is not invoiced while exempt (review F4), so it is not told the day.
         accountBillingState.billingExempt
           ? `${RECOVERY_FEE_PERCENT}% of attributed recoveries`
           : `${RECOVERY_FEE_PERCENT}% of attributed recoveries · Invoiced on the ${INVOICE_DAY}`
