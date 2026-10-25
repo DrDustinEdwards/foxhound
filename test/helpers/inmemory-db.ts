@@ -6,6 +6,11 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 
 import type { Db } from "~/db";
 import * as schema from "~/db/schema";
+import {
+  SerialMoneyCommitter,
+  type CommitRequest,
+  type CommitResult,
+} from "~/lib/money/serializer";
 
 // A real in-memory SQLite with the committed drizzle migrations applied verbatim,
 // so cross-tenant regression tests can prove not-billable/no-write behavior
@@ -53,4 +58,45 @@ export function runStatement(sqlite: Database.Database, statement: unknown): num
   const { sql, params } = (statement as { toSQL(): { sql: string; params: unknown[] } }).toSQL();
   const info = sqlite.prepare(sql).run(...(params as never[]));
   return info.changes;
+}
+
+/** A stand-in for the env.MONEY_WRITER Durable Object namespace that commits
+ *  through the REAL SerialMoneyCommitter, one per partition as the DO is, and
+ *  runs each batch as one transaction on the in-memory SQLite the getter
+ *  returns. The getter is read per commit, so a test that reseeds a fresh
+ *  database per case keeps one binding. `commits` records every request in
+ *  arrival order, partition included. */
+export function inMemoryMoneyWriter(sqlite: () => Database.Database) {
+  const committers = new Map<string, SerialMoneyCommitter>();
+  const commits: Array<{ partition: string } & CommitRequest> = [];
+  const committerFor = (partition: string) => {
+    let committer = committers.get(partition);
+    if (!committer) {
+      const seen = new Set<string>();
+      committer = new SerialMoneyCommitter({
+        hasSeen: async (key) => seen.has(key),
+        markSeen: async (key) => {
+          seen.add(key);
+        },
+        runBatch: async (statements) => {
+          const handle = sqlite();
+          handle.transaction(() => {
+            for (const s of statements) handle.prepare(s.sql).run(...(s.params as never[]));
+          })();
+        },
+      });
+      committers.set(partition, committer);
+    }
+    return committer;
+  };
+  const binding = {
+    idFromName: (name: string) => name,
+    get: (partition: string) => ({
+      commit: (request: CommitRequest): Promise<CommitResult> => {
+        commits.push({ partition, ...request });
+        return committerFor(partition).commit(request);
+      },
+    }),
+  };
+  return { binding, commits };
 }

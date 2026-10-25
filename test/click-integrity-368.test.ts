@@ -10,7 +10,7 @@ import {
 import { AUTOMATED_AGENT_TOKENS, isAutomatedUserAgent } from "~/lib/engagement/agents";
 import { ALLOWED_BOTS } from "~/routes/files/robots";
 
-import { createInMemoryDb } from "./helpers/inmemory-db";
+import { createInMemoryDb, inMemoryMoneyWriter } from "./helpers/inmemory-db";
 
 // RULING 368 RULING 1: A CLICK THAT FEEDS BILLING IS A MONEY WRITE.
 //
@@ -31,7 +31,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // filtered, and would risk the customer whose payment we are recovering. Proven
 // by comparing the two responses byte for byte.
 
-const harness = vi.hoisted(() => ({ db: null as unknown }));
+const harness = vi.hoisted(() => ({ db: null as unknown, sqlite: null as unknown }));
 vi.mock("~/db", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/db")>()),
   getDb: () => harness.db,
@@ -54,6 +54,7 @@ const HUMAN_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36";
 
 const ENV = {
+  MONEY_WRITER: inMemoryMoneyWriter(() => harness.sqlite as never).binding,
   ENCRYPTION_KEY: "a".repeat(64),
   BETTER_AUTH_URL: "https://foxhoundapp.test",
 } as unknown as Env;
@@ -65,6 +66,7 @@ const routeContext = (): unknown => ({
 async function seed() {
   const { sqlite, db } = createInMemoryDb();
   harness.db = db;
+  harness.sqlite = sqlite;
   for (const [account, step] of [
     [ACCOUNT_A, STEP_A],
     [ACCOUNT_B, STEP_B],

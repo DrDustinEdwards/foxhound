@@ -2,6 +2,7 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import { getDb, engagementEvents, recoverySteps } from "~/db";
+import { executeMoneyWrite } from "~/lib/money/execute";
 
 import {
   CLICK_SUSPECT_HONEYPOT,
@@ -17,7 +18,9 @@ import type { EngagementTokenPayload } from "./token";
 // so re-hits collapse) and stamps the recovery step. The CLICK stamp sets
 // recovery_steps.clicked_at, which is the email_engaged attribution signal the
 // invoice.payment_succeeded webhook reads (PRICING.md: click is billable, open is
-// Intelligence-only). Operational writes (not money), so a plain db.batch().
+// Intelligence-only). So the CLICK is a money write and commits through the
+// account's money Durable Object (Dustin, 2026-10-25: "Yes, treat it as money";
+// RULES.md 3.4). The open feeds no bill and stays a plain db.batch().
 //
 // THE SOURCE ARGUMENT IS REQUIRED, AND THAT IS THE GUARD (368 ruling 1). Both
 // recorders take an `EngagementSource` and write NOTHING when it is automated.
@@ -119,28 +122,36 @@ export function buildOpenStamp(db: Db, stepId: string, now: Date) {
  * every SET expression against the row as it was: `clicked_at is null` below
  * means "this is the first click" for every column at once.
  *
- * `suspectReason` is written ONLY when there is one, and only on the first
- * click. Passing null must not clear an existing mark: the honeypot can be
- * fetched before the real click arrives, and a stamp that blanked the column
- * would launder exactly the click the honeypot caught.
+ * THE TOO-FAST TEST IS DECIDED IN THIS STATEMENT, against the row as the
+ * money Durable Object commits it, not from a read taken earlier in the Worker.
+ * A first click is too_fast when it lands under CLICK_SUSPECT_MIN_MS after
+ * executed_at, OR WHEN executed_at IS NOT WRITTEN YET. Emails send first and
+ * claim second (RULES.md 3.8), so a click on a step with no executed_at is a
+ * click in the seconds between the send and its claim: exactly the scanner
+ * fetch this test exists for. Reading a missing executed_at as "not too fast"
+ * let that fetch bill. The cost of reading it as too fast falls the safe way: a
+ * real person who clicks while a claim is failing is marked suspect and never
+ * bills, rather than a scanner billing.
+ *
+ * A first click that is not too fast leaves click_suspect_reason as it was, so
+ * a honeypot mark written before the real click arrives is never cleared; a
+ * repeat click never changes it at all.
  */
-export function buildClickStamp(db: Db, stepId: string, now: Date, suspectReason: string | null) {
+export function buildClickStamp(db: Db, stepId: string, now: Date) {
   const nowMs = now.getTime();
-  const counts = {
-    emailClickedCount: sql`coalesce(${recoverySteps.emailClickedCount}, 0) + 1`,
-    lastClickedAt: now,
-    clickedAt: sql`coalesce(${recoverySteps.clickedAt}, ${nowMs})`,
-  };
   return db
     .update(recoverySteps)
-    .set(
-      suspectReason
-        ? {
-            ...counts,
-            clickSuspectReason: sql`case when ${recoverySteps.clickedAt} is null then ${suspectReason} else ${recoverySteps.clickSuspectReason} end`,
-          }
-        : counts,
-    )
+    .set({
+      emailClickedCount: sql`coalesce(${recoverySteps.emailClickedCount}, 0) + 1`,
+      lastClickedAt: now,
+      clickedAt: sql`coalesce(${recoverySteps.clickedAt}, ${nowMs})`,
+      clickSuspectReason: sql`case
+        when ${recoverySteps.clickedAt} is null
+          and (${recoverySteps.executedAt} is null or ${nowMs} - ${recoverySteps.executedAt} < ${CLICK_SUSPECT_MIN_MS})
+          then ${CLICK_SUSPECT_TOO_FAST}
+        else ${recoverySteps.clickSuspectReason}
+      end`,
+    })
     .where(eq(recoverySteps.id, stepId));
 }
 
@@ -187,6 +198,14 @@ export async function recordOpen(
  * `BILLABLE_ATTRIBUTION_KINDS`. An automated source returns BEFORE the batch, so
  * neither the engagement_events row nor the stamp is written and no attribution
  * can arise from the request.
+ *
+ * A MONEY WRITE (RULES.md 3.4): the event row and the stamp commit as one
+ * atomic batch through this account's money Durable Object, in that order, so a
+ * click is serialized with every other money write for the account. The event
+ * row keeps its own exactly-once key, `click:<stepId>`, which collapses re-hits
+ * to one row. The Durable Object's key is per click and not that key, because
+ * every click moves the counter and the last-click time (F10), and a key shared
+ * by every click on a step would make each repeat click a no-op.
  */
 export async function recordClick(
   env: Env,
@@ -198,34 +217,35 @@ export async function recordClick(
   const db = getDb(env);
   const now = new Date();
 
-  // THE ONLY DISCRIMINATOR ALREADY STORED. An enterprise link scanner presents a
-  // full browser user agent, so 369's named-bot list cannot see it, but it
-  // fetches on delivery: seconds after the send, not minutes. This reads the
-  // gap the schema has always carried and nothing ever looked at.
-  const [step] = await db
-    .select({ executedAt: recoverySteps.executedAt })
-    .from(recoverySteps)
-    .where(eq(recoverySteps.id, payload.stepId))
-    .limit(1);
   // A ZERO-ROW STAMP IS NOT A RECORDED CLICK (RULES.md 3.9). With no step the
   // stamp would match nothing (and the event row's foreign key would refuse
   // the insert), so the outcome is named here, before the batch, rather than
   // reported as recorded or left to surface as a thrown constraint error.
+  // The too-fast test (the gap from executed_at, the one discriminator already
+  // stored that sees a scanner with a browser user agent) is not read here: the
+  // stamp decides it at commit, so a claim landing in between cannot be missed.
+  const [step] = await db
+    .select({ id: recoverySteps.id })
+    .from(recoverySteps)
+    .where(eq(recoverySteps.id, payload.stepId))
+    .limit(1);
   if (!step) return { recorded: false, reason: "unknown_step" };
-  const tooFast =
-    step.executedAt != null && now.getTime() - step.executedAt.getTime() < CLICK_SUSPECT_MIN_MS;
 
-  await db.batch([
-    buildEngagementInsert(db, {
-      accountId: payload.accountId,
-      recoveryStepId: payload.stepId,
-      eventType: "click",
-      targetUrl: payload.url ?? null,
-      idempotencyKey: `click:${payload.stepId}`,
-      occurredAt: now,
-    }),
-    buildClickStamp(db, payload.stepId, now, tooFast ? CLICK_SUSPECT_TOO_FAST : null),
-  ]);
+  await executeMoneyWrite(env, {
+    accountId: payload.accountId,
+    idempotencyKey: `click:${payload.stepId}:${now.getTime()}:${crypto.randomUUID()}`,
+    build: (tx) => [
+      buildEngagementInsert(tx, {
+        accountId: payload.accountId,
+        recoveryStepId: payload.stepId,
+        eventType: "click",
+        targetUrl: payload.url ?? null,
+        idempotencyKey: `click:${payload.stepId}`,
+        occurredAt: now,
+      }),
+      buildClickStamp(tx, payload.stepId, now),
+    ],
+  });
   return { recorded: true };
 }
 
