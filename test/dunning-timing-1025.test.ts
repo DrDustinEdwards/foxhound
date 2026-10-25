@@ -127,7 +127,7 @@ describe("the expired day 21 retry charges only a changed card", () => {
 });
 
 describe("migration 0039: sequences already scheduled", () => {
-  it("moves unsent soft day 1 emails to 5 hours, adds the expired day 21 retry, leaves sent steps, and is idempotent", () => {
+  it("moves unsent soft day 1 emails to 5 hours, adds the expired day 21 retry, refiles live transaction_not_allowed payments, leaves sent steps, and is idempotent", () => {
     const migration = readFileSync(
       new URL("../drizzle/migrations/0039_dunning_timing.sql", import.meta.url),
       "utf8",
@@ -161,6 +161,13 @@ describe("migration 0039: sequences already scheduled", () => {
     payment("exp_done", "expired");
     expiredRow.forEach(([type, hours], i) => step("exp_done", type, i + 1, hours, true));
 
+    // Filed as soft before transaction_not_allowed became a hard decline.
+    payment("tna_live", "soft");
+    sqlite.prepare("update failed_payments set decline_code = 'transaction_not_allowed' where id = 'tna_live'").run();
+    step("tna_live", "retry_early", 1, 4, true);
+    step("tna_live", "email_day1", 2, 24);
+    step("tna_live", "retry_day2", 3, 48);
+
     sqlite.exec(migration);
     sqlite.exec(migration);
 
@@ -181,5 +188,19 @@ describe("migration 0039: sequences already scheduled", () => {
       ["email_day30", 6, 720],
     ]);
     expect(rows("exp_done").some((r) => r.type === "retry_day21")).toBe(false);
+
+    // A live transaction_not_allowed payment is refiled as fraud and its unsent
+    // retry is cancelled, so it is never silently retried; its email keeps its time.
+    const tna = sqlite
+      .prepare("select step_type as type, result, scheduled_at as at from recovery_steps where failed_payment_id = 'tna_live' order by step_number")
+      .all() as { type: string; result: string | null; at: number }[];
+    expect(tna.map((r) => [r.type, r.result, (r.at - t) / HOUR])).toEqual([
+      ["retry_early", "email_sent", 4],
+      ["email_day1", null, 24],
+      ["retry_day2", "cancelled", 48],
+    ]);
+    expect(
+      (sqlite.prepare("select decline_category as c from failed_payments where id = 'tna_live'").get() as { c: string }).c,
+    ).toBe("fraud");
   });
 });
