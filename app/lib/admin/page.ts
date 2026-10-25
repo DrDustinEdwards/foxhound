@@ -1,7 +1,8 @@
 // Every admin route names its page in its `handle`, and the admin shell's top
 // bar shows it (the page's one heading). A detail page names itself from its
 // own loader data. One name per page: the menu entry, the top bar and the tab
-// title say the same thing (Dustin's review, 2026-10-11).
+// title say the same thing (Dustin's review, 2026-10-11). The merchant app's
+// shell reads the same handle for a page its menu rows do not name.
 export interface AdminHandle<Data = unknown> {
   page: string | ((data: Data) => string);
 }

@@ -98,6 +98,10 @@ export function meta() {
   return [{ title: "Dispute detail - Foxhound" }];
 }
 
+// The page bar's name (app-shell.tsx). Recova had no page bar, so it is the
+// route's own title, not the Disputes row's "Disputes overview".
+export const handle = { page: "Dispute detail" };
+
 export async function loader({ context, params }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);

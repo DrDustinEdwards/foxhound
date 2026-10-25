@@ -12,6 +12,10 @@
 @layer capbase, theme, base, cap, components, utilities;
 @import "tailwindcss";
 @import "capsomer/site-foxhound.css";
+/* Capsomer's utility classes alone (.cap-sr-only and its siblings), without
+   base.css's reset and body rules. They land in cap.utilities, inside the cap
+   layer declared above, so Tailwind's utilities still win. */
+@import "capsomer/utilities.css";
 
 /* Self-hosted fonts. No Google Fonts request at runtime; files vendored
    into app/assets/fonts/. DM Sans ships as a single variable-weight

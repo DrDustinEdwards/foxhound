@@ -2,6 +2,7 @@ import {
   Link,
   Outlet,
   useLocation,
+  useMatches,
   useNavigate,
   useNavigation,
   useRouteLoaderData,
@@ -45,6 +46,7 @@ import {
 import { shouldShowRouteSplash } from "~/lib/navigation/route-splash";
 import { appShellMiddleware } from "~/lib/auth/guards";
 import { authContext } from "~/lib/auth/context";
+import { adminPageName as routePageName } from "~/lib/admin/page";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { resolveErrorBoundaryDetails } from "~/lib/errors/boundary-message";
@@ -231,15 +233,19 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
     })),
   ];
 
-  // The page bar's name: the page you are on, said once.
+  // The page bar's name: the page you are on, said once. A page that sits under
+  // a menu row without being that row's page (one dispute, under Disputes)
+  // names itself in its route's handle.page.
   const platformPage = currentRow(pathname, PLATFORM_LINKS);
-  const pageName = currentPage
-    ? currentPage.label === "Overview"
-      ? `${activeProduct.label} overview`
-      : currentPage.label
-    : nav.isPlatformPage
-      ? (platformPage?.label ?? "Foxhound")
-      : activeProduct.label;
+  const pageName =
+    routePageName(useMatches()) ??
+    (currentPage
+      ? currentPage.label === "Overview"
+        ? `${activeProduct.label} overview`
+        : currentPage.label
+      : nav.isPlatformPage
+        ? (platformPage?.label ?? "Foxhound")
+        : activeProduct.label);
 
   // The phone's bottom bar keeps the tabs the app had, every product then
   // Billing and Settings, up to Capsomer's five (no More: the menu button opens
@@ -300,10 +306,11 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
     <div className="fh-cap fh-app" data-cap-site="foxhound" data-family="amber">
       <AdminShell
         variant="user"
-        // The app's name: the phone sheet's heading ("Foxhound menu") and,
-        // with the page, the tab title ("Payments · Foxhound"), which
-        // AdminShell sets on every app that uses it.
+        // The app's name, for the logo and the phone sheet's heading
+        // ("Foxhound menu"). The browser title stays each route's own meta
+        // title ("Dispute detail - Foxhound"), so the shell never writes it.
         title="Foxhound"
+        documentTitle={false}
         nav={menu}
         navLabel={activeProduct.label}
         tabs={tabs}
