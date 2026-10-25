@@ -11,7 +11,6 @@ const SOFT_CODES = new Set([
   "do_not_honor",
   "generic_decline",
   "card_declined",
-  "transaction_not_allowed",
   "withdrawal_count_limit_exceeded",
 ]);
 
@@ -41,6 +40,11 @@ const FRAUD_CODES = new Set([
   // The network told us to stop for this charge with no path back: never retry,
   // route to the fraud dunning cadence (email-only, gentle).
   "do_not_try_again",
+  // On Stripe's own hard decline list: Stripe does not retry it until a new
+  // payment method is detected. Recova filed it as soft and retried it; Dustin
+  // moved it to the hard declines on 2026-10-25 (decision card, "Yes, all
+  // three"), so it is never silently retried.
+  "transaction_not_allowed",
 ]);
 
 // The cardholder has explicitly revoked their standing authorization (called
