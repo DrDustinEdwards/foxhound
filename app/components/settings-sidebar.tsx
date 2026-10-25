@@ -78,7 +78,7 @@ export const SETTINGS_NAV_GROUPS: SettingsNavGroup[] = [
   },
 ];
 
-// THE COLOURS FOLLOW THE THEME (J40). Recova draws this menu in its chrome
+// THE COLORS FOLLOW THE THEME (J40). Recova draws this menu in its chrome
 // tokens, dark in both themes, because its aside continued its dark nav. Inside
 // the Capsomer frame the aside sits on the page's ground beside AdminShell's
 // menu (app/layouts/settings.tsx), so the text takes the page's text tokens and

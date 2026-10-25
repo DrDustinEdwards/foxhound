@@ -141,11 +141,11 @@ export interface ResubscribePlan {
 }
 
 /**
- * Read the cancelled subscription's price back off Stripe.
+ * Read the canceled subscription's price back off Stripe.
  *
  * `win_back_sequences` stores `plan_name`, `amount_cents` and `currency` and NO
  * price id, on both sides, because legacy's billing portal needed none. A
- * Checkout Session does, and a cancelled subscription is still retrievable, so
+ * Checkout Session does, and a canceled subscription is still retrievable, so
  * the price is re-read at click rather than stored. This is a READ: it creates
  * and modifies nothing.
  */

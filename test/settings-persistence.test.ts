@@ -28,7 +28,7 @@ describe("settings persistence builders (compile against schema)", () => {
   it("email settings update writes notification_email and NOT digest_email", () => {
     // digest_email was removed under 336 binding 3: a Foxhound invention with
     // no legacy counterpart and no reader. This assertion moved from requiring
-    // the column to forbidding it, because the behaviour was corrected.
+    // the column to forbidding it, because the behavior was corrected.
     const { sql, params } = sqlOf(
       buildEmailSettingsUpdate(db, "acc_1", { notificationEmail: "ops@acme.com" }),
     );

@@ -42,7 +42,7 @@ import type { Route } from "./+types/connect-callback";
 // `resolveMembership`, the null-marker shim, so it attached to the caller's
 // EARLIEST membership. With a switcher shipped, a merchant on account B got
 // their Stripe account bolted onto account A, permanently, and the correctly
-// account-keyed webhook layer would have honoured it forever
+// account-keyed webhook layer would have honored it forever
 // (parity/MULTI-ACCOUNT-QUERY-AUDIT.md's single riskiest query). It now resolves
 // through the session marker like every other authenticated surface.
 //

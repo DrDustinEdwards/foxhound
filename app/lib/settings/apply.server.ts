@@ -116,7 +116,7 @@ export interface AuditSettingsState {
 
 /**
  * S30's two columns. `normalizeLookback` is the allowlist and it CLAMPS rather
- * than refusing, which is the form's behaviour and stays the tool's: legacy
+ * than refusing, which is the form's behavior and stays the tool's: legacy
  * clamps on render and posts the clamped value, and the action clamps again
  * server-side because an action takes whatever is posted.
  */
@@ -362,7 +362,7 @@ const NO_CONNECTION_FOR_VOICE = "Connect Stripe before setting a brand voice.";
 /**
  * The general voice plus the four decline-category voices, on one connection.
  *
- * NO BOUND AND NO SANITISER ON THE WAY IN, which is legacy and is the form:
+ * NO BOUND AND NO SANITIZER ON THE WAY IN, which is legacy and is the form:
  * no maxLength, no pattern, no required. Adding one here would be an
  * unratified user-visible divergence, and it would also be guarding the wrong
  * end. This text becomes part of the SYSTEM PROMPT that generates a recovery

@@ -18,7 +18,7 @@ const sqlOf = (item: unknown) => (item as { toSQL(): { sql: string; params: unkn
 
 describe("cancelMerchant orchestration (injected deps, no live DB/Stripe)", () => {
 
-  it("a deauthorize failure never rolls back or throws: the merchant stays cancelled locally, the failure is surfaced", async () => {
+  it("a deauthorize failure never rolls back or throws: the merchant stays canceled locally, the failure is surfaced", async () => {
     const result = await cancelMerchant({} as Env, "acc_1", {
       cancelLocal: async () => [
         { id: "conn_1", stripeUserId: "acct_1" },
@@ -39,7 +39,7 @@ describe("cancelMerchant orchestration (injected deps, no live DB/Stripe)", () =
 
 describe("cancelledAt is a PROCESSING gate only, never a billing gate", () => {
 
-  it("intelligence sync's processing gate excludes a cancelled account", () => {
+  it("intelligence sync's processing gate excludes a canceled account", () => {
     const sql = sqlOf(fakeDb.select().from(accounts).where(intelligenceProcessingEligible()));
     expect(sql.sql).toMatch(/cancelled_at/i);
   });

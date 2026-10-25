@@ -20,7 +20,7 @@ import type { ManualActionOutcome } from "./manual-actions.server";
  * recover and cancel, fanned out over the same single-payment routes (scope
  * 1.5). Note and resend have no bulk affordance in legacy and none here.
  *
- * THIS LIST IS A GATE, NOT A CATALOGUE, and Session 3 added it because Session 2
+ * THIS LIST IS A GATE, NOT A CATALOG, and Session 3 added it because Session 2
  * did not have one. The bulk POST target passes its intent straight to the
  * dispatcher, which accepts all five, so before this existed a hand crafted POST
  * carrying intent=resend reached the SEND SEAM once per selected payment. That

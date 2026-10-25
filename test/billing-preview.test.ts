@@ -270,7 +270,7 @@ describe("getBillingPreview", () => {
       expect(preview.estimatedInvoice).toEqual([]);
     });
 
-    it("reports a cancelled account, which is NOT a billing gate", async () => {
+    it("reports a canceled account, which is NOT a billing gate", async () => {
       const cancelledAt = new Date("2026-07-09T00:00:00.000Z");
       const db = await seed({ cancelledAt });
       const preview = await getBillingPreview(db, ACCOUNT_ID, NOW_MS);

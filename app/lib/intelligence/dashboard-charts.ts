@@ -23,9 +23,9 @@ import {
 // Each returns Enarratio's figure as HTML at a given width; the page redraws
 // it at its panel's width.
 //
-// Colours are Recova's, by Foxhound's token of the same name, except Recova's
-// accent colour: the MRR line and the plan bars are amber, and the
-// "Medium risk" band takes the caution colour every other band in the app uses.
+// Colors are Recova's, by Foxhound's token of the same name, except Recova's
+// accent color: the MRR line and the plan bars are amber, and the
+// "Medium risk" band takes the caution color every other band in the app uses.
 //
 // Enarratio 0.3.1 has no tick formatter, so Recova's "$1,200" and "102%" ticks
 // read as plain numbers under an axis label naming the unit, as on the churn
@@ -96,7 +96,7 @@ export interface MovementPoint {
   churnMrrCents: number;
 }
 
-/** Recova's five series, in its legend order, with its colours. */
+/** Recova's five series, in its legend order, with its colors. */
 const MOVEMENT_SERIES = ["New", "Expansion", "Reactivation", "Contraction", "Churn"] as const;
 const MOVEMENT_COLORS: Record<(typeof MOVEMENT_SERIES)[number], string> = {
   New: "var(--green)",

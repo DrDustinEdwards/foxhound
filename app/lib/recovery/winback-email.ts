@@ -51,7 +51,7 @@ const WINBACK_TEMPLATES: Record<number, WinbackTemplate> = {
     subject: "We're sorry to see you go. Here's what you're missing.",
     cta: "Reactivate My Account",
     paragraphs: [
-      "We noticed you recently cancelled your {{plan_name}} subscription. We're sorry to see you go.",
+      "We noticed you recently canceled your {{plan_name}} subscription. We're sorry to see you go.",
       "If there's anything we could have done better, we'd love to hear from you. And if you ever want to come back, we'll be here.",
     ],
     signOff: "Thanks for being a customer,",
@@ -60,7 +60,7 @@ const WINBACK_TEMPLATES: Record<number, WinbackTemplate> = {
     subject: "A quick update since you left",
     cta: "Come Back",
     paragraphs: [
-      "It's been a few days since you cancelled, and we wanted to share what's new.",
+      "It's been a few days since you canceled, and we wanted to share what's new.",
       "We've been working hard on improvements and would love to have you back. Your account can be reactivated instantly.",
     ],
     signOff: "Thanks,",

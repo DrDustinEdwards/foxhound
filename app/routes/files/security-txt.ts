@@ -1,74 +1,29 @@
+import { securityTxtResponse } from "@dustinedwards/site-runtime/security-txt";
+
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { SUPPORT_EMAIL, siteUrl } from "~/lib/seo/jsonld";
+import { siteUrl } from "~/lib/seo/jsonld";
 
 import type { Route } from "./+types/security-txt";
-import { DAY_MS } from "~/lib/constants";
 
-// /.well-known/security.txt, RFC 9116 (377 item 11).
+// /.well-known/security.txt, RFC 9116 (377 item 11), from site-runtime: it tells somebody who has found a vulnerability
+// where to send it, before they decide a public post is the only channel. The family's one security address (Dustin,
+// 2026-10-25) and a fixed Expires, as on every family site: a date that renews itself would keep vouching for an
+// address nobody has checked.
 //
-// WHAT IT IS FOR: it tells somebody who has found a vulnerability where to send
-// it, before they decide that a public post is the only channel available. That
-// is the whole value, and it is why the file ships ahead of the /security page
-// it points at rather than waiting for it.
-//
-// EXPIRES IS THE FIELD THAT ROTS, and RFC 9116 section 2.5.5 makes it mandatory
-// for exactly that reason: a contact address nobody has confirmed in three years
-// is worse than none, because a finder trusts it and gets silence. The spec
-// recommends less than a year out, so this is computed as one year minus a
-// month from the build, and the plant fails BEFORE the served file expires
-// rather than after, with a message naming what to change.
-//
-// COMPUTED AT REQUEST TIME, NOT BAKED AT BUILD. A Worker deployed once and left
-// alone would otherwise serve an Expires that drifts into the past silently. It
-// is derived from the request's own clock, so a file served today is always
-// valid for the window below, and the guard that matters is the test that
-// refuses to let the window itself grow past the spec's ceiling.
-
-/** How far ahead `Expires` is set. Under a year, per RFC 9116's recommendation,
- *  with a month of margin so a slow deploy cadence cannot push a served file
- *  past the ceiling. */
-export const SECURITY_TXT_EXPIRES_DAYS = 335;
-
-/** The ceiling the plant enforces. A year and a day, because the spec says
- *  "less than a year" and a value AT one year is already outside it. */
-export const SECURITY_TXT_MAX_EXPIRES_DAYS = 366;
-
-/**
- * Build the file. Pure, so the plant can parse it without a request.
- *
- * FIELD ORDER IS THE SPEC'S OWN. Contact first because it is the point of the
- * file; Expires next because a reader needs to know whether to trust the rest;
- * then Policy and Canonical.
- *
- * CANONICAL POINTS AT ITSELF, which is what the field is for: it says which URL
- * is the authoritative copy, so a mirror of this file found elsewhere can be
- * recognised as a copy rather than a second, possibly forged, contact route.
- */
-export function buildSecurityTxt(url: string, now: Date): string {
-  const expires = new Date(now.getTime() + SECURITY_TXT_EXPIRES_DAYS * DAY_MS);
-  return [
-    `Contact: mailto:${SUPPORT_EMAIL}`,
-    `Expires: ${expires.toISOString().replace(/\.\d{3}Z$/, "Z")}`,
-    `Policy: ${url}/security`,
-    `Canonical: ${url}/.well-known/security.txt`,
-    "Preferred-Languages: en",
-    "",
-  ].join("\n");
-}
+// THE CACHE POLICY IS NOT SET HERE: the path is listed in cache-policy's FILES_EXACT, and the one choke point in
+// workers/app.ts sets it, so securityTxtResponse's own default is removed rather than left to compete.
+export const SECURITY_CONTACT = "security@dustinedwards.info";
+export const SECURITY_TXT_EXPIRES = "2027-09-28T00:00:00Z";
 
 export function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
-  // NO CACHING DIRECTIVE IS SET HERE, deliberately. The path is listed in
-  // cache-policy's FILES_EXACT, so the one choke point in workers/app.ts sets it
-  // for this route as it does for every other. Setting it again would be a
-  // second authority for one rule, and cache-policy.test.ts's PLANT 7 refuses a
-  // new route that duplicates the policy. The older files routes still set their
-  // own and are listed there as known duplicates; new ones do not.
-  //
-  // That guard greps for the header NAME across app/routes, so naming it in this
-  // comment would have matched and failed the check on a file that sets nothing.
-  // Session 57's trap, and the reason this sentence is worded around it.
-  return new Response(buildSecurityTxt(siteUrl(env), new Date()), {
-    headers: { "Content-Type": "text/plain; charset=utf-8" },
+  const url = siteUrl(env);
+  const response = securityTxtResponse({
+    origin: url,
+    contact: SECURITY_CONTACT,
+    expires: SECURITY_TXT_EXPIRES,
+    policy: `${url}/security`,
   });
+  response.headers.delete("Cache-Control");
+  return response;
 }

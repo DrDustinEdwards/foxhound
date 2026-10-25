@@ -5,7 +5,7 @@
  * Legacy's status filter (app/(app)/recovery/payments/components/
  * PaymentsFilters.tsx) is a `role="radiogroup"` whose key handler moves through
  * the options on arrows, wrapping at both ends, and jumps to first and last on
- * Home and End. Foxhound's port has to reproduce that BEHAVIOUR, not an
+ * Home and End. Foxhound's port has to reproduce that BEHAVIOR, not an
  * approximation of it, so the index arithmetic lives here where a test can
  * reach it: vitest runs `environment: "node"` with no DOM, so a component-level
  * keyboard test is not available without adding jsdom.

@@ -105,7 +105,7 @@ export default function DemosPage() {
             Capsomer's per-site layer (capsomer job_ec5ec0754626). FadeUp,
             Recova's reveal, is a one-cell grid so the panel fills the row.
             The panel's body does not fill the panel, so a button sits under
-            its own blurb rather than at the foot of a taller neighbour, as
+            its own blurb rather than at the foot of a taller neighbor, as
             on the blog's cards (J19); that is the layer's too. */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" data-density="comfortable">
           {PRODUCT_ENTRIES.map((entry, index) => (

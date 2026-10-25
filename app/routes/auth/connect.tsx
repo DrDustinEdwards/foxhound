@@ -239,7 +239,7 @@ function AccessDisclosure() {
 // try again" would be untrue there, since trying again is refused again, and the
 // sentence names no account, so it tells nobody whose ledger holds it.
 const OAUTH_ERROR_MESSAGES: Record<string, string> = {
-  denied: "You cancelled the Stripe connection. Try again when ready.",
+  denied: "You canceled the Stripe connection. Try again when ready.",
   invalid_state: "Security check failed. Please try again.",
   no_code: "Stripe did not return an authorization code. Please try again.",
   token_exchange_failed: "Stripe could not complete the connection. Please try again.",
@@ -248,7 +248,7 @@ const OAUTH_ERROR_MESSAGES: Record<string, string> = {
 const OAUTH_ERROR_FALLBACK = "Something went wrong. Please try again.";
 
 /** A small text link on the card, amber, underlined so it is not told apart by
- *  colour alone, and 24px tall as a target. */
+ *  color alone, and 24px tall as a target. */
 function CardLink({ to, children }: { to: string; children: ReactNode }) {
   return (
     <Link
@@ -261,7 +261,7 @@ function CardLink({ to, children }: { to: string; children: ReactNode }) {
 }
 
 /**
- * The page's frame: Recova's one card, centred, 480px wide (app/connect/page.tsx
+ * The page's frame: Recova's one card, centered, 480px wide (app/connect/page.tsx
  * line 43), under the site header (J10). Not AuthShell: Recova's /connect has no
  * brand panel, and AuthShell's own main landmark would sit inside the marketing
  * layout's.

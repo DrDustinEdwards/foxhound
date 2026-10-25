@@ -139,7 +139,7 @@ export const MANUAL_ACTION_REQUIRES_ACTIVE: Record<ManualIntent, boolean> = {
   // resend on a terminal payment (scope 1.5, defect 2), and Session A ported that
   // shape exactly with a tripwire test pinning `false` so any later change had to
   // be argued rather than slipped in. 264 argues it: resending a dunning email
-  // about a payment already recovered or cancelled asserts a FALSE state to the
+  // about a payment already recovered or canceled asserts a FALSE state to the
   // customer and manufactures exactly the complaints the suppression check exists
   // to prevent, and a client-side state gate is treatment, never authority. The
   // tripwire did its job by making this a ruling.
@@ -405,7 +405,7 @@ async function resendLastEmail(
  * its earlier inline implementation was "a degraded parallel" with no
  * suppression check, no unsubscribe token and no idempotency, and reuse inherits
  * all of it. Foxhound reuses for the same reason, and additionally inherits the
- * money-path rules the executors already honour.
+ * money-path rules the executors already honor.
  *
  * MONEY INVARIANTS, unchanged by this path and deliberately so: the executors'
  * recovery_steps writes stay OPERATIONAL on their existing plain-batch path, and
@@ -425,7 +425,7 @@ async function triggerNextStep(
   // The row's own gates already passed in the dispatcher (ownership, active
   // payment), so the remaining reason it can be missing is the ACCOUNT being
   // ineligible: the emergency brake is engaged, processing is paused, or the
-  // account is cancelled. Executing a step is processing, so the brake holds
+  // account is canceled. Executing a step is processing, so the brake holds
   // here exactly as it holds over the cron.
   if (!row) return { ok: false, reason: "processing_paused" };
 
@@ -536,7 +536,7 @@ async function stopRecovery(req: ManualActionRequest): Promise<ManualActionOutco
 
   // The commit result reports whether the KEY was newly applied, not whether the
   // claim took a row, so the honest answer to "did this actually stop anything"
-  // comes from reading the status back. Anything other than cancelled means a
+  // comes from reading the status back. Anything other than canceled means a
   // concurrent writer resolved the payment inside the claim window, which is
   // legacy's `alreadyResolved` case answered truthfully rather than as success.
   const [after] = await req.db

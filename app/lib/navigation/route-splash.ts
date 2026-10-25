@@ -2,7 +2,7 @@
  *
  *  LEGACY'S SHAPE, read at blob 7466b69991de78e58ce75427611240723139bfe4 (366
  *  bytes) rather than from the scope doc's summary of it. It is NOT a skeleton:
- *  it is a full-height centred splash, the favicon at 96px over a mono
+ *  it is a full-height centered splash, the favicon at 96px over a mono
  *  "Loading..." on the page background.
  *
  *  LEGACY'S POPULATION, measured across its whole app tree rather than assumed

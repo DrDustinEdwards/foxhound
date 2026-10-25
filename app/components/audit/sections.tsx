@@ -154,7 +154,7 @@ function Headline({
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
-/** Recova's AuditAISummary (5ba213df): a labelled card holding one paragraph.
+/** Recova's AuditAISummary (5ba213df): a labeled card holding one paragraph.
  *  Renders nothing when there is no summary. Shared with /audit/dashboard. */
 export function AuditSummary({ summary }: { summary: string | null }) {
   if (!summary) return null;
@@ -433,9 +433,9 @@ function DisputeFigures({
 
       {/* Recova's "Recova win rate", from Foxhound's own records: disputes
           whose evidence Foxhound submitted, won over resolved. Recova's bands
-          are 70 and 50. The middle band takes the caution colour, the same
+          are 70 and 50. The middle band takes the caution color, the same
           rule as the recovery rate's middle band (recoveryRateClassName):
-          status colours are not accents, so the one-accent rule leaves them
+          status colors are not accents, so the one-accent rule leaves them
           alone. */}
       {foxhoundWinRate !== null ? (
         <div className="mt-2 text-label text-text-secondary">

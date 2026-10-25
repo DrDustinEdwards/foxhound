@@ -120,7 +120,7 @@ export function RevenueChart({ w, nowMs }: { w: RecoveryDashboardWindow; nowMs: 
         </div>
       </Panel>
 
-      {/* Recova's email side panel, labelled with the range as Recova's was.
+      {/* Recova's email side panel, labeled with the range as Recova's was.
           Recova's query had no date filter (lib/dashboard-data.ts), so its
           label was untrue; here the figures are the range's, so it is true. */}
       <Panel title="Email performance">
@@ -223,7 +223,7 @@ export function EmailCategoryChart({ w }: { w: RecoveryDashboardWindow }) {
             series: "series",
             layout: "grouped",
             orientation: "horizontal",
-            // Recova's legend order and colours: Open rate green, Click rate blue.
+            // Recova's legend order and colors: Open rate green, Click rate blue.
             seriesDomain: ["Open rate", "Click rate"],
             colors: { "Open rate": "var(--green)", "Click rate": "var(--blue)" },
             xLabel: null,

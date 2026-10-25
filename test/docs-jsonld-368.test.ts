@@ -13,7 +13,7 @@ import { STATIC_PAGES } from "~/routes/files/sitemap";
 // (Organization, SoftwareApplication, WebSite, WebPage, FAQPage, Question,
 // Answer, Offer, ContactPoint, SpeakableSpecification, BreadcrumbList). The five
 // guides carried ZERO, and they are the pages an AI most wants to cite: they are
-// the only place the product's behaviour is written down in prose.
+// the only place the product's behavior is written down in prose.
 //
 // THE TYPE IS TechArticle, and that is the site's vocabulary applied rather than
 // a new one invented. BlogPosting claims a dated editorial post with an author,

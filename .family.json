@@ -1,0 +1,17 @@
+{
+  "libraries": {
+    "sanitize-html": "the recovery-sequence preview discards tags outside a five-tag email allowlist; Prelum's ./render/safe only scans and refuses",
+    "jose": "test only: test/admin-access.test.ts signs Access tokens to drive the real verifier"
+  },
+  "spelling": {
+    "contracts": [
+      "[\"'`]cancelled[\"'`]",
+      "\\.cancelled\\b|\\b(let|const|var)\\s+cancelled\\b|\\bcancelled(?=\\s*(\\??:|\\+\\+|;|\\);|\\}|=[^=]))",
+      "\\w+[cC]ancelled\\w*|[cC]ancelled[A-Z_]\\w*|CANCELLED"
+    ],
+    "skip": [
+      "drizzle/migrations/**",
+      "docs/research/kill-matrix.json"
+    ]
+  }
+}

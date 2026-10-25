@@ -10,4 +10,4 @@ import { WINBACK_STEP1_HOURS, WINBACK_UNFLAGGED_STEP1_HOURS } from "~/lib/consta
 
 const hours = (n: number) => `${n} ${n === 1 ? "hour" : "hours"}`;
 
-export const INTELLIGENCE_WINBACK_SENTENCE = `On an account with Intelligence, the first win-back email after a cancellation waits ${hours(WINBACK_UNFLAGGED_STEP1_HOURS)} instead of ${hours(WINBACK_STEP1_HOURS)}, unless the customer is flagged as a win-back priority. Nothing in Foxhound flags a customer as a win-back priority yet, so today every cancelled customer on such an account waits ${hours(WINBACK_UNFLAGGED_STEP1_HOURS)}.`;
+export const INTELLIGENCE_WINBACK_SENTENCE = `On an account with Intelligence, the first win-back email after a cancellation waits ${hours(WINBACK_UNFLAGGED_STEP1_HOURS)} instead of ${hours(WINBACK_STEP1_HOURS)}, unless the customer is flagged as a win-back priority. Nothing in Foxhound flags a customer as a win-back priority yet, so today every canceled customer on such an account waits ${hours(WINBACK_UNFLAGGED_STEP1_HOURS)}.`;

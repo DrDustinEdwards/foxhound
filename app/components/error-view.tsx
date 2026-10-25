@@ -68,7 +68,7 @@ export function ErrorView({ error, isDev = false }: { error: unknown; isDev?: bo
       ? WITHDRAWN_BLOG_REASON
       : details;
 
-  // The numeral's colour is the kit's fault signal: the brand accent (amber) for
+  // The numeral's color is the kit's fault signal: the brand accent (amber) for
   // an expected condition (404), red for a fault. A withdrawal is expected, so it
   // takes the expected tone. Red here would be the same error framing the
   // heading just stopped doing, one element over. On the amber family the
@@ -78,8 +78,8 @@ export function ErrorView({ error, isDev = false }: { error: unknown; isDev?: bo
   const logo = headerLogo("/");
 
   // Legacy runs ONE chrome kit across not-found.tsx and error.tsx: the same
-  // absolute nav, the same centred block, the same footer, differing only in the
-  // numeral, its colour, the copy and the CTA set. Ported as one boundary with
+  // absolute nav, the same centered block, the same footer, differing only in the
+  // numeral, its color, the copy and the CTA set. Ported as one boundary with
   // two states, the M20/M21 shared-legal-kit shape (ruling 82). The withdrawal
   // is a third state on the same kit.
   //

@@ -48,7 +48,7 @@ import type { Route } from "./+types/customers";
 // No Foxhound class sits on a Capsomer element: where the page needs Recova's
 // mono figures, its label size or its spacing, the class goes on an element of
 // the page's own inside or around the Capsomer part. Recova's mono uppercase
-// column heads, its plan colours on the pill's edge and its 12px radius wait
+// column heads, its plan colors on the pill's edge and its 12px radius wait
 // for Capsomer's per-site layer (capsomer job_ec5ec0754626), listed in the J30
 // notes.
 //

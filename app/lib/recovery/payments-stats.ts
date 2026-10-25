@@ -36,7 +36,7 @@ export interface StatusCountsShape {
  * Legacy keys `globalCounts` by the raw status string, so its lookup is a plain
  * index with an `?? all` fallback. Foxhound's counts are camelCase, so the
  * mapping is explicit and the fallback is PORTED rather than dropped: an
- * unrecognised `status` in the URL reads the same total legacy would show.
+ * unrecognized `status` in the URL reads the same total legacy would show.
  *
  * Foxhound's "no status filter" sentinel is the empty string where legacy's is
  * the literal 'all'; both mean the same pill and both land on `counts.all`.
@@ -51,10 +51,10 @@ export function showingCountFor(counts: StatusCountsShape, status: string): numb
 }
 
 /**
- * Legacy's thresholded colour for the "Recovery rate" card value:
+ * Legacy's thresholded color for the "Recovery rate" card value:
  *
  *   colorClass: recoveryRate >= 36 ? 'text-green'
- *             : recoveryRate >= 21 ? (legacy's accent text colour)
+ *             : recoveryRate >= 21 ? (legacy's accent text color)
  *             : 'text-red'
  *
  * The two cutoffs are legacy's own numbers, read from source rather than

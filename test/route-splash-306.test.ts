@@ -36,7 +36,7 @@ describe("306: the splash covers legacy's whole set", () => {
   });
 
   it("a trailing slash is the same page", () => {
-    // Without normalisation a stray "/recovery/dashboard/" would silently stall
+    // Without normalization a stray "/recovery/dashboard/" would silently stall
     // rather than splash, which is the failure mode that looks like nothing happened.
     expect(isSplashPath("/recovery/dashboard/")).toBe(true);
     expect(isSplashPath("/settings/")).toBe(true);

@@ -49,7 +49,7 @@ import type { Route } from "./+types/intelligence";
 // weekly Intelligence email or Slack post (the narrative is nightly and stays
 // on the dashboard and Reports), and its alert evaluator records breaches in
 // alert_history without sending anything (app/lib/intelligence/alerts.ts).
-// A switch here would save a choice nothing honours, so the page names each
+// A switch here would save a choice nothing honors, so the page names each
 // delivery as not built, where Recova had its checkbox, and points at the
 // nearest thing that is built. With no control there is nothing to save, so
 // there is no SaveBar and no action. The day a reader exists, the reader guard
@@ -85,7 +85,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 }
 
 // Underlined at rest, not only on hover, because these links sit inside
-// sentences and colour alone does not set them apart (WCAG 1.4.1; axe
+// sentences and color alone does not set them apart (WCAG 1.4.1; axe
 // link-in-text-block caught it on the rendered page).
 const linkClass = "text-brand-text underline underline-offset-2 hover:text-text";
 

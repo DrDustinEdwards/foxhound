@@ -136,7 +136,7 @@ describe("MEDIUM #4: concurrent invite acceptance cannot land two active members
     // A committed), so it proceeds straight to activation. Its UPDATE is the
     // exact statement acceptInvite issues. Under the struck index this threw;
     // under the replacement it is a legitimate second membership on a second
-    // account, which is precisely the behaviour the product now wants.
+    // account, which is precisely the behavior the product now wants.
     const bWrite = db
       .update(accountMembers)
       .set({
@@ -298,7 +298,7 @@ describe("MEDIUM #4 sibling: concurrent account creation cannot land two active 
   // on user_id, its replacement is unique on (user_id, account_id), and two
   // racing submits mint two different account ids, so neither violated it and
   // both committed. One double-click, two accounts. Phase (a) rewrote the
-  // assertion to the broken behaviour deliberately, so phase (d) would have to
+  // assertion to the broken behavior deliberately, so phase (d) would have to
   // come back and change it on purpose rather than inherit a green.
   //
   // The fix is 327's, verbatim: "an idempotency key on the connect submit, not a
@@ -349,7 +349,7 @@ describe("MEDIUM #4 sibling: concurrent account creation cannot land two active 
 
     const result = await createAccountForUser(ENV, db, USER, "Loser Co");
 
-    // No "Loser Co" row anywhere: the DO recognised the re-delivery and wrote
+    // No "Loser Co" row anywhere: the DO recognized the re-delivery and wrote
     // nothing, so there is no orphan to be invisible.
     const accountRows = await db.select({ name: accounts.name }).from(accounts);
     expect(accountRows.map((r) => r.name)).toEqual(["Winner Co"]);

@@ -185,7 +185,7 @@ export interface EmailCategoryRow {
 /**
  * Recova draws every decline category it has, a zero bar included, rather than
  * only the ones with sends; Foxhound's categories are its engine's
- * (DECLINE_CATEGORIES), labelled by its own names, never the raw value.
+ * (DECLINE_CATEGORIES), labeled by its own names, never the raw value.
  */
 export function emailCategoryRows(
   performance: readonly { category: DeclineCategory; openRatePct: number; clickRatePct: number; emailCount: number }[],
@@ -286,7 +286,7 @@ export interface PaymentStepSummary {
 /**
  * Recova's Steps cell (components/recovery/PaymentRow.tsx, blob 0d2e1f52):
  * executed steps over all steps, and the first step, in sequence order, that
- * has neither run nor been given a result (a cancelled step has a result and
+ * has neither run nor been given a result (a canceled step has a result and
  * is never "next").
  */
 export function paymentStepSummary(

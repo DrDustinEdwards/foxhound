@@ -135,7 +135,7 @@ export const RECOVA_FEATURES: RecovaFeature[] = [
   { section: "integration", name: "MCP Merchant connector", foxhound: "MCP Merchant connector" },
   { section: "integration", name: "MCP Admin connector", foxhound: "MCP Admin connector" },
   { section: "integration", name: "OAuth 2.1 authorization server", foxhound: "OAuth 2.1 authorization server" },
-  { section: "integration", name: "Refresh token rotation", foxhound: null, why: "not verified: the admin connector's refresh behaviour is the OAuth library's, which keeps the previous token valid for a grace period, so Recova's 'old token invalidated' is not claimed" },
+  { section: "integration", name: "Refresh token rotation", foxhound: null, why: "not verified: the admin connector's refresh behavior is the OAuth library's, which keeps the previous token valid for a grace period, so Recova's 'old token invalidated' is not claimed" },
   { section: "integration", name: "API keys", foxhound: "API keys" },
   { section: "integration", name: "Anthropic API", foxhound: "Anthropic API" },
   { section: "integration", name: "Supabase", foxhound: "Cloudflare D1", why: "Foxhound's database (RULES.md 1.2, a Cloudflare internal)" },

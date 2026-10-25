@@ -26,7 +26,7 @@ export function recoveryFeeCents(recoveredAmountCents: number): number {
  * two are different things. The authoritative one is converted at resolution
  * from a Stripe FX quote (dispute-cap.ts) and frozen on the dispute row. A
  * projection shown before resolution passes the USD cap and is a projection.
- * A default would have let a caller silently get the old behaviour back.
+ * A default would have let a caller silently get the old behavior back.
  */
 export function disputeFeeCents(disputedAmountCents: number, capMinorUnits: number): number {
   const raw = Math.round((disputedAmountCents * DISPUTE_FEE_BPS) / BPS_DIVISOR);

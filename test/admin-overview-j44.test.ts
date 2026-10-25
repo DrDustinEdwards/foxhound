@@ -42,7 +42,7 @@ async function seed() {
     { id: "acct_north", name: "Northwind Coffee", createdAt: at(40 * DAY) },
     { id: "acct_lumen", name: "Lumen Studio", createdAt: at(3 * DAY), processingPaused: true },
     { id: "acct_brake", name: "Harbor Yoga", createdAt: at(90 * DAY), processingPaused: true, pauseReason: "brake", billingExempt: true },
-    // Paused but cancelled: processing is already gated by the cancel, so there
+    // Paused but canceled: processing is already gated by the cancel, so there
     // is nothing to resume and it is not a problem to act on.
     { id: "acct_gone", name: "Gone Co", createdAt: at(60 * DAY), processingPaused: true, cancelledAt: at(5 * DAY) },
     // Demo accounts never count on the operator surface.

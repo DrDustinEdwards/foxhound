@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import type { HeaderAccount, LinkProps } from "capsomer/react/site-header";
+import { themeCookie } from "capsomer/theme-server";
 
 import "~/site-header.css";
 import { switchAccount, switchTargetFromHref } from "~/components/nav/account-switcher";
@@ -183,5 +184,5 @@ function persistTheme(theme: Theme, save: "account" | "cookie"): void {
     });
     return;
   }
-  document.cookie = `${THEME_COOKIE}=${theme}; path=/; max-age=31536000; SameSite=Lax`;
+  document.cookie = themeCookie(theme, { name: THEME_COOKIE, secure: location.protocol === "https:" });
 }

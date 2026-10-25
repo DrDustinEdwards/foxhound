@@ -494,7 +494,7 @@ describe("the action: Foxhound's writers, each with its audit row", () => {
     expect((await account(seeded.db, "acct_lumen")).billingExempt).toBe(true);
   });
 
-  it("refuses to cancel a merchant already cancelled", async () => {
+  it("refuses to cancel a merchant already canceled", async () => {
     const res = await post({ intent: "cancel", accountId: "acct_gone", confirm: "cancel" });
     expect(res.init?.status).toBe(400);
     expect(await auditActions(seeded.db)).toEqual([]);

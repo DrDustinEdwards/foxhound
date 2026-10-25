@@ -1,7 +1,7 @@
 import { ArrowRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Form, Link, data, useNavigate, useNavigation, useRouteLoaderData, useSubmit } from "react-router";
-import { dismissBanner } from "capsomer/behaviour/banner";
+import { dismissBanner } from "capsomer/behavior/banner";
 import { Banner } from "capsomer/react/banner";
 import { ConfirmDialog } from "capsomer/react/confirm-dialog";
 import { Empty } from "capsomer/react/empty";
@@ -98,7 +98,7 @@ import type { Route } from "./+types/index";
 // Built from Capsomer 0.9.0's parts (Q10), amber throughout. No Foxhound
 // class sits on a Capsomer element: Recova's mono figures, its sizes and its
 // spacing go on elements of the page's own inside or around them. Recova's
-// per-status colours on the status filter and the row pills, its filled (now
+// per-status colors on the status filter and the row pills, its filled (now
 // amber) Next button in the pager, and its 12px radius wait for Capsomer's
 // per-site layer (capsomer job_ec5ec0754626), listed in the J75 pull request.
 //
@@ -314,7 +314,7 @@ const STATUS_PILLS = [
   { value: "", label: "All" },
   { value: "active", label: "Active" },
   { value: "recovered", label: "Recovered" },
-  { value: "cancelled", label: "Cancelled" },
+  { value: "cancelled", label: "Canceled" },
   { value: "failed_unrecovered", label: "Failed" },
 ] as const;
 
@@ -537,7 +537,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
     { label: "Showing", value: String(showingCountFor(globalCounts, filters.status)) },
     { label: "Active", value: String(globalCounts.active), className: "text-brand-text" },
     { label: "Recovered", value: String(globalCounts.recovered), className: "text-green" },
-    { label: "Cancelled", value: String(globalCounts.cancelled), className: "text-text-subtle" },
+    { label: "Canceled", value: String(globalCounts.cancelled), className: "text-text-subtle" },
     {
       label: "Recovery rate",
       value: `${globalRecoveryRatePct}%`,

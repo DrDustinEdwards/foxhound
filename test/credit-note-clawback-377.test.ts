@@ -68,7 +68,7 @@ vi.mock("~/lib/stripe/client", () => ({
   },
 }));
 
-// The money DO, modelled with its seen-set so the idempotency key is doing real
+// The money DO, modeled with its seen-set so the idempotency key is doing real
 // work rather than being decoration.
 vi.mock("~/lib/money/execute", () => ({
   executeMoneyWrite: async (

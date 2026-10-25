@@ -508,7 +508,7 @@ describe("PHASE (f) JOB 3: switching accounts moves every surface", () => {
     // the surface it was ratified for.
     await expect(resolveThemeForRequest({} as Env, signedInRequest())).resolves.toBe("light");
 
-    // The refusal half: the switch action must not honour an account the caller
+    // The refusal half: the switch action must not honor an account the caller
     // does not hold, or the whole per-account story is decoration.
     const refused = await switchAction({
       request: switchRequest("acct_not_theirs"),

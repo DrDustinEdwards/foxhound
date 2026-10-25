@@ -183,7 +183,7 @@ describe("PLANT 2: request shape, not only the user agent", () => {
     ]) {
       expect(
         classifyEngagementRequest(request({ "user-agent": HUMAN_UA, [header]: value }), "click"),
-        `${header} not honoured`,
+        `${header} not honored`,
       ).toEqual({ automated: true, reason: "prefetch" });
     }
   });

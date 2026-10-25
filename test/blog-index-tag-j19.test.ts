@@ -12,7 +12,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // (55a92d1a) and tag/[tag]/page.tsx (3f6aa696).
 //
 // Recova is the spec for content, layout and features; the parts are
-// Capsomer's (Q12), the colour amber, the text on the five sizes
+// Capsomer's (Q12), the color amber, the text on the five sizes
 // (RULES.md 5.2). The defects not copied: a section over a tag with no posts,
 // Recova's arbitrary text-[X] sizes, and an unknown tag served as a page.
 // These read the RENDERED page, so a class on a helper that never reaches a
@@ -58,7 +58,7 @@ function seed(
 
 
 
-// Tailwind text-* utilities that are colours or alignment, not sizes.
+// Tailwind text-* utilities that are colors or alignment, not sizes.
 
 
 

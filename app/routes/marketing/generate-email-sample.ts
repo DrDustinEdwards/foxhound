@@ -15,7 +15,7 @@ import type { Route } from "./+types/generate-email-sample";
 // { error: true } and the generator shows Recova's "Generation failed. Try again."
 // (components/marketing/EmailGenerator.tsx, blob c4592a56; M3 divergence 28).
 // It used to answer with a stored sample in the same shape, which the page
-// then labelled as generated in real time.
+// then labeled as generated in real time.
 const UNAVAILABLE = { error: true } as const;
 
 function isValidCategory(value: string): value is MarketingEmailCategory {

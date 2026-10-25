@@ -112,7 +112,7 @@ function signedInRequest(init?: RequestInit): Request {
 describe("DEFECT 2: the theme WRITE stamped the earliest account, not the active one", () => {
   it("writes the MARKED account row and leaves the earliest one alone", async () => {
     // The worse half of the pair. A read that answers the wrong account shows
-    // the wrong colour; a write that stamps the wrong account MUTATES a row the
+    // the wrong color; a write that stamps the wrong account MUTATES a row the
     // merchant is not looking at. Legacy's writer
     // (app/api/account/theme/route.ts, blob 968ba672) goes through
     // resolveAccount exactly as its reader does.

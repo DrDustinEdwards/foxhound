@@ -58,7 +58,7 @@ import type { Rendered } from "capsomer/email";
 //
 // HOW IT SENDS. Only through the one send module (app/lib/email/send.ts):
 // sendEmail for customer and merchant mail, the two transactional senders for
-// platform mail. Customer and merchant mail honours suppression, as
+// platform mail. Customer and merchant mail honors suppression, as
 // processEmailJob does, but skips the per-account live-send gate, because that
 // gate exists to keep a merchant's customers from being mailed before the
 // merchant is switched on, and this mail goes only to the caller's own inbox.
@@ -101,7 +101,7 @@ export const ADMIN_EMAIL_TYPES: readonly AdminEmailType[] = [
   ...[1, 2, 3].map((n) => ({
     type: `winback_step${n}`,
     audience: "customer" as const,
-    description: `Win-back email ${n} of 3, sent to a customer who cancelled, from the merchant's sender name with its Reply-To.`,
+    description: `Win-back email ${n} of 3, sent to a customer who canceled, from the merchant's sender name with its Reply-To.`,
   })),
   {
     type: "expiring_card",

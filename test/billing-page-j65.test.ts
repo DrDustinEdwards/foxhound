@@ -286,12 +286,12 @@ describe("subscriptionDetail (Recova's Renews, Cancels on, Expired lines)", () =
       warn: false,
     });
   });
-  it("an active subscription already cancelled cancels on its period end", () => {
+  it("an active subscription already canceled cancels on its period end", () => {
     expect(
       subscriptionDetail({ status: "active", canceledAt: T("2026-08-01T00:00:00.000Z"), currentPeriodEndsAt: end }),
     ).toEqual({ text: "Cancels on Sep 1, 2026", warn: true });
   });
-  it("a cancelled one with a period end expired", () => {
+  it("a canceled one with a period end expired", () => {
     expect(subscriptionDetail({ status: "canceled", canceledAt: end, currentPeriodEndsAt: end })).toEqual({
       text: "Expired Sep 1, 2026",
       warn: false,
@@ -403,7 +403,7 @@ describe("/billing renders Recova's page on Foxhound's engine", () => {
       expect(html).not.toContain("Next invoice:");
     });
 
-    it("a cancelled account still sees its next invoice, and why", () => {
+    it("a canceled account still sees its next invoice, and why", () => {
       const html = text(
         render(
           loaderData({
@@ -417,7 +417,7 @@ describe("/billing renders Recova's page on Foxhound's engine", () => {
           }),
         ),
       );
-      expect(html).toContain("This account is cancelled. Fees already earned still appear on the next invoice.");
+      expect(html).toContain("This account is canceled. Fees already earned still appear on the next invoice.");
       expect(html).toContain("Next invoice: August 1, 2026");
     });
   });

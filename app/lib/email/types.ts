@@ -85,7 +85,7 @@ interface EmailJobFields {
    * This comment used to read "stable per logical send so a re-delivery is
    * recognizable by the caller", which described a dedupe that did not exist.
    * 376 item 15 measured it: the field was read by NOTHING, so nothing
-   * recognised anything. 385 made it real, and this now describes what the code
+   * recognized anything. 385 made it real, and this now describes what the code
    * does rather than what the field was named for.
    *
    * WHAT IT DOES NOW. `processEmailJob` inserts an `email_sends` row carrying

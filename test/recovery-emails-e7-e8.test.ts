@@ -82,7 +82,7 @@ const env = {
 // kept exactly, except two truthfulness fixes Dustin approved on 2026-10-15
 // (cmsg_01Nd8kh3hkgYNYpWXrNkvBQL2LnH5XBcKc3DcWHoEsDbT6): day 14's "and
 // restores your account" became "only takes a minute", and day 30's "will be
-// cancelled" became "may be cancelled".
+// canceled" became "may be canceled".
 
 type Block = ReturnType<typeof htmlToBlocks>[number];
 
@@ -110,7 +110,7 @@ const RECOVA: Record<"email_day14" | "email_day30", RecovaStep> = {
       { type: "paragraph", text: `Hi ${name},` },
       {
         type: "paragraph",
-        text: `This is the final automated notice on your unpaid balance of ${amount}. Without an updated payment method, your account may be cancelled.`,
+        text: `This is the final automated notice on your unpaid balance of ${amount}. Without an updated payment method, your account may be canceled.`,
       },
       { type: "button", label: "Update Payment Method", url },
       { type: "paragraph", text: sender },

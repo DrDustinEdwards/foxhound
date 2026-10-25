@@ -50,14 +50,14 @@ interface Refused {
   intent: string;
   error: string;
 }
-interface Cancelled {
+interface Canceled {
   ok: true;
   intent: "cancel";
   accountId: string;
   name: string | null;
   warning?: string;
 }
-export type ActionData = ToggleResult | Cancelled | Refused;
+export type ActionData = ToggleResult | Canceled | Refused;
 
 const refuse = (intent: string, error: string, status = 400) =>
   data<ActionData>({ ok: false, intent, error }, { status });
@@ -81,7 +81,7 @@ export async function action({ context, request }: Route.ActionArgs) {
   if (!target) return refuse(intent, "That merchant was not found. Nothing was changed.");
 
   if (intent === "cancel") {
-    if (target.cancelledAt) return refuse(intent, `${target.name ?? target.id} is already cancelled.`);
+    if (target.cancelledAt) return refuse(intent, `${target.name ?? target.id} is already canceled.`);
     // Checked before the write and before the audit row, so a mistyped word
     // never records an attempt that did not happen. Capsomer's confirm page
     // says "Not done. Nothing was changed." itself.
@@ -106,7 +106,7 @@ export async function action({ context, request }: Route.ActionArgs) {
       name: target.name,
       warning:
         failed > 0
-          ? `${plural(failed, "Stripe connection", "Stripe connections")} could not be revoked at Stripe and need a revoke by hand or a retry. The merchant is cancelled here either way.`
+          ? `${plural(failed, "Stripe connection", "Stripe connections")} could not be revoked at Stripe and need a revoke by hand or a retry. The merchant is canceled here either way.`
           : undefined,
     });
   }

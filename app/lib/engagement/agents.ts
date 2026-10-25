@@ -112,7 +112,7 @@ export type EngagementSource =
  * signal. Link-preview generators and security scanners issue HEAD constantly.
  *
  * THE MISSING USER AGENT IS TREATED ASYMMETRICALLY, and the asymmetry is the one
- * judgement call in this module.
+ * judgment call in this module.
  *
  * For a CLICK it fails closed. A browser following a link in an email always
  * sends a UA; a script frequently does not. The two errors are not symmetric: a

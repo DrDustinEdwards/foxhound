@@ -29,7 +29,7 @@ import { mcpRequest, readMcp, toolOutput, type McpCallInit } from "./helpers/mcp
 //      answers a legacy-era request as an SSE stream, "the bytes" is the JSON-RPC
 //      message `readMcp` lifts out of it, which is everything the agent reads.
 //
-// STACKED-GUARD FIXTURES (371 binding 5). Where a refusal has a neighbour that
+// STACKED-GUARD FIXTURES (371 binding 5). Where a refusal has a neighbor that
 // would refuse the same input anyway, the fixture is built so only the guard
 // under test can produce the result. That rule exists because neutering the
 // admin-scope check in session 76 left the suite green.

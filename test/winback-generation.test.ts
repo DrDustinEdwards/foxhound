@@ -204,7 +204,7 @@ describe("PLANT 1: the prompt is legacy's, per step", () => {
   it("carries the customer, the plan and the cancellation reason", () => {
     const p = buildWinbackPrompt({ ...base, stepNumber: 2 });
     expect(p).toContain("- Name: <data>Jane</data>");
-    expect(p).toContain("- Cancelled plan: <data>Pro</data>");
+    expect(p).toContain("- Canceled plan: <data>Pro</data>");
     expect(p).toContain("- Cancellation reason: <data>too expensive</data>");
   });
 

@@ -20,7 +20,7 @@ describe("J12: Recova's step names, from Foxhound's schedules", () => {
   });
 });
 
-describe("J12: Recova's rate colours", () => {
+describe("J12: Recova's rate colors", () => {
   it("bands open rate above 50 green, 20 to 50 caution, under 20 red", () => {
     expect(sequenceRateTone(51, "open")).toBe("green");
     expect(sequenceRateTone(50, "open")).toBe("caution");

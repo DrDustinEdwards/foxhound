@@ -49,7 +49,7 @@ import type { Route } from "./+types/help";
 // link for each guide card and for the contact block (so every description
 // shows in full; row-list's detail line would cut it), Panel around each
 // status list, Capsomer's table for the job and connector rows, and Status for each
-// cron's state as a glyph, a word and a colour. The page also stops rendering
+// cron's state as a glyph, a word and a color. The page also stops rendering
 // a second <main> inside the shell's (ruling 146). Where Capsomer's defaults
 // differ from legacy's look (radius, hover, type, the status word), the
 // difference waits for Capsomer's per-site style layer and is listed with J13.
@@ -98,7 +98,7 @@ export const QUICK_ANSWERS = [
   },
   {
     q: "Why did a sequence stop before all steps ran?",
-    a: "Sequences stop automatically when a payment recovers, remaining steps cancel immediately. They also stop if you use Stop recovery on the payment, if the subscription is cancelled, or if the decline is classified as fraud (fraud sequences have no retry steps).",
+    a: "Sequences stop automatically when a payment recovers, remaining steps cancel immediately. They also stop if you use Stop recovery on the payment, if the subscription is canceled, or if the decline is classified as fraud (fraud sequences have no retry steps).",
   },
   {
     q: "How do I see what email was sent to a customer?",
@@ -284,11 +284,11 @@ export default function Help({ loaderData }: Route.ComponentProps) {
 const SECTION_LABEL = "mb-6 text-micro font-medium uppercase tracking-widest text-text-tertiary";
 
 /**
- * Legacy's four cron states on Capsomer's status tones. Legacy drew a coloured
+ * Legacy's four cron states on Capsomer's status tones. Legacy drew a colored
  * dot only, and the old port put the state in an aria-label on a div, which is
  * prohibited on a generic element and so was never reliably read. Capsomer's
- * Status says it as a glyph, a word and a colour together: the word is the
- * accessible text and colour is never the only cue. Pending is Capsomer's no
+ * Status says it as a glyph, a word and a color together: the word is the
+ * accessible text and color is never the only cue. Pending is Capsomer's no
  * data tone, the neutral one, which is legacy's own reading of a cron that has
  * never run (a sentinel, not a level).
  */

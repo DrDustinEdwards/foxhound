@@ -41,7 +41,7 @@ const harness = vi.hoisted(() => ({
   db: null as unknown,
   /** Every idempotency key the money write was asked to commit, in order. */
   keys: [] as string[],
-  /** The Durable Object's seen-set, modelled rather than stubbed away: the DO
+  /** The Durable Object's seen-set, modeled rather than stubbed away: the DO
    *  skips a key it has already committed and reports applied=false. Without
    *  this the mock would be more permissive than production and the
    *  payment-scoped key below would prove nothing. */
@@ -190,7 +190,7 @@ describe("ARM ONE: Stripe is still retrying", () => {
     const db = await seed();
     await processConnectedWebhook({} as Env, paymentFailed("evt_1", 1_756_000_000), FIRST_FAILURE);
 
-    // The subscription is cancelled while the payment is still Stripe's. This
+    // The subscription is canceled while the payment is still Stripe's. This
     // is involuntary churn, and if the guard cannot see the parked row it reads
     // as voluntary and spawns a win-back at a customer whose card just failed.
     const outcome = await processConnectedWebhook(
@@ -280,7 +280,7 @@ describe("hard declines never wait, because Stripe never retries them", () => {
   // Stripe does not retry an expired card, a fraud block or a revoked card, so
   // those invoices carry a null next_payment_attempt on the FIRST failure and
   // run through the same single gate. No decline-category branch exists in the
-  // code, and these prove the behaviour falls out of Stripe's own field.
+  // code, and these prove the behavior falls out of Stripe's own field.
   it.each([
     ["expired_card", "expired"],
     ["fraudulent", "fraud"],

@@ -12,7 +12,7 @@ import { mrrMovementAlt, mrrMovementBars, type MovementTotals } from "./console"
 // cohort still paying. Each returns Enarratio's figure as HTML at a width, with
 // a text equivalent (capsid/conventions-web.md rule 8) and its data table.
 
-/** The movement colours the Intelligence dashboard uses for the same series. */
+/** The movement colors the Intelligence dashboard uses for the same series. */
 const MOVEMENT_COLORS: Record<string, string> = {
   New: "var(--green)",
   Expand: "var(--blue)",

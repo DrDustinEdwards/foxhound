@@ -95,7 +95,7 @@ describe("a generation failure sends the template instead of nothing", () => {
   // the category's framing.
   it("uses the category's template framing, not a generic one", async () => {
     const { captured } = await run({ context: { declineCategory: "revoked", stepType: "email_revoked" } });
-    expect(captured.jobs[0].subject).toBe("Your subscription payment was cancelled");
+    expect(captured.jobs[0].subject).toBe("Your subscription payment was canceled");
     expect(captured.jobs[0].bodyHtml).toContain("authorization for this payment has been withdrawn");
   });
 });

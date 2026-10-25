@@ -1,11 +1,11 @@
 /** Legacy's loading splash, read at blob 7466b69991de78e58ce75427611240723139bfe4
- *  (366 bytes) and ported element for element. Legacy's markup is a centred
+ *  (366 bytes) and ported element for element. Legacy's markup is a centered
  *  column: the favicon at 96 square with mb-6, then "Loading..." in mono.
  *
  *  THREE DIFFERENCES, each with its class named rather than glossed:
  *
  *  1. `next/image` becomes a plain `<img>` at the same intrinsic 96x96. Next's
- *     Image is a framework optimiser with no RR8 counterpart; the rendered box
+ *     Image is a framework optimizer with no RR8 counterpart; the rendered box
  *     is identical. Internals-only, invisible to the user.
  *  2. alt "Recova" becomes "Foxhound". Branding, which needs no per-item
  *     ratification.

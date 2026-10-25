@@ -146,7 +146,7 @@ export default function IntelligenceRecommendationsPage({ loaderData }: Route.Co
   );
 }
 
-/** Recova's all-clear card: a green tick, its heading and its line, centred.
+/** Recova's all-clear card: a green tick, its heading and its line, centered.
  *  Capsomer's Empty puts the title in a <p>, which would demote Recova's h2, so
  *  this is Capsomer's empty markup inside a panel with the heading kept (the
  *  same gap the churn and customers pages name). */

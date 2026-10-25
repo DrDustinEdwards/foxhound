@@ -12,7 +12,7 @@ const { default: Connect } = await import("~/routes/auth/connect");
 //
 // Recova is the spec for the page's content, layout and features: its
 // app/connect/page.tsx (blob a79ee373, 4984 bytes), read whole. One 480px card
-// centred on the page, holding the h1 "Connect your Stripe account", the line
+// centered on the page, holding the h1 "Connect your Stripe account", the line
 // under it, the error notice, the access-disclosure panel ruling 20(d) owes,
 // the full-width "Connect Stripe" button, "Not ready? See a demo first" and
 // "Manage account". Its parts are Capsomer's (Q12), amber, on the five

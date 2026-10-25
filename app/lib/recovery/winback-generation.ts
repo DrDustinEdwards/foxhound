@@ -98,7 +98,7 @@ export interface WinbackPromptInput {
  *
  * THE OMISSION, forced: legacy's "Button style:" line inlines hex from its
  * EMAIL_COLORS module, and check-tokens fails the build on raw hex. The line is
- * dropped rather than recoloured, because a style instruction naming colours
+ * dropped rather than recoloured, because a style instruction naming colors
  * Foxhound does not have would ask the model for the wrong thing.
  *
  * THE ADDITION OF 2026-10-24, an approved difference from Recova: the
@@ -118,7 +118,7 @@ export interface WinbackPromptInput {
 export function buildWinbackPrompt(input: WinbackPromptInput): string {
   const description = describeStep(input.stepNumber, input.offsetHours);
   return [
-    "You are writing a win-back email for a SaaS business trying to re-engage a cancelled customer.",
+    "You are writing a win-back email for a SaaS business trying to re-engage a canceled customer.",
     "",
     `This is a ${description}.`,
     "",
@@ -126,7 +126,7 @@ export function buildWinbackPrompt(input: WinbackPromptInput): string {
     "",
     "Customer details:",
     `- Name: ${untrusted(input.customerName)}`,
-    `- Cancelled plan: ${untrusted(input.planName)}`,
+    `- Canceled plan: ${untrusted(input.planName)}`,
     `- Cancellation reason: ${input.cancelReason ? untrusted(input.cancelReason) : "not provided"}`,
     "",
     "Email requirements:",

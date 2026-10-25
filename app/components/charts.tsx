@@ -23,7 +23,7 @@ export interface MultiLineSeries {
 /**
  * Which x positions carry a label. Always the first and the last, then as many
  * evenly spaced interior ones as `maxLabels` allows, which is legacy recharts'
- * `interval="preserveStartEnd"` behaviour expressed without a measurement pass.
+ * `interval="preserveStartEnd"` behavior expressed without a measurement pass.
  * An interior label landing within half a stride of the end is dropped, because
  * that is the pair that would collide.
  */
@@ -299,7 +299,7 @@ export function StackedBars({
 
   // Stacks run both ways: a movement chart puts churn and contraction below the
   // baseline. Positives and negatives accumulate separately from zero, which is
-  // recharts' behaviour for two stackIds sharing an axis.
+  // recharts' behavior for two stackIds sharing an axis.
   const positiveTotals = labels.map((_, i) =>
     series.reduce((sum, s) => sum + Math.max(s.values[i] ?? 0, 0), 0),
   );

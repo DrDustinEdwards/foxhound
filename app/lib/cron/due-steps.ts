@@ -38,7 +38,7 @@ import { readVoiceSamples } from "~/lib/recovery/voice-samples";
 //     number of attempts and only then goes terminal. The tick then flips
 //     finished sequences to failed_unrecovered (flipExhaustedSequences), the
 //     only writer of that status; 'recovered' still belongs solely to the webhook.
-//   - Gating: demo accounts, processing-paused accounts, and cancelled accounts
+//   - Gating: demo accounts, processing-paused accounts, and canceled accounts
 //     (admin Pass 2: accounts.cancelledAt) are excluded in the query itself.
 //     billing_exempt is NOT a processing gate: an exempt merchant still gets
 //     their money recovered, they are only never billed Foxhound's fee (that
@@ -47,10 +47,10 @@ import { readVoiceSamples } from "~/lib/recovery/voice-samples";
 //     recovery from before cancellation still bills at the next run.
 
 /** Account-level PROCESSING gate: never process a demo account (non-negotiable
- *  #7), a processing-paused account, or a cancelled account (admin Pass 2).
+ *  #7), a processing-paused account, or a canceled account (admin Pass 2).
  *  Distinct from the BILLING gate: a billing_exempt account is still processed
  *  (recovery moves the MERCHANT's money; only Foxhound's fee is waived), and a
- *  cancelled account's already-matured, unbilled recoveries still bill
+ *  canceled account's already-matured, unbilled recoveries still bill
  *  (cancelledAt is deliberately absent from app/db/billable.ts's
  *  accountBillingEligibleCondition; see app/lib/admin/merchants.server.ts's
  *  cancelMerchant). */
@@ -303,7 +303,7 @@ export function chooseStepsPerPayment(rows: DueStepRow[]): DueStepRow[] {
  *
  * `stepDueCondition` is NOT applied. A manual trigger is the merchant overriding
  * the schedule, so a step scheduled for tomorrow is still the one to fire; that
- * is legacy's behaviour and the entire point of the button. The step must still
+ * is legacy's behavior and the entire point of the button. The step must still
  * be UNEXECUTED with no result, which the caller enforces through the shared
  * nextPendingStep selector, the same predicate the button renders from.
  *

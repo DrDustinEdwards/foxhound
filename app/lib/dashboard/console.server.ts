@@ -265,7 +265,7 @@ export async function getConsoleView(
 
   // Grouped per currency, never a flat reduce: summing amountCents across
   // currencies produced a total that was the arithmetic sum of USD and EUR
-  // labelled with whichever row sorted first.
+  // labeled with whichever row sorted first.
   const protectedThisMonth = groupSumByCurrency(
     monthRecovered.map((r) => ({ currency: r.currency, amountCents: r.cents })),
   );

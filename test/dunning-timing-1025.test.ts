@@ -190,7 +190,7 @@ describe("migration 0040: sequences already scheduled", () => {
     expect(rows("exp_done").some((r) => r.type === "retry_day21")).toBe(false);
 
     // A live transaction_not_allowed payment is refiled as fraud and its unsent
-    // retry is cancelled, so it is never silently retried; its email keeps its time.
+    // retry is canceled, so it is never silently retried; its email keeps its time.
     const tna = sqlite
       .prepare("select step_type as type, result, scheduled_at as at from recovery_steps where failed_payment_id = 'tna_live' order by step_number")
       .all() as { type: string; result: string | null; at: number }[];

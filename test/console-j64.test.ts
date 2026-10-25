@@ -206,7 +206,7 @@ describe("console read model: whether the monthly sync will write a snapshot", (
     expect((await getConsoleView(on, ACCOUNT_ID, NOW, null)).mrrSync).toBe("eligible");
   });
 
-  it("says paused for a paused account and cancelled for a cancelled one", async () => {
+  it("says paused for a paused account and canceled for a canceled one", async () => {
     const db = await seed({});
     await db.update(accounts).set({ processingPaused: true });
     expect((await getConsoleView(db, ACCOUNT_ID, NOW, null)).mrrSync).toBe("paused");

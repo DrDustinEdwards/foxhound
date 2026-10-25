@@ -23,7 +23,7 @@ import { ImageResponse } from "workers-og";
 // dm-sans-variable.woff2 the app already ships, stripping fvar/gvar/avar/
 // HVAR/STAT so the table set matches dm-mono-500.ttf, the file already proven
 // to parse at request time. A constraint that rules out an artifact is not a
-// licence to change the design, and recording that change as deliberate
+// license to change the design, and recording that change as deliberate
 // without a ratification is what PRIME DIRECTIVE item 4 exists to catch.
 //
 // DM Mono is retained for the WORDMARK only: that is Foxhound's own brand
@@ -70,7 +70,7 @@ import type { Route } from "./+types/og";
 // these seven constants to match in the same commit.
 const COLOR_BG = "#111210";
 const COLOR_WORDMARK = "#f5f5f3";
-// Legacy's card text colour (#f0ede8 on both of its cards), which app.css keeps
+// Legacy's card text color (#f0ede8 on both of its cards), which app.css keeps
 // as --chrome-text, legacy's value for text on the dark band. The blog title
 // uses it; the wordmark keeps --wordmark, which is Foxhound branding (J20).
 const COLOR_TEXT = "#f0ede8";
@@ -89,7 +89,7 @@ const FONT_SANS = "DM Sans";
 // card instead of the character. `<`/`>` still need escaping: an
 // unescaped `<` in attacker-controlled input (title/tag come off the
 // query string) could otherwise be parsed as the start of a real tag.
-function escapeHtml(s: string): string {
+function escapeAngles(s: string): string {
   return s.replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
@@ -111,7 +111,7 @@ function wordmarkHtml(fontSize: number, extraStyle = ""): string {
 // the tagline (24 + 8), not 8px as this card had it (J20). The COPY is
 // Foxhound's and stays 20d-frozen (legacy's "20% of recovered revenue" is a
 // pricing claim, Foxhound's attribution wording is the accurate one).
-// Legacy sets no max-width or text-align here; the centred container does it.
+// Legacy sets no max-width or text-align here; the centered container does it.
 function defaultCardHtml(): string {
   return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:1200px;height:630px;background-color:${COLOR_BG};font-family:'${FONT_SANS}';">
     ${wordmarkHtml(80, "margin-bottom:24px;")}
@@ -128,8 +128,8 @@ function defaultCardHtml(): string {
 // entirely, replaced the pill with a tag chip, and shrunk the title; all four
 // were unratified. Branding only is Foxhound's: "Foxhound Blog", "FOXHOUND".
 function blogCardHtml(title: string, description: string, host: string): string {
-  const safeTitle = escapeHtml(title);
-  const safeDescription = escapeHtml(description);
+  const safeTitle = escapeAngles(title);
+  const safeDescription = escapeAngles(description);
   const titleFontSize = title.length > 50 ? 48 : 56;
   const descriptionHtml = safeDescription
     ? `\n      <div style="display:flex;font-size:22px;color:${COLOR_TEXT_SECONDARY};line-height:1.5;max-width:800px;">${safeDescription}</div>`
@@ -143,7 +143,7 @@ function blogCardHtml(title: string, description: string, host: string): string 
       <div style="display:flex;font-size:${titleFontSize}px;font-weight:600;line-height:1.15;letter-spacing:-0.03em;color:${COLOR_TEXT};max-width:900px;${safeDescription ? "margin-bottom:24px;" : ""}">${safeTitle}</div>${descriptionHtml}
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;">
-      <div style="display:flex;font-size:18px;color:${COLOR_TEXT_TERTIARY};">${escapeHtml(host)}</div>
+      <div style="display:flex;font-size:18px;color:${COLOR_TEXT_TERTIARY};">${escapeAngles(host)}</div>
       <div style="display:flex;background-color:${COLOR_BRAND};color:${COLOR_ON_BRAND};font-size:14px;font-weight:600;padding:8px 20px;border-radius:8px;letter-spacing:0.04em;">FOXHOUND</div>
     </div>
   </div>`;

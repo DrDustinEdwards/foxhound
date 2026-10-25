@@ -5,7 +5,7 @@ import { recoveryRateValueClass, showingCountFor } from "~/lib/recovery/payments
 
 
 // S6's LAST two build items, raised by 279 and assigned by 284: the stat-card
-// value colours and the Showing card with its pill-responsiveness.
+// value colors and the Showing card with its pill-responsiveness.
 //
 // LEGACY IS THE SPEC and was read WHOLE at source rather than inherited from the
 // row: app/(app)/recovery/payments/components/PaymentsStats.tsx, blob b386c66,
@@ -15,13 +15,13 @@ import { recoveryRateValueClass, showingCountFor } from "~/lib/recovery/payments
 //   Showing        text-text          <- StatCard's own default, so no prop
 //   Active         text-brand-text
 //   Recovered      text-green
-//   Cancelled      text-text-subtle   <- landed at 352de6a
+//   Canceled      text-text-subtle   <- landed at 352de6a
 //   Recovery rate  >=36 text-green, >=21 text-caution (legacy: its accent text), else text-red
 //
 // TWO INHERITED COUNTS ARE REFUTED HERE, both measured from that read:
-//   * 279 and the S6 row say legacy passes colours on FOUR cards and Foxhound on
+//   * 279 and the S6 row say legacy passes colors on FOUR cards and Foxhound on
 //     none. Legacy passes one on ALL FIVE, and Foxhound already carried
-//     Cancelled's. Showing's legacy colour IS StatCard's default, so it is not a
+//     Canceled's. Showing's legacy color IS StatCard's default, so it is not a
 //     divergence at all. THREE cards were outstanding, not four.
 //   * 279 says the Showing item is "the LABEL plus pill-responsiveness". The
 //     label and the value mechanism are both real, and there is a THIRD part it
@@ -33,7 +33,7 @@ import { recoveryRateValueClass, showingCountFor } from "~/lib/recovery/payments
 
 
 
-describe("S6 recovery-rate colour: legacy's thresholds, both boundaries inclusive", () => {
+describe("S6 recovery-rate color: legacy's thresholds, both boundaries inclusive", () => {
   it("36 and above is green", () => {
     expect(recoveryRateValueClass(36)).toBe("text-green");
     expect(recoveryRateValueClass(100)).toBe("text-green");
@@ -60,7 +60,7 @@ describe("S6 Showing card: legacy's global count, responding only to the pill", 
     expect(showingCountFor(counts, "failed_unrecovered")).toBe(1);
   });
 
-  it("an unrecognised status falls back to the total, legacy's own `?? all`", () => {
+  it("an unrecognized status falls back to the total, legacy's own `?? all`", () => {
     // Foxhound's status arrives from the URL, so this branch is reachable by
     // hand-editing a query string. Legacy's index-with-fallback is ported rather
     // than dropped.

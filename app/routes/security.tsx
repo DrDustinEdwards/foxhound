@@ -219,7 +219,7 @@ export default function SecurityPage() {
             data past those windows rather than leaving it to accumulate.
           </P>
           <P>
-            Disconnecting Stripe stops recovery work on that account immediately. Cancelling the
+            Disconnecting Stripe stops recovery work on that account immediately. Canceling the
             account removes it. Neither waives fees already earned on recoveries Foxhound attributed.
           </P>
         </Section>

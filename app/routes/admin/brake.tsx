@@ -248,7 +248,7 @@ export default function AdminBrake({ loaderData, actionData }: Route.ComponentPr
         ) : null}
         {staleMarkers.pausedWithUnknownReason > 0 ? (
           <p role="status" className="mt-3 rounded-md border border-orange bg-orange-bg px-3 py-2 text-label text-warning-text">
-            {staleMarkers.pausedWithUnknownReason} paused account(s) carry an unrecognised pause reason. Release
+            {staleMarkers.pausedWithUnknownReason} paused account(s) carry an unrecognized pause reason. Release
             matches only the brake marker, so it will never resume them.
           </p>
         ) : null}
@@ -257,12 +257,12 @@ export default function AdminBrake({ loaderData, actionData }: Route.ComponentPr
       <section className="mb-6 rounded-lg border border-border bg-surface p-4">
         <h2 className="mb-1 text-label font-semibold text-text">The brake: pause every merchant</h2>
         <p className="mb-3 text-label text-text-tertiary">
-          Pauses processing for every account except demo accounts, accounts already paused, and cancelled accounts.
+          Pauses processing for every account except demo accounts, accounts already paused, and canceled accounts.
           Merchants paused outside the brake keep their pause and are never resumed by a release.
         </p>
         <p className="mb-3 text-label text-text-tertiary">
-          What this does not stop: a cancelled account still pays fees it already owed, because those were earned
-          before it cancelled and the brake has no lever over them. Everything else, including billing-exempt
+          What this does not stop: a canceled account still pays fees it already owed, because those were earned
+          before it canceled and the brake has no lever over them. Everything else, including billing-exempt
           accounts, stops.
         </p>
         <div className="flex flex-col gap-4">

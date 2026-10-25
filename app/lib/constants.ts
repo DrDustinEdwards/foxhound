@@ -195,7 +195,7 @@ export const LIVE_FAILED_PAYMENT_STATUSES = [
  *
  * DIVERGENCE FROM LEGACY, ratified onto PRIME DIRECTIVE item 3 under 284:
  * legacy's handlePaymentSucceeded selects `.eq('status','active')` alone, so a
- * cancelled payment is never found and legacy records nothing at all, losing the
+ * canceled payment is never found and legacy records nothing at all, losing the
  * row, the moat entry and the truthful status. Measured at source, not inferred.
  *
  * Deliberately NOT used for intake dedupe: a NEW failure on an invoice whose
@@ -397,7 +397,7 @@ export const WINBACK_STEP3_HOURS = 336;
 
 /**
  * Skip starting a win-back sequence when this customer had a failed payment
- * RESOLVED (cancelled or recovered) within this many days before cancelling.
+ * RESOLVED (canceled or recovered) within this many days before canceling.
  * Ported verbatim from legacy's WINBACK_RECENT_RESOLVED_DAYS = 7 with legacy's
  * own reason: it keeps Foxhound from chasing a customer it has just chased.
  * Added 2026-08-14 with the win-back creation path (290); it had no Foxhound
@@ -434,7 +434,7 @@ export const WINBACK_PRIORITY_ACTION = "winback_priority";
 // off. The table now carries one entry per non-terminal attempt, so the clamp in
 // afterTransientFailureWith is never reached in normal operation. It stays as a
 // safety net for a future change to SEND_MAX_ATTEMPTS, not as load-bearing
-// behaviour. test/constants-chunks-17.test.ts pins the span by walking the real
+// behavior. test/constants-chunks-17.test.ts pins the span by walking the real
 // state machine, so shortening either the table or the count fails CI.
 export const SEND_MAX_ATTEMPTS = 5;
 /** Backoff minutes indexed by (attempt_count - 1); the last value repeats if the
@@ -694,7 +694,7 @@ export const BULK_ACTION_MAX_PER_SUBMISSION = 100;
  *
  * NEW, not inherited: the repo carries no concurrency utility and no comparable
  * constant, measured across app/. Small because the per-account money-write DO
- * already serialises the commits, so a higher number would widen only the read
+ * already serializes the commits, so a higher number would widen only the read
  * phase and the peak subrequest burst, buying nothing on the write path.
  */
 export const BULK_ACTION_CONCURRENCY = 5;

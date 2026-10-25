@@ -61,7 +61,7 @@ export const billingLineItems = sqliteTable(
     createdAt: ts("created_at").notNull(),
     /** The Stripe credit note this line records (type 'credit' only, ruling
      *  377(5)). Stored so the ledger can show the merchant the note that was
-     *  issued and so a replay can recognise the work as already done. */
+     *  issued and so a replay can recognize the work as already done. */
     stripeCreditNoteId: text("stripe_credit_note_id"),
     /** The fee line this credit reverses (type 'credit' only). Self-reference
      *  rather than a bare flag, because "one credit note per fee line" is only

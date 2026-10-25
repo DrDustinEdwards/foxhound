@@ -84,9 +84,9 @@ export interface DueWinbackStep {
  * THE DEMO EXCLUSION IS HERE, at the query, which is legacy's own placement
  * (`.not('account_id','in', DEMO_ACCOUNT_IDS_FILTER)`). It arrives through
  * `accountProcessingEligibleCondition()`, which ALREADY carries the same
- * `notLike` on DEMO_ACCOUNT_ID_PREFIX along with the paused and cancelled
+ * `notLike` on DEMO_ACCOUNT_ID_PREFIX along with the paused and canceled
  * gates. A second explicit notLike was written here first and removed: it was
- * the identical predicate on the identical column, so it read as defence in
+ * the identical predicate on the identical column, so it read as defense in
  * depth while proving nothing, and a mutation deleting it stayed green.
  * `processEmailJob`'s `liveSendsEnabled` gate is the real second layer.
  */

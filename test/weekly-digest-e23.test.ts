@@ -251,7 +251,7 @@ describe("E23 carries Recova's From, footer, unsubscribe and postal address", ()
 // When it sends, and when it does not
 // ============================================================================
 
-describe("E23 honours suppression, as Recova's checkAndRegisterUnsubscribe does", () => {
+describe("E23 honors suppression, as Recova's checkAndRegisterUnsubscribe does", () => {
   it("an unsubscribed notification address gets no digest, and the outcome is named", async () => {
     seedAccount();
     suppress(OWNER);

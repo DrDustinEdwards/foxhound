@@ -60,7 +60,7 @@ export interface TemplateEmailInput {
 //   amount         the formatted amount
 //   sender_name    merchant.sender_name || 'Support' (the From name too)
 //   update_url     the button
-// Recova styled the button inline in its own colour; on Capsomer's component a
+// Recova styled the button inline in its own color; on Capsomer's component a
 // paragraph holding nothing but one link is the button (Q3), so the style goes
 // and the label stays. Names are escaped, so a customer called "<b>" is text.
 //
@@ -135,7 +135,7 @@ const STEP_TEMPLATES: Record<string, { subject: string; body: (v: StepTemplateVa
     body: (v) =>
       [
         `<p>Hi ${v.customerName},</p>`,
-        `<p>This is the final automated notice on your unpaid balance of ${v.amount}. Without an updated payment method, your account may be cancelled.</p>`,
+        `<p>This is the final automated notice on your unpaid balance of ${v.amount}. Without an updated payment method, your account may be canceled.</p>`,
         button(v.updateUrl),
         `<p>${v.senderName}</p>`,
       ].join("\n"),
@@ -228,7 +228,7 @@ function subjectFor(input: TemplateEmailInput): string {
     case "network":
       return "We could not reach your bank";
     case "revoked":
-      return "Your subscription payment was cancelled";
+      return "Your subscription payment was canceled";
     default:
       return `A payment issue with ${input.merchantName}`;
   }

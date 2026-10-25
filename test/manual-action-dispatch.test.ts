@@ -669,7 +669,7 @@ describe("resend: legacy's intent, not legacy's defects", () => {
 });
 
 describe("stop recovery: one atomic batch, claim-guarded", () => {
-  it("moves the payment to cancelled with resolved_at and cancels unexecuted steps", async () => {
+  it("moves the payment to canceled with resolved_at and cancels unexecuted steps", async () => {
     const { sqlite, db } = seed({ steps: [PENDING, SENT_EMAIL] });
     expect(
       await dispatchManualAction(request(db, inMemoryCommit(sqlite, db), { intent: "cancel" })),
@@ -695,7 +695,7 @@ describe("stop recovery: one atomic batch, claim-guarded", () => {
 
     await dispatchManualAction(request(db, inMemoryCommit(sqlite, db), { intent: "cancel" }));
 
-    // stepDueCondition requires result IS NULL, so a cancelled step is never
+    // stepDueCondition requires result IS NULL, so a canceled step is never
     // selected again. This is what makes Stop recovery actually stop.
     expect(dueStepCount(sqlite)).toBe(0);
   });

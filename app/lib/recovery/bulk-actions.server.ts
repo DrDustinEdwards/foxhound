@@ -56,7 +56,7 @@ import {
  *
  * Why a cap at all, and why a small one. Legacy's fan-out is an UNCAPPED
  * Promise.all over the whole selection (scope 1.6). The per-account money-write
- * DO already serialises the commits, so raising concurrency buys nothing on the
+ * DO already serializes the commits, so raising concurrency buys nothing on the
  * write path; what it would widen is the read phase and the peak subrequest
  * burst inside one Worker invocation. The repo's own budget arithmetic for
  * RECOVERY_TICK_LIMIT reasons in exactly those terms, about 4 to 5 subrequests

@@ -130,9 +130,9 @@ function healthHistoryAlt(readings: readonly HealthReading[]): string {
   );
 }
 
-/** The line's colour, by the latest score's band, as Recova coloured its line
+/** The line's color, by the latest score's band, as Recova colored its line
  *  by the latest score (HealthSparkline.tsx:20-22), on Foxhound's bands and
- *  the same colours the dashboard's health chart uses. */
+ *  the same colors the dashboard's health chart uses. */
 const BAND_COLOR: Record<HealthScoreBand, string> = {
   at_risk: "var(--red)",
   watch: "var(--warning-text)",

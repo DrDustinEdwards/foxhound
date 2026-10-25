@@ -78,7 +78,7 @@ const CAN_NEVER_DO = [
 
 const OAUTH_ERROR_MESSAGES: Record<string, string> = {
   rate_limited: "Too many audit attempts from this network. Please try again later.",
-  cancelled: "Stripe connection was cancelled. Nothing was read.",
+  cancelled: "Stripe connection was canceled. Nothing was read.",
   invalid_state: "That audit link expired. Please start again.",
   scope_refused:
     "Stripe did not grant read-only access, so the run was refused. Nothing was read.",
@@ -125,7 +125,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   });
 }
 
-/** Recova's two labelled lists inside the inner box. Each is a real list
+/** Recova's two labeled lists inside the inner box. Each is a real list
  *  named by its heading. Recova's labels are `text-xs font-medium` with no
  *  letter spacing, so none is added. Capsomer has no can and cannot list, so
  *  this is composed from Foxhound's tokens, as on /connect (a Capsomer gap,

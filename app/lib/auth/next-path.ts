@@ -7,7 +7,7 @@ export const DEFAULT_NEXT_PATH = "/console";
 
 /**
  * URLSearchParams.get already decodes once. A second decode is Recova's
- * defence against a next= that a link builder encoded twice, and a stray "%"
+ * defense against a next= that a link builder encoded twice, and a stray "%"
  * falls back to the input.
  *
  * RECOVA DECODED EVERY VALUE AGAIN, and its comment said that was a no-op on a

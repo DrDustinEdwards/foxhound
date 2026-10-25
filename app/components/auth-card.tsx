@@ -14,7 +14,7 @@ import "~/site-header.css";
 
 // The parts the sign-in pages share (J52, rows A2 and A3). Recova is the spec
 // for the frame: each of its pages (app/(auth)/login and signup page.tsx) is
-// one 400px card, centred in a full-height column, holding a centred heading,
+// one 400px card, centered in a full-height column, holding a centered heading,
 // a line under it, the form and a line of links. The parts are Capsomer's
 // (Q12), amber, at Recova's sizes: p-12, the 1.5rem heading, 13px labels,
 // 42px fields and a 47px button at 0.9375rem.
@@ -54,7 +54,7 @@ export function AuthCard({ children }: { children: ReactNode }) {
   );
 }
 
-/** Recova's centred h1 and the line under it. */
+/** Recova's centered h1 and the line under it. */
 export function AuthHeading({ title, subtitle }: { title: string; subtitle?: ReactNode }) {
   return (
     <>
@@ -67,7 +67,7 @@ export function AuthHeading({ title, subtitle }: { title: string; subtitle?: Rea
 }
 
 /**
- * A labelled input, Capsomer's field through its HTML contract. The React
+ * A labeled input, Capsomer's field through its HTML contract. The React
  * Field prints a "Required" marker beside a required control's label, which
  * Recova's pages do not have, so the contract is used directly, as /connect
  * does. `aside` sits at the label row's end.
@@ -140,7 +140,7 @@ export function AuthSubmit({ busy, label, busyLabel }: { busy: boolean; label: s
   );
 }
 
-/** A small text link, amber, underlined so it is not told apart by colour
+/** A small text link, amber, underlined so it is not told apart by color
  *  alone, and 24px tall as a target. */
 export function AuthLink({ to, children }: { to: string; children: ReactNode }) {
   return (
@@ -179,7 +179,7 @@ export function PasskeyContinue({ next }: { next: string }) {
       window.location.assign(next);
       return;
     }
-    // A cancelled prompt is someone choosing another way, not a failure.
+    // A canceled prompt is someone choosing another way, not a failure.
     if (!autoFill && !("code" in res.error && res.error.code === "AUTH_CANCELLED")) {
       setError("That passkey did not sign you in. Try again, or use another way below.");
     }
@@ -215,7 +215,7 @@ export function PasskeyContinue({ next }: { next: string }) {
   );
 }
 
-/** Apple's logo in the text colour: Apple's guidelines allow a monochrome
+/** Apple's logo in the text color: Apple's guidelines allow a monochrome
  *  logo beside "Continue with Apple" on a plain button. */
 function AppleMark() {
   return (
@@ -230,7 +230,7 @@ function AppleMark() {
  * has its settings, then the "or" rule. Each posts to Foxhound's own start
  * route (/auth/google, /auth/apple: Better Auth's signInSocial), never a
  * client-side provider call. Google's mark is a static file because its four
- * brand colours are Google's, not Foxhound tokens.
+ * brand colors are Google's, not Foxhound tokens.
  *
  * `next` is the page to land on afterwards, when /login was given one (J79).
  */

@@ -74,8 +74,8 @@ import type { Route } from "./+types/notifications";
 // complete notices skip a NULL address as `no_recipient`, and the digest cron
 // drops it. So the line says what a blank box does. Recova's prefill of the
 // signed-in email into the box is kept (Save stores it), but its placeholder
-// is not, because a cleared box showing that address greyed in would imply it
-// gets mail. A real fallback in the senders would be a behaviour change and is
+// is not, because a cleared box showing that address grayed in would imply it
+// gets mail. A real fallback in the senders would be a behavior change and is
 // Dustin's ruling, not this page's.
 //
 // ONE DIVERGENCE, approved (APPROVED-DIFFERENCES, "Slack webhook addresses must

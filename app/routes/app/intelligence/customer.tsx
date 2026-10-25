@@ -49,11 +49,11 @@ import type { Route } from "./+types/customer";
 // Built from Capsomer 0.9.0's parts (Q10), the chart by Enarratio (Q1), amber
 // throughout. No Foxhound class sits on a Capsomer element. Recova's
 // 12px card radius, its uppercase mono labels, the score beside the "Health
-// score" heading and its plan colours wait for Capsomer's per-site layer
+// score" heading and its plan colors wait for Capsomer's per-site layer
 // (capsomer job_ec5ec0754626), listed in the J68 pull request.
 //
 // Foxhound's engine, never Recova's: the signal cards are counted from
-// Foxhound's own tables (getCustomerActivity), the score and its colour are
+// Foxhound's own tables (getCustomerActivity), the score and its color are
 // Foxhound's bands, and LTV, which nothing in Foxhound computes, says so
 // (RULES.md 2.1). Two Recova parts have nothing to read in Foxhound and are
 // not built: the IntegrityLayerBanner (Recova's Phase 1 recommendation rules;
@@ -340,7 +340,7 @@ function SignalCard({ title, fields, empty }: { title: string; fields: SignalFie
   );
 }
 
-/** Recova's health score card: the score out of 100 in its band's colour and,
+/** Recova's health score card: the score out of 100 in its band's color and,
  *  with two readings or more, the chart of the last 30, oldest first. */
 function HealthScoreCard({ score, history }: { score: number | null; history: HealthReading[] }) {
   const readings = useMemo(() => [...history].reverse(), [history]);

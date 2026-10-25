@@ -399,7 +399,7 @@ function PostedResult({ result, action }: { result: ActionData; action: string }
   }
   if (result.intent === "cancel") {
     const who = result.name ?? result.accountId;
-    const said = `Cancelled ${who}. Its Stripe connections are disconnected and its processing has stopped.`;
+    const said = `Canceled ${who}. Its Stripe connections are disconnected and its processing has stopped.`;
     return result.warning ? (
       <div className="cap-banner" data-tone="warn" role="status">
         <Glyph name="warn" />

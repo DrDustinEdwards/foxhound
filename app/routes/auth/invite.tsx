@@ -11,7 +11,7 @@ import type { Route } from "./+types/invite";
 
 // Row A7, /invite/:token (J28). Recova's app/invite/page.tsx (blob cd317a14),
 // InviteClient.tsx (blob 0eb98af4) and app/api/invite/accept/route.ts (blob
-// 13708537), read whole. The page is one 400px card, centred: "You've been
+// 13708537), read whole. The page is one 400px card, centered: "You've been
 // invited", "Join <account> on Foxhound" and one "Accept invite" button, or,
 // on any refusal, "Invite invalid" and the reason. The path is /invite/:token,
 // not Recova's ?token= (APPROVED-DIFFERENCES, "Sign-in and invites").

@@ -103,7 +103,7 @@ export function subscriptionStatusLabel(status: string): string {
   return SUBSCRIPTION_STATUS_LABELS[status] ?? titleCase(status.replace(/[-_]/g, " "));
 }
 
-/** Recova's badge colours: active green, past due red, the rest neutral. */
+/** Recova's badge colors: active green, past due red, the rest neutral. */
 export function subscriptionStatusTone(status: string): FeeStatusTone {
   if (status === "active") return "ok";
   if (status === "past_due") return "crit";
@@ -127,7 +127,7 @@ export function titleCase(s: string): string {
 /**
  * Recova's line under a subscription: "Renews", "Cancels on" or "Expired" with
  * the period end, and nothing without one. `warn` marks "Cancels on", which
- * Recova colours apart; here it takes Foxhound's amber accent.
+ * Recova colors apart; here it takes Foxhound's amber accent.
  */
 export function subscriptionDetail(
   s: Pick<SubscriptionView, "status" | "canceledAt" | "currentPeriodEndsAt">,

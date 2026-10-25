@@ -345,7 +345,7 @@ export interface EmailStepResult {
    *
    * ADDITIVE and read-only: no write, no money path, no DO hop changes. The
    * recovery tick types its runEmail seam as Promise<unknown> and ignores the
-   * return value entirely, so the cron cannot see this field and its behaviour
+   * return value entirely, so the cron cannot see this field and its behavior
    * is bit-for-bit unchanged.
    */
   suppressed: boolean;

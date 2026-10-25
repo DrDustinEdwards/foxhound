@@ -21,7 +21,7 @@ const ACTIONS: Record<string, string> = {
   "merchant.billing_exempt.disable": "Ended a merchant's billing exemption",
   "merchant.intelligence.grant": "Granted a merchant Intelligence",
   "merchant.intelligence.revoke": "Revoked a merchant's Intelligence",
-  "merchant.cancel": "Cancelled a merchant",
+  "merchant.cancel": "Canceled a merchant",
   "billing.adjustment.create": "Added a billing adjustment",
   "blog.create": "Created a blog post",
   "blog.update": "Edited a blog post",
@@ -32,7 +32,7 @@ const ACTIONS: Record<string, string> = {
   "staged.confirm": "Approved and applied a staged change",
   "staged.reject": "Rejected a staged change",
   "staged.failed": "A staged change failed to apply",
-  // Written outside the admin pages. Recova labelled the first "Account deleted
+  // Written outside the admin pages. Recova labeled the first "Account deleted
   // (self)" (app/admin/platform/audit-log/page.tsx, blob 5003157c).
   user_self_deleted_account: "Deleted their own account",
   user_self_deleted_account_deauthorize_failed: "Could not revoke a deleted account's Stripe connection",

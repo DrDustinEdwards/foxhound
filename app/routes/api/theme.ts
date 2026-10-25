@@ -51,7 +51,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   // THE ACTIVE ACCOUNT, not the earliest, and it has to move with the read in
   // lib/theme.server.ts or the pair disagrees: a merchant who had switched
   // would toggle, watch the row they are not looking at change, and see the
-  // colour snap back on the next request. Legacy resolves both halves the same
+  // color snap back on the next request. Legacy resolves both halves the same
   // way (app/api/account/theme/route.ts, blob `968ba672`). Session 61, phase (c).
   const membership = await resolveActiveMembership(
     db,

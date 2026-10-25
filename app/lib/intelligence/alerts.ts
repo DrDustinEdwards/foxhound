@@ -32,7 +32,7 @@ export const ALERT_COOLDOWN_MS = DAY_MS;
  * than last night's finds the alert still in cooldown, so a steady breach is
  * mailed every other night. Recova re-evaluated every few minutes, so its
  * effective period was 24 hours plus one tick; one evaluation a night gets the
- * same behaviour from this margin (review round 1, PR 156).
+ * same behavior from this margin (review round 1, PR 156).
  */
 export const ALERT_COOLDOWN_MARGIN_MS = HOUR_MS;
 

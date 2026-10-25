@@ -35,7 +35,7 @@ import type { Route } from "./+types/results";
 // OAuth cookie, never reading back the row it may have just written
 // (ENGINE-AUDIT binding 3). A loader is the same thing, so a reload inside the
 // cookie's five minutes re-runs five Stripe reads and one AI call. Recorded
-// rather than optimised: treating `audit_runs` as a cache would change behaviour,
+// rather than optimized: treating `audit_runs` as a cache would change behavior,
 // and the shareable-by-id page is the only reader of a stored run on either side.
 //
 // WHAT AN ANONYMOUS RUN LEAVES BEHIND: NOTHING. No account, no membership, no

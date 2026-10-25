@@ -145,8 +145,8 @@ export function buildAccountScrubStatements(db: Db, accountId: string, now: Date
         disputeProductDescription: null,
         disputeShipsPhysical: null,
         liveSendsEnabled: false,
-        // The cancel stamp, kept if the account was already cancelled so the
-        // date the merchant actually cancelled is not overwritten.
+        // The cancel stamp, kept if the account was already canceled so the
+        // date the merchant actually canceled is not overwritten.
         cancelledAt: sql`coalesce(${accounts.cancelledAt}, ${nowMs})`,
         deletedAt: sql`coalesce(${accounts.deletedAt}, ${nowMs})`,
       })

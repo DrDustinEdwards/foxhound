@@ -35,7 +35,7 @@ import type { EmailJob } from "~/lib/email/types";
 // (liveSendGate "skip"), as Recova's route has no such switch, and the invite
 // reaches no customer.
 //
-// THE ONE DIFFERENCE IN BEHAVIOUR. Recova logs a failed send and still answers
+// THE ONE DIFFERENCE IN BEHAVIOR. Recova logs a failed send and still answers
 // success, so its page says "Invite sent" when nothing was sent. Foxhound
 // returns the named outcome and the page says so (RULES.md 3.16; truthfulness,
 // RULES.md 1.2). The invite itself stands either way, as in Recova.

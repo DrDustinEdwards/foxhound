@@ -327,7 +327,7 @@ export function WinBackCard({ w }: { w: RecoveryDashboardWindow }) {
               checkout the email's link opens, with no window
               (app/lib/recovery/winback-reactivation.server.ts). */}
           <p className="m-0 text-micro text-text-subtle">
-            When a customer who cancelled reactivates their subscription from a win-back email, it appears here.
+            When a customer who canceled reactivates their subscription from a win-back email, it appears here.
           </p>
         </div>
       ) : (

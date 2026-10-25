@@ -32,7 +32,7 @@ import type { Route } from "./+types/authorize";
 //
 // Recova is the spec for the content and layout: app/oauth/authorize/page.tsx
 // (63884241) and ConsentButtons.tsx (eb31e8e9), read whole. One 460px card
-// centred on the page, with no site navigation (Recova's root layout has
+// centered on the page, with no site navigation (Recova's root layout has
 // none): the wordmark, the h1 naming the client, the line under it, the
 // account box, what the client can do, the error, Allow access and Deny side
 // by side, and the closing line. A refused request is the same card holding
@@ -43,7 +43,7 @@ import type { Route } from "./+types/authorize";
 // inherited artifacts, each where it lands:
 //   - The signed-out round trip keeps EVERY query parameter, iterated rather
 //     than picked, because a hand-picked list once dropped RFC 8707's resource.
-//     /login honours it through safeNextPath, whose checks are anchored.
+//     /login honors it through safeNextPath, whose checks are anchored.
 //   - Recova's force-dynamic fix and its hard-navigation login fix existed
 //     because Next.js served a cached signed-out render. A React Router loader
 //     runs on every request, the cache policy makes this path private, no-store

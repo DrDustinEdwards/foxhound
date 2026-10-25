@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { data, Form, redirect, useNavigation } from "react-router";
 import { eq } from "drizzle-orm";
-import { applyTheme } from "capsomer/behaviour/theme-switch";
+import { applyTheme } from "capsomer/behavior/theme-switch";
 import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
 import { InputGroup, InputGroupAddon } from "capsomer/react/field";
@@ -226,7 +226,7 @@ export async function action({ request, context }: Route.ActionArgs) {
       return data<ActionResult>({ action: intent, ok: true });
     }
     case "cancel-account": {
-      // OWNER ONLY, refused before any read or write. Cancelling disconnects
+      // OWNER ONLY, refused before any read or write. Canceling disconnects
       // every Stripe connection and stops all recovery on the account, and
       // Recova never let a member do that: it had no Cancel, and its delete
       // cascade cleared only the accounts the caller owned (api/auth/
@@ -237,7 +237,7 @@ export async function action({ request, context }: Route.ActionArgs) {
           { status: 403 },
         );
       }
-      // Otherwise S37's cancel, reaching no agent tool (cancelling an account
+      // Otherwise S37's cancel, reaching no agent tool (canceling an account
       // is on the HUMAN-FOREVER denylist).
       const db = getDb(env);
       const outcome = await cancelMerchant(env, accountId);
@@ -256,7 +256,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         ok: true,
         warning:
           outcome.deauthorizeErrors.length > 0
-            ? "Account cancelled. Revoking access at Stripe did not complete for every connection, so check your Stripe dashboard."
+            ? "Account canceled. Revoking access at Stripe did not complete for every connection, so check your Stripe dashboard."
             : undefined,
       });
     }
@@ -644,7 +644,7 @@ function DangerZone({
       <div className="flex flex-col gap-3">
         {cancelledAt ? (
           <p className="text-label text-text-tertiary">
-            This account is cancelled. Recovery processing is stopped. Fees already earned on recoveries
+            This account is canceled. Recovery processing is stopped. Fees already earned on recoveries
             Foxhound attributed remain owed.
           </p>
         ) : null}
@@ -660,7 +660,7 @@ function DangerZone({
             </Alert>
             <div className="flex flex-wrap gap-2.5">
               <Button type="submit" variant="danger" pending={running === "cancel-account"}>
-                {running === "cancel-account" ? "Cancelling..." : "Yes, cancel my account"}
+                {running === "cancel-account" ? "Canceling..." : "Yes, cancel my account"}
               </Button>
               {running === "cancel-account" ? null : keep}
             </div>

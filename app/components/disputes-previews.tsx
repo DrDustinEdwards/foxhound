@@ -34,7 +34,7 @@ import type { DisputesPreview, PreviewDisputeRow } from "~/lib/marketing/dispute
 // Smart Disputes is not built, so neither page draws it.
 
 /** A dispute's status as Capsomer's badge: the dashboard's word
- *  (disputeListStatus), its tone's glyph and colour. A status mid-review is
+ *  (disputeListStatus), its tone's glyph and color. A status mid-review is
  *  neither a success nor a failure, so it is a plain label with no tone. */
 function StatePill({ row }: { row: PreviewDisputeRow }) {
   if (row.stateTone === "success") return <Pill tone="ok">{row.stateLabel}</Pill>;
@@ -100,7 +100,7 @@ export function NumbersPreview({ preview }: { preview: DisputesPreview }) {
 function DeadlineDays({ row }: { row: PreviewDisputeRow }) {
   // Recova leaves the cell empty once a dispute has closed.
   if (row.resolved || row.deadlineDays === null) return null;
-  // A passed deadline reads 0d in the overdue colour, never a negative count.
+  // A passed deadline reads 0d in the overdue color, never a negative count.
   return (
     <span className={`font-mono text-label ${deadlineClassName(row.deadlineUrgency)}`}>
       {Math.max(0, row.deadlineDays)}d
@@ -201,7 +201,7 @@ export function DisputeTablePreview({ preview }: { preview: DisputesPreview }) {
                   <StatePill row={row} />
                 </td>
                 <td className="whitespace-nowrap">
-                  {/* A closed dispute's deadline is history: no band colour. */}
+                  {/* A closed dispute's deadline is history: no band color. */}
                   <span
                     className={`font-mono text-label ${
                       row.resolved ? "text-text-tertiary" : deadlineClassName(row.deadlineUrgency)

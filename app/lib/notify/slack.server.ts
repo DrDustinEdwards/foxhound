@@ -108,7 +108,7 @@ export async function resolveSlackTarget(
  * webhook is invisible to it forever. Reading `res.ok` is class (c): the
  * merchant's own page says Slack is on, and a silently dead webhook makes that
  * a false promise. Nothing is disabled and nothing is retried, which IS
- * legacy's behaviour.
+ * legacy's behavior.
  */
 export async function postToSlack(
   webhookUrl: string,

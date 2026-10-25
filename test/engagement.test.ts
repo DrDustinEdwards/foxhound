@@ -38,7 +38,7 @@ describe("engagement record builders (compile against schema)", () => {
   });
 
   it("click stamp keeps the first clicked_at (the attribution signal) and counts every click (F10)", () => {
-    // Behaviour is proven against a real schema in engagement-click-f10.test.ts;
+    // Behavior is proven against a real schema in engagement-click-f10.test.ts;
     // this pins the statement's shape so the first-click rule stays in the SQL.
     const sql = sqlOf(buildClickStamp(db, "step_1", now));
     expect(sql.sql).toMatch(/update .*recovery_steps/i);

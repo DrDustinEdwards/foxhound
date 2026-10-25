@@ -66,22 +66,22 @@ export const SETTLED_STATUSES = ["paid", "void", "uncollectible", "gave_up"];
  *
  * CANCELLED ACCOUNTS ARE STILL COLLECTED FROM, AND THAT IS THE DECISION, NOT AN
  * OVERSIGHT (review MEDIUM-3, ruled 2026-07-26). accountBillingEligibleCondition
- * does not check cancelledAt, so a cancelled account with an unsettled invoice is
+ * does not check cancelledAt, so a canceled account with an unsettled invoice is
  * selected here and charged, and the emergency brake has no lever over it,
- * because the brake deliberately skips cancelled accounts.
+ * because the brake deliberately skips canceled accounts.
  *
  * Why that is right:
  *   - The fees were EARNED on recoveries Foxhound delivered before the merchant
- *     cancelled. Cancellation is a processing gate by canon, not a debt eraser:
+ *     canceled. Cancellation is a processing gate by canon, not a debt eraser:
  *     "cancel never silently forgives owed fees" (merchants.server.ts), and
  *     recovery-tick.ts records the same rule from the other side.
  *   - Nothing NEW can accrue after cancellation. accountProcessingEligibleCondition
- *     excludes cancelled accounts, so no further recovery is ever created for one,
+ *     excludes canceled accounts, so no further recovery is ever created for one,
  *     so no later period can produce a new billable line.
  *   - Collection is bounded, not indefinite: decideFeeRetryAction's attempt and
- *     age caps terminate a cancelled account's invoice like any other.
+ *     age caps terminate a canceled account's invoice like any other.
  *
- * The two halves have to hold together. Letting the brake pause cancelled
+ * The two halves have to hold together. Letting the brake pause canceled
  * accounts instead would flip this predicate false and defer exactly the
  * pre-cancellation fees this paragraph says are owed, for as long as the brake
  * stayed engaged. test/billing-charge-retry.test.ts pins both directions.
@@ -429,7 +429,7 @@ export async function retryInvoiceCharge(
       // attempt, and one was written. A plant proved it UNREACHABLE: the gate is
       // read by blockedByGuard ABOVE this try, so its throw never enters this
       // catch, and `create` cannot raise that type. It was removed rather than
-      // kept as unfalsifiable defence. The propagation itself is still asserted,
+      // kept as unfalsifiable defense. The propagation itself is still asserted,
       // by the test that makes checkGuard throw.
       await writeAttempt(env, invoice, {
         status: "payment_failed",

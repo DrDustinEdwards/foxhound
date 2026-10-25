@@ -12,7 +12,7 @@ import { DEFAULT_THEME, resolveThemePreference } from "~/lib/theme";
 // These tests are written to FAIL against the cookie-only path. The two that
 // matter are "the stored theme wins over a stale cookie" and "a signed-in
 // merchant on a fresh device gets their stored theme": both are exactly the
-// cross-device behaviour a cookie cannot provide.
+// cross-device behavior a cookie cannot provide.
 describe("resolveThemePreference (ruling 59)", () => {
 
   it("falls back to the cookie when there is no account theme", () => {

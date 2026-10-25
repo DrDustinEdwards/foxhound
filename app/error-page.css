@@ -17,7 +17,7 @@
 
 /* The numeral's two tones (Recova's expected-state accent and red, carried
    onto the amber family): the family's accent text for an expected state (404, the 410
-   withdrawal), its critical colour for a fault. Both read from the
+   withdrawal), its critical color for a fault. Both read from the
    data-family="amber" wrapper, so they switch with the theme on their own. */
 .fh-error-page .fh-error-numeral {
   color: var(--accent-text);
@@ -39,10 +39,10 @@
   border-radius: revert-layer;
 }
 
-/* The bar, in the site header's band colours (app.css, .fh-cap
+/* The bar, in the site header's band colors (app.css, .fh-cap
    .cap-site-header): Foxhound's chrome, its line, and the header's wordmark in
    chrome text. Its home link is not a Capsomer component, so it keeps
-   Foxhound's global ring, with the ring's colour taken off the page's
+   Foxhound's global ring, with the ring's color taken off the page's
    --border-focus for the band's amber, the one the site header's ring uses on the same chrome. */
 .fh-error-page .fh-error-bar {
   --border-focus: var(--header-brand);

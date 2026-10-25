@@ -74,7 +74,7 @@
   // by Dustin himself. Measured 2026-08-15: all three unreachable by id.
   //
   // The no-delete sentence 299 and 301 carried is DISCHARGED, not dropped. It
-  // protected 7469d599 until 303 authorised its deletion, and it did its job:
+  // protected 7469d599 until 303 authorized its deletion, and it did its job:
   // no agent deleted anything without a quoted ruling naming the id.
   //
   // The KV is id 8ff187... and is now titled "foxhound" too (renamed 303), so

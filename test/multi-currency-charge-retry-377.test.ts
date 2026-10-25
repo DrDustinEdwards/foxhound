@@ -17,7 +17,7 @@ import { describe, expect, it, vi } from "vitest";
 // createPlatformInvoice against a fake Stripe client and read the arguments it
 // actually sends.
 //
-// WHAT THESE DO NOT DO: prove the behaviour against Stripe. 377(6) asks for one
+// WHAT THESE DO NOT DO: prove the behavior against Stripe. 377(6) asks for one
 // platform customer billed in two currencies in test mode; that needs the live
 // key, which is a Worker secret this environment cannot read. The proof is
 // owed and is reported as owed.

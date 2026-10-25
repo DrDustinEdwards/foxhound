@@ -1,4 +1,4 @@
-// Cancelling a merchant and disconnecting one Stripe connection
+// Canceling a merchant and disconnecting one Stripe connection
 // (merchants.server.ts split): the local batches and the Stripe deauthorize
 // around them.
 
@@ -76,9 +76,9 @@ export interface CancelMerchantDeps {
  * is best-effort AFTER the local commit: a deauthorize failure is logged,
  * queued for the daily stripe-deauthorize-retry cron, and returned for the
  * caller to surface, but NEVER rolls back the local cancel - the merchant is
- * cancelled on our side regardless. Both deps default to the real IO; tests inject
+ * canceled on our side regardless. Both deps default to the real IO; tests inject
  * fakes to prove the local-commit-first ordering and that a deauthorize
- * failure never leaves a half-cancelled account.
+ * failure never leaves a half-canceled account.
  */
 export async function cancelMerchant(
   env: Env,

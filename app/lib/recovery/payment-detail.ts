@@ -1,5 +1,5 @@
 /**
- * Recova's payment detail words and value colours, ported from
+ * Recova's payment detail words and value colors, ported from
  * app/(app)/recovery/payments/[id]/PaymentDetailClient.tsx (blob 7f54aa45) and
  * lib/ui-display.ts (blob 35c4d676), both read whole (J76).
  *
@@ -38,7 +38,7 @@ const STEP_RESULT_WORDS: Record<string, string> = {
   // An expired card's day 21 retry that did not charge (card-change.ts).
   retry_skipped_card_unchanged: "Skipped: card not updated",
   retry_skipped_unverified: "Skipped: card update not confirmed",
-  cancelled: "Cancelled",
+  cancelled: "Canceled",
   skipped_inactive: "Skipped",
   error: "Error",
 };
@@ -50,9 +50,9 @@ export function stepResultWords(result: string | null, executed: boolean): strin
 }
 
 /**
- * Recova's decline colour on a card (getCategoryTextVar): soft blue, network
- * orange, fraud red. Recova's expired colour was its accent, which is amber in
- * Foxhound. Categories Recova lacks take the subtle grey, as its default.
+ * Recova's decline color on a card (getCategoryTextVar): soft blue, network
+ * orange, fraud red. Recova's expired color was its accent, which is amber in
+ * Foxhound. Categories Recova lacks take the subtle gray, as its default.
  */
 export function declineValueClass(category: string): string {
   switch (category) {
@@ -69,7 +69,7 @@ export function declineValueClass(category: string): string {
   }
 }
 
-/** Recova's status colour for an amount (getStatusColor), its accent in amber. */
+/** Recova's status color for an amount (getStatusColor), its accent in amber. */
 export function statusValueClass(status: string): string {
   switch (status) {
     case "active":

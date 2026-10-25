@@ -7,7 +7,7 @@ import { Pill } from "capsomer/react/status";
 import "enarratio/base.css";
 // Capsomer's --enarratio-* mapping onto its tokens, loaded here rather than
 // relied on through the shell's capsomer/tokens.css import, so the chart's
-// colours do not depend on another file's imports.
+// colors do not depend on another file's imports.
 import "capsomer/enarratio.css";
 import "capsomer/page-head.css";
 import "capsomer/panel.css";
@@ -43,7 +43,7 @@ import type { Route } from "./+types/churn";
 //
 // Built from Capsomer 0.9.0's parts (Q10) with the chart drawn by Enarratio
 // (Q1), amber throughout. No Foxhound CSS sits over a Capsomer component:
-// Recova's band tints, its pill colours per plan and its 12px radius wait for
+// Recova's band tints, its pill colors per plan and its 12px radius wait for
 // Capsomer's per-site layer (capsomer job_ec5ec0754626), listed in the J29
 // notes. Band cutoffs are Foxhound's engine (40/70, rulings 78/79), derived
 // from the constants below, never Recova's 33/66.
@@ -193,7 +193,7 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
                         <td data-num="">
                           {/* Toned from the score rather than hardcoded red: the
                               query pre-filters to the high-risk band today, but a
-                              widened predicate should not leave the colour lying. */}
+                              widened predicate should not leave the color lying. */}
                           <span className={`font-mono font-semibold ${healthScoreClassName(row.healthScore)}`}>
                             {row.healthScore}
                           </span>
@@ -235,7 +235,7 @@ export function chartWidthFor(measured: number): number {
 }
 
 interface ChurnRow {
-  // Capitalised because Enarratio names the data table's first column after it.
+  // Capitalized because Enarratio names the data table's first column after it.
   Month: string;
   series: "Involuntary" | "Voluntary";
   rate: number | null;
@@ -256,8 +256,8 @@ function drawChurnRate(points: readonly ChurnRatePointLike[], width: number): st
     series: "series",
     // Recova's legend order: Involuntary, then Voluntary.
     seriesDomain: ["Involuntary", "Voluntary"],
-    // Recova's colours, through Enarratio's own option: Involuntary on the
-    // error colour (Recova's var(--red)), Voluntary on tertiary text (Recova's
+    // Recova's colors, through Enarratio's own option: Involuntary on the
+    // error color (Recova's var(--red)), Voluntary on tertiary text (Recova's
     // var(--text-tertiary)). Recova also dashes Voluntary; Enarratio 0.3.1 has
     // no per-series dash (enarratio gap, J29 notes).
     colors: { Involuntary: "var(--error-text)", Voluntary: "var(--text-tertiary)" },

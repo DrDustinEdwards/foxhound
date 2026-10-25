@@ -19,7 +19,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 
 // Ruling 400 halt ruling 1: the manual dispute import, built in Foxhound's
 // stronger form. Session 90 halted the button because legacy's endpoint
-// synthesises a fresh event id per click (`sync_${Date.now()}`), which is not an
+// synthesizes a fresh event id per click (`sync_${Date.now()}`), which is not an
 // idempotency key, leaving a read-then-write SELECT as the only guard on a row
 // that gates a 20%-of-won fee. 400 ruled the claim key is the STRIPE DISPUTE ID
 // and the intake gains a unique backstop.

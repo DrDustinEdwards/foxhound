@@ -9,7 +9,7 @@ const { default: Authorize } = await import("~/routes/oauth/authorize");
 
 // J79, row A9: the consent page, rendered. Recova is the spec for its content
 // and layout (app/oauth/authorize/page.tsx 63884241 and ConsentButtons.tsx
-// eb31e8e9, read whole): one 460px card centred on a full-height page with no
+// eb31e8e9, read whole): one 460px card centered on a full-height page with no
 // site navigation (Recova's root layout has none), the wordmark, the h1 naming
 // the client, the line under it, the account box, what the client can do, the
 // error, Allow access and Deny side by side, and the closing line. The parts

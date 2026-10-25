@@ -71,7 +71,7 @@ export const DIGEST_WINDOW_MS = 7 * DAY_MS;
  * WHY NOT AN ISO WEEK KEY, the other option on the table: 350 binding 1 defines
  * this job's week as a ROLLING seven days and every data query is built on that.
  * Keying the claim on a calendar week would leave the job with two different
- * meanings of "week", and would change a shipped behaviour (a digest sent last
+ * meanings of "week", and would change a shipped behavior (a digest sent last
  * Friday no longer blocks Monday's) that no ruling has asked to change.
  */
 export const DIGEST_CLAIM_WINDOW_MS = DIGEST_WINDOW_MS - DAY_MS;
@@ -110,8 +110,8 @@ export interface DigestAccount {
  * email exists, a live primary connection exists, and the account is not demo
  * and not paused. The demo and paused halves both arrive through
  * `accountProcessingEligibleCondition()`, which already carries the
- * `DEMO_ACCOUNT_ID_PREFIX` notLike alongside the paused and cancelled gates;
- * writing a second copy of that predicate here would read as defence in depth
+ * `DEMO_ACCOUNT_ID_PREFIX` notLike alongside the paused and canceled gates;
+ * writing a second copy of that predicate here would read as defense in depth
  * while proving nothing (session 52's reversal 11).
  */
 export async function queryDigestAccounts(db: Db): Promise<DigestAccount[]> {

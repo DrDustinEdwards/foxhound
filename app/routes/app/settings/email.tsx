@@ -321,7 +321,7 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
 
             {/* Legacy's test button, last in the card, at its own width,
                 saying each outcome on itself. It belongs to the test form
-                below. The words are the button's own colour: Recova tints them
+                below. The words are the button's own color: Recova tints them
                 green or red, and a Capsomer status inside a button measured
                 4.18:1 in dark, so the tint waits for the per-site layer. The
                 live region repeats the outcome so it is announced. */}

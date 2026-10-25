@@ -73,7 +73,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
 // kept only for a post unpublished between the loader's two reads; the gate
 // above otherwise 404s a tag no published post carries.
 // Recova's sizes: the 1.75rem h1, the 0.8125rem back link and count line. Cards are Capsomer's panel (BlogPostCard),
-// the colour amber, and the back link a 24px target.
+// the color amber, and the back link a 24px target.
 export default function BlogTagPage({ loaderData }: Route.ComponentProps) {
   const { siteUrl: url, tag, posts } = loaderData;
   const label = labelForTag(tag);

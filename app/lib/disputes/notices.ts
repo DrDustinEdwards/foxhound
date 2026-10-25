@@ -1,3 +1,5 @@
+import { isoDay } from "@drdustinedwards/site-helpers/xml";
+
 import { disputeFeeCents } from "~/lib/billing/fees";
 import { CRON_SCHEDULE_MONTHLY, DISPUTE_FEE_BPS, DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
 import { recoveryFooterNote, type EmailNotice } from "~/lib/email/templates";
@@ -105,10 +107,6 @@ export function nextDisputeBillingRun(resolvedAt: Date): Date {
   const thisMonth = new Date(Date.UTC(y, m, day, hour, minute));
   if (resolvedAt.getTime() <= thisMonth.getTime()) return thisMonth;
   return new Date(Date.UTC(y, m + 1, day, hour, minute));
-}
-
-function isoDay(d: Date): string {
-  return d.toISOString().slice(0, 10);
 }
 
 /** A notice on Capsomer's `notice` template: the subject and the notice. */

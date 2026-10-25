@@ -123,7 +123,7 @@ export type AcceptInviteResult =
  * `existingOnInvitedAccount` is the caller's active membership ON THE ACCOUNT
  * THE INVITE IS FOR, not anywhere. When it is present the answer is SUCCESS with
  * `alreadyMember: true`, so the caller writes nothing and sends the user to the
- * account they already hold. That is legacy's behaviour and, since ruling 324,
+ * account they already hold. That is legacy's behavior and, since ruling 324,
  * the only defensible one: refusing here would mean a user who already belongs
  * to Acme cannot follow a second Acme invite link, and a user who belongs to
  * Acme cannot join Globex at all.

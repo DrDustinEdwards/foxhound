@@ -50,7 +50,7 @@ const passthrough = args.filter((a) => a !== "--remote-confirm");
 
 if (remote) {
   const how = confirmedByFlag ? "--remote-confirm" : "DB_MIGRATE_CONFIRM=1";
-  console.log(`Applying migrations to REMOTE "${DATABASE}" (production), authorised by ${how}.`);
+  console.log(`Applying migrations to REMOTE "${DATABASE}" (production), authorized by ${how}.`);
 } else {
   console.log(
     [

@@ -1,29 +1,17 @@
+import { readThemeCookie } from "capsomer/theme-server";
 import { eq } from "drizzle-orm";
 
 import { getDb, type Db } from "~/db";
 import { accounts } from "~/db/schema";
 import { resolveActiveMembership } from "./auth/account";
 import { getSession } from "./auth/session";
-import { isTheme, resolveThemePreference, THEME_COOKIE, type Theme } from "./theme";
+import { resolveThemePreference, THEME_COOKIE, type Theme } from "./theme";
 
 // Better Auth's default session cookie is `better-auth.session_token` (no
 // cookiePrefix is configured in auth/options.ts). Matching the suffix is enough
 // to answer "could this request possibly be signed in", which is all the gate
 // below needs.
 const SESSION_COOKIE_MARKER = "session_token";
-
-/** The theme cookie's value, or null when absent or malformed. */
-function getThemeCookie(request: Request): Theme | null {
-  const header = request.headers.get("Cookie") ?? "";
-  for (const part of header.split(";")) {
-    const eq = part.indexOf("=");
-    if (eq === -1) continue;
-    if (part.slice(0, eq).trim() !== THEME_COOKIE) continue;
-    const value = part.slice(eq + 1).trim();
-    return isTheme(value) ? value : null;
-  }
-  return null;
-}
 
 /**
  * The theme this request should render under, preferring the merchant's stored
@@ -39,7 +27,7 @@ function getThemeCookie(request: Request): Theme | null {
  * called from an action, never a loader.
  */
 export async function resolveThemeForRequest(env: Env, request: Request): Promise<Theme> {
-  const cookieTheme = getThemeCookie(request);
+  const cookieTheme = readThemeCookie(request, THEME_COOKIE);
 
   const header = request.headers.get("Cookie") ?? "";
   if (!header.includes(SESSION_COOKIE_MARKER)) {

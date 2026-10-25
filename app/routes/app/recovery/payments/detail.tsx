@@ -247,7 +247,7 @@ export const COPIED_RESET_MS = 2000;
 
 /** The Copy email button's words: "Copy email", then Recova's copied state
  *  for COPIED_RESET_MS (PaymentDetailClient.tsx 248-253, green "Copied" with a
- *  tick), as Capsomer's ok status: its tick glyph and word in the ok colour. */
+ *  tick), as Capsomer's ok status: its tick glyph and word in the ok color. */
 export function CopyEmailLabel({ copied }: { copied: boolean }) {
   if (!copied) return <>Copy email</>;
   return <Status tone="ok">Copied</Status>;
@@ -822,7 +822,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
 /**
  * Recova's timeline node, PaymentDetailClient.tsx 452-463: a 32px round node with
  * an envelope on an email step and a repeat glyph on a retry, tinted by the
- * result once executed and grey while pending. The glyphs are drawn icons, not
+ * result once executed and gray while pending. The glyphs are drawn icons, not
  * Recova's text symbols (approved 2026-08-15). The node reads the same tone as
  * the result chip beside it, so the two always agree. Capsomer has no timeline
  * node; this is the page's own until it does.

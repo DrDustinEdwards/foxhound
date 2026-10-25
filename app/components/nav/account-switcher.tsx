@@ -51,7 +51,7 @@ let switching = false;
  *  pattern (AccountSwitcher.tsx:55-59): every loader on the page resolved through
  *  the old marker, so a soft navigation would leave stale account data on screen.
  *  Pathname plus search, so a switch does not carry a fragment across accounts.
- *  `assign()` rather than legacy's `location.href = ...`: identical behaviour,
+ *  `assign()` rather than legacy's `location.href = ...`: identical behavior,
  *  and the react-hooks/immutability rule rejects the assignment form. */
 export async function switchAccount(accountId: string, switchAccountUrl = "/api/account/switch"): Promise<void> {
   // One switch at a time, as the old menu's disabled rows had it: a second

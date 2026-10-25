@@ -89,7 +89,7 @@ const ids = (data: Record<string, unknown>) => (data.merchants as Array<{ id: st
 
 describe("the lists' addresses and filters", () => {
 
-  it("keeps exactly the rows whose flag is set, as Recova's .eq() reads did, cancelled ones included", () => {
+  it("keeps exactly the rows whose flag is set, as Recova's .eq() reads did, canceled ones included", () => {
     expect(typeof pageLib.merchantsInView).toBe("function");
     const inView = pageLib.merchantsInView as (rows: unknown[], view: string) => Array<{ id: string }>;
     const rows = [

@@ -231,12 +231,12 @@ export interface StopRecoveryInput {
 
 /**
  * Stop recovery, as ONE atomic batch: the payment goes terminal and every
- * unexecuted step is cancelled together, or neither happens.
+ * unexecuted step is canceled together, or neither happens.
  *
  * TWO GUARDS, and the first is a deliberate hardening over legacy.
  *
  * (1) The status UPDATE carries `status = 'active'` in its WHERE, so it CLAIMS
- * the active-to-cancelled transition rather than asserting it. Legacy's cancel
+ * the active-to-canceled transition rather than asserting it. Legacy's cancel
  * route does NOT do this; it fires an unconditional `Promise.all` and discards
  * both results, which was safe for legacy only because nothing bills on cancel.
  * Legacy's own RECOVER route uses exactly this claim shape and explains why: a
@@ -246,7 +246,7 @@ export interface StopRecoveryInput {
  * actually been recovered. Ruling 262 decision four routes this through the DO
  * precisely to kill such races; the claim is the same intent expressed in SQL.
  *
- * (2) The steps UPDATE is conditioned on the payment ACTUALLY being cancelled
+ * (2) The steps UPDATE is conditioned on the payment ACTUALLY being canceled
  * now, via a correlated subquery. Statements in a batch run in order inside one
  * transaction, so this reads statement (1)'s effect: if the claim took zero rows
  * because something else resolved the payment first, the subquery is false and
@@ -254,9 +254,9 @@ export interface StopRecoveryInput {
  * loses" true without branching, which a single atomic batch cannot do.
  *
  * Step cancellation is what actually stops the engine: `stepDueCondition`
- * requires `result IS NULL`, so a cancelled step is never selected again. The
+ * requires `result IS NULL`, so a canceled step is never selected again. The
  * exhausted-sequence sweep is separately safe, since it gates on status
- * 'active' and a cancelled payment no longer matches.
+ * 'active' and a canceled payment no longer matches.
  */
 export function buildStopRecoveryBatch(db: Db, input: StopRecoveryInput): MoneyWriteBatch {
   const paymentIsCancelled = sql`exists (select 1 from ${failedPayments} where ${failedPayments.id} = ${input.failedPaymentId} and ${failedPayments.accountId} = ${input.accountId} and ${failedPayments.status} = ${FAILED_PAYMENT_STATUS_CANCELLED})`;

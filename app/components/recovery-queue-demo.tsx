@@ -15,7 +15,7 @@ import { Check, RefreshCw, X } from "lucide-react";
 //   - It sizes to its OWN content. Legacy was h-full inside a fixed-height
 //     hero and would clip exactly the way the ledger mock did (commit
 //     1c98363). Nothing here may reintroduce a fixed height.
-//   - It honours prefers-reduced-motion by settling on the final frame and
+//   - It honors prefers-reduced-motion by settling on the final frame and
 //     scheduling nothing. An indefinite auto-playing loop with no pause
 //     control is a WCAG 2.2.2 problem, and the canon target is 2.2 AA.
 
@@ -147,7 +147,7 @@ const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 //
 // The correctness reason: the old read happened once on mount, so a visitor who
 // turned reduced motion ON while the page sat open kept the loop running. That
-// is the WCAG 2.2.2 case this behaviour is here to serve.
+// is the WCAG 2.2.2 case this behavior is here to serve.
 function subscribeToReducedMotion(onStoreChange: () => void): () => void {
   const query = window.matchMedia(REDUCED_MOTION_QUERY);
   query.addEventListener("change", onStoreChange);
