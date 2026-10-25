@@ -186,8 +186,15 @@ function WhatsNext({
   return (
     <Panel title="What's next">
       <div className="text-center">
-        <Link to="/signup" className="cap-btn" data-variant="primary">
-          Start recovering this revenue. Free until we do.
+        {/* Capsomer's button never wraps, so this 48-character label ran past
+            the panel's edge on a phone. The label wraps between its two
+            sentences, never inside one, and py-2 gives two lines room; on a
+            wide screen it is one line and the button keeps its height. */}
+        <Link to="/signup" className="cap-btn py-2" data-variant="primary">
+          <span className="whitespace-normal">
+            <span className="whitespace-nowrap">Start recovering this revenue.</span>{" "}
+            <span className="whitespace-nowrap">Free until we do.</span>
+          </span>
         </Link>
         <p className="m-0 mt-2 text-label text-text-secondary">
           Connect Stripe permanently. Foxhound runs automatically. You pay {RECOVERY_FEE_PERCENT}% of
