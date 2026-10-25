@@ -69,12 +69,12 @@ const DIGEST_FROM_NAME = "Foxhound";
 
 /**
  * Recova's Intelligence section ends with "View recommendations", to
- * APP_URL/intelligence/recommendations (row S20). Foxhound does not serve that
- * page yet (job J78), and RULES.md 2.7 says an email ships after its link has
- * somewhere to go, so the button waits. A test holds this equal to whether
- * routes.ts serves the page, so the button returns with it.
+ * APP_URL/intelligence/recommendations (row S20). The button waited for that
+ * page (RULES.md 2.7: an email ships after its link has somewhere to go), and
+ * returns with it (job J78). A test holds this equal to whether routes.ts
+ * serves the page.
  */
-export const DIGEST_RECOMMENDATIONS_LIVE = false;
+export const DIGEST_RECOMMENDATIONS_LIVE = true;
 
 /** Legacy's `recoveryRate`: whole percent, and ZERO when nothing failed, never
  *  a division by zero and never "n/a". */
