@@ -7,7 +7,7 @@ import {
 } from "~/lib/constants";
 import { findAttributionSignals, isBillableAttribution, resolveAttribution } from "~/lib/recovery/attribution";
 
-import { createInMemoryDb } from "./helpers/inmemory-db";
+import { createInMemoryDb, inMemoryMoneyWriter } from "./helpers/inmemory-db";
 
 // RULING 377(4), PHASE ONE: A CLICK IS NOT EVIDENCE OF A PERSON.
 //
@@ -36,7 +36,8 @@ const STEP = "step_scan";
 const SENT_AT = new Date("2026-08-20T12:00:00.000Z");
 const RECOVERED_AT = new Date("2026-08-21T12:00:00.000Z");
 
-const harness = vi.hoisted(() => ({ db: null as unknown, now: new Date() }));
+const harness = vi.hoisted(() => ({ db: null as unknown, sqlite: null as unknown, now: new Date() }));
+const ENV = { MONEY_WRITER: inMemoryMoneyWriter(() => harness.sqlite as never).binding } as unknown as Env;
 
 vi.mock("~/db", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/db")>()),
@@ -46,8 +47,9 @@ vi.mock("~/db", async (importOriginal) => ({
 const { recordClick } = await import("~/lib/engagement/record");
 
 async function seed() {
-  const { db } = createInMemoryDb();
+  const { db, sqlite } = createInMemoryDb();
   harness.db = db;
+  harness.sqlite = sqlite;
   await db.insert(accounts).values({ id: ACCOUNT, name: "Scan Co", createdAt: SENT_AT });
   await db.insert(failedPayments).values({
     id: PAYMENT,
@@ -81,7 +83,7 @@ async function clickAt(instant: Date) {
   vi.setSystemTime(instant);
   try {
     await recordClick(
-      {} as Env,
+      ENV,
       { stepId: STEP, accountId: ACCOUNT, kind: "click", url: "https://merchant.example/pay" },
       { automated: false },
     );

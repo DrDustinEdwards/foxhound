@@ -40,19 +40,10 @@ describe("engagement record builders (compile against schema)", () => {
   it("click stamp keeps the first clicked_at (the attribution signal) and counts every click (F10)", () => {
     // Behaviour is proven against a real schema in engagement-click-f10.test.ts;
     // this pins the statement's shape so the first-click rule stays in the SQL.
-    const sql = sqlOf(buildClickStamp(db, "step_1", now, null));
+    const sql = sqlOf(buildClickStamp(db, "step_1", now));
     expect(sql.sql).toMatch(/update .*recovery_steps/i);
     expect(sql.sql).toMatch(/"clicked_at" = coalesce\("recovery_steps"\."clicked_at", \?\)/i);
     expect(sql.sql).toMatch(/"email_clicked_count" = coalesce\(/i);
-    expect(sql.sql).not.toMatch(/click_suspect_reason/i);
-  });
-
-  it("with a suspect reason, the click stamp writes it on the first click only and never clears a mark", () => {
-    const sql = sqlOf(buildClickStamp(db, "step_1", now, "too_fast"));
-    expect(sql.sql).toMatch(
-      /"click_suspect_reason" = case when "recovery_steps"\."clicked_at" is null then \? else "recovery_steps"\."click_suspect_reason" end/i,
-    );
-    expect(sql.params).toContain("too_fast");
   });
 
   it("open stamp targets opened_at", () => {

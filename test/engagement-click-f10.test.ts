@@ -5,7 +5,7 @@ import { accounts, engagementEvents, failedPayments, recoverySteps } from "~/db/
 import { CLICK_SUSPECT_HONEYPOT, CLICK_SUSPECT_TOO_FAST } from "~/lib/constants";
 import { findAttributionSignals, resolveAttribution } from "~/lib/recovery/attribution";
 
-import { createInMemoryDb } from "./helpers/inmemory-db";
+import { createInMemoryDb, inMemoryMoneyWriter } from "./helpers/inmemory-db";
 
 // Row F10 (J27, job_a6f44c83feaa): the /e/c/:token click recorder against
 // Recova's email.clicked handler in app/api/webhooks/resend/route.ts (blob
@@ -18,16 +18,17 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // billing reads (clicked_at, click_suspect_reason) stay first-click only. The
 // engagement_events row stays one per step on its existing idempotency key.
 
-const harness = vi.hoisted(() => ({ db: null as unknown }));
+const harness = vi.hoisted(() => ({ db: null as unknown, sqlite: null as unknown }));
 vi.mock("~/db", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/db")>()),
   getDb: () => harness.db,
 }));
 
 const record = await import("~/lib/engagement/record");
-const { buildClickStamp, buildEngagementInsert, recordClick, recordHoneypot } = record;
+const { recordClick, recordHoneypot } = record;
 
-const ENV = {} as Env;
+const money = inMemoryMoneyWriter(() => harness.sqlite as never);
+const ENV = { MONEY_WRITER: money.binding } as unknown as Env;
 const ACCOUNT = "acct_sample";
 const PAYMENT = "fp_sample";
 const STEP = "step_sample";
@@ -38,9 +39,11 @@ const CLICK = { stepId: STEP, accountId: ACCOUNT, kind: "click", url: "https://m
 
 const at = (minutes: number) => new Date(SENT.getTime() + minutes * 60_000);
 
-async function seed(emailClickedCount: number | null = null) {
-  const { db } = createInMemoryDb();
+async function seed(emailClickedCount: number | null = null, executedAt: Date | null = SENT) {
+  const { db, sqlite } = createInMemoryDb();
   harness.db = db;
+  harness.sqlite = sqlite;
+  money.commits.length = 0;
   await db.insert(accounts).values({ id: ACCOUNT, name: "Sample", createdAt: SENT });
   await db.insert(failedPayments).values({
     id: PAYMENT,
@@ -62,7 +65,7 @@ async function seed(emailClickedCount: number | null = null) {
     stepType: "email_day1",
     stepNumber: 1,
     scheduledAt: SENT,
-    executedAt: SENT,
+    executedAt,
     result: "email_sent",
     emailClickedCount,
   });
@@ -94,23 +97,6 @@ async function attribution(db: TestDb) {
   return resolveAttribution(findAttributionSignals(steps, RECOVERED_AT));
 }
 
-/** The recorder's own batch, insert then stamp, with the suspect reason chosen
- *  directly. A later click only reaches the stamp with a reason when the first
- *  click landed before executed_at was written (send first, claim second,
- *  RULES.md 3.8), so the reason is driven here rather than through the clock. */
-async function stampWithReason(db: TestDb, when: Date, reason: string | null) {
-  await db.batch([
-    buildEngagementInsert(db, {
-      accountId: ACCOUNT,
-      recoveryStepId: STEP,
-      eventType: "click",
-      idempotencyKey: `click:${STEP}`,
-      occurredAt: when,
-    }),
-    buildClickStamp(db, STEP, when, reason),
-  ]);
-}
-
 afterEach(() => {
   vi.useRealTimers();
 });
@@ -140,12 +126,48 @@ describe("F10: a repeat click never changes what bills (RULES.md 3.4)", () => {
 
 describe("F10: a later SUSPECT click never changes the first click's billing input", () => {
 
-  it("a honeypot mark stays after a later suspect click, so it never bills", async () => {
+  it("a honeypot mark stays after a later click that would be too fast, so it never bills", async () => {
     const db = await seed();
-    await stampWithReason(db, at(10), null);
+    await clickAt(at(10));
     await recordHoneypot(ENV, { stepId: STEP, accountId: ACCOUNT, kind: "honeypot" });
-    await stampWithReason(db, at(20), CLICK_SUSPECT_TOO_FAST);
+    // A later click that would read as too fast were it the first: a missing
+    // executed_at is the only way a click at minute twenty can, so clear it.
+    await db.update(recoverySteps).set({ executedAt: null }).where(eq(recoverySteps.id, STEP));
+    await clickAt(at(20));
     expect((await step(db)).clickSuspectReason).toBe(CLICK_SUSPECT_HONEYPOT);
+    expect((await attribution(db)).kind).not.toBe("email_engaged");
+  });
+});
+
+describe("A billable click is a money write (Dustin, 2026-10-25, RULES.md 3.4)", () => {
+  it("commits through the account's money Durable Object, event row then stamp", async () => {
+    const db = await seed();
+    await clickAt(at(10));
+    expect(money.commits).toHaveLength(1);
+    const [commit] = money.commits;
+    expect(commit.partition).toBe(ACCOUNT);
+    expect(commit.statements.map((s) => s.sql.split(" ").slice(0, 3).join(" "))).toEqual([
+      'insert into "engagement_events"',
+      'update "recovery_steps" set',
+    ]);
+    expect(commit.statements[0].params).toContain(`click:${STEP}`);
+    expect((await step(db)).clickedAt?.getTime()).toBe(at(10).getTime());
+  });
+
+  it("every click still counts, so the Durable Object key is per click", async () => {
+    const db = await seed();
+    await clickAt(at(10));
+    await clickAt(at(95));
+    expect((await step(db)).emailClickedCount).toBe(2);
+    expect(new Set(money.commits.map((c) => c.idempotencyKey)).size).toBe(2);
+  });
+
+  it("a click before executed_at is written is too fast, so it never bills", async () => {
+    // Send first, claim second (RULES.md 3.8): a scanner can fetch the link in
+    // the seconds before the claim stamps executed_at.
+    const db = await seed(null, null);
+    await clickAt(at(10));
+    expect((await step(db)).clickSuspectReason).toBe(CLICK_SUSPECT_TOO_FAST);
     expect((await attribution(db)).kind).not.toBe("email_engaged");
   });
 });
