@@ -72,8 +72,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
 // (mb-10), then the card grid (1, 2, 3 columns, gap-6). Recova's empty line is
 // kept only for a post unpublished between the loader's two reads; the gate
 // above otherwise 404s a tag no published post carries.
-// Recova's text-[1.75rem] h1 is display, its text-[0.8125rem] back link and
-// count line label (RULES.md 5.2). Cards are Capsomer's panel (BlogPostCard),
+// Recova's sizes: the 1.75rem h1, the 0.8125rem back link and count line. Cards are Capsomer's panel (BlogPostCard),
 // the colour amber, and the back link a 24px target.
 export default function BlogTagPage({ loaderData }: Route.ComponentProps) {
   const { siteUrl: url, tag, posts } = loaderData;
@@ -97,7 +96,7 @@ export default function BlogTagPage({ loaderData }: Route.ComponentProps) {
           />
           All posts
         </Link>
-        <h1 className="mb-2 text-display font-medium tracking-tight text-text">{label}</h1>
+        <h1 className="mb-2 text-section font-medium tracking-tight text-text">{label}</h1>
         <p className="mb-10 font-mono text-label text-text-tertiary">
           {posts.length} {posts.length === 1 ? "article" : "articles"}
         </p>

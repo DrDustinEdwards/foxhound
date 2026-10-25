@@ -1,4 +1,4 @@
-import { Pill, type Tone } from "capsomer/react/status";
+import type { Tone } from "capsomer/react/status";
 import "capsomer/status.css";
 
 import { healthScoreBand } from "~/lib/intelligence/health-band";
@@ -30,9 +30,11 @@ const BAND_WORD: Record<ReturnType<typeof healthScoreBand>, string> = {
 export function HealthScoreBadge({ score }: { score: number }) {
   const band = healthScoreBand(score);
   return (
-    <Pill tone={BAND_TONE[band]}>
-      <span className="font-mono">{score}</span>
+    // Recova's badge: the score in mono on the band's tint, edged in its colour,
+    // with no glyph; the band's word is for screen readers.
+    <span className="cap-pill font-mono text-micro [--_line:var(--_fg)]" data-tone={BAND_TONE[band]}>
+      {score}
       <span className="sr-only">, {BAND_WORD[band]}</span>
-    </Pill>
+    </span>
   );
 }

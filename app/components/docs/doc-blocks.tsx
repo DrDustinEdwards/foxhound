@@ -1,4 +1,3 @@
-import { Glyph } from "capsomer/react/status";
 import { Link } from "react-router";
 
 import type { DocBlock, DocInline, DocRich } from "~/lib/marketing/docs-content";
@@ -16,17 +15,12 @@ import { HealthScoreBadge } from "./health-score-badge";
 //
 // LOOK IS CAPSOMER'S, CONTENT AND ORDER RECOVA'S. The reference table is
 // Capsomer's table (a labelled scroll region, so a wide table is a keyboard
-// stop). Note and Tip are Capsomer's alert in its neutral and info tones, with
-// the tone's shape. Capsomer's Alert wrapper always sets role="alert", which
-// would announce a static paragraph of a guide as an interruption, so the
-// markup contract from banner.md is used without the role: a gap named in the
-// PR, a static callout variant for the per-site layer (capsomer
-// job_ec5ec0754626) or a shared part.
+// stop). Note and Tip are Recova's callout: a 2px rule at the left (amber for
+// a tip, the border colour for a note) beside 13px secondary text, a plain
+// paragraph so nothing is announced as an interruption.
 //
-// TEXT IS ON THE FIVE SIZES (RULES.md 5.2, APPROVED-DIFFERENCES 2026-09-19).
-// Recova writes 0.9375rem for body and H3 and 0.8125rem for callouts and
-// tables; those become body (1rem) and label (0.8125rem), finishing the
-// migration Recova's globals.css began rather than copying its arbitrary values.
+// TEXT IS AT RECOVA'S SIZES: 0.9375rem for body and H3, 0.8125rem for callouts
+// and tables, through the named type tokens in app.css.
 
 /** Amber, underlined: Recova's RelLink, in the accent text the 2026-10-13 tokens
  *  set. */
@@ -77,17 +71,19 @@ function Rich({ content }: { content: DocRich }) {
   );
 }
 
-const P = "mb-4 text-body leading-relaxed text-text-secondary";
+const P = "mb-4 text-subhead leading-relaxed text-text-secondary";
 
-/** Capsomer's alert markup, static: no role, so it is read in the flow. */
+/** Recova's note: a 2px rule down the left, amber for the one that matters
+ *  (info), the plain border otherwise, read in the flow. */
 function Callout({ tone, word, body }: { tone: "neutral" | "info"; word: string; body: DocRich }) {
   return (
-    <div className="cap-alert my-4" data-tone={tone}>
-      <Glyph name="info" />
-      <span className="cap-alert-text text-label leading-relaxed">
-        <span className="font-medium text-text">{word}</span> <Rich content={body} />
-      </span>
-    </div>
+    <p
+      className={`my-4 border-l-2 pl-4 text-label leading-relaxed text-text-secondary ${
+        tone === "info" ? "border-brand" : "border-border"
+      }`}
+    >
+      <span className="font-medium text-text">{word}</span> <Rich content={body} />
+    </p>
   );
 }
 
@@ -105,7 +101,7 @@ function Block({ block }: { block: DocBlock }) {
       );
 
     case "h3":
-      return <h3 className="mb-3 mt-8 text-body font-medium text-text">{block.text}</h3>;
+      return <h3 className="mb-3 mt-8 text-item-title font-medium text-text">{block.text}</h3>;
 
     case "note":
       return <Callout tone="neutral" word="Note." body={block.body} />;
@@ -117,7 +113,7 @@ function Block({ block }: { block: DocBlock }) {
       return (
         <ol className="my-4 space-y-3">
           {block.items.map((item, i) => (
-            <li key={i} className="flex gap-3 text-body leading-relaxed text-text-secondary">
+            <li key={i} className="flex gap-3 text-subhead leading-relaxed text-text-secondary">
               {/* Recova hand-writes "01", "02"; derived here so a step cannot
                   be inserted without its number following. */}
               <span className="shrink-0 font-mono text-accent-text">{String(i + 1).padStart(2, "0")}</span>
@@ -131,7 +127,7 @@ function Block({ block }: { block: DocBlock }) {
 
     case "list":
       return (
-        <ul className="my-4 list-inside list-disc space-y-2 text-body leading-relaxed text-text-secondary">
+        <ul className="my-4 list-inside list-disc space-y-2 text-subhead leading-relaxed text-text-secondary">
           {block.items.map((item, i) => (
             <li key={i}>
               <Rich content={item} />

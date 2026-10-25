@@ -19,9 +19,8 @@ import { useEffect, useRef, useState } from "react";
 // The "All articles" link is rendered by the parent, as in legacy, so it sits
 // beside this stack in the flex row and is not part of the cascade.
 //
-// Text is on the five sizes (J19, RULES.md 5.2), finishing the migration
-// Recova began: its 0.6875rem eyebrow is micro, its 2rem title display (the
-// nearest), its 0.9375rem line body (the nearest).
+// Text is at Recova's sizes: the 0.6875rem eyebrow, the 2rem title and the
+// 0.9375rem line.
 export function BlogHeaderIntro() {
   const ref = useRef<HTMLDivElement>(null);
   const [inView, setInView] = useState(false);
@@ -54,13 +53,13 @@ export function BlogHeaderIntro() {
         Posts
       </div>
       <h1
-        className={`mb-3 text-display font-medium tracking-tight text-text ${base} ${reveal}`}
+        className={`mb-3 text-page-title font-medium tracking-tight text-text ${base} ${reveal}`}
         style={{ transitionDelay: "80ms" }}
       >
         Blog
       </h1>
       <p
-        className={`mb-0 max-w-[560px] text-body leading-relaxed text-text-secondary ${base} ${reveal}`}
+        className={`mb-0 max-w-[560px] text-subhead leading-relaxed text-text-secondary ${base} ${reveal}`}
         style={{ transitionDelay: "160ms" }}
       >
         Guides on Stripe payment recovery, dispute handling, and subscription intelligence.

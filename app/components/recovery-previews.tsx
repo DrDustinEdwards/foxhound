@@ -3,10 +3,10 @@ import type { LucideIcon } from "lucide-react";
 import { Pill, Status, type Tone } from "capsomer/react/status";
 import { Link } from "react-router";
 
+import { CategoryPill, StepChip } from "~/components/tone-pills";
 import { timingLabel } from "~/components/docs/sequence-timeline";
 import type { DeclineCategory } from "~/lib/constants";
 import type { RecoveryRateTone } from "~/lib/dashboard/recovery-rate";
-import { CATEGORY_PILL_WORDS } from "~/lib/marketing/recovery-copy";
 import type { PreviewPaymentRow, RecoveryPreview, RoiColumn } from "~/lib/marketing/recovery-preview";
 import { DECLINE_CATEGORY_LABELS } from "~/lib/recovery/labels";
 import { isRetryStep, RECOVERY_SCHEDULES } from "~/lib/recovery/schedule";
@@ -43,10 +43,7 @@ export function SequenceSteps({ category }: { category: DeclineCategory }) {
                 const retry = isRetryStep(step.stepType);
                 return (
                   <li key={step.stepType} className="flex items-center gap-1">
-                    <Pill variant={retry ? "secondary" : "outline"}>
-                      {retry ? "Retry" : "Email"}
-                      <span className="font-mono">{timingLabel(step.offsetHours)}</span>
-                    </Pill>
+                    <StepChip retry={retry} timing={timingLabel(step.offsetHours)} />
                     {i < steps.length - 1 ? (
                       <span className="h-px w-4 shrink-0 bg-border" aria-hidden="true" />
                     ) : null}
@@ -67,7 +64,7 @@ export function CategorySequencePreview() {
       {CATEGORIES.map((category) => (
         <div key={category} data-category={category}>
           <div className="mb-2 flex items-center gap-2">
-            <Pill variant="outline">{CATEGORY_PILL_WORDS[category]}</Pill>
+            <CategoryPill category={category} />
             <span className="font-mono text-label text-text-tertiary">{DECLINE_CATEGORY_LABELS[category]} sequence</span>
           </div>
           <SequenceSteps category={category} />
@@ -228,7 +225,7 @@ export function PaymentsPreview({ preview }: { preview: RecoveryPreview }) {
                   <span className="whitespace-nowrap font-mono text-label text-accent-text">{row.amount}</span>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Pill variant="outline">{CATEGORY_PILL_WORDS[row.category]}</Pill>
+                  <CategoryPill category={row.category} />
                   <StatusPill row={row} />
                 </div>
               </li>
@@ -262,7 +259,7 @@ export function PaymentsPreview({ preview }: { preview: RecoveryPreview }) {
                         <span className="font-mono text-label text-accent-text">{row.amount}</span>
                       </td>
                       <td>
-                        <Pill variant="outline">{CATEGORY_PILL_WORDS[row.category]}</Pill>
+                        <CategoryPill category={row.category} />
                         {row.declineCode ? (
                           <div className="mt-1 font-mono text-micro text-text-subtle">{row.declineCode}</div>
                         ) : null}

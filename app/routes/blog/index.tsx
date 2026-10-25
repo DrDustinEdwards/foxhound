@@ -47,17 +47,13 @@ import type { Route } from "./+types/index";
 // label, description and See all, the Latest strip, at Recova's widths (1080px
 // header, 1280px bands). The parts are Capsomer's (Q12): post cards are the
 // panel, the tag is the outline pill, Read the guide the primary button. Accents
-// are amber, text on the five sizes (RULES.md 5.2: each Recova size to the
-// nearest, a tie to the larger), and every text link a 24px target.
+// are amber, text at Recova's sizes, and every text link a 24px target.
 //
 // One Recova defect is not copied (parity/M11-M13-BLOG-CLUSTER.md, F3): a
 // section shows only when a published post carries its tag, from
 // getPublishedTagSet, the one derivation llms.txt and the archive read, so See
 // all never leads to an empty or missing tag page.
-//
-// Where Recova's look needs more than Capsomer's shared parts carry, the page
-// waits on the per-site layer (capsomer job_ec5ec0754626) and adds no Foxhound
-// CSS over a Capsomer part; the J19 PR lists each place.
+
 export function meta({ loaderData }: Route.MetaArgs) {
   return marketingMeta({
     title: "Blog - Foxhound",
@@ -112,7 +108,7 @@ export default function BlogIndexPage({ loaderData }: Route.ComponentProps) {
           <BlogHeaderIntro />
           <Link
             to="/blog/archive"
-            className="group shrink-0 font-mono text-label leading-6 text-text-tertiary transition-colors hover:text-text"
+            className="group shrink-0 font-mono text-copy leading-6 text-text-tertiary transition-colors hover:text-text"
           >
             All articles{" "}
             <ArrowRight
@@ -164,14 +160,14 @@ function BlogHero({ post }: { post: BlogPostSummary }) {
     <section className="border-b border-border-sub bg-surface">
       <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-8 px-4 py-12 sm:px-6 lg:grid-cols-2 lg:px-8 lg:py-16">
         <div>
-          <p className="font-mono text-label uppercase tracking-widest text-accent-text">Featured</p>
-          <h2 className="mt-3 text-display font-bold leading-tight text-text">
+          <p className="font-mono text-caption uppercase tracking-widest text-accent-text">Featured</p>
+          <h2 className="mt-3 text-[1.875rem] font-bold leading-tight text-text lg:text-statement">
             <Link to={`/blog/${post.slug}`} className="text-text transition-colors hover:text-accent-text">
               {post.title}
             </Link>
           </h2>
           <p className="mt-3 line-clamp-3 text-body leading-relaxed text-text-secondary">{post.excerpt}</p>
-          <div className="mt-4 flex flex-wrap items-center gap-2 font-mono text-label text-text-tertiary">
+          <div className="mt-4 flex flex-wrap items-center gap-2 font-mono text-copy text-text-tertiary">
             <span>{post.readingTimeMinutes} min read</span>
             {post.tags[0] ? (
               <>
@@ -265,12 +261,12 @@ function BlogSection({ section, posts }: { section: BlogSectionConfig; posts: Bl
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="font-mono text-label uppercase tracking-widest text-accent-text">{section.label}</p>
-            <p className="mt-1 max-w-2xl text-label text-text-secondary">{section.description}</p>
+            <p className="font-mono text-copy uppercase tracking-widest text-accent-text">{section.label}</p>
+            <p className="mt-1 max-w-2xl text-copy text-text-secondary">{section.description}</p>
           </div>
           <Link
             to={section.tagHref}
-            className="group whitespace-nowrap text-label font-medium leading-6 text-accent-text hover:underline"
+            className="group whitespace-nowrap text-copy font-medium leading-6 text-accent-text hover:underline"
           >
             See all{" "}
             <ArrowRight
@@ -295,7 +291,7 @@ function BlogLatestStrip({ posts }: { posts: BlogPostSummary[] }) {
   return (
     <section className="bg-bg">
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <p className="font-mono text-label uppercase tracking-widest text-text-tertiary">Latest</p>
+        <p className="font-mono text-copy uppercase tracking-widest text-text-tertiary">Latest</p>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {posts.map((post) => (
             <BlogPostCard key={post.slug} post={post} />

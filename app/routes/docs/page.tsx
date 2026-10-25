@@ -28,7 +28,7 @@ import type { Route } from "./+types/page";
 // "Part N." links in two columns from sm, and each Part's amber eyebrow over its
 // h2. LOOK IS CAPSOMER'S (Q12): the breadcrumb, the Contents card (a body-only
 // panel), the tables, callouts and pills, in the amber family, with text
-// on the five sizes (RULES.md 5.2). CONTENT is app/lib/marketing/docs-content.ts.
+// at Recova's sizes. CONTENT is app/lib/marketing/docs-content.ts.
 //
 // The page heading and lead are Recova's page's own ("Platform setup",
 // "Recovery sequences"), which differ from the /docs card's title and
@@ -73,7 +73,8 @@ export default function DocGuidePage({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="fh-cap mx-auto max-w-[760px] px-6 py-16 [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="amber">
-      <div className="mb-8 text-micro">
+      {/* Recova's crumbs are quiet: tertiary, the link lighting up under the pointer. */}
+      <div className="mb-8 [&_.cap-breadcrumb]:text-micro [&_.cap-breadcrumb]:text-text-tertiary [&_.cap-breadcrumb-page]:font-normal [&_.cap-breadcrumb-page]:text-text-tertiary [&_a:hover]:text-text [&_a]:text-text-tertiary [&_a]:no-underline">
         <Breadcrumb
           items={[{ label: "Docs", href: "/docs" }, { label: guide.title }]}
           renderLink={({ href, className, children }) => (
@@ -85,11 +86,11 @@ export default function DocGuidePage({ loaderData }: Route.ComponentProps) {
       </div>
 
       <div className="mb-3 text-micro font-medium uppercase tracking-widest text-text-tertiary">User Guide</div>
-      <h1 className="mb-3 text-display font-medium tracking-tight text-text">{guide.heading}</h1>
-      <p className="mb-10 text-body leading-relaxed text-text-secondary">{guide.lead}</p>
+      <h1 className="mb-3 text-page-title font-medium tracking-tight text-text">{guide.heading}</h1>
+      <p className="mb-10 text-subhead leading-relaxed text-text-secondary">{guide.lead}</p>
 
       {guide.sections.length > 1 ? (
-        <nav aria-label="Contents" className="cap-panel mb-12">
+        <nav aria-label="Contents" className="cap-panel mb-12 rounded-lg [--gap:1.25rem] [--pad-card:1.25rem]">
           <div className="cap-panel-body">
             <div>
               <div className="mb-3 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">Contents</div>

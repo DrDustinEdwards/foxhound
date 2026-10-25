@@ -23,8 +23,7 @@ import type { Route } from "./+types/index";
 // pb-16, Platform as a full-width card above a two-column grid at sm, the four
 // product guides in Recova's order (Audit, Recovery, Disputes, Intelligence),
 // then the two cross-links. Look is Capsomer's (Q12): each card is Capsomer's
-// panel in the amber family, text on the five sizes (RULES.md 5.2), amber
-// throughout. Guide titles and descriptions come from
+// panel in the amber family at Recova's sizes, amber throughout. Guide titles and descriptions come from
 // app/lib/marketing/docs-content.ts and stay 20d-frozen.
 
 export function meta({ loaderData }: Route.MetaArgs) {
@@ -109,19 +108,18 @@ function Arrow() {
 }
 
 /**
- * One guide card: Capsomer's panel, body only, as the whole-card link Recova
- * draws. Capsomer has no link card yet, so Recova's hover border is not drawn
- * (see the PR notes, a Capsomer job to post). "group" carries no style; it
- * drives the arrow's nudge. The title moves from Recova's 0.9375rem to body,
- * the nearest of the five sizes.
+ * One guide card: Capsomer's linked panel, the whole-card link Recova draws,
+ * at its p-5 and 8px corners. Recova's guide cards take the amber edge under
+ * the pointer without the lift, so the lift is off here. "group" carries no
+ * style; it drives the arrow's nudge.
  */
 function GuideCard({ guide }: { guide: DocGuide }) {
   return (
-    <Link to={`/docs/${guide.slug}`} className="cap-panel group">
+    <Link to={`/docs/${guide.slug}`} className="cap-panel group rounded-lg [--card-lift:0px] [--gap:1.25rem] [--pad-card:1.25rem]">
       <div className="cap-panel-body">
         {/* One block, so the body's grid gap leaves Recova's own spacing alone. */}
         <div>
-          <div className="mb-2 text-body font-medium text-text">{guide.title}</div>
+          <div className="mb-2 text-item-title font-medium text-text">{guide.title}</div>
           <div className="mb-4 text-label leading-relaxed text-text-secondary">{guide.description}</div>
           <div className="text-label text-accent-text">
             Read guide <Arrow />

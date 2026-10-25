@@ -16,7 +16,8 @@ import "~/site-header.css";
 // for the frame: each of its pages (app/(auth)/login and signup page.tsx) is
 // one 400px card, centred in a full-height column, holding a centred heading,
 // a line under it, the form and a line of links. The parts are Capsomer's
-// (Q12), amber, and the text keeps the five sizes (RULES.md 5.2).
+// (Q12), amber, at Recova's sizes: p-12, the 1.5rem heading, 13px labels,
+// 42px fields and a 47px button at 0.9375rem.
 //
 // The ways in are the family's one sign-in (site-runtime ./sign-in; Dustin's
 // approval in APPROVED-DIFFERENCES, "Sign-in and invites", 2026-10-24): a
@@ -38,13 +39,14 @@ export function AuthCard({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-bg">
       <div
-        className="fh-cap w-full max-w-[400px] [--border-focus:var(--ring)]" data-cap-site="foxhound"
+        className="fh-cap w-full max-w-[400px] [--border-focus:var(--ring)] [--control:2.625rem] [&_.cap-btn]:[--cap-btn-fs:var(--text-subhead)] [&_.cap-btn]:[--cap-btn-h:2.9375rem] [&_.cap-btn]:font-semibold" data-cap-site="foxhound"
         data-family="amber"
         data-auth-card=""
       >
-        <section className="cap-panel">
+        {/* Recova's card: p-12, its fields 42px tall (py-2.5 at 14px). */}
+        <section className="cap-panel [--gap:0px] [--pad-card:0px]">
           <div className="cap-panel-body">
-            <div className="px-8 py-9">{children}</div>
+            <div className="p-12">{children}</div>
           </div>
         </section>
       </div>
@@ -56,9 +58,9 @@ export function AuthCard({ children }: { children: ReactNode }) {
 export function AuthHeading({ title, subtitle }: { title: string; subtitle?: ReactNode }) {
   return (
     <>
-      <h1 className={`${subtitle ? "mb-2" : "mb-6"} text-center text-title font-semibold text-text`}>{title}</h1>
+      <h1 className={`${subtitle ? "mb-2" : "mb-6"} text-center text-subsection font-semibold text-text`}>{title}</h1>
       {subtitle ? (
-        <p className="mb-8 text-center text-label leading-relaxed text-text-subtle">{subtitle}</p>
+        <p className="mb-8 text-center text-copy leading-relaxed text-text-subtle">{subtitle}</p>
       ) : null}
     </>
   );
@@ -94,7 +96,7 @@ export function AuthField({
   errorId?: string;
 }) {
   const labelEl = (
-    <label className="cap-field-label" htmlFor={id}>
+    <label className="cap-field-label font-normal text-text-tertiary" htmlFor={id}>
       <span className="text-label">
         {label}
         {hint ? <span className="text-text-subtle"> {hint}</span> : null}
@@ -262,7 +264,7 @@ export function SocialContinue({
       {providers.length === 0 && !afterPasskey ? null : (
       <div className="mb-5 mt-5 flex items-center gap-3">
         <span className="h-px flex-1 bg-border" />
-        <span className="font-mono text-micro text-text-subtle">or</span>
+        <span className="font-mono text-caption text-text-subtle">or</span>
         <span className="h-px flex-1 bg-border" />
       </div>
       )}
@@ -285,6 +287,7 @@ export function SignInLinkForm({
   error,
   busy,
   attempt,
+  primary = false,
 }: {
   idPrefix: string;
   turnstileSiteKey: string | null;
@@ -293,6 +296,9 @@ export function SignInLinkForm({
   busy: boolean;
   /** Changes with each answer from the action, so the widget is drawn again. */
   attempt: unknown;
+  /** The page's only way in (sign-up), so it takes the primary button as
+   *  Recova's lone submit did; beside the passkey it stays secondary. */
+  primary?: boolean;
 }) {
   const widget = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -321,7 +327,7 @@ export function SignInLinkForm({
         </div>
       ) : null}
       <div className="grid">
-        <Button type="submit" size="lg" pending={busy}>
+        <Button type="submit" variant={primary ? "primary" : undefined} size="lg" pending={busy}>
           {busy ? "Sending..." : "Email me a sign-in link"}
         </Button>
       </div>

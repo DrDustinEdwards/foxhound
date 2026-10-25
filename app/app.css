@@ -47,6 +47,28 @@
   src: url("./assets/fonts/dm-mono-500.woff2") format("woff2");
 }
 
+/* Metric-matched fallbacks, as Recova's next/font generated them: Arial
+   scaled to DM Sans's and DM Mono's widths and line metrics. With
+   font-display: optional a slow cold visit keeps the fallback for that page,
+   so the fallback has to set the same size and line breaks as the real face
+   rather than a wider, taller Arial. */
+@font-face {
+  font-family: "DM Sans Fallback";
+  src: local("Arial");
+  ascent-override: 94.9%;
+  descent-override: 29.66%;
+  line-gap-override: 0%;
+  size-adjust: 104.53%;
+}
+@font-face {
+  font-family: "DM Mono Fallback";
+  src: local("Arial");
+  ascent-override: 73.71%;
+  descent-override: 23.03%;
+  line-gap-override: 0%;
+  size-adjust: 134.59%;
+}
+
 /* Design tokens ported from recova-color-system-complete.html (the pre-rebuild
    design system, transcribed verbatim into TASK-foxhound-design-system-port.md
    Appendix A, read via Capsid) per DESIGN.md. Concrete hex values live only in
@@ -286,8 +308,8 @@
 
 :root,
 :root[data-theme="dark"] {
-  --font-dm-sans: "DM Sans", sans-serif;
-  --font-dm-mono: "DM Mono", monospace;
+  --font-dm-sans: "DM Sans", "DM Sans Fallback", sans-serif;
+  --font-dm-mono: "DM Mono", "DM Mono Fallback", monospace;
 
   /* Elevation stack. */
   --bg: #111210;
@@ -1028,6 +1050,8 @@ body {
   --header-avatar-fg: var(--header-brand-fg);
   --ring: var(--header-brand);
   --font-ui: var(--font-dm-sans), Arial, sans-serif;
+  /* Recova's nav links are 13px. */
+  --header-fs: 0.8125rem;
 }
 /* Foxhound's own focus rule above squares every focused element's corners;
    the header's round avatar and its panels keep their own shapes. */

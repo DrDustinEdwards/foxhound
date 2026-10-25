@@ -18,11 +18,10 @@ import "capsomer/segmented.css";
 // labels are Recova's: the decline name in bold, the plain cause beneath, and
 // no raw Stripe code (M3 divergence 27).
 //
-// Look is Capsomer's: the card is a panel, the picker its segmented control
-// (one of a few, so radios, not four buttons), the button its primary. Recova
-// tints the chosen decline type in its own colour; Capsomer's segmented
-// control has one selected look, so the tint waits for the per-site layer
-// (capsomer job_ec5ec0754626).
+// Look is Capsomer's: the card is a panel, the picker its segmented control in
+// the cards layout (one of a few, so radios, not four buttons), each chosen
+// type tinted as Recova's were (soft blue, network orange, expired amber,
+// fraud red), the button its primary.
 //
 // Generation posts to /marketing/generate-email-sample, which calls the model
 // for a fictional customer. When that fails or the visitor is over the rate
@@ -33,13 +32,14 @@ interface CategoryMeta {
   id: MarketingEmailCategory;
   label: string;
   desc: string;
+  tone?: "info" | "warn" | "crit";
 }
 
 const CATEGORIES: CategoryMeta[] = [
-  { id: "soft", label: "Soft decline", desc: "Insufficient funds" },
-  { id: "network", label: "Network error", desc: "Processing failure" },
+  { id: "soft", label: "Soft decline", desc: "Insufficient funds", tone: "info" },
+  { id: "network", label: "Network error", desc: "Processing failure", tone: "warn" },
   { id: "expired", label: "Expired card", desc: "Card needs updating" },
-  { id: "fraud", label: "Fraud flag", desc: "Bank flagged the charge" },
+  { id: "fraud", label: "Fraud flag", desc: "Bank flagged the charge", tone: "crit" },
 ];
 
 export function EmailSamples() {
@@ -106,36 +106,40 @@ export function EmailGeneratorView({
             </span>
             <span className="flex items-center gap-1.5">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green" aria-hidden />
-              <span className="font-mono text-micro text-green">Calls real AI</span>
+              <span className="font-mono text-source text-green">Calls real AI</span>
             </span>
           </div>
 
           <div className="p-5">
             <div className="mb-4">
               <Segmented
-                legend="Decline type"
+                legend={
+                  <span className="text-micro font-medium uppercase tracking-widest text-text-tertiary">Decline type</span>
+                }
                 name="decline-type"
+                layout="cards"
                 value={category}
                 onChange={onSelect}
                 options={CATEGORIES.map((c) => ({
                   value: c.id,
+                  tone: c.tone,
                   label: (
-                    <span className="block py-1.5 text-left">
+                    <span className="block text-caption">
                       <span className="block font-medium">{c.label}</span>
-                      <span className="mt-0.5 block font-mono text-micro opacity-80">{c.desc}</span>
+                      <span className="mt-0.5 block font-mono text-source opacity-80">{c.desc}</span>
                     </span>
                   ),
                 }))}
               />
             </div>
 
-            <div className="flex justify-center" data-density="comfortable">
+            <div className="flex justify-center">
               <button
                 type="button"
                 onClick={onGenerate}
                 disabled={busy}
                 aria-busy={busy ? "true" : undefined}
-                className="cap-btn"
+                className="cap-btn w-full px-6 font-semibold sm:w-auto sm:min-w-[280px] [--cap-btn-h:2.5rem]"
                 data-variant="primary"
               >
                 {/* Recova (EmailGenerator.tsx): "Generating..." with no arrow
@@ -155,7 +159,7 @@ export function EmailGeneratorView({
                 a real failed payment." The sample uses its own model
                 (MODEL_MARKETING_EMAIL_SAMPLE, not MODEL_RECOVERY_EMAIL) on a
                 fictional customer, so the line says what it is. */}
-            <p className="mt-2 text-center font-mono text-micro text-text-subtle">
+            <p className="mt-2 text-center font-mono text-source text-text-subtle">
               A live AI call on a sample failed payment, for a fictional customer.
             </p>
           </div>
@@ -165,15 +169,15 @@ export function EmailGeneratorView({
               <div className="border-t border-border-sub p-5 text-label text-error-text">Generation failed. Try again.</div>
             ) : result ? (
               <div className="border-t border-border-sub p-5">
-                <p className="mb-3 font-mono text-micro uppercase tracking-widest text-text-subtle">Subject</p>
-                <div className="mb-4 rounded-lg border border-border-sub bg-bg px-3 py-2 text-label font-medium text-text">
+                <p className="mb-3 font-mono text-source uppercase tracking-widest text-text-subtle">Subject</p>
+                <div className="mb-4 rounded-lg border border-border-sub bg-bg px-3 py-2 text-copy font-medium text-text">
                   {result.subject}
                 </div>
-                <p className="mb-2 font-mono text-micro uppercase tracking-widest text-text-subtle">Body</p>
+                <p className="mb-2 font-mono text-source uppercase tracking-widest text-text-subtle">Body</p>
                 <div className="whitespace-pre-wrap rounded-lg border border-border-sub bg-bg px-3 py-3 font-mono text-label leading-[1.7] text-text-secondary">
                   {result.body.replace("{{update_url}}", "https://billing.yoursaas.com/update")}
                 </div>
-                <p className="mt-3 font-mono text-micro text-text-subtle">
+                <p className="mt-3 font-mono text-source text-text-subtle">
                   Generated in real time by AI, for a fictional customer.
                 </p>
               </div>
