@@ -82,6 +82,7 @@ const baseInput = {
   platformCustomerId: "cus_1",
   currency: "usd",
   billingInvoiceId: "inv_1",
+  periodStart: new Date(Date.UTC(2026, 5, 1)),
   lines: [
     {
       type: "recovery_fee",
@@ -239,7 +240,7 @@ describe("collection method follows the payment method on file (E25)", () => {
     expect(keys).toEqual([RECOVERY_KEY, DISPUTE_KEY]);
   });
 
-  it("a customer with a default payment method keeps charge_automatically and the unchanged finalize", async () => {
+  it("a customer with a card on file gets charge_automatically, finalized so Stripe charges the card", async () => {
     await createPlatformInvoice({} as Env, baseInput);
 
     const [createParams, createOptions] = callOf("invoices.create").args as [Record<string, unknown>, Record<string, unknown>];
@@ -247,9 +248,18 @@ describe("collection method follows the payment method on file (E25)", () => {
     expect(createParams).not.toHaveProperty("days_until_due");
     expect(createOptions.idempotencyKey).toBe(platformInvoiceIdempotencyKey("inv_1"));
 
+    // Recova creates with auto_advance true, so Stripe charges the card on its
+    // own within about an hour. With auto_advance left off Stripe never tries
+    // the card and the fee waits a month for the retry sweep.
     const [, finalizeParams, finalizeOptions] = callOf("invoices.finalizeInvoice").args as [string, unknown, Record<string, unknown>];
-    expect(finalizeParams).toBeUndefined();
+    expect(finalizeParams).toEqual({ auto_advance: true });
     expect(finalizeOptions.idempotencyKey).toBe(platformInvoiceFinalizeIdempotencyKey("inv_1"));
+  });
+
+  it("describes the invoice as Recova does, with Foxhound's name and the billed month", async () => {
+    await createPlatformInvoice({} as Env, baseInput);
+    const [createParams] = callOf("invoices.create").args as [Record<string, unknown>];
+    expect(createParams.description).toBe("Foxhound: June 2026");
   });
 
   it("a legacy default source counts as a payment method, as in Recova", async () => {

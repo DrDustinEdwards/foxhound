@@ -144,7 +144,10 @@ export function periodKeyOf(periodStart: Date): string {
   return `${periodStart.getUTCFullYear()}-${String(periodStart.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-async function loadLines(env: Env, invoiceId: string): Promise<PlatformInvoiceLineInput[]> {
+async function loadLines(
+  env: Env,
+  invoiceId: string,
+): Promise<{ lines: PlatformInvoiceLineInput[]; periodStart: Date | null }> {
   const db = getDb(env);
   const [invoice] = await db
     .select({
@@ -155,7 +158,7 @@ async function loadLines(env: Env, invoiceId: string): Promise<PlatformInvoiceLi
     .from(billingInvoices)
     .where(eq(billingInvoices.id, invoiceId))
     .limit(1);
-  if (!invoice) return [];
+  if (!invoice) return { lines: [], periodStart: null };
   const rows = await db
     .select({
       id: billingLineItems.id,
@@ -167,11 +170,12 @@ async function loadLines(env: Env, invoiceId: string): Promise<PlatformInvoiceLi
     })
     .from(billingLineItems)
     .where(eq(billingLineItems.invoiceId, invoiceId));
-  return linesFromLineItems(rows, {
+  const lines = linesFromLineItems(rows, {
     accountId: invoice.accountId,
     periodKey: periodKeyOf(invoice.periodStart),
     currency: invoice.currency,
   });
+  return { lines, periodStart: invoice.periodStart };
 }
 
 /** The money-write recording one charge attempt and whatever it resolved to. */
@@ -387,8 +391,8 @@ export async function retryInvoiceCharge(
       return { invoiceId: invoice.id, outcome: "gave_up", reason: decision.reason };
     }
 
-    const lines = await loadLines(env, invoice.id);
-    if (lines.length === 0) {
+    const { lines, periodStart } = await loadLines(env, invoice.id);
+    if (lines.length === 0 || !periodStart) {
       return { invoiceId: invoice.id, outcome: "skipped", reason: "no_line_items" };
     }
     // Immediately before the charge, after the line-items read. `create` both
@@ -406,6 +410,7 @@ export async function retryInvoiceCharge(
         currency: invoice.currency,
         lines,
         billingInvoiceId: invoice.id,
+        periodStart,
         billingEmail: () => lookupPlatformBillingEmail(env, invoice.accountId),
       });
     } catch (err) {
@@ -566,7 +571,7 @@ async function settleEmailedInvoice(
     const blocked = await blockedByGuard();
     if (blocked) return blocked;
     try {
-      const finalized = await finalize(env, stripeInvoiceId, invoice.id, { sendByEmail: true });
+      const finalized = await finalize(env, stripeInvoiceId, invoice.id);
       await writeAttempt(env, invoice, {
         status: "finalized",
         stripeInvoiceId,

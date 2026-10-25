@@ -8,6 +8,7 @@ import {
   accounts,
   alertHistory,
   alerts,
+  billingExemptionPeriods,
   billingInvoices,
   billingLineItems,
   customerContext,
@@ -110,6 +111,9 @@ async function wipeDemoAccount(db: Db): Promise<void> {
     db.delete(accountSubscriptions).where(eq(accountSubscriptions.accountId, acct)),
     db.delete(accountMembers).where(eq(accountMembers.accountId, acct)),
     db.delete(stripeConnections).where(eq(stripeConnections.accountId, acct)),
+    // An admin can set or end the demo account's exemption from the Merchants
+    // list, which records a stretch for it.
+    db.delete(billingExemptionPeriods).where(eq(billingExemptionPeriods.accountId, acct)),
   ]);
   await db.delete(accounts).where(eq(accounts.id, acct));
 }

@@ -23,7 +23,7 @@
 import { and, desc, eq } from "drizzle-orm";
 
 import type { Db } from "~/db";
-import { accounts, stagedChanges } from "~/db";
+import { accounts, getDb, stagedChanges } from "~/db";
 
 import { logAdminAction } from "./audit.server";
 import { BRAKE_CONFIRM_PHRASES, cronEnableConfirmPhrase } from "./brake";
@@ -176,7 +176,8 @@ async function claim(db: Db, id: string, status: string, actorEmail: string, now
   return updated.length > 0;
 }
 
-async function apply(db: Db, row: StagedRow, actorEmail: string, now: Date): Promise<Record<string, unknown>> {
+async function apply(env: Env, row: StagedRow, actorEmail: string, now: Date): Promise<Record<string, unknown>> {
+  const db = getDb(env);
   switch (row.kind as StagedKind) {
     case "resume_account":
       await setProcessingPaused(db, row.targetAccountId as string, false);
@@ -190,7 +191,7 @@ async function apply(db: Db, row: StagedRow, actorEmail: string, now: Date): Pro
       await setCronEnabled(db, row.targetCronName as string, true);
       return { enabled: row.targetCronName };
     case "billing_exempt":
-      await setBillingExempt(db, row.targetAccountId as string, row.params?.exempt === true);
+      await setBillingExempt(env, row.targetAccountId as string, row.params?.exempt === true, now);
       return { exempt: row.params?.exempt === true };
     case "intelligence_grant":
       return await grantIntelligence(db, row.targetAccountId as string, now);
@@ -200,9 +201,10 @@ async function apply(db: Db, row: StagedRow, actorEmail: string, now: Date): Pro
 /** Confirm and apply a staged change. Called only from /admin/staged, by a
  *  signed-in admin. */
 export async function confirmStagedChange(
-  db: Db,
+  env: Env,
   input: { id: string; actorEmail: string; confirmPhrase: string; now: Date },
 ): Promise<StagedOutcome<StagedRow>> {
+  const db = getDb(env);
   const loaded = await loadPending(db, input.id, input.now);
   if (!loaded.ok) return loaded;
   const row = loaded.value;
@@ -220,7 +222,7 @@ export async function confirmStagedChange(
     return { ok: false, error: "Another admin decided this change first." };
   }
   try {
-    const result = await apply(db, row, input.actorEmail, input.now);
+    const result = await apply(env, row, input.actorEmail, input.now);
     await db.update(stagedChanges).set({ result }).where(eq(stagedChanges.id, row.id));
     return { ok: true, value: { ...row, status: "confirmed", decidedBy: input.actorEmail, decidedAt: input.now, result } };
   } catch (err) {

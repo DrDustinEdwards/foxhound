@@ -155,6 +155,25 @@ export async function ensurePlatformCustomer(
   return customer.id;
 }
 
+/**
+ * Push a changed notification email to the platform customer, as Recova's
+ * settings update does (app/(app)/settings/update/route.ts, blob 878c0637,
+ * lines 167 to 196), so Stripe's invoices and portal follow the address the
+ * merchant set. Never throws: the settings are already saved, and a failed
+ * push is logged by Stripe type and code only, because Stripe's message can
+ * repeat the email it was sent.
+ */
+export async function syncPlatformCustomerEmail(
+  env: Env,
+  input: { customerId: string; email: string },
+): Promise<void> {
+  try {
+    await getStripe(env).customers.update(input.customerId, { email: input.email });
+  } catch (err) {
+    console.error("platform customer email sync failed:", stripeErrorSummary(err));
+  }
+}
+
 export interface BillingSetupSession {
   url: string;
 }

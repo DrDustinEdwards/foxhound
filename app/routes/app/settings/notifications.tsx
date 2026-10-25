@@ -21,6 +21,7 @@ import { accounts, getDb } from "~/db";
 import { eq } from "drizzle-orm";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { syncPlatformCustomerEmail } from "~/lib/billing/platform-customer";
 import { applyNotificationSettings } from "~/lib/settings/apply.server";
 import {
   SLACK_WEBHOOK_ERROR,
@@ -150,8 +151,20 @@ export async function action({ request, context }: Route.ActionArgs) {
   // the MCP `set_notification_settings` tool, so an agent sees the same
   // refusal sentence a person does.
   let result: Awaited<ReturnType<typeof applyNotificationSettings>>;
+  let before: { notificationEmail: string | null; platformStripeCustomerId: string | null } | undefined;
   try {
-    result = await applyNotificationSettings(getDb(env), auth.membership.accountId, {
+    const db = getDb(env);
+    // Read before the write, as Recova does, so a changed address can be
+    // pushed to the billing customer below.
+    [before] = await db
+      .select({
+        notificationEmail: accounts.notificationEmail,
+        platformStripeCustomerId: accounts.platformStripeCustomerId,
+      })
+      .from(accounts)
+      .where(eq(accounts.id, auth.membership.accountId))
+      .limit(1);
+    result = await applyNotificationSettings(db, auth.membership.accountId, {
       notificationEmail: form.get("notificationEmail"),
       slackWebhookUrl: String(form.get("slackWebhookUrl") ?? ""),
       slackNotificationsEnabled: checked(form, "slackNotificationsEnabled"),
@@ -173,6 +186,20 @@ export async function action({ request, context }: Route.ActionArgs) {
         : { ok: false, error: result.error },
       { status: 400 },
     );
+  }
+  // Recova's two-way sync with Stripe: a changed, non-empty notification email
+  // goes to the platform billing customer, when there is one. A failed push
+  // neither undoes nor fails the save.
+  const newEmail = result.state.notificationEmail;
+  if (
+    newEmail &&
+    newEmail !== (before?.notificationEmail ?? null) &&
+    before?.platformStripeCustomerId
+  ) {
+    await syncPlatformCustomerEmail(env, {
+      customerId: before.platformStripeCustomerId,
+      email: newEmail,
+    });
   }
   return data<ActionResult>({ ok: true });
 }

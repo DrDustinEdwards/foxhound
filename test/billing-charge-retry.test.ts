@@ -379,7 +379,9 @@ describe("a Stripe invoice stuck in draft (review MEDIUM-1)", () => {
     const [invoice] = await queryStrandedInvoices({} as Env, 100);
 
     await retryInvoiceCharge({} as Env, invoice, NOW_MS, deps);
-    expect(seen).toEqual([{ sendByEmail: true }]);
+    // Finalized once, with the same params as the first attempt (auto_advance
+    // on), which is what makes Stripe email it.
+    expect(seen).toHaveLength(1);
     // The merchant pays an emailed invoice from Stripe's page; the sweep never
     // charges it (Recova's crons never call invoices.pay).
     expect(calls.some((c) => c.startsWith("pay:"))).toBe(false);

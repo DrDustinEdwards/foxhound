@@ -78,7 +78,7 @@ export function RangeSelector({ range }: { range: RecoveryRange }) {
 /** One row of a list that is read, not opened: Capsomer's row look without a
  *  link or button inside, because Capsomer's Row is always interactive (gap
  *  named in the J74 pull request). */
-function StaticRow({
+export function StaticRow({
   title,
   detail,
   status,
@@ -102,7 +102,7 @@ function StaticRow({
   );
 }
 
-function ChecklistStatus({ done }: { done: boolean }) {
+export function ChecklistStatus({ done }: { done: boolean }) {
   return done ? <Status tone="ok">Done</Status> : <Status tone="nodata">To do</Status>;
 }
 

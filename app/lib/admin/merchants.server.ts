@@ -5,17 +5,21 @@
 // this file). Every write here is a plain, account-scoped db operation, not a
 // money write (ARCHITECTURE.md's DO rule covers outcome recording, attributed
 // billing, and webhook claims; a flag toggle or a connection-disconnect stamp
-// is operational, matching the brand-voice-update / cron-toggle precedent).
+// is operational, matching the brand-voice-update / cron-toggle precedent),
+// except billing exempt: it decides which fees are forgiven, so it is a money
+// write (setBillingExempt).
 
-import { and, asc, count, desc, eq, gte, isNull, ne, notLike, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, exists, gte, isNull, ne, notExists, notLike, sql, type SQL } from "drizzle-orm";
 import {
   type Db,
   accountMembers,
   accountSubscriptions,
   accounts,
+  billingExemptionPeriods,
   billingInvoices,
   billingLineItems,
   disputes,
+  getDb,
   failedPayments,
   recoveredPayments,
   stripeConnections,
@@ -24,6 +28,7 @@ import {
 import { PAUSE_REASON_MANUAL } from "~/lib/admin/brake";
 import { countActiveRecoveries, mrrUnderManagement } from "~/lib/admin/overview.server";
 import { MEMBER_ROLE, MEMBER_STATUS } from "~/lib/auth/roles";
+import { executeMoneyWrite } from "~/lib/money/execute";
 import {
   groupSumByCurrency,
   startOfUtcMonthMs,
@@ -346,26 +351,78 @@ export async function getMerchantActionTarget(
 // Pass 2: money-adjacent operator actions
 // ============================================================================
 
-/** Exempt or un-exempt an account from billing. Routes through the existing
- *  billing predicate: app/db/billable.ts's accountBillingEligibleCondition
- *  already checks billing_exempt, so this toggle alone is sufficient - there
- *  is no separate billing path to keep in sync. */
-export async function setBillingExempt(db: Db, accountId: string, exempt: boolean): Promise<void> {
-  await db.update(accounts).set({ billingExempt: exempt }).where(eq(accounts.id, accountId));
-}
+/** Exempt or un-exempt an account from billing, and record the stretch.
+ *
+ *  An exemption forgives (Dustin, 2026-10-25, "Forgive, like Recova"): a fee
+ *  earned or due while the account is exempt is never billed. app/db/billable.ts
+ *  reads billing_exemption_periods for that, so the flag and its stretch are one
+ *  money write, through the account's money Durable Object, which also orders it
+ *  against that account's billing batches. Written only where the flag still
+ *  holds the other value, in the same batch. Returns whether it changed, so the
+ *  Merchants page offers Undo only for a real change: a stale row's "Set exempt"
+ *  on a merchant someone else exempted changes nothing, and its Undo must not
+ *  un-exempt them. `now` is required (RULES 3.10): it bounds what is forgiven. */
+export async function setBillingExempt(env: Env, accountId: string, exempt: boolean, now: Date): Promise<boolean> {
+  const db = getDb(env);
+  const changeId = crypto.randomUUID();
+  const nowMs = now.getTime();
+  const openPeriod = (bdb: Db) =>
+    bdb
+      .select({ one: sql`1` })
+      .from(billingExemptionPeriods)
+      .where(and(eq(billingExemptionPeriods.accountId, accountId), isNull(billingExemptionPeriods.endedAt)));
+  const flagIs = (value: boolean) => and(eq(accounts.id, accountId), eq(accounts.billingExempt, value));
+  // A new stretch, projected in the table's column order (insert-select needs
+  // every column, and the id default does not fire on one).
+  const newPeriod = (bdb: Db, periodId: string, where: SQL | undefined) =>
+    bdb.insert(billingExemptionPeriods).select(
+      bdb
+        .select({
+          id: sql<string>`${periodId}`.as("id"),
+          accountId: accounts.id,
+          startedAt: sql<number>`${nowMs}`.as("started_at"),
+          endedAt: sql<number | null>`null`.as("ended_at"),
+          endedByChangeId: sql<string | null>`null`.as("ended_by_change_id"),
+        })
+        .from(accounts)
+        .where(where),
+    );
 
-/** setBillingExempt, written only where the flag still holds the other value,
- *  in the same statement. Returns whether it changed, so the Merchants page
- *  offers Undo only for a real change: a stale row's "Set exempt" on a
- *  merchant someone else exempted changes nothing, and its Undo must not
- *  un-exempt them. */
-export async function setBillingExemptIfChanged(db: Db, accountId: string, exempt: boolean): Promise<boolean> {
-  const rows = await db
-    .update(accounts)
-    .set({ billingExempt: exempt })
-    .where(and(eq(accounts.id, accountId), eq(accounts.billingExempt, !exempt)))
-    .returning({ id: accounts.id });
-  return rows.length > 0;
+  await executeMoneyWrite(env, {
+    accountId,
+    idempotencyKey: `billing-exempt:${accountId}:${changeId}`,
+    build: (bdb) =>
+      exempt
+        ? [
+            newPeriod(bdb, changeId, flagIs(false)),
+            bdb.update(accounts).set({ billingExempt: true }).where(flagIs(false)),
+          ]
+        : [
+            // An exempt account with no open stretch (none should exist after
+            // migration 0039) gets one now, so ending it is still recorded.
+            newPeriod(bdb, crypto.randomUUID(), and(flagIs(true), notExists(openPeriod(bdb)))),
+            bdb
+              .update(billingExemptionPeriods)
+              .set({ endedAt: now, endedByChangeId: changeId })
+              .where(
+                and(
+                  eq(billingExemptionPeriods.accountId, accountId),
+                  isNull(billingExemptionPeriods.endedAt),
+                  exists(bdb.select({ one: sql`1` }).from(accounts).where(flagIs(true))),
+                ),
+              ),
+            bdb.update(accounts).set({ billingExempt: false }).where(flagIs(true)),
+          ],
+  });
+
+  const landed = await db
+    .select({ id: billingExemptionPeriods.id })
+    .from(billingExemptionPeriods)
+    .where(
+      exempt ? eq(billingExemptionPeriods.id, changeId) : eq(billingExemptionPeriods.endedByChangeId, changeId),
+    )
+    .limit(1);
+  return landed.length > 0;
 }
 
 /** Pause or resume recovery/dispute processing. Honored by
