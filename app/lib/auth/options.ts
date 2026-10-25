@@ -41,9 +41,14 @@ export const authOptions = {
       create: {
         // Disposable-email blocklist at account creation (legacy rule). Applies
         // to every path that mints a user (the email link, Google and Apple).
+        // The code is what Better Auth puts in ?error= on its way back to the
+        // errorCallbackURL (/login), as Recova's callback sent
+        // /login?error=disposable_email (app/auth/callback/route.ts, blob
+        // 7cb52c7b). Without one, Better Auth answers with a bare 400 instead.
         before: async (user) => {
           if (isDisposableEmail(user.email)) {
             throw new APIError("BAD_REQUEST", {
+              code: "disposable_email",
               message: "Disposable email addresses are not allowed.",
             });
           }
