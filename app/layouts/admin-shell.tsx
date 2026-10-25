@@ -120,6 +120,8 @@ export default function AdminShellLayout({ loaderData }: Route.ComponentProps) {
         variant="owner"
         app="foxhound"
         title="Foxhound admin"
+        // Each admin route's meta title stays the browser title.
+        documentTitle={false}
         page={page}
         nav={nav}
         apps={STRIP_APPS}

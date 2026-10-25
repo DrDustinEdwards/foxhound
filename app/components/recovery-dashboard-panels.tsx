@@ -509,10 +509,7 @@ export function PaymentsTable({
                     <th scope="col">Status</th>
                     <th scope="col">Detected</th>
                     <th scope="col">
-                      {/* Tailwind's sr-only, not cap-sr-only: that lives in
-                          capsomer/base.css, which the merchant app does not
-                          load (job_69b3fb23214b). */}
-                      <span className="sr-only">Actions</span>
+                      <span className="cap-sr-only">Actions</span>
                     </th>
                   </tr>
                 </thead>
