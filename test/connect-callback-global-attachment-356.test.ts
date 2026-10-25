@@ -285,7 +285,8 @@ describe("PLANT 5: the cases that must still SUCCEED", () => {
     const response = await callback(ADD_ACCOUNT_ACTION);
 
     expect(errorParam(response)).toBeNull();
-    expect(response.headers.get("location")).toBe("/welcome");
+    // Nothing new was connected, so not the welcome page (J28, row A8).
+    expect(response.headers.get("location")).toBe("/console");
     expect(harness.writes).toEqual([]);
     expect(connections()).toHaveLength(1);
     expect(markerOf("sess_a")).toBe(ACCOUNT_A);
@@ -302,11 +303,13 @@ describe("PLANT 5: the cases that must still SUCCEED", () => {
     });
     signIn("sess_a", USER, ACCOUNT_A);
 
-    await callback(CONNECT_ACTION);
+    const response = await callback(CONNECT_ACTION);
 
     expect(connections()).toEqual([
       { id: "conn_a", accountId: ACCOUNT_A, stripeUserId: STRIPE_X },
     ]);
+    // Recova sends a reconnect to /console, never the welcome page (J28, A8).
+    expect(response.headers.get("location")).toBe("/console");
     expect(
       sqlite
         .prepare("SELECT disconnected_at AS d FROM stripe_connections WHERE id = 'conn_a'")
@@ -323,11 +326,14 @@ describe("PLANT 5: the cases that must still SUCCEED", () => {
     });
     signIn(SESSION_B, OTHER, ACCOUNT_B);
 
-    await callback(CONNECT_ACTION);
+    const response = await callback(CONNECT_ACTION);
 
     expect(connections().map((c) => [c.accountId, c.stripeUserId])).toEqual([
       [ACCOUNT_A, STRIPE_X],
       [ACCOUNT_B, STRIPE_X],
     ]);
+    // A new connection lands on /welcome with its id, as Recova's callback
+    // sends it (app/api/auth/stripe/callback/route.ts, blob c60331af; J28, A8).
+    expect(response.headers.get("location")).toBe(`/welcome?connection=${connections()[1].id}`);
   });
 });

@@ -112,14 +112,14 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 // the re-export to spare one test its import path is what proved that, and the
 // guard was right. 356's tests import the predicate from its module.
 
-/** Where a merchant lands once a connection is live on `accountId`. */
-async function destinationFor(db: Db, accountId: string): Promise<string> {
-  const [row] = await db
-    .select({ onboardingCompleted: accounts.onboardingCompleted })
-    .from(accounts)
-    .where(eq(accounts.id, accountId))
-    .limit(1);
-  return row?.onboardingCompleted ? "/console" : "/welcome";
+/**
+ * Where a merchant lands, as Recova's callback decides it (J28, row A8): a NEW
+ * connection goes to /welcome?connection=<its id>, anything else (a reconnect,
+ * or a Stripe account the caller already holds) to /console. The welcome page
+ * needs the id and goes to /console without it, as Recova's does.
+ */
+function destinationFor(newConnectionId: string | null): string {
+  return newConnectionId ? `/welcome?connection=${encodeURIComponent(newConnectionId)}` : "/console";
 }
 
 /** Land on `accountId` with this session pointed at it. */
@@ -127,9 +127,10 @@ async function landOn(
   db: Db,
   sessionId: string,
   accountId: string,
+  newConnectionId: string | null,
 ): Promise<Response> {
   await setSessionActiveAccount(db, sessionId, accountId);
-  return redirect(await destinationFor(db, accountId), {
+  return redirect(destinationFor(newConnectionId), {
     headers: { "Set-Cookie": clearStateCookie() },
   });
 }
@@ -177,7 +178,7 @@ async function addAccount(
     // re-runs add-account for a Stripe account they already added has asked to
     // go there, not to have a second empty account. Ruling 330 binding 2, class
     // (c) truthfulness fix, unchanged by this session.
-    return landOn(db, sessionId, attachment.accountId);
+    return landOn(db, sessionId, attachment.accountId, null);
   }
 
   if (attachment.status === "held_elsewhere") {
@@ -189,6 +190,8 @@ async function addAccount(
   }
 
   const accountId = crypto.randomUUID();
+  // Minted here, like the account id, so the welcome page can be sent to it.
+  const connectionId = crypto.randomUUID();
   const encryptedToken = await encryptToken(env, oauth.accessToken);
   const accountName = await fetchConnectedAccountName(env, oauth.stripeUserId);
   const now = new Date();
@@ -199,6 +202,7 @@ async function addAccount(
     build: (tx) => [
       tx.insert(accounts).values({ id: accountId, name: accountName, createdAt: now }),
       tx.insert(stripeConnections).values({
+        id: connectionId,
         accountId,
         stripeUserId: oauth.stripeUserId,
         stripeAccessToken: encryptedToken,
@@ -220,7 +224,7 @@ async function addAccount(
     ],
   });
 
-  return landOn(db, sessionId, accountId);
+  return landOn(db, sessionId, accountId, connectionId);
 }
 
 /**
@@ -282,6 +286,9 @@ async function attachToActiveAccount(
   const encryptedToken = await encryptToken(env, oauth.accessToken);
   const accountName = await fetchConnectedAccountName(env, oauth.stripeUserId);
   const now = new Date();
+  // Set only when a row is inserted: the welcome page is for a new connection.
+  const insertId = crypto.randomUUID();
+  const newConnectionId = existing.length > 0 ? null : insertId;
 
   // Reconnect vs first connect: if this Stripe account is already attached to
   // this Foxhound account, refresh its token; otherwise insert. The read is safe
@@ -307,6 +314,7 @@ async function attachToActiveAccount(
           ]
         : [
             tx.insert(stripeConnections).values({
+              id: insertId,
               accountId: membership.accountId,
               stripeUserId: oauth.stripeUserId,
               stripeAccessToken: encryptedToken,
@@ -320,7 +328,7 @@ async function attachToActiveAccount(
           ],
   });
 
-  return redirect(await destinationFor(db, membership.accountId), {
+  return redirect(destinationFor(newConnectionId), {
     headers: { "Set-Cookie": clearStateCookie() },
   });
 }
