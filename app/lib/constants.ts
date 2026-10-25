@@ -622,6 +622,15 @@ export const CRON_SCHEDULE_MONTHLY_AUDIT = "0 9 1 * *";
  *  the next reader gets misled. */
 export const CRON_SCHEDULE_RECOVERY_TICK = "*/5 * * * *";
 /**
+ * The five-minute ticker's alarm period (workers/cron-ticker.ts). The same five
+ * minutes as CRON_SCHEDULE_RECOVERY_TICK, because the ticker exists to run that
+ * schedule's jobs when Cloudflare stops firing the trigger, as it did from
+ * 2026-10-23 19:08 UTC while the daily and weekly triggers kept firing.
+ */
+export const CRON_TICKER_INTERVAL_MS = 5 * MINUTE_MS;
+/** The ticker is one Durable Object, addressed by this name. */
+export const CRON_TICKER_INSTANCE_NAME = "five-minute-ticker";
+/**
  * Max due steps a single recovery tick processes, so one run stays bounded and a
  * backlog drains over successive ticks (mirrors RETENTION_SWEEP_LIMIT).
  *

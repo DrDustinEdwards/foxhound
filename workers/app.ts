@@ -6,6 +6,7 @@ import { createRequestHandler, RouterContextProvider } from "react-router";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { EMAIL_DLQ_QUEUE_NAME } from "~/lib/constants";
 import { runCronJob } from "~/lib/cron/run";
+import { ensureCronTickerArmed } from "~/lib/cron/ticker";
 import { sentryOptions } from "~/lib/errors/sentry-options";
 import { applyCachePolicy } from "~/lib/http/cache-policy";
 import { applySecurityHeaders } from "~/lib/http/content-security-policy";
@@ -16,6 +17,9 @@ import { handleQueueBatch } from "~/lib/queue/consumer";
 // Durable Objects exported from the worker entry so wrangler can bind them.
 export { MoneyWriteDurableObject } from "./money-writer";
 export { CronLockDurableObject } from "./cron-lock";
+// The five-minute ticker: runs the "*/5 * * * *" jobs from an alarm, so they
+// keep running when Cloudflare stops firing that trigger (~/lib/cron/ticker.ts).
+export { CronTickerDurableObject } from "./cron-ticker";
 // site-runtime's limiter class, bound as AUTH_RATE_LIMITER: the sign-in and
 // signup limiter (Q5; app/lib/auth/rate-limit.server.ts).
 export { RateLimiter } from "@dustinedwards/site-runtime/rate-limit/durable-object";
@@ -94,7 +98,12 @@ export default withSentry<Env>(
     // Queue consumer (email dispatch; bounce/complaint events added in 4c-C3).
     // Inert until the queue consumer config is added to wrangler.jsonc (Dustin
     // provisions the queues + Email Service).
-    async queue(batch, env) {
+    async queue(batch, env, ctx) {
+      // Arms the five-minute ticker if its alarm is not set (a no-op once it
+      // is). The queues run whenever mail is sent or an email event arrives, so
+      // this arms the ticker soon after a deploy rather than at the next 03:00
+      // UTC daily run. Off the batch's path: it never throws and is not awaited.
+      ctx.waitUntil(ensureCronTickerArmed(env));
       // TWO QUEUES, ONE HANDLER (313). The dead-letter queue routes here too, so
       // the branch is on the queue NAME. Before this, foxhound-email-dlq had ZERO
       // consumers (measured) and a repeatedly-failing dunning email was discarded
@@ -119,6 +128,10 @@ export default withSentry<Env>(
     // cron_run_history logging). Jobs are independent, run sequentially to keep
     // D1 load bounded.
     async scheduled(controller, env) {
+      // Every trigger, on every schedule, makes sure the five-minute ticker's
+      // alarm is set, so the daily 03:00 UTC run re-arms it even while the
+      // "*/5 * * * *" trigger is not firing. Idempotent, and it never throws.
+      await ensureCronTickerArmed(env);
       // Dynamic, not static: keeps the billing/Intelligence-AI/recovery-tick
       // import graph (app/lib/cron/registry.ts) out of the fetch()/queue()
       // code paths, which never call this. See foxhound-audit-perf.md H-2.
