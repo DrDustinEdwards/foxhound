@@ -1,3 +1,5 @@
+import { article, breadcrumbs, faqPage, website } from "@drdustinedwards/site-helpers/schema";
+
 // Single source of truth for the site's public origin and the JSON-LD
 // builders used across marketing pages (TASK-foxhound-phase6.md SITE_URL
 // discipline). Every absolute URL (JSON-LD @id, canonical links) must derive
@@ -98,15 +100,7 @@ export interface JsonLdFaq {
 }
 
 export function faqPageJsonLd(faqs: JsonLdFaq[]) {
-  return {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: faqs.map((faq) => ({
-      "@type": "Question",
-      name: faq.question,
-      acceptedAnswer: { "@type": "Answer", text: faq.answer },
-    })),
-  };
+  return faqPage(faqs);
 }
 
 export function speakableWebPageJsonLd(
@@ -133,16 +127,13 @@ export function speakableWebPageJsonLd(
 // this was a structured-data claim for a feature that was never built. If a real
 // blog search ships, restore it pointing at that route and not before.
 export function websiteJsonLd(url: string) {
-  return {
-    "@context": "https://schema.org",
-    "@type": "WebSite",
-    "@id": `${url}/#website`,
-    url,
+  return website({
+    origin: url,
     name: "Foxhound",
     description:
       "Recover failed Stripe payments without billing merchants for what Stripe would have gotten anyway.",
     publisher: { "@id": `${url}/#organization` },
-  };
+  });
 }
 
 // Built now per TASK-foxhound-phase6.md; used more heavily once /blog ships
@@ -192,33 +183,23 @@ export function articleJsonLd(
       : normalizedAuthor === "foxhound"
         ? { "@id": `${url}/#organization` }
         : { "@type": "Person", name: opts.authorName };
-  return {
-    "@context": "https://schema.org",
-    "@type": "BlogPosting",
+  return article({
+    type: "BlogPosting",
+    url: `${url}${opts.path}`,
     headline: opts.headline,
     description: opts.description,
-    url: `${url}${opts.path}`,
     image: opts.imageUrl,
-    ...(opts.datePublished ? { datePublished: opts.datePublished } : {}),
-    dateModified: opts.dateModified,
+    published: opts.datePublished,
+    modified: opts.dateModified,
     author,
     publisher: { "@id": `${url}/#organization` },
-  };
+  });
 }
 
 // Used more heavily once /blog post pages ship in Pass 2; the builder is
 // wired now so those pages can call it without an SEO-module change.
 export function breadcrumbListJsonLd(url: string, items: { name: string; path: string }[]) {
-  return {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: items.map((item, i) => ({
-      "@type": "ListItem",
-      position: i + 1,
-      name: item.name,
-      item: `${url}${item.path}`,
-    })),
-  };
+  return breadcrumbs(url, items);
 }
 
 /**
