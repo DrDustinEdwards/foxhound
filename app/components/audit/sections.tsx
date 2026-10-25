@@ -207,9 +207,6 @@ function CardUpdaterRow({ cardUpdater }: { cardUpdater: AuditRunView["cardUpdate
 function ExpiringCardsTimeline({ expiresByMonth }: { expiresByMonth: Record<string, number> }) {
   const months = expiringCardsMonths(expiresByMonth);
   if (months.length === 0) return null;
-  // min-w-0: the panel body is a grid, and a grid item is at least as wide as
-  // its content, so without it Enarratio's drawing widened the whole panel on
-  // a phone and pushed the amounts past its clipped edge.
   return (
     // min-w-0: the panel body is a grid, and without it the chart's first
     // 640px draw sets the column's width, pushing every figure in the panel
