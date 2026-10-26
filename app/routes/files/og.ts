@@ -1,3 +1,5 @@
+import { fromBase64 } from "@dustinedwards/site-runtime/encoding";
+import { cardText, renderShareCard } from "@dustinedwards/site-runtime/share-card";
 import { ImageResponse } from "workers-og";
 
 // Satori (workers-og's layout engine) parses fonts with opentype.js, which:
@@ -81,18 +83,6 @@ const COLOR_ON_BRAND = "#0d0e0c";
 const FONT = "DM Mono";
 const FONT_SANS = "DM Sans";
 
-// Only `<`/`>` need escaping here: the title/tag are placed as a <div>'s
-// TEXT content (never an attribute value), and workers-og's HTMLRewriter-
-// based parser does not decode entities back out of text nodes (confirmed
-// visually: an escaped "&amp;" rendered as the literal 5 characters
-// "&amp;", not "&"), so escaping `&`/`"` would show the entity code on the
-// card instead of the character. `<`/`>` still need escaping: an
-// unescaped `<` in attacker-controlled input (title/tag come off the
-// query string) could otherwise be parsed as the start of a real tag.
-function escapeAngles(s: string): string {
-  return s.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
 // Satori/workers-og constraints (carried over from legacy): no <span>, every
 // element is a <div>, every <div> has an explicit display:flex, no `gap`
 // (use margins instead).
@@ -128,8 +118,8 @@ function defaultCardHtml(): string {
 // entirely, replaced the pill with a tag chip, and shrunk the title; all four
 // were unratified. Branding only is Foxhound's: "Foxhound Blog", "FOXHOUND".
 function blogCardHtml(title: string, description: string, host: string): string {
-  const safeTitle = escapeAngles(title);
-  const safeDescription = escapeAngles(description);
+  const safeTitle = cardText(title);
+  const safeDescription = cardText(description);
   const titleFontSize = title.length > 50 ? 48 : 56;
   const descriptionHtml = safeDescription
     ? `\n      <div style="display:flex;font-size:22px;color:${COLOR_TEXT_SECONDARY};line-height:1.5;max-width:800px;">${safeDescription}</div>`
@@ -143,34 +133,19 @@ function blogCardHtml(title: string, description: string, host: string): string 
       <div style="display:flex;font-size:${titleFontSize}px;font-weight:600;line-height:1.15;letter-spacing:-0.03em;color:${COLOR_TEXT};max-width:900px;${safeDescription ? "margin-bottom:24px;" : ""}">${safeTitle}</div>${descriptionHtml}
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;">
-      <div style="display:flex;font-size:18px;color:${COLOR_TEXT_TERTIARY};">${escapeAngles(host)}</div>
+      <div style="display:flex;font-size:18px;color:${COLOR_TEXT_TERTIARY};">${cardText(host)}</div>
       <div style="display:flex;background-color:${COLOR_BRAND};color:${COLOR_ON_BRAND};font-size:14px;font-weight:600;padding:8px 20px;border-radius:8px;letter-spacing:0.04em;">FOXHOUND</div>
     </div>
   </div>`;
-}
-
-// workers-og parses the card from HTML, and the spaces and newlines between
-// two tags in the templates above would become text children of the flex box.
-// Recova's card is JSX, which has none. On the blog card those blank children
-// took part in justify-content:space-between, pulling the footer's host and
-// pill in from the edges and the footer up off Recova's 72px bottom padding
-// (J20). Only whitespace-only runs between tags go: card text is escaped, so a
-// raw `<` or `>` can never sit inside it.
-function compactHtml(html: string): string {
-  return html.replace(/>\s+</g, "><").trim();
 }
 
 // workers-og needs the raw font bytes passed in explicitly (it cannot read
 // a CSS @font-face), and there is no local-filesystem or ASSETS-binding
 // fetch available at this call site, so the font is imported with Vite's
 // `?inline` suffix (a base64 data: URL baked into the bundle at build time)
-// and decoded to an ArrayBuffer here, rather than fetched at request time.
-function dataUrlToArrayBuffer(dataUrl: string): ArrayBuffer {
-  const base64 = dataUrl.slice(dataUrl.indexOf(",") + 1);
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes.buffer;
+// and decoded to bytes here, rather than fetched at request time.
+function fontBytes(dataUrl: string): ArrayBuffer {
+  return fromBase64(dataUrl.slice(dataUrl.indexOf(",") + 1)).buffer;
 }
 
 export async function loader({ params, request, context }: Route.LoaderArgs) {
@@ -193,24 +168,21 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
   // cutover (Phase 6 review finding).
   const host = new URL(siteUrl(env)).host;
 
-  const element = compactHtml(type === "blog" ? blogCardHtml(title, description, host) : defaultCardHtml());
+  const html = type === "blog" ? blogCardHtml(title, description, host) : defaultCardHtml();
 
-  const image = new ImageResponse(element, {
-    width: 1200,
-    height: 630,
+  // site-runtime's renderShareCard removes the whitespace between tags (a text child of the flex box: on the blog card
+  // it pulled the footer's host and pill in from the edges and the footer up off Recova's 72px bottom padding, J20) and
+  // reads the whole PNG, so a failed render is a 503 rather than an empty image. A card is an image other sites show
+  // (og:image previews, embeds), so it sends Cross-Origin-Resource-Policy: cross-origin; the Worker's default is
+  // same-origin, and its merge keeps this route-set value (header-set.ts, EMBEDDABLE_RESOURCE_HEADERS).
+  const card = await renderShareCard(ImageResponse, html, {
     fonts: [
-      { name: FONT, data: dataUrlToArrayBuffer(dmMono500), weight: 500, style: "normal" },
-      { name: FONT_SANS, data: dataUrlToArrayBuffer(dmSans400), weight: 400, style: "normal" },
-      { name: FONT_SANS, data: dataUrlToArrayBuffer(dmSans500), weight: 500, style: "normal" },
-      { name: FONT_SANS, data: dataUrlToArrayBuffer(dmSans600), weight: 600, style: "normal" },
+      { name: FONT, data: fontBytes(dmMono500), weight: 500, style: "normal" },
+      { name: FONT_SANS, data: fontBytes(dmSans400), weight: 400, style: "normal" },
+      { name: FONT_SANS, data: fontBytes(dmSans500), weight: 500, style: "normal" },
+      { name: FONT_SANS, data: fontBytes(dmSans600), weight: 600, style: "normal" },
     ],
+    headers: EMBEDDABLE_RESOURCE_HEADERS,
   });
-  // A card is an image other sites show (og:image previews, embeds), so it
-  // sends Cross-Origin-Resource-Policy: cross-origin; the Worker's default is
-  // same-origin, and its merge keeps this route-set value (header-set.ts,
-  // EMBEDDABLE_RESOURCE_HEADERS). Rebuilt rather than mutated in place because
-  // a Response's headers may be immutable.
-  const headers = new Headers(image.headers);
-  for (const [name, value] of Object.entries(EMBEDDABLE_RESOURCE_HEADERS)) headers.set(name, value);
-  return new Response(image.body, { status: image.status, statusText: image.statusText, headers });
+  return card ?? new Response("Card unavailable", { status: 503, headers: { "Retry-After": "300" } });
 }
