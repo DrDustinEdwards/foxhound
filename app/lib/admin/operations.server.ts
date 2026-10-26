@@ -177,6 +177,9 @@ export function getEnvSanity(env: Env): EnvSanityRow[] {
     // reader to ignore the column. The namespace itself is retained, unbound.
     ["MONEY_WRITER", "binding"],
     ["CRON_LOCK", "binding"],
+    // The five-minute ticker (app/lib/cron/ticker.ts). Unset means recovery,
+    // win-back and dispute reminders run only when the */5 trigger fires.
+    ["CRON_TICKER", "binding"],
     ["RATE_LIMITER", "binding"],
     ["AUTH_RATE_LIMITER", "binding"],
     // The nightly D1 dump bucket (job_f7f35d4b7ac7, bound under job_7bbec6ab48d1). Unset means the d1-backup

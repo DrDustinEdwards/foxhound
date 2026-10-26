@@ -290,6 +290,14 @@
         "class_name": "CronLockDurableObject"
       },
       {
+        // The five-minute ticker (app/lib/cron/ticker.ts): one instance whose
+        // alarm runs the "*/5 * * * *" jobs every five minutes, because
+        // Cloudflare stopped firing that trigger on 2026-10-23. Armed from
+        // scheduled() and queue(), never from fetch().
+        "name": "CRON_TICKER",
+        "class_name": "CronTickerDurableObject"
+      },
+      {
         // The per-caller limiter of app/lib/http/rate-limit.ts, addressed by
         // idFromName(`${bucket}:${key}`). Its class is site-runtime's
         // RateLimiter under Foxhound's old class name (workers/app.ts), so the
@@ -322,6 +330,7 @@
   "exports": {
     "MoneyWriteDurableObject": { "type": "durable-object", "storage": "sqlite" },
     "CronLockDurableObject": { "type": "durable-object", "storage": "sqlite" },
+    "CronTickerDurableObject": { "type": "durable-object", "storage": "sqlite" },
     "RateLimiterDurableObject": { "type": "durable-object", "storage": "sqlite" },
     "RateLimiter": { "type": "durable-object", "storage": "sqlite" }
   },
