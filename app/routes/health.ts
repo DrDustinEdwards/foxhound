@@ -14,6 +14,9 @@ export async function loader({ context }: Route.LoaderArgs) {
   const response = await healthResponse({
     ping: () => env.DB.prepare("select 1").first(),
     backup: () => backupStatus(env),
+    // The deployed commit, which CI's deploy passes as DEPLOY_SHA (devkit's worker-deploy.yml waits for it); a manual
+    // deploy has none.
+    sha: (env as { DEPLOY_SHA?: string }).DEPLOY_SHA,
   });
   response.headers.delete("Cache-Control");
   return response;
