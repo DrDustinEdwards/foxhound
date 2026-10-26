@@ -97,7 +97,8 @@ export function meta({ loaderData }: Route.MetaArgs) {
   const image = post.coverImageUrl ?? ogImageUrl(url, title, post.ogDescription ?? post.excerpt);
 
   return marketingMeta({
-    title: `${title} - Foxhound Blog`,
+    title,
+    suffix: " - Foxhound Blog",
     description,
     path: `/blog/${post.slug}`,
     siteUrl: url,

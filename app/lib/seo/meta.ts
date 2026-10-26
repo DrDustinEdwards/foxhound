@@ -1,4 +1,4 @@
-import { headTags } from "@drdustinedwards/site-helpers/head";
+import { headTags, searchTitle } from "@drdustinedwards/site-helpers/head";
 
 // Shared meta-tag builder (TASK-foxhound-seo-remediation.md, fixing
 // foxhound-audit-seo.md H1/M1/L1): every marketing route now emits the same
@@ -11,6 +11,10 @@ import { headTags } from "@drdustinedwards/site-helpers/head";
 // that size for every card type), so they are not caller-configurable here.
 export interface MarketingMetaInput {
   title: string;
+  /** The site's suffix, such as " - Foxhound Blog". A title too long for a
+   *  search result drops it and is cut at a word (Prelum's searchTitle); the
+   *  share card keeps the whole title. */
+  suffix?: string;
   description: string;
   path: string;
   siteUrl: string;
@@ -29,6 +33,7 @@ export interface MarketingMetaInput {
 
 export function marketingMeta({
   title,
+  suffix,
   description,
   path,
   siteUrl,
@@ -42,9 +47,9 @@ export function marketingMeta({
     origin: siteUrl,
     path,
     canonical,
-    title,
+    title: suffix ? searchTitle(title, suffix) : title,
     description,
-    socialTitle: ogTitle,
+    socialTitle: ogTitle ?? (suffix ? `${title}${suffix}` : undefined),
     image: { url: image ?? `${siteUrl}/og/default`, width: 1200, height: 630, alt: imageAlt ?? "Foxhound" },
     siteName: "Foxhound",
     type: ogType,
