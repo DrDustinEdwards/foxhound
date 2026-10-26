@@ -33,7 +33,8 @@ export function meta({ loaderData }: Route.MetaArgs) {
   if (!loaderData) return [{ title: "Decline code - Foxhound" }];
   const { view, siteUrl: url } = loaderData;
   return marketingMeta({
-    title: `${view.displayName} (${view.code}) decline code - Foxhound`,
+    title: `${view.displayName} (${view.code}) decline code`,
+    suffix: " - Foxhound",
     description: `What the Stripe ${view.code} decline code means, why it happens, how to fix it, and how Foxhound recovers it.`,
     path: `/decline-codes/${view.code}`,
     siteUrl: url,
