@@ -52,7 +52,7 @@ export const HOME_TITLE = "Foxhound: Recover failed Stripe payments";
 /** Recova's description. Two truthfulness fixes: Foxhound drafts dispute
  *  evidence and the merchant signs it (Recova said automation), and nothing is
  *  billed until a recovery has matured (Recova said "until then"). */
-export const HOME_META_DESCRIPTION = `AI recovery sequences, dispute evidence you review and sign, and customer intelligence. The layer that extends your Stripe stack. ${RECOVERY_FEE} of what Foxhound recovers, nothing until it has matured ${MATURITY_DAYS} days.`;
+export const HOME_META_DESCRIPTION = `Foxhound recovers failed Stripe payments, builds dispute evidence you sign, and adds customer intelligence. You pay ${RECOVERY_FEE} of what it recovers, after ${MATURITY_DAYS} days.`;
 
 /** The JSON-LD WebPage name, Recova's in Foxhound's name. */
 export const HOME_WEBPAGE_NAME = "Foxhound | Recover Failed Stripe Payments Automatically";

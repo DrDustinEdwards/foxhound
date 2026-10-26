@@ -49,7 +49,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
   return marketingMeta({
     title: "Free Stripe Revenue Leakage Audit - Foxhound",
     description:
-      "Estimate what your Stripe account is leaking to failed payments in 30 seconds. No signup, no credit card. Connect Stripe afterward to see your real numbers.",
+      "Estimate in 30 seconds what your Stripe account loses to failed payments, with no signup or credit card. Connect Stripe afterward to see your real numbers.",
     path: "/audit",
     siteUrl: loaderData?.siteUrl ?? "",
   });
