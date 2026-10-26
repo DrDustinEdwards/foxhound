@@ -18,7 +18,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
   return marketingMeta({
     title: "Compare Foxhound - Foxhound",
     description:
-      "How Foxhound compares to Stripe Smart Retries, Churnkey, Churn Buster, Paddle Retain, Baremetrics Recover, and Stunning. Honest pros and cons, no invented numbers.",
+      "How Foxhound compares to Stripe Smart Retries, Churnkey, Churn Buster, Paddle Retain, Baremetrics Recover and Stunning, with honest pros and cons.",
     path: "/compare",
     siteUrl: loaderData?.siteUrl ?? "",
   });
