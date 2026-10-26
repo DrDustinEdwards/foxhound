@@ -120,7 +120,7 @@ jobs:
   deploy:
     needs: verify
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@be78f8296e6c4dfc5cbf0aa17223f15ce4ff4ec8 # v0.13.1
+    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@426522e707da5d0ea9ac620b5ef6d24229267570 # v0.13.2
     with:
       worker-name: foxhound
       health-url: https://foxhoundapp.com/health
