@@ -109,129 +109,24 @@ jobs:
         if: steps.tested.outputs.same != 'true'
         run: npm test
 
+  # devkit's shared deploy (worker-deploy.yml). Its deploy job applies the D1
+  # migrations first (schema before code: a failing migration never reaches the
+  # Worker, and old code against an old schema still works; DB_MIGRATE_CONFIRM
+  # is the opt-in scripts/db-migrate.mjs demands before touching production),
+  # builds, and deploys with DEPLOY_SHA set to this commit. Its live gate waits
+  # for /health to report that commit, then runs scripts/verify-live.mjs (the
+  # home page and every hashed asset it names answer 200), and rolls the deploy
+  # back on a refusal. A rollback never undoes a migration.
   deploy:
-    name: deploy
     needs: verify
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      # Schema before code, always, and in this order for a specific reason.
-      # Migrations were manual-only until 2026-08-11: nothing in CI applied
-      # them, so a commit that added a migration deployed code expecting the new
-      # schema against an unmigrated database. That is not a risk that needs an
-      # unlucky sequence to bite, it is the guaranteed outcome of shipping any
-      # migration and forgetting the manual step. The first request touching the
-      # new column 500s.
-      #
-      # Placed after `needs: verify` and before the deploy: a failing typecheck
-      # or test never reaches the database, and a failing migration never
-      # reaches the Worker. If this step fails the deploy does not run, which is
-      # the correct direction: old code against an old schema still works.
-      #
-      # DB_MIGRATE_CONFIRM is deliberate. scripts/db-migrate.mjs defaults to the
-      # local database and demands explicit acknowledgment before touching the
-      # remote one, because the database named "foxhound" is production.
-      # CI opts in on purpose; a developer's reflexive `npm run db:migrate` does
-      # not.
-      - name: Apply database migrations
-        run: npm run db:migrate
-        env:
-          DB_MIGRATE_CONFIRM: "1"
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-      # Known gap, accepted for now (batch-two candidate): `verify` and `deploy`
-      # run on separate runners and each does its own `npm ci` and build. They
-      # build the same commit but not the same artifact, so what ships here is a
-      # rebuild rather than the exact bytes that were tested. Closing it means
-      # uploading the build from `verify` and downloading it here.
-      - name: Build and deploy
-        run: npm run deploy
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-      # Deploy-consistency gate. A Worker rollout is not instantaneous: for a
-      # few minutes some colos still run the PREVIOUS version, which renders
-      # HTML referencing the previous content-hashed asset while the new
-      # deployment no longer serves that hash. A visitor in that window gets a
-      # 404 for the stylesheet and an unstyled page. Observed live 2026-07-28.
-      #
-      # This is NOT a caching problem and a cache purge does not address it:
-      # the HTML response carries no Cache-Control and no CF-Cache-Status, so
-      # it is never edge-cached, while /assets/* is immutable and returns HIT.
-      #
-      # The step asserts that EVERY content-hashed asset the deployed HTML
-      # references belongs to THIS build, and that each one resolves. It runs
-      # after the deploy, so a failure does not roll anything back; it converts
-      # a silent inconsistency window into a loud signal instead of leaving the
-      # next session to rediscover it during verification.
-      #
-      # It checked only the stylesheet until 2026-07-28. That was too narrow and
-      # said so on its own: commit 7fa396d changed TypeScript and no CSS, the
-      # stylesheet hash was therefore unchanged, the guard passed on attempt 1,
-      # and seconds later a request to a route added by that very commit
-      # returned 404 because the Worker had not converged. A guard proves only
-      # the thing it measures, and that one measured stylesheet convergence
-      # while being read as measuring deploy convergence.
-      #
-      # The rule is now mechanical rather than a guess at which entry matters:
-      # stale HTML necessarily names hashed files this build never produced, so
-      # every reference must exist in build/client. That covers the JS entry,
-      # every route and vendor chunk, the React Router manifest, and the CSS.
-      - name: Verify deploy consistency
-        run: |
-          set -uo pipefail
-          for i in $(seq 1 30); do
-            REFS=$(curl -sS "https://foxhoundapp.com/?ci=${GITHUB_SHA}-${i}" \
-              | grep -oE '/assets/[A-Za-z0-9._-]+\.(js|css)' | sort -u)
-
-            if [ -z "$REFS" ]; then
-              echo "attempt ${i}: no hashed asset references found in the HTML"
-              sleep 10
-              continue
-            fi
-
-            COUNT=$(printf '%s\n' "$REFS" | wc -l | tr -d ' ')
-            MISSING=""
-            for ref in $REFS; do
-              [ -f "build/client${ref}" ] || MISSING="${MISSING} ${ref}"
-            done
-
-            if [ -n "$MISSING" ]; then
-              echo "attempt ${i}: HTML references assets this build did not produce:${MISSING}"
-              sleep 10
-              continue
-            fi
-
-            # Only once the whole set belongs to this build is it worth paying
-            # for the HTTP checks, which catch an asset that is referenced and
-            # named correctly but has not finished uploading.
-            BAD=""
-            for ref in $REFS; do
-              CODE=$(curl -s -o /dev/null -w '%{http_code}' "https://foxhoundapp.com${ref}")
-              [ "$CODE" = "200" ] || BAD="${BAD} ${ref}(${CODE})"
-            done
-
-            if [ -z "$BAD" ]; then
-              echo "deploy is consistent: all ${COUNT} referenced assets belong to this build and resolve 200"
-              exit 0
-            fi
-
-            echo "attempt ${i}: ${COUNT} assets match this build but do not all resolve:${BAD}"
-            sleep 10
-          done
-          echo "FAILED: after 5 minutes the deployed HTML still does not reference this build's assets."
-          echo "The deploy itself may be fine; this means the rollout had not converged."
-          exit 1
+    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@be78f8296e6c4dfc5cbf0aa17223f15ce4ff4ec8 # v0.13.1
+    with:
+      worker-name: foxhound
+      health-url: https://foxhoundapp.com/health
+      verify-command: node scripts/verify-live.mjs
+      pre-deploy: DB_MIGRATE_CONFIRM=1 npm run db:migrate && npm run build
+      sha-var: DEPLOY_SHA
+    secrets:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

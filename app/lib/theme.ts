@@ -1,8 +1,11 @@
 // Pure theme primitives (task Appendix A: "light exists as a first-class
-// mode via [data-theme]"). Ported from the legacy lib/theme.ts.
+// mode via [data-theme]"). Ported from the legacy lib/theme.ts. The choice type
+// and its check are Capsomer's (capsomer/theme-server); what Foxhound adds is
+// the account's stored preference, which outranks the device's cookie.
+import { isThemeChoice, type ThemeChoice } from "capsomer/theme-server";
 
-export const THEMES = ["dark", "light"] as const;
-export type Theme = (typeof THEMES)[number];
+export type Theme = ThemeChoice;
+export const THEMES: readonly Theme[] = ["dark", "light"];
 
 export const DEFAULT_THEME: Theme = "dark";
 
@@ -10,9 +13,7 @@ export const DEFAULT_THEME: Theme = "dark";
 // here, not in the .server module, since the client component needs it too.
 export const THEME_COOKIE = "fh_theme";
 
-export function isTheme(value: unknown): value is Theme {
-  return typeof value === "string" && (THEMES as readonly string[]).includes(value);
-}
+export const isTheme = isThemeChoice;
 
 /**
  * Which theme a request should render under.
