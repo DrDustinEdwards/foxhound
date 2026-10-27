@@ -2,6 +2,5 @@
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "entry": ["app/lib/auth/generate.config.ts", "scripts/*.mjs", "mcp/src/index.ts"],
   "project": ["app/**/*.{ts,tsx,css}", "workers/**/*.ts", "mcp/**/*.ts", "scripts/**/*.mjs", "test/**/*.ts"],
-  "ignoreDependencies": ["cloudflare"],
-  "ignoreBinaries": ["react-router-serve"]
+  "ignoreDependencies": ["cloudflare"]
 }

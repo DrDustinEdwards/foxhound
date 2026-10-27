@@ -5,7 +5,6 @@
   "scripts": {
     "dev": "react-router dev",
     "build": "react-router build",
-    "start": "react-router-serve ./build/server/index.js",
     "typecheck": "wrangler types && react-router typegen && tsc --noEmit",
     "test": "vitest run",
     "lint": "eslint .",

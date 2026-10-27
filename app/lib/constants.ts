@@ -732,8 +732,6 @@ export const DELETE_ID_BATCH_SIZE = 90;
 // ---- Audit product (Phase 6 Pass 3: full-audit lift-band data/query layer) ----
 /** Trailing window the audit scans for failed/recovered invoices (legacy parity). */
 export const AUDIT_LOOKBACK_DAYS = 90;
-/** Bounded work per audit run: caps Stripe invoice pagination (mirrors RETENTION_SWEEP_LIMIT). */
-export const AUDIT_MAX_INVOICES_SCANNED = 2000;
 /** Stripe's events API retains 30 days regardless of the audit's lookback, so the
  *  Card Updater signal is measured over 30 days on BOTH sides of its ratio. Legacy
  *  hardcodes the same number for the same reason and documents it in its type. */
@@ -744,7 +742,7 @@ export const MIN_EXPIRED_DECLINES_FOR_CAU_ADVISORY = 3;
 
 // ---- Intelligence deterministic engine (customer_context + mrr_snapshots) ----
 /** Bounded work per sync run: caps how many of an account's Stripe customers
- *  are scanned in one tick (mirrors AUDIT_MAX_INVOICES_SCANNED / RETENTION_SWEEP_LIMIT).
+ *  are scanned in one tick (mirrors RETENTION_SWEEP_LIMIT).
  *  WITHIN one run, this is a real cursor bound: the Stripe SDK's async iterator
  *  auto-paginates through as many pages as it takes to reach this count, not
  *  just the first page. ACROSS runs there is no resumption cursor (nothing
