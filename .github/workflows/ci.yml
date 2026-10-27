@@ -95,11 +95,15 @@ jobs:
         if: steps.tested.outputs.same != 'true'
         run: npm run build
 
-      # Warn only, never a gate (job_30ab4e0e8702, no-bloat plan): Knip (unused
-      # files, exports, dependencies), jscpd (duplication), page weight per route
-      # from this build, and tests with no assertion. Every script exits 0 on a
-      # finding and continue-on-error keeps a crash from failing the run, so it
-      # reports and never blocks. Measured at about 10 seconds locally.
+      # Knip (unused files, exports, dependencies) and jscpd (duplication)
+      # against .no-bloat.json: a count above its baseline fails. Lower it with
+      # `npx devkit-no-bloat --write-baseline` when a count goes down.
+      - name: No-bloat ratchet
+        if: steps.tested.outputs.same != 'true'
+        run: npm run check:bloat
+
+      # Warn only: page weight per route from this build, and tests with no
+      # assertion. continue-on-error keeps a crash from failing the run.
       - name: Bloat report (warn only)
         if: steps.tested.outputs.same != 'true'
         continue-on-error: true
