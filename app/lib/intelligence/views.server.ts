@@ -53,7 +53,7 @@ export async function isIntelligenceEntitled(db: Db, accountId: string): Promise
 
 const OVERVIEW_CUSTOMER_LIMIT = 25;
 
-export interface OverviewCustomerRow {
+interface OverviewCustomerRow {
   stripeCustomerId: string;
   customerName: string | null;
   healthScore: number;

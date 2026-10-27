@@ -65,11 +65,11 @@ export function computeBillingPeriod(nowMs: number): BillingPeriod {
   };
 }
 
-export interface BillableRecoveryLite {
+interface BillableRecoveryLite {
   id: string;
   amountCents: number;
 }
-export interface BillableDisputeLite {
+interface BillableDisputeLite {
   id: string;
   amountCents: number;
   /** The cap-applied fee stored at resolution or by the pricing retry. An
@@ -249,7 +249,7 @@ export function shouldAttemptPlatformCharge(
   return Boolean(platformCustomerId) && chargeableLines(lines).length > 0;
 }
 
-export interface InvoiceRunResult {
+interface InvoiceRunResult {
   currency: string;
   idempotencyKey: string;
   applied: boolean;
@@ -266,7 +266,7 @@ export interface AccountBillingResult {
   error?: string;
 }
 
-export type SweepRunStatus = "completed" | "aborted";
+type SweepRunStatus = "completed" | "aborted";
 
 /**
  * What the charge-retry sweep did, in a shape the cron message can name.

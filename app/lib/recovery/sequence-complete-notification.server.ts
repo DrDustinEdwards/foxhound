@@ -36,7 +36,7 @@ import {
 // 'Recova', undefined) writes the "You're receiving this from" sentence and a
 // "Manage email settings" link, with no unsubscribe and no postal address.
 
-export const SEQUENCE_COMPLETE_TEMPLATE = "merchant_sequence_complete";
+const SEQUENCE_COMPLETE_TEMPLATE = "merchant_sequence_complete";
 
 export interface SequenceCompleteContext {
   accountId: string;
@@ -51,7 +51,7 @@ interface SequenceCompleteData {
 }
 
 /** Legacy's subject, verbatim. */
-export function sequenceCompleteSubject(data: {
+function sequenceCompleteSubject(data: {
   amountCents: number;
   currency: string;
   customerLabel: string;
@@ -77,7 +77,7 @@ export function sequenceCompleteSubject(data: {
  * PLAIN STRINGS, NOT MARKUP. Capsomer escapes each value, so a customer name
  * from Stripe is shown exactly as written; legacy put it into HTML unescaped.
  */
-export function sequenceCompleteBody(data: {
+function sequenceCompleteBody(data: {
   amountCents: number;
   currency: string;
   customerLabel: string;
@@ -119,7 +119,7 @@ export function sequenceCompleteContent(
  * `notification_email` only with no owner fallback, and
  * `sequence_complete_notifications_enabled !== false` so NULL is ON.
  */
-export async function loadSequenceCompleteData(
+async function loadSequenceCompleteData(
   db: Db,
   ctx: SequenceCompleteContext,
 ): Promise<SequenceCompleteData | { skipped: "not_found" | "no_recipient" | "disabled" }> {

@@ -39,7 +39,7 @@ import { notCancelledResult } from "./dashboard-queries.server";
 
 export type FailedPaymentRow = typeof failedPayments.$inferSelect;
 export type RecoveryStepRow = typeof recoverySteps.$inferSelect;
-export type RecoveredPaymentRow = typeof recoveredPayments.$inferSelect;
+type RecoveredPaymentRow = typeof recoveredPayments.$inferSelect;
 export type WinBackSequenceRow = typeof winBackSequences.$inferSelect;
 export type ExpiringCardAlertRow = typeof expiringCardAlerts.$inferSelect;
 
@@ -271,7 +271,7 @@ export async function listActiveFailedPayments(db: Db, accountId: string): Promi
   return all.filter((f) => f.status === "active");
 }
 
-export interface PreviousFailureRow {
+interface PreviousFailureRow {
   id: string;
   detectedAt: Date;
   declineCategory: string;

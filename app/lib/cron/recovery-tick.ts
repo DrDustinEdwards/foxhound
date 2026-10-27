@@ -222,7 +222,7 @@ export async function flipExhaustedSequences(env: Env, now: Date): Promise<Claim
  * per real transition, the same discipline the recovery notification takes from
  * executeMoneyWrite's `applied`.
  */
-export function readClaimedSequences(
+function readClaimedSequences(
   db: Db,
   ids: string[],
   now: Date,

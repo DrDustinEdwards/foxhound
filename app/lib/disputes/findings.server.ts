@@ -24,7 +24,7 @@ import { isEmailStep } from "~/lib/recovery/schedule";
 // Every query takes the account first and scopes on it (RULES.md 4.6). Nothing
 // here writes.
 
-export interface DisputeRecoveryEmail {
+interface DisputeRecoveryEmail {
   id: string;
   label: string;
   executedAt: Date;

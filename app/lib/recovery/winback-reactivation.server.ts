@@ -40,7 +40,7 @@ export const WINBACK_REACTIVATABLE_STATUSES: readonly string[] = [
   WINBACK_STATUS.EXHAUSTED,
 ];
 
-export interface WinbackSequenceForReactivation {
+interface WinbackSequenceForReactivation {
   id: string;
   accountId: string;
   amountCents: number | null;
@@ -80,7 +80,7 @@ async function loadReactivatableSequence(
  *
  * Returns whether this call took the claim.
  */
-export async function claimWinbackReactivation(
+async function claimWinbackReactivation(
   db: Db,
   sequenceId: string,
   now: Date,
@@ -105,7 +105,7 @@ export async function claimWinbackReactivation(
 
 /** Legacy's `days_since_cancel`: whole days between the sequence's creation and
  *  the reactivation. */
-export function daysSinceCancel(createdAt: Date, now: Date): number {
+function daysSinceCancel(createdAt: Date, now: Date): number {
   return Math.floor((now.getTime() - createdAt.getTime()) / DAY_MS);
 }
 

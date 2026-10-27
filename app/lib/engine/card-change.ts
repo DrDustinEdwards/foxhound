@@ -119,7 +119,7 @@ async function currentPaymentMethodId(
 }
 
 /** Compare the declined card with the one the retry would charge. Read-only. */
-export async function compareCardsWithClient(stripe: Stripe, invoiceId: string): Promise<CardChangeVerdict> {
+async function compareCardsWithClient(stripe: Stripe, invoiceId: string): Promise<CardChangeVerdict> {
   const declined = await declinedCard(stripe, invoiceId);
   if (!declined) return "unverified";
   const currentId = await currentPaymentMethodId(stripe, invoiceId, declined.paymentMethodId);

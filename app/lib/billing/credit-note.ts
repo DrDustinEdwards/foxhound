@@ -116,7 +116,7 @@ export async function findCreditableFeeLine(
   return { ...row, stripeInvoiceId: row.stripeInvoiceId as string };
 }
 
-export interface CreditLineInput {
+interface CreditLineInput {
   creditLineItemId: string;
   line: CreditableFeeLine;
   stripeCreditNoteId: string;
@@ -246,7 +246,7 @@ export const DISPUTE_CREDIT_DESCRIPTION = "Dispute lost after billing: fee credi
 /** Fee lines handled per sweep. Each costs a Stripe list and a create, so this
  *  keeps one run well inside a Worker's subrequest budget; anything past it is
  *  still owed tomorrow, and the run's message says so. */
-export const CREDIT_SWEEP_LIMIT = 50;
+const CREDIT_SWEEP_LIMIT = 50;
 
 /**
  * Every charged fee line the ledger says is owed back and that has no credit
@@ -258,7 +258,7 @@ export const CREDIT_SWEEP_LIMIT = 50;
  * all leave the line here until it is credited. No second table can drift from
  * the ledger, because there is no second table.
  */
-export async function findOwedFeeLines(env: Env, limit = CREDIT_SWEEP_LIMIT): Promise<CreditableFeeLine[]> {
+async function findOwedFeeLines(env: Env, limit = CREDIT_SWEEP_LIMIT): Promise<CreditableFeeLine[]> {
   const db = getDb(env);
   const credit = alias(billingLineItems, "credit");
   const rows = await db

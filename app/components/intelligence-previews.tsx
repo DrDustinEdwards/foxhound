@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { Pill, type Tone } from "capsomer/react/status";
 
-import { IntelligenceFigure } from "~/components/intelligence-figure";
+import { EnarratioFigure } from "~/components/enarratio-figure";
 import { drawPlans } from "~/lib/intelligence/dashboard-charts";
 import type { HealthScoreBand } from "~/lib/intelligence/health-band";
 import type { IntelligencePreview } from "~/lib/marketing/intelligence-preview";
@@ -94,7 +94,7 @@ export function DashboardPreview({ preview }: { preview: IntelligencePreview }) 
           <div className="cap-panel-body">
             <div className="min-w-0">
               <CardLabel>MRR by plan</CardLabel>
-              <IntelligenceFigure draw={draw} />
+              <EnarratioFigure draw={draw} />
             </div>
           </div>
         </div>

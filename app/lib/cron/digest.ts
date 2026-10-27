@@ -89,7 +89,7 @@ const DIGEST_HIGH_RISK_MAX_SCORE = 33;
  * "already_sent" when this week's digest is already out, and "error" when
  * building the digest threw before a send was attempted.
  */
-export type DigestOutcomeStatus = EmailSendStatus | "already_sent" | "error";
+type DigestOutcomeStatus = EmailSendStatus | "already_sent" | "error";
 
 export interface DigestRunResult {
   sent: number;
@@ -179,7 +179,7 @@ export async function queryDigestAccounts(db: Db): Promise<DigestAccount[]> {
  * function takes whatever start it is given and has no opinion, which is why the
  * defect lived in the caller rather than here; see DIGEST_CLAIM_WINDOW_MS.
  */
-export async function hasDigestThisWeek(
+async function hasDigestThisWeek(
   db: Db,
   accountId: string,
   windowStart: Date,

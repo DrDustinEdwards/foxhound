@@ -204,7 +204,7 @@ export async function updatePostWithVersion(
  *  count. Split out so the retention boundary (off-by-one on exactly
  *  `retention` versions, 0 versions, fewer than `retention`) is
  *  unit-testable without a database. */
-export function versionIdsToPrune(idsNewestFirst: string[], retention: number): string[] {
+function versionIdsToPrune(idsNewestFirst: string[], retention: number): string[] {
   return idsNewestFirst.slice(retention);
 }
 

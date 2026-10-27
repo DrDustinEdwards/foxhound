@@ -33,8 +33,6 @@ import { LOOKBACK_OPTIONS } from "~/lib/settings/audit-settings";
 // IN RECOVA'S ORDER. Each Recova entry is kept where Foxhound ships it and the
 // words are true, rewritten to Foxhound's own fact where it ships the thing
 // differently, and left out where Foxhound has not built it (RULES.md 2.7).
-// test/fixtures/recova-features.ts lists all 129 Recova entries with what
-// happened to each.
 //
 // EVERY NUMBER IS READ FROM THE ENGINE, never typed (RULES.md 2.1): cadences
 // from the cron schedule constants, the fee and maturity from the pricing
@@ -42,8 +40,8 @@ import { LOOKBACK_OPTIONS } from "~/lib/settings/audit-settings";
 // only on the server (the cron registry and the MCP tool list); the route's
 // loader reads them and passes them in as FeatureFacts.
 
-export const FEATURE_PRODUCTS = ["Platform", "Audit", "Recovery", "Disputes", "Intelligence"] as const;
-export type FeatureProduct = (typeof FEATURE_PRODUCTS)[number];
+const FEATURE_PRODUCTS = ["Platform", "Audit", "Recovery", "Disputes", "Intelligence"] as const;
+type FeatureProduct = (typeof FEATURE_PRODUCTS)[number];
 
 /** Recova's FeatureFilter order: All first, then the five products. */
 export const FEATURE_FILTERS = ["All", ...FEATURE_PRODUCTS] as const;
@@ -81,7 +79,7 @@ export const FEATURES_META_DESCRIPTION =
 // ---- Reading the engine's numbers as words ----
 
 /** "every 5 minutes" from a "*\/N * * * *" schedule. */
-export function cronEveryMinutes(expr: string): number {
+function cronEveryMinutes(expr: string): number {
   const m = /^\*\/(\d+) \* \* \* \*$/.exec(expr);
   if (!m) throw new Error(`not an every-N-minutes schedule: ${expr}`);
   return Number(m[1]);
@@ -126,7 +124,7 @@ function cronMonthDay(expr: string): number {
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 /** The weekday of a weekly "M H * * D" schedule. */
-export function cronWeekday(expr: string): string {
+function cronWeekday(expr: string): string {
   const m = /^\d+ \d+ \* \* (\d)$/.exec(expr);
   if (!m) throw new Error(`not a weekly schedule: ${expr}`);
   return WEEKDAYS[Number(m[1]) % 7];

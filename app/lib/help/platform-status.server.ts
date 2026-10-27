@@ -37,14 +37,14 @@ export interface CronStatusRow {
  * is the remaining merchant-facing scheduled job: it is the nightly run that
  * produces the health scores and narrative the Intelligence pages show.
  */
-export const VISIBLE_CRONS = [
+const VISIBLE_CRONS = [
   "recovery-tick",
   "winback-send",
   "expiring-cards",
   "intelligence-ai",
 ] as const;
 
-export const CRON_LABELS: Record<string, string> = {
+const CRON_LABELS: Record<string, string> = {
   "recovery-tick": "Recovery sequences",
   "winback-send": "Win-back sequences",
   "expiring-cards": "Expiring card alerts",

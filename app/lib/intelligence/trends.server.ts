@@ -172,13 +172,13 @@ const CHURN_TOP_HIGH_RISK_LIMIT = 20;
 // same intent (the recent trend) at this cadence, and needs no downsampling.
 const CHURN_CHART_MONTHS = 12;
 
-export interface ChurnBand {
+interface ChurnBand {
   band: HealthScoreBand;
   customerCount: number;
   mrrCents: number;
 }
 
-export interface ChurnHighRiskRow {
+interface ChurnHighRiskRow {
   stripeCustomerId: string;
   customerName: string | null;
   currentPlanName: string | null;
@@ -186,7 +186,7 @@ export interface ChurnHighRiskRow {
   mrrContributionCents: number;
 }
 
-export interface ChurnRatePoint {
+interface ChurnRatePoint {
   at: Date;
   voluntaryPct: number | null;
   involuntaryPct: number | null;

@@ -25,7 +25,7 @@ const AI_MODEL_COSTS: Record<string, ModelCost> = {
 };
 
 /** Strip a trailing -YYYYMMDD snapshot suffix to the canonical base model id. Pure. */
-export function normalizeModelId(model: string): string {
+function normalizeModelId(model: string): string {
   return model.replace(/-\d{8}$/, "");
 }
 

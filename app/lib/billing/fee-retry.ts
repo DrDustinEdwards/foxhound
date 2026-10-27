@@ -28,7 +28,7 @@ import {
 // the age cap is rescaled to stay the backstop it was, catching an invoice that
 // somehow skips runs rather than being the primary limit.
 
-export type FeeRetryAction = "pay" | "sync_paid" | "give_up";
+type FeeRetryAction = "pay" | "sync_paid" | "give_up";
 
 export interface FeeRetryDecision {
   action: FeeRetryAction;

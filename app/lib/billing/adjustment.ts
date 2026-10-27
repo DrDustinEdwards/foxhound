@@ -22,7 +22,7 @@ import { executeMoneyWrite } from "~/lib/money/execute";
 // an app-level convention) without needing the audit write itself inside the
 // DO batch.
 
-export interface AdjustmentInvoiceInput {
+interface AdjustmentInvoiceInput {
   invoiceId: string;
   accountId: string;
   currency: string;
@@ -35,7 +35,7 @@ export interface AdjustmentInvoiceInput {
 }
 
 /** Pure batch builder, unit-testable like buildBillingInvoiceBatch (run.ts). */
-export function buildAdjustmentInvoiceBatch(db: Db, input: AdjustmentInvoiceInput): MoneyWriteBatch {
+function buildAdjustmentInvoiceBatch(db: Db, input: AdjustmentInvoiceInput): MoneyWriteBatch {
   return [
     db.insert(billingInvoices).values({
       id: input.invoiceId,

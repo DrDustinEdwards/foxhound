@@ -20,7 +20,7 @@ import { DECLINE_CATEGORY_COUNT_WORD_LOWER, RECOVERY_SEQUENCE_DAYS } from "~/lib
 // brand-voice field for dunning copy rather than a per-category voice
 // system some incumbents offer.
 
-export interface ComparisonRow {
+interface ComparisonRow {
   dimension: string;
   foxhound: string;
   competitor: string;

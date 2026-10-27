@@ -145,7 +145,7 @@ export interface EmailJob extends EmailJobFields {
  * A merchant notice on Capsomer's `notice` template (E10): a title, paragraphs
  * and a button, each a plain string Capsomer escapes. No HTML body.
  */
-export interface NoticeEmailJob extends EmailJobFields {
+interface NoticeEmailJob extends EmailJobFields {
   notice: EmailNotice;
   bodyHtml?: never;
   blocks?: never;
@@ -156,7 +156,7 @@ export interface NoticeEmailJob extends EmailJobFields {
  * which has no heading of its own; E23, the weekly digest): Recova's lines and
  * buttons, each a plain string Capsomer escapes. No HTML body.
  */
-export interface BlocksEmailJob extends EmailJobFields {
+interface BlocksEmailJob extends EmailJobFields {
   blocks: Block[];
   bodyHtml?: never;
   notice?: never;

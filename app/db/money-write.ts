@@ -34,11 +34,3 @@ export interface MoneyWrite {
   idempotencyKey: string;
   build: MoneyWriteBuilder;
 }
-
-/**
- * Executes a money write as one atomic, per-account-serialized batch, routed
- * through the per-account money-write Durable Object. Implemented in Phase 4a as
- * `executeMoneyWrite` (app/lib/money/execute.ts); resolves to whether the batch
- * was newly applied (false = idempotent no-op).
- */
-export type MoneyWriteExecutor = (write: MoneyWrite) => Promise<{ applied: boolean }>;

@@ -112,7 +112,7 @@ export async function lookupPlatformBillingEmail(
 /** Stripe idempotency key for creating one account's platform customer. The
  *  billing setup action and the billing run both create through
  *  ensurePlatformCustomer, so a same-day race between them yields one customer. */
-export function platformCustomerCreateIdempotencyKey(accountId: string): string {
+function platformCustomerCreateIdempotencyKey(accountId: string): string {
   return `platform-customer-create:${accountId}`;
 }
 

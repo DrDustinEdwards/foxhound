@@ -39,7 +39,7 @@ const ATTENTION_LIMIT = 50;
 /** Recova's Recent admin actions showed the newest ten audit rows. */
 const RECENT_ACTIONS_LIMIT = 10;
 
-export interface PausedMerchant {
+interface PausedMerchant {
   id: string;
   name: string | null;
   /** PAUSE_REASON_BRAKE when the emergency brake paused it, PAUSE_REASON_MANUAL
@@ -47,7 +47,7 @@ export interface PausedMerchant {
   pauseReason: string | null;
 }
 
-export interface StaleDispute {
+interface StaleDispute {
   id: string;
   accountId: string;
   merchantName: string | null;
@@ -58,7 +58,7 @@ export interface StaleDispute {
   evidenceDeadline: Date | null;
 }
 
-export interface FailedFeeInvoice {
+interface FailedFeeInvoice {
   id: string;
   accountId: string;
   merchantName: string | null;

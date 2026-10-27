@@ -38,8 +38,8 @@ import { formatMoney } from "~/lib/money-format";
 // Recova's alert path reads only slack_webhook_url and ignores the toggle, so
 // postAlertToSlack below keeps that, with the same host and demo refusals.
 
-export const THRESHOLD_ALERT_TEMPLATE = "alert_threshold";
-export const CRITICAL_ALERT_TEMPLATE = "alert_critical_customers";
+const THRESHOLD_ALERT_TEMPLATE = "alert_threshold";
+const CRITICAL_ALERT_TEMPLATE = "alert_critical_customers";
 
 /** Recova's From for both mails is FROM_HELLO, "Recova <hello@...>", and its
  *  footer names "Recova". The platform speaks, never the merchant's sender. */
@@ -76,7 +76,7 @@ interface AlertMailContent {
 
 /** The threshold alert (E21): Recova's fireEmail subject, sentence and button,
  *  with Foxhound's name. Pure. */
-export function thresholdAlertContent(firing: AlertFiring, baseUrl: string, now: Date): AlertMailContent {
+function thresholdAlertContent(firing: AlertFiring, baseUrl: string, now: Date): AlertMailContent {
   const label = alertMetricLabel(firing.metric);
   const subject = `Foxhound alert: ${label} ${firing.direction} threshold`;
   return {
@@ -115,7 +115,7 @@ function customerWord(count: number): string {
  * sentence was false for a score of 33; and Recova's `&mdash;` before "all
  * simultaneously" is a comma, as no em dash is ported (monthly.server.ts). Pure.
  */
-export function criticalCustomersContent(count: number, baseUrl: string, now: Date): AlertMailContent {
+function criticalCustomersContent(count: number, baseUrl: string, now: Date): AlertMailContent {
   const word = customerWord(count);
   return {
     fromName: ALERT_FROM_NAME,
@@ -159,7 +159,7 @@ export async function loadAlertTarget(db: Db, accountId: string): Promise<AlertT
   return { notificationEmail: row?.notificationEmail ?? null, slackWebhookUrl: row?.slackWebhookUrl ?? null };
 }
 
-export type SlackPostOutcome =
+type SlackPostOutcome =
   | { status: "posted" }
   | { status: "refused"; reason: "demo" | "host_not_allowed" }
   | { status: "failed"; reason: string };

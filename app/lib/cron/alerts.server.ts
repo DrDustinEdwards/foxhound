@@ -98,7 +98,7 @@ const STALE_PERIOD_MULTIPLIER = 2;
  *  10:00 UTC)") so an operator can triage without cross-referencing
  *  schedules; Foxhound's are keyed by its own schedules, and a test holds every
  *  schedule the registry uses to a label. */
-export const CADENCE_LABEL: Record<string, string> = {
+const CADENCE_LABEL: Record<string, string> = {
   [CRON_SCHEDULE_RECOVERY_TICK]: "every 5 min",
   [CRON_SCHEDULE_DAILY]: "daily 03:00 UTC",
   [CRON_SCHEDULE_WEEKLY]: "weekly (Mon 08:00 UTC)",
@@ -337,7 +337,7 @@ export async function sendAlert(
 }
 
 /** The last successful run of a cron, for the failure email's context. */
-export async function lastSuccessAt(db: Db, cronName: string): Promise<Date | null> {
+async function lastSuccessAt(db: Db, cronName: string): Promise<Date | null> {
   const row = (
     await db
       .select({ finishedAt: cronRunHistory.finishedAt })

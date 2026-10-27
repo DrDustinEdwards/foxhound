@@ -23,8 +23,8 @@
 export type EngagementBand = "green" | "yellow" | "red" | "unknown";
 export type RecoveryBand = "green" | "yellow" | "red" | "unknown";
 export type ValueBand = "high" | "medium" | "low";
-export type BandConfidence = "high" | "medium" | "low" | "unknown";
-export type RecommendationConfidence = "high" | "medium" | "low";
+type BandConfidence = "high" | "medium" | "low" | "unknown";
+type RecommendationConfidence = "high" | "medium" | "low";
 
 export const RECOMMENDED_ACTIONS = [
   "personal_outreach",

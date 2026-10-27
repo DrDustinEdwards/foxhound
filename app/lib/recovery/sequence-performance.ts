@@ -25,7 +25,7 @@ export interface StepPerformancePoint {
   recoveryRatePct: number;
 }
 
-export interface BestPerformingStep {
+interface BestPerformingStep {
   label: string;
   clickRatePct: number;
 }
@@ -129,7 +129,7 @@ export function summarizeStepPerformance(steps: StepPerformanceInput[]): StepPer
   return { totalSent, avgOpenRatePct, avgClickRatePct, bestStep, chart };
 }
 
-export interface EmailStepCard {
+interface EmailStepCard {
   kind: "email";
   stepType: string;
   label: string;
@@ -143,7 +143,7 @@ export interface EmailStepCard {
   latestBodyHtml: string | null;
 }
 
-export interface RetryStepCard {
+interface RetryStepCard {
   kind: "retry";
   stepType: string;
   label: string;

@@ -23,8 +23,8 @@ import { disputeFeeCents } from "~/lib/billing/fees";
 // case the billable.ts predicate exists to exclude.
 
 export type DisputeInsert = typeof disputes.$inferInsert;
-export type DisputeEvidenceInsert = typeof disputeEvidence.$inferInsert;
-export type DisputeApprovalInsert = typeof disputeApprovals.$inferInsert;
+type DisputeEvidenceInsert = typeof disputeEvidence.$inferInsert;
+type DisputeApprovalInsert = typeof disputeApprovals.$inferInsert;
 
 export interface DisputesSeedResult {
   disputes: DisputeInsert[];

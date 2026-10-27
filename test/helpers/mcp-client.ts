@@ -7,7 +7,7 @@
 // header, Mcp-Method and Mcp-Name, and the version and client info in `_meta`,
 // and is answered with a JSON body.
 
-export const MODERN_VERSION = "2026-07-28";
+const MODERN_VERSION = "2026-07-28";
 const TEST_ORIGIN = "https://foxhoundapp.test";
 
 export interface McpCallInit {

@@ -17,7 +17,7 @@ export type SignInLinkResult = "sent" | "limited" | "check_failed" | "failed";
  *  origin, as /auth/google makes its callback, because Better Auth's
  *  relative-path check refuses a query that carries an encoded URL, which an
  *  OAuth authorize `next` always does (J79). */
-export function afterLinkURL(env: Env, next: string): string {
+function afterLinkURL(env: Env, next: string): string {
   return new URL(`/passkey?next=${encodeURIComponent(safeNextPath(next))}`, env.BETTER_AUTH_URL).toString();
 }
 

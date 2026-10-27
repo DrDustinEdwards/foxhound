@@ -4,7 +4,7 @@ import { Form, useRouteLoaderData } from "react-router";
 import type { loader as appShellLoader } from "~/layouts/app-shell";
 import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/session";
 
-import { Alert } from "./auth-ui";
+import { Banner } from "capsomer/react/banner";
 
 // TASK-foxhound-demo-inline-refusal.md: the ONE shared interception every
 // mutating control in the app shell routes through, so a demo visitor who
@@ -38,7 +38,7 @@ export function DemoGuardedForm({ children, onSubmit, ...formProps }: ComponentP
       }}
     >
       {children}
-      {refused ? <Alert tone="neutral">{DEMO_READ_ONLY_MESSAGE}</Alert> : null}
+      {refused ? <Banner tone="neutral">{DEMO_READ_ONLY_MESSAGE}</Banner> : null}
     </Form>
   );
 }

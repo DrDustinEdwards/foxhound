@@ -56,7 +56,7 @@ export function hasNarrativeFacts(facts: NarrativeFacts): boolean {
 export const NOT_ENOUGH_DATA_NARRATIVE =
   "Not enough data yet for a narrative. Once a full billing cycle has synced, this report will summarize MRR movement and the customers most at risk.";
 
-export interface NarrativeCustomerAssessment {
+interface NarrativeCustomerAssessment {
   stripeCustomerId: string;
   assessment: string;
 }

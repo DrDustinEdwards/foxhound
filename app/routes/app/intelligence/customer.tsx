@@ -11,7 +11,7 @@ import "capsomer/status.css";
 // page whole under any layout, as /intelligence/customers does.
 import "~/site-header.css";
 
-import { IntelligenceFigure } from "~/components/intelligence-figure";
+import { EnarratioFigure } from "~/components/enarratio-figure";
 import { IntelligenceUpsell } from "~/components/intelligence-upsell";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -357,7 +357,7 @@ function HealthScoreCard({ score, history }: { score: number | null; history: He
         </span>
         <span className="text-label text-text-subtle">/ 100</span>
       </p>
-      {readings.length >= 2 ? <IntelligenceFigure draw={draw} /> : null}
+      {readings.length >= 2 ? <EnarratioFigure draw={draw} /> : null}
     </Panel>
   );
 }

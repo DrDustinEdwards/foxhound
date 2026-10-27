@@ -109,7 +109,7 @@ export interface McpToolAnnotations {
 /** What a tool exposes to a client. No executor: this is the shape `tools/list`
  *  returns, and shipping the function with it would be a leak waiting to be
  *  serialized. */
-export interface McpToolDescriptor {
+interface McpToolDescriptor {
   name: string;
   title: string;
   description: string;

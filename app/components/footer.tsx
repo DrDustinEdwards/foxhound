@@ -29,7 +29,7 @@ import { Wordmark } from "./wordmark";
  * Legacy's MCP line, verbatim. Exported so the copy is assertable by test, the
  * same reason help.tsx exports SECTIONS.
  */
-export const MCP_LINE = "Connect via MCP from any AI client";
+const MCP_LINE = "Connect via MCP from any AI client";
 
 export const COLUMNS: { heading: string; links: { to: string; label: string }[] }[] = [
   {

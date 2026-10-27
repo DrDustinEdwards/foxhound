@@ -3,29 +3,6 @@ import type { AuditResult, MoneyTotals, ScopeOutcome } from "./engine";
 import type { AuditRunRow } from "./persist.server";
 import { formatMoneyShort } from "~/lib/money-format";
 
-// Reading a STORED run back for the surfaces. Phase (e).
-//
-// THE WHOLE POINT OF THIS MODULE IS THE NULL. Legacy's stored-run page maps
-// every column with `?? 0`, so an audit whose disputes call failed renders as a
-// merchant with no open disputes, and nobody can tell. 362 ruling 2 and 364's
-// NULL-as-status exist to stop that, and they only hold if the RENDER honors
-// them too: a value that was never read comes back as `null` here and every
-// consumer must say so rather than print a figure.
-//
-// So the shape below is deliberately not "numbers with defaults". It is
-// `number | null` all the way to the component, and the component decides how to
-// say "could not be read".
-//
-// MONEY IS PER CURRENCY (job_ed1c41e4bd95): each figure is its totals, one
-// entry per currency in currency-code order (RULES.md 3.20), and the
-// sections show one line per currency. A run stored before money_by_currency
-// existed has one total in its one currency, and shows it as it always did.
-
-export interface StoredScope<T> {
-  /** Null when the scope could not be read on the run that produced this row. */
-  data: T | null;
-}
-
 /**
  * What a surface renders, from EITHER source.
  *

@@ -19,8 +19,8 @@ import {
 // never contradict billable.ts: it renders exactly what billing already wrote.
 
 export type BillingInvoiceRow = typeof billingInvoices.$inferSelect;
-export type BillingLineItemRow = typeof billingLineItems.$inferSelect;
-export type RecoveredPaymentRow = typeof recoveredPayments.$inferSelect;
+type BillingLineItemRow = typeof billingLineItems.$inferSelect;
+type RecoveredPaymentRow = typeof recoveredPayments.$inferSelect;
 
 export interface EnrichedLineItem {
   lineItem: BillingLineItemRow;

@@ -194,7 +194,7 @@ export function buildPlanBreakdown(current: CustomerMrrPoint[]): Record<string, 
  * beats a fabricated curve, and later runs can extend this without a schema
  * change (CohortRow.values is already an array).
  */
-export function buildCohortBreakdown(current: CustomerMrrPoint[]): CohortRow[] {
+function buildCohortBreakdown(current: CustomerMrrPoint[]): CohortRow[] {
   const totalByCohort = new Map<string, number>();
   const activeByCohort = new Map<string, number>();
   for (const c of current) {

@@ -270,7 +270,7 @@ export async function runIntelligenceAiForAccount(
 }
 
 /** The ai_calls source the narrative logs under, nightly or on request. */
-export const NARRATIVE_AI_SOURCE = "intelligence_narrative";
+const NARRATIVE_AI_SOURCE = "intelligence_narrative";
 
 /** A scored customer as the narrative needs it: from tonight's scoring run,
  *  or from the scores customer_context holds when a merchant asks for a
@@ -438,7 +438,7 @@ export type CriticalCustomersOutcome =
  * customer is stripe_customer_id, which Foxhound writes at intake; Recova's
  * customer_id is a provenance column here.
  */
-export async function findCriticalCustomerIds(db: Db, accountId: string): Promise<string[]> {
+async function findCriticalCustomerIds(db: Db, accountId: string): Promise<string[]> {
   const rows = await db
     .selectDistinct({ stripeCustomerId: failedPayments.stripeCustomerId })
     .from(failedPayments)

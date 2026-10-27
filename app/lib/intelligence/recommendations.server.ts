@@ -28,7 +28,7 @@ import {
 const ENGAGEMENT_WINDOW_DAYS = 30;
 
 /** Recova's rules_v1, named so a later rule change is told apart in the log. */
-export const RECOMMENDATION_SCORE_SOURCE = "recova_rules_v1";
+const RECOMMENDATION_SCORE_SOURCE = "recova_rules_v1";
 
 export interface RecommendationSubject {
   stripeCustomerId: string;

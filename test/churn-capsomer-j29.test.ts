@@ -4,10 +4,7 @@ import { MemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
 
 import { churnRateAlt } from "~/lib/intelligence/churn";
-import IntelligenceChurn, {
-  ChurnRateChart,
-  chartWidthFor,
-} from "~/routes/app/intelligence/churn";
+import IntelligenceChurn, { ChurnRateChart } from "~/routes/app/intelligence/churn";
 
 import type { ChurnView } from "~/lib/intelligence/trends.server";
 
@@ -118,19 +115,12 @@ describe("churnRateAlt", () => {
 });
 
 describe("J29 churn: the chart's redraw", () => {
-  it("draws in 40px steps, never under the minimum, so a resize does not redraw on every pixel", () => {
-    expect(chartWidthFor(1054)).toBe(1040);
-    expect(chartWidthFor(1079)).toBe(1040);
-    expect(chartWidthFor(1080)).toBe(1080);
-    expect(chartWidthFor(100)).toBe(280);
-  });
-
   it("keeps its measured wrapper when Enarratio refuses to draw, so the observer still attaches", () => {
     const html = renderToStaticMarkup(
       createElement(ChurnRateChart, {
         points: [{ at: new Date(Number.NaN), involuntaryPct: 1, voluntaryPct: 1 }],
       }),
     );
-    expect(html).toMatch(/^<div class="fh-churn-chart min-w-0"><p[^>]*>This chart could not be drawn/);
+    expect(html).toMatch(/^<div class="min-w-0 fh-churn-chart"><p[^>]*>This chart could not be drawn/);
   });
 });

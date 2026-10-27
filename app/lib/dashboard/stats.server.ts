@@ -89,7 +89,7 @@ export async function getRecoveryStats(
   };
 }
 
-export type MrrSnapshotRow = typeof mrrSnapshots.$inferSelect;
+type MrrSnapshotRow = typeof mrrSnapshots.$inferSelect;
 
 export interface MrrAnalytics {
   latest: MrrSnapshotRow | null;

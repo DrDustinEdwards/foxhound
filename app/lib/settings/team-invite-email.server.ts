@@ -41,11 +41,11 @@ import type { EmailJob } from "~/lib/email/types";
 // RULES.md 1.2). The invite itself stands either way, as in Recova.
 
 /** Recova's FROM_RECOVERY name, Foxhound-branded. */
-export const TEAM_INVITE_FROM_NAME = "Foxhound";
+const TEAM_INVITE_FROM_NAME = "Foxhound";
 /** Recova's subject, Foxhound-branded. */
-export const TEAM_INVITE_SUBJECT = "You've been invited to join Foxhound";
+const TEAM_INVITE_SUBJECT = "You've been invited to join Foxhound";
 /** email_sends.template of the team invite. */
-export const TEAM_INVITE_TEMPLATE = "team_invite";
+const TEAM_INVITE_TEMPLATE = "team_invite";
 /** Recova's words for an account with no name. */
 const TEAM_NAME_FALLBACK = "a team";
 /** Recova's footer sender fallback (`sender_name || 'Recova'`), Foxhound-branded. */

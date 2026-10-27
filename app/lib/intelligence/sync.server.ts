@@ -42,9 +42,8 @@ import { buildMrrSnapshotFields, type ChurnReason, type CustomerMrrPoint } from 
 // there is no subscription/customer store, so this is the ONE enumeration
 // that feeds both customer_context (universal per-customer signals) and
 // mrr_snapshots (the account-wide free MRR tier), read once per account per
-// run rather than hitting Stripe twice. Like the audit's
-// computeStripeInvoiceLiftBands and card-update's createCardUpdateSession,
-// this typechecks and is built for real but needs a live Stripe test-mode
+// run rather than hitting Stripe twice. Like card-update's
+// createCardUpdateSession, this typechecks and is built for real but needs a live Stripe test-mode
 // connected account to exercise; that is Phase 8, not this pass. The pure
 // math it calls into (signals.ts, mrr.ts) is what carries the unit-test load.
 //
@@ -331,7 +330,7 @@ export interface AccountSyncResult {
  *  mrr_snapshots row for the run. A no-op (customersProcessed: 0,
  *  snapshotWritten: false) when the account has no active Stripe connection
  *  yet, never an error. */
-export async function runIntelligenceSyncForAccount(
+async function runIntelligenceSyncForAccount(
   env: Env,
   accountId: string,
   nowMs: number,

@@ -24,11 +24,11 @@ import { DAY_MS } from "~/lib/constants";
 
 const MONTH_COUNT = 12;
 
-export type CustomerContextInsert = typeof customerContext.$inferInsert;
-export type HealthScoreHistoryInsert = typeof healthScoreHistory.$inferInsert;
-export type MrrSnapshotInsert = typeof mrrSnapshots.$inferInsert;
-export type AlertInsert = typeof alerts.$inferInsert;
-export type AlertHistoryInsert = typeof alertHistory.$inferInsert;
+type CustomerContextInsert = typeof customerContext.$inferInsert;
+type HealthScoreHistoryInsert = typeof healthScoreHistory.$inferInsert;
+type MrrSnapshotInsert = typeof mrrSnapshots.$inferInsert;
+type AlertInsert = typeof alerts.$inferInsert;
+type AlertHistoryInsert = typeof alertHistory.$inferInsert;
 
 export interface IntelligenceSeedResult {
   customerContext: CustomerContextInsert[];

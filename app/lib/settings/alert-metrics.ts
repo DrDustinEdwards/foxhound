@@ -95,5 +95,5 @@ export function alertFormMetric(requested: string | null): AlertMetric {
   return requested != null && isAlertMetric(requested) ? requested : ALERT_METRICS[0];
 }
 
-export { ALERT_METRICS, ALERT_DIRECTIONS };
+export { ALERT_METRICS,  };
 export type { AlertDirection, AlertMetric };

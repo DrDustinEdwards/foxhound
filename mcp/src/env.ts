@@ -4,7 +4,7 @@
 // writer, no queue. Its one way into Foxhound is FOXHOUND, a service binding to
 // the foxhound Worker, and the admin API behind it.
 
-export interface ServiceBinding {
+interface ServiceBinding {
   fetch(request: Request): Promise<Response>;
 }
 

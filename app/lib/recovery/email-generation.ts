@@ -82,7 +82,7 @@ const TIMING_TELL_PATTERNS: readonly RegExp[] = [
 
 /** Legacy's pattern, byte for byte (blob `e28d780e` line 83). Not global, so
  *  `.test` carries no lastIndex between calls. */
-export const TIMING_WORD_PATTERN =
+const TIMING_WORD_PATTERN =
   /\b(today|tonight|yesterday|this morning|this afternoon|this evening|right now|immediately|by end of day)\b/i;
 
 /** Legacy's retry instruction, verbatim (blob `3a8f8768` line 321), appended to
@@ -370,7 +370,7 @@ export interface MerchantBrandVoice {
  * prompt, as legacy divides it. `mrrCents` of 0 is falsy on both sides, so a
  * merchant reporting zero MRR contributes no part.
  */
-export function merchantContextLine(merchant: MerchantBrandVoice): string | null {
+function merchantContextLine(merchant: MerchantBrandVoice): string | null {
   const parts: string[] = [];
   if (merchant.industry) parts.push(`${merchant.industry} business`);
   if (merchant.customerType) parts.push(`serving ${merchant.customerType} customers`);

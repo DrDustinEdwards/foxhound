@@ -23,7 +23,7 @@ export interface CustomerDirectoryFilters {
   page: number;
 }
 
-export interface CustomerDirectoryRow {
+interface CustomerDirectoryRow {
   stripeCustomerId: string;
   customerName: string | null;
   customerEmail: string | null;

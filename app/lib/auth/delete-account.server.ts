@@ -71,7 +71,7 @@ import { buildAccountScrubStatements } from "./account-scrub.server";
 // "delete_account".
 
 /** The audit action, Recova's own name for it. */
-export const ACCOUNT_DELETION_AUDIT_ACTION = "user_self_deleted_account";
+const ACCOUNT_DELETION_AUDIT_ACTION = "user_self_deleted_account";
 
 /** Who the audit row names as the actor. Recova writes the person's email here;
  *  Foxhound keeps the record and drops the address, because the address is the
@@ -80,12 +80,12 @@ const ACCOUNT_DELETION_AUDIT_ACTOR = "account-owner";
 
 type DeletionBatch = [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]];
 
-export interface DeletedConnection {
+interface DeletedConnection {
   id: string;
   stripeUserId: string;
 }
 
-export interface DeletionPlan {
+interface DeletionPlan {
   userId: string;
   email: string;
   /** Every account the user actively OWNS. Recova's ownership query, the
@@ -100,7 +100,7 @@ export interface DeletionPlan {
 
 /** Read what a deletion will act on. Null when the user no longer exists, which
  *  is what makes a second deletion a no-op. */
-export async function readDeletionPlan(db: Db, userId: string): Promise<DeletionPlan | null> {
+async function readDeletionPlan(db: Db, userId: string): Promise<DeletionPlan | null> {
   const users = await db.select({ id: user.id, email: user.email }).from(user).where(eq(user.id, userId)).limit(1);
   const found = users[0];
   if (!found) return null;
@@ -234,7 +234,7 @@ export interface DeleteAccountDeps {
   recordDeauthorizeFailure: (env: Env, userId: string, failure: DeauthorizeFailure) => Promise<void>;
 }
 
-export const ACCOUNT_DELETION_DEAUTHORIZE_FAILED_ACTION = "user_self_deleted_account_deauthorize_failed";
+const ACCOUNT_DELETION_DEAUTHORIZE_FAILED_ACTION = "user_self_deleted_account_deauthorize_failed";
 
 /** One durable admin_audit_log row for a Stripe grant that could not be revoked
  *  after a deletion, through the one audit writer. Ids and the error only: the

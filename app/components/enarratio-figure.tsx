@@ -10,29 +10,31 @@ import { withoutHoverTitles } from "~/lib/dashboard/recovery-dashboard";
 // figure as an HTML string (SVG, legend and data table); this draws it at a
 // default width on the server, then redraws at the measured width in the
 // browser, so the axis text keeps its set size at every width instead of
-// shrinking with a phone screen. The same approach as the churn chart
-// (app/routes/app/intelligence/churn.tsx), shared here because the recovery
-// dashboard draws four of them.
+// shrinking with a phone screen. Every Enarratio chart in the app draws
+// through this: the recovery and Intelligence dashboards, the audit and churn.
 
+/** About a panel body's width in Recova's 1280px column. */
+const DEFAULT_WIDTH = 1160;
 const MIN_WIDTH = 240;
 // Redraws happen in steps of this many pixels, so dragging a window redraws
 // the SVG a few times rather than on every pixel.
 const WIDTH_STEP = 40;
 
-/** The width to draw at for a measured container width. */
-export function figureWidthFor(measured: number): number {
+/** The width to draw at for a measured container width: rounded down to the
+ *  step, never under the minimum. */
+function figureWidthFor(measured: number): number {
   return Math.max(MIN_WIDTH, Math.floor(measured / WIDTH_STEP) * WIDTH_STEP);
 }
 
 export function EnarratioFigure({
   draw,
-  initialWidth,
+  initialWidth = DEFAULT_WIDTH,
   className,
 }: {
   /** Draws the figure at a width. Enarratio throws on input it cannot draw
    *  honestly; the throw is shown in the chart's place, not the page's. */
   draw: (width: number) => string;
-  initialWidth: number;
+  initialWidth?: number;
   className?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);

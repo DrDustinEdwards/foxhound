@@ -44,7 +44,7 @@ export interface SaveAuditRunContext {
  * The row legacy builds, field for field. Pure and exported so a plant can drive
  * the real mapping rather than a reproduction of it (337 binding 4).
  */
-export function buildAuditRunRow(result: AuditResult, context: SaveAuditRunContext) {
+function buildAuditRunRow(result: AuditResult, context: SaveAuditRunContext) {
   return {
     accountId: context.accountId,
     stripeAccountId: result.meta.stripeAccountId,

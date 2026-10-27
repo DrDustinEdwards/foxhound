@@ -8,7 +8,7 @@ import { SequenceSteps } from "~/components/recovery-previews";
 import { timingLabel } from "~/components/docs/sequence-timeline";
 import { HEALTH_SCORE_AT_RISK_THRESHOLD, type DeclineCategory } from "~/lib/constants";
 import { DISPUTE_STATE_LABELS } from "~/lib/disputes/labels";
-import { WATCH_CEILING, healthScoreBand } from "~/lib/intelligence/health-band";
+import { WATCH_CEILING } from "~/lib/intelligence/health-band";
 import { DECLINE_CATEGORY_LABELS, FAILED_PAYMENT_STATUS_LABELS, formatStepResult, formatStepType } from "~/lib/recovery/labels";
 import { RECOVERY_SCHEDULES, isRetryStep } from "~/lib/recovery/schedule";
 
@@ -301,4 +301,4 @@ export function DocWidget({ name }: { name: DocWidgetName }) {
 
 /** Exported so a plant can assert the bands the picture draws are the bands the
  *  engine computes, rather than trusting two hand-kept lists to agree. */
-export { healthScoreBand };
+;

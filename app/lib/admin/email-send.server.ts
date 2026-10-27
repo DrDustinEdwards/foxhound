@@ -69,7 +69,7 @@ import type { Rendered } from "capsomer/email";
 // cron failure and stale alerts: operational mail to the support inbox, not a
 // merchant or customer email.
 
-export type AdminEmailAudience = "customer" | "merchant" | "platform";
+type AdminEmailAudience = "customer" | "merchant" | "platform";
 
 export interface AdminEmailType {
   type: string;
@@ -468,7 +468,7 @@ export function previewAdminEmail(env: Env, type: AdminEmailType, prepared: Prep
   };
 }
 
-export type AdminSendStatus = "sent" | "suppressed" | "failed";
+type AdminSendStatus = "sent" | "suppressed" | "failed";
 
 export interface AdminSendResult {
   type: string;

@@ -161,7 +161,7 @@ export async function buildEngagementUrls(
 }
 
 /** email_sends.template label for a generated dunning send. */
-export const TEMPLATE_LABEL_GENERATED = "recovery_dunning";
+const TEMPLATE_LABEL_GENERATED = "recovery_dunning";
 /** email_sends.template label for a deterministic-template dunning send. Distinct
  *  so the fallback RATE is queryable straight off email_sends without conflating
  *  it with a send failure, which is the only place the fallback is recorded. */
@@ -371,7 +371,7 @@ function templateCopyFor(ctx: EmailStepContext, updateUrl: string, customBody: s
 
 /** Why the deterministic template was used, when it was. `missing_update_link`
  *  means the copy that would have gone out did not link the update page. */
-export type TemplateReason = "generation_failed" | "quality_gate" | "missing_update_link";
+type TemplateReason = "generation_failed" | "quality_gate" | "missing_update_link";
 
 type ResolvedCopy = { copy: EmailCopy; usedTemplate: boolean; templateReason: TemplateReason | null };
 

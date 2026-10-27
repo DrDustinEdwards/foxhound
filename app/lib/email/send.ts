@@ -189,21 +189,6 @@ function authSenderMessage(to: string, rendered: Rendered, fromName: string): Em
   };
 }
 
-/**
- * The message sendTransactionalEmail would hand the binding, built without
- * sending. Pure. For the admin preview (app/lib/admin/email-send.server.ts), so
- * a preview is the same function's output and not a copy of it.
- */
-export function buildTransactionalMessage(message: {
-  to: string;
-  subject: string;
-  bodyHtml: string;
-  fromName?: string | null;
-}): EmailSendMessage {
-  const { fromName, rendered } = renderTransactional(message);
-  return authSenderMessage(message.to, rendered, fromName);
-}
-
 /** The message sendRenderedTransactionalEmail would hand the binding. Pure. */
 export function buildRenderedTransactionalMessage(message: { to: string; rendered: Rendered }): EmailSendMessage {
   return authSenderMessage(message.to, message.rendered, "Foxhound");

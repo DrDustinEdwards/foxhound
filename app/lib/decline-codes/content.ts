@@ -26,7 +26,7 @@
 // app/lib/decline-codes/codes.ts, which calls classifyDecline()/isRetryable()
 // directly. This file only holds the code-specific explanatory prose.
 
-export interface DeclineFaq {
+interface DeclineFaq {
   question: string;
   answer: string;
 }

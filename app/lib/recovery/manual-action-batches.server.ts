@@ -65,7 +65,7 @@ export const TEMPLATE_LABEL_RESEND = "recovery_resend";
 
 /** The step_type legacy writes for a resend, so the timeline shows it as its own
  *  event rather than mutating the original send's row. */
-export const RESEND_STEP_TYPE = "email_resend";
+const RESEND_STEP_TYPE = "email_resend";
 
 /**
  * The resend key's repeat token, chosen under 265's key-design reasoning.

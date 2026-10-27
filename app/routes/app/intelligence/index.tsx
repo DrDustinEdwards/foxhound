@@ -9,7 +9,7 @@ import "capsomer/page-head.css";
 import "capsomer/panel.css";
 
 import { Meter } from "~/components/charts";
-import { IntelligenceFigure } from "~/components/intelligence-figure";
+import { EnarratioFigure } from "~/components/enarratio-figure";
 import { IntelligenceUpsell } from "~/components/intelligence-upsell";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -270,7 +270,7 @@ function MrrTrend({ series, currency }: { series: Series; currency: string }) {
   const draw = useCallback((w: number) => drawMrrTrend(series, currency, w), [series, currency]);
   return (
     <Panel title="MRR trend (12 months)">
-      <IntelligenceFigure draw={draw} />
+      <EnarratioFigure draw={draw} />
     </Panel>
   );
 }
@@ -282,7 +282,7 @@ function NrrCard({ series }: { series: Series }) {
   if (!series.some((p) => (p.nrrPct ?? 0) > 0)) return null;
   return (
     <Panel title="Net Revenue Retention" description="Above 100% means expansion exceeds churn, last 12 months">
-      <IntelligenceFigure draw={draw} />
+      <EnarratioFigure draw={draw} />
     </Panel>
   );
 }
@@ -302,7 +302,7 @@ function MovementCard({ series, currency }: { series: Series; currency: string }
   if (!moved) return null;
   return (
     <Panel title="MRR movement" description="New, expansion, contraction, and churn by month">
-      <IntelligenceFigure draw={draw} />
+      <EnarratioFigure draw={draw} />
     </Panel>
   );
 }
@@ -319,7 +319,7 @@ function PlanCard({ perPlan, currency }: { perPlan: unknown; currency: string })
   if (rows.length === 0) return null;
   return (
     <Panel title="MRR by plan">
-      <IntelligenceFigure draw={draw} />
+      <EnarratioFigure draw={draw} />
     </Panel>
   );
 }
@@ -332,7 +332,7 @@ function HealthCard({ days }: { days: Extract<Route.ComponentProps["loaderData"]
   if (days.length === 0) return null;
   return (
     <Panel title="Customer health distribution" description="Customer count per health band over 90 days">
-      <IntelligenceFigure draw={draw} />
+      <EnarratioFigure draw={draw} />
     </Panel>
   );
 }

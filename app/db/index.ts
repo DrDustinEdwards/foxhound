@@ -4,14 +4,11 @@ export * from "./schema";
 // names from our plural accounts/account_members, so no collision.
 export * from "./auth-schema";
 export { getDb, type Db } from "./client";
-export { byAccount, byAccountActive } from "./scope";
-export {
-  billableRecoveryRowConditions,
-  getBillableRecoveries,
-} from "./billable";
+;
+;
 export type {
   MoneyWrite,
   MoneyWriteBatch,
-  MoneyWriteBuilder,
-  MoneyWriteExecutor,
+  
+  
 } from "./money-write";

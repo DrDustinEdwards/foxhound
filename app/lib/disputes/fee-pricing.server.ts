@@ -28,11 +28,11 @@ import { sendDisputeFeeNotice } from "./notices.server";
 
 /** How many unpriced wins one run prices. Each is one Stripe call and one
  *  money write; a backlog larger than this drains over the following days. */
-export const DISPUTE_FEE_PRICING_LIMIT = 50;
+const DISPUTE_FEE_PRICING_LIMIT = 50;
 
 /** The stored fee for one unpriced win, conditioned on it still being unpriced,
  *  so a second writer that got there first makes this touch zero rows. */
-export function buildDisputeFeePricingUpdate(
+function buildDisputeFeePricingUpdate(
   db: Db,
   input: { accountId: string; disputeId: string; amountCents: number; currency: string; cap: ResolvedDisputeCap },
 ): MoneyWriteBatch {

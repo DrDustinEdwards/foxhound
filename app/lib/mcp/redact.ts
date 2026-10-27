@@ -76,7 +76,7 @@ type RedactionRule = "drop" | "mask-email";
  * read back by the merchant's own key; masking it would break the settings
  * readers to protect nobody.
  */
-export const REDACTED_CUSTOMER_FIELDS: Readonly<Record<string, RedactionRule>> = {
+const REDACTED_CUSTOMER_FIELDS: Readonly<Record<string, RedactionRule>> = {
   customerName: "drop",
   customerEmail: "mask-email",
   customerPhone: "drop",

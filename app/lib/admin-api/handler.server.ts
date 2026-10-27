@@ -66,7 +66,7 @@ import { getGlobalPaymentStatusCounts } from "~/lib/recovery/queries.server";
 // the schema keeps append-only, and every write or staging also leaves an
 // admin_audit_log row naming the acting admin.
 
-export const ADMIN_API_PREFIX = "/api/admin/v1";
+const ADMIN_API_PREFIX = "/api/admin/v1";
 const ACTING_ADMIN_HEADER = "Foxhound-Acting-Admin";
 const PAGE_SIZE = 25;
 

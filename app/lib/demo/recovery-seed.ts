@@ -40,11 +40,11 @@ import {
 const WALK_DAYS = 90;
 
 export type FailedPaymentInsert = typeof failedPayments.$inferInsert;
-export type RecoveryStepInsert = typeof recoverySteps.$inferInsert;
+type RecoveryStepInsert = typeof recoverySteps.$inferInsert;
 export type RecoveredPaymentInsert = typeof recoveredPayments.$inferInsert;
-export type ExpiringCardAlertInsert = typeof expiringCardAlerts.$inferInsert;
-export type WinBackSequenceInsert = typeof winBackSequences.$inferInsert;
-export type WinBackStepInsert = typeof winBackSteps.$inferInsert;
+type ExpiringCardAlertInsert = typeof expiringCardAlerts.$inferInsert;
+type WinBackSequenceInsert = typeof winBackSequences.$inferInsert;
+type WinBackStepInsert = typeof winBackSteps.$inferInsert;
 
 export interface RecoverySeedResult {
   failedPayments: FailedPaymentInsert[];
