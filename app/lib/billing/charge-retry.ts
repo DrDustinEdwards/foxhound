@@ -179,7 +179,7 @@ async function loadLines(
 }
 
 /** The money-write recording one charge attempt and whatever it resolved to. */
-export function buildChargeAttemptUpdate(
+function buildChargeAttemptUpdate(
   db: Db,
   input: {
     billingInvoiceId: string;
@@ -204,7 +204,7 @@ export function buildChargeAttemptUpdate(
   ];
 }
 
-export type SweepOutcome = "charged" | "adopted" | "retried" | "gave_up" | "skipped" | "failed";
+type SweepOutcome = "charged" | "adopted" | "retried" | "gave_up" | "skipped" | "failed";
 
 export interface SweepResult {
   invoiceId: string;
@@ -213,7 +213,7 @@ export interface SweepResult {
 }
 
 /** Whether an account may still be charged, as of right now. */
-export interface ChargeGuard {
+interface ChargeGuard {
   billingEligible: boolean;
 }
 

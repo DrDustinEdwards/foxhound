@@ -44,7 +44,7 @@ import {
 // around every one of these. A refusal names itself and an error names itself
 // (RULES.md 3.16), never a null.
 
-export type DisputeNoticeSkip = "not_found" | "no_recipient" | "paused" | "not_resolved";
+type DisputeNoticeSkip = "not_found" | "no_recipient" | "paused" | "not_resolved";
 
 export type DisputeNoticeOutcome =
   | { kind: "sent"; result: EmailJobResult }

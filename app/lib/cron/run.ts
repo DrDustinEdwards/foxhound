@@ -22,12 +22,12 @@ export interface CronJobResult {
 /** What a handler learns about the run it is executing inside (313). Optional
  *  so the twelve handlers that do not send email are untouched: only the paths
  *  that WRITE an email_sends row need to attribute it. */
-export interface CronRunContext {
+interface CronRunContext {
   runId: string;
 }
 export type CronHandler = (env: Env, ctx?: CronRunContext) => Promise<CronJobResult>;
 
-export type CronRunStatus = "success" | "failed" | "skipped";
+type CronRunStatus = "success" | "failed" | "skipped";
 export interface CronRunOutcome {
   cronName: string;
   status: CronRunStatus;
@@ -42,7 +42,7 @@ export interface CronRunOutcome {
 }
 
 /** The cron_run_history insert for one executed run. Operational, not a money write. */
-export function buildCronRunInsert(
+function buildCronRunInsert(
   db: Db,
   input: {
     /** Minted by the CALLER (313) rather than defaulted by the schema, so the

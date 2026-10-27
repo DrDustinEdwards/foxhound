@@ -74,7 +74,7 @@ function describeStep(stepNumber: number, offsetHours: number): string {
  *  constant ("Friendly and direct. Write like a real person, not a company."),
  *  and legacy's win-back prompt carries a DIFFERENT literal. Ported as found
  *  rather than unified, because the two are legacy's own two strings. */
-export const WINBACK_VOICE_FALLBACK = "friendly and conversational";
+const WINBACK_VOICE_FALLBACK = "friendly and conversational";
 
 export interface WinbackPromptInput {
   stepNumber: number;

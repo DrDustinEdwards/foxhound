@@ -12,7 +12,7 @@ import { renderFoxhoundSignInLinkEmail } from "~/lib/email/templates";
 
 /** How long the link works: Better Auth's magic-link default (expiresIn 300 in
  *  better-auth's plugins/magic-link), which the family sign-in keeps. */
-export const SIGN_IN_LINK_EXPIRES_IN_SECONDS = 5 * 60;
+const SIGN_IN_LINK_EXPIRES_IN_SECONDS = 5 * 60;
 
 /** The sign-in link as sendSignInLinkEmail sends it, on Capsomer's magic-link
  *  template in its own words. Pure; throws on a link Capsomer refuses. The

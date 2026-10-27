@@ -96,9 +96,9 @@ export async function finalizeCardUpdateSession(input: {
 // The metadata keys the created Checkout Session and its subscription carry.
 // They live in ~/lib/recovery/winback-metadata so the webhook classifier that
 // READS them and this creator that WRITES them share one definition (316).
-export { WINBACK_SEQUENCE_METADATA_KEY, WINBACK_STEP_METADATA_KEY };
+;
 
-export interface ResubscribeSessionParamsInput {
+interface ResubscribeSessionParamsInput {
   customerId: string;
   priceId: string;
   quantity: number;
@@ -119,7 +119,7 @@ export interface ResubscribeSessionParamsInput {
  * subscription carries `subscription_data.metadata`. Setting both leaves
  * session 52 an exact match on either event.
  */
-export function buildResubscribeSessionParams(input: ResubscribeSessionParamsInput) {
+function buildResubscribeSessionParams(input: ResubscribeSessionParamsInput) {
   const metadata = {
     [WINBACK_SEQUENCE_METADATA_KEY]: input.winBackSequenceId,
     [WINBACK_STEP_METADATA_KEY]: String(input.winBackStepNumber),
@@ -135,7 +135,7 @@ export function buildResubscribeSessionParams(input: ResubscribeSessionParamsInp
   };
 }
 
-export interface ResubscribePlan {
+interface ResubscribePlan {
   priceId: string;
   quantity: number;
 }

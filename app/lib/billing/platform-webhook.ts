@@ -31,12 +31,12 @@ const PLATFORM_STATUS: Record<string, string> = {
 };
 
 /** Maps a platform Stripe event type to our billing_invoices status (null = ignore). Pure. */
-export function platformBillingStatus(eventType: string): string | null {
+function platformBillingStatus(eventType: string): string | null {
   return PLATFORM_STATUS[eventType] ?? null;
 }
 
 /** The billing_invoices row a platform event applies to, plus what to write. */
-export interface PlatformBillingTarget {
+interface PlatformBillingTarget {
   accountId: string;
   billingInvoiceId: string;
   status: string;

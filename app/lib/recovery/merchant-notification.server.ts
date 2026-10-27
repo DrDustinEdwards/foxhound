@@ -34,7 +34,7 @@ import { formatMoney } from "~/lib/money-format";
 // THE SHELL IS CAPSOMER'S `notice` TEMPLATE (E10, job J88; RULES.md 3.16):
 // title, sentence, View payment button, in Foxhound's amber family.
 
-export const RECOVERY_NOTIFY_TEMPLATE = "merchant_recovery_notify";
+const RECOVERY_NOTIFY_TEMPLATE = "merchant_recovery_notify";
 
 /** Legacy's From identity for this message: the PLATFORM, never the merchant's
  *  own sender name. Legacy uses `FROM_RECOVERY` ("Recova <recovery@...>") and
@@ -81,7 +81,7 @@ export function formatNotifyAmount(amountCents: number, currency: string): strin
 }
 
 /** Legacy's subject line, verbatim. */
-export function recoveryNotifySubject(data: {
+function recoveryNotifySubject(data: {
   amountCents: number;
   currency: string;
   customerLabel: string;
@@ -104,7 +104,7 @@ export function recoveryNotifySubject(data: {
  * bold run on the amount has no place in a Capsomer paragraph (a Capsomer gap,
  * named in the PR); the words are unchanged.
  */
-export function recoveryNotifyBody(data: {
+function recoveryNotifyBody(data: {
   amountCents: number;
   currency: string;
   customerLabel: string;
@@ -155,7 +155,7 @@ export function recoveryNotifyContent(
  * legacy's own reading and 337 binding 3's per-column rule; 315's NULL-is-OFF
  * belongs to `audit_auto_run` and does not generalize.
  */
-export async function loadNotificationData(
+async function loadNotificationData(
   db: Db,
   ctx: RecoveryNotificationContext,
 ): Promise<NotificationData | { skipped: "not_found" | "no_recipient" | "disabled" }> {

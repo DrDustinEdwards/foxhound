@@ -22,7 +22,7 @@ import type { EmailJob } from "./types";
  *  PRIVACY: stores a recipient HASH, never the address, matching email_sends. A
  *  dead letter is a diagnostic, not a mailbox. */
 
-export interface DeadLetterRecord {
+interface DeadLetterRecord {
   id: string;
   accountId: string | null;
   recoveryStepId: string | null;

@@ -25,7 +25,7 @@ import { Link, useLocation } from "react-router";
 // J69 and `/settings/disputes` (S32) with J06, each one line here in the group
 // legacy puts it in, which is why the groups keep their legacy shape.
 
-export interface SettingsNavItem {
+interface SettingsNavItem {
   to: string;
   label: string;
   icon: LucideIcon;

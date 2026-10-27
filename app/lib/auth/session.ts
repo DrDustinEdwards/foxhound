@@ -6,5 +6,3 @@ import { getAuth } from "./auth.server";
 export async function getSession(env: Env, request: Request) {
   return (await getAuth(env)).api.getSession({ headers: request.headers });
 }
-
-export type SessionResult = Awaited<ReturnType<typeof getSession>>;

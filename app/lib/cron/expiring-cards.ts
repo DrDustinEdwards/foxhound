@@ -44,7 +44,7 @@ export const EXPIRING_CARD_SCAN_SOFT_LIMIT = 1000;
 /** How many unsent candidates one tick will send. Legacy's is 100. */
 const EXPIRING_CARD_SEND_LIMIT = 100;
 
-export interface ScanAccount {
+interface ScanAccount {
   accountId: string;
   connectionId: string;
   encryptedAccessToken: string;

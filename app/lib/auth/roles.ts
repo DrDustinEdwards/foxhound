@@ -11,13 +11,11 @@ export const MEMBER_ROLE = {
   OWNER: "owner",
   MEMBER: "member",
 } as const;
-export type MemberRole = (typeof MEMBER_ROLE)[keyof typeof MEMBER_ROLE];
 
 export const MEMBER_STATUS = {
   ACTIVE: "active",
   PENDING: "pending",
 } as const;
-export type MemberStatus = (typeof MEMBER_STATUS)[keyof typeof MEMBER_STATUS];
 
 // NOTE: the partial unique index is account_members_user_account_active_uq
 // (migration 0018), over (user_id, account_id) WHERE status = 'active', so a

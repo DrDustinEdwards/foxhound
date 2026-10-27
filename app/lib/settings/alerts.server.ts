@@ -31,7 +31,7 @@ export interface CreateAlertInput {
  * channel the sender reads: an alert that fires is emailed to the account's
  * notification address (app/lib/intelligence/alert-notify.server.ts, row E21).
  */
-export const ALERT_DEFAULT_CHANNEL = "email";
+const ALERT_DEFAULT_CHANNEL = "email";
 
 /** THE STATEMENT, NOT THE AWAIT. Session 80: every settings write goes through
  *  `commit`, which hands the write and its trace row to `db.batch` together, so

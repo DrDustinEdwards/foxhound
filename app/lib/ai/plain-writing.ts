@@ -39,7 +39,7 @@ export function ownPhrasing(samples: readonly string[]): string[] {
 }
 
 /** The retry's instruction, naming what the first draft used. */
-export function stockPhrasingInstruction(issues: readonly ProseIssue[]): string {
+function stockPhrasingInstruction(issues: readonly ProseIssue[]): string {
   const named = [...new Set(issues.map((i) => (i.excerpt ? `"${i.excerpt}"` : i.message)))].join(", ");
   return `\n\nADDITIONAL INSTRUCTION:\nThe previous draft used phrasing that reads as machine-written: ${named}. Write it again in plain words, without them.`;
 }

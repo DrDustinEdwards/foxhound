@@ -21,12 +21,12 @@ import { DAY_MS } from "~/lib/constants";
 // placed by their failed_payment_events schedule alone, no random failures
 // layered on top, so the Acme / Bluewave narratives stay clean.
 
-export type DemoTier = "starter" | "growth" | "scale" | "pro" | "hobby";
-export type DemoLifecycleStatus = "active" | "at_risk" | "churned" | "paused";
-export type DemoBillingCadence = "monthly" | "annual";
-export type DemoFpOutcome = "recovered" | "failed_unrecovered" | "active";
+type DemoTier = "starter" | "growth" | "scale" | "pro" | "hobby";
+type DemoLifecycleStatus = "active" | "at_risk" | "churned" | "paused";
+type DemoBillingCadence = "monthly" | "annual";
+type DemoFpOutcome = "recovered" | "failed_unrecovered" | "active";
 
-export interface DemoScriptedFpEvent {
+interface DemoScriptedFpEvent {
   detectedDaysAgo: number;
   declineCategory: DeclineCategory;
   outcome: DemoFpOutcome;
@@ -36,7 +36,7 @@ export interface DemoScriptedFpEvent {
   isRenewalNoise?: boolean;
 }
 
-export interface DemoHealthPoint {
+interface DemoHealthPoint {
   daysAgo: number;
   healthScore: number;
   reason: string;
@@ -52,7 +52,7 @@ export interface DemoEngagementOverride {
   lastEmailOpenedAtDaysAgo?: number | null; // null = no opens at all
 }
 
-export interface DemoScripted {
+interface DemoScripted {
   slug: string;
   failedPaymentEvents: DemoScriptedFpEvent[];
   healthTrajectory: DemoHealthPoint[];
@@ -82,16 +82,6 @@ export interface DemoCustomer {
 
   // Optional scripted overrides
   scripted: DemoScripted | null;
-}
-
-export interface CustomerBaseSummary {
-  total: number;
-  byTier: Record<DemoTier, number>;
-  byStatus: Record<DemoLifecycleStatus, number>;
-  byCadence: Record<DemoBillingCadence, number>;
-  scriptedSlugs: string[];
-  totalMrrCents: number;
-  scriptedFpEventCount: number;
 }
 
 // ============================================================================
@@ -167,36 +157,6 @@ export function planNameFor(c: DemoCustomer): string {
   return parts.length ? `${TIER_LABEL[c.tier]} (${parts.join(", ")})` : TIER_LABEL[c.tier];
 }
 
-export function summarize(customers: DemoCustomer[]): CustomerBaseSummary {
-  const byTier: Record<DemoTier, number> = { starter: 0, growth: 0, scale: 0, pro: 0, hobby: 0 };
-  const byStatus: Record<DemoLifecycleStatus, number> = { active: 0, at_risk: 0, churned: 0, paused: 0 };
-  const byCadence: Record<DemoBillingCadence, number> = { monthly: 0, annual: 0 };
-  const scriptedSlugs: string[] = [];
-  let totalMrrCents = 0;
-  let scriptedFpEventCount = 0;
-
-  for (const c of customers) {
-    byTier[c.tier]++;
-    byStatus[c.status]++;
-    byCadence[c.billingCadence]++;
-    totalMrrCents += monthlyMrrCents(c);
-    if (c.scripted) {
-      scriptedSlugs.push(c.scripted.slug);
-      scriptedFpEventCount += c.scripted.failedPaymentEvents.length;
-    }
-  }
-
-  return {
-    total: customers.length,
-    byTier,
-    byStatus,
-    byCadence,
-    scriptedSlugs: scriptedSlugs.sort(),
-    totalMrrCents,
-    scriptedFpEventCount,
-  };
-}
-
 // ============================================================================
 // Seeded helpers (FNV-1a, shared with recovery-seed.ts and intelligence-seed.ts
 // so the whole demo engine hashes off one deterministic scheme)
@@ -244,15 +204,6 @@ const TEAMFLOW_COMPANY_PREFIXES = [
 const TEAMFLOW_COMPANY_SUFFIXES = [
   "Labs", "Works", "Group", "Studio", "Co", "Stack", "Logic", "Loop",
   "Cloud", "Forge", "Build", "Sync", "Flow", "Grid", "Hub", "Core",
-] as const;
-const BOLT_COMPANY_PREFIXES = [
-  "Apex", "Beacon", "Cipher", "Drift", "Echo", "Flux", "Glyph", "Hex",
-  "Iota", "Jolt", "Kelp", "Loft", "Mesh", "Nexa", "Orbit", "Pulse",
-  "Quark", "Relay", "Sigma", "Tally", "Unit", "Vector", "Wave", "Xen",
-] as const;
-const BOLT_COMPANY_SUFFIXES = [
-  "Stack", "Logic", "IO", "Engine", "Lab", "Compute", "Probe", "Trace",
-  "Pipe", "Grid", "Cloud", "Ops", "Metric", "Sense", "Pulse", "Build",
 ] as const;
 
 function generateName(
@@ -673,180 +624,6 @@ function teamflowScripted(now: Date): DemoCustomer[] {
 }
 
 // ============================================================================
-// Scripted customers - Bolt (built for parity, not seeded yet: the demo seeds
-// one account, TASK-foxhound-demo-data-engine.md locked constraint #3)
-// ============================================================================
-
-function boltScripted(now: Date): DemoCustomer[] {
-  return [
-    // Hilltop Metrics - Pro, recovered $99 ~10 days ago. Bolt's "your save".
-    {
-      stripeCustomerId: "cus_bolt_hilltop_metrics",
-      customerEmail: "billing@hilltop-metrics.demo",
-      customerName: "Hilltop Metrics",
-      customerSince: daysAgo(now, 6 * 30),
-      tier: "pro",
-      planBaseCents: TIER_BASE_CENTS.pro,
-      billingCadence: "monthly",
-      billingAnchorDay: 12,
-      seats: 1,
-      perSeatCents: 0,
-      addonCents: 0,
-      status: "active",
-      churnedAt: null,
-      scripted: {
-        slug: "hilltop_metrics",
-        failedPaymentEvents: [
-          { detectedDaysAgo: 10, declineCategory: "soft", outcome: "recovered", daysToRecover: 2 },
-        ],
-        healthTrajectory: [
-          { daysAgo: 180, healthScore: 70, reason: "baseline" },
-          { daysAgo: 120, healthScore: 73, reason: "stable" },
-          { daysAgo: 60, healthScore: 75, reason: "engagement_growing" },
-          { daysAgo: 20, healthScore: 50, reason: "failed_payment" },
-          { daysAgo: 10, healthScore: 65, reason: "in_recovery" },
-          { daysAgo: 2, healthScore: 78, reason: "recovery_succeeded" },
-        ],
-      },
-    },
-    // Driftwave Labs - Pro, recent upgrade gone cold. Churn risk.
-    {
-      stripeCustomerId: "cus_bolt_driftwave_labs",
-      customerEmail: "founder@driftwave-labs.demo",
-      customerName: "Driftwave Labs",
-      customerSince: daysAgo(now, 21),
-      tier: "pro",
-      planBaseCents: TIER_BASE_CENTS.pro,
-      billingCadence: "monthly",
-      billingAnchorDay: 7,
-      seats: 1,
-      perSeatCents: 0,
-      addonCents: 0,
-      status: "at_risk",
-      churnedAt: null,
-      scripted: {
-        slug: "driftwave_labs",
-        failedPaymentEvents: [
-          { detectedDaysAgo: 24, declineCategory: "soft", outcome: "recovered", daysToRecover: 4 },
-          { detectedDaysAgo: 14, declineCategory: "soft", outcome: "recovered", daysToRecover: 5 },
-          { detectedDaysAgo: 5, declineCategory: "soft", outcome: "active" },
-        ],
-        healthTrajectory: [
-          { daysAgo: 21, healthScore: 70, reason: "upgrade_to_pro" },
-          { daysAgo: 16, healthScore: 65, reason: "first_login_post_upgrade" },
-          { daysAgo: 12, healthScore: 55, reason: "engagement_dip" },
-          { daysAgo: 7, healthScore: 42, reason: "inactivity" },
-          { daysAgo: 2, healthScore: 30, reason: "critical_churn_risk" },
-        ],
-        healthFactors: {
-          primaryConcern: "upgrade_churn_risk",
-          supportingSignals: ["recent_upgrade_no_engagement", "extended_inactivity"],
-          recommendedAction: "churn_save_outreach",
-        },
-        engagementOverride: {
-          emailOpened30d: 0,
-          emailClicked30d: 0,
-          lastEmailOpenedAtDaysAgo: null,
-        },
-      },
-    },
-    // Corepath Devs - Pro power user.
-    {
-      stripeCustomerId: "cus_bolt_corepath_devs",
-      customerEmail: "team@corepath-devs.demo",
-      customerName: "Corepath Devs",
-      customerSince: daysAgo(now, 8 * 30),
-      tier: "pro",
-      planBaseCents: TIER_BASE_CENTS.pro,
-      billingCadence: "annual",
-      billingAnchorDay: 15,
-      seats: 2,
-      perSeatCents: GROWTH_PER_SEAT_CENTS,
-      addonCents: 0,
-      status: "active",
-      churnedAt: null,
-      scripted: {
-        slug: "corepath_devs",
-        failedPaymentEvents: [
-          {
-            detectedDaysAgo: 25,
-            declineCategory: "expired",
-            outcome: "recovered",
-            daysToRecover: 2,
-            isRenewalNoise: true,
-          },
-          {
-            detectedDaysAgo: 15,
-            declineCategory: "expired",
-            outcome: "recovered",
-            daysToRecover: 2,
-            isRenewalNoise: true,
-          },
-          {
-            detectedDaysAgo: 5,
-            declineCategory: "expired",
-            outcome: "recovered",
-            daysToRecover: 2,
-            isRenewalNoise: true,
-          },
-        ],
-        healthTrajectory: [
-          { daysAgo: 220, healthScore: 70, reason: "onboarding" },
-          { daysAgo: 180, healthScore: 78, reason: "activation" },
-          { daysAgo: 120, healthScore: 85, reason: "high_engagement" },
-          { daysAgo: 60, healthScore: 90, reason: "power_user_pattern" },
-          { daysAgo: 20, healthScore: 92, reason: "stable_excellent" },
-          { daysAgo: 2, healthScore: 93, reason: "reference_customer" },
-        ],
-        healthFactors: {
-          primaryConcern: null,
-          supportingSignals: ["power_user", "high_engagement", "sustained_usage"],
-          recommendedAction: "reference_customer",
-        },
-        engagementOverride: {
-          emailOpened30d: 2,
-          emailClicked30d: 1,
-          lastEmailOpenedAtDaysAgo: 7,
-        },
-      },
-    },
-    // Stillwater Engineering - Hobby tier, hot expansion lead.
-    {
-      stripeCustomerId: "cus_bolt_stillwater_engineering",
-      customerEmail: "hello@stillwater-engineering.demo",
-      customerName: "Stillwater Engineering",
-      customerSince: daysAgo(now, 4 * 30),
-      tier: "hobby",
-      planBaseCents: TIER_BASE_CENTS.hobby,
-      billingCadence: "monthly",
-      billingAnchorDay: 1,
-      seats: 1,
-      perSeatCents: 0,
-      addonCents: 0,
-      status: "active",
-      churnedAt: null,
-      scripted: {
-        slug: "stillwater_engineering",
-        failedPaymentEvents: [],
-        healthTrajectory: [
-          { daysAgo: 120, healthScore: 60, reason: "free_signup" },
-          { daysAgo: 90, healthScore: 70, reason: "activation" },
-          { daysAgo: 60, healthScore: 80, reason: "engagement_growing" },
-          { daysAgo: 30, healthScore: 87, reason: "high_engagement" },
-          { daysAgo: 7, healthScore: 89, reason: "pro_upgrade_signal" },
-          { daysAgo: 1, healthScore: 90, reason: "pro_upgrade_signal" },
-        ],
-        healthFactors: {
-          primaryConcern: null,
-          supportingSignals: ["high_engagement_on_free_tier", "sustained_usage", "mature_hobby_tenure"],
-          recommendedAction: "pro_upgrade_outreach",
-        },
-      },
-    },
-  ];
-}
-
-// ============================================================================
 // Builders - Teamflow + Bolt
 // ============================================================================
 
@@ -883,48 +660,6 @@ export function buildTeamflowBase(now: Date = new Date()): DemoCustomer[] {
           50,
           TEAMFLOW_COMPANY_PREFIXES,
           TEAMFLOW_COMPANY_SUFFIXES,
-          now,
-          reservedNames,
-        ),
-      );
-    }
-  }
-  return [...scripted, ...anonymous];
-}
-
-// Bolt target: 200 customers total (built for parity; NOT seeded yet).
-//   Tiers: 120 Pro (60%), 80 Hobby (40%). No Starter/Growth/Scale.
-//   Scripted: 3 Pro (Hilltop, Driftwave, Corepath), 1 Hobby (Stillwater) = 4.
-//   Anonymous slots: 117 Pro + 79 Hobby = 196.
-const BOLT_ANON_PER_TIER: Record<DemoTier, number> = {
-  starter: 0,
-  growth: 0,
-  scale: 0,
-  pro: 117,
-  hobby: 79,
-};
-
-export function buildBoltBase(now: Date = new Date()): DemoCustomer[] {
-  const seedPrefix = "bolt:v2";
-  const scripted = boltScripted(now);
-  const reservedNames = new Set(scripted.map((c) => c.customerName));
-  const anonymous: DemoCustomer[] = [];
-  let seq = 1;
-  const tiers: DemoTier[] = ["pro", "hobby"];
-  for (const tier of tiers) {
-    const count = BOLT_ANON_PER_TIER[tier];
-    for (let i = 0; i < count; i++) {
-      const customerId = `cus_bolt_${String(seq).padStart(3, "0")}`;
-      seq++;
-      // Bolt is dev-tools - bias 60% toward company names.
-      anonymous.push(
-        buildAnonymousCustomer(
-          seedPrefix,
-          customerId,
-          tier,
-          60,
-          BOLT_COMPANY_PREFIXES,
-          BOLT_COMPANY_SUFFIXES,
           now,
           reservedNames,
         ),

@@ -30,7 +30,7 @@ import { DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
 // and a swallowed failure are distinguishable, but the caller still cannot be
 // broken by Slack being down.
 
-export type SlackEventType = "email_sent" | "payment_recovered";
+type SlackEventType = "email_sent" | "payment_recovered";
 
 export interface SlackEvent {
   type: SlackEventType;

@@ -54,7 +54,7 @@ import { resolveDisputedRecovery } from "~/lib/webhooks/lookups";
 
 /** The manual-import claim key prefix. Exported so a test asserts the KEY the
  *  code derives rather than re-deriving one of its own. */
-export const MANUAL_CLAIM_PREFIX = "manual_dispute:";
+const MANUAL_CLAIM_PREFIX = "manual_dispute:";
 
 /** The webhook_events.event_type recorded for a manual import, so the claim row
  *  says what it was rather than impersonating a Stripe event. */

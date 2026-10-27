@@ -10,7 +10,7 @@ import type { AdminMcpEnv } from "./env";
 // rules (what may be read, that pause is the only direct write, that money is
 // staged) are the API's. This file holds none of them.
 
-export const ADMIN_API_PREFIX = "/api/admin/v1";
+const ADMIN_API_PREFIX = "/api/admin/v1";
 
 /** A service binding ignores the host; this one only has to be a valid URL. */
 const BINDING_ORIGIN = "https://foxhound.internal";

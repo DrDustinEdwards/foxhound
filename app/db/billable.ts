@@ -182,7 +182,7 @@ function wonFoxhoundDisputeConditions(asOfMs: number): SQL {
  *  is never used. Nothing marks it billed, so once the daily pricing retry
  *  (app/lib/disputes/fee-pricing.server.ts) stores its fee, the next run bills
  *  exactly that amount. */
-export function billableDisputeRowConditions(accountId: string, asOfMs: number): SQL {
+function billableDisputeRowConditions(accountId: string, asOfMs: number): SQL {
   return and(
     eq(disputes.accountId, accountId),
     wonFoxhoundDisputeConditions(asOfMs),

@@ -21,7 +21,7 @@ import { maskEmailsInText } from "./redact";
 /** Arguments that are credentials: kept as "[redacted]" wherever they appear. */
 const CREDENTIAL_ARGUMENTS = new Set(["slack_webhook_url"]);
 
-export type McpCallOutcome = "ok" | "tool_error" | "protocol_error";
+type McpCallOutcome = "ok" | "tool_error" | "protocol_error";
 
 export interface McpToolCallRequest {
   id: string | number;

@@ -167,7 +167,7 @@ export function buildVoiceSamplesUpdate(
 // SENDER_NAME_MAX_LENGTH lives in the client-safe sender-name.ts, because the
 // form renders it as maxLength and a .server import would ship drizzle in that
 // route client chunk. Re-exported so server callers have one import site.
-export { SENDER_NAME_MAX_LENGTH } from "./sender-name";
+;
 
 export interface SenderSettingsInput {
   /** NULL when the merchant clears the box, which is legacy's behavior:

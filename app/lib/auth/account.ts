@@ -90,7 +90,7 @@ export async function resolveActiveMembership(
 /** The marked membership, or null when the marker is absent or names an account
  *  the user does not actively hold. Pure, so the "never trust the marker" rule
  *  is testable without a database. */
-export function pickMarkedMembership(
+function pickMarkedMembership(
   memberships: Membership[],
   activeAccountId: string | null,
 ): Membership | null {
@@ -295,7 +295,7 @@ export async function createAccountForUser(
  * to "the partition is an account id" is greppable. See the `accountId` field
  * on MoneyWrite for why it exists.
  */
-export function firstConnectPartition(userId: string): string {
+function firstConnectPartition(userId: string): string {
   return `user:${userId}`;
 }
 

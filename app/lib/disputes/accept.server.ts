@@ -173,7 +173,7 @@ function isDefiniteRefusal(error: unknown): boolean {
   );
 }
 
-export type CloseResult =
+type CloseResult =
   | { ok: true }
   | { ok: false; refused: true; error: string }
   | { ok: false; refused: false };

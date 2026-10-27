@@ -56,12 +56,12 @@ import {
 /** The month a run fires in covers the month that just ended. The cron fires on
  *  the 1st, so on 2026-09-01 the run is September's send about August.
  *  Date.UTC normalizes month -1 across a year boundary. */
-export function auditPeriod(now: Date): string {
+function auditPeriod(now: Date): string {
   const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-export interface MonthlyAuditAccountRow {
+interface MonthlyAuditAccountRow {
   id: string;
   auditAutoRun: boolean | null;
   auditLookbackDays: number | null;
@@ -95,7 +95,7 @@ async function monthlyAuditCandidates(db: Db): Promise<MonthlyAuditAccountRow[]>
     .where(accountProcessingEligibleCondition());
 }
 
-export interface MonthlyAuditConnection {
+interface MonthlyAuditConnection {
   stripeUserId: string;
   encryptedAccessToken: string;
 }
@@ -162,7 +162,7 @@ async function priorTotals(
 
 /** The claim: the row this caller now holds, or the status of the row that
  *  refused it. */
-export type MonthClaim = { claimed: true; id: string } | { claimed: false; heldStatus: string };
+type MonthClaim = { claimed: true; id: string } | { claimed: false; heldStatus: string };
 
 /**
  * Claim this account's slot for this month. A claimed result means this caller
@@ -321,7 +321,7 @@ async function eligibleAccount(
   return row;
 }
 
-export type MonthlyAuditAccountStatus =
+type MonthlyAuditAccountStatus =
   | "sent"
   | "duplicate"
   | "not_eligible"

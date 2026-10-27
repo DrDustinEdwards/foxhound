@@ -38,7 +38,7 @@ import { isUniqueConstraintError } from "~/lib/money/serializer";
 
 export type DisputeRow = typeof disputes.$inferSelect;
 export type DisputeEvidenceRow = typeof disputeEvidence.$inferSelect;
-export type DisputeApprovalRow = typeof disputeApprovals.$inferSelect;
+type DisputeApprovalRow = typeof disputeApprovals.$inferSelect;
 
 /** Every dispute for the account, newest first. */
 export async function listDisputes(db: Db, accountId: string): Promise<DisputeRow[]> {
@@ -82,38 +82,6 @@ export async function getDisputeDetail(
   ]);
 
   return { dispute, evidence, approval: approvals[0] ?? null };
-}
-
-/**
- * Save edits to the evidence draft (the "edit affordance"). A plain atomic
- * batch, not a money write, the same way recovery_steps edits are operational
- * (gotcha #25): editing evidence text does not itself gate billing, only
- * approval + submission (approval.ts) and resolution (webhooks/batches.ts) do.
- * Only touches rows that belong to this dispute and account.
- */
-export async function saveDisputeEvidence(
-  db: Db,
-  accountId: string,
-  disputeId: string,
-  edits: { id: string; fieldValue: string }[],
-): Promise<void> {
-  if (edits.length === 0) return;
-  const statements = edits.map((edit) =>
-    db
-      .update(disputeEvidence)
-      .set({ fieldValue: edit.fieldValue })
-      .where(
-        and(
-          eq(disputeEvidence.id, edit.id),
-          eq(disputeEvidence.disputeId, disputeId),
-          eq(disputeEvidence.accountId, accountId),
-        ),
-      ),
-  );
-  // db.batch() requires a non-empty tuple type; the leading fixed element (the
-  // length check above guarantees it exists) narrows the array literal to one.
-  const [first, ...rest] = statements;
-  await db.batch([first, ...rest]);
 }
 
 /**

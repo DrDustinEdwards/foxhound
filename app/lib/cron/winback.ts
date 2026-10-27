@@ -90,7 +90,7 @@ export interface DueWinbackStep {
  * depth while proving nothing, and a mutation deleting it stayed green.
  * `processEmailJob`'s `liveSendsEnabled` gate is the real second layer.
  */
-export async function queryDueWinbackSteps(
+async function queryDueWinbackSteps(
   db: Db,
   now: Date,
   limit: number = WINBACK_SEND_LIMIT,
@@ -206,7 +206,7 @@ export async function claimStepSent(
  * 344 binding 4: an exhausted sequence stays RESUBSCRIBABLE, because step 3's
  * own button must outlive the flip its own send causes.
  */
-export async function claimSequenceExhausted(
+async function claimSequenceExhausted(
   db: Db,
   sequenceId: string,
   now: Date,

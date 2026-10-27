@@ -98,7 +98,7 @@ const PREFETCH_HEADERS: readonly [string, string][] = [
  * three different findings and the reason is what a later reader needs when a
  * merchant asks why an engagement is missing.
  */
-export type AutomatedReason = "bot_user_agent" | "prefetch" | "no_user_agent" | "not_a_get";
+type AutomatedReason = "bot_user_agent" | "prefetch" | "no_user_agent" | "not_a_get";
 
 export type EngagementSource =
   | { automated: false }

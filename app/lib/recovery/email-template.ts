@@ -149,7 +149,7 @@ function orFallback(value: string | null | undefined, fallback: string): string 
 }
 
 /** True when the step has Recova's own fallback template here. */
-export function hasStepTemplate(stepType: string | null | undefined): boolean {
+function hasStepTemplate(stepType: string | null | undefined): boolean {
   return stepType != null && Object.hasOwn(STEP_TEMPLATES, stepType);
 }
 

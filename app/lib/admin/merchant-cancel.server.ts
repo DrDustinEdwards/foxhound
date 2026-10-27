@@ -8,7 +8,7 @@ import { type Db, accounts, getDb, stripeConnections } from "~/db";
 import { deauthorizeConnectedAccount } from "~/lib/stripe/connect";
 import { revokeDisconnectedGrants } from "~/lib/stripe/deauthorize-retry.server";
 
-export interface CancelledConnection {
+interface CancelledConnection {
   id: string;
   stripeUserId: string;
 }
@@ -23,7 +23,7 @@ type CancelBatch = [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]];
  *  and disconnects every given connection, as ONE atomic batch. Compile-testable
  *  via .toSQL() like buildBillingInvoiceBatch (billing/run.ts), independent of
  *  whether a live D1 batch executor is available. */
-export function buildCancelMerchantBatch(
+function buildCancelMerchantBatch(
   db: Db,
   accountId: string,
   connections: CancelledConnection[],
@@ -44,7 +44,7 @@ export function buildCancelMerchantBatch(
  * live D1 binding. Returns the connections that were just disconnected, so the
  * caller knows which ones still need a Stripe oauth.deauthorize call.
  */
-export async function cancelMerchantLocal(db: Db, accountId: string, now: Date): Promise<CancelledConnection[]> {
+async function cancelMerchantLocal(db: Db, accountId: string, now: Date): Promise<CancelledConnection[]> {
   const activeConnections = await db
     .select({ id: stripeConnections.id, stripeUserId: stripeConnections.stripeUserId })
     .from(stripeConnections)
@@ -110,7 +110,7 @@ export async function cancelMerchant(
  *  333 ruled against promotion and against clearing the flag, because legacy
  *  does neither. The three is_primary readers filter on disconnected_at
  *  instead, which is the change that makes the flag harmless. */
-export function buildDisconnectConnectionBatch(db: Db, connectionId: string, now: Date): CancelBatch {
+function buildDisconnectConnectionBatch(db: Db, connectionId: string, now: Date): CancelBatch {
   return [
     db.update(stripeConnections).set({ disconnectedAt: now }).where(eq(stripeConnections.id, connectionId)),
   ];

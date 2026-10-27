@@ -72,7 +72,7 @@ type InvoiceWithCharge = Stripe.Invoice & {
 
 /** An invoice as the engine reads it: amount, currency, dates and the three
  *  places a decline code can sit (engine.ts extractDeclineCode). */
-export function narrowInvoice(invoice: Stripe.Invoice): Stripe.Invoice {
+function narrowInvoice(invoice: Stripe.Invoice): Stripe.Invoice {
   const full = invoice as InvoiceWithCharge;
   const charge = typeof full.charge === "object" && full.charge ? { failure_code: full.charge.failure_code } : null;
   return {
@@ -90,7 +90,7 @@ export function narrowInvoice(invoice: Stripe.Invoice): Stripe.Invoice {
 
 /** A subscription as the engine reads it: status, currency, customer id, the
  *  card's expiry, the first item's price, and the cancellation. */
-export function narrowSubscription(subscription: Stripe.Subscription): Stripe.Subscription {
+function narrowSubscription(subscription: Stripe.Subscription): Stripe.Subscription {
   const pm = subscription.default_payment_method;
   const card = pm && typeof pm === "object" ? pm.card : null;
   const price = subscription.items?.data?.[0]?.price;
@@ -121,7 +121,7 @@ export function narrowSubscription(subscription: Stripe.Subscription): Stripe.Su
 }
 
 /** A dispute as the engine reads it. */
-export function narrowDispute(dispute: Stripe.Dispute): Stripe.Dispute {
+function narrowDispute(dispute: Stripe.Dispute): Stripe.Dispute {
   return {
     status: dispute.status,
     amount: dispute.amount,
@@ -133,7 +133,7 @@ export function narrowDispute(dispute: Stripe.Dispute): Stripe.Dispute {
 }
 
 /** The engine counts Card Updater events and reads nothing inside one. */
-export function narrowEvent(): Stripe.Event {
+function narrowEvent(): Stripe.Event {
   return {} as Stripe.Event;
 }
 

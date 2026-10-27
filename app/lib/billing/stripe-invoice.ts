@@ -144,7 +144,7 @@ export function stripeErrorSummary(err: unknown): string {
 
 /** Days a merchant has to pay an emailed invoice, as Recova sets it
  *  (process-recovery-billing, days_until_due 30). */
-export const SEND_INVOICE_DAYS_UNTIL_DUE = 30;
+const SEND_INVOICE_DAYS_UNTIL_DUE = 30;
 
 /** The slice of a retrieved platform customer the collection choice reads. */
 interface CustomerPaymentMethodFields {
@@ -157,7 +157,7 @@ interface CustomerPaymentMethodFields {
 /** Whether the platform customer has a payment method Stripe can charge, by
  *  Recova's rule: invoice_settings.default_payment_method, else default_source.
  *  Pure. A deleted customer has none. */
-export function hasDefaultPaymentMethod(customer: CustomerPaymentMethodFields): boolean {
+function hasDefaultPaymentMethod(customer: CustomerPaymentMethodFields): boolean {
   if (customer.deleted) return false;
   return Boolean(customer.invoice_settings?.default_payment_method || customer.default_source);
 }
@@ -166,7 +166,7 @@ export function hasDefaultPaymentMethod(customer: CustomerPaymentMethodFields): 
  *  Foxhound's name: "Foxhound: June 2026" for the month the invoice bills
  *  (Recova process-recovery-billing, `Recova: ${monthLabel}`). In UTC, as the
  *  billing period is. Pure. */
-export function platformInvoiceDescription(periodStart: Date): string {
+function platformInvoiceDescription(periodStart: Date): string {
   const month = periodStart.toLocaleString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
   return `Foxhound: ${month}`;
 }

@@ -97,12 +97,12 @@ async function commit(
 
 /** Coerce a JSON or form boolean. Accepts a real boolean and the "true" string
  *  a checkbox posts, so one rule serves both callers. */
-export function asBoolean(value: unknown): boolean {
+function asBoolean(value: unknown): boolean {
   return value === true || value === "true";
 }
 
 /** Trim to null, the shape every optional text setting uses. */
-export function asOptionalText(value: unknown): string | null {
+function asOptionalText(value: unknown): string | null {
   const raw = typeof value === "string" ? value.trim() : "";
   return raw.length > 0 ? raw : null;
 }
@@ -171,7 +171,7 @@ export interface DisputeSettingsState {
 }
 
 /** Stripe's limit on an evidence text field, which the description becomes. */
-export { DISPUTE_PRODUCT_DESCRIPTION_MAX_LENGTH };
+;
 export const DISPUTE_PRODUCT_DESCRIPTION_ERROR = `Keep the product description under ${DISPUTE_PRODUCT_DESCRIPTION_MAX_LENGTH.toLocaleString("en-US")} characters.`;
 
 /**
@@ -593,10 +593,10 @@ export interface AlertCreateState {
 }
 
 /** The three refusals, the form's own sentences. */
-export const ALERT_METRIC_ERROR = "Choose a metric Foxhound tracks.";
-export const ALERT_DIRECTION_ERROR = "Choose whether the metric rises or drops.";
+const ALERT_METRIC_ERROR = "Choose a metric Foxhound tracks.";
+const ALERT_DIRECTION_ERROR = "Choose whether the metric rises or drops.";
 export const ALERT_THRESHOLD_ERROR = "Enter a threshold of zero or more.";
-export const ALERT_NOT_FOUND_ERROR = "Select an alert.";
+const ALERT_NOT_FOUND_ERROR = "Select an alert.";
 
 /**
  * Create one alert.

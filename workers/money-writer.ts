@@ -4,7 +4,6 @@ import {
   SerialMoneyCommitter,
   type CommitRequest,
   type CommitResult,
-  type CompiledStatement,
 } from "~/lib/money/serializer";
 
 // Per-account money-write Durable Object (ARCHITECTURE.md: "per-account
@@ -49,4 +48,4 @@ function seenKey(idempotencyKey: string): string {
   return `idem:${idempotencyKey}`;
 }
 
-export type { CommitRequest, CommitResult, CompiledStatement };
+;

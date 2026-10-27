@@ -88,7 +88,7 @@ export interface ConsoleTiles {
   auditLeaking: CurrencyAmount[];
 }
 
-export type AttentionTone = "urgent" | "warning" | "subtle";
+type AttentionTone = "urgent" | "warning" | "subtle";
 
 export interface AttentionRow {
   key: string;

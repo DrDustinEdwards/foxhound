@@ -38,7 +38,7 @@ const pct = (bps: number) => `${bps / 100}%`;
 const usd = (cents: number) => formatMoneyShort(cents, "usd");
 
 export const RECOVERY_FEE = pct(RECOVERY_FEE_BPS);
-export const DISPUTE_FEE = pct(DISPUTE_FEE_BPS);
+const DISPUTE_FEE = pct(DISPUTE_FEE_BPS);
 const DISPUTE_CAP = usd(DISPUTE_FEE_CAP_CENTS);
 const INTELLIGENCE_PRICE = `${usd(INTELLIGENCE_PRICE_CENTS)}/mo`;
 export const MATURITY_DAYS = RECOVERY_MATURITY_DAYS;

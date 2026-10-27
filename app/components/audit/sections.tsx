@@ -61,7 +61,7 @@ export type CtaState = "unauthenticated" | "active";
 type Disputes = NonNullable<AuditRunView["disputes"]>;
 
 /** Recova's hasDisputeSignal: any open, forfeited, won or lost dispute. */
-export function hasDisputeSignal(data: Disputes): boolean {
+function hasDisputeSignal(data: Disputes): boolean {
   return (
     data.open.count > 0 ||
     data.acceptedWithoutFighting.count > 0 ||

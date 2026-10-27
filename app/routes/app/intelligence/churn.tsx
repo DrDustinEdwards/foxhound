@@ -1,4 +1,3 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import { lineChart } from "enarratio/lite/line";
 import { PageHead } from "capsomer/react/page-head";
@@ -15,6 +14,7 @@ import "capsomer/status.css";
 import "capsomer/table.css";
 import "./churn.css";
 
+import { EnarratioFigure } from "~/components/enarratio-figure";
 import { IntelligenceUpsell } from "~/components/intelligence-upsell";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -214,25 +214,9 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
   );
 }
 
-// The drawing's width before the panel is measured, and on the server: about
-// the panel body's width in Recova's 1280px column. In the browser the chart
-// is redrawn at its panel's measured width, so its text keeps its set size at
-// every width instead of shrinking with a phone screen (Recova's chart is a
-// ResponsiveContainer at 100% width).
-const CHART_WIDTH = 1160;
-const CHART_MIN_WIDTH = 280;
-// The redraw happens in steps of this many pixels, so dragging a window
-// redraws the SVG a few times rather than on every pixel.
-const CHART_WIDTH_STEP = 40;
 // Recova's ResponsiveContainer is 180px tall with its axes inside; Enarratio
 // draws its legend outside the SVG and keeps 64px of the height for its axes.
 const CHART_HEIGHT = 220;
-
-/** The width to draw at for a measured panel width: rounded down to the step,
- *  never under the minimum. */
-export function chartWidthFor(measured: number): number {
-  return Math.max(CHART_MIN_WIDTH, Math.floor(measured / CHART_WIDTH_STEP) * CHART_WIDTH_STEP);
-}
 
 interface ChurnRow {
   // Capitalized because Enarratio names the data table's first column after it.
@@ -273,69 +257,7 @@ function drawChurnRate(points: readonly ChurnRatePointLike[], width: number): st
   });
 }
 
+// fh-churn-chart scopes Enarratio's documented gridline rule (churn.css).
 export function ChurnRateChart({ points }: { points: readonly ChurnRatePointLike[] }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const dataOpen = useRef(false);
-  const [width, setWidth] = useState(CHART_WIDTH);
-
-  // The wrapper is rendered in every branch, so the observer always attaches.
-  // Measurements are coalesced to one per frame, and React skips the redraw
-  // when the stepped width has not changed.
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
-    let frame = 0;
-    const observer = new ResizeObserver((entries) => {
-      const measured = Math.floor(entries[0]?.contentRect.width ?? 0);
-      if (measured <= 0) return;
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => setWidth(chartWidthFor(measured)));
-    });
-    observer.observe(el);
-    // Remember whether the reader opened Enarratio's "Data table", because a
-    // redraw replaces its <details>. toggle does not bubble, hence capture.
-    const onToggle = (event: Event) => {
-      if (event.target instanceof HTMLDetailsElement) dataOpen.current = event.target.open;
-    };
-    el.addEventListener("toggle", onToggle, true);
-    return () => {
-      cancelAnimationFrame(frame);
-      observer.disconnect();
-      el.removeEventListener("toggle", onToggle, true);
-    };
-  }, []);
-
-  const drawn = useMemo(() => {
-    // Enarratio refuses input it cannot draw honestly by throwing; one chart's
-    // refusal must not take the page down, so it is shown in the chart's place.
-    try {
-      return { html: drawChurnRate(points, width) };
-    } catch (err) {
-      return { error: err instanceof Error ? err.message : String(err) };
-    }
-  }, [points, width]);
-
-  // After a redraw, reopen the data table if the reader had it open.
-  const html: string | null = drawn.html ?? null;
-  useLayoutEffect(() => {
-    if (!html || !dataOpen.current) return;
-    const details = ref.current?.querySelector("details");
-    if (details) details.open = true;
-  }, [html]);
-
-  // fh-churn-chart scopes Enarratio's documented gridline rule (churn.css).
-  // min-w-0: Capsomer's panel body is a grid, whose items default to their
-  // content's width, so without it the measured width could never drop below
-  // the drawing's and a phone would get a sideways-scrolling chart.
-  return (
-    <div ref={ref} className="fh-churn-chart min-w-0">
-      {html === null ? (
-        <p className="m-0 text-label text-text-tertiary">
-          This chart could not be drawn: {"error" in drawn ? drawn.error : ""}
-        </p>
-      ) : (
-        <div dangerouslySetInnerHTML={{ __html: html }} />
-      )}
-    </div>
-  );
+  return <EnarratioFigure className="fh-churn-chart" draw={(width) => drawChurnRate(points, width)} />;
 }

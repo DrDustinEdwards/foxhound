@@ -9,7 +9,7 @@
 // but revoking the grant at Stripe did not, and saying nothing would leave the
 // merchant believing Stripe access was revoked. So it stays on the page.
 
-export const DISCONNECT_FAILED = "Could not disconnect Stripe. Try again or contact support.";
+const DISCONNECT_FAILED = "Could not disconnect Stripe. Try again or contact support.";
 
 export interface DisconnectResult {
   action: string;

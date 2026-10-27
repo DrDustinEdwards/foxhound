@@ -36,7 +36,7 @@ export function readVoiceSamples(stored: string | null | undefined): string[] {
 }
 
 /** Trimmed, non-empty strings, each cut to the length limit, at most five. */
-export function cleanVoiceSamples(samples: readonly unknown[]): string[] {
+function cleanVoiceSamples(samples: readonly unknown[]): string[] {
   return samples
     .filter((s): s is string => typeof s === "string")
     .map((s) => s.trim().slice(0, VOICE_SAMPLE_MAX_CHARS).trim())

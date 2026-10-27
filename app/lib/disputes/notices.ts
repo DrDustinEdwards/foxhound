@@ -177,7 +177,7 @@ const REMINDER_ACTION_LINE = "Auto-submit is off. You need to review and submit,
  *  refuses; the page's Approve and submit resumes the standing approval, and
  *  Stripe is where the merchant can see whether the evidence arrived. Recova
  *  had no such state: its approval and submission were one step. */
-export const REMINDER_APPROVED_LINE =
+const REMINDER_APPROVED_LINE =
   "Your evidence is approved, but Stripe has not confirmed the submission. Check this dispute in Stripe, or open it in Foxhound to submit it again.";
 
 /** Recova's sendDisputeDeadlineReminderEmail, auto-submit off. */

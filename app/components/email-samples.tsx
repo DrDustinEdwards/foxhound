@@ -83,7 +83,7 @@ export function EmailSamples() {
 
 /** What the generator draws for a given state, apart from the fetcher, so each
  *  state (idle, busy, a result, a failure) can be rendered on its own. */
-export function EmailGeneratorView({
+function EmailGeneratorView({
   category,
   busy,
   result,

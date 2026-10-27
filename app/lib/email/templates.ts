@@ -93,7 +93,7 @@ const foxhoundBlocks: Template<{ subjectLine: string; content: Block[] }> = {
 
 /** The content of one mail: a body the sender wrote as HTML, a notice, or
  *  Capsomer's blocks. */
-export type RenderContent =
+type RenderContent =
   | { bodyHtml: string; notice?: never; blocks?: never }
   | { notice: EmailNotice; bodyHtml?: never; blocks?: never }
   | { blocks: Block[]; bodyHtml?: never; notice?: never };
@@ -262,7 +262,7 @@ export function appendOpenPixel(html: string, openUrl: string): string {
  * is a hint to whoever is reading the source, and the trap works by being
  * uninteresting.
  */
-export function appendHoneypotLink(html: string, honeypotUrl: string): string {
+function appendHoneypotLink(html: string, honeypotUrl: string): string {
   const href = escapeHtml(checkUrl(honeypotUrl));
   return beforeBodyEnd(
     html,

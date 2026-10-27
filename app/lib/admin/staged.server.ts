@@ -39,7 +39,7 @@ const STAGED_KINDS = [
   "billing_exempt",
   "intelligence_grant",
 ] as const;
-export type StagedKind = (typeof STAGED_KINDS)[number];
+type StagedKind = (typeof STAGED_KINDS)[number];
 
 /** A pending change older than this can no longer be confirmed. */
 const STAGED_TTL_MS = 7 * DAY_MS;

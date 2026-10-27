@@ -72,7 +72,7 @@ const DATE_FORMAT = new Intl.DateTimeFormat("en-US", {
 });
 
 /** Build the preview as of `now`. Pure: the same instant gives the same preview. */
-export function buildRecoveryPreview(now: Date): RecoveryPreview {
+function buildRecoveryPreview(now: Date): RecoveryPreview {
   const nowMs = now.getTime();
   const seed = buildRecoverySeed(DEMO_ACCOUNT_ID, buildTeamflowBase(now), now);
 

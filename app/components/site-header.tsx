@@ -76,7 +76,7 @@ function isOn(pathname: string, to: string, end = false): boolean {
  *  (Dustin's answer 3), each on the route the gear linked to. The gear's other
  *  rows (Notifications, Features, Stripe connections, My account) are each one
  *  row of the Settings hub, so no page loses its way in. */
-export const BUSINESS_ROW_LABELS = [
+const BUSINESS_ROW_LABELS = [
   "Settings",
   "Billing",
   "Team",

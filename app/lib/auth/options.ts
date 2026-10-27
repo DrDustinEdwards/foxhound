@@ -14,8 +14,8 @@ import { isDisposableEmail } from "./disposable-emails";
 // and reconciled in Phase 3 C4 (see docs/auth/README.md).
 
 /** Session lifetime: 30 days, refreshed at most once per day. */
-export const SESSION_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 30;
-export const SESSION_UPDATE_AGE_SECONDS = 60 * 60 * 24;
+const SESSION_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 30;
+const SESSION_UPDATE_AGE_SECONDS = 60 * 60 * 24;
 
 /** What every Better Auth account write stores in place of Google's tokens. */
 const NO_OAUTH_TOKENS = {

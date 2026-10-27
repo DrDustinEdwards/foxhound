@@ -8,7 +8,7 @@ import type { Tone } from "~/lib/recovery/labels";
 // boolean: it crosses the loader as JSON.
 
 /** How a dispute's status reads: disputeListStatus's tone, as /disputes. */
-export type PreviewStateTone = Tone;
+type PreviewStateTone = Tone;
 
 export interface PreviewDisputeRow {
   id: string;

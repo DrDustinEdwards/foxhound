@@ -208,12 +208,3 @@ export function healthAlt(days: readonly { date: string; atRisk: number; watch: 
   );
 }
 
-/**
- * Enarratio draws a <title> inside every bar and point, which browsers show as
- * a hover tooltip. This page adds no tooltips (Recova's were struck, 193); the
- * chart keeps its accessible name and its data table, which carry the same
- * numbers as text. The same rule as the recovery dashboard's charts.
- */
-export function withoutHoverTitles(html: string): string {
-  return html.replace(/<title>[\s\S]*?<\/title>/g, "");
-}

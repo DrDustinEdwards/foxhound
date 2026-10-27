@@ -72,7 +72,7 @@ export function AuthHeading({ title, subtitle }: { title: string; subtitle?: Rea
  * Recova's pages do not have, so the contract is used directly, as /connect
  * does. `aside` sits at the label row's end.
  */
-export function AuthField({
+function AuthField({
   id,
   label,
   hint,
@@ -124,18 +124,6 @@ export function AuthField({
         aria-invalid={errorId ? true : undefined}
         aria-describedby={errorId}
       />
-    </div>
-  );
-}
-
-/** The full-width primary button that submits the form (Recova's `w-full
- *  btn-primary`). A grid around it stretches it, as on /connect. */
-export function AuthSubmit({ busy, label, busyLabel }: { busy: boolean; label: string; busyLabel: string }) {
-  return (
-    <div className="grid">
-      <Button type="submit" variant="primary" size="lg" pending={busy}>
-        {busy ? busyLabel : label}
-      </Button>
     </div>
   );
 }

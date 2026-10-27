@@ -143,8 +143,3 @@ export async function verifyMcpToken(
   await db.update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, row.id));
   return { keyId: row.id, accountId: row.accountId, scope: row.scope };
 }
-
-/** Revoke a token by id. Verification rejects revoked tokens thereafter. */
-export async function revokeMcpToken(db: Db, keyId: string): Promise<void> {
-  await db.update(apiKeys).set({ revokedAt: new Date() }).where(eq(apiKeys.id, keyId));
-}

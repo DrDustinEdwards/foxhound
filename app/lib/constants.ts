@@ -302,8 +302,6 @@ export type BillingLineItemType = (typeof BILLING_LINE_ITEM_TYPES)[number];
 export const MODEL_RECOVERY_EMAIL = "claude-sonnet-5";
 /** Intelligence nightly AI analyst narrative + per-customer assessments. */
 export const MODEL_INTELLIGENCE_NARRATIVE = "claude-sonnet-5";
-/** Cheap quality/scoring gate on generated copy. */
-const MODEL_EMAIL_QUALITY = "claude-haiku-4-5-20251001";
 /** Unauthenticated home-page email sample generator: copy generation, not
  *  money-path reasoning, so the cheap model is correct here too. */
 export const MODEL_MARKETING_EMAIL_SAMPLE = "claude-haiku-4-5-20251001";
@@ -315,20 +313,6 @@ export const MODEL_MARKETING_EMAIL_SAMPLE = "claude-haiku-4-5-20251001";
 export const MODEL_AUDIT_SUMMARY = "claude-haiku-4-5-20251001";
 /** Legacy's own budget for the summary, ported as found. Three sentences. */
 export const AUDIT_SUMMARY_MAX_TOKENS = 300;
-
-/**
- * Every model id the app may call. The ai_calls cost map (app/lib/ai/cost.ts)
- * MUST cover each (closes legacy R-49 drift: a model with no cost entry throws).
- * Cost lookup normalizes a trailing -YYYYMMDD date suffix to the canonical base
- * id, so both `claude-haiku-4-5` and `claude-haiku-4-5-20251001` resolve.
- */
-export const AI_MODEL_IDS = [
-  MODEL_RECOVERY_EMAIL,
-  MODEL_INTELLIGENCE_NARRATIVE,
-  MODEL_EMAIL_QUALITY,
-  MODEL_MARKETING_EMAIL_SAMPLE,
-  MODEL_AUDIT_SUMMARY,
-] as const;
 
 // ---- Recovery step timing (hours from failure detection) ----
 // Rebuild ordering is SILENT-FIRST (PRICING.md): for retryable declines a silent
@@ -471,7 +455,7 @@ export const EMAIL_FROM_ADDRESS = `recovery@${EMAIL_SEND_DOMAIN}`;
  *  password reset) - onboarded separately from EMAIL_SEND_DOMAIN so auth mail's
  *  reputation never mixes with bulk dunning mail's (TASK-foxhound-email-
  *  provisioning.md). Never use for merchant-customer sends. */
-export const EMAIL_AUTH_DOMAIN = "auth.foxhoundapp.com";
+const EMAIL_AUTH_DOMAIN = "auth.foxhoundapp.com";
 /** Envelope From address for transactional auth mail only (sendTransactionalEmail).
  *  Never EMAIL_FROM_ADDRESS: a signup-verification email from "recovery@" reads
  *  wrong and would muddy the auth-vs-dunning reputation split this domain split

@@ -106,7 +106,7 @@ function brakeEligibleCondition(): SQL {
 }
 
 /** Accounts the brake currently owns: paused AND carrying the brake marker. */
-export function brakePausedCondition(): SQL {
+function brakePausedCondition(): SQL {
   return and(
     eq(accounts.processingPaused, true),
     eq(accounts.pauseReason, BRAKE_PAUSE_REASON),
@@ -401,7 +401,7 @@ export async function releaseBrake(
   );
 }
 
-export interface BrakeEvent {
+interface BrakeEvent {
   actorEmail: string;
   at: Date;
   count: number | null;

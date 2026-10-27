@@ -114,7 +114,7 @@ function formatAmount(cents: number, currency: string): string {
  * server's zone; both platforms run UTC in production, and pinning it here
  * makes the render independent of where the test runs (342 binding 2).
  */
-export function digestSubject(input: {
+function digestSubject(input: {
   now: Date;
   intelligenceActive: boolean;
   disputesActive: boolean;

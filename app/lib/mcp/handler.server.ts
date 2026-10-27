@@ -54,7 +54,7 @@ function mcpErrorBody(id: string | number | null, code: number, message: string)
 }
 
 /** What the endpoint resolved before dispatching. */
-export interface McpAuthContext {
+interface McpAuthContext {
   keyId: string;
   accountId: string;
 }

@@ -47,7 +47,7 @@ export function compareTotals(
 
 /** Legacy's subject, with the one brand substitution and nothing appended
  *  (E24: Recova's subject carries no month). */
-export const MONTHLY_AUDIT_SUBJECT = "Your monthly Foxhound report";
+const MONTHLY_AUDIT_SUBJECT = "Your monthly Foxhound report";
 
 /** Recova sends this from FROM_HELLO, "Recova <hello@...>", and its footer
  *  names "Recova": the platform speaks, never the merchant's sender (E24). */

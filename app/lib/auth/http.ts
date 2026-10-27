@@ -7,16 +7,3 @@ export function forwardSetCookie(from: Response, headers = new Headers()): Heade
   }
   return headers;
 }
-
-// Pull a human-readable message out of a Better Auth error response body.
-export async function authErrorMessage(
-  res: Response,
-  fallback: string,
-): Promise<string> {
-  try {
-    const body = (await res.json()) as { message?: string } | null;
-    return body?.message ?? fallback;
-  } catch {
-    return fallback;
-  }
-}

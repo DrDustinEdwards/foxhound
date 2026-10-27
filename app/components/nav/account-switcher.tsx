@@ -35,9 +35,9 @@ export function accountInitial(a: SwitcherAccount): string {
 /** A switch is a POST, not a page, so an account's row carries this marker in
  *  place of an href and the header's link renderer draws a button for it
  *  (app/components/site-header.tsx). */
-export const SWITCH_ACCOUNT_PREFIX = "#switch-account:";
+const SWITCH_ACCOUNT_PREFIX = "#switch-account:";
 
-export function switchAccountHref(accountId: string): string {
+function switchAccountHref(accountId: string): string {
   return `${SWITCH_ACCOUNT_PREFIX}${accountId}`;
 }
 
