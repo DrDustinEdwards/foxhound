@@ -218,10 +218,8 @@ const primarySamples = sql<string | null>`(
   limit 1
 )`;
 
-/** Fetch due steps for active failed payments on processing-eligible accounts,
- *  bounded to RECOVERY_TICK_LIMIT and earliest-scheduled first. */
-export async function queryDueRecoverySteps(env: Env, now: Date): Promise<DueStepRow[]> {
-  const db = getDb(env);
+/** One recovery step joined to its payment, account and connection: the row both selections below read. */
+function selectStepRows(db: Db) {
   return db
     .select({
       stepId: recoverySteps.id,
@@ -257,7 +255,13 @@ export async function queryDueRecoverySteps(env: Env, now: Date): Promise<DueSte
     .from(recoverySteps)
     .innerJoin(failedPayments, eq(failedPayments.id, recoverySteps.failedPaymentId))
     .innerJoin(accounts, eq(accounts.id, recoverySteps.accountId))
-    .leftJoin(stripeConnections, eq(stripeConnections.id, failedPayments.stripeConnectionId))
+    .leftJoin(stripeConnections, eq(stripeConnections.id, failedPayments.stripeConnectionId));
+}
+
+/** Fetch due steps for active failed payments on processing-eligible accounts,
+ *  bounded to RECOVERY_TICK_LIMIT and earliest-scheduled first. */
+export async function queryDueRecoverySteps(env: Env, now: Date): Promise<DueStepRow[]> {
+  return selectStepRows(getDb(env))
     .where(
       and(
         stepDueCondition(now),
@@ -322,42 +326,7 @@ export async function queryStepForManualTrigger(
   accountId: string,
   stepId: string,
 ): Promise<DueStepRow | null> {
-  const rows = await db
-    .select({
-      stepId: recoverySteps.id,
-      stepType: recoverySteps.stepType,
-      stepNumber: recoverySteps.stepNumber,
-      accountId: recoverySteps.accountId,
-      failedPaymentId: recoverySteps.failedPaymentId,
-      scheduledAt: recoverySteps.scheduledAt,
-      nextRetryAt: recoverySteps.nextRetryAt,
-      attemptCount: recoverySteps.attemptCount,
-      customBody: recoverySteps.customBody,
-      aiSubject: recoverySteps.aiSubject,
-      aiBodyHtml: recoverySteps.aiBodyHtml,
-      invoiceId: failedPayments.stripeInvoiceId,
-      amountCents: failedPayments.amountCents,
-      currency: failedPayments.currency,
-      customerEmail: failedPayments.customerEmail,
-      customerName: failedPayments.customerName,
-      declineCategory: failedPayments.declineCategory,
-      connectionAccessToken: stripeConnections.stripeAccessToken,
-      merchantName: stripeConnections.senderName,
-      brandVoice: stripeConnections.brandVoice,
-      merchantIndustry: accounts.merchantIndustry,
-      primaryCustomerType: accounts.primaryCustomerType,
-      merchantMrrCents: accounts.merchantMrrSelfReported,
-      brandVoiceSoft: stripeConnections.brandVoiceSoft,
-      brandVoiceExpired: stripeConnections.brandVoiceExpired,
-      brandVoiceNetwork: stripeConnections.brandVoiceNetwork,
-      brandVoiceFraud: stripeConnections.brandVoiceFraud,
-      brandVoiceSamples: primarySamples,
-      replyToEmail: stripeConnections.replyToEmail,
-    })
-    .from(recoverySteps)
-    .innerJoin(failedPayments, eq(failedPayments.id, recoverySteps.failedPaymentId))
-    .innerJoin(accounts, eq(accounts.id, recoverySteps.accountId))
-    .leftJoin(stripeConnections, eq(stripeConnections.id, failedPayments.stripeConnectionId))
+  const rows = await selectStepRows(db)
     .where(
       and(
         eq(recoverySteps.id, stepId),

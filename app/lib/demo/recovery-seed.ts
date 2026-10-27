@@ -297,7 +297,28 @@ function buildFailure(
 
   const steps: RecoveryStepInsert[] = [];
   let stepIdSeq = 0;
-  const nextStepId = () => `dstep_${idSeq}_${stepIdSeq++}`;
+  type Planned = (typeof schedule)[number];
+  const stepFor = (planned: Planned): RecoveryStepInsert => ({
+    id: `dstep_${idSeq}_${stepIdSeq++}`,
+    failedPaymentId,
+    accountId,
+    stepType: planned.stepType,
+    stepNumber: planned.stepNumber,
+    scheduledAt: planned.scheduledAt,
+  });
+  // A step that ran on schedule and did not recover the payment: a failed retry, or
+  // an email the customer may have opened or clicked.
+  const ranWithoutRecovery = (planned: Planned): RecoveryStepInsert => {
+    const ran = { ...stepFor(planned), executedAt: planned.scheduledAt, attemptCount: 1 };
+    if (isRetryStep(planned.stepType)) return { ...ran, result: "retry_failed" };
+    const { openedAt, clickedAt } = simulateOpenClick(`${seed}:${planned.stepNumber}`);
+    return {
+      ...ran,
+      result: "email_sent",
+      openedAt: openedAt ? new Date(planned.scheduledAt.getTime() + 2 * HOUR_MS) : null,
+      clickedAt: clickedAt ? new Date(planned.scheduledAt.getTime() + 3 * HOUR_MS) : null,
+    };
+  };
 
   let status: "active" | "recovered" | "failed_unrecovered";
   let resolvedAt: Date | null = null;
@@ -306,181 +327,42 @@ function buildFailure(
     status = "recovered";
     resolvedAt = outcome.recoveredAt;
     for (const planned of schedule) {
-      const stepId = nextStepId();
       if (planned.scheduledAt.getTime() < outcome.recoveredAt.getTime()) {
         // Executed before recovery: an unsuccessful attempt.
-        const stepSeed = `${seed}:${planned.stepNumber}`;
-        if (isRetryStep(planned.stepType)) {
-          steps.push({
-            id: stepId,
-            failedPaymentId,
-            accountId,
-            stepType: planned.stepType,
-            stepNumber: planned.stepNumber,
-            scheduledAt: planned.scheduledAt,
-            executedAt: planned.scheduledAt,
-            result: "retry_failed",
-            attemptCount: 1,
-          });
-        } else {
-          const { openedAt, clickedAt } = simulateOpenClick(stepSeed);
-          steps.push({
-            id: stepId,
-            failedPaymentId,
-            accountId,
-            stepType: planned.stepType,
-            stepNumber: planned.stepNumber,
-            scheduledAt: planned.scheduledAt,
-            executedAt: planned.scheduledAt,
-            result: "email_sent",
-            openedAt: openedAt ? new Date(planned.scheduledAt.getTime() + 2 * HOUR_MS) : null,
-            clickedAt: clickedAt ? new Date(planned.scheduledAt.getTime() + 3 * HOUR_MS) : null,
-            attemptCount: 1,
-          });
-        }
+        steps.push(ranWithoutRecovery(planned));
         continue;
       }
       // This is the causing step: recovery lands here, then the sequence stops.
+      const ran = { ...stepFor(planned), executedAt: outcome.recoveredAt, attemptCount: 1 };
       const isRetry = isRetryStep(planned.stepType);
-      const isEmail = isEmailStep(planned.stepType);
       if (outcome.causeMode === "retry" && isRetry) {
+        steps.push({ ...ran, result: "retry_succeeded" });
+      } else if (outcome.causeMode === "click" && isEmailStep(planned.stepType)) {
         steps.push({
-          id: stepId,
-          failedPaymentId,
-          accountId,
-          stepType: planned.stepType,
-          stepNumber: planned.stepNumber,
-          scheduledAt: planned.scheduledAt,
-          executedAt: outcome.recoveredAt,
-          result: "retry_succeeded",
-          attemptCount: 1,
-        });
-      } else if (outcome.causeMode === "click" && isEmail) {
-        steps.push({
-          id: stepId,
-          failedPaymentId,
-          accountId,
-          stepType: planned.stepType,
-          stepNumber: planned.stepNumber,
-          scheduledAt: planned.scheduledAt,
-          executedAt: outcome.recoveredAt,
+          ...ran,
           result: "email_sent",
           openedAt: new Date(outcome.recoveredAt.getTime() - HOUR_MS),
           clickedAt: new Date(outcome.recoveredAt.getTime() - 30 * 60_000),
-          attemptCount: 1,
-        });
-      } else if (isRetry) {
-        steps.push({
-          id: stepId,
-          failedPaymentId,
-          accountId,
-          stepType: planned.stepType,
-          stepNumber: planned.stepNumber,
-          scheduledAt: planned.scheduledAt,
-          executedAt: outcome.recoveredAt,
-          result: "retry_failed",
-          attemptCount: 1,
         });
       } else {
-        steps.push({
-          id: stepId,
-          failedPaymentId,
-          accountId,
-          stepType: planned.stepType,
-          stepNumber: planned.stepNumber,
-          scheduledAt: planned.scheduledAt,
-          executedAt: outcome.recoveredAt,
-          result: "email_sent",
-          attemptCount: 1,
-        });
+        steps.push({ ...ran, result: isRetry ? "retry_failed" : "email_sent" });
       }
       break; // recovered: the sequence ends here, later steps never ran.
     }
   } else if (outcome.kind === "failed_unrecovered") {
     status = "failed_unrecovered";
-    for (const planned of schedule) {
-      const stepId = nextStepId();
-      const stepSeed = `${seed}:${planned.stepNumber}`;
-      if (isRetryStep(planned.stepType)) {
-        steps.push({
-          id: stepId,
-          failedPaymentId,
-          accountId,
-          stepType: planned.stepType,
-          stepNumber: planned.stepNumber,
-          scheduledAt: planned.scheduledAt,
-          executedAt: planned.scheduledAt,
-          result: "retry_failed",
-          attemptCount: 1,
-        });
-      } else {
-        const { openedAt, clickedAt } = simulateOpenClick(stepSeed);
-        steps.push({
-          id: stepId,
-          failedPaymentId,
-          accountId,
-          stepType: planned.stepType,
-          stepNumber: planned.stepNumber,
-          scheduledAt: planned.scheduledAt,
-          executedAt: planned.scheduledAt,
-          result: "email_sent",
-          openedAt: openedAt ? new Date(planned.scheduledAt.getTime() + 2 * HOUR_MS) : null,
-          clickedAt: clickedAt ? new Date(planned.scheduledAt.getTime() + 3 * HOUR_MS) : null,
-          attemptCount: 1,
-        });
-      }
-    }
+    for (const planned of schedule) steps.push(ranWithoutRecovery(planned));
   } else {
     status = "active";
     for (const planned of schedule) {
-      const stepId = nextStepId();
-      if (planned.scheduledAt.getTime() > now.getTime()) {
-        // Not due yet: exists (the real intake inserts the whole schedule up
-        // front), unexecuted.
-        steps.push({
-          id: stepId,
-          failedPaymentId,
-          accountId,
-          stepType: planned.stepType,
-          stepNumber: planned.stepNumber,
-          scheduledAt: planned.scheduledAt,
-        });
-        continue;
-      }
-      const stepSeed = `${seed}:${planned.stepNumber}`;
-      if (isRetryStep(planned.stepType)) {
-        steps.push({
-          id: stepId,
-          failedPaymentId,
-          accountId,
-          stepType: planned.stepType,
-          stepNumber: planned.stepNumber,
-          scheduledAt: planned.scheduledAt,
-          executedAt: planned.scheduledAt,
-          result: "retry_failed",
-          attemptCount: 1,
-        });
-      } else {
-        const { openedAt, clickedAt } = simulateOpenClick(stepSeed);
-        steps.push({
-          id: stepId,
-          failedPaymentId,
-          accountId,
-          stepType: planned.stepType,
-          stepNumber: planned.stepNumber,
-          scheduledAt: planned.scheduledAt,
-          executedAt: planned.scheduledAt,
-          result: "email_sent",
-          openedAt: openedAt ? new Date(planned.scheduledAt.getTime() + 2 * HOUR_MS) : null,
-          clickedAt: clickedAt ? new Date(planned.scheduledAt.getTime() + 3 * HOUR_MS) : null,
-          attemptCount: 1,
-        });
-      }
+      // Not due yet: exists (the real intake inserts the whole schedule up
+      // front), unexecuted.
+      steps.push(planned.scheduledAt.getTime() > now.getTime() ? stepFor(planned) : ranWithoutRecovery(planned));
     }
   }
 
   // Attach the pre-written subject/body to every email step in one pass rather
-  // than at each of the five push sites above, so a new branch cannot silently
+  // than at each push site above, so a new branch cannot silently
   // ship a body-less email step. Unexecuted future steps get copy too: the real
   // intake writes the whole schedule up front, and a merchant previewing a
   // pending step should still see what is queued to go out.
