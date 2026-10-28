@@ -242,6 +242,7 @@ export default [
   route("llms.txt", "./routes/files/llms.ts"),
   route("llms-full.txt", "./routes/files/llms-full.ts"),
   route("feed.rss", "./routes/files/feed.ts"),
+  route("blog/rss.xml", "./routes/files/blog-rss-redirect.ts"),
   route(".well-known/security.txt", "./routes/files/security-txt.ts"),
   // OAuth discovery (J79, rows F18 and F19). Recova's next.config.ts rewrote
   // both paths to one handler because Claude.ai probes both; one module here,

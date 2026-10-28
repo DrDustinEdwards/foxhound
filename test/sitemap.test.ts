@@ -108,6 +108,8 @@ const EXCLUDED_PREFIXES = [
   "/ai.txt",
   "/llms-full.txt",
   "/feed.rss",
+  // Recova's second address for the same feed, now one 301 to /feed.rss.
+  "/blog/rss.xml",
   "/og/",
   "/og",
   // Recova's next.config.ts redirects (J23): /user-guides and
