@@ -13,5 +13,10 @@
       "drizzle/migrations/**",
       "docs/research/kill-matrix.json"
     ]
+  },
+  "tokens": {
+    "--surface": "Foxhound keeps Recova's amber look on its own domain (Dustin 2026-10-25/26); its public tokens are Recova's",
+    "--sunken": "same: Recova's palette",
+    "--text": "same: Recova's palette"
   }
 }
