@@ -26,19 +26,8 @@
 @import "capsomer/skeleton.css";
 @import "capsomer/table.css";
 
-/* Capsomer's faces, self-hosted from @fontsource (latin and latin-ext) and
-   bundled with this stylesheet: Schibsted Grotesk for the UI, Martian Mono for
-   figures. */
-@import "@fontsource/schibsted-grotesk/latin-400.css";
-@import "@fontsource/schibsted-grotesk/latin-500.css";
-@import "@fontsource/schibsted-grotesk/latin-600.css";
-@import "@fontsource/schibsted-grotesk/latin-700.css";
-@import "@fontsource/schibsted-grotesk/latin-ext-400.css";
-@import "@fontsource/schibsted-grotesk/latin-ext-500.css";
-@import "@fontsource/schibsted-grotesk/latin-ext-600.css";
-@import "@fontsource/schibsted-grotesk/latin-ext-700.css";
-@import "@fontsource/martian-mono/latin-400.css";
-@import "@fontsource/martian-mono/latin-500.css";
+/* Capsomer's faces, Schibsted Grotesk for the UI and Martian Mono for figures. */
+@import "capsomer/fonts.css";
 
 /* The admin pages are written with Foxhound's Tailwind utilities (bg-surface,
    text-text-tertiary, border-border, the brand accent, the status triads). Inside the
