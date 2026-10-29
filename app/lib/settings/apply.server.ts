@@ -590,7 +590,11 @@ export interface AlertCreateState {
   direction: string;
   thresholdValue: number;
   label: string | null;
+  channel: string;
 }
+
+/** Recova's two channels. Email is the default, as Recova's form opens on it. */
+const ALERT_CHANNELS = ["email", "slack"] as const;
 
 /** The three refusals, the form's own sentences. */
 const ALERT_METRIC_ERROR = "Choose a metric Foxhound tracks.";
@@ -614,7 +618,7 @@ const ALERT_NOT_FOUND_ERROR = "Select an alert.";
 export async function applyAlertCreate(
   db: Db,
   accountId: string,
-  input: { metric: unknown; direction: unknown; threshold: unknown; label?: unknown },
+  input: { metric: unknown; direction: unknown; threshold: unknown; label?: unknown; channel?: unknown },
   now: Date,
   trace?: WriteTrace,
 ): Promise<ApplyResult<AlertCreateState>> {
@@ -629,6 +633,7 @@ export async function applyAlertCreate(
     return { ok: false, error: ALERT_THRESHOLD_ERROR };
   }
   const thresholdValue = isCentsMetric(metric) ? Math.round(parsed * 100) : parsed;
+  const channel = (ALERT_CHANNELS as readonly unknown[]).includes(input.channel) ? String(input.channel) : "email";
 
   const state: AlertCreateState = {
     id: crypto.randomUUID(),
@@ -636,9 +641,10 @@ export async function applyAlertCreate(
     direction,
     thresholdValue,
     label: asOptionalText(input.label),
+    channel,
   };
   // A new row, so every column it names is a field this write touched.
-  const fields = ["metric", "direction", "threshold_value", "label"];
+  const fields = ["metric", "direction", "threshold_value", "label", "channel"];
   await commit(
     db,
     accountId,

@@ -760,14 +760,22 @@ export const INTELLIGENCE_NARRATIVE_TOP_N = 10;
  *  RATE_LIMIT_MAX). Held by the RATE_LIMITER Durable Object, keyed per
  *  account (report-generate.server.ts). */
 export const INTELLIGENCE_REPORT_HOURLY_LIMIT = 5;
-/** Canonical alert metric keys the nightly evaluator understands (alerts.metric
- *  is unconstrained text in the schema; this is the app-level enum until a
- *  settings UI for creating alerts exists). */
+/** Recova's eleven alert metrics, in its picker's order (AlertsClient.tsx,
+ *  blob ee8dac99). alerts.metric is unconstrained text in the schema; this is
+ *  the app-level enum, and computeAlertMetrics (alert-run.server.ts) returns
+ *  a value for each. */
 export const ALERT_METRICS = [
-  "health_score_avg",
+  "recovery_rate_pct",
   "mrr_at_risk_cents",
-  "mrr_churn_cents",
-  "mrr_contraction_cents",
+  "active_sequences",
+  "emails_sent_7d",
+  "open_disputes_count",
+  "disputes_due_48h",
+  "dispute_amount_at_stake_cents",
+  "high_risk_customers_count",
+  "intelligence_mrr_at_risk_cents",
+  "audit_leaking_cents",
+  "audit_leaking_delta_cents",
 ] as const;
 export type AlertMetric = (typeof ALERT_METRICS)[number];
 /** Canonical alert direction values (alerts.direction is unconstrained text). */

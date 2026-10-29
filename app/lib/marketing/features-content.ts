@@ -235,7 +235,7 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: `${Nightly} intelligence scoring`,
-          description: `Computes health scores, predictions, and alerts for every customer ${nightly}.`,
+          description: `Computes health scores and predictions for every customer ${nightly}.`,
           product: "Intelligence",
         },
         {
@@ -581,7 +581,7 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "Alert thresholds",
-          description: `Configure alerts on ${ALERT_METRICS.length} Intelligence metrics with your own thresholds and directions. Each breach is recorded and shown in Settings.`,
+          description: `Configure metric alerts (${ALERT_METRICS.length} metrics) with custom thresholds, directions, and channels (email or Slack).`,
           product: "Platform",
         },
         {

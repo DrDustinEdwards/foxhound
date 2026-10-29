@@ -13,6 +13,7 @@ import {
 import { DEMO_RESET_CRON_NAME } from "~/lib/demo/constants";
 import { seedDemoAccount } from "~/lib/demo/seed";
 import { runIntelligenceAiForAllAccounts } from "~/lib/intelligence/ai-run.server";
+import { runAlertsForAllAccounts } from "~/lib/intelligence/alert-run.server";
 import { runIntelligenceSyncForAllAccounts } from "~/lib/intelligence/sync.server";
 
 import { runD1Backup } from "~/lib/backup/d1-backup";
@@ -115,8 +116,18 @@ const intelligenceSync: CronHandler = async (env) => {
  *  retries + dunning sends; see app/lib/cron/recovery-tick.ts. */
 const recoveryTick: CronHandler = (env, ctx) => runRecoveryTick(env, {}, ctx?.runId ?? null);
 
-/** The Intelligence AI half (health scoring -> predictions -> alerts ->
- *  nightly narrative), wrapped as a cron handler. Runs on the daily/nightly
+/** Recova's evaluateAlerts, which ran at the tail of its recovery cron: every
+ *  account's alerts against its eleven metrics, then the critical customers
+ *  check. On the recovery tick's schedule and listed after it and the dispute
+ *  reminders, so it reads what they just did; the 24 hour cooldown keeps each alert to one
+ *  message a day (app/lib/intelligence/alert-run.server.ts). */
+const alertsEvaluate: CronHandler = async (env) => {
+  const { accounts, fired } = await runAlertsForAllAccounts(env, Date.now());
+  return { rowsProcessed: fired, message: `${accounts} accounts, ${fired} alerts fired` };
+};
+
+/** The Intelligence AI half (health scoring -> predictions -> nightly
+ *  narrative), wrapped as a cron handler. Runs on the daily/nightly
  *  schedule (PRICING.md: "nightly AI analyst narrative"), reusing
  *  CRON_SCHEDULE_DAILY rather than a new wrangler.jsonc trigger. Score/
  *  predict/alert always commit; the narrative fails safe (a skipped narrative
@@ -124,7 +135,6 @@ const recoveryTick: CronHandler = (env, ctx) => runRecoveryTick(env, {}, ctx?.ru
 const intelligenceAi: CronHandler = async (env) => {
   const results = await runIntelligenceAiForAllAccounts(env, Date.now());
   const customersScored = results.reduce((sum, r) => sum + r.customersScored, 0);
-  const alertsFired = results.reduce((sum, r) => sum + r.alertsFired, 0);
   const narrativesGenerated = results.filter((r) => r.narrativeGenerated).length;
   const skipped = results.filter((r) => r.narrativeSkippedReason !== null).length;
   const skippedNote = skipped > 0 ? `, ${skipped} narrative(s) skipped` : "";
@@ -132,7 +142,7 @@ const intelligenceAi: CronHandler = async (env) => {
     rowsProcessed: customersScored,
     message:
       `${results.length} accounts, ${customersScored} customers scored, ` +
-      `${alertsFired} alerts fired, ${narrativesGenerated} narratives generated${skippedNote}`,
+      `${narrativesGenerated} narratives generated${skippedNote}`,
   };
 };
 
@@ -286,6 +296,7 @@ export const CRON_JOBS: CronJob[] = [
   { name: RECOVERY_TICK_CRON_NAME, schedule: CRON_SCHEDULE_RECOVERY_TICK, handler: recoveryTick },
   { name: "winback-send", schedule: CRON_SCHEDULE_RECOVERY_TICK, handler: winbackSend },
   { name: DISPUTE_REMINDERS_CRON_NAME, schedule: CRON_SCHEDULE_RECOVERY_TICK, handler: disputeReminders },
+  { name: "alerts-evaluate", schedule: CRON_SCHEDULE_RECOVERY_TICK, handler: alertsEvaluate },
   { name: "weekly-digest", schedule: CRON_SCHEDULE_WEEKLY, handler: weeklyDigest },
   { name: "cron-health", schedule: CRON_SCHEDULE_DAILY, handler: cronHealth },
   { name: "expiring-cards", schedule: CRON_SCHEDULE_DAILY, handler: expiringCards },

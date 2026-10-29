@@ -125,7 +125,8 @@ export default function IntelligenceSettings() {
               <Link to="/settings/alerts" className={linkClass}>
                 Settings and Alerts
               </Link>{" "}
-              can alert on {ALERT_METRIC_LABELS.health_score_avg}, across your scored customers. Foxhound records each breach on that page and emails it to your notification address; it does not post alerts to Slack.
+              can alert on {ALERT_METRIC_LABELS.high_risk_customers_count} and{" "}
+              {ALERT_METRIC_LABELS.intelligence_mrr_at_risk_cents}, by email or Slack. Foxhound records each breach on that page.
             </DeliveryRow>
           </ul>
         </div>
