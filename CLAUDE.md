@@ -1,32 +1,33 @@
 # CLAUDE.md - foxhound
 
-Foxhound is the Cloudflare-native rebuild of Recova: failed-payment recovery, disputes and subscription intelligence for Stripe merchants. Work in this repo only; the legacy Recova app is the separate, frozen repo DrDustinEdwards/recova. Before writing anything another site might have, read what the family shares: https://github.com/DrDustinEdwards/devkit/blob/shared-list/SHARED.md (CI's family check fails on a copy).
-
-Dustin's prime directive (2026-07-27): **"I want the new site to be like the old site, except built to be native on Cloudflare."** Recova is the spec for content, layout and features; look and components come from Capsomer in Recova's amber, and shared family pieces replace Foxhound's own. Which differences need his word is `foxhound/RULES.md` 1.1 to 1.3.
+Foxhound, https://foxhoundapp.com: failed-payment recovery, disputes and subscription intelligence for Stripe merchants, the Cloudflare-native rebuild of Recova. React Router 8 on Workers, Drizzle on D1, Durable Objects for money writes, Queues for email, Access for the admin. The legacy Recova app is the separate, frozen repo DrDustinEdwards/recova.
 
 ## Rules that come first
 
-- Read `foxhound/core.md`, then `foxhound/RULES.md` in Capsid, the only Foxhound rules document that binds. A rule that blocks parity or a better website is deleted or changed, not worked around (RULES.md preamble).
 - Tests: keep the minimal set (a few browser tests for flows that must never break, one integration test per real behavior, unit tests only for tricky logic, shared code tested once where it lives), and remove any test that pins design, repeats coverage or has never caught a real mistake, unless it guards a harm that cannot be undone.
-- Canon lives in Capsid namespace `foxhound`: ARCHITECTURE.md, PRICING.md, DESIGN.md, SCHEMA.md and ROUTES.md; parity state is `parity/PARITY-LEDGER.md`. Never copy canon into this repo.
-
-## Repo-specific rules
-
-- Never clone or copy the legacy repo into the workspace. Read legacy code at exact paths through Capsid's repo tools with `repo: "legacy"` (recova) or `"legacy-mcp"` (recova-mcp). A repo WRITE with no `repo` given goes to THIS repo.
-- Legacy Supabase is read-only reference. The database is D1 through bindings, Drizzle only, no raw SQLite dialect in business logic.
-- Money writes follow RULES.md 3.2 (one writer per money table). If a task seems to need an interactive transaction, stop and flag it.
-- Email: Cloudflare Email Service through the EMAIL binding, wrapped in the single send module; never call the binding from business logic. Engagement signals come from Foxhound's own tracking routes. Bounces and complaints flow through Email Service events to the Queues consumer.
-- All user-facing copy says Foxhound. No Recova strings outside the data-migration mapping docs.
-- One Worker `foxhound`, one D1 `foxhound`, no `--env` anywhere; the only second Worker is the admin MCP in `mcp/` (RULES.md 7.1).
-
-## Verification
-
-- Crons: invoke the cron handler and check wrangler tail.
-- Webhooks: a Stripe CLI test event against the deployed Worker, then verify the D1 row.
-- Email: wrangler email emulation locally, then a real send with engagement tracking and bounce paths exercised.
-- Database changes: a Drizzle migration plus a SELECT against D1.
-- Billing: verify the evidence chain (action, outcome, line item), not just amounts.
+- Read `foxhound/core.md` in Capsid with this file. Before writing anything another site might have, read what the family shares: https://github.com/DrDustinEdwards/devkit/blob/shared-list/SHARED.md (CI's family check fails on a copy). Fees are `foxhound/PRICING.md`; read it before touching billing.
+- Recova is the spec (Dustin: "I want the new site to be like the old site, except built to be native on Cloudflare"): its content, layout, widths, text sizes and features, with Capsomer's components in Recova's amber and the shared family pieces in place of Foxhound's own. Shared pieces, their defaults, not copying Recova's bugs, and plain improvements in accessibility, speed, security, search and correctness need no ruling. Dropping a Recova feature or content, or moving the layout or look away from Recova, needs Dustin's quoted word in `foxhound/parity/APPROVED-DIFFERENCES.md`. Deliberately not built, do not restore: sender_domain, admin impersonation, Recova's email-body editor, dispute auto-submit, the Recovery cross-sell card, the audit "Copy link", prevention alerts.
 
 ## Commands
 
-`npm run check:all` (typecheck, lint, test, tokens, gates) before a push; `npm run db:generate` and `npm run db:migrate` for migrations; `npm run deploy` builds and deploys. Public repo (since 2026-10-21): never commit a key or real merchant data.
+- `npm run check:all` (typecheck, lint, test, tokens, gates) before a push. `npm run db:generate` and `npm run db:migrate` for migrations.
+- One Worker `foxhound` and one D1 `foxhound`, no `--env` anywhere: every deploy is production. The only second Worker is the admin MCP in `mcp/`, whose only bindings are a service binding to `foxhound` and its own OAuth KV, so it can never touch Stripe, D1 or money.
+- Read legacy code through Capsid's repo tools (`repo: "legacy"` or `"legacy-mcp"`), never by cloning it here. Legacy Supabase is read-only reference.
+- Public repo: never commit a key or real merchant data.
+
+## Hard rules
+
+Code comments that cite "RULES.md n.n" point at the retired Capsid file `foxhound/RULES.md`; its history and `foxhound/RULES-INDEX.md` explain them.
+
+1. Product facts in copy come from Foxhound's engine constants, never retyped and never Recova's numbers. Every statistic names its source URL and date. No recovery-rate promise, testimonial, counter or security attestation until a real one exists. A control that cannot do its job yet is left out. Stripe scope is read_write at /connect and read-only for the free audit; when copy and scope disagree, fix the copy.
+2. One writer per money table: recoveries only through buildRecoveryBatch, account state through cancelMerchant, alerts and win-back events through recordOutcome (never billable). Money parameters are required arguments with no default. Totals go through groupSumByCurrency. A second writer is a billing error a merchant finds first, and no test notices one being added.
+3. An UPDATE that matches zero rows is a failure, and in a D1 batch it does not stop the statements after it, so join each guard to the write it guards.
+4. No agent tool submits a dispute, cancels, disconnects, connects, or writes an outcome or a bill.
+5. Migrations that recreate a table are proven against real D1 with defer_foreign_keys (D1 ignores foreign_keys=OFF and the local harness enforces no keys), with row counts before and after on money tables.
+6. Any test against production runs on a billing-exempt account with live sends on for it alone, because a test that mints a fee row is a fake bill.
+7. Never delete a Cloudflare resource unless Dustin names it and a same-minute check shows it is not the live one. Never work around a credential; the fix is Dustin's.
+8. Tenant isolation: the active account lives on the session row; every query helper takes accountId first; no agent tool takes an account argument; one live Foxhound account per Stripe account. Agent tools mask customer name, phone, IP, billing address and email by default. Audit runs are private, and a refusal never names who holds an account.
+9. Anything private or carrying a session cookie is private, no-store; public pages send Vary: Cookie. One signed-in cache HIT means turn page caching off.
+10. The demo refuses every non-GET with 405 before any membership or database work, and nothing under app/lib/demo/ calls Stripe or Anthropic.
+11. Security headers come from site-runtime and its defaults are taken as they change. Never weaken production, or go back to Recova's weaker setup, to make a measurement easier. Merchant-visible HTML from AI is sanitized on the server.
+12. No paying merchant's money moves until an LLC exists; until then Terms are under Texas law and name Dustin Edwards as operator. Recova is retired only after Dustin says Foxhound is matched, in the order in `foxhound/CUTOVER-PLAN.md`.
