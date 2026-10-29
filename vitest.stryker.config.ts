@@ -4,8 +4,7 @@
 // These files assert on the raw source text of app files (readFileSync of a
 // .ts file, then toContain). Stryker rewrites every mutated file, so they fail
 // the initial run on unmutated code and Stryker refuses to start. They are left
-// out of the mutation run, so a mutant only they would kill counts as survived;
-// docs/research/baseline.md records the list and that caveat.
+// out of the mutation run, so a mutant only they would kill counts as survived.
 import { configDefaults, defineConfig, mergeConfig } from "vitest/config";
 
 import base from "./vitest.config";
