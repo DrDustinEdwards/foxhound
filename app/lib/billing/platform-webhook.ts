@@ -207,7 +207,9 @@ async function claimUnroutableEvent(
       accountId: null,
       processed: true,
       processingStartedAt: receivedAt,
-      payload: event,
+      // Nothing was applied, so the payload (customer name, email, address) is
+      // not kept; the id and type are the claim.
+      payload: {},
     });
     return true;
   } catch (err) {

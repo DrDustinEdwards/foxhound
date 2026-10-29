@@ -83,10 +83,12 @@ export async function processConnectedWebhook(
 
   try {
     if (intent.kind === "ignore") {
+      // An ignored event (test mode, an unhandled type) keeps its claim but not
+      // its payload, so no customer address or email is held for nothing.
       const { applied } = await executeMoneyWrite(env, {
         accountId,
         idempotencyKey,
-        build: (db) => buildClaimOnlyBatch(db, claim),
+        build: (db) => buildClaimOnlyBatch(db, { ...claim, payload: {} }),
       });
       return applied ? { status: "ignored", reason: intent.reason } : { status: "duplicate" };
     }
@@ -126,7 +128,8 @@ async function claimUnknownAccount(env: Env, event: Stripe.Event, receivedAt: Da
       accountId: null,
       processed: true,
       processingStartedAt: receivedAt,
-      payload: event,
+      // Not our merchant: keep the claim, never the payload.
+      payload: {},
     });
   } catch (err) {
     // Unique-index violation = already claimed; idempotent no-op. Anything else
