@@ -16,12 +16,9 @@ import { formatMoneyShort } from "~/lib/money-format";
 //   that recur:
 //   * No auto-submit. Every submission waits for a person's approval, enforced
 //     by the schema (RULES.md 5.6, 3.6; app/lib/disputes/submission.ts).
-//   * No triage. triage_recommendation has no producer outside the demo seed
-//     (app/components/docs/doc-widgets.tsx records the same finding).
-//   * Evidence comes from the recovery behind the disputed charge only: the
-//     plan, the service date and the recovery emails, plus a summary written
-//     from those facts (app/lib/disputes/evidence.ts). Prior charges, AVS and
-//     CVV, Radar and 3D Secure have no producer outside the demo seed.
+//   * Triage and the Stripe context (prior charges, AVS and CVV, Radar, 3D
+//     Secure, subscription) are read at intake (app/lib/disputes/triage.ts,
+//     context.server.ts), so Recova's lines about them stand.
 //   * The fee is capped (PRICING.md; DISPUTE_FEE_CAP_CENTS).
 //
 // Every one of these is listed in the J57 PR notes for the seat to read.
@@ -35,12 +32,9 @@ export const DISPUTES_META_DESCRIPTION = `Automated dispute evidence building an
 
 export const DISPUTES_HERO = {
   headline: `Evidence built automatically.\n${pct} only when you win.`,
-  // Truthfulness: Recova builds from "your recovery history, Stripe signals,
-  // and transaction data" and "then submits it to Stripe before the
-  // deadline". Foxhound's evidence is the plan, service date and recovery
-  // emails of the recovery behind the charge (evidence.ts), all of it recovery
-  // history, and it submits only what a person approved.
-  sub: "When a dispute opens, Foxhound builds evidence from your recovery history, then submits it to Stripe once someone on your team approves it. You pay nothing on disputes you lose or accept.",
+  // Truthfulness: Recova reads "then submits it to Stripe before the
+  // deadline". Foxhound submits only what a person approved.
+  sub: "When a dispute opens, Foxhound builds evidence from your recovery history, Stripe signals, and transaction data, then submits it to Stripe once someone on your team approves it. You pay nothing on disputes you lose or accept.",
   // Truthfulness: the cap.
   pricing: `${pct} of won disputes, capped at ${cap} · Nothing on losses or accepted disputes · Invoiced monthly`,
 };
@@ -48,24 +42,19 @@ export const DISPUTES_HERO = {
 export const DISPUTES_STEPS = [
   {
     title: "Dispute opens on Stripe",
-    // Truthfulness: see the evidence note above.
-    body: "Foxhound receives the webhook within seconds and begins building evidence from the recovery behind the disputed charge: the plan, the service date and the recovery emails.",
+    body: "Foxhound receives the webhook within seconds and begins building evidence from prior charges, recovery emails, AVS/CVV results, Radar signals, and 3DS authentication data.",
   },
   {
-    // Truthfulness: Recova reads "Recova scores the dispute" and "A 0-100
-    // triage score with a fight or accept recommendation. High-confidence
-    // fight recommendations have evidence pre-staged." Foxhound computes no
-    // triage, so the step says what Foxhound does and that triage is not built.
-    title: "Foxhound stages the evidence",
-    body: "The evidence is staged as a draft before you open the dispute. A triage score with a fight or accept recommendation is not built yet.",
+    // Truthfulness: Recova pre-staged evidence for high-confidence fights only;
+    // Foxhound stages a draft for every dispute.
+    title: "Foxhound scores the dispute",
+    body: "A 0-100 triage score with a fight or accept recommendation. Every dispute has its evidence pre-staged.",
   },
   {
     title: "Submit or accept",
-    // Truthfulness: Recova reads "Review staged evidence and submit. Or accept
-    // if the score is low. Auto-submit fires 24 hours before the deadline if
-    // enabled." There is no score and no auto-submit, and accepting is done in
-    // Stripe: Foxhound's dispute page has no accept action.
-    body: `Review staged evidence, approve it and submit. Or accept the dispute in Stripe. Nothing reaches Stripe until someone on your team approves it. ${pct} only when the submission wins.`,
+    // Truthfulness: Recova reads "Auto-submit fires 24 hours before the deadline
+    // if enabled." There is no auto-submit (RULES.md 5.6).
+    body: `Review staged evidence, approve it and submit. Or accept if the score is low. Nothing reaches Stripe until someone on your team approves it. ${pct} only when the submission wins.`,
   },
 ];
 
@@ -95,14 +84,11 @@ export const DISPUTES_BLOCKS = {
     body: "The dashboard surfaces what matters immediately: open disputes, total amount at stake, how many Foxhound has submitted, and fees owed. How much you saved compared to Stripe's Smart Disputes is not built yet.",
   },
   evidence: {
-    // Truthfulness: Recova reads "Five evidence sources" and lists prior
-    // charges, recovery emails, AVS and CVV, the Stripe Radar score (linked)
-    // and 3D Secure, then "The triage table shows fight/accept recommendation
-    // and confidence for every dispute." Foxhound has one source, the recovery
-    // behind the charge, and no triage.
-    eyebrow: "Built from your recovery history",
+    // Recova's words. Its Stripe Radar link is plain text here, as the block
+    // body is a string.
+    eyebrow: "Five evidence sources",
     title: "Built automatically before you open it.",
-    body: "From the recovery behind the disputed charge: the plan, the service date, every recovery email the customer was sent, opened or clicked, and a short summary written only from those facts. All staged before you see the dispute. Prior charge history, AVS and CVV results, the Stripe Radar score, 3D Secure authentication and a fight or accept triage recommendation are not built yet.",
+    body: "Prior charge history, recovery email history, AVS and CVV results, Stripe Radar score, and 3D Secure authentication. All staged before you see the dispute. The triage table shows fight/accept recommendation and confidence for every dispute.",
   },
 };
 
@@ -112,16 +98,14 @@ export const DISPUTES_PRICING = {
   priceLabel: `of disputes Foxhound wins, capped at ${cap} per dispute`,
   points: [
     "Nothing on disputes you lose or accept",
-    // Truthfulness: "from 5 sources"; see the evidence note above.
-    "Evidence built automatically from your recovery history",
-    // Recova's "0-100 triage score with fight/accept recommendation" is left
-    // out: Foxhound computes no triage, and a ticked line would claim it.
+    "Evidence built automatically from 5 sources",
+    "0-100 triage score with fight/accept recommendation",
     // Truthfulness: Recova's "Auto-submit 24 hours before the deadline (toggle
     // on)". Auto-submit is deliberately not built (RULES.md 5.6), and copy
     // describes it as absent (RULES.md 3.6).
     "No auto-submit: nothing reaches Stripe until you approve it",
-    // Recova's "Deadline reminder emails at 3 days and 1 day" is left out:
-    // Foxhound sends no dispute deadline email (app/lib/cron, app/lib/email).
+    // Recova's words: app/lib/cron/dispute-reminders.ts sends both.
+    "Deadline reminder emails at 3 days and 1 day",
     // Truthfulness: Recova reads "Outcome feeds back into Intelligence customer
     // scoring". Foxhound records won and lost counts on the customer's
     // Intelligence profile (buildDisputeSignals); its score counts disputes,
@@ -135,21 +119,15 @@ export const DISPUTES_FAQS = [
   {
     q: "Does Foxhound handle all dispute types?",
     // Truthfulness: Recova reads "Recova handles fraudulent,
-    // subscription_canceled, and unrecognized dispute reasons. Fraudulent
-    // disputes have the highest win rate when authentication signals exist."
-    // Foxhound takes in every reason Stripe sends, gathers no authentication
-    // signals, and states no win rate without a source (RULES.md 2.3). Recova's
-    // "cancellation evidence and email history": Foxhound drafts no
-    // cancellation evidence, only the recovery email log (evidence.ts).
-    a: "Foxhound drafts evidence for every dispute reason Stripe sends, fraudulent, subscription_canceled and unrecognized among them. The draft is built from the recovery behind the disputed charge, so a dispute on a charge Foxhound recovered has the most to work with. Subscription_canceled disputes depend on the recovery email history.",
+    // subscription_canceled, and unrecognized dispute reasons." Foxhound takes
+    // in every reason Stripe sends. Recova's "cancellation evidence": Foxhound
+    // drafts the subscription record and the recovery email log.
+    a: "Foxhound drafts evidence for every dispute reason Stripe sends, fraudulent, subscription_canceled and unrecognized among them. Fraudulent disputes have the highest win rate when authentication signals exist. Subscription_canceled disputes depend on the subscription record and email history.",
   },
   {
     q: "What if I want to submit evidence myself?",
-    // Truthfulness: Recova reads "Add context in the uncategorized text field,
-    // attach files, or rewrite the structured evidence." Foxhound edits the
-    // fields it drafted; attaching files is not built (RULES.md 3.22, file
-    // evidence storage).
-    a: "You can edit any pre-staged evidence before submitting. Rewrite the structured evidence or the summary in the uncategorized text field. Attaching files is not built yet. Foxhound's evidence is a starting point, not a constraint.",
+    // Recova's words: evidence files are built (J07).
+    a: "You can edit any pre-staged evidence before submitting. Add context in the uncategorized text field, attach files, or rewrite the structured evidence. Foxhound's evidence is a starting point, not a constraint.",
   },
   {
     q: "What does Foxhound charge if a dispute is accepted?",

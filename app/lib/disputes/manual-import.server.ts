@@ -7,6 +7,7 @@ import { disputeIntakeFields, isStripeDisputeId } from "~/lib/disputes/stripe-di
 import { executeMoneyWrite } from "~/lib/money/execute";
 import { getConnectedStripe } from "~/lib/stripe/client";
 import { decryptToken } from "~/lib/stripe/encryption";
+import { mergeEvidence, readDisputeIntakeContext } from "./context.server";
 import { buildDisputeIntakeBatch } from "~/lib/webhooks/batches";
 import { resolveDisputedRecovery } from "~/lib/webhooks/lookups";
 
@@ -141,7 +142,16 @@ export async function importDisputeFromStripe(
     linked?.steps ?? [],
     await readDisputeProductDescription(getDb(env), accountId),
   );
-  const evidence = await draftDisputeEvidence(env, facts);
+  const stripeContext = await readDisputeIntakeContext(env, {
+    accountId,
+    connectionId: connection.id,
+    stripeDisputeId: fields.stripeDisputeId,
+    chargeId: fields.chargeId,
+    customerId: linked?.failedPayment.stripeCustomerId ?? null,
+    amountCents: fields.amountCents,
+    reason: fields.reason,
+  });
+  const evidence = mergeEvidence(stripeContext.evidence, await draftDisputeEvidence(env, facts));
 
   const disputeId = crypto.randomUUID();
   const { applied } = await executeMoneyWrite(env, {
@@ -161,9 +171,9 @@ export async function importDisputeFromStripe(
         stripeConnectionId: connection.id,
         stripeDisputeId: fields.stripeDisputeId,
         stripeChargeId: fields.chargeId,
-        stripeCustomerId: linked?.failedPayment.stripeCustomerId ?? null,
-        customerEmail: linked?.failedPayment.customerEmail ?? null,
-        customerName: linked?.failedPayment.customerName ?? null,
+        stripeCustomerId: linked?.failedPayment.stripeCustomerId ?? stripeContext.context.customerId,
+        customerEmail: linked?.failedPayment.customerEmail ?? stripeContext.context.customerEmail,
+        customerName: linked?.failedPayment.customerName ?? stripeContext.context.customerName,
         amountCents: fields.amountCents,
         currency: fields.currency,
         reason: fields.reason,
@@ -172,6 +182,7 @@ export async function importDisputeFromStripe(
         createdAt: fields.createdAt,
         linkedFailedPaymentId: linked?.failedPayment.id ?? null,
         evidence,
+        contextColumns: stripeContext.columns,
       }),
   });
 

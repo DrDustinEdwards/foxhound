@@ -21,11 +21,10 @@ import type { DisputesPreview, PreviewDisputeRow } from "~/lib/marketing/dispute
 // "fee owed" would be untrue beside a Fees owed card that reads $0.00 (the
 // demo's fees are paid), as well as a column the dashboard does not have.
 //
-// Left out, each a QUESTION FOR THE SEAT in the J57 notes: the dashboard's
-// per-row View link (Recova's points at /audit/<id>, a page Recova does not
-// have), and the dispute table's Triage column (triage_recommendation has no
-// producer outside the demo seed, the finding doc-widgets.tsx records for the
-// docs).
+// Left out, a QUESTION FOR THE SEAT in the J57 notes: the dashboard's per-row
+// View link (Recova's points at /audit/<id>, a page Recova does not have).
+// The dispute table's Triage column is Recova's TriagePill (blob 1485726d):
+// fight in green, accept as a plain label, each with its confidence.
 //
 // The cards are the merchant /disputes dashboard's five, the set Dustin
 // approved on PR #75 ("yes ro all", 2026-10-15,
@@ -40,6 +39,22 @@ function StatePill({ row }: { row: PreviewDisputeRow }) {
   if (row.stateTone === "success") return <Pill tone="ok">{row.stateLabel}</Pill>;
   if (row.stateTone === "failure") return <Pill tone="crit">{row.stateLabel}</Pill>;
   return <Pill variant="secondary">{row.stateLabel}</Pill>;
+}
+
+/** Recova's TriagePill: "Fight 82%" in green, "Accept 68%" plain. */
+function TriagePill({ row }: { row: PreviewDisputeRow }) {
+  if (!row.triage) return <span className="text-label text-text-tertiary">-</span>;
+  const label = row.triage.recommendation === "fight" ? "Fight" : "Accept";
+  const confidence = row.triage.confidence === null ? null : <span className="font-mono">{row.triage.confidence}%</span>;
+  return row.triage.recommendation === "fight" ? (
+    <Pill tone="ok">
+      {label} {confidence}
+    </Pill>
+  ) : (
+    <Pill variant="secondary">
+      {label} {confidence}
+    </Pill>
+  );
 }
 
 function StatCard({ label, children }: { label: string; children: React.ReactNode }) {
@@ -181,6 +196,7 @@ export function DisputeTablePreview({ preview }: { preview: DisputesPreview }) {
               <th scope="col">Customer</th>
               <th scope="col">Amount</th>
               <th scope="col">Reason</th>
+              <th scope="col">Triage</th>
               <th scope="col">Status</th>
               <th scope="col">Deadline</th>
             </tr>
@@ -196,6 +212,9 @@ export function DisputeTablePreview({ preview }: { preview: DisputesPreview }) {
                 </td>
                 <td>
                   <span className="text-label text-text-secondary">{row.reason}</span>
+                </td>
+                <td>
+                  <TriagePill row={row} />
                 </td>
                 <td>
                   <StatePill row={row} />

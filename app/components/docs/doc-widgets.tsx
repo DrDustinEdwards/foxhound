@@ -32,9 +32,8 @@ import "capsomer/table.css";
 //   PaymentsTablePreview, DashboardStatCards and ChurnRiskSummary print the
 //     Teamflow demo's customers and money; Foxhound's figures for these come
 //     from its own demo seed through a loader, which a guide page does not have.
-//   DisputesTablePreview and TriagePill: `triage_recommendation` has no producer
-//     outside the demo seeder, so a Triage column would document a feature that
-//     does not exist.
+//   DisputesTablePreview and TriagePill: Recova's table printed invented
+//     customers, and a guide page has no loader to read the demo seed through.
 
 /** Recova's four audit scope cards (AuditScopeCard, blob `dc1d18dd`), at its
  *  two-column grid, saying what Foxhound's engine computes for each

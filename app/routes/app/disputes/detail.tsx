@@ -38,6 +38,13 @@ import {
 import { EVIDENCE_FILE_FIELD } from "~/lib/disputes/evidence-files";
 import { getDisputeFindings } from "~/lib/disputes/findings.server";
 import {
+  humanCardCheck,
+  humanSmartDisputes,
+  radarWords,
+  readPriorCharges,
+  readSubscription,
+} from "~/lib/disputes/triage";
+import {
   daysUntilDeadline,
   deadlineClassName,
   deadlineUrgency,
@@ -71,10 +78,12 @@ import {
 // Recova's action bar sits. Look is Capsomer's (Q10), amber.
 //
 // Not built, and why:
-// - Recova's triage banner and Integrity layer banner: nothing in Foxhound
-//   writes triage_* or a banded prediction (RULES.md 3.18).
-// - Radar, AVS, CVV, 3D Secure, Smart Disputes, billing address, prior charge
-//   history and subscription: no Foxhound code writes those dispute columns.
+// - Recova's Integrity layer banner: nothing in Foxhound writes a banded
+//   prediction (RULES.md 3.18).
+// Built with the dispute context port (app/lib/disputes/triage.ts):
+// - Recova's triage banner under the header, and in What Foxhound found the
+//   billing address, AVS, CVV, Stripe Radar, 3D Secure, Smart Disputes, prior
+//   charge history and subscription, all read from Stripe at intake.
 // Built by J07 (job_7a7c09269012):
 // - Evidence files: Recova's DisputeFileUploads section between Staged evidence
 //   and Additional evidence, over the EVIDENCE R2 bucket
@@ -188,6 +197,9 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
   // The merchant's uploaded files have their own section (J07); "drafted" is
   // everything else, which is what Staged evidence speaks of.
   const files = evidence.filter((e) => e.fieldName === EVIDENCE_FILE_FIELD);
+  const priorCharges = readPriorCharges(dispute.priorChargesJson);
+  const subscription = readSubscription(dispute.subscriptionJson);
+  const radar = radarWords(dispute.radarRiskScore, dispute.radarRiskLevel);
   const drafted = evidence.filter((e) => e.fieldName !== EVIDENCE_FILE_FIELD);
   const timeline = buildDisputeTimeline({
     createdAt: dispute.createdAt,
@@ -257,6 +269,25 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
         </div>
       </header>
 
+      {/* 2. Recova's triage banner: fight in green, accept in the accent. */}
+      {dispute.triageRecommendation ? (
+        <div className="mb-6">
+          <Banner
+            tone={dispute.triageRecommendation === "fight" ? "ok" : "warn"}
+            title={
+              dispute.triageRecommendation === "fight"
+                ? "Foxhound recommends fighting this dispute"
+                : "Foxhound recommends accepting this dispute"
+            }
+          >
+            {dispute.triageReasoning ? <p className="m-0 mb-1 text-label text-text">{dispute.triageReasoning}</p> : null}
+            {typeof dispute.triageConfidence === "number" ? (
+              <p className="m-0 text-micro text-text-tertiary">Confidence: {dispute.triageConfidence}%</p>
+            ) : null}
+          </Banner>
+        </div>
+      ) : null}
+
       {/* 3. Timeline. */}
       <div className="mb-6">
         <Panel title="Timeline">
@@ -290,6 +321,14 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
               <dl className="m-0 space-y-1">
                 {dispute.customerName ? <FieldRow label="Name" value={dispute.customerName} /> : null}
                 {dispute.customerEmail ? <FieldRow label="Email" value={dispute.customerEmail} /> : null}
+                {dispute.billingAddress ? <FieldRow label="Billing address" value={dispute.billingAddress} /> : null}
+                {dispute.avsResult ? <FieldRow label="AVS" value={humanCardCheck(dispute.avsResult)} /> : null}
+                {dispute.cvvResult ? <FieldRow label="CVV" value={humanCardCheck(dispute.cvvResult)} /> : null}
+                {radar ? <FieldRow label="Stripe Radar" value={radar} /> : null}
+                {dispute.threeDSecure ? <FieldRow label="3D Secure" value={dispute.threeDSecure} /> : null}
+                {dispute.smartDisputesStatus ? (
+                  <FieldRow label="Smart Disputes" value={humanSmartDisputes(dispute.smartDisputesStatus)} />
+                ) : null}
                 {findings.disputeHistory ? (
                   <FieldRow
                     label="Dispute history"
@@ -298,6 +337,36 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
                 ) : null}
               </dl>
             </div>
+
+            {dispute.priorChargesCount !== null && dispute.priorChargesCount > 0 ? (
+              <div className="mb-4">
+                <h3 className="m-0 mb-2 text-micro font-medium text-text-secondary">Prior charge history</h3>
+                <p className="m-0 mb-2 text-text">
+                  {dispute.priorChargesCount} prior successful charge{dispute.priorChargesCount === 1 ? "" : "s"} totaling{" "}
+                  {formatMoney(dispute.priorChargesTotal ?? 0, dispute.currency)}
+                </p>
+                {priorCharges.length > 0 ? (
+                  <table className="w-full text-micro">
+                    <thead>
+                      <tr className="text-text-tertiary">
+                        <th className="py-1 text-left font-medium">Date</th>
+                        <th className="py-1 text-right font-medium">Amount</th>
+                        <th className="py-1 pl-3 text-left font-medium">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {priorCharges.slice(0, 5).map((c, i) => (
+                        <tr key={i} className="border-t border-border-sub">
+                          <td className="py-1 text-text-tertiary">{c.date.slice(0, 10)}</td>
+                          <td className="py-1 text-right font-mono">{formatMoney(c.amount, c.currency)}</td>
+                          <td className="py-1 pl-3 text-text-tertiary">{c.status}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : null}
+              </div>
+            ) : null}
 
             {findings.recovery && findings.recovery.emails.length > 0 ? (
               <div className="mb-4">
@@ -332,6 +401,21 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
                     </span>
                   </div>
                 </div>
+              </div>
+            ) : null}
+
+            {subscription ? (
+              <div className="mt-4">
+                <h3 className="m-0 mb-2 text-micro font-medium text-text-secondary">Subscription</h3>
+                <dl className="m-0 space-y-1">
+                  <FieldRow label="Status" value={subscription.status} />
+                  {subscription.start_date ? (
+                    <FieldRow label="Started" value={formatDateShort(new Date(subscription.start_date))} />
+                  ) : null}
+                  {subscription.canceled_at ? (
+                    <FieldRow label="Canceled" value={formatDateShort(new Date(subscription.canceled_at))} />
+                  ) : null}
+                </dl>
               </div>
             ) : null}
           </div>

@@ -74,6 +74,8 @@ function buildDisputesPreview(now: Date): DisputesPreview {
     submittedAt: d.submittedAt ?? null,
     submittedBy: d.submittedBy ?? null,
     resolvedFeeCents: d.resolvedFeeCents ?? null,
+    triageRecommendation: d.triageRecommendation ?? null,
+    triageConfidence: d.triageConfidence ?? null,
   }));
   const ordered = sortDisputesNewestFirst(seeded);
   const stats = computeDisputeStats(ordered);
@@ -98,6 +100,10 @@ function buildDisputesPreview(now: Date): DisputesPreview {
       deadlineDays: days,
       deadlineUrgency: deadlineUrgency(days),
       deadlineDate: formatDateMonthDay(d.evidenceDeadline),
+      triage:
+        d.triageRecommendation === "fight" || d.triageRecommendation === "accept"
+          ? { recommendation: d.triageRecommendation, confidence: d.triageConfidence }
+          : null,
     };
   });
 
