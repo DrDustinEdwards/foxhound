@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "206ffd3b-3f1e-479f-b548-8742fe6affdc",
-  "prevId": "6c6c04b2-eff1-4763-8870-5ba8167f8b4c",
+  "id": "41883195-d254-46fc-9c11-1edd030238bd",
+  "prevId": "ceea5c77-18e3-42e2-bda3-eec799c003ea",
   "tables": {
     "audit_digest_runs": {
       "name": "audit_digest_runs",
@@ -4062,6 +4062,48 @@
         "brand_voice_samples": {
           "name": "brand_voice_samples",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "charges_enabled": {
+          "name": "charges_enabled",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "payouts_enabled": {
+          "name": "payouts_enabled",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "disabled_reason": {
+          "name": "disabled_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "past_due_count": {
+          "name": "past_due_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "current_deadline": {
+          "name": "current_deadline",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "health_updated_at": {
+          "name": "health_updated_at",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false

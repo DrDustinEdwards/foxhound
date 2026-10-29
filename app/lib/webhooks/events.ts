@@ -11,6 +11,7 @@ import {
 import { type DeclineCategory } from "~/lib/constants";
 import { readWinbackSequenceId } from "~/lib/recovery/winback-metadata";
 import { classifyDecline } from "~/lib/recovery/decline";
+import { readAccountHealth, type AccountHealth } from "~/lib/stripe/account-health";
 
 // Pure Stripe-event classification for the connected-account webhook. Maps a
 // verified event to the intent the processor acts on and pulls the refs it needs
@@ -26,6 +27,8 @@ import { classifyDecline } from "~/lib/recovery/decline";
 //                                 or inquiry_closed for an inquiry closed as warning_closed
 //   charge.dispute.updated     -> dispute_updated (live status, deadline, evidence counts)
 //   charge.dispute.funds_withdrawn / funds_reinstated -> dispute_funds (money Stripe moved)
+//   account.updated            -> account_health (the connected account's own
+//                                 charges, payouts and requirements)
 //   radar.early_fraud_warning.created/.updated -> early_fraud_warning (record + notice)
 //   payment_method.automatically_updated -> card_auto_updated (retry on the new card)
 // Everything else is ignored.
@@ -123,6 +126,13 @@ export type WebhookIntent =
       /** Otherwise the payment method to retrieve, per this file's rule that the
        *  classifier makes no Stripe call. */
       paymentMethodId: string | null;
+    }
+  | {
+      /** account.updated for the connected account itself. `observedAt` is the
+       *  event's created time, so a late older event cannot overwrite newer state. */
+      kind: "account_health";
+      health: AccountHealth;
+      observedAt: Date;
     }
   | {
       /** radar.early_fraud_warning.created or .updated. The charge's amount,
@@ -356,6 +366,13 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
       const invoice = event.data.object as Stripe.Invoice;
       if (!invoice.id) return { kind: "ignore", reason: "no_invoice_id" };
       return { kind: "stripe_gave_up", invoiceId: invoice.id };
+    }
+    case "account.updated": {
+      const account = event.data.object as Stripe.Account;
+      // Only the connected account's own object, which is what Connect sends
+      // this event for.
+      if (!account.id || account.id !== event.account) return { kind: "ignore", reason: "not_this_account" };
+      return { kind: "account_health", health: readAccountHealth(account), observedAt: new Date(event.created * 1000) };
     }
     case "radar.early_fraud_warning.created":
     case "radar.early_fraud_warning.updated": {

@@ -223,6 +223,8 @@ interface TickTally {
    *  brake engage reads as a deliberate stop, not as engine noise, and apart
    *  from `failed` because nothing failed. */
   skippedIneligible: number;
+  /** Retry steps held because Stripe has charges off on their connection. */
+  heldChargesDisabled: number;
   failed: number;
   exhausted: number;
   backlog: boolean;
@@ -436,6 +438,7 @@ export async function runRecoveryTick(
     recovered: 0,
     skipped: 0,
     skippedIneligible: 0,
+    heldChargesDisabled: 0,
     failed: 0,
     exhausted: 0,
     backlog: due.length >= RECOVERY_TICK_LIMIT,
@@ -471,6 +474,14 @@ export async function runRecoveryTick(
     const action = stepAction(row.stepType);
     try {
       if (action === "retry") {
+        if (row.chargesEnabled === false) {
+          // Stripe has turned off charges on this connection (account.updated),
+          // so the charge would fail and burn the step. Left pending with no
+          // write, as a disabled tick leaves it: the next tick tries again, and
+          // runs it once Stripe reports charges back on.
+          tally.heldChargesDisabled += 1;
+          continue;
+        }
         const result = await runGuardedRetry(env, row, now, { runRetry, lostDispute, suppressRetry });
         if (result === "no_connection") {
           // No connected token: cannot safely charge. Record the attempt with
@@ -584,12 +595,16 @@ export async function runRecoveryTick(
     tally.skippedIneligible > 0
       ? `, ${tally.skippedIneligible} skipped (account paused mid-run)`
       : "";
+  const heldNote =
+    tally.heldChargesDisabled > 0
+      ? `, ${tally.heldChargesDisabled} retries held (Stripe charges off)`
+      : "";
   return {
     rowsProcessed: executed,
     message:
       `${tally.due} due, ${tally.chosen} payments, ${tally.retries} retries ` +
       `(${tally.recovered} recovered), ${tally.emails} emails, ` +
       `${tally.skipped} skipped, ${tally.failed} failed, ` +
-      `${tally.exhausted} exhausted${pausedNote}${failedNote}${sweepNote}${backlogNote}${haltedNote}`,
+      `${tally.exhausted} exhausted${pausedNote}${heldNote}${failedNote}${sweepNote}${backlogNote}${haltedNote}`,
   };
 }
