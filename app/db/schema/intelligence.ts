@@ -57,6 +57,39 @@ export const customerContext = sqliteTable(
   ],
 );
 
+// One row per change Intelligence tracks on a connected account's
+// subscription, recorded from customer.subscription.updated the moment Stripe
+// sends it (app/lib/intelligence/subscription-change.ts): a cancellation
+// scheduled or taken back, collection paused or resumed, a downgrade. A log
+// beside customer_context, never a write to the columns the daily sync owns;
+// the health score reads both. Rides the webhook claim's batch, and the
+// (event, kind) index makes a redelivery a no-op.
+export const subscriptionChanges = sqliteTable(
+  "subscription_changes",
+  {
+    id: id(),
+    accountId: text("account_id").notNull().references(() => accounts.id),
+    stripeCustomerId: text("stripe_customer_id").notNull(),
+    stripeSubscriptionId: text("stripe_subscription_id").notNull(),
+    stripeEventId: text("stripe_event_id").notNull(),
+    // cancel_scheduled | cancel_reversed | paused | resumed | downgraded
+    kind: text("kind").notNull(),
+    cancelAt: ts("cancel_at"),
+    resumesAt: ts("resumes_at"),
+    // monthly-equivalent amounts before and after, on a downgrade only
+    previousMrrCents: integer("previous_mrr_cents"),
+    currentMrrCents: integer("current_mrr_cents"),
+    currency: text("currency"),
+    // the Stripe event's own created time
+    occurredAt: ts("occurred_at").notNull(),
+    createdAt: ts("created_at").notNull(),
+  },
+  (t) => [
+    index("subscription_changes_account_customer_idx").on(t.accountId, t.stripeCustomerId),
+    uniqueIndex("subscription_changes_event_kind_uq").on(t.stripeEventId, t.kind),
+  ],
+);
+
 export const healthScoreHistory = sqliteTable(
   "health_score_history",
   {

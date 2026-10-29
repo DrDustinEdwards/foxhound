@@ -15,6 +15,7 @@ import {
   handleStripeGaveUp,
 } from "./recovery-handlers";
 import { handleWinbackReactivate, handleWinbackStart } from "./winback-handlers";
+import { handleRecordSubscriptionChange } from "./intelligence-handlers";
 import { resolveConnection } from "./lookups";
 
 // Connected-account webhook processor. Resolves the account, applies per-invoice
@@ -86,6 +87,7 @@ export async function processConnectedWebhook(
     if (intent.kind === "stamp_dispute") return await handleStampDispute(ctx, intent);
     if (intent.kind === "dispute_resolved") return await handleDisputeResolved(ctx, intent);
     if (intent.kind === "winback_start") return await handleWinbackStart(ctx, intent);
+    if (intent.kind === "record_subscription_change") return await handleRecordSubscriptionChange(ctx, intent);
     return await handleStampRefund(ctx, intent);
   } catch (err) {
     // Money path: surface so the endpoint 500s and Stripe retries (the batch is

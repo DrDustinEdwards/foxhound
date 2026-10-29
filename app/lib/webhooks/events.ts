@@ -3,6 +3,7 @@ import type Stripe from "stripe";
 import { disputeIntakeFields } from "~/lib/disputes/stripe-dispute";
 
 import { type DeclineCategory } from "~/lib/constants";
+import { detectSubscriptionChanges, type SubscriptionChange } from "~/lib/intelligence/subscription-change";
 import { readWinbackSequenceId } from "~/lib/recovery/winback-metadata";
 import { classifyDecline } from "~/lib/recovery/decline";
 
@@ -104,6 +105,17 @@ export type WebhookIntent =
       /** Otherwise the payment method to retrieve, per this file's rule that the
        *  classifier makes no Stripe call. */
       paymentMethodId: string | null;
+    }
+  | {
+      /** customer.subscription.updated that scheduled or took back a
+       *  cancellation, paused or resumed collection, or lowered the monthly
+       *  amount: recorded for Intelligence the moment Stripe sends it. */
+      kind: "record_subscription_change";
+      customerId: string;
+      subscriptionId: string;
+      currency: string | null;
+      occurredAt: Date;
+      changes: SubscriptionChange[];
     }
   | { kind: "ignore"; reason: string };
 
@@ -268,6 +280,28 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
         customerName: customer.name ?? null,
         card: null,
         paymentMethodId: pmId,
+      };
+    }
+    case "customer.subscription.updated": {
+      // Intelligence's real-time half (subscription-change.ts): only fields
+      // Stripe lists in previous_attributes count, so an unrelated update
+      // records nothing.
+      const subscription = event.data.object as Stripe.Subscription;
+      if (!subscription.id) return { kind: "ignore", reason: "no_subscription_id" };
+      const customerId = asId(subscription.customer);
+      if (!customerId) return { kind: "ignore", reason: "no_customer" };
+      const changes = detectSubscriptionChanges(
+        subscription,
+        event.data.previous_attributes as Record<string, unknown> | undefined,
+      );
+      if (changes.length === 0) return { kind: "ignore", reason: "no_tracked_subscription_change" };
+      return {
+        kind: "record_subscription_change",
+        customerId,
+        subscriptionId: subscription.id,
+        currency: subscription.currency ?? null,
+        occurredAt: new Date(event.created * 1000),
+        changes,
       };
     }
     case "invoice.marked_uncollectible": {
