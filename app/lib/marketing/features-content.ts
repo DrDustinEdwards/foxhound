@@ -17,7 +17,7 @@ import {
 } from "~/lib/constants";
 import { recoveryRateTone } from "~/lib/dashboard/recovery-rate";
 import { RECOVERY_RANGES } from "~/lib/dashboard/recovery-window";
-import { DEMO_ACCOUNT_NAME } from "~/lib/demo/constants";
+import { DEMO_BUSINESSES } from "~/lib/demo/constants";
 import { WATCH_CEILING } from "~/lib/intelligence/health-band";
 import {
   DECLINE_CATEGORY_COUNT_WORD,
@@ -272,7 +272,7 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: `${Nightly} demo reset`,
-          description: `Rebuilds the demo account's data ${nightly}. The demo never touches live Stripe.`,
+          description: `Rebuilds the demo accounts' data ${nightly}. The demo never touches live Stripe.`,
           product: "Platform",
         },
         {
@@ -840,7 +840,7 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "Demo system",
-          description: `A demo account (${DEMO_ACCOUNT_NAME}) that opens the real app read-only. ${Nightly} reset.`,
+          description: `Two demo accounts (${DEMO_BUSINESSES.map((b) => b.name).join(", ")}) that open the real app read-only. ${Nightly} reset.`,
           product: "Platform",
         },
         {
