@@ -14,7 +14,7 @@ import { formatMoney } from "~/lib/money-format";
 // what the engine computed from customer_context / mrr_snapshots / risk.ts,
 // so the text cannot say anything the facts do not.
 
-export interface AtRiskCustomerFact {
+interface AtRiskCustomerFact {
   stripeCustomerId: string;
   customerName: string | null;
   healthScore: number;

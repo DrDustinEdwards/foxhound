@@ -1,6 +1,3 @@
-import type { Db } from "~/db";
-import { aiCalls } from "~/db";
-
 // The ai_calls cost map (closes legacy R-49: model-id drift + an incomplete cost
 // map). ONE table, keyed by CANONICAL base model id, in USD cents per 1,000,000
 // tokens. Every id in AI_MODEL_IDS must resolve here; an unknown model throws so a
@@ -65,29 +62,4 @@ export function computeAiCallCostCents(
     (promptTokens / 1_000_000) * cost.inputCentsPer1M +
     (completionTokens / 1_000_000) * cost.outputCentsPer1M;
   return Math.ceil(cents);
-}
-
-/** Insert one ai_calls row with its computed cost. Operational (not a money write). */
-export function buildAiCallRow(
-  db: Db,
-  input: {
-    accountId: string | null;
-    source: string;
-    model: string;
-    promptTokens: number;
-    completionTokens: number;
-    relatedId?: string | null;
-    createdAt: Date;
-  },
-) {
-  return db.insert(aiCalls).values({
-    accountId: input.accountId,
-    source: input.source,
-    model: input.model,
-    promptTokens: input.promptTokens,
-    completionTokens: input.completionTokens,
-    costCents: computeAiCallCostCents(input.model, input.promptTokens, input.completionTokens),
-    relatedId: input.relatedId ?? null,
-    createdAt: input.createdAt,
-  });
 }

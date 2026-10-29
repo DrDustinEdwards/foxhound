@@ -58,7 +58,7 @@ export function buildPredictionFields(input: {
 }
 
 /** The predictions insert for one customer's run. Operational, not a money
- *  write (mirrors app/lib/ai/cost.ts's buildAiCallRow shape). */
+ *  write. */
 export function buildPredictionInsert(db: Db, fields: PredictionFields) {
   return db.insert(predictions).values(fields);
 }

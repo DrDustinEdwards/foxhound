@@ -103,12 +103,11 @@ export function rateLimitedResponse(retryAfterSeconds: number): Response {
  * (TASK-foxhound-demo-entry-parity.md item 3: the home email generator falls
  * back to a static sample rather than surfacing an error). Fails open, unless
  * the caller passes { failClosed: true }: then a failed check is thrown as
- * RateLimiterUnavailableError, so a caller whose request costs money (the
- * Intelligence report button's paid model call, J67) refuses and can say why
+ * RateLimiterUnavailableError, so a caller whose request costs money refuses
  * rather than calling it a rate limit. site-runtime logs the failure either
  * way, naming the bucket and never the key.
  */
-export class RateLimiterUnavailableError extends Error {
+class RateLimiterUnavailableError extends Error {
   constructor(cause: unknown) {
     super("Rate limiter check failed", { cause });
     this.name = "RateLimiterUnavailableError";

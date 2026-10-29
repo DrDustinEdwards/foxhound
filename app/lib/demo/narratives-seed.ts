@@ -12,7 +12,7 @@ import type { HealthFactor } from "~/lib/intelligence/risk";
 // firewalled out of the nightly run, so this is the only narrative it gets.
 // Pure: no AI call, no DB access.
 
-export type IntelligenceReportInsert = typeof intelligenceReports.$inferInsert;
+type IntelligenceReportInsert = typeof intelligenceReports.$inferInsert;
 type CustomerContextInsert = typeof customerContext.$inferInsert;
 type MrrSnapshotInsert = typeof mrrSnapshots.$inferInsert;
 
