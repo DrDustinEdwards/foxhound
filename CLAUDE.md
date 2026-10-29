@@ -16,7 +16,7 @@ Look and components come from Capsomer now, on every surface, Recova's amber thr
 
 - Read `foxhound/core.md`, then `foxhound/RULES.md`, the only Foxhound rules document that binds. The prime directive above stands.
 - Tests: keep the minimal set (a few browser tests for flows that must never break, one integration test per real behavior, unit tests only for tricky logic, shared code tested once where it lives), and remove any test that pins design, repeats coverage or has never caught a real mistake, unless it guards a harm that cannot be undone.
-- Canon lives in Capsid namespace `foxhound`: ARCHITECTURE.md, PRICING.md, DESIGN.md, SCHEMA.md, ROUTES.md, rebuild-plan.md and backlog.md; parity state is `parity/PARITY-LEDGER.md`. Never copy canon into this repo.
+- Canon lives in Capsid namespace `foxhound`: ARCHITECTURE.md, PRICING.md, DESIGN.md, SCHEMA.md, and ROUTES.md; parity state is `parity/PARITY-LEDGER.md`. Never copy canon into this repo.
 
 ## Repo-specific hard rules
 
@@ -29,7 +29,7 @@ Look and components come from Capsomer now, on every surface, Recova's amber thr
 
 ## Single environment
 
-One Worker `foxhound` and one D1 `foxhound`. No KV binding. No `--env` flag anywhere, not in wrangler commands and not in CI. Every deploy is production. If ARCHITECTURE.md or rebuild-plan.md still describe two environments, correct them; they are out of date.
+One Worker `foxhound` and one D1 `foxhound`. No KV binding. No `--env` flag anywhere, not in wrangler commands and not in CI. Every deploy is production. If ARCHITECTURE.md still describes two environments, correct it; it is out of date.
 
 The one exception (MCP ruling 2026-10-10, rule 9 amendment): `foxhound-admin-mcp`, the Foxhound Admin MCP at admin-mcp.foxhoundapp.com, in `mcp/` with its own `mcp/wrangler.jsonc`. It is separate so that it holds no Stripe key, no D1 and no money binding: its only bindings are a service binding to `foxhound` and its own OAuth KV, and everything it does is a call to the admin API at /api/admin/v1. No other second Worker is allowed, and that Worker never gains a binding beyond those two.
 
