@@ -51,7 +51,7 @@ describe("writeIntelligenceNarrative", () => {
 
   it("says when nothing moved and nobody is at risk, rather than listing zeros", () => {
     expect(writeIntelligenceNarrative({ ...EMPTY_FACTS, totalMrrCents: 100_000 }).narrative).toBe(
-      "Total MRR is $1,000.00. No MRR moved this period. No customer is at risk right now.",
+      "Total MRR is $1,000.00. No MRR moved since the day before. No customer is at risk right now.",
     );
   });
 
@@ -74,7 +74,7 @@ describe("writeIntelligenceNarrative", () => {
       ],
     });
     expect(result.narrative).toBe(
-      "Total MRR is $1,000.00. This period: $50.00 churned, a net loss of $50.00. " +
+      "Total MRR is $1,000.00. Since the day before: $50.00 churned, a net loss of $50.00. " +
         "$20.00 of MRR is at risk across 1 customer. The lowest health score is cus_1 at 18/100.",
     );
     expect(result.customerAssessments).toEqual([

@@ -63,6 +63,8 @@ function factorSentence(details: string[]): string {
   return text.charAt(0).toUpperCase() + text.slice(1) + ".";
 }
 
+/** The latest snapshot's movements. Snapshots are daily (intelligence-sync),
+ *  so they are the change since the day before, and the sentence says so. */
 function movementSentence(facts: NarrativeFacts): string {
   const money = (cents: number) => formatMoney(cents, facts.currency);
   const parts = [
@@ -73,12 +75,12 @@ function movementSentence(facts: NarrativeFacts): string {
     [facts.churnMrrCents, "churned"],
   ] as const;
   const moved = parts.filter(([cents]) => cents !== 0).map(([cents, label]) => `${money(cents)} ${label}`);
-  if (moved.length === 0) return "No MRR moved this period.";
+  if (moved.length === 0) return "No MRR moved since the day before.";
   const net =
     facts.newMrrCents + facts.expansionMrrCents + facts.reactivationMrrCents -
     facts.contractionMrrCents - facts.churnMrrCents;
   const netText = net === 0 ? "no net change" : `a net ${net > 0 ? "gain" : "loss"} of ${money(Math.abs(net))}`;
-  return `This period: ${moved.join(", ")}, ${netText}.`;
+  return `Since the day before: ${moved.join(", ")}, ${netText}.`;
 }
 
 function riskSentence(facts: NarrativeFacts): string {

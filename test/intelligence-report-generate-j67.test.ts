@@ -109,7 +109,7 @@ describe("generateMonthlyReport: Recova's button on Foxhound's engine", () => {
     const db = await seed();
     const result = await generateMonthlyReport(ENV, db, "acc_1", "2026-10", NOW);
     const narrative =
-      "Total MRR is $5,000.00. This period: $200.00 new, $50.00 expansion, $10.00 contraction, " +
+      "Total MRR is $5,000.00. Since the day before: $200.00 new, $50.00 expansion, $10.00 contraction, " +
       "$30.00 churned, a net gain of $210.00. $99.00 of MRR is at risk across 1 customer. " +
       "The lowest health score is Low Co at 20/100.";
     expect(result).toEqual({ ok: true, month: "2026-10", narrative });
