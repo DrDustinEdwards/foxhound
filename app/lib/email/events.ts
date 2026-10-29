@@ -50,7 +50,7 @@ const ENVELOPE_PREFIX = "cf.email.sending.message.";
  *  module has always taken. A bounced envelope is a hard bounce unless its
  *  bounce type says soft, which is Recova's rule (hard, Permanent or absent
  *  counts as hard). Pure. */
-export function normalizeEmailEvent(body: unknown): EmailServiceEvent {
+function normalizeEmailEvent(body: unknown): EmailServiceEvent {
   const raw = (body ?? {}) as EmailSendingEnvelope & Partial<EmailServiceEvent>;
   if (typeof raw.type === "string" && raw.type.startsWith(ENVELOPE_PREFIX) && raw.payload) {
     const p = raw.payload;
@@ -86,7 +86,7 @@ export function shouldSuppress(event: EmailServiceEvent): boolean {
 
 /** The account an event belongs to: the one it already names, else the
  *  account of the email_sends row carrying its message id, else null. */
-export async function resolveEventAccountId(db: Db, event: EmailServiceEvent): Promise<string | null> {
+async function resolveEventAccountId(db: Db, event: EmailServiceEvent): Promise<string | null> {
   if (event.accountId) return event.accountId;
   if (!event.messageId) return null;
   const [send] = await db
