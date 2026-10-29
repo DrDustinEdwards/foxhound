@@ -227,6 +227,7 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
                       state: d.state,
                       submittedBy: d.submittedBy,
                       hasEvidence: hasEvidence.has(d.id),
+                      stripeStatus: d.status,
                     });
                     const name = d.customerName || "Unknown";
                     const score = d.stripeCustomerId ? health[d.stripeCustomerId] : undefined;

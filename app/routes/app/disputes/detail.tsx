@@ -50,6 +50,7 @@ import {
   deadlineUrgency,
   humanizeDisputeReason,
   isDisputeResolved,
+  isInquiryStatus,
 } from "~/lib/disputes/labels";
 import { getDisputeDetail, readDisputeSettings } from "~/lib/disputes/queries.server";
 import { buildDisputeTimeline } from "~/lib/disputes/timeline";
@@ -144,7 +145,7 @@ export async function action(args: Route.ActionArgs) {
 }
 
 export default function DisputeDetail({ loaderData, actionData }: Route.ComponentProps) {
-  const { dispute, evidence, approval, findings, shipsPhysical, filesAvailable, isDemo, nowMs, prediction } = loaderData;
+  const { dispute, evidence, approval, funds, findings, shipsPhysical, filesAvailable, isDemo, nowMs, prediction } = loaderData;
   const navigation = useNavigation();
   const pressedIntent = navigation.formData?.get("intent") ?? null;
   const approving = navigation.state !== "idle" && pressedIntent === "approve";
@@ -219,6 +220,8 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
     outcomeNotifiedAt: dispute.outcomeNotifiedAt,
     resolvedAt: dispute.resolvedAt,
     state: dispute.state,
+    status: dispute.status,
+    funds,
   });
 
   const saveControls = (
@@ -266,12 +269,20 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
           <div className="mt-0.5 text-label text-text-subtle">{humanizeDisputeReason(dispute.reason)}</div>
         </div>
         <div className="text-right">
+          {/* An inquiry is not a chargeback; Recova did not tell them apart. */}
+          {!resolved && isInquiryStatus(dispute.status) ? (
+            <div className="mb-1">
+              <Pill>Inquiry</Pill>
+            </div>
+          ) : null}
           {!resolved ? (
             <div className={`font-mono text-label ${deadlineClassName(deadlineUrgency(days))}`}>
               {deadlineRemaining(days)}
             </div>
           ) : null}
-          {resolved && outcome ? <Pill tone={state === "resolved_won" ? "ok" : "crit"}>{outcome}</Pill> : null}
+          {resolved && outcome ? (
+            <Pill tone={state === "resolved_won" ? "ok" : state === "resolved_lost" ? "crit" : undefined}>{outcome}</Pill>
+          ) : null}
         </div>
       </header>
 
@@ -653,7 +664,9 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
                       : dispute.submittedAt != null
                         ? "Won. The fee is not priced yet, so it is not billed until it is."
                         : "Won. No fee: this dispute was not submitted through Foxhound."
-                    : "Lost. Not billed."}
+                    : state === "inquiry_closed"
+                      ? "Inquiry closed. Not billed."
+                      : "Lost. Not billed."}
                 </p>
               ) : null}
             </div>

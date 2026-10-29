@@ -39,6 +39,7 @@ export const SUBMITTED_OR_RESOLVED: readonly DisputeState[] = [
   "submitted",
   "resolved_won",
   "resolved_lost",
+  "inquiry_closed",
 ];
 
 export function canApprove(state: DisputeState): boolean {

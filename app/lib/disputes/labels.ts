@@ -16,6 +16,7 @@ export const DISPUTE_STATE_LABELS: Record<DisputeState, string> = {
   submitted: "Submitted",
   resolved_won: "Won",
   resolved_lost: "Lost",
+  inquiry_closed: "Inquiry closed",
 };
 
 export function disputeStateTone(state: DisputeState): Tone {
@@ -24,7 +25,18 @@ export function disputeStateTone(state: DisputeState): Tone {
   return "neutral";
 }
 
-export const RESOLVED_DISPUTE_STATES: readonly DisputeState[] = ["resolved_won", "resolved_lost"];
+export const RESOLVED_DISPUTE_STATES: readonly DisputeState[] = ["resolved_won", "resolved_lost", "inquiry_closed"];
+
+/**
+ * Whether a Stripe dispute status is an inquiry's (warning_needs_response,
+ * warning_under_review, warning_closed). An inquiry is the issuer asking about
+ * a charge before any chargeback: it moves no money and is never won or lost.
+ * Stripe moves an inquiry the issuer escalates to the chargeback statuses, so
+ * the stored status is read each time rather than fixed at intake.
+ */
+export function isInquiryStatus(status: string | null | undefined): boolean {
+  return typeof status === "string" && status.startsWith("warning_");
+}
 
 /** Who Recova's and Foxhound's stored submitted_by names when the merchant or
  *  Stripe, not Foxhound, sent the evidence (the timeline reads it the same way). */
@@ -35,6 +47,8 @@ export interface DisputeListStatusInput {
   submittedBy: string | null;
   /** Whether Foxhound's draft holds at least one non-blank evidence field. */
   hasEvidence: boolean;
+  /** Stripe's dispute status, which says whether this is an inquiry. */
+  stripeStatus?: string | null;
 }
 
 /**
@@ -62,6 +76,13 @@ export interface DisputeListStatusInput {
  * fallback for a state outside the six, as Recova's is.
  */
 export function disputeListStatus(input: DisputeListStatusInput): { label: string; tone: Tone } {
+  // An inquiry is not a chargeback, and Recova did not tell them apart, so
+  // these two are Foxhound's own: "Inquiry" while it awaits a response, and
+  // "Inquiry closed" once Stripe closed it as warning_closed.
+  if (input.state === "inquiry_closed") return { label: DISPUTE_STATE_LABELS.inquiry_closed, tone: "neutral" };
+  if (isInquiryStatus(input.stripeStatus) && input.state !== "submitted" && !isDisputeResolved(input.state)) {
+    return { label: "Inquiry", tone: "neutral" };
+  }
   switch (input.state) {
     case "resolved_won":
       return { label: "Won", tone: "success" };
