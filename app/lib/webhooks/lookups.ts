@@ -25,6 +25,7 @@ import {
 } from "~/lib/recovery/winback-reactivation.server";
 import { findAttributionSignals, resolveAttribution } from "~/lib/recovery/attribution";
 import { pickDeclineCode } from "~/lib/recovery/decline";
+import type { RecoveredChargeFee } from "~/lib/recovery/record-recovery";
 import { getConnectedStripe } from "~/lib/stripe/client";
 import { latestInvoiceCharge } from "~/lib/stripe/invoice-charge";
 import { decryptToken } from "~/lib/stripe/encryption";
@@ -529,6 +530,18 @@ export async function resolveExpiringCard(
   }
 }
 
+/** The connected account's Stripe client, or null when the connection has no
+ *  token. Decrypt and lookup errors propagate to the caller's catch. */
+async function connectedStripeFor(env: Env, connectionId: string) {
+  const [connection] = await getDb(env)
+    .select({ accessToken: stripeConnections.stripeAccessToken })
+    .from(stripeConnections)
+    .where(eq(stripeConnections.id, connectionId))
+    .limit(1);
+  if (!connection?.accessToken) return null;
+  return getConnectedStripe(await decryptToken(env, connection.accessToken));
+}
+
 /** What the declined charge says about a failure, beyond what the invoice event
  *  carries. Every field is nullable: Stripe fills them per network and card. */
 export interface DeclineFacts {
@@ -560,13 +573,8 @@ export async function resolveDeclineFacts(
   invoiceId: string,
 ): Promise<DeclineFacts | null> {
   try {
-    const [connection] = await getDb(env)
-      .select({ accessToken: stripeConnections.stripeAccessToken })
-      .from(stripeConnections)
-      .where(eq(stripeConnections.id, connectionId))
-      .limit(1);
-    if (!connection?.accessToken) return null;
-    const stripe = getConnectedStripe(await decryptToken(env, connection.accessToken));
+    const stripe = await connectedStripeFor(env, connectionId);
+    if (!stripe) return null;
     const latest = await latestInvoiceCharge(stripe, invoiceId);
     if (!latest) return null;
     const { paymentIntent, charge } = latest;
@@ -586,6 +594,40 @@ export async function resolveDeclineFacts(
     };
   } catch (err) {
     console.error("intake decline facts read failed:", err instanceof Error ? err.message : "unknown error");
+    return null;
+  }
+}
+
+/**
+ * The fee and net of a paid invoice's charge, for the recovery record. One
+ * invoice payments list and one payment intent read, the charge's balance
+ * transaction expanded in the same call.
+ *
+ * BEST EFFORT, like resolveDeclineFacts. Null on any failure, and on a charge
+ * whose balance transaction Stripe has not created yet: the recovery and its
+ * billing never wait on this read, and the columns stay null for a later
+ * backfill. The payout is not read: a balance transaction does not name its
+ * payout, and finding it would mean listing payouts.
+ */
+export async function resolveRecoveredChargeFee(
+  env: Env,
+  connectionId: string,
+  invoiceId: string,
+): Promise<RecoveredChargeFee | null> {
+  try {
+    const stripe = await connectedStripeFor(env, connectionId);
+    if (!stripe) return null;
+    const latest = await latestInvoiceCharge(stripe, invoiceId, { balanceTransaction: true });
+    const bt = latest?.charge.balance_transaction;
+    if (!bt || typeof bt === "string") return null;
+    return {
+      stripeBalanceTransactionId: bt.id,
+      stripeFeeCents: bt.fee,
+      netAmountCents: bt.net,
+      netCurrency: bt.currency,
+    };
+  } catch (err) {
+    console.error("recovered charge fee read failed:", err instanceof Error ? err.message : "unknown error");
     return null;
   }
 }
