@@ -1,4 +1,4 @@
-import { createAnthropicClient } from "~/lib/ai/client";
+import { createAnthropicClient, type AiCallMeter } from "~/lib/ai/client";
 import { PLAIN_WRITING_LINES, ownPhrasing } from "~/lib/ai/plain-writing";
 import { UNTRUSTED_DATA_RULE, untrusted } from "~/lib/ai/untrusted";
 import { MODEL_RECOVERY_EMAIL } from "~/lib/constants";
@@ -173,8 +173,9 @@ const OUTPUT_SCHEMA = {
 export async function generateWinbackEmail(
   env: Env,
   input: WinbackPromptInput,
+  meter: AiCallMeter,
 ): Promise<EmailCopy> {
-  const client = createAnthropicClient(env);
+  const client = createAnthropicClient(env, meter);
   const prompt = buildWinbackPrompt(input);
 
   // One call shape for the first call and the timing-word retry: the retry is

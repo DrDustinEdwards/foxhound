@@ -8,6 +8,8 @@ import {
   type EvidenceFacts,
 } from "~/lib/disputes/evidence";
 
+const METER = { source: "test", accountId: null };
+
 const EMPTY_FACTS: EvidenceFacts = { productName: null, serviceDate: null, communications: [] };
 
 describe("buildEvidenceFacts (grounded only in real records)", () => {
@@ -90,7 +92,7 @@ describe("draftDisputeEvidence (no fabrication)", () => {
         },
       ],
     };
-    const fields = await draftDisputeEvidence({} as Env, facts);
+    const fields = await draftDisputeEvidence({} as Env, facts, METER);
     expect(fields).toEqual([
       { fieldName: "product_description", fieldValue: "Pro Monthly" },
       { fieldName: "service_date", fieldValue: "2026-01-15" },
@@ -112,7 +114,7 @@ describe("the merchant's product description (S32)", () => {
   it("grounds a dispute that matches no recovery, as Recova used it on every response", async () => {
     const facts = buildEvidenceFacts(null, [], "Handmade candles, shipped in the US");
     expect(hasGroundingFacts(facts)).toBe(true);
-    expect(await draftDisputeEvidence({} as Env, facts)).toEqual([
+    expect(await draftDisputeEvidence({} as Env, facts, METER)).toEqual([
       { fieldName: "product_description", fieldValue: "Handmade candles, shipped in the US" },
     ]);
   });

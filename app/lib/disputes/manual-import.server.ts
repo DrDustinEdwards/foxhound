@@ -160,7 +160,11 @@ export async function importDisputeFromStripe(
     amountCents: fields.amountCents,
     reason: fields.reason,
   });
-  const evidence = mergeEvidence(stripeContext.evidence, await draftDisputeEvidence(env, facts));
+  const evidence = mergeEvidence(stripeContext.evidence, await draftDisputeEvidence(env, facts, {
+    source: "dispute_evidence",
+    accountId,
+    relatedId: fields.stripeDisputeId,
+  }));
 
   const disputeId = crypto.randomUUID();
   const { applied } = await executeMoneyWrite(env, {

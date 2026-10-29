@@ -1,4 +1,4 @@
-import { createAnthropicClient } from "~/lib/ai/client";
+import { createAnthropicClient, type AiCallMeter } from "~/lib/ai/client";
 import { PLAIN_WRITING_LINES, findStockPhrasing, ownPhrasing, retryStockPhrasing } from "~/lib/ai/plain-writing";
 import { UNTRUSTED_DATA_RULE, untrusted } from "~/lib/ai/untrusted";
 import { MODEL_RECOVERY_EMAIL } from "~/lib/constants";
@@ -554,11 +554,12 @@ export function buildPrompts(input: GenerateEmailInput): { system: string; user:
 export async function generateDunningEmail(
   env: Env,
   input: GenerateEmailInput,
+  meter: AiCallMeter,
 ): Promise<EmailCopy> {
   if (!env.ANTHROPIC_API_KEY) {
     throw new Error("ANTHROPIC_API_KEY is not set");
   }
-  const client = createAnthropicClient(env);
+  const client = createAnthropicClient(env, meter);
   const prompts = buildPrompts(input);
 
   // One call shape for the first call and the timing-word retry: the retry is
