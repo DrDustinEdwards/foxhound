@@ -38,6 +38,7 @@ import {
   priceUnpricedDisputeFees,
 } from "~/lib/disputes/fee-pricing.server";
 import { describeWeeklyDigestRun, runWeeklyDigest } from "~/lib/cron/digest";
+import { describeMissedEventSweep, sweepMissedStripeEvents } from "~/lib/webhooks/missed-events.server";
 import { describeWinbackRun, runWinbackSends } from "~/lib/cron/winback";
 import { alertCronFailure, billingFailureError, runCronHealthCheck } from "./alerts.server";
 import { runRecoveryTick } from "./recovery-tick";
@@ -284,6 +285,16 @@ const stripeDeauthorizeRetry: CronHandler = async (env, ctx) => {
   return { rowsProcessed: result.revoked + result.superseded, message: describeDeauthorizeRetry(result) };
 };
 
+/** The missed-event sweep (Stripe's process-undelivered-events advice): the
+ *  last four days of each live connection's events that webhook_events never
+ *  claimed, replayed through the webhook route's own processor. Reuses the
+ *  daily schedule, so no new wrangler.jsonc trigger. See
+ *  app/lib/webhooks/missed-events.server.ts. */
+const stripeMissedEvents: CronHandler = async (env) => {
+  const result = await sweepMissedStripeEvents(env, new Date());
+  return { rowsProcessed: result.replayed, message: describeMissedEventSweep(result) };
+};
+
 const cronHealth: CronHandler = async (env) =>
   runCronHealthCheck(env, getDb(env), CRON_JOBS, new Date());
 
@@ -329,6 +340,7 @@ export const CRON_JOBS: CronJob[] = [
   { name: DEMO_RESET_CRON_NAME, schedule: CRON_SCHEDULE_DAILY, handler: demoReset },
   { name: "credit-note-retry", schedule: CRON_SCHEDULE_DAILY, handler: creditNoteRetry },
   { name: "stripe-deauthorize-retry", schedule: CRON_SCHEDULE_DAILY, handler: stripeDeauthorizeRetry },
+  { name: "stripe-missed-events", schedule: CRON_SCHEDULE_DAILY, handler: stripeMissedEvents },
   { name: "dispute-fee-pricing", schedule: CRON_SCHEDULE_DAILY, handler: disputeFeePricing },
   { name: "billing-monthly", schedule: CRON_SCHEDULE_MONTHLY, handler: billingMonthly },
   { name: "intelligence-sync", schedule: CRON_SCHEDULE_DAILY, handler: intelligenceSync },
