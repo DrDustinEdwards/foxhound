@@ -112,8 +112,8 @@ describe("getChurnView rate series", () => {
   it("orders oldest first and excludes snapshots outside the window", async () => {
     const db = await setup({
       snapshots: [
-        { monthsAgo: 24, vol: 900, invol: 900 }, // outside the 12-month window
-        { monthsAgo: 3, vol: 300, invol: 300 },
+        { monthsAgo: 4, vol: 900, invol: 900 }, // outside the 90-day window
+        { monthsAgo: 2, vol: 300, invol: 300 },
         { monthsAgo: 1, vol: 100, invol: 100 },
       ],
     });

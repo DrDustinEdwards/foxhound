@@ -1,19 +1,21 @@
-import { eq } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import { accounts } from "~/db";
 import type { Membership } from "~/lib/auth/account";
 
 import {
-  DEMO_ACCOUNT_ID,
+  DEMO_ACTIVE_ACCOUNT_COOKIE,
+  DEMO_BUSINESSES,
   DEMO_SESSION_COOKIE,
   DEMO_SESSION_COOKIE_VALUE,
+  type DemoBusiness,
 } from "./constants";
 
 // Read-only demo view mode. A visitor who enters the demo gets a cookie that the
 // app-shell middleware recognizes; with it (and NO real session) it injects a
 // synthetic membership for the demo account so the REAL app routes render demo
-// data. The cookie carries no account id, so it can only ever resolve to the one
+// data. The cookie carries no account id, so it can only ever resolve to a
 // hardcoded demo account, never a real tenant. HttpOnly so page scripts cannot
 // read or forge it.
 
@@ -32,6 +34,36 @@ export function setDemoCookieHeader(): string {
 
 export function clearDemoCookieHeader(): string {
   return `${DEMO_SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`;
+}
+
+// Legacy kept `active_demo_account` for a year (switch-account/route.ts), so a
+// returning visitor lands on the business they last looked at.
+const DEMO_ACTIVE_ACCOUNT_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
+
+function readCookie(request: Request, name: string): string | null {
+  const header = request.headers.get("cookie") ?? "";
+  for (const part of header.split(";")) {
+    const [key, ...rest] = part.trim().split("=");
+    if (key === name) return rest.join("=");
+  }
+  return null;
+}
+
+/** The demo business with this account id, or null for anything else. The one
+ *  check both the switch route and the cookie reader use: only an id in
+ *  DEMO_BUSINESSES is ever honored, so neither can name a real account. */
+export function findDemoBusiness(accountId: string | null | undefined): DemoBusiness | null {
+  return DEMO_BUSINESSES.find((b) => b.accountId === accountId) ?? null;
+}
+
+/** The demo business the visitor last switched to, else the first (Teamflow),
+ *  as legacy's SiteNav.tsx read `active_demo_account || demoList[0].id`. */
+export function activeDemoBusiness(request: Request): DemoBusiness {
+  return findDemoBusiness(readCookie(request, DEMO_ACTIVE_ACCOUNT_COOKIE)) ?? DEMO_BUSINESSES[0];
+}
+
+export function setActiveDemoAccountCookieHeader(business: DemoBusiness): string {
+  return `${DEMO_ACTIVE_ACCOUNT_COOKIE}=${business.accountId}; Path=/; Max-Age=${DEMO_ACTIVE_ACCOUNT_MAX_AGE_SECONDS}; HttpOnly; Secure; SameSite=Lax`;
 }
 
 /**
@@ -68,22 +100,40 @@ export function demoBlocksMethod(method: string): boolean {
 export const DEMO_READ_ONLY_MESSAGE =
   "Actions are disabled in this demo. Explore freely; nothing here can be changed.";
 
-/**
- * Resolve the synthetic membership for the demo account, or null if the demo
- * account has not been seeded yet (so the caller can send the visitor back to
- * /demos instead of into an empty shell). Read-only: never creates anything.
- */
-export async function resolveDemoMembership(db: Db): Promise<Membership | null> {
-  const rows = await db
-    .select({ name: accounts.name })
-    .from(accounts)
-    .where(eq(accounts.id, DEMO_ACCOUNT_ID))
-    .limit(1);
-  if (rows.length === 0) return null;
+function demoMembership(business: DemoBusiness, accountName: string | null): Membership {
   return {
-    memberId: `${DEMO_ACCOUNT_ID}_member`,
-    accountId: DEMO_ACCOUNT_ID,
-    accountName: rows[0].name,
+    memberId: `${business.accountId}_member`,
+    accountId: business.accountId,
+    accountName,
     role: "owner",
   };
+}
+
+/**
+ * The synthetic memberships for every seeded demo business, in DEMO_BUSINESSES
+ * order: what the account switcher lists in the demo. Read-only: never creates
+ * anything. Empty before the demo is seeded.
+ */
+export async function resolveDemoMemberships(db: Db): Promise<Membership[]> {
+  const rows = await db
+    .select({ id: accounts.id, name: accounts.name })
+    .from(accounts)
+    .where(inArray(accounts.id, DEMO_BUSINESSES.map((b) => b.accountId)));
+  const nameById = new Map(rows.map((r) => [r.id, r.name]));
+  return DEMO_BUSINESSES.filter((b) => nameById.has(b.accountId)).map((b) =>
+    demoMembership(b, nameById.get(b.accountId) ?? null),
+  );
+}
+
+/**
+ * Resolve the synthetic membership for a demo business (Teamflow unless one is
+ * named), or null if it has not been seeded yet (so the caller can send the
+ * visitor back to /demos instead of into an empty shell).
+ */
+export async function resolveDemoMembership(
+  db: Db,
+  business: DemoBusiness = DEMO_BUSINESSES[0],
+): Promise<Membership | null> {
+  const all = await resolveDemoMemberships(db);
+  return all.find((m) => m.accountId === business.accountId) ?? null;
 }

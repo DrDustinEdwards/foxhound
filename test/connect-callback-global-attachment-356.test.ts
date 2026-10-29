@@ -174,7 +174,7 @@ function markerOf(sessionId: string): string | null {
 const fakeContext = {
   get(key: unknown) {
     if (key === cloudflareContext) {
-      return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+      return { env: {} as Env, ctx: { waitUntil: () => {} } as unknown as ExecutionContext, nonce: "n" };
     }
     throw new Error("unexpected context key");
   },

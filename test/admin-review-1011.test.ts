@@ -116,7 +116,6 @@ describe("the audit log in plain English", () => {
     expect(auditTarget(entry("merchant.cancel", { accountId: "acct_gone" }), lookups)?.label).toBe("acct_gone");
     expect(auditTarget(entry("blog.publish", { postId: "post_1", slug: "why" }), lookups)).toEqual({
       label: "Why cards fail",
-      href: "/admin/blog/post_1",
     });
     expect(auditTarget(entry("brake.engage", { intendedCount: 3, sample: ["a"] }), lookups)).toEqual({
       label: "All merchants (3)",

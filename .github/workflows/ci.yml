@@ -124,7 +124,7 @@ jobs:
   deploy:
     needs: verify
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@520882e59f98ae19dd55bfe45d772ea42819596e # v0.15.0
+    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@a793fd1aecc646bbf2bbbf76032d9034d840e007 # v0.16.1
     with:
       worker-name: foxhound
       health-url: https://foxhoundapp.com/health

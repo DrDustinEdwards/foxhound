@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 
 import {
   CRON_SCHEDULE_DAILY,
+  CRON_SCHEDULE_EXPIRING_CARDS,
   CRON_SCHEDULE_MONTHLY,
   CRON_SCHEDULE_MONTHLY_AUDIT,
   CRON_SCHEDULE_RECOVERY_TICK,
@@ -53,20 +54,24 @@ describe("cron registry", () => {
     expect(WRANGLER_CRONS).toContain(CRON_SCHEDULE_DAILY);
     expect(WRANGLER_CRONS).toContain(CRON_SCHEDULE_MONTHLY);
     expect(WRANGLER_CRONS).toContain(CRON_SCHEDULE_MONTHLY_AUDIT);
+    expect(WRANGLER_CRONS).toContain(CRON_SCHEDULE_EXPIRING_CARDS);
     expect(WRANGLER_CRONS).toContain(CRON_SCHEDULE_RECOVERY_TICK);
   });
 
-  it("dispatches billing and intelligence sync on the monthly schedule, intelligence AI + retention on the daily one", () => {
+  it("dispatches billing on the monthly schedule, intelligence sync, AI + retention on the daily one", () => {
     // THE AUDIT DIGEST LEFT THIS LIST IN PHASE (g), and this assertion catching
     // it is the guard working. 362 ruling 3 merged its send into the monthly
     // audit and moved the merged job to legacy's own 09:00 hour, so the 04:00
     // slot is back to the two jobs that were there before 316.
     const monthly = jobsForSchedule(CRON_SCHEDULE_MONTHLY);
-    expect(monthly.map((j) => j.name)).toEqual(["billing-monthly", "intelligence-sync"]);
+    expect(monthly.map((j) => j.name)).toEqual(["billing-monthly"]);
     expect(monthly.map((j) => j.name)).not.toContain("audit-digest");
 
     const daily = jobsForSchedule(CRON_SCHEDULE_DAILY);
-    expect(daily.map((j) => j.name)).toContain("intelligence-ai");
+    // The sync writes today's snapshot before the AI run reads it.
+    const names = daily.map((j) => j.name);
+    expect(names.indexOf("intelligence-sync")).toBeGreaterThan(-1);
+    expect(names.indexOf("intelligence-sync")).toBeLessThan(names.indexOf("intelligence-ai"));
     expect(daily.filter((j) => j.name.startsWith("retention-")).length).toBeGreaterThanOrEqual(8);
   });
 
@@ -79,19 +84,27 @@ describe("cron registry", () => {
     ]);
   });
 
+  it("sends expiring-card alerts at legacy's 09:00 UTC daily, not on the 03:00 sweep", () => {
+    // Recova's vercel.json: { "path": "/api/cron/expiring-cards", "schedule": "0 9 * * *" }.
+    expect(CRON_SCHEDULE_EXPIRING_CARDS).toBe("0 9 * * *");
+    expect(jobsForSchedule(CRON_SCHEDULE_EXPIRING_CARDS).map((j) => j.name)).toEqual(["expiring-cards"]);
+    expect(jobsForSchedule(CRON_SCHEDULE_DAILY).map((j) => j.name)).not.toContain("expiring-cards");
+  });
+
   it("dispatches the demo reset on the daily schedule", () => {
     const daily = jobsForSchedule(CRON_SCHEDULE_DAILY);
     expect(daily.map((j) => j.name)).toContain("demo-reset");
   });
 
-  it("dispatches the recovery tick, the win-back send and the dispute reminder on the high-cadence schedule", () => {
+  it("dispatches the recovery tick, the win-back send, alerts and the dispute reminder on the high-cadence schedule", () => {
     // Kept STRICT rather than relaxed to toContain, so a fourth job arriving on
     // the highest-cadence schedule still trips this. win-back shares it because
     // legacy's own cron piggybacks on the recovery schedule (343, 344); the
     // dispute reminder (J06) because legacy's process-disputes ran hourly and a
     // new expression would need its own cron-health period.
     const tick = jobsForSchedule(CRON_SCHEDULE_RECOVERY_TICK);
-    expect(tick.map((j) => j.name)).toEqual(["recovery-tick", "winback-send", "dispute-reminders"]);
+    // Alerts too: Recova evaluated them at the tail of its recovery cron.
+    expect(tick.map((j) => j.name)).toEqual(["recovery-tick", "winback-send", "dispute-reminders", "alerts-evaluate"]);
   });
 
   it("an unregistered schedule dispatches nothing", () => {

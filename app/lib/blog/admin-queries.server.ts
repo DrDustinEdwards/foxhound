@@ -1,12 +1,13 @@
-// Admin write path for blog_posts / blog_post_links / blog_post_versions
-// (Phase 7 admin blog editor). The public read path (queries.server.ts) is
-// untouched; this is the create/update/publish/version/link-management half
-// SCHEMA.md and the Phase 6 content-flags doc left for Phase 7.
+// The write path for blog_posts / blog_post_versions. Its one caller is the
+// Carrel site adapter (app/lib/carrel/adapter.server.ts): Carrel is the blog
+// editor, and Foxhound's own /admin/blog editor is gone (RULES.md 7.4, Q8).
+// The editor's list, version and related-post helpers went with it. The public
+// read path (queries.server.ts) is untouched.
 
-import { and, asc, desc, eq, ne } from "drizzle-orm";
+import { and, desc, eq, ne } from "drizzle-orm";
 
 import type { Db } from "~/db";
-import { blogPostLinks, blogPostVersions, blogPosts } from "~/db";
+import { blogPostVersions, blogPosts } from "~/db";
 
 import { estimateReadingTime, generateSlug } from "./format";
 
@@ -14,54 +15,6 @@ import { estimateReadingTime, generateSlug } from "./format";
  *  retention: keep last 10 per post"). Enforced on every update, not just at
  *  read time, so the table never grows unbounded per post. */
 const BLOG_VERSION_RETENTION = 10;
-
-export interface AdminPostListRow {
-  id: string;
-  slug: string;
-  title: string;
-  published: boolean;
-  publishedAt: Date | null;
-  updatedAt: Date;
-  featured: boolean;
-  tags: string[];
-  author: string;
-}
-
-export async function listAllPostsForAdmin(db: Db): Promise<AdminPostListRow[]> {
-  const rows = await db
-    .select({
-      id: blogPosts.id,
-      slug: blogPosts.slug,
-      title: blogPosts.title,
-      published: blogPosts.published,
-      publishedAt: blogPosts.publishedAt,
-      updatedAt: blogPosts.updatedAt,
-      featured: blogPosts.featured,
-      tags: blogPosts.tags,
-      author: blogPosts.author,
-    })
-    .from(blogPosts)
-    .orderBy(desc(blogPosts.updatedAt));
-  return rows.map((r) => ({ ...r, tags: r.tags ?? [] }));
-}
-
-export async function getPostForAdmin(db: Db, id: string) {
-  const rows = await db.select().from(blogPosts).where(eq(blogPosts.id, id)).limit(1);
-  return rows[0] ?? null;
-}
-
-export async function getPostVersions(db: Db, postId: string) {
-  return db.select().from(blogPostVersions).where(eq(blogPostVersions.postId, postId)).orderBy(desc(blogPostVersions.savedAt));
-}
-
-export async function getPostLinksForAdmin(db: Db, postId: string) {
-  return db
-    .select({ id: blogPostLinks.id, targetId: blogPostLinks.targetId, position: blogPostLinks.position, targetTitle: blogPosts.title, targetSlug: blogPosts.slug })
-    .from(blogPostLinks)
-    .innerJoin(blogPosts, eq(blogPosts.id, blogPostLinks.targetId))
-    .where(eq(blogPostLinks.sourceId, postId))
-    .orderBy(asc(blogPostLinks.position));
-}
 
 /** A slug candidate derived from a title, deduped against existing slugs by
  *  appending -2, -3, ... Bounded loop (100 tries) so a pathological input
@@ -222,18 +175,4 @@ export async function setPublished(db: Db, postId: string, published: boolean): 
       updatedAt: new Date(),
     })
     .where(eq(blogPosts.id, postId));
-}
-
-export async function setPostLinks(db: Db, sourceId: string, targetIds: string[]): Promise<void> {
-  await db.delete(blogPostLinks).where(eq(blogPostLinks.sourceId, sourceId));
-  if (targetIds.length === 0) return;
-  await db.insert(blogPostLinks).values(
-    targetIds.map((targetId, i) => ({
-      id: crypto.randomUUID(),
-      sourceId,
-      targetId,
-      position: i,
-      createdAt: new Date(),
-    })),
-  );
 }

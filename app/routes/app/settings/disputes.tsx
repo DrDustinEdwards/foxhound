@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useId, useRef } from "react";
 import { data, useNavigation } from "react-router";
 import { Button } from "capsomer/react/button";
 import { PageHead } from "capsomer/react/page-head";
@@ -20,7 +20,7 @@ import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { readDisputeSettings } from "~/lib/disputes/queries.server";
-import { applyDisputeSettings } from "~/lib/settings/apply.server";
+import { applyDisputeSettings, applyDisputesEnabled } from "~/lib/settings/apply.server";
 import { DISPUTE_PRODUCT_DESCRIPTION_MAX_LENGTH } from "~/lib/settings/dispute-description";
 
 import type { Route } from "./+types/disputes";
@@ -41,17 +41,22 @@ import type { Route } from "./+types/disputes";
 // - Ships physical goods: the dispute page shows Recova's tracking number,
 //   carrier and ship date inputs when it is on (disputes/detail.tsx).
 //
+// THE DISPUTES ON/OFF SWITCH (parity gap 7): Recova's DisputesToggle, which
+// posted to /api/disputes/{enable,disable} over account_products, is ported
+// onto accounts.disputes_enabled (migration 0048, default on, as Recova
+// activated Disputes on Stripe connect). Like Recova's toggle it saves at once,
+// apart from the Save button, and leaves the description and ships-physical as
+// stored. Its reader is dispute intake: while it is off, the
+// charge.dispute.created webhook and the manual import create no dispute
+// (readDisputesEnabled, Recova's handleDisputeCreated step 1). The "active"
+// pill shows only while it is on, and while it is off Recova's "Enable Disputes
+// above to configure ..." line takes the place of the other settings. That
+// line drops Recova's "auto-submit, ": Foxhound has no such setting, so naming
+// it would be untrue (RULES.md 1.2).
+//
 // LEFT OUT, and why:
 // - Auto-submit disputes: deliberately not built (RULES.md 5.6). Its column is
 //   never written here.
-// - The Disputes on/off toggle (DisputesToggle, /api/disputes/{enable,disable}
-//   over account_products): Foxhound has no disputes entitlement for it to
-//   write; dispute intake runs for every connected account. A control that
-//   cannot do its job is left out (RULES.md 2.7). The row keeps its label, its
-//   "active" pill, which is true for every account, and its line. Listed under
-//   "Needs Dustin" in the J06 pull request.
-// - Recova's "Enable Disputes above to configure ..." branch, which only shows
-//   while the toggle is off, so it cannot occur.
 //
 // ONE LINE IS NOT RECOVA'S: its page line and section line read "Automatically
 // triage chargebacks, stage evidence, and submit responses to Stripe." Foxhound
@@ -76,12 +81,26 @@ export async function loader({ context }: Route.LoaderArgs) {
   return readDisputeSettings(getDb(env), auth.membership.accountId);
 }
 
-type ActionResult = { ok: true } | { ok: false; error?: string };
+type ActionResult = { ok: true; toggled?: true } | { ok: false; error?: string };
 
 export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
   const form = await request.formData();
+  if (form.get("_action") === "toggle_disputes") {
+    const enabled = form.get("enabled") === "true";
+    try {
+      await applyDisputesEnabled(getDb(env), auth.membership.accountId, { enabled });
+    } catch (err) {
+      console.error("disputes switch write failed:", err);
+      return data<ActionResult>(
+        { ok: false, error: `Could not ${enabled ? "enable" : "disable"} Disputes.` },
+        { status: 500 },
+      );
+    }
+    // No "Saved" for the switch: Recova's toggle showed only its new state.
+    return data<ActionResult>({ ok: true, toggled: true });
+  }
   try {
     const result = await applyDisputeSettings(getDb(env), auth.membership.accountId, {
       productDescription: form.get("dispute_product_description"),
@@ -97,9 +116,14 @@ export async function action({ request, context }: Route.ActionArgs) {
 }
 
 export default function DisputeSettings({ loaderData, actionData }: Route.ComponentProps) {
-  const saving = useNavigation().state === "submitting";
+  const navigation = useNavigation();
+  const toggling = navigation.state !== "idle" && navigation.formData?.get("_action") === "toggle_disputes";
+  const saving = navigation.state === "submitting" && !toggling;
   const result = actionData as ActionResult | undefined;
+  const toggleForm = useRef<HTMLFormElement>(null);
+  const { enabled } = loaderData;
   const id = useId();
+  const disputesLabelId = `${id}-disputes-label`;
   const descriptionHelpId = `${id}-description-help`;
   const shipsLabelId = `${id}-ships-label`;
   const shipsHelpId = `${id}-ships-help`;
@@ -111,69 +135,104 @@ export default function DisputeSettings({ loaderData, actionData }: Route.Compon
         <PageHead title="Disputes" lead={DISPUTES_SETTINGS_LINE} />
       </div>
 
+      {/* The switch's own form, as Recova's DisputesToggle posted on its own:
+          it carries the new value, and the switch below submits it at once.
+          The switch follows the stored value, so a refused change (the demo,
+          a failed write) springs back. */}
+      <DemoGuardedForm method="post" ref={toggleForm} id={`${id}-toggle`}>
+        <input type="hidden" name="_action" value="toggle_disputes" />
+        <input type="hidden" name="enabled" value={enabled ? "false" : "true"} />
+      </DemoGuardedForm>
+
       <DemoGuardedForm method="post">
         <section className="cap-panel">
           <div className="cap-panel-body">
-            {/* Recova's top row: the product's name, its active pill and its line. */}
-            <div className="border-b border-border pb-4">
-              <div className="mb-0.5 flex items-center gap-2">
-                <div className="text-label text-text">Disputes</div>
-                <Pill tone="ok">Active</Pill>
-              </div>
-              <p className="m-0 text-micro text-text-subtle">{DISPUTES_SETTINGS_LINE}</p>
-            </div>
-
-            <div className="py-4">
-              <label htmlFor={`${id}-description`} className="mb-0.5 block text-label text-text">
-                Product description
-              </label>
-              <p id={descriptionHelpId} className="m-0 mb-2 text-micro text-text-subtle">
-                Describe what your product or service is. Used in all dispute responses.
-              </p>
-              <textarea
-                id={`${id}-description`}
-                name="dispute_product_description"
-                className="cap-input"
-                rows={3}
-                maxLength={DISPUTE_PRODUCT_DESCRIPTION_MAX_LENGTH}
-                defaultValue={loaderData.productDescription}
-                placeholder="e.g. Monthly SaaS subscription for project management software"
-                aria-describedby={descriptionHelpId}
-              />
-            </div>
-
-            <div className="flex items-center justify-between gap-4 border-t border-border py-4">
-              <div className="pr-4">
-                <div id={shipsLabelId} className="mb-0.5 text-label text-text">
-                  Ships physical goods
+            {/* Recova's top row: the product's name, its active pill while on,
+                its line and the switch. */}
+            <div className="flex items-start justify-between gap-4 border-b border-border pb-4">
+              <div className="flex-1 pr-4">
+                <div className="mb-0.5 flex items-center gap-2">
+                  <div id={disputesLabelId} className="text-label text-text">
+                    Disputes
+                  </div>
+                  {enabled ? <Pill tone="ok">Active</Pill> : null}
                 </div>
-                <p id={shipsHelpId} className="m-0 text-micro text-text-subtle">
-                  Enable if you ship physical products. Adds shipping evidence fields to dispute responses.
-                </p>
+                <p className="m-0 text-micro text-text-subtle">{DISPUTES_SETTINGS_LINE}</p>
               </div>
               <Switch
-                id={`${id}-ships`}
-                name="dispute_ships_physical"
+                id={`${id}-enabled`}
+                form={`${id}-toggle`}
                 label={null}
-                defaultChecked={loaderData.shipsPhysical}
-                aria-labelledby={shipsLabelId}
-                aria-describedby={shipsHelpId}
+                checked={enabled}
+                busy={toggling}
+                aria-labelledby={disputesLabelId}
+                onCheckedChange={() => toggleForm.current?.requestSubmit()}
               />
             </div>
+
+            {enabled ? (
+              <>
+                <div className="py-4">
+                  <label htmlFor={`${id}-description`} className="mb-0.5 block text-label text-text">
+                    Product description
+                  </label>
+                  <p id={descriptionHelpId} className="m-0 mb-2 text-micro text-text-subtle">
+                    Describe what your product or service is. Used in all dispute responses.
+                  </p>
+                  <textarea
+                    id={`${id}-description`}
+                    name="dispute_product_description"
+                    className="cap-input"
+                    rows={3}
+                    maxLength={DISPUTE_PRODUCT_DESCRIPTION_MAX_LENGTH}
+                    defaultValue={loaderData.productDescription}
+                    placeholder="e.g. Monthly SaaS subscription for project management software"
+                    aria-describedby={descriptionHelpId}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between gap-4 border-t border-border py-4">
+                  <div className="pr-4">
+                    <div id={shipsLabelId} className="mb-0.5 text-label text-text">
+                      Ships physical goods
+                    </div>
+                    <p id={shipsHelpId} className="m-0 text-micro text-text-subtle">
+                      Enable if you ship physical products. Adds shipping evidence fields to dispute responses.
+                    </p>
+                  </div>
+                  <Switch
+                    id={`${id}-ships`}
+                    name="dispute_ships_physical"
+                    label={null}
+                    defaultChecked={loaderData.shipsPhysical}
+                    aria-labelledby={shipsLabelId}
+                    aria-describedby={shipsHelpId}
+                  />
+                </div>
+              </>
+            ) : (
+              <p className="m-0 pt-4 text-micro text-text-subtle">
+                Enable Disputes above to configure product description and shipping settings.
+              </p>
+            )}
           </div>
         </section>
 
-        {/* Recova's SaveBar: right-aligned, the result beside the button. */}
+        {/* Recova's SaveBar: right-aligned, the result beside the button. Only
+            while Disputes is on: with the settings hidden there is nothing to
+            save, and a save would post them empty. */}
         <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
           <p role="status" className="text-label">
-            {result?.ok === true ? <Status tone="ok">Saved</Status> : null}
+            {result?.ok === true && !result.toggled ? <Status tone="ok">Saved</Status> : null}
             {result?.ok === false ? (
               <Status tone="crit">{result.error ?? "Failed to save. Please try again."}</Status>
             ) : null}
           </p>
-          <Button type="submit" variant="primary" pending={saving}>
-            Save changes
-          </Button>
+          {enabled ? (
+            <Button type="submit" variant="primary" pending={saving}>
+              Save changes
+            </Button>
+          ) : null}
         </div>
       </DemoGuardedForm>
     </>

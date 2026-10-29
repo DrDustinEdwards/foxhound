@@ -24,7 +24,9 @@ import {
   WINBACK_REACTIVATABLE_STATUSES,
 } from "~/lib/recovery/winback-reactivation.server";
 import { findAttributionSignals, resolveAttribution } from "~/lib/recovery/attribution";
+import { pickDeclineCode } from "~/lib/recovery/decline";
 import { getConnectedStripe } from "~/lib/stripe/client";
+import { latestInvoiceCharge } from "~/lib/stripe/invoice-charge";
 import { decryptToken } from "~/lib/stripe/encryption";
 
 /** Map a connected Stripe account id to our account id AND the specific
@@ -76,13 +78,19 @@ export async function findActiveFailedPayment(
   env: Env,
   accountId: string,
   invoiceId: string,
-): Promise<{ id: string; status: string; declineCategory: string } | null> {
+): Promise<{
+  id: string;
+  status: string;
+  declineCategory: string;
+  networkAdviceCode: string | null;
+} | null> {
   const db = getDb(env);
   const rows = await db
     .select({
       id: failedPayments.id,
       status: failedPayments.status,
       declineCategory: failedPayments.declineCategory,
+      networkAdviceCode: failedPayments.networkAdviceCode,
     })
     .from(failedPayments)
     // LIVE, not just active (377(1)). A second payment_failed on the same
@@ -517,6 +525,67 @@ export async function resolveExpiringCard(
       "expiring-card payment method lookup failed:",
       err instanceof Error ? err.message : err,
     );
+    return null;
+  }
+}
+
+/** What the declined charge says about a failure, beyond what the invoice event
+ *  carries. Every field is nullable: Stripe fills them per network and card. */
+export interface DeclineFacts {
+  declineCode: string | null;
+  networkAdviceCode: string | null;
+  networkDeclineCode: string | null;
+  cardFunding: string | null;
+  cardBrand: string | null;
+  cardCountry: string | null;
+}
+
+/**
+ * The decline facts of an invoice's latest charge, for intake. The invoice
+ * event cannot give them: on the pinned API version it has no `charge`, and
+ * last_finalization_error covers finalization only, so a real payment failure
+ * used to arrive with no decline code and be classified "unknown".
+ *
+ * The decline code is the payment intent's last_payment_error.decline_code,
+ * then the issuer's reason on the charge outcome, then the charge's
+ * failure_code, the generic "card_declined" yielding to any specific code.
+ *
+ * BEST EFFORT. Returns null on any failure (no token, a decrypt failure, any
+ * Stripe error) and logs it: intake must never be blocked by a read, and the
+ * caller falls back to what the event carried.
+ */
+export async function resolveDeclineFacts(
+  env: Env,
+  connectionId: string,
+  invoiceId: string,
+): Promise<DeclineFacts | null> {
+  try {
+    const [connection] = await getDb(env)
+      .select({ accessToken: stripeConnections.stripeAccessToken })
+      .from(stripeConnections)
+      .where(eq(stripeConnections.id, connectionId))
+      .limit(1);
+    if (!connection?.accessToken) return null;
+    const stripe = getConnectedStripe(await decryptToken(env, connection.accessToken));
+    const latest = await latestInvoiceCharge(stripe, invoiceId);
+    if (!latest) return null;
+    const { paymentIntent, charge } = latest;
+    const outcome = charge.outcome;
+    const card = charge.payment_method_details?.card;
+    return {
+      declineCode: pickDeclineCode([
+        paymentIntent.last_payment_error?.decline_code,
+        outcome?.type === "issuer_declined" ? outcome.reason : null,
+        charge.failure_code,
+      ]),
+      networkAdviceCode: outcome?.network_advice_code ?? null,
+      networkDeclineCode: outcome?.network_decline_code ?? null,
+      cardFunding: card?.funding ?? null,
+      cardBrand: card?.brand ?? null,
+      cardCountry: card?.country ?? null,
+    };
+  } catch (err) {
+    console.error("intake decline facts read failed:", err instanceof Error ? err.message : "unknown error");
     return null;
   }
 }

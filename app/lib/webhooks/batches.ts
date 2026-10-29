@@ -61,6 +61,16 @@ export function buildWebhookClaim(db: Db, claim: WebhookClaimInput) {
   });
 }
 
+/** The declined charge's network and card facts (migration 0049), stored on
+ *  the failed payment when intake could read the charge. */
+export interface ChargeFacts {
+  networkAdviceCode: string | null;
+  networkDeclineCode: string | null;
+  cardFunding: string | null;
+  cardBrand: string | null;
+  cardCountry: string | null;
+}
+
 export interface IntakeBatchInput {
   claim: WebhookClaimInput;
   failedPaymentId: string;
@@ -92,6 +102,8 @@ export interface IntakeBatchInput {
    * Stripe never retries one.
    */
   stripeGaveUp: boolean;
+  /** Absent or null when the charge could not be read; the columns stay null. */
+  chargeFacts?: ChargeFacts | null;
 }
 
 /**
@@ -127,6 +139,7 @@ export function buildIntakeBatch(db: Db, input: IntakeBatchInput): MoneyWriteBat
     processor: "stripe",
     processorPaymentId: input.invoiceId,
     processorCustomerId: input.customerId,
+    ...input.chargeFacts,
   });
   if (!input.stripeGaveUp) return [claim, fpInsert];
 
@@ -161,6 +174,11 @@ export interface SequenceStartBatchInput {
    * payment's failure date on the dashboard.
    */
   startedAt: Date;
+  /** The decline code the category came from, written only when one is known
+   *  so a promotion never erases the code intake stored. */
+  declineCode?: string | null;
+  /** Fresh charge facts from the final attempt, written when read. */
+  chargeFacts?: ChargeFacts | null;
 }
 
 /**
@@ -179,9 +197,16 @@ export interface SequenceStartBatchInput {
  */
 export function buildSequenceStartBatch(db: Db, input: SequenceStartBatchInput): MoneyWriteBatch {
   const claim = buildWebhookClaim(db, input.claim);
+  // The category the steps are planned from is stored with the flip, so the
+  // row and its cadence cannot disagree.
   const flip = db
     .update(failedPayments)
-    .set({ status: FAILED_PAYMENT_STATUS_ACTIVE })
+    .set({
+      status: FAILED_PAYMENT_STATUS_ACTIVE,
+      declineCategory: input.declineCategory,
+      ...(input.declineCode ? { declineCode: input.declineCode } : {}),
+      ...input.chargeFacts,
+    })
     .where(
       and(
         eq(failedPayments.id, input.failedPaymentId),

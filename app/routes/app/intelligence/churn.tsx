@@ -97,14 +97,13 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
       {/* Rendered whenever it has data, independently of whether any customer is
           scored yet: the rate series comes from mrr_snapshots, a different table,
           so gating it on the scored-customer count would withhold real history
-          for an unrelated reason. Recova's own sentence carries Foxhound's real
-          window: the snapshot cron is monthly here, so the series is twelve
-          months, and "last 90 days" would be a false claim about our own data. */}
+          for an unrelated reason. Recova's window and sentence: 90 days of the
+          daily snapshots, every 7th kept (getChurnView). */}
       {hasRateData ? (
         <div className="mb-6">
           <Panel
             title="Churn rate over time"
-            description="Involuntary churn (payment failures) vs voluntary churn (cancellations), last 12 months"
+            description="Involuntary churn (payment failures) vs voluntary churn (cancellations), last 90 days"
           >
             <ChurnRateChart points={view.ratePoints} />
           </Panel>

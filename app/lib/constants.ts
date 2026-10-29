@@ -584,6 +584,19 @@ export const CRON_SCHEDULE_WEEKLY = "0 8 * * 1";
  * staleness. A derived plant asserts all three agree.
  */
 export const CRON_SCHEDULE_MONTHLY_AUDIT = "0 9 1 * *";
+/**
+ * The expiring-card alert: 09:00 UTC daily, LEGACY'S HOUR. Recova's vercel.json
+ * scheduled /api/cron/expiring-cards at "0 9 * * *"; riding the 03:00 daily
+ * sweep instead put the customer-facing warning in US inboxes in the middle of
+ * the night (parity gap 11).
+ *
+ * The THIRD new cron expression, with the same sites as the audit's: this
+ * constant, wrangler.jsonc triggers.crons, and alerts.server.ts's
+ * SCHEDULE_PERIOD_MS and CADENCE_LABEL. Six triggers sits well inside Workers
+ * Paid's 250 Cron Triggers per account, so it gets its own expression rather
+ * than sharing the monthly audit's behind a day-of-month gate.
+ */
+export const CRON_SCHEDULE_EXPIRING_CARDS = "0 9 * * *";
 /** Recovery tick: sweeps due recovery_steps. Every 5 minutes.
  *
  *  The original rationale (matching the 5-minute first send-retry backoff) no
@@ -622,7 +635,7 @@ export const CRON_TICKER_INSTANCE_NAME = "five-minute-ticker";
  *
  * At 500 that arithmetic lands around 2000-2500 and the tick could not have
  * completed a full batch. The old value only ever looked safe because a full
- * batch has never occurred: the platform has one seeded demo account.
+ * batch has never occurred: the platform's only seeded accounts are the two demo businesses.
  *
  * Lowering it costs nothing in correctness. Unprocessed due steps keep a null
  * result and a null executed_at, which is exactly what stepDueCondition selects,
@@ -763,14 +776,22 @@ export const INTELLIGENCE_NARRATIVE_TOP_N = 10;
  *  RATE_LIMIT_MAX). Held by the RATE_LIMITER Durable Object, keyed per
  *  account (report-generate.server.ts). */
 export const INTELLIGENCE_REPORT_HOURLY_LIMIT = 5;
-/** Canonical alert metric keys the nightly evaluator understands (alerts.metric
- *  is unconstrained text in the schema; this is the app-level enum until a
- *  settings UI for creating alerts exists). */
+/** Recova's eleven alert metrics, in its picker's order (AlertsClient.tsx,
+ *  blob ee8dac99). alerts.metric is unconstrained text in the schema; this is
+ *  the app-level enum, and computeAlertMetrics (alert-run.server.ts) returns
+ *  a value for each. */
 export const ALERT_METRICS = [
-  "health_score_avg",
+  "recovery_rate_pct",
   "mrr_at_risk_cents",
-  "mrr_churn_cents",
-  "mrr_contraction_cents",
+  "active_sequences",
+  "emails_sent_7d",
+  "open_disputes_count",
+  "disputes_due_48h",
+  "dispute_amount_at_stake_cents",
+  "high_risk_customers_count",
+  "intelligence_mrr_at_risk_cents",
+  "audit_leaking_cents",
+  "audit_leaking_delta_cents",
 ] as const;
 export type AlertMetric = (typeof ALERT_METRICS)[number];
 /** Canonical alert direction values (alerts.direction is unconstrained text). */

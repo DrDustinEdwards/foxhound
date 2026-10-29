@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "927ef046-bb03-4cee-84aa-b99a59d01f8c",
-  "prevId": "fd3f0dbc-b3a7-41bf-b10b-c6d67c8d9b8e",
+  "id": "4e2b7838-bac4-4799-b154-4c617f2a11ba",
+  "prevId": "f3ad84f6-7975-42a1-aed9-b7abeeb340d3",
   "tables": {
     "audit_digest_runs": {
       "name": "audit_digest_runs",
@@ -1898,121 +1898,6 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "dispute_balance_transactions": {
-      "name": "dispute_balance_transactions",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "account_id": {
-          "name": "account_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "stripe_dispute_id": {
-          "name": "stripe_dispute_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "stripe_balance_transaction_id": {
-          "name": "stripe_balance_transaction_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "kind": {
-          "name": "kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "amount_cents": {
-          "name": "amount_cents",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "fee_cents": {
-          "name": "fee_cents",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "currency": {
-          "name": "currency",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "occurred_at": {
-          "name": "occurred_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "dispute_balance_transactions_dispute_idx": {
-          "name": "dispute_balance_transactions_dispute_idx",
-          "columns": [
-            "account_id",
-            "stripe_dispute_id"
-          ],
-          "isUnique": false
-        },
-        "dispute_balance_transactions_bt_uq": {
-          "name": "dispute_balance_transactions_bt_uq",
-          "columns": [
-            "stripe_balance_transaction_id"
-          ],
-          "isUnique": true
-        }
-      },
-      "foreignKeys": {
-        "dispute_balance_transactions_account_id_accounts_id_fk": {
-          "name": "dispute_balance_transactions_account_id_accounts_id_fk",
-          "tableFrom": "dispute_balance_transactions",
-          "tableTo": "accounts",
-          "columnsFrom": [
-            "account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {
-        "dispute_balance_transactions_kind_ck": {
-          "name": "dispute_balance_transactions_kind_ck",
-          "value": "\"dispute_balance_transactions\".\"kind\" in ('withdrawn', 'reinstated')"
-        }
-      }
-    },
     "dispute_evidence": {
       "name": "dispute_evidence",
       "columns": {
@@ -2467,27 +2352,6 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
-        },
-        "stripe_has_evidence": {
-          "name": "stripe_has_evidence",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "stripe_submission_count": {
-          "name": "stripe_submission_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "stripe_synced_at": {
-          "name": "stripe_synced_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
         }
       },
       "indexes": {
@@ -2539,9 +2403,208 @@
       "checkConstraints": {
         "disputes_state_ck": {
           "name": "disputes_state_ck",
-          "value": "\"disputes\".\"state\" in ('draft', 'pending_review', 'approved', 'submitted', 'resolved_won', 'resolved_lost', 'inquiry_closed')"
+          "value": "\"disputes\".\"state\" in ('draft', 'pending_review', 'approved', 'submitted', 'resolved_won', 'resolved_lost')"
         }
       }
+    },
+    "early_fraud_warnings": {
+      "name": "early_fraud_warnings",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "account_id": {
+          "name": "account_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "stripe_connection_id": {
+          "name": "stripe_connection_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "stripe_warning_id": {
+          "name": "stripe_warning_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "stripe_charge_id": {
+          "name": "stripe_charge_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "stripe_payment_intent_id": {
+          "name": "stripe_payment_intent_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "stripe_customer_id": {
+          "name": "stripe_customer_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "customer_email": {
+          "name": "customer_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "customer_name": {
+          "name": "customer_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "failed_payment_id": {
+          "name": "failed_payment_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "fraud_type": {
+          "name": "fraud_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "actionable": {
+          "name": "actionable",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "amount_cents": {
+          "name": "amount_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "currency": {
+          "name": "currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "received_at": {
+          "name": "received_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "refunded_at": {
+          "name": "refunded_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "stripe_refund_id": {
+          "name": "stripe_refund_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "dismissed_at": {
+          "name": "dismissed_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "early_fraud_warnings_account_idx": {
+          "name": "early_fraud_warnings_account_idx",
+          "columns": [
+            "account_id"
+          ],
+          "isUnique": false
+        },
+        "early_fraud_warnings_account_warning_uq": {
+          "name": "early_fraud_warnings_account_warning_uq",
+          "columns": [
+            "account_id",
+            "stripe_warning_id"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "early_fraud_warnings_account_id_accounts_id_fk": {
+          "name": "early_fraud_warnings_account_id_accounts_id_fk",
+          "tableFrom": "early_fraud_warnings",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "early_fraud_warnings_stripe_connection_id_stripe_connections_id_fk": {
+          "name": "early_fraud_warnings_stripe_connection_id_stripe_connections_id_fk",
+          "tableFrom": "early_fraud_warnings",
+          "tableTo": "stripe_connections",
+          "columnsFrom": [
+            "stripe_connection_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "early_fraud_warnings_failed_payment_id_failed_payments_id_fk": {
+          "name": "early_fraud_warnings_failed_payment_id_failed_payments_id_fk",
+          "tableFrom": "early_fraud_warnings",
+          "tableTo": "failed_payments",
+          "columnsFrom": [
+            "failed_payment_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "cron_alerts": {
       "name": "cron_alerts",
@@ -3563,6 +3626,14 @@
           "notNull": false,
           "autoincrement": false
         },
+        "disputes_enabled": {
+          "name": "disputes_enabled",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        },
         "audit_lookback_days": {
           "name": "audit_lookback_days",
           "type": "integer",
@@ -4320,6 +4391,14 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'card_expiring'"
         }
       },
       "indexes": {
@@ -4504,6 +4583,20 @@
         },
         "card_funding": {
           "name": "card_funding",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "network_advice_code": {
+          "name": "network_advice_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "network_decline_code": {
+          "name": "network_decline_code",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

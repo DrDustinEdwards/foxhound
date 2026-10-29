@@ -7,7 +7,7 @@ import { mergeEvidence, readDisputeIntakeContext } from "~/lib/disputes/context.
 import { buildEvidenceFacts, draftDisputeEvidence } from "~/lib/disputes/evidence";
 import { isDisputeResolved } from "~/lib/disputes/labels";
 import { sendDisputeCreatedNotice, sendDisputeOutcomeNotice } from "~/lib/disputes/notices.server";
-import { readDisputeProductDescription } from "~/lib/disputes/queries.server";
+import { readDisputeProductDescription, readDisputesEnabled } from "~/lib/disputes/queries.server";
 import { resolveDisputeCap, type ResolvedDisputeCap } from "~/lib/billing/dispute-cap";
 import { DISPUTE_CREDIT_DESCRIPTION, issueCreditNoteForEvidence } from "~/lib/billing/credit-note";
 import { executeMoneyWrite } from "~/lib/money/execute";
@@ -54,6 +54,17 @@ export async function handleStampDispute(
   intent: IntentOf<"stamp_dispute">,
 ): Promise<WebhookOutcome> {
   const { env, accountId, connectionId, claim, idempotencyKey } = ctx;
+  // Disputes switched off on /settings/disputes: Recova's step 1, log and
+  // return. The claim still commits, so a redelivery stays a duplicate.
+  if (!(await readDisputesEnabled(getDb(env), accountId))) {
+    console.log(`dispute ${intent.stripeDisputeId}: Disputes is off for account ${accountId}; not created`);
+    const { applied } = await executeMoneyWrite(env, {
+      accountId,
+      idempotencyKey,
+      build: (db) => buildClaimOnlyBatch(db, claim),
+    });
+    return applied ? { status: "ignored", reason: "disputes_disabled" } : { status: "duplicate" };
+  }
   // charge.dispute.created (dispute intake): resolve the recovery this
   // charge belongs to (if any, the Phase 8-live enrichment seam above),
   // draft evidence grounded only in what that resolution and our own

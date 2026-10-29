@@ -4,15 +4,17 @@ import { creditOwedFeeLines, creditSweepFailureError, describeCreditSweep } from
 import { computeBillingPeriod, describeSweepRun, runMonthlyBilling } from "~/lib/billing/run";
 import {
   CRON_SCHEDULE_DAILY,
+  CRON_SCHEDULE_EXPIRING_CARDS,
   CRON_SCHEDULE_WEEKLY,
   CRON_SCHEDULE_MONTHLY,
   CRON_SCHEDULE_MONTHLY_AUDIT,
   CRON_SCHEDULE_RECOVERY_TICK,
   RECOVERY_TICK_CRON_NAME,
 } from "~/lib/constants";
-import { DEMO_RESET_CRON_NAME } from "~/lib/demo/constants";
+import { DEMO_BUSINESSES, DEMO_RESET_CRON_NAME } from "~/lib/demo/constants";
 import { seedDemoAccount } from "~/lib/demo/seed";
 import { runIntelligenceAiForAllAccounts } from "~/lib/intelligence/ai-run.server";
+import { runAlertsForAllAccounts } from "~/lib/intelligence/alert-run.server";
 import { runIntelligenceSyncForAllAccounts } from "~/lib/intelligence/sync.server";
 
 import { runD1Backup } from "~/lib/backup/d1-backup";
@@ -89,15 +91,12 @@ const billingMonthly: CronHandler = async (env, ctx) => {
 };
 
 /** The Intelligence deterministic sync (customer_context signals +
- *  mrr_snapshots, the free MRR tier), wrapped as a cron handler. Runs monthly,
- *  alongside billing: MRR movements are a monthly measure (new/expansion/
- *  contraction/churn/reactivation are computed against the PRIOR run's
- *  customer_context state), and the dashboard already labels snapshots by
- *  month and captions the movements chart "latest month" (dashboard.tsx). A
- *  daily cadence would silently mismatch both: "latest 12" would cover under
- *  two weeks instead of a year, and "latest month" would show one day's
- *  movement. CRON_SCHEDULE_MONTHLY is already registered in wrangler.jsonc
- *  (billing-monthly uses it), so this needs no deploy-config change either. */
+ *  mrr_snapshots, the free MRR tier), wrapped as a cron handler. Runs daily,
+ *  as Recova's compute-intelligence-mrr did: each row's movements are measured
+ *  against the PRIOR run's customer_context state, so one row is one day's
+ *  movement, and the dashboard reads 90 days of them (trends.server.ts) while
+ *  the console rolls them up by month (getMrrAnalytics). It runs before
+ *  intelligence-ai in CRON_JOBS so the narrative reads today's row. */
 const intelligenceSync: CronHandler = async (env) => {
   const results = await runIntelligenceSyncForAllAccounts(env, Date.now());
   const customersProcessed = results.reduce((sum, r) => sum + r.customersProcessed, 0);
@@ -118,8 +117,18 @@ const intelligenceSync: CronHandler = async (env) => {
  *  retries + dunning sends; see app/lib/cron/recovery-tick.ts. */
 const recoveryTick: CronHandler = (env, ctx) => runRecoveryTick(env, {}, ctx?.runId ?? null);
 
-/** The Intelligence AI half (health scoring -> predictions -> alerts ->
- *  nightly narrative), wrapped as a cron handler. Runs on the daily/nightly
+/** Recova's evaluateAlerts, which ran at the tail of its recovery cron: every
+ *  account's alerts against its eleven metrics, then the critical customers
+ *  check. On the recovery tick's schedule and listed after it and the dispute
+ *  reminders, so it reads what they just did; the 24 hour cooldown keeps each alert to one
+ *  message a day (app/lib/intelligence/alert-run.server.ts). */
+const alertsEvaluate: CronHandler = async (env) => {
+  const { accounts, fired } = await runAlertsForAllAccounts(env, Date.now());
+  return { rowsProcessed: fired, message: `${accounts} accounts, ${fired} alerts fired` };
+};
+
+/** The Intelligence AI half (health scoring -> predictions -> nightly
+ *  narrative), wrapped as a cron handler. Runs on the daily/nightly
  *  schedule (PRICING.md: "nightly AI analyst narrative"), reusing
  *  CRON_SCHEDULE_DAILY rather than a new wrangler.jsonc trigger. Score/
  *  predict/alert always commit; the narrative fails safe (a skipped narrative
@@ -127,7 +136,6 @@ const recoveryTick: CronHandler = (env, ctx) => runRecoveryTick(env, {}, ctx?.ru
 const intelligenceAi: CronHandler = async (env) => {
   const results = await runIntelligenceAiForAllAccounts(env, Date.now());
   const customersScored = results.reduce((sum, r) => sum + r.customersScored, 0);
-  const alertsFired = results.reduce((sum, r) => sum + r.alertsFired, 0);
   const narrativesGenerated = results.filter((r) => r.narrativeGenerated).length;
   const skipped = results.filter((r) => r.narrativeSkippedReason !== null).length;
   const skippedNote = skipped > 0 ? `, ${skipped} narrative(s) skipped` : "";
@@ -135,17 +143,18 @@ const intelligenceAi: CronHandler = async (env) => {
     rowsProcessed: customersScored,
     message:
       `${results.length} accounts, ${customersScored} customers scored, ` +
-      `${alertsFired} alerts fired, ${narrativesGenerated} narratives generated${skippedNote}`,
+      `${narrativesGenerated} narratives generated${skippedNote}`,
   };
 };
 
-/** The demo-account reset: wipes and rebuilds the seeded demo account daily, so a
- *  prospect clicking around cannot leave it broken for the next visitor. The
- *  seeder is deterministic + idempotent and makes no Stripe/AI call; the demo
- *  account is firewalled out of every other cron by its DEMO_ACCOUNT_ID_PREFIX. */
+/** The demo-account reset: wipes and rebuilds both seeded demo businesses
+ *  (Teamflow, Bolt Analytics) daily, so a prospect clicking around cannot leave
+ *  them broken for the next visitor. The seeder is deterministic + idempotent
+ *  and makes no Stripe/AI call; the demo accounts are firewalled out of every
+ *  other cron by their DEMO_ACCOUNT_ID_PREFIX. */
 const demoReset: CronHandler = async (env) => {
   await seedDemoAccount(getDb(env), new Date());
-  return { rowsProcessed: 1, message: "demo account reseeded" };
+  return { rowsProcessed: DEMO_BUSINESSES.length, message: `${DEMO_BUSINESSES.length} demo accounts reseeded` };
 };
 
 /** The never-executed and overdue detector (313). Ruling 311 measured that a cron
@@ -156,11 +165,13 @@ const demoReset: CronHandler = async (env) => {
  *  makes the self-reference below safe: the array is fully constructed long
  *  before any cron fires. Expectations are therefore DERIVED from the registry,
  *  so a job added tomorrow is watched automatically instead of being forgotten. */
-/** The nightly expiring-card alert (341). Two passes in one job, like legacy:
+/** The daily expiring-card alert (341). Two passes in one job, like legacy:
  *  scan every connected account's active subscriptions for cards inside the
  *  30-day lead window and record a candidate, then send one customer-facing
- *  warning per unsent candidate. CRON_SCHEDULE_DAILY matches legacy's nightly
- *  cadence, and the CronLockDurableObject lease in run.ts is what stops two
+ *  warning per unsent candidate. CRON_SCHEDULE_EXPIRING_CARDS is legacy's
+ *  "0 9 * * *" (vercel.json, /api/cron/expiring-cards): it rode the 03:00
+ *  daily sweep until parity gap 11, which landed the email in the middle of
+ *  the US night. The CronLockDurableObject lease in run.ts is what stops two
  *  ticks scanning at once. */
 /** The win-back send pass (343, 344). Legacy's own header says it "Runs hourly
  *  via Vercel Cron (piggybacking on process-recovery schedule)", so its cadence
@@ -289,16 +300,17 @@ export const CRON_JOBS: CronJob[] = [
   { name: RECOVERY_TICK_CRON_NAME, schedule: CRON_SCHEDULE_RECOVERY_TICK, handler: recoveryTick },
   { name: "winback-send", schedule: CRON_SCHEDULE_RECOVERY_TICK, handler: winbackSend },
   { name: DISPUTE_REMINDERS_CRON_NAME, schedule: CRON_SCHEDULE_RECOVERY_TICK, handler: disputeReminders },
+  { name: "alerts-evaluate", schedule: CRON_SCHEDULE_RECOVERY_TICK, handler: alertsEvaluate },
   { name: "weekly-digest", schedule: CRON_SCHEDULE_WEEKLY, handler: weeklyDigest },
   { name: "cron-health", schedule: CRON_SCHEDULE_DAILY, handler: cronHealth },
-  { name: "expiring-cards", schedule: CRON_SCHEDULE_DAILY, handler: expiringCards },
+  { name: "expiring-cards", schedule: CRON_SCHEDULE_EXPIRING_CARDS, handler: expiringCards },
   { name: "d1-backup", schedule: CRON_SCHEDULE_DAILY, handler: d1Backup },
   { name: DEMO_RESET_CRON_NAME, schedule: CRON_SCHEDULE_DAILY, handler: demoReset },
   { name: "credit-note-retry", schedule: CRON_SCHEDULE_DAILY, handler: creditNoteRetry },
   { name: "stripe-deauthorize-retry", schedule: CRON_SCHEDULE_DAILY, handler: stripeDeauthorizeRetry },
   { name: "dispute-fee-pricing", schedule: CRON_SCHEDULE_DAILY, handler: disputeFeePricing },
   { name: "billing-monthly", schedule: CRON_SCHEDULE_MONTHLY, handler: billingMonthly },
-  { name: "intelligence-sync", schedule: CRON_SCHEDULE_MONTHLY, handler: intelligenceSync },
+  { name: "intelligence-sync", schedule: CRON_SCHEDULE_DAILY, handler: intelligenceSync },
   { name: "monthly-audit", schedule: CRON_SCHEDULE_MONTHLY_AUDIT, handler: monthlyAudit },
   { name: "intelligence-ai", schedule: CRON_SCHEDULE_DAILY, handler: intelligenceAi },
   { name: "retention-engagement-events", schedule: CRON_SCHEDULE_DAILY, handler: sweepEngagementEvents },

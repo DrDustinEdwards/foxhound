@@ -50,6 +50,8 @@ export interface DigestInput extends DigestNumbers {
   /** Recova gates the Disputes row and section on the product being active. */
   disputesActive: boolean;
   highRiskCustomers: { name: string; mrrCents: number | null }[];
+  /** Customers the nightly scoring flagged for personal outreach. */
+  personalOutreachCount: number;
   /** The digest's own clock, so the header line and subject agree. */
   now: Date;
   /** The app's origin (Recova's APP_URL). Passed in so this module stays free
@@ -147,25 +149,26 @@ function disputesSection(input: DigestInput): Block[] {
   ];
 }
 
-/**
- * Recova's Intelligence section, minus one line.
- *
- * RECOVA'S PERSONAL-OUTREACH COUNT IS OMITTED, not approximated. It reads
- * `health_factors->>recommended_action = 'personal_outreach'`, and nothing in
- * Foxhound writes `recommended_action`: it exists only as demo seed data and as
- * the unwritten `ai_recommended_actions` column (parity/ENGINE-DIGEST.md binding
- * 5, RULES.md 3.18). The top-at-risk list stays, because health_score and
- * mrr_contribution_cents ARE written.
- */
+/** Recova's Intelligence section: the personal-outreach count, then the top
+ *  at-risk customers, when there is either to report. */
 function intelligenceSection(input: DigestInput): Block[] {
-  if (input.highRiskCustomers.length === 0) return [];
-  const out: Block[] = [
-    { type: "paragraph", text: "Intelligence" },
-    { type: "paragraph", text: "Top at-risk customers" },
-    ...input.highRiskCustomers.map((c): Block =>
-      c.mrrCents != null ? row(c.name, `${formatAmount(c.mrrCents, input.currency)}/mo`) : { type: "paragraph", text: c.name },
-    ),
-  ];
+  const outreach = input.personalOutreachCount;
+  if (input.highRiskCustomers.length === 0 && outreach === 0) return [];
+  const out: Block[] = [{ type: "paragraph", text: "Intelligence" }];
+  if (outreach > 0) {
+    out.push({
+      type: "paragraph",
+      text: `${outreach} ${outreach === 1 ? "customer" : "customers"} flagged for personal outreach.`,
+    });
+  }
+  if (input.highRiskCustomers.length > 0) {
+    out.push(
+      { type: "paragraph", text: "Top at-risk customers" },
+      ...input.highRiskCustomers.map((c): Block =>
+        c.mrrCents != null ? row(c.name, `${formatAmount(c.mrrCents, input.currency)}/mo`) : { type: "paragraph", text: c.name },
+      ),
+    );
+  }
   if (DIGEST_RECOMMENDATIONS_LIVE) {
     out.push({
       type: "button",
